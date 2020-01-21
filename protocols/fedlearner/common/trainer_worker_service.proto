@@ -1,0 +1,88 @@
+/* Copyright 2020 The FedLearner Authors. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+syntax = "proto3";
+import "tensorflow/core/framework/tensor.proto";
+import "fedlearner/common/common.proto";
+
+
+package fedlearner.common;
+
+
+message PrefetchMessage {
+  uint64 iter_id = 1;
+  repeated uint64 example_ids = 2;
+};
+
+message StartMessage {
+  uint64 iter_id = 1;
+};
+
+message CommitMessage {
+  uint64 iter_id = 1;
+};
+
+message DataMessage {
+  uint64 iter_id = 1;
+  string name = 2;
+  tensorflow.TensorProto tensor = 3;
+};
+
+message TrainerWorkerMessage {
+  uint64 seq_num = 1;
+  oneof msg {
+    PrefetchMessage prefetch = 2;
+    StartMessage start = 3;
+    CommitMessage commit = 4;
+    DataMessage data = 5;
+  };
+};
+
+message TrainerWorkerResponse {
+  Status status = 1;
+  uint64 next_seq_num = 2;
+}
+
+message LoadDataBlockRequest {
+  uint64 count = 1;
+  string block_id = 2;
+};
+
+message ConnectRequest {
+  string app_id = 1;
+  uint32 worker_rank = 2;
+}
+
+message ConnectResponse {
+  string app_id = 1;
+  uint32 worker_rank = 2;
+}
+
+message HeartbeatRequest {
+}
+
+message HeartbeatResponse {
+  string app_id = 1;
+  uint32 worker_rank = 2;
+  uint64 current_iter_id = 3;
+}
+
+service TrainerWorkerService {
+  rpc Transmit (TrainerWorkerMessage) returns (TrainerWorkerResponse) {}
+  rpc StreamTransmit (stream TrainerWorkerMessage) returns (stream TrainerWorkerResponse) {}
+  rpc LoadDataBlock (LoadDataBlockRequest) returns (Status) {}
+  rpc Connect (ConnectRequest) returns (ConnectResponse) {}
+  rpc Heartbeat (HeartbeatRequest) returns (HeartbeatResponse) {}
+}

@@ -1,0 +1,281 @@
+# Copyright 2020 The FedLearner Authors. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+--- nginx-1.16.1/src/http/modules/ngx_http_grpc_module.c	2019-08-13 20:51:43.000000000 +0800
++++ nginx-1.16.1.new/src/http/modules/ngx_http_grpc_module.c	2020-01-05 11:45:09.670310286 +0800
+@@ -24,6 +24,9 @@
+     ngx_http_grpc_headers_t    headers;
+     ngx_array_t               *headers_source;
+ 
++    ngx_array_t               *proxy_lengths;
++    ngx_array_t               *proxy_values;
++
+     ngx_str_t                  host;
+     ngx_uint_t                 host_set;
+ 
+@@ -511,6 +514,106 @@
+       ngx_http_null_variable
+ };
+ 
++static ngx_int_t
++ngx_http_grpc_eval(ngx_http_request_t *r, ngx_http_grpc_ctx_t *ctx,
++    ngx_http_grpc_loc_conf_t *glcf)
++{
++    u_char               *p;
++    size_t                add;
++    u_short               port;
++    ngx_str_t             proxy;
++    ngx_url_t             url;
++    ngx_http_upstream_t  *u;
++
++    if (ngx_http_script_run(r, &proxy, glcf->proxy_lengths->elts, 0,
++                            glcf->proxy_values->elts)
++        == NULL)
++    {
++        return NGX_ERROR;
++    }
++
++    if (proxy.len > 7
++        && ngx_strncasecmp(proxy.data, (u_char *) "grpc://", 7) == 0)
++    {
++        add = 7;
++        port = 80;
++
++#if (NGX_HTTP_SSL)
++
++    } else if (proxy.len > 8
++               && ngx_strncasecmp(proxy.data, (u_char *) "grpcs://", 8) == 0)
++    {
++        add = 8;
++        port = 443;
++        r->upstream->ssl = 1;
++
++#endif
++
++    } else {
++        ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
++                      "invalid URL prefix in \"%V\"", &proxy);
++        return NGX_ERROR;
++    }
++
++    u = r->upstream;
++
++    u->schema.len = add;
++    u->schema.data = proxy.data;
++
++    ngx_memzero(&url, sizeof(ngx_url_t));
++
++    url.url.len = proxy.len - add;
++    url.url.data = proxy.data + add;
++    url.default_port = port;
++    url.uri_part = 1;
++    url.no_resolve = 1;
++
++    if (ngx_parse_url(r->pool, &url) != NGX_OK) {
++        if (url.err) {
++            ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
++                          "%s in upstream \"%V\"", url.err, &url.url);
++        }
++
++        return NGX_ERROR;
++    }
++
++    if (url.uri.len) {
++        if (url.uri.data[0] == '?') {
++            p = ngx_pnalloc(r->pool, url.uri.len + 1);
++            if (p == NULL) {
++                return NGX_ERROR;
++            }
++
++            *p++ = '/';
++            ngx_memcpy(p, url.uri.data, url.uri.len);
++
++            url.uri.len++;
++            url.uri.data = p - 1;
++        }
++    }
++
++    //ctx->vars.key_start = u->schema;
++    //ngx_http_proxy_set_vars(&url, &ctx->vars);
++
++    u->resolved = ngx_pcalloc(r->pool, sizeof(ngx_http_upstream_resolved_t));
++    if (u->resolved == NULL) {
++        return NGX_ERROR;
++    }
++
++    if (url.addrs) {
++        u->resolved->sockaddr = url.addrs[0].sockaddr;
++        u->resolved->socklen = url.addrs[0].socklen;
++        u->resolved->name = url.addrs[0].name;
++        u->resolved->naddrs = 1;
++    }
++
++    u->resolved->host = url.host;
++    u->resolved->port = (in_port_t) (url.no_port ? port : url.port);
++    u->resolved->no_port = url.no_port;
++
++    return NGX_OK;
++}
++
+ 
+ static ngx_int_t
+ ngx_http_grpc_handler(ngx_http_request_t *r)
+@@ -527,19 +630,31 @@
+     glcf = ngx_http_get_module_loc_conf(r, ngx_http_grpc_module);
+ 
+     u = r->upstream;
++    ctx = ngx_pcalloc(r->pool, sizeof(ngx_http_grpc_ctx_t));
++    if (ctx == NULL) {
++        return NGX_HTTP_INTERNAL_SERVER_ERROR;
++    }
++
++    ctx->request = r;
+ 
++    if (glcf->proxy_lengths == NULL) {
+ #if (NGX_HTTP_SSL)
+-    u->ssl = (glcf->upstream.ssl != NULL);
++        u->ssl = (glcf->upstream.ssl != NULL);
+ 
+-    if (u->ssl) {
+-        ngx_str_set(&u->schema, "grpcs://");
++        if (u->ssl) {
++            ngx_str_set(&u->schema, "grpcs://");
+ 
+-    } else {
+-        ngx_str_set(&u->schema, "grpc://");
+-    }
++        } else {
++            ngx_str_set(&u->schema, "grpc://");
++        }
+ #else
+-    ngx_str_set(&u->schema, "grpc://");
++        ngx_str_set(&u->schema, "grpc://");
+ #endif
++    } else {
++        if (ngx_http_grpc_eval(r, ctx, glcf) != NGX_OK)  {
++            return NGX_HTTP_INTERNAL_SERVER_ERROR;
++        }
++    }
+ 
+     u->output.tag = (ngx_buf_tag_t) &ngx_http_grpc_module;
+ 
+@@ -551,13 +666,6 @@
+     u->abort_request = ngx_http_grpc_abort_request;
+     u->finalize_request = ngx_http_grpc_finalize_request;
+ 
+-    ctx = ngx_pcalloc(r->pool, sizeof(ngx_http_grpc_ctx_t));
+-    if (ctx == NULL) {
+-        return NGX_HTTP_INTERNAL_SERVER_ERROR;
+-    }
+-
+-    ctx->request = r;
+-
+     ngx_http_set_ctx(r, ctx, ngx_http_grpc_module);
+ 
+     u->input_filter_init = ngx_http_grpc_filter_init;
+@@ -4209,6 +4317,9 @@
+     conf->upstream.pass_trailers = 1;
+     conf->upstream.preserve_output = 1;
+ 
++    conf->proxy_lengths = NULL;
++    conf->proxy_values = NULL;
++
+     ngx_str_set(&conf->upstream.module, "grpc");
+ 
+     return conf;
+@@ -4227,7 +4338,6 @@
+ 
+     ngx_conf_merge_ptr_value(conf->upstream.local,
+                               prev->upstream.local, NULL);
+-
+     ngx_conf_merge_value(conf->upstream.socket_keepalive,
+                               prev->upstream.socket_keepalive, 0);
+ 
+@@ -4540,15 +4650,49 @@
+     size_t                     add;
+     ngx_str_t                 *value, *url;
+     ngx_url_t                  u;
++    ngx_uint_t                 n;
+     ngx_http_core_loc_conf_t  *clcf;
++    ngx_http_script_compile_t  sc;
+ 
+-    if (glcf->upstream.upstream) {
++    if (glcf->upstream.upstream || glcf->proxy_lengths) {
+         return "is duplicate";
+     }
+ 
++    clcf = ngx_http_conf_get_module_loc_conf(cf, ngx_http_core_module);
++
++    clcf->handler = ngx_http_grpc_handler;
++
++    if (clcf->name.len && clcf->name.data[clcf->name.len - 1] == '/') {
++        clcf->auto_redirect = 1;
++    }
++
+     value = cf->args->elts;
+     url = &value[1];
+ 
++    n = ngx_http_script_variables_count(url);
++    if (n) {
++
++        ngx_memzero(&sc, sizeof(ngx_http_script_compile_t));
++
++        sc.cf = cf;
++        sc.source = url;
++        sc.lengths = &glcf->proxy_lengths;
++        sc.values = &glcf->proxy_values;
++        sc.variables = n;
++        sc.complete_lengths = 1;
++        sc.complete_values = 1;
++
++        if (ngx_http_script_compile(&sc) != NGX_OK) {
++            return NGX_CONF_ERROR;
++        }
++
++#if (NGX_HTTP_SSL)
++        glcf->ssl = 1;
++#endif
++
++        return NGX_CONF_OK;
++    }
++
+     if (ngx_strncasecmp(url->data, (u_char *) "grpc://", 7) == 0) {
+         add = 7;
+ 
+@@ -4593,13 +4737,6 @@
+         ngx_str_set(&glcf->host, "localhost");
+     }
+ 
+-    clcf = ngx_http_conf_get_module_loc_conf(cf, ngx_http_core_module);
+-
+-    clcf->handler = ngx_http_grpc_handler;
+-
+-    if (clcf->name.len && clcf->name.data[clcf->name.len - 1] == '/') {
+-        clcf->auto_redirect = 1;
+-    }
+ 
+     return NGX_CONF_OK;
+ }
+@@ -4702,9 +4839,8 @@
+ 
+     if (ngx_ssl_client_session_cache(cf, glcf->upstream.ssl,
+                                      glcf->upstream.ssl_session_reuse)
+-        != NGX_OK)
+-    {
+-        return NGX_ERROR;
++        != NGX_OK) {
++        return NGX_ERROR; 
+     }
+ 
+ #ifdef TLSEXT_TYPE_application_layer_protocol_negotiation
