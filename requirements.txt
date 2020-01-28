@@ -2,7 +2,7 @@ pylint
 jinja2
 grpcio-tools
 setuptools==41.0.0
-tensorflow==1.15.0
+tensorflow==1.15.2
 etcd3
 influxdb
 
