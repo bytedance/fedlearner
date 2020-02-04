@@ -13,7 +13,7 @@
 # limitations under the License.
 
 # coding: utf-8
-"""Metrics logger""" 
+"""Metrics logger"""
 
 import time
 import os

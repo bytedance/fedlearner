@@ -15,7 +15,6 @@
 # coding: utf-8
 
 import tensorflow.compat.v1 as tf
-import logging
 from tensorflow.compat.v1.train import Optimizer
 from tensorflow.compat.v1.estimator import ModeKeys
 

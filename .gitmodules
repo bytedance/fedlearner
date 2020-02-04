@@ -1,0 +1,4 @@
+[submodule "thirdparty/tensorflow"]
+	path = thirdparty/tensorflow
+	url = https://github.com/tensorflow/tensorflow.git
+
