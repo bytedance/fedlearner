@@ -16,13 +16,13 @@ protobuf:
 		protocols/fedlearner/common/*.proto
 
 lint:
-	pylint --rcfile ci/pylintrc --ignore protobuf fedlearner 
+	pylint --rcfile ci/pylintrc fedlearner 
 
 test:
 	python test/test_bridge.py
-	python test/test_data_block_loader.py
-	python test/test_train_master.py
-	python test/test_etcd_client.py
+	# python test/test_data_block_loader.py
+	# python test/test_train_master.py
+	# python test/test_etcd_client.py
 
 docker-build:
 	docker build . -t ${IMG}
