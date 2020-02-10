@@ -35,17 +35,17 @@ class TestRawDataVisitor(unittest.TestCase):
         self.data_source.data_source_meta.name = 'fclh_test'
         self.data_source.data_source_meta.partition_num = 1
         self.data_source.raw_data_dir = "./test/compressed_raw_data"
-        self.etcd = etcd_client.EtcdClient('test_cluster', 'localhost:2379', 'fedlearner')
+        self.etcd = etcd_client.EtcdClient('test_cluster', 'localhost:2379',
+                                           'fedlearner', True)
         self.etcd.delete_prefix(self.data_source.data_source_meta.name)
         self.assertEqual(self.data_source.data_source_meta.partition_num, 1)
         partition_dir = os.path.join(self.data_source.raw_data_dir, 'partition_0')
         self.assertTrue(gfile.Exists(partition_dir))
         manifest_manager = raw_data_manifest_manager.RawDataManifestManager(
             self.etcd, self.data_source)
-        options = customized_options.CustomizedOptions()
-        options.set_raw_data_iter('TF_DATASET')
-        options.set_compressed_type('GZIP')
-        rdv = raw_data_visitor.RawDataVisitor(self.etcd, self.data_source, 0, options)
+        customized_options.set_raw_data_iter('TF_DATASET')
+        customized_options.set_compressed_type('GZIP')
+        rdv = raw_data_visitor.RawDataVisitor(self.etcd, self.data_source, 0)
         expected_index = 0
         for (index, item) in rdv:
             if index > 0 and index % 1024 == 0:

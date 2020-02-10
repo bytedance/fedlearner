@@ -49,7 +49,8 @@ class TestExampleJoin(unittest.TestCase):
             gfile.DeleteRecursively(self.data_source.example_dumped_dir)
         if gfile.Exists(self.data_source.raw_data_dir):
             gfile.DeleteRecursively(self.data_source.raw_data_dir)
-        self.etcd = etcd_client.EtcdClient('test_cluster', 'localhost:2379', 'fedlearner')
+        self.etcd = etcd_client.EtcdClient('test_cluster', 'localhost:2379',
+                                           'fedlearner', True)
         self.etcd.delete_prefix(self.data_source.data_source_meta.name)
 
     def generate_raw_data(self):
@@ -144,10 +145,9 @@ class TestExampleJoin(unittest.TestCase):
     def test_example_join(self):
         self.generate_raw_data()
         self.generate_example_id()
-        options = customized_options.CustomizedOptions()
-        options.set_example_joiner('STREAM_JOINER')
+        customized_options.set_example_joiner('STREAM_JOINER')
         sei = joiner_impl.create_example_joiner(
-                options, self.etcd, self.data_source, 0, options
+                self.etcd, self.data_source, 0
             )
         sei.join_example()
         self.assertTrue(sei.join_finished())

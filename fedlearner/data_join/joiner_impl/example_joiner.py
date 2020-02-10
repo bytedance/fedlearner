@@ -25,14 +25,14 @@ from fedlearner.data_join.data_block_manager import (
 )
 
 class ExampleJoiner(object):
-    def __init__(self, etcd, data_source, partition_id, options):
+    def __init__(self, etcd, data_source, partition_id):
         self._data_source = data_source
         self._partition_id = partition_id
         self._leader_visitor = ExampleIdVisitor(
                 ExampleIdManager(data_source, partition_id)
             )
         self._follower_visitor = RawDataVisitor(
-                etcd, data_source, partition_id, options
+                etcd, data_source, partition_id
             )
         self._data_block_manager = DataBlockManager(data_source, partition_id)
 

@@ -21,8 +21,8 @@ import logging
 import sys
 
 from fedlearner.data_join.joiner_impl.example_joiner import ExampleJoiner
-
 from fedlearner.data_join.joiner_impl.stream_joiner import StreamExampleJoiner
+from fedlearner.data_join import customized_options
 
 joiner_impl_map = {}
 default_joiner_impl = StreamExampleJoiner
@@ -38,8 +38,8 @@ for _, module, ispackage in pkgutil.walk_packages(
             continue
         joiner_impl_map[m.name()] = m
 
-def create_example_joiner(options, *args, **kwargs):
-    joiner = options.get_example_joiner()
+def create_example_joiner(*args, **kwargs):
+    joiner = customized_options.get_example_joiner()
     if joiner is None:
         return default_joiner_impl(*args, **kwargs)
     if joiner in joiner_impl_map:

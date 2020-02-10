@@ -23,7 +23,8 @@ from fedlearner.data_join import raw_data_manifest_manager
 
 class TestRawDataManifestManager(unittest.TestCase):
     def test_raw_data_manifest_manager(self):
-        cli = etcd_client.EtcdClient('test_cluster', 'localhost:2379', 'fedlearner')
+        cli = etcd_client.EtcdClient('test_cluster', 'localhost:2379',
+                                     'fedlearner', True)
         data_source = common_pb.DataSource()
         data_source.data_source_meta.name = "milestone-x"
         data_source.data_source_meta.partition_num = 4

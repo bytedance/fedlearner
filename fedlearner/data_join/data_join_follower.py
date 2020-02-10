@@ -27,7 +27,7 @@ from fedlearner.data_join.example_join_leader import (
 
 class DataJoinFollower(dj_grpc.DataJoinFollowerServiceServicer):
     def __init__(self, peer_client, master_client,
-                 rank_id, etcd, data_source, options):
+                 rank_id, etcd, data_source):
         super(DataJoinFollower, self).__init__()
         assert data_source.role == common_pb.FLRole.Follower
         self._peer_client = peer_client
@@ -41,8 +41,7 @@ class DataJoinFollower(dj_grpc.DataJoinFollowerServiceServicer):
             )
         self._example_join_leader = ExampleJoinLeader(
                 self._peer_client, self._master_client,
-                self._rank_id, self._etcd,
-                self._data_source, options
+                self._rank_id, self._etcd, self._data_source
             )
 
     def start(self):

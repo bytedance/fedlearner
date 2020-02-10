@@ -14,26 +14,35 @@
 
 # coding: utf-8
 
-class CustomizedOptions(object):
+class _CustomizedOptions(object):
     def __init__(self):
-        self._raw_data_iter = None
-        self._example_joiner = None
-        self._compressed_type = None
+        self.use_mock_etcd = False
+        self.raw_data_iter = None
+        self.example_joiner = None
+        self.compressed_type = None
 
-    def set_raw_data_iter(self, raw_data_iter):
-        self._raw_data_iter = raw_data_iter
+global_options = _CustomizedOptions()
 
-    def get_raw_data_iter(self):
-        return self._raw_data_iter
+def set_use_mock_etcd():
+    global_options.use_mock_etcd = True
 
-    def set_example_joiner(self, exampel_joiner):
-        self._example_joiner = exampel_joiner
+def get_use_mock_etcd():
+    return global_options.use_mock_etcd
 
-    def get_example_joiner(self):
-        return self._example_joiner
+def set_raw_data_iter(raw_data_iter):
+    global_options.raw_data_iter = raw_data_iter
 
-    def set_compressed_type(self, compressed_type):
-        self._compressed_type = compressed_type
+def get_raw_data_iter():
+    return global_options.raw_data_iter
 
-    def get_compressed_type(self):
-        return self._compressed_type
+def set_example_joiner(exampel_joiner):
+    global_options.example_joiner = exampel_joiner
+
+def get_example_joiner():
+    return global_options.example_joiner
+
+def set_compressed_type(compressed_type):
+    global_options.compressed_type = compressed_type
+
+def get_compressed_type():
+    return global_options.compressed_type

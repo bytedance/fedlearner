@@ -26,13 +26,13 @@ from fedlearner.data_join.data_block_manager import (
 )
 
 class DataBlockDumperManager(object):
-    def __init__(self, etcd, data_source, partition_id, options):
+    def __init__(self, etcd, data_source, partition_id):
         self._lock = threading.Lock()
         self._data_source = data_source
         self._partition_id = partition_id
         self._data_block_manager = DataBlockManager(data_source, partition_id)
         self._raw_data_visitor = RawDataVisitor(
-                etcd, data_source, partition_id, options
+                etcd, data_source, partition_id
             )
         self._next_data_block_index = (
                 self._data_block_manager.get_dumped_data_block_num()

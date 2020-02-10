@@ -29,14 +29,13 @@ class _JoinState(Enum):
 
 class ExampleJoinLeader(object):
     def __init__(self, peer_client, master_client,
-                 rank_id, etcd, data_source, options):
+                 rank_id, etcd, data_source):
         self._lock = threading.Lock()
         self._peer_client = peer_client
         self._master_client = master_client
         self._rank_id = rank_id
         self._etcd = etcd
         self._data_source = data_source
-        self._options = options
         self._started = False
         self._state = None
         self._processing_manifest = None
@@ -106,8 +105,8 @@ class ExampleJoinLeader(object):
                 )
             return
         joiner = create_example_joiner(
-                self._options, self._etcd, self._data_source,
-                rsp.manifest.partition_id, self._options
+                self._etcd, self._data_source,
+                rsp.manifest.partition_id
             )
         with self._lock:
             self._processing_manifest = rsp.manifest

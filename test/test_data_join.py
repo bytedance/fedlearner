@@ -23,7 +23,7 @@ import logging
 def main():
     logging.getLogger().setLevel(logging.DEBUG)
     parser = argparse.ArgumentParser(description='All unit test for data join')
-    parser.add_argument('test_dir', type=str, default='./test',
+    parser.add_argument('--test_dir', type=str, default='./test',
                         help='the directory of unit test')
     args = parser.parse_args()
     test_scripts = [

@@ -34,6 +34,7 @@ from fedlearner.data_join.routine_worker import RoutineWorker
 from fedlearner.data_join.raw_data_manifest_manager import (
     RawDataManifestManager
 )
+from fedlearner.data_join import customized_options
 
 class MasterFSM(object):
     INVALID_PEER_FSM_STATE = {}
@@ -291,7 +292,8 @@ class DataJoinMaster(dj_grpc.DataJoinMasterServiceServicer):
                  etcd_name, etcd_addrs, etcd_base_dir):
         super(DataJoinMaster, self).__init__()
         self._data_source_name = data_source_name
-        etcd = EtcdClient(etcd_name, etcd_addrs, etcd_base_dir)
+        etcd = EtcdClient(etcd_name, etcd_addrs, etcd_base_dir,
+                          customized_options.get_use_mock_etcd())
         self._fsm = MasterFSM(peer_client, data_source_name, etcd)
 
     def GetDataSource(self, request, context):
@@ -475,7 +477,11 @@ if __name__ == "__main__":
     parser.add_argument('--data_source_name', type=str,
                         default='test_data_source',
                         help='the name of data source')
+    parser.add_argument('--use_mock_etcd', action='store_true',
+                        help='use to mock etcd for test')
     args = parser.parse_args()
+    if args.use_mock_etcd:
+        customized_options.set_use_mock_etcd()
     master_srv = DataJoinMasterService(
             args.listen_port, args.peer_addr, args.data_source_name,
             args.etcd_name, args.etcd_base_dir, args.etcd_addrs

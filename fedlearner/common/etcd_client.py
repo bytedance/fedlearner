@@ -19,15 +19,15 @@ import socket
 import threading
 import random
 from contextlib import contextmanager
-
 import etcd3
+from fedlearner.common import mock_etcd
 
 class EtcdClient(object):
     ETCD_CLIENT_POOL_LOCK = threading.Lock()
     ETCD_CLIENT_POOL = {}
     ETCD_CLIENT_POOL_DESTORY = False
 
-    def __init__(self, name, addrs, base_dir):
+    def __init__(self, name, addrs, base_dir, use_mock_etcd=False):
         if len(base_dir) == 0 or base_dir[0] != '/':
             base_dir = '/' + base_dir
         self._name = name
@@ -36,30 +36,31 @@ class EtcdClient(object):
         if len(self._addrs) == 0:
             raise ValueError('Empty hosts EtcdClient')
         self._cur_addr_idx = random.randint(0, len(self._addrs) - 1)
+        self._use_mock_etcd = use_mock_etcd
 
     def get_data(self, key):
         addr = self._get_next_addr()
-        with EtcdClient.closing(self._name, addr) as clnt:
+        with EtcdClient.closing(self._name, addr, self._use_mock_etcd) as clnt:
             return clnt.get(self._generate_path(key))[0]
 
     def set_data(self, key, data):
         addr = self._get_next_addr()
-        with EtcdClient.closing(self._name, addr) as clnt:
+        with EtcdClient.closing(self._name, addr, self._use_mock_etcd) as clnt:
             clnt.put(self._generate_path(key), data)
 
     def delete(self, key):
         addr = self._get_next_addr()
-        with EtcdClient.closing(self._name, addr) as clnt:
+        with EtcdClient.closing(self._name, addr, self._use_mock_etcd) as clnt:
             return clnt.delete(self._generate_path(key))
 
     def delete_prefix(self, key):
         addr = self._get_next_addr()
-        with EtcdClient.closing(self._name, addr) as clnt:
+        with EtcdClient.closing(self._name, addr, self._use_mock_etcd) as clnt:
             return clnt.delete_prefix(self._generate_path(key))
 
     def cas(self, key, old_data, new_data):
         addr = self._get_next_addr()
-        with EtcdClient.closing(self._name, addr) as clnt:
+        with EtcdClient.closing(self._name, addr, self._use_mock_etcd) as clnt:
             etcd_path = self._generate_path(key)
             if old_data is None:
                 return clnt.put_if_not_exists(etcd_path, new_data)
@@ -67,13 +68,13 @@ class EtcdClient(object):
 
     def watch_key(self, key):
         addr = self._get_next_addr()
-        with EtcdClient.closing(self._name, addr) as clnt:
+        with EtcdClient.closing(self._name, addr, self._use_mock_etcd) as clnt:
             return clnt.watch(self._generate_path(key))
 
     def get_prefix_kvs(self, prefix):
         addr = self._get_next_addr()
         kvs = []
-        with EtcdClient.closing(self._name, addr) as clnt:
+        with EtcdClient.closing(self._name, addr, self._use_mock_etcd) as clnt:
             for (data, key) in clnt.get_prefix(prefix, sort_order='ascend'):
                 kvs.append((key.key, data))
         return kvs
@@ -107,7 +108,7 @@ class EtcdClient(object):
 
     @classmethod
     @contextmanager
-    def closing(cls, name, addr):
+    def closing(cls, name, addr, use_mock_etcd):
         clnt = None
         with cls.ETCD_CLIENT_POOL_LOCK:
             if (name in cls.ETCD_CLIENT_POOL and
@@ -116,7 +117,10 @@ class EtcdClient(object):
                 cls.ETCD_CLIENT_POOL[name] = cls.ETCD_CLIENT_POOL[name][1:]
         if clnt is None:
             try:
-                clnt = etcd3.client(host=addr[0], port=addr[1])
+                if use_mock_etcd:
+                    clnt = mock_etcd.MockEtcdClient(addr[0], addr[1])
+                else:
+                    clnt = etcd3.client(host=addr[0], port=addr[1])
             except Exception as e:
                 clnt.close()
                 raise e

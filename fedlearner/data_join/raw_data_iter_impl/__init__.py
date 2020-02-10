@@ -21,8 +21,8 @@ import logging
 import sys
 
 from fedlearner.data_join.raw_data_iter_impl.raw_data_iter import RawDataIter
-
 from fedlearner.data_join.raw_data_iter_impl.tf_record_iter import TfRecordIter
+from fedlearner.data_join import customized_options
 
 iter_impl_map = {}
 default_iter_impl = TfRecordIter
@@ -38,8 +38,8 @@ for _, module, ispackage in pkgutil.walk_packages(
             continue
         iter_impl_map[m.name()] = m
 
-def create_raw_data_iter(options, *args, **kwargs):
-    rd_iter = options.get_raw_data_iter()
+def create_raw_data_iter(*args, **kwargs):
+    rd_iter = customized_options.get_raw_data_iter()
     if rd_iter is None:
         return default_iter_impl(*args, **kwargs)
     if rd_iter in iter_impl_map:
