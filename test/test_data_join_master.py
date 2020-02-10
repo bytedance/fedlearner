@@ -23,7 +23,7 @@ from google.protobuf import text_format
 
 import grpc
 
-from fedlearner.data_join import data_join_master
+from fedlearner.data_join import data_join_master, customized_options
 from fedlearner.common import common_pb2 as common_pb
 from fedlearner.common import data_join_service_pb2 as dj_pb
 from fedlearner.common import data_join_service_pb2_grpc as dj_grpc
@@ -37,8 +37,9 @@ class DataJoinMaster(unittest.TestCase):
         etcd_base_dir_l = 'byefl_l'
         etcd_base_dir_f= 'byefl_f'
         data_source_name = 'test_data_source'
-        etcd_l = EtcdClient(etcd_name, etcd_addrs, etcd_base_dir_l)
-        etcd_f = EtcdClient(etcd_name, etcd_addrs, etcd_base_dir_f)
+        customized_options.set_use_mock_etcd()
+        etcd_l = EtcdClient(etcd_name, etcd_addrs, etcd_base_dir_l, True)
+        etcd_f = EtcdClient(etcd_name, etcd_addrs, etcd_base_dir_f, True)
         etcd_l.delete_prefix(data_source_name)
         etcd_f.delete_prefix(data_source_name)
         data_source_l = common_pb.DataSource()

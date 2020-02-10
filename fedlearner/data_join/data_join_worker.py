@@ -33,7 +33,7 @@ from fedlearner.data_join import (
 
 class DataJoinWorkerService(object):
     def __init__(self, listen_port, peer_addr, master_addr, rank_id,
-                 etcd_name, etcd_base_dir, etcd_addrs, options):
+                 etcd_name, etcd_base_dir, etcd_addrs):
         master_channel = make_insecure_channel(
                 master_addr, ChannelType.INTERNAL
             )
@@ -49,8 +49,8 @@ class DataJoinWorkerService(object):
             self._role_repr = "leader"
             peer_client = dj_grpc.DataJoinFollowerServiceStub(peer_channel)
             self._diw = data_join_leader.DataJoinLeader(
-                    peer_client, master_client, rank_id,
-                    etcd, data_source, options
+                    peer_client, master_client,
+                    rank_id, etcd, data_source
                 )
             dj_grpc.add_DataJoinLeaderServiceServicer_to_server(
                     self._diw, self._server
@@ -60,8 +60,8 @@ class DataJoinWorkerService(object):
             self._role_repr = "follower"
             peer_client = dj_grpc.DataJoinLeaderServiceStub(peer_channel)
             self._diw = data_join_follower.DataJoinFollower(
-                    peer_client, master_client, rank_id,
-                    etcd, data_source, options
+                    peer_client, master_client,
+                    rank_id, etcd, data_source
                 )
             dj_grpc.add_DataJoinFollowerServiceServicer_to_server(
                     self._diw, self._server
@@ -121,6 +121,8 @@ if __name__ == "__main__":
                         help='the namespace of etcd key')
     parser.add_argument('--etcd_addrs', type=str,
                         default='localhost:4578', help='the addrs of etcd')
+    parser.add_argument('--use_mock_etcd', action='store_true',
+                        help='use to mock etcd for test')
     parser.add_argument('--listen_port', '-p', type=int, default=4132,
                         help='Listen port of data join master')
     parser.add_argument('--raw_data_iter', type=str, default='TF_RECORD',
@@ -134,19 +136,20 @@ if __name__ == "__main__":
     parser.add_argument('--tf_eager_mode', action='store_true',
                         help='use the eager_mode for tf')
     args = parser.parse_args()
-    cst_options = customized_options.CustomizedOptions()
     if args.raw_data_iter is not None:
-        cst_options.set_raw_data_iter(args.raw_data_iter)
+        customized_options.set_raw_data_iter(args.raw_data_iter)
     if args.example_joiner is not None:
-        cst_options.set_example_joiner(args.example_joiner)
+        customized_options.set_example_joiner(args.example_joiner)
     if args.compressed_type is not None:
-        cst_options.set_compressed_type(args.compressed_type)
+        customized_options.set_compressed_type(args.compressed_type)
+    if args.use_mock_etcd:
+        customized_options.set_use_mock_etcd()
     if args.tf_eager_mode:
         import tensorflow
         tensorflow.compat.v1.enable_eager_execution()
     worker_srv = DataJoinWorkerService(
-            args.listen_port, args.peer_addr, args.master_addr,
-            args.rank_id, args.etcd_name, args.etcd_base_dir,
-            args.etcd_addrs, cst_options
+            args.listen_port, args.peer_addr,
+            args.master_addr, args.rank_id,
+            args.etcd_name, args.etcd_base_dir, args.etcd_addrs
         )
     worker_srv.run()

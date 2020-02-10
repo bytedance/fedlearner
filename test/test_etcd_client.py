@@ -24,7 +24,8 @@ from fedlearner.common import etcd_client
 
 class TestEtcdClient(unittest.TestCase):
     def test_etcd_op(self):
-        cli = etcd_client.EtcdClient('test_cluster', 'localhost:2379', 'data_source_a')
+        cli = etcd_client.EtcdClient('test_cluster', 'localhost:2379',
+                                     'data_source_a', True)
         cli.delete('fl_key')
         cli.set_data('fl_key', 'fl_value')
         self.assertEqual(cli.get_data('fl_key'), b'fl_value')

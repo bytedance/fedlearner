@@ -20,11 +20,10 @@ from fedlearner.data_join.routine_worker import RoutineWorker
 from fedlearner.data_join.data_block_dumper import DataBlockDumperManager
 
 class ExampleJoinFollower(object):
-    def __init__(self, etcd, data_source, options):
+    def __init__(self, etcd, data_source):
         self._lock = threading.Lock()
         self._etcd = etcd
         self._data_source = data_source
-        self._options = options
         self._data_block_dump_manager = None
         self._data_block_dump_worker = None
         self._started = False
@@ -38,8 +37,7 @@ class ExampleJoinFollower(object):
                                    dump_manager.get_partition_id()))
             if dump_manager is None:
                 self._data_block_dump_manager = DataBlockDumperManager(
-                        self._etcd, self._data_source,
-                        partition_id, self._options
+                        self._etcd, self._data_source, partition_id
                     )
                 dump_manager = self._data_block_dump_manager
             next_index = dump_manager.get_next_data_block_index()

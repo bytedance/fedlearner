@@ -34,7 +34,8 @@ class TestRawDataVisitor(unittest.TestCase):
         self.data_source.data_source_meta.name = 'fclh_test'
         self.data_source.data_source_meta.partition_num = 1
         self.data_source.raw_data_dir = "./raw_data"
-        self.etcd = etcd_client.EtcdClient('test_cluster', 'localhost:2379', 'fedlearner')
+        self.etcd = etcd_client.EtcdClient('test_cluster', 'localhost:2379',
+                                           'fedlearner', True)
         self.etcd.delete_prefix(self.data_source.data_source_meta.name)
         self.assertEqual(self.data_source.data_source_meta.partition_num, 1)
         partition_dir = os.path.join(self.data_source.raw_data_dir, 'partition_0')
@@ -88,9 +89,8 @@ class TestRawDataVisitor(unittest.TestCase):
         self.assertEqual(manifest.partition_id, 0)
         self.assertEqual(manifest.state, dj_pb.RawDataState.Syncing)
         self.assertEqual(manifest.allocated_rank_id, 2)
-        options = customized_options.CustomizedOptions()
-        options.set_raw_data_iter('TF_RECORD')
-        rdv = raw_data_visitor.RawDataVisitor(self.etcd, self.data_source, 0, options)
+        customized_options.set_raw_data_iter('TF_RECORD')
+        rdv = raw_data_visitor.RawDataVisitor(self.etcd, self.data_source, 0)
         expected_index = 0
         for (index, item) in rdv:
             self.assertEqual(index, expected_index)

@@ -21,8 +21,8 @@ from contextlib import contextmanager
 import tensorflow as tf
 
 from fedlearner.data_join.raw_data_iter_impl.raw_data_iter import RawDataIter
-
 from fedlearner.data_join.common import make_tf_record_iter
+from fedlearner.data_join import customized_options
 
 class TfExampleItem(RawDataIter.Item):
     def __init__(self, record_str):
@@ -64,9 +64,9 @@ class TfDataSetIter(RawDataIter):
     def name(cls):
         return 'TF_DATASET'
 
-    def __init__(self, options):
+    def __init__(self):
         super(TfDataSetIter, self).__init__()
-        self._compressed_type = options.get_compressed_type()
+        self._compressed_type = customized_options.get_compressed_type()
 
     @contextmanager
     def _data_set(self, fpath):
@@ -105,9 +105,6 @@ class TfRecordIter(RawDataIter):
     @classmethod
     def name(cls):
         return 'TF_RECORD'
-
-    def __init__(self, options):
-        super(TfRecordIter, self).__init__()
 
     def _inner_iter(self, fpath):
         with make_tf_record_iter(fpath) as record_iter:

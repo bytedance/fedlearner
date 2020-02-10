@@ -19,9 +19,9 @@ import logging
 from fedlearner.data_join.joiner_impl.example_joiner import ExampleJoiner
 
 class StreamExampleJoiner(ExampleJoiner):
-    def __init__(self, etcd, data_source, partition_id, options):
+    def __init__(self, etcd, data_source, partition_id):
         super(StreamExampleJoiner, self).__init__(
-                etcd, data_source, partition_id, options
+                etcd, data_source, partition_id
             )
         self._leader_left_pt = None
         self._leader_right_pt = None

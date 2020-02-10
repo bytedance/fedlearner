@@ -20,6 +20,7 @@ lint:
 
 test:
 	python test/test_bridge.py
+	python test/test_data_join.py
 	# python test/test_data_block_loader.py
 	# python test/test_train_master.py
 	# python test/test_etcd_client.py

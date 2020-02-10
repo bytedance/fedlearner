@@ -172,13 +172,12 @@ class RawDataManager(object):
         return self._raw_data_reps[fname]
 
 class RawDataVisitor(object):
-    def __init__(self, etcd, data_source, partition_id, options):
+    def __init__(self, etcd, data_source, partition_id):
         self._raw_data_manager = RawDataManager(etcd, data_source, partition_id)
         self._raw_data_reps = []
         self._raw_data_start_index = []
         self._raw_data_iter = None
         self._finished = False
-        self._options = options
         for rep in self._raw_data_manager.get_indexed_raw_data_reps():
             self.append_raw_data_rep(rep)
 
@@ -214,9 +213,7 @@ class RawDataVisitor(object):
                     )
         if idx < len(self._raw_data_reps):
             if self._raw_data_iter is None:
-                self._raw_data_iter = create_raw_data_iter(
-                        self._options, self._options
-                    )
+                self._raw_data_iter = create_raw_data_iter()
             self._raw_data_iter.reset_iter(self._raw_data_reps[idx])
             self._raw_data_iter.seek_to_target(target_index)
             assert self._raw_data_iter.get_index() <= target_index

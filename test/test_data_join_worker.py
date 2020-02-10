@@ -47,8 +47,8 @@ class DataJoinWorker(unittest.TestCase):
         etcd_base_dir_l = 'byefl_l'
         etcd_base_dir_f= 'byefl_f'
         data_source_name = 'test_data_source'
-        etcd_l = EtcdClient(etcd_name, etcd_addrs, etcd_base_dir_l)
-        etcd_f = EtcdClient(etcd_name, etcd_addrs, etcd_base_dir_f)
+        etcd_l = EtcdClient(etcd_name, etcd_addrs, etcd_base_dir_l, True)
+        etcd_f = EtcdClient(etcd_name, etcd_addrs, etcd_base_dir_f, True)
         etcd_l.delete_prefix(data_source_name)
         etcd_f.delete_prefix(data_source_name)
         data_source_l = common_pb.DataSource()
@@ -78,6 +78,7 @@ class DataJoinWorker(unittest.TestCase):
         data_source_f.data_source_meta.MergeFrom(data_source_meta)
         etcd_f.set_data(os.path.join(data_source_name, 'master'),
                         text_format.MessageToString(data_source_f))
+        customized_options.set_use_mock_etcd()
 
         master_addr_l = 'localhost:4061'
         master_addr_f = 'localhost:4062'
@@ -211,19 +212,18 @@ class DataJoinWorker(unittest.TestCase):
         worker_addr_l = 'localhost:4161'
         worker_addr_f = 'localhost:4162'
 
-        options = customized_options.CustomizedOptions()
-        options.set_raw_data_iter('TF_RECORD')
-        options.set_example_joiner('STREAM_JOINER')
+        customized_options.set_raw_data_iter('TF_RECORD')
+        customized_options.set_example_joiner('STREAM_JOINER')
         worker_l = data_join_worker.DataJoinWorkerService(
                 int(worker_addr_l.split(':')[1]), worker_addr_f,
                 self.master_addr_l, 0, self.etcd_name,
-                self.etcd_base_dir_l, self.etcd_addrs, options
+                self.etcd_base_dir_l, self.etcd_addrs
             )
 
         worker_f = data_join_worker.DataJoinWorkerService(
                 int(worker_addr_f.split(':')[1]), worker_addr_l,
                 self.master_addr_f, 0, self.etcd_name,
-                self.etcd_base_dir_f, self.etcd_addrs, options
+                self.etcd_base_dir_f, self.etcd_addrs
             )
 
         worker_l.start()

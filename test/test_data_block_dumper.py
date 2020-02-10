@@ -47,7 +47,8 @@ class TestDataBlockDumper(unittest.TestCase):
             gfile.DeleteRecursively(self.data_source_l.data_block_dir)
         if gfile.Exists(self.data_source_l.raw_data_dir):
             gfile.DeleteRecursively(self.data_source_l.raw_data_dir)
-        self.etcd = etcd_client.EtcdClient('test_cluster', 'localhost:2379', 'fedlearner')
+        self.etcd = etcd_client.EtcdClient('test_cluster', 'localhost:2379',
+                                           'fedlearner', True)
         self.etcd.delete_prefix(self.data_source_l.data_source_meta.name)
 
 
@@ -134,10 +135,9 @@ class TestDataBlockDumper(unittest.TestCase):
     def test_data_block_dumper(self):
         self.generate_follower_data_block()
         self.generate_leader_raw_data()
-        options = customized_options.CustomizedOptions()
-        options.set_raw_data_iter('TF_RECORD')
+        customized_options.set_raw_data_iter('TF_RECORD')
         dbd = data_block_dumper.DataBlockDumperManager(
-                self.etcd, self.data_source_l, 0, options
+                self.etcd, self.data_source_l, 0
             )
         self.assertEqual(dbd.get_partition_id(), 0)
         self.assertEqual(dbd.get_next_data_block_index(), 0)
