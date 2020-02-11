@@ -1,0 +1,53 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    k8s-app: netshoot
+  name: netshoot
+  namespace: leader
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      k8s-app: netshoot
+  template:
+    metadata:
+      labels:
+        k8s-app: netshoot
+    spec:
+      containers:
+        - args:
+            - 1000d
+          command:
+            - /bin/sleep
+          image: nicolaka/netshoot
+          imagePullPolicy: IfNotPresent
+          name: netshoot
+      restartPolicy: Always
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    k8s-app: netshoot
+  name: netshoot
+  namespace: follower
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      k8s-app: netshoot
+  template:
+    metadata:
+      labels:
+        k8s-app: netshoot
+    spec:
+      containers:
+        - args:
+            - 1000d
+          command:
+            - /bin/sleep
+          image: nicolaka/netshoot
+          imagePullPolicy: IfNotPresent
+          name: netshoot
+      restartPolicy: Always

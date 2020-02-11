@@ -23,43 +23,57 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/klog"
 
 	"github.com/bytedance/fedlearner/deploy/kubernetes_operator/pkg/controller"
 	pb "github.com/bytedance/fedlearner/deploy/kubernetes_operator/proto"
 )
 
-type SyncController struct {
+type PairHandler struct {
 	handler controller.AppEventHandler
 }
 
-func (sc *SyncController) handleSync(appID string, workerPairs []*pb.Pair, masterPairs []*pb.Pair) (*pb.Status, error) {
-	leaderWorker, followerWorker, workerMapping, followerCnt := extract(workerPairs)
-	if followerCnt != 0 && followerCnt != len(workerPairs) {
-		message := fmt.Sprintf("follower cnt is not consistent, empty follower cnt = %v", followerCnt)
-		return &pb.Status{
-			Code:         int32(codes.InvalidArgument),
-			ErrorMessage: message,
-		}, status.Error(codes.InvalidArgument, message)
-	}
+func (ph *PairHandler) handleSync(name string, pairs []*pb.Pair) (*pb.Status, error) {
+	allFilled := true
+	allEmpty := true
+	leaderReplicas := make(map[string][]string)
+	followerReplicas := make(map[string][]string)
+	for _, pair := range pairs {
+		if len(pair.LeaderIds) != len(pair.FollowerIds) && len(pair.FollowerIds) != 0 {
+			message := fmt.Sprintf("follower length should either be 0 or equal to leader, len(leader) = %v, len(follower) = %v", len(pair.LeaderIds), len(pair.FollowerIds))
+			return &pb.Status{
+				Code:         int32(codes.InvalidArgument),
+				ErrorMessage: message,
+			}, status.Error(codes.InvalidArgument, message)
+		}
+		allFilled = allFilled && len(pair.FollowerIds) > 0
+		allEmpty = allEmpty && len(pair.FollowerIds) == 0
 
-	leaderMaster, followerMaster, masterMapping, masterCnt := extract(masterPairs)
-	if masterCnt != 0 && masterCnt != len(masterPairs) {
-		message := fmt.Sprintf("master cnt is not consistent, empty master cnt = %v", masterCnt)
-		return &pb.Status{
-			Code:         int32(codes.InvalidArgument),
-			ErrorMessage: message,
-		}, status.Error(codes.InvalidArgument, message)
+		if _, ok := leaderReplicas[pair.Role]; ok {
+			message := fmt.Sprintf("role %v already exits in leader", pair.Role)
+			return &pb.Status{
+				Code:         int32(codes.InvalidArgument),
+				ErrorMessage: message,
+			}, status.Error(codes.InvalidArgument, message)
+		}
+		if _, ok := followerReplicas[pair.Role]; ok {
+			message := fmt.Sprintf("role %v already exits in follower", pair.Role)
+			return &pb.Status{
+				Code:         int32(codes.InvalidArgument),
+				ErrorMessage: message,
+			}, status.Error(codes.InvalidArgument, message)
+		}
+		leaderReplicas[pair.Role] = pair.LeaderIds
+		followerReplicas[pair.Role] = pair.FollowerIds
 	}
 
 	switch {
-	case followerCnt == len(workerPairs) && masterCnt == len(masterPairs):
-		return sc.handler.Sync(appID, leaderWorker, leaderMaster)
-	case followerCnt == 0 && masterCnt == 0:
-		return sc.handler.SyncCallback(appID, workerMapping, followerWorker, masterMapping, followerMaster)
+	case allEmpty:
+		return ph.handler.SyncHandler(name, leaderReplicas)
+	case allFilled:
+		return ph.handler.SyncCallbackHandler(name, leaderReplicas, followerReplicas)
 	default:
-		message := fmt.Sprintf("master/follower cnt is not consistent, empty master cnt = %v, follower cnt = %v", masterCnt, followerCnt)
+		message := fmt.Sprintf("follower should either be allEmpty or allFilled, allEmpty = %v, allFilled = %v", allEmpty, allFilled)
 		return &pb.Status{
 			Code:         int32(codes.InvalidArgument),
 			ErrorMessage: message,
@@ -67,34 +81,17 @@ func (sc *SyncController) handleSync(appID string, workerPairs []*pb.Pair, maste
 	}
 }
 
-func extract(pairs []*pb.Pair) (keys sets.String, values sets.String, mapping map[string]string, cnt int) {
-	keys = sets.NewString()
-	values = sets.NewString()
-	mapping = make(map[string]string)
-	cnt = 0
-
-	for _, pair := range pairs {
-		keys.Insert(pair.LeaderId)
-		values.Insert(pair.FollowerId)
-		mapping[pair.LeaderId] = pair.FollowerId
-		if pair.FollowerId == "" {
-			cnt++
-		}
-	}
-	return keys, values, mapping, cnt
-}
-
-func (sc *SyncController) Pair(ctx context.Context, request *pb.PairRequest) (*pb.Status, error) {
-	appID := request.AppId
+func (ph *PairHandler) Pair(ctx context.Context, request *pb.PairRequest) (*pb.Status, error) {
+	name := request.AppId
 	ctrlFlag := request.CtrlFlag
 
 	switch ctrlFlag {
 	case pb.CtrlFlag_CREATE:
-		return sc.handleSync(appID, request.WorkerPairs, request.MasterPairs)
+		return ph.handleSync(name, request.Pairs)
 	case pb.CtrlFlag_SHUTDOWN:
-		return sc.handler.Shutdown(appID)
+		return ph.handler.ShutdownHandler(name)
 	case pb.CtrlFlag_FINISH:
-		return sc.handler.Finish(appID)
+		return ph.handler.FinishHandler(name)
 	}
 	errMessage := fmt.Sprintf("CtrlFlag %v not defined", ctrlFlag)
 	return &pb.Status{
@@ -109,7 +106,7 @@ func ServeGrpc(host, port string, handler controller.AppEventHandler) {
 		klog.Fatalf("failed to listen: %v", err)
 	}
 	grpcServer := grpc.NewServer()
-	pb.RegisterPairingServiceServer(grpcServer, &SyncController{handler: handler})
+	pb.RegisterPairingServiceServer(grpcServer, &PairHandler{handler: handler})
 	if err := grpcServer.Serve(lis); err != nil {
 		klog.Fatalf("failed to serve grpc service, err = %v", err)
 	}

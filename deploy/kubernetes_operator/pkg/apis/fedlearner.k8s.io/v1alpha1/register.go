@@ -22,14 +22,23 @@ import (
 )
 
 const (
+	// GroupName is the group name use in this package.
 	GroupName = "fedlearner.k8s.io"
+	// GroupVersion is the version.
+	GroupVersion = "v1alpha1"
+	// Kind is the kind name.
+	Kind = "FLApp"
 )
 
-// SchemeGroupVersion is group version used to register these objects
-var SchemeGroupVersion = schema.GroupVersion{Group: GroupName, Version: "v1alpha1"}
+var (
+	// SchemeGroupVersion is group version used to register these objects
+	SchemeGroupVersion = schema.GroupVersion{Group: GroupName, Version: GroupVersion}
+	// SchemeGroupVersionKind is the GroupVersionKind of the resource.
+	SchemeGroupVersionKind = SchemeGroupVersion.WithKind(Kind)
+)
 
-// Kind takes an unqualified kind and returns back a Group qualified GroupKind
-func Kind(kind string) schema.GroupKind {
+// GroupKind takes an unqualified kind and returns back a Group qualified GroupKind
+func GroupKind(kind string) schema.GroupKind {
 	return SchemeGroupVersion.WithKind(kind).GroupKind()
 }
 
@@ -39,7 +48,7 @@ func Resource(resource string) schema.GroupResource {
 }
 
 var (
-	SchemeBuilder = runtime.NewSchemeBuilder(addKnownTypes)
+	SchemeBuilder = runtime.NewSchemeBuilder(addKnownTypes, addDefaultFuncs)
 	AddToScheme   = SchemeBuilder.AddToScheme
 )
 
@@ -47,7 +56,12 @@ var (
 func addKnownTypes(scheme *runtime.Scheme) error {
 	scheme.AddKnownTypes(SchemeGroupVersion,
 		&FLApp{},
+		&FLAppList{},
 	)
 	metav1.AddToGroupVersion(scheme, SchemeGroupVersion)
 	return nil
+}
+
+func addDefaultFuncs(scheme *runtime.Scheme) error {
+	return RegisterDefaults(scheme)
 }

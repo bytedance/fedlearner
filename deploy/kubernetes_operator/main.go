@@ -20,14 +20,15 @@ import (
 	"flag"
 	"os"
 	"os/signal"
-	"strings"
 	"syscall"
 	"time"
 
-	etcdclient "github.com/coreos/etcd/clientv3"
+	apiv1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/uuid"
 	"k8s.io/client-go/informers"
 	clientset "k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/kubernetes/scheme"
+	typedcorev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/leaderelection"
@@ -35,27 +36,24 @@ import (
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog"
 
+	"github.com/bytedance/fedlearner/deploy/kubernetes_operator/pkg/apis/fedlearner.k8s.io/v1alpha1"
 	crdclientset "github.com/bytedance/fedlearner/deploy/kubernetes_operator/pkg/client/clientset/versioned"
 	crdinformers "github.com/bytedance/fedlearner/deploy/kubernetes_operator/pkg/client/informers/externalversions"
 	"github.com/bytedance/fedlearner/deploy/kubernetes_operator/pkg/controller"
 	"github.com/bytedance/fedlearner/deploy/kubernetes_operator/pkg/server"
-	"github.com/bytedance/fedlearner/deploy/kubernetes_operator/pkg/servicediscovery"
 )
 
 var (
 	master                      = flag.String("master", "", "The address of the Kubernetes API server. Overrides any value in kubeconfig. Only required if out-of-cluster.")
-	kubeConfig                  = flag.String("kubeConfig", "", "Path to a kube config. Only required if out-of-cluster.")
-	peerURL                     = flag.String("peerURL", "localhost:8081", "The URL from/to which send worker pair request")
-	port                        = flag.String("port", "8080", "The http port adapter uses")
-	etcdURL                     = flag.String("etcdURL", "localhost:2379", "The URL of etcd backend for service discovery")
+	kubeConfig                  = flag.String("kube-config", "", "Path to a kube config. Only required if out-of-cluster.")
+	peerURL                     = flag.String("peer-url", "localhost:8081", "The URL from/to which send pair request.")
+	port                        = flag.String("port", "8080", "The http port controller listening.")
 	workerNum                   = flag.Int("worker-num", 10, "Number of worker threads used by the fedlearner controller.")
 	resyncInterval              = flag.Int("resync-interval", 30, "Informer resync interval in seconds.")
-	namespace                   = flag.String("namespace", "default", "The namespace to which kubernetes_operator listen FLapps")
-	assignWorkerPort            = flag.Bool("assign-worker-port", true, "Whether or not assign port to workers")
-	workerPortRange             = flag.String("worker-port-range", "10000-30000", "The port range that controller use to assign ports")
-	enableLeaderElection        = flag.Bool("leader-election", false, "Enable fedlearner kubernetes_operator leader election.")
+	namespace                   = flag.String("namespace", "default", "The namespace to which controller listen FLApps.")
+	enableLeaderElection        = flag.Bool("leader-election", false, "Enable fedlearner controller leader election.")
 	leaderElectionLockNamespace = flag.String("leader-election-lock-namespace", "fedlearner-system", "Namespace in which to create the Endpoints for leader election.")
-	leaderElectionLockName      = flag.String("leader-election-lock-name", "fedlearner-kubernetes_operator-lock", "Name of the Endpoint for leader election.")
+	leaderElectionLockName      = flag.String("leader-election-lock-name", "fedlearner-kubernetes-operator-lock", "Name of the Endpoint for leader election.")
 	leaderElectionLeaseDuration = flag.Duration("leader-election-lease-duration", 15*time.Second, "Leader election lease duration.")
 	leaderElectionRenewDeadline = flag.Duration("leader-election-renew-deadline", 5*time.Second, "Leader election renew deadline.")
 	leaderElectionRetryPeriod   = flag.Duration("leader-election-retry-period", 4*time.Second, "Leader election retry period.")
@@ -96,6 +94,7 @@ func buildClientset(masterURL string, kubeConfig string) (*clientset.Clientset, 
 
 func startLeaderElection(
 	kubeClient *clientset.Clientset,
+	recorder record.EventRecorder,
 	startCh chan struct{},
 	stopCh chan struct{},
 ) {
@@ -113,7 +112,7 @@ func startLeaderElection(
 		nil,
 		resourcelock.ResourceLockConfig{
 			Identity:      hostName,
-			EventRecorder: &record.FakeRecorder{},
+			EventRecorder: recorder,
 		})
 	if err != nil {
 		return
@@ -141,14 +140,6 @@ func startLeaderElection(
 	go elector.Run(context.Background())
 }
 
-func buildETCDClient(etcdURL string) (*etcdclient.Client, error) {
-	cfg := etcdclient.Config{
-		Endpoints:   strings.Split(etcdURL, ","),
-		DialTimeout: 2 * time.Second,
-	}
-	return etcdclient.New(cfg)
-}
-
 func main() {
 	flag.Parse()
 
@@ -156,50 +147,50 @@ func main() {
 	if err != nil {
 		klog.Fatalf("failed to build clientset, err = %v", err)
 	}
-
-	etcdClient, err := buildETCDClient(*etcdURL)
-	if err != nil {
-		klog.Fatalf("failed to build etcdclient, err = %v", err)
+	if err := v1alpha1.AddToScheme(scheme.Scheme); err != nil {
+		klog.Fatalf("Failed to add flapp scheme: %v", err)
 	}
 
 	signalCh := make(chan os.Signal, 1)
 	signal.Notify(signalCh, syscall.SIGINT, syscall.SIGTERM)
-
 	stopCh := make(chan struct{}, 1)
 	startCh := make(chan struct{}, 1)
 
-	if *enableLeaderElection {
-		startLeaderElection(kubeClient, startCh, stopCh)
-	}
-
-	klog.Info("starting the fedlearner kubernetes_operator")
+	eventBroadcaster := record.NewBroadcaster()
+	eventBroadcaster.StartLogging(klog.Infof)
+	eventBroadcaster.StartRecordingToSink(&typedcorev1.EventSinkImpl{
+		Interface: kubeClient.CoreV1().Events(""),
+	})
+	recorder := eventBroadcaster.NewRecorder(scheme.Scheme, apiv1.EventSource{Component: "fedlearner-operator"})
 
 	kubeInformerFactory := informers.NewSharedInformerFactory(kubeClient, time.Duration(*resyncInterval)*time.Second)
 	crdInformerFactory := crdinformers.NewSharedInformerFactory(crdClient, time.Duration(*resyncInterval)*time.Second)
 
-	appEventHandler := controller.NewappEventHandler(*peerURL, *namespace, crdClient)
-	flController := controller.NewFLController(*namespace, *assignWorkerPort, *workerPortRange, kubeClient, crdClient, kubeInformerFactory, crdInformerFactory, appEventHandler, stopCh)
-	sdController := servicediscovery.NewSDController(*namespace, kubeClient, kubeInformerFactory, etcdClient, stopCh)
-
-	go kubeInformerFactory.Start(stopCh)
-	go crdInformerFactory.Start(stopCh)
-
-	if *enableLeaderElection {
-		klog.Info("waiting to be elected leader before starting application controller goroutines")
-		<-startCh
-	}
-	klog.Info("starting application controller goroutines")
-	if err := flController.Start(*workerNum); err != nil {
-		klog.Fatal(err)
-	}
-	if err := sdController.Start(*workerNum); err != nil {
-		klog.Fatal(err)
-	}
+	appEventHandler := controller.NewAppEventHandler(*peerURL, *namespace, crdClient)
+	flController := controller.NewFLController(*namespace, recorder, kubeClient, crdClient, kubeInformerFactory, crdInformerFactory, appEventHandler, stopCh)
 
 	go func() {
 		klog.Infof("starting adapter listening %v", *port)
 		server.ServeGrpc("0.0.0.0", *port, appEventHandler)
 	}()
+
+	if *enableLeaderElection {
+		startLeaderElection(kubeClient, recorder, startCh, stopCh)
+	}
+
+	klog.Info("starting the fedlearner operator")
+	if *enableLeaderElection {
+		klog.Info("waiting to be elected leader before starting application controller goroutines")
+		<-startCh
+	}
+
+	go kubeInformerFactory.Start(stopCh)
+	go crdInformerFactory.Start(stopCh)
+
+	klog.Info("starting application controller goroutines")
+	if err := flController.Start(*workerNum); err != nil {
+		klog.Fatal(err)
+	}
 
 	select {
 	case <-signalCh:

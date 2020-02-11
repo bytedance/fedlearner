@@ -1,0 +1,97 @@
+apiVersion: fedlearner.k8s.io/v1alpha1
+kind: FLApp
+metadata:
+  name: normal
+  namespace: leader
+spec:
+  flReplicaSpecs:
+    Master:
+      pair: true
+      replicas: 2
+      template:
+        spec:
+          restartPolicy: Never # required
+          containers:
+            - env:
+              - name: APPLICATION_ID
+                value: normal
+              - name: HOST_IP
+                valueFrom:
+                  fieldRef:
+                    fieldPath: status.hostIP
+              image: nicolaka/netshoot
+              imagePullPolicy: IfNotPresent
+              name: tensorflow # default
+              ports:
+                - containerPort: 50051
+                  name: flapp-port # default
+              resources:
+                limits:
+                  cpu: 4000m
+                  memory: 4Gi
+                requests:
+                  cpu: 4000m
+                  memory: 4Gi
+              command: ["/bin/sleep"]
+              args: ["3m"]
+    PS:
+      pair: false
+      replicas: 0
+      template:
+        spec:
+          restartPolicy: Never # required
+          containers:
+            - env:
+              - name: POD_NAME
+                valueFrom:
+                  fieldRef:
+                    fieldPath: metadata.name
+              - name: HOST_IP
+                valueFrom:
+                  fieldRef:
+                    fieldPath: status.hostIP
+              image: nicolaka/netshoot
+              imagePullPolicy: IfNotPresent
+              name: tensorflow # default
+              ports:
+                - containerPort: 50051
+                  name: flapp-port # default
+              resources:
+                limits:
+                  cpu: 4000m
+                  memory: 4Gi
+                requests:
+                  cpu: 4000m
+                  memory: 4Gi
+              command: ["/bin/sleep"]
+              args: ["3m"]
+    Worker:
+      pair: true
+      replicas: 3
+      template:
+        spec:
+          restartPolicy: Never # required
+          containers:
+            - env:
+              - name: APPLICATION_ID
+                value: normal
+              - name: HOST_IP
+                valueFrom:
+                  fieldRef:
+                    fieldPath: status.hostIP
+              image: nicolaka/netshoot
+              imagePullPolicy: IfNotPresent
+              name: tensorflow # default
+              ports:
+                - containerPort: 50051
+                  name: flapp-port # default
+              resources:
+                limits:
+                  cpu: 4000m
+                  memory: 4Gi
+                requests:
+                  cpu: 4000m
+                  memory: 4Gi
+              command: ["/bin/sleep"]
+              args: ["3m"]
+  role: Leader
