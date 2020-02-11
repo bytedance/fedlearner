@@ -17,18 +17,13 @@ package controller
 
 import (
 	"fmt"
-	"strconv"
-	"strings"
 	"time"
 
-	apiv1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/informers"
 	clientset "k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/kubernetes/scheme"
-	typedcorev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/workqueue"
@@ -43,7 +38,6 @@ import (
 type FLController struct {
 	jobQueue    workqueue.RateLimitingInterface
 	cacheSynced cache.InformerSynced
-	recorder    record.EventRecorder
 
 	flAppLister crdlisters.FLAppLister
 
@@ -53,8 +47,7 @@ type FLController struct {
 
 func NewFLController(
 	namespace string,
-	assignWorkerPort bool,
-	workerPortRange string,
+	recorder record.EventRecorder,
 	kubeClient clientset.Interface,
 	crdClientset crdclientset.Interface,
 	kubeSharedInformerFactory informers.SharedInformerFactory,
@@ -62,33 +55,17 @@ func NewFLController(
 	appEventHandler AppEventHandler,
 	stopCh <-chan struct{},
 ) *FLController {
-	eventBroadcaster := record.NewBroadcaster()
-	eventBroadcaster.StartLogging(klog.Infof)
-	eventBroadcaster.StartRecordingToSink(&typedcorev1.EventSinkImpl{
-		Interface: kubeClient.CoreV1().Events(""),
-	})
-	recorder := eventBroadcaster.NewRecorder(scheme.Scheme, apiv1.EventSource{Component: "fedlearner-kubernetes_operator"})
-
-	splittedPortRange := strings.Split(workerPortRange, "-")
-	lowerBound, errlower := strconv.Atoi(splittedPortRange[0])
-	upperBound, errupper := strconv.Atoi(splittedPortRange[1])
-	if len(splittedPortRange) != 2 || errlower != nil || errupper != nil {
-		klog.Fatal("workerPortRange %s is not valid, example port range 10000-30000", splittedPortRange)
-	}
 	appManager := NewAppManager(
 		namespace,
-		assignWorkerPort,
-		lowerBound,
-		upperBound,
+		recorder,
 		kubeClient,
 		crdClientset,
 		crdSharedInformerFactory.Fedlearner().V1alpha1().FLApps().Lister(),
-		kubeSharedInformerFactory.Apps().V1().StatefulSets().Lister(),
-		kubeSharedInformerFactory.Batch().V1().Jobs().Lister(),
 		kubeSharedInformerFactory.Core().V1().ConfigMaps().Lister(),
 		kubeSharedInformerFactory.Core().V1().Pods().Lister(),
+		kubeSharedInformerFactory.Core().V1().Services().Lister(),
+		kubeSharedInformerFactory.Networking().V1beta1().Ingresses().Lister(),
 		appEventHandler,
-		stopCh,
 	)
 	controller := &FLController{
 		jobQueue: workqueue.NewNamedRateLimitingQueue(
@@ -98,12 +75,11 @@ func NewFLController(
 		flAppLister: crdSharedInformerFactory.Fedlearner().V1alpha1().FLApps().Lister(),
 		cacheSynced: func() bool {
 			return crdSharedInformerFactory.Fedlearner().V1alpha1().FLApps().Informer().HasSynced() &&
-				kubeSharedInformerFactory.Apps().V1().StatefulSets().Informer().HasSynced() &&
-				kubeSharedInformerFactory.Batch().V1().Jobs().Informer().HasSynced() &&
 				kubeSharedInformerFactory.Core().V1().ConfigMaps().Informer().HasSynced() &&
-				kubeSharedInformerFactory.Core().V1().Pods().Informer().HasSynced()
+				kubeSharedInformerFactory.Core().V1().Pods().Informer().HasSynced() &&
+				kubeSharedInformerFactory.Core().V1().Services().Informer().HasSynced() &&
+				kubeSharedInformerFactory.Networking().V1beta1().Ingresses().Informer().HasSynced()
 		},
-		recorder:    recorder,
 		syncHandler: appManager.SyncApp,
 		stopCh:      stopCh,
 	}
@@ -144,12 +120,12 @@ func (c *FLController) onFLAppUpdated(oldObj, newObj interface{}) {
 		klog.Errorf("failed to convert oldObj to FLApp")
 		return
 	}
-	newapp, ok := newObj.(*v1alpha1.FLApp)
+	app, ok := newObj.(*v1alpha1.FLApp)
 	if !ok {
 		klog.Errorf("failed to convert newObj to FLApp")
 		return
 	}
-	c.enqueueApp(newapp)
+	c.enqueueApp(app)
 }
 
 func (c *FLController) onFLAppDeleted(obj interface{}) {
@@ -164,7 +140,7 @@ func (c *FLController) onFLAppDeleted(obj interface{}) {
 
 	if app != nil {
 		if err := c.syncHandler(app, true); err != nil {
-			klog.Errorf("failed to delete app, appID = %v, err = %v", app.Spec.AppID, err)
+			klog.Errorf("failed to delete app, name = %v, err = %v", app.Name, err)
 		}
 	}
 }
@@ -226,7 +202,6 @@ func (c *FLController) syncFLApp(key string) error {
 	return c.syncHandler(app, false)
 }
 
-// Stop stops the controller.
 func (c *FLController) Stop() {
 	klog.Info("stopping the fedlearner controller")
 	c.jobQueue.ShutDown()

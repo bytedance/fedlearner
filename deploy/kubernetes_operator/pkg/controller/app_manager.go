@@ -17,48 +17,33 @@ package controller
 
 import (
 	"fmt"
-	"reflect"
+	"strconv"
 	"strings"
 	"time"
 
-	appsv1 "k8s.io/api/apps/v1"
-	batchv1 "k8s.io/api/batch/v1"
 	v1 "k8s.io/api/core/v1"
+	networking "k8s.io/api/networking/v1beta1"
+	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/util/rand"
-	"k8s.io/apimachinery/pkg/util/sets"
-	"k8s.io/apimachinery/pkg/util/uuid"
-	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	clientset "k8s.io/client-go/kubernetes"
-	listersappv1 "k8s.io/client-go/listers/apps/v1"
-	listersbatchv1 "k8s.io/client-go/listers/batch/v1"
 	listerscorev1 "k8s.io/client-go/listers/core/v1"
+	listersnetworking "k8s.io/client-go/listers/networking/v1beta1"
+	"k8s.io/client-go/tools/record"
 	"k8s.io/klog"
 
 	"github.com/bytedance/fedlearner/deploy/kubernetes_operator/pkg/apis/fedlearner.k8s.io/v1alpha1"
 	crdclientset "github.com/bytedance/fedlearner/deploy/kubernetes_operator/pkg/client/clientset/versioned"
+	"github.com/bytedance/fedlearner/deploy/kubernetes_operator/pkg/client/clientset/versioned/scheme"
 	crdlisters "github.com/bytedance/fedlearner/deploy/kubernetes_operator/pkg/client/listers/fedlearner.k8s.io/v1alpha1"
 	"github.com/bytedance/fedlearner/deploy/kubernetes_operator/pkg/util"
 )
 
 const (
-	LabelKeyWorkerID = "workerID"
-	LabelKeyMaster   = "master"
-	LabelKeyPS       = "PS"
-
-	WorkerPairVolumeName = "worker-pair"
-	WorkerPairMountPath  = "/etc/worker"
-	MasterPairVolumeName = "master-pair"
-	MasterPairMountPath  = "/etc/worker"
-
-	WorkerEnvID             = "WORKER_ID"
-	WorkerEnvPSHosts        = "PS_HOSTS"
-	WorkerEnvMasterPodNames = "MASTER_POD_NAMES"
-
-	HousekeepingPeriod   = time.Duration(30) * time.Second
-	CondemnedJobDeadline = time.Duration(1) * time.Minute
+	flReplicaTypeLabel  = "fl-replica-type"
+	flReplicaIndexLabel = "fl-replica-index"
 )
 
 type AppManager interface {
@@ -66,24 +51,24 @@ type AppManager interface {
 }
 
 type appManager struct {
-	namespace            string
-	assignWorkerPort     bool
-	workerPortLowerBound int
-	workerPortUpperBound int
+	namespace string
 
 	kubeClient clientset.Interface
 	crdClient  crdclientset.Interface
 
-	appLister         crdlisters.FLAppLister
-	statefulsetLister listersappv1.StatefulSetLister
-	jobLister         listersbatchv1.JobLister
-	configMapLister   listerscorev1.ConfigMapLister
-	podLister         listerscorev1.PodLister
-
-	appFailingCache *util.ExpirationCache
+	appLister       crdlisters.FLAppLister
+	configMapLister listerscorev1.ConfigMapLister
+	podLister       listerscorev1.PodLister
+	serviceLister   listerscorev1.ServiceLister
+	ingressLister   listersnetworking.IngressLister
 
 	appStatusUpdater util.StatusUpdater
 	appEventHandler  AppEventHandler
+
+	podControl     PodControlInterface
+	serviceControl ServiceControlInterface
+
+	recorder record.EventRecorder
 }
 
 var (
@@ -92,914 +77,513 @@ var (
 
 func NewAppManager(
 	namespace string,
-	assignWorkerPort bool,
-	workerPortLowerBound int,
-	workerPortUpperBound int,
+	recorder record.EventRecorder,
 	kubeClient clientset.Interface,
 	crdClient crdclientset.Interface,
 	appLister crdlisters.FLAppLister,
-	statefulsetLister listersappv1.StatefulSetLister,
-	jobLister listersbatchv1.JobLister,
 	configMapLister listerscorev1.ConfigMapLister,
 	podLister listerscorev1.PodLister,
+	serviceLister listerscorev1.ServiceLister,
+	ingressLister listersnetworking.IngressLister,
 	appEventHandler AppEventHandler,
-	stopCh <-chan struct{},
 ) AppManager {
 	manager := &appManager{
-		namespace:            namespace,
-		assignWorkerPort:     assignWorkerPort,
-		workerPortLowerBound: workerPortLowerBound,
-		workerPortUpperBound: workerPortUpperBound,
+		namespace: namespace,
 
 		kubeClient: kubeClient,
 		crdClient:  crdClient,
 
-		appLister:         appLister,
-		statefulsetLister: statefulsetLister,
-		jobLister:         jobLister,
-		configMapLister:   configMapLister,
-		podLister:         podLister,
+		appLister:       appLister,
+		configMapLister: configMapLister,
+		podLister:       podLister,
+		serviceLister:   serviceLister,
+		ingressLister:   ingressLister,
 
-		appFailingCache: util.NewExpirationCache(),
-
-		appStatusUpdater: util.NewappStatusUpdater(crdClient, namespace),
+		appStatusUpdater: util.NewAppStatusUpdater(crdClient, namespace),
 		appEventHandler:  appEventHandler,
+
+		podControl: RealPodControl{
+			KubeClient: kubeClient,
+			Recorder:   recorder,
+		},
+		serviceControl: RealServiceControl{
+			KubeClient: kubeClient,
+			Recorder:   recorder,
+		},
+
+		recorder: recorder,
 	}
-	go wait.Until(manager.housekeeping, HousekeepingPeriod, stopCh)
 	return manager
 }
 
-func (tm *appManager) housekeeping() {
-	apps, err := tm.appLister.FLApps(tm.namespace).List(labels.Everything())
-	if err != nil {
-		return
+func (am *appManager) GenOwnerReference(obj metav1.Object) *metav1.OwnerReference {
+	boolPtr := func(b bool) *bool { return &b }
+	controllerRef := &metav1.OwnerReference{
+		APIVersion:         am.GetAPIGroupVersion().String(),
+		Kind:               am.GetAPIGroupVersionKind().Kind,
+		Name:               obj.GetName(),
+		UID:                obj.GetUID(),
+		BlockOwnerDeletion: boolPtr(true),
+		Controller:         boolPtr(true),
 	}
 
-	for _, app := range apps {
-		appID := app.Spec.AppID
-		if app.Status.AppState == v1alpha1.AppComplete && !tm.isResourceFreed(app) {
-			if err := tm.freeResource(app); err != nil {
-				klog.Errorf("failed to free resource for app, appID = %v, err = %v", appID, err)
-			}
-		}
-		_, condemnedJobs, _, _, err := tm.getCurrentJobs(app, tm.namespace)
-		if err != nil {
-			klog.Errorf("failed to get jobs for app when housekeeping, appID = %v, err = %v", appID, err)
-			continue
-		}
-		if err := tm.cleanCondemnedJobs(app, condemnedJobs); err != nil {
-			klog.Errorf("failed to clean condemned jobs, appID = %v, err = %v", appID, err)
-		}
-	}
+	return controllerRef
 }
 
-func (tm *appManager) cleanCondemnedJobs(
-	app *v1alpha1.FLApp,
-	condemnedJobs []*batchv1.Job,
-) error {
-	appID := app.Spec.AppID
-	for _, job := range condemnedJobs {
-		jobName := job.Name
-		createdAt := job.GetCreationTimestamp().Time
-		if time.Now().Sub(createdAt) >= CondemnedJobDeadline {
-			klog.Errorf("removing condemn job %v for application %v", jobName, appID)
-			policy := metav1.DeletePropagationBackground
-			if err := tm.kubeClient.BatchV1().Jobs(tm.namespace).Delete(jobName, &metav1.DeleteOptions{PropagationPolicy: &policy}); err != nil {
-				if errors.IsNotFound(err) {
-					klog.Infof("application %v job %v is already deleted", appID, jobName)
-					continue
-				}
-				klog.Errorf("failed to clean condemned job %v, err = %v", jobName, err)
-			}
-		}
-	}
-	return nil
+func (am *appManager) GetAPIGroupVersionKind() schema.GroupVersionKind {
+	return v1alpha1.SchemeGroupVersionKind
 }
 
-func (tm *appManager) SyncApp(app *v1alpha1.FLApp, deleting bool) error {
+func (am *appManager) GetAPIGroupVersion() schema.GroupVersion {
+	return v1alpha1.SchemeGroupVersion
+}
+
+func (am *appManager) SyncApp(app *v1alpha1.FLApp, deleting bool) error {
 	appCopy := app.DeepCopy()
-	appID := appCopy.Spec.AppID
+	name := appCopy.Name
 
+	scheme.Scheme.Default(appCopy)
 	if deleting {
-		klog.Infof("deleting application %v, shut it down", appID)
-		return tm.deleteApp(appCopy)
+		klog.Infof("deleting application %v, shut it down", name)
+		return am.deleteApp(appCopy)
 	}
 
 	appState := appCopy.Status.AppState
-	if appState == "" {
-		if _, err := tm.appStatusUpdater.UpdateAppStatusWithRetry(appCopy, func(mutatingApp *v1alpha1.FLApp) bool {
-			if mutatingApp.Status.PairStatus != nil {
-				return false
+	if appState == v1alpha1.FLStateBootstrapped || appState == v1alpha1.FLStateSyncSent || appState == v1alpha1.FLStateRunning {
+		now := time.Now()
+		timeout := am.isAppTimeOut(appCopy, now)
+		if am.isAppFailing(appCopy) || timeout {
+			if timeout {
+				klog.Errorf("app is failing because timed out, name = %v, creationTimestamp = %v, activeDeadlineSeconds = %v, now is %v", name, appCopy.GetCreationTimestamp(), *appCopy.Spec.ActiveDeadlineSeconds, now)
 			}
-			mutatingApp.Status.AppState = v1alpha1.AppNew
-			mutatingApp.Status.PairStatus = make(map[v1alpha1.FLReplicaType]*v1alpha1.Pair)
-			for rtype, spec := range mutatingApp.Spec.FLReplicaSpecs {
-				if spec != nil && spec.Pair {
-					mutatingApp.Status.PairStatus[rtype] = &v1alpha1.Pair{}
-				}
-			}
-			return true
-		}); err != nil {
-			klog.Errorf("failed to init app, appID = %v", appID)
+			return am.appStatusUpdater.UpdateAppStateWithRetry(appCopy, v1alpha1.FLStateFailing)
 		}
-	}
-
-	if appState == v1alpha1.AppBootstrapped || appState == v1alpha1.AppSyncSent || appState == v1alpha1.AppRunning {
-		if tm.isAppFailing(app) {
-			return tm.appStatusUpdater.UpdateAppStateWithRetry(app, v1alpha1.AppFailing)
-		}
-	} else {
-		tm.appFailingCache.Delete(appID)
 	}
 
 	switch appState {
-	case v1alpha1.AppNew:
-		return tm.syncNewApp(appCopy)
-	case v1alpha1.AppPSStarted:
-		return tm.syncPSStartedApp(appCopy)
-	case v1alpha1.AppBootstrapped:
-		return tm.syncBootstrappedApp(appCopy)
-	case v1alpha1.AppSyncSent:
-		return tm.syncSyncSentApp(appCopy)
-	case v1alpha1.AppRunning:
-		return tm.syncRunningApp(appCopy)
-	case v1alpha1.AppFailing:
-		return tm.syncFailingApp(appCopy)
-	case v1alpha1.AppShuttingDown:
-		return tm.syncShuttingDownApp(appCopy)
-	case v1alpha1.AppComplete, v1alpha1.AppFailed:
-		klog.Infof("ignore app %v as its state is %v", appID, appState)
+	case v1alpha1.FLStateNew:
+		return am.syncNewApp(appCopy)
+	case v1alpha1.FLStateBootstrapped:
+		return am.syncBootstrappedApp(appCopy)
+	case v1alpha1.FLStateSyncSent:
+		return am.syncSyncSentApp(appCopy)
+	case v1alpha1.FLStateRunning:
+		return am.syncRunningApp(appCopy)
+	case v1alpha1.FLStateFailing:
+		return am.syncFailingApp(appCopy)
+	case v1alpha1.FLStateShutDown:
+		return am.syncShuttingDownApp(appCopy)
+	case v1alpha1.FLStateComplete, v1alpha1.FLStateFailed:
+		klog.Infof("ignore app %v as its state is %v", name, appState)
 	}
 	return nil
 }
 
-func (tm *appManager) deleteApp(app *v1alpha1.FLApp) error {
-	appID := app.Spec.AppID
+func (am *appManager) deleteApp(app *v1alpha1.FLApp) error {
+	name := app.Name
 	appState := app.Status.AppState
 	if appState == "" {
-		appState = v1alpha1.AppNew
+		appState = v1alpha1.FLStateNew
 	}
 	switch appState {
-	case v1alpha1.AppNew, v1alpha1.AppPSStarted, v1alpha1.AppBootstrapped, v1alpha1.AppSyncSent, v1alpha1.AppRunning:
-		klog.Infof("shutting down peer as app is deleted, appID = %v", appID)
-		if err := tm.appEventHandler.OnFailedHandler(app); err != nil {
-			klog.Errorf("failed to shutdown peer when app is deleted, appID = %v, err = %v", appID, err)
+	case v1alpha1.FLStateNew, v1alpha1.FLStateBootstrapped, v1alpha1.FLStateSyncSent, v1alpha1.FLStateRunning:
+		klog.Infof("shutting down peer as app is deleted, name = %v", name)
+		if err := am.appEventHandler.ShutdownPeer(app); err != nil {
+			klog.Errorf("failed to shutdown peer when app is deleted, name = %v, err = %v", name, err)
 		}
 	}
-	if err := tm.freeResource(app); err != nil {
-		klog.Errorf("failed to free resources when app is deleted, appID = %v, err = %v", appID, err)
+	if err := am.freeResource(app); err != nil {
+		klog.Errorf("failed to free resources when app is deleted, name = %v, err = %v", name, err)
 	}
 	return nil
 }
 
-func (tm *appManager) syncNewApp(app *v1alpha1.FLApp) error {
-	appID := app.Spec.AppID
-	klog.Infof("sync new app, appID = %v", appID)
-	if tm.psStarted(app) {
-		return tm.appStatusUpdater.UpdateAppStateWithRetry(app, v1alpha1.AppPSStarted)
+func (am *appManager) syncNewApp(app *v1alpha1.FLApp) error {
+	name := app.Name
+	klog.Infof("sync new app, name = %v", name)
+	if am.isAppBootstrapped(app) {
+		return am.appStatusUpdater.UpdateAppStateWithRetry(app, v1alpha1.FLStateBootstrapped)
 	}
-	klog.Infof("creating PS stateful_set, appID = %v", appID)
-	return tm.startPS(app)
+	return am.reconcileFLApp(app)
 }
 
-func (tm *appManager) psStarted(app *v1alpha1.FLApp) bool {
-	desiredReplica := int(*getReplicas(app, v1alpha1.FLReplicaTypePS))
-	labelSet := util.GetLabelSetWithappID(app)
-	labelSet[LabelKeyPS] = "true"
-	if app.Status.PSAddress.Len() != desiredReplica {
-		return false
-	}
-	address := tm.getPodAddress(labelSet.AsSelector())
-	if address.Len() != desiredReplica {
-		return false
-	}
-	if len(address) == 0 {
-		return app.Status.PSAddress.Len() == 0
-	}
-	return reflect.DeepEqual(address, app.Status.PSAddress)
-}
-
-func (tm *appManager) getPodAddress(labelSelector labels.Selector) sets.String {
-	address := sets.NewString()
-	pods, err := tm.podLister.Pods(tm.namespace).List(labelSelector)
-	if err != nil {
-		return sets.NewString()
-	}
-	// pods must be running
-	for _, pod := range pods {
-		podCopy := *pod
-		if podCopy.Status.Phase != v1.PodRunning {
-			return sets.NewString()
-		}
-		// container status unknown
-		if len(podCopy.Status.ContainerStatuses) == 0 {
-			return sets.NewString()
-		}
-		// container restarted
-		containerStatus := podCopy.Status.ContainerStatuses[0]
-		if containerStatus.RestartCount > 0 {
-			return sets.NewString()
-		}
-		// container without ports
-		container := podCopy.Spec.Containers[0]
-		if len(container.Ports) == 0 {
-			return sets.NewString()
-		}
-		port := fmt.Sprintf("%d", container.Ports[0].ContainerPort)
-		address.Insert(strings.Join([]string{podCopy.Status.PodIP, port}, ":"))
-	}
-	return address
-}
-
-func (tm *appManager) startPS(app *v1alpha1.FLApp) error {
-	appID := app.Spec.AppID
-	desiredReplica := int(*getReplicas(app, v1alpha1.FLReplicaTypePS))
-
-	statefulSetSpec := app.Spec.PS.Template
-	labelSet := util.GetLabelSetWithappID(app)
-	labelSet[LabelKeyPS] = "true"
-	statefulSetSpec.Selector = metav1.SetAsLabelSelector(labelSet)
-	statefulSetSpec.Template.Labels = labelSet
-	statefulSetSpec.Replicas = getReplicas(app, v1alpha1.FLReplicaTypePS)
-	statefulset := &appsv1.StatefulSet{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: psName(appID),
-		},
-		Spec: statefulSetSpec,
-	}
-
-	_, err := tm.kubeClient.AppsV1().StatefulSets(tm.namespace).Create(statefulset)
-	if err != nil && !errors.IsAlreadyExists(err) {
+func (am *appManager) reconcileFLApp(app *v1alpha1.FLApp) error {
+	name := app.Name
+	if err := am.reconcileConfigMaps(app); err != nil {
+		klog.Errorf("failed to reconcile configMap for app, name = %v, err = %v", name, err)
 		return err
 	}
-	if len(app.Status.PSAddress) != desiredReplica {
-		if address := tm.getPodAddress(labelSet.AsSelector()); address.Len() == desiredReplica {
-			_, err := tm.appStatusUpdater.UpdateAppStatusWithRetry(app, func(mutatingApp *v1alpha1.FLApp) bool {
-				if reflect.DeepEqual(mutatingApp.Status.PSAddress, address) {
-					return false
-				}
-				mutatingApp.Status.PSAddress = address
-				return true
-			})
-			return err
+	if err := am.reconcilePods(app); err != nil {
+		klog.Errorf("failed to reconcile pod for app, name = %v, err = %v", name, err)
+		return err
+	}
+	if err := am.reconcileService(app); err != nil {
+		klog.Errorf("failed to reconcile service for app, name = %v, err = %v", name, err)
+		return err
+	}
+	if err := am.reconcileIngress(app); err != nil {
+		klog.Errorf("failed to reconcile ingress for app, name = %v, err = %v", name, err)
+		return err
+	}
+	return am.overwriteStatus(app)
+}
+
+func (am *appManager) isAppBootstrapped(app *v1alpha1.FLApp) bool {
+	for rtype := range app.Spec.FLReplicaSpecs {
+		rt := strings.ToLower(string(rtype))
+		if shouldPair(app, rtype) {
+			name := GenName(app.Name, rt)
+			configMap, err := am.configMapLister.ConfigMaps(am.namespace).Get(name)
+			// ConfigMap not ready
+			if err != nil || configMap == nil {
+				return false
+			}
+		}
+		// Pod not ready
+		if app.Status.FLReplicaStatus[rtype].Active.Len() != getReplicas(app, rtype) {
+			return false
+		}
+		// Service not ready
+		if app.Status.FLReplicaStatus[rtype].Local.Len() != getReplicas(app, rtype) {
+			return false
 		}
 	}
-	return nil
-}
-
-func (tm *appManager) syncPSStartedApp(app *v1alpha1.FLApp) error {
-	appID := app.Spec.AppID
-	klog.Infof("sync PS started app, appID = %v", appID)
-
-	if tm.isAppBootstrapped(app) {
-		return tm.appStatusUpdater.UpdateAppStateWithRetry(app, v1alpha1.AppBootstrapped)
-	}
-
-	if err := tm.startMaster(app); err != nil {
-		klog.Errorf("failed to start master, appID = %v", appID)
-		return err
-	}
-	activeJobs, _, phantomJobs, allJobs, err := tm.getCurrentJobs(app, tm.namespace)
-	if err != nil {
-		klog.Errorf("failed to get current jobs after PS started, appID = %v", appID)
-		return err
-	}
-	if err := tm.startNewJobs(app, activeJobs, phantomJobs, allJobs); err != nil {
-		klog.Errorf("failed to start new jobs after PS started, appID = %v", appID)
-		return err
-	}
-	return nil
-}
-
-func (tm *appManager) isAppBootstrapped(app *v1alpha1.FLApp) bool {
-	appID := app.Spec.AppID
-	masterDesiredReplica := *getReplicas(app, v1alpha1.FLReplicaTypeMaster)
-	workerDesiredReplica := int(*getReplicas(app, v1alpha1.FLReplicaTypeWorker))
-
-	master, err := tm.statefulsetLister.StatefulSets(tm.namespace).Get(masterName(appID))
-	if err != nil || master == nil {
-		return false
-	}
-	if master.Status.ReadyReplicas != masterDesiredReplica {
-		return false
-	}
-	if configMap, err := tm.configMapLister.ConfigMaps(tm.namespace).Get(masterConfigMapName(appID)); err != nil || configMap == nil {
-		return false
-	}
-	if configMap, err := tm.configMapLister.ConfigMaps(tm.namespace).Get(workerConfigMapName(appID)); err != nil || configMap == nil {
-		return false
-	}
-	if activeJobs, _, _, _, err := tm.getCurrentJobs(app, tm.namespace); err != nil || len(activeJobs) != workerDesiredReplica {
+	ingress, err := am.ingressLister.Ingresses(am.namespace).Get(app.Name)
+	// Ingress not ready
+	if err != nil || ingress == nil {
 		return false
 	}
 	return true
 }
 
-func (tm *appManager) startMaster(app *v1alpha1.FLApp) error {
-	appID := app.Spec.AppID
-
-	configMap := &v1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: workerConfigMapName(appID),
-		},
+func (am *appManager) reconcileConfigMaps(app *v1alpha1.FLApp) error {
+	for rtype := range app.Spec.FLReplicaSpecs {
+		if shouldPair(app, rtype) {
+			if err := am.createOrUpdateConfigMap(app, rtype, nil); err != nil {
+				return err
+			}
+		}
 	}
-	if _, err := tm.kubeClient.CoreV1().ConfigMaps(tm.namespace).Create(configMap); err != nil && !errors.IsAlreadyExists(err) {
+	return nil
+}
+
+func (am *appManager) reconcileIngress(app *v1alpha1.FLApp) error {
+	name := app.Name
+	ownerReference := am.GenOwnerReference(app)
+	labels := GenLabels(name)
+	// TODO: support more kinds of ingress
+	annotations := map[string]string{
+		"kubernetes.io/ingress.class":                  "nginx",
+		"nginx.ingress.kubernetes.io/backend-protocol": "GRPC",
+	}
+	ingress, err := am.ingressLister.Ingresses(am.namespace).Get(name)
+	if err != nil && !errors.IsNotFound(err) {
 		return err
 	}
-	configMap = &v1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: masterConfigMapName(appID),
-		},
-	}
-	if _, err := tm.kubeClient.CoreV1().ConfigMaps(tm.namespace).Create(configMap); err != nil && !errors.IsAlreadyExists(err) {
-		return err
-	}
-
-	statefulsetSpec := app.Spec.Master.Template
-	labelSelector := util.GetLabelSetWithappID(app)
-	labelSelector[LabelKeyMaster] = "true"
-	statefulsetSpec.Selector = metav1.SetAsLabelSelector(labelSelector)
-	statefulsetSpec.Template.Labels = labelSelector
-	statefulsetSpec.Replicas = getReplicas(app, v1alpha1.FLReplicaTypeMaster)
-
-	for idx := range statefulsetSpec.Template.Spec.Containers {
-		container := &statefulsetSpec.Template.Spec.Containers[idx]
-		container.VolumeMounts = appendVolumeMountIfAbsent(container.VolumeMounts, v1.VolumeMount{
-			Name:      MasterPairVolumeName,
-			ReadOnly:  true,
-			MountPath: MasterPairMountPath,
-		})
-	}
-	statefulsetSpec.Template.Spec.Volumes = append(statefulsetSpec.Template.Spec.Volumes, v1.Volume{
-		Name: MasterPairVolumeName,
-		VolumeSource: v1.VolumeSource{
-			ConfigMap: &v1.ConfigMapVolumeSource{
-				LocalObjectReference: v1.LocalObjectReference{
-					Name: masterConfigMapName(appID),
-				},
+	if ingress == nil {
+		newIngress := &networking.Ingress{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:            name,
+				Labels:          labels,
+				Annotations:     annotations,
+				OwnerReferences: []metav1.OwnerReference{*ownerReference},
 			},
-		},
-	})
+		}
+		for rtype := range app.Spec.FLReplicaSpecs {
+			if shouldPair(app, rtype) {
+				replicas := getReplicas(app, rtype)
+				rt := strings.ToLower(string(rtype))
+				for index := 0; index < replicas; index++ {
+					path := networking.HTTPIngressPath{
+						Backend: networking.IngressBackend{
+							ServiceName: GenIndexName(name, rt, strconv.Itoa(index)),
+							ServicePort: intstr.FromString(v1alpha1.DefaultPortName),
+						},
+					}
+					rule := networking.IngressRule{
+						Host: fmt.Sprintf("%s.%s.%d", app.Name, rt, index),
+						IngressRuleValue: networking.IngressRuleValue{
+							HTTP: &networking.HTTPIngressRuleValue{
+								Paths: []networking.HTTPIngressPath{path},
+							},
+						},
+					}
+					newIngress.Spec.Rules = append(newIngress.Spec.Rules, rule)
+				}
+			}
+		}
+		_, err := am.kubeClient.NetworkingV1beta1().Ingresses(am.namespace).Create(newIngress)
+		return err
+	}
+	return nil
+}
 
-	statefulset := &appsv1.StatefulSet{
+// if data is not nil, update configMap Data to data
+func (am *appManager) createOrUpdateConfigMap(app *v1alpha1.FLApp, rtype v1alpha1.FLReplicaType, data map[string]string) error {
+	namespace := am.namespace
+	rt := strings.ToLower(string(rtype))
+	name := GenName(app.Name, rt)
+	ownerReference := am.GenOwnerReference(app)
+
+	labels := GenLabels(app.Name)
+	labels[flReplicaTypeLabel] = rt
+
+	configMap, err := am.configMapLister.ConfigMaps(am.namespace).Get(name)
+	if err != nil && !errors.IsNotFound(err) {
+		return err
+	}
+
+	createConfigMap := configMap == nil
+	newConfigMap := &v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: masterName(appID),
+			Name:            name,
+			Labels:          labels,
+			OwnerReferences: []metav1.OwnerReference{*ownerReference},
 		},
-		Spec: statefulsetSpec,
 	}
-	if _, err := tm.kubeClient.AppsV1().StatefulSets(tm.namespace).Create(statefulset); err != nil && !errors.IsAlreadyExists(err) {
+	if data != nil {
+		newConfigMap.Data = data
+	} else if configMap != nil {
+		newConfigMap.Data = configMap.Data
+	}
+	if createConfigMap {
+		_, err := am.kubeClient.CoreV1().ConfigMaps(namespace).Create(newConfigMap)
+		return err
+	} else {
+		_, err := am.kubeClient.CoreV1().ConfigMaps(namespace).Update(newConfigMap)
 		return err
 	}
-
-	masterPodNames := tm.getPodNames(labelSelector.AsSelector())
-	desiredReplicas := int(*getReplicas(app, v1alpha1.FLReplicaTypeMaster))
-	if masterPodNames.Len() == desiredReplicas {
-		_, err := tm.appStatusUpdater.UpdateAppStatusWithRetry(app, func(mutatingApp *v1alpha1.FLApp) bool {
-			if mutatingApp.Status.PairStatus[v1alpha1.FLReplicaTypeMaster].Local.Len() == desiredReplicas {
-				return false
-			}
-			if mutatingApp.Status.PairStatus[v1alpha1.FLReplicaTypeMaster].Local == nil {
-				mutatingApp.Status.PairStatus[v1alpha1.FLReplicaTypeMaster].Local = sets.NewString()
-			}
-			mutatingApp.Status.PairStatus[v1alpha1.FLReplicaTypeMaster].Local = masterPodNames
-			return true
-		})
-		return err
-	}
-	return nil
 }
 
-// activeJobs contain bootstrapped jobs that are either running or waiting for peers,
-// condemnedJobs are failed jobs
-// phantomJobs are unrecognized job keys in app status
-func (tm *appManager) getCurrentJobs(app *v1alpha1.FLApp, namespace string) ([]*batchv1.Job, []*batchv1.Job, []string, []*batchv1.Job, error) {
-	allJobs, err := tm.jobLister.Jobs(namespace).List(util.GetLabelSetWithappID(app).AsSelector())
-	if err != nil {
-		return nil, nil, nil, nil, err
-	}
-
-	var activeJobs, condemnedJobs []*batchv1.Job
-	var phantomJobs []string
-	for _, job := range allJobs {
-		if _, ok := app.Status.PairStatus[v1alpha1.FLReplicaTypeWorker].Local[job.Name]; ok {
-			activeJobs = append(activeJobs, job)
-		} else {
-			condemnedJobs = append(condemnedJobs, job)
-		}
-	}
-	for jobName := range app.Status.PairStatus[v1alpha1.FLReplicaTypeWorker].Local {
-		exist := false
-		for _, job := range allJobs {
-			if jobName == job.Name {
-				exist = true
-				break
-			}
-		}
-		if !exist {
-			phantomJobs = append(phantomJobs, jobName)
-		}
-	}
-	return activeJobs, condemnedJobs, phantomJobs, allJobs, nil
-}
-
-func (tm *appManager) startNewJobs(
-	app *v1alpha1.FLApp,
-	activeJobs []*batchv1.Job,
-	phantomJobs []string,
-	allJobs []*batchv1.Job,
-) error {
-	var err error
-	appID := app.Spec.AppID
-	masterReplica := int(*getReplicas(app, v1alpha1.FLReplicaTypeMaster))
-	workerReplica := int(*getReplicas(app, v1alpha1.FLReplicaTypeWorker))
-	currentWorkerReplica := app.Status.PairStatus[v1alpha1.FLReplicaTypeWorker].Local.Len()
-	labelSet := util.GetLabelSetWithappID(app)
-	labelSet[LabelKeyMaster] = "true"
-
-	podNames := tm.getPodNames(labelSet.AsSelector())
-	if podNames.Len() != masterReplica {
-		err := fmt.Errorf("master is not ready for application %v, podNames = %v", appID, podNames)
-		klog.Error(err)
-		return err
-	}
-
-	// recreate jobs if not already exists
-	for _, jobName := range phantomJobs {
-		klog.Infof("recreating phantom job %v for application %v", jobName, appID)
-		if err = tm.createJob(app, jobName, podNames); err != nil {
-			err = fmt.Errorf("failed to recreate phantom job %v, err = %v", jobName, err)
-			klog.Error(err)
-			return err
-		}
-	}
-	for idx := 0; idx < workerReplica-currentWorkerReplica; idx++ {
-		jobName := fmt.Sprintf("job-%v-%v", currentWorkerReplica+idx, string(uuid.NewUUID()))
-		klog.Infof("updating desired job %v for application %v", jobName, appID)
-		app, err = tm.appStatusUpdater.UpdateAppStatusWithRetry(app, func(mutatingApp *v1alpha1.FLApp) bool {
-			if mutatingApp.Status.PairStatus[v1alpha1.FLReplicaTypeWorker].Local != nil && mutatingApp.Status.PairStatus[v1alpha1.FLReplicaTypeWorker].Local.Has(jobName) {
-				return false
-			}
-			if mutatingApp.Status.PairStatus[v1alpha1.FLReplicaTypeWorker].Local == nil {
-				mutatingApp.Status.PairStatus[v1alpha1.FLReplicaTypeWorker].Local = sets.NewString()
-			}
-			mutatingApp.Status.PairStatus[v1alpha1.FLReplicaTypeWorker].Local.Insert(jobName)
-			return true
-		})
-		if err != nil {
-			klog.Errorf(
-				"failed to update app status for job %v, appID = %v, err = %v",
-				jobName,
-				appID,
-				err,
-			)
-			return err
-		}
-		klog.Infof("creating desired job %v for application %v", jobName, appID)
-		if err = tm.createJob(app, jobName, podNames); err != nil {
-			klog.Errorf("failed to create new job %v, err = %v", jobName, err)
-			return err
-		}
-	}
-	return nil
-}
-
-func (tm *appManager) getPodNames(labelSelector labels.Selector) sets.String {
-	names := sets.NewString()
-	pods, err := tm.podLister.Pods(tm.namespace).List(labelSelector)
-	if err != nil {
-		return sets.NewString()
-	}
-	// pods must be running
-	for _, pod := range pods {
-		podCopy := *pod
-		if podCopy.Status.Phase != v1.PodRunning {
-			return sets.NewString()
-		}
-		// containers not started
-		if len(podCopy.Status.ContainerStatuses) == 0 {
-			return sets.NewString()
-		}
-		names.Insert(podCopy.Name)
-	}
-	return names
-}
-
-func (tm *appManager) createJob(app *v1alpha1.FLApp, jobName string, names sets.String) error {
-	appID := app.Spec.AppID
-	var limit int32 = 1
-	manualSelector := true
-	jobSpec := app.Spec.Worker.Template
-	jobSpec.Parallelism = &limit
-	jobSpec.Completions = &limit
-	jobSpec.ManualSelector = &manualSelector
-	set := util.GetLabelSetWithappID(app)
-	set[LabelKeyWorkerID] = jobName
-	jobSpec.Selector = metav1.SetAsLabelSelector(set)
-	jobSpec.Template.Spec.RestartPolicy = v1.RestartPolicyOnFailure
-	jobSpec.Template.Labels = set
-
-	for idx := range jobSpec.Template.Spec.Containers {
-		container := &jobSpec.Template.Spec.Containers[idx]
-		container.Env = ensureEnv(container.Env, v1.EnvVar{
-			Name:  WorkerEnvID,
-			Value: jobName,
-		})
-		container.Env = ensureEnv(container.Env, v1.EnvVar{
-			Name:  WorkerEnvPSHosts,
-			Value: strings.Join(app.Status.PSAddress.List(), ","),
-		})
-		container.Env = ensureEnv(container.Env, v1.EnvVar{
-			Name:  WorkerEnvMasterPodNames,
-			Value: strings.Join(names.List(), ","),
-		})
-		if tm.assignWorkerPort && len(container.Ports) > 0 {
-			for idx2 := range container.Ports {
-				port := int32(rand.IntnRange(tm.workerPortLowerBound, tm.workerPortUpperBound+1))
-				container.Ports[idx2].ContainerPort = port
-				container.Env = ensureEnv(container.Env, v1.EnvVar{
-					Name:  strings.ToUpper(container.Ports[idx2].Name),
-					Value: fmt.Sprintf("%d", port),
-				})
-			}
-		}
-
-		container.VolumeMounts = appendVolumeMountIfAbsent(container.VolumeMounts, v1.VolumeMount{
-			Name:      WorkerPairVolumeName,
-			ReadOnly:  true,
-			MountPath: WorkerPairMountPath,
-		})
-	}
-	jobSpec.Template.Spec.Volumes = append(jobSpec.Template.Spec.Volumes, v1.Volume{
-		Name: WorkerPairVolumeName,
-		VolumeSource: v1.VolumeSource{
-			ConfigMap: &v1.ConfigMapVolumeSource{
-				LocalObjectReference: v1.LocalObjectReference{
-					Name: workerConfigMapName(appID),
-				},
-			},
-		},
-	})
-
-	job := &batchv1.Job{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:   jobName,
-			Labels: util.GetLabelSetWithappID(app),
-		},
-		Spec: jobSpec,
-	}
-	if _, err := tm.kubeClient.BatchV1().Jobs(tm.namespace).Create(job); err != nil && !errors.IsAlreadyExists(err) {
-		return err
-	}
-	return nil
-}
-
-func ensureEnv(envVars []v1.EnvVar, item v1.EnvVar) []v1.EnvVar {
-	for idx := range envVars {
-		if envVars[idx].Name == item.Name {
-			envVars[idx].Value = item.Value
-			return envVars
-		}
-	}
-	envVars = append(envVars, item)
-	return envVars
-}
-
-func appendVolumeMountIfAbsent(volumeMounts []v1.VolumeMount, item v1.VolumeMount) []v1.VolumeMount {
-	for _, volumeMount := range volumeMounts {
-		if volumeMount.Name == item.Name {
-			return volumeMounts
-		}
-	}
-	volumeMounts = append(volumeMounts, item)
-	return volumeMounts
-}
-
-func (tm *appManager) syncBootstrappedApp(app *v1alpha1.FLApp) error {
-	appID := app.Spec.AppID
-	klog.Infof("sync bootstrapped app, appID = %v", appID)
+func (am *appManager) syncBootstrappedApp(app *v1alpha1.FLApp) error {
+	name := app.Name
+	klog.Infof("sync bootstrapped app, name = %v", name)
 
 	switch app.Spec.Role {
 	case v1alpha1.Leader:
-		return tm.syncLeaderApp(app)
+		return am.syncLeaderApp(app)
 	case v1alpha1.Follower:
-		return tm.syncFollowerApp(app)
+		return am.syncFollowerApp(app)
 	}
 	return nil
 }
 
-func (tm *appManager) syncLeaderApp(app *v1alpha1.FLApp) error {
-	appID := app.Spec.AppID
-	klog.Infof("sync bootstrapped leader app, appID = %v", appID)
+func (am *appManager) syncLeaderApp(app *v1alpha1.FLApp) error {
+	name := app.Name
+	klog.Infof("sync bootstrapped leader app, name = %v", name)
 
-	if err := tm.appEventHandler.OnBootstrappedHandler(app); err != nil {
-		klog.Errorf("failed to call Bootstrapped handler, appID = %v, err = %v", appID, err)
+	if err := am.appEventHandler.SyncLeaderPairs(app); err != nil {
+		klog.Errorf("failed to call SyncLeaderPairs, name = %v, err = %v", name, err)
 		return err
 	}
-	return tm.appStatusUpdater.UpdateAppStateWithRetry(app, v1alpha1.AppSyncSent)
+	return am.appStatusUpdater.UpdateAppStateWithRetry(app, v1alpha1.FLStateSyncSent)
 }
 
-func (tm *appManager) syncFollowerApp(app *v1alpha1.FLApp) error {
-	appID := app.Spec.AppID
-	klog.Infof("sync bootstrapped follower app, appID = %v", appID)
-
-	if tm.workerPaired(app) && tm.masterPaired(app) && tm.configMapUpdated(app) {
-		return tm.appStatusUpdater.UpdateAppStateWithRetry(app, v1alpha1.AppRunning)
+func (am *appManager) syncFollowerApp(app *v1alpha1.FLApp) error {
+	name := app.Name
+	klog.Infof("sync bootstrapped follower app, name = %v", name)
+	if am.replicaPaired(app) && am.configMapUpdated(app) {
+		return am.appStatusUpdater.UpdateAppStateWithRetry(app, v1alpha1.FLStateRunning)
 	}
 
-	workers := app.Status.PairStatus[v1alpha1.FLReplicaTypeWorker].Local.List()
-	peerWorkers := app.Status.PairStatus[v1alpha1.FLReplicaTypeWorker].Remote.List()
-	desiredReplica := int(*getReplicas(app, v1alpha1.FLReplicaTypeWorker))
-
-	if len(peerWorkers) != desiredReplica || len(workers) != desiredReplica {
-		return fmt.Errorf("still waiting for leader workers, appID = %v", appID)
-	}
-	workerMapping := make(map[string]string)
-	for idx := 0; idx < len(workers); idx++ {
-		workerMapping[workers[idx]] = peerWorkers[idx]
-	}
-
-	configMap := &v1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: workerConfigMapName(appID),
-		},
-		Data: workerMapping,
-	}
-	if _, err := tm.kubeClient.CoreV1().ConfigMaps(tm.namespace).Update(configMap); err != nil {
-		return err
-	}
-
-	masters := app.Status.PairStatus[v1alpha1.FLReplicaTypeMaster].Local.List()
-	peerMasters := app.Status.PairStatus[v1alpha1.FLReplicaTypeMaster].Remote.List()
-	desiredReplica = int(*getReplicas(app, v1alpha1.FLReplicaTypeMaster))
-
-	if len(peerMasters) != desiredReplica || len(masters) != desiredReplica {
-		return fmt.Errorf("still waiting for leader masters, appID = %v", appID)
-	}
-	masterMapping := make(map[string]string)
-	for idx := 0; idx < len(masters); idx++ {
-		masterMapping[masters[idx]] = peerMasters[idx]
-	}
-
-	configMap = &v1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: masterConfigMapName(appID),
-		},
-		Data: masterMapping,
-	}
-	if _, err := tm.kubeClient.CoreV1().ConfigMaps(tm.namespace).Update(configMap); err != nil {
-		return err
-	}
-
-	appCopy := app.DeepCopy()
-	appCopy.Status.PairStatus[v1alpha1.FLReplicaTypeWorker].Mapping = workerMapping
-	appCopy.Status.PairStatus[v1alpha1.FLReplicaTypeMaster].Mapping = masterMapping
-	if err := tm.appEventHandler.SyncWorkers(appCopy); err != nil {
-		klog.Errorf("failed to call SyncWorker handler, appID = %v, err = %v", appID, err)
-		return err
-	}
-
-	_, err := tm.appStatusUpdater.UpdateAppStatusWithRetry(app, func(mutatingApp *v1alpha1.FLApp) bool {
-		if len(mutatingApp.Status.PairStatus[v1alpha1.FLReplicaTypeWorker].Mapping) == int(*getReplicas(mutatingApp, v1alpha1.FLReplicaTypeWorker)) &&
-			len(mutatingApp.Status.PairStatus[v1alpha1.FLReplicaTypeMaster].Mapping) == int(*getReplicas(mutatingApp, v1alpha1.FLReplicaTypeMaster)) {
-			return false
+	for rtype := range app.Spec.FLReplicaSpecs {
+		if shouldPair(app, rtype) {
+			if app.Status.FLReplicaStatus[rtype].Remote.Len() != getReplicas(app, rtype) {
+				err := fmt.Errorf("still waiting for leader, name = %v, rtype = %v", name, rtype)
+				klog.Info(err)
+				return err
+			}
 		}
-		mutatingApp.Status.PairStatus[v1alpha1.FLReplicaTypeWorker].Mapping = workerMapping
-		mutatingApp.Status.PairStatus[v1alpha1.FLReplicaTypeMaster].Mapping = masterMapping
-		return true
-	})
-	return err
-}
-
-func (tm *appManager) syncSyncSentApp(app *v1alpha1.FLApp) error {
-	appID := app.Spec.AppID
-	klog.Infof("sync sync-sent app, appID = %v", appID)
-	configMapUpdated := tm.configMapUpdated(app)
-	if tm.workerPaired(app) && tm.masterPaired(app) && configMapUpdated {
-		return tm.appStatusUpdater.UpdateAppStateWithRetry(app, v1alpha1.AppRunning)
 	}
 
+	for rtype := range app.Spec.FLReplicaSpecs {
+		if shouldPair(app, rtype) {
+			local := app.Status.FLReplicaStatus[rtype].Local.List()
+			remote := app.Status.FLReplicaStatus[rtype].Remote.List()
+			mapping := make(map[string]string)
+			for idx := 0; idx < len(local); idx++ {
+				mapping[local[idx]] = remote[idx]
+			}
+			// Update configMap and then update mapping status
+			if err := am.createOrUpdateConfigMap(app, rtype, mapping); err != nil {
+				return err
+			}
+			status := app.Status.FLReplicaStatus[rtype]
+			replicaStatus := status.DeepCopy()
+			replicaStatus.Mapping = mapping
+			app.Status.FLReplicaStatus[rtype] = *replicaStatus
+		}
+	}
+	if err := am.appEventHandler.SyncFollowerPairs(app); err != nil {
+		klog.Errorf("failed to call SyncFollowerPairs handler, name = %v, err = %v", name, err)
+		return err
+	}
+	return am.overwriteStatus(app)
+}
+
+func (am *appManager) syncSyncSentApp(app *v1alpha1.FLApp) error {
+	name := app.Name
+	klog.Infof("sync sync-sent app, name = %v", name)
+	configMapUpdated := am.configMapUpdated(app)
+	if am.replicaPaired(app) && am.configMapUpdated(app) {
+		return am.appStatusUpdater.UpdateAppStateWithRetry(app, v1alpha1.FLStateRunning)
+	}
 	if !configMapUpdated {
-		workerPair := app.Status.PairStatus[v1alpha1.FLReplicaTypeWorker].Mapping
-		mapping := make(map[string]string)
-		for worker, peerWorker := range workerPair {
-			mapping[worker] = peerWorker
-		}
-		configMap := &v1.ConfigMap{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: workerConfigMapName(appID),
-			},
-			Data: mapping,
-		}
-		if _, err := tm.kubeClient.CoreV1().ConfigMaps(tm.namespace).Update(configMap); err != nil {
-			return err
-		}
-		masterPair := app.Status.PairStatus[v1alpha1.FLReplicaTypeMaster].Mapping
-		mapping = make(map[string]string)
-		for master, peerMaster := range masterPair {
-			mapping[master] = peerMaster
-		}
-		configMap = &v1.ConfigMap{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: masterConfigMapName(appID),
-			},
-			Data: mapping,
-		}
-		if _, err := tm.kubeClient.CoreV1().ConfigMaps(tm.namespace).Update(configMap); err != nil {
-			return err
-		}
-	}
-	klog.Infof("still waiting for follower, appID = %v", appID)
-	return nil
-}
-
-func (tm *appManager) workerPaired(app *v1alpha1.FLApp) bool {
-	desiredReplica := int(*getReplicas(app, v1alpha1.FLReplicaTypeWorker))
-	// TODO: check detailed worker matching
-	return app.Status.PairStatus[v1alpha1.FLReplicaTypeWorker].Remote.Len() == desiredReplica &&
-		app.Status.PairStatus[v1alpha1.FLReplicaTypeWorker].Local.Len() == desiredReplica &&
-		len(app.Status.PairStatus[v1alpha1.FLReplicaTypeWorker].Mapping) == desiredReplica
-}
-
-func (tm *appManager) masterPaired(app *v1alpha1.FLApp) bool {
-	desiredReplica := int(*getReplicas(app, v1alpha1.FLReplicaTypeMaster))
-	return app.Status.PairStatus[v1alpha1.FLReplicaTypeMaster].Remote.Len() == desiredReplica &&
-		app.Status.PairStatus[v1alpha1.FLReplicaTypeMaster].Local.Len() == desiredReplica &&
-		len(app.Status.PairStatus[v1alpha1.FLReplicaTypeMaster].Mapping) == desiredReplica
-}
-
-func (tm *appManager) configMapUpdated(app *v1alpha1.FLApp) bool {
-	configMapName := app.Spec.AppID
-	configMap, err := tm.configMapLister.ConfigMaps(tm.namespace).Get(workerConfigMapName(configMapName))
-	if err != nil || configMap == nil {
-		return false
-	}
-	if configMap.Data == nil {
-		return len(app.Status.PairStatus[v1alpha1.FLReplicaTypeWorker].Mapping) == 0
-	}
-	if !reflect.DeepEqual(configMap.Data, app.Status.PairStatus[v1alpha1.FLReplicaTypeWorker].Mapping) {
-		return false
-	}
-	configMap, err = tm.configMapLister.ConfigMaps(tm.namespace).Get(masterConfigMapName(configMapName))
-	if err != nil || configMap == nil {
-		return false
-	}
-	if configMap.Data == nil {
-		return len(app.Status.PairStatus[v1alpha1.FLReplicaTypeMaster].Mapping) == 0
-	}
-	return reflect.DeepEqual(configMap.Data, app.Status.PairStatus[v1alpha1.FLReplicaTypeMaster].Mapping)
-}
-
-func (tm *appManager) syncRunningApp(app *v1alpha1.FLApp) error {
-	appID := app.Spec.AppID
-	klog.Infof("sync running app, appID = %v", appID)
-	if tm.isAppFinished(app) {
-		if err := tm.appEventHandler.OnFinishedHandler(app); err != nil {
-			klog.Errorf("failed to call Finished handler, appID = %v, err = %v", appID, err)
-			return err
-		}
-		return tm.appStatusUpdater.UpdateAppStateWithRetry(app, v1alpha1.AppComplete)
-	}
-	klog.Infof("app still running, appID = %v", appID)
-	return nil
-}
-
-func (tm *appManager) isAppFinished(app *v1alpha1.FLApp) bool {
-	desiredReplica := int(*getReplicas(app, v1alpha1.FLReplicaTypeWorker))
-	activeJobs, _, _, _, err := tm.getCurrentJobs(app, tm.namespace)
-	if err != nil || desiredReplica != len(activeJobs) {
-		return false
-	}
-	for _, job := range activeJobs {
-		completed := false
-		for _, condition := range job.Status.Conditions {
-			if condition.Status == v1.ConditionTrue && condition.Type == batchv1.JobComplete {
-				completed = true
+		for rtype := range app.Spec.FLReplicaSpecs {
+			if shouldPair(app, rtype) {
+				if err := am.createOrUpdateConfigMap(app, rtype, app.Status.FLReplicaStatus[rtype].Mapping); err != nil {
+					return err
+				}
 			}
 		}
-		if !completed {
-			return false
+	}
+	klog.Infof("still waiting for follower, name = %v", name)
+	return nil
+}
+
+func (am *appManager) replicaPaired(app *v1alpha1.FLApp) bool {
+	for rtype := range app.Spec.FLReplicaSpecs {
+		if shouldPair(app, rtype) {
+			if app.Status.FLReplicaStatus[rtype].Local.Len() != getReplicas(app, rtype) {
+				return false
+			}
+			if app.Status.FLReplicaStatus[rtype].Remote.Len() != getReplicas(app, rtype) {
+				return false
+			}
+			if len(app.Status.FLReplicaStatus[rtype].Mapping) != getReplicas(app, rtype) {
+				return false
+			}
 		}
 	}
 	return true
 }
 
-func (tm *appManager) isAppFailing(app *v1alpha1.FLApp) bool {
-	appID := app.Spec.AppID
-	desiredReplica := int(*getReplicas(app, v1alpha1.FLReplicaTypeWorker))
-	labelSet := util.GetLabelSetWithappID(app)
-	labelSet[LabelKeyPS] = "true"
-	activeJobs, _, _, _, err := tm.getCurrentJobs(app, tm.namespace)
-	if err != nil {
-		klog.Infof("app is failing because of err get current jobs, appID = %v, err = %v", appID, err)
+func (am *appManager) configMapUpdated(app *v1alpha1.FLApp) bool {
+	for rtype := range app.Spec.FLReplicaSpecs {
+		if shouldPair(app, rtype) {
+			rt := strings.ToLower(string(rtype))
+			configMapName := GenName(app.Name, rt)
+
+			configMap, err := am.configMapLister.ConfigMaps(am.namespace).Get(configMapName)
+			if err != nil || configMap == nil {
+				return false
+			}
+			return apiequality.Semantic.DeepEqual(configMap.Data, app.Status.FLReplicaStatus[rtype].Mapping)
+		}
+	}
+	return true
+}
+
+func (am *appManager) syncRunningApp(app *v1alpha1.FLApp) error {
+	name := app.Name
+	klog.Infof("sync running app, name = %v", name)
+	if am.isAppFinished(app) {
+		if err := am.appEventHandler.FinishPeer(app); err != nil {
+			klog.Errorf("failed to call Finished handler, name = %v, err = %v", name, err)
+			return err
+		}
+		if err := am.freeResource(app); err != nil {
+			klog.Errorf("failed to free resource when app is finished, name = %v, err = %v", name, err)
+			return err
+		}
+		return am.appStatusUpdater.UpdateAppStateWithRetry(app, v1alpha1.FLStateComplete)
+	}
+	klog.Infof("app still running, name = %v", name)
+	return am.reconcileFLApp(app)
+}
+
+func (am *appManager) isAppFinished(app *v1alpha1.FLApp) bool {
+	rtypeWorker := v1alpha1.FLReplicaTypeWorker
+	return app.Status.FLReplicaStatus[rtypeWorker].Succeeded.Len() == getReplicas(app, rtypeWorker)
+}
+
+func (am *appManager) isAppFailing(app *v1alpha1.FLApp) bool {
+	rtypePS := v1alpha1.FLReplicaTypePS
+	// PS can not tolerate failure
+	if app.Status.FLReplicaStatus[rtypePS].Failed.Len() > 0 {
 		return true
 	}
-	for _, job := range activeJobs {
-		failed := false
-		for _, condition := range job.Status.Conditions {
-			if condition.Status == v1.ConditionTrue && condition.Type == batchv1.JobFailed {
-				failed = true
-			}
-		}
-		if failed {
-			klog.Infof("app is failing because of job failed, appID = %v, jobName = %v, err = %v", appID, job.Name, err)
-			return true
-		}
+	prevReplicasFailedNum := 0
+	for _, status := range app.Status.FLReplicaStatus {
+		prevReplicasFailedNum += status.Failed.Len()
 	}
-	address := tm.getPodAddress(labelSet.AsSelector())
-	if len(activeJobs) != desiredReplica {
-		psAddressChanged := false
-		if len(address) == 0 {
-			psAddressChanged = app.Status.PSAddress.Len() != 0
-		} else {
-			psAddressChanged = !reflect.DeepEqual(address, app.Status.PSAddress)
-		}
-		if psAddressChanged {
-			tm.appFailingCache.PutIfAbsent(appID)
-			if tm.appFailingCache.Expired(appID) {
-				klog.Infof("app is failing because of PS address changed, appID = %v, current address = %v, status address = %v, err = %v", appID, address, app.Status.PSAddress, err)
-				return true
-			}
-		}
-	}
-	return false
+	return prevReplicasFailedNum > int(*app.Spec.BackoffLimit)
 }
 
-func (tm *appManager) syncFailingApp(app *v1alpha1.FLApp) error {
-	appID := app.Spec.AppID
-	klog.Infof("sync failing app, appID = %v", appID)
-	if err := tm.appEventHandler.OnFailedHandler(app); err != nil {
-		klog.Errorf("failed to call Failed handler, appID = %v, err = %v", appID, err)
+func (am *appManager) isAppTimeOut(app *v1alpha1.FLApp, now time.Time) bool {
+	if app.Spec.ActiveDeadlineSeconds == nil {
+		return false
+	}
+	return app.GetCreationTimestamp().Add(time.Duration(*app.Spec.ActiveDeadlineSeconds)).After(now)
+}
+
+func (am *appManager) syncFailingApp(app *v1alpha1.FLApp) error {
+	name := app.Name
+	klog.Infof("sync failing app, name = %v", name)
+	if err := am.appEventHandler.ShutdownPeer(app); err != nil {
+		klog.Errorf("failed to call FLStateFailed handler, name = %v, err = %v", name, err)
 		return err
 	}
-	return tm.appStatusUpdater.UpdateAppStateWithRetry(app, v1alpha1.AppShuttingDown)
+	return am.appStatusUpdater.UpdateAppStateWithRetry(app, v1alpha1.FLStateShutDown)
 }
 
-func (tm *appManager) syncShuttingDownApp(app *v1alpha1.FLApp) error {
-	appID := app.Spec.AppID
-	klog.Infof("sync shutting-down app, appID = %v", appID)
-	if tm.isResourceFreed(app) {
-		return tm.appStatusUpdater.UpdateAppStateWithRetry(app, v1alpha1.AppFailed)
+func (am *appManager) syncShuttingDownApp(app *v1alpha1.FLApp) error {
+	name := app.Name
+	klog.Infof("sync shutting-down app, name = %v", name)
+	if err := am.freeResource(app); err != nil {
+		return err
 	}
-	return tm.freeResource(app)
+	return am.appStatusUpdater.UpdateAppStateWithRetry(app, v1alpha1.FLStateFailed)
 }
 
-func (tm *appManager) isResourceFreed(app *v1alpha1.FLApp) bool {
-	appID := app.Spec.AppID
-	set := util.GetLabelSetWithappID(app)
-	jobs, err := tm.jobLister.Jobs(tm.namespace).List(set.AsSelector())
-	if (err != nil && !errors.IsNotFound(err)) || len(jobs) > 0 {
-		return false
+func (am *appManager) freeResource(app *v1alpha1.FLApp) error {
+	name := app.Name
+	deletePropagationBackground := metav1.DeletePropagationBackground
+	pods, err := am.getPodsForApp(app)
+	if err != nil {
+		return err
 	}
-	master, err := tm.statefulsetLister.StatefulSets(tm.namespace).Get(masterName(appID))
-	if (err != nil && !errors.IsNotFound(err)) || master != nil {
-		return false
+	selector, err := metav1.LabelSelectorAsSelector(&metav1.LabelSelector{
+		MatchLabels: GenLabels(app.GetName()),
+	})
+	if err != nil {
+		return err
 	}
-	ps, err := tm.statefulsetLister.StatefulSets(tm.namespace).Get(psName(appID))
-	if (err != nil && !errors.IsNotFound(err)) || ps != nil {
-		return false
+
+	if *app.Spec.CleanPodPolicy == v1alpha1.CleanPodPolicyNone {
+		klog.Infof("CleanPodPolicy = %v, nothing will be deleted for app, name = %v", v1alpha1.CleanPodPolicyNone, name)
+		return nil
 	}
-	configMap, err := tm.configMapLister.ConfigMaps(tm.namespace).Get(masterConfigMapName(appID))
-	if (err != nil && !errors.IsNotFound(err)) || configMap != nil {
-		return false
+
+	for _, pod := range pods {
+		rt := pod.Labels[flReplicaTypeLabel]
+		index := pod.Labels[flReplicaIndexLabel]
+		if err := am.podControl.DeletePod(pod.Namespace, pod.Name, app); err != nil && !errors.IsNotFound(err) {
+			return err
+		}
+		if err := am.serviceControl.DeleteService(pod.Namespace, GenIndexName(app.Name, rt, index), app); err != nil && !errors.IsNotFound(err) {
+			return err
+		}
 	}
-	configMap, err = tm.configMapLister.ConfigMaps(tm.namespace).Get(workerConfigMapName(appID))
-	if (err != nil && !errors.IsNotFound(err)) || configMap != nil {
-		return false
+	if err := am.kubeClient.CoreV1().ConfigMaps(am.namespace).DeleteCollection(&metav1.DeleteOptions{
+		PropagationPolicy: &deletePropagationBackground,
+	}, metav1.ListOptions{
+		LabelSelector: selector.String(),
+	}); err != nil && !errors.IsNotFound(err) {
+		return err
 	}
-	return true
+	if err := am.kubeClient.NetworkingV1beta1().Ingresses(am.namespace).Delete(app.Name, &metav1.DeleteOptions{
+		PropagationPolicy: &deletePropagationBackground,
+	}); err != nil && !errors.IsNotFound(err) {
+		return err
+	}
+	return nil
 }
 
-func (tm *appManager) freeResource(app *v1alpha1.FLApp) error {
-	appID := app.Spec.AppID
-	policy := metav1.DeletePropagationBackground
-	errs := util.NewErrors()
-
-	errs.Add(tm.kubeClient.BatchV1().Jobs(tm.namespace).DeleteCollection(
-		&metav1.DeleteOptions{PropagationPolicy: &policy},
-		metav1.ListOptions{LabelSelector: util.GetLabelSetWithappID(app).String()}))
-	errs.Add(tm.kubeClient.AppsV1().StatefulSets(tm.namespace).Delete(masterName(appID), &metav1.DeleteOptions{}))
-	errs.Add(tm.kubeClient.AppsV1().StatefulSets(tm.namespace).Delete(psName(appID), &metav1.DeleteOptions{}))
-	errs.Add(tm.kubeClient.CoreV1().ConfigMaps(tm.namespace).Delete(masterConfigMapName(appID), &metav1.DeleteOptions{}))
-	errs.Add(tm.kubeClient.CoreV1().ConfigMaps(tm.namespace).Delete(workerConfigMapName(appID), &metav1.DeleteOptions{}))
-	return errs.AsError()
+func getReplicas(app *v1alpha1.FLApp, rtype v1alpha1.FLReplicaType) int {
+	return int(*app.Spec.FLReplicaSpecs[rtype].Replicas)
 }
 
-func psName(appID string) string {
-	return appID + "-ps"
-}
-
-func masterName(appID string) string {
-	return appID + "-master"
-}
-
-func masterConfigMapName(appID string) string {
-	return masterName(appID)
-}
-
-func workerConfigMapName(appID string) string {
-	return appID + "-worker"
-}
-
-func getReplicas(app *v1alpha1.FLApp, rtype v1alpha1.FLReplicaType) *int32 {
-	return app.Spec.FLReplicaSpecs[rtype].Replicas
+func shouldPair(app *v1alpha1.FLApp, rtype v1alpha1.FLReplicaType) bool {
+	return app.Spec.FLReplicaSpecs[rtype].Pair != nil && *app.Spec.FLReplicaSpecs[rtype].Pair == true
 }

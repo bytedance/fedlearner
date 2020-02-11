@@ -29,9 +29,8 @@ message Status {
 
 message PairRequest {
     string app_id = 1;
-    repeated Pair master_pairs = 2;
-    repeated Pair worker_pairs = 3;
-    CtrlFlag ctrl_flag = 4;
+    repeated Pair pairs = 2;
+    CtrlFlag ctrl_flag = 3;
 }
 
 enum CtrlFlag {
@@ -41,6 +40,7 @@ enum CtrlFlag {
 }
 
 message Pair {
-    string leader_id = 1;
-    string follower_id = 2;
+    string role = 1;
+    repeated string leader_ids = 2;
+    repeated string follower_ids = 3;
 }

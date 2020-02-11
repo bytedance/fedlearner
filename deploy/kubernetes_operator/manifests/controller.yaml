@@ -1,0 +1,120 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: flapp-operator
+  name: flapp-operator
+  namespace: leader
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: flapp-operator
+  strategy:
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 1
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: flapp-operator
+    spec:
+      containers:
+        - args:
+            - --peer-url=flapp-operator.follower.svc.cluster.local:8200
+            - --port=8100
+            - --namespace=leader
+            - --leader-election=true
+            - --leader-election-lock-namespace=leader
+            - --resync-interval=5
+          command:
+            - ./main
+          image: fedlearner_operator:v0.0.3
+          imagePullPolicy: IfNotPresent
+          name: flapp-operator
+          ports:
+            - containerPort: 8100
+          resources:
+            limits:
+              cpu: "4"
+              memory: 4Gi
+            requests:
+              cpu: "4"
+              memory: 4Gi
+      restartPolicy: Always
+      serviceAccountName: flapp-operator
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: flapp-operator
+  namespace: leader
+spec:
+  selector:
+    app: flapp-operator
+  ports:
+    - protocol: TCP
+      port: 8100
+      targetPort: 8100
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: flapp-operator
+  name: flapp-operator
+  namespace: follower
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: flapp-operator
+  strategy:
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 1
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: flapp-operator
+    spec:
+      containers:
+        - args:
+            - --peer-url=flapp-operator.leader.svc.cluster.local:8100
+            - --port=8200
+            - --namespace=follower
+            - --leader-election=true
+            - --leader-election-lock-namespace=follower
+            - --resync-interval=5
+          command:
+            - ./main
+          image: fedlearner_operator:v0.0.3
+          imagePullPolicy: IfNotPresent
+          name: flapp-operator
+          ports:
+            - containerPort: 8100
+              hostPort: 8100
+          resources:
+            limits:
+              cpu: "4"
+              memory: 4Gi
+            requests:
+              cpu: "4"
+              memory: 4Gi
+      restartPolicy: Always
+      serviceAccountName: flapp-operator
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: flapp-operator
+  namespace: follower
+spec:
+  selector:
+    app: flapp-operator
+  ports:
+    - protocol: TCP
+      port: 8200
+      targetPort: 8200

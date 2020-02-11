@@ -1,4 +1,5 @@
-/* Copyright 2020 The FedLearner Authors. All Rights Reserved.
+/*
+ * Copyright 2020 The FedLearner Authors. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,17 +14,11 @@
  * limitations under the License.
  */
 
-package util
+package v1alpha1
 
-import (
-	"k8s.io/apimachinery/pkg/labels"
-
-	"github.com/bytedance/fedlearner/deploy/kubernetes_operator/pkg/apis/fedlearner.k8s.io/v1alpha1"
+const (
+	DefaultNonPairReplica int32 = 0
+	DefaultPairReplica    int32 = 1
+	DefaultBackoffLimit   int32 = 5
+	DefaultPort           int32 = 8888
 )
-
-func GetLabelSetWithappID(app *v1alpha1.FLApp) labels.Set {
-	appID := app.Spec.AppID
-	set := make(labels.Set)
-	set["appID"] = appID
-	return set
-}

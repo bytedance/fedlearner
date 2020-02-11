@@ -28,9 +28,9 @@ import (
 
 type StatusUpdater interface {
 	// Update app state only in app's status
-	UpdateAppStateWithRetry(app *v1alpha1.FLApp, state v1alpha1.AppState) error
+	UpdateAppStateWithRetry(app *v1alpha1.FLApp, state v1alpha1.FLState) error
 	// Update any field in app's status
-	UpdateAppStatusWithRetry(app *v1alpha1.FLApp, updateFunc func(*v1alpha1.FLApp) bool) (*v1alpha1.FLApp, error)
+	UpdateStatusWithRetry(app *v1alpha1.FLApp, updateFunc func(*v1alpha1.FLApp) bool) (*v1alpha1.FLApp, error)
 }
 
 type appStatusUpdater struct {
@@ -38,14 +38,14 @@ type appStatusUpdater struct {
 	namespace string
 }
 
-func NewappStatusUpdater(crdClient crdclientset.Interface, namespace string) StatusUpdater {
+func NewAppStatusUpdater(crdClient crdclientset.Interface, namespace string) StatusUpdater {
 	return &appStatusUpdater{
 		crdClient: crdClient,
 		namespace: namespace,
 	}
 }
 
-func (updater *appStatusUpdater) UpdateAppStateWithRetry(app *v1alpha1.FLApp, state v1alpha1.AppState) error {
+func (updater *appStatusUpdater) UpdateAppStateWithRetry(app *v1alpha1.FLApp, state v1alpha1.FLState) error {
 	updateFunc := func(flapp *v1alpha1.FLApp) bool {
 		if flapp.Status.AppState == state {
 			return false
@@ -53,11 +53,11 @@ func (updater *appStatusUpdater) UpdateAppStateWithRetry(app *v1alpha1.FLApp, st
 		flapp.Status.AppState = state
 		return true
 	}
-	_, err := updater.UpdateAppStatusWithRetry(app, updateFunc)
+	_, err := updater.UpdateStatusWithRetry(app, updateFunc)
 	return err
 }
 
-func (updater *appStatusUpdater) UpdateAppStatusWithRetry(
+func (updater *appStatusUpdater) UpdateStatusWithRetry(
 	app *v1alpha1.FLApp,
 	updateFunc func(*v1alpha1.FLApp) bool,
 ) (*v1alpha1.FLApp, error) {
@@ -83,7 +83,7 @@ func (updater *appStatusUpdater) UpdateAppStatusWithRetry(
 
 		klog.Infof(
 			"updating flapp %v status, namespace = %v, new state = %v",
-			freshApp.Spec.AppID,
+			freshApp.Name,
 			updater.namespace,
 			freshApp.Status.AppState)
 		freshApp, err = updater.crdClient.FedlearnerV1alpha1().FLApps(updater.namespace).UpdateStatus(freshApp)
