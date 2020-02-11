@@ -16,7 +16,7 @@ protobuf:
 		protocols/fedlearner/common/*.proto
 
 lint:
-	pylint --rcfile ci/pylintrc fedlearner 
+	pylint --rcfile ci/pylintrc fedlearner example
 
 test:
 	python test/test_bridge.py
