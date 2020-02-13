@@ -88,7 +88,7 @@ function _M.get_router_key(self)
     ngx.log(ngx.ERR, "debug grpc svc_name: ", svc_name,
                      ", method_name: ", func_name)
 
-    --get uuid:
+    --get route_id:
     local route_id = ngx.var.http_route_id
     if route_id == nil then
         ngx.log(ngx.ERR, "empty route_id: ", ngx.var.uri)
@@ -99,7 +99,7 @@ function _M.get_router_key(self)
     ngx.log(ngx.ERR, "debug grpc service: ", svc_name)
     ngx.log(ngx.ERR, "debug grpc function:", func_name)
     ngx.log(ngx.ERR, "debug grpc addressid:", route_id)
-    return uuid
+    return route_id
 end
 
 --@call phase: call by the access_by_lua_file;

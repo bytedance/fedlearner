@@ -24,7 +24,7 @@ local cjson = require "cjson"
 
 local _M = {
     _VERSION = '0.0.1',
-    hosts = {"127.0.0.1:3379"},
+    hosts = {"127.0.0.1:2379"},
     rr_count = 1,
     cli = nil,
     init = false,
