@@ -19,7 +19,9 @@ import sys
 from fedlearner.common import trainer_master_service_pb2 as tm_pb
 from fedlearner.common import trainer_master_service_pb2_grpc as tm_grpc
 from fedlearner.common import common_pb2 as common_pb
+from fedlearner.common import metrics
 
+METRICS_TM_REQUEST_BLOCK = "trainermaster.req.blcok"
 
 class TrainerMasterServer(tm_grpc.TrainerMasterServiceServicer):
     def __init__(self, receiver_fn):
@@ -33,4 +35,7 @@ class TrainerMasterServer(tm_grpc.TrainerMasterServiceServicer):
         except Exception:  # pylint: disable=broad-except
             response.status.code = common_pb.STATUS_UNKNOWN_ERROR
             response.status.error_message = sys.exc_info()[0]
+        metrics.emit(METRICS_TM_REQUEST_BLOCK, 
+                     {'status': response.status.code, 
+                      'count': 1})
         return response

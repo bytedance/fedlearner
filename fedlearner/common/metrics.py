@@ -13,56 +13,70 @@
 # limitations under the License.
 
 # coding: utf-8
-"""Metrics logger""" 
 
 import time
 import os
 import logging
+import socket
 from influxdb import InfluxDBClient
 
 _metrics_client = None
-
+hostname = socket.gethostname()
+local_ip = socket.gethostbyname(hostname)
 
 class MetricsClient(object):
     def __init__(self, host, port, user, passwd, db):
         self._client = InfluxDBClient(host, port, user, passwd, db)
 
-    def emit(self, metrics_name, tagkv, fields):
+    def emit(self, metrics_name, tagkv, fields, time=None):
         emit_body = []
         emit_item = {
             "measurement": metrics_name,
             "tags": tagkv,
-            "time": int(round(time.time() * 1000)),
-            "fields": fields
-        }
+            "time": time if time else int(round(time.time() * 1000)),
+            "fields": fields}
 
         emit_body.append(emit_item)
         logging.debug('Metrics Client emit emit body %s', str(emit_body))
         return self._client.write_points(emit_body)
 
 
-def config(host=None, port=None, user=None, passwd=None, db=None):
+def config(use_mock_cli=False, host=None, port=None, user=None, 
+           passwd=None, db=None):
     global _metrics_client  # pylint: disable=global-statement
     if not host:
-        host = os.environ.get('INFLUXDB_HOST')
+        host = os.environ.get('INFLUXDB_HOST', None)
     if not port:
-        port = os.environ.get('INFLUXDB_PORT')
+        port = os.environ.get('INFLUXDB_PORT', None)
     if not user:
-        user = os.environ.get('INFLUXDB_USER')
+        user = os.environ.get('INFLUXDB_USER', None)
     if not passwd:
-        passwd = os.environ.get('INFLUXDB_PASSWD')
+        passwd = os.environ.get('INFLUXDB_PASSWD', None)
     if not db:
-        db = os.environ.get('INFLUXDB_DB')
+        db = os.environ.get('INFLUXDB_DB', None)
+    
+    if not host or not port or not user or not passwd or not db:
+        return False
 
     _metrics_client = MetricsClient(host=host,
                                     port=port,
                                     user=user,
                                     passwd=passwd,
                                     db=db)
+    return True
 
-
-def emit(metrics_name, tagkv, fields):
+def emit(metrics_name, fields, tagkv={}):
     if not _metrics_client:
-        config()
+        if not config():
+            return None
+    
+    if not isinstance(fields, dict):
+        raise TypeError('Metrics fields only support dict')
 
+    if not isinstance(tagkv, dict):
+        raise TypeError('Metrics tagkv only support dict')
+
+    if 'host' not in tagkv:
+        tagkv['host'] = local_ip
+  
     return _metrics_client.emit(metrics_name, tagkv, fields)

@@ -15,15 +15,70 @@
 # coding: utf-8
 
 import unittest
+import requests
+import json
+import mock
+import requests.exceptions
+import requests_mock
+from fedlearner.common import metrics
 
-from fedlearner_common import metrics
+def _build_response_object(status_code=200, content=""):
+    resp = requests.Response()
+    resp.status_code = status_code
+    resp._content = content.encode("utf8")
+    return resp
 
+def _mocked_session(cli, method="GET", status_code=200, content=""):
+    method = method.upper()
+
+    def request(*args, **kwargs):
+        """Request content from the mocked session."""
+        c = content
+
+        # Check method
+        assert method == kwargs.get('method', 'GET')
+
+        if method == 'POST':
+            data = kwargs.get('data', None)
+
+            if data is not None:
+                # Data must be a string
+                assert isinstance(data, str)
+
+                # Data must be a JSON string
+                assert c == json.loads(data, strict=True)
+
+                c = data
+
+        # Anyway, Content must be a JSON string (or empty string)
+        if not isinstance(c, str):
+            c = json.dumps(c)
+
+        return _build_response_object(status_code=status_code, content=c)
+
+    return mock.patch.object(cli._session, 'request', side_effect=request)
 
 class TestMetricsClient(unittest.TestCase):
-    def test_metrics_client(self):
-        metrics.emit(metrics_name='fedlearner_latency',
-                     tagkv={'host': '127.0.0.1'},
-                     fields={'value': '28'})
+
+    def test_emit(self):
+        with requests_mock.Mocker() as m:
+            m.register_uri(
+                requests_mock.POST,
+                "http://localhost:8086/write",
+                status_code=204
+            )
+
+            cli = metrics.MetricsClient('localhost', 8086, 'username', 'password', 'db')
+            cli.emit(metrics_name="cpu_load_short", 
+                     tagkv={"host": "server01", "region": "us-west"}, 
+                     fields={"value": 0.64},
+                     time="2009-11-10T23:00:00.123456Z")
+            self.assertEqual(
+                'cpu_load_short,host=server01,region=us-west '
+                'value=0.64 1257894000123456000\n',
+                m.last_request.body.decode('utf-8'),
+            )
+
 
 
 if __name__ == '__main__':
