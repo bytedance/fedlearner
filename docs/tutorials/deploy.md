@@ -4,7 +4,7 @@
 
 ## K8s Controller 部署
 
-`K8s Controller` 负责将 `Scheduler` 提交的任务部署到 K8s 上，并与 `FedLearner` 对端进行配对。
+`K8s Controller` 负责将 `Scheduler` 提交的任务部署到 K8s 上，并与 `Fedlearner` 对端进行配对。
 K8s 集群请见 `K8s 集群创建`，请确保 `kubectl` 可以正常工作。`K8s Controller` 部署包含以下步骤：
 1. 创建 `namespace`，`kubectl create ns leader && kubectl create ns follower`
 2. 创建 `K8s Controller` 所需的 `ServiceAccont`， `kubectl create deploy/kubernetes_operator/manifests/service_account.yaml`
@@ -16,7 +16,7 @@ K8s 集群请见 `K8s 集群创建`，请确保 `kubectl` 可以正常工作。`
 
 ### Quick Start Examples (Optional)
 
-`deploy/kubernetes_operator/manifests` 包含了三个 `FedLearner` 样例，用于验证 `K8s Controller` 正常工作：
+`deploy/kubernetes_operator/manifests` 包含了三个 `Fedlearner` 样例，用于验证 `K8s Controller` 正常工作：
 1. Long running example, `kubectl apply -f deploy/kubernetes_operator/manifests/longrun_leader.yaml && kubectl apply -f deploy/kubernetes_operator/manifests/longrun_follower.yaml`
 命令会创建两个 `FLApp` （分别在 Leader 和 Follower namespace），Leader FLApp（以下简称 Leader）会拉起 Pod，并通过 GRPC 请求不断向 Follower FLApp (以下简称 Follower) 请求配对。
 类似的，Follower 完成拉起 Pod 后，会接受 Leader 的配对请求，此后 Pod 会一直处于 `Running` 状态。可以通过 `kubectl get flapp longrun -o json` 观察 `FLAppState` 变化情况。此外，可以通过 `kubectl get pods` 查看 Pod 拉起情况。

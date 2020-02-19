@@ -1,4 +1,4 @@
-# Copyright 2020 The FedLearner Authors. All Rights Reserved.
+# Copyright 2020 The Fedlearner Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,6 +14,6 @@
 
 # coding: utf-8
 
-"""FedLearner training for federated learning models"""
+"""Fedlearner training for collaborative machine learning models"""
 
 from fedlearner.platform import trainer_master

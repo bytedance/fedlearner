@@ -1,4 +1,4 @@
-# Copyright 2020 The FedLearner Authors. All Rights Reserved.
+# Copyright 2020 The Fedlearner Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -25,7 +25,7 @@ from fedlearner.trainer.trainer_master import TrainerMasterClient
 
 
 def create_argument_parser():
-    parser = argparse.ArgumentParser(description='FedLearner Trainer.')
+    parser = argparse.ArgumentParser(description='Fedlearner Trainer.')
     parser.add_argument('--local-addr', type=str, required=True,
                         help='Listen address of the local bridge, ' \
                              'in [IP]:[PORT] format')

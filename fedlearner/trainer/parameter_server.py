@@ -1,4 +1,4 @@
-# Copyright 2020 The FedLearner Authors. All Rights Reserved.
+# Copyright 2020 The Fedlearner Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -19,7 +19,7 @@ import tensorflow.compat.v1 as tf
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='FedLearner Parameter Server.')
+    parser = argparse.ArgumentParser(description='Fedlearner Parameter Server.')
     parser.add_argument('address', type=str,
                         help='Listen address of the parameter server, ' \
                              'with format [IP]:[PORT]')
