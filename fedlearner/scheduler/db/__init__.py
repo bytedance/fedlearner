@@ -13,11 +13,10 @@
 # limitations under the License.
 
 # coding: utf-8
-"""All public modules of FedLearner."""
 
-from fedlearner import common
-from fedlearner import data_join
-from fedlearner import scheduler
-from fedlearner import trainer_master
-from fedlearner import proxy
-from fedlearner import trainer
+from enum import IntEnum
+
+
+class DBTYPE(IntEnum):
+    SQLITE = 0
+    MYSQL = 1

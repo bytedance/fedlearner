@@ -16,10 +16,10 @@
 
 import os
 import unittest
-from fedlearner_platform.trainer_master.data.data_block import DataBlock
-from fedlearner_platform.trainer_master.data.data_block_queue import DataBlockQueue
-from fedlearner_platform.trainer_master.data.data_block_set import DataBlockSet
-from fedlearner_platform.trainer_master.data.data_source_reader import DataSourceReader
+from fedlearner.trainer_master.data.data_block import DataBlock
+from fedlearner.trainer_master.data.data_block_queue import DataBlockQueue
+from fedlearner.trainer_master.data.data_block_set import DataBlockSet
+from fedlearner.trainer_master.data.data_source_reader import DataSourceReader
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 

@@ -20,12 +20,9 @@ import socket
 import logging
 import collections
 import grpc
-from fedlearner.common.etcd_client import EtcdClient
 
-INTERNAL_PROXY = os.environ.get('INTERNAL_PROXY', None)
-ETCD_CLUSTER = os.environ.get('ETCD_CLUSTER', None)
-ETCD_ADDRESS = os.environ.get('ETCD_ADDRESS', None)
-ETCD_PATH = '/service_discovery'
+EGRESS_URL = os.environ.get('EGRESS_URL', None)
+EGRESS_HOST = os.environ.get('EGRESS_HOST', None)
 
 
 class ChannelType(Enum):
@@ -110,33 +107,33 @@ def check_address_valid(address):
     return False
 
 
-def make_insecure_channel(uuid,
+def make_insecure_channel(address,
                           mode=ChannelType.INTERNAL,
                           options=None,
                           compression=None):
-    if check_address_valid(uuid):
-        return grpc.insecure_channel(uuid, options, compression)
+    if check_address_valid(address):
+        return grpc.insecure_channel(address, options, compression)
 
     if mode == ChannelType.REMOTE:
-        header_adder = header_adder_interceptor('uuid', uuid)
-        if not INTERNAL_PROXY:
-            raise Exception("INTERNAL_PROXY is invalid,"
+        if options is None:
+            options = []
+        if not isinstance(options, list):
+            raise Exception('grpc channel options must be list')
+        if not EGRESS_URL:
+            raise Exception("EGRESS_URL is invalid,"
                             "not found in environment variable.")
-        logging.debug("INTERNAL_PROXY is [%s]", INTERNAL_PROXY)
-        channel = grpc.insecure_channel(INTERNAL_PROXY, options, compression)
+        if not EGRESS_HOST:
+            raise Exception("EGRESS_HOST is invalid,"
+                            "not found in environment variable.")
+
+        options.append(('grpc.default_authority', EGRESS_HOST))
+        header_adder = header_adder_interceptor('x-host', address)
+        logging.debug("EGRESS_HOST is [%s]", EGRESS_HOST)
+        logging.debug("EGRESS_URL is [%s]", EGRESS_URL)
+        channel = grpc.insecure_channel(EGRESS_URL, options, compression)
         return grpc.intercept_channel(channel, header_adder)
 
     if mode == ChannelType.INTERNAL:
-        if not ETCD_CLUSTER or not ETCD_ADDRESS:
-            raise Exception(
-                "ETCD_CLUSTER or ETCD_ADDRESS is invalid, not found in"
-                " environment variable.")
-        etcd_client = EtcdClient(ETCD_CLUSTER, ETCD_ADDRESS, ETCD_PATH)
-        target_addr = etcd_client.get_data(uuid)
-        if not target_addr:
-            raise Exception(
-                "Target service address cant discover by uuid [{}]".format(
-                    uuid))
-        return grpc.insecure_channel(target_addr, options, compression)
+        return grpc.insecure_channel(address, options, compression)
 
-    raise Exception("UNKNOWN Channel by uuid %s" % uuid)
+    raise Exception("UNKNOWN Channel by uuid %s" % address)

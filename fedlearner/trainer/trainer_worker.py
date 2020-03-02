@@ -15,7 +15,7 @@
 # coding: utf-8
 
 import argparse
-
+import json
 import tensorflow.compat.v1 as tf
 
 from fedlearner.trainer.bridge import Bridge
@@ -26,12 +26,15 @@ from fedlearner.trainer.trainer_master import TrainerMasterClient
 
 def create_argument_parser():
     parser = argparse.ArgumentParser(description='FedLearner Trainer.')
-    parser.add_argument('--local-addr', type=str, required=True,
+    parser.add_argument('--local-addr', type=str,
                         help='Listen address of the local bridge, ' \
                              'in [IP]:[PORT] format')
-    parser.add_argument('--peer-addr', type=str, required=True,
+    parser.add_argument('--peer-addr', type=str,
                         help='Address of peer\'s bridge, ' \
                              'in [IP]:[PORT] format')
+    parser.add_argument('--cluster-spec', type=str,
+                        help='ClusterSpec description for master/ps/worker, '\
+                            'in json format')
     parser.add_argument('--worker-rank', type=int, default=0,
                          help='the rank of this worker.')
     parser.add_argument('--ps-addrs', type=str, default=None,
@@ -63,13 +66,32 @@ def train(role, args, input_fn, model_fn, serving_input_receiver_fn):
     bridge = Bridge(role, int(args.local_addr.split(':')[1]),
                                args.peer_addr)
 
-    if args.master_addr:
+    if args.cluster_spec:
+        cluster_spec = json.loads(args.cluster_spec)
+        assert 'clusterSpec' in cluster_spec, \
+            "cluster_spec do not meet legal format"
+        assert 'Master' in cluster_spec['clusterSpec'],\
+            "cluster_spec must include Master"
+        assert isinstance(cluster_spec['clusterSpec']['Master'], list), \
+            "Master must be list"
+        assert 'Worker' in cluster_spec['clusterSpec'],\
+            "cluster_spec must include Worker"
+        assert isinstance(cluster_spec['clusterSpec']['Worker'], list), \
+            "Worker must be list"
+        trainer_master = TrainerMasterClient(
+            cluster_spec['clusterSpec']['Master'][0], role, args.worker_rank)
+        cluster_spec = tf.train.ClusterSpec({
+            'ps': cluster_spec['clusterSpec']['PS'],
+            'worker': {args.worker_rank: args.tf_addr}})
+
+    elif args.master_addr:
         assert args.tf_addr is not None, \
             "--tf-addr must be set when master_addr is set."
         trainer_master = TrainerMasterClient(
             args.master_addr, role, args.worker_rank)
+        ps_addrs = args.ps_addrs.split(",")
         cluster_spec = tf.train.ClusterSpec({
-            'ps': args.ps_addrs,
+            'ps': ps_addrs,
             'worker': {args.worker_rank: args.tf_addr}})
     elif args.data_path:
         trainer_master = LocalTrainerMasterClient(role, args.data_path)
