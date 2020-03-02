@@ -16,9 +16,9 @@
 
 import argparse
 import logging
-from trainer_master import TrainerMaster
-from data.data_block_queue import DataBlockQueue
-from data.data_source_reader import DataSourceReader
+from .trainer_master import TrainerMaster
+from .data.data_block_queue import DataBlockQueue
+from .data.data_source_reader import DataSourceReader
 
 
 class LeaderTrainerMaster(TrainerMaster):

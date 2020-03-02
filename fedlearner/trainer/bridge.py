@@ -33,6 +33,7 @@ from fedlearner.common import trainer_worker_service_pb2 as tws_pb
 from fedlearner.common import trainer_worker_service_pb2_grpc as tws_grpc
 from fedlearner.proxy.channel import make_insecure_channel, ChannelType
 
+
 class Bridge(object):
     class TrainerWorkerServicer(tws_grpc.TrainerWorkerServiceServicer):
         def __init__(self, bridge):
@@ -55,8 +56,12 @@ class Bridge(object):
         def Heartbeat(self, request, context):
             return self._bridge._heartbeat_handler(request)
 
-    def __init__(self, role, listen_port, remote_address,
-                 app_id='test_trainer', rank=0,
+    def __init__(self,
+                 role,
+                 listen_port,
+                 remote_address,
+                 app_id='test_trainer',
+                 rank=0,
                  streaming_mode=True):
         self._role = role
         self._listen_port = listen_port
@@ -86,11 +91,9 @@ class Bridge(object):
         self._next_receive_seq_num = 0
         self._server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
         tws_grpc.add_TrainerWorkerServiceServicer_to_server(
-                Bridge.TrainerWorkerServicer(self),
-                self._server)
-        self._server.add_insecure_port('[::]:%d'%listen_port)
+            Bridge.TrainerWorkerServicer(self), self._server)
+        self._server.add_insecure_port('[::]:%d' % listen_port)
         self._server.start()
-
 
     def __del__(self):
         self.terminate()
@@ -98,17 +101,20 @@ class Bridge(object):
     def _client_daemon_fn(self):
         shutdown = [False]
         generator = None
+
         def shutdown_fn():
             shutdown[0] = True
             if generator is not None:
                 generator.cancel()
             return generator.result()
+
         self._client_daemon_shutdown_fn = shutdown_fn
 
         while not shutdown[0]:
             lock = threading.Lock()
             resend_list = collections.deque()
             try:
+
                 def iterator():
                     for item in resend_list:
                         yield item
@@ -121,8 +127,10 @@ class Bridge(object):
                 generator = self._client.StreamTransmit(iterator())
                 for response in generator:
                     if response.status.code != common_pb.STATUS_SUCCESS:
-                        raise RuntimeError(
-                            "Trainsmit failed with %d"%response.status.code)
+                        raise RuntimeError("Trainsmit failed with %d" %
+                                           response.status.code)
+                    logging.info("Transmit success with %d",
+                                 response.status.code)
                     with lock:
                         while resend_list and \
                                 resend_list[0].seq_num < response.next_seq_num:
@@ -130,8 +138,7 @@ class Bridge(object):
             except Exception as e:  # pylint: disable=broad-except
                 if not shutdown[0]:
                     logging.warning("Bridge streaming broken: %s. " \
-                                    "Retry in 1 second...",
-                                    e.code().name)
+                                    "Retry in 1 second...", repr(e))
                     time.sleep(1)
 
     def _transmit(self, msg):
@@ -199,27 +206,27 @@ class Bridge(object):
             self._connected = True
             self._condition.notifyAll()
 
-        return tws_pb.ConnectResponse(
-            app_id=self._app_id, worker_rank=self._rank)
+        return tws_pb.ConnectResponse(app_id=self._app_id,
+                                      worker_rank=self._rank)
 
     def _heartbeat_handler(self, request):
-        return tws_pb.HeartbeatResponse(
-            app_id=self._app_id, worker_rank=self._rank,
-            current_iter_id=self._current_iter_id)
+        return tws_pb.HeartbeatResponse(app_id=self._app_id,
+                                        worker_rank=self._rank,
+                                        current_iter_id=self._current_iter_id)
 
     def connect(self):
         if self._role == 'leader':
             assert not self._connected, "Already connected"
 
-            msg = tws_pb.ConnectRequest(
-                app_id=self._app_id, worker_rank=self._rank)
+            msg = tws_pb.ConnectRequest(app_id=self._app_id,
+                                        worker_rank=self._rank)
             while True:
                 try:
                     self._client.Connect(msg)
                 except Exception as e:  # pylint: disable=broad-except
                     logging.warning("Bridge failed to connect: %s. " \
                                     "Retry in 1 second...",
-                                    e.code().name)
+                                    repr(e))
                     time.sleep(1)
                     continue
                 break
@@ -232,9 +239,11 @@ class Bridge(object):
             logging.debug('Bridge connected as follower')
 
         if self._streaming_mode:
+            logging.info('enter streaming_mode.')
             self._client_daemon = threading.Thread(
                 target=self._client_daemon_fn)
             self._client_daemon.start()
+        logging.info('finish connect.')
 
     def terminate(self):
         try:
@@ -255,8 +264,8 @@ class Bridge(object):
         assert self._current_iter_id is None, "Last iter not finished"
         self._current_iter_id = iter_id
 
-        msg = tws_pb.TrainerWorkerMessage(
-            start=tws_pb.StartMessage(iter_id=iter_id))
+        msg = tws_pb.TrainerWorkerMessage(start=tws_pb.StartMessage(
+            iter_id=iter_id))
         self._transmit(msg)
         logging.debug("Starting iter %d", iter_id)
 
@@ -268,8 +277,8 @@ class Bridge(object):
             if last_iter_id in self._received_data:
                 del self._received_data[last_iter_id]
 
-        msg = tws_pb.TrainerWorkerMessage(
-            commit=tws_pb.CommitMessage(iter_id=last_iter_id))
+        msg = tws_pb.TrainerWorkerMessage(commit=tws_pb.CommitMessage(
+            iter_id=last_iter_id))
         self._transmit(msg)
         logging.debug("iter %d committed", last_iter_id)
 
@@ -279,25 +288,20 @@ class Bridge(object):
         self._data_block_handler_fn = func
 
     def load_data_block(self, count, block_id):
-        msg = tws_pb.LoadDataBlockRequest(
-                count=count, block_id=block_id)
+        msg = tws_pb.LoadDataBlockRequest(count=count, block_id=block_id)
         return self._client.LoadDataBlock(msg)
 
     def register_prefetch_handler(self, func):
         self._prefetch_handlers.append(func)
 
     def prefetch(self, iter_id, sample_ids):
-        msg = tws_pb.TrainerWorkerMessage(
-            prefetch=tws_pb.PrefetchMessage(
-                iter_id=iter_id, sample_ids=sample_ids))
+        msg = tws_pb.TrainerWorkerMessage(prefetch=tws_pb.PrefetchMessage(
+            iter_id=iter_id, sample_ids=sample_ids))
         self._transmit(msg)
 
     def send(self, iter_id, name, x):
-        msg = tws_pb.TrainerWorkerMessage(
-            data=tws_pb.DataMessage(
-                iter_id=iter_id,
-                name=name,
-                tensor=tf.make_tensor_proto(x)))
+        msg = tws_pb.TrainerWorkerMessage(data=tws_pb.DataMessage(
+            iter_id=iter_id, name=name, tensor=tf.make_tensor_proto(x)))
         self._transmit(msg)
         logging.debug('Data: send %s for iter %d.', name, iter_id)
 
@@ -306,12 +310,12 @@ class Bridge(object):
             assert self._current_iter_id is not None, "Bridge not started"
             self.send(self._current_iter_id, name, x.numpy())
 
-        out = tf.py_function(func=func, inp=[x], Tout=[], name='send_'+name)
+        out = tf.py_function(func=func, inp=[x], Tout=[], name='send_' + name)
         return out
 
     def receive(self, iter_id, name):
-        logging.debug('Data: Waiting to receive %s for iter %d.',
-                      name, iter_id)
+        logging.debug('Data: Waiting to receive %s for iter %d.', name,
+                      iter_id)
         with self._condition:
             while (iter_id not in self._received_data) \
                     or (name not in self._received_data[iter_id]):

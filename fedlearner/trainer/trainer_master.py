@@ -85,7 +85,7 @@ class TrainerMasterClient(object):
 
         result = self._stub.RequestDataBlock(self._request)
         if result.status.code == common_pb.STATUS_SUCCESS:
-            logging.debug("%d:%d gets block %s at %s", self._role,
+            logging.debug("%s:%d gets block %s at %s", self._role,
                           self._task_id, result.data_block_info.block_id,
                           result.data_block_info.data_path)
             return DataBlockInfo(result.data_block_info.block_id,

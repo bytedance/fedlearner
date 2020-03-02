@@ -13,11 +13,17 @@
 # limitations under the License.
 
 # coding: utf-8
-"""All public modules of FedLearner."""
 
-from fedlearner import common
-from fedlearner import data_join
-from fedlearner import scheduler
-from fedlearner import trainer_master
-from fedlearner import proxy
-from fedlearner import trainer
+import logging
+from fedlearner import settings
+
+
+def init_logging(filename):
+    """Initialize log file handler for daemon process"""
+    root = logging.getLogger()
+    handler = logging.FileHandler(filename)
+    formatter = logging.Formatter(settings.SIMPLE_LOG_FORMAT)
+    handler.setFormatter(formatter)
+    root.addHandler(handler)
+    root.setLevel(settings.LOGGING_LEVEL)
+    return handler.stream
