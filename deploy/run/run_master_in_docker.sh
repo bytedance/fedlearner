@@ -1,3 +1,5 @@
+#!/bin/bash
+
 # Copyright 2020 The FedLearner Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,8 +14,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# coding: utf-8
+CUR_DIR="$(cd -P "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+export PYTHONPATH=$PYTHONPATH:$CUR_DIR/../..
 
-"""FedLearner training for federated learning models"""
-
-from fedlearner.platform import trainer_master
+echo "CUDA_VISIBLE_DEVICES=\"\" python $CUR_DIR/../../fedlearner/trainer_master/${ROLE}_tm.py -app_id=$APPLICATION_ID -data_path=$DATA_PATH -p 50051"
+CUDA_VISIBLE_DEVICES="" python $CUR_DIR/../../fedlearner/trainer_master/${ROLE}_tm.py -app_id=$APPLICATION_ID -data_path=$DATA_PATH -p 50051

@@ -17,9 +17,9 @@
 import argparse
 import logging
 
-from data.data_block_set import DataBlockSet
-from data.data_source_reader import DataSourceReader
-from trainer_master import TrainerMaster
+from .data.data_block_set import DataBlockSet
+from .data.data_source_reader import DataSourceReader
+from .trainer_master import TrainerMaster
 
 
 class FollowerTrainerMaster(TrainerMaster):

@@ -13,11 +13,21 @@
 # limitations under the License.
 
 # coding: utf-8
-"""All public modules of FedLearner."""
 
-from fedlearner import common
-from fedlearner import data_join
-from fedlearner import scheduler
-from fedlearner import trainer_master
-from fedlearner import proxy
-from fedlearner import trainer
+import click
+from fedlearner.cli.commands.list import list as cli_list
+from fedlearner.cli.commands.scheduler import scheduler
+from fedlearner.cli.commands.create import create
+
+
+@click.group('fl-cli')
+def cli_group():
+    pass
+
+
+cli_group.add_command(create)
+cli_group.add_command(cli_list)
+cli_group.add_command(scheduler)
+
+if __name__ == '__main__':
+    cli_group()

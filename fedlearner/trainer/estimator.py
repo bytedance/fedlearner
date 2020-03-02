@@ -14,9 +14,11 @@
 
 # coding: utf-8
 
+import logging
 import tensorflow.compat.v1 as tf
 from tensorflow.compat.v1.train import Optimizer
 from tensorflow.compat.v1.estimator import ModeKeys
+
 
 class FLModel(object):
     def __init__(self, role, bridge, example_ids, exporting=False):
@@ -43,8 +45,7 @@ class FLModel(object):
         return [(n, t) for n, t, _ in self._recvs]
 
     def verify_example_ids(self):
-        tensor = tf.strings.to_hash_bucket_fast(
-            self._example_ids, 2**31-1)
+        tensor = tf.strings.to_hash_bucket_fast(self._example_ids, 2**31 - 1)
         if self._role == 'leader':
             self.send('_verify_example_ids', tensor)
         else:
@@ -58,7 +59,7 @@ class FLModel(object):
         self._train_ops.append(op)
         self._sends.append((name, tensor, require_grad))
         if require_grad:
-            return self.recv(name+'_grad', tensor.dtype)
+            return self.recv(name + '_grad', tensor.dtype)
         return None
 
     def recv(self, name, dtype=tf.float32, require_grad=False):
@@ -67,10 +68,15 @@ class FLModel(object):
         self._recvs.append((name, tensor, require_grad))
         return tensor
 
-    def minimize(self, optimizer, loss, global_step=None, var_list=None,
+    def minimize(self,
+                 optimizer,
+                 loss,
+                 global_step=None,
+                 var_list=None,
                  gate_gradients=Optimizer.GATE_OP,
                  aggregation_method=None,
-                 colocate_gradients_with_ops=False, name=None,
+                 colocate_gradients_with_ops=False,
+                 name=None,
                  grad_loss=None):
         recv_grads = [i for i in self._recvs if i[2]]
 
@@ -81,7 +87,9 @@ class FLModel(object):
         var_list = [v for _, v, _ in recv_grads] + var_list
 
         grads_and_vars = optimizer.compute_gradients(
-            loss, var_list=var_list, gate_gradients=gate_gradients,
+            loss,
+            var_list=var_list,
+            gate_gradients=gate_gradients,
             aggregation_method=aggregation_method,
             colocate_gradients_with_ops=colocate_gradients_with_ops,
             grad_loss=grad_loss)
@@ -89,11 +97,11 @@ class FLModel(object):
         send_grads = grads_and_vars[:len(recv_grads)]
         for (n, _, _), (grad, _) in zip(recv_grads, send_grads):
             if grad is not None:
-                self.send(n+'_grad', grad)
+                self.send(n + '_grad', grad)
 
-        train_op = optimizer.apply_gradients(
-            grads_and_vars[len(recv_grads):],
-            global_step=global_step, name=name)
+        train_op = optimizer.apply_gradients(grads_and_vars[len(recv_grads):],
+                                             global_step=global_step,
+                                             name=name)
 
         return train_op
 
@@ -128,8 +136,13 @@ class FLModel(object):
 
 
 class FLEstimator(object):
-    def __init__(self, model_fn, bridge, trainer_master,
-                 role, worker_rank=0, cluster_spec=None):
+    def __init__(self,
+                 model_fn,
+                 bridge,
+                 trainer_master,
+                 role,
+                 worker_rank=0,
+                 cluster_spec=None):
         self._model_fn = model_fn
         self._bridge = bridge
         self._trainer_master = trainer_master
@@ -137,19 +150,24 @@ class FLEstimator(object):
         self._worker_rank = worker_rank
         self._cluster_spec = cluster_spec
 
-    def train(self, input_fn,
+    def train(self,
+              input_fn,
               checkpoint_path=None,
               save_checkpoint_steps=None):
         if self._cluster_spec is not None:
             device_fn = tf.train.replica_device_setter(
                 worker_device="/job:worker/task:%d" % self._worker_rank,
-                merge_devices=True, cluster=self._cluster_spec)
+                merge_devices=True,
+                cluster=self._cluster_spec)
             cluster_def = self._cluster_spec.as_cluster_def()
-            local_address = self._cluster_spec.job_tasks(
-                'worker')[self._worker_rank]
+            local_address = self._cluster_spec.job_tasks('worker')[
+                self._worker_rank]
             server = tf.train.Server(tf.train.ClusterSpec(
-                {'local': {0: local_address}}),
-                job_name='local', task_index=0)
+                {'local': {
+                    0: local_address
+                }}),
+                                     job_name='local',
+                                     task_index=0)
             target = 'grpc://' + local_address
         else:
             device_fn = None
@@ -163,8 +181,7 @@ class FLEstimator(object):
 
         with tf.Graph().as_default() as g:
             with tf.device(device_fn):
-                features, labels = input_fn(
-                    self._bridge, self._trainer_master)
+                features, labels = input_fn(self._bridge, self._trainer_master)
                 model = FLModel(self._role, self._bridge,
                                 features['example_id'])
                 spec = self._model_fn(model, features, labels, ModeKeys.TRAIN)
@@ -180,21 +197,26 @@ class FLEstimator(object):
                 iter_id = 0
                 while not sess.should_stop():
                     self._bridge.start(iter_id)
+                    logging.debug('after bridge start.')
                     sess.run(spec.train_op, feed_dict={})
+                    logging.debug('after session run.')
                     self._bridge.commit()
+                    logging.debug('after bridge commit.')
                     iter_id += 1
             self._bridge.terminate()
 
-    def export_saved_model(self, export_dir_base,
+    def export_saved_model(self,
+                           export_dir_base,
                            serving_input_receiver_fn,
                            checkpoint_path=None):
         with tf.Graph().as_default() as g:
             receiver = serving_input_receiver_fn()
-            model = FLModel(self._role, self._bridge,
-                        receiver.features.get('example_id', None),
-                        exporting=True)
-            spec = self._model_fn(model, receiver.features,
-                                  None, ModeKeys.PREDICT)
+            model = FLModel(self._role,
+                            self._bridge,
+                            receiver.features.get('example_id', None),
+                            exporting=True)
+            spec = self._model_fn(model, receiver.features, None,
+                                  ModeKeys.PREDICT)
             assert not model.sends, "Exported model cannot send"
             assert not model.recvs, "Exported model cannot receive"
 
@@ -202,8 +224,8 @@ class FLEstimator(object):
                 saver_for_restore = tf.train.Saver(sharded=True)
                 saver_for_restore.restore(
                     sess, tf.train.latest_checkpoint(checkpoint_path))
-                tf.saved_model.simple_save(
-                    sess, export_dir_base, receiver.receiver_tensors,
-                    spec.predictions, None)
+                tf.saved_model.simple_save(sess, export_dir_base,
+                                           receiver.receiver_tensors,
+                                           spec.predictions, None)
 
             return export_dir_base
