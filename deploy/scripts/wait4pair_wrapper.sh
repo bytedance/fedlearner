@@ -12,7 +12,7 @@ while [ true ];
 do
 	if [[ -f ${pair} ]] && [[ -n "$(cat ${pair})" ]];
 	then
-		export REMOTE_IP=`cat ${pair}`
+		export PEER_ADDR=`cat ${pair}`
 		break
 	else
 		sleep 1

@@ -20,8 +20,8 @@ import tensorflow.compat.v1 as tf
 
 from fedlearner.trainer.bridge import Bridge
 from fedlearner.trainer.estimator import FLEstimator
-from fedlearner.trainer.trainer_master import LocalTrainerMasterClient
-from fedlearner.trainer.trainer_master import TrainerMasterClient
+from fedlearner.trainer.trainer_master_client import LocalTrainerMasterClient
+from fedlearner.trainer.trainer_master_client import TrainerMasterClient
 
 
 def create_argument_parser():

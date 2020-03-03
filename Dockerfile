@@ -2,12 +2,13 @@ FROM python:2.7
 
 WORKDIR /app
 
-RUN pip install --upgrade pip
+COPY . /app
 
-COPY requirements.txt . 
+RUN pip install --upgrade pip
 RUN pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
 
-COPY . /app
 RUN make protobuf
+
+ENV PYTHONPATH=/app:$PYTHONPATH
 
 CMD []
