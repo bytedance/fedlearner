@@ -14,11 +14,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-CUR_DIR="$(cd -P "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-export PYTHONPATH=$PYTHONPATH:$CUR_DIR/../..
+set -ex
+
+export CUDA_VISIBLE_DEVICES=
 
 code_url="https://github.com/rapmetal/fedlearner_models/releases/download/${RELEASE_TAG}/${RELEASE_PKG}.zip"
 wget $code_url
 unzip "${RELEASE_PKG}.zip"
-echo "CUDA_VISIBLE_DEVICES=\"\" python ${RELEASE_PKG}/${ROLE}.py --cluster-spec=$CLUSTER_SPEC --tf-addr=$POD_IP:50052 --local-addr=$POD_IP:50051 --worker-rank=$WORKER_RANK --peer-addr=$REMOTE_IP"
-CUDA_VISIBLE_DEVICES="" python "${RELEASE_PKG}/${ROLE}.py" --cluster-spec=$CLUSTER_SPEC --tf-addr=$POD_IP:50052 --local-addr=$POD_IP:50051 --worker-rank=$WORKER_RANK --peer-addr=$REMOTE_IP
+
+python "${RELEASE_PKG}/${ROLE}.py" \
+    --cluster-spec=$CLUSTER_SPEC \
+    --tf-addr=$POD_IP:50052 \
+    --local-addr=$POD_IP:50051 \
+    --worker-rank=$WORKER_RANK \
+    --peer-addr=$PEER_ADDR

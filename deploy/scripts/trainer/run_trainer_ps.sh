@@ -14,8 +14,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-CUR_DIR="$(cd -P "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-export PYTHONPATH=$PYTHONPATH:$CUR_DIR/../..
+set -ex
 
-echo "CUDA_VISIBLE_DEVICES=\"\" python $CUR_DIR/../..fedlearner/trainer/parameter_server.py $POD_IP:50051"
-CUDA_VISIBLE_DEVICES="" python $CUR_DIR/../../fedlearner/trainer/parameter_server.py $POD_IP:50051
+export CUDA_VISIBLE_DEVICES=
+
+python -m fedlearner.trainer.parameter_server $POD_IP:50051 
