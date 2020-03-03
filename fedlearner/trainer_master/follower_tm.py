@@ -46,25 +46,19 @@ class FollowerTrainerMaster(TrainerMaster):
 if __name__ == '__main__':
     logging.getLogger().setLevel(logging.DEBUG)
     parser = argparse.ArgumentParser('leader trainer master cmd.')
-    parser.add_argument('-p',
-                        '--port',
-                        type=int,
-                        default=50002,
+    parser.add_argument('-p', '--port',
+                        type=int, default=50002,
                         help='Listen port of follower trainer master')
-    parser.add_argument('-app_id',
-                        '--application_id',
+    parser.add_argument('--app-id',
                         required=True,
-                        help='application_id')
-    parser.add_argument('-data_path',
-                        '--data_path',
+                        help='application id')
+    parser.add_argument('--data-path',
                         required=True,
                         help='training example data path')
-    parser.add_argument('-start_date',
-                        '--start_date',
+    parser.add_argument('--start-date',
                         default=None,
                         help='training data start date')
-    parser.add_argument('-end_date',
-                        '--end_date',
+    parser.add_argument('--end-date',
                         default=None,
                         help='training data end date')
     FLAGS = parser.parse_args()
