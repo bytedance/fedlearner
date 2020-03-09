@@ -21,14 +21,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 )
 
-// FLRole describe the role of the FLApp, can be either "Leader" or "Follower"
-type FLRole string
-
-const (
-	Leader   FLRole = "Leader"
-	Follower FLRole = "Follower"
-)
-
 const (
 	DefaultContainerName = "tensorflow"
 	DefaultPortName      = "flapp-port"
@@ -49,7 +41,7 @@ const (
 // RestartPolicy describes how the replicas should be restarted.
 // Only one of the following restart policies may be specified.
 // If none of the following policies is specified, the default one
-// is RestartPolicyAlways.
+// is RestartPolicyOnFailure.
 type RestartPolicy string
 
 const (
@@ -61,7 +53,7 @@ const (
 	// determine the behavior when an error occurs:
 	// - 1-127: permanent error, do not restart.
 	// - 128-255: retryable error, will restart the pod.
-	RestartPolicyExitCode RestartPolicy = "ExitCode"
+	// RestartPolicyExitCode RestartPolicy = "ExitCode"
 )
 
 // ReplicaSpec is a description of the replica
@@ -184,8 +176,20 @@ type FLAppSpec struct {
 	FLReplicaSpecs FLReplicaSpecs `json:"flReplicaSpecs"`
 
 	// Defines the role of FLApp
-	// Defaults to Leader
-	Role FLRole `json:"role"`
+	// +kubebuilder:validation:Pattern=(^Leader$)|(^Follower\d*$)
+	Role string `json:"role"`
+
+	// Defines the egress proxy for traffic
+	// +optional
+	Egress EgressSpec `json:"egress"`
+}
+
+type EgressSpec struct {
+	// Defines the url to which traffic goes
+	EgressURL string `json:"egressURL"`
+
+	// Defines the Host header of the requests send to egress
+	EgressHost string `json:"egressHost"`
 }
 
 // FLAppStatus is the status for a FLApp resource

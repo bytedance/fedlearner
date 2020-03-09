@@ -30,7 +30,7 @@ spec:
             - --resync-interval=5
           command:
             - ./main
-          image: fedlearner_operator:v0.0.3
+          image: fedlearner_operator:v1.0.0
           imagePullPolicy: IfNotPresent
           name: flapp-operator
           ports:
@@ -90,7 +90,7 @@ spec:
             - --resync-interval=5
           command:
             - ./main
-          image: fedlearner_operator:v0.0.3
+          image: fedlearner_operator:v1.0.0
           imagePullPolicy: IfNotPresent
           name: flapp-operator
           ports:

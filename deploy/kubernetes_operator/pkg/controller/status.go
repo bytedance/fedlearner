@@ -8,8 +8,8 @@ import (
 )
 
 // NOTE: this func will overwrite the whole app status, may raise race condition
-// if multiple clients concurrently call this function.
-func (am *appManager) overwriteStatus(app *v1alpha1.FLApp) error {
+// if multiple clients concurrently updates status.
+func (am *appManager) setStatus(app *v1alpha1.FLApp) error {
 	_, err := am.appStatusUpdater.UpdateStatusWithRetry(app, func(mutatingApp *v1alpha1.FLApp) bool {
 		if apiequality.Semantic.DeepEqual(app.Status, mutatingApp.Status) {
 			return false

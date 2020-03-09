@@ -48,6 +48,7 @@ type FLController struct {
 func NewFLController(
 	namespace string,
 	recorder record.EventRecorder,
+	resyncInterval int,
 	kubeClient clientset.Interface,
 	crdClientset crdclientset.Interface,
 	kubeSharedInformerFactory informers.SharedInformerFactory,
@@ -69,7 +70,7 @@ func NewFLController(
 	)
 	controller := &FLController{
 		jobQueue: workqueue.NewNamedRateLimitingQueue(
-			workqueue.DefaultControllerRateLimiter(),
+			workqueue.NewItemExponentialFailureRateLimiter(5*time.Millisecond, time.Duration(resyncInterval)*time.Second),
 			"fl-controller",
 		),
 		flAppLister: crdSharedInformerFactory.Fedlearner().V1alpha1().FLApps().Lister(),
