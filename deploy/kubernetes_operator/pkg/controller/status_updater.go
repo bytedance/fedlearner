@@ -13,7 +13,7 @@
  * limitations under the License.
  */
 
-package util
+package controller
 
 import (
 	"fmt"

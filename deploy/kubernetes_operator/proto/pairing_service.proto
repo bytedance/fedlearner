@@ -19,7 +19,10 @@ package proto;
 option go_package = "github.com/bytedance/fedlearner/deploy/kubernetes_operator/proto;proto";
 
 service PairingService {
+    rpc Register (RegisterRequest) returns (Status);
     rpc Pair (PairRequest) returns (Status);
+    rpc Finish (FinishRequest) returns (Status);
+    rpc ShutDown (ShutDownRequest) returns (Status);
 }
 
 message Status {
@@ -27,20 +30,29 @@ message Status {
     string error_message = 2;
 }
 
+message RegisterRequest {
+    string app_id = 1;
+    string role = 2; // Leader or Followers
+    repeated Pair pairs = 3;
+}
+
 message PairRequest {
     string app_id = 1;
     repeated Pair pairs = 2;
-    CtrlFlag ctrl_flag = 3;
-}
-
-enum CtrlFlag {
-    CREATE = 0;
-    SHUTDOWN = 1;
-    FINISH = 2;
 }
 
 message Pair {
-    string role = 1;
+    string type = 1;
     repeated string leader_ids = 2;
     repeated string follower_ids = 3;
+}
+
+message FinishRequest {
+    string app_id = 1;
+    string role = 2; // Leader or Followers
+}
+
+message ShutDownRequest {
+    string app_id = 1;
+    string role = 2; // Leader or Followers
 }

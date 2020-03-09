@@ -52,6 +52,19 @@ spec:
               description: Defines the policy for cleaning up pods after the FLApp
                 completes. Defaults to All.
               type: string
+            egress:
+              description: Defines the egress proxy for traffic
+              properties:
+                egressHost:
+                  description: Defines the Host header of the requests send to egress
+                  type: string
+                egressURL:
+                  description: Defines the url to which traffic goes
+                  type: string
+              required:
+              - egressHost
+              - egressURL
+              type: object
             flReplicaSpecs:
               additionalProperties:
                 description: ReplicaSpec is a description of the replica
@@ -6267,7 +6280,8 @@ spec:
               description: Defines replica spec for replica type
               type: object
             role:
-              description: Defines the role of FLApp Defaults to Leader
+              description: Defines the role of FLApp
+              pattern: (^Leader$)|(^Follower\d*$)
               type: string
             ttlSecondsAfterFinished:
               description: 'Defines the TTL for cleaning up finished FLApps (temporary

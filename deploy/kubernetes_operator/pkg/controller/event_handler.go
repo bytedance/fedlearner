@@ -21,6 +21,7 @@ import (
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -32,18 +33,18 @@ import (
 )
 
 type AppEventHandler interface {
-	// Called after leader bootstrapped
-	SyncLeaderPairs(*v1alpha1.FLApp) error
-	// Called after follower finished pairing
-	SyncFollowerPairs(*v1alpha1.FLApp) error
-	// Called when either leader or follower needs to shutdown peer
-	ShutdownPeer(*v1alpha1.FLApp) error
-	// Called when either leader or follower is finished
-	FinishPeer(*v1alpha1.FLApp) error
+	// Called after follower bootstrapped
+	Register(*v1alpha1.FLApp) error
+	// Called after leader finished pairing
+	Pair(*v1alpha1.FLApp) error
+	// Called when leader/follower needs to shutdown peer
+	Shutdown(*v1alpha1.FLApp) error
+	// Called when leader/follower is finished
+	Finish(*v1alpha1.FLApp) error
 	// Received when peer send sync request
-	SyncHandler(name string, leaderReplicas map[string][]string) (*pb.Status, error)
+	RegisterHandler(name string, followerReplicas map[string][]string) (*pb.Status, error)
 	// Received when peer send sync callback request
-	SyncCallbackHandler(name string, leaderReplicas map[string][]string, followerReplicas map[string][]string) (*pb.Status, error)
+	PairHandler(name string, leaderReplicas map[string][]string, followerReplicas map[string][]string) (*pb.Status, error)
 	// Received when peer send shutdown request
 	ShutdownHandler(name string) (*pb.Status, error)
 	// Received when peer send finish request
@@ -51,8 +52,7 @@ type AppEventHandler interface {
 }
 
 type appEventHandler struct {
-	peerURL string
-
+	peerURL   string
 	namespace string
 	crdClient crdclientset.Interface
 
@@ -61,8 +61,11 @@ type appEventHandler struct {
 
 var _ AppEventHandler = &appEventHandler{}
 
-func NewAppEventHandler(peerURL string, namespace string, crdClient crdclientset.Interface) AppEventHandler {
+func NewAppEventHandler(peerURL, grpcDefaultAuthority, namespace string, crdClient crdclientset.Interface) AppEventHandler {
 	opts := []grpc.DialOption{grpc.WithInsecure()}
+	if grpcDefaultAuthority != "" {
+		opts = append(opts, grpc.WithAuthority(grpcDefaultAuthority))
+	}
 	connection, err := grpc.Dial(peerURL, opts...)
 	if err != nil {
 		klog.Fatalf("failed to create connection, err = %v", err)
@@ -76,108 +79,110 @@ func NewAppEventHandler(peerURL string, namespace string, crdClient crdclientset
 	}
 }
 
-func (handler *appEventHandler) SyncLeaderPairs(app *v1alpha1.FLApp) error {
-	var allPairs []*pb.Pair
+func (handler *appEventHandler) Register(app *v1alpha1.FLApp) error {
 	name := app.Name
+	if IsLeader(app.Spec.Role) {
+		return fmt.Errorf("only followers should register, name = %v", name)
+	}
 
+	var pairs []*pb.Pair
 	for rtype := range app.Spec.FLReplicaSpecs {
-		if shouldPair(app, rtype) {
+		if needPair(app, rtype) {
 			pair := &pb.Pair{
-				Role:        string(rtype),
-				LeaderIds:   app.Status.FLReplicaStatus[rtype].Local.List(),
-				FollowerIds: nil,
+				Type:        string(rtype),
+				LeaderIds:   nil,
+				FollowerIds: app.Status.FLReplicaStatus[rtype].Local.List(),
 			}
-			allPairs = append(allPairs, pair)
+			pairs = append(pairs, pair)
 		}
 	}
-
-	request := &pb.PairRequest{
-		AppId:    name,
-		Pairs:    allPairs,
-		CtrlFlag: pb.CtrlFlag_CREATE,
+	request := &pb.RegisterRequest{
+		AppId: name,
+		Role:  app.Spec.Role,
+		Pairs: pairs,
 	}
-	response, err := handler.grpcClient.Pair(context.Background(), request)
+	response, err := handler.grpcClient.Register(newContextXHost(), request)
 	if err != nil || response.Code != int32(codes.OK) {
-		return fmt.Errorf("SyncLeaderPairs failed, name = %v, err = %v", name, err)
+		return fmt.Errorf("Register failed, name = %v, err = %v", name, err)
 	}
-	klog.Infof("SyncLeaderPairs name = %v, message = %v", name, response.ErrorMessage)
+	klog.Infof("Register success name = %v, message = %v", name, response.ErrorMessage)
 	return nil
 }
 
-func (handler *appEventHandler) SyncFollowerPairs(app *v1alpha1.FLApp) error {
-	var allPairs []*pb.Pair
+func (handler *appEventHandler) Pair(app *v1alpha1.FLApp) error {
 	name := app.Name
+	var pairs []*pb.Pair
+	if !IsLeader(app.Spec.Role) {
+		return fmt.Errorf("only leader should pair with followers, name = %v", name)
+	}
 
 	for rtype := range app.Spec.FLReplicaSpecs {
-		if shouldPair(app, rtype) {
+		if needPair(app, rtype) {
 			mapping := app.Status.FLReplicaStatus[rtype].Mapping
 			pair := &pb.Pair{
-				Role:        string(rtype),
+				Type:        string(rtype),
 				LeaderIds:   nil,
 				FollowerIds: nil,
 			}
-			for followerId, leaderId := range mapping {
+			for leaderId, followerId := range mapping {
 				pair.LeaderIds = append(pair.LeaderIds, leaderId)
 				pair.FollowerIds = append(pair.FollowerIds, followerId)
 			}
-			allPairs = append(allPairs, pair)
+			pairs = append(pairs, pair)
 		}
 	}
 
 	request := &pb.PairRequest{
-		AppId:    name,
-		Pairs:    allPairs,
-		CtrlFlag: pb.CtrlFlag_CREATE,
+		AppId: name,
+		Pairs: pairs,
 	}
-	response, err := handler.grpcClient.Pair(context.Background(), request)
+	response, err := handler.grpcClient.Pair(newContextXHost(), request)
 	if err != nil || response.Code != int32(codes.OK) {
-		return fmt.Errorf("SyncFollowerPairs failed name = %v, err = %v", name, err)
+		return fmt.Errorf("Pair failed name = %v, err = %v", name, err)
 	}
-	klog.Infof("SyncFollowerPairs success name = %v, message = %v", name, response.ErrorMessage)
+	klog.Infof("Pair success name = %v, message = %v", name, response.ErrorMessage)
 	return nil
 }
 
-func (handler *appEventHandler) ShutdownPeer(app *v1alpha1.FLApp) error {
+func (handler *appEventHandler) Shutdown(app *v1alpha1.FLApp) error {
 	name := app.Name
-	request := &pb.PairRequest{
-		AppId:    name,
-		Pairs:    nil,
-		CtrlFlag: pb.CtrlFlag_SHUTDOWN,
+	request := &pb.ShutDownRequest{
+		AppId: name,
+		Role:  app.Spec.Role,
 	}
-	response, err := handler.grpcClient.Pair(context.Background(), request)
+	response, err := handler.grpcClient.ShutDown(newContextXHost(), request)
 	if err != nil || response.Code != int32(codes.OK) {
-		return fmt.Errorf("ShutdownPeer failed name = %v, err = %v", name, err)
+		return fmt.Errorf("Shutdown failed name = %v, err = %v", name, err)
 	}
-	klog.Infof("ShutdownPeer success name = %v, message = %v", name, response.ErrorMessage)
+	klog.Infof("Shutdown success name = %v, message = %v", name, response.ErrorMessage)
 	return nil
 }
 
-func (handler *appEventHandler) FinishPeer(app *v1alpha1.FLApp) error {
+func (handler *appEventHandler) Finish(app *v1alpha1.FLApp) error {
 	name := app.Name
-	request := &pb.PairRequest{
-		AppId:    name,
-		Pairs:    nil,
-		CtrlFlag: pb.CtrlFlag_FINISH,
+	request := &pb.FinishRequest{
+		AppId: name,
+		Role:  app.Spec.Role,
 	}
-	response, err := handler.grpcClient.Pair(context.Background(), request)
+	response, err := handler.grpcClient.Finish(newContextXHost(), request)
 	if err != nil || response.Code != int32(codes.OK) {
-		return fmt.Errorf("FinishPeer failed name = %v, err = %v", name, err)
+		return fmt.Errorf("Finish failed name = %v, err = %v", name, err)
 	}
-	klog.Infof("FinishPeer success name = %v, message = %v", name, response.ErrorMessage)
+	klog.Infof("Finish success name = %v, message = %v", name, response.ErrorMessage)
 	return nil
 }
 
-func (handler *appEventHandler) SyncHandler(name string, leaderReplicas map[string][]string) (*pb.Status, error) {
+func (handler *appEventHandler) RegisterHandler(name string, followerReplicas map[string][]string) (*pb.Status, error) {
 	app, err := handler.crdClient.FedlearnerV1alpha1().FLApps(handler.namespace).Get(name, metav1.GetOptions{})
 	if err != nil {
-		klog.Errorf("SyncHandler name = %v, err = %v", name, err)
+		klog.Errorf("RegisterHandler name = %v, err = %v", name, err)
 		return &pb.Status{
 			Code:         int32(codes.Internal),
 			ErrorMessage: err.Error(),
 		}, status.Error(codes.Internal, err.Error())
 	}
 	if app.Status.AppState != v1alpha1.FLStateBootstrapped {
-		err := fmt.Errorf("SyncHandler state is not bootstrapped, name = %v, state = %v", name, app.Status.AppState)
+		err := fmt.Errorf("RegisterHandler leader is not bootstrapped, name = %v, state = %v", name, app.Status.AppState)
 		klog.Error(err)
 		return &pb.Status{
 			Code:         int32(codes.Internal),
@@ -187,14 +192,14 @@ func (handler *appEventHandler) SyncHandler(name string, leaderReplicas map[stri
 
 	appCopy := app.DeepCopy()
 	for rtype := range app.Spec.FLReplicaSpecs {
-		if shouldPair(appCopy, rtype) {
-			if leaderIds, ok := leaderReplicas[string(rtype)]; ok {
+		if needPair(appCopy, rtype) {
+			if followerIds, ok := followerReplicas[string(rtype)]; ok {
 				status := appCopy.Status.FLReplicaStatus[rtype]
 				replicaStatus := status.DeepCopy()
-				replicaStatus.Remote = sets.NewString(leaderIds...)
+				replicaStatus.Remote = sets.NewString(followerIds...)
 				appCopy.Status.FLReplicaStatus[rtype] = *replicaStatus
 			} else {
-				err := fmt.Errorf("SyncHandler %v leader not found, name = %v, err = %v", rtype, name, err)
+				err := fmt.Errorf("RegisterHandler %v follower not found, name = %v, err = %v", rtype, name, err)
 				klog.Error(err)
 				return &pb.Status{
 					Code:         int32(codes.Internal),
@@ -205,7 +210,7 @@ func (handler *appEventHandler) SyncHandler(name string, leaderReplicas map[stri
 	}
 	_, err = handler.crdClient.FedlearnerV1alpha1().FLApps(handler.namespace).UpdateStatus(appCopy)
 	if err != nil {
-		err = fmt.Errorf("SyncHandler name = %v, err = %v", name, err)
+		err = fmt.Errorf("RegisterHandler name = %v, err = %v", name, err)
 		klog.Error(err)
 		return &pb.Status{
 			Code:         int32(codes.Internal),
@@ -218,10 +223,10 @@ func (handler *appEventHandler) SyncHandler(name string, leaderReplicas map[stri
 	}, nil
 }
 
-func (handler *appEventHandler) SyncCallbackHandler(name string, leaderReplicas map[string][]string, followerReplicas map[string][]string) (*pb.Status, error) {
+func (handler *appEventHandler) PairHandler(name string, leaderReplicas map[string][]string, followerReplicas map[string][]string) (*pb.Status, error) {
 	app, err := handler.crdClient.FedlearnerV1alpha1().FLApps(handler.namespace).Get(name, metav1.GetOptions{})
 	if err != nil {
-		err = fmt.Errorf("SyncCallbackHandler name = %v, err = %v", name, err)
+		err = fmt.Errorf("PairHandler name = %v, err = %v", name, err)
 		klog.Error(err)
 		return &pb.Status{
 			Code:         int32(codes.Internal),
@@ -231,7 +236,7 @@ func (handler *appEventHandler) SyncCallbackHandler(name string, leaderReplicas 
 
 	appCopy := app.DeepCopy()
 	for rtype := range app.Spec.FLReplicaSpecs {
-		if shouldPair(app, rtype) {
+		if needPair(app, rtype) {
 			if leaderIds, ok := leaderReplicas[string(rtype)]; ok {
 				mapping := make(map[string]string)
 				followerIds := followerReplicas[string(rtype)]
@@ -245,7 +250,7 @@ func (handler *appEventHandler) SyncCallbackHandler(name string, leaderReplicas 
 				replicaStatus.Mapping = mapping
 				appCopy.Status.FLReplicaStatus[rtype] = *replicaStatus
 			} else {
-				err := fmt.Errorf("SyncHandler %v leader/follower not found, name = %v, err = %v", rtype, name, err)
+				err := fmt.Errorf("PairHandler %v leader/follower not found, name = %v, err = %v", rtype, name, err)
 				klog.Error(err)
 				return &pb.Status{
 					Code:         int32(codes.Internal),
@@ -256,7 +261,7 @@ func (handler *appEventHandler) SyncCallbackHandler(name string, leaderReplicas 
 	}
 	_, err = handler.crdClient.FedlearnerV1alpha1().FLApps(handler.namespace).UpdateStatus(appCopy)
 	if err != nil {
-		err = fmt.Errorf("SyncCallbackHandler name = %v, err = %v", name, err)
+		err = fmt.Errorf("PairHandler name = %v, err = %v", name, err)
 		klog.Error(err)
 		return &pb.Status{
 			Code:         int32(codes.Internal),
@@ -282,7 +287,7 @@ func (handler *appEventHandler) ShutdownHandler(appID string) (*pb.Status, error
 
 	appState := app.Status.AppState
 	switch appState {
-	case v1alpha1.FLStateFailing, v1alpha1.FLStateFailed, v1alpha1.FLStateComplete:
+	case v1alpha1.FLStateFailing, v1alpha1.FLStateFailed, v1alpha1.FLStateComplete, v1alpha1.FLStateShutDown:
 		klog.Infof("ShutdownHandler appID = %v can not shutdown, appState = %v", appID, appState)
 	default:
 		appCopy := app.DeepCopy()
@@ -309,4 +314,13 @@ func (handler *appEventHandler) FinishHandler(name string) (*pb.Status, error) {
 		Code:         int32(codes.OK),
 		ErrorMessage: "",
 	}, nil
+}
+
+func newContextXHost() context.Context {
+	return newContextWithHeader("x-host", "flapp.operator")
+}
+
+func newContextWithHeader(key, value string) context.Context {
+	header := metadata.New(map[string]string{key: value})
+	return metadata.NewOutgoingContext(context.Background(), header)
 }

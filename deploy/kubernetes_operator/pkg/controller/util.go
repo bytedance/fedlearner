@@ -11,6 +11,7 @@ import (
 
 const (
 	AppNameLabel = "app-name"
+	RoleLeader   = "Leader"
 )
 
 func GenIndexName(appName, rt, index string) string {
@@ -56,4 +57,8 @@ func GetPortFromApp(app *v1alpha1.FLApp, rtype v1alpha1.FLReplicaType) (int32, e
 		}
 	}
 	return -1, fmt.Errorf("port not found")
+}
+
+func IsLeader(role string) bool {
+	return role == RoleLeader
 }

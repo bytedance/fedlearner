@@ -16,9 +16,14 @@ import (
 )
 
 const (
-	workerServiceName = "WORKER_ID"
+	workerService     = "WORKER_ID"
+	workerRank        = "WORKER_RANK"
 	workerClusterSpec = "CLUSTER_SPEC"
-	masterServiceName = "MASTER_ID"
+	masterService     = "MASTER_ID"
+	replicaIndex      = "INDEX"
+
+	egressURL  = "EGRESS_URL"
+	egressHost = "EGRESS_HOST"
 
 	exitedWithCodeReason = "ExitedWithCode"
 )
@@ -182,7 +187,7 @@ func (am *appManager) createNewPod(
 	}
 
 	// inject cluster spec and mount volume if needed
-	if shouldPair(app, rtype) {
+	if needPair(app, rtype) {
 		volume := v1.Volume{
 			Name: volumeName(rtype),
 			VolumeSource: v1.VolumeSource{
@@ -198,22 +203,38 @@ func (am *appManager) createNewPod(
 	for idx := range podTemplate.Spec.Containers {
 		container := &podTemplate.Spec.Containers[idx]
 		if container.Name == v1alpha1.DefaultContainerName {
-			if shouldPair(app, rtype) {
+			if needPair(app, rtype) {
 				container.VolumeMounts = ensureVolumeMounts(container.VolumeMounts, v1.VolumeMount{
 					Name:      volumeName(rtype),
 					ReadOnly:  true,
 					MountPath: mountPath(rtype),
 				})
 			}
+			container.Env = ensureEnv(container.Env, v1.EnvVar{
+				Name:  replicaIndex,
+				Value: index,
+			})
+			container.Env = ensureEnv(container.Env, v1.EnvVar{
+				Name:  egressURL,
+				Value: app.Spec.Egress.EgressURL,
+			})
+			container.Env = ensureEnv(container.Env, v1.EnvVar{
+				Name:  egressHost,
+				Value: app.Spec.Egress.EgressHost,
+			})
 			if rtype == v1alpha1.FLReplicaTypeMaster {
 				container.Env = ensureEnv(container.Env, v1.EnvVar{
-					Name: masterServiceName,
+					Name:  masterService,
 					Value: GenIndexName(app.Name, rt, index),
 				})
 			} else if rtype == v1alpha1.FLReplicaTypeWorker {
 				container.Env = ensureEnv(container.Env, v1.EnvVar{
-					Name: workerServiceName,
+					Name:  workerService,
 					Value: GenIndexName(app.Name, rt, index),
+				})
+				container.Env = ensureEnv(container.Env, v1.EnvVar{
+					Name:  workerRank,
+					Value: index,
 				})
 				container.Env = ensureEnv(container.Env, v1.EnvVar{
 					Name:  workerClusterSpec,

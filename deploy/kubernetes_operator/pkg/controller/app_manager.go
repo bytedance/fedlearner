@@ -38,7 +38,6 @@ import (
 	crdclientset "github.com/bytedance/fedlearner/deploy/kubernetes_operator/pkg/client/clientset/versioned"
 	"github.com/bytedance/fedlearner/deploy/kubernetes_operator/pkg/client/clientset/versioned/scheme"
 	crdlisters "github.com/bytedance/fedlearner/deploy/kubernetes_operator/pkg/client/listers/fedlearner.k8s.io/v1alpha1"
-	"github.com/bytedance/fedlearner/deploy/kubernetes_operator/pkg/util"
 )
 
 const (
@@ -62,7 +61,7 @@ type appManager struct {
 	serviceLister   listerscorev1.ServiceLister
 	ingressLister   listersnetworking.IngressLister
 
-	appStatusUpdater util.StatusUpdater
+	appStatusUpdater StatusUpdater
 	appEventHandler  AppEventHandler
 
 	podControl     PodControlInterface
@@ -99,7 +98,7 @@ func NewAppManager(
 		serviceLister:   serviceLister,
 		ingressLister:   ingressLister,
 
-		appStatusUpdater: util.NewAppStatusUpdater(crdClient, namespace),
+		appStatusUpdater: NewAppStatusUpdater(crdClient, namespace),
 		appEventHandler:  appEventHandler,
 
 		podControl: RealPodControl{
@@ -149,7 +148,7 @@ func (am *appManager) SyncApp(app *v1alpha1.FLApp, deleting bool) error {
 	}
 
 	appState := appCopy.Status.AppState
-	if appState == v1alpha1.FLStateBootstrapped || appState == v1alpha1.FLStateSyncSent || appState == v1alpha1.FLStateRunning {
+	if appState == v1alpha1.FLStateNew || appState == v1alpha1.FLStateBootstrapped || appState == v1alpha1.FLStateSyncSent || appState == v1alpha1.FLStateRunning {
 		now := time.Now()
 		timeout := am.isAppTimeOut(appCopy, now)
 		if am.isAppFailing(appCopy) || timeout {
@@ -188,7 +187,7 @@ func (am *appManager) deleteApp(app *v1alpha1.FLApp) error {
 	switch appState {
 	case v1alpha1.FLStateNew, v1alpha1.FLStateBootstrapped, v1alpha1.FLStateSyncSent, v1alpha1.FLStateRunning:
 		klog.Infof("shutting down peer as app is deleted, name = %v", name)
-		if err := am.appEventHandler.ShutdownPeer(app); err != nil {
+		if err := am.appEventHandler.Shutdown(app); err != nil {
 			klog.Errorf("failed to shutdown peer when app is deleted, name = %v, err = %v", name, err)
 		}
 	}
@@ -225,13 +224,13 @@ func (am *appManager) reconcileFLApp(app *v1alpha1.FLApp) error {
 		klog.Errorf("failed to reconcile ingress for app, name = %v, err = %v", name, err)
 		return err
 	}
-	return am.overwriteStatus(app)
+	return am.setStatus(app)
 }
 
 func (am *appManager) isAppBootstrapped(app *v1alpha1.FLApp) bool {
 	for rtype := range app.Spec.FLReplicaSpecs {
 		rt := strings.ToLower(string(rtype))
-		if shouldPair(app, rtype) {
+		if needPair(app, rtype) {
 			name := GenName(app.Name, rt)
 			configMap, err := am.configMapLister.ConfigMaps(am.namespace).Get(name)
 			// ConfigMap not ready
@@ -258,7 +257,7 @@ func (am *appManager) isAppBootstrapped(app *v1alpha1.FLApp) bool {
 
 func (am *appManager) reconcileConfigMaps(app *v1alpha1.FLApp) error {
 	for rtype := range app.Spec.FLReplicaSpecs {
-		if shouldPair(app, rtype) {
+		if needPair(app, rtype) {
 			if err := am.createOrUpdateConfigMap(app, rtype, nil); err != nil {
 				return err
 			}
@@ -269,12 +268,34 @@ func (am *appManager) reconcileConfigMaps(app *v1alpha1.FLApp) error {
 
 func (am *appManager) reconcileIngress(app *v1alpha1.FLApp) error {
 	name := app.Name
+	needIngress := false
+	for rtype := range app.Spec.FLReplicaSpecs {
+		if needPair(app, rtype) {
+			needIngress = true
+			break
+		}
+	}
+	if !needIngress {
+		ingress, err := am.ingressLister.Ingresses(am.namespace).Get(name)
+		if err != nil {
+			return err
+		}
+		if ingress != nil {
+			return am.kubeClient.NetworkingV1beta1().Ingresses(am.namespace).Delete(name, &metav1.DeleteOptions{})
+		}
+	}
+	return am.createIngress(app)
+}
+
+func (am *appManager) createIngress(app *v1alpha1.FLApp) error {
+	name := app.Name
 	ownerReference := am.GenOwnerReference(app)
 	labels := GenLabels(name)
 	// TODO: support more kinds of ingress
 	annotations := map[string]string{
-		"kubernetes.io/ingress.class":                  "nginx",
-		"nginx.ingress.kubernetes.io/backend-protocol": "GRPC",
+		"kubernetes.io/ingress.class":                       "nginx",
+		"nginx.ingress.kubernetes.io/backend-protocol":      "GRPC",
+		"nginx.ingress.kubernetes.io/configuration-snippet": "grpc_next_upstream_tries 5 ;",
 	}
 	ingress, err := am.ingressLister.Ingresses(am.namespace).Get(name)
 	if err != nil && !errors.IsNotFound(err) {
@@ -290,7 +311,7 @@ func (am *appManager) reconcileIngress(app *v1alpha1.FLApp) error {
 			},
 		}
 		for rtype := range app.Spec.FLReplicaSpecs {
-			if shouldPair(app, rtype) {
+			if needPair(app, rtype) {
 				replicas := getReplicas(app, rtype)
 				rt := strings.ToLower(string(rtype))
 				for index := 0; index < replicas; index++ {
@@ -301,7 +322,7 @@ func (am *appManager) reconcileIngress(app *v1alpha1.FLApp) error {
 						},
 					}
 					rule := networking.IngressRule{
-						Host: fmt.Sprintf("%s.%s.%d", app.Name, rt, index),
+						Host: GenIndexName(app.Name, rt, strconv.Itoa(index)),
 						IngressRuleValue: networking.IngressRuleValue{
 							HTTP: &networking.HTTPIngressRuleValue{
 								Paths: []networking.HTTPIngressPath{path},
@@ -359,37 +380,23 @@ func (am *appManager) syncBootstrappedApp(app *v1alpha1.FLApp) error {
 	name := app.Name
 	klog.Infof("sync bootstrapped app, name = %v", name)
 
-	switch app.Spec.Role {
-	case v1alpha1.Leader:
+	if IsLeader(app.Spec.Role) {
 		return am.syncLeaderApp(app)
-	case v1alpha1.Follower:
-		return am.syncFollowerApp(app)
 	}
-	return nil
+	return am.syncFollowerApp(app)
 }
 
 func (am *appManager) syncLeaderApp(app *v1alpha1.FLApp) error {
 	name := app.Name
 	klog.Infof("sync bootstrapped leader app, name = %v", name)
-
-	if err := am.appEventHandler.SyncLeaderPairs(app); err != nil {
-		klog.Errorf("failed to call SyncLeaderPairs, name = %v, err = %v", name, err)
-		return err
-	}
-	return am.appStatusUpdater.UpdateAppStateWithRetry(app, v1alpha1.FLStateSyncSent)
-}
-
-func (am *appManager) syncFollowerApp(app *v1alpha1.FLApp) error {
-	name := app.Name
-	klog.Infof("sync bootstrapped follower app, name = %v", name)
 	if am.replicaPaired(app) && am.configMapUpdated(app) {
 		return am.appStatusUpdater.UpdateAppStateWithRetry(app, v1alpha1.FLStateRunning)
 	}
 
 	for rtype := range app.Spec.FLReplicaSpecs {
-		if shouldPair(app, rtype) {
+		if needPair(app, rtype) {
 			if app.Status.FLReplicaStatus[rtype].Remote.Len() != getReplicas(app, rtype) {
-				err := fmt.Errorf("still waiting for leader, name = %v, rtype = %v", name, rtype)
+				err := fmt.Errorf("still waiting for follower, name = %v, rtype = %v", name, rtype)
 				klog.Info(err)
 				return err
 			}
@@ -397,7 +404,7 @@ func (am *appManager) syncFollowerApp(app *v1alpha1.FLApp) error {
 	}
 
 	for rtype := range app.Spec.FLReplicaSpecs {
-		if shouldPair(app, rtype) {
+		if needPair(app, rtype) {
 			local := app.Status.FLReplicaStatus[rtype].Local.List()
 			remote := app.Status.FLReplicaStatus[rtype].Remote.List()
 			mapping := make(map[string]string)
@@ -414,11 +421,22 @@ func (am *appManager) syncFollowerApp(app *v1alpha1.FLApp) error {
 			app.Status.FLReplicaStatus[rtype] = *replicaStatus
 		}
 	}
-	if err := am.appEventHandler.SyncFollowerPairs(app); err != nil {
-		klog.Errorf("failed to call SyncFollowerPairs handler, name = %v, err = %v", name, err)
+	if err := am.appEventHandler.Pair(app); err != nil {
+		klog.Errorf("failed to call Pair handler, name = %v, err = %v", name, err)
 		return err
 	}
-	return am.overwriteStatus(app)
+	return am.setStatus(app)
+}
+
+func (am *appManager) syncFollowerApp(app *v1alpha1.FLApp) error {
+	name := app.Name
+	klog.Infof("sync bootstrapped follower app, name = %v", name)
+
+	if err := am.appEventHandler.Register(app); err != nil {
+		klog.Errorf("failed to call Register, name = %v, err = %v", name, err)
+		return err
+	}
+	return am.appStatusUpdater.UpdateAppStateWithRetry(app, v1alpha1.FLStateSyncSent)
 }
 
 func (am *appManager) syncSyncSentApp(app *v1alpha1.FLApp) error {
@@ -428,22 +446,22 @@ func (am *appManager) syncSyncSentApp(app *v1alpha1.FLApp) error {
 	if am.replicaPaired(app) && am.configMapUpdated(app) {
 		return am.appStatusUpdater.UpdateAppStateWithRetry(app, v1alpha1.FLStateRunning)
 	}
+	klog.Infof("still waiting for leader, name = %v", name)
 	if !configMapUpdated {
 		for rtype := range app.Spec.FLReplicaSpecs {
-			if shouldPair(app, rtype) {
+			if needPair(app, rtype) {
 				if err := am.createOrUpdateConfigMap(app, rtype, app.Status.FLReplicaStatus[rtype].Mapping); err != nil {
 					return err
 				}
 			}
 		}
 	}
-	klog.Infof("still waiting for follower, name = %v", name)
 	return nil
 }
 
 func (am *appManager) replicaPaired(app *v1alpha1.FLApp) bool {
 	for rtype := range app.Spec.FLReplicaSpecs {
-		if shouldPair(app, rtype) {
+		if needPair(app, rtype) {
 			if app.Status.FLReplicaStatus[rtype].Local.Len() != getReplicas(app, rtype) {
 				return false
 			}
@@ -460,7 +478,7 @@ func (am *appManager) replicaPaired(app *v1alpha1.FLApp) bool {
 
 func (am *appManager) configMapUpdated(app *v1alpha1.FLApp) bool {
 	for rtype := range app.Spec.FLReplicaSpecs {
-		if shouldPair(app, rtype) {
+		if needPair(app, rtype) {
 			rt := strings.ToLower(string(rtype))
 			configMapName := GenName(app.Name, rt)
 
@@ -478,7 +496,7 @@ func (am *appManager) syncRunningApp(app *v1alpha1.FLApp) error {
 	name := app.Name
 	klog.Infof("sync running app, name = %v", name)
 	if am.isAppFinished(app) {
-		if err := am.appEventHandler.FinishPeer(app); err != nil {
+		if err := am.appEventHandler.Finish(app); err != nil {
 			klog.Errorf("failed to call Finished handler, name = %v, err = %v", name, err)
 			return err
 		}
@@ -520,7 +538,7 @@ func (am *appManager) isAppTimeOut(app *v1alpha1.FLApp, now time.Time) bool {
 func (am *appManager) syncFailingApp(app *v1alpha1.FLApp) error {
 	name := app.Name
 	klog.Infof("sync failing app, name = %v", name)
-	if err := am.appEventHandler.ShutdownPeer(app); err != nil {
+	if err := am.appEventHandler.Shutdown(app); err != nil {
 		klog.Errorf("failed to call FLStateFailed handler, name = %v, err = %v", name, err)
 		return err
 	}
@@ -584,6 +602,6 @@ func getReplicas(app *v1alpha1.FLApp, rtype v1alpha1.FLReplicaType) int {
 	return int(*app.Spec.FLReplicaSpecs[rtype].Replicas)
 }
 
-func shouldPair(app *v1alpha1.FLApp, rtype v1alpha1.FLReplicaType) bool {
+func needPair(app *v1alpha1.FLApp, rtype v1alpha1.FLReplicaType) bool {
 	return app.Spec.FLReplicaSpecs[rtype].Pair != nil && *app.Spec.FLReplicaSpecs[rtype].Pair == true
 }
