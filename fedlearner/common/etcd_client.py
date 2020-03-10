@@ -27,11 +27,22 @@ class EtcdClient(object):
     ETCD_CLIENT_POOL = {}
     ETCD_CLIENT_POOL_DESTORY = False
 
+    class Event(object):
+        def __init__(self, event, base_dir):
+            self._event = event
+            self._base_dir = base_dir
+
+        def __getattr__(self, attr):
+            return getattr(self._event, attr)
+
+        @property
+        def key(self):
+            return EtcdClient.normalize_output_key(self._event.key,
+                                                   self._base_dir)
+
     def __init__(self, name, addrs, base_dir, use_mock_etcd=False):
-        if len(base_dir) == 0 or base_dir[0] != '/':
-            base_dir = '/' + base_dir
         self._name = name
-        self._base_dir = base_dir
+        self._base_dir = '/' + EtcdClient._normalize_input_key(base_dir)
         self._addrs = self._normalize_addr(addrs)
         if len(self._addrs) == 0:
             raise ValueError('Empty hosts EtcdClient')
@@ -69,18 +80,30 @@ class EtcdClient(object):
     def watch_key(self, key):
         addr = self._get_next_addr()
         with EtcdClient.closing(self._name, addr, self._use_mock_etcd) as clnt:
-            return clnt.watch(self._generate_path(key))
+            notifier, cancel = clnt.watch(self._generate_path(key))
+            def prefix_extractor(notifier, base_dir):
+                while True:
+                    try:
+                        yield EtcdClient.Event(next(notifier), base_dir)
+                    except StopIteration:
+                        break
 
-    def get_prefix_kvs(self, prefix):
+            return prefix_extractor(notifier, self._base_dir), cancel
+
+    def get_prefix_kvs(self, prefix, ignore_prefix=False):
         addr = self._get_next_addr()
         kvs = []
+        path = self._generate_path(prefix)
         with EtcdClient.closing(self._name, addr, self._use_mock_etcd) as clnt:
-            for (data, key) in clnt.get_prefix(prefix, sort_order='ascend'):
-                kvs.append((key.key, data))
+            for (data, key) in clnt.get_prefix(path, sort_order='ascend'):
+                if ignore_prefix and key.key == path.encode():
+                    continue
+                nkey = EtcdClient.normalize_output_key(key.key, self._base_dir)
+                kvs.append((nkey, data))
         return kvs
 
     def _generate_path(self, key):
-        return '/'.join([self._base_dir, key])
+        return '/'.join([self._base_dir, self._normalize_input_key(key)])
 
     def _get_next_addr(self):
         return self._addrs[random.randint(0, len(self._addrs) - 1)]
@@ -105,6 +128,23 @@ class EtcdClient(object):
                 raise ValueError('{} is not a valid port'.format(port_str))
             naddrs.append((ip, port))
         return naddrs
+
+    @staticmethod
+    def _normalize_input_key(key):
+        skip_cnt = 0
+        while key[skip_cnt] == '.' or key[skip_cnt] == '/':
+            skip_cnt += 1
+        if skip_cnt > 0:
+            return key[skip_cnt:]
+        return key
+
+    @staticmethod
+    def normalize_output_key(key, base_dir):
+        if isinstance(base_dir, str):
+            assert key.startswith(base_dir.encode())
+        else:
+            assert key.startswith(base_dir)
+        return key[len(base_dir)+1:]
 
     @classmethod
     @contextmanager

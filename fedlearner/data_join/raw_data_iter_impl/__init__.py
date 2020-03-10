@@ -22,10 +22,8 @@ import sys
 
 from fedlearner.data_join.raw_data_iter_impl.raw_data_iter import RawDataIter
 from fedlearner.data_join.raw_data_iter_impl.tf_record_iter import TfRecordIter
-from fedlearner.data_join import customized_options
 
 iter_impl_map = {}
-default_iter_impl = TfRecordIter
 
 __path__ = pkgutil.extend_path(__path__, __name__)
 for _, module, ispackage in pkgutil.walk_packages(
@@ -38,12 +36,10 @@ for _, module, ispackage in pkgutil.walk_packages(
             continue
         iter_impl_map[m.name()] = m
 
-def create_raw_data_iter(*args, **kwargs):
-    rd_iter = customized_options.get_raw_data_iter()
-    if rd_iter is None:
-        return default_iter_impl(*args, **kwargs)
+def create_raw_data_iter(options):
+    rd_iter = options.raw_data_iter
     if rd_iter in iter_impl_map:
-        return iter_impl_map[rd_iter](*args, **kwargs)
+        return iter_impl_map[rd_iter](options)
     logging.fatal("Unknown raw data iter %s", rd_iter)
     os._exit(-1) # pylint: disable=protected-access
     return None

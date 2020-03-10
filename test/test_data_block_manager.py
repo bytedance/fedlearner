@@ -18,6 +18,7 @@ import unittest
 import os
 
 import tensorflow as tf
+from google.protobuf import text_format
 from tensorflow.python.platform import gfile
 
 from fedlearner.common import etcd_client
@@ -39,8 +40,8 @@ class TestDataBlockManager(unittest.TestCase):
         self.data_block_manager = data_block_manager.DataBlockManager(
                 data_source, 0
             )
-        self.assertEqual(self.data_block_manager.get_dumped_data_block_num(), 0)
-        self.assertEqual(self.data_block_manager.get_last_data_block_meta(), None)
+        self.assertEqual(self.data_block_manager.get_dumped_data_block_count(), 0)
+        self.assertEqual(self.data_block_manager.get_lastest_data_block_meta(), None)
 
     def test_data_block_manager(self):
         data_block_datas = []
@@ -52,6 +53,7 @@ class TestDataBlockManager(unittest.TestCase):
             builder = data_block_manager.DataBlockBuilder(
                     self.data_source.data_block_dir, 0, i, None
                 )
+            builder.set_data_block_manager(self.data_block_manager)
             for j in range(1024):
                 feat = {}
                 example_id = '{}'.format(i * 1024 + j).encode()
@@ -77,17 +79,18 @@ class TestDataBlockManager(unittest.TestCase):
                     )
                 leader_index += 1
                 follower_index += 1
-            builder.finish_data_block()
+            meta = builder.finish_data_block()
             data_block_datas.append(fill_examples)
-            data_block_metas.append(builder.get_data_block_meta())
-        self.assertEqual(self.data_block_manager.get_dumped_data_block_num(), 0)
-        self.assertEqual(self.data_block_manager.get_last_data_block_meta(), None)
-        self.assertEqual(self.data_block_manager.get_dumped_data_block_num(True), 5)
+            data_block_metas.append(meta)
+        self.assertEqual(self.data_block_manager.get_dumped_data_block_count(), 5)
+        self.assertEqual(self.data_block_manager.get_lastest_data_block_meta(),
+                         data_block_metas[-1])
         for (idx, meta) in enumerate(data_block_metas):
-            self.assertEqual(self.data_block_manager.get_data_block_meta_by_index(idx)[0], meta)
+            self.assertEqual(self.data_block_manager.get_data_block_meta_by_index(idx),
+                             meta)
             self.assertEqual(meta.block_id, '{}-{}_{}'.format(
                              meta.start_time, meta.end_time, idx))
-        self.assertEqual(self.data_block_manager.get_data_block_meta_by_index(5)[0], None)
+        self.assertEqual(self.data_block_manager.get_data_block_meta_by_index(5), None)
         data_block_dir = os.path.join(
                         self.data_source.data_block_dir, 'partition_{}'.format(0)
                     )
@@ -96,13 +99,13 @@ class TestDataBlockManager(unittest.TestCase):
                         data_block_dir, meta.block_id
                     ) + common.DataBlockSuffix
             data_block_meta_fpath = os.path.join(
-                        data_block_dir, meta.block_id
-                    ) + common.DataBlockMetaSuffix
+                        data_block_dir, 
+                        common.encode_data_block_meta_fname(meta.data_block_index)
+                    )
             self.assertTrue(gfile.Exists(data_block_fpath))
             self.assertTrue(gfile.Exists(data_block_meta_fpath))
             fiter = tf.io.tf_record_iterator(data_block_meta_fpath)
-            remote_meta = dj_pb.DataBlockMeta()
-            remote_meta.ParseFromString(next(fiter))
+            remote_meta = text_format.Parse(next(fiter).decode(), dj_pb.DataBlockMeta())
             self.assertEqual(meta, remote_meta)
             for (j, record) in enumerate(tf.io.tf_record_iterator(data_block_fpath)):
                 example = tf.train.Example()
@@ -129,6 +132,11 @@ class TestDataBlockManager(unittest.TestCase):
                 self.assertEqual(stored_feat['follower_index'],
                                  feat['follower_index'].int64_list.value[0])
             self.assertEqual(j, 1023)
+
+        data_block_manager2 = data_block_manager.DataBlockManager(
+                self.data_source, 0
+            )
+        self.assertEqual(self.data_block_manager.get_dumped_data_block_count(), 5)
 
     def tearDown(self):
         if gfile.Exists(self.data_source.data_block_dir):

@@ -19,53 +19,58 @@ import "google/protobuf/empty.proto";
 
 package fedlearner.common;
 
-message DataSourceStateResponse {
+message DataSourceRequest {
+  DataSourceMeta data_source_meta = 1;
+}
+
+message DataSourceStatus {
   FLRole role = 1;
   DataSourceState state = 2;
-  DataSourceType data_source_type = 3;
-  Status status = 4;
 }
 
-message RawDataIndex {
-  int64 start_index = 1;
-}
-
-message RawDataRep {
-  string raw_data_path = 1;
-  oneof msg {
-    google.protobuf.Empty unindexed = 2;
-    RawDataIndex index = 3;
-  }
-}
-
-enum RawDataState {
-  UnAllocated = 0;
+enum SyncExampleIdState {
+  UnSynced = 0;
   Syncing = 1;
   Synced = 2;
-  Joining = 3;
-  Done = 4;
+}
+
+enum JoinExampleState {
+  UnJoined = 0;
+  Joining = 1;
+  Joined = 2;
+}
+
+message SyncExampleIdRep {
+  int64 rank_id = 1;
+  SyncExampleIdState state = 2;
+}
+
+message JoinExampleRep {
+  int64 rank_id = 1;
+  JoinExampleState state = 2;
 }
 
 message RawDataManifest {
   int64 partition_id = 1;
-  RawDataState state = 2;
-  int64 allocated_rank_id = 3;
+  SyncExampleIdRep sync_example_id_rep = 2;
+  JoinExampleRep join_example_rep = 3;
+  bool finished = 4;
+  int64 next_process_index = 5;
 }
 
-message SyncExampleIdRequest {
-  int64 partition_id = 1;
-}
-
-message JoinExampleRequest {
-  int64 partition_id = 1;
+message RawDataNextProcessIndex {
+  int64 process_index = 1;
 }
 
 message RawDataRequest {
   DataSourceMeta data_source_meta = 1;
   int64 rank_id = 2;
+  int64 partition_id = 3;
   oneof msg {
-    SyncExampleIdRequest sync_example_id = 3;
-    JoinExampleRequest join_example = 4;
+    google.protobuf.Empty sync_example_id = 4;
+    google.protobuf.Empty join_example = 5;
+    google.protobuf.Empty finish_raw_data = 6;
+    RawDataNextProcessIndex next_process_index = 7;
   }
 }
 
@@ -77,33 +82,15 @@ message RawDataResponse {
   }
 }
 
-message FinishRawDataRequest {
-  DataSourceMeta data_source_meta = 1;
-  int64 rank_id = 2;
-  oneof msg {
-    SyncExampleIdRequest sync_example_id = 3;
-    JoinExampleRequest join_example = 4;
-  }
-}
-
-message RawDataManifestRequest {
-  DataSourceMeta data_source_meta = 1;
-  int64 partition_id = 2;
-}
-
-message RawDataManifestResponse {
-  Status status = 1;
-  RawDataManifest manifest = 2;
-}
-
 service DataJoinMasterService {
   rpc GetDataSource(google.protobuf.Empty) returns (DataSource) {}
-  rpc GetDataSourceState(DataSourceMeta) returns (DataSourceStateResponse) {}
-  rpc AbortDataSource(DataSourceMeta) returns (Status) {}
+  rpc GetDataSourceStatus(DataSourceRequest) returns (DataSourceStatus) {}
+  rpc AbortDataSource(DataSourceRequest) returns (Status) {}
   rpc RequestJoinPartition(RawDataRequest) returns (RawDataResponse) {}
-  rpc FinishJoinPartition(FinishRawDataRequest) returns (Status) {}
-  rpc QueryRawDataManifest(RawDataManifestRequest)
-      returns (RawDataManifestResponse) {}
+  rpc FinishJoinPartition(RawDataRequest) returns (Status) {}
+  rpc QueryRawDataManifest(RawDataRequest) returns (RawDataManifest) {}
+  rpc FinishRawData(RawDataRequest) returns (Status) {}
+  rpc AddRawData(RawDataRequest) returns (Status) {}
 }
 
 message DataBlockMeta {
@@ -119,79 +106,96 @@ message DataBlockMeta {
   int64 data_block_index = 10;
 }
 
-message CreateDataBlockRequest {
-  DataSourceMeta data_source_meta = 1;
-  DataBlockMeta data_block_meta = 2;
-}
-
-message LeaderStartPartitionRequest {
+message StartPartitionRequest {
   DataSourceMeta data_source_meta = 1;
   int64 partition_id = 2;
 }
 
-message LeaderStartPartitionResponse {
-  Status status = 1;
-  int64 next_data_block_index = 2;
-  bool finished = 3;
-}
-
-message LeaderFinishPartitionRequest {
-  DataSourceMeta data_source_meta = 1;
-  int64 partition_id = 2;
-}
-
-message LeaderFinishPartitionResponse {
-  Status status = 1;
-  bool finished = 2;
-}
-
-service DataJoinLeaderService {
-  rpc CreateDataBlock(CreateDataBlockRequest) returns (Status) {}
-  rpc StartPartition(LeaderStartPartitionRequest)
-      returns (LeaderStartPartitionResponse) {}
-  rpc FinishPartition(LeaderFinishPartitionRequest)
-      returns (LeaderFinishPartitionResponse) {}
-}
-
-message SyncExamplesRequest {
-  DataSourceMeta data_source_meta = 1;
-  int64 partition_id = 2;
-  int64 begin_index = 3;
-  repeated bytes example_id = 4;
-  repeated int64 event_time = 5;
-}
-
-message FollowerStartPartitionRequest {
-  DataSourceMeta data_source_meta = 1;
-  int64 partition_id = 2;
-}
-
-message FollowerStartPartitionResponse {
+message StartPartitionResponse {
   Status status = 1;
   int64 next_index = 2;
   bool finished = 3;
 }
 
-message FollowerFinishPartitionRequest {
+message LiteExampleIds {
+  int64 partition_id = 1;
+  int64 begin_index = 2;
+  repeated bytes example_id = 3;
+  repeated int64 event_time = 4;
+}
+
+message SyncPartitionRequest {
+  DataSourceMeta data_source_meta = 1;
+  oneof msg {
+    DataBlockMeta data_block_meta = 2;
+    LiteExampleIds lite_example_ids = 3;
+  }
+}
+
+message FinishPartitionRequest {
   DataSourceMeta data_source_meta = 1;
   int64 partition_id = 2;
 }
 
-message FollowerFinishPartitionResponse {
+message FinishPartitionResponse {
   Status status = 1;
   bool finished = 2;
 }
 
-service DataJoinFollowerService {
-  rpc SyncExamples(SyncExamplesRequest) returns (Status) {}
-  rpc StartPartition(FollowerStartPartitionRequest)
-      returns (FollowerStartPartitionResponse) {}
-  rpc FinishPartition(FollowerFinishPartitionRequest)
-      returns (FollowerFinishPartitionResponse) {}
+service DataJoinWorkerService {
+  rpc StartPartition(StartPartitionRequest)
+      returns (StartPartitionResponse) {}
+  rpc SyncPartition(SyncPartitionRequest) returns (Status) {}
+  rpc FinishPartition(FinishPartitionRequest)
+      returns (FinishPartitionResponse) {}
 }
 
 message SyncedExampleId {
   bytes example_id = 1;
   int64 event_time = 2;
   int64 index = 3;
+}
+
+message LastDumpedExampleIdMeta {
+  string file_path = 1;
+  int64 start_index = 2;
+  int64 end_index = 3;
+  int64 process_index = 4;
+}
+
+message DumpedExampleIdAnchor {
+  oneof msg {
+    LastDumpedExampleIdMeta last_meta = 1;
+    google.protobuf.Empty undumped = 2;
+  }
+}
+
+message RawDataOptions {
+  string raw_data_iter = 1;
+  // only support three compressed, ''(UnCompressed), ZLIB, GZIP
+  string compressed_type = 2;
+}
+
+message ExampleJoinerOptions {
+  string example_joiner = 1;
+  int64 min_matching_window = 2;
+  int64 max_matching_window = 3;
+  int64 data_block_dump_interval = 4;
+  int64 data_block_dump_threshold = 5;
+}
+
+message ExampleIdDumpOptions {
+  int64 example_id_dump_interval = 1;
+  int64 example_id_dump_threshold = 2;
+}
+
+message DataJoinWorkerOptions {
+  bool use_mock_etcd = 1;
+  RawDataOptions raw_data_options = 2;
+  ExampleJoinerOptions example_joiner_options = 3;
+  ExampleIdDumpOptions example_id_dump_options = 4;
+}
+
+message DataJoinMasterOptions {
+  bool use_mock_etcd = 1;
 }

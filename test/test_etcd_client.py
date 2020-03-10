@@ -42,10 +42,22 @@ class TestEtcdClient(unittest.TestCase):
         other = threading.Thread(target=thread_routine)
         other.start()
         for e in eiter:
-            self.assertEqual(e.key, b'/data_source_a/fl_key')
+            self.assertEqual(e.key, b'fl_key')
             self.assertEqual(e.value, b'fl_value2')
             cancel()
         other.join()
+        cli.set_data('fl_key/a', '1')
+        cli.set_data('fl_key/b', '2')
+        cli.set_data('fl_key/c', '3')
+        expected_kvs = [(b'fl_key', b'fl_value2'), (b'fl_key/a', b'1'),
+                        (b'fl_key/b', b'2'), (b'fl_key/c', b'3')]
+        for idx, kv in enumerate(cli.get_prefix_kvs('fl_key')):
+            self.assertEqual(kv[0], expected_kvs[idx][0])
+            self.assertEqual(kv[1], expected_kvs[idx][1])
+        for idx, kv in enumerate(cli.get_prefix_kvs('fl_key', True)):
+            self.assertEqual(kv[0], expected_kvs[idx+1][0])
+            self.assertEqual(kv[1], expected_kvs[idx+1][1])
+
         cli.destory_client_pool()
 
 if __name__ == '__main__':

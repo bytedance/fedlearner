@@ -18,23 +18,22 @@ import threading
 import logging
 import os
 import uuid
-import ntpath
 
 import tensorflow as tf
+from google.protobuf import text_format
 from tensorflow.python.platform import gfile
 
 from fedlearner.common import data_join_service_pb2 as dj_pb
 
 from fedlearner.data_join.common import (
-    DataBlockSuffix, DataBlockMetaSuffix, make_tf_record_iter
+    make_tf_record_iter, encode_data_block_meta_fname,
+    encode_data_block_id, encode_data_block_fname
 )
 
 class DataBlockBuilder(object):
     TMP_COUNTER = 0
     def __init__(self, dirname, partition_id,
                  data_block_index, max_example_num=None):
-        self._start_time = None
-        self._end_time = None
         self._partition_id = partition_id
         self._max_example_num = max_example_num
         self._dirname = dirname
@@ -44,33 +43,35 @@ class DataBlockBuilder(object):
         self._data_block_meta.partition_id = partition_id
         self._data_block_meta.data_block_index = data_block_index
         self._data_block_meta.follower_restart_index = 0
-        self._filled = False
         self._example_num = 0
+        self._data_block_manager = None
 
     def init_by_meta(self, meta):
-        self._start_time = meta.start_time
-        self._end_time = meta.end_time
         self._partition_id = meta.partition_id
         self._max_example_num = None
         self._data_block_meta = meta
 
+    def set_data_block_manager(self, data_block_manager):
+        self._data_block_manager = data_block_manager
+
     def append(self, record, example_id, event_time,
                leader_index, follower_index):
-        if self._start_time is None or self._start_time > event_time:
-            self._start_time = event_time
-        if self._end_time is None or self._end_time < event_time:
-            self._end_time = event_time
         self._tf_record_writer.write(record)
         self._data_block_meta.example_ids.append(example_id)
-        if not self._filled:
+        if self._example_num == 0:
             self._data_block_meta.leader_start_index = leader_index
             self._data_block_meta.leader_end_index = leader_index
+            self._data_block_meta.start_time = event_time
+            self._data_block_meta.end_time = event_time
         else:
             assert self._data_block_meta.leader_start_index < leader_index
             assert self._data_block_meta.leader_end_index < leader_index
             self._data_block_meta.leader_end_index = leader_index
+            if event_time < self._data_block_meta.start_time:
+                self._data_block_meta.start_time = event_time
+            if event_time > self._data_block_meta.end_time:
+                self._data_block_meta.end_time = event_time
 
-        self._filled = True
         self._example_num += 1
 
     def set_follower_restart_index(self, follower_restart_index):
@@ -79,7 +80,6 @@ class DataBlockBuilder(object):
     def append_raw_example(self, record):
         self._tf_record_writer.write(record)
         self._example_num += 1
-        self._filled = True
 
     def check_data_block_full(self):
         if (self._max_example_num is not None and
@@ -96,29 +96,33 @@ class DataBlockBuilder(object):
     def get_leader_begin_index(self):
         return self._leader_begin_index
 
-    def example_number(self):
+    def example_count(self):
         return len(self._data_block_meta.example_ids)
 
     def finish_data_block(self):
         assert self._example_num == len(self._data_block_meta.example_ids)
         self._tf_record_writer.close()
+        del self._tf_record_writer
         self._tf_record_writer = None
         if len(self._data_block_meta.example_ids) > 0:
-            data_block_id = self._generate_data_block_id()
-            data_block_path = os.path.join(self._get_data_block_dir(),
-                                           data_block_id+DataBlockSuffix)
+            self._data_block_meta.block_id = encode_data_block_id(
+                    self._data_block_meta.start_time,
+                    self._data_block_meta.end_time,
+                    self._data_block_meta.data_block_index
+                )
+            data_block_path = os.path.join(
+                    self._get_data_block_dir(),
+                    encode_data_block_fname(
+                        self._data_block_meta.start_time,
+                        self._data_block_meta.end_time,
+                        self._data_block_meta.data_block_index
+                    )
+                )
             gfile.Rename(self._tmp_fpath, data_block_path)
-            self._data_block_meta.start_time = self._start_time
-            self._data_block_meta.end_time = self._end_time
-            self._data_block_meta.block_id = data_block_id
-            meta_tmp_fpath = self._get_tmp_fpath()
-            with tf.io.TFRecordWriter(meta_tmp_fpath) as meta_writer:
-                meta_writer.write(self._data_block_meta.SerializeToString())
-            meta_path = os.path.join(self._get_data_block_dir(),
-                                     data_block_id+DataBlockMetaSuffix)
-            gfile.Rename(meta_tmp_fpath, meta_path)
-        else:
-            gfile.Remove(self._tmp_fpath)
+            self._build_data_block_meta()
+            return self._data_block_meta
+        gfile.Remove(self._tmp_fpath)
+        return None
 
     def _get_data_block_dir(self):
         partition_str = 'partition_{}'.format(self._partition_id)
@@ -129,13 +133,31 @@ class DataBlockBuilder(object):
         self.TMP_COUNTER += 1
         return os.path.join(self._get_data_block_dir(), tmp_fname)
 
-    def _generate_data_block_id(self):
-        return '{}-{}_{}'.format(self._start_time, self._end_time,
-                                 self._data_block_meta.data_block_index)
+    def _build_data_block_meta(self):
+        tmp_meta_fpath = self._get_tmp_fpath()
+        meta = self._data_block_meta
+        with tf.io.TFRecordWriter(tmp_meta_fpath) as meta_writer:
+            meta_writer.write(text_format.MessageToString(meta).encode())
+        data_block_index = meta.data_block_index
+        meta_path = os.path.join(
+                self._get_data_block_dir(),
+                encode_data_block_meta_fname(data_block_index)
+            )
+        if self._data_block_manager is not None:
+            self._data_block_manager.commit_data_block_meta(
+                    tmp_meta_fpath, meta
+                )
+        else:
+            data_block_index = meta.data_block_index
+            meta_path = os.path.join(
+                    self._get_data_block_dir(),
+                    encode_data_block_meta_fname(data_block_index)
+                )
+            gfile.Rename(tmp_meta_fpath, meta_path)
 
     def __del__(self):
         if self._tf_record_writer is not None:
-            self._tf_record_writer.close()
+            del self._tf_record_writer
         self._tf_record_writer = None
 
 class DataBlockManager(object):
@@ -143,127 +165,105 @@ class DataBlockManager(object):
         self._lock = threading.Lock()
         self._data_source = data_source
         self._partition_id = partition_id
-        self._dumped_data_block_meta = []
-        self._sync_dumped_data_block_meta()
-        self._join_finisehed = False
+        self._data_block_meta_cache = {}
+        self._dumped_index = None
+        self._dumping_index = None
+        self._make_directory_if_nessary()
+        self._sync_dumped_index()
 
-    def get_dumped_data_block_num(self, force_sync=False):
-        if force_sync:
-            self._sync_dumped_data_block_meta()
+    def get_dumped_data_block_count(self):
         with self._lock:
-            return len(self._dumped_data_block_meta)
+            self._sync_dumped_index()
+            return self._dumped_index + 1
 
-    def get_data_block_meta_by_index(self, index, force_sync=False):
-        if force_sync:
-            self._sync_dumped_data_block_meta()
+    def get_data_block_meta_by_index(self, index):
         with self._lock:
-            if index >= len(self._dumped_data_block_meta):
-                return None, self._join_finisehed
-            return self._dumped_data_block_meta[index], False
+            if index < 0:
+                raise IndexError("{} index out of range".format(index))
+            self._sync_dumped_index()
+            return self._sync_data_block_meta(index)
 
-    def get_last_data_block_meta(self, force_sync=False):
-        if force_sync:
-            self._sync_dumped_data_block_meta()
+    def get_lastest_data_block_meta(self):
         with self._lock:
-            if len(self._dumped_data_block_meta) == 0:
-                return None
-            return self._dumped_data_block_meta[-1]
+            self._sync_dumped_index()
+            return self._sync_data_block_meta(self._dumped_index)
 
-    def finish_join(self):
+    def commit_data_block_meta(self, tmp_meta_fpath, data_block_meta):
+        if not gfile.Exists(tmp_meta_fpath):
+            raise RuntimeError("the tmp file is not existed {}"\
+                               .format(tmp_meta_fpath))
         with self._lock:
-            self._join_finisehed = True
+            if self._dumping_index is not None:
+                raise RuntimeError(
+                        "data block with index {} is " \
+                        "dumping".format(self._dumping_index)
+                    )
+            data_block_index = data_block_meta.data_block_index
+            if data_block_index != self._dumped_index + 1:
+                raise IndexError("the data block index shoud be consecutive")
+            self._dumping_index = data_block_index
+            meta_fpath = self._get_data_block_meta_path(data_block_index)
+            gfile.Rename(tmp_meta_fpath, meta_fpath)
+            self._dumping_index = None
+            self._dumped_index = data_block_index
+            self._evict_data_block_cache_if_full()
+            self._data_block_meta_cache[data_block_index] = data_block_meta
 
-    def join_finished(self):
-        with self._lock:
-            return self._join_finisehed
+    def _sync_dumped_index(self):
+        if self._dumped_index is None:
+            assert self._dumping_index is None
+            left_index = 0
+            right_index = 1 << 63
+            while left_index <= right_index:
+                index = (left_index + right_index) // 2
+                fname = self._get_data_block_meta_path(index)
+                if gfile.Exists(fname):
+                    left_index = index + 1
+                else:
+                    right_index = index - 1
+            self._dumped_index = right_index
+        elif self._dumping_index is not None:
+            assert self._dumping_index == self._dumped_index + 1
+            fpath = self._get_data_block_meta_path(self._dumping_index)
+            if not gfile.Exists(fpath):
+                self._dumping_index = None
+            else:
+                self._dumped_index = self._dumping_index
+                self._dumping_index = None
 
-    def add_dumped_data_block_meta(self, meta, force_sync=False):
-        if force_sync:
-            self._sync_dumped_data_block_meta()
-        with self._lock:
-            if meta.data_block_index != len(self._dumped_data_block_meta):
-                raise RuntimeError("the new add data block index is "\
-                                   "not consecutive")
-            if len(self._dumped_data_block_meta) > 0:
-                prev_meta = self._dumped_data_block_meta[-1]
-                if (prev_meta.follower_restart_index >
-                        meta.follower_restart_index):
-                    raise RuntimeError(
-                            "follower_restart_index is not Incremental"
-                        )
-                if (prev_meta.leader_start_index >=
-                        meta.leader_start_index):
-                    raise RuntimeError(
-                            "leader_start_index is not Incremental"
-                        )
-                if (prev_meta.leader_end_index >=
-                        meta.leader_end_index):
-                    raise RuntimeError(
-                            "leader_end_index is not Incremental"
-                        )
-            self._dumped_data_block_meta.append(meta)
-
-    def _sync_dumped_data_block_meta(self):
-        dumped_data_block_path = {}
-        dumped_data_block_meta_path = {}
-        dumped_data_block_meta = []
+    def _make_directory_if_nessary(self):
         data_block_dir = self._data_block_dir()
         if not gfile.Exists(data_block_dir):
             gfile.MakeDirs(data_block_dir)
-        elif not gfile.IsDirectory(data_block_dir):
-            logging.fatal("%s must be the directory of data block for "\
-                          "partition %d", data_block_dir, self._partition_id)
+        if not gfile.IsDirectory(data_block_dir):
+            logging.fatal("%s should be directory", data_block_dir)
             os._exit(-1) # pylint: disable=protected-access
-        for fpath in self._list_data_block_dir():
-            fname = ntpath.basename(fpath)
-            if fname.endswith(DataBlockSuffix):
-                ftag = fname[:-len(DataBlockSuffix)]
-                dumped_data_block_path[ftag] = fpath
-            elif fname.endswith(DataBlockMetaSuffix):
-                ftag = fname[:-len(DataBlockMetaSuffix)]
-                dumped_data_block_meta_path[ftag] = fpath
-            else:
-                gfile.Remove(fpath)
-        for (ftag, fpath) in dumped_data_block_meta_path.items():
-            if ftag not in dumped_data_block_path:
-                gfile.Remove(fpath)
-                gfile.Remove(dumped_data_block_path[ftag])
-            else:
-                with make_tf_record_iter(fpath) as record_iter:
-                    dbm = dj_pb.DataBlockMeta()
-                    dbm.ParseFromString(next(record_iter))
-                    dumped_data_block_meta.append(dbm)
-        dumped_data_block_meta = sorted(
-                dumped_data_block_meta, key=lambda meta: meta.data_block_index
-            )
-        for (idx, meta) in enumerate(dumped_data_block_meta):
-            if meta.data_block_index != idx:
-                logging.fatal("data_block_index is not consecutive")
-                os._exit(-1) # pylint: disable=protected-access
-            if idx == 0:
-                continue
-            prev_meta = dumped_data_block_meta[idx-1]
-            if prev_meta.follower_restart_index > meta.follower_restart_index:
-                logging.fatal("follower_restart_index is not Incremental")
-                os._exit(-1) # pylint: disable=protected-access
-            if prev_meta.leader_start_index >= meta.leader_start_index:
-                logging.fatal("leader_start_index is not Incremental")
-                os._exit(-1) # pylint: disable=protected-access
-            if prev_meta.leader_end_index >= meta.leader_end_index:
-                logging.fatal("leader_end_index is not Incremental")
-                os._exit(-1) # pylint: disable=protected-access
-        with self._lock:
-            if len(dumped_data_block_meta) > len(self._dumped_data_block_meta):
-                self._dumped_data_block_meta = dumped_data_block_meta
 
-    def _list_data_block_dir(self):
-        data_block_dir = self._data_block_dir()
-        fpaths = [os.path.join(data_block_dir, f)
-                    for f in gfile.ListDirectory(data_block_dir)
-                    if not gfile.IsDirectory(os.path.join(data_block_dir, f))]
-        fpaths.sort()
-        return fpaths
+    def _sync_data_block_meta(self, index):
+        if self._dumped_index < 0 or index > self._dumped_index:
+            return None
+        if index not in self._data_block_meta_cache:
+            fpath = self._get_data_block_meta_path(index)
+            with make_tf_record_iter(fpath) as record_iter:
+                self._data_block_meta_cache[index] = \
+                        text_format.Parse(next(record_iter),
+                                          dj_pb.DataBlockMeta())
+            self._evict_data_block_cache_if_full()
+        return self._data_block_meta_cache[index]
+
+    def _get_data_block_meta_path(self, data_block_index):
+        return os.path.join(self._data_block_dir(),
+                            encode_data_block_meta_fname(data_block_index))
+
+    def _get_data_block_path(self, meta):
+        fname = encode_data_block_fname(meta.start_time, meta.end_time,
+                                        meta.data_block_index)
+        return os.path.join(self._data_block_dir(), fname)
 
     def _data_block_dir(self):
         return os.path.join(self._data_source.data_block_dir,
                             'partition_{}'.format(self._partition_id))
+
+    def _evict_data_block_cache_if_full(self):
+        while len(self._data_block_meta_cache) > 1024:
+            self._data_block_meta_cache.popitem()

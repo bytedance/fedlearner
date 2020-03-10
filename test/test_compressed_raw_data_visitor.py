@@ -25,9 +25,7 @@ tf.compat.v1.enable_eager_execution()
 from fedlearner.common import etcd_client
 from fedlearner.common import common_pb2 as common_pb
 from fedlearner.common import data_join_service_pb2 as dj_pb
-from fedlearner.data_join import (
-    raw_data_manifest_manager, raw_data_visitor, customized_options
-)
+from fedlearner.data_join import raw_data_manifest_manager, raw_data_visitor
 
 class TestRawDataVisitor(unittest.TestCase):
     def test_raw_data_visitor(self):
@@ -43,13 +41,19 @@ class TestRawDataVisitor(unittest.TestCase):
         self.assertTrue(gfile.Exists(partition_dir))
         manifest_manager = raw_data_manifest_manager.RawDataManifestManager(
             self.etcd, self.data_source)
-        customized_options.set_raw_data_iter('TF_DATASET')
-        customized_options.set_compressed_type('GZIP')
-        rdv = raw_data_visitor.RawDataVisitor(self.etcd, self.data_source, 0)
+        manifest_manager.add_raw_data(0, 1)
+        raw_data_options = dj_pb.RawDataOptions(
+                raw_data_iter='TF_DATASET',
+                compressed_type='GZIP'
+            )
+        rdm = raw_data_visitor.RawDataManager(self.etcd, self.data_source,0)
+        self.assertTrue(rdm.check_index_meta_by_process_index(0))
+        rdv = raw_data_visitor.RawDataVisitor(self.etcd, self.data_source, 0,
+                                              raw_data_options)
         expected_index = 0
         for (index, item) in rdv:
-            if index > 0 and index % 1024 == 0:
-                print("{} {} {}".format(index, item.example_id, item.event_time))
+            if index > 0 and index % 32 == 0:
+                print("{} {}".format(index, item.example_id))
             self.assertEqual(index, expected_index)
             expected_index += 1
         self.assertGreater(expected_index, 0)

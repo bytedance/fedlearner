@@ -22,10 +22,8 @@ import sys
 
 from fedlearner.data_join.joiner_impl.example_joiner import ExampleJoiner
 from fedlearner.data_join.joiner_impl.stream_joiner import StreamExampleJoiner
-from fedlearner.data_join import customized_options
 
 joiner_impl_map = {}
-default_joiner_impl = StreamExampleJoiner
 
 __path__ = pkgutil.extend_path(__path__, __name__)
 for _, module, ispackage in pkgutil.walk_packages(
@@ -38,12 +36,10 @@ for _, module, ispackage in pkgutil.walk_packages(
             continue
         joiner_impl_map[m.name()] = m
 
-def create_example_joiner(*args, **kwargs):
-    joiner = customized_options.get_example_joiner()
-    if joiner is None:
-        return default_joiner_impl(*args, **kwargs)
+def create_example_joiner(example_joiner_options, *args, **kwargs):
+    joiner = example_joiner_options.example_joiner
     if joiner in joiner_impl_map:
-        return joiner_impl_map[joiner](*args, **kwargs)
+        return joiner_impl_map[joiner](example_joiner_options, *args, **kwargs)
     logging.fatal("Unknown example joiner %s", joiner)
     os._exit(-1) # pylint: disable=protected-access
     return None

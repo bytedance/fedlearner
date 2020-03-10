@@ -16,163 +16,283 @@
 
 import logging
 
+import fedlearner.data_join.common as common
 from fedlearner.data_join.joiner_impl.example_joiner import ExampleJoiner
 
+class JoinWindow(object):
+    def __init__(self, pt_rate, qt_rate):
+        assert 0.0 <= pt_rate <= 1.0
+        assert 0.0 <= qt_rate <= 1.0
+        self._buffer = []
+        self._event_time = []
+        self._event_time_sorted = True
+        self._pt_rate = pt_rate
+        self._qt_rate = qt_rate
+        self._committed_pt = None
+
+    def __iter__(self):
+        return iter(self._buffer)
+
+    def append(self, index, item):
+        if len(self._event_time) > 0 and \
+                self._event_time[-1] > item.event_time:
+            self._event_time_sorted = False
+        self._buffer.append((index, item))
+        self._event_time.append(item.event_time)
+
+    def size(self):
+        return len(self._buffer)
+
+    def forward_pt(self):
+        if len(self._buffer) == 0:
+            return False
+        new_pt = self._cal_pt(self._pt_rate)
+        if self._committed_pt is None or new_pt > self._committed_pt:
+            self._committed_pt = new_pt
+            return True
+        return False
+
+    def committed_pt(self):
+        return self._committed_pt
+
+    def qt(self):
+        return self._cal_pt(self._qt_rate)
+
+    def reset(self, new_buffer, state_stale):
+        even_times = []
+        for _, item in new_buffer:
+            even_times.append(item.event_time)
+        self._buffer = new_buffer
+        self._event_time = even_times
+        if state_stale:
+            self._committed_pt = None
+        self._event_time_sorted = len(new_buffer) == 0
+
+    def __getitem__(self, index):
+        return self._buffer[index]
+
+    def _cal_pt(self, rate):
+        if not self._buffer:
+            return None
+        if not self._event_time_sorted:
+            self._event_time.sort()
+            self._event_time_sorted = True
+        pos = int(len(self._event_time) * rate)
+        if pos == len(self._buffer):
+            pos = len(self._buffer) - 1
+        return self._event_time[pos]
+
 class StreamExampleJoiner(ExampleJoiner):
-    def __init__(self, etcd, data_source, partition_id):
-        super(StreamExampleJoiner, self).__init__(
-                etcd, data_source, partition_id
-            )
-        self._leader_left_pt = None
-        self._leader_right_pt = None
-        self._follower_left_pt = None
-        self._follower_right_pt = None
-        self._min_window_size = data_source.data_source_meta.min_matching_window
-        self._max_window_size = data_source.data_source_meta.max_matching_window
-        self._leader_join_window = []
-        self._follower_join_cache = {}
+    def __init__(self, example_joiner_options, raw_data_options,
+                 etcd, data_source, partition_id):
+        super(StreamExampleJoiner, self).__init__(example_joiner_options,
+                                                  raw_data_options,
+                                                  etcd, data_source,
+                                                  partition_id)
+        self._min_window_size = example_joiner_options.min_matching_window
+        self._max_window_size = example_joiner_options.max_matching_window
+        self._leader_join_window = JoinWindow(0.05, 0.99)
+        self._follower_join_window = JoinWindow(0.05, 0.90)
+        self._joined_cache = {}
+        self._leader_unjoined_example_ids = []
+        self._follower_example_cache = {}
+        self._fill_leader_enough = False
+        self._reset_joiner_state(True)
 
     @classmethod
     def name(cls):
         return 'STREAM_JOINER'
 
-    def join_example(self):
-        if self._data_block_manager.join_finished():
+    def _inner_joiner(self, state_stale):
+        if self.is_join_finished():
             return
-        if self._stale_with_dfs:
-            self._sync_state()
-        self._leader_left_pt = None
-        self._leader_right_pt = None
-        self._follower_left_pt = None
-        self._follower_right_pt = None
-        self._leader_join_window = []
-        self._follower_join_cache = {}
-
-        try:
-            while not self._leader_visitor.finished():
-                self._load_leader_join_windows()
-                self._update_follower_join_cache()
-                self._join_impl()
+        sync_example_id_finished, raw_data_finished = \
+                self._prepare_join(state_stale)
+        while True:
+            if not self._fill_leader_join_window(sync_example_id_finished):
+                return
+            delay_dump = True
+            while delay_dump:
+                if not self._fill_follower_join_window(raw_data_finished):
+                    return
+                delay_dump = self._need_delay_dump(
+                        sync_example_id_finished, raw_data_finished
+                    )
+                if delay_dump:
+                    self._update_join_cache()
+                else:
+                    for (li, le) in self._leader_join_window:
+                        eid = le.example_id
+                        if eid not in self._follower_example_cache and \
+                                eid not in self._joined_cache:
+                            continue
+                        if eid not in self._joined_cache:
+                            self._joined_cache[eid] = \
+                                    self._follower_example_cache[eid]
+                        builder = self._get_data_block_builder(True)
+                        assert builder is not None
+                        fi, item = self._joined_cache[eid]
+                        et = le.event_time
+                        builder.append(item.record, eid, et, li, fi)
+                        if builder.check_data_block_full() or \
+                                self._need_finish_data_block_since_interval():
+                            yield self._finish_data_block()
                 self._evit_stale_follower_cache()
-            builder = self._get_data_block_builder()
+            self._reset_joiner_state(False)
+            if self._leader_visitor.finished() or \
+                    (self._follower_join_window.size() == 0 and
+                            self._follower_visitor.finished()):
+                break
+        if sync_example_id_finished:
+            builder = self._get_data_block_builder(False)
             if builder is not None:
-                self._finish_data_block()
-        except Exception as e: # pylint: disable=broad-except
-            logging.error("meet exception during example join %s", e)
-            self._stale_with_dfs = True
-            self._data_block_builder = None
-        else:
-            logging.warning("Finish data join for partition %d",
+                yield self._finish_data_block()
+            self._set_join_finished()
+            logging.warning("finish join example for partition %d",
                             self._partition_id)
-            self._data_block_manager.finish_join()
 
-    def _load_leader_join_windows(self):
-        self._leader_join_window = []
-        event_time = []
-        example_num = self._min_window_size
-        while not self._leader_visitor.finished():
-            self._load_example_until_number(
-                    self._leader_visitor, self._leader_join_window,
-                    event_time, example_num
-                )
-            assert len(event_time) == len(self._leader_join_window)
-            if len(self._leader_join_window) == 0:
-                break
-            new_leader_left_pt = self._percentile_pt(event_time, 0.05)
-            self._leader_right_pt = self._percentile_pt(event_time, 1.0)
-            if (self._leader_left_pt is None or
-                    new_leader_left_pt > self._leader_left_pt):
-                self._leader_left_pt = new_leader_left_pt
-                break
-            if example_num >= self._max_window_size:
-                break
-            example_num *= 2
-            if example_num > self._max_window_size:
-                example_num = self._max_window_size
+    def _prepare_join(self, state_stale):
+        if state_stale:
+            self._sync_state()
+            self._reset_joiner_state(True)
+            self._reset_data_block_builder()
+        sync_example_id_finished = self.is_sync_example_id_finished()
+        raw_data_finished = self.is_raw_data_finished()
+        self._active_visitors()
+        return sync_example_id_finished, raw_data_finished
 
-    def _update_follower_join_cache(self):
-        follower_join_window = []
-        event_time = []
-        example_num = self._min_window_size
-        while (not self._follower_visitor.finished() and
-                len(self._leader_join_window) > 0):
-            assert self._leader_left_pt is not None
-            assert self._leader_right_pt is not None
-            if len(follower_join_window) >= self._max_window_size:
-                new_join_window = []
-                new_event_time = []
-                for (idx, et) in enumerate(event_time):
-                    if et >= self._leader_left_pt:
-                        new_event_time.append(et)
-                        new_join_window.append(
-                            follower_join_window[idx])
-                follower_join_window = new_join_window
-                event_time = new_event_time
-            self._load_example_until_number(
-                    self._follower_visitor, follower_join_window,
-                    event_time, example_num
+    def _need_delay_dump(self, sync_example_id_finished, raw_data_finished):
+        if self._leader_visitor.finished() and sync_example_id_finished:
+            return False
+        if self._follower_visitor.finished() and raw_data_finished:
+            return False
+        leader_qt = self._leader_join_window.qt()
+        follower_qt = self._follower_join_window.qt()
+        if leader_qt is not None and follower_qt is not None and \
+                follower_qt >= leader_qt:
+            return False
+        return not self._need_finish_data_block_since_interval()
+
+    def _update_join_cache(self):
+        new_unjoined_example_ids = []
+        for example_id in self._leader_unjoined_example_ids:
+            if example_id in self._follower_example_cache:
+                self._joined_cache[example_id] = \
+                        self._follower_example_cache[example_id]
+            else:
+                new_unjoined_example_ids.append(example_id)
+        self._leader_unjoined_example_ids = new_unjoined_example_ids
+
+    def _reset_joiner_state(self, state_stale):
+        self._leader_join_window.reset([], state_stale)
+        self._fill_leader_enough = False
+        self._joined_cache = {}
+        self._leader_unjoined_example_ids = []
+        if state_stale:
+            self._follower_join_window.reset([], True)
+            self._follower_example_cache = {}
+
+    def _fill_leader_join_window(self, sync_example_id_finished):
+        if self._fill_leader_enough:
+            return True
+        if not self._fill_join_windows(self._leader_visitor,
+                                       self._leader_join_window,
+                                       None):
+            self._fill_leader_enough = sync_example_id_finished
+        else:
+            self._fill_leader_enough = True
+        if self._fill_leader_enough:
+            self._leader_unjoined_example_ids = []
+            for _, item in self._leader_join_window:
+                self._leader_unjoined_example_ids.append(item.example_id)
+        return self._fill_leader_enough
+
+    def _fill_follower_join_window(self, raw_data_finished):
+        if not self._fill_join_windows(self._follower_visitor,
+                                       self._follower_join_window,
+                                       self._follower_example_cache):
+            return raw_data_finished
+        return True
+
+    def _fill_join_windows(self, visitor, join_window, join_cache):
+        while not visitor.finished() and \
+                join_window.size() < self._max_window_size:
+            required_item_count = self._min_window_size
+            if join_window.size() >= self._min_window_size:
+                required_item_count *= 2
+            if required_item_count >= self._max_window_size:
+                required_item_count = self._max_window_size
+            self._consume_item_until_count(
+                    visitor, join_window,
+                    required_item_count, join_cache
                 )
-            assert len(event_time) == len(follower_join_window)
-            if len(event_time) == 0:
-                break
-            new_follower_left_pt = self._percentile_pt(event_time, 0.05)
-            if (self._follower_left_pt is None or
-                        new_follower_left_pt > self._follower_left_pt):
-                self._follower_left_pt = new_follower_left_pt
-            new_follower_right_pt = self._percentile_pt(event_time, 0.95)
-            if (self._follower_left_pt >= self._leader_left_pt and
-                    new_follower_right_pt >= self._leader_right_pt):
-                break
-            example_num *= 2
-        for (index, item) in follower_join_window:
+            if join_window.forward_pt():
+                return True
+        return join_window.size() >= self._max_window_size
+
+    def _evict_if_joined(self, item):
+        return item.example_id in self._joined_cache
+
+    def _evict_if_pt(self, item):
+        return item.event_time < self._leader_join_window.committed_pt()
+
+    def _evict_if_qt(self, item):
+        return item.event_time < self._leader_join_window.qt()
+
+    def _evict_impl(self, candidates, filter_fn):
+        reserved_items = []
+        for (index, item) in candidates:
             example_id = item.example_id
-            self._follower_join_cache[example_id] = (index, item)
-
-    def _join_impl(self):
-        for (li, le) in self._leader_join_window:
-            example_id = le.example_id
-            if example_id not in self._follower_join_cache:
-                continue
-            fi, item = self._follower_join_cache[example_id]
-            event_time = le.event_time
-            self._follower_join_cache.pop(example_id, None)
-            builder = self._get_data_block_builder()
-            assert builder is not None
-            builder.append(item.record, example_id, event_time, li, fi)
-            if builder.check_data_block_full():
-                self._finish_data_block()
+            if filter_fn(item):
+                self._follower_example_cache.pop(example_id, None)
+            else:
+                reserved_items.append((index, item))
+        return reserved_items
 
     def _evit_stale_follower_cache(self):
-        evicted_example_ids = []
-        min_follower_index = None
-        for (example_id, v) in self._follower_join_cache.items():
-            follower_index = v[0]
-            event_time = v[1].event_time
-            if event_time < self._leader_left_pt:
-                evicted_example_ids.append(example_id)
-            elif (min_follower_index is None or
-                    min_follower_index > follower_index):
-                min_follower_index = follower_index
-        if min_follower_index is not None:
-            assert min_follower_index >= self._follower_restart_index
-            self._follower_restart_index = min_follower_index
-        for example_id in evicted_example_ids:
-            self._follower_join_cache.pop(example_id, None)
+        reserved_items = self._evict_impl(
+                self._follower_join_window, self._evict_if_joined
+            )
+        if len(reserved_items) < self._max_window_size:
+            self._follower_join_window.reset(reserved_items, False)
+            return
 
-    def _load_example_until_number(self, visitor, cache,
-                                   event_times, example_num):
+        reserved_items_v1 = self._evict_impl(
+                reserved_items, self._evict_if_pt
+            )
+        if len(reserved_items_v1) < self._max_window_size:
+            self._follower_join_window.reset(reserved_items_v1, False)
+            return
+
+        reserved_items_v2 = self._evict_impl(
+                reserved_items_v1, self._evict_if_qt
+            )
+        self._follower_join_window.reset(reserved_items_v2, False)
+
+    def _consume_item_until_count(self, visitor, windows,
+                                  required_item_count, cache=None):
         for (index, item) in visitor:
-            event_time = item.event_time
-            event_times.append(event_time)
-            cache.append((index, item))
-            if len(cache) >= example_num:
-                return
+            if item.example_id == common.InvalidExampleId:
+                logging.warning("ignore item indexed as %d from %s since "\
+                                "invalid example id", index, visitor.name())
+            elif item.event_time == common.InvalidEventTime:
+                logging.warning("ignore item indexed as %d from %s since "\
+                                "invalid event time", index, visitor.name())
+            else:
+                windows.append(index, item)
+                if cache is not None:
+                    cache[item.example_id] = (index, item)
+                if windows.size() >= required_item_count:
+                    return
         assert visitor.finished()
 
-    @staticmethod
-    def _percentile_pt(event_time_array, rate):
-        event_time_array.sort()
-        pos = int(len(event_time_array) * rate)
-        if pos >= len(event_time_array):
-            pos = len(event_time_array) - 1
-        return event_time_array[pos]
+    def _finish_data_block(self):
+        meta = super(StreamExampleJoiner, self)._finish_data_block()
+        self._follower_restart_index = self._follower_visitor.get_index()
+        if self._follower_join_window.size() > 0:
+            self._follower_restart_index = \
+                    self._follower_join_window[0][0]
+        for index, _ in self._joined_cache.values():
+            if index < self._follower_restart_index:
+                self._follower_restart_index = index
+        return meta
