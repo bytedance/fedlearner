@@ -32,8 +32,8 @@ def main():
             'test_raw_data_visitor.py',
             'test_compressed_raw_data_visitor.py',
             'test_dumped_example_id.py',
-            'test_data_block_dumper.py',
             'test_data_block_manager.py',
+            'test_data_block_dumper.py',
             'test_example_join.py',
             'test_data_join_master.py',
             'test_data_join_worker.py'

@@ -17,192 +17,245 @@
 import os
 import threading
 import uuid
-import logging
+import time
+from contextlib import contextmanager
 
 import tensorflow as tf
 from tensorflow.python.platform import gfile
 
-from fedlearner.data_join.example_id_visitor import (
-        ExampleIdManager, ExampleIdMeta
-)
-from fedlearner.data_join.common import ExampleIdSuffix
 from fedlearner.common import data_join_service_pb2 as dj_pb
+
+from fedlearner.data_join.example_id_visitor import ExampleIdManager
+from fedlearner.data_join import visitor, common
 
 class ExampleIdDumperManager(object):
     class ExampleIdDumper(object):
-        def __init__(self, start_index, example_dumped_dir):
+        def __init__(self, process_index, start_index,
+                     example_dumped_dir, dump_threshold):
+            self._process_index = process_index
             self._start_index = start_index
             self._end_index = start_index - 1
             self._example_dumped_dir = example_dumped_dir
+            self._dump_threshold = dump_threshold
             self._tmp_fpath = self._get_tmp_fpath()
-            self._tf_record_writer = (
-                tf.io.TFRecordWriter(self._tmp_fpath))
-            self._fly_dumpped_example_req = []
+            self._tf_record_writer = tf.io.TFRecordWriter(self._tmp_fpath)
+            self._dumped_example_id_batch_count = 0
 
-        def dump_synced_example(self, synced_example_req):
-            assert self._end_index + 1 == synced_example_req.begin_index
-            assert (len(synced_example_req.example_id) ==
-                        len(synced_example_req.event_time))
-            self._fly_dumpped_example_req.append(synced_example_req)
-            for idx, example_id in enumerate(synced_example_req.example_id):
+        def dump_example_id_batch(self, example_id_batch):
+            assert self._end_index + 1 == example_id_batch.begin_index
+            assert len(example_id_batch.example_id) == \
+                    len(example_id_batch.event_time)
+            for idx, example_id in enumerate(example_id_batch.example_id):
                 self._end_index += 1
-                event_time = synced_example_req.event_time[idx]
+                event_time = example_id_batch.event_time[idx]
                 syned_example_id = dj_pb.SyncedExampleId()
                 syned_example_id.example_id = example_id
                 syned_example_id.event_time = event_time
                 syned_example_id.index = self._end_index
                 self._tf_record_writer.write(
                     syned_example_id.SerializeToString())
+            self._dumped_example_id_batch_count += 1
+
+        def check_dumper_full(self):
+            dump_count = self._end_index - self._start_index + 1
+            if self._dump_threshold > 0 and \
+                    dump_count > self._dump_threshold:
+                return True
+            return False
 
         def finish_example_id_dumper(self):
-            self._tf_record_writer.close()
+            del self._tf_record_writer
             self._tf_record_writer = None
-            if self.dumped_example_number() > 0:
+            if self.dumped_example_id_count() > 0:
                 fpath = self._get_dumped_fpath()
-                gfile.Rename(self._tmp_fpath, fpath)
-                return ExampleIdMeta(self._start_index, self._end_index, fpath)
+                gfile.Rename(self._tmp_fpath, fpath, True)
+                index_meta = visitor.IndexMeta(
+                        self._process_index, self._start_index, fpath
+                    )
+                return index_meta, self._end_index
             assert self._start_index == self._end_index
             gfile.Remove(self._tmp_fpath)
-            return None
+            return None, None
 
         def __del__(self):
             if self._tf_record_writer is not None:
                 self._tf_record_writer.close()
-            del self._tf_record_writer
+                del self._tf_record_writer
             self._tf_record_writer = None
 
-        def dumped_example_number(self):
+        def dumped_example_id_count(self):
             return self._end_index - self._start_index + 1
 
-        def get_fly_req(self):
-            return self._fly_dumpped_example_req
+        def dumped_example_id_batch_count(self):
+            return self._dumped_example_id_batch_count
 
         def _get_dumped_fpath(self):
-            fname = '{}-{}{}'.format(self._start_index,
-                                     self._end_index, ExampleIdSuffix)
+            fname = visitor.encode_index_fname(self._process_index,
+                                               self._start_index,
+                                               common.ExampleIdSuffix)
             return os.path.join(self._example_dumped_dir, fname)
 
         def _get_tmp_fpath(self):
             tmp_fname = str(uuid.uuid1()) + '-dump.tmp'
             return os.path.join(self._example_dumped_dir, tmp_fname)
 
-    def __init__(self, data_source, partition_id):
+    def __init__(self, etcd, data_source,
+                 partition_id, example_id_dump_options):
         self._lock = threading.Lock()
         self._data_source = data_source
         self._partition_id = partition_id
-        self._fly_synced_example_req = []
-        self._synced_example_finished = False
-        self._example_id_manager = ExampleIdManager(data_source, partition_id)
-        self._next_index = self._example_id_manager.get_next_index()
+        self._dump_interval = \
+                example_id_dump_options.example_id_dump_interval
+        self._dump_threshold = \
+                example_id_dump_options.example_id_dump_threshold
+        self._fly_example_id_batch = []
+        self._example_id_sync_finished = False
+        self._latest_dump_timestamp = time.time()
+        self._example_id_manager = \
+                ExampleIdManager(etcd, data_source, partition_id, False)
+        last_index = self._example_id_manager.get_last_dumped_index()
+        self._next_index = 0 if last_index is None else last_index + 1
         self._example_id_dumper = None
-        self._stale_with_dfs = False
+        self._state_stale = False
 
     def get_next_index(self):
         with self._lock:
             return self._next_index
 
-    def get_partition_id(self):
+    def add_example_id_batch(self, example_id_batch):
         with self._lock:
-            return self._partition_id
-
-    def append_synced_example_req(self, req):
-        with self._lock:
-            if self._synced_example_finished:
+            if self._example_id_sync_finished:
                 raise RuntimeError(
                         "sync example for partition {} has "\
                         "finished".format(self._partition_id)
                     )
-            if req.begin_index != self._next_index:
-                return (False, self._next_index)
-            num_example = len(req.example_id)
-            self._fly_synced_example_req.append(req)
-            self._next_index = req.begin_index + num_example
-            return (True, self._next_index)
+            assert example_id_batch.partition_id == self._partition_id
+            if example_id_batch.begin_index != self._next_index:
+                return False, self._next_index
+            num_example = len(example_id_batch.example_id)
+            self._fly_example_id_batch.append(example_id_batch)
+            self._next_index = example_id_batch.begin_index + num_example
+            return True, self._next_index
 
-    def dump_example_ids(self):
-        try:
-            self._sync_with_dfs()
-            while True:
-                finished = False
-                req = None
-                dumper = None
-                with self._lock:
-                    finished, req = self._get_next_synced_example_req()
-                    if req is not None:
-                        dumper = self._get_example_id_dumper()
-                    if finished:
-                        dumper = self._example_id_dumper
-                if req is not None:
-                    assert dumper is not None
-                    dumper.dump_synced_example(req)
-                if dumper is not None:
-                    dumped_num = dumper.dumped_example_number()
-                    if dumped_num >= (1 << 16) or finished:
-                        meta = dumper.finish_example_id_dumper()
-                        with self._lock:
-                            assert dumper == self._example_id_dumper
-                            self._example_id_dumper = None
-                            manager = self._example_id_manager
-                            if meta is not None:
-                                manager.append_dumped_id_meta(meta)
-                if req is None:
-                    break
-        except Exception as e: # pylint: disable=broad-except
-            logging.error("Failed to dump example id for partition %d",
-                           self._partition_id)
-            with self._lock:
-                # rollback the fly syned example req
-                if self._example_id_dumper is not None:
-                    fly_reqs = self._example_id_dumper.get_fly_req()
-                    self._fly_synced_example_req = (
-                        fly_reqs + self._fly_synced_example_req)
-                del self._example_id_dumper
-                self._example_id_dumper = None
-                self._stale_with_dfs = True
+    @contextmanager
+    def make_example_id_dumper(self):
+        self._sync_with_example_id_manager()
+        self._acquire_state_stale()
+        yield self._dump_example_id_impl
+        self._release_state_stale()
 
     def need_dump(self):
         with self._lock:
-            return (len(self._fly_synced_example_req) > 0 or
-                    self._stale_with_dfs or
-                    (self._example_id_dumper is not None and
-                        self._synced_example_finished))
+            if len(self._fly_example_id_batch) > 0:
+                return True
+            return self._need_finish_dumper(self._example_id_sync_finished)
 
-    def finish_sync_example(self):
+    def finish_sync_example_id(self):
         with self._lock:
-            self._synced_example_finished = True
+            self._example_id_sync_finished = True
 
-    def example_sync_finished(self):
+    def is_sync_example_id_finished(self):
         with self._lock:
-            return self._synced_example_finished
+            return self._example_id_sync_finished
 
-    def _get_next_synced_example_req(self):
-        if len(self._fly_synced_example_req) == 0:
-            if self._synced_example_finished:
-                return True, None
-            return False, None
-        return False, self._fly_synced_example_req.pop(0)
+    def _dump_example_id_impl(self):
+        while self.need_dump():
+            self._dump_one_example_id_batch()
+            is_batch_finisehd = self._is_batch_finished()
+            if self._need_finish_dumper(is_batch_finisehd):
+                self._finish_example_id_dumper()
 
+    def _acquire_state_stale(self):
+        with self._lock:
+            self._state_stale = True
 
-    def _get_example_id_dumper(self):
-        if self._example_id_dumper is None:
-            next_index = self._example_id_manager.get_next_index()
+    def _release_state_stale(self):
+        with self._lock:
+            self._state_stale = False
+
+    def _dump_one_example_id_batch(self):
+        batch_index = 0 if self._example_id_dumper is None else \
+                self._example_id_dumper.dumped_example_id_batch_count()
+        example_id_batch = \
+                self._get_synced_example_id_batch(batch_index)
+        if example_id_batch is not None:
+            dumper = self._get_example_id_dumper(True)
+            dumper.dump_example_id_batch(example_id_batch)
+
+    def _need_finish_dumper(self, is_batch_finished):
+        duration_since_dump = time.time() - self._latest_dump_timestamp
+        if self._example_id_dumper is not None and \
+                (self._example_id_dumper.check_dumper_full() or \
+                 is_batch_finished or
+                 0 < self._dump_interval <= duration_since_dump):
+            return True
+        return False
+
+    def _is_batch_finished(self):
+        with self._lock:
+            return len(self._fly_example_id_batch) == 0 and \
+                    self._example_id_sync_finished
+
+    def _finish_example_id_dumper(self):
+        dumper = self._get_example_id_dumper(False)
+        assert dumper is not None
+        index_meta, end_index = dumper.finish_example_id_dumper()
+        if index_meta is not None and end_index is not None:
+            self._example_id_manager.update_dumped_example_id_anchor(
+                    index_meta, end_index
+                )
+        self._evict_dumped_example_id_batch()
+        self._reset_example_id_dumper()
+        self._update_latest_dump_timestamp()
+
+    def _update_latest_dump_timestamp(self):
+        with self._lock:
+            self._latest_dump_timestamp = time.time()
+
+    def _is_state_stale(self):
+        with self._lock:
+            return self._state_stale
+
+    def _get_synced_example_id_batch(self, batch_index):
+        with self._lock:
+            assert batch_index >= 0
+            if len(self._fly_example_id_batch) <= batch_index:
+                return None
+            return self._fly_example_id_batch[batch_index]
+
+    def _sync_with_example_id_manager(self):
+        if self._is_state_stale():
+            self._evict_dumped_example_id_batch()
+            self._reset_example_id_dumper()
+
+    def _get_example_id_dumper(self, create_if_no_existed):
+        if self._example_id_dumper is None and create_if_no_existed:
+            last_index = self._example_id_manager.get_last_dumped_index()
+            next_index = 0 if last_index is None else last_index + 1
             self._example_id_dumper = self.ExampleIdDumper(
+                    self._example_id_manager.get_next_process_index(),
                     next_index,
-                    self._example_id_manager.get_example_dumped_dir()
+                    self._example_id_manager.get_example_dumped_dir(),
+                    self._dump_threshold
                 )
         return self._example_id_dumper
 
-    def _sync_with_dfs(self):
-        if self._stale_with_dfs:
-            self._example_id_manager.sync_dumped_meta_with_dfs()
-            next_index = self._example_id_manager.get_next_index()
-            with self._lock:
-                skip_count = 0
-                for req in self._fly_synced_example_req:
-                    num_example = len(req.example_id)
-                    if req.begin_index + num_example > next_index:
-                        break
-                    skip_count += 1
-                self._fly_synced_example_req = (
-                        self._fly_synced_example_req[skip_count:])
-            self._stale_with_dfs = False
+    def _evict_dumped_example_id_batch(self):
+        last_index = self._example_id_manager.get_last_dumped_index()
+        next_index = 0 if last_index is None else last_index + 1
+        with self._lock:
+            skip_count = 0
+            for example_id_batch in self._fly_example_id_batch:
+                example_id_count = len(example_id_batch.example_id)
+                end_index = example_id_batch.begin_index + example_id_count
+                if end_index > next_index:
+                    assert example_id_batch.begin_index == next_index
+                    break
+                skip_count += 1
+            self._fly_example_id_batch = \
+                    self._fly_example_id_batch[skip_count:]
+
+    def _reset_example_id_dumper(self):
+        if self._example_id_dumper is not None:
+            del self._example_id_dumper
+        self._example_id_dumper = None

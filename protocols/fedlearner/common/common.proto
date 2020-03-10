@@ -42,20 +42,12 @@ enum DataSourceState {
   Failed = 5;
 }
 
-enum DataSourceType {
-  Sequential = 0;
-}
-
 message DataSourceMeta {
   string name = 1;
   uint32 partition_num = 2;
   int64 start_time = 3;
   int64 end_time = 4;
-  int64 min_matching_window = 5;
-  int64 max_matching_window = 6;
-  DataSourceType data_source_type = 7;
-  float negative_sampling_rate = 8;
-  int64 max_example_in_data_block = 9;
+  float negative_sampling_rate = 5;
 }
 
 message DataSource {

@@ -20,58 +20,74 @@ from fedlearner.data_join.routine_worker import RoutineWorker
 from fedlearner.data_join.example_id_dumper import ExampleIdDumperManager
 
 class ExampleIdSyncFollower(object):
-    def __init__(self, data_source):
+    class ImplContext(object):
+        def __init__(self, etcd, data_source,
+                     partition_id, example_id_dump_options):
+            self.example_id_dumper_manager = \
+                    ExampleIdDumperManager(etcd, data_source,
+                                           partition_id,
+                                           example_id_dump_options)
+            self.partition_id = partition_id
+
+        def __getattr__(self, attr):
+            return getattr(self.example_id_dumper_manager, attr)
+
+    def __init__(self, etcd, data_source, example_id_dump_options):
         self._lock = threading.Lock()
+        self._etcd = etcd
         self._data_source = data_source
-        self._example_id_dump_manager = None
+        self._example_id_dump_options = example_id_dump_options
         self._example_id_dump_worker = None
+        self._impl_ctx = None
         self._started = False
 
-    def start_dump_partition(self, partition_id):
+    def start_sync_partition(self, partition_id):
         with self._lock:
-            if (self._example_id_dump_manager is not None and
-                    self._example_id_dump_manager.get_partition_id() !=
-                        partition_id):
-                ptn_id = self._example_id_dump_manager.get_partition_id()
-                raise RuntimeError("partition {} is not finished".format(
-                                    ptn_id))
-            if self._example_id_dump_manager is None:
-                self._example_id_dump_manager = ExampleIdDumperManager(
-                        self._data_source, partition_id)
-            dump_manager = self._example_id_dump_manager
-            next_index = dump_manager.get_next_index()
-            return next_index
-
-    def add_synced_example_req(self, synced_example_req):
-        with self._lock:
-            self._check_status(synced_example_req.partition_id)
-            return self._example_id_dump_manager.append_synced_example_req(
-                        synced_example_req)
-
-    def finish_sync_partition_example(self, partition_id):
-        with self._lock:
-            self._check_status(partition_id)
-            self._example_id_dump_manager.finish_sync_example()
-            return not self._example_id_dump_manager.need_dump()
-
-    def reset_dump_partition(self):
-        with self._lock:
-            if self._example_id_dump_manager is None:
-                return
-            partition_id = self._example_id_dump_manager.get_partition_id()
-            self._check_status(partition_id)
-            if (not self._example_id_dump_manager.example_sync_finished() or
-                    self._example_id_dump_manager.need_dump()):
+            if self._impl_ctx is not None and \
+                    self._impl_ctx.partition_id != partition_id:
                 raise RuntimeError(
-                        "partition {} is dumpping".format(partition_id)
+                        "partition {} is not finished".format(
+                            self._impl_ctx.partition_id)
                     )
-            self._example_id_dump_manager = None
+            if self._impl_ctx is None:
+                self._impl_ctx = ExampleIdSyncFollower.ImplContext(
+                        self._etcd, self._data_source,
+                        partition_id, self._example_id_dump_options
+                    )
+            return self._impl_ctx.get_next_index()
+
+    def add_synced_item(self, req):
+        assert req.HasField('lite_example_ids')
+        with self._lock:
+            self._check_status(req.lite_example_ids.partition_id)
+            filled, next_index = self._impl_ctx.add_example_id_batch(
+                    req.lite_example_ids
+                )
+            if filled:
+                self._example_id_dump_worker.wakeup()
+            return filled, next_index
+
+    def finish_sync_partition(self, partition_id):
+        with self._lock:
+            self._check_status(partition_id)
+            self._impl_ctx.finish_sync_example_id()
+            return not self._impl_ctx.need_dump()
+
+    def reset_partition(self, partition_id):
+        with self._lock:
+            if not self._check_status(partition_id, False):
+                return
+            if not self._impl_ctx.is_sync_example_id_finished() or \
+                    self._impl_ctx.need_dump():
+                raise RuntimeError("partition {} is dumpping example " \
+                                   "id".format(partition_id))
+            self._impl_ctx = None
 
     def get_processing_partition_id(self):
         with self._lock:
-            if self._example_id_dump_manager is None:
+            if self._impl_ctx is None:
                 return None
-            return self._example_id_dump_manager.get_partition_id()
+            return self._impl_ctx.partition_id
 
     def start_dump_worker(self):
         with self._lock:
@@ -86,31 +102,35 @@ class ExampleIdSyncFollower(object):
                 self._started = True
 
     def stop_dump_worker(self):
-        dumper = None
+        dumper_worker = None
         with self._lock:
-            if self._example_id_dump_worker is not None:
-                dumper = self._example_id_dump_worker
-                self._dump_worker = None
-        if dumper is not None:
-            dumper.stop_routine()
+            dumper_worker = self._example_id_dump_worker
+            self._example_id_dump_worker = None
+        if dumper_worker is not None:
+            dumper_worker.stop_routine()
 
-    def _check_status(self, partition_id):
-        if self._example_id_dump_manager is None:
+    def _check_status(self, partition_id, raise_exception=True):
+        if self._impl_ctx is None:
+            if not raise_exception:
+                return False
             raise RuntimeError("no partition is processing")
-        ptn_id = self._example_id_dump_manager.get_partition_id()
-        if partition_id != ptn_id:
-            raise RuntimeError("partition id mismatch {} != {}".format(
-                                partition_id, ptn_id))
+        if self._impl_ctx.partition_id != partition_id:
+            if not raise_exception:
+                return False
+            raise RuntimeError(
+                    "partition id mismatch {} != {}".format(
+                    self._impl_ctx.partition_id, partition_id)
+                )
+        return True
 
-    def _dump_example_ids_fn(self):
-        dump_manager = None
-        with self._lock:
-            dump_manager = self._example_id_dump_manager
-        assert dump_manager is not None
-        if dump_manager.need_dump():
-            dump_manager.dump_example_ids()
+    def _dump_example_ids_fn(self, impl_ctx):
+        assert isinstance(impl_ctx, ExampleIdSyncFollower.ImplContext)
+        with impl_ctx.make_example_id_dumper() as dumper:
+            dumper()
 
     def _dump_example_ids_cond(self):
         with self._lock:
-            return (self._example_id_dump_manager is not None and
-                    self._example_id_dump_manager.need_dump())
+            if self._impl_ctx is not None and self._impl_ctx.need_dump():
+                self._example_id_dump_worker.setup_args(self._impl_ctx)
+                return True
+            return False

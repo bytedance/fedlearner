@@ -19,6 +19,7 @@ import os
 from google.protobuf import text_format
 
 from fedlearner.common import data_join_service_pb2 as dj_pb
+from fedlearner.common import common_pb2 as common_pb
 
 class RawDataManifestManager(object):
     def __init__(self, etcd, data_source):
@@ -34,116 +35,156 @@ class RawDataManifestManager(object):
         for partition_id in range(self._partition_num):
             self._init_manifest(partition_id)
 
-    def alloc_unallocated_partition(self, rank_id, partition_id=None):
+    def alloc_sync_exampld_id(self, rank_id, partition_id=None):
         if partition_id is not None:
             self._check_partition_id(partition_id)
         with self._lock:
             return self._alloc_partition(
-                    dj_pb.RawDataState.UnAllocated,
-                    dj_pb.RawDataState.Syncing,
-                    rank_id,
-                    partition_id
+                    'sync_example_id_rep', dj_pb.SyncExampleIdState.UnSynced,
+                     dj_pb.SyncExampleIdState.Syncing, rank_id, partition_id
                 )
 
-    def alloc_synced_partition(self, rank_id, partition_id=None):
+    def alloc_join_example(self, rank_id, partition_id=None):
         if partition_id is not None:
             self._check_partition_id(partition_id)
         with self._lock:
             return self._alloc_partition(
-                    dj_pb.RawDataState.Synced,
-                    dj_pb.RawDataState.Joining,
-                    rank_id,
-                    partition_id
+                    'join_example_rep', dj_pb.JoinExampleState.UnJoined,
+                     dj_pb.JoinExampleState.Joining, rank_id, partition_id
                 )
 
-    def finish_sync_partition(self, rank_id, partition_id):
+    def finish_sync_example_id(self, rank_id, partition_id):
         self._check_partition_id(partition_id)
         with self._lock:
+            if self._is_data_join_leader():
+                manifest = self._get_manifest(partition_id)
+                if not manifest.finished:
+                    raise RuntimeError(
+                            "Failed tp finish sync example id for " \
+                            "partition {} since raw data is not " \
+                            "finished".format(partition_id)
+                        )
             self._finish_partition(
-                rank_id,
-                partition_id,
-                dj_pb.RawDataState.Syncing,
-                dj_pb.RawDataState.Synced,
-            )
+                    'sync_example_id_rep', dj_pb.SyncExampleIdState.Syncing,
+                     dj_pb.SyncExampleIdState.Synced, rank_id, partition_id
+                )
 
-    def finish_join_partition(self, rank_id, partition_id):
+    def finish_join_example(self, rank_id, partition_id):
         self._check_partition_id(partition_id)
         with self._lock:
+            manifest = self._sync_manifest(partition_id)
+            assert manifest is not None
+            if manifest.sync_example_id_rep.state != \
+                    dj_pb.SyncExampleIdState.Synced:
+                raise RuntimeError(
+                        "not allow finish join example for " \
+                        "partition {} since sync example id is " \
+                        "not finished".format(partition_id)
+                    )
+            if not self._is_data_join_leader() and not manifest.finished:
+                raise RuntimeError(
+                        "Failed tp finish join example for partition {} "\
+                        "since raw data is not finished".format(partition_id)
+                    )
             self._finish_partition(
-                rank_id,
-                partition_id,
-                dj_pb.RawDataState.Joining,
-                dj_pb.RawDataState.Done,
-            )
+                    'join_example_rep', dj_pb.JoinExampleState.Joining,
+                     dj_pb.JoinExampleState.Joined, rank_id, partition_id
+                )
+
+    def finish_raw_data(self, partition_id):
+        self._check_partition_id(partition_id)
+        with self._lock:
+            manifest = self._sync_manifest(partition_id)
+            if not manifest.finished:
+                manifest.finished = True
+                self._update_manifest(manifest)
+
+    def add_raw_data(self, partition_id, next_process_index):
+        self._check_partition_id(partition_id)
+        with self._lock:
+            manifest = self._sync_manifest(partition_id)
+            if manifest.finished:
+                raise RuntimeError("raw data of partition {} has finished!"\
+                                   .format(partition_id))
+            if manifest.next_process_index < next_process_index:
+                manifest.next_process_index = next_process_index
+                self._update_manifest(manifest)
 
     def list_all_manifest(self):
         with self._lock:
             manifest_map = {}
             for partition_id in self._local_manifest:
-                self._sync_manifest(partition_id)
-                manifest_map[partition_id] = self._local_manifest[partition_id]
+                manifest_map[partition_id] = self._sync_manifest(partition_id)
             return manifest_map
 
     def get_manifest(self, partition_id):
         self._check_partition_id(partition_id)
         with self._lock:
-            self._sync_manifest(partition_id)
-            return self._local_manifest[partition_id]
+            return self._sync_manifest(partition_id)
 
-    def _alloc_partition(self, src_state, dst_state, rank_id, target_partition):
-        finished = True
-        if target_partition is None:
-            for partition_id in self._local_manifest:
-                self._sync_manifest(partition_id)
-                manifest = self._local_manifest[partition_id]
-                if manifest.state < src_state:
-                    finished = False
+    def _is_data_join_leader(self):
+        return self._data_source.role == common_pb.FLRole.Leader
+
+    def _alloc_partition(self, field_name, src_state,
+                         target_state, rank_id, partition_id=None):
+        if partition_id is None:
+            for ptn_id in self._local_manifest:
+                manifest = self._sync_manifest(ptn_id)
                 assert manifest is not None
-                if (manifest.state == dst_state and
-                        manifest.allocated_rank_id == rank_id):
-                    return manifest, False
-                if manifest.state == src_state and target_partition is None:
-                    target_partition = partition_id
-        if target_partition is not None:
-            self._sync_manifest(target_partition)
-            manifest = self._local_manifest[target_partition]
-            if manifest.state == dst_state:
-                if (manifest.allocated_rank_id != rank_id and
-                        manifest.allocated_rank_id >= 0):
+                field = getattr(manifest, field_name)
+                if field.state == target_state and field.rank_id == rank_id:
+                    partition_id = ptn_id
+                    break
+                if field.state == src_state and partition_id is None:
+                    partition_id = ptn_id
+        if partition_id is not None:
+            manifest = self._sync_manifest(partition_id)
+            field = getattr(manifest, field_name)
+            if field.state == src_state:
+                field.state = target_state
+                field.rank_id = rank_id
+                self._update_manifest(manifest)
+            elif field.state == target_state:
+                if field.rank_id != rank_id:
                     raise RuntimeError(
-                            "partition has been allcate to %d as state %d" %\
-                            manifest.allcated_id, dst_state
+                            "field %s of partition %d has been allcate " \
+                            "to %d as state %d" % field_name, partition_id,
+                            field.rank_id, field.state
                         )
-                return manifest, False
-            if manifest.state != src_state:
-                raise RuntimeError("partition not in state %d" % src_state)
-            manifest.state = dst_state
-            manifest.allocated_rank_id = rank_id
-            self._update_manifest(target_partition, manifest)
-            return self._local_manifest[target_partition], False
-        return None, finished
+            else:
+                raise RuntimeError(
+                        "field {} of partition {} at state {}".format(
+                            field_name, partition_id, field.state)
+                    )
+            return manifest
+        return None
 
-    def _finish_partition(self, rank_id, partition_id, src_state, dst_state):
+    def _finish_partition(self, field_name, src_state,
+                          target_state, rank_id, partition_id):
         manifest = self._get_manifest(partition_id)
-        if manifest.state < src_state:
-            raise RuntimeError("partition-%d manifest at state %d" %\
-                                partition_id, manifest.state)
-        if manifest.state == src_state:
-            if manifest.allocated_rank_id != rank_id:
-                raise RuntimeError("partition-%d has been allocated to %d" %\
-                                    partition_id, manifest.allocated_rank_id)
-            manifest.state = dst_state
-            manifest.allocated_rank_id = -1
-            self._update_manifest(partition_id, manifest)
+        field = getattr(manifest, field_name)
+        if field.state == target_state:
+            return
+        if field.state != src_state:
+            raise RuntimeError(
+                    "partition {} is not allow finished".format(partition_id)
+                )
+        if field.rank_id != rank_id:
+            raise RuntimeError(
+                    "partition {} has been allocated to {}".format(
+                    partition_id, field.rank_id)
+                )
+        field.state = target_state
+        self._update_manifest(manifest)
 
     def _init_manifest(self, partition_id):
         mainfest = self._get_manifest(partition_id)
         if mainfest is None:
             manifest = dj_pb.RawDataManifest()
-            manifest.state = dj_pb.RawDataState.UnAllocated
+            manifest.sync_example_id_rep.rank_id = -1
+            manifest.join_example_rep.rank_id = -1
             manifest.partition_id = partition_id
-            manifest.allocated_rank_id = -1
-            self._update_manifest(partition_id, manifest)
+            self._update_manifest(manifest)
         self._local_manifest[partition_id] = mainfest
 
     def _get_manifest_etcd_key(self, partition_id):
@@ -158,7 +199,8 @@ class RawDataManifestManager(object):
             return text_format.Parse(manifest_data, dj_pb.RawDataManifest())
         return None
 
-    def _update_manifest(self, partition_id, manifest):
+    def _update_manifest(self, manifest):
+        partition_id = manifest.partition_id
         manifest_etcd_key = self._get_manifest_etcd_key(partition_id)
         self._local_manifest[partition_id] = None
         self._etcd.set_data(manifest_etcd_key,
@@ -166,10 +208,11 @@ class RawDataManifestManager(object):
         self._local_manifest[partition_id] = manifest
 
     def _sync_manifest(self, partition_id):
-        if (partition_id in self._local_manifest and
-                self._local_manifest[partition_id] is None):
-            manifest = self._get_manifest(partition_id)
-            self._local_manifest[partition_id] = manifest
+        assert partition_id in self._local_manifest
+        if self._local_manifest[partition_id] is None:
+            self._local_manifest[partition_id] = \
+                    self._get_manifest(partition_id)
+        return self._local_manifest[partition_id]
 
     def _check_partition_id(self, partition_id):
         if partition_id < 0 or partition_id >= self._partition_num:

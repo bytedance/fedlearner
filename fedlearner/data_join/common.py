@@ -22,16 +22,36 @@ import tensorflow.compat.v1 as tf
 DataBlockSuffix = '.data'
 DataBlockMetaSuffix = '.meta'
 ExampleIdSuffix = '.done'
+RawDataIndexSuffix = '.idx'
+RawDataUnIndexSuffix = '.rd'
+RawDataTmpSuffix = '.tmp'
+InvalidExampleId = ''
+InvalidEventTime = -9223372036854775808
 
 @contextmanager
 def make_tf_record_iter(fpath):
     record_iter = None
+    expt = None
     try:
         record_iter = tf.io.tf_record_iterator(fpath)
         yield record_iter
     except Exception as e: # pylint: disable=broad-except
-        logging.warning(
-                "Failed make tf_record_iterator for %s, reason %s",
-                fpath, e
-            )
-    del record_iter
+        logging.warning("Failed make tf_record_iterator for "\
+                        "%s, reason %s", fpath, e)
+        expt = e
+    if record_iter is not None:
+        del record_iter
+    if expt is not None:
+        raise expt
+
+def encode_data_block_meta_fname(data_block_index):
+    return '{}{}'.format(data_block_index, DataBlockMetaSuffix)
+
+def encode_data_block_id(start_time, end_time, data_block_index):
+    return '{}-{}_{}'.format(start_time, end_time, data_block_index)
+
+def encode_data_block_fname(start_time, end_time, data_block_index):
+    data_block_id = encode_data_block_id(
+            start_time, end_time, data_block_index
+        )
+    return '{}{}'.format(data_block_id, DataBlockSuffix)

@@ -17,6 +17,7 @@
 import unittest
 import os
 import ntpath
+import time
 
 from tensorflow.python.platform import gfile
 import tensorflow as tf
@@ -25,7 +26,8 @@ from fedlearner.common import etcd_client
 from fedlearner.common import common_pb2 as common_pb
 from fedlearner.common import data_join_service_pb2 as dj_pb
 from fedlearner.data_join import (
-    raw_data_manifest_manager, raw_data_visitor, customized_options
+    raw_data_manifest_manager,
+    raw_data_visitor, common, visitor
 )
 
 class TestRawDataVisitor(unittest.TestCase):
@@ -42,8 +44,13 @@ class TestRawDataVisitor(unittest.TestCase):
         if gfile.Exists(partition_dir):
             gfile.DeleteRecursively(partition_dir)
         gfile.MakeDirs(partition_dir)
-        for i in range(2):
-            fname = 'raw_data_{}'.format(i)
+        self.manifest_manager = raw_data_manifest_manager.RawDataManifestManager(
+            self.etcd, self.data_source)
+
+    def _gen_raw_data_file(self, start_index, end_index):
+        partition_dir = os.path.join(self.data_source.raw_data_dir, 'partition_0')
+        for i in range(start_index, end_index):
+            fname = visitor.encode_unindex_fname(i, common.RawDataUnIndexSuffix)
             fpath = os.path.join(partition_dir, fname)
             writer = tf.io.TFRecordWriter(fpath)
             for j in range(100):
@@ -56,61 +63,123 @@ class TestRawDataVisitor(unittest.TestCase):
                     features=tf.train.Features(feature=feat))
                 writer.write(example.SerializeToString())
             writer.close()
+        self.manifest_manager.add_raw_data(0, end_index)
 
     def test_raw_data_manager(self):
-        manifest_manager = raw_data_manifest_manager.RawDataManifestManager(
-            self.etcd, self.data_source)
         rdm = raw_data_visitor.RawDataManager(self.etcd, self.data_source, 0)
-        self.assertEqual(len(rdm.get_indexed_raw_data_reps()), 0)
-        raw_data_rep0 = rdm.get_raw_data_rep_by_index(0)
-        raw_data_rep1 = rdm.get_raw_data_rep_by_index(1)
-        self.assertTrue(raw_data_rep0.HasField('unindexed'))
-        self.assertTrue(raw_data_rep1.HasField('unindexed'))
-        self.assertEqual(ntpath.basename(raw_data_rep0.raw_data_path), 'raw_data_0')
-        self.assertEqual(ntpath.basename(raw_data_rep1.raw_data_path), 'raw_data_1')
-        rdm.index_raw_data_rep(0, 0)
-        self.assertEqual(len(rdm.get_indexed_raw_data_reps()), 1)
-        indexed_rep0 = rdm.get_indexed_raw_data_reps()[0]
-        self.assertEqual(indexed_rep0.raw_data_path, raw_data_rep0.raw_data_path)
-        self.assertTrue(indexed_rep0.HasField('index'))
-        self.assertEqual(indexed_rep0.index.start_index, 0)
-        rdm.index_raw_data_rep(1, 100)
-        self.assertEqual(len(rdm.get_indexed_raw_data_reps()), 2)
-        indexed_rep1 = rdm.get_indexed_raw_data_reps()[1]
-        self.assertEqual(indexed_rep1.raw_data_path, raw_data_rep1.raw_data_path)
-        self.assertTrue(indexed_rep1.HasField('index'))
-        self.assertEqual(indexed_rep1.index.start_index, 100)
+        self.assertEqual(len(rdm.get_index_metas()), 0)
+        self.assertFalse(rdm.check_index_meta_by_process_index(0))
+        self._gen_raw_data_file(0, 2)
+        self.assertEqual(len(rdm.get_index_metas()), 0)
+        self.assertTrue(rdm.check_index_meta_by_process_index(0))
+        self.assertTrue(rdm.check_index_meta_by_process_index(1))
+        self.assertEqual(len(rdm.get_index_metas()), 0)
+        partition_dir = os.path.join(self.data_source.raw_data_dir, 'partition_0')
+        index_meta0 = rdm.get_index_meta_by_index(0, 0)
+        self.assertEqual(index_meta0.start_index, 0)
+        self.assertEqual(index_meta0.process_index, 0)
+        self.assertEqual(ntpath.basename(index_meta0.fpath),
+                         visitor.encode_index_fname(index_meta0.process_index,
+                                                    index_meta0.start_index,
+                                                    common.RawDataIndexSuffix))
+        self.assertEqual(len(rdm.get_index_metas()), 1)
+        index_meta1 = rdm.get_index_meta_by_index(1, 100)
+        self.assertEqual(index_meta1.start_index, 100)
+        self.assertEqual(index_meta1.process_index, 1)
+        self.assertEqual(ntpath.basename(index_meta1.fpath),
+                         visitor.encode_index_fname(index_meta1.process_index,
+                                                    index_meta1.start_index,
+                                                    common.RawDataIndexSuffix))
+        self.assertEqual(len(rdm.get_index_metas()), 2)
+        self.assertFalse(rdm.check_index_meta_by_process_index(2))
+        self._gen_raw_data_file(2, 4)
+        self.assertTrue(rdm.check_index_meta_by_process_index(2))
+        self.assertTrue(rdm.check_index_meta_by_process_index(3))
+        index_meta2 = rdm.get_index_meta_by_index(2, 200)
+        self.assertEqual(index_meta2.start_index, 200)
+        self.assertEqual(index_meta2.process_index, 2)
+        self.assertEqual(ntpath.basename(index_meta2.fpath),
+                         visitor.encode_index_fname(index_meta2.process_index,
+                                                    index_meta2.start_index,
+                                                    common.RawDataIndexSuffix))
+        self.assertEqual(len(rdm.get_index_metas()), 3)
+        index_meta3 = rdm.get_index_meta_by_index(3, 300)
+        self.assertEqual(index_meta3.start_index, 300)
+        self.assertEqual(index_meta3.process_index, 3)
+        self.assertEqual(ntpath.basename(index_meta3.fpath),
+                         visitor.encode_index_fname(index_meta3.process_index,
+                                                    index_meta3.start_index,
+                                                    common.RawDataIndexSuffix))
+        self.assertEqual(len(rdm.get_index_metas()), 4)
 
     def test_raw_data_visitor(self):
-        manifest_manager = raw_data_manifest_manager.RawDataManifestManager(
-            self.etcd, self.data_source)
-        manifest, finished = manifest_manager.alloc_unallocated_partition(2)
-        self.assertFalse(finished)
+        rank_id = 2
+        manifest = self.manifest_manager.alloc_sync_exampld_id(rank_id)
         self.assertEqual(manifest.partition_id, 0)
-        self.assertEqual(manifest.state, dj_pb.RawDataState.Syncing)
-        self.assertEqual(manifest.allocated_rank_id, 2)
-        customized_options.set_raw_data_iter('TF_RECORD')
-        rdv = raw_data_visitor.RawDataVisitor(self.etcd, self.data_source, 0)
+        self.assertEqual(manifest.sync_example_id_rep.state, dj_pb.SyncExampleIdState.Syncing)
+        self.assertEqual(manifest.sync_example_id_rep.rank_id, rank_id)
+        raw_data_options = dj_pb.RawDataOptions(raw_data_iter='TF_RECORD')
+        rdv = raw_data_visitor.RawDataVisitor( 
+                self.etcd, self.data_source,
+                manifest.partition_id, raw_data_options
+            )
+        self.assertRaises(StopIteration, rdv.seek, 0)
+        self.assertTrue(rdv.finished())
+        self.assertFalse(rdv.is_visitor_stale())
+        self._gen_raw_data_file(0, 2)
+        self.assertTrue(rdv.is_visitor_stale())
+        self.assertRaises(StopIteration, rdv.seek, 0)
+        rdv.active_visitor()
+        self.assertFalse(rdv.finished())
         expected_index = 0
         for (index, item) in rdv:
             self.assertEqual(index, expected_index)
             expected_index += 1
             self.assertEqual(item.example_id, '{}'.format(index).encode())
-        try:
-            rdv.seek(200)
-        except StopIteration:
-            self.assertTrue(True)
-            self.assertEqual(rdv.get_current_index(), 199)
-        else:
-            self.assertFalse(False)
+        self.assertEqual(expected_index, 200)
+        self.assertRaises(StopIteration, rdv.seek, 200)
+        self.assertTrue(rdv.finished())
         index, item = rdv.seek(50)
         self.assertEqual(index, 50)
         self.assertEqual(item.example_id, '{}'.format(index).encode())
+        self.assertFalse(rdv.finished())
         expected_index = index + 1
         for (index, item) in rdv:
             self.assertEqual(index, expected_index)
             expected_index += 1
             self.assertEqual(item.example_id, '{}'.format(index).encode())
+        self.assertEqual(expected_index, 200)
+        self._gen_raw_data_file(2, 4)
+        self.assertTrue(rdv.is_visitor_stale())
+        self.assertTrue(rdv.finished())
+        rdv.active_visitor()
+        self.assertFalse(rdv.finished())
+        for (index, item) in rdv:
+            self.assertEqual(index, expected_index)
+            expected_index += 1
+            self.assertEqual(item.example_id, '{}'.format(index).encode())
+        self.assertEqual(expected_index, 400)
+        self.assertTrue(rdv.finished())
+        rdv.reset()
+        self.assertFalse(rdv.finished())
+        expected_index = 0
+        for (index, item) in rdv:
+            self.assertEqual(index, expected_index)
+            expected_index += 1
+            self.assertEqual(item.example_id, '{}'.format(index).encode())
+        self.assertEqual(expected_index, 400)
+        self.assertTrue(rdv.finished())
+        rdv2 = raw_data_visitor.RawDataVisitor( 
+                self.etcd, self.data_source,
+                manifest.partition_id, raw_data_options
+            )
+        expected_index = 0
+        for (index, item) in rdv2:
+            self.assertEqual(index, expected_index)
+            expected_index += 1
+            self.assertEqual(item.example_id, '{}'.format(index).encode())
+        self.assertEqual(expected_index, 400)
+        self.assertTrue(rdv2.finished())
 
     def tearDown(self):
         self.etcd.delete_prefix(self.data_source.data_source_meta.name)

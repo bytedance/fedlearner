@@ -19,37 +19,38 @@ import logging
 import os
 from contextlib import contextmanager
 
-import tensorflow as tf
 from fedlearner.data_join.raw_data_visitor import RawDataVisitor
 from fedlearner.data_join.data_block_manager import (
     DataBlockBuilder, DataBlockManager
 )
 
 class DataBlockDumperManager(object):
-    def __init__(self, etcd, data_source, partition_id):
+    def __init__(self, etcd, data_source, partition_id, raw_data_options):
         self._lock = threading.Lock()
         self._data_source = data_source
         self._partition_id = partition_id
-        self._data_block_manager = DataBlockManager(data_source, partition_id)
-        self._raw_data_visitor = RawDataVisitor(
-                etcd, data_source, partition_id
-            )
-        self._next_data_block_index = (
-                self._data_block_manager.get_dumped_data_block_num()
-            )
+        self._data_block_manager = \
+                DataBlockManager(data_source, partition_id)
+        self._raw_data_visitor = \
+                RawDataVisitor(etcd, data_source,
+                               partition_id, raw_data_options)
+        self._next_data_block_index = \
+                self._data_block_manager.get_dumped_data_block_count()
         self._fly_data_block_meta = []
-        self._stale_with_dfs = False
+        self._state_stale = False
         self._synced_data_block_meta_finished = False
-
-    def get_partition_id(self):
-        return self._partition_id
 
     def get_next_data_block_index(self):
         with self._lock:
             return self._next_data_block_index
 
-    def append_synced_data_block_meta(self, meta):
+    def add_synced_data_block_meta(self, meta):
         with self._lock:
+            if self._synced_data_block_meta_finished:
+                raise RuntimeError(
+                        "data block dmuper manager has been mark as "\
+                        "no more data block meta"
+                    )
             if self._next_data_block_index != meta.data_block_index:
                 return False, self._next_data_block_index
             self._fly_data_block_meta.append(meta)
@@ -62,61 +63,68 @@ class DataBlockDumperManager(object):
 
     def need_dump(self):
         with self._lock:
-            return (len(self._fly_data_block_meta) > 0 or
-                    self._stale_with_dfs)
+            return len(self._fly_data_block_meta) > 0
 
-    def dump_data_blocks(self):
-        try:
-            self._sync_with_dfs()
-            while True:
-                finished = False
-                meta = None
-                builder = None
-                with self._lock:
-                    finished, meta = self._get_next_data_block_meta()
-                self._create_data_block_by_meta(meta)
-                if meta is None:
-                    return
-        except Exception as e: # pylint: disable=broad-except
-            logging.error("Failed to dump data block for partition "\
-                          "%d with expect %s", self._partition_id, e)
-            with self._lock:
-                self._stale_with_dfs = True
+    def is_synced_data_block_meta_finished(self):
+        with self._lock:
+            return self._synced_data_block_meta_finished
+
+    @contextmanager
+    def make_data_block_dumper(self):
+        self._sync_with_data_block_manager()
+        self._acquire_state_stale()
+        yield self._dump_data_blocks
+        self._release_state_stale()
+
+    def _dump_data_blocks(self):
+        while self.need_dump():
+            meta = self._get_next_data_block_meta()
+            if meta is not None:
+                self._raw_data_visitor.active_visitor()
+                self._dump_data_block_by_meta(meta)
 
     def data_block_meta_sync_finished(self):
         with self._lock:
             return self._synced_data_block_meta_finished
 
+    def _acquire_state_stale(self):
+        with self._lock:
+            self._state_stale = True
+
+    def _release_state_stale(self):
+        with self._lock:
+            self._state_stale = False
+
     def _get_next_data_block_meta(self):
-        if len(self._fly_data_block_meta) == 0:
-            if self._synced_data_block_meta_finished:
-                return True, None
-            return False, None
-        return False, self._fly_data_block_meta[0]
+        with self._lock:
+            if len(self._fly_data_block_meta) == 0:
+                return None
+            return self._fly_data_block_meta[0]
 
     @contextmanager
     def _make_data_block_builder(self, meta):
-        manager = self._data_block_manager
-        assert manager is not None
         assert self._partition_id == meta.partition_id
         builder = None
+        expt = None
         try:
-            builder = DataBlockBuilder(
-                    self._data_source.data_block_dir,
-                    self._partition_id,
-                    meta.data_block_index,
-                )
+            builder = \
+                    DataBlockBuilder(self._data_source.data_block_dir,
+                                     self._partition_id,
+                                     meta.data_block_index)
             builder.init_by_meta(meta)
+            builder.set_data_block_manager(self._data_block_manager)
             yield builder
         except Exception as e: # pylint: disable=broad-except
-            logging.warning(
-                    "Failed make data block builder, reason %s", e
-                )
-        del builder
+            logging.warning("Failed make data block builder, " \
+                             "reason %s", e)
+            expt = e
+        if builder is not None:
+            del builder
+        if expt is not None:
+            raise expt
 
-    def _create_data_block_by_meta(self, meta):
-        if meta is None:
-            return
+    def _dump_data_block_by_meta(self, meta):
+        assert meta is not None
         with self._make_data_block_builder(meta) as data_block_builder:
             try:
                 if meta.leader_start_index == 0:
@@ -140,30 +148,34 @@ class DataBlockDumperManager(object):
                 if index >= meta.leader_end_index:
                     break
             if match_index < example_num:
-                for idx in range(match_index, example_num):
-                    feat = {}
-                    example_id = meta.example_ids[idx]
-                    feat['example_id'] = tf.train.Feature(
-                            bytes_list=tf.train.BytesList(value=[example_id]))
-                    empty_example = tf.train.Example(
-                        features=tf.train.Features(feature=feat))
-                    data_block_builder.append_raw_example(
-                            empty_example.SerializeToString()
-                        )
-            data_block_builder.finish_data_block()
-            assert meta == data_block_builder.get_data_block_meta()
-            self._data_block_manager.add_dumped_data_block_meta(meta)
+                logging.fatal(
+                        "Data lose corrupt! only match %d/%d example "
+                        "for data block %s",
+                        match_index, example_num, meta.block_id
+                    )
+                os._exit(-1) # pylint: disable=protected-access
+            dumped_meta = data_block_builder.finish_data_block()
+            assert dumped_meta == meta
             with self._lock:
                 assert self._fly_data_block_meta[0] == meta
                 self._fly_data_block_meta.pop(0)
 
-    def _sync_with_dfs(self):
-        manager = self._data_block_manager
-        dumped_num = manager.get_dumped_data_block_num(self._sync_with_dfs)
+    def _is_state_stale(self):
+        with self._lock:
+            return self._state_stale
+
+    def _sync_with_data_block_manager(self):
+        if self._is_state_stale():
+            self._evict_dumped_data_block_meta()
+
+    def _evict_dumped_data_block_meta(self):
+        next_data_block_index = \
+                self._data_block_manager.get_dumped_data_block_count()
         with self._lock:
             skip_count = 0
             for meta in self._fly_data_block_meta:
-                if meta.data_block_index >= dumped_num:
+                if meta.data_block_index >= next_data_block_index:
                     break
                 skip_count += 1
-            self._fly_data_block_meta = self._fly_data_block_meta[skip_count:]
+            self._fly_data_block_meta = \
+                    self._fly_data_block_meta[skip_count:]

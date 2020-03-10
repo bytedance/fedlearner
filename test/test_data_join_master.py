@@ -17,13 +17,15 @@
 import os
 import time
 import unittest
+import logging
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 from google.protobuf import text_format
 
 import grpc
+from google.protobuf import text_format, empty_pb2
 
-from fedlearner.data_join import data_join_master, customized_options
+from fedlearner.data_join import data_join_master
 from fedlearner.common import common_pb2 as common_pb
 from fedlearner.common import data_join_service_pb2 as dj_pb
 from fedlearner.common import data_join_service_pb2_grpc as dj_grpc
@@ -32,12 +34,12 @@ from fedlearner.proxy.channel import make_insecure_channel, ChannelType
 
 class DataJoinMaster(unittest.TestCase):
     def test_api(self):
+        logging.getLogger().setLevel(logging.DEBUG)
         etcd_name = 'test_etcd'
         etcd_addrs = 'localhost:2379'
         etcd_base_dir_l = 'byefl_l'
         etcd_base_dir_f= 'byefl_f'
         data_source_name = 'test_data_source'
-        customized_options.set_use_mock_etcd()
         etcd_l = EtcdClient(etcd_name, etcd_addrs, etcd_base_dir_l, True)
         etcd_f = EtcdClient(etcd_name, etcd_addrs, etcd_base_dir_f, True)
         etcd_l.delete_prefix(data_source_name)
@@ -59,10 +61,6 @@ class DataJoinMaster(unittest.TestCase):
         data_source_meta.partition_num = 1
         data_source_meta.start_time = 0
         data_source_meta.end_time = 100000000
-        data_source_meta.min_matching_window = 32
-        data_source_meta.max_matching_window = 1024
-        data_source_meta.data_source_type = common_pb.DataSourceType.Sequential
-        data_source_meta.max_example_in_data_block = 1000
         data_source_l.data_source_meta.MergeFrom(data_source_meta)
         etcd_l.set_data(os.path.join(data_source_name, 'master'),
                         text_format.MessageToString(data_source_l))
@@ -72,14 +70,17 @@ class DataJoinMaster(unittest.TestCase):
 
         master_addr_l = 'localhost:4061'
         master_addr_f = 'localhost:4062'
+        options = dj_pb.DataJoinMasterOptions(use_mock_etcd=True)
         master_l = data_join_master.DataJoinMasterService(
-                int(master_addr_l.split(':')[1]), master_addr_f,
-                data_source_name, etcd_name, etcd_base_dir_l, etcd_addrs
+                int(master_addr_l.split(':')[1]),
+                master_addr_f, data_source_name, etcd_name,
+                etcd_base_dir_l, etcd_addrs, options
             )
         master_l.start()
         master_f = data_join_master.DataJoinMasterService(
-                int(master_addr_f.split(':')[1]), master_addr_l,
-                data_source_name, etcd_name, etcd_base_dir_f, etcd_addrs
+                int(master_addr_f.split(':')[1]),
+                master_addr_l, data_source_name, etcd_name,
+                etcd_base_dir_f, etcd_addrs, options
             )
         master_f.start()
         channel_l = make_insecure_channel(master_addr_l, ChannelType.INTERNAL)
@@ -88,16 +89,18 @@ class DataJoinMaster(unittest.TestCase):
         client_f = dj_grpc.DataJoinMasterServiceStub(channel_f)
 
         while True:
-            rsp_l = client_l.GetDataSourceState(data_source_l.data_source_meta)
-            rsp_f = client_f.GetDataSourceState(data_source_f.data_source_meta)
-            self.assertEqual(rsp_l.status.code, 0)
-            self.assertEqual(rsp_l.role, common_pb.FLRole.Leader)
-            self.assertEqual(rsp_l.data_source_type, common_pb.DataSourceType.Sequential)
-            self.assertEqual(rsp_f.status.code, 0)
-            self.assertEqual(rsp_f.role, common_pb.FLRole.Follower)
-            self.assertEqual(rsp_f.data_source_type, common_pb.DataSourceType.Sequential)
-            if (rsp_l.state == common_pb.DataSourceState.Processing and 
-                    rsp_f.state == common_pb.DataSourceState.Processing):
+            req_l = dj_pb.DataSourceRequest(
+                    data_source_meta=data_source_l.data_source_meta
+                )
+            req_f = dj_pb.DataSourceRequest(
+                    data_source_meta=data_source_f.data_source_meta
+                )
+            dss_l = client_l.GetDataSourceStatus(req_l)
+            dss_f = client_f.GetDataSourceStatus(req_f)
+            self.assertEqual(dss_l.role, common_pb.FLRole.Leader)
+            self.assertEqual(dss_f.role, common_pb.FLRole.Follower)
+            if dss_l.state == common_pb.DataSourceState.Processing and \
+                    dss_f.state == common_pb.DataSourceState.Processing:
                 break
             else:
                 time.sleep(2)
@@ -105,135 +108,342 @@ class DataJoinMaster(unittest.TestCase):
         rdreq = dj_pb.RawDataRequest(
                 data_source_meta=data_source_f.data_source_meta,
                 rank_id=0,
-                join_example=dj_pb.JoinExampleRequest(
-                        partition_id = -1
-                    )
+                partition_id=-1,
+                join_example=empty_pb2.Empty()
             )
 
+        rdrsp = client_f.RequestJoinPartition(rdreq)
+        self.assertTrue(rdrsp.status.code == 0)
+        self.assertTrue(rdrsp.HasField('manifest'))
+        self.assertEqual(rdrsp.manifest.join_example_rep.rank_id, 0)
+        self.assertEqual(rdrsp.manifest.join_example_rep.state,
+                         dj_pb.JoinExampleState.Joining)
+        self.assertEqual(rdrsp.manifest.partition_id, 0)
+
+        #check idempotent
+        rdrsp = client_f.RequestJoinPartition(rdreq)
+        self.assertTrue(rdrsp.status.code == 0)
+        self.assertTrue(rdrsp.HasField('manifest'))
+        self.assertEqual(rdrsp.manifest.join_example_rep.rank_id, 0)
+        self.assertEqual(rdrsp.manifest.join_example_rep.state,
+                         dj_pb.JoinExampleState.Joining)
+        self.assertEqual(rdrsp.manifest.partition_id, 0)
+
+        rdreq = dj_pb.RawDataRequest(
+                data_source_meta=data_source_l.data_source_meta,
+                rank_id=0,
+                partition_id=0,
+                join_example=empty_pb2.Empty()
+            )
         rdrsp = client_l.RequestJoinPartition(rdreq)
         self.assertTrue(rdrsp.status.code == 0)
-        self.assertFalse(rdrsp.HasField('manifest'))
-        self.assertFalse(rdrsp.HasField('finished'))
+        self.assertTrue(rdrsp.HasField('manifest'))
+        self.assertEqual(rdrsp.manifest.join_example_rep.rank_id, 0)
+        self.assertEqual(rdrsp.manifest.join_example_rep.state,
+                         dj_pb.JoinExampleState.Joining)
+        self.assertEqual(rdrsp.manifest.partition_id, 0)
+        #check idempotent
+        rdrsp = client_l.RequestJoinPartition(rdreq)
+        self.assertTrue(rdrsp.status.code == 0)
+        self.assertTrue(rdrsp.HasField('manifest'))
+        self.assertEqual(rdrsp.manifest.join_example_rep.rank_id, 0)
+        self.assertEqual(rdrsp.manifest.join_example_rep.state,
+                         dj_pb.JoinExampleState.Joining)
+        self.assertEqual(rdrsp.manifest.partition_id, 0)
 
         rdreq = dj_pb.RawDataRequest(
                 data_source_meta=data_source_l.data_source_meta,
-                rank_id=0,
-                sync_example_id=dj_pb.SyncExampleIdRequest(
-                        partition_id = -1
-                    )
+                rank_id=1,
+                partition_id=-1,
+                sync_example_id=empty_pb2.Empty()
             )
         rdrsp = client_l.RequestJoinPartition(rdreq)
         self.assertEqual(rdrsp.status.code, 0)
         self.assertTrue(rdrsp.HasField('manifest'))
-        self.assertEqual(rdrsp.manifest.state, dj_pb.Syncing)
-        self.assertEqual(rdrsp.manifest.allocated_rank_id, 0)
+        self.assertEqual(rdrsp.manifest.sync_example_id_rep.rank_id, 1)
+        self.assertEqual(rdrsp.manifest.sync_example_id_rep.state,
+                         dj_pb.SyncExampleIdState.Syncing)
         self.assertEqual(rdrsp.manifest.partition_id, 0)
-
+        #check idempotent
         rdrsp = client_l.RequestJoinPartition(rdreq)
         self.assertEqual(rdrsp.status.code, 0)
         self.assertTrue(rdrsp.HasField('manifest'))
-        self.assertEqual(rdrsp.manifest.state, dj_pb.Syncing)
-        self.assertEqual(rdrsp.manifest.allocated_rank_id, 0)
+        self.assertEqual(rdrsp.manifest.sync_example_id_rep.rank_id, 1)
+        self.assertEqual(rdrsp.manifest.sync_example_id_rep.state,
+                         dj_pb.SyncExampleIdState.Syncing)
         self.assertEqual(rdrsp.manifest.partition_id, 0)
 
         rdreq = dj_pb.RawDataRequest(
                 data_source_meta=data_source_f.data_source_meta,
-                rank_id=0,
-                sync_example_id=dj_pb.SyncExampleIdRequest(
-                        partition_id = 0
-                    )
+                rank_id=1,
+                partition_id = 0,
+                sync_example_id=empty_pb2.Empty()
             )
         rdrsp = client_f.RequestJoinPartition(rdreq)
         self.assertEqual(rdrsp.status.code, 0)
         self.assertTrue(rdrsp.HasField('manifest'))
-        self.assertEqual(rdrsp.manifest.state, dj_pb.Syncing)
-        self.assertEqual(rdrsp.manifest.allocated_rank_id, 0)
+        self.assertEqual(rdrsp.manifest.sync_example_id_rep.rank_id, 1)
+        self.assertEqual(rdrsp.manifest.sync_example_id_rep.state,
+                         dj_pb.SyncExampleIdState.Syncing)
         self.assertEqual(rdrsp.manifest.partition_id, 0)
-
-        frreq = dj_pb.FinishRawDataRequest(
-                data_source_meta=data_source_l.data_source_meta,
-                rank_id=0,
-                sync_example_id=dj_pb.SyncExampleIdRequest(
-                        partition_id = 0
-                    )
-            )
-        frrsp = client_l.FinishJoinPartition(frreq)
-        self.assertEqual(frrsp.code, 0)
-        rdrsp = client_l.FinishJoinPartition(rdreq)
-        self.assertEqual(frrsp.code, 0)
-
-        rdreq = dj_pb.FinishRawDataRequest(
-                data_source_meta=data_source_f.data_source_meta,
-                rank_id=0,
-                sync_example_id=dj_pb.SyncExampleIdRequest(
-                        partition_id = 0
-                    )
-            )
-        frrsp = client_f.FinishJoinPartition(rdreq)
-        self.assertEqual(frrsp.code, 0)
-
-        rdreq = dj_pb.RawDataRequest(
-                data_source_meta=data_source_l.data_source_meta,
-                rank_id=0,
-                join_example=dj_pb.JoinExampleRequest(
-                        partition_id = -1
-                    )
-            )
-        rdrsp = client_l.RequestJoinPartition(rdreq)
-        self.assertEqual(rdrsp.status.code, 0)
-        self.assertTrue(rdrsp.HasField('manifest'))
-        self.assertEqual(rdrsp.manifest.state, dj_pb.Joining)
-        self.assertEqual(rdrsp.manifest.allocated_rank_id, 0)
-        self.assertEqual(rdrsp.manifest.partition_id, 0)
-
-        rdreq = dj_pb.RawDataRequest(
-                data_source_meta=data_source_f.data_source_meta,
-                rank_id=0,
-                join_example=dj_pb.JoinExampleRequest(
-                        partition_id = 0
-                    )
-            )
+        #check idempotent
         rdrsp = client_f.RequestJoinPartition(rdreq)
         self.assertEqual(rdrsp.status.code, 0)
         self.assertTrue(rdrsp.HasField('manifest'))
-        self.assertEqual(rdrsp.manifest.state, dj_pb.Joining)
-        self.assertEqual(rdrsp.manifest.allocated_rank_id, 0)
+        self.assertEqual(rdrsp.manifest.sync_example_id_rep.rank_id, 1)
+        self.assertEqual(rdrsp.manifest.sync_example_id_rep.state,
+                         dj_pb.SyncExampleIdState.Syncing)
         self.assertEqual(rdrsp.manifest.partition_id, 0)
 
-        frreq = dj_pb.FinishRawDataRequest(
+        rdreq1 = dj_pb.RawDataRequest(
+                data_source_meta=data_source_l.data_source_meta,
+                rank_id=1,
+                partition_id=0,
+                sync_example_id=empty_pb2.Empty()
+            )
+
+        try:
+            rsp = client_l.FinishJoinPartition(rdreq1)
+        except Exception as e:
+            self.assertTrue(True)
+        else:
+            self.assertTrue(False)
+
+        rdreq2 = dj_pb.RawDataRequest(
                 data_source_meta=data_source_l.data_source_meta,
                 rank_id=0,
-                join_example=dj_pb.JoinExampleRequest(
-                        partition_id = 0
+                partition_id=0,
+                join_example=empty_pb2.Empty()
+            )
+        try:
+            rsp = client_l.FinishJoinPartition(rdreq2)
+        except Exception as e:
+            self.assertTrue(True)
+        else:
+            self.assertTrue(False)
+
+        rdreq = dj_pb.RawDataRequest(
+                data_source_meta=data_source_l.data_source_meta,
+                rank_id=0,
+                partition_id=0,
+            )
+        manifest_l = client_l.QueryRawDataManifest(rdreq)
+        self.assertTrue(manifest_l is not None)
+        self.assertFalse(manifest_l.finished)
+        self.assertEqual(manifest_l.next_process_index, 0)
+
+        rdreq = dj_pb.RawDataRequest(
+                data_source_meta=data_source_l.data_source_meta,
+                rank_id=0,
+                partition_id=0,
+                next_process_index=dj_pb.RawDataNextProcessIndex(
+                        process_index=10
                     )
             )
-        frrsp = client_l.FinishJoinPartition(rdreq)
-        self.assertEqual(frrsp.code, 0)
+        rsp = client_l.AddRawData(rdreq)
+        self.assertEqual(rsp.code, 0)
+        manifest_l = client_l.QueryRawDataManifest(rdreq)
+        self.assertTrue(manifest_l is not None)
+        self.assertFalse(manifest_l.finished)
+        self.assertEqual(manifest_l.next_process_index, 10)
+        rdreq = dj_pb.RawDataRequest(
+                data_source_meta=data_source_l.data_source_meta,
+                rank_id=0,
+                partition_id=0,
+                next_process_index=dj_pb.RawDataNextProcessIndex(
+                        process_index=100
+                    )
+            )
+        rsp = client_l.AddRawData(rdreq)
+        self.assertEqual(rsp.code, 0)
+        manifest_l = client_l.QueryRawDataManifest(rdreq)
+        self.assertTrue(manifest_l is not None)
+        self.assertFalse(manifest_l.finished)
+        self.assertEqual(manifest_l.next_process_index, 100)
+        rdreq = dj_pb.RawDataRequest(
+                data_source_meta=data_source_l.data_source_meta,
+                rank_id=0,
+                partition_id=0,
+                next_process_index=dj_pb.RawDataNextProcessIndex(
+                        process_index=20
+                    )
+            )
+        rsp = client_l.AddRawData(rdreq)
+        self.assertEqual(rsp.code, 0)
+        manifest_l = client_l.QueryRawDataManifest(rdreq)
+        self.assertTrue(manifest_l is not None)
+        self.assertFalse(manifest_l.finished)
+        self.assertEqual(manifest_l.next_process_index, 100)
 
-        frrsp = client_l.FinishJoinPartition(rdreq)
-        self.assertEqual(frrsp.code, 0)
 
-        frreq = dj_pb.FinishRawDataRequest(
+        rdreq = dj_pb.RawDataRequest(
                 data_source_meta=data_source_f.data_source_meta,
                 rank_id=0,
-                join_example=dj_pb.JoinExampleRequest(
-                        partition_id = 0
+                partition_id=0,
+            )
+        manifest_f = client_f.QueryRawDataManifest(rdreq)
+        self.assertTrue(manifest_f is not None)
+        self.assertFalse(manifest_f.finished)
+        self.assertEqual(manifest_f.next_process_index, 0)
+
+        rdreq = dj_pb.RawDataRequest(
+                data_source_meta=data_source_f.data_source_meta,
+                rank_id=0,
+                partition_id=0,
+                next_process_index=dj_pb.RawDataNextProcessIndex(
+                        process_index=10
                     )
             )
-        frrsp = client_f.FinishJoinPartition(rdreq)
-        self.assertEqual(frrsp.code, 0)
+        rsp = client_f.AddRawData(rdreq)
+        self.assertEqual(rsp.code, 0)
+        manifest_f = client_f.QueryRawDataManifest(rdreq)
+        self.assertTrue(manifest_f is not None)
+        self.assertFalse(manifest_f.finished)
+        self.assertEqual(manifest_f.next_process_index, 10)
+        rdreq = dj_pb.RawDataRequest(
+                data_source_meta=data_source_f.data_source_meta,
+                rank_id=0,
+                partition_id=0,
+                next_process_index=dj_pb.RawDataNextProcessIndex(
+                        process_index=100
+                    )
+            )
+        rsp = client_f.AddRawData(rdreq)
+        self.assertEqual(rsp.code, 0)
+        manifest_f = client_f.QueryRawDataManifest(rdreq)
+        self.assertTrue(manifest_f is not None)
+        self.assertFalse(manifest_f.finished)
+        self.assertEqual(manifest_f.next_process_index, 100)
+        rdreq = dj_pb.RawDataRequest(
+                data_source_meta=data_source_f.data_source_meta,
+                rank_id=0,
+                partition_id=0,
+                next_process_index=dj_pb.RawDataNextProcessIndex(
+                        process_index=20
+                    )
+            )
+        rsp = client_f.AddRawData(rdreq)
+        self.assertEqual(rsp.code, 0)
+        manifest_f = client_f.QueryRawDataManifest(rdreq)
+        self.assertTrue(manifest_f is not None)
+        self.assertFalse(manifest_f.finished)
+        self.assertEqual(manifest_f.next_process_index, 100)
+
+        rdreq = dj_pb.RawDataRequest(
+                data_source_meta=data_source_l.data_source_meta,
+                rank_id=0,
+                partition_id=0,
+                finish_raw_data=empty_pb2.Empty()
+            )
+        rsp = client_l.FinishRawData(rdreq)
+        self.assertEqual(rsp.code, 0)
+        #check idempotent
+        rsp = client_l.FinishRawData(rdreq)
+        self.assertEqual(rsp.code, 0)
+
+        manifest_l = client_l.QueryRawDataManifest(rdreq)
+        self.assertTrue(manifest_l is not None)
+        self.assertTrue(manifest_l.finished)
+        self.assertEqual(manifest_l.next_process_index, 100)
+
+        rdreq = dj_pb.RawDataRequest(
+                data_source_meta=data_source_l.data_source_meta,
+                rank_id=0,
+                partition_id=0,
+                next_process_index=dj_pb.RawDataNextProcessIndex(
+                        process_index=300
+                    )
+            )
+        try:
+            rsp = client_l.AddRawData(rdreq)
+        except Exception as e:
+            self.assertTrue(True)
+        else:
+            self.assertTrue(False)
+
+        try:
+            rsp = client_f.FinishJoinPartition(rdreq2)
+        except Exception as e:
+            self.assertTrue(True)
+        else:
+            self.assertTrue(False)
+
+        rsp = client_l.FinishJoinPartition(rdreq1)
+        self.assertEqual(rsp.code, 0)
+        #check idempotent
+        rsp = client_l.FinishJoinPartition(rdreq1)
+        self.assertEqual(rsp.code, 0)
+
+        rsp = client_f.FinishJoinPartition(rdreq1)
+        self.assertEqual(rsp.code, 0)
+        #check idempotent
+        rsp = client_f.FinishJoinPartition(rdreq1)
+        self.assertEqual(rsp.code, 0)
+
+        try:
+            rsp = client_f.FinishJoinPartition(rdreq2)
+        except Exception as e:
+            self.assertTrue(True)
+        else:
+            self.assertTrue(False)
+
+        rdreq = dj_pb.RawDataRequest(
+                data_source_meta=data_source_f.data_source_meta,
+                rank_id=0,
+                partition_id=0,
+                finish_raw_data=empty_pb2.Empty()
+            )
+        rsp = client_f.FinishRawData(rdreq)
+        self.assertEqual(rsp.code, 0)
+        #check idempotent
+        rsp = client_f.FinishRawData(rdreq)
+        self.assertEqual(rsp.code, 0)
+
+        manifest_f = client_f.QueryRawDataManifest(rdreq)
+        self.assertTrue(manifest_f is not None)
+        self.assertTrue(manifest_f.finished)
+        self.assertEqual(manifest_f.next_process_index, 100)
+
+        rdreq = dj_pb.RawDataRequest(
+                data_source_meta=data_source_f.data_source_meta,
+                rank_id=0,
+                partition_id=0,
+                next_process_index=dj_pb.RawDataNextProcessIndex(
+                        process_index=300
+                    )
+            )
+        try:
+            rsp = client_f.AddRawData(rdreq)
+        except Exception as e:
+            self.assertTrue(True)
+        else:
+            self.assertTrue(False)
+
+        rsp = client_f.FinishJoinPartition(rdreq2)
+        self.assertEqual(rsp.code, 0)
+        #check idempotent
+        rsp = client_f.FinishJoinPartition(rdreq2)
+        self.assertEqual(rsp.code, 0)
+
+        rsp = client_l.FinishJoinPartition(rdreq2)
+        self.assertEqual(rsp.code, 0)
+        #check idempotent
+        rsp = client_l.FinishJoinPartition(rdreq2)
+        self.assertEqual(rsp.code, 0)
 
         while True:
-            rsp_l = client_l.GetDataSourceState(data_source_l.data_source_meta)
-            rsp_f = client_f.GetDataSourceState(data_source_l.data_source_meta)
-            self.assertEqual(rsp_l.status.code, 0)
-            self.assertEqual(rsp_l.role, common_pb.FLRole.Leader)
-            self.assertEqual(rsp_l.data_source_type, common_pb.DataSourceType.Sequential)
-            self.assertEqual(rsp_f.status.code, 0)
-            self.assertEqual(rsp_f.role, common_pb.FLRole.Follower)
-            self.assertEqual(rsp_f.data_source_type, common_pb.DataSourceType.Sequential)
-            if (rsp_l.state == common_pb.DataSourceState.Finished and 
-                    rsp_f.state == common_pb.DataSourceState.Finished):
+            req_l = dj_pb.DataSourceRequest(
+                    data_source_meta=data_source_l.data_source_meta
+                )
+            req_f = dj_pb.DataSourceRequest(
+                    data_source_meta=data_source_f.data_source_meta
+                )
+            dss_l = client_l.GetDataSourceStatus(req_l)
+            dss_f = client_f.GetDataSourceStatus(req_f)
+            self.assertEqual(dss_l.role, common_pb.FLRole.Leader)
+            self.assertEqual(dss_f.role, common_pb.FLRole.Follower)
+            if dss_l.state == common_pb.DataSourceState.Finished and \
+                    dss_f.state == common_pb.DataSourceState.Finished:
                 break
             else:
                 time.sleep(2)

@@ -14,6 +14,8 @@
 
 # coding: utf-8
 
+import logging
+
 class RawDataIter(object):
     class Item(object):
         @property
@@ -34,36 +36,48 @@ class RawDataIter(object):
                     "record not implement for basic Item"
                 )
 
-    def __init__(self):
+    def __init__(self, options):
         self._fiter = None
-        self._raw_data_rep = None
+        self._index_meta = None
         self._item = None
         self._index = None
+        self._iter_failed = False
+        self._options = options
 
-    def reset_iter(self, raw_data_rep=None):
-        assert raw_data_rep.HasField('index')
+    def reset_iter(self, index_meta=None):
         self._fiter = None
-        self._raw_data_rep = None
+        self._index_meta = None
         self._item = None
         self._index = None
-        self._fiter, self._item = self._reset_iter(raw_data_rep)
-        self._raw_data_rep = raw_data_rep
-        if raw_data_rep is not None:
-            self._index = raw_data_rep.index.start_index
+        self._fiter, self._item = self._reset_iter(index_meta)
+        self._index_meta = index_meta
+        if index_meta is not None:
+            self._index = index_meta.start_index
+        self._iter_failed = False
 
     def seek_to_target(self, target_index):
         self._check_valid()
-        if self._raw_data_rep.index.start_index > target_index:
+        if self._index_meta.start_index > target_index:
             raise IndexError(
                     "target index {} < start index {}".format(
-                    target_index, self._raw_data_rep.index.start_index)
+                    target_index, self._index_meta.start_index)
                 )
-        if self._index > target_index:
-            self.reset_iter(self._raw_data_rep)
-        if self._index < target_index:
-            for index, _ in self:
-                if index == target_index:
-                    return
+        try:
+            if self._index == target_index:
+                return
+            if self._iter_failed or self._index > target_index:
+                self.reset_iter(self._index_meta)
+            if self._index < target_index:
+                for index, _ in self:
+                    if index == target_index:
+                        return
+        except Exception as e: # pylint: disable=broad-except
+            logging.warning(
+                    "Failed to seek file %s to index %d, reason %s",
+                    self._index_meta.fpath, target_index, e
+                )
+            self._iter_failed = True
+            raise
 
     @classmethod
     def name(cls):
@@ -74,7 +88,20 @@ class RawDataIter(object):
 
     def __next__(self):
         self._check_valid()
-        self._item = self._next()
+        if self._iter_failed:
+            self.seek_to_target(self._index)
+        try:
+            self._item = self._next()
+        except StopIteration:
+            logging.debug("file %s is EOF", self._index_meta.fpath)
+            raise
+        except Exception as e: # pylint: disable=broad-except
+            logging.warning(
+                    "Failed to next iter %s to %d, reason %s",
+                    self._index_meta.fpath, self._index + 1, e
+                )
+            self._iter_failed = True
+            raise
         self._index += 1
         return self._index, self._item
 
@@ -103,6 +130,6 @@ class RawDataIter(object):
 
     def _check_valid(self):
         assert self._fiter is not None
-        assert self._raw_data_rep is not None
+        assert self._index_meta is not None
         assert self._item is not None
         assert self._index is not None

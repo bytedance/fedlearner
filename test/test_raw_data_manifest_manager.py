@@ -25,88 +25,224 @@ class TestRawDataManifestManager(unittest.TestCase):
     def test_raw_data_manifest_manager(self):
         cli = etcd_client.EtcdClient('test_cluster', 'localhost:2379',
                                      'fedlearner', True)
+        partition_num = 4
+        rank_id = 2
         data_source = common_pb.DataSource()
         data_source.data_source_meta.name = "milestone-x"
-        data_source.data_source_meta.partition_num = 4
+        data_source.data_source_meta.partition_num = partition_num
+        data_source.role = common_pb.FLRole.Leader
         cli.delete_prefix(data_source.data_source_meta.name)
         manifest_manager = raw_data_manifest_manager.RawDataManifestManager(
             cli, data_source)
         manifest_map = manifest_manager.list_all_manifest()
-        for i in range(data_source.data_source_meta.partition_num):
+        for i in range(partition_num):
             self.assertTrue(i in manifest_map)
             self.assertEqual(
-                manifest_map[i].state,
-                dj_pb.RawDataState.UnAllocated
+                manifest_map[i].sync_example_id_rep.state,
+                dj_pb.SyncExampleIdState.UnSynced
             )
-            self.assertEqual(manifest_map[i].allocated_rank_id, -1)
+            self.assertEqual(manifest_map[i].sync_example_id_rep.rank_id, -1)
+            self.assertEqual(
+                manifest_map[i].join_example_rep.state,
+                dj_pb.JoinExampleState.UnJoined
+            )
+            self.assertEqual(manifest_map[i].join_example_rep.rank_id, -1)
+            self.assertFalse(manifest_map[i].finished)
 
-        manifest, finished = manifest_manager.alloc_unallocated_partition(0)
-        self.assertFalse(finished)
+        manifest = manifest_manager.alloc_sync_exampld_id(rank_id)
+        self.assertNotEqual(manifest, None)
         partition_id = manifest.partition_id
         manifest_map = manifest_manager.list_all_manifest()
-        for i in range(data_source.data_source_meta.partition_num):
+        for i in range(partition_num):
             self.assertTrue(i in manifest_map)
             if i != partition_id:
                 self.assertEqual(
-                    manifest_map[i].state,
-                    dj_pb.RawDataState.UnAllocated
+                    manifest_map[i].sync_example_id_rep.state,
+                    dj_pb.SyncExampleIdState.UnSynced
                 )
-                self.assertEqual(manifest_map[i].allocated_rank_id, -1)
+                self.assertEqual(manifest_map[i].sync_example_id_rep.rank_id, -1)
+                self.assertEqual(
+                    manifest_map[i].join_example_rep.state,
+                    dj_pb.JoinExampleState.UnJoined
+                )
+                self.assertEqual(manifest_map[i].join_example_rep.rank_id, -1)
             else:
                 self.assertEqual(
-                    manifest_map[i].state,
-                    dj_pb.RawDataState.Syncing
+                    manifest_map[i].sync_example_id_rep.state,
+                    dj_pb.SyncExampleIdState.Syncing
                 )
-                self.assertEqual(manifest_map[i].allocated_rank_id, 0)
+                self.assertEqual(manifest_map[i].sync_example_id_rep.rank_id, rank_id)
+                self.assertEqual(
+                    manifest_map[i].join_example_rep.state,
+                    dj_pb.JoinExampleState.UnJoined
+                )
+                self.assertEqual(manifest_map[i].join_example_rep.rank_id, -1)
+            self.assertFalse(manifest_map[i].finished)
 
-        manifest_manager.finish_sync_partition(0, partition_id)
+        partition_id2 = 3 - partition_id
+        rank_id2 = 100
+        manifest = manifest_manager.alloc_join_example(rank_id2, partition_id2)
+        manifest_map = manifest_manager.list_all_manifest()
+        for i in range(partition_num):
+            self.assertTrue(i in manifest_map)
+            if i == partition_id:
+                self.assertEqual(
+                    manifest_map[i].sync_example_id_rep.state,
+                    dj_pb.SyncExampleIdState.Syncing
+                )
+                self.assertEqual(manifest_map[i].sync_example_id_rep.rank_id, rank_id)
+            else:
+                self.assertEqual(
+                    manifest_map[i].sync_example_id_rep.state,
+                    dj_pb.SyncExampleIdState.UnSynced
+                )
+                self.assertEqual(manifest_map[i].sync_example_id_rep.rank_id, -1)
+            if i == partition_id2:
+                self.assertEqual(
+                    manifest_map[i].join_example_rep.state,
+                    dj_pb.JoinExampleState.Joining
+                )
+                self.assertEqual(manifest_map[i].join_example_rep.rank_id, rank_id2)
+            else:
+                self.assertEqual(
+                    manifest_map[i].join_example_rep.state,
+                    dj_pb.JoinExampleState.UnJoined
+                )
+                self.assertEqual(manifest_map[i].join_example_rep.rank_id, -1)
+            self.assertFalse(manifest_map[i].finished)
+
+        self.assertRaises(Exception,  manifest_manager.finish_join_example,
+                rank_id, partition_id)
+        self.assertRaises(Exception,  manifest_manager.finish_join_example,
+                rank_id2, partition_id2)
+        self.assertRaises(Exception,  manifest_manager.finish_sync_example_id,
+                -rank_id, partition_id)
+        self.assertRaises(Exception,  manifest_manager.finish_sync_example_id,
+                rank_id2, partition_id2)
+        rank_id3 = 0
+        manifest = manifest_manager.alloc_join_example(rank_id3, partition_id)
+        manifest_map = manifest_manager.list_all_manifest()
+        for i in range(partition_num):
+            self.assertTrue(i in manifest_map)
+            if i == partition_id:
+                self.assertEqual(
+                    manifest_map[i].sync_example_id_rep.state,
+                    dj_pb.SyncExampleIdState.Syncing
+                )
+                self.assertEqual(manifest_map[i].sync_example_id_rep.rank_id, rank_id)
+            else:
+                self.assertEqual(
+                    manifest_map[i].sync_example_id_rep.state,
+                    dj_pb.SyncExampleIdState.UnSynced
+                )
+                self.assertEqual(manifest_map[i].sync_example_id_rep.rank_id, -1)
+            if i == partition_id:
+                self.assertEqual(
+                    manifest_map[i].join_example_rep.state,
+                    dj_pb.JoinExampleState.Joining
+                )
+                self.assertEqual(manifest_map[i].join_example_rep.rank_id, rank_id3)
+            elif i == partition_id2:
+                self.assertEqual(
+                    manifest_map[i].join_example_rep.state,
+                    dj_pb.JoinExampleState.Joining
+                )
+                self.assertEqual(manifest_map[i].join_example_rep.rank_id, rank_id2)
+            else:
+                self.assertEqual(
+                    manifest_map[i].join_example_rep.state,
+                    dj_pb.JoinExampleState.UnJoined
+                )
+                self.assertEqual(manifest_map[i].join_example_rep.rank_id, -1)
+            self.assertFalse(manifest_map[i].finished)
+
+        self.assertRaises(Exception, manifest_manager.finish_sync_example_id, 
+                          rank_id, partition_id)
+        manifest_manager.add_raw_data(partition_id, 100)
+        manifest_manager.add_raw_data(partition_id, 99)
+        manifest_map = manifest_manager.list_all_manifest()
+        for i in range(partition_num):
+            self.assertTrue(i in manifest_map)
+            if i == partition_id:
+                self.assertEqual(manifest_map[i].next_process_index, 100)
+            else:
+                self.assertEqual(manifest_map[i].next_process_index, 0)
+        manifest_manager.finish_raw_data(partition_id)
+        manifest_manager.finish_raw_data(partition_id)
+        self.assertRaises(Exception, manifest_manager.add_raw_data, partition_id, 200)
+        manifest_manager.finish_sync_example_id(rank_id, partition_id)
+        manifest_manager.finish_sync_example_id(rank_id, partition_id)
         manifest_map = manifest_manager.list_all_manifest()
         for i in range(data_source.data_source_meta.partition_num):
             self.assertTrue(i in manifest_map)
-            self.assertEqual(manifest_map[i].allocated_rank_id, -1)
-            if i != partition_id:
+            if i == partition_id:
                 self.assertEqual(
-                    manifest_map[i].state,
-                    dj_pb.RawDataState.UnAllocated
+                    manifest_map[i].sync_example_id_rep.state,
+                    dj_pb.SyncExampleIdState.Synced
                 )
+                self.assertEqual(manifest_map[i].sync_example_id_rep.rank_id, rank_id)
+                self.assertTrue(manifest_map[i].finished)
             else:
                 self.assertEqual(
-                    manifest_map[i].state,
-                    dj_pb.RawDataState.Synced
+                    manifest_map[i].sync_example_id_rep.state,
+                    dj_pb.SyncExampleIdState.UnSynced
                 )
-        manifest2, finished = manifest_manager.alloc_synced_partition(2)
-        self.assertFalse(finished)
-        self.assertEqual(manifest.partition_id, manifest2.partition_id)
+                self.assertEqual(manifest_map[i].sync_example_id_rep.rank_id, -1)
+            if i == partition_id:
+                self.assertEqual(
+                    manifest_map[i].join_example_rep.state,
+                    dj_pb.JoinExampleState.Joining
+                )
+                self.assertEqual(manifest_map[i].join_example_rep.rank_id, rank_id3)
+            elif i == partition_id2:
+                self.assertEqual(
+                    manifest_map[i].join_example_rep.state,
+                    dj_pb.JoinExampleState.Joining
+                )
+                self.assertEqual(manifest_map[i].join_example_rep.rank_id, rank_id2)
+            else:
+                self.assertEqual(
+                    manifest_map[i].join_example_rep.state,
+                    dj_pb.JoinExampleState.UnJoined
+                )
+                self.assertEqual(manifest_map[i].join_example_rep.rank_id, -1)
+
+        manifest_manager.finish_join_example(rank_id3, partition_id)
+        manifest_manager.finish_join_example(rank_id3, partition_id)
         manifest_map = manifest_manager.list_all_manifest()
         for i in range(data_source.data_source_meta.partition_num):
             self.assertTrue(i in manifest_map)
-            if i != partition_id:
+            if i == partition_id:
                 self.assertEqual(
-                    manifest_map[i].state,
-                    dj_pb.RawDataState.UnAllocated
+                    manifest_map[i].sync_example_id_rep.state,
+                    dj_pb.SyncExampleIdState.Synced
                 )
-                self.assertEqual(manifest_map[i].allocated_rank_id, -1)
+                self.assertEqual(manifest_map[i].sync_example_id_rep.rank_id, rank_id)
             else:
                 self.assertEqual(
-                    manifest_map[i].state,
-                    dj_pb.RawDataState.Joining
+                    manifest_map[i].sync_example_id_rep.state,
+                    dj_pb.SyncExampleIdState.UnSynced
                 )
-                self.assertEqual(manifest_map[i].allocated_rank_id, 2)
-        manifest_manager.finish_join_partition(2, partition_id)
-        manifest_map = manifest_manager.list_all_manifest()
-        for i in range(data_source.data_source_meta.partition_num):
-            self.assertTrue(i in manifest_map)
-            self.assertEqual(manifest_map[i].allocated_rank_id, -1)
-            if i != partition_id:
+                self.assertEqual(manifest_map[i].sync_example_id_rep.rank_id, -1)
+            if i == partition_id:
                 self.assertEqual(
-                    manifest_map[i].state,
-                    dj_pb.RawDataState.UnAllocated
+                    manifest_map[i].join_example_rep.state,
+                    dj_pb.JoinExampleState.Joined
                 )
+                self.assertEqual(manifest_map[i].join_example_rep.rank_id, rank_id3)
+            elif i == partition_id2:
+                self.assertEqual(
+                    manifest_map[i].join_example_rep.state,
+                    dj_pb.JoinExampleState.Joining
+                )
+                self.assertEqual(manifest_map[i].join_example_rep.rank_id, rank_id2)
             else:
                 self.assertEqual(
-                    manifest_map[i].state,
-                    dj_pb.RawDataState.Done
+                    manifest_map[i].join_example_rep.state,
+                    dj_pb.JoinExampleState.UnJoined
                 )
+                self.assertEqual(manifest_map[i].join_example_rep.rank_id, -1)
+
         cli.destory_client_pool()
 
 if __name__ == '__main__':

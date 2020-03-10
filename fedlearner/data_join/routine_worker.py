@@ -31,6 +31,8 @@ class RoutineWorker(object):
         self._cond_fn = cond_fn
         self._routine_fn = routine_fn
         self._thread = None
+        self._args = tuple()
+        self._kwargs = dict()
 
     def start_routine(self):
         with self._lock:
@@ -61,6 +63,19 @@ class RoutineWorker(object):
         with self._condition:
             self._condition.notify()
 
+    def setup_args(self, *args, **kwargs):
+        with self._lock:
+            self._args = args
+            self._kwargs = kwargs
+
+    def obtain_args(self):
+        with self._lock:
+            args = self._args
+            kwargs = self._kwargs
+            self._args = tuple()
+            self._kwargs = dict()
+            return args, kwargs
+
     def _routine(self):
         exec_round = 0
         skip_round = False
@@ -81,7 +96,8 @@ class RoutineWorker(object):
                             skip_round = False
             try:
                 skip_round = self._exec_interval is not None
-                self._routine_fn()
+                args, kwargs = self.obtain_args()
+                self._routine_fn(*args, **kwargs)
             except Exception as e: # pylint: disable=broad-except
                 logging.error("worker: %s run %d rounds with exception: %s",
                               self._name, exec_round, e)

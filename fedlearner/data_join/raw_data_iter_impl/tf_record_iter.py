@@ -15,14 +15,12 @@
 # coding: utf-8
 
 import logging
-import os
 from contextlib import contextmanager
 
 import tensorflow as tf
 
+import fedlearner.data_join.common as common
 from fedlearner.data_join.raw_data_iter_impl.raw_data_iter import RawDataIter
-from fedlearner.data_join.common import make_tf_record_iter
-from fedlearner.data_join import customized_options
 
 class TfExampleItem(RawDataIter.Item):
     def __init__(self, record_str):
@@ -33,26 +31,26 @@ class TfExampleItem(RawDataIter.Item):
 
     @property
     def example_id(self):
-        feat = self._example.features.feature
-        return feat['example_id'].bytes_list.value[0]
+        try:
+            feat = self._example.features.feature
+            return feat['example_id'].bytes_list.value[0]
+        except Exception as e: # pylint: disable=broad-except
+            logging.error('Failed to parse example id from %s, reason %s',
+                          self._record_str, e)
+        return common.InvalidExampleId
 
     @property
     def event_time(self):
-        feat = self._example.features.feature
-        if feat['event_time'].HasField('int64_list'):
-            return feat['event_time'].int64_list.value[0]
         try:
+            feat = self._example.features.feature
+            if feat['event_time'].HasField('int64_list'):
+                return feat['event_time'].int64_list.value[0]
             if feat['event_time'].HasField('bytes_list'):
                 return int(feat['event_time'].bytes_list.value[0])
         except Exception as e: # pylint: disable=broad-except
-            logging.fatal(
-                    "Failed parse %s to event time, reason %s",
-                    feat['event_time'].bytes_list.value[0], e
-                )
-        else:
-            logging.fatal("Type of 'event_time' is float, Not allowed!")
-        os._exit(-1) # pylint: disable=protected-access
-        return None
+            logging.error("Failed parse event time from %s, reason %s",
+                          self._record_str, e)
+        return common.InvalidEventTime
 
     @property
     def record(self):
@@ -64,23 +62,25 @@ class TfDataSetIter(RawDataIter):
     def name(cls):
         return 'TF_DATASET'
 
-    def __init__(self):
-        super(TfDataSetIter, self).__init__()
-        self._compressed_type = customized_options.get_compressed_type()
-
     @contextmanager
     def _data_set(self, fpath):
         data_set = None
+        expt = None
         try:
             data_set = tf.data.TFRecordDataset(
-                    [fpath], compression_type=self._compressed_type,
+                    [fpath],
+                    compression_type=self._options.compressed_type,
                     num_parallel_reads=4
                 )
             data_set = data_set.batch(64)
             yield data_set
         except Exception as e: # pylint: disable=broad-except
             logging.warning("Failed to access file: %s, reason %s", fpath, e)
-        del data_set
+            expt = e
+        if data_set is not None:
+            del data_set
+        if expt is not None:
+            raise expt
 
     def _inner_iter(self, fpath):
         with self._data_set(fpath) as data_set:
@@ -88,9 +88,9 @@ class TfDataSetIter(RawDataIter):
                 for raw_data in batch.numpy():
                     yield TfExampleItem(raw_data)
 
-    def _reset_iter(self, raw_data_rep):
-        if raw_data_rep is not None:
-            fpath = raw_data_rep.raw_data_path
+    def _reset_iter(self, index_meta):
+        if index_meta is not None:
+            fpath = index_meta.fpath
             fiter = self._inner_iter(fpath)
             item = next(fiter)
             return fiter, item
@@ -107,13 +107,13 @@ class TfRecordIter(RawDataIter):
         return 'TF_RECORD'
 
     def _inner_iter(self, fpath):
-        with make_tf_record_iter(fpath) as record_iter:
+        with common.make_tf_record_iter(fpath) as record_iter:
             for record in record_iter:
                 yield TfExampleItem(record)
 
-    def _reset_iter(self, raw_data_rep):
-        if raw_data_rep is not None:
-            fpath = raw_data_rep.raw_data_path
+    def _reset_iter(self, index_meta):
+        if index_meta is not None:
+            fpath = index_meta.fpath
             fiter = self._inner_iter(fpath)
             item = next(fiter)
             return fiter, item
