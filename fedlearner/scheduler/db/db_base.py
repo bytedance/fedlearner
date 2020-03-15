@@ -31,10 +31,10 @@ def db_config():
     if db_type == DBTYPE.SQLITE:
         db_connection = APSWDatabase(
             database_config.get('db_path', 'fedlearner.db'))
-        logging.info('init sqlite database on standalone mode successfully')
+        logging.debug('init sqlite database on standalone mode successfully')
     elif db_type == DBTYPE.MYSQL:
         db_connection = PooledMySQLDatabase(db_name, **database_config)
-        logging.info('init mysql database on standalone mode successfully')
+        logging.debug('init mysql database on standalone mode successfully')
     else:
         raise Exception('can not init database')
 

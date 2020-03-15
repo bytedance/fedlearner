@@ -65,17 +65,17 @@ def create_job_run(config):
     job = Job.create(name=create_job['name'],
                      description=create_job.get('description', ''),
                      role='Leader',
-                     namespace=create_job.get('namespace', 'leader'),
                      model_version_id=model_version.id,
-                     distributed_version=create_job['distributed_version'],
+                     serving_version=create_job['serving_version'],
                      data_source_id=data_source.id,
                      cluster_spec=json.dumps(create_job.get(
                          'cluster_spec', {})),
-                     status=JOBSTATUS.SUBMMITTED,
+                     status=JOBSTATUS.SUBMMITTED.value,
                      group_list=json.dumps(create_job.get('group_list', [])),
                      create_time=datetime.datetime.now())
-    click.echo("job [%s] model: %s data_source %s create success." %
-               (job.name, model_meta.name, data_source.name))
+    click.echo(
+        "job [%s] id [%d] model: [%s] data_source: [%s] create success." %
+        (job.name, job.id, model_meta.name, data_source.name))
 
 
 @create.command('model', help='Create a model meta for fedlearner')
@@ -124,6 +124,8 @@ def create_data_source(config):
         click.echo("data source [%s] path: %s already exist." %
                    (data_source[0].name, data_source[0].path))
     else:
-        DataSourceMeta.create(name=create_data['name'],
-                              description=create_data.get('description', ''),
-                              path=create_data['path'])
+        data_source = DataSourceMeta.create(name=create_data['name'],
+                                            description=create_data.get(
+                                                'description', ''),
+                                            path=create_data['path'])
+        click.echo("data source [%s] create success." % data_source.name)

@@ -30,11 +30,11 @@ DEFAULT_RESOURCE = {
 
 class PSResourceConfig(CustomResourceDefinition):
     '''
-        Inherit CustomeResourceDefinition base class to describe
+        Inherit CustomeResourceDefinition base class to describe 
         parameter server resource definition on kubernetes.
 
         Attributes:
-            application_id(string) : a fedlearner job was created with
+            application_id(string) : a fedlearner job was created with 
                 an application id.
             name(string): resource name in ['PS', 'Worker', 'Master'].
             image(string): docker image path for this resource.
@@ -82,11 +82,11 @@ class PSResourceConfig(CustomResourceDefinition):
 
 class MasterResourceConfig(CustomResourceDefinition):
     '''
-        Inherit CustomeResourceDefinition base class to describe
+        Inherit CustomeResourceDefinition base class to describe 
         master resource definition on kubernetes.
 
         Attributes:
-            application_id(string) : a fedlearner job was created with
+            application_id(string) : a fedlearner job was created with 
                 an application id.
             data_path(string): master distribute data from data_path 
                 to federate trainer. 
@@ -136,11 +136,11 @@ class MasterResourceConfig(CustomResourceDefinition):
 
 class WorkerResourceConfig(CustomResourceDefinition):
     '''
-        Inherit CustomeResourceDefinition base class to describe
+        Inherit CustomeResourceDefinition base class to describe 
         master resource definition on kubernetes.
 
         Attributes:
-            application_id(string) : a fedlearner job was created with
+            application_id(string) : a fedlearner job was created with 
                 an application id.
             checkpoint_path(string): worker dump checkpoint path. 
             export_path(string): export model dump to this path for 
@@ -169,7 +169,7 @@ class WorkerResourceConfig(CustomResourceDefinition):
                  image,
                  role,
                  replicas,
-                 pair=False,
+                 pair=True,
                  command=['/app/deploy/scripts/wait4pair_wrapper.sh'],
                  args=['/app/deploy/scripts/trainer/run_trainer_worker.sh'],
                  env=None,

@@ -15,8 +15,8 @@
 # coding: utf-8
 # pylint: disable=W0622
 
-import click
 from prettytable import PrettyTable
+import click
 from fedlearner.scheduler.db.db_model import Job, \
             ModelMeta, ModelVersion, DataSourceMeta
 

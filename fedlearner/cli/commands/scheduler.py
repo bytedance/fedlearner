@@ -16,14 +16,11 @@
 # pylint: disable=W0621
 
 import logging
-import daemon
 import click
-from daemon.pidfile import TimeoutPIDLockFile
 
 from fedlearner import settings
 from fedlearner.scheduler.db import db_model
 from fedlearner.scheduler.scheduler import Scheduler
-from fedlearner.cli.utils import init_logging
 
 
 @click.group()
@@ -50,24 +47,7 @@ def scheduler_start(port, daemon_mode):
     '''
         FedLearner scheduler service start.
     '''
-    click.echo(click.style(settings.HEADER, fg='bright_blue'))
+    click.echo(settings.HEADER)
     scheduler = Scheduler()
-    if daemon_mode:
-        handle = init_logging(settings.LOG_PATH)
-        stdout = open(settings.STDOUT_PATH, 'w+')
-        stderr = open(settings.STDERR_PATH, 'w+')
-
-        ctx = daemon.DaemonContext(
-            pidfile=TimeoutPIDLockFile(settings.PID_FILE, -1),
-            files_preserve=[handle],
-            stdout=stdout,
-            stderr=stderr,
-        )
-        with ctx:
-            scheduler.run(listen_port=port)
-
-        stdout.close()
-        stderr.close()
-    else:
-        logging.getLogger().setLevel(logging.DEBUG)
-        scheduler.run(listen_port=port)
+    logging.getLogger().setLevel(logging.INFO)
+    scheduler.run(listen_port=port)

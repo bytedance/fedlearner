@@ -1,3 +1,19 @@
+# Copyright 2020 The FedLearner Authors. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# coding: utf-8
+
 import os
 import logging
 import kubernetes
@@ -54,6 +70,18 @@ class K8sClient(object):
             logging.error(
                 "Exception when calling"
                 " CustomObjectsApi->get_namespaced_custom_object: %s\n", e)
+        return None
+
+    def get_crd_object_status(self, name, namespace='default'):
+        try:
+            return self._api.get_namespaced_custom_object_status(
+                settings.FL_CRD_GROUP, settings.FL_CRD_VERSION, namespace,
+                settings.FL_CRD_PLURAL, name)
+        except ApiException as e:
+            logging.error(
+                "Exception when calling"
+                " CustomObjectsApi->get_namespaced_custom_object_status: %s\n",
+                e)
         return None
 
     def list_crd_object(self, namespace='default'):

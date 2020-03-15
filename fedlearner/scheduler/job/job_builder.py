@@ -16,6 +16,7 @@
 # pylint: disable=C0303
 from fedlearner import settings
 
+
 class CustomResourceDefinition(object):
     """
         Base class to describe customed resource defintinition on kubernetes.
@@ -228,14 +229,13 @@ class JobConfigBuidler(object):
             application_id(string): 'leader' role create a new fedlearner 
                 job with an application id, format with [{job_name}_{timestamp}]
     """
-    def __init__(self, name, namespace, role, application_id):
+    def __init__(self, name, role, application_id):
         '''
             initialize JobConfigBuidler function.
         '''
-        self._job_config = self.init_job_yaml(name, namespace, role,
-                                              application_id)
+        self._job_config = self.init_job_yaml(name, role, application_id)
 
-    def init_job_yaml(self, name, namespace, role, application_id):
+    def init_job_yaml(self, name, role, application_id):
         return {
             'apiVersion':
             '%s/%s' % (settings.FL_CRD_GROUP, settings.FL_CRD_VERSION),
@@ -243,10 +243,15 @@ class JobConfigBuidler(object):
             settings.FL_KIND,
             'metadata': {
                 'name': name,
-                'namespace': namespace
+                'namespace': settings.K8S_NAMESPACE
             },
             'spec': {
-                'role': role
+                'role': role,
+                'egress': {
+                    'egressURL': 'ingress-nginx.ingress-nginx.svc.cluster'\
+                                 '.local:80',
+                    'egressHost': 'external.name',
+                }
             }
         }
 
