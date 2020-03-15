@@ -14,7 +14,6 @@
  */
 
  syntax = "proto3";
- import "tensorflow/core/framework/tensor.proto";
  import "fedlearner/common/common.proto";
  
  package fedlearner.common;
@@ -23,36 +22,28 @@
      rpc ModelAuth(ModelAuthRequest) returns (Status);
      rpc SubmitTrainJob(TrainJobRequest) returns (Status);
  }
-   
- message ModelVersion {
-     string version = 1;
-     string code_url = 2;
- }
- message ModelMeta {
-     string model_uri  = 1;
-     string image_uri = 3;
-     string ps_command = 4;
-     string worker_command = 5;
-     string master_command = 6;
- }
- 
+
  message ModelAuthRequest {
-     ModelMeta model_meta = 1;
-     ModelVersion model_version = 2;
+     string model_uri  = 1;
+     string code_url = 2;
+     string image_uri = 3;
+     string model_commit = 4;
  }
    
  message DataMeta {
-   string data_source_name = 1;
-   int64 start_time = 2;
-   int64 end_time = 3;
+     string data_source_name = 1;
+     int64 start_time = 2;
+     int64 end_time = 3;
  }
    
  message TrainJobRequest {
      string name = 1;
      string application_id = 2;
-     ModelMeta model_meta = 3;
-     ModelVersion model_version = 4;
-     int32 pair_num = 5;
-     DataMeta data_meta = 6;
-     string description = 7;
+     string model_uri = 3;
+     string model_commit = 4;
+     string serving_version = 5;
+     int32 pair_num = 6;
+     DataMeta data_meta = 7;
+     string description = 8;
  }
+ 

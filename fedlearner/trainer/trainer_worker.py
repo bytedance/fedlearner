@@ -56,7 +56,7 @@ def create_argument_parser():
                         help='Path to save exported models.')
     parser.add_argument('--checkpoint-path', type=str, default=None,
                         help='Path to save and load model checkpoints.')
-    parser.add_argument('--save-checkpoint-steps', type=int, default=None,
+    parser.add_argument('--save-checkpoint-steps', type=int, default=1000,
                         help='Number of steps between checkpoints.')
 
     return parser
