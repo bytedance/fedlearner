@@ -145,12 +145,23 @@ class Bridge(object):
         assert self._connected, "Cannot transmit before connect"
         msg.seq_num = self._next_send_seq_num
         self._next_send_seq_num += 1
+
         if self._streaming_mode:
             self._transmit_queue.put(msg)
-        else:
-            rsp = self._client.Transmit(msg)
-            assert rsp.status.code == common_pb.STATUS_SUCCESS, \
-                "Transmit error with code %d."%rsp.status.code
+            return
+
+        while True:
+            try:
+                rsp = self._client.Transmit(msg)
+                break
+            except Exception as e:  # pylint: disable=broad-except
+                logging.warning("Bridge transmit failed: %s. " \
+                                    "Retry in 1 second...",
+                                e.code().name)
+                time.sleep(1)
+
+        assert rsp.status.code == common_pb.STATUS_SUCCESS, \
+            "Transmit error with code %d."%rsp.status.code
 
     def _transmit_handler(self, request):
         assert self._connected, "Cannot transmit before connect"
