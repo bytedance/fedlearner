@@ -15,9 +15,9 @@
 # coding: utf-8
 # pylint: disable=no-else-return, inconsistent-return-statements
 
+import logging
 import tensorflow.compat.v1 as tf
 import fedlearner.trainer as flt
-
 
 parser = flt.trainer_worker.create_argument_parser()
 args = parser.parse_args()
@@ -101,6 +101,7 @@ def model_fn(model, features, labels, mode):
 
 
 if __name__ == '__main__':
+    logging.basicConfig(level=logging.INFO)
     flt.trainer_worker.train(
         'leader', args, input_fn,
         model_fn, serving_input_receiver_fn)

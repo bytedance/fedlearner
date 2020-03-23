@@ -18,6 +18,7 @@ import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 import unittest
+import threading
 import tensorflow as tf
 import numpy as np
 
@@ -28,8 +29,10 @@ class TestBridge(unittest.TestCase):
         bridge1 = fl.trainer.bridge.Bridge('leader', 50051, 'localhost:50052')
         bridge2 = fl.trainer.bridge.Bridge('follower', 50052, 'localhost:50051')
 
-        bridge1.connect()
+        t = threading.Thread(target=lambda _: bridge1.connect(), args=(None,))
+        t.start()
         bridge2.connect()
+        t.join()
 
         g1 = tf.Graph()
         with g1.as_default():

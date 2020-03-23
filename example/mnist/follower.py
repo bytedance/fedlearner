@@ -15,6 +15,7 @@
 # coding: utf-8
 # pylint: disable=no-else-return, inconsistent-return-statements
 
+import logging
 import tensorflow.compat.v1 as tf
 import fedlearner.trainer as flt
 
@@ -73,6 +74,7 @@ def model_fn(model, features, labels, mode):
 
 
 if __name__ == '__main__':
+    logging.basicConfig(level=logging.INFO)
     parser = flt.trainer_worker.create_argument_parser()
     flt.trainer_worker.train(
         'follower', parser.parse_args(), input_fn,
