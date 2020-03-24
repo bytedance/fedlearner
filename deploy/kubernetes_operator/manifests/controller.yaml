@@ -22,7 +22,6 @@ spec:
     spec:
       containers:
         - args:
-            - --peer-url=flapp-operator.follower.svc.cluster.local:8200
             - --port=8100
             - --namespace=leader
             - --leader-election=true
@@ -30,7 +29,7 @@ spec:
             - --resync-interval=5
           command:
             - ./main
-          image: fedlearner_operator:v1.0.0
+          image: fedlearner_operator:2.1.1
           imagePullPolicy: IfNotPresent
           name: flapp-operator
           ports:
@@ -66,7 +65,7 @@ metadata:
   name: flapp-operator
   namespace: follower
 spec:
-  replicas: 3
+  replicas: 1
   selector:
     matchLabels:
       app: flapp-operator
@@ -82,15 +81,14 @@ spec:
     spec:
       containers:
         - args:
-            - --peer-url=flapp-operator.leader.svc.cluster.local:8100
-            - --port=8200
+            - --port=8100
             - --namespace=follower
             - --leader-election=true
             - --leader-election-lock-namespace=follower
             - --resync-interval=5
           command:
             - ./main
-          image: fedlearner_operator:v1.0.0
+          image: fedlearner_operator:2.1.1
           imagePullPolicy: IfNotPresent
           name: flapp-operator
           ports:
@@ -116,5 +114,18 @@ spec:
     app: flapp-operator
   ports:
     - protocol: TCP
-      port: 8200
-      targetPort: 8200
+      port: 8100
+      targetPort: 8100
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: flapp-operator-follower
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: flapp-operator
+subjects:
+  - kind: ServiceAccount
+    name: flapp-operator
+    namespace: follower

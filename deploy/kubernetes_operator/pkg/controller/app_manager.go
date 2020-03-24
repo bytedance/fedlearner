@@ -231,8 +231,8 @@ func (am *appManager) isAppBootstrapped(app *v1alpha1.FLApp) bool {
 	for rtype := range app.Spec.FLReplicaSpecs {
 		rt := strings.ToLower(string(rtype))
 		if needPair(app, rtype) {
-			name := GenName(app.Name, rt)
-			configMap, err := am.configMapLister.ConfigMaps(am.namespace).Get(name)
+			configMapName := GenReplicaName(app.Name, strings.ToLower(app.Spec.Role), rt)
+			configMap, err := am.configMapLister.ConfigMaps(am.namespace).Get(configMapName)
 			// ConfigMap not ready
 			if err != nil || configMap == nil {
 				return false
@@ -247,7 +247,8 @@ func (am *appManager) isAppBootstrapped(app *v1alpha1.FLApp) bool {
 			return false
 		}
 	}
-	ingress, err := am.ingressLister.Ingresses(am.namespace).Get(app.Name)
+	ingressName := GenName(app.Name, strings.ToLower(app.Spec.Role))
+	ingress, err := am.ingressLister.Ingresses(am.namespace).Get(ingressName)
 	// Ingress not ready
 	if err != nil || ingress == nil {
 		return false
@@ -267,7 +268,6 @@ func (am *appManager) reconcileConfigMaps(app *v1alpha1.FLApp) error {
 }
 
 func (am *appManager) reconcileIngress(app *v1alpha1.FLApp) error {
-	name := app.Name
 	needIngress := false
 	for rtype := range app.Spec.FLReplicaSpecs {
 		if needPair(app, rtype) {
@@ -276,12 +276,13 @@ func (am *appManager) reconcileIngress(app *v1alpha1.FLApp) error {
 		}
 	}
 	if !needIngress {
-		ingress, err := am.ingressLister.Ingresses(am.namespace).Get(name)
-		if err != nil {
+		ingressName := GenName(app.Name, strings.ToLower(app.Spec.Role))
+		ingress, err := am.ingressLister.Ingresses(am.namespace).Get(ingressName)
+		if err != nil && !errors.IsNotFound(err) {
 			return err
 		}
 		if ingress != nil {
-			return am.kubeClient.NetworkingV1beta1().Ingresses(am.namespace).Delete(name, &metav1.DeleteOptions{})
+			return am.kubeClient.NetworkingV1beta1().Ingresses(am.namespace).Delete(ingressName, &metav1.DeleteOptions{})
 		}
 	}
 	return am.createIngress(app)
@@ -289,22 +290,25 @@ func (am *appManager) reconcileIngress(app *v1alpha1.FLApp) error {
 
 func (am *appManager) createIngress(app *v1alpha1.FLApp) error {
 	name := app.Name
+	ingressName := GenName(name, strings.ToLower(app.Spec.Role))
 	ownerReference := am.GenOwnerReference(app)
-	labels := GenLabels(name)
+	labels := GenLabels(app)
 	// TODO: support more kinds of ingress
 	annotations := map[string]string{
 		"kubernetes.io/ingress.class":                       "nginx",
 		"nginx.ingress.kubernetes.io/backend-protocol":      "GRPC",
 		"nginx.ingress.kubernetes.io/configuration-snippet": "grpc_next_upstream_tries 5 ;",
+		"nginx.ingress.kubernetes.io/http2-insecure-port":   "true",
+		"nginx.ingress.kubernetes.io/proxy-body-size":       "10m",
 	}
-	ingress, err := am.ingressLister.Ingresses(am.namespace).Get(name)
+	ingress, err := am.ingressLister.Ingresses(am.namespace).Get(ingressName)
 	if err != nil && !errors.IsNotFound(err) {
 		return err
 	}
 	if ingress == nil {
 		newIngress := &networking.Ingress{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:            name,
+				Name:            ingressName,
 				Labels:          labels,
 				Annotations:     annotations,
 				OwnerReferences: []metav1.OwnerReference{*ownerReference},
@@ -317,12 +321,12 @@ func (am *appManager) createIngress(app *v1alpha1.FLApp) error {
 				for index := 0; index < replicas; index++ {
 					path := networking.HTTPIngressPath{
 						Backend: networking.IngressBackend{
-							ServiceName: GenIndexName(name, rt, strconv.Itoa(index)),
+							ServiceName: GenIndexName(name, strings.ToLower(app.Spec.Role), rt, strconv.Itoa(index)),
 							ServicePort: intstr.FromString(v1alpha1.DefaultPortName),
 						},
 					}
 					rule := networking.IngressRule{
-						Host: GenIndexName(app.Name, rt, strconv.Itoa(index)),
+						Host: GenIndexName(app.Name, strings.ToLower(app.Spec.Role), rt, strconv.Itoa(index)),
 						IngressRuleValue: networking.IngressRuleValue{
 							HTTP: &networking.HTTPIngressRuleValue{
 								Paths: []networking.HTTPIngressPath{path},
@@ -343,13 +347,13 @@ func (am *appManager) createIngress(app *v1alpha1.FLApp) error {
 func (am *appManager) createOrUpdateConfigMap(app *v1alpha1.FLApp, rtype v1alpha1.FLReplicaType, data map[string]string) error {
 	namespace := am.namespace
 	rt := strings.ToLower(string(rtype))
-	name := GenName(app.Name, rt)
+	configMapName := GenReplicaName(app.Name, strings.ToLower(app.Spec.Role), rt)
 	ownerReference := am.GenOwnerReference(app)
 
-	labels := GenLabels(app.Name)
+	labels := GenLabels(app)
 	labels[flReplicaTypeLabel] = rt
 
-	configMap, err := am.configMapLister.ConfigMaps(am.namespace).Get(name)
+	configMap, err := am.configMapLister.ConfigMaps(am.namespace).Get(configMapName)
 	if err != nil && !errors.IsNotFound(err) {
 		return err
 	}
@@ -357,7 +361,7 @@ func (am *appManager) createOrUpdateConfigMap(app *v1alpha1.FLApp, rtype v1alpha
 	createConfigMap := configMap == nil
 	newConfigMap := &v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:            name,
+			Name:            configMapName,
 			Labels:          labels,
 			OwnerReferences: []metav1.OwnerReference{*ownerReference},
 		},
@@ -480,7 +484,7 @@ func (am *appManager) configMapUpdated(app *v1alpha1.FLApp) bool {
 	for rtype := range app.Spec.FLReplicaSpecs {
 		if needPair(app, rtype) {
 			rt := strings.ToLower(string(rtype))
-			configMapName := GenName(app.Name, rt)
+			configMapName := GenReplicaName(app.Name, strings.ToLower(app.Spec.Role), rt)
 
 			configMap, err := am.configMapLister.ConfigMaps(am.namespace).Get(configMapName)
 			if err != nil || configMap == nil {
@@ -562,7 +566,7 @@ func (am *appManager) freeResource(app *v1alpha1.FLApp) error {
 		return err
 	}
 	selector, err := metav1.LabelSelectorAsSelector(&metav1.LabelSelector{
-		MatchLabels: GenLabels(app.GetName()),
+		MatchLabels: GenLabels(app),
 	})
 	if err != nil {
 		return err
@@ -579,7 +583,8 @@ func (am *appManager) freeResource(app *v1alpha1.FLApp) error {
 		if err := am.podControl.DeletePod(pod.Namespace, pod.Name, app); err != nil && !errors.IsNotFound(err) {
 			return err
 		}
-		if err := am.serviceControl.DeleteService(pod.Namespace, GenIndexName(app.Name, rt, index), app); err != nil && !errors.IsNotFound(err) {
+		if err := am.serviceControl.DeleteService(pod.Namespace, GenIndexName(app.Name, strings.ToLower(app.Spec.Role), rt, index), app);
+			err != nil && !errors.IsNotFound(err) {
 			return err
 		}
 	}
@@ -590,7 +595,8 @@ func (am *appManager) freeResource(app *v1alpha1.FLApp) error {
 	}); err != nil && !errors.IsNotFound(err) {
 		return err
 	}
-	if err := am.kubeClient.NetworkingV1beta1().Ingresses(am.namespace).Delete(app.Name, &metav1.DeleteOptions{
+	ingressName := GenName(app.Name, strings.ToLower(app.Spec.Role))
+	if err := am.kubeClient.NetworkingV1beta1().Ingresses(am.namespace).Delete(ingressName, &metav1.DeleteOptions{
 		PropagationPolicy: &deletePropagationBackground,
 	}); err != nil && !errors.IsNotFound(err) {
 		return err

@@ -97,3 +97,7 @@ spec:
               command: ["/bin/sleep"]
               args: ["3m"]
   role: Follower
+  peerSpecs:
+    Leader:
+      peerURL: flapp-operator.leader.svc.cluster.local:8100
+

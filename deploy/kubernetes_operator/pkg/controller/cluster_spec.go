@@ -45,7 +45,7 @@ func NewClusterSpec(namespace string, app *v1alpha1.FLApp) ClusterSpec {
 			port = v1alpha1.DefaultPort
 		}
 		for index := 0; index < replicas; index++ {
-			serviceName := fmt.Sprintf(ServiceFormat, GenIndexName(app.Name, rt, strconv.Itoa(index)), namespace)
+			serviceName := fmt.Sprintf(ServiceFormat, GenIndexName(app.Name, strings.ToLower(app.Spec.Role), rt, strconv.Itoa(index)), namespace)
 			clusterSpec.Services[rtype] = append(clusterSpec.Services[rtype], fmt.Sprintf("%s:%d", serviceName, port))
 		}
 	}
