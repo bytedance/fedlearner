@@ -103,12 +103,15 @@ class DataBlockDumperManager(object):
 
     @contextmanager
     def _make_data_block_builder(self, meta):
-        assert self._partition_id == meta.partition_id
+        assert self._partition_id == meta.partition_id, \
+            "partition id of building data block meta mismatch "\
+            "{} != {}".format(self._partition_id, meta.partition_id)
         builder = None
         expt = None
         try:
             builder = \
                     DataBlockBuilder(self._data_source.data_block_dir,
+                                     self._data_source.data_source_meta.name,
                                      self._partition_id,
                                      meta.data_block_index)
             builder.init_by_meta(meta)
@@ -124,13 +127,14 @@ class DataBlockDumperManager(object):
             raise expt
 
     def _dump_data_block_by_meta(self, meta):
-        assert meta is not None
+        assert meta is not None, "input data block must not be None"
         with self._make_data_block_builder(meta) as data_block_builder:
             try:
                 if meta.leader_start_index == 0:
                     self._raw_data_visitor.reset()
                 else:
-                    assert meta.leader_start_index > 0
+                    assert meta.leader_start_index > 0, \
+                        "leader start index must be positive"
                     self._raw_data_visitor.seek(meta.leader_start_index-1)
             except StopIteration:
                 logging.fatal("raw data finished before when seek to %d",
@@ -155,7 +159,8 @@ class DataBlockDumperManager(object):
                     )
                 os._exit(-1) # pylint: disable=protected-access
             dumped_meta = data_block_builder.finish_data_block()
-            assert dumped_meta == meta
+            assert dumped_meta == meta, "the generated dumped meta shoud "\
+                                        "be the same with input mata"
             with self._lock:
                 assert self._fly_data_block_meta[0] == meta
                 self._fly_data_block_meta.pop(0)

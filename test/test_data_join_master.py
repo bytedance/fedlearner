@@ -236,8 +236,9 @@ class DataJoinMaster(unittest.TestCase):
                 data_source_meta=data_source_l.data_source_meta,
                 rank_id=0,
                 partition_id=0,
-                next_process_index=dj_pb.RawDataNextProcessIndex(
-                        process_index=10
+                raw_data_fpaths=dj_pb.RawDataFilePaths(
+                        dedup=False,
+                        file_paths=['a']
                     )
             )
         rsp = client_l.AddRawData(rdreq)
@@ -245,13 +246,14 @@ class DataJoinMaster(unittest.TestCase):
         manifest_l = client_l.QueryRawDataManifest(rdreq)
         self.assertTrue(manifest_l is not None)
         self.assertFalse(manifest_l.finished)
-        self.assertEqual(manifest_l.next_process_index, 10)
+        self.assertEqual(manifest_l.next_process_index, 1)
         rdreq = dj_pb.RawDataRequest(
                 data_source_meta=data_source_l.data_source_meta,
                 rank_id=0,
                 partition_id=0,
-                next_process_index=dj_pb.RawDataNextProcessIndex(
-                        process_index=100
+                raw_data_fpaths=dj_pb.RawDataFilePaths(
+                        dedup=False,
+                        file_paths=['b']
                     )
             )
         rsp = client_l.AddRawData(rdreq)
@@ -259,13 +261,14 @@ class DataJoinMaster(unittest.TestCase):
         manifest_l = client_l.QueryRawDataManifest(rdreq)
         self.assertTrue(manifest_l is not None)
         self.assertFalse(manifest_l.finished)
-        self.assertEqual(manifest_l.next_process_index, 100)
+        self.assertEqual(manifest_l.next_process_index, 2)
         rdreq = dj_pb.RawDataRequest(
                 data_source_meta=data_source_l.data_source_meta,
                 rank_id=0,
                 partition_id=0,
-                next_process_index=dj_pb.RawDataNextProcessIndex(
-                        process_index=20
+                raw_data_fpaths=dj_pb.RawDataFilePaths(
+                        dedup=True,
+                        file_paths=['a', 'b']
                     )
             )
         rsp = client_l.AddRawData(rdreq)
@@ -273,7 +276,7 @@ class DataJoinMaster(unittest.TestCase):
         manifest_l = client_l.QueryRawDataManifest(rdreq)
         self.assertTrue(manifest_l is not None)
         self.assertFalse(manifest_l.finished)
-        self.assertEqual(manifest_l.next_process_index, 100)
+        self.assertEqual(manifest_l.next_process_index, 2)
 
 
         rdreq = dj_pb.RawDataRequest(
@@ -290,8 +293,9 @@ class DataJoinMaster(unittest.TestCase):
                 data_source_meta=data_source_f.data_source_meta,
                 rank_id=0,
                 partition_id=0,
-                next_process_index=dj_pb.RawDataNextProcessIndex(
-                        process_index=10
+                raw_data_fpaths=dj_pb.RawDataFilePaths(
+                        dedup=False,
+                        file_paths=['a']
                     )
             )
         rsp = client_f.AddRawData(rdreq)
@@ -299,27 +303,30 @@ class DataJoinMaster(unittest.TestCase):
         manifest_f = client_f.QueryRawDataManifest(rdreq)
         self.assertTrue(manifest_f is not None)
         self.assertFalse(manifest_f.finished)
-        self.assertEqual(manifest_f.next_process_index, 10)
+        self.assertEqual(manifest_f.next_process_index, 1)
         rdreq = dj_pb.RawDataRequest(
                 data_source_meta=data_source_f.data_source_meta,
                 rank_id=0,
                 partition_id=0,
-                next_process_index=dj_pb.RawDataNextProcessIndex(
-                        process_index=100
+                raw_data_fpaths=dj_pb.RawDataFilePaths(
+                        dedup=False,
+                       file_paths=['b']
                     )
+
             )
         rsp = client_f.AddRawData(rdreq)
         self.assertEqual(rsp.code, 0)
         manifest_f = client_f.QueryRawDataManifest(rdreq)
         self.assertTrue(manifest_f is not None)
         self.assertFalse(manifest_f.finished)
-        self.assertEqual(manifest_f.next_process_index, 100)
+        self.assertEqual(manifest_f.next_process_index, 2)
         rdreq = dj_pb.RawDataRequest(
                 data_source_meta=data_source_f.data_source_meta,
                 rank_id=0,
                 partition_id=0,
-                next_process_index=dj_pb.RawDataNextProcessIndex(
-                        process_index=20
+                raw_data_fpaths=dj_pb.RawDataFilePaths(
+                        dedup=True,
+                        file_paths=['a', 'b']
                     )
             )
         rsp = client_f.AddRawData(rdreq)
@@ -327,7 +334,7 @@ class DataJoinMaster(unittest.TestCase):
         manifest_f = client_f.QueryRawDataManifest(rdreq)
         self.assertTrue(manifest_f is not None)
         self.assertFalse(manifest_f.finished)
-        self.assertEqual(manifest_f.next_process_index, 100)
+        self.assertEqual(manifest_f.next_process_index, 2)
 
         rdreq = dj_pb.RawDataRequest(
                 data_source_meta=data_source_l.data_source_meta,
@@ -344,14 +351,15 @@ class DataJoinMaster(unittest.TestCase):
         manifest_l = client_l.QueryRawDataManifest(rdreq)
         self.assertTrue(manifest_l is not None)
         self.assertTrue(manifest_l.finished)
-        self.assertEqual(manifest_l.next_process_index, 100)
+        self.assertEqual(manifest_l.next_process_index, 2)
 
         rdreq = dj_pb.RawDataRequest(
                 data_source_meta=data_source_l.data_source_meta,
                 rank_id=0,
                 partition_id=0,
-                next_process_index=dj_pb.RawDataNextProcessIndex(
-                        process_index=300
+                raw_data_fpaths=dj_pb.RawDataFilePaths(
+                        dedup=True,
+                        file_paths=['x']
                     )
             )
         try:
@@ -402,14 +410,15 @@ class DataJoinMaster(unittest.TestCase):
         manifest_f = client_f.QueryRawDataManifest(rdreq)
         self.assertTrue(manifest_f is not None)
         self.assertTrue(manifest_f.finished)
-        self.assertEqual(manifest_f.next_process_index, 100)
+        self.assertEqual(manifest_f.next_process_index, 2)
 
         rdreq = dj_pb.RawDataRequest(
                 data_source_meta=data_source_f.data_source_meta,
                 rank_id=0,
                 partition_id=0,
-                next_process_index=dj_pb.RawDataNextProcessIndex(
-                        process_index=300
+                raw_data_fpaths=dj_pb.RawDataFilePaths(
+                        dedup=True,
+                        file_paths=['x']
                     )
             )
         try:

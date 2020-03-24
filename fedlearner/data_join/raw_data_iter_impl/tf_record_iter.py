@@ -17,45 +17,57 @@
 import logging
 from contextlib import contextmanager
 
-import tensorflow as tf
+import tensorflow.compat.v1 as tf
 
 import fedlearner.data_join.common as common
 from fedlearner.data_join.raw_data_iter_impl.raw_data_iter import RawDataIter
 
 class TfExampleItem(RawDataIter.Item):
     def __init__(self, record_str):
-        example = tf.train.Example()
-        example.ParseFromString(record_str)
         self._record_str = record_str
-        self._example = example
+        self._example = None
+        self._example_id = None
+        self._event_time = None
 
     @property
     def example_id(self):
-        try:
-            feat = self._example.features.feature
-            return feat['example_id'].bytes_list.value[0]
-        except Exception as e: # pylint: disable=broad-except
-            logging.error('Failed to parse example id from %s, reason %s',
-                          self._record_str, e)
-        return common.InvalidExampleId
+        if self._example_id is None:
+            try:
+                self._parse_example()
+                feat = self._example.features.feature
+                self._example_id = feat['example_id'].bytes_list.value[0]
+            except Exception as e: # pylint: disable=broad-except
+                logging.error('Failed to parse example id from %s, reason %s',
+                              self._record_str, e)
+                self._example_id = common.InvalidExampleId
+        return self._example_id
 
     @property
     def event_time(self):
-        try:
-            feat = self._example.features.feature
-            if feat['event_time'].HasField('int64_list'):
-                return feat['event_time'].int64_list.value[0]
-            if feat['event_time'].HasField('bytes_list'):
-                return int(feat['event_time'].bytes_list.value[0])
-        except Exception as e: # pylint: disable=broad-except
-            logging.error("Failed parse event time from %s, reason %s",
-                          self._record_str, e)
-        return common.InvalidEventTime
+        if self._event_time is None:
+            try:
+                self._parse_example()
+                feat = self._example.features.feature
+                if feat['event_time'].HasField('int64_list'):
+                    self._event_time = feat['event_time'].int64_list.value[0]
+                if feat['event_time'].HasField('bytes_list'):
+                    self._event_time = \
+                        int(feat['event_time'].bytes_list.value[0])
+            except Exception as e: # pylint: disable=broad-except
+                logging.error("Failed parse event time from %s, reason %s",
+                              self._record_str, e)
+                self._event_time = common.InvalidEventTime
+        return self._event_time
 
     @property
     def record(self):
         return self._record_str
 
+    def _parse_example(self):
+        if self._example is None:
+            example = tf.train.Example()
+            example.ParseFromString(self._record_str)
+            self._example = example
 
 class TfDataSetIter(RawDataIter):
     @classmethod
@@ -97,7 +109,7 @@ class TfDataSetIter(RawDataIter):
         return None, None
 
     def _next(self):
-        assert self._fiter is not None
+        assert self._fiter is not None, "_fiter must be not None in _next"
         return next(self._fiter)
 
 
@@ -120,5 +132,5 @@ class TfRecordIter(RawDataIter):
         return None, None
 
     def _next(self):
-        assert self._fiter is not None
+        assert self._fiter is not None, "_fiter must be not None in _next"
         return next(self._fiter)

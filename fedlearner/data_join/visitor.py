@@ -18,9 +18,6 @@ import bisect
 import logging
 import os
 import threading
-import ntpath
-
-from tensorflow.python.platform import gfile
 
 class IndexMeta(object):
     def __init__(self, process_index, start_index, fpath):
@@ -32,62 +29,23 @@ class IndexMeta(object):
         return self.start_index < other.start_index
 
     def __eq__(self, other):
-        assert isinstance(other, IndexMeta)
+        if not isinstance(other, IndexMeta):
+            return False
         return self.process_index == other.process_index and \
                 self.start_index == other.start_index and \
                 self.fpath == other.fpath
 
-def decode_index_meta(fpath, suffix):
-    fname = ntpath.basename(fpath)
-    assert fname.endswith(suffix)
-    index_str = fname[0:-len(suffix)]
-    try:
-        items = index_str.split('-')
-        if len(items) != 2:
-            raise RuntimeError("fname {} format error".format(fname))
-        process_index, start_index = int(items[0]), int(items[1])
-    except Exception as e: # pylint: disable=broad-except
-        logging.fatal("fname %s not satisfied with pattern start_index-"\
-                      "process_index%s", fname, suffix)
-        os._exit(-1) # pylint: disable=protected-access
-    else:
-        return IndexMeta(process_index, start_index, fpath)
-    return None
-
-def encode_index_fname(process_index, start_index, suffix):
-    return '{}-{}{}'.format(process_index, start_index, suffix)
-
-def encode_unindex_fname(process_index, suffix):
-    return '{}{}'.format(process_index, suffix)
-
-def load_index_meta_from_directory(fdir, suffix):
-    assert gfile.Exists(fdir)
-    fpaths = [os.path.join(fdir, f)
-                for f in gfile.ListDirectory(fdir)
-                if not gfile.IsDirectory(os.path.join(fdir, f))]
-    index_metas = []
-    for fpath in fpaths:
-        fname = ntpath.basename(fpath)
-        if not fname.endswith(suffix):
-            continue
-        index_meta = decode_index_meta(fpath, suffix)
-        assert index_meta is not None
-        index_metas.append(index_meta)
-    index_metas = sorted(index_metas, key=lambda meta: meta.start_index)
-    for index, index_meta in enumerate(index_metas):
-        if index != index_meta.process_index:
-            logging.fatal("%s has error process index. expected %d",
-                          index_meta.fpath, index)
-            os._exit(-1) # pylint: disable=protected-access
-    return index_metas
-
 class IndexMetaManager(object):
-    def __init__(self, fdir, suffix, preload_meta):
+    def __init__(self, preload_metas):
         self._lock = threading.Lock()
-        if preload_meta:
-            self._index_metas = load_index_meta_from_directory(fdir, suffix)
-        else:
-            self._index_metas = []
+        preload_metas = sorted(preload_metas,
+                               key=lambda meta: meta.start_index)
+        for index, index_meta in enumerate(preload_metas):
+            if index != index_meta.process_index:
+                logging.fatal("%s has error process index. expected %d",
+                              index_meta.fpath, index)
+                os._exit(-1) # pylint: disable=protected-access
+        self._index_metas = preload_metas
 
     def get_index_metas(self):
         with self._lock:
@@ -134,7 +92,6 @@ class Visitor(object):
         for index_meta in self._index_mata_manager.get_index_metas():
             self._append_index_meta(index_meta)
 
-    @property
     def name(self):
         return self._name
 
@@ -238,7 +195,11 @@ class Visitor(object):
         if process_index < len(self._index_metas):
             index_meta = self._index_metas[process_index]
         else:
-            assert process_index == len(self._index_metas)
+            assert process_index == len(self._index_metas), \
+                "the next required process index should consecutive, "\
+                "{}(process_index) == {}(len(self._index_metas))".format(
+                        process_index, len(self._index_metas)
+                    )
             index_meta = self._index_mata_manager.get_index_meta_by_index(
                     process_index, start_index
                 )
@@ -246,7 +207,14 @@ class Visitor(object):
                 self._finished = True
                 raise StopIteration('need more index meta')
             self._append_index_meta(index_meta)
-        assert index_meta is not None and index_meta.start_index == start_index
+        assert index_meta.process_index == process_index, \
+            "{}(index meta process index) != {}(process index)".format(
+                    index_meta.process_index, process_index
+                )
+        assert index_meta.start_index == start_index, \
+            "{}(index meta start index) != {}(start index)".format(
+                    index_meta.start_index, start_index
+                )
         self._reset_iter_by_index_meta(index_meta)
         self._process_index = process_index
         self._iter.seek_to_target(target_index)
@@ -256,7 +224,10 @@ class Visitor(object):
             return self._forward_to_target(process_index + 1,
                                            current_index + 1,
                                            target_index)
-        assert current_index == target_index
+        assert current_index == target_index, \
+            "the seeked index should equel to target index. "\
+            "{}(seek index) != {}(target index)".format(current_index,
+                                                        target_index)
         return current_index, self._iter.get_item()
 
     def _append_index_meta(self, index_meta):
@@ -278,7 +249,7 @@ class Visitor(object):
             self._visited_max_index = self._iter.get_index()
 
     def _reset_iter_by_index_meta(self, index_meta):
-        assert index_meta is not None
+        assert index_meta is not None, "the input index meta should not None"
         _iter = self._iter
         if _iter is None:
             _iter = self._new_iter()

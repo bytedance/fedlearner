@@ -22,9 +22,9 @@ import random
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 import unittest
-import tensorflow as tf
+import tensorflow.compat.v1 as tf
 import numpy as np
-from tensorflow.python.platform import gfile
+from tensorflow.compat.v1 import gfile
 from google.protobuf import text_format, empty_pb2
 
 import grpc
@@ -172,7 +172,7 @@ class DataJoinWorker(unittest.TestCase):
                           block_size, shuffle_win_size, feat_key_fmt, feat_val_fmt):
         dbm = data_block_manager.DataBlockManager(data_source, partition_id)
         raw_data_dir = os.path.join(data_source.raw_data_dir,
-                                    'partition_{}'.format(partition_id))
+                                    common.partition_repr(partition_id))
         if gfile.Exists(raw_data_dir):
             gfile.DeleteRecursively(raw_data_dir)
         gfile.MakeDirs(raw_data_dir)
@@ -180,7 +180,9 @@ class DataJoinWorker(unittest.TestCase):
         new_raw_data_fnames = []
         for block_index in range(self.total_index // block_size):
             builder = data_block_manager.DataBlockBuilder(
-                    data_source.raw_data_dir, partition_id, block_index, None
+                    data_source.raw_data_dir,
+                    data_source.data_source_meta.name,
+                    partition_id, block_index, None
                 )
             cands = list(range(block_index * block_size, (block_index + 1) * block_size))
             start_index = cands[0]
@@ -216,17 +218,18 @@ class DataJoinWorker(unittest.TestCase):
                                event_time, useless_index, useless_index)
                 useless_index += 1
             meta = builder.finish_data_block()
-            fname = common.encode_data_block_fname(meta.start_time,
-                                                   meta.end_time,
-                                                   meta.data_block_index)
-            new_raw_data_fnames.append(fname)
+            fname = common.encode_data_block_fname(
+                        data_source.data_source_meta.name,
+                        meta
+                    )
+            new_raw_data_fnames.append(os.path.join(raw_data_dir, fname))
         fpaths = [os.path.join(raw_data_dir, f)
                     for f in gfile.ListDirectory(raw_data_dir)
                     if not gfile.IsDirectory(os.path.join(raw_data_dir, f))]
         for fpath in fpaths:
             if fpath.endswith(common.DataBlockMetaSuffix):
                 gfile.Remove(fpath)
-        rdc.add_raw_data(partition_id, new_raw_data_fnames)
+        rdc.add_raw_data(partition_id, new_raw_data_fnames, False)
 
     def test_all_assembly(self):
         for i in range(self.data_source_l.data_source_meta.partition_num):

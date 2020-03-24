@@ -30,6 +30,7 @@ class RoutineWorker(object):
                               exec_interval))
         self._cond_fn = cond_fn
         self._routine_fn = routine_fn
+        self._skip_round = False
         self._thread = None
         self._args = tuple()
         self._kwargs = dict()
@@ -62,6 +63,7 @@ class RoutineWorker(object):
     def wakeup(self):
         with self._condition:
             self._condition.notify()
+            self._skip_round = False
 
     def setup_args(self, *args, **kwargs):
         with self._lock:
@@ -78,10 +80,9 @@ class RoutineWorker(object):
 
     def _routine(self):
         exec_round = 0
-        skip_round = False
         while not self.is_stopped():
             start_timepoint = time.time()
-            while (not self._cond_fn() or skip_round):
+            while self._wait_for_exec():
                 with self._lock:
                     if self._stop:
                         return
@@ -93,9 +94,11 @@ class RoutineWorker(object):
                         if time_to_wait > 0:
                             self._condition.wait(time_to_wait)
                         else:
-                            skip_round = False
+                            self._skip_round = False
+                            start_timepoint = time.time()
             try:
-                skip_round = self._exec_interval is not None
+                with self._lock:
+                    self._skip_round = self._exec_interval is not None
                 args, kwargs = self.obtain_args()
                 self._routine_fn(*args, **kwargs)
             except Exception as e: # pylint: disable=broad-except
@@ -105,3 +108,9 @@ class RoutineWorker(object):
                 logging.info("worker: %s exec %d round", self._name, exec_round)
             exec_round += 1
         logging.warning("worker %s will stop", self._name)
+
+    def _wait_for_exec(self):
+        with self._lock:
+            if self._skip_round:
+                return True
+        return not self._cond_fn()

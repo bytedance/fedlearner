@@ -17,16 +17,14 @@
 import unittest
 import os
 
-import tensorflow as tf
+import tensorflow.compat.v1 as tf
 from google.protobuf import text_format
-from tensorflow.python.platform import gfile
+from tensorflow.compat.v1 import gfile
 
 from fedlearner.common import etcd_client
 from fedlearner.common import common_pb2 as common_pb
 from fedlearner.common import data_join_service_pb2 as dj_pb
-from fedlearner.data_join import (
-    example_id_dumper, example_id_visitor, data_block_manager, common
-)
+from fedlearner.data_join import data_block_manager, common
 
 class TestDataBlockManager(unittest.TestCase):
     def setUp(self):
@@ -51,7 +49,9 @@ class TestDataBlockManager(unittest.TestCase):
         for i in range(5):
             fill_examples = []
             builder = data_block_manager.DataBlockBuilder(
-                    self.data_source.data_block_dir, 0, i, None
+                    self.data_source.data_block_dir,
+                    self.data_source.data_source_meta.name,
+                    0, i, None
                 )
             builder.set_data_block_manager(self.data_block_manager)
             for j in range(1024):
@@ -88,11 +88,13 @@ class TestDataBlockManager(unittest.TestCase):
         for (idx, meta) in enumerate(data_block_metas):
             self.assertEqual(self.data_block_manager.get_data_block_meta_by_index(idx),
                              meta)
-            self.assertEqual(meta.block_id, '{}-{}_{}'.format(
-                             meta.start_time, meta.end_time, idx))
+            self.assertEqual(meta.block_id, common.encode_block_id(
+                    self.data_source.data_source_meta.name, meta
+                )
+            )
         self.assertEqual(self.data_block_manager.get_data_block_meta_by_index(5), None)
         data_block_dir = os.path.join(
-                        self.data_source.data_block_dir, 'partition_{}'.format(0)
+                        self.data_source.data_block_dir, common.partition_repr(0)
                     )
         for (i, meta) in enumerate(data_block_metas):
             data_block_fpath = os.path.join(
@@ -100,7 +102,10 @@ class TestDataBlockManager(unittest.TestCase):
                     ) + common.DataBlockSuffix
             data_block_meta_fpath = os.path.join(
                         data_block_dir, 
-                        common.encode_data_block_meta_fname(meta.data_block_index)
+                        common.encode_data_block_meta_fname(
+                            self.data_source.data_source_meta.name,
+                            0, meta.data_block_index
+                        )
                     )
             self.assertTrue(gfile.Exists(data_block_fpath))
             self.assertTrue(gfile.Exists(data_block_meta_fpath))

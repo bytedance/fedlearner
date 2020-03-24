@@ -21,7 +21,7 @@ import os
 from concurrent import futures
 
 import grpc
-from google.protobuf import text_format, empty_pb2
+from google.protobuf import empty_pb2
 
 from fedlearner.common import common_pb2 as common_pb
 from fedlearner.common import data_join_service_pb2 as dj_pb
@@ -33,6 +33,9 @@ from fedlearner.proxy.channel import make_insecure_channel, ChannelType
 from fedlearner.data_join.routine_worker import RoutineWorker
 from fedlearner.data_join.raw_data_manifest_manager import (
     RawDataManifestManager
+)
+from fedlearner.data_join.common import (
+    retrieve_data_source, commit_data_source
 )
 
 class MasterFSM(object):
@@ -65,11 +68,11 @@ class MasterFSM(object):
         self._init_fsm_action()
         self._data_source = None
         self._sync_data_source()
-        assert self._data_source is not None
+        assert self._data_source is not None, \
+            "data source must not None if sync data source success"
         self._raw_data_manifest_manager = RawDataManifestManager(
                 etcd, self._data_source
             )
-        assert self._data_source is not None
         self._data_source_meta = self._data_source.data_source_meta
         if self._data_source.role == common_pb.FLRole.Leader:
             self._role_repr = "leader"
@@ -84,7 +87,6 @@ class MasterFSM(object):
     def get_data_source(self):
         with self._lock:
             self._sync_data_source()
-            assert self._data_source is not None
             return self._data_source
 
     def set_failed(self):
@@ -94,7 +96,6 @@ class MasterFSM(object):
         with self._lock:
             try:
                 self._sync_data_source()
-                assert self._data_source is not None
                 if self._data_source.state == new_state:
                     return True
                 if (origin_state is None or
@@ -116,7 +117,8 @@ class MasterFSM(object):
     def start_fsm_worker(self):
         with self._lock:
             if not self._started:
-                assert self._fsm_worker is None
+                assert self._fsm_worker is None, \
+                    "fsm_woker must be None if FSM is not started"
                 self._started = True
                 self._fsm_worker = RoutineWorker(
                         '{}_fsm_worker'.format(self._data_source_name),
@@ -138,7 +140,6 @@ class MasterFSM(object):
         peer_info = self._get_peer_data_source_status()
         with self._lock:
             self._sync_data_source()
-            assert self._data_source is not None
             state = self._data_source.state
             if self._fallback_failed_state(peer_info):
                 logging.warning("%s at state %d, Peer at state %d "\
@@ -152,7 +153,6 @@ class MasterFSM(object):
                 state_changed = self._fsm_driven_handle[state](peer_info)
                 if state_changed:
                     self._sync_data_source()
-                    assert self._data_source is not None
                     new_state = self._data_source.state
                     logging.warning("%s state changed from %d to %d",
                                     self._role_repr, state, new_state)
@@ -162,15 +162,8 @@ class MasterFSM(object):
 
     def _sync_data_source(self):
         if self._data_source is None:
-            raw_data = self._etcd.get_data(self._master_etcd_key)
-            if raw_data is None:
-                raise ValueError(
-                        "etcd master key is None for {}".format(
-                            self._data_source_name)
-                    )
-            self._data_source = text_format.Parse(
-                    raw_data, common_pb.DataSource()
-                )
+            self._data_source = \
+                retrieve_data_source(self._etcd, self._data_source_name)
 
     def _init_fsm_action(self):
         self._fsm_driven_handle = {
@@ -257,8 +250,7 @@ class MasterFSM(object):
     def _update_data_source(self, data_source):
         self._data_source = None
         try:
-            self._etcd.set_data(self._master_etcd_key,
-                                text_format.MessageToString(data_source))
+            commit_data_source(self._etcd, data_source)
         except Exception as e:
             logging.error("Failed to update data source: %s since "\
                           "exception: %s", self._data_source_name, e)
@@ -276,7 +268,8 @@ class MasterFSM(object):
     def _all_partition_finished(self):
         all_manifest = self._raw_data_manifest_manager.list_all_manifest()
         assert len(all_manifest) == \
-                self._data_source.data_source_meta.partition_num
+                self._data_source.data_source_meta.partition_num, \
+            "manifest number should same with partition number"
         for manifest in all_manifest.values():
             if manifest.sync_example_id_rep.state != \
                     dj_pb.SyncExampleIdState.Synced or \
@@ -351,7 +344,9 @@ class DataJoinMaster(dj_grpc.DataJoinMasterServiceServicer):
                 if manifest is not None:
                     response.manifest.MergeFrom(manifest)
                 else:
-                    assert partition_id is None
+                    assert partition_id is None, \
+                        "only the request without appoint partition "\
+                        "support response no manifest"
                     response.finished.MergeFrom(empty_pb2.Empty())
         return response
 
@@ -383,7 +378,6 @@ class DataJoinMaster(dj_grpc.DataJoinMasterServiceServicer):
         self._check_data_source_meta(request.data_source_meta, True)
         manifest_manager = self._fsm.get_mainifest_manager()
         manifest = manifest_manager.get_manifest(request.partition_id)
-        assert manifest is not None
         return manifest
 
     def FinishRawData(self, request, context):
@@ -402,10 +396,11 @@ class DataJoinMaster(dj_grpc.DataJoinMasterServiceServicer):
         response = self._check_data_source_meta(request.data_source_meta)
         if response.code == 0:
             manifest_manager = self._fsm.get_mainifest_manager()
-            if request.HasField('next_process_index'):
+            if request.HasField('raw_data_fpaths'):
                 manifest_manager.add_raw_data(
                         request.partition_id,
-                        request.next_process_index.process_index
+                        request.raw_data_fpaths.file_paths,
+                        request.raw_data_fpaths.dedup
                     )
             else:
                 response.code = -1

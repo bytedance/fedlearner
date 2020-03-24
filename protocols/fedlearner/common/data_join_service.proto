@@ -58,8 +58,14 @@ message RawDataManifest {
   int64 next_process_index = 5;
 }
 
-message RawDataNextProcessIndex {
-  int64 process_index = 1;
+message RawDataMeta {
+  string file_path = 1;
+  int64 start_index = 2;
+}
+
+message RawDataFilePaths {
+  repeated string file_paths = 1;
+  bool dedup = 2;
 }
 
 message RawDataRequest {
@@ -70,7 +76,7 @@ message RawDataRequest {
     google.protobuf.Empty sync_example_id = 4;
     google.protobuf.Empty join_example = 5;
     google.protobuf.Empty finish_raw_data = 6;
-    RawDataNextProcessIndex next_process_index = 7;
+    RawDataFilePaths raw_data_fpaths = 7;
   }
 }
 
@@ -108,7 +114,8 @@ message DataBlockMeta {
 
 message StartPartitionRequest {
   DataSourceMeta data_source_meta = 1;
-  int64 partition_id = 2;
+  int64 rank_id = 2;
+  int64 partition_id = 3;
 }
 
 message StartPartitionResponse {
@@ -124,17 +131,27 @@ message LiteExampleIds {
   repeated int64 event_time = 4;
 }
 
+message SyncContent {
+  oneof msg {
+    DataBlockMeta data_block_meta = 1;
+    LiteExampleIds lite_example_ids = 2;
+  }
+}
+
 message SyncPartitionRequest {
   DataSourceMeta data_source_meta = 1;
-  oneof msg {
-    DataBlockMeta data_block_meta = 2;
-    LiteExampleIds lite_example_ids = 3;
-  }
+  int64 rank_id = 2;
+  int64 partition_id = 3;
+  // serialization of SyncContent
+  bytes content_bytes = 4;
+  // if compressed is set true, we use the gzip compress sync content
+  bool compressed = 5;
 }
 
 message FinishPartitionRequest {
   DataSourceMeta data_source_meta = 1;
-  int64 partition_id = 2;
+  int64 rank_id = 2;
+  int64 partition_id = 3;
 }
 
 message FinishPartitionResponse {
@@ -148,12 +165,6 @@ service DataJoinWorkerService {
   rpc SyncPartition(SyncPartitionRequest) returns (Status) {}
   rpc FinishPartition(FinishPartitionRequest)
       returns (FinishPartitionResponse) {}
-}
-
-message SyncedExampleId {
-  bytes example_id = 1;
-  int64 event_time = 2;
-  int64 index = 3;
 }
 
 message LastDumpedExampleIdMeta {

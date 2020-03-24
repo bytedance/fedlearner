@@ -133,7 +133,6 @@ class ExampleJoiner(object):
         else:
             self._leader_visitor.reset()
             self._follower_visitor.reset()
-        self._state_stale = False
 
     def _get_data_block_builder(self, create_if_no_existed):
         if self._data_block_builder is None and create_if_no_existed:
@@ -141,6 +140,7 @@ class ExampleJoiner(object):
                     self._data_block_manager.get_dumped_data_block_count()
             self._data_block_builder = DataBlockBuilder(
                     self._data_source.data_block_dir,
+                    self._data_source.data_source_meta.name,
                     self._partition_id,
                     data_block_index,
                     self._example_joiner_options.data_block_dump_threshold
@@ -154,17 +154,20 @@ class ExampleJoiner(object):
         return self._data_block_builder
 
     def _finish_data_block(self):
-        assert self._data_block_builder is not None
-        meta = self._data_block_builder.finish_data_block()
-        self._reset_data_block_builder()
-        self._update_latest_dump_timestamp()
-        return meta
+        if self._data_block_builder is not None:
+            meta = self._data_block_builder.finish_data_block()
+            self._reset_data_block_builder()
+            self._update_latest_dump_timestamp()
+            return meta
+        return None
 
     def _reset_data_block_builder(self):
+        builder = None
         with self._lock:
-            if self._data_block_builder is not None:
-                del self._data_block_builder
+            builder = self._data_block_builder
             self._data_block_builder = None
+        if builder is not None:
+            del builder
 
     def _update_latest_dump_timestamp(self):
         with self._lock:

@@ -16,18 +16,39 @@
 
 import logging
 import os
-import ntpath
+from os import path
 
 from google.protobuf import text_format
 from google.protobuf import empty_pb2
-from tensorflow.python.platform import gfile
+from tensorflow.compat.v1 import gfile
 
 from fedlearner.common import data_join_service_pb2 as dj_pb
 from fedlearner.data_join import visitor
-from fedlearner.data_join.common import ExampleIdSuffix, make_tf_record_iter
+from fedlearner.data_join.common import (
+    ExampleIdSuffix, make_tf_record_iter, partition_repr
+)
 from fedlearner.data_join.raw_data_iter_impl import (
     tf_record_iter, raw_data_iter
 )
+
+def encode_example_id_dumped_fname(process_index, start_index):
+    return '{:06}-{:08}{}'.format(process_index, start_index, ExampleIdSuffix)
+
+def decode_index_meta(fpath):
+    fname = path.basename(fpath)
+    index_str = fname[:-len(ExampleIdSuffix)]
+    try:
+        items = index_str.split('-')
+        if len(items) != 2:
+            raise RuntimeError("fname {} format error".format(fname))
+        process_index, start_index = int(items[0]), int(items[1])
+    except Exception as e: # pylint: disable=broad-except
+        logging.fatal("fname %s not satisfied with pattern process_index-"\
+                      "start_index", fname)
+        os._exit(-1) # pylint: disable=protected-access
+    else:
+        return visitor.IndexMeta(process_index, start_index, fpath)
+    return None
 
 class ExampleIdManager(visitor.IndexMetaManager):
     def __init__(self, etcd, data_source, partition_id, visit_only):
@@ -36,13 +57,15 @@ class ExampleIdManager(visitor.IndexMetaManager):
         self._partition_id = partition_id
         self._visit_only = visit_only
         self._make_directory_if_nessary()
-        super(ExampleIdManager, self).__init__(
-                self._example_dumped_dir(), ExampleIdSuffix, visit_only
-            )
+        index_metas = []
+        if visit_only:
+            index_metas = self._preload_example_id_meta()
+        super(ExampleIdManager, self).__init__(index_metas)
         self._anchor = None
         self._sync_dumped_example_id_anchor()
         if self._visit_only:
-            assert self._anchor is not None
+            assert self._anchor is not None, \
+                "the example id anchor must not None after sync anchor"
             if self._anchor.HasField('undumped'):
                 self._index_metas = []
             else:
@@ -58,7 +81,6 @@ class ExampleIdManager(visitor.IndexMetaManager):
     def get_last_dumped_index(self):
         with self._lock:
             anchor = self._sync_dumped_example_id_anchor()
-            assert anchor is not None
             if anchor.HasField('last_meta'):
                 return anchor.last_meta.end_index
             return None
@@ -66,7 +88,6 @@ class ExampleIdManager(visitor.IndexMetaManager):
     def check_index_meta_by_process_index(self, process_index):
         with self._lock:
             self._sync_dumped_example_id_anchor()
-            assert self._anchor is not None
             if self._anchor.HasField('undumped'):
                 return False
             dumped_process_index = self._anchor.last_meta.process_index
@@ -76,8 +97,8 @@ class ExampleIdManager(visitor.IndexMetaManager):
         process_index = index_meta.process_index
         start_index = index_meta.start_index
         fpath = index_meta.fpath
-        dirname = ntpath.dirname(fpath)
-        fname = ntpath.basename(fpath)
+        dirname = path.dirname(fpath)
+        fname = path.basename(fpath)
         if not gfile.Exists(fpath):
             raise ValueError("file {} is not existed".format(fpath))
         if dirname != self._example_dumped_dir():
@@ -86,9 +107,8 @@ class ExampleIdManager(visitor.IndexMetaManager):
         if start_index > end_index:
             raise ValueError("bad index range[{}, {}]".format(
                               start_index, end_index))
-        encode_fname = visitor.encode_index_fname(process_index,
-                                                  start_index,
-                                                  ExampleIdSuffix)
+        encode_fname = encode_example_id_dumped_fname(process_index,
+                                                      start_index)
         if encode_fname != fname:
             raise ValueError("encode_fname mismatch {} != {} "\
                              .format(encode_fname, fname))
@@ -124,14 +144,49 @@ class ExampleIdManager(visitor.IndexMetaManager):
     def get_example_dumped_dir(self):
         return self._example_dumped_dir()
 
+    def _preload_example_id_meta(self):
+        fdir = self._example_dumped_dir()
+        fpaths = [os.path.join(fdir, f)
+                    for f in gfile.ListDirectory(fdir)
+                    if (not gfile.IsDirectory(os.path.join(fdir, f)) and
+                        f.endswith(ExampleIdSuffix))]
+        index_metas = []
+        for fpath in fpaths:
+            index_meta = decode_index_meta(fpath)
+            assert index_meta is not None, "the index meta should not None "\
+                                           "if decode index meta success"
+            index_metas.append(index_meta)
+        index_metas = sorted(index_metas, key=lambda meta: meta.start_index)
+        for index, index_meta in enumerate(index_metas):
+            if index != index_meta.process_index:
+                logging.fatal("%s has error process index. expected %d",
+                              index_meta.fpath, index)
+                os._exit(-1) # pylint: disable=protected-access
+        return index_metas
+
+    def _decode_index_meta(self, fpath):
+        fname = path.basename(fpath)
+        index_str = fname[:-len(ExampleIdSuffix)]
+        try:
+            items = index_str.split('-')
+            if len(items) != 2:
+                raise RuntimeError("fname {} format error".format(fname))
+            process_index, start_index = int(items[0]), int(items[1])
+        except Exception as e: # pylint: disable=broad-except
+            logging.fatal("fname %s not satisfied with pattern process_index-"\
+                          "start_index", fname)
+            os._exit(-1) # pylint: disable=protected-access
+        else:
+            return visitor.IndexMeta(process_index, start_index, fpath)
+        return None
+
     def _new_index_meta(self, process_index, start_index):
         if not self._visit_only:
             raise RuntimeError("_new_index_meta only support visit only")
-        assert self._anchor is not None
+        assert self._anchor is not None, "anchor is always in visit_only mode"
         if self._check_index_dumped(start_index):
-            fname = visitor.encode_index_fname(
-                    process_index, start_index, ExampleIdSuffix
-                )
+            fname = encode_example_id_dumped_fname(process_index,
+                                                   start_index)
             fpath = os.path.join(self._example_dumped_dir(), fname)
             if not gfile.Exists(fpath):
                 logging.fatal("%d has been dumpped however %s not "\
@@ -156,11 +211,11 @@ class ExampleIdManager(visitor.IndexMetaManager):
     def _get_anchor_etcd_key(self):
         return '/'.join([self._data_source.data_source_meta.name,
                         'dumped_example_id_anchor',
-                        'partition_{}'.format(self._partition_id)])
+                        partition_repr(self._partition_id)])
 
     def _example_dumped_dir(self):
         return os.path.join(self._data_source.example_dumped_dir,
-                            'partition_{}'.format(self._partition_id))
+                            partition_repr(self._partition_id))
 
     def _check_index_dumped(self, index):
         return self._anchor is not None and \
@@ -177,21 +232,23 @@ class ExampleIdManager(visitor.IndexMetaManager):
 
 class ExampleIdVisitor(visitor.Visitor):
     class ExampleIdItem(raw_data_iter.RawDataIter.Item):
-        def __init__(self, record):
-            self._record_str = record
-            self._dumped_example_id = dj_pb.SyncedExampleId()
-            self._dumped_example_id.ParseFromString(record)
+        def __init__(self, example_id, event_time, index):
+            self._index = index
+            self._example_id = example_id
+            self._event_time = event_time
+            self._index = index
 
         @property
         def example_id(self):
-            return self._dumped_example_id.example_id
+            return self._example_id
 
         @property
         def event_time(self):
-            return self._dumped_example_id.event_time
+            return self._event_time
 
-        def __getattr__(self, attr):
-            return getattr(self._dumped_example_id, attr)
+        @property
+        def index(self):
+            return self._index
 
     class ExampleIdIter(tf_record_iter.TfRecordIter):
         @classmethod
@@ -201,7 +258,22 @@ class ExampleIdVisitor(visitor.Visitor):
         def _inner_iter(self, fpath):
             with make_tf_record_iter(fpath) as record_iter:
                 for record in record_iter:
-                    yield ExampleIdVisitor.ExampleIdItem(record)
+                    lite_example_ids = dj_pb.LiteExampleIds()
+                    lite_example_ids.ParseFromString(record)
+                    example_id_num = len(lite_example_ids.example_id)
+                    event_time_num = len(lite_example_ids.event_time)
+                    assert example_id_num == event_time_num, \
+                        "the size of example id and event time must the "\
+                        "same. {} != {}".format(example_id_num,
+                                                event_time_num)
+                    index = 0
+                    while index < len(lite_example_ids.example_id):
+                        yield ExampleIdVisitor.ExampleIdItem(
+                                lite_example_ids.example_id[index],
+                                lite_example_ids.event_time[index],
+                                index + lite_example_ids.begin_index
+                            )
+                        index += 1
 
     def __init__(self, etcd, data_source, partition_id):
         super(ExampleIdVisitor, self).__init__(
