@@ -14,9 +14,10 @@
 
 # coding: utf-8
 
-import collections
-import logging
 import os
+import time
+import logging
+import collections
 
 from fedlearner.common import trainer_master_service_pb2 as tm_pb
 from fedlearner.common import trainer_master_service_pb2_grpc as tm_grpc
@@ -83,9 +84,18 @@ class TrainerMasterClient(object):
             assert block_id, "Must set block_id for follower"
             self._request.block_id = block_id
 
-        result = self._stub.RequestDataBlock(self._request)
+        while True:
+            try:
+                result = self._stub.RequestDataBlock(self._request)
+                break
+            except Exception as e:  # pylint: disable=broad-except
+                logging.warning("Get data block failed: %s. " \
+                                    "Retry in 1 second...",
+                                e.code().name)
+                time.sleep(1)
+
         if result.status.code == common_pb.STATUS_SUCCESS:
-            logging.debug("%s:%d gets block %s at %s", self._role,
+            logging.debug("%s:%d failed to get data block %s at %s", self._role,
                           self._task_id, result.data_block_info.block_id,
                           result.data_block_info.data_path)
             return DataBlockInfo(result.data_block_info.block_id,
