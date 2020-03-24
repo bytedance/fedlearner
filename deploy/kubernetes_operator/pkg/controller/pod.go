@@ -104,7 +104,7 @@ func (am *appManager) reconcilePodsWithType(
 func (am *appManager) getPodsForApp(app *v1alpha1.FLApp) ([]*v1.Pod, error) {
 	// Create selector.
 	selector, err := metav1.LabelSelectorAsSelector(&metav1.LabelSelector{
-		MatchLabels: GenLabels(app.GetName()),
+		MatchLabels: GenLabels(app),
 	})
 
 	if err != nil {
@@ -171,14 +171,14 @@ func (am *appManager) createNewPod(
 		return err
 	}
 
-	labels := GenLabels(app.GetName())
+	labels := GenLabels(app)
 	labels[flReplicaTypeLabel] = rt
 	labels[flReplicaIndexLabel] = index
 
 	podTemplate := spec.Template.DeepCopy()
 	// The controller will restart pod according to FLReplicaSpec
 	podTemplate.Spec.RestartPolicy = v1.RestartPolicyNever
-	podTemplate.Name = GenIndexName(app.Name, rt, index) + string(uuid.NewUUID())
+	podTemplate.Name = GenIndexName(app.Name, strings.ToLower(app.Spec.Role), rt, index) + string(uuid.NewUUID())
 	if podTemplate.Labels == nil {
 		podTemplate.Labels = make(map[string]string)
 	}
@@ -193,7 +193,7 @@ func (am *appManager) createNewPod(
 			VolumeSource: v1.VolumeSource{
 				ConfigMap: &v1.ConfigMapVolumeSource{
 					LocalObjectReference: v1.LocalObjectReference{
-						Name: GenName(app.Name, rt),
+						Name: GenReplicaName(app.Name, strings.ToLower(app.Spec.Role), rt),
 					},
 				},
 			},
@@ -214,23 +214,15 @@ func (am *appManager) createNewPod(
 				Name:  replicaIndex,
 				Value: index,
 			})
-			container.Env = ensureEnv(container.Env, v1.EnvVar{
-				Name:  egressURL,
-				Value: app.Spec.Egress.EgressURL,
-			})
-			container.Env = ensureEnv(container.Env, v1.EnvVar{
-				Name:  egressHost,
-				Value: app.Spec.Egress.EgressHost,
-			})
 			if rtype == v1alpha1.FLReplicaTypeMaster {
 				container.Env = ensureEnv(container.Env, v1.EnvVar{
 					Name:  masterService,
-					Value: GenIndexName(app.Name, rt, index),
+					Value: GenIndexName(app.Name, strings.ToLower(app.Spec.Role), rt, index),
 				})
 			} else if rtype == v1alpha1.FLReplicaTypeWorker {
 				container.Env = ensureEnv(container.Env, v1.EnvVar{
 					Name:  workerService,
-					Value: GenIndexName(app.Name, rt, index),
+					Value: GenIndexName(app.Name, strings.ToLower(app.Spec.Role), rt, index),
 				})
 				container.Env = ensureEnv(container.Env, v1.EnvVar{
 					Name:  workerRank,

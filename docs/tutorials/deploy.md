@@ -14,15 +14,22 @@ K8s 集群请见 `K8s 集群创建`，请确保 `kubectl` 可以正常工作。`
 6. 部署 `K8s Controller`， `kubectl apply -f deploy/kubernetes_operator/manifests/controller.yaml`，可以通过以下命令查看 `K8s Controller` 对应的 Pod：
 `kubectl get pods -n leader -l app=flapp-operator`，`kubectl get pods -n follower -l app=flapp-operator`
 
+### 打包镜像
+将 Fedleader kubernetes operator 打包镜像
+```bash
+cd deploy/kubernetes_operator
+
+export IMG=fedlearner_operator:2.1.1
+make docker-build
+make docker-push
+```
+
 ### Quick Start Examples (Optional)
 
-`deploy/kubernetes_operator/manifests` 包含了三个 `FedLearner` 样例，用于验证 `K8s Controller` 正常工作：
-1. Long running example, `kubectl apply -f deploy/kubernetes_operator/manifests/longrun_leader.yaml && kubectl apply -f deploy/kubernetes_operator/manifests/longrun_follower.yaml`
-命令会创建两个 `FLApp` （分别在 Leader 和 Follower namespace），Leader FLApp（以下简称 Leader）会拉起 Pod，并通过 GRPC 请求不断向 Follower FLApp (以下简称 Follower) 请求配对。
-类似的，Follower 完成拉起 Pod 后，会接受 Leader 的配对请求，此后 Pod 会一直处于 `Running` 状态。可以通过 `kubectl get flapp longrun -o json` 观察 `FLAppState` 变化情况。此外，可以通过 `kubectl get pods` 查看 Pod 拉起情况。
-2. Normal exit example，`kubectl apply -f deploy/kubernetes_operator/manifests/normal_leader.yaml && kubectl apply -f deploy/kubernetes_operator/manifests/normal_follower.yaml`
+`deploy/kubernetes_operator/manifests` 包含了两个 `FedLearner` 样例，用于验证 `K8s Controller` 正常工作：
+1. Normal exit example，`kubectl apply -f deploy/kubernetes_operator/manifests/normal_leader.yaml && kubectl apply -f deploy/kubernetes_operator/manifests/normal_follower.yaml`
 命令会创建两个 `FLApp` （分别在 Leader 和 Follower namespace），Leader/Follower 在完成拉起后，休眠 3 分钟后会正常退出，可以通过 `kubectl get flapp normal -o json` 观察 `FLAppState` 最终状态为 `FLStateComplete`。
-3. Abnormal exit example，`kubectl apply -f deploy/kubernetes_operator/manifests/abnormal_leader.yaml && kubectl apply -f deploy/kubernetes_operator/manifests/abnormal_follower.yaml`
+2. Abnormal exit example，`kubectl apply -f deploy/kubernetes_operator/manifests/abnormal_leader.yaml && kubectl apply -f deploy/kubernetes_operator/manifests/abnormal_follower.yaml`
 命令会创建两个异常退出的 `FLApp`，`kubectl get flapp abnormal -o json` 命令可以看到最终 `FLAppState` 最终状态为 `FLStateFailed`。
 
 ### Debug Hint (Optional)

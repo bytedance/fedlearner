@@ -14,7 +14,7 @@
  */
 
 syntax = "proto3";
-package proto;
+package fedlearner;
 
 option go_package = "github.com/bytedance/fedlearner/deploy/kubernetes_operator/proto;proto";
 
@@ -32,7 +32,7 @@ message Status {
 
 message RegisterRequest {
     string app_id = 1;
-    string role = 2; // Leader or Followers
+    string role = 2; // Followers
     repeated Pair pairs = 3;
 }
 

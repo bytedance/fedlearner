@@ -50,7 +50,7 @@ func (ph *PairHandler) Register(ctx context.Context, request *pb.RegisterRequest
 		}
 		replicas[pairCopy.Type] = pairCopy.FollowerIds
 	}
-	return ph.handler.RegisterHandler(name, replicas)
+	return ph.handler.RegisterHandler(name, role, replicas)
 }
 
 func (ph *PairHandler) Pair(ctx context.Context, request *pb.PairRequest) (*pb.Status, error) {

@@ -78,10 +78,10 @@ func (am *appManager) reconcileServicesWithType(
 // getServicesForJob returns the set of services that this job should manage.
 // It also reconciles ControllerRef by adopting/orphaning.
 // Note that the returned services are pointers into the cache.
-func (am *appManager) getServicesForApp(app metav1.Object) ([]*v1.Service, error) {
+func (am *appManager) getServicesForApp(app *v1alpha1.FLApp) ([]*v1.Service, error) {
 	// Create selector
 	selector, err := metav1.LabelSelectorAsSelector(&metav1.LabelSelector{
-		MatchLabels: GenLabels(app.GetName()),
+		MatchLabels: GenLabels(app),
 	})
 
 	if err != nil {
@@ -139,7 +139,7 @@ func (am *appManager) createNewService(app *v1alpha1.FLApp, rtype v1alpha1.FLRep
 	controllerRef := am.GenOwnerReference(app)
 
 	// Append tfReplicaTypeLabel and tfReplicaIndexLabel labels.
-	labels := GenLabels(app.Name)
+	labels := GenLabels(app)
 	labels[flReplicaTypeLabel] = rt
 	labels[flReplicaIndexLabel] = index
 
@@ -161,7 +161,7 @@ func (am *appManager) createNewService(app *v1alpha1.FLApp, rtype v1alpha1.FLRep
 		},
 	}
 
-	service.Name = GenIndexName(app.Name, rt, index)
+	service.Name = GenIndexName(app.Name, strings.ToLower(app.Spec.Role), rt, index)
 	service.Labels = labels
 
 	err = am.serviceControl.CreateServicesWithControllerRef(app.Namespace, service, app, controllerRef)

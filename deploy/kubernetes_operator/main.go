@@ -46,8 +46,6 @@ import (
 var (
 	master                      = flag.String("master", "", "The address of the Kubernetes API server. Overrides any value in kubeconfig. Only required if out-of-cluster.")
 	kubeConfig                  = flag.String("kube-config", "", "Path to a kube config. Only required if out-of-cluster.")
-	peerURL                     = flag.String("peer-url", "localhost:8081", "The URL from/to which send pair request.")
-	grpcDefaultAuthority        = flag.String("grpc-default-authority", "", "The GRPC default authority used to send grpc request.")
 	port                        = flag.String("port", "8080", "The http port controller listening.")
 	workerNum                   = flag.Int("worker-num", 10, "Number of worker threads used by the fedlearner controller.")
 	resyncInterval              = flag.Int("resync-interval", 30, "Informer resync interval in seconds.")
@@ -167,7 +165,7 @@ func main() {
 	kubeInformerFactory := informers.NewSharedInformerFactory(kubeClient, time.Duration(*resyncInterval)*time.Second)
 	crdInformerFactory := crdinformers.NewSharedInformerFactory(crdClient, time.Duration(*resyncInterval)*time.Second)
 
-	appEventHandler := controller.NewAppEventHandler(*peerURL, *grpcDefaultAuthority, *namespace, crdClient)
+	appEventHandler := controller.NewAppEventHandler(*namespace, crdClient)
 	flController := controller.NewFLController(*namespace, recorder, *resyncInterval, kubeClient, crdClient, kubeInformerFactory, crdInformerFactory, appEventHandler, stopCh)
 
 	go func() {

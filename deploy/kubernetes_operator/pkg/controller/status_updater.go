@@ -86,7 +86,7 @@ func (updater *appStatusUpdater) UpdateStatusWithRetry(
 			freshApp.Name,
 			updater.namespace,
 			freshApp.Status.AppState)
-		freshApp, err = updater.crdClient.FedlearnerV1alpha1().FLApps(updater.namespace).UpdateStatus(freshApp)
+		_, err = updater.crdClient.FedlearnerV1alpha1().FLApps(updater.namespace).UpdateStatus(freshApp)
 		if err != nil && errors.IsConflict(err) {
 			refresh = true
 			continue

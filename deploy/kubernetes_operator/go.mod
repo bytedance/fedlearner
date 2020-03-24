@@ -32,5 +32,3 @@ require (
 	k8s.io/kube-openapi v0.0.0-20200130172213-cdac1c71ff9f // indirect
 	k8s.io/utils v0.0.0-20191218082557-f07c713de883 // indirect
 )
-
-replace github.com/coreos/go-systemd => ../../../../../github.com/coreos/go-systemd

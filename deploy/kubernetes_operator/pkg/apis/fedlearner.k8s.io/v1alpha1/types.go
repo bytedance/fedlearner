@@ -78,6 +78,21 @@ type ReplicaSpec struct {
 // FLReplicaSpecs is the mapping from FLReplicaType to ReplicaSpec
 type FLReplicaSpecs map[FLReplicaType]ReplicaSpec
 
+// PeerSpec is a description of a involved controller in the app
+type PeerSpec struct {
+	// PeerURL is the url of the involved controller
+	PeerURL string `json:"peerURL"`
+	// Authority is the GRPC Authority in the request
+	// +optional
+	Authority string `json:"authority,omitempty"`
+	// The extra GRPC header in the request
+	// +optional
+	ExtraHeaders map[string]string `json:"extraHeaders,omitempty"`
+}
+
+// PeerSpecs is the mapping from Role to PeerSpec
+type PeerSpecs map[string]PeerSpec
+
 // FLReplicaStatus is a description of pairing status
 type ReplicaStatus struct {
 	// Local is the set of ID allocated locally
@@ -179,17 +194,8 @@ type FLAppSpec struct {
 	// +kubebuilder:validation:Pattern=(^Leader$)|(^Follower\d*$)
 	Role string `json:"role"`
 
-	// Defines the egress proxy for traffic
-	// +optional
-	Egress EgressSpec `json:"egress"`
-}
-
-type EgressSpec struct {
-	// Defines the url to which traffic goes
-	EgressURL string `json:"egressURL"`
-
-	// Defines the Host header of the requests send to egress
-	EgressHost string `json:"egressHost"`
+	// Defines all the controllers involved in the app
+	PeerSpecs PeerSpecs `json:"peerSpecs"`
 }
 
 // FLAppStatus is the status for a FLApp resource

@@ -11,22 +11,30 @@ import (
 
 const (
 	AppNameLabel = "app-name"
-	RoleLeader   = "Leader"
+	RoleLabel    = "role"
+
+	RoleLeader = "Leader"
 )
 
-func GenIndexName(appName, rt, index string) string {
-	n := appName + "-" + rt + "-" + index
+func GenIndexName(appName, r, rt, index string) string {
+	n := appName + "-" + r + "-" + rt + "-" + index
 	return strings.Replace(n, "/", "-", -1)
 }
 
-func GenName(appName, rt string) string {
-	n := appName + "-" + rt
+func GenReplicaName(appName, r, rt string) string {
+	n := appName + "-" + r + "-" + rt
 	return strings.Replace(n, "/", "-", -1)
 }
 
-func GenLabels(appName string) map[string]string {
+func GenName(appName, r string) string {
+	n := appName + "-" + r
+	return strings.Replace(n, "/", "-", -1)
+}
+
+func GenLabels(app *v1alpha1.FLApp) map[string]string {
 	return map[string]string{
-		AppNameLabel: strings.Replace(appName, "/", "-", -1),
+		AppNameLabel: strings.Replace(app.Name, "/", "-", -1),
+		RoleLabel:    strings.ToLower(app.Spec.Role),
 	}
 }
 

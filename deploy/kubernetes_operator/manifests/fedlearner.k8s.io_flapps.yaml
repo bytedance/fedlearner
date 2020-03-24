@@ -52,19 +52,6 @@ spec:
               description: Defines the policy for cleaning up pods after the FLApp
                 completes. Defaults to All.
               type: string
-            egress:
-              description: Defines the egress proxy for traffic
-              properties:
-                egressHost:
-                  description: Defines the Host header of the requests send to egress
-                  type: string
-                egressURL:
-                  description: Defines the url to which traffic goes
-                  type: string
-              required:
-              - egressHost
-              - egressURL
-              type: object
             flReplicaSpecs:
               additionalProperties:
                 description: ReplicaSpec is a description of the replica
@@ -6279,6 +6266,27 @@ spec:
                 type: object
               description: Defines replica spec for replica type
               type: object
+            peerSpecs:
+              additionalProperties:
+                description: PeerSpec is a description of a involved controller in
+                  the app
+                properties:
+                  authority:
+                    description: Authority is the GRPC Authority in the request
+                    type: string
+                  extraHeaders:
+                    additionalProperties:
+                      type: string
+                    description: The extra GRPC header in the request
+                    type: object
+                  peerURL:
+                    description: PeerURL is the url of the involved controller
+                    type: string
+                required:
+                - peerURL
+                type: object
+              description: Defines all the controllers involved in the app
+              type: object
             role:
               description: Defines the role of FLApp
               pattern: (^Leader$)|(^Follower\d*$)
@@ -6293,6 +6301,7 @@ spec:
               type: integer
           required:
           - flReplicaSpecs
+          - peerSpecs
           - role
           type: object
         status:

@@ -97,3 +97,6 @@ spec:
               command: ["bash"]
               args: ["-c", "sleep 1m && exit 1"]
   role: Leader
+  peerSpecs:
+    Follower:
+      peerURL: flapp-operator.follower.svc.cluster.local:8100

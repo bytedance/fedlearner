@@ -18,6 +18,7 @@ package controller
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -42,7 +43,7 @@ type AppEventHandler interface {
 	// Called when leader/follower is finished
 	Finish(*v1alpha1.FLApp) error
 	// Received when peer send sync request
-	RegisterHandler(name string, followerReplicas map[string][]string) (*pb.Status, error)
+	RegisterHandler(name string, role string, followerReplicas map[string][]string) (*pb.Status, error)
 	// Received when peer send sync callback request
 	PairHandler(name string, leaderReplicas map[string][]string, followerReplicas map[string][]string) (*pb.Status, error)
 	// Received when peer send shutdown request
@@ -52,30 +53,16 @@ type AppEventHandler interface {
 }
 
 type appEventHandler struct {
-	peerURL   string
 	namespace string
 	crdClient crdclientset.Interface
-
-	grpcClient pb.PairingServiceClient
 }
 
 var _ AppEventHandler = &appEventHandler{}
 
-func NewAppEventHandler(peerURL, grpcDefaultAuthority, namespace string, crdClient crdclientset.Interface) AppEventHandler {
-	opts := []grpc.DialOption{grpc.WithInsecure()}
-	if grpcDefaultAuthority != "" {
-		opts = append(opts, grpc.WithAuthority(grpcDefaultAuthority))
-	}
-	connection, err := grpc.Dial(peerURL, opts...)
-	if err != nil {
-		klog.Fatalf("failed to create connection, err = %v", err)
-	}
-	client := pb.NewPairingServiceClient(connection)
+func NewAppEventHandler(namespace string, crdClient crdclientset.Interface) AppEventHandler {
 	return &appEventHandler{
-		peerURL:    peerURL,
-		namespace:  namespace,
-		crdClient:  crdClient,
-		grpcClient: client,
+		namespace: namespace,
+		crdClient: crdClient,
 	}
 }
 
@@ -83,6 +70,14 @@ func (handler *appEventHandler) Register(app *v1alpha1.FLApp) error {
 	name := app.Name
 	if IsLeader(app.Spec.Role) {
 		return fmt.Errorf("only followers should register, name = %v", name)
+	}
+	leaderSpec, ok := app.Spec.PeerSpecs[RoleLeader]
+	if !ok {
+		return fmt.Errorf("leader spec is not specified, name = %v", name)
+	}
+	client, err := newClient(leaderSpec.PeerURL, leaderSpec.Authority)
+	if err != nil {
+		return fmt.Errorf("failed to build client, name = %v", name)
 	}
 
 	var pairs []*pb.Pair
@@ -101,7 +96,8 @@ func (handler *appEventHandler) Register(app *v1alpha1.FLApp) error {
 		Role:  app.Spec.Role,
 		Pairs: pairs,
 	}
-	response, err := handler.grpcClient.Register(newContextXHost(), request)
+
+	response, err := client.Register(newContextWithHeaders(leaderSpec.ExtraHeaders), request)
 	if err != nil || response.Code != int32(codes.OK) {
 		return fmt.Errorf("Register failed, name = %v, err = %v", name, err)
 	}
@@ -111,36 +107,27 @@ func (handler *appEventHandler) Register(app *v1alpha1.FLApp) error {
 
 func (handler *appEventHandler) Pair(app *v1alpha1.FLApp) error {
 	name := app.Name
-	var pairs []*pb.Pair
 	if !IsLeader(app.Spec.Role) {
 		return fmt.Errorf("only leader should pair with followers, name = %v", name)
 	}
 
-	for rtype := range app.Spec.FLReplicaSpecs {
-		if needPair(app, rtype) {
-			mapping := app.Status.FLReplicaStatus[rtype].Mapping
-			pair := &pb.Pair{
-				Type:        string(rtype),
-				LeaderIds:   nil,
-				FollowerIds: nil,
-			}
-			for leaderId, followerId := range mapping {
-				pair.LeaderIds = append(pair.LeaderIds, leaderId)
-				pair.FollowerIds = append(pair.FollowerIds, followerId)
-			}
-			pairs = append(pairs, pair)
+	for role, peerSpec := range app.Spec.PeerSpecs {
+		klog.Infof("start to pair for app %v, role = %v", app.Name, app.Spec.Role)
+		client, err := newClient(peerSpec.PeerURL, peerSpec.Authority)
+		if err != nil {
+			return fmt.Errorf("failed to build client, name = %v, role = %v", name, role)
 		}
-	}
 
-	request := &pb.PairRequest{
-		AppId: name,
-		Pairs: pairs,
+		request := &pb.PairRequest{
+			AppId: name,
+			Pairs: makePairs(app, role),
+		}
+		response, err := client.Pair(newContextWithHeaders(peerSpec.ExtraHeaders), request)
+		if err != nil || response.Code != int32(codes.OK) {
+			return fmt.Errorf("Pair failed name = %v, err = %v", name, err)
+		}
+		klog.Infof("Pair success name = %v, message = %v", name, response.ErrorMessage)
 	}
-	response, err := handler.grpcClient.Pair(newContextXHost(), request)
-	if err != nil || response.Code != int32(codes.OK) {
-		return fmt.Errorf("Pair failed name = %v, err = %v", name, err)
-	}
-	klog.Infof("Pair success name = %v, message = %v", name, response.ErrorMessage)
 	return nil
 }
 
@@ -150,11 +137,17 @@ func (handler *appEventHandler) Shutdown(app *v1alpha1.FLApp) error {
 		AppId: name,
 		Role:  app.Spec.Role,
 	}
-	response, err := handler.grpcClient.ShutDown(newContextXHost(), request)
-	if err != nil || response.Code != int32(codes.OK) {
-		return fmt.Errorf("Shutdown failed name = %v, err = %v", name, err)
+	for role, peerSpec := range app.Spec.PeerSpecs {
+		client, err := newClient(peerSpec.PeerURL, peerSpec.Authority)
+		if err != nil {
+			return fmt.Errorf("failed to build client, name = %v, role = %v", name, role)
+		}
+		response, err := client.ShutDown(newContextWithHeaders(peerSpec.ExtraHeaders), request)
+		if err != nil || response.Code != int32(codes.OK) {
+			return fmt.Errorf("Shutdown failed name = %v, role = %v, err = %v", name, role, err)
+		}
+		klog.Infof("Shutdown success name = %v, role = %v, message = %v", name, role, response.ErrorMessage)
 	}
-	klog.Infof("Shutdown success name = %v, message = %v", name, response.ErrorMessage)
 	return nil
 }
 
@@ -164,25 +157,31 @@ func (handler *appEventHandler) Finish(app *v1alpha1.FLApp) error {
 		AppId: name,
 		Role:  app.Spec.Role,
 	}
-	response, err := handler.grpcClient.Finish(newContextXHost(), request)
-	if err != nil || response.Code != int32(codes.OK) {
-		return fmt.Errorf("Finish failed name = %v, err = %v", name, err)
+	for role, peerSpec := range app.Spec.PeerSpecs {
+		client, err := newClient(peerSpec.PeerURL, peerSpec.Authority)
+		if err != nil {
+			return fmt.Errorf("failed to build client, name = %v, role = %v", name, role)
+		}
+		response, err := client.Finish(newContextWithHeaders(peerSpec.ExtraHeaders), request)
+		if err != nil || response.Code != int32(codes.OK) {
+			return fmt.Errorf("Finish failed name = %v, role = %v, err = %v", name, role, err)
+		}
+		klog.Infof("Finish success name = %v, role = %v, message = %v", name, role, response.ErrorMessage)
 	}
-	klog.Infof("Finish success name = %v, message = %v", name, response.ErrorMessage)
 	return nil
 }
 
-func (handler *appEventHandler) RegisterHandler(name string, followerReplicas map[string][]string) (*pb.Status, error) {
+func (handler *appEventHandler) RegisterHandler(name string, role string, followerReplicas map[string][]string) (*pb.Status, error) {
 	app, err := handler.crdClient.FedlearnerV1alpha1().FLApps(handler.namespace).Get(name, metav1.GetOptions{})
 	if err != nil {
-		klog.Errorf("RegisterHandler name = %v, err = %v", name, err)
+		klog.Errorf("RegisterHandler name = %v, role = %v, err = %v", name, role, err)
 		return &pb.Status{
 			Code:         int32(codes.Internal),
 			ErrorMessage: err.Error(),
 		}, status.Error(codes.Internal, err.Error())
 	}
 	if app.Status.AppState != v1alpha1.FLStateBootstrapped {
-		err := fmt.Errorf("RegisterHandler leader is not bootstrapped, name = %v, state = %v", name, app.Status.AppState)
+		err := fmt.Errorf("RegisterHandler leader is not bootstrapped, name = %v, role = %v, state = %v", name, role, app.Status.AppState)
 		klog.Error(err)
 		return &pb.Status{
 			Code:         int32(codes.Internal),
@@ -196,10 +195,12 @@ func (handler *appEventHandler) RegisterHandler(name string, followerReplicas ma
 			if followerIds, ok := followerReplicas[string(rtype)]; ok {
 				status := appCopy.Status.FLReplicaStatus[rtype]
 				replicaStatus := status.DeepCopy()
-				replicaStatus.Remote = sets.NewString(followerIds...)
+				for _, followerId := range followerIds {
+					replicaStatus.Remote.Insert(followerId)
+				}
 				appCopy.Status.FLReplicaStatus[rtype] = *replicaStatus
 			} else {
-				err := fmt.Errorf("RegisterHandler %v follower not found, name = %v, err = %v", rtype, name, err)
+				err := fmt.Errorf("RegisterHandler %v follower not found, name = %v, role = %v, err = %v", rtype, name, role, err)
 				klog.Error(err)
 				return &pb.Status{
 					Code:         int32(codes.Internal),
@@ -210,7 +211,7 @@ func (handler *appEventHandler) RegisterHandler(name string, followerReplicas ma
 	}
 	_, err = handler.crdClient.FedlearnerV1alpha1().FLApps(handler.namespace).UpdateStatus(appCopy)
 	if err != nil {
-		err = fmt.Errorf("RegisterHandler name = %v, err = %v", name, err)
+		err = fmt.Errorf("RegisterHandler name = %v, role = %v, err = %v", name, role, err)
 		klog.Error(err)
 		return &pb.Status{
 			Code:         int32(codes.Internal),
@@ -316,11 +317,41 @@ func (handler *appEventHandler) FinishHandler(name string) (*pb.Status, error) {
 	}, nil
 }
 
-func newContextXHost() context.Context {
-	return newContextWithHeader("x-host", "flapp.operator")
+func newClient(peerURL, authority string) (pb.PairingServiceClient, error) {
+	opts := []grpc.DialOption{grpc.WithInsecure()}
+	if authority != "" {
+		opts = append(opts, grpc.WithAuthority(authority))
+	}
+	connection, err := grpc.Dial(peerURL, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return pb.NewPairingServiceClient(connection), nil
 }
 
-func newContextWithHeader(key, value string) context.Context {
-	header := metadata.New(map[string]string{key: value})
-	return metadata.NewOutgoingContext(context.Background(), header)
+func newContextWithHeaders(headers map[string]string) context.Context {
+	return metadata.NewOutgoingContext(context.Background(), metadata.New(headers))
+}
+
+func makePairs(app *v1alpha1.FLApp, role string) []*pb.Pair {
+	prefix := app.Name + "-" + strings.ToLower(role) + "-"
+	var pairs []*pb.Pair
+	for rtype := range app.Spec.FLReplicaSpecs {
+		if needPair(app, rtype) {
+			mapping := app.Status.FLReplicaStatus[rtype].Mapping
+			pair := &pb.Pair{
+				Type:        string(rtype),
+				LeaderIds:   nil,
+				FollowerIds: nil,
+			}
+			for leaderId, followerId := range mapping {
+				if strings.HasPrefix(followerId, prefix) {
+					pair.LeaderIds = append(pair.LeaderIds, leaderId)
+					pair.FollowerIds = append(pair.FollowerIds, followerId)
+				}
+			}
+			pairs = append(pairs, pair)
+		}
+	}
+	return pairs
 }
