@@ -1,42 +1,132 @@
-# 部署
+# Deploying Fedlearner on a Kubernetes Cluster
 
-## Scheduler 部署
+Fedlearner is not just a model trainer.
+It also comes with surrounding infrastructures for cluster management,
+job management, job monitoring, and network proxies.
+This tutorial walks through the steps to deploy Fedlearner's job scheduler on
+a Kubernetes cluster and submit model training jobs.
 
-## K8s Controller 部署
+You will have two options: use a real K8s cluster or use local mock K8s cluster
+with minikube. The later is recommended for local testing.
 
-`K8s Controller` 负责将 `Scheduler` 提交的任务部署到 K8s 上，并与 `FedLearner` 对端进行配对。
-K8s 集群请见 `K8s 集群创建`，请确保 `kubectl` 可以正常工作。`K8s Controller` 部署包含以下步骤：
-1. 创建 `namespace`，`kubectl create ns leader && kubectl create ns follower`
-2. 创建 `K8s Controller` 所需的 `ServiceAccont`， `kubectl create deploy/kubernetes_operator/manifests/service_account.yaml`
-3. 创建 `ClusterRole`，`kubectl apply -f deploy/kubernetes_operator/manifests/cluster_role.yaml`
-4. 创建 `ClusterRoleBinding`，`kubectl apply -f deploy/kubernetes_operator/manifests/cluster_role_binding.yaml`
-5. 创建 CRD， `kubectl apply -f deploy/kubernetes_operator/manifests/fedlearner.k8s.io_flapps.yaml`
-6. 部署 `K8s Controller`， `kubectl apply -f deploy/kubernetes_operator/manifests/controller.yaml`，可以通过以下命令查看 `K8s Controller` 对应的 Pod：
-`kubectl get pods -n leader -l app=flapp-operator`，`kubectl get pods -n follower -l app=flapp-operator`
+## Setup a K8s Cluster
 
-### 打包镜像
-将 Fedleader kubernetes operator 打包镜像
-```bash
-cd deploy/kubernetes_operator
+To setup a local K8s cluster for testing, you fist need to install minikube.
+See [this](https://kubernetes.io/docs/tasks/tools/install-minikube/)
+page for instructions on minikube installation.
+Minikube requires a VM driver.
+We recommend hyperkit or docker as vm-driver for minikube.
 
-export IMG=fedlearner_operator:2.1.1
-make docker-build
-make docker-push
+After installation, run the following command to start minikube with
+32 cores and 8GB of memory.
+```
+# replace DRIVER with hyperkit, docker, or other VMs you installed.
+minikube start --cpus=32 --memory=8Gi --vm-driver=DRIVER
 ```
 
-### Quick Start Examples (Optional)
+---
+**NOTE**
 
-`deploy/kubernetes_operator/manifests` 包含了两个 `FedLearner` 样例，用于验证 `K8s Controller` 正常工作：
-1. Normal exit example，`kubectl apply -f deploy/kubernetes_operator/manifests/normal_leader.yaml && kubectl apply -f deploy/kubernetes_operator/manifests/normal_follower.yaml`
-命令会创建两个 `FLApp` （分别在 Leader 和 Follower namespace），Leader/Follower 在完成拉起后，休眠 3 分钟后会正常退出，可以通过 `kubectl get flapp normal -o json` 观察 `FLAppState` 最终状态为 `FLStateComplete`。
-2. Abnormal exit example，`kubectl apply -f deploy/kubernetes_operator/manifests/abnormal_leader.yaml && kubectl apply -f deploy/kubernetes_operator/manifests/abnormal_follower.yaml`
-命令会创建两个异常退出的 `FLApp`，`kubectl get flapp abnormal -o json` 命令可以看到最终 `FLAppState` 最终状态为 `FLStateFailed`。
+Minikube will download images upon start.
+For Chinese users, the default image repository could be very slow.
+You can set the `--image-repository` option for faster mirrors.
+See `minikube start --help` for more information.
 
-### Debug Hint (Optional)
+---
 
-常见的 Debug 过程包括：
-1. `kubectl logs` 观察 `K8s Controller` 报错日志。
-2. 使用 `nicolaka/netshoot` 和 [`grpcurl`](https://github.com/fullstorydev/grpcurl) 测试网络问题。`deploy/kubernetes_operator/manifests` 中包含了用了 debug 的 netshoot.yaml，
-可以通过 `kubectl apply -f deploy/kubernetes_operator/manifests/netshoot.yaml` 来启动一个 Pod，并通过 `kubectl exec` 命令进入到命令行中以测试网络的连通性。
+Alternatively, please refer to the official
+[documents](https://kubernetes.io/docs/setup/) for
+information on setting up production K8s clusters.
 
-## Proxy 部署
+## Deploy Fedlearner CRD on K8s
+
+With an running K8s cluster, we can then deploy Fedlearner's CRD on
+it.
+CRDs are K8s addons that manage resources and jobs.
+
+### Build Docker Image
+First, we build a docker image for the CRD. In Fedlearner's root directory, run:
+```
+cd deploy
+docker build -t fedlearner_operator:v1.0.0 .
+```
+
+For production K8s clusters, you need to push this image to appropriate
+docker hub so that it can be pulled by pods later.
+
+For minikube envirment, you need to set the docker client to point to
+minikube's docker daemon _BEFORE_ you build the docker image:
+```
+eval $(minikube -p minikube docker-env)
+```
+Note that this is only effective for the current terminal session.
+
+---
+**NOTE**
+
+docker needs to download base images from hub for build.
+For Chinese users, the default docker hub could be very slow.
+You can point docker to a different hub for faster download.
+
+To do this, first ssh into minikube's shell:
+```
+minikube ssh
+```
+
+Then add your mirror's address to docker's config file:
+```
+sudo mkdir -p /etc/docker
+sudo tee /etc/docker/daemon.json <<-'EOF'
+{
+  "registry-mirrors": ["URL"]
+}
+EOF
+sudo systemctl daemon-reload
+sudo systemctl restart docker
+```
+
+You need to replace `URL` with the address to your mirror.
+Aliyun's mirror is a good choice.
+Please refer to [this](https://cr.console.aliyun.com/undefined/instances/mirrors)
+page to get an address.
+You may need to register an account first.
+
+---
+
+### Deploy CRD
+
+With the CRD image in-place, we can now deploy it on to K8s:
+```
+kubectl create ns leader
+kubectl create ns follower
+kubectl create -f deploy/kubernetes_operator/manifests/service_account.yaml
+kubectl apply -f deploy/kubernetes_operator/manifests/cluster_role.yaml
+kubectl apply -f deploy/kubernetes_operator/manifests/cluster_role_binding.yaml
+kubectl apply -f deploy/kubernetes_operator/manifests/fedlearner.k8s.io_flapps.yaml
+kubectl apply -f deploy/kubernetes_operator/manifests/controller.yaml
+```
+
+Here, `leader` and `follower` are namespaces for the respective role.
+In production setting, they should run on two different K8s clusters
+in two data centers.
+Here we run both on the same cluster for local testing.
+
+Then, run the following commands to check if CRD was deployed successfully:
+```
+kubectl get pods -n leader -l app=flapp-operator
+kubectl get pods -n follower -l app=flapp-operator
+```
+
+Optionally, you can run a test job to further verify your deployment.
+Use the following commands to start a job that sleeps for 3 minutes and exits:
+```
+kubectl apply -f deploy/kubernetes_operator/manifests/normal_leader.yaml
+kubectl apply -f deploy/kubernetes_operator/manifests/normal_follower.yaml
+```
+
+After a while, check that the job status is `FLStateComplete`:
+```
+kubectl get flapp normal -o json
+```
+
+## Deploy Fedlearner's Scheduler
