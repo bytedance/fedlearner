@@ -13,56 +13,119 @@
 # limitations under the License.
 
 # coding: utf-8
-"""Metrics logger"""
 
-import time
-import os
-import logging
-from influxdb import InfluxDBClient
+try:
+    import thread
+    import threading
+except ImportError:
+    thread = None
+
+if thread:
+    _lock = threading.RLock()
+else:
+    _lock = None
 
 _metrics_client = None
 
 
-class MetricsClient(object):
-    def __init__(self, host, port, user, passwd, db):
-        self._client = InfluxDBClient(host, port, user, passwd, db)
+def _acquireLock():
+    """
+    Acquire the module-level lock for serializing access to shared data.
 
-    def emit(self, metrics_name, tagkv, fields):
-        emit_body = []
-        emit_item = {
-            "measurement": metrics_name,
-            "tags": tagkv,
-            "time": int(round(time.time() * 1000)),
-            "fields": fields
-        }
-
-        emit_body.append(emit_item)
-        logging.debug('Metrics Client emit emit body %s', str(emit_body))
-        return self._client.write_points(emit_body)
+    This should be released with _releaseLock().
+    """
+    if _lock:
+        _lock.acquire()
 
 
-def config(host=None, port=None, user=None, passwd=None, db=None):
-    global _metrics_client  # pylint: disable=global-statement
-    if not host:
-        host = os.environ.get('INFLUXDB_HOST')
-    if not port:
-        port = os.environ.get('INFLUXDB_PORT')
-    if not user:
-        user = os.environ.get('INFLUXDB_USER')
-    if not passwd:
-        passwd = os.environ.get('INFLUXDB_PASSWD')
-    if not db:
-        db = os.environ.get('INFLUXDB_DB')
-
-    _metrics_client = MetricsClient(host=host,
-                                    port=port,
-                                    user=user,
-                                    passwd=passwd,
-                                    db=db)
+def _releaseLock():
+    """
+    Release the module-level lock acquired by calling _acquireLock().
+    """
+    if _lock:
+        _lock.release()
 
 
-def emit(metrics_name, tagkv, fields):
+class Handler(object):
+    def __init__(self, name):
+        self._name = name
+
+    def emit(self, name, value, tags=None, metrics_type=None):
+        """
+        Do whatever it takes to actually log the specified logging record.
+
+        This version is intended to be implemented by subclasses and so
+        raises a NotImplementedError.
+        """
+        raise NotImplementedError('emit must be implemented '
+                                  'by Handler subclasses')
+
+
+class Metrics(object):
+    def __init__(self):
+        self.handlers = []
+
+    def addHandler(self, hdlr):
+        """
+        Add the specified handler to this logger.
+        """
+        _acquireLock()
+        try:
+            if not (hdlr in self.handlers): # pylint: disable=superfluous-parens
+                self.handlers.append(hdlr)
+        finally:
+            _releaseLock()
+
+    def removeHandler(self, hdlr):
+        """
+        Remove the specified handler from this logger.
+        """
+        _acquireLock()
+        try:
+            if hdlr in self.handlers:
+                self.handlers.remove(hdlr)
+        finally:
+            _releaseLock()
+
+    def emit(self, name, value, tags=None, metrics_type=None):
+        if not self.handlers or len(self.handlers) == 0:
+            print('no handlers. do nothing.')
+            return
+
+        for hdlr in self.handlers:
+            try:
+                hdlr.emit(name, value, tags, metrics_type)
+            except Exception as e: # pylint: disable=broad-except
+                print('hdlr [%s] emit failed. [%s]' %
+                      (hdlr.get_name(), repr(e)))
+
+def metrics_config(handler):
+    _acquireLock()
+    global _metrics_client # pylint: disable=global-statement
+    try:
+        if not _metrics_client:
+            _metrics_client = Metrics()
+        _metrics_client.addHandler(handler)
+    finally:
+        _releaseLock()
+
+
+def emit_counter(name, value, tags=None):
     if not _metrics_client:
-        config()
+        # must configure metrics client in program main function.
+        return
+    _metrics_client.emit(name, value, tags, 'counter')
 
-    return _metrics_client.emit(metrics_name, tagkv, fields)
+
+def emit_store(name, value, tags=None):
+    if not _metrics_client:
+        # must configure metrics client in program main function.
+        return
+    _metrics_client.emit(name, value, tags, 'store')
+
+
+def emit_timer(name, value, tags=None):
+    if not _metrics_client:
+        # must configure metrics client in program main function.
+        return
+    _metrics_client.emit(name, value, tags, 'timer')
