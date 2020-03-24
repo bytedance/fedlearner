@@ -17,96 +17,126 @@
 import logging
 import os
 
-import tensorflow as tf
 from google.protobuf import text_format
-from tensorflow.python.platform import gfile
 
 from fedlearner.common import data_join_service_pb2 as dj_pb
 
-from fedlearner.data_join import visitor
+from fedlearner.data_join import visitor, common
 from fedlearner.data_join.raw_data_iter_impl import create_raw_data_iter
-from fedlearner.data_join.common import (
-    RawDataIndexSuffix, RawDataUnIndexSuffix
-)
 
 class RawDataManager(visitor.IndexMetaManager):
     def __init__(self, etcd, data_source, partition_id):
         self._etcd = etcd
         self._data_source = data_source
         self._partition_id = partition_id
-        self._make_directory_if_nessary()
+        self._manifest = self._sync_raw_data_manifest()
+        all_metas, index_metas = self._preload_raw_data_meta()
         super(RawDataManager, self).__init__(
-                self._raw_data_dir(), RawDataIndexSuffix, True
+                index_metas[:self._manifest.next_process_index]
             )
-        self._raw_data_manifest = None
-        self._sync_raw_data_manifest()
-        next_process_index = self._raw_data_manifest.next_process_index
-        assert len(self._index_metas) <= next_process_index
-        self._index_metas = self._index_metas[0: next_process_index]
+        self._all_metas = all_metas
 
     def check_index_meta_by_process_index(self, process_index):
         with self._lock:
             if process_index < 0:
                 raise IndexError("{} is out of range".format(process_index))
-            if self._raw_data_manifest.next_process_index > process_index:
-                return True
-            self._sync_raw_data_manifest()
-            return self._raw_data_manifest.next_process_index > process_index
-
-    def _get_manifest_etcd_key(self):
-        return '/'.join([self._data_source.data_source_meta.name,
-                        'raw_data_dir',
-                        'partition_{}'.format(self._partition_id)])
+            self._manifest = self._sync_raw_data_manifest()
+            return self._manifest.next_process_index > process_index
 
     def _new_index_meta(self, process_index, start_index):
-        assert self._raw_data_manifest is not None
-        if process_index < self._raw_data_manifest.next_process_index:
-            unindex_fname = visitor.encode_unindex_fname(
-                    process_index, RawDataUnIndexSuffix
+        if self._manifest.next_process_index <= process_index:
+            return None
+        raw_data_meta = None
+        if process_index < len(self._all_metas):
+            assert process_index == self._all_metas[process_index][0], \
+                "process index should equal {} != {}".format(
+                    process_index, self._all_metas[process_index][0]
                 )
-            index_fname = visitor.encode_index_fname(
-                    process_index, start_index, RawDataIndexSuffix
-                )
-            unindex_fpath = os.path.join(self._raw_data_dir(), unindex_fname)
-            index_fpath = os.path.join(self._raw_data_dir(), index_fname)
-            if not gfile.Exists(index_fpath):
-                try:
-                    if gfile.Exists(unindex_fpath):
-                        gfile.Rename(unindex_fpath, index_fpath)
-                except tf.errors.OpError as e:
-                    logging.warning('exception with %s during index %d, %d',
-                                    e, process_index, start_index)
-            if not gfile.Exists(index_fpath):
-                logging.fatal("Logic Error! %s not exist in %s",
-                              index_fname, self._raw_data_dir())
+            raw_data_meta = self._all_metas[process_index][1]
+        else:
+            assert process_index == len(self._all_metas), \
+                "the process index should be the next all metas "\
+                "{}(process_index) != {}(size of all_metas)".format(
+                        process_index, len(self._all_metas)
+                    )
+            raw_data_meta = self._sync_raw_data_meta(process_index)
+            if raw_data_meta is None:
+                logging.fatal("the raw data of partition %d index with "\
+                              "%d must in etcd",
+                              self._partition_id, process_index)
                 os._exit(-1) # pylint: disable=protected-access
-            return visitor.IndexMeta(process_index, start_index, index_fpath)
+            self._all_metas.append((process_index, raw_data_meta))
+        if raw_data_meta.start_index == -1:
+            new_meta = dj_pb.RawDataMeta(
+                    file_path=raw_data_meta.file_path,
+                    start_index=start_index
+                )
+            odata = text_format.MessageToString(raw_data_meta)
+            ndata = text_format.MessageToString(new_meta)
+            etcd_key = common.raw_data_meta_etcd_key(
+                    self._data_source.data_source_meta.name,
+                    self._partition_id, process_index
+                )
+
+            if not self._etcd.cas(etcd_key, odata, ndata):
+                raw_data_meta = self._sync_raw_data_meta(process_index)
+                assert raw_data_meta is not None, \
+                    "the raw data meta of process index {} "\
+                    "must not None".format(process_index)
+                if raw_data_meta.start_index != start_index:
+                    logging.fatal("raw data of partition %d index with "\
+                                  "%d must start with %d",
+                                  self._partition_id, process_index,
+                                  start_index)
+                    os._exit(-1) # pylint: disable=protected-access
+        return visitor.IndexMeta(process_index, start_index,
+                                 raw_data_meta.file_path)
+
+    def _sync_raw_data_meta(self, process_index):
+        etcd_key = common.raw_data_meta_etcd_key(
+                self._data_source.data_source_meta.name,
+                self._partition_id, process_index
+            )
+        data = self._etcd.get_data(etcd_key)
+        if data is not None:
+            return text_format.Parse(data, dj_pb.RawDataMeta())
         return None
 
-    def _raw_data_dir(self):
-        return os.path.join(self._data_source.raw_data_dir,
-                            'partition_{}'.format(self._partition_id))
-
     def _sync_raw_data_manifest(self):
-        etcd_key = self._get_manifest_etcd_key()
+        etcd_key = common.partition_manifest_etcd_key(
+                self._data_source.data_source_meta.name,
+                self._partition_id
+            )
         data = self._etcd.get_data(etcd_key)
-        if data is None:
-            self._raw_data_manifest = dj_pb.RawDataManifest(
-                    partition_id=self._partition_id
-                )
-        else:
-            self._raw_data_manifest = text_format.Parse(
-                    data, dj_pb.RawDataManifest()
-                )
-        return self._raw_data_manifest
+        assert data is not None, "manifest must be existed"
+        return text_format.Parse(data, dj_pb.RawDataManifest())
 
-    def _make_directory_if_nessary(self):
-        raw_data_dir = self._raw_data_dir()
-        if not gfile.Exists(raw_data_dir):
-            gfile.MakeDirs(raw_data_dir)
-        if not gfile.IsDirectory(raw_data_dir):
-            logging.fatal("%s should be directory", raw_data_dir)
-            os._exit(-1) # pylint: disable=protected-access
+    def _preload_raw_data_meta(self):
+        manifest_etcd_key = common.partition_manifest_etcd_key(
+                self._data_source.data_source_meta.name,
+                self._partition_id
+            )
+        all_metas = []
+        index_metas = []
+        for key, val in self._etcd.get_prefix_kvs(manifest_etcd_key, True):
+            bkey = os.path.basename(key)
+            if not bkey.decode().startswith(common.RawDataMetaPrefix):
+                continue
+            index = int(bkey[len(common.RawDataMetaPrefix):])
+            meta = text_format.Parse(val, dj_pb.RawDataMeta())
+            all_metas.append((index, meta))
+            if meta.start_index != -1:
+                index_meta = visitor.IndexMeta(index, meta.start_index,
+                                               meta.file_path)
+                index_metas.append(index_meta)
+        all_metas = sorted(all_metas, key=lambda meta: meta[0])
+        for process_index, meta in enumerate(all_metas):
+            if process_index != meta[0]:
+                logging.fatal("process_index mismatch with index %d != %d "\
+                              "for file path %s", process_index, meta[0],
+                              meta[1].file_path)
+                os._exit(-1) # pylint: disable=protected-access
+        return all_metas, index_metas
 
 class RawDataVisitor(visitor.Visitor):
     def __init__(self, etcd, data_source, partition_id, raw_data_options):

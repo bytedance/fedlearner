@@ -56,7 +56,8 @@ class ExampleJoinFollower(object):
             return self._impl_ctx.get_next_data_block_index()
 
     def add_synced_item(self, req):
-        assert req.HasField('data_block_meta')
+        assert req.HasField('data_block_meta'), \
+            "the request must has data_block_meta for ExampleJoinFollower"
         with self._lock:
             self._check_status(req.data_block_meta.partition_id)
             return self._impl_ctx.add_synced_data_block_meta(
@@ -88,7 +89,9 @@ class ExampleJoinFollower(object):
     def start_dump_worker(self):
         with self._lock:
             if not self._started:
-                assert self._data_block_dump_worker is None
+                assert self._data_block_dump_worker is None, \
+                    "the data block dumper worker should be None "\
+                    "if dumper worker is not started"
                 self._data_block_dump_worker = RoutineWorker(
                         'data_block_dumper',
                         self._dump_data_block_fn,

@@ -17,9 +17,9 @@
 import unittest
 import os
 
-import tensorflow as tf
+import tensorflow.compat.v1 as tf
 from google.protobuf import text_format
-from tensorflow.python.platform import gfile
+from tensorflow.compat.v1 import gfile
 
 from fedlearner.common import etcd_client
 from fedlearner.common import common_pb2 as common_pb
@@ -32,14 +32,14 @@ from fedlearner.data_join import (
 class TestDataBlockDumper(unittest.TestCase):
     def setUp(self):
         data_source_f = common_pb.DataSource()
-        data_source_f.data_source_meta.name = "milestone-f"
+        data_source_f.data_source_meta.name = "milestone"
         data_source_f.data_source_meta.partition_num = 1
         data_source_f.data_block_dir = "./data_block-f"
         self.data_source_f = data_source_f
         if gfile.Exists(self.data_source_f.data_block_dir):
             gfile.DeleteRecursively(self.data_source_f.data_block_dir)
         data_source_l = common_pb.DataSource()
-        data_source_l.data_source_meta.name = "milestone-l"
+        data_source_l.data_source_meta.name = "milestone"
         data_source_l.data_source_meta.partition_num = 1
         data_source_l.data_block_dir = "./data_block-l"
         data_source_l.raw_data_dir = "./raw_data-l"
@@ -63,7 +63,9 @@ class TestDataBlockDumper(unittest.TestCase):
         self.dumped_metas = []
         for i in range(5):
             builder = data_block_manager.DataBlockBuilder(
-                    self.data_source_f.data_block_dir, 0, i, None
+                    self.data_source_f.data_block_dir,
+                    self.data_source_f.data_source_meta.name,
+                    0, i, None
                 )
             builder.set_data_block_manager(dbm)
             for j in range(1024):
@@ -93,14 +95,16 @@ class TestDataBlockDumper(unittest.TestCase):
 
     def generate_leader_raw_data(self):
         dbm = data_block_manager.DataBlockManager(self.data_source_l, 0)
-        raw_data_dir = os.path.join(self.data_source_l.raw_data_dir, 'partition_{}'.format(0))
+        raw_data_dir = os.path.join(self.data_source_l.raw_data_dir, common.partition_repr(0))
         if gfile.Exists(raw_data_dir):
             gfile.DeleteRecursively(raw_data_dir)
         gfile.MakeDirs(raw_data_dir)
         rdm = raw_data_visitor.RawDataManager(self.etcd, self.data_source_l, 0)
         block_index = 0
         builder = data_block_manager.DataBlockBuilder(
-                self.data_source_l.raw_data_dir, 0, block_index, None
+                self.data_source_l.raw_data_dir,
+                self.data_source_l.data_source_meta.name,
+                0, block_index, None
         )
         process_index = 0
         start_index = 0
@@ -108,20 +112,19 @@ class TestDataBlockDumper(unittest.TestCase):
             if (i > 0 and i % 2048 == 0) or (i == self.leader_end_index + 2):
                 meta = builder.finish_data_block()
                 if meta is not None:
-                    ofname = common.encode_data_block_fname(meta.start_time,
-                                                            meta.end_time,
-                                                            meta.data_block_index)
-                    ofpath = os.path.join(raw_data_dir, ofname)
-                    nfname = visitor.encode_unindex_fname(process_index,
-                                                          common.RawDataUnIndexSuffix)
-                    nfpath = os.path.join(raw_data_dir, nfname)
-                    gfile.Rename(ofpath, nfpath)
-                    self.manifest_manager.add_raw_data(0, process_index + 1)
+                    ofname = common.encode_data_block_fname(
+                            self.data_source_l.data_source_meta.name,
+                            meta
+                        )
+                    fpath = os.path.join(raw_data_dir, ofname)
+                    self.manifest_manager.add_raw_data(0, [fpath], False)
                     process_index += 1
                     start_index += len(meta.example_ids)
                 block_index += 1
                 builder = data_block_manager.DataBlockBuilder(
-                        self.data_source_l.raw_data_dir, 0, block_index, None
+                        self.data_source_l.raw_data_dir,
+                        self.data_source_l.data_source_meta.name,
+                        0, block_index, None
                 )
             feat = {}
             pt = i + 1 << 30
@@ -139,8 +142,7 @@ class TestDataBlockDumper(unittest.TestCase):
                     for f in gfile.ListDirectory(raw_data_dir)
                     if not gfile.IsDirectory(os.path.join(raw_data_dir, f))]
         for fpath in fpaths:
-            if not fpath.endswith(common.RawDataUnIndexSuffix) and \
-                    not fpath.endswith(common.RawDataIndexSuffix):
+            if not fpath.endswith(common.DataBlockSuffix):
                 gfile.Remove(fpath)
         
     def test_data_block_dumper(self):
@@ -169,23 +171,30 @@ class TestDataBlockDumper(unittest.TestCase):
             self.assertEqual(dbm_l.get_data_block_meta_by_index(idx), meta)
             self.assertEqual(dbm_f.get_data_block_meta_by_index(idx), meta)
             meta_fpth_l = os.path.join(
-                    self.data_source_l.data_block_dir, 'partition_0',
-                    common.encode_data_block_meta_fname(meta.data_block_index)
+                    self.data_source_l.data_block_dir, common.partition_repr(0),
+                    common.encode_data_block_meta_fname(
+                        self.data_source_l.data_source_meta.name,
+                        0, meta.data_block_index
+                    )
                 )
             mitr = tf.io.tf_record_iterator(meta_fpth_l)
             meta_l = text_format.Parse(next(mitr), dj_pb.DataBlockMeta())
             self.assertEqual(meta_l, meta)
             meta_fpth_f = os.path.join(
-                    self.data_source_f.data_block_dir, 'partition_0',
-                    common.encode_data_block_meta_fname(meta.data_block_index)
+                    self.data_source_f.data_block_dir, common.partition_repr(0),
+                    common.encode_data_block_meta_fname(
+                        self.data_source_f.data_source_meta.name,
+                        0, meta.data_block_index
+                    )
                 )
             mitr = tf.io.tf_record_iterator(meta_fpth_f)
             meta_f = text_format.Parse(next(mitr), dj_pb.DataBlockMeta())
             self.assertEqual(meta_f, meta)
             data_fpth_l = os.path.join(
-                    self.data_source_l.data_block_dir, 'partition_0',
+                    self.data_source_l.data_block_dir, common.partition_repr(0),
                     common.encode_data_block_fname(
-                        meta_l.start_time, meta_l.end_time, meta_l.data_block_index
+                        self.data_source_l.data_source_meta.name,
+                        meta_l
                     )
                 )
             for (iidx, record) in enumerate(tf.io.tf_record_iterator(data_fpth_l)):
@@ -196,9 +205,10 @@ class TestDataBlockDumper(unittest.TestCase):
                                  meta.example_ids[iidx])
             self.assertEqual(len(meta.example_ids), iidx + 1)
             data_fpth_f = os.path.join(
-                    self.data_source_f.data_block_dir, 'partition_0',
+                    self.data_source_f.data_block_dir, common.partition_repr(0),
                     common.encode_data_block_fname(
-                        meta_l.start_time, meta_l.end_time, meta_l.data_block_index
+                        self.data_source_l.data_source_meta.name,
+                        meta_f
                     )
                 )
             for (iidx, record) in enumerate(tf.io.tf_record_iterator(data_fpth_f)):

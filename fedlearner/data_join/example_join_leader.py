@@ -16,6 +16,7 @@
 
 import threading
 import logging
+import zlib
 from contextlib import contextmanager
 
 from google.protobuf import empty_pb2
@@ -226,6 +227,7 @@ class ExampleJoinLeader(object):
         assert isinstance(impl_ctx, ExampleJoinLeader.ImplContext)
         req = dj_pb.StartPartitionRequest(
             data_source_meta=self._data_source.data_source_meta,
+            rank_id=self._rank_id,
             partition_id=impl_ctx.partition_id
         )
         rsp = self._peer_client.StartPartition(req)
@@ -238,10 +240,19 @@ class ExampleJoinLeader(object):
         return rsp.next_index, rsp.finished
 
     def _send_data_block_meta(self, meta):
+        serialize_bytes = \
+            dj_pb.SyncContent(data_block_meta=meta).SerializeToString()
         req = dj_pb.SyncPartitionRequest(
                 data_source_meta=self._data_source.data_source_meta,
-                data_block_meta=meta
+                rank_id=self._rank_id,
+                content_bytes=serialize_bytes,
+                compressed=False
             )
+        if len(serialize_bytes) > (2 << 20):
+            compressed_bytes = zlib.compress(serialize_bytes, 5)
+            if len(compressed_bytes) < len(serialize_bytes) * 0.8:
+                req.content_bytes = compressed_bytes
+                req.compressed = True
         rsp = self._peer_client.SyncPartition(req)
         if rsp.code != 0:
             raise RuntimeError(
@@ -256,6 +267,7 @@ class ExampleJoinLeader(object):
         if not impl_ctx.leader_finished:
             req = dj_pb.FinishPartitionRequest(
                     data_source_meta=self._data_source.data_source_meta,
+                    rank_id=self._rank_id,
                     partition_id=impl_ctx.partition_id
                 )
             rsp = self._peer_client.FinishPartition(req)

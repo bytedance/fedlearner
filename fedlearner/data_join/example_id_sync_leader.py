@@ -112,7 +112,8 @@ class ExampleIdSyncLeader(object):
         if rsp.HasField('finished'):
             self._set_unsynced_partition_exhausted()
             return
-        assert rsp.HasField('manifest')
+        assert rsp.HasField('manifest'), "rsp of RequestJoinPartition must "\
+                                         "has manifest if not finished"
         impl_ctx = ExampleIdSyncLeader.ImplContext(
                 self._etcd, self._data_source,
                 rsp.manifest, self._raw_data_options
@@ -174,7 +175,7 @@ class ExampleIdSyncLeader(object):
             if follower_finished:
                 return True
             impl_ctx.raw_data_visitor.active_visitor()
-            assert next_index >= 0
+            assert next_index >= 0, "the next index should >= 0"
             if next_index == 0:
                 impl_ctx.raw_data_visitor.reset()
             else:
@@ -195,7 +196,9 @@ class ExampleIdSyncLeader(object):
                     begin_index = expected_index
             if len(items) > 0:
                 self._send_example_ids(items, begin_index, impl_ctx)
-            assert impl_ctx.raw_data_visitor.finished()
+            assert impl_ctx.raw_data_visitor.finished(), \
+                "the raw data visitor should be finihed "\
+                "if not error meets in syncer"
             return False
         yield syncer
 
@@ -205,6 +208,7 @@ class ExampleIdSyncLeader(object):
         assert isinstance(impl_ctx, ExampleIdSyncLeader.ImplContext)
         req = dj_pb.StartPartitionRequest(
             data_source_meta=self._data_source.data_source_meta,
+            rank_id=self._rank_id,
             partition_id=impl_ctx.partition_id
         )
         rsp = self._peer_client.StartPartition(req)
@@ -220,18 +224,22 @@ class ExampleIdSyncLeader(object):
         assert isinstance(impl_ctx, ExampleIdSyncLeader.ImplContext)
         if len(items) == 0:
             return
-        req = dj_pb.SyncPartitionRequest(
-                data_source_meta=self._data_source.data_source_meta,
+        sync_content = dj_pb.SyncContent(
                 lite_example_ids=dj_pb.LiteExampleIds(
                     partition_id=impl_ctx.partition_id,
-                    begin_index=begin_index,
+                    begin_index=begin_index
                 )
             )
         for item in items:
-            example_id = item.example_id
-            event_time = item.event_time
-            req.lite_example_ids.example_id.append(example_id)
-            req.lite_example_ids.event_time.append(event_time)
+            sync_content.lite_example_ids.example_id.append(item.example_id)
+            sync_content.lite_example_ids.event_time.append(item.event_time)
+        req = dj_pb.SyncPartitionRequest(
+                data_source_meta=self._data_source.data_source_meta,
+                rank_id=self._rank_id,
+                partition_id=impl_ctx.partition_id,
+                compressed=False,
+                content_bytes=sync_content.SerializeToString()
+            )
         rsp = self._peer_client.SyncPartition(req)
         if rsp.code != 0:
             raise RuntimeError(
@@ -245,6 +253,7 @@ class ExampleIdSyncLeader(object):
         if not impl_ctx.follower_finished:
             req = dj_pb.FinishPartitionRequest(
                     data_source_meta=self._data_source.data_source_meta,
+                    rank_id=self._rank_id,
                     partition_id=impl_ctx.partition_id
                 )
             rsp = self._peer_client.FinishPartition(req)

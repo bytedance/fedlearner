@@ -21,8 +21,10 @@ from fedlearner.data_join.joiner_impl.example_joiner import ExampleJoiner
 
 class JoinWindow(object):
     def __init__(self, pt_rate, qt_rate):
-        assert 0.0 <= pt_rate <= 1.0
-        assert 0.0 <= qt_rate <= 1.0
+        assert 0.0 <= pt_rate <= 1.0, \
+            "pt_rate {} should in [0.0, 1.0]".format(pt_rate)
+        assert 0.0 <= qt_rate <= 1.0, \
+            "qt_rate {} should in [0.0, 1.0]".format(qt_rate)
         self._buffer = []
         self._event_time = []
         self._event_time_sorted = True
@@ -109,11 +111,13 @@ class StreamExampleJoiner(ExampleJoiner):
         sync_example_id_finished, raw_data_finished = \
                 self._prepare_join(state_stale)
         while True:
-            if not self._fill_leader_join_window(sync_example_id_finished):
+            if not self._fill_leader_join_window(sync_example_id_finished) and \
+                    not self._need_finish_data_block_since_interval():
                 return
             delay_dump = True
             while delay_dump:
-                if not self._fill_follower_join_window(raw_data_finished):
+                if not self._fill_follower_join_window(raw_data_finished) and \
+                        not self._need_finish_data_block_since_interval():
                     return
                 delay_dump = self._need_delay_dump(
                         sync_example_id_finished, raw_data_finished
@@ -130,13 +134,17 @@ class StreamExampleJoiner(ExampleJoiner):
                             self._joined_cache[eid] = \
                                     self._follower_example_cache[eid]
                         builder = self._get_data_block_builder(True)
-                        assert builder is not None
+                        assert builder is not None, \
+                            "data block builder must be not "\
+                            "None if before dummping"
                         fi, item = self._joined_cache[eid]
                         et = le.event_time
                         builder.append(item.record, eid, et, li, fi)
-                        if builder.check_data_block_full() or \
-                                self._need_finish_data_block_since_interval():
+                        if builder.check_data_block_full():
                             yield self._finish_data_block()
+                if self._get_data_block_builder(False) is not None and \
+                        self._need_finish_data_block_since_interval():
+                    yield self._finish_data_block()
                 self._evit_stale_follower_cache()
             self._reset_joiner_state(False)
             if self._leader_visitor.finished() or \
@@ -148,8 +156,8 @@ class StreamExampleJoiner(ExampleJoiner):
             if builder is not None:
                 yield self._finish_data_block()
             self._set_join_finished()
-            logging.warning("finish join example for partition %d",
-                            self._partition_id)
+            logging.warning("finish join example for partition %d by %s",
+                            self._partition_id, self.name())
 
     def _prepare_join(self, state_stale):
         if state_stale:
@@ -230,13 +238,11 @@ class StreamExampleJoiner(ExampleJoiner):
                 return True
         return join_window.size() >= self._max_window_size
 
-    def _evict_if_joined(self, item):
-        return item.example_id in self._joined_cache
+    def _evict_if_useless(self, item):
+        return item.example_id in self._joined_cache or \
+                item.event_time < self._leader_join_window.committed_pt()
 
-    def _evict_if_pt(self, item):
-        return item.event_time < self._leader_join_window.committed_pt()
-
-    def _evict_if_qt(self, item):
+    def _evict_if_force(self, item):
         return item.event_time < self._leader_join_window.qt()
 
     def _evict_impl(self, candidates, filter_fn):
@@ -250,24 +256,14 @@ class StreamExampleJoiner(ExampleJoiner):
         return reserved_items
 
     def _evit_stale_follower_cache(self):
-        reserved_items = self._evict_impl(
-                self._follower_join_window, self._evict_if_joined
-            )
+        reserved_items = self._evict_impl(self._follower_join_window,
+                                          self._evict_if_useless)
         if len(reserved_items) < self._max_window_size:
             self._follower_join_window.reset(reserved_items, False)
             return
-
-        reserved_items_v1 = self._evict_impl(
-                reserved_items, self._evict_if_pt
-            )
-        if len(reserved_items_v1) < self._max_window_size:
-            self._follower_join_window.reset(reserved_items_v1, False)
-            return
-
-        reserved_items_v2 = self._evict_impl(
-                reserved_items_v1, self._evict_if_qt
-            )
-        self._follower_join_window.reset(reserved_items_v2, False)
+        reserved_items = self._evict_impl(reserved_items,
+                                          self._evict_if_force)
+        self._follower_join_window.reset(reserved_items, False)
 
     def _consume_item_until_count(self, visitor, windows,
                                   required_item_count, cache=None):
@@ -284,7 +280,8 @@ class StreamExampleJoiner(ExampleJoiner):
                     cache[item.example_id] = (index, item)
                 if windows.size() >= required_item_count:
                     return
-        assert visitor.finished()
+        assert visitor.finished(), "visitor shoud be finished of "\
+                                   "required_item is not satisfied"
 
     def _finish_data_block(self):
         meta = super(StreamExampleJoiner, self)._finish_data_block()

@@ -16,11 +16,11 @@
 
 import unittest
 import os
-import ntpath
 import time
+from os import path
 
-from tensorflow.python.platform import gfile
-import tensorflow as tf
+import tensorflow.compat.v1 as tf
+from tensorflow.compat.v1 import gfile
 
 from fedlearner.common import etcd_client
 from fedlearner.common import common_pb2 as common_pb
@@ -40,7 +40,7 @@ class TestRawDataVisitor(unittest.TestCase):
                                            'fedlearner', True)
         self.etcd.delete_prefix(self.data_source.data_source_meta.name)
         self.assertEqual(self.data_source.data_source_meta.partition_num, 1)
-        partition_dir = os.path.join(self.data_source.raw_data_dir, 'partition_0')
+        partition_dir = os.path.join(self.data_source.raw_data_dir, common.partition_repr(0))
         if gfile.Exists(partition_dir):
             gfile.DeleteRecursively(partition_dir)
         gfile.MakeDirs(partition_dir)
@@ -48,10 +48,12 @@ class TestRawDataVisitor(unittest.TestCase):
             self.etcd, self.data_source)
 
     def _gen_raw_data_file(self, start_index, end_index):
-        partition_dir = os.path.join(self.data_source.raw_data_dir, 'partition_0')
+        partition_dir = os.path.join(self.data_source.raw_data_dir, common.partition_repr(0))
+        fpaths = []
         for i in range(start_index, end_index):
-            fname = visitor.encode_unindex_fname(i, common.RawDataUnIndexSuffix)
+            fname = "{}.rd".format(i)
             fpath = os.path.join(partition_dir, fname)
+            fpaths.append(fpath)
             writer = tf.io.TFRecordWriter(fpath)
             for j in range(100):
                 feat = {}
@@ -63,7 +65,7 @@ class TestRawDataVisitor(unittest.TestCase):
                     features=tf.train.Features(feature=feat))
                 writer.write(example.SerializeToString())
             writer.close()
-        self.manifest_manager.add_raw_data(0, end_index)
+        self.manifest_manager.add_raw_data(0, fpaths, True)
 
     def test_raw_data_manager(self):
         rdm = raw_data_visitor.RawDataManager(self.etcd, self.data_source, 0)
@@ -74,22 +76,14 @@ class TestRawDataVisitor(unittest.TestCase):
         self.assertTrue(rdm.check_index_meta_by_process_index(0))
         self.assertTrue(rdm.check_index_meta_by_process_index(1))
         self.assertEqual(len(rdm.get_index_metas()), 0)
-        partition_dir = os.path.join(self.data_source.raw_data_dir, 'partition_0')
+        partition_dir = os.path.join(self.data_source.raw_data_dir, common.partition_repr(0))
         index_meta0 = rdm.get_index_meta_by_index(0, 0)
         self.assertEqual(index_meta0.start_index, 0)
         self.assertEqual(index_meta0.process_index, 0)
-        self.assertEqual(ntpath.basename(index_meta0.fpath),
-                         visitor.encode_index_fname(index_meta0.process_index,
-                                                    index_meta0.start_index,
-                                                    common.RawDataIndexSuffix))
         self.assertEqual(len(rdm.get_index_metas()), 1)
         index_meta1 = rdm.get_index_meta_by_index(1, 100)
         self.assertEqual(index_meta1.start_index, 100)
         self.assertEqual(index_meta1.process_index, 1)
-        self.assertEqual(ntpath.basename(index_meta1.fpath),
-                         visitor.encode_index_fname(index_meta1.process_index,
-                                                    index_meta1.start_index,
-                                                    common.RawDataIndexSuffix))
         self.assertEqual(len(rdm.get_index_metas()), 2)
         self.assertFalse(rdm.check_index_meta_by_process_index(2))
         self._gen_raw_data_file(2, 4)
@@ -98,18 +92,10 @@ class TestRawDataVisitor(unittest.TestCase):
         index_meta2 = rdm.get_index_meta_by_index(2, 200)
         self.assertEqual(index_meta2.start_index, 200)
         self.assertEqual(index_meta2.process_index, 2)
-        self.assertEqual(ntpath.basename(index_meta2.fpath),
-                         visitor.encode_index_fname(index_meta2.process_index,
-                                                    index_meta2.start_index,
-                                                    common.RawDataIndexSuffix))
         self.assertEqual(len(rdm.get_index_metas()), 3)
         index_meta3 = rdm.get_index_meta_by_index(3, 300)
         self.assertEqual(index_meta3.start_index, 300)
         self.assertEqual(index_meta3.process_index, 3)
-        self.assertEqual(ntpath.basename(index_meta3.fpath),
-                         visitor.encode_index_fname(index_meta3.process_index,
-                                                    index_meta3.start_index,
-                                                    common.RawDataIndexSuffix))
         self.assertEqual(len(rdm.get_index_metas()), 4)
 
     def test_raw_data_visitor(self):

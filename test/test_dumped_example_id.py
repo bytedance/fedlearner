@@ -17,14 +17,14 @@
 import unittest
 import os
 
-import tensorflow as tf
-from tensorflow.python.platform import gfile
+import tensorflow.compat.v1 as tf
+from tensorflow.compat.v1 import gfile
 
 from fedlearner.common import etcd_client
 from fedlearner.common import common_pb2 as common_pb
 from fedlearner.common import data_join_service_pb2 as dj_pb
 from fedlearner.data_join import (
-    example_id_dumper, example_id_visitor
+    example_id_dumper, example_id_visitor, common
 )
 
 class TestDumpedExampleId(unittest.TestCase):
@@ -43,7 +43,7 @@ class TestDumpedExampleId(unittest.TestCase):
             )
         if gfile.Exists(self.data_source.example_dumped_dir):
             gfile.DeleteRecursively(self.data_source.example_dumped_dir)
-        self.partition_dir = os.path.join(self.data_source.example_dumped_dir, 'partition_0')
+        self.partition_dir = os.path.join(self.data_source.example_dumped_dir, common.partition_repr(0))
         gfile.MakeDirs(self.partition_dir)
 
     def _dump_example_ids(self, dumper, start_index, batch_num, batch_size):

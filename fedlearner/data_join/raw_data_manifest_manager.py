@@ -15,11 +15,11 @@
 # coding: utf-8
 
 import threading
-import os
 from google.protobuf import text_format
 
 from fedlearner.common import data_join_service_pb2 as dj_pb
 from fedlearner.common import common_pb2 as common_pb
+from fedlearner.data_join import common
 
 class RawDataManifestManager(object):
     def __init__(self, etcd, data_source):
@@ -27,13 +27,15 @@ class RawDataManifestManager(object):
         self._local_manifest = {}
         self._etcd = etcd
         self._data_source = data_source
+        self._existed_fpath = {}
         self._partition_num = data_source.data_source_meta.partition_num
         if self._partition_num <= 0:
             raise ValueError(
                 "partition num must be positive: {}".format(self._partition_num)
             )
         for partition_id in range(self._partition_num):
-            self._init_manifest(partition_id)
+            self._local_manifest[partition_id] = None
+            self._sync_manifest(partition_id)
 
     def alloc_sync_exampld_id(self, rank_id, partition_id=None):
         if partition_id is not None:
@@ -57,7 +59,7 @@ class RawDataManifestManager(object):
         self._check_partition_id(partition_id)
         with self._lock:
             if self._is_data_join_leader():
-                manifest = self._get_manifest(partition_id)
+                manifest = self._sync_manifest(partition_id)
                 if not manifest.finished:
                     raise RuntimeError(
                             "Failed tp finish sync example id for " \
@@ -73,7 +75,8 @@ class RawDataManifestManager(object):
         self._check_partition_id(partition_id)
         with self._lock:
             manifest = self._sync_manifest(partition_id)
-            assert manifest is not None
+            assert manifest is not None, \
+                "manifest must be not None for a valid partition"
             if manifest.sync_example_id_rep.state != \
                     dj_pb.SyncExampleIdState.Synced:
                 raise RuntimeError(
@@ -99,15 +102,36 @@ class RawDataManifestManager(object):
                 manifest.finished = True
                 self._update_manifest(manifest)
 
-    def add_raw_data(self, partition_id, next_process_index):
+    def add_raw_data(self, partition_id, file_paths, dedup):
         self._check_partition_id(partition_id)
         with self._lock:
             manifest = self._sync_manifest(partition_id)
             if manifest.finished:
                 raise RuntimeError("raw data of partition {} has finished!"\
                                    .format(partition_id))
-            if manifest.next_process_index < next_process_index:
-                manifest.next_process_index = next_process_index
+            input_fpath = set()
+            add_candidates = []
+            for fpath in file_paths:
+                if fpath in self._existed_fpath or fpath in input_fpath:
+                    if not dedup:
+                        raise RuntimeError("fpath %s has been added" % fpath)
+                    continue
+                input_fpath.add(fpath)
+                add_candidates.append(fpath)
+            self._local_manifest[partition_id] = None
+            process_index = manifest.next_process_index
+            for fpath in add_candidates:
+                etcd_key = common.raw_data_meta_etcd_key(
+                        self._data_source.data_source_meta.name,
+                        partition_id, process_index
+                    )
+                meta = dj_pb.RawDataMeta(file_path=fpath, start_index=-1)
+                data = text_format.MessageToString(meta)
+                self._etcd.set_data(etcd_key, data)
+                self._existed_fpath[fpath] = (partition_id, process_index)
+                process_index += 1
+            if manifest.next_process_index != process_index:
+                manifest.next_process_index = process_index
                 self._update_manifest(manifest)
 
     def list_all_manifest(self):
@@ -130,7 +154,8 @@ class RawDataManifestManager(object):
         if partition_id is None:
             for ptn_id in self._local_manifest:
                 manifest = self._sync_manifest(ptn_id)
-                assert manifest is not None
+                assert manifest is not None, \
+                    "manifest must be not None for a valid partition"
                 field = getattr(manifest, field_name)
                 if field.state == target_state and field.rank_id == rank_id:
                     partition_id = ptn_id
@@ -147,9 +172,9 @@ class RawDataManifestManager(object):
             elif field.state == target_state:
                 if field.rank_id != rank_id:
                     raise RuntimeError(
-                            "field %s of partition %d has been allcate " \
-                            "to %d as state %d" % field_name, partition_id,
-                            field.rank_id, field.state
+                            "field {} of partition {} has been allcate " \
+                            "to {} as state {}".format(field_name, partition_id,
+                            field.rank_id, field.state)
                         )
             else:
                 raise RuntimeError(
@@ -161,7 +186,7 @@ class RawDataManifestManager(object):
 
     def _finish_partition(self, field_name, src_state,
                           target_state, rank_id, partition_id):
-        manifest = self._get_manifest(partition_id)
+        manifest = self._sync_manifest(partition_id)
         field = getattr(manifest, field_name)
         if field.state == target_state:
             return
@@ -177,23 +202,11 @@ class RawDataManifestManager(object):
         field.state = target_state
         self._update_manifest(manifest)
 
-    def _init_manifest(self, partition_id):
-        mainfest = self._get_manifest(partition_id)
-        if mainfest is None:
-            manifest = dj_pb.RawDataManifest()
-            manifest.sync_example_id_rep.rank_id = -1
-            manifest.join_example_rep.rank_id = -1
-            manifest.partition_id = partition_id
-            self._update_manifest(manifest)
-        self._local_manifest[partition_id] = mainfest
-
-    def _get_manifest_etcd_key(self, partition_id):
-        return os.path.join(self._data_source.data_source_meta.name,
-                            'raw_data_dir',
-                            'partition_{}'.format(partition_id))
-
     def _get_manifest(self, partition_id):
-        manifest_etcd_key = self._get_manifest_etcd_key(partition_id)
+        manifest_etcd_key = common.partition_manifest_etcd_key(
+                self._data_source.data_source_meta.name,
+                partition_id
+            )
         manifest_data = self._etcd.get_data(manifest_etcd_key)
         if manifest_data is not None:
             return text_format.Parse(manifest_data, dj_pb.RawDataManifest())
@@ -201,17 +214,28 @@ class RawDataManifestManager(object):
 
     def _update_manifest(self, manifest):
         partition_id = manifest.partition_id
-        manifest_etcd_key = self._get_manifest_etcd_key(partition_id)
+        manifest_etcd_key = common.partition_manifest_etcd_key(
+                self._data_source.data_source_meta.name,
+                partition_id
+            )
         self._local_manifest[partition_id] = None
         self._etcd.set_data(manifest_etcd_key,
                             text_format.MessageToString(manifest))
         self._local_manifest[partition_id] = manifest
 
     def _sync_manifest(self, partition_id):
-        assert partition_id in self._local_manifest
+        assert partition_id in self._local_manifest, \
+            "partition {} should in local manifest".format(partition_id)
         if self._local_manifest[partition_id] is None:
-            self._local_manifest[partition_id] = \
-                    self._get_manifest(partition_id)
+            manifest = self._get_manifest(partition_id)
+            if manifest is None:
+                manifest = dj_pb.RawDataManifest()
+                manifest.sync_example_id_rep.rank_id = -1
+                manifest.join_example_rep.rank_id = -1
+                manifest.partition_id = partition_id
+                self._update_manifest(manifest)
+            self._local_manifest[partition_id] = manifest
+            self._process_next_process_index(partition_id)
         return self._local_manifest[partition_id]
 
     def _check_partition_id(self, partition_id):
@@ -219,3 +243,25 @@ class RawDataManifestManager(object):
             raise IndexError(
                     "partition id {} is out of range".format(partition_id)
                 )
+
+    def _process_next_process_index(self, partition_id):
+        manifest = self._local_manifest[partition_id]
+        assert manifest is not None, \
+            "partition {} should in local manifest".format(partition_id)
+        next_process_index = manifest.next_process_index
+        while True:
+            meta_etcd_key = \
+                    common.raw_data_meta_etcd_key(
+                            self._data_source.data_source_meta.name,
+                            partition_id, next_process_index
+                        )
+            data = self._etcd.get_data(meta_etcd_key)
+            if data is None:
+                break
+            meta = text_format.Parse(data, dj_pb.RawDataMeta())
+            self._existed_fpath[meta.file_path] = \
+                    (partition_id, next_process_index)
+            next_process_index += 1
+        if next_process_index != manifest.next_process_index:
+            manifest.next_process_index = next_process_index
+            self._update_manifest(manifest)

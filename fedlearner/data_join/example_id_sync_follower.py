@@ -57,7 +57,8 @@ class ExampleIdSyncFollower(object):
             return self._impl_ctx.get_next_index()
 
     def add_synced_item(self, req):
-        assert req.HasField('lite_example_ids')
+        assert req.HasField('lite_example_ids'), \
+            "req should has lite_example_ids for ExampleIdSyncFollower"
         with self._lock:
             self._check_status(req.lite_example_ids.partition_id)
             filled, next_index = self._impl_ctx.add_example_id_batch(
@@ -92,7 +93,9 @@ class ExampleIdSyncFollower(object):
     def start_dump_worker(self):
         with self._lock:
             if not self._started:
-                assert self._example_id_dump_worker is None
+                assert self._example_id_dump_worker is None, \
+                    "example id dumper woker should be None if "\
+                    "dumper worker is not started"
                 self._example_id_dump_worker = RoutineWorker(
                         'example_id_dumper',
                         self._dump_example_ids_fn,

@@ -44,15 +44,16 @@ class RawDataIter(object):
         self._iter_failed = False
         self._options = options
 
-    def reset_iter(self, index_meta=None):
-        self._fiter = None
-        self._index_meta = None
-        self._item = None
-        self._index = None
-        self._fiter, self._item = self._reset_iter(index_meta)
-        self._index_meta = index_meta
-        if index_meta is not None:
-            self._index = index_meta.start_index
+    def reset_iter(self, index_meta=None, force=False):
+        if index_meta != self._index_meta or self._iter_failed or force:
+            self._fiter = None
+            self._index_meta = None
+            self._item = None
+            self._index = None
+            self._fiter, self._item = self._reset_iter(index_meta)
+            self._index_meta = index_meta
+            self._index = None if index_meta is None \
+                    else index_meta.start_index
         self._iter_failed = False
 
     def seek_to_target(self, target_index):
@@ -66,7 +67,7 @@ class RawDataIter(object):
             if self._index == target_index:
                 return
             if self._iter_failed or self._index > target_index:
-                self.reset_iter(self._index_meta)
+                self.reset_iter(self._index_meta, True)
             if self._index < target_index:
                 for index, _ in self:
                     if index == target_index:

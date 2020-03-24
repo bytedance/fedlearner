@@ -17,6 +17,7 @@
 import argparse
 import time
 import logging
+import zlib
 from concurrent import futures
 
 import grpc
@@ -58,6 +59,7 @@ class DataJoinWorker(dj_grpc.DataJoinWorkerServiceServicer):
         response = dj_pb.StartPartitionResponse()
         partition_id = request.partition_id
         check_status = self._check_request(request.data_source_meta,
+                                           request.rank_id,
                                            partition_id)
         if check_status.code != 0:
             response.status.MergeFrom(check_status)
@@ -70,11 +72,11 @@ class DataJoinWorker(dj_grpc.DataJoinWorkerServiceServicer):
             if processing_partition_id is None:
                 rsp = self._trigger_allocate_partition(partition_id)
                 if rsp.status.code == 0 and not rsp.HasField('manifest'):
-                    response.status.code = -3
+                    response.status.code = -4
                     response.status.error_message = "no manifest response"
                 response.status.MergeFrom(rsp.status)
             elif partition_id != processing_partition_id:
-                response.status.code = -4
+                response.status.code = -5
                 response.status.error_message = \
                         "partition %d is processing" % processing_partition_id
             if response.status.code == 0:
@@ -83,18 +85,19 @@ class DataJoinWorker(dj_grpc.DataJoinWorkerServiceServicer):
         return response
 
     def SyncPartition(self, request, context):
-        partition_id = 0
-        if request.HasField('data_block_meta'):
-            partition_id = request.data_block_meta.partition_id
-        elif request.HasField('lite_example_ids'):
-            partition_id = request.lite_example_ids.partition_id
-        else:
-            raise RuntimeError("no content to sync")
-        response = self._check_request(request.data_source_meta, partition_id)
+        partition_id = request.partition_id
+        response = self._check_request(request.data_source_meta,
+                                       request.rank_id,
+                                       partition_id)
         if response.code == 0:
-            filled, _ = self._transmit_follower.add_synced_item(request)
+            content_bytes = request.content_bytes
+            if request.compressed:
+                content_bytes = zlib.decompress(content_bytes)
+            sync_content = dj_pb.SyncContent()
+            sync_content.ParseFromString(content_bytes)
+            filled, _ = self._transmit_follower.add_synced_item(sync_content)
             if not filled:
-                response.code = -3
+                response.code = -4
                 response.error_message = "item is not needed"
         return response
 
@@ -102,6 +105,7 @@ class DataJoinWorker(dj_grpc.DataJoinWorkerServiceServicer):
         response = dj_pb.FinishPartitionResponse()
         partition_id = request.partition_id
         check_status = self._check_request(request.data_source_meta,
+                                           request.rank_id,
                                            partition_id)
         if check_status.code != 0:
             response.status.MergeFrom(check_status)
@@ -122,6 +126,13 @@ class DataJoinWorker(dj_grpc.DataJoinWorkerServiceServicer):
             response.status.MergeFrom(status)
         return response
 
+    def _decode_sync_content(self, content_bytes, compressed):
+        if compressed:
+            content_bytes = zlib.decompress(content_bytes)
+        sync_content = dj_pb.SyncContent()
+        sync_content.ParseFromString(content_bytes)
+        return sync_content
+
     def _init_transmit_roles(self, options):
         if self._data_source.role == common_pb.FLRole.Leader:
             self._transmit_leader = \
@@ -136,7 +147,8 @@ class DataJoinWorker(dj_grpc.DataJoinWorkerServiceServicer):
                             options.raw_data_options
                         )
         else:
-            assert self._data_source.role == common_pb.FLRole.Follower
+            assert self._data_source.role == common_pb.FLRole.Follower, \
+                "if not Leader, otherwise, must be Follower"
             self._transmit_leader = \
                     example_join_leader.ExampleJoinLeader(
                             self._peer_client, self._master_client,
@@ -150,15 +162,21 @@ class DataJoinWorker(dj_grpc.DataJoinWorkerServiceServicer):
                             options.example_id_dump_options
                         )
 
-    def _check_request(self, remote_meta, partition_id):
+    def _check_request(self, remote_meta, remote_rank_id, partition_id):
         if remote_meta != self._data_source.data_source_meta:
             return common_pb.Status(
                     code=-1, error_message="data source meta is mismatch"
                 )
-        partition_num = self._data_source.data_source_meta.partition_num
-        if partition_id not in range(0, partition_num):
+        if remote_rank_id != self._rank_id:
             return common_pb.Status(
                     code=-2,
+                    error_message="rank_id mismatch. {}(caller) != {}(srv)"\
+                                  .format(remote_rank_id, self._rank_id)
+                )
+        partition_num = self._data_source.data_source_meta.partition_num
+        if partition_id < 0 or partition_id > partition_num:
+            return common_pb.Status(
+                    code=-3,
                     error_message="partition-{} is out of range[0, {})"\
                             .format(partition_id, partition_num)
                 )
@@ -176,7 +194,8 @@ class DataJoinWorker(dj_grpc.DataJoinWorkerServiceServicer):
         if self._data_source.role == common_pb.FLRole.Leader:
             return manifest.join_example_rep.state == \
                     dj_pb.JoinExampleState.Joined
-        assert self._data_source.role == common_pb.FLRole.Follower
+        assert self._data_source.role == common_pb.FLRole.Follower, \
+            "if not Leader, otherwise, must be Follower"
         return manifest.sync_example_id_rep.state == \
                 dj_pb.SyncExampleIdState.Synced
 
@@ -196,7 +215,8 @@ class DataJoinWorker(dj_grpc.DataJoinWorkerServiceServicer):
                     partition_id=partition_id,
                     join_example=empty_pb2.Empty()
                 )
-        assert self._data_source.role == common_pb.FLRole.Follower
+        assert self._data_source.role == common_pb.FLRole.Follower, \
+            "if not Leader, otherwise, must be Follower"
         return dj_pb.RawDataRequest(
                 data_source_meta=self._data_source.data_source_meta,
                 rank_id=self._rank_id,

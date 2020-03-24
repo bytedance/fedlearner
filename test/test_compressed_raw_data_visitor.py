@@ -16,16 +16,15 @@
 
 import unittest
 import os
-import ntpath
 
-from tensorflow.python.platform import gfile
-import tensorflow as tf
-tf.compat.v1.enable_eager_execution()
+from tensorflow.compat.v1 import gfile
+import tensorflow.compat.v1 as tf
+tf.enable_eager_execution()
 
 from fedlearner.common import etcd_client
 from fedlearner.common import common_pb2 as common_pb
 from fedlearner.common import data_join_service_pb2 as dj_pb
-from fedlearner.data_join import raw_data_manifest_manager, raw_data_visitor
+from fedlearner.data_join import raw_data_manifest_manager, raw_data_visitor, common
 
 class TestRawDataVisitor(unittest.TestCase):
     def test_raw_data_visitor(self):
@@ -37,11 +36,15 @@ class TestRawDataVisitor(unittest.TestCase):
                                            'fedlearner', True)
         self.etcd.delete_prefix(self.data_source.data_source_meta.name)
         self.assertEqual(self.data_source.data_source_meta.partition_num, 1)
-        partition_dir = os.path.join(self.data_source.raw_data_dir, 'partition_0')
+        partition_dir = os.path.join(self.data_source.raw_data_dir, common.partition_repr(0))
         self.assertTrue(gfile.Exists(partition_dir))
         manifest_manager = raw_data_manifest_manager.RawDataManifestManager(
             self.etcd, self.data_source)
-        manifest_manager.add_raw_data(0, 1)
+        add_fpaths = dj_pb.RawDataFilePaths(
+                file_paths=[os.path.join(partition_dir, "0-0.idx")],
+                dedup=True
+            )
+        manifest_manager.add_raw_data(0, [os.path.join(partition_dir, "0-0.idx")], True)
         raw_data_options = dj_pb.RawDataOptions(
                 raw_data_iter='TF_DATASET',
                 compressed_type='GZIP'

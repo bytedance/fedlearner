@@ -18,8 +18,8 @@ import unittest
 import os
 import random
 
-import tensorflow as tf
-from tensorflow.python.platform import gfile
+import tensorflow.compat.v1 as tf
+from tensorflow.compat.v1 import gfile
 
 from fedlearner.common import etcd_client
 from fedlearner.common import common_pb2 as common_pb
@@ -71,15 +71,18 @@ class TestExampleJoin(unittest.TestCase):
         self.g_data_block_index = 0
 
     def generate_raw_data(self, begin_index, item_count):
-        raw_data_dir = os.path.join(self.data_source.raw_data_dir, 'partition_{}'.format(0))
+        raw_data_dir = os.path.join(self.data_source.raw_data_dir, common.partition_repr(0))
         if not gfile.Exists(raw_data_dir):
             gfile.MakeDirs(raw_data_dir)
         self.total_raw_data_count += item_count
         useless_index = 0
         rdm = raw_data_visitor.RawDataManager(self.etcd, self.data_source, 0)
+        fpaths = []
         for block_index in range(0, item_count // 2048):
             builder = data_block_manager.DataBlockBuilder(
-                    self.data_source.raw_data_dir, 0, block_index, None
+                    self.data_source.raw_data_dir,
+                    self.data_source.data_source_meta.name,
+                    0, block_index, None
                 )
             cands = list(range(begin_index + block_index * 2048,
                 begin_index + (block_index + 1) * 2048))
@@ -113,23 +116,19 @@ class TestExampleJoin(unittest.TestCase):
                                event_time, useless_index, useless_index)
                 useless_index += 1
             meta = builder.finish_data_block()
-            ofname = common.encode_data_block_fname(meta.start_time,
-                                                    meta.end_time,
-                                                    meta.data_block_index)
-            ofpath = os.path.join(raw_data_dir, ofname)
-            nfname = visitor.encode_unindex_fname(self.g_data_block_index,
-                                                  common.RawDataUnIndexSuffix)
-            nfpath = os.path.join(raw_data_dir, nfname)
+            fname = common.encode_data_block_fname(
+                    self.data_source.data_source_meta.name, meta
+                )
+            fpath = os.path.join(raw_data_dir, fname)
+            fpaths.append(fpath)
             self.g_data_block_index += 1
-            gfile.Rename(ofpath, nfpath)
-        fpaths = [os.path.join(raw_data_dir, f)
+        all_files = [os.path.join(raw_data_dir, f)
                     for f in gfile.ListDirectory(raw_data_dir)
                     if not gfile.IsDirectory(os.path.join(raw_data_dir, f))]
-        for fpath in fpaths:
-            if not fpath.endswith(common.RawDataUnIndexSuffix) and \
-                    not fpath.endswith(common.RawDataIndexSuffix):
+        for fpath in all_files:
+            if not fpath.endswith(common.DataBlockSuffix):
                 gfile.Remove(fpath)
-        self.manifest_manager.add_raw_data(0, self.g_data_block_index)
+        self.manifest_manager.add_raw_data(0, fpaths, False)
 
     def generate_example_id(self, dumper, start_index, item_count):
         self.total_example_id_count += item_count

@@ -158,13 +158,17 @@ class TestRawDataManifestManager(unittest.TestCase):
 
         self.assertRaises(Exception, manifest_manager.finish_sync_example_id, 
                           rank_id, partition_id)
-        manifest_manager.add_raw_data(partition_id, 100)
-        manifest_manager.add_raw_data(partition_id, 99)
+        self.assertRaises(Exception, manifest_manager.add_raw_data, 
+                          partition_id, ['a', 'a', 'b'], False)
+        manifest_manager.add_raw_data(partition_id, ['a', 'a', 'b'], True)
+        manifest = manifest_manager.get_manifest(partition_id)
+        self.assertEqual(manifest.next_process_index, 2)
+        manifest_manager.add_raw_data(partition_id, ['a', 'a', 'b', 'c', 'd'], True)
         manifest_map = manifest_manager.list_all_manifest()
         for i in range(partition_num):
             self.assertTrue(i in manifest_map)
             if i == partition_id:
-                self.assertEqual(manifest_map[i].next_process_index, 100)
+                self.assertEqual(manifest_map[i].next_process_index, 4)
             else:
                 self.assertEqual(manifest_map[i].next_process_index, 0)
         manifest_manager.finish_raw_data(partition_id)
