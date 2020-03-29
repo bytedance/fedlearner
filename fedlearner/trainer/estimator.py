@@ -14,10 +14,15 @@
 
 # coding: utf-8
 
+import os
 import logging
+import time
 import tensorflow.compat.v1 as tf
 from tensorflow.compat.v1.train import Optimizer
 from tensorflow.compat.v1.estimator import ModeKeys
+from fedlearner.common.etcd_client import EtcdClient
+
+SYNC_PATH = '/sync/'
 
 
 class FLModel(object):
@@ -150,6 +155,26 @@ class FLEstimator(object):
         self._worker_rank = worker_rank
         self._cluster_spec = cluster_spec
 
+    def _cheif_barriar(self, is_chief=False, sync_times=300):
+        worker_replicas = os.environ.get('REPLICA_NUM', 0)
+        etcd_client = EtcdClient(os.environ['ETCD_CLUSTER'],
+                                 os.environ['ETCD_ADDRESS'], SYNC_PATH)
+        sync_path = '%s/%s' % (os.environ['APPLICATION_ID'],
+                               os.environ['WORKER_RANK'])
+        logging.info('Creating a sync flag at %s', sync_path)
+        etcd_client.set_data(sync_path, 1)
+        if is_chief:
+            for _ in range(sync_times):
+                sync_list = etcd_client.get_prefix_kvs(
+                    os.environ['APPLICATION_ID'])
+                logging.info('Sync file pattern is: %s', sync_list)
+                if len(sync_list) < worker_replicas:
+                    logging.info('Count of ready workers is %d',
+                                 len(sync_list))
+                    time.sleep(6)
+                else:
+                    break
+
     def train(self,
               input_fn,
               checkpoint_path=None,
@@ -203,6 +228,7 @@ class FLEstimator(object):
                     self._bridge.commit()
                     logging.debug('after bridge commit.')
                     iter_id += 1
+            self._cheif_barriar(is_chief=(self._worker_rank == 0))
             self._bridge.terminate()
 
     def export_saved_model(self,
