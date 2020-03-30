@@ -16,22 +16,34 @@
 
 import argparse
 import logging
-from .trainer_master import TrainerMaster
-from .data.data_block_queue import DataBlockQueue
-from .data.data_source_reader import DataSourceReader
+import os
+from trainer_master import TrainerMaster
+from fedlearner.trainer_master.data.data_block_queue import DataBlockQueue
+from fedlearner.data_join.data_block_visitor import DataBlockVisitor
+
+ETCD_NAME = os.environ.get('ETCD_NAME', None)
+ETCD_ADDR = os.environ.get('ETCD_ADDR', None)
+ETCD_BASE_DIR = os.environ.get('ETCD_BASE_DIR', None)
 
 
 class LeaderTrainerMaster(TrainerMaster):
-    def __init__(self, application_id, data_source_reader_):
+    def __init__(self, application_id, data_source, start_time, end_time):
         super(LeaderTrainerMaster, self).__init__(application_id)
         self._data_block_queue = DataBlockQueue()
-        self._data_source_reader = data_source_reader_
+        self._data_block_visitor = DataBlockVisitor(
+            data_source, ETCD_NAME, ETCD_BASE_DIR, ETCD_ADDR)
+        self._start_time = start_time
+        self._end_time = end_time
 
     def _load_data(self):
         checkpoint = self._get_checkpoint()
-        for data_block in self._data_source_reader.list_data_block():
-            if data_block.block_id not in checkpoint:
-                self._data_block_queue.put(data_block)
+        # pylint: disable=line-too-long
+        for block_id, block_item in self._data_block_visitor.LoadDataBlockRepByTimeFrame(
+                self._start_time, self._end_time).items():
+            if block_id not in checkpoint:
+                logging.debug('load data block id %s path %s',
+                              block_id, block_item.data_block_fpath)
+                self._data_block_queue.put(block_item)
 
     def _alloc_data_block(self, block_id=None):
         # block_id is unused in leader role
@@ -46,17 +58,17 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser('leader trainer master cmd.')
     parser.add_argument('-p', '--port', type=int, default=50001,
                         help='Listen port of leader trainer master')
-    parser.add_argument('--app-id',
+    parser.add_argument('-app_id', '--application_id',
                         required=True, help='application_id')
-    parser.add_argument('--data-path',
-                        required=True, help='training example data path')
-    parser.add_argument('--start-date',
+    parser.add_argument('-data_source', '--data_source',
+                        required=False, help='training example data source')
+    parser.add_argument('-start_date', '--start_date',
                         default=None, help='training data start date')
-    parser.add_argument('--end-date',
+    parser.add_argument('-end_date', '--end_date',
                         default=None, help='training data end date')
     FLAGS = parser.parse_args()
 
-    data_source_reader = DataSourceReader(
-        FLAGS.data_path, FLAGS.start_date, FLAGS.end_date)
-    leader_tm = LeaderTrainerMaster(FLAGS.application_id, data_source_reader)
+    leader_tm = LeaderTrainerMaster(
+        FLAGS.application_id, FLAGS.data_source,
+        int(FLAGS.start_date), int(FLAGS.end_date))
     leader_tm.run(listen_port=FLAGS.port)

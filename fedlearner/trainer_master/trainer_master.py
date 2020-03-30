@@ -55,9 +55,10 @@ class TrainerMaster(object):
         if data_block:
             response.status.code = common_pb.STATUS_SUCCESS
             response.status.error_message = 'success'
-            response.data_block_info.data_path = data_block.data_path
-            response.data_block_info.meta_path = data_block.meta_path
-            response.data_block_info.block_id = data_block.block_id
+            response.data_block_info.data_path = \
+                str(data_block.data_block_fpath)
+            response.data_block_info.meta_path = ''
+            response.data_block_info.block_id = str(data_block.block_id)
         else:
             response.status.code = common_pb.STATUS_NO_MORE_DATA
             response.status.error_message = 'no more datablock to alloc'
