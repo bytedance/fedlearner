@@ -97,6 +97,10 @@ class Bridge(object):
     def __del__(self):
         self.terminate()
 
+    @property
+    def role(self):
+        return self._role
+
     def _client_daemon_fn(self):
         shutdown = [False]
         generator = None
@@ -116,11 +120,15 @@ class Bridge(object):
 
                 def iterator():
                     for item in resend_list:
+                        logging.warning("Streaming resend message seq_num=%d",
+                                        item.seq_num)
                         yield item
                     while True:
                         item = self._transmit_queue.get()
                         with lock:
                             resend_list.append(item)
+                        logging.debug("Streaming send message seq_num=%d",
+                                      item.seq_num)
                         yield item
 
                 generator = self._client.StreamTransmit(iterator())
@@ -128,8 +136,9 @@ class Bridge(object):
                     if response.status.code != common_pb.STATUS_SUCCESS:
                         raise RuntimeError("Trainsmit failed with %d" %
                                            response.status.code)
-                    logging.debug("Transmit success with %d",
-                                 response.status.code)
+                    logging.debug(
+                        "Streaming confirmed sending message seq_num=%d",
+                        response.next_seq_num-1)
                     with lock:
                         while resend_list and \
                                 resend_list[0].seq_num < response.next_seq_num:
@@ -139,6 +148,7 @@ class Bridge(object):
                     logging.warning("Bridge streaming broken: %s. " \
                                     "Retry in 1 second...", repr(e))
                     time.sleep(1)
+                    self._check_remote_heartbeat()
 
     def _transmit(self, msg):
         assert self._connected, "Cannot transmit before connect"
@@ -155,15 +165,18 @@ class Bridge(object):
                 break
             except Exception as e:  # pylint: disable=broad-except
                 logging.warning("Bridge transmit failed: %s. " \
-                                    "Retry in 1 second...",
-                                e.code().name)
+                                "Retry in 1 second...", repr(e))
                 time.sleep(1)
+                self._check_remote_heartbeat()
 
         assert rsp.status.code == common_pb.STATUS_SUCCESS, \
             "Transmit error with code %d."%rsp.status.code
 
     def _transmit_handler(self, request):
         assert self._connected, "Cannot transmit before connect"
+        logging.debug("Received message seq_num=%d."
+                      " Current seq_num=%d.",
+                      request.seq_num, self._next_receive_seq_num)
         if request.seq_num >= self._next_receive_seq_num:
             assert request.seq_num == self._next_receive_seq_num, \
                 "Invalid request"
@@ -224,6 +237,16 @@ class Bridge(object):
         return tws_pb.HeartbeatResponse(app_id=self._app_id,
                                         worker_rank=self._rank,
                                         current_iter_id=self._current_iter_id)
+
+    def _check_remote_heartbeat(self):
+        try:
+            rsp = self._client.Heartbeat(tws_pb.HeartbeatRequest())
+            logging.debug("Heartbeat success: %s:%d at iteration %s.",
+                          rsp.app_id, rsp.worker_rank, rsp.current_iter_id)
+            return True
+        except Exception as e:  # pylint: disable=broad-except
+            logging.warning("Heartbeat request failed: %s", repr(e))
+            return False
 
     def connect(self):
         assert not self._connected, "Already connected"
