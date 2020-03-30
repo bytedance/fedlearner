@@ -32,5 +32,5 @@ class TrainerMasterServer(tm_grpc.TrainerMasterServiceServicer):
             response = self._receiver_fn(request)
         except Exception:  # pylint: disable=broad-except
             response.status.code = common_pb.STATUS_UNKNOWN_ERROR
-            response.status.error_message = sys.exc_info()[0]
+            response.status.error_message = sys.exc_info()
         return response

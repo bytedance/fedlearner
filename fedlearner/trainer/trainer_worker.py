@@ -35,15 +35,26 @@ def create_argument_parser():
     parser.add_argument('--cluster-spec', type=str,
                         help='ClusterSpec description for master/ps/worker, '\
                             'in json format')
-    parser.add_argument('--worker-rank', type=int, default=0,
-                         help='the rank of this worker.')
+    parser.add_argument('--worker-rank',
+                        type=int,
+                        default=0,
+                        help='the rank of this worker.')
     parser.add_argument('--ps-addrs', type=str, default=None,
                         help='Comma-separated list of parameter server ' \
                              'addresses in [IP]:[PORT] format. ' \
                              'value for this argument must be identical ' \
                              'for all workers.')
+    parser.add_argument('--data-source', type=str, default=None,
+                        help='path to data source for distributed file system' \
+                             'training. Ignored when --master-addr is set.')
     parser.add_argument('--data-path', type=str, default=None,
                         help='path to data block files for non-distributed ' \
+                             'training. Ignored when --master-addr is set.')
+    parser.add_argument('--start-time', type=str, default=None,
+                        help='start-time on data source ' \
+                             'training. Ignored when --master-addr is set.')
+    parser.add_argument('--end-time', type=str, default=None,
+                        help='end-time on data source ' \
                              'training. Ignored when --master-addr is set.')
     parser.add_argument('--master-addr', type=str, default=None,
                         help='Address of trainer master, ' \
@@ -52,19 +63,24 @@ def create_argument_parser():
     parser.add_argument('--tf-addr', type=str, default=None,
                         help='Address of tensorflow server, ' \
                              'in localhost:[PORT] format')
-    parser.add_argument('--export-path', type=str, default=None,
+    parser.add_argument('--export-path',
+                        type=str,
+                        default=None,
                         help='Path to save exported models.')
-    parser.add_argument('--checkpoint-path', type=str, default=None,
+    parser.add_argument('--checkpoint-path',
+                        type=str,
+                        default=None,
                         help='Path to save and load model checkpoints.')
-    parser.add_argument('--save-checkpoint-steps', type=int, default=1000,
+    parser.add_argument('--save-checkpoint-steps',
+                        type=int,
+                        default=1000,
                         help='Number of steps between checkpoints.')
 
     return parser
 
 
 def train(role, args, input_fn, model_fn, serving_input_receiver_fn):
-    bridge = Bridge(role, int(args.local_addr.split(':')[1]),
-                               args.peer_addr)
+    bridge = Bridge(role, int(args.local_addr.split(':')[1]), args.peer_addr)
 
     if args.cluster_spec:
         cluster_spec = json.loads(args.cluster_spec)
@@ -81,27 +97,46 @@ def train(role, args, input_fn, model_fn, serving_input_receiver_fn):
         trainer_master = TrainerMasterClient(
             cluster_spec['clusterSpec']['Master'][0], role, args.worker_rank)
         cluster_spec = tf.train.ClusterSpec({
-            'ps': cluster_spec['clusterSpec']['PS'],
-            'worker': {args.worker_rank: args.tf_addr}})
+            'ps':
+            cluster_spec['clusterSpec']['PS'],
+            'worker': {
+                args.worker_rank: args.tf_addr
+            }
+        })
 
     elif args.master_addr:
         assert args.tf_addr is not None, \
             "--tf-addr must be set when master_addr is set."
-        trainer_master = TrainerMasterClient(
-            args.master_addr, role, args.worker_rank)
+        trainer_master = TrainerMasterClient(args.master_addr, role,
+                                             args.worker_rank)
         ps_addrs = args.ps_addrs.split(",")
         cluster_spec = tf.train.ClusterSpec({
             'ps': ps_addrs,
-            'worker': {args.worker_rank: args.tf_addr}})
+            'worker': {
+                args.worker_rank: args.tf_addr
+            }
+        })
     elif args.data_path:
         trainer_master = LocalTrainerMasterClient(role, args.data_path)
+        cluster_spec = None
+    elif args.data_source:
+        if args.start_time is None or args.end_time is None:
+            raise ValueError(
+                "data source must be set with start-date and end-date")
+        trainer_master = LocalTrainerMasterClient(role,
+                                                  args.data_source,
+                                                  start_time=args.start_time,
+                                                  end_time=args.end_time)
         cluster_spec = None
     else:
         raise ValueError("Either --master-addr or --data-path must be set")
 
-    estimator = FLEstimator(
-        model_fn, bridge, trainer_master, role, worker_rank=args.worker_rank,
-        cluster_spec=cluster_spec)
+    estimator = FLEstimator(model_fn,
+                            bridge,
+                            trainer_master,
+                            role,
+                            worker_rank=args.worker_rank,
+                            cluster_spec=cluster_spec)
     if args.checkpoint_path:
         estimator.train(input_fn,
                         checkpoint_path=args.checkpoint_path,
@@ -111,5 +146,5 @@ def train(role, args, input_fn, model_fn, serving_input_receiver_fn):
 
     if args.export_path:
         estimator.export_saved_model(args.export_path,
-                                    serving_input_receiver_fn,
-                                    checkpoint_path=args.checkpoint_path)
+                                     serving_input_receiver_fn,
+                                     checkpoint_path=args.checkpoint_path)

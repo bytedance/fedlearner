@@ -23,34 +23,55 @@ from fedlearner.common import trainer_master_service_pb2 as tm_pb
 from fedlearner.common import trainer_master_service_pb2_grpc as tm_grpc
 from fedlearner.proxy.channel import make_insecure_channel, ChannelType
 from fedlearner.common import common_pb2 as common_pb
+from fedlearner.data_join.data_block_visitor import DataBlockVisitor
 
 DataBlockInfo = collections.namedtuple('DataBlockInfo',
                                        ['block_id', 'data_path'])
+ETCD_NAME = os.environ.get('ETCD_NAME', None)
+ETCD_ADDR = os.environ.get('ETCD_ADDR', None)
+ETCD_BASE_DIR = os.environ.get('ETCD_BASE_DIR', None)
 
 
 class LocalTrainerMasterClient(object):
-    def __init__(self, role, path, files=None, ext='.tfrecord'):
+    def __init__(self,
+                 role,
+                 path,
+                 files=None,
+                 ext='.tfrecord',
+                 start_time=None,
+                 end_time=None,
+                 from_data_source=False):
         self._role = role
         self._path = path
-        if files is None:
-            files = []
-            for filename in os.listdir(path):
-                fullname = os.path.join(path, filename)
-                if not os.path.isfile(fullname):
-                    continue
-                _, fileext = os.path.splitext(filename)
-                if ext and fileext != ext:
-                    continue
-                files.append(filename)
-        files.sort()
         self._block_queue = []
         self._block_map = {}
-        for filename in files:
-            block_id, _ = os.path.splitext(filename)
-            fullname = os.path.join(path, filename)
-            block = DataBlockInfo(block_id, fullname)
-            self._block_queue.append(block)
-            self._block_map[block_id] = block
+        if from_data_source:
+            data_block_visitor = DataBlockVisitor(path, ETCD_NAME,
+                                                  ETCD_BASE_DIR, ETCD_ADDR)
+            # pylint: disable=line-too-long
+            for block_id, block_item in data_block_visitor.LoadDataBlockRepByTimeFrame(
+                    start_time, end_time).items():
+                self._block_queue.append(block_item)
+                self._block_map[block_id] = block_item
+        else:
+            if files is None:
+                files = []
+                for filename in os.listdir(path):
+                    fullname = os.path.join(path, filename)
+                    if not os.path.isfile(fullname):
+                        continue
+                    _, fileext = os.path.splitext(filename)
+                    if ext and fileext != ext:
+                        continue
+                    files.append(filename)
+            files.sort()
+
+            for filename in files:
+                block_id, _ = os.path.splitext(filename)
+                fullname = os.path.join(path, filename)
+                block = DataBlockInfo(block_id, fullname)
+                self._block_queue.append(block)
+                self._block_map[block_id] = block
 
     def request_data_block(self, block_id=None):
         if self._role == 'leader':
