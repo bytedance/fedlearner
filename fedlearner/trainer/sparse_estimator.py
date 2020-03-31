@@ -1,0 +1,248 @@
+# Copyright 2020 The FedLearner Authors. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+# coding: utf-8
+# pylint: disable=protected-access
+
+import tensorflow.compat.v1 as tf
+from tensorflow.compat.v1.estimator import ModeKeys
+from tensorflow.contrib import graph_editor as ge
+
+from fedlearner.trainer import embedding
+from fedlearner.trainer import estimator
+from fedlearner.trainer import feature
+from fedlearner.trainer import operator
+from fedlearner.trainer import utils
+
+
+class ConfigRunError(Exception):
+    pass
+
+class SparseFLModel(estimator.FLModel):
+    def __init__(self, role, bridge, example_ids, exporting=False,
+                 config_run=True,
+                 bias_tensor=None, vec_tensor=None,
+                 bias_embedding=None, vec_embedding=None):
+        super(SparseFLModel, self).__init__(role,
+            bridge, example_ids, exporting)
+
+        self._config_run = config_run
+        self._num_shards = 1
+        if config_run:
+            self._bias_tensor = tf.placeholder(tf.float32, shape=[None, None])
+            self._vec_tensor = tf.placeholder(tf.float32, shape=[None, None])
+        else:
+            self._bias_tensor = bias_tensor
+            self._vec_tensor = vec_tensor
+        self._bias_embedding = bias_embedding
+        self._vec_embedding = vec_embedding
+
+        self._frozen = False
+        self._slot_ids = []
+        self._feature_slots = {}
+        self._feature_column_v1s = {}
+        self._num_embedding_groups = 3
+
+    def add_feature_slot(self, *args, **kwargs):
+        assert not self._frozen, "Cannot modify model after finalization"
+        fs = feature.FeatureSlot(*args, **kwargs)
+        self._slot_ids.append(fs.slot_id)
+        self._feature_slots[fs.slot_id] = fs
+        return fs
+
+    def add_feature_column(self, *args, **kwargs):
+        assert not self._frozen, "Cannot modify model after finalization"
+        fc = feature.FeatureColumnV1(*args, **kwargs)
+        slot_id = fc.feature_slot.slot_id
+        assert slot_id in self._feature_slots and \
+            self._feature_slots[slot_id] is fc.feature_slot, \
+            "FeatureSlot with id %d must be added to Model first"%slot_id
+        assert slot_id not in self._feature_column_v1s, \
+            "Only one FeatureColumnV1 can be created for each slot"
+        self._feature_column_v1s[slot_id] = fc
+        return fc
+
+    def get_bias(self):
+        return self._bias_tensor
+
+    def get_vec(self):
+        return self._vec_tensor
+
+    def _get_bias_slot_configs(self):
+        if not self._config_run:
+            return self._bias_embedding.config if self._bias_embedding else None
+
+        slot_list = []
+        fs_map = {}
+        for slot_id in self._slot_ids:
+            fs = self._feature_slots[slot_id]
+            key = (id(fs._bias_initializer), id(fs._bias_optimizer))
+            fs_map[key] = fs
+            slot_list.append((fs.slot_id, 1, fs.hash_table_size, key))
+        if not slot_list:
+            return None
+
+        bias_config = utils._compute_slot_config(slot_list, 1)
+        bias_config['name'] = 'bias'
+        bias_config['slot_list'] = slot_list
+        bias_config['initializers'] = [fs_map[i]._bias_initializer
+            for i in bias_config['weight_group_keys']]
+        bias_config['optimizers'] = [fs_map[i]._bias_optimizer
+            for i in bias_config['weight_group_keys']]
+        return bias_config
+
+    def _get_vec_slot_configs(self):
+        if not self._config_run:
+            return self._vec_embedding.config if self._vec_embedding else None
+
+        slot_list = []
+        fs_map = {}
+        for slot_id in self._slot_ids:
+            if slot_id not in self._feature_column_v1s:
+                continue
+            fc = self._feature_column_v1s[slot_id]
+            fs = fc.feature_slot
+            if fc.feature_slot.dim > 1:
+                key = (id(fs._vec_initializer), id(fs._vec_optimizer))
+                fs_map[key] = fs
+                slot_list.append((slot_id, fs.dim - 1, fs.hash_table_size, key))
+        if not slot_list:
+            return None
+
+        vec_config = utils._compute_slot_config(slot_list,
+            self._num_embedding_groups)
+        vec_config['name'] = 'vec'
+        vec_config['slot_list'] = slot_list
+        vec_config['initializers'] = [fs_map[i]._vec_initializer
+            for i in vec_config['weight_group_keys']]
+        vec_config['optimizers'] = [fs_map[i]._vec_optimizer
+            for i in vec_config['weight_group_keys']]
+        return vec_config
+
+    def freeze_slots(self, features):
+        assert not self._frozen, "Already finalized"
+        if self._config_run:
+            raise ConfigRunError()
+
+        self._sparse_v2opt = {}
+        bias_config = self._get_bias_slot_configs()
+        if bias_config:
+            bias_weights = self._bias_embedding.weights
+            for i, opt in enumerate(bias_config['optimizers']):
+                for j in range(self._num_shards):
+                    self._sparse_v2opt[bias_weights[i][j]] = opt
+
+        vec_config = self._get_vec_slot_configs()
+        if vec_config:
+            vec_weights = self._vec_embedding.weights
+            for i, opt in enumerate(vec_config['optimizers']):
+                for j in range(self._num_shards):
+                    self._sparse_v2opt[vec_weights[i][j]] = opt
+
+            placeholders = []
+            dims = []
+            for slot_id, _, _, _ in vec_config['slot_list']:
+                fc = self._feature_column_v1s[slot_id]
+                for sslice in fc.feature_slot.feature_slices:
+                    dims.append(sslice.len)
+                    placeholders.append(fc.get_vector(sslice))
+            vec_split = tf.split(self._vec_tensor, dims, axis=1)
+            ge.swap_ts(vec_split, placeholders)
+
+        for slot in self._feature_slots.values():
+            slot._frozen = True
+        self._frozen = True
+
+
+class SparseFLEstimator(estimator.FLEstimator):
+    def __init__(self,
+                 model_fn,
+                 bridge,
+                 trainer_master,
+                 role,
+                 worker_rank=0,
+                 cluster_spec=None):
+        super(SparseFLEstimator, self).__init__(model_fn,
+            bridge, trainer_master, role, worker_rank, cluster_spec)
+
+        self._bias_slot_configs = None
+        self._vec_slot_configs = None
+        self._embedding_devices = [None,] if cluster_spec is None else \
+            ['/job:ps/task:%d'%i for i in range(cluster_spec.num_tasks('ps'))]
+        self._num_shards = len(self._embedding_devices)
+
+    def _preprocess_fids(self, fids, configs):
+        if fids.indices.shape.rank == 2:
+            fids = tf.IndexedSlices(indices=fids.indices[:, 0],
+                                    values=fids.values,
+                                    dense_shape=fids.dense_shape)
+        features = {}
+        for config in configs:
+            features.update(operator._multidevice_preprocess_fids(
+                fids, config, num_shards=self._num_shards))
+        return features
+
+    def _set_model_configs(self, features, labels, mode):
+        with tf.Graph().as_default() as g:
+            M = SparseFLModel(self._role,
+                              self._bridge,
+                              features['example_id'],
+                              config_run=True)
+            try:
+                self._model_fn(M, features, labels, mode)
+            except ConfigRunError as e:
+                self._bias_slot_configs = M._get_bias_slot_configs()
+                self._vec_slot_configs = M._get_vec_slot_configs()
+                return [self._bias_slot_configs, self._vec_slot_configs]
+        raise UserWarning("Failed to get model config. Did you forget to call \
+                           freeze_slots in model_fn?")
+
+    def _data_preprocess(self, features, labels, mode):
+        slot_configs = self._set_model_configs(features,
+                                               labels,
+                                               mode)
+        features.update(self._preprocess_fids(features.pop('fids'),
+                                              slot_configs))
+        return features, labels
+
+    def _get_model_spec(self, features, labels, mode):
+        features = features.copy()
+        if mode == ModeKeys.PREDICT:
+            fids = tf.IndexedSlices(
+                indices=features.pop('fids_indices'),
+                values=features.pop('fids_values'),
+                dense_shape=features.pop('fids_dense_shape'))
+            features.update(self._preprocess_fids(
+                fids, self._slot_configs, mode))
+
+        bias_embedding = embedding.Embedding(self._bias_slot_configs,
+                                             devices=self._embedding_devices)
+        bias_tensor = bias_embedding.lookup(features)
+        if self._vec_slot_configs is not None:
+            vec_embedding = embedding.Embedding(self._vec_slot_configs,
+                                                devices=self._embedding_devices)
+            vec_tensor = vec_embedding.lookup(features)
+        else:
+            vec_embedding = None
+            vec_tensor = None
+
+        model = SparseFLModel(self._role, self._bridge, features['example_id'],
+                              config_run=False,
+                              bias_tensor=bias_tensor,
+                              bias_embedding=bias_embedding,
+                              vec_tensor=vec_tensor,
+                              vec_embedding=vec_embedding)
+
+        spec = self._model_fn(model, features, labels, mode)
+        assert model._frozen, "Please finalize model in model_fn"
+        return spec, model

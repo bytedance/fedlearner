@@ -9,6 +9,9 @@ endif
 ci:
 	bash ci/ci_test.sh
 
+op:
+	bash cc/build.sh
+
 protobuf:
 	python -m grpc_tools.protoc -I protocols -I$(TF_PATH) \
 		--python_out=. \

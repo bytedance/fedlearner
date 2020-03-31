@@ -155,6 +155,17 @@ class FLEstimator(object):
         self._worker_rank = worker_rank
         self._cluster_spec = cluster_spec
 
+    def _data_preprocess(self, features, labels, mode):
+        # do nothing
+        return features, labels
+
+    def _get_model_spec(self, features, labels, mode):
+        model = FLModel(self._role, self._bridge,
+                        features.get('example_id', None),
+                        exporting=(mode == ModeKeys.PREDICT))
+        spec = self._model_fn(model, features, labels, mode)
+        return spec, model
+
     def _cheif_barriar(self, is_chief=False, sync_times=300):
         worker_replicas = os.environ.get('REPLICA_NUM', 0)
         etcd_client = EtcdClient(os.environ['ETCD_CLUSTER'],
@@ -207,9 +218,9 @@ class FLEstimator(object):
         with tf.Graph().as_default() as g:
             with tf.device(device_fn):
                 features, labels = input_fn(self._bridge, self._trainer_master)
-                model = FLModel(self._role, self._bridge,
-                                features['example_id'])
-                spec = self._model_fn(model, features, labels, ModeKeys.TRAIN)
+                features, labels = self._data_preprocess(
+                    features, labels, ModeKeys.TRAIN)
+                spec, _ = self._get_model_spec(features, labels, ModeKeys.TRAIN)
 
             self._bridge.connect()
             with tf.train.MonitoredTrainingSession(
@@ -237,12 +248,8 @@ class FLEstimator(object):
                            checkpoint_path=None):
         with tf.Graph().as_default() as g:
             receiver = serving_input_receiver_fn()
-            model = FLModel(self._role,
-                            self._bridge,
-                            receiver.features.get('example_id', None),
-                            exporting=True)
-            spec = self._model_fn(model, receiver.features, None,
-                                  ModeKeys.PREDICT)
+            spec, model = self._get_model_spec(receiver.features, None,
+                                               ModeKeys.PREDICT)
             assert not model.sends, "Exported model cannot send"
             assert not model.recvs, "Exported model cannot receive"
 
