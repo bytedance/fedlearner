@@ -1,0 +1,41 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: flapp-operator
+  name: flapp-operator
+  namespace: {{ .Release.Namespace }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: flapp-operator
+  strategy:
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 1
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: flapp-operator
+    spec:
+      containers:
+        - args:
+            - --port=8100
+            - --namespace={{ .Release.Namespace }}
+            - --leader-election=true
+            - --leader-election-lock-namespace={{ .Release.Namespace }}
+            - --resync-interval=5
+          command:
+            - ./main
+          image: "{{ .Values.image.repository }}:{{ .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          name: flapp-operator
+          ports:
+            - containerPort: 8100
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      restartPolicy: Always
+      serviceAccountName: flapp-operator
+---
