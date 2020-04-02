@@ -18,6 +18,27 @@ set -ex
 
 export CUDA_VISIBLE_DEVICES=
 
+# When the WORKER_GROUPS is "2,4", this script would update the WORKER_RANK
+# to the worker's index within their own group, e.g.
+#
+# + WORKER_RANK 0 -> 0
+# + WORKER_RANK 1 -> 1
+# + WORKER_RANK 2 -> 0
+# + WORKER_RANK 3 -> 1
+# + WORKER_RANK 4 -> 2
+# + WORKER_RANK 5 -> 3
+#
+if [ -n "$WORKER_GROUPS" ]; then
+IFS=',' read -ra WORKER_GROUPS <<< "$WORKER_GROUPS"
+for i in "${WORKER_GROUPS[@]}"; do
+    if (( $WORKER_RANK - $i < 0 )); then
+        break
+    else
+        WORKER_RANK=$( expr $WORKER_RANK - $i )
+    fi
+done
+fi
+
 code_url="https://github.com/rapmetal/fedlearner_models/releases/download/${RELEASE_TAG}/${RELEASE_PKG}.zip"
 wget $code_url
 unzip "${RELEASE_PKG}.zip"
