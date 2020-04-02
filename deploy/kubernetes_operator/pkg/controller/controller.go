@@ -86,26 +86,10 @@ func NewFLController(
 	}
 
 	crdSharedInformerFactory.Fedlearner().V1alpha1().FLApps().Informer().AddEventHandler(
-		cache.FilteringResourceEventHandler{
-			FilterFunc: func(obj interface{}) bool {
-				var app *v1alpha1.FLApp
-				switch obj.(type) {
-				case *v1alpha1.FLApp:
-					app = obj.(*v1alpha1.FLApp)
-				case cache.DeletedFinalStateUnknown:
-					deletedObj := obj.(cache.DeletedFinalStateUnknown).Obj
-					app = deletedObj.(*v1alpha1.FLApp)
-				}
-				if app != nil {
-					return app.Namespace == namespace
-				}
-				return false
-			},
-			Handler: cache.ResourceEventHandlerFuncs{
-				AddFunc:    controller.onFLAppAdded,
-				UpdateFunc: controller.onFLAppUpdated,
-				DeleteFunc: controller.onFLAppDeleted,
-			},
+		cache.ResourceEventHandlerFuncs{
+			AddFunc:    controller.onFLAppAdded,
+			UpdateFunc: controller.onFLAppUpdated,
+			DeleteFunc: controller.onFLAppDeleted,
 		})
 	return controller
 }
