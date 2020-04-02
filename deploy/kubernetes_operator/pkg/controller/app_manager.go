@@ -345,7 +345,6 @@ func (am *appManager) createIngress(app *v1alpha1.FLApp) error {
 
 // if data is not nil, update configMap Data to data
 func (am *appManager) createOrUpdateConfigMap(app *v1alpha1.FLApp, rtype v1alpha1.FLReplicaType, data map[string]string) error {
-	namespace := am.namespace
 	rt := strings.ToLower(string(rtype))
 	configMapName := GenReplicaName(app.Name, strings.ToLower(app.Spec.Role), rt)
 	ownerReference := am.GenOwnerReference(app)
@@ -372,10 +371,10 @@ func (am *appManager) createOrUpdateConfigMap(app *v1alpha1.FLApp, rtype v1alpha
 		newConfigMap.Data = configMap.Data
 	}
 	if createConfigMap {
-		_, err := am.kubeClient.CoreV1().ConfigMaps(namespace).Create(newConfigMap)
+		_, err := am.kubeClient.CoreV1().ConfigMaps(am.namespace).Create(newConfigMap)
 		return err
 	} else {
-		_, err := am.kubeClient.CoreV1().ConfigMaps(namespace).Update(newConfigMap)
+		_, err := am.kubeClient.CoreV1().ConfigMaps(am.namespace).Update(newConfigMap)
 		return err
 	}
 }

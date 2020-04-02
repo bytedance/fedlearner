@@ -24,6 +24,7 @@ import (
 	"time"
 
 	apiv1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/uuid"
 	"k8s.io/client-go/informers"
 	clientset "k8s.io/client-go/kubernetes"
@@ -162,8 +163,21 @@ func main() {
 	})
 	recorder := eventBroadcaster.NewRecorder(scheme.Scheme, apiv1.EventSource{Component: "fedlearner-operator"})
 
-	kubeInformerFactory := informers.NewSharedInformerFactory(kubeClient, time.Duration(*resyncInterval)*time.Second)
-	crdInformerFactory := crdinformers.NewSharedInformerFactory(crdClient, time.Duration(*resyncInterval)*time.Second)
+	if *namespace == metav1.NamespaceAll {
+		klog.Fatalf("cluster scoped operator is not supported")
+	}
+	klog.Infof("scoping operator to namespace %s", *namespace)
+
+	kubeInformerFactory := informers.NewSharedInformerFactoryWithOptions(
+		kubeClient,
+		time.Duration(*resyncInterval)*time.Second,
+		informers.WithNamespace(*namespace),
+	)
+	crdInformerFactory := crdinformers.NewSharedInformerFactoryWithOptions(
+		crdClient,
+		time.Duration(*resyncInterval)*time.Second,
+		crdinformers.WithNamespace(*namespace),
+	)
 
 	appEventHandler := controller.NewAppEventHandler(*namespace, crdClient)
 	flController := controller.NewFLController(*namespace, recorder, *resyncInterval, kubeClient, crdClient, kubeInformerFactory, crdInformerFactory, appEventHandler, stopCh)
