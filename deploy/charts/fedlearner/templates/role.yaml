@@ -1,7 +1,7 @@
-kind: ClusterRole
+kind: Role
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name: flapp-operator-{{ .Release.Namespace }}
+  name: flapp-operator
 rules:
   - apiGroups: ["*"]
     resources: ["*"]
