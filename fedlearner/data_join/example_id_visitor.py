@@ -146,10 +146,8 @@ class ExampleIdManager(visitor.IndexMetaManager):
 
     def _preload_example_id_meta(self):
         fdir = self._example_dumped_dir()
-        fpaths = [os.path.join(fdir, f)
-                    for f in gfile.ListDirectory(fdir)
-                    if (not gfile.IsDirectory(os.path.join(fdir, f)) and
-                        f.endswith(ExampleIdSuffix))]
+        fpaths = [os.path.join(fdir, f) for f in gfile.ListDirectory(fdir)
+                  if f.endswith(ExampleIdSuffix)]
         index_metas = []
         for fpath in fpaths:
             index_meta = decode_index_meta(fpath)
