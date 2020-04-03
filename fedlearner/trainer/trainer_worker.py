@@ -51,6 +51,9 @@ def create_argument_parser():
     parser.add_argument('--data-path', type=str, default=None,
                         help='path to data block files for non-distributed ' \
                              'training. Ignored when --master-addr is set.')
+    parser.add_argument('--application-id', type=str, default=None,
+                        help='application id on distributed ' \
+                             'training.')
     parser.add_argument('--start-time', type=str, default=None,
                         help='start-time on data source ' \
                              'training. Ignored when --master-addr is set.')
@@ -82,7 +85,12 @@ def create_argument_parser():
     return parser
 
 def train(role, args, input_fn, model_fn, serving_input_receiver_fn):
-    bridge = Bridge(role, int(args.local_addr.split(':')[1]), args.peer_addr)
+    if args.application_id:
+        bridge = Bridge(role, int(args.local_addr.split(':')[1]),
+                        args.peer_addr, args.application_id, args.worker_rank)
+    else:
+        bridge = Bridge(role, int(args.local_addr.split(':')[1]),
+                               args.peer_addr)
 
     if args.cluster_spec:
         cluster_spec = json.loads(args.cluster_spec)
