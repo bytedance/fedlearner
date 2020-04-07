@@ -27,8 +27,10 @@ ETCD_BASE_DIR = os.environ.get('ETCD_BASE_DIR', None)
 
 
 class LeaderTrainerMaster(TrainerMaster):
-    def __init__(self, application_id, data_source, start_time, end_time):
-        super(LeaderTrainerMaster, self).__init__(application_id)
+    def __init__(self, application_id, data_source,
+                 start_time, end_time, online_training):
+        super(LeaderTrainerMaster, self).__init__(application_id,
+                                                  None, online_training)
         self._data_block_queue = DataBlockQueue()
         self._data_block_visitor = DataBlockVisitor(
             data_source, ETCD_NAME, ETCD_BASE_DIR, ETCD_ADDR)
@@ -66,9 +68,11 @@ if __name__ == '__main__':
                         default=None, help='training data start date')
     parser.add_argument('-end_date', '--end_date',
                         default=None, help='training data end date')
+    parser.add_argument('--online_training', action='store_true',
+                        help='the train master run for online training')
     FLAGS = parser.parse_args()
 
-    leader_tm = LeaderTrainerMaster(
-        FLAGS.application_id, FLAGS.data_source,
-        int(FLAGS.start_date), int(FLAGS.end_date))
+    leader_tm = LeaderTrainerMaster(FLAGS.application_id, FLAGS.data_source,
+                                    int(FLAGS.start_date), int(FLAGS.end_date),
+                                    FLAGS.online_training)
     leader_tm.run(listen_port=FLAGS.port)

@@ -24,8 +24,10 @@ from fedlearner.common import common_pb2 as common_pb
 
 
 class TrainerMaster(object):
-    def __init__(self, application_id, checkpoint_path=None):
+    def __init__(self, application_id, checkpoint_path=None,
+                 online_training=False):
         self._application_id = application_id
+        self._online_training = online_training
 
     def run(self, listen_port):
         # TrainerMaster need to load data_block from store or disk at first.
@@ -47,9 +49,8 @@ class TrainerMaster(object):
         raise NotImplementedError("This method needs to be overridden")
 
     def _data_block_response(self, request):
-        logging.debug(
-            "In Base TrainerMaster::_data_block_response  block_id = %s",
-            request.block_id)
+        logging.debug("In Base TrainerMaster::_data_block_response "\
+                      "block_id = %s", request.block_id)
         data_block = self._alloc_data_block(block_id=request.block_id)
         response = tm_pb.DataBlockResponse()
         if data_block:
@@ -59,9 +60,16 @@ class TrainerMaster(object):
                 str(data_block.data_block_fpath)
             response.data_block_info.meta_path = ''
             response.data_block_info.block_id = str(data_block.block_id)
+        elif self._online_training:
+            response.status = common_pb.Status(
+                    code=common_pb.STATUS_NO_MORE_DATA,
+                    error_message='please wait for datablock ready'
+                )
         else:
-            response.status.code = common_pb.STATUS_NO_MORE_DATA
-            response.status.error_message = 'no more datablock to alloc'
+            response.status = common_pb.Status(
+                    code=common_pb.STATUS_DATA_FINISHED,
+                    error_message='datablock finished'
+                )
         return response
 
     def _load_data(self):

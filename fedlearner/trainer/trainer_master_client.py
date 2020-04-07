@@ -108,20 +108,28 @@ class TrainerMasterClient(object):
         while True:
             try:
                 result = self._stub.RequestDataBlock(self._request)
-                break
             except Exception as e:  # pylint: disable=broad-except
                 logging.warning("Get data block failed: %s. " \
                                     "Retry in 1 second...",
                                 e.code().name)
-                time.sleep(1)
-
-        if result.status.code == common_pb.STATUS_SUCCESS:
-            logging.debug("%s:%d failed to get data block %s at %s", self._role,
-                          self._task_id, result.data_block_info.block_id,
-                          result.data_block_info.data_path)
-            return DataBlockInfo(result.data_block_info.block_id,
-                                 result.data_block_info.data_path)
-
-        logging.error("%s:%d gets block failed with error[%s].", self._role,
-                      self._task_id, result.status.error_message)
+            else:
+                if result.status.code == common_pb.STATUS_SUCCESS:
+                    logging.debug("%s:%d failed to get data block %s at %s",
+                                  self._role, self._task_id,
+                                  result.data_block_info.block_id,
+                                  result.data_block_info.data_path)
+                    return DataBlockInfo(result.data_block_info.block_id,
+                                         result.data_block_info.data_path)
+                if result.status.code == common_pb.STATUS_DATA_FINISHED:
+                    logging.warning("%s:%d gets block allocated finished.",
+                                    self._role, self._task_id)
+                    break
+                logging.warning("%s:%d failed to get data block %s at %s"\
+                                "code: %d, message: %s. Retry in 1 second...",
+                                self._role, self._task_id,
+                                result.data_block_info.block_id,
+                                result.data_block_info.data_path,
+                                result.status.code,
+                                result.status.error_message)
+            time.sleep(1)
         return None
