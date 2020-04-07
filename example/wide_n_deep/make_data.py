@@ -15,12 +15,12 @@
 # coding: utf-8
 
 import os
+import random
 import shutil
-import numpy as np
 import tensorflow.compat.v1 as tf
 
 from tensorflow.core.example.example_pb2 import Example
-from tensorflow.core.example.feature_pb2 import FloatList, Features, Feature, \
+from tensorflow.core.example.feature_pb2 import Features, Feature, \
                                                 Int64List, BytesList
 
 current_dir = os.path.dirname(__file__)
@@ -28,20 +28,12 @@ shutil.rmtree(os.path.join(current_dir, 'data'), ignore_errors=True)
 os.makedirs(os.path.join(current_dir, 'data/leader'))
 os.makedirs(os.path.join(current_dir, 'data/follower'))
 
-
-(x, y), _ = tf.keras.datasets.mnist.load_data()
-x = x.reshape(x.shape[0], -1).astype(np.float32) / 255.0
-y = y.astype(np.int64)
-
-xl = x[:, :x.shape[1]/2]
-xf = x[:, x.shape[1]/2:]
-
 N = 10
-chunk_size = x.shape[0]//N
+chunk_size = 10000
 
 for i in range(N):
-    filename_l = os.path.join(current_dir, 'data/leader/%02d.tfrecords'%i)
-    filename_f = os.path.join(current_dir, 'data/follower/%02d.tfrecords'%i)
+    filename_l = os.path.join(current_dir, 'data/leader/%02d.tfrecord'%i)
+    filename_f = os.path.join(current_dir, 'data/follower/%02d.tfrecord'%i)
     fl = tf.io.TFRecordWriter(filename_l)
     ff = tf.io.TFRecordWriter(filename_f)
 
@@ -51,17 +43,19 @@ for i in range(N):
         features_l['example_id'] = \
             Feature(bytes_list=BytesList(value=[str(idx)]))
         features_l['y'] = \
-            Feature(int64_list=Int64List(value=[y[idx]]))
-        features_l['x'] = \
-            Feature(float_list=FloatList(value=list(xl[idx])))
+            Feature(int64_list=Int64List(value=[random.randint(0, 1)]))
+        for k in range(512):
+            features_l['x_{0}'.format(k)] = \
+                Feature(int64_list=Int64List(value=[random.randint(0, 100)]))
         fl.write(
             Example(features=Features(feature=features_l)).SerializeToString())
 
         features_f = {}
         features_f['example_id'] = \
             Feature(bytes_list=BytesList(value=[str(idx)]))
-        features_f['x'] = \
-            Feature(float_list=FloatList(value=list(xf[idx])))
+        for k in range(512):
+            features_f['x_{0}'.format(k)] = \
+                Feature(int64_list=Int64List(value=[random.randint(0, 100)]))
         ff.write(
             Example(features=Features(feature=features_f)).SerializeToString())
 
