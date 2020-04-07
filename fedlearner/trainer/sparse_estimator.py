@@ -177,6 +177,7 @@ class SparseFLEstimator(estimator.FLEstimator):
 
         self._bias_slot_configs = None
         self._vec_slot_configs = None
+        self._slot_configs = None
         self._embedding_devices = [None,] if cluster_spec is None else \
             ['/job:ps/task:%d'%i for i in range(cluster_spec.num_tasks('ps'))]
         self._num_shards = len(self._embedding_devices)
@@ -192,51 +193,64 @@ class SparseFLEstimator(estimator.FLEstimator):
                 fids, config, num_shards=self._num_shards))
         return features
 
-    def _set_model_configs(self, features, labels, mode):
+    def _set_model_configs(self, mode): #features, labels, mode):
         with tf.Graph().as_default() as g:
             M = SparseFLModel(self._role,
                               self._bridge,
-                              features['example_id'],
+                              None, #features['example_id'],
                               config_run=True)
             try:
-                self._model_fn(M, features, labels, mode)
+                self._model_fn(M, None, None, mode) # features, labels, mode)
             except ConfigRunError as e:
                 self._bias_slot_configs = M._get_bias_slot_configs()
                 self._vec_slot_configs = M._get_vec_slot_configs()
-                return [self._bias_slot_configs, self._vec_slot_configs]
+                self._slot_configs = [self._bias_slot_configs,
+                                      self._vec_slot_configs]
+                return self._slot_configs
         raise UserWarning("Failed to get model config. Did you forget to call \
                            freeze_slots in model_fn?")
 
-    def _data_preprocess(self, features, labels, mode):
-        slot_configs = self._set_model_configs(features,
-                                               labels,
-                                               mode)
-        features.update(self._preprocess_fids(features.pop('fids'),
-                                              slot_configs))
-        return features, labels
+    def _get_features_and_labels_from_input_fn(self, input_fn, mode):
+        slot_configs = self._set_model_configs(mode) # features, labels, mode)
+        def input_fn_wrapper(*args, **kwargs):
+            dataset = input_fn(self._bridge, self._trainer_master)
+            def mapper(features, *args):
+                features.update(self._preprocess_fids(features.pop('fids'),
+                                                      slot_configs))
+                return (features,) + args if args else features
+            dataset = dataset.map(
+                mapper, num_parallel_calls=tf.data.experimental.AUTOTUNE)
+            dataset = dataset.prefetch(2)
+            return dataset
+
+        return super(SparseFLEstimator, self
+            )._get_features_and_labels_from_input_fn(input_fn_wrapper, mode)
 
     def _get_model_spec(self, features, labels, mode):
         features = features.copy()
+        embedding_devices = self._embedding_devices
         if mode == ModeKeys.PREDICT:
             fids = tf.IndexedSlices(
                 indices=features.pop('fids_indices'),
                 values=features.pop('fids_values'),
                 dense_shape=features.pop('fids_dense_shape'))
             features.update(self._preprocess_fids(
-                fids, self._slot_configs, mode))
+                fids, self._slot_configs))
+            embedding_devices = [None] * self._num_shards
 
         bias_embedding = embedding.Embedding(self._bias_slot_configs,
-                                             devices=self._embedding_devices)
+                                             devices=embedding_devices)
         bias_tensor = bias_embedding.lookup(features)
         if self._vec_slot_configs is not None:
             vec_embedding = embedding.Embedding(self._vec_slot_configs,
-                                                devices=self._embedding_devices)
+                                                devices=embedding_devices)
             vec_tensor = vec_embedding.lookup(features)
         else:
             vec_embedding = None
             vec_tensor = None
 
-        model = SparseFLModel(self._role, self._bridge, features['example_id'],
+        model = SparseFLModel(self._role, self._bridge,
+                              features.get('example_id', None),
                               config_run=False,
                               bias_tensor=bias_tensor,
                               bias_embedding=bias_embedding,

@@ -15,6 +15,7 @@
 # coding: utf-8
 # pylint: disable=no-else-return, inconsistent-return-statements
 
+import logging
 import tensorflow.compat.v1 as tf
 import fedlearner.trainer as flt
 
@@ -70,10 +71,10 @@ def model_fn(model, features, labels, mode):
 
 
     num_slot = 512
-    fid_size, embed_size = [101] * num_slot, 32
+    fid_size, embed_size = 101, 16
     embeddings = [
         tf.get_variable(
-            'slot_emb{0}'.format(i), shape=[fid_size[i], embed_size],
+            'slot_emb{0}'.format(i), shape=[fid_size, embed_size],
             dtype=tf.float32,
             initializer=tf.random_uniform_initializer(-0.01, 0.01))
         for i in range(num_slot)]
@@ -130,6 +131,7 @@ def model_fn(model, features, labels, mode):
         return model.make_spec(mode, predictions=logits)
 
 if __name__ == '__main__':
+    logging.basicConfig(level=logging.DEBUG)
     flt.trainer_worker.train(
         ROLE, args, input_fn,
         model_fn, serving_input_receiver_fn)

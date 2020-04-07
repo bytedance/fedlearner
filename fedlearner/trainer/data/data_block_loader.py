@@ -67,7 +67,7 @@ class DataBlockLoader(object):
             block = self._block_queue.get()
         return block
 
-    def make_batch_iterator(self):
+    def make_dataset(self):
         def gen():
             while True:
                 block = self._get_next_block()
@@ -80,4 +80,7 @@ class DataBlockLoader(object):
         dataset = tf.data.TFRecordDataset(dataset)
         dataset = dataset.batch(self._batch_size, drop_remainder=True)
         dataset = dataset.prefetch(2)
-        return dataset.make_one_shot_iterator()
+        return dataset
+
+    def make_batch_iterator(self):
+        return self.make_dataset().make_one_shot_iterator()

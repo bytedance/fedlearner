@@ -31,7 +31,7 @@ def input_fn(bridge, trainer_master=None):
     dataset = flt.data.DataBlockLoader(
         args.batch_size, ROLE, bridge, trainer_master)
     feature_map = {"x_{0}".format(i): tf.VarLenFeature(
-        tf.int64) for i in range(512, 1024)}
+        tf.int64) for i in range(512)}
     feature_map["example_id"] = tf.FixedLenFeature([], tf.string)
 
     record_batch = dataset.make_batch_iterator().get_next()
@@ -41,7 +41,7 @@ def input_fn(bridge, trainer_master=None):
 
 def serving_input_receiver_fn():
     feature_map = {"x_{0}".format(i): tf.VarLenFeature(
-        tf.int64) for i in range(512, 1024)}
+        tf.int64) for i in range(512)}
     feature_map["example_id"] = tf.FixedLenFeature([], tf.string)
 
     record_batch = tf.placeholder(dtype=tf.string, name='examples')
@@ -53,13 +53,13 @@ def serving_input_receiver_fn():
 def model_fn(model, features, labels, mode):
     global_step = tf.train.get_or_create_global_step()
 
-    x = [features['x_{0}'.format(i)] for i in range(512, 1024)]
+    x = [features['x_{0}'.format(i)] for i in range(512)]
 
     num_slot = 512
-    fid_size, embed_size = [101] * num_slot, 64
+    fid_size, embed_size = 101, 16
     embeddings = [
         tf.get_variable('slot_emb{0}'.format(i),
-                        shape=[fid_size[i], embed_size], dtype=tf.float32,
+                        shape=[fid_size, embed_size], dtype=tf.float32,
                         initializer=tf.random_uniform_initializer(-0.01, 0.01))
                         for i in range(num_slot)]
     embed_output = tf.concat(
