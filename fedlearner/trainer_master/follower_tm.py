@@ -28,8 +28,10 @@ ETCD_BASE_DIR = os.environ.get('ETCD_BASE_DIR', None)
 
 
 class FollowerTrainerMaster(TrainerMaster):
-    def __init__(self, application_id, data_source, start_time, end_time):
-        super(FollowerTrainerMaster, self).__init__(application_id)
+    def __init__(self, application_id, data_source,
+                 start_time, end_time, online_training):
+        super(FollowerTrainerMaster, self).__init__(application_id,
+                                                    None, online_training)
         self._data_block_set = DataBlockSet()
         self._data_block_visitor = DataBlockVisitor(
             data_source, ETCD_NAME, ETCD_BASE_DIR, ETCD_ADDR)
@@ -79,9 +81,14 @@ if __name__ == '__main__':
                         '--end_date',
                         default=None,
                         help='training data end date')
+    parser.add_argument('--online_training',
+                        action='store_true',
+                        help='the train master run for online training')
+
     FLAGS = parser.parse_args()
 
     follower_tm = FollowerTrainerMaster(
         FLAGS.application_id, FLAGS.data_source,
-        int(FLAGS.start_date), int(FLAGS.end_date))
+        int(FLAGS.start_date), int(FLAGS.end_date),
+        FLAGS.online_training)
     follower_tm.run(listen_port=FLAGS.port)

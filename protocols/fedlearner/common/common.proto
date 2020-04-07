@@ -21,6 +21,7 @@ enum StatusCode {
   STATUS_UNKNOWN_ERROR = 1;
   STATUS_INVALID_REQUEST = 2;
   STATUS_NO_MORE_DATA = 3;
+  STATUS_DATA_FINISHED = 4;
 }
 
 message Status {
