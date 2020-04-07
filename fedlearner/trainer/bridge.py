@@ -81,6 +81,7 @@ class Bridge(object):
         self._received_data = {}
 
         channel = make_insecure_channel(remote_address, ChannelType.REMOTE)
+        self._transmit_send_lock = threading.Lock()
         self._client = tws_grpc.TrainerWorkerServiceStub(channel)
         self._next_send_seq_num = 0
         self._transmit_queue = queue.Queue()
@@ -88,6 +89,7 @@ class Bridge(object):
         self._client_daemon_shutdown_fn = None
 
         # server
+        self._transmit_receive_lock = threading.Lock()
         self._next_receive_seq_num = 0
         self._server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
         tws_grpc.add_TrainerWorkerServiceServicer_to_server(
@@ -167,61 +169,62 @@ class Bridge(object):
 
     def _transmit(self, msg):
         assert self._connected, "Cannot transmit before connect"
-        msg.seq_num = self._next_send_seq_num
-        self._next_send_seq_num += 1
+        with self._transmit_send_lock:
+            msg.seq_num = self._next_send_seq_num
+            self._next_send_seq_num += 1
 
-        if self._streaming_mode:
-            self._transmit_queue.put(msg)
-            return
+            if self._streaming_mode:
+                self._transmit_queue.put(msg)
+                return
 
-        while True:
-            try:
-                rsp = self._client.Transmit(msg)
-                break
-            except Exception as e:  # pylint: disable=broad-except
-                logging.warning("Bridge transmit failed: %s. " \
-                                "Retry in 1 second...", repr(e))
-                time.sleep(1)
-                self._check_remote_heartbeat()
-
-        assert rsp.status.code == common_pb.STATUS_SUCCESS, \
-            "Transmit error with code %d."%rsp.status.code
+            while True:
+                try:
+                    rsp = self._client.Transmit(msg)
+                    assert rsp.status.code == common_pb.STATUS_SUCCESS, \
+                        "Transmit error with code %d."%rsp.status.code
+                    break
+                except Exception as e:  # pylint: disable=broad-except
+                    logging.warning("Bridge transmit failed: %s. " \
+                                    "Retry in 1 second...", repr(e))
+                    time.sleep(1)
+                    self._check_remote_heartbeat()
 
     def _transmit_handler(self, request):
         assert self._connected, "Cannot transmit before connect"
-        logging.debug("Received message seq_num=%d."
-                      " Current seq_num=%d.",
-                      request.seq_num, self._next_receive_seq_num)
-        if request.seq_num >= self._next_receive_seq_num:
-            assert request.seq_num == self._next_receive_seq_num, \
-                "Invalid request. Expecting seq_num=%d, got %d"%(
-                    self._next_receive_seq_num, request.seq_num)
-            self._next_receive_seq_num += 1
+        with self._transmit_receive_lock:
+            logging.debug("Received message seq_num=%d."
+                          " Current seq_num=%d.",
+                          request.seq_num, self._next_receive_seq_num)
+            if request.seq_num >= self._next_receive_seq_num:
+                assert request.seq_num == self._next_receive_seq_num, \
+                    "Invalid request. Expecting seq_num=%d, got %d"%(
+                        self._next_receive_seq_num, request.seq_num)
+                self._next_receive_seq_num += 1
 
-            if request.HasField('start'):
-                with self._condition:
-                    self._received_data[request.start.iter_id] = {}
-            elif request.HasField('commit'):
-                pass
-            elif request.HasField('data'):
-                with self._condition:
-                    assert request.data.iter_id in self._received_data
-                    self._received_data[
-                        request.data.iter_id][
-                            request.data.name] = \
-                                tf.make_ndarray(request.data.tensor)
-                    self._condition.notifyAll()
-            elif request.HasField('prefetch'):
-                for func in self._prefetch_handlers:
-                    func(request.prefetch)
-            else:
-                return tws_pb.TrainerWorkerResponse(
-                    status=common_pb.Status(
-                        code=common_pb.STATUS_INVALID_REQUEST),
-                    next_seq_num=self._next_receive_seq_num)
+                if request.HasField('start'):
+                    with self._condition:
+                        self._received_data[request.start.iter_id] = {}
+                elif request.HasField('commit'):
+                    pass
+                elif request.HasField('data'):
+                    with self._condition:
+                        assert request.data.iter_id in self._received_data
+                        self._received_data[
+                            request.data.iter_id][
+                                request.data.name] = \
+                                    tf.make_ndarray(request.data.tensor)
+                        self._condition.notifyAll()
+                elif request.HasField('prefetch'):
+                    for func in self._prefetch_handlers:
+                        func(request.prefetch)
+                else:
+                    return tws_pb.TrainerWorkerResponse(
+                        status=common_pb.Status(
+                            code=common_pb.STATUS_INVALID_REQUEST),
+                        next_seq_num=self._next_receive_seq_num)
 
-        return tws_pb.TrainerWorkerResponse(
-            next_seq_num=self._next_receive_seq_num)
+            return tws_pb.TrainerWorkerResponse(
+                next_seq_num=self._next_receive_seq_num)
 
     def _data_block_handler(self, request):
         assert self._connected, "Cannot load data before connect"
