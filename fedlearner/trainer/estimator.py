@@ -203,8 +203,8 @@ class FLEstimator(object):
                 {'local': {
                     0: local_address
                 }}),
-                                     job_name='local',
-                                     task_index=0)
+                job_name='local',
+                task_index=0)
             target = 'grpc://' + local_address
         else:
             device_fn = None
@@ -241,7 +241,9 @@ class FLEstimator(object):
                     self._bridge.commit()
                     logging.debug('after bridge commit.')
                     iter_id += 1
-            self._cheif_barriar(is_chief=(self._worker_rank == 0))
+
+            if self._cluster_spec is not None:
+                self._cheif_barriar(is_chief=(self._worker_rank == 0))
             self._bridge.terminate()
 
     def export_saved_model(self,

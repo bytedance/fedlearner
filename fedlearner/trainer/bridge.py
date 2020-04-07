@@ -104,6 +104,9 @@ class Bridge(object):
     def _client_daemon_fn(self):
         shutdown = [False]
         generator = None
+        channel = make_insecure_channel(
+            self._remote_address, ChannelType.REMOTE)
+        client = tws_grpc.TrainerWorkerServiceStub(channel)
 
         def shutdown_fn():
             shutdown[0] = True
@@ -112,14 +115,15 @@ class Bridge(object):
             return generator.result()
 
         self._client_daemon_shutdown_fn = shutdown_fn
+        lock = threading.Lock()
+        resend_list = collections.deque()
 
         while not shutdown[0]:
-            lock = threading.Lock()
-            resend_list = collections.deque()
             try:
-
                 def iterator():
-                    for item in resend_list:
+                    with lock:
+                        resend_msgs = list(resend_list)
+                    for item in resend_msgs:
                         logging.warning("Streaming resend message seq_num=%d",
                                         item.seq_num)
                         yield item
@@ -131,24 +135,35 @@ class Bridge(object):
                                       item.seq_num)
                         yield item
 
-                generator = self._client.StreamTransmit(iterator())
+                generator = client.StreamTransmit(iterator())
                 for response in generator:
                     if response.status.code != common_pb.STATUS_SUCCESS:
                         raise RuntimeError("Trainsmit failed with %d" %
                                            response.status.code)
-                    logging.debug(
-                        "Streaming confirmed sending message seq_num=%d",
-                        response.next_seq_num-1)
                     with lock:
                         while resend_list and \
                                 resend_list[0].seq_num < response.next_seq_num:
                             resend_list.popleft()
+                    logging.debug(
+                        "Streaming confirmed sending message seq_num=%d. "
+                        "Resend queue size: %d, starting from seq_num=%s",
+                        response.next_seq_num-1, len(resend_list),
+                        resend_list and resend_list[0].seq_num or "NaN")
             except Exception as e:  # pylint: disable=broad-except
                 if not shutdown[0]:
                     logging.warning("Bridge streaming broken: %s. " \
                                     "Retry in 1 second...", repr(e))
-                    time.sleep(1)
-                    self._check_remote_heartbeat()
+            finally:
+                logging.warning(
+                    "Restarting streaming: resend queue size: %d, "
+                    "starting from seq_num=%s", len(resend_list),
+                    resend_list and resend_list[0].seq_num or "NaN")
+                time.sleep(1)
+                # discard client before retry
+                channel = make_insecure_channel(
+                    self._remote_address, ChannelType.REMOTE)
+                client = tws_grpc.TrainerWorkerServiceStub(channel)
+                self._check_remote_heartbeat()
 
     def _transmit(self, msg):
         assert self._connected, "Cannot transmit before connect"
@@ -179,7 +194,8 @@ class Bridge(object):
                       request.seq_num, self._next_receive_seq_num)
         if request.seq_num >= self._next_receive_seq_num:
             assert request.seq_num == self._next_receive_seq_num, \
-                "Invalid request"
+                "Invalid request. Expecting seq_num=%d, got %d"%(
+                    self._next_receive_seq_num, request.seq_num)
             self._next_receive_seq_num += 1
 
             if request.HasField('start'):
@@ -338,7 +354,8 @@ class Bridge(object):
         msg = tws_pb.TrainerWorkerMessage(data=tws_pb.DataMessage(
             iter_id=iter_id, name=name, tensor=tf.make_tensor_proto(x)))
         self._transmit(msg)
-        logging.debug('Data: send %s for iter %d.', name, iter_id)
+        logging.debug('Data: send %s for iter %d. seq_num=%d.',
+                      name, iter_id, msg.seq_num)
 
     def send_op(self, name, x):
         def func(x):
