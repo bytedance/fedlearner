@@ -28,8 +28,8 @@ class DataBlockSet(object):
         self._db_set = {}
 
     def add(self, data_block):
-        if data_block.data_block_id:
-            self._db_set[data_block.data_block_id] = data_block
+        if data_block.block_id:
+            self._db_set[data_block.block_id] = data_block
 
     def get(self, block_id):
         logging.debug("search %s and result: %r", block_id,
