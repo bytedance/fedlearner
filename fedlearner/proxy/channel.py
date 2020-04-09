@@ -115,23 +115,26 @@ def make_insecure_channel(address,
         return grpc.insecure_channel(address, options, compression)
 
     if mode == ChannelType.REMOTE:
+        if not EGRESS_URL:
+            logging.error("EGRESS_URL is invalid,"
+                          "not found in environment variable.")
+            return grpc.insecure_channel(address, options, compression)
+
         if options is None:
             options = []
         if not isinstance(options, list):
             raise Exception('grpc channel options must be list')
-        if not EGRESS_URL:
-            raise Exception("EGRESS_URL is invalid,"
-                            "not found in environment variable.")
-        if not EGRESS_HOST:
-            raise Exception("EGRESS_HOST is invalid,"
-                            "not found in environment variable.")
 
-        options.append(('grpc.default_authority', EGRESS_HOST))
-        header_adder = header_adder_interceptor('x-host', address)
-        logging.debug("EGRESS_HOST is [%s]", EGRESS_HOST)
         logging.debug("EGRESS_URL is [%s]", EGRESS_URL)
-        channel = grpc.insecure_channel(EGRESS_URL, options, compression)
-        return grpc.intercept_channel(channel, header_adder)
+        if EGRESS_HOST:
+            options.append(('grpc.default_authority', EGRESS_HOST))
+            header_adder = header_adder_interceptor('x-host', address)
+            channel = grpc.insecure_channel(
+                EGRESS_URL, options, compression)
+            return grpc.intercept_channel(channel, header_adder)
+
+        options.append(('grpc.default_authority', address))
+        return grpc.insecure_channel(EGRESS_URL, options, compression)
 
     if mode == ChannelType.INTERNAL:
         return grpc.insecure_channel(address, options, compression)
