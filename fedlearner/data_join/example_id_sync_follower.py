@@ -54,7 +54,8 @@ class ExampleIdSyncFollower(object):
                         self._etcd, self._data_source,
                         partition_id, self._example_id_dump_options
                     )
-            return self._impl_ctx.get_next_index()
+            return self._impl_ctx.get_next_index(), \
+                    self._impl_ctx.get_dumped_index()
 
     def add_synced_item(self, req):
         assert req.HasField('lite_example_ids'), \
@@ -66,13 +67,14 @@ class ExampleIdSyncFollower(object):
                 )
             if filled:
                 self._example_id_dump_worker.wakeup()
-            return filled, next_index
+            return filled, next_index, self._impl_ctx.get_dumped_index()
 
     def finish_sync_partition(self, partition_id):
         with self._lock:
             self._check_status(partition_id)
             self._impl_ctx.finish_sync_example_id()
-            return not self._impl_ctx.need_dump()
+            return not self._impl_ctx.need_dump(), \
+                    self._impl_ctx.get_dumped_index()
 
     def reset_partition(self, partition_id):
         with self._lock:

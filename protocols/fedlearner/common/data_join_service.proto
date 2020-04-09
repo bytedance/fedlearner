@@ -56,6 +56,7 @@ message RawDataManifest {
   JoinExampleRep join_example_rep = 3;
   bool finished = 4;
   int64 next_process_index = 5;
+  int64 peer_dumped_index = 6;
 }
 
 message RawDataMeta {
@@ -68,6 +69,10 @@ message RawDataFilePaths {
   bool dedup = 2;
 }
 
+message PeerDumpedIndex {
+  int64 peer_dumped_index = 1;
+}
+
 message RawDataRequest {
   DataSourceMeta data_source_meta = 1;
   int64 rank_id = 2;
@@ -77,6 +82,7 @@ message RawDataRequest {
     google.protobuf.Empty join_example = 5;
     google.protobuf.Empty finish_raw_data = 6;
     RawDataFilePaths raw_data_fpaths = 7;
+    PeerDumpedIndex peer_dumped_index = 8;
   }
 }
 
@@ -97,6 +103,7 @@ service DataJoinMasterService {
   rpc QueryRawDataManifest(RawDataRequest) returns (RawDataManifest) {}
   rpc FinishRawData(RawDataRequest) returns (Status) {}
   rpc AddRawData(RawDataRequest) returns (Status) {}
+  rpc ForwardPeerDumpedIndex(RawDataRequest) returns (Status) {}
 }
 
 message DataBlockMeta {
@@ -122,6 +129,7 @@ message StartPartitionResponse {
   Status status = 1;
   int64 next_index = 2;
   bool finished = 3;
+  int64 dumped_index = 4;
 }
 
 message LiteExampleIds {
@@ -148,6 +156,11 @@ message SyncPartitionRequest {
   bool compressed = 5;
 }
 
+message SyncPartitionResponse {
+  Status status = 1;
+  int64 dumped_index = 2;
+}
+
 message FinishPartitionRequest {
   DataSourceMeta data_source_meta = 1;
   int64 rank_id = 2;
@@ -157,12 +170,14 @@ message FinishPartitionRequest {
 message FinishPartitionResponse {
   Status status = 1;
   bool finished = 2;
+  int64 dumped_index = 3;
 }
 
 service DataJoinWorkerService {
   rpc StartPartition(StartPartitionRequest)
       returns (StartPartitionResponse) {}
-  rpc SyncPartition(SyncPartitionRequest) returns (Status) {}
+  rpc SyncPartition(SyncPartitionRequest)
+      returns (SyncPartitionResponse) {}
   rpc FinishPartition(FinishPartitionRequest)
       returns (FinishPartitionResponse) {}
 }

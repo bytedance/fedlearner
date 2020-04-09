@@ -107,14 +107,16 @@ class RawDataManifestManager(object):
         with self._lock:
             manifest = self._sync_manifest(partition_id)
             if manifest.finished:
-                raise RuntimeError("raw data of partition {} has finished!"\
-                                   .format(partition_id))
+                raise RuntimeError("forbid add raw data since partition {} "\
+                                    "has finished!".format(partition_id))
             input_fpath = set()
             add_candidates = []
             for fpath in file_paths:
                 if fpath in self._existed_fpath or fpath in input_fpath:
                     if not dedup:
-                        raise RuntimeError("fpath %s has been added" % fpath)
+                        raise RuntimeError(
+                                "file {} has been added".format(fpath)
+                            )
                     continue
                 input_fpath.add(fpath)
                 add_candidates.append(fpath)
@@ -132,6 +134,14 @@ class RawDataManifestManager(object):
                 process_index += 1
             if manifest.next_process_index != process_index:
                 manifest.next_process_index = process_index
+                self._update_manifest(manifest)
+
+    def forward_peer_dumped_index(self, partition_id, peer_dumped_index):
+        self._check_partition_id(partition_id)
+        with self._lock:
+            manifest = self._sync_manifest(partition_id)
+            if manifest.peer_dumped_index < peer_dumped_index:
+                manifest.peer_dumped_index = peer_dumped_index
                 self._update_manifest(manifest)
 
     def list_all_manifest(self):

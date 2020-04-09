@@ -39,6 +39,7 @@ class ExampleIdSyncLeader(object):
             self.stale_with_follower = True
             self.follower_finished = False
             self.raw_data_finished = raw_data_manifest.finished
+            self.peer_dumped_index = raw_data_manifest.peer_dumped_index
 
         @property
         def partition_id(self):
@@ -49,6 +50,10 @@ class ExampleIdSyncLeader(object):
 
         def release_stale_with_follower(self):
             self.stale_with_follower = False
+
+        def forward_peer_dumped_index(self, peer_dumped_index):
+            assert self.peer_dumped_index < peer_dumped_index
+            self.peer_dumped_index = peer_dumped_index
 
     def __init__(self, peer_client, master_client,
                  rank_id, etcd, data_source, raw_data_options):
@@ -218,6 +223,7 @@ class ExampleIdSyncLeader(object):
                     "partition {}, reason {}".format(
                     impl_ctx.partition_id, rsp.status.error_message)
                 )
+        self._update_peer_dumped_index(impl_ctx, rsp.dumped_index)
         return rsp.next_index, rsp.finished
 
     def _send_example_ids(self, items, begin_index, impl_ctx):
@@ -241,12 +247,13 @@ class ExampleIdSyncLeader(object):
                 content_bytes=sync_content.SerializeToString()
             )
         rsp = self._peer_client.SyncPartition(req)
-        if rsp.code != 0:
+        if rsp.status.code != 0:
             raise RuntimeError(
                     "Follower refuse sync {} example ids start from {},"\
                     "reason {}".format(len(items), begin_index,
-                    rsp.error_message)
+                    rsp.status.error_message)
                 )
+        self._update_peer_dumped_index(impl_ctx, rsp.dumped_index)
 
     def _finish_sync_example_id(self, impl_ctx):
         assert isinstance(impl_ctx, ExampleIdSyncLeader.ImplContext)
@@ -263,6 +270,7 @@ class ExampleIdSyncLeader(object):
                         "reason: {}".format(rsp.status.error_message)
                 )
             impl_ctx.follower_finished = rsp.finished
+            self._update_peer_dumped_index(impl_ctx, rsp.dumped_index)
         if not impl_ctx.follower_finished:
             logging.debug("Follower is still dumping example id " \
                           "for partition %d waitiing", impl_ctx.partition_id)
@@ -285,3 +293,22 @@ class ExampleIdSyncLeader(object):
         logging.debug("Leader has been synced example ids " \
                       "for partition %d", impl_ctx.partition_id)
         return True
+
+    def _update_peer_dumped_index(self, impl_ctx, peer_dumped_index):
+        assert isinstance(impl_ctx, ExampleIdSyncLeader.ImplContext)
+        if impl_ctx.peer_dumped_index < peer_dumped_index:
+            req = dj_pb.RawDataRequest(
+                    data_source_meta=self._data_source.data_source_meta,
+                    rank_id=self._rank_id,
+                    partition_id=impl_ctx.partition_id,
+                    peer_dumped_index=dj_pb.PeerDumpedIndex(
+                            peer_dumped_index=peer_dumped_index
+                        )
+                )
+            rsp = self._master_client.ForwardPeerDumpedIndex(req)
+            if rsp.code != 0:
+                raise RuntimeError(
+                        "Failed to forward peer dumped index to {} since "\
+                        "{}".format(peer_dumped_index, rsp.error_message)
+                    )
+            impl_ctx.forward_peer_dumped_index(peer_dumped_index)
