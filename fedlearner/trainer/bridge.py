@@ -34,6 +34,22 @@ from fedlearner.common import trainer_worker_service_pb2_grpc as tws_grpc
 from fedlearner.proxy.channel import make_insecure_channel, ChannelType
 
 
+def make_ready_client(channel, stop_event):
+    channel_ready = grpc.channel_ready_future(channel)
+    wait_secs = 0.5
+    start_time = time.time()
+    while not stop_event.is_set():
+        try:
+            channel_ready.result(timeout=wait_secs)
+            break
+        except grpc.FutureTimeoutError:
+            logging.warning('Channel has not been ready for %.2f seconds',
+                time.time()-start_time)
+            if wait_secs < 5.0:
+                wait_secs *= 1.2
+    return tws_grpc.TrainerWorkerServiceStub(channel)
+
+
 class Bridge(object):
     class TrainerWorkerServicer(tws_grpc.TrainerWorkerServiceServicer):
         def __init__(self, bridge):
@@ -104,14 +120,14 @@ class Bridge(object):
         return self._role
 
     def _client_daemon_fn(self):
-        shutdown = [False]
+        stop_event = threading.Event()
         generator = None
         channel = make_insecure_channel(
             self._remote_address, ChannelType.REMOTE)
-        client = tws_grpc.TrainerWorkerServiceStub(channel)
+        client = make_ready_client(channel, stop_event)
 
         def shutdown_fn():
-            shutdown[0] = True
+            stop_event.set()
             if generator is not None:
                 generator.cancel()
             return generator.result()
@@ -120,7 +136,7 @@ class Bridge(object):
         lock = threading.Lock()
         resend_list = collections.deque()
 
-        while not shutdown[0]:
+        while not stop_event.is_set():
             try:
                 def iterator():
                     with lock:
@@ -163,12 +179,11 @@ class Bridge(object):
                             "Resend queue size: %d, starting from seq_num=%s",
                             len(resend_list), min_seq_num_to_resend)
             except Exception as e:  # pylint: disable=broad-except
-                if not shutdown[0]:
+                if not stop_event.is_set():
                     logging.warning("Bridge streaming broken: %s. " \
                                     "Retry in 1 second...", repr(e))
             finally:
                 generator.cancel()
-                del client
                 channel.close()
                 time.sleep(1)
                 logging.warning(
@@ -177,7 +192,7 @@ class Bridge(object):
                     resend_list and resend_list[0].seq_num or "NaN")
                 channel = make_insecure_channel(
                     self._remote_address, ChannelType.REMOTE)
-                client = tws_grpc.TrainerWorkerServiceStub(channel)
+                client = make_ready_client(self._remote_address, stop_event)
                 self._check_remote_heartbeat()
 
     def _transmit(self, msg):
