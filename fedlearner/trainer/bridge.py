@@ -167,12 +167,14 @@ class Bridge(object):
                     logging.warning("Bridge streaming broken: %s. " \
                                     "Retry in 1 second...", repr(e))
             finally:
+                generator.cancel()
+                del client
+                channel.close()
+                time.sleep(1)
                 logging.warning(
                     "Restarting streaming: resend queue size: %d, "
                     "starting from seq_num=%s", len(resend_list),
                     resend_list and resend_list[0].seq_num or "NaN")
-                time.sleep(1)
-                # discard client before retry
                 channel = make_insecure_channel(
                     self._remote_address, ChannelType.REMOTE)
                 client = tws_grpc.TrainerWorkerServiceStub(channel)
