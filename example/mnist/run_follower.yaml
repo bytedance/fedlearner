@@ -1,0 +1,116 @@
+apiVersion: fedlearner.k8s.io/v1alpha1
+kind: FLApp
+metadata:
+  name: mnist
+  namespace: follower
+spec:
+  flReplicaSpecs:
+    Master:
+      pair: true
+      replicas: 0
+      template:
+        spec:
+          restartPolicy: Never # required
+          containers:
+            - env:
+              - name: APPLICATION_ID
+                value: mnist
+              - name: POD_IP
+                valueFrom:
+                  fieldRef:
+                    fieldPath: status.podIP
+              image: 
+              imagePullPolicy: IfNotPresent
+              name: tensorflow # default
+              ports:
+                - containerPort: 50051
+                  name: flapp-port # default
+              resources:
+                limits:
+                  cpu: 4000m
+                  memory: 4Gi
+                requests:
+                  cpu: 4000m
+                  memory: 4Gi
+              command: ["/app/deploy/scripts/trainer/run_trainer_master.sh"]
+              args: [""]
+    PS:
+      pair: false
+      replicas: 0
+      template:
+        spec:
+          restartPolicy: Never # required
+          containers:
+            - env:
+              - name: POD_NAME
+                valueFrom:
+                  fieldRef:
+                    fieldPath: metadata.name
+              - name: POD_IP
+                valueFrom:
+                  fieldRef:
+                    fieldPath: status.podIP
+              - name: ROLE
+                value: follower
+              image: hub.byted.org/fedlearner/fedlearner_open:0.0.2
+              imagePullPolicy: IfNotPresent
+              name: tensorflow # default
+              ports:
+                - containerPort: 50051
+                  name: flapp-port # default
+              resources:
+                limits:
+                  cpu: 4000m
+                  memory: 4Gi
+                requests:
+                  cpu: 4000m
+                  memory: 4Gi
+              command: ["/app/deploy/scripts/trainer/run_trainer_ps.sh"]
+              args: [""]
+    Worker:
+      pair: true
+      replicas: 1
+      template:
+        spec:
+          restartPolicy: Never # required
+          containers:
+            - env:
+              - name: APPLICATION_ID
+                value: mnist
+              - name: POD_IP
+                valueFrom:
+                  fieldRef:
+                    fieldPath: status.podIP
+              - name: CODE_KEY
+                value: 
+              - name: ROLE
+                value: follower
+              - name: EGRESS_URL
+                value: ingress-nginx.ingress-nginx.svc.cluster.local:80
+              - name: DATA_PATH
+                value: data/follower
+              image: 
+              imagePullPolicy: IfNotPresent
+              name: tensorflow # default
+              ports:
+                - containerPort: 50051
+                  name: flapp-port # default
+                - containerPort: 50052
+                  name: tf-port
+              resources:
+                limits:
+                  cpu: 4000m
+                  memory: 4Gi
+                requests:
+                  cpu: 4000m
+                  memory: 4Gi
+              command: ["/app/deploy/scripts/wait4pair_wrapper.sh"]
+              args: ["/app/deploy/scripts/trainer/run_trainer_worker.sh"]
+  role: Follower
+  cleanPodPolicy: "None"
+  peerSpecs:
+    Leader:
+      peerURL: ingress-nginx.ingress-nginx.svc.cluster.local:80
+      authority: leader.flapp.operator
+      extraHeaders:
+        "x-host": "leader.flapp.operator"
