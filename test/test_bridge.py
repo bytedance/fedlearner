@@ -24,6 +24,17 @@ import numpy as np
 
 import fedlearner as fl
 
+from fedlearner.common import common_pb2 as common_pb
+from fedlearner.common import trainer_worker_service_pb2 as tws_pb
+
+
+def fake_start_message(seq_num, iter_id):
+    return tws_pb.TrainerWorkerMessage(
+        seq_num=seq_num,
+        start=tws_pb.StartMessage(iter_id=iter_id)
+    )
+
+
 class TestBridge(unittest.TestCase):
     def test_bridge(self):
         bridge1 = fl.trainer.bridge.Bridge('leader', 50051, 'localhost:50052')
@@ -55,6 +66,28 @@ class TestBridge(unittest.TestCase):
             self.assertEqual(sess.run(out), 1.0)
         bridge1.commit()
         bridge2.commit()
+
+        bridge2.terminate()
+        bridge1.terminate()
+
+    def test_seq_and_ack(self):
+        bridge1 = fl.trainer.bridge.Bridge('leader', 40051, 'localhost:40052')
+        bridge2 = fl.trainer.bridge.Bridge('follower', 40052, 'localhost:40051')
+
+        t = threading.Thread(target=lambda _: bridge1.connect(), args=(None,))
+        t.start()
+        bridge2.connect()
+        t.join()
+
+        client1 = bridge1._client
+        msg = fake_start_message(0, 0)
+        rsp = client1.Transmit(msg)
+        self.assertEqual(rsp.status.code, common_pb.STATUS_SUCCESS)
+        rsp = client1.Transmit(msg)
+        self.assertEqual(rsp.status.code, common_pb.STATUS_MESSAGE_DUPLICATED)
+        msg = fake_start_message(3, 1)
+        rsp = client1.Transmit(msg)
+        self.assertEqual(rsp.status.code, common_pb.STATUS_MESSAGE_MISSING)
 
         bridge2.terminate()
         bridge1.terminate()
