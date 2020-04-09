@@ -39,11 +39,12 @@ for i in "${WORKER_GROUPS[@]}"; do
 done
 fi
 
-code_url="https://github.com/rapmetal/fedlearner_models/releases/download/${RELEASE_TAG}/${RELEASE_PKG}.zip"
-wget $code_url
-unzip "${RELEASE_PKG}.zip"
+wget ${CODE_KEY} -O code.tar.gz
+tar -zxvf code.tar.gz
+cd ${ROLE}
 
-python "${RELEASE_PKG}/${ROLE}.py" \
+python main.py \
+    --data-path=$DATA_PATH \
     --cluster-spec=$CLUSTER_SPEC \
     --tf-addr=$POD_IP:50052 \
     --local-addr=$POD_IP:50051 \
