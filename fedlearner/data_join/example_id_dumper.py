@@ -119,6 +119,10 @@ class ExampleIdDumperManager(object):
         with self._lock:
             return self._next_index
 
+    def get_dumped_index(self):
+        dumped_index = self._example_id_manager.get_last_dumped_index()
+        return -1 if dumped_index is None else dumped_index
+
     def add_example_id_batch(self, example_id_batch):
         with self._lock:
             if self._example_id_sync_finished:

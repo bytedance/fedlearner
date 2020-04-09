@@ -18,12 +18,17 @@ import os
 import logging
 
 from tensorflow.compat.v1 import gfile
+from google.protobuf import text_format
+
+from fedlearner.common import data_join_service_pb2 as dj_pb
+from fedlearner.common import common_pb2 as common_pb
 
 from fedlearner.common.etcd_client import EtcdClient
 from fedlearner.data_join.common import (
     DataBlockSuffix, encode_data_block_meta_fname,
     load_data_block_meta, encode_data_block_fname,
-    decode_block_id, retrieve_data_source, partition_repr
+    decode_block_id, retrieve_data_source, partition_repr,
+    partition_manifest_etcd_key,
 )
 
 class DataBlockRep(object):
@@ -100,12 +105,15 @@ class DataBlockRep(object):
 class DataBlockVisitor(object):
     def __init__(self, data_source_name, etcd_name,
                  etcd_base_dir, etcd_addrs, use_mock_etcd=False):
-        etcd = EtcdClient(etcd_name, etcd_addrs, etcd_base_dir, use_mock_etcd)
-        self._data_source = retrieve_data_source(etcd, data_source_name)
+        self._etcd = EtcdClient(etcd_name, etcd_addrs,
+                                etcd_base_dir, use_mock_etcd)
+        self._data_source = retrieve_data_source(self._etcd, data_source_name)
 
-    def LoadDataBlockRepByTimeFrame(self, start_time, end_time):
-        if end_time < self._data_source.data_source_meta.start_time or \
-                start_time > self._data_source.data_source_meta.end_time:
+    def LoadDataBlockRepByTimeFrame(self, start_time=None, end_time=None):
+        if (end_time is not None and
+                end_time < self._data_source.data_source_meta.start_time) or \
+           (start_time is not None and
+                start_time > self._data_source.data_source_meta.end_time):
             raise ValueError("time frame is out of range")
         partition_num = self._data_source.data_source_meta.partition_num
         data_block_fnames = {}
@@ -114,14 +122,26 @@ class DataBlockVisitor(object):
                 self._list_data_block(partition_id)
         data_block_reps = {}
         for partition_id, fnames in data_block_fnames.items():
+            manifest = self._sync_raw_data_manifest(partition_id)
             for idx, fname in enumerate(fnames):
                 check_existed = (idx == len(fnames) - 1)
                 rep = self._make_data_block_rep(partition_id, fname,
                                                 check_existed)
-                if rep is not None and\
-                        not (rep.start_time > end_time or\
-                                rep.end_time < start_time):
+                filtered = True
+                reason = ''
+                if rep is None:
+                    reason = 'failed to create data block rep'
+                elif end_time is not None and rep.start_time > end_time:
+                    reason = 'excess time frame'
+                elif start_time is not None and rep.end_time < start_time:
+                    reason = 'less time frame'
+                elif self._filter_by_visible(rep.data_block_index, manifest):
+                    reason = 'data block visible'
+                else:
                     data_block_reps[rep.block_id] = rep
+                    filtered = False
+                if filtered:
+                    logging.debug('skip %s since %s', fname, reason)
         return data_block_reps
 
     def LoadDataBlockReqByIndex(self, partition_id, data_block_index):
@@ -134,7 +154,9 @@ class DataBlockVisitor(object):
                                                   data_block_index)
         meta_fpath = os.path.join(dirpath, meta_fname)
         meta = load_data_block_meta(meta_fpath)
-        if meta is not None:
+        manifest = self._sync_raw_data_manifest(partition_id)
+        if meta is not None and \
+                not self._filter_by_visible(meta.data_block_index, manifest):
             fname = encode_data_block_fname(self._data_source_name(), meta)
             return DataBlockRep(self._data_source_name(),
                                 fname, partition_id, dirpath)
@@ -167,3 +189,18 @@ class DataBlockVisitor(object):
 
     def _data_source_name(self):
         return self._data_source.data_source_meta.name
+
+    def _sync_raw_data_manifest(self, partition_id):
+        etcd_key = partition_manifest_etcd_key(self._data_source_name(),
+                                               partition_id)
+        data = self._etcd.get_data(etcd_key)
+        assert data is not None, "raw data manifest of partition "\
+                                 "{} must be existed".format(partition_id)
+        return text_format.Parse(data, dj_pb.RawDataManifest())
+
+    def _filter_by_visible(self, index, manifest):
+        join_state = manifest.join_example_rep.state
+        if self._data_source.role == common_pb.FLRole.Follower and \
+                join_state != dj_pb.JoinExampleState.Joined:
+            return index > manifest.peer_dumped_index
+        return False

@@ -26,8 +26,8 @@ from tensorflow.compat.v1 import gfile
 from fedlearner.common import data_join_service_pb2 as dj_pb
 
 from fedlearner.data_join.common import (
-    make_tf_record_iter, encode_data_block_meta_fname,
-    encode_block_id, encode_data_block_fname, partition_repr
+    encode_data_block_meta_fname, encode_block_id,
+    encode_data_block_fname, partition_repr, load_data_block_meta
 )
 
 class DataBlockBuilder(object):
@@ -238,12 +238,14 @@ class DataBlockManager(object):
         if self._dumped_index < 0 or index > self._dumped_index:
             return None
         if index not in self._data_block_meta_cache:
-            fpath = self._get_data_block_meta_path(index)
-            with make_tf_record_iter(fpath) as record_iter:
-                self._data_block_meta_cache[index] = \
-                        text_format.Parse(next(record_iter),
-                                          dj_pb.DataBlockMeta())
             self._evict_data_block_cache_if_full()
+            fpath = self._get_data_block_meta_path(index)
+            meta = load_data_block_meta(fpath)
+            if meta is None:
+                logging.fatal("data block index as %d has dumped "\
+                              "but vanish", index)
+                os._exit(-1) # pylint: disable=protected-access
+            self._data_block_meta_cache[index] = meta
         return self._data_block_meta_cache[index]
 
     def _get_data_block_meta_path(self, data_block_index):
@@ -258,5 +260,5 @@ class DataBlockManager(object):
                             partition_repr(self._partition_id))
 
     def _evict_data_block_cache_if_full(self):
-        while len(self._data_block_meta_cache) > 1024:
+        while len(self._data_block_meta_cache) >= 1024:
             self._data_block_meta_cache.popitem()

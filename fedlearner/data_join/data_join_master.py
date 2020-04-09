@@ -403,9 +403,24 @@ class DataJoinMaster(dj_grpc.DataJoinMasterServiceServicer):
                         request.raw_data_fpaths.dedup
                     )
             else:
-                response.code = -1
+                response.code = -2
                 response.error_message = \
                         "AddRawData should has field next_process_index"
+        return response
+
+    def ForwardPeerDumpedIndex(self, request, context):
+        response = self._check_data_source_meta(request.data_source_meta)
+        if response.code == 0:
+            manifest_manager = self._fsm.get_mainifest_manager()
+            if request.HasField('peer_dumped_index'):
+                manifest_manager.forward_peer_dumped_index(
+                        request.partition_id,
+                        request.peer_dumped_index.peer_dumped_index
+                    )
+            else:
+                response.code = -2
+                response.error_message = "ForwardPeerDumpedIndex should "\
+                                         "has field peer_dumped_index"
         return response
 
     def _check_data_source_meta(self, remote_meta, raise_exp=False):

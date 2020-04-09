@@ -26,7 +26,8 @@ from fedlearner.common import etcd_client
 from fedlearner.common import common_pb2 as common_pb
 from fedlearner.common import data_join_service_pb2 as dj_pb
 from fedlearner.data_join import (
-    data_block_manager, common, data_block_visitor
+    data_block_manager, common,
+    data_block_visitor, raw_data_manifest_manager
 )
 
 class TestDataBlockVisitor(unittest.TestCase):
@@ -37,6 +38,7 @@ class TestDataBlockVisitor(unittest.TestCase):
         data_source.data_source_meta.start_time = 0
         data_source.data_source_meta.end_time = 10000
         data_source.data_block_dir = "./data_block"
+        data_source.role = common_pb.FLRole.Follower
         self.data_source = data_source
         self.etcd_name = 'test_cluster'
         self.etcd_addrs = 'localhost:2379'
@@ -47,6 +49,11 @@ class TestDataBlockVisitor(unittest.TestCase):
         if gfile.Exists(data_source.data_block_dir):
             gfile.DeleteRecursively(data_source.data_block_dir)
         self.data_block_matas = []
+        self.manifest_manager = raw_data_manifest_manager.RawDataManifestManager(
+            self.etcd, self.data_source)
+        partition_num = self.data_source.data_source_meta.partition_num
+        for i in range(partition_num):
+            self._create_data_block(i)
 
     def _create_data_block(self, partition_id):
         dbm = data_block_manager.DataBlockManager(self.data_source, partition_id)
@@ -81,17 +88,22 @@ class TestDataBlockVisitor(unittest.TestCase):
                 follower_index += 1
             self.data_block_matas.append(builder.finish_data_block())
 
-    def test_data_block_manager(self):
+    def test_data_block_visitor(self):
+        self._test_round(10, 2, 4)
+        self._test_round(63, 1, 7)
+
+    def _test_round(self, dumped_index, start_time, end_time):
         partition_num = self.data_source.data_source_meta.partition_num
         for i in range(partition_num):
-            self._create_data_block(i)
+            self.manifest_manager.forward_peer_dumped_index(i, dumped_index)
         visitor = data_block_visitor.DataBlockVisitor(
                 self.data_source.data_source_meta.name, self.etcd_name,
                 self.etcd_base_dir, self.etcd_addrs, True
             )
-        reps = visitor.LoadDataBlockRepByTimeFrame(2, 5)
+        reps = visitor.LoadDataBlockRepByTimeFrame(start_time, end_time)
         metas = [meta for meta in self.data_block_matas if
-                    not (meta.start_time > 5 or meta.end_time < 2)]
+                    (not (meta.start_time > end_time or meta.end_time < start_time) and
+                        meta.data_block_index <= dumped_index)]
         self.assertEqual(len(reps), len(metas))
         for meta in metas:
             self.assertTrue(meta.block_id in reps)
@@ -106,11 +118,15 @@ class TestDataBlockVisitor(unittest.TestCase):
                                             meta.block_id + common.DataBlockSuffix)
             self.assertEqual(data_block_fpath, rep.data_block_fpath)
 
-        for i in range(0, 10):
+        for i in range(0, 100):
             rep = visitor.LoadDataBlockReqByIndex(random.randint(0, partition_num-1),
-                                                  random.randint(0, 63))
-            meta = [meta for meta in self.data_block_matas if \
-                    meta.block_id == rep.block_id][0]
+                                                  random.randint(0, dumped_index))
+            try:
+                meta = [meta for meta in self.data_block_matas if \
+                        meta.block_id == rep.block_id][0]
+            except Exception as e:
+                print(e)
+                pass
             self.assertEqual(meta.block_id, rep.block_id)
             self.assertEqual(meta.start_time, rep.start_time)
             self.assertEqual(meta.end_time, rep.end_time)
@@ -122,7 +138,7 @@ class TestDataBlockVisitor(unittest.TestCase):
             self.assertEqual(data_block_fpath, rep.data_block_fpath)
             self.assertIsNone(visitor.LoadDataBlockReqByIndex(
                                         random.randint(0, partition_num-1),
-                                        random.randint(64, 10000)
+                                        random.randint(dumped_index, 10000)
                                     )
                                 )
 

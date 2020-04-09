@@ -38,6 +38,7 @@ class ExampleJoinLeader(object):
             self.stale_with_leader = True
             self.next_data_block_index = 0
             self.leader_finished = False
+            self.peer_dumped_index = raw_data_manifest.peer_dumped_index
 
         @property
         def partition_id(self):
@@ -54,6 +55,10 @@ class ExampleJoinLeader(object):
             return self.example_joiner.get_data_block_meta_by_index(
                     self.next_data_block_index
                 )
+
+        def forward_peer_dumped_index(self, peer_dumped_index):
+            assert self.peer_dumped_index < peer_dumped_index
+            self.peer_dumped_index = peer_dumped_index
 
         def __getattr__(self, attr):
             return getattr(self.example_joiner, attr)
@@ -187,11 +192,11 @@ class ExampleJoinLeader(object):
 
     def _sync_data_block_meta_fn(self, impl_ctx):
         assert isinstance(impl_ctx, ExampleJoinLeader.ImplContext)
-        joined_finished = False
+        join_finished = False
         if not impl_ctx.leader_finished:
             with self._sync_data_block_meta_impl(impl_ctx) as syncer:
-                joined_finished = syncer()
-        if joined_finished or impl_ctx.leader_finished:
+                join_finished = syncer()
+        if join_finished or impl_ctx.leader_finished:
             if self._finish_sync_data_block_meta(impl_ctx):
                 self._wakeup_unjoined_partition_allocator()
 
@@ -216,7 +221,7 @@ class ExampleJoinLeader(object):
                 join_finished, meta = impl_ctx.get_next_data_block_meta()
                 if meta is None:
                     break
-                self._send_data_block_meta(meta)
+                self._send_data_block_meta(impl_ctx, meta)
                 impl_ctx.next_data_block_index += 1
             return join_finished
         yield syncer
@@ -237,9 +242,11 @@ class ExampleJoinLeader(object):
                     "block meta for partition {}, reason {}".format(
                     impl_ctx.partition_id, rsp.status.error_message)
                 )
+        self._update_peer_dumped_index(impl_ctx, rsp.dumped_index)
         return rsp.next_index, rsp.finished
 
-    def _send_data_block_meta(self, meta):
+    def _send_data_block_meta(self, impl_ctx, meta):
+        assert isinstance(impl_ctx, ExampleJoinLeader.ImplContext)
         serialize_bytes = \
             dj_pb.SyncContent(data_block_meta=meta).SerializeToString()
         req = dj_pb.SyncPartitionRequest(
@@ -254,12 +261,13 @@ class ExampleJoinLeader(object):
                 req.content_bytes = compressed_bytes
                 req.compressed = True
         rsp = self._peer_client.SyncPartition(req)
-        if rsp.code != 0:
+        if rsp.status.code != 0:
             raise RuntimeError(
                     "Leader refuse data block {} indexed as {},"\
                     "reason {}".format(meta.block_id,
-                    meta.data_block_index, rsp.error_message)
+                    meta.data_block_index, rsp.status.error_message)
                 )
+        self._update_peer_dumped_index(impl_ctx, rsp.dumped_index)
 
     def _finish_sync_data_block_meta(self, impl_ctx):
         assert isinstance(impl_ctx, ExampleJoinLeader.ImplContext)
@@ -277,6 +285,7 @@ class ExampleJoinLeader(object):
                         "reason: {}".format(rsp.status.error_message)
                     )
             impl_ctx.leader_finished = rsp.finished
+            self._update_peer_dumped_index(impl_ctx, rsp.dumped_index)
 
         if not impl_ctx.leader_finished:
             logging.debug("Leader is still dumping data block for " \
@@ -297,3 +306,22 @@ class ExampleJoinLeader(object):
         logging.debug("Follower has been synced data block meta for " \
                       "partition %d. reset impl_ctx", impl_ctx.partition_id)
         return True
+
+    def _update_peer_dumped_index(self, impl_ctx, peer_dumped_index):
+        assert isinstance(impl_ctx, ExampleJoinLeader.ImplContext)
+        if impl_ctx.peer_dumped_index < peer_dumped_index:
+            req = dj_pb.RawDataRequest(
+                    data_source_meta=self._data_source.data_source_meta,
+                    rank_id=self._rank_id,
+                    partition_id=impl_ctx.partition_id,
+                    peer_dumped_index=dj_pb.PeerDumpedIndex(
+                            peer_dumped_index=peer_dumped_index
+                        )
+                )
+            rsp = self._master_client.ForwardPeerDumpedIndex(req)
+            if rsp.code != 0:
+                raise RuntimeError(
+                        "Failed to forward peer dumped index to {} since "\
+                        "{}".format(peer_dumped_index, rsp.error_message)
+                    )
+            impl_ctx.forward_peer_dumped_index(peer_dumped_index)

@@ -53,22 +53,26 @@ class ExampleJoinFollower(object):
                         self._etcd, self._data_source,
                         partition_id, self._raw_data_options
                     )
-            return self._impl_ctx.get_next_data_block_index()
+            return self._impl_ctx.get_next_data_block_index(), \
+                    self._impl_ctx.get_dumped_data_block_index()
 
     def add_synced_item(self, req):
         assert req.HasField('data_block_meta'), \
             "the request must has data_block_meta for ExampleJoinFollower"
         with self._lock:
             self._check_status(req.data_block_meta.partition_id)
-            return self._impl_ctx.add_synced_data_block_meta(
+            filled, next_index = self._impl_ctx.add_synced_data_block_meta(
                     req.data_block_meta
                 )
+            dumped_index = self._impl_ctx.get_dumped_data_block_index()
+            return filled, next_index, dumped_index
 
     def finish_sync_partition(self, partition_id):
         with self._lock:
             self._check_status(partition_id)
             self._impl_ctx.finish_sync_data_block_meta()
-            return not self._impl_ctx.need_dump()
+            return not self._impl_ctx.need_dump(), \
+                    self._impl_ctx.get_dumped_data_block_index()
 
     def get_processing_partition_id(self):
         with self._lock:

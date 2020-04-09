@@ -44,6 +44,9 @@ class DataBlockDumperManager(object):
         with self._lock:
             return self._next_data_block_index
 
+    def get_dumped_data_block_index(self):
+        return self._data_block_manager.get_dumped_data_block_count() - 1
+
     def add_synced_data_block_meta(self, meta):
         with self._lock:
             if self._synced_data_block_meta_finished:

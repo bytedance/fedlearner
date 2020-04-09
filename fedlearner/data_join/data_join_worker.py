@@ -80,25 +80,29 @@ class DataJoinWorker(dj_grpc.DataJoinWorkerServiceServicer):
                 response.status.error_message = \
                         "partition %d is processing" % processing_partition_id
             if response.status.code == 0:
-                response.next_index = \
+                response.next_index, response.dumped_index = \
                         transmit_follower.start_sync_partition(partition_id)
         return response
 
     def SyncPartition(self, request, context):
         partition_id = request.partition_id
-        response = self._check_request(request.data_source_meta,
-                                       request.rank_id,
-                                       partition_id)
-        if response.code == 0:
+        response = dj_pb.SyncPartitionResponse()
+        status = self._check_request(request.data_source_meta,
+                                     request.rank_id,
+                                     partition_id)
+        response.status.MergeFrom(status)
+        if response.status.code == 0:
             content_bytes = request.content_bytes
             if request.compressed:
                 content_bytes = zlib.decompress(content_bytes)
             sync_content = dj_pb.SyncContent()
             sync_content.ParseFromString(content_bytes)
-            filled, _ = self._transmit_follower.add_synced_item(sync_content)
+            filled, next_index, response.dumped_index = \
+                    self._transmit_follower.add_synced_item(sync_content)
             if not filled:
-                response.code = -4
-                response.error_message = "item is not needed"
+                response.status.code = -4
+                response.status.error_message = \
+                        "item is not filled, expected {}".format(next_index)
         return response
 
     def FinishPartition(self, request, context):
@@ -112,7 +116,7 @@ class DataJoinWorker(dj_grpc.DataJoinWorkerServiceServicer):
             return response
         if self._transmit_follower.get_processing_partition_id() == \
                 partition_id:
-            response.finished = \
+            response.finished, response.dumped_index = \
                     self._transmit_follower.finish_sync_partition(
                             partition_id
                         )
