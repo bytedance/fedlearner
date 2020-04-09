@@ -47,6 +47,8 @@ def make_ready_client(channel, stop_event):
                 time.time()-start_time)
             if wait_secs < 5.0:
                 wait_secs *= 1.2
+        except Exception as e:  # pylint: disable=broad-except
+            logging.warning('Waiting channel ready: %s', repr(e))
     return tws_grpc.TrainerWorkerServiceStub(channel)
 
 
@@ -165,7 +167,7 @@ class Bridge(object):
                     elif response.status.code == \
                         common_pb.STATUS_MESSAGE_MISSING:
                         raise RuntimeError("Message with seq_num=%d is "
-                            "missing!" % response.next_seq_num-1)
+                            "missing!" % (response.next_seq_num-1))
                     else:
                         raise RuntimeError("Trainsmit failed with %d" %
                                            response.status.code)
@@ -180,12 +182,10 @@ class Bridge(object):
                             len(resend_list), min_seq_num_to_resend)
             except Exception as e:  # pylint: disable=broad-except
                 if not stop_event.is_set():
-                    logging.warning("Bridge streaming broken: %s. " \
-                                    "Retry in 1 second...", repr(e))
+                    logging.warning("Bridge streaming broken: %s.", repr(e))
             finally:
                 generator.cancel()
                 channel.close()
-                time.sleep(1)
                 logging.warning(
                     "Restarting streaming: resend queue size: %d, "
                     "starting from seq_num=%s", len(resend_list),
