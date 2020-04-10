@@ -192,7 +192,7 @@ class Bridge(object):
                     resend_list and resend_list[0].seq_num or "NaN")
                 channel = make_insecure_channel(
                     self._remote_address, ChannelType.REMOTE)
-                client = make_ready_client(self._remote_address, stop_event)
+                client = make_ready_client(channel, stop_event)
                 self._check_remote_heartbeat()
 
     def _transmit(self, msg):
