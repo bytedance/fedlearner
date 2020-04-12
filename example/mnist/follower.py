@@ -69,8 +69,14 @@ def model_fn(model, features, labels, mode):
         return model.make_spec(mode,
                                loss=tf.math.reduce_mean(act1_f),
                                train_op=train_op)
-    elif mode == tf.estimator.ModeKeys.PREDICT:
-        return model.make_spec(mode=mode, predictions={'act1_f': act1_f})
+
+    if mode == tf.estimator.ModeKeys.EVAL:
+        model.send('act1_f', act1_f, require_grad=False)
+        fake_loss = tf.reduce_mean(act1_f)
+        return model.make_spec(mode=mode, loss=fake_loss)
+
+    # mode == tf.estimator.ModeKeys.PREDICT:
+    return model.make_spec(mode=mode, predictions={'act1_f': act1_f})
 
 
 if __name__ == '__main__':
