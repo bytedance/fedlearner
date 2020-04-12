@@ -109,26 +109,35 @@ def model_fn(model, features, labels, mode):
 
     if mode == tf.estimator.ModeKeys.TRAIN:
         act1_f = model.recv('act1_f', tf.float32, require_grad=True)
+    elif mode == tf.estimator.ModeKeys.EVAL:
+        act1_f = model.recv('act1_f', tf.float32, require_grad=False)
     else:
         act1_f = features['act1_f']
+
     output = tf.concat([act2_l, act1_f], axis=1)
     logits = tf.matmul(output, w3)
 
-    if mode == tf.estimator.ModeKeys.TRAIN:
-        y = labels['y']
-        loss = tf.nn.sparse_softmax_cross_entropy_with_logits(
-            labels=y, logits=logits)
-        loss = tf.math.reduce_mean(loss)
 
-        logging_hook = tf.train.LoggingTensorHook(
-            {"loss" : loss}, every_n_iter=10)
-
-        optimizer = tf.train.GradientDescentOptimizer(0.1)
-        train_op = model.minimize(optimizer, loss, global_step=global_step)
-        return model.make_spec(mode, loss=loss, train_op=train_op,
-                               training_hooks=[logging_hook])
     if mode == tf.estimator.ModeKeys.PREDICT:
         return model.make_spec(mode, predictions=logits)
+
+    y = labels['y']
+    loss = tf.nn.sparse_softmax_cross_entropy_with_logits(
+        labels=y, logits=logits)
+    loss = tf.math.reduce_mean(loss)
+
+    if mode == tf.estimator.ModeKeys.EVAL:
+        auc_pair = tf.metrics.auc(y, logits[:, 1])
+        return model.make_spec(
+            mode, loss=loss, eval_metric_ops={'auc': auc_pair})
+
+    # mode == tf.estimator.ModeKeys.TRAIN:
+    logging_hook = tf.train.LoggingTensorHook(
+        {"loss" : loss}, every_n_iter=10)
+    optimizer = tf.train.GradientDescentOptimizer(0.1)
+    train_op = model.minimize(optimizer, loss, global_step=global_step)
+    return model.make_spec(mode, loss=loss, train_op=train_op,
+                           training_hooks=[logging_hook])
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.DEBUG)

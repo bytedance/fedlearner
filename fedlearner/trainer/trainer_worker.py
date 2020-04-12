@@ -81,7 +81,8 @@ def create_argument_parser():
                         help='Number of steps between checkpoints.')
     parser.add_argument('--sparse-estimator', type=bool, default=False,
                         help='Whether using sparse estimator.')
-
+    parser.add_argument('--mode', type=str, default='train',
+                        help='Train or eval.')
     return parser
 
 def train(role, args, input_fn, model_fn, serving_input_receiver_fn):
@@ -160,12 +161,15 @@ def train(role, args, input_fn, model_fn, serving_input_receiver_fn):
             worker_rank=args.worker_rank,
             cluster_spec=cluster_spec)
 
-    if args.checkpoint_path:
+    run_mode = args.mode.lower()
+    if run_mode == 'train':
         estimator.train(input_fn,
                         checkpoint_path=args.checkpoint_path,
                         save_checkpoint_steps=args.save_checkpoint_steps)
+    elif run_mode == 'eval':
+        estimator.evaluate(input_fn, checkpoint_path=args.checkpoint_path)
     else:
-        estimator.train(input_fn)
+        raise ValueError('Allowed values are: --mode=train|eval')
 
     if args.export_path:
         estimator.export_saved_model(args.export_path,
