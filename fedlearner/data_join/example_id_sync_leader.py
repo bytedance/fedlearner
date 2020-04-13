@@ -14,301 +14,105 @@
 
 # coding: utf-8
 
-import threading
-import logging
-import os
-from contextlib import contextmanager
-
 from google.protobuf import empty_pb2
 
 from fedlearner.common import data_join_service_pb2 as dj_pb
 
-from fedlearner.data_join.routine_worker import RoutineWorker
-from fedlearner.data_join.raw_data_visitor import RawDataVisitor
+from fedlearner.data_join.example_id_batch_fetcher import ExampleIdBatchFetcher
+from fedlearner.data_join.transmit_leader import TransmitLeader
 
-class ExampleIdSyncLeader(object):
-    class ImplContext(object):
-        def __init__(self, etcd, data_source,
-                     raw_data_manifest, raw_data_options):
-            self.raw_data_manifest = raw_data_manifest
-            self.raw_data_visitor = RawDataVisitor(
-                    etcd, data_source,
-                    raw_data_manifest.partition_id,
-                    raw_data_options
+class ExampleIdSyncLeader(TransmitLeader):
+    class ImplContext(TransmitLeader.ImplContext):
+        def __init__(self, etcd, data_source, raw_data_manifest,
+                     raw_data_options, example_id_batch_options):
+            super(ExampleIdSyncLeader.ImplContext, self).__init__(
+                    raw_data_manifest
                 )
-            self.stale_with_follower = True
-            self.follower_finished = False
-            self.raw_data_finished = raw_data_manifest.finished
-            self.peer_dumped_index = raw_data_manifest.peer_dumped_index
+            self.example_id_batch_fetcher = ExampleIdBatchFetcher(
+                    etcd, data_source, raw_data_manifest.partition_id,
+                    raw_data_options, example_id_batch_options
+                )
+            if raw_data_manifest.finished:
+                self.example_id_batch_fetcher.set_raw_data_finished()
+            self._hit_idx = None
 
         @property
         def partition_id(self):
             return self.raw_data_manifest.partition_id
 
-        def acquire_stale_with_follower(self):
-            self.stale_with_follower = True
+        def is_produce_finished(self):
+            peer_finished = self.is_peer_finished()
+            next_index, _ = self.get_peer_index()
+            return peer_finished or \
+                    not self.example_id_batch_fetcher.need_fetch(next_index)
 
-        def release_stale_with_follower(self):
-            self.stale_with_follower = False
+        def make_producer(self):
+            next_index, _ = self.get_peer_index()
+            return self.example_id_batch_fetcher.make_fetcher(next_index)
 
-        def forward_peer_dumped_index(self, peer_dumped_index):
-            assert self.peer_dumped_index < peer_dumped_index
-            self.peer_dumped_index = peer_dumped_index
+        def get_sync_content_by_next_index(self):
+            next_index, dumped_index = self.get_peer_index()
+            fetcher = self.example_id_batch_fetcher
+            fetch_finished, item, self._hit_idx = \
+                fetcher.fetch_example_id_batch_by_index(next_index,
+                                                        self._hit_idx)
+            skip_cnt = fetcher.evict_staless_example_id_batch(dumped_index)
+            if self._hit_idx is not None:
+                self._hit_idx -= skip_cnt
+                self._hit_idx += 0 if item is None else 1
+            return fetch_finished, item
 
-    def __init__(self, peer_client, master_client,
-                 rank_id, etcd, data_source, raw_data_options):
-        self._lock = threading.Lock()
-        self._peer_client = peer_client
-        self._master_client = master_client
-        self._rank_id = rank_id
-        self._etcd = etcd
-        self._data_source = data_source
+        def is_raw_data_finished(self):
+            return self.example_id_batch_fetcher.is_raw_data_finished()
+
+        def set_raw_data_finished(self):
+            self.example_id_batch_fetcher.set_raw_data_finished()
+
+    def __init__(self, peer_client, master_client, rank_id, etcd,
+                 data_source, raw_data_options, example_id_batch_options):
+        super(ExampleIdSyncLeader, self).__init__(peer_client, master_client,
+                                                  rank_id, etcd, data_source,
+                                                  'example_id_syner_leader')
         self._raw_data_options = raw_data_options
-        self._unsynced_partition_exhausted = False
-        self._impl_ctx = None
-        self._started = False
+        self._example_id_batch_options = example_id_batch_options
 
-    def start_routine_workers(self):
-        with self._lock:
-            if not self._started:
-                self._worker_map = {
-                    'unsynced_partition_allocator': RoutineWorker(
-                    'unsynced_partition_allocator',
-                    self._allocate_unsynced_partition_fn,
-                    self._allocate_unsynced_partition_cond, 5),
-
-                    'example_id_syncer': RoutineWorker(
-                    'example_id_syncer',
-                    self._sync_example_id_fn,
-                    self._sync_example_id_cond, 5),
-                }
-                for _, w in self._worker_map.items():
-                    w.start_routine()
-                self._started = True
-                self._wakeup_unsynced_partition_allocator()
-
-    def stop_routine_workers(self):
-        wait_join = True
-        with self._lock:
-            if self._started:
-                wait_join = True
-                self._started = False
-        if wait_join:
-            for w in self._worker_map.values():
-                w.stop_routine()
-
-    def _wakeup_unsynced_partition_allocator(self):
-        self._impl_ctx = None
-        self._worker_map['unsynced_partition_allocator'].wakeup()
-
-    def _allocate_unsynced_partition_fn(self):
-        req = dj_pb.RawDataRequest(
+    def _make_raw_data_request(self):
+        return dj_pb.RawDataRequest(
                 data_source_meta=self._data_source.data_source_meta,
                 rank_id=self._rank_id,
                 partition_id=-1,
                 sync_example_id=empty_pb2.Empty()
             )
-        rsp = self._master_client.RequestJoinPartition(req)
-        if rsp.status.code != 0:
-            raise RuntimeError(
-                    "Failed to Request partition for sync id to " \
-                    "follower, error msg {}".format(rsp.status.error_message)
-                )
-        if rsp.HasField('finished'):
-            self._set_unsynced_partition_exhausted()
-            return
-        assert rsp.HasField('manifest'), "rsp of RequestJoinPartition must "\
-                                         "has manifest if not finished"
-        impl_ctx = ExampleIdSyncLeader.ImplContext(
-                self._etcd, self._data_source,
-                rsp.manifest, self._raw_data_options
+
+    def _make_new_impl_ctx(self, raw_data_manifest):
+        return ExampleIdSyncLeader.ImplContext(
+                self._etcd, self._data_source, raw_data_manifest,
+                self._raw_data_options, self._example_id_batch_options
             )
-        with self._lock:
-            assert self._impl_ctx is None
-            self._impl_ctx = impl_ctx
-            self._wakeup_example_id_syncer()
 
-    def _allocate_unsynced_partition_cond(self):
-        with self._lock:
-            return self._impl_ctx is None and \
-                    not self._unsynced_partition_exhausted
-
-    def _set_unsynced_partition_exhausted(self):
-        with self._lock:
-            self._unsynced_partition_exhausted = True
-
-    def _wakeup_example_id_syncer(self):
-        self._worker_map['example_id_syncer'].wakeup()
-
-    def _sync_example_id_fn(self, impl_ctx):
-        assert isinstance(impl_ctx, ExampleIdSyncLeader.ImplContext)
+    def _process_producer_hook(self, impl_ctx):
         self._sniff_raw_data_finished(impl_ctx)
-        if not impl_ctx.follower_finished:
-            with self._sync_example_id_impl(impl_ctx) as syncer:
-                impl_ctx.follower_finished = syncer()
-        if impl_ctx.raw_data_finished:
-            if self._finish_sync_example_id(impl_ctx):
-                self._wakeup_unsynced_partition_allocator()
-
-    def _sync_example_id_cond(self):
-        with self._lock:
-            if self._impl_ctx is not None:
-                self._worker_map['example_id_syncer'].setup_args(
-                        self._impl_ctx
-                    )
-            return self._impl_ctx is not None
 
     def _sniff_raw_data_finished(self, impl_ctx):
         assert isinstance(impl_ctx, ExampleIdSyncLeader.ImplContext)
-        if not impl_ctx.raw_data_finished:
+        if not impl_ctx.is_raw_data_finished():
             req = dj_pb.RawDataRequest(
                     data_source_meta=self._data_source.data_source_meta,
                     rank_id=self._rank_id,
                     partition_id=impl_ctx.partition_id
                 )
             manifest = self._master_client.QueryRawDataManifest(req)
-            impl_ctx.raw_data_finished = manifest.finished
+            if manifest.finished:
+                impl_ctx.set_raw_data_finished()
 
-    @contextmanager
-    def _sync_example_id_impl(self, impl_ctx):
-        assert isinstance(impl_ctx, ExampleIdSyncLeader.ImplContext)
-        impl_ctx.acquire_stale_with_follower()
+    def _serialize_sync_content(self, item):
+        sync_ctnt = dj_pb.SyncContent(lite_example_ids=item.lite_example_ids)
+        return sync_ctnt.SerializeToString()
 
-        def syncer():
-            next_index, follower_finished = \
-                    self._start_sync_example_id(impl_ctx)
-            if follower_finished:
-                return True
-            impl_ctx.raw_data_visitor.active_visitor()
-            assert next_index >= 0, "the next index should >= 0"
-            if next_index == 0:
-                impl_ctx.raw_data_visitor.reset()
-            else:
-                impl_ctx.raw_data_visitor.seek(next_index-1)
-            begin_index = next_index
-            expected_index = next_index
-            items = []
-            for (index, item) in impl_ctx.raw_data_visitor:
-                if index != expected_index:
-                    logging.fatal("index is not consecutive, %d != %d",
-                                  index, expected_index)
-                    os._exit(-1) # pylint: disable=protected-access
-                items.append(item)
-                expected_index += 1
-                if len(items) > 2048:
-                    self._send_example_ids(items, begin_index, impl_ctx)
-                    items = []
-                    begin_index = expected_index
-            if len(items) > 0:
-                self._send_example_ids(items, begin_index, impl_ctx)
-            assert impl_ctx.raw_data_visitor.finished(), \
-                "the raw data visitor should be finihed "\
-                "if not error meets in syncer"
-            return False
-        yield syncer
-
-        impl_ctx.release_stale_with_follower()
-
-    def _start_sync_example_id(self, impl_ctx):
-        assert isinstance(impl_ctx, ExampleIdSyncLeader.ImplContext)
-        req = dj_pb.StartPartitionRequest(
-            data_source_meta=self._data_source.data_source_meta,
-            rank_id=self._rank_id,
-            partition_id=impl_ctx.partition_id
-        )
-        rsp = self._peer_client.StartPartition(req)
-        if rsp.status.code != 0:
-            raise RuntimeError(
-                    "Failed to call Follower for start to sync id for "\
-                    "partition {}, reason {}".format(
-                    impl_ctx.partition_id, rsp.status.error_message)
-                )
-        self._update_peer_dumped_index(impl_ctx, rsp.dumped_index)
-        return rsp.next_index, rsp.finished
-
-    def _send_example_ids(self, items, begin_index, impl_ctx):
-        assert isinstance(impl_ctx, ExampleIdSyncLeader.ImplContext)
-        if len(items) == 0:
-            return
-        sync_content = dj_pb.SyncContent(
-                lite_example_ids=dj_pb.LiteExampleIds(
-                    partition_id=impl_ctx.partition_id,
-                    begin_index=begin_index
-                )
-            )
-        for item in items:
-            sync_content.lite_example_ids.example_id.append(item.example_id)
-            sync_content.lite_example_ids.event_time.append(item.event_time)
-        req = dj_pb.SyncPartitionRequest(
-                data_source_meta=self._data_source.data_source_meta,
-                rank_id=self._rank_id,
-                partition_id=impl_ctx.partition_id,
-                compressed=False,
-                content_bytes=sync_content.SerializeToString()
-            )
-        rsp = self._peer_client.SyncPartition(req)
-        if rsp.status.code != 0:
-            raise RuntimeError(
-                    "Follower refuse sync {} example ids start from {},"\
-                    "reason {}".format(len(items), begin_index,
-                    rsp.status.error_message)
-                )
-        self._update_peer_dumped_index(impl_ctx, rsp.dumped_index)
-
-    def _finish_sync_example_id(self, impl_ctx):
-        assert isinstance(impl_ctx, ExampleIdSyncLeader.ImplContext)
-        if not impl_ctx.follower_finished:
-            req = dj_pb.FinishPartitionRequest(
-                    data_source_meta=self._data_source.data_source_meta,
-                    rank_id=self._rank_id,
-                    partition_id=impl_ctx.partition_id
-                )
-            rsp = self._peer_client.FinishPartition(req)
-            if rsp.status.code != 0:
-                raise RuntimeError(
-                        "Failed to call Follower finish partition " \
-                        "reason: {}".format(rsp.status.error_message)
-                )
-            impl_ctx.follower_finished = rsp.finished
-            self._update_peer_dumped_index(impl_ctx, rsp.dumped_index)
-        if not impl_ctx.follower_finished:
-            logging.debug("Follower is still dumping example id " \
-                          "for partition %d waitiing", impl_ctx.partition_id)
-            return False
-
-        logging.debug("Follower has been synced example ids " \
-                      "for partition %d", impl_ctx.partition_id)
-        req = dj_pb.RawDataRequest(
+    def _make_finish_raw_data_request(self, impl_ctx):
+        return dj_pb.RawDataRequest(
                 data_source_meta=self._data_source.data_source_meta,
                 rank_id=self._rank_id,
                 partition_id=impl_ctx.partition_id,
                 sync_example_id=empty_pb2.Empty()
             )
-        rsp = self._master_client.FinishJoinPartition(req)
-        if rsp.code != 0:
-            raise RuntimeError(
-                    "Failed to finish raw data from syncing. "\
-                    "reason: %s" % rsp.error_message
-                )
-        logging.debug("Leader has been synced example ids " \
-                      "for partition %d", impl_ctx.partition_id)
-        return True
-
-    def _update_peer_dumped_index(self, impl_ctx, peer_dumped_index):
-        assert isinstance(impl_ctx, ExampleIdSyncLeader.ImplContext)
-        if impl_ctx.peer_dumped_index < peer_dumped_index:
-            req = dj_pb.RawDataRequest(
-                    data_source_meta=self._data_source.data_source_meta,
-                    rank_id=self._rank_id,
-                    partition_id=impl_ctx.partition_id,
-                    peer_dumped_index=dj_pb.PeerDumpedIndex(
-                            peer_dumped_index=peer_dumped_index
-                        )
-                )
-            rsp = self._master_client.ForwardPeerDumpedIndex(req)
-            if rsp.code != 0:
-                raise RuntimeError(
-                        "Failed to forward peer dumped index to {} since "\
-                        "{}".format(peer_dumped_index, rsp.error_message)
-                    )
-            impl_ctx.forward_peer_dumped_index(peer_dumped_index)

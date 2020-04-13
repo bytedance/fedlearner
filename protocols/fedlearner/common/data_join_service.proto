@@ -158,7 +158,8 @@ message SyncPartitionRequest {
 
 message SyncPartitionResponse {
   Status status = 1;
-  int64 dumped_index = 2;
+  int64 next_index = 2;
+  int64 dumped_index = 3;
 }
 
 message FinishPartitionRequest {
@@ -215,11 +216,17 @@ message ExampleIdDumpOptions {
   int64 example_id_dump_threshold = 2;
 }
 
+message ExampleIdBatchOptions {
+  int64 example_id_batch_size = 1;
+  int64 max_flying_example_id = 2;
+}
+
 message DataJoinWorkerOptions {
   bool use_mock_etcd = 1;
   RawDataOptions raw_data_options = 2;
   ExampleJoinerOptions example_joiner_options = 3;
   ExampleIdDumpOptions example_id_dump_options = 4;
+  ExampleIdBatchOptions example_id_batch_options = 5;
 }
 
 message DataJoinMasterOptions {
