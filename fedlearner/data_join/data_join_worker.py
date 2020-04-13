@@ -97,12 +97,12 @@ class DataJoinWorker(dj_grpc.DataJoinWorkerServiceServicer):
                 content_bytes = zlib.decompress(content_bytes)
             sync_content = dj_pb.SyncContent()
             sync_content.ParseFromString(content_bytes)
-            filled, next_index, response.dumped_index = \
+            filled, response.next_index, response.dumped_index = \
                     self._transmit_follower.add_synced_item(sync_content)
             if not filled:
                 response.status.code = -4
-                response.status.error_message = \
-                        "item is not filled, expected {}".format(next_index)
+                response.status.error_message = "item is not filled, expected "\
+                                                "{}".format(response.next_index)
         return response
 
     def FinishPartition(self, request, context):
@@ -144,6 +144,7 @@ class DataJoinWorker(dj_grpc.DataJoinWorkerServiceServicer):
                             self._peer_client, self._master_client,
                             self._rank_id, self._etcd,
                             self._data_source, options.raw_data_options,
+                            options.example_id_batch_options
                         )
             self._transmit_follower = \
                     example_join_follower.ExampleJoinFollower(
@@ -333,6 +334,12 @@ if __name__ == "__main__":
     parser.add_argument('--example_id_dump_threshold', type=int, default=4096,
                         help='dump a data block if N example id, <=0'\
                              'means no size limit for dumping example id')
+    parser.add_argument('--example_id_batch_size', type=int, default=4096,
+                        help='size of example id batch combined for '\
+                             'example id sync leader')
+    parser.add_argument('--max_flying_example_id', type=int, default=268435456,
+                        help='max flying example id cached for '\
+                             'example id sync leader')
     args = parser.parse_args()
     if args.tf_eager_mode:
         import tensorflow
@@ -353,6 +360,10 @@ if __name__ == "__main__":
             example_id_dump_options=dj_pb.ExampleIdDumpOptions(
                     example_id_dump_interval=args.example_id_dump_interval,
                     example_id_dump_threshold=args.example_id_dump_threshold
+                ),
+            example_id_batch_options=dj_pb.ExampleIdBatchOptions(
+                    example_id_batch_size=args.example_id_batch_size,
+                    max_flying_example_id=args.max_flying_example_id
                 )
         )
     worker_srv = DataJoinWorkerService(args.listen_port, args.peer_addr,
