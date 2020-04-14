@@ -119,10 +119,8 @@ class FLModel(object):
                   loss=None,
                   train_op=None,
                   eval_metric_ops=None,
-                  export_outputs=None,
                   training_chief_hooks=None,
                   training_hooks=None,
-                  scaffold=None,
                   evaluation_hooks=None,
                   prediction_hooks=None):
         if isinstance(predictions, tf.Tensor):
@@ -135,10 +133,8 @@ class FLModel(object):
             loss=loss,
             train_op=train_op,
             eval_metric_ops=eval_metric_ops,
-            export_outputs=export_outputs,
             training_chief_hooks=training_chief_hooks,
             training_hooks=training_hooks,
-            scaffold=scaffold,
             evaluation_hooks=evaluation_hooks,
             prediction_hooks=prediction_hooks)
 
@@ -226,6 +222,14 @@ class FLEstimator(object):
                 features, labels = self._get_features_and_labels_from_input_fn(
                     input_fn, ModeKeys.TRAIN)
                 spec, _ = self._get_model_spec(features, labels, ModeKeys.TRAIN)
+
+            # Explicitly add a Saver
+            if not tf.get_collection(tf.GraphKeys.SAVERS):
+                saver = tf.train.Saver(
+                    sharded=True,
+                    defer_build=True,
+                    save_relative_paths=True)  # Must set for portability
+                tf.add_to_collection(tf.GraphKeys.SAVERS, saver)
 
             self._bridge.connect()
             with tf.train.MonitoredTrainingSession(
