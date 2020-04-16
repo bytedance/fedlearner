@@ -446,7 +446,7 @@ func (am *appManager) syncSyncSentApp(app *v1alpha1.FLApp) error {
 	name := app.Name
 	klog.Infof("sync sync-sent app, name = %v", name)
 	configMapUpdated := am.configMapUpdated(app)
-	if am.replicaPaired(app) && am.configMapUpdated(app) {
+	if am.replicaPaired(app) && configMapUpdated {
 		return am.appStatusUpdater.UpdateAppStateWithRetry(app, v1alpha1.FLStateRunning)
 	}
 	klog.Infof("still waiting for leader, name = %v", name)
@@ -489,7 +489,9 @@ func (am *appManager) configMapUpdated(app *v1alpha1.FLApp) bool {
 			if err != nil || configMap == nil {
 				return false
 			}
-			return apiequality.Semantic.DeepEqual(configMap.Data, app.Status.FLReplicaStatus[rtype].Mapping)
+			if !apiequality.Semantic.DeepEqual(configMap.Data, app.Status.FLReplicaStatus[rtype].Mapping) {
+				return false
+			}
 		}
 	}
 	return true

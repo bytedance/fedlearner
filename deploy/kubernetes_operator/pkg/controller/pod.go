@@ -178,7 +178,7 @@ func (am *appManager) createNewPod(
 	podTemplate := spec.Template.DeepCopy()
 	// The controller will restart pod according to FLReplicaSpec
 	podTemplate.Spec.RestartPolicy = v1.RestartPolicyNever
-	podTemplate.Name = GenIndexName(app.Name, strings.ToLower(app.Spec.Role), rt, index) + string(uuid.NewUUID())
+	podTemplate.Name = GenIndexName(app.Name, strings.ToLower(app.Spec.Role), rt, index) + "-" + string(uuid.NewUUID())
 	if podTemplate.Labels == nil {
 		podTemplate.Labels = make(map[string]string)
 	}
