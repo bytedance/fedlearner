@@ -168,6 +168,8 @@ func (c *FLController) processNextItem() bool {
 	err := c.syncFLApp(key.(string))
 	if err == nil {
 		c.jobQueue.Forget(key)
+	} else {
+		klog.Errorf("failed to sync FLApp, err = %v", err)
 	}
 	return true
 }
