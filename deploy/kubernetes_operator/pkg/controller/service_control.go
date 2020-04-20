@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"context"
 	"fmt"
 	"sync"
 
@@ -27,13 +28,13 @@ const (
 // created as an interface to allow testing.
 type ServiceControlInterface interface {
 	// CreateServices creates new Services according to the spec.
-	CreateServices(namespace string, service *v1.Service, object runtime.Object) error
+	CreateServices(ctx context.Context, namespace string, service *v1.Service, object runtime.Object) error
 	// CreateServicesWithControllerRef creates new services according to the spec, and sets object as the service's controller.
-	CreateServicesWithControllerRef(namespace string, service *v1.Service, object runtime.Object, controllerRef *metav1.OwnerReference) error
+	CreateServicesWithControllerRef(ctx context.Context, namespace string, service *v1.Service, object runtime.Object, controllerRef *metav1.OwnerReference) error
 	// PatchService patches the service.
-	PatchService(namespace, name string, data []byte) error
+	PatchService(ctx context.Context, namespace, name string, data []byte) error
 	// DeleteService deletes the service identified by serviceID.
-	DeleteService(namespace, serviceID string, object runtime.Object) error
+	DeleteService(ctx context.Context, namespace, serviceID string, object runtime.Object) error
 }
 
 func validateControllerRef(controllerRef *metav1.OwnerReference) error {
@@ -61,23 +62,23 @@ type RealServiceControl struct {
 	Recorder   record.EventRecorder
 }
 
-func (r RealServiceControl) PatchService(namespace, name string, data []byte) error {
+func (r RealServiceControl) PatchService(ctx context.Context, namespace, name string, data []byte) error {
 	_, err := r.KubeClient.CoreV1().Services(namespace).Patch(name, types.StrategicMergePatchType, data)
 	return err
 }
 
-func (r RealServiceControl) CreateServices(namespace string, service *v1.Service, object runtime.Object) error {
-	return r.createServices(namespace, service, object, nil)
+func (r RealServiceControl) CreateServices(ctx context.Context, namespace string, service *v1.Service, object runtime.Object) error {
+	return r.createServices(ctx, namespace, service, object, nil)
 }
 
-func (r RealServiceControl) CreateServicesWithControllerRef(namespace string, service *v1.Service, controllerObject runtime.Object, controllerRef *metav1.OwnerReference) error {
+func (r RealServiceControl) CreateServicesWithControllerRef(ctx context.Context, namespace string, service *v1.Service, controllerObject runtime.Object, controllerRef *metav1.OwnerReference) error {
 	if err := validateControllerRef(controllerRef); err != nil {
 		return err
 	}
-	return r.createServices(namespace, service, controllerObject, controllerRef)
+	return r.createServices(ctx, namespace, service, controllerObject, controllerRef)
 }
 
-func (r RealServiceControl) createServices(namespace string, service *v1.Service, object runtime.Object, controllerRef *metav1.OwnerReference) error {
+func (r RealServiceControl) createServices(ctx context.Context, namespace string, service *v1.Service, object runtime.Object, controllerRef *metav1.OwnerReference) error {
 	if labels.Set(service.Labels).AsSelectorPreValidated().Empty() {
 		return fmt.Errorf("unable to create Services, no labels")
 	}
@@ -105,7 +106,7 @@ func (r RealServiceControl) createServices(namespace string, service *v1.Service
 }
 
 // DeleteService deletes the service identified by serviceID.
-func (r RealServiceControl) DeleteService(namespace, serviceID string, object runtime.Object) error {
+func (r RealServiceControl) DeleteService(ctx context.Context, namespace, serviceID string, object runtime.Object) error {
 	accessor, err := meta.Accessor(object)
 	if err != nil {
 		return fmt.Errorf("object does not have ObjectMeta, %v", err)
@@ -122,12 +123,13 @@ func (r RealServiceControl) DeleteService(namespace, serviceID string, object ru
 		return nil
 	}
 	log.Infof("Controller %v deleting service %v/%v", accessor.GetName(), namespace, serviceID)
-	if err := r.KubeClient.CoreV1().Services(namespace).Delete(serviceID, nil); err != nil {
+	if err := r.KubeClient.CoreV1().Services(namespace).Delete(serviceID, &metav1.DeleteOptions{}); err != nil {
 		r.Recorder.Eventf(object, v1.EventTypeWarning, FailedDeleteServiceReason, "Error deleting: %v", err)
 		return fmt.Errorf("unable to delete service: %v", err)
-	} else {
-		r.Recorder.Eventf(object, v1.EventTypeNormal, SuccessfulDeleteServiceReason, "Deleted service: %v", serviceID)
 	}
+
+	r.Recorder.Eventf(object, v1.EventTypeNormal, SuccessfulDeleteServiceReason, "Deleted service: %v", serviceID)
+
 	return nil
 }
 
@@ -144,7 +146,7 @@ type FakeServiceControl struct {
 
 var _ ServiceControlInterface = &FakeServiceControl{}
 
-func (f *FakeServiceControl) PatchService(namespace, name string, data []byte) error {
+func (f *FakeServiceControl) PatchService(ctx context.Context, namespace, name string, data []byte) error {
 	f.Lock()
 	defer f.Unlock()
 	f.Patches = append(f.Patches, data)
@@ -154,7 +156,7 @@ func (f *FakeServiceControl) PatchService(namespace, name string, data []byte) e
 	return nil
 }
 
-func (f *FakeServiceControl) CreateServices(namespace string, service *v1.Service, object runtime.Object) error {
+func (f *FakeServiceControl) CreateServices(ctx context.Context, namespace string, service *v1.Service, object runtime.Object) error {
 	f.Lock()
 	defer f.Unlock()
 	f.CreateCallCount++
@@ -168,7 +170,7 @@ func (f *FakeServiceControl) CreateServices(namespace string, service *v1.Servic
 	return nil
 }
 
-func (f *FakeServiceControl) CreateServicesWithControllerRef(namespace string, service *v1.Service, object runtime.Object, controllerRef *metav1.OwnerReference) error {
+func (f *FakeServiceControl) CreateServicesWithControllerRef(ctx context.Context, namespace string, service *v1.Service, object runtime.Object, controllerRef *metav1.OwnerReference) error {
 	f.Lock()
 	defer f.Unlock()
 	f.CreateCallCount++
@@ -183,7 +185,7 @@ func (f *FakeServiceControl) CreateServicesWithControllerRef(namespace string, s
 	return nil
 }
 
-func (f *FakeServiceControl) DeleteService(namespace string, serviceID string, object runtime.Object) error {
+func (f *FakeServiceControl) DeleteService(ctx context.Context, namespace string, serviceID string, object runtime.Object) error {
 	f.Lock()
 	defer f.Unlock()
 	f.DeleteServiceName = append(f.DeleteServiceName, serviceID)

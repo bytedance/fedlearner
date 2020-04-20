@@ -16,7 +16,7 @@
 package v1alpha1
 
 import (
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 )
@@ -36,6 +36,8 @@ const (
 	FLReplicaTypeMaster FLReplicaType = "Master"
 	// FLReplicaTypeWorker is the type for workers of distributed TensorFlow.
 	FLReplicaTypeWorker FLReplicaType = "Worker"
+	// FLReplicaTypeChief is the type for chief worker of distributed TensorFlow.
+	FLReplicaTypeChief FLReplicaType = "Chief"
 )
 
 // RestartPolicy describes how the replicas should be restarted.

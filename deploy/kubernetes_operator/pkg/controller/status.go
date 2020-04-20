@@ -1,6 +1,8 @@
 package controller
 
 import (
+	"context"
+
 	v1 "k8s.io/api/core/v1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 
@@ -9,8 +11,8 @@ import (
 
 // NOTE: this func will overwrite the whole app status, may raise race condition
 // if multiple clients concurrently updates status.
-func (am *appManager) setStatus(app *v1alpha1.FLApp) error {
-	_, err := am.appStatusUpdater.UpdateStatusWithRetry(app, func(mutatingApp *v1alpha1.FLApp) bool {
+func (am *appManager) setStatus(ctx context.Context, app *v1alpha1.FLApp) error {
+	_, err := am.appStatusUpdater.UpdateStatusWithRetry(ctx, app, func(mutatingApp *v1alpha1.FLApp) bool {
 		if apiequality.Semantic.DeepEqual(app.Status, mutatingApp.Status) {
 			return false
 		}

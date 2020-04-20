@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"context"
 	"fmt"
 	"strconv"
 	"strings"
@@ -16,14 +17,14 @@ import (
 
 // reconcileServices checks and updates services for each given TFReplicaSpec.
 // It will requeue the flapp in case of an error while creating/deleting services.
-func (am *appManager) reconcileService(app *v1alpha1.FLApp) error {
-	services, err := am.getServicesForApp(app)
+func (am *appManager) reconcileService(ctx context.Context, app *v1alpha1.FLApp) error {
+	services, err := am.getServicesForApp(ctx, app)
 	if err != nil {
 		return err
 	}
 
 	for rtype, spec := range app.Spec.FLReplicaSpecs {
-		err = am.reconcileServicesWithType(app, services, rtype, spec)
+		err = am.reconcileServicesWithType(ctx, app, services, rtype, spec)
 		if err != nil {
 			klog.Errorf("reconcileServices error: %v", err)
 			return err
@@ -33,6 +34,7 @@ func (am *appManager) reconcileService(app *v1alpha1.FLApp) error {
 }
 
 func (am *appManager) reconcileServicesWithType(
+	ctx context.Context,
 	app *v1alpha1.FLApp,
 	services []*v1.Service,
 	rtype v1alpha1.FLReplicaType,
@@ -55,7 +57,7 @@ func (am *appManager) reconcileServicesWithType(
 		case 0:
 			// Need to create a new service
 			klog.Infof("need to create new service for %s %d", rtype, index)
-			if err = am.createNewService(app, rtype, spec, strconv.Itoa(index)); err != nil {
+			if err = am.createNewService(ctx, app, rtype, spec, strconv.Itoa(index)); err != nil {
 				return err
 			}
 		case 1:
@@ -66,7 +68,7 @@ func (am *appManager) reconcileServicesWithType(
 			// Kill unnecessary services
 			for i := 1; i < serviceCount; i++ {
 				service := serviceSlice[i]
-				if err = am.serviceControl.DeleteService(service.Namespace, service.Name, app); err != nil {
+				if err = am.serviceControl.DeleteService(ctx, service.Namespace, service.Name, app); err != nil {
 					return err
 				}
 			}
@@ -78,7 +80,7 @@ func (am *appManager) reconcileServicesWithType(
 // getServicesForJob returns the set of services that this job should manage.
 // It also reconciles ControllerRef by adopting/orphaning.
 // Note that the returned services are pointers into the cache.
-func (am *appManager) getServicesForApp(app *v1alpha1.FLApp) ([]*v1.Service, error) {
+func (am *appManager) getServicesForApp(ctx context.Context, app *v1alpha1.FLApp) ([]*v1.Service, error) {
 	// Create selector
 	selector, err := metav1.LabelSelectorAsSelector(&metav1.LabelSelector{
 		MatchLabels: GenLabels(app),
@@ -107,7 +109,7 @@ func (am *appManager) getServicesForApp(app *v1alpha1.FLApp) ([]*v1.Service, err
 		return fresh, nil
 	})
 	cm := NewServiceControllerRefManager(am.serviceControl, app, selector, am.GetAPIGroupVersionKind(), canAdoptFunc)
-	return cm.ClaimServices(services)
+	return cm.ClaimServices(ctx, services)
 }
 
 // FilterServicesForReplicaType returns service belong to a replicaType.
@@ -134,7 +136,7 @@ func FilterServicesForReplicaType(services []*v1.Service, replicaType string) ([
 }
 
 // createNewService creates a new service for the given index and type.
-func (am *appManager) createNewService(app *v1alpha1.FLApp, rtype v1alpha1.FLReplicaType, spec v1alpha1.ReplicaSpec, index string) error {
+func (am *appManager) createNewService(ctx context.Context, app *v1alpha1.FLApp, rtype v1alpha1.FLReplicaType, spec v1alpha1.ReplicaSpec, index string) error {
 	rt := strings.ToLower(string(rtype))
 	controllerRef := am.GenOwnerReference(app)
 
@@ -164,7 +166,7 @@ func (am *appManager) createNewService(app *v1alpha1.FLApp, rtype v1alpha1.FLRep
 	service.Name = GenIndexName(app.Name, strings.ToLower(app.Spec.Role), rt, index)
 	service.Labels = labels
 
-	err = am.serviceControl.CreateServicesWithControllerRef(app.Namespace, service, app, controllerRef)
+	err = am.serviceControl.CreateServicesWithControllerRef(ctx, app.Namespace, service, app, controllerRef)
 	if err != nil && errors.IsAlreadyExists(err) {
 		return nil
 	}
