@@ -16,6 +16,7 @@
 package controller
 
 import (
+	"context"
 	"fmt"
 
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -28,9 +29,9 @@ import (
 
 type StatusUpdater interface {
 	// Update app state only in app's status
-	UpdateAppStateWithRetry(app *v1alpha1.FLApp, state v1alpha1.FLState) error
+	UpdateAppStateWithRetry(ctx context.Context, app *v1alpha1.FLApp, state v1alpha1.FLState) error
 	// Update any field in app's status
-	UpdateStatusWithRetry(app *v1alpha1.FLApp, updateFunc func(*v1alpha1.FLApp) bool) (*v1alpha1.FLApp, error)
+	UpdateStatusWithRetry(ctx context.Context, app *v1alpha1.FLApp, updateFunc func(*v1alpha1.FLApp) bool) (*v1alpha1.FLApp, error)
 }
 
 type appStatusUpdater struct {
@@ -45,7 +46,7 @@ func NewAppStatusUpdater(crdClient crdclientset.Interface, namespace string) Sta
 	}
 }
 
-func (updater *appStatusUpdater) UpdateAppStateWithRetry(app *v1alpha1.FLApp, state v1alpha1.FLState) error {
+func (updater *appStatusUpdater) UpdateAppStateWithRetry(ctx context.Context, app *v1alpha1.FLApp, state v1alpha1.FLState) error {
 	updateFunc := func(flapp *v1alpha1.FLApp) bool {
 		if flapp.Status.AppState == state {
 			return false
@@ -53,11 +54,12 @@ func (updater *appStatusUpdater) UpdateAppStateWithRetry(app *v1alpha1.FLApp, st
 		flapp.Status.AppState = state
 		return true
 	}
-	_, err := updater.UpdateStatusWithRetry(app, updateFunc)
+	_, err := updater.UpdateStatusWithRetry(ctx, app, updateFunc)
 	return err
 }
 
 func (updater *appStatusUpdater) UpdateStatusWithRetry(
+	ctx context.Context,
 	app *v1alpha1.FLApp,
 	updateFunc func(*v1alpha1.FLApp) bool,
 ) (*v1alpha1.FLApp, error) {

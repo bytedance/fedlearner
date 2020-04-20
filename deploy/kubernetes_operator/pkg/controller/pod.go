@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"context"
 	"fmt"
 	"strconv"
 	"strings"
@@ -28,14 +29,14 @@ const (
 	exitedWithCodeReason = "ExitedWithCode"
 )
 
-func (am *appManager) reconcilePods(app *v1alpha1.FLApp) error {
-	pods, err := am.getPodsForApp(app)
+func (am *appManager) reconcilePods(ctx context.Context, app *v1alpha1.FLApp) error {
+	pods, err := am.getPodsForApp(ctx, app)
 	if err != nil {
 		return err
 	}
 
 	for rtype, spec := range app.Spec.FLReplicaSpecs {
-		err = am.reconcilePodsWithType(app, pods, rtype, spec)
+		err = am.reconcilePodsWithType(ctx, app, pods, rtype, spec)
 		if err != nil {
 			klog.Errorf("reconcilePods error: %v", err)
 			return err
@@ -45,6 +46,7 @@ func (am *appManager) reconcilePods(app *v1alpha1.FLApp) error {
 }
 
 func (am *appManager) reconcilePodsWithType(
+	ctx context.Context,
 	app *v1alpha1.FLApp,
 	pods []*v1.Pod,
 	rtype v1alpha1.FLReplicaType,
@@ -63,13 +65,13 @@ func (am *appManager) reconcilePodsWithType(
 		case 0:
 			// Need to create a new pod
 			klog.Infof("need to create new pod for %s %d", rtype, index)
-			if err = am.createNewPod(app, rtype, spec, strconv.Itoa(index)); err != nil {
+			if err = am.createNewPod(ctx, app, rtype, spec, strconv.Itoa(index)); err != nil {
 				return err
 			}
 		case 1:
 			// Check the status of current pod
 			pod := podSlice[0]
-			var exitCode int32 = 0
+			var exitCode int32
 			updateAppReplicaStatuses(app, rtype, pod)
 
 			for _, status := range pod.Status.ContainerStatuses {
@@ -84,7 +86,7 @@ func (am *appManager) reconcilePodsWithType(
 				(spec.RestartPolicy == v1alpha1.RestartPolicyOnFailure && pod.Status.Phase == v1.PodFailed && exitCode != 0)
 			if restartPod {
 				klog.Infof("Need to restart the pod: %v.%v", pod.Namespace, pod.Name)
-				if err = am.podControl.DeletePod(pod.Namespace, pod.Name, app); err != nil {
+				if err = am.podControl.DeletePod(ctx, pod.Namespace, pod.Name, app); err != nil {
 					return err
 				}
 			}
@@ -92,7 +94,7 @@ func (am *appManager) reconcilePodsWithType(
 			// Kill unnecessary pods.
 			for i := 1; i < podCount; i++ {
 				pod := podSlice[i]
-				if err = am.podControl.DeletePod(pod.Namespace, pod.Name, app); err != nil {
+				if err = am.podControl.DeletePod(ctx, pod.Namespace, pod.Name, app); err != nil {
 					return err
 				}
 			}
@@ -101,7 +103,7 @@ func (am *appManager) reconcilePodsWithType(
 	return nil
 }
 
-func (am *appManager) getPodsForApp(app *v1alpha1.FLApp) ([]*v1.Pod, error) {
+func (am *appManager) getPodsForApp(ctx context.Context, app *v1alpha1.FLApp) ([]*v1.Pod, error) {
 	// Create selector.
 	selector, err := metav1.LabelSelectorAsSelector(&metav1.LabelSelector{
 		MatchLabels: GenLabels(app),
@@ -130,7 +132,7 @@ func (am *appManager) getPodsForApp(app *v1alpha1.FLApp) ([]*v1.Pod, error) {
 		return fresh, nil
 	})
 	cm := NewPodControllerRefManager(am.podControl, app, selector, am.GetAPIGroupVersionKind(), canAdoptFunc)
-	return cm.ClaimPods(pods)
+	return cm.ClaimPods(ctx, pods)
 }
 
 // FilterPodsForReplicaType returns pods belong to a replicaType.
@@ -158,6 +160,7 @@ func FilterPodsForReplicaType(pods []*v1.Pod, replicaType string) ([]*v1.Pod, er
 }
 
 func (am *appManager) createNewPod(
+	ctx context.Context,
 	app *v1alpha1.FLApp,
 	rtype v1alpha1.FLReplicaType,
 	spec v1alpha1.ReplicaSpec,
@@ -214,12 +217,15 @@ func (am *appManager) createNewPod(
 				Name:  replicaIndex,
 				Value: index,
 			})
-			if rtype == v1alpha1.FLReplicaTypeMaster {
+
+			switch rtype {
+			case v1alpha1.FLReplicaTypeMaster:
 				container.Env = ensureEnv(container.Env, v1.EnvVar{
 					Name:  masterService,
 					Value: GenIndexName(app.Name, strings.ToLower(app.Spec.Role), rt, index),
 				})
-			} else if rtype == v1alpha1.FLReplicaTypeWorker {
+
+			case v1alpha1.FLReplicateTypeWorker:
 				container.Env = ensureEnv(container.Env, v1.EnvVar{
 					Name:  workerService,
 					Value: GenIndexName(app.Name, strings.ToLower(app.Spec.Role), rt, index),
@@ -237,7 +243,7 @@ func (am *appManager) createNewPod(
 		}
 	}
 
-	if err := am.podControl.CreatePodsWithControllerRef(am.namespace, podTemplate, app, controllerRef); err != nil && !errors.IsAlreadyExists(err) {
+	if err := am.podControl.CreatePodsWithControllerRef(ctx, am.namespace, podTemplate, app, controllerRef); err != nil && !errors.IsAlreadyExists(err) {
 		return err
 	}
 	return nil

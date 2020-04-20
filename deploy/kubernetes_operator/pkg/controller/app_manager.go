@@ -16,6 +16,7 @@
 package controller
 
 import (
+	"context"
 	"fmt"
 	"strconv"
 	"strings"
@@ -138,13 +139,15 @@ func (am *appManager) GetAPIGroupVersion() schema.GroupVersion {
 }
 
 func (am *appManager) SyncApp(app *v1alpha1.FLApp, deleting bool) error {
+	ctx := context.Background()
+
 	appCopy := app.DeepCopy()
 	name := appCopy.Name
 
 	scheme.Scheme.Default(appCopy)
 	if deleting {
 		klog.Infof("deleting application %v, shut it down", name)
-		return am.deleteApp(appCopy)
+		return am.deleteApp(ctx, appCopy)
 	}
 
 	appState := appCopy.Status.AppState
@@ -155,30 +158,30 @@ func (am *appManager) SyncApp(app *v1alpha1.FLApp, deleting bool) error {
 			if timeout {
 				klog.Errorf("app is failing because timed out, name = %v, creationTimestamp = %v, activeDeadlineSeconds = %v, now is %v", name, appCopy.GetCreationTimestamp(), *appCopy.Spec.ActiveDeadlineSeconds, now)
 			}
-			return am.appStatusUpdater.UpdateAppStateWithRetry(appCopy, v1alpha1.FLStateFailing)
+			return am.appStatusUpdater.UpdateAppStateWithRetry(ctx, appCopy, v1alpha1.FLStateFailing)
 		}
 	}
 
 	switch appState {
 	case v1alpha1.FLStateNew:
-		return am.syncNewApp(appCopy)
+		return am.syncNewApp(ctx, appCopy)
 	case v1alpha1.FLStateBootstrapped:
-		return am.syncBootstrappedApp(appCopy)
+		return am.syncBootstrappedApp(ctx, appCopy)
 	case v1alpha1.FLStateSyncSent:
-		return am.syncSyncSentApp(appCopy)
+		return am.syncSyncSentApp(ctx, appCopy)
 	case v1alpha1.FLStateRunning:
-		return am.syncRunningApp(appCopy)
+		return am.syncRunningApp(ctx, appCopy)
 	case v1alpha1.FLStateFailing:
-		return am.syncFailingApp(appCopy)
+		return am.syncFailingApp(ctx, appCopy)
 	case v1alpha1.FLStateShutDown:
-		return am.syncShuttingDownApp(appCopy)
+		return am.syncShuttingDownApp(ctx, appCopy)
 	case v1alpha1.FLStateComplete, v1alpha1.FLStateFailed:
 		klog.Infof("ignore app %v as its state is %v", name, appState)
 	}
 	return nil
 }
 
-func (am *appManager) deleteApp(app *v1alpha1.FLApp) error {
+func (am *appManager) deleteApp(ctx context.Context, app *v1alpha1.FLApp) error {
 	name := app.Name
 	appState := app.Status.AppState
 	if appState == "" {
@@ -187,44 +190,44 @@ func (am *appManager) deleteApp(app *v1alpha1.FLApp) error {
 	switch appState {
 	case v1alpha1.FLStateNew, v1alpha1.FLStateBootstrapped, v1alpha1.FLStateSyncSent, v1alpha1.FLStateRunning:
 		klog.Infof("shutting down peer as app is deleted, name = %v", name)
-		if err := am.appEventHandler.Shutdown(app); err != nil {
+		if err := am.appEventHandler.Shutdown(ctx, app); err != nil {
 			klog.Errorf("failed to shutdown peer when app is deleted, name = %v, err = %v", name, err)
 		}
 	}
-	if err := am.freeResource(app); err != nil {
+	if err := am.freeResource(ctx, app); err != nil {
 		klog.Errorf("failed to free resources when app is deleted, name = %v, err = %v", name, err)
 	}
 	return nil
 }
 
-func (am *appManager) syncNewApp(app *v1alpha1.FLApp) error {
+func (am *appManager) syncNewApp(ctx context.Context, app *v1alpha1.FLApp) error {
 	name := app.Name
 	klog.Infof("sync new app, name = %v", name)
 	if am.isAppBootstrapped(app) {
-		return am.appStatusUpdater.UpdateAppStateWithRetry(app, v1alpha1.FLStateBootstrapped)
+		return am.appStatusUpdater.UpdateAppStateWithRetry(ctx, app, v1alpha1.FLStateBootstrapped)
 	}
-	return am.reconcileFLApp(app)
+	return am.reconcileFLApp(ctx, app)
 }
 
-func (am *appManager) reconcileFLApp(app *v1alpha1.FLApp) error {
+func (am *appManager) reconcileFLApp(ctx context.Context, app *v1alpha1.FLApp) error {
 	name := app.Name
-	if err := am.reconcileConfigMaps(app); err != nil {
+	if err := am.reconcileConfigMaps(ctx, app); err != nil {
 		klog.Errorf("failed to reconcile configMap for app, name = %v, err = %v", name, err)
 		return err
 	}
-	if err := am.reconcilePods(app); err != nil {
+	if err := am.reconcilePods(ctx, app); err != nil {
 		klog.Errorf("failed to reconcile pod for app, name = %v, err = %v", name, err)
 		return err
 	}
-	if err := am.reconcileService(app); err != nil {
+	if err := am.reconcileService(ctx, app); err != nil {
 		klog.Errorf("failed to reconcile service for app, name = %v, err = %v", name, err)
 		return err
 	}
-	if err := am.reconcileIngress(app); err != nil {
+	if err := am.reconcileIngress(ctx, app); err != nil {
 		klog.Errorf("failed to reconcile ingress for app, name = %v, err = %v", name, err)
 		return err
 	}
-	return am.setStatus(app)
+	return am.setStatus(ctx, app)
 }
 
 func (am *appManager) isAppBootstrapped(app *v1alpha1.FLApp) bool {
@@ -256,10 +259,10 @@ func (am *appManager) isAppBootstrapped(app *v1alpha1.FLApp) bool {
 	return true
 }
 
-func (am *appManager) reconcileConfigMaps(app *v1alpha1.FLApp) error {
+func (am *appManager) reconcileConfigMaps(ctx context.Context, app *v1alpha1.FLApp) error {
 	for rtype := range app.Spec.FLReplicaSpecs {
 		if needPair(app, rtype) {
-			if err := am.createOrUpdateConfigMap(app, rtype, nil); err != nil {
+			if err := am.createOrUpdateConfigMap(ctx, app, rtype, nil); err != nil {
 				return err
 			}
 		}
@@ -267,7 +270,7 @@ func (am *appManager) reconcileConfigMaps(app *v1alpha1.FLApp) error {
 	return nil
 }
 
-func (am *appManager) reconcileIngress(app *v1alpha1.FLApp) error {
+func (am *appManager) reconcileIngress(ctx context.Context, app *v1alpha1.FLApp) error {
 	needIngress := false
 	for rtype := range app.Spec.FLReplicaSpecs {
 		if needPair(app, rtype) {
@@ -285,10 +288,10 @@ func (am *appManager) reconcileIngress(app *v1alpha1.FLApp) error {
 			return am.kubeClient.NetworkingV1beta1().Ingresses(am.namespace).Delete(ingressName, &metav1.DeleteOptions{})
 		}
 	}
-	return am.createIngress(app)
+	return am.createIngress(ctx, app)
 }
 
-func (am *appManager) createIngress(app *v1alpha1.FLApp) error {
+func (am *appManager) createIngress(ctx context.Context, app *v1alpha1.FLApp) error {
 	name := app.Name
 	ingressName := GenName(name, strings.ToLower(app.Spec.Role))
 	ownerReference := am.GenOwnerReference(app)
@@ -344,7 +347,7 @@ func (am *appManager) createIngress(app *v1alpha1.FLApp) error {
 }
 
 // if data is not nil, update configMap Data to data
-func (am *appManager) createOrUpdateConfigMap(app *v1alpha1.FLApp, rtype v1alpha1.FLReplicaType, data map[string]string) error {
+func (am *appManager) createOrUpdateConfigMap(ctx context.Context, app *v1alpha1.FLApp, rtype v1alpha1.FLReplicaType, data map[string]string) error {
 	rt := strings.ToLower(string(rtype))
 	configMapName := GenReplicaName(app.Name, strings.ToLower(app.Spec.Role), rt)
 	ownerReference := am.GenOwnerReference(app)
@@ -373,27 +376,27 @@ func (am *appManager) createOrUpdateConfigMap(app *v1alpha1.FLApp, rtype v1alpha
 	if createConfigMap {
 		_, err := am.kubeClient.CoreV1().ConfigMaps(am.namespace).Create(newConfigMap)
 		return err
-	} else {
-		_, err := am.kubeClient.CoreV1().ConfigMaps(am.namespace).Update(newConfigMap)
-		return err
 	}
+
+	_, err = am.kubeClient.CoreV1().ConfigMaps(am.namespace).Update(newConfigMap)
+	return err
 }
 
-func (am *appManager) syncBootstrappedApp(app *v1alpha1.FLApp) error {
+func (am *appManager) syncBootstrappedApp(ctx context.Context, app *v1alpha1.FLApp) error {
 	name := app.Name
 	klog.Infof("sync bootstrapped app, name = %v", name)
 
 	if IsLeader(app.Spec.Role) {
-		return am.syncLeaderApp(app)
+		return am.syncLeaderApp(ctx, app)
 	}
-	return am.syncFollowerApp(app)
+	return am.syncFollowerApp(ctx, app)
 }
 
-func (am *appManager) syncLeaderApp(app *v1alpha1.FLApp) error {
+func (am *appManager) syncLeaderApp(ctx context.Context, app *v1alpha1.FLApp) error {
 	name := app.Name
 	klog.Infof("sync bootstrapped leader app, name = %v", name)
 	if am.replicaPaired(app) && am.configMapUpdated(app) {
-		return am.appStatusUpdater.UpdateAppStateWithRetry(app, v1alpha1.FLStateRunning)
+		return am.appStatusUpdater.UpdateAppStateWithRetry(ctx, app, v1alpha1.FLStateRunning)
 	}
 
 	for rtype := range app.Spec.FLReplicaSpecs {
@@ -415,7 +418,7 @@ func (am *appManager) syncLeaderApp(app *v1alpha1.FLApp) error {
 				mapping[local[idx]] = remote[idx]
 			}
 			// Update configMap and then update mapping status
-			if err := am.createOrUpdateConfigMap(app, rtype, mapping); err != nil {
+			if err := am.createOrUpdateConfigMap(ctx, app, rtype, mapping); err != nil {
 				return err
 			}
 			status := app.Status.FLReplicaStatus[rtype]
@@ -424,36 +427,36 @@ func (am *appManager) syncLeaderApp(app *v1alpha1.FLApp) error {
 			app.Status.FLReplicaStatus[rtype] = *replicaStatus
 		}
 	}
-	if err := am.appEventHandler.Pair(app); err != nil {
+	if err := am.appEventHandler.Pair(ctx, app); err != nil {
 		klog.Errorf("failed to call Pair handler, name = %v, err = %v", name, err)
 		return err
 	}
-	return am.setStatus(app)
+	return am.setStatus(ctx, app)
 }
 
-func (am *appManager) syncFollowerApp(app *v1alpha1.FLApp) error {
+func (am *appManager) syncFollowerApp(ctx context.Context, app *v1alpha1.FLApp) error {
 	name := app.Name
 	klog.Infof("sync bootstrapped follower app, name = %v", name)
 
-	if err := am.appEventHandler.Register(app); err != nil {
+	if err := am.appEventHandler.Register(ctx, app); err != nil {
 		klog.Errorf("failed to call Register, name = %v, err = %v", name, err)
 		return err
 	}
-	return am.appStatusUpdater.UpdateAppStateWithRetry(app, v1alpha1.FLStateSyncSent)
+	return am.appStatusUpdater.UpdateAppStateWithRetry(ctx, app, v1alpha1.FLStateSyncSent)
 }
 
-func (am *appManager) syncSyncSentApp(app *v1alpha1.FLApp) error {
+func (am *appManager) syncSyncSentApp(ctx context.Context, app *v1alpha1.FLApp) error {
 	name := app.Name
 	klog.Infof("sync sync-sent app, name = %v", name)
 	configMapUpdated := am.configMapUpdated(app)
 	if am.replicaPaired(app) && configMapUpdated {
-		return am.appStatusUpdater.UpdateAppStateWithRetry(app, v1alpha1.FLStateRunning)
+		return am.appStatusUpdater.UpdateAppStateWithRetry(ctx, app, v1alpha1.FLStateRunning)
 	}
 	klog.Infof("still waiting for leader, name = %v", name)
 	if !configMapUpdated {
 		for rtype := range app.Spec.FLReplicaSpecs {
 			if needPair(app, rtype) {
-				if err := am.createOrUpdateConfigMap(app, rtype, app.Status.FLReplicaStatus[rtype].Mapping); err != nil {
+				if err := am.createOrUpdateConfigMap(ctx, app, rtype, app.Status.FLReplicaStatus[rtype].Mapping); err != nil {
 					return err
 				}
 			}
@@ -497,22 +500,22 @@ func (am *appManager) configMapUpdated(app *v1alpha1.FLApp) bool {
 	return true
 }
 
-func (am *appManager) syncRunningApp(app *v1alpha1.FLApp) error {
+func (am *appManager) syncRunningApp(ctx context.Context, app *v1alpha1.FLApp) error {
 	name := app.Name
 	klog.Infof("sync running app, name = %v", name)
 	if am.isAppFinished(app) {
-		if err := am.appEventHandler.Finish(app); err != nil {
+		if err := am.appEventHandler.Finish(ctx, app); err != nil {
 			klog.Errorf("failed to call Finished handler, name = %v, err = %v", name, err)
 			return err
 		}
-		if err := am.freeResource(app); err != nil {
+		if err := am.freeResource(ctx, app); err != nil {
 			klog.Errorf("failed to free resource when app is finished, name = %v, err = %v", name, err)
 			return err
 		}
-		return am.appStatusUpdater.UpdateAppStateWithRetry(app, v1alpha1.FLStateComplete)
+		return am.appStatusUpdater.UpdateAppStateWithRetry(ctx, app, v1alpha1.FLStateComplete)
 	}
 	klog.Infof("app still running, name = %v", name)
-	return am.reconcileFLApp(app)
+	return am.reconcileFLApp(ctx, app)
 }
 
 func (am *appManager) isAppFinished(app *v1alpha1.FLApp) bool {
@@ -540,29 +543,29 @@ func (am *appManager) isAppTimeOut(app *v1alpha1.FLApp, now time.Time) bool {
 	return app.GetCreationTimestamp().Add(time.Duration(*app.Spec.ActiveDeadlineSeconds)).After(now)
 }
 
-func (am *appManager) syncFailingApp(app *v1alpha1.FLApp) error {
+func (am *appManager) syncFailingApp(ctx context.Context, app *v1alpha1.FLApp) error {
 	name := app.Name
 	klog.Infof("sync failing app, name = %v", name)
-	if err := am.appEventHandler.Shutdown(app); err != nil {
+	if err := am.appEventHandler.Shutdown(ctx, app); err != nil {
 		klog.Errorf("failed to call FLStateFailed handler, name = %v, err = %v", name, err)
 		return err
 	}
-	return am.appStatusUpdater.UpdateAppStateWithRetry(app, v1alpha1.FLStateShutDown)
+	return am.appStatusUpdater.UpdateAppStateWithRetry(ctx, app, v1alpha1.FLStateShutDown)
 }
 
-func (am *appManager) syncShuttingDownApp(app *v1alpha1.FLApp) error {
+func (am *appManager) syncShuttingDownApp(ctx context.Context, app *v1alpha1.FLApp) error {
 	name := app.Name
 	klog.Infof("sync shutting-down app, name = %v", name)
-	if err := am.freeResource(app); err != nil {
+	if err := am.freeResource(ctx, app); err != nil {
 		return err
 	}
-	return am.appStatusUpdater.UpdateAppStateWithRetry(app, v1alpha1.FLStateFailed)
+	return am.appStatusUpdater.UpdateAppStateWithRetry(ctx, app, v1alpha1.FLStateFailed)
 }
 
-func (am *appManager) freeResource(app *v1alpha1.FLApp) error {
+func (am *appManager) freeResource(ctx context.Context, app *v1alpha1.FLApp) error {
 	name := app.Name
 	deletePropagationBackground := metav1.DeletePropagationBackground
-	pods, err := am.getPodsForApp(app)
+	pods, err := am.getPodsForApp(ctx, app)
 	if err != nil {
 		return err
 	}
@@ -581,11 +584,10 @@ func (am *appManager) freeResource(app *v1alpha1.FLApp) error {
 	for _, pod := range pods {
 		rt := pod.Labels[flReplicaTypeLabel]
 		index := pod.Labels[flReplicaIndexLabel]
-		if err := am.podControl.DeletePod(pod.Namespace, pod.Name, app); err != nil && !errors.IsNotFound(err) {
+		if err := am.podControl.DeletePod(ctx, pod.Namespace, pod.Name, app); err != nil && !errors.IsNotFound(err) {
 			return err
 		}
-		if err := am.serviceControl.DeleteService(pod.Namespace, GenIndexName(app.Name, strings.ToLower(app.Spec.Role), rt, index), app);
-			err != nil && !errors.IsNotFound(err) {
+		if err := am.serviceControl.DeleteService(ctx, pod.Namespace, GenIndexName(app.Name, strings.ToLower(app.Spec.Role), rt, index), app); err != nil && !errors.IsNotFound(err) {
 			return err
 		}
 	}

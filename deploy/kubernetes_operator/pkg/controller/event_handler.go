@@ -35,21 +35,21 @@ import (
 
 type AppEventHandler interface {
 	// Called after follower bootstrapped
-	Register(*v1alpha1.FLApp) error
+	Register(context.Context, *v1alpha1.FLApp) error
 	// Called after leader finished pairing
-	Pair(*v1alpha1.FLApp) error
+	Pair(context.Context, *v1alpha1.FLApp) error
 	// Called when leader/follower needs to shutdown peer
-	Shutdown(*v1alpha1.FLApp) error
+	Shutdown(context.Context, *v1alpha1.FLApp) error
 	// Called when leader/follower is finished
-	Finish(*v1alpha1.FLApp) error
+	Finish(context.Context, *v1alpha1.FLApp) error
 	// Received when peer send sync request
-	RegisterHandler(name string, role string, followerReplicas map[string][]string) (*pb.Status, error)
+	RegisterHandler(ctx context.Context, name string, role string, followerReplicas map[string][]string) (*pb.Status, error)
 	// Received when peer send sync callback request
-	PairHandler(name string, leaderReplicas map[string][]string, followerReplicas map[string][]string) (*pb.Status, error)
+	PairHandler(ctx context.Context, name string, leaderReplicas map[string][]string, followerReplicas map[string][]string) (*pb.Status, error)
 	// Received when peer send shutdown request
-	ShutdownHandler(name string) (*pb.Status, error)
+	ShutdownHandler(ctx context.Context, name string) (*pb.Status, error)
 	// Received when peer send finish request
-	FinishHandler(name string) (*pb.Status, error)
+	FinishHandler(ctx context.Context, name string) (*pb.Status, error)
 }
 
 type appEventHandler struct {
@@ -66,7 +66,7 @@ func NewAppEventHandler(namespace string, crdClient crdclientset.Interface) AppE
 	}
 }
 
-func (handler *appEventHandler) Register(app *v1alpha1.FLApp) error {
+func (handler *appEventHandler) Register(ctx context.Context, app *v1alpha1.FLApp) error {
 	name := app.Name
 	if IsLeader(app.Spec.Role) {
 		return fmt.Errorf("only followers should register, name = %v", name)
@@ -105,7 +105,7 @@ func (handler *appEventHandler) Register(app *v1alpha1.FLApp) error {
 	return nil
 }
 
-func (handler *appEventHandler) Pair(app *v1alpha1.FLApp) error {
+func (handler *appEventHandler) Pair(ctx context.Context, app *v1alpha1.FLApp) error {
 	name := app.Name
 	if !IsLeader(app.Spec.Role) {
 		return fmt.Errorf("only leader should pair with followers, name = %v", name)
@@ -131,7 +131,7 @@ func (handler *appEventHandler) Pair(app *v1alpha1.FLApp) error {
 	return nil
 }
 
-func (handler *appEventHandler) Shutdown(app *v1alpha1.FLApp) error {
+func (handler *appEventHandler) Shutdown(ctx context.Context, app *v1alpha1.FLApp) error {
 	name := app.Name
 	request := &pb.ShutDownRequest{
 		AppId: name,
@@ -151,7 +151,7 @@ func (handler *appEventHandler) Shutdown(app *v1alpha1.FLApp) error {
 	return nil
 }
 
-func (handler *appEventHandler) Finish(app *v1alpha1.FLApp) error {
+func (handler *appEventHandler) Finish(ctx context.Context, app *v1alpha1.FLApp) error {
 	name := app.Name
 	request := &pb.FinishRequest{
 		AppId: name,
@@ -171,7 +171,7 @@ func (handler *appEventHandler) Finish(app *v1alpha1.FLApp) error {
 	return nil
 }
 
-func (handler *appEventHandler) RegisterHandler(name string, role string, followerReplicas map[string][]string) (*pb.Status, error) {
+func (handler *appEventHandler) RegisterHandler(ctx context.Context, name string, role string, followerReplicas map[string][]string) (*pb.Status, error) {
 	app, err := handler.crdClient.FedlearnerV1alpha1().FLApps(handler.namespace).Get(name, metav1.GetOptions{})
 	if err != nil {
 		klog.Errorf("RegisterHandler name = %v, role = %v, err = %v", name, role, err)
@@ -192,11 +192,11 @@ func (handler *appEventHandler) RegisterHandler(name string, role string, follow
 	appCopy := app.DeepCopy()
 	for rtype := range app.Spec.FLReplicaSpecs {
 		if needPair(appCopy, rtype) {
-			if followerIds, ok := followerReplicas[string(rtype)]; ok {
+			if followerIDs, ok := followerReplicas[string(rtype)]; ok {
 				status := appCopy.Status.FLReplicaStatus[rtype]
 				replicaStatus := status.DeepCopy()
-				for _, followerId := range followerIds {
-					replicaStatus.Remote.Insert(followerId)
+				for _, followerID := range followerIDs {
+					replicaStatus.Remote.Insert(followerID)
 				}
 				appCopy.Status.FLReplicaStatus[rtype] = *replicaStatus
 			} else {
@@ -224,7 +224,7 @@ func (handler *appEventHandler) RegisterHandler(name string, role string, follow
 	}, nil
 }
 
-func (handler *appEventHandler) PairHandler(name string, leaderReplicas map[string][]string, followerReplicas map[string][]string) (*pb.Status, error) {
+func (handler *appEventHandler) PairHandler(ctx context.Context, name string, leaderReplicas map[string][]string, followerReplicas map[string][]string) (*pb.Status, error) {
 	app, err := handler.crdClient.FedlearnerV1alpha1().FLApps(handler.namespace).Get(name, metav1.GetOptions{})
 	if err != nil {
 		err = fmt.Errorf("PairHandler name = %v, err = %v", name, err)
@@ -238,15 +238,15 @@ func (handler *appEventHandler) PairHandler(name string, leaderReplicas map[stri
 	appCopy := app.DeepCopy()
 	for rtype := range app.Spec.FLReplicaSpecs {
 		if needPair(app, rtype) {
-			if leaderIds, ok := leaderReplicas[string(rtype)]; ok {
+			if leaderIDs, ok := leaderReplicas[string(rtype)]; ok {
 				mapping := make(map[string]string)
-				followerIds := followerReplicas[string(rtype)]
+				followerIDs := followerReplicas[string(rtype)]
 				status := appCopy.Status.FLReplicaStatus[rtype]
 				replicaStatus := status.DeepCopy()
 
-				replicaStatus.Remote = sets.NewString(leaderIds...)
-				for idx := 0; idx < len(followerIds); idx++ {
-					mapping[followerIds[idx]] = leaderIds[idx]
+				replicaStatus.Remote = sets.NewString(leaderIDs...)
+				for idx := 0; idx < len(followerIDs); idx++ {
+					mapping[followerIDs[idx]] = leaderIDs[idx]
 				}
 				replicaStatus.Mapping = mapping
 				appCopy.Status.FLReplicaStatus[rtype] = *replicaStatus
@@ -275,7 +275,7 @@ func (handler *appEventHandler) PairHandler(name string, leaderReplicas map[stri
 	}, nil
 }
 
-func (handler *appEventHandler) ShutdownHandler(appID string) (*pb.Status, error) {
+func (handler *appEventHandler) ShutdownHandler(ctx context.Context, appID string) (*pb.Status, error) {
 	app, err := handler.crdClient.FedlearnerV1alpha1().FLApps(handler.namespace).Get(appID, metav1.GetOptions{})
 	if err != nil {
 		err = fmt.Errorf("ShutdownHandler appID = %v, err = %v", appID, err)
@@ -309,7 +309,7 @@ func (handler *appEventHandler) ShutdownHandler(appID string) (*pb.Status, error
 	}, nil
 }
 
-func (handler *appEventHandler) FinishHandler(name string) (*pb.Status, error) {
+func (handler *appEventHandler) FinishHandler(ctx context.Context, name string) (*pb.Status, error) {
 	klog.Infof("FinishHandler app application %v, just echo ok", name)
 	return &pb.Status{
 		Code:         int32(codes.OK),
@@ -344,10 +344,10 @@ func makePairs(app *v1alpha1.FLApp, role string) []*pb.Pair {
 				LeaderIds:   nil,
 				FollowerIds: nil,
 			}
-			for leaderId, followerId := range mapping {
-				if strings.HasPrefix(followerId, prefix) {
-					pair.LeaderIds = append(pair.LeaderIds, leaderId)
-					pair.FollowerIds = append(pair.FollowerIds, followerId)
+			for leaderID, followerID := range mapping {
+				if strings.HasPrefix(followerID, prefix) {
+					pair.LeaderIds = append(pair.LeaderIds, leaderID)
+					pair.FollowerIds = append(pair.FollowerIds, followerID)
 				}
 			}
 			pairs = append(pairs, pair)

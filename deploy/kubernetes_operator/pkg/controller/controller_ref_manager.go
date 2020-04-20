@@ -1,12 +1,13 @@
 package controller
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"sync"
 
 	"github.com/golang/glog"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -154,7 +155,7 @@ func NewPodControllerRefManager(
 //
 // If the error is nil, either the reconciliation succeeded, or no
 // reconciliation was necessary. The list of Pods that you now own is returned.
-func (m *PodControllerRefManager) ClaimPods(pods []*v1.Pod, filters ...func(*v1.Pod) bool) ([]*v1.Pod, error) {
+func (m *PodControllerRefManager) ClaimPods(ctx context.Context, pods []*v1.Pod, filters ...func(*v1.Pod) bool) ([]*v1.Pod, error) {
 	var claimed []*v1.Pod
 	var errlist []error
 
@@ -172,10 +173,10 @@ func (m *PodControllerRefManager) ClaimPods(pods []*v1.Pod, filters ...func(*v1.
 		return true
 	}
 	adopt := func(obj metav1.Object) error {
-		return m.AdoptPod(obj.(*v1.Pod))
+		return m.AdoptPod(ctx, obj.(*v1.Pod))
 	}
 	release := func(obj metav1.Object) error {
-		return m.ReleasePod(obj.(*v1.Pod))
+		return m.ReleasePod(ctx, obj.(*v1.Pod))
 	}
 
 	for _, pod := range pods {
@@ -193,7 +194,7 @@ func (m *PodControllerRefManager) ClaimPods(pods []*v1.Pod, filters ...func(*v1.
 
 // AdoptPod sends a patch to take control of the pod. It returns the error if
 // the patching fails.
-func (m *PodControllerRefManager) AdoptPod(pod *v1.Pod) error {
+func (m *PodControllerRefManager) AdoptPod(ctx context.Context, pod *v1.Pod) error {
 	if err := m.CanAdopt(); err != nil {
 		return fmt.Errorf("can't adopt Pod %v/%v (%v): %v", pod.Namespace, pod.Name, pod.UID, err)
 	}
@@ -204,19 +205,19 @@ func (m *PodControllerRefManager) AdoptPod(pod *v1.Pod) error {
 	if err != nil {
 		return err
 	}
-	return m.podControl.PatchPod(pod.Namespace, pod.Name, patchBytes)
+	return m.podControl.PatchPod(ctx, pod.Namespace, pod.Name, patchBytes)
 }
 
 // ReleasePod sends a patch to free the pod from the control of the controller.
 // It returns the error if the patching fails. 404 and 422 errors are ignored.
-func (m *PodControllerRefManager) ReleasePod(pod *v1.Pod) error {
+func (m *PodControllerRefManager) ReleasePod(ctx context.Context, pod *v1.Pod) error {
 	klog.V(2).Infof("patching pod %s_%s to remove its controllerRef to %s/%s:%s",
 		pod.Namespace, pod.Name, m.controllerKind.GroupVersion(), m.controllerKind.Kind, m.Controller.GetName())
 	patchBytes, err := deleteOwnerRefStrategicMergePatch(pod.UID, m.Controller.GetUID())
 	if err != nil {
 		return err
 	}
-	err = m.podControl.PatchPod(pod.Namespace, pod.Name, patchBytes)
+	err = m.podControl.PatchPod(ctx, pod.Namespace, pod.Name, patchBytes)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			// If the pod no longer exists, ignore it.
@@ -288,7 +289,7 @@ func NewServiceControllerRefManager(
 //
 // If the error is nil, either the reconciliation succeeded, or no
 // reconciliation was necessary. The list of Services that you now own is returned.
-func (m *ServiceControllerRefManager) ClaimServices(services []*v1.Service, filters ...func(*v1.Service) bool) ([]*v1.Service, error) {
+func (m *ServiceControllerRefManager) ClaimServices(ctx context.Context, services []*v1.Service, filters ...func(*v1.Service) bool) ([]*v1.Service, error) {
 	var claimed []*v1.Service
 	var errlist []error
 
@@ -306,10 +307,10 @@ func (m *ServiceControllerRefManager) ClaimServices(services []*v1.Service, filt
 		return true
 	}
 	adopt := func(obj metav1.Object) error {
-		return m.AdoptService(obj.(*v1.Service))
+		return m.AdoptService(ctx, obj.(*v1.Service))
 	}
 	release := func(obj metav1.Object) error {
-		return m.ReleaseService(obj.(*v1.Service))
+		return m.ReleaseService(ctx, obj.(*v1.Service))
 	}
 
 	for _, service := range services {
@@ -327,7 +328,7 @@ func (m *ServiceControllerRefManager) ClaimServices(services []*v1.Service, filt
 
 // AdoptService sends a patch to take control of the service. It returns the error if
 // the patching fails.
-func (m *ServiceControllerRefManager) AdoptService(service *v1.Service) error {
+func (m *ServiceControllerRefManager) AdoptService(ctx context.Context, service *v1.Service) error {
 	if err := m.CanAdopt(); err != nil {
 		return fmt.Errorf("can't adopt Service %v/%v (%v): %v", service.Namespace, service.Name, service.UID, err)
 	}
@@ -337,16 +338,16 @@ func (m *ServiceControllerRefManager) AdoptService(service *v1.Service) error {
 		`{"metadata":{"ownerReferences":[{"apiVersion":"%s","kind":"%s","name":"%s","uid":"%s","controller":true,"blockOwnerDeletion":true}],"uid":"%s"}}`,
 		m.controllerKind.GroupVersion(), m.controllerKind.Kind,
 		m.Controller.GetName(), m.Controller.GetUID(), service.UID)
-	return m.serviceControl.PatchService(service.Namespace, service.Name, []byte(addControllerPatch))
+	return m.serviceControl.PatchService(ctx, service.Namespace, service.Name, []byte(addControllerPatch))
 }
 
 // ReleaseService sends a patch to free the service from the control of the controller.
 // It returns the error if the patching fails. 404 and 422 errors are ignored.
-func (m *ServiceControllerRefManager) ReleaseService(service *v1.Service) error {
+func (m *ServiceControllerRefManager) ReleaseService(ctx context.Context, service *v1.Service) error {
 	glog.V(2).Infof("patching service %s_%s to remove its controllerRef to %s/%s:%s",
 		service.Namespace, service.Name, m.controllerKind.GroupVersion(), m.controllerKind.Kind, m.Controller.GetName())
 	deleteOwnerRefPatch := fmt.Sprintf(`{"metadata":{"ownerReferences":[{"$patch":"delete","uid":"%s"}],"uid":"%s"}}`, m.Controller.GetUID(), service.UID)
-	err := m.serviceControl.PatchService(service.Namespace, service.Name, []byte(deleteOwnerRefPatch))
+	err := m.serviceControl.PatchService(ctx, service.Namespace, service.Name, []byte(deleteOwnerRefPatch))
 	if err != nil {
 		if errors.IsNotFound(err) {
 			// If the service no longer exists, ignore it.

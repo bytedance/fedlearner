@@ -50,7 +50,7 @@ func (ph *PairHandler) Register(ctx context.Context, request *pb.RegisterRequest
 		}
 		replicas[pairCopy.Type] = pairCopy.FollowerIds
 	}
-	return ph.handler.RegisterHandler(name, role, replicas)
+	return ph.handler.RegisterHandler(ctx, name, role, replicas)
 }
 
 func (ph *PairHandler) Pair(ctx context.Context, request *pb.PairRequest) (*pb.Status, error) {
@@ -73,19 +73,19 @@ func (ph *PairHandler) Pair(ctx context.Context, request *pb.PairRequest) (*pb.S
 		leaderReplicas[pairCopy.Type] = pairCopy.LeaderIds
 		followerReplicas[pairCopy.Type] = pairCopy.FollowerIds
 	}
-	return ph.handler.PairHandler(name, leaderReplicas, followerReplicas)
+	return ph.handler.PairHandler(ctx, name, leaderReplicas, followerReplicas)
 }
 
 func (ph *PairHandler) Finish(ctx context.Context, request *pb.FinishRequest) (*pb.Status, error) {
 	name := request.AppId
 	klog.Infof("Finish received, name = %v, role = %v", name, request.Role)
-	return ph.handler.FinishHandler(name)
+	return ph.handler.FinishHandler(ctx, name)
 }
 
 func (ph *PairHandler) ShutDown(ctx context.Context, request *pb.ShutDownRequest) (*pb.Status, error) {
 	name := request.AppId
 	klog.Infof("ShutDown received, name = %v, role = %v", name, request.Role)
-	return ph.handler.ShutdownHandler(name)
+	return ph.handler.ShutdownHandler(ctx, name)
 }
 
 func ServeGrpc(host, port string, handler controller.AppEventHandler) {
