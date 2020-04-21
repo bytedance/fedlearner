@@ -7,7 +7,7 @@ spec:
   flReplicaSpecs:
     Master:
       pair: true
-      replicas: 2
+      replicas: 1
       template:
         spec:
           restartPolicy: Never # required
@@ -28,11 +28,11 @@ spec:
                   name: flapp-port # default
               resources:
                 limits:
-                  cpu: 4000m
-                  memory: 4Gi
+                  cpu: 1000m
+                  memory: 1Gi
                 requests:
-                  cpu: 4000m
-                  memory: 4Gi
+                  cpu: 1000m
+                  memory: 1Gi
               command: ["/bin/sleep"]
               args: ["3m"]
     PS:
@@ -60,16 +60,23 @@ spec:
                   name: flapp-port # default
               resources:
                 limits:
-                  cpu: 4000m
-                  memory: 4Gi
+                  cpu: 1000m
+                  memory: 500Mi
                 requests:
-                  cpu: 4000m
-                  memory: 4Gi
+                  cpu: 1000m
+                  memory: 500Mi
               command: ["/bin/sleep"]
               args: ["3m"]
     Worker:
       pair: true
-      replicas: 3
+      replicas: 2
+      chiefResources:
+        limits:
+          cpu: 2000m
+          memory: 1000Mi
+        requests:
+          cpu: 2000m
+          memory: 1000Mi
       template:
         spec:
           restartPolicy: Never # required
@@ -89,11 +96,11 @@ spec:
                   name: flapp-port # default
               resources:
                 limits:
-                  cpu: 4000m
-                  memory: 4Gi
+                  cpu: 1000m
+                  memory: 500Mi
                 requests:
-                  cpu: 4000m
-                  memory: 4Gi
+                  cpu: 1000m
+                  memory: 500Mi
               command: ["/bin/sleep"]
               args: ["3m"]
   role: Follower
