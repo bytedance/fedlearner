@@ -1,16 +1,50 @@
-FROM golang:1.13
+# Accept the Go version for the image to be set as a build argument.
+# Default to Go 1.14
+ARG GO_VERSION=1.14
 
-WORKDIR /go/src/github.com/bytedance/fedlearner/deploy/kubernetes_operator
+# First stage: build the executable.
+FROM golang:${GO_VERSION}-alpine AS builder
 
-COPY go.mod .
-COPY go.sum .
+# Create the user and group files that will be used in the running container to
+# run the process as an unprivileged user.
+RUN mkdir /user && \
+    echo 'nobody:x:65534:65534:nobody:/:' > /user/passwd && \
+    echo 'nobody:x:65534:' > /user/group
 
-ENV GO111MODULE=on \
-    GOPROXY="https://goproxy.cn,https://proxy.golang.org,direct" \
-    GOSUMDB="sum.golang.google.cn"
+ENV GOOS linux
+ENV GOARCH amd64
+ENV CGO_ENABLED 0
+
+ENV GO111MODULE=on
+
+# Set the working directory outside $GOPATH to enable the support for modules.
+WORKDIR /src
+
+# Fetch dependencies first; they are less susceptible to change on every build
+# and will therefore be cached for speeding up the next build
+COPY ./go.mod ./go.sum ./
 RUN go mod download
 
-COPY . .
-RUN go build main.go
-CMD ["sh"]
+# Import the code from the context.
+COPY ./ ./
 
+RUN go build -o /app -trimpath main.go
+
+# Final stage: the running container.
+FROM alpine AS final
+
+# Import the user and group files from the first stage.
+COPY --from=builder /user/group /user/passwd /etc/
+
+# Import the Certificate-Authority certificates for enabling HTTPS.
+COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
+
+# Import the compiled executable from the first stage.
+COPY --from=builder /app /app
+
+
+# Perform any further action as an unprivileged user.
+USER nobody:nobody
+
+# Run the compiled binary.
+ENTRYPOINT ["/app"]

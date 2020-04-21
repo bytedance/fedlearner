@@ -6,6 +6,7 @@ replicaCount: 3
 
 image:
   repository: fedlearner_operator
+  tag: latest
   pullPolicy: IfNotPresent
 
 imagePullSecrets: []
