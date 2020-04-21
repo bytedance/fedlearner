@@ -28,8 +28,8 @@ spec:
             - --leader-election-lock-namespace={{ .Release.Namespace }}
             - --resync-interval=5
           command:
-            - ./main
-          image: "{{ .Values.image.repository }}:{{ .Chart.AppVersion }}"
+            - /app
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           name: flapp-operator
           ports:
