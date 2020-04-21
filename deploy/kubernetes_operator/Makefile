@@ -20,3 +20,6 @@ update-defaulter:
 
 vendor:
 	go mod vendor
+
+crd:
+	controller-gen paths=./pkg/apis/... output:dir=../charts/manifests  crd:trivialVersions=true
