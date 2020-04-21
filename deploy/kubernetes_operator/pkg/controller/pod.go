@@ -239,44 +239,52 @@ func (am *appManager) createNewPod(
 		}
 		podTemplate.Spec.Volumes = ensureVolume(podTemplate.Spec.Volumes, volume)
 	}
+
 	for idx := range podTemplate.Spec.Containers {
 		container := &podTemplate.Spec.Containers[idx]
-		if container.Name == v1alpha1.DefaultContainerName {
-			if needPair(app, rtype) {
-				container.VolumeMounts = ensureVolumeMounts(container.VolumeMounts, v1.VolumeMount{
-					Name:      volumeName(rtype),
-					ReadOnly:  true,
-					MountPath: mountPath(rtype),
-				})
-			}
+		if container.Name != v1alpha1.DefaultContainerName {
+			continue
+		}
+
+		if needPair(app, rtype) {
+			container.VolumeMounts = ensureVolumeMounts(container.VolumeMounts, v1.VolumeMount{
+				Name:      volumeName(rtype),
+				ReadOnly:  true,
+				MountPath: mountPath(rtype),
+			})
+		}
+		container.Env = ensureEnv(container.Env, v1.EnvVar{
+			Name:  replicaIndex,
+			Value: index,
+		})
+
+		switch rtype {
+		case v1alpha1.FLReplicaTypeMaster:
 			container.Env = ensureEnv(container.Env, v1.EnvVar{
-				Name:  replicaIndex,
-				Value: index,
+				Name:  masterService,
+				Value: GenIndexName(app.Name, strings.ToLower(app.Spec.Role), rt, index),
 			})
 
-			switch rtype {
-			case v1alpha1.FLReplicaTypeMaster:
-				container.Env = ensureEnv(container.Env, v1.EnvVar{
-					Name:  masterService,
-					Value: GenIndexName(app.Name, strings.ToLower(app.Spec.Role), rt, index),
-				})
-
-			case v1alpha1.FLReplicaTypeWorker:
-				container.Env = ensureEnv(container.Env, v1.EnvVar{
-					Name:  workerService,
-					Value: GenIndexName(app.Name, strings.ToLower(app.Spec.Role), rt, index),
-				})
-				container.Env = ensureEnv(container.Env, v1.EnvVar{
-					Name:  workerRank,
-					Value: index,
-				})
-				container.Env = ensureEnv(container.Env, v1.EnvVar{
-					Name:  workerClusterSpec,
-					Value: clusterSpec,
-				})
-			}
-			break
+		case v1alpha1.FLReplicaTypeWorker:
+			container.Env = ensureEnv(container.Env, v1.EnvVar{
+				Name:  workerService,
+				Value: GenIndexName(app.Name, strings.ToLower(app.Spec.Role), rt, index),
+			})
+			container.Env = ensureEnv(container.Env, v1.EnvVar{
+				Name:  workerRank,
+				Value: index,
+			})
+			container.Env = ensureEnv(container.Env, v1.EnvVar{
+				Name:  workerClusterSpec,
+				Value: clusterSpec,
+			})
 		}
+
+		if index != v1alpha1.ChiefWorkerIndex || spec.ChiefResources == nil {
+			continue
+		}
+
+		container.Resources = *spec.ChiefResources
 	}
 
 	if err := am.podControl.CreatePodsWithControllerRef(ctx, am.namespace, podTemplate, app, controllerRef); err != nil && !errors.IsAlreadyExists(err) {
