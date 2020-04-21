@@ -55,7 +55,7 @@ const (
 	// determine the behavior when an error occurs:
 	// - 1-127: permanent error, do not restart.
 	// - 128-255: retryable error, will restart the pod.
-	// RestartPolicyExitCode RestartPolicy = "ExitCode"
+	RestartPolicyExitCode RestartPolicy = "ExitCode"
 )
 
 // ReplicaSpec is a description of the replica
