@@ -1,0 +1,20 @@
+name: Release Kubernetes Operator
+
+on: [push]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set Short Commit Sha
+      id: vars
+      run: echo "::set-output name=sha_short::$(git rev-parse --short HEAD)"
+    - uses: whoan/docker-build-with-cache-action@v5
+      with:
+        username: ${{ github.actor }}
+        password: "${{ secrets.GITHUB_TOKEN }}"
+        image_name: ${{ github.repository }}/operator
+        image_tag: ${{ steps.vars.outputs.sha_short }}
+        registry: docker.pkg.github.com
+        context: ./deploy/kubernetes_operator
