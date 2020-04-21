@@ -24,6 +24,7 @@ import (
 const (
 	DefaultContainerName = "tensorflow"
 	DefaultPortName      = "flapp-port"
+	ChiefWorkerIndex     = "0"
 )
 
 // FLReplicaType can be one of: "Master", "Worker", or "PS".
@@ -75,6 +76,11 @@ type ReplicaSpec struct {
 	// One of Always, OnFailure, Never and ExitCode.
 	// Default to OnFailure.
 	RestartPolicy RestartPolicy `json:"restartPolicy,omitempty"`
+
+	// ChiefResources describes the resource requirements of worker0.
+	// +optional
+	// Default to nil.
+	ChiefResources *v1.ResourceRequirements `json:"chiefResources,omitempty"`
 }
 
 // FLReplicaSpecs is the mapping from FLReplicaType to ReplicaSpec
@@ -95,7 +101,7 @@ type PeerSpec struct {
 // PeerSpecs is the mapping from Role to PeerSpec
 type PeerSpecs map[string]PeerSpec
 
-// FLReplicaStatus is a description of pairing status
+// ReplicaStatus is a description of pairing status
 type ReplicaStatus struct {
 	// Local is the set of ID allocated locally
 	Local sets.String `json:"local"`

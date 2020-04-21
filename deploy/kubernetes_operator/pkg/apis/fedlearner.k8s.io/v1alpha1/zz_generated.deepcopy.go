@@ -20,6 +20,7 @@
 package v1alpha1
 
 import (
+	v1 "k8s.io/api/core/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	sets "k8s.io/apimachinery/pkg/util/sets"
 )
@@ -261,6 +262,11 @@ func (in *ReplicaSpec) DeepCopyInto(out *ReplicaSpec) {
 		**out = **in
 	}
 	in.Template.DeepCopyInto(&out.Template)
+	if in.ChiefResources != nil {
+		in, out := &in.ChiefResources, &out.ChiefResources
+		*out = new(v1.ResourceRequirements)
+		(*in).DeepCopyInto(*out)
+	}
 	return
 }
 
