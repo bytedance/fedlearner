@@ -79,12 +79,14 @@ class Bridge(object):
                  role,
                  listen_port,
                  remote_address,
-                 app_id='test_trainer',
+                 app_id=None,
                  rank=0,
                  streaming_mode=True):
         self._role = role
         self._listen_port = listen_port
         self._remote_address = remote_address
+        if app_id is None:
+            app_id = 'test_trainer'
         self._app_id = app_id
         self._rank = rank
         self._streaming_mode = streaming_mode

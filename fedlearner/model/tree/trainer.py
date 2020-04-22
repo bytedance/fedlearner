@@ -14,9 +14,12 @@
 
 # coding: utf-8
 
+import io
 import logging
 import argparse
 import numpy as np
+
+import tensorflow.compat.v1 as tf
 
 from fedlearner.trainer.bridge import Bridge
 from fedlearner.model.tree.tree import BoostingTreeEnsamble
@@ -99,8 +102,8 @@ def train(args):
         "mode must be train, test, or eval"
 
     if args.data_path.endswith('.csv'):
-        with open(args.data_path, 'rb') as fin:
-            data = np.loadtxt(fin, delimiter=',')
+        fin = tf.io.gfile.GFile(args.data_path, 'rb')
+        data = np.loadtxt(io.BytesIO(fin.read()), delimiter=',')
         if args.mode == 'train' or args.mode == 'test':
             if args.role == 'leader' or args.role == 'local':
                 X = data[:, :-1]
@@ -145,6 +148,9 @@ def train(args):
 
     if args.export_path:
         booster.save_model(args.export_path)
+
+    if bridge:
+        bridge.terminate()
 
 
 if __name__ == '__main__':
