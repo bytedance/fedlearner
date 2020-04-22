@@ -22,6 +22,8 @@ import multiprocessing as mp
 import numpy as np
 from google.protobuf import text_format
 
+import tensorflow.compat.v1 as tf
+
 from fedlearner.model.tree.loss import LogisticLoss
 from fedlearner.model.crypto import paillier, fixed_point_number
 from fedlearner.common import tree_model_pb2 as tree_pb2
@@ -372,7 +374,7 @@ class LeaderGrower(BaseGrower):
             self._bridge.current_iter_id, name).Unpack(msg)
         if not self._pool:
             return _decrypt_histogram_helper(
-                self._public_key, self._private_key, msg.hists)
+                (self._public_key, self._private_key, msg.hists))
 
         job_size = (len(msg.hists) + self._num_parallel - 1)//self._num_parallel
         args = [
@@ -544,16 +546,16 @@ class BoostingTreeEnsamble(object):
         self._bridge.commit()
 
     def save_model(self, path):
-        with open(path, 'w') as fout:
-            model = tree_pb2.BoostingTreeEnsambleProto()
-            model.trees.extend(self._trees)
-            fout.write(text_format.MessageToString(model))
+        fout = tf.io.gfile.GFile(path, 'w')
+        model = tree_pb2.BoostingTreeEnsambleProto()
+        model.trees.extend(self._trees)
+        fout.write(text_format.MessageToString(model))
 
     def load_saved_model(self, path):
-        with open(path, 'r') as fin:
-            model = tree_pb2.BoostingTreeEnsambleProto()
-            text_format.Parse(fin.read(), model)
-            self._trees = list(model.trees)
+        fin = tf.io.gfile.GFile(path, 'r')
+        model = tree_pb2.BoostingTreeEnsambleProto()
+        text_format.Parse(fin.read(), model)
+        self._trees = list(model.trees)
 
     def batch_predict(self, features, raw_score=False):
         if self._bridge is None:
@@ -654,9 +656,21 @@ class BoostingTreeEnsamble(object):
         # sort feature columns
         binned = BinnedFeatures(features, self._max_bins)
 
+        if checkpoint_path:
+            tf.io.gfile.makedirs(checkpoint_path)
+            logging.info("Checkpointing into path %s...", checkpoint_path)
+            files = tf.io.gfile.listdir(checkpoint_path)
+            if files:
+                last_checkpoint = os.path.join(
+                    checkpoint_path, sorted(files)[-1])
+                logging.info(
+                    "Restoring from previously saved checkpoint %s",
+                    last_checkpoint)
+                self.load_saved_model(last_checkpoint)
+
         # initial f(x)
         if len(self._trees) > 0:
-            sum_prediction = self.batch_predict(features)
+            sum_prediction = self.batch_predict(features, raw_score=True)
         else:
             sum_prediction = np.zeros(num_examples, dtype=BST_TYPE)
 
@@ -676,8 +690,13 @@ class BoostingTreeEnsamble(object):
             self._trees.append(tree)
 
             if checkpoint_path is not None:
+                num_iter = len(self._trees) - 1
                 filename = os.path.join(
-                    checkpoint_path, 'checkpoint-%04d.proto')
+                    checkpoint_path,
+                    'checkpoint-%04d.proto'%num_iter)
+                logging.info(
+                    "Saving checkpoint of iteration %d to %s",
+                    num_iter, filename)
                 self.save_model(filename)
 
     def _fit_one_round_local(self, sum_fx, binned, labels):
