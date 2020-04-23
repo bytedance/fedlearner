@@ -4,6 +4,8 @@ set -ex
 export PYTHONPATH=$(PWD):$(PYTHONPATH)
 
 git submodule update --init
+
+apt-get install libgmp-dev libmpc-dev libmpfr-dev
 pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
 
 make op
