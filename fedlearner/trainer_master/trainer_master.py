@@ -61,15 +61,11 @@ class TrainerMaster(object):
             response.data_block_info.meta_path = ''
             response.data_block_info.block_id = str(data_block.block_id)
         elif self._online_training:
-            response.status = common_pb.Status(
-                    code=common_pb.STATUS_NO_MORE_DATA,
-                    error_message='please wait for datablock ready'
-                )
+            response.status.code = common_pb.STATUS_NO_MORE_DATA
+            response.status.error_message = 'please wait for datablock ready'
         else:
-            response.status = common_pb.Status(
-                    code=common_pb.STATUS_DATA_FINISHED,
-                    error_message='datablock finished'
-                )
+            response.status.code = common_pb.STATUS_DATA_FINISHED
+            response.status.error_message = 'datablock finished'
         return response
 
     def _load_data(self):
