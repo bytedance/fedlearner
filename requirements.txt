@@ -10,3 +10,4 @@ apsw
 configparser
 prettytable
 kubernetes
+gmpy2
