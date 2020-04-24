@@ -128,8 +128,9 @@ class ExampleIdBatchFetcher(object):
                 if len(next_batch) > \
                         self._example_id_batch_options.example_id_batch_size:
                     break
-            self._append_new_example_id_batch(next_batch)
-            yield next_batch
+            if len(next_batch) > 0:
+                self._append_new_example_id_batch(next_batch)
+                yield next_batch
         if raw_data_finished and self._raw_data_visitor.finished():
             self._set_fetch_finished(self._raw_data_visitor.get_index())
 

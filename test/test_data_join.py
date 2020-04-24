@@ -37,7 +37,8 @@ def main():
             'test_example_join.py',
             'test_data_join_master.py',
             'test_data_join_worker.py',
-            'test_data_block_visitor.py'
+            'test_data_block_visitor.py',
+            'test_data_join_portal.py'
     ]
 
     for script in test_scripts:

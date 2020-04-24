@@ -20,6 +20,7 @@ import random
 
 import tensorflow.compat.v1 as tf
 from tensorflow.compat.v1 import gfile
+from google.protobuf import timestamp_pb2
 
 from fedlearner.common import etcd_client
 from fedlearner.common import common_pb2 as common_pb
@@ -120,7 +121,8 @@ class TestExampleJoin(unittest.TestCase):
                     self.data_source.data_source_meta.name, meta
                 )
             fpath = os.path.join(raw_data_dir, fname)
-            fpaths.append(fpath)
+            fpaths.append(dj_pb.RawDataMeta(file_path=fpath,
+                                            timestamp=timestamp_pb2.Timestamp(seconds=3)))
             self.g_data_block_index += 1
         all_files = [os.path.join(raw_data_dir, f)
                     for f in gfile.ListDirectory(raw_data_dir)

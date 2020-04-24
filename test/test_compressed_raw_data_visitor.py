@@ -17,6 +17,7 @@
 import unittest
 import os
 
+from google.protobuf import timestamp_pb2
 from tensorflow.compat.v1 import gfile
 import tensorflow.compat.v1 as tf
 tf.enable_eager_execution()
@@ -40,11 +41,10 @@ class TestRawDataVisitor(unittest.TestCase):
         self.assertTrue(gfile.Exists(partition_dir))
         manifest_manager = raw_data_manifest_manager.RawDataManifestManager(
             self.etcd, self.data_source)
-        add_fpaths = dj_pb.RawDataFilePaths(
-                file_paths=[os.path.join(partition_dir, "0-0.idx")],
-                dedup=True
-            )
-        manifest_manager.add_raw_data(0, [os.path.join(partition_dir, "0-0.idx")], True)
+        manifest_manager.add_raw_data(
+                0, [dj_pb.RawDataMeta(file_path=os.path.join(partition_dir, "0-0.idx"),
+                                      timestamp=timestamp_pb2.Timestamp(seconds=3))],
+                True)
         raw_data_options = dj_pb.RawDataOptions(
                 raw_data_iter='TF_DATASET',
                 compressed_type='GZIP'
