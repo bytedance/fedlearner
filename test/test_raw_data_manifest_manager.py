@@ -16,6 +16,8 @@
 
 import unittest
 
+from google.protobuf import text_format, timestamp_pb2
+
 from fedlearner.common import etcd_client
 from fedlearner.common import data_join_service_pb2 as dj_pb
 from fedlearner.common import common_pb2 as common_pb
@@ -158,12 +160,34 @@ class TestRawDataManifestManager(unittest.TestCase):
 
         self.assertRaises(Exception, manifest_manager.finish_sync_example_id, 
                           rank_id, partition_id)
+        raw_data_metas = [dj_pb.RawDataMeta(file_path='a',
+                                            timestamp=timestamp_pb2.Timestamp(seconds=3)),
+                          dj_pb.RawDataMeta(file_path='a',
+                                            timestamp=timestamp_pb2.Timestamp(seconds=3)),
+                          dj_pb.RawDataMeta(file_path='c',
+                                            timestamp=timestamp_pb2.Timestamp(seconds=1))]
         self.assertRaises(Exception, manifest_manager.add_raw_data, 
-                          partition_id, ['a', 'a', 'b'], False)
-        manifest_manager.add_raw_data(partition_id, ['a', 'a', 'b'], True)
+                          partition_id, raw_data_metas, False)
+        manifest_manager.add_raw_data(partition_id, raw_data_metas, True)
+        latest_ts = manifest_manager.get_raw_date_latest_timestamp(partition_id)
+        self.assertEqual(latest_ts.seconds, 3)
+        self.assertEqual(latest_ts.nanos, 0)
         manifest = manifest_manager.get_manifest(partition_id)
         self.assertEqual(manifest.next_process_index, 2)
-        manifest_manager.add_raw_data(partition_id, ['a', 'a', 'b', 'c', 'd'], True)
+        raw_data_metas = [dj_pb.RawDataMeta(file_path='a',
+                                            timestamp=timestamp_pb2.Timestamp(seconds=3)),
+                          dj_pb.RawDataMeta(file_path='a',
+                                            timestamp=timestamp_pb2.Timestamp(seconds=3)),
+                          dj_pb.RawDataMeta(file_path='b',
+                                            timestamp=timestamp_pb2.Timestamp(seconds=2)),
+                          dj_pb.RawDataMeta(file_path='c',
+                                            timestamp=timestamp_pb2.Timestamp(seconds=1)),
+                          dj_pb.RawDataMeta(file_path='d',
+                                            timestamp=timestamp_pb2.Timestamp(seconds=4))]
+        manifest_manager.add_raw_data(partition_id, raw_data_metas, True)
+        latest_ts = manifest_manager.get_raw_date_latest_timestamp(partition_id)
+        self.assertEqual(latest_ts.seconds, 4)
+        self.assertEqual(latest_ts.nanos, 0)
         manifest_map = manifest_manager.list_all_manifest()
         for i in range(partition_num):
             self.assertTrue(i in manifest_map)

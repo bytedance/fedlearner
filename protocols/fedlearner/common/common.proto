@@ -14,6 +14,8 @@
  */
 
 syntax = "proto3";
+import "google/protobuf/timestamp.proto";
+
 package fedlearner.common;
 
 enum StatusCode {
@@ -62,3 +64,14 @@ message DataSource {
   DataSourceState state = 6;
 }
 
+message DataJoinPortalManifest {
+  string name = 1;
+  uint32 input_partition_num = 2;
+  uint32 output_partition_num = 3;
+  string input_data_base_dir = 4;
+  string output_data_base_dir = 5;
+  // the timestamp that has been processed by portoal and ready
+  // to notify data source. we only support hourly granularity
+  google.protobuf.Timestamp begin_timestamp = 6;
+  google.protobuf.Timestamp committed_timestamp = 7;
+}

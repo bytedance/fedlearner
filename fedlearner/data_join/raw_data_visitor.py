@@ -67,17 +67,15 @@ class RawDataManager(visitor.IndexMetaManager):
                 os._exit(-1) # pylint: disable=protected-access
             self._all_metas.append((process_index, raw_data_meta))
         if raw_data_meta.start_index == -1:
-            new_meta = dj_pb.RawDataMeta(
-                    file_path=raw_data_meta.file_path,
-                    start_index=start_index
-                )
+            new_meta = dj_pb.RawDataMeta()
+            new_meta.MergeFrom(raw_data_meta)
+            new_meta.start_index = start_index
             odata = text_format.MessageToString(raw_data_meta)
             ndata = text_format.MessageToString(new_meta)
             etcd_key = common.raw_data_meta_etcd_key(
                     self._data_source.data_source_meta.name,
                     self._partition_id, process_index
                 )
-
             if not self._etcd.cas(etcd_key, odata, ndata):
                 raw_data_meta = self._sync_raw_data_meta(process_index)
                 assert raw_data_meta is not None, \

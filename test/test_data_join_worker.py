@@ -25,7 +25,7 @@ import unittest
 import tensorflow.compat.v1 as tf
 import numpy as np
 from tensorflow.compat.v1 import gfile
-from google.protobuf import text_format, empty_pb2
+from google.protobuf import text_format, empty_pb2, timestamp_pb2
 
 import grpc
 

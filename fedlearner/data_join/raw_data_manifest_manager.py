@@ -16,7 +16,6 @@
 
 import threading
 from google.protobuf import text_format
-
 from fedlearner.common import data_join_service_pb2 as dj_pb
 from fedlearner.common import common_pb2 as common_pb
 from fedlearner.data_join import common
@@ -28,6 +27,7 @@ class RawDataManifestManager(object):
         self._etcd = etcd
         self._data_source = data_source
         self._existed_fpath = {}
+        self._raw_data_latest_timestamp = {}
         self._partition_num = data_source.data_source_meta.partition_num
         if self._partition_num <= 0:
             raise ValueError(
@@ -35,6 +35,7 @@ class RawDataManifestManager(object):
             )
         for partition_id in range(self._partition_num):
             self._local_manifest[partition_id] = None
+            self._raw_data_latest_timestamp[partition_id] = None
             self._sync_manifest(partition_id)
 
     def alloc_sync_exampld_id(self, rank_id, partition_id=None):
@@ -62,7 +63,7 @@ class RawDataManifestManager(object):
                 manifest = self._sync_manifest(partition_id)
                 if not manifest.finished:
                     raise RuntimeError(
-                            "Failed tp finish sync example id for " \
+                            "Failed to finish sync example id for " \
                             "partition {} since raw data is not " \
                             "finished".format(partition_id)
                         )
@@ -86,7 +87,7 @@ class RawDataManifestManager(object):
                     )
             if not self._is_data_join_leader() and not manifest.finished:
                 raise RuntimeError(
-                        "Failed tp finish join example for partition {} "\
+                        "Failed to finish join example for partition {} "\
                         "since raw data is not finished".format(partition_id)
                     )
             self._finish_partition(
@@ -102,7 +103,7 @@ class RawDataManifestManager(object):
                 manifest.finished = True
                 self._update_manifest(manifest)
 
-    def add_raw_data(self, partition_id, file_paths, dedup):
+    def add_raw_data(self, partition_id, raw_data_metas, dedup):
         self._check_partition_id(partition_id)
         with self._lock:
             manifest = self._sync_manifest(partition_id)
@@ -111,30 +112,36 @@ class RawDataManifestManager(object):
                                     "has finished!".format(partition_id))
             input_fpath = set()
             add_candidates = []
-            for fpath in file_paths:
-                if fpath in self._existed_fpath or fpath in input_fpath:
+            for raw_date_meta in raw_data_metas:
+                if raw_date_meta.file_path in self._existed_fpath or \
+                        raw_date_meta.file_path in input_fpath:
                     if not dedup:
-                        raise RuntimeError(
-                                "file {} has been added".format(fpath)
-                            )
+                        raise RuntimeError("file {} has been added"\
+                                           .format(raw_date_meta.file_path))
                     continue
-                input_fpath.add(fpath)
-                add_candidates.append(fpath)
+                input_fpath.add(raw_date_meta.file_path)
+                add_candidates.append(raw_date_meta)
             self._local_manifest[partition_id] = None
             process_index = manifest.next_process_index
-            for fpath in add_candidates:
+            for raw_date_meta in add_candidates:
                 etcd_key = common.raw_data_meta_etcd_key(
                         self._data_source.data_source_meta.name,
                         partition_id, process_index
                     )
-                meta = dj_pb.RawDataMeta(file_path=fpath, start_index=-1)
-                data = text_format.MessageToString(meta)
+                raw_date_meta.start_index = -1
+                data = text_format.MessageToString(raw_date_meta)
                 self._etcd.set_data(etcd_key, data)
-                self._existed_fpath[fpath] = (partition_id, process_index)
+                self._existed_fpath[raw_date_meta.file_path] = \
+                        (partition_id, process_index)
+                self._update_raw_data_latest_timestamp(
+                        partition_id, raw_date_meta.timestamp
+                    )
                 process_index += 1
             if manifest.next_process_index != process_index:
                 manifest.next_process_index = process_index
                 self._update_manifest(manifest)
+            else:
+                self._local_manifest[partition_id] = manifest
 
     def forward_peer_dumped_index(self, partition_id, peer_dumped_index):
         self._check_partition_id(partition_id)
@@ -155,6 +162,12 @@ class RawDataManifestManager(object):
         self._check_partition_id(partition_id)
         with self._lock:
             return self._sync_manifest(partition_id)
+
+    def get_raw_date_latest_timestamp(self, partition_id):
+        self._check_partition_id(partition_id)
+        with self._lock:
+            self._sync_manifest(partition_id)
+            return self._raw_data_latest_timestamp[partition_id]
 
     def _is_data_join_leader(self):
         return self._data_source.role == common_pb.FLRole.Leader
@@ -244,8 +257,7 @@ class RawDataManifestManager(object):
                 manifest.join_example_rep.rank_id = -1
                 manifest.partition_id = partition_id
                 self._update_manifest(manifest)
-            self._local_manifest[partition_id] = manifest
-            self._process_next_process_index(partition_id)
+            self._process_next_process_index(partition_id, manifest)
         return self._local_manifest[partition_id]
 
     def _check_partition_id(self, partition_id):
@@ -254,10 +266,8 @@ class RawDataManifestManager(object):
                     "partition id {} is out of range".format(partition_id)
                 )
 
-    def _process_next_process_index(self, partition_id):
-        manifest = self._local_manifest[partition_id]
-        assert manifest is not None, \
-            "partition {} should in local manifest".format(partition_id)
+    def _process_next_process_index(self, partition_id, manifest):
+        assert manifest is not None and manifest.partition_id == partition_id
         next_process_index = manifest.next_process_index
         while True:
             meta_etcd_key = \
@@ -271,7 +281,19 @@ class RawDataManifestManager(object):
             meta = text_format.Parse(data, dj_pb.RawDataMeta())
             self._existed_fpath[meta.file_path] = \
                     (partition_id, next_process_index)
+            self._update_raw_data_latest_timestamp(partition_id,
+                                                   meta.timestamp)
             next_process_index += 1
         if next_process_index != manifest.next_process_index:
             manifest.next_process_index = next_process_index
             self._update_manifest(manifest)
+        else:
+            self._local_manifest[partition_id] = manifest
+
+    def _update_raw_data_latest_timestamp(self, partition_id, ntimestamp):
+        otimestamp = self._raw_data_latest_timestamp[partition_id]
+        if otimestamp is None or \
+                (ntimestamp.seconds > otimestamp.seconds or
+                    (ntimestamp.seconds == otimestamp.seconds and
+                     ntimestamp.nanos > otimestamp.nanos)):
+            self._raw_data_latest_timestamp[partition_id] = ntimestamp

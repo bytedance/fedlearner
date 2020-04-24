@@ -31,20 +31,30 @@ class RawDataController(object):
         self._data_source = data_source
         self._master_client = master_client
 
-    def add_raw_data(self, partition_id, fpaths, dedup):
+    def add_raw_data(self, partition_id, fpaths, dedup, timestamps=None):
         self._check_partition_id(partition_id)
         if not fpaths:
             raise RuntimeError("no files input")
-        for fpath in fpaths:
-            if not gfile.Exists(fpath):
-                raise ValueError('{} is not existed' % format(fpath))
+        if timestamps is not None and len(fpaths) != len(timestamps):
+            raise RuntimeError("the number of raw data file "\
+                               "and timestamp mismatch")
         rdreq = dj_pb.RawDataRequest(
                     data_source_meta=self._data_source.data_source_meta,
                     partition_id=partition_id,
-                    raw_data_fpaths=dj_pb.RawDataFilePaths(
-                        file_paths=fpaths, dedup=dedup
+                    added_raw_data_metas=dj_pb.AddedRawDataMetas(
+                        dedup=dedup
                     )
                 )
+        for index, fpath in enumerate(fpaths):
+            if not gfile.Exists(fpath):
+                raise ValueError('{} is not existed' % format(fpath))
+            raw_data_meta = dj_pb.RawDataMeta(
+                    file_path=fpath,
+                    start_index=-1
+                )
+            if timestamps is not None:
+                raw_data_meta.timestamp.MergeFrom(timestamps[index])
+            rdreq.added_raw_data_metas.raw_data_metas.append(raw_data_meta)
         return self._master_client.AddRawData(rdreq)
 
     def finish_raw_data(self, partition_id):
@@ -55,6 +65,21 @@ class RawDataController(object):
                 finish_raw_data=empty_pb2.Empty()
             )
         return self._master_client.FinishRawData(request)
+
+    def get_raw_data_latest_timestamp(self, partition_id):
+        self._check_partition_id(partition_id)
+        request = dj_pb.RawDataRequest(
+                data_source_meta=self._data_source.data_source_meta,
+                partition_id=partition_id
+            )
+        response = self._master_client.GetRawDataLatestTimeStamp(request)
+        if response.status.code != 0:
+            raise RuntimeError("Failed to call GetRawDataLatestTimeStamp "\
+                               "for partition {} of data source {}. reason {}"\
+                               .format(partition_id,
+                                       self._data_source.data_source_meta.name,
+                                       response.status.error_message))
+        return response.timestamp
 
     def _check_partition_id(self, partition_id):
         partition_num = self._data_source.data_source_meta.partition_num

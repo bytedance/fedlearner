@@ -21,7 +21,7 @@ import os
 from concurrent import futures
 
 import grpc
-from google.protobuf import empty_pb2
+from google.protobuf import empty_pb2, timestamp_pb2
 
 from fedlearner.common import common_pb2 as common_pb
 from fedlearner.common import data_join_service_pb2 as dj_pb
@@ -34,9 +34,8 @@ from fedlearner.data_join.routine_worker import RoutineWorker
 from fedlearner.data_join.raw_data_manifest_manager import (
     RawDataManifestManager
 )
-from fedlearner.data_join.common import (
-    retrieve_data_source, commit_data_source
-)
+from fedlearner.data_join.common import (retrieve_data_source,
+                                         commit_data_source)
 
 class MasterFSM(object):
     INVALID_PEER_FSM_STATE = {}
@@ -396,11 +395,11 @@ class DataJoinMaster(dj_grpc.DataJoinMasterServiceServicer):
         response = self._check_data_source_meta(request.data_source_meta)
         if response.code == 0:
             manifest_manager = self._fsm.get_mainifest_manager()
-            if request.HasField('raw_data_fpaths'):
+            if request.HasField('added_raw_data_metas'):
                 manifest_manager.add_raw_data(
                         request.partition_id,
-                        request.raw_data_fpaths.file_paths,
-                        request.raw_data_fpaths.dedup
+                        request.added_raw_data_metas.raw_data_metas,
+                        request.added_raw_data_metas.dedup
                     )
             else:
                 response.code = -2
@@ -421,6 +420,22 @@ class DataJoinMaster(dj_grpc.DataJoinMasterServiceServicer):
                 response.code = -2
                 response.error_message = "ForwardPeerDumpedIndex should "\
                                          "has field peer_dumped_index"
+        return response
+
+    def GetRawDataLatestTimeStamp(self, request, context):
+        response = dj_pb.RawDataResponse(
+                timestamp=timestamp_pb2.Timestamp(seconds=0)
+            )
+        meta_status = self._check_data_source_meta(request.data_source_meta)
+        if meta_status.code != 0:
+            response.status.MergeFrom(meta_status)
+            return response
+        manifest_manager = self._fsm.get_mainifest_manager()
+        ts = manifest_manager.get_raw_date_latest_timestamp(
+                request.partition_id
+            )
+        if ts is not None:
+            response.timestamp.MergeFrom(ts)
         return response
 
     def _check_data_source_meta(self, remote_meta, raise_exp=False):
@@ -453,12 +468,12 @@ class DataJoinMasterService(object):
         self._data_source_name = data_source_name
         self._listen_port = listen_port
         self._server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
-        self._dim = DataJoinMaster(
+        self._data_join_master = DataJoinMaster(
                 peer_client, data_source_name, etcd_name,
                 etcd_addrs, etcd_base_dir, options
             )
         dj_grpc.add_DataJoinMasterServiceServicer_to_server(
-                self._dim, self._server
+                self._data_join_master, self._server
             )
         self._server.add_insecure_port('[::]:%d'%listen_port)
         self._server_started = False
@@ -466,7 +481,7 @@ class DataJoinMasterService(object):
     def start(self):
         if not self._server_started:
             self._server.start()
-            self._dim.start_fsm()
+            self._data_join_master.start_fsm()
             self._server_started = True
             logging.info("DataJoinMasterService for data_source: " \
                          "%s start on port[%d]", self._data_source_name,
@@ -474,7 +489,7 @@ class DataJoinMasterService(object):
 
     def stop(self):
         if self._server_started:
-            self._dim.stop_fsm()
+            self._data_join_master.stop_fsm()
             self._server.stop(None)
             self._server_started = False
             logging.info("DataJoinMasterService for data_source: %s "\

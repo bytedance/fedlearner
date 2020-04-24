@@ -18,7 +18,7 @@ import unittest
 import os
 
 import tensorflow.compat.v1 as tf
-from google.protobuf import text_format
+from google.protobuf import text_format, timestamp_pb2
 from tensorflow.compat.v1 import gfile
 
 from fedlearner.common import etcd_client
@@ -117,7 +117,11 @@ class TestDataBlockDumper(unittest.TestCase):
                             meta
                         )
                     fpath = os.path.join(raw_data_dir, ofname)
-                    self.manifest_manager.add_raw_data(0, [fpath], False)
+                    self.manifest_manager.add_raw_data(
+                            0,
+                            [dj_pb.RawDataMeta(file_path=fpath,
+                                               timestamp=timestamp_pb2.Timestamp(seconds=3))],
+                            False)
                     process_index += 1
                     start_index += len(meta.example_ids)
                 block_index += 1

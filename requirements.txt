@@ -11,3 +11,4 @@ configparser
 prettytable
 kubernetes
 gmpy2
+cityhash

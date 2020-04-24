@@ -21,6 +21,7 @@ from os import path
 
 import tensorflow.compat.v1 as tf
 from tensorflow.compat.v1 import gfile
+from google.protobuf import timestamp_pb2
 
 from fedlearner.common import etcd_client
 from fedlearner.common import common_pb2 as common_pb
@@ -53,7 +54,8 @@ class TestRawDataVisitor(unittest.TestCase):
         for i in range(start_index, end_index):
             fname = "{}.rd".format(i)
             fpath = os.path.join(partition_dir, fname)
-            fpaths.append(fpath)
+            fpaths.append(dj_pb.RawDataMeta(file_path=fpath,
+                                      timestamp=timestamp_pb2.Timestamp(seconds=3)))
             writer = tf.io.TFRecordWriter(fpath)
             for j in range(100):
                 feat = {}

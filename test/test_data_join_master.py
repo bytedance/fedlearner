@@ -23,7 +23,7 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 from google.protobuf import text_format
 
 import grpc
-from google.protobuf import text_format, empty_pb2
+from google.protobuf import text_format, empty_pb2, timestamp_pb2
 
 from fedlearner.data_join import data_join_master
 from fedlearner.common import common_pb2 as common_pb
@@ -236,9 +236,21 @@ class DataJoinMaster(unittest.TestCase):
                 data_source_meta=data_source_l.data_source_meta,
                 rank_id=0,
                 partition_id=0,
-                raw_data_fpaths=dj_pb.RawDataFilePaths(
+            )
+        rsp = client_l.GetRawDataLatestTimeStamp(rdreq)
+        self.assertEqual(rsp.status.code, 0)
+        self.assertTrue(rsp.HasField('timestamp'))
+        self.assertEqual(rsp.timestamp.seconds, 0)
+        self.assertEqual(rsp.timestamp.nanos, 0)
+
+        rdreq = dj_pb.RawDataRequest(
+                data_source_meta=data_source_l.data_source_meta,
+                rank_id=0,
+                partition_id=0,
+                added_raw_data_metas=dj_pb.AddedRawDataMetas(
                         dedup=False,
-                        file_paths=['a']
+                        raw_data_metas=[dj_pb.RawDataMeta(file_path='a',
+                                        timestamp=timestamp_pb2.Timestamp(seconds=3))]
                     )
             )
         rsp = client_l.AddRawData(rdreq)
@@ -251,9 +263,21 @@ class DataJoinMaster(unittest.TestCase):
                 data_source_meta=data_source_l.data_source_meta,
                 rank_id=0,
                 partition_id=0,
-                raw_data_fpaths=dj_pb.RawDataFilePaths(
+            )
+        rsp = client_l.GetRawDataLatestTimeStamp(rdreq)
+        self.assertEqual(rsp.status.code, 0)
+        self.assertTrue(rsp.HasField('timestamp'))
+        self.assertEqual(rsp.timestamp.seconds, 3)
+        self.assertEqual(rsp.timestamp.nanos, 0)
+
+        rdreq = dj_pb.RawDataRequest(
+                data_source_meta=data_source_l.data_source_meta,
+                rank_id=0,
+                partition_id=0,
+                added_raw_data_metas=dj_pb.AddedRawDataMetas(
                         dedup=False,
-                        file_paths=['b']
+                        raw_data_metas=[dj_pb.RawDataMeta(file_path='b',
+                                        timestamp=timestamp_pb2.Timestamp(seconds=5))]
                     )
             )
         rsp = client_l.AddRawData(rdreq)
@@ -266,9 +290,23 @@ class DataJoinMaster(unittest.TestCase):
                 data_source_meta=data_source_l.data_source_meta,
                 rank_id=0,
                 partition_id=0,
-                raw_data_fpaths=dj_pb.RawDataFilePaths(
+            )
+        rsp = client_l.GetRawDataLatestTimeStamp(rdreq)
+        self.assertEqual(rsp.status.code, 0)
+        self.assertTrue(rsp.HasField('timestamp'))
+        self.assertEqual(rsp.timestamp.seconds, 5)
+        self.assertEqual(rsp.timestamp.nanos, 0)
+
+        rdreq = dj_pb.RawDataRequest(
+                data_source_meta=data_source_l.data_source_meta,
+                rank_id=0,
+                partition_id=0,
+                added_raw_data_metas=dj_pb.AddedRawDataMetas(
                         dedup=True,
-                        file_paths=['a', 'b']
+                        raw_data_metas=[dj_pb.RawDataMeta(file_path='b',
+                                        timestamp=timestamp_pb2.Timestamp(seconds=5)),
+                                        dj_pb.RawDataMeta(file_path='a',
+                                        timestamp=timestamp_pb2.Timestamp(seconds=3))]
                     )
             )
         rsp = client_l.AddRawData(rdreq)
@@ -277,7 +315,11 @@ class DataJoinMaster(unittest.TestCase):
         self.assertTrue(manifest_l is not None)
         self.assertFalse(manifest_l.finished)
         self.assertEqual(manifest_l.next_process_index, 2)
-
+        rsp = client_l.GetRawDataLatestTimeStamp(rdreq)
+        self.assertEqual(rsp.status.code, 0)
+        self.assertTrue(rsp.HasField('timestamp'))
+        self.assertEqual(rsp.timestamp.seconds, 5)
+        self.assertEqual(rsp.timestamp.nanos, 0)
 
         rdreq = dj_pb.RawDataRequest(
                 data_source_meta=data_source_f.data_source_meta,
@@ -290,12 +332,23 @@ class DataJoinMaster(unittest.TestCase):
         self.assertEqual(manifest_f.next_process_index, 0)
 
         rdreq = dj_pb.RawDataRequest(
+                data_source_meta=data_source_l.data_source_meta,
+                rank_id=0,
+                partition_id=0,
+            )
+        rsp = client_f.GetRawDataLatestTimeStamp(rdreq)
+        self.assertEqual(rsp.status.code, 0)
+        self.assertTrue(rsp.HasField('timestamp'))
+        self.assertEqual(rsp.timestamp.seconds, 0)
+        self.assertEqual(rsp.timestamp.nanos, 0)
+        rdreq = dj_pb.RawDataRequest(
                 data_source_meta=data_source_f.data_source_meta,
                 rank_id=0,
                 partition_id=0,
-                raw_data_fpaths=dj_pb.RawDataFilePaths(
+                added_raw_data_metas=dj_pb.AddedRawDataMetas(
                         dedup=False,
-                        file_paths=['a']
+                        raw_data_metas=[dj_pb.RawDataMeta(file_path='a',
+                                        timestamp=timestamp_pb2.Timestamp(seconds=1))]
                     )
             )
         rsp = client_f.AddRawData(rdreq)
@@ -304,29 +357,26 @@ class DataJoinMaster(unittest.TestCase):
         self.assertTrue(manifest_f is not None)
         self.assertFalse(manifest_f.finished)
         self.assertEqual(manifest_f.next_process_index, 1)
-        rdreq = dj_pb.RawDataRequest(
-                data_source_meta=data_source_f.data_source_meta,
-                rank_id=0,
-                partition_id=0,
-                raw_data_fpaths=dj_pb.RawDataFilePaths(
-                        dedup=False,
-                       file_paths=['b']
-                    )
 
+        rdreq = dj_pb.RawDataRequest(
+                data_source_meta=data_source_l.data_source_meta,
+                rank_id=0,
+                partition_id=0,
             )
-        rsp = client_f.AddRawData(rdreq)
-        self.assertEqual(rsp.code, 0)
-        manifest_f = client_f.QueryRawDataManifest(rdreq)
-        self.assertTrue(manifest_f is not None)
-        self.assertFalse(manifest_f.finished)
-        self.assertEqual(manifest_f.next_process_index, 2)
+        rsp = client_f.GetRawDataLatestTimeStamp(rdreq)
+        self.assertEqual(rsp.status.code, 0)
+        self.assertTrue(rsp.HasField('timestamp'))
+        self.assertEqual(rsp.timestamp.seconds, 1)
+        self.assertEqual(rsp.timestamp.nanos, 0)
+
         rdreq = dj_pb.RawDataRequest(
                 data_source_meta=data_source_f.data_source_meta,
                 rank_id=0,
                 partition_id=0,
-                raw_data_fpaths=dj_pb.RawDataFilePaths(
-                        dedup=True,
-                        file_paths=['a', 'b']
+                added_raw_data_metas=dj_pb.AddedRawDataMetas(
+                        dedup=False,
+                        raw_data_metas=[dj_pb.RawDataMeta(file_path='b',
+                                        timestamp=timestamp_pb2.Timestamp(seconds=2))]
                     )
             )
         rsp = client_f.AddRawData(rdreq)
@@ -335,6 +385,45 @@ class DataJoinMaster(unittest.TestCase):
         self.assertTrue(manifest_f is not None)
         self.assertFalse(manifest_f.finished)
         self.assertEqual(manifest_f.next_process_index, 2)
+        rdreq = dj_pb.RawDataRequest(
+                data_source_meta=data_source_l.data_source_meta,
+                rank_id=0,
+                partition_id=0,
+            )
+        rsp = client_f.GetRawDataLatestTimeStamp(rdreq)
+        self.assertEqual(rsp.status.code, 0)
+        self.assertTrue(rsp.HasField('timestamp'))
+        self.assertEqual(rsp.timestamp.seconds, 2)
+        self.assertEqual(rsp.timestamp.nanos, 0)
+
+        rdreq = dj_pb.RawDataRequest(
+                data_source_meta=data_source_f.data_source_meta,
+                rank_id=0,
+                partition_id=0,
+                added_raw_data_metas=dj_pb.AddedRawDataMetas(
+                        dedup=True,
+                        raw_data_metas=[dj_pb.RawDataMeta(file_path='a',
+                                        timestamp=timestamp_pb2.Timestamp(seconds=1)),
+                                        dj_pb.RawDataMeta(file_path='b',
+                                        timestamp=timestamp_pb2.Timestamp(seconds=2))]
+                    )
+            )
+        rsp = client_f.AddRawData(rdreq)
+        self.assertEqual(rsp.code, 0)
+        manifest_f = client_f.QueryRawDataManifest(rdreq)
+        self.assertTrue(manifest_f is not None)
+        self.assertFalse(manifest_f.finished)
+        self.assertEqual(manifest_f.next_process_index, 2)
+        rdreq = dj_pb.RawDataRequest(
+                data_source_meta=data_source_l.data_source_meta,
+                rank_id=0,
+                partition_id=0,
+            )
+        rsp = client_f.GetRawDataLatestTimeStamp(rdreq)
+        self.assertEqual(rsp.status.code, 0)
+        self.assertTrue(rsp.HasField('timestamp'))
+        self.assertEqual(rsp.timestamp.seconds, 2)
+        self.assertEqual(rsp.timestamp.nanos, 0)
 
         rdreq = dj_pb.RawDataRequest(
                 data_source_meta=data_source_l.data_source_meta,
@@ -357,9 +446,10 @@ class DataJoinMaster(unittest.TestCase):
                 data_source_meta=data_source_l.data_source_meta,
                 rank_id=0,
                 partition_id=0,
-                raw_data_fpaths=dj_pb.RawDataFilePaths(
-                        dedup=True,
-                        file_paths=['x']
+                added_raw_data_metas=dj_pb.AddedRawDataMetas(
+                        dedup=False,
+                        raw_data_metas=[dj_pb.RawDataMeta(file_path='x',
+                                        timestamp=timestamp_pb2.Timestamp(seconds=4))]
                     )
             )
         try:
@@ -416,9 +506,10 @@ class DataJoinMaster(unittest.TestCase):
                 data_source_meta=data_source_f.data_source_meta,
                 rank_id=0,
                 partition_id=0,
-                raw_data_fpaths=dj_pb.RawDataFilePaths(
+                added_raw_data_metas=dj_pb.AddedRawDataMetas(
                         dedup=True,
-                        file_paths=['x']
+                        raw_data_metas=[dj_pb.RawDataMeta(file_path='x',
+                                        timestamp=timestamp_pb2.Timestamp(seconds=3))]
                     )
             )
         try:

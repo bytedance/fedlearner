@@ -16,6 +16,7 @@
 syntax = "proto3";
 import "fedlearner/common/common.proto";
 import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
 
 package fedlearner.common;
 
@@ -62,10 +63,11 @@ message RawDataManifest {
 message RawDataMeta {
   string file_path = 1;
   int64 start_index = 2;
+  google.protobuf.Timestamp timestamp = 3;
 }
 
-message RawDataFilePaths {
-  repeated string file_paths = 1;
+message AddedRawDataMetas {
+  repeated RawDataMeta raw_data_metas = 1;
   bool dedup = 2;
 }
 
@@ -81,7 +83,7 @@ message RawDataRequest {
     google.protobuf.Empty sync_example_id = 4;
     google.protobuf.Empty join_example = 5;
     google.protobuf.Empty finish_raw_data = 6;
-    RawDataFilePaths raw_data_fpaths = 7;
+    AddedRawDataMetas added_raw_data_metas = 7;
     PeerDumpedIndex peer_dumped_index = 8;
   }
 }
@@ -91,6 +93,7 @@ message RawDataResponse {
   oneof msg {
     RawDataManifest manifest = 2;
     google.protobuf.Empty finished = 3;
+    google.protobuf.Timestamp timestamp = 4;
   }
 }
 
@@ -104,6 +107,7 @@ service DataJoinMasterService {
   rpc FinishRawData(RawDataRequest) returns (Status) {}
   rpc AddRawData(RawDataRequest) returns (Status) {}
   rpc ForwardPeerDumpedIndex(RawDataRequest) returns (Status) {}
+  rpc GetRawDataLatestTimeStamp(RawDataRequest) returns (RawDataResponse) {}
 }
 
 message DataBlockMeta {
@@ -231,4 +235,21 @@ message DataJoinWorkerOptions {
 
 message DataJoinMasterOptions {
   bool use_mock_etcd = 1;
+}
+
+message ExampleValidatorOptions {
+  string example_validator = 1;
+  bool validate_event_time = 2;
+}
+
+message DataJoinPotralOptions {
+  ExampleValidatorOptions example_validator = 1;
+  int64 reducer_buffer_size = 2;
+  RawDataOptions raw_data_options = 3;
+  repeated string downstream_data_source_masters = 4;
+  bool use_mock_etcd = 5;
+}
+
+service DataJoinPotralService {
+  rpc Ping(google.protobuf.Empty) returns (Status) {}
 }
