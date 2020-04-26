@@ -357,7 +357,6 @@ class Bridge(object):
             logging.debug('enter streaming_mode.')
             self._client_daemon = threading.Thread(
                 target=self._client_daemon_fn)
-            self._client_daemon.daemon = True
             self._client_daemon.start()
         logging.debug('finish connect.')
 
