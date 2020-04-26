@@ -301,18 +301,20 @@ class FLEstimator(object):
 
             # Evaluate over dataset
             self._bridge.connect()
-            with tf.train.MonitoredSession(
-                session_creator=session_creator, hooks=all_hooks) as sess:
-                iter_id = 0
-                while not sess.should_stop():
-                    self._bridge.start(iter_id)
-                    logging.debug('after bridge start.')
-                    sess.run(eval_op)
-                    logging.debug('after session run.')
-                    self._bridge.commit()
-                    logging.debug('after bridge commit.')
-                    iter_id += 1
-            self._bridge.terminate()
+            try:
+                with tf.train.MonitoredSession(
+                    session_creator=session_creator, hooks=all_hooks) as sess:
+                    iter_id = 0
+                    while not sess.should_stop():
+                        self._bridge.start(iter_id)
+                        logging.debug('after bridge start.')
+                        sess.run(eval_op)
+                        logging.debug('after session run.')
+                        self._bridge.commit()
+                        logging.debug('after bridge commit.')
+                        iter_id += 1
+            finally:
+                self._bridge.terminate()
 
             # Print result
             logging.info('Metrics for iteration %d: %s',
