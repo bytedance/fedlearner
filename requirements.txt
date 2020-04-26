@@ -10,5 +10,6 @@ apsw
 configparser
 prettytable
 kubernetes
+scipy
 gmpy2
 cityhash
