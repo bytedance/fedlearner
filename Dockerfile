@@ -3,7 +3,7 @@ WORKDIR /app
 
 COPY . /app
 
-RUn apt-get -y update
+RUN apt-get -y update
 RUN apt-get -y install libgmp-dev
 RUN apt-get -y install libmpfr-dev
 RUN apt-get -y install libmpc-dev
