@@ -140,15 +140,28 @@ class Bridge(object):
             options=self._grpc_options)
         client = make_ready_client(channel, stop_event)
 
+        lock = threading.Lock()
+        resend_list = collections.deque()
+
         def shutdown_fn():
+            while True:
+                with lock:
+                    if len(resend_list) > 0:
+                        logging.debug(
+                            "Waiting for resend queue's being cleaned. "
+                            "Resend queue size: %d", len(resend_list))
+                        time.sleep(1)
+                    else:
+                        logging.debug('Resend queue is empty and we can shut '
+                                      'down client daemon safely.')
+                        break
+
             stop_event.set()
             if generator is not None:
                 generator.cancel()
             return generator.result()
 
         self._client_daemon_shutdown_fn = shutdown_fn
-        lock = threading.Lock()
-        resend_list = collections.deque()
 
         while not stop_event.is_set():
             try:
@@ -344,12 +357,13 @@ class Bridge(object):
             logging.debug('enter streaming_mode.')
             self._client_daemon = threading.Thread(
                 target=self._client_daemon_fn)
+            self._client_daemon.daemon = True
             self._client_daemon.start()
         logging.debug('finish connect.')
 
     def terminate(self):
         try:
-            if self._client_daemon_shutdown_fn is not None:
+            if self._client_daemon is not None:
                 self._client_daemon_shutdown_fn()
                 self._client_daemon.join()
         except Exception:  # pylint: disable=broad-except
