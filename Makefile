@@ -22,7 +22,7 @@ lint:
 	pylint --rcfile ci/pylintrc fedlearner example
 
 test:
-	python test/test_bridge.py
+	# python test/test_bridge.py
 	python test/test_data_join.py
 	# python test/test_data_block_loader.py
 	# python test/test_train_master.py

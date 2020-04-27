@@ -27,6 +27,7 @@ import tensorflow.compat.v1 as tf
 from fedlearner.model.tree.loss import LogisticLoss
 from fedlearner.model.crypto import paillier, fixed_point_number
 from fedlearner.common import tree_model_pb2 as tree_pb2
+from fedlearner.common import common_pb2
 
 
 BST_TYPE = np.float32
@@ -204,7 +205,7 @@ class BaseGrower(object):
             self._max_leaves = 2**max_depth
         else:
             self._split_candidates = queue.PriorityQueue()
-            assert max_leaves is not None, \
+            assert max_leaves, \
                 "max_leaves must be set when grow_policy is lossguided"
             self._max_leaves = max_leaves
             self._max_depth = max_depth if max_depth is not None else 2**31
@@ -511,7 +512,7 @@ class FollowerGrower(BaseGrower):
 
 class BoostingTreeEnsamble(object):
     def __init__(self, bridge, learning_rate=0.3, max_iters=50, max_depth=6,
-                 max_leaves=None, l2_regularization=1.0, max_bins=33,
+                 max_leaves=0, l2_regularization=1.0, max_bins=33,
                  grow_policy='depthwise', num_parallel=1):
         self._learning_rate = learning_rate
         self._max_iters = max_iters
@@ -545,6 +546,75 @@ class BoostingTreeEnsamble(object):
             self._private_key = None
         self._bridge.commit()
 
+    def _verify_params(self, example_ids, is_training):
+        if self._bridge is None:
+            return
+
+        self._bridge.start(self._bridge.new_iter_id())
+        if self._bridge.role == 'leader':
+            msg = tree_pb2.VerifyParams(
+                example_ids=example_ids,
+                learning_rate=self._learning_rate,
+                max_iters=self._max_iters,
+                max_depth=self._max_depth,
+                max_leaves=self._max_leaves,
+                l2_regularization=self._l2_regularization,
+                max_bins=self._max_bins,
+                grow_policy=self._grow_policy)
+            self._bridge.send_proto(
+                self._bridge.current_iter_id, 'verify', msg)
+            status = common_pb2.Status()
+            self._bridge.receive_proto(
+                self._bridge.current_iter_id, 'status').Unpack(status)
+            assert status.code == common_pb2.STATUS_SUCCESS, \
+                "Parameters mismatch between leader and follower: \n%s" \
+                %status.error_message
+        else:
+            msg = tree_pb2.VerifyParams()
+            self._bridge.receive_proto(
+                self._bridge.current_iter_id, 'verify').Unpack(msg)
+            def check(name, left, right):
+                if left == right or \
+                        (isinstance(left, float) and np.isclose(left, right)):
+                    return ''
+                return 'Error:%s mismatch between leader and follower: ' \
+                        '%s vs %s\n'%(name, left, right)
+
+            err_msg = ''
+            if example_ids and msg.example_ids and \
+                    list(example_ids) != list(msg.example_ids):
+                err_msg += "example_ids mismatch between leader and follower"
+            if is_training:
+                err_msg += check(
+                    'learning_rate', msg.learning_rate, self._learning_rate)
+                err_msg += check(
+                    'max_iters', msg.max_iters, self._max_iters)
+                err_msg += check(
+                    'max_depth', msg.max_depth, self._max_depth)
+                err_msg += check(
+                    'max_leaves', msg.max_leaves, self._max_leaves)
+                err_msg += check(
+                    'l2_regularization', msg.l2_regularization,
+                    self._l2_regularization)
+                err_msg += check(
+                    'max_bins', msg.max_bins, self._max_bins)
+                err_msg += check(
+                    'grow_policy', msg.grow_policy, self._grow_policy)
+
+            if err_msg:
+                self._bridge.send_proto(
+                    self._bridge.current_iter_id, 'status',
+                    common_pb2.Status(
+                        code=common_pb2.STATUS_UNKNOWN_ERROR,
+                        error_message=err_msg))
+                raise RuntimeError(err_msg)
+            self._bridge.send_proto(
+                self._bridge.current_iter_id, 'status',
+                common_pb2.Status(
+                    code=common_pb2.STATUS_SUCCESS))
+        self._bridge.commit()
+
+
     def save_model(self, path):
         fout = tf.io.gfile.GFile(path, 'w')
         model = tree_pb2.BoostingTreeEnsambleProto()
@@ -557,9 +627,11 @@ class BoostingTreeEnsamble(object):
         text_format.Parse(fin.read(), model)
         self._trees = list(model.trees)
 
-    def batch_predict(self, features, raw_score=False):
+    def batch_predict(self, features, raw_score=False, example_ids=None):
         if self._bridge is None:
             return self._batch_predict_local(features, raw_score)
+
+        self._verify_params(example_ids, False)
         if self._bridge.role == 'leader':
             return self._batch_predict_leader(features, raw_score)
         return self._batch_predict_follower(features, raw_score)
@@ -650,8 +722,13 @@ class BoostingTreeEnsamble(object):
                 self._bridge.commit()
 
 
-    def fit(self, features, labels=None, checkpoint_path=None):
+    def fit(self, features, labels=None, checkpoint_path=None,
+            example_ids=None):
         num_examples = features.shape[0]
+        assert example_ids is None or num_examples == len(example_ids)
+
+        # verify parameters
+        self._verify_params(example_ids, True)
 
         # sort feature columns
         binned = BinnedFeatures(features, self._max_bins)
@@ -669,7 +746,8 @@ class BoostingTreeEnsamble(object):
                 self.load_saved_model(last_checkpoint)
 
         # initial f(x)
-        if len(self._trees) > 0:
+        if len(self._trees) > 0 and \
+                (self._bridge is None or self._bridge.role == 'leader'):
             sum_prediction = self.batch_predict(features, raw_score=True)
         else:
             sum_prediction = np.zeros(num_examples, dtype=BST_TYPE)

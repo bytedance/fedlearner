@@ -43,3 +43,14 @@ message SplitInfo {
     repeated int32 left_samples = 8;
     repeated int32 right_samples = 9;
 }
+
+message VerifyParams {
+    repeated string example_ids = 1;
+    float learning_rate = 2;
+    int32 max_iters = 3;
+    int32 max_depth = 4;
+    int32 max_leaves = 5;
+    float l2_regularization = 6;
+    int32 max_bins = 7;
+    string grow_policy = 8;
+}
