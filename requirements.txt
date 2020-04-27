@@ -1,3 +1,4 @@
+cityhash
 pylint
 jinja2
 grpcio-tools

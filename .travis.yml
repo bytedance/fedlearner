@@ -3,6 +3,9 @@ python:
   - "3.6"      # current default Python on Travis CI
 # command to install dependencies
 install:
+  - sudo apt-get -y update
+  - sudo apt-get -y install libgmp-dev libmpc-dev libmpfr-dev
+  - pip install --upgrade pip
   - pip install -r requirements.txt
 # command to run tests
 script:

@@ -5,7 +5,7 @@
 First clone the latest code of this library from github:
 
 ```
-git clone https://github.com/piiswrong/fedlearner.git
+git clone https://github.com/piiswrong/fedlearner.git --recursive
 ```
 
 Then setup python environment to run the package. Make sure that you have Python 3.6, other versions may have dependency issues:
@@ -14,6 +14,7 @@ Then setup python environment to run the package. Make sure that you have Python
 cd fedlearner
 pip install -r requirements.txt
 export PYTHONPATH=$(PWD):$PYTHONPATH
+make protobuf
 ```
 
 If you see errors during gmpy2 installation, you may need to install the GMP library first. Try

@@ -19,6 +19,7 @@ from __future__ import division
 from __future__ import print_function
 
 import os
+import logging
 import tensorflow.compat.v1 as tf
 
 
@@ -26,15 +27,19 @@ _HOME = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../'))
 
 _CPU_LIB_PATH = os.path.join(_HOME, 'cc/embedding.so')
 
-lagrange_lite_ops = None
+class custom_fedlearner_operators_failed_to_load(object):
+    pass
+
+lagrange_lite_ops = custom_fedlearner_operators_failed_to_load
 
 path = _CPU_LIB_PATH
 
 if os.path.exists(path):
     lagrange_lite_ops = tf.load_op_library(path)
 
+
 if lagrange_lite_ops is None:
-    raise RuntimeError("Failed to load %s" % path)
+    logging.warning("Failed to load fedlearner operators from %s", path)
 
 
 def _multidevice_preprocess_fids(fids, config, num_shards):

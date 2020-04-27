@@ -15,6 +15,7 @@
 # coding: utf-8
 
 import io
+import csv
 import logging
 import argparse
 import numpy as np
@@ -40,6 +41,8 @@ def create_argument_parser():
     parser.add_argument('--application-id', type=str, default=None,
                         help='application id on distributed ' \
                              'training.')
+    parser.add_argument('--mode', type=str, default='train',
+                        help='Running mode in train, test or eval.')
     parser.add_argument('--data-path', type=str, default=None,
                         help='path to data block files for non-distributed ' \
                              'training. Ignored when --master-addr is set.')
@@ -55,8 +58,10 @@ def create_argument_parser():
                         type=str,
                         default=None,
                         help='Path to save model checkpoints.')
-    parser.add_argument('--mode', type=str, default='train',
-                        help='Running mode in train, test or eval.')
+    parser.add_argument('--output-path',
+                        type=str,
+                        default=None,
+                        help='Path to save prediction output.')
     parser.add_argument('--verbosity',
                         type=int,
                         default=1,
@@ -85,6 +90,12 @@ def create_argument_parser():
                         type=int,
                         default=1,
                         help='Number of parallel threads.')
+    parser.add_argument('--verify-example-ids',
+                        type=bool,
+                        default=False,
+                        help='If set to true, the first column of the '
+                             'data will be treated as example ids that '
+                             'must match between leader and follower')
     return parser
 
 
@@ -102,8 +113,15 @@ def train(args):
         "mode must be train, test, or eval"
 
     if args.data_path.endswith('.csv'):
-        fin = tf.io.gfile.GFile(args.data_path, 'rb')
-        data = np.loadtxt(io.BytesIO(fin.read()), delimiter=',')
+        txt_data = tf.io.gfile.GFile(args.data_path, 'r').read()
+        if args.verify_example_ids:
+            reader = csv.reader(io.StringIO(txt_data))
+            lines = list(reader)
+            example_ids = [i[0] for i in lines]
+            data = np.asarray([line[1:] for line in lines], dtype=np.float)
+        else:
+            data = np.loadtxt(io.StringIO(txt_data), delimiter=',')
+            example_ids = None
         if args.mode == 'train' or args.mode == 'test':
             if args.role == 'leader' or args.role == 'local':
                 X = data[:, :-1]
@@ -119,38 +137,48 @@ def train(args):
 
     if args.role != 'local':
         bridge = Bridge(args.role, int(args.local_addr.split(':')[1]),
-                        args.peer_addr, args.application_id, 0)
+                        args.peer_addr, args.application_id, 0,
+                        streaming_mode=False)
     else:
         bridge = None
 
-    booster = BoostingTreeEnsamble(
-        bridge,
-        learning_rate=args.learning_rate,
-        max_iters=args.max_iters,
-        max_depth=args.max_depth,
-        l2_regularization=args.l2_regularization,
-        max_bins=args.max_bins,
-        num_parallel=args.num_parallel)
+    try:
+        booster = BoostingTreeEnsamble(
+            bridge,
+            learning_rate=args.learning_rate,
+            max_iters=args.max_iters,
+            max_depth=args.max_depth,
+            l2_regularization=args.l2_regularization,
+            max_bins=args.max_bins,
+            num_parallel=args.num_parallel)
 
-    if args.load_model_path:
-        booster.load_saved_model(args.load_model_path)
+        if args.load_model_path:
+            booster.load_saved_model(args.load_model_path)
 
-    if args.mode == 'train':
-        booster.fit(X, y, args.checkpoint_path)
-    elif args.mode == 'test':
-        pred = booster.batch_predict(X)
-        acc = sum((pred > 0.5) == y)/len(y)
-        logging.info("Test accuracy: %f", acc)
-    else:
-        pred = booster.batch_predict(X)
-        for i in pred:
-            print(i)
+        if args.mode == 'train':
+            booster.fit(
+                X, y,
+                checkpoint_path=args.checkpoint_path,
+                example_ids=example_ids)
+        elif args.mode == 'test':
+            pred = booster.batch_predict(X)
+            acc = sum((pred > 0.5) == y)/len(y)
+            logging.info("Test accuracy: %f", acc)
+        else:
+            pred = booster.batch_predict(X)
+            if args.data_path is not None:
+                fout = tf.io.gfile.GFile(args.data_path, 'w')
+                fout.write('\n'.join([str(i) for i in pred]))
+                fout.close()
+            else:
+                for i in pred:
+                    print(i)
 
-    if args.export_path:
-        booster.save_model(args.export_path)
-
-    if bridge:
-        bridge.terminate()
+        if args.export_path:
+            booster.save_model(args.export_path)
+    finally:
+        if bridge:
+            bridge.terminate()
 
 
 if __name__ == '__main__':
