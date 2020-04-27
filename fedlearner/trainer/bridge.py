@@ -21,6 +21,7 @@ try:
 except ImportError:
     import Queue as queue
 import logging
+import os
 import threading
 import collections
 from concurrent import futures
@@ -93,7 +94,12 @@ class Bridge(object):
 
         self._prefetch_handlers = []
         self._data_block_handler_fn = None
+
+        # Connection related
         self._connected = False
+        self._identifier = '%s-%s-%d-%d' % (
+            app_id, role, rank, int(time.time())) # Ensure unique per run
+        self._peer_identifier = ''
 
         # data transmit
         self._condition = threading.Condition()
@@ -296,19 +302,27 @@ class Bridge(object):
         return common_pb.Status(code=common_pb.STATUS_SUCCESS)
 
     def _connect_handler(self, request):
-        assert self._role == 'follower', \
-            "Leader does not accept connect request"
         assert request.app_id == self._app_id, \
             "Connection failed. Application id mismatch: %s vs %s"%(
                 request.app_id, self._app_id)
         assert request.worker_rank == self._rank, \
             "Connection failed. Rank mismatch: %s vs %s"%(
                 request.worker_rank, self._rank)
+        assert len(request.identifier) > 0, \
+            "Connection failed. An identifier should be offered!"
 
         with self._condition:
-            assert not self._connected, "Already connected"
-            self._connected = True
-            self._condition.notifyAll()
+            if self._connected:
+                # If a duplicated reqeust from peer, just ignore it.
+                # If a new connect request from peer, suicide.
+                if request.identifier != self._peer_identifier:
+                    logging.error('Suicide as peer %s has restarted!',
+                        request.identifier)
+                    os._exit(138)  # Tell Scheduler to restart myself
+            else:
+                self._peer_identifier = request.identifier
+                self._connected = True
+                self._condition.notifyAll()
 
         return tws_pb.ConnectResponse(app_id=self._app_id,
                                       worker_rank=self._rank)
@@ -332,26 +346,27 @@ class Bridge(object):
         assert not self._connected, "Already connected"
         self._server.start()
 
-        if self._role == 'leader':
-            msg = tws_pb.ConnectRequest(app_id=self._app_id,
-                                        worker_rank=self._rank)
-            while True:
-                try:
-                    self._client.Connect(msg)
-                except Exception as e:  # pylint: disable=broad-except
-                    logging.warning("Bridge failed to connect: %s. " \
-                                    "Retry in 1 second...",
-                                    repr(e))
-                    time.sleep(1)
-                    continue
-                break
-            self._connected = True
-            logging.debug('Bridge connected as leader')
-        else:
-            with self._condition:
-                while not self._connected:
-                    self._condition.wait()
-            logging.debug('Bridge connected as follower')
+        # Get ACK from peer
+        msg = tws_pb.ConnectRequest(app_id=self._app_id,
+                                    worker_rank=self._rank,
+                                    identifier=self._identifier)
+        while True:
+            try:
+                self._client.Connect(msg)
+            except Exception as e:  # pylint: disable=broad-except
+                logging.warning("Bridge failed to connect: %s. " \
+                                "Retry in 1 second...",
+                                repr(e))
+                time.sleep(1)
+                continue
+            break
+        logging.debug('Has connected to peer.')
+
+        # Ensure REQ from peer
+        with self._condition:
+            while not self._connected:
+                self._condition.wait()
+        logging.debug('Connected from peer.')
 
         if self._streaming_mode:
             logging.debug('enter streaming_mode.')

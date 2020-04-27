@@ -64,6 +64,7 @@ message LoadDataBlockRequest {
 message ConnectRequest {
   string app_id = 1;
   uint32 worker_rank = 2;
+  string identifier = 3;
 }
 
 message ConnectResponse {
