@@ -19,11 +19,14 @@ import os
 import logging
 import time
 import tensorflow.compat.v1 as tf
+
 from tensorflow.compat.v1.train import Optimizer
 from tensorflow.compat.v1.estimator import ModeKeys
 from tensorflow_estimator.python.estimator import model_fn as model_fn_lib
 
 from fedlearner.common.etcd_client import EtcdClient
+from fedlearner.trainer import patch  # pylint: disable=unused-import
+
 
 SYNC_PATH = '/sync/'
 
