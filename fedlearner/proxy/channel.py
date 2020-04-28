@@ -13,6 +13,7 @@
 # limitations under the License.
 
 # coding: utf-8
+# pylint: disable=super-init-not-called
 
 from enum import Enum
 import os
