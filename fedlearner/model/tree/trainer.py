@@ -96,6 +96,10 @@ def create_argument_parser():
                         help='If set to true, the first column of the '
                              'data will be treated as example ids that '
                              'must match between leader and follower')
+    parser.add_argument('--use-streaming',
+                        type=bool,
+                        default=False,
+                        help='Whether to use streaming transmit.')
     return parser
 
 
@@ -138,7 +142,7 @@ def train(args):
     if args.role != 'local':
         bridge = Bridge(args.role, int(args.local_addr.split(':')[1]),
                         args.peer_addr, args.application_id, 0,
-                        streaming_mode=False)
+                        streaming_mode=args.use_streaming)
     else:
         bridge = None
 
