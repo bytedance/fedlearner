@@ -192,7 +192,8 @@ class FLEstimator(object):
     def train(self,
               input_fn,
               checkpoint_path=None,
-              save_checkpoint_steps=None):
+              save_checkpoint_steps=None,
+              save_checkpoint_secs=None):
         if self._cluster_spec is not None:
             device_fn = tf.train.replica_device_setter(
                 worker_device="/job:worker/task:%d" % self._worker_rank,
@@ -235,6 +236,7 @@ class FLEstimator(object):
                 tf.add_to_collection(tf.GraphKeys.SAVERS, saver)
 
             self._bridge.connect()
+
             try:
                 with tf.train.MonitoredTrainingSession(
                     master=target,
@@ -242,6 +244,7 @@ class FLEstimator(object):
                     is_chief=(self._worker_rank == 0),
                     checkpoint_dir=checkpoint_path,
                     save_checkpoint_steps=save_checkpoint_steps,
+                    save_checkpoint_secs=save_checkpoint_secs,
                     hooks=spec.training_hooks) as sess:
                     iter_id = 0
                     while not sess.should_stop():

@@ -77,13 +77,23 @@ def create_argument_parser():
                         help='Path to save and load model checkpoints.')
     parser.add_argument('--save-checkpoint-steps',
                         type=int,
-                        default=1000,
+                        default=None,
                         help='Number of steps between checkpoints.')
-    parser.add_argument('--sparse-estimator', type=bool, default=False,
+    parser.add_argument('--sparse-estimator',
+                        type=bool,
+                        default=False,
                         help='Whether using sparse estimator.')
-    parser.add_argument('--mode', type=str, default='train',
+    parser.add_argument('--mode',
+                        type=str,
+                        default='train',
                         help='Train or eval.')
+    parser.add_argument('--save-checkpoint-secs',
+                        type=int,
+                        default=None,
+                        help='Number of secs between checkpoints.')
+
     return parser
+
 
 def train(role, args, input_fn, model_fn, serving_input_receiver_fn):
     if args.application_id:
@@ -91,7 +101,7 @@ def train(role, args, input_fn, model_fn, serving_input_receiver_fn):
                         args.peer_addr, args.application_id, args.worker_rank)
     else:
         bridge = Bridge(role, int(args.local_addr.split(':')[1]),
-                               args.peer_addr)
+                        args.peer_addr)
 
     if args.data_path:
         trainer_master = LocalTrainerMasterClient(role, args.data_path)
@@ -151,21 +161,26 @@ def train(role, args, input_fn, model_fn, serving_input_receiver_fn):
         raise ValueError("Either --master-addr or --data-path must be set")
 
     if args.sparse_estimator:
-        estimator = SparseFLEstimator(
-            model_fn, bridge, trainer_master, role,
-            worker_rank=args.worker_rank,
-            cluster_spec=cluster_spec)
+        estimator = SparseFLEstimator(model_fn,
+                                      bridge,
+                                      trainer_master,
+                                      role,
+                                      worker_rank=args.worker_rank,
+                                      cluster_spec=cluster_spec)
     else:
-        estimator = FLEstimator(
-            model_fn, bridge, trainer_master, role,
-            worker_rank=args.worker_rank,
-            cluster_spec=cluster_spec)
+        estimator = FLEstimator(model_fn,
+                                bridge,
+                                trainer_master,
+                                role,
+                                worker_rank=args.worker_rank,
+                                cluster_spec=cluster_spec)
 
     run_mode = args.mode.lower()
     if run_mode == 'train':
         estimator.train(input_fn,
                         checkpoint_path=args.checkpoint_path,
-                        save_checkpoint_steps=args.save_checkpoint_steps)
+                        save_checkpoint_steps=args.save_checkpoint_steps,
+                        save_checkpoint_secs=args.save_checkpoint_secs)
     elif run_mode == 'eval':
         estimator.evaluate(input_fn, checkpoint_path=args.checkpoint_path)
     else:
