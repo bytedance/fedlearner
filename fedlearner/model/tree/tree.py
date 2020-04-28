@@ -115,9 +115,10 @@ class BinnedFeatures(object):
 
 
 def _compute_histogram_helper(args):
-    values, binned_features, thresholds, zero = args
+    base, values, binned_features, thresholds, zero = args
     hists = []
     for i, threshold in enumerate(thresholds):
+        logging.debug('Computing histogram for feature %d', base + i)
         num_bins = threshold.size + 2
         hist = np.asarray([zero for _ in range(num_bins)])
         np.add.at(hist, binned_features[:, i], values)
@@ -142,11 +143,12 @@ class HistogramBuilder(object):
     def compute_histogram(self, values, sample_ids):
         if not self._pool:
             return _compute_histogram_helper(
-                (values[sample_ids], self._bins.binned[sample_ids],
+                (0, values[sample_ids], self._bins.binned[sample_ids],
                  self._bins.thresholds, self._zero))
 
         args = [
-            (values[sample_ids],
+            (self._job_size*i,
+             values[sample_ids],
              self._bins.binned[
                  sample_ids, self._job_size*i:self._job_size*(i+1)],
              self._bins.thresholds[self._job_size*i:self._job_size*(i+1)],
@@ -163,6 +165,7 @@ class GrowerNode(object):
         self.node_id = node_id
         self.feature_id = None
         self.threshold = None
+        self.default_left = None
         self.is_owner = None
         self.owner_id = None
         self.weight = None
@@ -171,9 +174,21 @@ class GrowerNode(object):
         self.left_child = None
         self.right_child = None
 
-        self.sample_ids = None
+        self.sample_ids = []
         self.grad_hists = None
         self.hess_hists = None
+
+    def is_left_sample(self, x):
+        assert self.is_owner
+
+        if np.isnan(x):
+            if self.default_left:
+                return True
+            return False
+
+        if x < self.threshold:
+            return True
+        return False
 
     def to_proto(self):
         return tree_pb2.RegressionTreeNodeProto(
@@ -185,6 +200,7 @@ class GrowerNode(object):
             owner_id=self.owner_id,
             feature_id=self.feature_id,
             threshold=self.threshold,
+            default_left=self.default_left,
             weight=self.weight)
 
 
@@ -237,43 +253,50 @@ class BaseGrower(object):
         node.hess_hists = [
             p - l for p, l in zip(parent.hess_hists, sibling.hess_hists)]
 
-    def _find_split_and_push(self, node):
-        max_gain = -1
-        max_fid = None
-        split_point = None
-        left_weight = None
-        right_weight = None
+    def _compare_split(self, split_info, default_left,
+                       feature_id, split_point,
+                       left_g, left_h, right_g, right_h):
         lam = self._l2_regularization
+        lr = self._learning_rate
+        sum_g = left_g + right_g
+        sum_h = left_h + right_h
+        gain = left_g*left_g/(left_h + lam) + \
+            right_g*right_g/(right_h + lam) - \
+            sum_g*sum_g/(sum_h + lam)
+        if gain > split_info.gain:
+            split_info.gain = gain
+            split_info.feature_id = feature_id
+            split_info.split_point = split_point
+            split_info.default_left = default_left
+            split_info.left_weight = - lr * left_g/(left_h + lam)
+            split_info.right_weight = - lr * right_g/(right_h + lam)
+
+    def _find_split_and_push(self, node):
+        split_info = tree_pb2.SplitInfo(
+            node_id=node.node_id, gain=-1)
         for fid, (grad_hist, hess_hist) in \
                 enumerate(zip(node.grad_hists, node.hess_hists)):
-            sum_g = sum(grad_hist[:-1])
-            sum_h = sum(hess_hist[:-1])
+            sum_g = sum(grad_hist)
+            sum_h = sum(hess_hist)
             left_g = 0.0
             left_h = 0.0
-            for i in range(len(grad_hist[:-1]) - 1):
+            nan_g = grad_hist[-1]
+            nan_h = hess_hist[-1]
+            for i in range(len(grad_hist) - 2):
                 left_g += grad_hist[i]
                 left_h += hess_hist[i]
-                right_g = sum_g - left_g
-                right_h = sum_h - left_h
-                gain = left_g*left_g/(left_h + lam) + \
-                    right_g*right_g/(right_h + lam) - \
-                    sum_g*sum_g/(sum_h + lam)
-                if gain > max_gain:
-                    max_gain = gain
-                    max_fid = fid
-                    split_point = i
-                    left_weight = - left_g/(left_h + lam)
-                    right_weight = - right_g/(right_h + lam)
+                self._compare_split(
+                    split_info, True, fid, i,
+                    left_g + nan_g, left_h + nan_h,
+                    sum_g - left_g - nan_g, sum_h - left_h - nan_h)
+                self._compare_split(
+                    split_info, False, fid, i,
+                    left_g, left_h,
+                    sum_g - left_g, sum_h - left_h)
 
-        split_info = tree_pb2.SplitInfo(
-            node_id=node.node_id, gain=max_gain, feature_id=max_fid,
-            split_point=split_point,
-            left_weight=left_weight * self._learning_rate,
-            right_weight=right_weight * self._learning_rate)
+        self._split_candidates.put((-split_info.gain, split_info))
 
-        self._split_candidates.put((-max_gain, split_info))
-
-        return max_gain, split_info
+        return split_info.gain, split_info
 
     def _add_node(self, parent_id):
         node_id = len(self._nodes)
@@ -287,14 +310,16 @@ class BaseGrower(object):
         node.feature_id = split_info.feature_id
         node.threshold = self._binned.thresholds[
             split_info.feature_id][split_info.split_point]
+        node.default_left = split_info.default_left
+
         left_child = self._nodes[node.left_child]
-        left_child.sample_ids = [
-            i for i in node.sample_ids if \
-                self._binned.features[i, node.feature_id] < node.threshold]
         right_child = self._nodes[node.right_child]
-        right_child.sample_ids = [
-            i for i in node.sample_ids if \
-                self._binned.features[i, node.feature_id] >= node.threshold]
+
+        for i in node.sample_ids:
+            if node.is_left_sample(self._binned.features[i, node.feature_id]):
+                left_child.sample_ids.append(i)
+            else:
+                right_child.sample_ids.append(i)
 
     def _split_next(self):
         _, split_info = self._split_candidates.get()
@@ -319,10 +344,12 @@ class BaseGrower(object):
 
         logging.info(
             "Split node %d at feature %d for gain=%f. " \
-            "Left(w=%f, nsamples=%d), Right(w=%f, nsamples=%d)",
+            "Left(w=%f, nsamples=%d), Right(w=%f, nsamples=%d). " \
+            "nan goes to %s.",
             split_info.node_id, split_info.feature_id, split_info.gain,
             left_child.weight, len(left_child.sample_ids),
-            right_child.weight, len(right_child.sample_ids))
+            right_child.weight, len(right_child.sample_ids),
+            split_info.default_left and 'left' or 'right')
         assert len(left_child.sample_ids) + len(right_child.sample_ids) \
             == len(parent.sample_ids)
 
@@ -353,9 +380,10 @@ class BaseGrower(object):
             self._find_split_and_push(right_child)
 
 def _decrypt_histogram_helper(args):
-    public_key, private_key, hists = args
+    base, public_key, private_key, hists = args
     rets = []
-    for hist in hists:
+    for i, hist in enumerate(hists):
+        logging.debug('Decrypting histogram for feature %d', base + i)
         hist = _from_ciphertext(public_key, hist.ciphertext)
         rets.append(np.asarray(_decrypt_number(private_key, hist)))
     return rets
@@ -375,11 +403,12 @@ class LeaderGrower(BaseGrower):
             self._bridge.current_iter_id, name).Unpack(msg)
         if not self._pool:
             return _decrypt_histogram_helper(
-                (self._public_key, self._private_key, msg.hists))
+                (0, self._public_key, self._private_key, msg.hists))
 
         job_size = (len(msg.hists) + self._num_parallel - 1)//self._num_parallel
         args = [
-            (self._public_key, self._private_key,
+            (i*job_size,
+             self._public_key, self._private_key,
              msg.hists[i*job_size:(i+1)*job_size])
             for i in range(self._num_parallel)
         ]
@@ -429,7 +458,8 @@ class LeaderGrower(BaseGrower):
                 self._bridge.current_iter_id, 'split_info',
                 tree_pb2.SplitInfo(
                     node_id=split_info.node_id, feature_id=fid,
-                    split_point=split_info.split_point))
+                    split_point=split_info.split_point,
+                    default_left=split_info.default_left))
 
             follower_split_info = tree_pb2.SplitInfo()
             self._bridge.receive_proto(
@@ -509,6 +539,18 @@ class FollowerGrower(BaseGrower):
         self._bridge.commit()
         return left_child, right_child, split_info
 
+def _node_test_feature(node, x):
+    if not node.is_owner:
+        return -1
+
+    if np.isnan(x):
+        if node.default_left:
+            return node.left_child
+        return node.right_child
+
+    if x < node.threshold:
+        return node.left_child
+    return node.right_child
 
 class BoostingTreeEnsamble(object):
     def __init__(self, bridge, learning_rate=0.3, max_iters=50, max_depth=6,
@@ -645,10 +687,9 @@ class BoostingTreeEnsamble(object):
                 node = tree.nodes[0]
                 while node.left_child != 0:
                     assert node.is_owner
-                    if features[i, node.feature_id] < node.threshold:
-                        node = tree.nodes[node.left_child]
-                    else:
-                        node = tree.nodes[node.right_child]
+                    new_node_id = _node_test_feature(
+                        node, features[i, node.feature_id])
+                    node = tree.nodes[new_node_id]
                 score += node.weight
             raw_prediction.append(score)
         raw_prediction = np.asarray(raw_prediction)
@@ -670,13 +711,8 @@ class BoostingTreeEnsamble(object):
                     if node.left_child == 0:
                         finish_count += 1
                         continue
-                    if node.is_owner:
-                        if features[i, node.feature_id] < node.threshold:
-                            assignment[i] = node.left_child
-                        else:
-                            assignment[i] = node.right_child
-                    else:
-                        assignment[i] = -1
+                    assignment[i] = _node_test_feature(
+                        node, features[i, node.feature_id])
 
                 self._bridge.send(
                     self._bridge.current_iter_id, 'leader_assignment',
@@ -705,13 +741,8 @@ class BoostingTreeEnsamble(object):
                     if node.left_child == 0:
                         finish_count += 1
                         continue
-                    if node.is_owner:
-                        if features[i, node.feature_id] < node.threshold:
-                            assignment[i] = node.left_child
-                        else:
-                            assignment[i] = node.right_child
-                    else:
-                        assignment[i] = -1
+                    assignment[i] = _node_test_feature(
+                        node, features[i, node.feature_id])
 
                 self._bridge.send(
                     self._bridge.current_iter_id, 'follower_assignment',

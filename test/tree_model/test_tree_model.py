@@ -23,20 +23,20 @@ from sklearn.datasets import load_iris
 
 
 class TestBoostingTree(unittest.TestCase):
-    def test_boosting_tree(self):
-        proto = tree_pb2.BoostingTreeEnsambleProto(
-            params=tree_pb2.BoostingParamsProto(
-                num_rounds=2,
-                max_depth=3,
-                lam=1.0,
-                sketch_eps=0.2))
-        booster = BoostingTreeEnsamble(proto)
-
+    def test_boosting_tree_local(self):
         data = load_iris()
-        labels = data.target
-        labels = np.minimum(labels, 1)
-        features = {str(i): data.data[:, i] for i in range(data.data.shape[1])}
-        booster.fit(None, [i for i in range(len(data.target))], features, labels)
+        X = data.data
+        mask = np.random.choice(a=[False, True], size=X.shape, p=[0.5, 0.5])
+        X[mask] = float('nan')
+        y = np.minimum(data.target, 1)
+        booster = BoostingTreeEnsamble(
+            None,
+            max_iters=5,
+            max_depth=3,
+            num_parallel=2)
+        booster.fit(X, y)
+        pred = booster.batch_predict(X)
+        self.assertGreater(sum((pred > 0.5) == y)/len(y), 0.95)
 
 
 if __name__ == '__main__':

@@ -21,12 +21,13 @@ protobuf:
 lint:
 	pylint --rcfile ci/pylintrc fedlearner example
 
-test:
-	# python test/test_bridge.py
-	python test/test_data_join.py
-	# python test/test_data_block_loader.py
-	# python test/test_train_master.py
-	# python test/test_etcd_client.py
+TEST_SCRIPTS := $(shell find test -type f -name "test_*.py")
+TEST_PHONIES := $(TEST_SCRIPTS:%.py=%.phony)
+
+test/%.phony: test/%.py
+	python $^
+
+test: $(TEST_PHONIES)
 
 docker-build:
 	docker build . -t ${IMG}

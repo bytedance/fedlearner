@@ -15,9 +15,9 @@
 # coding: utf-8
 
 import unittest
-from fedlearner_common.proxy.channel import *
-from fedlearner_common.protobuf import trainer_master_service_pb2 as tm_pb
-from fedlearner_common.protobuf import trainer_master_service_pb2_grpc as tm_grpc
+from fedlearner.proxy.channel import *
+from fedlearner.common import trainer_master_service_pb2 as tm_pb
+from fedlearner.common import trainer_master_service_pb2_grpc as tm_grpc
 
 
 class TestChannel(unittest.TestCase):

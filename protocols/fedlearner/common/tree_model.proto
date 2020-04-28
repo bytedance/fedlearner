@@ -12,6 +12,7 @@ message RegressionTreeNodeProto {
     int32 owner_id = 6;
     int32 feature_id = 7;
     float threshold = 8;
+    bool default_left = 10;
 
     float weight = 9;
 }
@@ -38,6 +39,7 @@ message SplitInfo {
     int32 owner_id = 3;
     int32 feature_id = 4;
     int32 split_point = 5;
+    bool default_left = 10;
     float left_weight = 6;
     float right_weight = 7;
     repeated int32 left_samples = 8;

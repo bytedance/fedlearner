@@ -21,7 +21,7 @@ import unittest
 import tensorflow.compat.v1 as tf
 import numpy as np
 
-import fedlearner_trainer as bft
+import fedlearner.trainer as bft
 
 class TestDataBlockLoader(unittest.TestCase):
     def test_data_block_loader(self):
@@ -31,8 +31,10 @@ class TestDataBlockLoader(unittest.TestCase):
         path_l = os.path.join(os.path.dirname(__file__), 'data/leader')
         path_f = os.path.join(os.path.dirname(__file__), 'data/follower')
 
-        tm_l = bft.trainer_master.LocalTrainerMasterClient('leader', path_l)
-        tm_f = bft.trainer_master.LocalTrainerMasterClient('leader', path_f)
+        tm_l = bft.trainer_master_client.LocalTrainerMasterClient(
+            'leader', path_l)
+        tm_f = bft.trainer_master_client.LocalTrainerMasterClient(
+            'follower', path_f)
 
         dataset_l = bft.data.DataBlockLoader(256, 'leader', bridge_l, tm_l)
         dataset_f = bft.data.DataBlockLoader(256, 'follower', bridge_f, tm_f)
