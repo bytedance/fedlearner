@@ -19,7 +19,7 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 import unittest
 import threading
-import tensorflow as tf
+import tensorflow.compat.v1 as tf
 import numpy as np
 
 import fedlearner as fl
