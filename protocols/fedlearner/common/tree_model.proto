@@ -17,6 +17,10 @@ message RegressionTreeNodeProto {
     float weight = 9;
 }
 
+message PartitionInfo {
+    int32 num_partitions = 1;
+};
+
 message RegressionTreeProto {
     repeated RegressionTreeNodeProto nodes = 1;
 };

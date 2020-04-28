@@ -37,6 +37,8 @@ EXPONENT = math.floor(
 KEY_NBITS = 1024
 CIPHER_NBYTES = (KEY_NBITS * 2)//8
 
+MAX_PARTITION_SIZE = 4096
+
 
 def _send_public_key(bridge, public_key):
     msg = tree_pb2.EncryptedNumbers()
@@ -68,15 +70,29 @@ def _from_ciphertext(public_key, ciphertext):
         for i in ciphertext]
 
 def _encrypt_and_send_numbers(bridge, name, public_key, numbers):
-    msg = tree_pb2.EncryptedNumbers()
-    msg.ciphertext.extend(_encrypt_numbers(public_key, numbers))
-    bridge.send_proto(bridge.current_iter_id, name, msg)
+    num_parts = (len(numbers) + MAX_PARTITION_SIZE - 1)//MAX_PARTITION_SIZE
+    bridge.send_proto(
+        bridge.current_iter_id, '%s_partition_info'%name,
+        tree_pb2.PartitionInfo(num_partitions=num_parts)
+    )
+    for i in range(num_parts):
+        part = numbers[i*MAX_PARTITION_SIZE:(i+1)*MAX_PARTITION_SIZE]
+        msg = tree_pb2.EncryptedNumbers()
+        msg.ciphertext.extend(_encrypt_numbers(public_key, part))
+        bridge.send_proto(
+            bridge.current_iter_id, '%s_part_%d'%(name, i), msg)
 
 def _receive_encrypted_numbers(bridge, name, public_key):
-    msg = tree_pb2.EncryptedNumbers()
-    bridge.receive_proto(bridge.current_iter_id, name).Unpack(msg)
-    return _from_ciphertext(public_key, msg.ciphertext)
-
+    part_info = tree_pb2.PartitionInfo()
+    bridge.receive_proto(
+        bridge.current_iter_id, '%s_partition_info'%name).Unpack(part_info)
+    ret = []
+    for i in range(part_info.num_partitions):
+        msg = tree_pb2.EncryptedNumbers()
+        bridge.receive_proto(
+            bridge.current_iter_id, '%s_part_%d'%(name, i)).Unpack(msg)
+        ret.extend(_from_ciphertext(public_key, msg.ciphertext))
+    return ret
 
 class BinnedFeatures(object):
     def __init__(self, features, max_bins):
@@ -861,8 +877,10 @@ class BoostingTreeEnsamble(object):
         self._bridge.start(self._bridge.new_iter_id())
         grad = np.asarray(_receive_encrypted_numbers(
             self._bridge, 'grad', self._public_key))
+        assert len(grad) == binned.features.shape[0]
         hess = np.asarray(_receive_encrypted_numbers(
             self._bridge, 'hess', self._public_key))
+        assert len(hess) == binned.features.shape[0]
         self._bridge.commit()
         logging.info(
             'Follower starting iteration %d.',
