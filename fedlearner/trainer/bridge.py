@@ -106,6 +106,7 @@ class Bridge(object):
         self._current_iter_id = None
         self._next_iter_id = 0
         self._received_data = {}
+        self._open_iterations = set()
 
         # grpc client
         self._transmit_send_lock = threading.Lock()
@@ -278,8 +279,10 @@ class Bridge(object):
             if request.HasField('start'):
                 with self._condition:
                     self._received_data[request.start.iter_id] = {}
+                    self._open_iterations.add(request.start.iter_id)
             elif request.HasField('commit'):
-                pass
+                with self._condition:
+                    self._open_iterations.remove(request.commit.iter_id)
             elif request.HasField('data'):
                 with self._condition:
                     assert request.data.iter_id in self._received_data
@@ -386,6 +389,12 @@ class Bridge(object):
             if self._client_daemon is not None:
                 self._client_daemon_shutdown_fn()
                 self._client_daemon.join()
+            with self._condition:
+                while self._open_iterations:
+                    logging.debug(
+                        'Waiting for peer to commit. %d iterations remaining',
+                        len(self._open_iterations))
+                    self._condition.wait(1)
         except Exception:  # pylint: disable=broad-except
             pass
         self._server.stop(None)
