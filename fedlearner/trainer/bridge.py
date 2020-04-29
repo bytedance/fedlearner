@@ -36,11 +36,11 @@ from fedlearner.common import trainer_worker_service_pb2_grpc as tws_grpc
 from fedlearner.proxy.channel import make_insecure_channel, ChannelType
 
 
-def make_ready_client(channel, stop_event):
+def make_ready_client(channel, stop_event=None):
     channel_ready = grpc.channel_ready_future(channel)
     wait_secs = 0.5
     start_time = time.time()
-    while not stop_event.is_set():
+    while (stop_event is None) or (not stop_event.is_set()):
         try:
             channel_ready.result(timeout=wait_secs)
             break
@@ -247,13 +247,12 @@ class Bridge(object):
                 except Exception as e:  # pylint: disable=broad-except
                     logging.warning("Bridge transmit failed: %s. " \
                                     "Retry in 1 second...", repr(e))
-                    time.sleep(1)
                     self._channel.close()
+                    time.sleep(1)
                     self._channel = make_insecure_channel(
                         self._remote_address, ChannelType.REMOTE,
                         options=self._grpc_options)
-                    self._client = tws_grpc.TrainerWorkerServiceStub(
-                        self._channel)
+                    self._client = make_ready_client(self._channel)
                     self._check_remote_heartbeat()
 
     def _transmit_handler(self, request):
