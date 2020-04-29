@@ -108,14 +108,15 @@ class Bridge(object):
         self._received_data = {}
 
         # grpc client
+        self._transmit_send_lock = threading.Lock()
         self._grpc_options = [
             ('grpc.max_send_message_length', 2**31-1),
             ('grpc.max_receive_message_length', 2**31-1)
         ]
-        channel = make_insecure_channel(
-            remote_address, ChannelType.REMOTE, options=self._grpc_options)
-        self._transmit_send_lock = threading.Lock()
-        self._client = tws_grpc.TrainerWorkerServiceStub(channel)
+        self._channel = make_insecure_channel(
+            remote_address, ChannelType.REMOTE,
+            options=self._grpc_options)
+        self._client = tws_grpc.TrainerWorkerServiceStub(self._channel)
         self._next_send_seq_num = 0
         self._transmit_queue = queue.Queue()
         self._client_daemon = None
@@ -247,6 +248,12 @@ class Bridge(object):
                     logging.warning("Bridge transmit failed: %s. " \
                                     "Retry in 1 second...", repr(e))
                     time.sleep(1)
+                    self._channel.close()
+                    self._channel = make_insecure_channel(
+                        self._remote_address, ChannelType.REMOTE,
+                        options=self._grpc_options)
+                    self._client = tws_grpc.TrainerWorkerServiceStub(
+                        self._channel)
                     self._check_remote_heartbeat()
 
     def _transmit_handler(self, request):
