@@ -793,8 +793,7 @@ class BoostingTreeEnsamble(object):
                 self.load_saved_model(last_checkpoint)
 
         # initial f(x)
-        if len(self._trees) > 0 and \
-                (self._bridge is None or self._bridge.role == 'leader'):
+        if len(self._trees) > 0:
             sum_prediction = self.batch_predict(features, raw_score=True)
         else:
             sum_prediction = np.zeros(num_examples, dtype=BST_TYPE)
