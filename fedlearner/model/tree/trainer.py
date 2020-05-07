@@ -18,6 +18,7 @@ import io
 import csv
 import logging
 import argparse
+import traceback
 import numpy as np
 
 import tensorflow.compat.v1 as tf
@@ -44,8 +45,10 @@ def create_argument_parser():
     parser.add_argument('--mode', type=str, default='train',
                         help='Running mode in train, test or eval.')
     parser.add_argument('--data-path', type=str, default=None,
-                        help='path to data block files for non-distributed ' \
-                             'training. Ignored when --master-addr is set.')
+                        help='Path to data file.')
+    parser.add_argument('--validation-data-path', type=str, default=None,
+                        help='Path to validation data file. ' \
+                             'Only used in train mode.')
     parser.add_argument('--load-model-path',
                         type=str,
                         default=None,
@@ -103,7 +106,89 @@ def create_argument_parser():
     return parser
 
 
-def train(args):
+def read_csv_data(filename, has_example_ids, has_labels):
+    txt_data = tf.io.gfile.GFile(filename, 'r').read()
+    if has_example_ids:
+        reader = csv.reader(io.StringIO(txt_data))
+        lines = list(reader)
+        example_ids = [i[0] for i in lines]
+        data = np.asarray([line[1:] for line in lines], dtype=np.float)
+    else:
+        data = np.loadtxt(io.StringIO(txt_data), delimiter=',')
+        example_ids = None
+
+    if has_labels:
+        X = data[:, :-1]
+        y = data[:, -1]
+    else:
+        X = data
+        y = None
+    
+    return X, y, example_ids
+
+
+def read_data(filename, has_example_ids, has_labels):
+    if filename.endswith('.csv'):
+        return read_csv_data(filename, has_example_ids, has_labels)
+
+    raise ValueError("Unsupported data type %s"%filename)
+
+
+def train(args, booster):
+    X, y, example_ids = read_data(
+        args.data_path, args.verify_example_ids,
+        args.role != 'follower')
+    if args.validation_data_path:
+        val_X, val_y, val_example_ids = read_data(
+            args.validation_data_path, args.verify_example_ids,
+            args.role != 'follower')
+    booster.fit(
+        X, y,
+        checkpoint_path=args.checkpoint_path,
+        example_ids=example_ids,
+        validation_features=val_X,
+        validation_labels=val_y,
+        validation_example_ids=val_example_ids,
+        output_path=args.output_path)
+
+
+def write_predictions(filename, pred):
+    fout = tf.io.gfile.GFile(filename, 'w')
+    fout.write('\n'.join([str(i) for i in pred]))
+    fout.close()
+
+
+def test(args, booster):
+    X, y, example_ids = read_data(
+        args.data_path, args.verify_example_ids,
+        args.role != 'follower')
+    pred = booster.batch_predict(X, example_ids=example_ids)
+    if args.role == 'follower':
+        return
+
+    metrics = booster.loss.metrics(pred, y)
+    logging.info("Test metrics: %s", metrics)
+    if args.output_path:
+        write_predictions(args.output_path, pred)
+
+
+def evaluate(args, booster):
+    X, y, example_ids = read_data(
+        args.data_path, args.verify_example_ids, False)
+    pred = booster.batch_predict(X, example_ids=example_ids)
+
+    if args.role == 'follower':
+        return
+
+    if args.output_path:
+        write_predictions(args.output_path, pred)
+    else:
+        logging.info("Evaluation scores:")
+        for i, x in enumerate(pred):
+            logging.info("%d:\t%f", i, x)
+
+
+def run(args):
     if args.verbosity == 0:
         logging.basicConfig(level=logging.WARNING)
     elif args.verbosity == 1:
@@ -115,29 +200,6 @@ def train(args):
         "role must be leader, follower, or local"
     assert args.mode in ['train', 'test', 'eval'], \
         "mode must be train, test, or eval"
-
-    if args.data_path.endswith('.csv'):
-        txt_data = tf.io.gfile.GFile(args.data_path, 'r').read()
-        if args.verify_example_ids:
-            reader = csv.reader(io.StringIO(txt_data))
-            lines = list(reader)
-            example_ids = [i[0] for i in lines]
-            data = np.asarray([line[1:] for line in lines], dtype=np.float)
-        else:
-            data = np.loadtxt(io.StringIO(txt_data), delimiter=',')
-            example_ids = None
-        if args.mode == 'train' or args.mode == 'test':
-            if args.role == 'leader' or args.role == 'local':
-                X = data[:, :-1]
-                y = data[:, -1]
-            else:
-                X = data
-                y = None
-        else:  # eval
-            X = data
-            y = None
-    else:
-        raise ValueError("Unsupported data type %s"%args.data_path)
 
     if args.role != 'local':
         bridge = Bridge(args.role, int(args.local_addr.split(':')[1]),
@@ -160,30 +222,23 @@ def train(args):
             booster.load_saved_model(args.load_model_path)
 
         if args.mode == 'train':
-            booster.fit(
-                X, y,
-                checkpoint_path=args.checkpoint_path,
-                example_ids=example_ids)
+            train(args, booster)
         elif args.mode == 'test':
-            pred = booster.batch_predict(X)
-            acc = sum((pred > 0.5) == y)/len(y)
-            logging.info("Test accuracy: %f", acc)
-        else:
-            pred = booster.batch_predict(X)
-            if args.data_path is not None:
-                fout = tf.io.gfile.GFile(args.data_path, 'w')
-                fout.write('\n'.join([str(i) for i in pred]))
-                fout.close()
-            else:
-                for i in pred:
-                    print(i)
+            test(args, booster)
+        else:  # args.mode == 'eval'
+            evaluate(args, booster)
 
         if args.export_path:
             booster.save_model(args.export_path)
+    except Exception as e:
+        logging.fatal(
+            'Exception raised during training: %s',
+            traceback.format_exc())
+        raise e
     finally:
         if bridge:
             bridge.terminate()
 
 
 if __name__ == '__main__':
-    train(create_argument_parser().parse_args())
+    run(create_argument_parser().parse_args())

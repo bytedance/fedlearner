@@ -36,8 +36,10 @@ class TestBoostingTree(unittest.TestCase):
             num_parallel=2)
         booster.fit(X, y)
         pred = booster.batch_predict(X)
-        self.assertGreater(sum((pred > 0.5) == y)/len(y), 0.95)
+        self.assertGreater(sum((pred > 0.5) == y)/len(y), 0.94)
 
 
 if __name__ == '__main__':
+    import logging
+    logging.basicConfig(level=logging.INFO)
     unittest.main()

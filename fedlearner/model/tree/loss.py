@@ -16,6 +16,8 @@
 
 import numpy as np
 from scipy import special as sp_special
+from sklearn.metrics import f1_score, roc_auc_score, \
+                            precision_score, recall_score
 
 
 class LogisticLoss(object):
@@ -35,6 +37,11 @@ class LogisticLoss(object):
         return np.maximum(pred * (1.0 - pred), 1e-16)
 
     def metrics(self, pred, label):
+        y_pred = (pred > 0.5).astype(label.dtype)
         return {
-            'acc': sum((pred > 0.5) == label) / len(label)
+            'acc': sum(y_pred == label) / len(label),
+            'precision': precision_score(label, y_pred),
+            'recall': recall_score(label, y_pred),
+            'f1': f1_score(label, y_pred),
+            'auc': roc_auc_score(label, pred)
         }

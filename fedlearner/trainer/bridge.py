@@ -384,21 +384,21 @@ class Bridge(object):
             self._client_daemon.start()
         logging.debug('finish connect.')
 
-    def terminate(self, force=False):
+    def terminate(self, forced=False):
         try:
             if self._client_daemon is not None:
                 self._client_daemon_shutdown_fn()
                 self._client_daemon.join()
             with self._condition:
                 timestamp = time.time()
-                while (not force) and time.time() - timestamp < 60 \
+                while (not forced) and time.time() - timestamp < 60 \
                         and self._open_iterations:
-                    logging.debug(
+                    logging.info(
                         'Waiting for peer to commit, %d iterations remaining',
                         len(self._open_iterations))
                     self._condition.wait(1)
                 if self._open_iterations:
-                    logging.debug(
+                    logging.info(
                         "Timed out while waiting for peer to commit, " \
                         "%d iterations remaining",
                         len(self._open_iterations))
