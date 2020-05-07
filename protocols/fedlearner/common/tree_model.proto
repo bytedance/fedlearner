@@ -59,4 +59,5 @@ message VerifyParams {
     float l2_regularization = 6;
     int32 max_bins = 7;
     string grow_policy = 8;
+    bool validation = 9;
 }
