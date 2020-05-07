@@ -17,6 +17,7 @@
 import os
 import math
 import queue
+import time
 import logging
 import multiprocessing as mp
 import numpy as np
@@ -154,7 +155,7 @@ class HistogramBuilder(object):
         if self._num_parallel > 1:
             assert pool is not None
             self._job_size = \
-                (len(self._bins.binned) + num_parallel - 1)//num_parallel
+                (len(self._bins.binned[0]) + num_parallel - 1)//num_parallel
 
     def compute_histogram(self, values, sample_ids):
         if not self._pool:
@@ -593,7 +594,7 @@ class BoostingTreeEnsamble(object):
             self._role = self._bridge.role
             self._bridge.connect()
             self._make_key_pair()
-    
+
     @property
     def loss(self):
         return self._loss
@@ -706,7 +707,7 @@ class BoostingTreeEnsamble(object):
         if self._bridge.role == 'leader':
             return self._batch_predict_leader(features, get_raw_score)
         return self._batch_predict_follower(features, get_raw_score)
-    
+
 
     def _batch_predict_local(self, features, get_raw_score):
         N = features.shape[0]
@@ -779,7 +780,7 @@ class BoostingTreeEnsamble(object):
                 assignment = np.maximum(assignment, leader_assignment)
                 self._bridge.commit()
         return np.zeros(N, dtype=BST_TYPE)
-    
+
     def _write_training_log(self, filename, header, metrics, pred):
         fout = tf.io.gfile.GFile(filename, 'a')
         fout.write(header + '\n')
@@ -822,6 +823,7 @@ class BoostingTreeEnsamble(object):
 
         # start iterations
         while len(self._trees) < self._max_iters:
+            begin_time = time.time()
             num_iter = len(self._trees)
             # grow tree
             if self._bridge is None:
@@ -836,6 +838,9 @@ class BoostingTreeEnsamble(object):
                 tree = self._fit_one_round_follower(binned)
 
             self._trees.append(tree)
+            end_time = time.time()
+            logging.info("Elapsed time for one round %s s",
+                         str(end_time-begin_time))
 
             # save check point
             if checkpoint_path is not None:
