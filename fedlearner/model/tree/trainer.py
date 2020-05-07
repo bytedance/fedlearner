@@ -123,7 +123,7 @@ def read_csv_data(filename, has_example_ids, has_labels):
     else:
         X = data
         y = None
-    
+
     return X, y, example_ids
 
 
