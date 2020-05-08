@@ -2,3 +2,4 @@
 .github
 deploy/proxy
 test/
+thirdparty/tensorflow/.git
