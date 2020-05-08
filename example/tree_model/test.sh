@@ -1,4 +1,12 @@
-rm -rf exp
+#!/bin/bash
+
+set -ex
+
+cd "$( dirname "${BASH_SOURCE[0]}" )"
+
+rm -rf exp data
+
+python make_data.py --verify-example-ids=1 --dataset=iris
 
 python -m fedlearner.model.tree.trainer follower \
     --verbosity=1 \

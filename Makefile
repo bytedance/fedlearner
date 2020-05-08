@@ -4,7 +4,7 @@ else
 	include config.mk.template
 endif
 
-.PHONY: protobuf lint test
+.PHONY: protobuf lint test unit-test integration-test test
 
 ci:
 	bash ci/ci_test.sh
@@ -21,13 +21,18 @@ protobuf:
 lint:
 	pylint --rcfile ci/pylintrc fedlearner example
 
-TEST_SCRIPTS := $(shell find test -type f -name "test_*.py")
-TEST_PHONIES := $(TEST_SCRIPTS:%.py=%.phony)
+UNIT_TEST_SCRIPTS := $(shell find test -type f -name "test_*.py")
+UNIT_TESTS := $(UNIT_TEST_SCRIPTS:%.py=%.phony)
 
 test/%.phony: test/%.py
 	python $^
 
-test: $(TEST_PHONIES)
+unit-test: $(UNIT_TESTS)
+
+integration-test:
+	bash integration_tests.sh
+
+test: unit-test integration-test
 
 docker-build:
 	docker build . -t ${IMG}

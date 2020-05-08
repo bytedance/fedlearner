@@ -1,7 +1,7 @@
 #!/bin/bash
 set -ex
 
-export PYTHONPATH=$(PWD):$(PYTHONPATH)
+export PYTHONPATH=${PWD}:${PYTHONPATH}
 
 make op
 make protobuf

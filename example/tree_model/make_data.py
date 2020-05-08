@@ -3,13 +3,10 @@ import argparse
 
 import numpy as np
 import tensorflow as tf
+from sklearn.datasets import load_iris
 
 
 def process_data(X, y, role, verify_example_ids):
-    X = X.reshape(X.shape[0], -1)
-    X = np.asarray([X[i] for i, yi in enumerate(y) if yi in (2, 3)])
-    y = np.asarray([[y[i] == 3] for i, yi in enumerate(y) if yi in (2, 3)],
-                   dtype=np.int32)
     if role == 'leader':
         data = np.concatenate((X[:, :X.shape[1]//2], y), axis=1)
     elif role == 'follower':
@@ -22,8 +19,24 @@ def process_data(X, y, role, verify_example_ids):
             [[[i] for i in range(data.shape[0])], data], axis=1)
     return data
 
+def process_mnist(X, y):
+    X = X.reshape(X.shape[0], -1)
+    X = np.asarray([X[i] for i, yi in enumerate(y) if yi in (2, 3)])
+    y = np.asarray([[y[i] == 3] for i, yi in enumerate(y) if yi in (2, 3)],
+                dtype=np.int32)
+    return X, y
+
 def make_data(args):
-    (x_train, y_train), (x_test, y_test) = tf.keras.datasets.mnist.load_data()
+    if args.dataset == 'mnist':
+        (x_train, y_train), (x_test, y_test) = \
+            tf.keras.datasets.mnist.load_data()
+        x_train, y_train = process_mnist(x_train, y_train)
+        x_test, y_test = process_mnist(x_test, y_test)
+    else:
+        data = load_iris()
+        x_train = x_test = data.data
+        y_train = y_test = np.minimum(data.target, 1).reshape(-1, 1)
+
     if not os.path.exists('data'):
         os.makedirs('data')
     np.savetxt(
@@ -62,4 +75,6 @@ if __name__ == '__main__':
                         help='If set to true, the first column of the '
                              'data will be treated as example ids that '
                              'must match between leader and follower')
+    parser.add_argument('--dataset', type=str, default='mnist',
+                        help='whether to use mnist or iris dataset')
     make_data(parser.parse_args())
