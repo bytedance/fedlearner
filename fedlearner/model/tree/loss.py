@@ -39,7 +39,7 @@ class LogisticLoss(object):
     def metrics(self, pred, label):
         y_pred = (pred > 0.5).astype(label.dtype)
         return {
-            'acc': sum(y_pred == label) / len(label),
+            'acc': np.isclose(y_pred, label).sum() / len(label),
             'precision': precision_score(label, y_pred),
             'recall': recall_score(label, y_pred),
             'f1': f1_score(label, y_pred),

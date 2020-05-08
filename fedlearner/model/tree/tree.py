@@ -594,6 +594,8 @@ class BoostingTreeEnsamble(object):
             self._role = self._bridge.role
             self._bridge.connect()
             self._make_key_pair()
+        else:
+            self._role = 'local'
 
     @property
     def loss(self):
@@ -616,7 +618,7 @@ class BoostingTreeEnsamble(object):
             return
 
         self._bridge.start(self._bridge.new_iter_id())
-        if self._bridge.role == 'leader':
+        if self._role == 'leader':
             msg = tree_pb2.VerifyParams(
                 example_ids=example_ids,
                 learning_rate=self._learning_rate,
@@ -704,7 +706,7 @@ class BoostingTreeEnsamble(object):
             return self._batch_predict_local(features, get_raw_score)
 
         self._verify_params(example_ids, False)
-        if self._bridge.role == 'leader':
+        if self._role == 'leader':
             return self._batch_predict_leader(features, get_raw_score)
         return self._batch_predict_follower(features, get_raw_score)
 
@@ -830,7 +832,7 @@ class BoostingTreeEnsamble(object):
                 tree, raw_prediction = self._fit_one_round_local(
                     sum_prediction, binned, labels)
                 sum_prediction += raw_prediction
-            elif self._bridge.role == 'leader':
+            elif self._role == 'leader':
                 tree, raw_prediction = self._fit_one_round_leader(
                     sum_prediction, binned, labels)
                 sum_prediction += raw_prediction
@@ -853,7 +855,7 @@ class BoostingTreeEnsamble(object):
                 self.save_model(filename)
 
             # save output
-            if self._bridge.role != 'follower' and output_path is not None:
+            if self._role != 'follower' and output_path is not None:
                 pred = self._loss.predict(sum_prediction)
                 metrics = self._loss.metrics(pred, labels)
                 self._write_training_log(
@@ -863,7 +865,7 @@ class BoostingTreeEnsamble(object):
             if validation_features is not None:
                 val_pred = self.batch_predict(
                     validation_features, example_ids=validation_example_ids)
-                if self._bridge.role != 'follower':
+                if self._role != 'follower':
                     metrics = self._loss.metrics(val_pred, validation_labels)
                     logging.info(
                         "Validation metrics for iter %d: %s", num_iter, metrics)

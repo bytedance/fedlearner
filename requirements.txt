@@ -1,9 +1,9 @@
+setuptools==41.0.0
+tensorflow==1.15.2
 cityhash
 pylint
 jinja2
 grpcio-tools
-setuptools==41.0.0
-tensorflow==1.15.2
 etcd3
 influxdb
 peewee
@@ -14,3 +14,4 @@ kubernetes
 scipy
 gmpy2
 cityhash
+scikit-learn
