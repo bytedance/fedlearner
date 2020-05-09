@@ -16,9 +16,28 @@
 
 import numpy as np
 from scipy import special as sp_special
-from sklearn.metrics import f1_score, roc_auc_score, \
-                            precision_score, recall_score
 
+
+def _roc_auc_score(label, pred):
+    p = np.argsort(pred, kind='mergesort')[::-1]
+    label = label[p]
+    pred = pred[p]
+    unique = np.r_[np.where(np.diff(pred))[0], label.size-1]
+    tps = np.cumsum(label)[unique]
+    fps = np.cumsum(1 - label)[unique]
+    tpr = np.r_[0, tps] / tps[-1]
+    fpr = np.r_[0, fps] / fps[-1]
+    auc = np.trapz(tpr, x=fpr)
+    return auc
+
+
+def _precision_recall_f1(label, y_pred):
+    tp = (label  * y_pred).sum()
+    precision = tp / (y_pred.sum() + 1e-16)
+    recall = tp / (label.sum() + 1e-16)
+    f1 = 2 * precision * recall / (precision + recall + 1e-16)
+
+    return precision, recall, f1
 
 class LogisticLoss(object):
     def __init__(self):
@@ -38,10 +57,11 @@ class LogisticLoss(object):
 
     def metrics(self, pred, label):
         y_pred = (pred > 0.5).astype(label.dtype)
+        precision, recall, f1 = _precision_recall_f1(label, y_pred)
         return {
             'acc': np.isclose(y_pred, label).sum() / len(label),
-            'precision': precision_score(label, y_pred),
-            'recall': recall_score(label, y_pred),
-            'f1': f1_score(label, y_pred),
-            'auc': roc_auc_score(label, pred)
+            'precision': precision,
+            'recall': recall,
+            'f1': f1,
+            'auc': _roc_auc_score(label, pred),
         }
