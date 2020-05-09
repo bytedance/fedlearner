@@ -224,7 +224,8 @@ class GrowerNode(object):
 class BaseGrower(object):
     def __init__(self, binned, grad, hess, grow_policy='depthwise',
                  max_leaves=None, max_depth=None, learning_rate=0.3,
-                 l2_regularization=1.0, dtype=BST_TYPE, num_parallel=1):
+                 l2_regularization=1.0, dtype=BST_TYPE,
+                 num_parallel=1, pool=None):
         self._binned = binned
         self._grad = grad
         self._hess = hess
@@ -247,9 +248,8 @@ class BaseGrower(object):
         self._l2_regularization = l2_regularization
 
         self._num_parallel = num_parallel
-        self._pool = None
-        if self._num_parallel > 1:
-            self._pool = mp.Pool(num_parallel)
+        self._pool = pool
+        assert self._pool or self._num_parallel == 1
         self._hist_builder = HistogramBuilder(
             binned, dtype, num_parallel, self._pool)
 
@@ -582,6 +582,9 @@ class BoostingTreeEnsamble(object):
         self._l2_regularization = l2_regularization
         self._grow_policy = grow_policy
         self._num_parallel = num_parallel
+        self._pool = None
+        if self._num_parallel > 1:
+            self._pool = mp.Pool(num_parallel)
 
         assert max_bins < 255, "Only support max_bins < 255"
         self._max_bins = max_bins
@@ -890,7 +893,8 @@ class BoostingTreeEnsamble(object):
             max_leaves=self._max_leaves,
             l2_regularization=self._l2_regularization,
             grow_policy=self._grow_policy,
-            num_parallel=self._num_parallel)
+            num_parallel=self._num_parallel,
+            pool=self._pool)
         grower.grow()
 
         return grower.to_proto(), grower.get_prediction()
@@ -916,7 +920,8 @@ class BoostingTreeEnsamble(object):
             max_leaves=self._max_leaves,
             l2_regularization=self._l2_regularization,
             grow_policy=self._grow_policy,
-            num_parallel=self._num_parallel)
+            num_parallel=self._num_parallel,
+            pool=self._pool)
         grower.grow()
 
         return grower.to_proto(), grower.get_prediction()
@@ -944,7 +949,8 @@ class BoostingTreeEnsamble(object):
             max_leaves=self._max_leaves,
             l2_regularization=self._l2_regularization,
             grow_policy=self._grow_policy,
-            num_parallel=self._num_parallel)
+            num_parallel=self._num_parallel,
+            pool=self._pool)
         grower.grow()
 
         return grower.to_proto()
