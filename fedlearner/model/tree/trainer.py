@@ -15,6 +15,7 @@
 # coding: utf-8
 
 import io
+import os
 import csv
 import logging
 import argparse
@@ -25,6 +26,8 @@ import tensorflow.compat.v1 as tf
 
 from fedlearner.trainer.bridge import Bridge
 from fedlearner.model.tree.tree import BoostingTreeEnsamble
+from fedlearner.trainer.trainer_master_client import LocalTrainerMasterClient
+from fedlearner.trainer.data import DataBlockLoader
 
 
 def create_argument_parser():
@@ -127,21 +130,16 @@ def read_csv_data(filename, has_example_ids, has_labels):
     return X, y, example_ids
 
 
-def read_data(filename, has_example_ids, has_labels):
-    if filename.endswith('.csv'):
-        return read_csv_data(filename, has_example_ids, has_labels)
-
-    raise ValueError("Unsupported data type %s"%filename)
-
-
 def train(args, booster):
-    X, y, example_ids = read_data(
+    X, y, example_ids = read_csv_data(
         args.data_path, args.verify_example_ids,
         args.role != 'follower')
     if args.validation_data_path:
-        val_X, val_y, val_example_ids = read_data(
+        val_X, val_y, val_example_ids = read_csv_data(
             args.validation_data_path, args.verify_example_ids,
             args.role != 'follower')
+    if args.output_path:
+        tf.io.gfile.makedirs(os.path.dirname(args.output_path))
     booster.fit(
         X, y,
         checkpoint_path=args.checkpoint_path,
@@ -157,35 +155,46 @@ def write_predictions(filename, pred):
     fout.write('\n'.join([str(i) for i in pred]))
     fout.close()
 
-
-def test(args, booster):
-    X, y, example_ids = read_data(
-        args.data_path, args.verify_example_ids,
-        args.role != 'follower')
-    pred = booster.batch_predict(X, example_ids=example_ids)
-    if args.role == 'follower':
-        return
-
-    metrics = booster.loss.metrics(pred, y)
-    logging.info("Test metrics: %s", metrics)
-    if args.output_path:
-        write_predictions(args.output_path, pred)
-
-
-def evaluate(args, booster):
-    X, y, example_ids = read_data(
-        args.data_path, args.verify_example_ids, False)
+def test_one_file(args, booster, data_file, output_file, has_labels):
+    X, y, example_ids = read_csv_data(
+        data_file, args.verify_example_ids, has_labels)
     pred = booster.batch_predict(X, example_ids=example_ids)
 
-    if args.role == 'follower':
-        return
-
-    if args.output_path:
-        write_predictions(args.output_path, pred)
+    if y is not None:
+        metrics = booster.loss.metrics(pred, y)
     else:
-        logging.info("Evaluation scores:")
-        for i, x in enumerate(pred):
-            logging.info("%d:\t%f", i, x)
+        metrics = {}
+    logging.info("Test metrics: %s", metrics)
+
+    if output_file:
+        tf.io.gfile.makedirs(os.path.dirname(output_file))
+        write_predictions(output_file, pred)
+
+def test(args, bridge, booster, has_labels):
+    if not tf.io.gfile.isdir(args.data_path):
+        return test_one_file(
+            args, booster, args.data_path, args.output_path, has_labels)
+
+    if args.role != 'local':
+        tm = LocalTrainerMasterClient(args.role, args.data_path, ext='.data')
+        dataset = DataBlockLoader(1, args.role, bridge, tm)
+    else:
+        tm = LocalTrainerMasterClient('leader', args.data_path, ext='.data')
+
+    while True:
+        if args.role != 'local':
+            datablock = dataset.get_next_block()
+        else:
+            datablock = tm.request_data_block()
+        if datablock is None:
+            break
+        if args.output_path:
+            output_file = os.path.join(
+                args.output_path, datablock.block_id) + '.output'
+        else:
+            output_file = None
+        test_one_file(
+            args, booster, datablock.data_path, output_file, has_labels)
 
 
 def run(args):
@@ -224,9 +233,9 @@ def run(args):
         if args.mode == 'train':
             train(args, booster)
         elif args.mode == 'test':
-            test(args, booster)
+            test(args, bridge, booster, args.role != 'follower')
         else:  # args.mode == 'eval'
-            evaluate(args, booster)
+            test(args, bridge, booster, False)
 
         if args.export_path:
             booster.save_model(args.export_path)
