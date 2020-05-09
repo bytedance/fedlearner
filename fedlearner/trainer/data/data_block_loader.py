@@ -56,8 +56,8 @@ class DataBlockLoader(object):
                         self._bridge.load_data_block(self._count,
                                                      block.block_id)
                     except Exception as e:  # pylint: disable=broad-except
-                        logging.error('load data block error, detail is %s',
-                                      repr(e))
+                        logging.error('load data block %s with error: %s',
+                                      block.block_id, repr(e))
                         continue
                 else:
                     self._bridge.load_data_block(self._count, '')
