@@ -120,6 +120,9 @@ class Visitor(object):
         self._iter = None
         self._process_index = None
 
+    def started(self):
+        return self._iter is not None
+
     def active_visitor(self):
         raise NotImplementedError(
                 "not implement active_visitor in base visitor"

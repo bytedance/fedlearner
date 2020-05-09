@@ -15,3 +15,5 @@ scipy
 gmpy2
 cityhash
 scikit-learn
+pycryptodomex
+rsa

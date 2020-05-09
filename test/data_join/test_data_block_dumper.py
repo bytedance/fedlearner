@@ -28,6 +28,8 @@ from fedlearner.data_join import (
     data_block_manager, common, data_block_dumper,
     raw_data_manifest_manager, raw_data_visitor, visitor
 )
+from fedlearner.data_join.data_block_builder_impl \
+        import create_data_block_builder
 
 class TestDataBlockDumper(unittest.TestCase):
     def setUp(self):
@@ -62,7 +64,10 @@ class TestDataBlockDumper(unittest.TestCase):
         follower_index = 65536
         self.dumped_metas = []
         for i in range(5):
-            builder = data_block_manager.DataBlockBuilder(
+            builder = create_data_block_builder(
+                    dj_pb.DataBlockBuilderOptions(
+                        data_block_builder='TF_RECORD_DATABLOCK_BUILDER'
+                    ),
                     self.data_source_f.data_block_dir,
                     self.data_source_f.data_source_meta.name,
                     0, i, None
@@ -81,8 +86,8 @@ class TestDataBlockDumper(unittest.TestCase):
                 feat['follower_index'] = tf.train.Feature(
                         int64_list=tf.train.Int64List(value=[follower_index]))
                 example = tf.train.Example(features=tf.train.Features(feature=feat))
-                builder.append(example.SerializeToString(), example_id,
-                               event_time, leader_index, follower_index)
+                builder.append_record(example.SerializeToString(), example_id,
+                                      event_time, leader_index, follower_index)
                 leader_index += 3
                 follower_index += 1
             meta = builder.finish_data_block()
@@ -101,11 +106,14 @@ class TestDataBlockDumper(unittest.TestCase):
         gfile.MakeDirs(raw_data_dir)
         rdm = raw_data_visitor.RawDataManager(self.etcd, self.data_source_l, 0)
         block_index = 0
-        builder = data_block_manager.DataBlockBuilder(
-                self.data_source_l.raw_data_dir,
-                self.data_source_l.data_source_meta.name,
-                0, block_index, None
-        )
+        builder = create_data_block_builder(
+                    dj_pb.DataBlockBuilderOptions(
+                        data_block_builder='TF_RECORD_DATABLOCK_BUILDER'
+                    ),
+                    self.data_source_l.raw_data_dir,
+                    self.data_source_l.data_source_meta.name,
+                    0, block_index, None
+            )
         process_index = 0
         start_index = 0
         for i in range(0, self.leader_end_index + 3):
@@ -125,11 +133,14 @@ class TestDataBlockDumper(unittest.TestCase):
                     process_index += 1
                     start_index += len(meta.example_ids)
                 block_index += 1
-                builder = data_block_manager.DataBlockBuilder(
+                builder = create_data_block_builder(
+                        dj_pb.DataBlockBuilderOptions(
+                            data_block_builder='TF_RECORD_DATABLOCK_BUILDER'
+                        ),
                         self.data_source_l.raw_data_dir,
                         self.data_source_l.data_source_meta.name,
                         0, block_index, None
-                )
+                    )
             feat = {}
             pt = i + 1 << 30
             if i % 3 == 0:
@@ -141,7 +152,8 @@ class TestDataBlockDumper(unittest.TestCase):
             feat['event_time'] = tf.train.Feature(
                     int64_list=tf.train.Int64List(value=[event_time]))
             example = tf.train.Example(features=tf.train.Features(feature=feat))
-            builder.append(example.SerializeToString(), example_id, event_time, i, i)
+            builder.append_record(example.SerializeToString(),
+                                  example_id, event_time, i, i)
         fpaths = [os.path.join(raw_data_dir, f)
                     for f in gfile.ListDirectory(raw_data_dir)
                     if not gfile.IsDirectory(os.path.join(raw_data_dir, f))]
@@ -154,7 +166,10 @@ class TestDataBlockDumper(unittest.TestCase):
         self.generate_leader_raw_data()
         dbd = data_block_dumper.DataBlockDumperManager(
                 self.etcd, self.data_source_l, 0,
-                dj_pb.RawDataOptions(raw_data_iter='TF_RECORD')
+                dj_pb.RawDataOptions(raw_data_iter='TF_RECORD'),
+                dj_pb.DataBlockBuilderOptions(
+                    data_block_builder='TF_RECORD_DATABLOCK_BUILDER'
+                ),
             )
         self.assertEqual(dbd.get_next_data_block_index(), 0)
         for (idx, meta) in enumerate(self.dumped_metas):

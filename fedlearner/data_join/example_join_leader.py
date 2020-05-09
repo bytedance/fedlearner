@@ -24,13 +24,15 @@ from fedlearner.data_join.transmit_leader import TransmitLeader
 class ExampleJoinLeader(TransmitLeader):
     class ImplContext(TransmitLeader.ImplContext):
         def __init__(self, etcd, data_source, raw_data_manifest,
-                     example_joiner_options, raw_data_options):
+                     example_joiner_options, raw_data_options,
+                     data_block_builder_options):
             super(ExampleJoinLeader.ImplContext, self).__init__(
                     raw_data_manifest
                 )
             self.example_joiner = create_example_joiner(
                     example_joiner_options, raw_data_options,
-                    etcd, data_source, raw_data_manifest.partition_id,
+                    data_block_builder_options, etcd,
+                    data_source, raw_data_manifest.partition_id,
                 )
 
         def get_sync_content_by_next_index(self):
@@ -44,17 +46,21 @@ class ExampleJoinLeader(TransmitLeader):
             return not self.example_joiner.need_join()
 
         def make_producer(self):
-            return self.example_joiner.make_example_joiner()
+            with self.example_joiner.make_example_joiner() as joiner:
+                for meta in joiner:
+                    yield meta
 
         def __getattr__(self, attr):
             return getattr(self.example_joiner, attr)
 
-    def __init__(self, peer_client, master_client, rank_id, etcd,
-                 data_source, raw_data_options, example_joiner_options):
+    def __init__(self, peer_client, master_client, rank_id,
+                 etcd, data_source, raw_data_options,
+                 data_block_builder_options, example_joiner_options):
         super(ExampleJoinLeader, self).__init__(peer_client, master_client,
                                                 rank_id, etcd, data_source,
                                                 'example_join_leader')
         self._raw_data_options = raw_data_options
+        self._data_block_builder_options = data_block_builder_options
         self._example_joiner_options = example_joiner_options
 
     def _make_raw_data_request(self):
@@ -67,8 +73,9 @@ class ExampleJoinLeader(TransmitLeader):
 
     def _make_new_impl_ctx(self, raw_data_manifest):
         return ExampleJoinLeader.ImplContext(
-                self._etcd, self._data_source, raw_data_manifest,
-                self._example_joiner_options, self._raw_data_options
+                self._etcd, self._data_source,
+                raw_data_manifest, self._example_joiner_options,
+                self._raw_data_options, self._data_block_builder_options
             )
 
     def _process_producer_hook(self, impl_ctx):

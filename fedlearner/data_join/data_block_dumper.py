@@ -20,12 +20,13 @@ import os
 from contextlib import contextmanager
 
 from fedlearner.data_join.raw_data_visitor import RawDataVisitor
-from fedlearner.data_join.data_block_manager import (
-    DataBlockBuilder, DataBlockManager
-)
+from fedlearner.data_join.data_block_manager import DataBlockManager
+from fedlearner.data_join.data_block_builder_impl \
+        import create_data_block_builder
 
 class DataBlockDumperManager(object):
-    def __init__(self, etcd, data_source, partition_id, raw_data_options):
+    def __init__(self, etcd, data_source, partition_id,
+                 raw_data_options, data_block_builder_options):
         self._lock = threading.Lock()
         self._data_source = data_source
         self._partition_id = partition_id
@@ -34,6 +35,7 @@ class DataBlockDumperManager(object):
         self._raw_data_visitor = \
                 RawDataVisitor(etcd, data_source,
                                partition_id, raw_data_options)
+        self._data_block_builder_options = data_block_builder_options
         self._next_data_block_index = \
                 self._data_block_manager.get_dumped_data_block_count()
         self._fly_data_block_meta = []
@@ -112,11 +114,13 @@ class DataBlockDumperManager(object):
         builder = None
         expt = None
         try:
-            builder = \
-                    DataBlockBuilder(self._data_source.data_block_dir,
-                                     self._data_source.data_source_meta.name,
-                                     self._partition_id,
-                                     meta.data_block_index)
+            builder = create_data_block_builder(
+                    self._data_block_builder_options,
+                    self._data_source.data_block_dir,
+                    self._data_source.data_source_meta.name,
+                    self._partition_id,
+                    meta.data_block_index
+                )
             builder.init_by_meta(meta)
             builder.set_data_block_manager(self._data_block_manager)
             yield builder
@@ -148,7 +152,7 @@ class DataBlockDumperManager(object):
             for (index, item) in self._raw_data_visitor:
                 example_id = item.example_id
                 if example_id == meta.example_ids[match_index]:
-                    data_block_builder.append_raw_example(item.record)
+                    data_block_builder.write_item(item)
                     match_index += 1
                 if match_index >= example_num:
                     break

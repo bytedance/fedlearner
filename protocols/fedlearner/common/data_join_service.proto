@@ -110,6 +110,11 @@ service DataJoinMasterService {
   rpc GetRawDataLatestTimeStamp(RawDataRequest) returns (RawDataResponse) {}
 }
 
+enum DataBlockType {
+  TfRecord = 0;
+  CsvDict = 1;
+}
+
 message DataBlockMeta {
   string block_id = 1;
   int64 partition_id = 2;
@@ -121,6 +126,7 @@ message DataBlockMeta {
   int64 leader_end_index = 8;
   int64 follower_restart_index = 9;
   int64 data_block_index = 10;
+  DataBlockType data_block_type = 11;
 }
 
 message StartPartitionRequest {
@@ -207,6 +213,10 @@ message RawDataOptions {
   string compressed_type = 2;
 }
 
+message DataBlockBuilderOptions {
+  string data_block_builder = 1;
+}
+
 message ExampleJoinerOptions {
   string example_joiner = 1;
   int64 min_matching_window = 2;
@@ -220,9 +230,9 @@ message ExampleIdDumpOptions {
   int64 example_id_dump_threshold = 2;
 }
 
-message ExampleIdBatchOptions {
-  int64 example_id_batch_size = 1;
-  int64 max_flying_example_id = 2;
+message BatchProcessorOptions {
+  int64 batch_size = 1;
+  int64 max_flying_item = 2;
 }
 
 message DataJoinWorkerOptions {
@@ -230,7 +240,8 @@ message DataJoinWorkerOptions {
   RawDataOptions raw_data_options = 2;
   ExampleJoinerOptions example_joiner_options = 3;
   ExampleIdDumpOptions example_id_dump_options = 4;
-  ExampleIdBatchOptions example_id_batch_options = 5;
+  BatchProcessorOptions batch_processor_options = 5;
+  DataBlockBuilderOptions data_block_builder_options = 6;
 }
 
 message DataJoinMasterOptions {
@@ -252,4 +263,28 @@ message DataJoinPotralOptions {
 
 service DataJoinPotralService {
   rpc Ping(google.protobuf.Empty) returns (Status) {}
+}
+
+message SignIdsRequest {
+  repeated string ids = 1;
+}
+
+message SignIdsResponse {
+  Status status = 1;
+  repeated string signed_ids = 2;
+}
+
+service RsaPsiSignService {
+  rpc SignIds(SignIdsRequest) returns (SignIdsResponse) {}
+}
+
+message RsaPsiPreProcessorOptions {
+  FLRole role = 1;
+  string rsa_key_file_path = 2;
+  repeated string input_file_paths = 3;
+  string output_file_dir = 4;
+  int64 output_partition_num = 5;
+  string leader_rsa_psi_signer_addr = 6;
+  int64 offload_processor_number = 7;
+  BatchProcessorOptions batch_processor_options = 8;
 }
