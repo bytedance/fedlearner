@@ -31,6 +31,8 @@ from fedlearner.data_join import (
     raw_data_manifest_manager, joiner_impl,
     example_id_dumper, raw_data_visitor, visitor
 )
+from fedlearner.data_join.data_block_builder_impl \
+        import create_data_block_builder
 
 class TestExampleJoin(unittest.TestCase):
     def setUp(self):
@@ -80,7 +82,10 @@ class TestExampleJoin(unittest.TestCase):
         rdm = raw_data_visitor.RawDataManager(self.etcd, self.data_source, 0)
         fpaths = []
         for block_index in range(0, item_count // 2048):
-            builder = data_block_manager.DataBlockBuilder(
+            builder = create_data_block_builder(
+                    dj_pb.DataBlockBuilderOptions(
+                        data_block_builder='TF_RECORD_DATABLOCK_BUILDER'
+                    ),
                     self.data_source.raw_data_dir,
                     self.data_source.data_source_meta.name,
                     0, block_index, None
@@ -113,8 +118,8 @@ class TestExampleJoin(unittest.TestCase):
                 feat['event_time'] = tf.train.Feature(
                         int64_list=tf.train.Int64List(value=[event_time]))
                 example = tf.train.Example(features=tf.train.Features(feature=feat))
-                builder.append(example.SerializeToString(), example_id,
-                               event_time, useless_index, useless_index)
+                builder.append_record(example.SerializeToString(), example_id,
+                                      event_time, useless_index, useless_index)
                 useless_index += 1
             meta = builder.finish_data_block()
             fname = common.encode_data_block_fname(
@@ -170,6 +175,9 @@ class TestExampleJoin(unittest.TestCase):
         sei = joiner_impl.create_example_joiner(
                 self.example_joiner_options,
                 self.raw_data_options,
+                dj_pb.DataBlockBuilderOptions(
+                    data_block_builder='TF_RECORD_DATABLOCK_BUILDER'
+                ),
                 self.etcd, self.data_source, 0
             )
         metas = []

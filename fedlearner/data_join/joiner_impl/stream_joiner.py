@@ -86,9 +86,10 @@ class JoinWindow(object):
 
 class StreamExampleJoiner(ExampleJoiner):
     def __init__(self, example_joiner_options, raw_data_options,
-                 etcd, data_source, partition_id):
+                 data_block_builder_options, etcd, data_source, partition_id):
         super(StreamExampleJoiner, self).__init__(example_joiner_options,
                                                   raw_data_options,
+                                                  data_block_builder_options,
                                                   etcd, data_source,
                                                   partition_id)
         self._min_window_size = example_joiner_options.min_matching_window
@@ -110,18 +111,12 @@ class StreamExampleJoiner(ExampleJoiner):
             return
         sync_example_id_finished, raw_data_finished = \
                 self._prepare_join(state_stale)
-        while True:
-            if not self._fill_leader_join_window(sync_example_id_finished) and \
-                    not self._need_finish_data_block_since_interval():
-                return
+        while self._fill_leader_join_window(sync_example_id_finished) and \
+                self._leader_join_window.size() > 0:
             delay_dump = True
-            while delay_dump:
-                if not self._fill_follower_join_window(raw_data_finished) and \
-                        not self._need_finish_data_block_since_interval():
-                    return
-                delay_dump = self._need_delay_dump(
-                        sync_example_id_finished, raw_data_finished
-                    )
+            while delay_dump and \
+                    self._fill_follower_join_window(raw_data_finished):
+                delay_dump = self._need_delay_dump(raw_data_finished)
                 if delay_dump:
                     self._update_join_cache()
                 else:
@@ -139,39 +134,30 @@ class StreamExampleJoiner(ExampleJoiner):
                             "None if before dummping"
                         fi, item = self._joined_cache[eid]
                         et = le.event_time
-                        builder.append(item.record, eid, et, li, fi)
+                        builder.append_item(item, eid, et, li, fi)
                         if builder.check_data_block_full():
                             yield self._finish_data_block()
-                if self._get_data_block_builder(False) is not None and \
-                        self._need_finish_data_block_since_interval():
-                    yield self._finish_data_block()
                 self._evit_stale_follower_cache()
-            self._reset_joiner_state(False)
-            if self._leader_visitor.finished() or \
-                    (self._follower_join_window.size() == 0 and
-                            self._follower_visitor.finished()):
+            if not delay_dump:
+                self._reset_joiner_state(False)
+            else:
                 break
-        if sync_example_id_finished:
-            builder = self._get_data_block_builder(False)
-            if builder is not None:
-                yield self._finish_data_block()
+        join_data_finished = sync_example_id_finished and raw_data_finished
+        if self._get_data_block_builder(False) is not None and \
+                (self._need_finish_data_block_since_interval() or
+                    join_data_finished):
+            yield self._finish_data_block()
+        if join_data_finished:
             self._set_join_finished()
             logging.warning("finish join example for partition %d by %s",
                             self._partition_id, self.name())
 
     def _prepare_join(self, state_stale):
         if state_stale:
-            self._sync_state()
             self._reset_joiner_state(True)
-            self._reset_data_block_builder()
-        sync_example_id_finished = self.is_sync_example_id_finished()
-        raw_data_finished = self.is_raw_data_finished()
-        self._active_visitors()
-        return sync_example_id_finished, raw_data_finished
+        return super(StreamExampleJoiner, self)._prepare_join(state_stale)
 
-    def _need_delay_dump(self, sync_example_id_finished, raw_data_finished):
-        if self._leader_visitor.finished() and sync_example_id_finished:
-            return False
+    def _need_delay_dump(self, raw_data_finished):
         if self._follower_visitor.finished() and raw_data_finished:
             return False
         leader_qt = self._leader_join_window.qt()
@@ -179,7 +165,7 @@ class StreamExampleJoiner(ExampleJoiner):
         if leader_qt is not None and follower_qt is not None and \
                 follower_qt >= leader_qt:
             return False
-        return not self._need_finish_data_block_since_interval()
+        return True
 
     def _update_join_cache(self):
         new_unjoined_example_ids = []

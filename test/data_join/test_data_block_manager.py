@@ -25,6 +25,8 @@ from fedlearner.common import etcd_client
 from fedlearner.common import common_pb2 as common_pb
 from fedlearner.common import data_join_service_pb2 as dj_pb
 from fedlearner.data_join import data_block_manager, common
+from fedlearner.data_join.data_block_builder_impl \
+        import create_data_block_builder
 
 class TestDataBlockManager(unittest.TestCase):
     def setUp(self):
@@ -48,7 +50,10 @@ class TestDataBlockManager(unittest.TestCase):
         follower_index = 65536
         for i in range(5):
             fill_examples = []
-            builder = data_block_manager.DataBlockBuilder(
+            builder = create_data_block_builder(
+                    dj_pb.DataBlockBuilderOptions(
+                        data_block_builder='TF_RECORD_DATABLOCK_BUILDER'
+                    ),
                     self.data_source.data_block_dir,
                     self.data_source.data_source_meta.name,
                     0, i, None
@@ -67,8 +72,8 @@ class TestDataBlockManager(unittest.TestCase):
                 feat['follower_index'] = tf.train.Feature(
                         int64_list=tf.train.Int64List(value=[follower_index]))
                 example = tf.train.Example(features=tf.train.Features(feature=feat))
-                builder.append(example.SerializeToString(), example_id,
-                               event_time, leader_index, follower_index)
+                builder.append_record(example.SerializeToString(), example_id,
+                                      event_time, leader_index, follower_index)
                 fill_examples.append((example, {
                                 'example_id': example_id, 
                                 'event_time': event_time,

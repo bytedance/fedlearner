@@ -18,8 +18,8 @@ import logging
 import os
 from os import path
 
-from google.protobuf import text_format
-from google.protobuf import empty_pb2
+from google.protobuf import text_format, empty_pb2
+
 from tensorflow.compat.v1 import gfile
 
 from fedlearner.common import data_join_service_pb2 as dj_pb

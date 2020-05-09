@@ -163,9 +163,12 @@ class DataJoinPortal(unittest.TestCase):
                     data_block_dump_interval=30,
                     data_block_dump_threshold=1000
                 ),
-                example_id_batch_options=dj_pb.ExampleIdBatchOptions(
-                    example_id_batch_size=1024,
-                    max_flying_example_id=4096
+                batch_processor_options=dj_pb.BatchProcessorOptions(
+                    batch_size=1024,
+                    max_flying_item=4096
+                ),
+                data_block_builder_options=dj_pb.DataBlockBuilderOptions(
+                    data_block_builder='TF_RECORD_DATABLOCK_BUILDER'
                 )
             )
         self._worker_addrs_l = ['localhost:4161', 'localhost:4162']
@@ -349,7 +352,6 @@ class DataJoinPortal(unittest.TestCase):
     def _stop_portals(self):
         self._portal_f.stop()
         self._portal_l.stop()
-
 
     def _wait_timestamp(self, target_l, target_f):
         while True:

@@ -29,6 +29,7 @@ class TfExampleItem(RawDataIter.Item):
         self._example_id = None
         self._event_time = None
         self._parse_example_error = False
+        self._csv_record = None
 
     @property
     def example_id(self):
@@ -74,6 +75,24 @@ class TfExampleItem(RawDataIter.Item):
     @property
     def record(self):
         return self._record_str
+
+    @property
+    def tf_record(self):
+        return self._record_str
+
+    @property
+    def csv_record(self):
+        if self._csv_record is None:
+            self._csv_record = {}
+            self._parse_example(False)
+            if not self._parse_example_error:
+                try:
+                    self._csv_record = \
+                        common.convert_tf_example_to_dict(self._example)
+                except Exception as e: # pylint: disable=broad-except
+                    logging.error("Failed convert tf example to csv record, "\
+                                  "reason %s", e)
+        return self._csv_record
 
     def _parse_example(self, raise_exp):
         try:
@@ -129,10 +148,6 @@ class TfDataSetIter(RawDataIter):
             return fiter, item
         return None, None
 
-    def _next(self):
-        assert self._fiter is not None, "_fiter must be not None in _next"
-        return next(self._fiter)
-
 
 class TfRecordIter(RawDataIter):
     @classmethod
@@ -151,7 +166,3 @@ class TfRecordIter(RawDataIter):
             item = next(fiter)
             return fiter, item
         return None, None
-
-    def _next(self):
-        assert self._fiter is not None, "_fiter must be not None in _next"
-        return next(self._fiter)

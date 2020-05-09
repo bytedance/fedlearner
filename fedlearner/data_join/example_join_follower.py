@@ -19,11 +19,12 @@ from fedlearner.data_join.transmit_follower import TransmitFollower
 
 class ExampleJoinFollower(TransmitFollower):
     class ImplContext(TransmitFollower.ImplContext):
-        def __init__(self, etcd, data_source,
-                     partition_id, raw_data_options):
+        def __init__(self, etcd, data_source, partition_id,
+                     raw_data_options, data_block_builder_options):
             super(ExampleJoinFollower.ImplContext, self).__init__(partition_id)
             self.data_block_dumper_manager = DataBlockDumperManager(
-                    etcd, data_source, partition_id, raw_data_options
+                    etcd, data_source, partition_id,
+                    raw_data_options, data_block_builder_options
                 )
 
         def get_next_index(self):
@@ -50,15 +51,17 @@ class ExampleJoinFollower(TransmitFollower):
             dumper_manager = self.data_block_dumper_manager
             return dumper_manager.is_synced_data_block_meta_finished()
 
-    def __init__(self, etcd, data_source, raw_data_options):
+    def __init__(self, etcd, data_source,
+                 raw_data_options, data_block_builder_options):
         super(ExampleJoinFollower, self).__init__(etcd, data_source,
                                                   'example_join_follower')
         self._raw_data_options = raw_data_options
+        self._data_block_builder_options = data_block_builder_options
 
     def _make_new_impl_ctx(self, partition_id):
         return ExampleJoinFollower.ImplContext(
-                self._etcd, self._data_source,
-                partition_id, self._raw_data_options
+                self._etcd, self._data_source, partition_id,
+                self._raw_data_options, self._data_block_builder_options
             )
 
     def _extract_partition_id_from_sync_content(self, sync_ctnt):

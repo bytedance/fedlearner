@@ -173,10 +173,8 @@ class TransmitLeader(object):
         assert isinstance(impl_ctx, TransmitLeader.ImplContext)
         self._process_producer_hook(impl_ctx)
         if not impl_ctx.is_produce_finished():
-            with impl_ctx.make_producer() as producer:
-                for item in producer:
-                    if item is None:
-                        continue
+            for item in impl_ctx.make_producer():
+                if item is not None:
                     self._wakeup_data_consumer()
 
     def _data_producer_cond(self):
@@ -254,9 +252,8 @@ class TransmitLeader(object):
             )
         rsp = self._peer_client.SyncPartition(req)
         if rsp.status.code != 0:
-            raise RuntimeError("Peer of {} refuse item. reason: {},"\
-                               .format(self._repr_str,
-                                       rsp.status.error_message))
+            raise RuntimeError("Peer of {} refuse item. reason: {},".format(
+                                self._repr_str, rsp.status.error_message))
         self._update_peer_index(impl_ctx, rsp.next_index, rsp.dumped_index)
 
     def _finish_partition(self, impl_ctx):

@@ -36,6 +36,18 @@ class RawDataIter(object):
                     "record not implement for basic Item"
                 )
 
+        @property
+        def tf_record(self):
+            raise NotImplementedError(
+                    "tf_record not implement for basic Item"
+                )
+
+        @property
+        def csv_record(self):
+            raise NotImplementedError(
+                    "csv_record not implement for basic Item"
+                )
+
     def __init__(self, options):
         self._fiter = None
         self._index_meta = None
@@ -119,15 +131,13 @@ class RawDataIter(object):
 
     def _reset_iter(self):
         raise NotImplementedError(
-                "not implement for _reset_iter for class %s" %
+                "_reset_iter not implement for class %s" %
                 RawDataIter.name()
             )
 
     def _next(self):
-        raise NotImplementedError(
-                "not implement for next for class %s" %
-                RawDataIter.name()
-            )
+        assert self._fiter is not None, "_fiter must be not None in _next"
+        return next(self._fiter)
 
     def _check_valid(self):
         assert self._fiter is not None

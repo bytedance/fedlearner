@@ -30,6 +30,7 @@ DataBlockSuffix = '.data'
 DataBlockMetaSuffix = '.meta'
 ExampleIdSuffix = '.done'
 RawDataMetaPrefix = 'raw_data_'
+MergedSortRunSuffix = '.merged'
 InvalidExampleId = ''
 InvalidEventTime = -9223372036854775808
 
@@ -161,3 +162,55 @@ def trim_timestamp_by_hourly(timestamp):
 
 def convert_timestamp_to_datetime(timestamp):
     return datetime.fromtimestamp(timestamp.seconds + timestamp.nanos/1e9)
+
+def encode_merged_sort_run_fname(partition_id):
+    return 'part-{:04}-sort_run{}'.format(partition_id,
+                                          MergedSortRunSuffix)
+
+_valid_basic_feature_type = (int, str, bytes, float)
+def convert_dict_to_tf_example(src_dict):
+    assert isinstance(src_dict, dict)
+    tf_feature = {}
+    for key, feature in src_dict.items():
+        if not isinstance(key, str):
+            raise RuntimeError('the key {}({}) of dict must a '\
+                               'string'.format(key, type(key)))
+        basic_type = type(feature)
+        if isinstance(type(feature), list):
+            if len(feature) == 0:
+                logging.debug('skip %s since feature is empty list', key)
+                continue
+            basic_type = feature[0]
+            if not all(isinstance(x, basic_type) for x in feature):
+                raise RuntimeError('type of elements in feature of key {} '\
+                                   'is not the same'.format(key))
+        if isinstance(feature, _valid_basic_feature_type):
+            raise RuntimeError("feature type({}) of key {} is not support "\
+                               "for tf Example".format(basic_type, key))
+        if basic_type == int:
+            value = feature if isinstance(feature, list) else [feature]
+            tf_feature[key] = tf.train.Feature(
+                int64_list=tf.train.Int64List(value=value))
+        elif basic_type == bytes:
+            value = feature if isinstance(feature, list) else [feature]
+            tf_feature[key] = tf.train.Feature(
+                bytes_list=tf.train.BytesList(value=value))
+        elif basic_type == str:
+            value = [feat.encode() for feat in feature] if \
+                     isinstance(feature, list) else [feature.encode()]
+            tf_feature[key] = tf.train.Feature(
+                bytes_list=tf.train.BytesList(value=value))
+        else:
+            assert basic_type == float
+            value = feature if  isinstance(feature, list) else [feature]
+            tf_feature[key] = tf.train.Feature(
+                float_list=tf.train.FloatList(value=value))
+    return tf.train.Example(features=tf.train.Features(feature=tf_feature))
+
+def convert_tf_example_to_dict(src_tf_example):
+    assert isinstance(src_tf_example, tf.train.Example)
+    dst_dict = {}
+    tf_feature = src_tf_example.features.feature
+    for key, feat in tf_feature:
+        dst_dict[key] = feat
+    return dst_dict

@@ -22,13 +22,13 @@ from contextlib import contextmanager
 
 from fedlearner.data_join.raw_data_visitor import RawDataVisitor
 from fedlearner.data_join.example_id_visitor import ExampleIdVisitor
-from fedlearner.data_join.data_block_manager import (
-    DataBlockBuilder, DataBlockManager
-)
+from fedlearner.data_join.data_block_manager import DataBlockManager
+from fedlearner.data_join.data_block_builder_impl \
+        import create_data_block_builder
 
 class ExampleJoiner(object):
     def __init__(self, example_joiner_options, raw_data_options,
-                 etcd, data_source, partition_id):
+                 data_block_builder_options, etcd, data_source, partition_id):
         self._lock = threading.Lock()
         self._example_joiner_options = example_joiner_options
         self._raw_data_options = raw_data_options
@@ -41,6 +41,7 @@ class ExampleJoiner(object):
                                self._partition_id, raw_data_options)
         self._data_block_manager = \
                 DataBlockManager(self._data_source, self._partition_id)
+        self._data_block_builder_options = data_block_builder_options
 
         self._data_block_builder = None
         self._state_stale = False
@@ -105,6 +106,15 @@ class ExampleJoiner(object):
                 return True
             return self._need_finish_data_block_since_interval()
 
+    def _prepare_join(self, state_stale):
+        if state_stale:
+            self._sync_state()
+            self._reset_data_block_builder()
+        sync_example_id_finished = self.is_sync_example_id_finished()
+        raw_data_finished = self.is_raw_data_finished()
+        self._active_visitors()
+        return sync_example_id_finished, raw_data_finished
+
     def _inner_joiner(self, reset_state):
         raise NotImplementedError(
                 "_inner_joiner not implement for base class: %s" %
@@ -138,7 +148,8 @@ class ExampleJoiner(object):
         if self._data_block_builder is None and create_if_no_existed:
             data_block_index = \
                     self._data_block_manager.get_dumped_data_block_count()
-            self._data_block_builder = DataBlockBuilder(
+            self._data_block_builder = create_data_block_builder(
+                    self._data_block_builder_options,
                     self._data_source.data_block_dir,
                     self._data_source.data_source_meta.name,
                     self._partition_id,

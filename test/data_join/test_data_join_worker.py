@@ -40,6 +40,8 @@ from fedlearner.data_join import (
     data_join_master, data_join_worker,
     raw_data_visitor, raw_data_controller
 )
+from fedlearner.data_join.data_block_builder_impl \
+        import create_data_block_builder
 
 class DataJoinWorker(unittest.TestCase):
     def setUp(self):
@@ -164,9 +166,12 @@ class DataJoinWorker(unittest.TestCase):
                     data_block_dump_interval=30,
                     data_block_dump_threshold=1000
                 ),
-                example_id_batch_options=dj_pb.ExampleIdBatchOptions(
-                    example_id_batch_size=512,
-                    max_flying_example_id=2048
+                batch_processor_options=dj_pb.BatchProcessorOptions(
+                    batch_size=512,
+                    max_flying_item=2048
+                ),
+                data_block_builder_options=dj_pb.DataBlockBuilderOptions(
+                    data_block_builder='TF_RECORD_DATABLOCK_BUILDER'
                 )
             )
 
@@ -183,7 +188,10 @@ class DataJoinWorker(unittest.TestCase):
         useless_index = 0
         new_raw_data_fnames = []
         for block_index in range(self.total_index // block_size):
-            builder = data_block_manager.DataBlockBuilder(
+            builder = create_data_block_builder(
+                    dj_pb.DataBlockBuilderOptions(
+                        data_block_builder='TF_RECORD_DATABLOCK_BUILDER'
+                    ),
                     data_source.raw_data_dir,
                     data_source.data_source_meta.name,
                     partition_id, block_index, None
@@ -218,8 +226,8 @@ class DataJoinWorker(unittest.TestCase):
                         bytes_list=tf.train.BytesList(
                             value=[feat_val_fmt.format(example_idx).encode()]))
                 example = tf.train.Example(features=tf.train.Features(feature=feat))
-                builder.append(example.SerializeToString(), example_id,
-                               event_time, useless_index, useless_index)
+                builder.append_record(example.SerializeToString(), example_id,
+                                      event_time, useless_index, useless_index)
                 useless_index += 1
             meta = builder.finish_data_block()
             fname = common.encode_data_block_fname(

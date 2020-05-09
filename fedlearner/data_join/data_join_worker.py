@@ -144,12 +144,13 @@ class DataJoinWorker(dj_grpc.DataJoinWorkerServiceServicer):
                             self._peer_client, self._master_client,
                             self._rank_id, self._etcd,
                             self._data_source, options.raw_data_options,
-                            options.example_id_batch_options
+                            options.batch_processor_options
                         )
             self._transmit_follower = \
                     example_join_follower.ExampleJoinFollower(
                             self._etcd, self._data_source,
-                            options.raw_data_options
+                            options.raw_data_options,
+                            options.data_block_builder_options,
                         )
         else:
             assert self._data_source.role == common_pb.FLRole.Follower, \
@@ -159,6 +160,7 @@ class DataJoinWorker(dj_grpc.DataJoinWorkerServiceServicer):
                             self._peer_client, self._master_client,
                             self._rank_id, self._etcd, self._data_source,
                             options.raw_data_options,
+                            options.data_block_builder_options,
                             options.example_joiner_options
                         )
             self._transmit_follower = \
@@ -340,6 +342,11 @@ if __name__ == "__main__":
     parser.add_argument('--max_flying_example_id', type=int, default=268435456,
                         help='max flying example id cached for '\
                              'example id sync leader')
+    parser.add_argument('--data_block_builder', type=str,
+                        default='TF_RECORD_DATABLOCK_BUILDER',
+                        choices=['TF_RECORD_DATABLOCK_BUILDER',
+                                 'CSV_DICT_DATABLOCK_BUILDER'],
+                        help='the builder of generated data block')
     args = parser.parse_args()
     if args.tf_eager_mode:
         import tensorflow
@@ -361,9 +368,12 @@ if __name__ == "__main__":
                     example_id_dump_interval=args.example_id_dump_interval,
                     example_id_dump_threshold=args.example_id_dump_threshold
                 ),
-            example_id_batch_options=dj_pb.ExampleIdBatchOptions(
-                    example_id_batch_size=args.example_id_batch_size,
-                    max_flying_example_id=args.max_flying_example_id
+            batch_processor_optionss=dj_pb.BatchProcessorOptions(
+                    batch_size=args.example_id_batch_size,
+                    max_flying_item=args.max_flying_example_id
+                ),
+            data_block_builder_options=dj_pb.DataBlockBuilderOptions(
+                    data_block_builder=args.data_block_builder
                 )
         )
     worker_srv = DataJoinWorkerService(args.listen_port, args.peer_addr,

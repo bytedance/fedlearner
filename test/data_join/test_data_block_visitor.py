@@ -29,6 +29,8 @@ from fedlearner.data_join import (
     data_block_manager, common,
     data_block_visitor, raw_data_manifest_manager
 )
+from fedlearner.data_join.data_block_builder_impl \
+        import create_data_block_builder
 
 class TestDataBlockVisitor(unittest.TestCase):
     def setUp(self):
@@ -63,7 +65,10 @@ class TestDataBlockVisitor(unittest.TestCase):
         leader_index = 0
         follower_index = 65536
         for i in range(64):
-            builder = data_block_manager.DataBlockBuilder(
+            builder = create_data_block_builder(
+                    dj_pb.DataBlockBuilderOptions(
+                        data_block_builder='TF_RECORD_DATABLOCK_BUILDER'
+                    ),
                     self.data_source.data_block_dir,
                     self.data_source.data_source_meta.name,
                     partition_id, i, None
@@ -82,8 +87,8 @@ class TestDataBlockVisitor(unittest.TestCase):
                 feat['follower_index'] = tf.train.Feature(
                         int64_list=tf.train.Int64List(value=[follower_index]))
                 example = tf.train.Example(features=tf.train.Features(feature=feat))
-                builder.append(example.SerializeToString(), example_id,
-                               event_time, leader_index, follower_index)
+                builder.append_record(example.SerializeToString(), example_id,
+                                      event_time, leader_index, follower_index)
                 leader_index += 1
                 follower_index += 1
             self.data_block_matas.append(builder.finish_data_block())
