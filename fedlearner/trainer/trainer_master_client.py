@@ -18,6 +18,7 @@ import os
 import time
 import logging
 import collections
+import tensorflow.compat.v1 as tf
 
 from fedlearner.common import trainer_master_service_pb2 as tm_pb
 from fedlearner.common import trainer_master_service_pb2_grpc as tm_grpc
@@ -56,14 +57,13 @@ class LocalTrainerMasterClient(object):
         else:
             if files is None:
                 files = []
-                for filename in os.listdir(path):
-                    fullname = os.path.join(path, filename)
-                    if not os.path.isfile(fullname):
-                        continue
-                    _, fileext = os.path.splitext(filename)
-                    if ext and fileext != ext:
-                        continue
-                    files.append(filename)
+                for dirname, _, filenames in tf.io.gfile.walk(path):
+                    for filename in filenames:
+                        _, fileext = os.path.splitext(filename)
+                        if ext and fileext != ext:
+                            continue
+                        subdirname = os.path.relpath(dirname, path)
+                        files.append(os.path.join(subdirname, filename))
             files.sort()
 
             for filename in files:

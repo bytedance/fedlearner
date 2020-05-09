@@ -39,29 +39,33 @@ def make_data(args):
 
     if not os.path.exists('data'):
         os.makedirs('data')
+        os.makedirs('data/leader_test')
+        os.makedirs('data/follower_test')
+        os.makedirs('data/local_test')
+
     np.savetxt(
-        'data/leader_train.csv',
+        'data/leader_train.data',
         process_data(x_train, y_train, 'leader', args.verify_example_ids),
         delimiter=',')
     np.savetxt(
-        'data/follower_train.csv',
+        'data/follower_train.data',
         process_data(x_train, y_train, 'follower', args.verify_example_ids),
         delimiter=',')
     np.savetxt(
-        'data/local_train.csv',
+        'data/local_train.data',
         process_data(x_train, y_train, 'local', False),
         delimiter=',')
 
     np.savetxt(
-        'data/leader_test.csv',
+        'data/leader_test/part-0001.data',
         process_data(x_test, y_test, 'leader', args.verify_example_ids),
         delimiter=',')
     np.savetxt(
-        'data/follower_test.csv',
+        'data/follower_test/part-0001.data',
         process_data(x_test, y_test, 'follower', args.verify_example_ids),
         delimiter=',')
     np.savetxt(
-        'data/local_test.csv',
+        'data/local_test/part-0001.data',
         process_data(x_test, y_test, 'local', False),
         delimiter=',')
 

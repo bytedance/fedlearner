@@ -858,9 +858,12 @@ class BoostingTreeEnsamble(object):
                 self.save_model(filename)
 
             # save output
-            if self._role != 'follower' and output_path is not None:
+            if output_path is not None:
                 pred = self._loss.predict(sum_prediction)
-                metrics = self._loss.metrics(pred, labels)
+                if labels is not None:
+                    metrics = self._loss.metrics(pred, labels)
+                else:
+                    metrics = {}
                 self._write_training_log(
                     output_path, 'train_%d'%num_iter, metrics, pred)
 
@@ -868,13 +871,15 @@ class BoostingTreeEnsamble(object):
             if validation_features is not None:
                 val_pred = self.batch_predict(
                     validation_features, example_ids=validation_example_ids)
-                if self._role != 'follower':
+                if validation_labels is not None:
                     metrics = self._loss.metrics(val_pred, validation_labels)
-                    logging.info(
-                        "Validation metrics for iter %d: %s", num_iter, metrics)
-                    if output_path is not None:
-                        self._write_training_log(
-                            output_path, 'val_%d'%num_iter, metrics, val_pred)
+                else:
+                    metrics = {}
+                logging.info(
+                    "Validation metrics for iter %d: %s", num_iter, metrics)
+                if output_path is not None:
+                    self._write_training_log(
+                        output_path, 'val_%d'%num_iter, metrics, val_pred)
 
 
     def _fit_one_round_local(self, sum_fx, binned, labels):

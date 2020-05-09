@@ -47,7 +47,7 @@ class DataBlockLoader(object):
         self._count += 1
         self._block_queue.put(block)
 
-    def _get_next_block(self):
+    def get_next_block(self):
         if self._role == 'leader':
             while True:
                 block = self._trainer_master.request_data_block()
@@ -70,7 +70,7 @@ class DataBlockLoader(object):
     def make_dataset(self):
         def gen():
             while True:
-                block = self._get_next_block()
+                block = self.get_next_block()
                 if not block:
                     break
                 yield block.data_path
