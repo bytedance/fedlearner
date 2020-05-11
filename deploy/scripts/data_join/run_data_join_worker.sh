@@ -15,17 +15,16 @@
 # limitations under the License.
 
 set -ex
-
 export CUDA_VISIBLE_DEVICES=
 
 python -m fedlearner.data_join.data_join_worker \
-    $REMOTE_IP \
+    $PEER_ADDR \
     $MASTER_POD_NAMES \
     $INDEX \
     --etcd_name=$ETCD_NAME \
     --etcd_addrs=$ETCD_ADDR \
     --etcd_base_dir=$ETCD_BASE_DIR \
-    --listen_port=$PORT0 \
+    --listen_port=50051 \
     --raw_data_iter=$RAW_DATA_ITER \
     --compressed_type=$COMPRESSED_TYPE \
     --example_joiner=$EXAMPLE_JOINER \

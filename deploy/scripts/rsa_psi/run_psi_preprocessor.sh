@@ -15,7 +15,6 @@
 # limitations under the License.
 
 set -ex
-
 export CUDA_VISIBLE_DEVICES=
 
 python -m fedlearner.data_join.rsa_psi.rsa_psi_preprocessor \
@@ -24,7 +23,7 @@ python -m fedlearner.data_join.rsa_psi.rsa_psi_preprocessor \
     --input_file_paths=$INPUT_FILE_PATHS \
     --output_file_dir=$OUTPUT_FILE_DIR \
     --output_partition_num=1 \
-    --leader_rsa_psi_signer_addr=$LEADER_RSA_PSI_SIGNER_ADDR \
+    --leader_rsa_psi_signer_addr=$PEER_ADDR \
     --process_batch_size=$PROCESS_BATCH_SIZE \
     --max_flying_item=$MAX_FLYING_ITEM \
     --offload_processor_number=$OFFLOAD_PROCSSOR_NUMBER
