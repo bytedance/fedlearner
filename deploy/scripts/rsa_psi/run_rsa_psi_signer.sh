@@ -19,5 +19,5 @@ export CUDA_VISIBLE_DEVICES=
 
 python -m fedlearner.data_join.rsa_psi.rsa_psi_signer \
     --listen_port=50051 \
-    --rsa_key_file_path=$RSA_KEY_PATH \
+    --rsa_private_key_path=$RSA_KEY_PATH \
     --offload_processor_number=$OFFLOAD_PROCSSOR_NUMBER
