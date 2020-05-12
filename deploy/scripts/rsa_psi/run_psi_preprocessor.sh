@@ -22,8 +22,12 @@ python -m fedlearner.data_join.rsa_psi.rsa_psi_preprocessor \
     --rsa_key_file_path=$RSA_KEY_PATH \
     --input_file_paths=$INPUT_FILE_PATHS \
     --output_file_dir=$OUTPUT_FILE_DIR \
-    --output_partition_num=1 \
     --leader_rsa_psi_signer_addr=$PEER_ADDR \
     --process_batch_size=$PROCESS_BATCH_SIZE \
     --max_flying_item=$MAX_FLYING_ITEM \
-    --offload_processor_number=$OFFLOAD_PROCSSOR_NUMBER
+    --offload_processor_number=$OFFLOAD_PROCSSOR_NUMBER \
+    --partition_id=$INDEX \
+    --etcd_name=$ETCD_NAME \
+    --etcd_addrs=$ETCD_ADDR \
+    --etcd_base_dir=$ETCD_BASE_DIR \
+    --raw_data_publish_dir=$RAW_DATA_PUBLISH_DIR
