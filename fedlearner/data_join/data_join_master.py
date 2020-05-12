@@ -155,6 +155,10 @@ class MasterFSM(object):
                     new_state = self._data_source.state
                     logging.warning("%s state changed from %d to %d",
                                     self._role_repr, state, new_state)
+                    state = new_state
+            if state in (common_pb.DataSourceState.Init,
+                            common_pb.DataSourceState.Processing):
+                self._raw_data_manifest_manager.sub_new_raw_data()
 
     def _fsm_routine_cond(self):
         return True
@@ -394,15 +398,21 @@ class DataJoinMaster(dj_grpc.DataJoinMasterServiceServicer):
     def AddRawData(self, request, context):
         response = self._check_data_source_meta(request.data_source_meta)
         if response.code == 0:
-            manifest_manager = self._fsm.get_mainifest_manager()
-            if request.HasField('added_raw_data_metas'):
+            sub_dir = self._fsm.get_data_source().raw_data_sub_dir
+            if len(sub_dir) > 0:
+                response.code = -2
+                response.error_message = \
+                        "Forbid to add raw data since has "\
+                        "sub etcd base dir {}".format(sub_dir)
+            elif request.HasField('added_raw_data_metas'):
+                manifest_manager = self._fsm.get_mainifest_manager()
                 manifest_manager.add_raw_data(
                         request.partition_id,
                         request.added_raw_data_metas.raw_data_metas,
                         request.added_raw_data_metas.dedup
                     )
             else:
-                response.code = -2
+                response.code = -3
                 response.error_message = \
                         "AddRawData should has field next_process_index"
         return response

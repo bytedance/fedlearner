@@ -58,6 +58,7 @@ message RawDataManifest {
   bool finished = 4;
   int64 next_process_index = 5;
   int64 peer_dumped_index = 6;
+  int64 next_raw_data_sub_index = 7;
 }
 
 message RawDataMeta {
@@ -283,8 +284,9 @@ message RsaPsiPreProcessorOptions {
   string rsa_key_file_path = 2;
   repeated string input_file_paths = 3;
   string output_file_dir = 4;
-  int64 output_partition_num = 5;
-  string leader_rsa_psi_signer_addr = 6;
-  int64 offload_processor_number = 7;
-  BatchProcessorOptions batch_processor_options = 8;
+  string raw_data_publish_dir = 5;
+  int64 partition_id = 6;
+  string leader_rsa_psi_signer_addr = 7;
+  int64 offload_processor_number = 8;
+  BatchProcessorOptions batch_processor_options = 9;
 }

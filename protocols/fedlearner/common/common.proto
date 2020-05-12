@@ -62,6 +62,7 @@ message DataSource {
   string example_dumped_dir = 4;
   FLRole role = 5;
   DataSourceState state = 6;
+  string raw_data_sub_dir = 7;
 }
 
 message DataJoinPortalManifest {

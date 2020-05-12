@@ -140,19 +140,18 @@ class SortRunMerger(object):
         self._merge_finished = False
         self._create_merged_dir_if_need()
 
-    def merge_sort_runs(self, partition_id, sort_runs):
-        assert partition_id < self._options.output_partition_num
+    def merge_sort_runs(self, sort_runs):
         if len(sort_runs) == 0:
-            logging.info("no sort run for partition %d", partition_id)
+            logging.info("no sort run for partition %d", self._partition_id)
             return
-        if self._check_merged(partition_id):
+        if self._check_merged():
             logging.info("sort runs have been merged for partition %d",
-                         partition_id)
+                         self._partition_id)
         pque = queue.PriorityQueue(len(sort_runs)*2+1)
-        readers = self._create_sort_run_readers(partition_id, sort_runs)
+        readers = self._create_sort_run_readers(sort_runs)
         for reader in readers:
             self._replenish_item(reader, pque)
-        writer = self._create_sort_run_merger_writer(partition_id)
+        writer = self._create_sort_run_merger_writer()
         while pque.qsize() > 0:
             item = pque.get()
             writer.append(item.raw)
@@ -168,6 +167,12 @@ class SortRunMerger(object):
         with self._lock:
             self._merge_finished = True
 
+    def get_merged_sort_run_fpath(self):
+        merge_dir = os.path.join(self._options.output_file_dir,
+                                 common.partition_repr(self._partition_id))
+        merged_fname = common.encode_merged_sort_run_fname(self._partition_id)
+        return os.path.join(merge_dir, merged_fname)
+
     @classmethod
     def _replenish_item(cls, reader, pque):
         if not reader.finished():
@@ -175,36 +180,36 @@ class SortRunMerger(object):
                 pque.put(item)
                 break
 
-    def _create_sort_run_readers(self, partition_id, sort_runs):
+    def _create_sort_run_readers(self, sort_runs):
         assert len(sort_runs) > 0
         readers = []
         for index, sort_run in enumerate(sort_runs):
             fpath = os.path.join(self._input_dir,
-                                 common.partition_repr(partition_id),
+                                 common.partition_repr(self._partition_id),
                                  sort_run.encode_sort_run_fname())
             readers.append(SortRunReader(index, fpath))
         return readers
 
-    def _create_sort_run_merger_writer(self, partition_id):
-        fname = common.encode_merged_sort_run_fname(partition_id)
-        fpath = os.path.join(self._options.output_file_dir,
-                             common.partition_repr(partition_id),
-                             fname)
-        return SortRunMergerWriter(partition_id, fpath)
+    def _create_sort_run_merger_writer(self):
+        return SortRunMergerWriter(self._partition_id,
+                                   self.get_merged_sort_run_fpath())
 
-    def _check_merged(self, partition_id):
+    def _check_merged(self):
         merge_dir = os.path.join(self._options.output_file_dir,
-                                 common.partition_repr(partition_id))
-        merged_fname = common.encode_merged_sort_run_fname(partition_id)
+                                 common.partition_repr(self._partition_id))
+        merged_fname = common.encode_merged_sort_run_fname(self._partition_id)
         return len([f for f in gfile.ListDirectory(merge_dir)
                     if (os.path.basename(f) == merged_fname or \
                         os.path.basename(f) == '_SUCCESS')]) > 0
 
     def _create_merged_dir_if_need(self):
-        for partition_id in range(self._options.output_partition_num):
-            merge_dir = os.path.join(self._options.output_file_dir,
-                                     common.partition_repr(partition_id))
-            if gfile.Exists(merge_dir):
-                assert gfile.IsDirectory(merge_dir)
-            else:
-                gfile.MakeDirs(merge_dir)
+        merge_dir = os.path.join(self._options.output_file_dir,
+                                 common.partition_repr(self._partition_id))
+        if gfile.Exists(merge_dir):
+            assert gfile.IsDirectory(merge_dir)
+        else:
+            gfile.MakeDirs(merge_dir)
+
+    @property
+    def _partition_id(self):
+        return self._options.partition_id

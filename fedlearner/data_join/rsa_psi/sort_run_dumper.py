@@ -20,8 +20,6 @@ import re
 import copy
 from os import path
 
-from cityhash import CityHash32 # pylint: disable=no-name-in-module
-
 from tensorflow.compat.v1 import gfile
 
 from fedlearner.data_join import common, csv_dict_writer
@@ -124,8 +122,8 @@ class SortRunDumper(object):
         self._next_index_to_dump = None
         self._options = options
         self._dump_finished = False
-        self._dumped_sort_run_metas = {}
-        self._fly_sort_run_dumpers = []
+        self._dumped_sort_run_metas = []
+        self._fly_sort_run_dumper = None
         self._sync_manager_state()
 
     def get_next_index_to_dump(self):
@@ -148,32 +146,19 @@ class SortRunDumper(object):
         if self.is_dump_finished():
             return
         assert self._dumped_process_index is not None
-        assert len(self._fly_sort_run_dumpers) == 0
+        assert self._fly_sort_run_dumper is None
         next_process_index = self._dumped_process_index + 1
-        self._fly_sort_run_dumpers = self._create_sort_run_dumpers(
+        self._fly_sort_run_dumper = self._create_sort_run_dumper(
                 next_process_index
             )
         for join_id, index, raw in producer:
-            partition_id = 0
-            if self._output_partition_num > 1:
-                partition_id = CityHash32(join_id) % self._output_partition_num
-            dumper = self._fly_sort_run_dumpers[partition_id]
-            dumper.append(index, raw)
-        max_dumped_index = None
-        for partition_id, dumper in enumerate(self._fly_sort_run_dumpers):
-            meta = dumper.finish_dumper()
-            if meta is not None:
-                if partition_id not in self._dumped_sort_run_metas:
-                    self._dumped_sort_run_metas[partition_id] = [meta]
-                else:
-                    self._dumped_sort_run_metas[partition_id].append(meta)
-                if max_dumped_index is None or \
-                        meta.end_index > max_dumped_index:
-                    max_dumped_index = meta.end_index
-        if max_dumped_index is not None:
+            self._fly_sort_run_dumper.append(index, raw)
+        meta = self._fly_sort_run_dumper.finish_dumper()
+        if meta is not None:
+            self._dumped_sort_run_metas.append(meta)
             with self._lock:
-                assert self._next_index_to_dump <= max_dumped_index
-                self._next_index_to_dump = max_dumped_index + 1
+                assert self._next_index_to_dump <= meta.end_index
+                self._next_index_to_dump = meta.end_index + 1
         self._dumped_process_index += 1
 
     def get_all_sort_runs(self):
@@ -187,58 +172,33 @@ class SortRunDumper(object):
         return path.join(self._options.output_file_dir, 'sort_run_dump-tmp')
 
     def _sync_manager_state(self):
-        for dumper in self._fly_sort_run_dumpers:
-            if gfile.Exists(dumper.tmp_fpath):
-                gfile.Remove(dumper.tmp_fpath)
-            if dumper.fpath is None and gfile.Exists(dumper.fpath):
-                gfile.Remove(dumper.fpath)
-        self._fly_sort_run_dumpers = []
+        if self._fly_sort_run_dumper is not None:
+            if gfile.Exists(self._fly_sort_run_dumper.tmp_fpath):
+                gfile.Remove(self._fly_sort_run_dumper.tmp_fpath)
+            fpath = self._fly_sort_run_dumper.fpath
+            if fpath is None and gfile.Exists(fpath):
+                fname = path.basename(fpath)
+                meta = SortRunMeta.decode_sort_run_meta_from_fname(fname)
+                self._dumped_sort_run_metas.append(meta)
+                self._dumped_process_index = meta.process_index
+        self._fly_sort_run_dumper = None
         if self._dumped_process_index is None:
-            max_process_index = None
-            min_process_index = None
-            next_index_to_dump = None
-            for partition_id in range(self._output_partition_num):
-                fnames = self._list_dumper_output_dir(partition_id)
-                metas = [SortRunMeta.decode_sort_run_meta_from_fname(fname)
-                         for fname in fnames]
-                metas.sort()
-                self._dumped_sort_run_metas[partition_id] = metas
-                if len(metas) > 0 and (max_process_index is None or
-                        metas[-1].process_index > max_process_index):
-                    max_process_index = metas[-1].process_index
-                if len(metas) > 0 and (min_process_index is None or
-                        metas[-1].partition_id < min_process_index):
-                    min_process_index = metas[-1].process_index
-            if max_process_index is None or min_process_index is None:
+            self._dumped_sort_run_metas = \
+                    [SortRunMeta.decode_sort_run_meta_from_fname(fname)
+                     for fname in self._list_dumper_output_dir()]
+            self._dumped_sort_run_metas.sort()
+            if len(self._dumped_sort_run_metas) == 0:
                 self._dumped_process_index = -1
-            elif self._double_check_dump_finished() or \
-                    min_process_index == max_process_index:
-                self._dumped_process_index = max_process_index
             else:
-                self._dumped_process_index = max_process_index - 1
-        max_dumped_index = None
-        for partition_id, metas in self._dumped_sort_run_metas.items():
-            for meta in metas[::-1]:
-                if meta.process_index > self._dumped_process_index:
-                    fpath = path.join(self.sort_run_dump_dir,
-                                      common.partition_repr(partition_id),
-                                      meta.encode_sort_run_fname())
-                    if gfile.Exists(fpath):
-                        gfile.Remove(fpath)
-                else:
-                    break
-            metas = metas[:self._dumped_process_index+1]
-            self._dumped_sort_run_metas[partition_id] = metas
-            if len(metas) > 0 and (max_dumped_index is None or \
-                                   max_dumped_index < metas[-1].end_index):
-                max_dumped_index = metas[-1].end_index
+                self._dumped_process_index = \
+                        self._dumped_sort_run_metas[-1].process_index
         with self._lock:
-            self._next_index_to_dump = 0 if max_dumped_index is None \
-                                       else max_dumped_index + 1
+            self._next_index_to_dump = \
+                    0 if len(self._dumped_sort_run_metas) == 0 \
+                    else self._dumped_sort_run_metas[-1].end_index + 1
 
-    def _list_dumper_output_dir(self, partition_id):
-        output_dir = path.join(self.sort_run_dump_dir,
-                               common.partition_repr(partition_id))
+    def _list_dumper_output_dir(self):
+        output_dir = self._get_output_dir()
         if gfile.Exists(output_dir):
             assert gfile.IsDirectory(output_dir)
             all_files = gfile.ListDirectory(output_dir)
@@ -249,18 +209,14 @@ class SortRunDumper(object):
         gfile.MakeDirs(output_dir)
         return []
 
-    @property
-    def _output_partition_num(self):
-        return self._options.output_partition_num
+    def _create_sort_run_dumper(self, process_index):
+        output_dir = self._get_output_dir()
+        return SortRunDumper.SortRunWriter(process_index,
+                                           output_dir)
 
-    def _create_sort_run_dumpers(self, process_index):
-        dumpers = []
-        for partition_id in range(self._output_partition_num):
-            output_dir = path.join(self.sort_run_dump_dir,
-                                   common.partition_repr(partition_id))
-            dumpers.append(SortRunDumper.SortRunWriter(process_index,
-                                                       output_dir))
-        return dumpers
+    def _get_output_dir(self):
+        return path.join(self.sort_run_dump_dir,
+                         common.partition_repr(self._options.partition_id))
 
     def _get_finish_tag_fpath(self):
         return path.join(self.sort_run_dump_dir, '_SUCCESS')
