@@ -23,6 +23,8 @@ import logging
 import csv
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
+from cityhash import CityHash32 # pylint: disable=no-name-in-module
+
 import unittest
 import tensorflow.compat.v1 as tf
 import numpy as np
@@ -65,12 +67,14 @@ class RsaPsi(unittest.TestCase):
         self._data_source_l.data_block_dir = "./data_block_l"
         self._data_source_l.raw_data_dir = "./raw_data_l"
         self._data_source_l.example_dumped_dir = "./example_dumped_l"
+        self._data_source_l.raw_data_sub_dir= "./raw_data_sub_dir_l"
         self._data_source_f = common_pb.DataSource()
         self._data_source_f.role = common_pb.FLRole.Follower
         self._data_source_f.state = common_pb.DataSourceState.Init
         self._data_source_f.data_block_dir = "./data_block_f"
         self._data_source_f.raw_data_dir = "./raw_data_f"
         self._data_source_f.example_dumped_dir = "./example_dumped_f"
+        self._data_source_f.raw_data_sub_dir= "./raw_data_sub_dir_f"
         data_source_meta = common_pb.DataSourceMeta()
         data_source_meta.name = self._data_source_name
         data_source_meta.partition_num = 4
@@ -86,21 +90,16 @@ class RsaPsi(unittest.TestCase):
             gfile.MakeDirs(base_dir)
         fpaths = []
         random.shuffle(cands)
-        max_item_in_file = len(cands) // 10
-        csv_writer = None
-        file_index = 0
+        csv_writers = []
+        partition_num = self._data_source_l.data_source_meta.partition_num
+        for partition_id in range(partition_num):
+            fpath = os.path.join(base_dir, str(partition_id)+'.rd')
+            fpaths.append(fpath)
+            csv_writers.append(csv_dict_writer.CsvDictWriter(fpath, ['raw_id']))
         for item in cands:
-            if csv_writer is None:
-                fpath = os.path.join(base_dir, str(file_index)+'.rd')
-                fpaths.append(fpath)
-                csv_writer = csv_dict_writer.CsvDictWriter(fpath, ['raw_id'])
-            self.assertIsNotNone(csv_writer)
-            csv_writer.append_raw({'raw_id': item})
-            if csv_writer.write_raw_num() > max_item_in_file:
-                csv_writer.close()
-                file_index += 1
-                csv_writer = None
-        if csv_writer is not None:
+            partition_id = CityHash32(item) % partition_num
+            csv_writers[partition_id].append_raw({'raw_id': item})
+        for csv_writer in csv_writers:
             csv_writer.close()
         return fpaths
 
@@ -113,6 +112,8 @@ class RsaPsi(unittest.TestCase):
                             '../rsa_key')
         self._rsa_public_key_path = path.join(key_dir, 'rsa_psi.pub')
         self._rsa_private_key_path = path.join(key_dir, 'rsa_psi')
+        self._raw_data_pub_dir_l = self._data_source_l.raw_data_sub_dir
+        self._raw_data_pub_dir_f = self._data_source_f.raw_data_sub_dir
 
     def _gen_psi_input_raw_data(self):
         self._intersection_ids = set(['{:09}'.format(i) for i in range(0, 1 << 16)
@@ -151,7 +152,6 @@ class RsaPsi(unittest.TestCase):
             gfile.DeleteRecursively(self._data_source_f.raw_data_dir)
         if gfile.Exists(self._data_source_f.example_dumped_dir):
             gfile.DeleteRecursively(self._data_source_f.example_dumped_dir)
-
 
     def _launch_masters(self):
         self._master_addr_l = 'localhost:4061'
@@ -271,41 +271,55 @@ class RsaPsi(unittest.TestCase):
         self._launch_rsa_psi_signer()
 
     def _preprocess_rsa_psi_leader(self):
-        options = dj_pb.RsaPsiPreProcessorOptions(
-                role=common_pb.FLRole.Leader,
-                rsa_key_file_path=self._rsa_private_key_path,
-                input_file_paths=self._psi_raw_data_fpaths_l,
-                output_file_dir=self._pre_processor_ouput_dir_l,
-                output_partition_num=self._data_source_l.data_source_meta.partition_num,
-                offload_processor_number=1,
-                batch_processor_options=dj_pb.BatchProcessorOptions(
-                    batch_size=1024,
-                    max_flying_item=1<<14
+        processors = []
+        for partition_id in range(self._data_source_l.data_source_meta.partition_num):
+            options = dj_pb.RsaPsiPreProcessorOptions(
+                    role=common_pb.FLRole.Leader,
+                    rsa_key_file_path=self._rsa_private_key_path,
+                    input_file_paths=[self._psi_raw_data_fpaths_l[partition_id]],
+                    output_file_dir=self._pre_processor_ouput_dir_l,
+                    raw_data_publish_dir=self._raw_data_pub_dir_l,
+                    partition_id=partition_id,
+                    offload_processor_number=1,
+                    batch_processor_options=dj_pb.BatchProcessorOptions(
+                        batch_size=1024,
+                        max_flying_item=1<<14
+                    )
                 )
-            )
-        self._rsa_psi_preprocessor_l = \
-                rsa_psi_preprocessor.RsaPsiPreProcessor(options)
-        self._rsa_psi_preprocessor_l.start_process()
-        self._rsa_psi_preprocessor_l.wait_for_finished()
+            processor = rsa_psi_preprocessor.RsaPsiPreProcessor(
+                    options, self._etcd_name, self._etcd_addrs,
+                    self._etcd_base_dir_l, True
+                )
+            processor.start_process()
+            processors.append(processor)
+        for processor in processors:
+            processor.wait_for_finished()
 
     def _preprocess_rsa_psi_follower(self):
-        options = dj_pb.RsaPsiPreProcessorOptions(
-                role=common_pb.FLRole.Follower,
-                rsa_key_file_path=self._rsa_public_key_path,
-                input_file_paths=self._psi_raw_data_fpaths_f,
-                output_file_dir=self._pre_processor_ouput_dir_f,
-                output_partition_num=self._data_source_f.data_source_meta.partition_num,
-                leader_rsa_psi_signer_addr=self._rsa_psi_signer_addr,
-                offload_processor_number=1,
-                batch_processor_options=dj_pb.BatchProcessorOptions(
-                    batch_size=1024,
-                    max_flying_item=1<<14
+        processors = []
+        for partition_id in range(self._data_source_f.data_source_meta.partition_num):
+            options = dj_pb.RsaPsiPreProcessorOptions(
+                    role=common_pb.FLRole.Follower,
+                    rsa_key_file_path=self._rsa_public_key_path,
+                    input_file_paths=[self._psi_raw_data_fpaths_f[partition_id]],
+                    output_file_dir=self._pre_processor_ouput_dir_f,
+                    raw_data_publish_dir=self._raw_data_pub_dir_f,
+                    partition_id=partition_id,
+                    leader_rsa_psi_signer_addr=self._rsa_psi_signer_addr,
+                    offload_processor_number=1,
+                    batch_processor_options=dj_pb.BatchProcessorOptions(
+                        batch_size=1024,
+                        max_flying_item=1<<14
+                    )
                 )
-            )
-        self._rsa_psi_preprocessor_f = \
-                rsa_psi_preprocessor.RsaPsiPreProcessor(options)
-        self._rsa_psi_preprocessor_f.start_process()
-        self._rsa_psi_preprocessor_f.wait_for_finished()
+            processor = rsa_psi_preprocessor.RsaPsiPreProcessor(
+                        options, self._etcd_name, self._etcd_addrs,
+                        self._etcd_base_dir_f, True
+                    )
+            processor.start_process()
+            processors.append(processor)
+        for processor in processors:
+            processor.wait_for_finished()
 
     def test_all_pipeline(self):
         start_tm = time.time()
@@ -319,17 +333,31 @@ class RsaPsi(unittest.TestCase):
         rd_ctl_f = raw_data_controller.RawDataController(self._data_source_f,
                                                          self._master_client_f)
         partition_num = self._data_source_l.data_source_meta.partition_num
-        for partition_id in range(partition_num):
-            fpaht_f = path.join(self._pre_processor_ouput_dir_f,
-                                common.partition_repr(partition_id),
-                                common.encode_merged_sort_run_fname(partition_id))
-            rd_ctl_f.add_raw_data(partition_id, [fpaht_f], True)
-            rd_ctl_f.finish_raw_data(partition_id)
-            fpaht_l = path.join(self._pre_processor_ouput_dir_l,
-                                common.partition_repr(partition_id),
-                                common.encode_merged_sort_run_fname(partition_id))
-            rd_ctl_l.add_raw_data(partition_id, [fpaht_l], True)
-            rd_ctl_l.finish_raw_data(partition_id)
+        all_finished = False
+        while not all_finished:
+            time.sleep(1)
+            all_finished = True
+            for partition_id in range(partition_num):
+                manifest = self._master_client_l.QueryRawDataManifest(
+                        dj_pb.RawDataRequest(
+                            data_source_meta=self._data_source_l.data_source_meta,
+                            partition_id=partition_id
+                        )
+                    )
+                if manifest.next_process_index > 0:
+                    rd_ctl_l.finish_raw_data(partition_id)
+                else:
+                    all_finished = False
+                manifest = self._master_client_f.QueryRawDataManifest(
+                        dj_pb.RawDataRequest(
+                            data_source_meta=self._data_source_l.data_source_meta,
+                            partition_id=partition_id
+                        )
+                    )
+                if manifest.next_process_index > 0:
+                    rd_ctl_f.finish_raw_data(partition_id)
+                else:
+                    all_finished = False
 
         while True:
             req_l = dj_pb.DataSourceRequest(

@@ -27,15 +27,21 @@ from fedlearner.common import common_pb2 as common_pb
 from fedlearner.common import data_join_service_pb2 as dj_pb
 
 from fedlearner.data_join.routine_worker import RoutineWorker
+from fedlearner.data_join.raw_data_publisher import RawDataPublisher
 from fedlearner.data_join.rsa_psi.rsa_psi_component import \
         IdBatchFetcher, LeaderPsiRsaSigner, FollowerPsiRsaSigner
 from fedlearner.data_join.rsa_psi.sort_run_dumper import SortRunDumper
 from fedlearner.data_join.rsa_psi.sort_run_merger import SortRunMerger
 
 class RsaPsiPreProcessor(object):
-    def __init__(self, options):
+    def __init__(self, options, etcd_name, etcd_addrs,
+                 etcd_base_dir, use_mock_etcd=False):
         self._lock = threading.Condition()
         self._options = options
+        self._publisher = RawDataPublisher(
+                etcd_name, etcd_addrs, etcd_base_dir,
+                self._options.raw_data_publish_dir, use_mock_etcd
+            )
         self._process_pool_executor = \
                 concur_futures.ProcessPoolExecutor(
                         options.offload_processor_number
@@ -223,9 +229,11 @@ class RsaPsiPreProcessor(object):
         return self._repr + ':sort_run_merger'
 
     def _sort_run_merge_fn(self):
-        all_dumped_sort_run = self._sort_run_dumper.get_all_sort_runs()
-        for partition_id, sort_runs in all_dumped_sort_run.items():
-            self._sort_run_merger.merge_sort_runs(partition_id, sort_runs)
+        sort_runs = self._sort_run_dumper.get_all_sort_runs()
+        self._sort_run_merger.merge_sort_runs(sort_runs)
+        fpaths = [self._sort_run_merger.get_merged_sort_run_fpath()]
+        self._publisher.publish_raw_data(self._options.partition_id,
+                                         fpaths, True)
         self._sort_run_merger.set_merged_finished()
 
     def _sort_run_merge_cond(self):
@@ -247,8 +255,8 @@ if __name__ == "__main__":
                         help='the file path input rsa psi preprocessor')
     parser.add_argument('--output_file_dir', type=str, required=True,
                         help='the directory to store the result of processor')
-    parser.add_argument('--output_partition_num', type=int, default=1,
-                        help='the partition num output from processor')
+    parser.add_argument('--raw_data_publish_dir', type=str, required=True,
+                        help='the etcd base dir to publish new raw data')
     parser.add_argument('--leader_rsa_psi_signer_addr', type=str,
                         help='the ras psi follower should set give '\
                              'the addr of rsa psi signer of leader')
@@ -258,6 +266,14 @@ if __name__ == "__main__":
                         help='the process buffer size')
     parser.add_argument('--offload_processor_number', type=int, default=1,
                         help='the number of processor to offload rsa compute')
+    parser.add_argument('--partition_id', type=int, required=True,
+                        help='the partition id will be processed')
+    parser.add_argument('--etcd_name', type=str,
+                        default='test_etcd', help='the name of etcd')
+    parser.add_argument('--etcd_addrs', type=str,
+                        default='localhost:2379', help='the addrs of etcd')
+    parser.add_argument('--etcd_base_dir', type=str, default='fedlearner_test',
+                        help='the namespace of etcd key')
 
     args = parser.parse_args()
     preprocessor_options = dj_pb.RsaPsiPreProcessorOptions(
@@ -266,7 +282,8 @@ if __name__ == "__main__":
             rsa_key_file_path=args.rsa_key_file_path,
             input_file_paths=args.input_file_paths,
             output_file_dir=args.output_file_dir,
-            output_partition_num=args.output_partition_num,
+            raw_data_publish_dir=args.raw_data_publish_dir,
+            partition_id=args.partition_id,
             leader_rsa_psi_signer_addr=args.leader_rsa_psi_signer_addr,
             offload_processor_number=args.offload_processor_number,
             batch_processor_options=dj_pb.BatchProcessorOptions(
@@ -274,7 +291,8 @@ if __name__ == "__main__":
                 max_flying_item=args.max_flying_item
             )
         )
-    preprocessor = RsaPsiPreProcessor(preprocessor_options)
+    preprocessor = RsaPsiPreProcessor(preprocessor_options, args.etcd_name,
+                                      args.etcd_addrs, args.etcd_base_dir)
     preprocessor.start_process()
     logging.info("PreProcessor launched for %s of RSA PSI", args.psi_role)
     preprocessor.wait_for_finished()

@@ -60,8 +60,9 @@ class ItemBatchSeqProcessor(object):
         with self._lock:
             if next_index is None:
                 return False
-            if self._last_index is not None and next_index > self._last_index:
-                assert self._process_finished
+            if self._process_finished and \
+                    self._last_index is not None and \
+                    next_index > self._last_index:
                 return False
             if self._check_index_rollback(next_index):
                 return True
@@ -117,11 +118,9 @@ class ItemBatchSeqProcessor(object):
             if len(batch) > 0:
                 self._append_next_item_batch(batch)
                 yield batch
-            end_batch = batch
+            self._update_last_index(batch.begin_index+len(batch)-1)
         if input_finished and batch_finished:
-            end_index = None if end_batch is None else \
-                        end_batch.begin_index+len(end_batch)-1
-            self._set_process_finished(end_index)
+            self._set_process_finished()
 
     def _make_inner_generator(self, next_index):
         raise NotImplementedError("_make_inner_generator is not "\
@@ -131,8 +130,9 @@ class ItemBatchSeqProcessor(object):
         with self._lock:
             if next_index is None:
                 return False, None, hint_idx
-            if self._last_index is not None and self._last_index < next_index:
-                assert self._process_finished
+            if self._process_finished and \
+                    self._last_index is not None and \
+                    self._last_index < next_index:
                 return True, None, None
             if len(self._batch_queue) == 0:
                 return False, None, 0
@@ -202,9 +202,12 @@ class ItemBatchSeqProcessor(object):
         with self._lock:
             return self._flying_item_count > self._max_flying_item
 
-    def _set_process_finished(self, last_index):
+    def _update_last_index(self, last_index):
+        with self._lock:
+            if self._last_index is None or last_index > self._last_index:
+                self._last_index = last_index
+
+    def _set_process_finished(self):
         with self._lock:
             assert self._input_finished
             self._process_finished = True
-            if last_index is not None:
-                self._last_index = last_index

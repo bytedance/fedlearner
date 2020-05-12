@@ -15,6 +15,8 @@
 # coding: utf-8
 
 import threading
+from os import path
+
 from google.protobuf import text_format
 from fedlearner.common import data_join_service_pb2 as dj_pb
 from fedlearner.common import common_pb2 as common_pb
@@ -26,6 +28,7 @@ class RawDataManifestManager(object):
         self._local_manifest = {}
         self._etcd = etcd
         self._data_source = data_source
+        self._raw_data_sub_dir = self._data_source.raw_data_sub_dir
         self._existed_fpath = {}
         self._raw_data_latest_timestamp = {}
         self._partition_num = data_source.data_source_meta.partition_num
@@ -104,6 +107,7 @@ class RawDataManifestManager(object):
                 self._update_manifest(manifest)
 
     def add_raw_data(self, partition_id, raw_data_metas, dedup):
+        assert len(self._raw_data_sub_dir) == 0
         self._check_partition_id(partition_id)
         with self._lock:
             manifest = self._sync_manifest(partition_id)
@@ -121,27 +125,7 @@ class RawDataManifestManager(object):
                     continue
                 input_fpath.add(raw_date_meta.file_path)
                 add_candidates.append(raw_date_meta)
-            self._local_manifest[partition_id] = None
-            process_index = manifest.next_process_index
-            for raw_date_meta in add_candidates:
-                etcd_key = common.raw_data_meta_etcd_key(
-                        self._data_source.data_source_meta.name,
-                        partition_id, process_index
-                    )
-                raw_date_meta.start_index = -1
-                data = text_format.MessageToString(raw_date_meta)
-                self._etcd.set_data(etcd_key, data)
-                self._existed_fpath[raw_date_meta.file_path] = \
-                        (partition_id, process_index)
-                self._update_raw_data_latest_timestamp(
-                        partition_id, raw_date_meta.timestamp
-                    )
-                process_index += 1
-            if manifest.next_process_index != process_index:
-                manifest.next_process_index = process_index
-                self._update_manifest(manifest)
-            else:
-                self._local_manifest[partition_id] = manifest
+            self._store_raw_data_metas(partition_id, add_candidates)
 
     def forward_peer_dumped_index(self, partition_id, peer_dumped_index):
         self._check_partition_id(partition_id)
@@ -168,6 +152,60 @@ class RawDataManifestManager(object):
         with self._lock:
             self._sync_manifest(partition_id)
             return self._raw_data_latest_timestamp[partition_id]
+
+    def sub_new_raw_data(self):
+        if len(self._raw_data_sub_dir) > 0:
+            for partition_id in range(self._partition_num):
+                self._try_to_sub_raw_data(partition_id)
+
+    def _try_to_sub_raw_data(self, partition_id):
+        sub_src_dir = path.join(self._raw_data_sub_dir,
+                                common.partition_repr(partition_id))
+        with self._lock:
+            manifest = self._sync_manifest(partition_id)
+            sub_index = manifest.next_raw_data_sub_index
+            add_candidates = []
+            while True:
+                src_etcd_key = common.raw_data_meta_etcd_key(
+                        self._raw_data_sub_dir,
+                        partition_id, sub_index
+                    )
+                src_data = self._etcd.get_data(src_etcd_key)
+                if src_data is None:
+                    break
+                src_meta = text_format.Parse(src_data, dj_pb.RawDataMeta())
+                if src_meta.file_path not in self._existed_fpath:
+                    add_candidates.append(src_meta)
+                sub_index += 1
+            self._store_raw_data_metas(partition_id, add_candidates)
+            new_manifest = self._sync_manifest(partition_id)
+            new_manifest.next_raw_data_sub_index = sub_index
+            self._update_manifest(new_manifest)
+
+    def _store_raw_data_metas(self, partition_id, new_raw_data_metas):
+        if len(new_raw_data_metas) > 0:
+            manifest = self._sync_manifest(partition_id)
+            self._local_manifest[partition_id] = None
+            process_index = manifest.next_process_index
+            for raw_date_meta in new_raw_data_metas:
+                etcd_key = common.raw_data_meta_etcd_key(
+                        self._data_source.data_source_meta.name,
+                        partition_id, process_index
+                    )
+                raw_date_meta.start_index = -1
+                data = text_format.MessageToString(raw_date_meta)
+                self._etcd.set_data(etcd_key, data)
+                self._existed_fpath[raw_date_meta.file_path] = \
+                        (partition_id, process_index)
+                self._update_raw_data_latest_timestamp(
+                        partition_id, raw_date_meta.timestamp
+                    )
+                process_index += 1
+            if manifest.next_process_index != process_index:
+                manifest.next_process_index = process_index
+                self._update_manifest(manifest)
+            else:
+                self._local_manifest[partition_id] = manifest
 
     def _is_data_join_leader(self):
         return self._data_source.role == common_pb.FLRole.Leader

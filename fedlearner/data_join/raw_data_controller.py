@@ -24,6 +24,8 @@ from tensorflow.compat.v1 import gfile
 
 from fedlearner.common import data_join_service_pb2 as dj_pb
 from fedlearner.common import data_join_service_pb2_grpc as dj_grpc
+from fedlearner.common import common_pb2 as common_pb
+
 from fedlearner.proxy.channel import make_insecure_channel, ChannelType
 
 class RawDataController(object):
@@ -34,7 +36,8 @@ class RawDataController(object):
     def add_raw_data(self, partition_id, fpaths, dedup, timestamps=None):
         self._check_partition_id(partition_id)
         if not fpaths:
-            raise RuntimeError("no files input")
+            logging.warning("no raw data will be added")
+            return common_pb.Status(code=0)
         if timestamps is not None and len(fpaths) != len(timestamps):
             raise RuntimeError("the number of raw data file "\
                                "and timestamp mismatch")
