@@ -29,4 +29,4 @@ class CsvDictDataBlockBuilder(DataBlockBuilder):
         return item.csv_record
 
     def _write_record(self, record):
-        self._writer.append_raw(record)
+        self._writer.write(record)

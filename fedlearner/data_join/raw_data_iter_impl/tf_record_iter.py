@@ -30,6 +30,7 @@ class TfExampleItem(RawDataIter.Item):
         self._event_time = None
         self._parse_example_error = False
         self._csv_record = None
+        self._raw_id = None
 
     @property
     def example_id(self):
@@ -45,6 +46,21 @@ class TfExampleItem(RawDataIter.Item):
                               self._record_str, e)
                 self._example_id = common.InvalidExampleId
         return self._example_id
+
+    @property
+    def raw_id(self):
+        if self._raw_id is None:
+            try:
+                self._parse_example(True)
+                feat = self._example.features.feature
+                if 'raw_id' not in feat:
+                    raise ValueError('raw_id not in example field')
+                self._raw_id = feat['raw_id'].bytes_list.value[0]
+            except Exception as e: # pylint: disable=broad-except
+                logging.error('Failed to parse raw id from %s, reason %s',
+                              self._record_str, e)
+                self._raw_id = ''
+        return self._raw_id
 
     @property
     def event_time(self):

@@ -28,40 +28,9 @@ from fedlearner.common import data_join_service_pb2 as dj_pb
 
 from fedlearner.proxy.channel import make_insecure_channel, ChannelType
 
-from fedlearner.data_join import visitor
+from fedlearner.data_join.raw_data_visitor import BatchRawDataVisitor
 from fedlearner.data_join.item_batch_seq_processor import \
         ItemBatch, ItemBatchSeqProcessor
-from fedlearner.data_join.raw_data_iter_impl import create_raw_data_iter
-
-class RawIdIndexMetaManager(visitor.IndexMetaManager):
-    def __init__(self, input_fpaths):
-        super(RawIdIndexMetaManager, self).__init__([])
-        assert len(input_fpaths) > 0, "input file must not be empty"
-        self._input_fpaths = input_fpaths
-
-    def check_index_meta_by_process_index(self, process_index):
-        return process_index < len(self._index_metas)
-
-    def _new_index_meta(self, process_index, start_index):
-        if process_index >= len(self._input_fpaths):
-            return None
-        return visitor.IndexMeta(process_index, start_index,
-                                 self._input_fpaths[process_index])
-
-class RawIdVisitor(visitor.Visitor):
-    def __init__(self, input_file_paths):
-        super(RawIdVisitor, self).__init__(
-                "raw_id_visitor",
-                RawIdIndexMetaManager(input_file_paths)
-            )
-
-    def _new_iter(self):
-        return create_raw_data_iter(
-                dj_pb.RawDataOptions(raw_data_iter='CSV_DICT')
-            )
-
-    def active_visitor(self):
-        logging.debug("active visitor do nothing for raw id visitor")
 
 class IdBatch(ItemBatch):
     def __init__(self, begin_index):
@@ -93,7 +62,10 @@ class IdBatchFetcher(ItemBatchSeqProcessor):
         super(IdBatchFetcher, self).__init__(
                 options.batch_processor_options.max_flying_item,
             )
-        self._id_visitor = RawIdVisitor(options.input_file_paths)
+        self._id_visitor = BatchRawDataVisitor(
+                options.input_file_paths,
+                dj_pb.RawDataOptions(raw_data_iter='CSV_DICT')
+            )
         self._batch_size = options.batch_processor_options.batch_size
 
     @classmethod

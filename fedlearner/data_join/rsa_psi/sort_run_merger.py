@@ -103,7 +103,7 @@ class SortRunMergerWriter(object):
             )
 
     def append(self, raw):
-        self._csv_dict_writer.append_raw(raw)
+        self._csv_dict_writer.write(raw)
 
     def finish(self):
         self._csv_dict_writer.close()
