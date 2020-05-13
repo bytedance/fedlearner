@@ -76,7 +76,7 @@ class SortRunDumper(object):
             self._tmp_fpath = self._gen_tmp_fpath()
             self._fpath = None
             self._csv_writer = csv_dict_writer.CsvDictWriter(
-                    self._tmp_fpath, ['join_id', 'raw_id']
+                    self._tmp_fpath
                 )
             self._start_index = None
             self._end_index = None

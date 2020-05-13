@@ -18,9 +18,10 @@ import argparse
 import logging
 import threading
 import os
-
 import concurrent.futures as concur_futures
+from collections import OrderedDict
 import rsa
+
 
 from tensorflow.compat.v1 import gfile
 
@@ -48,7 +49,6 @@ class RsaPsiPreProcessor(object):
                         options.offload_processor_number
                     )
         self._id_batch_fetcher = IdBatchFetcher(self._options)
-        self._id_batch_fetcher.set_input_finished()
         max_flying_item = options.batch_processor_options.max_flying_item
         if self._options.role == common_pb.FLRole.Leader:
             private_key = None
@@ -191,7 +191,7 @@ class RsaPsiPreProcessor(object):
                 items_buffer.append(item)
             next_index += len(batch)
             total_item_num += len(batch)
-        sorted_items_buffer = sorted(items_buffer, key=lambda item: item[1])
+        sorted_items_buffer = sorted(items_buffer, key=lambda item: item[0])
         return signed_finished, sorted_items_buffer, next_index
 
     def _sort_run_dump_fn(self):
@@ -200,10 +200,10 @@ class RsaPsiPreProcessor(object):
         sort_run_dumper = self._sort_run_dumper
         if len(items_buffer) > 0:
             def producer(items_buffer):
-                for raw_id, signed_id, index in items_buffer:
-                    join_id = signed_id
-                    raw = {'join_id': join_id, 'raw_id': raw_id}
-                    yield join_id, index, raw
+                for signed_id, raw, index in items_buffer:
+                    new_raw = OrderedDict({'example_id': signed_id})
+                    new_raw.update(raw)
+                    yield signed_id, index, new_raw
             sort_run_dumper.dump_sort_runs(producer(items_buffer))
         if next_index is not None:
             self._psi_rsa_signer.evict_staless_item_batch(next_index-1)
