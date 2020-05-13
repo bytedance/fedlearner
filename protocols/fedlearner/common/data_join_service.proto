@@ -290,3 +290,13 @@ message RsaPsiPreProcessorOptions {
   int64 offload_processor_number = 8;
   BatchProcessorOptions batch_processor_options = 9;
 }
+
+message RawDataPartitionerOptions {
+  repeated string input_file_paths = 1;
+  string output_dir = 2;
+  int64 output_partition_num = 3;
+  RawDataOptions raw_data_options = 4;
+  string output_builder = 5; // only support tf record or csv
+  int64 output_item_threshold = 6;
+  BatchProcessorOptions batch_processor_options = 7;
+}

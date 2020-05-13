@@ -98,7 +98,7 @@ class RsaPsi(unittest.TestCase):
             csv_writers.append(csv_dict_writer.CsvDictWriter(fpath, ['raw_id']))
         for item in cands:
             partition_id = CityHash32(item) % partition_num
-            csv_writers[partition_id].append_raw({'raw_id': item})
+            csv_writers[partition_id].write({'raw_id': item})
         for csv_writer in csv_writers:
             csv_writer.close()
         return fpaths

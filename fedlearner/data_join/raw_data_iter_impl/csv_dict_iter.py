@@ -50,6 +50,16 @@ class CsvItem(RawDataIter.Item):
         return common.InvalidEventTime
 
     @property
+    def raw_id(self):
+        if 'raw_id' not in self._raw:
+            logging.error("Failed parse raw id since no join "\
+                          "id in csv dict raw %s", self._raw)
+            return ''
+        if isinstance(self._raw['raw_id'], bytes):
+            return self._raw['raw_id']
+        return str(self._raw['raw_id']).encode()
+
+    @property
     def record(self):
         return self._raw
 
