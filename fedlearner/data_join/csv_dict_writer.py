@@ -24,14 +24,14 @@ class CsvDictWriter(object):
         self._fpath = fpath
         self._headers = [] if headers is None else headers
         self._header_set = set()
-        self._fixed_header = headers
+        self._fixed_header = headers is not None
         self._file_hanlde = gfile.Open(fpath, 'w+')
         self._csv_writer = csv.DictWriter(
                 self._file_hanlde,
                 fieldnames=self._headers
             )
 
-    def append_raw(self, raw):
+    def write(self, raw):
         assert isinstance(raw, dict)
         if len(raw) == 0:
             return

@@ -82,7 +82,7 @@ class SortRunDumper(object):
             self._end_index = None
 
         def append(self, index, raw):
-            self._csv_writer.append_raw(raw)
+            self._csv_writer.write(raw)
             if self._start_index is None or self._start_index > index:
                 self._start_index = index
             if self._end_index is None or self._end_index < index:

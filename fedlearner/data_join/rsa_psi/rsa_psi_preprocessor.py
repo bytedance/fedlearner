@@ -17,6 +17,7 @@
 import argparse
 import logging
 import threading
+import os
 
 import concurrent.futures as concur_futures
 import rsa
@@ -253,6 +254,8 @@ if __name__ == "__main__":
                         help='the file path for the rsa key')
     parser.add_argument('--input_file_paths', type=str, nargs='+',
                         help='the file path input rsa psi preprocessor')
+    parser.add_argument('--input_dir', type=str,
+                        help='the raw data file appointed by dir')
     parser.add_argument('--output_file_dir', type=str, required=True,
                         help='the directory to store the result of processor')
     parser.add_argument('--raw_data_publish_dir', type=str, required=True,
@@ -276,11 +279,20 @@ if __name__ == "__main__":
                         help='the namespace of etcd key')
 
     args = parser.parse_args()
+    all_fpaths = []
+    if args.input_file_paths is not None:
+        for fp in args.input_file_paths:
+            all_fpaths.append(fp)
+    if args.input_dir is not None:
+        all_fpaths += [os.path.join(args.input_dir, f)
+                       for f in gfile.ListDirectory(args.input_dir)]
+    if len(all_fpaths) == 0:
+        raise RuntimeError("no input files for preprocessor")
     preprocessor_options = dj_pb.RsaPsiPreProcessorOptions(
             role=common_pb.FLRole.Leader if args.psi_role == 'leader' \
                                          else common_pb.FLRole.Follower,
             rsa_key_file_path=args.rsa_key_file_path,
-            input_file_paths=args.input_file_paths,
+            input_file_paths=list(set(all_fpaths)),
             output_file_dir=args.output_file_dir,
             raw_data_publish_dir=args.raw_data_publish_dir,
             partition_id=args.partition_id,

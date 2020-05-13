@@ -150,3 +150,35 @@ class RawDataVisitor(visitor.Visitor):
 
     def _new_iter(self):
         return create_raw_data_iter(self._raw_data_options)
+
+class BatchRawDataManager(visitor.IndexMetaManager):
+    def __init__(self, input_fpaths):
+        super(BatchRawDataManager, self).__init__([])
+        assert len(input_fpaths) > 0, "input file must not be empty"
+        self._input_fpaths = input_fpaths
+
+    def check_index_meta_by_process_index(self, process_index):
+        return process_index < len(self._index_metas)
+
+    def _new_index_meta(self, process_index, start_index):
+        if process_index >= len(self._input_fpaths):
+            return None
+        return visitor.IndexMeta(process_index, start_index,
+                                 self._input_fpaths[process_index])
+
+class BatchRawDataVisitor(visitor.Visitor):
+    def __init__(self, input_file_paths, raw_data_options):
+        super(BatchRawDataVisitor, self).__init__(
+                "batch_raw_data_visitor",
+                BatchRawDataManager(input_file_paths)
+            )
+        self._raw_data_options = raw_data_options
+
+    def _new_iter(self):
+        return create_raw_data_iter(
+                self._raw_data_options
+            )
+
+    def active_visitor(self):
+        logging.debug("active visitor do nothing for "\
+                      "batch raw data visitor")
