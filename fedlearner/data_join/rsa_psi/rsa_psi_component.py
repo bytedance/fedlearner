@@ -36,12 +36,22 @@ class IdBatch(ItemBatch):
     def __init__(self, begin_index):
         self._begin_index = begin_index
         self._raw_ids = []
+        self._raws = []
 
     def append(self, item):
         if 'raw_id' not in item.record:
             self._raw_ids.append('')
         else:
             self._raw_ids.append(item.record['raw_id'])
+        self._raws.append(item.record)
+
+    @property
+    def raw_ids(self):
+        return self._raw_ids
+
+    @property
+    def raws(self):
+        return self._raws
 
     @property
     def begin_index(self):
@@ -55,7 +65,7 @@ class IdBatch(ItemBatch):
         return self.begin_index < other.begin_index
 
     def __iter__(self):
-        return iter(self._raw_ids)
+        return iter(zip(self._raw_ids, self._raws))
 
 class IdBatchFetcher(ItemBatchSeqProcessor):
     def __init__(self, options):
@@ -67,6 +77,7 @@ class IdBatchFetcher(ItemBatchSeqProcessor):
                 dj_pb.RawDataOptions(raw_data_iter='CSV_DICT')
             )
         self._batch_size = options.batch_processor_options.batch_size
+        self.set_input_finished()
 
     @classmethod
     def name(cls):
@@ -98,7 +109,7 @@ class IdBatchFetcher(ItemBatchSeqProcessor):
 class SignedIdBatch(ItemBatch):
     def __init__(self, begin_index):
         self._begin_index = begin_index
-        self._ids = []
+        self._raws = []
         self._signed_ids = []
 
     @property
@@ -106,21 +117,21 @@ class SignedIdBatch(ItemBatch):
         return self._begin_index
 
     def append(self, id_pair):
-        self._ids.append(id_pair[0])
-        self._signed_ids.append(id_pair[1])
+        self._signed_ids.append(id_pair[0])
+        self._raws.append(id_pair[1])
 
     def __len__(self):
-        assert len(self._ids) == len(self._signed_ids)
-        return len(self._ids)
+        assert len(self._raws) == len(self._signed_ids)
+        return len(self._raws)
 
     def __lt__(self, other):
         assert isinstance(other, SignedIdBatch)
         return self.begin_index < other.begin_index
 
     def __iter__(self):
-        assert len(self._ids) == len(self._signed_ids)
-        item_cnt = len(self._ids)
-        return iter(zip(self._ids, self._signed_ids,
+        assert len(self._raws) == len(self._signed_ids)
+        item_cnt = len(self._raws)
+        return iter(zip(self._signed_ids, self._raws,
                         list(range(self._begin_index,
                                    self._begin_index+item_cnt))))
 
@@ -230,7 +241,9 @@ class LeaderPsiRsaSigner(PsiRsaSigner):
 
     @staticmethod
     def _leader_sign_func(raw_id_batch, d, n):
-        hashed_ids = PsiRsaSigner._crypto_hash_list(raw_id_batch, True)
+        hashed_ids = PsiRsaSigner._crypto_hash_list(
+                raw_id_batch.raw_ids, True
+            )
         assert len(hashed_ids) == len(raw_id_batch)
         signed_hashed_ids = PsiRsaSigner._rsa_sign_list(hashed_ids, d, n)
         assert len(signed_hashed_ids) == len(raw_id_batch)
@@ -244,9 +257,9 @@ class LeaderPsiRsaSigner(PsiRsaSigner):
             assert len(hashed_signed_hashed_ids) == len(raw_id_batch)
             begin_index = raw_id_batch.begin_index
             signed_id_batch = self._make_item_batch(begin_index)
-            for idx, raw_id in enumerate(raw_id_batch):
+            for idx, raw in enumerate(raw_id_batch.raws):
                 join_id = hashed_signed_hashed_ids[idx]
-                signed_id_batch.append((raw_id, join_id))
+                signed_id_batch.append((join_id, raw))
             notify_future.set_result(signed_id_batch)
         except Exception as e: # pylint: disable=broad-except
             notify_future.set_exception(e)
@@ -296,7 +309,9 @@ class FollowerPsiRsaSigner(PsiRsaSigner):
 
     @staticmethod
     def _blind_raw_id_batch(raw_id_batch, e, n):
-        hashed_ids = PsiRsaSigner._crypto_hash_list(raw_id_batch, True)
+        hashed_ids = PsiRsaSigner._crypto_hash_list(
+                raw_id_batch.raw_ids, True
+            )
         blind_numbers = [random.SystemRandom().getrandbits(256)
                          for i in range(len(raw_id_batch))]
         blinded_hashed_ids = [(powmod(r, e, n) * x % n).digits()
@@ -356,8 +371,9 @@ class FollowerPsiRsaSigner(PsiRsaSigner):
             begin_index = raw_id_batch.begin_index
             signed_id_batch = self._make_item_batch(begin_index)
             hashed_signed_hashed_ids = deblind_future.result()
-            for idx, raw_id in enumerate(raw_id_batch):
-                signed_id_batch.append((raw_id, hashed_signed_hashed_ids[idx]))
+            for idx, raw in enumerate(raw_id_batch.raws):
+                join_id = hashed_signed_hashed_ids[idx]
+                signed_id_batch.append((join_id, raw))
             notify_future.set_result(signed_id_batch)
         except Exception as e: # pylint: disable=broad-except
             notify_future.set_exception(e)

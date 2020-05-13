@@ -99,7 +99,7 @@ class SortRunMergerWriter(object):
         self._fpath = fpath
         self._tmp_fpath = self._get_tmp_fpath()
         self._csv_dict_writer = csv_dict_writer.CsvDictWriter(
-                self._tmp_fpath, ['join_id', 'raw_id']
+                self._tmp_fpath
             )
 
     def append(self, raw):

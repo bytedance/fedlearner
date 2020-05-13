@@ -31,13 +31,13 @@ class CsvItem(RawDataIter.Item):
 
     @property
     def example_id(self):
-        if 'join_id' not in self._raw:
+        if 'example_id' not in self._raw:
             logging.error("Failed parse example id since no join "\
                           "id in csv dict raw %s", self._raw)
             return common.InvalidExampleId
-        if isinstance(self._raw['join_id'], bytes):
-            return self._raw['join_id']
-        return str(self._raw['join_id']).encode()
+        if isinstance(self._raw['example_id'], bytes):
+            return self._raw['example_id']
+        return str(self._raw['example_id']).encode()
 
     @property
     def event_time(self):
@@ -80,26 +80,25 @@ class CsvItem(RawDataIter.Item):
         return self._raw
 
 class CsvDictIter(RawDataIter):
+    def __init__(self, options):
+        super(CsvDictIter, self).__init__(options)
+        self._headers = None
+
     @classmethod
     def name(cls):
         return 'CSV_DICT'
 
     def _inner_iter(self, fpath):
         with gfile.Open(fpath, 'r') as f:
-            fsize = gfile.Stat(fpath).length
-            f.seek(0 if fsize <= 2048 else fsize-2048, 0)
-            lines = f.readlines()
-            if len(lines) <= 1:
-                logging.fatal("not support length of header of csv "\
-                              "file %s is large > 2048.", fpath)
+            dict_reader = csv.DictReader(f)
+            if self._headers is None:
+                self._headers = dict_reader.fieldnames
+            elif self._headers != dict_reader.fieldnames:
+                logging.fatal("the schema of %s is %s, mismatch with "\
+                              "previous %s", fpath,
+                              self._headers, dict_reader.fieldnames)
                 os._exit(-1) # pylint: disable=protected-access
-            f.seek(0, 0)
-            end_data_cursor = fsize - len(lines[-1])
-            headrs = lines[-1].strip().split(',')
-            dict_reader = csv.DictReader(f, fieldnames=headrs)
             for raw in dict_reader:
-                if f.tell() > end_data_cursor:
-                    break
                 yield CsvItem(raw)
 
     def _reset_iter(self, index_meta):
