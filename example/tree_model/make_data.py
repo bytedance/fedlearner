@@ -1,3 +1,4 @@
+# pylint: disable=unsubscriptable-object
 import os
 import argparse
 
@@ -6,18 +7,28 @@ import tensorflow as tf
 from sklearn.datasets import load_iris
 
 
-def process_data(X, y, role, verify_example_ids):
+def write_data(filename, X, y, role, verify_example_ids):
     if role == 'leader':
         data = np.concatenate((X[:, :X.shape[1]//2], y), axis=1)
+        header = ['f%05d'%i for i in range(data.shape[1]-1)] + ['label']
     elif role == 'follower':
         data = X[:, X.shape[1]//2:]
+        header = ['f%05d'%i for i in range(data.shape[1])]
     else:
         data = np.concatenate((X, y), axis=1)
+        header = ['f%05d'%i for i in range(data.shape[1]-1)] + ['label']
 
     if verify_example_ids:
         data = np.concatenate(
             [[[i] for i in range(data.shape[0])], data], axis=1)
-    return data
+        header = ['example_id'] + header
+
+    np.savetxt(
+        filename,
+        data,
+        header=','.join(header),
+        delimiter=',',
+        comments='')
 
 def process_mnist(X, y):
     X = X.reshape(X.shape[0], -1)
@@ -43,31 +54,25 @@ def make_data(args):
         os.makedirs('data/follower_test')
         os.makedirs('data/local_test')
 
-    np.savetxt(
-        'data/leader_train.data',
-        process_data(x_train, y_train, 'leader', args.verify_example_ids),
-        delimiter=',')
-    np.savetxt(
-        'data/follower_train.data',
-        process_data(x_train, y_train, 'follower', args.verify_example_ids),
-        delimiter=',')
-    np.savetxt(
-        'data/local_train.data',
-        process_data(x_train, y_train, 'local', False),
-        delimiter=',')
+    write_data(
+        'data/leader_train.data', x_train, y_train,
+        'leader', args.verify_example_ids)
+    write_data(
+        'data/follower_train.data', x_train, y_train,
+        'follower', args.verify_example_ids)
+    write_data(
+        'data/local_train.data', x_train, y_train,
+        'local', False)
 
-    np.savetxt(
-        'data/leader_test/part-0001.data',
-        process_data(x_test, y_test, 'leader', args.verify_example_ids),
-        delimiter=',')
-    np.savetxt(
-        'data/follower_test/part-0001.data',
-        process_data(x_test, y_test, 'follower', args.verify_example_ids),
-        delimiter=',')
-    np.savetxt(
-        'data/local_test/part-0001.data',
-        process_data(x_test, y_test, 'local', False),
-        delimiter=',')
+    write_data(
+        'data/leader_test/part-0001.data', x_test, y_test,
+        'leader', args.verify_example_ids)
+    write_data(
+        'data/follower_test/part-0001.data', x_test, y_test,
+        'follower', args.verify_example_ids)
+    write_data(
+        'data/local_test/part-0001.data', x_test, y_test,
+        'local', False)
 
 
 if __name__ == '__main__':

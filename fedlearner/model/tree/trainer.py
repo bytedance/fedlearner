@@ -17,6 +17,7 @@
 import io
 import os
 import csv
+import queue
 import logging
 import argparse
 import traceback
@@ -27,7 +28,7 @@ import tensorflow.compat.v1 as tf
 from fedlearner.trainer.bridge import Bridge
 from fedlearner.model.tree.tree import BoostingTreeEnsamble
 from fedlearner.trainer.trainer_master_client import LocalTrainerMasterClient
-from fedlearner.trainer.data import DataBlockLoader
+from fedlearner.trainer.trainer_master_client import DataBlockInfo
 
 
 def create_argument_parser():
@@ -52,6 +53,8 @@ def create_argument_parser():
     parser.add_argument('--validation-data-path', type=str, default=None,
                         help='Path to validation data file. ' \
                              'Only used in train mode.')
+    parser.add_argument('--no-data', type=bool, default=False,
+                        help='Run prediction without data.')
     parser.add_argument('--load-model-path',
                         type=str,
                         default=None,
@@ -102,44 +105,68 @@ def create_argument_parser():
                         help='If set to true, the first column of the '
                              'data will be treated as example ids that '
                              'must match between leader and follower')
+    parser.add_argument('--ignore-fields',
+                        type=str,
+                        default='',
+                        help='Ignore data fields by name')
     parser.add_argument('--use-streaming',
                         type=bool,
                         default=False,
                         help='Whether to use streaming transmit.')
     return parser
 
+def extract_field(field_names, lines, field_name, required):
+    if field_name in field_names:
+        idx = field_names.index(field_name)
+        return [line[idx] for line in lines]
 
-def read_csv_data(filename, has_example_ids, has_labels):
+    assert not required, \
+        "Data must contain %s field"%field_name
+    return None
+
+def read_csv_data(filename, require_example_ids, require_labels,
+                  ignore_fields):
     txt_data = tf.io.gfile.GFile(filename, 'r').read()
-    if has_example_ids:
-        reader = csv.reader(io.StringIO(txt_data))
-        lines = list(reader)
-        example_ids = [i[0] for i in lines]
-        data = np.asarray([line[1:] for line in lines], dtype=np.float)
-    else:
-        data = np.loadtxt(io.StringIO(txt_data), delimiter=',')
-        example_ids = None
+    reader = csv.reader(io.StringIO(txt_data))
+    lines = list(reader)
+    field_names = lines[0]
+    lines = lines[1:]
 
-    if has_labels:
-        X = data[:, :-1]
-        y = data[:, -1]
-    else:
-        X = data
-        y = None
+    example_ids = extract_field(
+        field_names, lines, 'example_id', require_example_ids)
+    labels = extract_field(
+        field_names, lines, 'label', require_labels)
+    if labels is not None:
+        labels = np.asarray(labels, dtype=np.float)
 
-    return X, y, example_ids
+    ignore_fields = set(ignore_fields.strip().split(','))
+    ignore_fields.update(['example_id', 'raw_id', 'label'])
+    data_columns = [
+        (i, name) for i, name in enumerate(field_names) \
+            if name not in ignore_fields]
+    data_columns.sort(key=lambda x: x[1])
+    data = np.asarray(
+        [[line[i] for i, _ in data_columns] for line in lines],
+        dtype=np.float)
+
+    return data, labels, example_ids
 
 
 def train(args, booster):
     X, y, example_ids = read_csv_data(
         args.data_path, args.verify_example_ids,
-        args.role != 'follower')
+        args.role != 'follower', args.ignore_fields)
+
     if args.validation_data_path:
         val_X, val_y, val_example_ids = read_csv_data(
             args.validation_data_path, args.verify_example_ids,
-            args.role != 'follower')
+            args.role != 'follower', args.ignore_fields)
+    else:
+        val_X = val_y = val_example_ids = None
+
     if args.output_path:
         tf.io.gfile.makedirs(os.path.dirname(args.output_path))
+
     booster.fit(
         X, y,
         checkpoint_path=args.checkpoint_path,
@@ -150,14 +177,30 @@ def train(args, booster):
         output_path=args.output_path)
 
 
-def write_predictions(filename, pred):
+def write_predictions(filename, pred, example_ids=None):
+    logging.debug("Writing predictions to %s", filename)
     fout = tf.io.gfile.GFile(filename, 'w')
-    fout.write('\n'.join([str(i) for i in pred]))
+    if example_ids is not None:
+        header = 'example_id,prediction'
+        lines = zip(example_ids, pred)
+    else:
+        header = 'prediction'
+        lines = zip(pred)
+
+    fout.write(header+'\n')
+    for line in lines:
+        fout.write(','.join([str(i) for i in line]) + '\n')
+
     fout.close()
 
-def test_one_file(args, booster, data_file, output_file, has_labels):
-    X, y, example_ids = read_csv_data(
-        data_file, args.verify_example_ids, has_labels)
+def test_one_file(args, booster, data_file, output_file):
+    if data_file is None:
+        X = y = example_ids = None
+    else:
+        X, y, example_ids = read_csv_data(
+            data_file, args.verify_example_ids,
+            False, args.ignore_fields)
+
     pred = booster.batch_predict(X, example_ids=example_ids)
 
     if y is not None:
@@ -168,33 +211,96 @@ def test_one_file(args, booster, data_file, output_file, has_labels):
 
     if output_file:
         tf.io.gfile.makedirs(os.path.dirname(output_file))
-        write_predictions(output_file, pred)
+        write_predictions(output_file, pred, example_ids)
 
-def test(args, bridge, booster, has_labels):
-    if not tf.io.gfile.isdir(args.data_path):
-        return test_one_file(
-            args, booster, args.data_path, args.output_path, has_labels)
 
-    if args.role != 'local':
-        tm = LocalTrainerMasterClient(args.role, args.data_path, ext='.data')
-        dataset = DataBlockLoader(1, args.role, bridge, tm)
+class DataBlockLoader(object):
+    def __init__(self, role, bridge, data_path):
+        self._role = role
+        self._bridge = bridge
+
+        self._tm_role = 'follower' if role == 'leader' else 'leader'
+
+        if data_path:
+            files = None
+            if not tf.io.gfile.isdir(data_path):
+                files = [os.path.filename(data_path)]
+                data_path = os.path.dirname(data_path)
+            self._trainer_master = LocalTrainerMasterClient(
+                self._tm_role, data_path, files=files, ext='.data')
+        else:
+            self._trainer_master = None
+
+        self._count = 0
+        if self._role == 'leader':
+            self._block_queue = queue.Queue()
+            self._bridge.register_data_block_handler(self._data_block_handler)
+            self._bridge.start(self._bridge.new_iter_id())
+            self._bridge.send(
+                self._bridge.current_iter_id, 'barrier', np.asarray([1]))
+            self._bridge.commit()
+        elif self._role == 'follower':
+            self._bridge.start(self._bridge.new_iter_id())
+            self._bridge.receive(self._bridge.current_iter_id, 'barrier')
+            self._bridge.commit()
+
+    def _data_block_handler(self, msg):
+        logging.debug('DataBlock: recv "%s" at %d', msg.block_id, msg.count)
+        assert self._count == msg.count
+        if not msg.block_id:
+            block = None
+        elif self._trainer_master is not None:
+            block = self._trainer_master.request_data_block(msg.block_id)
+            if block is None:
+                raise ValueError("Block %s not found" % msg.block_id)
+        else:
+            block = DataBlockInfo(msg.block_id, None)
+        self._count += 1
+        self._block_queue.put(block)
+
+    def get_next_block(self):
+        if self._role == 'local':
+            return self._trainer_master.request_data_block()
+
+        if self._tm_role == 'leader':
+            while True:
+                block = self._trainer_master.request_data_block()
+                if block is not None:
+                    try:
+                        self._bridge.load_data_block(self._count,
+                                                     block.block_id)
+                    except Exception as e:  # pylint: disable=broad-except
+                        logging.error('load data block %s with error: %s',
+                                      block.block_id, repr(e))
+                        continue
+                else:
+                    self._bridge.load_data_block(self._count, '')
+                break
+            self._count += 1
+        else:
+            block = self._block_queue.get()
+        return block
+
+
+def test(args, bridge, booster):
+    if not args.no_data:
+        assert args.data_path, "Data path must not be empty"
     else:
-        tm = LocalTrainerMasterClient('leader', args.data_path, ext='.data')
+        assert not args.data_path and args.role == 'leader'
+
+    data_loader = DataBlockLoader(args.role, bridge, args.data_path)
 
     while True:
-        if args.role != 'local':
-            datablock = dataset.get_next_block()
-        else:
-            datablock = tm.request_data_block()
-        if datablock is None:
+        data_block = data_loader.get_next_block()
+        if data_block is None:
             break
         if args.output_path:
             output_file = os.path.join(
-                args.output_path, datablock.block_id) + '.output'
+                args.output_path, data_block.block_id) + '.output'
         else:
             output_file = None
         test_one_file(
-            args, booster, datablock.data_path, output_file, has_labels)
+            args, booster, data_block.data_path, output_file)
 
 
 def run(args):
@@ -232,10 +338,8 @@ def run(args):
 
         if args.mode == 'train':
             train(args, booster)
-        elif args.mode == 'test':
-            test(args, bridge, booster, args.role != 'follower')
-        else:  # args.mode == 'eval'
-            test(args, bridge, booster, False)
+        else:  # args.mode == 'test, eval'
+            test(args, bridge, booster)
 
         if args.export_path:
             booster.save_model(args.export_path)
