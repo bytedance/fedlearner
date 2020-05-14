@@ -352,7 +352,10 @@ class Bridge(object):
             return False
 
     def connect(self):
-        assert not self._connected, "Already connected"
+        if self._connected:
+            logging.warning("Bridge already connected!")
+            return
+
         self._server.start()
 
         # Get ACK from peer

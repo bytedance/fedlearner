@@ -23,6 +23,7 @@ message PartitionInfo {
 
 message RegressionTreeProto {
     repeated RegressionTreeNodeProto nodes = 1;
+    int32 num_features = 2;
 };
 
 message BoostingTreeEnsambleProto {
@@ -60,4 +61,5 @@ message VerifyParams {
     int32 max_bins = 7;
     string grow_policy = 8;
     bool validation = 9;
+    int32 num_trees = 10;
 }

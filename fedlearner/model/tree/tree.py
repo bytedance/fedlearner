@@ -371,7 +371,8 @@ class BaseGrower(object):
             == len(parent.sample_ids)
 
     def to_proto(self):
-        proto = tree_pb2.RegressionTreeProto()
+        proto = tree_pb2.RegressionTreeProto(
+            num_features=self._binned.features.shape[1])
         for node in self._nodes:
             proto.nodes.append(node.to_proto())
         return proto
@@ -631,7 +632,8 @@ class BoostingTreeEnsamble(object):
                 l2_regularization=self._l2_regularization,
                 max_bins=self._max_bins,
                 grow_policy=self._grow_policy,
-                validation=validation)
+                validation=validation,
+                num_trees=len(self._trees))
             self._bridge.send_proto(
                 self._bridge.current_iter_id, 'verify', msg)
             status = common_pb2.Status()
@@ -654,7 +656,17 @@ class BoostingTreeEnsamble(object):
             err_msg = ''
             if example_ids and msg.example_ids and \
                     list(example_ids) != list(msg.example_ids):
-                err_msg += "example_ids mismatch between leader and follower"
+                err_msg += "Error: example_ids mismatch between leader and " \
+                           "follower\n"
+                if len(example_ids) != len(msg.example_ids):
+                    err_msg += "Error: example_ids length: %d vs %d"%(
+                        len(example_ids), len(msg.example_ids))
+                else:
+                    for i, a, b in enumerate(zip(example_ids, msg.example_ids)):
+                        if a != b:
+                            err_msg += "Error: first mismatching example at " \
+                                       "%d: %s vs %s"%(i, a, b)
+
             if is_training:
                 err_msg += check(
                     'learning_rate', msg.learning_rate, self._learning_rate)
@@ -673,6 +685,8 @@ class BoostingTreeEnsamble(object):
                     'grow_policy', msg.grow_policy, self._grow_policy)
                 err_msg += check(
                     'validation', msg.validation, validation)
+                err_msg += check(
+                    'num_trees', msg.num_trees, len(self._trees))
 
             if err_msg:
                 self._bridge.send_proto(
@@ -710,12 +724,22 @@ class BoostingTreeEnsamble(object):
 
         self._verify_params(example_ids, False)
         if self._role == 'leader':
+            if features is None:
+                return self._batch_predict_leader_no_data(get_raw_score)
             return self._batch_predict_leader(features, get_raw_score)
         return self._batch_predict_follower(features, get_raw_score)
 
 
     def _batch_predict_local(self, features, get_raw_score):
         N = features.shape[0]
+        num_features = features.shape[1]
+        for tree in self._trees:
+            if tree.num_features:
+                assert tree.num_features == num_features, \
+                    "Number of features for prediction (%d) does not " \
+                    "match number of features for training (%d)"%(
+                        num_features, tree.num_features)
+
         raw_prediction = []
         for i in range(features.shape[0]):
             score = 0.0
@@ -732,21 +756,47 @@ class BoostingTreeEnsamble(object):
             return raw_prediction
         return self._loss.predict(raw_prediction)
 
+    def _batch_predict_leader_no_data(self, get_raw_score):
+        raw_prediction = None
+        for tree in self._trees:
+            for node in tree.nodes:
+                assert not node.is_owner, "Model cannot predict with no data"
+
+            while True:
+                self._bridge.start(self._bridge.new_iter_id())
+                assignment = self._bridge.receive(
+                    self._bridge.current_iter_id, 'follower_assignment')
+                self._bridge.send(
+                    self._bridge.current_iter_id, 'leader_assignment',
+                    assignment)
+                self._bridge.commit()
+
+                finish_count = 0
+                for i in range(assignment.shape[0]):
+                    finish_count += tree.nodes[assignment[i]].left_child == 0
+                if finish_count == assignment.shape[0]:
+                    break
+
+            if raw_prediction is None:
+                raw_prediction = np.zeros(assignment.shape[0], dtype=BST_TYPE)
+            for i in range(assignment.shape[0]):
+                raw_prediction[i] += tree.nodes[assignment[i]].weight
+
+        if get_raw_score:
+            return raw_prediction
+        return self._loss.predict(raw_prediction)
+
     def _batch_predict_leader(self, features, get_raw_score):
         N = features.shape[0]
         raw_prediction = np.zeros(N, dtype=BST_TYPE)
         for tree in self._trees:
             assignment = np.zeros(N, dtype=np.int32)
-            finish_count = 0
-            while finish_count != N:
+            while True:
                 self._bridge.start(self._bridge.new_iter_id())
-                finish_count = 0
                 for i in range(N):
                     node = tree.nodes[assignment[i]]
-                    if node.left_child == 0:
-                        finish_count += 1
-                        continue
-                    assignment[i] = _node_test_feature(node, features, i)
+                    if node.left_child != 0:
+                        assignment[i] = _node_test_feature(node, features, i)
 
                 self._bridge.send(
                     self._bridge.current_iter_id, 'leader_assignment',
@@ -755,6 +805,13 @@ class BoostingTreeEnsamble(object):
                     self._bridge.current_iter_id, 'follower_assignment')
                 assignment = np.maximum(assignment, follower_assignment)
                 self._bridge.commit()
+
+                finish_count = 0
+                for i in range(N):
+                    finish_count += tree.nodes[assignment[i]].left_child == 0
+                if finish_count == N:
+                    break
+
             for i in range(N):
                 raw_prediction[i] += tree.nodes[assignment[i]].weight
 
@@ -766,16 +823,12 @@ class BoostingTreeEnsamble(object):
         N = features.shape[0]
         for tree in self._trees:
             assignment = np.zeros(N, dtype=np.int32)
-            finish_count = 0
-            while finish_count != N:
+            while True:
                 self._bridge.start(self._bridge.new_iter_id())
-                finish_count = 0
                 for i in range(N):
                     node = tree.nodes[assignment[i]]
-                    if node.left_child == 0:
-                        finish_count += 1
-                        continue
-                    assignment[i] = _node_test_feature(node, features, i)
+                    if node.left_child != 0:
+                        assignment[i] = _node_test_feature(node, features, i)
 
                 self._bridge.send(
                     self._bridge.current_iter_id, 'follower_assignment',
@@ -784,6 +837,13 @@ class BoostingTreeEnsamble(object):
                     self._bridge.current_iter_id, 'leader_assignment')
                 assignment = np.maximum(assignment, leader_assignment)
                 self._bridge.commit()
+
+                finish_count = 0
+                for i in range(N):
+                    finish_count += tree.nodes[assignment[i]].left_child == 0
+                if finish_count == N:
+                    break
+
         return np.zeros(N, dtype=BST_TYPE)
 
     def _write_training_log(self, filename, header, metrics, pred):
@@ -801,13 +861,10 @@ class BoostingTreeEnsamble(object):
         num_examples = features.shape[0]
         assert example_ids is None or num_examples == len(example_ids)
 
-        # verify parameters
-        self._verify_params(
-            example_ids, True, validation_features is not None)
-
         # sort feature columns
         binned = BinnedFeatures(features, self._max_bins)
 
+        # load checkpoint if exists
         if checkpoint_path:
             tf.io.gfile.makedirs(checkpoint_path)
             logging.info("Checkpointing into path %s...", checkpoint_path)
@@ -819,6 +876,10 @@ class BoostingTreeEnsamble(object):
                     "Restoring from previously saved checkpoint %s",
                     last_checkpoint)
                 self.load_saved_model(last_checkpoint)
+
+        # verify parameters
+        self._verify_params(
+            example_ids, True, validation_features is not None)
 
         # initial f(x)
         if len(self._trees) > 0:
@@ -910,7 +971,9 @@ class BoostingTreeEnsamble(object):
         pred = self._loss.predict(sum_fx)
         grad = self._loss.gradient(sum_fx, pred, labels)
         hess = self._loss.hessian(sum_fx, pred, labels)
-        print('Metrics: %s'%self._loss.metrics(pred, labels))
+        logging.info(
+            'Training metrics at start of iteration %d: %s',
+            len(self._trees), self._loss.metrics(pred, labels))
         _encrypt_and_send_numbers(
             self._bridge, 'grad', self._public_key, grad)
         _encrypt_and_send_numbers(
