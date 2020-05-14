@@ -17,6 +17,7 @@
 import threading
 import logging
 import argparse
+from fnmatch import fnmatch
 import os
 
 import tensorflow.compat.v1 as tf
@@ -232,6 +233,8 @@ if __name__ == "__main__":
                         help='the raw data file appointed by file path')
     parser.add_argument('--input_dir', type=str,
                         help='the raw data file appointed by dir')
+    parser.add_argument('--input_file_wildcard', type=str,
+                        help='the wildcard filter for input file')
     parser.add_argument('--output_dir', type=str, required=True,
                         help='the directory to store the result of processor')
     parser.add_argument('--output_partition_num', type=int, required=True,
@@ -263,6 +266,10 @@ if __name__ == "__main__":
     if args.input_dir is not None:
         all_fpaths += [os.path.join(args.input_dir, f)
                        for f in gfile.ListDirectory(args.input_dir)]
+    if args.input_file_wildcard is not None and \
+            len(args.input_file_wildcard) > 0:
+        all_fpaths = [fpath for fpath in all_fpaths
+                      if fnmatch(fpath, args.input_file_wildcard)]
     if len(all_fpaths) == 0:
         raise RuntimeError("no input files for partitioner")
     partitioner_options = dj_pb.RawDataPartitionerOptions(
