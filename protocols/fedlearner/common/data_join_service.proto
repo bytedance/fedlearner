@@ -72,6 +72,13 @@ message AddedRawDataMetas {
   bool dedup = 2;
 }
 
+message RawDatePub {
+  oneof msg {
+    RawDataMeta raw_data_meta = 1;
+    google.protobuf.Empty raw_data_finished = 2;
+  }
+}
+
 message PeerDumpedIndex {
   int64 peer_dumped_index = 1;
 }
@@ -258,8 +265,7 @@ message DataJoinPotralOptions {
   ExampleValidatorOptions example_validator = 1;
   int64 reducer_buffer_size = 2;
   RawDataOptions raw_data_options = 3;
-  repeated string downstream_data_source_masters = 4;
-  bool use_mock_etcd = 5;
+  bool use_mock_etcd = 4;
 }
 
 service DataJoinPotralService {

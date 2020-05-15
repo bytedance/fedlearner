@@ -39,7 +39,7 @@ from fedlearner.common.etcd_client import EtcdClient
 from fedlearner.proxy.channel import make_insecure_channel, ChannelType
 from fedlearner.data_join import (
     data_block_manager, common, data_join_master,
-    data_join_worker, data_join_portal, raw_data_controller
+    data_join_worker, data_join_portal, raw_data_publisher
 )
 
 class DataJoinPortal(unittest.TestCase):
@@ -57,18 +57,22 @@ class DataJoinPortal(unittest.TestCase):
         self._data_source_name = 'test_data_source'
         self._etcd_l.delete_prefix(self._data_source_name)
         self._etcd_f.delete_prefix(self._data_source_name)
+        self._raw_data_pub_dir_l = './raw_data_pub_dir_l'
+        self._raw_data_pub_dir_f = './raw_data_pub_dir_f'
         self._data_source_l = common_pb.DataSource()
         self._data_source_l.role = common_pb.FLRole.Leader
         self._data_source_l.state = common_pb.DataSourceState.Init
         self._data_source_l.data_block_dir = "./data_block_l"
         self._data_source_l.raw_data_dir = "./raw_data_l"
         self._data_source_l.example_dumped_dir = "./example_dumped_l"
+        self._data_source_l.raw_data_sub_dir = self._raw_data_pub_dir_l
         self._data_source_f = common_pb.DataSource()
         self._data_source_f.role = common_pb.FLRole.Follower
         self._data_source_f.state = common_pb.DataSourceState.Init
         self._data_source_f.data_block_dir = "./data_block_f"
         self._data_source_f.raw_data_dir = "./raw_data_f"
         self._data_source_f.example_dumped_dir = "./example_dumped_f"
+        self._data_source_f.raw_data_sub_dir = self._raw_data_pub_dir_f
         data_source_meta = common_pb.DataSourceMeta()
         data_source_meta.name = self._data_source_name
         data_source_meta.partition_num = 2
@@ -89,6 +93,7 @@ class DataJoinPortal(unittest.TestCase):
                 output_partition_num=2,
                 input_data_base_dir='./portal_input_l',
                 output_data_base_dir='./portal_output_l',
+                raw_data_publish_dir=self._raw_data_pub_dir_l,
                 begin_timestamp=common.trim_timestamp_by_hourly(
                     common.convert_datetime_to_timestamp(datetime.now())
                 )
@@ -99,6 +104,7 @@ class DataJoinPortal(unittest.TestCase):
                 output_partition_num=2,
                 input_data_base_dir='./portal_input_f',
                 output_data_base_dir='./portal_output_f',
+                raw_data_publish_dir=self._raw_data_pub_dir_f,
                 begin_timestamp=common.trim_timestamp_by_hourly(
                     common.convert_datetime_to_timestamp(datetime.now())
                 )
@@ -204,7 +210,6 @@ class DataJoinPortal(unittest.TestCase):
                     raw_data_iter='TF_RECORD',
                     compressed_type=''
                 ),
-                downstream_data_source_masters=[self._master_addr_l],
                 use_mock_etcd=True
             )
         self._portal_l = data_join_portal.DataJoinPortal(
@@ -212,7 +217,6 @@ class DataJoinPortal(unittest.TestCase):
                 self._etcd_addrs, self._etcd_base_dir_l,
                 portal_options
             )
-        portal_options.downstream_data_source_masters[0] = self._master_addr_f
 
         self._portal_f = data_join_portal.DataJoinPortal(
                 self._portal_name, self._etcd_name,
@@ -402,13 +406,15 @@ class DataJoinPortal(unittest.TestCase):
                              self._dt_f-timedelta(hours=1))
         data_source_l = self._master_client_l.GetDataSource(empty_pb2.Empty())
         data_source_f = self._master_client_f.GetDataSource(empty_pb2.Empty())
-        rd_ctl_l = raw_data_controller.RawDataController(data_source_l,
-                                                         self._master_client_l)
-        rd_ctl_f = raw_data_controller.RawDataController(data_source_f,
-                                                         self._master_client_f)
+        rd_puber_l = raw_data_publisher.RawDataPublisher(
+                self._etcd_l, self._raw_data_pub_dir_l
+            )
+        rd_puber_f = raw_data_publisher.RawDataPublisher(
+                self._etcd_f, self._raw_data_pub_dir_f
+            )
         for partition_id in range(data_source_l.data_source_meta.partition_num):
-            rd_ctl_l.finish_raw_data(partition_id)
-            rd_ctl_f.finish_raw_data(partition_id)
+            rd_puber_f.finish_raw_data(partition_id)
+            rd_puber_l.finish_raw_data(partition_id)
 
         while True:
             req_l = dj_pb.DataSourceRequest(

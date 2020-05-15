@@ -15,6 +15,7 @@
 # coding: utf-8
 
 import threading
+import logging
 from os import path
 
 from google.protobuf import text_format
@@ -163,23 +164,33 @@ class RawDataManifestManager(object):
                                 common.partition_repr(partition_id))
         with self._lock:
             manifest = self._sync_manifest(partition_id)
-            sub_index = manifest.next_raw_data_sub_index
+            if manifest.finished:
+                return
+            next_sub_index = manifest.next_raw_data_sub_index
             add_candidates = []
+            raw_data_finished = False
             while True:
-                src_etcd_key = common.raw_data_meta_etcd_key(
+                etcd_key = common.raw_data_pub_etcd_key(
                         self._raw_data_sub_dir,
-                        partition_id, sub_index
+                        partition_id, next_sub_index
                     )
-                src_data = self._etcd.get_data(src_etcd_key)
-                if src_data is None:
+                pub_data = self._etcd.get_data(etcd_key)
+                if pub_data is None:
                     break
-                src_meta = text_format.Parse(src_data, dj_pb.RawDataMeta())
-                if src_meta.file_path not in self._existed_fpath:
-                    add_candidates.append(src_meta)
-                sub_index += 1
+                raw_data_pub = text_format.Parse(pub_data, dj_pb.RawDatePub())
+                if raw_data_pub.HasField('raw_data_meta'):
+                    add_candidates.append(raw_data_pub.raw_data_meta)
+                    next_sub_index += 1
+                elif raw_data_pub.HasField('raw_data_finished'):
+                    logging.warning("meet finish pub at pub index %d for "\
+                                    "partition %d",
+                                    next_sub_index, partition_id)
+                    raw_data_finished = True
+                    break
             self._store_raw_data_metas(partition_id, add_candidates)
             new_manifest = self._sync_manifest(partition_id)
-            new_manifest.next_raw_data_sub_index = sub_index
+            new_manifest.next_raw_data_sub_index = next_sub_index
+            new_manifest.finished = raw_data_finished
             self._update_manifest(new_manifest)
 
     def _store_raw_data_metas(self, partition_id, new_raw_data_metas):

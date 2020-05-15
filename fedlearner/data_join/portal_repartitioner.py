@@ -24,6 +24,7 @@ from fedlearner.common import common_pb2 as common_pb
 import fedlearner.data_join.portal_hourly_input_reducer as portal_reducer
 import fedlearner.data_join.portal_hourly_output_mapper as portal_mapper
 from fedlearner.data_join.routine_worker import RoutineWorker
+from fedlearner.data_join.raw_data_publisher import RawDataPublisher
 from fedlearner.data_join import common
 
 class PortalRepartitioner(object):
@@ -32,6 +33,9 @@ class PortalRepartitioner(object):
         self._etcd = etcd
         self._portal_manifest = portal_manifest
         self._portal_options = portal_options
+        self._publisher = RawDataPublisher(
+                self._etcd, self._portal_manifest.raw_data_publish_dir
+            )
         self._started = False
         self._input_ready_datetime = []
         self._output_finished_datetime = []
@@ -249,20 +253,38 @@ class PortalRepartitioner(object):
     def _committed_datetime_forward_fn(self):
         new_committed_datetime = None
         updated = False
+        pub_finfos = {}
         with self._lock:
             required_datetime = self._get_required_datetime(
                     self._portal_manifest
                 )
             idx = bisect.bisect_left(self._output_finished_datetime,
                                      required_datetime)
+            partition_num = self._portal_manifest.output_partition_num
             for date_time in self._output_finished_datetime[idx:]:
                 required_datetime = date_time
                 if date_time != required_datetime:
                     break
+                ts = common.trim_timestamp_by_hourly(
+                        common.convert_datetime_to_timestamp(date_time)
+                    )
+                for partition_id in range(partition_num):
+                    fpath = common.encode_portal_hourly_fpath(
+                            self._portal_manifest.output_data_base_dir,
+                            date_time, partition_id
+                        )
+                    if partition_id not in pub_finfos:
+                        pub_finfos[partition_id] = ([fpath], [ts])
+                    else:
+                        pub_finfos[partition_id][0].append(fpath)
+                        pub_finfos[partition_id][1].append(ts)
                 new_committed_datetime = required_datetime
                 required_datetime += timedelta(hours=1)
                 updated = True
         if updated:
+            for partition_id, (fpaths, timestamps) in pub_finfos.items():
+                self._publisher.publish_raw_data(partition_id, fpaths,
+                                                 timestamps)
             assert new_committed_datetime is not None
             updated_manifest = \
                     self._update_portal_commited_timestamp(
