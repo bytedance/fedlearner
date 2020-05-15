@@ -19,7 +19,6 @@ from __future__ import division
 from __future__ import print_function
 
 import os
-import logging
 import tensorflow.compat.v1 as tf
 
 
@@ -39,7 +38,7 @@ if os.path.exists(path):
 
 
 if lagrange_lite_ops is custom_fedlearner_operators_failed_to_load:
-    logging.warning("Failed to load fedlearner operators from %s", path)
+    print("Failed to load fedlearner operators from %s"%path)
 
 
 def _multidevice_preprocess_fids(fids, config, num_shards):

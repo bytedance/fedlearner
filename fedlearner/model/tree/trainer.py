@@ -46,6 +46,10 @@ def create_argument_parser():
     parser.add_argument('--application-id', type=str, default=None,
                         help='application id on distributed ' \
                              'training.')
+    parser.add_argument('--worker-rank', type=int, default=0,
+                        help='rank of the current worker')
+    parser.add_argument('--num-workers', type=int, default=1,
+                        help='total number of workers')
     parser.add_argument('--mode', type=str, default='train',
                         help='Running mode in train, test or eval.')
     parser.add_argument('--data-path', type=str, default=None,
@@ -55,6 +59,8 @@ def create_argument_parser():
                              'Only used in train mode.')
     parser.add_argument('--no-data', type=bool, default=False,
                         help='Run prediction without data.')
+    parser.add_argument('--file-ext', type=str, default='.csv',
+                        help='File extension to use')
     parser.add_argument('--load-model-path',
                         type=str,
                         default=None,
@@ -113,6 +119,7 @@ def create_argument_parser():
                         type=bool,
                         default=False,
                         help='Whether to use streaming transmit.')
+
     return parser
 
 def extract_field(field_names, lines, field_name, required):
@@ -126,12 +133,16 @@ def extract_field(field_names, lines, field_name, required):
 
 def read_csv_data(filename, require_example_ids, require_labels,
                   ignore_fields):
+    logging.debug('Reading csv file from %s', filename)
     txt_data = tf.io.gfile.GFile(filename, 'r').read()
+
+    logging.debug('Parsing csv file...')
     reader = csv.reader(io.StringIO(txt_data))
     lines = list(reader)
     field_names = lines[0]
     lines = lines[1:]
 
+    logging.debug('Extracting fields from csv file...')
     example_ids = extract_field(
         field_names, lines, 'example_id', require_example_ids)
     labels = extract_field(
@@ -215,19 +226,22 @@ def test_one_file(args, booster, data_file, output_file):
 
 
 class DataBlockLoader(object):
-    def __init__(self, role, bridge, data_path):
+    def __init__(self, role, bridge, data_path, ext,
+                 worker_rank=0, num_workers=1):
         self._role = role
         self._bridge = bridge
+        self._num_workers = num_workers
+        self._worker_rank = worker_rank
 
         self._tm_role = 'follower' if role == 'leader' else 'leader'
 
         if data_path:
             files = None
             if not tf.io.gfile.isdir(data_path):
-                files = [os.path.filename(data_path)]
+                files = [os.path.basename(data_path)]
                 data_path = os.path.dirname(data_path)
             self._trainer_master = LocalTrainerMasterClient(
-                self._tm_role, data_path, files=files, ext='.data')
+                self._tm_role, data_path, files=files, ext=ext)
         else:
             self._trainer_master = None
 
@@ -258,13 +272,21 @@ class DataBlockLoader(object):
         self._count += 1
         self._block_queue.put(block)
 
+    def _request_data_block(self):
+        for _ in range(self._worker_rank):
+            self._trainer_master.request_data_block()
+        block = self._trainer_master.request_data_block()
+        for _ in range(self._num_workers - self._worker_rank - 1):
+            self._trainer_master.request_data_block()
+        return block
+
     def get_next_block(self):
         if self._role == 'local':
-            return self._trainer_master.request_data_block()
+            return self._request_data_block()
 
         if self._tm_role == 'leader':
             while True:
-                block = self._trainer_master.request_data_block()
+                block = self._request_data_block()
                 if block is not None:
                     try:
                         self._bridge.load_data_block(self._count,
@@ -288,7 +310,9 @@ def test(args, bridge, booster):
     else:
         assert not args.data_path and args.role == 'leader'
 
-    data_loader = DataBlockLoader(args.role, bridge, args.data_path)
+    data_loader = DataBlockLoader(
+        args.role, bridge, args.data_path, args.file_ext,
+        args.worker_rank, args.num_workers)
 
     while True:
         data_block = data_loader.get_next_block()
