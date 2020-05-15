@@ -247,6 +247,7 @@ class RsaPsiPreProcessor(object):
 
 if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
+    logging.basicConfig(format='%(asctime)s %(message)s')
     parser = argparse.ArgumentParser(description='Rsa Psi Preprocessor!')
     parser.add_argument('-r', '--psi_role', type=str, required=True,
                         choices=['leader', 'follower'],

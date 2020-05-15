@@ -291,6 +291,7 @@ class DataJoinWorkerService(object):
 
 if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
+    logging.basicConfig(format='%(asctime)s %(message)s')
     parser = argparse.ArgumentParser(description='DataJoinWorkerService cmd.')
     parser.add_argument('peer_addr', type=str,
                         help='the addr(uuid) of peer data join worker')
