@@ -38,7 +38,7 @@ if os.path.exists(path):
     lagrange_lite_ops = tf.load_op_library(path)
 
 
-if lagrange_lite_ops is None:
+if lagrange_lite_ops is custom_fedlearner_operators_failed_to_load:
     logging.warning("Failed to load fedlearner operators from %s", path)
 
 

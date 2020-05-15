@@ -10,7 +10,7 @@ ci:
 	bash ci/ci_test.sh
 
 op:
-	bash cc/build.sh
+	bash cc/build.sh || echo "WARN: make custom tf op failed!"
 
 protobuf:
 	python -m grpc_tools.protoc -I protocols -I$(TF_PATH) \
