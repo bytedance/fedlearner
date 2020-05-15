@@ -27,6 +27,7 @@ from tensorflow.compat.v1 import gfile
 
 from fedlearner.common import common_pb2 as common_pb
 from fedlearner.common import data_join_service_pb2 as dj_pb
+from fedlearner.common.etcd_client import EtcdClient
 
 from fedlearner.data_join.routine_worker import RoutineWorker
 from fedlearner.data_join.raw_data_publisher import RawDataPublisher
@@ -40,10 +41,10 @@ class RsaPsiPreProcessor(object):
                  etcd_base_dir, use_mock_etcd=False):
         self._lock = threading.Condition()
         self._options = options
-        self._publisher = RawDataPublisher(
-                etcd_name, etcd_addrs, etcd_base_dir,
-                self._options.raw_data_publish_dir, use_mock_etcd
-            )
+        etcd = EtcdClient(etcd_name, etcd_addrs,
+                          etcd_base_dir, use_mock_etcd)
+        pub_dir = self._options.raw_data_publish_dir
+        self._publisher = RawDataPublisher(etcd, pub_dir)
         self._process_pool_executor = \
                 concur_futures.ProcessPoolExecutor(
                         options.offload_processor_number
@@ -233,8 +234,8 @@ class RsaPsiPreProcessor(object):
         sort_runs = self._sort_run_dumper.get_all_sort_runs()
         self._sort_run_merger.merge_sort_runs(sort_runs)
         fpaths = [self._sort_run_merger.get_merged_sort_run_fpath()]
-        self._publisher.publish_raw_data(self._options.partition_id,
-                                         fpaths, True)
+        self._publisher.publish_raw_data(self._options.partition_id, fpaths)
+        self._publisher.finish_raw_data(self._options.partition_id)
         self._sort_run_merger.set_merged_finished()
 
     def _sort_run_merge_cond(self):

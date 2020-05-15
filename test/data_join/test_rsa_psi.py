@@ -42,10 +42,8 @@ from fedlearner.common.etcd_client import EtcdClient
 from fedlearner.proxy.channel import make_insecure_channel, ChannelType
 from fedlearner.data_join.rsa_psi import \
         rsa_key_generator, rsa_psi_signer, rsa_psi_preprocessor
-from fedlearner.data_join import (
-    data_join_master, data_join_worker,
-    raw_data_controller, common, csv_dict_writer
-)
+from fedlearner.data_join import data_join_master, data_join_worker,\
+                                 common, csv_dict_writer
 
 class RsaPsi(unittest.TestCase):
     def _setUpEtcd(self):
@@ -334,37 +332,6 @@ class RsaPsi(unittest.TestCase):
         start_tm = time.time()
         self._preprocess_rsa_psi_leader()
         logging.warning("Leader Preprocess cost %f seconds", time.time()-start_tm)
-        rd_ctl_l = raw_data_controller.RawDataController(self._data_source_l,
-                                                         self._master_client_l)
-        rd_ctl_f = raw_data_controller.RawDataController(self._data_source_f,
-                                                         self._master_client_f)
-        partition_num = self._data_source_l.data_source_meta.partition_num
-        all_finished = False
-        while not all_finished:
-            time.sleep(1)
-            all_finished = True
-            for partition_id in range(partition_num):
-                manifest = self._master_client_l.QueryRawDataManifest(
-                        dj_pb.RawDataRequest(
-                            data_source_meta=self._data_source_l.data_source_meta,
-                            partition_id=partition_id
-                        )
-                    )
-                if manifest.next_process_index > 0:
-                    rd_ctl_l.finish_raw_data(partition_id)
-                else:
-                    all_finished = False
-                manifest = self._master_client_f.QueryRawDataManifest(
-                        dj_pb.RawDataRequest(
-                            data_source_meta=self._data_source_l.data_source_meta,
-                            partition_id=partition_id
-                        )
-                    )
-                if manifest.next_process_index > 0:
-                    rd_ctl_f.finish_raw_data(partition_id)
-                else:
-                    all_finished = False
-
         while True:
             req_l = dj_pb.DataSourceRequest(
                     data_source_meta=self._data_source_l.data_source_meta

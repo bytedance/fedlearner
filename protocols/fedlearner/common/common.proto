@@ -71,8 +71,9 @@ message DataJoinPortalManifest {
   uint32 output_partition_num = 3;
   string input_data_base_dir = 4;
   string output_data_base_dir = 5;
+  string raw_data_publish_dir = 6;
   // the timestamp that has been processed by portoal and ready
   // to notify data source. we only support hourly granularity
-  google.protobuf.Timestamp begin_timestamp = 6;
-  google.protobuf.Timestamp committed_timestamp = 7;
+  google.protobuf.Timestamp begin_timestamp = 7;
+  google.protobuf.Timestamp committed_timestamp = 8;
 }

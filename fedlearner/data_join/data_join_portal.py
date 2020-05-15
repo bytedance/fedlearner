@@ -28,7 +28,6 @@ from fedlearner.common.etcd_client import EtcdClient
 
 from fedlearner.data_join.common import retrieve_portal_manifest
 from fedlearner.data_join.portal_repartitioner import PortalRepartitioner
-from fedlearner.data_join.portal_raw_data_notifier import PortalRawDataNotifier
 
 class DataJoinPortal(dj_grpc.DataJoinPotralServiceServicer):
     def __init__(self, portal_name, etcd_name, etcd_addrs,
@@ -45,33 +44,15 @@ class DataJoinPortal(dj_grpc.DataJoinPotralServiceServicer):
                 self._etcd, self._portal_manifest,
                 self._portal_options
             )
-        if len(self._portal_options.downstream_data_source_masters) > 0:
-            self._portal_raw_data_notifier = PortalRawDataNotifier(
-                    self._etcd,
-                    self._portal_name,
-                    self._portal_options.downstream_data_source_masters
-                )
-            logging.info("launch data join portal with raw data notifier "\
-                         "for following downstream data source masters:")
-            for master_addr in \
-                    self._portal_options.downstream_data_source_masters:
-                logging.info(master_addr)
-        else:
-            self._portal_raw_data_notifier = None
-            logging.info("launch data join portal without raw data notifier")
 
     def Ping(self, request, context):
         return common_pb.Status(code=0)
 
     def start(self):
         self._portal_repartitioner.start_routine_workers()
-        if self._portal_raw_data_notifier is not None:
-            self._portal_raw_data_notifier.start_notify_worker()
 
     def stop(self):
         self._portal_repartitioner.stop_routine_workers()
-        if self._portal_raw_data_notifier is not None:
-            self._portal_raw_data_notifier.stop_notify_worker()
 
 class DataJoinPortalService(object):
     def __init__(self, listen_port, portal_name, etcd_name,
@@ -122,9 +103,8 @@ if __name__ == "__main__":
     parser.add_argument('--etcd_base_dir', type=str,
                         default='fedlearner_protal_test',
                         help='the namespace of etcd key for data join portal')
-    parser.add_argument('--downstream_data_source_masters', type=str,
-                        nargs='*', help='the addrs of downstream data '\
-                                         'source to notify new raw data')
+    parser.add_argument('--raw_data_publish_dir', type=str, required=True,
+                        help='the etcd base dir to publish new raw data')
     parser.add_argument('--use_mock_etcd', action='store_true',
                         help='use to mock etcd for test')
     parser.add_argument('--input_data_file_iter', type=str, default='TF_RECORD',
@@ -150,7 +130,7 @@ if __name__ == "__main__":
                 raw_data_iter=args.input_data_file_iter,
                 compressed_type=args.compressed_type
             ),
-            downstream_data_source_masters=args.downstream_data_source_masters,
+            raw_data_publish_dir=args.raw_data_publish_dir,
             use_mock_etcd=args.use_mock_etcd
         )
     portal_srv = DataJoinPortalService(

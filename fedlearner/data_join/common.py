@@ -30,6 +30,7 @@ DataBlockSuffix = '.data'
 DataBlockMetaSuffix = '.meta'
 ExampleIdSuffix = '.done'
 RawDataMetaPrefix = 'raw_data_'
+RawDataPubSuffix = '.pub'
 MergedSortRunSuffix = '.merged'
 InvalidExampleId = ''
 InvalidEventTime = -9223372036854775808
@@ -110,14 +111,18 @@ def commit_data_source(etcd, data_source):
     etcd.set_data(etcd_key, text_format.MessageToString(data_source))
 
 def partition_manifest_etcd_key(data_source_name, partition_id):
-    return '/'.join([data_source_name, 'raw_data_dir',
-                     partition_repr(partition_id)])
+    return os.path.join(data_source_name, 'raw_data_dir',
+                        partition_repr(partition_id))
 
 def raw_data_meta_etcd_key(data_source_name, partition_id, process_index):
-    manifest_etcd_key = \
-            partition_manifest_etcd_key(data_source_name, partition_id)
-    return '/'.join([manifest_etcd_key,
-                     '{}{:08}'.format(RawDataMetaPrefix, process_index)])
+    manifest_etcd_key = partition_manifest_etcd_key(data_source_name,
+                                                    partition_id)
+    return os.path.join(manifest_etcd_key,
+                        '{}{:08}'.format(RawDataMetaPrefix, process_index))
+
+def raw_data_pub_etcd_key(pub_base_dir, partition_id, process_index):
+    return os.path.join(pub_base_dir, partition_repr(partition_id),
+                        '{:08}{}'.format(process_index, RawDataPubSuffix))
 
 def encode_portal_hourly_dir(base_dir, date_time):
     assert isinstance(date_time, datetime)

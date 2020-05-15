@@ -38,7 +38,7 @@ from fedlearner.proxy.channel import make_insecure_channel, ChannelType
 from fedlearner.data_join import (
     data_block_manager, common,
     data_join_master, data_join_worker,
-    raw_data_visitor, raw_data_controller
+    raw_data_visitor, raw_data_publisher
 )
 from fedlearner.data_join.data_block_builder_impl \
         import create_data_block_builder
@@ -55,13 +55,17 @@ class DataJoinWorker(unittest.TestCase):
         etcd_l.delete_prefix(data_source_name)
         etcd_f.delete_prefix(data_source_name)
         data_source_l = common_pb.DataSource()
+        self.raw_data_pub_dir_l = './raw_data_pub_dir_l'
+        data_source_l.raw_data_sub_dir = self.raw_data_pub_dir_l
         data_source_l.role = common_pb.FLRole.Leader
         data_source_l.state = common_pb.DataSourceState.Init
         data_source_l.data_block_dir = "./data_block_l"
         data_source_l.raw_data_dir = "./raw_data_l"
         data_source_l.example_dumped_dir = "./example_dumped_l"
         data_source_f = common_pb.DataSource()
+        self.raw_data_pub_dir_f = './raw_data_pub_dir_f'
         data_source_f.role = common_pb.FLRole.Follower
+        data_source_f.raw_data_sub_dir = self.raw_data_pub_dir_f
         data_source_f.state = common_pb.DataSourceState.Init
         data_source_f.data_block_dir = "./data_block_f"
         data_source_f.raw_data_dir = "./raw_data_f"
@@ -130,12 +134,12 @@ class DataJoinWorker(unittest.TestCase):
         self.etcd_addrs = etcd_addrs
         self.etcd_base_dir_l = etcd_base_dir_l
         self.etcd_base_dir_f = etcd_base_dir_f
-        self.raw_data_controller_l = raw_data_controller.RawDataController(
-                    self.data_source_l, self.master_client_l
-                )
-        self.raw_data_controller_f = raw_data_controller.RawDataController(
-                    self.data_source_f, self.master_client_f
-                )
+        self.raw_data_publisher_l = raw_data_publisher.RawDataPublisher(
+                self.etcd_l, self.raw_data_pub_dir_l
+            )
+        self.raw_data_publisher_f = raw_data_publisher.RawDataPublisher(
+                self.etcd_f, self.raw_data_pub_dir_f
+            )
         if gfile.Exists(data_source_l.data_block_dir):
             gfile.DeleteRecursively(data_source_l.data_block_dir)
         if gfile.Exists(data_source_l.example_dumped_dir):
@@ -177,7 +181,7 @@ class DataJoinWorker(unittest.TestCase):
 
         self.total_index = 1 << 13
 
-    def generate_raw_data(self, etcd, rdc, data_source, partition_id,
+    def generate_raw_data(self, etcd, rdp, data_source, partition_id,
                           block_size, shuffle_win_size, feat_key_fmt, feat_val_fmt):
         dbm = data_block_manager.DataBlockManager(data_source, partition_id)
         raw_data_dir = os.path.join(data_source.raw_data_dir,
@@ -241,17 +245,17 @@ class DataJoinWorker(unittest.TestCase):
         for fpath in fpaths:
             if fpath.endswith(common.DataBlockMetaSuffix):
                 gfile.Remove(fpath)
-        rdc.add_raw_data(partition_id, new_raw_data_fnames, False)
+        rdp.publish_raw_data(partition_id, new_raw_data_fnames)
 
     def test_all_assembly(self):
         for i in range(self.data_source_l.data_source_meta.partition_num):
             self.generate_raw_data(
-                    self.etcd_l, self.raw_data_controller_l, self.data_source_l,
+                    self.etcd_l, self.raw_data_publisher_l, self.data_source_l,
                     i, 2048, 64, 'leader_key_partition_{}'.format(i) + ':{}',
                     'leader_value_partition_{}'.format(i) + ':{}'
                 )
             self.generate_raw_data(
-                    self.etcd_f, self.raw_data_controller_f, self.data_source_f,
+                    self.etcd_f, self.raw_data_publisher_f, self.data_source_f,
                     i, 4096, 128, 'follower_key_partition_{}'.format(i) + ':{}',
                     'follower_value_partition_{}'.format(i) + ':{}'
                 )
@@ -277,15 +281,8 @@ class DataJoinWorker(unittest.TestCase):
         worker_f.start()
 
         for i in range(self.data_source_f.data_source_meta.partition_num):
-            rdmreq = dj_pb.RawDataRequest(
-                    data_source_meta=self.data_source_l.data_source_meta,
-                    partition_id=i,
-                    finish_raw_data=empty_pb2.Empty()
-                )
-            rsp = self.master_client_l.FinishRawData(rdmreq)
-            self.assertEqual(rsp.code, 0)
-            rsp = self.master_client_f.FinishRawData(rdmreq)
-            self.assertEqual(rsp.code, 0)
+            self.raw_data_publisher_l.finish_raw_data(i)
+            self.raw_data_publisher_f.finish_raw_data(i)
 
         while True:
             req_l = dj_pb.DataSourceRequest(
