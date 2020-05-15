@@ -139,6 +139,7 @@ class ItemBatchSeqProcessor(object):
             end_batch = self._batch_queue[-1]
             # fast path, use the hit
             if hint_idx is not None:
+                assert hint_idx >= 0
                 if hint_idx < len(self._batch_queue):
                     if self._batch_queue[hint_idx].begin_index == next_index:
                         return False, self._batch_queue[hint_idx], hint_idx
