@@ -304,7 +304,6 @@ message RawDataPartitionerOptions {
   RawDataOptions raw_data_options = 4;
   string output_builder = 5; // only support tf record or csv
   int64 output_item_threshold = 6;
-  int64 total_partitioner_num = 7;
-  int64 partitioner_rank_id = 8;
-  BatchProcessorOptions batch_processor_options = 9;
+  int64 partitioner_rank_id = 7;
+  BatchProcessorOptions batch_processor_options = 8;
 }

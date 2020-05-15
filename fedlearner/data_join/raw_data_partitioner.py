@@ -323,9 +323,13 @@ if __name__ == "__main__":
     if len(all_fpaths) == 0:
         raise RuntimeError("no input files for partitioner")
     if args.total_partitioner_num > 1:
-        all_fpaths = [fpath for (index, fpath) in enumerate(all_fpaths)
-                      if index % args.total_partitioner_num == \
-                              args.partitioner_rank_id]
+        rest_fpaths = [fpath for (index, fpath) in enumerate(all_fpaths)
+                       if index % args.total_partitioner_num == \
+                               args.partitioner_rank_id]
+        logging.info("Partitioner of rank id %d will process %d/%d "\
+                     "input files", args.partitioner_rank_id,
+                     len(rest_fpaths), len(all_fpaths))
+        all_fpaths = rest_fpaths
     partitioner_options = dj_pb.RawDataPartitionerOptions(
             input_file_paths=list(set(all_fpaths)),
             output_dir=args.output_dir,
@@ -336,6 +340,7 @@ if __name__ == "__main__":
             ),
             output_builder=args.output_builder,
             output_item_threshold=args.output_item_threshold,
+            partitioner_rank_id=args.partitioner_rank_id,
             batch_processor_options=dj_pb.BatchProcessorOptions(
                 batch_size=args.raw_data_batch_size,
                 max_flying_item=args.max_flying_raw_data
