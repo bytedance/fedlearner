@@ -93,6 +93,7 @@ class DataJoinPortalService(object):
 
 if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
+    logging.basicConfig(format='%(asctime)s %(message)s')
     parser = argparse.ArgumentParser(description='DataJointPortal cmd.')
     parser.add_argument('data_join_portal_name', type=str,
                         help='the name of data join portal')

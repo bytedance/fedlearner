@@ -271,6 +271,7 @@ class RawDataPartitioner(object):
 
 if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
+    logging.basicConfig(format='%(asctime)s %(message)s')
     parser = argparse.ArgumentParser(description='Raw Data Partitioner')
     parser.add_argument('--file_paths', type=str, nargs='+',
                         help='the raw data file appointed by file path')
