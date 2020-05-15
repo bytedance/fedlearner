@@ -794,8 +794,10 @@ class BoostingTreeEnsamble(object):
             while True:
                 self._bridge.start(self._bridge.new_iter_id())
                 for i in range(N):
-                    node = tree.nodes[assignment[i]]
-                    if node.left_child != 0:
+                    while assignment[i] != -1:
+                        node = tree.nodes[assignment[i]]
+                        if node.left_child == 0:
+                            break
                         assignment[i] = _node_test_feature(node, features, i)
 
                 self._bridge.send(
@@ -826,8 +828,10 @@ class BoostingTreeEnsamble(object):
             while True:
                 self._bridge.start(self._bridge.new_iter_id())
                 for i in range(N):
-                    node = tree.nodes[assignment[i]]
-                    if node.left_child != 0:
+                    while assignment[i] != -1:
+                        node = tree.nodes[assignment[i]]
+                        if node.left_child == 0:
+                            break
                         assignment[i] = _node_test_feature(node, features, i)
 
                 self._bridge.send(

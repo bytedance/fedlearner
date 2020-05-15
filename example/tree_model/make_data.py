@@ -55,23 +55,23 @@ def make_data(args):
         os.makedirs('data/local_test')
 
     write_data(
-        'data/leader_train.data', x_train, y_train,
+        'data/leader_train.csv', x_train, y_train,
         'leader', args.verify_example_ids)
     write_data(
-        'data/follower_train.data', x_train, y_train,
+        'data/follower_train.csv', x_train, y_train,
         'follower', args.verify_example_ids)
     write_data(
-        'data/local_train.data', x_train, y_train,
+        'data/local_train.csv', x_train, y_train,
         'local', False)
 
     write_data(
-        'data/leader_test/part-0001.data', x_test, y_test,
+        'data/leader_test/part-0001.csv', x_test, y_test,
         'leader', args.verify_example_ids)
     write_data(
-        'data/follower_test/part-0001.data', x_test, y_test,
+        'data/follower_test/part-0001.csv', x_test, y_test,
         'follower', args.verify_example_ids)
     write_data(
-        'data/local_test/part-0001.data', x_test, y_test,
+        'data/local_test/part-0001.csv', x_test, y_test,
         'local', False)
 
 
