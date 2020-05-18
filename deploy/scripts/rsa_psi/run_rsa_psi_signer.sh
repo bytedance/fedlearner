@@ -16,6 +16,8 @@
 
 set -ex
 export CUDA_VISIBLE_DEVICES=
+export LD_LIBRARY_PATH=${HADOOP_HOME}/lib/native:${JAVA_HOME}/jre/lib/amd64/server:${LD_LIBRARY_PATH}
+export CLASSPATH=.:$CLASSPATH:$JAVA_HOME/lib/dt.jar:$JAVA_HOME/lib/tools.jar:$($HADOOP_HOME/bin/hadoop classpath --glob)
 
 python -m fedlearner.data_join.rsa_psi.rsa_psi_signer \
     --listen_port=50051 \
