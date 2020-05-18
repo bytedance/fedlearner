@@ -22,4 +22,7 @@ python -m fedlearner.data_join.raw_data_partitioner \
     --output_dir=$OUTPUT_DIR \
     --output_partition_num=$OUTPUT_PARTITION_NUM \
     --total_partitioner_num=$TOTAL_PARTITIONER_NUM \
-    --partitioner_rank_id=$INDEX
+    --raw_data_batch_size=$RAW_DATA_BATCH_SIZE \
+    --max_flying_raw_data=$MAX_FLYING_RAW_DATA \
+    --partitioner_rank_id=$INDEX \
+    --input_file_wildcard=$FILE_WILDCARD
