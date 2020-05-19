@@ -218,7 +218,14 @@ class Visitor(object):
             "{}(index meta start index) != {}(start index)".format(
                     index_meta.start_index, start_index
                 )
-        self._reset_iter_by_index_meta(index_meta)
+        try:
+            self._reset_iter_by_index_meta(index_meta)
+        except StopIteration as se:
+            logging.warning("meet StopIteration %s when open file %s. "\
+                            "No data in it", se, index_meta.fpath)
+            return self._forward_to_target(
+                    process_index+1, start_index, target_index
+                )
         self._process_index = process_index
         self._iter.seek_to_target(target_index)
         self._update_visited_max_index()
