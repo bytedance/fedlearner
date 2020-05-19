@@ -14,7 +14,6 @@
 
 # coding: utf-8
 
-import io
 import os
 import csv
 import queue
@@ -122,33 +121,25 @@ def create_argument_parser():
 
     return parser
 
-def extract_field(field_names, lines, field_name, required):
+def extract_field(field_names, field_name, required):
     if field_name in field_names:
-        idx = field_names.index(field_name)
-        return [line[idx] for line in lines]
+        return field_names.index(field_name), []
 
     assert not required, \
         "Data must contain %s field"%field_name
-    return None
+    return None, None
 
 def read_csv_data(filename, require_example_ids, require_labels,
                   ignore_fields):
     logging.debug('Reading csv file from %s', filename)
-    txt_data = tf.io.gfile.GFile(filename, 'r').read()
+    fin = tf.io.gfile.GFile(filename, 'r')
+    reader = csv.reader(fin)
+    field_names = next(reader)
 
-    logging.debug('Parsing csv file...')
-    reader = csv.reader(io.StringIO(txt_data))
-    lines = list(reader)
-    field_names = lines[0]
-    lines = lines[1:]
-
-    logging.debug('Extracting fields from csv file...')
-    example_ids = extract_field(
-        field_names, lines, 'example_id', require_example_ids)
-    labels = extract_field(
-        field_names, lines, 'label', require_labels)
-    if labels is not None:
-        labels = np.asarray(labels, dtype=np.float)
+    example_id_idx, example_ids = extract_field(
+        field_names, 'example_id', require_example_ids)
+    label_idx, labels = extract_field(
+        field_names, 'label', require_labels)
 
     ignore_fields = set(ignore_fields.strip().split(','))
     ignore_fields.update(['example_id', 'raw_id', 'label'])
@@ -156,10 +147,20 @@ def read_csv_data(filename, require_example_ids, require_labels,
         (i, name) for i, name in enumerate(field_names) \
             if name not in ignore_fields]
     data_columns.sort(key=lambda x: x[1])
-    data = np.asarray(
-        [[line[i] for i, _ in data_columns] for line in lines],
-        dtype=np.float)
+    data = []
 
+    for line in reader:
+        if example_id_idx is not None:
+            example_ids.append(line[example_id_idx])
+        if label_idx is not None:
+            labels.append(float(line[label_idx]))
+        data.append([float(line[i]) for i, _ in data_columns])
+
+    data = np.asarray(data, dtype=np.float)
+    if labels is not None:
+        labels = np.asarray(labels, dtype=np.float)
+
+    fin.close()
     return data, labels, example_ids
 
 
