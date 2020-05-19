@@ -1,0 +1,19 @@
+{{ if .Values.ingress.enabled }}
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    nginx.ingress.kubernetes.io/backend-protocol: GRPC
+  name: flapp-operator
+  namespace: {{ .Release.Namespace }}
+spec:
+  rules:
+  - host: {{ .Release.Namespace }}.flapp.operator
+    http:
+      paths:
+      - backend:
+          serviceName: flapp-operator
+          servicePort: 8100
+---
+{{ end }}
