@@ -1,0 +1,12 @@
+apiVersion: v2
+name: fedlearner-stack
+description: A Helm chart for Kubernetes
+type: application
+version: 0.1.0
+appVersion: 1.16.0
+dependencies:
+- name: ingress-nginx
+  version: 2.1.0
+# - name: elastic-stack
+#   version: 2.0.0
+#   repository: https://kubernetes-charts.storage.googleapis.com
