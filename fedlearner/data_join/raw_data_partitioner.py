@@ -322,6 +322,7 @@ if __name__ == "__main__":
                       if fnmatch(fpath, args.input_file_wildcard)]
     if len(all_fpaths) == 0:
         raise RuntimeError("no input files for partitioner")
+    all_fpaths.sort()
     if args.total_partitioner_num > 1:
         rest_fpaths = [fpath for (index, fpath) in enumerate(all_fpaths)
                        if index % args.total_partitioner_num == \
