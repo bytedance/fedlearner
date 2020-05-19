@@ -758,7 +758,8 @@ class BoostingTreeEnsamble(object):
 
     def _batch_predict_leader_no_data(self, get_raw_score):
         raw_prediction = None
-        for tree in self._trees:
+        for idx, tree in enumerate(self._trees):
+            logging.debug("Running prediction for tree %d", idx)
             for node in tree.nodes:
                 assert not node.is_owner, "Model cannot predict with no data"
 
@@ -789,7 +790,8 @@ class BoostingTreeEnsamble(object):
     def _batch_predict_leader(self, features, get_raw_score):
         N = features.shape[0]
         raw_prediction = np.zeros(N, dtype=BST_TYPE)
-        for tree in self._trees:
+        for idx, tree in enumerate(self._trees):
+            logging.debug("Running prediction for tree %d", idx)
             assignment = np.zeros(N, dtype=np.int32)
             while True:
                 self._bridge.start(self._bridge.new_iter_id())
@@ -823,7 +825,8 @@ class BoostingTreeEnsamble(object):
 
     def _batch_predict_follower(self, features, get_raw_score):
         N = features.shape[0]
-        for tree in self._trees:
+        for idx, tree in enumerate(self._trees):
+            logging.debug("Running prediction for tree %d", idx)
             assignment = np.zeros(N, dtype=np.int32)
             while True:
                 self._bridge.start(self._bridge.new_iter_id())

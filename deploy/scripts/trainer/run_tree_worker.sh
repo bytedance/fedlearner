@@ -21,5 +21,8 @@ export LD_LIBRARY_PATH=${HADOOP_HOME}/lib/native:${JAVA_HOME}/jre/lib/amd64/serv
 export CLASSPATH=.:$CLASSPATH:$JAVA_HOME/lib/dt.jar:$JAVA_HOME/lib/tools.jar:$($HADOOP_HOME/bin/hadoop classpath --glob)
 
 python -m fedlearner.model.tree.trainer \
-          ${ROLE} --local-addr=$POD_IP:50051 \
-          --peer-addr=$PEER_ADDR ${USER_ARG}
+    ${ROLE} \
+    --local-addr=$POD_IP:50051 \
+    --peer-addr=$PEER_ADDR \
+    --worker-rank=$WORKER_RANK \
+    ${USER_ARG}
