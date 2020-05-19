@@ -21,6 +21,7 @@ import (
 	"fmt"
 
 	v1alpha1 "github.com/bytedance/fedlearner/deploy/kubernetes_operator/pkg/apis/fedlearner.k8s.io/v1alpha1"
+	v1alpha2 "github.com/bytedance/fedlearner/deploy/kubernetes_operator/pkg/apis/fedlearner.k8s.io/v1alpha2"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	cache "k8s.io/client-go/tools/cache"
 )
@@ -54,6 +55,10 @@ func (f *sharedInformerFactory) ForResource(resource schema.GroupVersionResource
 	// Group=fedlearner.k8s.io, Version=v1alpha1
 	case v1alpha1.SchemeGroupVersion.WithResource("flapps"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Fedlearner().V1alpha1().FLApps().Informer()}, nil
+
+		// Group=fedlearner.k8s.io, Version=v1alpha2
+	case v1alpha2.SchemeGroupVersion.WithResource("trainingsets"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Fedlearner().V1alpha2().TrainingSets().Informer()}, nil
 
 	}
 
