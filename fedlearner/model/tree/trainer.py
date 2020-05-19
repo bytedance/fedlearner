@@ -178,6 +178,8 @@ def train(args, booster):
 
     if args.output_path:
         tf.io.gfile.makedirs(os.path.dirname(args.output_path))
+    if args.checkpoint_path:
+        tf.io.gfile.makedirs(args.checkpoint_path)
 
     booster.fit(
         X, y,
@@ -190,8 +192,8 @@ def train(args, booster):
 
 
 def write_predictions(filename, pred, example_ids=None):
-    logging.debug("Writing predictions to %s", filename)
-    fout = tf.io.gfile.GFile(filename, 'w')
+    logging.debug("Writing predictions to %s.tmp", filename)
+    fout = tf.io.gfile.GFile(filename+'.tmp', 'w')
     if example_ids is not None:
         header = 'example_id,prediction'
         lines = zip(example_ids, pred)
@@ -204,6 +206,9 @@ def write_predictions(filename, pred, example_ids=None):
         fout.write(','.join([str(i) for i in line]) + '\n')
 
     fout.close()
+
+    logging.debug("Renaming %s.tmp to %s", filename, filename)
+    tf.io.gfile.rename(filename+'.tmp', filename, overwrite=True)
 
 def test_one_file(args, booster, data_file, output_file):
     if data_file is None:
@@ -222,17 +227,17 @@ def test_one_file(args, booster, data_file, output_file):
     logging.info("Test metrics: %s", metrics)
 
     if output_file:
-        tf.io.gfile.makedirs(os.path.dirname(output_file))
         write_predictions(output_file, pred, example_ids)
 
 
 class DataBlockLoader(object):
     def __init__(self, role, bridge, data_path, ext,
-                 worker_rank=0, num_workers=1):
+                 worker_rank=0, num_workers=1, output_path=None):
         self._role = role
         self._bridge = bridge
         self._num_workers = num_workers
         self._worker_rank = worker_rank
+        self._output_path = output_path
 
         self._tm_role = 'follower' if role == 'leader' else 'leader'
 
@@ -274,11 +279,16 @@ class DataBlockLoader(object):
         self._block_queue.put(block)
 
     def _request_data_block(self):
-        for _ in range(self._worker_rank):
-            self._trainer_master.request_data_block()
-        block = self._trainer_master.request_data_block()
-        for _ in range(self._num_workers - self._worker_rank - 1):
-            self._trainer_master.request_data_block()
+        while True:
+            for _ in range(self._worker_rank):
+                self._trainer_master.request_data_block()
+            block = self._trainer_master.request_data_block()
+            for _ in range(self._num_workers - self._worker_rank - 1):
+                self._trainer_master.request_data_block()
+            if block is None or self._output_path is None or \
+                    not tf.io.gfile.exists(os.path.join(
+                        self._output_path, block.block_id) + '.output'):
+                break
         return block
 
     def get_next_block(self):
@@ -311,9 +321,12 @@ def test(args, bridge, booster):
     else:
         assert not args.data_path and args.role == 'leader'
 
+    if args.output_path:
+        tf.io.gfile.makedirs(args.output_path)
+
     data_loader = DataBlockLoader(
         args.role, bridge, args.data_path, args.file_ext,
-        args.worker_rank, args.num_workers)
+        args.worker_rank, args.num_workers, args.output_path)
 
     while True:
         data_block = data_loader.get_next_block()
