@@ -369,7 +369,7 @@ if __name__ == "__main__":
                     example_id_dump_interval=args.example_id_dump_interval,
                     example_id_dump_threshold=args.example_id_dump_threshold
                 ),
-            batch_processor_optionss=dj_pb.BatchProcessorOptions(
+            batch_processor_options=dj_pb.BatchProcessorOptions(
                     batch_size=args.example_id_batch_size,
                     max_flying_item=args.max_flying_example_id
                 ),
