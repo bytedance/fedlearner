@@ -7,6 +7,15 @@ appVersion: 1.16.0
 dependencies:
 - name: ingress-nginx
   version: 2.1.0
-# - name: elastic-stack
-#   version: 2.0.0
-#   repository: https://kubernetes-charts.storage.googleapis.com
+- name: nfs-client-provisioner
+  version: 1.2.8
+  repository: https://kubernetes-charts.storage.googleapis.com
+  condition: nfs-client-provisioner.enabled
+- name: nfs-server-provisioner
+  version: 1.0.0
+  repository: https://kubernetes-charts.storage.googleapis.com
+  condition: nfs-server-provisioner.enabled
+- name: elastic-stack
+  version: 2.0.0
+  repository: https://kubernetes-charts.storage.googleapis.com
+  condition: elastic-stack.enabled

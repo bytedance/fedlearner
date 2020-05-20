@@ -75,13 +75,23 @@ class TestBoostingTree(unittest.TestCase):
         leader_X = X[:, :X.shape[1]//2]
         follower_X = X[:, X.shape[1]//2:]
 
+        # test two side
         thread = threading.Thread(
             target=self.follower_test_boosting_tree_helper,
             args=(follower_X,))
         thread.start()
         leader_pred = self.leader_test_boosting_tree_helper(leader_X, y)
         thread.join()
+        self.assertTrue(np.allclose(local_pred, leader_pred))
 
+        # test one side
+        thread = threading.Thread(
+            target=self.follower_test_boosting_tree_helper,
+            args=(X,))
+        thread.start()
+        leader_pred = self.leader_test_boosting_tree_helper(
+            np.zeros((X.shape[0], 0)), y)
+        thread.join()
         self.assertTrue(np.allclose(local_pred, leader_pred))
 
 
