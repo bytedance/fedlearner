@@ -48,24 +48,28 @@ class TestRawDataVisitor(unittest.TestCase):
         self.manifest_manager = raw_data_manifest_manager.RawDataManifestManager(
             self.etcd, self.data_source)
 
-    def _gen_raw_data_file(self, start_index, end_index):
+    def _gen_raw_data_file(self, start_index, end_index, no_data=False):
         partition_dir = os.path.join(self.data_source.raw_data_dir, common.partition_repr(0))
         fpaths = []
         for i in range(start_index, end_index):
-            fname = "{}.rd".format(i)
+            if no_data:
+                fname = "{}.no_data".format(i)
+            else:
+                fname = "{}.rd".format(i)
             fpath = os.path.join(partition_dir, fname)
             fpaths.append(dj_pb.RawDataMeta(file_path=fpath,
                                       timestamp=timestamp_pb2.Timestamp(seconds=3)))
             writer = tf.io.TFRecordWriter(fpath)
-            for j in range(100):
-                feat = {}
-                example_id = '{}'.format(i * 100 + j).encode()
-                feat['example_id'] = tf.train.Feature(
-                                    bytes_list=tf.train.BytesList(
-                                        value=[example_id]))
-                example = tf.train.Example(
-                    features=tf.train.Features(feature=feat))
-                writer.write(example.SerializeToString())
+            if not no_data:
+                for j in range(100):
+                    feat = {}
+                    example_id = '{}'.format(i * 100 + j).encode()
+                    feat['example_id'] = tf.train.Feature(
+                                        bytes_list=tf.train.BytesList(
+                                            value=[example_id]))
+                    example = tf.train.Example(
+                        features=tf.train.Features(feature=feat))
+                    writer.write(example.SerializeToString())
             writer.close()
         self.manifest_manager.add_raw_data(0, fpaths, True)
 
@@ -137,6 +141,7 @@ class TestRawDataVisitor(unittest.TestCase):
             expected_index += 1
             self.assertEqual(item.example_id, '{}'.format(index).encode())
         self.assertEqual(expected_index, 200)
+        self._gen_raw_data_file(2, 4, True)
         self._gen_raw_data_file(2, 4)
         self.assertTrue(rdv.is_visitor_stale())
         self.assertTrue(rdv.finished())
