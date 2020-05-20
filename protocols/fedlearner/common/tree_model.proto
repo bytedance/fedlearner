@@ -62,4 +62,5 @@ message VerifyParams {
     string grow_policy = 8;
     bool validation = 9;
     int32 num_trees = 10;
+    bool leader_no_data = 11;
 }
