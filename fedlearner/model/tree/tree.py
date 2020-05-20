@@ -202,7 +202,6 @@ class GrowerNode(object):
         self.grad_hists = None
         self.hess_hists = None
 
-
         # node impurity and entropy
         self.gini = None
         self.entropy = None
@@ -1020,14 +1019,6 @@ class BoostingTreeEnsamble(object):
         fout.close()
 
 
-    # def _compute_feature_importance(self):
-    #     self._feature_importance = np.zeros(self._total_features)
-    #     if len(self._trees) == 0:
-    #         return
-    #     for i in range(len(self._trees)):
-    #         self._feature_importance += np.asarray(self._trees[i].feature_importance)
-    #     self._feature_importance /= len(self._trees)
-
     def fit(self, features, labels=None,
             checkpoint_path=None, example_ids=None,
             validation_features=None, validation_labels=None,
@@ -1055,7 +1046,7 @@ class BoostingTreeEnsamble(object):
 
         # exchange feature number information
         if self._bridge is None:
-            # self._feature_importance = np.zeros(features.shape[1])
+
             self._total_features = features.shape[1]
 
         elif self._role =='leader':
@@ -1063,7 +1054,7 @@ class BoostingTreeEnsamble(object):
             follower_feature_num = self._bridge.receive(
                 self._bridge.current_iter_id, 'follower_feature_num')
             self._bridge.commit()
-            # self._feature_importance = np.zeros(features.shape[1]+follower_feature_num)
+
             self._total_features = features.shape[1] + follower_feature_num
             logging.info("leader number of features is %d , total features is %d.", features.shape[1], self._total_features)
         
@@ -1073,7 +1064,7 @@ class BoostingTreeEnsamble(object):
                 self._bridge.current_iter_id, 'follower_feature_num',
                 features.shape[1])
             self._bridge.commit()
-            # self._feature_importance = np.zeros(features.shape[1])
+
             self._total_features = features.shape[1]
             logging.info("follower number of features is %d.", self._total_features)
 
@@ -1095,7 +1086,7 @@ class BoostingTreeEnsamble(object):
         else:
             sum_prediction = np.zeros(num_examples, dtype=BST_TYPE)
             self._feature_importance = np.zeros(self._total_features)
-        # self._compute_feature_importance()
+        
         logging.info("Initial ensemble feature importance(greater than 0) is {}, feature indices(greater than 0) is {} ".format(self._feature_importance[self._feature_importance>0]
             ,np.nonzero(self._feature_importance)))
         # start iterations
