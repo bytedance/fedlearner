@@ -8,5 +8,8 @@ dependencies:
 - name: nfs-server-provisioner
   repository: https://kubernetes-charts.storage.googleapis.com
   version: 1.0.0
-digest: sha256:dd78633e847a471f88b3402434cada460db62c523c0ed48417143f3bf75c376e
-generated: "2020-05-20T13:07:25.663302+08:00"
+- name: elastic-stack
+  repository: https://kubernetes-charts.storage.googleapis.com
+  version: 2.0.0
+digest: sha256:98ee02ff0fc75c8206a9a32d23ec09cd7aaf6de529439fe206e47afe04e54a4e
+generated: "2020-05-20T13:27:40.922806+08:00"
