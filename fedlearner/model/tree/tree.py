@@ -691,8 +691,7 @@ class FollowerGrower(BaseGrower):
         return left_child, right_child, split_info
 
 def _node_test_feature(node, features, i):
-    if not node.is_owner:
-        return -1
+    assert node.is_owner
 
     x = features[i, node.feature_id]
     if np.isnan(x):
@@ -908,6 +907,7 @@ class BoostingTreeEnsamble(object):
 
                 finish_count = 0
                 for i in range(assignment.shape[0]):
+                    assert assignment[i] >= 0
                     finish_count += tree.nodes[assignment[i]].left_child == 0
                 if finish_count == assignment.shape[0]:
                     break
@@ -929,11 +929,15 @@ class BoostingTreeEnsamble(object):
             while True:
                 self._bridge.start(self._bridge.new_iter_id())
                 for i in range(N):
-                    while assignment[i] != -1:
-                        node = tree.nodes[assignment[i]]
-                        if node.left_child == 0:
-                            break
-                        assignment[i] = _node_test_feature(node, features, i)
+                    assert assignment[i] >= 0
+                    if tree.nodes[assignment[i]].left_child == 0:
+                        continue
+                    if not tree.nodes[assignment[i]].is_owner:
+                        assignment[i] = -1
+                        continue
+                    while tree.nodes[assignment[i]].is_owner:
+                        assignment[i] = _node_test_feature(
+                            tree.nodes[assignment[i]], features, i)
 
                 self._bridge.send(
                     self._bridge.current_iter_id, 'leader_assignment',
@@ -945,7 +949,8 @@ class BoostingTreeEnsamble(object):
 
                 finish_count = 0
                 for i in range(N):
-                    finish_count += tree.nodes[assignment[i]].left_child == 0
+                    finish_count += assignment[i] != -1 and \
+                        tree.nodes[assignment[i]].left_child == 0
                 if finish_count == N:
                     break
 
@@ -963,11 +968,15 @@ class BoostingTreeEnsamble(object):
             while True:
                 self._bridge.start(self._bridge.new_iter_id())
                 for i in range(N):
-                    while assignment[i] != -1:
-                        node = tree.nodes[assignment[i]]
-                        if node.left_child == 0:
-                            break
-                        assignment[i] = _node_test_feature(node, features, i)
+                    assert assignment[i] >= 0
+                    if tree.nodes[assignment[i]].left_child == 0:
+                        continue
+                    if not tree.nodes[assignment[i]].is_owner:
+                        assignment[i] = -1
+                        continue
+                    while tree.nodes[assignment[i]].is_owner:
+                        assignment[i] = _node_test_feature(
+                            tree.nodes[assignment[i]], features, i)
 
                 self._bridge.send(
                     self._bridge.current_iter_id, 'follower_assignment',
@@ -979,7 +988,8 @@ class BoostingTreeEnsamble(object):
 
                 finish_count = 0
                 for i in range(N):
-                    finish_count += tree.nodes[assignment[i]].left_child == 0
+                    finish_count += assignment[i] != -1 and \
+                        tree.nodes[assignment[i]].left_child == 0
                 if finish_count == N:
                     break
 
