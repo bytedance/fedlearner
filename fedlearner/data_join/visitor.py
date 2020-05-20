@@ -65,8 +65,8 @@ class IndexMetaManager(object):
                                      "of process index 0")
             else:
                 prev_meta = self._index_metas[process_index-1]
-                if prev_meta.start_index >= start_index:
-                    raise ValueError("start_index should be incremental")
+                assert prev_meta.start_index <= start_index, \
+                        "start_index should be incremental"
             if process_index == len(self._index_metas):
                 index_meta = self._new_index_meta(process_index, start_index)
                 if index_meta is None:
@@ -243,7 +243,7 @@ class Visitor(object):
     def _append_index_meta(self, index_meta):
         if len(self._index_metas) > 0:
             prev_meta = self._index_metas[-1]
-            if prev_meta.start_index >= index_meta.start_index:
+            if index_meta.start_index < prev_meta.start_index:
                 logging.fatal("index between index meta is not incremental")
                 os._exit(-1) # pylint: disable=protected-access
         elif index_meta.start_index != 0:
