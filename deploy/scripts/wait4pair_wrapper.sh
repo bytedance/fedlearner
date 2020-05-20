@@ -1,17 +1,14 @@
 #!/bin/bash
 
 cmd=$1
-path="/etc/worker" #TODO: pass $path from parameter
-if [[ -z $WORKER_ID ]];
-then
-	WORKER_ID=$POD_NAME
+if [[ -z $WORKER_ID ]]; then
+    pair="/etc/master/${MASTER_ID}"
+else
+    pair="/etc/worker/${WORKER_ID}"
 fi
 
-pair="${path}/${WORKER_ID}"
-while [ true ];
-do
-	if [[ -f ${pair} ]] && [[ -n "$(cat ${pair})" ]];
-	then
+while [[ true ]]; do
+	if [[ -f ${pair} ]] && [[ -n "$(cat ${pair})" ]]; then
 		export PEER_ADDR=`cat ${pair}`
 		break
 	else
