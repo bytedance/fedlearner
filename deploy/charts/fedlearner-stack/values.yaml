@@ -3,3 +3,17 @@ nfs-server-provisioner:
 
 nfs-client-provisioner:
   enabled: false
+
+elastic-stack:
+  enabled: true
+  elasticsearch:
+    master:
+      persistence:
+        storageClass: nfs
+    data:
+      persistence:
+        storageClass: nfs
+
+  logstash:
+    persistence:
+      storageClass: nfs
