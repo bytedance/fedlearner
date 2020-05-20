@@ -464,9 +464,8 @@ class BaseGrower(object):
             == len(parent.sample_ids)
 
     def _log_feature_importance(self):
-        logging.info(
-            "Feature importance for current tree is {}".format(self._feature_importance)
-            )
+        logging.info("For current tree, feature importance(greater than 0) is {}, feature indices(greater than 0) is {} ".format(self._feature_importance[self._feature_importance>0]
+            ,np.nonzero(self._feature_importance)))
 
     def to_proto(self):
         proto = tree_pb2.RegressionTreeProto(
@@ -838,7 +837,8 @@ class BoostingTreeEnsamble(object):
 
     def save_model(self, path):
         fout = tf.io.gfile.GFile(path, 'w')
-        model = tree_pb2.BoostingTreeEnsambleProto()
+        model = tree_pb2.BoostingTreeEnsambleProto(
+            feature_importance = self._feature_importance)
         model.trees.extend(self._trees)
         fout.write(text_format.MessageToString(model))
 
@@ -847,6 +847,7 @@ class BoostingTreeEnsamble(object):
         model = tree_pb2.BoostingTreeEnsambleProto()
         text_format.Parse(fin.read(), model)
         self._trees = list(model.trees)
+        self._feature_importance = model.feature_importance
 
     def batch_score(self, features, labels, example_ids):
         pred = self.batch_predict(features, example_ids=example_ids)
@@ -1003,13 +1004,13 @@ class BoostingTreeEnsamble(object):
         fout.close()
 
 
-    def _compute_feature_importance(self):
-        self._feature_importance = np.zeros(self._total_features)
-        if len(self._trees) == 0:
-            return
-        for i in range(len(self._trees)):
-            self._feature_importance += np.asarray(self._trees[i].feature_importance)
-        self._feature_importance /= len(self._trees)
+    # def _compute_feature_importance(self):
+    #     self._feature_importance = np.zeros(self._total_features)
+    #     if len(self._trees) == 0:
+    #         return
+    #     for i in range(len(self._trees)):
+    #         self._feature_importance += np.asarray(self._trees[i].feature_importance)
+    #     self._feature_importance /= len(self._trees)
 
     def fit(self, features, labels=None,
             checkpoint_path=None, example_ids=None,
@@ -1072,13 +1073,14 @@ class BoostingTreeEnsamble(object):
         # initial f(x)
         if len(self._trees) > 0:
             sum_prediction = self.batch_predict(features, get_raw_score=True)
-            
+            # feature imporatnce loaded
+            self._feature_importance = np.asarray(self._feature_importance)
         else:
             sum_prediction = np.zeros(num_examples, dtype=BST_TYPE)
-
-        self._compute_feature_importance()
-        logging.info("Initial feature importance is {} ".format(self._feature_importance)
-            )
+            self._feature_importance = np.zeros(self._total_features)
+        # self._compute_feature_importance()
+        logging.info("Initial ensemble feature importance(greater than 0) is {}, feature indices(greater than 0) is {} ".format(self._feature_importance[self._feature_importance>0]
+            ,np.nonzero(self._feature_importance)))
         # start iterations
         while len(self._trees) < self._max_iters:
             begin_time = time.time()
@@ -1098,11 +1100,12 @@ class BoostingTreeEnsamble(object):
                 tree = self._fit_one_round_follower(binned)
 
             self._trees.append(tree)
-            # self._feature_importance += np.asarray(tree.feature_importance)
-            self._compute_feature_importance()
 
-            logging.info("feature importance for round {} is {} ".format(num_iter, self._feature_importance)
-                )
+            # update feature_importance
+            self._feature_importance = (self._feature_importance * num_iter + np.asarray(tree.feature_importance))/ len(self._trees)
+
+            logging.info("ensemble feature importance for round {}, feature importance(greater than 0) is {}, feature indices(greater than 0) is {} ".format(num_iter, self._feature_importance[self._feature_importance>0]
+            ,np.nonzero(self._feature_importance)))
             end_time = time.time()
             logging.info("Elapsed time for one round %s s",
                          str(end_time-begin_time))
