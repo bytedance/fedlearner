@@ -232,8 +232,7 @@ class RsaPsiPreProcessor(object):
 
     def _sort_run_merge_fn(self):
         sort_runs = self._sort_run_dumper.get_all_sort_runs()
-        self._sort_run_merger.merge_sort_runs(sort_runs)
-        fpaths = [self._sort_run_merger.get_merged_sort_run_fpath()]
+        fpaths = self._sort_run_merger.merge_sort_runs(sort_runs)
         self._publisher.publish_raw_data(self._options.partition_id, fpaths)
         self._publisher.finish_raw_data(self._options.partition_id)
         self._sort_run_merger.set_merged_finished()
