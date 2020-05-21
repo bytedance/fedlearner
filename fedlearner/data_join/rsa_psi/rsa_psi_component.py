@@ -74,7 +74,8 @@ class IdBatchFetcher(ItemBatchSeqProcessor):
             )
         self._id_visitor = BatchRawDataVisitor(
                 options.input_file_paths,
-                dj_pb.RawDataOptions(raw_data_iter='CSV_DICT')
+                dj_pb.RawDataOptions(raw_data_iter='CSV_DICT',
+                                     read_ahead_size=134217728)
             )
         self._batch_size = options.batch_processor_options.batch_size
         self.set_input_finished()

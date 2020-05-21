@@ -316,6 +316,9 @@ if __name__ == "__main__":
     parser.add_argument('--compressed_type', type=str, default='',
                         choices=['', 'ZLIB', 'GZIP'],
                         help='the compressed type for raw data')
+    parser.add_argument('--read_ahead_size', type=int, default=0,
+                        help='the read ahead size for raw data,'
+                             'only support CSV DICT')
     parser.add_argument('--example_joiner', type=str,
                         default='STREAM_JOINER',
                         help='the method for example joiner')
@@ -356,7 +359,8 @@ if __name__ == "__main__":
             use_mock_etcd=args.use_mock_etcd,
             raw_data_options=dj_pb.RawDataOptions(
                     raw_data_iter=args.raw_data_iter,
-                    compressed_type=args.compressed_type
+                    compressed_type=args.compressed_type,
+                    read_ahead_size=args.read_ahead_size
                 ),
             example_joiner_options=dj_pb.ExampleJoinerOptions(
                     example_joiner=args.example_joiner,
