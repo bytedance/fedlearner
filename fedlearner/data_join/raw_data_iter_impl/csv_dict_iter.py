@@ -17,6 +17,7 @@
 import logging
 import csv
 import os
+import io
 
 import tensorflow.compat.v1 as tf
 from tensorflow.compat.v1 import gfile
@@ -89,17 +90,47 @@ class CsvDictIter(RawDataIter):
         return 'CSV_DICT'
 
     def _inner_iter(self, fpath):
-        with gfile.Open(fpath, 'r') as f:
-            dict_reader = csv.DictReader(f)
-            if self._headers is None:
-                self._headers = dict_reader.fieldnames
-            elif self._headers != dict_reader.fieldnames:
-                logging.fatal("the schema of %s is %s, mismatch with "\
-                              "previous %s", fpath,
-                              self._headers, dict_reader.fieldnames)
-                os._exit(-1) # pylint: disable=protected-access
-            for raw in dict_reader:
-                yield CsvItem(raw)
+        with gfile.Open(fpath, 'r') as fh:
+            rest_buffer = []
+            aware_headers = True
+            read_finished = False
+            while not read_finished:
+                dict_reader, rest_buffer, read_finished = \
+                        self._make_csv_dict_reader(fh, rest_buffer,
+                                                   aware_headers)
+                aware_headers = False
+                if self._headers is None:
+                    self._headers = dict_reader.fieldnames
+                elif self._headers != dict_reader.fieldnames:
+                    logging.fatal("the schema of %s is %s, mismatch "\
+                                  "with previous %s", fpath,
+                                  self._headers, dict_reader.fieldnames)
+                    os._exit(-1) # pylint: disable=protected-access
+                for raw in dict_reader:
+                    yield CsvItem(raw)
+
+    def _make_csv_dict_reader(self, fh, rest_buffer, aware_headers):
+        if self._options.read_ahead_size <= 0:
+            assert aware_headers
+            return csv.DictReader(fh), [], True
+        read_buffer = fh.read(self._options.read_ahead_size)
+        read_finished = len(read_buffer) < self._options.read_ahead_size
+        idx = read_buffer.rfind('\n')
+        if read_finished:
+            idx = len(read_buffer) - 1
+        elif idx == -1 and len(read_buffer) > 0:
+            logging.fatal("not meet line break in size %d",
+                          self._options.read_ahead_size)
+            os._exit(-1) # pylint: disable=protected-access
+        str_buffer = read_buffer[0:idx+1] if len(rest_buffer) == 0 \
+                        else rest_buffer+read_buffer[0:idx+1]
+        if aware_headers:
+            return csv.DictReader(io.StringIO(str_buffer)), \
+                    read_buffer[idx+1:], read_finished
+        assert self._headers is not None
+        return csv.DictReader(io.StringIO(str_buffer),
+                              fieldnames=self._headers), \
+                read_buffer[idx+1:], read_finished
 
     def _reset_iter(self, index_meta):
         if index_meta is not None:

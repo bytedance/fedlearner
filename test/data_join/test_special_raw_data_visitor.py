@@ -28,7 +28,7 @@ from fedlearner.common import data_join_service_pb2 as dj_pb
 from fedlearner.data_join import raw_data_manifest_manager, raw_data_visitor, common
 
 class TestRawDataVisitor(unittest.TestCase):
-    def test_raw_data_visitor(self):
+    def test_compressed_raw_data_visitor(self):
         self.data_source = common_pb.DataSource()
         self.data_source.data_source_meta.name = 'fclh_test'
         self.data_source.data_source_meta.partition_num = 1
@@ -62,6 +62,41 @@ class TestRawDataVisitor(unittest.TestCase):
             self.assertEqual(index, expected_index)
             expected_index += 1
         self.assertGreater(expected_index, 0)
+
+    def test_csv_raw_data_visitor(self):
+        self.data_source = common_pb.DataSource()
+        self.data_source.data_source_meta.name = 'fclh_test'
+        self.data_source.data_source_meta.partition_num = 1
+        self.data_source.raw_data_dir = path.join(
+                path.dirname(path.abspath(__file__)), "../csv_raw_data"
+            )
+        self.etcd = etcd_client.EtcdClient('test_cluster', 'localhost:2379',
+                                           'fedlearner', True)
+        self.etcd.delete_prefix(self.data_source.data_source_meta.name)
+        self.assertEqual(self.data_source.data_source_meta.partition_num, 1)
+        partition_dir = path.join(self.data_source.raw_data_dir, common.partition_repr(0))
+        self.assertTrue(gfile.Exists(partition_dir))
+        manifest_manager = raw_data_manifest_manager.RawDataManifestManager(
+            self.etcd, self.data_source)
+        manifest_manager.add_raw_data(
+                0, [dj_pb.RawDataMeta(file_path=path.join(partition_dir, "test_raw_data.csv"),
+                                      timestamp=timestamp_pb2.Timestamp(seconds=3))],
+                True)
+        raw_data_options = dj_pb.RawDataOptions(
+                raw_data_iter='CSV_DICT',
+                read_ahead_size=1<<20
+            )
+        rdm = raw_data_visitor.RawDataManager(self.etcd, self.data_source,0)
+        self.assertTrue(rdm.check_index_meta_by_process_index(0))
+        rdv = raw_data_visitor.RawDataVisitor(self.etcd, self.data_source, 0,
+                                              raw_data_options)
+        expected_index = 0
+        for (index, item) in rdv:
+            if index > 0 and index % 1024 == 0:
+                print("{} {}".format(index, item.raw_id))
+            self.assertEqual(index, expected_index)
+            expected_index += 1
+        self.assertEqual(expected_index, 4999)
 
 if __name__ == '__main__':
     unittest.main()
