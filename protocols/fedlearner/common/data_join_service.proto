@@ -219,6 +219,9 @@ message RawDataOptions {
   string raw_data_iter = 1;
   // only support three compressed, ''(UnCompressed), ZLIB, GZIP
   string compressed_type = 2;
+  // read ahead size for raw data reader, <=0 means don't read ahead
+  // only support csv dict reader
+  int64 read_ahead_size = 3;
 }
 
 message DataBlockBuilderOptions {

@@ -289,6 +289,9 @@ if __name__ == "__main__":
     parser.add_argument('--compressed_type', type=str, default='',
                         choices=['', 'ZLIB', 'GZIP'],
                         help='the compressed type for raw data')
+    parser.add_argument('--read_ahead_size', type=int, default=64<<20,
+                        help='the read ahead size for raw data,'
+                             'only support CSV DICT')
     parser.add_argument('--tf_eager_mode', action='store_true',
                         help='use the eager_mode for tf')
     parser.add_argument('--output_builder', type=str, default='CSV_DICT',
@@ -337,7 +340,8 @@ if __name__ == "__main__":
             output_partition_num=args.output_partition_num,
             raw_data_options=dj_pb.RawDataOptions(
                 raw_data_iter=args.raw_data_iter,
-                compressed_type=args.compressed_type
+                compressed_type=args.compressed_type,
+                read_ahead_size=args.read_ahead_size
             ),
             output_builder=args.output_builder,
             output_item_threshold=args.output_item_threshold,
