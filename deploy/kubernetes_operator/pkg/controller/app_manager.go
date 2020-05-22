@@ -287,6 +287,7 @@ func (am *appManager) reconcileIngress(ctx context.Context, app *v1alpha1.FLApp)
 		if ingress != nil {
 			return am.kubeClient.NetworkingV1beta1().Ingresses(am.namespace).Delete(ingressName, &metav1.DeleteOptions{})
 		}
+		return nil
 	}
 	return am.createIngress(ctx, app)
 }
