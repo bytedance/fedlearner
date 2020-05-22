@@ -25,8 +25,8 @@ require (
 	google.golang.org/grpc v1.26.0
 	k8s.io/api v0.17.2
 	k8s.io/apimachinery v0.17.2
-	k8s.io/client-go v0.0.0-00010101000000-000000000000
-	k8s.io/code-generator v0.0.0-00010101000000-000000000000
+	k8s.io/client-go v0.17.2
+	k8s.io/code-generator v0.17.2
 	k8s.io/klog v1.0.0
 	k8s.io/kube-openapi v0.0.0-20200130172213-cdac1c71ff9f // indirect
 	k8s.io/utils v0.0.0-20200414100711-2df71ebbae66 // indirect
