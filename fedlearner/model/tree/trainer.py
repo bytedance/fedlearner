@@ -210,7 +210,7 @@ def write_predictions(filename, pred, example_ids=None):
     logging.debug("Renaming %s.tmp to %s", filename, filename)
     tf.io.gfile.rename(filename+'.tmp', filename, overwrite=True)
 
-def test_one_file(args, booster, data_file, output_file):
+def test_one_file(args, bridge, booster, data_file, output_file):
     if data_file is None:
         X = y = example_ids = None
     else:
@@ -226,8 +226,19 @@ def test_one_file(args, booster, data_file, output_file):
         metrics = {}
     logging.info("Test metrics: %s", metrics)
 
+    if args.role == 'follower':
+        bridge.start(bridge.new_iter_id())
+        bridge.receive(bridge.current_iter_id, 'barrier')
+        bridge.commit()
+
     if output_file:
         write_predictions(output_file, pred, example_ids)
+
+    if args.role == 'leader':
+        bridge.start(bridge.new_iter_id())
+        bridge.send(
+            bridge.current_iter_id, 'barrier', np.asarray([1]))
+        bridge.commit()
 
 
 class DataBlockLoader(object):
@@ -338,7 +349,7 @@ def test(args, bridge, booster):
         else:
             output_file = None
         test_one_file(
-            args, booster, data_block.data_path, output_file)
+            args, bridge, booster, data_block.data_path, output_file)
 
 
 def run(args):

@@ -448,6 +448,7 @@ class Bridge(object):
 
     def load_data_block(self, count, block_id):
         msg = tws_pb.LoadDataBlockRequest(count=count, block_id=block_id)
+        logging.debug("sending DataBlock with id %s", block_id)
         return self._client.LoadDataBlock(msg)
 
     def register_prefetch_handler(self, func):

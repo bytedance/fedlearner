@@ -807,6 +807,9 @@ class BoostingTreeEnsamble(object):
                             err_msg += "Error: first mismatching example at " \
                                        "%d: %s vs %s"%(i, a, b)
 
+            err_msg += check(
+                'num_trees', msg.num_trees, len(self._trees))
+
             if is_training:
                 err_msg += check(
                     'learning_rate', msg.learning_rate, self._learning_rate)
@@ -825,8 +828,6 @@ class BoostingTreeEnsamble(object):
                     'grow_policy', msg.grow_policy, self._grow_policy)
                 err_msg += check(
                     'validation', msg.validation, validation)
-                err_msg += check(
-                    'num_trees', msg.num_trees, len(self._trees))
 
             if err_msg:
                 self._bridge.send_proto(
@@ -834,6 +835,7 @@ class BoostingTreeEnsamble(object):
                     common_pb2.Status(
                         code=common_pb2.STATUS_UNKNOWN_ERROR,
                         error_message=err_msg))
+                self._bridge.commit()
                 raise RuntimeError(err_msg)
             self._bridge.send_proto(
                 self._bridge.current_iter_id, 'status',
@@ -939,7 +941,7 @@ class BoostingTreeEnsamble(object):
 
             self._bridge.start(self._bridge.new_iter_id())
             self._bridge.send(
-                self._bridge.current_iter_id, 'follower_assignment',
+                self._bridge.current_iter_id, 'follower_assignment_%d'%idx,
                 assignment)
             self._bridge.commit()
 
@@ -955,7 +957,7 @@ class BoostingTreeEnsamble(object):
 
             self._bridge.start(self._bridge.new_iter_id())
             assignment = self._bridge.receive(
-                self._bridge.current_iter_id, 'follower_assignment')
+                self._bridge.current_iter_id, 'follower_assignment_%d'%idx)
             self._bridge.commit()
 
             if raw_prediction is None:
@@ -990,10 +992,12 @@ class BoostingTreeEnsamble(object):
                             tree.nodes[assignment[i]], features, i)
 
                 self._bridge.send(
-                    self._bridge.current_iter_id, '%s_assignment'%self._role,
+                    self._bridge.current_iter_id,
+                    '%s_assignment_%d'%(self._role, idx),
                     assignment)
                 peer_assignment = self._bridge.receive(
-                    self._bridge.current_iter_id, '%s_assignment'%peer_role)
+                    self._bridge.current_iter_id,
+                    '%s_assignment_%d'%(peer_role, idx))
                 assignment = np.maximum(assignment, peer_assignment)
                 self._bridge.commit()
 
