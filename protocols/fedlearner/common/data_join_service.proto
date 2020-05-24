@@ -290,7 +290,7 @@ service RsaPsiSignService {
 
 message RsaPsiPreProcessorOptions {
   FLRole role = 1;
-  string rsa_key_file_path = 2;
+  string rsa_key_pem = 2;
   repeated string input_file_paths = 3;
   string output_file_dir = 4;
   string raw_data_publish_dir = 5;
