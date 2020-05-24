@@ -274,8 +274,6 @@ class BaseGrower(object):
         self._nodes[0].sample_ids = list(range(binned.features.shape[0]))
         self._num_leaves = 1
 
-
-
     def _initialize_feature_importance(self):
         self._feature_importance = np.zeros(self._binned.features.shape[1])
 
@@ -304,8 +302,6 @@ class BaseGrower(object):
         node.gini = gini
         node.entropy = entropy
 
-
-
     def _compute_IG_NI(self, node, left_child, right_child):
         '''
         compute information gain and node importance
@@ -333,10 +329,6 @@ class BaseGrower(object):
                                         self._feature_importance.sum()
             self._feature_importance = self._feature_importance/ \
                                         self._feature_importance.sum()
-
-
-
-
     def _compute_histogram(self, node):
         node.grad_hists = self._hist_builder.compute_histogram(
             self._grad, node.sample_ids)
@@ -434,7 +426,6 @@ class BaseGrower(object):
 
         self._set_node_partition(node, split_info)
 
-
         #compute node gini and entropy
         self._compute_Gini_Entropy(node)
         self._compute_Gini_Entropy(left_child)
@@ -448,7 +439,6 @@ class BaseGrower(object):
 
     def _log_split(self, left_child, right_child, split_info):
         parent = self._nodes[split_info.node_id]
-
 
         logging.info(
             "Split node %d at feature %d for gain=%f. " \
@@ -573,8 +563,6 @@ class LeaderGrower(BaseGrower):
 
         if split_info.feature_id < self._binned.features.shape[1]:
             self._set_node_partition(node, split_info)
-
-
             #compute node gini and entropy
             self._compute_Gini_Entropy(node)
             self._compute_Gini_Entropy(left_child)
@@ -582,8 +570,6 @@ class LeaderGrower(BaseGrower):
             node.IG, node.NI = self._compute_IG_NI(node, \
                                 left_child, right_child)
             self._feature_importance[split_info.feature_id] += node.NI
-
-
             self._bridge.send_proto(
                 self._bridge.current_iter_id, 'split_info',
                 tree_pb2.SplitInfo(
@@ -607,7 +593,6 @@ class LeaderGrower(BaseGrower):
                 .Unpack(follower_split_info)
             left_child.sample_ids = list(follower_split_info.left_samples)
             right_child.sample_ids = list(follower_split_info.right_samples)
-
 
             self._compute_Gini_Entropy(node)
             self._compute_Gini_Entropy(left_child)
@@ -731,8 +716,6 @@ class BoostingTreeEnsamble(object):
 
         self._loss = LogisticLoss()
         self._trees = []
-
-
 
         self._bridge = bridge
         if bridge is not None:
@@ -1025,7 +1008,6 @@ class BoostingTreeEnsamble(object):
         fout.write(','.join([str(i) for i in pred]) + '\n')
         fout.close()
 
-
     def fit(self, features, labels=None,
             checkpoint_path=None, example_ids=None,
             validation_features=None, validation_labels=None,
@@ -1057,20 +1039,15 @@ class BoostingTreeEnsamble(object):
 
         # initial f(x)
         if len(self._trees) > 0:
-            sum_prediction = self.batch_predict(features, get_raw_score=True)
             # feature importance already loaded
-
+            sum_prediction = self.batch_predict(features, get_raw_score=True)
         else:
             sum_prediction = np.zeros(num_examples, dtype=BST_TYPE)
-
-
 
         # start iterations
         while len(self._trees) < self._max_iters:
             begin_time = time.time()
             num_iter = len(self._trees)
-
-
             # grow tree
             if self._bridge is None:
                 tree, raw_prediction = self._fit_one_round_local(
@@ -1084,7 +1061,6 @@ class BoostingTreeEnsamble(object):
                 tree = self._fit_one_round_follower(binned)
 
             self._trees.append(tree)
-
             if num_iter == 0:
                 #initialize feature importance for round 0
                 self._feature_importance = np.asarray(tree.feature_importance)
