@@ -31,10 +31,6 @@ def _roc_auc_score(label, pred):
     auc = np.trapz(tpr, x=fpr)
     return ks, auc
 
-
-
-
-
 def _precision_recall_f1(label, y_pred):
     tp = (label  * y_pred).sum()
     precision = tp / (y_pred.sum() + 1e-16)
