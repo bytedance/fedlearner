@@ -13,6 +13,8 @@ import (
 	"k8s.io/klog"
 
 	"github.com/bytedance/fedlearner/deploy/kubernetes_operator/pkg/apiserver/handler"
+	crdclientset "github.com/bytedance/fedlearner/deploy/kubernetes_operator/pkg/client/clientset/versioned"
+	crdinformers "github.com/bytedance/fedlearner/deploy/kubernetes_operator/pkg/client/informers/externalversions"
 )
 
 var (
@@ -39,25 +41,30 @@ func buildConfig(masterURL string, kubeConfig string) (*rest.Config, error) {
 	return config, nil
 }
 
-func buildClientset(masterURL string, kubeConfig string) (*clientset.Clientset, error) {
+func buildClientset(masterURL string, kubeConfig string) (*clientset.Clientset, *crdclientset.Clientset, error) {
 	config, err := buildConfig(masterURL, kubeConfig)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	kubeClient, err := clientset.NewForConfig(config)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	return kubeClient, err
+	crdClient, err := crdclientset.NewForConfig(config)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return kubeClient, crdClient, err
 }
 func main() {
 	flag.Parse()
 
 	stopCh := make(chan struct{}, 1)
 
-	kubeClient, err := buildClientset(*master, *kubeConfig)
+	kubeClient, crdClient, err := buildClientset(*master, *kubeConfig)
 	if err != nil {
 		klog.Fatalf("failed to build clientset, err: %s", err.Error())
 	}
@@ -66,10 +73,15 @@ func main() {
 		kubeClient,
 		time.Duration(*resyncInterval)*time.Second,
 	)
+	crdInformerFactory := crdinformers.NewSharedInformerFactoryWithOptions(
+		crdClient,
+		time.Duration(*resyncInterval)*time.Second,
+	)
 
 	go informerFactory.Start(stopCh)
+	go crdInformerFactory.Start(stopCh)
 
-	h := handler.NewHandler(informerFactory)
+	h := handler.NewHandler(kubeClient, crdClient, informerFactory, crdInformerFactory)
 	if err := h.Run(stopCh); err != nil {
 		klog.Fatalf("failed to run handler, err: %s", err.Error())
 	}
@@ -81,8 +93,15 @@ func main() {
 			"message": "pong",
 		})
 	})
+	r.GET("/namespaces", h.ListNamespaces)
 	r.GET("/namespaces/:namespace/pods", h.ListPods)
 	r.GET("/namespaces/:namespace/pods/:name", h.GetPod)
+	r.GET("/namespaces/:namespace/pods/:name/events", h.ListPodEvents)
+	r.GET("/namespaces/:namespace/fedlearner/v1alpha1/flapps", h.ListFLApps)
+	r.GET("/namespaces/:namespace/fedlearner/v1alpha1/flapps/:name", h.GetFLApp)
+	r.POST("/namespaces/:namespace/fedlearner/v1alpha1/flapps", h.CreateFLApp)
+	r.DELETE("/namespaces/:namespace/fedlearner/v1alpha1/flapps/:name", h.DeleteFLApp)
+	r.GET("/namespaces/:namespace/fedlearner/v1alpha1/flapps/:name/pods", h.ListFLAppPods)
 
 	if err := r.Run(fmt.Sprintf(":%s", *port)); err != nil {
 		klog.Fatalf("run gin engine error, err: %s", err.Error())

@@ -8,9 +8,11 @@ elastic-stack:
   enabled: true
   elasticsearch:
     master:
+      replicas: 2 # default 3
       persistence:
         storageClass: nfs
     data:
+      replicas: 1 # default 2
       persistence:
         storageClass: nfs
 
