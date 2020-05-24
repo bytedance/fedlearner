@@ -52,20 +52,14 @@ class RsaPsiPreProcessor(object):
         self._id_batch_fetcher = IdBatchFetcher(self._options)
         max_flying_item = options.batch_processor_options.max_flying_item
         if self._options.role == common_pb.FLRole.Leader:
-            private_key = None
-            with gfile.GFile(options.rsa_key_file_path, 'rb') as f:
-                file_content = f.read()
-                private_key = rsa.PrivateKey.load_pkcs1(file_content)
+            private_key = rsa.PrivateKey.load_pkcs1(options.rsa_key_pem)
             self._psi_rsa_signer = LeaderPsiRsaSigner(
                     self._id_batch_fetcher, max_flying_item,
                     self._process_pool_executor, private_key,
                 )
             self._repr = 'leader-' + 'rsa_psi_preprocessor'
         else:
-            public_key = None
-            with gfile.GFile(options.rsa_key_file_path, 'rb') as f:
-                file_content = f.read()
-                public_key = rsa.PublicKey.load_pkcs1(file_content)
+            public_key = rsa.PublicKey.load_pkcs1(options.rsa_key_pem)
             self._psi_rsa_signer = FollowerPsiRsaSigner(
                     self._id_batch_fetcher, max_flying_item,
                     self._process_pool_executor, public_key,
@@ -251,8 +245,10 @@ if __name__ == "__main__":
     parser.add_argument('-r', '--psi_role', type=str, required=True,
                         choices=['leader', 'follower'],
                         help='the role of rsa psi(leader/follower)')
-    parser.add_argument('--rsa_key_file_path', type=str, required=True,
+    parser.add_argument('--rsa_key_path', type=str, required=True,
                         help='the file path for the rsa key')
+    parser.add_argument('--rsa_key_pem', type=str,
+                        help='the rsa key stroe by pem format')
     parser.add_argument('--input_file_paths', type=str, nargs='+',
                         help='the file path input rsa psi preprocessor')
     parser.add_argument('--input_dir', type=str,
@@ -289,10 +285,15 @@ if __name__ == "__main__":
                        for f in gfile.ListDirectory(args.input_dir)]
     if len(all_fpaths) == 0:
         raise RuntimeError("no input files for preprocessor")
+    rsa_key_pem = args.rsa_key_pem
+    if rsa_key_pem is None or len(rsa_key_pem) == 0:
+        assert args.rsa_key_path is not None
+        with gfile.GFile(args.rsa_key_path, 'rb') as f:
+            rsa_key_pem = f.read()
     preprocessor_options = dj_pb.RsaPsiPreProcessorOptions(
             role=common_pb.FLRole.Leader if args.psi_role == 'leader' \
                                          else common_pb.FLRole.Follower,
-            rsa_key_file_path=args.rsa_key_file_path,
+            rsa_key_pem=rsa_key_pem,
             input_file_paths=list(set(all_fpaths)),
             output_file_dir=args.output_file_dir,
             raw_data_publish_dir=args.raw_data_publish_dir,
