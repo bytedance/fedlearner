@@ -277,6 +277,7 @@ class BaseGrower(object):
     def _initialize_feature_importance(self):
         self._feature_importance = np.zeros(self._binned.features.shape[1])
 
+
     def _compute_Gini_Entropy(self, node):
         '''
         compute gini and entropy
@@ -306,13 +307,17 @@ class BaseGrower(object):
         '''
         compute information gain and node importance
         '''
+        #compute node gini and entropy
+        self._compute_Gini_Entropy(node)
+        self._compute_Gini_Entropy(left_child)
+        self._compute_Gini_Entropy(right_child)
+
         node_len = len(node.sample_ids)
         node_right_len = len(right_child.sample_ids)
         node_left_len = len(left_child.sample_ids)
         if node_len == 0:
-            IG = 0
-            NI = 0
-            return IG, NI
+            node.IG = 0
+            node.NI = 0
         IG = node.entropy - \
             node_left_len / node_len * left_child.entropy - \
             node_right_len / node_len * right_child.entropy
@@ -320,9 +325,10 @@ class BaseGrower(object):
         NI = node_len / self._num_samples * node.gini - \
             node_right_len / self._num_samples * right_child.gini - \
             node_left_len / self._num_samples * left_child.gini
-        return IG, NI
+        node.IG = IG
+        node.NI = NI
 
-    def _compute_feature_importance(self):
+    def _normalize_feature_importance(self):
         if self._feature_importance.sum() != 0.0:
 
             self._feature_importance = self._feature_importance/ \
@@ -426,12 +432,8 @@ class BaseGrower(object):
 
         self._set_node_partition(node, split_info)
 
-        #compute node gini and entropy
-        self._compute_Gini_Entropy(node)
-        self._compute_Gini_Entropy(left_child)
-        self._compute_Gini_Entropy(right_child)
-
-        node.IG, node.NI = self._compute_IG_NI(node, left_child, right_child)
+        self._compute_IG_NI(node, \
+            left_child, right_child)
         self._feature_importance[split_info.feature_id] += node.NI
 
 
@@ -491,7 +493,7 @@ class BaseGrower(object):
             self._compute_histogram_from_sibling(right_child, left_child)
             self._find_split_and_push(right_child)
 
-        self._compute_feature_importance()
+        self._normalize_feature_importance()
         self._log_feature_importance()
 
 def _decrypt_histogram_helper(args):
@@ -563,12 +565,8 @@ class LeaderGrower(BaseGrower):
 
         if split_info.feature_id < self._binned.features.shape[1]:
             self._set_node_partition(node, split_info)
-            #compute node gini and entropy
-            self._compute_Gini_Entropy(node)
-            self._compute_Gini_Entropy(left_child)
-            self._compute_Gini_Entropy(right_child)
-            node.IG, node.NI = self._compute_IG_NI(node, \
-                                left_child, right_child)
+            self._compute_IG_NI(node, \
+                left_child, right_child)
             self._feature_importance[split_info.feature_id] += node.NI
             self._bridge.send_proto(
                 self._bridge.current_iter_id, 'split_info',
@@ -578,6 +576,7 @@ class LeaderGrower(BaseGrower):
                     right_samples=right_child.sample_ids))
         else:
             node.is_owner = False
+            feature_id_in_total = split_info.feature_id
             fid = split_info.feature_id - self._binned.features.shape[1]
             self._bridge.send_proto(
                 self._bridge.current_iter_id, 'split_info',
@@ -594,12 +593,8 @@ class LeaderGrower(BaseGrower):
             left_child.sample_ids = list(follower_split_info.left_samples)
             right_child.sample_ids = list(follower_split_info.right_samples)
 
-            self._compute_Gini_Entropy(node)
-            self._compute_Gini_Entropy(left_child)
-            self._compute_Gini_Entropy(right_child)
-            node.IG, node.NI = self._compute_IG_NI(node, \
-                                left_child, right_child)
-            feature_id_in_total = fid + self._binned.features.shape[1]
+            self._compute_IG_NI(node, \
+                left_child, right_child)
             self._feature_importance[feature_id_in_total] += node.NI
 
 
@@ -619,7 +614,7 @@ class FollowerGrower(BaseGrower):
     def _compute_histogram_from_sibling(self, node, sibling):
         pass
 
-    def _compute_feature_importance(self):
+    def _normalize_feature_importance(self):
         pass
 
     def _find_split_and_push(self, node):
