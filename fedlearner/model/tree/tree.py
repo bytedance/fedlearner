@@ -20,9 +20,9 @@ import queue
 import time
 import logging
 import multiprocessing as mp
+import collections
 import numpy as np
 from google.protobuf import text_format
-import collections
 import tensorflow.compat.v1 as tf
 
 from fedlearner.model.tree.loss import LogisticLoss
@@ -237,10 +237,10 @@ class GrowerNode(object):
 
 
 class BaseGrower(object):
-    def __init__(self, binned, labels, total_features, grad, hess, grow_policy='depthwise',
-                 max_leaves=None, max_depth=None, learning_rate=0.3,
-                 l2_regularization=1.0, dtype=BST_TYPE,
-                 num_parallel=1, pool=None):
+    def __init__(self, binned, labels, total_features, grad, hess, 
+                grow_policy='depthwise',max_leaves=None, max_depth=None,
+                learning_rate=0.3,l2_regularization=1.0, dtype=BST_TYPE,
+                num_parallel=1, pool=None):
         self._binned = binned
 
 
@@ -285,14 +285,14 @@ class BaseGrower(object):
 
 
 
-    def _compute_Gini_Entropy(self,node):
+    def _compute_Gini_Entropy(self, node):
         '''
         compute gini and entropy
         '''
         if node.gini is not None:
             return
-        node_labels  = self._labels[node.sample_ids]
-        total  = len(node_labels)
+        node_labels = self._labels[node.sample_ids]
+        total = len(node_labels)
         if total == 0:
             node.gini = 0.0
             node.entropy = 0.0
@@ -301,10 +301,10 @@ class BaseGrower(object):
         gini = 0.0
         entropy = 0.0
         for _, value in labels_counter.items():
-            label_freq = value / total 
+            label_freq = value / total
             if label_freq == 0:
                 entropy += 0
-            else:    
+            else:
                 entropy += -label_freq*math.log(label_freq)
             gini += label_freq*(1-label_freq)
         node.gini = gini
@@ -314,7 +314,7 @@ class BaseGrower(object):
 
     def _compute_IG_NI(self, node, left_child, right_child):
         '''
-        compute information gain and node importance 
+        compute information gain and node importance
         '''
         node_len = len(node.sample_ids)
         node_right_len = len(right_child.sample_ids)
@@ -335,8 +335,10 @@ class BaseGrower(object):
     def _compute_feature_importance(self):
         if self._feature_importance.sum() != 0.0:
 
-            self._feature_importance = self._feature_importance / self._feature_importance.sum()
-            self._feature_importance = self._feature_importance / self._feature_importance.sum()
+            self._feature_importance = self._feature_importance/
+                                        self._feature_importance.sum()
+            self._feature_importance = self._feature_importance/
+                                        self._feature_importance.sum()
 
 
 
@@ -461,8 +463,8 @@ class BaseGrower(object):
             "Left(w=%f, nsamples=%d), Right(w=%f, nsamples=%d). " \
             "nan goes to %s.",
             split_info.node_id, split_info.feature_id, split_info.gain,
-            parent.gini,parent.entropy,
-            parent.IG,parent.NI,
+            parent.gini, parent.entropy,
+            parent.IG, parent.NI,
             left_child.weight, len(left_child.sample_ids),
             right_child.weight, len(right_child.sample_ids),
             split_info.default_left and 'left' or 'right')
@@ -470,13 +472,15 @@ class BaseGrower(object):
             == len(parent.sample_ids)
 
     def _log_feature_importance(self):
-        logging.info("For current tree, feature importance(greater than 0) is {}, feature indices(greater than 0) is {} ".format(self._feature_importance[self._feature_importance>0]
-            ,np.nonzero(self._feature_importance)))
+        logging.info("For current tree, feature importance(greater than 0) is {},"
+            "feature indices(greater than 0) is {} ".\
+            format(self._feature_importance[self._feature_importance>0], \
+            np.nonzero(self._feature_importance)))
 
     def to_proto(self):
         proto = tree_pb2.RegressionTreeProto(
             num_features=self._binned.features.shape[1],
-            feature_importance = self._feature_importance)
+            feature_importance=self._feature_importance)
         for node in self._nodes:
             proto.nodes.append(node.to_proto())
         return proto
@@ -491,10 +495,6 @@ class BaseGrower(object):
 
     def grow(self):
         self._compute_histogram(self._nodes[0])
-
-        
-        
-        
         self._find_split_and_push(self._nodes[0])
 
         while self._num_leaves < self._max_leaves:
@@ -521,7 +521,8 @@ class LeaderGrower(BaseGrower):
     def __init__(self, bridge, public_key, private_key,
                  binned, labels, total_features, grad, hess, **kwargs):
         super(LeaderGrower, self).__init__(
-            binned, labels, total_features, grad, hess, dtype=np.float32, **kwargs)
+            binned, labels, total_features, 
+            grad, hess, dtype=np.float32, **kwargs)
         self._bridge = bridge
         self._public_key = public_key
         self._private_key = private_key
@@ -621,7 +622,8 @@ class LeaderGrower(BaseGrower):
 
 
 class FollowerGrower(BaseGrower):
-    def __init__(self, bridge, public_key, binned, labels, total_features, grad, hess, **kwargs):
+    def __init__(self, bridge, public_key, binned, labels, 
+                total_features, grad, hess, **kwargs):
         dtype = lambda x: public_key.encrypt(x, PRECISION)
         super(FollowerGrower, self).__init__(
             binned, labels, total_features, grad, hess, dtype=dtype, **kwargs)
@@ -849,7 +851,7 @@ class BoostingTreeEnsamble(object):
     def save_model(self, path):
         fout = tf.io.gfile.GFile(path, 'w')
         model = tree_pb2.BoostingTreeEnsambleProto(
-            feature_importance = self._feature_importance)
+            feature_importance=self._feature_importance)
         model.trees.extend(self._trees)
         fout.write(text_format.MessageToString(model))
 
@@ -951,7 +953,8 @@ class BoostingTreeEnsamble(object):
 
     def _batch_predict_one_side_leader(self, get_raw_score):
         raw_prediction = None
-        for tree in self._trees:
+        for idx, tree in enumerate(self._trees):
+            logging.debug("Running prediction for tree %d", idx)
             for node in tree.nodes:
                 assert not node.is_owner, "Model cannot predict with no data"
 
@@ -1053,14 +1056,15 @@ class BoostingTreeEnsamble(object):
 
             self._total_features = features.shape[1]
 
-        elif self._role =='leader':
+        elif self._role == 'leader':
             self._bridge.start(self._bridge.new_iter_id())
             follower_feature_num = self._bridge.receive(
                 self._bridge.current_iter_id, 'follower_feature_num')
             self._bridge.commit()
 
             self._total_features = features.shape[1] + follower_feature_num
-            logging.info("leader number of features is %d , total features is %d.", features.shape[1], self._total_features)
+            logging.info("leader number of features is %d , total features is %d.", \
+                        features.shape[1], self._total_features)
         
         else:
             self._bridge.start(self._bridge.new_iter_id())
