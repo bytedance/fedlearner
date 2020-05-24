@@ -523,7 +523,7 @@ class LeaderGrower(BaseGrower):
         self._private_key = private_key
 
     def _initialize_feature_importance(self):
-        self._feature_importance = len(self._nodes[0].grad_hists)
+        self._feature_importance = np.zeros(len(self._nodes[0].grad_hists))
 
     def _receive_and_decrypt_histogram(self, name):
         msg = tree_pb2.Histograms()
