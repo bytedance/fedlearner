@@ -232,6 +232,7 @@ def test_one_file(args, bridge, booster, data_file, output_file):
         bridge.commit()
 
     if output_file:
+        tf.io.gfile.makedirs(os.path.dirname(output_file))
         write_predictions(output_file, pred, example_ids)
 
     if args.role == 'leader':
@@ -331,9 +332,6 @@ def test(args, bridge, booster):
         assert args.data_path, "Data path must not be empty"
     else:
         assert not args.data_path and args.role == 'leader'
-
-    if args.output_path:
-        tf.io.gfile.makedirs(args.output_path)
 
     data_loader = DataBlockLoader(
         args.role, bridge, args.data_path, args.file_ext,
