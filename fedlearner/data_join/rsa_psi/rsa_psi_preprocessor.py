@@ -49,7 +49,7 @@ class RsaPsiPreProcessor(object):
                 concur_futures.ProcessPoolExecutor(
                         options.offload_processor_number
                     )
-        self._id_batch_fetcher = IdBatchFetcher(self._options)
+        self._id_batch_fetcher = IdBatchFetcher(etcd, self._options)
         max_flying_item = options.batch_processor_options.max_flying_item
         if self._options.role == common_pb.FLRole.Leader:
             private_key = rsa.PrivateKey.load_pkcs1(options.rsa_key_pem)
@@ -70,7 +70,6 @@ class RsaPsiPreProcessor(object):
         self._sort_run_merger = SortRunMerger(
                 self._sort_run_dumper.sort_run_dump_dir, self._options
             )
-        self._worker_map = {}
         self._started = False
 
     def start_process(self):
@@ -242,6 +241,8 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.basicConfig(format='%(asctime)s %(message)s')
     parser = argparse.ArgumentParser(description='Rsa Psi Preprocessor!')
+    parser.add_argument('--preprocessor_name', type=str, default='test',
+                        help='the name of rsa psi preprocessor')
     parser.add_argument('-r', '--psi_role', type=str, required=True,
                         choices=['leader', 'follower'],
                         help='the role of rsa psi(leader/follower)')
@@ -291,6 +292,7 @@ if __name__ == "__main__":
         with gfile.GFile(args.rsa_key_path, 'rb') as f:
             rsa_key_pem = f.read()
     preprocessor_options = dj_pb.RsaPsiPreProcessorOptions(
+            preprocessor_name=args.preprocessor_name,
             role=common_pb.FLRole.Leader if args.psi_role == 'leader' \
                                          else common_pb.FLRole.Follower,
             rsa_key_pem=rsa_key_pem,

@@ -289,24 +289,26 @@ service RsaPsiSignService {
 }
 
 message RsaPsiPreProcessorOptions {
-  FLRole role = 1;
-  string rsa_key_pem = 2;
-  repeated string input_file_paths = 3;
-  string output_file_dir = 4;
-  string raw_data_publish_dir = 5;
-  int64 partition_id = 6;
-  string leader_rsa_psi_signer_addr = 7;
-  int64 offload_processor_number = 8;
-  BatchProcessorOptions batch_processor_options = 9;
+  string preprocessor_name = 1;
+  FLRole role = 2;
+  string rsa_key_pem = 3;
+  repeated string input_file_paths = 4;
+  string output_file_dir = 5;
+  string raw_data_publish_dir = 6;
+  int64 partition_id = 7;
+  string leader_rsa_psi_signer_addr = 8;
+  int64 offload_processor_number = 9;
+  BatchProcessorOptions batch_processor_options = 10;
 }
 
 message RawDataPartitionerOptions {
-  repeated string input_file_paths = 1;
-  string output_dir = 2;
-  int64 output_partition_num = 3;
-  RawDataOptions raw_data_options = 4;
-  string output_builder = 5; // only support tf record or csv
-  int64 output_item_threshold = 6;
-  int64 partitioner_rank_id = 7;
-  BatchProcessorOptions batch_processor_options = 8;
+  string partitioner_name = 1;
+  repeated string input_file_paths = 2;
+  string output_dir = 3;
+  int64 output_partition_num = 4;
+  RawDataOptions raw_data_options = 5;
+  string output_builder = 6; // only support tf record or csv
+  int64 output_item_threshold = 7;
+  int64 partitioner_rank_id = 8;
+  BatchProcessorOptions batch_processor_options = 9;
 }

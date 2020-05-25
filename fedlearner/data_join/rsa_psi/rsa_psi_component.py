@@ -28,7 +28,7 @@ from fedlearner.common import data_join_service_pb2 as dj_pb
 
 from fedlearner.proxy.channel import make_insecure_channel, ChannelType
 
-from fedlearner.data_join.raw_data_visitor import BatchRawDataVisitor
+from fedlearner.data_join.raw_data_visitor import MockRawDataVisitor
 from fedlearner.data_join.item_batch_seq_processor import \
         ItemBatch, ItemBatchSeqProcessor
 
@@ -68,14 +68,18 @@ class IdBatch(ItemBatch):
         return iter(zip(self._raw_ids, self._raws))
 
 class IdBatchFetcher(ItemBatchSeqProcessor):
-    def __init__(self, options):
+    def __init__(self, etcd, options):
         super(IdBatchFetcher, self).__init__(
                 options.batch_processor_options.max_flying_item,
             )
-        self._id_visitor = BatchRawDataVisitor(
-                options.input_file_paths,
-                dj_pb.RawDataOptions(raw_data_iter='CSV_DICT',
-                                     read_ahead_size=134217728)
+        self._id_visitor = MockRawDataVisitor(
+                etcd, dj_pb.RawDataOptions(raw_data_iter='CSV_DICT',
+                                           read_ahead_size=134217728),
+                '{}-proprocessor-mock-data-source-{:04}'.format(
+                        options.preprocessor_name,
+                        options.partition_id
+                    ),
+                options.input_file_paths
             )
         self._batch_size = options.batch_processor_options.batch_size
         self.set_input_finished()

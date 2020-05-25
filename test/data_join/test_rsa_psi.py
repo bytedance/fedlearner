@@ -286,6 +286,7 @@ class RsaPsi(unittest.TestCase):
             rsa_key_pem = f.read()
         for partition_id in range(self._data_source_l.data_source_meta.partition_num):
             options = dj_pb.RsaPsiPreProcessorOptions(
+                    preprocessor_name='leader-rsa-psi-processor',
                     role=common_pb.FLRole.Leader,
                     rsa_key_pem=rsa_key_pem,
                     input_file_paths=[self._psi_raw_data_fpaths_l[partition_id]],
@@ -314,6 +315,7 @@ class RsaPsi(unittest.TestCase):
             rsa_key_pem = f.read()
         for partition_id in range(self._data_source_f.data_source_meta.partition_num):
             options = dj_pb.RsaPsiPreProcessorOptions(
+                    preprocessor_name='follower-rsa-psi-processor',
                     role=common_pb.FLRole.Follower,
                     rsa_key_pem=rsa_key_pem,
                     input_file_paths=[self._psi_raw_data_fpaths_f[partition_id]],
