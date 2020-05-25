@@ -3,10 +3,8 @@ package main
 import (
 	"flag"
 	"fmt"
-	"time"
 
 	"github.com/gin-gonic/gin"
-	"k8s.io/client-go/informers"
 	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -14,7 +12,6 @@ import (
 
 	"github.com/bytedance/fedlearner/deploy/kubernetes_operator/pkg/apiserver/handler"
 	crdclientset "github.com/bytedance/fedlearner/deploy/kubernetes_operator/pkg/client/clientset/versioned"
-	crdinformers "github.com/bytedance/fedlearner/deploy/kubernetes_operator/pkg/client/informers/externalversions"
 )
 
 var (
@@ -69,19 +66,8 @@ func main() {
 		klog.Fatalf("failed to build clientset, err: %s", err.Error())
 	}
 
-	informerFactory := informers.NewSharedInformerFactoryWithOptions(
-		kubeClient,
-		time.Duration(*resyncInterval)*time.Second,
-	)
-	crdInformerFactory := crdinformers.NewSharedInformerFactoryWithOptions(
-		crdClient,
-		time.Duration(*resyncInterval)*time.Second,
-	)
+	h := handler.NewHandler(kubeClient, crdClient)
 
-	go informerFactory.Start(stopCh)
-	go crdInformerFactory.Start(stopCh)
-
-	h := handler.NewHandler(kubeClient, crdClient, informerFactory, crdInformerFactory)
 	if err := h.Run(stopCh); err != nil {
 		klog.Fatalf("failed to run handler, err: %s", err.Error())
 	}
