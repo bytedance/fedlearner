@@ -19,3 +19,6 @@ elastic-stack:
   logstash:
     persistence:
       storageClass: nfs
+
+  filebeat:
+    enabled: true
