@@ -514,18 +514,21 @@ if __name__ == "__main__":
                       if fnmatch(fpath, args.input_file_wildcard)]
     if len(all_fpaths) == 0:
         raise RuntimeError("no input files for partitioner")
+    all_fpaths = list(set(all_fpaths))
     all_fpaths.sort()
-    if args.total_partitioner_num > 1:
-        rest_fpaths = [fpath for (index, fpath) in enumerate(all_fpaths)
-                       if index % args.total_partitioner_num == \
-                               args.partitioner_rank_id]
+    partitioner_num = args.total_partitioner_num
+    if partitioner_num > 1:
+        origin_file_num = len(all_fpaths)
+        all_fpaths = \
+            [fpath for fpath in all_fpaths
+             if CityHash32(os.path.basename(fpath)) %  partitioner_num == \
+                     args.partitioner_rank_id]
         logging.info("Partitioner of rank id %d will process %d/%d "\
                      "input files", args.partitioner_rank_id,
-                     len(rest_fpaths), len(all_fpaths))
-        all_fpaths = rest_fpaths
+                     len(all_fpaths), origin_file_num)
     partitioner_options = dj_pb.RawDataPartitionerOptions(
             partitioner_name=args.partitioner_name,
-            input_file_paths=list(set(all_fpaths)),
+            input_file_paths=all_fpaths,
             output_dir=args.output_dir,
             output_partition_num=args.output_partition_num,
             raw_data_options=dj_pb.RawDataOptions(
