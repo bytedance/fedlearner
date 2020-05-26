@@ -20,6 +20,7 @@ export LD_LIBRARY_PATH=${HADOOP_HOME}/lib/native:${JAVA_HOME}/jre/lib/amd64/serv
 export CLASSPATH=.:$CLASSPATH:$JAVA_HOME/lib/dt.jar:$JAVA_HOME/lib/tools.jar:$($HADOOP_HOME/bin/hadoop classpath --glob)
 
 python -m fedlearner.data_join.raw_data_partitioner \
+    --partitioner_name=$NAME \
     --input_dir=$INPUT_DIR \
     --output_dir=$OUTPUT_DIR \
     --output_partition_num=$OUTPUT_PARTITION_NUM \
@@ -27,4 +28,8 @@ python -m fedlearner.data_join.raw_data_partitioner \
     --raw_data_batch_size=$RAW_DATA_BATCH_SIZE \
     --max_flying_raw_data=$MAX_FLYING_RAW_DATA \
     --partitioner_rank_id=$INDEX \
-    --input_file_wildcard=$FILE_WILDCARD
+    --input_file_wildcard=$FILE_WILDCARD \
+    --etcd_name=$ETCD_NAME \
+    --etcd_addrs=$ETCD_ADDR \
+    --etcd_base_dir=$ETCD_BASE_DIR
+

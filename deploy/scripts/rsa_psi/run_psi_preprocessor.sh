@@ -20,6 +20,7 @@ export LD_LIBRARY_PATH=${HADOOP_HOME}/lib/native:${JAVA_HOME}/jre/lib/amd64/serv
 export CLASSPATH=.:$CLASSPATH:$JAVA_HOME/lib/dt.jar:$JAVA_HOME/lib/tools.jar:$($HADOOP_HOME/bin/hadoop classpath --glob)
 
 python -m fedlearner.data_join.rsa_psi.rsa_psi_preprocessor \
+    --preprocessor_name=$NAME\
     --psi_role=$ROLE \
     --rsa_key_path=$RSA_KEY_PATH \
     --rsa_key_pem=$RSA_KEY_PEM \
