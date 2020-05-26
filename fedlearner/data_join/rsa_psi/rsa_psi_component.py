@@ -15,6 +15,7 @@
 # coding: utf-8
 
 import logging
+import threading
 import hashlib
 import random
 import functools
@@ -281,6 +282,44 @@ class LeaderPsiRsaSigner(PsiRsaSigner):
         return notify_future
 
 class FollowerPsiRsaSigner(PsiRsaSigner):
+    class SignerStub(object):
+        def __init__(self, addr):
+            self._lock = threading.Lock()
+            self._channel = make_insecure_channel(addr, ChannelType.REMOTE)
+            self._stub = dj_grpc.RsaPsiSignServiceStub(self._channel)
+            self._serial_fail_cnt = 0
+            self._rpc_ref_cnt = 0
+            self._mark_error = False
+
+        def mark_rpc_failed(self):
+            with self._lock:
+                self._serial_fail_cnt += 1
+                self._mark_error = self._serial_fail_cnt > 16
+
+        def mark_rpc_success(self):
+            with self._lock:
+                if not self._mark_error:
+                    self._serial_fail_cnt = 0
+
+        def marked_error(self):
+            with self._lock:
+                return self._mark_error
+
+        def rpc_ref(self):
+            with self._lock:
+                self._rpc_ref_cnt += 1
+
+        def rpc_unref(self):
+            with self._lock:
+                self._rpc_ref_cnt -= 1
+                return self._rpc_ref_cnt == 0
+
+        def close(self):
+            self._channel.close()
+
+        def __getattr__(self, attr):
+            return getattr(self._stub, attr)
+
     def __init__(self, id_batch_fetcher, max_flying_item,
                  process_pool_executor, public_key,
                  leader_signer_addr):
@@ -288,9 +327,37 @@ class FollowerPsiRsaSigner(PsiRsaSigner):
                                                    max_flying_item,
                                                    process_pool_executor)
         self._public_key = public_key
-        channel = make_insecure_channel(leader_signer_addr,
-                                        ChannelType.REMOTE)
-        self._leader_signer_stub = dj_grpc.RsaPsiSignServiceStub(channel)
+        self._leader_signer_addr = leader_signer_addr
+        self._perfer_stub_cursor = 0
+        self._active_stubs = \
+                [FollowerPsiRsaSigner.SignerStub(leader_signer_addr)
+                 for _ in range(8)]
+
+    def _get_active_stub(self):
+        with self._lock:
+            stub_num = len(self._active_stubs)
+            assert stub_num > 0
+            stub = self._active_stubs[self._perfer_stub_cursor % stub_num]
+            self._perfer_stub_cursor += 1
+            stub.rpc_ref()
+            return stub
+
+    def _revert_stub(self, stub, rpc_failed):
+        with self._lock:
+            if rpc_failed:
+                stub.mark_rpc_failed()
+            else:
+                stub.mark_rpc_success()
+            if stub.marked_error():
+                for idx, stub2 in enumerate(self._active_stubs):
+                    if stub is stub2:
+                        self._active_stubs[idx] = \
+                                FollowerPsiRsaSigner.SignerStub(
+                                        self._leader_signer_addr
+                                    )
+                        break
+                if stub.rpc_unref():
+                    stub.close()
 
     @staticmethod
     def _generate_blind_number(item_num, blind_len=256):
@@ -329,21 +396,24 @@ class FollowerPsiRsaSigner(PsiRsaSigner):
             assert len(blinded_hashed_ids) == len(raw_id_batch)
             assert len(blind_numbers) == len(raw_id_batch)
             self._rpc_sign_func(raw_id_batch, blind_numbers,
-                                notify_future, blinded_hashed_ids)
+                                blinded_hashed_ids, notify_future, 0)
         except Exception as e: # pylint: disable=broad-except
             notify_future.set_exception(e)
 
     def _rpc_sign_func(self, raw_id_batch, blind_numbers,
-                       notify_future, blinded_hashed_ids):
-        sign_future = self._leader_signer_stub.SignIds.future(
-                dj_pb.SignIdsRequest(ids=blinded_hashed_ids)
-            )
-        sign_cb = functools.partial(self._rpc_sign_callback, raw_id_batch,
-                                    blind_numbers, notify_future)
+                       blinded_hashed_ids, notify_future, retry_cnt):
+        stub = self._get_active_stub()
+        sign_req = dj_pb.SignIdsRequest(ids=blinded_hashed_ids)
+        sign_future = stub.SignIds.future(sign_req)
+        sign_cb = functools.partial(self._rpc_sign_callback,
+                                    raw_id_batch, blind_numbers,
+                                    blinded_hashed_ids, notify_future,
+                                    stub, retry_cnt)
         sign_future.add_done_callback(sign_cb)
 
     def _rpc_sign_callback(self, raw_id_batch, blind_numbers,
-                           notify_future, rpc_future):
+                           blinded_hashed_ids, notify_future,
+                           stub, retry_cnt, rpc_future):
         try:
             response = rpc_future.result()
             if response.status.code != 0:
@@ -351,6 +421,7 @@ class FollowerPsiRsaSigner(PsiRsaSigner):
                                    "error code: {}, error message: {}".format(
                                         response.status.code,
                                         response.status.error_message))
+            self._revert_stub(stub, False)
             signed_blinded_hashed_ids = \
                     [int(item) for item in response.signed_ids]
             assert len(raw_id_batch) == len(signed_blinded_hashed_ids)
@@ -358,7 +429,17 @@ class FollowerPsiRsaSigner(PsiRsaSigner):
                                          signed_blinded_hashed_ids,
                                          notify_future)
         except Exception as e: # pylint: disable=broad-except
-            notify_future.set_exception(e)
+            self._revert_stub(stub, True)
+            if retry_cnt < 4:
+                self._rpc_sign_func(raw_id_batch, blind_numbers,
+                                    blinded_hashed_ids,
+                                    notify_future, retry_cnt+1)
+            else:
+                logging.error("give up process psi signer for batch"\
+                              "[%d, %d) since excess retry limit(4)",
+                              raw_id_batch.begin_index,
+                              raw_id_batch.begin_index+len(raw_id_batch))
+                notify_future.set_exception(e)
 
     def _deblind_signed_id_func(self, raw_id_batch, blind_numbers,
                                 signed_blinded_hashed_ids, notify_future):
