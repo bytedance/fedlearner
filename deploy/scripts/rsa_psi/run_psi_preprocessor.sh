@@ -23,7 +23,7 @@ python -m fedlearner.data_join.rsa_psi.rsa_psi_preprocessor \
     --preprocessor_name=$NAME\
     --psi_role=$ROLE \
     --rsa_key_path=$RSA_KEY_PATH \
-    --rsa_key_pem=$RSA_KEY_PEM \
+    --rsa_key_pem="$RSA_KEY_PEM" \
     --input_dir=$INPUT_BASE_DIR/partition_`echo $INDEX|awk '{printf("%04d\n",$0)}'` \
     --output_file_dir=$OUTPUT_FILE_DIR \
     --leader_rsa_psi_signer_addr=$PEER_ADDR \
