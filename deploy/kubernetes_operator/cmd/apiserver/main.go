@@ -38,35 +38,35 @@ func buildConfig(masterURL string, kubeConfig string) (*rest.Config, error) {
 	return config, nil
 }
 
-func buildClientset(masterURL string, kubeConfig string) (*clientset.Clientset, *crdclientset.Clientset, error) {
+func buildClientset(masterURL string, kubeConfig string) (*clientset.Clientset, *crdclientset.Clientset, *rest.Config, error) {
 	config, err := buildConfig(masterURL, kubeConfig)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	kubeClient, err := clientset.NewForConfig(config)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	crdClient, err := crdclientset.NewForConfig(config)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
-	return kubeClient, crdClient, err
+	return kubeClient, crdClient, config, err
 }
 func main() {
 	flag.Parse()
 
 	stopCh := make(chan struct{}, 1)
 
-	kubeClient, crdClient, err := buildClientset(*master, *kubeConfig)
+	kubeClient, crdClient, restConfig, err := buildClientset(*master, *kubeConfig)
 	if err != nil {
 		klog.Fatalf("failed to build clientset, err: %s", err.Error())
 	}
 
-	h := handler.NewHandler(kubeClient, crdClient)
+	h := handler.NewHandler(restConfig, kubeClient, crdClient)
 
 	if err := h.Run(stopCh); err != nil {
 		klog.Fatalf("failed to run handler, err: %s", err.Error())
@@ -88,6 +88,8 @@ func main() {
 	r.POST("/namespaces/:namespace/fedlearner/v1alpha1/flapps", h.CreateFLApp)
 	r.DELETE("/namespaces/:namespace/fedlearner/v1alpha1/flapps/:name", h.DeleteFLApp)
 	r.GET("/namespaces/:namespace/fedlearner/v1alpha1/flapps/:name/pods", h.ListFLAppPods)
+	r.GET("/namespaces/:namespace/pods/:name/shell/:container", h.ExecShell)
+	r.Any("/api/sockjs/*w", gin.WrapH(handler.CreateAttachHandler("/api/sockjs")))
 
 	if err := r.Run(fmt.Sprintf(":%s", *port)); err != nil {
 		klog.Fatalf("run gin engine error, err: %s", err.Error())

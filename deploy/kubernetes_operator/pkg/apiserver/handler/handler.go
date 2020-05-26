@@ -2,13 +2,16 @@ package handler
 
 import (
 	"fmt"
+	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	clientset "k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
+	"k8s.io/client-go/tools/remotecommand"
 
 	"github.com/bytedance/fedlearner/deploy/kubernetes_operator/pkg/apis/fedlearner.k8s.io/v1alpha1"
 	crdclientset "github.com/bytedance/fedlearner/deploy/kubernetes_operator/pkg/client/clientset/versioned"
@@ -16,16 +19,19 @@ import (
 
 // Handler .
 type Handler struct {
+	restConfig *rest.Config
 	kubeClient *clientset.Clientset
 	crdClient  *crdclientset.Clientset
 }
 
 // NewHandler returns a new handler.
 func NewHandler(
+	restConfig *rest.Config,
 	kubeClient *clientset.Clientset,
 	crdClientset *crdclientset.Clientset,
 ) *Handler {
 	return &Handler{
+		restConfig: restConfig,
 		kubeClient: kubeClient,
 		crdClient:  crdClientset,
 	}
@@ -183,6 +189,28 @@ func (h *Handler) DeleteFLApp(c *gin.Context) {
 	}
 
 	c.JSON(200, gin.H{})
+}
+
+func (h *Handler) ExecShell(c *gin.Context) {
+	namespace := c.Param("namespace")
+	podName := c.Param("name")
+	containerName := c.Param("container")
+
+	sessionID, err := genTerminalSessionId()
+	if err != nil {
+		h.handleError(c, err)
+		return
+	}
+
+	terminalSessions.Set(sessionID, TerminalSession{
+		id:       sessionID,
+		bound:    make(chan error),
+		sizeChan: make(chan remotecommand.TerminalSize),
+	})
+	go WaitForTerminal(h.kubeClient, h.restConfig, namespace, podName, containerName, sessionID)
+	c.JSON(http.StatusOK, gin.H{
+		"id": sessionID,
+	})
 }
 
 func (h *Handler) handleError(c *gin.Context, err error) {
