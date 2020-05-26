@@ -246,7 +246,7 @@ if __name__ == "__main__":
     parser.add_argument('-r', '--psi_role', type=str, required=True,
                         choices=['leader', 'follower'],
                         help='the role of rsa psi(leader/follower)')
-    parser.add_argument('--rsa_key_path', type=str, required=True,
+    parser.add_argument('--rsa_key_path', type=str,
                         help='the file path for the rsa key')
     parser.add_argument('--rsa_key_pem', type=str,
                         help='the rsa key stroe by pem format')
