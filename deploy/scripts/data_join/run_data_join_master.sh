@@ -20,7 +20,7 @@ export LD_LIBRARY_PATH=${HADOOP_HOME}/lib/native:${JAVA_HOME}/jre/lib/amd64/serv
 export CLASSPATH=.:$CLASSPATH:$JAVA_HOME/lib/dt.jar:$JAVA_HOME/lib/tools.jar:$($HADOOP_HOME/bin/hadoop classpath --glob)
 export CUDA_VISIBLE_DEVICES=
 
-python -m fedlearner.data_join.prepare_launch_data_join \
+python -m fedlearner.data_join.cmd.prepare_launch_data_join_cli \
     --data_source_name=$DATA_SOURCE_NAME \
     --partition_num=$PARTITION_NUM \
     --start_time=$START_TIME \
@@ -34,7 +34,7 @@ python -m fedlearner.data_join.prepare_launch_data_join \
     --etcd_base_dir=$ETCD_BASE_DIR \
     --raw_data_sub_dir=$RAW_DATA_SUB_DIR
 
-python -m fedlearner.data_join.data_join_master \
+python -m fedlearner.data_join.cmd.data_join_master_service \
     $PEER_ADDR \
     --etcd_name=$ETCD_NAME \
     --etcd_addrs=$ETCD_ADDR \

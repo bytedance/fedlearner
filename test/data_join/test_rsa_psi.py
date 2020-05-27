@@ -41,8 +41,7 @@ from fedlearner.common import data_join_service_pb2_grpc as dj_grpc
 from fedlearner.common.etcd_client import EtcdClient
 
 from fedlearner.proxy.channel import make_insecure_channel, ChannelType
-from fedlearner.data_join.rsa_psi import \
-        rsa_key_generator, rsa_psi_signer, rsa_psi_preprocessor
+from fedlearner.data_join.rsa_psi import rsa_psi_signer, rsa_psi_preprocessor
 from fedlearner.data_join import data_join_master, data_join_worker,\
                                  common, csv_dict_writer
 
