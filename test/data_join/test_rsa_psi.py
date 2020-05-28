@@ -41,8 +41,7 @@ from fedlearner.common import data_join_service_pb2_grpc as dj_grpc
 from fedlearner.common.etcd_client import EtcdClient
 
 from fedlearner.proxy.channel import make_insecure_channel, ChannelType
-from fedlearner.data_join.rsa_psi import \
-        rsa_key_generator, rsa_psi_signer, rsa_psi_preprocessor
+from fedlearner.data_join.rsa_psi import rsa_psi_signer, rsa_psi_preprocessor
 from fedlearner.data_join import data_join_master, data_join_worker,\
                                  common, csv_dict_writer
 
@@ -286,6 +285,7 @@ class RsaPsi(unittest.TestCase):
             rsa_key_pem = f.read()
         for partition_id in range(self._data_source_l.data_source_meta.partition_num):
             options = dj_pb.RsaPsiPreProcessorOptions(
+                    preprocessor_name='leader-rsa-psi-processor',
                     role=common_pb.FLRole.Leader,
                     rsa_key_pem=rsa_key_pem,
                     input_file_paths=[self._psi_raw_data_fpaths_l[partition_id]],
@@ -314,6 +314,7 @@ class RsaPsi(unittest.TestCase):
             rsa_key_pem = f.read()
         for partition_id in range(self._data_source_f.data_source_meta.partition_num):
             options = dj_pb.RsaPsiPreProcessorOptions(
+                    preprocessor_name='follower-rsa-psi-processor',
                     role=common_pb.FLRole.Follower,
                     rsa_key_pem=rsa_key_pem,
                     input_file_paths=[self._psi_raw_data_fpaths_f[partition_id]],

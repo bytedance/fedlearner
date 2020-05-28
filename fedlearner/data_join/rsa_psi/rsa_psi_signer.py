@@ -14,16 +14,11 @@
 
 # coding: utf-8
 
-import argparse
 import logging
 import sys
 from concurrent import futures
-import rsa
 
 import grpc
-
-from tensorflow.compat.v1 import gfile
-
 from gmpy2 import powmod # pylint: disable=no-name-in-module
 
 from fedlearner.common import common_pb2 as common_pb
@@ -91,26 +86,3 @@ class RsaPsiSigner(object):
         self.start(listen_port)
         self._server.wait_for_termination()
         self.stop()
-
-if __name__ == "__main__":
-    logging.getLogger().setLevel(logging.INFO)
-    logging.basicConfig(format='%(asctime)s %(message)s')
-    parser = argparse.ArgumentParser(description='RsaPsiSigner cmd.')
-    parser.add_argument('-p', '--listen_port', type=int, default=40980,
-                        help='Listen port of RSA PSI signer')
-    parser.add_argument('--offload_processor_number', type=int, default=0,
-                        help='the number of processor to offload rsa compute')
-    parser.add_argument('--rsa_private_key_path', type=str,
-                        help='the file path to store rsa private key')
-    parser.add_argument('--rsa_privet_key_pem', type=str,
-                        help='the rsa private key stroe by pem format')
-    args = parser.parse_args()
-    rsa_private_key_pem = args.rsa_privet_key_pem
-    if rsa_private_key_pem is None or len(rsa_private_key_pem) == 0:
-        assert args.rsa_private_key_path is not None
-        with gfile.GFile(args.rsa_private_key_path, 'rb') as f:
-            rsa_private_key_pem = f.read()
-    rsa_private_key = rsa.PrivateKey.load_pkcs1(rsa_private_key_pem)
-    rsa_psi_signer = RsaPsiSigner(rsa_private_key,
-                                  args.offload_processor_number)
-    rsa_psi_signer.run(args.listen_port)

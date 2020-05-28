@@ -133,7 +133,7 @@ class SortRunDumper(object):
     def finish_dump_sort_run(self):
         succ_tag_fpath = self._get_finish_tag_fpath()
         with gfile.GFile(succ_tag_fpath, 'w') as fh:
-            fh.write('')
+            fh.write('finished')
         with self._lock:
             self._dump_finished = True
 

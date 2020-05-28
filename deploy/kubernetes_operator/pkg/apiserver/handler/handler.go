@@ -2,53 +2,44 @@ package handler
 
 import (
 	"fmt"
+	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/client-go/informers"
 	clientset "k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
+	"k8s.io/client-go/tools/remotecommand"
 
 	"github.com/bytedance/fedlearner/deploy/kubernetes_operator/pkg/apis/fedlearner.k8s.io/v1alpha1"
 	crdclientset "github.com/bytedance/fedlearner/deploy/kubernetes_operator/pkg/client/clientset/versioned"
-	crdinformers "github.com/bytedance/fedlearner/deploy/kubernetes_operator/pkg/client/informers/externalversions"
 )
 
 // Handler .
 type Handler struct {
+	restConfig *rest.Config
 	kubeClient *clientset.Clientset
 	crdClient  *crdclientset.Clientset
-
-	informerFactory    informers.SharedInformerFactory
-	crdInformerFactory crdinformers.SharedInformerFactory
 }
 
 // NewHandler returns a new handler.
 func NewHandler(
+	restConfig *rest.Config,
 	kubeClient *clientset.Clientset,
 	crdClientset *crdclientset.Clientset,
-	informerFactory informers.SharedInformerFactory,
-	crdInformerFactory crdinformers.SharedInformerFactory,
 ) *Handler {
 	return &Handler{
-		kubeClient:         kubeClient,
-		crdClient:          crdClientset,
-		informerFactory:    informerFactory,
-		crdInformerFactory: crdInformerFactory,
+		restConfig: restConfig,
+		kubeClient: kubeClient,
+		crdClient:  crdClientset,
 	}
 }
 
 // Run .
 func (h *Handler) Run(stopCh <-chan struct{}) error {
-	if !cache.WaitForCacheSync(
-		stopCh,
-		h.informerFactory.Core().V1().Pods().Informer().HasSynced,
-		h.informerFactory.Core().V1().Namespaces().Informer().HasSynced,
-		h.crdInformerFactory.Fedlearner().V1alpha1().FLApps().Informer().HasSynced,
-	) {
+	if !cache.WaitForCacheSync(stopCh) {
 		return fmt.Errorf("timed out waiting for cache to sync")
 	}
 
@@ -57,7 +48,7 @@ func (h *Handler) Run(stopCh <-chan struct{}) error {
 
 // ListNamespaces .
 func (h *Handler) ListNamespaces(c *gin.Context) {
-	namespaces, err := h.informerFactory.Core().V1().Namespaces().Lister().List(labels.Everything())
+	namespaces, err := h.kubeClient.CoreV1().Namespaces().List(metav1.ListOptions{})
 	if err != nil {
 		h.handleError(c, err)
 		return
@@ -72,7 +63,7 @@ func (h *Handler) ListNamespaces(c *gin.Context) {
 func (h *Handler) ListPods(c *gin.Context) {
 	namespace := c.Param("namespace")
 
-	pods, err := h.informerFactory.Core().V1().Pods().Lister().Pods(namespace).List(labels.Everything())
+	pods, err := h.kubeClient.CoreV1().Pods(namespace).List(metav1.ListOptions{})
 	if err != nil {
 		h.handleError(c, err)
 		return
@@ -88,7 +79,7 @@ func (h *Handler) GetPod(c *gin.Context) {
 	namespace := c.Param("namespace")
 	name := c.Param("name")
 
-	pod, err := h.informerFactory.Core().V1().Pods().Lister().Pods(namespace).Get(name)
+	pod, err := h.kubeClient.CoreV1().Pods(namespace).Get(name, metav1.GetOptions{})
 	if err != nil {
 		h.handleError(c, err)
 		return
@@ -138,9 +129,9 @@ func (h *Handler) ListFLAppPods(c *gin.Context) {
 	namespace := c.Param("namespace")
 	name := c.Param("name")
 
-	pods, err := h.informerFactory.Core().V1().Pods().Lister().Pods(namespace).List(labels.Set{
-		"app-name": name,
-	}.AsSelector())
+	pods, err := h.kubeClient.CoreV1().Pods(namespace).List(metav1.ListOptions{
+		LabelSelector: fmt.Sprintf("app-name=%s", name),
+	})
 	if err != nil {
 		h.handleError(c, err)
 		return
@@ -198,6 +189,28 @@ func (h *Handler) DeleteFLApp(c *gin.Context) {
 	}
 
 	c.JSON(200, gin.H{})
+}
+
+func (h *Handler) ExecShell(c *gin.Context) {
+	namespace := c.Param("namespace")
+	podName := c.Param("name")
+	containerName := c.Param("container")
+
+	sessionID, err := genTerminalSessionId()
+	if err != nil {
+		h.handleError(c, err)
+		return
+	}
+
+	terminalSessions.Set(sessionID, TerminalSession{
+		id:       sessionID,
+		bound:    make(chan error),
+		sizeChan: make(chan remotecommand.TerminalSize),
+	})
+	go WaitForTerminal(h.kubeClient, h.restConfig, namespace, podName, containerName, sessionID)
+	c.JSON(http.StatusOK, gin.H{
+		"id": sessionID,
+	})
 }
 
 func (h *Handler) handleError(c *gin.Context, err error) {

@@ -112,6 +112,8 @@ class ItemBatchSeqProcessor(object):
         assert next_index >= 0, "the next index should >= 0"
         end_batch = None
         batch_finished = False
+        iter_round = 0
+        processed_index = None
         for batch, batch_finished in self._make_inner_generator(next_index):
             if batch is None:
                 continue
@@ -119,6 +121,14 @@ class ItemBatchSeqProcessor(object):
                 self._append_next_item_batch(batch)
                 yield batch
             self._update_last_index(batch.begin_index+len(batch)-1)
+            iter_round += 1
+            processed_index = batch.begin_index + len(batch) - 1
+            if iter_round % 16 == 0:
+                logging.info("%s process to index %d",
+                             self.name(), processed_index)
+        if processed_index is not None:
+            logging.info("%s process to index %d when round finished",
+                         self.name(), processed_index)
         if input_finished and batch_finished:
             self._set_process_finished()
 

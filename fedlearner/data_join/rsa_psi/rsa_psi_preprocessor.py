@@ -14,19 +14,13 @@
 
 # coding: utf-8
 
-import argparse
 import logging
 import threading
-import os
 import concurrent.futures as concur_futures
 from collections import OrderedDict
 import rsa
 
-
-from tensorflow.compat.v1 import gfile
-
 from fedlearner.common import common_pb2 as common_pb
-from fedlearner.common import data_join_service_pb2 as dj_pb
 from fedlearner.common.etcd_client import EtcdClient
 
 from fedlearner.data_join.routine_worker import RoutineWorker
@@ -49,7 +43,7 @@ class RsaPsiPreProcessor(object):
                 concur_futures.ProcessPoolExecutor(
                         options.offload_processor_number
                     )
-        self._id_batch_fetcher = IdBatchFetcher(self._options)
+        self._id_batch_fetcher = IdBatchFetcher(etcd, self._options)
         max_flying_item = options.batch_processor_options.max_flying_item
         if self._options.role == common_pb.FLRole.Leader:
             private_key = rsa.PrivateKey.load_pkcs1(options.rsa_key_pem)
@@ -70,7 +64,6 @@ class RsaPsiPreProcessor(object):
         self._sort_run_merger = SortRunMerger(
                 self._sort_run_dumper.sort_run_dump_dir, self._options
             )
-        self._worker_map = {}
         self._started = False
 
     def start_process(self):
@@ -237,77 +230,3 @@ class RsaPsiPreProcessor(object):
                 self._lock.notify()
             return False
         return self._sort_run_dumper.is_dump_finished()
-
-if __name__ == "__main__":
-    logging.getLogger().setLevel(logging.INFO)
-    logging.basicConfig(format='%(asctime)s %(message)s')
-    parser = argparse.ArgumentParser(description='Rsa Psi Preprocessor!')
-    parser.add_argument('-r', '--psi_role', type=str, required=True,
-                        choices=['leader', 'follower'],
-                        help='the role of rsa psi(leader/follower)')
-    parser.add_argument('--rsa_key_path', type=str, required=True,
-                        help='the file path for the rsa key')
-    parser.add_argument('--rsa_key_pem', type=str,
-                        help='the rsa key stroe by pem format')
-    parser.add_argument('--input_file_paths', type=str, nargs='+',
-                        help='the file path input rsa psi preprocessor')
-    parser.add_argument('--input_dir', type=str,
-                        help='the raw data file appointed by dir')
-    parser.add_argument('--output_file_dir', type=str, required=True,
-                        help='the directory to store the result of processor')
-    parser.add_argument('--raw_data_publish_dir', type=str, required=True,
-                        help='the etcd base dir to publish new raw data')
-    parser.add_argument('--leader_rsa_psi_signer_addr', type=str,
-                        help='the ras psi follower should set give '\
-                             'the addr of rsa psi signer of leader')
-    parser.add_argument('--process_batch_size', type=int, default=1024,
-                        help='the batch size for preprocessor')
-    parser.add_argument('--max_flying_item', type=int, default=1<<20,
-                        help='the process buffer size')
-    parser.add_argument('--offload_processor_number', type=int, default=1,
-                        help='the number of processor to offload rsa compute')
-    parser.add_argument('--partition_id', type=int, required=True,
-                        help='the partition id will be processed')
-    parser.add_argument('--etcd_name', type=str,
-                        default='test_etcd', help='the name of etcd')
-    parser.add_argument('--etcd_addrs', type=str,
-                        default='localhost:2379', help='the addrs of etcd')
-    parser.add_argument('--etcd_base_dir', type=str, default='fedlearner_test',
-                        help='the namespace of etcd key')
-
-    args = parser.parse_args()
-    all_fpaths = []
-    if args.input_file_paths is not None:
-        for fp in args.input_file_paths:
-            all_fpaths.append(fp)
-    if args.input_dir is not None:
-        all_fpaths += [os.path.join(args.input_dir, f)
-                       for f in gfile.ListDirectory(args.input_dir)]
-    if len(all_fpaths) == 0:
-        raise RuntimeError("no input files for preprocessor")
-    rsa_key_pem = args.rsa_key_pem
-    if rsa_key_pem is None or len(rsa_key_pem) == 0:
-        assert args.rsa_key_path is not None
-        with gfile.GFile(args.rsa_key_path, 'rb') as f:
-            rsa_key_pem = f.read()
-    preprocessor_options = dj_pb.RsaPsiPreProcessorOptions(
-            role=common_pb.FLRole.Leader if args.psi_role == 'leader' \
-                                         else common_pb.FLRole.Follower,
-            rsa_key_pem=rsa_key_pem,
-            input_file_paths=list(set(all_fpaths)),
-            output_file_dir=args.output_file_dir,
-            raw_data_publish_dir=args.raw_data_publish_dir,
-            partition_id=args.partition_id,
-            leader_rsa_psi_signer_addr=args.leader_rsa_psi_signer_addr,
-            offload_processor_number=args.offload_processor_number,
-            batch_processor_options=dj_pb.BatchProcessorOptions(
-                batch_size=args.process_batch_size,
-                max_flying_item=args.max_flying_item
-            )
-        )
-    preprocessor = RsaPsiPreProcessor(preprocessor_options, args.etcd_name,
-                                      args.etcd_addrs, args.etcd_base_dir)
-    preprocessor.start_process()
-    logging.info("PreProcessor launched for %s of RSA PSI", args.psi_role)
-    preprocessor.wait_for_finished()
-    logging.info("PreProcessor finished for %s of RSA PSI", args.psi_role)

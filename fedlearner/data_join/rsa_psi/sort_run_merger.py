@@ -142,6 +142,10 @@ class SortRunMerger(object):
         self._input_dir = input_dir
         self._options = options
         self._merge_finished = False
+        self._merged_dir = os.path.join(
+                self._options.output_file_dir,
+                common.partition_repr(self._partition_id)
+            )
         self._create_merged_dir_if_need()
 
     def merge_sort_runs(self, sort_runs):
@@ -152,6 +156,7 @@ class SortRunMerger(object):
             logging.info("sort runs have been merged for partition %d",
                          self._partition_id)
             return self._list_merged_sort_run_fpath()
+        self._clear_merged_dir()
         pque = queue.PriorityQueue(len(sort_runs)*2+1)
         readers = self._create_sort_run_readers(sort_runs)
         for reader in readers:
@@ -195,24 +200,21 @@ class SortRunMerger(object):
                                    self._partition_id)
 
     def _check_merged(self):
-        merged_dir = os.path.join(self._options.output_file_dir,
-                                  common.partition_repr(self._partition_id))
-        return gfile.Exists(os.path.join(merged_dir, '_SUCCESS'))
+        return gfile.Exists(os.path.join(self._merged_dir, '_SUCCESS'))
 
     def _list_merged_sort_run_fpath(self):
-        merged_dir = os.path.join(self._options.output_file_dir,
-                                  common.partition_repr(self._partition_id))
-        return [os.path.join(merged_dir, f) for f in
-                gfile.ListDirectory(merged_dir) if
+        return [os.path.join(self._merged_dir, f) for f in
+                gfile.ListDirectory(self._merged_dir) if
                 f.endswith(common.MergedSortRunSuffix)]
 
     def _create_merged_dir_if_need(self):
-        merge_dir = os.path.join(self._options.output_file_dir,
-                                 common.partition_repr(self._partition_id))
-        if gfile.Exists(merge_dir):
-            assert gfile.IsDirectory(merge_dir)
-        else:
-            gfile.MakeDirs(merge_dir)
+        if not gfile.Exists(self._merged_dir):
+            gfile.MakeDirs(self._merged_dir)
+        assert gfile.IsDirectory(self._merged_dir)
+
+    def _clear_merged_dir(self):
+        gfile.DeleteRecursively(self._merged_dir)
+        self._create_merged_dir_if_need()
 
     @property
     def _partition_id(self):
