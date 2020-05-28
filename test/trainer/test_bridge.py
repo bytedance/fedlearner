@@ -17,8 +17,15 @@
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
+import logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)-15s [%(filename)s:%(lineno)d] %(levelname)s %(message)s'
+)
+
 import unittest
 import threading
+import time
 import tensorflow.compat.v1 as tf
 import numpy as np
 
@@ -37,8 +44,8 @@ def fake_start_message(seq_num, iter_id):
 
 class TestBridge(unittest.TestCase):
     def test_bridge(self):
-        bridge1 = fl.trainer.bridge.Bridge('leader', 50051, 'localhost:50052')
-        bridge2 = fl.trainer.bridge.Bridge('follower', 50052, 'localhost:50051')
+        bridge1 = fl.trainer.bridge.Bridge('leader', 49951, 'localhost:49952')
+        bridge2 = fl.trainer.bridge.Bridge('follower', 49952, 'localhost:49951')
 
         t = threading.Thread(target=lambda _: bridge1.connect(), args=(None,))
         t.start()
@@ -67,12 +74,13 @@ class TestBridge(unittest.TestCase):
         bridge1.commit()
         bridge2.commit()
 
+        time.sleep(3)
         bridge2.terminate()
         bridge1.terminate()
 
     def test_seq_and_ack(self):
-        bridge1 = fl.trainer.bridge.Bridge('leader', 40051, 'localhost:40052')
-        bridge2 = fl.trainer.bridge.Bridge('follower', 40052, 'localhost:40051')
+        bridge1 = fl.trainer.bridge.Bridge('leader', 49953, 'localhost:49954')
+        bridge2 = fl.trainer.bridge.Bridge('follower', 49954, 'localhost:49953')
 
         t = threading.Thread(target=lambda _: bridge1.connect(), args=(None,))
         t.start()
@@ -89,6 +97,7 @@ class TestBridge(unittest.TestCase):
         rsp = client1.Transmit(msg)
         self.assertEqual(rsp.status.code, common_pb.STATUS_MESSAGE_MISSING)
 
+        time.sleep(3)
         bridge2.terminate()
         bridge1.terminate()
 
