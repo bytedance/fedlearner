@@ -138,6 +138,8 @@ def read_csv_data(filename, require_example_ids, require_labels,
 
     example_id_idx, example_ids = extract_field(
         field_names, 'example_id', require_example_ids)
+    raw_id_idx, raw_ids = extract_field(
+        field_names, 'raw_id', False)
     label_idx, labels = extract_field(
         field_names, 'label', require_labels)
 
@@ -152,6 +154,8 @@ def read_csv_data(filename, require_example_ids, require_labels,
     for line in reader:
         if example_id_idx is not None:
             example_ids.append(line[example_id_idx])
+        if raw_id_idx is not None:
+            raw_ids.append(line[raw_id_idx])
         if label_idx is not None:
             labels.append(float(line[label_idx]))
         data.append([float(line[i]) for i, _ in data_columns])
@@ -161,16 +165,16 @@ def read_csv_data(filename, require_example_ids, require_labels,
         labels = np.asarray(labels, dtype=np.float)
 
     fin.close()
-    return data, labels, example_ids
+    return data, labels, example_ids, raw_ids
 
 
 def train(args, booster):
-    X, y, example_ids = read_csv_data(
+    X, y, example_ids, _ = read_csv_data(
         args.data_path, args.verify_example_ids,
         args.role != 'follower', args.ignore_fields)
 
     if args.validation_data_path:
-        val_X, val_y, val_example_ids = read_csv_data(
+        val_X, val_y, val_example_ids, _ = read_csv_data(
             args.validation_data_path, args.verify_example_ids,
             args.role != 'follower', args.ignore_fields)
     else:
@@ -191,20 +195,24 @@ def train(args, booster):
         output_path=args.output_path)
 
 
-def write_predictions(filename, pred, example_ids=None):
+def write_predictions(filename, pred, example_ids=None, raw_ids=None):
     logging.debug("Writing predictions to %s.tmp", filename)
-    fout = tf.io.gfile.GFile(filename+'.tmp', 'w')
+    headers = []
+    lines = []
     if example_ids is not None:
-        header = 'example_id,prediction'
-        lines = zip(example_ids, pred)
-    else:
-        header = 'prediction'
-        lines = zip(pred)
+        headers.append('example_id')
+        lines.append(example_ids)
+    if raw_ids is not None:
+        headers.append('raw_id')
+        lines.append(raw_ids)
+    headers.append('prediction')
+    lines.append(pred)
+    lines = zip(*lines)
 
-    fout.write(header+'\n')
+    fout = tf.io.gfile.GFile(filename+'.tmp', 'w')
+    fout.write(','.join(headers) + '\n')
     for line in lines:
         fout.write(','.join([str(i) for i in line]) + '\n')
-
     fout.close()
 
     logging.debug("Renaming %s.tmp to %s", filename, filename)
@@ -212,9 +220,9 @@ def write_predictions(filename, pred, example_ids=None):
 
 def test_one_file(args, bridge, booster, data_file, output_file):
     if data_file is None:
-        X = y = example_ids = None
+        X = y = example_ids = raw_ids = None
     else:
-        X, y, example_ids = read_csv_data(
+        X, y, example_ids, raw_ids = read_csv_data(
             data_file, args.verify_example_ids,
             False, args.ignore_fields)
 
@@ -233,7 +241,7 @@ def test_one_file(args, bridge, booster, data_file, output_file):
 
     if output_file:
         tf.io.gfile.makedirs(os.path.dirname(output_file))
-        write_predictions(output_file, pred, example_ids)
+        write_predictions(output_file, pred, example_ids, raw_ids)
 
     if args.role == 'leader':
         bridge.start(bridge.new_iter_id())
