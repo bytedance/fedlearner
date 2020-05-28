@@ -864,7 +864,7 @@ class BoostingTreeEnsamble(object):
             while vec_tree['is_leaf'][assignment].sum() < N:
                 direction = _vectorized_direction(
                     vec_tree, features, assignment)
-                
+
                 self._bridge.start(self._bridge.new_iter_id())
                 self._bridge.send(
                     self._bridge.current_iter_id,

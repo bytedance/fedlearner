@@ -197,7 +197,6 @@ def train(args, booster):
 
 def write_predictions(filename, pred, example_ids=None, raw_ids=None):
     logging.debug("Writing predictions to %s.tmp", filename)
-    fout = tf.io.gfile.GFile(filename+'.tmp', 'w')
     headers = []
     lines = []
     if example_ids is not None:
@@ -206,14 +205,14 @@ def write_predictions(filename, pred, example_ids=None, raw_ids=None):
     if raw_ids is not None:
         headers.append('raw_id')
         lines.append(raw_ids)
-    header.append('prediction')
+    headers.append('prediction')
     lines.append(pred)
     lines = zip(*lines)
-    lines.insert(0, header)
 
+    fout = tf.io.gfile.GFile(filename+'.tmp', 'w')
+    fout.write(','.join(headers) + '\n')
     for line in lines:
         fout.write(','.join([str(i) for i in line]) + '\n')
-
     fout.close()
 
     logging.debug("Renaming %s.tmp to %s", filename, filename)
@@ -221,7 +220,7 @@ def write_predictions(filename, pred, example_ids=None, raw_ids=None):
 
 def test_one_file(args, bridge, booster, data_file, output_file):
     if data_file is None:
-        X = y = example_ids, raw_ids = None
+        X = y = example_ids = raw_ids = None
     else:
         X, y, example_ids, raw_ids = read_csv_data(
             data_file, args.verify_example_ids,
