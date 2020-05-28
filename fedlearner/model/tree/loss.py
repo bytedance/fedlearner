@@ -27,9 +27,9 @@ def _roc_auc_score(label, pred):
     fps = np.cumsum(1 - label)[unique]
     tpr = np.r_[0, tps] / tps[-1]
     fpr = np.r_[0, fps] / fps[-1]
+    ks = (tpr-fpr).max()
     auc = np.trapz(tpr, x=fpr)
-    return auc
-
+    return ks, auc
 
 def _precision_recall_f1(label, y_pred):
     tp = (label  * y_pred).sum()
@@ -58,10 +58,12 @@ class LogisticLoss(object):
     def metrics(self, pred, label):
         y_pred = (pred > 0.5).astype(label.dtype)
         precision, recall, f1 = _precision_recall_f1(label, y_pred)
+        ks, auc = _roc_auc_score(label, pred)
         return {
             'acc': np.isclose(y_pred, label).sum() / len(label),
             'precision': precision,
             'recall': recall,
             'f1': f1,
-            'auc': _roc_auc_score(label, pred),
+            'auc': auc,
+            'ks': ks,
         }
