@@ -318,6 +318,7 @@ class BaseGrower(object):
         if node_len == 0:
             node.IG = 0
             node.NI = 0
+            return
         IG = node.entropy - \
             node_left_len / node_len * left_child.entropy - \
             node_right_len / node_len * right_child.entropy
