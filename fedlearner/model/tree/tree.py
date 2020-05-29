@@ -49,7 +49,7 @@ def _send_public_key(bridge, public_key):
 def _receive_public_key(bridge):
     msg = tree_pb2.EncryptedNumbers()
     bridge.receive_proto(bridge.current_iter_id, 'public_key').Unpack(msg)
-    return paillier.PaillierPublicKey(
+    return paillier.PaillierPublicKeyOpt(
         int.from_bytes(msg.ciphertext[0], 'little'))
 
 def _encode_encrypted_numbers(numbers):

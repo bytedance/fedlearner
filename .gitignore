@@ -8,6 +8,9 @@ config.mk
 *_pb2_grpc.py
 .*.swp
 .*.swo
+build
+dist
+fedlearner.egg-info
 
 .idea
 

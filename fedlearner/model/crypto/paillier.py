@@ -22,13 +22,15 @@ import random
 from fedlearner.model.crypto.fixed_point_number import FixedPointNumber
 from fedlearner.model.crypto import gmpy_math 
 
+from multiprocessing import Pool 
+
 
 class PaillierKeypair(object):
     def __init__(self):
         pass
 
     @staticmethod
-    def generate_keypair(n_length=1024):
+    def generate_keypair(n_length=1024, num_parallel=1):
         """return a new :class:`PaillierPublicKey` and :class:`PaillierPrivateKey`.
         """
         p = q = n = None
@@ -42,7 +44,7 @@ class PaillierKeypair(object):
             n = p * q
             n_len = n.bit_length()
 
-        public_key = PaillierPublicKey(n)
+        public_key = PaillierPublicKeyOpt(n, num_parallel)
         private_key = PaillierPrivateKey(public_key, p, q)
 
         return public_key, private_key
@@ -103,6 +105,51 @@ class PaillierPublicKey(object):
 
         return encryptednumber
 
+    def opt(self):
+        return PaillierPublicKeyOpt(self.n)
+
+def powmod(x):
+    r, n, nsquare = x
+    return gmpy_math.powmod(r, n, nsquare)
+
+class PaillierPublicKeyOpt(PaillierPublicKey):
+    def __init__(self, n, num_parallel=4, m=1024, k=5):
+        super(PaillierPublicKeyOpt, self).__init__(n)
+        self.m = m 
+        self.k = k
+        self._generate_noises(num_parallel)
+    
+    def _generate_noises(self, num_parallel):
+        self.noises = [random.SystemRandom().randrange(1, self.n) for i in range(self.m)]
+        self.noises = [(r, self.n, self.nsquare) for r in self.noises]
+        with Pool(num_parallel) as p:
+            self.noises = p.map(powmod, self.noises)
+
+    def __repr__(self):
+        hashcode = hex(hash(self))[2:]
+        return "<PaillierPublicKeyOpt {}>".format(hashcode[:10])
+
+    def __eq__(self, other):
+        return self.n == other.n 
+
+    def __hash__(self):
+        return hash(self.n)
+
+    def apply_obfuscator(self, ciphertext, random_value=None):
+        """
+        """
+        obfuscator = None
+        for i in range(self.k):
+            random_noise = self.noises[random.randint(0, self.m - 1)]
+            if obfuscator:
+                obfuscator = obfuscator * random_noise % self.nsquare
+            else:
+                obfuscator = random_noise
+
+        return (ciphertext * obfuscator) % self.nsquare
+
+    def public_key(self):
+        return super
 
 class PaillierPrivateKey(object):
     """Contains a private key and associated decryption method.
