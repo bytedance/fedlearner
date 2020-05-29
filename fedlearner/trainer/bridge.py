@@ -82,7 +82,8 @@ class Bridge(object):
                  remote_address,
                  app_id=None,
                  rank=0,
-                 streaming_mode=True):
+                 streaming_mode=True,
+                 compression=grpc.Compression.NoCompression):
         self._role = role
         self._listen_port = listen_port
         self._remote_address = remote_address
@@ -91,6 +92,7 @@ class Bridge(object):
         self._app_id = app_id
         self._rank = rank
         self._streaming_mode = streaming_mode
+        self._compression = compression
 
         self._prefetch_handlers = []
         self._data_block_handler_fn = None
@@ -116,7 +118,7 @@ class Bridge(object):
         ]
         self._channel = make_insecure_channel(
             remote_address, ChannelType.REMOTE,
-            options=self._grpc_options)
+            options=self._grpc_options, compression=self._compression)
         self._client = tws_grpc.TrainerWorkerServiceStub(self._channel)
         self._next_send_seq_num = 0
         self._transmit_queue = queue.Queue()
@@ -128,7 +130,8 @@ class Bridge(object):
         self._next_receive_seq_num = 0
         self._server = grpc.server(
             futures.ThreadPoolExecutor(max_workers=10),
-            options=self._grpc_options)
+            options=self._grpc_options,
+            compression=self._compression)
         tws_grpc.add_TrainerWorkerServiceServicer_to_server(
             Bridge.TrainerWorkerServicer(self), self._server)
         self._server.add_insecure_port('[::]:%d' % listen_port)
@@ -145,7 +148,7 @@ class Bridge(object):
         generator = None
         channel = make_insecure_channel(
             self._remote_address, ChannelType.REMOTE,
-            options=self._grpc_options)
+            options=self._grpc_options, compression=self._compression)
         client = make_ready_client(channel, stop_event)
 
         lock = threading.Lock()
@@ -225,7 +228,7 @@ class Bridge(object):
                     resend_list and resend_list[0].seq_num or "NaN")
                 channel = make_insecure_channel(
                     self._remote_address, ChannelType.REMOTE,
-                    options=self._grpc_options)
+                    options=self._grpc_options, compression=self._compression)
                 client = make_ready_client(channel, stop_event)
                 self._check_remote_heartbeat()
 
@@ -252,7 +255,8 @@ class Bridge(object):
                     time.sleep(1)
                     self._channel = make_insecure_channel(
                         self._remote_address, ChannelType.REMOTE,
-                        options=self._grpc_options)
+                        options=self._grpc_options,
+                        compression=self._compression)
                     self._client = make_ready_client(self._channel)
                     self._check_remote_heartbeat()
 
@@ -448,6 +452,7 @@ class Bridge(object):
 
     def load_data_block(self, count, block_id):
         msg = tws_pb.LoadDataBlockRequest(count=count, block_id=block_id)
+        logging.debug("sending DataBlock with id %s", block_id)
         return self._client.LoadDataBlock(msg)
 
     def register_prefetch_handler(self, func):

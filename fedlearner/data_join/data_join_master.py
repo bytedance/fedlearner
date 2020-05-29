@@ -14,7 +14,6 @@
 
 # coding: utf-8
 
-import argparse
 import threading
 import logging
 import os
@@ -509,33 +508,3 @@ class DataJoinMasterService(object):
         self.start()
         self._server.wait_for_termination()
         self.stop()
-
-if __name__ == "__main__":
-    logging.getLogger().setLevel(logging.INFO)
-    logging.basicConfig(format='%(asctime)s %(message)s')
-    parser = argparse.ArgumentParser(description='DataJointMasterService cmd.')
-    parser.add_argument('peer_addr', type=str,
-                        help='the addr(uuid) of peer data join master')
-    parser.add_argument('--etcd_name', type=str,
-                        default='test_etcd', help='the name of etcd')
-    parser.add_argument('--etcd_addrs', type=str,
-                        default='localhost:2379', help='the addrs of etcd')
-    parser.add_argument('--etcd_base_dir', type=str, default='fedlearner_test',
-                        help='the namespace of etcd key')
-    parser.add_argument('--listen_port', '-p', type=int, default=4032,
-                        help='Listen port of data join master')
-    parser.add_argument('--data_source_name', type=str,
-                        default='test_data_source',
-                        help='the name of data source')
-    parser.add_argument('--use_mock_etcd', action='store_true',
-                        help='use to mock etcd for test')
-    args = parser.parse_args()
-    master_options = dj_pb.DataJoinMasterOptions(
-            use_mock_etcd=args.use_mock_etcd
-        )
-    master_srv = DataJoinMasterService(
-            args.listen_port, args.peer_addr,
-            args.data_source_name, args.etcd_name,
-            args.etcd_base_dir, args.etcd_addrs, master_options
-        )
-    master_srv.run()

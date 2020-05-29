@@ -14,16 +14,11 @@
 
 # coding: utf-8
 
-import argparse
 import logging
 import sys
 from concurrent import futures
-import rsa
 
 import grpc
-
-from tensorflow.compat.v1 import gfile
-
 from gmpy2 import powmod # pylint: disable=no-name-in-module
 
 from fedlearner.common import common_pb2 as common_pb
@@ -44,10 +39,8 @@ class RsaPsiSignServer(dj_grpc.RsaPsiSignServiceServicer):
             response.status.error_message = sys.exc_info()
 
 class RsaPsiSigner(object):
-    def __init__(self, rsa_private_key_path, offload_processor_number):
-        with gfile.GFile(rsa_private_key_path, 'rb') as f:
-            file_content = f.read()
-            self._prv_key = rsa.PrivateKey.load_pkcs1(file_content)
+    def __init__(self, rsa_prv_key, offload_processor_number):
+        self._rsa_private_key = rsa_prv_key
         self._process_pool_executor = None
         if offload_processor_number > 0:
             self._process_pool_executor = \
@@ -55,7 +48,7 @@ class RsaPsiSigner(object):
 
 
     def _psi_sign_fn(self, request):
-        d, n = self._prv_key.d, self._prv_key.n
+        d, n = self._rsa_private_key.d, self._rsa_private_key.n
         if self._process_pool_executor is not None:
             rids = [rid for rid in request.ids] # pylint: disable=unnecessary-comprehension
             sign_future = self._process_pool_executor.submit(
@@ -93,18 +86,3 @@ class RsaPsiSigner(object):
         self.start(listen_port)
         self._server.wait_for_termination()
         self.stop()
-
-if __name__ == "__main__":
-    logging.getLogger().setLevel(logging.INFO)
-    logging.basicConfig(format='%(asctime)s %(message)s')
-    parser = argparse.ArgumentParser(description='RsaPsiSigner cmd.')
-    parser.add_argument('-p', '--listen_port', type=int, default=40980,
-                        help='Listen port of RSA PSI signer')
-    parser.add_argument('--rsa_private_key_path', type=str, required=True,
-                        help='the file path to store rsa private key')
-    parser.add_argument('--offload_processor_number', type=int, default=0,
-                        help='the number of processor to offload rsa compute')
-    args = parser.parse_args()
-    rsa_psi_signer = RsaPsiSigner(args.rsa_private_key_path,
-                                  args.offload_processor_number)
-    rsa_psi_signer.run(args.listen_port)

@@ -74,6 +74,16 @@ def make_data(args):
         'data/local_test/part-0001.csv', x_test, y_test,
         'local', False)
 
+    write_data(
+        'data/leader_test/part-0002.csv', x_test, y_test,
+        'leader', args.verify_example_ids)
+    write_data(
+        'data/follower_test/part-0002.csv', x_test, y_test,
+        'follower', args.verify_example_ids)
+    write_data(
+        'data/local_test/part-0002.csv', x_test, y_test,
+        'local', False)
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(

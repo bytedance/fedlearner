@@ -65,8 +65,8 @@ class IndexMetaManager(object):
                                      "of process index 0")
             else:
                 prev_meta = self._index_metas[process_index-1]
-                if prev_meta.start_index >= start_index:
-                    raise ValueError("start_index should be incremental")
+                assert prev_meta.start_index <= start_index, \
+                        "start_index should be incremental"
             if process_index == len(self._index_metas):
                 index_meta = self._new_index_meta(process_index, start_index)
                 if index_meta is None:
@@ -218,7 +218,14 @@ class Visitor(object):
             "{}(index meta start index) != {}(start index)".format(
                     index_meta.start_index, start_index
                 )
-        self._reset_iter_by_index_meta(index_meta)
+        try:
+            self._reset_iter_by_index_meta(index_meta)
+        except StopIteration as se:
+            logging.warning("meet StopIteration %s when open file %s. "\
+                            "No data in it", se, index_meta.fpath)
+            return self._forward_to_target(
+                    process_index+1, start_index, target_index
+                )
         self._process_index = process_index
         self._iter.seek_to_target(target_index)
         self._update_visited_max_index()
@@ -236,7 +243,7 @@ class Visitor(object):
     def _append_index_meta(self, index_meta):
         if len(self._index_metas) > 0:
             prev_meta = self._index_metas[-1]
-            if prev_meta.start_index >= index_meta.start_index:
+            if index_meta.start_index < prev_meta.start_index:
                 logging.fatal("index between index meta is not incremental")
                 os._exit(-1) # pylint: disable=protected-access
         elif index_meta.start_index != 0:

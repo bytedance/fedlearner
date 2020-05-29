@@ -20,9 +20,12 @@ import os
 from google.protobuf import text_format
 
 from fedlearner.common import data_join_service_pb2 as dj_pb
+from fedlearner.common import common_pb2 as common_pb
 
 from fedlearner.data_join import visitor, common
 from fedlearner.data_join.raw_data_iter_impl import create_raw_data_iter
+from fedlearner.data_join.raw_data_manifest_manager import \
+        RawDataManifestManager
 
 class RawDataManager(visitor.IndexMetaManager):
     def __init__(self, etcd, data_source, partition_id):
@@ -151,34 +154,26 @@ class RawDataVisitor(visitor.Visitor):
     def _new_iter(self):
         return create_raw_data_iter(self._raw_data_options)
 
-class BatchRawDataManager(visitor.IndexMetaManager):
-    def __init__(self, input_fpaths):
-        super(BatchRawDataManager, self).__init__([])
-        assert len(input_fpaths) > 0, "input file must not be empty"
-        self._input_fpaths = input_fpaths
-
-    def check_index_meta_by_process_index(self, process_index):
-        return process_index < len(self._index_metas)
-
-    def _new_index_meta(self, process_index, start_index):
-        if process_index >= len(self._input_fpaths):
-            return None
-        return visitor.IndexMeta(process_index, start_index,
-                                 self._input_fpaths[process_index])
-
-class BatchRawDataVisitor(visitor.Visitor):
-    def __init__(self, input_file_paths, raw_data_options):
-        super(BatchRawDataVisitor, self).__init__(
-                "batch_raw_data_visitor",
-                BatchRawDataManager(input_file_paths)
+class MockRawDataVisitor(RawDataVisitor):
+    def __init__(self, etcd, raw_data_options,
+                 mock_data_source_name, input_fpaths):
+        mock_data_source = common_pb.DataSource(
+                state=common_pb.DataSourceState.Processing,
+                data_source_meta=common_pb.DataSourceMeta(
+                    name=mock_data_source_name,
+                    partition_num=1
+                )
             )
-        self._raw_data_options = raw_data_options
-
-    def _new_iter(self):
-        return create_raw_data_iter(
-                self._raw_data_options
+        mock_rd_manifest_manager = RawDataManifestManager(
+                etcd, mock_data_source
             )
-
-    def active_visitor(self):
-        logging.debug("active visitor do nothing for "\
-                      "batch raw data visitor")
+        manifest = mock_rd_manifest_manager.get_manifest(0)
+        if not manifest.finished:
+            metas = []
+            for fpath in input_fpaths:
+                metas.append(dj_pb.RawDataMeta(file_path=fpath,
+                                               start_index=-1))
+            mock_rd_manifest_manager.add_raw_data(0, metas, True)
+            mock_rd_manifest_manager.finish_raw_data(0)
+        super(MockRawDataVisitor, self).__init__(etcd, mock_data_source,
+                                                 0, raw_data_options)

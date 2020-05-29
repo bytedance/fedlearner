@@ -14,7 +14,6 @@
 
 # coding: utf-8
 
-import io
 import os
 import csv
 import queue
@@ -122,33 +121,27 @@ def create_argument_parser():
 
     return parser
 
-def extract_field(field_names, lines, field_name, required):
+def extract_field(field_names, field_name, required):
     if field_name in field_names:
-        idx = field_names.index(field_name)
-        return [line[idx] for line in lines]
+        return field_names.index(field_name), []
 
     assert not required, \
         "Data must contain %s field"%field_name
-    return None
+    return None, None
 
 def read_csv_data(filename, require_example_ids, require_labels,
                   ignore_fields):
     logging.debug('Reading csv file from %s', filename)
-    txt_data = tf.io.gfile.GFile(filename, 'r').read()
+    fin = tf.io.gfile.GFile(filename, 'r')
+    reader = csv.reader(fin)
+    field_names = next(reader)
 
-    logging.debug('Parsing csv file...')
-    reader = csv.reader(io.StringIO(txt_data))
-    lines = list(reader)
-    field_names = lines[0]
-    lines = lines[1:]
-
-    logging.debug('Extracting fields from csv file...')
-    example_ids = extract_field(
-        field_names, lines, 'example_id', require_example_ids)
-    labels = extract_field(
-        field_names, lines, 'label', require_labels)
-    if labels is not None:
-        labels = np.asarray(labels, dtype=np.float)
+    example_id_idx, example_ids = extract_field(
+        field_names, 'example_id', require_example_ids)
+    raw_id_idx, raw_ids = extract_field(
+        field_names, 'raw_id', False)
+    label_idx, labels = extract_field(
+        field_names, 'label', require_labels)
 
     ignore_fields = set(ignore_fields.strip().split(','))
     ignore_fields.update(['example_id', 'raw_id', 'label'])
@@ -156,20 +149,32 @@ def read_csv_data(filename, require_example_ids, require_labels,
         (i, name) for i, name in enumerate(field_names) \
             if name not in ignore_fields]
     data_columns.sort(key=lambda x: x[1])
-    data = np.asarray(
-        [[line[i] for i, _ in data_columns] for line in lines],
-        dtype=np.float)
+    data = []
 
-    return data, labels, example_ids
+    for line in reader:
+        if example_id_idx is not None:
+            example_ids.append(line[example_id_idx])
+        if raw_id_idx is not None:
+            raw_ids.append(line[raw_id_idx])
+        if label_idx is not None:
+            labels.append(float(line[label_idx]))
+        data.append([float(line[i]) for i, _ in data_columns])
+
+    data = np.asarray(data, dtype=np.float)
+    if labels is not None:
+        labels = np.asarray(labels, dtype=np.float)
+
+    fin.close()
+    return data, labels, example_ids, raw_ids
 
 
 def train(args, booster):
-    X, y, example_ids = read_csv_data(
+    X, y, example_ids, _ = read_csv_data(
         args.data_path, args.verify_example_ids,
         args.role != 'follower', args.ignore_fields)
 
     if args.validation_data_path:
-        val_X, val_y, val_example_ids = read_csv_data(
+        val_X, val_y, val_example_ids, _ = read_csv_data(
             args.validation_data_path, args.verify_example_ids,
             args.role != 'follower', args.ignore_fields)
     else:
@@ -177,6 +182,8 @@ def train(args, booster):
 
     if args.output_path:
         tf.io.gfile.makedirs(os.path.dirname(args.output_path))
+    if args.checkpoint_path:
+        tf.io.gfile.makedirs(args.checkpoint_path)
 
     booster.fit(
         X, y,
@@ -188,27 +195,34 @@ def train(args, booster):
         output_path=args.output_path)
 
 
-def write_predictions(filename, pred, example_ids=None):
-    logging.debug("Writing predictions to %s", filename)
-    fout = tf.io.gfile.GFile(filename, 'w')
+def write_predictions(filename, pred, example_ids=None, raw_ids=None):
+    logging.debug("Writing predictions to %s.tmp", filename)
+    headers = []
+    lines = []
     if example_ids is not None:
-        header = 'example_id,prediction'
-        lines = zip(example_ids, pred)
-    else:
-        header = 'prediction'
-        lines = zip(pred)
+        headers.append('example_id')
+        lines.append(example_ids)
+    if raw_ids is not None:
+        headers.append('raw_id')
+        lines.append(raw_ids)
+    headers.append('prediction')
+    lines.append(pred)
+    lines = zip(*lines)
 
-    fout.write(header+'\n')
+    fout = tf.io.gfile.GFile(filename+'.tmp', 'w')
+    fout.write(','.join(headers) + '\n')
     for line in lines:
         fout.write(','.join([str(i) for i in line]) + '\n')
-
     fout.close()
 
-def test_one_file(args, booster, data_file, output_file):
+    logging.debug("Renaming %s.tmp to %s", filename, filename)
+    tf.io.gfile.rename(filename+'.tmp', filename, overwrite=True)
+
+def test_one_file(args, bridge, booster, data_file, output_file):
     if data_file is None:
-        X = y = example_ids = None
+        X = y = example_ids = raw_ids = None
     else:
-        X, y, example_ids = read_csv_data(
+        X, y, example_ids, raw_ids = read_csv_data(
             data_file, args.verify_example_ids,
             False, args.ignore_fields)
 
@@ -220,18 +234,30 @@ def test_one_file(args, booster, data_file, output_file):
         metrics = {}
     logging.info("Test metrics: %s", metrics)
 
+    if args.role == 'follower':
+        bridge.start(bridge.new_iter_id())
+        bridge.receive(bridge.current_iter_id, 'barrier')
+        bridge.commit()
+
     if output_file:
         tf.io.gfile.makedirs(os.path.dirname(output_file))
-        write_predictions(output_file, pred, example_ids)
+        write_predictions(output_file, pred, example_ids, raw_ids)
+
+    if args.role == 'leader':
+        bridge.start(bridge.new_iter_id())
+        bridge.send(
+            bridge.current_iter_id, 'barrier', np.asarray([1]))
+        bridge.commit()
 
 
 class DataBlockLoader(object):
     def __init__(self, role, bridge, data_path, ext,
-                 worker_rank=0, num_workers=1):
+                 worker_rank=0, num_workers=1, output_path=None):
         self._role = role
         self._bridge = bridge
         self._num_workers = num_workers
         self._worker_rank = worker_rank
+        self._output_path = output_path
 
         self._tm_role = 'follower' if role == 'leader' else 'leader'
 
@@ -273,11 +299,16 @@ class DataBlockLoader(object):
         self._block_queue.put(block)
 
     def _request_data_block(self):
-        for _ in range(self._worker_rank):
-            self._trainer_master.request_data_block()
-        block = self._trainer_master.request_data_block()
-        for _ in range(self._num_workers - self._worker_rank - 1):
-            self._trainer_master.request_data_block()
+        while True:
+            for _ in range(self._worker_rank):
+                self._trainer_master.request_data_block()
+            block = self._trainer_master.request_data_block()
+            for _ in range(self._num_workers - self._worker_rank - 1):
+                self._trainer_master.request_data_block()
+            if block is None or self._output_path is None or \
+                    not tf.io.gfile.exists(os.path.join(
+                        self._output_path, block.block_id) + '.output'):
+                break
         return block
 
     def get_next_block(self):
@@ -312,7 +343,7 @@ def test(args, bridge, booster):
 
     data_loader = DataBlockLoader(
         args.role, bridge, args.data_path, args.file_ext,
-        args.worker_rank, args.num_workers)
+        args.worker_rank, args.num_workers, args.output_path)
 
     while True:
         data_block = data_loader.get_next_block()
@@ -324,7 +355,7 @@ def test(args, bridge, booster):
         else:
             output_file = None
         test_one_file(
-            args, booster, data_block.data_path, output_file)
+            args, bridge, booster, data_block.data_path, output_file)
 
 
 def run(args):

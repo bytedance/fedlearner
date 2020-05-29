@@ -1,0 +1,36 @@
+apiVersion: fedlearner.k8s.io/v1alpha2
+kind: TrainingSet
+metadata:
+  name: foo
+spec:
+  replicas: 3
+  selector:
+    name: foo
+  template:
+    spec:
+      restartPolicy: Never # required
+      containers:
+        - env:
+          - name: APPLICATION_ID
+            value: normal
+          - name: HOST_IP
+            valueFrom:
+              fieldRef:
+                fieldPath: status.hostIP
+          image: nicolaka/netshoot
+          imagePullPolicy: IfNotPresent
+          restartPolicy: Never # required
+          name: tensorflow # default
+          ports:
+            - containerPort: 50051
+              name: flapp-port # default
+          resources:
+            limits:
+              cpu: 1000m
+              memory: 1Gi
+            requests:
+              cpu: 1000m
+              memory: 1Gi
+          command: ["/bin/sleep"]
+          args: ["3m"]
+  type: Chief

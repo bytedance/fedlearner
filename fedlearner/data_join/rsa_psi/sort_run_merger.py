@@ -19,7 +19,6 @@ try:
 except ImportError:
     import Queue as queue
 import logging
-import uuid
 import threading
 import os
 
@@ -93,44 +92,49 @@ class SortRunReader(object):
         raise StopIteration("%s has been iter finished" % self._fpath)
 
 class SortRunMergerWriter(object):
-    TMP_COUNTER = 0
-    def __init__(self, partition_id, fpath):
+    def __init__(self, base_dir, partition_id):
+        self._merged_dir = \
+            os.path.join(base_dir, common.partition_repr(partition_id))
         self._partition_id = partition_id
-        self._fpath = fpath
-        self._tmp_fpath = self._get_tmp_fpath()
-        self._csv_dict_writer = csv_dict_writer.CsvDictWriter(
-                self._tmp_fpath
-            )
+        self._process_index = 0
+        self._csv_dict_writer = None
+        self._merged_fpaths = []
+        self._merged_num = 0
 
     def append(self, raw):
-        self._csv_dict_writer.write(raw)
+        writer = self._get_csv_dict_writer()
+        writer.write(raw)
+        self._merged_num += 1
+        if writer.write_raw_num() > (1 << 18):
+            self._finish_csv_dict_writer()
 
     def finish(self):
-        self._csv_dict_writer.close()
-        if self._csv_dict_writer.write_raw_num() == 0:
-            logging.warning("no record in sort run merger %s at" \
-                            "partition %d. reomve the tmp file %s" \
-                            "create finish tag", self._fpath,
-                            self._partition_id, self._tmp_fpath)
-            gfile.Remove(self._tmp_fpath)
-            finish_tag_fpath = os.path.join(self._get_output_dir(),
-                                            '_SUCCESS')
-            with gfile.GFile(finish_tag_fpath, 'w') as fh:
-                fh.write('')
-        else:
-            gfile.Rename(self._tmp_fpath, self._fpath, True)
-            logging.warning("dump %d record in sort run merger: "\
-                            "%s at partition %d",
-                            self._csv_dict_writer.write_raw_num(),
-                            self._fpath, self._partition_id)
+        self._finish_csv_dict_writer()
+        logging.warning("merge %d record in %d sort run merger: "\
+                        "for partition %d", self._merged_num,
+                        self._process_index, self._partition_id)
+        finish_tag_fpath = os.path.join(self._merged_dir, '_SUCCESS')
+        with gfile.GFile(finish_tag_fpath, 'w') as fh:
+            fh.write('\n')
+        return self._merged_fpaths
 
-    def _get_tmp_fpath(self):
-        tmp_fname = str(uuid.uuid1()) + '-{}.tmp'.format(self.TMP_COUNTER)
-        self.TMP_COUNTER += 1
-        return os.path.join(self._get_output_dir(), tmp_fname)
+    def get_merged_fpaths(self):
+        return self._merged_fpaths
 
-    def _get_output_dir(self):
-        return os.path.dirname(self._fpath)
+    def _finish_csv_dict_writer(self):
+        if self._csv_dict_writer is not None:
+            self._csv_dict_writer.close()
+            self._csv_dict_writer = None
+            self._process_index += 1
+
+    def _get_csv_dict_writer(self):
+        if self._csv_dict_writer is None:
+            fname = common.encode_merged_sort_run_fname(self._partition_id,
+                                                        self._process_index)
+            fpath = os.path.join(self._merged_dir, fname)
+            self._csv_dict_writer = csv_dict_writer.CsvDictWriter(fpath)
+            self._merged_fpaths.append(fpath)
+        return self._csv_dict_writer
 
 class SortRunMerger(object):
     def __init__(self, input_dir, options):
@@ -138,15 +142,21 @@ class SortRunMerger(object):
         self._input_dir = input_dir
         self._options = options
         self._merge_finished = False
+        self._merged_dir = os.path.join(
+                self._options.output_file_dir,
+                common.partition_repr(self._partition_id)
+            )
         self._create_merged_dir_if_need()
 
     def merge_sort_runs(self, sort_runs):
         if len(sort_runs) == 0:
             logging.info("no sort run for partition %d", self._partition_id)
-            return
+            return []
         if self._check_merged():
             logging.info("sort runs have been merged for partition %d",
                          self._partition_id)
+            return self._list_merged_sort_run_fpath()
+        self._clear_merged_dir()
         pque = queue.PriorityQueue(len(sort_runs)*2+1)
         readers = self._create_sort_run_readers(sort_runs)
         for reader in readers:
@@ -158,6 +168,7 @@ class SortRunMerger(object):
             assert item.reader_index < len(readers)
             self._replenish_item(readers[item.reader_index], pque)
         writer.finish()
+        return writer.get_merged_fpaths()
 
     def is_merged_finished(self):
         with self._lock:
@@ -166,12 +177,6 @@ class SortRunMerger(object):
     def set_merged_finished(self):
         with self._lock:
             self._merge_finished = True
-
-    def get_merged_sort_run_fpath(self):
-        merge_dir = os.path.join(self._options.output_file_dir,
-                                 common.partition_repr(self._partition_id))
-        merged_fname = common.encode_merged_sort_run_fname(self._partition_id)
-        return os.path.join(merge_dir, merged_fname)
 
     @classmethod
     def _replenish_item(cls, reader, pque):
@@ -191,24 +196,25 @@ class SortRunMerger(object):
         return readers
 
     def _create_sort_run_merger_writer(self):
-        return SortRunMergerWriter(self._partition_id,
-                                   self.get_merged_sort_run_fpath())
+        return SortRunMergerWriter(self._options.output_file_dir,
+                                   self._partition_id)
 
     def _check_merged(self):
-        merge_dir = os.path.join(self._options.output_file_dir,
-                                 common.partition_repr(self._partition_id))
-        merged_fname = common.encode_merged_sort_run_fname(self._partition_id)
-        return len([f for f in gfile.ListDirectory(merge_dir)
-                    if (os.path.basename(f) == merged_fname or \
-                        os.path.basename(f) == '_SUCCESS')]) > 0
+        return gfile.Exists(os.path.join(self._merged_dir, '_SUCCESS'))
+
+    def _list_merged_sort_run_fpath(self):
+        return [os.path.join(self._merged_dir, f) for f in
+                gfile.ListDirectory(self._merged_dir) if
+                f.endswith(common.MergedSortRunSuffix)]
 
     def _create_merged_dir_if_need(self):
-        merge_dir = os.path.join(self._options.output_file_dir,
-                                 common.partition_repr(self._partition_id))
-        if gfile.Exists(merge_dir):
-            assert gfile.IsDirectory(merge_dir)
-        else:
-            gfile.MakeDirs(merge_dir)
+        if not gfile.Exists(self._merged_dir):
+            gfile.MakeDirs(self._merged_dir)
+        assert gfile.IsDirectory(self._merged_dir)
+
+    def _clear_merged_dir(self):
+        gfile.DeleteRecursively(self._merged_dir)
+        self._create_merged_dir_if_need()
 
     @property
     def _partition_id(self):

@@ -21,6 +21,7 @@ import time
 import random
 import logging
 import csv
+import rsa
 from collections import OrderedDict
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
@@ -40,8 +41,7 @@ from fedlearner.common import data_join_service_pb2_grpc as dj_grpc
 from fedlearner.common.etcd_client import EtcdClient
 
 from fedlearner.proxy.channel import make_insecure_channel, ChannelType
-from fedlearner.data_join.rsa_psi import \
-        rsa_key_generator, rsa_psi_signer, rsa_psi_preprocessor
+from fedlearner.data_join.rsa_psi import rsa_psi_signer, rsa_psi_preprocessor
 from fedlearner.data_join import data_join_master, data_join_worker,\
                                  common, csv_dict_writer
 
@@ -248,7 +248,11 @@ class RsaPsi(unittest.TestCase):
 
     def _launch_rsa_psi_signer(self):
         self._rsa_psi_signer_addr = 'localhost:6171'
-        self._rsa_psi_signer = rsa_psi_signer.RsaPsiSigner(self._rsa_private_key_path, 1)
+        rsa_private_key_pem = None
+        with gfile.GFile(self._rsa_private_key_path, 'rb') as f:
+            rsa_private_key_pem = f.read()
+        rsa_private_key = rsa.PrivateKey.load_pkcs1(rsa_private_key_pem)
+        self._rsa_psi_signer = rsa_psi_signer.RsaPsiSigner(rsa_private_key, 1)
         self._rsa_psi_signer.start(int(self._rsa_psi_signer_addr.split(':')[1]))
 
     def _stop_workers(self):
@@ -276,10 +280,14 @@ class RsaPsi(unittest.TestCase):
 
     def _preprocess_rsa_psi_leader(self):
         processors = []
+        rsa_key_pem=None
+        with gfile.GFile(self._rsa_private_key_path, 'rb') as f:
+            rsa_key_pem = f.read()
         for partition_id in range(self._data_source_l.data_source_meta.partition_num):
             options = dj_pb.RsaPsiPreProcessorOptions(
+                    preprocessor_name='leader-rsa-psi-processor',
                     role=common_pb.FLRole.Leader,
-                    rsa_key_file_path=self._rsa_private_key_path,
+                    rsa_key_pem=rsa_key_pem,
                     input_file_paths=[self._psi_raw_data_fpaths_l[partition_id]],
                     output_file_dir=self._pre_processor_ouput_dir_l,
                     raw_data_publish_dir=self._raw_data_pub_dir_l,
@@ -301,10 +309,14 @@ class RsaPsi(unittest.TestCase):
 
     def _preprocess_rsa_psi_follower(self):
         processors = []
+        rsa_key_pem=None
+        with gfile.GFile(self._rsa_public_key_path, 'rb') as f:
+            rsa_key_pem = f.read()
         for partition_id in range(self._data_source_f.data_source_meta.partition_num):
             options = dj_pb.RsaPsiPreProcessorOptions(
+                    preprocessor_name='follower-rsa-psi-processor',
                     role=common_pb.FLRole.Follower,
-                    rsa_key_file_path=self._rsa_public_key_path,
+                    rsa_key_pem=rsa_key_pem,
                     input_file_paths=[self._psi_raw_data_fpaths_f[partition_id]],
                     output_file_dir=self._pre_processor_ouput_dir_f,
                     raw_data_publish_dir=self._raw_data_pub_dir_f,

@@ -21,6 +21,7 @@ import (
 	"fmt"
 
 	fedlearnerv1alpha1 "github.com/bytedance/fedlearner/deploy/kubernetes_operator/pkg/client/clientset/versioned/typed/fedlearner.k8s.io/v1alpha1"
+	fedlearnerv1alpha2 "github.com/bytedance/fedlearner/deploy/kubernetes_operator/pkg/client/clientset/versioned/typed/fedlearner.k8s.io/v1alpha2"
 	discovery "k8s.io/client-go/discovery"
 	rest "k8s.io/client-go/rest"
 	flowcontrol "k8s.io/client-go/util/flowcontrol"
@@ -29,6 +30,7 @@ import (
 type Interface interface {
 	Discovery() discovery.DiscoveryInterface
 	FedlearnerV1alpha1() fedlearnerv1alpha1.FedlearnerV1alpha1Interface
+	FedlearnerV1alpha2() fedlearnerv1alpha2.FedlearnerV1alpha2Interface
 }
 
 // Clientset contains the clients for groups. Each group has exactly one
@@ -36,11 +38,17 @@ type Interface interface {
 type Clientset struct {
 	*discovery.DiscoveryClient
 	fedlearnerV1alpha1 *fedlearnerv1alpha1.FedlearnerV1alpha1Client
+	fedlearnerV1alpha2 *fedlearnerv1alpha2.FedlearnerV1alpha2Client
 }
 
 // FedlearnerV1alpha1 retrieves the FedlearnerV1alpha1Client
 func (c *Clientset) FedlearnerV1alpha1() fedlearnerv1alpha1.FedlearnerV1alpha1Interface {
 	return c.fedlearnerV1alpha1
+}
+
+// FedlearnerV1alpha2 retrieves the FedlearnerV1alpha2Client
+func (c *Clientset) FedlearnerV1alpha2() fedlearnerv1alpha2.FedlearnerV1alpha2Interface {
+	return c.fedlearnerV1alpha2
 }
 
 // Discovery retrieves the DiscoveryClient
@@ -68,6 +76,10 @@ func NewForConfig(c *rest.Config) (*Clientset, error) {
 	if err != nil {
 		return nil, err
 	}
+	cs.fedlearnerV1alpha2, err = fedlearnerv1alpha2.NewForConfig(&configShallowCopy)
+	if err != nil {
+		return nil, err
+	}
 
 	cs.DiscoveryClient, err = discovery.NewDiscoveryClientForConfig(&configShallowCopy)
 	if err != nil {
@@ -81,6 +93,7 @@ func NewForConfig(c *rest.Config) (*Clientset, error) {
 func NewForConfigOrDie(c *rest.Config) *Clientset {
 	var cs Clientset
 	cs.fedlearnerV1alpha1 = fedlearnerv1alpha1.NewForConfigOrDie(c)
+	cs.fedlearnerV1alpha2 = fedlearnerv1alpha2.NewForConfigOrDie(c)
 
 	cs.DiscoveryClient = discovery.NewDiscoveryClientForConfigOrDie(c)
 	return &cs
@@ -90,6 +103,7 @@ func NewForConfigOrDie(c *rest.Config) *Clientset {
 func New(c rest.Interface) *Clientset {
 	var cs Clientset
 	cs.fedlearnerV1alpha1 = fedlearnerv1alpha1.New(c)
+	cs.fedlearnerV1alpha2 = fedlearnerv1alpha2.New(c)
 
 	cs.DiscoveryClient = discovery.NewDiscoveryClient(c)
 	return &cs

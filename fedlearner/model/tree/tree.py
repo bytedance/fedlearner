@@ -20,9 +20,9 @@ import queue
 import time
 import logging
 import multiprocessing as mp
+import collections
 import numpy as np
 from google.protobuf import text_format
-
 import tensorflow.compat.v1 as tf
 
 from fedlearner.model.tree.loss import LogisticLoss
@@ -94,6 +94,13 @@ def _receive_encrypted_numbers(bridge, name, public_key):
             bridge.current_iter_id, '%s_part_%d'%(name, i)).Unpack(msg)
         ret.extend(_from_ciphertext(public_key, msg.ciphertext))
     return ret
+
+def _get_dtype_for_max_value(max_value):
+    if max_value < np.iinfo(np.int8).max:
+        return np.int8
+    if max_value < np.iinfo(np.int16).max:
+        return np.int16
+    return np.int32
 
 class BinnedFeatures(object):
     def __init__(self, features, max_bins):
@@ -195,6 +202,14 @@ class GrowerNode(object):
         self.grad_hists = None
         self.hess_hists = None
 
+        # node impurity and entropy
+        self.gini = None
+        self.entropy = None
+
+        # information gain and node importance
+        self.IG = None
+        self.NI = None
+
     def is_left_sample(self, x):
         assert self.is_owner
 
@@ -222,15 +237,17 @@ class GrowerNode(object):
 
 
 class BaseGrower(object):
-    def __init__(self, binned, grad, hess, grow_policy='depthwise',
-                 max_leaves=None, max_depth=None, learning_rate=0.3,
-                 l2_regularization=1.0, dtype=BST_TYPE,
-                 num_parallel=1, pool=None):
+    def __init__(self, binned, labels, grad, hess,
+                grow_policy='depthwise', max_leaves=None, max_depth=None,
+                learning_rate=0.3, l2_regularization=1.0, dtype=BST_TYPE,
+                num_parallel=1, pool=None):
         self._binned = binned
+        self._labels = labels
+        self._num_samples = binned.features.shape[0]
         self._grad = grad
         self._hess = hess
-
         self._grow_policy = grow_policy
+
         if grow_policy == 'depthwise':
             self._split_candidates = queue.Queue()
             assert max_depth is not None, \
@@ -257,6 +274,68 @@ class BaseGrower(object):
         self._nodes[0].sample_ids = list(range(binned.features.shape[0]))
         self._num_leaves = 1
 
+    def _initialize_feature_importance(self):
+        self._feature_importance = np.zeros(self._binned.features.shape[1])
+
+
+    def _compute_Gini_Entropy(self, node):
+        '''
+        compute gini and entropy
+        '''
+        if node.gini is not None:
+            return
+        node_labels = self._labels[node.sample_ids]
+        total = len(node_labels)
+        if total == 0:
+            node.gini = 0.0
+            node.entropy = 0.0
+            return
+        labels_counter = collections.Counter(node_labels)
+        gini = 0.0
+        entropy = 0.0
+        for _, value in labels_counter.items():
+            label_freq = value / total
+            if label_freq == 0:
+                entropy += 0
+            else:
+                entropy += -label_freq*math.log(label_freq)
+            gini += label_freq*(1-label_freq)
+        node.gini = gini
+        node.entropy = entropy
+
+    def _compute_IG_NI(self, node, left_child, right_child):
+        '''
+        compute information gain and node importance
+        '''
+        #compute node gini and entropy
+        self._compute_Gini_Entropy(node)
+        self._compute_Gini_Entropy(left_child)
+        self._compute_Gini_Entropy(right_child)
+
+        node_len = len(node.sample_ids)
+        node_right_len = len(right_child.sample_ids)
+        node_left_len = len(left_child.sample_ids)
+        if node_len == 0:
+            node.IG = 0
+            node.NI = 0
+            return
+        IG = node.entropy - \
+            node_left_len / node_len * left_child.entropy - \
+            node_right_len / node_len * right_child.entropy
+
+        NI = node_len / self._num_samples * node.gini - \
+            node_right_len / self._num_samples * right_child.gini - \
+            node_left_len / self._num_samples * left_child.gini
+        node.IG = IG
+        node.NI = NI
+
+    def _normalize_feature_importance(self):
+        if self._feature_importance.sum() != 0.0:
+
+            self._feature_importance = self._feature_importance/ \
+                                        self._feature_importance.sum()
+            self._feature_importance = self._feature_importance/ \
+                                        self._feature_importance.sum()
     def _compute_histogram(self, node):
         node.grad_hists = self._hist_builder.compute_histogram(
             self._grad, node.sample_ids)
@@ -354,6 +433,11 @@ class BaseGrower(object):
 
         self._set_node_partition(node, split_info)
 
+        self._compute_IG_NI(node, \
+            left_child, right_child)
+        self._feature_importance[split_info.feature_id] += node.NI
+
+
         return left_child, right_child, split_info
 
     def _log_split(self, left_child, right_child, split_info):
@@ -361,18 +445,30 @@ class BaseGrower(object):
 
         logging.info(
             "Split node %d at feature %d for gain=%f. " \
+            "Node gini_impurity=%f, entropy=%f. " \
+            "Split information_gain=%f, node_importance=%f." \
             "Left(w=%f, nsamples=%d), Right(w=%f, nsamples=%d). " \
             "nan goes to %s.",
             split_info.node_id, split_info.feature_id, split_info.gain,
+            parent.gini, parent.entropy,
+            parent.IG, parent.NI,
             left_child.weight, len(left_child.sample_ids),
             right_child.weight, len(right_child.sample_ids),
             split_info.default_left and 'left' or 'right')
         assert len(left_child.sample_ids) + len(right_child.sample_ids) \
             == len(parent.sample_ids)
 
+    def _log_feature_importance(self):
+        logging.info("For current tree, " \
+            "feature importance(>0) is %s, " \
+            "feature indices(>0) is %s ", \
+            self._feature_importance[self._feature_importance > 0], \
+            np.nonzero(self._feature_importance))
+
     def to_proto(self):
         proto = tree_pb2.RegressionTreeProto(
-            num_features=self._binned.features.shape[1])
+            num_features=self._binned.features.shape[1],
+            feature_importance=self._feature_importance)
         for node in self._nodes:
             proto.nodes.append(node.to_proto())
         return proto
@@ -387,6 +483,7 @@ class BaseGrower(object):
 
     def grow(self):
         self._compute_histogram(self._nodes[0])
+        self._initialize_feature_importance()
         self._find_split_and_push(self._nodes[0])
 
         while self._num_leaves < self._max_leaves:
@@ -396,6 +493,9 @@ class BaseGrower(object):
             self._find_split_and_push(left_child)
             self._compute_histogram_from_sibling(right_child, left_child)
             self._find_split_and_push(right_child)
+
+        self._normalize_feature_importance()
+        self._log_feature_importance()
 
 def _decrypt_histogram_helper(args):
     base, public_key, private_key, hists = args
@@ -408,12 +508,15 @@ def _decrypt_histogram_helper(args):
 
 class LeaderGrower(BaseGrower):
     def __init__(self, bridge, public_key, private_key,
-                 binned, grad, hess, **kwargs):
+                 binned, labels, grad, hess, **kwargs):
         super(LeaderGrower, self).__init__(
-            binned, grad, hess, dtype=np.float32, **kwargs)
+            binned, labels, grad, hess, dtype=np.float32, **kwargs)
         self._bridge = bridge
         self._public_key = public_key
         self._private_key = private_key
+
+    def _initialize_feature_importance(self):
+        self._feature_importance = np.zeros(len(self._nodes[0].grad_hists))
 
     def _receive_and_decrypt_histogram(self, name):
         msg = tree_pb2.Histograms()
@@ -463,6 +566,9 @@ class LeaderGrower(BaseGrower):
 
         if split_info.feature_id < self._binned.features.shape[1]:
             self._set_node_partition(node, split_info)
+            self._compute_IG_NI(node, \
+                left_child, right_child)
+            self._feature_importance[split_info.feature_id] += node.NI
             self._bridge.send_proto(
                 self._bridge.current_iter_id, 'split_info',
                 tree_pb2.SplitInfo(
@@ -471,6 +577,7 @@ class LeaderGrower(BaseGrower):
                     right_samples=right_child.sample_ids))
         else:
             node.is_owner = False
+            feature_id_in_total = split_info.feature_id
             fid = split_info.feature_id - self._binned.features.shape[1]
             self._bridge.send_proto(
                 self._bridge.current_iter_id, 'split_info',
@@ -487,19 +594,28 @@ class LeaderGrower(BaseGrower):
             left_child.sample_ids = list(follower_split_info.left_samples)
             right_child.sample_ids = list(follower_split_info.right_samples)
 
+            self._compute_IG_NI(node, \
+                left_child, right_child)
+            self._feature_importance[feature_id_in_total] += node.NI
+
+
         self._bridge.commit()
         return left_child, right_child, split_info
 
 
 class FollowerGrower(BaseGrower):
-    def __init__(self, bridge, public_key, binned, grad, hess, **kwargs):
+    def __init__(self, bridge, public_key, binned, labels,
+                grad, hess, **kwargs):
         dtype = lambda x: public_key.encrypt(x, PRECISION)
         super(FollowerGrower, self).__init__(
-            binned, grad, hess, dtype=dtype, **kwargs)
+            binned, labels, grad, hess, dtype=dtype, **kwargs)
         self._bridge = bridge
         self._public_key = public_key
 
     def _compute_histogram_from_sibling(self, node, sibling):
+        pass
+
+    def _normalize_feature_importance(self):
         pass
 
     def _find_split_and_push(self, node):
@@ -555,22 +671,41 @@ class FollowerGrower(BaseGrower):
             left_child.sample_ids = list(split_info.left_samples)
             right_child.sample_ids = list(split_info.right_samples)
 
+        node.gini = float('nan')
+        node.entropy = float('nan')
+        node.IG = float('nan')
+        node.NI = float('nan')
+
         self._bridge.commit()
         return left_child, right_child, split_info
 
-def _node_test_feature(node, features, i):
-    if not node.is_owner:
-        return -1
+def _vectorize_tree(tree):
+    vec = {}
+    vec['is_owner'] = np.asarray([n.is_owner for n in tree.nodes])
+    vec['threshold'] = np.asarray([n.threshold for n in tree.nodes])
+    vec['feature_id'] = np.asarray([n.feature_id for n in tree.nodes])
+    vec['default_left'] = np.asarray(
+        [n.default_left for n in tree.nodes], dtype=np.bool)
+    vec['is_leaf'] = np.asarray([n.left_child == 0 for n in tree.nodes])
+    vec['weight'] = np.asarray([n.weight for n in tree.nodes])
+    vec['children'] = np.asarray([
+        [n.left_child for n in tree.nodes],
+        [n.right_child for n in tree.nodes]])
+    return vec
 
-    x = features[i, node.feature_id]
-    if np.isnan(x):
-        if node.default_left:
-            return node.left_child
-        return node.right_child
+def _vectorized_direction(vec, features, assignment):
+    fid = vec['feature_id'][assignment]
+    X = features[np.arange(features.shape[0]), fid]
+    is_nan = np.isnan(X)
+    less = X < vec['threshold'][assignment]
+    return ~np.where(is_nan, vec['default_left'][assignment], less)
 
-    if x < node.threshold:
-        return node.left_child
-    return node.right_child
+def _vectorized_assignment(vec, assignment, direction, peer_direction=None):
+    is_owner = vec['is_owner'][assignment]
+    if peer_direction is not None:
+        direction = np.where(is_owner, direction, peer_direction)
+    new_assignment = vec['children'][direction.astype(np.int32), assignment]
+    return np.where(vec['is_leaf'][assignment], assignment, new_assignment)
 
 class BoostingTreeEnsamble(object):
     def __init__(self, bridge, learning_rate=0.3, max_iters=50, max_depth=6,
@@ -617,9 +752,9 @@ class BoostingTreeEnsamble(object):
             self._private_key = None
         self._bridge.commit()
 
-    def _verify_params(self, example_ids, is_training, validation=False):
-        if self._bridge is None:
-            return
+    def _verify_params(self, example_ids, is_training, validation=False,
+                       leader_no_data=False):
+        assert self._bridge is not None
 
         self._bridge.start(self._bridge.new_iter_id())
         if self._role == 'leader':
@@ -633,7 +768,8 @@ class BoostingTreeEnsamble(object):
                 max_bins=self._max_bins,
                 grow_policy=self._grow_policy,
                 validation=validation,
-                num_trees=len(self._trees))
+                num_trees=len(self._trees),
+                leader_no_data=leader_no_data)
             self._bridge.send_proto(
                 self._bridge.current_iter_id, 'verify', msg)
             status = common_pb2.Status()
@@ -667,6 +803,9 @@ class BoostingTreeEnsamble(object):
                             err_msg += "Error: first mismatching example at " \
                                        "%d: %s vs %s"%(i, a, b)
 
+            err_msg += check(
+                'num_trees', msg.num_trees, len(self._trees))
+
             if is_training:
                 err_msg += check(
                     'learning_rate', msg.learning_rate, self._learning_rate)
@@ -685,8 +824,6 @@ class BoostingTreeEnsamble(object):
                     'grow_policy', msg.grow_policy, self._grow_policy)
                 err_msg += check(
                     'validation', msg.validation, validation)
-                err_msg += check(
-                    'num_trees', msg.num_trees, len(self._trees))
 
             if err_msg:
                 self._bridge.send_proto(
@@ -694,6 +831,7 @@ class BoostingTreeEnsamble(object):
                     common_pb2.Status(
                         code=common_pb2.STATUS_UNKNOWN_ERROR,
                         error_message=err_msg))
+                self._bridge.commit()
                 raise RuntimeError(err_msg)
             self._bridge.send_proto(
                 self._bridge.current_iter_id, 'status',
@@ -701,10 +839,13 @@ class BoostingTreeEnsamble(object):
                     code=common_pb2.STATUS_SUCCESS))
         self._bridge.commit()
 
+        return msg
+
 
     def save_model(self, path):
         fout = tf.io.gfile.GFile(path, 'w')
-        model = tree_pb2.BoostingTreeEnsambleProto()
+        model = tree_pb2.BoostingTreeEnsambleProto(
+            feature_importance=self._feature_importance)
         model.trees.extend(self._trees)
         fout.write(text_format.MessageToString(model))
 
@@ -713,6 +854,7 @@ class BoostingTreeEnsamble(object):
         model = tree_pb2.BoostingTreeEnsambleProto()
         text_format.Parse(fin.read(), model)
         self._trees = list(model.trees)
+        self._feature_importance = np.asarray(model.feature_importance)
 
     def batch_score(self, features, labels, example_ids):
         pred = self.batch_predict(features, example_ids=example_ids)
@@ -722,133 +864,141 @@ class BoostingTreeEnsamble(object):
         if self._bridge is None:
             return self._batch_predict_local(features, get_raw_score)
 
-        self._verify_params(example_ids, False)
         if self._role == 'leader':
-            if features is None:
-                return self._batch_predict_leader_no_data(get_raw_score)
-            return self._batch_predict_leader(features, get_raw_score)
-        return self._batch_predict_follower(features, get_raw_score)
+            leader_no_data = True
+            for tree in self._trees:
+                for node in tree.nodes:
+                    if node.is_owner:
+                        leader_no_data = False
+        else:
+            leader_no_data = False
+
+        msg = self._verify_params(
+            example_ids, False,
+            leader_no_data=leader_no_data)
+
+        if msg.leader_no_data:
+            if self._role == 'leader':
+                return self._batch_predict_one_side_leader(get_raw_score)
+            return self._batch_predict_one_side_follower(
+                features, get_raw_score)
+
+        return self._batch_predict_two_side(features, get_raw_score)
 
 
     def _batch_predict_local(self, features, get_raw_score):
         N = features.shape[0]
         num_features = features.shape[1]
-        for tree in self._trees:
+
+        raw_prediction = np.zeros(N, dtype=BST_TYPE)
+        for idx, tree in enumerate(self._trees):
+            logging.debug("Running prediction for tree %d", idx)
             if tree.num_features:
                 assert tree.num_features == num_features, \
                     "Number of features for prediction (%d) does not " \
                     "match number of features for training (%d)"%(
                         num_features, tree.num_features)
 
-        raw_prediction = []
-        for i in range(features.shape[0]):
-            score = 0.0
-            for tree in self._trees:
-                node = tree.nodes[0]
-                while node.left_child != 0:
-                    assert node.is_owner
-                    new_node_id = _node_test_feature(node, features, i)
-                    node = tree.nodes[new_node_id]
-                score += node.weight
-            raw_prediction.append(score)
-        raw_prediction = np.asarray(raw_prediction)
+            vec_tree = _vectorize_tree(tree)
+            assignment = np.zeros(N, dtype=np.int32)
+            while vec_tree['is_leaf'][assignment].sum() < N:
+                direction = _vectorized_direction(
+                    vec_tree, features, assignment)
+                assignment = _vectorized_assignment(
+                    vec_tree, assignment, direction)
+
+            raw_prediction += vec_tree['weight'][assignment]
+
         if get_raw_score:
             return raw_prediction
         return self._loss.predict(raw_prediction)
 
-    def _batch_predict_leader_no_data(self, get_raw_score):
+    def _batch_predict_one_side_follower(self, features, get_raw_score):
+        N = features.shape[0]
+        num_features = features.shape[1]
+
+        raw_prediction = np.zeros(N, dtype=BST_TYPE)
+        for idx, tree in enumerate(self._trees):
+            logging.debug("Running prediction for tree %d", idx)
+            if tree.num_features:
+                assert tree.num_features == num_features, \
+                    "Number of features for prediction (%d) does not " \
+                    "match number of features for training (%d)"%(
+                        num_features, tree.num_features)
+
+            vec_tree = _vectorize_tree(tree)
+            assignment = np.zeros(
+                N, dtype=_get_dtype_for_max_value(len(tree.nodes)))
+            while vec_tree['is_leaf'][assignment].sum() < N:
+                direction = _vectorized_direction(
+                    vec_tree, features, assignment)
+                assignment = _vectorized_assignment(
+                    vec_tree, assignment, direction)
+
+            raw_prediction += vec_tree['weight'][assignment]
+
+            self._bridge.start(self._bridge.new_iter_id())
+            self._bridge.send(
+                self._bridge.current_iter_id, 'follower_assignment_%d'%idx,
+                assignment)
+            self._bridge.commit()
+
+        if get_raw_score:
+            return raw_prediction
+        return self._loss.predict(raw_prediction)
+
+    def _batch_predict_one_side_leader(self, get_raw_score):
         raw_prediction = None
-        for tree in self._trees:
-            for node in tree.nodes:
-                assert not node.is_owner, "Model cannot predict with no data"
+        for idx, tree in enumerate(self._trees):
+            logging.debug("Running prediction for tree %d", idx)
+            vec_tree = _vectorize_tree(tree)
+            assert not vec_tree['is_owner'].sum(), \
+                "Model cannot predict with no data"
 
-            while True:
-                self._bridge.start(self._bridge.new_iter_id())
-                assignment = self._bridge.receive(
-                    self._bridge.current_iter_id, 'follower_assignment')
-                self._bridge.send(
-                    self._bridge.current_iter_id, 'leader_assignment',
-                    assignment)
-                self._bridge.commit()
-
-                finish_count = 0
-                for i in range(assignment.shape[0]):
-                    finish_count += tree.nodes[assignment[i]].left_child == 0
-                if finish_count == assignment.shape[0]:
-                    break
+            self._bridge.start(self._bridge.new_iter_id())
+            assignment = self._bridge.receive(
+                self._bridge.current_iter_id, 'follower_assignment_%d'%idx)
+            self._bridge.commit()
 
             if raw_prediction is None:
                 raw_prediction = np.zeros(assignment.shape[0], dtype=BST_TYPE)
-            for i in range(assignment.shape[0]):
-                raw_prediction[i] += tree.nodes[assignment[i]].weight
+            raw_prediction += vec_tree['weight'][assignment]
 
         if get_raw_score:
             return raw_prediction
         return self._loss.predict(raw_prediction)
 
-    def _batch_predict_leader(self, features, get_raw_score):
+
+    def _batch_predict_two_side(self, features, get_raw_score):
         N = features.shape[0]
+        peer_role = 'leader' if self._role == 'follower' else 'follower'
         raw_prediction = np.zeros(N, dtype=BST_TYPE)
-        for tree in self._trees:
+        for idx, tree in enumerate(self._trees):
+            logging.debug("Running prediction for tree %d", idx)
+            vec_tree = _vectorize_tree(tree)
             assignment = np.zeros(N, dtype=np.int32)
-            while True:
-                self._bridge.start(self._bridge.new_iter_id())
-                for i in range(N):
-                    while assignment[i] != -1:
-                        node = tree.nodes[assignment[i]]
-                        if node.left_child == 0:
-                            break
-                        assignment[i] = _node_test_feature(node, features, i)
+            while vec_tree['is_leaf'][assignment].sum() < N:
+                direction = _vectorized_direction(
+                    vec_tree, features, assignment)
 
+                self._bridge.start(self._bridge.new_iter_id())
                 self._bridge.send(
-                    self._bridge.current_iter_id, 'leader_assignment',
-                    assignment)
-                follower_assignment = self._bridge.receive(
-                    self._bridge.current_iter_id, 'follower_assignment')
-                assignment = np.maximum(assignment, follower_assignment)
+                    self._bridge.current_iter_id,
+                    '%s_direction_%d'%(self._role, idx),
+                    direction)
+                peer_direction = self._bridge.receive(
+                    self._bridge.current_iter_id,
+                    '%s_direction_%d'%(peer_role, idx))
                 self._bridge.commit()
 
-                finish_count = 0
-                for i in range(N):
-                    finish_count += tree.nodes[assignment[i]].left_child == 0
-                if finish_count == N:
-                    break
+                assignment = _vectorized_assignment(
+                    vec_tree, assignment, direction, peer_direction)
 
-            for i in range(N):
-                raw_prediction[i] += tree.nodes[assignment[i]].weight
+            raw_prediction += vec_tree['weight'][assignment]
 
         if get_raw_score:
             return raw_prediction
         return self._loss.predict(raw_prediction)
-
-    def _batch_predict_follower(self, features, get_raw_score):
-        N = features.shape[0]
-        for tree in self._trees:
-            assignment = np.zeros(N, dtype=np.int32)
-            while True:
-                self._bridge.start(self._bridge.new_iter_id())
-                for i in range(N):
-                    while assignment[i] != -1:
-                        node = tree.nodes[assignment[i]]
-                        if node.left_child == 0:
-                            break
-                        assignment[i] = _node_test_feature(node, features, i)
-
-                self._bridge.send(
-                    self._bridge.current_iter_id, 'follower_assignment',
-                    assignment)
-                leader_assignment = self._bridge.receive(
-                    self._bridge.current_iter_id, 'leader_assignment')
-                assignment = np.maximum(assignment, leader_assignment)
-                self._bridge.commit()
-
-                finish_count = 0
-                for i in range(N):
-                    finish_count += tree.nodes[assignment[i]].left_child == 0
-                if finish_count == N:
-                    break
-
-        return np.zeros(N, dtype=BST_TYPE)
 
     def _write_training_log(self, filename, header, metrics, pred):
         fout = tf.io.gfile.GFile(filename, 'a')
@@ -877,16 +1027,18 @@ class BoostingTreeEnsamble(object):
                 last_checkpoint = os.path.join(
                     checkpoint_path, sorted(files)[-1])
                 logging.info(
-                    "Restoring from previously saved checkpoint %s",
+                    "Restoring from previously saved checkpoint %s", \
                     last_checkpoint)
                 self.load_saved_model(last_checkpoint)
 
         # verify parameters
-        self._verify_params(
-            example_ids, True, validation_features is not None)
+        if self._bridge is not None:
+            self._verify_params(
+                example_ids, True, validation_features is not None)
 
         # initial f(x)
         if len(self._trees) > 0:
+            # feature importance already loaded
             sum_prediction = self.batch_predict(features, get_raw_score=True)
         else:
             sum_prediction = np.zeros(num_examples, dtype=BST_TYPE)
@@ -908,6 +1060,21 @@ class BoostingTreeEnsamble(object):
                 tree = self._fit_one_round_follower(binned)
 
             self._trees.append(tree)
+            if num_iter == 0:
+                #initialize feature importance for round 0
+                self._feature_importance = np.asarray(tree.feature_importance)
+            else:
+                # update feature_importance
+                self._feature_importance = (self._feature_importance*num_iter+ \
+                    np.asarray(tree.feature_importance))/len(self._trees)
+
+            logging.info("ensemble feature importance for round %d, " \
+                "feature importance(>0) is %s, " \
+                "feature indices(>0) is %s ", \
+                num_iter, \
+                self._feature_importance[self._feature_importance > 0], \
+                np.nonzero(self._feature_importance))
+
             end_time = time.time()
             logging.info("Elapsed time for one round %s s",
                          str(end_time-begin_time))
@@ -957,7 +1124,7 @@ class BoostingTreeEnsamble(object):
             len(self._trees), self._loss.metrics(pred, labels))
 
         grower = BaseGrower(
-            binned, grad, hess,
+            binned, labels, grad, hess,
             learning_rate=self._learning_rate,
             max_depth=self._max_depth,
             max_leaves=self._max_leaves,
@@ -986,7 +1153,7 @@ class BoostingTreeEnsamble(object):
 
         grower = LeaderGrower(
             self._bridge, self._public_key, self._private_key,
-            binned, grad, hess,
+            binned, labels, grad, hess,
             learning_rate=self._learning_rate,
             max_depth=self._max_depth,
             max_leaves=self._max_leaves,
@@ -1013,9 +1180,10 @@ class BoostingTreeEnsamble(object):
             'Follower starting iteration %d.',
             len(self._trees))
 
+        # labels is None for follower
         grower = FollowerGrower(
             self._bridge, self._public_key,
-            binned, grad, hess,
+            binned, None, grad, hess,
             learning_rate=self._learning_rate,
             max_depth=self._max_depth,
             max_leaves=self._max_leaves,
