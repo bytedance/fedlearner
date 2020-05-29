@@ -24,13 +24,16 @@ from fedlearner.model.crypto import gmpy_math
 
 from multiprocessing import Pool 
 
+NOISE_GENS = 65535
+K = 5
+
 
 class PaillierKeypair(object):
     def __init__(self):
         pass
 
     @staticmethod
-    def generate_keypair(n_length=1024, num_parallel=1):
+    def generate_keypair(n_length=1024, num_parallel=4):
         """return a new :class:`PaillierPublicKey` and :class:`PaillierPrivateKey`.
         """
         p = q = n = None
@@ -113,14 +116,12 @@ def powmod(x):
     return gmpy_math.powmod(r, n, nsquare)
 
 class PaillierPublicKeyOpt(PaillierPublicKey):
-    def __init__(self, n, num_parallel=4, m=1024, k=5):
+    def __init__(self, n, num_parallel=4):
         super(PaillierPublicKeyOpt, self).__init__(n)
-        self.m = m 
-        self.k = k
         self._generate_noises(num_parallel)
     
     def _generate_noises(self, num_parallel):
-        self.noises = [random.SystemRandom().randrange(1, self.n) for i in range(self.m)]
+        self.noises = [random.SystemRandom().randrange(1, self.n) for i in range(NOISE_GENS)]
         self.noises = [(r, self.n, self.nsquare) for r in self.noises]
         with Pool(num_parallel) as p:
             self.noises = p.map(powmod, self.noises)
@@ -139,17 +140,14 @@ class PaillierPublicKeyOpt(PaillierPublicKey):
         """
         """
         obfuscator = None
-        for i in range(self.k):
-            random_noise = self.noises[random.randint(0, self.m - 1)]
+        for i in range(K):
+            random_noise = self.noises[random.randint(0, NOISE_GENS  - 1)]
             if obfuscator:
                 obfuscator = obfuscator * random_noise % self.nsquare
             else:
                 obfuscator = random_noise
 
         return (ciphertext * obfuscator) % self.nsquare
-
-    def public_key(self):
-        return super
 
 class PaillierPrivateKey(object):
     """Contains a private key and associated decryption method.

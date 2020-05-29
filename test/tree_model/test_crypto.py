@@ -21,6 +21,8 @@ from fedlearner.model.crypto import paillier
 import timeit
 import gmpy2
 
+paillier.NOISE_GENS = 1024
+
 class TestPaillier(unittest.TestCase):
     def test_paillier(self):
         public_key, private_key = paillier.PaillierKeypair.generate_keypair()

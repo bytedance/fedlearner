@@ -21,7 +21,10 @@ import numpy as np
 import fedlearner as fl
 from fedlearner.model.tree.tree import BoostingTreeEnsamble
 from fedlearner.common import tree_model_pb2 as tree_pb2
+from fedlearner.model.crypto import paillier
 from sklearn.datasets import load_iris
+
+paillier.NOISE_GENS = 1024
 
 
 class TestBoostingTree(unittest.TestCase):
