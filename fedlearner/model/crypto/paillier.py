@@ -108,9 +108,6 @@ class PaillierPublicKey(object):
 
         return encryptednumber
 
-    def opt(self):
-        return PaillierPublicKeyOpt(self.n)
-
 def powmod(x):
     r, n, nsquare = x
     return gmpy_math.powmod(r, n, nsquare)
