@@ -3,8 +3,8 @@
 ##
 controller:
   image:
-    repository: docker.pkg.github.com/bytedance/ingress-nginx/nginx-ingress-controller-amd64
-    tag: "d70ac95"
+    repository: fedlearner/nginx-ingress-controller
+    tag: "0b3ebb2"
     pullPolicy: IfNotPresent
     # www-data -> uid 101
     runAsUser: 101
@@ -16,7 +16,12 @@ controller:
     https: 443
 
   # Will add custom configuration options to Nginx https://kubernetes.github.io/ingress-nginx/user-guide/nginx-configuration/configmap/
-  config: {}
+  config:
+    proxy-body-size: 2g
+    proxy-buffer-size: 2048k
+    proxy-connect-timeout: "300"
+    proxy-read-timeout: "1200"
+    proxy-send-timeout: "600"
 
   ## Annotations to be added to the controller config configuration configmap
   ##
@@ -288,19 +293,12 @@ controller:
       http: http
       https: https
 
-    type: LoadBalancer
-
-    # type: NodePort
-    # nodePorts:
-    #   http: 32080
-    #   https: 32443
-    #   tcp:
-    #     8080: 32808
+    type: NodePort
     nodePorts:
-      http: ""
-      https: ""
-      tcp: {}
-      udp: {}
+      http: 32080
+      https: 32443
+      tcp:
+        8080: 32808
 
   extraContainers: []
   ## Additional containers to be added to the controller pod.
@@ -343,7 +341,7 @@ controller:
   #   command: ['sh', '-c', 'until nslookup myservice; do echo waiting for myservice; sleep 2; done;']
 
   admissionWebhooks:
-    enabled: true
+    enabled: false
     failurePolicy: Fail
     port: 8443
 
