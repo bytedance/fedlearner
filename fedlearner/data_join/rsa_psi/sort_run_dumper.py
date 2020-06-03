@@ -167,7 +167,6 @@ class SortRunDumper(object):
         with self._lock:
             return copy.deepcopy(self._dumped_sort_run_metas)
 
-    @property
     def sort_run_dump_dir(self):
         return path.join(self._options.output_file_dir, 'sort_run_dump-tmp')
 
@@ -215,11 +214,11 @@ class SortRunDumper(object):
                                            output_dir)
 
     def _get_output_dir(self):
-        return path.join(self.sort_run_dump_dir,
+        return path.join(self.sort_run_dump_dir(),
                          common.partition_repr(self._options.partition_id))
 
     def _get_finish_tag_fpath(self):
-        return path.join(self.sort_run_dump_dir, '_SUCCESS')
+        return path.join(self._get_output_dir(), '_SUCCESS')
 
     def _set_dump_sort_run_finished(self):
         with self._lock:
