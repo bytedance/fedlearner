@@ -62,7 +62,7 @@ class RsaPsiPreProcessor(object):
             self._repr = 'follower-' + 'rsa_psi_preprocessor'
         self._sort_run_dumper = SortRunDumper(options)
         self._sort_run_merger = SortRunMerger(
-                self._sort_run_dumper.sort_run_dump_dir, self._options
+                self._sort_run_dumper.sort_run_dump_dir(), self._options
             )
         self._started = False
 
