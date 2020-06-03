@@ -56,6 +56,8 @@ if __name__ == "__main__":
                         help='the number of processor to offload rsa compute')
     parser.add_argument('--max_flying_signed_batch', type=int, default=32,
                         help='the max flying signed batch')
+    parser.add_argument('--stub_fanout', type=int, default=2,
+                        help='the max stub for follower of rpc of processor')
     parser.add_argument('--partition_id', type=int, required=True,
                         help='the partition id will be processed')
     parser.add_argument('--etcd_name', type=str,
@@ -92,6 +94,7 @@ if __name__ == "__main__":
             leader_rsa_psi_signer_addr=args.leader_rsa_psi_signer_addr,
             offload_processor_number=args.offload_processor_number,
             max_flying_signed_batch=args.max_flying_signed_batch,
+            stub_fanout=args.stub_fanout,
             batch_processor_options=dj_pb.BatchProcessorOptions(
                 batch_size=args.process_batch_size,
                 max_flying_item=args.max_flying_item

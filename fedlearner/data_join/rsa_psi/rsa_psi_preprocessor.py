@@ -58,6 +58,7 @@ class RsaPsiPreProcessor(object):
             self._psi_rsa_signer = FollowerPsiRsaSigner(
                     self._id_batch_fetcher, max_flying_item,
                     self._options.max_flying_signed_batch,
+                    self._options.stub_fanout,
                     self._process_pool_executor, public_key,
                     self._options.leader_rsa_psi_signer_addr
                 )

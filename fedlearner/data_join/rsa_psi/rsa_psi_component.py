@@ -331,8 +331,8 @@ class FollowerPsiRsaSigner(PsiRsaSigner):
             return getattr(self._stub, attr)
 
     def __init__(self, id_batch_fetcher, max_flying_item,
-                 max_flying_signed_batch, process_pool_executor,
-                 public_key, leader_signer_addr):
+                 max_flying_signed_batch, stub_fanout,
+                 process_pool_executor, public_key, leader_signer_addr):
         super(FollowerPsiRsaSigner, self).__init__(id_batch_fetcher,
                                                    max_flying_item,
                                                    max_flying_signed_batch,
@@ -342,7 +342,7 @@ class FollowerPsiRsaSigner(PsiRsaSigner):
         self._perfer_stub_cursor = 0
         self._active_stubs = \
                 [FollowerPsiRsaSigner.SignerStub(leader_signer_addr)
-                 for _ in range(8)]
+                 for _ in range(stub_fanout)]
 
     def _get_active_stub(self):
         with self._lock:

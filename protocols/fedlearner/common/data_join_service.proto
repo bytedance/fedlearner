@@ -299,7 +299,8 @@ message RsaPsiPreProcessorOptions {
   string leader_rsa_psi_signer_addr = 8;
   int64 offload_processor_number = 9;
   int64 max_flying_signed_batch = 10;
-  BatchProcessorOptions batch_processor_options = 11;
+  int64 stub_fanout = 11;
+  BatchProcessorOptions batch_processor_options = 12;
 }
 
 message RawDataPartitionerOptions {
