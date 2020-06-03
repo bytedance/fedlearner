@@ -142,12 +142,13 @@ class SignedIdBatch(ItemBatch):
                                    self._begin_index+item_cnt))))
 
 class PsiRsaSigner(ItemBatchSeqProcessor):
-    def __init__(self, id_batch_fetcher,
-                 max_flying_item, process_pool_executor):
+    def __init__(self, id_batch_fetcher, max_flying_item,
+                 max_flying_signed_batch, process_pool_executor):
         super(PsiRsaSigner, self).__init__(max_flying_item)
         self._id_batch_fetcher = id_batch_fetcher
         self._next_index_to_fetch = None
         self._next_batch_index_hint = None
+        self._max_flying_signed_batch = max_flying_signed_batch
         self._process_pool_executor = process_pool_executor
 
     @classmethod
@@ -169,18 +170,23 @@ class PsiRsaSigner(ItemBatchSeqProcessor):
 
     def _make_inner_generator(self, next_index):
         assert next_index is not None
-        raw_id_batches, next_index = self._consum_raw_id_batch(next_index, 100)
+        max_flying_signed_batch = self._max_flying_signed_batch
+        raw_id_batches, next_index = self._consum_raw_id_batch(
+                next_index, max_flying_signed_batch
+            )
         flying_batch_num = len(raw_id_batches)
         signed_batch_futures = self._promise_signed_batches(raw_id_batches)
+        wait4batch = False
         while len(signed_batch_futures) > 0:
-            if signed_batch_futures[0].done() or \
-                    len(signed_batch_futures) >= 100:
+            if signed_batch_futures[0].done() or wait4batch or \
+                    len(signed_batch_futures) >= max_flying_signed_batch:
                 signed_batch = signed_batch_futures[0].result()
                 yield signed_batch, False
                 signed_batch_futures = signed_batch_futures[1:]
-            required_num = 100 - len(signed_batch_futures)
+            required_num = max_flying_signed_batch - len(signed_batch_futures)
             raw_id_batches, next_index = \
                     self._consum_raw_id_batch(next_index, required_num)
+            wait4batch = len(raw_id_batches) == 0
             signed_batch_futures += self._promise_signed_batches(raw_id_batches)
         yield None, True
         with self._lock:
@@ -238,10 +244,13 @@ class PsiRsaSigner(ItemBatchSeqProcessor):
         return [powmod(x, d, n) for x in items]
 
 class LeaderPsiRsaSigner(PsiRsaSigner):
-    def __init__(self, id_batch_fetcher, max_flying_item,
+    def __init__(self, id_batch_fetcher,
+                 max_flying_item,
+                 max_flying_signed_batch,
                  process_pool_executor, private_key):
         super(LeaderPsiRsaSigner, self).__init__(id_batch_fetcher,
                                                  max_flying_item,
+                                                 max_flying_signed_batch,
                                                  process_pool_executor)
         self._private_key = private_key
 
@@ -321,10 +330,11 @@ class FollowerPsiRsaSigner(PsiRsaSigner):
             return getattr(self._stub, attr)
 
     def __init__(self, id_batch_fetcher, max_flying_item,
-                 process_pool_executor, public_key,
-                 leader_signer_addr):
+                 max_flying_signed_batch, process_pool_executor,
+                 public_key, leader_signer_addr):
         super(FollowerPsiRsaSigner, self).__init__(id_batch_fetcher,
                                                    max_flying_item,
+                                                   max_flying_signed_batch,
                                                    process_pool_executor)
         self._public_key = public_key
         self._leader_signer_addr = leader_signer_addr

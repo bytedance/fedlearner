@@ -293,6 +293,7 @@ class RsaPsi(unittest.TestCase):
                     raw_data_publish_dir=self._raw_data_pub_dir_l,
                     partition_id=partition_id,
                     offload_processor_number=1,
+                    max_flying_signed_batch=128,
                     batch_processor_options=dj_pb.BatchProcessorOptions(
                         batch_size=1024,
                         max_flying_item=1<<14
@@ -323,6 +324,7 @@ class RsaPsi(unittest.TestCase):
                     partition_id=partition_id,
                     leader_rsa_psi_signer_addr=self._rsa_psi_signer_addr,
                     offload_processor_number=1,
+                    max_flying_signed_batch=128,
                     batch_processor_options=dj_pb.BatchProcessorOptions(
                         batch_size=1024,
                         max_flying_item=1<<14
