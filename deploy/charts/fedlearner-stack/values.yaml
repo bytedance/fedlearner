@@ -4,6 +4,15 @@ nfs-server-provisioner:
 nfs-client-provisioner:
   enabled: false
 
+  nfs:
+    path: /mnt
+    mountOptions:
+      - vers=3
+      - nolock,tcp,noresvpor
+
+  storageClass:
+    name: nfs
+
 elastic-stack:
   enabled: true
   elasticsearch:
@@ -22,3 +31,27 @@ elastic-stack:
 
   filebeat:
     enabled: true
+
+ingress-nginx:
+  controller:
+    image:
+      repository: fedlearner/nginx-ingress-controller
+      tag: "0b3ebb2"
+
+    config:
+      proxy-body-size: 2g
+      proxy-buffer-size: 2048k
+      proxy-connect-timeout: "300"
+      proxy-read-timeout: "1200"
+      proxy-send-timeout: "600"
+
+    service:
+      type: NodePort
+      nodePorts:
+        http: 32080
+        https: 32443
+        tcp:
+          8080: 32808
+
+    admissionWebhooks:
+      enabled: false
