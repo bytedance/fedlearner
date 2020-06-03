@@ -110,7 +110,7 @@ class IdBatchFetcher(ItemBatchSeqProcessor):
                 if len(next_batch) >= self._batch_size:
                     break
             yield next_batch, self._id_visitor.finished()
-        yield None, self._id_visitor.finished()
+        yield self._make_item_batch(next_index), self._id_visitor.finished()
 
 class SignedIdBatch(ItemBatch):
     def __init__(self, begin_index):
@@ -188,7 +188,7 @@ class PsiRsaSigner(ItemBatchSeqProcessor):
                     self._consum_raw_id_batch(next_index, required_num)
             wait4batch = len(raw_id_batches) == 0
             signed_batch_futures += self._promise_signed_batches(raw_id_batches)
-        yield None, True
+        yield self._make_item_batch(next_index), True
         with self._lock:
             self._next_index_to_fetch = next_index
 
@@ -207,7 +207,8 @@ class PsiRsaSigner(ItemBatchSeqProcessor):
                 break
             assert next_index == raw_id_batch.begin_index
             next_index += len(raw_id_batch)
-            raw_id_batches.append(raw_id_batch)
+            if len(raw_id_batch) > 0:
+                raw_id_batches.append(raw_id_batch)
         return raw_id_batches, next_index
 
     def _promise_signed_batches(self, raw_id_batches):

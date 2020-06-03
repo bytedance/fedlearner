@@ -210,11 +210,13 @@ class RsaPsiPreProcessor(object):
         flying_item_cnt = rsa_signer.get_flying_item_count()
         flying_begin_index = rsa_signer.get_flying_begin_index()
         return not dump_finished and \
-                flying_begin_index is not None and \
-                (flying_begin_index <= next_index <
-                    flying_begin_index + flying_item_cnt) and \
-                (flying_item_cnt-(next_index-flying_begin_index) >=
-                    max_flying_item // 4 or signed_finished)
+                (signed_finished or
+                 (flying_begin_index is not None and
+                  next_index is not None and
+                  (flying_begin_index <= next_index <
+                      flying_begin_index + flying_item_cnt) and
+                   (flying_item_cnt-(next_index-flying_begin_index) >=
+                    max_flying_item // 4)))
 
     def _sort_run_merger_name(self):
         return self._repr + ':sort_run_merger'

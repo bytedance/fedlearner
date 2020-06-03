@@ -98,7 +98,8 @@ class RawDataBatchFetcher(ItemBatchSeqProcessor):
                 if len(next_batch) >= self._batch_size:
                     break
             yield next_batch, self._raw_data_visitor.finished()
-        yield None, self._raw_data_visitor.finished()
+        yield self._make_item_batch(next_index), \
+                self._raw_data_visitor.finished()
 
 class RawDataPartitioner(object):
     FileSuffix = '.rd'
