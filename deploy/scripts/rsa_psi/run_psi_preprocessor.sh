@@ -32,6 +32,7 @@ python -m fedlearner.data_join.cmd.rsa_psi_preprocessor_cli \
     --offload_processor_number=$OFFLOAD_PROCSSOR_NUMBER \
     --max_flying_signed_batch=$MAX_FLYING_SIGNED_BATCH \
     --stub_fanout=$STUB_FANOUT \
+    --slow_sign_threshold=$SLOW_SIGN_THRESHOLD \
     --partition_id=$INDEX \
     --etcd_name=$ETCD_NAME \
     --etcd_addrs=$ETCD_ADDR \

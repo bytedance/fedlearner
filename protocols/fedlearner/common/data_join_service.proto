@@ -300,7 +300,8 @@ message RsaPsiPreProcessorOptions {
   int64 offload_processor_number = 9;
   int64 max_flying_signed_batch = 10;
   int64 stub_fanout = 11;
-  BatchProcessorOptions batch_processor_options = 12;
+  int64 slow_sign_threshold = 12;
+  BatchProcessorOptions batch_processor_options = 13;
 }
 
 message RawDataPartitionerOptions {

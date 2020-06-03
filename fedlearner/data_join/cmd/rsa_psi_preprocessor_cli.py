@@ -58,6 +58,8 @@ if __name__ == "__main__":
                         help='the max flying signed batch')
     parser.add_argument('--stub_fanout', type=int, default=2,
                         help='the max stub for follower of rpc of processor')
+    parser.add_argument('--slow_sign_threshold', type=int, default=10,
+                        help='the threshold to record as slow sign')
     parser.add_argument('--partition_id', type=int, required=True,
                         help='the partition id will be processed')
     parser.add_argument('--etcd_name', type=str,
@@ -95,6 +97,7 @@ if __name__ == "__main__":
             offload_processor_number=args.offload_processor_number,
             max_flying_signed_batch=args.max_flying_signed_batch,
             stub_fanout=args.stub_fanout,
+            slow_sign_threshold=args.slow_sign_threshold,
             batch_processor_options=dj_pb.BatchProcessorOptions(
                 batch_size=args.process_batch_size,
                 max_flying_item=args.max_flying_item
