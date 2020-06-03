@@ -1,0 +1,15 @@
+apiVersion: v1
+appVersion: 1.13.5
+description: nginx proxy with ldapauth
+home: https://github.com/nginxinc/nginx-ldap-auth
+icon: https://upload.wikimedia.org/wikipedia/commons/thumb/c/c5/Nginx_logo.svg/500px-Nginx_logo.svg.png
+maintainers:
+- email: pete.brown@powerhrg.com
+  name: rendhalver
+- email: jrodgers@powerhrg.com
+  name: jar361
+name: nginx-ldapauth-proxy
+sources:
+- https://github.com/dweomer/dockerfiles-nginx-auth-ldap
+- https://github.com/kvspb/nginx-auth-ldap
+version: 0.1.3

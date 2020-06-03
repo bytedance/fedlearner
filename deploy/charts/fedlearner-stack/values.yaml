@@ -5,10 +5,10 @@ nfs-client-provisioner:
   enabled: false
 
   nfs:
-    path: /mnt
+    path: /
     mountOptions:
       - vers=3
-      - nolock,tcp,noresvpor
+      - nolock,tcp,noresvport
 
   storageClass:
     name: nfs
@@ -31,6 +31,10 @@ elastic-stack:
 
   filebeat:
     enabled: true
+    config:
+      filebeat.config:
+        modules:
+          reload.enabled: true
 
 ingress-nginx:
   controller:
