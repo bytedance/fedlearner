@@ -20,6 +20,7 @@ import hashlib
 import random
 import functools
 import os
+import time
 import concurrent.futures as concur_futures
 
 from gmpy2 import powmod, divm # pylint: disable=no-name-in-module
@@ -150,6 +151,10 @@ class PsiRsaSigner(ItemBatchSeqProcessor):
         self._next_batch_index_hint = None
         self._max_flying_signed_batch = max_flying_signed_batch
         self._process_pool_executor = process_pool_executor
+        self._total_signed_duration = .0
+        self._signed_batch_num = 0
+        self._slow_signed_batch_num = 0
+        self._total_slow_signed_duration = .0
 
     @classmethod
     def name(cls):
@@ -180,7 +185,28 @@ class PsiRsaSigner(ItemBatchSeqProcessor):
         while len(signed_batch_futures) > 0:
             if signed_batch_futures[0].done() or wait4batch or \
                     len(signed_batch_futures) >= max_flying_signed_batch:
+                start_tm = time.time()
                 signed_batch = signed_batch_futures[0].result()
+                duration = time.time() - start_tm
+                self._total_signed_duration += duration
+                self._signed_batch_num += 1
+                if duration > 1.0:
+                    self._slow_signed_batch_num += 1
+                    self._total_slow_signed_duration += duration
+                if self._signed_batch_num % 32 == 0:
+                    avg_duration = self._total_signed_duration \
+                            / self._signed_batch_num
+                    slow_avg_duration = 0.0
+                    if self._slow_signed_batch_num > 0:
+                        slow_avg_duration = self._total_slow_signed_duration \
+                                / self._slow_signed_batch_num
+                    logging.warning(
+                            "%d/%d batch signed cost more than 1s, avg "\
+                            "duration: %f for each batch, avg duration: "\
+                            "%f for slow batch", self._slow_signed_batch_num,
+                            self._signed_batch_num, avg_duration,
+                            slow_avg_duration
+                        )
                 yield signed_batch, False
                 signed_batch_futures = signed_batch_futures[1:]
             required_num = max_flying_signed_batch - len(signed_batch_futures)
@@ -331,8 +357,8 @@ class FollowerPsiRsaSigner(PsiRsaSigner):
             return getattr(self._stub, attr)
 
     def __init__(self, id_batch_fetcher, max_flying_item,
-                 max_flying_signed_batch, process_pool_executor,
-                 public_key, leader_signer_addr):
+                 max_flying_signed_batch, stub_fanout,
+                 process_pool_executor, public_key, leader_signer_addr):
         super(FollowerPsiRsaSigner, self).__init__(id_batch_fetcher,
                                                    max_flying_item,
                                                    max_flying_signed_batch,
@@ -342,7 +368,7 @@ class FollowerPsiRsaSigner(PsiRsaSigner):
         self._perfer_stub_cursor = 0
         self._active_stubs = \
                 [FollowerPsiRsaSigner.SignerStub(leader_signer_addr)
-                 for _ in range(8)]
+                 for _ in range(stub_fanout)]
 
     def _get_active_stub(self):
         with self._lock:
