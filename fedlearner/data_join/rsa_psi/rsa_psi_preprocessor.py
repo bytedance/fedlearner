@@ -49,6 +49,7 @@ class RsaPsiPreProcessor(object):
             private_key = rsa.PrivateKey.load_pkcs1(options.rsa_key_pem)
             self._psi_rsa_signer = LeaderPsiRsaSigner(
                     self._id_batch_fetcher, max_flying_item,
+                    self._options.max_flying_signed_batch,
                     self._process_pool_executor, private_key,
                 )
             self._repr = 'leader-' + 'rsa_psi_preprocessor'
@@ -56,6 +57,7 @@ class RsaPsiPreProcessor(object):
             public_key = rsa.PublicKey.load_pkcs1(options.rsa_key_pem)
             self._psi_rsa_signer = FollowerPsiRsaSigner(
                     self._id_batch_fetcher, max_flying_item,
+                    self._options.max_flying_signed_batch,
                     self._process_pool_executor, public_key,
                     self._options.leader_rsa_psi_signer_addr
                 )
