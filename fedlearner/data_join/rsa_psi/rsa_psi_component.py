@@ -144,13 +144,15 @@ class SignedIdBatch(ItemBatch):
 
 class PsiRsaSigner(ItemBatchSeqProcessor):
     def __init__(self, id_batch_fetcher, max_flying_item,
-                 max_flying_signed_batch, process_pool_executor):
+                 max_flying_signed_batch, slow_sign_threshold,
+                 process_pool_executor):
         super(PsiRsaSigner, self).__init__(max_flying_item)
         self._id_batch_fetcher = id_batch_fetcher
         self._next_index_to_fetch = None
         self._next_batch_index_hint = None
         self._max_flying_signed_batch = max_flying_signed_batch
         self._process_pool_executor = process_pool_executor
+        self._slow_sign_threshold = slow_sign_threshold
         self._total_signed_duration = .0
         self._signed_batch_num = 0
         self._slow_signed_batch_num = 0
@@ -190,7 +192,7 @@ class PsiRsaSigner(ItemBatchSeqProcessor):
                 duration = time.time() - start_tm
                 self._total_signed_duration += duration
                 self._signed_batch_num += 1
-                if duration > 1.0:
+                if duration > self._slow_sign_threshold:
                     self._slow_signed_batch_num += 1
                     self._total_slow_signed_duration += duration
                 if self._signed_batch_num % 32 == 0:
@@ -271,13 +273,13 @@ class PsiRsaSigner(ItemBatchSeqProcessor):
         return [powmod(x, d, n) for x in items]
 
 class LeaderPsiRsaSigner(PsiRsaSigner):
-    def __init__(self, id_batch_fetcher,
-                 max_flying_item,
-                 max_flying_signed_batch,
+    def __init__(self, id_batch_fetcher, max_flying_item,
+                 max_flying_signed_batch, slow_sign_threshold,
                  process_pool_executor, private_key):
         super(LeaderPsiRsaSigner, self).__init__(id_batch_fetcher,
                                                  max_flying_item,
                                                  max_flying_signed_batch,
+                                                 slow_sign_threshold,
                                                  process_pool_executor)
         self._private_key = private_key
 
@@ -357,11 +359,13 @@ class FollowerPsiRsaSigner(PsiRsaSigner):
             return getattr(self._stub, attr)
 
     def __init__(self, id_batch_fetcher, max_flying_item,
-                 max_flying_signed_batch, stub_fanout,
-                 process_pool_executor, public_key, leader_signer_addr):
+                 max_flying_signed_batch, slow_sign_threshold,
+                 stub_fanout, process_pool_executor,
+                 public_key, leader_signer_addr):
         super(FollowerPsiRsaSigner, self).__init__(id_batch_fetcher,
                                                    max_flying_item,
                                                    max_flying_signed_batch,
+                                                   slow_sign_threshold,
                                                    process_pool_executor)
         self._public_key = public_key
         self._leader_signer_addr = leader_signer_addr
