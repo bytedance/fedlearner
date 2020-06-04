@@ -16,6 +16,7 @@
 
 import logging
 import sys
+import time
 from concurrent import futures
 
 import grpc
@@ -39,29 +40,60 @@ class RsaPsiSignServer(dj_grpc.RsaPsiSignServiceServicer):
             response.status.error_message = sys.exc_info()
 
 class RsaPsiSigner(object):
-    def __init__(self, rsa_prv_key, offload_processor_number):
+    def __init__(self, rsa_prv_key,
+                 offload_processor_number,
+                 slow_sign_threshold):
         self._rsa_private_key = rsa_prv_key
         self._process_pool_executor = None
         if offload_processor_number > 0:
             self._process_pool_executor = \
                     futures.ProcessPoolExecutor(offload_processor_number)
-
+        self._slow_sign_threshold = slow_sign_threshold
+        self._total_sign_duration = .0
+        self._sign_batch_num = 0
+        self._slow_sign_batch_num = 0
+        self._total_slow_sign_duration = .0
 
     def _psi_sign_fn(self, request):
         d, n = self._rsa_private_key.d, self._rsa_private_key.n
+        start_tm = time.time()
+        response = None
         if self._process_pool_executor is not None:
             rids = [rid for rid in request.ids] # pylint: disable=unnecessary-comprehension
             sign_future = self._process_pool_executor.submit(
                     RsaPsiSigner._psi_sign_impl, rids, d, n
                 )
-            return dj_pb.SignIdsResponse(
+            response = dj_pb.SignIdsResponse(
                     status=common_pb.Status(code=0),
                     signed_ids=sign_future.result()
                 )
-        return dj_pb.SignIdsResponse(
+        else:
+            response = dj_pb.SignIdsResponse(
                 status=common_pb.Status(code=0),
                 signed_ids=RsaPsiSigner._psi_sign_impl(request.ids, d, n)
             )
+        self._record_sign_duration(time.time()-start_tm)
+        assert response is not None
+        return response
+
+    def _record_sign_duration(self, sign_duration):
+        self._total_sign_duration += sign_duration
+        self._sign_batch_num += 1
+        if sign_duration >= self._slow_sign_threshold:
+            self._total_slow_sign_duration += sign_duration
+            self._slow_sign_batch_num += 1
+        if self._sign_batch_num % 32 == 0:
+            avg_duration = self._total_sign_duration \
+                    / self._sign_batch_num
+            slow_avg_duration = 0.0
+            if self._slow_sign_batch_num > 0:
+                slow_avg_duration = self._total_slow_sign_duration \
+                        / self._slow_sign_batch_num
+            logging.warning("%d/%d batch sign cost more than %d second, "\
+                            "avg duration: %f for each batch, avg duration: "\
+                            "%f for slow batch", self._slow_sign_batch_num,
+                            self._sign_batch_num, self._slow_sign_threshold,
+                            avg_duration, slow_avg_duration)
 
     @staticmethod
     def _psi_sign_impl(items, d, n):

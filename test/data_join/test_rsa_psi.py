@@ -252,7 +252,7 @@ class RsaPsi(unittest.TestCase):
         with gfile.GFile(self._rsa_private_key_path, 'rb') as f:
             rsa_private_key_pem = f.read()
         rsa_private_key = rsa.PrivateKey.load_pkcs1(rsa_private_key_pem)
-        self._rsa_psi_signer = rsa_psi_signer.RsaPsiSigner(rsa_private_key, 1)
+        self._rsa_psi_signer = rsa_psi_signer.RsaPsiSigner(rsa_private_key, 1, 500)
         self._rsa_psi_signer.start(int(self._rsa_psi_signer_addr.split(':')[1]))
 
     def _stop_workers(self):

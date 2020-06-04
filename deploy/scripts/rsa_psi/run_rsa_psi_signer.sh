@@ -23,4 +23,5 @@ python -m fedlearner.data_join.cmd.rsa_psi_signer_service \
     --listen_port=50051 \
     --rsa_private_key_path=$RSA_PRIVATE_KEY_PATH \
     --rsa_privet_key_pem="$RSA_KEY_PEM" \
-    --offload_processor_number=$OFFLOAD_PROCSSOR_NUMBER
+    --offload_processor_number=$OFFLOAD_PROCSSOR_NUMBER \
+    --slow_sign_threshold=$SLOW_SIGN_THRESHOLD

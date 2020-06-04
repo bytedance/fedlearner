@@ -153,10 +153,10 @@ class PsiRsaSigner(ItemBatchSeqProcessor):
         self._max_flying_signed_batch = max_flying_signed_batch
         self._process_pool_executor = process_pool_executor
         self._slow_sign_threshold = slow_sign_threshold
-        self._total_signed_duration = .0
-        self._signed_batch_num = 0
-        self._slow_signed_batch_num = 0
-        self._total_slow_signed_duration = .0
+        self._total_sign_duration = .0
+        self._sign_batch_num = 0
+        self._slow_sign_batch_num = 0
+        self._total_slow_sign_duration = .0
 
     @classmethod
     def name(cls):
@@ -190,24 +190,24 @@ class PsiRsaSigner(ItemBatchSeqProcessor):
                 start_tm = time.time()
                 signed_batch = signed_batch_futures[0].result()
                 duration = time.time() - start_tm
-                self._total_signed_duration += duration
-                self._signed_batch_num += 1
+                self._total_sign_duration += duration
+                self._sign_batch_num += 1
                 if duration > self._slow_sign_threshold:
-                    self._slow_signed_batch_num += 1
-                    self._total_slow_signed_duration += duration
-                if self._signed_batch_num % 32 == 0:
-                    avg_duration = self._total_signed_duration \
-                            / self._signed_batch_num
+                    self._slow_sign_batch_num += 1
+                    self._total_slow_sign_duration += duration
+                if self._sign_batch_num % 32 == 0:
+                    avg_duration = self._total_sign_duration \
+                            / self._sign_batch_num
                     slow_avg_duration = 0.0
-                    if self._slow_signed_batch_num > 0:
-                        slow_avg_duration = self._total_slow_signed_duration \
-                                / self._slow_signed_batch_num
+                    if self._slow_sign_batch_num > 0:
+                        slow_avg_duration = self._total_slow_sign_duration \
+                                / self._slow_sign_batch_num
                     logging.warning(
-                            "%d/%d batch signed cost more than 1s, avg "\
-                            "duration: %f for each batch, avg duration: "\
-                            "%f for slow batch", self._slow_signed_batch_num,
-                            self._signed_batch_num, avg_duration,
-                            slow_avg_duration
+                            "%d/%d batch sign cost more than %d second, "\
+                            "avg duration: %f for each batch, avg duration: "\
+                            "%f for slow batch", self._slow_sign_batch_num,
+                            self._sign_batch_num, self._slow_sign_threshold,
+                            avg_duration, slow_avg_duration
                         )
                 yield signed_batch, False
                 signed_batch_futures = signed_batch_futures[1:]
