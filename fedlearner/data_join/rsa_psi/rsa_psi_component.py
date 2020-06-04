@@ -472,6 +472,11 @@ class FollowerPsiRsaSigner(PsiRsaSigner):
         except Exception as e: # pylint: disable=broad-except
             self._revert_stub(stub, True)
             if retry_cnt < 4:
+                logging.warning("psi signer batch[%d, %d) sign failed for"\
+                                "%d times, retry aigin",
+                                raw_id_batch.begin_index,
+                                raw_id_batch.begin_index+len(raw_id_batch),
+                                retry_cnt)
                 self._rpc_sign_func(raw_id_batch, blind_numbers,
                                     blinded_hashed_ids,
                                     notify_future, retry_cnt+1)
