@@ -296,6 +296,7 @@ class RsaPsi(unittest.TestCase):
                     max_flying_signed_batch=128,
                     stub_fanout=2,
                     slow_sign_threshold=8,
+                    sort_run_merger_read_ahead_buffer=1<<20,
                     batch_processor_options=dj_pb.BatchProcessorOptions(
                         batch_size=1024,
                         max_flying_item=1<<14
@@ -329,6 +330,7 @@ class RsaPsi(unittest.TestCase):
                     max_flying_signed_batch=128,
                     stub_fanout=2,
                     slow_sign_threshold=8,
+                    sort_run_merger_read_ahead_buffer=1<<20,
                     batch_processor_options=dj_pb.BatchProcessorOptions(
                         batch_size=1024,
                         max_flying_item=1<<14

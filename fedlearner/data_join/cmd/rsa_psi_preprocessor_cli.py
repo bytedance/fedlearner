@@ -60,6 +60,9 @@ if __name__ == "__main__":
                         help='the max stub for follower of rpc of processor')
     parser.add_argument('--slow_sign_threshold', type=int, default=10,
                         help='the threshold to record as slow sign')
+    parser.add_argument('--sort_run_merger_read_ahead_buffer', type=int,
+                        default=1<<20, help='the read ahead buffer for the '\
+                                            'reader of sort run reader')
     parser.add_argument('--partition_id', type=int, required=True,
                         help='the partition id will be processed')
     parser.add_argument('--etcd_name', type=str,
@@ -98,6 +101,8 @@ if __name__ == "__main__":
             max_flying_signed_batch=args.max_flying_signed_batch,
             stub_fanout=args.stub_fanout,
             slow_sign_threshold=args.slow_sign_threshold,
+            sort_run_merger_read_ahead_buffer=\
+                args.sort_run_merger_read_ahead_buffer,
             batch_processor_options=dj_pb.BatchProcessorOptions(
                 batch_size=args.process_batch_size,
                 max_flying_item=args.max_flying_item

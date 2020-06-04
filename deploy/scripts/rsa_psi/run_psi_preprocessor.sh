@@ -33,6 +33,7 @@ python -m fedlearner.data_join.cmd.rsa_psi_preprocessor_cli \
     --max_flying_signed_batch=$MAX_FLYING_SIGNED_BATCH \
     --stub_fanout=$STUB_FANOUT \
     --slow_sign_threshold=$SLOW_SIGN_THRESHOLD \
+    --sort_run_merger_read_ahead_buffer=$SORT_RUN_MERGER_READ_AHEAD_BUFFER \
     --partition_id=$INDEX \
     --etcd_name=$ETCD_NAME \
     --etcd_addrs=$ETCD_ADDR \
