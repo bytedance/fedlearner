@@ -220,3 +220,9 @@ def convert_tf_example_to_dict(src_tf_example):
     for key, feat in tf_feature:
         dst_dict[key] = feat
     return dst_dict
+
+def int2bytes(digit, byte_len, byteorder='little'):
+    return int(digit).to_bytes(byte_len, byteorder)
+
+def bytes2int(byte, byteorder='little'):
+    return int.from_bytes(byte, byteorder)

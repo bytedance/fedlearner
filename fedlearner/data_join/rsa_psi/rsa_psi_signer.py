@@ -26,6 +26,8 @@ from fedlearner.common import common_pb2 as common_pb
 from fedlearner.common import data_join_service_pb2 as dj_pb
 from fedlearner.common import data_join_service_pb2_grpc as dj_grpc
 
+from fedlearner.data_join.common import int2bytes, bytes2int
+
 class RsaPsiSignServer(dj_grpc.RsaPsiSignServiceServicer):
     def __init__(self, psi_sign_fn):
         super(RsaPsiSignServer, self).__init__()
@@ -97,7 +99,9 @@ class RsaPsiSigner(object):
 
     @staticmethod
     def _psi_sign_impl(items, d, n):
-        return [powmod(int(item), d, n).digits() for item in items]
+        byte_len = n.bit_length() // 8
+        return [int2bytes(powmod(bytes2int(item), d, n).digits(), byte_len)
+                for item in items]
 
     def start(self, listen_port):
         self._server = grpc.server(futures.ThreadPoolExecutor(max_workers=100))
