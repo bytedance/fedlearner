@@ -7,7 +7,7 @@ spec:
   flReplicaSpecs:
     Master:
       pair: true
-      replicas: 1
+      replicas: 2
       template:
         spec:
           restartPolicy: Never # required

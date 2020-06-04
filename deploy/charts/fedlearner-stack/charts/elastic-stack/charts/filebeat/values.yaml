@@ -31,11 +31,9 @@ config:
               equals:
                 kubernetes.container.name: "filebeat"
 
-  output.file:
-    path: "/usr/share/filebeat/data"
-    filename: filebeat
-    rotate_every_kb: 10000
-    number_of_files: 5
+  output.elasticsearch:
+    # TODO: remove this hardcode when we can use tpl for part of secret
+    hosts: ["http://fedlearner-stack-elasticsearch-client:9200"]
 
   # When a key contains a period, use this format for setting values on the command line:
   # --set config."http\.enabled"=true
