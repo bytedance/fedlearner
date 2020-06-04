@@ -51,9 +51,10 @@ class SortRunReader(object):
             assert isinstance(other, SortRunReader.MergeItem)
             return self.join_id < other.join_id
 
-    def __init__(self, reader_index, fpath):
+    def __init__(self, reader_index, fpath, read_ahead_size):
         self._reader_index = reader_index
         self._fpath = fpath
+        self._read_ahead_size = read_ahead_size
         self._fiter = None
         if gfile.Exists(fpath):
             self._finished = False
@@ -77,8 +78,10 @@ class SortRunReader(object):
             try:
                 item = None
                 if self._fiter is None:
-                    raw_data_options = \
-                        dj_pb.RawDataOptions(raw_data_iter='CSV_DICT')
+                    raw_data_options = dj_pb.RawDataOptions(
+                            raw_data_iter='CSV_DICT',
+                            read_ahead_size=self._read_ahead_size
+                        )
                     self._fiter = CsvDictIter(raw_data_options)
                     meta = visitor.IndexMeta(0, 0, self._fpath)
                     self._fiter.reset_iter(meta, True)
@@ -192,7 +195,11 @@ class SortRunMerger(object):
             fpath = os.path.join(self._input_dir,
                                  common.partition_repr(self._partition_id),
                                  sort_run.encode_sort_run_fname())
-            readers.append(SortRunReader(index, fpath))
+            reader = SortRunReader(
+                    index, fpath,
+                    self._options.sort_run_merger_read_ahead_buffer
+                )
+            readers.append(reader)
         return readers
 
     def _create_sort_run_merger_writer(self):

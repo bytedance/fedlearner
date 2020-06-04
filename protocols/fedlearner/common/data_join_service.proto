@@ -301,7 +301,8 @@ message RsaPsiPreProcessorOptions {
   int64 max_flying_signed_batch = 10;
   int64 stub_fanout = 11;
   int64 slow_sign_threshold = 12;
-  BatchProcessorOptions batch_processor_options = 13;
+  int64 sort_run_merger_read_ahead_buffer = 13;
+  BatchProcessorOptions batch_processor_options = 14;
 }
 
 message RawDataPartitionerOptions {
