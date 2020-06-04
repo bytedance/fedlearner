@@ -48,7 +48,7 @@ spec:
         - filebeat setup --template
           -E output.logstash.enabled=false
           -E output.file.enabled=false
-          -E output.elasticsearch.hosts=[{{- range $index, $host := .Values.indexTemplateLoad }}{{ if $index }}, {{ end }}{{ $host | quote }}{{- end }}]
+          -E output.elasticsearch.hosts=[{{- range $index, $host := .Values.indexTemplateLoad }}{{ if $index }}, {{ end }}{{ tpl $host $ | quote }}{{- end }}]
         volumeMounts:
         - name: filebeat-config
           mountPath: /usr/share/filebeat/filebeat.yml

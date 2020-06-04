@@ -26,15 +26,14 @@ elastic-stack:
         storageClass: nfs
 
   logstash:
+    enabled: false
     persistence:
       storageClass: nfs
 
   filebeat:
     enabled: true
-    config:
-      filebeat.config:
-        modules:
-          reload.enabled: true
+    indexTemplateLoad:
+      - "{{ .Release.Name }}-elasticsearch-client:9200"
 
 ingress-nginx:
   controller:
