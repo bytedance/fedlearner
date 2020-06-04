@@ -24,6 +24,7 @@ import time
 import concurrent.futures as concur_futures
 
 from gmpy2 import powmod, divm # pylint: disable=no-name-in-module
+from cityhash import CityHash64 # pylint: disable=no-name-in-module
 
 from fedlearner.common import data_join_service_pb2_grpc as dj_grpc
 from fedlearner.common import data_join_service_pb2 as dj_pb
@@ -33,6 +34,7 @@ from fedlearner.proxy.channel import make_insecure_channel, ChannelType
 from fedlearner.data_join.raw_data_visitor import MockRawDataVisitor
 from fedlearner.data_join.item_batch_seq_processor import \
         ItemBatch, ItemBatchSeqProcessor
+from fedlearner.data_join.common import int2bytes, bytes2int
 
 class IdBatch(ItemBatch):
     def __init__(self, begin_index):
@@ -153,10 +155,10 @@ class PsiRsaSigner(ItemBatchSeqProcessor):
         self._max_flying_signed_batch = max_flying_signed_batch
         self._process_pool_executor = process_pool_executor
         self._slow_sign_threshold = slow_sign_threshold
-        self._total_signed_duration = .0
-        self._signed_batch_num = 0
-        self._slow_signed_batch_num = 0
-        self._total_slow_signed_duration = .0
+        self._total_sign_duration = .0
+        self._sign_batch_num = 0
+        self._slow_sign_batch_num = 0
+        self._total_slow_sign_duration = .0
 
     @classmethod
     def name(cls):
@@ -190,24 +192,24 @@ class PsiRsaSigner(ItemBatchSeqProcessor):
                 start_tm = time.time()
                 signed_batch = signed_batch_futures[0].result()
                 duration = time.time() - start_tm
-                self._total_signed_duration += duration
-                self._signed_batch_num += 1
+                self._total_sign_duration += duration
+                self._sign_batch_num += 1
                 if duration > self._slow_sign_threshold:
-                    self._slow_signed_batch_num += 1
-                    self._total_slow_signed_duration += duration
-                if self._signed_batch_num % 32 == 0:
-                    avg_duration = self._total_signed_duration \
-                            / self._signed_batch_num
+                    self._slow_sign_batch_num += 1
+                    self._total_slow_sign_duration += duration
+                if self._sign_batch_num % 32 == 0:
+                    avg_duration = self._total_sign_duration \
+                            / self._sign_batch_num
                     slow_avg_duration = 0.0
-                    if self._slow_signed_batch_num > 0:
-                        slow_avg_duration = self._total_slow_signed_duration \
-                                / self._slow_signed_batch_num
+                    if self._slow_sign_batch_num > 0:
+                        slow_avg_duration = self._total_slow_sign_duration \
+                                / self._slow_sign_batch_num
                     logging.warning(
-                            "%d/%d batch signed cost more than 1s, avg "\
-                            "duration: %f for each batch, avg duration: "\
-                            "%f for slow batch", self._slow_signed_batch_num,
-                            self._signed_batch_num, avg_duration,
-                            slow_avg_duration
+                            "%d/%d batch sign cost more than %d second, "\
+                            "avg duration: %f for each batch, avg duration: "\
+                            "%f for slow batch", self._slow_sign_batch_num,
+                            self._sign_batch_num, self._slow_sign_threshold,
+                            avg_duration, slow_avg_duration
                         )
                 yield signed_batch, False
                 signed_batch_futures = signed_batch_futures[1:]
@@ -269,8 +271,12 @@ class PsiRsaSigner(ItemBatchSeqProcessor):
         return [PsiRsaSigner._crypto_hash(item) for item in items]
 
     @staticmethod
+    def _oneway_hash_list(items):
+        return [hex(CityHash64(str(item)))[2:] for item in items]
+
+    @staticmethod
     def _rsa_sign_list(items, d, n):
-        return [powmod(x, d, n) for x in items]
+        return [int(powmod(x, d, n).digits()) for x in items]
 
 class LeaderPsiRsaSigner(PsiRsaSigner):
     def __init__(self, id_batch_fetcher, max_flying_item,
@@ -292,7 +298,7 @@ class LeaderPsiRsaSigner(PsiRsaSigner):
         signed_hashed_ids = PsiRsaSigner._rsa_sign_list(hashed_ids, d, n)
         assert len(signed_hashed_ids) == len(raw_id_batch)
         hashed_signed_hashed_ids = \
-                PsiRsaSigner._crypto_hash_list(signed_hashed_ids)
+                PsiRsaSigner._oneway_hash_list(signed_hashed_ids)
         return hashed_signed_hashed_ids
 
     def _sign_callback(self, raw_id_batch, notify_future, exec_future):
@@ -427,7 +433,9 @@ class FollowerPsiRsaSigner(PsiRsaSigner):
             )
         blind_numbers = [random.SystemRandom().getrandbits(256)
                          for i in range(len(raw_id_batch))]
-        blinded_hashed_ids = [(powmod(r, e, n) * x % n).digits()
+        byte_len = n.bit_length() // 8
+        blinded_hashed_ids = [int2bytes((powmod(r, e, n) * x % n).digits(),
+                                        byte_len)
                               for x, r in zip(hashed_ids, blind_numbers)]
         return (blinded_hashed_ids, blind_numbers)
 
@@ -463,8 +471,8 @@ class FollowerPsiRsaSigner(PsiRsaSigner):
                                         response.status.code,
                                         response.status.error_message))
             self._revert_stub(stub, False)
-            signed_blinded_hashed_ids = \
-                    [int(item) for item in response.signed_ids]
+            signed_blinded_hashed_ids = [bytes2int(item) for
+                                         item in response.signed_ids]
             assert len(raw_id_batch) == len(signed_blinded_hashed_ids)
             self._deblind_signed_id_func(raw_id_batch, blind_numbers,
                                          signed_blinded_hashed_ids,
@@ -513,8 +521,8 @@ class FollowerPsiRsaSigner(PsiRsaSigner):
     @staticmethod
     def _deblind_signed_id_batch(signed_blinded_hashed_ids,
                                  blind_numbers, n):
-        signed_hashed_ids = [divm(x, r, n).digits() for x, r in
+        signed_hashed_ids = [int(divm(x, r, n).digits()) for x, r in
                              zip(signed_blinded_hashed_ids, blind_numbers)]
         hashed_signed_hashed_ids = \
-                PsiRsaSigner._crypto_hash_list(signed_hashed_ids)
+                PsiRsaSigner._oneway_hash_list(signed_hashed_ids)
         return hashed_signed_hashed_ids

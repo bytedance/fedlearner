@@ -34,6 +34,8 @@ if __name__ == "__main__":
                         help='the file path to store rsa private key')
     parser.add_argument('--rsa_privet_key_pem', type=str,
                         help='the rsa private key stroe by pem format')
+    parser.add_argument('--slow_sign_threshold', type=int, default=1,
+                        help='the threshold to record as slow sign')
     args = parser.parse_args()
     rsa_private_key_pem = args.rsa_privet_key_pem
     if rsa_private_key_pem is None or len(rsa_private_key_pem) == 0:
@@ -42,5 +44,6 @@ if __name__ == "__main__":
             rsa_private_key_pem = f.read()
     rsa_private_key = rsa.PrivateKey.load_pkcs1(rsa_private_key_pem)
     rsa_psi_signer = RsaPsiSigner(rsa_private_key,
-                                  args.offload_processor_number)
+                                  args.offload_processor_number,
+                                  args.slow_sign_threshold)
     rsa_psi_signer.run(args.listen_port)

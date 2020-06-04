@@ -276,12 +276,12 @@ service DataJoinPotralService {
 }
 
 message SignIdsRequest {
-  repeated string ids = 1;
+  repeated bytes ids = 1;
 }
 
 message SignIdsResponse {
   Status status = 1;
-  repeated string signed_ids = 2;
+  repeated bytes signed_ids = 2;
 }
 
 service RsaPsiSignService {
