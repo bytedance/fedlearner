@@ -103,12 +103,23 @@ def _get_dtype_for_max_value(max_value):
     return np.int32
 
 class BinnedFeatures(object):
-    def __init__(self, features, max_bins):
+    def __init__(self, features, max_bins, cat_features=None):
         super(BinnedFeatures, self).__init__()
 
         self._max_bins = max_bins
         self.features = features
         self.binned, self.thresholds = self._bin_features(features)
+        self.num_bins = [len(i) + 2 for i in self.thresholds]
+
+        if cat_features is None:
+            cat_features = np.zeros((features.shape[0], 0), dtype=np.int32)
+        self.cat_features = cat_features
+        self.cat_num_bins = [
+            cat_features[:, i].max()+1 for i in range(cat_features.shape[1])]
+
+        self.num_features = self.features.shape[1]
+        self.num_cat_features = self.cat_features.shape[1]
+        self.num_all_features = self.num_features + self.num_cat_features
 
     def _bin_features(self, features):
         thresholds = []
@@ -139,12 +150,11 @@ class BinnedFeatures(object):
 
 
 def _compute_histogram_helper(args):
-    base, values, binned_features, thresholds, zero = args
+    base, values, binned_features, num_bins, zero = args
     hists = []
-    for i, threshold in enumerate(thresholds):
+    for i, num in enumerate(num_bins):
         logging.debug('Computing histogram for feature %d', base + i)
-        num_bins = threshold.size + 2
-        hist = np.asarray([zero for _ in range(num_bins)])
+        hist = np.asarray([zero for _ in range(num)])
         np.add.at(hist, binned_features[:, i], values)
         hists.append(hist)
 
@@ -159,23 +169,37 @@ class HistogramBuilder(object):
         self._zero = dtype(0.0)
         self._num_parallel = num_parallel
         self._pool = pool
-        if self._num_parallel > 1:
-            assert pool is not None
-            self._job_size = \
-                (len(self._bins.binned[0]) + num_parallel - 1)//num_parallel
 
     def compute_histogram(self, values, sample_ids):
         if not self._pool:
-            return _compute_histogram_helper(
+            hists = _compute_histogram_helper(
                 (0, values[sample_ids], self._bins.binned[sample_ids],
-                 self._bins.thresholds, self._zero))
+                 self._bins.num_bins, self._zero))
+            cat_hists = _compute_histogram_helper(
+                (self._bins.num_features, values[sample_ids],
+                 self._bins.cat_features[sample_ids],
+                 self._bins.cat_num_bins, self._zero))
+            return hists + cat_hists
 
+        num_jobs = self._num_parallel
+        job_size = \
+            (self._bins.num_features + num_jobs - 1)//num_jobs
+        cat_job_size = \
+            (self._bins.num_cat_features + num_jobs - 1)//num_jobs
         args = [
-            (self._job_size*i,
+            (job_size*i,
              values[sample_ids],
              self._bins.binned[
-                 sample_ids, self._job_size*i:self._job_size*(i+1)],
-             self._bins.thresholds[self._job_size*i:self._job_size*(i+1)],
+                 sample_ids, job_size*i:job_size*(i+1)],
+             self._bins.num_bins[job_size*i:job_size*(i+1)],
+             self._zero)
+            for i in range(self._num_parallel)
+        ] + [
+            (self._bins.num_features + cat_job_size*i,
+             values[sample_ids],
+             self._bins.cat_features[
+                 sample_ids, cat_job_size*i:cat_job_size*(i+1)],
+             self._bins.cat_num_bins[cat_job_size*i:cat_job_size*(i+1)],
              self._zero)
             for i in range(self._num_parallel)
         ]
@@ -187,8 +211,11 @@ class HistogramBuilder(object):
 class GrowerNode(object):
     def __init__(self, node_id):
         self.node_id = node_id
+        self.num_features = None
         self.feature_id = None
+        self.is_cat_feature = None
         self.threshold = None
+        self.cat_threshold = None
         self.default_left = None
         self.is_owner = None
         self.owner_id = None
@@ -210,17 +237,17 @@ class GrowerNode(object):
         self.IG = None
         self.NI = None
 
-    def is_left_sample(self, x):
+    def is_left_sample(self, binned, idx):
         assert self.is_owner
 
-        if np.isnan(x):
-            if self.default_left:
-                return True
-            return False
+        if self.is_cat_feature:
+            x = binned.cat_features[
+                idx, self.feature_id - self.num_features]
+            return np.in1d(x, self.cat_threshold)
 
-        if x < self.threshold:
-            return True
-        return False
+        x = binned.features[idx, self.feature_id]
+        isnan = np.isnan(x)
+        return np.where(isnan, self.default_left, x < self.threshold)
 
     def to_proto(self):
         return tree_pb2.RegressionTreeNodeProto(
@@ -231,22 +258,27 @@ class GrowerNode(object):
             is_owner=self.is_owner,
             owner_id=self.owner_id,
             feature_id=self.feature_id,
+            is_cat_feature=self.is_cat_feature,
             threshold=self.threshold,
+            cat_threshold=self.cat_threshold,
             default_left=self.default_left,
             weight=self.weight)
 
 
 class BaseGrower(object):
     def __init__(self, binned, labels, grad, hess,
-                grow_policy='depthwise', max_leaves=None, max_depth=None,
-                learning_rate=0.3, l2_regularization=1.0, dtype=BST_TYPE,
-                num_parallel=1, pool=None):
+                 grow_policy='depthwise', max_leaves=None, max_depth=None,
+                 learning_rate=0.3, l2_regularization=1.0, dtype=BST_TYPE,
+                 num_parallel=1, pool=None):
         self._binned = binned
         self._labels = labels
         self._num_samples = binned.features.shape[0]
+        self._is_cat_feature = \
+            [False] * binned.num_features + [True] * binned.num_cat_features
         self._grad = grad
         self._hess = hess
         self._grow_policy = grow_policy
+
 
         if grow_policy == 'depthwise':
             self._split_candidates = queue.Queue()
@@ -270,13 +302,13 @@ class BaseGrower(object):
         self._hist_builder = HistogramBuilder(
             binned, dtype, num_parallel, self._pool)
 
-        self._nodes = [GrowerNode(0)]
+        self._nodes = []
+        self._add_node(0)
         self._nodes[0].sample_ids = list(range(binned.features.shape[0]))
         self._num_leaves = 1
 
     def _initialize_feature_importance(self):
-        self._feature_importance = np.zeros(self._binned.features.shape[1])
-
+        self._feature_importance = np.zeros(len(self._is_cat_feature))
 
     def _compute_Gini_Entropy(self, node):
         '''
@@ -362,60 +394,94 @@ class BaseGrower(object):
         if gain > split_info.gain:
             split_info.gain = gain
             split_info.feature_id = feature_id
-            split_info.split_point = split_point
+            split_info.split_point[:] = split_point
             split_info.default_left = default_left
             split_info.left_weight = - lr * left_g/(left_h + lam)
             split_info.right_weight = - lr * right_g/(right_h + lam)
 
     def _find_split_and_push(self, node):
+        assert len(self._is_cat_feature) == len(node.grad_hists)
+
         split_info = tree_pb2.SplitInfo(
-            node_id=node.node_id, gain=-1)
-        for fid, (grad_hist, hess_hist) in \
-                enumerate(zip(node.grad_hists, node.hess_hists)):
-            sum_g = sum(grad_hist)
-            sum_h = sum(hess_hist)
-            left_g = 0.0
-            left_h = 0.0
-            nan_g = grad_hist[-1]
-            nan_h = hess_hist[-1]
-            for i in range(len(grad_hist) - 2):
-                left_g += grad_hist[i]
-                left_h += hess_hist[i]
-                self._compare_split(
-                    split_info, True, fid, i,
-                    left_g + nan_g, left_h + nan_h,
-                    sum_g - left_g - nan_g, sum_h - left_h - nan_h)
-                self._compare_split(
-                    split_info, False, fid, i,
-                    left_g, left_h,
-                    sum_g - left_g, sum_h - left_h)
+            node_id=node.node_id, gain=-1e38)
+        for fid, is_cat in enumerate(self._is_cat_feature):
+            if is_cat:
+                self._find_cat_split(node, fid, split_info)
+            else:
+                self._find_cont_split(node, fid, split_info)
 
         self._split_candidates.put((-split_info.gain, split_info))
 
         return split_info.gain, split_info
 
+    def _find_cont_split(self, node, fid, split_info):
+        grad_hist = node.grad_hists[fid]
+        hess_hist = node.hess_hists[fid]
+        sum_g = sum(grad_hist)
+        sum_h = sum(hess_hist)
+        left_g = 0.0
+        left_h = 0.0
+        nan_g = grad_hist[-1]
+        nan_h = hess_hist[-1]
+        for i in range(len(grad_hist) - 2):
+            left_g += grad_hist[i]
+            left_h += hess_hist[i]
+            self._compare_split(
+                split_info, True, fid, [i],
+                left_g + nan_g, left_h + nan_h,
+                sum_g - left_g - nan_g, sum_h - left_h - nan_h)
+            self._compare_split(
+                split_info, False, fid, [i],
+                left_g, left_h,
+                sum_g - left_g, sum_h - left_h)
+
+    def _find_cat_split(self, node, fid, split_info):
+        grad_hist = node.grad_hists[fid]
+        hess_hist = node.hess_hists[fid]
+        sum_g = sum(grad_hist)
+        sum_h = sum(hess_hist)
+        left_g = 0.0
+        left_h = 0.0
+        split_point = []
+        order = [
+            (i, g/h + self._l2_regularization)
+            for i, (g, h) in enumerate(zip(grad_hist, hess_hist))]
+        order.sort(key=lambda x: x[1])
+        for i, _ in order:
+            split_point.append(i)
+            left_g += grad_hist[i]
+            left_h += hess_hist[i]
+            self._compare_split(
+                split_info, True, fid, split_point,
+                left_g, left_h,
+                sum_g - left_g, sum_h)
+
     def _add_node(self, parent_id):
         node_id = len(self._nodes)
         node = GrowerNode(node_id)
         node.parent = parent_id
+        node.num_features = self._binned.num_features
         self._nodes.append(node)
         return node_id
 
     def _set_node_partition(self, node, split_info):
         node.is_owner = True
         node.feature_id = split_info.feature_id
-        node.threshold = self._binned.thresholds[
-            split_info.feature_id][split_info.split_point]
+        if node.feature_id < self._binned.num_features:
+            node.is_cat_feature = False
+            node.threshold = self._binned.thresholds[
+                node.feature_id][split_info.split_point[0]]
+        else:
+            node.is_cat_feature = True
+            node.cat_threshold = split_info.split_point
         node.default_left = split_info.default_left
 
         left_child = self._nodes[node.left_child]
         right_child = self._nodes[node.right_child]
 
-        for i in node.sample_ids:
-            if node.is_left_sample(self._binned.features[i, node.feature_id]):
-                left_child.sample_ids.append(i)
-            else:
-                right_child.sample_ids.append(i)
+        is_left = node.is_left_sample(self._binned, node.sample_ids)
+        left_child.sample_ids = list(np.asarray(node.sample_ids)[is_left])
+        right_child.sample_ids = list(np.asarray(node.sample_ids)[~is_left])
 
     def _split_next(self):
         _, split_info = self._split_candidates.get()
@@ -444,12 +510,13 @@ class BaseGrower(object):
         parent = self._nodes[split_info.node_id]
 
         logging.info(
-            "Split node %d at feature %d for gain=%f. " \
+            "Split node %d at feature %d with threshold %s for gain=%f. " \
             "Node gini_impurity=%f, entropy=%f. " \
             "Split information_gain=%f, node_importance=%f." \
             "Left(w=%f, nsamples=%d), Right(w=%f, nsamples=%d). " \
             "nan goes to %s.",
-            split_info.node_id, split_info.feature_id, split_info.gain,
+            split_info.node_id, split_info.feature_id,
+            split_info.split_point, split_info.gain,
             parent.gini, parent.entropy,
             parent.IG, parent.NI,
             left_child.weight, len(left_child.sample_ids),
@@ -467,7 +534,6 @@ class BaseGrower(object):
 
     def to_proto(self):
         proto = tree_pb2.RegressionTreeProto(
-            num_features=self._binned.features.shape[1],
             feature_importance=self._feature_importance)
         for node in self._nodes:
             proto.nodes.append(node.to_proto())
@@ -514,6 +580,14 @@ class LeaderGrower(BaseGrower):
         self._bridge = bridge
         self._public_key = public_key
         self._private_key = private_key
+
+        bridge.start(bridge.new_iter_id())
+        follower_num_features, follower_num_cat_features = \
+            bridge.receive(bridge.current_iter_id, 'feature_dim')
+        bridge.commit()
+        self._is_cat_feature.extend(
+            [False] * follower_num_features + \
+            [True] * follower_num_cat_features)
 
     def _initialize_feature_importance(self):
         self._feature_importance = np.zeros(len(self._nodes[0].grad_hists))
@@ -564,7 +638,7 @@ class LeaderGrower(BaseGrower):
 
         self._num_leaves += 1
 
-        if split_info.feature_id < self._binned.features.shape[1]:
+        if split_info.feature_id < self._binned.num_all_features:
             self._set_node_partition(node, split_info)
             self._compute_IG_NI(node, \
                 left_child, right_child)
@@ -577,8 +651,7 @@ class LeaderGrower(BaseGrower):
                     right_samples=right_child.sample_ids))
         else:
             node.is_owner = False
-            feature_id_in_total = split_info.feature_id
-            fid = split_info.feature_id - self._binned.features.shape[1]
+            fid = split_info.feature_id - self._binned.num_all_features
             self._bridge.send_proto(
                 self._bridge.current_iter_id, 'split_info',
                 tree_pb2.SplitInfo(
@@ -586,7 +659,6 @@ class LeaderGrower(BaseGrower):
                     split_point=split_info.split_point,
                     default_left=split_info.default_left))
 
-            split_info.feature_id = -1
             follower_split_info = tree_pb2.SplitInfo()
             self._bridge.receive_proto(
                 self._bridge.current_iter_id, 'follower_split_info') \
@@ -596,7 +668,8 @@ class LeaderGrower(BaseGrower):
 
             self._compute_IG_NI(node, \
                 left_child, right_child)
-            self._feature_importance[feature_id_in_total] += node.NI
+            self._feature_importance[split_info.feature_id] += node.NI
+            split_info.feature_id = -1
 
 
         self._bridge.commit()
@@ -611,6 +684,12 @@ class FollowerGrower(BaseGrower):
             binned, labels, grad, hess, dtype=dtype, **kwargs)
         self._bridge = bridge
         self._public_key = public_key
+
+        bridge.start(bridge.new_iter_id())
+        bridge.send(
+            bridge.current_iter_id, 'feature_dim',
+            [binned.num_features, binned.num_cat_features])
+        bridge.commit()
 
     def _compute_histogram_from_sibling(self, node, sibling):
         pass
@@ -682,8 +761,10 @@ class FollowerGrower(BaseGrower):
 def _vectorize_tree(tree):
     vec = {}
     vec['is_owner'] = np.asarray([n.is_owner for n in tree.nodes])
-    vec['threshold'] = np.asarray([n.threshold for n in tree.nodes])
     vec['feature_id'] = np.asarray([n.feature_id for n in tree.nodes])
+    vec['is_cat_feature'] = np.asarray([n.is_cat_feature for n in tree.nodes])
+    vec['threshold'] = np.asarray([n.threshold for n in tree.nodes])
+    vec['cat_threshold'] = [np.asarray(n.cat_threshold) for n in tree.nodes]
     vec['default_left'] = np.asarray(
         [n.default_left for n in tree.nodes], dtype=np.bool)
     vec['is_leaf'] = np.asarray([n.left_child == 0 for n in tree.nodes])
@@ -693,16 +774,35 @@ def _vectorize_tree(tree):
         [n.right_child for n in tree.nodes]])
     return vec
 
-def _vectorized_direction(vec, features, assignment):
+def _vectorized_direction(vec, features, cat_features, assignment):
     fid = vec['feature_id'][assignment]
-    X = features[np.arange(features.shape[0]), fid]
-    is_nan = np.isnan(X)
-    less = X < vec['threshold'][assignment]
-    return ~np.where(is_nan, vec['default_left'][assignment], less)
+    is_cont = fid < features.shape[1]
+
+    cont_fid = np.where(is_cont, fid, 0)
+    cont_X = features[np.arange(features.shape[0]), cont_fid]
+    is_nan = np.isnan(cont_X)
+    less = cont_X < vec['threshold'][assignment]
+    d = ~np.where(is_nan, vec['default_left'][assignment], less)
+
+    if is_cont.sum() < is_cont.size:
+        cond_list = []
+        choice_list = []
+        is_cat = ~is_cont
+        cat_assignment = assignment[is_cat]
+        cat_fid = fid[is_cat] - features.shape[1]
+        cat_X = cat_features[is_cat, cat_fid]
+        for i, cat_threshold in enumerate(vec['cat_threshold']):
+            if vec['is_leaf'][i]:
+                continue
+            cond_list.append(cat_assignment == i)
+            choice_list.append(~np.in1d(cat_X, cat_threshold))
+        d[is_cat] = np.select(cond_list, choice_list)
+
+    return d
 
 def _vectorized_assignment(vec, assignment, direction, peer_direction=None):
-    is_owner = vec['is_owner'][assignment]
     if peer_direction is not None:
+        is_owner = vec['is_owner'][assignment]
         direction = np.where(is_owner, direction, peer_direction)
     new_assignment = vec['children'][direction.astype(np.int32), assignment]
     return np.where(vec['is_leaf'][assignment], assignment, new_assignment)
@@ -841,11 +941,11 @@ class BoostingTreeEnsamble(object):
 
         return msg
 
-
     def save_model(self, path):
         fout = tf.io.gfile.GFile(path, 'w')
         model = tree_pb2.BoostingTreeEnsambleProto(
-            feature_importance=self._feature_importance)
+            feature_importance=self._feature_importance,
+            feature_names=self._feature_names)
         model.trees.extend(self._trees)
         fout.write(text_format.MessageToString(model))
 
@@ -855,14 +955,47 @@ class BoostingTreeEnsamble(object):
         text_format.Parse(fin.read(), model)
         self._trees = list(model.trees)
         self._feature_importance = np.asarray(model.feature_importance)
+        self._feature_names = list(model.feature_names)
+
+    def save_checkpoint(self, path, num_iter):
+        filename = os.path.join(
+            path,
+            'checkpoint-%04d.proto'%num_iter)
+        logging.info(
+            "Saving checkpoint of iteration %d to %s",
+            num_iter, filename)
+        self.save_model(filename)
+        return filename
+
+    def load_last_checkpoint(self, path):
+        files = tf.io.gfile.listdir(path)
+        if files:
+            last_checkpoint = os.path.join(
+                path, sorted(files)[-1])
+            logging.info(
+                "Restoring from previously saved checkpoint %s", \
+                last_checkpoint)
+            self.load_saved_model(last_checkpoint)
+            return True
+        return False
 
     def batch_score(self, features, labels, example_ids):
         pred = self.batch_predict(features, example_ids=example_ids)
         return self._loss.metrics(pred, labels)
 
-    def batch_predict(self, features, get_raw_score=False, example_ids=None):
+    def batch_predict(self, features, cat_features=None,
+                      get_raw_score=False, example_ids=None,
+                      feature_names=None):
+        if feature_names and self._feature_names:
+            assert feature_names == self._feature_names, \
+                "Predict data's feature names does not match loaded model"
+
+        if features is not None and cat_features is None:
+            cat_features = np.zeros((features.shape[0], 0), dtype=np.int32)
+
         if self._bridge is None:
-            return self._batch_predict_local(features, get_raw_score)
+            return self._batch_predict_local(
+                features, cat_features, get_raw_score)
 
         if self._role == 'leader':
             leader_no_data = True
@@ -881,29 +1014,24 @@ class BoostingTreeEnsamble(object):
             if self._role == 'leader':
                 return self._batch_predict_one_side_leader(get_raw_score)
             return self._batch_predict_one_side_follower(
-                features, get_raw_score)
+                features, cat_features, get_raw_score)
 
-        return self._batch_predict_two_side(features, get_raw_score)
+        return self._batch_predict_two_side(
+            features, cat_features, get_raw_score)
 
 
-    def _batch_predict_local(self, features, get_raw_score):
+    def _batch_predict_local(self, features, cat_features, get_raw_score):
         N = features.shape[0]
-        num_features = features.shape[1]
 
         raw_prediction = np.zeros(N, dtype=BST_TYPE)
         for idx, tree in enumerate(self._trees):
             logging.debug("Running prediction for tree %d", idx)
-            if tree.num_features:
-                assert tree.num_features == num_features, \
-                    "Number of features for prediction (%d) does not " \
-                    "match number of features for training (%d)"%(
-                        num_features, tree.num_features)
 
             vec_tree = _vectorize_tree(tree)
             assignment = np.zeros(N, dtype=np.int32)
             while vec_tree['is_leaf'][assignment].sum() < N:
                 direction = _vectorized_direction(
-                    vec_tree, features, assignment)
+                    vec_tree, features, cat_features, assignment)
                 assignment = _vectorized_assignment(
                     vec_tree, assignment, direction)
 
@@ -913,25 +1041,20 @@ class BoostingTreeEnsamble(object):
             return raw_prediction
         return self._loss.predict(raw_prediction)
 
-    def _batch_predict_one_side_follower(self, features, get_raw_score):
+    def _batch_predict_one_side_follower(self, features, cat_features,
+                                         get_raw_score):
         N = features.shape[0]
-        num_features = features.shape[1]
 
         raw_prediction = np.zeros(N, dtype=BST_TYPE)
         for idx, tree in enumerate(self._trees):
             logging.debug("Running prediction for tree %d", idx)
-            if tree.num_features:
-                assert tree.num_features == num_features, \
-                    "Number of features for prediction (%d) does not " \
-                    "match number of features for training (%d)"%(
-                        num_features, tree.num_features)
 
             vec_tree = _vectorize_tree(tree)
             assignment = np.zeros(
                 N, dtype=_get_dtype_for_max_value(len(tree.nodes)))
             while vec_tree['is_leaf'][assignment].sum() < N:
                 direction = _vectorized_direction(
-                    vec_tree, features, assignment)
+                    vec_tree, features, cat_features, assignment)
                 assignment = _vectorized_assignment(
                     vec_tree, assignment, direction)
 
@@ -969,7 +1092,7 @@ class BoostingTreeEnsamble(object):
         return self._loss.predict(raw_prediction)
 
 
-    def _batch_predict_two_side(self, features, get_raw_score):
+    def _batch_predict_two_side(self, features, cat_features, get_raw_score):
         N = features.shape[0]
         peer_role = 'leader' if self._role == 'follower' else 'follower'
         raw_prediction = np.zeros(N, dtype=BST_TYPE)
@@ -979,7 +1102,7 @@ class BoostingTreeEnsamble(object):
             assignment = np.zeros(N, dtype=np.int32)
             while vec_tree['is_leaf'][assignment].sum() < N:
                 direction = _vectorized_direction(
-                    vec_tree, features, assignment)
+                    vec_tree, features, cat_features, assignment)
 
                 self._bridge.start(self._bridge.new_iter_id())
                 self._bridge.send(
@@ -1007,29 +1130,30 @@ class BoostingTreeEnsamble(object):
         fout.write(','.join([str(i) for i in pred]) + '\n')
         fout.close()
 
-    def fit(self, features, labels=None,
-            checkpoint_path=None, example_ids=None,
-            validation_features=None, validation_labels=None,
+    def fit(self,
+            features,
+            labels=None,
+            cat_features=None,
+            example_ids=None,
+            validation_features=None,
+            validation_labels=None,
+            validation_cat_features=None,
             validation_example_ids=None,
+            feature_names=None,
+            checkpoint_path=None,
             output_path=None):
         num_examples = features.shape[0]
         assert example_ids is None or num_examples == len(example_ids)
 
         # sort feature columns
-        binned = BinnedFeatures(features, self._max_bins)
+        binned = BinnedFeatures(
+            features, self._max_bins, cat_features=cat_features)
 
         # load checkpoint if exists
         if checkpoint_path:
             tf.io.gfile.makedirs(checkpoint_path)
             logging.info("Checkpointing into path %s...", checkpoint_path)
-            files = tf.io.gfile.listdir(checkpoint_path)
-            if files:
-                last_checkpoint = os.path.join(
-                    checkpoint_path, sorted(files)[-1])
-                logging.info(
-                    "Restoring from previously saved checkpoint %s", \
-                    last_checkpoint)
-                self.load_saved_model(last_checkpoint)
+            self.load_last_checkpoint(checkpoint_path)
 
         # verify parameters
         if self._bridge is not None:
@@ -1039,14 +1163,19 @@ class BoostingTreeEnsamble(object):
         # initial f(x)
         if len(self._trees) > 0:
             # feature importance already loaded
+            if feature_names and self._feature_names:
+                assert feature_names == self._feature_names, \
+                    "Training data's feature does not match loaded model"
             sum_prediction = self.batch_predict(features, get_raw_score=True)
         else:
+            self._feature_names = feature_names
             sum_prediction = np.zeros(num_examples, dtype=BST_TYPE)
 
         # start iterations
         while len(self._trees) < self._max_iters:
             begin_time = time.time()
             num_iter = len(self._trees)
+
             # grow tree
             if self._bridge is None:
                 tree, raw_prediction = self._fit_one_round_local(
@@ -1058,8 +1187,11 @@ class BoostingTreeEnsamble(object):
                 sum_prediction += raw_prediction
             else:
                 tree = self._fit_one_round_follower(binned)
-
             self._trees.append(tree)
+
+            logging.info("Elapsed time for one round %s s",
+                         str(time.time()-begin_time))
+
             if num_iter == 0:
                 #initialize feature importance for round 0
                 self._feature_importance = np.asarray(tree.feature_importance)
@@ -1068,26 +1200,17 @@ class BoostingTreeEnsamble(object):
                 self._feature_importance = (self._feature_importance*num_iter+ \
                     np.asarray(tree.feature_importance))/len(self._trees)
 
-            logging.info("ensemble feature importance for round %d, " \
+            logging.info(
+                "ensemble feature importance for round %d, " \
                 "feature importance(>0) is %s, " \
                 "feature indices(>0) is %s ", \
                 num_iter, \
                 self._feature_importance[self._feature_importance > 0], \
                 np.nonzero(self._feature_importance))
 
-            end_time = time.time()
-            logging.info("Elapsed time for one round %s s",
-                         str(end_time-begin_time))
-
             # save check point
             if checkpoint_path is not None:
-                filename = os.path.join(
-                    checkpoint_path,
-                    'checkpoint-%04d.proto'%num_iter)
-                logging.info(
-                    "Saving checkpoint of iteration %d to %s",
-                    num_iter, filename)
-                self.save_model(filename)
+                self.save_checkpoint(checkpoint_path, num_iter)
 
             # save output
             if output_path is not None:
@@ -1102,7 +1225,9 @@ class BoostingTreeEnsamble(object):
             # validation
             if validation_features is not None:
                 val_pred = self.batch_predict(
-                    validation_features, example_ids=validation_example_ids)
+                    validation_features,
+                    example_ids=validation_example_ids,
+                    cat_features=validation_cat_features)
                 if validation_labels is not None:
                     metrics = self._loss.metrics(val_pred, validation_labels)
                 else:
@@ -1112,6 +1237,8 @@ class BoostingTreeEnsamble(object):
                 if output_path is not None:
                     self._write_training_log(
                         output_path, 'val_%d'%num_iter, metrics, val_pred)
+
+        return self._loss.predict(sum_prediction)
 
 
     def _fit_one_round_local(self, sum_fx, binned, labels):

@@ -11,7 +11,9 @@ message RegressionTreeNodeProto {
     bool is_owner = 5;
     int32 owner_id = 6;
     int32 feature_id = 7;
+    bool is_cat_feature = 11;
     float threshold = 8;
+    repeated int32 cat_threshold = 12;
     bool default_left = 10;
 
     float weight = 9;
@@ -23,13 +25,13 @@ message PartitionInfo {
 
 message RegressionTreeProto {
     repeated RegressionTreeNodeProto nodes = 1;
-    int32 num_features = 2;
-    repeated float feature_importance =3;
+    repeated float feature_importance = 2;
 };
 
 message BoostingTreeEnsambleProto {
     repeated RegressionTreeProto trees = 1;
     repeated float feature_importance = 2;
+    repeated string feature_names = 3;
 };
 
 message EncryptedNumbers {
@@ -45,7 +47,7 @@ message SplitInfo {
     float gain = 2;
     int32 owner_id = 3;
     int32 feature_id = 4;
-    int32 split_point = 5;
+    repeated int32 split_point = 5;
     bool default_left = 10;
     float left_weight = 6;
     float right_weight = 7;

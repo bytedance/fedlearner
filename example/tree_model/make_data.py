@@ -6,28 +6,50 @@ import numpy as np
 import tensorflow as tf
 from sklearn.datasets import load_iris
 
+def quantize_data(header, dtypes, X):
+    for i, (h, dtype) in enumerate(zip(header, dtypes)):
+        if h[0] != 'f' or dtype != np.int32:
+            continue
+        x = X[:, i].copy()
+        nan_mask = np.isnan(x)
+        bins = np.quantile(x[~nan_mask], np.arange(33)/32)
+        bins = np.unique(bins)
+        X[:, i][~nan_mask] = np.digitize(
+            x[~nan_mask], bins, right=True)
+        X[:, i][nan_mask] = 33
+
+    return np.asarray([tuple(i) for i in X], dtype=list(zip(header, dtypes)))
 
 def write_data(filename, X, y, role, verify_example_ids):
     if role == 'leader':
         data = np.concatenate((X[:, :X.shape[1]//2], y), axis=1)
-        header = ['f%05d'%i for i in range(data.shape[1]-1)] + ['label']
+        N = data.shape[1]-1
+        header = ['f%05d'%i for i in range(N)] + ['label']
+        dtypes = [np.float]*(N//2) + [np.int32]*(N - N//2) + [np.int32]
     elif role == 'follower':
         data = X[:, X.shape[1]//2:]
-        header = ['f%05d'%i for i in range(data.shape[1])]
+        N = data.shape[1]
+        header = ['f%05d'%i for i in range(N)]
+        dtypes = [np.float]*(N//2) + [np.int32]*(N - N//2)
     else:
         data = np.concatenate((X, y), axis=1)
-        header = ['f%05d'%i for i in range(data.shape[1]-1)] + ['label']
+        N = data.shape[1]-1
+        header = ['f%05d'%i for i in range(N)] + ['label']
+        dtypes = [np.float]*(N//2) + [np.int32]*(N - N//2) + [np.int32]
 
     if verify_example_ids:
         data = np.concatenate(
             [[[i] for i in range(data.shape[0])], data], axis=1)
         header = ['example_id'] + header
+        dtypes = [np.int32] + dtypes
 
+    data = quantize_data(header, dtypes, data)
     np.savetxt(
         filename,
         data,
-        header=','.join(header),
         delimiter=',',
+        header=','.join(header),
+        fmt=['%d' if i == np.int32 else '%f' for i in dtypes],
         comments='')
 
 def process_mnist(X, y):
