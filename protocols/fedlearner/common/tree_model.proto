@@ -32,6 +32,7 @@ message BoostingTreeEnsambleProto {
     repeated RegressionTreeProto trees = 1;
     repeated float feature_importance = 2;
     repeated string feature_names = 3;
+    repeated string cat_feature_names = 4;
 };
 
 message EncryptedNumbers {

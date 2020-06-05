@@ -177,28 +177,32 @@ def read_csv_data(filename, require_example_ids, require_labels,
 
     fin.close()
 
-    feature_names = [name for _, name in cont_columns] + \
-                    [name for _, name in cat_columns]
+    feature_names = [name for _, name in cont_columns]
+    cat_feature_names = [name for _, name in cat_columns]
     features = np.array(features, dtype=np.float)
     cat_features = np.array(cat_features, dtype=np.int32)
     if labels is not None:
         labels = np.asarray(labels, dtype=np.float)
 
-    return features, cat_features, feature_names, labels, example_ids, raw_ids
+    return features, cat_features, feature_names, cat_feature_names, \
+        labels, example_ids, raw_ids
 
 
 def train(args, booster):
-    X, cat_X, X_names, y, example_ids, _ = read_csv_data(
+    X, cat_X, X_names, cat_X_names, y, example_ids, _ = read_csv_data(
         args.data_path, args.verify_example_ids,
         args.role != 'follower', args.ignore_fields, args.cat_fields)
 
     if args.validation_data_path:
-        val_X, val_cat_X, val_X_names, val_y, val_example_ids, _ = \
+        val_X, val_cat_X, val_X_names, val_cat_X_names, val_y, \
+            val_example_ids, _ = \
             read_csv_data(
                 args.validation_data_path, args.verify_example_ids,
                 args.role != 'follower', args.ignore_fields,
                 args.cat_fields)
         assert X_names == val_X_names, \
+            "Train data and validation data must have same features"
+        assert cat_X_names == val_cat_X_names, \
             "Train data and validation data must have same features"
     else:
         val_X = val_cat_X = X_names = val_y = val_example_ids = None
@@ -218,7 +222,8 @@ def train(args, booster):
         validation_labels=val_y,
         validation_example_ids=val_example_ids,
         output_path=args.output_path,
-        feature_names=X_names)
+        feature_names=X_names,
+        cat_feature_names=cat_X_names)
 
 
 def write_predictions(filename, pred, example_ids=None, raw_ids=None):
@@ -246,17 +251,19 @@ def write_predictions(filename, pred, example_ids=None, raw_ids=None):
 
 def test_one_file(args, bridge, booster, data_file, output_file):
     if data_file is None:
-        X = cat_X = X_names = y = example_ids = raw_ids = None
+        X = cat_X = X_names = cat_X_names = y = example_ids = raw_ids = None
     else:
-        X, cat_X, X_names, y, example_ids, raw_ids = read_csv_data(
-            data_file, args.verify_example_ids,
-            False, args.ignore_fields, args.cat_fields)
+        X, cat_X, X_names, cat_X_names, y, example_ids, raw_ids = \
+            read_csv_data(
+                data_file, args.verify_example_ids,
+                False, args.ignore_fields, args.cat_fields)
 
     pred = booster.batch_predict(
         X,
         example_ids=example_ids,
         cat_features=cat_X,
-        feature_names=X_names)
+        feature_names=X_names,
+        cat_feature_names=cat_X_names)
 
     if y is not None:
         metrics = booster.loss.metrics(pred, y)
