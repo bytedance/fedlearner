@@ -17,4 +17,4 @@ jobs:
           image_name: fedlearner/fedlearner-operator
           image_tag: ${{ steps.vars.outputs.sha_short }}
           context: ./deploy/kubernetes_operator
-          build_params: --build-arg=WHAT=cmd/operator/main.go
+          build_extra_args: --build-arg=WHAT=cmd/operator/main.go
