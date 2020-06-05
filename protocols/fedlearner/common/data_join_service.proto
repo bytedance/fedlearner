@@ -298,11 +298,13 @@ message RsaPsiPreProcessorOptions {
   int64 partition_id = 7;
   string leader_rsa_psi_signer_addr = 8;
   int64 offload_processor_number = 9;
-  int64 max_flying_signed_batch = 10;
-  int64 stub_fanout = 11;
-  int64 slow_sign_threshold = 12;
-  int64 sort_run_merger_read_ahead_buffer = 13;
-  BatchProcessorOptions batch_processor_options = 14;
+  int64 max_flying_sign_batch = 10;
+  int64 max_flying_sign_rpc = 11;
+  int64 sign_rpc_timeout_ms = 12;
+  int64 stub_fanout = 13;
+  int64 slow_sign_threshold = 14;
+  int64 sort_run_merger_read_ahead_buffer = 15;
+  BatchProcessorOptions batch_processor_options = 16;
 }
 
 message RawDataPartitionerOptions {

@@ -54,8 +54,12 @@ if __name__ == "__main__":
                         help='the process buffer size')
     parser.add_argument('--offload_processor_number', type=int, default=1,
                         help='the number of processor to offload rsa compute')
-    parser.add_argument('--max_flying_signed_batch', type=int, default=32,
-                        help='the max flying signed batch')
+    parser.add_argument('--max_flying_sign_batch', type=int, default=32,
+                        help='the max flying sign batch')
+    parser.add_argument('--max_flying_sign_rpc', type=int, default=16,
+                        help='the max flying sign rpc request')
+    parser.add_argument('--sign_rpc_timeout_ms', type=int, default=0,
+                        help='the rpc time ms for rpc sign')
     parser.add_argument('--stub_fanout', type=int, default=2,
                         help='the max stub for follower of rpc of processor')
     parser.add_argument('--slow_sign_threshold', type=int, default=10,
@@ -98,7 +102,9 @@ if __name__ == "__main__":
             partition_id=args.partition_id,
             leader_rsa_psi_signer_addr=args.leader_rsa_psi_signer_addr,
             offload_processor_number=args.offload_processor_number,
-            max_flying_signed_batch=args.max_flying_signed_batch,
+            max_flying_sign_batch=args.max_flying_sign_batch,
+            max_flying_sign_rpc=args.max_flying_sign_rpc,
+            sign_rpc_timeout_ms=args.sign_rpc_timeout_ms,
             stub_fanout=args.stub_fanout,
             slow_sign_threshold=args.slow_sign_threshold,
             sort_run_merger_read_ahead_buffer=\
