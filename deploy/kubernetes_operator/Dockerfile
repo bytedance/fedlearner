@@ -1,6 +1,7 @@
 # Accept the Go version for the image to be set as a build argument.
 # Default to Go 1.14
 ARG GO_VERSION=1.14
+ARG WHAT=cmd/operator/main.go
 
 # First stage: build the executable.
 FROM golang:${GO_VERSION}-alpine AS builder
@@ -16,6 +17,7 @@ ENV GOARCH amd64
 ENV CGO_ENABLED 0
 
 ENV GO111MODULE=on
+ENV TARGET=${WHAT}
 
 # Set the working directory outside $GOPATH to enable the support for modules.
 WORKDIR /src
@@ -28,7 +30,7 @@ RUN go mod download
 # Import the code from the context.
 COPY ./ ./
 
-RUN go build -o /app -trimpath main.go
+RUN go build -o /app -trimpath "${TARGET}"
 
 # Final stage: the running container.
 FROM alpine AS final
