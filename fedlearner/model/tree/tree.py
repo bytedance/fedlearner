@@ -827,6 +827,8 @@ class BoostingTreeEnsamble(object):
 
         self._loss = LogisticLoss()
         self._trees = []
+        self._feature_names = None
+        self._cat_feature_names = None
 
         self._bridge = bridge
         if bridge is not None:
@@ -945,7 +947,8 @@ class BoostingTreeEnsamble(object):
         fout = tf.io.gfile.GFile(path, 'w')
         model = tree_pb2.BoostingTreeEnsambleProto(
             feature_importance=self._feature_importance,
-            feature_names=self._feature_names)
+            feature_names=self._feature_names,
+            cat_feature_names=self._cat_feature_names)
         model.trees.extend(self._trees)
         fout.write(text_format.MessageToString(model))
 
@@ -956,6 +959,7 @@ class BoostingTreeEnsamble(object):
         self._trees = list(model.trees)
         self._feature_importance = np.asarray(model.feature_importance)
         self._feature_names = list(model.feature_names)
+        self._cat_feature_names = list(model.cat_feature_names)
 
     def save_checkpoint(self, path, num_iter):
         filename = os.path.join(
@@ -985,9 +989,12 @@ class BoostingTreeEnsamble(object):
 
     def batch_predict(self, features, cat_features=None,
                       get_raw_score=False, example_ids=None,
-                      feature_names=None):
+                      feature_names=None, cat_feature_names=None):
         if feature_names and self._feature_names:
             assert feature_names == self._feature_names, \
+                "Predict data's feature names does not match loaded model"
+        if cat_feature_names and self._cat_feature_names:
+            assert cat_feature_names == self._cat_feature_names, \
                 "Predict data's feature names does not match loaded model"
 
         if features is not None and cat_features is None:
@@ -1140,6 +1147,7 @@ class BoostingTreeEnsamble(object):
             validation_cat_features=None,
             validation_example_ids=None,
             feature_names=None,
+            cat_feature_names=None,
             checkpoint_path=None,
             output_path=None):
         num_examples = features.shape[0]
@@ -1166,9 +1174,13 @@ class BoostingTreeEnsamble(object):
             if feature_names and self._feature_names:
                 assert feature_names == self._feature_names, \
                     "Training data's feature does not match loaded model"
+            if cat_feature_names and self._cat_feature_names:
+                assert cat_feature_names == self._cat_feature_names, \
+                    "Training data's feature does not match loaded model"
             sum_prediction = self.batch_predict(features, get_raw_score=True)
         else:
             self._feature_names = feature_names
+            self._cat_feature_names = cat_feature_names
             sum_prediction = np.zeros(num_examples, dtype=BST_TYPE)
 
         # start iterations

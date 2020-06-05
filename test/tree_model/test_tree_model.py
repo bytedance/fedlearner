@@ -51,7 +51,7 @@ class TestBoostingTree(unittest.TestCase):
             None,
             max_iters=3,
             max_depth=2,
-            num_parallel=1)
+            num_parallel=2)
         train_pred = booster.fit(X, y, cat_features=cat_X)
         pred = booster.batch_predict(X, cat_features=cat_X)
         np.testing.assert_almost_equal(train_pred, pred)
