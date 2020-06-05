@@ -471,14 +471,22 @@ class FollowerPsiRsaSigner(PsiRsaSigner):
         with self._lock:
             if rpc_failed:
                 stub.mark_rpc_failed()
-                self._flying_sign_rpc_threshold //= 2
-                if  self._flying_sign_rpc_threshold < 4:
-                    self._flying_sign_rpc_threshold = 4
+                new_threshold = self._flying_sign_rpc_threshold // 2
+                if new_threshold < 4:
+                    new_threshold = 4
+                if new_threshold != self._flying_sign_rpc_threshold:
+                    logging.warning("reduce the flying sign rpc threshold "\
+                                    "as %d since rpc error", new_threshold)
+                self._flying_sign_rpc_threshold = new_threshold
             else:
-                self._flying_sign_rpc_threshold *= 2
-                if self._flying_sign_rpc_threshold > self._max_flying_sign_rpc:
-                    self._flying_sign_rpc_threshold = self._max_flying_sign_rpc
                 stub.mark_rpc_success()
+                new_threshold = self._flying_sign_rpc_threshold * 2
+                if new_threshold > self._max_flying_sign_rpc:
+                    new_threshold = self._max_flying_sign_rpc
+                if new_threshold != self._flying_sign_rpc_threshold:
+                    logging.warning("increase the flying sign rpc threshold "\
+                                    "as %d since rpc success", new_threshold)
+                self._flying_sign_rpc_threshold = new_threshold
             if stub.marked_error():
                 for idx, stub2 in enumerate(self._active_stubs):
                     if stub is stub2:
@@ -588,6 +596,9 @@ class FollowerPsiRsaSigner(PsiRsaSigner):
                             "failed for %d times, reson:%s. "\
                             "retry again", begin_index,
                             end_index, ctx.retry_cnt, e)
+            with self._lock:
+                assert self._flying_rpc_num > 0
+                self._flying_rpc_num -= 1
             ctx.trigger_retry()
             self._rpc_sign_func(ctx)
 
