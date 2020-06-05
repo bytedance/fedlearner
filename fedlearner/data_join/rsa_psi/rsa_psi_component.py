@@ -579,15 +579,17 @@ class FollowerPsiRsaSigner(PsiRsaSigner):
                                          ctx.blind_numbers,
                                          signed_blinded_hashed_ids,
                                          ctx.notify_future)
-            next_ctx = None
+            next_ctxs = []
             with self._lock:
                 assert self._flying_rpc_num > 0
                 self._flying_rpc_num -= 1
-                if len(self._pending_rpc_sign_ctx) > 0:
-                    next_ctx = self._pending_rpc_sign_ctx[0]
-                    self._pending_rpc_sign_ctx = self._pending_rpc_sign_ctx[1:]
-            if next_ctx is not None:
-                self._rpc_sign_func(next_ctx)
+                req_num = self._flying_sign_rpc_threshold - self._flying_rpc_num
+                if req_num > 0:
+                    next_ctxs = self._pending_rpc_sign_ctx[:req_num]
+                    self._pending_rpc_sign_ctx = \
+                            self._pending_rpc_sign_ctx[req_num:]
+            for nctx in next_ctxs:
+                self._rpc_sign_func(nctx)
         except Exception as e: # pylint: disable=broad-except
             self._revert_stub(stub, True)
             begin_index = ctx.raw_id_batch.begin_index
