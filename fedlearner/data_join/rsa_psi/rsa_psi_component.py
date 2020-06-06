@@ -484,7 +484,7 @@ class FollowerPsiRsaSigner(PsiRsaSigner):
                 self._flying_sign_rpc_threshold = new_threshold
             else:
                 stub.mark_rpc_success()
-                new_threshold = self._flying_sign_rpc_threshold * 2
+                new_threshold = int(self._flying_sign_rpc_threshold * 1.2)
                 if new_threshold > self._max_flying_sign_rpc:
                     new_threshold = self._max_flying_sign_rpc
                 if new_threshold != self._flying_sign_rpc_threshold:
