@@ -380,7 +380,7 @@ class FollowerPsiRsaSigner(PsiRsaSigner):
         def mark_rpc_failed(self):
             with self._lock:
                 self._serial_fail_cnt += 1
-                self._mark_error = self._serial_fail_cnt > 128
+                self._mark_error = self._serial_fail_cnt > 16
 
         def mark_rpc_success(self):
             with self._lock:
