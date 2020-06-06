@@ -368,7 +368,7 @@ class FollowerPsiRsaSigner(PsiRsaSigner):
         def __init__(self, addr):
             self._lock = threading.Lock()
             chnl_options = [('grpc.http2.write_buffer_size', 62914560),
-                            ('grpc.max_concurrent_streams', 8196)]
+                            ('grpc.max_concurrent_streams', 1024)]
             self._channel = make_insecure_channel(
                     addr, ChannelType.REMOTE, chnl_options
                 )
@@ -484,7 +484,7 @@ class FollowerPsiRsaSigner(PsiRsaSigner):
                 self._flying_sign_rpc_threshold = new_threshold
             else:
                 stub.mark_rpc_success()
-                new_threshold = int(self._flying_sign_rpc_threshold * 1.2) + 1
+                new_threshold = int(self._flying_sign_rpc_threshold * 1.1 + 1)
                 if new_threshold > self._max_flying_sign_rpc:
                     new_threshold = self._max_flying_sign_rpc
                 if new_threshold != self._flying_sign_rpc_threshold:
