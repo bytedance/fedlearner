@@ -21,6 +21,7 @@ import random
 import functools
 import os
 import time
+import bisect
 import concurrent.futures as concur_futures
 
 from gmpy2 import powmod, divm # pylint: disable=no-name-in-module
@@ -408,12 +409,19 @@ class FollowerPsiRsaSigner(PsiRsaSigner):
             self.raw_id_batch = raw_id_batch
             self.blind_numbers = blind_numbers
             self.notify_future = notify_future
-            self.rpc_req = dj_pb.SignIdsRequest(ids=blinded_hashed_ids)
+            self.rpc_req = dj_pb.SignIdsRequest(
+                    ids=blinded_hashed_ids,
+                    begin_index=raw_id_batch.begin_index
+                )
             self.retry_cnt = 0
             self.start_tm = time.time()
             self.pending_tm = None
             self.pending_duration = .0
             self.finish_tm = 0
+
+        def __lt__(self, other):
+            return self.raw_id_batch.begin_index < \
+                    other.raw_id_batch.begin_index
 
         def trigger_rpc_pending(self):
             if self.pending_tm is None:
@@ -480,7 +488,7 @@ class FollowerPsiRsaSigner(PsiRsaSigner):
                 self._flying_sign_rpc_threshold = new_threshold
             else:
                 stub.mark_rpc_success()
-                new_threshold = self._flying_sign_rpc_threshold * 2
+                new_threshold = int(self._flying_sign_rpc_threshold * 1.1 + 1)
                 if new_threshold > self._max_flying_sign_rpc:
                     new_threshold = self._max_flying_sign_rpc
                 if new_threshold != self._flying_sign_rpc_threshold:
@@ -547,7 +555,11 @@ class FollowerPsiRsaSigner(PsiRsaSigner):
     def _rpc_sign_func(self, ctx):
         with self._lock:
             if self._flying_rpc_num >= self._flying_sign_rpc_threshold:
-                self._pending_rpc_sign_ctx.append(ctx)
+                if len(self._pending_rpc_sign_ctx) == 0:
+                    self._pending_rpc_sign_ctx.append(ctx)
+                else:
+                    idx = bisect.bisect_left(self._pending_rpc_sign_ctx, ctx)
+                    self._pending_rpc_sign_ctx.insert(idx, ctx)
                 ctx.trigger_rpc_pending()
                 return
             self._flying_rpc_num += 1
