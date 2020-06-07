@@ -76,11 +76,12 @@ class RsaPsiSigner(object):
                 status=common_pb.Status(code=0),
                 signed_ids=RsaPsiSigner._psi_sign_impl(request.ids, d, n)
             )
-        self._record_sign_duration(time.time()-start_tm)
-        assert response is not None
+        self._record_sign_duration(request.begin_index,
+                                   len(request.ids),
+                                   time.time()-start_tm)
         return response
 
-    def _record_sign_duration(self, sign_duration):
+    def _record_sign_duration(self, begin_index, batch_len, sign_duration):
         logging_record = False
         with self._lock:
             self._total_sign_duration += sign_duration
@@ -96,9 +97,10 @@ class RsaPsiSigner(object):
             if self._slow_sign_batch_num > 0:
                 slow_avg_duration = self._total_slow_sign_duration \
                         / self._slow_sign_batch_num
-            logging.warning("%d/%d batch sign cost more than %d second, "\
-                            "avg duration: %f for each batch, avg duration: "\
-                            "%f for slow batch", self._slow_sign_batch_num,
+            logging.warning("%d/%d batch[%d, %d) sign cost more than %d "\
+                            "second, avg duration: %f for each batch, avg "\
+                            "duration: %f for slow batch", begin_index,
+                            begin_index+batch_len, self._slow_sign_batch_num,
                             self._sign_batch_num, self._slow_sign_threshold,
                             avg_duration, slow_avg_duration)
 

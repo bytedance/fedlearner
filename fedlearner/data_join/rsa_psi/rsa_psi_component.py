@@ -409,7 +409,10 @@ class FollowerPsiRsaSigner(PsiRsaSigner):
             self.raw_id_batch = raw_id_batch
             self.blind_numbers = blind_numbers
             self.notify_future = notify_future
-            self.rpc_req = dj_pb.SignIdsRequest(ids=blinded_hashed_ids)
+            self.rpc_req = dj_pb.SignIdsRequest(
+                    ids=blinded_hashed_ids,
+                    begin_index=raw_id_batch.begin_index
+                )
             self.retry_cnt = 0
             self.start_tm = time.time()
             self.pending_tm = None

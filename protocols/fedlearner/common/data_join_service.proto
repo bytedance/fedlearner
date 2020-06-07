@@ -277,6 +277,7 @@ service DataJoinPotralService {
 
 message SignIdsRequest {
   repeated bytes ids = 1;
+  int64 begin_index = 2;
 }
 
 message SignIdsResponse {
