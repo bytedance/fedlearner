@@ -49,7 +49,7 @@ class ExampleIdBatch(ItemBatch):
         return len(self._lite_example_ids.example_id)
 
     def __lt__(self, other):
-        assert isinstance(other, ExampleIdBatchFetcher.ExampleIdBatch)
+        assert isinstance(other, ExampleIdBatch)
         assert self.partition_id == other.partition_id
         return self.begin_index < other.begin_index
 
