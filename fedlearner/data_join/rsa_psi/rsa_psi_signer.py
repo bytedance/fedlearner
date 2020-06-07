@@ -99,9 +99,10 @@ class RsaPsiSigner(object):
                         / self._slow_sign_batch_num
             logging.warning("%d/%d batch[%d, %d) sign cost more than %d "\
                             "second, avg duration: %f for each batch, avg "\
-                            "duration: %f for slow batch", begin_index,
-                            begin_index+batch_len, self._slow_sign_batch_num,
-                            self._sign_batch_num, self._slow_sign_threshold,
+                            "duration: %f for slow batch",
+                            self._slow_sign_batch_num, self._sign_batch_num,
+                            begin_index, begin_index+batch_len,
+                            self._slow_sign_threshold,
                             avg_duration, slow_avg_duration)
 
     @staticmethod
