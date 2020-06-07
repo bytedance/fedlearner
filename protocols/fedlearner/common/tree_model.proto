@@ -25,7 +25,7 @@ message PartitionInfo {
 
 message RegressionTreeProto {
     repeated RegressionTreeNodeProto nodes = 1;
-    repeated float feature_importance = 2;
+    repeated float feature_importance = 3;
 };
 
 message BoostingTreeEnsambleProto {
