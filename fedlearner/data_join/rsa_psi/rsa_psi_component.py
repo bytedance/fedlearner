@@ -368,11 +368,7 @@ class FollowerPsiRsaSigner(PsiRsaSigner):
     class SignerStub(object):
         def __init__(self, addr):
             self._lock = threading.Lock()
-            chnl_options = [('grpc.http2.write_buffer_size', 62914560),
-                            ('grpc.max_concurrent_streams', 1024)]
-            self._channel = make_insecure_channel(
-                    addr, ChannelType.REMOTE, chnl_options
-                )
+            self._channel = make_insecure_channel(addr, ChannelType.REMOTE)
             self._stub = dj_grpc.RsaPsiSignServiceStub(self._channel)
             self._serial_fail_cnt = 0
             self._rpc_ref_cnt = 0
