@@ -370,7 +370,7 @@ class RsaPsi(unittest.TestCase):
                 break
             else:
                 time.sleep(2)
-        logging.info("masters turn into Finished state")
+        logging.info("masters turn into Finished  state")
 
     def tearDown(self):
         self._stop_workers()
