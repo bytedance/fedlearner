@@ -17,6 +17,7 @@
 import logging
 import sys
 import time
+import threading
 from concurrent import futures
 
 import grpc
@@ -55,6 +56,7 @@ class RsaPsiSigner(object):
         self._sign_batch_num = 0
         self._slow_sign_batch_num = 0
         self._total_slow_sign_duration = .0
+        self._lock = threading.Lock()
 
     def _psi_sign_fn(self, request):
         d, n = self._rsa_private_key.d, self._rsa_private_key.n
@@ -79,12 +81,15 @@ class RsaPsiSigner(object):
         return response
 
     def _record_sign_duration(self, sign_duration):
-        self._total_sign_duration += sign_duration
-        self._sign_batch_num += 1
-        if sign_duration >= self._slow_sign_threshold:
-            self._total_slow_sign_duration += sign_duration
-            self._slow_sign_batch_num += 1
-        if self._sign_batch_num % 32 == 0:
+        logging_record = False
+        with self._lock:
+            self._total_sign_duration += sign_duration
+            self._sign_batch_num += 1
+            if sign_duration >= self._slow_sign_threshold:
+                self._total_slow_sign_duration += sign_duration
+                self._slow_sign_batch_num += 1
+            logging_record = self._sign_batch_num % 32 == 0
+        if logging_record:
             avg_duration = self._total_sign_duration \
                     / self._sign_batch_num
             slow_avg_duration = 0.0
