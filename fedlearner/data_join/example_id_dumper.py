@@ -16,7 +16,6 @@
 
 import os
 import threading
-import uuid
 import time
 import logging
 from contextlib import contextmanager
@@ -93,9 +92,7 @@ class ExampleIdDumperManager(object):
             return os.path.join(self._example_dumped_dir, fname)
 
         def _get_tmp_fpath(self):
-            tmp_fname = str(uuid.uuid1()) + \
-                    '-dump{}'.format(common.TmpFileSuffix)
-            return os.path.join(self._example_dumped_dir, tmp_fname)
+            return common.gen_tmp_fpath(self._example_dumped_dir)
 
     def __init__(self, etcd, data_source,
                  partition_id, example_id_dump_options):

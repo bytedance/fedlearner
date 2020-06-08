@@ -15,15 +15,15 @@
 # coding: utf-8
 
 import threading
-import uuid
 import re
 import copy
 from os import path
 
 from tensorflow.compat.v1 import gfile
 
-from fedlearner.data_join import common, csv_dict_writer
-from fedlearner.data_join.common import DoneFileSuffix, TmpFileSuffix
+from fedlearner.data_join import csv_dict_writer
+from fedlearner.data_join.common import (DoneFileSuffix, TmpFileSuffix,
+                                         gen_tmp_fpath, partition_repr)
 
 class SortRunMeta(object):
     def __init__(self, process_index, start_index, end_index):
@@ -68,7 +68,6 @@ class SortRunMeta(object):
 
 class SortRunDumper(object):
     class SortRunWriter(object):
-        TMP_COUNTER = 0
         def __init__(self, process_index, output_dir):
             self._process_index = process_index
             self._output_dir = output_dir
@@ -110,10 +109,7 @@ class SortRunDumper(object):
             return self._fpath
 
         def _gen_tmp_fpath(self):
-            tmp_fname = str(uuid.uuid1()) + '-{}{}'.format(self.TMP_COUNTER,
-                                                           TmpFileSuffix)
-            self.TMP_COUNTER += 1
-            return path.join(self._output_dir, tmp_fname)
+            return gen_tmp_fpath(self._output_dir)
 
     def __init__(self, options):
         self._lock = threading.Lock()
@@ -214,7 +210,7 @@ class SortRunDumper(object):
 
     def _get_output_dir(self):
         return path.join(self.sort_run_dump_dir(),
-                         common.partition_repr(self._options.partition_id))
+                         partition_repr(self._options.partition_id))
 
     def _get_finish_tag_fpath(self):
         return path.join(self._get_output_dir(), '_SUCCESS')

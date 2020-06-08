@@ -14,7 +14,6 @@
 
 # coding: utf-8
 
-import uuid
 from os import path
 
 import tensorflow.compat.v1 as tf
@@ -25,12 +24,10 @@ from fedlearner.common import data_join_service_pb2 as dj_pb
 
 from fedlearner.data_join.common import (
     encode_data_block_meta_fname, encode_block_id,
-    encode_data_block_fname, partition_repr,
-    TmpFileSuffix
+    encode_data_block_fname, partition_repr, gen_tmp_fpath
 )
 
 class DataBlockBuilder(object):
-    TMP_COUNTER = 0
     def __init__(self, dirname, data_source_name, partition_id,
                  data_block_index, max_example_num=None):
         self._data_source_name = data_source_name
@@ -150,10 +147,7 @@ class DataBlockBuilder(object):
                          partition_repr(self._partition_id))
 
     def _get_tmp_fpath(self):
-        tmp_fname = str(uuid.uuid1()) + \
-                '-{}{}'.format(self.TMP_COUNTER, TmpFileSuffix)
-        self.TMP_COUNTER += 1
-        return path.join(self._get_data_block_dir(), tmp_fname)
+        return gen_tmp_fpath(self._get_data_block_dir())
 
     def _build_data_block_meta(self):
         tmp_meta_fpath = self._get_tmp_fpath()

@@ -18,7 +18,6 @@ import threading
 import logging
 import os
 import re
-import uuid
 
 import tensorflow.compat.v1 as tf
 from tensorflow.compat.v1 import gfile
@@ -146,7 +145,6 @@ class RawDataPartitioner(object):
                                                int(segs[2]), int(segs[3]))
 
     class OutputFileWriter(object):
-        TMP_COUNTER = 0
         def __init__(self, options, partition_id, process_index):
             self._options = options
             self._partition_id = partition_id
@@ -154,14 +152,10 @@ class RawDataPartitioner(object):
             self._begin_index = None
             self._end_index = None
             self._writer = None
-            self._tmp_fpath = os.path.join(
-                    self._options.output_dir,
-                    common.partition_repr(self._partition_id),
-                    '{}-{}{}'.format(str(uuid.uuid1()),
-                                     self.TMP_COUNTER,
-                                     common.TmpFileSuffix)
+            self._tmp_fpath = common.gen_tmp_fpath(
+                    os.path.join(self._options.output_dir,
+                                 common.partition_repr(self._partition_id))
                 )
-            self.TMP_COUNTER += 1
 
         def append_item(self, index, item):
             writer = self._get_output_writer()

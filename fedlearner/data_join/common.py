@@ -16,6 +16,7 @@
 
 import os
 import logging
+import uuid
 from contextlib import contextmanager
 from datetime import datetime
 
@@ -227,3 +228,6 @@ def int2bytes(digit, byte_len, byteorder='little'):
 
 def bytes2int(byte, byteorder='little'):
     return int.from_bytes(byte, byteorder)
+
+def gen_tmp_fpath(fdir):
+    return os.path.join(fdir, str(uuid.uuid1())+TmpFileSuffix)

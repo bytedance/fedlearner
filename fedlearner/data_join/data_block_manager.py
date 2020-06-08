@@ -17,7 +17,6 @@
 import threading
 import logging
 import os
-import uuid
 
 import tensorflow.compat.v1 as tf
 from google.protobuf import text_format
@@ -28,11 +27,10 @@ from fedlearner.common import data_join_service_pb2 as dj_pb
 from fedlearner.data_join.common import (
     encode_data_block_meta_fname, encode_block_id,
     encode_data_block_fname, partition_repr,
-    load_data_block_meta, TmpFileSuffix
+    load_data_block_meta, gen_tmp_fpath
 )
 
 class DataBlockBuilder(object):
-    TMP_COUNTER = 0
     def __init__(self, dirname, data_source_name, partition_id,
                  data_block_index, max_example_num=None):
         self._data_source_name = data_source_name
@@ -129,10 +127,7 @@ class DataBlockBuilder(object):
             )
 
     def _get_tmp_fpath(self):
-        tmp_fname = str(uuid.uuid1()) + \
-                '-{}{}'.format(self.TMP_COUNTER, TmpFileSuffix)
-        self.TMP_COUNTER += 1
-        return os.path.join(self._get_data_block_dir(), tmp_fname)
+        return gen_tmp_fpath(self._get_data_block_dir())
 
     def _build_data_block_meta(self):
         tmp_meta_fpath = self._get_tmp_fpath()

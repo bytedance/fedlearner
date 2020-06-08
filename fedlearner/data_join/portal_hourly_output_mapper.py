@@ -14,7 +14,6 @@
 
 # coding: utf-8
 
-import uuid
 import os
 import logging
 from datetime import datetime
@@ -29,7 +28,6 @@ from fedlearner.data_join.raw_data_iter_impl.tf_record_iter import TfExampleItem
 
 class PotralHourlyOutputMapper(object):
     class OutputFileWriter(object):
-        TMP_COUNTER = 0
         def __init__(self, partition_id, fpath):
             self._partition_id = partition_id
             self._fpath = fpath
@@ -56,10 +54,7 @@ class PotralHourlyOutputMapper(object):
                                 self._fpath, self._partition_id)
 
         def _get_tmp_fpath(self):
-            tmp_fname = str(uuid.uuid1()) + \
-                    '-{}{}'.format(self.TMP_COUNTER, common.TmpFileSuffix)
-            self.TMP_COUNTER += 1
-            return os.path.join(self._get_output_dir(), tmp_fname)
+            return common.gen_tmp_fpath(self._get_output_dir())
 
         def _get_output_dir(self):
             return os.path.dirname(self._fpath)
