@@ -333,6 +333,8 @@ class RsaPsi(unittest.TestCase):
                     stub_fanout=2,
                     slow_sign_threshold=8,
                     sort_run_merger_read_ahead_buffer=1<<20,
+                    rpc_sync_mode=True if partition_id % 2 == 0 else False,
+                    rpc_thread_pool_size=16,
                     batch_processor_options=dj_pb.BatchProcessorOptions(
                         batch_size=1024,
                         max_flying_item=1<<14

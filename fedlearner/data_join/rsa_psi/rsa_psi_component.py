@@ -448,7 +448,8 @@ class FollowerPsiRsaSigner(PsiRsaSigner):
                  max_flying_sign_batch, max_flying_sign_rpc,
                  sign_rpc_timeout_ms, slow_sign_threshold,
                  stub_fanout, process_pool_executor,
-                 public_key, leader_signer_addr):
+                 public_key, leader_signer_addr,
+                 thread_pool_rpc_executor):
         super(FollowerPsiRsaSigner, self).__init__(id_batch_fetcher,
                                                    max_flying_item,
                                                    max_flying_sign_batch,
@@ -465,6 +466,7 @@ class FollowerPsiRsaSigner(PsiRsaSigner):
                  for _ in range(stub_fanout)]
         self._pending_rpc_sign_ctx = []
         self._flying_rpc_num = 0
+        self._thread_pool_rpc_executor = thread_pool_rpc_executor
 
     def _get_active_stub(self):
         with self._lock:
@@ -567,7 +569,13 @@ class FollowerPsiRsaSigner(PsiRsaSigner):
         timeout = None if self._sign_rpc_timeout_ms <= 0 \
                 else self._sign_rpc_timeout_ms / 1000.0
         ctx.trigger_rpc_sign()
-        sign_future = stub.SignIds.future(ctx.rpc_req, timeout)
+        sign_future = None
+        if self._thread_pool_rpc_executor is not None:
+            sign_future = self._thread_pool_rpc_executor.submit(
+                    stub.SignIds, ctx.rpc_req, timeout
+                )
+        else:
+            sign_future = stub.SignIds.future(ctx.rpc_req, timeout)
         sign_cb = functools.partial(self._rpc_sign_callback, ctx, stub)
         sign_future.add_done_callback(sign_cb)
 

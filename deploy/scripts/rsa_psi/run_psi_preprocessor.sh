@@ -35,9 +35,11 @@ python -m fedlearner.data_join.cmd.rsa_psi_preprocessor_cli \
     --max_flying_sign_rpc=$MAX_FLYING_SIGN_RPC \
     --sign_rpc_timeout_ms=$SIGN_RPC_TIMEOUT_MS \
     --stub_fanout=$STUB_FANOUT \
+    --rpc_thread_pool_size=$RPC_THREAD_POOL_SIZE \
     --slow_sign_threshold=$SLOW_SIGN_THRESHOLD \
     --sort_run_merger_read_ahead_buffer=$SORT_RUN_MERGER_READ_AHEAD_BUFFER \
     --partition_id=$INDEX \
     --etcd_name=$ETCD_NAME \
     --etcd_addrs=$ETCD_ADDR \
-    --etcd_base_dir=$ETCD_BASE_DIR
+    --etcd_base_dir=$ETCD_BASE_DIR \
+    $RPC_SYNC_MODE
