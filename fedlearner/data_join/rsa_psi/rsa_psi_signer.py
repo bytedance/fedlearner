@@ -111,8 +111,10 @@ class RsaPsiSigner(object):
         return [int2bytes(powmod(bytes2int(item), d, n).digits(), byte_len)
                 for item in items]
 
-    def start(self, listen_port):
-        self._server = grpc.server(futures.ThreadPoolExecutor(max_workers=100))
+    def start(self, listen_port, worker_num):
+        self._server = grpc.server(
+                futures.ThreadPoolExecutor(max_workers=worker_num)
+            )
         dj_grpc.add_RsaPsiSignServiceServicer_to_server(
                 RsaPsiSignServer(self._psi_sign_fn), self._server
             )
@@ -126,7 +128,7 @@ class RsaPsiSigner(object):
             self._process_pool_executor.shutdown(True)
         logging.info('RsaPsiSigner Server stopped')
 
-    def run(self, listen_port):
-        self.start(listen_port)
+    def run(self, listen_port, worker_num):
+        self.start(listen_port, worker_num)
         self._server.wait_for_termination()
         self.stop()
