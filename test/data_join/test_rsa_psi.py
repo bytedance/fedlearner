@@ -253,7 +253,7 @@ class RsaPsi(unittest.TestCase):
             rsa_private_key_pem = f.read()
         rsa_private_key = rsa.PrivateKey.load_pkcs1(rsa_private_key_pem)
         self._rsa_psi_signer = rsa_psi_signer.RsaPsiSigner(rsa_private_key, 1, 500)
-        self._rsa_psi_signer.start(int(self._rsa_psi_signer_addr.split(':')[1]))
+        self._rsa_psi_signer.start(int(self._rsa_psi_signer_addr.split(':')[1]), 512)
 
     def _stop_workers(self):
         for w in self._workers_f:

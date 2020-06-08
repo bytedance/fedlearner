@@ -47,6 +47,5 @@ if __name__ == "__main__":
     rsa_private_key = rsa.PrivateKey.load_pkcs1(rsa_private_key_pem)
     rsa_psi_signer = RsaPsiSigner(rsa_private_key,
                                   args.offload_processor_number,
-                                  args.slow_sign_threshold,
-                                  args.worker_num)
-    rsa_psi_signer.run(args.listen_port)
+                                  args.slow_sign_threshold)
+    rsa_psi_signer.run(args.listen_port, args.worker_num)

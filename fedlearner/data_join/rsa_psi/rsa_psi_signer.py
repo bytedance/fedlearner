@@ -128,7 +128,7 @@ class RsaPsiSigner(object):
             self._process_pool_executor.shutdown(True)
         logging.info('RsaPsiSigner Server stopped')
 
-    def run(self, listen_port):
-        self.start(listen_port)
+    def run(self, listen_port, worker_num):
+        self.start(listen_port, worker_num)
         self._server.wait_for_termination()
         self.stop()
