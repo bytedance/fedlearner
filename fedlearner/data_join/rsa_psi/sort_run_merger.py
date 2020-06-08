@@ -45,7 +45,7 @@ class MergedSortRunMeta(object):
 
     def __lt__(self, other):
         assert isinstance(other, MergedSortRunMeta)
-        assert other._partition_id ==  other._partition_id
+        assert other._partition_id == other._partition_id
         return self._process_index < other._process_index
 
     @classmethod
