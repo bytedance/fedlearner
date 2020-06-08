@@ -118,6 +118,10 @@ def create_argument_parser():
                         type=bool,
                         default=False,
                         help='Whether to use streaming transmit.')
+    parser.add_argument('--server-address',
+                        type=str,
+                        default=None,
+                        help='leader or follower sever address split by _')
 
     return parser
 
@@ -379,6 +383,9 @@ def run(args):
         bridge = None
 
     try:
+        server_address = None
+        if args.server_address is not None:
+            server_address = args.server_address.split('_')
         booster = BoostingTreeEnsamble(
             bridge,
             learning_rate=args.learning_rate,
@@ -386,7 +393,8 @@ def run(args):
             max_depth=args.max_depth,
             l2_regularization=args.l2_regularization,
             max_bins=args.max_bins,
-            num_parallel=args.num_parallel)
+            num_parallel=args.num_parallel,
+            server_address=server_address)
 
         if args.load_model_path:
             booster.load_saved_model(args.load_model_path)

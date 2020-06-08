@@ -24,10 +24,11 @@ import collections
 import numpy as np
 from google.protobuf import text_format
 import tensorflow.compat.v1 as tf
+import grpc
 
 from fedlearner.model.tree.loss import LogisticLoss
 from fedlearner.model.crypto import paillier, fixed_point_number
-from fedlearner.common import tree_model_pb2 as tree_pb2
+from fedlearner.common import tree_model_pb2 as tree_pb2, compute_histogram_pb2_grpc, compute_histogram_pb2
 from fedlearner.common import common_pb2
 
 
@@ -138,22 +139,75 @@ class BinnedFeatures(object):
         return binned, thresholds
 
 
-def _compute_histogram_helper(args):
-    base, values, binned_features, thresholds, zero = args
-    hists = []
-    for i, threshold in enumerate(thresholds):
-        logging.debug('Computing histogram for feature %d', base + i)
-        num_bins = threshold.size + 2
-        hist = np.asarray([zero for _ in range(num_bins)])
-        np.add.at(hist, binned_features[:, i], values)
-        hists.append(hist)
+# send the params to sever /convert that into proto
+def _histogram_params_toprotobuf(args):
+    def ndarray_to_msg(array, msg):
+        msg.values = array.tobytes()
+        msg.shape.extend(list(array.shape))
+        msg.dtype = str(array.dtype)
+    def paillier_to_msg(array, msg):
+        msg.shape.extend(list(array.shape))
+        msg.values.extend(_encode_encrypted_numbers(array.flatten()))
 
+    base, values, binned_features, thresholds, public_key = args
+    if public_key is None:
+        msg = compute_histogram_pb2.histogram_request_leader()
+        msg.base = base
+        ndarray_to_msg(binned_features, msg.binned_features)
+        ndarray_to_msg(values, msg.values)
+        msg.thresholds.extend(thresholds)
+        return msg
+    else:
+        msg = compute_histogram_pb2.histogram_request_follower()
+        msg.base = base
+        ndarray_to_msg(binned_features, msg.binned_features)
+        msg.thresholds.extend(thresholds)
+        # 特别处理加密的数据和其key
+        paillier_to_msg(values, msg.values)
+        msg.public_key = public_key.n.to_bytes(KEY_NBITS//8, 'little')
+        return msg
+# receive the sever hists proto / convert that into array
+def _receive_hists_from_sever(msg, public_key=None):
+    # 对leader和followr不同对数据需要使用不同对msg,public_key是None对应leader，否则对应follower
+    def proto_to_array(msg):
+        if public_key is None:
+            array = np.frombuffer(msg.values, dtype=np.dtype(msg.dtype))
+        else:
+            array = np.array(_from_ciphertext(public_key, msg.values))
+        array = np.reshape(array, newshape=msg.shape)
+        return array
+    hists = []
+    for hist in msg.hists:
+        arr_hist = proto_to_array(hist)
+        hists.append(arr_hist)
+    return hists
+
+def _compute_histogram_helper(args):
+    base, values, binned_features, thresholds, zero, sever_addr, public_key = args
+    thresholds = [i.size for i in thresholds]
+    if sever_addr is None:
+        hists = []
+        for i, threshold_size in enumerate(thresholds):
+            logging.debug('Computing histogram for feature %d', base + i)
+            num_bins = threshold_size + 2
+            hist = np.asarray([zero for _ in range(num_bins)])
+            np.add.at(hist, binned_features[:, i], values)
+            hists.append(hist)
+    else:
+        with grpc.insecure_channel(sever_addr) as channel:
+            stub = compute_histogram_pb2_grpc.HistsServiceStub(channel)
+            request_params = _histogram_params_toprotobuf([base, values, binned_features, thresholds, public_key])
+            if public_key is None:
+                hists_proto = stub.ComputeHists_leader(request_params)
+            else:
+                hists_proto = stub.ComputeHists_follower(request_params)
+            hists = _receive_hists_from_sever(hists_proto, public_key)
     return hists
 
 
 class HistogramBuilder(object):
     def __init__(self, binned_features, dtype=BST_TYPE,
-                 num_parallel=1, pool=None):
+                 num_parallel=1, pool=None, server_address=None):
         self._bins = binned_features
         self._dtype = dtype
         self._zero = dtype(0.0)
@@ -164,11 +218,16 @@ class HistogramBuilder(object):
             self._job_size = \
                 (len(self._bins.binned[0]) + num_parallel - 1)//num_parallel
 
-    def compute_histogram(self, values, sample_ids):
+        self._severs = server_address
+        # make all sever_addrs be None
+        if self._severs is None:
+            self._severs = [None] * self._num_parallel
+
+    def compute_histogram(self, values, sample_ids, public_key=None):
         if not self._pool:
             return _compute_histogram_helper(
                 (0, values[sample_ids], self._bins.binned[sample_ids],
-                 self._bins.thresholds, self._zero))
+                 self._bins.thresholds, self._zero, None, None))
 
         args = [
             (self._job_size*i,
@@ -176,7 +235,9 @@ class HistogramBuilder(object):
              self._bins.binned[
                  sample_ids, self._job_size*i:self._job_size*(i+1)],
              self._bins.thresholds[self._job_size*i:self._job_size*(i+1)],
-             self._zero)
+             self._zero,
+             self._severs[i],
+             public_key)
             for i in range(self._num_parallel)
         ]
 
@@ -240,13 +301,14 @@ class BaseGrower(object):
     def __init__(self, binned, labels, grad, hess,
                 grow_policy='depthwise', max_leaves=None, max_depth=None,
                 learning_rate=0.3, l2_regularization=1.0, dtype=BST_TYPE,
-                num_parallel=1, pool=None):
+                num_parallel=1, pool=None, server_address=None):
         self._binned = binned
         self._labels = labels
         self._num_samples = binned.features.shape[0]
         self._grad = grad
         self._hess = hess
         self._grow_policy = grow_policy
+        self._servers = server_address
 
         if grow_policy == 'depthwise':
             self._split_candidates = queue.Queue()
@@ -268,7 +330,7 @@ class BaseGrower(object):
         self._pool = pool
         assert self._pool or self._num_parallel == 1
         self._hist_builder = HistogramBuilder(
-            binned, dtype, num_parallel, self._pool)
+            binned, dtype, num_parallel, self._pool, self._servers)
 
         self._nodes = [GrowerNode(0)]
         self._nodes[0].sample_ids = list(range(binned.features.shape[0]))
@@ -632,9 +694,9 @@ class FollowerGrower(BaseGrower):
     def _compute_histogram(self, node):
         self._bridge.start(self._bridge.new_iter_id())
         grad_hists = self._hist_builder.compute_histogram(
-            self._grad, node.sample_ids)
+            self._grad, node.sample_ids, self._public_key)
         hess_hists = self._hist_builder.compute_histogram(
-            self._hess, node.sample_ids)
+            self._hess, node.sample_ids, self._public_key)
         self._send_histograms('grad_hists', grad_hists)
         self._send_histograms('hess_hists', hess_hists)
         self._bridge.commit()
@@ -710,7 +772,7 @@ def _vectorized_assignment(vec, assignment, direction, peer_direction=None):
 class BoostingTreeEnsamble(object):
     def __init__(self, bridge, learning_rate=0.3, max_iters=50, max_depth=6,
                  max_leaves=0, l2_regularization=1.0, max_bins=33,
-                 grow_policy='depthwise', num_parallel=1):
+                 grow_policy='depthwise', num_parallel=1, server_address=None):
         self._learning_rate = learning_rate
         self._max_iters = max_iters
         self._max_depth = max_depth
@@ -719,6 +781,9 @@ class BoostingTreeEnsamble(object):
         self._grow_policy = grow_policy
         self._num_parallel = num_parallel
         self._pool = None
+        self._servers = server_address
+        if self._servers is not None:
+            assert len(self._servers)==self._num_parallel, "the number of severs should be equal to num_parallel"
         if self._num_parallel > 1:
             self._pool = mp.Pool(num_parallel)
 
@@ -1131,7 +1196,8 @@ class BoostingTreeEnsamble(object):
             l2_regularization=self._l2_regularization,
             grow_policy=self._grow_policy,
             num_parallel=self._num_parallel,
-            pool=self._pool)
+            pool=self._pool,
+            server_address=self._servers)
         grower.grow()
 
         return grower.to_proto(), grower.get_prediction()
@@ -1160,7 +1226,8 @@ class BoostingTreeEnsamble(object):
             l2_regularization=self._l2_regularization,
             grow_policy=self._grow_policy,
             num_parallel=self._num_parallel,
-            pool=self._pool)
+            pool=self._pool,
+            server_address=self._servers)
         grower.grow()
 
         return grower.to_proto(), grower.get_prediction()
@@ -1190,7 +1257,8 @@ class BoostingTreeEnsamble(object):
             l2_regularization=self._l2_regularization,
             grow_policy=self._grow_policy,
             num_parallel=self._num_parallel,
-            pool=self._pool)
+            pool=self._pool,
+            server_address=self._servers)
         grower.grow()
 
         return grower.to_proto()
