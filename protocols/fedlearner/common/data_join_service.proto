@@ -304,8 +304,10 @@ message RsaPsiPreProcessorOptions {
   int64 sign_rpc_timeout_ms = 12;
   int64 stub_fanout = 13;
   int64 slow_sign_threshold = 14;
-  int64 sort_run_merger_read_ahead_buffer = 15;
-  BatchProcessorOptions batch_processor_options = 16;
+  bool rpc_sync_mode = 15;
+  int64 rpc_thread_pool_size = 16;
+  int64 sort_run_merger_read_ahead_buffer = 17;
+  BatchProcessorOptions batch_processor_options = 18;
 }
 
 message RawDataPartitionerOptions {
