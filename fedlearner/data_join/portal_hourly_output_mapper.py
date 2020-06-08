@@ -56,7 +56,8 @@ class PotralHourlyOutputMapper(object):
                                 self._fpath, self._partition_id)
 
         def _get_tmp_fpath(self):
-            tmp_fname = str(uuid.uuid1()) + '-{}.tmp'.format(self.TMP_COUNTER)
+            tmp_fname = str(uuid.uuid1()) + \
+                    '-{}{}'.format(self.TMP_COUNTER, common.TmpFileSuffix)
             self.TMP_COUNTER += 1
             return os.path.join(self._get_output_dir(), tmp_fname)
 

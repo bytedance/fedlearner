@@ -23,9 +23,8 @@ from os import path
 from tensorflow.compat.v1 import gfile
 
 from fedlearner.data_join import common, csv_dict_writer
+from fedlearner.data_join.common import DoneFileSuffix, TmpFileSuffix
 
-SortRunSuffix = '.done'
-TmpSortRunSuffix = '.tmp'
 class SortRunMeta(object):
     def __init__(self, process_index, start_index, end_index):
         self._process_index = process_index
@@ -50,21 +49,21 @@ class SortRunMeta(object):
 
     @classmethod
     def decode_sort_run_meta_from_fname(cls, fname):
-        if not fname.endswith(SortRunSuffix):
+        if not fname.endswith(DoneFileSuffix):
             raise RuntimeError(
-                    "fname of SortRun should endwith {}".format(SortRunSuffix)
+                    "fname of SortRun should endwith {}".format(DoneFileSuffix)
                 )
-        segs = re.split('\.|-', fname[:-len(SortRunSuffix)]) # pylint: disable=anomalous-backslash-in-string
+        segs = re.split('\.|-', fname[:-len(DoneFileSuffix)]) # pylint: disable=anomalous-backslash-in-string
         if len(segs) != 3:
             raise RuntimeError("fname: {} should format as "\
                                "process_index.start_index-end_index.{}"\
-                               .format(fname, SortRunSuffix))
+                               .format(fname, DoneFileSuffix))
         return SortRunMeta(int(segs[0]), int(segs[1]), int(segs[2]))
 
     def encode_sort_run_fname(self):
         return '{:05}.{:08}-{:08}{}'.format(
                 self._process_index, self._start_index,
-                self._end_index, SortRunSuffix
+                self._end_index, DoneFileSuffix
             )
 
 class SortRunDumper(object):
@@ -112,7 +111,7 @@ class SortRunDumper(object):
 
         def _gen_tmp_fpath(self):
             tmp_fname = str(uuid.uuid1()) + '-{}{}'.format(self.TMP_COUNTER,
-                                                           TmpSortRunSuffix)
+                                                           TmpFileSuffix)
             self.TMP_COUNTER += 1
             return path.join(self._output_dir, tmp_fname)
 
@@ -202,9 +201,9 @@ class SortRunDumper(object):
             assert gfile.IsDirectory(output_dir)
             all_files = gfile.ListDirectory(output_dir)
             for f in all_files:
-                if f.endswith(TmpSortRunSuffix):
+                if f.endswith(TmpFileSuffix):
                     gfile.Remove(path.join(output_dir, f))
-            return [f for f in all_files if f.endswith(SortRunSuffix)]
+            return [f for f in all_files if f.endswith(DoneFileSuffix)]
         gfile.MakeDirs(output_dir)
         return []
 

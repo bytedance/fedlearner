@@ -28,11 +28,12 @@ from fedlearner.common import data_join_service_pb2 as dj_pb
 
 DataBlockSuffix = '.data'
 DataBlockMetaSuffix = '.meta'
-ExampleIdSuffix = '.done'
 RawDataMetaPrefix = 'raw_data_'
 RawDataPubSuffix = '.pub'
 MergedSortRunSuffix = '.merged'
 InvalidExampleId = ''
+TmpFileSuffix = '.tmp'
+DoneFileSuffix = '.done'
 InvalidEventTime = -9223372036854775808
 
 @contextmanager

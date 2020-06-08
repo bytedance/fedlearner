@@ -27,7 +27,7 @@ from tensorflow.compat.v1 import gfile
 from fedlearner.data_join.example_id_visitor import (
     ExampleIdManager, encode_example_id_dumped_fname
 )
-from fedlearner.data_join import visitor
+from fedlearner.data_join import visitor, common
 
 class ExampleIdDumperManager(object):
     class ExampleIdDumper(object):
@@ -93,7 +93,8 @@ class ExampleIdDumperManager(object):
             return os.path.join(self._example_dumped_dir, fname)
 
         def _get_tmp_fpath(self):
-            tmp_fname = str(uuid.uuid1()) + '-dump.tmp'
+            tmp_fname = str(uuid.uuid1()) + \
+                    '-dump{}'.format(common.TmpFileSuffix)
             return os.path.join(self._example_dumped_dir, tmp_fname)
 
     def __init__(self, etcd, data_source,

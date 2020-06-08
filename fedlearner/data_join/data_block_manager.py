@@ -27,7 +27,8 @@ from fedlearner.common import data_join_service_pb2 as dj_pb
 
 from fedlearner.data_join.common import (
     encode_data_block_meta_fname, encode_block_id,
-    encode_data_block_fname, partition_repr, load_data_block_meta
+    encode_data_block_fname, partition_repr,
+    load_data_block_meta, TmpFileSuffix
 )
 
 class DataBlockBuilder(object):
@@ -128,7 +129,8 @@ class DataBlockBuilder(object):
             )
 
     def _get_tmp_fpath(self):
-        tmp_fname = str(uuid.uuid1()) + '-{}.tmp'.format(self.TMP_COUNTER)
+        tmp_fname = str(uuid.uuid1()) + \
+                '-{}{}'.format(self.TMP_COUNTER, TmpFileSuffix)
         self.TMP_COUNTER += 1
         return os.path.join(self._get_data_block_dir(), tmp_fname)
 

@@ -157,8 +157,9 @@ class RawDataPartitioner(object):
             self._tmp_fpath = os.path.join(
                     self._options.output_dir,
                     common.partition_repr(self._partition_id),
-                    '{}-{}.tmp'.format(str(uuid.uuid1()),
-                                       self.TMP_COUNTER)
+                    '{}-{}{}'.format(str(uuid.uuid1()),
+                                     self.TMP_COUNTER,
+                                     common.TmpFileSuffix)
                 )
             self.TMP_COUNTER += 1
 
