@@ -31,7 +31,7 @@ DataBlockSuffix = '.data'
 DataBlockMetaSuffix = '.meta'
 RawDataMetaPrefix = 'raw_data_'
 RawDataPubSuffix = '.pub'
-MergedSortRunSuffix = '.merged'
+MergedSortRunSuffix = '-sort_run.merged'
 InvalidExampleId = ''
 TmpFileSuffix = '.tmp'
 DoneFileSuffix = '.done'
@@ -169,11 +169,6 @@ def trim_timestamp_by_hourly(timestamp):
 
 def convert_timestamp_to_datetime(timestamp):
     return datetime.fromtimestamp(timestamp.seconds + timestamp.nanos/1e9)
-
-def encode_merged_sort_run_fname(partition_id, process_index):
-    return 'part-{:04}-{:08}-sort_run{}'.format(
-            partition_id, process_index, MergedSortRunSuffix
-        )
 
 _valid_basic_feature_type = (int, str, bytes, float)
 def convert_dict_to_tf_example(src_dict):
