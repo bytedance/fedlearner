@@ -36,6 +36,8 @@ if __name__ == "__main__":
                         help='the rsa private key stroe by pem format')
     parser.add_argument('--slow_sign_threshold', type=int, default=1,
                         help='the threshold to record as slow sign')
+    parser.add_argument('--worker_num', type=int, default=512,
+                        help='max worker number for grpc server')
     args = parser.parse_args()
     rsa_private_key_pem = args.rsa_privet_key_pem
     if rsa_private_key_pem is None or len(rsa_private_key_pem) == 0:
@@ -45,5 +47,6 @@ if __name__ == "__main__":
     rsa_private_key = rsa.PrivateKey.load_pkcs1(rsa_private_key_pem)
     rsa_psi_signer = RsaPsiSigner(rsa_private_key,
                                   args.offload_processor_number,
-                                  args.slow_sign_threshold)
+                                  args.slow_sign_threshold,
+                                  args.worker_num)
     rsa_psi_signer.run(args.listen_port)

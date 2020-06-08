@@ -482,8 +482,8 @@ class FollowerPsiRsaSigner(PsiRsaSigner):
             if rpc_failed:
                 stub.mark_rpc_failed()
                 new_threshold = self._flying_sign_rpc_threshold // 2
-                if new_threshold < 4:
-                    new_threshold = 4
+                if new_threshold < 12:
+                    new_threshold = 12
                 if new_threshold != self._flying_sign_rpc_threshold:
                     logging.warning("reduce the flying sign rpc threshold "\
                                     "as %d since rpc error", new_threshold)
