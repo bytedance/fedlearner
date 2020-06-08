@@ -25,18 +25,18 @@ from tensorflow.compat.v1 import gfile
 from fedlearner.common import data_join_service_pb2 as dj_pb
 from fedlearner.data_join import visitor
 from fedlearner.data_join.common import (
-    ExampleIdSuffix, make_tf_record_iter, partition_repr
+    DoneFileSuffix, make_tf_record_iter, partition_repr
 )
 from fedlearner.data_join.raw_data_iter_impl import (
     tf_record_iter, raw_data_iter
 )
 
 def encode_example_id_dumped_fname(process_index, start_index):
-    return '{:06}-{:08}{}'.format(process_index, start_index, ExampleIdSuffix)
+    return '{:06}-{:08}{}'.format(process_index, start_index, DoneFileSuffix)
 
 def decode_index_meta(fpath):
     fname = path.basename(fpath)
-    index_str = fname[:-len(ExampleIdSuffix)]
+    index_str = fname[:-len(DoneFileSuffix)]
     try:
         items = index_str.split('-')
         if len(items) != 2:
@@ -147,7 +147,7 @@ class ExampleIdManager(visitor.IndexMetaManager):
     def _preload_example_id_meta(self):
         fdir = self._example_dumped_dir()
         fpaths = [os.path.join(fdir, f) for f in gfile.ListDirectory(fdir)
-                  if f.endswith(ExampleIdSuffix)]
+                  if f.endswith(DoneFileSuffix)]
         index_metas = []
         for fpath in fpaths:
             index_meta = decode_index_meta(fpath)
@@ -164,7 +164,7 @@ class ExampleIdManager(visitor.IndexMetaManager):
 
     def _decode_index_meta(self, fpath):
         fname = path.basename(fpath)
-        index_str = fname[:-len(ExampleIdSuffix)]
+        index_str = fname[:-len(DoneFileSuffix)]
         try:
             items = index_str.split('-')
             if len(items) != 2:

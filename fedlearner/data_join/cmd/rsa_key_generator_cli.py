@@ -16,14 +16,15 @@
 
 import argparse
 import logging
-import uuid
 import os
 import rsa
 
 from tensorflow.compat.v1 import gfile
 
+from fedlearner.data_join import common
+
 def dump_rsa_key_as_pem(output_dir, key, fname):
-    tmp_fpath = os.path.join(output_dir, str(uuid.uuid1())+'.tmp')
+    tmp_fpath = common.gen_tmp_fpath(output_dir)
     with gfile.GFile(tmp_fpath, 'w') as wf:
         wf.write(key.save_pkcs1())
     key_fpath = os.path.join(output_dir, fname)
