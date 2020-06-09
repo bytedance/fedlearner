@@ -127,8 +127,9 @@ export default function Header() {
           <div className="headerTitle">Fedlearner</div>
           <nav className="nav">
             <Tabs className="menu">
-              <Tabs.Item label="Datasets" value="dataset" />
-              <Tabs.Item label="Trainings" value="training" />
+              <Tabs.Item label="Datasets" value="datasets" />
+              <Tabs.Item label="Trainings" value="trainings" />
+              <Tabs.Item label="Tasks" value="tasks" />
               <Tabs.Item label="Tickets" value="tickets" />
             </Tabs>
           </nav>
@@ -137,8 +138,8 @@ export default function Header() {
         <div className="sidebar">
           <Popover content={popoverContent} placement="bottomEnd">
             <Avatar
-              src="https://vercel.com/api/www/avatar/?u=mars&s=64"
-              alt="xxx Avatar"
+              src="https://github.com/bytedance.png"
+              alt="ByteDance Avatar"
             />
           </Popover>
         </div>

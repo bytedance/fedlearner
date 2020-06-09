@@ -1,9 +1,9 @@
 import React from 'react';
 import css from 'styled-jsx/css';
 import { Button, Text, Link, useTheme } from '@zeit-ui/react';
-import Layout from './components/Layout';
-import EventListItem from './components/EventListItem';
-import TicketCard from './components/TicketCard';
+import Layout from '../components/Layout';
+import EventListItem from '../components/EventListItem';
+import TicketCard from '../components/TicketCard';
 
 function useStyles(theme) {
   return css`
@@ -55,8 +55,8 @@ export default function Dashboard(props) {
   return (
     <Layout theme={props.theme} toggleTheme={props.toggleTheme}>
       <div className="heading">
-        <Text h2>Pending Tickets</Text>
-        <Button auto type="secondary">Create Ticket</Button>
+        <Text h2>Pending Tasks</Text>
+        <Button auto type="secondary">Create Training</Button>
       </div>
       <div className="row">
         <div className="tasks">
@@ -85,7 +85,7 @@ export default function Dashboard(props) {
             style={{ marginTop: theme.layout.pageMargin }}
           />
           <Text>
-            <Link className="colorLink" href="/tickets" color>View All Tickets</Link>
+            <Link className="colorLink" href="/tasks" color>View All Tasks</Link>
           </Text>
         </div>
         <div className="activity">
