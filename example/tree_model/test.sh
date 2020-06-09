@@ -16,6 +16,7 @@ python -m fedlearner.model.tree.trainer follower \
     --data-path=data/follower_train.csv \
     --validation-data-path=data/follower_test/part-0001.csv \
     --checkpoint-path=exp/follower_checkpoints \
+    --cat-fields=f00001 \
     --output-path=exp/follower_train_output.output &
 
 python -m fedlearner.model.tree.trainer leader \
@@ -26,6 +27,7 @@ python -m fedlearner.model.tree.trainer leader \
     --data-path=data/leader_train.csv \
     --validation-data-path=data/leader_test/part-0001.csv \
     --checkpoint-path=exp/leader_checkpoints \
+    --cat-fields=f00001 \
     --output-path=exp/leader_train_output.output
 
 wait
@@ -37,6 +39,7 @@ python -m fedlearner.model.tree.trainer leader \
     --mode=test \
     --verify-example-ids=true \
     --data-path=data/leader_test/ \
+    --cat-fields=f00001 \
     --load-model-path=exp/leader_checkpoints/checkpoint-0004.proto \
     --output-path=exp/leader_test_output &
 
@@ -47,6 +50,7 @@ python -m fedlearner.model.tree.trainer follower \
     --mode=test \
     --verify-example-ids=true \
     --data-path=data/follower_test/ \
+    --cat-fields=f00001 \
     --load-model-path=exp/follower_checkpoints/checkpoint-0004.proto \
     --output-path=exp/follower_test_output
 
@@ -62,6 +66,7 @@ python -m fedlearner.model.tree.trainer follower \
     --local-addr=localhost:50052 \
     --peer-addr=localhost:50051 \
     --data-path=data/follower_train.csv \
+    --cat-fields=f00001 \
     --checkpoint-path=exp/follower_checkpoints \
     --output-path=exp/follower_train_output.output &
 
@@ -82,6 +87,7 @@ python -m fedlearner.model.tree.trainer follower \
     --peer-addr=localhost:50051 \
     --mode=test \
     --data-path=data/follower_test/ \
+    --cat-fields=f00001 \
     --load-model-path=exp/follower_checkpoints/checkpoint-0004.proto \
     --output-path=exp/follower_test_output &
 
