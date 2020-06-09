@@ -1,0 +1,34 @@
+# http://editorconfig.org
+
+root = true
+
+[*]
+end_of_line = lf
+insert_final_newline = true
+
+[*.{js,py}]
+charset = utf-8
+
+[*.{babelrc,eslintrc,js,json,jsx}]
+indent_style = space
+indent_size = 2
+charset = utf-8
+trim_trailing_whitespace = true
+
+[*.js]
+quote_type = single
+
+[*.py]
+indent_style = space
+indent_size = 4
+
+[*.md]
+trim_trailing_whitespace = false
+
+[Makefile]
+indent_size = 4
+indent_style = tab
+
+[{package.json,*.yml}]
+indent_style = space
+indent_size = 2
