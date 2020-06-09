@@ -77,17 +77,10 @@ class IdBatchFetcher(ItemBatchSeqProcessor):
         super(IdBatchFetcher, self).__init__(
                 options.batch_processor_options.max_flying_item,
             )
-        self._id_visitor = MockRawDataVisitor(
-                etcd, dj_pb.RawDataOptions(raw_data_iter='CSV_DICT',
-                                           read_ahead_size=134217728),
-                '{}-proprocessor-mock-data-source-{:04}'.format(
-                        options.preprocessor_name,
-                        options.partition_id
-                    ),
-                options.input_file_paths
-            )
+        self._etcd = etcd
+        self._options = options
+        self._id_visitor = None
         self._batch_size = options.batch_processor_options.batch_size
-        self.set_input_finished()
 
     @classmethod
     def name(cls):
@@ -97,14 +90,15 @@ class IdBatchFetcher(ItemBatchSeqProcessor):
         return IdBatch(begin_index)
 
     def _make_inner_generator(self, next_index):
+        id_visitor = self._get_id_visitor()
         assert next_index is not None
         if next_index == 0:
-            self._id_visitor.reset()
+            id_visitor.reset()
         else:
-            self._id_visitor.seek(next_index - 1)
-        while not self._id_visitor.finished() and not self._fly_item_full():
+            id_visitor.seek(next_index - 1)
+        while not id_visitor.finished() and not self._fly_item_full():
             next_batch = self._make_item_batch(next_index)
-            for (index, item) in self._id_visitor:
+            for (index, item) in id_visitor:
                 if index != next_index:
                     logging.fatal("index of id visitor is not consecutive, "\
                                   "%d != %d", index, next_index)
@@ -113,8 +107,23 @@ class IdBatchFetcher(ItemBatchSeqProcessor):
                 next_index += 1
                 if len(next_batch) >= self._batch_size:
                     break
-            yield next_batch, self._id_visitor.finished()
-        yield self._make_item_batch(next_index), self._id_visitor.finished()
+            yield next_batch, id_visitor.finished()
+        yield self._make_item_batch(next_index), id_visitor.finished()
+
+    def _get_id_visitor(self):
+        if self._id_visitor is None:
+            self._id_visitor = MockRawDataVisitor(
+                    self._etcd,
+                    dj_pb.RawDataOptions(raw_data_iter='CSV_DICT',
+                                         read_ahead_size=134217728),
+                    '{}-proprocessor-mock-data-source-{:04}'.format(
+                        self._options.preprocessor_name,
+                        self._options.partition_id
+                    ),
+                    self._options.input_file_paths
+                )
+            self.set_input_finished()
+        return self._id_visitor
 
 class SignedIdBatch(ItemBatch):
     def __init__(self, begin_index):

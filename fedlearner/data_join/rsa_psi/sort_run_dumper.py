@@ -166,6 +166,8 @@ class SortRunDumper(object):
         return path.join(self._options.output_file_dir, 'sort_run_dump-tmp')
 
     def _sync_manager_state(self):
+        if self._double_check_dump_finished():
+            return
         if self._fly_sort_run_dumper is not None:
             if gfile.Exists(self._fly_sort_run_dumper.tmp_fpath):
                 gfile.Remove(self._fly_sort_run_dumper.tmp_fpath)
