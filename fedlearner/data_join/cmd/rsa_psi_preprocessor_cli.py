@@ -54,6 +54,23 @@ if __name__ == "__main__":
                         help='the process buffer size')
     parser.add_argument('--offload_processor_number', type=int, default=1,
                         help='the number of processor to offload rsa compute')
+    parser.add_argument('--max_flying_sign_batch', type=int, default=32,
+                        help='the max flying sign batch')
+    parser.add_argument('--max_flying_sign_rpc', type=int, default=16,
+                        help='the max flying sign rpc request')
+    parser.add_argument('--sign_rpc_timeout_ms', type=int, default=0,
+                        help='the rpc time ms for rpc sign')
+    parser.add_argument('--stub_fanout', type=int, default=2,
+                        help='the max stub for follower of rpc of processor')
+    parser.add_argument('--slow_sign_threshold', type=int, default=10,
+                        help='the threshold to record as slow sign')
+    parser.add_argument('--sort_run_merger_read_ahead_buffer', type=int,
+                        default=1<<20, help='the read ahead buffer for the '\
+                                            'reader of sort run reader')
+    parser.add_argument('--rpc_sync_mode', action='store_true',
+                        help='use the sync mode for rpc sign')
+    parser.add_argument('--rpc_thread_pool_size', type=int, default=16,
+                        help='the thread pool size for sync rpc sign')
     parser.add_argument('--partition_id', type=int, required=True,
                         help='the partition id will be processed')
     parser.add_argument('--etcd_name', type=str,
@@ -89,6 +106,15 @@ if __name__ == "__main__":
             partition_id=args.partition_id,
             leader_rsa_psi_signer_addr=args.leader_rsa_psi_signer_addr,
             offload_processor_number=args.offload_processor_number,
+            max_flying_sign_batch=args.max_flying_sign_batch,
+            max_flying_sign_rpc=args.max_flying_sign_rpc,
+            sign_rpc_timeout_ms=args.sign_rpc_timeout_ms,
+            stub_fanout=args.stub_fanout,
+            slow_sign_threshold=args.slow_sign_threshold,
+            rpc_sync_mode=args.rpc_sync_mode,
+            rpc_thread_pool_size=args.rpc_thread_pool_size,
+            sort_run_merger_read_ahead_buffer=\
+                args.sort_run_merger_read_ahead_buffer,
             batch_processor_options=dj_pb.BatchProcessorOptions(
                 batch_size=args.process_batch_size,
                 max_flying_item=args.max_flying_item

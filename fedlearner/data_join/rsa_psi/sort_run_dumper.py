@@ -15,17 +15,16 @@
 # coding: utf-8
 
 import threading
-import uuid
 import re
 import copy
 from os import path
 
 from tensorflow.compat.v1 import gfile
 
-from fedlearner.data_join import common, csv_dict_writer
+from fedlearner.data_join import csv_dict_writer
+from fedlearner.data_join.common import (DoneFileSuffix, TmpFileSuffix,
+                                         gen_tmp_fpath, partition_repr)
 
-SortRunSuffix = '.done'
-TmpSortRunSuffix = '.tmp'
 class SortRunMeta(object):
     def __init__(self, process_index, start_index, end_index):
         self._process_index = process_index
@@ -50,26 +49,25 @@ class SortRunMeta(object):
 
     @classmethod
     def decode_sort_run_meta_from_fname(cls, fname):
-        if not fname.endswith(SortRunSuffix):
+        if not fname.endswith(DoneFileSuffix):
             raise RuntimeError(
-                    "fname of SortRun should endwith {}".format(SortRunSuffix)
+                    "fname of SortRun should endwith {}".format(DoneFileSuffix)
                 )
-        segs = re.split('\.|-', fname[:-len(SortRunSuffix)]) # pylint: disable=anomalous-backslash-in-string
+        segs = re.split('\.|-', fname[:-len(DoneFileSuffix)]) # pylint: disable=anomalous-backslash-in-string
         if len(segs) != 3:
             raise RuntimeError("fname: {} should format as "\
                                "process_index.start_index-end_index.{}"\
-                               .format(fname, SortRunSuffix))
+                               .format(fname, DoneFileSuffix))
         return SortRunMeta(int(segs[0]), int(segs[1]), int(segs[2]))
 
     def encode_sort_run_fname(self):
         return '{:05}.{:08}-{:08}{}'.format(
                 self._process_index, self._start_index,
-                self._end_index, SortRunSuffix
+                self._end_index, DoneFileSuffix
             )
 
 class SortRunDumper(object):
     class SortRunWriter(object):
-        TMP_COUNTER = 0
         def __init__(self, process_index, output_dir):
             self._process_index = process_index
             self._output_dir = output_dir
@@ -111,10 +109,7 @@ class SortRunDumper(object):
             return self._fpath
 
         def _gen_tmp_fpath(self):
-            tmp_fname = str(uuid.uuid1()) + '-{}{}'.format(self.TMP_COUNTER,
-                                                           TmpSortRunSuffix)
-            self.TMP_COUNTER += 1
-            return path.join(self._output_dir, tmp_fname)
+            return gen_tmp_fpath(self._output_dir)
 
     def __init__(self, options):
         self._lock = threading.Lock()
@@ -167,11 +162,12 @@ class SortRunDumper(object):
         with self._lock:
             return copy.deepcopy(self._dumped_sort_run_metas)
 
-    @property
     def sort_run_dump_dir(self):
         return path.join(self._options.output_file_dir, 'sort_run_dump-tmp')
 
     def _sync_manager_state(self):
+        if self._double_check_dump_finished():
+            return
         if self._fly_sort_run_dumper is not None:
             if gfile.Exists(self._fly_sort_run_dumper.tmp_fpath):
                 gfile.Remove(self._fly_sort_run_dumper.tmp_fpath)
@@ -203,9 +199,9 @@ class SortRunDumper(object):
             assert gfile.IsDirectory(output_dir)
             all_files = gfile.ListDirectory(output_dir)
             for f in all_files:
-                if f.endswith(TmpSortRunSuffix):
+                if f.endswith(TmpFileSuffix):
                     gfile.Remove(path.join(output_dir, f))
-            return [f for f in all_files if f.endswith(SortRunSuffix)]
+            return [f for f in all_files if f.endswith(DoneFileSuffix)]
         gfile.MakeDirs(output_dir)
         return []
 
@@ -215,11 +211,11 @@ class SortRunDumper(object):
                                            output_dir)
 
     def _get_output_dir(self):
-        return path.join(self.sort_run_dump_dir,
-                         common.partition_repr(self._options.partition_id))
+        return path.join(self.sort_run_dump_dir(),
+                         partition_repr(self._options.partition_id))
 
     def _get_finish_tag_fpath(self):
-        return path.join(self.sort_run_dump_dir, '_SUCCESS')
+        return path.join(self._get_output_dir(), '_SUCCESS')
 
     def _set_dump_sort_run_finished(self):
         with self._lock:

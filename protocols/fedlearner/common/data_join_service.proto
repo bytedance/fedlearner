@@ -276,12 +276,13 @@ service DataJoinPotralService {
 }
 
 message SignIdsRequest {
-  repeated string ids = 1;
+  repeated bytes ids = 1;
+  int64 begin_index = 2;
 }
 
 message SignIdsResponse {
   Status status = 1;
-  repeated string signed_ids = 2;
+  repeated bytes signed_ids = 2;
 }
 
 service RsaPsiSignService {
@@ -298,7 +299,15 @@ message RsaPsiPreProcessorOptions {
   int64 partition_id = 7;
   string leader_rsa_psi_signer_addr = 8;
   int64 offload_processor_number = 9;
-  BatchProcessorOptions batch_processor_options = 10;
+  int64 max_flying_sign_batch = 10;
+  int64 max_flying_sign_rpc = 11;
+  int64 sign_rpc_timeout_ms = 12;
+  int64 stub_fanout = 13;
+  int64 slow_sign_threshold = 14;
+  bool rpc_sync_mode = 15;
+  int64 rpc_thread_pool_size = 16;
+  int64 sort_run_merger_read_ahead_buffer = 17;
+  BatchProcessorOptions batch_processor_options = 18;
 }
 
 message RawDataPartitionerOptions {

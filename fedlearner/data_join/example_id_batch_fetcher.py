@@ -49,7 +49,7 @@ class ExampleIdBatch(ItemBatch):
         return len(self._lite_example_ids.example_id)
 
     def __lt__(self, other):
-        assert isinstance(other, ExampleIdBatchFetcher.ExampleIdBatch)
+        assert isinstance(other, ExampleIdBatch)
         assert self.partition_id == other.partition_id
         return self.begin_index < other.begin_index
 
@@ -98,4 +98,5 @@ class ExampleIdBatchFetcher(ItemBatchSeqProcessor):
                 if len(next_batch) > self._batch_size:
                     break
             yield next_batch, self._raw_data_visitor.finished()
-        yield None, self._raw_data_visitor.finished()
+        yield self._make_item_batch(next_index), \
+                self._raw_data_visitor.finished()

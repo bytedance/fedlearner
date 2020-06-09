@@ -252,8 +252,8 @@ class RsaPsi(unittest.TestCase):
         with gfile.GFile(self._rsa_private_key_path, 'rb') as f:
             rsa_private_key_pem = f.read()
         rsa_private_key = rsa.PrivateKey.load_pkcs1(rsa_private_key_pem)
-        self._rsa_psi_signer = rsa_psi_signer.RsaPsiSigner(rsa_private_key, 1)
-        self._rsa_psi_signer.start(int(self._rsa_psi_signer_addr.split(':')[1]))
+        self._rsa_psi_signer = rsa_psi_signer.RsaPsiSigner(rsa_private_key, 1, 500)
+        self._rsa_psi_signer.start(int(self._rsa_psi_signer_addr.split(':')[1]), 512)
 
     def _stop_workers(self):
         for w in self._workers_f:
@@ -293,6 +293,10 @@ class RsaPsi(unittest.TestCase):
                     raw_data_publish_dir=self._raw_data_pub_dir_l,
                     partition_id=partition_id,
                     offload_processor_number=1,
+                    max_flying_sign_batch=128,
+                    stub_fanout=2,
+                    slow_sign_threshold=8,
+                    sort_run_merger_read_ahead_buffer=1<<20,
                     batch_processor_options=dj_pb.BatchProcessorOptions(
                         batch_size=1024,
                         max_flying_item=1<<14
@@ -323,6 +327,14 @@ class RsaPsi(unittest.TestCase):
                     partition_id=partition_id,
                     leader_rsa_psi_signer_addr=self._rsa_psi_signer_addr,
                     offload_processor_number=1,
+                    max_flying_sign_batch=128,
+                    max_flying_sign_rpc=64,
+                    sign_rpc_timeout_ms=100000,
+                    stub_fanout=2,
+                    slow_sign_threshold=8,
+                    sort_run_merger_read_ahead_buffer=1<<20,
+                    rpc_sync_mode=True if partition_id % 2 == 0 else False,
+                    rpc_thread_pool_size=16,
                     batch_processor_options=dj_pb.BatchProcessorOptions(
                         batch_size=1024,
                         max_flying_item=1<<14

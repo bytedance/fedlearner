@@ -18,7 +18,6 @@ import threading
 import logging
 import os
 import re
-import uuid
 
 import tensorflow.compat.v1 as tf
 from tensorflow.compat.v1 import gfile
@@ -98,12 +97,14 @@ class RawDataBatchFetcher(ItemBatchSeqProcessor):
                 if len(next_batch) >= self._batch_size:
                     break
             yield next_batch, self._raw_data_visitor.finished()
-        yield None, self._raw_data_visitor.finished()
+        yield self._make_item_batch(next_index), \
+                self._raw_data_visitor.finished()
 
 class RawDataPartitioner(object):
     FileSuffix = '.rd'
     class FileMeta(object):
-        def __init__(self, process_index, begin_index, end_index):
+        def __init__(self, rank_id, process_index, begin_index, end_index):
+            self._rank_id = rank_id
             self._process_index = process_index
             self._begin_index = begin_index
             self._end_index = end_index
@@ -111,6 +112,10 @@ class RawDataPartitioner(object):
         @property
         def process_index(self):
             return self._process_index
+
+        @property
+        def rank_id(self):
+            return self._rank_id
 
         @property
         def begin_index(self):
@@ -122,11 +127,12 @@ class RawDataPartitioner(object):
 
         def __lt__(self, other):
             assert isinstance(other, RawDataPartitioner.FileMeta)
+            assert self.rank_id == other.rank_id
             return self.process_index < other.process_index
 
         def encode_meta_to_fname(self):
-            return '{:08}.{:010}-{:010}{}'.format(
-                    self.process_index, self.begin_index,
+            return '{:04}.{:08}.{:010}-{:010}{}'.format(
+                    self.rank_id, self.process_index, self.begin_index,
                     self.end_index, RawDataPartitioner.FileSuffix
                 )
 
@@ -134,13 +140,11 @@ class RawDataPartitioner(object):
         def decode_meta_from_fname(cls, fname):
             assert fname.endswith(RawDataPartitioner.FileSuffix)
             segs = re.split('\.|-', fname[:-len(RawDataPartitioner.FileSuffix)]) # pylint: disable=anomalous-backslash-in-string
-            assert len(segs) == 3
-            return RawDataPartitioner.FileMeta(int(segs[0]),
-                                               int(segs[1]),
-                                               int(segs[2]))
+            assert len(segs) == 4
+            return RawDataPartitioner.FileMeta(int(segs[0]), int(segs[1]),
+                                               int(segs[2]), int(segs[3]))
 
     class OutputFileWriter(object):
-        TMP_COUNTER = 0
         def __init__(self, options, partition_id, process_index):
             self._options = options
             self._partition_id = partition_id
@@ -148,13 +152,10 @@ class RawDataPartitioner(object):
             self._begin_index = None
             self._end_index = None
             self._writer = None
-            self._tmp_fpath = os.path.join(
-                    self._options.output_dir,
-                    common.partition_repr(self._partition_id),
-                    '{}-{}.tmp'.format(str(uuid.uuid1()),
-                                       self.TMP_COUNTER)
+            self._tmp_fpath = common.gen_tmp_fpath(
+                    os.path.join(self._options.output_dir,
+                                 common.partition_repr(self._partition_id))
                 )
-            self.TMP_COUNTER += 1
 
         def append_item(self, index, item):
             writer = self._get_output_writer()
@@ -172,13 +173,16 @@ class RawDataPartitioner(object):
             if self._writer is not None:
                 self._writer.close()
                 self._writer = None
-                meta = RawDataPartitioner.FileMeta(self._process_index,
-                                                   self._begin_index,
-                                                   self._end_index)
+                meta = RawDataPartitioner.FileMeta(
+                        self._options.partitioner_rank_id,
+                        self._process_index,
+                        self._begin_index,
+                        self._end_index
+                    )
                 fpath = os.path.join(self._options.output_dir,
                                      common.partition_repr(self._partition_id),
                                      meta.encode_meta_to_fname())
-                gfile.Rename(self.get_tmp_fpath(), fpath)
+                gfile.Rename(self.get_tmp_fpath(), fpath, True)
             return meta
 
         def get_tmp_fpath(self):
@@ -412,8 +416,10 @@ class RawDataPartitioner(object):
         assert gfile.IsDirectory(dumped_dir)
         fnames = [os.path.basename(f) for f in gfile.ListDirectory(dumped_dir)
                   if f.endswith(RawDataPartitioner.FileSuffix)]
-        return [RawDataPartitioner.FileMeta.decode_meta_from_fname(f)
-                for f in fnames]
+        metas = [RawDataPartitioner.FileMeta.decode_meta_from_fname(f)
+                 for f in fnames]
+        return [meta for meta in metas \
+                if meta.rank_id == self._options.partitioner_rank_id]
 
     def _raw_data_batch_fetch_fn(self):
         next_part_index = self._get_next_part_index()

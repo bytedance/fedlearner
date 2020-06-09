@@ -26,12 +26,20 @@ python -m fedlearner.data_join.cmd.rsa_psi_preprocessor_cli \
     --rsa_key_pem="$RSA_KEY_PEM" \
     --input_dir=$INPUT_BASE_DIR/partition_`echo $INDEX|awk '{printf("%04d\n",$0)}'` \
     --output_file_dir=$OUTPUT_FILE_DIR \
+    --raw_data_publish_dir=$RAW_DATA_PUBLISH_DIR \
     --leader_rsa_psi_signer_addr=$PEER_ADDR \
     --process_batch_size=$PROCESS_BATCH_SIZE \
     --max_flying_item=$MAX_FLYING_ITEM \
     --offload_processor_number=$OFFLOAD_PROCSSOR_NUMBER \
+    --max_flying_sign_batch=$MAX_FLYING_SIGNED_BATCH \
+    --max_flying_sign_rpc=$MAX_FLYING_SIGN_RPC \
+    --sign_rpc_timeout_ms=$SIGN_RPC_TIMEOUT_MS \
+    --stub_fanout=$STUB_FANOUT \
+    --rpc_thread_pool_size=$RPC_THREAD_POOL_SIZE \
+    --slow_sign_threshold=$SLOW_SIGN_THRESHOLD \
+    --sort_run_merger_read_ahead_buffer=$SORT_RUN_MERGER_READ_AHEAD_BUFFER \
     --partition_id=$INDEX \
     --etcd_name=$ETCD_NAME \
     --etcd_addrs=$ETCD_ADDR \
     --etcd_base_dir=$ETCD_BASE_DIR \
-    --raw_data_publish_dir=$RAW_DATA_PUBLISH_DIR
+    $RPC_SYNC_MODE

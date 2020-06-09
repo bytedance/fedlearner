@@ -67,7 +67,7 @@ spec:
               args: ["3m"]
     Worker:
       pair: true
-      replicas: 3
+      replicas: 2
       template:
         spec:
           restartPolicy: Never # required

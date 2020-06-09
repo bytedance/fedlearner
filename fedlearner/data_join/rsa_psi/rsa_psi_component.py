@@ -20,9 +20,12 @@ import hashlib
 import random
 import functools
 import os
+import time
+import bisect
 import concurrent.futures as concur_futures
 
 from gmpy2 import powmod, divm # pylint: disable=no-name-in-module
+from cityhash import CityHash64 # pylint: disable=no-name-in-module
 
 from fedlearner.common import data_join_service_pb2_grpc as dj_grpc
 from fedlearner.common import data_join_service_pb2 as dj_pb
@@ -32,6 +35,7 @@ from fedlearner.proxy.channel import make_insecure_channel, ChannelType
 from fedlearner.data_join.raw_data_visitor import MockRawDataVisitor
 from fedlearner.data_join.item_batch_seq_processor import \
         ItemBatch, ItemBatchSeqProcessor
+from fedlearner.data_join.common import int2bytes, bytes2int
 
 class IdBatch(ItemBatch):
     def __init__(self, begin_index):
@@ -73,17 +77,10 @@ class IdBatchFetcher(ItemBatchSeqProcessor):
         super(IdBatchFetcher, self).__init__(
                 options.batch_processor_options.max_flying_item,
             )
-        self._id_visitor = MockRawDataVisitor(
-                etcd, dj_pb.RawDataOptions(raw_data_iter='CSV_DICT',
-                                           read_ahead_size=134217728),
-                '{}-proprocessor-mock-data-source-{:04}'.format(
-                        options.preprocessor_name,
-                        options.partition_id
-                    ),
-                options.input_file_paths
-            )
+        self._etcd = etcd
+        self._options = options
+        self._id_visitor = None
         self._batch_size = options.batch_processor_options.batch_size
-        self.set_input_finished()
 
     @classmethod
     def name(cls):
@@ -93,14 +90,15 @@ class IdBatchFetcher(ItemBatchSeqProcessor):
         return IdBatch(begin_index)
 
     def _make_inner_generator(self, next_index):
+        id_visitor = self._get_id_visitor()
         assert next_index is not None
         if next_index == 0:
-            self._id_visitor.reset()
+            id_visitor.reset()
         else:
-            self._id_visitor.seek(next_index - 1)
-        while not self._id_visitor.finished() and not self._fly_item_full():
+            id_visitor.seek(next_index - 1)
+        while not id_visitor.finished() and not self._fly_item_full():
             next_batch = self._make_item_batch(next_index)
-            for (index, item) in self._id_visitor:
+            for (index, item) in id_visitor:
                 if index != next_index:
                     logging.fatal("index of id visitor is not consecutive, "\
                                   "%d != %d", index, next_index)
@@ -109,8 +107,23 @@ class IdBatchFetcher(ItemBatchSeqProcessor):
                 next_index += 1
                 if len(next_batch) >= self._batch_size:
                     break
-            yield next_batch, self._id_visitor.finished()
-        yield None, self._id_visitor.finished()
+            yield next_batch, id_visitor.finished()
+        yield self._make_item_batch(next_index), id_visitor.finished()
+
+    def _get_id_visitor(self):
+        if self._id_visitor is None:
+            self._id_visitor = MockRawDataVisitor(
+                    self._etcd,
+                    dj_pb.RawDataOptions(raw_data_iter='CSV_DICT',
+                                         read_ahead_size=134217728),
+                    '{}-proprocessor-mock-data-source-{:04}'.format(
+                        self._options.preprocessor_name,
+                        self._options.partition_id
+                    ),
+                    self._options.input_file_paths
+                )
+            self.set_input_finished()
+        return self._id_visitor
 
 class SignedIdBatch(ItemBatch):
     def __init__(self, begin_index):
@@ -142,13 +155,25 @@ class SignedIdBatch(ItemBatch):
                                    self._begin_index+item_cnt))))
 
 class PsiRsaSigner(ItemBatchSeqProcessor):
-    def __init__(self, id_batch_fetcher,
-                 max_flying_item, process_pool_executor):
+    def __init__(self, id_batch_fetcher, max_flying_item,
+                 max_flying_sign_batch, slow_sign_threshold,
+                 process_pool_executor):
         super(PsiRsaSigner, self).__init__(max_flying_item)
         self._id_batch_fetcher = id_batch_fetcher
         self._next_index_to_fetch = None
         self._next_batch_index_hint = None
+        self._max_flying_sign_batch = max_flying_sign_batch
         self._process_pool_executor = process_pool_executor
+        self._slow_sign_threshold = slow_sign_threshold
+        self._total_sign_duration = .0
+        self._total_pending_duration = .0
+        self._sign_batch_num = 0
+        self._slow_sign_batch_num = 0
+        self._total_slow_sign_duration = .0
+        self._total_slow_pending_duration = .0
+        self._total_retry_cnt = 0
+        self._total_slow_sign_retry_cnt = 0
+        self._yield_batch_num = 0
 
     @classmethod
     def name(cls):
@@ -167,22 +192,78 @@ class PsiRsaSigner(ItemBatchSeqProcessor):
                     self._next_batch_index_hint >= evit_batch_cnt:
                 self._next_batch_index_hint -= evit_batch_cnt
 
+    def _add_sign_stats(self, duration, pending_duration, retry_cnt):
+        with self._lock:
+            self._total_retry_cnt += retry_cnt
+            self._sign_batch_num += 1
+            self._total_sign_duration += duration
+            self._total_pending_duration += pending_duration
+            if duration >= self._slow_sign_threshold:
+                self._total_slow_sign_duration += duration
+                self._slow_sign_batch_num += 1
+                self._total_slow_sign_retry_cnt += retry_cnt
+                self._total_slow_pending_duration += pending_duration
+
+    def _get_sign_stats(self):
+        with self._lock:
+            avg_duration = self._total_sign_duration \
+                    / self._sign_batch_num
+            avg_retry_cnt = self._total_retry_cnt \
+                    / self._sign_batch_num
+            avg_pending_duration = self._total_pending_duration \
+                    / self._sign_batch_num
+            slow_avg_duration = 0.0
+            slow_avg_retry_cnt = 0.0
+            slow_avg_pending_duration = 0.0
+            if self._slow_sign_batch_num > 0:
+                slow_avg_duration = self._total_slow_sign_duration \
+                        / self._slow_sign_batch_num
+                slow_avg_retry_cnt = self._total_slow_sign_retry_cnt \
+                        / self._slow_sign_batch_num
+                slow_avg_pending_duration = self._total_slow_pending_duration \
+                        / self._slow_sign_batch_num
+            return self._slow_sign_batch_num, self._sign_batch_num, \
+                    avg_duration, avg_retry_cnt, avg_pending_duration, \
+                    slow_avg_duration, slow_avg_retry_cnt, avg_pending_duration
+
     def _make_inner_generator(self, next_index):
         assert next_index is not None
-        raw_id_batches, next_index = self._consum_raw_id_batch(next_index, 100)
+        max_flying_sign_batch = self._max_flying_sign_batch
+        raw_id_batches, next_index = self._consum_raw_id_batch(
+                next_index, max_flying_sign_batch
+            )
         flying_batch_num = len(raw_id_batches)
         signed_batch_futures = self._promise_signed_batches(raw_id_batches)
+        wait4batch = False
         while len(signed_batch_futures) > 0:
-            if signed_batch_futures[0].done() or \
-                    len(signed_batch_futures) >= 100:
+            if signed_batch_futures[0].done() or wait4batch or \
+                    len(signed_batch_futures) >= max_flying_sign_batch:
                 signed_batch = signed_batch_futures[0].result()
+                self._yield_batch_num += 1
+                if self._yield_batch_num % 32 == 0:
+                    slow_sign_batch_num, sign_batch_num, avg_duration, \
+                        avg_retry_cnt, avg_pending_duration, \
+                        slow_avg_duration, slow_avg_retry_cnt, \
+                        slow_avg_pending_duration = self._get_sign_stats()
+                    logging.warning("%d/%d batch sign cost more than %d "\
+                                    "second, avg duration: %f for each batch,"\
+                                    "avg retry cnt: %f. avg pending duration "\
+                                    "%f, slow avg duration %f, slow avg retry"\
+                                    " cnt %f, slow avg pending duration %f",
+                                    slow_sign_batch_num, sign_batch_num,
+                                    self._slow_sign_threshold,
+                                    avg_duration, avg_retry_cnt,
+                                    avg_pending_duration, slow_avg_duration,
+                                    slow_avg_retry_cnt,
+                                    slow_avg_pending_duration)
                 yield signed_batch, False
                 signed_batch_futures = signed_batch_futures[1:]
-            required_num = 100 - len(signed_batch_futures)
+            required_num = max_flying_sign_batch - len(signed_batch_futures)
             raw_id_batches, next_index = \
                     self._consum_raw_id_batch(next_index, required_num)
+            wait4batch = len(raw_id_batches) == 0
             signed_batch_futures += self._promise_signed_batches(raw_id_batches)
-        yield None, True
+        yield self._make_item_batch(next_index), True
         with self._lock:
             self._next_index_to_fetch = next_index
 
@@ -201,7 +282,8 @@ class PsiRsaSigner(ItemBatchSeqProcessor):
                 break
             assert next_index == raw_id_batch.begin_index
             next_index += len(raw_id_batch)
-            raw_id_batches.append(raw_id_batch)
+            if len(raw_id_batch) > 0:
+                raw_id_batches.append(raw_id_batch)
         return raw_id_batches, next_index
 
     def _promise_signed_batches(self, raw_id_batches):
@@ -234,14 +316,21 @@ class PsiRsaSigner(ItemBatchSeqProcessor):
         return [PsiRsaSigner._crypto_hash(item) for item in items]
 
     @staticmethod
+    def _oneway_hash_list(items):
+        return [hex(CityHash64(str(item)))[2:] for item in items]
+
+    @staticmethod
     def _rsa_sign_list(items, d, n):
-        return [powmod(x, d, n) for x in items]
+        return [int(powmod(x, d, n).digits()) for x in items]
 
 class LeaderPsiRsaSigner(PsiRsaSigner):
     def __init__(self, id_batch_fetcher, max_flying_item,
+                 max_flying_sign_batch, slow_sign_threshold,
                  process_pool_executor, private_key):
         super(LeaderPsiRsaSigner, self).__init__(id_batch_fetcher,
                                                  max_flying_item,
+                                                 max_flying_sign_batch,
+                                                 slow_sign_threshold,
                                                  process_pool_executor)
         self._private_key = private_key
 
@@ -254,12 +343,14 @@ class LeaderPsiRsaSigner(PsiRsaSigner):
         signed_hashed_ids = PsiRsaSigner._rsa_sign_list(hashed_ids, d, n)
         assert len(signed_hashed_ids) == len(raw_id_batch)
         hashed_signed_hashed_ids = \
-                PsiRsaSigner._crypto_hash_list(signed_hashed_ids)
+                PsiRsaSigner._oneway_hash_list(signed_hashed_ids)
         return hashed_signed_hashed_ids
 
-    def _sign_callback(self, raw_id_batch, notify_future, exec_future):
+    def _sign_callback(self, raw_id_batch, start_tm,
+                       notify_future, exec_future):
         try:
             hashed_signed_hashed_ids = exec_future.result()
+            self._add_sign_stats(time.time()-start_tm, 0, 0)
             assert len(hashed_signed_hashed_ids) == len(raw_id_batch)
             begin_index = raw_id_batch.begin_index
             signed_id_batch = self._make_item_batch(begin_index)
@@ -272,12 +363,13 @@ class LeaderPsiRsaSigner(PsiRsaSigner):
 
     def _make_sign_future(self, raw_id_batch):
         notify_future = concur_futures.Future()
+        start_tm = time.time()
         exec_future = self._process_pool_executor.submit(
                 LeaderPsiRsaSigner._leader_sign_func, raw_id_batch,
                 self._private_key.d, self._private_key.n
             )
-        exec_cb = functools.partial(self._sign_callback,
-                                    raw_id_batch, notify_future)
+        exec_cb = functools.partial(self._sign_callback, raw_id_batch,
+                                    start_tm, notify_future)
         exec_future.add_done_callback(exec_cb)
         return notify_future
 
@@ -320,18 +412,70 @@ class FollowerPsiRsaSigner(PsiRsaSigner):
         def __getattr__(self, attr):
             return getattr(self._stub, attr)
 
+    class RpcSignCtx(object):
+        def __init__(self, raw_id_batch, blind_numbers,
+                     blinded_hashed_ids, notify_future):
+            self.raw_id_batch = raw_id_batch
+            self.blind_numbers = blind_numbers
+            self.notify_future = notify_future
+            self.rpc_req = dj_pb.SignIdsRequest(
+                    ids=blinded_hashed_ids,
+                    begin_index=raw_id_batch.begin_index
+                )
+            self.retry_cnt = 0
+            self.start_tm = time.time()
+            self.pending_tm = None
+            self.pending_duration = .0
+            self.finish_tm = 0
+
+        def __lt__(self, other):
+            return self.raw_id_batch.begin_index < \
+                    other.raw_id_batch.begin_index
+
+        def trigger_rpc_pending(self):
+            if self.pending_tm is None:
+                self.pending_tm = time.time()
+
+        def trigger_rpc_sign(self):
+            if self.pending_tm is not None:
+                self.pending_duration += time.time() - self.pending_tm
+            self.pending_tm = None
+
+        def trigger_rpc_finished(self):
+            self.finish_tm = time.time()
+
+        def trigger_retry(self):
+            self.retry_cnt += 1
+
+        def rpc_sign_duration(self):
+            return self.finish_tm - self.start_tm
+
+        def rpc_pending_duration(self):
+            return self.pending_duration
+
     def __init__(self, id_batch_fetcher, max_flying_item,
-                 process_pool_executor, public_key,
-                 leader_signer_addr):
+                 max_flying_sign_batch, max_flying_sign_rpc,
+                 sign_rpc_timeout_ms, slow_sign_threshold,
+                 stub_fanout, process_pool_executor,
+                 public_key, leader_signer_addr,
+                 thread_pool_rpc_executor):
         super(FollowerPsiRsaSigner, self).__init__(id_batch_fetcher,
                                                    max_flying_item,
+                                                   max_flying_sign_batch,
+                                                   slow_sign_threshold,
                                                    process_pool_executor)
         self._public_key = public_key
         self._leader_signer_addr = leader_signer_addr
         self._perfer_stub_cursor = 0
+        self._max_flying_sign_rpc = max_flying_sign_rpc
+        self._flying_sign_rpc_threshold = max_flying_sign_rpc
+        self._sign_rpc_timeout_ms = sign_rpc_timeout_ms
         self._active_stubs = \
                 [FollowerPsiRsaSigner.SignerStub(leader_signer_addr)
-                 for _ in range(8)]
+                 for _ in range(stub_fanout)]
+        self._pending_rpc_sign_ctx = []
+        self._flying_rpc_num = 0
+        self._thread_pool_rpc_executor = thread_pool_rpc_executor
 
     def _get_active_stub(self):
         with self._lock:
@@ -346,8 +490,22 @@ class FollowerPsiRsaSigner(PsiRsaSigner):
         with self._lock:
             if rpc_failed:
                 stub.mark_rpc_failed()
+                new_threshold = self._flying_sign_rpc_threshold // 2
+                if new_threshold < 12:
+                    new_threshold = 12
+                if new_threshold != self._flying_sign_rpc_threshold:
+                    logging.warning("reduce the flying sign rpc threshold "\
+                                    "as %d since rpc error", new_threshold)
+                self._flying_sign_rpc_threshold = new_threshold
             else:
                 stub.mark_rpc_success()
+                new_threshold = int(self._flying_sign_rpc_threshold * 1.1 + 1)
+                if new_threshold > self._max_flying_sign_rpc:
+                    new_threshold = self._max_flying_sign_rpc
+                if new_threshold != self._flying_sign_rpc_threshold:
+                    logging.warning("increase the flying sign rpc threshold "\
+                                    "as %d since rpc success", new_threshold)
+                self._flying_sign_rpc_threshold = new_threshold
             if stub.marked_error():
                 for idx, stub2 in enumerate(self._active_stubs):
                     if stub is stub2:
@@ -386,7 +544,9 @@ class FollowerPsiRsaSigner(PsiRsaSigner):
             )
         blind_numbers = [random.SystemRandom().getrandbits(256)
                          for i in range(len(raw_id_batch))]
-        blinded_hashed_ids = [(powmod(r, e, n) * x % n).digits()
+        byte_len = n.bit_length() // 8
+        blinded_hashed_ids = [int2bytes((powmod(r, e, n) * x % n).digits(),
+                                        byte_len)
                               for x, r in zip(hashed_ids, blind_numbers)]
         return (blinded_hashed_ids, blind_numbers)
 
@@ -395,25 +555,40 @@ class FollowerPsiRsaSigner(PsiRsaSigner):
             blinded_hashed_ids, blind_numbers = blind_future.result()
             assert len(blinded_hashed_ids) == len(raw_id_batch)
             assert len(blind_numbers) == len(raw_id_batch)
-            self._rpc_sign_func(raw_id_batch, blind_numbers,
-                                blinded_hashed_ids, notify_future, 0)
+            ctx = FollowerPsiRsaSigner.RpcSignCtx(raw_id_batch,
+                                                  blind_numbers,
+                                                  blinded_hashed_ids,
+                                                  notify_future)
+            self._rpc_sign_func(ctx)
         except Exception as e: # pylint: disable=broad-except
             notify_future.set_exception(e)
 
-    def _rpc_sign_func(self, raw_id_batch, blind_numbers,
-                       blinded_hashed_ids, notify_future, retry_cnt):
+    def _rpc_sign_func(self, ctx):
+        with self._lock:
+            if self._flying_rpc_num >= self._flying_sign_rpc_threshold:
+                if len(self._pending_rpc_sign_ctx) == 0:
+                    self._pending_rpc_sign_ctx.append(ctx)
+                else:
+                    idx = bisect.bisect_left(self._pending_rpc_sign_ctx, ctx)
+                    self._pending_rpc_sign_ctx.insert(idx, ctx)
+                ctx.trigger_rpc_pending()
+                return
+            self._flying_rpc_num += 1
         stub = self._get_active_stub()
-        sign_req = dj_pb.SignIdsRequest(ids=blinded_hashed_ids)
-        sign_future = stub.SignIds.future(sign_req)
-        sign_cb = functools.partial(self._rpc_sign_callback,
-                                    raw_id_batch, blind_numbers,
-                                    blinded_hashed_ids, notify_future,
-                                    stub, retry_cnt)
+        timeout = None if self._sign_rpc_timeout_ms <= 0 \
+                else self._sign_rpc_timeout_ms / 1000.0
+        ctx.trigger_rpc_sign()
+        sign_future = None
+        if self._thread_pool_rpc_executor is not None:
+            sign_future = self._thread_pool_rpc_executor.submit(
+                    stub.SignIds, ctx.rpc_req, timeout
+                )
+        else:
+            sign_future = stub.SignIds.future(ctx.rpc_req, timeout)
+        sign_cb = functools.partial(self._rpc_sign_callback, ctx, stub)
         sign_future.add_done_callback(sign_cb)
 
-    def _rpc_sign_callback(self, raw_id_batch, blind_numbers,
-                           blinded_hashed_ids, notify_future,
-                           stub, retry_cnt, rpc_future):
+    def _rpc_sign_callback(self, ctx, stub, rpc_future):
         try:
             response = rpc_future.result()
             if response.status.code != 0:
@@ -421,25 +596,42 @@ class FollowerPsiRsaSigner(PsiRsaSigner):
                                    "error code: {}, error message: {}".format(
                                         response.status.code,
                                         response.status.error_message))
+            ctx.trigger_rpc_finished()
+            self._add_sign_stats(ctx.rpc_sign_duration(),
+                                 ctx.rpc_pending_duration(),
+                                 ctx.retry_cnt)
             self._revert_stub(stub, False)
-            signed_blinded_hashed_ids = \
-                    [int(item) for item in response.signed_ids]
-            assert len(raw_id_batch) == len(signed_blinded_hashed_ids)
-            self._deblind_signed_id_func(raw_id_batch, blind_numbers,
+            signed_blinded_hashed_ids = [bytes2int(item) for
+                                         item in response.signed_ids]
+            assert len(ctx.raw_id_batch) == len(signed_blinded_hashed_ids)
+            self._deblind_signed_id_func(ctx.raw_id_batch,
+                                         ctx.blind_numbers,
                                          signed_blinded_hashed_ids,
-                                         notify_future)
+                                         ctx.notify_future)
+            next_ctxs = []
+            with self._lock:
+                assert self._flying_rpc_num > 0
+                self._flying_rpc_num -= 1
+                req_num = self._flying_sign_rpc_threshold - self._flying_rpc_num
+                if req_num > 0:
+                    next_ctxs = self._pending_rpc_sign_ctx[:req_num]
+                    self._pending_rpc_sign_ctx = \
+                            self._pending_rpc_sign_ctx[req_num:]
+            for nctx in next_ctxs:
+                self._rpc_sign_func(nctx)
         except Exception as e: # pylint: disable=broad-except
             self._revert_stub(stub, True)
-            if retry_cnt < 4:
-                self._rpc_sign_func(raw_id_batch, blind_numbers,
-                                    blinded_hashed_ids,
-                                    notify_future, retry_cnt+1)
-            else:
-                logging.error("give up process psi signer for batch"\
-                              "[%d, %d) since excess retry limit(4)",
-                              raw_id_batch.begin_index,
-                              raw_id_batch.begin_index+len(raw_id_batch))
-                notify_future.set_exception(e)
+            begin_index = ctx.raw_id_batch.begin_index
+            end_index = begin_index + len(ctx.raw_id_batch)
+            logging.warning("psi signer batch[%d, %d) sign "\
+                            "failed for %d times, reson:%s. "\
+                            "retry again", begin_index,
+                            end_index, ctx.retry_cnt, e)
+            with self._lock:
+                assert self._flying_rpc_num > 0
+                self._flying_rpc_num -= 1
+            ctx.trigger_retry()
+            self._rpc_sign_func(ctx)
 
     def _deblind_signed_id_func(self, raw_id_batch, blind_numbers,
                                 signed_blinded_hashed_ids, notify_future):
@@ -467,8 +659,8 @@ class FollowerPsiRsaSigner(PsiRsaSigner):
     @staticmethod
     def _deblind_signed_id_batch(signed_blinded_hashed_ids,
                                  blind_numbers, n):
-        signed_hashed_ids = [divm(x, r, n).digits() for x, r in
+        signed_hashed_ids = [int(divm(x, r, n).digits()) for x, r in
                              zip(signed_blinded_hashed_ids, blind_numbers)]
         hashed_signed_hashed_ids = \
-                PsiRsaSigner._crypto_hash_list(signed_hashed_ids)
+                PsiRsaSigner._oneway_hash_list(signed_hashed_ids)
         return hashed_signed_hashed_ids

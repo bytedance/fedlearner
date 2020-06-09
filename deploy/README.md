@@ -19,7 +19,9 @@ helm install fedlearner-stack ./deploy/charts/fedlearner-stack
 ### 安装 Fedlearner Controller 和 CRD
 
 ```sh
-helm template ./deploy/charts/fedlearner --namespace leader | kubectl apply -f
-helm template ./deploy/charts/fedlearner --namespace follower | kubectl apply -f
+kubectl create ns leader
+helm template ./deploy/charts/fedlearner --namespace leader | kubectl apply -f -
+kubectl create ns follower
+helm template ./deploy/charts/fedlearner --namespace follower | kubectl apply -f -
 kubectl apply -f ./deploy/charts/manifests/
 ```

@@ -37,68 +37,97 @@ class TestBoostingTree(unittest.TestCase):
         y = np.minimum(data.target, 1)
         return X, y
 
-    def local_test_boosting_tree_helper(self, X, y):
+    def quantize_data(self, X):
+        cat_X = np.zeros_like(X, dtype=np.int32)
+        for i in range(X.shape[1]):
+            x = X[:, i].copy()
+            nan_mask = np.isnan(x)
+            bins = np.quantile(x[~nan_mask], np.arange(33)/32)
+            bins = np.unique(bins)
+            cat_X[:, i][~nan_mask] = np.digitize(
+                x[~nan_mask], bins, right=True)
+            cat_X[:, i][nan_mask] = 33
+        return cat_X
+
+    def local_test_boosting_tree_helper(self, X, y, cat_X):
         booster = BoostingTreeEnsamble(
             None,
-            max_iters=5,
-            max_depth=3,
+            max_iters=3,
+            max_depth=2,
             num_parallel=2)
-        booster.fit(X, y)
-        pred = booster.batch_predict(X)
+        train_pred = booster.fit(X, y, cat_features=cat_X)
+        pred = booster.batch_predict(X, cat_features=cat_X)
+        np.testing.assert_almost_equal(train_pred, pred)
         return pred
 
-    def leader_test_boosting_tree_helper(self, X, y):
+    def leader_test_boosting_tree_helper(self, X, y, cat_X):
         bridge = fl.trainer.bridge.Bridge(
             'leader', 50051, 'localhost:50052', streaming_mode=False)
         booster = BoostingTreeEnsamble(
             bridge,
-            max_iters=5,
-            max_depth=3)
-        booster.fit(X, y)
-        pred = booster.batch_predict(X)
+            max_iters=3,
+            max_depth=2)
+        train_pred = booster.fit(X, y, cat_features=cat_X)
+        pred = booster.batch_predict(X, cat_features=cat_X)
+        np.testing.assert_almost_equal(train_pred, pred)
         bridge.terminate()
         return pred
 
-    def follower_test_boosting_tree_helper(self, X):
+    def follower_test_boosting_tree_helper(self, X, cat_X):
         bridge = fl.trainer.bridge.Bridge(
             'follower', 50052, 'localhost:50051', streaming_mode=False)
         booster = BoostingTreeEnsamble(
             bridge,
-            max_iters=5,
-            max_depth=3)
-        booster.fit(X, None)
-        pred = booster.batch_predict(X)
+            max_iters=3,
+            max_depth=2)
+        booster.fit(X, None, cat_features=cat_X)
+        pred = booster.batch_predict(X, cat_features=cat_X)
         bridge.terminate()
 
-    def test_boosting_tree(self):
-        X, y = self.make_data()
-        local_pred = self.local_test_boosting_tree_helper(X, y)
+    def boosting_tree_helper(self, X, y, cat_X):
+        local_pred = self.local_test_boosting_tree_helper(X, y, cat_X)
         self.assertGreater(sum((local_pred > 0.5) == y)/len(y), 0.90)
 
         leader_X = X[:, :X.shape[1]//2]
         follower_X = X[:, X.shape[1]//2:]
+        if cat_X is not None:
+            leader_cat_X = cat_X[:, :cat_X.shape[1]//2]
+            follower_cat_X = cat_X[:, cat_X.shape[1]//2:]
+        else:
+            leader_cat_X = follower_cat_X = None
 
         # test two side
         thread = threading.Thread(
             target=self.follower_test_boosting_tree_helper,
-            args=(follower_X,))
+            args=(follower_X, follower_cat_X))
         thread.start()
-        leader_pred = self.leader_test_boosting_tree_helper(leader_X, y)
+        leader_pred = self.leader_test_boosting_tree_helper(
+            leader_X, y, leader_cat_X)
         thread.join()
-        self.assertTrue(np.allclose(local_pred, leader_pred))
+        np.testing.assert_almost_equal(local_pred, leader_pred)
 
         # test one side
         thread = threading.Thread(
             target=self.follower_test_boosting_tree_helper,
-            args=(X,))
+            args=(X, cat_X))
         thread.start()
         leader_pred = self.leader_test_boosting_tree_helper(
-            np.zeros((X.shape[0], 0)), y)
+            np.zeros((X.shape[0], 0)), y, None)
         thread.join()
-        self.assertTrue(np.allclose(local_pred, leader_pred))
+        np.testing.assert_almost_equal(local_pred, leader_pred)
+
+    def test_boosting_tree(self):
+        X, y = self.make_data()
+
+        self.boosting_tree_helper(X, y, None)
+
+        cat_X = self.quantize_data(X[:, 2:])
+        cont_X = X[:, :2]
+
+        self.boosting_tree_helper(cont_X, y, cat_X)
 
 
 if __name__ == '__main__':
     import logging
-    logging.basicConfig(level=logging.DEBUG)
+    logging.basicConfig(level=logging.INFO)
     unittest.main()

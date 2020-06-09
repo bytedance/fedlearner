@@ -16,6 +16,7 @@
 
 import os
 import logging
+import uuid
 from contextlib import contextmanager
 from datetime import datetime
 
@@ -28,11 +29,12 @@ from fedlearner.common import data_join_service_pb2 as dj_pb
 
 DataBlockSuffix = '.data'
 DataBlockMetaSuffix = '.meta'
-ExampleIdSuffix = '.done'
 RawDataMetaPrefix = 'raw_data_'
 RawDataPubSuffix = '.pub'
-MergedSortRunSuffix = '.merged'
+MergedSortRunSuffix = '-sort_run.merged'
 InvalidExampleId = ''
+TmpFileSuffix = '.tmp'
+DoneFileSuffix = '.done'
 InvalidEventTime = -9223372036854775808
 
 @contextmanager
@@ -168,11 +170,6 @@ def trim_timestamp_by_hourly(timestamp):
 def convert_timestamp_to_datetime(timestamp):
     return datetime.fromtimestamp(timestamp.seconds + timestamp.nanos/1e9)
 
-def encode_merged_sort_run_fname(partition_id, process_index):
-    return 'part-{:04}-{:08}-sort_run{}'.format(
-            partition_id, process_index, MergedSortRunSuffix
-        )
-
 _valid_basic_feature_type = (int, str, bytes, float)
 def convert_dict_to_tf_example(src_dict):
     assert isinstance(src_dict, dict)
@@ -220,3 +217,12 @@ def convert_tf_example_to_dict(src_tf_example):
     for key, feat in tf_feature:
         dst_dict[key] = feat
     return dst_dict
+
+def int2bytes(digit, byte_len, byteorder='little'):
+    return int(digit).to_bytes(byte_len, byteorder)
+
+def bytes2int(byte, byteorder='little'):
+    return int.from_bytes(byte, byteorder)
+
+def gen_tmp_fpath(fdir):
+    return os.path.join(fdir, str(uuid.uuid1())+TmpFileSuffix)

@@ -43,12 +43,20 @@ class RsaPsiPreProcessor(object):
                 concur_futures.ProcessPoolExecutor(
                         options.offload_processor_number
                     )
+        self._thread_pool_rpc_executor = None
+        if options.rpc_sync_mode:
+            assert options.rpc_thread_pool_size > 0
+            self._thread_pool_rpc_executor = concur_futures.ThreadPoolExecutor(
+                    options.rpc_thread_pool_size
+                )
         self._id_batch_fetcher = IdBatchFetcher(etcd, self._options)
         max_flying_item = options.batch_processor_options.max_flying_item
         if self._options.role == common_pb.FLRole.Leader:
             private_key = rsa.PrivateKey.load_pkcs1(options.rsa_key_pem)
             self._psi_rsa_signer = LeaderPsiRsaSigner(
                     self._id_batch_fetcher, max_flying_item,
+                    self._options.max_flying_sign_batch,
+                    self._options.slow_sign_threshold,
                     self._process_pool_executor, private_key,
                 )
             self._repr = 'leader-' + 'rsa_psi_preprocessor'
@@ -56,13 +64,19 @@ class RsaPsiPreProcessor(object):
             public_key = rsa.PublicKey.load_pkcs1(options.rsa_key_pem)
             self._psi_rsa_signer = FollowerPsiRsaSigner(
                     self._id_batch_fetcher, max_flying_item,
+                    self._options.max_flying_sign_batch,
+                    self._options.max_flying_sign_rpc,
+                    self._options.sign_rpc_timeout_ms,
+                    self._options.slow_sign_threshold,
+                    self._options.stub_fanout,
                     self._process_pool_executor, public_key,
-                    self._options.leader_rsa_psi_signer_addr
+                    self._options.leader_rsa_psi_signer_addr,
+                    self._thread_pool_rpc_executor
                 )
             self._repr = 'follower-' + 'rsa_psi_preprocessor'
         self._sort_run_dumper = SortRunDumper(options)
         self._sort_run_merger = SortRunMerger(
-                self._sort_run_dumper.sort_run_dump_dir, self._options
+                self._sort_run_dumper.sort_run_dump_dir(), self._options
             )
         self._started = False
 
@@ -110,6 +124,8 @@ class RsaPsiPreProcessor(object):
                 self._lock.wait()
         self.stop_routine_workers()
         self._process_pool_executor.shutdown()
+        if self._thread_pool_rpc_executor is not None:
+            self._thread_pool_rpc_executor.shutdown()
 
     def _id_batch_fetcher_name(self):
         return self._repr + ':id_batch_fetcher'
@@ -208,11 +224,13 @@ class RsaPsiPreProcessor(object):
         flying_item_cnt = rsa_signer.get_flying_item_count()
         flying_begin_index = rsa_signer.get_flying_begin_index()
         return not dump_finished and \
-                flying_begin_index is not None and \
-                (flying_begin_index <= next_index <
-                    flying_begin_index + flying_item_cnt) and \
-                (flying_item_cnt-(next_index-flying_begin_index) >=
-                    max_flying_item // 4 or signed_finished)
+                (signed_finished or
+                 (flying_begin_index is not None and
+                  next_index is not None and
+                  (flying_begin_index <= next_index <
+                      flying_begin_index + flying_item_cnt) and
+                   (flying_item_cnt-(next_index-flying_begin_index) >=
+                    max_flying_item // 4)))
 
     def _sort_run_merger_name(self):
         return self._repr + ':sort_run_merger'
