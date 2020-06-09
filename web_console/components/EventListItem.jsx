@@ -32,7 +32,7 @@ export default function EventListItem({ children, username, created }) {
   return (
     <div className="event">
       <Avatar
-        src={`https://vercel.com/api/www/avatar/?u=${username}&s=64`}
+        src={`https://github.com/${username}.png`}
         alt={`${username} Avatar`}
       />
       <Text style={{ flex: 1, margin: '0 0 0 10px' }}>{children}</Text>
