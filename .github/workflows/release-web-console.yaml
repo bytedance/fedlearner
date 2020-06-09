@@ -1,0 +1,22 @@
+name: Release Web Console
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set Short Commit Sha
+      id: vars
+      run: echo "::set-output name=sha_short::$(git rev-parse --short HEAD)"
+    - uses: whoan/docker-build-with-cache-action@v5
+      with:
+        context: ./web_console
+        image_name: fedlearner/fedlearner-web-console
+        image_tag: ${{ steps.vars.outputs.sha_short }}
+        username: fedlearner
+        password: "${{ secrets.DOCKER_REGISTRY }}"
