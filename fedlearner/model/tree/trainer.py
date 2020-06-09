@@ -114,6 +114,11 @@ def create_argument_parser():
                         type=str,
                         default='',
                         help='Ignore data fields by name')
+    parser.add_argument('--cat-fields',
+                        type=str,
+                        default='',
+                        help='Field names of categorical features. Feature'
+                             ' values should be non-negtive integers')
     parser.add_argument('--use-streaming',
                         type=bool,
                         default=False,
@@ -134,7 +139,7 @@ def extract_field(field_names, field_name, required):
     return None, None
 
 def read_csv_data(filename, require_example_ids, require_labels,
-                  ignore_fields):
+                  ignore_fields, cat_fields):
     logging.debug('Reading csv file from %s', filename)
     fin = tf.io.gfile.GFile(filename, 'r')
     reader = csv.reader(fin)
@@ -147,14 +152,23 @@ def read_csv_data(filename, require_example_ids, require_labels,
     label_idx, labels = extract_field(
         field_names, 'label', require_labels)
 
-    ignore_fields = set(ignore_fields.strip().split(','))
+    ignore_fields = set(filter(bool, ignore_fields.strip().split(',')))
     ignore_fields.update(['example_id', 'raw_id', 'label'])
-    data_columns = [
-        (i, name) for i, name in enumerate(field_names) \
-            if name not in ignore_fields]
-    data_columns.sort(key=lambda x: x[1])
-    data = []
+    cat_fields = set(filter(bool, cat_fields.strip().split(',')))
+    for name in cat_fields:
+        assert name in field_names, "cat_field %s missing"%name
 
+    cont_columns = [
+        (i, name) for i, name in enumerate(field_names) \
+            if name not in ignore_fields and name not in cat_fields]
+    cont_columns.sort(key=lambda x: x[1])
+    cat_columns = [
+        (i, name) for i, name in enumerate(field_names)
+        if name in cat_fields]
+    cat_columns.sort(key=lambda x: x[1])
+
+    features = []
+    cat_features = []
     for line in reader:
         if example_id_idx is not None:
             example_ids.append(line[example_id_idx])
@@ -162,27 +176,40 @@ def read_csv_data(filename, require_example_ids, require_labels,
             raw_ids.append(line[raw_id_idx])
         if label_idx is not None:
             labels.append(float(line[label_idx]))
-        data.append([float(line[i]) for i, _ in data_columns])
+        features.append([float(line[i]) for i, _ in cont_columns])
+        cat_features.append([int(line[i]) for i, _ in cat_columns])
 
-    data = np.asarray(data, dtype=np.float)
+    fin.close()
+
+    feature_names = [name for _, name in cont_columns]
+    cat_feature_names = [name for _, name in cat_columns]
+    features = np.array(features, dtype=np.float)
+    cat_features = np.array(cat_features, dtype=np.int32)
     if labels is not None:
         labels = np.asarray(labels, dtype=np.float)
 
-    fin.close()
-    return data, labels, example_ids, raw_ids
+    return features, cat_features, feature_names, cat_feature_names, \
+        labels, example_ids, raw_ids
 
 
 def train(args, booster):
-    X, y, example_ids, _ = read_csv_data(
+    X, cat_X, X_names, cat_X_names, y, example_ids, _ = read_csv_data(
         args.data_path, args.verify_example_ids,
-        args.role != 'follower', args.ignore_fields)
+        args.role != 'follower', args.ignore_fields, args.cat_fields)
 
     if args.validation_data_path:
-        val_X, val_y, val_example_ids, _ = read_csv_data(
-            args.validation_data_path, args.verify_example_ids,
-            args.role != 'follower', args.ignore_fields)
+        val_X, val_cat_X, val_X_names, val_cat_X_names, val_y, \
+            val_example_ids, _ = \
+            read_csv_data(
+                args.validation_data_path, args.verify_example_ids,
+                args.role != 'follower', args.ignore_fields,
+                args.cat_fields)
+        assert X_names == val_X_names, \
+            "Train data and validation data must have same features"
+        assert cat_X_names == val_cat_X_names, \
+            "Train data and validation data must have same features"
     else:
-        val_X = val_y = val_example_ids = None
+        val_X = val_cat_X = X_names = val_y = val_example_ids = None
 
     if args.output_path:
         tf.io.gfile.makedirs(os.path.dirname(args.output_path))
@@ -191,12 +218,16 @@ def train(args, booster):
 
     booster.fit(
         X, y,
+        cat_features=cat_X,
         checkpoint_path=args.checkpoint_path,
         example_ids=example_ids,
         validation_features=val_X,
+        validation_cat_features=val_cat_X,
         validation_labels=val_y,
         validation_example_ids=val_example_ids,
-        output_path=args.output_path)
+        output_path=args.output_path,
+        feature_names=X_names,
+        cat_feature_names=cat_X_names)
 
 
 def write_predictions(filename, pred, example_ids=None, raw_ids=None):
@@ -224,13 +255,19 @@ def write_predictions(filename, pred, example_ids=None, raw_ids=None):
 
 def test_one_file(args, bridge, booster, data_file, output_file):
     if data_file is None:
-        X = y = example_ids = raw_ids = None
+        X = cat_X = X_names = cat_X_names = y = example_ids = raw_ids = None
     else:
-        X, y, example_ids, raw_ids = read_csv_data(
-            data_file, args.verify_example_ids,
-            False, args.ignore_fields)
+        X, cat_X, X_names, cat_X_names, y, example_ids, raw_ids = \
+            read_csv_data(
+                data_file, args.verify_example_ids,
+                False, args.ignore_fields, args.cat_fields)
 
-    pred = booster.batch_predict(X, example_ids=example_ids)
+    pred = booster.batch_predict(
+        X,
+        example_ids=example_ids,
+        cat_features=cat_X,
+        feature_names=X_names,
+        cat_feature_names=cat_X_names)
 
     if y is not None:
         metrics = booster.loss.metrics(pred, y)
