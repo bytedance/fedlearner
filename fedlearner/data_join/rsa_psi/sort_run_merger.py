@@ -194,13 +194,13 @@ class SortRunMerger(object):
         self._create_merged_dir_if_need()
 
     def merge_sort_runs(self, sort_runs):
-        if len(sort_runs) == 0:
-            logging.info("no sort run for partition %d", self._partition_id)
-            return []
         if self._check_merged():
             logging.info("sort runs have been merged for partition %d",
                          self._partition_id)
             return self._list_merged_sort_run_fpath()
+        if len(sort_runs) == 0:
+            logging.info("no sort run for partition %d", self._partition_id)
+            return []
         dumped_key, next_process_index = self._sync_merged_state()
         readers = self._create_sort_run_readers(sort_runs)
         pque = queue.PriorityQueue(len(sort_runs)*2+1)
@@ -256,9 +256,14 @@ class SortRunMerger(object):
         return gfile.Exists(os.path.join(self._merged_dir, '_SUCCESS'))
 
     def _list_merged_sort_run_fpath(self):
-        return [os.path.join(self._merged_dir, f) for f in
-                gfile.ListDirectory(self._merged_dir) if
-                f.endswith(common.MergedSortRunSuffix)]
+        metas = [MergedSortRunMeta.decode_sort_run_meta_from_fname(f)
+
+                 for f in gfile.ListDirectory(self._merged_dir) if
+                 f.endswith(common.MergedSortRunSuffix)]
+        metas.sort()
+        return [os.path.join(self._merged_dir,
+                             meta.encode_merged_sort_run_fname())
+                for meta in metas]
 
     def _create_merged_dir_if_need(self):
         if not gfile.Exists(self._merged_dir):
