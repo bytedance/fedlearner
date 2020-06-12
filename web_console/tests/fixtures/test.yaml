@@ -1,0 +1,40 @@
+apiVersion: fedlearner.k8s.io/v1alpha1
+kind: FLApp
+metadata:
+  name: normal
+  namespace: leader
+spec:
+  flReplicaSpecs:
+    Master:
+      pair: true
+      replicas: 2
+      template:
+        spec:
+          restartPolicy: Never
+          containers:
+            - env:
+              - name: APPLICATION_ID
+                value: normal
+              - name: HOST_IP
+                valueFrom:
+                  fieldRef:
+                    fieldPath: status.hostIP
+              image: nicolaka/netshoot
+              imagePullPolicy: IfNotPresent
+              name: tensorflow
+              ports:
+                - containerPort: 50051
+                  name: flapp-port
+              resources:
+                limits:
+                  cpu: 4000m
+                  memory: 4Gi
+                requests:
+                  cpu: 4000m
+                  memory: 4Gi
+              command: ["/bin/sleep"]
+              args: ["3m"]
+  role: Leader
+  peerSpecs:
+    Follower:
+      peerURL: p.s.m.cluster.local:8100
