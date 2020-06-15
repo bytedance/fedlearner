@@ -66,8 +66,13 @@ class LocalTrainerMasterClient(object):
                         files.append(os.path.join(subdirname, filename))
             files.sort()
 
+            block_map = {}
             for filename in files:
-                block_id, _ = os.path.splitext(filename)
+                block_id, _ = os.path.splitext(os.path.basename(filename))
+                assert block_id not in block_map, \
+                    "Duplicate file names: %s and %s"%(
+                        filename, block_map[block_id])
+                block_map[block_id] = filename
                 fullname = os.path.join(path, filename)
                 block = DataBlockInfo(block_id, fullname)
                 self._block_queue.append(block)
