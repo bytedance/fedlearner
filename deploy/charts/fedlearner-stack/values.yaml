@@ -67,3 +67,11 @@ ingress-nginx:
 
     admissionWebhooks:
       enabled: false
+
+etcd:
+  enabled: true
+  auth:
+    rbac:
+      enabled: false
+  persistence:
+    storageClass: nfs

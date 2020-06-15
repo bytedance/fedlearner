@@ -25,3 +25,7 @@ dependencies:
   repository: ""
   version: 7.5.1
   condition: mariadb.enabled
+- name: etcd
+  repository: ""
+  version: 4.8.2
+  condition: etcd.enabled
