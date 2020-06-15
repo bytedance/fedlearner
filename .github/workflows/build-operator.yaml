@@ -10,4 +10,4 @@ jobs:
     - name: Build
       run: |
         cd ./deploy/kubernetes_operator/
-        go build ./main.go
+        go build ./cmd/operator/main.go

@@ -13,6 +13,15 @@ nfs-client-provisioner:
   storageClass:
     name: nfs
 
+mariadb:
+  enabled: true
+  master:
+    persistence:
+      storageClass: nfs
+  slave:
+    persistence:
+      storageClass: nfs
+
 elastic-stack:
   enabled: true
   elasticsearch:

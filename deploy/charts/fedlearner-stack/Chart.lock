@@ -3,13 +3,19 @@ dependencies:
   repository: ""
   version: 2.1.0
 - name: nfs-client-provisioner
-  repository: https://kubernetes-charts.storage.googleapis.com
+  repository: ""
   version: 1.2.8
 - name: nfs-server-provisioner
-  repository: https://kubernetes-charts.storage.googleapis.com
+  repository: ""
   version: 1.0.0
 - name: elastic-stack
-  repository: https://kubernetes-charts.storage.googleapis.com
+  repository: ""
   version: 2.0.0
-digest: sha256:98ee02ff0fc75c8206a9a32d23ec09cd7aaf6de529439fe206e47afe04e54a4e
-generated: "2020-05-20T13:27:40.922806+08:00"
+- name: argo
+  repository: https://argoproj.github.io/argo-helm
+  version: 0.9.4
+- name: mariadb
+  repository: ""
+  version: 7.5.1
+digest: sha256:099bdbd53b113a011acde758c5de57873f0b8ed48169afe196e150817826826a
+generated: "2020-06-07T17:46:44.171294+08:00"

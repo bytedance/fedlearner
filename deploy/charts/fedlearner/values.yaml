@@ -5,8 +5,10 @@
 replicaCount: 1
 
 image:
-  repository: fedlearner/fedlearner-operator
-  tag: 61981ac
+  operatorRepository: fedlearner/fedlearner-operator
+  operatorTag: 61981ac
+  apiserverRepository: fedlearner/fedlearner-apiserver
+  apiserverTag: 9512731
   pullPolicy: IfNotPresent
 
 imagePullSecrets: []

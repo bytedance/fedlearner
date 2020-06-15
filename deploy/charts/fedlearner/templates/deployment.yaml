@@ -29,7 +29,7 @@ spec:
             - --resync-interval=5
           command:
             - /app
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          image: "{{ .Values.image.operatorRepository }}:{{ .Values.image.operatorTag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           name: flapp-operator
           ports:
@@ -37,5 +37,41 @@ spec:
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
       restartPolicy: Always
-      serviceAccountName: flapp-operator
+      serviceAccountName: flapp
 ---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: flapp-apiserver
+  name: flapp-apiserver
+  namespace: {{ .Release.Namespace }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: flapp-apiserver
+  strategy:
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 1
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: flapp-apiserver
+    spec:
+      containers:
+        - args:
+            - --port=8101
+          command:
+            - /app
+          image: "{{ .Values.image.apiserverRepository }}:{{ .Values.image.apiserverTag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          name: flapp-apiserver
+          ports:
+            - containerPort: 8101
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      restartPolicy: Always
+      serviceAccountName: flapp

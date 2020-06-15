@@ -4,6 +4,7 @@ ARG GO_VERSION=1.14
 
 # First stage: build the executable.
 FROM golang:${GO_VERSION}-alpine AS builder
+ARG WHAT=cmd/operator/main.go
 
 # Create the user and group files that will be used in the running container to
 # run the process as an unprivileged user.
@@ -14,6 +15,7 @@ RUN mkdir /user && \
 ENV GOOS linux
 ENV GOARCH amd64
 ENV CGO_ENABLED 0
+ENV WHAT=${WHAT}
 
 ENV GO111MODULE=on
 
@@ -28,7 +30,7 @@ RUN go mod download
 # Import the code from the context.
 COPY ./ ./
 
-RUN go build -o /app -trimpath main.go
+RUN go build -o /app -trimpath "${WHAT}"
 
 # Final stage: the running container.
 FROM alpine AS final

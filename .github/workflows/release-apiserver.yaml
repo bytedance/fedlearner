@@ -1,4 +1,4 @@
-name: Release Kubernetes Operator
+name: Release Fedlearner APIServer
 
 on: [push]
 
@@ -14,7 +14,7 @@ jobs:
         with:
           username: fedlearner
           password: "${{ secrets.DOCKER_REGISTRY }}"
-          image_name: fedlearner/fedlearner-operator
+          image_name: fedlearner/fedlearner-apiserver
           image_tag: ${{ steps.vars.outputs.sha_short }}
           context: ./deploy/kubernetes_operator
-          build_extra_args: --build-arg=WHAT=cmd/operator/main.go
+          build_extra_args: --build-arg=WHAT=cmd/apiserver/main.go
