@@ -6,9 +6,9 @@ replicaCount: 1
 
 image:
   operatorRepository: fedlearner/fedlearner-operator
-  operatorTag: 61981ac
+  operatorTag: "61981ac"
   apiserverRepository: fedlearner/fedlearner-apiserver
-  apiserverTag: 9512731
+  apiserverTag: "9512731"
   pullPolicy: IfNotPresent
 
 imagePullSecrets: []
