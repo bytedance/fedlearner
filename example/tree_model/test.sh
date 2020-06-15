@@ -106,7 +106,21 @@ wait
 rm -rf exp data
 
 python make_data.py --verify-example-ids=1 --dataset=iris
-python tree_local_server.py &
+
+cd ../../
+python fedlearner/trainer/tree_local_server.py \
+    --address=localhost:60061 \
+    --timeout=10 &
+python fedlearner/trainer/tree_local_server.py \
+    --address=localhost:60062 \
+    --timeout=10 &
+python fedlearner/trainer/tree_local_server.py \
+    --address=localhost:60063 \
+    --timeout=10 &
+python fedlearner/trainer/tree_local_server.py \
+    --address=localhost:60064 \
+    --timeout=10 &
+cd "$( dirname "${BASH_SOURCE[0]}" )"
 
 python -m fedlearner.model.tree.trainer follower \
     --verbosity=1 \
@@ -117,8 +131,7 @@ python -m fedlearner.model.tree.trainer follower \
     --validation-data-path=data/follower_test/part-0001.csv \
     --checkpoint-path=exp/follower_checkpoints \
     --output-path=exp/follower_train_output.output \
-    --num-parallel=2 \
-    --server-address=localhost:60061_localhost:60062 &
+    --server-address=localhost:60061,localhost:60062 &
 
 python -m fedlearner.model.tree.trainer leader \
     --verbosity=1 \
@@ -129,8 +142,7 @@ python -m fedlearner.model.tree.trainer leader \
     --validation-data-path=data/leader_test/part-0001.csv \
     --checkpoint-path=exp/leader_checkpoints \
     --output-path=exp/leader_train_output.output \
-    --num-parallel=2 \
-    --server-address=localhost:60063_localhost:60064
+    --server-address=localhost:60063,localhost:60064
 
 wait
 
@@ -143,8 +155,7 @@ python -m fedlearner.model.tree.trainer leader \
     --data-path=data/leader_test/ \
     --load-model-path=exp/leader_checkpoints/checkpoint-0004.proto \
     --output-path=exp/leader_test_output \
-    --num-parallel=2 \
-    --server-address=localhost:60061_localhost:60062 &
+    --server-address=localhost:60061,localhost:60062 &
 
 python -m fedlearner.model.tree.trainer follower \
     --verbosity=1 \
@@ -155,7 +166,6 @@ python -m fedlearner.model.tree.trainer follower \
     --data-path=data/follower_test/ \
     --load-model-path=exp/follower_checkpoints/checkpoint-0004.proto \
     --output-path=exp/follower_test_output \
-    --num-parallel=2 \
-    --server-address=localhost:60063_localhost:60064
+    --server-address=localhost:60063,localhost:60064
 
 wait

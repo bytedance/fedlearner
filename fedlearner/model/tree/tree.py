@@ -28,24 +28,27 @@ import grpc
 
 from fedlearner.model.tree.loss import LogisticLoss
 from fedlearner.model.crypto import paillier, fixed_point_number
-from fedlearner.common import tree_model_pb2 as tree_pb2, compute_histogram_pb2_grpc, compute_histogram_pb2
+from fedlearner.common import tree_model_pb2 as tree_pb2
+from fedlearner.common import tree_model_pb2_grpc as tree_grpc
 from fedlearner.common import common_pb2
 
+MAX_MESSAGE_LENGTH = 1024*1024*1024
 
 BST_TYPE = np.float32
 PRECISION = 1e38
 EXPONENT = math.floor(
     math.log(PRECISION, fixed_point_number.FixedPointNumber.BASE))
 KEY_NBITS = 1024
-CIPHER_NBYTES = (KEY_NBITS * 2)//8
+CIPHER_NBYTES = (KEY_NBITS * 2) // 8
 
 MAX_PARTITION_SIZE = 4096
 
 
 def _send_public_key(bridge, public_key):
     msg = tree_pb2.EncryptedNumbers()
-    msg.ciphertext.append(public_key.n.to_bytes(KEY_NBITS//8, 'little'))
+    msg.ciphertext.append(public_key.n.to_bytes(KEY_NBITS // 8, 'little'))
     bridge.send_proto(bridge.current_iter_id, 'public_key', msg)
+
 
 def _receive_public_key(bridge):
     msg = tree_pb2.EncryptedNumbers()
@@ -53,17 +56,21 @@ def _receive_public_key(bridge):
     return paillier.PaillierPublicKey(
         int.from_bytes(msg.ciphertext[0], 'little'))
 
+
 def _encode_encrypted_numbers(numbers):
     return [
         i.ciphertext(False).to_bytes(CIPHER_NBYTES, 'little') \
         for i in numbers]
 
+
 def _encrypt_numbers(public_key, numbers):
     return _encode_encrypted_numbers(
         [public_key.encrypt(i, PRECISION) for i in numbers])
 
+
 def _decrypt_number(private_key, numbers):
     return [private_key.decrypt(i) for i in numbers]
+
 
 def _from_ciphertext(public_key, ciphertext):
     return [
@@ -71,30 +78,52 @@ def _from_ciphertext(public_key, ciphertext):
             public_key, int.from_bytes(i, 'little'), EXPONENT)
         for i in ciphertext]
 
+
 def _encrypt_and_send_numbers(bridge, name, public_key, numbers):
-    num_parts = (len(numbers) + MAX_PARTITION_SIZE - 1)//MAX_PARTITION_SIZE
+    num_parts = (len(numbers) + MAX_PARTITION_SIZE - 1) // MAX_PARTITION_SIZE
     bridge.send_proto(
-        bridge.current_iter_id, '%s_partition_info'%name,
+        bridge.current_iter_id, '%s_partition_info' % name,
         tree_pb2.PartitionInfo(num_partitions=num_parts)
     )
     for i in range(num_parts):
-        part = numbers[i*MAX_PARTITION_SIZE:(i+1)*MAX_PARTITION_SIZE]
+        part = numbers[i * MAX_PARTITION_SIZE:(i + 1) * MAX_PARTITION_SIZE]
         msg = tree_pb2.EncryptedNumbers()
-        msg.ciphertext.extend(_encrypt_numbers(public_key, part))
+        msg.ciphertext.extend(part)
         bridge.send_proto(
-            bridge.current_iter_id, '%s_part_%d'%(name, i), msg)
+            bridge.current_iter_id, '%s_part_%d' % (name, i), msg)
+
+# 用于加密多机请求函数
+def _encrypt_numbers_param_to_proto(args):
+    numbers, public_key = args
+    msg = tree_pb2.encrypt_numbers_request()
+    msg.numbers.extend(numbers)
+    msg.public_key = public_key.n.to_bytes(KEY_NBITS // 8, 'little')
+    return msg
+
+def _encrypt_numbers_helper(args):
+    numbers, public_key, server_address = args
+    if server_address is None:
+        return _encrypt_numbers(public_key, numbers)
+    else:
+        with grpc.insecure_channel(server_address) as channel:
+            stub = tree_grpc.HistsServiceStub(channel)
+            request_params = _encrypt_numbers_param_to_proto([numbers, public_key])
+            encrypt_hists = stub.Encrypt_numbers.future(request_params).result()
+        return list(encrypt_hists.ciphertext)
+
 
 def _receive_encrypted_numbers(bridge, name, public_key):
     part_info = tree_pb2.PartitionInfo()
     bridge.receive_proto(
-        bridge.current_iter_id, '%s_partition_info'%name).Unpack(part_info)
+        bridge.current_iter_id, '%s_partition_info' % name).Unpack(part_info)
     ret = []
     for i in range(part_info.num_partitions):
         msg = tree_pb2.EncryptedNumbers()
         bridge.receive_proto(
-            bridge.current_iter_id, '%s_part_%d'%(name, i)).Unpack(msg)
+            bridge.current_iter_id, '%s_part_%d' % (name, i)).Unpack(msg)
         ret.extend(_from_ciphertext(public_key, msg.ciphertext))
     return ret
+
 
 def _get_dtype_for_max_value(max_value):
     if max_value < np.iinfo(np.int8).max:
@@ -102,6 +131,7 @@ def _get_dtype_for_max_value(max_value):
     if max_value < np.iinfo(np.int16).max:
         return np.int16
     return np.int32
+
 
 class BinnedFeatures(object):
     def __init__(self, features, max_bins, cat_features=None):
@@ -116,7 +146,7 @@ class BinnedFeatures(object):
             cat_features = np.zeros((features.shape[0], 0), dtype=np.int32)
         self.cat_features = cat_features
         self.cat_num_bins = [
-            cat_features[:, i].max()+1 for i in range(cat_features.shape[1])]
+            cat_features[:, i].max() + 1 for i in range(cat_features.shape[1])]
 
         self.num_features = self.features.shape[1]
         self.num_cat_features = self.cat_features.shape[1]
@@ -151,34 +181,37 @@ class BinnedFeatures(object):
 
 
 # send the params to sever /convert that into proto
-def _histogram_params_toprotobuf(args):
+def _computer_hists_params_to_proto(args):
     def ndarray_to_msg(array, msg):
         msg.values = array.tobytes()
         msg.shape.extend(list(array.shape))
         msg.dtype = str(array.dtype)
+
     def paillier_to_msg(array, msg):
         msg.shape.extend(list(array.shape))
         msg.values.extend(_encode_encrypted_numbers(array.flatten()))
 
     base, values, binned_features, thresholds, public_key = args
     if public_key is None:
-        msg = compute_histogram_pb2.histogram_request_leader()
+        msg = tree_pb2.histogram_request_leader()
         msg.base = base
         ndarray_to_msg(binned_features, msg.binned_features)
         ndarray_to_msg(values, msg.values)
         msg.thresholds.extend(thresholds)
         return msg
     else:
-        msg = compute_histogram_pb2.histogram_request_follower()
+        msg = tree_pb2.histogram_request_follower()
         msg.base = base
         ndarray_to_msg(binned_features, msg.binned_features)
         msg.thresholds.extend(thresholds)
         # 特别处理加密的数据和其key
         paillier_to_msg(values, msg.values)
-        msg.public_key = public_key.n.to_bytes(KEY_NBITS//8, 'little')
+        msg.public_key = public_key.n.to_bytes(KEY_NBITS // 8, 'little')
         return msg
+
+
 # receive the sever hists proto / convert that into array
-def _receive_hists_from_sever(msg, public_key=None):
+def _receive_hists_from_sever(hists_proto, public_key=None):
     # 对leader和followr不同对数据需要使用不同对msg,public_key是None对应leader，否则对应follower
     def proto_to_array(msg):
         if public_key is None:
@@ -187,15 +220,17 @@ def _receive_hists_from_sever(msg, public_key=None):
             array = np.array(_from_ciphertext(public_key, msg.values))
         array = np.reshape(array, newshape=msg.shape)
         return array
+
     hists = []
-    for hist in msg.hists:
+    for hist in hists_proto.hists:
         arr_hist = proto_to_array(hist)
         hists.append(arr_hist)
     return hists
 
+
 def _compute_histogram_helper(args):
-    base, values, binned_features, num_bins, zero, sever_addr, public_key = args
-    if sever_addr is None:
+    base, values, binned_features, num_bins, zero, server_address, public_key = args
+    if server_address is None:
         hists = []
         for i, num in enumerate(num_bins):
             logging.debug('Computing histogram for feature %d', base + i)
@@ -203,30 +238,27 @@ def _compute_histogram_helper(args):
             np.add.at(hist, binned_features[:, i], values)
             hists.append(hist)
     else:
-        with grpc.insecure_channel(sever_addr) as channel:
-            stub = compute_histogram_pb2_grpc.HistsServiceStub(channel)
-            request_params = _histogram_params_toprotobuf([base, values, binned_features, num_bins, public_key])
+        request_params = _computer_hists_params_to_proto([base, values, binned_features, num_bins, public_key])
+        with grpc.insecure_channel(server_address, options=[("grpc.max_receive_message_length", MAX_MESSAGE_LENGTH)]) as channel:
+            stub = tree_grpc.HistsServiceStub(channel)
             if public_key is None:
-                hists_proto = stub.ComputeHists_leader(request_params)
+                hists_proto = stub.ComputeHists_leader.future(request_params).result()
             else:
-                hists_proto = stub.ComputeHists_follower(request_params)
-            hists = _receive_hists_from_sever(hists_proto, public_key)
+                hists_proto = stub.ComputeHists_follower.future(request_params).result()
+        hists = _receive_hists_from_sever(hists_proto, public_key)
     return hists
 
 
 class HistogramBuilder(object):
     def __init__(self, binned_features, dtype=BST_TYPE,
-                 num_parallel=1, pool=None, server_address=None):
+                 num_parallel=1, pool=None, servers=None):
         self._bins = binned_features
         self._dtype = dtype
         self._zero = dtype(0.0)
         self._num_parallel = num_parallel
         self._pool = pool
 
-        self._servers = server_address
-        # make all sever_addrs be None
-        if self._servers is None:
-            self._servers = [None] * self._num_parallel
+        self._servers = servers
 
     def compute_histogram(self, values, sample_ids, public_key=None):
         if not self._pool:
@@ -237,34 +269,34 @@ class HistogramBuilder(object):
             cat_hists = _compute_histogram_helper(
                 (self._bins.num_features, values[sample_ids],
                  self._bins.cat_features[sample_ids],
-                 self._bins.cat_num_bins, self._zero,None,None))
+                 self._bins.cat_num_bins, self._zero, None, None))
             return hists + cat_hists
 
         num_jobs = self._num_parallel
         job_size = \
-            (self._bins.num_features + num_jobs - 1)//num_jobs
+            (self._bins.num_features + num_jobs - 1) // num_jobs
         cat_job_size = \
-            (self._bins.num_cat_features + num_jobs - 1)//num_jobs
+            (self._bins.num_cat_features + num_jobs - 1) // num_jobs
 
         args = [
-            (job_size*i,
-             values[sample_ids],
-             self._bins.binned[sample_ids, job_size*i:job_size*(i+1)],
-             self._bins.num_bins[job_size*i:job_size*(i+1)],
-             self._zero,
-             self._servers[i],
-             public_key)
-            for i in range(self._num_parallel)
-        ] + [
-            (self._bins.num_features + cat_job_size*i,
-             values[sample_ids],
-             self._bins.cat_features[sample_ids, cat_job_size*i:cat_job_size*(i+1)],
-             self._bins.cat_num_bins[cat_job_size*i:cat_job_size*(i+1)],
-             self._zero,
-             self._servers[i],
-             public_key)
-            for i in range(self._num_parallel)
-        ]
+                   (job_size * i,
+                    values[sample_ids],
+                    self._bins.binned[sample_ids, job_size * i:job_size * (i + 1)],
+                    self._bins.num_bins[job_size * i:job_size * (i + 1)],
+                    self._zero,
+                    self._servers[i],
+                    public_key)
+                   for i in range(self._num_parallel)
+               ] + [
+                   (self._bins.num_features + cat_job_size * i,
+                    values[sample_ids],
+                    self._bins.cat_features[sample_ids, cat_job_size * i:cat_job_size * (i + 1)],
+                    self._bins.cat_num_bins[cat_job_size * i:cat_job_size * (i + 1)],
+                    self._zero,
+                    self._servers[i],
+                    public_key)
+                   for i in range(self._num_parallel)
+               ]
 
         rets = self._pool.map(_compute_histogram_helper, args)
         return sum(rets, [])
@@ -331,7 +363,7 @@ class BaseGrower(object):
     def __init__(self, binned, labels, grad, hess,
                  grow_policy='depthwise', max_leaves=None, max_depth=None,
                  learning_rate=0.3, l2_regularization=1.0, dtype=BST_TYPE,
-                 num_parallel=1, pool=None,server_address=None):
+                 num_parallel=1, pool=None, server_address=None):
 
         self._binned = binned
         self._labels = labels
@@ -342,19 +374,21 @@ class BaseGrower(object):
         self._hess = hess
         self._grow_policy = grow_policy
         self._servers = server_address
+        if self._servers is None:
+            self._servers = [None]*num_parallel
 
         if grow_policy == 'depthwise':
             self._split_candidates = queue.Queue()
             assert max_depth is not None, \
                 "max_depth must be set when grow_policy is depthwise"
             self._max_depth = max_depth
-            self._max_leaves = 2**max_depth
+            self._max_leaves = 2 ** max_depth
         else:
             self._split_candidates = queue.PriorityQueue()
             assert max_leaves, \
                 "max_leaves must be set when grow_policy is lossguided"
             self._max_leaves = max_leaves
-            self._max_depth = max_depth if max_depth is not None else 2**31
+            self._max_depth = max_depth if max_depth is not None else 2 ** 31
 
         self._learning_rate = learning_rate
         self._l2_regularization = l2_regularization
@@ -393,8 +427,8 @@ class BaseGrower(object):
             if label_freq == 0:
                 entropy += 0
             else:
-                entropy += -label_freq*math.log(label_freq)
-            gini += label_freq*(1-label_freq)
+                entropy += -label_freq * math.log(label_freq)
+            gini += label_freq * (1 - label_freq)
         node.gini = gini
         node.entropy = entropy
 
@@ -402,7 +436,7 @@ class BaseGrower(object):
         '''
         compute information gain and node importance
         '''
-        #compute node gini and entropy
+        # compute node gini and entropy
         self._compute_Gini_Entropy(node)
         self._compute_Gini_Entropy(left_child)
         self._compute_Gini_Entropy(right_child)
@@ -415,22 +449,22 @@ class BaseGrower(object):
             node.NI = 0
             return
         IG = node.entropy - \
-            node_left_len / node_len * left_child.entropy - \
-            node_right_len / node_len * right_child.entropy
+             node_left_len / node_len * left_child.entropy - \
+             node_right_len / node_len * right_child.entropy
 
         NI = node_len / self._num_samples * node.gini - \
-            node_right_len / self._num_samples * right_child.gini - \
-            node_left_len / self._num_samples * left_child.gini
+             node_right_len / self._num_samples * right_child.gini - \
+             node_left_len / self._num_samples * left_child.gini
         node.IG = IG
         node.NI = NI
 
     def _normalize_feature_importance(self):
         if self._feature_importance.sum() != 0.0:
+            self._feature_importance = self._feature_importance / \
+                                       self._feature_importance.sum()
+            self._feature_importance = self._feature_importance / \
+                                       self._feature_importance.sum()
 
-            self._feature_importance = self._feature_importance/ \
-                                        self._feature_importance.sum()
-            self._feature_importance = self._feature_importance/ \
-                                        self._feature_importance.sum()
     def _compute_histogram(self, node):
         node.grad_hists = self._hist_builder.compute_histogram(
             self._grad, node.sample_ids)
@@ -451,16 +485,16 @@ class BaseGrower(object):
         lr = self._learning_rate
         sum_g = left_g + right_g
         sum_h = left_h + right_h
-        gain = left_g*left_g/(left_h + lam) + \
-            right_g*right_g/(right_h + lam) - \
-            sum_g*sum_g/(sum_h + lam)
+        gain = left_g * left_g / (left_h + lam) + \
+               right_g * right_g / (right_h + lam) - \
+               sum_g * sum_g / (sum_h + lam)
         if gain > split_info.gain:
             split_info.gain = gain
             split_info.feature_id = feature_id
             split_info.split_point[:] = split_point
             split_info.default_left = default_left
-            split_info.left_weight = - lr * left_g/(left_h + lam)
-            split_info.right_weight = - lr * right_g/(right_h + lam)
+            split_info.left_weight = - lr * left_g / (left_h + lam)
+            split_info.right_weight = - lr * right_g / (right_h + lam)
 
     def _find_split_and_push(self, node):
         assert len(self._is_cat_feature) == len(node.grad_hists)
@@ -507,7 +541,7 @@ class BaseGrower(object):
         left_h = 0.0
         split_point = []
         order = [
-            (i, g/h + self._l2_regularization)
+            (i, g / h + self._l2_regularization)
             for i, (g, h) in enumerate(zip(grad_hist, hess_hist))]
         order.sort(key=lambda x: x[1])
         for i, _ in order:
@@ -563,9 +597,8 @@ class BaseGrower(object):
         self._set_node_partition(node, split_info)
 
         self._compute_IG_NI(node, \
-            left_child, right_child)
+                            left_child, right_child)
         self._feature_importance[split_info.feature_id] += node.NI
-
 
         return left_child, right_child, split_info
 
@@ -586,14 +619,14 @@ class BaseGrower(object):
             right_child.weight, len(right_child.sample_ids),
             split_info.default_left and 'left' or 'right')
         assert len(left_child.sample_ids) + len(right_child.sample_ids) \
-            == len(parent.sample_ids)
+               == len(parent.sample_ids)
 
     def _log_feature_importance(self):
         logging.info("For current tree, " \
-            "feature importance(>0) is %s, " \
-            "feature indices(>0) is %s ", \
-            self._feature_importance[self._feature_importance > 0], \
-            np.nonzero(self._feature_importance))
+                     "feature importance(>0) is %s, " \
+                     "feature indices(>0) is %s ", \
+                     self._feature_importance[self._feature_importance > 0], \
+                     np.nonzero(self._feature_importance))
 
     def to_proto(self):
         proto = tree_pb2.RegressionTreeProto(
@@ -626,14 +659,36 @@ class BaseGrower(object):
         self._normalize_feature_importance()
         self._log_feature_importance()
 
-def _decrypt_histogram_helper(args):
+
+def _decrypt_histogram_params_to_proto(args):
+    def int_to_bytes(n):
+        return n.to_bytes(KEY_NBITS, 'little')
+
     base, public_key, private_key, hists = args
-    rets = []
-    for i, hist in enumerate(hists):
-        logging.debug('Decrypting histogram for feature %d', base + i)
-        hist = _from_ciphertext(public_key, hist.ciphertext)
-        rets.append(np.asarray(_decrypt_number(private_key, hist)))
+    msg = tree_pb2.decrypt_histogram_request()
+    msg.base = base
+    keys = [int_to_bytes(public_key.n), int_to_bytes(private_key.p), int_to_bytes(private_key.q)]
+    msg.keys.extend(keys)
+    msg.hists.extend(hists)
+    return msg
+
+
+def _decrypt_histogram_helper(args):
+    base, public_key, private_key, hists, sever_address = args
+    if sever_address is None:
+        rets = []
+        for i, hist in enumerate(hists):
+            logging.debug('Decrypting histogram for feature %d', base + i)
+            hist = _from_ciphertext(public_key, hist.ciphertext)
+            rets.append(np.asarray(_decrypt_number(private_key, hist)))
+    else:
+        with grpc.insecure_channel(sever_address) as channel:
+            stub = tree_grpc.HistsServiceStub(channel)
+            request_params = _decrypt_histogram_params_to_proto([base, public_key, private_key, hists])
+            decrypt_hists = stub.Decrypt_histogram.future(request_params).result()
+        rets = _receive_hists_from_sever(decrypt_hists)
     return rets
+
 
 class LeaderGrower(BaseGrower):
     def __init__(self, bridge, public_key, private_key,
@@ -661,15 +716,17 @@ class LeaderGrower(BaseGrower):
             self._bridge.current_iter_id, name).Unpack(msg)
         if not self._pool:
             return _decrypt_histogram_helper(
-                (0, self._public_key, self._private_key, msg.hists))
+                (0, self._public_key, self._private_key, msg.hists, None))
 
-        job_size = (len(msg.hists) + self._num_parallel - 1)//self._num_parallel
+        job_size = (len(msg.hists) + self._num_parallel - 1) // self._num_parallel
         args = [
-            (i*job_size,
+            (i * job_size,
              self._public_key, self._private_key,
-             msg.hists[i*job_size:(i+1)*job_size])
+             msg.hists[i * job_size:(i + 1) * job_size],
+             self._servers[i])
             for i in range(self._num_parallel)
         ]
+
         hists = self._pool.map(_decrypt_histogram_helper, args)
         return sum(hists, [])
 
@@ -704,7 +761,7 @@ class LeaderGrower(BaseGrower):
         if split_info.feature_id < self._binned.num_all_features:
             self._set_node_partition(node, split_info)
             self._compute_IG_NI(node, \
-                left_child, right_child)
+                                left_child, right_child)
             self._feature_importance[split_info.feature_id] += node.NI
             self._bridge.send_proto(
                 self._bridge.current_iter_id, 'split_info',
@@ -730,10 +787,9 @@ class LeaderGrower(BaseGrower):
             right_child.sample_ids = list(follower_split_info.right_samples)
 
             self._compute_IG_NI(node, \
-                left_child, right_child)
+                                left_child, right_child)
             self._feature_importance[split_info.feature_id] += node.NI
             split_info.feature_id = -1
-
 
         self._bridge.commit()
         return left_child, right_child, split_info
@@ -741,7 +797,7 @@ class LeaderGrower(BaseGrower):
 
 class FollowerGrower(BaseGrower):
     def __init__(self, bridge, public_key, binned, labels,
-                grad, hess, **kwargs):
+                 grad, hess, **kwargs):
         dtype = lambda x: public_key.encrypt(x, PRECISION)
         super(FollowerGrower, self).__init__(
             binned, labels, grad, hess, dtype=dtype, **kwargs)
@@ -821,6 +877,7 @@ class FollowerGrower(BaseGrower):
         self._bridge.commit()
         return left_child, right_child, split_info
 
+
 def _vectorize_tree(tree):
     vec = {}
     vec['is_owner'] = np.asarray([n.is_owner for n in tree.nodes])
@@ -836,6 +893,7 @@ def _vectorize_tree(tree):
         [n.left_child for n in tree.nodes],
         [n.right_child for n in tree.nodes]])
     return vec
+
 
 def _vectorized_direction(vec, features, cat_features, assignment):
     fid = vec['feature_id'][assignment]
@@ -863,12 +921,14 @@ def _vectorized_direction(vec, features, cat_features, assignment):
 
     return d
 
+
 def _vectorized_assignment(vec, assignment, direction, peer_direction=None):
     if peer_direction is not None:
         is_owner = vec['is_owner'][assignment]
         direction = np.where(is_owner, direction, peer_direction)
     new_assignment = vec['children'][direction.astype(np.int32), assignment]
     return np.where(vec['is_leaf'][assignment], assignment, new_assignment)
+
 
 class BoostingTreeEnsamble(object):
     def __init__(self, bridge, learning_rate=0.3, max_iters=50, max_depth=6,
@@ -883,9 +943,11 @@ class BoostingTreeEnsamble(object):
         self._num_parallel = num_parallel
         self._pool = None
         self._servers = server_address
+        # 考虑互斥，设置服务器优先？
         if self._servers is not None:
-            assert len(self._servers)==self._num_parallel, "the number of severs should be equal to num_parallel"
-        if self._num_parallel > 1:
+            self._num_parallel = len(self._servers)
+            self._pool = mp.Pool(self._num_parallel)
+        elif self._num_parallel > 1:
             self._pool = mp.Pool(num_parallel)
 
         assert max_bins < 255, "Only support max_bins < 255"
@@ -945,17 +1007,18 @@ class BoostingTreeEnsamble(object):
                 self._bridge.current_iter_id, 'status').Unpack(status)
             assert status.code == common_pb2.STATUS_SUCCESS, \
                 "Parameters mismatch between leader and follower: \n%s" \
-                %status.error_message
+                % status.error_message
         else:
             msg = tree_pb2.VerifyParams()
             self._bridge.receive_proto(
                 self._bridge.current_iter_id, 'verify').Unpack(msg)
+
             def check(name, left, right):
                 if left == right or \
                         (isinstance(left, float) and np.isclose(left, right)):
                     return ''
                 return 'Error:%s mismatch between leader and follower: ' \
-                        '%s vs %s\n'%(name, left, right)
+                       '%s vs %s\n' % (name, left, right)
 
             err_msg = ''
             if example_ids and msg.example_ids and \
@@ -963,13 +1026,13 @@ class BoostingTreeEnsamble(object):
                 err_msg += "Error: example_ids mismatch between leader and " \
                            "follower\n"
                 if len(example_ids) != len(msg.example_ids):
-                    err_msg += "Error: example_ids length: %d vs %d"%(
+                    err_msg += "Error: example_ids length: %d vs %d" % (
                         len(example_ids), len(msg.example_ids))
                 else:
                     for i, a, b in enumerate(zip(example_ids, msg.example_ids)):
                         if a != b:
                             err_msg += "Error: first mismatching example at " \
-                                       "%d: %s vs %s"%(i, a, b)
+                                       "%d: %s vs %s" % (i, a, b)
 
             err_msg += check(
                 'num_trees', msg.num_trees, len(self._trees))
@@ -1030,7 +1093,7 @@ class BoostingTreeEnsamble(object):
     def save_checkpoint(self, path, num_iter):
         filename = os.path.join(
             path,
-            'checkpoint-%04d.proto'%num_iter)
+            'checkpoint-%04d.proto' % num_iter)
         logging.info(
             "Saving checkpoint of iteration %d to %s",
             num_iter, filename)
@@ -1092,7 +1155,6 @@ class BoostingTreeEnsamble(object):
         return self._batch_predict_two_side(
             features, cat_features, get_raw_score)
 
-
     def _batch_predict_local(self, features, cat_features, get_raw_score):
         N = features.shape[0]
 
@@ -1135,7 +1197,7 @@ class BoostingTreeEnsamble(object):
 
             self._bridge.start(self._bridge.new_iter_id())
             self._bridge.send(
-                self._bridge.current_iter_id, 'follower_assignment_%d'%idx,
+                self._bridge.current_iter_id, 'follower_assignment_%d' % idx,
                 assignment)
             self._bridge.commit()
 
@@ -1153,7 +1215,7 @@ class BoostingTreeEnsamble(object):
 
             self._bridge.start(self._bridge.new_iter_id())
             assignment = self._bridge.receive(
-                self._bridge.current_iter_id, 'follower_assignment_%d'%idx)
+                self._bridge.current_iter_id, 'follower_assignment_%d' % idx)
             self._bridge.commit()
 
             if raw_prediction is None:
@@ -1163,7 +1225,6 @@ class BoostingTreeEnsamble(object):
         if get_raw_score:
             return raw_prediction
         return self._loss.predict(raw_prediction)
-
 
     def _batch_predict_two_side(self, features, cat_features, get_raw_score):
         N = features.shape[0]
@@ -1180,11 +1241,11 @@ class BoostingTreeEnsamble(object):
                 self._bridge.start(self._bridge.new_iter_id())
                 self._bridge.send(
                     self._bridge.current_iter_id,
-                    '%s_direction_%d'%(self._role, idx),
+                    '%s_direction_%d' % (self._role, idx),
                     direction)
                 peer_direction = self._bridge.receive(
                     self._bridge.current_iter_id,
-                    '%s_direction_%d'%(peer_role, idx))
+                    '%s_direction_%d' % (peer_role, idx))
                 self._bridge.commit()
 
                 assignment = _vectorized_assignment(
@@ -1268,15 +1329,15 @@ class BoostingTreeEnsamble(object):
             self._trees.append(tree)
 
             logging.info("Elapsed time for one round %s s",
-                         str(time.time()-begin_time))
+                         str(time.time() - begin_time))
 
             if num_iter == 0:
-                #initialize feature importance for round 0
+                # initialize feature importance for round 0
                 self._feature_importance = np.asarray(tree.feature_importance)
             else:
                 # update feature_importance
-                self._feature_importance = (self._feature_importance*num_iter+ \
-                    np.asarray(tree.feature_importance))/len(self._trees)
+                self._feature_importance = (self._feature_importance * num_iter + \
+                                            np.asarray(tree.feature_importance)) / len(self._trees)
 
             logging.info(
                 "ensemble feature importance for round %d, " \
@@ -1298,7 +1359,7 @@ class BoostingTreeEnsamble(object):
                 else:
                     metrics = {}
                 self._write_training_log(
-                    output_path, 'train_%d'%num_iter, metrics, pred)
+                    output_path, 'train_%d' % num_iter, metrics, pred)
 
             # validation
             if validation_features is not None:
@@ -1314,10 +1375,9 @@ class BoostingTreeEnsamble(object):
                     "Validation metrics for iter %d: %s", num_iter, metrics)
                 if output_path is not None:
                     self._write_training_log(
-                        output_path, 'val_%d'%num_iter, metrics, val_pred)
+                        output_path, 'val_%d' % num_iter, metrics, val_pred)
 
         return self._loss.predict(sum_prediction)
-
 
     def _fit_one_round_local(self, sum_fx, binned, labels):
         # compute grad and hess
@@ -1342,6 +1402,25 @@ class BoostingTreeEnsamble(object):
 
         return grower.to_proto(), grower.get_prediction()
 
+    def _encrypt_numbers(self, numbers):
+        if self._pool is None:
+            return _encrypt_numbers(self._public_key,numbers)
+        else:
+            job_size = (len(numbers) + self._num_parallel - 1) // self._num_parallel
+            if self._servers is None:
+                servers = [None]*self._num_parallel
+            else:
+                servers = self._servers
+            args = [
+                (numbers[i*job_size:(i+1)*job_size],
+                 self._public_key,
+                 servers[i])
+                for i in range(self._num_parallel)
+            ]
+            rets = self._pool.map(_encrypt_numbers_helper, args)
+
+            return sum(rets, [])
+
     def _fit_one_round_leader(self, sum_fx, binned, labels):
         # compute grad and hess
         self._bridge.start(self._bridge.new_iter_id())
@@ -1351,10 +1430,11 @@ class BoostingTreeEnsamble(object):
         logging.info(
             'Training metrics at start of iteration %d: %s',
             len(self._trees), self._loss.metrics(pred, labels))
+        # 这里采取先服务器请求加密数字，然后进行分段发送
         _encrypt_and_send_numbers(
-            self._bridge, 'grad', self._public_key, grad)
+            self._bridge, 'grad', self._public_key, self._encrypt_numbers(grad))
         _encrypt_and_send_numbers(
-            self._bridge, 'hess', self._public_key, hess)
+            self._bridge, 'hess', self._public_key, self._encrypt_numbers(hess))
         self._bridge.commit()
 
         grower = LeaderGrower(
@@ -1371,7 +1451,6 @@ class BoostingTreeEnsamble(object):
         grower.grow()
 
         return grower.to_proto(), grower.get_prediction()
-
 
     def _fit_one_round_follower(self, binned):
         # compute grad and hess

@@ -126,7 +126,7 @@ def create_argument_parser():
     parser.add_argument('--server-address',
                         type=str,
                         default=None,
-                        help='leader or follower sever address split by _')
+                        help='leader or follower sever address split by ,')
 
     return parser
 
@@ -422,7 +422,7 @@ def run(args):
     try:
         server_address = None
         if args.server_address is not None:
-            server_address = args.server_address.split('_')
+            server_address = args.server_address.split(',')
         booster = BoostingTreeEnsamble(
             bridge,
             learning_rate=args.learning_rate,

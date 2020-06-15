@@ -69,3 +69,60 @@ message VerifyParams {
     int32 num_trees = 10;
     bool leader_no_data = 11;
 }
+
+// For  hists
+message values_normal{
+  bytes values = 1;
+  repeated uint32 shape = 2;
+  string dtype = 3;
+}
+
+message values_paillier{
+  repeated bytes values = 1;
+  repeated uint32 shape=2;
+}
+
+message histogram_request_leader{
+  uint32 base = 1;
+  values_normal values = 2;
+  values_normal binned_features = 3;
+  repeated uint32 thresholds = 4;
+}
+
+message histogram_request_follower{
+  uint32 base = 1;
+  values_paillier values = 2;
+  values_normal binned_features = 3;
+  repeated uint32 thresholds = 4;
+  bytes public_key = 5;
+}
+
+message histogram_leader{
+  repeated values_normal hists =1;
+}
+message histogram_follower{
+  repeated values_paillier hists =1;
+}
+
+message decrypt_histogram_request{
+  uint32 base = 1;
+  repeated bytes keys = 3;
+  repeated EncryptedNumbers hists = 4;
+}
+message decrypt_histogram_reply{
+  repeated values_normal hists=1;
+}
+
+// For encrypt
+message  encrypt_numbers_request{
+  repeated float numbers = 1;
+  bytes public_key = 2;
+}
+
+
+service HistsService {
+  rpc ComputeHists_leader (histogram_request_leader) returns (histogram_leader) {}
+  rpc ComputeHists_follower (histogram_request_follower) returns (histogram_follower) {}
+  rpc Decrypt_histogram (decrypt_histogram_request) returns (decrypt_histogram_reply) {}
+  rpc Encrypt_numbers (encrypt_numbers_request) returns (EncryptedNumbers) {}
+}
