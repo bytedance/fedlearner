@@ -1,0 +1,6 @@
+.git
+.github
+.next
+node_modules
+tests
+Dockerfile

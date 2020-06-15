@@ -1,12 +1,13 @@
 {
-  "name": "fedlearner",
+  "name": "fedlearner-web-console",
   "version": "0.0.0",
   "scripts": {
-    "build": "cross-env NODE_ENV=production next build",
+    "build": "next build",
+    "build:image": "docker build -t fedlearner-web-console .",
     "cov": "nyc npm run test",
     "dev": "nodemon bootstrap.js",
-    "lint": "eslint . --ext .js --fix",
-    "start": "cross-env NODE_ENV=production HOST=0.0.0.0 node bootstrap.js",
+    "lint": "eslint . --ext .js,.jsx --fix",
+    "start": "node bootstrap.js",
     "test": "cross-env NODE_ENV=test mocha tests/*"
   },
   "commitlint": {
@@ -31,7 +32,7 @@
     }
   },
   "lint-staged": {
-    "*.js": [
+    "*.{js|jsx}": [
       "eslint --fix",
       "git add"
     ]
@@ -48,6 +49,7 @@
     "ignore": [
       ".git",
       "node_modules/**/node_modules",
+      "components/*",
       "pages/*",
       "tests/*"
     ]
@@ -56,10 +58,16 @@
     "exclude": [
       "utils/index.js"
     ],
+    "branches": 80,
+    "lines": 80,
+    "functions": 80,
+    "statements": 80,
+    "check-coverage": true,
     "reporter": [
       "lcov",
       "text-summary"
-    ]
+    ],
+    "skip-full": true
   },
   "engines": {
     "node": ">= 10.9.0"
