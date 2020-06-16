@@ -22,6 +22,10 @@ the web console of [Fedlearner][fedlearner].
   * always setup dependencies with `npm ci`
   * remember to update `package-lock.json` for new dependencies by `npm i`
   * use [MySQL][mysql] 5.6+ version (or [MariaDB][mariadb] 10.0+ version)
+- Config
+  * use `server.config.js` to config environment variables
+  * `K8S_HOST`: the hostname of Kubernetes api server
+  * `K8S_PORT`: the port of Kubernetes api server
 - Contribution
   * use [Conventional Commits][conventionalcommits] for commit message
   * code coverage **must be** greater than `80%`
@@ -47,13 +51,6 @@ docker run --rm -it -p 1989:1989 -e DB_HOST=[database host] DB_USERNAME=[databas
 ```
 
 ## Testing
-
-make sure you have installed [Docker][docker] and [Minikube][minikube],
-and start Kubernetes cluster first:
-
-```
-minikube start
-```
 
 ```
 npm run test

@@ -90,3 +90,4 @@ config.mk
 *_pb2_grpc.py
 .*.swp
 .*.swo
+server.config.js

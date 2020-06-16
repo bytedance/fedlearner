@@ -1,35 +1,28 @@
 const assert = require('assert');
-const { spawn } = require('child_process');
-const getPort = require('get-port');
 const KubernetesClient = require('../../libs/k8s');
 
-let k8sProxy;
-let port;
 let k8s;
 
 describe('Kubernetes Client', () => {
-  // TODO: setup FL cluster here
-  before(async () => {
-    port = await getPort({ port: 8080 });
-    k8sProxy = spawn('kubectl', ['proxy', `--port=${port}`]);
-    k8s = new KubernetesClient({ proxy: `http://127.0.0.1:${port}` });
-  });
-
-  after(() => {
-    k8sProxy.kill('SIGHUP');
+  before(() => {
+    k8s = new KubernetesClient();
   });
 
   describe('getNamespaces', () => {
     it('should get all namespaces', async () => {
-      const { items } = await k8s.getNamespaces();
-      assert.ok(items.find(x => x.metadata.name === 'default'));
+      const { namespaces } = await k8s.getNamespaces();
+      assert.ok(namespaces.items.find((x) => x.metadata.name === 'fedlearner-system'));
     });
   });
 
-  describe('getPods', () => {
-    it('should get all pods', async () => {
-      const { items } = await k8s.getPods();
-      assert.ok(items.find(x => x.status.phase === 'Running'));
+  describe('getFLAppsByNamespace', () => {
+    it('should throw for none namespace', () => {
+      assert.rejects(k8s.getFLAppsByNamespace());
+    });
+
+    it('should get all pods for fedlearner-system', async () => {
+      const { flapps } = await k8s.getFLAppsByNamespace('fedlearner-system');
+      assert.ok(Array.isArray(flapps.items));
     });
   });
 });
