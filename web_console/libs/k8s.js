@@ -1,15 +1,21 @@
 // Kubernetes Client
 const got = require('got');
 
+let config;
+try {
+  config = require('../server.config');
+} catch (err) {
+  config = require('../constants').DEFAULT_SERVER_CONFIG;
+}
+
 class KubernetesClient {
-  constructor(options) {
+  constructor() {
     // TODO: use HTTPs for production
-    if (options.proxy) {
-      this.client = got.extend({
-        prefixUrl: `${options.proxy}/api/v1/`,
-        responseType: 'json',
-      });
-    }
+    const prefixUrl = `http://${process.env.K8S_HOST || config.K8S_HOST}:${process.env.K8S_PORT || config.K8S_PORT}`;
+    this.client = got.extend({
+      prefixUrl,
+      responseType: 'json',
+    });
   }
 
   async getNamespaces() {

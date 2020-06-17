@@ -20,8 +20,8 @@ helm install fedlearner-stack ./deploy/charts/fedlearner-stack
 
 ```sh
 kubectl create ns leader
-helm template ./deploy/charts/fedlearner --namespace leader | kubectl apply -f -
+helm install fedlearner ./deploy/charts/fedlearner --namespace leader
 kubectl create ns follower
-helm template ./deploy/charts/fedlearner --namespace follower | kubectl apply -f -
+helm install fedlearner ./deploy/charts/fedlearner --namespace follower
 kubectl apply -f ./deploy/charts/manifests/
 ```

@@ -28,6 +28,10 @@ const (
 	GroupVersion = "v1alpha1"
 	// Kind is the kind name.
 	Kind = "FLApp"
+	// Plural is the Plural for FLApp.
+	Plural = "flapps"
+	// Singular is the singular for FLApp.
+	Singular = "flapp"
 )
 
 var (
