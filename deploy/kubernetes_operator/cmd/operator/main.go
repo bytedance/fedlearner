@@ -18,6 +18,9 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
+	"net/http"
+	"net/http/pprof"
 	"os"
 	"os/signal"
 	"syscall"
@@ -48,6 +51,7 @@ var (
 	master                      = flag.String("master", "", "The address of the Kubernetes API server. Overrides any value in kubeconfig. Only required if out-of-cluster.")
 	kubeConfig                  = flag.String("kube-config", "", "Path to a kube config. Only required if out-of-cluster.")
 	port                        = flag.String("port", "8080", "The http port controller listening.")
+	debugPort                   = flag.String("debug-port", "8081", "The debug http port controller listening.")
 	workerNum                   = flag.Int("worker-num", 10, "Number of worker threads used by the fedlearner controller.")
 	resyncInterval              = flag.Int("resync-interval", 30, "Informer resync interval in seconds.")
 	namespace                   = flag.String("namespace", "default", "The namespace to which controller listen FLApps.")
@@ -185,6 +189,15 @@ func main() {
 	go func() {
 		klog.Infof("starting adapter listening %v", *port)
 		server.ServeGrpc("0.0.0.0", *port, appEventHandler)
+	}()
+	go func() {
+		mux := http.NewServeMux()
+		mux.HandleFunc("/debug/pprof/", pprof.Index)
+		mux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
+		mux.HandleFunc("/debug/pprof/profile", pprof.Profile)
+		mux.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
+		mux.HandleFunc("/debug/pprof/trace", pprof.Trace)
+		klog.Fatal(http.ListenAndServe(fmt.Sprintf("0.0.0.0:%s", *debugPort), mux))
 	}()
 
 	if *enableLeaderElection {
