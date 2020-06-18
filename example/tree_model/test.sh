@@ -59,7 +59,7 @@ wait
 
 rm -rf exp data
 
-python make_data.py --dataset=iris
+python make_data.py --dataset=iris --verify-example-ids=1
 
 python -m fedlearner.model.tree.trainer follower \
     --verbosity=1 \
@@ -101,3 +101,12 @@ python -m fedlearner.model.tree.trainer leader \
     --output-path=exp/leader_test_output
 
 wait
+
+python merge_scores.py \
+    --left-data-path=data/follower_test/ \
+    --left-file-ext=.csv \
+    --left-select-fields=example_id \
+    --right-data-path=exp/leader_test_output \
+    --right-file-ext=.output \
+    --right-select-fields=prediction \
+    --output-path=exp/merge_output

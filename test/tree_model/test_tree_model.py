@@ -78,7 +78,8 @@ class TestBoostingTree(unittest.TestCase):
             max_iters=3,
             max_depth=2)
         booster.fit(X, None, cat_features=cat_X)
-        pred = booster.batch_predict(X, cat_features=cat_X)
+        pred = booster.batch_predict(X, cat_features=cat_X, get_raw_score=True)
+        np.testing.assert_almost_equal(pred, 0)
         bridge.terminate()
 
     def boosting_tree_helper(self, X, y, cat_X):

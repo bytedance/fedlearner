@@ -989,7 +989,8 @@ class BoostingTreeEnsamble(object):
 
     def batch_predict(self, features, cat_features=None,
                       get_raw_score=False, example_ids=None,
-                      feature_names=None, cat_feature_names=None):
+                      feature_names=None, cat_feature_names=None,
+                      send_scores_to_follower=False):
         if feature_names and self._feature_names:
             assert feature_names == self._feature_names, \
                 "Predict data's feature names does not match loaded model"
@@ -1019,12 +1020,13 @@ class BoostingTreeEnsamble(object):
 
         if msg.leader_no_data:
             if self._role == 'leader':
-                return self._batch_predict_one_side_leader(get_raw_score)
+                return self._batch_predict_one_side_leader(
+                    get_raw_score, send_scores_to_follower)
             return self._batch_predict_one_side_follower(
                 features, cat_features, get_raw_score)
 
         return self._batch_predict_two_side(
-            features, cat_features, get_raw_score)
+            features, cat_features, get_raw_score, send_scores_to_follower)
 
 
     def _batch_predict_local(self, features, cat_features, get_raw_score):
@@ -1052,7 +1054,6 @@ class BoostingTreeEnsamble(object):
                                          get_raw_score):
         N = features.shape[0]
 
-        raw_prediction = np.zeros(N, dtype=BST_TYPE)
         for idx, tree in enumerate(self._trees):
             logging.debug("Running prediction for tree %d", idx)
 
@@ -1065,19 +1066,23 @@ class BoostingTreeEnsamble(object):
                 assignment = _vectorized_assignment(
                     vec_tree, assignment, direction)
 
-            raw_prediction += vec_tree['weight'][assignment]
-
             self._bridge.start(self._bridge.new_iter_id())
             self._bridge.send(
                 self._bridge.current_iter_id, 'follower_assignment_%d'%idx,
                 assignment)
             self._bridge.commit()
 
+        self._bridge.start(self._bridge.new_iter_id())
+        raw_prediction = self._bridge.receive(
+            self._bridge.current_iter_id, 'raw_prediction')
+        self._bridge.commit()
+
         if get_raw_score:
             return raw_prediction
         return self._loss.predict(raw_prediction)
 
-    def _batch_predict_one_side_leader(self, get_raw_score):
+    def _batch_predict_one_side_leader(self, get_raw_score,
+                                       send_scores_to_follower):
         raw_prediction = None
         for idx, tree in enumerate(self._trees):
             logging.debug("Running prediction for tree %d", idx)
@@ -1094,12 +1099,19 @@ class BoostingTreeEnsamble(object):
                 raw_prediction = np.zeros(assignment.shape[0], dtype=BST_TYPE)
             raw_prediction += vec_tree['weight'][assignment]
 
+        self._bridge.start(self._bridge.new_iter_id())
+        self._bridge.send(
+            self._bridge.current_iter_id, 'raw_prediction',
+            raw_prediction*send_scores_to_follower)
+        self._bridge.commit()
+
         if get_raw_score:
             return raw_prediction
         return self._loss.predict(raw_prediction)
 
 
-    def _batch_predict_two_side(self, features, cat_features, get_raw_score):
+    def _batch_predict_two_side(self, features, cat_features, get_raw_score,
+                                send_scores_to_follower):
         N = features.shape[0]
         peer_role = 'leader' if self._role == 'follower' else 'follower'
         raw_prediction = np.zeros(N, dtype=BST_TYPE)
@@ -1125,6 +1137,16 @@ class BoostingTreeEnsamble(object):
                     vec_tree, assignment, direction, peer_direction)
 
             raw_prediction += vec_tree['weight'][assignment]
+
+        self._bridge.start(self._bridge.new_iter_id())
+        if self._role == 'leader':
+            self._bridge.send(
+                self._bridge.current_iter_id, 'raw_prediction',
+                raw_prediction*send_scores_to_follower)
+        else:
+            raw_prediction = self._bridge.receive(
+                self._bridge.current_iter_id, 'raw_prediction')
+        self._bridge.commit()
 
         if get_raw_score:
             return raw_prediction

@@ -55,7 +55,8 @@ if __name__ == "__main__":
     logging.basicConfig(format='%(asctime)s %(message)s')
     parser = argparse.ArgumentParser(description='csv raw data generator cmd.')
     parser.add_argument('--base_dir', type=str, required=True,
-                        help='the base dir of fs to store the generated csv file')
+                        help='the base dir of fs to store the ' \
+                             'generated csv file')
     parser.add_argument('--partition_num', type=int, required=True,
                         help='the partition num of generated data')
     parser.add_argument('--start_id', type=int, required=True,
