@@ -28,28 +28,25 @@ class KubernetesClient {
     return body;
   }
 
-  async getFLApps(namespace, name) {
-    const { body } = await this.client.get(`namespaces/${namespace}/fedlearner/v1alpha1/flapps/${name}`);
-    return body;
-  }
-
-  async getFLApps(namespace, name) {
+  async getFLApp(namespace, name) {
     const { body } = await this.client.get(`namespaces/${namespace}/fedlearner/v1alpha1/flapps/${name}`);
     return body;
   }
 
   async getFLAppPods(namespace, name) {
-    const { body } = await this.client.get(`/namespaces/${namespace}/fedlearner/v1alpha1/flapps/${name}/pods`);
+    const { body } = await this.client.get(`namespaces/${namespace}/fedlearner/v1alpha1/flapps/${name}/pods`);
     return body;
   }
 
   async createFLApp(namespace, fl_app) {
-    const { body } = await this.client.post(`/namespaces/${namespace}/fedlearner/v1alpha1/flapps`, { body: fl_app });
+    const { body } = await this.client.post(`namespaces/${namespace}/fedlearner/v1alpha1/flapps`, {
+      json: fl_app
+    });
     return body;
   }
 
-  async deleteFLApp(namespace) {
-    const { body } = await this.client.delete(`/namespaces/${namespace}/fedlearner/v1alpha1/flapps/${name}`);
+  async deleteFLApp(namespace, name) {
+    const { body } = await this.client.delete(`namespaces/${namespace}/fedlearner/v1alpha1/flapps/${name}`);
     return body;
   }
 
