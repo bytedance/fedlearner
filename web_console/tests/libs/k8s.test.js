@@ -23,17 +23,17 @@ describe('Kubernetes Client', () => {
       assert.ok(namespaces.items.find((x) => x.metadata.name === 'default'));
     });
   });
-  
+
   describe('createFLApp', () => {
     it('should throw for none namespace, job_body', () => {
       assert.rejects(k8s.createFLApp());
     });
 
     it('should create default job for default', async () => {
-      const { flapps } = await k8s.createFLApp('default', loadYaml(testYaml));
+      assert.doesNotReject(k8s.createFLApp('default', loadYaml(testYaml)));
     });
   });
-  
+
 
   describe('getFLAppsByNamespace', () => {
     it('should throw for none namespace', () => {
@@ -52,7 +52,7 @@ describe('Kubernetes Client', () => {
     });
 
     it('should get all pods for default', async () => {
-      const { flapps } = await k8s.getFLApp('default', 'normal');
+      assert.doesNotReject(k8s.getFLApp('default', 'normal'));
     });
   });
 
@@ -73,9 +73,7 @@ describe('Kubernetes Client', () => {
     });
 
     it('should delete test application for default', async () => {
-      const { flapps } = await k8s.deleteFLApp('default', 'normal');
+      assert.doesNotReject(k8s.deleteFLApp('default', 'normal'))
     });
   });
-
-
 });

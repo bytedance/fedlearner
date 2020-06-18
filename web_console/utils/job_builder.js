@@ -1,4 +1,3 @@
-const { dumpYaml } = require("./yaml");
 let server_config;
 try {
     server_config = require('../server.config');
@@ -6,8 +5,7 @@ try {
     server_config = require('../constants').DEFAULT_SERVER_CONFIG;
 }
 
-function roleConfig(config, public_env={}, public_volume={}) {
-    return config
+function roleConfig(config, public_env = {}, public_volume = {}) {
     let role = {
         "pair": config.pair,
         "replicas": config.replicas,
@@ -21,7 +19,7 @@ function roleConfig(config, public_env={}, public_volume={}) {
                         { "name": "POD_NAME", "value": { "valueFrom": { "fieldRef": { "fieldPath": "metadata.name" } } } }],
                     "image": config.image,
                     "imagePullPolicy": "IfNotPresent",
-                    "volumeMounts:": [],
+                    "volumeMounts": [],
                     "name": "tensorflow",
                     "ports": config.ports,
                     "resources": { "limits": { "cpu": config.cpu, "memory": config.memory }, "requests": { "cpu": config.cpu, "memory": config.memory } },
@@ -33,16 +31,16 @@ function roleConfig(config, public_env={}, public_volume={}) {
     }
 
     for (var key in public_env) {
-        role["template"]["spec"]["containers"]["env"].append({ "name": key, "value": public_env[key] })
+        role["template"]["spec"]["containers"]["env"].push({ "name": key, "value": public_env[key] })
     }
 
     for (var key in config.env) {
-        role["template"]["spec"]["containers"]["env"].append({ "name": key, "value": config.env[key] })
+        role["template"]["spec"]["containers"]["env"].push({ "name": key, "value": config.env[key] })
     }
 
     for (var key in public_volume) {
-        role["template"]["spec"]["volumes"].append({ "hostPath": { "path": public_volume[key] }, "name": key })
-        role["template"]["spec"]["containers"]["volumeMounts"].append({ "mountPath": public_volume[key], "name": key })
+        role["template"]["spec"]["volumes"].push({ "hostPath": { "path": public_volume[key] }, "name": key })
+        role["template"]["spec"]["containers"]["volumeMounts"].push({ "mountPath": public_volume[key], "name": key })
     }
     return role
 }
@@ -70,7 +68,7 @@ function trainConfig(job) {
             }
         },
     }
-    
+
     job_config["spec"]["flReplicaSpecs"]["Master"] = roleConfig(
         job.master_config,
         job.public_env,
@@ -84,7 +82,7 @@ function trainConfig(job) {
         job.public_env,
         job.public_volume)
 
-    return dumpYaml(job_config);
+    return job_config;
 }
 
 module.exports = {
