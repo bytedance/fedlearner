@@ -53,16 +53,18 @@ type AppEventHandler interface {
 }
 
 type appEventHandler struct {
-	namespace string
-	crdClient crdclientset.Interface
+	namespace  string
+	crdClient  crdclientset.Interface
+	grpcClient map[string]pb.PairingServiceClient
 }
 
 var _ AppEventHandler = &appEventHandler{}
 
 func NewAppEventHandler(namespace string, crdClient crdclientset.Interface) AppEventHandler {
 	return &appEventHandler{
-		namespace: namespace,
-		crdClient: crdClient,
+		namespace:  namespace,
+		crdClient:  crdClient,
+		grpcClient: make(map[string]pb.PairingServiceClient),
 	}
 }
 
@@ -75,7 +77,7 @@ func (handler *appEventHandler) Register(ctx context.Context, app *v1alpha1.FLAp
 	if !ok {
 		return fmt.Errorf("leader spec is not specified, name = %v", name)
 	}
-	client, err := newClient(leaderSpec.PeerURL, leaderSpec.Authority)
+	client, err := handler.newClient(leaderSpec.PeerURL, leaderSpec.Authority)
 	if err != nil {
 		return fmt.Errorf("failed to build client, name = %v", name)
 	}
@@ -113,7 +115,7 @@ func (handler *appEventHandler) Pair(ctx context.Context, app *v1alpha1.FLApp) e
 
 	for role, peerSpec := range app.Spec.PeerSpecs {
 		klog.Infof("start to pair for app %v, role = %v", app.Name, app.Spec.Role)
-		client, err := newClient(peerSpec.PeerURL, peerSpec.Authority)
+		client, err := handler.newClient(peerSpec.PeerURL, peerSpec.Authority)
 		if err != nil {
 			return fmt.Errorf("failed to build client, name = %v, role = %v", name, role)
 		}
@@ -138,7 +140,7 @@ func (handler *appEventHandler) Shutdown(ctx context.Context, app *v1alpha1.FLAp
 		Role:  app.Spec.Role,
 	}
 	for role, peerSpec := range app.Spec.PeerSpecs {
-		client, err := newClient(peerSpec.PeerURL, peerSpec.Authority)
+		client, err := handler.newClient(peerSpec.PeerURL, peerSpec.Authority)
 		if err != nil {
 			return fmt.Errorf("failed to build client, name = %v, role = %v", name, role)
 		}
@@ -158,7 +160,7 @@ func (handler *appEventHandler) Finish(ctx context.Context, app *v1alpha1.FLApp)
 		Role:  app.Spec.Role,
 	}
 	for role, peerSpec := range app.Spec.PeerSpecs {
-		client, err := newClient(peerSpec.PeerURL, peerSpec.Authority)
+		client, err := handler.newClient(peerSpec.PeerURL, peerSpec.Authority)
 		if err != nil {
 			return fmt.Errorf("failed to build client, name = %v, role = %v", name, role)
 		}
@@ -317,7 +319,12 @@ func (handler *appEventHandler) FinishHandler(ctx context.Context, name string) 
 	}, nil
 }
 
-func newClient(peerURL, authority string) (pb.PairingServiceClient, error) {
+func (handler *appEventHandler) newClient(peerURL, authority string) (pb.PairingServiceClient, error) {
+	key := peerURL + "/" + authority
+	if client, ok := handler.grpcClient[key]; ok {
+		// reuse client
+		return client, nil
+	}
 	opts := []grpc.DialOption{grpc.WithInsecure()}
 	if authority != "" {
 		opts = append(opts, grpc.WithAuthority(authority))
@@ -326,7 +333,9 @@ func newClient(peerURL, authority string) (pb.PairingServiceClient, error) {
 	if err != nil {
 		return nil, err
 	}
-	return pb.NewPairingServiceClient(connection), nil
+	// save connection for later usage
+	handler.grpcClient[key] = pb.NewPairingServiceClient(connection)
+	return handler.grpcClient[key], nil
 }
 
 func newContextWithHeaders(headers map[string]string) context.Context {
