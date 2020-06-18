@@ -3,7 +3,6 @@ const path = require('path');
 const { loadYaml } = require('../../utils/yaml');
 const { readFileSync } = require('../../utils');
 const KubernetesClient = require('../../libs/k8s');
-const { isObject } = require('util');
 
 const testYaml = readFileSync(
   path.resolve(__dirname, '..', 'fixtures', 'test.yaml'),
