@@ -123,6 +123,10 @@ def create_argument_parser():
                         type=bool,
                         default=False,
                         help='Whether to use streaming transmit.')
+    parser.add_argument('--send-scores-to-follower',
+                        type=bool,
+                        default=False,
+                        help='Whether to send prediction scores to follower.')
 
     return parser
 
@@ -263,7 +267,8 @@ def test_one_file(args, bridge, booster, data_file, output_file):
         example_ids=example_ids,
         cat_features=cat_X,
         feature_names=X_names,
-        cat_feature_names=cat_X_names)
+        cat_feature_names=cat_X_names,
+        send_scores_to_follower=args.send_scores_to_follower)
 
     if y is not None:
         metrics = booster.loss.metrics(pred, y)
