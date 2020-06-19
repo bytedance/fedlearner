@@ -24,9 +24,6 @@ const (
 	masterService     = "MASTER_ID"
 	replicaIndex      = "INDEX"
 
-	egressURL  = "EGRESS_URL"
-	egressHost = "EGRESS_HOST"
-
 	exitedWithCodeReason = "ExitedWithCode"
 )
 

@@ -231,9 +231,11 @@ func (am *appManager) reconcileFLApp(ctx context.Context, app *v1alpha1.FLApp) e
 }
 
 func (am *appManager) isAppBootstrapped(app *v1alpha1.FLApp) bool {
+	needIngress := false
 	for rtype := range app.Spec.FLReplicaSpecs {
 		rt := strings.ToLower(string(rtype))
 		if needPair(app, rtype) {
+			needIngress = true
 			configMapName := GenReplicaName(app.Name, strings.ToLower(app.Spec.Role), rt)
 			configMap, err := am.configMapLister.ConfigMaps(am.namespace).Get(configMapName)
 			// ConfigMap not ready
@@ -250,11 +252,13 @@ func (am *appManager) isAppBootstrapped(app *v1alpha1.FLApp) bool {
 			return false
 		}
 	}
-	ingressName := GenName(app.Name, strings.ToLower(app.Spec.Role))
-	ingress, err := am.ingressLister.Ingresses(am.namespace).Get(ingressName)
-	// Ingress not ready
-	if err != nil || ingress == nil {
-		return false
+	if needIngress {
+		ingressName := GenName(app.Name, strings.ToLower(app.Spec.Role))
+		ingress, err := am.ingressLister.Ingresses(am.namespace).Get(ingressName)
+		// Ingress not ready
+		if err != nil || ingress == nil {
+			return false
+		}
 	}
 	return true
 }
