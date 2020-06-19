@@ -27,6 +27,29 @@ class KubernetesClient {
     const { body } = await this.client.get(`namespaces/${namespace}/fedlearner/v1alpha1/flapps`);
     return body;
   }
+
+  async getFLApp(namespace, name) {
+    const { body } = await this.client.get(`namespaces/${namespace}/fedlearner/v1alpha1/flapps/${name}`);
+    return body;
+  }
+
+  async getFLAppPods(namespace, name) {
+    const { body } = await this.client.get(`namespaces/${namespace}/fedlearner/v1alpha1/flapps/${name}/pods`);
+    return body;
+  }
+
+  async createFLApp(namespace, fl_app) {
+    const { body } = await this.client.post(`namespaces/${namespace}/fedlearner/v1alpha1/flapps`, {
+      json: fl_app
+    });
+    return body;
+  }
+
+  async deleteFLApp(namespace, name) {
+    const { body } = await this.client.delete(`namespaces/${namespace}/fedlearner/v1alpha1/flapps/${name}`);
+    return body;
+  }
+
 }
 
 module.exports = KubernetesClient;

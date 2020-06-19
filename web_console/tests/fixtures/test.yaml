@@ -2,7 +2,7 @@ apiVersion: fedlearner.k8s.io/v1alpha1
 kind: FLApp
 metadata:
   name: normal
-  namespace: leader
+  namespace: default
 spec:
   flReplicaSpecs:
     Master:
