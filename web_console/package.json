@@ -56,7 +56,10 @@
   },
   "nyc": {
     "exclude": [
-      "utils/index.js"
+      "*.config.js",
+      "tests/*",
+      "utils/index.js",
+      "server.js"
     ],
     "branches": 80,
     "lines": 80,
@@ -84,7 +87,6 @@
     "@zeit-ui/react-icons": "1.2.2",
     "dayjs": "1.8.28",
     "get-port": "5.1.1",
-    "got": "11.3.0",
     "js-yaml": "3.14.0",
     "koa": "2.12.0",
     "koa-bodyparser": "4.3.0",
@@ -92,13 +94,15 @@
     "koa-onerror": "4.1.0",
     "koa-pino-logger": "3.0.0",
     "koa-session": "6.0.0",
+    "ky": "0.20.0",
+    "ky-universal": "0.7.0",
     "mysql2": "2.1.0",
     "next": "9.4.4",
     "react": "16.13.1",
     "react-dom": "16.13.1",
     "sequelize": "5.21.12",
     "styled-jsx": "3.3.0",
-    "swr": "0.2.2",
+    "swr": "0.2.3",
     "ylru": "1.2.1"
   },
   "devDependencies": {

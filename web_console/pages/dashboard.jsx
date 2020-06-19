@@ -49,14 +49,14 @@ function useStyles(theme) {
   `;
 }
 
-export default function Dashboard(props) {
+export default function Dashboard() {
   const theme = useTheme();
   const styles = useStyles(theme);
   return (
-    <Layout theme={props.theme} toggleTheme={props.toggleTheme}>
+    <Layout>
       <div className="heading">
-        <Text h2>Pending Tasks</Text>
-        <Button auto type="secondary">Create Training</Button>
+        <Text h2>Pending Jobs</Text>
+        <Button auto type="secondary">Create Job</Button>
       </div>
       <div className="row">
         <div className="tasks">

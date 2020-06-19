@@ -20,6 +20,11 @@ module.exports = (sequelize, DataTypes) => {
       allowNull: true,
       default: null,
     },
+    email: {
+      type: DataTypes.STRING(255),
+      allowNull: true,
+      default: null,
+    },
     tel: {
       type: DataTypes.STRING(15),
       allowNull: true,
@@ -37,16 +42,6 @@ module.exports = (sequelize, DataTypes) => {
     createdAt: 'created_at',
     updatedAt: 'updated_at',
     deletedAt: 'deleted_at',
-    // getterMethods: {
-    //   params() {
-    //     return JSON.parse(this.params);
-    //   },
-    // },
-    // setterMethods: {
-    //   params(value) {
-    //     this.setDataValue('params', JSON.stringify(value));
-    //   },
-    // },
   });
 
   return User;

@@ -29,7 +29,7 @@ export default function TicketCard({ name, type, state, stages, progress, style 
   const theme = useTheme();
   const styles = useStyles(theme);
   return (
-    <Card shadow className="ticketCard" style={style}>
+    <Card shadow style={style}>
       <div className="title">
         <Text h3>
           {name}
@@ -51,11 +51,6 @@ export default function TicketCard({ name, type, state, stages, progress, style 
         <Progress type={state} value={progress} />
       </Card.Footer>
 
-      <style jsx global>{`
-        .ticketCard .content {
-          box-sizing: border-box;
-        }
-      `}</style>
       <style jsx>{styles}</style>
     </Card>
   );
