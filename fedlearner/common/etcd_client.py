@@ -15,7 +15,6 @@
 # coding: utf-8
 """Etcd client."""
 
-import socket
 import threading
 import random
 from contextlib import contextmanager
@@ -112,21 +111,14 @@ class EtcdClient(object):
     def _normalize_addr(addrs):
         naddrs = []
         for raw_addr in addrs.split(','):
-            (ip, port_str) = raw_addr.split(':')
-            if ip != 'localhost':
-                try:
-                    socket.inet_aton(ip)
-                    if ip.count('.') != 3:
-                        raise socket.error
-                except socket.error:
-                    raise ValueError('{} is not a valid ip'.format(ip))
+            (host, port_str) = raw_addr.split(':')
             try:
                 port = int(port_str)
                 if port < 0 or port > 65535:
                     raise ValueError('port {} is out of range')
             except ValueError:
                 raise ValueError('{} is not a valid port'.format(port_str))
-            naddrs.append((ip, port))
+            naddrs.append((host, port))
         return naddrs
 
     @staticmethod
