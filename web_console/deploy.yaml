@@ -1,0 +1,53 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: fedlearner-web-console
+  name: fedlearner-web-console
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: fedlearner-web-console
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: fedlearner-web-console
+    spec:
+      containers:
+      - name: fedlearner-web-console
+        image: fedlearner/fedlearner-web-console:ee53f1d
+        imagePullPolicy: IfNotPresent
+        env:
+        - name: NODE_ENV
+          value: production
+        - name: K8S_HOST
+          value:
+        - name: K8S_PORT
+          value:
+        - name: DB_USERNAME
+          value:
+        - name: DB_PASSWORD
+          value:
+        - name: DB_HOST
+          value:
+        - name: DB_PORT
+          value:
+        args: ["bootstrap.js"]
+        command: ["node"]
+        ports:
+        - containerPort: 1989
+          protocol: TCP
+        resources:
+          requests:
+            cpu: 1
+            memory: 2Gi
+          limits:
+            cpu: 2
+            memory: 4Gi
