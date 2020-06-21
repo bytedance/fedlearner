@@ -23,16 +23,17 @@ function useStyles(theme) {
   `;
 }
 
-export default function Layout({ children }) {
+export default function Layout({ header = true, footer = true, children }) {
   const theme = useTheme();
   const styles = useStyles(theme);
   return (
     <div className="layout">
-      <Header />
+      {header && <Header />}
       <div className="content">
         {children}
       </div>
-      <Footer />
+      {footer && <Footer />}
+
       <style jsx global>{`
         html {
           touch-action: manipulation;
@@ -104,6 +105,62 @@ export default function Layout({ children }) {
         .colorLink:hover {
           color: #0070f3 !important;
           text-decoration: underline !important;
+        }
+
+        .card .content {
+          box-sizing: border-box;
+        }
+
+        .card .formCardFooter {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          width: 100%;
+          box-sizing: border-box;
+          background: ${theme.palette.accents_1};
+        }
+
+        .passwordViwer .input-wrapper {
+          border: none !important;
+        }
+
+        .passwordViwer .input-wrapper input {
+          margin: 0 !important;
+          color: #666;
+        }
+
+        .formItemWithLabel {
+          display: inline-block;
+          width: initial;
+          box-sizing: border-box;
+          -webkit-box-align: center;
+        }
+
+        .formItemLabel {
+          display: block;
+          font-weight: normal;
+          color: #444;
+          padding: 0 0 0 1px;
+          margin-bottom: 8pt;
+          font-size: 1rem;
+          line-height: 1.5;
+        }
+
+        .formItemValue {
+          display: -webkit-inline-box;
+          display: -webkit-inline-flex;
+          display: -ms-inline-flexbox;
+          display: inline-flex;
+          -webkit-align-items: center;
+          -webkit-box-align: center;
+          -ms-flex-align: center;
+          align-items: center;
+          width: initial;
+          height: calc(1.687 * 16pt);
+        }
+
+        .actionText {
+          cursor: pointer;
         }
       `}</style>
       <style jsx>{styles}</style>

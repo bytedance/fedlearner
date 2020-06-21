@@ -1,6 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import css from 'styled-jsx/css';
-import { Avatar, Link, Popover, Tabs, useTheme } from '@zeit-ui/react';
+import { useRouter } from 'next/router';
+import useSWR from 'swr';
+import { Avatar, Link, Popover, Spinner, Tabs, Loading, useTheme } from '@zeit-ui/react';
+import { fetcher } from '../libs/http';
+import { logout } from '../services';
 
 function useStyles(theme) {
   return css`
@@ -64,48 +68,80 @@ function useStyles(theme) {
       align-items: center !important;
     }
 
-    .themeIcon {
-      width: 40px !important;
-      height: 40px !important;
-      display: flex !important;
-      justify-content: center !important;
-      align-items: center !important;
-      margin-right: 5px;
-      padding: 0 !important;
-    }
-
     .popover {
       width: 180px !important;
     }
   `;
 }
 
-const popoverContent = () => (
-  <>
-    <Popover.Item>
-      <Link href="/">Dashboard</Link>
-    </Popover.Item>
-    <Popover.Item>
-      <Link href="/admin">Admin</Link>
-    </Popover.Item>
-    <Popover.Item>
-      <Link href="/settings">Settings</Link>
-    </Popover.Item>
-    <Popover.Item>
-      <Link href="/docs">Docs</Link>
-    </Popover.Item>
-    <Popover.Item line />
-    <Popover.Item>
-      <Link>Logout</Link>
-    </Popover.Item>
-  </>
-);
-
 export default function Header() {
   const theme = useTheme();
   const styles = useStyles(theme);
+  const router = useRouter();
+  const { data } = useSWR('user', fetcher);
+  const { route, query } = router;
+  const isAdmin = route === '/admin';
+  const user = data ? data.data : null;
+  const [signingOut, setSigningOut] = useState(false);
   const [scrollTop, setScrollTop] = useState(0);
   const fixed = scrollTop > 24;
+  const onSignOut = async (e) => {
+    e.preventDefault();
+    setSigningOut(true);
+    const { error } = await logout();
+    setSigningOut(false);
+    if (!error) {
+      router.push('/login');
+    }
+  };
+  const title = isAdmin ? 'Admin' : 'Fedlearner';
+  const navs = isAdmin
+    ? [
+      { label: 'Federations', value: 'federation' },
+      { label: 'Users', value: 'user' },
+    ]
+    : [
+      { label: 'Overview', value: 'overview' },
+      { label: 'Jobs', value: 'job' },
+      { label: 'Tickets', value: 'ticket' },
+    ];
+  const PopoverContent = (
+    <>
+      {user && (
+        <Popover.Item title>
+          <p>{user.name}</p>
+          <p style={{ color: '#666' }}>@{user.username}</p>
+        </Popover.Item>
+      )}
+      <Popover.Item>
+        {isAdmin ? <Link href="/">Dashboard</Link> : <Link href="/admin">Admin</Link>}
+      </Popover.Item>
+      <Popover.Item>
+        <Link href="/docs">Docs</Link>
+      </Popover.Item>
+      <Popover.Item>
+        <Link href="/settings">Settings</Link>
+      </Popover.Item>
+      <Popover.Item line />
+      {signingOut
+        ? <Loading />
+        : (
+          <Popover.Item>
+            <Link onClick={onSignOut}>Sign out</Link>
+          </Popover.Item>
+        )}
+    </>
+  );
+  const tab = query.tab || navs[0].value;
+  const onChangeTab = (value) => {
+    router.push({
+      pathname: route,
+      query: {
+        ...query,
+        tab: value,
+      },
+    });
+  };
 
   useEffect(() => {
     const scrollHandler = () => {
@@ -119,28 +155,30 @@ export default function Header() {
     <div className={fixed ? 'headerFixed' : 'header'}>
       <div className="headerContent">
         <div className="headerContentBlock">
-          <div className="logo">
+          <Link href="/" className="logo">
             <svg width="20" viewBox="0 0 75 65" fill={theme.palette.foreground}>
               <path d="M37.59.25l36.95 64H.64l36.95-64z" />
             </svg>
-          </div>
-          <div className="headerTitle">Fedlearner</div>
+          </Link>
+          <div className="headerTitle">{title}</div>
           <nav className="nav">
-            <Tabs className="menu">
-              <Tabs.Item label="Datasets" value="datasets" />
-              <Tabs.Item label="Trainings" value="trainings" />
-              <Tabs.Item label="Tasks" value="tasks" />
-              <Tabs.Item label="Tickets" value="tickets" />
+            <Tabs className="menu" value={tab} onChange={onChangeTab}>
+              {navs.map((x) => <Tabs.Item key={x.value} label={x.label} value={x.value} />)}
             </Tabs>
           </nav>
         </div>
 
         <div className="sidebar">
-          <Popover content={popoverContent} placement="bottomEnd">
-            <Avatar
-              src="https://github.com/bytedance.png"
-              alt="ByteDance Avatar"
-            />
+          <Popover content={PopoverContent} placement="bottomEnd">
+            {user
+              ? (
+                <Avatar
+                  src={`https://github.com/${user.username}.png`}
+                  alt={`${user.name} Avatar`}
+                  style={{ cursor: 'pointer' }}
+                />
+              )
+              : <Spinner />}
           </Popover>
         </div>
       </div>

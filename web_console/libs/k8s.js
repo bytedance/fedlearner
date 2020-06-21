@@ -1,5 +1,8 @@
-// Kubernetes Client
-const got = require('got');
+/**
+ * Kubernetes Client
+ */
+
+const ky = require('ky-universal');
 
 let config;
 try {
@@ -12,42 +15,33 @@ class KubernetesClient {
   constructor() {
     // TODO: use HTTPs for production
     const prefixUrl = `http://${process.env.K8S_HOST || config.K8S_HOST}:${process.env.K8S_PORT || config.K8S_PORT}`;
-    this.client = got.extend({
-      prefixUrl,
-      responseType: 'json',
-    });
+    this.client = ky.create({ prefixUrl });
   }
 
   async getNamespaces() {
-    const { body } = await this.client.get('namespaces');
-    return body;
+    return this.client.get('namespaces').json();
   }
 
   async getFLAppsByNamespace(namespace) {
-    const { body } = await this.client.get(`namespaces/${namespace}/fedlearner/v1alpha1/flapps`);
-    return body;
+    return this.client.get(`namespaces/${namespace}/fedlearner/v1alpha1/flapps`).json();
   }
 
   async getFLApp(namespace, name) {
-    const { body } = await this.client.get(`namespaces/${namespace}/fedlearner/v1alpha1/flapps/${name}`);
-    return body;
+    return this.client.get(`namespaces/${namespace}/fedlearner/v1alpha1/flapps/${name}`).json();
   }
 
   async getFLAppPods(namespace, name) {
-    const { body } = await this.client.get(`namespaces/${namespace}/fedlearner/v1alpha1/flapps/${name}/pods`);
-    return body;
+    return this.client.get(`namespaces/${namespace}/fedlearner/v1alpha1/flapps/${name}/pods`).json();
   }
 
   async createFLApp(namespace, fl_app) {
-    const { body } = await this.client.post(`namespaces/${namespace}/fedlearner/v1alpha1/flapps`, {
+    return this.client.post(`namespaces/${namespace}/fedlearner/v1alpha1/flapps`, {
       json: fl_app
-    });
-    return body;
+    }).json();
   }
 
   async deleteFLApp(namespace, name) {
-    const { body } = await this.client.delete(`namespaces/${namespace}/fedlearner/v1alpha1/flapps/${name}`);
-    return body;
+    return this.client.delete(`namespaces/${namespace}/fedlearner/v1alpha1/flapps/${name}`).json();
   }
 
 }
