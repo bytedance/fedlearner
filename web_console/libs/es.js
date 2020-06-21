@@ -11,6 +11,8 @@ try {
     config = require('../constants').DEFAULT_SERVER_CONFIG;
 }
 
+
+
 class ElasticSearchClient {
     constructor() {
         // TODO: use HTTPs for production
@@ -60,12 +62,8 @@ class ElasticSearchClient {
             }
         }
 
-        const { body } = await this.client.post(`${index}/_search`, { json: query_body })
-        var logs = new Array();
-        for (var key in body.hits.hits) {
-            logs.push(body.hits.hits[key]['_source']['message'])
-        }
-        return logs;
+        const body = await this.client.post(`${index}/_search`, { json: query_body })
+        return Object.keys(body.hits.hits).map(x => body.hits.hits[x]['_source']['message']);
     }
 }
 
