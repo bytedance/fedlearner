@@ -4,18 +4,13 @@ const { loadYaml } = require('../../utils/yaml');
 const { readFileSync } = require('../../utils');
 const KubernetesClient = require('../../libs/k8s');
 
+const k8s = new KubernetesClient();
 const testYaml = readFileSync(
   path.resolve(__dirname, '..', 'fixtures', 'test.yaml'),
   { encoding: 'utf-8' },
 );
 
-let k8s;
-
 describe('Kubernetes Client', () => {
-  before(() => {
-    k8s = new KubernetesClient();
-  });
-
   describe('getNamespaces', () => {
     it('should get all namespaces', async () => {
       const { namespaces } = await k8s.getNamespaces();
@@ -35,8 +30,9 @@ describe('Kubernetes Client', () => {
 
 
   describe('getFLAppsByNamespace', () => {
-    it('should throw for none namespace', () => {
-      assert.rejects(k8s.getFLAppsByNamespace());
+    it('should get no apps for null namespace', async () => {
+      const { flapps } = await k8s.getFLAppsByNamespace();
+      assert.ok(flapps.items.length === 0);
     });
 
     it('should get all pods for default', async () => {
@@ -72,7 +68,7 @@ describe('Kubernetes Client', () => {
     });
 
     it('should delete test application for default', async () => {
-      assert.doesNotReject(k8s.deleteFLApp('default', 'normal'))
+      assert.doesNotReject(k8s.deleteFLApp('default', 'normal'));
     });
   });
 });

@@ -1,59 +1,90 @@
 const router = require('@koa/router')();
 const { Op } = require('sequelize');
 const SessionMiddleware = require('../middlewares/session');
+const AdminMiddleware = require('../middlewares/admin');
 const { User } = require('../models');
-const { ok, error } = require('../libs/response');
 
-router.get('/users', async (ctx) => {
-  const { limit = 20, offset = 0 } = ctx.query;
-  const order = [['id', 'DESC']];
-  const data = await User.findAll({ limit, offset, order });
-  ctx.body = ok(data);
+router.get('/api/v1/user', SessionMiddleware, async (ctx) => {
+  ctx.body = { data: ctx.session.user };
 });
 
-router.post('/users', SessionMiddleware, async (ctx) => {
-  // TODO: implement common request body validation middleware
-  if (!ctx.request.body) {
-    ctx.body = error('Illegal request body');
+router.get('/api/v1/users', SessionMiddleware, AdminMiddleware, async (ctx) => {
+  const data = await User.findAll({ paranoid: false });
+  ctx.body = { data };
+});
+
+router.post('/api/v1/users', SessionMiddleware, AdminMiddleware, async (ctx) => {
+  const { username, password, name, email, tel, is_admin } = ctx.request.body;
+
+  if (!username) {
+    ctx.status = 400;
+    ctx.body = {
+      error: 'Missing field: username',
+    };
     return;
   }
 
-  const { username, password, name, tel } = ctx.request.body;
-  const data = await User.create({
-    username,
-    password,
-    name,
-    tel,
-  });
-  ctx.body = ok(data, 'Create user successfully.');
-});
+  if (!password) {
+    ctx.status = 400;
+    ctx.body = {
+      error: 'Missing field: password',
+    };
+    return;
+  }
 
-router.get('/users/:id', async (ctx) => {
-  const data = await User.findById(ctx.params.id);
-  ctx.body = ok(data);
-});
-
-router.put('/users/:id', async (ctx) => {
-  const { id } = ctx.params;
-  const { body } = ctx.request;
-  const fields = ['password', 'name', 'tel'].reduce((total, current) => {
-    const value = body[current];
-    if (value) {
-      total[current] = value;
-    }
-    return total;
-  }, {});
-  const data = await User.update(fields, {
+  const [data, created] = await User.findOrCreate({
+    paranoid: false,
     where: {
-      id: { [Op.eq]: id },
+      username: { [Op.eq]: username },
+    },
+    defaults: {
+      username, password, name, email, tel, is_admin,
     },
   });
-  ctx.body = ok(data, 'Update user successfully.');
+
+  if (!created) {
+    ctx.status = 422;
+    ctx.body = {
+      error: 'User already exists',
+    };
+    return;
+  }
+
+  ctx.body = { data };
 });
 
 // TODO
-router.delete('/queries/:id', async (ctx) => {
-  ctx.status = 501;
+// router.put('/api/v1/users/:id', async (ctx) => {
+//   const { id } = ctx.params;
+//   const { body } = ctx.request;
+//   const fields = ['password', 'name', 'tel'].reduce((total, current) => {
+//     const value = body[current];
+//     if (value) {
+//       total[current] = value;
+//     }
+//     return total;
+//   }, {});
+//   const data = await User.update(fields, {
+//     where: {
+//       id: { [Op.eq]: id },
+//     },
+//   });
+//   ctx.body = { data };
+// });
+
+router.delete('/api/v1/users/:id', SessionMiddleware, AdminMiddleware, async (ctx) => {
+  const data = await User.findByPk(ctx.params.id);
+
+  if (!data) {
+    ctx.status = 404;
+    ctx.body = {
+      error: 'User not found',
+    };
+    return;
+  }
+
+  await data.destroy();
+  ctx.body = { data };
 });
 
 module.exports = router;
