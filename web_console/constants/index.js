@@ -4,6 +4,8 @@ const DEFAULT_SERVER_CONFIG = {
   API_VERSION: 'fedlearner.k8s.io/v1alpha1',
   KIND: 'FLApp',
   NAMESPACE: 'default',
+  ES_HOST: 'fedlearner-stack-elasticsearch-client',
+  ES_PORT: 9200,
 };
 
 module.exports = {
