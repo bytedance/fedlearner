@@ -1,6 +1,8 @@
-// Kubernetes Client
-const got = require('got');
-const json = require('koa-json');
+/**
+ * Elastic Search Client
+ */
+
+const ky = require('ky-universal');
 
 let config;
 try {
@@ -13,10 +15,7 @@ class ElasticSearchClient {
     constructor() {
         // TODO: use HTTPs for production
         const prefixUrl = `http://${process.env.ES_HOST || config.ES_HOST}:${process.env.ES_PORT || config.ES_PORT}`;
-        this.client = got.extend({
-            prefixUrl,
-            responseType: 'json',
-        });
+        this.client = ky.create({ prefixUrl });
     }
 
     async queryLog(index, keyword, pod_name, start_time, end_time) {
