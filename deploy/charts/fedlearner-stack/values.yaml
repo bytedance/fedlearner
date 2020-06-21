@@ -21,6 +21,15 @@ mariadb:
   slave:
     persistence:
       storageClass: nfs
+  rootUser:
+    password: fedlearner
+  db:
+    user: fedlearner
+    password: fedlearner
+    name: fedlearner
+  replication:
+    user: fedlearner
+    password: fedlearner
 
 elastic-stack:
   enabled: true

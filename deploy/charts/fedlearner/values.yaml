@@ -4,24 +4,25 @@
 
 replicaCount: 1
 
-image:
-  operatorRepository: fedlearner/fedlearner-operator
-  operatorTag: "61981ac"
-  apiserverRepository: fedlearner/fedlearner-apiserver
-  apiserverTag: "9512731"
-  pullPolicy: IfNotPresent
+fedlearner-operator:
+  image:
+    repository: fedlearner/fedlearner-operator
+    tag: "61981ac"
+    pullPolicy: IfNotPresent
 
-imagePullSecrets: []
-nameOverride: ""
-fullnameOverride: ""
+  ingress:
+    enabled: true
 
-resources:
-  limits:
-    cpu: "1"
-    memory: 1Gi
-  requests:
-    cpu: "1"
-    memory: 1Gi
+fedlearner-apiserver:
+  image:
+    repository: fedlearner/fedlearner-apiserver
+    tag: "9512731"
+    pullPolicy: IfNotPresent
 
-ingress:
-  enabled: true
+fedlearner-web-console:
+  image:
+    repository: fedlearner/fedlearner-web-console
+    tag: "ee53f1d"
+    pullPolicy: IfNotPresent
+
+

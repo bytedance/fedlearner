@@ -5,7 +5,7 @@ metadata:
   annotations:
     kubernetes.io/ingress.class: nginx
     nginx.ingress.kubernetes.io/backend-protocol: GRPC
-  name: flapp-operator
+  name: fedlearner-operator
   namespace: {{ .Release.Namespace }}
 spec:
   rules:
@@ -13,7 +13,7 @@ spec:
     http:
       paths:
       - backend:
-          serviceName: flapp-operator
+          serviceName: fedlearner-operator
           servicePort: 8100
 ---
 {{ end }}
