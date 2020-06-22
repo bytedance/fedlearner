@@ -20,6 +20,7 @@ spec:
       labels:
         app: fedlearner-apiserver
     spec:
+      hostNetwork: {{ .Values.hostNetwork }}
       containers:
         - args:
             - --port=8101
