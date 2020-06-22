@@ -71,17 +71,7 @@ affinity: {}
 
 cluster:
   env:
-    - name: NODE_ENV
-      value: production
-    - name: K8S_HOST
-      value: fedlearner-apiserver.default.svc.cluster.local
-    - name: K8S_PORT
-      value: 8101
-    - name: DB_USERNAME
-      value: fedlearner
-    - name: DB_PASSWORD
-      value: fedlearner
-    - name: DB_HOST
-      value: fedlearner-stack-mariadb.default.cluster.local
-    - name: DB_PORT
-      value: 3306
+    DB_USERNAME: root
+    DB_PASSWORD: fedlearner
+    DB_HOST: fedlearner-stack-mariadb
+    DB_PORT: 3306

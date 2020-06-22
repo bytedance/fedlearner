@@ -1,7 +1,8 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "fedlearner-web-console.fullname" . }}
+  name: fedlearner-web-console
+  namespace: {{ .Release.Namespace }}
   labels:
     {{- include "fedlearner-web-console.labels" . | nindent 4 }}
 spec:
@@ -37,6 +38,12 @@ spec:
           args:
             - bootstrap.js
           env:
+            - name: NODE_ENV
+              value: production
+            - name: K8S_HOST
+              value: fedlearner-apiserver
+            - name: K8S_PORT
+              value: "8101"
             {{- range $key, $value := .Values.cluster.env }}
             - name: {{ $key }}
               value: {{ $value | quote }}

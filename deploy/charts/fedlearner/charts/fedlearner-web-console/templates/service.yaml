@@ -2,6 +2,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: {{ include "fedlearner-web-console.fullname" . }}
+  namespace: {{ .Release.Namespace }}
   labels:
     {{- include "fedlearner-web-console.labels" . | nindent 4 }}
 spec:

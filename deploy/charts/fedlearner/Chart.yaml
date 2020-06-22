@@ -6,12 +6,11 @@ version: 0.1.0
 appVersion: 2.1.2
 dependencies:
 - name: fedlearner-operator
-  repository: ""
-  version: 2.1.2
+  version: 0.1.0
   condition: fedlearner-operator.enabled
 - name: fedlearner-apiserver
-  version: 1.16.0
+  version: 0.1.0
   condition: fedlearner-apiserver.enabled
 - name: fedlearner-web-console
-  version: 1.16.0
+  version: 0.1.0
   condition: fedlearner-web-console.enabled

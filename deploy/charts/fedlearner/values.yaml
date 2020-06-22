@@ -24,5 +24,3 @@ fedlearner-web-console:
     repository: fedlearner/fedlearner-web-console
     tag: "ee53f1d"
     pullPolicy: IfNotPresent
-
-
