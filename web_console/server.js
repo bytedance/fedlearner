@@ -6,13 +6,12 @@ const onerror = require('koa-onerror');
 const logger = require('koa-pino-logger');
 const session = require('koa-session');
 const { readdirSync } = require('./utils');
+const getConfig = require('./utils/get_confg');
 
-let config;
-try {
-  config = require('./server.config');
-} catch (err) {
-  config = require('./constants').DEFAULT_SERVER_CONFIG;
-}
+const config = getConfig({
+  SERVER_CIPHER: process.env.SERVER_CIPHER,
+  SERVER_DECIPHER: process.env.SERVER_DECIPHER,
+});
 
 const isTest = process.env.NODE_ENV === 'test';
 const server = new Koa();
