@@ -4,17 +4,17 @@
 
 const ky = require('ky-universal');
 
-let config;
-try {
-  config = require('../server.config');
-} catch (err) {
-  config = require('../constants').DEFAULT_SERVER_CONFIG;
-}
+const getConfig = require('../utils/get_confg');
+
+const config = getConfig({
+  K8S_HOST: process.env.K8S_HOST,
+  K8S_PORT: process.env.K8S_PORT,
+});
 
 class KubernetesClient {
   constructor() {
     // TODO: use HTTPs for production
-    const prefixUrl = `http://${process.env.K8S_HOST || config.K8S_HOST}:${process.env.K8S_PORT || config.K8S_PORT}`;
+    const prefixUrl = `http://${config.K8S_HOST}:${config.K8S_PORT}`;
     this.client = ky.create({ prefixUrl });
   }
 

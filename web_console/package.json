@@ -96,13 +96,17 @@
     "koa-session": "6.0.0",
     "ky": "0.20.0",
     "ky-universal": "0.7.0",
+    "lodash": "4.17.15",
     "mysql2": "2.1.0",
     "next": "9.4.4",
     "react": "16.13.1",
     "react-dom": "16.13.1",
     "sequelize": "5.21.12",
+    "sockjs-client": "1.4.0",
     "styled-jsx": "3.3.0",
     "swr": "0.2.3",
+    "xterm": "4.7.0",
+    "xterm-addon-fit": "0.4.0",
     "ylru": "1.2.1"
   },
   "devDependencies": {

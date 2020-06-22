@@ -86,16 +86,6 @@ export default function Layout({ header = true, footer = true, children }) {
           display: none;
         }
 
-        .link {
-          color: #666 !important;
-          text-decoration: none;
-          transition: color 0.2s ease 0s;
-        }
-
-        .link:hover {
-          color: #000 !important;
-        }
-
         .colorLink {
           color: #0070f3 !important;
           text-decoration: none;
