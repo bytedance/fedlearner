@@ -17,8 +17,8 @@ const isTest = process.env.NODE_ENV === 'test';
 const server = new Koa();
 server.silent = true;
 server.keys = [
-  process.env.SERVER_CIPHER || config.SERVER_CIPHER,
-  process.env.SERVER_DECIPHER || config.SERVER_DECIPHER,
+  config.SERVER_CIPHER,
+  config.SERVER_DECIPHER,
 ];
 
 server.use(session({
