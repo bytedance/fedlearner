@@ -122,7 +122,7 @@ function JobList(props) {
               labeledList.map(({ name, list }) => (
                 <div className="num" key={name}>
                   <h4 className="h">{name}</h4>
-                  <b className="b">{list.length}</b>
+                  <b className="b">{data ? list.length : '-'}</b>
                 </div>
               ))
             }

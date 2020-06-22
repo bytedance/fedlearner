@@ -24,33 +24,40 @@ class KubernetesClient {
   }
 
   async getNamespaces() {
-    return this.client.get('namespaces').json();
+    const response = await this.client.get('namespaces');
+    return response.json();
   }
 
   async getFLAppsByNamespace(namespace) {
-    return this.client.get(`namespaces/${namespace}/fedlearner/v1alpha1/flapps`).json();
+    const response = await this.client.get(`namespaces/${namespace}/fedlearner/v1alpha1/flapps`);
+    return response.json();
   }
 
   async getFLApp(namespace, name) {
-    return this.client.get(`namespaces/${namespace}/fedlearner/v1alpha1/flapps/${name}`).json();
+    const response = await this.client.get(`namespaces/${namespace}/fedlearner/v1alpha1/flapps/${name}`);
+    return response.json();
   }
 
   async getFLAppPods(namespace, name) {
-    return this.client.get(`namespaces/${namespace}/fedlearner/v1alpha1/flapps/${name}/pods`).json();
+    const response = await this.client.get(`namespaces/${namespace}/fedlearner/v1alpha1/flapps/${name}/pods`);
+    return response.json();
   }
 
   async createFLApp(namespace, fl_app) {
-    return this.client.post(`namespaces/${namespace}/fedlearner/v1alpha1/flapps`, {
+    const response = await this.client.post(`namespaces/${namespace}/fedlearner/v1alpha1/flapps`, {
       json: fl_app
-    }).json();
+    });
+    return response.json();
   }
 
   async deleteFLApp(namespace, name) {
-    return this.client.delete(`namespaces/${namespace}/fedlearner/v1alpha1/flapps/${name}`).json();
+    const response = await this.client.delete(`namespaces/${namespace}/fedlearner/v1alpha1/flapps/${name}`);
+    return response.json();
   }
 
   async getWebshellSession(namespace, name, container) {
-    return this.client.get(`namespaces/${namespace}/pods/${name}/shell/${container}`).json();
+    const response = await this.client.get(`namespaces/${namespace}/pods/${name}/shell/${container}`);
+    return response.json();
   }
 }
 

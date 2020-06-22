@@ -38,7 +38,7 @@ function useStyles(theme) {
       }
       .right {
         margin-left: ${theme.layout.pageMargin};
-        width: 75%;
+        width: 76%;
         margin-top: 0;
       }
     }

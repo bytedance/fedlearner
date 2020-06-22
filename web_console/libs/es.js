@@ -61,7 +61,8 @@ class ElasticSearchClient {
             }
         }
 
-        const body = await this.client.post(`${index}/_search`, { json: query_body }).json();
+        const response = await this.client.post(`${index}/_search`, { json: query_body });
+        const body = await response.json();
         return Object.keys(body.hits.hits).map(x => body.hits.hits[x]['_source']['message']);
     }
 }
