@@ -11,6 +11,13 @@ const testYaml = readFileSync(
 );
 
 describe('Kubernetes Client', () => {
+  describe('getBaseUrl', () => {
+    it('should get prefixUrl', async () => {
+      const baseUrl = await k8s.getBaseUrl();
+      assert.equal(baseUrl, k8s.prefixUrl);
+    });
+  });
+
   describe('getNamespaces', () => {
     it('should get all namespaces', async () => {
       const { namespaces } = await k8s.getNamespaces();
@@ -27,7 +34,6 @@ describe('Kubernetes Client', () => {
       assert.doesNotReject(k8s.createFLApp('default', loadYaml(testYaml)));
     });
   });
-
 
   describe('getFLAppsByNamespace', () => {
     it('should get no apps for null namespace', async () => {
@@ -69,6 +75,17 @@ describe('Kubernetes Client', () => {
 
     it('should delete test application for default', async () => {
       assert.doesNotReject(k8s.deleteFLApp('default', 'normal'));
+    });
+  });
+
+  describe('getWebshellSession', () => {
+    it('should throw for none namespace, name, container', () => {
+      assert.rejects(k8s.getWebshellSession());
+    });
+
+    it('should get a session id', async () => {
+      const res = await k8s.getWebshellSession('default', 'normal', 'example');
+      assert.ok(typeof res.id === 'string');
     });
   });
 });

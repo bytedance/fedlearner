@@ -1,0 +1,575 @@
+{
+    "status": 0,
+    "message": "ok",
+    "data": {
+      "metadata": {
+        "selfLink": "/api/v1/namespaces/leader/pods",
+        "resourceVersion": "134876013"
+      },
+      "items": [
+        {
+          "metadata": {
+            "name": "datasparsealldataonlinev3-leader-master-0-43bbea9f-eb1f-4118-aea8-7df81b79dd25",
+            "namespace": "leader",
+            "selfLink": "/api/v1/namespaces/leader/pods/datasparsealldataonlinev3-leader-master-0-43bbea9f-eb1f-4118-aea8-7df81b79dd25",
+            "uid": "ea59c0ec-87c8-11ea-bde0-b8599fc6257e",
+            "resourceVersion": "24076604",
+            "creationTimestamp": "2020-04-26T14:19:18Z",
+            "labels": {
+              "app-name": "datasparsealldataonlinev3",
+              "fl-replica-index": "0",
+              "fl-replica-type": "master",
+              "gdpr-secret": "datasparsealldataonlinev3",
+              "role": "leader"
+            },
+            "annotations": {
+              "kubernetes.io/config.seen": "2020-04-26T22:19:18.325660479+08:00",
+              "kubernetes.io/config.source": "api"
+            },
+            "ownerReferences": [
+              {
+                "apiVersion": "fedlearner.k8s.io/v1alpha1",
+                "kind": "FLApp",
+                "name": "datasparsealldataonlinev3",
+                "uid": "ea521472-87c8-11ea-85d7-b8599f525640",
+                "controller": true,
+                "blockOwnerDeletion": true
+              }
+            ]
+          },
+          "spec": {
+            "volumes": [
+              {
+                "name": "pyutil",
+                "hostPath": {
+                  "path": "/opt/tiger/pyutil",
+                  "type": ""
+                }
+              },
+              {
+                "name": "yarn-deploy",
+                "hostPath": {
+                  "path": "/opt/tiger/yarn_deploy",
+                  "type": ""
+                }
+              },
+              {
+                "name": "jdk",
+                "hostPath": {
+                  "path": "/opt/tiger/jdk",
+                  "type": ""
+                }
+              },
+              {
+                "name": "tmp",
+                "hostPath": {
+                  "path": "/tmp",
+                  "type": ""
+                }
+              },
+              {
+                "name": "opt-tmp",
+                "hostPath": {
+                  "path": "/opt/tmp",
+                  "type": ""
+                }
+              },
+              {
+                "name": "default-token-vzdpp",
+                "secret": {
+                  "secretName": "default-token-vzdpp",
+                  "defaultMode": 420
+                }
+              },
+              {
+                "name": "identity-token",
+                "secret": {
+                  "secretName": "datasparsealldataonlinev3",
+                  "defaultMode": 420
+                }
+              }
+            ],
+            "containers": [
+              {
+                "name": "tensorflow",
+                "image": "hub.byted.org/base/fedlearner.image.byted:44c8a32282eb860afce75716d2e833b7",
+                "command": [
+                  "/opt/tiger/fedlearner_byted/deploy/scripts/trainer/run_customed_trainer_master.sh"
+                ],
+                "args": [
+                  ""
+                ],
+                "ports": [
+                  {
+                    "name": "flapp-port",
+                    "containerPort": 50051,
+                    "protocol": "TCP"
+                  }
+                ],
+                "env": [
+                  {
+                    "name": "APPLICATION_ID",
+                    "value": "datasparsealldataonlinev3"
+                  },
+                  {
+                    "name": "SEC_TOKEN_PATH",
+                    "value": "/etc/token/identity-token"
+                  },
+                  {
+                    "name": "POD_IP",
+                    "valueFrom": {
+                      "fieldRef": {
+                        "apiVersion": "v1",
+                        "fieldPath": "status.podIP"
+                      }
+                    }
+                  },
+                  {
+                    "name": "ROLE",
+                    "value": "leader"
+                  },
+                  {
+                    "name": "DAILY_BASE_DIR",
+                    "value": "hdfs://haruna/ad_base/algo/user/luwei/fl_deep_cvr_origin_fid_part2/leader"
+                  },
+                  {
+                    "name": "HOURLY_BASE_DIR",
+                    "value": "hdfs://haruna/ad_base/algo/user/luwei/tfrecord_fl_deep_cvr_origin_fid_all_hourly/leader"
+                  },
+                  {
+                    "name": "PEER_DAILY_BASE_DIR",
+                    "value": "hdfs://haruna/ad_base/algo/user/luwei/fl_deep_cvr_origin_fid_part2/follower"
+                  },
+                  {
+                    "name": "PEER_HOURLY_BASE_DIR",
+                    "value": "hdfs://haruna/ad_base/algo/user/luwei/tfrecord_fl_deep_cvr_origin_fid_all_hourly/follower"
+                  },
+                  {
+                    "name": "START_DATE",
+                    "value": "2020041500"
+                  },
+                  {
+                    "name": "END_DATE",
+                    "value": "2020041700"
+                  },
+                  {
+                    "name": "MODEL_NAME",
+                    "value": "datasparsealldataonlinev3"
+                  },
+                  {
+                    "name": "TCE_PSM",
+                    "value": "data.aml.fl"
+                  },
+                  {
+                    "name": "TCE_PSM_GROUP",
+                    "value": "default"
+                  },
+                  {
+                    "name": "TCE_PSM_OWNER",
+                    "value": "lilongyijia"
+                  },
+                  {
+                    "name": "INDEX",
+                    "value": "0"
+                  },
+                  {
+                    "name": "MASTER_ID",
+                    "value": "datasparsealldataonlinev3-leader-master-0"
+                  }
+                ],
+                "resources": {
+                  "limits": {
+                    "cpu": "4",
+                    "memory": "4Gi"
+                  },
+                  "requests": {
+                    "cpu": "4",
+                    "memory": "4Gi"
+                  }
+                },
+                "volumeMounts": [
+                  {
+                    "name": "pyutil",
+                    "mountPath": "/opt/tiger/pyutil"
+                  },
+                  {
+                    "name": "yarn-deploy",
+                    "mountPath": "/opt/tiger/yarn_deploy"
+                  },
+                  {
+                    "name": "jdk",
+                    "mountPath": "/opt/tiger/jdk"
+                  },
+                  {
+                    "name": "tmp",
+                    "mountPath": "/tmp"
+                  },
+                  {
+                    "name": "opt-tmp",
+                    "mountPath": "/opt/tmp"
+                  },
+                  {
+                    "name": "default-token-vzdpp",
+                    "readOnly": true,
+                    "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount"
+                  },
+                  {
+                    "name": "identity-token",
+                    "readOnly": true,
+                    "mountPath": "/etc/token"
+                  }
+                ],
+                "terminationMessagePath": "/dev/termination-log",
+                "terminationMessagePolicy": "File",
+                "imagePullPolicy": "IfNotPresent"
+              }
+            ],
+            "restartPolicy": "Never",
+            "terminationGracePeriodSeconds": 30,
+            "dnsPolicy": "ClusterFirst",
+            "serviceAccountName": "default",
+            "serviceAccount": "default",
+            "nodeName": "10.21.61.216",
+            "securityContext": {},
+            "schedulerName": "default-scheduler",
+            "tolerations": [
+              {
+                "key": "node.kubernetes.io/not-ready",
+                "operator": "Exists",
+                "effect": "NoExecute",
+                "tolerationSeconds": 300
+              },
+              {
+                "key": "node.kubernetes.io/unreachable",
+                "operator": "Exists",
+                "effect": "NoExecute",
+                "tolerationSeconds": 300
+              }
+            ],
+            "enableServiceLinks": true
+          },
+          "status": {
+            "phase": "Running",
+            "conditions": [
+              {
+                "type": "Initialized",
+                "status": "True",
+                "lastProbeTime": null,
+                "lastTransitionTime": "2020-04-26T14:19:18Z"
+              },
+              {
+                "type": "Ready",
+                "status": "True",
+                "lastProbeTime": null,
+                "lastTransitionTime": "2020-04-26T14:20:20Z"
+              },
+              {
+                "type": "ContainersReady",
+                "status": "True",
+                "lastProbeTime": null,
+                "lastTransitionTime": "2020-04-26T14:20:20Z"
+              },
+              {
+                "type": "PodScheduled",
+                "status": "True",
+                "lastProbeTime": null,
+                "lastTransitionTime": "2020-04-26T14:19:18Z"
+              }
+            ],
+            "hostIP": "10.21.61.216",
+            "podIP": "10.244.37.66",
+            "startTime": "2020-04-26T14:19:18Z",
+            "containerStatuses": [
+              {
+                "name": "tensorflow",
+                "state": {
+                  "running": {
+                    "startedAt": "2020-04-26T14:20:20Z"
+                  }
+                },
+                "lastState": {},
+                "ready": true,
+                "restartCount": 0,
+                "image": "hub.byted.org/base/fedlearner.image.byted:44c8a32282eb860afce75716d2e833b7",
+                "imageID": "docker-pullable://hub.byted.org/base/fedlearner.image.byted@sha256:c01ff21d79debb11b788e3d954313332019efeb7eacebbfd454eb605ae7b57e5",
+                "containerID": "docker://2738780aad620204f8188fe3e813d3c089d1caaa88227b8b0e011bf7b5004636"
+              }
+            ],
+            "qosClass": "Guaranteed"
+          }
+        },
+        {
+          "metadata": {
+            "name": "datasparsealldataonlinev3-leader-ps-0-94c91f38-871a-4f4b-98d5-ffe54df6ba9d",
+            "namespace": "leader",
+            "selfLink": "/api/v1/namespaces/leader/pods/datasparsealldataonlinev3-leader-ps-0-94c91f38-871a-4f4b-98d5-ffe54df6ba9d",
+            "uid": "ea5a613b-87c8-11ea-bde0-b8599fc6257e",
+            "resourceVersion": "24076602",
+            "creationTimestamp": "2020-04-26T14:19:18Z",
+            "labels": {
+              "app-name": "datasparsealldataonlinev3",
+              "fl-replica-index": "0",
+              "fl-replica-type": "ps",
+              "gdpr-secret": "datasparsealldataonlinev3",
+              "role": "leader"
+            },
+            "annotations": {
+              "kubernetes.io/config.seen": "2020-04-26T22:19:18.335321125+08:00",
+              "kubernetes.io/config.source": "api"
+            },
+            "ownerReferences": [
+              {
+                "apiVersion": "fedlearner.k8s.io/v1alpha1",
+                "kind": "FLApp",
+                "name": "datasparsealldataonlinev3",
+                "uid": "ea521472-87c8-11ea-85d7-b8599f525640",
+                "controller": true,
+                "blockOwnerDeletion": true
+              }
+            ]
+          },
+          "spec": {
+            "volumes": [
+              {
+                "name": "pyutil",
+                "hostPath": {
+                  "path": "/opt/tiger/pyutil",
+                  "type": ""
+                }
+              },
+              {
+                "name": "yarn-deploy",
+                "hostPath": {
+                  "path": "/opt/tiger/yarn_deploy",
+                  "type": ""
+                }
+              },
+              {
+                "name": "jdk",
+                "hostPath": {
+                  "path": "/opt/tiger/jdk",
+                  "type": ""
+                }
+              },
+              {
+                "name": "tmp",
+                "hostPath": {
+                  "path": "/tmp",
+                  "type": ""
+                }
+              },
+              {
+                "name": "opt-tmp",
+                "hostPath": {
+                  "path": "/opt/tmp",
+                  "type": ""
+                }
+              },
+              {
+                "name": "default-token-vzdpp",
+                "secret": {
+                  "secretName": "default-token-vzdpp",
+                  "defaultMode": 420
+                }
+              },
+              {
+                "name": "identity-token",
+                "secret": {
+                  "secretName": "datasparsealldataonlinev3",
+                  "defaultMode": 420
+                }
+              }
+            ],
+            "containers": [
+              {
+                "name": "tensorflow",
+                "image": "hub.byted.org/base/fedlearner.image.byted:44c8a32282eb860afce75716d2e833b7",
+                "command": [
+                  "/opt/tiger/fedlearner_byted/deploy/scripts/trainer/run_trainer_ps.sh"
+                ],
+                "args": [
+                  ""
+                ],
+                "ports": [
+                  {
+                    "name": "flapp-port",
+                    "containerPort": 50051,
+                    "protocol": "TCP"
+                  }
+                ],
+                "env": [
+                  {
+                    "name": "SEC_TOKEN_PATH",
+                    "value": "/etc/token/identity-token"
+                  },
+                  {
+                    "name": "POD_NAME",
+                    "valueFrom": {
+                      "fieldRef": {
+                        "apiVersion": "v1",
+                        "fieldPath": "metadata.name"
+                      }
+                    }
+                  },
+                  {
+                    "name": "POD_IP",
+                    "valueFrom": {
+                      "fieldRef": {
+                        "apiVersion": "v1",
+                        "fieldPath": "status.podIP"
+                      }
+                    }
+                  },
+                  {
+                    "name": "MODEL_NAME",
+                    "value": "datasparsealldataonlinev3"
+                  },
+                  {
+                    "name": "APPLICATION_ID",
+                    "value": "datasparsealldataonlinev3"
+                  },
+                  {
+                    "name": "ROLE",
+                    "value": "leader"
+                  },
+                  {
+                    "name": "TCE_PSM",
+                    "value": "data.aml.fl"
+                  },
+                  {
+                    "name": "TCE_PSM_GROUP",
+                    "value": "default"
+                  },
+                  {
+                    "name": "TCE_PSM_OWNER",
+                    "value": "lilongyijia"
+                  },
+                  {
+                    "name": "INDEX",
+                    "value": "0"
+                  }
+                ],
+                "resources": {
+                  "limits": {
+                    "cpu": "4",
+                    "memory": "4Gi"
+                  },
+                  "requests": {
+                    "cpu": "4",
+                    "memory": "4Gi"
+                  }
+                },
+                "volumeMounts": [
+                  {
+                    "name": "pyutil",
+                    "mountPath": "/opt/tiger/pyutil"
+                  },
+                  {
+                    "name": "yarn-deploy",
+                    "mountPath": "/opt/tiger/yarn_deploy"
+                  },
+                  {
+                    "name": "jdk",
+                    "mountPath": "/opt/tiger/jdk"
+                  },
+                  {
+                    "name": "tmp",
+                    "mountPath": "/tmp"
+                  },
+                  {
+                    "name": "opt-tmp",
+                    "mountPath": "/opt/tmp"
+                  },
+                  {
+                    "name": "default-token-vzdpp",
+                    "readOnly": true,
+                    "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount"
+                  },
+                  {
+                    "name": "identity-token",
+                    "readOnly": true,
+                    "mountPath": "/etc/token"
+                  }
+                ],
+                "terminationMessagePath": "/dev/termination-log",
+                "terminationMessagePolicy": "File",
+                "imagePullPolicy": "IfNotPresent"
+              }
+            ],
+            "restartPolicy": "Never",
+            "terminationGracePeriodSeconds": 30,
+            "dnsPolicy": "ClusterFirst",
+            "serviceAccountName": "default",
+            "serviceAccount": "default",
+            "nodeName": "10.21.61.216",
+            "securityContext": {},
+            "schedulerName": "default-scheduler",
+            "tolerations": [
+              {
+                "key": "node.kubernetes.io/not-ready",
+                "operator": "Exists",
+                "effect": "NoExecute",
+                "tolerationSeconds": 300
+              },
+              {
+                "key": "node.kubernetes.io/unreachable",
+                "operator": "Exists",
+                "effect": "NoExecute",
+                "tolerationSeconds": 300
+              }
+            ],
+            "enableServiceLinks": true
+          },
+          "status": {
+            "phase": "Running",
+            "conditions": [
+              {
+                "type": "Initialized",
+                "status": "True",
+                "lastProbeTime": null,
+                "lastTransitionTime": "2020-04-26T14:19:18Z"
+              },
+              {
+                "type": "Ready",
+                "status": "True",
+                "lastProbeTime": null,
+                "lastTransitionTime": "2020-04-26T14:20:20Z"
+              },
+              {
+                "type": "ContainersReady",
+                "status": "True",
+                "lastProbeTime": null,
+                "lastTransitionTime": "2020-04-26T14:20:20Z"
+              },
+              {
+                "type": "PodScheduled",
+                "status": "True",
+                "lastProbeTime": null,
+                "lastTransitionTime": "2020-04-26T14:19:18Z"
+              }
+            ],
+            "hostIP": "10.21.61.216",
+            "podIP": "10.244.37.64",
+            "startTime": "2020-04-26T14:19:18Z",
+            "containerStatuses": [
+              {
+                "name": "tensorflow",
+                "state": {
+                  "running": {
+                    "startedAt": "2020-04-26T14:20:20Z"
+                  }
+                },
+                "lastState": {},
+                "ready": true,
+                "restartCount": 0,
+                "image": "hub.byted.org/base/fedlearner.image.byted:44c8a32282eb860afce75716d2e833b7",
+                "imageID": "docker-pullable://hub.byted.org/base/fedlearner.image.byted@sha256:c01ff21d79debb11b788e3d954313332019efeb7eacebbfd454eb605ae7b57e5",
+                "containerID": "docker://b0ade518e1b98b10e3016e58f8987270a3a516d19a5959a394d6fe5c71d42222"
+              }
+            ],
+            "qosClass": "Guaranteed"
+          }
+        }
+      ]
+    }
+  }

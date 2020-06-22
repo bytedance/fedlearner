@@ -15,7 +15,12 @@ class KubernetesClient {
   constructor() {
     // TODO: use HTTPs for production
     const prefixUrl = `http://${config.K8S_HOST}:${config.K8S_PORT}`;
+    this.prefixUrl = prefixUrl;
     this.client = ky.create({ prefixUrl });
+  }
+
+  getBaseUrl() {
+    return this.prefixUrl;
   }
 
   async getNamespaces() {
@@ -44,6 +49,9 @@ class KubernetesClient {
     return this.client.delete(`namespaces/${namespace}/fedlearner/v1alpha1/flapps/${name}`).json();
   }
 
+  async getWebshellSession(namespace, name, container) {
+    return this.client.get(`namespaces/${namespace}/pods/${name}/shell/${container}`).json();
+  }
 }
 
 module.exports = KubernetesClient;
