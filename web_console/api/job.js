@@ -11,7 +11,7 @@ const namespace = config.NAMESPACE;
 
 const k8s = new KubernetesClient();
 
-router.get('/api/v1/job/list', SessionMiddleware, async (ctx) => {
+router.get('/api/v1/jobs', SessionMiddleware, async (ctx) => {
   const { flapps } = await k8s.getFLAppsByNamespace(namespace);
   ctx.body = { data: flapps };
 });

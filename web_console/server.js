@@ -33,7 +33,7 @@ server.use(bodyParser());
 server.use(json());
 
 if (!isTest) {
-  // server.use(logger());
+  server.use(logger());
   onerror(server, {
     accepts() {
       if (this.get('accept').includes('json')) return 'json';

@@ -6,6 +6,7 @@ export const FLAppStatus = {
 };
 
 export function handleStatus(statusStr) {
+  if (typeof statusStr !== 'string') return statusStr;
   return statusStr.replace('FLState', '');
 }
 

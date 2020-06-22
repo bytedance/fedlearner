@@ -1,14 +1,14 @@
 import React, { useMemo } from 'react';
 import css from 'styled-jsx/css';
 import { Table, Link, Text, Code, Card, Description, useTheme } from '@zeit-ui/react';
+import useSWR from 'swr';
+import { useRouter } from 'next/router';
 
+import { fetcher } from '../../libs/http';
 import { getStatusColor, handleStatus } from './utils';
 import Layout from '../../components/Layout';
 import Dot from '../../components/Dot';
 import Empty from '../../components/Empty';
-
-import mockdata from './mock/job.json';
-import podsmockdata from './mock/pods.json';
 
 function useStyles(theme) {
   return css`
@@ -49,8 +49,13 @@ function Job(props) {
   const theme = useTheme();
   const styles = useStyles(theme);
 
-  const flapp = mockdata.data;
-  const pods = podsmockdata.data;
+  const router = useRouter();
+  const { query } = router;
+  const { data: jobData } = useSWR(`job/${query.name}`, fetcher);
+  const { data: podsData } = useSWR(`job/${query.name}/pods`, fetcher);
+
+  const flapp = jobData ? jobData.data : null;
+  const pods = podsData ? podsData.data : null;
 
   const tableData = useMemo(() => {
     if (pods && pods.items) {
@@ -67,19 +72,21 @@ function Job(props) {
           }-`, ''),
         type: item.metadata.labels['fl-replica-type'],
         startupTime: item.metadata.creationTimestamp,
-        webshell: (
-          <Link
-            color
-            target="_blank"
-            href={`/job/pod-shell?name=${item.metadata.name}&container=${
-              item.status.containerStatuses && item.status.containerStatuses.length
-                ? item.status.containerStatuses[0].name
-                : ''
-            }`}
-          >
-            Link
-          </Link>
-        ),
+        webshell: item.status.phase === 'Running'
+          ? (
+            <Link
+              color
+              target="_blank"
+              href={`/job/pod-shell?name=${item.metadata.name}&container=${
+                item.status.containerStatuses && item.status.containerStatuses.length
+                  ? item.status.containerStatuses[0].name
+                  : ''
+              }`}
+            >
+              Link
+            </Link>
+          )
+          : '-',
       }));
     }
     return [];
@@ -91,7 +98,7 @@ function Job(props) {
         <div className="page-wrap">
           <Card style={{ flex: 1 }}>
             <Text h4>
-              {flapp.metadata.name}
+              {flapp?.metadata?.name || '-'}
             </Text>
             <div className="left">
               <Description
@@ -99,20 +106,20 @@ function Job(props) {
                 style={{ width: 140 }}
                 content={(
                   <>
-                    <Dot color={getStatusColor(flapp.status.appState)} />
-                    {handleStatus(flapp.status.appState)}
+                    <Dot color={getStatusColor(flapp?.status?.appState)} />
+                    {handleStatus(flapp?.status?.appState) || '-'}
                   </>
                 )}
               />
               <Description
                 title="Create Time"
                 style={{ width: 220 }}
-                content={flapp.metadata.creationTimestamp}
+                content={flapp?.metadata?.creationTimestamp || '-'}
               />
               <Description
                 title="Role"
                 style={{ width: 120 }}
-                content={flapp.spec.role}
+                content={flapp?.spec?.role || '-'}
               />
             </div>
           </Card>

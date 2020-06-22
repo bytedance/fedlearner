@@ -3,6 +3,8 @@ import css from 'styled-jsx/css';
 import { Loading, Note } from '@zeit-ui/react';
 import dynamic from 'next/dynamic';
 
+import { fetcher } from '../../libs/http';
+
 const Shell = dynamic(() => import('./components/Shell'), {
   ssr: false,
 });
@@ -32,10 +34,9 @@ function PodShell({ query }) {
       setError(errorMsg);
       return;
     }
-    fetch(`/job/pod/${query.name}/shell/${query.container}`)
-      .then((res) => res.json())
+    fetcher(`job/pod/${query.name}/${query.container}`)
       .then((res) => {
-        if (res.status !== 0) {
+        if (!res.data) {
           setLoading(false);
           setError(res.error || errorMsg);
           return;

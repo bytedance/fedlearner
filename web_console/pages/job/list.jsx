@@ -8,8 +8,10 @@ import useSWR from 'swr';
 import { fetcher } from '../../libs/http';
 import { FLAppStatus, handleStatus, getStatusColor } from './utils';
 import Layout from '../../components/Layout';
+import PopConfirm from '../../components/PopConfirm';
 import Dot from '../../components/Dot';
 import Empty from '../../components/Empty';
+import { deleteJob } from '../../services/job';
 
 function useStyles(theme) {
   return css`
@@ -76,7 +78,7 @@ function JobList(props) {
   const theme = useTheme();
   const styles = useStyles(theme);
 
-  const { data } = useSWR('job/list', fetcher);
+  const { data, mutate } = useSWR('jobs', fetcher);
   const flapps = data ? data.data : null;
 
   const labeledList = useMemo(() => {
@@ -187,15 +189,15 @@ function JobList(props) {
                                             >
                                               <Link color>View Detail</Link>
                                             </NextLink>
-                                            <Link
-                                              color
-                                              onClick={(e) => {
-                                                e.preventDefault();
-                                                console.log('delete');
-                                              }}
+                                            <PopConfirm
+                                              onConfirm={() => deleteJob(item.metadata.name)}
+                                              onOk={() => mutate({ data: {
+                                                ...flapps,
+                                                items: flapps.items.filter((i) => i !== item),
+                                              }})}
                                             >
-                                              Delete
-                                            </Link>
+                                              <Text className="actionText" type="error">Delete</Text>
+                                            </PopConfirm>
                                           </>
                                         )}
                                       />
