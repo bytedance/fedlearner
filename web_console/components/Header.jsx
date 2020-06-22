@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import css from 'styled-jsx/css';
 import { useRouter } from 'next/router';
 import useSWR from 'swr';
