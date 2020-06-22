@@ -84,7 +84,7 @@ export default function Header() {
   const styles = useStyles(theme);
   const router = useRouter();
   const { data } = useSWR('user', fetcher);
-  const { route } = router;
+  const { route, query } = router;
   const isAdmin = route === '/admin';
   const user = data ? data.data : null;
   const [signingOut, setSigningOut] = useState(false);
@@ -102,11 +102,11 @@ export default function Header() {
   const title = isAdmin ? 'Admin' : 'Fedlearner';
   const navs = isAdmin
     ? [
-      { label: 'Federations', value: '/federation' },
-      { label: 'Users', value: '/user' },
+      { label: 'Federations', value: 'federation' },
+      { label: 'Users', value: 'user' },
     ]
     : [
-      { label: 'Overview', value: '/dashboard' },
+      { label: 'Overview', value: '/' },
       { label: 'Jobs', value: '/jobs' },
       { label: 'Tickets', value: '/ticket' },
     ];
@@ -141,7 +141,18 @@ export default function Header() {
 
   const activeTab = useMemo(() => router.asPath.replace(/^(\/[^/]+).*/, '$1'), [router.asPath]);
 
-  const onTabChange = useCallback((val) => router.push(val), [router]);
+  const onTabChange = useCallback((value) => {
+    if (value.startsWith('/')) {
+      return router.push(value);
+    }
+    router.push({
+      pathname: route,
+      query: {
+        ...query,
+        tab: value,
+      },
+    });
+  }, [router, route, query]);
 
   useEffect(() => {
     const scrollHandler = () => {
