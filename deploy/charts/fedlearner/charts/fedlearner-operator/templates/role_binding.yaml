@@ -1,0 +1,14 @@
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: fedlearner-operator
+  namespace: {{ .Release.Namespace }}
+subjects:
+  - kind: ServiceAccount
+    name: fedlearner-operator
+    namespace: {{ .Release.Namespace }}
+roleRef:
+  kind: Role
+  name: fedlearner-operator
+  apiGroup: rbac.authorization.k8s.io
+---

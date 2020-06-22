@@ -11,7 +11,20 @@ config:
       reload.enabled: false
 
   processors:
-    - add_cloud_metadata:
+     - add_cloud_metadata: ~
+     - include_fields:
+        fields:
+          - "host.name"
+          - "input.type"
+          - "kubernetes.container.name"
+          - "kubernetes.namespace"
+          - "kubernetes.node.name"
+          - "kubernetes.pod.name"
+          - "kubernetes.pod.uid"
+          - "log.file.path"
+          - "log.offset"
+          - "message"
+          - "stream"
 
   filebeat.inputs:
     - type: log
