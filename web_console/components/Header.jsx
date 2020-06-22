@@ -139,7 +139,7 @@ export default function Header() {
     </>
   );
 
-  const activeTab = useMemo(() => router.asPath.replace(/^(\/[^/]+).*/, '$1'), [router.asPath]);
+  const activeTab = query.tab || router.asPath.replace(/^(\/[^/]+).*/, '$1');
 
   const onTabChange = useCallback((value) => {
     if (value.startsWith('/')) {
