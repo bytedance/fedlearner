@@ -1,6 +1,7 @@
 const router = require('@koa/router')();
 const SessionMiddleware = require('../middlewares/session');
 const KubernetesClient = require('../libs/k8s');
+const ElasticSearchClient = require('../libs/es');
 
 const getConfig = require('../utils/get_confg');
 
@@ -10,6 +11,7 @@ const config = getConfig({
 const namespace = config.NAMESPACE;
 
 const k8s = new KubernetesClient();
+const es = new ElasticSearchClient();
 
 router.get('/api/v1/jobs', SessionMiddleware, async (ctx) => {
   const { flapps } = await k8s.getFLAppsByNamespace(namespace);
@@ -33,6 +35,12 @@ router.get('/api/v1/job/pod/:name/:container', SessionMiddleware, async (ctx) =>
   const base = k8s.getBaseUrl();
   const { id } = await k8s.getWebshellSession(namespace, name, container);
   ctx.body = { data: { id, base } };
+});
+
+router.get('/api/v1/job/pod/:name/logs/:time', SessionMiddleware, async (ctx) => {
+  const { name, time } = ctx.params;
+  const logs = await es.queryLog('filebeat-*', '', name, time, Date.now());
+  ctx.body = { data: logs };
 });
 
 router.post('/api/v1/job/create', SessionMiddleware, async (ctx) => {

@@ -28,7 +28,7 @@ function useStyles(theme) {
     .log-wrap {
       min-height: 200px;
       max-height: 400px;
-      border: 1px solid ${theme.layout.pageMargin};
+      margin-bottom: ${theme.layout.pageMargin};
       overflow: auto;
     }
 
@@ -72,21 +72,35 @@ function Job(props) {
           }-`, ''),
         type: item.metadata.labels['fl-replica-type'],
         startupTime: item.metadata.creationTimestamp,
-        webshell: item.status.phase === 'Running'
-          ? (
+        link: (
+          <>
+            {
+              item.status.phase === 'Running'
+              ? (
+                <Link
+                  color
+                  style={{ marginRight: 10 }}
+                  target="_blank"
+                  href={`/job/pod-shell?name=${item.metadata.name}&container=${
+                    item.status.containerStatuses && item.status.containerStatuses.length
+                      ? item.status.containerStatuses[0].name
+                      : ''
+                  }`}
+                >
+                  Shell
+                </Link>
+              )
+              : null
+            }
             <Link
               color
               target="_blank"
-              href={`/job/pod-shell?name=${item.metadata.name}&container=${
-                item.status.containerStatuses && item.status.containerStatuses.length
-                  ? item.status.containerStatuses[0].name
-                  : ''
-              }`}
+              href={`/job/pod-log?name=${item.metadata.name}&time=${new Date(item.metadata.creationTimestamp).getTime()}`}
             >
-              Link
+              Log
             </Link>
-          )
-          : '-',
+          </>
+        ),
       }));
     }
     return [];
@@ -135,7 +149,7 @@ function Job(props) {
                 <Table.Column prop="pod" label="pod" />
                 <Table.Column prop="type" label="type" />
                 <Table.Column prop="startupTime" label="start-up time" />
-                <Table.Column prop="webshell" label="webshell" />
+                <Table.Column prop="link" label="link" />
               </Table>
               {
                 tableData.length
