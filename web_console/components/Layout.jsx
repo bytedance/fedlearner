@@ -10,7 +10,7 @@ function useStyles(theme) {
       display: flex;
       flex-direction: column;
       box-sizing: border-box;
-      min-height: calc(100vh - 16px);
+      min-height: 100vh;
       background: ${theme.palette.accents_1};
     }
 
