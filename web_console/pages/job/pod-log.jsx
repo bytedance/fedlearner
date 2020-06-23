@@ -99,8 +99,6 @@ function PodLog({ query }) {
   );
 }
 
-PodLog.getInitialProps = async function (context) {
-  return { query: context.query };
-};
+PodLog.getInitialProps = (context) => ({ query: context.query });
 
 export default PodLog;

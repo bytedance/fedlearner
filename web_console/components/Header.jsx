@@ -85,7 +85,7 @@ export default function Header() {
   const router = useRouter();
   const { data } = useSWR('user', fetcher);
   const { route, query } = router;
-  const isAdmin = route === '/admin';
+  const isAdmin = route.startsWith('/admin/');
   const user = data ? data.data : null;
   const [signingOut, setSigningOut] = useState(false);
   const [scrollTop, setScrollTop] = useState(0);
@@ -102,12 +102,12 @@ export default function Header() {
   const title = isAdmin ? 'Admin' : 'Fedlearner';
   const navs = isAdmin
     ? [
-      { label: 'Federations', value: 'federation' },
-      { label: 'Users', value: 'user' },
+      { label: 'Federations', value: '/admin/federation' },
+      { label: 'Users', value: '/admin/user' },
     ]
     : [
       { label: 'Overview', value: '/' },
-      { label: 'Jobs', value: '/jobs' },
+      { label: 'Jobs', value: '/job/list' },
       { label: 'Tickets', value: '/ticket' },
     ];
 
@@ -139,20 +139,13 @@ export default function Header() {
     </>
   );
 
-  const activeTab = query.tab || router.asPath.replace(/^(\/[^/]+).*/, '$1');
+  const activeTab = router.pathname;
 
   const onTabChange = useCallback((value) => {
     if (value.startsWith('/')) {
       return router.push(value);
     }
-    router.push({
-      pathname: route,
-      query: {
-        ...query,
-        tab: value,
-      },
-    });
-  }, [router, route, query]);
+  }, [router]);
 
   useEffect(() => {
     const scrollHandler = () => {

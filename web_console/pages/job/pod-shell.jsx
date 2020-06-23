@@ -5,7 +5,7 @@ import dynamic from 'next/dynamic';
 
 import { fetcher } from '../../libs/http';
 
-const Shell = dynamic(() => import('./components/Shell'), { ssr: false });
+const Shell = dynamic(() => import('../../components/Shell'), { ssr: false });
 
 function useStyles() {
   return css`
@@ -70,8 +70,6 @@ function PodShell({ query }) {
   );
 }
 
-PodShell.getInitialProps = async function (context) {
-  return { query: context.query };
-};
+PodShell.getInitialProps = (context) => ({ query: context.query });
 
 export default PodShell;

@@ -185,7 +185,7 @@ function JobList(props) {
                                         content={(
                                           <>
                                             <NextLink
-                                              href={`/job?&name=${item.metadata.name}`}
+                                              href={`/job/${item.metadata.name}`}
                                             >
                                               <Link color>View Detail</Link>
                                             </NextLink>
