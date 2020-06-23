@@ -5,9 +5,7 @@ import dynamic from 'next/dynamic';
 
 import { fetcher } from '../../libs/http';
 
-const Shell = dynamic(() => import('./components/Shell'), {
-  ssr: false,
-});
+const Shell = dynamic(() => import('./components/Shell'), { ssr: false });
 
 function useStyles() {
   return css`
@@ -36,8 +34,8 @@ function PodShell({ query }) {
     }
     fetcher(`job/pod/${query.name}/${query.container}`)
       .then((res) => {
+        setLoading(false);
         if (!res.data) {
-          setLoading(false);
           setError(res.error || errorMsg);
           return;
         }

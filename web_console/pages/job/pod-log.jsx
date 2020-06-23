@@ -20,7 +20,7 @@ function useStyles() {
       height: 100vh;
       font-feature-settings: "liga" 0;
       position: relative;
-      font-size: 16px;
+      font-size: 14px;
       font-family: Consolas, "Courier New", monospace;
       white-space: pre-wrap;
     }
@@ -44,8 +44,8 @@ function PodLog({ query }) {
     }
     fetcher(`job/pod/${query.name}/logs/${query.time}`)
       .then((res) => {
+        setLoading(false);
         if (!res.data) {
-          setLoading(false);
           setError(res.error || errorMsg);
           return;
         }
@@ -64,9 +64,11 @@ function PodLog({ query }) {
           ? (
             <div className="log-wrap">
               {
-                data.map((log) => (
-                  <Text p>{log}</Text>
-                ))
+                data.length
+                  ? data.map((log) => (
+                    <Text p>{log}</Text>
+                  ))
+                  : 'no logs'
               }
             </div>
           )

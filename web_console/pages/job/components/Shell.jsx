@@ -1,6 +1,4 @@
 import React, { useRef, useEffect, useCallback } from 'react';
-import { Terminal } from 'xterm';
-import { FitAddon } from 'xterm-addon-fit';
 import SockJS from 'sockjs-client';
 import { useToasts } from '@zeit-ui/react';
 import debounce from 'lodash/debounce';
@@ -38,6 +36,10 @@ function Shell({ id, base }) {
   }, []);
 
   const initTerm = useCallback(() => {
+    // fit nextjs build
+    const { Terminal } = require('xterm');
+    const { FitAddon } = require('xterm-addon-fit');
+
     if (termRef.current) {
       termRef.current.dispose();
     }

@@ -182,8 +182,4 @@ function Job(props) {
   );
 }
 
-Job.getInitialProps = async function(context) {
-  return {}
-};
-
 export default Job;
