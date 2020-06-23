@@ -2,87 +2,66 @@ const getConfig = require('./get_confg');
 
 const server_config = getConfig();
 
-function roleConfig(config, public_env = {}, public_volume = {}) {
-    let role = {
-        "pair": config.pair,
-        "replicas": config.replicas,
-        "template": {
-            "spec": {
-                "restartPolicy": "Never",
-                "volumes": [],
-                "containers": {
-                    "env": [
-                        { "name": "POD_IP", "value": { "valueFrom": { "fieldRef": { "fieldPath": "status.podIP" } } } },
-                        { "name": "POD_NAME", "value": { "valueFrom": { "fieldRef": { "fieldPath": "metadata.name" } } } }],
-                    "image": config.image,
-                    "imagePullPolicy": "IfNotPresent",
-                    "volumeMounts": [],
-                    "name": "tensorflow",
-                    "ports": config.ports,
-                    "resources": { "limits": { "cpu": config.cpu, "memory": config.memory }, "requests": { "cpu": config.cpu, "memory": config.memory } },
-                    "command": config.command,
-                    "args": config.args
-                },
-            }
+function mergeJson(a, b) {
+    a = Object.assign({}, a);
+    for (key in b) {
+        if (key in a && typeof(a[key]) == "object" &&
+            typeof(b[key]) == "object") {
+            a[key] = mergeJson(a[key], b[key]);
+        } else {
+            a[key] = b[key];
         }
     }
-
-    for (var key in public_env) {
-        role["template"]["spec"]["containers"]["env"].push({ "name": key, "value": public_env[key] })
-    }
-
-    for (var key in config.env) {
-        role["template"]["spec"]["containers"]["env"].push({ "name": key, "value": config.env[key] })
-    }
-
-    for (var key in public_volume) {
-        role["template"]["spec"]["volumes"].push({ "hostPath": { "path": public_volume[key] }, "name": key })
-        role["template"]["spec"]["containers"]["volumeMounts"].push({ "mountPath": public_volume[key], "name": key })
-    }
-    return role
+    return a;
 }
 
-function trainConfig(job) {
-    let job_config = {
-        "apiVersion": server_config.API_VERSION,
-        "kind": server_config.KIND,
+function validateTicket(ticket) {
+    return true;
+}
+
+function clientValidateJob(job, client_ticket, server_ticket) {
+    return true;
+}
+
+function serverValidateJob(job, client_ticket, server_ticket) {
+    return true;
+}
+
+function generateYaml(federation, job, ticket) {
+    let yaml = {};
+    yaml = mergeJson(yaml, JSON.parse(federation.global_job_spec));
+    yaml = mergeJson(yaml, {
         "metadata": {
-            "namespace": server_config.NAMESPACE,
-            "name": job.application_id
+            "name": job.id,
         },
         "spec": {
-            "flReplicaSpecs": {},
-            "role": job.role,
-            "cleanPodPolicy": "None",
-            "peerSpecs": {
-                [job.peer_role]: {
-                    "peerURL": job.peer_url,
-                    "authority": job.peer_authority,
-                    "extraHeaders": {
-                        "x-host": job.x_host
-                    }
-                }
-            }
-        },
+            "role": ticket.role,
+        }
+    });
+    yaml = mergeJson(yaml, ticket);
+
+    replica_specs = yaml["spec"]["flReplicaSpecs"];
+    global_replica_spec = JSON.parse(federation.global_replica_spec);
+    for (key in global_replica_spec) {
+        replica_specs[key] = mergeJson(
+            global_replica_spec, replica_specs[key]);
     }
 
-    job_config["spec"]["flReplicaSpecs"]["Master"] = roleConfig(
-        job.master_config,
-        job.public_env,
-        job.public_volume)
-    job_config["spec"]["flReplicaSpecs"]["PS"] = roleConfig(
-        job.ps_config,
-        job.public_env,
-        job.public_volume)
-    job_config["spec"]["flReplicaSpecs"]["Worker"] = roleConfig(
-        job.worker_config,
-        job.public_env,
-        job.public_volume)
+    return yaml;
+}
 
-    return job_config;
+function clientGenerateYaml(federation, job, client_ticket, server_ticket) {
+    return generateYaml(federation, job, client_ticket);
+}
+
+function serverGenerateYaml(federation, job, client_ticket, server_ticket) {
+    return generateYaml(federation, job, server_ticket);
 }
 
 module.exports = {
-    roleConfig,
-    trainConfig,
+    validateTicket,
+    clientValidateJob,
+    serverValidateJob,
+    clientGenerateYaml,
+    serverGenerateYaml
 };
