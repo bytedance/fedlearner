@@ -189,7 +189,7 @@ function JobList(props) {
                                             >
                                               <Link color>View Detail</Link>
                                             </NextLink>
-                                            <PopConfirm
+                                            {/* <PopConfirm
                                               onConfirm={() => deleteJob(item.metadata.name)}
                                               onOk={() => mutate({ data: {
                                                 ...flapps,
@@ -197,7 +197,7 @@ function JobList(props) {
                                               }})}
                                             >
                                               <Text className="actionText" type="error">Delete</Text>
-                                            </PopConfirm>
+                                            </PopConfirm> */}
                                           </>
                                         )}
                                       />
