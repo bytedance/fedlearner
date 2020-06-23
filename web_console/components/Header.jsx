@@ -141,11 +141,7 @@ export default function Header() {
 
   const activeTab = router.pathname;
 
-  const onTabChange = useCallback((value) => {
-    if (value.startsWith('/')) {
-      return router.push(value);
-    }
-  }, [router]);
+  const onTabChange = useCallback((value) => router.push(value), [router]);
 
   useEffect(() => {
     const scrollHandler = () => {

@@ -5,7 +5,7 @@ import useSWR from 'swr';
 import { useRouter } from 'next/router';
 
 import { fetcher } from '../../libs/http';
-import { getStatusColor, handleStatus } from './utils';
+import { getStatusColor, handleStatus } from '../../utils/job';
 import Layout from '../../components/Layout';
 import Dot from '../../components/Dot';
 import Empty from '../../components/Empty';
@@ -160,9 +160,6 @@ function Job(props) {
           </div>
         </div>
         <style jsx global>{`
-          .card .content {
-            box-sizing: border-box;
-          }
           .page-job h4 {
             word-break: break-all;
           }

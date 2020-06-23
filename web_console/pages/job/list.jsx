@@ -6,7 +6,7 @@ import NextLink from 'next/link';
 import useSWR from 'swr';
 
 import { fetcher } from '../../libs/http';
-import { FLAppStatus, handleStatus, getStatusColor } from './utils';
+import { FLAppStatus, handleStatus, getStatusColor } from '../../utils/job';
 import Layout from '../../components/Layout';
 import PopConfirm from '../../components/PopConfirm';
 import Dot from '../../components/Dot';
@@ -217,9 +217,6 @@ function JobList(props) {
           </div>
         </Card>
         <style jsx global>{`
-          .card .content {
-            box-sizing: border-box;
-          }
           .page-tasks .group, .group button {
             height: 42px;
           }
