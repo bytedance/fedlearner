@@ -31,5 +31,6 @@ python -m fedlearner.data_join.cmd.raw_data_partitioner_cli \
     --input_file_wildcard=$FILE_WILDCARD \
     --etcd_name=$ETCD_NAME \
     --etcd_addrs=$ETCD_ADDR \
-    --etcd_base_dir=$ETCD_BASE_DIR
-
+    --etcd_base_dir=$ETCD_BASE_DIR \
+    --raw_data_iter=$FILE_FORMAT \
+    --output_builder=$FILE_FORMAT
