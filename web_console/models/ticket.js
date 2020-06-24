@@ -42,11 +42,6 @@ module.exports = (sequelize, DataTypes) => {
       allowNull: false,
       comment: 'git commit id',
     },
-    docker_image: {
-      type: DataTypes.STRING(2083),
-      allowNull: false,
-      comment: 'URI for docker image',
-    },
     expire_time: {
       type: DataTypes.DATE,
       allowNull: true,

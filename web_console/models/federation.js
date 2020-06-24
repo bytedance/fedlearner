@@ -52,6 +52,12 @@ module.exports = (sequelize, DataTypes) => {
       default: null,
       comment: 'used for authorization. null stands for a passive pair, others stands for initiative pair',
     },
+    k8s_settings: {
+      type: DataTypes.TEXT('long'),
+      allowNull: true,
+      default: null,
+      comment: 'settings for kubernetes cluster',
+    },
   }, {
     tableName: 'federations',
     paranoid: true,

@@ -2,7 +2,7 @@ const assert = require('assert');
 const path = require('path');
 const { loadYaml } = require('../../utils/yaml');
 const { readFileSync } = require('../../utils');
-const { roleConfig, trainConfig } = require('../../utils/job_builder');
+const { serverGenerateYaml } = require('../../utils/job_builder');
 const testRoleConfig = require('../fixtures/test_role.json');
 
 const testTrainYaml = readFileSync(
@@ -10,116 +10,145 @@ const testTrainYaml = readFileSync(
   { encoding: 'utf-8' },
 );
 
-describe('roleConfig', () => {
-  it('should generate role config', () => {
-    assert.deepStrictEqual(
-      roleConfig(
-        {
-          pair: true,
-          replicas: 1,
-          image: 'image_path',
-          ports: [
-            {
-              containerPort: 50051,
-              name: 'flapp-port',
+describe('serverGenerateYaml', () => {
+  it('should generate train yaml', () => {
+    let federation = {
+      k8s_settings: JSON.stringify({
+        namespace: "default",
+        global_job_spec: {
+            apiVersion: "fedlearner.k8s.io/v1alpha1",
+            kind: "FLApp",
+            spec: {
+              cleanPodPolicy: "None",
             },
-            {
-              containerPort: 50052,
-              name: 'tf-port',
+        },
+        global_replica_spec: {
+          template: {
+            spec: {
+              restartPolicy: "Never",
+              volumes: [{"hostPath": {"path": "/data"}, "name": "data"}],
+              containers: {
+                env: [
+                  { "name": "POD_IP", "value": { "valueFrom": { "fieldRef": { "fieldPath": "status.podIP" } } } },
+                  { "name": "POD_NAME", "value": { "valueFrom": { "fieldRef": { "fieldPath": "metadata.name" } } } }
+                ],
+                imagePullPolicy: "IfNotPresent",
+                volumeMounts: [{ "mountPath": "/data", "name": "data" }],
+                name: "tensorflow",
+              }
             },
-          ],
-          cpu: '4000m',
-          memory: '4Gi',
-          command: ['command'],
-          args: [],
-        },
-        {
-          ROLE: 'leader',
-          APPLICATION_ID: 'application_id',
-          MODEL_NAME: 'fedlearner_model',
-        },
-        {
-          data: '/data',
-        },
-      ), testRoleConfig,
-    );
-  });
-});
-
-describe('trainConfig', () => {
-  it('should generate train config', () => {
-    assert.deepStrictEqual(
-      trainConfig({
-        application_id: 'application_id',
-        role: 'leader',
-        peer_role: 'Follower',
-        peer_url: 'ingress-nginx.ingress-nginx.svc.cluster.local:80',
-        peer_authority: 'follower.flapp.operator',
-        x_host: 'follower.flapp.operator',
-        public_env: {
-          ROLE: 'leader',
-          APPLICATION_ID: 'application_id',
-          MODEL_NAME: 'fedlearner_model',
-        },
-        public_volume: {
-          data: '/data',
-        },
-        master_config: {
-          pair: false,
-          replicas: 1,
-          image: 'image_path',
-          ports: [
-            {
-              containerPort: 50051,
-              name: 'flapp-port',
-            },
-          ],
-          cpu: '4000m',
-          memory: '4Gi',
-          env: {
-            START_DATE: '2020041500',
-            END_DATE: '2020041700',
-          },
-          command: ['/opt/tiger/fedlearner_byted/deploy/scripts/trainer/run_customed_trainer_master.sh'],
-          args: [],
-        },
-        ps_config: {
-          pair: false,
-          ports: [
-            {
-              containerPort: 50051,
-              name: 'flapp-port',
-            },
-          ],
-          cpu: '4000m',
-          memory: '4Gi',
-          replicas: 1,
-          image: 'image_path',
-          env: {},
-          command: ['/opt/tiger/fedlearner_byted/deploy/scripts/trainer/run_trainer_ps.sh'],
-          args: [],
-        },
-        worker_config: {
-          pair: true,
-          ports: [
-            {
-              containerPort: 50051,
-              name: 'flapp-port',
-            },
-            {
-              containerPort: 50052,
-              name: 'tf-port',
-            },
-          ],
-          cpu: '4000m',
-          memory: '4Gi',
-          replicas: 1,
-          image: 'image_path',
-          env: {},
-          command: ['/opt/tiger/fedlearner_byted/deploy/scripts/wait4pair_wrapper.sh'],
-          args: ['/opt/tiger/fedlearner_byted/deploy/scripts/trainer/run_trainer_worker.sh'],
+          }
         },
       }),
+    };
+
+    let job = {
+      name: "application_id",
+    };
+
+    let ticket = {
+      role: "leader",
+      public_params: "{}",
+      private_params: JSON.stringify({
+        spec: {
+          flReplicaSpecs: {
+            Master: {
+              pair: false,
+              replicas: 1,
+              template: {
+                spec: {
+                  containers: {
+                    env: [
+                      {name: "MODEL_NAME", value: "fedlearner_model"},
+                      {name: "START_DATE", value: "2020041500"},
+                      {name: "END_DATE", value: "2020041700"},
+                    ],
+                    image: "image_path",
+                    ports: [
+                      {containerPort: 50051, name: "flapp-port"},
+                    ],
+                    resources: {
+                      limits: {
+                        cpu: "4000m",
+                        memory: "4Gi",
+                      },
+                      requests: {
+                        cpu: "4000m",
+                        memory: "4Gi",
+                      },
+                    },
+                    command: ["/opt/tiger/fedlearner_byted/deploy/scripts/trainer/run_customed_trainer_master.sh"],
+                    args: [],
+                  },
+                },
+              },
+            },
+            PS: {
+              pair: false,
+              replicas: 1,
+              template: {
+                spec: {
+                  containers: {
+                    env: [
+                      {name: "MODEL_NAME", value: "fedlearner_model"},
+                    ],
+                    image: "image_path",
+                    ports: [
+                      {containerPort: 50051, name: "flapp-port"},
+                    ],
+                    resources: {
+                      limits: {
+                        cpu: "4000m",
+                        memory: "4Gi",
+                      },
+                      requests: {
+                        cpu: "4000m",
+                        memory: "4Gi",
+                      },
+                    },
+                    command: ['/opt/tiger/fedlearner_byted/deploy/scripts/trainer/run_trainer_ps.sh'],
+                    args: [],
+                  },
+                },
+              },
+            },
+            Worker: {
+              pair: true,
+              replicas: 1,
+              template: {
+                spec: {
+                  containers: {
+                    env: [
+                      {name: "MODEL_NAME", value: "fedlearner_model"},
+                    ],
+                    image: "image_path",
+                    ports: [
+                      {containerPort: 50051, name: "flapp-port"},
+                      {containerPort: 50052, name: "tf-port"},
+                    ],
+                    resources: {
+                      limits: {
+                        cpu: "4000m",
+                        memory: "4Gi",
+                      },
+                      requests: {
+                        cpu: "4000m",
+                        memory: "4Gi",
+                      },
+                    },
+                    command: ['/opt/tiger/fedlearner_byted/deploy/scripts/wait4pair_wrapper.sh'],
+                    args: ['/opt/tiger/fedlearner_byted/deploy/scripts/trainer/run_trainer_worker.sh'],
+                  },
+                },
+              },
+            },
+          },
+        },
+      })
+    };
+
+    assert.deepStrictEqual(
+      serverGenerateYaml(federation, job, {}, ticket),
       loadYaml(testTrainYaml),
     );
   });

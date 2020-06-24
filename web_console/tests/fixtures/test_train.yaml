@@ -157,7 +157,7 @@ spec:
   cleanPodPolicy: None
   peerSpecs:
     Follower:
-      peerURL: 'ingress-nginx.ingress-nginx.svc.cluster.local:80'
+      peerURL: 'fedlearner-stack-ingress-nginx-controller.default.svc.cluster.local:80'
       authority: follower.flapp.operator
       extraHeaders:
         x-host: follower.flapp.operator
