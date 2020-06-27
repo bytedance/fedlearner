@@ -18,19 +18,28 @@ set -ex
 
 export CUDA_VISIBLE_DEVICES=
 source /app/deploy/scripts/hdfs_common.sh || true
+source /app/deploy/scripts/env_to_args.sh
+
+partitioner_name=$(normalize_env_to_args "--partitioner_name" $NAME)
+raw_data_batch_size=$(normalize_env_to_args "--raw_data_batch_size" $RAW_DATA_BATCH_SIZE)
+max_flying_raw_data=$(normalize_env_to_args "--max_flying_raw_data" $MAX_FLYING_RAW_DATA)
+input_file_wildcard=$(normalize_env_to_args "--input_file_wildcard" $FILE_WILDCARD)
+raw_data_iter=$(normalize_env_to_args "--raw_data_iter" $FILE_FORMAT)
+output_builder=$(normalize_env_to_args "--output_builder" $FILE_FORMAT)
+compressed_type=$(normalize_env_to_args "--compressed_type" $COMPRESSED_TYPE)
+read_ahead_size=$(normalize_env_to_args "--read_ahead_size" $READ_AHEAD_SIZE)
+output_item_threshold=$(normalize_env_to_args "--output_item_threshold" $OUTPUT_ITEM_THRESHOLD)
+file_paths=$(normalize_env_to_args "--file_paths" $INPUT_FILE_PATHS)
 
 python -m fedlearner.data_join.cmd.raw_data_partitioner_cli \
-    --partitioner_name=$NAME \
     --input_dir=$INPUT_DIR \
     --output_dir=$OUTPUT_DIR \
     --output_partition_num=$OUTPUT_PARTITION_NUM \
     --total_partitioner_num=$TOTAL_PARTITIONER_NUM \
-    --raw_data_batch_size=$RAW_DATA_BATCH_SIZE \
-    --max_flying_raw_data=$MAX_FLYING_RAW_DATA \
     --partitioner_rank_id=$INDEX \
-    --input_file_wildcard=$FILE_WILDCARD \
     --etcd_name=$ETCD_NAME \
     --etcd_addrs=$ETCD_ADDR \
     --etcd_base_dir=$ETCD_BASE_DIR \
-    --raw_data_iter=$FILE_FORMAT \
-    --output_builder=$FILE_FORMAT
+    $partitioner_name $raw_data_batch_size $max_flying_raw_data \
+    $input_file_wildcard $raw_data_iter $output_builder $compressed_type \
+    $read_ahead_size $file_paths $TF_EAGER_MODE

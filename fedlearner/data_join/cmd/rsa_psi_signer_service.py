@@ -36,7 +36,7 @@ if __name__ == "__main__":
                         help='the rsa private key stroe by pem format')
     parser.add_argument('--slow_sign_threshold', type=int, default=1,
                         help='the threshold to record as slow sign')
-    parser.add_argument('--worker_num', type=int, default=512,
+    parser.add_argument('--worker_num', type=int, default=32,
                         help='max worker number for grpc server')
     args = parser.parse_args()
     rsa_private_key_pem = args.rsa_privet_key_pem

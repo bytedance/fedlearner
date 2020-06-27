@@ -47,7 +47,7 @@ if __name__ == "__main__":
     parser.add_argument('--compressed_type', type=str, default='',
                         choices=['', 'ZLIB', 'GZIP'],
                         help='the compressed type for raw data')
-    parser.add_argument('--read_ahead_size', type=int, default=0,
+    parser.add_argument('--read_ahead_size', type=int, default=32<<20,
                         help='the read ahead size for raw data,'
                              'only support CSV DICT')
     parser.add_argument('--example_joiner', type=str,
