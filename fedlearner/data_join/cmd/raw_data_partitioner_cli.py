@@ -34,7 +34,7 @@ if __name__ == "__main__":
                         help='the name of raw data partitioner')
     parser.add_argument('--file_paths', type=str, nargs='+',
                         help='the raw data file appointed by file path')
-    parser.add_argument('--input_dir', type=str,
+    parser.add_argument('--input_dir', type=str, required=True,
                         help='the raw data file appointed by dir')
     parser.add_argument('--input_file_wildcard', type=str,
                         help='the wildcard filter for input file')
@@ -62,9 +62,9 @@ if __name__ == "__main__":
                         help='the batch size to load raw data')
     parser.add_argument('--max_flying_raw_data', type=int, default=2<<20,
                         help='max flying raw data cached output')
-    parser.add_argument('--total_partitioner_num', type=int, default=1,
+    parser.add_argument('--total_partitioner_num', type=int, required=True,
                         help='the number of partitioner worker for input data')
-    parser.add_argument('--partitioner_rank_id', type=int, default=0,
+    parser.add_argument('--partitioner_rank_id', type=int, required=True,
                         help='the rank id of partitioner')
     parser.add_argument('--etcd_name', type=str, default='test_etcd',
                         help='the name of etcd cluster')

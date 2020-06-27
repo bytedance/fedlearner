@@ -52,7 +52,7 @@ if __name__ == "__main__":
                         help='the batch size for preprocessor')
     parser.add_argument('--max_flying_item', type=int, default=1<<20,
                         help='the process buffer size')
-    parser.add_argument('--offload_processor_number', type=int, default=1,
+    parser.add_argument('--offload_processor_number', type=int, default=0,
                         help='the number of processor to offload rsa compute')
     parser.add_argument('--max_flying_sign_batch', type=int, default=32,
                         help='the max flying sign batch')

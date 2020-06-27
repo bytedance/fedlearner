@@ -18,28 +18,45 @@ set -ex
 
 export CUDA_VISIBLE_DEVICES=
 source /app/deploy/scripts/hdfs_common.sh || true
+source /app/deploy/scripts/env_to_args.sh
+
+if [ -z "$INPUT_BASE_DIR$INPUT_FILE_PATHS" ]
+then
+    echo "no input files or directory for psi preprocessor"
+    exit -1
+fi
+
+preprocessor_name=$(normalize_env_to_args "--preprocessor_name" $NAME)
+input_file_paths=$(normalize_env_to_args "--input_file_paths" $INPUT_FILE_PATHS)
+if [ -z "$INPUT_BASE_DIR" ]
+then
+    input_dir=""
+else
+    input_dir="--input_dir=$INPUT_BASE_DIR/partition_`echo $INDEX|awk '{printf("%04d\n",$0)}'`"
+fi
+leader_rsa_psi_signer_addr=$(normalize_env_to_args "--leader_rsa_psi_signer_addr" $PEER_ADDR)
+max_flying_item=$(normalize_env_to_args "--max_flying_item" $MAX_FLYING_ITEM)
+offload_processor_number=$(normalize_env_to_args "--offload_processor_number" $OFFLOAD_PROCSSOR_NUMBER)
+max_flying_sign_batch=$(normalize_env_to_args "--max_flying_sign_batch" $MAX_FLYING_SIGNED_BATCH)
+max_flying_sign_rpc=$(normalize_env_to_args "--max_flying_sign_rpc" $MAX_FLYING_SIGN_RPC)
+sign_rpc_timeout_ms=$(normalize_env_to_args "--sign_rpc_timeout_ms" $SIGN_RPC_TIMEOUT_MS)
+stub_fanout=$(normalize_env_to_args "--stub_fanout" $STUB_FANOUT)
+rpc_thread_pool_size=$(normalize_env_to_args "--rpc_thread_pool_size" $RPC_THREAD_POOL_SIZE)
+slow_sign_threshold=$(normalize_env_to_args "--slow_sign_threshold" $SLOW_SIGN_THRESHOLD)
+sort_run_merger_read_ahead_buffer=$(normalize_env_to_args "--sort_run_merger_read_ahead_buffer" $SORT_RUN_MERGER_READ_AHEAD_BUFFER)
 
 python -m fedlearner.data_join.cmd.rsa_psi_preprocessor_cli \
-    --preprocessor_name=$NAME\
     --psi_role=$ROLE \
     --rsa_key_path=$RSA_KEY_PATH \
     --rsa_key_pem="$RSA_KEY_PEM" \
-    --input_dir=$INPUT_BASE_DIR/partition_`echo $INDEX|awk '{printf("%04d\n",$0)}'` \
     --output_file_dir=$OUTPUT_FILE_DIR \
     --raw_data_publish_dir=$RAW_DATA_PUBLISH_DIR \
-    --leader_rsa_psi_signer_addr=$PEER_ADDR \
-    --process_batch_size=$PROCESS_BATCH_SIZE \
-    --max_flying_item=$MAX_FLYING_ITEM \
-    --offload_processor_number=$OFFLOAD_PROCSSOR_NUMBER \
-    --max_flying_sign_batch=$MAX_FLYING_SIGNED_BATCH \
-    --max_flying_sign_rpc=$MAX_FLYING_SIGN_RPC \
-    --sign_rpc_timeout_ms=$SIGN_RPC_TIMEOUT_MS \
-    --stub_fanout=$STUB_FANOUT \
-    --rpc_thread_pool_size=$RPC_THREAD_POOL_SIZE \
-    --slow_sign_threshold=$SLOW_SIGN_THRESHOLD \
-    --sort_run_merger_read_ahead_buffer=$SORT_RUN_MERGER_READ_AHEAD_BUFFER \
     --partition_id=$INDEX \
     --etcd_name=$ETCD_NAME \
     --etcd_addrs=$ETCD_ADDR \
     --etcd_base_dir=$ETCD_BASE_DIR \
-    $RPC_SYNC_MODE
+    $preprocessor_name $input_file_paths $input_dir \
+    $max_flying_item $max_flying_sign_batch $offload_processor_number \
+    $slow_sign_threshold $sort_run_merger_read_ahead_buffer \
+    $leader_rsa_psi_signer_addr $max_flying_sign_rpc $sign_rpc_timeout_ms \
+    $stub_fanout $rpc_thread_pool_size $RPC_SYNC_MODE
