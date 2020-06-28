@@ -1,20 +1,16 @@
+const lodash = require('lodash');
 const getConfig = require('./get_confg');
 
 const server_config = getConfig();
 
-function mergeJson(a, b) {
-  a = Object.assign({}, a);
-  for (key in b) {
-    if (key in a && Array.isArray(a[key]) && Array.isArray(b[key])) {
-      a[key] = a[key].concat(b[key]);
-    } else if (key in a && a[key].constructor == Object &&
-               b[key].constructor == Object) {
-      a[key] = mergeJson(a[key], b[key]);
-    } else {
-      a[key] = b[key];
-    }
+function mergeCustomizer(obj, src) {
+  if (lodash.isArray(obj) && lodash.isArray(src)) {
+    return obj.concat(src);
   }
-  return a;
+}
+
+function mergeJson(obj, src) {
+  return lodash.mergeWith(obj, src, mergeCustomizer);
 }
 
 function validateTicket(ticket) {
@@ -32,7 +28,7 @@ function serverValidateJob(job, client_ticket, server_ticket) {
 }
 
 function generateYaml(federation, job, ticket) {
-  let k8s_settings = JSON.parse(federation.k8s_settings);
+  let k8s_settings = federation.k8s_settings;
   let yaml = mergeJson({}, k8s_settings.global_job_spec);
 
   let peer_role = 'follower';
@@ -60,12 +56,13 @@ function generateYaml(federation, job, ticket) {
       },
     }
   });
-  yaml = mergeJson(yaml, JSON.parse(ticket.public_params));
-  yaml = mergeJson(yaml, JSON.parse(ticket.private_params));
+  yaml = mergeJson(yaml, ticket.public_params);
+  yaml = mergeJson(yaml, ticket.private_params);
 
   let replica_specs = yaml["spec"]["flReplicaSpecs"];
   for (let key in replica_specs) {
-    let base_spec = mergeJson(k8s_settings.global_replica_spec, {
+    let base_spec = mergeJson({}, k8s_settings.global_replica_spec);
+    base_spec = mergeJson(base_spec, {
       template: {
         spec: {
           containers: {

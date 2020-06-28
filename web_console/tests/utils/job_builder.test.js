@@ -13,7 +13,7 @@ const testTrainYaml = readFileSync(
 describe('serverGenerateYaml', () => {
   it('should generate train yaml', () => {
     let federation = {
-      k8s_settings: JSON.stringify({
+      k8s_settings: {
         namespace: "default",
         global_job_spec: {
             apiVersion: "fedlearner.k8s.io/v1alpha1",
@@ -39,7 +39,7 @@ describe('serverGenerateYaml', () => {
             },
           }
         },
-      }),
+      },
     };
 
     let job = {
@@ -48,8 +48,8 @@ describe('serverGenerateYaml', () => {
 
     let ticket = {
       role: "leader",
-      public_params: "{}",
-      private_params: JSON.stringify({
+      public_params: null,
+      private_params: {
         spec: {
           flReplicaSpecs: {
             Master: {
@@ -77,7 +77,7 @@ describe('serverGenerateYaml', () => {
                         memory: "4Gi",
                       },
                     },
-                    command: ["/opt/tiger/fedlearner_byted/deploy/scripts/trainer/run_customed_trainer_master.sh"],
+                    command: ["/app/fedlearner_byted/deploy/scripts/trainer/run_customed_trainer_master.sh"],
                     args: [],
                   },
                 },
@@ -106,7 +106,7 @@ describe('serverGenerateYaml', () => {
                         memory: "4Gi",
                       },
                     },
-                    command: ['/opt/tiger/fedlearner_byted/deploy/scripts/trainer/run_trainer_ps.sh'],
+                    command: ['/app/fedlearner_byted/deploy/scripts/trainer/run_trainer_ps.sh'],
                     args: [],
                   },
                 },
@@ -136,15 +136,15 @@ describe('serverGenerateYaml', () => {
                         memory: "4Gi",
                       },
                     },
-                    command: ['/opt/tiger/fedlearner_byted/deploy/scripts/wait4pair_wrapper.sh'],
-                    args: ['/opt/tiger/fedlearner_byted/deploy/scripts/trainer/run_trainer_worker.sh'],
+                    command: ['/app/fedlearner_byted/deploy/scripts/wait4pair_wrapper.sh'],
+                    args: ['/app/fedlearner_byted/deploy/scripts/trainer/run_trainer_worker.sh'],
                   },
                 },
               },
             },
           },
         },
-      })
+      },
     };
 
     assert.deepStrictEqual(
