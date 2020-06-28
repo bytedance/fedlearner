@@ -51,17 +51,13 @@ module.exports = (sequelize, DataTypes) => {
     deletedAt: 'deleted_at',
     getterMethods: {
       server_params() {
-        if (this.server_params) {
-          return JSON.parse(this.server_params);
-        }
-
+        const val = this.getDataValue('server_params');
+        if (val) return JSON.parse(val);
         return null;
       },
       client_params() {
-        if (this.client_params) {
-          return JSON.parse(this.client_params);
-        }
-
+        const val = this.getDataValue('client_params');
+        if (val) return JSON.parse(val);
         return null;
       },
     },

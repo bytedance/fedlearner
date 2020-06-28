@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { Table, Button, Card, Text } from '@zeit-ui/react';
 import useSWR from 'swr';
-import Form from './Form';
-import PopConfirm from './PopConfirm';
-import { fetcher } from '../libs/http';
-import { humanizeTime } from '../utils/time';
-import { createUser, deleteUser } from '../services';
+import Layout from '../../components/Layout';
+import Form from '../../components/Form';
+import PopConfirm from '../../components/PopConfirm';
+import { fetcher } from '../../libs/http';
+import { humanizeTime } from '../../utils/time';
+import { createUser, deleteUser } from '../../services';
 
 export default function UserList() {
   const { data, mutate } = useSWR('users', fetcher);
@@ -56,31 +57,32 @@ export default function UserList() {
     toggleForm();
   };
 
-  if (formVisible) {
-    return (
-      <Form
-        title="Create User"
-        fields={fields}
-        onSubmit={(value) => createUser(value)}
-        onOk={onOk}
-        onCancel={toggleForm}
-      />
-    );
-  }
-
   return (
-    <>
-      <div className="heading">
-        <Text h2>Users</Text>
-        <Button auto type="secondary" onClick={toggleForm}>Create User</Button>
-      </div>
-      {users && (
-        <Card>
-          <Table data={dataSource}>
-            {columns.map((x) => <Table.Column key={x} prop={x} label={x} />)}
-          </Table>
-        </Card>
-      )}
-    </>
+    <Layout>
+      {formVisible
+        ? (
+          <Form
+            title="Create User"
+            fields={fields}
+            onSubmit={(value) => createUser(value)}
+            onOk={onOk}
+            onCancel={toggleForm}
+          />
+        )
+        : (
+          <>
+            <div className="heading">
+              <Text h2>Users</Text>
+              <Button auto type="secondary" onClick={toggleForm}>Create User</Button>
+            </div>
+            {users && (
+              <Card>
+                <Table data={dataSource}>
+                  {columns.map((x) => <Table.Column key={x} prop={x} label={x} />)}
+                </Table>
+              </Card>
+            )}</>
+        )}
+    </Layout>
   );
 }

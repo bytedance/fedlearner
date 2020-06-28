@@ -17,6 +17,7 @@
     "no-underscore-dangle": "off",
     "no-param-reassign": "off",
     "no-use-before-define": "off",
+    "object-property-newline": "off",
     "object-curly-newline": [
       "error",
       {

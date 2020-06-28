@@ -4,8 +4,9 @@ import { Avatar, Button, Card, Text, Grid, Input, Spacer, useTheme } from '@zeit
 import LinkIcon from '@zeit-ui/react-icons/link';
 import MailIcon from '@zeit-ui/react-icons/mail';
 import useSWR from 'swr';
-import Form from './Form';
-import { fetcher } from '../libs/http';
+import Layout from '../../components/Layout';
+import Form from '../../components/Form';
+import { fetcher } from '../../libs/http';
 
 function useFederationItemStyles() {
   return css`
@@ -69,23 +70,25 @@ export default function FederationList() {
   const federations = data ? data.data : null;
   const [formVisible, setFormVisible] = useState(false);
 
-  if (formVisible) {
-    return <Form title="Create Federation" onCancel={() => setFormVisible(false)} />;
-  }
-
   return (
-    <>
-      <div className="heading">
-        <Text h2>Federations</Text>
-        <Button auto type="secondary" onClick={() => setFormVisible(true)}>Create Federation</Button>
-      </div>
-      <Grid.Container gap={2}>
-        {federations && federations.map((x) => (
-          <Grid key={x.id} xs={24} sm={12} md={8} lg={6} xl={6}>
-            <FederationItem data={x} />
-          </Grid>
-        ))}
-      </Grid.Container>
-    </>
+    <Layout>
+      {formVisible
+        ? <Form title="Create Federation" onCancel={() => setFormVisible(false)} />
+        : (
+          <>
+            <div className="heading">
+              <Text h2>Federations</Text>
+              <Button auto type="secondary" onClick={() => setFormVisible(true)}>Create Federation</Button>
+            </div>
+            <Grid.Container gap={2}>
+              {federations && federations.map((x) => (
+                <Grid key={x.id} xs={24} sm={12} md={8} lg={6} xl={6}>
+                  <FederationItem data={x} />
+                </Grid>
+              ))}
+            </Grid.Container>
+          </>
+        )}
+    </Layout>
   );
 }

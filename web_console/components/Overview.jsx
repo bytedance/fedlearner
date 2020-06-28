@@ -1,9 +1,8 @@
 import React from 'react';
 import css from 'styled-jsx/css';
 import { Button, Text, Link, useTheme } from '@zeit-ui/react';
-import Layout from '../components/Layout';
-import EventListItem from '../components/EventListItem';
-import TicketCard from '../components/TicketCard';
+import EventListItem from './EventListItem';
+import TicketCard from './TicketCard';
 
 function useStyles(theme) {
   return css`
@@ -46,7 +45,7 @@ export default function Overview() {
   const theme = useTheme();
   const styles = useStyles(theme);
   return (
-    <Layout>
+    <>
       <div className="heading">
         <Text h2>Pending Jobs</Text>
         <Button auto type="secondary">Create Job</Button>
@@ -95,6 +94,6 @@ export default function Overview() {
         </div>
       </div>
       <style jsx>{styles}</style>
-    </Layout>
+    </>
   );
 }
