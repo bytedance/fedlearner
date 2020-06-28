@@ -2,7 +2,7 @@ const assert = require('assert');
 const path = require('path');
 const { loadYaml } = require('../../utils/yaml');
 const { readFileSync } = require('../../utils');
-const { serverGenerateYaml } = require('../../utils/job_builder');
+const { serverGenerateYaml, serverValidateJob } = require('../../utils/job_builder');
 const testRoleConfig = require('../fixtures/test_role.json');
 
 const testTrainYaml = readFileSync(
@@ -44,28 +44,17 @@ describe('serverGenerateYaml', () => {
 
     let job = {
       name: "application_id",
-    };
-
-    let ticket = {
-      role: "leader",
-      public_params: null,
-      private_params: {
+      job_type: 'nn_model',
+      server_params: {
         spec: {
           flReplicaSpecs: {
             Master: {
-              pair: false,
               replicas: 1,
               template: {
                 spec: {
                   containers: {
                     env: [
                       {name: "MODEL_NAME", value: "fedlearner_model"},
-                      {name: "START_DATE", value: "2020041500"},
-                      {name: "END_DATE", value: "2020041700"},
-                    ],
-                    image: "image_path",
-                    ports: [
-                      {containerPort: 50051, name: "flapp-port"},
                     ],
                     resources: {
                       limits: {
@@ -77,6 +66,78 @@ describe('serverGenerateYaml', () => {
                         memory: "4Gi",
                       },
                     },
+                  },
+                },
+              },
+            },
+            PS: {
+              replicas: 1,
+              template: {
+                spec: {
+                  containers: {
+                    env: [
+                      {name: "MODEL_NAME", value: "fedlearner_model"},
+                    ],
+                    resources: {
+                      limits: {
+                        cpu: "4000m",
+                        memory: "4Gi",
+                      },
+                      requests: {
+                        cpu: "4000m",
+                        memory: "4Gi",
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            Worker: {
+              replicas: 1,
+              template: {
+                spec: {
+                  containers: {
+                    env: [
+                      {name: "MODEL_NAME", value: "fedlearner_model"},
+                    ],
+                    resources: {
+                      limits: {
+                        cpu: "4000m",
+                        memory: "4Gi",
+                      },
+                      requests: {
+                        cpu: "4000m",
+                        memory: "4Gi",
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      }
+    };
+
+    let ticket = {
+      role: "leader",
+      public_params: null,
+      private_params: {
+        spec: {
+          flReplicaSpecs: {
+            Master: {
+              pair: false,
+              template: {
+                spec: {
+                  containers: {
+                    env: [
+                      {name: "START_DATE", value: "2020041500"},
+                      {name: "END_DATE", value: "2020041700"},
+                    ],
+                    image: "image_path",
+                    ports: [
+                      {containerPort: 50051, name: "flapp-port"},
+                    ],
                     command: ["/app/fedlearner_byted/deploy/scripts/trainer/run_customed_trainer_master.sh"],
                     args: [],
                   },
@@ -89,23 +150,10 @@ describe('serverGenerateYaml', () => {
               template: {
                 spec: {
                   containers: {
-                    env: [
-                      {name: "MODEL_NAME", value: "fedlearner_model"},
-                    ],
                     image: "image_path",
                     ports: [
                       {containerPort: 50051, name: "flapp-port"},
                     ],
-                    resources: {
-                      limits: {
-                        cpu: "4000m",
-                        memory: "4Gi",
-                      },
-                      requests: {
-                        cpu: "4000m",
-                        memory: "4Gi",
-                      },
-                    },
                     command: ['/app/fedlearner_byted/deploy/scripts/trainer/run_trainer_ps.sh'],
                     args: [],
                   },
@@ -118,24 +166,11 @@ describe('serverGenerateYaml', () => {
               template: {
                 spec: {
                   containers: {
-                    env: [
-                      {name: "MODEL_NAME", value: "fedlearner_model"},
-                    ],
                     image: "image_path",
                     ports: [
                       {containerPort: 50051, name: "flapp-port"},
                       {containerPort: 50052, name: "tf-port"},
                     ],
-                    resources: {
-                      limits: {
-                        cpu: "4000m",
-                        memory: "4Gi",
-                      },
-                      requests: {
-                        cpu: "4000m",
-                        memory: "4Gi",
-                      },
-                    },
                     command: ['/app/fedlearner_byted/deploy/scripts/wait4pair_wrapper.sh'],
                     args: ['/app/fedlearner_byted/deploy/scripts/trainer/run_trainer_worker.sh'],
                   },
@@ -146,6 +181,8 @@ describe('serverGenerateYaml', () => {
         },
       },
     };
+
+    assert.ok(serverValidateJob(job, {}, ticket));
 
     assert.deepStrictEqual(
       serverGenerateYaml(federation, job, {}, ticket),

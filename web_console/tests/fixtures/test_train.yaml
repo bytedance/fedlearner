@@ -31,12 +31,12 @@ spec:
                 value: leader
               - name: APPLICATION_ID
                 value: application_id
-              - name: MODEL_NAME
-                value: fedlearner_model
               - name: START_DATE
                 value: '2020041500'
               - name: END_DATE
                 value: '2020041700'
+              - name: MODEL_NAME
+                value: fedlearner_model
             image: image_path
             imagePullPolicy: IfNotPresent
             volumeMounts:
