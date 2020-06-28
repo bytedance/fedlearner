@@ -52,6 +52,12 @@ module.exports = (sequelize, DataTypes) => {
       default: null,
       comment: 'used for authorization. null stands for a passive pair, others stands for initiative pair',
     },
+    k8s_settings: {
+      type: DataTypes.TEXT('long'),
+      allowNull: true,
+      default: null,
+      comment: 'settings for kubernetes cluster',
+    },
   }, {
     tableName: 'federations',
     paranoid: true,
@@ -59,6 +65,20 @@ module.exports = (sequelize, DataTypes) => {
     createdAt: 'created_at',
     updatedAt: 'updated_at',
     deletedAt: 'deleted_at',
+    getterMethods: {
+      k8s_settings() {
+        const val = this.getDataValue('k8s_settings');
+        if (val) {
+          return JSON.parse(val);
+        }
+        return null;
+      },
+    },
+    setterMethods: {
+      k8s_settings(value) {
+        this.setDataValue('k8s_settings', value ? JSON.stringify(value) : null);
+      },
+    },
   });
 
   return Federation;

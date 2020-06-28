@@ -1,88 +1,98 @@
+const lodash = require('lodash');
 const getConfig = require('./get_confg');
 
 const server_config = getConfig();
 
-function roleConfig(config, public_env = {}, public_volume = {}) {
-    let role = {
-        "pair": config.pair,
-        "replicas": config.replicas,
-        "template": {
-            "spec": {
-                "restartPolicy": "Never",
-                "volumes": [],
-                "containers": {
-                    "env": [
-                        { "name": "POD_IP", "value": { "valueFrom": { "fieldRef": { "fieldPath": "status.podIP" } } } },
-                        { "name": "POD_NAME", "value": { "valueFrom": { "fieldRef": { "fieldPath": "metadata.name" } } } }],
-                    "image": config.image,
-                    "imagePullPolicy": "IfNotPresent",
-                    "volumeMounts": [],
-                    "name": "tensorflow",
-                    "ports": config.ports,
-                    "resources": { "limits": { "cpu": config.cpu, "memory": config.memory }, "requests": { "cpu": config.cpu, "memory": config.memory } },
-                    "command": config.command,
-                    "args": config.args
-                },
-            }
-        }
-    }
-
-    for (var key in public_env) {
-        role["template"]["spec"]["containers"]["env"].push({ "name": key, "value": public_env[key] })
-    }
-
-    for (var key in config.env) {
-        role["template"]["spec"]["containers"]["env"].push({ "name": key, "value": config.env[key] })
-    }
-
-    for (var key in public_volume) {
-        role["template"]["spec"]["volumes"].push({ "hostPath": { "path": public_volume[key] }, "name": key })
-        role["template"]["spec"]["containers"]["volumeMounts"].push({ "mountPath": public_volume[key], "name": key })
-    }
-    return role
+function mergeCustomizer(obj, src) {
+  if (lodash.isArray(obj) && lodash.isArray(src)) {
+    return obj.concat(src);
+  }
 }
 
-function trainConfig(job) {
-    let job_config = {
-        "apiVersion": server_config.API_VERSION,
-        "kind": server_config.KIND,
-        "metadata": {
-            "namespace": server_config.NAMESPACE,
-            "name": job.application_id
+function mergeJson(obj, src) {
+  return lodash.mergeWith(obj, src, mergeCustomizer);
+}
+
+function validateTicket(ticket) {
+  return true;
+}
+
+function clientValidateJob(job, client_ticket, server_ticket) {
+  return true;
+}
+
+function serverValidateJob(job, client_ticket, server_ticket) {
+  // for now we don't allow client to submit params to server;
+  if (job.server_params != "") return false;
+  return true;
+}
+
+function generateYaml(federation, job, ticket) {
+  let k8s_settings = federation.k8s_settings;
+  let yaml = mergeJson({}, k8s_settings.global_job_spec);
+
+  let peer_role = 'follower';
+  let cap_peer_role = 'Follower';
+  if (ticket.role == 'follower') {
+    peer_role = 'leader';
+    cap_peer_role = 'Leader';
+  }
+  yaml = mergeJson(yaml, {
+    metadata: {
+      name: job.name,
+      namespace: k8s_settings['namespace'],
+    },
+    spec: {
+      role: ticket.role,
+      cleanPodPolicy: "None",
+      peerSpecs: {
+        [cap_peer_role]: {
+          peerURL: 'fedlearner-stack-ingress-nginx-controller.' + k8s_settings['namespace'] + '.svc.cluster.local:80',
+          authority: peer_role + ".flapp.operator",
+          extraHeaders: {
+            "x-host": peer_role + ".flapp.operator",
+          }
         },
-        "spec": {
-            "flReplicaSpecs": {},
-            "role": job.role,
-            "cleanPodPolicy": "None",
-            "peerSpecs": {
-                [job.peer_role]: {
-                    "peerURL": job.peer_url,
-                    "authority": job.peer_authority,
-                    "extraHeaders": {
-                        "x-host": job.x_host
-                    }
-                }
-            }
-        },
+      },
     }
+  });
+  yaml = mergeJson(yaml, ticket.public_params);
+  yaml = mergeJson(yaml, ticket.private_params);
 
-    job_config["spec"]["flReplicaSpecs"]["Master"] = roleConfig(
-        job.master_config,
-        job.public_env,
-        job.public_volume)
-    job_config["spec"]["flReplicaSpecs"]["PS"] = roleConfig(
-        job.ps_config,
-        job.public_env,
-        job.public_volume)
-    job_config["spec"]["flReplicaSpecs"]["Worker"] = roleConfig(
-        job.worker_config,
-        job.public_env,
-        job.public_volume)
+  let replica_specs = yaml["spec"]["flReplicaSpecs"];
+  for (let key in replica_specs) {
+    let base_spec = mergeJson({}, k8s_settings.global_replica_spec);
+    base_spec = mergeJson(base_spec, {
+      template: {
+        spec: {
+          containers: {
+            env: [
+              {name: "ROLE", value: ticket.role},
+              {name: "APPLICATION_ID", value: job.name},
+            ]
+          }
+        },
+      },
+    });
+    replica_specs[key] = mergeJson(
+      base_spec, replica_specs[key]);
+  }
 
-    return job_config;
+  return yaml;
+}
+
+function clientGenerateYaml(federation, job, client_ticket, server_ticket) {
+  return generateYaml(federation, job, client_ticket);
+}
+
+function serverGenerateYaml(federation, job, client_ticket, server_ticket) {
+  return generateYaml(federation, job, server_ticket);
 }
 
 module.exports = {
-    roleConfig,
-    trainConfig,
+  validateTicket,
+  clientValidateJob,
+  serverValidateJob,
+  clientGenerateYaml,
+  serverGenerateYaml
 };

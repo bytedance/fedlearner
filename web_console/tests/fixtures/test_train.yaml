@@ -54,7 +54,7 @@ spec:
                 cpu: 4000m
                 memory: 4Gi
             command:
-              - /opt/tiger/fedlearner_byted/deploy/scripts/trainer/run_customed_trainer_master.sh
+              - /app/fedlearner_byted/deploy/scripts/trainer/run_customed_trainer_master.sh
             args: []
     PS:
       pair: false
@@ -101,7 +101,7 @@ spec:
                 cpu: 4000m
                 memory: 4Gi
             command:
-              - /opt/tiger/fedlearner_byted/deploy/scripts/trainer/run_trainer_ps.sh
+              - /app/fedlearner_byted/deploy/scripts/trainer/run_trainer_ps.sh
             args: []
     Worker:
       pair: true
@@ -150,14 +150,14 @@ spec:
                 cpu: 4000m
                 memory: 4Gi
             command:
-              - /opt/tiger/fedlearner_byted/deploy/scripts/wait4pair_wrapper.sh
+              - /app/fedlearner_byted/deploy/scripts/wait4pair_wrapper.sh
             args:
-              - /opt/tiger/fedlearner_byted/deploy/scripts/trainer/run_trainer_worker.sh
+              - /app/fedlearner_byted/deploy/scripts/trainer/run_trainer_worker.sh
   role: leader
   cleanPodPolicy: None
   peerSpecs:
     Follower:
-      peerURL: 'ingress-nginx.ingress-nginx.svc.cluster.local:80'
+      peerURL: 'fedlearner-stack-ingress-nginx-controller.default.svc.cluster.local:80'
       authority: follower.flapp.operator
       extraHeaders:
         x-host: follower.flapp.operator
