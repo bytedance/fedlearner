@@ -9,8 +9,8 @@ spec:
   type: {{ .Values.service.type }}
   ports:
     - port: {{ .Values.service.port }}
-      targetPort: 1989
+      targetPort: 1990
       protocol: TCP
-      name: http
+      name: grpc
   selector:
     {{- include "fedlearner-web-console.selectorLabels" . | nindent 4 }}

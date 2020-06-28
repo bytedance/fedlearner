@@ -40,7 +40,7 @@ securityContext: {}
 
 service:
   type: ClusterIP
-  port: 1989
+  port: 1990
 
 ingress:
   enabled: true
@@ -75,3 +75,4 @@ cluster:
     DB_PASSWORD: fedlearner
     DB_HOST: fedlearner-stack-mariadb
     DB_PORT: 3306
+    GRPC_AUTHORITY: ""
