@@ -10,7 +10,7 @@ function useStyles(theme) {
       display: flex;
       flex-direction: column;
       box-sizing: border-box;
-      min-height: calc(100vh - 16px);
+      min-height: 100vh;
       background: ${theme.palette.accents_1};
     }
 
@@ -84,16 +84,6 @@ export default function Layout({ header = true, footer = true, children }) {
 
         .menu .content {
           display: none;
-        }
-
-        .link {
-          color: #666 !important;
-          text-decoration: none;
-          transition: color 0.2s ease 0s;
-        }
-
-        .link:hover {
-          color: #000 !important;
         }
 
         .colorLink {

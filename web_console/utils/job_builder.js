@@ -1,9 +1,6 @@
-let server_config;
-try {
-    server_config = require('../server.config');
-} catch (err) {
-    server_config = require('../constants').DEFAULT_SERVER_CONFIG;
-}
+const getConfig = require('./get_confg');
+
+const server_config = getConfig();
 
 function roleConfig(config, public_env = {}, public_volume = {}) {
     let role = {

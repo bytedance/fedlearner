@@ -4,19 +4,18 @@
 
 const ky = require('ky-universal');
 
-let config;
-try {
-    config = require('../server.config');
-} catch (err) {
-    config = require('../constants').DEFAULT_SERVER_CONFIG;
-}
+const getConfig = require('../utils/get_confg');
 
+const config = getConfig({
+    ES_HOST: process.env.ES_HOST,
+    ES_PORT: process.env.ES_PORT,
+});
 
 
 class ElasticSearchClient {
     constructor() {
         // TODO: use HTTPs for production
-        const prefixUrl = `http://${process.env.ES_HOST || config.ES_HOST}:${process.env.ES_PORT || config.ES_PORT}`;
+        const prefixUrl = `http://${config.ES_HOST}:${config.ES_PORT}`;
         this.client = ky.create({ prefixUrl });
     }
 
@@ -62,7 +61,8 @@ class ElasticSearchClient {
             }
         }
 
-        const body = await this.client.post(`${index}/_search`, { json: query_body }).json();
+        const response = await this.client.post(`${index}/_search`, { json: query_body });
+        const body = await response.json();
         return Object.keys(body.hits.hits).map(x => body.hits.hits[x]['_source']['message']);
     }
 }

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import css from 'styled-jsx/css';
 import { useRouter } from 'next/router';
 import useSWR from 'swr';
@@ -8,6 +8,11 @@ import { logout } from '../services';
 
 function useStyles(theme) {
   return css`
+    .space-holder {
+      /* headerContent + header border */
+      height: 49px;
+    }
+
     .header {
       background: ${theme.palette.background};
       color: ${theme.palette.foreground};
@@ -80,7 +85,7 @@ export default function Header() {
   const router = useRouter();
   const { data } = useSWR('user', fetcher);
   const { route, query } = router;
-  const isAdmin = route === '/admin';
+  const isAdmin = route.startsWith('/admin/');
   const user = data ? data.data : null;
   const [signingOut, setSigningOut] = useState(false);
   const [scrollTop, setScrollTop] = useState(0);
@@ -97,14 +102,15 @@ export default function Header() {
   const title = isAdmin ? 'Admin' : 'Fedlearner';
   const navs = isAdmin
     ? [
-      { label: 'Federations', value: 'federation' },
-      { label: 'Users', value: 'user' },
+      { label: 'Federations', value: '/admin/federation' },
+      { label: 'Users', value: '/admin/user' },
     ]
     : [
-      { label: 'Overview', value: 'overview' },
-      { label: 'Jobs', value: 'job' },
-      { label: 'Tickets', value: 'ticket' },
+      { label: 'Overview', value: '/' },
+      { label: 'Jobs', value: '/jobs' },
+      { label: 'Tickets', value: '/ticket' },
     ];
+
   const PopoverContent = (
     <>
       {user && (
@@ -132,16 +138,10 @@ export default function Header() {
         )}
     </>
   );
-  const tab = query.tab || navs[0].value;
-  const onChangeTab = (value) => {
-    router.push({
-      pathname: route,
-      query: {
-        ...query,
-        tab: value,
-      },
-    });
-  };
+
+  const activeTab = router.pathname;
+
+  const onTabChange = useCallback((value) => router.push(value), [router]);
 
   useEffect(() => {
     const scrollHandler = () => {
@@ -152,34 +152,36 @@ export default function Header() {
   }, [scrollTop]);
 
   return (
-    <div className={fixed ? 'headerFixed' : 'header'}>
-      <div className="headerContent">
-        <div className="headerContentBlock">
-          <Link href="/" className="logo">
-            <svg width="20" viewBox="0 0 75 65" fill={theme.palette.foreground}>
-              <path d="M37.59.25l36.95 64H.64l36.95-64z" />
-            </svg>
-          </Link>
-          <div className="headerTitle">{title}</div>
-          <nav className="nav">
-            <Tabs className="menu" value={tab} onChange={onChangeTab}>
-              {navs.map((x) => <Tabs.Item key={x.value} label={x.label} value={x.value} />)}
-            </Tabs>
-          </nav>
-        </div>
+    <div className="space-holder">
+      <div className={fixed ? 'headerFixed' : 'header'}>
+        <div className="headerContent">
+          <div className="headerContentBlock">
+            <Link href="/" className="logo">
+              <svg width="20" viewBox="0 0 75 65" fill={theme.palette.foreground}>
+                <path d="M37.59.25l36.95 64H.64l36.95-64z" />
+              </svg>
+            </Link>
+            <div className="headerTitle">{title}</div>
+            <nav className="nav">
+              <Tabs className="menu" value={activeTab} onChange={onTabChange}>
+                {navs.map((x) => <Tabs.Item key={x.value} label={x.label} value={x.value} />)}
+              </Tabs>
+            </nav>
+          </div>
 
-        <div className="sidebar">
-          <Popover content={PopoverContent} placement="bottomEnd">
-            {user
-              ? (
-                <Avatar
-                  src={`https://github.com/${user.username}.png`}
-                  alt={`${user.name} Avatar`}
-                  style={{ cursor: 'pointer' }}
-                />
-              )
-              : <Spinner />}
-          </Popover>
+          <div className="sidebar">
+            <Popover content={PopoverContent} placement="bottomEnd">
+              {user
+                ? (
+                  <Avatar
+                    src={`https://github.com/${user.username}.png`}
+                    alt={`${user.name} Avatar`}
+                    style={{ cursor: 'pointer' }}
+                  />
+                )
+                : <Spinner />}
+            </Popover>
+          </div>
         </div>
       </div>
       <style jsx>{styles}</style>
