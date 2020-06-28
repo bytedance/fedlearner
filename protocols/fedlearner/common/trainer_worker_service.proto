@@ -81,10 +81,17 @@ message HeartbeatResponse {
   uint64 current_iter_id = 3;
 }
 
+message TerminateRequest {
+}
+
+message TerminateResponse {
+}
+
 service TrainerWorkerService {
   rpc Transmit (TrainerWorkerMessage) returns (TrainerWorkerResponse) {}
   rpc StreamTransmit (stream TrainerWorkerMessage) returns (stream TrainerWorkerResponse) {}
   rpc LoadDataBlock (LoadDataBlockRequest) returns (Status) {}
   rpc Connect (ConnectRequest) returns (ConnectResponse) {}
   rpc Heartbeat (HeartbeatRequest) returns (HeartbeatResponse) {}
+  rpc Terminate (TerminateRequest) returns (TerminateResponse) {}
 }

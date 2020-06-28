@@ -18,6 +18,9 @@ describe('serverGenerateYaml', () => {
         global_job_spec: {
             apiVersion: "fedlearner.k8s.io/v1alpha1",
             kind: "FLApp",
+            metadata: {
+              namespace: "default",
+            },
             spec: {
               cleanPodPolicy: "None",
             },
@@ -38,6 +41,15 @@ describe('serverGenerateYaml', () => {
               }
             },
           }
+        },
+        leader_peer_spec: {
+          Follower: {
+            peerURL: 'fedlearner-stack-ingress-nginx-controller.default.svc.cluster.local:80',
+            authority: 'follower.flapp.operator',
+            extraHeaders: {
+              'x-host': 'follower.flapp.operator',
+            },
+          },
         },
       },
     };
