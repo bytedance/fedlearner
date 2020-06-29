@@ -7,7 +7,11 @@ const server_config = getConfig();
 const permittedJobEnvs = {
   data_join: [],
   psi_data_join: [],
-  tree_model: [],
+  tree_model: [
+    "VERBOSITY", "LEARNING_RATE", "MAX_ITERS", "MAX_DEPTH",
+    "L2_REGULARIZATION", "MAX_BINS", "NUM_PARALELL", "VERIFY_EXAMPLE_IDS",
+    "USE_STREAMING"
+  ],
   nn_model: ['MODEL_NAME'],
 };
 
@@ -155,5 +159,5 @@ module.exports = {
   clientValidateJob,
   serverValidateJob,
   clientGenerateYaml,
-  serverGenerateYaml
+  serverGenerateYaml,
 };

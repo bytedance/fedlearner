@@ -22,7 +22,7 @@ module.exports = (sequelize, DataTypes) => {
     job_type: {
       type: DataTypes.STRING(16),
       allowNull: false,
-      comment: 'data_join | data_join_psi | training',
+      comment: 'data_join | psi_data_join | tree_model | nn_model',
     },
     client_ticket_name: {
       type: DataTypes.STRING(200),
