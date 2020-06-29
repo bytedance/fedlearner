@@ -70,17 +70,13 @@ module.exports = (sequelize, DataTypes) => {
     deletedAt: 'deleted_at',
     getterMethods: {
       public_params() {
-        if (this.public_params) {
-          return JSON.parse(this.public_params);
-        }
-
+        const val = this.getDataValue('public_params');
+        if (val) return JSON.parse(val);
         return null;
       },
       private_params() {
-        if (this.private_params) {
-          return JSON.parse(this.private_params);
-        }
-
+        const val = this.getDataValue('private_params');
+        if (val) return JSON.parse(val);
         return null;
       },
     },

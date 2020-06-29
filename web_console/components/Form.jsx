@@ -1,16 +1,12 @@
 import React, { useState } from 'react';
 import css from 'styled-jsx/css';
 import { Button, Card, Grid, Text, Input, Toggle, Textarea, Note, useTheme } from '@zeit-ui/react';
+import FederationSelect from './FederationSelect';
+import JobTypeSelect from './JobTypeSelect';
+import JobRoleSelect from './JobRoleSelect';
 
 function useStyles(theme) {
   return css`
-    .heading {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-top: ${theme.layout.pageMargin};
-    }
-
     .footer {
       display: flex;
       align-items: center;
@@ -52,23 +48,34 @@ export default function Form({
     setForm(data);
   };
   const renderField = ({ key, label, props, type }) => {
+    const valueProps = {
+      ...props,
+      style: {
+        width: '100%',
+        ...(props || {}).style,
+      },
+    };
+
     if (type === 'password') {
       return (
         <Input.Password
           value={form[key]}
           onChange={(e) => updateForm(key, e.target.value)}
-          {...props}
+          {...valueProps}
         >{label || key}</Input.Password>
       );
     }
 
-    if (type === 'text') {
+    if (type === 'text' || type === 'json') {
       return (
-        <Textarea
-          value={form[key]}
-          onChange={(e) => updateForm(key, e.target.value)}
-          {...props}
-        >{label || key}</Textarea>
+        <div className="formItemWithLabel">
+          <label className="formItemLabel" htmlFor={key}>{label || key}</label>
+          <Textarea
+            value={form[key]}
+            onChange={(e) => updateForm(key, e.target.value)}
+            {...valueProps}
+          />
+        </div>
       );
     }
 
@@ -81,7 +88,52 @@ export default function Form({
               size="large"
               checked={form[key]}
               onChange={(e) => updateForm(key, e.target.checked)}
-              {...props}
+              {...valueProps}
+            />
+          </div>
+        </div>
+      );
+    }
+
+    if (type === 'federation') {
+      return (
+        <div className="formItemWithLabel">
+          <label className="formItemLabel" htmlFor={key}>{label || key}</label>
+          <div className="formItemValue">
+            <FederationSelect
+              value={form[key]}
+              onChange={(value) => updateForm(key, value)}
+              {...valueProps}
+            />
+          </div>
+        </div>
+      );
+    }
+
+    if (type === 'jobType') {
+      return (
+        <div className="formItemWithLabel">
+          <label className="formItemLabel" htmlFor={key}>{label || key}</label>
+          <div className="formItemValue">
+            <JobTypeSelect
+              value={form[key]}
+              onChange={(value) => updateForm(key, value)}
+              {...valueProps}
+            />
+          </div>
+        </div>
+      );
+    }
+
+    if (type === 'jobRole') {
+      return (
+        <div className="formItemWithLabel">
+          <label className="formItemLabel" htmlFor={key}>{label || key}</label>
+          <div className="formItemValue">
+            <JobRoleSelect
+              value={form[key]}
+              onChange={(value) => updateForm(key, value)}
+              {...valueProps}
             />
           </div>
         </div>
@@ -92,7 +144,7 @@ export default function Form({
       <Input
         value={form[key]}
         onChange={(e) => updateForm(key, e.target.value)}
-        {...props}
+        {...valueProps}
       >{label || key}</Input>
     );
   };

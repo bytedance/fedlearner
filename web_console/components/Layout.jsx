@@ -17,7 +17,7 @@ function useStyles(theme) {
     .content {
       flex: 1;
       width: ${theme.layout.pageWidthWithMargin};
-      margin: 0 auto;
+      margin: ${theme.layout.pageMargin} auto;
       box-sizing: border-box;
     }
   `;
@@ -121,7 +121,7 @@ export default function Layout({ header = true, footer = true, children }) {
 
         .formItemWithLabel {
           display: inline-block;
-          width: initial;
+          width: 100%;
           box-sizing: border-box;
           -webkit-box-align: center;
         }
@@ -149,8 +149,22 @@ export default function Layout({ header = true, footer = true, children }) {
           height: calc(1.687 * 16pt);
         }
 
+        .formItemWithLabel .wrapper {
+          width: inherit !important;
+        }
+
+        .formItemWithLabel textarea {
+          resize: vertical !important;
+        }
+
         .actionText {
           cursor: pointer;
+        }
+
+        .heading {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
         }
       `}</style>
       <style jsx>{styles}</style>
