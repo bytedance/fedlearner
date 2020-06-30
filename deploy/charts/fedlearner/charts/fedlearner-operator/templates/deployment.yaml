@@ -27,6 +27,13 @@ spec:
             - --leader-election=true
             - --leader-election-lock-namespace={{ .Release.Namespace }}
             - --resync-interval=5
+          {{- range $key, $value := .Values.extraArgs }}
+            {{- if $value }}
+            - --{{ $key }}={{ $value }}
+            {{- else }}
+            - --{{ $key }}
+            {{- end }}
+          {{- end }}
           command:
             - /app
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"

@@ -13,6 +13,8 @@ imagePullSecrets: []
 nameOverride: ""
 fullnameOverride: ""
 
+extraArgs: {}
+
 resources:
   limits:
     cpu: "1"

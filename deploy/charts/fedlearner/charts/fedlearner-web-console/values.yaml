@@ -40,16 +40,16 @@ securityContext: {}
 
 service:
   type: ClusterIP
-  port: 1989
+  port: 1990
 
 ingress:
-  enabled: false
+  enabled: true
   annotations:
     kubernetes.io/ingress.class: nginx
     # kubernetes.io/tls-acme: "true"
   hosts:
-    - host: chart-example.local
-      paths: []
+    - host: default.fedlearner.webconsole
+      paths: ["/"]
   tls: []
   #  - secretName: chart-example-tls
   #    hosts:
@@ -75,3 +75,4 @@ cluster:
     DB_PASSWORD: fedlearner
     DB_HOST: fedlearner-stack-mariadb
     DB_PORT: 3306
+    GRPC_AUTHORITY: ""

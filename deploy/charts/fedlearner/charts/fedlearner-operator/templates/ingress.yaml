@@ -9,11 +9,10 @@ metadata:
   namespace: {{ .Release.Namespace }}
 spec:
   rules:
-  - host: {{ .Release.Namespace }}.flapp.operator
-    http:
-      paths:
-      - backend:
-          serviceName: fedlearner-operator
-          servicePort: 8100
----
+    - host: {{ .Release.Namespace }}.fedlearner.operator
+      http:
+        paths:
+          - backend:
+              serviceName: fedlearner-operator
+              servicePort: 8100
 {{ end }}

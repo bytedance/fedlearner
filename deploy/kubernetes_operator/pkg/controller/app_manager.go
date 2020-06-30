@@ -51,7 +51,8 @@ type AppManager interface {
 }
 
 type appManager struct {
-	namespace string
+	namespace         string
+	ingressHostSuffix string
 
 	kubeClient clientset.Interface
 	crdClient  crdclientset.Interface
@@ -78,6 +79,7 @@ var (
 func NewAppManager(
 	namespace string,
 	recorder record.EventRecorder,
+	ingressHostSuffix string,
 	kubeClient clientset.Interface,
 	crdClient crdclientset.Interface,
 	appLister crdlisters.FLAppLister,
@@ -88,7 +90,8 @@ func NewAppManager(
 	appEventHandler AppEventHandler,
 ) AppManager {
 	manager := &appManager{
-		namespace: namespace,
+		namespace:         namespace,
+		ingressHostSuffix: ingressHostSuffix,
 
 		kubeClient: kubeClient,
 		crdClient:  crdClient,
@@ -307,7 +310,6 @@ func (am *appManager) createIngress(ctx context.Context, app *v1alpha1.FLApp) er
 		"nginx.ingress.kubernetes.io/backend-protocol":      "GRPC",
 		"nginx.ingress.kubernetes.io/configuration-snippet": "grpc_next_upstream_tries 5 ;",
 		"nginx.ingress.kubernetes.io/http2-insecure-port":   "true",
-		"nginx.ingress.kubernetes.io/proxy-body-size":       "10m",
 	}
 	ingress, err := am.ingressLister.Ingresses(am.namespace).Get(ingressName)
 	if err != nil && !errors.IsNotFound(err) {
@@ -333,8 +335,9 @@ func (am *appManager) createIngress(ctx context.Context, app *v1alpha1.FLApp) er
 							ServicePort: intstr.FromString(v1alpha1.DefaultPortName),
 						},
 					}
+					host := GenIndexName(app.Name, strings.ToLower(app.Spec.Role), rt, strconv.Itoa(index)) + am.ingressHostSuffix
 					rule := networking.IngressRule{
-						Host: GenIndexName(app.Name, strings.ToLower(app.Spec.Role), rt, strconv.Itoa(index)),
+						Host: host,
 						IngressRuleValue: networking.IngressRuleValue{
 							HTTP: &networking.HTTPIngressRuleValue{
 								Paths: []networking.HTTPIngressPath{path},

@@ -49,6 +49,7 @@ func NewFLController(
 	namespace string,
 	recorder record.EventRecorder,
 	resyncInterval int,
+	ingressHostSuffix string,
 	kubeClient clientset.Interface,
 	crdClientset crdclientset.Interface,
 	kubeSharedInformerFactory informers.SharedInformerFactory,
@@ -59,6 +60,7 @@ func NewFLController(
 	appManager := NewAppManager(
 		namespace,
 		recorder,
+		ingressHostSuffix,
 		kubeClient,
 		crdClientset,
 		crdSharedInformerFactory.Fedlearner().V1alpha1().FLApps().Lister(),
@@ -169,7 +171,7 @@ func (c *FLController) processNextItem() bool {
 	if err == nil {
 		c.jobQueue.Forget(key)
 	} else {
-		klog.Errorf("failed to sync FLApp, err = %v", err)
+		klog.Errorf("failed to sync FLApp %v, err = %v", key, err)
 	}
 	return true
 }
