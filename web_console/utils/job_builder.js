@@ -1,7 +1,19 @@
 const lodash = require('lodash');
+const assert = require('assert');
 const getConfig = require('./get_confg');
 
 const server_config = getConfig();
+
+const permittedJobEnvs = {
+  data_join: [],
+  psi_data_join: [],
+  tree_model: [
+    "VERBOSITY", "LEARNING_RATE", "MAX_ITERS", "MAX_DEPTH",
+    "L2_REGULARIZATION", "MAX_BINS", "NUM_PARALELL", "VERIFY_EXAMPLE_IDS",
+    "USE_STREAMING"
+  ],
+  nn_model: ['MODEL_NAME'],
+};
 
 function mergeCustomizer(obj, src) {
   if (lodash.isArray(obj) && lodash.isArray(src)) {
@@ -17,17 +29,65 @@ function validateTicket(ticket) {
   return true;
 }
 
+
 function clientValidateJob(job, client_ticket, server_ticket) {
   return true;
 }
 
+// Only allow some fields to be used from job.server_params because
+// it is received from peers and cannot be totally trusted.
+function extractPermittedJobParams(job) {
+  let params = job.server_params;
+  let permitted_envs = permittedJobEnvs[job.job_type];
+  let extracted = {};
+
+  if (!params || !params.spec || !params.spec.flReplicaSpecs) {
+    return extracted;
+  }
+
+  extracted.spec = { flReplicaSpecs: {} };
+
+  for (let key in params.spec.flReplicaSpecs) {
+    let obj = extracted.spec.flReplicaSpecs[key] = {};
+    let src = params.spec.flReplicaSpecs[key];
+    if (!src.replicas) {
+      obj.replicas = src.replicas;
+    }
+    if (src.template && src.template.spec &&
+        src.template.spec.containers) {
+      obj.template = { spec: { containers: {} } };
+      if (src.template.spec.containers.resources) {
+        obj.template.spec.containers.resources =
+            src.template.spec.containers.resources;
+      }
+      if (src.template.spec.containers &&
+          lodash.isArray(src.template.spec.containers.env)) {
+        let obj_envs = obj.template.spec.containers.env = [];
+        let src_envs = src.template.spec.containers.env;
+        for (let i in src_envs) {
+          let kv = src_envs[i];
+          if (permitted_envs.includes(kv.name) &&
+              typeof(kv.value) == 'string') {
+            obj_envs.push({
+              name: kv.name,
+              value: kv.value,
+            });
+          }
+        }
+      }
+    }
+  }
+
+  return extracted;
+}
+
 function serverValidateJob(job, client_ticket, server_ticket) {
-  // for now we don't allow client to submit params to server;
-  if (job.server_params != "") return false;
+  let extracted = extractPermittedJobParams(job);
+  assert.deepStrictEqual(job.server_params, extracted);
   return true;
 }
 
-function generateYaml(federation, job, ticket) {
+function generateYaml(federation, job, job_params, ticket) {
   let k8s_settings = federation.k8s_settings;
   let yaml = mergeJson({}, k8s_settings.global_job_spec);
 
@@ -78,15 +138,20 @@ function generateYaml(federation, job, ticket) {
       base_spec, replica_specs[key]);
   }
 
+  yaml = mergeJson(yaml, job_params);
+
   return yaml;
 }
 
 function clientGenerateYaml(federation, job, client_ticket, server_ticket) {
-  return generateYaml(federation, job, client_ticket);
+  return generateYaml(federation, job, job.client_params, client_ticket);
 }
 
 function serverGenerateYaml(federation, job, client_ticket, server_ticket) {
-  return generateYaml(federation, job, server_ticket);
+  return generateYaml(
+    federation, job,
+    extractPermittedJobParams(job),
+    server_ticket);
 }
 
 module.exports = {
@@ -94,5 +159,5 @@ module.exports = {
   clientValidateJob,
   serverValidateJob,
   clientGenerateYaml,
-  serverGenerateYaml
+  serverGenerateYaml,
 };
