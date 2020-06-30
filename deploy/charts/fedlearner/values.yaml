@@ -13,6 +13,8 @@ fedlearner-operator:
   ingress:
     enabled: true
 
+  extraArgs: {}
+
 fedlearner-apiserver:
   image:
     repository: fedlearner/fedlearner-apiserver
