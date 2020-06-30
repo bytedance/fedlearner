@@ -1,9 +1,17 @@
 const router = require('@koa/router')();
+const { Op } = require('sequelize');
 const SessionMiddleware = require('../middlewares/session');
 const KubernetesClient = require('../libs/k8s');
 const ElasticSearchClient = require('../libs/es');
-
+const { Job, Ticket, Federation } = require('../models');
 const getConfig = require('../utils/get_confg');
+const checkParseJson = require('../utils/check_parse_json');
+const {
+  clientValidateJob,
+  serverValidateJob,
+  clientGenerateYaml,
+  serverGenerateYaml,
+} = require('../utils/job_builder');
 
 const config = getConfig({
   NAMESPACE: process.env.NAMESPACE,
@@ -14,53 +22,186 @@ const k8s = new KubernetesClient();
 const es = new ElasticSearchClient();
 
 router.get('/api/v1/jobs', SessionMiddleware, async (ctx) => {
+  const jobs = await Job.findAll();
   const { flapps } = await k8s.getFLAppsByNamespace(namespace);
-  ctx.body = { data: flapps };
+  const data = jobs.map((job) => ({
+    ...(flapps.items.find((item) => item.metadata.name === job.k8s_name)),
+    localdata: job,
+  }));
+  ctx.body = { data };
 });
 
 router.get('/api/v1/job/:name', SessionMiddleware, async (ctx) => {
   const { name } = ctx.params;
-  const { flapp } = await k8s.getFLApp(namespace, name);
-  ctx.body = { data: flapp };
-});
-
-router.get('/api/v1/job/:name/pods', SessionMiddleware, async (ctx) => {
-  const { name } = ctx.params;
-  const { pods } = await k8s.getFLAppPods(namespace, name);
-  ctx.body = { data: pods };
-});
-
-router.get('/api/v1/job/pod/:name/:container', SessionMiddleware, async (ctx) => {
-  const { name, container } = ctx.params;
-  const base = k8s.getBaseUrl();
-  const { id } = await k8s.getWebshellSession(namespace, name, container);
-  ctx.body = { data: { id, base } };
-});
-
-router.get('/api/v1/job/pod/:name/logs/:time', SessionMiddleware, async (ctx) => {
-  const { name, time } = ctx.params;
-  const logs = await es.queryLog('filebeat-*', '', name, time, Date.now());
-  ctx.body = { data: logs };
-});
-
-router.post('/api/v1/job/create', SessionMiddleware, async (ctx) => {
-  const { fl_app } = ctx.request.body;
-  if (!fl_app) {
-    ctx.status = 400;
+  const job = await Job.findOne({ where: { name } });
+  if (!job) {
+    ctx.status = 404;
     ctx.body = {
-      error: 'Missing field: fl_app',
+      error: 'Job not found',
     };
     return;
   }
-  const res = await k8s.createFLApp(namespace, fl_app);
-  ctx.body = { data: res };
+  const { flapp } = await k8s.getFLApp(namespace, job.k8s_name);
+  ctx.body = {
+    data: {
+      ...flapp,
+      localdata: job,
+    },
+  };
+});
+
+router.get('/api/v1/job/:k8s_name/pods', SessionMiddleware, async (ctx) => {
+  const { k8s_name } = ctx.params;
+  const { pods } = await k8s.getFLAppPods(namespace, k8s_name);
+  ctx.body = { data: pods.items };
+});
+
+router.get('/api/v1/job/pod/:pod_name/:container', SessionMiddleware, async (ctx) => {
+  const { pod_name, container } = ctx.params;
+  const base = k8s.getBaseUrl();
+  const { id } = await k8s.getWebshellSession(namespace, pod_name, container);
+  ctx.body = { data: { id, base } };
+});
+
+router.get('/api/v1/job/pod/:pod_name/logs/:start_time', SessionMiddleware, async (ctx) => {
+  const { pod_name, start_time } = ctx.params;
+  const logs = await es.queryLog('filebeat-*', '', pod_name, start_time, Date.now());
+  ctx.body = { data: logs };
+});
+
+// TODO: gRPC
+router.post('/api/v1/job', SessionMiddleware, async (ctx) => {
+  const { name, job_type, client_ticket_name, server_ticket_name } = ctx.request.body;
+
+  const [client_params_pass, client_params] = checkParseJson(ctx.request.body.client_params);
+  if (!client_params_pass) {
+    ctx.status = 400;
+    ctx.body = {
+      error: 'client_params must be json',
+    };
+    return;
+  }
+  const [server_params_pass, server_params] = checkParseJson(ctx.request.body.server_params);
+  if (!server_params_pass) {
+    ctx.status = 400;
+    ctx.body = {
+      error: 'server_params must be json',
+    };
+    return;
+  }
+
+  const job = {
+    name, job_type, client_ticket_name, server_ticket_name,
+    client_params, server_params,
+  };
+
+  const exists = await Job.findOne({
+    where: {
+      name: { [Op.eq]: name },
+    },
+  });
+  if (exists) {
+    ctx.status = 422;
+    ctx.body = {
+      error: 'Job already exists',
+    };
+    return;
+  }
+
+  const clientTicket = await Ticket.findOne({
+    where: {
+      name: { [Op.eq]: client_ticket_name },
+    },
+  });
+  if (!clientTicket) {
+    ctx.status = 422;
+    ctx.body = {
+      error: 'client_ticket does not exist',
+    };
+    return;
+  }
+  const serverTicket = await Ticket.findOne({
+    where: {
+      name: { [Op.eq]: server_ticket_name },
+    },
+  });
+  if (!serverTicket) {
+    ctx.status = 422;
+    ctx.body = {
+      error: 'server_ticket does not exist',
+    };
+    return;
+  }
+
+  try {
+    clientValidateJob(job, clientTicket, serverTicket);
+  } catch (e) {
+    ctx.status = 400;
+    ctx.body = {
+      error: 'client_params validation failed',
+    };
+    return;
+  }
+
+  // TODO: server validate
+  // TODO: server create job
+
+  const clientFed = await Federation.findByPk(clientTicket.federation_id);
+  if (!clientFed) {
+    ctx.status = 422;
+    ctx.body = {
+      error: 'Federation does not exist',
+    };
+    return;
+  }
+  const clientYaml = clientGenerateYaml(clientFed, job, clientTicket, serverTicket);
+
+  const res = await k8s.createFLApp(namespace, clientYaml);
+
+  const [data, created] = await Job.findOrCreate({
+    paranoid: false,
+    where: {
+      name: { [Op.eq]: name },
+    },
+    defaults: {
+      ...job,
+      user_id: ctx.session && ctx.session.user ? ctx.session.user.id : null,
+      k8s_name: res.metadata.name,
+    },
+  });
+
+  if (!created) {
+    ctx.status = 422;
+    ctx.body = {
+      error: 'Job already exists',
+    };
+    return;
+  }
+
+  ctx.body = { data };
 });
 
 router.delete('/api/v1/job/:name', SessionMiddleware, async (ctx) => {
   // TODO: just owner can delete
   const { name } = ctx.params;
-  const res = await k8s.deleteFLApp(namespace, name);
-  ctx.body = { data: res };
+  const data = await Job.findOne({
+    where: { name },
+  });
+
+  if (!data) {
+    ctx.status = 404;
+    ctx.body = {
+      error: 'Job not found',
+    };
+    return;
+  }
+
+  // TODO: the other side delete
+
+  await k8s.deleteFLApp(namespace, name);
+  await data.destroy();
+
+  ctx.body = { data };
 });
 
 module.exports = router;

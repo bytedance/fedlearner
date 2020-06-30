@@ -52,14 +52,16 @@ function Job(props) {
   const router = useRouter();
   const { query } = router;
   const { data: jobData } = useSWR(`job/${query.name}`, fetcher);
-  const { data: podsData } = useSWR(`job/${query.name}/pods`, fetcher);
+  const job = jobData ? jobData.data : null;
 
-  const flapp = jobData ? jobData.data : null;
+  const { data: podsData } = useSWR(`job/${job && job.localdata?.k8s_name}/pods`, fetcher);
   const pods = podsData ? podsData.data : null;
 
+  // TODO: log
+
   const tableData = useMemo(() => {
-    if (pods && pods.items) {
-      return pods.items.map((item) => ({
+    if (pods) {
+      return pods.map((item) => ({
         status: item.status.phase,
         pod: item.metadata.name.replace(`${
             item.metadata.labels['app-name']
@@ -104,7 +106,7 @@ function Job(props) {
       }));
     }
     return [];
-  }, [pods && pods.items]);
+  }, [pods]);
 
   return (
     <div className="page-job">
@@ -112,7 +114,7 @@ function Job(props) {
         <div className="page-wrap">
           <Card style={{ flex: 1 }}>
             <Text h4>
-              {flapp?.metadata?.name || '-'}
+              {job?.localdata?.name || '-'}
             </Text>
             <div className="left">
               <Description
@@ -120,20 +122,20 @@ function Job(props) {
                 style={{ width: 140 }}
                 content={(
                   <>
-                    <Dot color={getStatusColor(flapp?.status?.appState)} />
-                    {handleStatus(flapp?.status?.appState) || '-'}
+                    <Dot color={getStatusColor(job?.status?.appState)} />
+                    {handleStatus(job?.status?.appState) || '-'}
                   </>
                 )}
               />
               <Description
                 title="Create Time"
                 style={{ width: 220 }}
-                content={flapp?.metadata?.creationTimestamp || '-'}
+                content={job?.metadata?.creationTimestamp || '-'}
               />
               <Description
                 title="Role"
                 style={{ width: 120 }}
-                content={flapp?.spec?.role || '-'}
+                content={job?.spec?.role || '-'}
               />
             </div>
           </Card>
