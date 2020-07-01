@@ -20,6 +20,6 @@ export CUDA_VISIBLE_DEVICES=
 source /app/deploy/scripts/hdfs_common.sh || true
 
 python -m fedlearner.trainer_master.${ROLE}_tm \
-    --app-id=$APPLICATION_ID \
-    --data-path=$DATA_PATH \
+    -app_id=$APPLICATION_ID \
+    -data_source=$DATA_SOURCE \
     -p 50051

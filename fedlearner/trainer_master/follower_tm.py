@@ -20,7 +20,7 @@ import os
 
 from fedlearner.trainer_master.data.data_block_set import DataBlockSet
 from fedlearner.data_join.data_block_visitor import DataBlockVisitor
-from trainer_master import TrainerMaster
+from .trainer_master import TrainerMaster
 
 ETCD_NAME = os.environ.get('ETCD_NAME', None)
 ETCD_ADDR = os.environ.get('ETCD_ADDR', None)
@@ -59,7 +59,7 @@ class FollowerTrainerMaster(TrainerMaster):
 
 if __name__ == '__main__':
     logging.getLogger().setLevel(logging.DEBUG)
-    parser = argparse.ArgumentParser('leader trainer master cmd.')
+    parser = argparse.ArgumentParser('follower trainer master cmd.')
     parser.add_argument('-p',
                         '--port',
                         type=int,
@@ -86,9 +86,10 @@ if __name__ == '__main__':
                         help='the train master run for online training')
 
     FLAGS = parser.parse_args()
-
+    start_date = int(FLAGS.start_date) if FLAGS.start_date else None
+    end_date = int(FLAGS.end_date) if FLAGS.end_date else None
     follower_tm = FollowerTrainerMaster(
         FLAGS.application_id, FLAGS.data_source,
-        int(FLAGS.start_date), int(FLAGS.end_date),
+        start_date, end_date,
         FLAGS.online_training)
     follower_tm.run(listen_port=FLAGS.port)
