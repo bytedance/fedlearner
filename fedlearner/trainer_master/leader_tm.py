@@ -17,9 +17,10 @@
 import argparse
 import logging
 import os
-from .trainer_master import TrainerMaster
+
 from fedlearner.trainer_master.data.data_block_queue import DataBlockQueue
 from fedlearner.data_join.data_block_visitor import DataBlockVisitor
+from .trainer_master import TrainerMaster
 
 ETCD_NAME = os.environ.get('ETCD_NAME', None)
 ETCD_ADDR = os.environ.get('ETCD_ADDR', None)
@@ -74,7 +75,6 @@ if __name__ == '__main__':
 
     start_date = int(FLAGS.start_date) if FLAGS.start_date else None
     end_date = int(FLAGS.end_date) if FLAGS.end_date else None 
-
     leader_tm = LeaderTrainerMaster(FLAGS.application_id, FLAGS.data_source,
                                     start_date, end_date,
                                     FLAGS.online_training)

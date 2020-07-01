@@ -88,7 +88,6 @@ if __name__ == '__main__':
     FLAGS = parser.parse_args()
     start_date = int(FLAGS.start_date) if FLAGS.start_date else None
     end_date = int(FLAGS.end_date) if FLAGS.end_date else None 
-
     follower_tm = FollowerTrainerMaster(
         FLAGS.application_id, FLAGS.data_source,
         start_date, end_date,
