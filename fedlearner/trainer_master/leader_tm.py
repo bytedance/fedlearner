@@ -17,7 +17,7 @@
 import argparse
 import logging
 import os
-from trainer_master import TrainerMaster
+from .trainer_master import TrainerMaster
 from fedlearner.trainer_master.data.data_block_queue import DataBlockQueue
 from fedlearner.data_join.data_block_visitor import DataBlockVisitor
 
@@ -72,7 +72,10 @@ if __name__ == '__main__':
                         help='the train master run for online training')
     FLAGS = parser.parse_args()
 
+    start_date = int(FLAGS.start_date) if FLAGS.start_date else None
+    end_date = int(FLAGS.end_date) if FLAGS.end_date else None 
+
     leader_tm = LeaderTrainerMaster(FLAGS.application_id, FLAGS.data_source,
-                                    int(FLAGS.start_date), int(FLAGS.end_date),
+                                    start_date, end_date,
                                     FLAGS.online_training)
     leader_tm.run(listen_port=FLAGS.port)

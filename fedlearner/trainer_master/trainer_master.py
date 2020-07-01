@@ -17,7 +17,7 @@
 import logging
 from concurrent import futures
 import grpc
-from trainer_master_service import TrainerMasterServer
+from .trainer_master_service import TrainerMasterServer
 from fedlearner.common import trainer_master_service_pb2 as tm_pb
 from fedlearner.common import trainer_master_service_pb2_grpc as tm_grpc
 from fedlearner.common import common_pb2 as common_pb
