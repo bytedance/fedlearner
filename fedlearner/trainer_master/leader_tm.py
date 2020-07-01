@@ -17,7 +17,6 @@
 import argparse
 import logging
 import os
-
 from fedlearner.trainer_master.data.data_block_queue import DataBlockQueue
 from fedlearner.data_join.data_block_visitor import DataBlockVisitor
 from .trainer_master import TrainerMaster
