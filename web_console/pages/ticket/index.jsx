@@ -10,7 +10,7 @@ import { createTicket, revokeTicket } from '../../services/ticket';
 export default function TicketList() {
   const { data, mutate } = useSWR('tickets', fetcher);
   const tickets = data ? data.data : null;
-  const columns = tickets
+  const columns = tickets && tickets.length > 0
     ? [
       ...Object.keys(tickets[0]).filter((x) => !['public_params', 'private_params', 'expire_time', 'created_at', 'updated_at'].includes(x)),
       'operation',
