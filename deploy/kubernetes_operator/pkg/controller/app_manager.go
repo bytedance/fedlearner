@@ -446,9 +446,19 @@ func (am *appManager) syncFollowerApp(ctx context.Context, app *v1alpha1.FLApp) 
 	name := app.Name
 	klog.Infof("sync bootstrapped follower app, name = %v", name)
 
-	if err := am.appEventHandler.Register(ctx, app); err != nil {
-		klog.Errorf("failed to call Register, name = %v, err = %v", name, err)
-		return err
+	shouldRegister := false
+	for rtype := range app.Spec.FLReplicaSpecs {
+		if needPair(app, rtype) {
+			shouldRegister = true
+			break
+		}
+	}
+
+	if shouldRegister {
+		if err := am.appEventHandler.Register(ctx, app); err != nil {
+			klog.Errorf("failed to call Register, name = %v, err = %v", name, err)
+			return err
+		}
 	}
 	return am.appStatusUpdater.UpdateAppStateWithRetry(ctx, app, v1alpha1.FLStateSyncSent)
 }
