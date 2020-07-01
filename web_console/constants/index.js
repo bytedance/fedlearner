@@ -1,3 +1,5 @@
+const path = require('path');
+
 const DEFAULT_SERVER_CONFIG = {
   SERVER_CIPHER: 'leader',
   SERVER_DECIPHER: 'follower',
@@ -8,6 +10,12 @@ const DEFAULT_SERVER_CONFIG = {
   NAMESPACE: 'default',
   ES_HOST: 'fedlearner-stack-elasticsearch-client',
   ES_PORT: 9200,
+  GRPC_HOST: 'localhost',
+  GRPC_PORT: 50051,
+  GRPC_AUTHORITY: 'FL',
+  GRPC_CA: path.resolve(__dirname, 'tests', 'fixtures', 'ca.pem'),
+  GRPC_KEY: path.resolve(__dirname, 'tests', 'fixtures', 'server.key'),
+  GRPC_CERT: path.resolve(__dirname, 'tests', 'fixtures', 'server.pem'),
 };
 
 module.exports = {

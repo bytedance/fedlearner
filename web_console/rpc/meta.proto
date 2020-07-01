@@ -1,0 +1,68 @@
+// Federation Service
+// a service used for cross-platform communication
+
+syntax = "proto3";
+
+package federation;
+
+message Ticket {
+  string name = 1;
+  string job_type = 2;
+  string role = 3;
+  string sdk_version = 4;
+  string comment = 5;
+  string params = 6;
+}
+
+message Job {
+  string name = 1;
+  string job_type = 2;
+  string client_ticket_name = 3;
+  string server_ticket_name = 4;
+  string server_params = 5;
+  string client_params = 6;
+}
+
+message GetTicketsRequest {
+  string job_type = 1;
+  string role = 2;
+  int32 offset = 3;
+  int32 limit = 4;
+}
+
+message GetTicketsResponse {
+  repeated Ticket data = 1;
+  int32 total = 2;
+}
+
+message CreateJobRequest {
+  string name = 1;
+  string job_type = 2;
+  string client_ticket_name = 3;
+  string server_ticket_name = 4;
+  string server_params = 5;
+  string client_params = 6;
+}
+
+message CreateJobResponse {
+  Job data = 1;
+}
+
+message DeleteJobRequest {
+  string name = 1;
+}
+
+message DeleteJobResponse {
+  string message = 1;
+}
+
+service Federation {
+  // Obtain available tickets
+  rpc GetTickets(GetTicketsRequest) returns (GetTicketsResponse) {}
+
+  // Obtain token from preset cipher
+  rpc CreateJob(CreateJobRequest) returns (CreateJobResponse) {}
+
+  // Obtain token from preset cipher
+  rpc DeleteJob(DeleteJobRequest) returns (DeleteJobResponse) {}
+}

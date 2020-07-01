@@ -82,6 +82,8 @@
     "url": "https://github.com/bytedance/fedlearner.git"
   },
   "dependencies": {
+    "@grpc/grpc-js": "1.1.1",
+    "@grpc/proto-loader": "0.5.4",
     "@koa/router": "8.0.8",
     "@zeit-ui/react": "1.6.2",
     "@zeit-ui/react-icons": "1.2.2",

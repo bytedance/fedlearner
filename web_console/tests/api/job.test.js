@@ -4,7 +4,7 @@ const supertest = require('supertest');
 const server = require('../fixtures/server');
 const users = require('../fixtures/user');
 const models = require('../../models');
-const job = require('../fixtures/job');
+const { test: job } = require('../fixtures/job');
 
 const { Job } = models;
 const request = supertest(server.callback());
