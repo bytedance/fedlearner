@@ -1,13 +1,34 @@
 const path = require('path');
 const Sequelize = require('sequelize');
-const config = require('../db.config');
 const { readdirSync } = require('../utils');
+const getConfig = require('../utils/get_confg');
 
-const env = process.env.NODE_ENV || 'development';
-const { database, username, password, host, port, dialect } = config[env];
-const sequelize = new Sequelize(database, username, password, {
-  host, port, dialect,
+const config = getConfig({
+  DB_DATABASE: process.env.DB_DATABASE,
+  DB_USERNAME: process.env.DB_USERNAME,
+  DB_PASSWORD: process.env.DB_PASSWORD,
+  DB_HOST: process.env.DB_HOST,
+  DB_PORT: process.env.DB_PORT,
+  DB_DIALECT: process.env.DB_DIALECT,
+  DB_SOCKET_PATH: process.env.DB_SOCKET_PATH,
 });
+const {
+  DB_DATABASE, DB_USERNAME, DB_PASSWORD, DB_HOST, DB_PORT,
+  DB_DIALECT, DB_SOCKET_PATH,
+} = config;
+const options = DB_SOCKET_PATH
+  ? {
+    dialect: DB_DIALECT,
+    dialectOptions: {
+      socketPath: DB_SOCKET_PATH,
+    },
+  }
+  : {
+    host: DB_HOST,
+    port: DB_PORT,
+    dialect: DB_DIALECT,
+  };
+const sequelize = new Sequelize(DB_DATABASE, DB_USERNAME, DB_PASSWORD, options);
 const basename = path.basename(__filename);
 const models = {};
 
