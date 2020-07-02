@@ -13,6 +13,7 @@ export default function UserList() {
   const users = data ? data.data : null;
   const columns = users
     ? [
+      // users won't be null
       ...Object.keys(users[0]).filter((x) => x !== 'password'),
       'operation',
     ]

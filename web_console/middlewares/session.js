@@ -1,5 +1,7 @@
 module.exports = async function SessionMiddleware(ctx, next) {
-  if ((ctx.session.isNew || !ctx.session.user) && ctx.path !== '/login') {
+  const isStaticPath = ctx.path.startsWith('/_next') || ctx.path === '/favicon.ico';
+
+  if ((ctx.session.isNew || !ctx.session.user) && ctx.path !== '/login' && !isStaticPath) {
     // redirect to login page if not logged in
     ctx.redirect('/login');
     return;
