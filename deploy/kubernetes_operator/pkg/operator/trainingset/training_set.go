@@ -75,7 +75,7 @@ type Controller struct {
 func NewController(
 	kubeclientset kubernetes.Interface,
 	crdClient crdclientset.Interface,
-// trainingSetInformer flinformers.TrainingSetInformer,
+	// trainingSetInformer flinformers.TrainingSetInformer,
 	sharedInformerFactory informers.SharedInformerFactory,
 	crdSharedInformerFactory crdinformers.SharedInformerFactory,
 ) *Controller {
