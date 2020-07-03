@@ -21,8 +21,15 @@ const namespace = config.NAMESPACE;
 const k8s = new KubernetesClient();
 const es = new ElasticSearchClient();
 
+let es_oparator_match_phrase;
+try {
+  es_oparator_match_phrase = require('../es.match_phrase');
+} catch (err) { /* */ }
+
 router.get('/api/v1/jobs', SessionMiddleware, async (ctx) => {
-  const jobs = await Job.findAll();
+  const jobs = await Job.findAll({
+    order: [['created_at', 'DESC']],
+  });
   const { flapps } = await k8s.getFLAppsByNamespace(namespace);
   const data = jobs.map((job) => ({
     ...(flapps.items.find((item) => item.metadata.name === job.k8s_name)),
@@ -54,6 +61,12 @@ router.get('/api/v1/job/:k8s_name/pods', SessionMiddleware, async (ctx) => {
   const { k8s_name } = ctx.params;
   const { pods } = await k8s.getFLAppPods(namespace, k8s_name);
   ctx.body = { data: pods.items };
+});
+
+router.get('/api/v1/job/:k8s_name/logs/:start_time', SessionMiddleware, async (ctx) => {
+  const { k8s_name, start_time } = ctx.params;
+  const logs = await es.queryLog('filebeat-*', k8s_name, 'fedlearner-operator-*', start_time, Date.now(), es_oparator_match_phrase);
+  ctx.body = { data: logs };
 });
 
 router.get('/api/v1/job/pod/:pod_name/:container', SessionMiddleware, async (ctx) => {

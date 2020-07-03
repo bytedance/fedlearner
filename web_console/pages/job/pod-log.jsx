@@ -62,7 +62,7 @@ function PodLog({ query }) {
       {
         !loading && !error && data
           ? (
-            <div className="log-wrap">
+            <pre className="log-wrap">
               {
                 data.length
                   ? data.map((log) => (
@@ -70,7 +70,7 @@ function PodLog({ query }) {
                   ))
                   : 'no logs'
               }
-            </div>
+            </pre>
           )
           : (
             <div className="status-wrap">
