@@ -24,12 +24,18 @@ enum DataPortalType {
   Streaming = 1;
 }
 
-enum TaskState {
+enum PartState {
   kInit = 0;
   kIdMap = 1;
   kIdMapped = 2;
   kEventTimeReduce = 3; 
   kEventTimeReduced = 4;
+
+
+message DataPortalJob {
+  int64 job_id = 1;
+  repeated string fpaths = 2;
+  bool finished = 3;
 }
 
 message DataPortalManifest {
@@ -42,9 +48,9 @@ message DataPortalManifest {
   int64 next_job_id = 7;
 }
 
-message Task {
+message PortalPart {
   int64 rank_id = 1;
-  TaskState task_part_state = 2;
+  PartState task_part_state = 3;
 }
 
 message NewTaskRequest {
