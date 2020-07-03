@@ -15,10 +15,9 @@ import (
 )
 
 var (
-	master         = flag.String("master", "", "The address of the Kubernetes API server. Overrides any value in kubeconfig. Only required if out-of-cluster.")
-	kubeConfig     = flag.String("kube-config", "", "Path to a kube config. Only required if out-of-cluster.")
-	port           = flag.String("port", "8080", "The http port controller listening.")
-	resyncInterval = flag.Int("resync-interval", 30, "Informer resync interval in seconds.")
+	master     = flag.String("master", "", "The address of the Kubernetes API server. Overrides any value in kubeconfig. Only required if out-of-cluster.")
+	kubeConfig = flag.String("kube-config", "", "Path to a kube config. Only required if out-of-cluster.")
+	port       = flag.String("port", "8080", "The http port controller listening.")
 )
 
 func buildConfig(masterURL string, kubeConfig string) (*rest.Config, error) {

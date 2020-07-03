@@ -38,7 +38,7 @@ import (
 	"github.com/bytedance/fedlearner/deploy/kubernetes_operator/pkg/apis/fedlearner.k8s.io/v1alpha2"
 	crdclientset "github.com/bytedance/fedlearner/deploy/kubernetes_operator/pkg/client/clientset/versioned"
 	crdinformers "github.com/bytedance/fedlearner/deploy/kubernetes_operator/pkg/client/informers/externalversions"
-	"github.com/bytedance/fedlearner/deploy/kubernetes_operator/pkg/controller/trainingset"
+	"github.com/bytedance/fedlearner/deploy/kubernetes_operator/pkg/operator/trainingset"
 )
 
 var (

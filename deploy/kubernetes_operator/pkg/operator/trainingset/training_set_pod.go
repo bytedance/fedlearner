@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/bytedance/fedlearner/deploy/kubernetes_operator/pkg/apis/fedlearner.k8s.io/v1alpha2"
-	"github.com/bytedance/fedlearner/deploy/kubernetes_operator/pkg/controller"
+	"github.com/bytedance/fedlearner/deploy/kubernetes_operator/pkg/operator"
 	trainutil "github.com/bytedance/fedlearner/deploy/kubernetes_operator/pkg/util/train"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -133,7 +133,7 @@ func (c *Controller) getTrainingSetPods(ctx context.Context, ts *v1alpha2.Traini
 		return nil, err
 	}
 
-	cm := controller.NewPodControllerRefManager(c.podControl, ts, selector, v1alpha2.SchemeGroupVersionKind, controller.RecheckDeletionTimestamp(func() (metav1.Object, error) {
+	cm := operator.NewPodControllerRefManager(c.podControl, ts, selector, v1alpha2.SchemeGroupVersionKind, operator.RecheckDeletionTimestamp(func() (metav1.Object, error) {
 		new, err := c.crdClient.FedlearnerV1alpha2().TrainingSets(ts.Namespace).Get(ts.Name, metav1.GetOptions{})
 		if err != nil {
 			return nil, err

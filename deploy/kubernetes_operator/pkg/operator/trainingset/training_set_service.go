@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/bytedance/fedlearner/deploy/kubernetes_operator/pkg/apis/fedlearner.k8s.io/v1alpha2"
-	"github.com/bytedance/fedlearner/deploy/kubernetes_operator/pkg/controller"
+	"github.com/bytedance/fedlearner/deploy/kubernetes_operator/pkg/operator"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -114,7 +114,7 @@ func (c *Controller) getTrainingSetServices(ctx context.Context, ts *v1alpha2.Tr
 		return nil, err
 	}
 
-	cm := controller.NewServiceControllerRefManager(c.serviceControl, ts, selector, v1alpha2.SchemeGroupVersionKind, controller.RecheckDeletionTimestamp(func() (metav1.Object, error) {
+	cm := operator.NewServiceControllerRefManager(c.serviceControl, ts, selector, v1alpha2.SchemeGroupVersionKind, operator.RecheckDeletionTimestamp(func() (metav1.Object, error) {
 		new, err := c.crdClient.FedlearnerV1alpha2().TrainingSets(ts.Namespace).Get(ts.Name, metav1.GetOptions{})
 		if err != nil {
 			return nil, err

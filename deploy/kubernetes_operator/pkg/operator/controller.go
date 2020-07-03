@@ -13,7 +13,7 @@
  * limitations under the License.
  */
 
-package controller
+package operator
 
 import (
 	"fmt"
@@ -49,7 +49,10 @@ func NewFLController(
 	namespace string,
 	recorder record.EventRecorder,
 	resyncInterval int,
-	ingressHostSuffix string,
+	ingressExtraHostSuffix string,
+	ingressSecretName string,
+	ingressEnableClientAuth bool,
+	ingressClientAuthSecretName string,
 	kubeClient clientset.Interface,
 	crdClientset crdclientset.Interface,
 	kubeSharedInformerFactory informers.SharedInformerFactory,
@@ -60,7 +63,10 @@ func NewFLController(
 	appManager := NewAppManager(
 		namespace,
 		recorder,
-		ingressHostSuffix,
+		ingressExtraHostSuffix,
+		ingressSecretName,
+		ingressEnableClientAuth,
+		ingressClientAuthSecretName,
 		kubeClient,
 		crdClientset,
 		crdSharedInformerFactory.Fedlearner().V1alpha1().FLApps().Lister(),

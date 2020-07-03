@@ -25,19 +25,19 @@ import (
 	"google.golang.org/grpc/status"
 	"k8s.io/klog"
 
-	"github.com/bytedance/fedlearner/deploy/kubernetes_operator/pkg/controller"
+	"github.com/bytedance/fedlearner/deploy/kubernetes_operator/pkg/operator"
 	pb "github.com/bytedance/fedlearner/deploy/kubernetes_operator/proto"
 )
 
 type PairHandler struct {
-	handler controller.AppEventHandler
+	handler operator.AppEventHandler
 }
 
 func (ph *PairHandler) Register(ctx context.Context, request *pb.RegisterRequest) (*pb.Status, error) {
 	name := request.AppId
 	role := request.Role
 	klog.Infof("Register received, name = %v, role = %v", name, role)
-	if controller.IsLeader(role) {
+	if operator.IsLeader(role) {
 		msg := fmt.Sprintf("Register is only accepted from followers, name = %v, role = %v", name, role)
 		return makeInvalidArgumentStatus(msg)
 	}
@@ -88,7 +88,7 @@ func (ph *PairHandler) ShutDown(ctx context.Context, request *pb.ShutDownRequest
 	return ph.handler.ShutdownHandler(ctx, name)
 }
 
-func ServeGrpc(host, port string, handler controller.AppEventHandler) {
+func ServeGrpc(host, port string, handler operator.AppEventHandler) {
 	lis, err := net.Listen("tcp", fmt.Sprintf("%s:%s", host, port))
 	if err != nil {
 		klog.Fatalf("failed to listen: %v", err)
