@@ -19,7 +19,7 @@ import "google/protobuf/empty.proto";
 
 package fedlearner.common;
 
-enum PortalType {
+enum DataPortalType {
   PSI = 0;         
   Streaming = 1;
 }
@@ -32,9 +32,9 @@ enum TaskState {
   kEventTimeReduced = 4;
 }
 
-message PortalManifest {
+message DataPortalManifest {
   string name = 1;
-  PortalType portal_type = 2;
+  DataPortalType data_portal_type = 2;
   uint32 output_partition_num = 3;
   string input_file_wildcard = 4;
   string base_dir = 5;
@@ -79,8 +79,8 @@ message FinishTaskRequest {
   int64 partition_id = 2;
 }
 
-service PortalMasterService {
-  rpc GetPortalManifest(google.protobuf.Empty) returns (PortalManifest) {}
+service DataPortalMasterService {
+  rpc GetDataPortalManifest(google.protobuf.Empty) returns (DataPortalManifest) {}
   
   rpc RequestNewTask(NewTaskRequest) returns (NewTaskResponse) {}
     
