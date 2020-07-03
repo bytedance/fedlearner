@@ -51,9 +51,12 @@ type AppManager interface {
 }
 
 type appManager struct {
-	namespace              string
-	ingressExtraHostSuffix string
-	ingressSecretName      string
+	namespace string
+
+	ingressExtraHostSuffix      string
+	ingressSecretName           string
+	ingressEnableClientAuth     bool
+	ingressClientAuthSecretName string
 
 	kubeClient clientset.Interface
 	crdClient  crdclientset.Interface
@@ -82,6 +85,8 @@ func NewAppManager(
 	recorder record.EventRecorder,
 	ingressExtraHostSuffix string,
 	ingressSecretName string,
+	ingressEnableClientAuth bool,
+	ingressClientAuthSecretName string,
 	kubeClient clientset.Interface,
 	crdClient crdclientset.Interface,
 	appLister crdlisters.FLAppLister,
@@ -92,9 +97,12 @@ func NewAppManager(
 	appEventHandler AppEventHandler,
 ) AppManager {
 	manager := &appManager{
-		namespace:              namespace,
-		ingressExtraHostSuffix: ingressExtraHostSuffix,
-		ingressSecretName:      ingressSecretName,
+		namespace: namespace,
+
+		ingressExtraHostSuffix:      ingressExtraHostSuffix,
+		ingressSecretName:           ingressSecretName,
+		ingressEnableClientAuth:     ingressEnableClientAuth,
+		ingressClientAuthSecretName: ingressClientAuthSecretName,
 
 		kubeClient: kubeClient,
 		crdClient:  crdClient,
@@ -313,6 +321,10 @@ func (am *appManager) createIngress(ctx context.Context, app *v1alpha1.FLApp) er
 		"nginx.ingress.kubernetes.io/backend-protocol":      "GRPC",
 		"nginx.ingress.kubernetes.io/configuration-snippet": "grpc_next_upstream_tries 5 ;",
 		"nginx.ingress.kubernetes.io/http2-insecure-port":   "true",
+	}
+	if am.ingressEnableClientAuth {
+		annotations["nginx.ingress.kubernetes.io/auth-tls-verify-client"] = "on"
+		annotations["nginx.ingress.kubernetes.io/auth-tls-secret"] = am.ingressClientAuthSecretName
 	}
 	ingress, err := am.ingressLister.Ingresses(am.namespace).Get(ingressName)
 	if err != nil && !errors.IsNotFound(err) {
