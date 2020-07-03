@@ -19,6 +19,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -32,6 +33,8 @@ import (
 	crdclientset "github.com/bytedance/fedlearner/deploy/kubernetes_operator/pkg/client/clientset/versioned"
 	pb "github.com/bytedance/fedlearner/deploy/kubernetes_operator/proto"
 )
+
+const clientTimeout = time.Second * 1
 
 type AppEventHandler interface {
 	// Called after follower bootstrapped
@@ -99,7 +102,9 @@ func (handler *appEventHandler) Register(ctx context.Context, app *v1alpha1.FLAp
 		Pairs: pairs,
 	}
 
-	response, err := client.Register(newContextWithHeaders(leaderSpec.ExtraHeaders), request)
+	ctx, cancel := newContextWithHeaders(leaderSpec.ExtraHeaders)
+	defer cancel()
+	response, err := client.Register(ctx, request)
 	if err != nil || response.Code != int32(codes.OK) {
 		return fmt.Errorf("Register failed, name = %v, err = %v", name, err)
 	}
@@ -124,11 +129,19 @@ func (handler *appEventHandler) Pair(ctx context.Context, app *v1alpha1.FLApp) e
 			AppId: name,
 			Pairs: makePairs(app, role),
 		}
-		response, err := client.Pair(newContextWithHeaders(peerSpec.ExtraHeaders), request)
-		if err != nil || response.Code != int32(codes.OK) {
-			return fmt.Errorf("Pair failed name = %v, err = %v", name, err)
+		err, msg := func() (error, string) {
+			ctx, cancel := newContextWithHeaders(peerSpec.ExtraHeaders)
+			defer cancel()
+			response, err := client.Pair(ctx, request)
+			if err != nil || response.Code != int32(codes.OK) {
+				return fmt.Errorf("Pair failed name = %v, err = %v", name, err), ""
+			}
+			return nil, response.ErrorMessage
+		}()
+		if err != nil {
+			return err
 		}
-		klog.Infof("Pair success name = %v, message = %v", name, response.ErrorMessage)
+		klog.Infof("Pair success name = %v, message = %v", name, msg)
 	}
 	return nil
 }
@@ -144,11 +157,19 @@ func (handler *appEventHandler) Shutdown(ctx context.Context, app *v1alpha1.FLAp
 		if err != nil {
 			return fmt.Errorf("failed to build client, name = %v, role = %v", name, role)
 		}
-		response, err := client.ShutDown(newContextWithHeaders(peerSpec.ExtraHeaders), request)
-		if err != nil || response.Code != int32(codes.OK) {
-			return fmt.Errorf("Shutdown failed name = %v, role = %v, err = %v", name, role, err)
+		err, msg := func() (error, string) {
+			ctx, cancel := newContextWithHeaders(peerSpec.ExtraHeaders)
+			defer cancel()
+			response, err := client.ShutDown(ctx, request)
+			if err != nil || response.Code != int32(codes.OK) {
+				return fmt.Errorf("Shutdown failed name = %v, role = %v, err = %v", name, role, err), ""
+			}
+			return nil, response.ErrorMessage
+		}()
+		if err != nil {
+			return err
 		}
-		klog.Infof("Shutdown success name = %v, role = %v, message = %v", name, role, response.ErrorMessage)
+		klog.Infof("Shutdown success name = %v, role = %v, message = %v", name, role, msg)
 	}
 	return nil
 }
@@ -164,11 +185,19 @@ func (handler *appEventHandler) Finish(ctx context.Context, app *v1alpha1.FLApp)
 		if err != nil {
 			return fmt.Errorf("failed to build client, name = %v, role = %v", name, role)
 		}
-		response, err := client.Finish(newContextWithHeaders(peerSpec.ExtraHeaders), request)
-		if err != nil || response.Code != int32(codes.OK) {
-			return fmt.Errorf("Finish failed name = %v, role = %v, err = %v", name, role, err)
+		err, msg := func() (error, string) {
+			ctx, cancel := newContextWithHeaders(peerSpec.ExtraHeaders)
+			defer cancel()
+			response, err := client.Finish(ctx, request)
+			if err != nil || response.Code != int32(codes.OK) {
+				return fmt.Errorf("Finish failed name = %v, role = %v, err = %v", name, role, err), ""
+			}
+			return nil, response.ErrorMessage
+		}()
+		if err != nil {
+			return err
 		}
-		klog.Infof("Finish success name = %v, role = %v, message = %v", name, role, response.ErrorMessage)
+		klog.Infof("Finish success name = %v, role = %v, message = %v", name, role, msg)
 	}
 	return nil
 }
@@ -338,8 +367,9 @@ func (handler *appEventHandler) newClient(peerURL, authority string) (pb.Pairing
 	return handler.grpcClient[key], nil
 }
 
-func newContextWithHeaders(headers map[string]string) context.Context {
-	return metadata.NewOutgoingContext(context.Background(), metadata.New(headers))
+func newContextWithHeaders(headers map[string]string) (context.Context, context.CancelFunc) {
+	ctx, cancel := context.WithTimeout(context.Background(), clientTimeout)
+	return metadata.NewOutgoingContext(ctx, metadata.New(headers)), cancel
 }
 
 func makePairs(app *v1alpha1.FLApp, role string) []*pb.Pair {
