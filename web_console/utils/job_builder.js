@@ -9,8 +9,8 @@ const permittedJobEnvs = {
   psi_data_join: [],
   tree_model: [
     "VERBOSITY", "LEARNING_RATE", "MAX_ITERS", "MAX_DEPTH",
-    "L2_REGULARIZATION", "MAX_BINS", "NUM_PARALELL", "VERIFY_EXAMPLE_IDS",
-    "USE_STREAMING"
+    "L2_REGULARIZATION", "MAX_BINS", "NUM_PARALELL",
+    "VERIFY_EXAMPLE_IDS", "USE_STREAMING"
   ],
   nn_model: ['MODEL_NAME'],
 };
@@ -50,7 +50,7 @@ function extractPermittedJobParams(job) {
   for (let key in params.spec.flReplicaSpecs) {
     let obj = extracted.spec.flReplicaSpecs[key] = {};
     let src = params.spec.flReplicaSpecs[key];
-    if (!src.replicas) {
+    if (src.replicas) {
       obj.replicas = src.replicas;
     }
     if (src.template && src.template.spec &&
@@ -91,31 +91,21 @@ function generateYaml(federation, job, job_params, ticket) {
   let k8s_settings = federation.k8s_settings;
   let yaml = mergeJson({}, k8s_settings.global_job_spec);
 
-  let peer_role = 'follower';
-  let cap_peer_role = 'Follower';
+  let peer_spec = k8s_settings.leader_peer_spec;
   if (ticket.role == 'follower') {
-    peer_role = 'leader';
-    cap_peer_role = 'Leader';
+    peer_spec = k8s_settings.follower_peer_spec;
   }
   yaml = mergeJson(yaml, {
     metadata: {
       name: job.name,
-      namespace: k8s_settings['namespace'],
     },
     spec: {
       role: ticket.role,
       cleanPodPolicy: "None",
-      peerSpecs: {
-        [cap_peer_role]: {
-          peerURL: 'fedlearner-stack-ingress-nginx-controller.' + k8s_settings['namespace'] + '.svc.cluster.local:80',
-          authority: peer_role + ".flapp.operator",
-          extraHeaders: {
-            "x-host": peer_role + ".flapp.operator",
-          }
-        },
-      },
-    }
+      peerSpecs: peer_spec,
+    },
   });
+
   yaml = mergeJson(yaml, ticket.public_params);
   yaml = mergeJson(yaml, ticket.private_params);
 

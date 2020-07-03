@@ -66,21 +66,21 @@ class TestBoostingTree(unittest.TestCase):
             max_depth=2)
         train_pred = booster.fit(X, y, cat_features=cat_X)
         pred = booster.batch_predict(X, cat_features=cat_X)
-        np.testing.assert_almost_equal(train_pred, pred)
         bridge.terminate()
+        np.testing.assert_almost_equal(train_pred, pred)
         return pred
 
     def follower_test_boosting_tree_helper(self, X, cat_X):
         bridge = fl.trainer.bridge.Bridge(
-            'follower', 50052, 'localhost:50051', streaming_mode=False)
+            'follower', 50052, 'localhost:50051', streaming_mode=True)
         booster = BoostingTreeEnsamble(
             bridge,
             max_iters=3,
             max_depth=2)
         booster.fit(X, None, cat_features=cat_X)
         pred = booster.batch_predict(X, cat_features=cat_X, get_raw_score=True)
-        np.testing.assert_almost_equal(pred, 0)
         bridge.terminate()
+        np.testing.assert_almost_equal(pred, 0)
 
     def boosting_tree_helper(self, X, y, cat_X):
         local_pred = self.local_test_boosting_tree_helper(X, y, cat_X)
