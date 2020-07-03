@@ -160,7 +160,7 @@ class Bridge(object):
 
         def shutdown_fn():
             with lock:
-                while len(resend_list) or not self._transmit_queue.empty():
+                while len(resend_list) > 0 or not self._transmit_queue.empty():
                     logging.debug(
                         "Waiting for resend queue's being cleaned. "
                         "Resend queue size: %d", len(resend_list))
