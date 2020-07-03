@@ -55,7 +55,8 @@ var (
 	workerNum                   = flag.Int("worker-num", 10, "Number of worker threads used by the fedlearner controller.")
 	resyncInterval              = flag.Int("resync-interval", 30, "Informer resync interval in seconds.")
 	namespace                   = flag.String("namespace", "default", "The namespace to which controller listen FLApps.")
-	ingressHostSuffix           = flag.String("ingress-host-suffix", "", "The suffix of hosts when creating ingress")
+	ingressExtraHostSuffix      = flag.String("ingress-extra-host-suffix", "", "The extra suffix of hosts when creating ingress.")
+	ingressSecretName           = flag.String("ingress-secret-name", "", "The secret name used for tls, only one secret supported now.")
 	enableLeaderElection        = flag.Bool("leader-election", false, "Enable fedlearner controller leader election.")
 	leaderElectionLockNamespace = flag.String("leader-election-lock-namespace", "fedlearner-system", "Namespace in which to create the Endpoints for leader election.")
 	leaderElectionLockName      = flag.String("leader-election-lock-name", "fedlearner-kubernetes-operator-lock", "Name of the Endpoint for leader election.")
@@ -185,7 +186,18 @@ func main() {
 	)
 
 	appEventHandler := operator.NewAppEventHandler(*namespace, crdClient)
-	flController := operator.NewFLController(*namespace, recorder, *resyncInterval, *ingressHostSuffix, kubeClient, crdClient, kubeInformerFactory, crdInformerFactory, appEventHandler, stopCh)
+	flController := operator.NewFLController(
+		*namespace,
+		recorder,
+		*resyncInterval,
+		*ingressExtraHostSuffix,
+		*ingressSecretName,
+		kubeClient,
+		crdClient,
+		kubeInformerFactory,
+		crdInformerFactory,
+		appEventHandler,
+		stopCh)
 
 	go func() {
 		klog.Infof("starting adapter listening %v", *port)

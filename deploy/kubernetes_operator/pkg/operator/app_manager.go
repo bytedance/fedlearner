@@ -51,8 +51,9 @@ type AppManager interface {
 }
 
 type appManager struct {
-	namespace         string
-	ingressHostSuffix string
+	namespace              string
+	ingressExtraHostSuffix string
+	ingressSecretName      string
 
 	kubeClient clientset.Interface
 	crdClient  crdclientset.Interface
@@ -79,7 +80,8 @@ var (
 func NewAppManager(
 	namespace string,
 	recorder record.EventRecorder,
-	ingressHostSuffix string,
+	ingressExtraHostSuffix string,
+	ingressSecretName string,
 	kubeClient clientset.Interface,
 	crdClient crdclientset.Interface,
 	appLister crdlisters.FLAppLister,
@@ -90,8 +92,9 @@ func NewAppManager(
 	appEventHandler AppEventHandler,
 ) AppManager {
 	manager := &appManager{
-		namespace:         namespace,
-		ingressHostSuffix: ingressHostSuffix,
+		namespace:              namespace,
+		ingressExtraHostSuffix: ingressExtraHostSuffix,
+		ingressSecretName:      ingressSecretName,
 
 		kubeClient: kubeClient,
 		crdClient:  crdClient,
@@ -335,7 +338,7 @@ func (am *appManager) createIngress(ctx context.Context, app *v1alpha1.FLApp) er
 							ServicePort: intstr.FromString(v1alpha1.DefaultPortName),
 						},
 					}
-					host := GenIndexName(app.Name, strings.ToLower(app.Spec.Role), rt, strconv.Itoa(index)) + am.ingressHostSuffix
+					host := GenIndexName(app.Name, strings.ToLower(app.Spec.Role), rt, strconv.Itoa(index)) + am.ingressExtraHostSuffix
 					rule := networking.IngressRule{
 						Host: host,
 						IngressRuleValue: networking.IngressRuleValue{
@@ -345,6 +348,13 @@ func (am *appManager) createIngress(ctx context.Context, app *v1alpha1.FLApp) er
 						},
 					}
 					newIngress.Spec.Rules = append(newIngress.Spec.Rules, rule)
+					if am.ingressSecretName != "" {
+						tls := networking.IngressTLS{
+							Hosts:      []string{host},
+							SecretName: am.ingressSecretName,
+						}
+						newIngress.Spec.TLS = append(newIngress.Spec.TLS, tls)
+					}
 				}
 			}
 		}
