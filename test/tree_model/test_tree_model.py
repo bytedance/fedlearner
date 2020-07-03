@@ -72,7 +72,7 @@ class TestBoostingTree(unittest.TestCase):
 
     def follower_test_boosting_tree_helper(self, X, cat_X):
         bridge = fl.trainer.bridge.Bridge(
-            'follower', 50052, 'localhost:50051', streaming_mode=False)
+            'follower', 50052, 'localhost:50051', streaming_mode=True)
         booster = BoostingTreeEnsamble(
             bridge,
             max_iters=3,

@@ -170,12 +170,14 @@ class Bridge(object):
                         logging.debug(
                             "Waiting for resend queue's being cleaned. "
                             "Resend queue size: %d", len(resend_list))
+                        lock.release()
                         time.sleep(1)
+                        lock.acquire()
 
             stop_event.set()
             if generator is not None:
                 generator.cancel()
-            return generator.result()
+            return
 
         self._client_daemon_shutdown_fn = shutdown_fn
 
@@ -349,8 +351,8 @@ class Bridge(object):
                                         current_iter_id=self._current_iter_id)
 
     def _terminate_handler(self, request):
-        self._peer_terminated = True
         with self._condition:
+            self._peer_terminated = True
             self._condition.notifyAll()
         return tws_pb.TerminateResponse()
 
@@ -404,31 +406,33 @@ class Bridge(object):
         if not self._connected or self._terminated:
             return
         self._terminated = True
+
         try:
             if self._client_daemon is not None:
                 self._client_daemon_shutdown_fn()
                 self._client_daemon.join()
+        except Exception as e:  # pylint: disable=broad-except
+            logging.warning(
+                'Error during streaming shutdown: %s', repr(e))
 
-            # Get ACK from peer
-            while True:
-                try:
-                    self._client.Terminate(tws_pb.TerminateRequest())
-                    break
-                except Exception as e:  # pylint: disable=broad-except
-                    logging.warning(
-                        "Failed to send terminate message: %s. " \
-                        "Retry in 1 second...", repr(e))
-                    time.sleep(1)
-                    continue
-            logging.debug('Waiting for peer to terminate.')
+        # Get ACK from peer
+        while True:
+            try:
+                self._client.Terminate(tws_pb.TerminateRequest())
+                break
+            except Exception as e:  # pylint: disable=broad-except
+                logging.warning(
+                    "Failed to send terminate message: %s. " \
+                    "Retry in 1 second...", repr(e))
+                time.sleep(1)
+                continue
+        logging.debug('Waiting for peer to terminate.')
 
-            # Ensure REQ from peer
-            with self._condition:
-                while not self._peer_terminated:
-                    self._condition.wait()
-            logging.debug('Terminated.')
-        except Exception:  # pylint: disable=broad-except
-            pass
+        # Ensure REQ from peer
+        with self._condition:
+            while not self._peer_terminated:
+                self._condition.wait()
+
         self._server.stop(None)
         logging.debug("Bridge connection terminated")
 
