@@ -10,6 +10,7 @@ const { Job } = models;
 const request = supertest(server.callback());
 let userCookie;
 let pod;
+let savedJob;
 
 describe('Job System', () => {
   before(async () => {
@@ -160,6 +161,7 @@ describe('Job System', () => {
           if (err) done(err);
           assert.ok(res.body.data.localdata.name === job.name);
           assert.ok(res.body.data.metadata);
+          savedJob = res.body.data;
           done();
         });
     });
@@ -167,18 +169,29 @@ describe('Job System', () => {
 
   describe('GET /api/v1/job/:k8s_name/pods', () => {
     it('respond 200 with pods', (done) => {
-      Job.findOne({ where: { name: { [Op.eq]: job.name } } }).then((j) => {
-        request.get(`/api/v1/job/${j.k8s_name}/pods`)
-          .set('Cookie', userCookie)
-          .expect(200)
-          .end((err, res) => {
-            if (err) done(err);
-            assert.ok(Array.isArray(res.body.data));
-            // eslint-disable-next-line prefer-destructuring
-            pod = res.body.data[0];
-            done();
-          });
-      });
+      request.get(`/api/v1/job/${savedJob.metadata.name}/pods`)
+        .set('Cookie', userCookie)
+        .expect(200)
+        .end((err, res) => {
+          if (err) done(err);
+          assert.ok(Array.isArray(res.body.data));
+          // eslint-disable-next-line prefer-destructuring
+          pod = res.body.data[0];
+          done();
+        });
+    });
+  });
+
+  describe('GET /api/v1/job/:k8s_name/logs/:start_time', () => {
+    it('respond 200 with job log', (done) => {
+      request.get(`/api/v1/job/pod/${savedJob.metadata.name}/logs/${new Date(savedJob.metadata.creationTimestamp).getTime()}`)
+        .set('Cookie', userCookie)
+        .expect(200)
+        .end((err, res) => {
+          if (err) done(err);
+          assert.ok(Array.isArray(res.body.data));
+          done();
+        });
     });
   });
 
