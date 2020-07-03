@@ -75,8 +75,11 @@ class TestBridge(unittest.TestCase):
         bridge2.commit()
 
         time.sleep(3)
+
+        t = threading.Thread(target=lambda _: bridge1.terminate(), args=(None,))
+        t.start()
         bridge2.terminate()
-        bridge1.terminate()
+        t.join()
 
     def test_seq_and_ack(self):
         bridge1 = fl.trainer.bridge.Bridge('leader', 49953, 'localhost:49954')
@@ -98,8 +101,11 @@ class TestBridge(unittest.TestCase):
         self.assertEqual(rsp.status.code, common_pb.STATUS_MESSAGE_MISSING)
 
         time.sleep(3)
+
+        t = threading.Thread(target=lambda _: bridge1.terminate(), args=(None,))
+        t.start()
         bridge2.terminate()
-        bridge1.terminate()
+        t.join()
 
 
 if __name__ == '__main__':
