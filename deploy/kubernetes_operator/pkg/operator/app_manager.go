@@ -319,7 +319,7 @@ func (am *appManager) createIngress(ctx context.Context, app *v1alpha1.FLApp) er
 	annotations := map[string]string{
 		"kubernetes.io/ingress.class":                       "nginx",
 		"nginx.ingress.kubernetes.io/backend-protocol":      "GRPC",
-		"nginx.ingress.kubernetes.io/configuration-snippet": "grpc_next_upstream_tries 5 ;",
+		"nginx.ingress.kubernetes.io/configuration-snippet": "grpc_next_upstream_tries 5;",
 		"nginx.ingress.kubernetes.io/http2-insecure-port":   "true",
 	}
 	if am.ingressEnableClientAuth {
