@@ -43,7 +43,7 @@ import (
 	"github.com/bytedance/fedlearner/deploy/kubernetes_operator/pkg/apis/fedlearner.k8s.io/v1alpha1"
 	crdclientset "github.com/bytedance/fedlearner/deploy/kubernetes_operator/pkg/client/clientset/versioned"
 	crdinformers "github.com/bytedance/fedlearner/deploy/kubernetes_operator/pkg/client/informers/externalversions"
-	"github.com/bytedance/fedlearner/deploy/kubernetes_operator/pkg/controller"
+	"github.com/bytedance/fedlearner/deploy/kubernetes_operator/pkg/operator"
 	"github.com/bytedance/fedlearner/deploy/kubernetes_operator/pkg/server"
 )
 
@@ -184,8 +184,8 @@ func main() {
 		crdinformers.WithNamespace(*namespace),
 	)
 
-	appEventHandler := controller.NewAppEventHandler(*namespace, crdClient)
-	flController := controller.NewFLController(*namespace, recorder, *resyncInterval, *ingressHostSuffix, kubeClient, crdClient, kubeInformerFactory, crdInformerFactory, appEventHandler, stopCh)
+	appEventHandler := operator.NewAppEventHandler(*namespace, crdClient)
+	flController := operator.NewFLController(*namespace, recorder, *resyncInterval, *ingressHostSuffix, kubeClient, crdClient, kubeInformerFactory, crdInformerFactory, appEventHandler, stopCh)
 
 	go func() {
 		klog.Infof("starting adapter listening %v", *port)

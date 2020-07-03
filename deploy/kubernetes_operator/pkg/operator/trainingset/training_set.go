@@ -24,7 +24,7 @@ import (
 	crdclientset "github.com/bytedance/fedlearner/deploy/kubernetes_operator/pkg/client/clientset/versioned"
 	crdinformers "github.com/bytedance/fedlearner/deploy/kubernetes_operator/pkg/client/informers/externalversions"
 	fllisters "github.com/bytedance/fedlearner/deploy/kubernetes_operator/pkg/client/listers/fedlearner.k8s.io/v1alpha2"
-	"github.com/bytedance/fedlearner/deploy/kubernetes_operator/pkg/controller"
+	"github.com/bytedance/fedlearner/deploy/kubernetes_operator/pkg/operator"
 )
 
 const controllerAgentName = "trainingset-controller"
@@ -50,8 +50,8 @@ type Controller struct {
 	kubeclientset kubernetes.Interface
 	crdClient     crdclientset.Interface
 
-	podControl     controller.PodControlInterface
-	serviceControl controller.ServiceControlInterface
+	podControl     operator.PodControlInterface
+	serviceControl operator.ServiceControlInterface
 
 	trainingSetsLister fllisters.TrainingSetLister
 	trainingSetsSynced cache.InformerSynced
@@ -75,7 +75,7 @@ type Controller struct {
 func NewController(
 	kubeclientset kubernetes.Interface,
 	crdClient crdclientset.Interface,
-	// trainingSetInformer flinformers.TrainingSetInformer,
+// trainingSetInformer flinformers.TrainingSetInformer,
 	sharedInformerFactory informers.SharedInformerFactory,
 	crdSharedInformerFactory crdinformers.SharedInformerFactory,
 ) *Controller {
@@ -102,11 +102,11 @@ func NewController(
 		workqueue:          workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "TrainingSets"),
 		recorder:           recorder,
 
-		podControl: controller.RealPodControl{
+		podControl: operator.RealPodControl{
 			KubeClient: kubeclientset,
 			Recorder:   recorder,
 		},
-		serviceControl: controller.RealServiceControl{
+		serviceControl: operator.RealServiceControl{
 			KubeClient: kubeclientset,
 			Recorder:   recorder,
 		},

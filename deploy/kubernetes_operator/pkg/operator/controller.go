@@ -13,7 +13,7 @@
  * limitations under the License.
  */
 
-package controller
+package operator
 
 import (
 	"fmt"
