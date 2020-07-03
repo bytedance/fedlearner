@@ -159,25 +159,18 @@ class Bridge(object):
         resend_list = collections.deque()
 
         def shutdown_fn():
-            while True:
-                with lock:
-                    if len(resend_list) == 0 and self._transmit_queue.empty():
-                        logging.debug(
-                            'Message queue is empty and we can shut '
-                            'down client daemon safely.')
-                        break
-                    else:
-                        logging.debug(
-                            "Waiting for resend queue's being cleaned. "
-                            "Resend queue size: %d", len(resend_list))
-                        lock.release()
-                        time.sleep(1)
-                        lock.acquire()
+            with lock:
+                while len(resend_list) or not self._transmit_queue.empty():
+                    logging.debug(
+                        "Waiting for resend queue's being cleaned. "
+                        "Resend queue size: %d", len(resend_list))
+                    lock.release()
+                    time.sleep(1)
+                    lock.acquire()
 
             stop_event.set()
             if generator is not None:
                 generator.cancel()
-            return
 
         self._client_daemon_shutdown_fn = shutdown_fn
 
