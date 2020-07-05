@@ -182,3 +182,48 @@ class TfRecordIter(RawDataIter):
             item = next(fiter)
             return fiter, item
         return None, None
+
+class TFEventTimeItem(TfExampleItem):
+
+    def _parse_event_time_from_example_id(self):
+        return self._raw_id
+
+    @property
+    def event_time(self):
+        if self._event_time is None:
+            try:
+                self._parse_example(True)
+                feat = self._example.features.feature
+                if 'event_time' not in feat:
+                    # parse event_time from example_id
+                    self._event_time = self._parse_event_time_from_example_id()
+                elif feat['event_time'].HasField('int64_list'):
+                    self._event_time = feat['event_time'].int64_list.value[0]
+                elif feat['event_time'].HasField('bytes_list'):
+                    self._event_time = \
+                        int(feat['event_time'].bytes_list.value[0])
+                else:
+                    raise ValueError('event_time not support float_list')
+            except Exception as e: # pylint: disable=broad-except
+                logging.error("Failed parse event time from %s, reason %s",
+                              self._record_str, e)
+                self._event_time = common.InvalidEventTime
+        return self._event_time
+
+class TFEventTimeIter(RawDataIter):
+    @classmethod
+    def name(cls):
+        return 'TF_RECORD_V2'
+
+    def _inner_iter(self, fpath):
+        with common.make_tf_record_iter(fpath) as record_iter:
+            for record in record_iter:
+                yield TFEventTimeItem(record)
+
+    def _reset_iter(self, index_meta):
+        if index_meta is not None:
+            fpath = index_meta.fpath
+            fiter = self._inner_iter(fpath)
+            item = next(fiter)
+            return fiter, item
+        return None, None

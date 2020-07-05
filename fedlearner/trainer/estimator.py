@@ -176,7 +176,7 @@ class FLEstimator(object):
         sync_path = '%s/%s' % (os.environ['APPLICATION_ID'],
                                os.environ['WORKER_RANK'])
         logging.info('Creating a sync flag at %s', sync_path)
-        etcd_client.set_data(sync_path, 1)
+        etcd_client.set_data(sync_path, "1")
         if is_chief:
             for _ in range(sync_times):
                 sync_list = etcd_client.get_prefix_kvs(

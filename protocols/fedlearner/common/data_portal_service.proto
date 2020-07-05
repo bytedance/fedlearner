@@ -1,0 +1,95 @@
+/* Copyright 2020 The FedLearner Authors. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+syntax = "proto3";
+import "fedlearner/common/common.proto";
+import "google/protobuf/empty.proto";
+
+package fedlearner.common;
+
+enum DataPortalType {
+  PSI = 0;         
+  Streaming = 1;
+}
+
+enum PartState {
+  kInit = 0;
+  kIdMap = 1;
+  kIdMapped = 2;
+  kEventTimeReduce = 3; 
+  kEventTimeReduced = 4;
+}
+
+
+message DataPortalJob {
+  int64 job_id = 1;
+  repeated string fpaths = 2;
+  bool finished = 3;
+}
+
+message DataPortalManifest {
+  string name = 1;
+  DataPortalType data_portal_type = 2;
+  uint32 output_partition_num = 3;
+  string input_file_wildcard = 4;
+  string base_dir = 5;
+  string raw_data_publish_dir = 6;
+  int64 next_job_id = 7;
+}
+
+message PortalPart {
+  int64 rank_id = 1;
+  PartState task_part_state = 3;
+}
+
+message NewTaskRequest {
+  int64 rank_id = 1;
+}
+
+message MapTask {
+  repeated string fpaths = 1;
+  string output_base_dir = 2;
+  int64 output_partition_num = 3;
+  int64 partition_id = 4;
+}
+
+message ReduceTask {
+  string map_base_dir = 1;
+  string output_base_dir = 2;
+  int64 partition_id = 3;
+}
+
+message NewTaskResponse {
+  Status status = 1;
+  oneof msg {
+    MapTask map_task = 2;
+    ReduceTask reduce_task = 3;
+    google.protobuf.Empty pending = 4;
+    google.protobuf.Empty finished = 5;
+  }
+}
+
+message FinishTaskRequest {
+  int64 rank_id = 1;
+  int64 partition_id = 2;
+}
+
+service DataPortalMasterService {
+  rpc GetDataPortalManifest(google.protobuf.Empty) returns (DataPortalManifest) {}
+  
+  rpc RequestNewTask(NewTaskRequest) returns (NewTaskResponse) {}
+    
+  rpc FinishTask(FinishTaskRequest) returns (Status) {}
+}

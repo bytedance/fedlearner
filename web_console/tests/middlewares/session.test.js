@@ -109,4 +109,25 @@ describe('SessionMiddleware', () => {
         done();
       });
   });
+
+  it('should not redirect for favicon request', (done) => {
+    request.get('/favicon.ico')
+      .expect(200)
+      .end((err, res) => {
+        if (err) done(err);
+        assert.deepStrictEqual(res.header['content-type'], 'image/x-icon');
+        done();
+      });
+  });
+
+  it('should not redirect for static file request', (done) => {
+    request.get('/_next/static/test.js')
+      .expect(200)
+      .end((err, res) => {
+        if (err) done(err);
+        assert.deepStrictEqual(res.header['content-type'], 'application/javascript; charset=UTF-8');
+        assert.deepStrictEqual(res.text, '<script>console.log("ok")</script>');
+        done();
+      });
+  });
 });
