@@ -29,4 +29,4 @@ ingress:
     kubernetes.io/ingress.class: nginx
     nginx.ingress.kubernetes.io/backend-protocol: GRPC
   tls: []
-  host: ""
+  host: default.fedlearner.operator

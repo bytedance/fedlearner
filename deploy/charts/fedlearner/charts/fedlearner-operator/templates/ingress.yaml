@@ -1,5 +1,4 @@
 {{- if .Values.ingress.enabled -}}
-{{- $host := printf "%s.fedlearner.operator" .Release.Namespace | trunc 63 | trimSuffix "-" }}
 {{- if semverCompare ">=1.14-0" .Capabilities.KubeVersion.GitVersion -}}
 apiVersion: networking.k8s.io/v1beta1
 {{- else -}}
@@ -27,7 +26,7 @@ spec:
     {{- end }}
   {{- end }}
   rules:
-    - host: {{ .Values.ingress.host | default $host | quote }}
+    - host: {{ .Values.ingress.host | quote }}
       http:
         paths:
           - backend:
