@@ -327,16 +327,15 @@ message MergeOptions {
   string output_builder = 2; // only supoort tf record or csv
   string input_dir = 3; 
   string output_dir = 4;
-  int64 output_item_threshold = 5;
-  int64 partition_id = 6;
-  string sort_merger_name = 7;
-  repeated string fpath = 8;
-  int64 merge_buffer_size = 9;
-  int64 output_item_threshold = 10;
-  BatchProcessorOptions batch_processor_options = 11;
+  int64 partition_id = 5;
+  string merger_name = 6;
+  repeated string fpath = 7;
+  int64 merge_buffer_size = 8;
+  int64 output_item_threshold = 9;
+  BatchProcessorOptions batch_processor_options = 10;
 }
 
 message DataPortalWorkerOptions {
   RawDataPartitionerOptions partitioner_options = 1;
-  MergeOptions sort_merge_options = 2;
+  MergeOptions merge_options = 2;
 }
