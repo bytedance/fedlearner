@@ -20,6 +20,7 @@ import time
 import os
 
 from tensorflow.compat.v1 import gfile
+import tensorflow as tf
 
 from fedlearner.common import data_portal_service_pb2 as dp_pb
 from fedlearner.common import data_portal_service_pb2_grpc as dp_grpc
@@ -32,12 +33,19 @@ from fedlearner.common.etcd_client import EtcdClient
 
 class RawDataSortPartitioner(RawDataPartitioner):
 
-    class OutputFileSortWriter(RawDataPartitioner.OutputFileWriter):
+    class OutputFileSortWriter(object):
         def __init__(self, options, partition_id, process_index):
-            super(OutputFileSortWriter, self).__init__(options, 
-              partition_id, process_index)
+            self._options = options
+            self._partition_id = partition_id
+            self._process_index = process_index
+            self._begin_index = None
+            self._end_index = None
             self._buffer = []
             self._size_bytes = 0
+            self._tmp_fpath = common.gen_tmp_fpath(
+                    os.path.join(self._options.output_dir,
+                                 common.partition_repr(self._partition_id))
+                )
 
         def append_item(self, index, item):
             self._buffer.append(item)
@@ -70,12 +78,21 @@ class RawDataSortPartitioner(RawDataPartitioner):
                 self._begin_index = None
                 self._end_index = None
                 self._size_bytes = 0
+                return meta
 
         def finish(self):
-            self.dump()
+            meta = self.dump()
+            if gfile.Exists(self._tmp_fpath):
+                gfile.Remove(self._tmp_fpath)
+        
+        def get_tmp_fpath(self):
+            return self._tmp_fpath
 
         def sort_buffer(self):
             self._buffer = sorted(self._buffer, key = lambda item: item.event_time)
+
+        def _get_output_writer(self):
+            return tf.io.TFRecordWriter(self._tmp_fpath)
 
     def __init__(self, options, etcd_name, etcd_addrs, 
                  etcd_base_dir, use_mock_etcd=False):
@@ -93,13 +110,13 @@ class RawDataSortPartitioner(RawDataPartitioner):
 
 class DataPortalWorkerService(object):
     def __init__(self, options, master_addr, rank_id, etcd_name, 
-                 etcd_base_dir, etcd_addrs):
+                 etcd_base_dir, etcd_addrs, use_mock_etcd=False):
         master_channel = make_insecure_channel(
           master_addr, ChannelType.INTERNAL)
         self._etcd_name = etcd_name
         self._etcd_base_dir = etcd_base_dir
         self._etcd_addrs = etcd_addrs
-        self._master_client = dp_grpc.PortalMasterServiceStub(master_channel)
+        self._master_client = dp_grpc.DataPortalMasterServiceStub(master_channel)
         self._rank_id = rank_id
         self._started = False
         self._is_stoped = False
@@ -107,6 +124,7 @@ class DataPortalWorkerService(object):
         self._merger = None
         self._sort_merger = None
         self._options = options
+        self._use_mock_etcd = use_mock_etcd
     
     def request_new_task(self):
         request = dp_pb.NewTaskRequest()
@@ -134,11 +152,13 @@ class DataPortalWorkerService(object):
 
     def start(self):
         logging.info("Start DataPortal Worker, rank_id:{}".format(self._rank_id))
+        logging.info("etcd_name:{} etcd_addr:{} etcd_base_dir:{}".format(self._etcd_name,
+            self._etcd_addrs, self._etcd_base_dir))
         self.run()
 
     def _make_partitioner_options(self, task):
         partitioner_options = self._options.partitioner_options
-        partitioner_options.input_file_paths = task.fpaths
+        partitioner_options.input_file_paths.extend(task.fpaths)
         partitioner_options.output_dir = task.output_base_dir
         partitioner_options.partitioner_name = "raw_data_partitioner-rank_id:{}" \
             .format(self._rank_id)
@@ -151,25 +171,28 @@ class DataPortalWorkerService(object):
         merge_options = self._options.merge_options
         merge_options.output_builder = "TF_RECORD"
         merge_options.input_dir = task.map_base_dir
+        merge_options.input_dir = os.path.join(task.map_base_dir, \
+            common.partition_repr(task.partition_id))
         merge_options.output_dir = task.output_base_dir
         merge_options.partition_id = task.partition_id
+        merge_options.fpath.extend(gfile.ListDirectory(merge_options.input_dir))
         return merge_options
         
-
     def _run_map_task(self, task):
         partition_options = self._make_partitioner_options(task)
         self._raw_data_partitioner = RawDataSortPartitioner(
-          partition_options, 
-          self._etcd_name, self._etcd_addrs, self._etcd_base_dir)
+            partition_options, self._etcd_name, self._etcd_addrs, 
+            self._etcd_base_dir, self._use_mock_etcd)
         logging.info("RawDataSortPartitioner rank_id:{}, partition_id:{} started."
-          .format(self._rank_id, partition_options.partitioner_rank_id))
+            .format(self._rank_id, partition_options.partitioner_rank_id))
         self._raw_data_partitioner.start_process()
         self._raw_data_partitioner.wait_for_finished()
 
     def _run_reduce_task(self, task):
         merge_options = self._make_merge_options(task)
         self._merger = Merge(merge_options, task.partition_id)
-        logging.info("Merger rank_id:{} partition_id:{} started.")
+        logging.info("Merger rank_id:{} partition_id:{} started."
+            .format(self._rank_id, task.partition_id))
         self._merger.generate_output()
     
     def run(self):
@@ -188,8 +211,13 @@ class DataPortalWorkerService(object):
                 logging.info("Receive map task, partition_id:{}".format(task.partition_id))
                 self._run_map_task(task)
                 self.finish_task(task.partition_id)
+                continue
             if response.HasField("reduce_task"):
                 logging.info("Receive reduce task and running")
                 self._run_reduce_task(task)
                 self.finish_task(task.partition_id)
+                continue
+
+            logging.warning("the response from master is invalid.")
+            time.sleep(2)
             

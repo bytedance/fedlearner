@@ -17,6 +17,7 @@
 
 import os
 import random
+import logging
 try:
     import queue
 except ImportError:
@@ -29,7 +30,9 @@ from fedlearner.data_join.item_batch_seq_processor import \
     ItemBatch, ItemBatchSeqProcessor
 from fedlearner.data_join.raw_data_partitioner import RawDataBatch
 from fedlearner.data_join.raw_data_visitor import MockRawDataVisitor
-from fedlearner.data_join.raw_data_iter_impl.tf_record_iter import 
+from fedlearner.data_join.raw_data_iter_impl.tf_record_iter import TfRecordIter
+from fedlearner.data_join import visitor, common
+
 
 class Merge(object):
     class RecordItem(object):
@@ -86,12 +89,12 @@ class Merge(object):
                             tf_item = self._fiter.get_item()
                         else:
                             _, tf_item = next(self._fiter)
-                        return Merge.RecordItem(fpath_id, tf_item)
+                        return Merge.RecordItem(self._fpath_id, tf_item)
                 except StopIteration:
                     self._finished = True
             raise StopIteration("%s has been iter finished" % self._fpath)
 
-    FileSuffix = '.'
+    FileSuffix = '.pd'
     class FileMeta(object):
         def __init__(self, partition_id, begin_index, end_index):
             self._partition_id = partition_id
@@ -99,7 +102,7 @@ class Merge(object):
             self._end_index = end_index
         
         def encode_meta_to_fname(self):
-            return '{:04}.{:10}-{:10}{}'.format(
+            return '{:04}.{:010}-{:010}{}'.format(
                 self._partition_id, self._begin_index, 
                 self._end_index, Merge.FileSuffix)
 
@@ -117,7 +120,7 @@ class Merge(object):
                     common.partition_repr(self._partition_id))
             )
 
-        def append_item(self, index, item):
+        def append_item(self, item, index):
             writer = self._get_output_writer()
             tf_item = item.tf_record
             writer.write(tf_item)
@@ -125,10 +128,10 @@ class Merge(object):
                 self._begin_index = index
             self._end_index = index
             self._size_bytes += len(tf_item)
-            if self._size_bytes >= options.output_item_threshold:
+            if self._size_bytes >= self._options.output_item_threshold:
                 writer.close()
                 self.writer = None
-                meta = FileMeta(self._partition_id, self._begin_index, 
+                meta = Merge.FileMeta(self._partition_id, self._begin_index, 
                     self._end_index)
                 fpath = os.path.join(self._options.output_dir, 
                     common.partition_repr(self._partition_id),
@@ -143,7 +146,7 @@ class Merge(object):
             if self._begin_index is not None \
                 and self._end_index is not None:
                 self._writer.close()
-                meta = FileMeta(self._partition_id, self._begin_index, 
+                meta = Merge.FileMeta(self._partition_id, self._begin_index, 
                     self._end_index)
                 fpath = os.path.join(self._options.output_dir,
                     common.partition_repr(self._partition_id),
@@ -180,13 +183,26 @@ class Merge(object):
         self._partition_id = partition_id
         self._queue = queue.PriorityQueue(options.merge_buffer_size)
         self._active_fpath = set()
-        self._fpath_num = len(self._options.fpath)
+        self._fpaths = gfile.ListDirectory(self._options.input_dir)
+        self._fpath_num = len(self._fpaths)
         self._writer = Merge.OutputFileWriter(self._options, self._partition_id)
-        for fpath_id, fpath in enumerate(self._options.fpath):
+        self._prepare()
+
+    def _prepare(self):
+        self._output_dir = os.path.join(self._options.output_dir, 
+            common.partition_repr(self._partition_id))
+        if gfile.Exists(self._output_dir):
+            gfile.DeleteRecursively(self._output_dir)
+        gfile.MkDir(self._options.output_dir)
+        gfile.MkDir(self._output_dir)
+        for fpath_id, fpath in enumerate(self._fpaths):
+            fpath = "{}/{}".format(self._options.input_dir, fpath)
             reader = Merge.InputFileReader(fpath_id, 
-                fpath, options)
+                fpath, self._options)
             self._readers.append(reader)
             self._active_fpath.add(fpath_id)
+            logging.info("merger partition_id:{} has input path: {}"
+                .format(self._partition_id, fpath))
         self._preload_queue()
 
     def _preload_queue(self):
@@ -216,8 +232,9 @@ class Merge(object):
         while not self._queue.empty():
             record_item = self._queue.get()
             self._replenish_item(record_item.fpath_id)
-            self.writer.append_item(record_item.tf_example_item, index)
-        self.writer.finish()
+            self._writer.append_item(record_item.tf_example_item, index)
+            index += 1
+        self._writer.finish()
 
         
 
