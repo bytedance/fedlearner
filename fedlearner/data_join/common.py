@@ -226,3 +226,20 @@ def bytes2int(byte, byteorder='little'):
 
 def gen_tmp_fpath(fdir):
     return os.path.join(fdir, str(uuid.uuid1())+TmpFileSuffix)
+
+def portal_etcd_base_dir(portal_name):
+    return os.path.join('portal', portal_name)
+
+def portal_job_etcd_key(portal_name, job_id):
+    return os.path.join(portal_etcd_base_dir(portal_name), 'job_dir',
+                        '{:08}.pj'.format(job_id))
+
+def portal_job_part_etcd_key(portal_name, job_id, partition_id):
+    return os.path.join(portal_job_etcd_key(portal_name, job_id),
+                        partition_repr(partition_id))
+
+def portal_map_output_dir(map_base_dir, portal_name, job_id):
+    return path.join(base_dir, portal_name, 'map_{:08}'.format(job_id))
+
+def portal_reduce_output_dir(reduce_base_dir, portal_name, job_id):
+    return path.join(base_dir, portal_name, 'reduce_{:08}'.format(job_id))
