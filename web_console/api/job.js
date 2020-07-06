@@ -63,8 +63,16 @@ router.get('/api/v1/job/:k8s_name/pods', SessionMiddleware, async (ctx) => {
   ctx.body = { data: pods.items };
 });
 
-router.get('/api/v1/job/:k8s_name/logs/:start_time', SessionMiddleware, async (ctx) => {
-  const { k8s_name, start_time } = ctx.params;
+router.get('/api/v1/job/:k8s_name/logs', SessionMiddleware, async (ctx) => {
+  const { k8s_name } = ctx.params;
+  const { start_time } = ctx.query;
+  if (!start_time) {
+    ctx.status = 400;
+    ctx.body = {
+      error: 'start_time is required',
+    };
+    return;
+  }
   const logs = await es.queryLog('filebeat-*', k8s_name, 'fedlearner-operator-*', start_time, Date.now(), es_oparator_match_phrase);
   ctx.body = { data: logs };
 });
@@ -76,8 +84,16 @@ router.get('/api/v1/job/pod/:pod_name/:container', SessionMiddleware, async (ctx
   ctx.body = { data: { id, base } };
 });
 
-router.get('/api/v1/job/pod/:pod_name/logs/:start_time', SessionMiddleware, async (ctx) => {
-  const { pod_name, start_time } = ctx.params;
+router.get('/api/v1/job/pod/:pod_name/logs', SessionMiddleware, async (ctx) => {
+  const { pod_name } = ctx.params;
+  const { start_time } = ctx.query;
+  if (!start_time) {
+    ctx.status = 400;
+    ctx.body = {
+      error: 'start_time is required',
+    };
+    return;
+  }
   const logs = await es.queryLog('filebeat-*', '', pod_name, start_time, Date.now());
   ctx.body = { data: logs };
 });
@@ -121,6 +137,8 @@ router.post('/api/v1/job', SessionMiddleware, async (ctx) => {
     return;
   }
 
+  // TODO: server validate & create job
+
   const clientTicket = await Ticket.findOne({
     where: {
       name: { [Op.eq]: client_ticket_name },
@@ -133,21 +151,9 @@ router.post('/api/v1/job', SessionMiddleware, async (ctx) => {
     };
     return;
   }
-  const serverTicket = await Ticket.findOne({
-    where: {
-      name: { [Op.eq]: server_ticket_name },
-    },
-  });
-  if (!serverTicket) {
-    ctx.status = 422;
-    ctx.body = {
-      error: 'server_ticket does not exist',
-    };
-    return;
-  }
 
   try {
-    clientValidateJob(job, clientTicket, serverTicket);
+    clientValidateJob(job, clientTicket);
   } catch (e) {
     ctx.status = 400;
     ctx.body = {
@@ -155,9 +161,6 @@ router.post('/api/v1/job', SessionMiddleware, async (ctx) => {
     };
     return;
   }
-
-  // TODO: server validate
-  // TODO: server create job
 
   const clientFed = await Federation.findByPk(clientTicket.federation_id);
   if (!clientFed) {
@@ -167,7 +170,7 @@ router.post('/api/v1/job', SessionMiddleware, async (ctx) => {
     };
     return;
   }
-  const clientYaml = clientGenerateYaml(clientFed, job, clientTicket, serverTicket);
+  const clientYaml = clientGenerateYaml(clientFed, job, clientTicket);
 
   const res = await k8s.createFLApp(namespace, clientYaml);
 
@@ -211,7 +214,7 @@ router.delete('/api/v1/job/:name', SessionMiddleware, async (ctx) => {
 
   // TODO: the other side delete
 
-  await k8s.deleteFLApp(namespace, name);
+  await k8s.deleteFLApp(namespace, data.k8s_name);
   await data.destroy();
 
   ctx.body = { data };

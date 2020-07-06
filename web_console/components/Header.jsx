@@ -107,7 +107,7 @@ export default function Header() {
     ]
     : [
       { label: 'Overview', value: '/' },
-      { label: 'Jobs', value: '/jobs' },
+      { label: 'Jobs', value: '/job' },
       { label: 'Tickets', value: '/ticket' },
     ];
 

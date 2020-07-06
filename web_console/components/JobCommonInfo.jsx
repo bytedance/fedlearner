@@ -64,7 +64,11 @@ export default function JobCommonInfo(props) {
   const { data: podsData } = useSWR(`job/${job && job.localdata?.k8s_name}/pods`, fetcher);
   const pods = podsData ? podsData.data : null;
 
-  const { data: logsData, error: logsError, isValidating: logsIsValidating } = useSWR(`job/${job && job.localdata?.k8s_name}/logs/${new Date(job && job.metadata?.creationTimestamp).getTime()}`, fetcher);
+  const {
+    data: logsData,
+    error: logsError,
+    isValidating: logsIsValidating,
+  } = useSWR(`job/${job && job.localdata?.k8s_name}/logs?start_time=${new Date(job && job.metadata?.creationTimestamp).getTime()}`, fetcher);
   const logs = (logsData && logsData.data) ? logsData.data : ['logs error ' + (logsData?.error || logsError?.message)]
 
   const tableData = useMemo(() => {

@@ -75,9 +75,5 @@ module.exports = (sequelize, DataTypes) => {
     },
   });
 
-  Job.associate = (models) => {
-    Job.belongsTo(models.User, { as: 'user', foreignKey: 'user_id' });
-  };
-
   return Job;
 };

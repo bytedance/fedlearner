@@ -42,7 +42,7 @@ function PodLog({ query }) {
       setError(errorMsg);
       return;
     }
-    fetcher(`job/pod/${query.name}/logs/${query.time}`)
+    fetcher(`job/pod/${query.name}/logs?start_time=${query.time}`)
       .then((res) => {
         setLoading(false);
         if (!res.data) {

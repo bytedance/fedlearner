@@ -5,14 +5,14 @@ import Search from '@zeit-ui/react-icons/search';
 import NextLink from 'next/link';
 import useSWR from 'swr';
 
-import { fetcher } from '../libs/http';
-import { FLAppStatus, handleStatus, getStatusColor } from '../utils/job';
-import Layout from '../components/Layout';
-import PopConfirm from '../components/PopConfirm';
-import Dot from '../components/Dot';
-import Empty from '../components/Empty';
-import { deleteJob, createJob } from '../services/job';
-import Form from '../components/Form';
+import { fetcher } from '../../libs/http';
+import { FLAppStatus, handleStatus, getStatusColor } from '../../utils/job';
+import Layout from '../../components/Layout';
+import PopConfirm from '../../components/PopConfirm';
+import Dot from '../../components/Dot';
+import Empty from '../../components/Empty';
+import { deleteJob, createJob } from '../../services/job';
+import Form from '../../components/Form';
 
 const fields = [
   { key: 'name', required: true },

@@ -182,9 +182,20 @@ describe('Job System', () => {
     });
   });
 
-  describe('GET /api/v1/job/:k8s_name/logs/:start_time', () => {
+  describe('GET /api/v1/job/:k8s_name/logs', () => {
+    it('respond 400 without start_time', (done) => {
+      request.get(`/api/v1/job/${savedJob.metadata.name}/logs`)
+        .set('Cookie', userCookie)
+        .expect(400)
+        .end((err, res) => {
+          if (err) done(err);
+          assert.deepStrictEqual(res.body.error, 'start_time is required');
+          done();
+        });
+    });
+
     it('respond 200 with job log', (done) => {
-      request.get(`/api/v1/job/pod/${savedJob.metadata.name}/logs/${new Date(savedJob.metadata.creationTimestamp).getTime()}`)
+      request.get(`/api/v1/job/${savedJob.metadata.name}/logs?start_time=${new Date(savedJob.metadata.creationTimestamp).getTime()}`)
         .set('Cookie', userCookie)
         .expect(200)
         .end((err, res) => {
@@ -209,9 +220,20 @@ describe('Job System', () => {
     });
   });
 
-  describe('GET /api/v1/job/pod/:pod_name/logs/:start_time', () => {
+  describe('GET /api/v1/job/pod/:pod_name/logs', () => {
+    it('respond 400 without start_time', (done) => {
+      request.get(`/api/v1/job/pod/${pod.metadata.name}/logs`)
+        .set('Cookie', userCookie)
+        .expect(400)
+        .end((err, res) => {
+          if (err) done(err);
+          assert.deepStrictEqual(res.body.error, 'start_time is required');
+          done();
+        });
+    });
+
     it('respond 200 with pod log', (done) => {
-      request.get(`/api/v1/job/pod/${pod.metadata.name}/logs/${new Date(pod.metadata.creationTimestamp).getTime()}`)
+      request.get(`/api/v1/job/pod/${pod.metadata.name}/logs?start_time=${new Date(pod.metadata.creationTimestamp).getTime()}`)
         .set('Cookie', userCookie)
         .expect(200)
         .end((err, res) => {
