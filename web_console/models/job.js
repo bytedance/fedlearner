@@ -11,14 +11,6 @@ module.exports = (sequelize, DataTypes) => {
       allowNull: false,
       unique: true,
     },
-    user_id: {
-      type: DataTypes.INTEGER,
-      allowNull: false,
-      references: {
-        model: 'users',
-        key: 'id',
-      },
-    },
     job_type: {
       type: DataTypes.STRING(16),
       allowNull: false,
@@ -41,6 +33,18 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.TEXT('long'),
       allowNull: true,
       default: null,
+    },
+    user_id: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      references: {
+        model: 'users',
+        key: 'id',
+      },
+    },
+    k8s_name: {
+      type: DataTypes.STRING(200),
+      allowNull: false,
     },
   }, {
     tableName: 'jobs',
@@ -70,10 +74,6 @@ module.exports = (sequelize, DataTypes) => {
       },
     },
   });
-
-  Job.associate = (models) => {
-    Job.belongsTo(models.User, { as: 'user', foreignKey: 'user_id' });
-  };
 
   return Job;
 };

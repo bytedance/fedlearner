@@ -91,3 +91,5 @@ config.mk
 .*.swp
 .*.swo
 server.config.js
+es.match_phrase.js
+es.match_phrase.json

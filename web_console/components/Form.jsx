@@ -4,8 +4,10 @@ import { Button, Card, Grid, Text, Input, Toggle, Textarea, Note, useTheme } fro
 import FederationSelect from './FederationSelect';
 import JobTypeSelect from './JobTypeSelect';
 import JobRoleSelect from './JobRoleSelect';
+import ServerTicketSelect from './ServerTicketSelect';
+import ClientTicketSelect from './ClientTicketSelect';
 
-function useStyles(theme) {
+function useStyles() {
   return css`
     .footer {
       display: flex;
@@ -131,6 +133,36 @@ export default function Form({
           <label className="formItemLabel" htmlFor={key}>{label || key}</label>
           <div className="formItemValue">
             <JobRoleSelect
+              value={form[key]}
+              onChange={(value) => updateForm(key, value)}
+              {...valueProps}
+            />
+          </div>
+        </div>
+      );
+    }
+
+    if (type === 'serverTicket') {
+      return (
+        <div className="formItemWithLabel">
+          <label className="formItemLabel" htmlFor={key}>{label || key}</label>
+          <div className="formItemValue">
+            <ServerTicketSelect
+              value={form[key]}
+              onChange={(value) => updateForm(key, value)}
+              {...valueProps}
+            />
+          </div>
+        </div>
+      );
+    }
+
+    if (type === 'clientTicket') {
+      return (
+        <div className="formItemWithLabel">
+          <label className="formItemLabel" htmlFor={key}>{label || key}</label>
+          <div className="formItemValue">
+            <ClientTicketSelect
               value={form[key]}
               onChange={(value) => updateForm(key, value)}
               {...valueProps}
