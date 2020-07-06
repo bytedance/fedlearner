@@ -1,0 +1,34 @@
+# Default values for fedlearner-add-on.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+imageCredentials:
+  enabled: false
+  registry: ""
+  username: ""
+  password: ""
+
+service:
+  enabled: false
+  type: ExternalName
+  externalName: ""
+
+ingress:
+  enabled: false
+  annotations:
+    "kubernetes.io/ingress.class": nginx
+  host: ""
+  port: 80
+
+tls:
+  enabled: false
+  server:
+    key: ""
+    cert: ""
+    intermediate: ""
+    ca: ""
+  client:
+    key: ""
+    cert: ""
+    intermediate: ""
+    ca: ""
