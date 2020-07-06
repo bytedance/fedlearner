@@ -34,7 +34,7 @@ import (
 	pb "github.com/bytedance/fedlearner/deploy/kubernetes_operator/proto"
 )
 
-const clientTimeout = time.Second * 1
+const clientTimeout = time.Second * 5
 
 type AppEventHandler interface {
 	// Called after follower bootstrapped
