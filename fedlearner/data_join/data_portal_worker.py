@@ -17,6 +17,7 @@
 import logging
 import time
 import os
+import grpc
 
 from tensorflow.compat.v1 import gfile
 import tensorflow as tf
@@ -55,6 +56,7 @@ class RawDataSortPartitioner(RawDataPartitioner):
                 self.dump()
 
         def dump(self):
+            meta = None
             if len(self._buffer) > 0:
                 writer = self._get_output_writer()
                 self.sort_buffer()
@@ -75,9 +77,7 @@ class RawDataSortPartitioner(RawDataPartitioner):
                 self._begin_index = None
                 self._end_index = None
                 self._size_bytes = 0
-                return meta
-            else:
-                return None
+            return meta
 
         def finish(self):
             meta = self.dump()
@@ -88,15 +88,11 @@ class RawDataSortPartitioner(RawDataPartitioner):
             return self._tmp_fpath
 
         def sort_buffer(self):
-            self._buffer = sorted(self._buffer, key=lambda item: item.event_time)
+            self._buffer = sorted(self._buffer, \
+                key=lambda item: item.event_time)
 
         def _get_output_writer(self):
             return tf.io.TFRecordWriter(self._tmp_fpath)
-
-    def __init__(self, options, etcd_name, etcd_addrs,
-                 etcd_base_dir, use_mock_etcd=False):
-        super(RawDataSortPartitioner, self).__init__(
-          options, etcd_name, etcd_addrs, etcd_base_dir, use_mock_etcd)
 
     def _get_file_writer(self, partition_id):
         if len(self._flying_writers) == 0:
@@ -125,16 +121,16 @@ class DataPortalWorkerService(object):
         self._use_mock_etcd = use_mock_etcd
         self._master_client = dp_grpc.DataPortalMasterServiceStub(
             master_channel)
-    
+
     def request_new_task(self):
         request = dp_pb.NewTaskRequest()
         request.rank_id = self._rank_id
         while True:
             try:
                 return self._master_client.RequestNewTask(request)
-            except Exception as e:
+            except grpc.RpcError as e:
                 logging.warning("Request new task failed, sleep 2 seconds"\
-                  " and retry. Exception {}".format(e))
+                  " and retry. Exception {0!s}".format(str(e)))
             time.sleep(2)
 
     def finish_task(self, partition_id, part_state):
@@ -146,15 +142,16 @@ class DataPortalWorkerService(object):
             try:
                 self._master_client.FinishTask(request)
                 return
-            except Exception as e:
-                logging.warning("Failed to finish task request, "
-                    "sleep 2 seconds and retry. Exception {}".format(e))
+            except grpc.RpcError as e:
+                logging.warning("Failed to finish request, sleep 2 seconds" \
+                    " and retry. Exception {0!s}".format(str(e)))
             time.sleep(2)
 
     def start(self):
-        logging.info("Start DataPortal Worker, rank_id:{}".format(self._rank_id))
-        logging.info("etcd_name:{} etcd_addr:{} etcd_base_dir:{}".format(
-            self._etcd_name, self._etcd_addrs, self._etcd_base_dir))
+        logging.info("Start DataPortal Worker, rank_id:{0!s}" \
+            .format(self._rank_id))
+        logging.info("etcd_name:{0!s} etcd_addr:{0!s} etcd_base_dir:{0!s}" \
+            .format(self._etcd_name, self._etcd_addrs, self._etcd_base_dir))
         self.run()
 
     def _make_partitioner_options(self, task):
@@ -183,7 +180,7 @@ class DataPortalWorkerService(object):
         self._raw_data_partitioner = RawDataSortPartitioner(
             partition_options, self._etcd_name, self._etcd_addrs,
             self._etcd_base_dir, self._use_mock_etcd)
-        logging.info("RawDataSortPartitioner rank_id:{}, partition_id:{} start"
+        logging.info("Partitioner rank_id:{0!s}, partition_id:{0!s} start"
             .format(self._rank_id, partition_options.partitioner_rank_id))
 
         self._raw_data_partitioner.start_process()
@@ -192,7 +189,7 @@ class DataPortalWorkerService(object):
     def _run_reduce_task(self, task):
         merge_options = self._make_merge_options(task)
         self._merger = Merge(merge_options, task.partition_id)
-        logging.info("Merger input_dir:{} rank_id:{} partition_id:{} started."
+        logging.info("Merger input_dir:{0!s} rank_id:{0!s} partition_id:{0!s} start"
             .format(task.map_base_dir, self._rank_id, task.partition_id))
 
         self._merger.generate_output()
@@ -211,18 +208,18 @@ class DataPortalWorkerService(object):
                 continue
             if response.HasField("map_task"):
                 task = response.map_task
-                logging.info("Receive map task, partition_id:{}, paths:{}"
+                logging.info("Receive map task partition_id:{0!s}, paths:{0!s}"
                     .format(task.partition_id, task.fpaths))
                 self._run_map_task(task)
                 self.finish_task(task.partition_id, dp_pb.PartState.kIdMap)
                 continue
             if response.HasField("reduce_task"):
                 task = response.reduce_task
-                logging.info("Receive reduce task, partition_id:{}, "
-                    " input_dir:{}".format(task.partition_id, 
-                        task.map_base_dir))
+                logging.info("Receive reduce task, " \
+                    "partition_id:{0!s}, input_dir:{0!s}" \
+                    .format(task.partition_id, task.map_base_dir))
                 self._run_reduce_task(task)
-                self.finish_task(task.partition_id, 
+                self.finish_task(task.partition_id,
                     dp_pb.PartState.kEventTimeReduce)
                 continue
 
