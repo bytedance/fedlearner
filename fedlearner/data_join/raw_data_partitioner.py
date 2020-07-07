@@ -29,7 +29,7 @@ from fedlearner.common.etcd_client import EtcdClient
 from fedlearner.data_join.item_batch_seq_processor import \
         ItemBatch, ItemBatchSeqProcessor
 from fedlearner.data_join.routine_worker import RoutineWorker
-from fedlearner.data_join.raw_data_visitor import MockRawDataVisitor
+from fedlearner.data_join.raw_data_visitor import FileBasedMockRawDataVisitor
 from fedlearner.data_join.csv_dict_writer import CsvDictWriter
 from fedlearner.data_join import common
 
@@ -60,7 +60,7 @@ class RawDataBatchFetcher(ItemBatchSeqProcessor):
         super(RawDataBatchFetcher, self).__init__(
                 options.batch_processor_options.max_flying_item,
             )
-        self._raw_data_visitor = MockRawDataVisitor(
+        self._raw_data_visitor = FileBasedMockRawDataVisitor(
                 etcd, options.raw_data_options,
                 '{}-partitioner-mock-data-source-{:04}'.format(
                         options.partitioner_name,

@@ -154,7 +154,7 @@ class RawDataVisitor(visitor.Visitor):
     def _new_iter(self):
         return create_raw_data_iter(self._raw_data_options)
 
-class MockRawDataVisitor(RawDataVisitor):
+class FileBasedMockRawDataVisitor(RawDataVisitor):
     def __init__(self, etcd, raw_data_options,
                  mock_data_source_name, input_fpaths):
         mock_data_source = common_pb.DataSource(
@@ -175,5 +175,32 @@ class MockRawDataVisitor(RawDataVisitor):
                                                start_index=-1))
             mock_rd_manifest_manager.add_raw_data(0, metas, True)
             mock_rd_manifest_manager.finish_raw_data(0)
-        super(MockRawDataVisitor, self).__init__(etcd, mock_data_source,
-                                                 0, raw_data_options)
+        super(FileBasedMockRawDataVisitor, self).__init__(
+                etcd, mock_data_source, 0, raw_data_options
+            )
+
+class EtcdBasedMockRawDataVisitor(RawDataVisitor):
+    def __init__(self, etcd, raw_data_options,
+                 mock_data_source_name, raw_data_sub_dir):
+        mock_data_source = common_pb.DataSource(
+                state=common_pb.DataSourceState.Processing,
+                data_source_meta=common_pb.DataSourceMeta(
+                    name=mock_data_source_name,
+                    partition_num=1,
+                    raw_data_sub_dir=raw_data_sub_dir
+                )
+            )
+        self._mock_rd_manifest_manager = RawDataManifestManager(
+                etcd, mock_data_source
+            )
+        super(EtcdBasedMockRawDataVisitor, self).__init__(
+                etcd, mock_data_source, 0, raw_data_options
+            )
+
+    def active_visitor(self):
+        self._mock_rd_manifest_manager.sub_new_raw_data()
+        if self.is_visitor_stale():
+            self._finished = False
+
+    def is_input_data_finish(self):
+        return self._mock_rd_manifest_manager.get_manifest(0).finished
