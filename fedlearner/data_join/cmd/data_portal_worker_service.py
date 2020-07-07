@@ -39,7 +39,7 @@ if __name__ == '__main__':
     parser.add_argument("--merge_buffer_size", type=int,
                         default=4096, help="the buffer size for merging")
     parser.add_argument("--write_buffer_size", type=int,
-                        default=10485760, 
+                        default=10485760,
                         help="the output buffer size (bytes) for partitioner")
     parser.add_argument("--input_data_file_iter", type=str, default="TF_RECORD",
                         help="the type for input data iterator")
