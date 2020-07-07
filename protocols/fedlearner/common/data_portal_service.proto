@@ -43,14 +43,18 @@ message DataPortalManifest {
   DataPortalType data_portal_type = 2;
   uint32 output_partition_num = 3;
   string input_file_wildcard = 4;
-  string base_dir = 5;
-  string raw_data_publish_dir = 6;
-  int64 next_job_id = 7;
+  string input_base_dir = 5;
+  string output_base_dir = 6;
+  string raw_data_publish_dir = 7;
+  int64 processing_job_id = 8;
+  int64 next_job_id = 9;
 }
 
-message PortalPart {
-  int64 rank_id = 1;
-  PartState task_part_state = 3;
+message PortalJobPart {
+  int64 job_id = 1;
+  int64 rank_id = 2;
+  int64 partition_id = 3;
+  PartState part_state = 4;
 }
 
 message NewTaskRequest {
@@ -66,7 +70,7 @@ message MapTask {
 
 message ReduceTask {
   string map_base_dir = 1;
-  string output_base_dir = 2;
+  string reduce_base_dir = 2;
   int64 partition_id = 3;
 }
 
@@ -83,6 +87,7 @@ message NewTaskResponse {
 message FinishTaskRequest {
   int64 rank_id = 1;
   int64 partition_id = 2;
+  PartState part_state = 3;
 }
 
 service DataPortalMasterService {
@@ -91,4 +96,9 @@ service DataPortalMasterService {
   rpc RequestNewTask(NewTaskRequest) returns (NewTaskResponse) {}
     
   rpc FinishTask(FinishTaskRequest) returns (Status) {}
+}
+
+message DataPotraMasterlOptions {
+  bool use_mock_etcd = 1;
+  bool long_running = 2;
 }
