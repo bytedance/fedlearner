@@ -155,16 +155,6 @@ class Merge(object):
         
         def get_tmp_fpath(self):
             return self._tmp_fpath
-        
-        # def destory(self):
-        #     if self._writer is not None:
-        #         self._writer.close()
-        #         self._writer = None
-        #     if gfile.Exists(self._tmp_fpath):
-        #         gfile.Remove(self._tmp_fpath)
-
-        # def __del__(self):
-        #     self.destory()
 
         def _get_output_writer(self):
             if self._writer is None:
