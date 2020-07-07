@@ -52,7 +52,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
     raw_data_options = dj_pb.RawDataOptions(
         raw_data_iter=args.input_data_file_iter,
-        compressed_type=args.compressed)
+        compressed_type=args.compressed_type)
     batch_processor_options = dj_pb.BatchProcessorOptions(
         batch_size=args.batch_size,
         max_flying_item=args.max_flying_item)
@@ -74,6 +74,6 @@ if __name__ == '__main__':
     
     data_portal_worker = DataPortalWorkerService(portal_worker_options,
         args.master_addr, args.rank_id, args.etcd_name,
-        args.etcd_addrs, args.etcd_base_dir, args.use_mock_etcd)
+        args.etcd_base_dir, args.etcd_addrs, args.use_mock_etcd)
     
     data_portal_worker.start()

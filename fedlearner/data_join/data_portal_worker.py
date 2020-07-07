@@ -125,6 +125,7 @@ class DataPortalWorkerService(object):
         self._sort_merger = None
         self._options = options
         self._use_mock_etcd = use_mock_etcd
+        logging.info("use_mock_etcd:{}".format(self._use_mock_etcd))
     
     def request_new_task(self):
         request = dp_pb.NewTaskRequest()
@@ -137,10 +138,11 @@ class DataPortalWorkerService(object):
                   " and retry. Exception {}".format(e))
             time.sleep(2)
 
-    def finish_task(self, partition_id):
+    def finish_task(self, partition_id, part_state):
         request = dp_pb.FinishTaskRequest()
         request.rank_id = self._rank_id
         request.partition_id = partition_id
+        request.part_state = part_state
         while True:
             try:
                 self._master_client.FinishTask(request)
@@ -170,10 +172,9 @@ class DataPortalWorkerService(object):
     def _make_merge_options(self, task):
         merge_options = self._options.merge_options
         merge_options.output_builder = "TF_RECORD"
-        merge_options.input_dir = task.map_base_dir
         merge_options.input_dir = os.path.join(task.map_base_dir, \
             common.partition_repr(task.partition_id))
-        merge_options.output_dir = task.output_base_dir
+        merge_options.output_dir = task.reduce_base_dir
         merge_options.partition_id = task.partition_id
         merge_options.fpath.extend(gfile.ListDirectory(merge_options.input_dir))
         return merge_options
@@ -185,14 +186,16 @@ class DataPortalWorkerService(object):
             self._etcd_base_dir, self._use_mock_etcd)
         logging.info("RawDataSortPartitioner rank_id:{}, partition_id:{} started."
             .format(self._rank_id, partition_options.partitioner_rank_id))
+
         self._raw_data_partitioner.start_process()
         self._raw_data_partitioner.wait_for_finished()
 
     def _run_reduce_task(self, task):
         merge_options = self._make_merge_options(task)
         self._merger = Merge(merge_options, task.partition_id)
-        logging.info("Merger rank_id:{} partition_id:{} started."
-            .format(self._rank_id, task.partition_id))
+        logging.info("Merger input_dir:{} rank_id:{} partition_id:{} started."
+            .format(task.map_base_dir, self._rank_id, task.partition_id))
+
         self._merger.generate_output()
         self._merger.finish()
     
@@ -209,14 +212,17 @@ class DataPortalWorkerService(object):
                 continue
             if response.HasField("map_task"):
                 task = response.map_task
-                logging.info("Receive map task, partition_id:{}".format(task.partition_id))
+                logging.info("Receive map task, partition_id:{}, paths:{}"
+                    .format(task.partition_id, task.fpaths))
                 self._run_map_task(task)
-                self.finish_task(task.partition_id)
+                self.finish_task(task.partition_id, dp_pb.PartState.kIdMap)
                 continue
             if response.HasField("reduce_task"):
-                logging.info("Receive reduce task and running")
+                task = response.reduce_task
+                logging.info("Receive reduce task, partition_id:{}, input_dir:{}"
+                    .format(task.partition_id, task.map_base_dir))
                 self._run_reduce_task(task)
-                self.finish_task(task.partition_id)
+                self.finish_task(task.partition_id, dp_pb.PartState.kEventTimeReduce)
                 continue
 
             logging.warning("the response from master is invalid.")

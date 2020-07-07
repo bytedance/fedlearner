@@ -94,7 +94,6 @@ class Merge(object):
                     self._finished = True
             raise StopIteration("%s has been iter finished" % self._fpath)
 
-    FileSuffix = '.pd'
     class FileMeta(object):
         def __init__(self, partition_id, begin_index, end_index):
             self._partition_id = partition_id
@@ -104,7 +103,7 @@ class Merge(object):
         def encode_meta_to_fname(self):
             return '{:04}.{:010}-{:010}{}'.format(
                 self._partition_id, self._begin_index, 
-                self._end_index, Merge.FileSuffix)
+                self._end_index, common.RawDataFileSuffix)
 
 
     class OutputFileWriter(object):
@@ -157,15 +156,15 @@ class Merge(object):
         def get_tmp_fpath(self):
             return self._tmp_fpath
         
-        def destory(self):
-            if self._writer is not None:
-                self._writer.close()
-                self._writer = None
-            if gfile.Exists(self._tmp_fpath):
-                gfile.Remove(self._tmp_fpath)
+        # def destory(self):
+        #     if self._writer is not None:
+        #         self._writer.close()
+        #         self._writer = None
+        #     if gfile.Exists(self._tmp_fpath):
+        #         gfile.Remove(self._tmp_fpath)
 
-        def __del__(self):
-            self.destory()
+        # def __del__(self):
+        #     self.destory()
 
         def _get_output_writer(self):
             if self._writer is None:
@@ -229,7 +228,7 @@ class Merge(object):
     
     def finish(self):
         success_path = "{}/{}".format(self._output_dir, "_SUCCESS")
-        with tf.io.GFile(success_path) as f:
+        with gfile.GFile(success_path, 'w') as f:
             f.write("")
 
     def generate_output(self):

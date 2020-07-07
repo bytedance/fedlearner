@@ -54,7 +54,7 @@ if __name__ == "__main__":
                         help='the raw data publish dir in etcd')
     parser.add_argument('--use_mock_etcd', action='store_true',
                         help='use to mock etcd for test')
-    parser.add_argument('--long_runing', action='store_true',
+    parser.add_argument('--long_running', action='store_true',
                         help='make the data portal long running')
     args = parser.parse_args()
 
