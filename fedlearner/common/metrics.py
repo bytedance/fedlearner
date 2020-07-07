@@ -14,6 +14,8 @@
 
 # coding: utf-8
 
+import logging
+import os
 try:
     import thread
     import threading
@@ -61,6 +63,32 @@ class Handler(object):
                                   'by Handler subclasses')
 
 
+class loggingHandler(Handler):
+    def __init__(self):
+        super(loggingHandler, self).__init__('logging')
+
+    def emit(self, name, value, tags=None, metrics_type=None):
+        logging.info('[metrics] name[%s] value[%s] tags[%s]', name, value,
+                     str(tags))
+
+
+class elasticSearchHandler(Handler):
+    def __init__(self, ip, port):
+        from elasticsearch import Elasticsearch
+        self._es = Elasticsearch([ip], port=port)
+        # initialize index for elastic search
+        if self._es.indices.exists(index='metrics') is not True:
+            self._es.indices.create(index='metrics')
+
+    def emit(self, name, value, tags=None, metrics_type=None):
+        action = {
+            "name": name,
+            "value": value,
+            "tags": tags,
+        }
+        self._es.index(index="metrics", doc_type="doc_type", body=action)
+
+
 class Metrics(object):
     def __init__(self):
         self.handlers = []
@@ -71,7 +99,7 @@ class Metrics(object):
         """
         _acquireLock()
         try:
-            if not (hdlr in self.handlers): # pylint: disable=superfluous-parens
+            if not (hdlr in self.handlers):  # pylint: disable=superfluous-parens
                 self.handlers.append(hdlr)
         finally:
             _releaseLock()
@@ -95,13 +123,25 @@ class Metrics(object):
         for hdlr in self.handlers:
             try:
                 hdlr.emit(name, value, tags, metrics_type)
-            except Exception as e: # pylint: disable=broad-except
+            except Exception as e:  # pylint: disable=broad-except
                 print('hdlr [%s] emit failed. [%s]' %
                       (hdlr.get_name(), repr(e)))
 
+
+def initialize_metrics():
+
+    if os.environ.get('ES_HOST', None) and os.environ.get('ES_PORT', None):
+        handler = elasticSearchHandler(os.environ['ES_HOST'],
+                                       os.environ['ES_PORT'])
+        metrics_config(handler)
+    else:
+        handler = loggingHandler()
+        metrics_config(handler)
+
+
 def metrics_config(handler):
     _acquireLock()
-    global _metrics_client # pylint: disable=global-statement
+    global _metrics_client  # pylint: disable=global-statement
     try:
         if not _metrics_client:
             _metrics_client = Metrics()
@@ -112,20 +152,20 @@ def metrics_config(handler):
 
 def emit_counter(name, value, tags=None):
     if not _metrics_client:
-        # must configure metrics client in program main function.
+        initialize_metrics()
         return
     _metrics_client.emit(name, value, tags, 'counter')
 
 
 def emit_store(name, value, tags=None):
     if not _metrics_client:
-        # must configure metrics client in program main function.
+        initialize_metrics()
         return
     _metrics_client.emit(name, value, tags, 'store')
 
 
 def emit_timer(name, value, tags=None):
     if not _metrics_client:
-        # must configure metrics client in program main function.
+        initialize_metrics()
         return
     _metrics_client.emit(name, value, tags, 'timer')
