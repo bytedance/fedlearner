@@ -55,7 +55,7 @@ class TestRawDataVisitor(unittest.TestCase):
             if no_data:
                 fname = "{}.no_data".format(i)
             else:
-                fname = "{}.rd".format(i)
+                fname = "{}{}".format(i, common.RawDataFileSuffix)
             fpath = os.path.join(partition_dir, fname)
             fpaths.append(dj_pb.RawDataMeta(file_path=fpath,
                                       timestamp=timestamp_pb2.Timestamp(seconds=3)))

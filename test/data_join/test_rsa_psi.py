@@ -92,7 +92,7 @@ class RsaPsi(unittest.TestCase):
         csv_writers = []
         partition_num = self._data_source_l.data_source_meta.partition_num
         for partition_id in range(partition_num):
-            fpath = os.path.join(base_dir, str(partition_id)+'.rd')
+            fpath = os.path.join(base_dir, str(partition_id)+common.RawDataFileSuffix)
             fpaths.append(fpath)
             csv_writers.append(csv_dict_writer.CsvDictWriter(fpath))
         for item in cands:

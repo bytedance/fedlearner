@@ -35,6 +35,7 @@ MergedSortRunSuffix = '-sort_run.merged'
 InvalidExampleId = ''
 TmpFileSuffix = '.tmp'
 DoneFileSuffix = '.done'
+RawDataFileSuffix = '.rd'
 InvalidEventTime = -9223372036854775808
 
 @contextmanager
