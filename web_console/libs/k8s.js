@@ -13,7 +13,6 @@ const config = getConfig({
 
 class KubernetesClient {
   constructor() {
-    // TODO: use HTTPs for production
     const prefixUrl = `http://${config.K8S_HOST}:${config.K8S_PORT}`;
     this.prefixUrl = prefixUrl;
     this.client = ky.create({ prefixUrl });
@@ -61,4 +60,4 @@ class KubernetesClient {
   }
 }
 
-module.exports = KubernetesClient;
+module.exports = new KubernetesClient();

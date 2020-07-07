@@ -3,6 +3,8 @@ const grpc = require('@grpc/grpc-js');
 const protoLoader = require('@grpc/proto-loader');
 const { Op } = require('sequelize');
 const { Federation, Job, Ticket } = require('../models');
+const k8s = require('../libs/k8s');
+const { serverGenerateYaml, validateTicket } = require('../utils/job_builder');
 
 const packageDefinition = protoLoader.loadSync(
   path.resolve(__dirname, 'meta.proto'),
@@ -25,27 +27,13 @@ const pkg = grpc.loadPackageDefinition(packageDefinition);
 async function authenticate(metadata) {
   const headers = metadata.toHttp2Headers();
   const name = headers['x-federation'];
-  const fingerprint = headers['x-fingerprint'];
   const federation = await Federation.findOne({
     where: {
       name: { [Op.eq]: name },
-      fingerprint: { [Op.eq]: fingerprint },
     },
   });
   if (!federation) throw new Error('Unauthorized');
   return federation;
-}
-
-/**
- * validate ticket and params, just throw error if validation failed
- *
- * @param {Object} ticket - a Ticket model instance
- * @param {Object} params - a JSON object
- * @return {boolean}
- */
-function validateTicketParams(ticket, params) {
-  // TODO: @piiswrong
-  return true;
 }
 
 /**
@@ -54,11 +42,17 @@ function validateTicketParams(ticket, params) {
 async function getTickets(call, callback) {
   try {
     const federation = await authenticate(call.metadata);
-    const data = await Ticket.findAll({
-      where: {
-        federation_id: { [Op.eq]: federation.id },
-      },
-    });
+    const { role, job_type } = call.request;
+    const where = {
+      federation_id: { [Op.eq]: federation.id },
+    };
+    if (role) {
+      where.role = { [Op.eq]: role };
+    }
+    if (job_type) {
+      where.job_type = { [Op.eq]: job_type };
+    }
+    const data = await Ticket.findAll({ where });
     callback(null, { data });
   } catch (err) {
     callback(err);
@@ -71,8 +65,10 @@ async function getTickets(call, callback) {
  * - `server` stands for responder
  */
 async function createJob(call, callback) {
+  let job;
+
   try {
-    await authenticate(call.metadata);
+    const federation = await authenticate(call.metadata);
 
     const {
       name,
@@ -89,7 +85,7 @@ async function createJob(call, callback) {
     });
     if (!ticketRecord) throw new Error('Ticket not found');
     const params = JSON.parse(client_params);
-    validateTicketParams(ticketRecord, params);
+    validateTicket(ticketRecord, params);
 
     const [data, created] = await Job.findOrCreate({
       paranoid: false,
@@ -103,10 +99,14 @@ async function createJob(call, callback) {
         server_ticket_name,
         server_params: JSON.parse(server_params),
         client_params: JSON.parse(client_params),
+        k8s_name: name,
       },
     });
     if (!created) throw new Error('Job already exists');
-    // TODO: create k8s job here
+    job = data;
+
+    await k8s.createFLApp('default', serverGenerateYaml(federation, job, ticketRecord));
+
     callback(null, {
       data: {
         name: data.name,
@@ -118,6 +118,9 @@ async function createJob(call, callback) {
       },
     });
   } catch (err) {
+    if (job) {
+      await job.destroy({ force: true });
+    }
     callback(err);
   }
 }
@@ -131,7 +134,8 @@ async function deleteJob(call, callback) {
       },
     });
     if (!job) throw new Error('Job not found');
-    await job.destroy();
+    await k8s.deleteFLApp('default', job.k8s_name);
+    await job.destroy({ force: true });
     callback(null, { message: 'Delete job successfully' });
   } catch (err) {
     callback(err);

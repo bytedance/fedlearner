@@ -1,9 +1,10 @@
 const router = require('@koa/router')();
 const { Op } = require('sequelize');
 const SessionMiddleware = require('../middlewares/session');
-const KubernetesClient = require('../libs/k8s');
-const ElasticSearchClient = require('../libs/es');
+const k8s = require('../libs/k8s');
+const es = require('../libs/es');
 const { Job, Ticket, Federation } = require('../models');
+const FederationClient = require('../rpc/client');
 const getConfig = require('../utils/get_confg');
 const checkParseJson = require('../utils/check_parse_json');
 const {
@@ -17,9 +18,6 @@ const config = getConfig({
   NAMESPACE: process.env.NAMESPACE,
 });
 const namespace = config.NAMESPACE;
-
-const k8s = new KubernetesClient();
-const es = new ElasticSearchClient();
 
 let es_oparator_match_phrase;
 try {
@@ -98,7 +96,6 @@ router.get('/api/v1/job/pod/:pod_name/logs', SessionMiddleware, async (ctx) => {
   ctx.body = { data: logs };
 });
 
-// TODO: gRPC
 router.post('/api/v1/job', SessionMiddleware, async (ctx) => {
   const { name, job_type, client_ticket_name, server_ticket_name } = ctx.request.body;
 
@@ -137,8 +134,6 @@ router.post('/api/v1/job', SessionMiddleware, async (ctx) => {
     return;
   }
 
-  // TODO: server validate & create job
-
   const clientTicket = await Ticket.findOne({
     where: {
       name: { [Op.eq]: client_ticket_name },
@@ -170,6 +165,17 @@ router.post('/api/v1/job', SessionMiddleware, async (ctx) => {
     };
     return;
   }
+  const rpcClient = new FederationClient(clientFed);
+  try {
+    await rpcClient.createJob(job);
+  } catch (err) {
+    ctx.status = 500;
+    ctx.body = {
+      error: err.details,
+    };
+    return;
+  }
+
   const clientYaml = clientGenerateYaml(clientFed, job, clientTicket);
 
   const res = await k8s.createFLApp(namespace, clientYaml);
@@ -212,8 +218,21 @@ router.delete('/api/v1/job/:name', SessionMiddleware, async (ctx) => {
     return;
   }
 
-  // TODO: the other side delete
-
+  const ticket = await Ticket.findOne({
+    where: {
+      name: { [Op.eq]: data.client_ticket_name },
+    },
+  });
+  const rpcClient = new FederationClient(ticket.federation);
+  try {
+    await rpcClient.deleteJob({ name });
+  } catch (err) {
+    ctx.status = 500;
+    ctx.body = {
+      error: err.details,
+    };
+    return;
+  }
   await k8s.deleteFLApp(namespace, data.k8s_name);
   await data.destroy();
 

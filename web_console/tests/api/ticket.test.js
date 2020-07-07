@@ -129,7 +129,7 @@ describe('Ticket System', () => {
         .expect(200)
         .end((err, res) => {
           if (err) done(err);
-          assert.ok(res.body.data.find((x) => x.federation_id === leader.id && x.name === leaderTicket.name));
+          assert.ok(res.body.data.find((x) => x.federation_id === leader.id && x.name === followerTicket.name));
           done();
         });
     });

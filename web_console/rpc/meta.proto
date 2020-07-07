@@ -10,8 +10,9 @@ message Ticket {
   string job_type = 2;
   string role = 3;
   string sdk_version = 4;
-  string comment = 5;
-  string params = 6;
+  string expire_time = 5;
+  string remark = 6;
+  string params = 7;
 }
 
 message Job {
@@ -26,8 +27,6 @@ message Job {
 message GetTicketsRequest {
   string job_type = 1;
   string role = 2;
-  int32 offset = 3;
-  int32 limit = 4;
 }
 
 message GetTicketsResponse {
