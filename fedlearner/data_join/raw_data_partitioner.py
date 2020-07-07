@@ -101,7 +101,6 @@ class RawDataBatchFetcher(ItemBatchSeqProcessor):
                 self._raw_data_visitor.finished()
 
 class RawDataPartitioner(object):
-    FileSuffix = '.rd'
     class FileMeta(object):
         def __init__(self, rank_id, process_index, begin_index, end_index):
             self._rank_id = rank_id
@@ -133,13 +132,13 @@ class RawDataPartitioner(object):
         def encode_meta_to_fname(self):
             return '{:04}.{:08}.{:010}-{:010}{}'.format(
                     self.rank_id, self.process_index, self.begin_index,
-                    self.end_index, RawDataPartitioner.FileSuffix
+                    self.end_index, common.RawDataFileSuffix
                 )
 
         @classmethod
         def decode_meta_from_fname(cls, fname):
-            assert fname.endswith(RawDataPartitioner.FileSuffix)
-            segs = re.split('\.|-', fname[:-len(RawDataPartitioner.FileSuffix)]) # pylint: disable=anomalous-backslash-in-string
+            assert fname.endswith(common.RawDataFileSuffix)
+            segs = re.split('\.|-', fname[:-len(common.RawDataFileSuffix)]) # pylint: disable=anomalous-backslash-in-string
             assert len(segs) == 4
             return RawDataPartitioner.FileMeta(int(segs[0]), int(segs[1]),
                                                int(segs[2]), int(segs[3]))
@@ -415,7 +414,7 @@ class RawDataPartitioner(object):
             gfile.MakeDirs(dumped_dir)
         assert gfile.IsDirectory(dumped_dir)
         fnames = [os.path.basename(f) for f in gfile.ListDirectory(dumped_dir)
-                  if f.endswith(RawDataPartitioner.FileSuffix)]
+                  if f.endswith(common.RawDataFileSuffix)]
         metas = [RawDataPartitioner.FileMeta.decode_meta_from_fname(f)
                  for f in fnames]
         return [meta for meta in metas \
