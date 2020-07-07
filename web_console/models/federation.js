@@ -40,17 +40,11 @@ module.exports = (sequelize, DataTypes) => {
       default: null,
       comment: 'the web console endpoint',
     },
-    token: {
-      type: DataTypes.STRING(16),
+    fingerprint: {
+      type: DataTypes.STRING(64),
       allowNull: true,
       default: null,
-      comment: 'client-side certificate',
-    },
-    cipher: {
-      type: DataTypes.STRING(200),
-      allowNull: true,
-      default: null,
-      comment: 'used for authorization. null stands for a passive pair, others stands for initiative pair',
+      comment: 'fingerprint generated from RSA public key',
     },
     k8s_settings: {
       type: DataTypes.TEXT('long'),

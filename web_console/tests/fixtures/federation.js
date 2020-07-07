@@ -6,8 +6,7 @@ module.exports = {
     tel: null,
     avatar: 'https://foo.com/leader.png',
     domain: 'fl.foo.com',
-    token: 'edc47defa1480cde',
-    cipher: 'b2363d388f0dc58a',
+    fingerprint: 'edc47defa1480cde',
   },
   follower: {
     name: 'follower',
@@ -16,7 +15,6 @@ module.exports = {
     tel: null,
     avatar: 'https://bar.com/follower.png',
     domain: 'fl.bar.com',
-    token: 'edc47defa1480cde',
-    cipher: 'b2363d388f0dc58a',
+    fingerprint: 'b2363d388f0dc58a',
   },
 };
