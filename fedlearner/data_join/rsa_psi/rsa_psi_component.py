@@ -136,7 +136,7 @@ class IdBatchFetcher(ItemBatchSeqProcessor):
             )
 
     def _create_etcd_based_mock_visitor(self):
-        return FileBasedMockRawDataVisitor(
+        return EtcdBasedMockRawDataVisitor(
                 self._etcd,
                 dj_pb.RawDataOptions(raw_data_iter='CSV_DICT',
                                      read_ahead_size=134217728),
