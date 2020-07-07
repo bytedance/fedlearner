@@ -63,7 +63,7 @@ class DataPortalMaster(unittest.TestCase):
         if gfile.Exists(portal_input_base_dir):
             gfile.DeleteRecursively(portal_input_base_dir)
         gfile.MakeDirs(portal_input_base_dir)
-        all_fnames = ['{}.done' for i in range(100)]
+        all_fnames = ['{}.done'.format(i) for i in range(100)]
         all_fnames.append('{}.xx'.format(100))
         for fname in all_fnames:
             fpath = os.path.join(portal_input_base_dir, fname)
@@ -76,7 +76,7 @@ class DataPortalMaster(unittest.TestCase):
             )
         data_portal_master = DataPortalMasterService(
                 int(portal_master_addr.split(':')[1]),
-                portal_name, etcd_name, etcd_base_dir,
+                data_portal_name, etcd_name, etcd_base_dir,
                 etcd_addrs, portal_options
             )
         data_portal_master.start()
@@ -98,7 +98,7 @@ class DataPortalMaster(unittest.TestCase):
         task_0 = portal_master_cli.RequestNewTask(dp_pb.NewTaskRequest(rank_id=0))
         task_0_1 = portal_master_cli.RequestNewTask(dp_pb.NewTaskRequest(rank_id=0))
         self.assertEqual(task_0, task_0_1)
-        self.assertEqual(task_0.HasField('map_task'))
+        self.assertTrue(task_0.HasField('map_task'))
         mapped_partition.add(task_0.map_task.partition_id)
         self._check_map_task(task_0.map_task, all_fnames,
                              task_0.map_task.partition_id,
@@ -108,21 +108,21 @@ class DataPortalMaster(unittest.TestCase):
             part_state=dp_pb.PartState.kIdMap)
         )
         task_1 = portal_master_cli.RequestNewTask(dp_pb.NewTaskRequest(rank_id=0))
-        self.assertEqual(task_1.HasField('map_task'))
+        self.assertTrue(task_1.HasField('map_task'))
         mapped_partition.add(task_1.map_task.partition_id)
         self._check_map_task(task_1.map_task, all_fnames,
                              task_1.map_task.partition_id,
                              portal_manifest)
 
         task_2 = portal_master_cli.RequestNewTask(dp_pb.NewTaskRequest(rank_id=1))
-        self.assertEqual(task_2.HasField('map_task'))
+        self.assertTrue(task_2.HasField('map_task'))
         mapped_partition.add(task_2.map_task.partition_id)
         self._check_map_task(task_2.map_task, all_fnames,
                              task_2.map_task.partition_id,
                              portal_manifest)
 
         task_3 = portal_master_cli.RequestNewTask(dp_pb.NewTaskRequest(rank_id=2))
-        self.assertEqual(task_3.HasField('map_task'))
+        self.assertTrue(task_3.HasField('map_task'))
         mapped_partition.add(task_3.map_task.partition_id)
         self._check_map_task(task_3.map_task, all_fnames,
                              task_3.map_task.partition_id,
@@ -131,22 +131,22 @@ class DataPortalMaster(unittest.TestCase):
         self.assertEqual(len(mapped_partition), portal_manifest.output_partition_num)
 
         portal_master_cli.FinishTask(dp_pb.FinishTaskRequest(
-            rank_id=0, partition_i=task_1.map_task.partition_id,
+            rank_id=0, partition_id=task_1.map_task.partition_id,
             part_state=dp_pb.PartState.kIdMap)
         )
 
-        pending_1 = portal_master_cli.RequestNewTask(dp_pb.NewTaskRequest(rank_id=0))
-        self.assertEqual(pending_1.HasField('pending'))
+        pending_1 = portal_master_cli.RequestNewTask(dp_pb.NewTaskRequest(rank_id=4))
+        self.assertTrue(pending_1.HasField('pending'))
         pending_2 = portal_master_cli.RequestNewTask(dp_pb.NewTaskRequest(rank_id=3))
-        self.assertEqual(pending_2.HasField('pending'))
+        self.assertTrue(pending_2.HasField('pending'))
 
         portal_master_cli.FinishTask(dp_pb.FinishTaskRequest(
-            rank_id=1, partition_i=task_2.map_task.partition_id,
+            rank_id=1, partition_id=task_2.map_task.partition_id,
             part_state=dp_pb.PartState.kIdMap)
         )
 
         portal_master_cli.FinishTask(dp_pb.FinishTaskRequest(
-            rank_id=2, partition_i=task_3.map_task.partition_id,
+            rank_id=2, partition_id=task_3.map_task.partition_id,
             part_state=dp_pb.PartState.kIdMap)
         )
 
@@ -154,76 +154,79 @@ class DataPortalMaster(unittest.TestCase):
         task_4 = portal_master_cli.RequestNewTask(dp_pb.NewTaskRequest(rank_id=0))
         task_4_1 = portal_master_cli.RequestNewTask(dp_pb.NewTaskRequest(rank_id=0))
         self.assertEqual(task_4, task_4_1)
-        self.assertEqual(task_4.HasField('reduce_task'))
+        self.assertTrue(task_4.HasField('reduce_task'))
         reduce_partition.add(task_4.reduce_task.partition_id)
         self._check_reduce_task(task_4.reduce_task,
                                 task_4.reduce_task.partition_id,
                                 portal_manifest)
         task_5 = portal_master_cli.RequestNewTask(dp_pb.NewTaskRequest(rank_id=1))
-        self.assertEqual(task_5.HasField('reduce_task'))
+        self.assertTrue(task_5.HasField('reduce_task'))
         reduce_partition.add(task_5.reduce_task.partition_id)
         self._check_reduce_task(task_5.reduce_task,
                                 task_5.reduce_task.partition_id,
                                 portal_manifest)
         task_6 = portal_master_cli.RequestNewTask(dp_pb.NewTaskRequest(rank_id=2))
-        self.assertEqual(task_6.HasField('reduce_task'))
+        self.assertTrue(task_6.HasField('reduce_task'))
         reduce_partition.add(task_6.reduce_task.partition_id)
         self._check_reduce_task(task_6.reduce_task,
                                 task_6.reduce_task.partition_id,
                                 portal_manifest)
         task_7= portal_master_cli.RequestNewTask(dp_pb.NewTaskRequest(rank_id=3))
-        self.assertEqual(task_7.HasField('reduce_task'))
+        self.assertTrue(task_7.HasField('reduce_task'))
         reduce_partition.add(task_7.reduce_task.partition_id)
         self.assertEqual(len(reduce_partition), 4)
         self._check_reduce_task(task_7.reduce_task,
                                 task_7.reduce_task.partition_id,
                                 portal_manifest)
 
-        task_7= portal_master_cli.RequestNewTask(dp_pb.NewTaskRequest(rank_id=5))
-        self.assertEqual(task_7.HasField('finished'))
+        task_8= portal_master_cli.RequestNewTask(dp_pb.NewTaskRequest(rank_id=5))
+        self.assertTrue(task_8.HasField('pending'))
 
         portal_master_cli.FinishTask(dp_pb.FinishTaskRequest(
-            rank_id=0, partition_i=task_4.reduce_task.partition_id,
+            rank_id=0, partition_id=task_4.reduce_task.partition_id,
             part_state=dp_pb.PartState.kEventTimeReduce)
         )
         portal_master_cli.FinishTask(dp_pb.FinishTaskRequest(
-            rank_id=1, partition_i=task_5.reduce_task.partition_id,
+            rank_id=1, partition_id=task_5.reduce_task.partition_id,
             part_state=dp_pb.PartState.kEventTimeReduce)
         )
         portal_master_cli.FinishTask(dp_pb.FinishTaskRequest(
-            rank_id=2, partition_i=task_6.reduce_task.partition_id,
+            rank_id=2, partition_id=task_6.reduce_task.partition_id,
             part_state=dp_pb.PartState.kEventTimeReduce)
         )
         portal_master_cli.FinishTask(dp_pb.FinishTaskRequest(
-            rank_id=3, partition_i=task_7.reduce_task.partition_id,
+            rank_id=3, partition_id=task_7.reduce_task.partition_id,
             part_state=dp_pb.PartState.kEventTimeReduce)
         )
 
+        task_9= portal_master_cli.RequestNewTask(dp_pb.NewTaskRequest(rank_id=5))
+        self.assertTrue(task_9.HasField('finished'))
 
-        data_join_master.stop()
+        data_portal_master.stop()
+        gfile.DeleteRecursively(portal_input_base_dir)
 
     def _check_portal_job(self, etcd, fnames, portal_manifest, job_id):
         etcd_key = common.portal_job_etcd_key(portal_manifest.name, job_id)
         data = etcd.get_data(etcd_key)
         self.assertIsNotNone(data)
-        portal_job = text_format.Parse(data, dp_pb.PortalJobPart())
+        portal_job = text_format.Parse(data, dp_pb.DataPortalJob())
         self.assertEqual(job_id, portal_job.job_id)
         self.assertFalse(portal_job.finished)
         fnames.sort()
-        fpaths = [os.path.join(portal_manifest.input_base_dir) for f in fnames 
-                  if fnmatch(f, portal_manifest.wildcard)]
+        fpaths = [os.path.join(portal_manifest.input_base_dir, f) for f in fnames 
+                  if fnmatch(f, portal_manifest.input_file_wildcard)]
         self.assertEqual(len(fpaths), len(portal_job.fpaths))
         for index, fpath in enumerate(fpaths):
             self.assertEqual(fpath, portal_job.fpaths[index])
 
     def _check_map_task(self, map_task, fnames, partition_id, portal_manifest):
-        self.assertEqual(map_task.partition_num, portal_manifest.output_partition_num)
+        self.assertEqual(map_task.output_partition_num, portal_manifest.output_partition_num)
         fnames.sort()
-        fpaths = [os.path.join(portal_manifest.input_base_dir) for f in fnames 
-                  if (fnmatch(f, portal_manifest.wildcard) and \
-                          hash(f) % map_task.partition_num == partition_id)]
+        fpaths = [os.path.join(portal_manifest.input_base_dir, f) for f in fnames 
+                  if (fnmatch(f, portal_manifest.input_file_wildcard) and \
+                          hash(f) % map_task.output_partition_num == partition_id)]
         self.assertEqual(len(fpaths), len(map_task.fpaths))
-        for index, fpaths in enumerate(fpaths):
+        for index, fpath in enumerate(fpaths):
             self.assertEqual(fpath, map_task.fpaths[index])
         self.assertEqual(map_task.output_base_dir,
                          common.portal_map_output_dir(portal_manifest.output_base_dir,

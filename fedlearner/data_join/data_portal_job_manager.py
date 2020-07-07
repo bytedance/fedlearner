@@ -62,8 +62,9 @@ class DataPortalJobManager(object):
                                                        dp_pb.PartState.kIdMap)
                 if partition_id is not None:
                     return False, self._create_map_task(rank_id, partition_id)
-                if self._portal_manifest.data_portal_type == \
-                        dp_pb.DataPortalType.Streaming:
+                if self._all_job_part_mapped() and \
+                        (self._portal_manifest.data_portal_type ==
+                                dp_pb.DataPortalType.Streaming):
                     partition_id = self._try_to_alloc_part(
                             rank_id,
                             dp_pb.PartState.kIdMapped,
@@ -71,6 +72,8 @@ class DataPortalJobManager(object):
                         )
                     if partition_id is not None:
                         return False, self._create_reduce_task(partition_id)
+                return (not self._long_running and
+                            self._all_job_part_finished()), None
             return not self._long_running, None
 
     def finish_task(self, rank_id, partition_id, part_state):
@@ -99,6 +102,26 @@ class DataPortalJobManager(object):
             if self._sync_processing_job() is None and self._long_running:
                 self._launch_new_portal_job()
 
+    def _all_job_part_mapped(self):
+        processing_job = self._sync_processing_job()
+        assert processing_job is not None
+        job_id = processing_job.job_id
+        for partition_id in range(self._output_partition_num):
+            job_part = self._sync_job_part(job_id, partition_id)
+            if job_part.part_state <= dp_pb.PartState.kIdMap:
+                return False
+        return True
+
+    def _all_job_part_finished(self):
+        processing_job = self._sync_processing_job()
+        assert processing_job is not None
+        job_id = self._processing_job.job_id
+        for partition_id in range(self._output_partition_num):
+            job_part = self._sync_job_part(job_id, partition_id)
+            if not self._is_job_part_finished(job_part):
+                return False
+        return True
+
     def _finish_job_part(self, job_id, partition_id, src_state, target_state):
         job_part = self._sync_job_part(job_id, partition_id)
         assert job_part is not None and job_part.part_state == src_state
@@ -118,7 +141,8 @@ class DataPortalJobManager(object):
                 map_fpaths.append(fpath)
         return dp_pb.MapTask(fpaths=map_fpaths,
                              output_base_dir=self._map_output_dir(job.job_id),
-                             output_partition_num=self._output_partition_num)
+                             output_partition_num=self._output_partition_num,
+                             partition_id=partition_id)
 
     def _create_reduce_task(self, partition_id):
         assert self._processing_job is not None
@@ -161,7 +185,7 @@ class DataPortalJobManager(object):
         return None
 
     def _sync_processing_job(self):
-        self._sync_portal_manifest()
+        assert self._sync_portal_manifest() is not None
         if self._portal_manifest.processing_job_id < 0:
             self._processing_job = None
         elif self._processing_job is None or \
@@ -195,7 +219,7 @@ class DataPortalJobManager(object):
         self._portal_manifest = new_portal_manifest
 
     def _launch_new_portal_job(self):
-        assert self._sync_portal_manifest() is None
+        assert self._sync_processing_job() is None
         all_fpaths = self._list_input_dir()
         rest_fpaths = []
         for fpath in all_fpaths:
@@ -212,15 +236,14 @@ class DataPortalJobManager(object):
         self._update_processing_job(new_job)
         new_portal_manifest = dp_pb.DataPortalManifest()
         new_portal_manifest.MergeFrom(portal_mainifest)
-        new_portal_manifest.next_process_index += 1
+        new_portal_manifest.next_job_id += 1
         new_portal_manifest.processing_job_id = new_job.job_id
         self._update_portal_manifest(new_portal_manifest)
         for partition_id in range(self._output_partition_num):
             self._sync_job_part(new_job.job_id, partition_id)
 
     def _list_input_dir(self):
-        input_dir = path.join(self._portal_manifest.input_base_dir,
-                              self._portal_name)
+        input_dir = self._portal_manifest.input_base_dir
         fnames = gfile.ListDirectory(input_dir)
         if len(self._portal_manifest.input_file_wildcard) > 0:
             wildcard = self._portal_manifest.input_file_wildcard
@@ -257,12 +280,8 @@ class DataPortalJobManager(object):
         self._job_part_map[partition_id] = job_part
 
     def _check_processing_job_finished(self):
-        assert self._processing_job is not None
-        job_id = self._processing_job.job_id
-        for partition_id in range(self._output_partition_num):
-            job_part = self._sync_job_part(job_id, partition_id)
-            if not self._is_job_part_finished(job_part):
-                return False
+        if not self._all_job_part_finished():
+            return False
         finished_job = dp_pb.DataPortalJob()
         finished_job.MergeFrom(self._processing_job)
         finished_job.finished = True

@@ -89,7 +89,7 @@ class DataPortalMasterService(object):
                           portal_options.use_mock_etcd)
         self._data_portal_master = DataPortalMaster(portal_name, etcd,
                                                     portal_options)
-        dp_grpc.add_DataPortalServiceServicer_to_server(
+        dp_grpc.add_DataPortalMasterServiceServicer_to_server(
                 self._data_portal_master, self._server
             )
         self._server.add_insecure_port('[::]:%d'%listen_port)
@@ -98,7 +98,7 @@ class DataPortalMasterService(object):
     def start(self):
         if not self._server_started:
             self._server.start()
-            self._data_join_master.start()
+            self._data_portal_master.start()
             self._server_started = True
             logging.warning("DataPortalMasterService name as %s start " \
                             "on port[%d]:",
@@ -106,7 +106,7 @@ class DataPortalMasterService(object):
 
     def stop(self):
         if self._server_started:
-            self._data_join_master.stop()
+            self._data_portal_master.stop()
             self._server.stop(None)
             self._server_started = False
             logging.warning("DataPortalMasterService name as %s"\
