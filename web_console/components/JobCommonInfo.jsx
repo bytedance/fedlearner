@@ -11,7 +11,7 @@ import Empty from './Empty';
 
 export const jsonHandledPopover = (json, length = 30) => {
   if (!json) return '-';
-  const str = JSON.stringify(json, null, 2);
+  const str = JSON.stringify(json, null, 2).replace(/(^")|("$)/g, '');
   let inner = str;
   if (str.length > length) {
     inner = `${str.substring(0, length)}...`;

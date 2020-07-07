@@ -36,9 +36,9 @@ router.get('/api/v1/jobs', SessionMiddleware, async (ctx) => {
   ctx.body = { data };
 });
 
-router.get('/api/v1/job/:name', SessionMiddleware, async (ctx) => {
-  const { name } = ctx.params;
-  const job = await Job.findOne({ where: { name } });
+router.get('/api/v1/job/:id', SessionMiddleware, async (ctx) => {
+  const { id } = ctx.params;
+  const job = await Job.findByPk(id);
   if (!job) {
     ctx.status = 404;
     ctx.body = {
@@ -178,6 +178,8 @@ router.post('/api/v1/job', SessionMiddleware, async (ctx) => {
 
   const clientYaml = clientGenerateYaml(clientFed, job, clientTicket);
 
+  // TODO: server validate & create job
+
   const res = await k8s.createFLApp(namespace, clientYaml);
 
   const [data, created] = await Job.findOrCreate({
@@ -203,12 +205,10 @@ router.post('/api/v1/job', SessionMiddleware, async (ctx) => {
   ctx.body = { data };
 });
 
-router.delete('/api/v1/job/:name', SessionMiddleware, async (ctx) => {
+router.delete('/api/v1/job/:id', SessionMiddleware, async (ctx) => {
   // TODO: just owner can delete
-  const { name } = ctx.params;
-  const data = await Job.findOne({
-    where: { name },
-  });
+  const { id } = ctx.params;
+  const data = await Job.findByPk(id);
 
   if (!data) {
     ctx.status = 404;

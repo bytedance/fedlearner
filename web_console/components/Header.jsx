@@ -109,6 +109,7 @@ export default function Header() {
       { label: 'Overview', value: '/' },
       { label: 'Jobs', value: '/job' },
       { label: 'Tickets', value: '/ticket' },
+      { label: 'RawDatas', value: '/raw_data' },
     ];
 
   const PopoverContent = (
