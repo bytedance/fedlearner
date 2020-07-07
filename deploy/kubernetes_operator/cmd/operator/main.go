@@ -43,7 +43,7 @@ import (
 	"github.com/bytedance/fedlearner/deploy/kubernetes_operator/pkg/apis/fedlearner.k8s.io/v1alpha1"
 	crdclientset "github.com/bytedance/fedlearner/deploy/kubernetes_operator/pkg/client/clientset/versioned"
 	crdinformers "github.com/bytedance/fedlearner/deploy/kubernetes_operator/pkg/client/informers/externalversions"
-	"github.com/bytedance/fedlearner/deploy/kubernetes_operator/pkg/controller"
+	"github.com/bytedance/fedlearner/deploy/kubernetes_operator/pkg/operator"
 	"github.com/bytedance/fedlearner/deploy/kubernetes_operator/pkg/server"
 )
 
@@ -55,7 +55,10 @@ var (
 	workerNum                   = flag.Int("worker-num", 10, "Number of worker threads used by the fedlearner controller.")
 	resyncInterval              = flag.Int("resync-interval", 30, "Informer resync interval in seconds.")
 	namespace                   = flag.String("namespace", "default", "The namespace to which controller listen FLApps.")
-	ingressHostSuffix           = flag.String("ingress-host-suffix", "", "The suffix of hosts when creating ingress")
+	ingressExtraHostSuffix      = flag.String("ingress-extra-host-suffix", "", "The extra suffix of hosts when creating ingress.")
+	ingressSecretName           = flag.String("ingress-secret-name", "", "The secret name used for tls, only one secret supported now.")
+	ingressEnableClientAuth     = flag.Bool("ingress-enabled-client-auth", false, "Whether enable client auth for created ingress.")
+	ingressClientAuthSecretName = flag.String("ingress-client-auth-secret-name", "", "The secret name used for client auth, only one secret supported now.")
 	enableLeaderElection        = flag.Bool("leader-election", false, "Enable fedlearner controller leader election.")
 	leaderElectionLockNamespace = flag.String("leader-election-lock-namespace", "fedlearner-system", "Namespace in which to create the Endpoints for leader election.")
 	leaderElectionLockName      = flag.String("leader-election-lock-name", "fedlearner-kubernetes-operator-lock", "Name of the Endpoint for leader election.")
@@ -148,6 +151,10 @@ func startLeaderElection(
 func main() {
 	flag.Parse()
 
+	if *ingressEnableClientAuth && *ingressClientAuthSecretName == "" {
+		klog.Fatalf("client auth secret name can not be empty if client auth is enabled")
+	}
+
 	kubeClient, crdClient, err := buildClientset(*master, *kubeConfig)
 	if err != nil {
 		klog.Fatalf("failed to build clientset, err = %v", err)
@@ -184,8 +191,21 @@ func main() {
 		crdinformers.WithNamespace(*namespace),
 	)
 
-	appEventHandler := controller.NewAppEventHandler(*namespace, crdClient)
-	flController := controller.NewFLController(*namespace, recorder, *resyncInterval, *ingressHostSuffix, kubeClient, crdClient, kubeInformerFactory, crdInformerFactory, appEventHandler, stopCh)
+	appEventHandler := operator.NewAppEventHandler(*namespace, crdClient)
+	flController := operator.NewFLController(
+		*namespace,
+		recorder,
+		*resyncInterval,
+		*ingressExtraHostSuffix,
+		*ingressSecretName,
+		*ingressEnableClientAuth,
+		*ingressClientAuthSecretName,
+		kubeClient,
+		crdClient,
+		kubeInformerFactory,
+		crdInformerFactory,
+		appEventHandler,
+		stopCh)
 
 	go func() {
 		klog.Infof("starting adapter listening %v", *port)

@@ -32,7 +32,6 @@ enum PartState {
   kEventTimeReduced = 4;
 }
 
-
 message DataPortalJob {
   int64 job_id = 1;
   repeated string fpaths = 2;

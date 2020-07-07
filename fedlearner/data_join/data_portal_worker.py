@@ -194,6 +194,7 @@ class DataPortalWorkerService(object):
         logging.info("Merger rank_id:{} partition_id:{} started."
             .format(self._rank_id, task.partition_id))
         self._merger.generate_output()
+        self._merger.finish()
     
     def run(self):
         while True:

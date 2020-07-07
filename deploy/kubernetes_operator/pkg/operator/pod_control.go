@@ -16,7 +16,7 @@
 // Most code here is copied from Kubernetes, while we change the
 // logic about name generation to generate name with type and index.
 
-package controller
+package operator
 
 import (
 	"context"

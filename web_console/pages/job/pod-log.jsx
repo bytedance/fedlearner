@@ -42,7 +42,7 @@ function PodLog({ query }) {
       setError(errorMsg);
       return;
     }
-    fetcher(`job/pod/${query.name}/logs/${query.time}`)
+    fetcher(`job/pod/${query.name}/logs?start_time=${query.time}`)
       .then((res) => {
         setLoading(false);
         if (!res.data) {
@@ -62,7 +62,7 @@ function PodLog({ query }) {
       {
         !loading && !error && data
           ? (
-            <div className="log-wrap">
+            <pre className="log-wrap">
               {
                 data.length
                   ? data.map((log) => (
@@ -70,7 +70,7 @@ function PodLog({ query }) {
                   ))
                   : 'no logs'
               }
-            </div>
+            </pre>
           )
           : (
             <div className="status-wrap">

@@ -227,6 +227,11 @@ class Merge(object):
             if len(self._active_fpath) > 0:
                 fpath_id = random.choice(list(self._active_fpath))
     
+    def finish(self):
+        success_path = "{}/{}".format(self._output_dir, "_SUCCESS")
+        with tf.io.GFile(success_path) as f:
+            f.write("")
+
     def generate_output(self):
         index = 0
         while not self._queue.empty():
@@ -235,6 +240,7 @@ class Merge(object):
             self._writer.append_item(record_item.tf_example_item, index)
             index += 1
         self._writer.finish()
+
 
         
 

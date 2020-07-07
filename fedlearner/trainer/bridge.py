@@ -76,6 +76,9 @@ class Bridge(object):
         def Heartbeat(self, request, context):
             return self._bridge._heartbeat_handler(request)
 
+        def Terminate(self, request, context):
+            return self._bridge._terminate_handler(request)
+
     def __init__(self,
                  role,
                  listen_port,
@@ -99,6 +102,8 @@ class Bridge(object):
 
         # Connection related
         self._connected = False
+        self._terminated = False
+        self._peer_terminated = False
         self._identifier = '%s-%s-%d-%d' % (
             app_id, role, rank, int(time.time())) # Ensure unique per run
         self._peer_identifier = ''
@@ -108,7 +113,6 @@ class Bridge(object):
         self._current_iter_id = None
         self._next_iter_id = 0
         self._received_data = {}
-        self._open_iterations = set()
 
         # grpc client
         self._transmit_send_lock = threading.Lock()
@@ -155,22 +159,18 @@ class Bridge(object):
         resend_list = collections.deque()
 
         def shutdown_fn():
-            while True:
-                with lock:
-                    if len(resend_list) > 0:
-                        logging.debug(
-                            "Waiting for resend queue's being cleaned. "
-                            "Resend queue size: %d", len(resend_list))
-                        time.sleep(1)
-                    else:
-                        logging.debug('Resend queue is empty and we can shut '
-                                      'down client daemon safely.')
-                        break
+            with lock:
+                while len(resend_list) > 0 or not self._transmit_queue.empty():
+                    logging.debug(
+                        "Waiting for resend queue's being cleaned. "
+                        "Resend queue size: %d", len(resend_list))
+                    lock.release()
+                    time.sleep(1)
+                    lock.acquire()
 
             stop_event.set()
             if generator is not None:
                 generator.cancel()
-            return generator.result()
 
         self._client_daemon_shutdown_fn = shutdown_fn
 
@@ -283,10 +283,8 @@ class Bridge(object):
             if request.HasField('start'):
                 with self._condition:
                     self._received_data[request.start.iter_id] = {}
-                    self._open_iterations.add(request.start.iter_id)
             elif request.HasField('commit'):
-                with self._condition:
-                    self._open_iterations.remove(request.commit.iter_id)
+                pass
             elif request.HasField('data'):
                 with self._condition:
                     assert request.data.iter_id in self._received_data
@@ -345,6 +343,12 @@ class Bridge(object):
                                         worker_rank=self._rank,
                                         current_iter_id=self._current_iter_id)
 
+    def _terminate_handler(self, request):
+        with self._condition:
+            self._peer_terminated = True
+            self._condition.notifyAll()
+        return tws_pb.TerminateResponse()
+
     def _check_remote_heartbeat(self):
         try:
             rsp = self._client.Heartbeat(tws_pb.HeartbeatRequest())
@@ -392,25 +396,36 @@ class Bridge(object):
         logging.debug('finish connect.')
 
     def terminate(self, forced=False):
+        if not self._connected or self._terminated:
+            return
+        self._terminated = True
+
         try:
             if self._client_daemon is not None:
                 self._client_daemon_shutdown_fn()
                 self._client_daemon.join()
-            with self._condition:
-                timestamp = time.time()
-                while (not forced) and time.time() - timestamp < 60 \
-                        and self._open_iterations:
-                    logging.info(
-                        'Waiting for peer to commit, %d iterations remaining',
-                        len(self._open_iterations))
-                    self._condition.wait(1)
-                if self._open_iterations:
-                    logging.info(
-                        "Timed out while waiting for peer to commit, " \
-                        "%d iterations remaining",
-                        len(self._open_iterations))
-        except Exception:  # pylint: disable=broad-except
-            pass
+        except Exception as e:  # pylint: disable=broad-except
+            logging.warning(
+                'Error during streaming shutdown: %s', repr(e))
+
+        # Get ACK from peer
+        while True:
+            try:
+                self._client.Terminate(tws_pb.TerminateRequest())
+                break
+            except Exception as e:  # pylint: disable=broad-except
+                logging.warning(
+                    "Failed to send terminate message: %s. " \
+                    "Retry in 1 second...", repr(e))
+                time.sleep(1)
+                continue
+        logging.debug('Waiting for peer to terminate.')
+
+        # Ensure REQ from peer
+        with self._condition:
+            while not self._peer_terminated:
+                self._condition.wait()
+
         self._server.stop(None)
         logging.debug("Bridge connection terminated")
 
