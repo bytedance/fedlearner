@@ -1,0 +1,12 @@
+{{- if .Values.service.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: fedlearner-proxy
+  namespace: {{ .Release.Namespace }}
+  labels:
+  {{- include "fedlearner-add-on.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.service.type }}
+  externalName: {{ .Values.service.externalName }}
+{{- end }}
