@@ -161,8 +161,8 @@ class DataPortalWorkerService(object):
         partitioner_options = self._options.partitioner_options
         partitioner_options.input_file_paths.extend(task.fpaths)
         partitioner_options.output_dir = task.output_base_dir
-        partitioner_options.partitioner_name = "data_partitioner-rank_id:{}".
-            format(self._rank_id)
+        partitioner_options.partitioner_name = "data_partitioner-rank_id:{}" \
+            .format(self._rank_id)
         partitioner_options.output_partition_num = task.output_partition_num
         partitioner_options.output_builder = "TF_RECORD"
         partitioner_options.partitioner_rank_id = task.partition_id
