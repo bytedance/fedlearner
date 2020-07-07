@@ -16,6 +16,7 @@
 
 import argparse
 import logging
+from google.protobuf import text_format
 
 from fedlearner.common import data_portal_service_pb2 as dp_pb
 from fedlearner.common.etcd_client import EtcdClient
@@ -64,7 +65,7 @@ if __name__ == "__main__":
         portal_manifest = dp_pb.DataPortalManifest(
                 name=args.data_portal_name,
                 data_portal_type=(dp_pb.DataPortalType.PSI if
-                                  args.data_portal_type=='PSI' else
+                                  args.data_portal_type == 'PSI' else
                                   dp_pb.DataPortalType.Streaming),
                 output_partition_num=args.output_partition_num,
                 input_file_wildcard=args.input_file_wildcard,
@@ -74,7 +75,7 @@ if __name__ == "__main__":
                 processing_job_id=-1
             )
         etcd.set_data(etcd_key, text_format.MessageToString(portal_manifest))
-    
+
     options = dp_pb.DataPotraMasterlOptions(use_mock_etcd=args.use_mock_etcd,
                                             long_running=args.long_running)
 

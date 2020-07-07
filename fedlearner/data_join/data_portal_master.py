@@ -80,8 +80,9 @@ class DataPortalMaster(dp_grpc.DataPortalMasterServiceServicer):
         self._bg_worker = None
 
 class DataPortalMasterService(object):
-    def __init__(self, listen_port, portal_name, etcd_name,
-                 etcd_base_dir, etcd_addrs, portal_options):
+    def __init__(self, listen_port, portal_name,
+                 etcd_name, etcd_base_dir,
+                 etcd_addrs, portal_options):
         self._portal_name = portal_name
         self._listen_port = listen_port
         self._server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))

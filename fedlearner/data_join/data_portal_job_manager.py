@@ -28,15 +28,16 @@ from fedlearner.data_join import common
 from fedlearner.data_join.raw_data_publisher import RawDataPublisher
 
 class DataPortalJobManager(object):
-    def __init__(self, etcd, portal_name, long_running, pub_dir):
+    def __init__(self, etcd, portal_name, long_running):
         self._lock = threading.Lock()
         self._etcd = etcd
-        self._publisher = RawDataPublisher(etcd, pub_dir)
         self._portal_name = portal_name
         self._portal_manifest = None
         self._processing_job = None
         self._sync_portal_manifest()
         self._sync_processing_job()
+        self._publisher = \
+            RawDataPublisher(etcd, self._portal_manifest.raw_data_publish_dir)
         self._long_running = long_running
         assert self._portal_manifest is not None
         self._processed_fpath = set()
