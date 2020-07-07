@@ -285,16 +285,20 @@ class DataPortalJobManager(object):
     def _check_processing_job_finished(self):
         if not self._all_job_part_finished():
             return False
-        finished_job = dp_pb.DataPortalJob()
-        finished_job.MergeFrom(self._processing_job)
-        finished_job.finished = True
-        self._update_processing_job(finished_job)
+        processing_job = self._sync_processing_job()
+        if not processing_job.finished:
+            finished_job = dp_pb.DataPortalJob()
+            finished_job.MergeFrom(self._processing_job)
+            finished_job.finished = True
+            self._update_processing_job(finished_job)
         self._processing_job = None
         self._job_part_map = {}
-        new_portal_manifest = dp_pb.DataPortalManifest()
-        new_portal_manifest.MergeFrom(self._sync_portal_manifest())
-        new_portal_manifest.processing_job_id = -1
-        self._update_portal_manifest(new_portal_manifest)
+        portal_mainifest = self._sync_portal_manifest()
+        if portal_mainifest.processing_job_id > 0:
+            new_portal_manifest = dp_pb.DataPortalManifest()
+            new_portal_manifest.MergeFrom(self._sync_portal_manifest())
+            new_portal_manifest.processing_job_id = -1
+            self._update_portal_manifest(new_portal_manifest)
         return True
 
     @property
@@ -319,5 +323,23 @@ class DataPortalJobManager(object):
                 self._portal_manifest.name, job_id
             )
 
-    def _publish_raw_data(self, fpaths):
-        pass
+    def _publish_raw_data(self, job_id):
+        portal_manifest = self._sync_portal_manifest()
+        output_dir = None
+        if portal_manifest.data_portal_type == dp_pb.DataPortalType.PSI:
+            output_dir = common.portal_map_output_dir(
+                    portal_manifest.output_base_dir,
+                    portal_manifest.name, job_id
+                )
+        else:
+            output_dir = common.portal_reduce_output_dir(
+                    portal_manifest.output_base_dir,
+                    portal_manifest.name, job_id
+                )
+        for partition_id in range(self._output_partition_num):
+            dpath = path.join(output_dir, common.partition_repr(partition_id))
+            fpaths = [path.join(dpath, f) for f in gfile.ListDirectory(dpatha)
+                      if f.endswith(common.RawDataFileSuffix)]
+            self._publisher.publish_raw_data(partition_id, fpaths)
+            if portal_manifest.data_portal_type == dp_pb.DataPortalType.PSI:
+                self._publisher.finish_raw_data(partition_id)

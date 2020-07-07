@@ -41,6 +41,9 @@ if __name__ == "__main__":
                         help='the file path input rsa psi preprocessor')
     parser.add_argument('--input_dir', type=str,
                         help='the raw data file appointed by dir')
+    parser.add_argument('--input_file_subscribe_dir', type=str, default='',
+                        help='if the use appoint the args, then will '\
+                             'ignore input file paths and input dir')
     parser.add_argument('--output_file_dir', type=str, required=True,
                         help='the directory to store the result of processor')
     parser.add_argument('--raw_data_publish_dir', type=str, required=True,
@@ -82,14 +85,15 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
     all_fpaths = []
-    if args.input_file_paths is not None:
-        for fp in args.input_file_paths:
-            all_fpaths.append(fp)
-    if args.input_dir is not None:
-        all_fpaths += [os.path.join(args.input_dir, f)
-                       for f in gfile.ListDirectory(args.input_dir)]
-    if len(all_fpaths) == 0:
-        raise RuntimeError("no input files for preprocessor")
+    if len(args.input_file_subscribe_dir) == 0:
+        if args.input_file_paths is not None:
+            for fp in args.input_file_paths:
+                all_fpaths.append(fp)
+        if args.input_dir is not None:
+            all_fpaths += [os.path.join(args.input_dir, f)
+                           for f in gfile.ListDirectory(args.input_dir)]
+        if len(all_fpaths) == 0:
+            raise RuntimeError("no input files for preprocessor")
     rsa_key_pem = args.rsa_key_pem
     if rsa_key_pem is None or len(rsa_key_pem) == 0:
         assert args.rsa_key_path is not None
@@ -101,6 +105,7 @@ if __name__ == "__main__":
                                          else common_pb.FLRole.Follower,
             rsa_key_pem=rsa_key_pem,
             input_file_paths=list(set(all_fpaths)),
+            input_file_subscribe_dir=args.input_file_subscribe_dir,
             output_file_dir=args.output_file_dir,
             raw_data_publish_dir=args.raw_data_publish_dir,
             partition_id=args.partition_id,

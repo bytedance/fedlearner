@@ -32,7 +32,8 @@ from fedlearner.common import data_join_service_pb2 as dj_pb
 
 from fedlearner.proxy.channel import make_insecure_channel, ChannelType
 
-from fedlearner.data_join.raw_data_visitor import MockRawDataVisitor
+from fedlearner.data_join.raw_data_visitor import \
+        FileBasedMockRawDataVisitor, EtcdBasedMockRawDataVisitor
 from fedlearner.data_join.item_batch_seq_processor import \
         ItemBatch, ItemBatchSeqProcessor
 from fedlearner.data_join.common import int2bytes, bytes2int
@@ -111,19 +112,40 @@ class IdBatchFetcher(ItemBatchSeqProcessor):
         yield self._make_item_batch(next_index), id_visitor.finished()
 
     def _get_id_visitor(self):
-        if self._id_visitor is None:
-            self._id_visitor = MockRawDataVisitor(
-                    self._etcd,
-                    dj_pb.RawDataOptions(raw_data_iter='CSV_DICT',
-                                         read_ahead_size=134217728),
-                    '{}-proprocessor-mock-data-source-{:04}'.format(
-                        self._options.preprocessor_name,
-                        self._options.partition_id
-                    ),
-                    self._options.input_file_paths
-                )
-            self.set_input_finished()
+        if len(self._options.input_file_subscribe_dir) == 0:
+            if self._id_visitor is None:
+                self._id_visitor = self._create_file_based_mock_visitor()
+                self.set_input_finished()
+        else:
+            if self._id_visitor is None:
+                self._id_visitor = self._create_etcd_based_mock_visitor()
+            if self._id_visitor.is_input_data_finish():
+                self.set_input_finished()
         return self._id_visitor
+
+    def _create_file_based_mock_visitor(self):
+        return FileBasedMockRawDataVisitor(
+                self._etcd,
+                dj_pb.RawDataOptions(raw_data_iter='CSV_DICT',
+                                     read_ahead_size=134217728),
+                '{}-proprocessor-mock-data-source-{:04}'.format(
+                    self._options.preprocessor_name,
+                    self._options.partition_id
+                ),
+                self._options.input_file_paths
+            )
+
+    def _create_etcd_based_mock_visitor(self):
+        return FileBasedMockRawDataVisitor(
+                self._etcd,
+                dj_pb.RawDataOptions(raw_data_iter='CSV_DICT',
+                                     read_ahead_size=134217728),
+                '{}-proprocessor-mock-data-source-{:04}'.format(
+                    self._options.preprocessor_name,
+                    self._options.partition_id
+                ),
+                self._options.input_file_subscribe_dir
+            )
 
 class SignedIdBatch(ItemBatch):
     def __init__(self, begin_index):
