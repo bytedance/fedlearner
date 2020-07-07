@@ -24,7 +24,7 @@ if __name__ == '__main__':
     logging.getLogger().setLevel(logging.INFO)
     logging.basicConfig(format='%(asctime)s %(message)s')
     parser = argparse.ArgumentParser(description='DataJointPortal cmd.')
-    parser.add_argument("--rank_id", type=int, 
+    parser.add_argument("--rank_id", type=int,
                         help="the rank id of this worker")
     parser.add_argument("--master_addr", type=str,
                         help="the addr of data portal master")
@@ -39,7 +39,8 @@ if __name__ == '__main__':
     parser.add_argument("--merge_buffer_size", type=int,
                         default=4096, help="the buffer size for merging")
     parser.add_argument("--write_buffer_size", type=int,
-                        default=10485760, help="the output buffer size (bytes) for partitioner")
+                        default=10485760, 
+                        help="the output buffer size (bytes) for partitioner")
     parser.add_argument("--input_data_file_iter", type=str, default="TF_RECORD",
                         help="the type for input data iterator")
     parser.add_argument("--compressed_type", type=str, default='',
@@ -48,7 +49,7 @@ if __name__ == '__main__':
     parser.add_argument("--batch_size", type=int, default=1024,
                         help="the batch size for raw data reader")
     parser.add_argument("--max_flying_item", type=int, default=300000,
-                        help='the maximum number of items processed at the same time')
+                        help='the maximum items processed at the same time')
     args = parser.parse_args()
     raw_data_options = dj_pb.RawDataOptions(
         raw_data_iter=args.input_data_file_iter,
@@ -57,12 +58,12 @@ if __name__ == '__main__':
         batch_size=args.batch_size,
         max_flying_item=args.max_flying_item)
     partitioner_options = dj_pb.RawDataPartitionerOptions(
-        partitioner_name="data_portal_worker_partitioner_{}".format(args.rank_id),
+        partitioner_name="dp_worker_partitioner_{}".format(args.rank_id),
         raw_data_options=raw_data_options,
         batch_processor_options=batch_processor_options,
         output_item_threshold=args.write_buffer_size)
     merge_options = dj_pb.MergeOptions(
-        merger_name="data_portal_worker_merger_{}".format(args.rank_id),
+        merger_name="dp_worker_merger_{}".format(args.rank_id),
         raw_data_options=raw_data_options,
         batch_processor_options=batch_processor_options,
         merge_buffer_size=args.merge_buffer_size,
@@ -71,9 +72,9 @@ if __name__ == '__main__':
     portal_worker_options = dj_pb.DataPortalWorkerOptions(
         partitioner_options=partitioner_options,
         merge_options=merge_options)
-    
+
     data_portal_worker = DataPortalWorkerService(portal_worker_options,
         args.master_addr, args.rank_id, args.etcd_name,
         args.etcd_base_dir, args.etcd_addrs, args.use_mock_etcd)
-    
+
     data_portal_worker.start()

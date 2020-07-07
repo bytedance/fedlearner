@@ -26,13 +26,8 @@ except ImportError:
 from tensorflow.compat.v1 import gfile
 import tensorflow as tf
 
-from fedlearner.data_join.item_batch_seq_processor import \
-    ItemBatch, ItemBatchSeqProcessor
-from fedlearner.data_join.raw_data_partitioner import RawDataBatch
-from fedlearner.data_join.raw_data_visitor import MockRawDataVisitor
 from fedlearner.data_join.raw_data_iter_impl.tf_record_iter import TfRecordIter
 from fedlearner.data_join import visitor, common
-
 
 class Merge(object):
     class RecordItem(object):
@@ -67,7 +62,7 @@ class Merge(object):
         @property
         def finished(self):
             return self._finished
-    
+
         def __iter__(self):
             return self
 
@@ -99,10 +94,10 @@ class Merge(object):
             self._partition_id = partition_id
             self._begin_index = begin_index
             self._end_index = end_index
-        
+
         def encode_meta_to_fname(self):
             return '{:04}.{:010}-{:010}{}'.format(
-                self._partition_id, self._begin_index, 
+                self._partition_id, self._begin_index,
                 self._end_index, common.RawDataFileSuffix)
 
 
@@ -130,9 +125,9 @@ class Merge(object):
             if self._size_bytes >= self._options.output_item_threshold:
                 writer.close()
                 self.writer = None
-                meta = Merge.FileMeta(self._partition_id, self._begin_index, 
+                meta = Merge.FileMeta(self._partition_id, self._begin_index,
                     self._end_index)
-                fpath = os.path.join(self._options.output_dir, 
+                fpath = os.path.join(self._options.output_dir,
                     common.partition_repr(self._partition_id),
                     meta.encode_meta_to_fname())
                 gfile.Rename(self.get_tmp_fpath(), fpath, True)
@@ -145,14 +140,14 @@ class Merge(object):
             if self._begin_index is not None \
                 and self._end_index is not None:
                 self._writer.close()
-                meta = Merge.FileMeta(self._partition_id, self._begin_index, 
+                meta = Merge.FileMeta(self._partition_id, self._begin_index,
                     self._end_index)
                 fpath = os.path.join(self._options.output_dir,
                     common.partition_repr(self._partition_id),
                     meta.encode_meta_to_fname())
                 gfile.Rename(self.get_tmp_fpath(), fpath, True)
                 self._writer = None
-        
+
         def get_tmp_fpath(self):
             return self._tmp_fpath
 
@@ -164,7 +159,7 @@ class Merge(object):
         def _new_writer(self):
             assert self._writer is None
             self._writer = tf.io.TFRecordWriter(self._tmp_fpath)
-                
+
 
     def __init__(self, options, partition_id):
         self._readers = []
@@ -178,7 +173,7 @@ class Merge(object):
         self._prepare()
 
     def _prepare(self):
-        self._output_dir = os.path.join(self._options.output_dir, 
+        self._output_dir = os.path.join(self._options.output_dir,
             common.partition_repr(self._partition_id))
         if gfile.Exists(self._output_dir):
             gfile.DeleteRecursively(self._output_dir)
@@ -186,7 +181,7 @@ class Merge(object):
         gfile.MkDir(self._output_dir)
         for fpath_id, fpath in enumerate(self._fpaths):
             fpath = "{}/{}".format(self._options.input_dir, fpath)
-            reader = Merge.InputFileReader(fpath_id, 
+            reader = Merge.InputFileReader(fpath_id,
                 fpath, self._options)
             self._readers.append(reader)
             self._active_fpath.add(fpath_id)
@@ -202,7 +197,7 @@ class Merge(object):
                 continue
             self._replenish_item(fpath_id)
             fpath_id = (fpath_id + 1) % self._fpath_num
-    
+
     def _replenish_item(self, fpath_id):
         assert not self._queue.full(), \
             "Priority Queue should not full duration replenish_item"
@@ -215,7 +210,7 @@ class Merge(object):
                 self._active_fpath.discard(fpath_id)
             if len(self._active_fpath) > 0:
                 fpath_id = random.choice(list(self._active_fpath))
-    
+
     def finish(self):
         success_path = "{}/{}".format(self._output_dir, "_SUCCESS")
         with gfile.GFile(success_path, 'w') as f:
@@ -229,12 +224,3 @@ class Merge(object):
             self._writer.append_item(record_item.tf_example_item, index)
             index += 1
         self._writer.finish()
-
-
-        
-
-
-    
-
-    
-        

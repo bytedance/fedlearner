@@ -172,7 +172,7 @@ class TestDataPortalWorker(unittest.TestCase):
         for partition_id in range(self._output_partition_num):
             reduce_task = dp_pb.ReduceTask()
             reduce_task.map_base_dir = self._partition_output_dir
-            reduce_task.output_base_dir = self._merge_output_dir
+            reduce_task.reduce_base_dir = self._merge_output_dir
             reduce_task.partition_id = partition_id
             self._portal_worker._run_reduce_task(reduce_task)
             total_cnt += self._check_merge(reduce_task)
