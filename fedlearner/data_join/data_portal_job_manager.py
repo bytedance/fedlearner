@@ -25,11 +25,13 @@ from tensorflow.compat.v1 import gfile
 from fedlearner.common import data_portal_service_pb2 as dp_pb
 
 from fedlearner.data_join import common
+from fedlearner.data_join.raw_data_publisher import RawDataPublisher
 
 class DataPortalJobManager(object):
-    def __init__(self, etcd, portal_name, long_running):
+    def __init__(self, etcd, portal_name, long_running, pub_dir):
         self._lock = threading.Lock()
         self._etcd = etcd
+        self._publisher = RawDataPublisher(etcd, pub_dir)
         self._portal_name = portal_name
         self._portal_manifest = None
         self._processing_job = None
@@ -315,3 +317,6 @@ class DataPortalJobManager(object):
                 self._portal_manifest.output_base_dir,
                 self._portal_manifest.name, job_id
             )
+
+    def _publish_raw_data(self, fpaths):
+        pass
