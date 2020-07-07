@@ -185,8 +185,8 @@ class Merge(object):
                 fpath, self._options)
             self._readers.append(reader)
             self._active_fpath.add(fpath_id)
-            logging.info("Merge partition_id:{0!s}, path:{0!s}".
-                format(self._partition_id, fpath))
+            logging.info("Merge partition_id:%d, path:%s", 
+                self._partition_id, fpath)
         self._preload_queue()
 
     def _preload_queue(self):
