@@ -18,10 +18,9 @@ import os
 import logging
 import uuid
 from contextlib import contextmanager
-from datetime import datetime
 
 import tensorflow.compat.v1 as tf
-from google.protobuf import text_format, timestamp_pb2
+from google.protobuf import text_format
 from tensorflow.compat.v1 import gfile
 
 from fedlearner.common import common_pb2 as common_pb
