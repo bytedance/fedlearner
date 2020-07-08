@@ -54,7 +54,7 @@ class RawDataSortPartitioner(RawDataPartitioner):
             meta = None
             if len(self._buffer) > 0:
                 writer = self._get_output_writer()
-                self.sort_buffer()
+                self._sort_buffer()
                 for item in self._buffer:
                     writer.write(item.tf_record)
                 writer.close()
@@ -72,22 +72,22 @@ class RawDataSortPartitioner(RawDataPartitioner):
                 self._end_index = None
             return meta
 
-        def get_tmp_fpath(self):
-            return self._tmp_fpath
-
-        def sort_buffer(self):
+        def _sort_buffer(self):
             self._buffer = sorted(self._buffer, \
                 key=lambda item: item.event_time)
-
-        def destroy(self):
-            if gfile.Exists(self._tmp_fpath):
-                gfile.Remove(self._tmp_fpath)
 
         def _get_output_writer(self):
             return tf.io.TFRecordWriter(self._tmp_fpath)
 
         def __del__(self):
             self.destroy()
+
+        def destroy(self):
+            if gfile.Exists(self._tmp_fpath):
+                gfile.Remove(self._tmp_fpath)
+
+        def get_tmp_fpath(self):
+            return self._tmp_fpath
 
     def _get_file_writer(self, partition_id):
         if len(self._flying_writers) == 0:
