@@ -37,10 +37,7 @@ module.exports = (sequelize, DataTypes) => {
     user_id: {
       type: DataTypes.INTEGER,
       allowNull: true,
-      references: {
-        model: 'users',
-        key: 'id',
-      },
+      default: null,
     },
     k8s_name: {
       type: DataTypes.STRING(200),

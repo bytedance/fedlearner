@@ -29,7 +29,7 @@ module.exports = (sequelize, DataTypes) => {
       comment: 'business contact telephone',
     },
     avatar: {
-      type: DataTypes.STRING(2083),
+      type: DataTypes.STRING(2048),
       allowNull: true,
       default: null,
       comment: 'URI of avatar',
