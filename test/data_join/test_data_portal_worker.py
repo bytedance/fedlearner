@@ -26,7 +26,7 @@ from cityhash import CityHash32
 
 from fedlearner.common import data_join_service_pb2 as dj_pb
 from fedlearner.common import data_portal_service_pb2 as dp_pb
-from fedlearner.data_join.data_portal_worker import DataPortalWorkerService
+from fedlearner.data_join.data_portal_worker import DataPortalWorker
 from fedlearner.data_join.raw_data_iter_impl.tf_record_iter import TfExampleItem
 from fedlearner.data_join import common
 
@@ -87,7 +87,7 @@ class TestDataPortalWorker(unittest.TestCase):
             partitioner_options=partitioner_options,
             merge_options=merge_options)
 
-        self._portal_worker = DataPortalWorkerService(portal_worker_options,
+        self._portal_worker = DataPortalWorker(portal_worker_options,
             "localhost:5005", 0, "test_portal_worker_0",
             "portal_worker_0", "localhost:2379", True)
 

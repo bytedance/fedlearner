@@ -17,7 +17,7 @@
 import random
 
 from tensorflow.compat.v1 import gfile
-import tensorflow as tf
+import tensorflow.compat.v1 as tf
 
 from fedlearner.data_join import common
 

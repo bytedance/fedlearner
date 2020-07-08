@@ -20,7 +20,7 @@ import os
 import grpc
 
 from tensorflow.compat.v1 import gfile
-import tensorflow as tf
+import tensorflow.compat.v1 as tf
 
 from fedlearner.common import data_portal_service_pb2 as dp_pb
 from fedlearner.common import data_portal_service_pb2_grpc as dp_grpc
@@ -39,7 +39,6 @@ class RawDataSortPartitioner(RawDataPartitioner):
             self._begin_index = None
             self._end_index = None
             self._buffer = []
-            self._size_bytes = 0
             self._tmp_fpath = common.gen_tmp_fpath(
                     os.path.join(self._options.output_dir,
                                  common.partition_repr(self._partition_id))
@@ -47,15 +46,11 @@ class RawDataSortPartitioner(RawDataPartitioner):
 
         def append_item(self, index, item):
             self._buffer.append(item)
-            self._size_bytes += len(item.tf_record)
             if self._begin_index is None:
                 self._begin_index = index
             self._end_index = index
 
-            if self._size_bytes >= self._options.output_item_threshold:
-                self.dump()
-
-        def dump(self):
+        def finish(self):
             meta = None
             if len(self._buffer) > 0:
                 writer = self._get_output_writer()
@@ -72,17 +67,10 @@ class RawDataSortPartitioner(RawDataPartitioner):
                   common.partition_repr(self._partition_id),
                   meta.encode_meta_to_fname())
                 gfile.Rename(self.get_tmp_fpath(), fpath, True)
-
                 self._buffer = []
                 self._begin_index = None
                 self._end_index = None
-                self._size_bytes = 0
             return meta
-
-        def finish(self):
-            meta = self.dump()
-            if gfile.Exists(self._tmp_fpath):
-                gfile.Remove(self._tmp_fpath)
 
         def get_tmp_fpath(self):
             return self._tmp_fpath
@@ -91,8 +79,15 @@ class RawDataSortPartitioner(RawDataPartitioner):
             self._buffer = sorted(self._buffer, \
                 key=lambda item: item.event_time)
 
+        def destroy(self):
+            if gfile.Exists(self._tmp_fpath):
+                gfile.Remove(self._tmp_fpath)
+
         def _get_output_writer(self):
             return tf.io.TFRecordWriter(self._tmp_fpath)
+
+        def __del__(self):
+            self.destroy()
 
     def _get_file_writer(self, partition_id):
         if len(self._flying_writers) == 0:
@@ -103,7 +98,7 @@ class RawDataSortPartitioner(RawDataPartitioner):
         assert partition_id < len(self._flying_writers)
         return self._flying_writers[partition_id]
 
-class DataPortalWorkerService(object):
+class DataPortalWorker(object):
     def __init__(self, options, master_addr, rank_id, etcd_name,
                  etcd_base_dir, etcd_addrs, use_mock_etcd=False):
         master_channel = make_insecure_channel(
@@ -112,11 +107,7 @@ class DataPortalWorkerService(object):
         self._etcd_base_dir = etcd_base_dir
         self._etcd_addrs = etcd_addrs
         self._rank_id = rank_id
-        self._started = False
-        self._is_stoped = False
         self._raw_data_partitioner = None
-        self._merger = None
-        self._sort_merger = None
         self._options = options
         self._use_mock_etcd = use_mock_etcd
         self._master_client = dp_grpc.DataPortalMasterServiceStub(
@@ -131,7 +122,7 @@ class DataPortalWorkerService(object):
             except grpc.RpcError as e:
                 logging.warning("Request new task failed, sleep 2 seconds"\
                   " and retry. %s", e)
-            time.sleep(2)
+                time.sleep(2)
 
     def finish_task(self, partition_id, part_state):
         request = dp_pb.FinishTaskRequest()
@@ -145,7 +136,7 @@ class DataPortalWorkerService(object):
             except grpc.RpcError as e:
                 logging.warning("Failed to finish request, sleep 2 seconds" \
                     " and retry. %s", e)
-            time.sleep(2)
+                time.sleep(2)
 
     def start(self):
         logging.info("Start DataPortal Worker, rank_id:%s", self._rank_id)
@@ -200,14 +191,9 @@ class DataPortalWorkerService(object):
             if response.HasField("finished"):
                 logging.info("Receive finished response from Master.")
                 return
-            if response.HasField("pending"):
-                logging.warning("Receive pending response from Master,"
-                    " sleep 2 seconds and retry.")
-                time.sleep(2)
-                continue
             if response.HasField("map_task"):
                 task = response.map_task
-                logging.info("Receive map task partition_id:%d, paths:%d",
+                logging.info("Receive map task partition_id:%d, paths:%s",
                     task.partition_id, task.fpaths)
                 self._run_map_task(task)
                 self.finish_task(task.partition_id, dp_pb.PartState.kIdMap)
@@ -215,12 +201,13 @@ class DataPortalWorkerService(object):
             if response.HasField("reduce_task"):
                 task = response.reduce_task
                 logging.info("Receive reduce task, partition_id:%d, "
-                    "input_dir:%s",
-                    task.partition_id, task.map_base_dir)
+                    "input_dir:%s", task.partition_id, task.map_base_dir)
                 self._run_reduce_task(task)
                 self.finish_task(task.partition_id,
                     dp_pb.PartState.kEventTimeReduce)
                 continue
-
-            logging.warning("the response from master is invalid.")
+            if response.HasField("pending"):
+                logging.warning("Receive pending response.")
+            else:
+                logging.warning("The response from master is invalid.")
             time.sleep(2)

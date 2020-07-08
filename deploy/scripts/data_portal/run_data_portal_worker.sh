@@ -28,7 +28,7 @@ input_data_file_iter=$(normalize_env_to_args "--input_data_file_iter" $INPUT_DAT
 compressed_type=$(normalize_env_to_args "--compressed_type" $COMPRESSED_TYPE)
 
 
-python -m fedlearner.data_join.cmd.data_portal_worker_service \
+python -m fedlearner.data_join.cmd.data_portal_worker_cli \
   --master_addr=$MASTER_POD_NAMES \
   --rank_id=$INDEX \
   --etcd_name=$ETCD_NAME \

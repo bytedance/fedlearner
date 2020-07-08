@@ -24,7 +24,7 @@ except ImportError:
     import Queue as queue
 
 from tensorflow.compat.v1 import gfile
-import tensorflow as tf
+import tensorflow.compat.v1 as tf
 
 from fedlearner.data_join.raw_data_iter_impl.tf_record_iter import TfRecordIter
 from fedlearner.data_join import visitor, common

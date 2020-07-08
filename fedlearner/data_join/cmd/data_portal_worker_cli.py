@@ -18,7 +18,7 @@ import argparse
 import logging
 
 from fedlearner.common import data_join_service_pb2 as dj_pb
-from fedlearner.data_join.data_portal_worker import DataPortalWorkerService
+from fedlearner.data_join.data_portal_worker import DataPortalWorker
 
 if __name__ == '__main__':
     logging.getLogger().setLevel(logging.INFO)
@@ -73,7 +73,7 @@ if __name__ == '__main__':
         partitioner_options=partitioner_options,
         merge_options=merge_options)
 
-    data_portal_worker = DataPortalWorkerService(portal_worker_options,
+    data_portal_worker = DataPortalWorker(portal_worker_options,
         args.master_addr, args.rank_id, args.etcd_name,
         args.etcd_base_dir, args.etcd_addrs, args.use_mock_etcd)
 

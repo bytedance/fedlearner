@@ -3,8 +3,6 @@
 INPUT_DIR=./data_portal_input_dir
 OUTPUT_DIR=./data_portal_output_dir
 
-export PYTHONPATH=/home/dev/fedlearner
-
 python -m fedlearner.data_join.cmd.data_portal_master_service \
     --etcd_name=test_data_portal_master \
     --etcd_addrs=localhost:2379 \
@@ -17,7 +15,7 @@ python -m fedlearner.data_join.cmd.data_portal_master_service \
     --raw_data_publish_dir=raw_data_publish_dir \
     --use_mock_etcd > master.log 2>&1 &
 
-python -m fedlearner.data_join.cmd.data_portal_worker_service \
+python -m fedlearner.data_join.cmd.data_portal_worker_cli \
     --master_addr=localhost:50051 \
     --rank_id=0 \
     --etcd_name=test_data_portal_worker \
