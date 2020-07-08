@@ -18,6 +18,7 @@ import argparse
 import logging
 
 from fedlearner.common import data_join_service_pb2 as dj_pb
+from fedlearner.common import data_portal_service_pb2 as dp_pb
 from fedlearner.data_join.data_portal_worker import DataPortalWorker
 
 if __name__ == '__main__':
@@ -62,14 +63,14 @@ if __name__ == '__main__':
         raw_data_options=raw_data_options,
         batch_processor_options=batch_processor_options,
         output_item_threshold=args.write_buffer_size)
-    merge_options = dj_pb.MergeOptions(
+    merge_options = dp_pb.MergeOptions(
         merger_name="dp_worker_merger_{}".format(args.rank_id),
         raw_data_options=raw_data_options,
         batch_processor_options=batch_processor_options,
         merge_buffer_size=args.merge_buffer_size,
         output_item_threshold=args.write_buffer_size)
 
-    portal_worker_options = dj_pb.DataPortalWorkerOptions(
+    portal_worker_options = dp_pb.DataPortalWorkerOptions(
         partitioner_options=partitioner_options,
         merge_options=merge_options)
 

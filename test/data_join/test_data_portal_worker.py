@@ -77,13 +77,13 @@ class TestDataPortalWorker(unittest.TestCase):
             raw_data_options=raw_data_options,
             batch_processor_options=batch_processor_options,
             output_item_threshold=10485760)
-        merge_options = dj_pb.MergeOptions(
+        merge_options = dp_pb.MergeOptions(
             raw_data_options=raw_data_options,
             batch_processor_options=batch_processor_options,
             merge_buffer_size=4096,
             output_item_threshold=5000000)
         
-        portal_worker_options = dj_pb.DataPortalWorkerOptions(
+        portal_worker_options = dp_pb.DataPortalWorkerOptions(
             partitioner_options=partitioner_options,
             merge_options=merge_options)
 
