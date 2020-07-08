@@ -6,7 +6,7 @@ const users = require('../fixtures/user');
 const models = require('../../models');
 const { test: job } = require('../fixtures/job');
 
-const { Job } = models;
+const { Job, User } = models;
 const request = supertest(server.callback());
 let userCookie;
 let pod;
@@ -15,7 +15,16 @@ let savedJob;
 describe('Job System', () => {
   before(async () => {
     await models.sequelize.sync();
-
+    const [record] = await User.findOrCreate({
+      paranoid: false,
+      where: {
+        username: { [Op.eq]: users.user.username },
+      },
+      defaults: users.user,
+    });
+    if (record.deleted_at) {
+      record.restore();
+    }
     return new Promise((resolve, reject) => {
       request.post('/api/v1/login')
         .send({ username: users.user.username, password: users.user.username })
@@ -54,7 +63,7 @@ describe('Job System', () => {
     });
 
     it('respond 422 if client_ticket does not exist', (done) => {
-      request.post('/api/v1/users')
+      request.post('/api/v1/job')
         .set('Cookie', userCookie)
         .send({ ...job, client_ticket_name: 'i_am_not_exist' })
         .expect(422)
@@ -66,7 +75,7 @@ describe('Job System', () => {
     });
 
     it('respond 422 if server_ticket does not exist', (done) => {
-      request.post('/api/v1/users')
+      request.post('/api/v1/job')
         .set('Cookie', userCookie)
         .send({ ...job, server_ticket_name: 'i_am_not_exist' })
         .expect(422)
@@ -78,7 +87,7 @@ describe('Job System', () => {
     });
 
     it('respond 400 if client_params validation failed', (done) => {
-      request.post('/api/v1/users')
+      request.post('/api/v1/job')
         .set('Cookie', userCookie)
         .send({ ...job, client_params: '{ "what_is_this": "lol" }' })
         .expect(400)
@@ -90,7 +99,7 @@ describe('Job System', () => {
     });
 
     it('respond 400 if server_params validation failed', (done) => {
-      request.post('/api/v1/users')
+      request.post('/api/v1/job')
         .set('Cookie', userCookie)
         .send({ ...job, server_params: '{ "what_is_this": "lol" }' })
         .expect(400)

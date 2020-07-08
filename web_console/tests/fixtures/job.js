@@ -6,6 +6,7 @@ module.exports = {
     server_ticket_name: 'follower_ticket',
     client_params: {},
     server_params: {},
+    k8s_name: 'leader_job',
   },
   follower: {
     name: 'follower_job',
@@ -14,6 +15,7 @@ module.exports = {
     server_ticket_name: 'leader_ticket',
     client_params: {},
     server_params: {},
+    k8s_name: 'follower_job',
   },
   test: {
     name: 'test_job',
@@ -22,5 +24,6 @@ module.exports = {
     server_ticket_name: 'follower_ticket',
     client_params: {},
     server_params: {},
+    k8s_name: 'test_job',
   },
 };

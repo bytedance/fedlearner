@@ -30,7 +30,7 @@ module.exports = (sequelize, DataTypes) => {
     job_type: {
       type: DataTypes.STRING(16),
       allowNull: false,
-      comment: 'data_join | data_join_psi | training',
+      comment: 'data_join | psi_data_join | tree_model | nn_model',
     },
     role: {
       type: DataTypes.STRING(16),
@@ -40,13 +40,13 @@ module.exports = (sequelize, DataTypes) => {
     sdk_version: {
       type: DataTypes.STRING(64),
       allowNull: false,
-      comment: 'git commit id',
+      comment: 'docker image tag',
     },
     expire_time: {
       type: DataTypes.DATE,
       allowNull: true,
     },
-    comment: {
+    remark: {
       type: DataTypes.TEXT,
       allowNull: true,
       default: null,
