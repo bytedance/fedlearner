@@ -20,6 +20,7 @@ import queue
 import logging
 import argparse
 import traceback
+import itertools
 import numpy as np
 
 import tensorflow.compat.v1 as tf
@@ -60,6 +61,8 @@ def create_argument_parser():
                         help='Run prediction without data.')
     parser.add_argument('--file-ext', type=str, default='.csv',
                         help='File extension to use')
+    parser.add_argument('--file-type', type=str, default='csv',
+                        help='input file type: csv or tfrecord')
     parser.add_argument('--load-model-path',
                         type=str,
                         default=None,
@@ -130,26 +133,57 @@ def create_argument_parser():
 
     return parser
 
+
+def parse_tfrecord(record):
+    example = tf.train.Example()
+    example.ParseFromString(record)
+
+    parsed = {}
+    for key, value in example.features.feature.items():
+        kind = value.WhichOneof('kind')
+        if kind == 'float_list':
+            assert len(value.float_list.value) == 1, "Invalid tfrecord format"
+            parsed[key] = value.float_list.value[0]
+        elif kind == 'int64_list':
+            assert len(value.int64_list.value) == 1, "Invalid tfrecord format"
+            parsed[key] = value.int64_list.value[0]
+        elif kind == 'bytes_list':
+            assert len(value.bytes_list.value) == 1, "Invalid tfrecord format"
+            parsed[key] = value.bytes_list.value[0]
+        else:
+            raise ValueError("Invalid tfrecord format")
+
+    return parsed
+
+
 def extract_field(field_names, field_name, required):
     if field_name in field_names:
-        return field_names.index(field_name), []
+        return []
 
     assert not required, \
-        "Data must contain %s field"%field_name
-    return None, None
+        "Field %s is required but missing in data"%field_name
+    return None
 
-def read_csv_data(filename, require_example_ids, require_labels,
-                  ignore_fields, cat_fields):
-    logging.debug('Reading csv file from %s', filename)
-    fin = tf.io.gfile.GFile(filename, 'r')
-    reader = csv.reader(fin)
-    field_names = next(reader)
 
-    example_id_idx, example_ids = extract_field(
+def read_data(file_type, filename, require_example_ids,
+              require_labels, ignore_fields, cat_fields):
+    logging.debug('Reading data file from %s', filename)
+
+    if file_type == 'tfrecord':
+        reader = tf.io.tf_record_iterator(filename)
+        reader, tmp_reader = itertools.tee(reader)
+        first_line = parse_tfrecord(next(tmp_reader))
+        field_names = first_line.keys()
+    else:
+        fin = tf.io.gfile.GFile(filename, 'r')
+        reader = csv.DictReader(fin)
+        field_names = reader.fieldnames
+
+    example_ids = extract_field(
         field_names, 'example_id', require_example_ids)
-    raw_id_idx, raw_ids = extract_field(
+    raw_ids = extract_field(
         field_names, 'raw_id', False)
-    label_idx, labels = extract_field(
+    labels = extract_field(
         field_names, 'label', require_labels)
 
     ignore_fields = set(filter(bool, ignore_fields.strip().split(',')))
@@ -158,52 +192,48 @@ def read_csv_data(filename, require_example_ids, require_labels,
     for name in cat_fields:
         assert name in field_names, "cat_field %s missing"%name
 
-    cont_columns = [
-        (i, name) for i, name in enumerate(field_names) \
-            if name not in ignore_fields and name not in cat_fields]
+    cont_columns = list(filter(
+        lambda x: x not in ignore_fields and x not in cat_fields, field_names))
     cont_columns.sort(key=lambda x: x[1])
-    cat_columns = [
-        (i, name) for i, name in enumerate(field_names)
-        if name in cat_fields]
+    cat_columns = list(filter(
+        lambda x: x in cat_fields and x not in cat_fields, field_names))
     cat_columns.sort(key=lambda x: x[1])
 
     features = []
     cat_features = []
     for line in reader:
-        if example_id_idx is not None:
-            example_ids.append(line[example_id_idx])
-        if raw_id_idx is not None:
-            raw_ids.append(line[raw_id_idx])
-        if label_idx is not None:
-            labels.append(float(line[label_idx]))
-        features.append([float(line[i]) for i, _ in cont_columns])
-        cat_features.append([int(line[i]) for i, _ in cat_columns])
+        if file_type == 'tfrecord':
+            line = parse_tfrecord(line)
+        if example_ids is not None:
+            example_ids.append(str(line['example_id']))
+        if raw_ids is not None:
+            raw_ids.append(str(line['raw_id']))
+        if labels is not None:
+            labels.append(float(line['label']))
+        features.append([float(line[i]) for i in cont_columns])
+        cat_features.append([int(line[i]) for i in cat_columns])
 
-    fin.close()
-
-    feature_names = [name for _, name in cont_columns]
-    cat_feature_names = [name for _, name in cat_columns]
     features = np.array(features, dtype=np.float)
     cat_features = np.array(cat_features, dtype=np.int32)
     if labels is not None:
         labels = np.asarray(labels, dtype=np.float)
 
-    return features, cat_features, feature_names, cat_feature_names, \
+    return features, cat_features, cont_columns, cat_columns, \
         labels, example_ids, raw_ids
 
 
 def train(args, booster):
-    X, cat_X, X_names, cat_X_names, y, example_ids, _ = read_csv_data(
-        args.data_path, args.verify_example_ids,
+    X, cat_X, X_names, cat_X_names, y, example_ids, _ = read_data(
+        args.file_type, args.data_path, args.verify_example_ids,
         args.role != 'follower', args.ignore_fields, args.cat_fields)
 
     if args.validation_data_path:
         val_X, val_cat_X, val_X_names, val_cat_X_names, val_y, \
             val_example_ids, _ = \
-            read_csv_data(
-                args.validation_data_path, args.verify_example_ids,
-                args.role != 'follower', args.ignore_fields,
-                args.cat_fields)
+            read_data(
+                args.file_type, args.validation_data_path,
+                args.verify_example_ids, args.role != 'follower',
+                args.ignore_fields, args.cat_fields)
         assert X_names == val_X_names, \
             "Train data and validation data must have same features"
         assert cat_X_names == val_cat_X_names, \
@@ -258,8 +288,8 @@ def test_one_file(args, bridge, booster, data_file, output_file):
         X = cat_X = X_names = cat_X_names = y = example_ids = raw_ids = None
     else:
         X, cat_X, X_names, cat_X_names, y, example_ids, raw_ids = \
-            read_csv_data(
-                data_file, args.verify_example_ids,
+            read_data(
+                args.file_type, data_file, args.verify_example_ids,
                 False, args.ignore_fields, args.cat_fields)
 
     pred = booster.batch_predict(
