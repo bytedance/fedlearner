@@ -58,6 +58,7 @@ describe('RawData System', () => {
         .end((err, res) => {
           if (err) done(err);
           assert.strictEqual(res.body.data.name, raw_data.name);
+          savedRawData = res.body.data;
           done();
         });
     });
@@ -70,6 +71,31 @@ describe('RawData System', () => {
         .end((err, res) => {
           if (err) done(err);
           assert.deepStrictEqual(res.body.error, 'RawData already exists');
+          done();
+        });
+    });
+  });
+
+  describe('POST /api/v1/raw_data/:id/submit', () => {
+    it('respond 404 if RawData does not exist', (done) => {
+      request.post('/api/v1/raw_data/i_am_not_exist/submit')
+        .set('Cookie', userCookie)
+        .expect(404)
+        .end((err, res) => {
+          if (err) done(err);
+          assert.deepStrictEqual(res.body.error, 'RawData not found');
+          done();
+        });
+    });
+
+    it('respond 200 with updated RawData', (done) => {
+      request.post(`/api/v1/raw_data/${savedRawData.id}/submit`)
+        .set('Cookie', userCookie)
+        .expect(200)
+        .end((err, res) => {
+          if (err) done(err);
+          assert.strictEqual(res.body.data.name, raw_data.name);
+          assert.ok(res.body.data.localdata.k8s_name);
           done();
         });
     });

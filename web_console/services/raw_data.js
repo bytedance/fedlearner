@@ -15,3 +15,7 @@ export async function enableRawData(id) {
 export async function revokeRawData(id) {
   return client.post(`raw_data/${id}/revoke`).json();
 }
+
+export async function submitRawData(id) {
+  return client.post(`raw_data/${id}/submit`).json();
+}

@@ -53,7 +53,8 @@ module.exports = (sequelize, DataTypes) => {
     },
     k8s_name: {
       type: DataTypes.STRING(200),
-      allowNull: false,
+      allowNull: true,
+      default: null,
     },
   }, {
     tableName: 'raw_datas',

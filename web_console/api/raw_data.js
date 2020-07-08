@@ -29,7 +29,10 @@ router.get('/api/v1/raw_data/:id', SessionMiddleware, async (ctx) => {
     };
     return;
   }
-  const { flapp } = await k8s.getFLApp(namespace, rawData.k8s_name);
+  let flapp = {};
+  if (rawData.k8s_name) {
+    flapp = (await k8s.getFLApp(namespace, rawData.k8s_name)).flapp;
+  }
   ctx.body = {
     data: {
       ...flapp,
@@ -59,24 +62,6 @@ router.post('/api/v1/raw_data', SessionMiddleware, async (ctx) => {
   }
   const rawData = { name, input, output, context, comment };
 
-  const exists = await RawData.findOne({
-    where: {
-      name: { [Op.eq]: name },
-    },
-  });
-  if (exists) {
-    ctx.status = 422;
-    ctx.body = {
-      error: 'RawData already exists',
-    };
-    return;
-  }
-
-  // TODO: generate raw yaml
-  // const yaml = rawGenerateYaml(clientFed, job, clientTicket, serverTicket);
-
-  // const res = await k8s.createFLApp(namespace, yaml);
-
   const [data, created] = await RawData.findOrCreate({
     paranoid: false,
     where: {
@@ -85,7 +70,6 @@ router.post('/api/v1/raw_data', SessionMiddleware, async (ctx) => {
     defaults: {
       ...rawData,
       user_id: ctx.session.user.id,
-      // k8s_name: res.metadata.name,
     },
   });
 
@@ -96,6 +80,29 @@ router.post('/api/v1/raw_data', SessionMiddleware, async (ctx) => {
     };
     return;
   }
+
+  ctx.body = { data };
+});
+
+router.post('/api/v1/raw_data/:id/submit', SessionMiddleware, async (ctx) => {
+  const { id } = ctx.params;
+  const rawData = await RawData.findByPk(id);
+  if (!rawData) {
+    ctx.status = 404;
+    ctx.body = {
+      error: 'RawData not found',
+    };
+    return;
+  }
+
+  // TODO: generate raw yaml
+  // const yaml = rawGenerateYaml(clientFed, job, clientTicket, serverTicket);
+
+  // const res = await k8s.createFLApp(namespace, yaml);
+
+  // rawData.k8s_name = res.metadata.name;
+
+  const data = await rawData.save();
 
   ctx.body = { data };
 });
