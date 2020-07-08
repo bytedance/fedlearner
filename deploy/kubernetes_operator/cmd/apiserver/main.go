@@ -55,6 +55,7 @@ func buildClientset(masterURL string, kubeConfig string) (*clientset.Clientset, 
 
 	return kubeClient, crdClient, config, err
 }
+
 func main() {
 	flag.Parse()
 
@@ -78,16 +79,40 @@ func main() {
 			"message": "pong",
 		})
 	})
+
 	r.GET("/namespaces", h.ListNamespaces)
+
 	r.GET("/namespaces/:namespace/pods", h.ListPods)
 	r.GET("/namespaces/:namespace/pods/:name", h.GetPod)
 	r.GET("/namespaces/:namespace/pods/:name/events", h.ListPodEvents)
+	r.GET("/namespaces/:namespace/pods/:name/shell/:container", h.ExecShell)
+
+	r.GET("/namespaces/:namespace/services", h.ListServices)
+	r.GET("/namespaces/:namespace/services/:name", h.GetService)
+	r.POST("/namespaces/:namespace/services", h.CreateService)
+	r.DELETE("/namespaces/:namespace/services/:name", h.DeleteService)
+
+	r.GET("/namespaces/:namespace/secrets", h.ListSecrets)
+	r.GET("/namespaces/:namespace/secrets/:name", h.GetSecret)
+	r.POST("/namespaces/:namespace/secrets", h.CreateSecret)
+	r.DELETE("/namespaces/:namespace/secrets/:name", h.DeleteSecret)
+
+	r.GET("/namespaces/:namespace/deployments", h.ListDeployments)
+	r.GET("/namespaces/:namespace/deployments/:name", h.GetDeployment)
+	r.PUT("/namespaces/:namespace/deployments/:name", h.UpdateDeployment)
+	r.DELETE("/namespaces/:namespace/deployments/:name", h.DeleteDeployment)
+
+	r.GET("/namespaces/:namespace/ingresses", h.ListIngresses)
+	r.GET("/namespaces/:namespace/ingresses/:name", h.GetIngress)
+	r.POST("/namespaces/:namespace/ingresses", h.CreateIngress)
+	r.DELETE("/namespaces/:namespace/ingresses/:name", h.DeleteIngress)
+
 	r.GET("/namespaces/:namespace/fedlearner/v1alpha1/flapps", h.ListFLApps)
 	r.GET("/namespaces/:namespace/fedlearner/v1alpha1/flapps/:name", h.GetFLApp)
 	r.POST("/namespaces/:namespace/fedlearner/v1alpha1/flapps", h.CreateFLApp)
 	r.DELETE("/namespaces/:namespace/fedlearner/v1alpha1/flapps/:name", h.DeleteFLApp)
 	r.GET("/namespaces/:namespace/fedlearner/v1alpha1/flapps/:name/pods", h.ListFLAppPods)
-	r.GET("/namespaces/:namespace/pods/:name/shell/:container", h.ExecShell)
+
 	r.Any("/api/sockjs/*w", gin.WrapH(handler.CreateAttachHandler("/api/sockjs")))
 
 	if err := r.Run(fmt.Sprintf(":%s", *port)); err != nil {
