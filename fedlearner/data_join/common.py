@@ -127,50 +127,6 @@ def raw_data_pub_etcd_key(pub_base_dir, partition_id, process_index):
     return os.path.join(pub_base_dir, partition_repr(partition_id),
                         '{:08}{}'.format(process_index, RawDataPubSuffix))
 
-def encode_portal_hourly_dir(base_dir, date_time):
-    assert isinstance(date_time, datetime)
-    return os.path.join(base_dir, '{}{:02}{:02}'.format(
-                        date_time.year, date_time.month, date_time.day),
-                        '{:02}'.format(date_time.hour))
-
-def encode_portal_hourly_fpath(base_dir, date_time, partition_id):
-    return os.path.join(encode_portal_hourly_dir(base_dir, date_time),
-                        'part-r-{:05}.gz'.format(partition_id))
-
-def encode_portal_hourly_finish_tag(base_dir, date_time):
-    return os.path.join(encode_portal_hourly_dir(base_dir, date_time),
-                        '_SUCCESS')
-
-def retrieve_portal_manifest(etcd, portal_name):
-    etcd_key = os.path.join(portal_name, 'manifest')
-    raw_data = etcd.get_data(etcd_key)
-    if raw_data is None:
-        raise ValueError("the manifest of {} should be stored "\
-                         "in etcd".format(portal_name))
-    return text_format.Parse(raw_data, common_pb.DataJoinPortalManifest())
-
-def commit_portal_manifest(etcd, portal_manifest):
-    etcd_key = os.path.join(portal_manifest.name, 'manifest')
-    etcd.set_data(etcd_key, text_format.MessageToString(portal_manifest))
-
-def convert_datetime_to_timestamp(date_time):
-    assert isinstance(date_time, datetime)
-    return timestamp_pb2.Timestamp(
-            nanos=0,
-            seconds=int((date_time - datetime.fromtimestamp(0)).total_seconds())
-        )
-
-def trim_timestamp_by_hourly(timestamp):
-    if timestamp.nanos == 0 and timestamp.seconds % 3600 == 0:
-        return timestamp
-    return timestamp_pb2.Timestamp(
-                nanos=0,
-                seconds=timestamp.seconds-timestamp.seconds%3600
-            )
-
-def convert_timestamp_to_datetime(timestamp):
-    return datetime.fromtimestamp(timestamp.seconds + timestamp.nanos/1e9)
-
 _valid_basic_feature_type = (int, str, bytes, float)
 def convert_dict_to_tf_example(src_dict):
     assert isinstance(src_dict, dict)
