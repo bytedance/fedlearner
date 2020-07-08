@@ -322,3 +322,21 @@ message RawDataPartitionerOptions {
   int64 partitioner_rank_id = 8;
   BatchProcessorOptions batch_processor_options = 9;
 }
+
+message MergeOptions {
+  RawDataOptions raw_data_options = 1;
+  string output_builder = 2; // only supoort tf record or csv
+  string input_dir = 3; 
+  string output_dir = 4;
+  int64 partition_id = 5;
+  string merger_name = 6;
+  repeated string fpath = 7;
+  int64 merge_buffer_size = 8;
+  int64 output_item_threshold = 9;
+  BatchProcessorOptions batch_processor_options = 10;
+}
+
+message DataPortalWorkerOptions {
+  RawDataPartitionerOptions partitioner_options = 1;
+  MergeOptions merge_options = 2;
+}
