@@ -6,9 +6,6 @@ import numpy as np
 import tensorflow as tf
 from sklearn.datasets import load_iris
 
-from tensorflow.core.example.example_pb2 import Example
-from tensorflow.core.example.feature_pb2 import FloatList, Features, Feature, \
-                                                Int64List, BytesList
 
 def quantize_data(header, dtypes, X):
     for i, (h, dtype) in enumerate(zip(header, dtypes)):
@@ -27,7 +24,7 @@ def quantize_data(header, dtypes, X):
 def write_tfrecord_data(filename, data, header, dtypes):
     fout = tf.io.TFRecordWriter(filename)
     for i in range(data.shape[0]):
-        example = Example()
+        example = tf.train.Example()
         for h, d, x in zip(header, dtypes, data[i]):
             if d == np.int32:
                 example.features.feature[h].int64_list.value.append(x)
