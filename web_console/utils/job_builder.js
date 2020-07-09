@@ -133,10 +133,12 @@ function generateYaml(federation, job, job_params, ticket) {
   let output_base_dir;
   if (job.job_type == 'data_join' || job.job_type == 'psi_data_join') {
     output_base_dir = joinPath(
-      k8s_settings.storage_root_path, 'data_source', job.name);
+      k8s_settings.storage_root_path, 'data_source', job.name,
+    );
   } else {
     output_base_dir = joinPath(
-      k8s_settings.storage_root_path, 'job_output', job.name);
+      k8s_settings.storage_root_path, 'job_output', job.name,
+    );
   }
 
   const replica_specs = yaml.spec.flReplicaSpecs;

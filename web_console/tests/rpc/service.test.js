@@ -122,7 +122,6 @@ describe('Federation Service', () => {
           client_ticket_name: 'xxx',
           server_ticket_name: 'xxx',
           server_params: 'xxx',
-          client_params: 'xxx',
         });
       } catch (err) {
         assert.strictEqual(err.code, 2);
@@ -134,7 +133,6 @@ describe('Federation Service', () => {
       try {
         await client.createJob({
           ...jobs.test,
-          client_params: JSON.stringify(jobs.test.client_params),
           server_params: JSON.stringify(jobs.test.server_params),
         });
       } catch (err) {

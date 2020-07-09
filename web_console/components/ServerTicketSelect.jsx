@@ -1,14 +1,11 @@
 import React from 'react';
 import { Select } from '@zeit-ui/react';
-// import useSWR from 'swr';
-// import { fetcher } from '../libs/http';
+import useSWR from 'swr';
+import { fetcher } from '../libs/http';
 
 export default function ServerTicketSelect(props) {
-  // TODO: get server tickets
-  // const { data } = useSWR('tickets/server', fetcher);
-  // const tickets = (data && data.data) || [];
-  const tickets = [];
-
+  const { data } = useSWR(`federations/${props.federation_id}/tickets`, fetcher);
+  const tickets = (data && data.data) || [];
   const actualValue = tickets.find((x) => x.name === props.value)?.value;
   const actualOnChange = (value) => {
     const ticket = tickets.find((x) => x.name === value);

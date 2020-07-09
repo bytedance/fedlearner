@@ -21,7 +21,6 @@ message Job {
   string client_ticket_name = 3;
   string server_ticket_name = 4;
   string server_params = 5;
-  string client_params = 6;
 }
 
 message GetTicketsRequest {
@@ -40,7 +39,6 @@ message CreateJobRequest {
   string client_ticket_name = 3;
   string server_ticket_name = 4;
   string server_params = 5;
-  string client_params = 6;
 }
 
 message CreateJobResponse {
