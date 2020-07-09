@@ -6,10 +6,13 @@ module.exports = {
     tel: null,
     avatar: 'https://fl.com/leader.png',
     k8s_settings: {
-      peerURL: 'localhost:50051',
-      authority: 'leader',
-      extraHeaders: {
-        'x-host': 'leader.flapp.web_console',
+      grpc_spec: {
+        peerURL: 'localhost:1990',
+        authority: 'leader',
+        extraHeaders: {
+          'x-host': 'leader.flapp.web_console',
+          'x-federation': 'follower',
+        },
       },
     },
   },
@@ -20,10 +23,13 @@ module.exports = {
     tel: null,
     avatar: 'https://fl.com/follower.png',
     k8s_settings: {
-      peerURL: 'localhost:50052',
-      authority: 'follower',
-      extraHeaders: {
-        'x-host': 'follower.flapp.web_console',
+      grpc_spec: {
+        peerURL: 'localhost:1990',
+        authority: 'follower',
+        extraHeaders: {
+          'x-host': 'follower.flapp.web_console',
+          'x-federation': 'leader',
+        },
       },
     },
   },

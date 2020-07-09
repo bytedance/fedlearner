@@ -216,14 +216,14 @@ describe('portalGenerateYaml', () => {
         global_replica_spec: {
           template: {
             spec: {
-              imagePullSecrets: [{"name": "regcred-bd"}],
-              volumes: [{"persistentVolumeClaim": {"claimName": "pvc-fedlearner-default"}, "name": "data"}],
+              imagePullSecrets: [{ name: 'regcred-bd' }],
+              volumes: [{ persistentVolumeClaim: { claimName: 'pvc-fedlearner-default' }, name: 'data' }],
               containers: [{
                 volumeMounts: [{ mountPath: '/data', name: 'data' }],
                 env: [
-                  {"name": "ETCD_NAME", "value": "data_portal_etcd_name"},
-                  {"name": "ETCD_ADDR", "value": "fedlearner-stack-etcd.default.svc.cluster.local:2379"},
-                  {"name": "ETCD_BASE_DIR", "value": "fedlearner_meta"},
+                  { name: 'ETCD_NAME', value: 'data_portal_etcd_name' },
+                  { name: 'ETCD_ADDR', value: 'fedlearner-stack-etcd.default.svc.cluster.local:2379' },
+                  { name: 'ETCD_BASE_DIR', value: 'fedlearner_meta' },
                 ],
               }],
             },

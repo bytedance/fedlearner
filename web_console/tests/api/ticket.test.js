@@ -63,7 +63,7 @@ describe('Ticket System', () => {
       },
       defaults: {
         ...tickets.leader,
-        federation_id: leader.id,
+        federation_id: follower.id,
         user_id: admin.id,
       },
     });
@@ -79,7 +79,7 @@ describe('Ticket System', () => {
       },
       defaults: {
         ...tickets.follower,
-        federation_id: follower.id,
+        federation_id: leader.id,
         user_id: admin.id,
       },
     });

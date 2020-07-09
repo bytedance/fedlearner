@@ -65,7 +65,7 @@ describe('Job System', () => {
     it('respond 422 if client_ticket does not exist', (done) => {
       request.post('/api/v1/job')
         .set('Cookie', userCookie)
-        .send({ ...job, client_ticket_name: 'i_am_not_exist' })
+        .send({ ...job, name: 'client_ticket_not_exist', client_ticket_name: 'client_ticket_not_exist' })
         .expect(422)
         .end((err, res) => {
           if (err) done(err);
@@ -74,52 +74,8 @@ describe('Job System', () => {
         });
     });
 
-    it('respond 422 if server_ticket does not exist', (done) => {
-      request.post('/api/v1/job')
-        .set('Cookie', userCookie)
-        .send({ ...job, server_ticket_name: 'i_am_not_exist' })
-        .expect(422)
-        .end((err, res) => {
-          if (err) done(err);
-          assert.deepStrictEqual(res.body.error, 'server_ticket does not exist');
-          done();
-        });
-    });
-
-    it('respond 400 if client_params validation failed', (done) => {
-      request.post('/api/v1/job')
-        .set('Cookie', userCookie)
-        .send({ ...job, client_params: '{ "what_is_this": "lol" }' })
-        .expect(400)
-        .end((err, res) => {
-          if (err) done(err);
-          assert.deepStrictEqual(res.body.error, 'client_params validation failed');
-          done();
-        });
-    });
-
-    it('respond 400 if server_params validation failed', (done) => {
-      request.post('/api/v1/job')
-        .set('Cookie', userCookie)
-        .send({ ...job, server_params: '{ "what_is_this": "lol" }' })
-        .expect(400)
-        .end((err, res) => {
-          if (err) done(err);
-          assert.deepStrictEqual(res.body.error, 'server_params validation failed');
-          done();
-        });
-    });
-
-    it('respond 200 with created job', (done) => {
-      request.post('/api/v1/job')
-        .set('Cookie', userCookie)
-        .send(job)
-        .expect(200)
-        .end((err, res) => {
-          if (err) done(err);
-          assert.strictEqual(res.body.data.name, job.name);
-          done();
-        });
+    it('respond 400 if client_params validation failed', () => {
+      // TODO: @piiswrong
     });
 
     it('respond 422 if job already exists', (done) => {
@@ -133,6 +89,10 @@ describe('Job System', () => {
           done();
         });
     });
+
+    it('respond 200 with created job', () => {
+      // TODO: depends on k8s cluster
+    });
   });
 
   describe('GET /api/v1/jobs', () => {
@@ -142,9 +102,7 @@ describe('Job System', () => {
         .expect(200)
         .end((err, res) => {
           if (err) done(err);
-          const j = res.body.data.find((x) => x.localdata.name === job.name);
-          assert.ok(j);
-          assert.ok(j.metadata);
+          assert.ok(res.body.data.find((x) => x.localdata.name === job.name));
           done();
         });
     });
@@ -162,7 +120,7 @@ describe('Job System', () => {
         });
     });
 
-    it('respond 200 with created job', (done) => {
+    it('respond 200 with specific job', (done) => {
       request.get(`/api/v1/job/${job.name}`)
         .set('Cookie', userCookie)
         .expect(200)

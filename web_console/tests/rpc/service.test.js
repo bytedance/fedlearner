@@ -1,6 +1,5 @@
 const assert = require('assert');
 const grpc = require('@grpc/grpc-js');
-const getPort = require('get-port');
 const { Op } = require('sequelize');
 const models = require('../../models');
 const server = require('../../rpc/server');
@@ -13,6 +12,7 @@ const jobs = require('../fixtures/job');
 const { Federation, Ticket, User, Job } = models;
 let admin;
 let leader;
+let follower;
 let followerTicket;
 let client;
 
@@ -43,13 +43,25 @@ async function setupDatabase() {
   }
   leader = leaderRecord;
 
+  const [followerRecord] = await Federation.findOrCreate({
+    paranoid: false,
+    where: {
+      name: { [Op.eq]: federations.follower.name },
+    },
+    defaults: federations.follower,
+  });
+  if (followerRecord.deleted_at) {
+    followerRecord.restore();
+  }
+  follower = followerRecord;
+
   const [followerTicketRecord] = await Ticket.findOrCreate({
     paranoid: false,
     where: {
       name: { [Op.eq]: tickets.follower.name },
     },
     defaults: {
-      ...tickets.leader,
+      ...tickets.follower,
       federation_id: leader.id,
       user_id: admin.id,
     },
@@ -73,24 +85,16 @@ async function setupDatabase() {
 
 function setupRpcServer() {
   return new Promise((resolve, reject) => {
-    getPort({ port: 1990 })
-      .then((port) => {
-        const address = `0.0.0.0:${port}`;
-        server.bindAsync(
-          address,
-          grpc.ServerCredentials.createInsecure(),
-          (err) => {
-            if (err) reject(err);
-            server.start();
-            client = new FederationClient(address, leader.k8s_settings.authority, {
-              ...leader.k8s_settings.extraHeaders,
-              'x-federation': leader.name,
-            });
-            resolve();
-          },
-        );
-      })
-      .catch((err) => reject(err));
+    server.bindAsync(
+      follower.k8s_settings.grpc_spec.peerURL,
+      grpc.ServerCredentials.createInsecure(),
+      (err) => {
+        if (err) reject(err);
+        server.start();
+        client = new FederationClient(follower);
+        resolve();
+      },
+    );
   });
 }
 
