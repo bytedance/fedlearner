@@ -6,6 +6,7 @@ import JobTypeSelect from './JobTypeSelect';
 import JobRoleSelect from './JobRoleSelect';
 import ServerTicketSelect from './ServerTicketSelect';
 import ClientTicketSelect from './ClientTicketSelect';
+import DataPortalTypeSelect from './DataPortalTypeSelect';
 
 function useStyles() {
   return css`
@@ -163,6 +164,21 @@ export default function Form({
           <label className="formItemLabel" htmlFor={key}>{label || key}</label>
           <div className="formItemValue">
             <ClientTicketSelect
+              value={form[key]}
+              onChange={(value) => updateForm(key, value)}
+              {...valueProps}
+            />
+          </div>
+        </div>
+      );
+    }
+
+    if (type === 'dataPortalType') {
+      return (
+        <div className="formItemWithLabel">
+          <label className="formItemLabel" htmlFor={key}>{label || key}</label>
+          <div className="formItemValue">
+            <DataPortalTypeSelect
               value={form[key]}
               onChange={(value) => updateForm(key, value)}
               {...valueProps}

@@ -10,9 +10,11 @@ import Empty from '../../components/Empty';
 import { createRawData } from '../../services/raw_data';
 
 const fields = [
-  { key: 'name', required: true, span: 24, props: { width: '50%' } },
-  { key: 'input', required: true, span: 12, props: { width: '100%' } },
-  { key: 'output', required: true, span: 12, props: { width: '100%' } },
+  { key: 'name', required: true },
+  { key: 'output_partition_num', required: true },
+  { key: 'data_portal_type', type: 'dataPortalType', required: true },
+  { key: 'input', required: true, label: 'input_base_dir', span: 12, props: { width: '95%' } },
+  { key: 'output', required: true, label: 'output_base_dir', span: 12, props: { width: '95%' } },
   { key: 'context', type: 'json', span: 24 },
   { key: 'comment', type: 'text', span: 24 },
 ];

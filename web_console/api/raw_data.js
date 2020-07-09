@@ -42,12 +42,20 @@ router.get('/api/v1/raw_data/:id', SessionMiddleware, async (ctx) => {
 });
 
 router.post('/api/v1/raw_data', SessionMiddleware, async (ctx) => {
-  const { name, input, output, comment } = ctx.request.body;
+  const { name, input, output, comment, output_partition_num, data_portal_type } = ctx.request.body;
 
   if (!(/^[a-zA-Z\d_]+$/.test(name))) {
     ctx.status = 400;
     ctx.body = {
       error: 'name can only contain letters/numbers/_',
+    };
+    return;
+  }
+
+  if (!(/^\d+$/.test(output_partition_num))) {
+    ctx.status = 400;
+    ctx.body = {
+      error: 'output_partition_num must be int',
     };
     return;
   }
@@ -60,7 +68,8 @@ router.post('/api/v1/raw_data', SessionMiddleware, async (ctx) => {
     };
     return;
   }
-  const rawData = { name, input, output, context, comment };
+
+  const rawData = { name, input, output, context, comment, output_partition_num, data_portal_type };
 
   const [data, created] = await RawData.findOrCreate({
     paranoid: false,
