@@ -2,19 +2,29 @@ module.exports = {
   leader: {
     name: 'leader',
     trademark: 'Leader',
-    email: 'fl@foo.com',
+    email: 'fl@leader.com',
     tel: null,
-    avatar: 'https://foo.com/leader.png',
-    domain: 'fl.foo.com',
-    fingerprint: 'edc47defa1480cde',
+    avatar: 'https://fl.com/leader.png',
+    k8s_settings: {
+      peerURL: 'localhost:50051',
+      authority: 'leader',
+      extraHeaders: {
+        'x-host': 'leader.flapp.web_console',
+      },
+    },
   },
   follower: {
     name: 'follower',
     trademark: 'Follower',
-    email: 'fl@bar.com',
+    email: 'fl@follower.com',
     tel: null,
-    avatar: 'https://bar.com/follower.png',
-    domain: 'fl.bar.com',
-    fingerprint: 'b2363d388f0dc58a',
+    avatar: 'https://fl.com/follower.png',
+    k8s_settings: {
+      peerURL: 'localhost:50052',
+      authority: 'follower',
+      extraHeaders: {
+        'x-host': 'follower.flapp.web_console',
+      },
+    },
   },
 };

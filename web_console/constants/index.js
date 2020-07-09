@@ -1,5 +1,3 @@
-const path = require('path');
-
 const DEFAULT_SERVER_CONFIG = {
   SERVER_CIPHER: 'leader',
   SERVER_DECIPHER: 'follower',
@@ -18,11 +16,7 @@ const DEFAULT_SERVER_CONFIG = {
   DB_DIALECT: 'mysql',
   DB_SOCKET_PATH: null,
   GRPC_HOST: 'localhost',
-  GRPC_PORT: 50051,
-  GRPC_AUTHORITY: 'FL',
-  GRPC_CA: path.resolve(__dirname, 'tests', 'fixtures', 'ca.pem'),
-  GRPC_KEY: path.resolve(__dirname, 'tests', 'fixtures', 'server.key'),
-  GRPC_CERT: path.resolve(__dirname, 'tests', 'fixtures', 'server.pem'),
+  GRPC_PORT: 1990,
 };
 
 module.exports = {

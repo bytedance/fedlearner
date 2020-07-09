@@ -34,22 +34,9 @@ module.exports = (sequelize, DataTypes) => {
       default: null,
       comment: 'URI of avatar',
     },
-    domain: {
-      type: DataTypes.STRING(253),
-      allowNull: true,
-      default: null,
-      comment: 'the web console endpoint',
-    },
-    fingerprint: {
-      type: DataTypes.STRING(64),
-      allowNull: true,
-      default: null,
-      comment: 'fingerprint generated from RSA public key',
-    },
     k8s_settings: {
       type: DataTypes.TEXT('long'),
-      allowNull: true,
-      default: null,
+      allowNull: false,
       comment: 'settings for kubernetes cluster',
     },
   }, {
@@ -61,16 +48,12 @@ module.exports = (sequelize, DataTypes) => {
     deletedAt: 'deleted_at',
     getterMethods: {
       k8s_settings() {
-        const val = this.getDataValue('k8s_settings');
-        if (val) {
-          return JSON.parse(val);
-        }
-        return null;
+        return JSON.parse(this.getDataValue('k8s_settings'));
       },
     },
     setterMethods: {
       k8s_settings(value) {
-        this.setDataValue('k8s_settings', value ? JSON.stringify(value) : null);
+        this.setDataValue('k8s_settings', JSON.stringify(value));
       },
     },
   });

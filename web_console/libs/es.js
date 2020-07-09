@@ -13,7 +13,6 @@ const config = getConfig({
 
 class ElasticSearchClient {
   constructor() {
-    // TODO: use HTTPs for production
     const prefixUrl = `http://${config.ES_HOST}:${config.ES_PORT}`;
     this.client = ky.create({ prefixUrl });
   }
@@ -73,4 +72,4 @@ class ElasticSearchClient {
   }
 }
 
-module.exports = ElasticSearchClient;
+module.exports = new ElasticSearchClient();

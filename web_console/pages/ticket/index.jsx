@@ -45,7 +45,7 @@ export default function TicketList() {
     { key: 'expire_time' },
     { key: 'public_params', type: 'json', required: true, span: 24 },
     { key: 'private_params', type: 'json', required: true, span: 24 },
-    { key: 'comment', type: 'text', span: 24 },
+    { key: 'remark', type: 'text', span: 24 },
   ];
   const toggleForm = () => setFormVisible(!formVisible);
   const onOk = (ticket) => {

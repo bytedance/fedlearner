@@ -9,23 +9,12 @@ const users = require('../fixtures/user');
 const federations = require('../fixtures/federation');
 const tickets = require('../fixtures/ticket');
 const jobs = require('../fixtures/job');
-// const { readFileSync } = require('../../utils');
-// const getConfig = require('../../utils/get_confg');
 
-// const config = getConfig({
-//   GRPC_CA: process.env.GRPC_CA,
-//   GRPC_KEY: process.env.GRPC_KEY,
-//   GRPC_CERT: process.env.GRPC_CERT,
-// });
-// const ca = readFileSync(config.GRPC_CA);
-// const key = readFileSync(config.GRPC_KEY);
-// const cert = readFileSync(config.GRPC_CERT);
 const { Federation, Ticket, User, Job } = models;
 let admin;
 let leader;
-let leaderTicket;
+let followerTicket;
 let client;
-let testJob;
 
 async function setupDatabase() {
   await models.sequelize.sync();
@@ -54,10 +43,10 @@ async function setupDatabase() {
   }
   leader = leaderRecord;
 
-  const [leaderTicketRecord] = await Ticket.findOrCreate({
+  const [followerTicketRecord] = await Ticket.findOrCreate({
     paranoid: false,
     where: {
-      name: { [Op.eq]: tickets.leader.name },
+      name: { [Op.eq]: tickets.follower.name },
     },
     defaults: {
       ...tickets.leader,
@@ -65,10 +54,10 @@ async function setupDatabase() {
       user_id: admin.id,
     },
   });
-  if (leaderTicketRecord.deleted_at) {
-    leaderTicketRecord.restore();
+  if (followerTicketRecord.deleted_at) {
+    followerTicketRecord.restore();
   }
-  leaderTicket = leaderTicketRecord;
+  followerTicket = followerTicketRecord;
 
   const [testJobRecord] = await Job.findOrCreate({
     paranoid: false,
@@ -80,27 +69,23 @@ async function setupDatabase() {
   if (testJobRecord.deleted_at) {
     testJobRecord.restore();
   }
-  testJob = testJobRecord;
 }
 
 function setupRpcServer() {
   return new Promise((resolve, reject) => {
-    getPort({ port: 50051 })
+    getPort({ port: 1990 })
       .then((port) => {
+        const address = `0.0.0.0:${port}`;
         server.bindAsync(
-          `0.0.0.0:${port}`,
-          // grpc.ServerCredentials.createSsl(
-          //   ca,
-          //   [{
-          //     private_key: key,
-          //     cert_chain: cert,
-          //   }],
-          // ),
+          address,
           grpc.ServerCredentials.createInsecure(),
           (err) => {
             if (err) reject(err);
             server.start();
-            client = new FederationClient(leader.domain, leader.name, leader.fingerprint);
+            client = new FederationClient(address, leader.k8s_settings.authority, {
+              ...leader.k8s_settings.extraHeaders,
+              'x-federation': leader.name,
+            });
             resolve();
           },
         );
@@ -115,14 +100,12 @@ describe('Federation Service', () => {
     await setupRpcServer();
   });
 
-  after(() => {
-    server.forceShutdown();
-  });
+  after(() => server.forceShutdown());
 
   describe('GetTickets', () => {
     it('should respond tickets for current federation', async () => {
       const { data } = await client.getTickets();
-      assert.ok(data.find((x) => x.name === leaderTicket.name));
+      assert.ok(data.find((x) => x.name === followerTicket.name));
     });
   });
 

@@ -2,9 +2,8 @@ const assert = require('assert');
 const path = require('path');
 const { loadYaml } = require('../../utils/yaml');
 const { readFileSync } = require('../../utils');
-const KubernetesClient = require('../../libs/k8s');
+const k8s = require('../../libs/k8s');
 
-const k8s = new KubernetesClient();
 const testYaml = readFileSync(
   path.resolve(__dirname, '..', 'fixtures', 'test.yaml'),
   { encoding: 'utf-8' },
