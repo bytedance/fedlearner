@@ -22,7 +22,7 @@ const fields = [
 export default function RawDataList() {
   const { data, mutate } = useSWR('raw_datas', fetcher);
   const rawDatas = data ? data.data : null;
-  const columns = ['id', 'name', 'input', 'output', 'operation'];
+  const columns = ['id', 'name', 'output_partition_num', 'data_portal_type', 'input', 'output', 'operation'];
   // eslint-disable-next-line arrow-body-style
   const operation = (actions, rowData) => {
     // const onConfirm = () => revokeRawData(rowData.rowValue.id);

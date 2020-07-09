@@ -2,7 +2,7 @@ const router = require('@koa/router')();
 const { Op } = require('sequelize');
 const SessionMiddleware = require('../middlewares/session');
 const checkParseJson = require('../utils/check_parse_json');
-const KubernetesClient = require('../libs/k8s');
+const k8s = require('../libs/k8s');
 const getConfig = require('../utils/get_confg');
 const { RawData } = require('../models');
 // const { rawGenerateYaml } = require('../utils/job_builder');
@@ -11,8 +11,6 @@ const config = getConfig({
   NAMESPACE: process.env.NAMESPACE,
 });
 const namespace = config.NAMESPACE;
-
-const k8s = new KubernetesClient();
 
 router.get('/api/v1/raw_datas', SessionMiddleware, async (ctx) => {
   const data = await RawData.findAll({ order: [['created_at', 'DESC']] });
