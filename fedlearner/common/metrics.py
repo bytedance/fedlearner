@@ -86,7 +86,7 @@ class elasticSearchHandler(Handler):
             "name": name,
             "value": value,
             "tags": tags,
-            "timestamp": int(time.time()),
+            "timestamp": int(time.time())
         }
         self._es.index(index="metrics", body=action)
 
