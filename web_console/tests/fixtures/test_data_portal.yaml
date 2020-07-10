@@ -10,7 +10,7 @@ spec:
       replicas: 1
       template:
         spec:
-          restartPolicy: Never # required
+          restartPolicy: Never
           volumes:
             - hostPath:
                 path: /data
