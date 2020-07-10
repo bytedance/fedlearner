@@ -76,7 +76,7 @@ class loggingHandler(Handler):
 class elasticSearchHandler(Handler):
     def __init__(self, ip, port):
         from elasticsearch import Elasticsearch # pylint: disable=C0415
-        super(elasticSearchHandler, self).__init__('elasticsearch') 
+        super(elasticSearchHandler, self).__init__('elasticsearch')
         self._es = Elasticsearch([ip], port=port)
         # initialize index for elastic search
         if self._es.indices.exists(index='metrics') is not True:

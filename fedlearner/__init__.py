@@ -17,7 +17,6 @@
 
 from fedlearner import common
 from fedlearner import data_join
-from fedlearner import scheduler
 from fedlearner import trainer_master
 from fedlearner import proxy
 from fedlearner import trainer
