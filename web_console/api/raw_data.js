@@ -5,7 +5,7 @@ const checkParseJson = require('../utils/check_parse_json');
 const k8s = require('../libs/k8s');
 const getConfig = require('../utils/get_confg');
 const { RawData } = require('../models');
-// const { rawGenerateYaml } = require('../utils/job_builder');
+const { portalGenerateYaml } = require('../utils/job_builder');
 
 const config = getConfig({
   NAMESPACE: process.env.NAMESPACE,
@@ -40,7 +40,7 @@ router.get('/api/v1/raw_data/:id', SessionMiddleware, async (ctx) => {
 });
 
 router.post('/api/v1/raw_data', SessionMiddleware, async (ctx) => {
-  const { name, input, output, comment, output_partition_num, data_portal_type } = ctx.request.body;
+  const { name, federation_id, input, output, comment, output_partition_num, data_portal_type } = ctx.request.body;
 
   if (!(/^[a-zA-Z\d_]+$/.test(name))) {
     ctx.status = 400;
@@ -67,7 +67,7 @@ router.post('/api/v1/raw_data', SessionMiddleware, async (ctx) => {
     return;
   }
 
-  const rawData = { name, input, output, context, comment, output_partition_num, data_portal_type };
+  const rawData = { name, federation_id, input, output, context, comment, output_partition_num, data_portal_type };
 
   const [data, created] = await RawData.findOrCreate({
     paranoid: false,
@@ -93,7 +93,9 @@ router.post('/api/v1/raw_data', SessionMiddleware, async (ctx) => {
 
 router.post('/api/v1/raw_data/:id/submit', SessionMiddleware, async (ctx) => {
   const { id } = ctx.params;
-  const rawData = await RawData.findByPk(id);
+  const rawData = await RawData.findByPk(id, {
+    include: 'federation',
+  });
   if (!rawData) {
     ctx.status = 404;
     ctx.body = {
@@ -102,12 +104,11 @@ router.post('/api/v1/raw_data/:id/submit', SessionMiddleware, async (ctx) => {
     return;
   }
 
-  // TODO: generate raw yaml
-  // const yaml = rawGenerateYaml(clientFed, job, clientTicket, serverTicket);
+  const yaml = portalGenerateYaml(rawData.federation, rawData);
 
-  // const res = await k8s.createFLApp(namespace, yaml);
+  const res = await k8s.createFLApp(namespace, yaml);
 
-  // rawData.k8s_name = res.metadata.name;
+  rawData.k8s_name = res.metadata.name;
 
   const data = await rawData.save();
 

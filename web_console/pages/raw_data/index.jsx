@@ -11,10 +11,11 @@ import { createRawData } from '../../services/raw_data';
 
 const fields = [
   { key: 'name', required: true },
+  { key: 'federation_id', type: 'federation', label: 'federation', required: true },
   { key: 'output_partition_num', required: true },
   { key: 'data_portal_type', type: 'dataPortalType', required: true },
-  { key: 'input', required: true, label: 'input_base_dir', span: 12, props: { width: '95%' } },
-  { key: 'output', required: true, label: 'output_base_dir', span: 12, props: { width: '95%' } },
+  { key: 'input', required: true, label: 'input_base_dir', props: { width: '95%' } },
+  { key: 'output', required: true, label: 'output_base_dir', props: { width: '95%' } },
   { key: 'context', type: 'json', span: 24 },
   { key: 'comment', type: 'text', span: 24 },
 ];
@@ -22,7 +23,10 @@ const fields = [
 export default function RawDataList() {
   const { data, mutate } = useSWR('raw_datas', fetcher);
   const rawDatas = data ? data.data : null;
-  const columns = ['id', 'name', 'output_partition_num', 'data_portal_type', 'input', 'output', 'operation'];
+  const columns = [
+    'id', 'name', 'federation_id', 'output_partition_num', 'data_portal_type',
+    'input', 'output', 'operation',
+  ];
   // eslint-disable-next-line arrow-body-style
   const operation = (actions, rowData) => {
     // const onConfirm = () => revokeRawData(rowData.rowValue.id);
