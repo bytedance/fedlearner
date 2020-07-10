@@ -220,7 +220,6 @@ describe('portalGenerateYaml', () => {
             namespace: 'default',
           },
           spec: {
-            role: 'Leader',
             cleanPodPolicy: 'None',
           },
         },
@@ -252,17 +251,21 @@ describe('portalGenerateYaml', () => {
 
     const raw_data = {
       name: 'test_raw_data',
+      output_partition_num: 8,
+      data_portal_type: 'Streaming',
+      input: '/data/portal_input',
+      output: '/data/portal_output',
       context: {
         file_wildcard: '*.rd',
-        batch_size: '1024',
-        max_flying_item: '300000',
-        merge_buffer_size: '4096',
-        write_buffer_size: '10000000',
+        batch_size: 1024,
+        max_flying_item: 300000,
+        merge_buffer_size: 4096,
+        write_buffer_size: 10000000,
         input_data_format: 'TF_RECORD',
         compressed_type: 'ZLIB',
         yaml_spec: {
-          role: 'Leader',
           spec: {
+            role: 'Leader',
             flReplicaSpecs: {
               Master: {
                 template: {

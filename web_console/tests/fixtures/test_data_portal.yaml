@@ -16,7 +16,7 @@ spec:
                 path: /data
               name: data
           containers:
-            - env:
+            env:
               - name: APPLICATION_ID
                 value: test_raw_data
               - name: POD_IP
@@ -33,7 +33,7 @@ spec:
               - name: INPUT_BASE_DIR
                 value: /data/portal_input/test_raw_data
               - name: OUTPUT_BASE_DIR
-                value:  /data/portal_output/test_raw_data
+                value: /data/portal_output/test_raw_data
               - name: RAW_DATA_PUBLISH_DIR
                 value: raw_data_publish_dir
               - name: DATA_PORTAL_TYPE

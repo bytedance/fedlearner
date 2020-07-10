@@ -166,65 +166,62 @@ function portalGenerateYaml(federation, raw_data) {
       name: raw_data.name,
     },
     spec: {
-      role: ticket.role,
-      cleanPodPolicy: "None",
+      role: 'Leader',
+      cleanPodPolicy: 'None',
       peerSpecs: peer_spec,
     },
   });
 
   yaml = mergeJson(yaml, raw_data.context.yaml_spec);
 
-  let master_spec = yaml["spec"]["flReplicaSpecs"]['Master'];
+  let master_spec = yaml.spec.flReplicaSpecs.Master;
   master_spec = mergeJson(master_spec, k8s_settings.global_replica_spec);
-  let master_env_spec = mergeJson({}, {
+  master_spec = mergeJson(master_spec, {
     pair: false,
     replicas: 1,
     template: {
       spec: {
         containers: {
           env: [
-            {name: "APPLICATION_ID", value: raw_data.name},
-            {name: "OUTPUT_PARTITION_NUM", value: raw_data.output_partition_num},
-            {name: "INPUT_BASE_DIR", value: raw_data.input+'/'+},
-            {name: "OUTPUT_BASE_DIR", value: raw_data.output+'/'+raw_data.name},
-            {name: "RAW_DATA_PUBLISH_DIR", value: raw_data.name},
-            {name: "DATA_PORTAL_TYPE", value: raw_data.data_portal_type},
-            {name: "FILE_WILDCARD", value: raw_data.context.file_wildcard},
+            { name: 'APPLICATION_ID', value: raw_data.name },
+            { name: 'OUTPUT_PARTITION_NUM', value: String(raw_data.output_partition_num) },
+            { name: 'INPUT_BASE_DIR', value: raw_data.input + '/' + raw_data.name },
+            { name: 'OUTPUT_BASE_DIR', value: raw_data.output + '/' + raw_data.name },
+            { name: 'RAW_DATA_PUBLISH_DIR', value: raw_data.name },
+            { name: 'DATA_PORTAL_TYPE', value: raw_data.data_portal_type },
+            { name: 'FILE_WILDCARD', value: raw_data.context.file_wildcard },
           ],
-        }
+        },
       },
     },
   });
-  master_spec = mergeJson(master_spec. master_env_spec);
 
-  let worker_spec = yaml["spec"]["flReplicaSpecs"]['Worker'];
+  let worker_spec = yaml.spec.flReplicaSpecs.Worker;
   worker_spec = mergeJson(worker_spec, k8s_settings.global_replica_spec);
-  let worker_env_spec = mergeJson({}, {
+  worker_spec = mergeJson(worker_spec, {
     pair: false,
     template: {
       spec: {
         containers: {
           env: [
-            {name: "APPLICATION_ID", value: raw_data.name},
-            {name: "BATCH_SIZE", value: raw_data.context.batch_size},
-            {name: "MAX_FLYING_ITEM", value: raw_data.context.max_flying_item},
-            {name: "MERGE_BUFFER_SIZE", value: raw_data.context.merge_buffer_size},
-            {name: "WRITE_BUFFER_SIZE", value: raw_data.context.write_buffer_size},
-            {name: "INPUT_DATA_FORMAT", value: raw_data.context.input_data_format},
-            {name: "COMPRESSED_TYPE", value: raw_data.compressed_type},
+            { name: 'APPLICATION_ID', value: raw_data.name },
+            { name: 'BATCH_SIZE', value: String(raw_data.context.batch_size) },
+            { name: 'MAX_FLYING_ITEM', value: String(raw_data.context.max_flying_item) },
+            { name: 'MERGE_BUFFER_SIZE', value: String(raw_data.context.merge_buffer_size) },
+            { name: 'WRITE_BUFFER_SIZE', String(value: raw_data.context.write_buffer_size) },
+            { name: 'INPUT_DATA_FORMAT', value: raw_data.context.input_data_format },
+            { name: 'COMPRESSED_TYPE', value: raw_data.context.compressed_type },
           ],
-        }
+        },
       },
     },
   });
-  worker_spec = mergeJson(worker_spec. worker_env_spec);
 
-  let ps_spec = yaml["spec"]["flReplicaSpecs"]['PS'];
-  let ps_env_spec = mergeJson({}, {
+  let ps_spec = yaml.spec.flReplicaSpecs.PS;
+  ps_spec = mergeJson(ps_spec, {
     pair: false,
     replicas: 0,
   });
-  ps_spec = mergeJson(ps_spec. ps_env_spec);
 
   return yaml;
 }
