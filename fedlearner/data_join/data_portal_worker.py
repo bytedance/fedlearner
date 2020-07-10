@@ -85,9 +85,8 @@ class RawDataSortPartitioner(RawDataPartitioner):
         def _get_output_writer(self):
             if self._options.output_builder == 'TF_RECORD':
                 return tf.io.TFRecordWriter(self._tmp_fpath)
-            else:
-                assert self._options.output_builder == "CSV_DICT"
-                return CsvDictWriter(self._tmp_fpath)
+            assert self._options.output_builder == "CSV_DICT"
+            return CsvDictWriter(self._tmp_fpath)
 
         def __del__(self):
             self.destroy()

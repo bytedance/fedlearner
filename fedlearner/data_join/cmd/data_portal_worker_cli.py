@@ -47,7 +47,8 @@ if __name__ == '__main__':
     parser.add_argument("--compressed_type", type=str, default='',
                         choices=['', 'ZLIB', 'GZIP'],
                         help='the compressed type of input data file')
-    parser.add_argument("--output_data_file_iter", type=str, default="TF_RECORD",
+    parser.add_argument("--output_data_file_iter", type=str,
+                        default="TF_RECORD",
                         help="the type for output data")
     parser.add_argument("--batch_size", type=int, default=1024,
                         help="the batch size for raw data reader")
