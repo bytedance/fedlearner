@@ -101,6 +101,8 @@ def model_fn(model, features, labels, mode):
     acc = tf.reduce_mean(input_tensor=tf.cast(correct, tf.float32))
     logging_hook = tf.train.LoggingTensorHook(
         {"loss" : loss, "acc" : acc}, every_n_iter=10)
+    tf.summary.scalar('tfb_loss', loss)
+    tf.summary.scalar('tfb_acc', acc)
     return model.make_spec(
         mode=mode, loss=loss, train_op=train_op,
         training_hooks=[logging_hook])
