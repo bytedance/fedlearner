@@ -19,7 +19,9 @@ router.get('/api/v1/raw_datas', SessionMiddleware, async (ctx) => {
 
 router.get('/api/v1/raw_data/:id', SessionMiddleware, async (ctx) => {
   const { id } = ctx.params;
-  const rawData = await RawData.findByPk(id);
+  const rawData = await RawData.findByPk(id, {
+    include: 'federation',
+  });
   if (!rawData) {
     ctx.status = 404;
     ctx.body = {

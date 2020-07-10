@@ -32,6 +32,21 @@ export default function RawDataJob() {
   return (
     <JobCommonInfo job={rawData}>
       <Description
+        title="Federation"
+        style={{ width: 220 }}
+        content={jsonHandledPopover(rawData?.localdata?.federation?.name)}
+      />
+      <Description
+        title="Output Partition Num"
+        style={{ width: 220 }}
+        content={jsonHandledPopover(rawData?.localdata?.output_partition_num)}
+      />
+      <Description
+        title="Data Portal Type"
+        style={{ width: 220 }}
+        content={jsonHandledPopover(rawData?.localdata?.data_portal_type)}
+      />
+      <Description
         title="Input"
         style={{ width: 220 }}
         content={jsonHandledPopover(rawData?.localdata?.input, 26)}
