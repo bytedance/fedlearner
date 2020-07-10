@@ -16,6 +16,7 @@
 
 import logging
 import os
+import time
 try:
     import thread
     import threading
@@ -85,8 +86,9 @@ class elasticSearchHandler(Handler):
             "name": name,
             "value": value,
             "tags": tags,
+            "timestamp": int(time.time()),
         }
-        self._es.index(index="metrics", doc_type="doc_type", body=action)
+        self._es.index(index="metrics", body=action)
 
 
 class Metrics(object):
@@ -153,19 +155,16 @@ def metrics_config(handler):
 def emit_counter(name, value, tags=None):
     if not _metrics_client:
         initialize_metrics()
-        return
     _metrics_client.emit(name, value, tags, 'counter')
 
 
 def emit_store(name, value, tags=None):
     if not _metrics_client:
         initialize_metrics()
-        return
     _metrics_client.emit(name, value, tags, 'store')
 
 
 def emit_timer(name, value, tags=None):
     if not _metrics_client:
         initialize_metrics()
-        return
     _metrics_client.emit(name, value, tags, 'timer')
