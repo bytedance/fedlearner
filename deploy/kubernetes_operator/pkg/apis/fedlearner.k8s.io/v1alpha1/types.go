@@ -63,7 +63,7 @@ const (
 type ReplicaSpec struct {
 	// Replicas is the desired number of replicas of the given template.
 	// +optional
-	// Defaults to 1.
+	// Defaults to 0.
 	Replicas *int32 `json:"replicas,omitempty"`
 	// Pair, when set to true, controller will try to pair it with peer controller.
 	// +optional
