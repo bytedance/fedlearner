@@ -26,6 +26,7 @@ from fedlearner.common import data_portal_service_pb2 as dp_pb
 from fedlearner.common import data_portal_service_pb2_grpc as dp_grpc
 from fedlearner.proxy.channel import make_insecure_channel, ChannelType
 from fedlearner.data_join.raw_data_partitioner import RawDataPartitioner
+from fedlearner.data_join.csv_dict_writer import CsvDictWriter
 from fedlearner.data_join import common
 from fedlearner.data_join.merge import Merge
 
@@ -55,8 +56,13 @@ class RawDataSortPartitioner(RawDataPartitioner):
             if len(self._buffer) > 0:
                 writer = self._get_output_writer()
                 self._sort_buffer()
-                for item in self._buffer:
-                    writer.write(item.tf_record)
+                if self._options.output_builder == 'TF_RECORD':
+                    for item in self._buffer:
+                        writer.write(item.tf_record)
+                else:
+                    assert self._options.output_builder == 'CSV_DICT'
+                    for item in self._buffer:
+                        writer.write(item.csv_record)
                 writer.close()
                 meta = RawDataPartitioner.FileMeta(
                   self._options.partitioner_rank_id,
@@ -77,7 +83,11 @@ class RawDataSortPartitioner(RawDataPartitioner):
                 key=lambda item: item.event_time)
 
         def _get_output_writer(self):
-            return tf.io.TFRecordWriter(self._tmp_fpath)
+            if self._options.output_builder == 'TF_RECORD':
+                return tf.io.TFRecordWriter(self._tmp_fpath)
+            else:
+                assert self._options.output_builder == "CSV_DICT"
+                return CsvDictWriter(self._tmp_fpath)
 
         def __del__(self):
             self.destroy()
