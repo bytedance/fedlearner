@@ -12,8 +12,8 @@ const permittedJobEnvs = {
   nn_model: ['MODEL_NAME'],
 };
 
-function mergeCustomizer(obj, src) {
-  if (lodash.isArray(obj) && lodash.isArray(src)) {
+function mergeCustomizer(obj, src, key) {
+  if (key != 'containers' && lodash.isArray(obj) && lodash.isArray(src)) {
     return obj.concat(src);
   }
 }
@@ -58,14 +58,14 @@ function extractPermittedJobParams(job) {
     }
     if (src.template && src.template.spec
       && src.template.spec.containers) {
-      obj.template = { spec: { containers: {} } };
-      if (src.template.spec.containers.resources) {
-        obj.template.spec.containers.resources = src.template.spec.containers.resources;
+      obj.template = { spec: { containers: [{}] } };
+      if (src.template.spec.containers[0].resources) {
+        obj.template.spec.containers[0].resources = src.template.spec.containers[0].resources;
       }
       if (src.template.spec.containers
-        && lodash.isArray(src.template.spec.containers.env)) {
-        const obj_envs = obj.template.spec.containers.env = [];
-        const src_envs = src.template.spec.containers.env;
+        && lodash.isArray(src.template.spec.containers[0].env)) {
+        const obj_envs = obj.template.spec.containers[0].env = [];
+        const src_envs = src.template.spec.containers[0].env;
         for (const i in src_envs) {
           const kv = src_envs[i];
           if (permitted_envs.includes(kv.name)
@@ -117,12 +117,12 @@ function generateYaml(federation, job, job_params, ticket) {
     base_spec = mergeJson(base_spec, {
       template: {
         spec: {
-          containers: {
+          containers: [{
             env: [
               { name: 'ROLE', value: ticket.role },
               { name: 'APPLICATION_ID', value: job.name },
             ],
-          },
+          }],
         },
       },
     });
