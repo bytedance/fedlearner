@@ -220,7 +220,7 @@ message RawDataOptions {
   // only support three compressed, ''(UnCompressed), ZLIB, GZIP
   string compressed_type = 2;
   // read ahead size for raw data reader, <=0 means don't read ahead
-  // only support csv dict reader
+  // only support csv dict reader and tf dataset
   int64 read_ahead_size = 3;
 }
 
@@ -305,12 +305,10 @@ message RsaPsiPreProcessorOptions {
   int64 sign_rpc_timeout_ms = 13;
   int64 stub_fanout = 14;
   int64 slow_sign_threshold = 15;
-  bool rpc_sync_mode = 16;
-  int64 rpc_thread_pool_size = 17;
-  int64 sort_run_merger_read_ahead_buffer = 18;
-  BatchProcessorOptions batch_processor_options = 19;
-  RawDataOptions input_raw_data = 20;
-  string output_builder = 21; // only support tf record or csv
+  int64 sort_run_merger_read_ahead_buffer = 16;
+  BatchProcessorOptions batch_processor_options = 17;
+  RawDataOptions input_raw_data = 18;
+  string output_builder = 19; // only support tf record or csv
 }
 
 message RawDataPartitionerOptions {

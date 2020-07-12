@@ -70,10 +70,6 @@ if __name__ == "__main__":
     parser.add_argument('--sort_run_merger_read_ahead_buffer', type=int,
                         default=1<<20, help='the read ahead buffer for the '\
                                             'reader of sort run reader')
-    parser.add_argument('--rpc_sync_mode', action='store_true',
-                        help='use the sync mode for rpc sign')
-    parser.add_argument('--rpc_thread_pool_size', type=int, default=16,
-                        help='the thread pool size for sync rpc sign')
     parser.add_argument('--partition_id', type=int, required=True,
                         help='the partition id will be processed')
     parser.add_argument('--etcd_name', type=str,
@@ -127,8 +123,6 @@ if __name__ == "__main__":
             sign_rpc_timeout_ms=args.sign_rpc_timeout_ms,
             stub_fanout=args.stub_fanout,
             slow_sign_threshold=args.slow_sign_threshold,
-            rpc_sync_mode=args.rpc_sync_mode,
-            rpc_thread_pool_size=args.rpc_thread_pool_size,
             sort_run_merger_read_ahead_buffer=\
                 args.sort_run_merger_read_ahead_buffer,
             batch_processor_options=dj_pb.BatchProcessorOptions(
