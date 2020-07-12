@@ -202,7 +202,7 @@ describe('serverGenerateYaml', () => {
     assert.ok(serverValidateJob(job, {}, ticket));
 
     assert.deepStrictEqual(
-      serverGenerateYaml(federation, job, {}, ticket),
+      serverGenerateYaml(federation, job, ticket),
       loadYaml(testTrainYaml),
     );
   });
