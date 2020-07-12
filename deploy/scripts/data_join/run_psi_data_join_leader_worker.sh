@@ -16,13 +16,23 @@
 
 set -ex
 
-psi_signer_cmd="/app/deploy/scripts/rsa_psi/run_rsa_psi_signer.sh"
-exec ${psi_signer_cmd} &
-echo "launched psi signer"
+echo "${WORKER_NUM:?Need to set WORKER_NUM non-empty}"
+echo "${INDEX:?Need to set INDEX non-empty}"
+REMAINER=$((WORKER_NUM % 2))
+if [ "$REMAINER" -ne "0" ]; then
+  echo "Error: WORKER_NUM should be the multiplies of 2."
+  exit 1
+fi
 
-data_join_cmd="/app/deploy/scripts/data_join/run_data_join_worker.sh"
-exec ${data_join_cmd} &
-echo "launched data join worker"
-
+WORKER_HALF=$((WORKER_NUM / 2))
+if [ $INDEX -le $WORKER_HALF ]; then
+  psi_signer_cmd="/app/deploy/scripts/rsa_psi/run_rsa_psi_signer.sh"
+  exec ${psi_signer_cmd} &
+  echo "launched psi signer"
+else
+  data_join_cmd="/app/deploy/scripts/data_join/run_data_join_worker.sh"
+  exec ${data_join_cmd} &
+  echo "launched data join worker"
+fi
 echo "waiting for finished"
 wait
