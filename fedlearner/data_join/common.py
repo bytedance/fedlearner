@@ -136,7 +136,7 @@ def convert_dict_to_tf_example(src_dict):
                                'string'.format(key, type(key)))
         basic_type = type(feature)
         if basic_type == str:
-            if feature.isdigit():
+            if feature.lstrip('-').isdigit():
                 feature = int(feature)
                 basic_type = int
             else:
