@@ -35,7 +35,7 @@ describe('serverGenerateYaml', () => {
             spec: {
               restartPolicy: 'Never',
               volumes: [{ hostPath: { path: '/data' }, name: 'data' }],
-              containers: {
+              containers: [{
                 env: [
                   { name: 'POD_IP', value: { valueFrom: { fieldRef: { fieldPath: 'status.podIP' } } } },
                   { name: 'POD_NAME', value: { valueFrom: { fieldRef: { fieldPath: 'metadata.name' } } } },
@@ -43,7 +43,7 @@ describe('serverGenerateYaml', () => {
                 imagePullPolicy: 'IfNotPresent',
                 volumeMounts: [{ mountPath: '/data', name: 'data' }],
                 name: 'tensorflow',
-              },
+              }],
             },
           },
         },
@@ -69,7 +69,7 @@ describe('serverGenerateYaml', () => {
               replicas: 1,
               template: {
                 spec: {
-                  containers: {
+                  containers: [{
                     env: [
                       { name: 'MODEL_NAME', value: 'fedlearner_model' },
                     ],
@@ -83,7 +83,7 @@ describe('serverGenerateYaml', () => {
                         memory: '4Gi',
                       },
                     },
-                  },
+                  }],
                 },
               },
             },
@@ -91,7 +91,7 @@ describe('serverGenerateYaml', () => {
               replicas: 1,
               template: {
                 spec: {
-                  containers: {
+                  containers: [{
                     env: [
                       { name: 'MODEL_NAME', value: 'fedlearner_model' },
                     ],
@@ -105,7 +105,7 @@ describe('serverGenerateYaml', () => {
                         memory: '4Gi',
                       },
                     },
-                  },
+                  }],
                 },
               },
             },
@@ -113,7 +113,7 @@ describe('serverGenerateYaml', () => {
               replicas: 1,
               template: {
                 spec: {
-                  containers: {
+                  containers: [{
                     env: [
                       { name: 'MODEL_NAME', value: 'fedlearner_model' },
                     ],
@@ -127,7 +127,7 @@ describe('serverGenerateYaml', () => {
                         memory: '4Gi',
                       },
                     },
-                  },
+                  }],
                 },
               },
             },
@@ -146,7 +146,7 @@ describe('serverGenerateYaml', () => {
               pair: false,
               template: {
                 spec: {
-                  containers: {
+                  containers: [{
                     env: [
                       { name: 'START_DATE', value: '2020041500' },
                       { name: 'END_DATE', value: '2020041700' },
@@ -157,7 +157,7 @@ describe('serverGenerateYaml', () => {
                     ],
                     command: ['/app/fedlearner_byted/deploy/scripts/trainer/run_customed_trainer_master.sh'],
                     args: [],
-                  },
+                  }],
                 },
               },
             },
@@ -166,14 +166,14 @@ describe('serverGenerateYaml', () => {
               replicas: 1,
               template: {
                 spec: {
-                  containers: {
+                  containers: [{
                     image: 'image_path',
                     ports: [
                       { containerPort: 50051, name: 'flapp-port' },
                     ],
                     command: ['/app/fedlearner_byted/deploy/scripts/trainer/run_trainer_ps.sh'],
                     args: [],
-                  },
+                  }],
                 },
               },
             },
@@ -182,7 +182,7 @@ describe('serverGenerateYaml', () => {
               replicas: 1,
               template: {
                 spec: {
-                  containers: {
+                  containers: [{
                     image: 'image_path',
                     ports: [
                       { containerPort: 50051, name: 'flapp-port' },
@@ -190,7 +190,7 @@ describe('serverGenerateYaml', () => {
                     ],
                     command: ['/app/fedlearner_byted/deploy/scripts/wait4pair_wrapper.sh'],
                     args: ['/app/fedlearner_byted/deploy/scripts/trainer/run_trainer_worker.sh'],
-                  },
+                  }],
                 },
               },
             },
