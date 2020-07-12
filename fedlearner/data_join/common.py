@@ -135,6 +135,16 @@ def convert_dict_to_tf_example(src_dict):
             raise RuntimeError('the key {}({}) of dict must a '\
                                'string'.format(key, type(key)))
         basic_type = type(feature)
+        if basic_type == str:
+            if feature.isdigit():
+                feature = int(feature)
+                basic_type = int
+            else:
+                try:
+                    feature = float(feature)
+                    basic_type = float
+                except ValueError as e:
+                    pass
         if isinstance(type(feature), list):
             if len(feature) == 0:
                 logging.debug('skip %s since feature is empty list', key)
@@ -143,7 +153,7 @@ def convert_dict_to_tf_example(src_dict):
             if not all(isinstance(x, basic_type) for x in feature):
                 raise RuntimeError('type of elements in feature of key {} '\
                                    'is not the same'.format(key))
-        if isinstance(feature, _valid_basic_feature_type):
+        if not isinstance(feature, _valid_basic_feature_type):
             raise RuntimeError("feature type({}) of key {} is not support "\
                                "for tf Example".format(basic_type, key))
         if basic_type == int:
