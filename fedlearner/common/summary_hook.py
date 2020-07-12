@@ -18,8 +18,8 @@ import os
 import datetime
 import logging
 import subprocess
-import tensorflow.compat.v1 as tf
 from threading import Thread
+import tensorflow.compat.v1 as tf
 
 
 class SummaryHook(object):
@@ -28,25 +28,25 @@ class SummaryHook(object):
     TENSORBOARD_PORT = 6006
     TENSORBOARD_PATH = '/usr/local/bin/tensorboard'
 
-    @staticmethod
-    def get_hook(role):
-        if not os.path.exists(SummaryHook.TENSORBOARD_PATH):
-            logging.info('Tensorboard path {} is not existed'.format(SummaryHook.TENSORBOARD_PATH))
+    @classmethod
+    def get_hook(cls, role):
+        if not os.path.exists(cls.TENSORBOARD_PATH):
+            logging.info('Tensorboard %s is not existed', cls.TENSORBOARD_PATH)
             return None
-        os.makedirs(SummaryHook.SUMMARY_PATH, exist_ok=True)
-        dir_name = '{}-{}'.format(datetime.datetime.now().strftime("%Y%m%d-%H%M%S"), role)
-        output_dir = os.path.join(SummaryHook.SUMMARY_PATH, dir_name)
-        logging.info('Summary output directory is {}'.format(output_dir))
+        os.makedirs(cls.SUMMARY_PATH, exist_ok=True)
+        datetime_str = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+        dir_name = '{}-{}'.format(datetime_str, role)
+        output_dir = os.path.join(cls.SUMMARY_PATH, dir_name)
+        logging.info('Summary output directory is %s', output_dir)
         scaffold = tf.train.Scaffold(summary_op=tf.summary.merge_all())
-        summary_hook = tf.train.SummarySaverHook(save_steps=SummaryHook.SUMMARY_SAVE_STEPS,
+        hook = tf.train.SummarySaverHook(save_steps=cls.SUMMARY_SAVE_STEPS,
                                                  output_dir=output_dir,
                                                  scaffold=scaffold)
-        Thread(target=SummaryHook.create_tensorboard, args=(SummaryHook.SUMMARY_PATH,)).start()
-        return summary_hook
+        Thread(target=cls.create_tensorboard, args=(cls.SUMMARY_PATH,)).start()
+        return hook
 
-    @staticmethod
-    def create_tensorboard(log_dir):
-        subprocess.Popen([SummaryHook.TENSORBOARD_PATH,
-                          '--logdir', log_dir,
-                          '--port', '{}'.format(SummaryHook.TENSORBOARD_PORT)],
+    @classmethod
+    def create_tensorboard(cls, log_dir):
+        subprocess.Popen([cls.TENSORBOARD_PATH, '--logdir', log_dir,
+                          '--port', '{}'.format(cls.TENSORBOARD_PORT)],
                          stdout=subprocess.PIPE, stderr=subprocess.PIPE)
