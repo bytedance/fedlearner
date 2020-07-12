@@ -24,7 +24,7 @@ export default function RawDataList() {
   const { data, mutate } = useSWR('raw_datas', fetcher);
   const rawDatas = data ? data.data : null;
   const columns = [
-    'id', 'name', 'federation_id', 'output_partition_num', 'data_portal_type',
+    'id', 'name', 'federation_id', 'data_portal_type',
     'input', 'output', 'operation',
   ];
   // eslint-disable-next-line arrow-body-style
@@ -98,6 +98,14 @@ export default function RawDataList() {
             )}
           </>
         )}
+      <style jsx global>{`
+        table {
+          word-break: break-word;
+        }
+        td {
+          min-width: 20px;
+        }
+      `}</style>
     </Layout>
   );
 }
