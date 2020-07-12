@@ -18,14 +18,11 @@ set -ex
 
 echo "${WORKER_NUM:?Need to set WORKER_NUM non-empty}"
 echo "${INDEX:?Need to set INDEX non-empty}"
-REMAINER=$((WORKER_NUM % 2))
-if [ "$REMAINER" -ne "0" ]; then
+if [ "$((WORKER_NUM % 2))" -ne "0" ]; then
   echo "Error: WORKER_NUM should be the multiplies of 2."
   exit 1
 fi
-
-WORKER_HALF=$((WORKER_NUM / 2))
-if [ $INDEX -le $WORKER_HALF ]; then
+if [ $INDEX -le $((WORKER_NUM / 2)) ]; then
   psi_signer_cmd="/app/deploy/scripts/rsa_psi/run_rsa_psi_signer.sh"
   exec ${psi_signer_cmd} &
   echo "launched psi signer"
