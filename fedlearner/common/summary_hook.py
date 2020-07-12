@@ -28,7 +28,7 @@ class SummaryHook(object):
         if not summary_path:
             logging.info('Tensorboard is not started')
             return None
-        os.makedirs(summary_path, exist_ok=True)
+        tf.io.gfile.makedirs(summary_path)
         datetime_str = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
         dir_name = '{}-{}'.format(datetime_str, role)
         output_dir = os.path.join(summary_path, dir_name)
