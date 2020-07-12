@@ -34,7 +34,7 @@ class SummaryHook(object):
         output_dir = os.path.join(summary_path, dir_name)
         logging.info('Summary output directory is %s', output_dir)
         scaffold = tf.train.Scaffold(summary_op=tf.summary.merge_all())
-        hook = tf.train.SummarySaverHook(save_steps=summary_save_steps,
+        hook = tf.train.SummarySaverHook(save_steps=int(summary_save_steps),
                                          output_dir=output_dir,
                                          scaffold=scaffold)
         return hook
