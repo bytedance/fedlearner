@@ -17,3 +17,4 @@ cityhash
 scikit-learn
 pycryptodomex
 rsa
+elasticsearch

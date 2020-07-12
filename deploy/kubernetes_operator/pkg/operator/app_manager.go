@@ -560,7 +560,11 @@ func (am *appManager) syncRunningApp(ctx context.Context, app *v1alpha1.FLApp) e
 
 func (am *appManager) isAppFinished(app *v1alpha1.FLApp) bool {
 	rtypeWorker := v1alpha1.FLReplicaTypeWorker
-	return app.Status.FLReplicaStatus[rtypeWorker].Succeeded.Len() == getReplicas(app, rtypeWorker)
+	succeededWorkers := app.Status.FLReplicaStatus[rtypeWorker].Succeeded.Len()
+	if app.Spec.FLReplicaSpecs[rtypeWorker].Replicas == nil {
+		return succeededWorkers == 0
+	}
+	return succeededWorkers == getReplicas(app, rtypeWorker)
 }
 
 func (am *appManager) isAppFailing(app *v1alpha1.FLApp) bool {

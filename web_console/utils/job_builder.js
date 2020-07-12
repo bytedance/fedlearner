@@ -12,8 +12,8 @@ const permittedJobEnvs = {
   nn_model: ['MODEL_NAME'],
 };
 
-function mergeCustomizer(obj, src) {
-  if (lodash.isArray(obj) && lodash.isArray(src)) {
+function mergeCustomizer(obj, src, key) {
+  if (key != 'containers' && lodash.isArray(obj) && lodash.isArray(src)) {
     return obj.concat(src);
   }
 }
@@ -58,14 +58,14 @@ function extractPermittedJobParams(job) {
     }
     if (src.template && src.template.spec
       && src.template.spec.containers) {
-      obj.template = { spec: { containers: {} } };
-      if (src.template.spec.containers.resources) {
-        obj.template.spec.containers.resources = src.template.spec.containers.resources;
+      obj.template = { spec: { containers: [{}] } };
+      if (src.template.spec.containers[0].resources) {
+        obj.template.spec.containers[0].resources = src.template.spec.containers[0].resources;
       }
       if (src.template.spec.containers
-        && lodash.isArray(src.template.spec.containers.env)) {
-        const obj_envs = obj.template.spec.containers.env = [];
-        const src_envs = src.template.spec.containers.env;
+        && lodash.isArray(src.template.spec.containers[0].env)) {
+        const obj_envs = obj.template.spec.containers[0].env = [];
+        const src_envs = src.template.spec.containers[0].env;
         for (const i in src_envs) {
           const kv = src_envs[i];
           if (permitted_envs.includes(kv.name)
@@ -117,12 +117,12 @@ function generateYaml(federation, job, job_params, ticket) {
     base_spec = mergeJson(base_spec, {
       template: {
         spec: {
-          containers: {
+          containers: [{
             env: [
               { name: 'ROLE', value: ticket.role },
               { name: 'APPLICATION_ID', value: job.name },
             ],
-          },
+          }],
         },
       },
     });
@@ -156,10 +156,81 @@ function serverGenerateYaml(federation, job, server_ticket) {
   );
 }
 
+function portalGenerateYaml(federation, raw_data) {
+  let k8s_settings = federation.k8s_settings;
+  let yaml = mergeJson({}, k8s_settings.global_job_spec);
+
+  let peer_spec = k8s_settings.peer_spec;
+  yaml = mergeJson(yaml, {
+    metadata: {
+      name: raw_data.name,
+    },
+    spec: {
+      role: 'Leader',
+      cleanPodPolicy: 'None',
+      peerSpecs: peer_spec,
+    },
+  });
+
+  yaml = mergeJson(yaml, raw_data.context.yaml_spec);
+
+  let master_spec = yaml.spec.flReplicaSpecs.Master;
+  master_spec = mergeJson(master_spec, k8s_settings.global_replica_spec);
+  master_spec = mergeJson(master_spec, {
+    pair: false,
+    replicas: 1,
+    template: {
+      spec: {
+        containers: {
+          env: [
+            { name: 'APPLICATION_ID', value: raw_data.name },
+            { name: 'OUTPUT_PARTITION_NUM', value: String(raw_data.output_partition_num) },
+            { name: 'INPUT_BASE_DIR', value: raw_data.input + '/' + raw_data.name },
+            { name: 'OUTPUT_BASE_DIR', value: raw_data.output + '/' + raw_data.name },
+            { name: 'RAW_DATA_PUBLISH_DIR', value: raw_data.name },
+            { name: 'DATA_PORTAL_TYPE', value: raw_data.data_portal_type },
+            { name: 'FILE_WILDCARD', value: raw_data.context.file_wildcard },
+          ],
+        },
+      },
+    },
+  });
+
+  let worker_spec = yaml.spec.flReplicaSpecs.Worker;
+  worker_spec = mergeJson(worker_spec, k8s_settings.global_replica_spec);
+  worker_spec = mergeJson(worker_spec, {
+    pair: false,
+    template: {
+      spec: {
+        containers: {
+          env: [
+            { name: 'APPLICATION_ID', value: raw_data.name },
+            { name: 'BATCH_SIZE', value: String(raw_data.context.batch_size) },
+            { name: 'MAX_FLYING_ITEM', value: String(raw_data.context.max_flying_item) },
+            { name: 'MERGE_BUFFER_SIZE', value: String(raw_data.context.merge_buffer_size) },
+            { name: 'WRITE_BUFFER_SIZE', String(value: raw_data.context.write_buffer_size) },
+            { name: 'INPUT_DATA_FORMAT', value: raw_data.context.input_data_format },
+            { name: 'COMPRESSED_TYPE', value: raw_data.context.compressed_type },
+          ],
+        },
+      },
+    },
+  });
+
+  let ps_spec = yaml.spec.flReplicaSpecs.PS;
+  ps_spec = mergeJson(ps_spec, {
+    pair: false,
+    replicas: 0,
+  });
+
+  return yaml;
+}
+
 module.exports = {
   validateTicket,
   clientValidateJob,
   serverValidateJob,
   clientGenerateYaml,
   serverGenerateYaml,
+  portalGenerateYaml,
 };
