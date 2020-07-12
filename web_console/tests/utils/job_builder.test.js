@@ -37,8 +37,8 @@ describe('serverGenerateYaml', () => {
               volumes: [{ hostPath: { path: '/data' }, name: 'data' }],
               containers: [{
                 env: [
-                  { name: 'POD_IP', value: { valueFrom: { fieldRef: { fieldPath: 'status.podIP' } } } },
-                  { name: 'POD_NAME', value: { valueFrom: { fieldRef: { fieldPath: 'metadata.name' } } } },
+                  { name: 'POD_IP', valueFrom: { fieldRef: { fieldPath: 'status.podIP' } } },
+                  { name: 'POD_NAME', valueFrom: { fieldRef: { fieldPath: 'metadata.name' } } },
                 ],
                 imagePullPolicy: 'IfNotPresent',
                 volumeMounts: [{ mountPath: '/data', name: 'data' }],
@@ -137,7 +137,7 @@ describe('serverGenerateYaml', () => {
     };
 
     const ticket = {
-      role: 'leader',
+      role: 'Leader',
       public_params: null,
       private_params: {
         spec: {
@@ -230,8 +230,8 @@ describe('portalGenerateYaml', () => {
               volumes: [{ hostPath: { path: '/data' }, name: 'data' }],
               containers: {
                 env: [
-                  { name: 'POD_IP', value: { valueFrom: { fieldRef: { fieldPath: 'status.podIP' } } } },
-                  { name: 'POD_NAME', value: { valueFrom: { fieldRef: { fieldPath: 'metadata.name' } } } },
+                  { name: 'POD_IP', valueFrom: { fieldRef: { fieldPath: 'status.podIP' } } },
+                  { name: 'POD_NAME', valueFrom: { fieldRef: { fieldPath: 'metadata.name' } } },
                 ],
                 imagePullPolicy: 'IfNotPresent',
                 volumeMounts: [{ mountPath: '/data', name: 'data' }],
