@@ -31,7 +31,7 @@ DataBlockMetaSuffix = '.meta'
 RawDataMetaPrefix = 'raw_data_'
 RawDataPubSuffix = '.pub'
 MergedSortRunSuffix = '-sort_run.merged'
-InvalidExampleId = ''
+InvalidExampleId = ''.encode()
 TmpFileSuffix = '.tmp'
 DoneFileSuffix = '.done'
 RawDataFileSuffix = '.rd'
@@ -135,7 +135,7 @@ def convert_dict_to_tf_example(src_dict):
             raise RuntimeError('the key {}({}) of dict must a '\
                                'string'.format(key, type(key)))
         basic_type = type(feature)
-        if basic_type == str:
+        if basic_type == str and key != 'example_id':
             if feature.lstrip('-').isdigit():
                 feature = int(feature)
                 basic_type = int
