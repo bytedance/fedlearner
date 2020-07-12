@@ -31,7 +31,7 @@ def generate_input_csv(base_dir, start_id, end_id, partition_num):
         if not gfile.Exists(dirpath):
             gfile.MakeDirs(dirpath)
         assert gfile.IsDirectory(dirpath)
-    csv_writers = [SortRunMergerWriter(base_dir, 0, partition_id)
+    csv_writers = [SortRunMergerWriter(base_dir, 0, partition_id, 'CSV_DICT')
                    for partition_id in range(partition_num)]
     for idx in range(start_id, end_id):
         if idx % 262144 == 0:

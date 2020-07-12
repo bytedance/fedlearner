@@ -31,7 +31,7 @@ DataBlockMetaSuffix = '.meta'
 RawDataMetaPrefix = 'raw_data_'
 RawDataPubSuffix = '.pub'
 MergedSortRunSuffix = '-sort_run.merged'
-InvalidExampleId = ''
+InvalidExampleId = ''.encode()
 TmpFileSuffix = '.tmp'
 DoneFileSuffix = '.done'
 RawDataFileSuffix = '.rd'
@@ -135,7 +135,7 @@ def convert_dict_to_tf_example(src_dict):
             raise RuntimeError('the key {}({}) of dict must a '\
                                'string'.format(key, type(key)))
         basic_type = type(feature)
-        if basic_type == str:
+        if basic_type == str and key != 'example_id':
             if feature.lstrip('-').isdigit():
                 feature = int(feature)
                 basic_type = int
@@ -171,7 +171,7 @@ def convert_dict_to_tf_example(src_dict):
                 bytes_list=tf.train.BytesList(value=value))
         else:
             assert basic_type == float
-            value = feature if  isinstance(feature, list) else [feature]
+            value = feature if isinstance(feature, list) else [feature]
             tf_feature[key] = tf.train.Feature(
                 float_list=tf.train.FloatList(value=value))
     return tf.train.Example(features=tf.train.Features(feature=tf_feature))

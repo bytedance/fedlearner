@@ -17,7 +17,6 @@
 import logging
 import threading
 import concurrent.futures as concur_futures
-from collections import OrderedDict
 import rsa
 
 from fedlearner.common import common_pb2 as common_pb
@@ -204,10 +203,9 @@ class RsaPsiPreProcessor(object):
         sort_run_dumper = self._sort_run_dumper
         if len(items_buffer) > 0:
             def producer(items_buffer):
-                for signed_id, raw, index in items_buffer:
-                    new_raw = OrderedDict({'example_id': signed_id})
-                    new_raw.update(raw)
-                    yield signed_id, index, new_raw
+                for signed_id, item, index in items_buffer:
+                    item.set_example_id(signed_id)
+                    yield signed_id, index, item
             sort_run_dumper.dump_sort_runs(producer(items_buffer))
         if next_index is not None:
             self._psi_rsa_signer.evict_staless_item_batch(next_index-1)

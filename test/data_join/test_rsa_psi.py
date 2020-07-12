@@ -200,7 +200,7 @@ class RsaPsi(unittest.TestCase):
         worker_options = dj_pb.DataJoinWorkerOptions(
                 use_mock_etcd=True,
                 raw_data_options=dj_pb.RawDataOptions(
-                    raw_data_iter='CSV_DICT',
+                    raw_data_iter='TF_RECORD',
                     compressed_type=''
                 ),
                 example_id_dump_options=dj_pb.ExampleIdDumpOptions(
@@ -219,7 +219,7 @@ class RsaPsi(unittest.TestCase):
                     max_flying_item=4096
                 ),
                 data_block_builder_options=dj_pb.DataBlockBuilderOptions(
-                    data_block_builder='CSV_DICT_DATABLOCK_BUILDER'
+                    data_block_builder='TF_RECORD_DATABLOCK_BUILDER'
                 )
             )
         self._worker_addrs_l = ['localhost:4161', 'localhost:4162',
@@ -300,7 +300,12 @@ class RsaPsi(unittest.TestCase):
                     batch_processor_options=dj_pb.BatchProcessorOptions(
                         batch_size=1024,
                         max_flying_item=1<<14
-                    )
+                    ),
+                    input_raw_data=dj_pb.RawDataOptions(
+                        raw_data_iter='CSV_DICT',
+                        read_ahead_size=1<<20
+                    ),
+                    output_builder='TF_RECORD'
                 )
             processor = rsa_psi_preprocessor.RsaPsiPreProcessor(
                     options, self._etcd_name, self._etcd_addrs,
@@ -338,7 +343,12 @@ class RsaPsi(unittest.TestCase):
                     batch_processor_options=dj_pb.BatchProcessorOptions(
                         batch_size=1024,
                         max_flying_item=1<<14
-                    )
+                    ),
+                    input_raw_data=dj_pb.RawDataOptions(
+                        raw_data_iter='CSV_DICT',
+                        read_ahead_size=1<<20
+                    ),
+                    output_builder='TF_RECORD'
                 )
             processor = rsa_psi_preprocessor.RsaPsiPreProcessor(
                         options, self._etcd_name, self._etcd_addrs,

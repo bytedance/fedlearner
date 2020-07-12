@@ -309,6 +309,8 @@ message RsaPsiPreProcessorOptions {
   int64 rpc_thread_pool_size = 17;
   int64 sort_run_merger_read_ahead_buffer = 18;
   BatchProcessorOptions batch_processor_options = 19;
+  RawDataOptions input_raw_data = 20;
+  string output_builder = 21; // only support tf record or csv
 }
 
 message RawDataPartitionerOptions {

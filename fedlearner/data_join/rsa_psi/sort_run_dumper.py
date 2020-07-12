@@ -19,6 +19,7 @@ import re
 import copy
 from os import path
 
+import tensorflow.compat.v1 as tf
 from tensorflow.compat.v1 import gfile
 
 from fedlearner.data_join import csv_dict_writer
@@ -68,26 +69,30 @@ class SortRunMeta(object):
 
 class SortRunDumper(object):
     class SortRunWriter(object):
-        def __init__(self, process_index, output_dir):
+        def __init__(self, process_index, output_dir, output_builder):
             self._process_index = process_index
             self._output_dir = output_dir
             self._tmp_fpath = self._gen_tmp_fpath()
+            self._output_builder = output_builder
             self._fpath = None
-            self._csv_writer = csv_dict_writer.CsvDictWriter(
-                    self._tmp_fpath
-                )
+            self._writer = None
             self._start_index = None
             self._end_index = None
 
-        def append(self, index, raw):
-            self._csv_writer.write(raw)
+        def append(self, index, item):
+            writer = self._get_output_writer(self._tmp_fpath)
+            if self._output_builder == 'CSV_DICT':
+                writer.write(item.csv_record)
+            else:
+                assert self._output_builder == 'TF_RECORD'
+                writer.write(item.tf_record)
             if self._start_index is None or self._start_index > index:
                 self._start_index = index
             if self._end_index is None or self._end_index < index:
                 self._end_index = index
 
         def finish_dumper(self):
-            self._csv_writer.close()
+            self._writer.close()
             meta = None
             if self._start_index is None or self._end_index is None:
                 gfile.Remove(self._fpath)
@@ -107,6 +112,15 @@ class SortRunDumper(object):
         @property
         def fpath(self):
             return self._fpath
+
+        def _get_output_writer(self, fpath):
+            if self._writer is None:
+                if self._output_builder == 'CSV_DICT':
+                    self._writer = csv_dict_writer.CsvDictWriter(fpath)
+                else:
+                    assert self._output_builder == 'TF_RECORD'
+                    self._writer = tf.io.TFRecordWriter(fpath)
+            return self._writer
 
         def _gen_tmp_fpath(self):
             return gen_tmp_fpath(self._output_dir)
@@ -146,8 +160,8 @@ class SortRunDumper(object):
         self._fly_sort_run_dumper = self._create_sort_run_dumper(
                 next_process_index
             )
-        for join_id, index, raw in producer:
-            self._fly_sort_run_dumper.append(index, raw)
+        for join_id, index, item in producer:
+            self._fly_sort_run_dumper.append(index, item)
         meta = self._fly_sort_run_dumper.finish_dumper()
         if meta is not None:
             self._dumped_sort_run_metas.append(meta)
@@ -208,7 +222,8 @@ class SortRunDumper(object):
     def _create_sort_run_dumper(self, process_index):
         output_dir = self._get_output_dir()
         return SortRunDumper.SortRunWriter(process_index,
-                                           output_dir)
+                                           output_dir,
+                                           self._options.output_builder)
 
     def _get_output_dir(self):
         return path.join(self.sort_run_dump_dir(),

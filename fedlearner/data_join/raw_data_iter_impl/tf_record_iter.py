@@ -68,15 +68,17 @@ class TfExampleItem(RawDataIter.Item):
             try:
                 self._parse_example(True)
                 feat = self._example.features.feature
-                if 'event_time' not in feat:
-                    raise ValueError('event_time not in example field')
-                if feat['event_time'].HasField('int64_list'):
-                    self._event_time = feat['event_time'].int64_list.value[0]
-                elif feat['event_time'].HasField('bytes_list'):
-                    self._event_time = \
-                        int(feat['event_time'].bytes_list.value[0])
+                if 'event_time' in feat:
+                    if feat['event_time'].HasField('int64_list'):
+                        self._event_time = \
+                            feat['event_time'].int64_list.value[0]
+                    elif feat['event_time'].HasField('bytes_list'):
+                        self._event_time = \
+                            int(feat['event_time'].bytes_list.value[0])
+                    else:
+                        raise ValueError('event_time not support float_list')
                 else:
-                    raise ValueError('event_time not support float_list')
+                    self._event_time = common.InvalidEventTime
             except Exception as e: # pylint: disable=broad-except
                 logging.error("Failed parse event time from %s, reason %s",
                               self._record_str, e)
@@ -109,6 +111,20 @@ class TfExampleItem(RawDataIter.Item):
                     logging.error("Failed convert tf example to csv record, "\
                                   "reason %s", e)
         return self._csv_record
+
+    def set_example_id(self, example_id):
+        self._parse_example(False)
+        if self._example is not None:
+            feat = self._example.features.feature
+            if isinstance(example_id, str):
+                example_id = example_id.encode()
+            feat['example_id'] = tf.train.Feature(
+                    bytes_list=tf.train.BytesList(value=[example_id])
+                )
+            self._record_str = self._example.SerializeToString()
+            self._example_id = example_id
+            if self._csv_record is not None:
+                self._csv_record = None
 
     def _parse_example(self, raise_exp):
         try:
