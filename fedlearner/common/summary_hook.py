@@ -17,36 +17,24 @@
 import os
 import datetime
 import logging
-import subprocess
-from threading import Thread
 import tensorflow.compat.v1 as tf
 
 
 class SummaryHook(object):
-    SUMMARY_PATH = '/tmp/tfb_log'
-    SUMMARY_SAVE_STEPS = 10
-    TENSORBOARD_PORT = 6006
-    TENSORBOARD_PATH = '/usr/local/bin/tensorboard'
-
     @classmethod
     def get_hook(cls, role):
-        if not os.path.exists(cls.TENSORBOARD_PATH):
-            logging.info('Tensorboard %s is not existed', cls.TENSORBOARD_PATH)
+        summary_path = os.getenv('SUMMARY_PATH', None)
+        summary_save_steps = os.getenv('SUMMARY_SAVE_STEPS', 10)
+        if not summary_path:
+            logging.info('Tensorboard is not started')
             return None
-        os.makedirs(cls.SUMMARY_PATH, exist_ok=True)
+        os.makedirs(summary_path, exist_ok=True)
         datetime_str = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
         dir_name = '{}-{}'.format(datetime_str, role)
-        output_dir = os.path.join(cls.SUMMARY_PATH, dir_name)
+        output_dir = os.path.join(summary_path, dir_name)
         logging.info('Summary output directory is %s', output_dir)
         scaffold = tf.train.Scaffold(summary_op=tf.summary.merge_all())
-        hook = tf.train.SummarySaverHook(save_steps=cls.SUMMARY_SAVE_STEPS,
+        hook = tf.train.SummarySaverHook(save_steps=summary_save_steps,
                                          output_dir=output_dir,
                                          scaffold=scaffold)
-        Thread(target=cls.create_tensorboard, args=(cls.SUMMARY_PATH,)).start()
         return hook
-
-    @classmethod
-    def create_tensorboard(cls, log_dir):
-        subprocess.Popen([cls.TENSORBOARD_PATH, '--logdir', log_dir,
-                          '--port', '{}'.format(cls.TENSORBOARD_PORT)],
-                         stdout=subprocess.PIPE, stderr=subprocess.PIPE)
