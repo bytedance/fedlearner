@@ -25,7 +25,7 @@ MASTER_POD_NAMES=`python -c 'import json, os; print(json.loads(os.environ["CLUST
 merge_buffer_size=$(normalize_env_to_args "--merge_buffer_size" $MERGE_BUFFER_SIZE)
 writer_buffer_size=$(normalize_env_to_args "--write_buffer_size" $WRITE_BUFFER_SIZE)
 input_data_file_iter=$(normalize_env_to_args "--input_data_file_iter" $INPUT_DATA_FORMAT)
-output_data_file_iter=$(normalize_env_to_args "--output_data_builder" $OUTPUT_DATA_FORMAT)
+output_data_file_iter=$(normalize_env_to_args "--output_data_file_type" $OUTPUT_DATA_FORMAT)
 compressed_type=$(normalize_env_to_args "--compressed_type" $COMPRESSED_TYPE)
 
 
