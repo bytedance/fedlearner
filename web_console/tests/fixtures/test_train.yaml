@@ -18,17 +18,15 @@ spec:
           containers:
             - env:
                 - name: POD_IP
-                  value:
-                    valueFrom:
-                      fieldRef:
-                        fieldPath: status.podIP
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: status.podIP
                 - name: POD_NAME
-                  value:
-                    valueFrom:
-                      fieldRef:
-                        fieldPath: metadata.name
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.name
                 - name: ROLE
-                  value: leader
+                  value: Leader
                 - name: APPLICATION_ID
                   value: application_id
                 - name: START_DATE
@@ -69,17 +67,15 @@ spec:
           containers:
             - env:
                 - name: POD_IP
-                  value:
-                    valueFrom:
-                      fieldRef:
-                        fieldPath: status.podIP
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: status.podIP
                 - name: POD_NAME
-                  value:
-                    valueFrom:
-                      fieldRef:
-                        fieldPath: metadata.name
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.name
                 - name: ROLE
-                  value: leader
+                  value: Leader
                 - name: APPLICATION_ID
                   value: application_id
                 - name: MODEL_NAME
@@ -116,17 +112,15 @@ spec:
           containers:
             - env:
                 - name: POD_IP
-                  value:
-                    valueFrom:
-                      fieldRef:
-                        fieldPath: status.podIP
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: status.podIP
                 - name: POD_NAME
-                  value:
-                    valueFrom:
-                      fieldRef:
-                        fieldPath: metadata.name
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.name
                 - name: ROLE
-                  value: leader
+                  value: Leader
                 - name: APPLICATION_ID
                   value: application_id
                 - name: MODEL_NAME
@@ -153,7 +147,7 @@ spec:
                 - /app/fedlearner_byted/deploy/scripts/wait4pair_wrapper.sh
               args:
                 - /app/fedlearner_byted/deploy/scripts/trainer/run_trainer_worker.sh
-  role: leader
+  role: Leader
   cleanPodPolicy: None
   peerSpecs:
     Follower:

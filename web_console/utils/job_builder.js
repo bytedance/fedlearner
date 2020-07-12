@@ -94,7 +94,7 @@ function generateYaml(federation, job, job_params, ticket) {
   let yaml = mergeJson({}, k8s_settings.global_job_spec);
 
   let peer_spec = k8s_settings.leader_peer_spec;
-  if (ticket.role == 'follower') {
+  if (ticket.role == 'Follower') {
     peer_spec = k8s_settings.follower_peer_spec;
   }
   yaml = mergeJson(yaml, {

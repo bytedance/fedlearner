@@ -17,17 +17,16 @@ spec:
               name: data
           containers:
             env:
-              - name: APPLICATION_ID
-                value: test_raw_data
               - name: POD_IP
                 valueFrom:
                   fieldRef:
                     fieldPath: status.podIP
               - name: POD_NAME
-                value:
-                  valueFrom:
-                    fieldRef:
-                      fieldPath: metadata.name
+                valueFrom:
+                  fieldRef:
+                    fieldPath: metadata.name
+              - name: APPLICATION_ID
+                value: test_raw_data
               - name: OUTPUT_PARTITION_NUM
                 value: "8"
               - name: INPUT_BASE_DIR
@@ -72,15 +71,13 @@ spec:
           containers:
             env:
               - name: POD_IP
-                value:
-                  valueFrom:
-                    fieldRef:
-                      fieldPath: status.podIP
+                valueFrom:
+                  fieldRef:
+                    fieldPath: status.podIP
               - name: POD_NAME
-                value:
-                  valueFrom:
-                    fieldRef:
-                      fieldPath: metadata.name
+                valueFrom:
+                  fieldRef:
+                    fieldPath: metadata.name
               - name: APPLICATION_ID
                 value: test_raw_data
               - name: BATCH_SIZE
