@@ -120,7 +120,9 @@ class FLModel(object):
     def _append_summary_hook(self, training_hooks):
         if not training_hooks:
             training_hooks = []
-        training_hooks.append(SummaryHook.get_hook(self._role))
+        summary_hook = SummaryHook.get_hook(self._role)
+        if summary_hook:
+            training_hooks.append(summary_hook)
         return training_hooks
 
     def make_spec(self,

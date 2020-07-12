@@ -30,6 +30,9 @@ class SummaryHook(object):
 
     @staticmethod
     def get_hook(role):
+        if not os.path.exists(SummaryHook.TENSORBOARD_PATH):
+            logging.info('Tensorboard path {} is not existed'.format(SummaryHook.TENSORBOARD_PATH))
+            return None
         os.makedirs(SummaryHook.SUMMARY_PATH, exist_ok=True)
         dir_name = '{}-{}'.format(datetime.datetime.now().strftime("%Y%m%d-%H%M%S"), role)
         output_dir = os.path.join(SummaryHook.SUMMARY_PATH, dir_name)
