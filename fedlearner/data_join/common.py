@@ -171,7 +171,7 @@ def convert_dict_to_tf_example(src_dict):
                 bytes_list=tf.train.BytesList(value=value))
         else:
             assert basic_type == float
-            value = feature if  isinstance(feature, list) else [feature]
+            value = feature if isinstance(feature, list) else [feature]
             tf_feature[key] = tf.train.Feature(
                 float_list=tf.train.FloatList(value=value))
     return tf.train.Example(features=tf.train.Features(feature=tf_feature))

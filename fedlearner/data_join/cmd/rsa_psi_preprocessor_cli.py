@@ -82,6 +82,17 @@ if __name__ == "__main__":
                         default='localhost:2379', help='the addrs of etcd')
     parser.add_argument('--etcd_base_dir', type=str, default='fedlearner_test',
                         help='the namespace of etcd key')
+    parser.add_argument('--raw_data_iter', type=str, default='CSV_DICT',
+                        help='the type for raw data file')
+    parser.add_argument('--compressed_type', type=str, default='',
+                        choices=['', 'ZLIB', 'GZIP'],
+                        help='the compressed type for raw data')
+    parser.add_argument('--read_ahead_size', type=int, default=32<<20,
+                        help='the read ahead size for raw data,'
+                             'only support CSV DICT')
+    parser.add_argument('--output_builder', type=str, default='CSV_DICT',
+                        choices=['TF_RECORD', 'CSV_DICT'],
+                        help='the builder for ouput file')
 
     args = parser.parse_args()
     all_fpaths = []
@@ -123,7 +134,13 @@ if __name__ == "__main__":
             batch_processor_options=dj_pb.BatchProcessorOptions(
                 batch_size=args.process_batch_size,
                 max_flying_item=args.max_flying_item
-            )
+            ),
+            raw_data_options=dj_pb.RawDataOptions(
+                raw_data_iter=args.raw_data_iter,
+                compressed_type=args.compressed_type,
+                read_ahead_size=args.read_ahead_size
+            ),
+            output_builder=args.output_builder
         )
     preprocessor = RsaPsiPreProcessor(preprocessor_options, args.etcd_name,
                                       args.etcd_addrs, args.etcd_base_dir)
