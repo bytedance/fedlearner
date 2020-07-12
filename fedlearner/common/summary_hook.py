@@ -40,8 +40,8 @@ class SummaryHook(object):
         logging.info('Summary output directory is %s', output_dir)
         scaffold = tf.train.Scaffold(summary_op=tf.summary.merge_all())
         hook = tf.train.SummarySaverHook(save_steps=cls.SUMMARY_SAVE_STEPS,
-                                                 output_dir=output_dir,
-                                                 scaffold=scaffold)
+                                         output_dir=output_dir,
+                                         scaffold=scaffold)
         Thread(target=cls.create_tensorboard, args=(cls.SUMMARY_PATH,)).start()
         return hook
 
