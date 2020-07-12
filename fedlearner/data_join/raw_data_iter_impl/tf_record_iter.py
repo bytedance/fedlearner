@@ -154,7 +154,9 @@ class TfDataSetIter(RawDataIter):
             data_set = tf.data.TFRecordDataset(
                     [fpath],
                     compression_type=self._options.compressed_type,
-                    num_parallel_reads=4
+                    num_parallel_reads=4,
+                    buffer_size=None if self._options.read_ahead_size <= 0 \
+                            else self._options.read_ahead_size
                 )
             data_set = data_set.batch(64)
             yield data_set
@@ -187,7 +189,10 @@ class TfRecordIter(RawDataIter):
         return 'TF_RECORD'
 
     def _inner_iter(self, fpath):
-        with common.make_tf_record_iter(fpath) as record_iter:
+        options = tf.io.TFRecordOptions(
+                compression_type=self._options.compressed_type
+            )
+        with common.make_tf_record_iter(fpath, options) as record_iter:
             for record in record_iter:
                 yield TfExampleItem(record)
 
