@@ -23,8 +23,8 @@ import tensorflow.compat.v1 as tf
 class SummaryHook(object):
     @classmethod
     def get_hook(cls, role):
-        summary_path = os.getenv('SUMMARY_PATH', None)
-        summary_save_steps = os.getenv('SUMMARY_SAVE_STEPS', 10)
+        summary_path = os.environ.get('SUMMARY_PATH', None)
+        summary_save_steps = os.environ.get('SUMMARY_SAVE_STEPS', 10)
         if not summary_path:
             logging.info('Tensorboard is not started')
             return None
