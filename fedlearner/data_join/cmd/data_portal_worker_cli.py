@@ -47,6 +47,9 @@ if __name__ == '__main__':
     parser.add_argument("--compressed_type", type=str, default='',
                         choices=['', 'ZLIB', 'GZIP'],
                         help='the compressed type of input data file')
+    parser.add_argument("--output_data_file_type", type=str,
+                        default="TF_RECORD",
+                        help="the type for output data")
     parser.add_argument("--batch_size", type=int, default=1024,
                         help="the batch size for raw data reader")
     parser.add_argument("--max_flying_item", type=int, default=300000,
@@ -62,7 +65,8 @@ if __name__ == '__main__':
         partitioner_name="dp_worker_partitioner_{}".format(args.rank_id),
         raw_data_options=raw_data_options,
         batch_processor_options=batch_processor_options,
-        output_item_threshold=args.write_buffer_size)
+        output_item_threshold=args.write_buffer_size,
+        output_builder=args.output_data_file_type)
     merge_options = dp_pb.MergeOptions(
         merger_name="dp_worker_merger_{}".format(args.rank_id),
         raw_data_options=raw_data_options,
