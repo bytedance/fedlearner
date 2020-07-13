@@ -22,13 +22,10 @@ import logging
 import threading
 import os
 
-import tensorflow.compat.v1 as tf
 from tensorflow.compat.v1 import gfile
 
-from fedlearner.common import data_join_service_pb2 as dj_pb
-
 from fedlearner.data_join.raw_data_iter_impl import create_raw_data_iter
-from fedlearner.data_join import common, visitor, csv_dict_writer
+from fedlearner.data_join import common, visitor
 from fedlearner.data_join.output_writer_impl import create_output_writer
 
 class MergedSortRunMeta(object):
@@ -197,7 +194,7 @@ class SortRunMerger(object):
             logging.info("sort runs have been merged for partition %d",
                          self._partition_id)
             return self._list_merged_sort_run_fpath()
-        if len(sort_runs) == 0:
+        if len(input_fpaths) == 0:
             logging.info("no sort run for partition %d", self._partition_id)
             return []
         dumped_key, next_process_index = self._sync_merged_state()

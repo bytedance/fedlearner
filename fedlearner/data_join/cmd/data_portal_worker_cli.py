@@ -78,16 +78,6 @@ if __name__ == '__main__':
         merger_read_ahead_size=args.merger_read_ahead_size
     )
 
-    partitioner_options = dj_pb.RawDataPartitionerOptions(
-            partitioner_name="dp_worker_partitioner_{}".format(args.rank_id),
-            raw_data_options=raw_data_options,
-            batch_processor_options=batch_processor_options,
-            writer_options=dj_pb.WriterOptions(
-                output_writer=args.output_builder,
-                compressed_type=args.builder_compressed_type
-            )
-        )
-
     data_portal_worker = DataPortalWorker(
             portal_worker_options, args.master_addr,
             args.rank_id, args.etcd_name, args.etcd_base_dir,

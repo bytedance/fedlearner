@@ -24,14 +24,13 @@ class OutputWriter(object):
     def write_item(self, item):
         raise NotImplementedError("write not implement for basic OutputBuilder")
 
-    def close():
+    def close(self):
         raise NotImplementedError("close not implement for basic OutputBuilder")
 
     @property
     def fpath(self):
-        self._fpath
+        return self._fpath
 
     @classmethod
     def name(cls):
         return 'OUTPUT_BUILDER'
-

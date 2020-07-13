@@ -17,9 +17,10 @@
 import logging
 import threading
 import concurrent.futures as concur_futures
-import rsa
 import os
+import rsa
 
+from fedlearner.common import data_join_service_pb2 as dj_pb
 from fedlearner.common import common_pb2 as common_pb
 from fedlearner.common.etcd_client import EtcdClient
 
@@ -73,7 +74,7 @@ class RsaPsiPreProcessor(object):
                 dj_pb.SortRunMergerOptions(
                     merger_name='sort_run_merger_'+\
                                 partition_repr(options.partition_id),
-                    reader_options=data_join.RawDataOptions(
+                    reader_options=dj_pb.RawDataOptions(
                         raw_data_iter=options.writer_options.output_writer,
                         compressed_type=options.writer_options.compressed_type,
                         read_ahead_size=\

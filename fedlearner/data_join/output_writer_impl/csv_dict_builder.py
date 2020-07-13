@@ -25,7 +25,7 @@ class CSVDictBuilder(OutputWriter):
     def write_item(self, item):
         self._writer.write(item.csv_record)
 
-    def close():
+    def close(self):
         self._writer.close()
 
     @classmethod

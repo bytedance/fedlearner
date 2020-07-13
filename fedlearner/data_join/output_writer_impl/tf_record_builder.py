@@ -29,7 +29,7 @@ class TfRecordBuilder(OutputWriter):
     def write_item(self, item):
         self._writer.write(item.tf_record)
 
-    def close():
+    def close(self):
         self._writer.close()
 
     @classmethod

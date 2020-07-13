@@ -19,11 +19,9 @@ import re
 import copy
 from os import path
 
-import tensorflow.compat.v1 as tf
 from tensorflow.compat.v1 import gfile
 
 from fedlearner.data_join.output_writer_impl import create_output_writer
-from fedlearner.data_join import csv_dict_writer
 from fedlearner.data_join.common import (DoneFileSuffix, TmpFileSuffix,
                                          gen_tmp_fpath, partition_repr)
 

@@ -20,7 +20,6 @@ import os
 import grpc
 
 from tensorflow.compat.v1 import gfile
-import tensorflow.compat.v1 as tf
 
 from fedlearner.common import data_portal_service_pb2 as dp_pb
 from fedlearner.common import data_join_service_pb2 as dj_pb
@@ -167,9 +166,9 @@ class DataPortalWorker(object):
             ),
             writer_options=self._options.writer_options,
             output_file_dir=task.reduce_base_dir,
-            partition_id=task.partition_id
+            partition_id=task.partition_id,
             merge_buffer_size=self._options.merge_buffer_size,
-            write_buffer_size=self._options.write_buffer_size,
+            write_buffer_size=self._options.write_buffer_size
         )
 
     def _run_map_task(self, task):

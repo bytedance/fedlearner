@@ -19,7 +19,6 @@ import logging
 import os
 import re
 
-import tensorflow.compat.v1 as tf
 from tensorflow.compat.v1 import gfile
 
 from cityhash import CityHash32 # pylint: disable=no-name-in-module
@@ -31,7 +30,6 @@ from fedlearner.data_join.item_batch_seq_processor import \
         ItemBatch, ItemBatchSeqProcessor
 from fedlearner.data_join.routine_worker import RoutineWorker
 from fedlearner.data_join.raw_data_visitor import FileBasedMockRawDataVisitor
-from fedlearner.data_join.csv_dict_writer import CsvDictWriter
 from fedlearner.data_join import common
 
 class RawDataBatch(ItemBatch):

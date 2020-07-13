@@ -33,7 +33,7 @@ for _, module, ispackage in pkgutil.walk_packages(
     for _, m in inspect.getmembers(sys.modules[module], inspect.isclass):
         if not issubclass(m, OutputWriter):
             continue
-        builder_impl_map[m.name()] = m
+        writer_impl_map[m.name()] = m
 
 def create_output_writer(writer_options, *args, **kwargs):
     writer = writer_options.output_writer
