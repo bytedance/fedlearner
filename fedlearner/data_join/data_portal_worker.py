@@ -34,7 +34,7 @@ class RawDataSortPartitioner(RawDataPartitioner):
 
     class OutputFileSortWriter(RawDataPartitioner.OutputFileWriter):
         def __init__(self, options, partition_id, process_index):
-            super(OutputFileSortWriter, self).__init__(
+            super(RawDataSortPartitioner.OutputFileSortWriter, self).__init__(
                     options, partition_id, process_index
                 )
             self._buffer = []
