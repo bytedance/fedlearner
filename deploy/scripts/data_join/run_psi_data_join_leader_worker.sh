@@ -22,7 +22,7 @@ if [ "$((WORKER_NUM % 2))" -ne "0" ]; then
   echo "Error: WORKER_NUM should be the multiplies of 2."
   exit 1
 fi
-if [ $INDEX -le $((WORKER_NUM / 2)) ]; then
+if [ $INDEX -lt $((WORKER_NUM / 2)) ]; then
   psi_signer_cmd="/app/deploy/scripts/rsa_psi/run_rsa_psi_signer.sh"
   exec ${psi_signer_cmd} &
   echo "launched psi signer"
