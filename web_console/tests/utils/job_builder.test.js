@@ -20,12 +20,8 @@ describe('serverGenerateYaml', () => {
     const federation = {
       k8s_settings: {
         namespace: 'default',
+        storage_root_path: '/data',
         global_job_spec: {
-          apiVersion: 'fedlearner.k8s.io/v1alpha1',
-          kind: 'FLApp',
-          metadata: {
-            namespace: 'default',
-          },
           spec: {
             cleanPodPolicy: 'None',
           },
@@ -33,16 +29,9 @@ describe('serverGenerateYaml', () => {
         global_replica_spec: {
           template: {
             spec: {
-              restartPolicy: 'Never',
               volumes: [{ hostPath: { path: '/data' }, name: 'data' }],
               containers: [{
-                env: [
-                  { name: 'POD_IP', valueFrom: { fieldRef: { fieldPath: 'status.podIP' } } },
-                  { name: 'POD_NAME', valueFrom: { fieldRef: { fieldPath: 'metadata.name' } } },
-                ],
-                imagePullPolicy: 'IfNotPresent',
                 volumeMounts: [{ mountPath: '/data', name: 'data' }],
-                name: 'tensorflow',
               }],
             },
           },

@@ -1,5 +1,6 @@
 const assert = require('assert');
 const lodash = require('lodash');
+const path = require('path');
 
 const permittedJobEnvs = {
   data_join: [],
@@ -91,41 +92,55 @@ function serverValidateJob(job, client_ticket, server_ticket) {
 
 function generateYaml(federation, job, job_params, ticket) {
   const { k8s_settings } = federation;
-  let yaml = mergeJson({}, k8s_settings.global_job_spec);
 
   let peer_spec = k8s_settings.leader_peer_spec;
   if (ticket.role == 'Follower') {
     peer_spec = k8s_settings.follower_peer_spec;
   }
-  yaml = mergeJson(yaml, {
+
+  let yaml = {
+    apiVersion: 'fedlearner.k8s.io/v1alpha1',
+    kind: 'FLApp',
     metadata: {
       name: job.name,
+      namespace: 'default',
     },
     spec: {
       role: ticket.role,
-      cleanPodPolicy: 'None',
+      cleanPodPolicy: 'All',
       peerSpecs: peer_spec,
     },
-  });
+  };
 
+  yaml = mergeJson(yaml, k8s_settings.global_job_spec);
   yaml = mergeJson(yaml, ticket.public_params);
   yaml = mergeJson(yaml, ticket.private_params);
 
   const replica_specs = yaml.spec.flReplicaSpecs;
   for (const key in replica_specs) {
-    let base_spec = mergeJson({}, k8s_settings.global_replica_spec);
-    base_spec = mergeJson(base_spec, {
+    let base_spec = {
       template: {
         spec: {
+          restartPolicy: 'Never',
           containers: [{
             env: [
+              { name: 'POD_IP', valueFrom: { fieldRef: { fieldPath: 'status.podIP' } } },
+              { name: 'POD_NAME', valueFrom: { fieldRef: { fieldPath: 'metadata.name' } } },
               { name: 'ROLE', value: ticket.role },
               { name: 'APPLICATION_ID', value: job.name },
+              {
+                name: 'JOB_OUTPUT_PATH',
+                value: path.join(k8s_settings.storage_root_path, 'job_output', job.name)
+              },
             ],
+            imagePullPolicy: 'IfNotPresent',
+            name: 'tensorflow',
           }],
         },
       },
-    });
+    };
+
+    base_spec = mergeJson(base_spec, k8s_settings.global_replica_spec);
     replica_specs[key] = mergeJson(
       base_spec, replica_specs[key],
     );
