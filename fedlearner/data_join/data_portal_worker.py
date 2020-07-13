@@ -32,18 +32,12 @@ from fedlearner.data_join.sort_run_merger import SortRunMerger
 
 class RawDataSortPartitioner(RawDataPartitioner):
 
-    class OutputFileSortWriter(object):
+    class OutputFileSortWriter(RawDataPartitioner.OutputFileWriter):
         def __init__(self, options, partition_id, process_index):
-            self._options = options
-            self._partition_id = partition_id
-            self._process_index = process_index
-            self._begin_index = None
-            self._end_index = None
-            self._buffer = []
-            self._tmp_fpath = common.gen_tmp_fpath(
-                    os.path.join(self._options.output_dir,
-                                 common.partition_repr(self._partition_id))
+            super(OutputFileSortWriter, self).__init__(
+                    options, partition_id, process_index
                 )
+            self._buffer = []
 
         def append_item(self, index, item):
             self._buffer.append(item)
@@ -60,13 +54,14 @@ class RawDataSortPartitioner(RawDataPartitioner):
                     writer.write_item(item)
                 writer.close()
                 meta = RawDataPartitioner.FileMeta(
-                  self._options.partitioner_rank_id,
-                  self._process_index,
-                  self._begin_index,
-                  self._end_index)
+                        self._options.partitioner_rank_id,
+                        self._process_index,
+                        self._begin_index,
+                        self._end_index
+                    )
                 fpath = os.path.join(self._options.output_dir,
-                  common.partition_repr(self._partition_id),
-                  meta.encode_meta_to_fname())
+                                     common.partition_repr(self._partition_id),
+                                     meta.encode_meta_to_fname())
                 gfile.Rename(self.get_tmp_fpath(), fpath, True)
                 self._buffer = []
                 self._begin_index = None
@@ -74,21 +69,8 @@ class RawDataSortPartitioner(RawDataPartitioner):
             return meta
 
         def _sort_buffer(self):
-            self._buffer = sorted(self._buffer, \
-                key=lambda item: item.event_time)
-
-        def _get_output_writer(self):
-            return create_output_writer(self._options.writer_options)
-
-        def __del__(self):
-            self.destroy()
-
-        def destroy(self):
-            if gfile.Exists(self._tmp_fpath):
-                gfile.Remove(self._tmp_fpath)
-
-        def get_tmp_fpath(self):
-            return self._tmp_fpath
+            self._buffer = sorted(self._buffer,
+                                  key=lambda item: item.event_time)
 
     def _get_file_writer(self, partition_id):
         if len(self._flying_writers) == 0:
@@ -159,7 +141,7 @@ class DataPortalWorker(object):
     def _make_merger_options(self, task):
         return dj_pb.SortRunMergerOptions(
             merger_name="dp_sort_run_merger_{}".format(self._rank_id),
-            raw_data_options=dj_pb.RawDataOptions(
+            reader_options=dj_pb.RawDataOptions(
                 raw_data_iter=self._options.writer_options.output_writer,
                 compressed_type=self._options.writer_options.compressed_type,
                 read_ahead_size=self._options.merger_read_ahead_size
