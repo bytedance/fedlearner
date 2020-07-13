@@ -23,11 +23,14 @@ if [ "$((WORKER_NUM % 2))" -ne "0" ]; then
   exit 1
 fi
 if [ $INDEX -lt $((WORKER_NUM / 2)) ]; then
-  psi_signer_cmd="/app/deploy/scripts/rsa_psi/run_rsa_psi_signer.sh"
+  psi_signer_cmd=/app/deploy/scripts/rsa_psi/run_rsa_psi_signer.sh
   exec ${psi_signer_cmd} &
   echo "launched psi signer"
+  psi_preprocessor_cmd=/app/deploy/scripts/rsa_psi/run_psi_preprocessor.sh 
+  exec ${psi_preprocessor_cmd} &
+  echo "launched psi preprocessor"
 else
-  data_join_cmd="/app/deploy/scripts/data_join/run_data_join_worker.sh"
+  data_join_cmd=/app/deploy/scripts/data_join/run_data_join_worker.sh
   exec ${data_join_cmd} &
   echo "launched data join worker"
 fi
