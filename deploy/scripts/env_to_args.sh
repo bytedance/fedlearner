@@ -5,7 +5,7 @@ normalize_env_to_args() {
   then
       echo ""
   else
-      echo "$1=\"$2\""
+      echo "$1=$2"
   fi
   return 0
 }
