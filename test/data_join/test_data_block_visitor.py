@@ -142,7 +142,7 @@ class TestDataBlockVisitor(unittest.TestCase):
                                             meta.block_id + common.DataBlockSuffix)
             self.assertEqual(data_block_fpath, rep.data_block_fpath)
             self.assertIsNone(visitor.LoadDataBlockReqByIndex(
-                                        random.randint(0, partition_num-1),
+                                         random.randint(0, partition_num-1),
                                         random.randint(dumped_index, 10000)
                                     )
                                 )
