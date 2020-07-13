@@ -40,6 +40,10 @@ for i in "${WORKER_GROUPS[@]}"; do
 done
 fi
 
+if [ -n "$SUMMARY_PATH" ]; then
+  tensorboard --logdir $SUMMARY_PATH --port 6006 &
+fi
+
 wget ${CODE_KEY} -O code.tar.gz
 tar -zxvf code.tar.gz
 cd ${ROLE}
