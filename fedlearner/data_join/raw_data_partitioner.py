@@ -26,6 +26,7 @@ from cityhash import CityHash32 # pylint: disable=no-name-in-module
 
 from fedlearner.common.etcd_client import EtcdClient
 
+from fedlearner.data_join.output_writer_impl import create_output_writer
 from fedlearner.data_join.item_batch_seq_processor import \
         ItemBatch, ItemBatchSeqProcessor
 from fedlearner.data_join.routine_worker import RoutineWorker
@@ -157,12 +158,7 @@ class RawDataPartitioner(object):
                 )
 
         def append_item(self, index, item):
-            writer = self._get_output_writer()
-            if self._options.output_builder == 'TF_RECORD':
-                writer.write(item.tf_record)
-            else:
-                assert self._options.output_builder == 'CSV_DICT'
-                writer.write(item.csv_record)
+            self._get_output_writer().write_item(item)
             if self._begin_index is None:
                 self._begin_index = index
             self._end_index = index
@@ -199,16 +195,11 @@ class RawDataPartitioner(object):
 
         def _get_output_writer(self):
             if self._writer is None:
-                self._new_writer()
+                self._writer = create_output_writer(
+                        self._options.writer_options,
+                        self._tmp_fpath
+                    )
             return self._writer
-
-        def _new_writer(self):
-            assert self._writer is None
-            if self._options.output_builder == 'TF_RECORD':
-                self._writer = tf.io.TFRecordWriter(self._tmp_fpath)
-            else:
-                assert self._options.output_builder == 'CSV_DICT'
-                self._writer = CsvDictWriter(self._tmp_fpath)
 
     def __init__(self, options, etcd_name, etcd_addrs,
                  etcd_base_dir, use_mock_etcd=False):

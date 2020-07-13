@@ -22,6 +22,7 @@ from os import path
 import tensorflow.compat.v1 as tf
 from tensorflow.compat.v1 import gfile
 
+from fedlearner.data_join.output_writer_impl import create_output_writer
 from fedlearner.data_join import csv_dict_writer
 from fedlearner.data_join.common import (DoneFileSuffix, TmpFileSuffix,
                                          gen_tmp_fpath, partition_repr)
@@ -69,23 +70,18 @@ class SortRunMeta(object):
 
 class SortRunDumper(object):
     class SortRunWriter(object):
-        def __init__(self, process_index, output_dir, output_builder):
+        def __init__(self, process_index, output_dir, writer_options):
             self._process_index = process_index
             self._output_dir = output_dir
             self._tmp_fpath = self._gen_tmp_fpath()
-            self._output_builder = output_builder
+            self._writer_options = writer_options
             self._fpath = None
             self._writer = None
             self._start_index = None
             self._end_index = None
 
         def append(self, index, item):
-            writer = self._get_output_writer(self._tmp_fpath)
-            if self._output_builder == 'CSV_DICT':
-                writer.write(item.csv_record)
-            else:
-                assert self._output_builder == 'TF_RECORD'
-                writer.write(item.tf_record)
+            self._get_output_writer(self._tmp_fpath).write_item(item)
             if self._start_index is None or self._start_index > index:
                 self._start_index = index
             if self._end_index is None or self._end_index < index:
@@ -115,11 +111,9 @@ class SortRunDumper(object):
 
         def _get_output_writer(self, fpath):
             if self._writer is None:
-                if self._output_builder == 'CSV_DICT':
-                    self._writer = csv_dict_writer.CsvDictWriter(fpath)
-                else:
-                    assert self._output_builder == 'TF_RECORD'
-                    self._writer = tf.io.TFRecordWriter(fpath)
+                self._writer = create_output_writer(
+                        self._writer_options, fpath
+                    )
             return self._writer
 
         def _gen_tmp_fpath(self):
@@ -223,7 +217,7 @@ class SortRunDumper(object):
         output_dir = self._get_output_dir()
         return SortRunDumper.SortRunWriter(process_index,
                                            output_dir,
-                                           self._options.output_builder)
+                                           self._options.writer_options)
 
     def _get_output_dir(self):
         return path.join(self.sort_run_dump_dir(),

@@ -122,7 +122,7 @@ class Merge(object):
                 self._begin_index = index
             self._end_index = index
             self._size_bytes += len(tf_item)
-            if self._size_bytes >= self._options.output_item_threshold:
+            if self._size_bytes >= self._options.write_buffer_size:
                 writer.close()
                 self.writer = None
                 meta = Merge.FileMeta(self._partition_id, self._begin_index,

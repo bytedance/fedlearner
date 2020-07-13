@@ -20,10 +20,9 @@ import inspect
 import logging
 import sys
 
-from fedlearner.data_join.joiner_impl.example_joiner import ExampleJoiner
-from fedlearner.data_join.joiner_impl.stream_joiner import StreamExampleJoiner
+from fedlearner.data_join.output_writer_impl.output_writer import OutputWriter
 
-joiner_impl_map = {}
+writer_impl_map = {}
 
 __path__ = pkgutil.extend_path(__path__, __name__)
 for _, module, ispackage in pkgutil.walk_packages(
@@ -32,14 +31,14 @@ for _, module, ispackage in pkgutil.walk_packages(
         continue
     __import__(module)
     for _, m in inspect.getmembers(sys.modules[module], inspect.isclass):
-        if not issubclass(m, ExampleJoiner):
+        if not issubclass(m, OutputWriter):
             continue
-        joiner_impl_map[m.name()] = m
+        builder_impl_map[m.name()] = m
 
-def create_example_joiner(example_joiner_options, *args, **kwargs):
-    joiner = example_joiner_options.example_joiner
-    if joiner in joiner_impl_map:
-        return joiner_impl_map[joiner](example_joiner_options, *args, **kwargs)
-    logging.fatal("Unknown example joiner %s", joiner)
+def create_output_writer(writer_options, *args, **kwargs):
+    writer = writer_options.output_writer
+    if writer in writer_impl_map:
+        return writer_impl_map[writer](writer_options, *args, **kwargs)
+    logging.fatal("Unknown output writer %s", writer)
     os._exit(-1) # pylint: disable=protected-access
     return None

@@ -23,12 +23,13 @@ from tensorflow.compat.v1 import gfile
 import tensorflow.compat.v1 as tf
 
 from fedlearner.common import data_portal_service_pb2 as dp_pb
+from fedlearner.common import data_join_service_pb2 as dj_pb
 from fedlearner.common import data_portal_service_pb2_grpc as dp_grpc
 from fedlearner.proxy.channel import make_insecure_channel, ChannelType
+from fedlearner.data_join.output_writer_impl import create_output_writer
 from fedlearner.data_join.raw_data_partitioner import RawDataPartitioner
-from fedlearner.data_join.csv_dict_writer import CsvDictWriter
 from fedlearner.data_join import common
-from fedlearner.data_join.merge import Merge
+from fedlearner.data_join.sort_run_merger import SortRunMerger
 
 class RawDataSortPartitioner(RawDataPartitioner):
 
@@ -56,13 +57,8 @@ class RawDataSortPartitioner(RawDataPartitioner):
             if len(self._buffer) > 0:
                 writer = self._get_output_writer()
                 self._sort_buffer()
-                if self._options.output_builder == 'TF_RECORD':
-                    for item in self._buffer:
-                        writer.write(item.tf_record)
-                else:
-                    assert self._options.output_builder == 'CSV_DICT'
-                    for item in self._buffer:
-                        writer.write(item.csv_record)
+                for item in self._buffer:
+                    writer.write_item(item)
                 writer.close()
                 meta = RawDataPartitioner.FileMeta(
                   self._options.partitioner_rank_id,
@@ -83,10 +79,7 @@ class RawDataSortPartitioner(RawDataPartitioner):
                 key=lambda item: item.event_time)
 
         def _get_output_writer(self):
-            if self._options.output_builder == 'TF_RECORD':
-                return tf.io.TFRecordWriter(self._tmp_fpath)
-            assert self._options.output_builder == "CSV_DICT"
-            return CsvDictWriter(self._tmp_fpath)
+            return create_output_writer(self._options.writer_options)
 
         def __del__(self):
             self.destroy()
@@ -116,7 +109,6 @@ class DataPortalWorker(object):
         self._etcd_base_dir = etcd_base_dir
         self._etcd_addrs = etcd_addrs
         self._rank_id = rank_id
-        self._raw_data_partitioner = None
         self._options = options
         self._use_mock_etcd = use_mock_etcd
         self._master_client = dp_grpc.DataPortalMasterServiceStub(
@@ -154,45 +146,56 @@ class DataPortalWorker(object):
         self.run()
 
     def _make_partitioner_options(self, task):
-        partitioner_options = self._options.partitioner_options
-        partitioner_options.input_file_paths.extend(task.fpaths)
-        partitioner_options.output_dir = task.output_base_dir
-        partitioner_options.partitioner_name = "data_partitioner-rank_id:{}" \
-            .format(self._rank_id)
-        partitioner_options.output_partition_num = task.output_partition_num
-        partitioner_options.output_builder = "TF_RECORD"
-        partitioner_options.partitioner_rank_id = task.partition_id
-        return partitioner_options
+        return dj_pb.RawDataPartitionerOptions(
+            partitioner_name="dp_worker_partitioner_{}".format(self._rank_id),
+            input_file_paths=task.fpaths,
+            output_dir=task.output_base_dir,
+            output_partition_num=task.output_partition_num,
+            partitioner_rank_id=task.partition_id,
+            batch_processor_options=self._options.batch_processor_options,
+            raw_data_options=self._options.raw_data_options,
+            writer_options=self._options.writer_options
+        )
 
-    def _make_merge_options(self, task):
-        merge_options = self._options.merge_options
-        merge_options.output_builder = "TF_RECORD"
-        merge_options.input_dir = os.path.join(task.map_base_dir, \
-            common.partition_repr(task.partition_id))
-        merge_options.output_dir = task.reduce_base_dir
-        merge_options.partition_id = task.partition_id
-        merge_options.fpath.extend(gfile.ListDirectory(merge_options.input_dir))
-        return merge_options
+    def _make_merger_options(self, task):
+        return dj_pb.SortRunMergerOptions(
+            merger_name="dp_sort_run_merger_{}".format(self._rank_id),
+            raw_data_options=dj_pb.RawDataOptions(
+                raw_data_iter=self._options.writer_options.output_writer,
+                compressed_type=self._options.writer_options.compressed_type,
+                read_ahead_size=self._options.merger_read_ahead_size
+            ),
+            writer_options=self._options.writer_options,
+            output_file_dir=task.reduce_base_dir,
+            partition_id=task.partition_id
+            merge_buffer_size=self._options.merge_buffer_size,
+            write_buffer_size=self._options.write_buffer_size,
+        )
 
     def _run_map_task(self, task):
         partition_options = self._make_partitioner_options(task)
-        self._raw_data_partitioner = RawDataSortPartitioner(
+        data_partitioner = RawDataSortPartitioner(
             partition_options, self._etcd_name, self._etcd_addrs,
-            self._etcd_base_dir, self._use_mock_etcd)
+            self._etcd_base_dir, self._use_mock_etcd
+        )
         logging.info("Partitioner rank_id:%d, partition_id:%d start",
-            self._rank_id, partition_options.partitioner_rank_id)
+                     self._rank_id, partition_options.partitioner_rank_id)
 
-        self._raw_data_partitioner.start_process()
-        self._raw_data_partitioner.wait_for_finished()
+        data_partitioner.start_process()
+        data_partitioner.wait_for_finished()
 
     def _run_reduce_task(self, task):
-        merge_options = self._make_merge_options(task)
-        self._merger = Merge(merge_options, task.partition_id)
-        logging.info("Merger input_dir:%s rank_id:%s partition_id:%d start",
-            task.map_base_dir, self._rank_id, task.partition_id)
-
-        self._merger.generate_output()
-        self._merger.finish()
+        merger_options = self._make_merger_options(task)
+        sort_run_merger = SortRunMerger(merger_options, 'event_time')
+        input_dir = os.path.join(task.map_base_dir,
+                                 common.partition_repr(task.partition_id))
+        input_fpaths = [os.path.join(input_dir, f) for f in
+                        gfile.ListDirectory(input_dir)
+                        if f.endswith(common.RawDataFileSuffix)]
+        logging.info("Merger input_dir:%s(with %d files) rank_id:%s "\
+                     "partition_id:%d start", task.map_base_dir,
+                     len(input_fpaths), self._rank_id, task.partition_id)
+        sort_run_merger.merge_sort_runs(input_fpaths)
 
     def run(self):
         while True:
@@ -203,17 +206,17 @@ class DataPortalWorker(object):
             if response.HasField("map_task"):
                 task = response.map_task
                 logging.info("Receive map task partition_id:%d, paths:%s",
-                    task.partition_id, task.fpaths)
+                             task.partition_id, task.fpaths)
                 self._run_map_task(task)
                 self.finish_task(task.partition_id, dp_pb.PartState.kIdMap)
                 continue
             if response.HasField("reduce_task"):
                 task = response.reduce_task
-                logging.info("Receive reduce task, partition_id:%d, "
-                    "input_dir:%s", task.partition_id, task.map_base_dir)
+                logging.info("Receive reduce task, partition_id:%d, input"\
+                             " dir %s", task.partition_id, task.map_base_dir)
                 self._run_reduce_task(task)
                 self.finish_task(task.partition_id,
-                    dp_pb.PartState.kEventTimeReduce)
+                                 dp_pb.PartState.kEventTimeReduce)
                 continue
             if response.HasField("pending"):
                 logging.warning("Receive pending response.")

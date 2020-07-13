@@ -18,6 +18,7 @@ import logging
 import threading
 import concurrent.futures as concur_futures
 import rsa
+import os
 
 from fedlearner.common import common_pb2 as common_pb
 from fedlearner.common.etcd_client import EtcdClient
@@ -26,8 +27,9 @@ from fedlearner.data_join.routine_worker import RoutineWorker
 from fedlearner.data_join.raw_data_publisher import RawDataPublisher
 from fedlearner.data_join.rsa_psi.rsa_psi_component import \
         IdBatchFetcher, LeaderPsiRsaSigner, FollowerPsiRsaSigner
-from fedlearner.data_join.rsa_psi.sort_run_dumper import SortRunDumper
-from fedlearner.data_join.rsa_psi.sort_run_merger import SortRunMerger
+from fedlearner.data_join.sort_run_dumper import SortRunDumper
+from fedlearner.data_join.sort_run_merger import SortRunMerger
+from fedlearner.data_join.common import partition_repr
 
 class RsaPsiPreProcessor(object):
     def __init__(self, options, etcd_name, etcd_addrs,
@@ -68,7 +70,20 @@ class RsaPsiPreProcessor(object):
             self._repr = 'follower-' + 'rsa_psi_preprocessor'
         self._sort_run_dumper = SortRunDumper(options)
         self._sort_run_merger = SortRunMerger(
-                self._sort_run_dumper.sort_run_dump_dir(), self._options
+                dj_pb.SortRunMergerOptions(
+                    merger_name='sort_run_merger_'+\
+                                partition_repr(options.partition_id),
+                    reader_options=data_join.RawDataOptions(
+                        raw_data_iter=options.writer_options.output_writer,
+                        compressed_type=options.writer_options.compressed_type,
+                        read_ahead_size=\
+                            options.sort_run_merger_read_ahead_buffer
+                    ),
+                    writer_options=options.writer_options,
+                    output_file_dir=options.output_file_dir,
+                    partition_id=options.partition_id
+                ),
+                'example_id'
             )
         self._started = False
 
@@ -226,8 +241,14 @@ class RsaPsiPreProcessor(object):
 
     def _sort_run_merge_fn(self):
         sort_runs = self._sort_run_dumper.get_all_sort_runs()
-        fpaths = self._sort_run_merger.merge_sort_runs(sort_runs)
-        self._publisher.publish_raw_data(self._options.partition_id, fpaths)
+        input_dir = self._sort_run_dumper.sort_run_dump_dir()
+        input_fpaths = [os.path.join(input_dir,
+                                     partition_repr(self._options.partition_id),
+                                     sort_run.encode_sort_run_fname())
+                        for sort_run in sort_runs]
+        output_fpaths = self._sort_run_merger.merge_sort_runs(input_fpaths)
+        self._publisher.publish_raw_data(self._options.partition_id,
+                                         output_fpaths)
         self._publisher.finish_raw_data(self._options.partition_id)
         self._sort_run_merger.set_merged_finished()
 

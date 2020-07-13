@@ -86,9 +86,12 @@ if __name__ == "__main__":
     parser.add_argument('--read_ahead_size', type=int, default=32<<20,
                         help='the read ahead size for raw data,'
                              'only support CSV DICT')
-    parser.add_argument('--output_builder', type=str, default='CSV_DICT',
+    parser.add_argument('--output_builder', type=str, default='TF_RECORD',
                         choices=['TF_RECORD', 'CSV_DICT'],
                         help='the builder for ouput file')
+    parser.add_argument('--builder_compressed_type', type=str, default='',
+                        choices=['', 'ZLIB', 'GZIP'],
+                        help='the compressed type for TF_RECORD builder')
 
     args = parser.parse_args()
     all_fpaths = []
@@ -134,7 +137,10 @@ if __name__ == "__main__":
                 compressed_type=args.compressed_type,
                 read_ahead_size=args.read_ahead_size
             ),
-            output_builder=args.output_builder
+            writer_options=dj_pb.WriterOptions(
+                output_writer=args.output_builder,
+                compressed_type=args.builder_compressed_type,
+            )
         )
     preprocessor = RsaPsiPreProcessor(preprocessor_options, args.etcd_name,
                                       args.etcd_addrs, args.etcd_base_dir)

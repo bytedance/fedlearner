@@ -289,6 +289,11 @@ service RsaPsiSignService {
   rpc SignIds(SignIdsRequest) returns (SignIdsResponse) {}
 }
 
+message WriterOptions {
+  string output_writer = 1;  // support TF_RECORD and CSV_DICT
+  string compressed_type = 2; // the compressed type for output file, support tf record
+}
+
 message RsaPsiPreProcessorOptions {
   string preprocessor_name = 1;
   FLRole role = 2;
@@ -308,7 +313,7 @@ message RsaPsiPreProcessorOptions {
   int64 sort_run_merger_read_ahead_buffer = 16;
   BatchProcessorOptions batch_processor_options = 17;
   RawDataOptions input_raw_data = 18;
-  string output_builder = 19; // only support tf record or csv
+  WriterOptions writer_options = 19;
 }
 
 message RawDataPartitionerOptions {
@@ -317,8 +322,17 @@ message RawDataPartitionerOptions {
   string output_dir = 3;
   int64 output_partition_num = 4;
   RawDataOptions raw_data_options = 5;
-  string output_builder = 6; // only support tf record or csv
-  int64 output_item_threshold = 7;
-  int64 partitioner_rank_id = 8;
-  BatchProcessorOptions batch_processor_options = 9;
+  WriterOptions writer_options = 6;
+  int64 partitioner_rank_id = 7;
+  BatchProcessorOptions batch_processor_options = 8;
+}
+
+message SortRunMergerOptions {
+  string merger_name = 1;
+  RawDataOptions reader_options = 2;
+  WriterOptions writer_options = 3;
+  string output_file_dir = 5;
+  int64 partition_id = 6;
+  int64 merge_buffer_size = 7;
+  int64 write_buffer_size = 8;
 }
