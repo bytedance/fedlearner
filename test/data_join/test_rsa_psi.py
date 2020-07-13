@@ -305,7 +305,9 @@ class RsaPsi(unittest.TestCase):
                         raw_data_iter='CSV_DICT',
                         read_ahead_size=1<<20
                     ),
-                    output_builder='TF_RECORD'
+                    writer_options=dj_pb.WriterOptions(
+                        output_writer='TF_RECORD'
+                    )
                 )
             processor = rsa_psi_preprocessor.RsaPsiPreProcessor(
                     options, self._etcd_name, self._etcd_addrs,
@@ -346,7 +348,9 @@ class RsaPsi(unittest.TestCase):
                         raw_data_iter='CSV_DICT',
                         read_ahead_size=1<<20
                     ),
-                    output_builder='TF_RECORD'
+                    writer_options=dj_pb.WriterOptions(
+                        output_writer='TF_RECORD'
+                    )
                 )
             processor = rsa_psi_preprocessor.RsaPsiPreProcessor(
                         options, self._etcd_name, self._etcd_addrs,
