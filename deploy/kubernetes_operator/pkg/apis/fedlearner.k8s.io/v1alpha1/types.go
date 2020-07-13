@@ -153,6 +153,8 @@ const (
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +resource:path=flapp
 // +kubebuilder:subresource:status
+// +kubebuilder:printcolumn:name="STATUS",type=string,JSONPath=`.status.appState`
+// +kubebuilder:printcolumn:name="AGE",type=date,JSONPath=`.metadata.creationTimestamp`
 
 // FLApp is a specification for a FLApp resource
 type FLApp struct {
