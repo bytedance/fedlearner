@@ -25,7 +25,6 @@ from fedlearner.common import data_portal_service_pb2 as dp_pb
 from fedlearner.common import data_join_service_pb2 as dj_pb
 from fedlearner.common import data_portal_service_pb2_grpc as dp_grpc
 from fedlearner.proxy.channel import make_insecure_channel, ChannelType
-from fedlearner.data_join.output_writer_impl import create_output_writer
 from fedlearner.data_join.raw_data_partitioner import RawDataPartitioner
 from fedlearner.data_join import common
 from fedlearner.data_join.sort_run_merger import SortRunMerger
