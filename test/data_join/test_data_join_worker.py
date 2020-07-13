@@ -76,11 +76,9 @@ class DataJoinWorker(unittest.TestCase):
         data_source_meta.start_time = 0
         data_source_meta.end_time = 100000000
         data_source_l.data_source_meta.MergeFrom(data_source_meta)
-        etcd_l.set_data(os.path.join(data_source_name, 'master'),
-                        text_format.MessageToString(data_source_l))
+        common.commit_data_source(etcd_l, data_source_l)
         data_source_f.data_source_meta.MergeFrom(data_source_meta)
-        etcd_f.set_data(os.path.join(data_source_name, 'master'),
-                        text_format.MessageToString(data_source_f))
+        common.commit_data_source(etcd_f, data_source_f)
         master_options = dj_pb.DataJoinMasterOptions(use_mock_etcd=True)
 
         master_addr_l = 'localhost:4061'
