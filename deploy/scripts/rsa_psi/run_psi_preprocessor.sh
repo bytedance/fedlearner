@@ -37,7 +37,7 @@ fi
 input_file_subscribe_dir=$(normalize_env_to_args "--input_file_subscribe_dir" $INPUT_FILE_SUBSCRIBE_DIR)
 leader_rsa_psi_signer_addr=$(normalize_env_to_args "--leader_rsa_psi_signer_addr" $PEER_ADDR)
 max_flying_item=$(normalize_env_to_args "--max_flying_item" $MAX_FLYING_ITEM)
-offload_processor_number=$(normalize_env_to_args "--offload_processor_number" $OFFLOAD_PROCSSOR_NUMBER)
+offload_processor_number=$(normalize_env_to_args "--offload_processor_number" $OFFLOAD_PROCESSOR_NUMBER)
 process_batch_size=$(normalize_env_to_args "--process_batch_size" $PSI_PROCESS_BATCH_SIZE)
 max_flying_sign_batch=$(normalize_env_to_args "--max_flying_sign_batch" $MAX_FLYING_SIGNED_BATCH)
 max_flying_sign_rpc=$(normalize_env_to_args "--max_flying_sign_rpc" $MAX_FLYING_SIGN_RPC)
