@@ -66,7 +66,7 @@ class TestExampleJoin(unittest.TestCase):
             gfile.DeleteRecursively(self.data_source.raw_data_dir)
         self.etcd = etcd_client.EtcdClient('test_cluster', 'localhost:2379',
                                            'fedlearner', True)
-        self.etcd.delete_prefix(self.data_source.data_source_meta.name)
+        self.etcd.delete_prefix(common.data_source_etcd_base_dir(self.data_source.data_source_meta.name))
         self.total_raw_data_count = 0
         self.total_example_id_count = 0
         self.manifest_manager = raw_data_manifest_manager.RawDataManifestManager(
@@ -240,7 +240,7 @@ class TestExampleJoin(unittest.TestCase):
             gfile.DeleteRecursively(self.data_source.example_dumped_dir)
         if gfile.Exists(self.data_source.raw_data_dir):
             gfile.DeleteRecursively(self.data_source.raw_data_dir)
-        self.etcd.delete_prefix(self.data_source.data_source_meta.name)
+        self.etcd.delete_prefix(common.data_source_etcd_base_dir(self.data_source.data_source_meta.name))
 
 if __name__ == '__main__':
     unittest.main()

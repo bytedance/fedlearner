@@ -16,7 +16,6 @@
 
 import threading
 import logging
-import os
 from concurrent import futures
 
 import grpc
@@ -61,7 +60,6 @@ class MasterFSM(object):
         self._lock = threading.Lock()
         self._peer_client = peer_client
         self._data_source_name = data_source_name
-        self._master_etcd_key = os.path.join(data_source_name, 'master')
         self._etcd = etcd
         self._init_fsm_action()
         self._data_source = None

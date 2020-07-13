@@ -52,8 +52,8 @@ class DataJoinWorker(unittest.TestCase):
         data_source_name = 'test_data_source'
         etcd_l = EtcdClient(etcd_name, etcd_addrs, etcd_base_dir_l, True)
         etcd_f = EtcdClient(etcd_name, etcd_addrs, etcd_base_dir_f, True)
-        etcd_l.delete_prefix(data_source_name)
-        etcd_f.delete_prefix(data_source_name)
+        etcd_l.delete_prefix(common.data_source_etcd_base_dir(data_source_name))
+        etcd_f.delete_prefix(common.data_source_etcd_base_dir(data_source_name))
         data_source_l = common_pb.DataSource()
         self.raw_data_pub_dir_l = './raw_data_pub_dir_l'
         data_source_l.raw_data_sub_dir = self.raw_data_pub_dir_l
@@ -76,11 +76,9 @@ class DataJoinWorker(unittest.TestCase):
         data_source_meta.start_time = 0
         data_source_meta.end_time = 100000000
         data_source_l.data_source_meta.MergeFrom(data_source_meta)
-        etcd_l.set_data(os.path.join(data_source_name, 'master'),
-                        text_format.MessageToString(data_source_l))
+        common.commit_data_source(etcd_l, data_source_l)
         data_source_f.data_source_meta.MergeFrom(data_source_meta)
-        etcd_f.set_data(os.path.join(data_source_name, 'master'),
-                        text_format.MessageToString(data_source_f))
+        common.commit_data_source(etcd_f, data_source_f)
         master_options = dj_pb.DataJoinMasterOptions(use_mock_etcd=True)
 
         master_addr_l = 'localhost:4061'
@@ -319,8 +317,8 @@ class DataJoinWorker(unittest.TestCase):
             gfile.DeleteRecursively(self.data_source_f.example_dumped_dir)
         if gfile.Exists(self.data_source_f.raw_data_dir):
             gfile.DeleteRecursively(self.data_source_f.raw_data_dir)
-        self.etcd_f.delete_prefix(self.etcd_base_dir_f)
-        self.etcd_l.delete_prefix(self.etcd_base_dir_l)
+        self.etcd_f.delete_prefix(common.data_source_etcd_base_dir(self.etcd_base_dir_f))
+        self.etcd_l.delete_prefix(common.data_source_etcd_base_dir(self.etcd_base_dir_l))
 
 if __name__ == '__main__':
         unittest.main()

@@ -39,7 +39,7 @@ class TestRawDataVisitor(unittest.TestCase):
         self.data_source.raw_data_dir = "./raw_data"
         self.etcd = etcd_client.EtcdClient('test_cluster', 'localhost:2379',
                                            'fedlearner', True)
-        self.etcd.delete_prefix(self.data_source.data_source_meta.name)
+        self.etcd.delete_prefix(common.data_source_etcd_base_dir(self.data_source.data_source_meta.name))
         self.assertEqual(self.data_source.data_source_meta.partition_num, 1)
         partition_dir = os.path.join(self.data_source.raw_data_dir, common.partition_repr(0))
         if gfile.Exists(partition_dir):
@@ -175,7 +175,7 @@ class TestRawDataVisitor(unittest.TestCase):
         self.assertTrue(rdv2.finished())
 
     def tearDown(self):
-        self.etcd.delete_prefix(self.data_source.data_source_meta.name)
+        self.etcd.delete_prefix(common.data_source_etcd_base_dir(self.data_source.data_source_meta.name))
         if gfile.Exists(self.data_source.raw_data_dir):
             gfile.DeleteRecursively(self.data_source.raw_data_dir)
 

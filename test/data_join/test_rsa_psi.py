@@ -58,8 +58,8 @@ class RsaPsi(unittest.TestCase):
 
     def _setUpDataSource(self):
         self._data_source_name = 'test_data_source'
-        self._etcd_l.delete_prefix(self._data_source_name)
-        self._etcd_f.delete_prefix(self._data_source_name)
+        self._etcd_l.delete_prefix(common.data_source_etcd_base_dir(self._data_source_name))
+        self._etcd_f.delete_prefix(common.data_source_etcd_base_dir(self._data_source_name))
         self._data_source_l = common_pb.DataSource()
         self._data_source_l.role = common_pb.FLRole.Leader
         self._data_source_l.state = common_pb.DataSourceState.Init
