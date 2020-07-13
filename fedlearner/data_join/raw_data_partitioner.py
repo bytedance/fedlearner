@@ -181,7 +181,7 @@ class RawDataPartitioner(object):
         def get_tmp_fpath(self):
             return self._tmp_fpath
 
-        def destory(self):
+        def destroy(self):
             if self._writer is not None:
                 self._writer.close()
                 self._writer = None
@@ -189,7 +189,7 @@ class RawDataPartitioner(object):
                 gfile.Remove(self._tmp_fpath)
 
         def __del__(self):
-            self.destory()
+            self.destroy()
 
         def _get_output_writer(self):
             if self._writer is None:
@@ -355,7 +355,7 @@ class RawDataPartitioner(object):
 
     def _sync_partitioner_state(self):
         for writer in self._flying_writers:
-            writer.destory()
+            writer.destroy()
         self._flying_writers = []
         if self._dumped_process_index is None:
             max_process_index = None

@@ -271,7 +271,7 @@ class TestRawDataManifestManager(unittest.TestCase):
                 )
                 self.assertEqual(manifest_map[i].join_example_rep.rank_id, -1)
 
-        cli.destory_client_pool()
+        cli.destroy_client_pool()
 
 if __name__ == '__main__':
     unittest.main()

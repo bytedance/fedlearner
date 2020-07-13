@@ -58,7 +58,7 @@ class TestEtcdClient(unittest.TestCase):
             self.assertEqual(kv[0], expected_kvs[idx+1][0])
             self.assertEqual(kv[1], expected_kvs[idx+1][1])
 
-        cli.destory_client_pool()
+        cli.destroy_client_pool()
 
 if __name__ == '__main__':
         unittest.main()
