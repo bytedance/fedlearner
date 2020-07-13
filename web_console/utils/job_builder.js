@@ -10,7 +10,7 @@ const permittedJobEnvs = {
     'L2_REGULARIZATION', 'MAX_BINS', 'NUM_PARALELL',
     'VERIFY_EXAMPLE_IDS', 'USE_STREAMING',
   ],
-  nn_model: ['MODEL_NAME'],
+  nn_model: ['MODEL_NAME', 'SAVE_CHECKPOINT_STEPS'],
 };
 
 function mergeCustomizer(obj, src, key) {
