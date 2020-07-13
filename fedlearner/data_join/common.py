@@ -103,8 +103,7 @@ def data_source_etcd_base_dir(data_source_name):
     return os.path.join('data_source', data_source_name)
 
 def retrieve_data_source(etcd, data_source_name):
-    etcd_key = os.path.join(data_source_etcd_base_dir(data_source_name),
-                            'master')
+    etcd_key = data_source_etcd_base_dir(data_source_name)
     raw_data = etcd.get_data(etcd_key)
     if raw_data is None:
         raise ValueError("etcd master key is None for {}".format(
@@ -114,7 +113,6 @@ def retrieve_data_source(etcd, data_source_name):
 
 def commit_data_source(etcd, data_source):
     etcd_base_dir = data_source_etcd_base_dir(data_source.data_source_meta.name)
-    etcd_key = os.path.join(etcd_base_dir, 'master')
     etcd.set_data(etcd_key, text_format.MessageToString(data_source))
 
 def partition_manifest_etcd_key(data_source_name, partition_id):

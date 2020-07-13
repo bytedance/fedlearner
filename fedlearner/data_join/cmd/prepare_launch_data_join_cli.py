@@ -21,6 +21,7 @@ from google.protobuf import text_format
 
 from fedlearner.common import common_pb2 as common_pb
 from fedlearner.common.etcd_client import EtcdClient
+from fedlearner.data_join import common
 
 if __name__ == "__main__":
     logging.getLogger().setLevel(logging.DEBUG)
@@ -67,11 +68,13 @@ if __name__ == "__main__":
     data_source.raw_data_sub_dir = args.raw_data_sub_dir
     data_source.state = common_pb.DataSourceState.Init
     etcd = EtcdClient(args.etcd_name, args.etcd_addrs, args.etcd_base_dir)
-    master_etcd_key = os.path.join(data_source.data_source_meta.name, 'master')
+    master_etcd_key = common.data_source_etcd_base_dir(
+            data_source.data_source_meta.name
+        )
     raw_data = etcd.get_data(master_etcd_key)
     if raw_data is None:
         logging.info("data source %s is not existed", args.data_source_name)
-        etcd.set_data(master_etcd_key, text_format.MessageToString(data_source))
+        common.commit_data_source(etcd, data_source)
         logging.info("apply new data source %s", args.data_source_name)
     else:
         logging.info("data source %s has been existed", args.data_source_name)
