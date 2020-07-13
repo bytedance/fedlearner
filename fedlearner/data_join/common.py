@@ -99,8 +99,12 @@ def load_data_block_meta(meta_fpath):
     with make_tf_record_iter(meta_fpath) as fitr:
         return text_format.Parse(next(fitr).decode(), dj_pb.DataBlockMeta())
 
+def data_source_etcd_base_dir(data_source_name):
+    return os.path.join('data_source', data_source_name)
+
 def retrieve_data_source(etcd, data_source_name):
-    etcd_key = os.path.join(data_source_name, 'master')
+    etcd_key = os.path.join(data_source_etcd_base_dir(data_source_name),
+                            'master')
     raw_data = etcd.get_data(etcd_key)
     if raw_data is None:
         raise ValueError("etcd master key is None for {}".format(
@@ -109,12 +113,13 @@ def retrieve_data_source(etcd, data_source_name):
     return text_format.Parse(raw_data, common_pb.DataSource())
 
 def commit_data_source(etcd, data_source):
-    etcd_key = os.path.join(data_source.data_source_meta.name, 'master')
+    etcd_base_dir = data_source_etcd_base_dir(data_source.data_source_meta.name)
+    etcd_key = os.path.join(etcd_base_dir, 'master')
     etcd.set_data(etcd_key, text_format.MessageToString(data_source))
 
 def partition_manifest_etcd_key(data_source_name, partition_id):
-    return os.path.join(data_source_name, 'raw_data_dir',
-                        partition_repr(partition_id))
+    return os.path.join(data_source_etcd_base_dir(data_source_name),
+                        'raw_data_dir', partition_repr(partition_id))
 
 def raw_data_meta_etcd_key(data_source_name, partition_id, process_index):
     manifest_etcd_key = partition_manifest_etcd_key(data_source_name,
