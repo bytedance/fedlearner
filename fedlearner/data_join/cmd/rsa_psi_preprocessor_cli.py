@@ -135,7 +135,7 @@ if __name__ == "__main__":
                 batch_size=args.process_batch_size,
                 max_flying_item=args.max_flying_item
             ),
-            raw_data_options=dj_pb.RawDataOptions(
+            input_raw_data=dj_pb.RawDataOptions(
                 raw_data_iter=args.raw_data_iter,
                 compressed_type=args.compressed_type,
                 read_ahead_size=args.read_ahead_size
