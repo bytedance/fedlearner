@@ -112,7 +112,7 @@ def retrieve_data_source(etcd, data_source_name):
     return text_format.Parse(raw_data, common_pb.DataSource())
 
 def commit_data_source(etcd, data_source):
-    etcd_base_dir = data_source_etcd_base_dir(data_source.data_source_meta.name)
+    etcd_dir = data_source_etcd_base_dir(data_source.data_source_meta.name)
     etcd.set_data(etcd_key, text_format.MessageToString(data_source))
 
 def partition_manifest_etcd_key(data_source_name, partition_id):
