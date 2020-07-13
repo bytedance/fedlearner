@@ -43,7 +43,6 @@ max_flying_sign_batch=$(normalize_env_to_args "--max_flying_sign_batch" $MAX_FLY
 max_flying_sign_rpc=$(normalize_env_to_args "--max_flying_sign_rpc" $MAX_FLYING_SIGN_RPC)
 sign_rpc_timeout_ms=$(normalize_env_to_args "--sign_rpc_timeout_ms" $SIGN_RPC_TIMEOUT_MS)
 stub_fanout=$(normalize_env_to_args "--stub_fanout" $STUB_FANOUT)
-rpc_thread_pool_size=$(normalize_env_to_args "--rpc_thread_pool_size" $RPC_THREAD_POOL_SIZE)
 slow_sign_threshold=$(normalize_env_to_args "--slow_sign_threshold" $SLOW_SIGN_THRESHOLD)
 sort_run_merger_read_ahead_buffer=$(normalize_env_to_args "--sort_run_merger_read_ahead_buffer" $SORT_RUN_MERGER_READ_AHEAD_BUFFER)
 
@@ -61,4 +60,4 @@ python -m fedlearner.data_join.cmd.rsa_psi_preprocessor_cli \
     $max_flying_item $max_flying_sign_batch $offload_processor_number \
     $slow_sign_threshold $sort_run_merger_read_ahead_buffer \
     $leader_rsa_psi_signer_addr $max_flying_sign_rpc $sign_rpc_timeout_ms \
-    $stub_fanout $rpc_thread_pool_size $process_batch_size $RPC_SYNC_MODE
+    $stub_fanout $process_batch_size

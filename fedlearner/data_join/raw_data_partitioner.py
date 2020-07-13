@@ -19,18 +19,17 @@ import logging
 import os
 import re
 
-import tensorflow.compat.v1 as tf
 from tensorflow.compat.v1 import gfile
 
 from cityhash import CityHash32 # pylint: disable=no-name-in-module
 
 from fedlearner.common.etcd_client import EtcdClient
 
+from fedlearner.data_join.output_writer_impl import create_output_writer
 from fedlearner.data_join.item_batch_seq_processor import \
         ItemBatch, ItemBatchSeqProcessor
 from fedlearner.data_join.routine_worker import RoutineWorker
 from fedlearner.data_join.raw_data_visitor import FileBasedMockRawDataVisitor
-from fedlearner.data_join.csv_dict_writer import CsvDictWriter
 from fedlearner.data_join import common
 
 class RawDataBatch(ItemBatch):
@@ -157,12 +156,7 @@ class RawDataPartitioner(object):
                 )
 
         def append_item(self, index, item):
-            writer = self._get_output_writer()
-            if self._options.output_builder == 'TF_RECORD':
-                writer.write(item.tf_record)
-            else:
-                assert self._options.output_builder == 'CSV_DICT'
-                writer.write(item.csv_record)
+            self._get_output_writer().write_item(item)
             if self._begin_index is None:
                 self._begin_index = index
             self._end_index = index
@@ -187,7 +181,7 @@ class RawDataPartitioner(object):
         def get_tmp_fpath(self):
             return self._tmp_fpath
 
-        def destory(self):
+        def destroy(self):
             if self._writer is not None:
                 self._writer.close()
                 self._writer = None
@@ -195,20 +189,15 @@ class RawDataPartitioner(object):
                 gfile.Remove(self._tmp_fpath)
 
         def __del__(self):
-            self.destory()
+            self.destroy()
 
         def _get_output_writer(self):
             if self._writer is None:
-                self._new_writer()
+                self._writer = create_output_writer(
+                        self._options.writer_options,
+                        self._tmp_fpath
+                    )
             return self._writer
-
-        def _new_writer(self):
-            assert self._writer is None
-            if self._options.output_builder == 'TF_RECORD':
-                self._writer = tf.io.TFRecordWriter(self._tmp_fpath)
-            else:
-                assert self._options.output_builder == 'CSV_DICT'
-                self._writer = CsvDictWriter(self._tmp_fpath)
 
     def __init__(self, options, etcd_name, etcd_addrs,
                  etcd_base_dir, use_mock_etcd=False):
@@ -366,7 +355,7 @@ class RawDataPartitioner(object):
 
     def _sync_partitioner_state(self):
         for writer in self._flying_writers:
-            writer.destory()
+            writer.destroy()
         self._flying_writers = []
         if self._dumped_process_index is None:
             max_process_index = None

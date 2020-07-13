@@ -75,4 +75,4 @@ if __name__ == "__main__":
         logging.info("apply new data source %s", args.data_source_name)
     else:
         logging.info("data source %s has been existed", args.data_source_name)
-    etcd.destory_client_pool()
+    etcd.destroy_client_pool()

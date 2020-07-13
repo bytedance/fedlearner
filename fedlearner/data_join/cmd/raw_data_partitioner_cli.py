@@ -53,11 +53,12 @@ if __name__ == "__main__":
                              'only support CSV DICT')
     parser.add_argument('--tf_eager_mode', action='store_true',
                         help='use the eager_mode for tf')
-    parser.add_argument('--output_builder', type=str, default='CSV_DICT',
+    parser.add_argument('--output_builder', type=str, default='TF_RECORD',
                         choices=['TF_RECORD', 'CSV_DICT'],
                         help='the builder for ouput file')
-    parser.add_argument('--output_item_threshold', type=int, default=1<<18,
-                        help='the item threshold for output file')
+    parser.add_argument('--builder_compressed_type', type=str, default='',
+                        choices=['', 'ZLIB', 'GZIP'],
+                        help='the compressed type for TF_RECORD builder')
     parser.add_argument('--raw_data_batch_size', type=int, default=2048,
                         help='the batch size to load raw data')
     parser.add_argument('--max_flying_raw_data', type=int, default=2<<20,
@@ -112,8 +113,10 @@ if __name__ == "__main__":
                 compressed_type=args.compressed_type,
                 read_ahead_size=args.read_ahead_size
             ),
-            output_builder=args.output_builder,
-            output_item_threshold=args.output_item_threshold,
+            writer_options=dj_pb.WriterOptions(
+                output_writer=args.output_builder,
+                compressed_type=args.builder_compressed_type,
+            ),
             partitioner_rank_id=args.partitioner_rank_id,
             batch_processor_options=dj_pb.BatchProcessorOptions(
                 batch_size=args.raw_data_batch_size,

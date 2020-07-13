@@ -38,11 +38,11 @@ RawDataFileSuffix = '.rd'
 InvalidEventTime = -9223372036854775808
 
 @contextmanager
-def make_tf_record_iter(fpath):
+def make_tf_record_iter(fpath, options=None):
     record_iter = None
     expt = None
     try:
-        record_iter = tf.io.tf_record_iterator(fpath)
+        record_iter = tf.io.tf_record_iterator(fpath, options)
         yield record_iter
     except Exception as e: # pylint: disable=broad-except
         logging.warning("Failed make tf_record_iterator for "\

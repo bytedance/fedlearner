@@ -172,7 +172,7 @@ class EtcdClient(object):
                         cls.ETCD_CLIENT_POOL[name].append(clnt)
 
     @classmethod
-    def destory_client_pool(cls):
+    def destroy_client_pool(cls):
         with cls.ETCD_CLIENT_POOL_LOCK:
             cls.ETCD_CLIENT_POOL_DESTORY = True
             for _, clnts in cls.ETCD_CLIENT_POOL.items():
