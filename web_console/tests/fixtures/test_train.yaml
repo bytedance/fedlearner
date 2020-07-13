@@ -29,6 +29,8 @@ spec:
                   value: Leader
                 - name: APPLICATION_ID
                   value: application_id
+                - name: JOB_OUTPUT_PATH
+                  value: '/data/job_output/application_id'
                 - name: START_DATE
                   value: '2020041500'
                 - name: END_DATE
@@ -78,6 +80,8 @@ spec:
                   value: Leader
                 - name: APPLICATION_ID
                   value: application_id
+                - name: JOB_OUTPUT_PATH
+                  value: '/data/job_output/application_id'
                 - name: MODEL_NAME
                   value: fedlearner_model
               image: image_path
@@ -123,6 +127,8 @@ spec:
                   value: Leader
                 - name: APPLICATION_ID
                   value: application_id
+                - name: JOB_OUTPUT_PATH
+                  value: '/data/job_output/application_id'
                 - name: MODEL_NAME
                   value: fedlearner_model
               image: image_path
