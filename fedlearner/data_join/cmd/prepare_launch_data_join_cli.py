@@ -16,8 +16,6 @@
 
 import argparse
 import logging
-import os
-from google.protobuf import text_format
 
 from fedlearner.common import common_pb2 as common_pb
 from fedlearner.common.etcd_client import EtcdClient
