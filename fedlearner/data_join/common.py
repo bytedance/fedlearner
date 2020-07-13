@@ -127,6 +127,11 @@ def raw_data_meta_etcd_key(data_source_name, partition_id, process_index):
     return os.path.join(manifest_etcd_key,
                         '{}{:08}'.format(RawDataMetaPrefix, process_index))
 
+def example_id_anchor_etcd_key(data_source_name, partition_id):
+    etcd_base_dir = data_source_etcd_base_dir(data_source_name)
+    return os.path.join(etcd_base_dir, 'dumped_example_id_anchor',
+                        partition_repr(partition_id))
+
 def raw_data_pub_etcd_key(pub_base_dir, partition_id, process_index):
     return os.path.join(pub_base_dir, partition_repr(partition_id),
                         '{:08}{}'.format(process_index, RawDataPubSuffix))
