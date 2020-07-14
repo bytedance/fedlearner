@@ -218,8 +218,8 @@ class RsaPsi(unittest.TestCase):
                     batch_size=1024,
                     max_flying_item=4096
                 ),
-                data_block_builder_options=dj_pb.DataBlockBuilderOptions(
-                    data_block_builder='TF_RECORD_DATABLOCK_BUILDER'
+                data_block_builder_options=dj_pb.WriterOptions(
+                    output_writer='TF_RECORD'
                 )
             )
         self._worker_addrs_l = ['localhost:4161', 'localhost:4162',

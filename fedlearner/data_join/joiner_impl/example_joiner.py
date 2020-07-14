@@ -22,9 +22,8 @@ from contextlib import contextmanager
 
 from fedlearner.data_join.raw_data_visitor import RawDataVisitor
 from fedlearner.data_join.example_id_visitor import ExampleIdVisitor
-from fedlearner.data_join.data_block_manager import DataBlockManager
-from fedlearner.data_join.data_block_builder_impl \
-        import create_data_block_builder
+from fedlearner.data_join.data_block_manager import \
+        DataBlockManager, DataBlockBuilder
 
 class ExampleJoiner(object):
     def __init__(self, example_joiner_options, raw_data_options,
@@ -148,12 +147,12 @@ class ExampleJoiner(object):
         if self._data_block_builder is None and create_if_no_existed:
             data_block_index = \
                     self._data_block_manager.get_dumped_data_block_count()
-            self._data_block_builder = create_data_block_builder(
-                    self._data_block_builder_options,
+            self._data_block_builder = DataBlockBuilder(
                     self._data_source.data_block_dir,
                     self._data_source.data_source_meta.name,
                     self._partition_id,
                     data_block_index,
+                    self._data_block_builder_options,
                     self._example_joiner_options.data_block_dump_threshold
                 )
             self._data_block_builder.set_data_block_manager(

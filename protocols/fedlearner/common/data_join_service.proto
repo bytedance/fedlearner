@@ -224,8 +224,9 @@ message RawDataOptions {
   int64 read_ahead_size = 3;
 }
 
-message DataBlockBuilderOptions {
-  string data_block_builder = 1;
+message WriterOptions {
+  string output_writer = 1;  // support TF_RECORD and CSV_DICT
+  string compressed_type = 2; // the compressed type for output file, support tf record
 }
 
 message ExampleJoinerOptions {
@@ -252,7 +253,7 @@ message DataJoinWorkerOptions {
   ExampleJoinerOptions example_joiner_options = 3;
   ExampleIdDumpOptions example_id_dump_options = 4;
   BatchProcessorOptions batch_processor_options = 5;
-  DataBlockBuilderOptions data_block_builder_options = 6;
+  WriterOptions data_block_builder_options = 6;
 }
 
 message DataJoinMasterOptions {
@@ -287,11 +288,6 @@ message SignIdsResponse {
 
 service RsaPsiSignService {
   rpc SignIds(SignIdsRequest) returns (SignIdsResponse) {}
-}
-
-message WriterOptions {
-  string output_writer = 1;  // support TF_RECORD and CSV_DICT
-  string compressed_type = 2; // the compressed type for output file, support tf record
 }
 
 message RsaPsiPreProcessorOptions {
