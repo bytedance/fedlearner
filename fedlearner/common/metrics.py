@@ -91,8 +91,6 @@ class elasticSearchHandler(Handler):
             "name": name,
             "value": value,
             "tags": tags,
-            "timestamp": int(time.time()),
-            "test author": "test_author",
             "date_time": datetime.datetime.now(tz=self._tz)
         }
         self._es.index(index="metrics", body=action)
