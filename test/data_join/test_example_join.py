@@ -85,7 +85,7 @@ class TestExampleJoin(unittest.TestCase):
             builder = DataBlockBuilder(
                     self.data_source.raw_data_dir,
                     self.data_source.data_source_meta.name,
-                    0, block_index, dj.WriterOptions(output_writer='TF_RECORD'), None
+                    0, block_index, dj_pb.WriterOptions(output_writer='TF_RECORD'), None
                 )
             cands = list(range(begin_index + block_index * 2048,
                 begin_index + (block_index + 1) * 2048))

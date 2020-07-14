@@ -194,7 +194,7 @@ class DataJoinWorker(unittest.TestCase):
                     data_source.raw_data_dir,
                     data_source.data_source_meta.name,
                     partition_id, block_index,
-                    dj.WriterOptions(output_writer='TF_RECORD'), None
+                    dj_pb.WriterOptions(output_writer='TF_RECORD'), None
                 )
             cands = list(range(block_index * block_size, (block_index + 1) * block_size))
             start_index = cands[0]
