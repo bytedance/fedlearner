@@ -33,7 +33,7 @@ python -m fedlearner.data_join.cmd.data_portal_worker_cli \
   --master_addr=$MASTER_POD_NAMES \
   --rank_id=$INDEX \
   --etcd_name=$ETCD_NAME \
-  --etcd_addrs=$ETCD_ADDRS \
+  --etcd_addrs=$ETCD_ADDR \
   --etcd_base_dir=$ETCD_BASE_DIR \
   --batch_size=$BATCH_SIZE \
   --max_flying_item=$MAX_FLYING_ITEM \
