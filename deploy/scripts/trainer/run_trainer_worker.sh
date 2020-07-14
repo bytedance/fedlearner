@@ -55,6 +55,6 @@ python main.py \
     --local-addr="$POD_IP:50051" \
     --worker-rank="$WORKER_RANK" \
     --peer-addr="$PEER_ADDR"
-    --checkpoint-path="$JOB_OUTPUT_PATH/checkpoints" \
-    --export-path="$JOB_OUTPUT_PATH/exported_models" \
+    --checkpoint-path="$OUTPUT_BASE_DIR/checkpoints" \
+    --export-path="$OUTPUT_BASE_DIR/exported_models" \
     "$save_checkpoint_steps" "$sparse_estimator"

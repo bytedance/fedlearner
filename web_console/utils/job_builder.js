@@ -129,7 +129,7 @@ function generateYaml(federation, job, job_params, ticket) {
               { name: 'ROLE', value: ticket.role },
               { name: 'APPLICATION_ID', value: job.name },
               {
-                name: 'JOB_OUTPUT_PATH',
+                name: 'OUTPUT_BASE_DIR',
                 value: path.join(k8s_settings.storage_root_path, 'job_output', job.name)
               },
             ],

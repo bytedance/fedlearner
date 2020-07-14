@@ -49,9 +49,9 @@ python -m fedlearner.model.tree.trainer \
     --num-workers="$NUM_WORKERS" \
     --worker-rank="$WORKER_RANK" \
     --application-id="$APPLICATION_ID" \
-    --export-path="$JOB_OUTPUT_PATH/exported_models" \
-    --checkpoint-path="$JOB_OUTPUT_PATH/checkpoints" \
-    --output-path="$JOB_OUTPUT_PATH/outputs" \
+    --export-path="$OUTPUT_BASE_DIR/exported_models" \
+    --checkpoint-path="$OUTPUT_BASE_DIR/checkpoints" \
+    --output-path="$OUTPUT_BASE_DIR/outputs" \
     "$mode" "$data_path" "$validation_data_path" \
     "$no_data" "$file_ext" "$load_model_path" \
     "$verbosity" "$learning_rate" "$max_iters" \
