@@ -173,7 +173,7 @@ class DataJoinWorker(unittest.TestCase):
                     max_flying_item=2048
                 ),
                 data_block_builder_options=dj_pb.WriterOptions(
-                    data_block_builder='TF_RECORD'
+                    output_writer='TF_RECORD'
                 )
             )
 
