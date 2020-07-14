@@ -254,7 +254,7 @@ class DataBlockManager(object):
         return os.path.join(self._data_block_dir(), meta_fname)
 
     def _data_block_dir(self):
-        return os.path.join(data_source_data_block_dir(self._data_sourc)e,
+        return os.path.join(data_source_data_block_dir(self._data_source),
                             partition_repr(self._partition_id))
 
     def _evict_data_block_cache_if_full(self):
