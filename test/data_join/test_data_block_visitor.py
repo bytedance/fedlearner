@@ -48,8 +48,8 @@ class TestDataBlockVisitor(unittest.TestCase):
         self.etcd = etcd_client.EtcdClient(self.etcd_name, self.etcd_addrs,
                                            self.etcd_base_dir, True)
         common.commit_data_source(self.etcd, self.data_source)
-        if gfile.Exists(common.data_source_data_block_dir(data_source)):
-            gfile.DeleteRecursively(common.data_source_data_block_dir(data_source))
+        if gfile.Exists(data_source.output_base_dir):
+            gfile.DeleteRecursively(data_source.output_base_dir)
         self.data_block_matas = []
         self.manifest_manager = raw_data_manifest_manager.RawDataManifestManager(
             self.etcd, self.data_source)
@@ -146,8 +146,8 @@ class TestDataBlockVisitor(unittest.TestCase):
                                 )
 
     def tearDown(self):
-        if gfile.Exists(common.data_source_data_block_dir(self.data_source)):
-            gfile.DeleteRecursively(common.data_source_data_block_dir(self.data_source))
+        if gfile.Exists(self.data_source.output_base_dir):
+            gfile.DeleteRecursively(self.data_source.output_base_dir)
 
 if __name__ == '__main__':
     unittest.main()

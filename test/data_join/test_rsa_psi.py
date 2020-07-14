@@ -142,18 +142,14 @@ class RsaPsi(unittest.TestCase):
             gfile.DeleteRecursively(self._pre_processor_ouput_dir_l)
         if gfile.Exists(self._pre_processor_ouput_dir_f):
             gfile.DeleteRecursively(self._pre_processor_ouput_dir_f)
-        if gfile.Exists(common.data_source_data_block_dir(self._data_source_l)):
-            gfile.DeleteRecursively(common.data_source_data_block_dir(self._data_source_l))
+        if gfile.Exists(self._data_source_l.output_base_dir):
+            gfile.DeleteRecursively(self._data_source_l.output_base_dir)
         if gfile.Exists(self._raw_data_dir_l):
             gfile.DeleteRecursively(self._raw_data_dir_l)
-        if gfile.Exists(common.data_source_example_dumped_dir(self._data_source_l)):
-            gfile.DeleteRecursively(common.data_source_example_dumped_dir(self._data_source_l))
-        if gfile.Exists(common.data_source_data_block_dir(self._data_source_f)):
-            gfile.DeleteRecursively(common.data_source_data_block_dir(self._data_source_f))
+        if gfile.Exists(self._data_source_f.output_base_dir):
+            gfile.DeleteRecursively(self._data_source_f.output_base_dir)
         if gfile.Exists(self._raw_data_dir_f):
             gfile.DeleteRecursively(self._raw_data_dir_f)
-        if gfile.Exists(common.data_source_example_dumped_dir(self._data_source_f)):
-            gfile.DeleteRecursively(common.data_source_example_dumped_dir(self._data_source_f))
 
     def _launch_masters(self):
         self._master_addr_l = 'localhost:4061'

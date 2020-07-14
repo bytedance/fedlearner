@@ -35,8 +35,8 @@ class TestDataBlockManager(unittest.TestCase):
         data_source.data_source_meta.partition_num = 1
         data_source.output_base_dir = "./ds_output"
         self.data_source = data_source
-        if gfile.Exists(common.data_source_data_block_dir(data_source)):
-            gfile.DeleteRecursively(common.data_source_data_block_dir(data_source))
+        if gfile.Exists(data_source.output_base_dir):
+            gfile.DeleteRecursively(data_source.output_base_dir)
         self.data_block_manager = data_block_manager.DataBlockManager(
                 data_source, 0
             )
@@ -145,8 +145,8 @@ class TestDataBlockManager(unittest.TestCase):
         self.assertEqual(self.data_block_manager.get_dumped_data_block_count(), 5)
 
     def tearDown(self):
-        if gfile.Exists(common.data_source_data_block_dir(self.data_source)):
-            gfile.DeleteRecursively(common.data_source_data_block_dir(self.data_source))
+        if gfile.Exists(self.data_source.output_base_dir):
+            gfile.DeleteRecursively(self.data_source.output_base_dir)
 
 if __name__ == '__main__':
     unittest.main()

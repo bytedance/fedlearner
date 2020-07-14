@@ -41,8 +41,8 @@ class TestDumpedExampleId(unittest.TestCase):
                 example_id_dump_interval=-1,
                 example_id_dump_threshold=1024
             )
-        if gfile.Exists(common.data_source_example_dumped_dir(self.data_source)):
-            gfile.DeleteRecursively(common.data_source_example_dumped_dir(self.data_source))
+        if gfile.Exists(self.data_source.output_base_dir):
+            gfile.DeleteRecursively(self.data_source.output_base_dir)
         self.partition_dir = os.path.join(common.data_source_example_dumped_dir(self.data_source), common.partition_repr(0))
         gfile.MakeDirs(self.partition_dir)
 
@@ -147,8 +147,8 @@ class TestDumpedExampleId(unittest.TestCase):
         self.assertEqual(10240 * 2, expected_index)
 
     def tearDown(self):
-        if gfile.Exists(common.data_source_example_dumped_dir(self.data_source)):
-            gfile.DeleteRecursively(common.data_source_example_dumped_dir(self.data_source))
+        if gfile.Exists(self.data_source.output_base_dir):
+            gfile.DeleteRecursively(self.data_source.output_base_dir)
 
 if __name__ == '__main__':
     unittest.main()

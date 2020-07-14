@@ -57,10 +57,8 @@ class TestExampleJoin(unittest.TestCase):
                 data_block_dump_interval=30,
                 data_block_dump_threshold=128
             )
-        if gfile.Exists(common.data_source_data_block_dir(self.data_source)):
-            gfile.DeleteRecursively(common.data_source_data_block_dir(self.data_source))
-        if gfile.Exists(common.data_source_example_dumped_dir(self.data_source)):
-            gfile.DeleteRecursively(common.data_source_data_block_dir(self.data_source))
+        if gfile.Exists(self.data_source.output_base_dir):
+            gfile.DeleteRecursively(self.data_source.output_base_dir)
         if gfile.Exists(self.raw_data_dir):
             gfile.DeleteRecursively(self.raw_data_dir)
         self.etcd = etcd_client.EtcdClient('test_cluster', 'localhost:2379',
@@ -228,10 +226,8 @@ class TestExampleJoin(unittest.TestCase):
               self.example_joiner_options.max_matching_window))
 
     def tearDown(self):
-        if gfile.Exists(common.data_source_data_block_dir(self.data_source)):
-            gfile.DeleteRecursively(common.data_source_data_block_dir(self.data_source))
-        if gfile.Exists(common.data_source_example_dumped_dir(self.data_source)):
-            gfile.DeleteRecursively(common.data_source_example_dumped_dir(self.data_source))
+        if gfile.Exists(self.data_source.output_base_dir):
+            gfile.DeleteRecursively(self.data_source.output_base_dir)
         if gfile.Exists(self.raw_data_dir):
             gfile.DeleteRecursively(self.raw_data_dir)
         self.etcd.delete_prefix(common.data_source_etcd_base_dir(self.data_source.data_source_meta.name))

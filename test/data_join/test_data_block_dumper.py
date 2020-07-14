@@ -38,16 +38,16 @@ class TestDataBlockDumper(unittest.TestCase):
         data_source_f.data_source_meta.partition_num = 1
         data_source_f.output_base_dir = "./output-f"
         self.data_source_f = data_source_f
-        if gfile.Exists(common.data_source_data_block_dir(self.data_source_f)):
-            gfile.DeleteRecursively(common.data_source_data_block_dir(self.data_source_f))
+        if gfile.Exists(self.data_source_f.output_base_dir):
+            gfile.DeleteRecursively(self.data_source_f.output_base_dir)
         data_source_l = common_pb.DataSource()
         data_source_l.data_source_meta.name = "milestone"
         data_source_l.data_source_meta.partition_num = 1
         data_source_l.output_base_dir = "./output-l"
         self.raw_data_dir_l = "./raw_data-l"
         self.data_source_l = data_source_l
-        if gfile.Exists(common.data_source_data_block_dir(self.data_source_l)):
-            gfile.DeleteRecursively(common.data_source_data_block_dir(self.data_source_l))
+        if gfile.Exists(self.data_source_l.output_base_dir):
+            gfile.DeleteRecursively(self.data_source_l.output_base_dir)
         if gfile.Exists(self.raw_data_dir_l):
             gfile.DeleteRecursively(self.raw_data_dir_l)
         self.etcd = etcd_client.EtcdClient('test_cluster', 'localhost:2379',
@@ -231,10 +231,10 @@ class TestDataBlockDumper(unittest.TestCase):
             self.assertEqual(len(meta.example_ids), iidx + 1)
 
     def tearDown(self):
-        if gfile.Exists(common.data_source_data_block_dir(self.data_source_f)):
-            gfile.DeleteRecursively(common.data_source_data_block_dir(self.data_source_f))
-        if gfile.Exists(common.data_source_data_block_dir(self.data_source_l)):
-            gfile.DeleteRecursively(common.data_source_data_block_dir(self.data_source_l))
+        if gfile.Exists(self.data_source_f.output_base_dir):
+            gfile.DeleteRecursively(self.data_source_f.output_base_dir)
+        if gfile.Exists(self.data_source_l.output_base_dir):
+            gfile.DeleteRecursively(self.data_source_l.output_base_dir)
         if gfile.Exists(self.raw_data_dir_l):
             gfile.DeleteRecursively(self.raw_data_dir_l)
         self.etcd.delete_prefix(common.data_source_etcd_base_dir(self.data_source_l.data_source_meta.name))
