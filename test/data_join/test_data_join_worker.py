@@ -177,10 +177,10 @@ class DataJoinWorker(unittest.TestCase):
 
         self.total_index = 1 << 13
 
-    def generate_raw_data(self, etcd, rdp, data_source, raw_data_dir, partition_id,
+    def generate_raw_data(self, etcd, rdp, data_source, raw_data_base_dir, partition_id,
                           block_size, shuffle_win_size, feat_key_fmt, feat_val_fmt):
         dbm = data_block_manager.DataBlockManager(data_source, partition_id)
-        raw_data_dir = os.path.join(raw_data_dir,
+        raw_data_dir = os.path.join(raw_data_base_dir,
                                     common.partition_repr(partition_id))
         if gfile.Exists(raw_data_dir):
             gfile.DeleteRecursively(raw_data_dir)
@@ -189,7 +189,7 @@ class DataJoinWorker(unittest.TestCase):
         new_raw_data_fnames = []
         for block_index in range(self.total_index // block_size):
             builder = DataBlockBuilder(
-                    raw_data_dir,
+                    raw_data_base_dir,
                     data_source.data_source_meta.name,
                     partition_id, block_index,
                     dj_pb.WriterOptions(output_writer='TF_RECORD'), None
