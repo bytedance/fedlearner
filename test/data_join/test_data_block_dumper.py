@@ -36,20 +36,20 @@ class TestDataBlockDumper(unittest.TestCase):
         data_source_f = common_pb.DataSource()
         data_source_f.data_source_meta.name = "milestone"
         data_source_f.data_source_meta.partition_num = 1
-        data_source_f.data_block_dir = "./data_block-f"
+        data_source_f.output_base_dir = "./output-f"
         self.data_source_f = data_source_f
-        if gfile.Exists(self.data_source_f.data_block_dir):
-            gfile.DeleteRecursively(self.data_source_f.data_block_dir)
+        if gfile.Exists(common.data_source_data_block_dir(self.data_source_f)):
+            gfile.DeleteRecursively(common.data_source_data_block_dir(self.data_source_f))
         data_source_l = common_pb.DataSource()
         data_source_l.data_source_meta.name = "milestone"
         data_source_l.data_source_meta.partition_num = 1
-        data_source_l.data_block_dir = "./data_block-l"
-        data_source_l.raw_data_dir = "./raw_data-l"
+        data_source_l.output_base_dir = "./output-l"
+        self.raw_data_dir_l = "./raw_data-l"
         self.data_source_l = data_source_l
-        if gfile.Exists(self.data_source_l.data_block_dir):
-            gfile.DeleteRecursively(self.data_source_l.data_block_dir)
-        if gfile.Exists(self.data_source_l.raw_data_dir):
-            gfile.DeleteRecursively(self.data_source_l.raw_data_dir)
+        if gfile.Exists(common.data_source_data_block_dir(self.data_source_l)):
+            gfile.DeleteRecursively(common.data_source_data_block_dir(self.data_source_l))
+        if gfile.Exists(self.raw_data_dir_l):
+            gfile.DeleteRecursively(self.raw_data_dir_l)
         self.etcd = etcd_client.EtcdClient('test_cluster', 'localhost:2379',
                                            'fedlearner', True)
         self.etcd.delete_prefix(common.data_source_etcd_base_dir(self.data_source_l.data_source_meta.name))
@@ -65,7 +65,7 @@ class TestDataBlockDumper(unittest.TestCase):
         self.dumped_metas = []
         for i in range(5):
             builder = DataBlockBuilder(
-                    self.data_source_f.data_block_dir,
+                    common.data_source_data_block_dir(self.data_source_f),
                     self.data_source_f.data_source_meta.name,
                     0, i, dj_pb.WriterOptions(output_writer='TF_RECORD'), None
                 )
@@ -97,14 +97,14 @@ class TestDataBlockDumper(unittest.TestCase):
 
     def generate_leader_raw_data(self):
         dbm = data_block_manager.DataBlockManager(self.data_source_l, 0)
-        raw_data_dir = os.path.join(self.data_source_l.raw_data_dir, common.partition_repr(0))
+        raw_data_dir = os.path.join(self.raw_data_dir_l, common.partition_repr(0))
         if gfile.Exists(raw_data_dir):
             gfile.DeleteRecursively(raw_data_dir)
         gfile.MakeDirs(raw_data_dir)
         rdm = raw_data_visitor.RawDataManager(self.etcd, self.data_source_l, 0)
         block_index = 0
         builder = DataBlockBuilder(
-                    self.data_source_l.raw_data_dir,
+                    self.raw_data_dir_l,
                     self.data_source_l.data_source_meta.name,
                     0, block_index, dj_pb.WriterOptions(output_writer='TF_RECORD'), None
             )
@@ -128,7 +128,7 @@ class TestDataBlockDumper(unittest.TestCase):
                     start_index += len(meta.example_ids)
                 block_index += 1
                 builder = DataBlockBuilder(
-                        self.data_source_l.raw_data_dir,
+                        self.raw_data_dir_l,
                         self.data_source_l.data_source_meta.name,
                         0, block_index, dj_pb.WriterOptions(output_writer='TF_RECORD'), None
                     )
@@ -178,7 +178,8 @@ class TestDataBlockDumper(unittest.TestCase):
             self.assertEqual(dbm_l.get_data_block_meta_by_index(idx), meta)
             self.assertEqual(dbm_f.get_data_block_meta_by_index(idx), meta)
             meta_fpth_l = os.path.join(
-                    self.data_source_l.data_block_dir, common.partition_repr(0),
+                    common.data_source_data_block_dir(self.data_source_l),
+                    common.partition_repr(0),
                     common.encode_data_block_meta_fname(
                         self.data_source_l.data_source_meta.name,
                         0, meta.data_block_index
@@ -188,7 +189,8 @@ class TestDataBlockDumper(unittest.TestCase):
             meta_l = text_format.Parse(next(mitr), dj_pb.DataBlockMeta())
             self.assertEqual(meta_l, meta)
             meta_fpth_f = os.path.join(
-                    self.data_source_f.data_block_dir, common.partition_repr(0),
+                    common.data_source_data_block_dir(self.data_source_f),
+                    common.partition_repr(0),
                     common.encode_data_block_meta_fname(
                         self.data_source_f.data_source_meta.name,
                         0, meta.data_block_index
@@ -198,7 +200,8 @@ class TestDataBlockDumper(unittest.TestCase):
             meta_f = text_format.Parse(next(mitr), dj_pb.DataBlockMeta())
             self.assertEqual(meta_f, meta)
             data_fpth_l = os.path.join(
-                    self.data_source_l.data_block_dir, common.partition_repr(0),
+                    common.data_source_data_block_dir(self.data_source_l),
+                    common.partition_repr(0),
                     common.encode_data_block_fname(
                         self.data_source_l.data_source_meta.name,
                         meta_l
@@ -212,7 +215,8 @@ class TestDataBlockDumper(unittest.TestCase):
                                  meta.example_ids[iidx])
             self.assertEqual(len(meta.example_ids), iidx + 1)
             data_fpth_f = os.path.join(
-                    self.data_source_f.data_block_dir, common.partition_repr(0),
+                    common.data_source_data_block_dir(self.data_source_f),
+                    common.partition_repr(0),
                     common.encode_data_block_fname(
                         self.data_source_l.data_source_meta.name,
                         meta_f
@@ -227,12 +231,12 @@ class TestDataBlockDumper(unittest.TestCase):
             self.assertEqual(len(meta.example_ids), iidx + 1)
 
     def tearDown(self):
-        if gfile.Exists(self.data_source_f.data_block_dir):
-            gfile.DeleteRecursively(self.data_source_f.data_block_dir)
-        if gfile.Exists(self.data_source_l.data_block_dir):
-            gfile.DeleteRecursively(self.data_source_l.data_block_dir)
-        if gfile.Exists(self.data_source_l.raw_data_dir):
-            gfile.DeleteRecursively(self.data_source_l.raw_data_dir)
+        if gfile.Exists(common.data_source_data_block_dir(self.data_source_f)):
+            gfile.DeleteRecursively(common.data_source_data_block_dir(self.data_source_f))
+        if gfile.Exists(common.data_source_data_block_dir(self.data_source_l)):
+            gfile.DeleteRecursively(common.data_source_data_block_dir(self.data_source_l))
+        if gfile.Exists(self.raw_data_dir_l):
+            gfile.DeleteRecursively(self.raw_data_dir_l)
         self.etcd.delete_prefix(common.data_source_etcd_base_dir(self.data_source_l.data_source_meta.name))
 
 if __name__ == '__main__':

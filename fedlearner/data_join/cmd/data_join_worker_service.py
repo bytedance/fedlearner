@@ -43,6 +43,7 @@ if __name__ == "__main__":
     parser.add_argument('--listen_port', '-p', type=int, default=4132,
                         help='Listen port of data join master')
     parser.add_argument('--raw_data_iter', type=str, default='TF_RECORD',
+                        choices=['TF_RECORD', 'CSV_DICT', 'TF_DATASET'],
                         help='the type for raw data file')
     parser.add_argument('--compressed_type', type=str, default='',
                         choices=['', 'ZLIB', 'GZIP'],

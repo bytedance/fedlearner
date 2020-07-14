@@ -27,7 +27,8 @@ from fedlearner.common import data_join_service_pb2 as dj_pb
 from fedlearner.data_join.common import (
     encode_data_block_meta_fname, partition_repr,
     load_data_block_meta, encode_block_id,
-    encode_data_block_fname, gen_tmp_fpath
+    encode_data_block_fname, gen_tmp_fpath,
+    data_source_data_block_dir
 )
 from fedlearner.data_join.output_writer_impl import create_output_writer
 
@@ -253,7 +254,7 @@ class DataBlockManager(object):
         return os.path.join(self._data_block_dir(), meta_fname)
 
     def _data_block_dir(self):
-        return os.path.join(self._data_source.data_block_dir,
+        return os.path.join(data_source_data_block_dir(self._data_sourc)e,
                             partition_repr(self._partition_id))
 
     def _evict_data_block_cache_if_full(self):

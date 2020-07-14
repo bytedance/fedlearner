@@ -26,8 +26,7 @@ python -m fedlearner.data_join.cmd.prepare_launch_data_join_cli \
     --end_time=$END_TIME \
     --negative_sampling_rate=$NEGATIVE_SAMPLING_RATE \
     --role=$ROLE \
-    --data_block_dir=$DATA_BLOCK_DIR \
-    --example_dump_dir=$EXAMPLE_DUMP_DIR \
+    --output_base_dir=$OUTPUT_BASE_DIR \
     --etcd_name=$ETCD_NAME \
     --etcd_addrs=$ETCD_ADDR \
     --etcd_base_dir=$ETCD_BASE_DIR \

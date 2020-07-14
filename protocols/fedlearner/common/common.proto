@@ -56,10 +56,8 @@ message DataSourceMeta {
 
 message DataSource {
   DataSourceMeta data_source_meta = 1;
-  string data_block_dir = 2;
-  string raw_data_dir = 3;
-  string example_dumped_dir = 4;
-  FLRole role = 5;
-  DataSourceState state = 6;
-  string raw_data_sub_dir = 7;
+  string output_base_dir = 2;
+  FLRole role = 3;
+  DataSourceState state = 4;
+  string raw_data_sub_dir = 5;
 }

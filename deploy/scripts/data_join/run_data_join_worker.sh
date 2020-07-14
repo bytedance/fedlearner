@@ -35,6 +35,7 @@ example_id_dump_threshold=$(normalize_env_to_args "--example_id_dump_threshold" 
 example_id_batch_size=$(normalize_env_to_args "--example_id_batch_size" $EXAMPLE_ID_BATCH_SIZE)
 max_flying_example_id=$(normalize_env_to_args "--max_flying_example_id" $MAX_FLYING_EXAMPLE_ID)
 data_block_builder=$(normalize_env_to_args "--data_block_builder" $DATA_BLOCK_BUILDER)
+data_block_compressed_type=$(normalize_env_to_args "--data_block_compressed_type" $DATA_BLOCK_COMPRESSED_TYPE)
 
 python -m fedlearner.data_join.cmd.data_join_worker_service \
     $PEER_ADDR \
@@ -49,4 +50,5 @@ python -m fedlearner.data_join.cmd.data_join_worker_service \
     $max_matching_window $data_block_dump_interval \
     $data_block_dump_threshold $example_id_dump_interval \
     $example_id_dump_threshold $example_id_batch_size \
-    $max_flying_example_id $data_block_builder $EAGER_MODE
+    $max_flying_example_id $data_block_builder \
+    $data_block_compressed_type $EAGER_MODE

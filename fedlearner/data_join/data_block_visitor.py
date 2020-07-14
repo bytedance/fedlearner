@@ -28,7 +28,7 @@ from fedlearner.data_join.common import (
     DataBlockSuffix, encode_data_block_meta_fname,
     load_data_block_meta, encode_data_block_fname,
     decode_block_id, retrieve_data_source, partition_repr,
-    partition_manifest_etcd_key,
+    partition_manifest_etcd_key, data_source_data_block_dir
 )
 
 class DataBlockRep(object):
@@ -170,7 +170,7 @@ class DataBlockVisitor(object):
         return []
 
     def _partition_data_block_dir(self, partition_id):
-        return os.path.join(self._data_source.data_block_dir,
+        return os.path.join(data_source_data_block_dir(self._data_source),
                             partition_repr(partition_id))
 
     def _make_data_block_rep(self, partition_id,

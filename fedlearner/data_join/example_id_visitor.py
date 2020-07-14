@@ -26,7 +26,8 @@ from fedlearner.common import data_join_service_pb2 as dj_pb
 from fedlearner.data_join import visitor
 from fedlearner.data_join.common import (
     DoneFileSuffix, make_tf_record_iter,
-    partition_repr, example_id_anchor_etcd_key
+    partition_repr, example_id_anchor_etcd_key,
+    data_source_example_dumped_dir
 )
 from fedlearner.data_join.raw_data_iter_impl import (
     tf_record_iter, raw_data_iter
@@ -214,7 +215,7 @@ class ExampleIdManager(visitor.IndexMetaManager):
         return self._anchor
 
     def _example_dumped_dir(self):
-        return os.path.join(self._data_source.example_dumped_dir,
+        return os.path.join(data_source_example_dumped_dir(self._data_source),
                             partition_repr(self._partition_id))
 
     def _check_index_dumped(self, index):
