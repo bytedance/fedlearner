@@ -98,7 +98,7 @@ def create_argument_parser():
                         help='Path to save summary files used by tensorboard.')
     parser.add_argument('--summary-save-steps',
                         type=int,
-                        default=10,
+                        default=None,
                         help='Number of steps to save summary files.')
 
     return parser
@@ -171,6 +171,8 @@ def train(role, args, input_fn, model_fn, serving_input_receiver_fn):
 
     if args.summary_path:
         SummaryHook.summary_path = args.summary_path
+    if args.summary_save_steps:
+        SummaryHook.save_steps = args.summary_save_steps
 
     if args.sparse_estimator:
         estimator = SparseFLEstimator(model_fn,
