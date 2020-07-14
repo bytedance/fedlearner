@@ -109,7 +109,7 @@ class DataBlockBuilder(object):
             self._data_block_meta.block_id = \
                     encode_block_id(self._data_source_name,
                                          self._data_block_meta)
-            data_block_path = path.join(
+            data_block_path = os.path.join(
                     self._get_data_block_dir(),
                     encode_data_block_fname(
                         self._data_source_name,
@@ -123,8 +123,8 @@ class DataBlockBuilder(object):
         return None
 
     def _get_data_block_dir(self):
-        return path.join(self._dirname,
-                         partition_repr(self._partition_id))
+        return os.path.join(self._dirname,
+                            partition_repr(self._partition_id))
 
     def _get_tmp_fpath(self):
         return gen_tmp_fpath(self._get_data_block_dir())
@@ -142,7 +142,7 @@ class DataBlockBuilder(object):
             meta_fname = encode_data_block_meta_fname(self._data_source_name,
                                                       self._partition_id,
                                                       meta.data_block_index)
-            meta_fpath = path.join(self._get_data_block_dir(), meta_fname)
+            meta_fpath = os.path.join(self._get_data_block_dir(), meta_fname)
             gfile.Rename(tmp_meta_fpath, meta_fpath)
 
     def __del__(self):
