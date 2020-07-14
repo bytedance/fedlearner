@@ -211,8 +211,7 @@ class Bridge(object):
                     name="one_StreamTransmit_spend",
                     value=int(time_end-time_start),
                     tags={
-                        "role": self._role
-                        })
+                        "role": self._role})
                 for response in generator:
                     if response.status.code == common_pb.STATUS_SUCCESS:
                         logging.debug("Message with seq_num=%d is "
@@ -253,7 +252,6 @@ class Bridge(object):
                 client = make_ready_client(channel, stop_event)
                 self._check_remote_heartbeat()
 
-    # @metrics.timer(func_name="transmit")
     def _transmit(self, msg):
         assert self._connected, "Cannot transmit before connect"
         with self._transmit_send_lock:
@@ -282,7 +280,6 @@ class Bridge(object):
                     self._client = make_ready_client(self._channel)
                     self._check_remote_heartbeat()
 
-    # @metrics.timer(func_name="transmit_req")
     def _transmit_handler(self, request):
         assert self._connected, "Cannot transmit before connect"
         with self._transmit_receive_lock:
@@ -465,7 +462,6 @@ class Bridge(object):
         self._next_iter_id += 1
         return iter_id
 
-    @metrics.timer(func_name="start")
     def start(self, iter_id):
         assert self._current_iter_id is None, "Last iter not finished"
         self._current_iter_id = iter_id
@@ -475,7 +471,6 @@ class Bridge(object):
         self._transmit(msg)
         logging.debug("Starting iter %d", iter_id)
 
-    @metrics.timer(func_name="commit")
     def commit(self):
         assert self._current_iter_id is not None, "Not started yet"
         with self._condition:
