@@ -18,6 +18,7 @@ import argparse
 import json
 import tensorflow.compat.v1 as tf
 
+from fedlearner.common.summary_hook import SummaryHook
 from fedlearner.trainer.bridge import Bridge
 from fedlearner.trainer.estimator import FLEstimator
 from fedlearner.trainer.sparse_estimator import SparseFLEstimator
@@ -91,6 +92,14 @@ def create_argument_parser():
                         type=int,
                         default=None,
                         help='Number of secs between checkpoints.')
+    parser.add_argument('--summary-path',
+                        type=str,
+                        default=None,
+                        help='Path to save summary files used by tensorboard.')
+    parser.add_argument('--summary-save-steps',
+                        type=int,
+                        default=10,
+                        help='Number of steps to save summary files.')
 
     return parser
 
@@ -159,6 +168,9 @@ def train(role, args, input_fn, model_fn, serving_input_receiver_fn):
         cluster_spec = None
     else:
         raise ValueError("Either --master-addr or --data-path must be set")
+
+    if args.summary_path:
+        SummaryHook.summary_path = args.summary_path
 
     if args.sparse_estimator:
         estimator = SparseFLEstimator(model_fn,

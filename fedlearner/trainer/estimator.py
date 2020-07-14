@@ -25,6 +25,7 @@ from tensorflow.compat.v1.estimator import ModeKeys
 from tensorflow_estimator.python.estimator import model_fn as model_fn_lib
 
 from fedlearner.common.etcd_client import EtcdClient
+from fedlearner.common.summary_hook import SummaryHook
 from fedlearner.trainer import patch  # pylint: disable=unused-import
 
 
@@ -116,6 +117,14 @@ class FLModel(object):
 
         return train_op
 
+    def _append_summary_hook(self, training_hooks):
+        if not training_hooks:
+            training_hooks = []
+        summary_hook = SummaryHook.get_hook(self._role)
+        if summary_hook:
+            training_hooks.append(summary_hook)
+        return training_hooks
+
     def make_spec(self,
                   mode,
                   predictions=None,
@@ -130,6 +139,7 @@ class FLModel(object):
             predictions = {'output': predictions}
         if mode == ModeKeys.TRAIN:
             train_op = tf.group([train_op] + self._train_ops)
+            training_hooks = self._append_summary_hook(training_hooks)
         return tf.estimator.EstimatorSpec(
             mode=mode,
             predictions=predictions,

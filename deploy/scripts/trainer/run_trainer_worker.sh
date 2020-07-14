@@ -41,6 +41,8 @@ for i in "${WORKER_GROUPS[@]}"; do
 done
 fi
 
+tensorboard --logdir "$OUTPUT_BASE_DIR/tensorboard" --port 6006 &
+
 wget ${CODE_KEY} -O code.tar.gz
 tar -zxvf code.tar.gz
 cd ${ROLE}
@@ -57,4 +59,5 @@ python main.py \
     --peer-addr="$PEER_ADDR"
     --checkpoint-path="$OUTPUT_BASE_DIR/checkpoints" \
     --export-path="$OUTPUT_BASE_DIR/exported_models" \
+    --summary-path="$OUTPUT_BASE_DIR/tensorboard" \
     "$save_checkpoint_steps" "$sparse_estimator"
