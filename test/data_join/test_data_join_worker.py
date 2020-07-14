@@ -59,17 +59,15 @@ class DataJoinWorker(unittest.TestCase):
         data_source_l.raw_data_sub_dir = self.raw_data_pub_dir_l
         data_source_l.role = common_pb.FLRole.Leader
         data_source_l.state = common_pb.DataSourceState.Init
-        data_source_l.data_block_dir = "./data_block_l"
-        data_source_l.raw_data_dir = "./raw_data_l"
-        data_source_l.example_dumped_dir = "./example_dumped_l"
+        data_source_l.output_base_dir = "./ds_output_l"
+        self.raw_data_dir_l = "./raw_data_l"
         data_source_f = common_pb.DataSource()
         self.raw_data_pub_dir_f = './raw_data_pub_dir_f'
         data_source_f.role = common_pb.FLRole.Follower
         data_source_f.raw_data_sub_dir = self.raw_data_pub_dir_f
         data_source_f.state = common_pb.DataSourceState.Init
-        data_source_f.data_block_dir = "./data_block_f"
-        data_source_f.raw_data_dir = "./raw_data_f"
-        data_source_f.example_dumped_dir = "./example_dumped_f"
+        data_source_f.output_base_dir = "./ds_output_f"
+        self.raw_data_dir_f = "./raw_data_f"
         data_source_meta = common_pb.DataSourceMeta()
         data_source_meta.name = data_source_name
         data_source_meta.partition_num = 2
@@ -138,18 +136,14 @@ class DataJoinWorker(unittest.TestCase):
         self.raw_data_publisher_f = raw_data_publisher.RawDataPublisher(
                 self.etcd_f, self.raw_data_pub_dir_f
             )
-        if gfile.Exists(data_source_l.data_block_dir):
-            gfile.DeleteRecursively(data_source_l.data_block_dir)
-        if gfile.Exists(data_source_l.example_dumped_dir):
-            gfile.DeleteRecursively(data_source_l.example_dumped_dir)
-        if gfile.Exists(data_source_l.raw_data_dir):
-            gfile.DeleteRecursively(data_source_l.raw_data_dir)
-        if gfile.Exists(data_source_f.data_block_dir):
-            gfile.DeleteRecursively(data_source_f.data_block_dir)
-        if gfile.Exists(data_source_f.example_dumped_dir):
-            gfile.DeleteRecursively(data_source_f.example_dumped_dir)
-        if gfile.Exists(data_source_f.raw_data_dir):
-            gfile.DeleteRecursively(data_source_f.raw_data_dir)
+        if gfile.Exists(data_source_l.output_base_dir):
+            gfile.DeleteRecursively(data_source_l.output_base_dir)
+        if gfile.Exists(self.raw_data_dir_l):
+            gfile.DeleteRecursively(self.raw_data_dir_l)
+        if gfile.Exists(data_source_f.output_base_dir):
+            gfile.DeleteRecursively(data_source_f.output_base_dir)
+        if gfile.Exists(self.raw_data_dir_f):
+            gfile.DeleteRecursively(self.raw_data_dir_f)
 
         self.worker_options = dj_pb.DataJoinWorkerOptions(
                 use_mock_etcd=True,
@@ -179,10 +173,10 @@ class DataJoinWorker(unittest.TestCase):
 
         self.total_index = 1 << 13
 
-    def generate_raw_data(self, etcd, rdp, data_source, partition_id,
+    def generate_raw_data(self, etcd, rdp, data_source, raw_data_base_dir, partition_id,
                           block_size, shuffle_win_size, feat_key_fmt, feat_val_fmt):
         dbm = data_block_manager.DataBlockManager(data_source, partition_id)
-        raw_data_dir = os.path.join(data_source.raw_data_dir,
+        raw_data_dir = os.path.join(raw_data_base_dir,
                                     common.partition_repr(partition_id))
         if gfile.Exists(raw_data_dir):
             gfile.DeleteRecursively(raw_data_dir)
@@ -191,7 +185,7 @@ class DataJoinWorker(unittest.TestCase):
         new_raw_data_fnames = []
         for block_index in range(self.total_index // block_size):
             builder = DataBlockBuilder(
-                    data_source.raw_data_dir,
+                    raw_data_base_dir,
                     data_source.data_source_meta.name,
                     partition_id, block_index,
                     dj_pb.WriterOptions(output_writer='TF_RECORD'), None
@@ -247,12 +241,14 @@ class DataJoinWorker(unittest.TestCase):
         for i in range(self.data_source_l.data_source_meta.partition_num):
             self.generate_raw_data(
                     self.etcd_l, self.raw_data_publisher_l, self.data_source_l,
-                    i, 2048, 64, 'leader_key_partition_{}'.format(i) + ':{}',
+                    self.raw_data_dir_l, i, 2048, 64,
+                    'leader_key_partition_{}'.format(i) + ':{}',
                     'leader_value_partition_{}'.format(i) + ':{}'
                 )
             self.generate_raw_data(
                     self.etcd_f, self.raw_data_publisher_f, self.data_source_f,
-                    i, 4096, 128, 'follower_key_partition_{}'.format(i) + ':{}',
+                    self.raw_data_dir_f, i, 4096, 128,
+                    'follower_key_partition_{}'.format(i) + ':{}',
                     'follower_value_partition_{}'.format(i) + ':{}'
                 )
 
@@ -303,18 +299,14 @@ class DataJoinWorker(unittest.TestCase):
         self.master_f.stop()
 
     def tearDown(self):
-        if gfile.Exists(self.data_source_l.data_block_dir):
-            gfile.DeleteRecursively(self.data_source_l.data_block_dir)
-        if gfile.Exists(self.data_source_l.example_dumped_dir):
-            gfile.DeleteRecursively(self.data_source_l.example_dumped_dir)
-        if gfile.Exists(self.data_source_l.raw_data_dir):
-            gfile.DeleteRecursively(self.data_source_l.raw_data_dir)
-        if gfile.Exists(self.data_source_f.data_block_dir):
-            gfile.DeleteRecursively(self.data_source_f.data_block_dir)
-        if gfile.Exists(self.data_source_f.example_dumped_dir):
-            gfile.DeleteRecursively(self.data_source_f.example_dumped_dir)
-        if gfile.Exists(self.data_source_f.raw_data_dir):
-            gfile.DeleteRecursively(self.data_source_f.raw_data_dir)
+        if gfile.Exists(self.data_source_l.output_base_dir):
+            gfile.DeleteRecursively(self.data_source_l.output_base_dir)
+        if gfile.Exists(self.raw_data_dir_l):
+            gfile.DeleteRecursively(self.raw_data_dir_l)
+        if gfile.Exists(self.data_source_f.output_base_dir):
+            gfile.DeleteRecursively(self.data_source_f.output_base_dir)
+        if gfile.Exists(self.raw_data_dir_f):
+            gfile.DeleteRecursively(self.raw_data_dir_f)
         self.etcd_f.delete_prefix(common.data_source_etcd_base_dir(self.etcd_base_dir_f))
         self.etcd_l.delete_prefix(common.data_source_etcd_base_dir(self.etcd_base_dir_l))
 

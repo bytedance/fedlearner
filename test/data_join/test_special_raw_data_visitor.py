@@ -32,14 +32,14 @@ class TestRawDataVisitor(unittest.TestCase):
         self.data_source = common_pb.DataSource()
         self.data_source.data_source_meta.name = 'fclh_test'
         self.data_source.data_source_meta.partition_num = 1
-        self.data_source.raw_data_dir = path.join(
+        self.raw_data_dir = path.join(
                 path.dirname(path.abspath(__file__)), "../compressed_raw_data"
             )
         self.etcd = etcd_client.EtcdClient('test_cluster', 'localhost:2379',
                                            'fedlearner', True)
         self.etcd.delete_prefix(common.data_source_etcd_base_dir(self.data_source.data_source_meta.name))
         self.assertEqual(self.data_source.data_source_meta.partition_num, 1)
-        partition_dir = path.join(self.data_source.raw_data_dir, common.partition_repr(0))
+        partition_dir = path.join(self.raw_data_dir, common.partition_repr(0))
         self.assertTrue(gfile.Exists(partition_dir))
         manifest_manager = raw_data_manifest_manager.RawDataManifestManager(
             self.etcd, self.data_source)
@@ -67,14 +67,14 @@ class TestRawDataVisitor(unittest.TestCase):
         self.data_source = common_pb.DataSource()
         self.data_source.data_source_meta.name = 'fclh_test'
         self.data_source.data_source_meta.partition_num = 1
-        self.data_source.raw_data_dir = path.join(
+        self.raw_data_dir = path.join(
                 path.dirname(path.abspath(__file__)), "../csv_raw_data"
             )
         self.etcd = etcd_client.EtcdClient('test_cluster', 'localhost:2379',
                                            'fedlearner', True)
         self.etcd.delete_prefix(common.data_source_etcd_base_dir(self.data_source.data_source_meta.name))
         self.assertEqual(self.data_source.data_source_meta.partition_num, 1)
-        partition_dir = path.join(self.data_source.raw_data_dir, common.partition_repr(0))
+        partition_dir = path.join(self.raw_data_dir, common.partition_repr(0))
         self.assertTrue(gfile.Exists(partition_dir))
         manifest_manager = raw_data_manifest_manager.RawDataManifestManager(
             self.etcd, self.data_source)

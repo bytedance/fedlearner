@@ -39,7 +39,7 @@ class TestDataBlockVisitor(unittest.TestCase):
         data_source.data_source_meta.partition_num = 4
         data_source.data_source_meta.start_time = 0
         data_source.data_source_meta.end_time = 10000
-        data_source.data_block_dir = "./data_block"
+        data_source.output_base_dir = "./ds_output"
         data_source.role = common_pb.FLRole.Follower
         self.data_source = data_source
         self.etcd_name = 'test_cluster'
@@ -48,8 +48,8 @@ class TestDataBlockVisitor(unittest.TestCase):
         self.etcd = etcd_client.EtcdClient(self.etcd_name, self.etcd_addrs,
                                            self.etcd_base_dir, True)
         common.commit_data_source(self.etcd, self.data_source)
-        if gfile.Exists(data_source.data_block_dir):
-            gfile.DeleteRecursively(data_source.data_block_dir)
+        if gfile.Exists(data_source.output_base_dir):
+            gfile.DeleteRecursively(data_source.output_base_dir)
         self.data_block_matas = []
         self.manifest_manager = raw_data_manifest_manager.RawDataManifestManager(
             self.etcd, self.data_source)
@@ -66,7 +66,7 @@ class TestDataBlockVisitor(unittest.TestCase):
         follower_index = 65536
         for i in range(64):
             builder = DataBlockBuilder(
-                    self.data_source.data_block_dir,
+                    common.data_source_data_block_dir(self.data_source),
                     self.data_source.data_source_meta.name,
                     partition_id, i,
                     dj_pb.WriterOptions(output_writer='TF_RECORD'), None
@@ -116,7 +116,7 @@ class TestDataBlockVisitor(unittest.TestCase):
             self.assertEqual(meta.end_time, rep.end_time)
             self.assertEqual(meta.partition_id, rep.partition_id)
             self.assertEqual(meta, rep.data_block_meta)
-            data_block_fpath = os.path.join(self.data_source.data_block_dir,
+            data_block_fpath = os.path.join(common.data_source_data_block_dir(self.data_source),
                                             common.partition_repr(meta.partition_id),
                                             meta.block_id + common.DataBlockSuffix)
             self.assertEqual(data_block_fpath, rep.data_block_fpath)
@@ -135,7 +135,7 @@ class TestDataBlockVisitor(unittest.TestCase):
             self.assertEqual(meta.end_time, rep.end_time)
             self.assertEqual(meta.partition_id, rep.partition_id)
             self.assertEqual(meta, rep.data_block_meta)
-            data_block_fpath = os.path.join(self.data_source.data_block_dir,
+            data_block_fpath = os.path.join(common.data_source_data_block_dir(self.data_source),
                                             common.partition_repr(meta.partition_id),
                                             meta.block_id + common.DataBlockSuffix)
             self.assertEqual(data_block_fpath, rep.data_block_fpath)
@@ -146,8 +146,8 @@ class TestDataBlockVisitor(unittest.TestCase):
                                 )
 
     def tearDown(self):
-        if gfile.Exists(self.data_source.data_block_dir):
-            gfile.DeleteRecursively(self.data_source.data_block_dir)
+        if gfile.Exists(self.data_source.output_base_dir):
+            gfile.DeleteRecursively(self.data_source.output_base_dir)
 
 if __name__ == '__main__':
     unittest.main()

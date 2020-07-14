@@ -39,9 +39,8 @@ class TestExampleJoin(unittest.TestCase):
         data_source = common_pb.DataSource()
         data_source.data_source_meta.name = "milestone-f"
         data_source.data_source_meta.partition_num = 1
-        data_source.data_block_dir = "./data_block"
-        data_source.example_dumped_dir = "./example_id"
-        data_source.raw_data_dir = "./raw_data"
+        data_source.output_base_dir = "./ds_output"
+        self.raw_data_dir = "./raw_data"
         self.data_source = data_source
         self.raw_data_options = dj_pb.RawDataOptions(
                 raw_data_iter='TF_RECORD',
@@ -58,12 +57,10 @@ class TestExampleJoin(unittest.TestCase):
                 data_block_dump_interval=30,
                 data_block_dump_threshold=128
             )
-        if gfile.Exists(self.data_source.data_block_dir):
-            gfile.DeleteRecursively(self.data_source.data_block_dir)
-        if gfile.Exists(self.data_source.example_dumped_dir):
-            gfile.DeleteRecursively(self.data_source.example_dumped_dir)
-        if gfile.Exists(self.data_source.raw_data_dir):
-            gfile.DeleteRecursively(self.data_source.raw_data_dir)
+        if gfile.Exists(self.data_source.output_base_dir):
+            gfile.DeleteRecursively(self.data_source.output_base_dir)
+        if gfile.Exists(self.raw_data_dir):
+            gfile.DeleteRecursively(self.raw_data_dir)
         self.etcd = etcd_client.EtcdClient('test_cluster', 'localhost:2379',
                                            'fedlearner', True)
         self.etcd.delete_prefix(common.data_source_etcd_base_dir(self.data_source.data_source_meta.name))
@@ -74,7 +71,7 @@ class TestExampleJoin(unittest.TestCase):
         self.g_data_block_index = 0
 
     def generate_raw_data(self, begin_index, item_count):
-        raw_data_dir = os.path.join(self.data_source.raw_data_dir, common.partition_repr(0))
+        raw_data_dir = os.path.join(self.raw_data_dir, common.partition_repr(0))
         if not gfile.Exists(raw_data_dir):
             gfile.MakeDirs(raw_data_dir)
         self.total_raw_data_count += item_count
@@ -83,7 +80,7 @@ class TestExampleJoin(unittest.TestCase):
         fpaths = []
         for block_index in range(0, item_count // 2048):
             builder = DataBlockBuilder(
-                    self.data_source.raw_data_dir,
+                    self.raw_data_dir,
                     self.data_source.data_source_meta.name,
                     0, block_index, dj_pb.WriterOptions(output_writer='TF_RECORD'), None
                 )
@@ -229,12 +226,10 @@ class TestExampleJoin(unittest.TestCase):
               self.example_joiner_options.max_matching_window))
 
     def tearDown(self):
-        if gfile.Exists(self.data_source.data_block_dir):
-            gfile.DeleteRecursively(self.data_source.data_block_dir)
-        if gfile.Exists(self.data_source.example_dumped_dir):
-            gfile.DeleteRecursively(self.data_source.example_dumped_dir)
-        if gfile.Exists(self.data_source.raw_data_dir):
-            gfile.DeleteRecursively(self.data_source.raw_data_dir)
+        if gfile.Exists(self.data_source.output_base_dir):
+            gfile.DeleteRecursively(self.data_source.output_base_dir)
+        if gfile.Exists(self.raw_data_dir):
+            gfile.DeleteRecursively(self.raw_data_dir)
         self.etcd.delete_prefix(common.data_source_etcd_base_dir(self.data_source.data_source_meta.name))
 
 if __name__ == '__main__':

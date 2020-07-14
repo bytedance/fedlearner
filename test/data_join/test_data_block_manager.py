@@ -33,10 +33,10 @@ class TestDataBlockManager(unittest.TestCase):
         data_source = common_pb.DataSource()
         data_source.data_source_meta.name = "milestone-x"
         data_source.data_source_meta.partition_num = 1
-        data_source.data_block_dir = "./data_block"
+        data_source.output_base_dir = "./ds_output"
         self.data_source = data_source
-        if gfile.Exists(data_source.data_block_dir):
-            gfile.DeleteRecursively(data_source.data_block_dir)
+        if gfile.Exists(data_source.output_base_dir):
+            gfile.DeleteRecursively(data_source.output_base_dir)
         self.data_block_manager = data_block_manager.DataBlockManager(
                 data_source, 0
             )
@@ -51,7 +51,7 @@ class TestDataBlockManager(unittest.TestCase):
         for i in range(5):
             fill_examples = []
             builder = DataBlockBuilder(
-                    self.data_source.data_block_dir,
+                    common.data_source_data_block_dir(self.data_source),
                     self.data_source.data_source_meta.name,
                     0, i, dj_pb.WriterOptions(output_writer='TF_RECORD'), None
                 )
@@ -95,9 +95,8 @@ class TestDataBlockManager(unittest.TestCase):
                 )
             )
         self.assertEqual(self.data_block_manager.get_data_block_meta_by_index(5), None)
-        data_block_dir = os.path.join(
-                        self.data_source.data_block_dir, common.partition_repr(0)
-                    )
+        data_block_dir = os.path.join(common.data_source_data_block_dir(self.data_source),
+                                      common.partition_repr(0))
         for (i, meta) in enumerate(data_block_metas):
             data_block_fpath = os.path.join(
                         data_block_dir, meta.block_id
@@ -146,8 +145,8 @@ class TestDataBlockManager(unittest.TestCase):
         self.assertEqual(self.data_block_manager.get_dumped_data_block_count(), 5)
 
     def tearDown(self):
-        if gfile.Exists(self.data_source.data_block_dir):
-            gfile.DeleteRecursively(self.data_source.data_block_dir)
+        if gfile.Exists(self.data_source.output_base_dir):
+            gfile.DeleteRecursively(self.data_source.output_base_dir)
 
 if __name__ == '__main__':
     unittest.main()

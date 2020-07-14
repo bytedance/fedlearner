@@ -24,6 +24,7 @@ from fedlearner.data_join.raw_data_visitor import RawDataVisitor
 from fedlearner.data_join.example_id_visitor import ExampleIdVisitor
 from fedlearner.data_join.data_block_manager import \
         DataBlockManager, DataBlockBuilder
+from fedlearner.data_join import common
 
 class ExampleJoiner(object):
     def __init__(self, example_joiner_options, raw_data_options,
@@ -148,7 +149,7 @@ class ExampleJoiner(object):
             data_block_index = \
                     self._data_block_manager.get_dumped_data_block_count()
             self._data_block_builder = DataBlockBuilder(
-                    self._data_source.data_block_dir,
+                    common.data_source_data_block_dir(self._data_source),
                     self._data_source.data_source_meta.name,
                     self._partition_id,
                     data_block_index,

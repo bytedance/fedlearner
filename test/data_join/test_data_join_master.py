@@ -47,15 +47,11 @@ class DataJoinMaster(unittest.TestCase):
         data_source_l = common_pb.DataSource()
         data_source_l.role = common_pb.FLRole.Leader
         data_source_l.state = common_pb.DataSourceState.Init
-        data_source_l.data_block_dir = "./data_block_l"
-        data_source_l.raw_data_dir = "./raw_data_l"
-        data_source_l.example_dumped_dir = "./example_dumped_l"
+        data_source_l.output_base_dir = "./ds_output_l"
         data_source_f = common_pb.DataSource()
         data_source_f.role = common_pb.FLRole.Follower
         data_source_f.state = common_pb.DataSourceState.Init
-        data_source_f.data_block_dir = "./data_block_f"
-        data_source_f.raw_data_dir = "./raw_data_f"
-        data_source_f.example_dumped_dir = "./example_dumped_f"
+        data_source_f.output_base_dir = "./ds_output_f"
         data_source_meta = common_pb.DataSourceMeta()
         data_source_meta.name = data_source_name
         data_source_meta.partition_num = 1

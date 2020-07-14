@@ -63,16 +63,14 @@ class RsaPsi(unittest.TestCase):
         self._data_source_l = common_pb.DataSource()
         self._data_source_l.role = common_pb.FLRole.Leader
         self._data_source_l.state = common_pb.DataSourceState.Init
-        self._data_source_l.data_block_dir = "./data_block_l"
-        self._data_source_l.raw_data_dir = "./raw_data_l"
-        self._data_source_l.example_dumped_dir = "./example_dumped_l"
+        self._data_source_l.output_base_dir = "./ds_output_l"
+        self._raw_data_dir_l = "./raw_data_l"
         self._data_source_l.raw_data_sub_dir= "./raw_data_sub_dir_l"
         self._data_source_f = common_pb.DataSource()
         self._data_source_f.role = common_pb.FLRole.Follower
         self._data_source_f.state = common_pb.DataSourceState.Init
-        self._data_source_f.data_block_dir = "./data_block_f"
-        self._data_source_f.raw_data_dir = "./raw_data_f"
-        self._data_source_f.example_dumped_dir = "./example_dumped_f"
+        self._data_source_f.output_base_dir = "./ds_output_f"
+        self._raw_data_dir_f = "./raw_data_f"
         self._data_source_f.raw_data_sub_dir= "./raw_data_sub_dir_f"
         data_source_meta = common_pb.DataSourceMeta()
         data_source_meta.name = self._data_source_name
@@ -144,18 +142,14 @@ class RsaPsi(unittest.TestCase):
             gfile.DeleteRecursively(self._pre_processor_ouput_dir_l)
         if gfile.Exists(self._pre_processor_ouput_dir_f):
             gfile.DeleteRecursively(self._pre_processor_ouput_dir_f)
-        if gfile.Exists(self._data_source_l.data_block_dir):
-            gfile.DeleteRecursively(self._data_source_l.data_block_dir)
-        if gfile.Exists(self._data_source_l.raw_data_dir):
-            gfile.DeleteRecursively(self._data_source_l.raw_data_dir)
-        if gfile.Exists(self._data_source_l.example_dumped_dir):
-            gfile.DeleteRecursively(self._data_source_l.example_dumped_dir)
-        if gfile.Exists(self._data_source_f.data_block_dir):
-            gfile.DeleteRecursively(self._data_source_f.data_block_dir)
-        if gfile.Exists(self._data_source_f.raw_data_dir):
-            gfile.DeleteRecursively(self._data_source_f.raw_data_dir)
-        if gfile.Exists(self._data_source_f.example_dumped_dir):
-            gfile.DeleteRecursively(self._data_source_f.example_dumped_dir)
+        if gfile.Exists(self._data_source_l.output_base_dir):
+            gfile.DeleteRecursively(self._data_source_l.output_base_dir)
+        if gfile.Exists(self._raw_data_dir_l):
+            gfile.DeleteRecursively(self._raw_data_dir_l)
+        if gfile.Exists(self._data_source_f.output_base_dir):
+            gfile.DeleteRecursively(self._data_source_f.output_base_dir)
+        if gfile.Exists(self._raw_data_dir_f):
+            gfile.DeleteRecursively(self._raw_data_dir_f)
 
     def _launch_masters(self):
         self._master_addr_l = 'localhost:4061'

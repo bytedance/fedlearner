@@ -36,12 +36,12 @@ class TestRawDataVisitor(unittest.TestCase):
         self.data_source = common_pb.DataSource()
         self.data_source.data_source_meta.name = 'fclh_test'
         self.data_source.data_source_meta.partition_num = 1
-        self.data_source.raw_data_dir = "./raw_data"
+        self.raw_data_dir = "./raw_data"
         self.etcd = etcd_client.EtcdClient('test_cluster', 'localhost:2379',
                                            'fedlearner', True)
         self.etcd.delete_prefix(common.data_source_etcd_base_dir(self.data_source.data_source_meta.name))
         self.assertEqual(self.data_source.data_source_meta.partition_num, 1)
-        partition_dir = os.path.join(self.data_source.raw_data_dir, common.partition_repr(0))
+        partition_dir = os.path.join(self.raw_data_dir, common.partition_repr(0))
         if gfile.Exists(partition_dir):
             gfile.DeleteRecursively(partition_dir)
         gfile.MakeDirs(partition_dir)
@@ -49,7 +49,7 @@ class TestRawDataVisitor(unittest.TestCase):
             self.etcd, self.data_source)
 
     def _gen_raw_data_file(self, start_index, end_index, no_data=False):
-        partition_dir = os.path.join(self.data_source.raw_data_dir, common.partition_repr(0))
+        partition_dir = os.path.join(self.raw_data_dir, common.partition_repr(0))
         fpaths = []
         for i in range(start_index, end_index):
             if no_data:
@@ -82,7 +82,7 @@ class TestRawDataVisitor(unittest.TestCase):
         self.assertTrue(rdm.check_index_meta_by_process_index(0))
         self.assertTrue(rdm.check_index_meta_by_process_index(1))
         self.assertEqual(len(rdm.get_index_metas()), 0)
-        partition_dir = os.path.join(self.data_source.raw_data_dir, common.partition_repr(0))
+        partition_dir = os.path.join(self.raw_data_dir, common.partition_repr(0))
         index_meta0 = rdm.get_index_meta_by_index(0, 0)
         self.assertEqual(index_meta0.start_index, 0)
         self.assertEqual(index_meta0.process_index, 0)
@@ -176,8 +176,8 @@ class TestRawDataVisitor(unittest.TestCase):
 
     def tearDown(self):
         self.etcd.delete_prefix(common.data_source_etcd_base_dir(self.data_source.data_source_meta.name))
-        if gfile.Exists(self.data_source.raw_data_dir):
-            gfile.DeleteRecursively(self.data_source.raw_data_dir)
+        if gfile.Exists(self.raw_data_dir):
+            gfile.DeleteRecursively(self.raw_data_dir)
 
 if __name__ == '__main__':
     unittest.main()

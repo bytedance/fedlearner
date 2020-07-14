@@ -34,16 +34,16 @@ class TestDumpedExampleId(unittest.TestCase):
         data_source = common_pb.DataSource()
         data_source.data_source_meta.name = "milestone-x"
         data_source.data_source_meta.partition_num = 1
-        data_source.example_dumped_dir = "./example_ids"
+        data_source.output_base_dir = "./ds_output"
         self.etcd.delete_prefix(common.data_source_etcd_base_dir(data_source.data_source_meta.name))
         self.data_source = data_source
         self.example_id_dump_options = dj_pb.ExampleIdDumpOptions(
                 example_id_dump_interval=-1,
                 example_id_dump_threshold=1024
             )
-        if gfile.Exists(self.data_source.example_dumped_dir):
-            gfile.DeleteRecursively(self.data_source.example_dumped_dir)
-        self.partition_dir = os.path.join(self.data_source.example_dumped_dir, common.partition_repr(0))
+        if gfile.Exists(self.data_source.output_base_dir):
+            gfile.DeleteRecursively(self.data_source.output_base_dir)
+        self.partition_dir = os.path.join(common.data_source_example_dumped_dir(self.data_source), common.partition_repr(0))
         gfile.MakeDirs(self.partition_dir)
 
     def _dump_example_ids(self, dumper, start_index, batch_num, batch_size):
@@ -147,8 +147,8 @@ class TestDumpedExampleId(unittest.TestCase):
         self.assertEqual(10240 * 2, expected_index)
 
     def tearDown(self):
-        if gfile.Exists(self.data_source.example_dumped_dir):
-            gfile.DeleteRecursively(self.data_source.example_dumped_dir)
+        if gfile.Exists(self.data_source.output_base_dir):
+            gfile.DeleteRecursively(self.data_source.output_base_dir)
 
 if __name__ == '__main__':
     unittest.main()
