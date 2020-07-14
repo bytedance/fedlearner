@@ -25,20 +25,21 @@ from tensorflow.compat.v1 import gfile
 from fedlearner.common import data_join_service_pb2 as dj_pb
 
 from fedlearner.data_join.common import (
-    encode_data_block_meta_fname, encode_block_id,
-    encode_data_block_fname, partition_repr,
-    load_data_block_meta, gen_tmp_fpath
+    encode_data_block_meta_fname, partition_repr,
+    load_data_block_meta, encode_block_id,
+    encode_data_block_fname, gen_tmp_fpath
 )
+from fedlearner.data_join.output_writer_impl import create_output_writer
 
 class DataBlockBuilder(object):
     def __init__(self, dirname, data_source_name, partition_id,
-                 data_block_index, max_example_num=None):
+                 data_block_index, write_options, max_example_num=None):
         self._data_source_name = data_source_name
         self._partition_id = partition_id
         self._max_example_num = max_example_num
         self._dirname = dirname
         self._tmp_fpath = self._get_tmp_fpath()
-        self._tf_record_writer = tf.io.TFRecordWriter(self._tmp_fpath)
+        self._writer = create_output_writer(write_options, self._tmp_fpath)
         self._data_block_meta = dj_pb.DataBlockMeta()
         self._data_block_meta.partition_id = partition_id
         self._data_block_meta.data_block_index = data_block_index
@@ -54,9 +55,10 @@ class DataBlockBuilder(object):
     def set_data_block_manager(self, data_block_manager):
         self._data_block_manager = data_block_manager
 
-    def append(self, record, example_id, event_time,
-               leader_index, follower_index):
-        self._tf_record_writer.write(record)
+    def append_item(self, item, leader_index, follower_index, event_time=None):
+        example_id = item.example_id
+        if event_time is None:
+            event_time = item.event_time
         self._data_block_meta.example_ids.append(example_id)
         if self._example_num == 0:
             self._data_block_meta.leader_start_index = leader_index
@@ -73,14 +75,13 @@ class DataBlockBuilder(object):
                 self._data_block_meta.start_time = event_time
             if event_time > self._data_block_meta.end_time:
                 self._data_block_meta.end_time = event_time
-
-        self._example_num += 1
+        self.write_item(item)
 
     def set_follower_restart_index(self, follower_restart_index):
         self._data_block_meta.follower_restart_index = follower_restart_index
 
-    def append_raw_example(self, record):
-        self._tf_record_writer.write(record)
+    def write_item(self, item):
+        self._writer.write_item(item)
         self._example_num += 1
 
     def check_data_block_full(self):
@@ -103,7 +104,7 @@ class DataBlockBuilder(object):
 
     def finish_data_block(self):
         assert self._example_num == len(self._data_block_meta.example_ids)
-        self._tf_record_writer.close()
+        self._writer.close()
         if len(self._data_block_meta.example_ids) > 0:
             self._data_block_meta.block_id = \
                     encode_block_id(self._data_source_name,
@@ -122,9 +123,8 @@ class DataBlockBuilder(object):
         return None
 
     def _get_data_block_dir(self):
-        return os.path.join(
-                self._dirname, partition_repr(self._partition_id)
-            )
+        return os.path.join(self._dirname,
+                            partition_repr(self._partition_id))
 
     def _get_tmp_fpath(self):
         return gen_tmp_fpath(self._get_data_block_dir())
@@ -146,8 +146,8 @@ class DataBlockBuilder(object):
             gfile.Rename(tmp_meta_fpath, meta_fpath)
 
     def __del__(self):
-        if self._tf_record_writer is not None:
-            del self._tf_record_writer
+        if self._writer is not None:
+            del self._writer
 
 class DataBlockManager(object):
     def __init__(self, data_source, partition_id):

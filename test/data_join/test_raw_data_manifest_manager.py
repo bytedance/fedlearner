@@ -21,7 +21,7 @@ from google.protobuf import text_format, timestamp_pb2
 from fedlearner.common import etcd_client
 from fedlearner.common import data_join_service_pb2 as dj_pb
 from fedlearner.common import common_pb2 as common_pb
-from fedlearner.data_join import raw_data_manifest_manager
+from fedlearner.data_join import raw_data_manifest_manager, common
 
 class TestRawDataManifestManager(unittest.TestCase):
     def test_raw_data_manifest_manager(self):
@@ -33,7 +33,7 @@ class TestRawDataManifestManager(unittest.TestCase):
         data_source.data_source_meta.name = "milestone-x"
         data_source.data_source_meta.partition_num = partition_num
         data_source.role = common_pb.FLRole.Leader
-        cli.delete_prefix(data_source.data_source_meta.name)
+        cli.delete_prefix(common.data_source_etcd_base_dir(data_source.data_source_meta.name))
         manifest_manager = raw_data_manifest_manager.RawDataManifestManager(
             cli, data_source)
         manifest_map = manifest_manager.list_all_manifest()
@@ -271,7 +271,7 @@ class TestRawDataManifestManager(unittest.TestCase):
                 )
                 self.assertEqual(manifest_map[i].join_example_rep.rank_id, -1)
 
-        cli.destory_client_pool()
+        cli.destroy_client_pool()
 
 if __name__ == '__main__':
     unittest.main()

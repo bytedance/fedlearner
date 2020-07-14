@@ -8,6 +8,13 @@ metadata:
   creationTimestamp: null
   name: flapps.fedlearner.k8s.io
 spec:
+  additionalPrinterColumns:
+  - JSONPath: .status.appState
+    name: STATUS
+    type: string
+  - JSONPath: .metadata.creationTimestamp
+    name: AGE
+    type: date
   group: fedlearner.k8s.io
   names:
     kind: FLApp
@@ -89,7 +96,7 @@ spec:
                     type: boolean
                   replicas:
                     description: Replicas is the desired number of replicas of the
-                      given template. Defaults to 1.
+                      given template. Defaults to 0.
                     format: int32
                     type: integer
                   restartPolicy:

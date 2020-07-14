@@ -77,11 +77,12 @@ if __name__ == "__main__":
     parser.add_argument('--max_flying_example_id', type=int, default=268435456,
                         help='max flying example id cached for '\
                              'example id sync leader')
-    parser.add_argument('--data_block_builder', type=str,
-                        default='TF_RECORD_DATABLOCK_BUILDER',
-                        choices=['TF_RECORD_DATABLOCK_BUILDER',
-                                 'CSV_DICT_DATABLOCK_BUILDER'],
-                        help='the builder of generated data block')
+    parser.add_argument('--data_block_builder', type=str, default='TF_RECORD',
+                        choices=['TF_RECORD', 'CSV_DICT'],
+                        help='the file type for data block')
+    parser.add_argument('--data_block_compressed_type', type=str, default='',
+                        choices=['', 'ZLIB', 'GZIP'],
+                        help='the compressed type for data block')
     args = parser.parse_args()
     if args.tf_eager_mode:
         import tensorflow
@@ -108,8 +109,9 @@ if __name__ == "__main__":
                     batch_size=args.example_id_batch_size,
                     max_flying_item=args.max_flying_example_id
                 ),
-            data_block_builder_options=dj_pb.DataBlockBuilderOptions(
-                    data_block_builder=args.data_block_builder
+            data_block_builder_options=dj_pb.WriterOptions(
+                    output_writer=args.data_block_builder,
+                    compressed_type=args.data_block_compressed_type
                 )
         )
     worker_srv = DataJoinWorkerService(args.listen_port, args.peer_addr,

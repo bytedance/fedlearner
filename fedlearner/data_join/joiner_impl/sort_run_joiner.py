@@ -31,7 +31,7 @@ class SortRunExampleJoiner(ExampleJoiner):
         for fi, li, fe in self._make_joined_generator():
             builder = self._get_data_block_builder(True)
             assert builder is not None
-            builder.append_item(fe, fe.example_id, 0, li, fi)
+            builder.append_item(fe, li, fi, 0)
             if builder.check_data_block_full():
                 self._follower_restart_index = fi
                 yield self._finish_data_block()

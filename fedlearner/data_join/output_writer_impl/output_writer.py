@@ -14,20 +14,23 @@
 
 # coding: utf-8
 
-import tensorflow.compat.v1 as tf
 
-from fedlearner.data_join.data_block_builder_impl import DataBlockBuilder
+class OutputWriter(object):
+    def __init__(self, options, fpath):
+        self._options = options
+        self._fpath = fpath
+        self._output_cnt = 0
 
-class TfRecordDataBlockBuilder(DataBlockBuilder):
+    def write_item(self, item):
+        raise NotImplementedError("write not implement for basic OutputBuilder")
+
+    def close(self):
+        raise NotImplementedError("close not implement for basic OutputBuilder")
+
+    @property
+    def fpath(self):
+        return self._fpath
+
     @classmethod
     def name(cls):
-        return 'TF_RECORD_DATABLOCK_BUILDER'
-
-    def _make_data_block_writer(self, fpath):
-        return tf.io.TFRecordWriter(fpath)
-
-    def _extract_record_from_item(self, item):
-        return item.tf_record
-
-    def _write_record(self, record):
-        self._writer.write(record)
+        return 'OUTPUT_BUILDER'

@@ -70,10 +70,6 @@ if __name__ == "__main__":
     parser.add_argument('--sort_run_merger_read_ahead_buffer', type=int,
                         default=1<<20, help='the read ahead buffer for the '\
                                             'reader of sort run reader')
-    parser.add_argument('--rpc_sync_mode', action='store_true',
-                        help='use the sync mode for rpc sign')
-    parser.add_argument('--rpc_thread_pool_size', type=int, default=16,
-                        help='the thread pool size for sync rpc sign')
     parser.add_argument('--partition_id', type=int, required=True,
                         help='the partition id will be processed')
     parser.add_argument('--etcd_name', type=str,
@@ -82,6 +78,20 @@ if __name__ == "__main__":
                         default='localhost:2379', help='the addrs of etcd')
     parser.add_argument('--etcd_base_dir', type=str, default='fedlearner_test',
                         help='the namespace of etcd key')
+    parser.add_argument('--raw_data_iter', type=str, default='CSV_DICT',
+                        help='the type for raw data file')
+    parser.add_argument('--compressed_type', type=str, default='',
+                        choices=['', 'ZLIB', 'GZIP'],
+                        help='the compressed type for raw data')
+    parser.add_argument('--read_ahead_size', type=int, default=32<<20,
+                        help='the read ahead size for raw data,'
+                             'only support CSV DICT')
+    parser.add_argument('--output_builder', type=str, default='TF_RECORD',
+                        choices=['TF_RECORD', 'CSV_DICT'],
+                        help='the builder for ouput file')
+    parser.add_argument('--builder_compressed_type', type=str, default='',
+                        choices=['', 'ZLIB', 'GZIP'],
+                        help='the compressed type for TF_RECORD builder')
 
     args = parser.parse_args()
     all_fpaths = []
@@ -116,13 +126,20 @@ if __name__ == "__main__":
             sign_rpc_timeout_ms=args.sign_rpc_timeout_ms,
             stub_fanout=args.stub_fanout,
             slow_sign_threshold=args.slow_sign_threshold,
-            rpc_sync_mode=args.rpc_sync_mode,
-            rpc_thread_pool_size=args.rpc_thread_pool_size,
             sort_run_merger_read_ahead_buffer=\
                 args.sort_run_merger_read_ahead_buffer,
             batch_processor_options=dj_pb.BatchProcessorOptions(
                 batch_size=args.process_batch_size,
                 max_flying_item=args.max_flying_item
+            ),
+            input_raw_data=dj_pb.RawDataOptions(
+                raw_data_iter=args.raw_data_iter,
+                compressed_type=args.compressed_type,
+                read_ahead_size=args.read_ahead_size
+            ),
+            writer_options=dj_pb.WriterOptions(
+                output_writer=args.output_builder,
+                compressed_type=args.builder_compressed_type,
             )
         )
     preprocessor = RsaPsiPreProcessor(preprocessor_options, args.etcd_name,

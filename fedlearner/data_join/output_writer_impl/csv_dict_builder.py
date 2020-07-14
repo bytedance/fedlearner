@@ -14,25 +14,20 @@
 
 # coding: utf-8
 
-import os
-import pathlib
-from configparser import ConfigParser
+from fedlearner.data_join.csv_dict_writer import CsvDictWriter
+from fedlearner.data_join.output_writer_impl.output_writer import OutputWriter
 
+class CSVDictBuilder(OutputWriter):
+    def __init__(self, options, fpath):
+        super(CSVDictBuilder, self).__init__(options, fpath)
+        self._writer = CsvDictWriter(fpath)
 
-def get_fedlearner_home():
-    return os.environ.get('FEDLEARNER_HOME',
-                          '~/fedlearner')
+    def write_item(self, item):
+        self._writer.write(item.csv_record)
 
+    def close(self):
+        self._writer.close()
 
-def get_fedlearner_config(fedlearner_home):
-    if 'FEDLEARNER_CONFIG' not in os.environ:
-        return os.path.join(fedlearner_home, 'fedlearner.cfg')
-    return os.environ['FEDLEARNER_CONFIG']
-
-
-FEDLEARNER_HOME = get_fedlearner_home()
-FEDLEARNER_CONFIG = get_fedlearner_config(FEDLEARNER_HOME)
-pathlib.Path(FEDLEARNER_HOME).mkdir(parents=True, exist_ok=True)
-
-conf = ConfigParser()
-conf.read(FEDLEARNER_CONFIG)
+    @classmethod
+    def name(cls):
+        return 'CSV_DICT'

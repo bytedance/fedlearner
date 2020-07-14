@@ -18,6 +18,7 @@ set -ex
 
 export CUDA_VISIBLE_DEVICES=
 source /app/deploy/scripts/hdfs_common.sh || true
+source /app/deploy/scripts/env_to_args.sh
 
 data_portal_type=$(normalize_env_to_args "--data_portal_type" $DATA_PORTAL_TYPE)
 input_file_wildcard=$(normalize_env_to_args "--input_file_wildcard" $FILE_WILDCARD)

@@ -14,19 +14,24 @@
 
 # coding: utf-8
 
-from fedlearner.data_join.csv_dict_writer import CsvDictWriter
-from fedlearner.data_join.data_block_builder_impl import DataBlockBuilder
+import tensorflow.compat.v1 as tf
 
-class CsvDictDataBlockBuilder(DataBlockBuilder):
+from fedlearner.data_join.output_writer_impl.output_writer import OutputWriter
+
+class TfRecordBuilder(OutputWriter):
+    def __init__(self, options, fpath):
+        super(TfRecordBuilder, self).__init__(options, fpath)
+        writer_options = tf.io.TFRecordOptions(
+                compression_type=options.compressed_type
+            )
+        self._writer = tf.io.TFRecordWriter(fpath, writer_options)
+
+    def write_item(self, item):
+        self._writer.write(item.tf_record)
+
+    def close(self):
+        self._writer.close()
+
     @classmethod
     def name(cls):
-        return 'CSV_DICT_DATABLOCK_BUILDER'
-
-    def _make_data_block_writer(self, fpath):
-        return CsvDictWriter(fpath)
-
-    def _extract_record_from_item(self, item):
-        return item.csv_record
-
-    def _write_record(self, record):
-        self._writer.write(record)
+        return 'TF_RECORD'

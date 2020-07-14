@@ -31,18 +31,18 @@ DataBlockMetaSuffix = '.meta'
 RawDataMetaPrefix = 'raw_data_'
 RawDataPubSuffix = '.pub'
 MergedSortRunSuffix = '-sort_run.merged'
-InvalidExampleId = ''
+InvalidExampleId = ''.encode()
 TmpFileSuffix = '.tmp'
 DoneFileSuffix = '.done'
 RawDataFileSuffix = '.rd'
 InvalidEventTime = -9223372036854775808
 
 @contextmanager
-def make_tf_record_iter(fpath):
+def make_tf_record_iter(fpath, options=None):
     record_iter = None
     expt = None
     try:
-        record_iter = tf.io.tf_record_iterator(fpath)
+        record_iter = tf.io.tf_record_iterator(fpath, options)
         yield record_iter
     except Exception as e: # pylint: disable=broad-except
         logging.warning("Failed make tf_record_iterator for "\
@@ -99,8 +99,11 @@ def load_data_block_meta(meta_fpath):
     with make_tf_record_iter(meta_fpath) as fitr:
         return text_format.Parse(next(fitr).decode(), dj_pb.DataBlockMeta())
 
+def data_source_etcd_base_dir(data_source_name):
+    return os.path.join('data_source', data_source_name)
+
 def retrieve_data_source(etcd, data_source_name):
-    etcd_key = os.path.join(data_source_name, 'master')
+    etcd_key = data_source_etcd_base_dir(data_source_name)
     raw_data = etcd.get_data(etcd_key)
     if raw_data is None:
         raise ValueError("etcd master key is None for {}".format(
@@ -109,18 +112,23 @@ def retrieve_data_source(etcd, data_source_name):
     return text_format.Parse(raw_data, common_pb.DataSource())
 
 def commit_data_source(etcd, data_source):
-    etcd_key = os.path.join(data_source.data_source_meta.name, 'master')
+    etcd_key = data_source_etcd_base_dir(data_source.data_source_meta.name)
     etcd.set_data(etcd_key, text_format.MessageToString(data_source))
 
 def partition_manifest_etcd_key(data_source_name, partition_id):
-    return os.path.join(data_source_name, 'raw_data_dir',
-                        partition_repr(partition_id))
+    return os.path.join(data_source_etcd_base_dir(data_source_name),
+                        'raw_data_dir', partition_repr(partition_id))
 
 def raw_data_meta_etcd_key(data_source_name, partition_id, process_index):
     manifest_etcd_key = partition_manifest_etcd_key(data_source_name,
                                                     partition_id)
     return os.path.join(manifest_etcd_key,
                         '{}{:08}'.format(RawDataMetaPrefix, process_index))
+
+def example_id_anchor_etcd_key(data_source_name, partition_id):
+    etcd_base_dir = data_source_etcd_base_dir(data_source_name)
+    return os.path.join(etcd_base_dir, 'dumped_example_id_anchor',
+                        partition_repr(partition_id))
 
 def raw_data_pub_etcd_key(pub_base_dir, partition_id, process_index):
     return os.path.join(pub_base_dir, partition_repr(partition_id),
@@ -135,6 +143,16 @@ def convert_dict_to_tf_example(src_dict):
             raise RuntimeError('the key {}({}) of dict must a '\
                                'string'.format(key, type(key)))
         basic_type = type(feature)
+        if basic_type == str and key != 'example_id':
+            if feature.lstrip('-').isdigit():
+                feature = int(feature)
+                basic_type = int
+            else:
+                try:
+                    feature = float(feature)
+                    basic_type = float
+                except ValueError as e:
+                    pass
         if isinstance(type(feature), list):
             if len(feature) == 0:
                 logging.debug('skip %s since feature is empty list', key)
@@ -143,7 +161,7 @@ def convert_dict_to_tf_example(src_dict):
             if not all(isinstance(x, basic_type) for x in feature):
                 raise RuntimeError('type of elements in feature of key {} '\
                                    'is not the same'.format(key))
-        if isinstance(feature, _valid_basic_feature_type):
+        if not isinstance(feature, _valid_basic_feature_type):
             raise RuntimeError("feature type({}) of key {} is not support "\
                                "for tf Example".format(basic_type, key))
         if basic_type == int:
@@ -161,7 +179,7 @@ def convert_dict_to_tf_example(src_dict):
                 bytes_list=tf.train.BytesList(value=value))
         else:
             assert basic_type == float
-            value = feature if  isinstance(feature, list) else [feature]
+            value = feature if isinstance(feature, list) else [feature]
             tf_feature[key] = tf.train.Feature(
                 float_list=tf.train.FloatList(value=value))
     return tf.train.Example(features=tf.train.Features(feature=tf_feature))

@@ -1,5 +1,6 @@
 const assert = require('assert');
 const lodash = require('lodash');
+const path = require('path');
 
 const permittedJobEnvs = {
   data_join: [],
@@ -9,11 +10,11 @@ const permittedJobEnvs = {
     'L2_REGULARIZATION', 'MAX_BINS', 'NUM_PARALELL',
     'VERIFY_EXAMPLE_IDS', 'USE_STREAMING',
   ],
-  nn_model: ['MODEL_NAME'],
+  nn_model: ['MODEL_NAME', 'SAVE_CHECKPOINT_STEPS'],
 };
 
-function mergeCustomizer(obj, src) {
-  if (lodash.isArray(obj) && lodash.isArray(src)) {
+function mergeCustomizer(obj, src, key) {
+  if (key != 'containers' && lodash.isArray(obj) && lodash.isArray(src)) {
     return obj.concat(src);
   }
 }
@@ -58,14 +59,14 @@ function extractPermittedJobParams(job) {
     }
     if (src.template && src.template.spec
       && src.template.spec.containers) {
-      obj.template = { spec: { containers: {} } };
-      if (src.template.spec.containers.resources) {
-        obj.template.spec.containers.resources = src.template.spec.containers.resources;
+      obj.template = { spec: { containers: [{}] } };
+      if (src.template.spec.containers[0].resources) {
+        obj.template.spec.containers[0].resources = src.template.spec.containers[0].resources;
       }
       if (src.template.spec.containers
-        && lodash.isArray(src.template.spec.containers.env)) {
-        const obj_envs = obj.template.spec.containers.env = [];
-        const src_envs = src.template.spec.containers.env;
+        && lodash.isArray(src.template.spec.containers[0].env)) {
+        const obj_envs = obj.template.spec.containers[0].env = [];
+        const src_envs = src.template.spec.containers[0].env;
         for (const i in src_envs) {
           const kv = src_envs[i];
           if (permitted_envs.includes(kv.name)
@@ -91,41 +92,55 @@ function serverValidateJob(job, client_ticket, server_ticket) {
 
 function generateYaml(federation, job, job_params, ticket) {
   const { k8s_settings } = federation;
-  let yaml = mergeJson({}, k8s_settings.global_job_spec);
 
   let peer_spec = k8s_settings.leader_peer_spec;
-  if (ticket.role == 'follower') {
+  if (ticket.role == 'Follower') {
     peer_spec = k8s_settings.follower_peer_spec;
   }
-  yaml = mergeJson(yaml, {
+
+  let yaml = {
+    apiVersion: 'fedlearner.k8s.io/v1alpha1',
+    kind: 'FLApp',
     metadata: {
       name: job.name,
+      namespace: 'default',
     },
     spec: {
       role: ticket.role,
-      cleanPodPolicy: 'None',
+      cleanPodPolicy: 'All',
       peerSpecs: peer_spec,
     },
-  });
+  };
 
+  yaml = mergeJson(yaml, k8s_settings.global_job_spec);
   yaml = mergeJson(yaml, ticket.public_params);
   yaml = mergeJson(yaml, ticket.private_params);
 
   const replica_specs = yaml.spec.flReplicaSpecs;
   for (const key in replica_specs) {
-    let base_spec = mergeJson({}, k8s_settings.global_replica_spec);
-    base_spec = mergeJson(base_spec, {
+    let base_spec = {
       template: {
         spec: {
-          containers: {
+          restartPolicy: 'Never',
+          containers: [{
             env: [
+              { name: 'POD_IP', valueFrom: { fieldRef: { fieldPath: 'status.podIP' } } },
+              { name: 'POD_NAME', valueFrom: { fieldRef: { fieldPath: 'metadata.name' } } },
               { name: 'ROLE', value: ticket.role },
               { name: 'APPLICATION_ID', value: job.name },
+              {
+                name: 'OUTPUT_BASE_DIR',
+                value: path.join(k8s_settings.storage_root_path, 'job_output', job.name)
+              },
             ],
-          },
+            imagePullPolicy: 'IfNotPresent',
+            name: 'tensorflow',
+          }],
         },
       },
-    });
+    };
+
+    base_spec = mergeJson(base_spec, k8s_settings.global_replica_spec);
     replica_specs[key] = mergeJson(
       base_spec, replica_specs[key],
     );
@@ -157,20 +172,27 @@ function serverGenerateYaml(federation, job, server_ticket) {
 }
 
 function portalGenerateYaml(federation, raw_data) {
-  let k8s_settings = federation.k8s_settings;
-  let yaml = mergeJson({}, k8s_settings.global_job_spec);
+  const { k8s_settings } = federation;
 
-  let peer_spec = k8s_settings.peer_spec;
-  yaml = mergeJson(yaml, {
+  let yaml = {
+    apiVersion: 'fedlearner.k8s.io/v1alpha1',
+    kind: 'FLApp',
     metadata: {
       name: raw_data.name,
+      namespace: 'default',
     },
     spec: {
-      role: 'Leader',
-      cleanPodPolicy: 'None',
-      peerSpecs: peer_spec,
+      role: 'Follower',
+      peerSpecs: {
+        Leader : {
+          peerURL: '',
+          authority: '',
+          extraHeaders: '',
+        },
+      },
     },
-  });
+  };
+  yaml = mergeJson(yaml, k8s_settings.global_job_spec);
 
   yaml = mergeJson(yaml, raw_data.context.yaml_spec);
 
@@ -181,17 +203,23 @@ function portalGenerateYaml(federation, raw_data) {
     replicas: 1,
     template: {
       spec: {
-        containers: {
+        restartPolicy: 'Never',
+        containers: [{
           env: [
+            { name: 'POD_IP', valueFrom: { fieldRef: { fieldPath: 'status.podIP' } } },
+            { name: 'POD_NAME', valueFrom: { fieldRef: { fieldPath: 'metadata.name' } } },
             { name: 'APPLICATION_ID', value: raw_data.name },
+            { name: 'DATA_PORTAL_NAME', value: raw_data.name },
             { name: 'OUTPUT_PARTITION_NUM', value: String(raw_data.output_partition_num) },
-            { name: 'INPUT_BASE_DIR', value: raw_data.input + '/' + raw_data.name },
-            { name: 'OUTPUT_BASE_DIR', value: raw_data.output + '/' + raw_data.name },
-            { name: 'RAW_DATA_PUBLISH_DIR', value: raw_data.name },
+            { name: 'INPUT_BASE_DIR', value: path.join(k8s_settings.storage_root_path, raw_data.input) },
+            { name: 'OUTPUT_BASE_DIR', value: path.join(k8s_settings.storage_root_path, 'data_portal_output', raw_data.name) },
+            { name: 'RAW_DATA_PUBLISH_DIR', value: path.join('portal_publish_dir', raw_data.name) },
             { name: 'DATA_PORTAL_TYPE', value: raw_data.data_portal_type },
             { name: 'FILE_WILDCARD', value: raw_data.context.file_wildcard },
           ],
-        },
+          imagePullPolicy: 'IfNotPresent',
+          name: 'tensorflow',
+        }],
       },
     },
   });
@@ -202,25 +230,25 @@ function portalGenerateYaml(federation, raw_data) {
     pair: false,
     template: {
       spec: {
-        containers: {
+        restartPolicy: 'Never',
+        containers: [{
           env: [
+            { name: 'POD_IP', valueFrom: { fieldRef: { fieldPath: 'status.podIP' } } },
+            { name: 'POD_NAME', valueFrom: { fieldRef: { fieldPath: 'metadata.name' } } },
             { name: 'APPLICATION_ID', value: raw_data.name },
             { name: 'BATCH_SIZE', value: String(raw_data.context.batch_size) },
             { name: 'MAX_FLYING_ITEM', value: String(raw_data.context.max_flying_item) },
             { name: 'MERGE_BUFFER_SIZE', value: String(raw_data.context.merge_buffer_size) },
-            { name: 'WRITE_BUFFER_SIZE', String(value: raw_data.context.write_buffer_size) },
+            { name: 'WRITE_BUFFER_SIZE', value: String(raw_data.context.write_buffer_size) },
             { name: 'INPUT_DATA_FORMAT', value: raw_data.context.input_data_format },
             { name: 'COMPRESSED_TYPE', value: raw_data.context.compressed_type },
+            { name: 'OUTPUT_DATA_FORMAT', value: raw_data.context.output_data_format },
           ],
-        },
+          imagePullPolicy: 'IfNotPresent',
+          name: 'tensorflow',
+        }],
       },
     },
-  });
-
-  let ps_spec = yaml.spec.flReplicaSpecs.PS;
-  ps_spec = mergeJson(ps_spec, {
-    pair: false,
-    replicas: 0,
   });
 
   return yaml;

@@ -2,7 +2,7 @@ apiVersion: fedlearner.k8s.io/v1alpha1
 kind: FLApp
 metadata:
   namespace: default
-  name: test_raw_data
+  name: test_data_portal
 spec:
   flReplicaSpecs:
     Master:
@@ -11,78 +11,93 @@ spec:
       template:
         spec:
           restartPolicy: Never
+          imagePullSecrets:
+            - name: regcred-bd
           volumes:
-            - hostPath:
-                path: /data
-              name: data
+            - name: data
+              persistentVolumeClaim:
+                claimName: pvc-fedlearner-default
           containers:
-            env:
-              - name: APPLICATION_ID
-                value: test_raw_data
+            - env:
+              - name: ETCD_NAME
+                value: data_portal_etcd_name
+              - name: ETCD_ADDR
+                value: fedlearner-stack-etcd.default.svc.cluster.local:2379
+              - name: ETCD_BASE_DIR
+                value: fedlearner_meta
               - name: POD_IP
                 valueFrom:
                   fieldRef:
                     fieldPath: status.podIP
               - name: POD_NAME
-                value:
-                  valueFrom:
-                    fieldRef:
-                      fieldPath: metadata.name
+                valueFrom:
+                  fieldRef:
+                    fieldPath: metadata.name
+              - name: APPLICATION_ID
+                value: test_data_portal
+              - name: DATA_PORTAL_NAME
+                value: test_data_portal
               - name: OUTPUT_PARTITION_NUM
-                value: "8"
+                value: "2"
               - name: INPUT_BASE_DIR
-                value: /data/portal_input/test_raw_data
+                value: /data/criteo_data/100wexamples
               - name: OUTPUT_BASE_DIR
-                value: /data/portal_output/test_raw_data
+                value: /data/data_portal_output/test_data_portal
               - name: RAW_DATA_PUBLISH_DIR
-                value: raw_data_publish_dir
+                value: portal_publish_dir/test_data_portal
               - name: DATA_PORTAL_TYPE
                 value: Streaming
               - name: FILE_WILDCARD
                 value: "*.rd"
-            image: image_path
-            imagePullPolicy: IfNotPresent
-            volumeMounts:
-              - mountPath: /data
-                name: data
-            name: tensorflow
-            ports: 
-              - containerPort: 50051
-                name: flapp-port
-            resources:
-              limits:
-                cpu: 2000m
-                memory: 2Gi
-              requests:
-                cpu: 2000m
-                memory: 2Gi
-            command:
-              - /app/fedlearner/deploy/scripts/data_portal/run_data_portal_master.sh
-            args: []
+              image: image_path
+              imagePullPolicy: IfNotPresent
+              volumeMounts:
+                - mountPath: /data
+                  name: data
+              name: tensorflow
+              ports: 
+                - containerPort: 50051
+                  name: flapp-port
+              resources:
+                limits:
+                  cpu: 2000m
+                  memory: 2Gi
+                requests:
+                  cpu: 2000m
+                  memory: 2Gi
+              command: 
+                - /app/deploy/scripts/data_portal/run_data_portal_master.sh
+              args: []
     Worker:
       pair: false
       replicas: 2
       template:
         spec:
           restartPolicy: Never
+          imagePullSecrets:
+            - name: regcred-bd
           volumes:
-            - hostPath:
-                path: /data
-              name: data
+            - name: data
+              persistentVolumeClaim:
+                claimName: pvc-fedlearner-default
           containers:
-            env:
+            - env:
+              - name: ETCD_NAME
+                value: data_portal_etcd_name
+              - name: ETCD_ADDR
+                value: fedlearner-stack-etcd.default.svc.cluster.local:2379
+              - name: ETCD_BASE_DIR
+                value: fedlearner_meta
               - name: POD_IP
-                value:
-                  valueFrom:
-                    fieldRef:
-                      fieldPath: status.podIP
+                valueFrom:
+                  fieldRef:
+                    fieldPath: status.podIP
               - name: POD_NAME
-                value:
-                  valueFrom:
-                    fieldRef:
-                      fieldPath: metadata.name
+                valueFrom:
+                  fieldRef:
+                    fieldPath: metadata.name
               - name: APPLICATION_ID
-                value: test_raw_data
+                value: test_data_portal
               - name: BATCH_SIZE
                 value: "1024"
               - name: MAX_FLYING_ITEM
@@ -94,29 +109,29 @@ spec:
               - name: INPUT_DATA_FORMAT
                 value: TF_RECORD
               - name: COMPRESSED_TYPE
-                value: "ZLIB"
-            image: image_path
-            imagePullPolicy: IfNotPresent
-            volumeMounts:
-              - mountPath: /data
-                name: data
-            name: tensorflow
-            resources:
-              limits:
-                cpu: 2000m
-                memory: 4Gi
-              requests:
-                cpu: 2000m
-                memory: 4Gi
-            command:
-              - /app/fedlearner/deploy/scripts/data_portal/run_data_portal_worker.sh
-            args: []
-    PS:
-      pair: false
-      replicas: 0
-  role: Leader
+                value: ""
+              - name: OUTPUT_DATA_FORMAT
+                value: TF_RECORD
+              image: image_path
+              imagePullPolicy: IfNotPresent
+              volumeMounts:
+                - mountPath: /data
+                  name: data
+              name: tensorflow
+              resources:
+                limits:
+                  cpu: 2000m
+                  memory: 4Gi
+                requests:
+                  cpu: 2000m
+                  memory: 4Gi
+              command: 
+                - /app/deploy/scripts/data_portal/run_data_portal_worker.sh
+              args: []
+  role: Follower
   cleanPodPolicy: "None"
   peerSpecs:
-    Follower:
-      peerURL: '' 
-      authority: '' 
+    Leader:
+      peerURL: ''
+      authority: ''
+      extraHeaders: ''

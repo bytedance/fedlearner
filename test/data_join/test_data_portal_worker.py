@@ -67,29 +67,27 @@ class TestDataPortalWorker(unittest.TestCase):
             fh.write('')
 
     def _make_portal_worker(self):
-        raw_data_options = dj_pb.RawDataOptions(
-            raw_data_iter="TF_RECORD",
-            compressed_type='')
-        batch_processor_options = dj_pb.BatchProcessorOptions(
-            batch_size=128,
-            max_flying_item=300000)
-        partitioner_options = dj_pb.RawDataPartitionerOptions(
-            raw_data_options=raw_data_options,
-            batch_processor_options=batch_processor_options,
-            output_item_threshold=10485760)
-        merge_options = dp_pb.MergeOptions(
-            raw_data_options=raw_data_options,
-            batch_processor_options=batch_processor_options,
-            merge_buffer_size=4096,
-            output_item_threshold=5000000)
-        
         portal_worker_options = dp_pb.DataPortalWorkerOptions(
-            partitioner_options=partitioner_options,
-            merge_options=merge_options)
+            raw_data_options=dj_pb.RawDataOptions(
+                raw_data_iter="TF_RECORD",
+                compressed_type=''
+            ),
+            writer_options=dj_pb.WriterOptions(
+                output_writer="TF_RECORD"
+            ),
+            batch_processor_options=dj_pb.BatchProcessorOptions(
+                batch_size=128,
+                max_flying_item=300000
+            ),
+            merge_buffer_size=4096,
+            merger_read_ahead_size=1000000
+        )
 
         self._portal_worker = DataPortalWorker(portal_worker_options,
-            "localhost:5005", 0, "test_portal_worker_0",
-            "portal_worker_0", "localhost:2379", True)
+                                               "localhost:5005", 0,
+                                               "test_portal_worker_0",
+                                               "portal_worker_0",
+                                               "localhost:2379", True)
 
     def _clean_up(self):
         if gfile.Exists(self._input_dir):

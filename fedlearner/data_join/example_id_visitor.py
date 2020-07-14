@@ -25,7 +25,8 @@ from tensorflow.compat.v1 import gfile
 from fedlearner.common import data_join_service_pb2 as dj_pb
 from fedlearner.data_join import visitor
 from fedlearner.data_join.common import (
-    DoneFileSuffix, make_tf_record_iter, partition_repr
+    DoneFileSuffix, make_tf_record_iter,
+    partition_repr, example_id_anchor_etcd_key
 )
 from fedlearner.data_join.raw_data_iter_impl import (
     tf_record_iter, raw_data_iter
@@ -135,7 +136,10 @@ class ExampleIdManager(visitor.IndexMetaManager):
                     )
                 )
             self._anchor = None
-            etcd_key = self._get_anchor_etcd_key()
+            etcd_key = example_id_anchor_etcd_key(
+                    self._data_source.data_source_meta.name,
+                    self._partition_id
+                )
             self._etcd.set_data(
                     etcd_key, text_format.MessageToString(new_anchor)
                 )
@@ -195,7 +199,10 @@ class ExampleIdManager(visitor.IndexMetaManager):
 
     def _sync_dumped_example_id_anchor(self):
         if self._anchor is None or self._visit_only:
-            etcd_key = self._get_anchor_etcd_key()
+            etcd_key = example_id_anchor_etcd_key(
+                    self._data_source.data_source_meta.name,
+                    self._partition_id
+                )
             data = self._etcd.get_data(etcd_key)
             anchor = dj_pb.DumpedExampleIdAnchor()
             if data is None:
@@ -205,11 +212,6 @@ class ExampleIdManager(visitor.IndexMetaManager):
                 self._anchor = \
                     text_format.Parse(data, dj_pb.DumpedExampleIdAnchor())
         return self._anchor
-
-    def _get_anchor_etcd_key(self):
-        return '/'.join([self._data_source.data_source_meta.name,
-                        'dumped_example_id_anchor',
-                        partition_repr(self._partition_id)])
 
     def _example_dumped_dir(self):
         return os.path.join(self._data_source.example_dumped_dir,

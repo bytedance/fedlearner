@@ -18,6 +18,7 @@ set -ex
 
 export CUDA_VISIBLE_DEVICES=
 source /app/deploy/scripts/hdfs_common.sh || true
+source /app/deploy/scripts/env_to_args.sh
 
 # When the WORKER_GROUPS is "2,4", this script would update the WORKER_RANK
 # to the worker's index within their own group, e.g.
@@ -44,10 +45,16 @@ wget ${CODE_KEY} -O code.tar.gz
 tar -zxvf code.tar.gz
 cd ${ROLE}
 
+save_checkpoint_steps=$(normalize_env_to_args "--save-checkpoint-steps" "$SAVE_CHECKPOINT_STEPS")
+sparse_estimator=$(normalize_env_to_args "--sparse-estimator" "$SPARSE_ESTIMATOR")
+
 python main.py \
-    --data-path=$DATA_PATH \
-    --cluster-spec=$CLUSTER_SPEC \
-    --tf-addr=$POD_IP:50052 \
-    --local-addr=$POD_IP:50051 \
-    --worker-rank=$WORKER_RANK \
-    --peer-addr=$PEER_ADDR
+    --data-path="$DATA_PATH" \
+    --cluster-spec="$CLUSTER_SPEC" \
+    --tf-addr="$POD_IP:50052" \
+    --local-addr="$POD_IP:50051" \
+    --worker-rank="$WORKER_RANK" \
+    --peer-addr="$PEER_ADDR"
+    --checkpoint-path="$OUTPUT_BASE_DIR/checkpoints" \
+    --export-path="$OUTPUT_BASE_DIR/exported_models" \
+    "$save_checkpoint_steps" "$sparse_estimator"

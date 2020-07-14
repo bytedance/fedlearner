@@ -20,12 +20,8 @@ describe('serverGenerateYaml', () => {
     const federation = {
       k8s_settings: {
         namespace: 'default',
+        storage_root_path: '/data',
         global_job_spec: {
-          apiVersion: 'fedlearner.k8s.io/v1alpha1',
-          kind: 'FLApp',
-          metadata: {
-            namespace: 'default',
-          },
           spec: {
             cleanPodPolicy: 'None',
           },
@@ -33,17 +29,10 @@ describe('serverGenerateYaml', () => {
         global_replica_spec: {
           template: {
             spec: {
-              restartPolicy: 'Never',
               volumes: [{ hostPath: { path: '/data' }, name: 'data' }],
-              containers: {
-                env: [
-                  { name: 'POD_IP', value: { valueFrom: { fieldRef: { fieldPath: 'status.podIP' } } } },
-                  { name: 'POD_NAME', value: { valueFrom: { fieldRef: { fieldPath: 'metadata.name' } } } },
-                ],
-                imagePullPolicy: 'IfNotPresent',
+              containers: [{
                 volumeMounts: [{ mountPath: '/data', name: 'data' }],
-                name: 'tensorflow',
-              },
+              }],
             },
           },
         },
@@ -69,7 +58,7 @@ describe('serverGenerateYaml', () => {
               replicas: 1,
               template: {
                 spec: {
-                  containers: {
+                  containers: [{
                     env: [
                       { name: 'MODEL_NAME', value: 'fedlearner_model' },
                     ],
@@ -83,7 +72,7 @@ describe('serverGenerateYaml', () => {
                         memory: '4Gi',
                       },
                     },
-                  },
+                  }],
                 },
               },
             },
@@ -91,7 +80,7 @@ describe('serverGenerateYaml', () => {
               replicas: 1,
               template: {
                 spec: {
-                  containers: {
+                  containers: [{
                     env: [
                       { name: 'MODEL_NAME', value: 'fedlearner_model' },
                     ],
@@ -105,7 +94,7 @@ describe('serverGenerateYaml', () => {
                         memory: '4Gi',
                       },
                     },
-                  },
+                  }],
                 },
               },
             },
@@ -113,7 +102,7 @@ describe('serverGenerateYaml', () => {
               replicas: 1,
               template: {
                 spec: {
-                  containers: {
+                  containers: [{
                     env: [
                       { name: 'MODEL_NAME', value: 'fedlearner_model' },
                     ],
@@ -127,7 +116,7 @@ describe('serverGenerateYaml', () => {
                         memory: '4Gi',
                       },
                     },
-                  },
+                  }],
                 },
               },
             },
@@ -137,7 +126,7 @@ describe('serverGenerateYaml', () => {
     };
 
     const ticket = {
-      role: 'leader',
+      role: 'Leader',
       public_params: null,
       private_params: {
         spec: {
@@ -146,7 +135,7 @@ describe('serverGenerateYaml', () => {
               pair: false,
               template: {
                 spec: {
-                  containers: {
+                  containers: [{
                     env: [
                       { name: 'START_DATE', value: '2020041500' },
                       { name: 'END_DATE', value: '2020041700' },
@@ -157,7 +146,7 @@ describe('serverGenerateYaml', () => {
                     ],
                     command: ['/app/fedlearner_byted/deploy/scripts/trainer/run_customed_trainer_master.sh'],
                     args: [],
-                  },
+                  }],
                 },
               },
             },
@@ -166,14 +155,14 @@ describe('serverGenerateYaml', () => {
               replicas: 1,
               template: {
                 spec: {
-                  containers: {
+                  containers: [{
                     image: 'image_path',
                     ports: [
                       { containerPort: 50051, name: 'flapp-port' },
                     ],
                     command: ['/app/fedlearner_byted/deploy/scripts/trainer/run_trainer_ps.sh'],
                     args: [],
-                  },
+                  }],
                 },
               },
             },
@@ -182,7 +171,7 @@ describe('serverGenerateYaml', () => {
               replicas: 1,
               template: {
                 spec: {
-                  containers: {
+                  containers: [{
                     image: 'image_path',
                     ports: [
                       { containerPort: 50051, name: 'flapp-port' },
@@ -190,7 +179,7 @@ describe('serverGenerateYaml', () => {
                     ],
                     command: ['/app/fedlearner_byted/deploy/scripts/wait4pair_wrapper.sh'],
                     args: ['/app/fedlearner_byted/deploy/scripts/trainer/run_trainer_worker.sh'],
-                  },
+                  }],
                 },
               },
             },
@@ -202,7 +191,7 @@ describe('serverGenerateYaml', () => {
     assert.ok(serverValidateJob(job, {}, ticket));
 
     assert.deepStrictEqual(
-      serverGenerateYaml(federation, job, {}, ticket),
+      serverGenerateYaml(federation, job, ticket),
       loadYaml(testTrainYaml),
     );
   });
@@ -213,12 +202,8 @@ describe('portalGenerateYaml', () => {
     const federation = {
       k8s_settings: {
         namespace: 'default',
+        storage_root_path: '/data',
         global_job_spec: {
-          apiVersion: 'fedlearner.k8s.io/v1alpha1',
-          kind: 'FLApp',
-          metadata: {
-            namespace: 'default',
-          },
           spec: {
             cleanPodPolicy: 'None',
           },
@@ -226,35 +211,28 @@ describe('portalGenerateYaml', () => {
         global_replica_spec: {
           template: {
             spec: {
-              restartPolicy: 'Never',
-              volumes: [{ hostPath: { path: '/data' }, name: 'data' }],
-              containers: {
-                env: [
-                  { name: 'POD_IP', value: { valueFrom: { fieldRef: { fieldPath: 'status.podIP' } } } },
-                  { name: 'POD_NAME', value: { valueFrom: { fieldRef: { fieldPath: 'metadata.name' } } } },
-                ],
-                imagePullPolicy: 'IfNotPresent',
+              imagePullSecrets: [{"name": "regcred-bd"}],
+              volumes: [{"persistentVolumeClaim": {"claimName": "pvc-fedlearner-default"}, "name": "data"}],
+              containers: [{
                 volumeMounts: [{ mountPath: '/data', name: 'data' }],
-                name: 'tensorflow',
-              },
+                env: [
+                  {"name": "ETCD_NAME", "value": "data_portal_etcd_name"},
+                  {"name": "ETCD_ADDR", "value": "fedlearner-stack-etcd.default.svc.cluster.local:2379"},
+                  {"name": "ETCD_BASE_DIR", "value": "fedlearner_meta"},
+                ],
+              }],
             },
-          },
-        },
-        peer_spec: {
-          Follower: {
-            peerURL: '',
-            authority: '',
           },
         },
       },
     };
 
     const raw_data = {
-      name: 'test_raw_data',
-      output_partition_num: 8,
+      name: 'test_data_portal',
+      output_partition_num: 2,
       data_portal_type: 'Streaming',
-      input: '/data/portal_input',
-      output: '/data/portal_output',
+      input: 'criteo_data/100wexamples',
+      output: '/data/portal_output', // TODO DEPRECATED for for shilei
       context: {
         file_wildcard: '*.rd',
         batch_size: 1024,
@@ -262,15 +240,15 @@ describe('portalGenerateYaml', () => {
         merge_buffer_size: 4096,
         write_buffer_size: 10000000,
         input_data_format: 'TF_RECORD',
-        compressed_type: 'ZLIB',
+        output_data_format: 'TF_RECORD',
+        compressed_type: '',
         yaml_spec: {
           spec: {
-            role: 'Leader',
             flReplicaSpecs: {
               Master: {
                 template: {
                   spec: {
-                    containers: {
+                    containers: [{
                       resources: {
                         limits: {
                           cpu: '2000m',
@@ -285,18 +263,17 @@ describe('portalGenerateYaml', () => {
                       ports: [
                         { containerPort: 50051, name: 'flapp-port' },
                       ],
-                      command: ['/app/fedlearner/deploy/scripts/data_portal/run_data_portal_master.sh'],
+                      command: ['/app/deploy/scripts/data_portal/run_data_portal_master.sh'],
                       args: [],
-                    },
+                    }],
                   },
                 },
               },
-              PS: {},
               Worker: {
                 replicas: 2,
                 template: {
                   spec: {
-                    containers: {
+                    containers: [{
                       resources: {
                         limits: {
                           cpu: '2000m',
@@ -308,9 +285,9 @@ describe('portalGenerateYaml', () => {
                         },
                       },
                       image: 'image_path',
-                      command: ['/app/fedlearner/deploy/scripts/data_portal/run_data_portal_worker.sh'],
+                      command: ['/app/deploy/scripts/data_portal/run_data_portal_worker.sh'],
                       args: [],
-                    },
+                    }],
                   },
                 },
               },

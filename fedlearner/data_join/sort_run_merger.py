@@ -24,10 +24,9 @@ import os
 
 from tensorflow.compat.v1 import gfile
 
-from fedlearner.common import data_join_service_pb2 as dj_pb
-
-from fedlearner.data_join import common, visitor, csv_dict_writer
-from fedlearner.data_join.raw_data_iter_impl.csv_dict_iter import CsvDictIter
+from fedlearner.data_join.raw_data_iter_impl import create_raw_data_iter
+from fedlearner.data_join import common, visitor
+from fedlearner.data_join.output_writer_impl import create_output_writer
 
 class MergedSortRunMeta(object):
     def __init__(self, partition_id, process_index):
@@ -65,30 +64,33 @@ class MergedSortRunMeta(object):
 
 class SortRunReader(object):
     class MergeItem(object):
-        def __init__(self, raw, reader_index):
-            self._raw = raw
+        def __init__(self, item, reader_index, sorted_field):
+            self._item = item
             self._reader_index = reader_index
+            self._sorted_field = sorted_field
 
         @property
-        def join_id(self):
-            return self._raw.example_id
+        def inner_item(self):
+            return self._item
 
         @property
         def reader_index(self):
             return self._reader_index
 
-        @property
-        def raw(self):
-            return self._raw.record
-
         def __lt__(self, other):
             assert isinstance(other, SortRunReader.MergeItem)
-            return self.join_id < other.join_id
+            return getattr(self._item, self._sorted_field) < \
+                    getattr(other._item, self._sorted_field)
 
-    def __init__(self, reader_index, fpath, read_ahead_size):
+        def __getattr__(self, attr):
+            return getattr(self._item, attr)
+
+    def __init__(self, reader_index, fpath,
+                 reader_options, sorted_field):
         self._reader_index = reader_index
         self._fpath = fpath
-        self._read_ahead_size = read_ahead_size
+        self._reader_options = reader_options
+        self._sorted_field = sorted_field
         self._fiter = None
         if gfile.Exists(fpath):
             self._finished = False
@@ -112,42 +114,39 @@ class SortRunReader(object):
             try:
                 item = None
                 if self._fiter is None:
-                    raw_data_options = dj_pb.RawDataOptions(
-                            raw_data_iter='CSV_DICT',
-                            read_ahead_size=self._read_ahead_size
-                        )
-                    self._fiter = CsvDictIter(raw_data_options)
+                    self._fiter = create_raw_data_iter(self._reader_options)
                     meta = visitor.IndexMeta(0, 0, self._fpath)
                     self._fiter.reset_iter(meta, True)
                     item = self._fiter.get_item()
                 else:
                     _, item = next(self._fiter)
                 assert item is not None
-                return SortRunReader.MergeItem(item, self._reader_index)
+                return SortRunReader.MergeItem(item, self._reader_index,
+                                               self._sorted_field)
             except StopIteration:
                 self._finished = True
         raise StopIteration("%s has been iter finished" % self._fpath)
 
 class SortRunMergerWriter(object):
-    def __init__(self, base_dir, process_index, partition_id):
+    def __init__(self, base_dir, process_index, partition_id, writer_options):
         self._merged_dir = \
             os.path.join(base_dir, common.partition_repr(partition_id))
         self._partition_id = partition_id
+        self._writer_options = writer_options
         self._process_index = process_index
-        self._csv_dict_writer = None
+        self._writer = None
         self._merged_fpaths = []
         self._merged_num = 0
         self._tmp_fpath = None
 
-    def append(self, raw):
-        writer = self._get_csv_dict_writer()
-        writer.write(raw)
+    def append(self, item):
+        self._get_output_writer().write_item(item)
         self._merged_num += 1
-        if writer.write_raw_num() > (1 << 18):
-            self._finish_csv_dict_writer()
+        if self._merged_num % (1 << 18) == 0:
+            self._finish_writer()
 
     def finish(self):
-        self._finish_csv_dict_writer()
+        self._finish_writer()
         logging.warning("merge %d record in %d sort run merger: "\
                         "for partition %d", self._merged_num,
                         self._process_index, self._partition_id)
@@ -159,61 +158,61 @@ class SortRunMergerWriter(object):
     def get_merged_fpaths(self):
         return self._merged_fpaths
 
-    def _finish_csv_dict_writer(self):
-        if self._csv_dict_writer is not None:
-            self._csv_dict_writer.close()
-            if self._csv_dict_writer.write_raw_num() == 0:
-                gfile.Remove(self._tmp_fpath)
-            else:
-                meta = MergedSortRunMeta(self._partition_id,
-                                         self._process_index)
-                fname = meta.encode_merged_sort_run_fname()
-                fpath = os.path.join(self._merged_dir, fname)
-                gfile.Rename(self._tmp_fpath, fpath, True)
-                self._merged_fpaths.append(fpath)
-                self._csv_dict_writer = None
-                self._process_index += 1
+    def _finish_writer(self):
+        if self._writer is not None:
+            self._writer.close()
+            meta = MergedSortRunMeta(self._partition_id,
+                                     self._process_index)
+            fname = meta.encode_merged_sort_run_fname()
+            fpath = os.path.join(self._merged_dir, fname)
+            gfile.Rename(self._tmp_fpath, fpath, True)
+            self._merged_fpaths.append(fpath)
+            self._writer = None
+            self._process_index += 1
 
-    def _get_csv_dict_writer(self):
-        if self._csv_dict_writer is None:
+    def _get_output_writer(self):
+        if self._writer is None:
             self._tmp_fpath = common.gen_tmp_fpath(self._merged_dir)
-            self._csv_dict_writer = \
-                    csv_dict_writer.CsvDictWriter(self._tmp_fpath)
-        return self._csv_dict_writer
+            self._writer = create_output_writer(self._writer_options,
+                                                self._tmp_fpath)
+        return self._writer
 
 class SortRunMerger(object):
-    def __init__(self, input_dir, options):
+    def __init__(self, options, sorted_field):
         self._lock = threading.Lock()
-        self._input_dir = input_dir
         self._options = options
         self._merge_finished = False
+        self._sorted_field = sorted_field
         self._merged_dir = os.path.join(
                 self._options.output_file_dir,
                 common.partition_repr(self._partition_id)
             )
         self._create_merged_dir_if_need()
 
-    def merge_sort_runs(self, sort_runs):
+    def merge_sort_runs(self, input_fpaths):
         if self._check_merged():
             logging.info("sort runs have been merged for partition %d",
                          self._partition_id)
             return self._list_merged_sort_run_fpath()
-        if len(sort_runs) == 0:
+        if len(input_fpaths) == 0:
             logging.info("no sort run for partition %d", self._partition_id)
             return []
         dumped_key, next_process_index = self._sync_merged_state()
-        readers = self._create_sort_run_readers(sort_runs)
-        pque = queue.PriorityQueue(len(sort_runs)*2+1)
+        readers = self._create_sort_run_readers(input_fpaths)
+        max_qsize = len(input_fpaths) * 2 + 1
+        if max_qsize < self._options.merge_buffer_size:
+            max_qsize = self._options.merge_buffer_size
+        pque = queue.PriorityQueue(max_qsize)
         for idx, reader in enumerate(readers):
             if not reader.finished():
                 for item in reader:
-                    if dumped_key is None or item.join_id >= dumped_key:
+                    if dumped_key is None or item.example_id >= dumped_key:
                         pque.put(item)
                         break
         writer = self._create_sort_run_merger_writer(next_process_index)
         while pque.qsize() > 0:
             item = pque.get()
-            writer.append(item.raw)
+            writer.append(item.inner_item)
             assert item.reader_index < len(readers)
             self._replenish_item(readers[item.reader_index], pque)
         writer.finish()
@@ -234,23 +233,20 @@ class SortRunMerger(object):
                 pque.put(item)
                 break
 
-    def _create_sort_run_readers(self, sort_runs):
-        assert len(sort_runs) > 0
+    def _create_sort_run_readers(self, input_fpaths):
+        assert len(input_fpaths) > 0
         readers = []
-        for index, sort_run in enumerate(sort_runs):
-            fpath = os.path.join(self._input_dir,
-                                 common.partition_repr(self._partition_id),
-                                 sort_run.encode_sort_run_fname())
-            reader = SortRunReader(
-                    index, fpath,
-                    self._options.sort_run_merger_read_ahead_buffer
-                )
+        for index, input_fpath in enumerate(input_fpaths):
+            reader = SortRunReader(index, input_fpath,
+                                   self._options.reader_options,
+                                   self._sorted_field)
             readers.append(reader)
         return readers
 
     def _create_sort_run_merger_writer(self, process_index):
         return SortRunMergerWriter(self._options.output_file_dir,
-                                   process_index, self._partition_id)
+                                   process_index, self._partition_id,
+                                   self._options.writer_options)
 
     def _check_merged(self):
         return gfile.Exists(os.path.join(self._merged_dir, '_SUCCESS'))
@@ -290,10 +286,11 @@ class SortRunMerger(object):
         fpath = os.path.join(self._merged_dir,
                              last_meta.encode_merged_sort_run_fname())
         last_item = None
-        for item in SortRunReader(0, fpath, 1 << 20):
+        for item in SortRunReader(0, fpath, self._options.reader_options,
+                                  self._sorted_field):
             last_item = item
         assert last_item is not None
-        return last_item.join_id, last_meta.process_index + 1
+        return last_item.example_id, last_meta.process_index + 1
 
     @property
     def _partition_id(self):

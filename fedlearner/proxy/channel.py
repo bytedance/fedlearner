@@ -24,6 +24,7 @@ import grpc
 
 EGRESS_URL = os.environ.get('EGRESS_URL', None)
 EGRESS_HOST = os.environ.get('EGRESS_HOST', None)
+EGRESS_DOMAIN = os.environ.get('EGRESS_DOMAIN', None)
 
 
 class ChannelType(Enum):
@@ -129,6 +130,8 @@ def make_insecure_channel(address,
         logging.debug("EGRESS_URL is [%s]", EGRESS_URL)
         if EGRESS_HOST:
             options.append(('grpc.default_authority', EGRESS_HOST))
+            if EGRESS_DOMAIN:
+                address = address + '.' + EGRESS_DOMAIN
             header_adder = header_adder_interceptor('x-host', address)
             channel = grpc.insecure_channel(
                 EGRESS_URL, options, compression)

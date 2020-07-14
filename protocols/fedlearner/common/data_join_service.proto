@@ -220,12 +220,13 @@ message RawDataOptions {
   // only support three compressed, ''(UnCompressed), ZLIB, GZIP
   string compressed_type = 2;
   // read ahead size for raw data reader, <=0 means don't read ahead
-  // only support csv dict reader
+  // only support csv dict reader and tf dataset
   int64 read_ahead_size = 3;
 }
 
-message DataBlockBuilderOptions {
-  string data_block_builder = 1;
+message WriterOptions {
+  string output_writer = 1;  // support TF_RECORD and CSV_DICT
+  string compressed_type = 2; // the compressed type for output file, support tf record
 }
 
 message ExampleJoinerOptions {
@@ -252,7 +253,7 @@ message DataJoinWorkerOptions {
   ExampleJoinerOptions example_joiner_options = 3;
   ExampleIdDumpOptions example_id_dump_options = 4;
   BatchProcessorOptions batch_processor_options = 5;
-  DataBlockBuilderOptions data_block_builder_options = 6;
+  WriterOptions data_block_builder_options = 6;
 }
 
 message DataJoinMasterOptions {
@@ -305,10 +306,10 @@ message RsaPsiPreProcessorOptions {
   int64 sign_rpc_timeout_ms = 13;
   int64 stub_fanout = 14;
   int64 slow_sign_threshold = 15;
-  bool rpc_sync_mode = 16;
-  int64 rpc_thread_pool_size = 17;
-  int64 sort_run_merger_read_ahead_buffer = 18;
-  BatchProcessorOptions batch_processor_options = 19;
+  int64 sort_run_merger_read_ahead_buffer = 16;
+  BatchProcessorOptions batch_processor_options = 17;
+  RawDataOptions input_raw_data = 18;
+  WriterOptions writer_options = 19;
 }
 
 message RawDataPartitionerOptions {
@@ -317,8 +318,17 @@ message RawDataPartitionerOptions {
   string output_dir = 3;
   int64 output_partition_num = 4;
   RawDataOptions raw_data_options = 5;
-  string output_builder = 6; // only support tf record or csv
-  int64 output_item_threshold = 7;
-  int64 partitioner_rank_id = 8;
-  BatchProcessorOptions batch_processor_options = 9;
+  WriterOptions writer_options = 6;
+  int64 partitioner_rank_id = 7;
+  BatchProcessorOptions batch_processor_options = 8;
+}
+
+message SortRunMergerOptions {
+  string merger_name = 1;
+  RawDataOptions reader_options = 2;
+  WriterOptions writer_options = 3;
+  string output_file_dir = 4;
+  int64 partition_id = 5;
+  int64 merge_buffer_size = 6;
+  int64 write_buffer_size = 7;
 }

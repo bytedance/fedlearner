@@ -20,10 +20,9 @@ import inspect
 import logging
 import sys
 
-from fedlearner.data_join.data_block_builder_impl.data_block_builder \
-        import DataBlockBuilder
+from fedlearner.data_join.output_writer_impl.output_writer import OutputWriter
 
-builder_impl_map = {}
+writer_impl_map = {}
 
 __path__ = pkgutil.extend_path(__path__, __name__)
 for _, module, ispackage in pkgutil.walk_packages(
@@ -32,14 +31,14 @@ for _, module, ispackage in pkgutil.walk_packages(
         continue
     __import__(module)
     for _, m in inspect.getmembers(sys.modules[module], inspect.isclass):
-        if not issubclass(m, DataBlockBuilder):
+        if not issubclass(m, OutputWriter):
             continue
-        builder_impl_map[m.name()] = m
+        writer_impl_map[m.name()] = m
 
-def create_data_block_builder(options, *args, **kwargs):
-    db_builder = options.data_block_builder
-    if db_builder in builder_impl_map:
-        return builder_impl_map[db_builder](*args, **kwargs)
-    logging.fatal("Unknown data block builder %s", db_builder)
+def create_output_writer(writer_options, *args, **kwargs):
+    writer = writer_options.output_writer
+    if writer in writer_impl_map:
+        return writer_impl_map[writer](writer_options, *args, **kwargs)
+    logging.fatal("Unknown output writer %s", writer)
     os._exit(-1) # pylint: disable=protected-access
     return None

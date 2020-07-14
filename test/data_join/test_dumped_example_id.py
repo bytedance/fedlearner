@@ -35,7 +35,7 @@ class TestDumpedExampleId(unittest.TestCase):
         data_source.data_source_meta.name = "milestone-x"
         data_source.data_source_meta.partition_num = 1
         data_source.example_dumped_dir = "./example_ids"
-        self.etcd.delete_prefix(data_source.data_source_meta.name)
+        self.etcd.delete_prefix(common.data_source_etcd_base_dir(data_source.data_source_meta.name))
         self.data_source = data_source
         self.example_id_dump_options = dj_pb.ExampleIdDumpOptions(
                 example_id_dump_interval=-1,

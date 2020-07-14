@@ -42,36 +42,33 @@ class IdBatch(ItemBatch):
     def __init__(self, begin_index):
         self._begin_index = begin_index
         self._raw_ids = []
-        self._raws = []
+        self._items = []
 
     def append(self, item):
-        if 'raw_id' not in item.record:
-            self._raw_ids.append('')
-        else:
-            self._raw_ids.append(item.record['raw_id'])
-        self._raws.append(item.record)
+        self._raw_ids.append(item.raw_id)
+        self._items.append(item)
 
     @property
     def raw_ids(self):
         return self._raw_ids
 
     @property
-    def raws(self):
-        return self._raws
+    def items(self):
+        return self._items
 
     @property
     def begin_index(self):
         return self._begin_index
 
     def __len__(self):
-        return len(self._raw_ids)
+        return len(self._items)
 
     def __lt__(self, other):
         assert isinstance(other, IdBatch)
         return self.begin_index < other.begin_index
 
     def __iter__(self):
-        return iter(zip(self._raw_ids, self._raws))
+        return iter(zip(self._raw_ids, self._items))
 
 class IdBatchFetcher(ItemBatchSeqProcessor):
     def __init__(self, etcd, options):
@@ -126,8 +123,7 @@ class IdBatchFetcher(ItemBatchSeqProcessor):
     def _create_file_based_mock_visitor(self):
         return FileBasedMockRawDataVisitor(
                 self._etcd,
-                dj_pb.RawDataOptions(raw_data_iter='CSV_DICT',
-                                     read_ahead_size=134217728),
+                self._options.input_raw_data,
                 '{}-proprocessor-mock-data-source-{:04}'.format(
                     self._options.preprocessor_name,
                     self._options.partition_id
@@ -138,8 +134,7 @@ class IdBatchFetcher(ItemBatchSeqProcessor):
     def _create_etcd_based_mock_visitor(self):
         return EtcdBasedMockRawDataVisitor(
                 self._etcd,
-                dj_pb.RawDataOptions(raw_data_iter='CSV_DICT',
-                                     read_ahead_size=134217728),
+                self._options.input_raw_data,
                 '{}-proprocessor-mock-data-source-{:04}'.format(
                     self._options.preprocessor_name,
                     self._options.partition_id
@@ -150,7 +145,7 @@ class IdBatchFetcher(ItemBatchSeqProcessor):
 class SignedIdBatch(ItemBatch):
     def __init__(self, begin_index):
         self._begin_index = begin_index
-        self._raws = []
+        self._items = []
         self._signed_ids = []
 
     @property
@@ -159,20 +154,20 @@ class SignedIdBatch(ItemBatch):
 
     def append(self, id_pair):
         self._signed_ids.append(id_pair[0])
-        self._raws.append(id_pair[1])
+        self._items.append(id_pair[1])
 
     def __len__(self):
-        assert len(self._raws) == len(self._signed_ids)
-        return len(self._raws)
+        assert len(self._items) == len(self._signed_ids)
+        return len(self._items)
 
     def __lt__(self, other):
         assert isinstance(other, SignedIdBatch)
         return self.begin_index < other.begin_index
 
     def __iter__(self):
-        assert len(self._raws) == len(self._signed_ids)
-        item_cnt = len(self._raws)
-        return iter(zip(self._signed_ids, self._raws,
+        assert len(self._items) == len(self._signed_ids)
+        item_cnt = len(self._items)
+        return iter(zip(self._signed_ids, self._items,
                         list(range(self._begin_index,
                                    self._begin_index+item_cnt))))
 
@@ -376,9 +371,9 @@ class LeaderPsiRsaSigner(PsiRsaSigner):
             assert len(hashed_signed_hashed_ids) == len(raw_id_batch)
             begin_index = raw_id_batch.begin_index
             signed_id_batch = self._make_item_batch(begin_index)
-            for idx, raw in enumerate(raw_id_batch.raws):
+            for idx, item in enumerate(raw_id_batch.items):
                 join_id = hashed_signed_hashed_ids[idx]
-                signed_id_batch.append((join_id, raw))
+                signed_id_batch.append((join_id, item))
             notify_future.set_result(signed_id_batch)
         except Exception as e: # pylint: disable=broad-except
             notify_future.set_exception(e)
@@ -479,8 +474,7 @@ class FollowerPsiRsaSigner(PsiRsaSigner):
                  max_flying_sign_batch, max_flying_sign_rpc,
                  sign_rpc_timeout_ms, slow_sign_threshold,
                  stub_fanout, process_pool_executor,
-                 public_key, leader_signer_addr,
-                 thread_pool_rpc_executor):
+                 public_key, leader_signer_addr):
         super(FollowerPsiRsaSigner, self).__init__(id_batch_fetcher,
                                                    max_flying_item,
                                                    max_flying_sign_batch,
@@ -497,7 +491,6 @@ class FollowerPsiRsaSigner(PsiRsaSigner):
                  for _ in range(stub_fanout)]
         self._pending_rpc_sign_ctx = []
         self._flying_rpc_num = 0
-        self._thread_pool_rpc_executor = thread_pool_rpc_executor
 
     def _get_active_stub(self):
         with self._lock:
@@ -600,13 +593,7 @@ class FollowerPsiRsaSigner(PsiRsaSigner):
         timeout = None if self._sign_rpc_timeout_ms <= 0 \
                 else self._sign_rpc_timeout_ms / 1000.0
         ctx.trigger_rpc_sign()
-        sign_future = None
-        if self._thread_pool_rpc_executor is not None:
-            sign_future = self._thread_pool_rpc_executor.submit(
-                    stub.SignIds, ctx.rpc_req, timeout
-                )
-        else:
-            sign_future = stub.SignIds.future(ctx.rpc_req, timeout)
+        sign_future = stub.SignIds.future(ctx.rpc_req, timeout)
         sign_cb = functools.partial(self._rpc_sign_callback, ctx, stub)
         sign_future.add_done_callback(sign_cb)
 
@@ -671,9 +658,9 @@ class FollowerPsiRsaSigner(PsiRsaSigner):
             begin_index = raw_id_batch.begin_index
             signed_id_batch = self._make_item_batch(begin_index)
             hashed_signed_hashed_ids = deblind_future.result()
-            for idx, raw in enumerate(raw_id_batch.raws):
+            for idx, item in enumerate(raw_id_batch.items):
                 join_id = hashed_signed_hashed_ids[idx]
-                signed_id_batch.append((join_id, raw))
+                signed_id_batch.append((join_id, item))
             notify_future.set_result(signed_id_batch)
         except Exception as e: # pylint: disable=broad-except
             notify_future.set_exception(e)

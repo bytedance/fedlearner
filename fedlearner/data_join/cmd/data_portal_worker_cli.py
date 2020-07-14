@@ -39,43 +39,48 @@ if __name__ == '__main__':
                         help='use to mock etcd for test')
     parser.add_argument("--merge_buffer_size", type=int,
                         default=4096, help="the buffer size for merging")
-    parser.add_argument("--write_buffer_size", type=int,
-                        default=10485760,
+    parser.add_argument("--write_buffer_size", type=int, default=10485760,
                         help="the output buffer size (bytes) for partitioner")
+    parser.add_argument("--merger_read_ahead_size", type=int, default=0,
+                        help="the read ahead size for merger")
     parser.add_argument("--input_data_file_iter", type=str, default="TF_RECORD",
                         help="the type for input data iterator")
     parser.add_argument("--compressed_type", type=str, default='',
                         choices=['', 'ZLIB', 'GZIP'],
                         help='the compressed type of input data file')
+    parser.add_argument('--output_builder', type=str, default='TF_RECORD',
+                        choices=['TF_RECORD', 'CSV_DICT'],
+                        help='the builder for ouput file')
+    parser.add_argument('--builder_compressed_type', type=str, default='',
+                        choices=['', 'ZLIB', 'GZIP'],
+                        help='the builder for ouput file')
     parser.add_argument("--batch_size", type=int, default=1024,
                         help="the batch size for raw data reader")
     parser.add_argument("--max_flying_item", type=int, default=300000,
                         help='the maximum items processed at the same time')
     args = parser.parse_args()
-    raw_data_options = dj_pb.RawDataOptions(
-        raw_data_iter=args.input_data_file_iter,
-        compressed_type=args.compressed_type)
-    batch_processor_options = dj_pb.BatchProcessorOptions(
-        batch_size=args.batch_size,
-        max_flying_item=args.max_flying_item)
-    partitioner_options = dj_pb.RawDataPartitionerOptions(
-        partitioner_name="dp_worker_partitioner_{}".format(args.rank_id),
-        raw_data_options=raw_data_options,
-        batch_processor_options=batch_processor_options,
-        output_item_threshold=args.write_buffer_size)
-    merge_options = dp_pb.MergeOptions(
-        merger_name="dp_worker_merger_{}".format(args.rank_id),
-        raw_data_options=raw_data_options,
-        batch_processor_options=batch_processor_options,
-        merge_buffer_size=args.merge_buffer_size,
-        output_item_threshold=args.write_buffer_size)
 
     portal_worker_options = dp_pb.DataPortalWorkerOptions(
-        partitioner_options=partitioner_options,
-        merge_options=merge_options)
+        raw_data_options=dj_pb.RawDataOptions(
+            raw_data_iter=args.input_data_file_iter,
+            compressed_type=args.compressed_type
+        ),
+        writer_options=dj_pb.WriterOptions(
+            output_writer=args.output_builder,
+            compressed_type=args.builder_compressed_type
+        ),
+        batch_processor_options=dj_pb.BatchProcessorOptions(
+            batch_size=args.batch_size,
+            max_flying_item=args.max_flying_item
+        ),
+        merge_buffer_size=args.merge_buffer_size,
+        write_buffer_size=args.write_buffer_size,
+        merger_read_ahead_size=args.merger_read_ahead_size
+    )
 
-    data_portal_worker = DataPortalWorker(portal_worker_options,
-        args.master_addr, args.rank_id, args.etcd_name,
-        args.etcd_base_dir, args.etcd_addrs, args.use_mock_etcd)
-
+    data_portal_worker = DataPortalWorker(
+            portal_worker_options, args.master_addr,
+            args.rank_id, args.etcd_name, args.etcd_base_dir,
+            args.etcd_addrs, args.use_mock_etcd
+        )
     data_portal_worker.start()

@@ -18,6 +18,7 @@ import logging
 import csv
 import os
 import io
+from collections import OrderedDict
 
 import tensorflow.compat.v1 as tf
 from tensorflow.compat.v1 import gfile
@@ -79,6 +80,13 @@ class CsvItem(RawDataIter.Item):
     @property
     def csv_record(self):
         return self._raw
+
+    def set_example_id(self, example_id):
+        new_raw = OrderedDict({'example_id': example_id})
+        new_raw.update(self._raw)
+        self._raw = new_raw
+        if self._tf_record is not None:
+            self._tf_record = None
 
 class CsvDictIter(RawDataIter):
     def __init__(self, options):

@@ -28,8 +28,8 @@ from fedlearner.data_join import (
     data_block_manager, common, data_block_dumper,
     raw_data_manifest_manager, raw_data_visitor, visitor
 )
-from fedlearner.data_join.data_block_builder_impl \
-        import create_data_block_builder
+from fedlearner.data_join.data_block_manager import DataBlockBuilder
+from fedlearner.data_join.raw_data_iter_impl.tf_record_iter import TfExampleItem
 
 class TestDataBlockDumper(unittest.TestCase):
     def setUp(self):
@@ -52,7 +52,7 @@ class TestDataBlockDumper(unittest.TestCase):
             gfile.DeleteRecursively(self.data_source_l.raw_data_dir)
         self.etcd = etcd_client.EtcdClient('test_cluster', 'localhost:2379',
                                            'fedlearner', True)
-        self.etcd.delete_prefix(self.data_source_l.data_source_meta.name)
+        self.etcd.delete_prefix(common.data_source_etcd_base_dir(self.data_source_l.data_source_meta.name))
         self.manifest_manager = raw_data_manifest_manager.RawDataManifestManager(
             self.etcd, self.data_source_l)
 
@@ -64,13 +64,10 @@ class TestDataBlockDumper(unittest.TestCase):
         follower_index = 65536
         self.dumped_metas = []
         for i in range(5):
-            builder = create_data_block_builder(
-                    dj_pb.DataBlockBuilderOptions(
-                        data_block_builder='TF_RECORD_DATABLOCK_BUILDER'
-                    ),
+            builder = DataBlockBuilder(
                     self.data_source_f.data_block_dir,
                     self.data_source_f.data_source_meta.name,
-                    0, i, None
+                    0, i, dj_pb.WriterOptions(output_writer='TF_RECORD'), None
                 )
             builder.set_data_block_manager(dbm)
             for j in range(1024):
@@ -86,8 +83,8 @@ class TestDataBlockDumper(unittest.TestCase):
                 feat['follower_index'] = tf.train.Feature(
                         int64_list=tf.train.Int64List(value=[follower_index]))
                 example = tf.train.Example(features=tf.train.Features(feature=feat))
-                builder.append_record(example.SerializeToString(), example_id,
-                                      event_time, leader_index, follower_index)
+                builder.append_item(TfExampleItem(example.SerializeToString()),
+                                    leader_index, follower_index)
                 leader_index += 3
                 follower_index += 1
             meta = builder.finish_data_block()
@@ -106,13 +103,10 @@ class TestDataBlockDumper(unittest.TestCase):
         gfile.MakeDirs(raw_data_dir)
         rdm = raw_data_visitor.RawDataManager(self.etcd, self.data_source_l, 0)
         block_index = 0
-        builder = create_data_block_builder(
-                    dj_pb.DataBlockBuilderOptions(
-                        data_block_builder='TF_RECORD_DATABLOCK_BUILDER'
-                    ),
+        builder = DataBlockBuilder(
                     self.data_source_l.raw_data_dir,
                     self.data_source_l.data_source_meta.name,
-                    0, block_index, None
+                    0, block_index, dj_pb.WriterOptions(output_writer='TF_RECORD'), None
             )
         process_index = 0
         start_index = 0
@@ -133,13 +127,10 @@ class TestDataBlockDumper(unittest.TestCase):
                     process_index += 1
                     start_index += len(meta.example_ids)
                 block_index += 1
-                builder = create_data_block_builder(
-                        dj_pb.DataBlockBuilderOptions(
-                            data_block_builder='TF_RECORD_DATABLOCK_BUILDER'
-                        ),
+                builder = DataBlockBuilder(
                         self.data_source_l.raw_data_dir,
                         self.data_source_l.data_source_meta.name,
-                        0, block_index, None
+                        0, block_index, dj_pb.WriterOptions(output_writer='TF_RECORD'), None
                     )
             feat = {}
             pt = i + 1 << 30
@@ -152,8 +143,7 @@ class TestDataBlockDumper(unittest.TestCase):
             feat['event_time'] = tf.train.Feature(
                     int64_list=tf.train.Int64List(value=[event_time]))
             example = tf.train.Example(features=tf.train.Features(feature=feat))
-            builder.append_record(example.SerializeToString(),
-                                  example_id, event_time, i, i)
+            builder.append_item(TfExampleItem(example.SerializeToString()), i, i)
         fpaths = [os.path.join(raw_data_dir, f)
                     for f in gfile.ListDirectory(raw_data_dir)
                     if not gfile.IsDirectory(os.path.join(raw_data_dir, f))]
@@ -167,9 +157,7 @@ class TestDataBlockDumper(unittest.TestCase):
         dbd = data_block_dumper.DataBlockDumperManager(
                 self.etcd, self.data_source_l, 0,
                 dj_pb.RawDataOptions(raw_data_iter='TF_RECORD'),
-                dj_pb.DataBlockBuilderOptions(
-                    data_block_builder='TF_RECORD_DATABLOCK_BUILDER'
-                ),
+                dj_pb.WriterOptions(output_writer='TF_RECORD')
             )
         self.assertEqual(dbd.get_next_data_block_index(), 0)
         for (idx, meta) in enumerate(self.dumped_metas):
@@ -245,7 +233,7 @@ class TestDataBlockDumper(unittest.TestCase):
             gfile.DeleteRecursively(self.data_source_l.data_block_dir)
         if gfile.Exists(self.data_source_l.raw_data_dir):
             gfile.DeleteRecursively(self.data_source_l.raw_data_dir)
-        self.etcd.delete_prefix(self.data_source_l.data_source_meta.name)
+        self.etcd.delete_prefix(common.data_source_etcd_base_dir(self.data_source_l.data_source_meta.name))
 
 if __name__ == '__main__':
     unittest.main()

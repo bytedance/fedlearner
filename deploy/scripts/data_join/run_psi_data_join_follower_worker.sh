@@ -16,13 +16,20 @@
 
 set -ex
 
-psi_preprocessor_cmd=/app/deploy/scripts/rsa_psi/run_psi_preprocessor.sh &
-exec ${psi_preprocessor_cmd}
-echo "launched run psi preprocessor"
-
-join_worker_cmd=/app/deploy/scripts/data_join/run_data_join_worker.sh &
-exec ${join_worker_cmd}
-echo "launched data join worker"
-
+echo "${WORKER_NUM:?Need to set WORKER_NUM non-empty}"
+echo "${INDEX:?Need to set INDEX non-empty}"
+if [ "$((WORKER_NUM % 2))" -ne "0" ]; then
+  echo "Error: WORKER_NUM should be the multiplies of 2."
+  exit 1
+fi
+if [ $INDEX -lt $((WORKER_NUM / 2)) ]; then
+  psi_preprocessor_cmd=/app/deploy/scripts/rsa_psi/run_psi_preprocessor.sh
+  exec ${psi_preprocessor_cmd} &
+  echo "launched run psi preprocessor"
+else
+  join_worker_cmd=/app/deploy/scripts/data_join/run_data_join_worker.sh
+  exec ${join_worker_cmd} &
+  echo "launched data join worker"
+fi
 echo "waiting for finished"
 wait
