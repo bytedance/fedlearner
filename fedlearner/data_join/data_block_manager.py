@@ -18,10 +18,136 @@ import threading
 import logging
 import os
 
+import tensorflow.compat.v1 as tf
+from google.protobuf import text_format
 from tensorflow.compat.v1 import gfile
 
-from fedlearner.data_join.common import encode_data_block_meta_fname, \
-                                        partition_repr, load_data_block_meta
+from fedlearner.common import data_join_service_pb2 as dj_pb
+
+from fedlearner.data_join.common import (
+    encode_data_block_meta_fname, partition_repr,
+    load_data_block_meta, encode_block_id,
+    encode_data_block_fname, gen_tmp_fpath
+)
+from fedlearner.data_join.output_writer_impl import create_output_writer
+
+class DataBlockBuilder(object):
+    def __init__(self, dirname, data_source_name, partition_id,
+                 data_block_index, write_options, max_example_num=None):
+        self._data_source_name = data_source_name
+        self._partition_id = partition_id
+        self._max_example_num = max_example_num
+        self._dirname = dirname
+        self._tmp_fpath = self._get_tmp_fpath()
+        self._writer = create_output_writer(write_options, self._tmp_fpath)
+        self._data_block_meta = dj_pb.DataBlockMeta()
+        self._data_block_meta.partition_id = partition_id
+        self._data_block_meta.data_block_index = data_block_index
+        self._data_block_meta.follower_restart_index = 0
+        self._example_num = 0
+        self._data_block_manager = None
+
+    def init_by_meta(self, meta):
+        self._partition_id = meta.partition_id
+        self._max_example_num = None
+        self._data_block_meta = meta
+
+    def set_data_block_manager(self, data_block_manager):
+        self._data_block_manager = data_block_manager
+
+    def append_item(self, item, leader_index, follower_index, event_time=None):
+        example_id = item.example_id
+        if event_time is None:
+            event_time = item.event_time
+        self._data_block_meta.example_ids.append(example_id)
+        if self._example_num == 0:
+            self._data_block_meta.leader_start_index = leader_index
+            self._data_block_meta.leader_end_index = leader_index
+            self._data_block_meta.start_time = event_time
+            self._data_block_meta.end_time = event_time
+        else:
+            assert self._data_block_meta.leader_start_index < leader_index, \
+                "leader start index should be incremental"
+            assert self._data_block_meta.leader_end_index < leader_index, \
+                "leader end index should be incremental"
+            self._data_block_meta.leader_end_index = leader_index
+            if event_time < self._data_block_meta.start_time:
+                self._data_block_meta.start_time = event_time
+            if event_time > self._data_block_meta.end_time:
+                self._data_block_meta.end_time = event_time
+        self.write_item(item)
+
+    def set_follower_restart_index(self, follower_restart_index):
+        self._data_block_meta.follower_restart_index = follower_restart_index
+
+    def write_item(self, item):
+        self._writer.write_item(item)
+        self._example_num += 1
+
+    def check_data_block_full(self):
+        if (self._max_example_num is not None and
+                len(self._data_block_meta.example_ids) >=
+                        self._max_example_num):
+            return True
+        return False
+
+    def get_data_block_meta(self):
+        if len(self._data_block_meta.example_ids) > 0:
+            return self._data_block_meta
+        return None
+
+    def get_leader_begin_index(self):
+        return self._leader_begin_index
+
+    def example_count(self):
+        return len(self._data_block_meta.example_ids)
+
+    def finish_data_block(self):
+        assert self._example_num == len(self._data_block_meta.example_ids)
+        self._writer.close()
+        if len(self._data_block_meta.example_ids) > 0:
+            self._data_block_meta.block_id = \
+                    encode_block_id(self._data_source_name,
+                                         self._data_block_meta)
+            data_block_path = path.join(
+                    self._get_data_block_dir(),
+                    encode_data_block_fname(
+                        self._data_source_name,
+                        self._data_block_meta
+                    )
+                )
+            gfile.Rename(self._tmp_fpath, data_block_path, True)
+            self._build_data_block_meta()
+            return self._data_block_meta
+        gfile.Remove(self._tmp_fpath)
+        return None
+
+    def _get_data_block_dir(self):
+        return path.join(self._dirname,
+                         partition_repr(self._partition_id))
+
+    def _get_tmp_fpath(self):
+        return gen_tmp_fpath(self._get_data_block_dir())
+
+    def _build_data_block_meta(self):
+        tmp_meta_fpath = self._get_tmp_fpath()
+        meta = self._data_block_meta
+        with tf.io.TFRecordWriter(tmp_meta_fpath) as meta_writer:
+            meta_writer.write(text_format.MessageToString(meta).encode())
+        if self._data_block_manager is not None:
+            self._data_block_manager.commit_data_block_meta(
+                    tmp_meta_fpath, meta
+                )
+        else:
+            meta_fname = encode_data_block_meta_fname(self._data_source_name,
+                                                      self._partition_id,
+                                                      meta.data_block_index)
+            meta_fpath = path.join(self._get_data_block_dir(), meta_fname)
+            gfile.Rename(tmp_meta_fpath, meta_fpath)
+
+    def __del__(self):
+        if self._writer is not None:
+            del self._writer
 
 class DataBlockManager(object):
     def __init__(self, data_source, partition_id):

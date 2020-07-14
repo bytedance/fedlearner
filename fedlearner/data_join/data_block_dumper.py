@@ -20,9 +20,8 @@ import os
 from contextlib import contextmanager
 
 from fedlearner.data_join.raw_data_visitor import RawDataVisitor
-from fedlearner.data_join.data_block_manager import DataBlockManager
-from fedlearner.data_join.data_block_builder_impl \
-        import create_data_block_builder
+from fedlearner.data_join.data_block_manager import \
+        DataBlockManager, DataBlockBuilder
 
 class DataBlockDumperManager(object):
     def __init__(self, etcd, data_source, partition_id,
@@ -114,12 +113,12 @@ class DataBlockDumperManager(object):
         builder = None
         expt = None
         try:
-            builder = create_data_block_builder(
-                    self._data_block_builder_options,
+            builder = DataBlockBuilder(
                     self._data_source.data_block_dir,
                     self._data_source.data_source_meta.name,
                     self._partition_id,
-                    meta.data_block_index
+                    meta.data_block_index,
+                    self._data_block_builder_options
                 )
             builder.init_by_meta(meta)
             builder.set_data_block_manager(self._data_block_manager)

@@ -134,7 +134,7 @@ class StreamExampleJoiner(ExampleJoiner):
                             "None if before dummping"
                         fi, item = self._joined_cache[eid]
                         et = le.event_time
-                        builder.append_item(item, eid, et, li, fi)
+                        builder.append_item(item, li, fi)
                         if builder.check_data_block_full():
                             yield self._finish_data_block()
                 self._evit_stale_follower_cache()
