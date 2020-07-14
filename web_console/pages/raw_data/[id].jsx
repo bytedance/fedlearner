@@ -49,12 +49,12 @@ export default function RawDataJob() {
       <Description
         title="Input"
         style={{ width: 220 }}
-        content={jsonHandledPopover(rawData?.localdata?.input, 26)}
+        content={jsonHandledPopover(rawData?.localdata?.input, 22)}
       />
       <Description
         title="Output"
         style={{ width: 220 }}
-        content={jsonHandledPopover(rawData?.localdata?.output, 26)}
+        content={jsonHandledPopover(rawData?.localdata?.output, 22)}
       />
       <Description
         title="Context"
@@ -64,7 +64,7 @@ export default function RawDataJob() {
       <Description
         title="Comment"
         style={{ width: 220 }}
-        content={jsonHandledPopover(rawData?.localdata?.comment, 26)}
+        content={jsonHandledPopover(rawData?.localdata?.comment, 22)}
       />
       <Button
         auto

@@ -4,7 +4,7 @@ const SessionMiddleware = require('../middlewares/session');
 const checkParseJson = require('../utils/check_parse_json');
 const k8s = require('../libs/k8s');
 const getConfig = require('../utils/get_confg');
-const { RawData } = require('../models');
+const { RawData, Federation } = require('../models');
 const { portalGenerateYaml } = require('../utils/job_builder');
 
 const config = getConfig({
@@ -68,8 +68,26 @@ router.post('/api/v1/raw_data', SessionMiddleware, async (ctx) => {
     };
     return;
   }
+  const federation = await Federation.findByPk(federation_id);
+  if (!federation) {
+    ctx.status = 400;
+    ctx.body = {
+      error: 'Federation not exists',
+    };
+    return;
+  }
 
   const rawData = { name, federation_id, input, output, context, comment, output_partition_num, data_portal_type };
+
+  try {
+    portalGenerateYaml(federation, rawData);
+  } catch (e) {
+    ctx.status = 400;
+    ctx.body = {
+      error: 'context not well-formed',
+    };
+    return;
+  }
 
   const [data, created] = await RawData.findOrCreate({
     paranoid: false,
