@@ -290,11 +290,6 @@ service RsaPsiSignService {
   rpc SignIds(SignIdsRequest) returns (SignIdsResponse) {}
 }
 
-message WriterOptions {
-  string output_writer = 1;  // support TF_RECORD and CSV_DICT
-  string compressed_type = 2; // the compressed type for output file, support tf record
-}
-
 message RsaPsiPreProcessorOptions {
   string preprocessor_name = 1;
   FLRole role = 2;
