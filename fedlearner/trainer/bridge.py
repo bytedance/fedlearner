@@ -34,6 +34,7 @@ from fedlearner.common import common_pb2 as common_pb
 from fedlearner.common import trainer_worker_service_pb2 as tws_pb
 from fedlearner.common import trainer_worker_service_pb2_grpc as tws_grpc
 from fedlearner.proxy.channel import make_insecure_channel, ChannelType
+from fedlearner.common import metrics
 
 
 def make_ready_client(channel, stop_event=None):
@@ -63,6 +64,7 @@ class Bridge(object):
         def Transmit(self, request, context):
             return self._bridge._transmit_handler(request)
 
+        @metrics.timer(func_name="one stream transmit")
         def StreamTransmit(self, request_iterator, context):
             for request in request_iterator:
                 yield self._bridge._transmit_handler(request)
@@ -158,6 +160,7 @@ class Bridge(object):
         lock = threading.Lock()
         resend_list = collections.deque()
 
+        @metrics.timer(func_name="shutdown_fn")
         def shutdown_fn():
             with lock:
                 while len(resend_list) > 0 or not self._transmit_queue.empty():
@@ -182,6 +185,11 @@ class Bridge(object):
                     for item in resend_msgs:
                         logging.warning("Streaming resend message seq_num=%d",
                                         item.seq_num)
+                        metrics.emit_store(
+                            name="send_msg_seq_num",
+                            value=int(item.seq_num),
+                            tags={
+                                "role": self._role})
                         yield item
                     while True:
                         item = self._transmit_queue.get()
@@ -189,9 +197,22 @@ class Bridge(object):
                             resend_list.append(item)
                         logging.debug("Streaming send message seq_num=%d",
                                       item.seq_num)
+                        metrics.emit_store(
+                            name="send_resend_msg_seq_num",
+                            value=int(item.seq_num),
+                            tags={
+                                "role": self._role})
                         yield item
 
+                time_start = time.time()
                 generator = client.StreamTransmit(iterator())
+                time_end = time.time()
+                metrics.emit_timer(
+                    name="one_StreamTransmit_spend",
+                    value=int(time_end-time_start),
+                    tags={
+                        "role": self._role
+                        })
                 for response in generator:
                     if response.status.code == common_pb.STATUS_SUCCESS:
                         logging.debug("Message with seq_num=%d is "
@@ -232,6 +253,7 @@ class Bridge(object):
                 client = make_ready_client(channel, stop_event)
                 self._check_remote_heartbeat()
 
+    # @metrics.timer(func_name="transmit")
     def _transmit(self, msg):
         assert self._connected, "Cannot transmit before connect"
         with self._transmit_send_lock:
@@ -260,6 +282,7 @@ class Bridge(object):
                     self._client = make_ready_client(self._channel)
                     self._check_remote_heartbeat()
 
+    # @metrics.timer(func_name="transmit_req")
     def _transmit_handler(self, request):
         assert self._connected, "Cannot transmit before connect"
         with self._transmit_receive_lock:
@@ -304,6 +327,7 @@ class Bridge(object):
             return tws_pb.TrainerWorkerResponse(
                 next_seq_num=self._next_receive_seq_num)
 
+    @metrics.timer(func_name="data_block_req")
     def _data_block_handler(self, request):
         assert self._connected, "Cannot load data before connect"
         if not self._data_block_handler_fn:
@@ -312,6 +336,7 @@ class Bridge(object):
         self._data_block_handler_fn(request)
         return common_pb.Status(code=common_pb.STATUS_SUCCESS)
 
+    @metrics.timer(func_name="connect_req")
     def _connect_handler(self, request):
         assert request.app_id == self._app_id, \
             "Connection failed. Application id mismatch: %s vs %s"%(
@@ -359,6 +384,7 @@ class Bridge(object):
             logging.warning("Heartbeat request failed: %s", repr(e))
             return False
 
+    @metrics.timer(func_name="connect")
     def connect(self):
         if self._connected:
             logging.warning("Bridge already connected!")
@@ -395,6 +421,7 @@ class Bridge(object):
             self._client_daemon.start()
         logging.debug('finish connect.')
 
+    @metrics.timer(func_name="terminate")
     def terminate(self, forced=False):
         if not self._connected or self._terminated:
             return
@@ -438,6 +465,7 @@ class Bridge(object):
         self._next_iter_id += 1
         return iter_id
 
+    @metrics.timer(func_name="start")
     def start(self, iter_id):
         assert self._current_iter_id is None, "Last iter not finished"
         self._current_iter_id = iter_id
@@ -447,6 +475,7 @@ class Bridge(object):
         self._transmit(msg)
         logging.debug("Starting iter %d", iter_id)
 
+    @metrics.timer(func_name="commit")
     def commit(self):
         assert self._current_iter_id is not None, "Not started yet"
         with self._condition:
@@ -478,6 +507,7 @@ class Bridge(object):
             iter_id=iter_id, sample_ids=sample_ids))
         self._transmit(msg)
 
+    @metrics.timer(func_name="send proto")
     def send_proto(self, iter_id, name, proto):
         any_proto = google.protobuf.any_pb2.Any()
         any_proto.Pack(proto)
@@ -487,6 +517,7 @@ class Bridge(object):
         logging.debug('Data: send protobuf %s for iter %d. seq_num=%d.',
                       name, iter_id, msg.seq_num)
 
+    @metrics.timer(func_name="send")
     def send(self, iter_id, name, x):
         msg = tws_pb.TrainerWorkerMessage(data=tws_pb.DataMessage(
             iter_id=iter_id, name=name, tensor=tf.make_tensor_proto(x)))
@@ -502,6 +533,7 @@ class Bridge(object):
         out = tf.py_function(func=func, inp=[x], Tout=[], name='send_' + name)
         return out
 
+    @metrics.timer(func_name="receive proto")
     def receive_proto(self, iter_id, name):
         logging.debug('Data: Waiting to receive proto %s for iter %d.',
                       name, iter_id)
@@ -513,6 +545,7 @@ class Bridge(object):
         logging.debug('Data: received %s for iter %d.', name, iter_id)
         return data.any_data
 
+    @metrics.timer(func_name="receive")
     def receive(self, iter_id, name):
         logging.debug('Data: Waiting to receive %s for iter %d.', name,
                       iter_id)
