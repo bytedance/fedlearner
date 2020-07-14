@@ -20,7 +20,6 @@ except ImportError:
     import Queue as queue
 import logging
 import tensorflow.compat.v1 as tf
-from fedlearner.common import metrics
 
 class DataBlockLoader(object):
     def __init__(self, batch_size, role, bridge, trainer_master):
@@ -67,7 +66,6 @@ class DataBlockLoader(object):
             block = self._block_queue.get()
         return block
 
-    @metrics.timer(func_name="make_dataset")
     def make_dataset(self):
         def gen():
             while True:
