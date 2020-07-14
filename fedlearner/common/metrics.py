@@ -17,6 +17,8 @@
 import logging
 import os
 import time
+import datetime
+import pytz
 try:
     import thread
     import threading
@@ -27,6 +29,7 @@ if thread:
     _lock = threading.RLock()
 else:
     _lock = None
+from functools import wraps
 
 _metrics_client = None
 
@@ -78,6 +81,7 @@ class elasticSearchHandler(Handler):
         from elasticsearch import Elasticsearch # pylint: disable=C0415
         super(elasticSearchHandler, self).__init__('elasticsearch')
         self._es = Elasticsearch([ip], port=port)
+        self._tz=pytz.timezone('Asia/Shanghai')
         # initialize index for elastic search
         if self._es.indices.exists(index='metrics') is not True:
             self._es.indices.create(index='metrics')
@@ -87,7 +91,9 @@ class elasticSearchHandler(Handler):
             "name": name,
             "value": value,
             "tags": tags,
-            "timestamp": int(time.time())
+            "timestamp": int(time.time()),
+            "test author": "test_author",
+            "date_time": datetime.datetime.now(tz=self._tz)
         }
         self._es.index(index="metrics", body=action)
 
@@ -95,6 +101,7 @@ class elasticSearchHandler(Handler):
 class Metrics(object):
     def __init__(self):
         self.handlers = []
+        self._role = os.environ.get("ES_ROLE", None)
 
     def addHandler(self, hdlr):
         """
@@ -119,6 +126,7 @@ class Metrics(object):
             _releaseLock()
 
     def emit(self, name, value, tags=None, metrics_type=None):
+        tags["role"] = self._role
         if not self.handlers or len(self.handlers) == 0:
             print('no handlers. do nothing.')
             return
@@ -169,3 +177,18 @@ def emit_timer(name, value, tags=None):
     if not _metrics_client:
         initialize_metrics()
     _metrics_client.emit(name, value, tags, 'timer')
+
+
+def timer(func_name, tags={}):
+    def func_wrapper(func):
+        @wraps(func)
+        def return_wrapper(*args, **kwargs):
+            time_start = time.time()
+
+            result = func(*args, **kwargs)
+            time_end = time.time()
+            time_spend = time_end-time_start
+            emit_timer(func_name, time_spend, tags)
+            return result
+        return return_wrapper
+    return func_wrapper
