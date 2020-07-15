@@ -34,12 +34,10 @@ if __name__ == "__main__":
                          help='the end time of data source')
     parser.add_argument('--negative_sampling_rate', type=float, required=True,
                          help='the negative sampling rate for data source')
-    parser.add_argument('--role', type=str, choices=['leader', 'follower'],
+    parser.add_argument('--role', type=str, required=True,
                         required=True, help='the role of data join')
-    parser.add_argument('--data_block_dir', type=str, required=True,
-                        help='the directory of data block')
-    parser.add_argument('--example_dump_dir', type=str, required=True,
-                        help='the directory to dump example id')
+    parser.add_argument('--output_base_dir', type=str, required=True,
+                        help='the directory of for output data for data join')
     parser.add_argument('--etcd_name', type=str, default='test_etcd',
                         help='the name of etcd client')
     parser.add_argument('--etcd_addrs', type=str, required=True,
@@ -56,13 +54,12 @@ if __name__ == "__main__":
     data_source.data_source_meta.end_time = args.end_time
     data_source.data_source_meta.negative_sampling_rate = \
             args.negative_sampling_rate
-    if args.role == 'leader':
+    if args.role.upper() == 'LEADER':
         data_source.role = common_pb.FLRole.Leader
     else:
-        assert args.role == 'follower'
+        assert args.role.upper() == 'FOLLOWER'
         data_source.role = common_pb.FLRole.Follower
-        data_source.example_dumped_dir = args.example_dump_dir
-    data_source.data_block_dir = args.data_block_dir
+    data_source.output_base_dir = args.output_base_dir
     data_source.raw_data_sub_dir = args.raw_data_sub_dir
     data_source.state = common_pb.DataSourceState.Init
     etcd = EtcdClient(args.etcd_name, args.etcd_addrs, args.etcd_base_dir)

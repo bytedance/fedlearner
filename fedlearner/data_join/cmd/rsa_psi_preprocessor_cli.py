@@ -31,8 +31,7 @@ if __name__ == "__main__":
     parser.add_argument('--preprocessor_name', type=str, default='test',
                         help='the name of rsa psi preprocessor')
     parser.add_argument('-r', '--psi_role', type=str, required=True,
-                        choices=['leader', 'follower'],
-                        help='the role of rsa psi(leader/follower)')
+                        help='the role of rsa psi(Leader/Follower)')
     parser.add_argument('--rsa_key_path', type=str,
                         help='the file path for the rsa key')
     parser.add_argument('--rsa_key_pem', type=str,
@@ -111,8 +110,6 @@ if __name__ == "__main__":
             rsa_key_pem = f.read()
     preprocessor_options = dj_pb.RsaPsiPreProcessorOptions(
             preprocessor_name=args.preprocessor_name,
-            role=common_pb.FLRole.Leader if args.psi_role == 'leader' \
-                                         else common_pb.FLRole.Follower,
             rsa_key_pem=rsa_key_pem,
             input_file_paths=list(set(all_fpaths)),
             input_file_subscribe_dir=args.input_file_subscribe_dir,
@@ -142,6 +139,11 @@ if __name__ == "__main__":
                 compressed_type=args.builder_compressed_type,
             )
         )
+    if args.psi_role.upper() == 'LEADER':
+        preprocessor_options.role = common_pb.FLRole.Leader
+    else:
+        assert args.psi_role.upper() == 'FOLLOWER'
+        preprocessor_options.role = common_pb.FLRole.Follower
     preprocessor = RsaPsiPreProcessor(preprocessor_options, args.etcd_name,
                                       args.etcd_addrs, args.etcd_base_dir)
     preprocessor.start_process()
