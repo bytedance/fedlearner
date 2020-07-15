@@ -99,6 +99,9 @@ class RawDataBatchFetcher(ItemBatchSeqProcessor):
         yield self._make_item_batch(next_index), \
                 self._raw_data_visitor.finished()
 
+    def cleanup_visitor_meta_data(self):
+        self._raw_data_visitor.cleanup_meta_data()
+
 class RawDataPartitioner(object):
     class FileMeta(object):
         def __init__(self, rank_id, process_index, begin_index, end_index):
@@ -248,6 +251,7 @@ class RawDataPartitioner(object):
             with self._cond:
                 self._cond.wait()
         self.stop_process()
+        self._raw_data_batch_fetcher.cleanup_visitor_meta_data()
 
     def _raw_data_part_fn(self):
         if self._check_finished_tag():

@@ -139,11 +139,8 @@ class TestDataBlockVisitor(unittest.TestCase):
                                             common.partition_repr(meta.partition_id),
                                             meta.block_id + common.DataBlockSuffix)
             self.assertEqual(data_block_fpath, rep.data_block_fpath)
-            self.assertIsNone(visitor.LoadDataBlockReqByIndex(
-                                    random.randint(0, partition_num-1),
-                                    random.randint(dumped_index, 10000)
-                                )
-                            )
+            self.assertIsNone(visitor.LoadDataBlockReqByIndex(random.randint(0, partition_num-1),
+                                                              random.randint(dumped_index, 10000)))
 
     def tearDown(self):
         if gfile.Exists(self.data_source.output_base_dir):

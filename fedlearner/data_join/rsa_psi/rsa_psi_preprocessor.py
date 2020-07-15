@@ -132,6 +132,7 @@ class RsaPsiPreProcessor(object):
                 self._lock.wait()
         self.stop_routine_workers()
         self._process_pool_executor.shutdown()
+        self._id_batch_fetcher.cleanup_visitor_meta_data()
 
     def _id_batch_fetcher_name(self):
         return self._repr + ':id_batch_fetcher'

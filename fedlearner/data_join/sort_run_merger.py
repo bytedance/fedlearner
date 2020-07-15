@@ -34,9 +34,9 @@ class MergedSortRunMeta(object):
         self._process_index = process_index
 
     def encode_merged_sort_run_fname(self):
-        return 'part-{:04}-{:08}{}'.format(self._partition_id,
+        return 'part-{:04}.{:08}{}'.format(self._partition_id,
                                            self._process_index,
-                                           common.MergedSortRunSuffix)
+                                           common.RawDataFileSuffix)
 
     @property
     def process_index(self):
@@ -49,17 +49,17 @@ class MergedSortRunMeta(object):
 
     @classmethod
     def decode_sort_run_meta_from_fname(cls, fname):
-        if not fname.endswith(common.MergedSortRunSuffix):
+        if not fname.endswith(common.RawDataFileSuffix):
             raise RuntimeError("fname of MergedSortRun should endswith "\
-                               "{}".format(common.MergedSortRunSuffix))
+                               "{}".format(common.RawDataFileSuffix))
         if not fname.startswith('part-'):
             raise RuntimeError("fname of MergedSortRun should startswith "\
                                "{}".format('part-'))
-        segs = fname[len('part-'):-len(common.MergedSortRunSuffix)].split('-')
+        segs = fname[len('part-'):-len(common.RawDataFileSuffix)].split('.')
         if len(segs) != 2:
             raise RuntimeError("fname: {} should format as "\
                                "part-partition_id-process_index{}"\
-                               .format(fname, common.MergedSortRunSuffix))
+                               .format(fname, common.RawDataFileSuffix))
         return MergedSortRunMeta(int(segs[0]), int(segs[1]))
 
 class SortRunReader(object):
@@ -255,7 +255,7 @@ class SortRunMerger(object):
         metas = [MergedSortRunMeta.decode_sort_run_meta_from_fname(f)
 
                  for f in gfile.ListDirectory(self._merged_dir) if
-                 f.endswith(common.MergedSortRunSuffix)]
+                 f.endswith(common.RawDataFileSuffix)]
         metas.sort()
         return [os.path.join(self._merged_dir,
                              meta.encode_merged_sort_run_fname())
@@ -274,7 +274,7 @@ class SortRunMerger(object):
         for fname in fnames:
             if fname.endswith(common.TmpFileSuffix):
                 found_tmp = True
-            if fname.endswith(common.MergedSortRunSuffix):
+            if fname.endswith(common.RawDataFileSuffix):
                 meta = MergedSortRunMeta.decode_sort_run_meta_from_fname(fname)
                 metas.append(meta)
         metas.sort()

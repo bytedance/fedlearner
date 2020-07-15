@@ -26,6 +26,8 @@ from fedlearner.common import data_portal_service_pb2 as dp_pb
 
 from fedlearner.data_join import common
 from fedlearner.data_join.raw_data_publisher import RawDataPublisher
+from fedlearner.data_join.sort_run_merger import MergedSortRunMeta
+from fedlearner.data_join.sort_run_dumper import SortRunMeta
 
 class DataPortalJobManager(object):
     def __init__(self, etcd, portal_name, long_running):
@@ -347,8 +349,26 @@ class DataPortalJobManager(object):
                 )
         for partition_id in range(self._output_partition_num):
             dpath = path.join(output_dir, common.partition_repr(partition_id))
-            fpaths = [path.join(dpath, f) for f in gfile.ListDirectory(dpath)
+            fnames = [f for f in gfile.ListDirectory(dpath)
                       if f.endswith(common.RawDataFileSuffix)]
-            self._publisher.publish_raw_data(partition_id, fpaths)
             if portal_manifest.data_portal_type == dp_pb.DataPortalType.PSI:
-                self._publisher.finish_raw_data(partition_id)
+                self._publish_psi_raw_data(partition_id, dpath, fnames)
+            else:
+                self._publish_streaming_raw_data(partition_id, dpath, fnames)
+
+    def _publish_streaming_raw_data(self, partition_id, dpath, fnames):
+        metas = [MergedSortRunMeta.decode_sort_run_meta_from_fname(fname)
+                 for fname in fnames]
+        metas.sort()
+        fpaths = [path.join(dpath, meta.encode_merged_sort_run_fname())
+                  for meta in metas]
+        self._publisher.publish_raw_data(partition_id, fpaths)
+
+    def _publish_psi_raw_data(self, partition_id, dpath, fnames):
+        metas = [SortRunMeta.decode_sort_run_meta_from_fname(fname)
+                 for fname in fnames]
+        metas.sort()
+        fpaths = [path.join(dpath, meta.encode_sort_run_fname())
+                  for meta in metas]
+        self._publisher.publish_raw_data(partition_id, fpaths)
+        self._publisher.finish_raw_data(partition_id)
