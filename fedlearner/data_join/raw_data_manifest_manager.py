@@ -154,6 +154,12 @@ class RawDataManifestManager(object):
             self._sync_manifest(partition_id)
             return self._raw_data_latest_timestamp[partition_id]
 
+    def cleanup_meta_data(self):
+        with self._lock:
+            data_source_name = self._data_source.data_source_meta.name
+            etcd_base_key = common.data_source_etcd_base_dir(data_source_name)
+            self._etcd.delete_prefix(etcd_base_key)
+
     def sub_new_raw_data(self):
         if len(self._raw_data_sub_dir) > 0:
             for partition_id in range(self._partition_num):

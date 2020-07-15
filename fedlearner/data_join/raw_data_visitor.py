@@ -154,6 +154,10 @@ class RawDataVisitor(visitor.Visitor):
     def _new_iter(self):
         return create_raw_data_iter(self._raw_data_options)
 
+    def cleanup_meta_data(self):
+        logging.warning('cleanup_meta_data not implement in '\
+                        'RawDataVisitor, igonre it')
+
 class FileBasedMockRawDataVisitor(RawDataVisitor):
     def __init__(self, etcd, raw_data_options,
                  mock_data_source_name, input_fpaths):
@@ -164,20 +168,23 @@ class FileBasedMockRawDataVisitor(RawDataVisitor):
                     partition_num=1
                 )
             )
-        mock_rd_manifest_manager = RawDataManifestManager(
+        self._mock_rd_manifest_manager = RawDataManifestManager(
                 etcd, mock_data_source
             )
-        manifest = mock_rd_manifest_manager.get_manifest(0)
+        manifest = self._mock_rd_manifest_manager.get_manifest(0)
         if not manifest.finished:
             metas = []
             for fpath in input_fpaths:
                 metas.append(dj_pb.RawDataMeta(file_path=fpath,
                                                start_index=-1))
-            mock_rd_manifest_manager.add_raw_data(0, metas, True)
-            mock_rd_manifest_manager.finish_raw_data(0)
+            self._mock_rd_manifest_manager.add_raw_data(0, metas, True)
+            self._mock_rd_manifest_manager.finish_raw_data(0)
         super(FileBasedMockRawDataVisitor, self).__init__(
                 etcd, mock_data_source, 0, raw_data_options
             )
+
+    def cleanup_meta_data(self):
+        self._mock_rd_manifest_manager.cleanup_meta_data()
 
 class EtcdBasedMockRawDataVisitor(RawDataVisitor):
     def __init__(self, etcd, raw_data_options,
@@ -204,3 +211,6 @@ class EtcdBasedMockRawDataVisitor(RawDataVisitor):
 
     def is_input_data_finish(self):
         return self._mock_rd_manifest_manager.get_manifest(0).finished
+
+    def cleanup_meta_data(self):
+        self._mock_rd_manifest_manager.cleanup_meta_data()

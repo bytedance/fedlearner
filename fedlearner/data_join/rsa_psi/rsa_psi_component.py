@@ -84,6 +84,11 @@ class IdBatchFetcher(ItemBatchSeqProcessor):
     def name(cls):
         return 'IdBatchFetcher'
 
+    def cleanup_visitor_meta_data(self):
+        with self._lock:
+            if self._id_visitor is not None:
+                self._id_visitor.cleanup_meta_data()
+
     def _make_item_batch(self, begin_index):
         return IdBatch(begin_index)
 
