@@ -81,7 +81,7 @@ class elasticSearchHandler(Handler):
         from elasticsearch import Elasticsearch # pylint: disable=C0415
         super(elasticSearchHandler, self).__init__('elasticsearch')
         self._es = Elasticsearch([ip], port=port)
-        self._tz=pytz.timezone('Asia/Shanghai')
+        self._tz = pytz.timezone('Asia/Shanghai')
         # initialize index for elastic search
         if self._es.indices.exists(index='metrics') is not True:
             self._es.indices.create(index='metrics')
