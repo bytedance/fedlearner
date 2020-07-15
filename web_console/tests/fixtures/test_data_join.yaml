@@ -1,8 +1,8 @@
 apiVersion: fedlearner.k8s.io/v1alpha1
 kind: FLApp
 metadata:
-  namespace: default
   name: test_data_join
+  namespace: default
 spec:
   flReplicaSpecs:
     Master:
@@ -19,14 +19,6 @@ spec:
                 claimName: pvc-fedlearner-default
           containers:
             - env:
-              - name: ETCD_NAME
-                value: data_join_etcd_name
-              - name: ETCD_ADDR
-                value: fedlearner-stack-etcd.default.svc.cluster.local:2379
-              - name: ETCD_BASE_DIR
-                value: fedlearner_meta
-              - name: APPLICATION_ID
-                value: test_data_join
               - name: POD_IP
                 valueFrom:
                   fieldRef:
@@ -35,6 +27,22 @@ spec:
                 valueFrom:
                   fieldRef:
                     fieldPath: metadata.name
+              - name: ROLE
+                value: "Follower"
+              - name: APPLICATION_ID
+                value: test_data_join
+              - name: OUTPUT_BASE_DIR
+                value: /data/data_join/job_output/test_data_join
+              - name: ETCD_NAME
+                value: data_join_etcd_name
+              - name: ETCD_ADDR
+                value: fedlearner-stack-etcd.default.svc.cluster.local:2379
+              - name: ETCD_BASE_DIR
+                value: fedlearner_meta
+              - name: EGRESS_URL
+                value: fedlearner-stack-ingress-nginx-controller.default.svc.cluster.local:80
+              - name: EGRESS_HOST
+                value: external.name
               - name: DATA_SOURCE_NAME
                 value: test_data_join
               - name: PARTITION_NUM
@@ -45,20 +53,10 @@ spec:
                 value: "999999999999"
               - name: NEGATIVE_SAMPLING_RATE
                 value: "1.0"
-              - name: ROLE
-                value: "follower"
-              - name: DATA_BLOCK_DIR
-                value: /data/data_join/test_data_join/data_block
-              - name: EXAMPLE_DUMP_DIR
-                value: /data/data_join/test_data_join/example_dump
               - name: RAW_DATA_SUB_DIR
                 value: portal_publish_dir/test_data_portal
-              - name: EGRESS_URL
-                value: fedlearner-stack-ingress-nginx-controller.default.svc.cluster.local:80
-              - name: EGRESS_HOST
-                value: external.name
               image: image_path
-              imagePullPolicy: Always
+              imagePullPolicy: IfNotPresent
               volumeMounts:
                 - mountPath: "/data"
                   name: data
@@ -91,14 +89,6 @@ spec:
                 claimName: pvc-fedlearner-default
           containers:
             - env:
-              - name: ETCD_NAME
-                value: data_join_etcd_name
-              - name: ETCD_ADDR
-                value: fedlearner-stack-etcd.default.svc.cluster.local:2379
-              - name: ETCD_BASE_DIR
-                value: fedlearner_meta
-              - name: APPLICATION_ID
-                value: test_data_join
               - name: POD_IP
                 valueFrom:
                   fieldRef:
@@ -108,7 +98,31 @@ spec:
                   fieldRef:
                     fieldPath: metadata.name
               - name: ROLE
-                value: follower
+                value: "Follower"
+              - name: APPLICATION_ID
+                value: test_data_join
+              - name: OUTPUT_BASE_DIR
+                value: /data/data_join/job_output/test_data_join
+              - name: ETCD_NAME
+                value: data_join_etcd_name
+              - name: ETCD_ADDR
+                value: fedlearner-stack-etcd.default.svc.cluster.local:2379
+              - name: ETCD_BASE_DIR
+                value: fedlearner_meta
+              - name: EGRESS_URL
+                value: fedlearner-stack-ingress-nginx-controller.default.svc.cluster.local:80
+              - name: EGRESS_HOST
+                value: external.name
+              - name: RAW_DATA_ITER
+                value: TF_RECORD
+              - name: COMPRESSED_TYPE
+                value: ""
+              - name: READ_AHEAD_SIZE
+                value: "1048576"
+              - name: DATA_BLOCK_BUILDER
+                value: TF_RECORD
+              - name: DATA_BLOCK_COMPRESSED_TYPE
+                value: GZIP
               - name: MIN_MATCHING_WINDOW
                 value: "2048"
               - name: MAX_MATCHING_WINDOW
@@ -125,22 +139,8 @@ spec:
                 value: "4096"
               - name: MAX_FLYING_EXAMPLE_ID
                 value: "307152"
-              - name: RAW_DATA_ITER
-                value: TF_RECORD
-              - name: COMPRESSED_TYPE
-                value: ""
-              - name: READ_AHEAD_SIZE
-                value: "1048576"
-              - name: DATA_BLOCK_BUILDER
-                value: TF_RECORD
-              - name: DATA_BLOCK_COMPRESSED_TYPE
-                value: GZIP
-              - name: EGRESS_URL
-                value: fedlearner-stack-ingress-nginx-controller.default.svc.cluster.local:80
-              - name: EGRESS_HOST
-                value: external.name
               image: image_path
-              imagePullPolicy: Always
+              imagePullPolicy: IfNotPresent
               volumeMounts:
                 - mountPath: "/data"
                   name: data

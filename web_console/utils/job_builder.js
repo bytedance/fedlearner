@@ -3,7 +3,12 @@ const lodash = require('lodash');
 const path = require('path');
 
 const permittedJobEnvs = {
-  data_join: [],
+  data_join: [
+    'MIN_MATCHING_WINDOW', 'MAX_MATCHING_WINDOW',
+    'DATA_BLOCK_DUMP_INTERVAL', 'DATA_BLOCK_DUMP_THRESHOLD',
+    'EXAMPLE_ID_DUMP_INTERVAL', 'EXAMPLE_ID_DUMP_THRESHOLD',
+    'EXAMPLE_ID_BATCH_SIZE', 'MAX_FLYING_EXAMPLE_ID',
+  ],
   psi_data_join: [],
   tree_model: [
     'VERBOSITY', 'LEARNING_RATE', 'MAX_ITERS', 'MAX_DEPTH',

@@ -15,6 +15,11 @@ const testPortalYaml = readFileSync(
   { encoding: 'utf-8' },
 );
 
+const testDataJoinYaml = readFileSync(
+  path.resolve(__dirname, '..', 'fixtures', 'test_data_join.yaml'),
+  { encoding: 'utf-8' },
+);
+
 describe('serverGenerateYaml', () => {
   it('should generate train yaml', () => {
     const federation = {
@@ -318,16 +323,16 @@ describe('DataJoinGenerateYaml', () => {
         global_replica_spec: {
           template: {
             spec: {
-              imagePullSecrets: [{"name": "regcred-bd"}],
-              volumes: [{"persistentVolumeClaim": {"claimName": "pvc-fedlearner-default"}, "name": "data"}],
+              imagePullSecrets: [{name: 'regcred-bd'}],
+              volumes: [{persistentVolumeClaim: {claimName: 'pvc-fedlearner-default'}, name: 'data'}],
               containers: [{
                 volumeMounts: [{ mountPath: '/data', name: 'data' }],
                 env: [
-                  {"name": "ETCD_NAME", "value": "data_portal_etcd_name"},
-                  {"name": "ETCD_ADDR", "value": "fedlearner-stack-etcd.default.svc.cluster.local:2379"},
-                  {"name": "ETCD_BASE_DIR", "value": "fedlearner_meta"},
-                  {"name": "EGRESS_URL", "value": "fedlearner-stack-ingress-nginx-controller.default.svc.cluster.local:80"},
-                  {"name": "EGRESS_HOST", "value": "external.name"},
+                  {name: 'ETCD_NAME', value: 'data_join_etcd_name'},
+                  {name: 'ETCD_ADDR', value: 'fedlearner-stack-etcd.default.svc.cluster.local:2379'},
+                  {name: 'ETCD_BASE_DIR', value: 'fedlearner_meta'},
+                  {name: 'EGRESS_URL', value: 'fedlearner-stack-ingress-nginx-controller.default.svc.cluster.local:80'},
+                  {name: 'EGRESS_HOST', value: 'external.name'},
                 ],
               }],
             },
@@ -421,7 +426,6 @@ describe('DataJoinGenerateYaml', () => {
                       { name: 'START_TIME', value: '0' },
                       { name: 'END_TIME', value: '999999999999' },
                       { name: 'NEGATIVE_SAMPLING_RATE', value: '1.0' },
-                      { name: 'RAW_DATA_SUB_DIR', value: 'portal_publish_dir/test_data_portal' },
                     ],
                   }],
                 },
@@ -471,7 +475,7 @@ describe('DataJoinGenerateYaml', () => {
                     ports: [
                       { containerPort: 50051, name: 'flapp-port' },
                     ],
-                    command: ['/app/fedlearner_byted/deploy/scripts/wait4pair_wrapper.sh'],
+                    command: ['/app/deploy/scripts/wait4pair_wrapper.sh'],
                     args: ['/app/deploy/scripts/data_join/run_data_join_worker.sh'],
                   }],
                 },
@@ -486,7 +490,7 @@ describe('DataJoinGenerateYaml', () => {
 
     assert.deepStrictEqual(
       serverGenerateYaml(federation, job, ticket),
-      loadYaml(testTrainYaml),
+      loadYaml(testDataJoinYaml),
     );
   });
 });
