@@ -155,6 +155,7 @@ class TestDataPortalWorker(unittest.TestCase):
         map_task.output_base_dir = self._partition_output_dir
         map_task.output_partition_num = self._output_partition_num
         map_task.partition_id = 0
+        map_task.part_field = 'raw_id'
         for partition_id in range(self._input_partition_num):
             map_task.fpaths.append(self._get_input_fpath(partition_id))
 

@@ -145,7 +145,16 @@ class DataPortalJobManager(object):
         return dp_pb.MapTask(fpaths=map_fpaths,
                              output_base_dir=self._map_output_dir(job.job_id),
                              output_partition_num=self._output_partition_num,
-                             partition_id=partition_id)
+                             partition_id=partition_id,
+                             part_field=self._get_part_field())
+
+    def _get_part_field(self):
+        portal_mainifest = self._sync_portal_manifest()
+        if portal_mainifest.data_portal_type == dp_pb.DataPortalType.PSI:
+            return 'raw_id'
+        assert portal_mainifest.data_portal_type == \
+                dp_pb.DataPortalType.Streaming
+        return 'example_id'
 
     def _create_reduce_task(self, partition_id):
         assert self._processing_job is not None

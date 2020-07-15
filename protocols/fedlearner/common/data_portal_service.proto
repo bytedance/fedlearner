@@ -67,6 +67,7 @@ message MapTask {
   string output_base_dir = 2;
   int64 output_partition_num = 3;
   int64 partition_id = 4;
+  string part_field = 5;
 }
 
 message ReduceTask {
