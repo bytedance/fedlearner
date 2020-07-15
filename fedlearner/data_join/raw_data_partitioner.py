@@ -199,9 +199,10 @@ class RawDataPartitioner(object):
                     )
             return self._writer
 
-    def __init__(self, options, etcd_name, etcd_addrs,
-                 etcd_base_dir, use_mock_etcd=False):
+    def __init__(self, options, part_field, etcd_name,
+                 etcd_addrs, etcd_base_dir, use_mock_etcd=False):
         self._options = options
+        self._part_field = part_field
         etcd = EtcdClient(etcd_name, etcd_addrs,
                           etcd_base_dir, use_mock_etcd)
         self._raw_data_batch_fetcher = RawDataBatchFetcher(etcd, options)
@@ -270,7 +271,7 @@ class RawDataPartitioner(object):
                     fetcher.fetch_item_batch_by_index(next_index, hint_index)
             if batch is not None:
                 for index, item in enumerate(batch):
-                    raw_id = item.raw_id
+                    raw_id = getattr(item, self._part_field)
                     partition_id = CityHash32(raw_id) % \
                             self._options.output_partition_num
                     writer = self._get_file_writer(partition_id)

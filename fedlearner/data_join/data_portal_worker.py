@@ -155,8 +155,8 @@ class DataPortalWorker(object):
     def _run_map_task(self, task):
         partition_options = self._make_partitioner_options(task)
         data_partitioner = RawDataSortPartitioner(
-            partition_options, self._etcd_name, self._etcd_addrs,
-            self._etcd_base_dir, self._use_mock_etcd
+            partition_options, task.part_field, self._etcd_name,
+            self._etcd_addrs, self._etcd_base_dir, self._use_mock_etcd
         )
         logging.info("Partitioner rank_id:%d, partition_id:%d start",
                      self._rank_id, partition_options.partitioner_rank_id)

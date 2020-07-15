@@ -22,8 +22,11 @@ from cityhash import CityHash32 # pylint: disable=no-name-in-module
 
 from tensorflow.compat.v1 import gfile
 
+from fedlearner.common import data_join_service_pb2 as dj_pb
+
 from fedlearner.data_join import common
-from fedlearner.data_join.rsa_psi.sort_run_merger import SortRunMergerWriter
+from fedlearner.data_join.sort_run_merger import SortRunMergerWriter
+from fedlearner.data_join.raw_data_iter_impl.csv_dict_iter import CsvItem
 
 def generate_input_csv(base_dir, start_id, end_id, partition_num):
     for partition_id in range(partition_num):
@@ -31,7 +34,9 @@ def generate_input_csv(base_dir, start_id, end_id, partition_num):
         if not gfile.Exists(dirpath):
             gfile.MakeDirs(dirpath)
         assert gfile.IsDirectory(dirpath)
-    csv_writers = [SortRunMergerWriter(base_dir, 0, partition_id, 'CSV_DICT')
+    writer_options = dj_pb.WriterOptions(output_writer='CSV_DICT')
+    csv_writers = [SortRunMergerWriter(base_dir, 0,
+                                       partition_id, writer_options)
                    for partition_id in range(partition_num)]
     for idx in range(start_id, end_id):
         if idx % 262144 == 0:
@@ -42,7 +47,7 @@ def generate_input_csv(base_dir, start_id, end_id, partition_num):
         raw['feat_0'] = str((partition_id << 30) + 0) + str(idx)
         raw['feat_1'] = str((partition_id << 30) + 1) + str(idx)
         raw['feat_2'] = str((partition_id << 30) + 2) + str(idx)
-        csv_writers[partition_id].append(raw)
+        csv_writers[partition_id].append(CsvItem(raw))
     for partition_id, csv_writer in enumerate(csv_writers):
         fpaths = csv_writer.finish()
         logging.info("partition %d dump %d files", partition_id, len(fpaths))

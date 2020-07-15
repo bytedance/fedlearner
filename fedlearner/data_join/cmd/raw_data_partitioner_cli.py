@@ -73,6 +73,8 @@ if __name__ == "__main__":
                         help='the addrs of etcd server')
     parser.add_argument('--etcd_base_dir', type=str, default='fedlearner_test',
                         help='the namespace of etcd key')
+    parser.add_argument('--part_field', type=str, default='raw_id',
+                        help='the field for raw data partition')
 
     args = parser.parse_args()
     if args.tf_eager_mode:
@@ -123,8 +125,9 @@ if __name__ == "__main__":
                 max_flying_item=args.max_flying_raw_data
             )
         )
-    partitioner = RawDataPartitioner(partitioner_options, args.etcd_name,
-                                     args.etcd_addrs, args.etcd_base_dir)
+    partitioner = RawDataPartitioner(partitioner_options, args.part_field,
+                                     args.etcd_name, args.etcd_addrs,
+                                     args.etcd_base_dir)
     logging.info("RawDataPartitioner %s of rank %d launched",
                  partitioner_options.partitioner_name,
                  partitioner_options.partitioner_rank_id)
