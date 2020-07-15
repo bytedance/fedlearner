@@ -64,7 +64,7 @@ class Bridge(object):
         def Transmit(self, request, context):
             return self._bridge._transmit_handler(request)
 
-        @metrics.timer(func_name="one stream transmit")
+        @metrics.timer(func_name="one stream transmit", tags={})
         def StreamTransmit(self, request_iterator, context):
             for request in request_iterator:
                 yield self._bridge._transmit_handler(request)
