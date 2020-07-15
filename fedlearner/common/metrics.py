@@ -99,7 +99,7 @@ class elasticSearchHandler(Handler):
 class Metrics(object):
     def __init__(self):
         self.handlers = []
-        self._role = os.environ.get("ES_ROLE", None)
+        self._role = os.environ.get("ES_ROLE", "None")
 
     def addHandler(self, hdlr):
         """
