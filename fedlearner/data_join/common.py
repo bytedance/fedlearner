@@ -30,7 +30,6 @@ DataBlockSuffix = '.data'
 DataBlockMetaSuffix = '.meta'
 RawDataMetaPrefix = 'raw_data_'
 RawDataPubSuffix = '.pub'
-MergedSortRunSuffix = '-sort_run.merged'
 InvalidExampleId = ''.encode()
 TmpFileSuffix = '.tmp'
 DoneFileSuffix = '.done'
