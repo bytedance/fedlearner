@@ -35,7 +35,7 @@ if __name__ == "__main__":
     parser.add_argument('--negative_sampling_rate', type=float, required=True,
                          help='the negative sampling rate for data source')
     parser.add_argument('--role', type=str, required=True,
-                        required=True, help='the role of data join')
+                        help='the role of data join')
     parser.add_argument('--output_base_dir', type=str, required=True,
                         help='the directory of for output data for data join')
     parser.add_argument('--etcd_name', type=str, default='test_etcd',
