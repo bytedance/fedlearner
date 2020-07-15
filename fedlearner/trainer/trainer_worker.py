@@ -171,6 +171,8 @@ def train(role, args, input_fn, model_fn, serving_input_receiver_fn):
 
     if args.summary_path:
         SummaryHook.summary_path = args.summary_path
+        SummaryHook.worker_rank = args.worker_rank
+        SummaryHook.role = role
     if args.summary_save_steps:
         SummaryHook.save_steps = args.summary_save_steps
 

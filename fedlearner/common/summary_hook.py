@@ -23,15 +23,17 @@ import tensorflow.compat.v1 as tf
 class SummaryHook(object):
     summary_path = None
     save_steps = 10
+    worker_rank = 0
+    role = 'leader'
 
     @classmethod
-    def get_hook(cls, role):
+    def get_hook(cls):
         if not cls.summary_path:
             logging.info('Tensorboard is not started')
             return None
         tf.io.gfile.makedirs(cls.summary_path)
         datetime_str = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-        dir_name = '{}-{}'.format(datetime_str, role)
+        dir_name = '{}-{}-{}'.format(datetime_str, cls.role, cls.worker_rank)
         output_dir = os.path.join(cls.summary_path, dir_name)
         logging.info('Summary output directory is %s', output_dir)
         scaffold = tf.train.Scaffold(summary_op=tf.summary.merge_all())
