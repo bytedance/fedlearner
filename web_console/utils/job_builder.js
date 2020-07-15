@@ -151,7 +151,7 @@ function generateYaml(federation, job, job_params, ticket) {
             env: [
               { name: 'POD_IP', valueFrom: { fieldRef: { fieldPath: 'status.podIP' } } },
               { name: 'POD_NAME', valueFrom: { fieldRef: { fieldPath: 'metadata.name' } } },
-              { name: 'ROLE', value: ticket.role },
+              { name: 'ROLE', value: ticket.role.toLowerCase() },
               { name: 'APPLICATION_ID', value: job.name },
               { name: 'OUTPUT_BASE_DIR', value: output_base_dir },
             ],
