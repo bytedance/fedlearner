@@ -177,7 +177,7 @@ def emit_timer(name, value, tags=None):
     _metrics_client.emit(name, value, tags, 'timer')
 
 
-def timer(func_name, tags={}):
+def timer(func_name, tags=None):
     def func_wrapper(func):
         @wraps(func)
         def return_wrapper(*args, **kwargs):
