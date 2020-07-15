@@ -44,6 +44,7 @@ if __name__ == '__main__':
     parser.add_argument("--merger_read_ahead_size", type=int, default=0,
                         help="the read ahead size for merger")
     parser.add_argument("--input_data_file_iter", type=str, default="TF_RECORD",
+                        choices=['TF_RECORD', 'CSV_DICT', 'TF_DATASET'],
                         help="the type for input data iterator")
     parser.add_argument("--compressed_type", type=str, default='',
                         choices=['', 'ZLIB', 'GZIP'],
@@ -56,7 +57,7 @@ if __name__ == '__main__':
                         help='the builder for ouput file')
     parser.add_argument("--batch_size", type=int, default=1024,
                         help="the batch size for raw data reader")
-    parser.add_argument("--max_flying_item", type=int, default=300000,
+    parser.add_argument("--max_flying_item", type=int, default=1048576,
                         help='the maximum items processed at the same time')
     args = parser.parse_args()
 

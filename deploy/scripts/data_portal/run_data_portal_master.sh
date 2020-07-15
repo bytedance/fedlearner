@@ -20,7 +20,6 @@ export CUDA_VISIBLE_DEVICES=
 source /app/deploy/scripts/hdfs_common.sh || true
 source /app/deploy/scripts/env_to_args.sh
 
-data_portal_type=$(normalize_env_to_args "--data_portal_type" $DATA_PORTAL_TYPE)
 input_file_wildcard=$(normalize_env_to_args "--input_file_wildcard" $FILE_WILDCARD)
 
 python -m fedlearner.data_join.cmd.data_portal_master_service \
@@ -29,9 +28,9 @@ python -m fedlearner.data_join.cmd.data_portal_master_service \
     --etcd_base_dir=$ETCD_BASE_DIR \
     --listen_port=50051 \
     --data_portal_name=$DATA_PORTAL_NAME \
+    --data_portal_type=$DATA_PORTAL_TYPE \
     --output_partition_num=$OUTPUT_PARTITION_NUM \
     --input_base_dir=$INPUT_BASE_DIR \
     --output_base_dir=$OUTPUT_BASE_DIR \
     --raw_data_publish_dir=$RAW_DATA_PUBLISH_DIR \
-    $data_portal_type $input_file_wildcard \
-    $USE_MOCK_ETCD $LONG_RUNNING
+    $input_file_wildcard $USE_MOCK_ETCD $LONG_RUNNING
