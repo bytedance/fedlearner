@@ -15,6 +15,11 @@ const testPortalYaml = readFileSync(
   { encoding: 'utf-8' },
 );
 
+const testDataJoinYaml = readFileSync(
+  path.resolve(__dirname, '..', 'fixtures', 'test_data_join.yaml'),
+  { encoding: 'utf-8' },
+);
+
 describe('serverGenerateYaml', () => {
   it('should generate train yaml', () => {
     const federation = {
@@ -300,6 +305,192 @@ describe('portalGenerateYaml', () => {
     assert.deepStrictEqual(
       portalGenerateYaml(federation, raw_data),
       loadYaml(testPortalYaml),
+    );
+  });
+});
+
+describe('DataJoinGenerateYaml', () => {
+  it('should generate data join yaml', () => {
+    const federation = {
+      k8s_settings: {
+        namespace: 'default',
+        storage_root_path: '/data/data_join',
+        global_job_spec: {
+          spec: {
+            cleanPodPolicy: 'None',
+          },
+        },
+        global_replica_spec: {
+          template: {
+            spec: {
+              imagePullSecrets: [{name: 'regcred-bd'}],
+              volumes: [{persistentVolumeClaim: {claimName: 'pvc-fedlearner-default'}, name: 'data'}],
+              containers: [{
+                volumeMounts: [{ mountPath: '/data', name: 'data' }],
+                env: [
+                  {name: 'ETCD_NAME', value: 'data_join_etcd_name'},
+                  {name: 'ETCD_ADDR', value: 'fedlearner-stack-etcd.default.svc.cluster.local:2379'},
+                  {name: 'ETCD_BASE_DIR', value: 'fedlearner_meta'},
+                  {name: 'EGRESS_URL', value: 'fedlearner-stack-ingress-nginx-controller.default.svc.cluster.local:80'},
+                  {name: 'EGRESS_HOST', value: 'external.name'},
+                ],
+              }],
+            },
+          },
+        },
+        follower_peer_spec: {
+          Leader: {
+            peerURL: 'fedlearner-stack-ingress-nginx-controller.default.svc.cluster.local:80',
+            authority: 'external.name',
+            extraHeaders: {
+              'x-host': 'leader.flapp.operator',
+            },
+          },
+        },
+      },
+    };
+
+    const job = {
+      name: 'test_data_join',
+      job_type: 'data_join',
+      server_params: {
+        spec: {
+          flReplicaSpecs: {
+            Master: {
+              replicas: 1,
+              template: {
+                spec: {
+                  containers: [{
+                    resources: {
+                      limits: {
+                        cpu: '2000m',
+                        memory: '2Gi',
+                      },
+                      requests: {
+                        cpu: '2000m',
+                        memory: '2Gi',
+                      },
+                    },
+                  }],
+                },
+              },
+            },
+            Worker: {
+              replicas: 2,
+              template: {
+                spec: {
+                  containers: [{
+                    env: [
+                      { name: 'MIN_MATCHING_WINDOW', value: '2048' },
+                      { name: 'MAX_MATCHING_WINDOW', value: '8192' },
+                      { name: 'DATA_BLOCK_DUMP_INTERVAL', value: '600' },
+                      { name: 'DATA_BLOCK_DUMP_THRESHOLD', value: '262144' },
+                      { name: 'EXAMPLE_ID_DUMP_INTERVAL', value: '600' },
+                      { name: 'EXAMPLE_ID_DUMP_THRESHOLD', value: '262144' },
+                      { name: 'EXAMPLE_ID_BATCH_SIZE', value: '4096' },
+                      { name: 'MAX_FLYING_EXAMPLE_ID', value: '307152' },
+                    ],
+                    resources: {
+                      limits: {
+                        cpu: '2000m',
+                        memory: '4Gi',
+                      },
+                      requests: {
+                        cpu: '2000m',
+                        memory: '4Gi',
+                      },
+                    },
+                  }],
+                },
+              },
+            },
+          },
+        },
+      },
+    };
+
+    const ticket = {
+      role: 'Follower',
+      public_params: {
+        spec: {
+          flReplicaSpecs: {
+            Master: {
+              pair: true,
+              replicas: 1,
+              template: {
+                spec: {
+                  containers: [{
+                    env: [
+                      { name: 'DATA_SOURCE_NAME', value: 'test_data_join' },
+                      { name: 'PARTITION_NUM', value: '2' },
+                      { name: 'START_TIME', value: '0' },
+                      { name: 'END_TIME', value: '999999999999' },
+                      { name: 'NEGATIVE_SAMPLING_RATE', value: '1.0' },
+                    ],
+                  }],
+                },
+              },
+            },
+            Worker: {
+              pair: true,
+              replicas: 2,
+            },
+          },
+        },
+      },
+      private_params: {
+        spec: {
+          flReplicaSpecs: {
+            Master: {
+              pair: true,
+              template: {
+                spec: {
+                  containers: [{
+                    env: [
+                      { name: 'RAW_DATA_SUB_DIR', value: 'portal_publish_dir/test_data_portal' },
+                    ],
+                    image: 'image_path',
+                    ports: [
+                      { containerPort: 50051, name: 'flapp-port' },
+                    ],
+                    command: ['/app/deploy/scripts/wait4pair_wrapper.sh'],
+                    args: ['/app/deploy/scripts/data_join/run_data_join_master.sh'],
+                  }],
+                },
+              },
+            },
+            Worker: {
+              pair: true,
+              template: {
+                spec: {
+                  containers: [{
+                    env: [
+                      { name: 'RAW_DATA_ITER', value: 'TF_RECORD' },
+                      { name: 'COMPRESSED_TYPE', value: '' },
+                      { name: 'READ_AHEAD_SIZE', value: '1048576' },
+                      { name: 'DATA_BLOCK_BUILDER', value: 'TF_RECORD' },
+                      { name: 'DATA_BLOCK_COMPRESSED_TYPE', value: 'GZIP' },
+                    ],
+                    image: 'image_path',
+                    ports: [
+                      { containerPort: 50051, name: 'flapp-port' },
+                    ],
+                    command: ['/app/deploy/scripts/wait4pair_wrapper.sh'],
+                    args: ['/app/deploy/scripts/data_join/run_data_join_worker.sh'],
+                  }],
+                },
+              },
+            },
+          },
+        },
+      },
+    };
+
+    assert.ok(serverValidateJob(job, {}, ticket));
+
+    assert.deepStrictEqual(
+      serverGenerateYaml(federation, job, ticket),
+      loadYaml(testDataJoinYaml),
     );
   });
 });
