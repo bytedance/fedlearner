@@ -18,6 +18,7 @@ import logging
 import os
 import time
 import datetime
+from functools import wraps
 import pytz
 try:
     import thread
@@ -29,7 +30,6 @@ if thread:
     _lock = threading.RLock()
 else:
     _lock = None
-from functools import wraps
 
 _metrics_client = None
 
