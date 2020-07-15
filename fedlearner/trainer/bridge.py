@@ -381,7 +381,6 @@ class Bridge(object):
             logging.warning("Heartbeat request failed: %s", repr(e))
             return False
 
-    @metrics.timer(func_name="connect", tags={})
     def connect(self):
         if self._connected:
             logging.warning("Bridge already connected!")
