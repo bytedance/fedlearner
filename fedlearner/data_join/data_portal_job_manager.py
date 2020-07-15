@@ -354,9 +354,9 @@ class DataPortalJobManager(object):
             if portal_manifest.data_portal_type == dp_pb.DataPortalType.PSI:
                 self._publish_psi_raw_data(partition_id, dpath, fnames)
             else:
-                self._publish_streaming_raw_data(partiton_id, dpath, fnames)
+                self._publish_streaming_raw_data(partition_id, dpath, fnames)
 
-    def _publish_streaming_raw_data(self, partiton_id, dpath, fnames):
+    def _publish_streaming_raw_data(self, partition_id, dpath, fnames):
         metas = [MergedSortRunMeta.decode_sort_run_meta_from_fname(fname)
                  for fname in fnames]
         metas.sort()
