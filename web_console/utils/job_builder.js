@@ -108,7 +108,7 @@ function generateYaml(federation, job, job_params, ticket) {
     kind: 'FLApp',
     metadata: {
       name: job.name,
-      namespace: 'default',
+      namespace: k8s_settings.namespace,
     },
     spec: {
       role: ticket.role,
@@ -184,7 +184,7 @@ function portalGenerateYaml(federation, raw_data) {
     kind: 'FLApp',
     metadata: {
       name: raw_data.name,
-      namespace: 'default',
+      namespace: k8s_settings.namespace,
     },
     spec: {
       role: 'Follower',
