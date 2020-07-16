@@ -30,8 +30,8 @@ router.get('/api/v1/raw_data/:id', SessionMiddleware, async (ctx) => {
     return;
   }
   let flapp = {};
-  if (rawData.k8s_name) {
-    flapp = (await k8s.getFLApp(namespace, rawData.k8s_name)).flapp;
+  if (rawData.submited) {
+    flapp = (await k8s.getFLApp(namespace, rawData.name)).flapp;
   }
   ctx.body = {
     data: {
@@ -44,10 +44,10 @@ router.get('/api/v1/raw_data/:id', SessionMiddleware, async (ctx) => {
 router.post('/api/v1/raw_data', SessionMiddleware, async (ctx) => {
   const { name, federation_id, input, output, comment, output_partition_num, data_portal_type } = ctx.request.body;
 
-  if (!(/^[a-zA-Z\d_]+$/.test(name))) {
+  if (!(/^[a-zA-Z\d-]+$/.test(name))) {
     ctx.status = 400;
     ctx.body = {
-      error: 'name can only contain letters/numbers/_',
+      error: 'name can only contain letters/numbers/-',
     };
     return;
   }
@@ -126,9 +126,9 @@ router.post('/api/v1/raw_data/:id/submit', SessionMiddleware, async (ctx) => {
 
   const yaml = portalGenerateYaml(rawData.federation, rawData);
 
-  const res = await k8s.createFLApp(namespace, yaml);
+  await k8s.createFLApp(namespace, yaml);
 
-  rawData.k8s_name = res.metadata.name;
+  rawData.submited = true;
 
   const data = await rawData.save();
 

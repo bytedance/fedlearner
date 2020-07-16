@@ -39,10 +39,6 @@ module.exports = (sequelize, DataTypes) => {
       allowNull: true,
       default: null,
     },
-    k8s_name: {
-      type: DataTypes.STRING(200),
-      allowNull: false,
-    },
   }, {
     tableName: 'jobs',
     paranoid: true,
