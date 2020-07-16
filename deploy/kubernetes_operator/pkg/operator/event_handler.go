@@ -72,6 +72,10 @@ func NewAppEventHandler(namespace string, crdClient crdclientset.Interface) AppE
 }
 
 func (handler *appEventHandler) Register(ctx context.Context, app *v1alpha1.FLApp) error {
+	if !shouldInvokePeer(app) {
+		return nil
+	}
+
 	name := app.Name
 	if IsLeader(app.Spec.Role) {
 		return fmt.Errorf("only followers should register, name = %v", name)
@@ -113,6 +117,10 @@ func (handler *appEventHandler) Register(ctx context.Context, app *v1alpha1.FLAp
 }
 
 func (handler *appEventHandler) Pair(ctx context.Context, app *v1alpha1.FLApp) error {
+	if !shouldInvokePeer(app) {
+		return nil
+	}
+
 	name := app.Name
 	if !IsLeader(app.Spec.Role) {
 		return fmt.Errorf("only leader should pair with followers, name = %v", name)
@@ -147,6 +155,10 @@ func (handler *appEventHandler) Pair(ctx context.Context, app *v1alpha1.FLApp) e
 }
 
 func (handler *appEventHandler) Shutdown(ctx context.Context, app *v1alpha1.FLApp) error {
+	if !shouldInvokePeer(app) {
+		return nil
+	}
+
 	name := app.Name
 	request := &pb.ShutDownRequest{
 		AppId: name,
@@ -175,6 +187,10 @@ func (handler *appEventHandler) Shutdown(ctx context.Context, app *v1alpha1.FLAp
 }
 
 func (handler *appEventHandler) Finish(ctx context.Context, app *v1alpha1.FLApp) error {
+	if !shouldInvokePeer(app) {
+		return nil
+	}
+
 	name := app.Name
 	request := &pb.FinishRequest{
 		AppId: name,
@@ -393,4 +409,13 @@ func makePairs(app *v1alpha1.FLApp, role string) []*pb.Pair {
 		}
 	}
 	return pairs
+}
+
+func shouldInvokePeer(app *v1alpha1.FLApp) bool {
+	for rtype := range app.Spec.FLReplicaSpecs {
+		if needPair(app, rtype) {
+			return true
+		}
+	}
+	return false
 }
