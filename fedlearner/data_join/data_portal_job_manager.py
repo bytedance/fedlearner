@@ -350,8 +350,10 @@ class DataPortalJobManager(object):
                 )
         for partition_id in range(self._output_partition_num):
             dpath = path.join(output_dir, common.partition_repr(partition_id))
-            fnames = [f for f in gfile.ListDirectory(dpath)
-                      if f.endswith(common.RawDataFileSuffix)]
+            fnames = []
+            if gfile.Exist(dpath) and gfile.IsDirectory(dpath):
+                fnames = [f for f in gfile.ListDirectory(dpath)
+                          if f.endswith(common.RawDataFileSuffix)]
             if portal_manifest.data_portal_type == dp_pb.DataPortalType.PSI:
                 self._publish_psi_raw_data(partition_id, dpath, fnames)
             else:
