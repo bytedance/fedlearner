@@ -16,13 +16,14 @@
 
 set -ex
 
-echo "${WORKER_NUM:?Need to set WORKER_NUM non-empty}"
+WORKER_REPLICAS=`python -c 'import json, os; print(len(json.loads(os.environ["CLUSTER_SPEC"])["clusterSpec"]["Worker"]))'`
+echo "${WORKER_REPLICAS:?Need to set WORKER_REPLICAS non-empty}"
 echo "${INDEX:?Need to set INDEX non-empty}"
-if [ "$((WORKER_NUM % 2))" -ne "0" ]; then
-  echo "Error: WORKER_NUM should be the multiplies of 2."
+if [ "$((WORKER_REPLICAS % 2))" -ne "0" ]; then
+  echo "Error: WORKER_REPLICAS should be the multiplies of 2."
   exit 1
 fi
-if [ $INDEX -lt $((WORKER_NUM / 2)) ]; then
+if [ $INDEX -lt $((WORKER_REPLICAS / 2)) ]; then
   psi_signer_cmd=/app/deploy/scripts/rsa_psi/run_rsa_psi_signer.sh
   exec ${psi_signer_cmd} &
   echo "launched psi signer"
@@ -36,3 +37,4 @@ else
 fi
 echo "waiting for finished"
 wait
+
