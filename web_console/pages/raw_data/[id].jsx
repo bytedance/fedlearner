@@ -3,15 +3,14 @@ import { Description, Button, useToasts } from '@zeit-ui/react';
 import useSWR from 'swr';
 import { useRouter } from 'next/router';
 
-import { submitRawData } from '../../services/raw_data';
+import { submitRawData, deleteRawDataJob } from '../../services/raw_data';
 import { fetcher } from '../../libs/http';
 import JobCommonInfo, { jsonHandledPopover } from '../../components/JobCommonInfo';
-import { FLAppStatus } from '../../utils/job';
 
 export default function RawDataJob() {
   const router = useRouter();
   const { query } = router;
-  const { data } = useSWR(`raw_data/${query.id}`, fetcher);
+  const { data, mutate } = useSWR(`raw_data/${query.id}`, fetcher);
   const rawData = data ? data.data : null;
 
   const [loading, setLoading] = useState(false);
@@ -25,6 +24,26 @@ export default function RawDataJob() {
           text: res.error,
           type: 'error',
         });
+      } else {
+        mutate();
+        setTimeout(() => {
+          mutate();
+        }, 3000);
+      }
+    }).catch(() => setLoading(false));
+  }, [rawData?.localdata?.id]);
+
+  const deleteJob = useCallback(() => {
+    setLoading(true);
+    deleteRawDataJob(rawData?.localdata?.id).then((res) => {
+      setLoading(false);
+      if (res.error) {
+        setToast({
+          text: res.error,
+          type: 'error',
+        });
+      } else {
+        mutate();
       }
     }).catch(() => setLoading(false));
   }, [rawData?.localdata?.id]);
@@ -70,9 +89,18 @@ export default function RawDataJob() {
         auto
         size="small"
         onClick={submit}
-        disabled={!(rawData?.localdata?.id) || rawData?.status?.appState === FLAppStatus.Running}
+        disabled={!(rawData?.localdata?.id) || rawData?.localdata?.submited}
         loading={loading}
       >Submit Raw Data</Button>
+      <Button
+        style={{ marginTop: 16 }}
+        auto
+        size="small"
+        type="warning"
+        onClick={deleteJob}
+        disabled={!(rawData?.localdata?.id) || !(rawData?.localdata?.submited)}
+        loading={loading}
+      >Delete Job</Button>
     </JobCommonInfo>
   );
 }

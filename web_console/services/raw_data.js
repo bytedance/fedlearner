@@ -19,3 +19,7 @@ export async function revokeRawData(id) {
 export async function submitRawData(id) {
   return client.post(`raw_data/${id}/submit`).json();
 }
+
+export async function deleteRawDataJob(id) {
+  return client.post(`raw_data/${id}/delete_job`).json();
+}

@@ -124,11 +124,47 @@ router.post('/api/v1/raw_data/:id/submit', SessionMiddleware, async (ctx) => {
     return;
   }
 
+  if (rawData.submited) {
+    ctx.status = 400;
+    ctx.body = {
+      error: 'RawData is submited',
+    };
+    return;
+  }
+
   const yaml = portalGenerateYaml(rawData.federation, rawData);
 
   await k8s.createFLApp(namespace, yaml);
 
   rawData.submited = true;
+
+  const data = await rawData.save();
+
+  ctx.body = { data };
+});
+
+router.post('/api/v1/raw_data/:id/delete_job', SessionMiddleware, async (ctx) => {
+  const { id } = ctx.params;
+  const rawData = await RawData.findByPk(id);
+  if (!rawData) {
+    ctx.status = 404;
+    ctx.body = {
+      error: 'RawData not found',
+    };
+    return;
+  }
+
+  if (!rawData.submited) {
+    ctx.status = 400;
+    ctx.body = {
+      error: 'RawData is unsubmited',
+    };
+    return;
+  }
+
+  await k8s.deleteFLApp(namespace, rawData.name);
+
+  rawData.submited = false;
 
   const data = await rawData.save();
 
@@ -148,7 +184,10 @@ router.delete('/api/v1/raw_data/:id', SessionMiddleware, async (ctx) => {
     return;
   }
 
-  await k8s.deleteFLApp(namespace, data.k8s_name);
+  if (data.submited) {
+    await k8s.deleteFLApp(namespace, data.name);
+  }
+
   await data.destroy();
 
   ctx.body = { data };
