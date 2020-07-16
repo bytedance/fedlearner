@@ -212,16 +212,16 @@ function JobList(props) {
                                               content={item.spec.role}
                                             />
                                             <Description
-                                              title="Operations"
+                                              title="Operation"
                                               content={(
                                                 <>
                                                   <NextLink
-                                                    href={`/job/${item.localdata.name}`}
+                                                    href={`/job/${item.localdata.id}`}
                                                   >
                                                     <Link color>View Detail</Link>
                                                   </NextLink>
                                                   {/* <PopConfirm
-                                                    onConfirm={() => deleteJob(item.localdata.name)}
+                                                    onConfirm={() => deleteJob(item.localdata.id)}
                                                     onOk={() => mutate({ data: jobs.filter((i) => i !== item) })}
                                                   >
                                                     <Text className="actionText" type="error">Delete</Text>

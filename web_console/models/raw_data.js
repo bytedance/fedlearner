@@ -20,6 +20,14 @@ module.exports = (sequelize, DataTypes) => {
         key: 'id',
       },
     },
+    federation_id: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      references: {
+        model: 'federations',
+        key: 'id',
+      },
+    },
     input: {
       type: DataTypes.STRING(2083),
       allowNull: false,
@@ -78,6 +86,7 @@ module.exports = (sequelize, DataTypes) => {
   });
 
   RawData.associate = (models) => {
+    RawData.belongsTo(models.Federation, { as: 'federation', foreignKey: 'federation_id' });
     RawData.belongsTo(models.User, { as: 'user', foreignKey: 'user_id' });
   };
 

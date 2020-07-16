@@ -9,7 +9,7 @@ import JobCommonInfo, { jsonHandledPopover } from '../../components/JobCommonInf
 export default function Job() {
   const router = useRouter();
   const { query } = router;
-  const { data: jobData } = useSWR(`job/${query.name}`, fetcher);
+  const { data: jobData } = useSWR(`job/${query.id}`, fetcher);
   const job = jobData ? jobData.data : null;
 
   return (

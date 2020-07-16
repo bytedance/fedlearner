@@ -11,7 +11,7 @@ import Empty from './Empty';
 
 export const jsonHandledPopover = (json, length = 30) => {
   if (!json) return '-';
-  const str = JSON.stringify(json, null, 2);
+  const str = JSON.stringify(json, null, 2).replace(/(^")|("$)/g, '');
   let inner = str;
   if (str.length > length) {
     inner = `${str.substring(0, length)}...`;
@@ -69,7 +69,9 @@ export default function JobCommonInfo(props) {
     error: logsError,
     isValidating: logsIsValidating,
   } = useSWR(`job/${job && job.localdata?.k8s_name}/logs?start_time=${new Date(job && job.metadata?.creationTimestamp).getTime()}`, fetcher);
-  const logs = (logsData && logsData.data) ? logsData.data : ['logs error ' + (logsData?.error || logsError?.message)]
+  const logs = job && job.localdata?.k8s_name
+    ? (logsData && logsData.data) ? logsData.data : ['logs error ' + (logsData?.error || logsError?.message)]
+    : null;
 
   const tableData = useMemo(() => {
     if (pods) {
@@ -162,7 +164,7 @@ export default function JobCommonInfo(props) {
                     logsIsValidating
                       ? null
                       : logs && logs.length
-                        ? logs.map((log) => <Text p>{log}</Text>)
+                        ? logs.map((log, i) => <Text p key={`${i}_${log}`}>{log}</Text>)
                         : 'no logs'
                   }
                 </pre>

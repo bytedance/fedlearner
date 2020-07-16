@@ -7,12 +7,7 @@ const { Job, Ticket, Federation } = require('../models');
 const FederationClient = require('../rpc/client');
 const getConfig = require('../utils/get_confg');
 const checkParseJson = require('../utils/check_parse_json');
-const {
-  clientValidateJob,
-  serverValidateJob,
-  clientGenerateYaml,
-  serverGenerateYaml,
-} = require('../utils/job_builder');
+const { clientValidateJob, clientGenerateYaml } = require('../utils/job_builder');
 
 const config = getConfig({
   NAMESPACE: process.env.NAMESPACE,
@@ -36,9 +31,9 @@ router.get('/api/v1/jobs', SessionMiddleware, async (ctx) => {
   ctx.body = { data };
 });
 
-router.get('/api/v1/job/:name', SessionMiddleware, async (ctx) => {
-  const { name } = ctx.params;
-  const job = await Job.findOne({ where: { name } });
+router.get('/api/v1/job/:id', SessionMiddleware, async (ctx) => {
+  const { id } = ctx.params;
+  const job = await Job.findByPk(id);
   if (!job) {
     ctx.status = 404;
     ctx.body = {
@@ -71,7 +66,9 @@ router.get('/api/v1/job/:k8s_name/logs', SessionMiddleware, async (ctx) => {
     };
     return;
   }
-  const logs = await es.queryLog('filebeat-*', k8s_name, 'fedlearner-operator-*', start_time, Date.now(), es_oparator_match_phrase);
+  const logs = await es.queryLog('filebeat-*', k8s_name, 'fedlearner-operator-*',
+    start_time, Date.now(), es_oparator_match_phrase);
+
   ctx.body = { data: logs };
 });
 
@@ -203,12 +200,10 @@ router.post('/api/v1/job', SessionMiddleware, async (ctx) => {
   ctx.body = { data };
 });
 
-router.delete('/api/v1/job/:name', SessionMiddleware, async (ctx) => {
+router.delete('/api/v1/job/:id', SessionMiddleware, async (ctx) => {
   // TODO: just owner can delete
-  const { name } = ctx.params;
-  const data = await Job.findOne({
-    where: { name },
-  });
+  const { id } = ctx.params;
+  const data = await Job.findByPk(id);
 
   if (!data) {
     ctx.status = 404;
@@ -225,7 +220,7 @@ router.delete('/api/v1/job/:name', SessionMiddleware, async (ctx) => {
   });
   const rpcClient = new FederationClient(ticket.federation);
   try {
-    await rpcClient.deleteJob({ name });
+    await rpcClient.deleteJob({ name: data.name });
   } catch (err) {
     ctx.status = 500;
     ctx.body = {
