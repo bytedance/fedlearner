@@ -1,6 +1,15 @@
 const assert = require('assert');
 const lodash = require('lodash');
-const path = require('path');
+
+function joinPath(base, ...rest) {
+  const list = [base.replace(/\/$/, '')];
+
+  rest.forEach((p) => {
+    list.push(p.replace(/(^\/)|(\/$)/g, ''));
+  });
+
+  return list.join('/');
+}
 
 const permittedJobEnvs = {
   data_join: [
@@ -135,7 +144,7 @@ function generateYaml(federation, job, job_params, ticket) {
               { name: 'APPLICATION_ID', value: job.name },
               {
                 name: 'OUTPUT_BASE_DIR',
-                value: path.join(k8s_settings.storage_root_path, 'job_output', job.name)
+                value: joinPath(k8s_settings.storage_root_path, 'job_output', job.name)
               },
             ],
             imagePullPolicy: 'IfNotPresent',
@@ -189,10 +198,9 @@ function portalGenerateYaml(federation, raw_data) {
     spec: {
       role: 'Follower',
       peerSpecs: {
-        Leader : {
+        Leader: {
           peerURL: '',
           authority: '',
-          extraHeaders: '',
         },
       },
     },
@@ -216,9 +224,9 @@ function portalGenerateYaml(federation, raw_data) {
             { name: 'APPLICATION_ID', value: raw_data.name },
             { name: 'DATA_PORTAL_NAME', value: raw_data.name },
             { name: 'OUTPUT_PARTITION_NUM', value: String(raw_data.output_partition_num) },
-            { name: 'INPUT_BASE_DIR', value: path.join(k8s_settings.storage_root_path, raw_data.input) },
-            { name: 'OUTPUT_BASE_DIR', value: path.join(k8s_settings.storage_root_path, 'data_portal_output', raw_data.name) },
-            { name: 'RAW_DATA_PUBLISH_DIR', value: path.join('portal_publish_dir', raw_data.name) },
+            { name: 'INPUT_BASE_DIR', value: raw_data.input },
+            { name: 'OUTPUT_BASE_DIR', value: joinPath(k8s_settings.storage_root_path, 'data_portal_output', raw_data.name) },
+            { name: 'RAW_DATA_PUBLISH_DIR', value: joinPath('portal_publish_dir', raw_data.name) },
             { name: 'DATA_PORTAL_TYPE', value: raw_data.data_portal_type },
             { name: 'FILE_WILDCARD', value: raw_data.context.file_wildcard },
           ],

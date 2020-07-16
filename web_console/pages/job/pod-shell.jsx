@@ -27,12 +27,12 @@ function PodShell({ query }) {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    if (!query.name || !query.container) {
+    if (!query.name) {
       setLoading(false);
       setError(errorMsg);
       return;
     }
-    fetcher(`job/pod/${query.name}/${query.container}`)
+    fetcher(`job/pod/${query.name}/container`)
       .then((res) => {
         setLoading(false);
         if (!res.data) {

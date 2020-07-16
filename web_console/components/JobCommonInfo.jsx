@@ -9,6 +9,23 @@ import Layout from './Layout';
 import Dot from './Dot';
 import Empty from './Empty';
 
+const parsePods = (PodStatus) => {
+  const list = [];
+  Object.keys(PodStatus).forEach((type) => {
+    ['active', 'succeeded', 'failed'].forEach((status) => {
+      const pods = PodStatus[type][status];
+      Object.keys(pods).forEach((name) => {
+        list.push({
+          type,
+          status,
+          name,
+        })
+      })
+    })
+  })
+  return list;
+}
+
 export const jsonHandledPopover = (json, length = 30) => {
   if (!json) return '-';
   const str = JSON.stringify(json, null, 2).replace(/(^")|("$)/g, '');
@@ -61,47 +78,44 @@ export default function JobCommonInfo(props) {
 
   const job = props.job;
 
-  const { data: podsData } = useSWR(`job/${job && job.localdata?.k8s_name}/pods`, fetcher);
-  const pods = podsData ? podsData.data : null;
+  const pods = useMemo(() => {
+    if (!job || !job.status || !job.status.flReplicaStatus) {
+      return null;
+    }
+    return parsePods(job.status.flReplicaStatus);
+  }, [job]);
 
   const {
     data: logsData,
     error: logsError,
     isValidating: logsIsValidating,
-  } = useSWR(`job/${job && job.localdata?.k8s_name}/logs?start_time=${new Date(job && job.metadata?.creationTimestamp).getTime()}`, fetcher);
-  const logs = job && job.localdata?.k8s_name
+  } = useSWR(`job/${job && job.localdata?.name}/logs?start_time=${new Date(job && job.metadata?.creationTimestamp).getTime()}`, fetcher);
+  const logs = job && job.localdata?.submited !== false
     ? (logsData && logsData.data) ? logsData.data : ['logs error ' + (logsData?.error || logsError?.message)]
     : null;
 
   const tableData = useMemo(() => {
     if (pods) {
       return pods.map((item) => ({
-        status: item.status.phase,
-        pod: item.metadata.name.replace(`${
-            item.metadata.labels['app-name']
+        status: item.status,
+        pod: item.name.replace(`${
+            job.localdata?.name
           }-${
-            item.metadata.labels.role
+            job.spec?.role.toLowerCase()
           }-${
-            item.metadata.labels['fl-replica-type']
-          }-${
-            item.metadata.labels['fl-replica-index']
+            item.type.toLowerCase()
           }-`, ''),
-        type: item.metadata.labels['fl-replica-type'],
-        startupTime: item.metadata.creationTimestamp,
+        type: item.type,
         link: (
           <>
             {
-              item.status.phase === 'Running'
+              item.status === 'active'
               ? (
                 <Link
                   color
                   style={{ marginRight: 10 }}
                   target="_blank"
-                  href={`/job/pod-shell?name=${item.metadata.name}&container=${
-                    item.status.containerStatuses && item.status.containerStatuses.length
-                      ? item.status.containerStatuses[0].name
-                      : ''
-                  }`}
+                  href={`/job/pod-shell?name=${item.name}`}
                 >
                   Shell
                 </Link>
@@ -111,7 +125,7 @@ export default function JobCommonInfo(props) {
             <Link
               color
               target="_blank"
-              href={`/job/pod-log?name=${item.metadata.name}&time=${new Date(item.metadata.creationTimestamp).getTime()}`}
+              href={`/job/pod-log?name=${item.name}&time=${new Date(job.metadata?.creationTimestamp).getTime()}`}
             >
               Log
             </Link>
@@ -173,7 +187,6 @@ export default function JobCommonInfo(props) {
                 <Table.Column prop="status" label="status" />
                 <Table.Column prop="pod" label="pod" />
                 <Table.Column prop="type" label="type" />
-                <Table.Column prop="startupTime" label="start-up time" />
                 <Table.Column prop="link" label="link" />
               </Table>
               {

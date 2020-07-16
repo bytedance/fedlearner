@@ -59,10 +59,10 @@ module.exports = (sequelize, DataTypes) => {
       allowNull: true,
       default: null,
     },
-    k8s_name: {
-      type: DataTypes.STRING(200),
+    submited: {
+      type: DataTypes.BOOLEAN,
       allowNull: true,
-      default: null,
+      default: false,
     },
   }, {
     tableName: 'raw_datas',
