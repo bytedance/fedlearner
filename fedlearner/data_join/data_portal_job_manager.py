@@ -305,7 +305,7 @@ class DataPortalJobManager(object):
         self._processing_job = None
         self._job_part_map = {}
         portal_mainifest = self._sync_portal_manifest()
-        if portal_mainifest.processing_job_id > 0:
+        if portal_mainifest.processing_job_id >= 0:
             self._publish_raw_data(portal_mainifest.processing_job_id)
             new_portal_manifest = dp_pb.DataPortalManifest()
             new_portal_manifest.MergeFrom(self._sync_portal_manifest())
@@ -350,8 +350,10 @@ class DataPortalJobManager(object):
                 )
         for partition_id in range(self._output_partition_num):
             dpath = path.join(output_dir, common.partition_repr(partition_id))
-            fnames = [f for f in gfile.ListDirectory(dpath)
-                      if f.endswith(common.RawDataFileSuffix)]
+            fnames = []
+            if gfile.Exists(dpath) and gfile.IsDirectory(dpath):
+                fnames = [f for f in gfile.ListDirectory(dpath)
+                          if f.endswith(common.RawDataFileSuffix)]
             if portal_manifest.data_portal_type == dp_pb.DataPortalType.PSI:
                 self._publish_psi_raw_data(partition_id, dpath, fnames)
             else:
