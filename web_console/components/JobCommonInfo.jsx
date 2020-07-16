@@ -4,15 +4,21 @@ import { Table, Link, Text, Card, Description, Popover, useTheme } from '@zeit-u
 import useSWR from 'swr';
 
 import { fetcher } from '../libs/http';
-import { getStatusColor, handleStatus } from '../utils/job';
+import { getStatusColor, handleStatus, FLAppStatus } from '../utils/job';
 import Layout from './Layout';
 import Dot from './Dot';
 import Empty from './Empty';
 
+const podStatus = {
+  active: 'active',
+  succeeded: 'succeeded',
+  failed: 'failed',
+};
+
 const parsePods = (PodStatus) => {
   const list = [];
   Object.keys(PodStatus).forEach((type) => {
-    ['active', 'succeeded', 'failed'].forEach((status) => {
+    Object.values(podStatus).forEach((status) => {
       const pods = PodStatus[type][status];
       Object.keys(pods).forEach((name) => {
         list.push({
@@ -109,7 +115,7 @@ export default function JobCommonInfo(props) {
         link: (
           <>
             {
-              item.status === 'active'
+              job.status?.appState === FLAppStatus.Running && item.status === podStatus.active
               ? (
                 <Link
                   color

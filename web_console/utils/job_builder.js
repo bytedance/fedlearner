@@ -225,7 +225,7 @@ function portalGenerateYaml(federation, raw_data) {
             { name: 'DATA_PORTAL_NAME', value: raw_data.name },
             { name: 'OUTPUT_PARTITION_NUM', value: String(raw_data.output_partition_num) },
             { name: 'INPUT_BASE_DIR', value: raw_data.input },
-            { name: 'OUTPUT_BASE_DIR', value: joinPath(k8s_settings.storage_root_path, 'data_portal_output', raw_data.name) },
+            { name: 'OUTPUT_BASE_DIR', value: joinPath(k8s_settings.storage_root_path, 'data_portal_output') },
             { name: 'RAW_DATA_PUBLISH_DIR', value: joinPath('portal_publish_dir', raw_data.name) },
             { name: 'DATA_PORTAL_TYPE', value: raw_data.data_portal_type },
             { name: 'FILE_WILDCARD', value: raw_data.context.file_wildcard },
