@@ -306,6 +306,7 @@ class DataPortalJobManager(object):
         self._job_part_map = {}
         portal_mainifest = self._sync_portal_manifest()
         if portal_mainifest.processing_job_id > 0:
+            self._publish_raw_data(portal_mainifest.processing_job_id)
             new_portal_manifest = dp_pb.DataPortalManifest()
             new_portal_manifest.MergeFrom(self._sync_portal_manifest())
             new_portal_manifest.processing_job_id = -1
