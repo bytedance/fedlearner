@@ -290,8 +290,6 @@ class RawDataPartitioner(object):
                     logging.info("consumed %d items", next_index-1)
                     self._wakeup_raw_data_fetcher()
             elif not fetch_finished:
-                hint_index = self._evict_staless_batch(hint_index,
-                                                       next_index-1)
                 with self._cond:
                     self._cond.wait(1)
         self._finish_file_writers()
