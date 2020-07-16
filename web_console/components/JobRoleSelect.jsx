@@ -3,8 +3,8 @@ import { Select } from '@zeit-ui/react';
 
 export default function JobRoleSelect(props) {
   const options = [
-    { label: 'Leader', value: 'leader' },
-    { label: 'Follower', value: 'follower' },
+    { label: 'Leader', value: 'Leader' },
+    { label: 'Follower', value: 'Follower' },
   ];
   return (
     <Select {...props}>

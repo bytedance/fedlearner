@@ -232,6 +232,7 @@ router.delete('/api/v1/job/:id', SessionMiddleware, async (ctx) => {
     where: {
       name: { [Op.eq]: data.client_ticket_name },
     },
+    include: 'federation',
   });
   const rpcClient = new FederationClient(ticket.federation);
   try {
@@ -244,7 +245,7 @@ router.delete('/api/v1/job/:id', SessionMiddleware, async (ctx) => {
     return;
   }
   await k8s.deleteFLApp(namespace, data.name);
-  await data.destroy();
+  await data.destroy({ force: true });
 
   ctx.body = { data };
 });

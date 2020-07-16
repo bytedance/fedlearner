@@ -85,14 +85,13 @@ function JobList(props) {
   const [federationId, setFederationId] = useState(null);
   const fields = [
     { key: 'name', required: true },
-    { key: 'job_type', type: 'jobType', required: true },
+    { key: 'job_type', type: 'jobType', required: true, span: 12 },
     { key: 'client_ticket_name', type: 'clientTicket', label: 'client_ticket', required: true },
     {
       key: 'federation_id',
       type: 'federation',
       label: 'federation',
       required: true,
-      span: 12,
       onChange: value => setFederationId(value),
     },
     {
@@ -100,7 +99,6 @@ function JobList(props) {
       type: 'serverTicket',
       label: 'server_ticket',
       required: true,
-      span: 12,
       props: {
         federation_id: federationId,
       },
@@ -245,12 +243,12 @@ function JobList(props) {
                                                   >
                                                     <Link color>View Detail</Link>
                                                   </NextLink>
-                                                  {/* <PopConfirm
+                                                  <PopConfirm
                                                     onConfirm={() => deleteJob(item.localdata.id)}
                                                     onOk={() => mutate({ data: jobs.filter((i) => i !== item) })}
                                                   >
                                                     <Text className="actionText" type="error">Delete</Text>
-                                                  </PopConfirm> */}
+                                                  </PopConfirm>
                                                 </>
                                               )}
                                             />

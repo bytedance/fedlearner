@@ -1,9 +1,13 @@
 import React from 'react';
 import css from 'styled-jsx/css';
-import { Button, Text, Link, useTheme } from '@zeit-ui/react';
+import { useRouter } from 'next/router';
+import useSWR from 'swr';
+import { Button, Card, Text, Link, useTheme } from '@zeit-ui/react';
+import FolderPlusIcon from '@zeit-ui/react-icons/folderPlus';
+import { fetcher } from '../libs/http';
 import Layout from '../components/Layout';
 import EventListItem from '../components/EventListItem';
-import TicketCard from '../components/TicketCard';
+import JobCard from '../components/JobCard';
 
 function useStyles(theme) {
   return css`
@@ -19,8 +23,25 @@ function useStyles(theme) {
       margin-bottom: ${theme.layout.pageMargin};
     }
 
-    .tasks {
+    .jobs {
       width: 100%;
+    }
+
+    .createJobContainer {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      margin: 8px !important;
+      min-height: 135px;
+      border: 1px dashed #000;
+      border-radius: 8px;
+    }
+
+    .createJobContainer span {
+      margin-top: 10px;
+      font-size: 14px;
+      line-height: 24px;
     }
 
     .activity {
@@ -33,7 +54,7 @@ function useStyles(theme) {
         flex-wrap: wrap;
       }
 
-      .tasks {
+      .jobs {
         width: 540px;
         max-width: 100%;
         margin-right: 80px;
@@ -45,41 +66,32 @@ function useStyles(theme) {
 export default function Overview() {
   const theme = useTheme();
   const styles = useStyles(theme);
+  const router = useRouter();
+  const { data } = useSWR('jobs', fetcher);
+  const jobs = data ? data.data : [];
+  const goToJob = () => router.push('/job');
   return (
     <Layout>
       <div className="heading">
         <Text h2>Pending Jobs</Text>
-        <Button auto type="secondary">Create Job</Button>
+        <Button auto type="secondary" onClick={goToJob}>Create Job</Button>
       </div>
       <div className="row">
-        <div className="tasks">
-          <TicketCard
-            name="618 Game Ads LTV"
-            type="training"
-            state="error"
-            stages={[
-              { state: 'success', message: 'ByteDance validation passed', overhead: '1m' },
-              { state: 'success', message: 'JD validation passed', overhead: '1m' },
-              { state: 'success', message: '1st data block training', overhead: '10m' },
-              { state: 'error', message: '2nd data block training', overhead: '30m' },
-            ]}
-            progress={61.8}
-          />
-          <TicketCard
-            name="618 Game Payment Join"
-            type="data_join_psi"
-            state="success"
-            stages={[
-              { state: 'success', message: 'ByteDance validation passed', overhead: '1m' },
-              { state: 'success', message: 'JD validation passed', overhead: '10m' },
-              { state: 'success', message: 'All data blocks joined', overhead: '12h' },
-            ]}
-            progress={100}
-            style={{ marginTop: theme.layout.pageMargin }}
-          />
-          <Text>
-            <Link className="colorLink" href="/tasks" color>View All Tasks</Link>
-          </Text>
+        <div className="jobs">
+          {jobs.length > 0 && jobs.map((x) => <JobCard key={x.localdata.id} job={x} />)}
+          {jobs.length > 0 && (
+            <Text>
+              <Link className="colorLink" href="/job" color>View All Jobs</Link>
+            </Text>
+          )}
+          {jobs.length === 0 && (
+            <Card shadow style={{ cursor: 'pointer' }} onClick={goToJob}>
+              <div className="createJobContainer">
+                <FolderPlusIcon size={28} />
+                <span>Create Job</span>
+              </div>
+            </Card>
+          )}
         </div>
         <div className="activity">
           <Text h4>Recent Activity</Text>
@@ -90,7 +102,7 @@ export default function Overview() {
             fclh created <Text small>data_join_psi</Text> ticket with <Text b>JD</Text>
           </EventListItem>
           <Text>
-            <Link className="colorLink" href="/activity" color>View All Activity</Link>
+            <Link className="colorLink" href="#" color>View All Activity</Link>
           </Text>
         </div>
       </div>
