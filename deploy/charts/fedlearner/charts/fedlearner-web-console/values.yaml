@@ -76,4 +76,5 @@ cluster:
     DB_PASSWORD: fedlearner
     DB_HOST: fedlearner-stack-mariadb
     DB_PORT: 3306
+    DB_SYNC: true
     GRPC_AUTHORITY: ""
