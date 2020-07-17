@@ -35,7 +35,7 @@ module.exports = (sequelize, DataTypes) => {
     },
     output: {
       type: DataTypes.STRING(2083),
-      allowNull: false,
+      allowNull: true,
       comment: 'root URI of data portal output',
     },
     output_partition_num: {
