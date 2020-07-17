@@ -5,6 +5,7 @@ const { Op } = require('sequelize');
 const { Federation, Job, Ticket } = require('../models');
 const k8s = require('../libs/k8s');
 const { serverGenerateYaml, validateTicket } = require('../utils/job_builder');
+const parseStream = require('../utils/parse_stream');
 
 const packageDefinition = protoLoader.loadSync(
   path.resolve(__dirname, 'meta.proto'),
@@ -99,13 +100,17 @@ async function createJob(call, callback) {
         server_ticket_name,
         server_params: JSON.parse(server_params),
         client_params: JSON.parse(client_params),
-        k8s_name: name,
       },
     });
     if (!created) throw new Error('Job already exists');
     job = data;
 
-    await k8s.createFLApp('default', serverGenerateYaml(federation, job, ticketRecord));
+    try {
+      await k8s.createFLApp('default', serverGenerateYaml(federation, job, ticketRecord));
+    } catch (e) {
+      const body = await parseStream(e.response.body);
+      throw new Error(body.error);
+    }
 
     callback(null, {
       data: {
@@ -134,7 +139,14 @@ async function deleteJob(call, callback) {
       },
     });
     if (!job) throw new Error('Job not found');
-    await k8s.deleteFLApp('default', job.k8s_name);
+
+    try {
+      await k8s.deleteFLApp('default', job.name);
+    } catch (e) {
+      const body = await parseStream(e.response.body);
+      throw new Error(body.error);
+    }
+
     await job.destroy({ force: true });
     callback(null, { message: 'Delete job successfully' });
   } catch (err) {
