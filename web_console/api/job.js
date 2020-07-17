@@ -8,7 +8,6 @@ const FederationClient = require('../rpc/client');
 const getConfig = require('../utils/get_confg');
 const checkParseJson = require('../utils/check_parse_json');
 const { clientValidateJob, clientGenerateYaml } = require('../utils/job_builder');
-const parseStream = require('../utils/parse_stream');
 
 const config = getConfig({
   NAMESPACE: process.env.NAMESPACE,
@@ -24,17 +23,12 @@ router.get('/api/v1/jobs', SessionMiddleware, async (ctx) => {
   const jobs = await Job.findAll({
     order: [['created_at', 'DESC']],
   });
-  try {
-    const { flapps } = await k8s.getFLAppsByNamespace(namespace);
-    const data = jobs.map((job) => ({
-      ...(flapps.items.find((item) => item.metadata.name === job.name)),
-      localdata: job,
-    }));
-    ctx.body = { data };
-  } catch (e) {
-    ctx.status = 400;
-    ctx.body = await parseStream(e.response.body);
-  }
+  const { flapps } = await k8s.getFLAppsByNamespace(namespace);
+  const data = jobs.map((job) => ({
+    ...(flapps.items.find((item) => item.metadata.name === job.name)),
+    localdata: job,
+  }));
+  ctx.body = { data };
 });
 
 router.get('/api/v1/job/:id', SessionMiddleware, async (ctx) => {
@@ -47,29 +41,19 @@ router.get('/api/v1/job/:id', SessionMiddleware, async (ctx) => {
     };
     return;
   }
-  try {
-    const { flapp } = await k8s.getFLApp(namespace, job.name);
-    ctx.body = {
-      data: {
-        ...flapp,
-        localdata: job,
-      },
-    };
-  } catch (e) {
-    ctx.status = 400;
-    ctx.body = await parseStream(e.response.body);
-  }
+  const { flapp } = await k8s.getFLApp(namespace, job.name);
+  ctx.body = {
+    data: {
+      ...flapp,
+      localdata: job,
+    },
+  };
 });
 
 router.get('/api/v1/job/:k8s_name/pods', SessionMiddleware, async (ctx) => {
   const { k8s_name } = ctx.params;
-  try {
-    const { pods } = await k8s.getFLAppPods(namespace, k8s_name);
-    ctx.body = { data: pods.items };
-  } catch (e) {
-    ctx.status = 400;
-    ctx.body = await parseStream(e.response.body);
-  }
+  const { pods } = await k8s.getFLAppPods(namespace, k8s_name);
+  ctx.body = { data: pods.items };
 });
 
 router.get('/api/v1/job/:k8s_name/logs', SessionMiddleware, async (ctx) => {
@@ -90,14 +74,9 @@ router.get('/api/v1/job/:k8s_name/logs', SessionMiddleware, async (ctx) => {
 
 router.get('/api/v1/job/pod/:pod_name/container', SessionMiddleware, async (ctx) => {
   const { pod_name } = ctx.params;
-  try {
-    const base = k8s.getBaseUrl();
-    const { id } = await k8s.getWebshellSession(namespace, pod_name, 'tensorflow');
-    ctx.body = { data: { id, base } };
-  } catch (e) {
-    ctx.status = 400;
-    ctx.body = await parseStream(e.response.body);
-  }
+  const base = k8s.getBaseUrl();
+  const { id } = await k8s.getWebshellSession(namespace, pod_name, 'tensorflow');
+  ctx.body = { data: { id, base } };
 });
 
 router.get('/api/v1/job/pod/:pod_name/logs', SessionMiddleware, async (ctx) => {
@@ -205,13 +184,7 @@ router.post('/api/v1/job', SessionMiddleware, async (ctx) => {
 
   const clientYaml = clientGenerateYaml(clientFed, job, clientTicket);
 
-  try {
-    await k8s.createFLApp(namespace, clientYaml);
-  } catch (e) {
-    ctx.status = 400;
-    ctx.body = await parseStream(e.response.body);
-    return;
-  }
+  await k8s.createFLApp(namespace, clientYaml);
 
   const [data, created] = await Job.findOrCreate({
     paranoid: false,
@@ -263,15 +236,7 @@ router.delete('/api/v1/job/:id', SessionMiddleware, async (ctx) => {
     };
     return;
   }
-
-  try {
-    await k8s.deleteFLApp(namespace, data.name);
-  } catch (e) {
-    ctx.status = 400;
-    ctx.body = await parseStream(e.response.body);
-    return;
-  }
-
+  await k8s.deleteFLApp(namespace, data.name);
   await data.destroy();
 
   ctx.body = { data };

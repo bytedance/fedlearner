@@ -6,7 +6,6 @@ const k8s = require('../libs/k8s');
 const getConfig = require('../utils/get_confg');
 const { RawData, Federation } = require('../models');
 const { portalGenerateYaml } = require('../utils/job_builder');
-const parseStream = require('../utils/parse_stream');
 
 const config = getConfig({
   NAMESPACE: process.env.NAMESPACE,
@@ -32,13 +31,7 @@ router.get('/api/v1/raw_data/:id', SessionMiddleware, async (ctx) => {
   }
   let flapp = {};
   if (rawData.submited) {
-    try {
-      flapp = (await k8s.getFLApp(namespace, rawData.name)).flapp;
-    } catch (e) {
-      ctx.status = 400;
-      ctx.body = await parseStream(e.response.body);
-      return;
-    }
+    flapp = (await k8s.getFLApp(namespace, rawData.name)).flapp;
   }
   ctx.body = {
     data: {
@@ -141,13 +134,7 @@ router.post('/api/v1/raw_data/:id/submit', SessionMiddleware, async (ctx) => {
 
   const yaml = portalGenerateYaml(rawData.federation, rawData);
 
-  try {
-    await k8s.createFLApp(namespace, yaml);
-  } catch (e) {
-    ctx.status = 400;
-    ctx.body = await parseStream(e.response.body);
-    return;
-  }
+  await k8s.createFLApp(namespace, yaml);
 
   rawData.submited = true;
 
@@ -175,13 +162,7 @@ router.post('/api/v1/raw_data/:id/delete_job', SessionMiddleware, async (ctx) =>
     return;
   }
 
-  try {
-    await k8s.deleteFLApp(namespace, rawData.name);
-  } catch (e) {
-    ctx.status = 400;
-    ctx.body = await parseStream(e.response.body);
-    return;
-  }
+  await k8s.deleteFLApp(namespace, rawData.name);
 
   rawData.submited = false;
 
@@ -204,13 +185,7 @@ router.delete('/api/v1/raw_data/:id', SessionMiddleware, async (ctx) => {
   }
 
   if (data.submited) {
-    try {
-      await k8s.deleteFLApp(namespace, data.name);
-    } catch (e) {
-      ctx.status = 400;
-      ctx.body = await parseStream(e.response.body);
-      return;
-    }
+    await k8s.deleteFLApp(namespace, data.name);
   }
 
   await data.destroy();
