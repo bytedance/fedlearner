@@ -99,7 +99,6 @@ async function createJob(call, callback) {
         server_ticket_name,
         server_params: JSON.parse(server_params),
         client_params: JSON.parse(client_params),
-        k8s_name: name,
       },
     });
     if (!created) throw new Error('Job already exists');
@@ -134,7 +133,7 @@ async function deleteJob(call, callback) {
       },
     });
     if (!job) throw new Error('Job not found');
-    await k8s.deleteFLApp('default', job.k8s_name);
+    await k8s.deleteFLApp('default', job.name);
     await job.destroy({ force: true });
     callback(null, { message: 'Delete job successfully' });
   } catch (err) {

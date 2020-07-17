@@ -66,15 +66,15 @@ export default function RawDataJob() {
         content={jsonHandledPopover(rawData?.localdata?.data_portal_type)}
       />
       <Description
-        title="Input"
+        title="Input Base Dir"
         style={{ width: 220 }}
         content={jsonHandledPopover(rawData?.localdata?.input, 22)}
       />
-      <Description
+      {/* <Description
         title="Output"
         style={{ width: 220 }}
         content={jsonHandledPopover(rawData?.localdata?.output, 22)}
-      />
+      /> */}
       <Description
         title="Context"
         style={{ width: 220 }}

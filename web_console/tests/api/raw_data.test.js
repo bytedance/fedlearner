@@ -95,7 +95,6 @@ describe('RawData System', () => {
         .end((err, res) => {
           if (err) done(err);
           assert.strictEqual(res.body.data.name, raw_data.name);
-          assert.ok(res.body.data.localdata.k8s_name);
           done();
         });
     });

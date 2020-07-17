@@ -5,6 +5,7 @@
 const ky = require('ky-universal');
 
 const getConfig = require('../utils/get_confg');
+const parseStream = require('../utils/parse_stream');
 
 const config = getConfig({
   K8S_HOST: process.env.K8S_HOST,
@@ -15,7 +16,25 @@ class KubernetesClient {
   constructor() {
     const prefixUrl = `http://${config.K8S_HOST}:${config.K8S_PORT}`;
     this.prefixUrl = prefixUrl;
-    this.client = ky.create({ prefixUrl });
+    this.client = ky.create({
+      prefixUrl,
+      hooks: {
+        afterResponse: [
+          async (_request, _options, response) => {
+            if (response.status >= 400) {
+              const body = await parseStream(response.body);
+              if (body && body.error) {
+                return new Response(response.body, {
+                  status: response.status,
+                  statusText: body.error,
+                })
+              }
+            }
+            return response;
+          },
+        ],
+      },
+    });
   }
 
   getBaseUrl() {
