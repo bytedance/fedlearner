@@ -236,7 +236,7 @@ describe('portalGenerateYaml', () => {
       name: 'test_data_portal',
       output_partition_num: 2,
       data_portal_type: 'Streaming',
-      input: 'criteo_data/100wexamples',
+      input: '/data/criteo_data/100wexamples',
       output: '/data/portal_output', // TODO DEPRECATED for for shilei
       context: {
         file_wildcard: '*.rd',
@@ -421,7 +421,6 @@ describe('DataJoinGenerateYaml', () => {
                 spec: {
                   containers: [{
                     env: [
-                      { name: 'DATA_SOURCE_NAME', value: 'test_data_join' },
                       { name: 'PARTITION_NUM', value: '2' },
                       { name: 'START_TIME', value: '0' },
                       { name: 'END_TIME', value: '999999999999' },

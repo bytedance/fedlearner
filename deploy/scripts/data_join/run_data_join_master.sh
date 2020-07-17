@@ -20,7 +20,7 @@ export CUDA_VISIBLE_DEVICES=
 source /app/deploy/scripts/hdfs_common.sh || true
 
 python -m fedlearner.data_join.cmd.prepare_launch_data_join_cli \
-    --data_source_name=$DATA_SOURCE_NAME \
+    --data_source_name=$APPLICATION_ID \
     --partition_num=$PARTITION_NUM \
     --start_time=$START_TIME \
     --end_time=$END_TIME \
@@ -38,4 +38,4 @@ python -m fedlearner.data_join.cmd.data_join_master_service \
     --etcd_addrs=$ETCD_ADDR \
     --etcd_base_dir=$ETCD_BASE_DIR \
     --listen_port=50051 \
-    --data_source_name=$DATA_SOURCE_NAME
+    --data_source_name=$APPLICATION_ID
