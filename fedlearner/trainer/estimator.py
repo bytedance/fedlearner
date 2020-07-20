@@ -254,10 +254,9 @@ class FLEstimator(object):
                         sess.run(spec.train_op, feed_dict={})
                         end_time = time.time()
                         metrics.emit_timer(
-                            name="per_run_spend",
+                            name="per_iter_spend",
                             value=end_time-start_time,
-                            tags={
-                                "role": self._role})
+                            tags={})
                         logging.debug('after session run.')
                         self._bridge.commit()
                         logging.debug('after bridge commit.')
