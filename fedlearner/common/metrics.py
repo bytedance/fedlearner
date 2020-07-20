@@ -99,7 +99,6 @@ class elasticSearchHandler(Handler):
 class Metrics(object):
     def __init__(self):
         self.handlers = []
-        self._role = os.environ.get("ES_ROLE", "None")
 
     def addHandler(self, hdlr):
         """
@@ -124,7 +123,6 @@ class Metrics(object):
             _releaseLock()
 
     def emit(self, name, value, tags=None, metrics_type=None):
-        tags["role"] = self._role
         if not self.handlers or len(self.handlers) == 0:
             print('no handlers. do nothing.')
             return
