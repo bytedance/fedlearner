@@ -188,8 +188,7 @@ class Bridge(object):
                         metrics.emit_store(
                             name="send_msg_seq_num",
                             value=int(item.seq_num),
-                            tags={
-                                "role": self._role})
+                            tags={})
                         yield item
                     while True:
                         item = self._transmit_queue.get()
@@ -200,8 +199,7 @@ class Bridge(object):
                         metrics.emit_store(
                             name="send_resend_msg_seq_num",
                             value=int(item.seq_num),
-                            tags={
-                                "role": self._role})
+                            tags={})
                         yield item
 
                 time_start = time.time()
@@ -210,8 +208,7 @@ class Bridge(object):
                 metrics.emit_timer(
                     name="one_StreamTransmit_spend",
                     value=int(time_end-time_start),
-                    tags={
-                        "role": self._role})
+                    tags={})
                 for response in generator:
                     if response.status.code == common_pb.STATUS_SUCCESS:
                         logging.debug("Message with seq_num=%d is "
@@ -381,6 +378,7 @@ class Bridge(object):
             logging.warning("Heartbeat request failed: %s", repr(e))
             return False
 
+    @metrics.timer(func_name="connect", tags={})
     def connect(self):
         if self._connected:
             logging.warning("Bridge already connected!")
