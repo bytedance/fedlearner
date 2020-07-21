@@ -28,11 +28,11 @@ spec:
                   fieldRef:
                     fieldPath: metadata.name
               - name: ROLE
-                value: "follower"
+                value: "Follower"
               - name: APPLICATION_ID
                 value: test_data_join
               - name: OUTPUT_BASE_DIR
-                value: /data/data_join/job_output/test_data_join
+                value: /data/data_join/data_source/test_data_join
               - name: ETCD_NAME
                 value: data_join_etcd_name
               - name: ETCD_ADDR
@@ -96,11 +96,11 @@ spec:
                   fieldRef:
                     fieldPath: metadata.name
               - name: ROLE
-                value: "follower"
+                value: "Follower"
               - name: APPLICATION_ID
                 value: test_data_join
               - name: OUTPUT_BASE_DIR
-                value: /data/data_join/job_output/test_data_join
+                value: /data/data_join/data_source/test_data_join
               - name: ETCD_NAME
                 value: data_join_etcd_name
               - name: ETCD_ADDR
