@@ -12,28 +12,24 @@ const config = getConfig({
   K8S_PORT: process.env.K8S_PORT,
 });
 
+const parseErrorResponse = async (e) => {
+  if (e && e.response && e.response.body) {
+    const body = await parseStream(e.response.body);
+    if (body && body.error) {
+      const error = new Error(body.error);
+      error.status = e.response.status;
+      throw error;
+    }
+  }
+  throw e;
+}
+
 class KubernetesClient {
   constructor() {
     const prefixUrl = `http://${config.K8S_HOST}:${config.K8S_PORT}`;
     this.prefixUrl = prefixUrl;
     this.client = ky.create({
       prefixUrl,
-      hooks: {
-        afterResponse: [
-          async (_request, _options, response) => {
-            if (response.status >= 400) {
-              const body = await parseStream(response.body);
-              if (body && body.error) {
-                return new Response(response.body, {
-                  status: response.status,
-                  statusText: body.error,
-                })
-              }
-            }
-            return response;
-          },
-        ],
-      },
     });
   }
 
@@ -42,39 +38,44 @@ class KubernetesClient {
   }
 
   async getNamespaces() {
-    const response = await this.client.get('namespaces');
+    const response = await this.client.get('namespaces').catch(parseErrorResponse);
     return response.json();
   }
 
   async getFLAppsByNamespace(namespace) {
-    const response = await this.client.get(`namespaces/${namespace}/fedlearner/v1alpha1/flapps`);
+    const response = await this.client.get(`namespaces/${namespace}/fedlearner/v1alpha1/flapps`)
+      .catch(parseErrorResponse);
     return response.json();
   }
 
   async getFLApp(namespace, name) {
-    const response = await this.client.get(`namespaces/${namespace}/fedlearner/v1alpha1/flapps/${name}`);
+    const response = await this.client.get(`namespaces/${namespace}/fedlearner/v1alpha1/flapps/${name}`)
+      .catch(parseErrorResponse);
     return response.json();
   }
 
   async getFLAppPods(namespace, name) {
-    const response = await this.client.get(`namespaces/${namespace}/fedlearner/v1alpha1/flapps/${name}/pods`);
+    const response = await this.client.get(`namespaces/${namespace}/fedlearner/v1alpha1/flapps/${name}/pods`)
+      .catch(parseErrorResponse);
     return response.json();
   }
 
   async createFLApp(namespace, fl_app) {
     const response = await this.client.post(`namespaces/${namespace}/fedlearner/v1alpha1/flapps`, {
       json: fl_app
-    });
+    }).catch(parseErrorResponse);
     return response.json();
   }
 
   async deleteFLApp(namespace, name) {
-    const response = await this.client.delete(`namespaces/${namespace}/fedlearner/v1alpha1/flapps/${name}`);
+    const response = await this.client.delete(`namespaces/${namespace}/fedlearner/v1alpha1/flapps/${name}`)
+      .catch(parseErrorResponse);
     return response.json();
   }
 
   async getWebshellSession(namespace, name, container) {
-    const response = await this.client.get(`namespaces/${namespace}/pods/${name}/shell/${container}`);
+    const response = await this.client.get(`namespaces/${namespace}/pods/${name}/shell/${container}`)
+      .catch(parseErrorResponse);
     return response.json();
   }
 }
