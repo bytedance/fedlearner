@@ -30,7 +30,7 @@ router.get('/api/v1/raw_data/:id', SessionMiddleware, async (ctx) => {
     return;
   }
   let flapp = {};
-  if (rawData.submited) {
+  if (rawData.submitted) {
     flapp = (await k8s.getFLApp(namespace, rawData.name)).flapp;
   }
   ctx.body = {
@@ -42,7 +42,7 @@ router.get('/api/v1/raw_data/:id', SessionMiddleware, async (ctx) => {
 });
 
 router.post('/api/v1/raw_data', SessionMiddleware, async (ctx) => {
-  const { name, federation_id, input, output, comment, output_partition_num, data_portal_type } = ctx.request.body;
+  const { name, federation_id, input, output, remark, output_partition_num, data_portal_type } = ctx.request.body;
 
   if (!(/^[a-zA-Z\d-]+$/.test(name))) {
     ctx.status = 400;
@@ -77,7 +77,7 @@ router.post('/api/v1/raw_data', SessionMiddleware, async (ctx) => {
     return;
   }
 
-  const rawData = { name, federation_id, input, output, context, comment, output_partition_num, data_portal_type };
+  const rawData = { name, federation_id, input, output, context, remark, output_partition_num, data_portal_type };
 
   try {
     portalGenerateYaml(federation, rawData);
@@ -124,10 +124,10 @@ router.post('/api/v1/raw_data/:id/submit', SessionMiddleware, async (ctx) => {
     return;
   }
 
-  if (rawData.submited) {
+  if (rawData.submitted) {
     ctx.status = 400;
     ctx.body = {
-      error: 'RawData is submited',
+      error: 'RawData is submitted',
     };
     return;
   }
@@ -136,7 +136,7 @@ router.post('/api/v1/raw_data/:id/submit', SessionMiddleware, async (ctx) => {
 
   await k8s.createFLApp(namespace, yaml);
 
-  rawData.submited = true;
+  rawData.submitted = true;
 
   const data = await rawData.save();
 
@@ -154,17 +154,17 @@ router.post('/api/v1/raw_data/:id/delete_job', SessionMiddleware, async (ctx) =>
     return;
   }
 
-  if (!rawData.submited) {
+  if (!rawData.submitted) {
     ctx.status = 400;
     ctx.body = {
-      error: 'RawData is unsubmited',
+      error: 'RawData is unsubmitted',
     };
     return;
   }
 
   await k8s.deleteFLApp(namespace, rawData.name);
 
-  rawData.submited = false;
+  rawData.submitted = false;
 
   const data = await rawData.save();
 
@@ -184,7 +184,7 @@ router.delete('/api/v1/raw_data/:id', SessionMiddleware, async (ctx) => {
     return;
   }
 
-  if (data.submited) {
+  if (data.submitted) {
     await k8s.deleteFLApp(namespace, data.name);
   }
 

@@ -5,6 +5,7 @@ module.exports = (sequelize, DataTypes) => {
       allowNull: false,
       autoIncrement: true,
       primaryKey: true,
+      comment: 'id',
     },
     name: {
       type: DataTypes.STRING(200),
@@ -15,26 +16,20 @@ module.exports = (sequelize, DataTypes) => {
     user_id: {
       type: DataTypes.INTEGER,
       allowNull: false,
-      references: {
-        model: 'users',
-        key: 'id',
-      },
+      comment: 'users.id',
     },
     federation_id: {
       type: DataTypes.INTEGER,
       allowNull: false,
-      references: {
-        model: 'federations',
-        key: 'id',
-      },
+      comment: 'federations.id',
     },
     input: {
-      type: DataTypes.STRING(2083),
+      type: DataTypes.STRING(2048),
       allowNull: false,
       comment: 'root URI of data portal input',
     },
     output: {
-      type: DataTypes.STRING(2083),
+      type: DataTypes.STRING(2048),
       allowNull: true,
       comment: 'root URI of data portal output',
     },
@@ -46,7 +41,7 @@ module.exports = (sequelize, DataTypes) => {
     data_portal_type: {
       type: DataTypes.STRING(20),
       allowNull: false,
-      comment: 'data portal type',
+      comment: 'Streaming | PSI',
     },
     context: {
       type: DataTypes.TEXT('long'),
@@ -54,15 +49,17 @@ module.exports = (sequelize, DataTypes) => {
       default: null,
       comment: 'k8s YAML and job information',
     },
-    comment: {
+    remark: {
       type: DataTypes.TEXT,
       allowNull: true,
       default: null,
+      comment: 'remark',
     },
-    submited: {
+    submitted: {
       type: DataTypes.BOOLEAN,
       allowNull: true,
       default: false,
+      comment: 'whether job is submitted',
     },
   }, {
     tableName: 'raw_datas',

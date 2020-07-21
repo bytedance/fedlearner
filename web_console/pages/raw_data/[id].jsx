@@ -83,13 +83,13 @@ export default function RawDataJob() {
       <Description
         title="Comment"
         style={{ width: 220 }}
-        content={jsonHandledPopover(rawData?.localdata?.comment, 22)}
+        content={jsonHandledPopover(rawData?.localdata?.remark, 22)}
       />
       <Button
         auto
         size="small"
         onClick={submit}
-        disabled={!(rawData?.localdata?.id) || rawData?.localdata?.submited}
+        disabled={!(rawData?.localdata?.id) || rawData?.localdata?.submitted}
         loading={loading}
       >Submit Raw Data</Button>
       <Button
@@ -98,7 +98,7 @@ export default function RawDataJob() {
         size="small"
         type="warning"
         onClick={deleteJob}
-        disabled={!(rawData?.localdata?.id) || !(rawData?.localdata?.submited)}
+        disabled={!(rawData?.localdata?.id) || !(rawData?.localdata?.submitted)}
         loading={loading}
       >Delete Job</Button>
     </JobCommonInfo>
