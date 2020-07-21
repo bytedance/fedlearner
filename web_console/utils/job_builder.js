@@ -130,6 +130,15 @@ function generateYaml(federation, job, job_params, ticket) {
   yaml = mergeJson(yaml, ticket.public_params);
   yaml = mergeJson(yaml, ticket.private_params);
 
+  let output_base_dir;
+  if (job.job_type == 'data_join' || job.job_type == 'psi_data_join') {
+    output_base_dir = joinPath(
+      k8s_settings.storage_root_path, 'data_source', job.name);
+  } else {
+    output_base_dir = joinPath(
+      k8s_settings.storage_root_path, 'job_output', job.name);
+  }
+
   const replica_specs = yaml.spec.flReplicaSpecs;
   for (const key in replica_specs) {
     let base_spec = {
@@ -142,10 +151,7 @@ function generateYaml(federation, job, job_params, ticket) {
               { name: 'POD_NAME', valueFrom: { fieldRef: { fieldPath: 'metadata.name' } } },
               { name: 'ROLE', value: ticket.role },
               { name: 'APPLICATION_ID', value: job.name },
-              {
-                name: 'OUTPUT_BASE_DIR',
-                value: joinPath(k8s_settings.storage_root_path, 'job_output', job.name)
-              },
+              { name: 'OUTPUT_BASE_DIR', value: output_base_dir },
             ],
             imagePullPolicy: 'IfNotPresent',
             name: 'tensorflow',
@@ -206,11 +212,11 @@ function portalGenerateYaml(federation, raw_data) {
     },
   };
   yaml = mergeJson(yaml, k8s_settings.global_job_spec);
-
   yaml = mergeJson(yaml, raw_data.context.yaml_spec);
 
   let master_spec = yaml.spec.flReplicaSpecs.Master;
   master_spec = mergeJson(master_spec, k8s_settings.global_replica_spec);
+
   master_spec = mergeJson(master_spec, {
     pair: false,
     replicas: 1,

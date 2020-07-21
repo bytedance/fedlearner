@@ -28,7 +28,7 @@ spec:
                   fieldRef:
                     fieldPath: metadata.name
               - name: ROLE
-                value: "Follower"
+                value: "follower"
               - name: APPLICATION_ID
                 value: test_data_join
               - name: OUTPUT_BASE_DIR
@@ -43,8 +43,6 @@ spec:
                 value: fedlearner-stack-ingress-nginx-controller.default.svc.cluster.local:80
               - name: EGRESS_HOST
                 value: external.name
-              - name: DATA_SOURCE_NAME
-                value: test_data_join
               - name: PARTITION_NUM
                 value: "2"
               - name: START_TIME
@@ -98,7 +96,7 @@ spec:
                   fieldRef:
                     fieldPath: metadata.name
               - name: ROLE
-                value: "Follower"
+                value: "follower"
               - name: APPLICATION_ID
                 value: test_data_join
               - name: OUTPUT_BASE_DIR
