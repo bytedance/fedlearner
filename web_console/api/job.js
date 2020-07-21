@@ -61,7 +61,7 @@ router.get('/api/v1/job/:k8s_name/logs', SessionMiddleware, async (ctx) => {
     };
     return;
   }
-  const logs = await es.queryLog('filebeat-*', k8s_name, 'fedlearner-operator-*', start_time, Date.now());
+  const logs = await es.queryLog('filebeat-*', k8s_name, 'fedlearner-operator', start_time, Date.now());
 
   ctx.body = { data: logs };
 });
