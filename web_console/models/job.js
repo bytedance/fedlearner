@@ -5,11 +5,13 @@ module.exports = (sequelize, DataTypes) => {
       allowNull: false,
       autoIncrement: true,
       primaryKey: true,
+      comment: 'id',
     },
     name: {
       type: DataTypes.STRING(200),
       allowNull: false,
       unique: true,
+      comment: 'identifier of job',
     },
     job_type: {
       type: DataTypes.STRING(16),
@@ -19,25 +21,30 @@ module.exports = (sequelize, DataTypes) => {
     client_ticket_name: {
       type: DataTypes.STRING(200),
       allowNull: false,
+      comment: 'tickets.name',
     },
     server_ticket_name: {
       type: DataTypes.STRING(200),
       allowNull: false,
+      comment: 'tickets.name',
     },
     server_params: {
       type: DataTypes.TEXT('long'),
       allowNull: true,
       default: null,
+      comment: 'resource config of Kubernetes',
     },
     client_params: {
       type: DataTypes.TEXT('long'),
       allowNull: true,
       default: null,
+      comment: 'resource config of Kubernetes',
     },
     user_id: {
       type: DataTypes.INTEGER,
       allowNull: true,
       default: null,
+      comment: 'users.id',
     },
   }, {
     tableName: 'jobs',

@@ -5,27 +5,23 @@ module.exports = (sequelize, DataTypes) => {
       allowNull: false,
       autoIncrement: true,
       primaryKey: true,
+      comment: 'id',
     },
     name: {
       type: DataTypes.STRING(200),
       allowNull: false,
       unique: true,
+      comment: 'identifier of ticket',
     },
     federation_id: {
       type: DataTypes.INTEGER,
       allowNull: false,
-      references: {
-        model: 'federations',
-        key: 'id',
-      },
+      comment: 'federations.id',
     },
     user_id: {
       type: DataTypes.INTEGER,
       allowNull: false,
-      references: {
-        model: 'users',
-        key: 'id',
-      },
+      comment: 'users.id',
     },
     job_type: {
       type: DataTypes.STRING(16),
@@ -35,31 +31,36 @@ module.exports = (sequelize, DataTypes) => {
     role: {
       type: DataTypes.STRING(16),
       allowNull: false,
-      comment: 'leader | follower',
+      comment: 'Leader | Follower',
     },
     sdk_version: {
       type: DataTypes.STRING(64),
-      allowNull: false,
+      allowNull: true,
+      default: null,
       comment: 'docker image tag',
     },
     expire_time: {
       type: DataTypes.DATE,
       allowNull: true,
+      comment: 'time to revoke ticket',
     },
     remark: {
       type: DataTypes.TEXT,
       allowNull: true,
       default: null,
+      comment: 'remark',
     },
     public_params: {
       type: DataTypes.TEXT('long'),
       allowNull: true,
       default: null,
+      comment: 'public params of Kubernetes',
     },
     private_params: {
       type: DataTypes.TEXT('long'),
       allowNull: true,
       default: null,
+      comment: 'private params of Kubernetes',
     },
   }, {
     tableName: 'tickets',

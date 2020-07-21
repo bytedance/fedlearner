@@ -15,7 +15,7 @@ router.get('/api/v1/tickets', SessionMiddleware, async (ctx) => {
 router.post('/api/v1/tickets', SessionMiddleware, async (ctx) => {
   const {
     name, federation_id, job_type, role, sdk_version,
-    expire_time, comment, public_params, private_params,
+    expire_time, remark, public_params, private_params,
   } = ctx.request.body;
   const [data, created] = await Ticket.findOrCreate({
     paranoid: false,
@@ -24,7 +24,7 @@ router.post('/api/v1/tickets', SessionMiddleware, async (ctx) => {
     },
     defaults: {
       name, federation_id, job_type, role, sdk_version,
-      expire_time, comment, public_params, private_params,
+      expire_time, remark, public_params, private_params,
       user_id: ctx.session.user.id,
     },
   });

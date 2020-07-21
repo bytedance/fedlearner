@@ -96,7 +96,7 @@ export default function JobCommonInfo(props) {
     error: logsError,
     isValidating: logsIsValidating,
   } = useSWR(`job/${job && job.localdata?.name}/logs?start_time=${new Date(job && job.metadata?.creationTimestamp).getTime()}`, fetcher);
-  const logs = job && job.localdata?.submited !== false
+  const logs = job && job.localdata?.submitted !== false
     ? (logsData && logsData.data) ? logsData.data : ['logs error ' + (logsData?.error || logsError?.message)]
     : null;
 
@@ -104,29 +104,26 @@ export default function JobCommonInfo(props) {
     if (pods) {
       return pods.map((item) => ({
         status: item.status,
-        pod: item.name.replace(`${
-            job.localdata?.name
-          }-${
-            job.spec?.role.toLowerCase()
-          }-${
-            item.type.toLowerCase()
-          }-`, ''),
+        pod: item.name.replace(
+          `${job.localdata?.name}-${job.spec?.role.toLowerCase()}-${item.type.toLowerCase()}-`,
+          '',
+        ),
         type: item.type,
         link: (
           <>
             {
               job.status?.appState === FLAppStatus.Running && item.status === podStatus.active
-              ? (
-                <Link
-                  color
-                  style={{ marginRight: 10 }}
-                  target="_blank"
-                  href={`/job/pod-shell?name=${item.name}`}
-                >
-                  Shell
-                </Link>
-              )
-              : null
+                ? (
+                  <Link
+                    color
+                    style={{ marginRight: 10 }}
+                    target="_blank"
+                    href={`/job/pod-shell?name=${item.name}`}
+                  >
+                    Shell
+                  </Link>
+                )
+                : null
             }
             <Link
               color

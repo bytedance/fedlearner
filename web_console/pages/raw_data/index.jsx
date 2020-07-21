@@ -17,7 +17,7 @@ const fields = [
   { key: 'input', required: true, label: 'input_base_dir', props: { width: '95%' } },
   // { key: 'output', required: true, label: 'output_base_dir', props: { width: '95%' } },
   { key: 'context', required: true, type: 'json', span: 24 },
-  { key: 'comment', type: 'text', span: 24 },
+  { key: 'remark', type: 'text', span: 24 },
 ];
 
 export default function RawDataList() {

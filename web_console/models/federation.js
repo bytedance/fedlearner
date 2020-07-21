@@ -5,22 +5,25 @@ module.exports = (sequelize, DataTypes) => {
       allowNull: false,
       autoIncrement: true,
       primaryKey: true,
+      comment: 'id',
     },
     name: {
       type: DataTypes.STRING(200),
       allowNull: false,
       unique: true,
+      comment: 'identifier of federation',
     },
     trademark: {
       type: DataTypes.STRING(200),
       allowNull: true,
       default: null,
-      comment: 'display name of federation',
+      comment: 'legal name of federation',
     },
     email: {
       type: DataTypes.STRING(255),
       allowNull: true,
       default: null,
+      comment: 'email',
     },
     tel: {
       type: DataTypes.STRING(15),
@@ -37,7 +40,7 @@ module.exports = (sequelize, DataTypes) => {
     k8s_settings: {
       type: DataTypes.TEXT('long'),
       allowNull: false,
-      comment: 'settings for kubernetes cluster',
+      comment: 'settings of kubernetes cluster',
     },
   }, {
     tableName: 'federations',
