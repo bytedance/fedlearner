@@ -229,17 +229,14 @@ class DataPortalMaster(unittest.TestCase):
         for index, fpath in enumerate(fpaths):
             self.assertEqual(fpath, map_task.fpaths[index])
         self.assertEqual(map_task.output_base_dir,
-                         common.portal_map_output_dir(portal_manifest.output_base_dir,
-                                                      portal_manifest.name, 0))
+                         common.portal_map_output_dir(portal_manifest.output_base_dir, 0))
 
     def _check_reduce_task(self, reduce_task, partition_id, portal_manifest):
         self.assertEqual(reduce_task.partition_id, partition_id)
         self.assertEqual(reduce_task.map_base_dir,
-                         common.portal_map_output_dir(portal_manifest.output_base_dir,
-                                                      portal_manifest.name, 0))
+                         common.portal_map_output_dir(portal_manifest.output_base_dir, 0))
         self.assertEqual(reduce_task.reduce_base_dir,
-                         common.portal_reduce_output_dir(portal_manifest.output_base_dir,
-                                                         portal_manifest.name, 0))
+                         common.portal_reduce_output_dir(portal_manifest.output_base_dir, 0))
 
 
 if __name__ == '__main__':
