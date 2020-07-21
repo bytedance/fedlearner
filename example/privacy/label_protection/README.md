@@ -32,4 +32,4 @@ def gradient_masking(x):
     return x, grad_fn
 ```
 
-The above algorithm is patented. 
+We have filed a patent for the above algorithm on 6 July 2020. 
