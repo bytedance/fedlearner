@@ -97,7 +97,7 @@ router.post('/api/v1/raw_data', SessionMiddleware, async (ctx) => {
     defaults: {
       ...rawData,
       user_id: ctx.session.user.id,
-      submited: false,
+      submitted: false,
     },
   });
 
