@@ -48,6 +48,28 @@ func NewAppStatusUpdater(crdClient crdclientset.Interface, namespace string) Sta
 
 func (updater *appStatusUpdater) UpdateAppStateWithRetry(ctx context.Context, app *v1alpha1.FLApp, state v1alpha1.FLState) error {
 	updateFunc := func(flapp *v1alpha1.FLApp) bool {
+		for rtype, _ := range flapp.Status.FLReplicaStatus {
+			status := flapp.Status.FLReplicaStatus[rtype]
+			replicaStatus := status.DeepCopy()
+
+			pods := make([]string, 0)
+			for pod, _ := range replicaStatus.Active {
+				pods = append(pods, pod)
+			}
+
+			for _, pod := range pods {
+				switch state {
+				case v1alpha1.FLStateComplete:
+					replicaStatus.Active.Delete(pod)
+					replicaStatus.Succeeded.Insert(pod)
+				case v1alpha1.FLStateFailing:
+					replicaStatus.Active.Delete(pod)
+					replicaStatus.Failed.Insert(pod)
+				}
+			}
+			flapp.Status.FLReplicaStatus[rtype] = *replicaStatus
+		}
+
 		if flapp.Status.AppState == state {
 			return false
 		}
