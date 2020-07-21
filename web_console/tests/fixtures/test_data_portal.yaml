@@ -42,7 +42,7 @@ spec:
               - name: INPUT_BASE_DIR
                 value: /data/criteo_data/100wexamples
               - name: OUTPUT_BASE_DIR
-                value: /data/data_portal_output
+                value: /data/data_portal_output/test_data_portal
               - name: RAW_DATA_PUBLISH_DIR
                 value: portal_publish_dir/test_data_portal
               - name: DATA_PORTAL_TYPE

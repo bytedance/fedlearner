@@ -325,14 +325,12 @@ class DataPortalJobManager(object):
 
     def _map_output_dir(self, job_id):
         return common.portal_map_output_dir(
-                self._portal_manifest.output_base_dir,
-                self._portal_manifest.name, job_id
+                self._portal_manifest.output_base_dir, job_id
             )
 
     def _reduce_output_dir(self, job_id):
         return common.portal_reduce_output_dir(
-                self._portal_manifest.output_base_dir,
-                self._portal_manifest.name, job_id
+                self._portal_manifest.output_base_dir, job_id
             )
 
     def _publish_raw_data(self, job_id):
@@ -340,13 +338,11 @@ class DataPortalJobManager(object):
         output_dir = None
         if portal_manifest.data_portal_type == dp_pb.DataPortalType.PSI:
             output_dir = common.portal_map_output_dir(
-                    portal_manifest.output_base_dir,
-                    portal_manifest.name, job_id
+                    portal_manifest.output_base_dir, job_id
                 )
         else:
             output_dir = common.portal_reduce_output_dir(
-                    portal_manifest.output_base_dir,
-                    portal_manifest.name, job_id
+                    portal_manifest.output_base_dir, job_id
                 )
         for partition_id in range(self._output_partition_num):
             dpath = path.join(output_dir, common.partition_repr(partition_id))

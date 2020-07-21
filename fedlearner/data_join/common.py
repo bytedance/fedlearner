@@ -211,13 +211,11 @@ def portal_job_part_etcd_key(portal_name, job_id, partition_id):
     return os.path.join(portal_job_etcd_key(portal_name, job_id),
                         partition_repr(partition_id))
 
-def portal_map_output_dir(map_base_dir, portal_name, job_id):
-    return os.path.join(map_base_dir, portal_name,
-                        'map_{:08}'.format(job_id))
+def portal_map_output_dir(map_base_dir, job_id):
+    return os.path.join(map_base_dir, 'map_{:08}'.format(job_id))
 
-def portal_reduce_output_dir(reduce_base_dir, portal_name, job_id):
-    return os.path.join(reduce_base_dir, portal_name,
-                        'reduce_{:08}'.format(job_id))
+def portal_reduce_output_dir(reduce_base_dir, job_id):
+    return os.path.join(reduce_base_dir, 'reduce_{:08}'.format(job_id))
 
 def data_source_data_block_dir(data_source):
     return os.path.join(data_source.output_base_dir, 'data_block')
