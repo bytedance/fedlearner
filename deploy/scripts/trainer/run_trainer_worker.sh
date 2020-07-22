@@ -61,4 +61,4 @@ python main.py \
     --checkpoint-path="$OUTPUT_BASE_DIR/checkpoints" \
     --export-path="$OUTPUT_BASE_DIR/exported_models" \
     --summary-path="$OUTPUT_BASE_DIR/tensorboard" \
-    "$save_checkpoint_steps" "$sparse_estimator" "$summary_save_steps"
+    $save_checkpoint_steps $sparse_estimator $summary_save_steps

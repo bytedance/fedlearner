@@ -52,9 +52,9 @@ python -m fedlearner.model.tree.trainer \
     --export-path="$OUTPUT_BASE_DIR/exported_models" \
     --checkpoint-path="$OUTPUT_BASE_DIR/checkpoints" \
     --output-path="$OUTPUT_BASE_DIR/outputs" \
-    "$mode" "$data_path" "$validation_data_path" \
-    "$no_data" "$file_ext" "$load_model_path" \
-    "$verbosity" "$learning_rate" "$max_iters" \
-    "$max_depth" "$l2_regularization" "$max_bins" \
-    "$num_parallel" "$verify_example_ids" "$ignore_fields" \
-    "$cat_fields" "$use_streaming" "$send_scores_to_follower"
+    $mode $data_path $validation_data_path \
+    $no_data $file_ext $load_model_path \
+    $verbosity $learning_rate $max_iters \
+    $max_depth $l2_regularization $max_bins \
+    $num_parallel $verify_example_ids $ignore_fields \
+    $cat_fields $use_streaming $send_scores_to_follower
