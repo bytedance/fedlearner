@@ -257,12 +257,20 @@ class DataPortalJobManager(object):
             self._sync_job_part(new_job.job_id, partition_id)
 
     def _list_input_dir(self):
-        input_dir = self._portal_manifest.input_base_dir
-        fnames = gfile.ListDirectory(input_dir)
-        if len(self._portal_manifest.input_file_wildcard) > 0:
-            wildcard = self._portal_manifest.input_file_wildcard
-            fnames = [f for f in fnames if fnmatch(f, wildcard)]
-        return [path.join(input_dir, f) for f in fnames]
+        all_inputs = []
+        wildcard = self._portal_manifest.input_file_wildcard
+        dirs = [self._portal_manifest.input_base_dir]
+        while len(dirs) > 0:
+            fdir = dirs[0]
+            dirs = dirs[1:]
+            fnames = gfile.ListDirectory(input_dir)
+            for fname in fnames:
+                fpath = path.join(fdir, fname)
+                if gfile.IsDirectory(fpath):
+                    dirs.append(fpath)
+                elif len(wildcard) == 0 or fnmatch(fname, wildcard):
+                    all_inputs.append(fpath)
+        return all_inputs
 
     def _sync_job_part(self, job_id, partition_id):
         if partition_id not in self._job_part_map or \
