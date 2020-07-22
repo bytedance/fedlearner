@@ -57,7 +57,7 @@ python main.py \
     --tf-addr="$POD_IP:50052" \
     --local-addr="$POD_IP:50051" \
     --worker-rank="$WORKER_RANK" \
-    --peer-addr="$PEER_ADDR"
+    --peer-addr="$PEER_ADDR" \
     --checkpoint-path="$OUTPUT_BASE_DIR/checkpoints" \
     --export-path="$OUTPUT_BASE_DIR/exported_models" \
     --summary-path="$OUTPUT_BASE_DIR/tensorboard" \
