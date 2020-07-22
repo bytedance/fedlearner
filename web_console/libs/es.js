@@ -17,7 +17,7 @@ class ElasticSearchClient {
     this.client = ky.create({ prefixUrl });
   }
 
-  async queryLog(index, keyword, pod_name, start_time, end_time) {
+  async queryLog(index, keyword, pod_name, start_time, end_time, match_phrase) {
     let query_body = {
       "version": true,
       "size": 500,
@@ -43,7 +43,9 @@ class ElasticSearchClient {
               }]
               : []
           ).concat([
-            {
+            match_phrase
+            ? match_phrase
+            : {
               "prefix": {
                 "kubernetes.pod.name": pod_name
               }
