@@ -14,11 +14,6 @@ const config = getConfig({
 });
 const namespace = config.NAMESPACE;
 
-let es_oparator_match_phrase;
-try {
-  es_oparator_match_phrase = require('../es.match_phrase');
-} catch (err) { /* */ }
-
 router.get('/api/v1/jobs', SessionMiddleware, async (ctx) => {
   const jobs = await Job.findAll({
     order: [['created_at', 'DESC']],
@@ -66,8 +61,7 @@ router.get('/api/v1/job/:k8s_name/logs', SessionMiddleware, async (ctx) => {
     };
     return;
   }
-  const logs = await es.queryLog('filebeat-*', k8s_name, 'fedlearner-operator-*',
-    start_time, Date.now(), es_oparator_match_phrase);
+  const logs = await es.queryLog('filebeat-*', k8s_name, 'fedlearner-operator', start_time, Date.now());
 
   ctx.body = { data: logs };
 });
