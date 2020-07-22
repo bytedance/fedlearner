@@ -8,6 +8,7 @@ const DEFAULT_SERVER_CONFIG = {
   NAMESPACE: 'default',
   ES_HOST: 'fedlearner-stack-elasticsearch-client',
   ES_PORT: 9200,
+  DB_SYNC: 'false',
   DB_DATABASE: 'fedlearner',
   DB_USERNAME: 'fedlearner',
   DB_PASSWORD: 'fedlearner',

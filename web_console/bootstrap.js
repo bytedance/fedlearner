@@ -3,10 +3,16 @@
 const Router = require('@koa/router');
 const Next = require('next');
 const grpc = require('@grpc/grpc-js');
+const { Op } = require('sequelize');
 const SessionMiddleware = require('./middlewares/session');
 const models = require('./models');
 const server = require('./server');
 const rpcServer = require('./rpc/server');
+const getConfig = require('./utils/get_confg');
+
+const config = getConfig({
+  DB_SYNC: process.env.DB_SYNC,
+});
 
 const env = process.env.NODE_ENV || 'development';
 const renderer = Next({
@@ -14,9 +20,20 @@ const renderer = Next({
 });
 
 async function setupDatabase() {
-  // do not sync database for production
-  if (env === 'production') return;
-  return models.sequelize.sync();
+  if (config.DB_SYNC === 'true') {
+    await models.sequelize.sync();
+    return models.User.findOrCreate({
+      where: {
+        username: { [Op.eq]: 'ada' },
+      },
+      defaults: {
+        username: 'ada',
+        password: 'fdee430d40bd57de',
+        name: 'Ada',
+        is_admin: true,
+      },
+    });
+  }
 }
 
 async function setupNextRoutes() {
