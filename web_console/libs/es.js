@@ -23,7 +23,7 @@ class ElasticSearchClient {
       "size": 500,
       "sort": [
         {
-          "@timestamp": {
+          "@log.offset": {
             "order": "asc",
             "unmapped_type": "boolean"
           }
@@ -44,12 +44,12 @@ class ElasticSearchClient {
               : []
           ).concat([
             match_phrase
-            ? match_phrase
-            : {
-              "prefix": {
-                "kubernetes.pod.name": pod_name
-              }
-            },
+              ? match_phrase
+              : {
+                "prefix": {
+                  "kubernetes.pod.name": pod_name
+                }
+              },
             {
               "range": {
                 "@timestamp": {
