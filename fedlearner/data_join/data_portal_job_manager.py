@@ -263,7 +263,7 @@ class DataPortalJobManager(object):
         while len(dirs) > 0:
             fdir = dirs[0]
             dirs = dirs[1:]
-            fnames = gfile.ListDirectory(input_dir)
+            fnames = gfile.ListDirectory(fdir)
             for fname in fnames:
                 fpath = path.join(fdir, fname)
                 if gfile.IsDirectory(fpath):
