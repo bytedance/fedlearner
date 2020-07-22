@@ -14,15 +14,6 @@ import Empty from '../../components/Empty';
 import { deleteJob, createJob } from '../../services/job';
 import Form from '../../components/Form';
 
-const fields = [
-  { key: 'name', required: true },
-  { key: 'job_type', type: 'jobType', required: true },
-  { key: 'client_ticket_name', type: 'clientTicket', label: 'client_ticket', required: true },
-  { key: 'server_ticket_name', type: 'serverTicket', label: 'server_ticket', required: true },
-  { key: 'client_params', type: 'json', span: 24 },
-  { key: 'server_params', type: 'json', span: 24 },
-];
-
 function useStyles(theme) {
   return css`
     .counts-wrap {
@@ -91,6 +82,30 @@ function JobList(props) {
 
   const { data, mutate } = useSWR('jobs', fetcher);
   const jobs = data ? data.data : null;
+  const [federationId, setFederationId] = useState(null);
+  const fields = [
+    { key: 'name', required: true },
+    { key: 'job_type', type: 'jobType', required: true, span: 12 },
+    { key: 'client_ticket_name', type: 'clientTicket', label: 'client_ticket', required: true },
+    {
+      key: 'federation_id',
+      type: 'federation',
+      label: 'federation',
+      required: true,
+      onChange: value => setFederationId(value),
+    },
+    {
+      key: 'server_ticket_name',
+      type: 'serverTicket',
+      label: 'server_ticket',
+      required: true,
+      props: {
+        federation_id: federationId,
+      },
+    },
+    { key: 'client_params', type: 'json', span: 24 },
+    { key: 'server_params', type: 'json', span: 24 },
+  ];
 
   const labeledList = useMemo(() => {
     const allList = { name: 'All', list: jobs || [] };
@@ -130,6 +145,14 @@ function JobList(props) {
     mutate();
     toggleForm();
   };
+  const onCreateJob = (form) => {
+    const params = {
+      ...form,
+      client_params: JSON.parse(form.client_params),
+      server_params: JSON.parse(form.server_params),
+    };
+    return createJob(params);
+  };
 
   return (
     <div className="page-tasks">
@@ -139,7 +162,7 @@ function JobList(props) {
             <Form
               title="Create Job"
               fields={fields}
-              onSubmit={createJob}
+              onSubmit={onCreateJob}
               onOk={onOk}
               onCancel={toggleForm}
             />
@@ -220,12 +243,12 @@ function JobList(props) {
                                                   >
                                                     <Link color>View Detail</Link>
                                                   </NextLink>
-                                                  {/* <PopConfirm
+                                                  <PopConfirm
                                                     onConfirm={() => deleteJob(item.localdata.id)}
                                                     onOk={() => mutate({ data: jobs.filter((i) => i !== item) })}
                                                   >
                                                     <Text className="actionText" type="error">Delete</Text>
-                                                  </PopConfirm> */}
+                                                  </PopConfirm>
                                                 </>
                                               )}
                                             />

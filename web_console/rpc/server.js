@@ -75,8 +75,7 @@ async function createJob(call, callback) {
       job_type,
       client_ticket_name: server_ticket_name,
       server_ticket_name: client_ticket_name,
-      server_params: client_params,
-      client_params: server_params,
+      server_params,
     } = call.request;
     const ticketRecord = await Ticket.findOne({
       where: {
@@ -84,7 +83,7 @@ async function createJob(call, callback) {
       },
     });
     if (!ticketRecord) throw new Error('Ticket not found');
-    const params = JSON.parse(client_params);
+    const params = JSON.parse(server_params);
     validateTicket(ticketRecord, params);
 
     const [data, created] = await Job.findOrCreate({
@@ -98,13 +97,12 @@ async function createJob(call, callback) {
         client_ticket_name,
         server_ticket_name,
         server_params: JSON.parse(server_params),
-        client_params: JSON.parse(client_params),
       },
     });
     if (!created) throw new Error('Job already exists');
     job = data;
-
-    await k8s.createFLApp('default', serverGenerateYaml(federation, job, ticketRecord));
+    const args = serverGenerateYaml(federation, job, ticketRecord);
+    await k8s.createFLApp('default', args);
 
     callback(null, {
       data: {
@@ -112,8 +110,7 @@ async function createJob(call, callback) {
         job_type: data.job_type,
         client_ticket_name: data.server_ticket_name,
         server_ticket_name: data.client_ticket_name,
-        server_params: JSON.stringify(data.client_params),
-        client_params: JSON.stringify(data.server_params),
+        server_params: JSON.stringify(data.server_params),
       },
     });
   } catch (err) {

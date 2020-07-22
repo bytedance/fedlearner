@@ -30,7 +30,7 @@ class FederationClient {
    * @return {FederationClient}
    */
   constructor(federation) {
-    const { peerURL, authority, extraHeaders } = federation.k8s_settings;
+    const { peerURL, authority, extraHeaders } = federation.k8s_settings.grpc_spec;
     this.metadata = new grpc.Metadata();
     Object.keys(extraHeaders).forEach((key) => {
       this.metadata.set(key, extraHeaders[key]);
@@ -51,7 +51,7 @@ class FederationClient {
     });
   }
 
-  getTickets(params = { job_type: '', role: 'follower' }) {
+  getTickets(params = { job_type: '', role: '' }) {
     return this._request('getTickets', params);
   }
 

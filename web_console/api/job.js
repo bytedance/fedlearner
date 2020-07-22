@@ -95,7 +95,10 @@ router.get('/api/v1/job/pod/:pod_name/logs', SessionMiddleware, async (ctx) => {
 });
 
 router.post('/api/v1/job', SessionMiddleware, async (ctx) => {
-  const { name, job_type, client_ticket_name, server_ticket_name } = ctx.request.body;
+  const {
+    name, job_type, client_ticket_name, server_ticket_name,
+    client_params, server_params,
+  } = ctx.request.body;
 
   if (!(/^[a-zA-Z\d-]+$/.test(name))) {
     ctx.status = 400;
@@ -105,7 +108,7 @@ router.post('/api/v1/job', SessionMiddleware, async (ctx) => {
     return;
   }
 
-  const [client_params_pass, client_params] = checkParseJson(ctx.request.body.client_params);
+  const [client_params_pass] = checkParseJson(JSON.stringify(client_params));
   if (!client_params_pass) {
     ctx.status = 400;
     ctx.body = {
@@ -113,7 +116,8 @@ router.post('/api/v1/job', SessionMiddleware, async (ctx) => {
     };
     return;
   }
-  const [server_params_pass, server_params] = checkParseJson(ctx.request.body.server_params);
+
+  const [server_params_pass] = checkParseJson(JSON.stringify(server_params));
   if (!server_params_pass) {
     ctx.status = 400;
     ctx.body = {
@@ -173,7 +177,10 @@ router.post('/api/v1/job', SessionMiddleware, async (ctx) => {
   }
   const rpcClient = new FederationClient(clientFed);
   try {
-    await rpcClient.createJob(job);
+    await rpcClient.createJob({
+      ...job,
+      server_params: JSON.stringify(server_params),
+    });
   } catch (err) {
     ctx.status = 500;
     ctx.body = {
@@ -225,6 +232,7 @@ router.delete('/api/v1/job/:id', SessionMiddleware, async (ctx) => {
     where: {
       name: { [Op.eq]: data.client_ticket_name },
     },
+    include: 'federation',
   });
   const rpcClient = new FederationClient(ticket.federation);
   try {
@@ -237,7 +245,7 @@ router.delete('/api/v1/job/:id', SessionMiddleware, async (ctx) => {
     return;
   }
   await k8s.deleteFLApp(namespace, data.name);
-  await data.destroy();
+  await data.destroy({ force: true });
 
   ctx.body = { data };
 });

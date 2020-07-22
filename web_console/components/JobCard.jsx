@@ -1,6 +1,7 @@
 import React from 'react';
 import css from 'styled-jsx/css';
-import { Button, Text, Card, Progress, Dot, Tag, useTheme } from '@zeit-ui/react';
+import { useRouter } from 'next/router';
+import { Button, Text, Card, Dot, Tag, useTheme } from '@zeit-ui/react';
 
 function useStyles(theme) {
   return css`
@@ -25,30 +26,29 @@ function useStyles(theme) {
   `;
 }
 
-export default function TicketCard({ name, type, state, stages, progress, style }) {
+export default function JobCard({ job }) {
   const theme = useTheme();
   const styles = useStyles(theme);
+  const router = useRouter();
+  const { kind, apiVersion, metadata, spec, status, localdata } = job;
+  const { id, name, job_type, created_at } = localdata;
+  const goToDetail = () => router.push(`/job/${id}`);
   return (
-    <Card shadow style={style}>
+    <Card shadow>
       <div className="title">
         <Text h3>
           {name}
-          <Tag type="secondary" style={{ marginLeft: 10, fontWeight: 500 }}>{type}</Tag>
+          <Tag type="secondary" style={{ marginLeft: 10, fontWeight: 500 }}>{job_type}</Tag>
         </Text>
-        <Button size="small" auto>Detail</Button>
+        <Button size="small" auto onClick={goToDetail}>Detail</Button>
       </div>
       <div className="content">
-        {stages.map((x) => (
-          <div key={x.message} className="stage">
-            <Dot type={x.state}>
-              <Text type="secondary">{x.message}</Text>
-            </Dot>
-            <span className="created">{x.overhead}</span>
-          </div>
-        ))}
+        <Dot type={status.appState}>
+          <Text type="secondary">{status.appState}</Text>
+        </Dot>
       </div>
       <Card.Footer>
-        <Progress type={state} value={progress} />
+        <Text>Created at {created_at}</Text>
       </Card.Footer>
 
       <style jsx>{styles}</style>

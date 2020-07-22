@@ -3,6 +3,7 @@ const { Op } = require('sequelize');
 const SessionMiddleware = require('../middlewares/session');
 const AdminMiddleware = require('../middlewares/admin');
 const { User } = require('../models');
+const encrypt = require('../utils/encrypt');
 
 router.get('/api/v1/user', SessionMiddleware, async (ctx) => {
   ctx.body = { data: ctx.session.user };
@@ -38,7 +39,8 @@ router.post('/api/v1/users', SessionMiddleware, AdminMiddleware, async (ctx) => 
       username: { [Op.eq]: username },
     },
     defaults: {
-      username, password, name, email, tel, is_admin,
+      username, name, email, tel, is_admin,
+      password: encrypt(password),
     },
   });
 
@@ -53,24 +55,30 @@ router.post('/api/v1/users', SessionMiddleware, AdminMiddleware, async (ctx) => 
   ctx.body = { data };
 });
 
-// TODO
-// router.put('/api/v1/users/:id', async (ctx) => {
-//   const { id } = ctx.params;
-//   const { body } = ctx.request;
-//   const fields = ['password', 'name', 'tel'].reduce((total, current) => {
-//     const value = body[current];
-//     if (value) {
-//       total[current] = value;
-//     }
-//     return total;
-//   }, {});
-//   const data = await User.update(fields, {
-//     where: {
-//       id: { [Op.eq]: id },
-//     },
-//   });
-//   ctx.body = { data };
-// });
+router.put('/api/v1/users/:id', SessionMiddleware, AdminMiddleware, async (ctx) => {
+  const { id } = ctx.params;
+  const { body } = ctx.request;
+
+  const user = await User.findByPk(id);
+  if (!user) {
+    ctx.status = 404;
+    ctx.body = {
+      error: 'User not found',
+    };
+    return;
+  }
+
+  const fields = ['password', 'name', 'tel', 'email', 'avatar', 'is_admin'].reduce((total, current) => {
+    const value = body[current];
+    if (value) {
+      total[current] = current === 'password' ? encrypt(value) : value;
+    }
+    return total;
+  }, {});
+
+  await user.update(fields);
+  ctx.body = { data: user };
+});
 
 router.delete('/api/v1/users/:id', SessionMiddleware, AdminMiddleware, async (ctx) => {
   const data = await User.findByPk(ctx.params.id);
@@ -83,7 +91,7 @@ router.delete('/api/v1/users/:id', SessionMiddleware, AdminMiddleware, async (ct
     return;
   }
 
-  await data.destroy();
+  await data.destroy({ force: true });
   ctx.body = { data };
 });
 

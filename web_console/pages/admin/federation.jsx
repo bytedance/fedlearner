@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
 import css from 'styled-jsx/css';
-import { Avatar, Button, Card, Text, Grid, Input, Spacer, useTheme } from '@zeit-ui/react';
-import LinkIcon from '@zeit-ui/react-icons/link';
+import { Avatar, Button, Card, Code, Text, Grid, Popover, Link } from '@zeit-ui/react';
+import PhoneIcon from '@zeit-ui/react-icons/phone';
 import MailIcon from '@zeit-ui/react-icons/mail';
+import InfoIcon from '@zeit-ui/react-icons/info';
 import useSWR from 'swr';
 import Layout from '../../components/Layout';
 import Form from '../../components/Form';
 import { fetcher } from '../../libs/http';
+import { createFederation, updateFederation } from '../../services';
 
 function useFederationItemStyles() {
   return css`
@@ -25,9 +27,13 @@ function useFederationItemStyles() {
   `;
 }
 
-function FederationItem({ data }) {
-  const { id, avatar, domain, email, name, trademark, cipher, token } = data;
+function FederationItem({ data, onEdit }) {
+  const { id, avatar, tel, email, name, trademark, k8s_settings } = data;
   const styles = useFederationItemStyles();
+  const handleEdit = (e) => {
+    e.preventDefault();
+    onEdit(data);
+  };
   return (
     <Card shadow>
       <div className="heading">
@@ -39,41 +45,113 @@ function FederationItem({ data }) {
       </div>
       <div className="content">
         <Text p size={14} type="secondary">
-          <LinkIcon size={14} />
-          <span className="description">{domain}</span>
+          <PhoneIcon size={14} />
+          <span className="description">{tel || 'None'}</span>
         </Text>
         <Text p size={14} type="secondary">
           <MailIcon size={14} />
-          <span className="description">{email}</span>
+          <span className="description">{email || 'None'}</span>
         </Text>
-        <div>
-          <Text p size={14} type="secondary">Cipher:</Text>
-          {cipher
-            ? <Input.Password value={cipher} readOnly className="passwordViwer" />
-            : 'None'}
-        </div>
-        <div>
-          <Text p size={14} type="secondary">Token:</Text>
-          {token
-            ? <Input.Password value={token} readOnly className="passwordViwer" />
-            : 'None'}
-        </div>
+        <Text p size={14} style={{ marginBottom: 0 }} type="secondary">
+          k8s_settings：
+          <Popover trigger="hover" content={<Code block>{JSON.stringify(k8s_settings, null, 2)}</Code>}>
+            <InfoIcon size={14} />
+          </Popover>
+        </Text>
       </div>
+
+      <Card.Footer className="formCardFooter">
+        <Link href="#" color onClick={handleEdit}>Edit</Link>
+      </Card.Footer>
 
       <style jsx>{styles}</style>
     </Card>
   );
 }
 
+const DEFAULT_FIELDS = [
+  { key: 'name', required: true },
+  { key: 'trademark', span: 12 },
+  { key: 'email' },
+  { key: 'tel', label: 'telephone' },
+  { key: 'avatar' },
+  {
+    key: 'k8s_settings',
+    type: 'json',
+    required: true,
+    span: 24,
+    props: {
+      minHeight: '300px',
+    },
+  },
+];
+
+function mapValueToFields(federation, fields) {
+  return fields.map((x) => {
+    const field = { ...x, value: federation[x.key] };
+
+    if (x.key === 'name') {
+      field.props = {
+        disabled: true,
+      };
+    }
+
+    if (x.key === 'k8s_settings') {
+      field.value = JSON.stringify(field.value, null, 2);
+    }
+
+    return field;
+  });
+}
+
 export default function FederationList() {
-  const { data } = useSWR('federations', fetcher);
+  const { data, mutate } = useSWR('federations', fetcher);
   const federations = data ? data.data : null;
   const [formVisible, setFormVisible] = useState(false);
+  const [fields, setFields] = useState(DEFAULT_FIELDS);
+  const [currentFederation, setCurrentFederation] = useState(null);
+  const title = currentFederation ? `Edit Federation: ${currentFederation.name}` : 'Create Federation';
+  const toggleForm = () => {
+    setFormVisible(!formVisible);
+    setCurrentFederation(null);
+    setFields(DEFAULT_FIELDS);
+  };
+  const onOk = (federation) => {
+    mutate({
+      data: [...federations, federation],
+    });
+    toggleForm();
+  };
+  const handleEdit = (federation) => {
+    setCurrentFederation(federation);
+    setFields(mapValueToFields(federation, fields));
+    setFormVisible(true);
+  };
+  const handleSubmit = (value) => {
+    const json = {
+      ...value,
+      k8s_settings: JSON.parse(value.k8s_settings),
+    };
+
+    if (currentFederation) {
+      return updateFederation(currentFederation.id, json);
+    }
+
+    return createFederation(json);
+  };
 
   return (
     <Layout>
       {formVisible
-        ? <Form title="Create Federation" onCancel={() => setFormVisible(false)} />
+        ? (
+          <Form
+            title={title}
+            fields={fields}
+            onSubmit={handleSubmit}
+            onOk={onOk}
+            onCancel={toggleForm}
+          />
+        )
         : (
           <>
             <div className="heading">
@@ -83,7 +161,7 @@ export default function FederationList() {
             <Grid.Container gap={2}>
               {federations && federations.map((x) => (
                 <Grid key={x.id} xs={24} sm={12} md={8} lg={6} xl={6}>
-                  <FederationItem data={x} />
+                  <FederationItem data={x} onEdit={handleEdit} />
                 </Grid>
               ))}
             </Grid.Container>

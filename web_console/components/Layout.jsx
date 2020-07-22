@@ -110,6 +110,10 @@ export default function Layout({ header = true, footer = true, children }) {
           background: ${theme.palette.accents_1};
         }
 
+        .tooltip-content.popover > .inner {
+          text-align: initial;
+        }
+
         .passwordViwer .input-wrapper {
           border: none !important;
         }

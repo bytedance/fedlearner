@@ -133,10 +133,12 @@ function generateYaml(federation, job, job_params, ticket) {
   let output_base_dir;
   if (job.job_type == 'data_join' || job.job_type == 'psi_data_join') {
     output_base_dir = joinPath(
-      k8s_settings.storage_root_path, 'data_source', job.name);
+      k8s_settings.storage_root_path, 'data_source', job.name,
+    );
   } else {
     output_base_dir = joinPath(
-      k8s_settings.storage_root_path, 'job_output', job.name);
+      k8s_settings.storage_root_path, 'job_output', job.name,
+    );
   }
 
   const replica_specs = yaml.spec.flReplicaSpecs;
@@ -149,7 +151,7 @@ function generateYaml(federation, job, job_params, ticket) {
             env: [
               { name: 'POD_IP', valueFrom: { fieldRef: { fieldPath: 'status.podIP' } } },
               { name: 'POD_NAME', valueFrom: { fieldRef: { fieldPath: 'metadata.name' } } },
-              { name: 'ROLE', value: ticket.role },
+              { name: 'ROLE', value: ticket.role.toLowerCase() },
               { name: 'APPLICATION_ID', value: job.name },
               { name: 'OUTPUT_BASE_DIR', value: output_base_dir },
             ],
