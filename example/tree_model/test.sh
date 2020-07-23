@@ -13,9 +13,10 @@ python -m fedlearner.model.tree.trainer follower \
     --local-addr=localhost:50052 \
     --peer-addr=localhost:50051 \
     --verify-example-ids=true \
+    --file-ext=.tfrecord \
     --file-type=tfrecord \
     --data-path=data/follower_train.tfrecord \
-    --validation-data-path=data/follower_test/part-0001.tfrecord \
+    --validation-data-path=data/follower_test \
     --checkpoint-path=exp/follower_checkpoints \
     --cat-fields=f00001 \
     --output-path=exp/follower_train_output.output &
@@ -25,9 +26,10 @@ python -m fedlearner.model.tree.trainer leader \
     --local-addr=localhost:50051 \
     --peer-addr=localhost:50052 \
     --verify-example-ids=true \
+    --file-ext=.tfrecord \
     --file-type=tfrecord \
     --data-path=data/leader_train.tfrecord \
-    --validation-data-path=data/leader_test/part-0001.tfrecord \
+    --validation-data-path=data/leader_test \
     --checkpoint-path=exp/leader_checkpoints \
     --cat-fields=f00001 \
     --output-path=exp/leader_train_output.output

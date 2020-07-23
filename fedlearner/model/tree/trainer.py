@@ -222,16 +222,70 @@ def read_data(file_type, filename, require_example_ids,
         labels, example_ids, raw_ids
 
 
+def read_data_dir(file_ext, file_type, path, require_example_ids,
+                  require_labels, ignore_fields, cat_fields):
+    if not tf.io.gfile.isdir(path):
+        return read_data(
+            file_type, path, require_example_ids,
+            require_labels, ignore_fields, cat_fields)
+
+    files = []
+    for dirname, _, filenames in tf.io.gfile.walk(path):
+        for filename in filenames:
+            _, ext = os.path.splitext(filename)
+            if file_ext and ext != file_ext:
+                continue
+            subdirname = os.path.join(path, os.path.relpath(dirname, path))
+            files.append(os.path.join(subdirname, filename))
+
+    features = None
+    for fullname in files:
+        ifeatures, icat_features, icont_columns, icat_columns, \
+            ilabels, iexample_ids, iraw_ids = read_data(
+                file_type, fullname, require_example_ids,
+                require_labels, ignore_fields, cat_fields
+            )
+        if features is None:
+            features = ifeatures
+            cat_features = icat_features
+            cont_columns = icont_columns
+            cat_columns = icat_columns
+            labels = ilabels
+            example_ids = iexample_ids
+            raw_ids = iraw_ids
+        else:
+            assert cont_columns == icont_columns, \
+                "columns mismatch between files %s vs %s"%(
+                    cont_columns, icont_columns)
+            assert cat_columns == icat_columns, \
+                "columns mismatch between files %s vs %s"%(
+                    cat_columns, icat_columns)
+            features = np.concatenate((features, ifeatures), axis=0)
+            cat_features = np.concatenate(
+                (cat_features, icat_features), axis=0)
+            if labels is not None:
+                labels = np.concatenate((labels, ilabels), axis=0)
+            if example_ids is not None:
+                example_ids.extend(iexample_ids)
+            if raw_ids is not None:
+                raw_ids.extend(iraw_ids)
+
+    assert features is not None, "No data found in %s"%path
+
+    return features, cat_features, cont_columns, cat_columns, \
+        labels, example_ids, raw_ids
+
+
 def train(args, booster):
-    X, cat_X, X_names, cat_X_names, y, example_ids, _ = read_data(
-        args.file_type, args.data_path, args.verify_example_ids,
+    X, cat_X, X_names, cat_X_names, y, example_ids, _ = read_data_dir(
+        args.file_ext, args.file_type, args.data_path, args.verify_example_ids,
         args.role != 'follower', args.ignore_fields, args.cat_fields)
 
     if args.validation_data_path:
         val_X, val_cat_X, val_X_names, val_cat_X_names, val_y, \
             val_example_ids, _ = \
-            read_data(
-                args.file_type, args.validation_data_path,
+            read_data_dir(
+                args.file_ext, args.file_type, args.validation_data_path,
                 args.verify_example_ids, args.role != 'follower',
                 args.ignore_fields, args.cat_fields)
         assert X_names == val_X_names, \
