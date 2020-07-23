@@ -1,8 +1,10 @@
 import React from 'react';
 import css from 'styled-jsx/css';
 import { useTheme } from '@zeit-ui/react';
+
 import Header from './Header';
 import Footer from './Footer';
+import ToastContainer from './ToastContainer';
 
 function useStyles(theme) {
   return css`
@@ -33,6 +35,8 @@ export default function Layout({ header = true, footer = true, children }) {
         {children}
       </div>
       {footer && <Footer />}
+
+      <ToastContainer />
 
       <style jsx global>{`
         html {

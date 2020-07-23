@@ -1,7 +1,8 @@
 import React, { useCallback, useState } from 'react';
-import { Description, Button, useToasts } from '@zeit-ui/react';
+import { Description, Button } from '@zeit-ui/react';
 import useSWR from 'swr';
 import { useRouter } from 'next/router';
+import { toast } from 'react-toastify';
 
 import { submitRawData, deleteRawDataJob } from '../../services/raw_data';
 import { fetcher } from '../../libs/http';
@@ -14,16 +15,12 @@ export default function RawDataJob() {
   const rawData = data ? data.data : null;
 
   const [loading, setLoading] = useState(false);
-  const [, setToast] = useToasts();
   const submit = useCallback(() => {
     setLoading(true);
     submitRawData(rawData?.localdata?.id).then((res) => {
       setLoading(false);
       if (res.error) {
-        setToast({
-          text: res.error,
-          type: 'error',
-        });
+        toast.error(res.error);
       } else {
         mutate();
         setTimeout(() => {
@@ -38,10 +35,7 @@ export default function RawDataJob() {
     deleteRawDataJob(rawData?.localdata?.id).then((res) => {
       setLoading(false);
       if (res.error) {
-        setToast({
-          text: res.error,
-          type: 'error',
-        });
+        toast.error(res.error);
       } else {
         mutate();
       }

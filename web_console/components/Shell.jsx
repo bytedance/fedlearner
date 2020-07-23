@@ -1,10 +1,11 @@
 import React, { useRef, useEffect, useCallback } from 'react';
 import SockJS from 'sockjs-client';
-import { useToasts } from '@zeit-ui/react';
+import { toast } from 'react-toastify';
 import debounce from 'lodash/debounce';
 
+import ToastContainer from './ToastContainer';
+
 function Shell({ id, base }) {
-  const [, setToast] = useToasts();
   const ref = useRef();
 
   const connRef = useRef(null);
@@ -80,14 +81,14 @@ function Shell({ id, base }) {
     }
 
     if (frame.Op === 'toast') {
-      setToast({ text: frame.Data });
+      toast(frame.Data);
     }
   }, []);
 
   const onConnectionClose = useCallback((evt) => {
     if (connRef.current) {
       connRef.current.close();
-      setToast({ text: (evt && evt.reason) || 'Something went wrong.' });
+      termRef.current.write(`\n--> X <-- Shell connection closed: ${(evt && evt.reason) || 'No reason provided.'}`);
     }
   }, []);
 
@@ -109,6 +110,7 @@ function Shell({ id, base }) {
   return (
     <>
       <div ref={ref} />
+      <ToastContainer />
       {/* import 'xterm/css/xterm.css'; */}
       <style jsx global>{`
         html body {
