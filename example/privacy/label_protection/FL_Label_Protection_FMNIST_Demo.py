@@ -60,7 +60,8 @@ def change_label(y, ratio=10):
                 return 1
         return 0
     l = [1 if i == 1 else 0 for i in y]
-    res = np.array(list(map(lambda x: condition(x), l)))
+    res = np.array(list(map(condition, l)))
+    # res = np.array(list(map(lambda x: condition(x), l)))
     print("positive ratio: {}".format(sum(res) / len(l)))
     return res
 
