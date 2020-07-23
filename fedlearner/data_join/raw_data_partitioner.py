@@ -268,8 +268,8 @@ class RawDataPartitioner(object):
         next_index = self._get_next_part_index()
         hint_index = None
         bp_options = self._options.batch_processor_options
-        signal_round_threhold = bp_options.max_flying_item / \
-                bp_options.batch_size // 3
+        signal_round_threhold = bp_options.max_flying_item * 4 // \
+                5 // bp_options.batch_size + 1
         while not fetch_finished:
             fetch_finished, batch, hint_index = \
                     fetcher.fetch_item_batch_by_index(next_index, hint_index)
