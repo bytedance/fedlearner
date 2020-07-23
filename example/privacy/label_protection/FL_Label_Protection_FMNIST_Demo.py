@@ -48,7 +48,7 @@ total_test_instances = len(x_test)
 num_batchs = total_training_instances / args.batch_size
 
 print(
-    "total_training_instances: {}, total_test_instances: {}, num_batchs: {}".format(
+    "# training: {}, # test: {}, # batchs: {}".format(
         total_training_instances,
         total_test_instances,
         num_batchs))
@@ -72,10 +72,12 @@ if args.num_outputs == 2:
 if is_shuffle:
     train_ds_iter = tf.data.Dataset.from_tensor_slices((x_train, y_train)).\
         shuffle(
-        total_training_instances + 1, reshuffle_each_iteration=True).batch(args.batch_size)
+        total_training_instances + 1, reshuffle_each_iteration=True).\
+        batch(args.batch_size)
     test_ds_iter = tf.data.Dataset.from_tensor_slices((x_test, y_test)).\
         shuffle(
-        total_test_instances + 1, reshuffle_each_iteration=True).batch(batch_size_test)
+        total_test_instances + 1, reshuffle_each_iteration=True).\
+        batch(batch_size_test)
 else:
     train_ds_iter = tf.data.Dataset.from_tensor_slices(
         (x_train, y_train)).batch(args.batch_size)
@@ -367,10 +369,14 @@ def train(
         pos_norm_ranking_order_masking_2 = middle_attack(
             gradients_stack_3, labels_stack)
 
-        gradients_stack_2_n, gradients_stack_2_pos_n, gradients_stack_2_neg_n = \
+        gradients_stack_2_n, gradients_stack_2_pos_n, \
+            gradients_stack_2_neg_n \
+            = \
             compute_gradient_norm(
             gradients_stack_2, labels_stack)
-        gradients_stack_baseline_n, gradients_stack_baseline_pos_n, gradients_stack_baseline_neg_n = \
+        gradients_stack_baseline_n, gradients_stack_baseline_pos_n, \
+            gradients_stack_baseline_neg_n \
+            = \
             compute_gradient_norm(
             gradients_stack_1, labels_stack)
 
@@ -384,14 +390,14 @@ def train(
                 e_e - e_s))
         if args.num_outputs == 2:
             print(
-                "epoch {}, baseline leakage auc:{},  non_masking HL: {}, masking HL 1:{}, masking HL 2: {}".
+                "epoch {}, baseline leak_auc:{}, non_masking HL: {}, masking HL 1:{}, masking HL 2: {}".
                     format(
                     epoch,
                     leakage_auc_baseline.result(),
                     leakage_auc_not_masked_hiddenlayer_2.result(),
                     leakage_auc_masked_hiddenlayer_1.result(),
                     leakage_auc_masked_hiddenlayer_2.result()))
-            print("epoch: {}, leak_auc_baseline_all: {}, leakage_auc_masked_hiddenlayer_1_all: {}".
+            print("epoch: {}, leak_auc baseline_all: {}, masked_HL_1_all: {}".
                 format(
                 epoch, leakage_auc_baseline_all.result(),
                 leakage_auc_masked_hiddenlayer_1_all.result()))
