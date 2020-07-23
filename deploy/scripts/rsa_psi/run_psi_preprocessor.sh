@@ -52,7 +52,7 @@ python -m fedlearner.data_join.cmd.rsa_psi_preprocessor_cli \
     --psi_role=$ROLE \
     --rsa_key_path=$RSA_KEY_PATH \
     --rsa_key_pem="$RSA_KEY_PEM" \
-    --output_file_dir=$OUTPUT_FILE_DIR \
+    --output_file_dir="$OUTPUT_BASE_DIR/psi_output" \
     --raw_data_publish_dir=$RAW_DATA_PUBLISH_DIR \
     --partition_id=$INDEX \
     --etcd_name=$ETCD_NAME \
