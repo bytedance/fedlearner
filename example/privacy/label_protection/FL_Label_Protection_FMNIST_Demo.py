@@ -70,9 +70,11 @@ if args.num_outputs == 2:
     # is_shuffle = False
 
 if is_shuffle:
-    train_ds_iter = tf.data.Dataset.from_tensor_slices((x_train, y_train)).shuffle(
+    train_ds_iter = tf.data.Dataset.from_tensor_slices((x_train, y_train)).\
+        shuffle(
         total_training_instances + 1, reshuffle_each_iteration=True).batch(args.batch_size)
-    test_ds_iter = tf.data.Dataset.from_tensor_slices((x_test, y_test)).shuffle(
+    test_ds_iter = tf.data.Dataset.from_tensor_slices((x_test, y_test)).\
+        shuffle(
         total_test_instances + 1, reshuffle_each_iteration=True).batch(batch_size_test)
 else:
     train_ds_iter = tf.data.Dataset.from_tensor_slices(
@@ -280,8 +282,6 @@ def train(
             # _Batch_Labels = y
             # _Batch_Positive_Predicted_Probabilities = tf.math.sigmoid(
             #     predict(X))
-            # print("update: _Batch_Labels: {}".format(_Batch_Labels))
-            # print("update _Batch_Positive_Predicted_Probabilities: {}".format(_Batch_Positive_Predicted_Probabilities))
             with tf.GradientTape(persistent=False) as tape:
                 hidden_logits = tf.nn.relu(
                     tf.matmul(tf.reshape(X, shape=(-1, W.shape[0])), W) + b)
@@ -367,33 +367,34 @@ def train(
         pos_norm_ranking_order_masking_2 = middle_attack(
             gradients_stack_3, labels_stack)
 
-        gradients_stack_2_n, gradients_stack_2_pos_n, gradients_stack_2_neg_n = compute_gradient_norm(
+        gradients_stack_2_n, gradients_stack_2_pos_n, gradients_stack_2_neg_n = \
+            compute_gradient_norm(
             gradients_stack_2, labels_stack)
-        gradients_stack_baseline_n, gradients_stack_baseline_pos_n, gradients_stack_baseline_neg_n = compute_gradient_norm(
+        gradients_stack_baseline_n, gradients_stack_baseline_pos_n, gradients_stack_baseline_neg_n = \
+            compute_gradient_norm(
             gradients_stack_1, labels_stack)
 
         e_e = datetime.datetime.now()
         print(
-            "epoch: {}, loss: {}, train auc: {},  , # instances: {}, time used: {}".
+            "epoch: {}, loss: {}, train auc: {}, time used: {}".
                 format(
                 epoch,
-                train_l_sum /
-                n,
+                train_l_sum / n,
                 train_auc.result(),
-                n,
-                e_e -
-                e_s))
+                e_e - e_s))
         if args.num_outputs == 2:
             print(
-                "epoch {}, label leakage: baseline auc:{},  non_masking hidden layer: {}, masking hidden layer 1:{}, masking hidden layer 2: {}".
+                "epoch {}, baseline leakage auc:{},  non_masking HL: {}, masking HL 1:{}, masking HL 2: {}".
                     format(
                     epoch,
                     leakage_auc_baseline.result(),
                     leakage_auc_not_masked_hiddenlayer_2.result(),
                     leakage_auc_masked_hiddenlayer_1.result(),
                     leakage_auc_masked_hiddenlayer_2.result()))
-            print("epoch: {}, leak_auc_baseline_all: {}, leakage_auc_masked_hiddenlayer_1_all: {}".format(
-                epoch, leakage_auc_baseline_all.result(), leakage_auc_masked_hiddenlayer_1_all.result()))
+            print("epoch: {}, leak_auc_baseline_all: {}, leakage_auc_masked_hiddenlayer_1_all: {}".
+                format(
+                epoch, leakage_auc_baseline_all.result(),
+                leakage_auc_masked_hiddenlayer_1_all.result()))
         test_loss, test_auc = test(test_iter, loss)
 
         with writer.as_default():
@@ -518,7 +519,8 @@ trainer_opt = tf.keras.optimizers.Adagrad(learning_rate=ada_gra_lr)
 
 t_s = datetime.datetime.now()
 print(
-    "gpu_option: {}, train_batch_size: {}, regularization_weight: {}, ada_gra_lr: {}".format(
+    "gpu: {}, batch_size: {}, regularization: {}, ada_gra_lr: {}"
+        .format(
         gpu_option,
         args.batch_size,
         regularization_weight_l2,
@@ -538,7 +540,7 @@ train(
     trainer=trainer_opt,
     regularization_weight=regularization_weight_l2)
 print(
-    "gpu_option: {}, train_batch_size: {}, regularization_weight: {},  ada_gra_lr: {}".
+    "gpu: {}, batch_size: {}, regularization: {}, ada_gra_lr: {}".
         format(
         gpu_option,
         args.batch_size,
@@ -546,7 +548,7 @@ print(
         ada_gra_lr))
 t_e = datetime.datetime.now()
 print(
-    "total_training_instances: {}, total_test_instances: {}, num_batchs: {}, training used: {}".
+    "# training: {}, # test: {}, #_batchs: {}, training used: {}".
         format(
         total_training_instances,
         total_test_instances,
