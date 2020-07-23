@@ -79,7 +79,6 @@ message ReduceTask {
 }
 
 message NewTaskResponse {
-  string name = 1;
   Status status = 1;
   oneof msg {
     MapTask map_task = 2;
