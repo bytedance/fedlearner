@@ -35,7 +35,7 @@ else:
 print("current available GPUs: {}".format(
     len(tf.config.experimental.list_physical_devices('GPU'))))
 
-batch_size = args.batch_size
+# batch_size = args.batch_size
 batch_size_test = 200
 is_shuffle = True
 
@@ -45,14 +45,13 @@ x_test = tf.cast(x_test, tf.float32) / 255
 
 total_training_instances = len(x_train)
 total_test_instances = len(x_test)
-num_batchs = total_training_instances / batch_size
+num_batchs = total_training_instances / args.batch_size
 
 print(
     "total_training_instances: {}, total_test_instances: {}, num_batchs: {}".format(
         total_training_instances,
         total_test_instances,
         num_batchs))
-
 
 def change_label(y, ratio=10):
     def condition(x):
@@ -65,29 +64,26 @@ def change_label(y, ratio=10):
     print("positive ratio: {}".format(sum(res) / len(l)))
     return res
 
-
 if args.num_outputs == 2:
     y_train = change_label(y_train)
     y_test = change_label(y_test)
     # is_shuffle = False
 
 if is_shuffle:
-    train_iter = tf.data.Dataset.from_tensor_slices((x_train, y_train)).shuffle(
-        total_training_instances + 1, reshuffle_each_iteration=True).batch(batch_size)
-    test_iter = tf.data.Dataset.from_tensor_slices((x_test, y_test)).shuffle(
+    train_ds_iter = tf.data.Dataset.from_tensor_slices((x_train, y_train)).shuffle(
+        total_training_instances + 1, reshuffle_each_iteration=True).batch(args.batch_size)
+    test_ds_iter = tf.data.Dataset.from_tensor_slices((x_test, y_test)).shuffle(
         total_test_instances + 1, reshuffle_each_iteration=True).batch(batch_size_test)
 else:
-    train_iter = tf.data.Dataset.from_tensor_slices(
-        (x_train, y_train)).batch(batch_size)
-    test_iter = tf.data.Dataset.from_tensor_slices(
+    train_ds_iter = tf.data.Dataset.from_tensor_slices(
+        (x_train, y_train)).batch(args.batch_size)
+    test_ds_iter = tf.data.Dataset.from_tensor_slices(
         (x_test, y_test)).batch(batch_size_test)
-
 
 def get_fashion_mnist_labels(labels):
     text_labels = ['t-shirt', 'trouser', 'pullover', 'dress', 'coat',
                    'sandal', 'shirt', 'sneaker', 'bag', 'ankle boot']
     return [text_labels[int(i)] for i in labels]
-
 
 if sys.platform.startswith('win'):
     num_workers = 0
@@ -260,9 +256,6 @@ def train(
         regularization_weight=0.1):
     best_test_auc = 0
     best_epoch = 0
-    best_train_auc = 0
-    stopping_step = 0
-    early_stopping_rounds = 50
     global _Batch_Labels, _Batch_Positive_Predicted_Probabilities
     for epoch in range(num_epochs):
         train_l_sum, train_acc_sum, n = 0.0, 0.0, 0
@@ -424,7 +417,8 @@ def train(
 
         e_e = datetime.datetime.now()
         print(
-            "epoch: {}, loss: {}, train auc: {},  , # instances: {}, time used: {}".format(
+            "epoch: {}, loss: {}, train auc: {},  , # instances: {}, time used: {}".
+                format(
                 epoch,
                 train_l_sum /
                 n,
@@ -434,7 +428,8 @@ def train(
                 e_s))
         if args.num_outputs == 2:
             print(
-                "epoch {}, label leakage: baseline auc:{},  non_masking hidden layer: {}, masking hidden layer 1:{}, masking hidden layer 2: {}".format(
+                "epoch {}, label leakage: baseline auc:{},  non_masking hidden layer: {}, masking hidden layer 1:{}, masking hidden layer 2: {}".
+                    format(
                     epoch,
                     leakage_auc_baseline.result(),
                     leakage_auc_not_masked_hiddenlayer_2.result(),
@@ -563,10 +558,9 @@ stamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
 logdir = 'logs/%s' % stamp
 writer = tf.summary.create_file_writer(logdir)
 
-num_epochs, debug = args.num_epochs, args.debug
+# num_epochs, debug = args.num_epochs, args.debug
 regularization_weight = 0.5
 activation = "relu"
-# lr = 0.005  # 0.0001
 ada_gra_lr = 0.01
 trainer = tf.keras.optimizers.Adagrad(learning_rate=ada_gra_lr)
 
@@ -578,10 +572,10 @@ print(
         regularization_weight,
         ada_gra_lr))
 train(
-    train_iter,
-    test_iter,
+    train_ds_iter,
+    test_ds_iter,
     sigmoid_cross_entropy,
-    num_epochs,
+    args.num_epochs,
     params=[
         W,
         b,
@@ -592,14 +586,16 @@ train(
     trainer=trainer,
     regularization_weight=regularization_weight)
 print(
-    "gpu_option: {}, train_batch_size: {}, regularization_weight: {},  ada_gra_lr: {}".format(
+    "gpu_option: {}, train_batch_size: {}, regularization_weight: {},  ada_gra_lr: {}".
+        format(
         gpu_option,
         args.batch_size,
         regularization_weight,
         ada_gra_lr))
 t_e = datetime.datetime.now()
 print(
-    "total_training_instances: {}, total_test_instances: {}, num_batchs: {}, training used: {}".format(
+    "total_training_instances: {}, total_test_instances: {}, num_batchs: {}, training used: {}".
+        format(
         total_training_instances,
         total_test_instances,
         num_batchs,
