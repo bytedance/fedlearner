@@ -32,4 +32,6 @@ def gradient_masking(x):
     return x, grad_fn
 ```
 
+Please refer to the demo to check how to use add the customized function to prevent label leakage.
+
 We have filed a patent for the above algorithm on 6 July 2020. 
