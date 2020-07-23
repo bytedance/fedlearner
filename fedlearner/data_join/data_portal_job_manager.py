@@ -141,10 +141,13 @@ class DataPortalJobManager(object):
         job = self._processing_job
         map_fpaths = []
         for fpath in job.fpaths:
-            fname = path.basename(fpath)
-            if hash(fname) % self._output_partition_num == partition_id:
+            if hash(fpath) % self._output_partition_num == partition_id:
                 map_fpaths.append(fpath)
-        return dp_pb.MapTask(fpaths=map_fpaths,
+        task_name = '{}-dp_portal_job_{:08}-part-{:04}-map'.format(
+                self._portal_manifest.name, job.job_id, partition_id
+            )
+        return dp_pb.MapTask(task_name=task_name,
+                             fpaths=map_fpaths,
                              output_base_dir=self._map_output_dir(job.job_id),
                              output_partition_num=self._output_partition_num,
                              partition_id=partition_id,
@@ -162,7 +165,11 @@ class DataPortalJobManager(object):
         assert self._processing_job is not None
         job = self._processing_job
         job_id = job.job_id
-        return dp_pb.ReduceTask(map_base_dir=self._map_output_dir(job_id),
+        task_name = '{}-dp_portal_job_{:08}-part-{:04}-reduce'.format(
+                self._portal_manifest.name, job_id, partition_id
+            )
+        return dp_pb.ReduceTask(task_name=task_name,
+                                map_base_dir=self._map_output_dir(job_id),
                                 reduce_base_dir=self._reduce_output_dir(job_id),
                                 partition_id=partition_id)
 
