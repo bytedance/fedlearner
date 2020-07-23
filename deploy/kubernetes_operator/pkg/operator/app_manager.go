@@ -468,11 +468,9 @@ func (am *appManager) syncFollowerApp(ctx context.Context, app *v1alpha1.FLApp) 
 	name := app.Name
 	klog.Infof("sync bootstrapped follower app, name = %v", name)
 
-	if shouldInvokePeer(app) {
-		if err := am.appEventHandler.Register(ctx, app); err != nil {
-			klog.Errorf("failed to call Register, name = %v, err = %v", name, err)
-			return err
-		}
+	if err := am.appEventHandler.Register(ctx, app); err != nil {
+		klog.Errorf("failed to call Register, name = %v, err = %v", name, err)
+		return err
 	}
 	return am.appStatusUpdater.UpdateAppStateWithRetry(ctx, app, v1alpha1.FLStateSyncSent)
 }
@@ -536,11 +534,9 @@ func (am *appManager) syncRunningApp(ctx context.Context, app *v1alpha1.FLApp) e
 	name := app.Name
 	klog.Infof("sync running app, name = %v", name)
 	if am.isAppFinished(app) {
-		if shouldInvokePeer(app) {
-			if err := am.appEventHandler.Finish(ctx, app); err != nil {
-				klog.Errorf("failed to call Finished handler, name = %v, err = %v", name, err)
-				return err
-			}
+		if err := am.appEventHandler.Finish(ctx, app); err != nil {
+			klog.Errorf("failed to call Finished handler, name = %v, err = %v", name, err)
+			return err
 		}
 		if err := am.freeResource(ctx, app); err != nil {
 			klog.Errorf("failed to free resource when app is finished, name = %v, err = %v", name, err)
@@ -584,11 +580,9 @@ func (am *appManager) isAppTimeOut(app *v1alpha1.FLApp, now time.Time) bool {
 func (am *appManager) syncFailingApp(ctx context.Context, app *v1alpha1.FLApp) error {
 	name := app.Name
 	klog.Infof("sync failing app, name = %v", name)
-	if shouldInvokePeer(app) {
-		if err := am.appEventHandler.Shutdown(ctx, app); err != nil {
-			klog.Errorf("failed to call FLStateFailed handler, name = %v, err = %v", name, err)
-			return err
-		}
+	if err := am.appEventHandler.Shutdown(ctx, app); err != nil {
+		klog.Errorf("failed to call FLStateFailed handler, name = %v, err = %v", name, err)
+		return err
 	}
 	return am.appStatusUpdater.UpdateAppStateWithRetry(ctx, app, v1alpha1.FLStateShutDown)
 }
@@ -653,13 +647,4 @@ func getReplicas(app *v1alpha1.FLApp, rtype v1alpha1.FLReplicaType) int {
 
 func needPair(app *v1alpha1.FLApp, rtype v1alpha1.FLReplicaType) bool {
 	return app.Spec.FLReplicaSpecs[rtype].Pair != nil && *app.Spec.FLReplicaSpecs[rtype].Pair == true
-}
-
-func shouldInvokePeer(app *v1alpha1.FLApp) bool {
-	for rtype := range app.Spec.FLReplicaSpecs {
-		if needPair(app, rtype) {
-			return true
-		}
-	}
-	return false
 }
