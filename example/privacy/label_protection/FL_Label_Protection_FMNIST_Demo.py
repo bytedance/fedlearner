@@ -165,7 +165,6 @@ def normalized_norm(vector):
     norm_g = norm_g / tf.math.reduce_max(norm_g)
     return norm_g
 
-
 def label_leakge_auc(y, predicted_value, m_auc):
     predicted_value = tf.math.abs(predicted_value)
     val_max = tf.math.reduce_max(predicted_value)
@@ -173,26 +172,24 @@ def label_leakge_auc(y, predicted_value, m_auc):
     pred = (predicted_value - val_min) / (val_max - val_min + 1e-12)
     m_auc.update_state(tf.reshape(y, [-1, 1]), tf.reshape(pred, [-1, 1]))
 
-
-@tf.custom_gradient
-def gradient_masking_2(x):
-    # add scalar noise with aligning the maximum norm (positive instance)
-    global _Batch_Labels
-    _Batch_Labels = tf.reshape(
-        tf.cast(_Batch_Labels, dtype=tf.float32), [-1, 1])
-
-    def grad_fn(g):
-        g_norm = tf.reshape(tf.norm(g, axis=1, keepdims=True), [-1, 1])
-        max_norm = tf.reduce_max(g_norm * _Batch_Labels)
-        stds = tf.sqrt(tf.maximum(max_norm ** 2 /
-                                  (g_norm ** 2 + 1e-32) - 1.0, 0.0))
-        standard_gaussian_noise = tf.random.normal(
-            tf.shape(_Batch_Labels), mean=0.0, stddev=1.0)
-        gaussian_noise = standard_gaussian_noise * stds
-        res = g * (1 + gaussian_noise)
-        return res
-    return x, grad_fn
-
+# @tf.custom_gradient
+# def gradient_masking_2(x):
+#     # add scalar noise with aligning the maximum norm (positive instance)
+#     global _Batch_Labels
+#     _Batch_Labels = tf.reshape(
+#         tf.cast(_Batch_Labels, dtype=tf.float32), [-1, 1])
+#
+#     def grad_fn(g):
+#         g_norm = tf.reshape(tf.norm(g, axis=1, keepdims=True), [-1, 1])
+#         max_norm = tf.reduce_max(g_norm * _Batch_Labels)
+#         stds = tf.sqrt(tf.maximum(max_norm ** 2 /
+#                                   (g_norm ** 2 + 1e-32) - 1.0, 0.0))
+#         standard_gaussian_noise = tf.random.normal(
+#             tf.shape(_Batch_Labels), mean=0.0, stddev=1.0)
+#         gaussian_noise = standard_gaussian_noise * stds
+#         res = g * (1 + gaussian_noise)
+#         return res
+#     return x, grad_fn
 
 @tf.custom_gradient
 def gradient_masking(x):
@@ -256,7 +253,7 @@ def train(
         regularization_weight=0.1):
     best_test_auc = 0
     best_epoch = 0
-    global _Batch_Labels, _Batch_Positive_Predicted_Probabilities
+    # global _Batch_Labels, _Batch_Positive_Predicted_Probabilities
     for epoch in range(num_epochs):
         train_l_sum, train_acc_sum, n = 0.0, 0.0, 0
         leakage_auc_baseline.reset_states()
@@ -280,9 +277,9 @@ def train(
 
             batch_size = X.shape[0]
             b_s = datetime.datetime.now()
-            _Batch_Labels = y
-            _Batch_Positive_Predicted_Probabilities = tf.math.sigmoid(
-                predict(X))
+            # _Batch_Labels = y
+            # _Batch_Positive_Predicted_Probabilities = tf.math.sigmoid(
+            #     predict(X))
             # print("update: _Batch_Labels: {}".format(_Batch_Labels))
             # print("update _Batch_Positive_Predicted_Probabilities: {}".format(_Batch_Positive_Predicted_Probabilities))
             with tf.GradientTape(persistent=False) as tape:
@@ -305,74 +302,35 @@ def train(
 
             for i, param in enumerate(params):
                 trainer.apply_gradients([(grads[i] / batch_size, param)])
+
             if args.num_outputs == 2:
-                try:
-                    label_leakge_auc(y, tf.norm(
-                        grads[-1], axis=-1, keepdims=False), leakage_auc_baseline)
-                    label_leakge_auc(y,
-                                     tf.norm(grads[-2],
-                                             axis=-1,
-                                             keepdims=False),
-                                     leakage_auc_not_masked_hiddenlayer_2)
-                    label_leakge_auc(y,
-                                     tf.norm(grads[-3],
-                                             axis=-1,
-                                             keepdims=False),
-                                     leakage_auc_masked_hiddenlayer_2)
-                    label_leakge_auc(y,
-                                     tf.norm(grads[-4],
-                                             axis=-1,
-                                             keepdims=False),
-                                     leakage_auc_masked_hiddenlayer_1)
+                label_leakge_auc(y, tf.norm(
+                    grads[-1], axis=-1, keepdims=False), leakage_auc_baseline)
+                label_leakge_auc(y,
+                    tf.norm(grads[-2],
+                    axis=-1,
+                    keepdims=False),
+                    leakage_auc_not_masked_hiddenlayer_2)
+                label_leakge_auc(y,
+                    tf.norm(grads[-3],
+                    axis=-1,
+                    keepdims=False),
+                    leakage_auc_masked_hiddenlayer_2)
+                label_leakge_auc(y,
+                    tf.norm(grads[-4],
+                    axis=-1,
+                    keepdims=False),
+                    leakage_auc_masked_hiddenlayer_1)
+                gradient_list.append(grads[-1])
+                gradient_list_1.append(grads[-2])
+                gradient_list_2.append(grads[-3])
+                gradient_list_3.append(grads[-4])
+                label_list.append(tf.reshape(y, [-1, 1]))
 
-                    gradient_list.append(grads[-1])
-                    gradient_list_1.append(grads[-2])
-                    gradient_list_2.append(grads[-3])
-                    gradient_list_3.append(grads[-4])
-
-                    label_list.append(tf.reshape(y, [-1, 1]))
-                    if epoch == num_epochs - 1 and False:
-                        _Batch_Labels = tf.cast(
-                            _Batch_Labels, dtype=tf.float32)
-                        pos_p_min = tf.cond(
-                            tf.reduce_sum(_Batch_Labels) <= 0.0,
-                            lambda: 1.0,
-                            lambda: tf.reduce_min(
-                                tf.boolean_mask(
-                                    _Batch_Positive_Predicted_Probabilities,
-                                    _Batch_Labels)))
-                        pos_p_mean = tf.cond(
-                            tf.reduce_sum(_Batch_Labels) <= 0.0,
-                            lambda: 1.0,
-                            lambda: tf.reduce_mean(
-                                tf.boolean_mask(
-                                    _Batch_Positive_Predicted_Probabilities,
-                                    _Batch_Labels)))
-                        pos_p_max = tf.cond(
-                            tf.reduce_sum(_Batch_Labels) <= 0.0,
-                            lambda: 1.0,
-                            lambda: tf.reduce_max(
-                                tf.boolean_mask(
-                                    _Batch_Positive_Predicted_Probabilities,
-                                    _Batch_Labels)))
-                        print(
-                            "pos prob: min: {}, mean: {}, max: {}".format(
-                                pos_p_min, pos_p_mean, pos_p_max))
-                        negs = tf.cast(
-                            _Batch_Labels < 1.0,
-                            dtype=tf.float32) * _Batch_Positive_Predicted_Probabilities
-                        print("neg prob:  max:{}".format(tf.reduce_max(negs)))
-                        # print("predicted_prob: {}".format(tf.reshape(_Batch_Positive_Predicted_Probabilities,[-1])))
-                        # print("loss/logits norm: {}".format(tf.norm(grads[-1], axis = -1, keepdims= False)))
-                except Exception as e:
-                    print("Train Exception: {}".format(e))
             train_l_sum += l.numpy()
-            try:
-                train_auc.update_state(tf.reshape(
-                    y, [-1, 1]), tf.reshape(tf.math.sigmoid(logits), [-1, 1]))
-            except Exception as e:
-                print("Train_AUC Exception: {}".format(e))
-                return
+            train_auc.update_state(tf.reshape(
+                y, [-1, 1]), tf.reshape(tf.math.sigmoid(logits), [-1, 1]))
+
             n += y.shape[0]
             b_e = datetime.datetime.now()
 
@@ -382,7 +340,6 @@ def train(
         gradients_stack_3 = tf.concat(gradient_list_3, axis=0)
 
         labels_stack = tf.concat(label_list, axis=0)
-        # print("gradients_stack.shape: {}, gradients_stack_1.shape: {},labels.shape: {}".format(gradients_stack.shape, gradients_stack_1.shape, labels_stack.shape))
         pos_norm_ranking_order_baseline = middle_attack(
             gradients_stack, labels_stack)
         neg_norm_ranking_order_baseline = middle_attack(
@@ -541,12 +498,8 @@ def test(test_iter, loss):
         l = tf.reduce_sum(loss(logits, y))
         y = tf.cast(y, dtype=tf.float32)
         test_l_sum += l.numpy()
-        try:
-            test_auc.update_state(tf.reshape(
-                y, [-1, 1]), tf.reshape(tf.math.sigmoid(logits), [-1, 1]))
-        except Exception as e:
-            print("Test Exception: {}".format(e))
-            return
+        test_auc.update_state(tf.reshape(
+            y, [-1, 1]), tf.reshape(tf.math.sigmoid(logits), [-1, 1]))
         n += y.shape[0]
     print("test loss: {}, test auc: {}".format(
         test_l_sum / n, test_auc.result()))
@@ -558,18 +511,17 @@ stamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
 logdir = 'logs/%s' % stamp
 writer = tf.summary.create_file_writer(logdir)
 
-# num_epochs, debug = args.num_epochs, args.debug
-regularization_weight = 0.5
+regularization_weight_l2 = 0.5
 activation = "relu"
 ada_gra_lr = 0.01
-trainer = tf.keras.optimizers.Adagrad(learning_rate=ada_gra_lr)
+trainer_opt = tf.keras.optimizers.Adagrad(learning_rate=ada_gra_lr)
 
 t_s = datetime.datetime.now()
 print(
     "gpu_option: {}, train_batch_size: {}, regularization_weight: {}, ada_gra_lr: {}".format(
         gpu_option,
         args.batch_size,
-        regularization_weight,
+        regularization_weight_l2,
         ada_gra_lr))
 train(
     train_ds_iter,
@@ -583,14 +535,14 @@ train(
         b1,
         W2,
         b2],
-    trainer=trainer,
-    regularization_weight=regularization_weight)
+    trainer=trainer_opt,
+    regularization_weight=regularization_weight_l2)
 print(
     "gpu_option: {}, train_batch_size: {}, regularization_weight: {},  ada_gra_lr: {}".
         format(
         gpu_option,
         args.batch_size,
-        regularization_weight,
+        regularization_weight_l2,
         ada_gra_lr))
 t_e = datetime.datetime.now()
 print(
