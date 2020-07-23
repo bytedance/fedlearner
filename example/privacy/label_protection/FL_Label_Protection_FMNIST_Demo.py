@@ -390,17 +390,17 @@ def train(
                 e_e - e_s))
         if args.num_outputs == 2:
             print(
-                "epoch {}, baseline leak_auc:{}, non_masking HL: {}, masking HL 1:{}, masking HL 2: {}".
+                "epoch: {}, leak_auc baseline_all: {}, masked_HL_1_all: {}".
+                format(
+                epoch, leakage_auc_baseline_all.result(),
+                leakage_auc_masked_hiddenlayer_1_all.result()))
+            print(
+                "baseline leak_auc:{}, non_masking: {}, masking L1:{}, masking L2: {}".
                     format(
-                    epoch,
                     leakage_auc_baseline.result(),
                     leakage_auc_not_masked_hiddenlayer_2.result(),
                     leakage_auc_masked_hiddenlayer_1.result(),
                     leakage_auc_masked_hiddenlayer_2.result()))
-            print("epoch: {}, leak_auc baseline_all: {}, masked_HL_1_all: {}".
-                format(
-                epoch, leakage_auc_baseline_all.result(),
-                leakage_auc_masked_hiddenlayer_1_all.result()))
         test_loss, test_auc = test(test_iter, loss)
 
         with writer.as_default():
