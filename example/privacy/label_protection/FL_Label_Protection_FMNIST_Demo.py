@@ -395,12 +395,15 @@ def train(
                 epoch, leakage_auc_baseline_all.result(),
                 leakage_auc_masked_hiddenlayer_1_all.result()))
             print(
-                "baseline leak_auc:{}, non_masking: {}, masking L1:{}, masking L2: {}".
+                "baseline leak_auc:{}, non_masking: {}".
                     format(
                     leakage_auc_baseline.result(),
-                    leakage_auc_not_masked_hiddenlayer_2.result(),
+                    leakage_auc_not_masked_hiddenlayer_2.result()))
+            print("masking L1:{}, masking L2: {}".
+                    format(
                     leakage_auc_masked_hiddenlayer_1.result(),
                     leakage_auc_masked_hiddenlayer_2.result()))
+
         test_loss, test_auc = test(test_iter, loss)
 
         with writer.as_default():
