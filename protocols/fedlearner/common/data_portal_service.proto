@@ -63,20 +63,23 @@ message NewTaskRequest {
 }
 
 message MapTask {
-  repeated string fpaths = 1;
-  string output_base_dir = 2;
-  int64 output_partition_num = 3;
-  int64 partition_id = 4;
-  string part_field = 5;
+  string task_name = 1;
+  repeated string fpaths = 2;
+  string output_base_dir = 3;
+  int64 output_partition_num = 4;
+  int64 partition_id = 5;
+  string part_field = 6;
 }
 
 message ReduceTask {
-  string map_base_dir = 1;
-  string reduce_base_dir = 2;
-  int64 partition_id = 3;
+  string task_name = 1;
+  string map_base_dir = 2;
+  string reduce_base_dir = 3;
+  int64 partition_id = 4;
 }
 
 message NewTaskResponse {
+  string name = 1;
   Status status = 1;
   oneof msg {
     MapTask map_task = 2;

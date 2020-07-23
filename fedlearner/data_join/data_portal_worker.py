@@ -127,7 +127,8 @@ class DataPortalWorker(object):
 
     def _make_partitioner_options(self, task):
         return dj_pb.RawDataPartitionerOptions(
-            partitioner_name="dp_worker_partitioner_{}".format(self._rank_id),
+            partitioner_name="{}-rank_{}".format(task.task_name,
+                                                 self._rank_id),
             input_file_paths=task.fpaths,
             output_dir=task.output_base_dir,
             output_partition_num=task.output_partition_num,
@@ -139,7 +140,8 @@ class DataPortalWorker(object):
 
     def _make_merger_options(self, task):
         return dj_pb.SortRunMergerOptions(
-            merger_name="dp_sort_run_merger_{}".format(self._rank_id),
+            merger_name="{}-rank_{}".format(task.task_name,
+                                            self._rank_id),
             reader_options=dj_pb.RawDataOptions(
                 raw_data_iter=self._options.writer_options.output_writer,
                 compressed_type=self._options.writer_options.compressed_type,
