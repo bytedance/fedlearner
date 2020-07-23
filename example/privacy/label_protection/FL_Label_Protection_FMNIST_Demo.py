@@ -1,11 +1,11 @@
 #!/usr/bin/env python
 # coding: utf-8
-import numpy as np
 import sys
 import os
 import argparse
 import datetime
 import random
+import numpy as np
 import tensorflow as tf
 from tensorflow.keras.datasets import fashion_mnist
 
@@ -53,6 +53,7 @@ print(
         total_test_instances,
         num_batchs))
 
+
 def change_label(y, ratio=10):
     def condition(x):
         if x == 1:
@@ -63,6 +64,7 @@ def change_label(y, ratio=10):
     res = np.array(list(map(lambda x: condition(x), l)))
     print("positive ratio: {}".format(sum(res) / len(l)))
     return res
+
 
 if args.num_outputs == 2:
     y_train = change_label(y_train)
@@ -80,10 +82,12 @@ else:
     test_iter = tf.data.Dataset.from_tensor_slices(
         (x_test, y_test)).batch(batch_size_test)
 
+
 def get_fashion_mnist_labels(labels):
     text_labels = ['t-shirt', 'trouser', 'pullover', 'dress', 'coat',
                    'sandal', 'shirt', 'sneaker', 'bag', 'ankle boot']
     return [text_labels[int(i)] for i in labels]
+
 
 if sys.platform.startswith('win'):
     num_workers = 0
@@ -130,8 +134,10 @@ b = tf.Variable(tf.zeros(hidden_outputs_1, dtype=tf.float32))
 b1 = tf.Variable(tf.zeros(hidden_outputs_2, dtype=tf.float32))
 b2 = tf.Variable(tf.zeros(num_outputs, dtype=tf.float32))
 
+
 def softmax(logits, axis=-1):
     return tf.nn.softmax(logits, axis=axis)
+
 
 def cross_entropy(y_hat, y):
     # return tf.nn.softmax_cross_entropy_with_logits(y, y_hat)
@@ -140,10 +146,12 @@ def cross_entropy(y_hat, y):
     y = tf.cast(tf.reshape(y, shape=[-1, y_hat.shape[-1]]), dtype=tf.int32)
     return -tf.math.log(tf.boolean_mask(y_hat, y) + 1e-8)
 
+
 def sigmoid_cross_entropy(y_hat, y):
     y = tf.cast(tf.reshape(y, shape=[-1, 1]), dtype=tf.float32)
     loss = tf.nn.sigmoid_cross_entropy_with_logits(labels=y, logits=y_hat)
     return loss
+
 
 train_auc = tf.keras.metrics.AUC()
 leakage_auc_baseline = tf.keras.metrics.AUC(num_thresholds=1000)
@@ -155,10 +163,12 @@ leakage_auc_masked_hiddenlayer_2 = tf.keras.metrics.AUC(num_thresholds=1000)
 leakage_auc_not_masked_hiddenlayer_2 = tf.keras.metrics.AUC(
     num_thresholds=1000)
 
+
 def normalized_norm(vector):
     norm_g = tf.norm(vector, axis=-1, keepdims=False)
     norm_g = norm_g / tf.math.reduce_max(norm_g)
     return norm_g
+
 
 def label_leakge_auc(y, predicted_value, m_auc):
     predicted_value = tf.math.abs(predicted_value)
@@ -167,12 +177,14 @@ def label_leakge_auc(y, predicted_value, m_auc):
     pred = (predicted_value - val_min) / (val_max - val_min + 1e-12)
     m_auc.update_state(tf.reshape(y, [-1, 1]), tf.reshape(pred, [-1, 1]))
 
+
 @tf.custom_gradient
 def gradient_masking_2(x):
     # add scalar noise with aligning the maximum norm (positive instance)
     global _Batch_Labels
     _Batch_Labels = tf.reshape(
         tf.cast(_Batch_Labels, dtype=tf.float32), [-1, 1])
+
     def grad_fn(g):
         g_norm = tf.reshape(tf.norm(g, axis=1, keepdims=True), [-1, 1])
         max_norm = tf.reduce_max(g_norm * _Batch_Labels)
@@ -184,6 +196,7 @@ def gradient_masking_2(x):
         res = g * (1 + gaussian_noise)
         return res
     return x, grad_fn
+
 
 @tf.custom_gradient
 def gradient_masking(x):
@@ -200,6 +213,7 @@ def gradient_masking(x):
         return res
     return x, grad_fn
 
+
 def compute_gradient_norm(gradient, label):
     g_norm = tf.reshape(tf.norm(gradient, axis=1, keepdims=True), [-1])
     label = tf.cast(tf.reshape(label, [-1]), dtype=tf.float32)
@@ -210,6 +224,7 @@ def compute_gradient_norm(gradient, label):
     print("pos_norm: {}".format(pos_g_norm))
     print("neg_norm: {}".format(neg_g_norm))
     return g_norm, pos_g_norm, neg_g_norm
+
 
 def middle_attack(gradient, label, select_positive=True):
     g_norm = tf.reshape(tf.norm(gradient, axis=1, keepdims=True), [-1])
@@ -233,6 +248,7 @@ def middle_attack(gradient, label, select_positive=True):
     # mean: {}, min: {}, max: {}".format(select_positive, res.shape,
     # tf.reduce_mean(res), tf.reduce_min(res), tf.reduce_max(res)))
     return res
+
 
 def train(
         train_iter,
@@ -520,6 +536,7 @@ def predict(X):
         hidden_logits_2, shape=(-1, W2.shape[0])), W2) + b2
     return logits
 
+
 def test(test_iter, loss):
     test_l_sum, test_acc_sum, n = 0.0, 0.0, 0
     test_auc = tf.keras.metrics.AUC()
@@ -539,6 +556,7 @@ def test(test_iter, loss):
     print("test loss: {}, test auc: {}".format(
         test_l_sum / n, test_auc.result()))
     return test_l_sum / n, test_auc.result()
+
 
 # Set up logging.
 stamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
