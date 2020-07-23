@@ -224,7 +224,8 @@ class DataPortalMaster(unittest.TestCase):
         fnames.sort()
         fpaths = [os.path.join(portal_manifest.input_base_dir, f) for f in fnames 
                   if (fnmatch(f, portal_manifest.input_file_wildcard) and \
-                          hash(f) % map_task.output_partition_num == partition_id)]
+                          hash(os.path.join(portal_manifest.input_base_dir, f)) % \
+                            map_task.output_partition_num == partition_id)]
         self.assertEqual(len(fpaths), len(map_task.fpaths))
         for index, fpath in enumerate(fpaths):
             self.assertEqual(fpath, map_task.fpaths[index])
