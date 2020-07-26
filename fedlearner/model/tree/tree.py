@@ -944,6 +944,8 @@ class BoostingTreeEnsamble(object):
         return msg
 
     def save_model(self, path):
+        if not tf.io.gfile.exists(os.path.dirname(path)):
+            tf.io.gfile.makedirs(os.path.dirname(path))
         fout = tf.io.gfile.GFile(path, 'w')
         model = tree_pb2.BoostingTreeEnsambleProto(
             feature_importance=self._feature_importance,
@@ -1153,6 +1155,8 @@ class BoostingTreeEnsamble(object):
         return self._loss.predict(raw_prediction)
 
     def _write_training_log(self, filename, header, metrics, pred):
+        if not tf.io.gfile.exists(os.path.dirname(filename)):
+            tf.io.gfile.makedirs(os.path.dirname(filename))
         fout = tf.io.gfile.GFile(filename, 'a')
         fout.write(header + '\n')
         fout.write(str(metrics) + '\n')
