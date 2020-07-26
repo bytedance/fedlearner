@@ -42,7 +42,7 @@ spec:
               - name: INPUT_BASE_DIR
                 value: /data/criteo_data/100wexamples
               - name: OUTPUT_BASE_DIR
-                value: /data/data_portal_output/test_data_portal
+                value: /data/raw_data/test_data_portal
               - name: RAW_DATA_PUBLISH_DIR
                 value: portal_publish_dir/test_data_portal
               - name: DATA_PORTAL_TYPE
@@ -104,8 +104,6 @@ spec:
                 value: "300000"
               - name: MERGE_BUFFER_SIZE
                 value: "4096"
-              - name: WRITE_BUFFER_SIZE
-                value: "10000000"
               - name: INPUT_DATA_FORMAT
                 value: TF_RECORD
               - name: COMPRESSED_TYPE

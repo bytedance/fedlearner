@@ -23,7 +23,6 @@ source /app/deploy/scripts/env_to_args.sh
 MASTER_POD_NAMES=`python -c 'import json, os; print(json.loads(os.environ["CLUSTER_SPEC"])["clusterSpec"]["Master"][0])'`
 
 merge_buffer_size=$(normalize_env_to_args "--merge_buffer_size" $MERGE_BUFFER_SIZE)
-writer_buffer_size=$(normalize_env_to_args "--write_buffer_size" $WRITE_BUFFER_SIZE)
 input_data_file_iter=$(normalize_env_to_args "--input_data_file_iter" $INPUT_DATA_FORMAT)
 compressed_type=$(normalize_env_to_args "--compressed_type" $COMPRESSED_TYPE)
 output_builder=$(normalize_env_to_args "--output_builder" $OUTPUT_DATA_FORMAT)
@@ -38,7 +37,7 @@ python -m fedlearner.data_join.cmd.data_portal_worker_cli \
   --etcd_name=$ETCD_NAME \
   --etcd_addrs=$ETCD_ADDR \
   --etcd_base_dir=$ETCD_BASE_DIR \
-  $merge_buffer_size $write_buffer_size \
+  $merge_buffer_size \
   $input_data_file_iter $compressed_type \
   $output_builder $builder_compressed_type \
   $batch_size $max_flying_item $USE_MOCK_ETCD

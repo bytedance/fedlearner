@@ -243,7 +243,6 @@ describe('portalGenerateYaml', () => {
         batch_size: 1024,
         max_flying_item: 300000,
         merge_buffer_size: 4096,
-        write_buffer_size: 10000000,
         input_data_format: 'TF_RECORD',
         output_data_format: 'TF_RECORD',
         compressed_type: '',

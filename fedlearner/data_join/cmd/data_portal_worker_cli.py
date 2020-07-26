@@ -39,8 +39,6 @@ if __name__ == '__main__':
                         help='use to mock etcd for test')
     parser.add_argument("--merge_buffer_size", type=int,
                         default=4096, help="the buffer size for merging")
-    parser.add_argument("--write_buffer_size", type=int, default=10485760,
-                        help="the output buffer size (bytes) for partitioner")
     parser.add_argument("--merger_read_ahead_size", type=int, default=0,
                         help="the read ahead size for merger")
     parser.add_argument("--input_data_file_iter", type=str, default="TF_RECORD",
@@ -75,7 +73,6 @@ if __name__ == '__main__':
             max_flying_item=args.max_flying_item
         ),
         merge_buffer_size=args.merge_buffer_size,
-        write_buffer_size=args.write_buffer_size,
         merger_read_ahead_size=args.merger_read_ahead_size
     )
 
