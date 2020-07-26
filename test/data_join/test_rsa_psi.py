@@ -320,7 +320,7 @@ class RsaPsi(unittest.TestCase):
         self._follower_rsa_psi_sub_dir = 'follower_rsa_psi_sub_dir'
         rd_publisher = raw_data_publisher.RawDataPublisher(self._etcd_f, self._follower_rsa_psi_sub_dir)
         for partition_id in range(self._data_source_f.data_source_meta.partition_num):
-            rd_publisher.publish_raw_data(partition_id, self._psi_raw_data_fpaths_f[partition_id])
+            rd_publisher.publish_raw_data(partition_id, [self._psi_raw_data_fpaths_f[partition_id]])
             rd_publisher.finish_raw_data(partition_id)
             options = dj_pb.RsaPsiPreProcessorOptions(
                     preprocessor_name='follower-rsa-psi-processor',
