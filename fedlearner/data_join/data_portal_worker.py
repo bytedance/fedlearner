@@ -150,8 +150,7 @@ class DataPortalWorker(object):
             writer_options=self._options.writer_options,
             output_file_dir=task.reduce_base_dir,
             partition_id=task.partition_id,
-            merge_buffer_size=self._options.merge_buffer_size,
-            write_buffer_size=self._options.write_buffer_size
+            merge_buffer_size=self._options.merge_buffer_size
         )
 
     def _run_map_task(self, task):

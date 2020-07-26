@@ -104,8 +104,6 @@ spec:
                 value: "300000"
               - name: MERGE_BUFFER_SIZE
                 value: "4096"
-              - name: WRITE_BUFFER_SIZE
-                value: "10000000"
               - name: INPUT_DATA_FORMAT
                 value: TF_RECORD
               - name: COMPRESSED_TYPE

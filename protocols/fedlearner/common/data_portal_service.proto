@@ -112,7 +112,6 @@ message DataPortalWorkerOptions {
   WriterOptions writer_options = 2;
   BatchProcessorOptions batch_processor_options = 3;
   int64 merge_buffer_size = 4;
-  int64 write_buffer_size = 5;
-  int64 merger_read_ahead_size = 6;
-  bool use_mock_etcd = 7;
+  int64 merger_read_ahead_size = 5;
+  bool use_mock_etcd = 6;
 }

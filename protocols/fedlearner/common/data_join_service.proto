@@ -330,5 +330,4 @@ message SortRunMergerOptions {
   string output_file_dir = 4;
   int64 partition_id = 5;
   int64 merge_buffer_size = 6;
-  int64 write_buffer_size = 7;
 }
