@@ -30,3 +30,5 @@ ingress:
     nginx.ingress.kubernetes.io/backend-protocol: GRPC
   tls: []
   host: default.fedlearner.operator
+
+installCRD: true
