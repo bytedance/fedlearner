@@ -379,9 +379,6 @@ class DataPortalJobManager(object):
         self._publisher.publish_raw_data(partition_id, fpaths)
 
     def _publish_psi_raw_data(self, partition_id, dpath, fnames):
-        metas = [RawDataPartitioner.FileMeta.decode_meta_from_fname(fname)
-                 for fname in fnames]
-        fpaths = [path.join(dpath, meta.encode_meta_to_fname())
-                  for meta in metas]
+        fpaths = [path.join(dpath, fname) for fname in fnames]
         self._publisher.publish_raw_data(partition_id, fpaths)
         self._publisher.finish_raw_data(partition_id)

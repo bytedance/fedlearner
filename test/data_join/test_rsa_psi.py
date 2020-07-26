@@ -43,7 +43,7 @@ from fedlearner.common.etcd_client import EtcdClient
 from fedlearner.proxy.channel import make_insecure_channel, ChannelType
 from fedlearner.data_join.rsa_psi import rsa_psi_signer, rsa_psi_preprocessor
 from fedlearner.data_join import data_join_master, data_join_worker,\
-                                 common, csv_dict_writer
+                                 common, csv_dict_writer, raw_data_publisher
 
 class RsaPsi(unittest.TestCase):
     def _setUpEtcd(self):
@@ -317,12 +317,16 @@ class RsaPsi(unittest.TestCase):
         rsa_key_pem=None
         with gfile.GFile(self._rsa_public_key_path, 'rb') as f:
             rsa_key_pem = f.read()
+        self._follower_rsa_psi_sub_dir = 'follower_rsa_psi_sub_dir'
+        rd_publisher = raw_data_publisher.RawDataPublisher(self._etcd_f, self._follower_rsa_psi_sub_dir)
         for partition_id in range(self._data_source_f.data_source_meta.partition_num):
+            rd_publisher.publish_raw_data(partition_id, self._psi_raw_data_fpaths_f[partition_id])
+            rd_publisher.finish_raw_data(partition_id)
             options = dj_pb.RsaPsiPreProcessorOptions(
                     preprocessor_name='follower-rsa-psi-processor',
                     role=common_pb.FLRole.Follower,
                     rsa_key_pem=rsa_key_pem,
-                    input_file_paths=[self._psi_raw_data_fpaths_f[partition_id]],
+                    input_file_subscribe_dir=self._follower_rsa_psi_sub_dir,
                     output_file_dir=self._pre_processor_ouput_dir_f,
                     raw_data_publish_dir=self._raw_data_pub_dir_f,
                     partition_id=partition_id,
