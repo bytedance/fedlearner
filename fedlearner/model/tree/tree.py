@@ -1157,7 +1157,10 @@ class BoostingTreeEnsamble(object):
     def _write_training_log(self, filename, header, metrics, pred):
         if not tf.io.gfile.exists(os.path.dirname(filename)):
             tf.io.gfile.makedirs(os.path.dirname(filename))
-        fout = tf.io.gfile.GFile(filename, 'a')
+        if not tf.io.gfile.exists(filename):
+            fout = tf.io.gfile.GFile(filename, 'w')
+        else:
+            fout = tf.io.gfile.GFile(filename, 'a')
         fout.write(header + '\n')
         fout.write(str(metrics) + '\n')
         fout.write(','.join([str(i) for i in pred]) + '\n')
