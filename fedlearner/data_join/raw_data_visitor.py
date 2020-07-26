@@ -191,10 +191,10 @@ class EtcdBasedMockRawDataVisitor(RawDataVisitor):
                  mock_data_source_name, raw_data_sub_dir):
         mock_data_source = common_pb.DataSource(
                 state=common_pb.DataSourceState.Processing,
+                raw_data_sub_dir=raw_data_sub_dir,
                 data_source_meta=common_pb.DataSourceMeta(
                     name=mock_data_source_name,
-                    partition_num=1,
-                    raw_data_sub_dir=raw_data_sub_dir
+                    partition_num=1
                 )
             )
         self._mock_rd_manifest_manager = RawDataManifestManager(

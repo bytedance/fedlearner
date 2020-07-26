@@ -27,7 +27,6 @@ from fedlearner.common import data_portal_service_pb2 as dp_pb
 from fedlearner.data_join import common
 from fedlearner.data_join.raw_data_publisher import RawDataPublisher
 from fedlearner.data_join.sort_run_merger import MergedSortRunMeta
-from fedlearner.data_join.raw_data_partitioner import RawDataPartitioner
 
 class DataPortalJobManager(object):
     def __init__(self, etcd, portal_name, long_running):
@@ -379,9 +378,6 @@ class DataPortalJobManager(object):
         self._publisher.publish_raw_data(partition_id, fpaths)
 
     def _publish_psi_raw_data(self, partition_id, dpath, fnames):
-        metas = [RawDataPartitioner.FileMeta.decode_meta_from_fname(fname)
-                 for fname in fnames]
-        fpaths = [path.join(dpath, meta.encode_meta_to_fname())
-                  for meta in metas]
+        fpaths = [path.join(dpath, fname) for fname in fnames]
         self._publisher.publish_raw_data(partition_id, fpaths)
         self._publisher.finish_raw_data(partition_id)

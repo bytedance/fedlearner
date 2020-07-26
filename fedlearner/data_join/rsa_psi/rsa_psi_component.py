@@ -121,6 +121,7 @@ class IdBatchFetcher(ItemBatchSeqProcessor):
         else:
             if self._id_visitor is None:
                 self._id_visitor = self._create_etcd_based_mock_visitor()
+            self._id_visitor.active_visitor()
             if self._id_visitor.is_input_data_finish():
                 self.set_input_finished()
         return self._id_visitor
@@ -129,7 +130,7 @@ class IdBatchFetcher(ItemBatchSeqProcessor):
         return FileBasedMockRawDataVisitor(
                 self._etcd,
                 self._options.input_raw_data,
-                '{}-proprocessor-mock-data-source-{:04}'.format(
+                '{}-rsa_psi_proprocessor-mock-data-source-{:04}'.format(
                     self._options.preprocessor_name,
                     self._options.partition_id
                 ),
@@ -140,7 +141,7 @@ class IdBatchFetcher(ItemBatchSeqProcessor):
         return EtcdBasedMockRawDataVisitor(
                 self._etcd,
                 self._options.input_raw_data,
-                '{}-proprocessor-mock-data-source-{:04}'.format(
+                '{}-rsa_psi_proprocessor-mock-data-source-{:04}'.format(
                     self._options.preprocessor_name,
                     self._options.partition_id
                 ),
