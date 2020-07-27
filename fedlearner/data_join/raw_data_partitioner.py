@@ -18,7 +18,6 @@ import threading
 import logging
 import os
 import re
-import time
 
 from tensorflow.compat.v1 import gfile
 

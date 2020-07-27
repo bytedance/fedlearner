@@ -17,10 +17,10 @@
 import os
 import logging
 import uuid
-import psutil
 import threading
 import time
 from contextlib import contextmanager
+import psutil
 
 import tensorflow.compat.v1 as tf
 from google.protobuf import text_format
@@ -241,9 +241,9 @@ class _OomRsikChecker(object):
             self._latest_updated_ts = time.time()
             self._latest_memory_usage = self._ps_handler.memory_info().rss
 
-    def check_oom_risk(self, water_level_percent=0.9):
+    def check_oom_risk(self, water_level_percent=0.9, force=False):
         with self._lock:
-            self._try_update_memory_usage()
+            self._try_update_memory_usage(force)
             return self._latest_memory_usage >= \
                     self._mem_limit * water_level_percent
 
