@@ -30,7 +30,7 @@ from fedlearner.data_join.rsa_psi.rsa_psi_component import \
         IdBatchFetcher, LeaderPsiRsaSigner, FollowerPsiRsaSigner
 from fedlearner.data_join.sort_run_dumper import SortRunDumper
 from fedlearner.data_join.sort_run_merger import SortRunMerger
-from fedlearner.data_join.common import partition_repr
+from fedlearner.data_join.common import partition_repr, get_oom_risk_checker
 
 class RsaPsiPreProcessor(object):
     def __init__(self, options, etcd_name, etcd_addrs,
@@ -148,11 +148,15 @@ class RsaPsiPreProcessor(object):
             logging.debug("%s fetch batch begin at %d, len %d. wakeup %s",
                           self._id_batch_fetcher_name(), batch.begin_index,
                           len(batch), self._psi_rsa_signer_name())
+            if get_oom_risk_checker().check_oom_risk(0.8):
+                logging.warning('early stop the id fetch '\
+                                'since the oom risk')
             self._wakeup_psi_rsa_signer()
 
     def _id_batch_fetch_cond(self):
         next_index = self._psi_rsa_signer.get_next_index_to_fetch()
-        return self._id_batch_fetcher.need_process(next_index)
+        return self._id_batch_fetcher.need_process(next_index) and \
+                not get_oom_risk_checker().check_oom_risk(0.8)
 
     def _psi_rsa_signer_name(self):
         return self._repr + ':psi_rsa_signer'
@@ -193,7 +197,7 @@ class RsaPsiPreProcessor(object):
         signed_finished = False
         total_item_num = 0
         max_flying_item = self._options.batch_processor_options.max_flying_item
-        sort_run_size = max_flying_item // 4
+        sort_run_size = max_flying_item // 2
         while True and total_item_num < sort_run_size:
             signed_finished, batch, hint_index = \
                 rsi_signer.fetch_item_batch_by_index(next_index, hint_index)
@@ -238,7 +242,8 @@ class RsaPsiPreProcessor(object):
                   (flying_begin_index <= next_index <
                       flying_begin_index + flying_item_cnt) and
                    (flying_item_cnt-(next_index-flying_begin_index) >=
-                    max_flying_item // 4)))
+                    max_flying_item // 4 or
+                    get_oom_risk_checker().check_oom_risk(0.9))))
 
     def _sort_run_merger_name(self):
         return self._repr + ':sort_run_merger'

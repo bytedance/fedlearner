@@ -256,6 +256,10 @@ function portalGenerateYaml(federation, raw_data) {
           env: [
             { name: 'POD_IP', valueFrom: { fieldRef: { fieldPath: 'status.podIP' } } },
             { name: 'POD_NAME', valueFrom: { fieldRef: { fieldPath: 'metadata.name' } } },
+            { name: 'CPU_REQUEST', valueFrom: { resourceFieldRef: { resource: 'requests.cpu' } } },
+            { name: 'MEM_REQUEST', valueFrom: { resourceFieldRef: { resource: 'requests.memory' } } },
+            { name: 'CPU_LIMIT', valueFrom: { resourceFieldRef: { resource: 'limits.cpu' } } },
+            { name: 'MEM_LIMIT', valueFrom: { resourceFieldRef: { resource: 'limits.memory' } } },
             { name: 'APPLICATION_ID', value: raw_data.name },
             { name: 'BATCH_SIZE', value: String(raw_data.context.batch_size) },
             { name: 'MAX_FLYING_ITEM', value: String(raw_data.context.max_flying_item) },
