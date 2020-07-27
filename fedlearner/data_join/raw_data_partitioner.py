@@ -18,6 +18,7 @@ import threading
 import logging
 import os
 import re
+import time
 
 from tensorflow.compat.v1 import gfile
 
@@ -282,7 +283,11 @@ class RawDataPartitioner(object):
                     writer.append_item(batch.begin_index+index, item)
                 next_index += len(batch)
                 iter_round += 1
-                if iter_round % signal_round_threhold == 0:
+                oom_risk = common.get_oom_risk_checker().check_oom_risk()
+                if iter_round % signal_round_threhold == 0 and oom_risk:
+                    if oom_risk:
+                        logging.warning("earily finish writer partition "\
+                                        "writer since oom risk")
                     self._finish_file_writers()
                     self._set_next_part_index(next_index)
                     hint_index = self._evict_staless_batch(hint_index,
@@ -419,10 +424,15 @@ class RawDataPartitioner(object):
             logging.debug("fetch batch begin at %d, len %d. wakeup "\
                           "partitioner", batch.begin_index, len(batch))
             self._wakeup_partitioner()
+            if common.get_oom_risk_checker().check_oom_risk():
+                logging.warning('early stop the raw data fetch '\
+                                'since the oom risk')
+                break
 
     def _raw_data_batch_fetch_cond(self):
         next_part_index = self._get_next_part_index()
-        return self._raw_data_batch_fetcher.need_process(next_part_index)
+        return self._raw_data_batch_fetcher.need_process(next_part_index) and \
+                not common.get_oom_risk_checker().check_oom_risk()
 
     def _wakeup_partitioner(self):
         self._worker_map['raw_data_partitioner'].wakeup()

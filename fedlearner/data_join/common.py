@@ -17,6 +17,9 @@
 import os
 import logging
 import uuid
+import psutil
+import threading
+import time
 from contextlib import contextmanager
 
 import tensorflow.compat.v1 as tf
@@ -222,3 +225,28 @@ def data_source_data_block_dir(data_source):
 
 def data_source_example_dumped_dir(data_source):
     return os.path.join(data_source.output_base_dir, 'example_dump')
+
+class _OomRsikChecker(object):
+    def __init__(self):
+        self._lock = threading.Lock()
+        self._mem_limit = int(os.environ.get('MEM_LIMIT', '17179869184'))
+        self._ps_handler = psutil.Process(os.getpid())
+        self._latest_updated_ts = 0
+        self._latest_memory_usage = None
+        self._try_update_memory_usage(True)
+
+
+    def _try_update_memory_usage(self, force):
+        if time.time() - self._latest_updated_ts >= 10 or force:
+            self._latest_updated_ts = time.time()
+            self._latest_memory_usage = self._ps_handler.memory_info().rss
+
+    def check_oom_risk(self, water_level_percent=0.9):
+        with self._lock:
+            self._try_update_memory_usage()
+            return self._latest_memory_usage >= \
+                    self._mem_limit * water_level_percent
+
+_oom_risk_checker = _OomRsikChecker()
+def get_oom_risk_checker():
+    return _oom_risk_checker

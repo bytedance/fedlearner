@@ -96,6 +96,22 @@ spec:
                 valueFrom:
                   fieldRef:
                     fieldPath: metadata.name
+              - name: CPU_REQUEST
+                valueFrom:
+                  resourceFieldRef:
+                    resource: requests.cpu
+              - name: MEM_REQUEST
+                valueFrom:
+                  resourceFieldRef:
+                    resource: requests.memory
+              - name: CPU_LIMIT
+                valueFrom:
+                  resourceFieldRef:
+                    resource: limits.cpu
+              - name: MEM_LIMIT
+                valueFrom:
+                  resourceFieldRef:
+                    resource: limits.memory
               - name: APPLICATION_ID
                 value: test_data_portal
               - name: BATCH_SIZE
