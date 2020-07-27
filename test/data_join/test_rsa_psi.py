@@ -29,6 +29,7 @@ from cityhash import CityHash32 # pylint: disable=no-name-in-module
 
 import unittest
 import tensorflow.compat.v1 as tf
+tf.enable_eager_execution()
 import numpy as np
 from tensorflow.compat.v1 import gfile
 from google.protobuf import text_format, empty_pb2, timestamp_pb2
@@ -195,7 +196,8 @@ class RsaPsi(unittest.TestCase):
                 use_mock_etcd=True,
                 raw_data_options=dj_pb.RawDataOptions(
                     raw_data_iter='TF_RECORD',
-                    compressed_type=''
+                    read_ahead_size=1<<20,
+                    read_batch_size=128
                 ),
                 example_id_dump_options=dj_pb.ExampleIdDumpOptions(
                     example_id_dump_interval=1,
@@ -291,6 +293,7 @@ class RsaPsi(unittest.TestCase):
                     stub_fanout=2,
                     slow_sign_threshold=8,
                     sort_run_merger_read_ahead_buffer=1<<20,
+                    sort_run_merger_read_batch_size=128,
                     batch_processor_options=dj_pb.BatchProcessorOptions(
                         batch_size=1024,
                         max_flying_item=1<<14
@@ -338,6 +341,7 @@ class RsaPsi(unittest.TestCase):
                     stub_fanout=2,
                     slow_sign_threshold=8,
                     sort_run_merger_read_ahead_buffer=1<<20,
+                    sort_run_merger_read_batch_size=128,
                     batch_processor_options=dj_pb.BatchProcessorOptions(
                         batch_size=1024,
                         max_flying_item=1<<14

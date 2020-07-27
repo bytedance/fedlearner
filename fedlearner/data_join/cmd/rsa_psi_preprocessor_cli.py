@@ -69,6 +69,9 @@ if __name__ == "__main__":
     parser.add_argument('--sort_run_merger_read_ahead_buffer', type=int,
                         default=1<<20, help='the read ahead buffer for the '\
                                             'reader of sort run reader')
+    parser.add_argument('--sort_run_merger_read_batch_size', type=int,
+                        default=32, help='the read batch size for the '\
+                                          'sort run reader')
     parser.add_argument('--partition_id', type=int, required=True,
                         help='the partition id will be processed')
     parser.add_argument('--etcd_name', type=str,
@@ -77,14 +80,16 @@ if __name__ == "__main__":
                         default='localhost:2379', help='the addrs of etcd')
     parser.add_argument('--etcd_base_dir', type=str, default='fedlearner_test',
                         help='the namespace of etcd key')
-    parser.add_argument('--raw_data_iter', type=str, default='CSV_DICT',
+    parser.add_argument('--raw_data_iter', type=str, default='TF_RECORD',
+                        choices=['TF_RECORD', 'CSV_DICT'],
                         help='the type for raw data file')
     parser.add_argument('--compressed_type', type=str, default='',
                         choices=['', 'ZLIB', 'GZIP'],
                         help='the compressed type for raw data')
     parser.add_argument('--read_ahead_size', type=int, default=32<<20,
-                        help='the read ahead size for raw data,'
-                             'only support CSV DICT')
+                        help='the read ahead size for raw data')
+    parser.add_argument('--read_batch_size', type=int, default=128,
+                        help='the read batch size for tf record iter')
     parser.add_argument('--output_builder', type=str, default='TF_RECORD',
                         choices=['TF_RECORD', 'CSV_DICT'],
                         help='the builder for ouput file')
@@ -93,6 +98,10 @@ if __name__ == "__main__":
                         help='the compressed type for TF_RECORD builder')
 
     args = parser.parse_args()
+    if args.raw_data_iter == 'TF_RECORD' or args.output_builder == 'TF_RECORD':
+        import tensorflow
+        tensorflow.compat.v1.enable_eager_execution()
+
     all_fpaths = []
     if len(args.input_file_subscribe_dir) == 0:
         if args.input_file_paths is not None:
@@ -125,6 +134,8 @@ if __name__ == "__main__":
             slow_sign_threshold=args.slow_sign_threshold,
             sort_run_merger_read_ahead_buffer=\
                 args.sort_run_merger_read_ahead_buffer,
+            sort_run_merger_read_batch_size=\
+                args.sort_run_merger_read_batch_size,
             batch_processor_options=dj_pb.BatchProcessorOptions(
                 batch_size=args.process_batch_size,
                 max_flying_item=args.max_flying_item
@@ -132,7 +143,8 @@ if __name__ == "__main__":
             input_raw_data=dj_pb.RawDataOptions(
                 raw_data_iter=args.raw_data_iter,
                 compressed_type=args.compressed_type,
-                read_ahead_size=args.read_ahead_size
+                read_ahead_size=args.read_ahead_size,
+                read_batch_size=args.read_batch_size
             ),
             writer_options=dj_pb.WriterOptions(
                 output_writer=args.output_builder,

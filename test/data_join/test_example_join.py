@@ -19,6 +19,7 @@ import os
 import random
 
 import tensorflow.compat.v1 as tf
+tf.enable_eager_execution()
 from tensorflow.compat.v1 import gfile
 from google.protobuf import timestamp_pb2
 

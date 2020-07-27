@@ -25,6 +25,8 @@ MASTER_POD_NAMES=`python -c 'import json, os; print(json.loads(os.environ["CLUST
 merge_buffer_size=$(normalize_env_to_args "--merge_buffer_size" $MERGE_BUFFER_SIZE)
 input_data_file_iter=$(normalize_env_to_args "--input_data_file_iter" $INPUT_DATA_FORMAT)
 compressed_type=$(normalize_env_to_args "--compressed_type" $COMPRESSED_TYPE)
+read_ahead_size=$(normalize_env_to_args "--read_ahead_size" $READ_AHEAD_SIZE)
+read_batch_size=$(normalize_env_to_args "--read_batch_size" $READ_BATCH_SIZE)
 output_builder=$(normalize_env_to_args "--output_builder" $OUTPUT_DATA_FORMAT)
 builder_compressed_type=$(normalize_env_to_args "--builder_compressed_type" $BUILDER_COMPRESSED_TYPE)
 batch_size=$(normalize_env_to_args "--batch_size" $BATCH_SIZE)
@@ -38,7 +40,7 @@ python -m fedlearner.data_join.cmd.data_portal_worker_cli \
   --etcd_addrs=$ETCD_ADDR \
   --etcd_base_dir=$ETCD_BASE_DIR \
   $merge_buffer_size \
-  $input_data_file_iter $compressed_type \
+  $input_data_file_iter $compressed_type $read_ahead_size $read_batch_size \
   $output_builder $builder_compressed_type \
   $batch_size $max_flying_item $USE_MOCK_ETCD
 

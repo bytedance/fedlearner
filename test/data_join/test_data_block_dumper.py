@@ -18,6 +18,7 @@ import unittest
 import os
 
 import tensorflow.compat.v1 as tf
+tf.enable_eager_execution()
 from google.protobuf import text_format, timestamp_pb2
 from tensorflow.compat.v1 import gfile
 
@@ -156,7 +157,7 @@ class TestDataBlockDumper(unittest.TestCase):
         self.generate_leader_raw_data()
         dbd = data_block_dumper.DataBlockDumperManager(
                 self.etcd, self.data_source_l, 0,
-                dj_pb.RawDataOptions(raw_data_iter='TF_RECORD'),
+                dj_pb.RawDataOptions(raw_data_iter='TF_RECORD', read_ahead_size=1<<20, read_batch_size=128),
                 dj_pb.WriterOptions(output_writer='TF_RECORD')
             )
         self.assertEqual(dbd.get_next_data_block_index(), 0)

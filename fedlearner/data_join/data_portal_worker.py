@@ -145,7 +145,8 @@ class DataPortalWorker(object):
             reader_options=dj_pb.RawDataOptions(
                 raw_data_iter=self._options.writer_options.output_writer,
                 compressed_type=self._options.writer_options.compressed_type,
-                read_ahead_size=self._options.merger_read_ahead_size
+                read_ahead_size=self._options.merger_read_ahead_size,
+                read_batch_size=self._options.merger_read_batch_size
             ),
             writer_options=self._options.writer_options,
             output_file_dir=task.reduce_base_dir,

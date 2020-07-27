@@ -78,7 +78,9 @@ class RsaPsiPreProcessor(object):
                         raw_data_iter=options.writer_options.output_writer,
                         compressed_type=options.writer_options.compressed_type,
                         read_ahead_size=\
-                            options.sort_run_merger_read_ahead_buffer
+                            options.sort_run_merger_read_ahead_buffer,
+                        read_batch_size=\
+                            options.sort_run_merger_read_batch_size
                     ),
                     writer_options=options.writer_options,
                     output_file_dir=options.output_file_dir,

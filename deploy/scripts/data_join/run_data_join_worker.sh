@@ -25,6 +25,7 @@ MASTER_POD_NAMES=`python -c 'import json, os; print(json.loads(os.environ["CLUST
 raw_data_iter=$(normalize_env_to_args "--raw_data_iter" $RAW_DATA_ITER)
 compressed_type=$(normalize_env_to_args "--compressed_type" $COMPRESSED_TYPE)
 read_ahead_size=$(normalize_env_to_args "--read_ahead_size" $READ_AHEAD_SIZE)
+read_batch_size=$(normalize_env_to_args "--read_batch_size" $READ_BATCH_SIZE)
 example_joiner=$(normalize_env_to_args "--example_joiner" $EXAMPLE_JOINER)
 min_matching_window=$(normalize_env_to_args "--min_matching_window" $MIN_MATCHING_WINDOW)
 max_matching_window=$(normalize_env_to_args "--max_matching_window" $MAX_MATCHING_WINDOW)
@@ -45,10 +46,10 @@ python -m fedlearner.data_join.cmd.data_join_worker_service \
     --etcd_addrs=$ETCD_ADDR \
     --etcd_base_dir=$ETCD_BASE_DIR \
     --listen_port=50051 \
-    $raw_data_iter $compressed_type $read_ahead_size \
+    $raw_data_iter $compressed_type $read_ahead_size $read_batch_size \
     $example_joiner $min_matching_window \
     $max_matching_window $data_block_dump_interval \
     $data_block_dump_threshold $example_id_dump_interval \
     $example_id_dump_threshold $example_id_batch_size \
     $max_flying_example_id $data_block_builder \
-    $data_block_compressed_type $EAGER_MODE
+    $data_block_compressed_type
