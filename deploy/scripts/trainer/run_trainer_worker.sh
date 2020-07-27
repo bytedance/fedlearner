@@ -44,7 +44,7 @@ fi
 tensorboard --logdir "$OUTPUT_BASE_DIR/tensorboard" --port 6006 &
 if [[ ${CODE_KEY} == "hdfs://"* ]]; then
     ${HADOOP_HOME}/bin/hadoop fs -copyToLocal ${CODE_KEY} code.tar.gz
-elif [[ ${CODE_KEY} = "http://"* || ${CODE_KEY} = "https://"* ]]; then
+elif [[ ${CODE_KEY} == "http://"* || ${CODE_KEY} == "https://"* ]]; then
     wget ${CODE_KEY} -O code.tar.gz
 else
     cp ${CODE_KEY} code.tar.gz
