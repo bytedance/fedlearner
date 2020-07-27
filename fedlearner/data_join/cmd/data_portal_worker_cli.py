@@ -49,7 +49,7 @@ if __name__ == '__main__':
                         help='the compressed type of input data file')
     parser.add_argument('--read_ahead_size', type=int, default=1<<20,
                         help='the read ahead size for raw data')
-    parser.add_argument('--read_batch_size', type=int, default=128,
+    parser.add_argument('--read_batch_size', type=int, default=32,
                         help='the read batch size for tf record iter')
     parser.add_argument('--output_builder', type=str, default='TF_RECORD',
                         choices=['TF_RECORD', 'CSV_DICT'],
