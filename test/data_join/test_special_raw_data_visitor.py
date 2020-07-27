@@ -48,8 +48,10 @@ class TestRawDataVisitor(unittest.TestCase):
                                       timestamp=timestamp_pb2.Timestamp(seconds=3))],
                 True)
         raw_data_options = dj_pb.RawDataOptions(
-                raw_data_iter='TF_DATASET',
-                compressed_type='GZIP'
+                raw_data_iter='TF_RECORD',
+                compressed_type='GZIP',
+                read_ahead_size=1<<20,
+                read_batch_size=128
             )
         rdm = raw_data_visitor.RawDataManager(self.etcd, self.data_source,0)
         self.assertTrue(rdm.check_index_meta_by_process_index(0))

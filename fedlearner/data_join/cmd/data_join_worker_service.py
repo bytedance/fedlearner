@@ -17,8 +17,11 @@
 import argparse
 import logging
 
+import tensorflow
+
 from fedlearner.common import data_join_service_pb2 as dj_pb
 from fedlearner.data_join.data_join_worker import DataJoinWorkerService
+tensorflow.compat.v1.enable_eager_execution()
 
 if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
@@ -36,21 +39,20 @@ if __name__ == "__main__":
                         help='the namespace of etcd key')
     parser.add_argument('--etcd_addrs', type=str,
                         default='localhost:4578', help='the addrs of etcd')
-    parser.add_argument('--tf_eager_mode', action='store_true',
-                        help='use the eager_mode for tf')
     parser.add_argument('--use_mock_etcd', action='store_true',
                         help='use to mock etcd for test')
     parser.add_argument('--listen_port', '-p', type=int, default=4132,
                         help='Listen port of data join master')
     parser.add_argument('--raw_data_iter', type=str, default='TF_RECORD',
-                        choices=['TF_RECORD', 'CSV_DICT', 'TF_DATASET'],
+                        choices=['TF_RECORD', 'CSV_DICT'],
                         help='the type for raw data file')
     parser.add_argument('--compressed_type', type=str, default='',
                         choices=['', 'ZLIB', 'GZIP'],
                         help='the compressed type for raw data')
     parser.add_argument('--read_ahead_size', type=int, default=32<<20,
-                        help='the read ahead size for raw data,'
-                             'only support CSV DICT')
+                        help='the read ahead size for raw data')
+    parser.add_argument('--read_batch_size', type=int, default=128,
+                        help='the read batch size for tf record iter')
     parser.add_argument('--example_joiner', type=str,
                         default='STREAM_JOINER',
                         help='the method for example joiner')
@@ -85,15 +87,13 @@ if __name__ == "__main__":
                         choices=['', 'ZLIB', 'GZIP'],
                         help='the compressed type for data block')
     args = parser.parse_args()
-    if args.tf_eager_mode:
-        import tensorflow
-        tensorflow.compat.v1.enable_eager_execution()
     worker_options = dj_pb.DataJoinWorkerOptions(
             use_mock_etcd=args.use_mock_etcd,
             raw_data_options=dj_pb.RawDataOptions(
                     raw_data_iter=args.raw_data_iter,
                     compressed_type=args.compressed_type,
-                    read_ahead_size=args.read_ahead_size
+                    read_ahead_size=args.read_ahead_size,
+                    read_batch_size=args.read_batch_size
                 ),
             example_joiner_options=dj_pb.ExampleJoinerOptions(
                     example_joiner=args.example_joiner,

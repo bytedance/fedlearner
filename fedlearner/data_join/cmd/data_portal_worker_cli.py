@@ -42,11 +42,15 @@ if __name__ == '__main__':
     parser.add_argument("--merger_read_ahead_size", type=int, default=0,
                         help="the read ahead size for merger")
     parser.add_argument("--input_data_file_iter", type=str, default="TF_RECORD",
-                        choices=['TF_RECORD', 'CSV_DICT', 'TF_DATASET'],
+                        choices=['TF_RECORD', 'CSV_DICT'],
                         help="the type for input data iterator")
     parser.add_argument("--compressed_type", type=str, default='',
                         choices=['', 'ZLIB', 'GZIP'],
                         help='the compressed type of input data file')
+    parser.add_argument('--read_ahead_size', type=int, default=1<<20,
+                        help='the read ahead size for raw data')
+    parser.add_argument('--read_batch_size', type=int, default=32,
+                        help='the read batch size for tf record iter')
     parser.add_argument('--output_builder', type=str, default='TF_RECORD',
                         choices=['TF_RECORD', 'CSV_DICT'],
                         help='the builder for ouput file')
@@ -58,11 +62,17 @@ if __name__ == '__main__':
     parser.add_argument("--max_flying_item", type=int, default=1048576,
                         help='the maximum items processed at the same time')
     args = parser.parse_args()
+    if args.input_data_file_iter == 'TF_RECORD' or \
+            args.output_builder == 'TF_RECORD':
+        import tensorflow
+        tensorflow.compat.v1.enable_eager_execution()
 
     portal_worker_options = dp_pb.DataPortalWorkerOptions(
         raw_data_options=dj_pb.RawDataOptions(
             raw_data_iter=args.input_data_file_iter,
-            compressed_type=args.compressed_type
+            compressed_type=args.compressed_type,
+            read_ahead_size=args.read_ahead_size,
+            read_batch_size=args.read_batch_size
         ),
         writer_options=dj_pb.WriterOptions(
             output_writer=args.output_builder,

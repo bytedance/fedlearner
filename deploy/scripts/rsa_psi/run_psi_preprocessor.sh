@@ -46,7 +46,12 @@ stub_fanout=$(normalize_env_to_args "--stub_fanout" $STUB_FANOUT)
 slow_sign_threshold=$(normalize_env_to_args "--slow_sign_threshold" $SLOW_SIGN_THRESHOLD)
 sort_run_merger_read_ahead_buffer=$(normalize_env_to_args "--sort_run_merger_read_ahead_buffer" $SORT_RUN_MERGER_READ_AHEAD_BUFFER)
 raw_data_iter=$(normalize_env_to_args "--raw_data_iter" $PSI_RAW_DATA_ITER)
+compressed_type=$(normalize_env_to_args "--compressed_type" $PSI_COMPRESSED_TYPE)
+read_ahead_size=$(normalize_env_to_args "--read_ahead_size" $PSI_READ_AHEAD_SIZE)
+read_batch_size=$(normalize_env_to_args "--read_batch_size" $PSI_READ_BATCH_SIZE)
+
 output_builder=$(normalize_env_to_args "--output_builder" $PSI_OUTPUT_BUILDER)
+builder_compressed_type=$(normalize_env_to_args "--builder_compressed_type" $PSI_OUTPUT_BUILDER_COMPRESSED_TYPE)
 
 python -m fedlearner.data_join.cmd.rsa_psi_preprocessor_cli \
     --psi_role=$ROLE \
@@ -62,4 +67,6 @@ python -m fedlearner.data_join.cmd.rsa_psi_preprocessor_cli \
     $max_flying_item $max_flying_sign_batch $offload_processor_number \
     $slow_sign_threshold $sort_run_merger_read_ahead_buffer \
     $leader_rsa_psi_signer_addr $max_flying_sign_rpc $sign_rpc_timeout_ms \
-    $stub_fanout $process_batch_size $raw_data_iter $output_builder
+    $stub_fanout $process_batch_size \
+    $raw_data_iter $compressed_type $read_ahead_size $read_batch_size \
+    $output_builder $builder_compressed_type

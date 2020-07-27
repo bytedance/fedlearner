@@ -20,7 +20,8 @@ import unittest
 import logging
 
 from tensorflow.compat.v1 import gfile
-import tensorflow as tf
+import tensorflow.compat.v1 as tf
+tf.enable_eager_execution()
 
 from cityhash import CityHash32
 
@@ -70,7 +71,8 @@ class TestDataPortalWorker(unittest.TestCase):
         portal_worker_options = dp_pb.DataPortalWorkerOptions(
             raw_data_options=dj_pb.RawDataOptions(
                 raw_data_iter="TF_RECORD",
-                compressed_type=''
+                read_ahead_size=1<<20,
+                read_batch_size=128
             ),
             writer_options=dj_pb.WriterOptions(
                 output_writer="TF_RECORD"
@@ -80,7 +82,8 @@ class TestDataPortalWorker(unittest.TestCase):
                 max_flying_item=300000
             ),
             merge_buffer_size=4096,
-            merger_read_ahead_size=1000000
+            merger_read_ahead_size=1000000,
+            merger_read_batch_size=128
         )
 
         self._portal_worker = DataPortalWorker(portal_worker_options,

@@ -23,6 +23,7 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 import unittest
 import tensorflow.compat.v1 as tf
+tf.enable_eager_execution()
 import numpy as np
 from tensorflow.compat.v1 import gfile
 from google.protobuf import text_format, empty_pb2, timestamp_pb2
@@ -149,7 +150,8 @@ class DataJoinWorker(unittest.TestCase):
                 use_mock_etcd=True,
                 raw_data_options=dj_pb.RawDataOptions(
                     raw_data_iter='TF_RECORD',
-                    compressed_type=''
+                    read_ahead_size=1<<20,
+                    read_batch_size=128
                 ),
                 example_id_dump_options=dj_pb.ExampleIdDumpOptions(
                     example_id_dump_interval=1,

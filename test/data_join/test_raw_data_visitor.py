@@ -20,6 +20,7 @@ import time
 from os import path
 
 import tensorflow.compat.v1 as tf
+tf.enable_eager_execution()
 from tensorflow.compat.v1 import gfile
 from google.protobuf import timestamp_pb2
 
@@ -110,7 +111,7 @@ class TestRawDataVisitor(unittest.TestCase):
         self.assertEqual(manifest.partition_id, 0)
         self.assertEqual(manifest.sync_example_id_rep.state, dj_pb.SyncExampleIdState.Syncing)
         self.assertEqual(manifest.sync_example_id_rep.rank_id, rank_id)
-        raw_data_options = dj_pb.RawDataOptions(raw_data_iter='TF_RECORD')
+        raw_data_options = dj_pb.RawDataOptions(raw_data_iter='TF_RECORD', read_ahead_size=1<<20, read_batch_size=128)
         rdv = raw_data_visitor.RawDataVisitor( 
                 self.etcd, self.data_source,
                 manifest.partition_id, raw_data_options

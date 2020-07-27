@@ -141,10 +141,10 @@ class TfExampleItem(RawDataIter.Item):
             if raise_exp:
                 raise
 
-class TfDataSetIter(RawDataIter):
+class TfRecordIter(RawDataIter):
     @classmethod
     def name(cls):
-        return 'TF_DATASET'
+        return 'TF_RECORD'
 
     @contextmanager
     def _data_set(self, fpath):
@@ -173,28 +173,6 @@ class TfDataSetIter(RawDataIter):
             for batch in iter(data_set):
                 for raw_data in batch.numpy():
                     yield TfExampleItem(raw_data)
-
-    def _reset_iter(self, index_meta):
-        if index_meta is not None:
-            fpath = index_meta.fpath
-            fiter = self._inner_iter(fpath)
-            item = next(fiter)
-            return fiter, item
-        return None, None
-
-
-class TfRecordIter(RawDataIter):
-    @classmethod
-    def name(cls):
-        return 'TF_RECORD'
-
-    def _inner_iter(self, fpath):
-        options = tf.io.TFRecordOptions(
-                compression_type=self._options.compressed_type
-            )
-        with common.make_tf_record_iter(fpath, options) as record_iter:
-            for record in record_iter:
-                yield TfExampleItem(record)
 
     def _reset_iter(self, index_meta):
         if index_meta is not None:
