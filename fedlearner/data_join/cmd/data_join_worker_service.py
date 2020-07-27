@@ -18,10 +18,10 @@ import argparse
 import logging
 
 import tensorflow
-tensorflow.compat.v1.enable_eager_execution()
 
 from fedlearner.common import data_join_service_pb2 as dj_pb
 from fedlearner.data_join.data_join_worker import DataJoinWorkerService
+tensorflow.compat.v1.enable_eager_execution()
 
 if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
