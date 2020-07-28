@@ -1,5 +1,5 @@
 image:
-  repository: docker.elastic.co/beats/filebeat-oss
+  repository: registry.cn-beijing.aliyuncs.com/fedlearner/filebeat-oss
   tag: 7.0.1
   pullPolicy: IfNotPresent
 

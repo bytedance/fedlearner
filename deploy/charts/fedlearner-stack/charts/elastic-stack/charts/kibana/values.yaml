@@ -1,5 +1,5 @@
 image:
-  repository: "docker.elastic.co/kibana/kibana-oss"
+  repository: "registry.cn-beijing.aliyuncs.com/fedlearner/kibana-oss"
   tag: "6.7.0"
   pullPolicy: "IfNotPresent"
 
