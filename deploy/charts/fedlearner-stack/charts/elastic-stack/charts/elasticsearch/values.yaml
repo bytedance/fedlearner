@@ -41,7 +41,7 @@ securityContext:
 # schedulerName: "default-scheduler"
 
 image:
-  repository: "docker.elastic.co/elasticsearch/elasticsearch-oss"
+  repository: "registry.cn-beijing.aliyuncs.com/fedlearner/elasticsearch-oss"
   tag: "6.8.2"
   pullPolicy: "IfNotPresent"
   # If specified, use these secrets to access the image
