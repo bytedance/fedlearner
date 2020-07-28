@@ -239,7 +239,6 @@ class _OomRsikChecker(object):
         if time.time() - self._latest_updated_ts >= 1 or force:
             self._heap_memory_usage = hpy().heap().size
             self._latest_updated_ts = time.time()
-            print("XXX", self._heap_memory_usage)
 
     def check_oom_risk(self, water_level_percent=0.9, force=False):
         with self._lock:

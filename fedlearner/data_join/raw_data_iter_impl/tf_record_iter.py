@@ -25,8 +25,8 @@ from fedlearner.data_join.raw_data_iter_impl.raw_data_iter import RawDataIter
 class TfExampleItem(RawDataIter.Item):
     def __init__(self, record_str):
         self._record_str = record_str
-        example = self._parse_example(record_str)
-        self._parse_example_error = example is None
+        self._parse_example_error = False
+        example = self._parse_example()
         self._example_id = self._parse_example_id(example, record_str)
         self._event_time = self._parse_event_time(example, record_str)
         self._csv_record = None
@@ -170,7 +170,9 @@ class TfRecordIter(RawDataIter):
                     buffer_size=None if self._options.read_ahead_size <= 0 \
                             else self._options.read_ahead_size
                 )
-            data_set = data_set.batch(16)
+            batch_size = self._options.read_batch_size if \
+                    self._options.read_batch_size > 0 else 1
+            data_set = data_set.batch(batch_size)
             yield data_set
         except Exception as e: # pylint: disable=broad-except
             logging.warning("Failed to access file: %s, reason %s", fpath, e)
