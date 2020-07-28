@@ -39,8 +39,10 @@ if __name__ == '__main__':
                         help='use to mock etcd for test')
     parser.add_argument("--merge_buffer_size", type=int,
                         default=4096, help="the buffer size for merging")
-    parser.add_argument("--merger_read_ahead_size", type=int, default=0,
+    parser.add_argument("--merger_read_ahead_size", type=int, default=512<<10,
                         help="the read ahead size for merger")
+    parser.add_argument("--merger_read_batch_size", type=int, default=128,
+                        help="the read batch size for merger")
     parser.add_argument("--input_data_file_iter", type=str, default="TF_RECORD",
                         choices=['TF_RECORD', 'CSV_DICT'],
                         help="the type for input data iterator")
@@ -49,7 +51,7 @@ if __name__ == '__main__':
                         help='the compressed type of input data file')
     parser.add_argument('--read_ahead_size', type=int, default=1<<20,
                         help='the read ahead size for raw data')
-    parser.add_argument('--read_batch_size', type=int, default=32,
+    parser.add_argument('--read_batch_size', type=int, default=128,
                         help='the read batch size for tf record iter')
     parser.add_argument('--output_builder', type=str, default='TF_RECORD',
                         choices=['TF_RECORD', 'CSV_DICT'],
@@ -83,7 +85,8 @@ if __name__ == '__main__':
             max_flying_item=args.max_flying_item
         ),
         merge_buffer_size=args.merge_buffer_size,
-        merger_read_ahead_size=args.merger_read_ahead_size
+        merger_read_ahead_size=args.merger_read_ahead_size,
+        merger_read_batch_size=args.merger_read_batch_size
     )
 
     data_portal_worker = DataPortalWorker(

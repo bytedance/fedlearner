@@ -23,6 +23,8 @@ source /app/deploy/scripts/env_to_args.sh
 MASTER_POD_NAMES=`python -c 'import json, os; print(json.loads(os.environ["CLUSTER_SPEC"])["clusterSpec"]["Master"][0])'`
 
 merge_buffer_size=$(normalize_env_to_args "--merge_buffer_size" $MERGE_BUFFER_SIZE)
+merger_read_ahead_size=$(normalize_env_to_args "--merger_read_ahead_size" $MERGE_READ_AHEAD_SIZE)
+merger_read_batch_size=$(normalize_env_to_args "--merger_read_batch_size" $MERGE_READ_BATCH_SIZE)
 input_data_file_iter=$(normalize_env_to_args "--input_data_file_iter" $INPUT_DATA_FORMAT)
 compressed_type=$(normalize_env_to_args "--compressed_type" $COMPRESSED_TYPE)
 read_ahead_size=$(normalize_env_to_args "--read_ahead_size" $READ_AHEAD_SIZE)
