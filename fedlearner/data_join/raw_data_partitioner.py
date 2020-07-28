@@ -18,6 +18,7 @@ import threading
 import logging
 import os
 import re
+import gc
 
 from tensorflow.compat.v1 import gfile
 
@@ -268,7 +269,7 @@ class RawDataPartitioner(object):
         next_index = self._get_next_part_index()
         hint_index = None
         bp_options = self._options.batch_processor_options
-        signal_round_threhold = bp_options.max_flying_item * 4 // \
+        signal_round_threhold = bp_options.max_flying_item * 3 // \
                 5 // bp_options.batch_size + 1
         while not fetch_finished:
             fetch_finished, batch, hint_index = \
@@ -282,16 +283,18 @@ class RawDataPartitioner(object):
                     writer.append_item(batch.begin_index+index, item)
                 next_index += len(batch)
                 iter_round += 1
-                oom_risk = common.get_oom_risk_checker().check_oom_risk()
-                if iter_round % signal_round_threhold == 0 and oom_risk:
-                    if oom_risk:
-                        logging.warning("earily finish writer partition "\
-                                        "writer since oom risk")
+                oom_risk = common.get_oom_risk_checker().check_oom_risk(0.75)
+                if iter_round % signal_round_threhold == 0 or oom_risk:
                     self._finish_file_writers()
                     self._set_next_part_index(next_index)
                     hint_index = self._evict_staless_batch(hint_index,
                                                            next_index-1)
                     logging.info("consumed %d items", next_index-1)
+                    if oom_risk:
+                        gc_cnt = gc.collect()
+                        logging.warning("earily finish writer partition "\
+                                        "writer since oom risk, trigger "\
+                                        "gc %d actively", gc_cnt)
                     self._wakeup_raw_data_fetcher()
             elif not fetch_finished:
                 with self._cond:
@@ -423,7 +426,7 @@ class RawDataPartitioner(object):
             logging.debug("fetch batch begin at %d, len %d. wakeup "\
                           "partitioner", batch.begin_index, len(batch))
             self._wakeup_partitioner()
-            if common.get_oom_risk_checker().check_oom_risk():
+            if common.get_oom_risk_checker().check_oom_risk(0.85):
                 logging.warning('early stop the raw data fetch '\
                                 'since the oom risk')
                 break
@@ -431,7 +434,7 @@ class RawDataPartitioner(object):
     def _raw_data_batch_fetch_cond(self):
         next_part_index = self._get_next_part_index()
         return self._raw_data_batch_fetcher.need_process(next_part_index) and \
-                not common.get_oom_risk_checker().check_oom_risk()
+                not common.get_oom_risk_checker().check_oom_risk(0.85)
 
     def _wakeup_partitioner(self):
         self._worker_map['raw_data_partitioner'].wakeup()
