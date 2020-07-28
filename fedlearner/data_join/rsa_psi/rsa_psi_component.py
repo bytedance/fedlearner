@@ -24,8 +24,8 @@ import time
 import bisect
 import concurrent.futures as concur_futures
 
-from gmpy2 import powmod, divm # pylint: disable=no-name-in-module
 from cityhash import CityHash64 # pylint: disable=no-name-in-module
+from gmpy2 import powmod, divm # pylint: disable=no-name-in-module
 
 from fedlearner.common import data_join_service_pb2_grpc as dj_grpc
 from fedlearner.common import data_join_service_pb2 as dj_pb

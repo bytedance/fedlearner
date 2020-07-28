@@ -245,9 +245,9 @@ class _OomRsikChecker(object):
         with self._lock:
             self._try_update_memory_usage(force)
             reserved_mem = int(self._mem_limit * 0.5)
-            if self._mem_limit >= (1 << 30):
+            if reserved_mem >= (1 << 30):
                 reserved_mem = 1 << 30
-            aval_mem = self._mem_limit - reserved_mem
+            avail_mem = self._mem_limit - reserved_mem
             return self._heap_memory_usage >= avail_mem * water_level_percent
 
 _oom_risk_checker = _OomRsikChecker()

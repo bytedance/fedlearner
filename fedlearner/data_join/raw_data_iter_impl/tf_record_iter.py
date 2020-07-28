@@ -116,7 +116,7 @@ class TfExampleItem(RawDataIter.Item):
                 return feat['example_id'].bytes_list.value[0]
             except Exception as e: # pylint: disable=broad-except
                 logging.error('Failed to parse example id from %s, reason %s',
-                               record_str, e)
+                               record, e)
         return common.InvalidExampleId
 
     @staticmethod
@@ -141,10 +141,9 @@ class TfExampleItem(RawDataIter.Item):
                 if 'event_time' in feat:
                     if feat['event_time'].HasField('int64_list'):
                         return feat['event_time'].int64_list.value[0]
-                    elif feat['event_time'].HasField('bytes_list'):
+                    if feat['event_time'].HasField('bytes_list'):
                         return int(feat['event_time'].bytes_list.value[0])
-                    else:
-                        raise ValueError('event_time not support float_list')
+                    raise ValueError('event_time not support float_list')
             except Exception as e: # pylint: disable=broad-except
                 logging.error("Failed parse event time from %s, reason %s",
                               record, e)
