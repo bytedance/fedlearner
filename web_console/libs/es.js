@@ -20,12 +20,11 @@ class ElasticSearchClient {
   async queryLog(index, keyword, pod_name, start_time, end_time, match_phrase) {
     let query_body = {
       "version": true,
-      "size": 500,
+      "size": 50000,
       "sort": [
         {
-          "@log.offset": {
-            "order": "asc",
-            "unmapped_type": "boolean"
+          "log.offset": {
+            "order": "desc"
           }
         }
       ],
