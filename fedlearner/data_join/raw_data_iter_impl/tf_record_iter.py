@@ -25,70 +25,29 @@ from fedlearner.data_join.raw_data_iter_impl.raw_data_iter import RawDataIter
 class TfExampleItem(RawDataIter.Item):
     def __init__(self, record_str):
         self._record_str = record_str
-        self._example = None
-        self._example_id = None
-        self._event_time = None
-        self._parse_example_error = False
+        example = self._parse_example(record_str)
+        self._parse_example_error = example is None
+        self._example_id = self._parse_example_id(example, record_str)
+        self._event_time = self._parse_event_time(example, record_str)
         self._csv_record = None
         self._raw_id = None
+        self._gc_example(example)
 
     @property
     def example_id(self):
-        if self._example_id is None:
-            try:
-                self._parse_example(True)
-                feat = self._example.features.feature
-                if 'example_id' not in feat:
-                    raise ValueError('example_id not in example field')
-                self._example_id = feat['example_id'].bytes_list.value[0]
-            except Exception as e: # pylint: disable=broad-except
-                logging.error('Failed to parse example id from %s, reason %s',
-                              self._record_str, e)
-                self._example_id = common.InvalidExampleId
         return self._example_id
 
     @property
     def raw_id(self):
         if self._raw_id is None:
-            try:
-                self._parse_example(True)
-                feat = self._example.features.feature
-                if 'raw_id' not in feat:
-                    raise ValueError('raw_id not in example field')
-                self._raw_id = feat['raw_id'].bytes_list.value[0]
-            except Exception as e: # pylint: disable=broad-except
-                logging.error('Failed to parse raw id from %s, reason %s',
-                              self._record_str, e)
-                self._raw_id = ''
+            example = self._parse_example()
+            self._raw_id = self._parse_raw_id(example, self._record_str)
+            self._gc_example(example)
         return self._raw_id
 
     @property
     def event_time(self):
-        if self._event_time is None:
-            try:
-                self._parse_example(True)
-                feat = self._example.features.feature
-                if 'event_time' in feat:
-                    if feat['event_time'].HasField('int64_list'):
-                        self._event_time = \
-                            feat['event_time'].int64_list.value[0]
-                    elif feat['event_time'].HasField('bytes_list'):
-                        self._event_time = \
-                            int(feat['event_time'].bytes_list.value[0])
-                    else:
-                        raise ValueError('event_time not support float_list')
-                else:
-                    self._event_time = common.InvalidEventTime
-            except Exception as e: # pylint: disable=broad-except
-                logging.error("Failed parse event time from %s, reason %s",
-                              self._record_str, e)
-                self._event_time = common.InvalidEventTime
         return self._event_time
-
-    @property
-    def example(self):
-        self._parse_example(False)
-        return self._example
 
     @property
     def record(self):
@@ -102,44 +61,98 @@ class TfExampleItem(RawDataIter.Item):
     def csv_record(self):
         if self._csv_record is None:
             self._csv_record = {}
-            self._parse_example(False)
+            example = self._parse_example()
             if not self._parse_example_error:
                 try:
                     self._csv_record = \
-                        common.convert_tf_example_to_dict(self._example)
+                        common.convert_tf_example_to_dict(example)
                 except Exception as e: # pylint: disable=broad-except
                     logging.error("Failed convert tf example to csv record, "\
                                   "reason %s", e)
+            self._gc_example(example)
         return self._csv_record
 
     def set_example_id(self, example_id):
-        self._parse_example(False)
-        if self._example is not None:
-            feat = self._example.features.feature
+        example = self._parse_example()
+        if example is not None:
+            feat = example.features.feature
             if isinstance(example_id, str):
                 example_id = example_id.encode()
             feat['example_id'] = tf.train.Feature(
                     bytes_list=tf.train.BytesList(value=[example_id])
                 )
-            self._record_str = self._example.SerializeToString()
+            self._record_str = example.SerializeToString()
             self._example_id = example_id
             if self._csv_record is not None:
                 self._csv_record = None
+        self._gc_example(example)
 
-    def _parse_example(self, raise_exp):
+    def _parse_example(self):
         try:
-            if self._example is None and not self._parse_example_error:
+            if not self._parse_example_error:
                 example = tf.train.Example()
                 example.ParseFromString(self._record_str)
-                self._example = example
+                return example
         except Exception as e: # pylint: disable=broad-except
             logging.error("Failed parse tf.Example from record %s, reason %s",
                            self._record_str, e)
             self._parse_example_error = True
-            self._event_time = common.InvalidEventTime
-            self._example_id = common.InvalidExampleId
-            if raise_exp:
-                raise
+        return None
+
+    @staticmethod
+    def _gc_example(example):
+        if example is not None:
+            example.Clear()
+            del example
+
+    @staticmethod
+    def _parse_example_id(example, record):
+        if example is not None:
+            assert isinstance(example, tf.train.Example)
+            try:
+                feat = example.features.feature
+                if 'example_id' not in feat:
+                    raise ValueError('example_id not in example field')
+                return feat['example_id'].bytes_list.value[0]
+            except Exception as e: # pylint: disable=broad-except
+                logging.error('Failed to parse example id from %s, reason %s',
+                               record_str, e)
+        return common.InvalidExampleId
+
+    @staticmethod
+    def _parse_raw_id(example, record):
+        if example is not None:
+            try:
+                feat = example.features.feature
+                if 'raw_id' not in feat:
+                    raise ValueError('raw_id not in example field')
+                return feat['raw_id'].bytes_list.value[0]
+            except Exception as e: # pylint: disable=broad-except
+                logging.error('Failed to parse raw id from %s, reason %s',
+                              record, e)
+        return ''
+
+    @staticmethod
+    def _parse_event_time(example, record):
+        if example is not None:
+            assert isinstance(example, tf.train.Example)
+            try:
+                feat = example.features.feature
+                if 'event_time' in feat:
+                    if feat['event_time'].HasField('int64_list'):
+                        return feat['event_time'].int64_list.value[0]
+                    elif feat['event_time'].HasField('bytes_list'):
+                        return int(feat['event_time'].bytes_list.value[0])
+                    else:
+                        raise ValueError('event_time not support float_list')
+            except Exception as e: # pylint: disable=broad-except
+                logging.error("Failed parse event time from %s, reason %s",
+                              record, e)
+        return common.InvalidEventTime
+
+    def clear(self):
+        del self._record_str
+        del self._csv_record
 
 class TfRecordIter(RawDataIter):
     @classmethod
@@ -158,7 +171,7 @@ class TfRecordIter(RawDataIter):
                     buffer_size=None if self._options.read_ahead_size <= 0 \
                             else self._options.read_ahead_size
                 )
-            data_set = data_set.batch(64)
+            data_set = data_set.batch(16)
             yield data_set
         except Exception as e: # pylint: disable=broad-except
             logging.warning("Failed to access file: %s, reason %s", fpath, e)

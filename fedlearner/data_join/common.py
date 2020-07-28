@@ -20,7 +20,7 @@ import uuid
 import threading
 import time
 from contextlib import contextmanager
-import psutil
+from guppy import hpy
 
 import tensorflow.compat.v1 as tf
 from google.protobuf import text_format
@@ -230,22 +230,25 @@ class _OomRsikChecker(object):
     def __init__(self):
         self._lock = threading.Lock()
         self._mem_limit = int(os.environ.get('MEM_LIMIT', '17179869184'))
-        self._ps_handler = psutil.Process(os.getpid())
         self._latest_updated_ts = 0
-        self._latest_memory_usage = None
+        self._heap_memory_usage = None
         self._try_update_memory_usage(True)
 
 
     def _try_update_memory_usage(self, force):
-        if time.time() - self._latest_updated_ts >= 10 or force:
+        if time.time() - self._latest_updated_ts >= 1 or force:
+            self._heap_memory_usage = hpy().heap().size
             self._latest_updated_ts = time.time()
-            self._latest_memory_usage = self._ps_handler.memory_info().rss
+            print("XXX", self._heap_memory_usage)
 
     def check_oom_risk(self, water_level_percent=0.9, force=False):
         with self._lock:
             self._try_update_memory_usage(force)
-            return self._latest_memory_usage >= \
-                    self._mem_limit * water_level_percent
+            reserved_mem = int(self._mem_limit * 0.5)
+            if self._mem_limit >= (1 << 30):
+                reserved_mem = 1 << 30
+            aval_mem = self._mem_limit - reserved_mem
+            return self._heap_memory_usage >= avail_mem * water_level_percent
 
 _oom_risk_checker = _OomRsikChecker()
 def get_oom_risk_checker():
