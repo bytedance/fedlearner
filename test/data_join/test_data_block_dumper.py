@@ -229,7 +229,7 @@ class TestDataBlockDumper(unittest.TestCase):
                 feat = example.features.feature
                 self.assertEqual(feat['example_id'].bytes_list.value[0],
                                  meta.example_ids[iidx])
-            self.assertEqual(len(meta.example_ids), iidx + 1)
+            self.assertEqual(len(meta.example_ids), iidx +1)
 
     def tearDown(self):
         if gfile.Exists(self.data_source_f.output_base_dir):
