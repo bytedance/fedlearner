@@ -85,7 +85,7 @@ class SortRunReader(object):
             return getattr(self._item, attr)
 
     def __init__(self, reader_index, fpath,
-                 reader_options, sorted_field):
+                 reader_options, comparator):
         self._reader_index = reader_index
         self._fpath = fpath
         self._reader_options = reader_options
