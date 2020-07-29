@@ -18,6 +18,7 @@ import logging
 import time
 import os
 import grpc
+from functools import cmp_to_key
 
 from tensorflow.compat.v1 import gfile
 
@@ -68,13 +69,19 @@ class RawDataSortPartitioner(RawDataPartitioner):
             return meta
 
         def _sort_buffer(self):
-            self._buffer = sorted(self._buffer, cmp=self.item_cmp)
+            self._buffer = sorted(self._buffer, key=cmp_to_key.(self.item_cmp))
 
         @staticmethod
         def item_cmp(a, b):
-            if a.event_time != b.event_time:
-                return a.event_time < b.event_time
-            return a.example_id < b.example_id
+            if a.event_time < b.event_time:
+                return -1
+            if a.event_time > b.event_time:
+                return 1
+            if a.example_id < b.example_id:
+                return -1
+            if a.example_id > b.example_id:
+                return 1
+            return 0
 
     def _get_file_writer(self, partition_id):
         if len(self._flying_writers) == 0:
