@@ -17,8 +17,8 @@
 import logging
 import time
 import os
-import grpc
 from functools import cmp_to_key
+import grpc
 
 from tensorflow.compat.v1 import gfile
 
