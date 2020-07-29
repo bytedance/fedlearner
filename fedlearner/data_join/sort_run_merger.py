@@ -64,10 +64,10 @@ class MergedSortRunMeta(object):
 
 class SortRunReader(object):
     class MergeItem(object):
-        def __init__(self, item, reader_index, sorted_field):
+        def __init__(self, item, reader_index, comparator):
             self._item = item
             self._reader_index = reader_index
-            self._sorted_field = sorted_field
+            self._comparator = comparator
 
         @property
         def inner_item(self):
@@ -79,18 +79,17 @@ class SortRunReader(object):
 
         def __lt__(self, other):
             assert isinstance(other, SortRunReader.MergeItem)
-            return getattr(self._item, self._sorted_field) < \
-                    getattr(other._item, self._sorted_field)
+            return self._comparator(self._item, other._item)
 
         def __getattr__(self, attr):
             return getattr(self._item, attr)
 
     def __init__(self, reader_index, fpath,
-                 reader_options, sorted_field):
+                 reader_options, comparator):
         self._reader_index = reader_index
         self._fpath = fpath
         self._reader_options = reader_options
-        self._sorted_field = sorted_field
+        self._comparator = comparator
         self._fiter = None
         if gfile.Exists(fpath):
             self._finished = False
@@ -122,7 +121,7 @@ class SortRunReader(object):
                     _, item = next(self._fiter)
                 assert item is not None
                 return SortRunReader.MergeItem(item, self._reader_index,
-                                               self._sorted_field)
+                                               self._comparator)
             except StopIteration:
                 self._finished = True
         raise StopIteration("%s has been iter finished" % self._fpath)
@@ -178,11 +177,11 @@ class SortRunMergerWriter(object):
         return self._writer
 
 class SortRunMerger(object):
-    def __init__(self, options, sorted_field):
+    def __init__(self, options, comparator):
         self._lock = threading.Lock()
         self._options = options
         self._merge_finished = False
-        self._sorted_field = sorted_field
+        self._comparator = comparator
         self._merged_dir = os.path.join(
                 self._options.output_file_dir,
                 common.partition_repr(self._partition_id)
@@ -239,7 +238,7 @@ class SortRunMerger(object):
         for index, input_fpath in enumerate(input_fpaths):
             reader = SortRunReader(index, input_fpath,
                                    self._options.reader_options,
-                                   self._sorted_field)
+                                   self._comparator)
             readers.append(reader)
         return readers
 
@@ -287,7 +286,7 @@ class SortRunMerger(object):
                              last_meta.encode_merged_sort_run_fname())
         last_item = None
         for item in SortRunReader(0, fpath, self._options.reader_options,
-                                  self._sorted_field):
+                                  self._comparator):
             last_item = item
         assert last_item is not None
         return last_item.example_id, last_meta.process_index + 1

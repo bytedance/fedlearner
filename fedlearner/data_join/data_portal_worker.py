@@ -17,6 +17,7 @@
 import logging
 import time
 import os
+from functools import cmp_to_key
 import grpc
 
 from tensorflow.compat.v1 import gfile
@@ -68,8 +69,19 @@ class RawDataSortPartitioner(RawDataPartitioner):
             return meta
 
         def _sort_buffer(self):
-            self._buffer = sorted(self._buffer,
-                                  key=lambda item: item.event_time)
+            self._buffer = sorted(self._buffer, key=cmp_to_key(self.item_cmp))
+
+        @staticmethod
+        def item_cmp(a, b):
+            if a.event_time < b.event_time:
+                return -1
+            if a.event_time > b.event_time:
+                return 1
+            if a.example_id < b.example_id:
+                return -1
+            if a.example_id > b.example_id:
+                return 1
+            return 0
 
     def _get_file_writer(self, partition_id):
         if len(self._flying_writers) == 0:
@@ -160,24 +172,40 @@ class DataPortalWorker(object):
             partition_options, task.part_field, self._etcd_name,
             self._etcd_addrs, self._etcd_base_dir, self._use_mock_etcd
         )
-        logging.info("Partitioner rank_id:%d, partition_id:%d start",
-                     self._rank_id, partition_options.partitioner_rank_id)
-
+        logging.info("Partitioner rank_id-[%d] start run task %s for "\
+                     "partition %d, input %d files", self._rank_id,
+                     partition_options.partitioner_name,
+                     partition_options.partitioner_rank_id,
+                     len(partition_options.input_file_paths))
         data_partitioner.start_process()
         data_partitioner.wait_for_finished()
+        logging.info("Partitioner rank_id-[%d] finish run partition task %s "\
+                     "for partition %d.", self._rank_id,
+                     partition_options.partitioner_name,
+                     partition_options.partitioner_rank_id)
 
     def _run_reduce_task(self, task):
         merger_options = self._make_merger_options(task)
-        sort_run_merger = SortRunMerger(merger_options, 'event_time')
+        sort_run_merger = SortRunMerger(merger_options, self._merger_comparator)
         input_dir = os.path.join(task.map_base_dir,
                                  common.partition_repr(task.partition_id))
         input_fpaths = [os.path.join(input_dir, f) for f in
                         gfile.ListDirectory(input_dir)
                         if f.endswith(common.RawDataFileSuffix)]
-        logging.info("Merger input_dir:%s(with %d files) rank_id:%s "\
-                     "partition_id:%d start", task.map_base_dir,
-                     len(input_fpaths), self._rank_id, task.partition_id)
+        logging.info("Merger rank_id-[%d] start run task %s for partition "\
+                     "%d. input_dir %s, with %d files",
+                     self._rank_id, merger_options.merger_name,
+                     task.partition_id, task.map_base_dir, len(input_fpaths))
         sort_run_merger.merge_sort_runs(input_fpaths)
+        logging.info("Merger rank_id-[%d] finish task %s for "\
+                     "partition %d", self._rank_id,
+                     merger_options.merger_name, task.partition_id)
+
+    @staticmethod
+    def _merger_comparator(a, b):
+        if a.event_time != b.event_time:
+            return a.event_time < b.event_time
+        return a.example_id < b.example_id
 
     def run(self):
         while True:

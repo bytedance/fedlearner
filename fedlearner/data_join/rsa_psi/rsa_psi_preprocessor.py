@@ -87,7 +87,7 @@ class RsaPsiPreProcessor(object):
                     output_file_dir=options.output_file_dir,
                     partition_id=options.partition_id
                 ),
-                'example_id'
+                self._merger_comparator
             )
         self._started = False
 
@@ -269,3 +269,7 @@ class RsaPsiPreProcessor(object):
                 self._lock.notify()
             return False
         return self._sort_run_dumper.is_dump_finished()
+
+    @staticmethod
+    def _merger_comparator(a, b):
+        return a.example_id < b.example_id

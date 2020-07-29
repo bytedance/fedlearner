@@ -75,7 +75,8 @@ class DataPortalJobManager(object):
                             dp_pb.PartState.kEventTimeReduce
                         )
                     if partition_id is not None:
-                        return False, self._create_reduce_task(partition_id)
+                        return False, self._create_reduce_task(rank_id,
+                                                               partition_id)
                 return (not self._long_running and
                             self._all_job_part_finished()), None
             return not self._long_running, None
@@ -93,10 +94,16 @@ class DataPortalJobManager(object):
                     self._finish_job_part(job_id, partition_id,
                                           dp_pb.PartState.kIdMap,
                                           dp_pb.PartState.kIdMapped)
+                    logging.info("Data portal worker-%d finish map task "\
+                                 "for partition %d of job %d",
+                                 rank_id, partition_id, job_id)
                 elif job_part.part_state == dp_pb.PartState.kEventTimeReduce:
                     self._finish_job_part(job_id, partition_id,
                                           dp_pb.PartState.kEventTimeReduce,
                                           dp_pb.PartState.kEventTimeReduced)
+                    logging.info("Data portal worker-%d finish reduce task "\
+                                 "for partition %d of job %d",
+                                 rank_id, partition_id, job_id)
             self._check_processing_job_finished()
 
     def backgroup_task(self):
@@ -145,6 +152,13 @@ class DataPortalJobManager(object):
         task_name = '{}-dp_portal_job_{:08}-part-{:04}-map'.format(
                 self._portal_manifest.name, job.job_id, partition_id
             )
+        logging.info("Data portal worker-%d is allocated map task %s for "\
+                     "partition %d of job %d. the map task has %d files"\
+                     "-----------------\n", rank_id, task_name,
+                     partition_id, job.job_id, len(map_fpaths))
+        for seq, fpath in enumerate(map_fpaths):
+            logging.info("%d. %s", seq, fpath)
+        logging.info("---------------------------------\n")
         return dp_pb.MapTask(task_name=task_name,
                              fpaths=map_fpaths,
                              output_base_dir=self._map_output_dir(job.job_id),
@@ -160,13 +174,17 @@ class DataPortalJobManager(object):
                 dp_pb.DataPortalType.Streaming
         return 'example_id'
 
-    def _create_reduce_task(self, partition_id):
+    def _create_reduce_task(self, rank_id, partition_id):
         assert self._processing_job is not None
         job = self._processing_job
         job_id = job.job_id
         task_name = '{}-dp_portal_job_{:08}-part-{:04}-reduce'.format(
                 self._portal_manifest.name, job_id, partition_id
             )
+        logging.info("Data portal worker-%d is allocated reduce task %s for "\
+                     "partition %d of job %d. the reduce base dir %s"\
+                     "-----------------\n", rank_id, task_name,
+                     partition_id, job_id, self._reduce_output_dir(job_id))
         return dp_pb.ReduceTask(task_name=task_name,
                                 map_base_dir=self._map_output_dir(job_id),
                                 reduce_base_dir=self._reduce_output_dir(job_id),
@@ -261,6 +279,12 @@ class DataPortalJobManager(object):
         self._update_portal_manifest(new_portal_manifest)
         for partition_id in range(self._output_partition_num):
             self._sync_job_part(new_job.job_id, partition_id)
+        logging.info("Data Portal job %d has lanuched. %d files will be"\
+                     "processed\n------------\n",
+                     new_job.job_id, len(new_job.fpaths))
+        for seq, fpath in enumerate(new_job.fpaths):
+            logging.info("%d. %s", seq, fpath)
+        logging.info("---------------------------------\n")
 
     def _list_input_dir(self):
         all_inputs = []
@@ -325,6 +349,13 @@ class DataPortalJobManager(object):
             new_portal_manifest.MergeFrom(self._sync_portal_manifest())
             new_portal_manifest.processing_job_id = -1
             self._update_portal_manifest(new_portal_manifest)
+        if processing_job is not None:
+            logging.info("Data Portal job %d has finished. Processed %d "\
+                         "following fpaths\n------------\n",
+                         processing_job.job_id, len(processing_job.fpaths))
+            for seq, fpath in enumerate(processing_job.fpaths):
+                logging.info("%d. %s", seq, fpath)
+            logging.info("---------------------------------\n")
         return True
 
     @property
@@ -364,10 +395,19 @@ class DataPortalJobManager(object):
             if gfile.Exists(dpath) and gfile.IsDirectory(dpath):
                 fnames = [f for f in gfile.ListDirectory(dpath)
                           if f.endswith(common.RawDataFileSuffix)]
+            publish_fpaths = []
             if portal_manifest.data_portal_type == dp_pb.DataPortalType.PSI:
-                self._publish_psi_raw_data(partition_id, dpath, fnames)
+                publish_fpath = self._publish_psi_raw_data(partition_id,
+                                                           dpath, fnames)
             else:
-                self._publish_streaming_raw_data(partition_id, dpath, fnames)
+                publish_fpaths = self._publish_streaming_raw_data(partition_id,
+                                                                 dpath, fnames)
+            logging.info("Data Portal Master publish %d file for partition "\
+                         "%d of streaming job %d\n----------\n",
+                         len(publish_fpaths), partition_id, job_id)
+            for seq, fpath in enumerate(publish_fpaths):
+                logging.info("%d. %s", seq, fpath)
+            logging.info("------------------------------------------\n")
 
     def _publish_streaming_raw_data(self, partition_id, dpath, fnames):
         metas = [MergedSortRunMeta.decode_sort_run_meta_from_fname(fname)
@@ -376,8 +416,10 @@ class DataPortalJobManager(object):
         fpaths = [path.join(dpath, meta.encode_merged_sort_run_fname())
                   for meta in metas]
         self._publisher.publish_raw_data(partition_id, fpaths)
+        return fpaths
 
     def _publish_psi_raw_data(self, partition_id, dpath, fnames):
         fpaths = [path.join(dpath, fname) for fname in fnames]
         self._publisher.publish_raw_data(partition_id, fpaths)
         self._publisher.finish_raw_data(partition_id)
+        return fpaths
