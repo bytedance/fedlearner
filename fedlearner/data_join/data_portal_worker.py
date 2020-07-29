@@ -18,6 +18,7 @@ import logging
 import time
 import os
 from functools import cmp_to_key
+import gc
 import grpc
 
 from tensorflow.compat.v1 import gfile
@@ -183,6 +184,8 @@ class DataPortalWorker(object):
                      "for partition %d.", self._rank_id,
                      partition_options.partitioner_name,
                      partition_options.partitioner_rank_id)
+        del data_partitioner
+        gc.collect()
 
     def _run_reduce_task(self, task):
         merger_options = self._make_merger_options(task)
@@ -200,6 +203,8 @@ class DataPortalWorker(object):
         logging.info("Merger rank_id-[%d] finish task %s for "\
                      "partition %d", self._rank_id,
                      merger_options.merger_name, task.partition_id)
+        del sort_run_merger
+        gc.collect()
 
     @staticmethod
     def _merger_comparator(a, b):

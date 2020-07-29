@@ -39,9 +39,9 @@ if __name__ == '__main__':
                         help='use to mock etcd for test')
     parser.add_argument("--merge_buffer_size", type=int,
                         default=4096, help="the buffer size for merging")
-    parser.add_argument("--merger_read_ahead_size", type=int, default=256<<10,
+    parser.add_argument("--merger_read_ahead_size", type=int, default=128<<10,
                         help="the read ahead size for merger")
-    parser.add_argument("--merger_read_batch_size", type=int, default=64,
+    parser.add_argument("--merger_read_batch_size", type=int, default=32,
                         help="the read batch size for merger")
     parser.add_argument("--input_data_file_iter", type=str, default="TF_RECORD",
                         choices=['TF_RECORD', 'CSV_DICT'],

@@ -21,6 +21,7 @@ except ImportError:
 import logging
 import threading
 import os
+import gc
 
 from tensorflow.compat.v1 import gfile
 
@@ -198,10 +199,7 @@ class SortRunMerger(object):
             return []
         dumped_item, next_process_index = self._sync_merged_state()
         readers = self._create_sort_run_readers(input_fpaths)
-        max_qsize = len(input_fpaths) * 2 + 1
-        if max_qsize < self._options.merge_buffer_size:
-            max_qsize = self._options.merge_buffer_size
-        pque = queue.PriorityQueue(max_qsize)
+        pque = queue.PriorityQueue(len(input_fpaths) + 1)
         for idx, reader in enumerate(readers):
             if not reader.finished():
                 for item in reader:
@@ -215,6 +213,10 @@ class SortRunMerger(object):
             writer.append(item.inner_item)
             assert item.reader_index < len(readers)
             self._replenish_item(readers[item.reader_index], pque)
+            if common.get_oom_risk_checker().check_oom_risk(0.85):
+                gc_cnt = gc.collect()
+                logging.info('trigger gc %d object actively since oom risk',
+                             gc_cnt)
         writer.finish()
         return writer.get_merged_fpaths()
 
