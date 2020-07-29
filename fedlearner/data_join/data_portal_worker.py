@@ -68,8 +68,13 @@ class RawDataSortPartitioner(RawDataPartitioner):
             return meta
 
         def _sort_buffer(self):
-            self._buffer = sorted(self._buffer,
-                                  key=lambda item: item.event_time)
+            self._buffer = sorted(self._buffer, cmp=self.item_cmp)
+
+        @staticmethod
+        def item_cmp(a, b):
+            if a.event_time != b.event_time:
+                return a.event_time < b.event_time
+            return a.example_id < b.example_id
 
     def _get_file_writer(self, partition_id):
         if len(self._flying_writers) == 0:
@@ -168,7 +173,7 @@ class DataPortalWorker(object):
 
     def _run_reduce_task(self, task):
         merger_options = self._make_merger_options(task)
-        sort_run_merger = SortRunMerger(merger_options, 'event_time')
+        sort_run_merger = SortRunMerger(merger_options, self._merger_comparator)
         input_dir = os.path.join(task.map_base_dir,
                                  common.partition_repr(task.partition_id))
         input_fpaths = [os.path.join(input_dir, f) for f in
@@ -178,6 +183,12 @@ class DataPortalWorker(object):
                      "partition_id:%d start", task.map_base_dir,
                      len(input_fpaths), self._rank_id, task.partition_id)
         sort_run_merger.merge_sort_runs(input_fpaths)
+
+    @staticmethod
+    def _merger_comparator(a, b):
+        if a.event_time != b.event_time:
+            return a.event_time < b.event_time
+        return a.example_id < b.example_id
 
     def run(self):
         while True:
