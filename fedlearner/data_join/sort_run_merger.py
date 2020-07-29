@@ -196,7 +196,7 @@ class SortRunMerger(object):
         if len(input_fpaths) == 0:
             logging.info("no sort run for partition %d", self._partition_id)
             return []
-        dumped_key, next_process_index = self._sync_merged_state()
+        dumped_item, next_process_index = self._sync_merged_state()
         readers = self._create_sort_run_readers(input_fpaths)
         max_qsize = len(input_fpaths) * 2 + 1
         if max_qsize < self._options.merge_buffer_size:
@@ -205,7 +205,8 @@ class SortRunMerger(object):
         for idx, reader in enumerate(readers):
             if not reader.finished():
                 for item in reader:
-                    if dumped_key is None or item.example_id >= dumped_key:
+                    if dumped_item is None or \
+                            not self._comparator(item, dumped_item):
                         pque.put(item)
                         break
         writer = self._create_sort_run_merger_writer(next_process_index)
@@ -289,7 +290,7 @@ class SortRunMerger(object):
                                   self._comparator):
             last_item = item
         assert last_item is not None
-        return last_item.example_id, last_meta.process_index + 1
+        return last_item, last_meta.process_index + 1
 
     @property
     def _partition_id(self):
