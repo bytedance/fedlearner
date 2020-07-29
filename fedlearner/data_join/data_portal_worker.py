@@ -165,11 +165,17 @@ class DataPortalWorker(object):
             partition_options, task.part_field, self._etcd_name,
             self._etcd_addrs, self._etcd_base_dir, self._use_mock_etcd
         )
-        logging.info("Partitioner rank_id:%d, partition_id:%d start",
-                     self._rank_id, partition_options.partitioner_rank_id)
-
+        logging.info("Partitioner rank_id-[%d] start run task %s for "\
+                     "partition %d, input %d files", self._rank_id,
+                     partition_options.partitioner_name,
+                     partition_options.partitioner_rank_id,
+                     len(partition_options.input_file_paths))
         data_partitioner.start_process()
         data_partitioner.wait_for_finished()
+        logging.info("Partitioner rank_id-[%d] finish run partition task %s "\
+                     "for partition %d.", self._rank_id,
+                     partition_options.partitioner_name,
+                     partition_options.partitioner_rank_id)
 
     def _run_reduce_task(self, task):
         merger_options = self._make_merger_options(task)
@@ -179,10 +185,14 @@ class DataPortalWorker(object):
         input_fpaths = [os.path.join(input_dir, f) for f in
                         gfile.ListDirectory(input_dir)
                         if f.endswith(common.RawDataFileSuffix)]
-        logging.info("Merger input_dir:%s(with %d files) rank_id:%s "\
-                     "partition_id:%d start", task.map_base_dir,
-                     len(input_fpaths), self._rank_id, task.partition_id)
+        logging.info("Merger rank_id-[%d] start run task %s for partition "\
+                     "%d. input_dir %s, with %d files",
+                     self._rank_id, merger_options.merger_name,
+                     task.partition_id, task.map_base_dir, len(input_fpaths))
         sort_run_merger.merge_sort_runs(input_fpaths)
+        logging.info("Merger rank_id-[%d] finish task %s for "\
+                     "partition %d", self._rank_id,
+                     merger_options.merger_name, task.partition_id)
 
     @staticmethod
     def _merger_comparator(a, b):
