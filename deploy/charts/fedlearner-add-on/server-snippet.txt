@@ -1,0 +1,5 @@
+grpc_ssl_verify on;
+grpc_ssl_server_name on;
+grpc_ssl_trusted_certificate /etc/ingress-nginx/client/all.pem;
+grpc_ssl_certificate /etc/ingress-nginx/client/client.pem;
+grpc_ssl_certificate_key /etc/ingress-nginx/client/client.key;

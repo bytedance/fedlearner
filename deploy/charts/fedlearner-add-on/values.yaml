@@ -3,32 +3,35 @@
 # Declare variables to be passed into your templates.
 
 imageCredentials:
-  enabled: false
+  enabled: true
   registry: ""
   username: ""
   password: ""
 
 service:
-  enabled: false
+  enabled: true
   type: ExternalName
   externalName: ""
 
 ingress:
-  enabled: false
+  enabled: true
   annotations:
+    "nginx.ingress.kubernetes.io/proxy-body-size": 10g
+    "nginx.ingress.kubernetes.io/backend-protocol": GRPCS
+    "nginx.ingress.kubernetes.io/http2-insecure-port": true
     "kubernetes.io/ingress.class": nginx
-  host: ""
-  port: 80
+  host: external.name
+  port: 443
 
 tls:
-  enabled: false
+  enabled: true
   server:
-    key: ""
-    cert: ""
-    intermediate: ""
-    ca: ""
+    key: certs/server/server.key
+    cert: certs/server/server.pem
+    intermediate: certs/server/intermediate.pem
+    ca: certs/server/root.pem
   client:
-    key: ""
-    cert: ""
-    intermediate: ""
-    ca: ""
+    key: certs/client/client.key
+    cert: certs/client/client.pem
+    intermediate: certs/client/intermediate.pem
+    ca: certs/client/root.pem
