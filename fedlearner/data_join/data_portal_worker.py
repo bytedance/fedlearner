@@ -69,7 +69,7 @@ class RawDataSortPartitioner(RawDataPartitioner):
             return meta
 
         def _sort_buffer(self):
-            self._buffer = sorted(self._buffer, key=cmp_to_key.(self.item_cmp))
+            self._buffer = sorted(self._buffer, key=cmp_to_key(self.item_cmp))
 
         @staticmethod
         def item_cmp(a, b):
