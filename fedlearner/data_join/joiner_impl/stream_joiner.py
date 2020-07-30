@@ -82,7 +82,7 @@ class _JoinWindow(object):
         if not self._buffer:
             return None
         if not self._sorted:
-            self._buffer.sort(key=lambda item :_CmpCtnt(item[1]))
+            self._buffer.sort(key=lambda item: _CmpCtnt(item[1]))
             self._sorted = True
         pos = int(len(self._buffer) * rate)
         if pos == len(self._buffer):
