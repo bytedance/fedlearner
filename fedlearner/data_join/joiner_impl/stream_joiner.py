@@ -30,6 +30,11 @@ class _CmpCtnt(object):
             return self._event_time < other._event_time
         return self._example_id < other._example_id
 
+    def __eq__(self, other):
+        assert isinstance(other, _CmpCtnt)
+        if self._event_time == other._event_time and \
+                self._example_id == other._example_id
+
 class _JoinWindow(object):
     def __init__(self, pt_rate, qt_rate):
         assert 0.0 <= pt_rate <= 1.0, \
@@ -37,7 +42,8 @@ class _JoinWindow(object):
         assert 0.0 <= qt_rate <= 1.0, \
             "qt_rate {} should in [0.0, 1.0]".format(qt_rate)
         self._buffer = []
-        self._sorted = True
+        self._cmp_ctnt = []
+        self._cmp_ctnt_sorted = True
         self._pt_rate = pt_rate
         self._qt_rate = qt_rate
         self._committed_pt = None
@@ -46,9 +52,10 @@ class _JoinWindow(object):
         return iter(self._buffer)
 
     def append(self, index, item):
-        if len(self._buffer) > 0 and \
-                _CmpCtnt(self._buffer[-1][1]) > _CmpCtnt(item):
-            self._sorted = False
+        if len(self._cmp_ctnt) > 0 and \
+                self._cmp_ctnt[-1] > _CmpCtnt(item):
+            self._cmp_ctnt_sorted = False
+        self._cmp_ctnt.append(_CmpCtnt(item))
         self._buffer.append((index, item))
 
     def size(self):
@@ -70,10 +77,12 @@ class _JoinWindow(object):
         return self._cal_pt(self._qt_rate)
 
     def reset(self, new_buffer, state_stale):
+        self._cmp_ctnt = [_CmpCtnt(item) for item in new_buffer]
         self._buffer = new_buffer
         if state_stale:
             self._committed_pt = None
-        self._sorted = len(new_buffer) == 0
+        self._cmp_ctnt_sorted = all(self._cmp_ctnt[i] <= self._cmp_ctnt[i+1]
+                                    for i in range(len(self._cmp_ctnt)-1))
 
     def __getitem__(self, index):
         return self._buffer[index]
@@ -81,13 +90,13 @@ class _JoinWindow(object):
     def _cal_pt(self, rate):
         if not self._buffer:
             return None
-        if not self._sorted:
-            self._buffer.sort(key=lambda item: _CmpCtnt(item[1]))
-            self._sorted = True
+        if not self._cmp_ctnt_sorted:
+            self._cmp_ctnt.sort()
+            self._cmp_ctnt_sorted = True
         pos = int(len(self._buffer) * rate)
         if pos == len(self._buffer):
             pos = len(self._buffer) - 1
-        return _CmpCtnt(self._buffer[pos][1])
+        return self._cmp_ctnt[pos]
 
 class StreamExampleJoiner(ExampleJoiner):
     def __init__(self, example_joiner_options, raw_data_options,
