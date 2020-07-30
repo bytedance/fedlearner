@@ -139,9 +139,8 @@ class DataJoinWorker(unittest.TestCase):
         dbm = data_block_manager.DataBlockManager(data_source, partition_id)
         raw_data_dir = os.path.join(raw_data_base_dir,
                                     common.partition_repr(partition_id))
-        if gfile.Exists(raw_data_dir):
-            gfile.DeleteRecursively(raw_data_dir)
-        gfile.MakeDirs(raw_data_dir)
+        if not gfile.Exists(raw_data_dir):
+            gfile.MakeDirs(raw_data_dir)
         useless_index = 0
         new_raw_data_fnames = []
         for block_index in range(start_index // block_size, (start_index + self.total_index) // block_size):
