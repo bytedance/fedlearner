@@ -20,6 +20,7 @@ from os import listdir
 from os.path import isfile, join
 import time
 import random
+import logging
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 import unittest
@@ -84,7 +85,7 @@ class DataJoinWorker(unittest.TestCase):
         self.etcd_f = etcd_f
         self.data_source_l = data_source_l
         self.data_source_f = data_source_f
-        self.data_source_name = data_source_name,
+        self.data_source_name = data_source_name
         self.etcd_name = etcd_name
         self.etcd_addrs = etcd_addrs
         self.etcd_base_dir_l = etcd_base_dir_l
@@ -133,7 +134,7 @@ class DataJoinWorker(unittest.TestCase):
 
         self.total_index = 1 << 13
 
-    def generate_raw_data(self, etcd, rdp, data_source, raw_data_base_dir, partition_id,
+    def generate_raw_data(self, start_index, etcd, rdp, data_source, raw_data_base_dir, partition_id,
                           block_size, shuffle_win_size, feat_key_fmt, feat_val_fmt):
         dbm = data_block_manager.DataBlockManager(data_source, partition_id)
         raw_data_dir = os.path.join(raw_data_base_dir,
@@ -143,7 +144,7 @@ class DataJoinWorker(unittest.TestCase):
         gfile.MakeDirs(raw_data_dir)
         useless_index = 0
         new_raw_data_fnames = []
-        for block_index in range(self.total_index // block_size):
+        for block_index in range(start_index // block_size (start_index + self.total_index) // block_size):
             builder = DataBlockBuilder(
                     raw_data_base_dir,
                     data_source.data_source_meta.name,
@@ -197,12 +198,31 @@ class DataJoinWorker(unittest.TestCase):
                 gfile.Remove(fpath)
         rdp.publish_raw_data(partition_id, new_raw_data_fnames)
 
-    def _launch_master(self):
+    def test_all_assembly(self):
+        for i in range(3):
+            logging.info('Testing round %d', i + 1)
+            self._inner_test_round(i*self.total_index)
+
+    def _inner_test_round(self, start_index):
+        for i in range(self.data_source_l.data_source_meta.partition_num):
+            self.generate_raw_data(
+                    start_index, self.etcd_l, self.raw_data_publisher_l,
+                    self.data_source_l, self.raw_data_dir_l, i, 2048, 64,
+                    'leader_key_partition_{}'.format(i) + ':{}',
+                    'leader_value_partition_{}'.format(i) + ':{}'
+                )
+            self.generate_raw_data(
+                    start_index, self.etcd_f, self.raw_data_publisher_f,
+                    self.data_source_f, self.raw_data_dir_f, i, 4096, 128,
+                    'follower_key_partition_{}'.format(i) + ':{}',
+                    'follower_value_partition_{}'.format(i) + ':{}'
+                )
+
         master_addr_l = 'localhost:4061'
         master_addr_f = 'localhost:4062'
         master_options = dj_pb.DataJoinMasterOptions(use_mock_etcd=True,
                                                      batch_mode=True)
-        self.master_l = data_join_master.DataJoinMasterService(
+        master_l = data_join_master.DataJoinMasterService(
                 int(master_addr_l.split(':')[1]), master_addr_f,
                 self.data_source_name, self.etcd_name, self.etcd_base_dir_l,
                 self.etcd_addrs, master_options,
@@ -221,10 +241,10 @@ class DataJoinWorker(unittest.TestCase):
 
         while True:
             req_l = dj_pb.DataSourceRequest(
-                    data_source_meta=data_source_l.data_source_meta
+                    data_source_meta=self.data_source_l.data_source_meta
                 )
             req_f = dj_pb.DataSourceRequest(
-                    data_source_meta=data_source_f.data_source_meta
+                    data_source_meta=self.data_source_f.data_source_meta
                 )
             dss_l = master_client_l.GetDataSourceStatus(req_l)
             dss_f = master_client_f.GetDataSourceStatus(req_f)
@@ -236,56 +256,28 @@ class DataJoinWorker(unittest.TestCase):
             else:
                 time.sleep(2)
 
-        self.master_addr_f = master_addr_f
-        self.master_addr_l = master_addr_l
-        self.master_client_l = master_client_l
-        self.master_client_f = master_client_f
-        self.master_l = master_l
-        self.master_f = master_f
-
-
-    def test_all_assembly(self):
-        for i in range(self.data_source_l.data_source_meta.partition_num):
-            self.generate_raw_data(
-                    self.etcd_l, self.raw_data_publisher_l, self.data_source_l,
-                    self.raw_data_dir_l, i, 2048, 64,
-                    'leader_key_partition_{}'.format(i) + ':{}',
-                    'leader_value_partition_{}'.format(i) + ':{}'
-                )
-            self.generate_raw_data(
-                    self.etcd_f, self.raw_data_publisher_f, self.data_source_f,
-                    self.raw_data_dir_f, i, 4096, 128,
-                    'follower_key_partition_{}'.format(i) + ':{}',
-                    'follower_value_partition_{}'.format(i) + ':{}'
-                )
-        self._launch_master()
-
         worker_addr_l = 'localhost:4161'
         worker_addr_f = 'localhost:4162'
 
         worker_l = data_join_worker.DataJoinWorkerService(
                 int(worker_addr_l.split(':')[1]),
-                worker_addr_f, self.master_addr_l, 0,
+                worker_addr_f, master_addr_l, 0,
                 self.etcd_name, self.etcd_base_dir_l,
                 self.etcd_addrs, self.worker_options
             )
 
         worker_f = data_join_worker.DataJoinWorkerService(
                 int(worker_addr_f.split(':')[1]),
-                worker_addr_l, self.master_addr_f, 0,
+                worker_addr_l, master_addr_f, 0,
                 self.etcd_name, self.etcd_base_dir_f,
                 self.etcd_addrs, self.worker_options
             )
 
-        th_l = threading.Thread(target=worker_l.run, 'worker_l')
-        th_f = threading.Thread(target=worker_f.run, 'worker_f')
+        th_l = threading.Thread(target=worker_l.run, name='worker_l')
+        th_f = threading.Thread(target=worker_f.run, name='worker_f')
 
-        worker_l.start()
-        worker_f.start()
-
-        for i in range(self.data_source_f.data_source_meta.partition_num):
-            self.raw_data_publisher_l.finish_raw_data(i)
-            self.raw_data_publisher_f.finish_raw_data(i)
+        th_l.start()
+        th_f.start()
 
         while True:
             req_l = dj_pb.DataSourceRequest(
@@ -294,8 +286,8 @@ class DataJoinWorker(unittest.TestCase):
             req_f = dj_pb.DataSourceRequest(
                     data_source_meta=self.data_source_f.data_source_meta
                 )
-            dss_l = self.master_client_l.GetDataSourceStatus(req_l)
-            dss_f = self.master_client_f.GetDataSourceStatus(req_f)
+            dss_l = master_client_l.GetDataSourceStatus(req_l)
+            dss_f = .master_client_f.GetDataSourceStatus(req_f)
             self.assertEqual(dss_l.role, common_pb.FLRole.Leader)
             self.assertEqual(dss_f.role, common_pb.FLRole.Follower)
             if dss_l.state == common_pb.DataSourceState.Ready and \
@@ -306,8 +298,8 @@ class DataJoinWorker(unittest.TestCase):
 
         th_l.join()
         th_f.join()
-        self.master_l.stop()
-        self.master_f.stop()
+        master_l.stop()
+        master_f.stop()
 
     def tearDown(self):
         if gfile.Exists(self.data_source_l.output_base_dir):

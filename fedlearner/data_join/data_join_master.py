@@ -68,7 +68,7 @@ class MasterFSM(object):
         assert self._data_source is not None, \
             "data source must not None if sync data source success"
         self._raw_data_manifest_manager = RawDataManifestManager(
-                etcd, self._data_source
+                etcd, self._data_source, batch_mode
             )
         self._data_source_meta = self._data_source.data_source_meta
         if self._data_source.role == common_pb.FLRole.Leader:

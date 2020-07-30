@@ -240,7 +240,7 @@ class DataJoinWorkerService(object):
         self._rank_id = rank_id
         etcd = EtcdClient(etcd_name, etcd_addrs,
                           etcd_base_dir, options.use_mock_etcd)
-        data_source = self.sync_data_source()
+        data_source = self._sync_data_source()
         self._data_source_name = data_source.data_source_meta.name
         self._listen_port = listen_port
         self._server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
@@ -258,7 +258,7 @@ class DataJoinWorkerService(object):
         self._server.add_insecure_port('[::]:%d'%listen_port)
         self._server_started = False
 
-    def sync_data_source(self):
+    def _sync_data_source(self):
         while True:
             try:
                 return self._master_client.GetDataSource(empty_pb2.Empty())

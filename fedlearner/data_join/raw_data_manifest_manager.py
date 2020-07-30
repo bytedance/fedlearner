@@ -55,16 +55,16 @@ class RawDataManifestManager(object):
                 logging.warning("reset raw data finish for partition "\
                                 "%d for batch mode", partition_id)
             if manifest.sync_example_id_rep.state == \
-                    common_pb.SyncExampleIdState.Synced:
+                    dj_pb.SyncExampleIdState.Synced:
                 manifest.sync_example_id_rep.state = \
-                        common_pb.SyncExampleIdState.UnSynced
+                        dj_pb.SyncExampleIdState.UnSynced
                 manifest.sync_example_id_rep.rank_id = -1
                 logging.warning("reset sync example id for partition "\
                                 "%d for batch mode", partition_id)
             if manifest.join_example_rep.state == \
-                    common_pb.JoinExampleState.Joined:
+                    dj_pb.JoinExampleState.Joined:
                 manifest.join_example_rep.state = \
-                        common_pb.JoinExampleState.UnJoined
+                        dj_pb.JoinExampleState.UnJoined
                 manifest.join_example_rep.rank_id = -1
                 logging.warning("reset join example for partition "\
                                 "%d for batch mode", partition_id)
