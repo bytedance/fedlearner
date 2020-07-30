@@ -87,7 +87,7 @@ class _JoinWindow(object):
         pos = int(len(self._buffer) * rate)
         if pos == len(self._buffer):
             pos = len(self._buffer) - 1
-        return _CmpCtnt(self._buffer[pos])
+        return _CmpCtnt(self._buffer[pos][1])
 
 class StreamExampleJoiner(ExampleJoiner):
     def __init__(self, example_joiner_options, raw_data_options,
