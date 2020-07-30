@@ -174,13 +174,13 @@ class MasterFSM(object):
                 raise RuntimeError("Failed to reset batch mode since "\
                                    "DataSource {} at UnKnown state"\
                                    .format(self._data_source_name))
-            elif data_source.state in (common_pb.DataSourceState.Init,
+            if data_source.state in (common_pb.DataSourceState.Init,
                                        common_pb.DataSourceState.Processing):
-                logging.info("DataSouce {} at Init/Processing State. Don't "\
-                             "need reset".format(self._data_source_name))
+                logging.info("DataSouce %s at Init/Processing State. Don't "\
+                             "need reset", self._data_source_name)
             elif data_source.state == common_pb.DataSourceState.Ready:
-                logging.info("DataSouce {} at Ready. need reset to Processing "\
-                             "state".format(self._data_source_name))
+                logging.info("DataSouce %s at Ready. need reset to Processing "\
+                             "state", self._data_source_name)
                 data_source.state = common_pb.DataSourceState.Processing
                 self._update_data_source(data_source)
             else:
