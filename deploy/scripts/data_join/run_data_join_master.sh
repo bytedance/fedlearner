@@ -38,4 +38,4 @@ python -m fedlearner.data_join.cmd.data_join_master_service \
     --etcd_addrs=$ETCD_ADDR \
     --etcd_base_dir=$ETCD_BASE_DIR \
     --listen_port=50051 \
-    --data_source_name=$APPLICATION_ID
+    --data_source_name=$APPLICATION_ID $BATCH_MODE

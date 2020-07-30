@@ -259,6 +259,7 @@ message DataJoinWorkerOptions {
 
 message DataJoinMasterOptions {
   bool use_mock_etcd = 1;
+  bool batch_mode = 2;
 }
 
 message ExampleValidatorOptions {

@@ -39,9 +39,12 @@ if __name__ == "__main__":
                         help='the name of data source')
     parser.add_argument('--use_mock_etcd', action='store_true',
                         help='use to mock etcd for test')
+    parser.add_argument('--batch_mode', action='store_true',
+                        help='make the data join run in batch mode')
     args = parser.parse_args()
     master_options = dj_pb.DataJoinMasterOptions(
-            use_mock_etcd=args.use_mock_etcd
+            use_mock_etcd=args.use_mock_etcd,
+            batch_mode=args.batch_mode
         )
     master_srv = DataJoinMasterService(
             args.listen_port, args.peer_addr,

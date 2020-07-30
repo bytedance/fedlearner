@@ -56,11 +56,12 @@ class MasterFSM(object):
              common_pb.DataSourceState.Processing]
         )
 
-    def __init__(self, peer_client, data_source_name, etcd):
+    def __init__(self, peer_client, data_source_name, etcd, batch_mode):
         self._lock = threading.Lock()
         self._peer_client = peer_client
         self._data_source_name = data_source_name
         self._etcd = etcd
+        self._batch_mode = batch_mode
         self._init_fsm_action()
         self._data_source = None
         self._sync_data_source()
@@ -154,7 +155,8 @@ class MasterFSM(object):
                                     self._role_repr, state, new_state)
                     state = new_state
             if state in (common_pb.DataSourceState.Init,
-                            common_pb.DataSourceState.Processing):
+                         common_pb.DataSourceState.Processing) and \
+                    not self._batch_mode:
                 self._raw_data_manifest_manager.sub_new_raw_data()
 
     def _fsm_routine_cond(self):
@@ -215,6 +217,10 @@ class MasterFSM(object):
         return False
 
     def _fsm_ready_action(self, peer_info):
+        if self._batch_mode:
+            logging.info("stop fsm from Ready to Finish since "\
+                         "the data join master run in batch mode")
+            return False
         state_changed = False
         if self._data_source.role == common_pb.FLRole.Leader:
             if peer_info.state == common_pb.DataSourceState.Ready:
@@ -285,7 +291,9 @@ class DataJoinMaster(dj_grpc.DataJoinMasterServiceServicer):
         self._data_source_name = data_source_name
         etcd = EtcdClient(etcd_name, etcd_addrs,
                           etcd_base_dir, options.use_mock_etcd)
-        self._fsm = MasterFSM(peer_client, data_source_name, etcd)
+        self._options = options
+        self._fsm = MasterFSM(peer_client, data_source_name,
+                              etcd. self._options.batch_mode)
         self._data_source_meta = \
                 self._fsm.get_data_source().data_source_meta
 
@@ -383,24 +391,27 @@ class DataJoinMaster(dj_grpc.DataJoinMasterServiceServicer):
     def FinishRawData(self, request, context):
         response = self._check_data_source_meta(request.data_source_meta)
         if response.code == 0:
-            manifest_manager = self._fsm.get_mainifest_manager()
-            if request.HasField('finish_raw_data'):
+            if self._options.batch_mode:
+                response.code = -2
+                response.error_message = "Forbid to finish raw data since "\
+                                         "master run in batch mode"
+            elif request.HasField('finish_raw_data'):
+                manifest_manager = self._fsm.get_mainifest_manager()
                 manifest_manager.finish_raw_data(request.partition_id)
             else:
-                response.code = -2
+                response.code = -3
                 response.error_message = \
-                        "FinishRawData should has finish_raw_data"
+                    "FinishRawData should has finish_raw_data"
         return response
 
     def AddRawData(self, request, context):
         response = self._check_data_source_meta(request.data_source_meta)
         if response.code == 0:
             sub_dir = self._fsm.get_data_source().raw_data_sub_dir
-            if len(sub_dir) > 0:
+            if self._options.batch_mode:
                 response.code = -2
-                response.error_message = \
-                        "Forbid to add raw data since has "\
-                        "sub etcd base dir {}".format(sub_dir)
+                response.error_message = "Forbid to add raw data since "\
+                                         "master run in batch mode"
             elif request.HasField('added_raw_data_metas'):
                 manifest_manager = self._fsm.get_mainifest_manager()
                 manifest_manager.add_raw_data(

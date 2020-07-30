@@ -105,7 +105,7 @@ class RoutineWorker(object):
                 logging.error("worker: %s run %d rounds with exception: %s",
                               self._name, exec_round, e)
             else:
-                logging.info("worker: %s exec %d round", self._name, exec_round)
+                logging.debug("worker: %s exec %d round", self._name, exec_round)
             exec_round += 1
         logging.warning("worker %s will stop", self._name)
 
