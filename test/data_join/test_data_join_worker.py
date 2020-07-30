@@ -79,55 +79,11 @@ class DataJoinWorker(unittest.TestCase):
         common.commit_data_source(etcd_l, data_source_l)
         data_source_f.data_source_meta.MergeFrom(data_source_meta)
         common.commit_data_source(etcd_f, data_source_f)
-        master_options = dj_pb.DataJoinMasterOptions(use_mock_etcd=True,
-                                                     batch_mode=True)
 
-        master_addr_l = 'localhost:4061'
-        master_addr_f = 'localhost:4062'
-        master_l = data_join_master.DataJoinMasterService(
-                int(master_addr_l.split(':')[1]), master_addr_f,
-                data_source_name, etcd_name, etcd_base_dir_l,
-                etcd_addrs, master_options,
-            )
-        master_l.start()
-        master_f = data_join_master.DataJoinMasterService(
-                int(master_addr_f.split(':')[1]), master_addr_l,
-                data_source_name, etcd_name, etcd_base_dir_f,
-                etcd_addrs, master_options
-            )
-        master_f.start()
-        channel_l = make_insecure_channel(master_addr_l, ChannelType.INTERNAL)
-        master_client_l = dj_grpc.DataJoinMasterServiceStub(channel_l)
-        channel_f = make_insecure_channel(master_addr_f, ChannelType.INTERNAL)
-        master_client_f = dj_grpc.DataJoinMasterServiceStub(channel_f)
-
-        while True:
-            req_l = dj_pb.DataSourceRequest(
-                    data_source_meta=data_source_l.data_source_meta
-                )
-            req_f = dj_pb.DataSourceRequest(
-                    data_source_meta=data_source_f.data_source_meta
-                )
-            dss_l = master_client_l.GetDataSourceStatus(req_l)
-            dss_f = master_client_f.GetDataSourceStatus(req_f)
-            self.assertEqual(dss_l.role, common_pb.FLRole.Leader)
-            self.assertEqual(dss_f.role, common_pb.FLRole.Follower)
-            if dss_l.state == common_pb.DataSourceState.Processing and \
-                    dss_f.state == common_pb.DataSourceState.Processing:
-                break
-            else:
-                time.sleep(2)
-
-        self.master_client_l = master_client_l
-        self.master_client_f = master_client_f
-        self.master_addr_l = master_addr_l
-        self.master_addr_f = master_addr_f
         self.etcd_l = etcd_l
         self.etcd_f = etcd_f
         self.data_source_l = data_source_l
         self.data_source_f = data_source_f
-        self.master_l = master_l
-        self.master_f = master_f
         self.data_source_name = data_source_name,
         self.etcd_name = etcd_name
         self.etcd_addrs = etcd_addrs
@@ -241,6 +197,53 @@ class DataJoinWorker(unittest.TestCase):
                 gfile.Remove(fpath)
         rdp.publish_raw_data(partition_id, new_raw_data_fnames)
 
+    def _launch_master(self):
+        master_addr_l = 'localhost:4061'
+        master_addr_f = 'localhost:4062'
+        master_options = dj_pb.DataJoinMasterOptions(use_mock_etcd=True,
+                                                     batch_mode=True)
+        self.master_l = data_join_master.DataJoinMasterService(
+                int(master_addr_l.split(':')[1]), master_addr_f,
+                self.data_source_name, self.etcd_name, self.etcd_base_dir_l,
+                self.etcd_addrs, master_options,
+            )
+        master_l.start()
+        master_f = data_join_master.DataJoinMasterService(
+                int(master_addr_f.split(':')[1]), master_addr_l,
+                self.data_source_name, self.etcd_name, self.etcd_base_dir_f,
+                self.etcd_addrs, master_options
+            )
+        master_f.start()
+        channel_l = make_insecure_channel(master_addr_l, ChannelType.INTERNAL)
+        master_client_l = dj_grpc.DataJoinMasterServiceStub(channel_l)
+        channel_f = make_insecure_channel(master_addr_f, ChannelType.INTERNAL)
+        master_client_f = dj_grpc.DataJoinMasterServiceStub(channel_f)
+
+        while True:
+            req_l = dj_pb.DataSourceRequest(
+                    data_source_meta=data_source_l.data_source_meta
+                )
+            req_f = dj_pb.DataSourceRequest(
+                    data_source_meta=data_source_f.data_source_meta
+                )
+            dss_l = master_client_l.GetDataSourceStatus(req_l)
+            dss_f = master_client_f.GetDataSourceStatus(req_f)
+            self.assertEqual(dss_l.role, common_pb.FLRole.Leader)
+            self.assertEqual(dss_f.role, common_pb.FLRole.Follower)
+            if dss_l.state == common_pb.DataSourceState.Processing and \
+                    dss_f.state == common_pb.DataSourceState.Processing:
+                break
+            else:
+                time.sleep(2)
+
+        self.master_addr_f = master_addr_f
+        self.master_addr_l = master_addr_l
+        self.master_client_l = master_client_l
+        self.master_client_f = master_client_f
+        self.master_l = master_l
+        self.master_f = master_f
+
+
     def test_all_assembly(self):
         for i in range(self.data_source_l.data_source_meta.partition_num):
             self.generate_raw_data(
@@ -255,6 +258,7 @@ class DataJoinWorker(unittest.TestCase):
                     'follower_key_partition_{}'.format(i) + ':{}',
                     'follower_value_partition_{}'.format(i) + ':{}'
                 )
+        self._launch_master()
 
         worker_addr_l = 'localhost:4161'
         worker_addr_f = 'localhost:4162'
