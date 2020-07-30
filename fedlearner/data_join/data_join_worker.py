@@ -236,17 +236,18 @@ class DataJoinWorkerService(object):
         master_channel = make_insecure_channel(
                 master_addr, ChannelType.INTERNAL
             )
-        master_client = dj_grpc.DataJoinMasterServiceStub(master_channel)
+        self._master_client = dj_grpc.DataJoinMasterServiceStub(master_channel)
+        self._rank_id = rank_id
         etcd = EtcdClient(etcd_name, etcd_addrs,
                           etcd_base_dir, options.use_mock_etcd)
-        data_source = self.sync_data_source(master_client)
+        data_source = self._sync_data_source()
         self._data_source_name = data_source.data_source_meta.name
         self._listen_port = listen_port
         self._server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
         peer_channel = make_insecure_channel(peer_addr, ChannelType.REMOTE)
         peer_client = dj_grpc.DataJoinWorkerServiceStub(peer_channel)
         self._data_join_worker = DataJoinWorker(
-                peer_client, master_client,
+                peer_client, self._master_client,
                 rank_id, etcd, data_source, options
             )
         dj_grpc.add_DataJoinWorkerServiceServicer_to_server(
@@ -257,10 +258,10 @@ class DataJoinWorkerService(object):
         self._server.add_insecure_port('[::]:%d'%listen_port)
         self._server_started = False
 
-    def sync_data_source(self, master_client):
+    def _sync_data_source(self):
         while True:
             try:
-                return master_client.GetDataSource(empty_pb2.Empty())
+                return self._master_client.GetDataSource(empty_pb2.Empty())
             except Exception as e: # pylint: disable=broad-except
                 logging.warning("Failed to get data source from master with "\
                                 "exception %s. sleep 2 second and retry", e)
@@ -283,7 +284,21 @@ class DataJoinWorkerService(object):
             logging.info("DataJoinWorker(%s) for data_source %s stopped",
                          self._role_repr, self._data_source_name)
 
+    def _wait_for_join_finished(self):
+        while True:
+            data_source = self._sync_data_source()
+            if data_source.state > common_pb.DataSourceState.Processing:
+                logging.warning("DataSource state run to %d, no task will "\
+                                "be allocated. Data Join Worker-[%d] will "\
+                                "exit", data_source.state, self._rank_id)
+                break
+            if data_source.state == common_pb.DataSourceState.UnKnown:
+                logging.error("DataSource state run to at state Unknow. Data "\
+                              "Join Worker-[%d] will exit", self._rank_id)
+            logging.debug("DataSource at state %d, wait 10s and recheck")
+            time.sleep(10)
+
     def run(self):
         self.start()
-        self._server.wait_for_termination()
+        self._wait_for_join_finished()
         self.stop()

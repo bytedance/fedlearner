@@ -16,7 +16,6 @@
 
 import threading
 import logging
-from os import path
 
 from google.protobuf import text_format
 from fedlearner.common import data_join_service_pb2 as dj_pb
@@ -24,7 +23,7 @@ from fedlearner.common import common_pb2 as common_pb
 from fedlearner.data_join import common
 
 class RawDataManifestManager(object):
-    def __init__(self, etcd, data_source):
+    def __init__(self, etcd, data_source, batch_mode=False):
         self._lock = threading.Lock()
         self._local_manifest = {}
         self._etcd = etcd
@@ -33,6 +32,7 @@ class RawDataManifestManager(object):
         self._existed_fpath = {}
         self._raw_data_latest_timestamp = {}
         self._partition_num = data_source.data_source_meta.partition_num
+        self._batch_mode = batch_mode
         if self._partition_num <= 0:
             raise ValueError(
                 "partition num must be positive: {}".format(self._partition_num)
@@ -41,6 +41,40 @@ class RawDataManifestManager(object):
             self._local_manifest[partition_id] = None
             self._raw_data_latest_timestamp[partition_id] = None
             self._sync_manifest(partition_id)
+        if self._batch_mode:
+            self._init_batch_mode()
+
+    def _init_batch_mode(self):
+        assert common_pb.DataSourceState.UnKnown < self._data_source.state \
+                < common_pb.DataSourceState.Ready, \
+                "DataSouce should in Init or Processing State"
+        for partition_id in range(self._partition_num):
+            manifest = self._sync_manifest(partition_id)
+            if manifest.finished:
+                manifest.finished = False
+                logging.warning("reset raw data finish for partition "\
+                                "%d for batch mode", partition_id)
+            if manifest.sync_example_id_rep.state == \
+                    dj_pb.SyncExampleIdState.Synced:
+                manifest.sync_example_id_rep.state = \
+                        dj_pb.SyncExampleIdState.UnSynced
+                manifest.sync_example_id_rep.rank_id = -1
+                logging.warning("reset sync example id for partition "\
+                                "%d for batch mode", partition_id)
+            if manifest.join_example_rep.state == \
+                    dj_pb.JoinExampleState.Joined:
+                manifest.join_example_rep.state = \
+                        dj_pb.JoinExampleState.UnJoined
+                manifest.join_example_rep.rank_id = -1
+                logging.warning("reset join example for partition "\
+                                "%d for batch mode", partition_id)
+            self._update_manifest(manifest)
+            sub_file_cnt = self._try_to_sub_raw_data(partition_id)
+            logging.warning("Subscribed %d new file for partition %d",
+                            sub_file_cnt, partition_id)
+            manifest = self._sync_manifest(partition_id)
+            manifest.finished = True
+            self._update_manifest(manifest)
 
     def alloc_sync_exampld_id(self, rank_id, partition_id=None):
         if partition_id is not None:
@@ -102,6 +136,8 @@ class RawDataManifestManager(object):
     def finish_raw_data(self, partition_id):
         self._check_partition_id(partition_id)
         with self._lock:
+            assert not self._batch_mode, \
+                "finish_raw_data is not support in batch mode"
             manifest = self._sync_manifest(partition_id)
             if not manifest.finished:
                 manifest.finished = True
@@ -111,6 +147,8 @@ class RawDataManifestManager(object):
         assert len(self._raw_data_sub_dir) == 0
         self._check_partition_id(partition_id)
         with self._lock:
+            assert not self._batch_mode, \
+                "add_raw_data is not support in batch mode"
             manifest = self._sync_manifest(partition_id)
             if manifest.finished:
                 raise RuntimeError("forbid add raw data since partition {} "\
@@ -161,43 +199,42 @@ class RawDataManifestManager(object):
             self._etcd.delete_prefix(etcd_base_key)
 
     def sub_new_raw_data(self):
-        if len(self._raw_data_sub_dir) > 0:
+        with self._lock:
             for partition_id in range(self._partition_num):
                 self._try_to_sub_raw_data(partition_id)
 
     def _try_to_sub_raw_data(self, partition_id):
-        sub_src_dir = path.join(self._raw_data_sub_dir,
-                                common.partition_repr(partition_id))
-        with self._lock:
-            manifest = self._sync_manifest(partition_id)
-            if manifest.finished:
-                return
-            next_sub_index = manifest.next_raw_data_sub_index
-            add_candidates = []
-            raw_data_finished = False
-            while True:
-                etcd_key = common.raw_data_pub_etcd_key(
-                        self._raw_data_sub_dir,
-                        partition_id, next_sub_index
-                    )
-                pub_data = self._etcd.get_data(etcd_key)
-                if pub_data is None:
-                    break
-                raw_data_pub = text_format.Parse(pub_data, dj_pb.RawDatePub())
-                if raw_data_pub.HasField('raw_data_meta'):
-                    add_candidates.append(raw_data_pub.raw_data_meta)
-                    next_sub_index += 1
-                elif raw_data_pub.HasField('raw_data_finished'):
-                    logging.warning("meet finish pub at pub index %d for "\
-                                    "partition %d",
-                                    next_sub_index, partition_id)
-                    raw_data_finished = True
-                    break
-            self._store_raw_data_metas(partition_id, add_candidates)
-            new_manifest = self._sync_manifest(partition_id)
-            new_manifest.next_raw_data_sub_index = next_sub_index
-            new_manifest.finished = raw_data_finished
-            self._update_manifest(new_manifest)
+        manifest = self._sync_manifest(partition_id)
+        if manifest.finished or len(self._raw_data_sub_dir) == 0:
+            return 0
+        next_sub_index = manifest.next_raw_data_sub_index
+        add_candidates = []
+        raw_data_finished = False
+        prev_next_sub_index = manifest.next_raw_data_sub_index
+        while True:
+            etcd_key = common.raw_data_pub_etcd_key(
+                    self._raw_data_sub_dir,
+                    partition_id, next_sub_index
+                )
+            pub_data = self._etcd.get_data(etcd_key)
+            if pub_data is None:
+                break
+            raw_data_pub = text_format.Parse(pub_data, dj_pb.RawDatePub())
+            if raw_data_pub.HasField('raw_data_meta'):
+                add_candidates.append(raw_data_pub.raw_data_meta)
+                next_sub_index += 1
+            elif raw_data_pub.HasField('raw_data_finished'):
+                logging.warning("meet finish pub at pub index %d for "\
+                                "partition %d",
+                                next_sub_index, partition_id)
+                raw_data_finished = True
+                break
+        self._store_raw_data_metas(partition_id, add_candidates)
+        new_manifest = self._sync_manifest(partition_id)
+        new_manifest.next_raw_data_sub_index = next_sub_index
+        new_manifest.finished = raw_data_finished
+        self._update_manifest(new_manifest)
+        return next_sub_index - prev_next_sub_index
 
     def _store_raw_data_metas(self, partition_id, new_raw_data_metas):
         if len(new_raw_data_metas) > 0:

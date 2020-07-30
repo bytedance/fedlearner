@@ -56,18 +56,18 @@ class MasterFSM(object):
              common_pb.DataSourceState.Processing]
         )
 
-    def __init__(self, peer_client, data_source_name, etcd):
+    def __init__(self, peer_client, data_source_name, etcd, batch_mode):
         self._lock = threading.Lock()
         self._peer_client = peer_client
         self._data_source_name = data_source_name
         self._etcd = etcd
+        self._batch_mode = batch_mode
         self._init_fsm_action()
         self._data_source = None
         self._sync_data_source()
-        assert self._data_source is not None, \
-            "data source must not None if sync data source success"
+        self._reset_batch_mode()
         self._raw_data_manifest_manager = RawDataManifestManager(
-                etcd, self._data_source
+                etcd, self._data_source, batch_mode
             )
         self._data_source_meta = self._data_source.data_source_meta
         if self._data_source.role == common_pb.FLRole.Leader:
@@ -82,8 +82,7 @@ class MasterFSM(object):
 
     def get_data_source(self):
         with self._lock:
-            self._sync_data_source()
-            return self._data_source
+            return self._sync_data_source()
 
     def set_failed(self):
         return self.set_state(common_pb.DataSourceState.Failed, None)
@@ -91,18 +90,18 @@ class MasterFSM(object):
     def set_state(self, new_state, origin_state=None):
         with self._lock:
             try:
-                self._sync_data_source()
-                if self._data_source.state == new_state:
+                data_source = self._sync_data_source()
+                if data_source.state == new_state:
                     return True
-                if (origin_state is None or
-                        self._data_source.state == origin_state):
-                    self._data_source.state = new_state
-                    self._update_data_source(self._data_source)
+                if origin_state is None or data_source.state == origin_state:
+                    data_source.state = new_state
+                    self._update_data_source(data_source)
                     return True
+                new_data_source = self._sync_data_source()
                 logging.warning("DataSource: %s failed to set to state: "
                                 "%d, origin state mismatch(%d != %d)",
                                 self._data_source_name, new_state,
-                                origin_state, self._data_source.state)
+                                origin_state, new_data_source.state)
                 return False
             except Exception as e: # pylint: disable=broad-except
                 logging.warning("Faile to set state to %d with exception %s",
@@ -135,8 +134,8 @@ class MasterFSM(object):
     def _fsm_routine_fn(self):
         peer_info = self._get_peer_data_source_status()
         with self._lock:
-            self._sync_data_source()
-            state = self._data_source.state
+            data_source = self._sync_data_source()
+            state = data_source.state
             if self._fallback_failed_state(peer_info):
                 logging.warning("%s at state %d, Peer at state %d "\
                                 "state invalid! abort data source %s",
@@ -148,13 +147,13 @@ class MasterFSM(object):
             else:
                 state_changed = self._fsm_driven_handle[state](peer_info)
                 if state_changed:
-                    self._sync_data_source()
-                    new_state = self._data_source.state
+                    new_state = self._sync_data_source().state
                     logging.warning("%s state changed from %d to %d",
                                     self._role_repr, state, new_state)
                     state = new_state
             if state in (common_pb.DataSourceState.Init,
-                            common_pb.DataSourceState.Processing):
+                         common_pb.DataSourceState.Processing) and \
+                    not self._batch_mode:
                 self._raw_data_manifest_manager.sub_new_raw_data()
 
     def _fsm_routine_cond(self):
@@ -164,6 +163,31 @@ class MasterFSM(object):
         if self._data_source is None:
             self._data_source = \
                 retrieve_data_source(self._etcd, self._data_source_name)
+        assert self._data_source is not None, \
+            "data source {} is not in etcd".format(self._data_source_name)
+        return self._data_source
+
+    def _reset_batch_mode(self):
+        if self._batch_mode:
+            data_source = self._sync_data_source()
+            if data_source.state == common_pb.DataSourceState.UnKnown:
+                raise RuntimeError("Failed to reset batch mode since "\
+                                   "DataSource {} at UnKnown state"\
+                                   .format(self._data_source_name))
+            if data_source.state in (common_pb.DataSourceState.Init,
+                                       common_pb.DataSourceState.Processing):
+                logging.info("DataSouce %s at Init/Processing State. Don't "\
+                             "need reset", self._data_source_name)
+            elif data_source.state == common_pb.DataSourceState.Ready:
+                logging.info("DataSouce %s at Ready. need reset to Processing "\
+                             "state", self._data_source_name)
+                data_source.state = common_pb.DataSourceState.Processing
+                self._update_data_source(data_source)
+            else:
+                raise RuntimeError("Failed to reset batch mode since Data"\
+                                   "Source {} at Finished/Failed state, Peer"\
+                                   "may delete it"\
+                                   .format(self._data_source_name))
 
     def _init_fsm_action(self):
         self._fsm_driven_handle = {
@@ -215,6 +239,10 @@ class MasterFSM(object):
         return False
 
     def _fsm_ready_action(self, peer_info):
+        if self._batch_mode:
+            logging.info("stop fsm from Ready to Finish since "\
+                         "the data join master run in batch mode")
+            return False
         state_changed = False
         if self._data_source.role == common_pb.FLRole.Leader:
             if peer_info.state == common_pb.DataSourceState.Ready:
@@ -285,7 +313,9 @@ class DataJoinMaster(dj_grpc.DataJoinMasterServiceServicer):
         self._data_source_name = data_source_name
         etcd = EtcdClient(etcd_name, etcd_addrs,
                           etcd_base_dir, options.use_mock_etcd)
-        self._fsm = MasterFSM(peer_client, data_source_name, etcd)
+        self._options = options
+        self._fsm = MasterFSM(peer_client, data_source_name,
+                              etcd, self._options.batch_mode)
         self._data_source_meta = \
                 self._fsm.get_data_source().data_source_meta
 
@@ -383,24 +413,27 @@ class DataJoinMaster(dj_grpc.DataJoinMasterServiceServicer):
     def FinishRawData(self, request, context):
         response = self._check_data_source_meta(request.data_source_meta)
         if response.code == 0:
-            manifest_manager = self._fsm.get_mainifest_manager()
-            if request.HasField('finish_raw_data'):
+            if self._options.batch_mode:
+                response.code = -2
+                response.error_message = "Forbid to finish raw data since "\
+                                         "master run in batch mode"
+            elif request.HasField('finish_raw_data'):
+                manifest_manager = self._fsm.get_mainifest_manager()
                 manifest_manager.finish_raw_data(request.partition_id)
             else:
-                response.code = -2
+                response.code = -3
                 response.error_message = \
-                        "FinishRawData should has finish_raw_data"
+                    "FinishRawData should has finish_raw_data"
         return response
 
     def AddRawData(self, request, context):
         response = self._check_data_source_meta(request.data_source_meta)
         if response.code == 0:
             sub_dir = self._fsm.get_data_source().raw_data_sub_dir
-            if len(sub_dir) > 0:
+            if self._options.batch_mode:
                 response.code = -2
-                response.error_message = \
-                        "Forbid to add raw data since has "\
-                        "sub etcd base dir {}".format(sub_dir)
+                response.error_message = "Forbid to add raw data since "\
+                                         "master run in batch mode"
             elif request.HasField('added_raw_data_metas'):
                 manifest_manager = self._fsm.get_mainifest_manager()
                 manifest_manager.add_raw_data(
