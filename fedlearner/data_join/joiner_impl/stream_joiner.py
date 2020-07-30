@@ -32,7 +32,7 @@ class _CmpCtnt(object):
 
     def __eq__(self, other):
         assert isinstance(other, _CmpCtnt)
-        if self._event_time == other._event_time and \
+        return self._event_time == other._event_time and \
                 self._example_id == other._example_id
 
 class _JoinWindow(object):
