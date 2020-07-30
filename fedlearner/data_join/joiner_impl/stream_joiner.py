@@ -19,15 +19,25 @@ import logging
 import fedlearner.data_join.common as common
 from fedlearner.data_join.joiner_impl.example_joiner import ExampleJoiner
 
-class JoinWindow(object):
+class _CmpCtnt(object):
+    def __init__(self, item):
+        self._event_time = item.event_time
+        self._example_id = item.example_id
+
+    def __lt__(self, other):
+        assert isinstance(other, _CmpCtnt)
+        if self._event_time != other._event_time:
+            return self._event_time < other._event_time
+        return self._example_id < other._example_id
+
+class _JoinWindow(object):
     def __init__(self, pt_rate, qt_rate):
         assert 0.0 <= pt_rate <= 1.0, \
             "pt_rate {} should in [0.0, 1.0]".format(pt_rate)
         assert 0.0 <= qt_rate <= 1.0, \
             "qt_rate {} should in [0.0, 1.0]".format(qt_rate)
         self._buffer = []
-        self._event_time = []
-        self._event_time_sorted = True
+        self._sorted = True
         self._pt_rate = pt_rate
         self._qt_rate = qt_rate
         self._committed_pt = None
@@ -36,11 +46,10 @@ class JoinWindow(object):
         return iter(self._buffer)
 
     def append(self, index, item):
-        if len(self._event_time) > 0 and \
-                self._event_time[-1] > item.event_time:
-            self._event_time_sorted = False
+        if len(self._buffer) > 0 and \
+                _CmpCtnt(self._buffer[-1][1]) > _CmpCtnt(item):
+            self._sorted = False
         self._buffer.append((index, item))
-        self._event_time.append(item.event_time)
 
     def size(self):
         return len(self._buffer)
@@ -61,14 +70,10 @@ class JoinWindow(object):
         return self._cal_pt(self._qt_rate)
 
     def reset(self, new_buffer, state_stale):
-        even_times = []
-        for _, item in new_buffer:
-            even_times.append(item.event_time)
         self._buffer = new_buffer
-        self._event_time = even_times
         if state_stale:
             self._committed_pt = None
-        self._event_time_sorted = len(new_buffer) == 0
+        self._sorted = len(new_buffer) == 0
 
     def __getitem__(self, index):
         return self._buffer[index]
@@ -76,13 +81,13 @@ class JoinWindow(object):
     def _cal_pt(self, rate):
         if not self._buffer:
             return None
-        if not self._event_time_sorted:
-            self._event_time.sort()
-            self._event_time_sorted = True
-        pos = int(len(self._event_time) * rate)
+        if not self._sorted:
+            self._buffer.sort(key=lambda item : _CmpCtnt(item))
+            self._sorted = True
+        pos = int(len(self._buffer) * rate)
         if pos == len(self._buffer):
             pos = len(self._buffer) - 1
-        return self._event_time[pos]
+        return _CmpCtnt(self._buffer[pos])
 
 class StreamExampleJoiner(ExampleJoiner):
     def __init__(self, example_joiner_options, raw_data_options,
@@ -94,8 +99,8 @@ class StreamExampleJoiner(ExampleJoiner):
                                                   partition_id)
         self._min_window_size = example_joiner_options.min_matching_window
         self._max_window_size = example_joiner_options.max_matching_window
-        self._leader_join_window = JoinWindow(0.05, 0.99)
-        self._follower_join_window = JoinWindow(0.05, 0.90)
+        self._leader_join_window = _JoinWindow(0.05, 0.99)
+        self._follower_join_window = _JoinWindow(0.05, 0.90)
         self._joined_cache = {}
         self._leader_unjoined_example_ids = []
         self._follower_example_cache = {}
@@ -133,7 +138,6 @@ class StreamExampleJoiner(ExampleJoiner):
                             "data block builder must be not "\
                             "None if before dummping"
                         fi, item = self._joined_cache[eid]
-                        et = le.event_time
                         builder.append_item(item, li, fi)
                         if builder.check_data_block_full():
                             yield self._finish_data_block()
@@ -226,10 +230,10 @@ class StreamExampleJoiner(ExampleJoiner):
 
     def _evict_if_useless(self, item):
         return item.example_id in self._joined_cache or \
-                item.event_time < self._leader_join_window.committed_pt()
+                _CmpCtnt(item) < self._leader_join_window.committed_pt()
 
     def _evict_if_force(self, item):
-        return item.event_time < self._leader_join_window.qt()
+        return _CmpCtnt(item) < self._leader_join_window.qt()
 
     def _evict_impl(self, candidates, filter_fn):
         reserved_items = []
