@@ -293,7 +293,7 @@ class DataJoinMaster(dj_grpc.DataJoinMasterServiceServicer):
                           etcd_base_dir, options.use_mock_etcd)
         self._options = options
         self._fsm = MasterFSM(peer_client, data_source_name,
-                              etcd. self._options.batch_mode)
+                              etcd, self._options.batch_mode)
         self._data_source_meta = \
                 self._fsm.get_data_source().data_source_meta
 

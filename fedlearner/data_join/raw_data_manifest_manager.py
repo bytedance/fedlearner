@@ -16,7 +16,6 @@
 
 import threading
 import logging
-from os import path
 
 from google.protobuf import text_format
 from fedlearner.common import data_join_service_pb2 as dj_pb
@@ -46,7 +45,7 @@ class RawDataManifestManager(object):
             self._init_batch_mode()
 
     def _init_batch_mode(self):
-        assert common_pb.DataSourceState.UnKnown < data_source.state \
+        assert common_pb.DataSourceState.UnKnown < self._data_source.state \
                 < common_pb.DataSourceState.Ready, \
                 "DataSouce should in Init or Processing State"
         for partition_id in range(self._partition_num):
