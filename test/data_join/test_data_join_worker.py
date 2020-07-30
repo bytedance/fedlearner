@@ -15,6 +15,7 @@
 # coding: utf-8
 
 import os
+import threading
 from os import listdir
 from os.path import isfile, join
 import time
@@ -78,7 +79,8 @@ class DataJoinWorker(unittest.TestCase):
         common.commit_data_source(etcd_l, data_source_l)
         data_source_f.data_source_meta.MergeFrom(data_source_meta)
         common.commit_data_source(etcd_f, data_source_f)
-        master_options = dj_pb.DataJoinMasterOptions(use_mock_etcd=True)
+        master_options = dj_pb.DataJoinMasterOptions(use_mock_etcd=True,
+                                                     batch_mode=True)
 
         master_addr_l = 'localhost:4061'
         master_addr_f = 'localhost:4062'
@@ -271,6 +273,9 @@ class DataJoinWorker(unittest.TestCase):
                 self.etcd_addrs, self.worker_options
             )
 
+        th_l = threading.Thread(target=worker_l.run, 'worker_l')
+        th_f = threading.Thread(target=worker_f.run, 'worker_f')
+
         worker_l.start()
         worker_f.start()
 
@@ -289,14 +294,14 @@ class DataJoinWorker(unittest.TestCase):
             dss_f = self.master_client_f.GetDataSourceStatus(req_f)
             self.assertEqual(dss_l.role, common_pb.FLRole.Leader)
             self.assertEqual(dss_f.role, common_pb.FLRole.Follower)
-            if dss_l.state == common_pb.DataSourceState.Finished and \
-                    dss_f.state == common_pb.DataSourceState.Finished:
+            if dss_l.state == common_pb.DataSourceState.Ready and \
+                    dss_f.state == common_pb.DataSourceState.Ready:
                 break
             else:
                 time.sleep(2)
 
-        worker_l.stop()
-        worker_f.stop()
+        th_l.join()
+        th_f.join()
         self.master_l.stop()
         self.master_f.stop()
 
