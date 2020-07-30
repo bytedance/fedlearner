@@ -81,8 +81,10 @@ class _JoinWindow(object):
         self._buffer = new_buffer
         if state_stale:
             self._committed_pt = None
-        self._cmp_ctnt_sorted = all(self._cmp_ctnt[i] <= self._cmp_ctnt[i+1]
-                                    for i in range(len(self._cmp_ctnt)-1))
+        self._cmp_ctnt_sorted = \
+                all((self._cmp_ctnt[i] < self._cmp_ctnt[i+1] or
+                     self._cmp_ctnt[i] == self._cmp_ctnt[i+1])
+                    for i in range(len(self._cmp_ctnt)-1))
 
     def __getitem__(self, index):
         return self._buffer[index]
