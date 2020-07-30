@@ -167,7 +167,7 @@ class StreamExampleJoiner(ExampleJoiner):
         leader_qt = self._leader_join_window.qt()
         follower_qt = self._follower_join_window.qt()
         if leader_qt is not None and follower_qt is not None and \
-                follower_qt >= leader_qt:
+                not follower_qt < leader_qt:
             return False
         return True
 
