@@ -132,7 +132,7 @@ class DataJoinWorker(unittest.TestCase):
                 )
             )
 
-        self.total_index = 1 << 13
+        self.total_index = 1 << 12
 
     def generate_raw_data(self, start_index, etcd, rdp, data_source, raw_data_base_dir, partition_id,
                           block_size, shuffle_win_size, feat_key_fmt, feat_val_fmt):
