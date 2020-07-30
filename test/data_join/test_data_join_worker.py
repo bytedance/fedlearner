@@ -144,7 +144,7 @@ class DataJoinWorker(unittest.TestCase):
         gfile.MakeDirs(raw_data_dir)
         useless_index = 0
         new_raw_data_fnames = []
-        for block_index in range(start_index // block_size (start_index + self.total_index) // block_size):
+        for block_index in range(start_index // block_size, (start_index + self.total_index) // block_size):
             builder = DataBlockBuilder(
                     raw_data_base_dir,
                     data_source.data_source_meta.name,
@@ -287,7 +287,7 @@ class DataJoinWorker(unittest.TestCase):
                     data_source_meta=self.data_source_f.data_source_meta
                 )
             dss_l = master_client_l.GetDataSourceStatus(req_l)
-            dss_f = .master_client_f.GetDataSourceStatus(req_f)
+            dss_f = master_client_f.GetDataSourceStatus(req_f)
             self.assertEqual(dss_l.role, common_pb.FLRole.Leader)
             self.assertEqual(dss_f.role, common_pb.FLRole.Follower)
             if dss_l.state == common_pb.DataSourceState.Ready and \

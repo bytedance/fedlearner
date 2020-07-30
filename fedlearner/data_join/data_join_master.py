@@ -65,8 +65,7 @@ class MasterFSM(object):
         self._init_fsm_action()
         self._data_source = None
         self._sync_data_source()
-        assert self._data_source is not None, \
-            "data source must not None if sync data source success"
+        self._reset_batch_mode()
         self._raw_data_manifest_manager = RawDataManifestManager(
                 etcd, self._data_source, batch_mode
             )
@@ -83,8 +82,7 @@ class MasterFSM(object):
 
     def get_data_source(self):
         with self._lock:
-            self._sync_data_source()
-            return self._data_source
+            return self._sync_data_source()
 
     def set_failed(self):
         return self.set_state(common_pb.DataSourceState.Failed, None)
@@ -92,18 +90,18 @@ class MasterFSM(object):
     def set_state(self, new_state, origin_state=None):
         with self._lock:
             try:
-                self._sync_data_source()
-                if self._data_source.state == new_state:
+                data_source = self._sync_data_source()
+                if data_source.state == new_state:
                     return True
-                if (origin_state is None or
-                        self._data_source.state == origin_state):
-                    self._data_source.state = new_state
-                    self._update_data_source(self._data_source)
+                if origin_state is None or data_source.state == origin_state:
+                    data_source.state = new_state
+                    self._update_data_source(data_source)
                     return True
+                new_data_source = self._sync_data_source()
                 logging.warning("DataSource: %s failed to set to state: "
                                 "%d, origin state mismatch(%d != %d)",
                                 self._data_source_name, new_state,
-                                origin_state, self._data_source.state)
+                                origin_state, new_data_source.state)
                 return False
             except Exception as e: # pylint: disable=broad-except
                 logging.warning("Faile to set state to %d with exception %s",
@@ -136,8 +134,8 @@ class MasterFSM(object):
     def _fsm_routine_fn(self):
         peer_info = self._get_peer_data_source_status()
         with self._lock:
-            self._sync_data_source()
-            state = self._data_source.state
+            data_source = self._sync_data_source()
+            state = data_source.state
             if self._fallback_failed_state(peer_info):
                 logging.warning("%s at state %d, Peer at state %d "\
                                 "state invalid! abort data source %s",
@@ -149,8 +147,7 @@ class MasterFSM(object):
             else:
                 state_changed = self._fsm_driven_handle[state](peer_info)
                 if state_changed:
-                    self._sync_data_source()
-                    new_state = self._data_source.state
+                    new_state = self._sync_data_source().state
                     logging.warning("%s state changed from %d to %d",
                                     self._role_repr, state, new_state)
                     state = new_state
@@ -166,6 +163,31 @@ class MasterFSM(object):
         if self._data_source is None:
             self._data_source = \
                 retrieve_data_source(self._etcd, self._data_source_name)
+        assert self._data_source is not None, \
+            "data source {} is not in etcd".format(self._data_source_name)
+        return self._data_source
+
+    def _reset_batch_mode(self):
+        if self._batch_mode:
+            data_source = self._sync_data_source()
+            if data_source.state == common_pb.DataSourceState.UnKnown:
+                raise RuntimeError("Failed to reset batch mode since "\
+                                   "DataSource {} at UnKnown state"\
+                                   .format(self._data_source_name))
+            elif data_source.state in (common_pb.DataSourceState.Init,
+                                       common_pb.DataSourceState.Processing):
+                logging.info("DataSouce {} at Init/Processing State. Don't "\
+                             "need reset".format(self._data_source_name))
+            elif data_source.state == common_pb.DataSourceState.Ready:
+                logging.info("DataSouce {} at Ready. need reset to Processing "\
+                             "state".format(self._data_source_name))
+                data_source.state = common_pb.DataSourceState.Processing
+                self._update_data_source(data_source)
+            else:
+                raise RuntimeError("Failed to reset batch mode since Data"\
+                                   "Source {} at Finished/Failed state, Peer"\
+                                   "may delete it"\
+                                   .format(self._data_source_name))
 
     def _init_fsm_action(self):
         self._fsm_driven_handle = {
