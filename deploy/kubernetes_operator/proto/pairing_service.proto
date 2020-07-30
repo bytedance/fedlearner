@@ -14,11 +14,14 @@
  */
 
 syntax = "proto3";
+
+import "google/protobuf/empty.proto";
 package fedlearner;
 
 option go_package = "github.com/bytedance/fedlearner/deploy/kubernetes_operator/proto;proto";
 
 service PairingService {
+    rpc Ping (google.protobuf.Empty) returns (Status);
     rpc Register (RegisterRequest) returns (Status);
     rpc Pair (PairRequest) returns (Status);
     rpc Finish (FinishRequest) returns (Status);
