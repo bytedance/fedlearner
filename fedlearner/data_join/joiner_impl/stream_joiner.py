@@ -77,7 +77,7 @@ class _JoinWindow(object):
         return self._cal_pt(self._qt_rate)
 
     def reset(self, new_buffer, state_stale):
-        self._cmp_ctnt = [_CmpCtnt(item) for item in new_buffer]
+        self._cmp_ctnt = [_CmpCtnt(item) for item in new_buffer[1]]
         self._buffer = new_buffer
         if state_stale:
             self._committed_pt = None
