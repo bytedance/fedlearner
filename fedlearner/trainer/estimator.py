@@ -111,7 +111,7 @@ class FLModel(object):
             if grad is not None:
                 self.send(n + '_grad', grad)
 
-        if len(grads_and_vars[len(recv_grads):]):
+        if grads_and_vars[len(recv_grads):]:
             train_op = optimizer.apply_gradients(
                 grads_and_vars[len(recv_grads):],
                 global_step=global_step,
