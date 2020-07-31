@@ -94,7 +94,7 @@ function install {
 
 function usage {
     echo "Usage: "
-    echo "    ./install image_hub_url image_hub_username image_hub_password external_name grpc_ssl_name db_password domain_url"
+    echo "    ./install-add-on.sh image_hub_url image_hub_username image_hub_password external_name grpc_ssl_name db_password domain_url"
     echo ""
     echo "Params:"
     echo ""

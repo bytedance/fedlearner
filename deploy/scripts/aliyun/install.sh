@@ -545,7 +545,7 @@ EOF
 
 function usage {
     echo "Usage: "
-    echo "    ./install access_key_id access_key_secret db_password"
+    echo "    ./install.sh access_key_id access_key_secret db_password"
     echo ""
     echo "Params:"
     echo ""
