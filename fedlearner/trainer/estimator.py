@@ -111,9 +111,13 @@ class FLModel(object):
             if grad is not None:
                 self.send(n + '_grad', grad)
 
-        train_op = optimizer.apply_gradients(grads_and_vars[len(recv_grads):],
-                                             global_step=global_step,
-                                             name=name)
+        if len(grads_and_vars[len(recv_grads):]):
+            train_op = optimizer.apply_gradients(
+                grads_and_vars[len(recv_grads):],
+                global_step=global_step,
+                name=name)
+        else:
+            train_op = tf.no_op()
 
         return train_op
 
