@@ -51,6 +51,7 @@ class SparseFLModel(estimator.FLModel):
         self._slot_ids = []
         self._feature_slots = {}
         self._feature_column_v1s = {}
+        self._use_fid_v2 = False
         self._num_embedding_groups = 3
 
     def add_feature_slot(self, *args, **kwargs):
@@ -72,6 +73,9 @@ class SparseFLModel(estimator.FLModel):
         self._feature_column_v1s[slot_id] = fc
         return fc
 
+    def use_fid_v2(self):
+        self._use_fid_v2 = True
+
     def get_bias(self):
         return self._bias_tensor
 
@@ -92,13 +96,15 @@ class SparseFLModel(estimator.FLModel):
         if not slot_list:
             return None
 
-        bias_config = utils._compute_slot_config(slot_list, 1)
+        bias_config = utils._compute_slot_config(slot_list, 1, 
+            self._use_fid_v2)
         bias_config['name'] = 'bias'
         bias_config['slot_list'] = slot_list
         bias_config['initializers'] = [fs_map[i]._bias_initializer
             for i in bias_config['weight_group_keys']]
         bias_config['optimizers'] = [fs_map[i]._bias_optimizer
             for i in bias_config['weight_group_keys']]
+        bias_config['use_fid_v2'] = self._use_fid_v2
         return bias_config
 
     def _get_vec_slot_configs(self):
@@ -120,13 +126,15 @@ class SparseFLModel(estimator.FLModel):
             return None
 
         vec_config = utils._compute_slot_config(slot_list,
-            self._num_embedding_groups)
+            self._num_embedding_groups,
+            self._use_fid_v2)
         vec_config['name'] = 'vec'
         vec_config['slot_list'] = slot_list
         vec_config['initializers'] = [fs_map[i]._vec_initializer
             for i in vec_config['weight_group_keys']]
         vec_config['optimizers'] = [fs_map[i]._vec_optimizer
             for i in vec_config['weight_group_keys']]
+        vec_config['use_fid_v2'] = self._use_fid_v2
         return vec_config
 
     def freeze_slots(self, features):
