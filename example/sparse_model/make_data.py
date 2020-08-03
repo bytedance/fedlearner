@@ -21,6 +21,7 @@ from __future__ import print_function
 import os
 import random
 import shutil
+import argparse
 import numpy as np
 import tensorflow.compat.v1 as tf
 
@@ -33,10 +34,20 @@ shutil.rmtree(os.path.join(current_dir, 'data'), ignore_errors=True)
 os.makedirs(os.path.join(current_dir, 'data/leader'))
 os.makedirs(os.path.join(current_dir, 'data/follower'))
 
-FEATURE_BITS = 53
-
-LEADER_SLOT_RANGE = (0, 512)
-FOLLOWER_SLOT_RANGE = (512, 1024)
+parser = argparse.ArgumentParser()
+parser.add_argument('--fid_version', type=int, default=1,
+                    help="the version of fid")
+args = parser.parse_args()
+if args.fid_version == 1:
+    FEATURE_BITS = 54
+    LEADER_SLOTS = [0, 1, 2, 511]
+    FOLLOWER_SLOTS = [512, 1023]
+elif args.fid_version == 2:
+    FEATURE_BITS = 48
+    LEADER_SLOTS = [0, 1, 2, 511]
+    FOLLOWER_SLOTS = [512, 1023, 32767]
+else:
+    raise ValueError("fid_version should be 1 or 2")
 
 N = 10
 chunk_size = 10000
@@ -46,40 +57,42 @@ def _make_fid(slot_id, hash_value):
                                   (slot_id << FEATURE_BITS))))
 
 def _make_random_fid(slot_id):
-    return _make_fid(slot_id, int(np.int64(random.getrandbits(54))))
+    return _make_fid(slot_id, int(np.int64(random.getrandbits(FEATURE_BITS))))
 
-def _fake_sample(slot_range):
+def _fake_sample(slots):
     fids = []
-    for slot in slot_range:
+    for slot in slots:
         fids.append(_make_random_fid(slot))
     return fids
 
-for i in range(N):
-    filename_l = os.path.join(current_dir, 'data/leader/%02d.tfrecord'%i)
-    filename_f = os.path.join(current_dir, 'data/follower/%02d.tfrecord'%i)
-    fl = tf.io.TFRecordWriter(filename_l)
-    ff = tf.io.TFRecordWriter(filename_f)
 
-    for j in range(chunk_size):
-        idx = i*chunk_size + j
-        features_l = {}
-        features_l['example_id'] = \
-            Feature(bytes_list=BytesList(value=[str(idx)]))
-        features_l['y'] = \
-            Feature(int64_list=Int64List(value=[random.randint(0, 1)]))
-        features_l['fids'] = \
-            Feature(int64_list=Int64List(value=_fake_sample(LEADER_SLOT_RANGE)))
-        fl.write(
-            Example(features=Features(feature=features_l)).SerializeToString())
+if __name__ == '__main__':
+    for i in range(N):
+        filename_l = os.path.join(current_dir, 'data/leader/%02d.tfrecord'%i)
+        filename_f = os.path.join(current_dir, 'data/follower/%02d.tfrecord'%i)
+        fl = tf.io.TFRecordWriter(filename_l)
+        ff = tf.io.TFRecordWriter(filename_f)
 
-        features_f = {}
-        features_f['example_id'] = \
-            Feature(bytes_list=BytesList(value=[str(idx)]))
-        features_f['fids'] = \
-            Feature(int64_list=Int64List(
-                value=_fake_sample(FOLLOWER_SLOT_RANGE)))
-        ff.write(
-            Example(features=Features(feature=features_f)).SerializeToString())
+        for j in range(chunk_size):
+            idx = i*chunk_size + j
+            features_l = {}
+            features_l['example_id'] = \
+                Feature(bytes_list=BytesList(value=[str(idx).encode()]))
+            features_l['y'] = \
+                Feature(int64_list=Int64List(value=[random.randint(0, 1)]))
+            features_l['fids'] = \
+                Feature(int64_list=Int64List(value=_fake_sample(LEADER_SLOTS)))
+            fl.write(Example(features=Features(feature=features_l))
+                .SerializeToString())
 
-    fl.close()
-    ff.close()
+            features_f = {}
+            features_f['example_id'] = \
+                Feature(bytes_list=BytesList(value=[str(idx).encode()]))
+            features_f['fids'] = \
+                Feature(int64_list=Int64List(
+                    value=_fake_sample(FOLLOWER_SLOTS)))
+            ff.write(Example(features=Features(feature=features_f))
+                .SerializeToString())
+
+        fl.close()
+        ff.close()
