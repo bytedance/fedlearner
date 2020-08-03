@@ -480,6 +480,28 @@ class DataJoinMaster(dj_grpc.DataJoinMasterServiceServicer):
 
     def _check_data_source_meta(self, remote_meta, raise_exp=False):
         if self._data_source_meta != remote_meta:
+            local_meta = self._data_source_meta
+            if local_meta.name != remote_meta.name:
+                logging.error("data_source_meta mismtach since name "\
+                              "%s != %s", local_meta.name, remote_meta.name)
+            if local_meta.partition_num != remote_meta.partition_num:
+                logging.error("data_source_meta mismatch since partition "\
+                              "num %d != %d", local_meta.partition_num,
+                              remote_meta.partition_num)
+            if local_meta.start_time != remote_meta.start_time:
+                logging.error("data_source_meta mismatch since start_time "\
+                              "%d != %d",
+                              local_meta.start_time, remote_meta.start_time)
+            if local_meta.end_time != remote_meta.end_time:
+                logging.error("data_source_meta mismatch since end_time "\
+                              "%d != %d",
+                              local_meta.end_time, remote_meta.end_time)
+            if local_meta.negative_sampling_rate != \
+                    remote_meta.negative_sampling_rate:
+                logging.error("data_source_meta mismatch since negative_"\
+                              "sampling_rate %f != %f",
+                              local_meta.negative_sampling_rate,
+                              remote_meta.negative_sampling_rate)
             if raise_exp:
                 raise RuntimeError("data source meta mismatch")
             return common_pb.Status(

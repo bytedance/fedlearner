@@ -47,6 +47,7 @@ class DataBlockBuilder(object):
         self._data_block_meta.follower_restart_index = 0
         self._example_num = 0
         self._data_block_manager = None
+        self._example_ids_size = 0
 
     def init_by_meta(self, meta):
         self._partition_id = meta.partition_id
@@ -61,6 +62,7 @@ class DataBlockBuilder(object):
         if event_time is None:
             event_time = item.event_time
         self._data_block_meta.example_ids.append(example_id)
+        self._example_ids_size += len(example_id)
         if self._example_num == 0:
             self._data_block_meta.leader_start_index = leader_index
             self._data_block_meta.leader_end_index = leader_index
@@ -86,9 +88,15 @@ class DataBlockBuilder(object):
         self._example_num += 1
 
     def check_data_block_full(self):
-        if (self._max_example_num is not None and
-                len(self._data_block_meta.example_ids) >=
-                        self._max_example_num):
+        if self._example_ids_size >= 3 << 20:
+            logging.info("DataBlock full since data block "\
+                         "meta maybe large than 3MB")
+            return True
+        if self._max_example_num is not None and \
+                len(self._data_block_meta.example_ids) >= \
+                self._max_example_num:
+            logging.info("DataBlock full since reach to max_"\
+                         "example_num %d", self._max_example_num)
             return True
         return False
 
