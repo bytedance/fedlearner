@@ -161,7 +161,10 @@ class StreamExampleJoiner(ExampleJoiner):
                 self._evit_stale_follower_cache()
             if not delay_dump:
                 self._reset_joiner_state(False)
-            join_data_finished = leader_exhausted or follower_exhausted
+            if leader_exhausted:
+                join_data_finished = not delay_dump
+            elif follower_exhausted:
+                join_data_finished = True
             if delay_dump or join_data_finished:
                 break
         if self._get_data_block_builder(False) is not None and \
@@ -218,8 +221,7 @@ class StreamExampleJoiner(ExampleJoiner):
             if self._fill_leader_enough:
                 self._leader_unjoined_example_ids = \
                     [item.example_id for _, item in self._leader_join_window]
-        return self._fill_leader_enough and \
-                self._leader_join_window.size() > 0
+        return self._fill_leader_enough
 
     def _fill_follower_join_window(self, raw_data_finished):
         if not self._fill_join_windows(self._follower_visitor,
