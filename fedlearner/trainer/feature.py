@@ -89,8 +89,6 @@ class FeatureSlot(object):
                  bias_optimizer=None,
                  vec_initializer=None,
                  vec_optimizer=None):
-        assert 0 <= slot_id < utils.MAX_SLOTS, \
-            "Invalid slot id %d"%slot_id
         assert dtype is None, "Only support float32 for now"
         self._slot_id = slot_id
         self._hash_table_size = int(hash_table_size)

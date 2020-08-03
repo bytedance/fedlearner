@@ -57,6 +57,12 @@ class SparseFLModel(estimator.FLModel):
     def add_feature_slot(self, *args, **kwargs):
         assert not self._frozen, "Cannot modify model after finalization"
         fs = feature.FeatureSlot(*args, **kwargs)
+        if self._use_fid_v2:
+            assert 0 <= fs.slot_id < utils.MAX_SLOTS_v2, \
+            "Invalid slot id %d"%slot_id
+        else:
+            assert 0 <= fs.slot_id < utils.MAX_SLOTS, \
+            "Invalid slot id %d"%slot_id
         self._slot_ids.append(fs.slot_id)
         self._feature_slots[fs.slot_id] = fs
         return fs
