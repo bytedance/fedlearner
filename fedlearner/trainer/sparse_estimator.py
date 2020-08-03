@@ -59,10 +59,10 @@ class SparseFLModel(estimator.FLModel):
         fs = feature.FeatureSlot(*args, **kwargs)
         if self._use_fid_v2:
             assert 0 <= fs.slot_id < utils.MAX_SLOTS_v2, \
-            "Invalid slot id %d"%slot_id
+            "Invalid slot id %d"%fs.slot_id
         else:
             assert 0 <= fs.slot_id < utils.MAX_SLOTS, \
-            "Invalid slot id %d"%slot_id
+            "Invalid slot id %d"%fs.slot_id
         self._slot_ids.append(fs.slot_id)
         self._feature_slots[fs.slot_id] = fs
         return fs
@@ -102,7 +102,7 @@ class SparseFLModel(estimator.FLModel):
         if not slot_list:
             return None
 
-        bias_config = utils._compute_slot_config(slot_list, 1, 
+        bias_config = utils._compute_slot_config(slot_list, 1,
             self._use_fid_v2)
         bias_config['name'] = 'bias'
         bias_config['slot_list'] = slot_list
