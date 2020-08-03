@@ -127,11 +127,17 @@ class StreamExampleJoiner(ExampleJoiner):
             return
         sync_example_id_finished, raw_data_finished = \
                 self._prepare_join(state_stale)
-        while self._fill_leader_join_window(sync_example_id_finished) and \
-                self._leader_join_window.size() > 0:
+        join_data_finished = False
+        while self._fill_leader_join_window(sync_example_id_finished):
+            leader_exhausted = sync_example_id_finished and \
+                    self._leader_join_window.size() <= \
+                    self._min_window_size / 2
             delay_dump = True
             while delay_dump and \
                     self._fill_follower_join_window(raw_data_finished):
+                follower_exhausted = raw_data_finished and \
+                        self._follower_join_window.size() <= \
+                        self._min_window_size / 2
                 delay_dump = self._need_delay_dump(raw_data_finished)
                 if delay_dump:
                     self._update_join_cache()
@@ -155,9 +161,9 @@ class StreamExampleJoiner(ExampleJoiner):
                 self._evit_stale_follower_cache()
             if not delay_dump:
                 self._reset_joiner_state(False)
-            else:
+            join_data_finished = leader_exhausted or follower_exhausted
+            if delay_dump or join_data_finished:
                 break
-        join_data_finished = sync_example_id_finished and raw_data_finished
         if self._get_data_block_builder(False) is not None and \
                 (self._need_finish_data_block_since_interval() or
                     join_data_finished):
@@ -202,19 +208,18 @@ class StreamExampleJoiner(ExampleJoiner):
             self._follower_example_cache = {}
 
     def _fill_leader_join_window(self, sync_example_id_finished):
-        if self._fill_leader_enough:
-            return True
-        if not self._fill_join_windows(self._leader_visitor,
-                                       self._leader_join_window,
-                                       None):
-            self._fill_leader_enough = sync_example_id_finished
-        else:
-            self._fill_leader_enough = True
-        if self._fill_leader_enough:
-            self._leader_unjoined_example_ids = []
-            for _, item in self._leader_join_window:
-                self._leader_unjoined_example_ids.append(item.example_id)
-        return self._fill_leader_enough
+        if not self._fill_leader_enough:
+            if not self._fill_join_windows(self._leader_visitor,
+                                           self._leader_join_window,
+                                           None):
+                self._fill_leader_enough = sync_example_id_finished
+            else:
+                self._fill_leader_enough = True
+            if self._fill_leader_enough:
+                self._leader_unjoined_example_ids = \
+                    [item.example_id for _, item in self._leader_join_window]
+        return self._fill_leader_enough and \
+                self._leader_join_window.size() > 0
 
     def _fill_follower_join_window(self, raw_data_finished):
         if not self._fill_join_windows(self._follower_visitor,
