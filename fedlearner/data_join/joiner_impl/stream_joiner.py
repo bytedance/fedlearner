@@ -251,7 +251,8 @@ class StreamExampleJoiner(ExampleJoiner):
                 _CmpCtnt(item) < self._leader_join_window.committed_pt()
 
     def _evict_if_force(self, item):
-        return _CmpCtnt(item) < self._leader_join_window.qt()
+        return self._leader_join_window.qt() is None or \
+                _CmpCtnt(item) < self._leader_join_window.qt()
 
     def _evict_impl(self, candidates, filter_fn):
         reserved_items = []
