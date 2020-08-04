@@ -17,6 +17,7 @@
 import threading
 import logging
 import time
+import traceback
 
 class RoutineWorker(object):
     def __init__(self, name, routine_fn, cond_fn, exec_interval=None):
@@ -104,6 +105,7 @@ class RoutineWorker(object):
             except Exception as e: # pylint: disable=broad-except
                 logging.error("worker: %s run %d rounds with exception: %s",
                               self._name, exec_round, e)
+                traceback.print_exc()
             else:
                 logging.debug("worker: %s exec %d round",
                               self._name, exec_round)
