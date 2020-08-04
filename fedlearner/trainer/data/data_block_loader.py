@@ -21,7 +21,6 @@ except ImportError:
 import logging
 import tensorflow.compat.v1 as tf
 
-
 class DataBlockLoader(object):
     def __init__(self, batch_size, role, bridge, trainer_master):
         self._batch_size = batch_size
