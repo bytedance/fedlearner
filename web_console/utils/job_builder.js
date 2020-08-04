@@ -1,5 +1,10 @@
 const assert = require('assert');
 const lodash = require('lodash');
+const getConfig = require('./get_confg');
+
+const { NAMESPACE } = getConfig({
+  NAMESPACE: process.env.NAMESPACE,
+});
 
 function joinPath(base, ...rest) {
   const list = [base.replace(/\/$/, '')];
@@ -117,7 +122,7 @@ function generateYaml(federation, job, job_params, ticket) {
     kind: 'FLApp',
     metadata: {
       name: job.name,
-      namespace: k8s_settings.namespace,
+      namespace: NAMESPACE,
     },
     spec: {
       role: ticket.role,
@@ -201,7 +206,7 @@ function portalGenerateYaml(federation, raw_data) {
     kind: 'FLApp',
     metadata: {
       name: raw_data.name,
-      namespace: k8s_settings.namespace,
+      namespace: NAMESPACE,
     },
     spec: {
       role: 'Follower',
