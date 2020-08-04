@@ -132,6 +132,7 @@ class StreamExampleJoiner(ExampleJoiner):
             leader_exhausted = sync_example_id_finished and \
                     self._leader_join_window.size() <= \
                     self._min_window_size / 2
+            follower_exhausted = False
             delay_dump = True
             while delay_dump and \
                     self._fill_follower_join_window(raw_data_finished):
