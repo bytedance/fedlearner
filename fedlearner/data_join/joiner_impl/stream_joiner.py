@@ -248,6 +248,7 @@ class StreamExampleJoiner(ExampleJoiner):
 
     def _evict_if_useless(self, item):
         return item.example_id in self._joined_cache or \
+                self._leader_join_window.committed_pt() is None or \
                 _CmpCtnt(item) < self._leader_join_window.committed_pt()
 
     def _evict_if_force(self, item):
