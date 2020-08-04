@@ -5,7 +5,11 @@ const { Op } = require('sequelize');
 const { Federation, Job, Ticket } = require('../models');
 const k8s = require('../libs/k8s');
 const { serverGenerateYaml, validateTicket } = require('../utils/job_builder');
+const getConfig = require('../utils/get_confg');
 
+const { NAMESPACE } = getConfig({
+  NAMESPACE: process.env.NAMESPACE,
+});
 const packageDefinition = protoLoader.loadSync(
   path.resolve(__dirname, 'meta.proto'),
   {
@@ -102,7 +106,7 @@ async function createJob(call, callback) {
     if (!created) throw new Error('Job already exists');
     job = data;
     const args = serverGenerateYaml(federation, job, ticketRecord);
-    await k8s.createFLApp('default', args);
+    await k8s.createFLApp(NAMESPACE, args);
 
     callback(null, {
       data: {
@@ -130,7 +134,7 @@ async function deleteJob(call, callback) {
       },
     });
     if (!job) throw new Error('Job not found');
-    await k8s.deleteFLApp('default', job.name);
+    await k8s.deleteFLApp(NAMESPACE, job.name);
     await job.destroy({ force: true });
     callback(null, { message: 'Delete job successfully' });
   } catch (err) {
