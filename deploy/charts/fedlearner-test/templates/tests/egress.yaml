@@ -27,6 +27,8 @@ spec:
               value: {{ .Values.egress.authority }}
             - name: TARGET_HOST
               value: "{{ .Values.egress.host }}:{{ .Values.egress.port }}"
+            - name: GRPC_SERVICE
+              value: "{{ .Values.egress.grpcService }}"
            {{- range $key, $value := .Values.egress.extraHeader }}
             - name: {{ $key }}
               value: {{ $value | quote }}
@@ -40,6 +42,6 @@ spec:
             - "x-host: $(XHOST)"
             - "-max-time=5"
             - "$(TARGET_HOST)"
-            - "fedlearner.PairingService.Ping"
+            - "$(GRPC_SERVICE)"
       restartPolicy: Never
 {{- end }}

@@ -27,6 +27,8 @@ spec:
               value: {{ .Values.ingress.authority }}
             - name: TARGET_HOST
               value: "{{ .Values.ingress.host }}:{{ .Values.ingress.port }}"
+            - name: GRPC_SERVICE
+              value: "{{ .Values.ingress.grpcService }}"
           command:
             - grpcurl
           args:
@@ -38,13 +40,13 @@ spec:
             - "-key=/etc/client-secret/client.key"
             - "-max-time=5"
             - "$(TARGET_HOST)"
-            - "fedlearner.PairingService.Ping"
+            - "$(GRPC_SERVICE)"
           {{- else }}
             - "-authority=$(AUTHORITY)"
             - "-insecure"
             - "-max-time=5"
             - "$(TARGET_HOST)"
-            - "fedlearner.PairingService.Ping"
+            - "$(GRPC_SERVICE)"
           {{- end }}
           volumeMounts:
             - mountPath: "/etc/client-secret"
