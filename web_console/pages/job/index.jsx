@@ -81,7 +81,7 @@ function JobList(props) {
   const styles = useStyles(theme);
 
   const { data, mutate } = useSWR('jobs', fetcher);
-  const jobs = data ? data.data : null;
+  const jobs = data ? data.data.filter(x => x.metadata) : null;
   const [federationId, setFederationId] = useState(null);
   const fields = [
     { key: 'name', required: true },
