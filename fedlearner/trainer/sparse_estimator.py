@@ -129,6 +129,9 @@ class SparseFLModel(estimator.FLModel):
             for i in vec_config['weight_group_keys']]
         return vec_config
 
+    def get_feature_columns(self):
+        return self._feature_column_v1s
+
     def freeze_slots(self, features):
         assert not self._frozen, "Already finalized"
         if self._config_run:
@@ -204,6 +207,7 @@ class SparseFLEstimator(estimator.FLEstimator):
             except ConfigRunError as e:
                 self._bias_slot_configs = M._get_bias_slot_configs()
                 self._vec_slot_configs = M._get_vec_slot_configs()
+                self._feature_columns = M.get_feature_columns()
                 self._slot_configs = [self._bias_slot_configs,
                                       self._vec_slot_configs]
                 return self._slot_configs
