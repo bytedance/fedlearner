@@ -17,7 +17,10 @@
 import threading
 import logging
 import os
+import time
 from contextlib import contextmanager
+
+from fedlearner.common import metrics
 
 from fedlearner.data_join.raw_data_visitor import RawDataVisitor
 from fedlearner.data_join.data_block_manager import \
@@ -41,6 +44,9 @@ class DataBlockDumperManager(object):
         self._fly_data_block_meta = []
         self._state_stale = False
         self._synced_data_block_meta_finished = False
+        ds_name = self._data_source.data_block_meta.name
+        self._metrics_tags = {'data_source_name': ds_name,
+                              'partiton': self._partition_id}
 
     def get_next_data_block_index(self):
         with self._lock:
@@ -85,8 +91,18 @@ class DataBlockDumperManager(object):
         while self.need_dump():
             meta = self._get_next_data_block_meta()
             if meta is not None:
+                start_tm = time.time()
                 self._raw_data_visitor.active_visitor()
                 self._dump_data_block_by_meta(meta)
+                self._emit_dumper_metrics(time.time()-start_tm, meta)
+
+    def _emit_dumper_metrics(self, dump_duration, meta):
+        metrics.emit_timer(name='data_block_dump_duration',
+                           value=int(dump_duration),
+                           tags=self._metrics_tags)
+        metrics.emit_store(name='data_block_dump_index',
+                           value=meta.data_block_index,
+                           tags=self._metrics_tags)
 
     def data_block_meta_sync_finished(self):
         with self._lock:

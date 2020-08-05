@@ -14,9 +14,12 @@
 
 # coding: utf-8
 
+import time
+
 from google.protobuf import empty_pb2
 
 from fedlearner.common import data_join_service_pb2 as dj_pb
+from fedlearner.common import metrics
 
 from fedlearner.data_join.example_id_batch_fetcher import ExampleIdBatchFetcher
 from fedlearner.data_join.transmit_leader import TransmitLeader
@@ -83,6 +86,8 @@ class ExampleIdSyncLeader(TransmitLeader):
                 sync_example_id=empty_pb2.Empty()
             )
 
+    @metrics.timer(func_name='make_new_impl_ctx',
+                   tags={'role': 'transmit_leader'})
     def _make_new_impl_ctx(self, raw_data_manifest):
         return ExampleIdSyncLeader.ImplContext(
                 self._etcd, self._data_source, raw_data_manifest,
@@ -90,19 +95,22 @@ class ExampleIdSyncLeader(TransmitLeader):
             )
 
     def _process_producer_hook(self, impl_ctx):
-        self._sniff_raw_data_finished(impl_ctx)
-
-    def _sniff_raw_data_finished(self, impl_ctx):
         assert isinstance(impl_ctx, ExampleIdSyncLeader.ImplContext)
         if not impl_ctx.is_raw_data_finished():
-            req = dj_pb.RawDataRequest(
-                    data_source_meta=self._data_source.data_source_meta,
-                    rank_id=self._rank_id,
-                    partition_id=impl_ctx.partition_id
-                )
-            manifest = self._master_client.QueryRawDataManifest(req)
-            if manifest.finished:
-                impl_ctx.set_raw_data_finished()
+            self._sniff_raw_data_finished(impl_ctx)
+
+    @metrics.timer(func_name='sniff_raw_data_finished',
+                   tags={'role': 'transmit_leader'})
+    def _sniff_raw_data_finished(self, impl_ctx):
+        assert isinstance(impl_ctx, ExampleIdSyncLeader.ImplContext)
+        req = dj_pb.RawDataRequest(
+                data_source_meta=self._data_source.data_source_meta,
+                rank_id=self._rank_id,
+                partition_id=impl_ctx.partition_id
+            )
+        manifest = self._master_client.QueryRawDataManifest(req)
+        if manifest.finished:
+            impl_ctx.set_raw_data_finished()
 
     def _serialize_sync_content(self, item):
         sync_ctnt = dj_pb.SyncContent(lite_example_ids=item.lite_example_ids)

@@ -23,6 +23,8 @@ from contextlib import contextmanager
 import tensorflow.compat.v1 as tf
 from tensorflow.compat.v1 import gfile
 
+from fedlearner.common import metrics
+
 from fedlearner.data_join.example_id_visitor import (
     ExampleIdManager, encode_example_id_dumped_fname
 )
@@ -112,6 +114,9 @@ class ExampleIdDumperManager(object):
         self._next_index = 0 if last_index is None else last_index + 1
         self._example_id_dumper = None
         self._state_stale = False
+        ds_name = data_source.data_source_meta.name
+        self._metrics_tags = {'data_source_name': ds_name,
+                              'partiton': self._partition_id}
 
     def get_next_index(self):
         with self._lock:
@@ -210,9 +215,24 @@ class ExampleIdDumperManager(object):
             self._example_id_manager.update_dumped_example_id_anchor(
                     index_meta, end_index
                 )
+            self._emit_dumper_metrics(index_meta.process_index, end_index)
         self._evict_dumped_example_id_batch()
         self._reset_example_id_dumper()
         self._update_latest_dump_timestamp()
+
+    def _emit_dumper_metrics(self, file_index, dumped_index):
+        dump_duration = None
+        with self._lock:
+            dump_duration = time.time() - self._latest_dump_timestamp
+        metrics.emit_timer(name='example_id_dump_duration',
+                           value=int(duration),
+                           tags=self._metrics_tags)
+        metrics.emit_store(name='example_dump_file_index',
+                           value=file_index,
+                           tags=self._metrics_tags)
+        metrics.emit_store(name='example_id_dumped_index',
+                           value=dumped_index,
+                           tags=self._metrics_tags)
 
     def _update_latest_dump_timestamp(self):
         with self._lock:

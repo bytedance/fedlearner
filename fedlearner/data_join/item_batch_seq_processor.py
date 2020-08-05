@@ -18,6 +18,9 @@ import threading
 import bisect
 import logging
 import os
+import time
+
+from fedlearner.common import metrics
 
 class ItemBatch(object):
     def append(self, item):
@@ -95,7 +98,7 @@ class ItemBatchSeqProcessor(object):
 
     def _make_item_batch(self, begin_index):
         raise NotImplementedError("_make_item_batch is not implemented "\
-                                  "in basic ItemBatchFetcher")
+                                  "in {}".format(self.name()))
 
     def make_processor(self, next_index):
         input_finished = False
@@ -114,27 +117,40 @@ class ItemBatchSeqProcessor(object):
         batch_finished = False
         iter_round = 0
         processed_index = None
+        start_tm_ms = int(time.time() * 1000)
         for batch, batch_finished in self._make_inner_generator(next_index):
-            if batch is None:
-                continue
-            if len(batch) > 0:
-                self._append_next_item_batch(batch)
-                yield batch
-            self._update_last_index(batch.begin_index+len(batch)-1)
-            iter_round += 1
-            processed_index = batch.begin_index + len(batch) - 1
-            if iter_round % 16 == 0:
-                logging.info("%s process to index %d",
-                             self.name(), processed_index)
+            if batch is not None:
+                end_tm_ms = int(time.time() * 1000)
+                if len(batch) > 0:
+                    latency_mn = '{}.produce.latency'.format(self.name())
+                    metrics.emit_timer(name=latency_mn,
+                                       value=end_tm_ms-start_tm_ms,
+                                       self._get_metrics_tags())
+                    store_mn = '{}.produce.index'.format(self.name())
+                    metrics.emit_store(name=store_mn,
+                                       value=batch.begin_index+len(batch)-1,
+                                       tags=self._get_metrics_tags())
+                    self._append_next_item_batch(batch)
+                    yield batch
+                self._update_last_index(batch.begin_index+len(batch)-1)
+                iter_round += 1
+                processed_index = batch.begin_index + len(batch) - 1
+                if iter_round % 16 == 0:
+                    logging.info("%s process to index %d",
+                                 self.name(), processed_index)
+            start_tm_ms = time.time()`
         if processed_index is not None:
             logging.info("%s process to index %d when round finished",
                          self.name(), processed_index)
         if input_finished and batch_finished:
             self._set_process_finished()
 
+    def _get_metrics_tags(self):
+        return {}
+
     def _make_inner_generator(self, next_index):
         raise NotImplementedError("_make_inner_generator is not "\
-                                  "implemented in basic ItemBatchProcessor")
+                                  "implemented in {}".format(self.name()))
 
     def fetch_item_batch_by_index(self, next_index, hint_idx=None):
         with self._lock:

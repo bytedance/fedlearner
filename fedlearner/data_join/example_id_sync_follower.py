@@ -57,6 +57,8 @@ class ExampleIdSyncFollower(TransmitFollower):
                                                     'example_id_sync_follower')
         self._example_id_dump_options = example_id_dump_options
 
+    @metrics.timer(func_name='make_new_impl_ctx',
+                   tags={'role': 'transmit_follower'})
     def _make_new_impl_ctx(self, partition_id):
         return ExampleIdSyncFollower.ImplContext(
                 self._etcd, self._data_source,
