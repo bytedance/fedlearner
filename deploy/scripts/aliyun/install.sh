@@ -203,7 +203,7 @@ function create_k8s_cluster_config {
         "version": "19.03.5"
     },
     "worker_instance_types": [
-        "ecs.s6-c1m2.xlarge"
+        "ecs.c6.3xlarge"
     ],
     "num_of_nodes": 3,
     "worker_system_disk_category": "cloud_efficiency",
