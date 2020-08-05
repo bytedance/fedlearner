@@ -190,14 +190,17 @@ class Bridge(object):
                         metrics.emit_store(name="resend_msg_seq_num",
                                            value=int(item.seq_num),
                                            tags={})
-                        while metrics_list and item.seq_num - metrics_list[0] >= 100:
+                        while metrics_list and item.seq_num - metrics_list[0] \
+                            >= 100:
                             metrics_list.popleft()
                             metrics_sum_resend_seq -= 1
-                        if metrics_list and metrics_list[len(metrics_list)-1] < item.seq_num:
+                        if metrics_list and metrics_list[len(metrics_list)-1] \
+                            < item.seq_num:
                             metrics_list.append(item.seq_num)
                             metrics_sum_resend_seq += 1
                         metrics.emit_store(name="rate_of_resend",
-                                           value=float(metrics_sum_resend_seq/100),
+                                           value=float(metrics_sum_resend_seq \
+                                               /100),
                                            tags={})
                         yield item
                     while True:

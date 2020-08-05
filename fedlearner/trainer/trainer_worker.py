@@ -18,7 +18,7 @@ import argparse
 import json
 import tensorflow.compat.v1 as tf
 
-from fedlearner.common import metrics 
+from fedlearner.common import metrics
 from fedlearner.common.summary_hook import SummaryHook
 from fedlearner.trainer.bridge import Bridge
 from fedlearner.trainer.estimator import FLEstimator
@@ -26,11 +26,11 @@ from fedlearner.trainer.sparse_estimator import SparseFLEstimator
 from fedlearner.trainer.trainer_master_client import LocalTrainerMasterClient
 from fedlearner.trainer.trainer_master_client import TrainerMasterClient
 
-class StepLossAucMetricsHook(tf.estimator.SessionRunHook):    
+
+class StepLossAucMetricsHook(tf.estimator.SessionRunHook):
     def __init__(self, loss_tensor, auc_tensor):
         self._loss_tensor = loss_tensor
         self._auc_tensor = auc_tensor
-    
     def before_run(self, run_context):
         return tf.estimator.SessionRunArgs({'loss': self._loss_tensor,
                                             'auc': self._auc_tensor})
