@@ -51,11 +51,18 @@ class SparseFLModel(estimator.FLModel):
         self._slot_ids = []
         self._feature_slots = {}
         self._feature_column_v1s = {}
+        self._use_fid_v2 = False
         self._num_embedding_groups = 3
 
     def add_feature_slot(self, *args, **kwargs):
         assert not self._frozen, "Cannot modify model after finalization"
         fs = feature.FeatureSlot(*args, **kwargs)
+        if self._use_fid_v2:
+            assert 0 <= fs.slot_id < utils.MAX_SLOTS_v2, \
+            "Invalid slot id %d"%fs.slot_id
+        else:
+            assert 0 <= fs.slot_id < utils.MAX_SLOTS, \
+            "Invalid slot id %d"%fs.slot_id
         self._slot_ids.append(fs.slot_id)
         self._feature_slots[fs.slot_id] = fs
         return fs
@@ -71,6 +78,9 @@ class SparseFLModel(estimator.FLModel):
             "Only one FeatureColumnV1 can be created for each slot"
         self._feature_column_v1s[slot_id] = fc
         return fc
+
+    def set_use_fid_v2(self, use_fid_v2):
+        self._use_fid_v2 = use_fid_v2
 
     def get_bias(self):
         return self._bias_tensor
@@ -92,13 +102,15 @@ class SparseFLModel(estimator.FLModel):
         if not slot_list:
             return None
 
-        bias_config = utils._compute_slot_config(slot_list, 1)
+        bias_config = utils._compute_slot_config(slot_list, 1,
+            self._use_fid_v2)
         bias_config['name'] = 'bias'
         bias_config['slot_list'] = slot_list
         bias_config['initializers'] = [fs_map[i]._bias_initializer
             for i in bias_config['weight_group_keys']]
         bias_config['optimizers'] = [fs_map[i]._bias_optimizer
             for i in bias_config['weight_group_keys']]
+        bias_config['use_fid_v2'] = self._use_fid_v2
         return bias_config
 
     def _get_vec_slot_configs(self):
@@ -120,13 +132,15 @@ class SparseFLModel(estimator.FLModel):
             return None
 
         vec_config = utils._compute_slot_config(slot_list,
-            self._num_embedding_groups)
+            self._num_embedding_groups,
+            self._use_fid_v2)
         vec_config['name'] = 'vec'
         vec_config['slot_list'] = slot_list
         vec_config['initializers'] = [fs_map[i]._vec_initializer
             for i in vec_config['weight_group_keys']]
         vec_config['optimizers'] = [fs_map[i]._vec_optimizer
             for i in vec_config['weight_group_keys']]
+        vec_config['use_fid_v2'] = self._use_fid_v2
         return vec_config
 
     def get_feature_columns(self):

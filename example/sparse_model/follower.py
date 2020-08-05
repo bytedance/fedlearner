@@ -66,6 +66,7 @@ def model_fn(model, features, labels, mode):
     if args.fid_version == 1:
         slots = [512, 1023]
     else:
+        model.set_use_fid_v2(True)
         slots = [512, 1023, 32767]
     hash_size = 101
     embed_size = 16

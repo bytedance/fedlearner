@@ -20,7 +20,6 @@ from __future__ import division
 from __future__ import print_function
 
 import tensorflow.compat.v1 as tf
-from . import utils
 
 
 class FeatureSlice(object):
@@ -89,8 +88,6 @@ class FeatureSlot(object):
                  bias_optimizer=None,
                  vec_initializer=None,
                  vec_optimizer=None):
-        assert 0 <= slot_id < utils.MAX_SLOTS, \
-            "Invalid slot id %d"%slot_id
         assert dtype is None, "Only support float32 for now"
         self._slot_id = slot_id
         self._hash_table_size = int(hash_table_size)

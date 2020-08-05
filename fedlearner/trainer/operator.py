@@ -53,7 +53,7 @@ def _multidevice_preprocess_fids(fids, config, num_shards):
         ret = lagrange_lite_ops.lagrange_multi_device_preprocess_fid(
             num_weights=config['num_groups'],
             num_shards=num_shards,
-            use_fid_v2=False,
+            use_fid_v2=config['use_fid_v2'],
             total_weights=num_shards*config['num_groups'],
             instance_ids=fids.indices,
             fids=fids.values,
@@ -97,7 +97,7 @@ def _embedding_pooling_gradient(op, grad):
     values = lagrange_lite_ops.lagrange_embedding_unpooling(
         num_weights=num_weights,
         weight_sizes=op.get_attr('weight_sizes'),
-        use_fid_v2=False,
+        use_fid_v2=op.get_attr('use_fid_v2'),
         output_grad=grad,
         instance_ids=op.inputs[1],
         fids=op.inputs[2],
