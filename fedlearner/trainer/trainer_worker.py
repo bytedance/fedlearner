@@ -18,6 +18,7 @@ import argparse
 import json
 import tensorflow.compat.v1 as tf
 
+from fedlearner.common import metrics 
 from fedlearner.common.summary_hook import SummaryHook
 from fedlearner.trainer.bridge import Bridge
 from fedlearner.trainer.estimator import FLEstimator
@@ -25,6 +26,21 @@ from fedlearner.trainer.sparse_estimator import SparseFLEstimator
 from fedlearner.trainer.trainer_master_client import LocalTrainerMasterClient
 from fedlearner.trainer.trainer_master_client import TrainerMasterClient
 
+class StepLossAucMetricsHook(tf.estimator.SessionRunHook):    
+    def __init__(self, loss_tensor, auc_tensor):
+        self._loss_tensor = loss_tensor
+        self._auc_tensor = auc_tensor
+    
+    def before_run(self, run_context):
+        return tf.estimator.SessionRunArgs({'loss': self._loss_tensor,
+                                            'auc': self._auc_tensor})
+    def after_run(self, run_context, run_value):
+        metrics.emit_store(name="loss",
+                           value=run_value.results['loss'],
+                           tags={})
+        metrics.emit_store(name="auc",
+                           value=run_value.results['auc'],
+                           tags={})
 
 def create_argument_parser():
     parser = argparse.ArgumentParser(description='FedLearner Trainer.')

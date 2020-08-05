@@ -159,6 +159,8 @@ class Bridge(object):
 
         lock = threading.Lock()
         resend_list = collections.deque()
+        metrics_list = collections.deque()
+        metrics_sum_resend_seq = 0
 
         @metrics.timer(func_name="shutdown_fn", tags={})
         def shutdown_fn():
@@ -185,10 +187,18 @@ class Bridge(object):
                     for item in resend_msgs:
                         logging.warning("Streaming resend message seq_num=%d",
                                         item.seq_num)
-                        metrics.emit_store(
-                            name="send_msg_seq_num",
-                            value=int(item.seq_num),
-                            tags={})
+                        metrics.emit_store(name="resend_msg_seq_num",
+                                           value=int(item.seq_num),
+                                           tags={})
+                        while metrics_list and item.seq_num - metrics_list[0] >= 100:
+                            metrics_list.popleft()
+                            metrics_sum_resend_seq -= 1
+                        if metrics_list and metrics_list[len(metrics_list)-1] < item.seq_num:
+                            metrics_list.append(item.seq_num)
+                            metrics_sum_resend_seq += 1
+                        metrics.emit_store(name="rate_of_resend",
+                                           value=float(metrics_sum_resend_seq/100),
+                                           tags={})
                         yield item
                     while True:
                         item = self._transmit_queue.get()
@@ -196,19 +206,20 @@ class Bridge(object):
                             resend_list.append(item)
                         logging.debug("Streaming send message seq_num=%d",
                                       item.seq_num)
-                        metrics.emit_store(
-                            name="send_resend_msg_seq_num",
-                            value=int(item.seq_num),
-                            tags={})
+                        metrics.emit_store(name="send_msg_seq_num",
+                                           value=int(item.seq_num),
+                                           tags={})
                         yield item
 
+                metrics.emit_store(name="rate_of_resend",
+                                   value=float(metrics_sum_resend_seq/100),
+                                   tags={})
                 time_start = time.time()
                 generator = client.StreamTransmit(iterator())
                 time_end = time.time()
-                metrics.emit_timer(
-                    name="one_StreamTransmit_spend",
-                    value=int(time_end-time_start),
-                    tags={})
+                metrics.emit_timer(name="one_StreamTransmit_spend",
+                                   value=int(time_end-time_start),
+                                   tags={})
                 for response in generator:
                     if response.status.code == common_pb.STATUS_SUCCESS:
                         logging.debug("Message with seq_num=%d is "
