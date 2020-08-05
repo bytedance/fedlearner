@@ -159,8 +159,6 @@ class Bridge(object):
 
         lock = threading.Lock()
         resend_list = collections.deque()
-        metrics_list = collections.deque()
-        metrics_sum_resend_seq = 0
 
         @metrics.timer(func_name="shutdown_fn", tags={})
         def shutdown_fn():
@@ -190,18 +188,6 @@ class Bridge(object):
                         metrics.emit_store(name="resend_msg_seq_num",
                                            value=int(item.seq_num),
                                            tags={})
-                        while metrics_list and item.seq_num - metrics_list[0] \
-                            >= 100:
-                            metrics_list.popleft()
-                            metrics_sum_resend_seq -= 1
-                        if metrics_list and metrics_list[len(metrics_list)-1] \
-                            < item.seq_num:
-                            metrics_list.append(item.seq_num)
-                            metrics_sum_resend_seq += 1
-                        metrics.emit_store(name="rate_of_resend",
-                                           value=float(metrics_sum_resend_seq \
-                                               /100),
-                                           tags={})
                         yield item
                     while True:
                         item = self._transmit_queue.get()
@@ -214,9 +200,6 @@ class Bridge(object):
                                            tags={})
                         yield item
 
-                metrics.emit_store(name="rate_of_resend",
-                                   value=float(metrics_sum_resend_seq/100),
-                                   tags={})
                 time_start = time.time()
                 generator = client.StreamTransmit(iterator())
                 time_end = time.time()
@@ -247,6 +230,9 @@ class Bridge(object):
                         logging.debug(
                             "Resend queue size: %d, starting from seq_num=%s",
                             len(resend_list), min_seq_num_to_resend)
+                metrics.emit_store(name="sum_of_resend",
+                                   value=int(len(resend_list)),
+                                   tags={})
             except Exception as e:  # pylint: disable=broad-except
                 if not stop_event.is_set():
                     logging.warning("Bridge streaming broken: %s.", repr(e))
