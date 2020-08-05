@@ -81,7 +81,7 @@ def model_fn(model, features, labels, mode):
     embed_size = 16
 
     if args.fid_version == 2:
-        model.use_fid_v2()
+        model.set_use_fid_v2(True)
 
     for slot_id in slots:
         fs = model.add_feature_slot(slot_id, hash_size)

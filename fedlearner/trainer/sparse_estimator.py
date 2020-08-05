@@ -79,8 +79,8 @@ class SparseFLModel(estimator.FLModel):
         self._feature_column_v1s[slot_id] = fc
         return fc
 
-    def use_fid_v2(self):
-        self._use_fid_v2 = True
+    def set_use_fid_v2(self, use_fid_v2):
+        self._use_fid_v2 = use_fid_v2
 
     def get_bias(self):
         return self._bias_tensor
