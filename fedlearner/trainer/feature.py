@@ -152,6 +152,7 @@ class FeatureSlot(object):
 
 class FeatureColumnV1(object):
     def __init__(self, feature_slot):
+        self.name = 'slot_%d' % feature_slot.slot_id
         self._feature_slot = feature_slot
         self._placeholder_slices = {}
 
