@@ -228,6 +228,7 @@ class StreamExampleJoiner(ExampleJoiner):
     def _fill_leader_join_window(self, sync_example_id_finished):
         if not self._fill_leader_enough:
             start_tm = time.time()
+            start_pos = self._leader_join_window.size()
             if not self._fill_join_windows(self._leader_visitor,
                                            self._leader_join_window,
                                            None):
@@ -237,6 +238,11 @@ class StreamExampleJoiner(ExampleJoiner):
             if self._fill_leader_enough:
                 self._leader_unjoined_example_ids = \
                     [item.example_id for _, item in self._leader_join_window]
+            end_pos = self._leader_join_window.size()
+            eids = [(self._leader_join_window[idx][0],
+                     self._leader_join_window[idx][1].example_id)
+                    for idx in range(start_pos, end_pos)]
+            self._joiner_stats.fill_leader_example_ids(eids)
             metrics.emit_timer(name='stream_joiner_fill_leader_join_window',
                                value=int(time.time()-start_tm),
                                tags=self._metrics_tags)
@@ -244,9 +250,15 @@ class StreamExampleJoiner(ExampleJoiner):
 
     def _fill_follower_join_window(self, raw_data_finished):
         start_tm = time.time()
+        start_pos = self._follower_join_window.size()
         follower_enough = self._fill_join_windows(self._follower_visitor,
                                                   self._follower_join_window,
                                                   self._follower_example_cache)
+        end_pos = self._follower_join_window.size()
+        eids = [(self._follower_join_window[idx][0],
+                 self._follower_join_window[idx][1].example_id)
+                for idx in range(start_pos, end_pos)]
+        self._joiner_stats.fill_follower_example_ids(eids)
         metrics.emit_timer(name='stream_joiner_fill_leader_join_window',
                            value=int(time.time()-start_tm),
                            tags=self._metrics_tags)
@@ -328,7 +340,4 @@ class StreamExampleJoiner(ExampleJoiner):
         for index, _ in self._joined_cache.values():
             if index < self._follower_restart_index:
                 self._follower_restart_index = index
-        metrics.emit_store(name='joined_data_block_index',
-                           value=meta.data_block_index,
-                           tags=self._metrics_tags)
         return meta

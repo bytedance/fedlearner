@@ -94,15 +94,10 @@ class DataBlockDumperManager(object):
                 start_tm = time.time()
                 self._raw_data_visitor.active_visitor()
                 self._dump_data_block_by_meta(meta)
-                self._emit_dumper_metrics(time.time()-start_tm, meta)
-
-    def _emit_dumper_metrics(self, dump_duration, meta):
-        metrics.emit_timer(name='data_block_dump_duration',
-                           value=int(dump_duration),
-                           tags=self._metrics_tags)
-        metrics.emit_store(name='data_block_dump_index',
-                           value=meta.data_block_index,
-                           tags=self._metrics_tags)
+                dump_duration = time.time() - start_tm
+                metrics.emit_timer(name='data_block_dump_duration',
+                                   value=int(dump_duration),
+                                   tags=self._metrics_tags)
 
     def data_block_meta_sync_finished(self):
         with self._lock:
@@ -181,7 +176,7 @@ class DataBlockDumperManager(object):
                         match_index, example_num, meta.block_id
                     )
                 os._exit(-1) # pylint: disable=protected-access
-            dumped_meta = data_block_builder.finish_data_block()
+            dumped_meta = data_block_builder.finish_data_block(True)
             assert dumped_meta == meta, "the generated dumped meta shoud "\
                                         "be the same with input mata"
             with self._lock:
