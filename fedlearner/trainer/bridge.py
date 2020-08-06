@@ -185,10 +185,9 @@ class Bridge(object):
                     for item in resend_msgs:
                         logging.warning("Streaming resend message seq_num=%d",
                                         item.seq_num)
-                        metrics.emit_store(
-                            name="send_msg_seq_num",
-                            value=int(item.seq_num),
-                            tags={})
+                        metrics.emit_store(name="resend_msg_seq_num",
+                                           value=int(item.seq_num),
+                                           tags={})
                         yield item
                     while True:
                         item = self._transmit_queue.get()
@@ -196,19 +195,17 @@ class Bridge(object):
                             resend_list.append(item)
                         logging.debug("Streaming send message seq_num=%d",
                                       item.seq_num)
-                        metrics.emit_store(
-                            name="send_resend_msg_seq_num",
-                            value=int(item.seq_num),
-                            tags={})
+                        metrics.emit_store(name="send_msg_seq_num",
+                                           value=int(item.seq_num),
+                                           tags={})
                         yield item
 
                 time_start = time.time()
                 generator = client.StreamTransmit(iterator())
                 time_end = time.time()
-                metrics.emit_timer(
-                    name="one_StreamTransmit_spend",
-                    value=int(time_end-time_start),
-                    tags={})
+                metrics.emit_timer(name="one_StreamTransmit_spend",
+                                   value=int(time_end-time_start),
+                                   tags={})
                 for response in generator:
                     if response.status.code == common_pb.STATUS_SUCCESS:
                         logging.debug("Message with seq_num=%d is "
@@ -233,6 +230,9 @@ class Bridge(object):
                         logging.debug(
                             "Resend queue size: %d, starting from seq_num=%s",
                             len(resend_list), min_seq_num_to_resend)
+                metrics.emit_store(name="sum_of_resend",
+                                   value=int(len(resend_list)),
+                                   tags={})
             except Exception as e:  # pylint: disable=broad-except
                 if not stop_event.is_set():
                     logging.warning("Bridge streaming broken: %s.", repr(e))
