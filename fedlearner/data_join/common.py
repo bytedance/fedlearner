@@ -236,7 +236,7 @@ class _OomRsikChecker(object):
 
 
     def _try_update_memory_usage(self, force):
-        if time.time() - self._latest_updated_ts >= 1 or force:
+        if time.time() - self._latest_updated_ts >= 0.7 or force:
             self._heap_memory_usage = hpy().heap().size
             self._latest_updated_ts = time.time()
 
