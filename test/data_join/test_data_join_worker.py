@@ -279,21 +279,23 @@ class DataJoinWorker(unittest.TestCase):
         th_f.start()
 
         while True:
-            req_l = dj_pb.DataSourceRequest(
-                    data_source_meta=self.data_source_l.data_source_meta
-                )
-            req_f = dj_pb.DataSourceRequest(
-                    data_source_meta=self.data_source_f.data_source_meta
-                )
-            dss_l = master_client_l.GetDataSourceStatus(req_l)
-            dss_f = master_client_f.GetDataSourceStatus(req_f)
-            self.assertEqual(dss_l.role, common_pb.FLRole.Leader)
-            self.assertEqual(dss_f.role, common_pb.FLRole.Follower)
-            if dss_l.state == common_pb.DataSourceState.Ready and \
-                    dss_f.state == common_pb.DataSourceState.Ready:
-                break
-            else:
-                time.sleep(2)
+            try:
+                req_l = dj_pb.DataSourceRequest(
+                        data_source_meta=self.data_source_l.data_source_meta
+                    )
+                req_f = dj_pb.DataSourceRequest(
+                        data_source_meta=self.data_source_f.data_source_meta
+                    )
+                dss_l = master_client_l.GetDataSourceStatus(req_l)
+                dss_f = master_client_f.GetDataSourceStatus(req_f)
+                self.assertEqual(dss_l.role, common_pb.FLRole.Leader)
+                self.assertEqual(dss_f.role, common_pb.FLRole.Follower)
+                if dss_l.state == common_pb.DataSourceState.Ready and \
+                        dss_f.state == common_pb.DataSourceState.Ready:
+                    break
+            except Exception as e:
+                pass
+            time.sleep(2)
 
         th_l.join()
         th_f.join()
