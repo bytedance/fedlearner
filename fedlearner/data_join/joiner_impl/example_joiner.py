@@ -50,9 +50,9 @@ class ExampleJoiner(object):
             self._joiner_stats = JoinerStats(0, -1, -1)
         else:
             stats_info = meta.joiner_stats_info
-            self._joiner_stats = JoinerStats(meta.stats_joined_num,
-                                             meta.leader_end_index,
-                                             meta.follower_restart_index)
+            self._joiner_stats = JoinerStats(stats_info.stats_cum_join_num,
+                                             stats_info.leader_stats_index,
+                                             stats_info.follower_stats_index)
         self._data_block_builder_options = data_block_builder_options
         self._data_block_builder = None
         self._state_stale = False

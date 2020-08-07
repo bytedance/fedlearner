@@ -81,8 +81,8 @@ class SortRunExampleJoiner(ExampleJoiner):
         else:
             forwarded = self._forward_one_step(self._follower_visitor)
             if forwarded:
-                eids = [(self._forward_visitor.get_index(),
-                         self._forward_visitor.get_item().example_id)]
+                eids = [(self._follower_visitor.get_index(),
+                         self._follower_visitor.get_item().example_id)]
                 item = self._forward_visitor.get_item()
                 self._joiner_stats.fill_follower_example_ids(eids)
         return forwarded
