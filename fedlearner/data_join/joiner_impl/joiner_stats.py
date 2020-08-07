@@ -89,15 +89,15 @@ class JoinerStats(object):
         evict_hids = self._fill_example_ids(eids, self._leader_cache)
         for hid in evict_hids:
             if self._follower_cache[hid] > 0:
-                self._stale_joined_num += 1
+                self._stats_cum_join_num += 1
 
     def fill_follower_example_ids(self, eids):
         evict_hids = self._fill_example_ids(eids, self._follower_cache)
         for hid in evict_hids:
-            self._stale_joined_num += self._leader_cache[hid]
+            self._stats_cum_join_num += self._leader_cache[hid]
 
     def calc_stats_joined_num(self):
-        joined_num = self._stale_joined_num
+        joined_num = self._stats_cum_join_num
         for hid in self._leader_cache:
             if self._follower_cache[hid] > 0:
                 joined_num += 1

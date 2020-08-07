@@ -194,7 +194,7 @@ class ExampleJoiner(object):
 
     def _create_join_stats_info(self):
         builder = self._get_data_block_builder(False)
-        nstats_cum_join_num = self._joiner_stats.cal_stats_joined_num()
+        nstats_cum_join_num = self._joiner_stats.calc_stats_joined_num()
         nactual_cum_join_num = 0 if builder is None \
                                else builder.example_count()
         meta = self._data_block_manager.get_lastest_data_block_meta()
