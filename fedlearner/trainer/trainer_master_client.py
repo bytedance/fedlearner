@@ -119,7 +119,7 @@ class TrainerMasterClient(object):
                                 e.code().name)
             else:
                 if result.status.code == common_pb.STATUS_SUCCESS:
-                    logging.debug("%s:%d failed to get data block %s at %s",
+                    logging.debug("%s:%d succeeded to get data block %s at %s",
                                   self._role, self._task_id,
                                   result.data_block_info.block_id,
                                   result.data_block_info.data_path)
