@@ -50,6 +50,8 @@ class DataBlockBuilder(object):
         self._example_num = 0
         self._data_block_manager = None
         self._example_ids_size = 0
+        self._metrics_tags = {'ds_name': self._data_source_name,
+                              'partition': partition_id}
 
     def init_by_meta(self, meta):
         self._partition_id = meta.partition_id
