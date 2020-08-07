@@ -49,6 +49,7 @@ class ExampleJoiner(object):
         if meta is None:
             self._joiner_stats = JoinerStats(0, -1, -1)
         else:
+            stats_info = meta.joiner_stats_info
             self._joiner_stats = JoinerStats(meta.stats_joined_num,
                                              meta.leader_end_index,
                                              meta.follower_restart_index)

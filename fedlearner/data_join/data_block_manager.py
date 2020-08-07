@@ -167,7 +167,7 @@ class DataBlockBuilder(object):
         if meta.joiner_stats_info.follower_stats_index > 0:
             follower_join_rate = meta.joiner_stats_info.actual_cum_join_num / \
                 meta.joiner_stats_info.follower_stats_index
-        logging.info("create new data block id by %s, data block index: %d," \
+        logging.info("create new data block id: %s, data block index: %d," \
                      "stats:\n stats_cum_join_num: %d, actual_cum_join_num: "\
                      "%d, leader_stats_index: %d, follower_stats_index: %d, "\
                      "leader_join_rate: %f, follower_join_rate: %f",

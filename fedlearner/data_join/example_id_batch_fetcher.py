@@ -68,10 +68,9 @@ class ExampleIdBatchFetcher(ItemBatchSeqProcessor):
         self._raw_data_visitor = RawDataVisitor(
                 etcd, data_source, partition_id, raw_data_options
             )
-        self._data_source = data_source
         self._batch_size = batch_processor_options.batch_size
         self._partition_id = partition_id
-        ds_name = self._data_source.data_source_meta.name
+        ds_name = data_source.data_source_meta.name
         self._metric_tags = {'data_source_name': ds_name,
                              'partition': self._partition_id}
 

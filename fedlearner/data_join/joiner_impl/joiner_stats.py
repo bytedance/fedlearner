@@ -74,16 +74,15 @@ class _SlideCache(object):
 
 class JoinerStats(object):
     _SampleRateReciprocal = 32
-    def __init__(self, joiner_stats_snap, max_stats_windows_size=1<<18):
+    def __init__(self, stats_cum_join_num, leader_join_index,
+                 follower_join_index, max_stats_windows_size=1<<16):
         self._hash_prefix = str(uuid.uuid1())
-        self._stats_cum_join_num = joiner_stats_snap.stats_cum_join_num
+        self._stats_cum_join_num = stats_cum_join_num
         self._leader_cache = _SlideCache(
-                joiner_stats_snap.leader_joined_index,
-                max_stats_windows_size
+                leader_join_index, max_stats_windows_size
             )
         self._follower_cache = _SlideCache(
-                joiner_stats_snap.follower_joined_index,
-                max_stats_windows_size
+                follower_join_index, max_stats_windows_size
             )
 
     def fill_leader_example_ids(self, eids):
