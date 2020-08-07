@@ -44,7 +44,7 @@ class DataBlockDumperManager(object):
         self._fly_data_block_meta = []
         self._state_stale = False
         self._synced_data_block_meta_finished = False
-        ds_name = self._data_source.data_block_meta.name
+        ds_name = self._data_source.data_source_meta.name
         self._metrics_tags = {'data_source_name': ds_name,
                               'partiton': self._partition_id}
 
