@@ -199,7 +199,6 @@ class ExampleJoiner(object):
                                else builder.example_count()
         meta = self._data_block_manager.get_lastest_data_block_meta()
         if meta is not None:
-            nstats_cum_join_num += meta.joiner_stats_info.stats_cum_join_num
             nactual_cum_join_num += meta.joiner_stats_info.actual_cum_join_num
         return dj_pb.JoinerStatsInfo(
                 stats_cum_join_num=nstats_cum_join_num,
