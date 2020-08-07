@@ -41,7 +41,6 @@ for i in "${WORKER_GROUPS[@]}"; do
 done
 fi
 
-tensorboard --logdir "$OUTPUT_BASE_DIR/tensorboard" --port 6006 &
 if [[ ${CODE_KEY} == "hdfs://"* ]]; then
     ${HADOOP_HOME}/bin/hadoop fs -copyToLocal ${CODE_KEY} code.tar.gz
 elif [[ ${CODE_KEY} == "http://"* || ${CODE_KEY} == "https://"* ]]; then
@@ -65,5 +64,4 @@ python main.py \
     --peer-addr="$PEER_ADDR" \
     --checkpoint-path="$OUTPUT_BASE_DIR/checkpoints" \
     --export-path="$OUTPUT_BASE_DIR/exported_models" \
-    --summary-path="$OUTPUT_BASE_DIR/tensorboard" \
     $save_checkpoint_steps $sparse_estimator $summary_save_steps
