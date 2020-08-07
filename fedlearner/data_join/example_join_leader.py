@@ -17,6 +17,7 @@
 from google.protobuf import empty_pb2
 
 from fedlearner.common import data_join_service_pb2 as dj_pb
+from fedlearner.common import metrics
 
 from fedlearner.data_join.joiner_impl import create_example_joiner
 from fedlearner.data_join.transmit_leader import TransmitLeader

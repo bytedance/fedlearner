@@ -221,11 +221,9 @@ class ExampleIdDumperManager(object):
         self._update_latest_dump_timestamp()
 
     def _emit_dumper_metrics(self, file_index, dumped_index):
-        dump_duration = None
-        with self._lock:
-            dump_duration = time.time() - self._latest_dump_timestamp
+        dump_duration = time.time() - self._latest_dump_timestamp
         metrics.emit_timer(name='example_id_dump_duration',
-                           value=int(duration),
+                           value=int(dump_duration),
                            tags=self._metrics_tags)
         metrics.emit_store(name='example_dump_file_index',
                            value=file_index,

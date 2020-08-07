@@ -14,8 +14,6 @@
 
 # coding: utf-8
 
-import time
-
 from google.protobuf import empty_pb2
 
 from fedlearner.common import data_join_service_pb2 as dj_pb

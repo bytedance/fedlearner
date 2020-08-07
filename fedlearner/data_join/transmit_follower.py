@@ -16,6 +16,8 @@
 
 import threading
 
+from fedlearner.common import metrics
+
 from fedlearner.data_join.routine_worker import RoutineWorker
 
 class TransmitFollower(object):

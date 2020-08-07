@@ -37,7 +37,7 @@ class _SlideCache(object):
         evict_hids = [self._slide_buffer[self._inner_index(idx)]
                       for idx in range(evict_cnt)]
         for idx, hid in enumerate(hids):
-            ridx = self._inner_index(self._item_cnt + idx) 
+            ridx = self._inner_index(self._item_cnt+idx) 
             self._slide_buffer[ridx] = hid
             if hid not in self._cache:
                 self._cache[hid] = 1
@@ -76,7 +76,6 @@ class _SlideCache(object):
 class JoinerStats(object):
     _SampleRateReciprocal = 32
     def __init__(self, joiner_stats_snap, max_stats_windows_size=1<<18):
-        self._partition_id = partition_id
         self._hash_prefix = str(uuid.uuid1())
         self._stats_cum_join_num = joiner_stats_snap.stats_cum_join_num
         self._leader_cache = _SlideCache(
@@ -116,7 +115,7 @@ class JoinerStats(object):
         sampled_hids = []
         max_idx = -1
         for idx, eid in eids:
-            if idx <= silde_cache.get_stats_index():
+            if idx <= slide_cache.get_stats_index():
                 continue
             max_idx = idx
             hkey = '{}{}'.format(self._hash_prefix, eid)
@@ -125,3 +124,4 @@ class JoinerStats(object):
                 sampled_hids.append(hid)
         if max_idx >= 0:
             return slide_cache.fill_hash_ids(max_idx, sampled_hids)
+        return []

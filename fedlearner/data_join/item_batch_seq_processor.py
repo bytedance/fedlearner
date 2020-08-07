@@ -117,14 +117,13 @@ class ItemBatchSeqProcessor(object):
         batch_finished = False
         iter_round = 0
         processed_index = None
-        start_tm_ms = int(time.time() * 1000)
+        start_tm = time.time()
         for batch, batch_finished in self._make_inner_generator(next_index):
             if batch is not None:
-                end_tm_ms = int(time.time() * 1000)
                 if len(batch) > 0:
                     latency_mn = '{}.produce.latency'.format(self.name())
                     metrics.emit_timer(name=latency_mn,
-                                       value=end_tm_ms-start_tm_ms,
+                                       value=time.time()-start_tm,
                                        self._get_metrics_tags())
                     store_mn = '{}.produce.index'.format(self.name())
                     metrics.emit_store(name=store_mn,
@@ -132,13 +131,13 @@ class ItemBatchSeqProcessor(object):
                                        tags=self._get_metrics_tags())
                     self._append_next_item_batch(batch)
                     yield batch
+                    start_tm = time.time()
                 self._update_last_index(batch.begin_index+len(batch)-1)
                 iter_round += 1
                 processed_index = batch.begin_index + len(batch) - 1
                 if iter_round % 16 == 0:
                     logging.info("%s process to index %d",
                                  self.name(), processed_index)
-            start_tm_ms = time.time()`
         if processed_index is not None:
             logging.info("%s process to index %d when round finished",
                          self.name(), processed_index)
