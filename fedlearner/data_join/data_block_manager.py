@@ -144,8 +144,6 @@ class DataBlockBuilder(object):
         if metrics_tags is not None and len(metrics_tags) > 0:
             nmetric_tags = copy.deepcopy(self._metrics_tags)
             nmetric_tags.update(metrics_tags)
-        metrics_tags = {'data_source_name': self._data_source_name,
-                        'partition', self._partition_id}
         metrics.emit_store(name='data_block_index',
                            value=meta.data_block_index,
                            tags=nmetric_tags)
