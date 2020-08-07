@@ -49,10 +49,11 @@ class TrainerMaster(object):
         raise NotImplementedError("This method needs to be overridden")
 
     def _data_block_response(self, request):
-        logging.debug("In Base TrainerMaster::_data_block_response "\
-                      "block_id = %s", request.block_id)
         data_block = self._alloc_data_block(block_id=request.block_id)
         response = tm_pb.DataBlockResponse()
+        logging.debug("Base TrainerMaster allocated worker_%d"
+                       "with block id %d", request.worker_rank,
+                                           data_block.block_id)
         if data_block:
             response.status.code = common_pb.STATUS_SUCCESS
             response.status.error_message = 'success'
