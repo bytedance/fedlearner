@@ -61,8 +61,8 @@ class ExampleJoiner(object):
         self._join_finished = False
         ds_name = self._data_source.data_source_meta.name
         self._metrics_tags = {'data_source_name': ds_name,
-                              'partition', partition_id,
-                              'joiner_name', self.name()}
+                              'partition': partition_id,
+                              'joiner_name': self.name()}
         self._latest_dump_timestamp = time.time()
         self._sync_state()
 
