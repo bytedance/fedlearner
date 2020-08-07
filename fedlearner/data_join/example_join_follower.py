@@ -14,6 +14,8 @@
 
 # coding: utf-8
 
+from fedlearner.common import metrics
+
 from fedlearner.data_join.data_block_dumper import DataBlockDumperManager
 from fedlearner.data_join.transmit_follower import TransmitFollower
 
@@ -58,6 +60,8 @@ class ExampleJoinFollower(TransmitFollower):
         self._raw_data_options = raw_data_options
         self._data_block_builder_options = data_block_builder_options
 
+    @metrics.timer(func_name='make_new_impl_ctx',
+                   tags={'role': 'transmit_follower'})
     def _make_new_impl_ctx(self, partition_id):
         return ExampleJoinFollower.ImplContext(
                 self._etcd, self._data_source, partition_id,

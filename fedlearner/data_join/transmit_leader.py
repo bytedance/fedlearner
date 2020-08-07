@@ -19,6 +19,7 @@ import logging
 import zlib
 
 from fedlearner.common import data_join_service_pb2 as dj_pb
+from fedlearner.common import metrics
 
 from fedlearner.data_join.routine_worker import RoutineWorker
 
@@ -134,6 +135,8 @@ class TransmitLeader(object):
     def _wakeup_new_partition_allocator(self):
         self._worker_map[self._partition_allocator_name()].wakeup()
 
+    @metrics.timer(func_name='allocate_new_partition_fn',
+                   tags={'role': 'transmit_leader'})
     def _allocate_new_partition_fn(self):
         req = self._make_raw_data_request()
         rsp = self._master_client.RequestJoinPartition(req)
@@ -174,8 +177,9 @@ class TransmitLeader(object):
         self._process_producer_hook(impl_ctx)
         if not impl_ctx.is_produce_finished():
             for item in impl_ctx.make_producer():
-                if item is not None:
-                    self._wakeup_data_consumer()
+                if item is None:
+                    continue
+                self._wakeup_data_consumer()
 
     def _data_producer_cond(self):
         with self._lock:
@@ -218,6 +222,8 @@ class TransmitLeader(object):
             self._send_sync_content(impl_ctx, item)
         return consume_finished
 
+    @metrics.timer(func_name='start_partition',
+                   tags={'role': 'transmit_leader'})
     def _start_partition(self, impl_ctx):
         assert isinstance(impl_ctx, TransmitLeader.ImplContext)
         req = dj_pb.StartPartitionRequest(
@@ -233,6 +239,8 @@ class TransmitLeader(object):
         self._update_peer_index(impl_ctx, rsp.next_index, rsp.dumped_index)
         return rsp.finished
 
+    @metrics.timer(func_name='finish_partition',
+                   tags={'role': 'transmit_leader'})
     def _send_sync_content(self, impl_ctx, item):
         assert isinstance(impl_ctx, TransmitLeader.ImplContext)
         compressed = False
@@ -256,6 +264,8 @@ class TransmitLeader(object):
                                 self._repr_str, rsp.status.error_message))
         self._update_peer_index(impl_ctx, rsp.next_index, rsp.dumped_index)
 
+    @metrics.timer(func_name='finish_partition',
+                   tags={'role': 'transmit_leader'})
     def _finish_partition(self, impl_ctx):
         assert isinstance(impl_ctx, TransmitLeader.ImplContext)
         if not impl_ctx.is_peer_finished():
@@ -297,6 +307,8 @@ class TransmitLeader(object):
         raise NotImplementedError("_serialize_sync_content is not "\
                                   "implemented in base TransmitLeader")
 
+    @metrics.timer(func_name='update_peer_index',
+                   tags={'role': 'transmit_leader'})
     def _update_peer_index(self, impl_ctx, peer_next_index, peer_dumped_index):
         assert isinstance(impl_ctx, TransmitLeader.ImplContext)
         _, dumped_index = impl_ctx.get_peer_index()
@@ -316,3 +328,12 @@ class TransmitLeader(object):
                                    "to {} reason: {}".format(self._repr_str,
                                                              peer_dumped_index,
                                                              rsp.error_message))
+            metrics.emit_store('peer_dumped_index', peer_dumped_index,
+                               self._get_metrics_tag(impl_ctx))
+
+    def _get_metrics_tag(self, impl_ctx):
+        assert isinstance(impl_ctx, TransmitLeader.ImplContext)
+        ds_name = self._data_source.data_source_meta.name
+        return {'data_source_name': ds_name,
+                'partition': impl_ctx.partition_id,
+                'role': 'transmit_leader'}

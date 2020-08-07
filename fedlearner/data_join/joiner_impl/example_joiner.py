@@ -20,10 +20,14 @@ import time
 
 from contextlib import contextmanager
 
+from fedlearner.common import data_join_service_pb2 as dj_pb
+from fedlearner.common import metrics
+
 from fedlearner.data_join.raw_data_visitor import RawDataVisitor
 from fedlearner.data_join.example_id_visitor import ExampleIdVisitor
 from fedlearner.data_join.data_block_manager import \
         DataBlockManager, DataBlockBuilder
+from fedlearner.data_join.joiner_impl.joiner_stats import JoinerStats
 from fedlearner.data_join import common
 
 class ExampleJoiner(object):
@@ -41,14 +45,25 @@ class ExampleJoiner(object):
                                self._partition_id, raw_data_options)
         self._data_block_manager = \
                 DataBlockManager(self._data_source, self._partition_id)
+        meta = self._data_block_manager.get_lastest_data_block_meta()
+        if meta is None:
+            self._joiner_stats = JoinerStats(0, -1, -1)
+        else:
+            stats_info = meta.joiner_stats_info
+            self._joiner_stats = JoinerStats(stats_info.stats_cum_join_num,
+                                             stats_info.leader_stats_index,
+                                             stats_info.follower_stats_index)
         self._data_block_builder_options = data_block_builder_options
-
         self._data_block_builder = None
         self._state_stale = False
         self._follower_restart_index = 0
         self._sync_example_id_finished = False
         self._raw_data_finished = False
         self._join_finished = False
+        ds_name = self._data_source.data_source_meta.name
+        self._metrics_tags = {'data_source_name': ds_name,
+                              'partition': partition_id,
+                              'joiner_name': self.name()}
         self._latest_dump_timestamp = time.time()
         self._sync_state()
 
@@ -166,11 +181,33 @@ class ExampleJoiner(object):
 
     def _finish_data_block(self):
         if self._data_block_builder is not None:
-            meta = self._data_block_builder.finish_data_block()
+            self._data_block_builder.set_join_stats_info(
+                    self._create_join_stats_info()
+                )
+            meta = self._data_block_builder.finish_data_block(
+                    True, self._metrics_tags
+                )
             self._reset_data_block_builder()
             self._update_latest_dump_timestamp()
             return meta
         return None
+
+    def _create_join_stats_info(self):
+        builder = self._get_data_block_builder(False)
+        nstats_cum_join_num = self._joiner_stats.calc_stats_joined_num()
+        nactual_cum_join_num = 0 if builder is None \
+                               else builder.example_count()
+        meta = self._data_block_manager.get_lastest_data_block_meta()
+        if meta is not None:
+            nactual_cum_join_num += meta.joiner_stats_info.actual_cum_join_num
+        return dj_pb.JoinerStatsInfo(
+                stats_cum_join_num=nstats_cum_join_num,
+                actual_cum_join_num=nactual_cum_join_num,
+                leader_stats_index=\
+                    self._joiner_stats.get_leader_stats_index(),
+                follower_stats_index=\
+                    self._joiner_stats.get_follower_stats_index()
+            )
 
     def _reset_data_block_builder(self):
         builder = None
@@ -181,8 +218,11 @@ class ExampleJoiner(object):
             del builder
 
     def _update_latest_dump_timestamp(self):
-        with self._lock:
-            self._latest_dump_timestamp = time.time()
+        data_block_dump_duration = time.time() - self._latest_dump_timestamp
+        metrics.emit_timer(name='data_block_dump_duration',
+                           value=int(data_block_dump_duration),
+                           tags=self._metrics_tags)
+        self._latest_dump_timestamp = time.time()
 
     def _acuqire_state_stale(self):
         with self._lock:

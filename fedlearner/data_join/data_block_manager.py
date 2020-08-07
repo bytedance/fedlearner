@@ -17,12 +17,14 @@
 import threading
 import logging
 import os
+import copy
 
 import tensorflow.compat.v1 as tf
 from google.protobuf import text_format
 from tensorflow.compat.v1 import gfile
 
 from fedlearner.common import data_join_service_pb2 as dj_pb
+from fedlearner.common import metrics
 
 from fedlearner.data_join.common import (
     encode_data_block_meta_fname, partition_repr,
@@ -48,6 +50,8 @@ class DataBlockBuilder(object):
         self._example_num = 0
         self._data_block_manager = None
         self._example_ids_size = 0
+        self._metrics_tags = {'ds_name': self._data_source_name,
+                              'partition': partition_id}
 
     def init_by_meta(self, meta):
         self._partition_id = meta.partition_id
@@ -111,7 +115,10 @@ class DataBlockBuilder(object):
     def example_count(self):
         return len(self._data_block_meta.example_ids)
 
-    def finish_data_block(self):
+    def set_join_stats_info(self, join_stats_info):
+        self._data_block_meta.joiner_stats_info.MergeFrom(join_stats_info)
+
+    def finish_data_block(self, emit_logger=False, metrics_tags=None):
         assert self._example_num == len(self._data_block_meta.example_ids)
         self._writer.close()
         if len(self._data_block_meta.example_ids) > 0:
@@ -127,9 +134,57 @@ class DataBlockBuilder(object):
                 )
             gfile.Rename(self._tmp_fpath, data_block_path, True)
             self._build_data_block_meta()
+            if emit_logger:
+                self._emit_logger(metrics_tags)
             return self._data_block_meta
         gfile.Remove(self._tmp_fpath)
         return None
+
+    def _emit_logger(self, metrics_tags):
+        meta = self._data_block_meta
+        nmetric_tags = self._metrics_tags
+        if metrics_tags is not None and len(metrics_tags) > 0:
+            nmetric_tags = copy.deepcopy(self._metrics_tags)
+            nmetric_tags.update(metrics_tags)
+        metrics.emit_store(name='data_block_index',
+                           value=meta.data_block_index,
+                           tags=nmetric_tags)
+        metrics.emit_store(name='stats_cum_join_num',
+                           value=meta.joiner_stats_info.stats_cum_join_num,
+                           tags=nmetric_tags)
+        metrics.emit_store(name='actual_cum_join_num',
+                           value=meta.joiner_stats_info.actual_cum_join_num,
+                           tags=nmetric_tags)
+        metrics.emit_store(name='leader_stats_index',
+                           value=meta.joiner_stats_info.leader_stats_index,
+                           tags=nmetric_tags)
+        metrics.emit_store(name='follower_stats_index',
+                           value=meta.joiner_stats_info.follower_stats_index,
+                           tags=nmetric_tags)
+        leader_join_rate = 0.0
+        if meta.joiner_stats_info.leader_stats_index > 0:
+            leader_join_rate = meta.joiner_stats_info.actual_cum_join_num / \
+                    meta.joiner_stats_info.leader_stats_index
+        follower_join_rate = 0.0
+        if meta.joiner_stats_info.follower_stats_index > 0:
+            follower_join_rate = meta.joiner_stats_info.actual_cum_join_num / \
+                meta.joiner_stats_info.follower_stats_index
+        metrics.emit_store(name='leader_join_rate_percent',
+                           value=int(leader_join_rate*100),
+                           tags=nmetric_tags)
+        metrics.emit_store(name='follower_join_rate_percent',
+                           value=int(follower_join_rate*100),
+                           tags=nmetric_tags)
+        logging.info("create new data block id: %s, data block index: %d," \
+                     "stats:\n stats_cum_join_num: %d, actual_cum_join_num: "\
+                     "%d, leader_stats_index: %d, follower_stats_index: %d, "\
+                     "leader_join_rate: %f, follower_join_rate: %f",
+                     meta.block_id, meta.data_block_index,
+                     meta.joiner_stats_info.stats_cum_join_num,
+                     meta.joiner_stats_info.actual_cum_join_num,
+                     meta.joiner_stats_info.leader_stats_index,
+                     meta.joiner_stats_info.follower_stats_index,
+                     leader_join_rate, follower_join_rate)
 
     def _get_data_block_dir(self):
         return os.path.join(self._dirname,
