@@ -124,7 +124,7 @@ class ItemBatchSeqProcessor(object):
                     latency_mn = '{}.produce.latency'.format(self.name())
                     metrics.emit_timer(name=latency_mn,
                                        value=time.time()-start_tm,
-                                       tag=self._get_metrics_tags())
+                                       tags=self._get_metrics_tags())
                     store_mn = '{}.produce.index'.format(self.name())
                     metrics.emit_store(name=store_mn,
                                        value=batch.begin_index+len(batch)-1,

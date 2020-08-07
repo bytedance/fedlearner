@@ -328,9 +328,8 @@ class TransmitLeader(object):
                                    "to {} reason: {}".format(self._repr_str,
                                                              peer_dumped_index,
                                                              rsp.error_message))
-            metrics.emit_store(func_name='peer_dumped_index',
-                               value=peer_dumped_index,
-                               tag=self._get_metrics_tag(impl_ctx))
+            metrics.emit_store('peer_dumped_index', peer_dumped_index,
+                               self._get_metrics_tag(impl_ctx))
 
     def _get_metrics_tag(self, impl_ctx):
         assert isinstance(impl_ctx, TransmitLeader.ImplContext)

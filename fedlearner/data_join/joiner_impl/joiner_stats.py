@@ -14,7 +14,6 @@
 
 # coding: utf-8
 
-import logging
 import uuid
 
 from cityhash import CityHash64 # pylint: disable=no-name-in-module
@@ -37,7 +36,7 @@ class _SlideCache(object):
         evict_hids = [self._slide_buffer[self._inner_index(idx)]
                       for idx in range(evict_cnt)]
         for idx, hid in enumerate(hids):
-            ridx = self._inner_index(self._item_cnt+idx) 
+            ridx = self._inner_index(self._item_cnt+idx)
             self._slide_buffer[ridx] = hid
             if hid not in self._cache:
                 self._cache[hid] = 1

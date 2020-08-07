@@ -14,6 +14,8 @@
 
 # coding: utf-8
 
+from fedlearner.common import metrics
+
 from fedlearner.data_join.data_block_dumper import DataBlockDumperManager
 from fedlearner.data_join.transmit_follower import TransmitFollower
 
