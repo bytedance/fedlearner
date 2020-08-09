@@ -172,7 +172,12 @@ class FLEstimator(object):
         self._cluster_spec = cluster_spec
 
     def _get_features_and_labels_from_input_fn(self, input_fn, mode):
+        start_time = time.time()
         dataset = input_fn(self._bridge, self._trainer_master)
+        end_time = time.time()
+        metrics.emit_timer(name="read",
+                           value=end_time-start_time,
+                           tags={})
         features, labels = dataset.make_one_shot_iterator().get_next()
         return features, labels
 
