@@ -20,9 +20,9 @@ export CUDA_VISIBLE_DEVICES=
 source /app/deploy/scripts/hdfs_common.sh || true
 source /app/deploy/scripts/env_to_args.sh
 
-if [ -z "$INPUT_BASE_DIR$INPUT_FILE_PATHS" ]
+if [ -z "$INPUT_BASE_DIR$INPUT_FILE_PATHS$INPUT_FILE_SUBSCRIBE_DIR" ]
 then
-    echo "no input files or directory for psi preprocessor"
+    echo "no input files or directory for psi preprocessor or etcd subscrube dir"
     exit -1
 fi
 
