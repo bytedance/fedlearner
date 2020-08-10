@@ -23,6 +23,8 @@ from fedlearner.data_join import common
 
 if __name__ == "__main__":
     logging.getLogger().setLevel(logging.DEBUG)
+    logging.basicConfig(format="%(asctime)s %(filename)s "\
+                               "%(lineno)s %(levelname)s - %(message)s")
     parser = argparse.ArgumentParser(description='DataJoinMaster cmd.')
     parser.add_argument('--data_source_name', type=str, required=True,
                          help='the data source name')

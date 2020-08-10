@@ -187,7 +187,8 @@ class TestDataPortalWorker(unittest.TestCase):
 
 if __name__ == '__main__':
     logging.getLogger().setLevel(logging.INFO)
-    logging.basicConfig(format='%(asctime)s %(message)s')
+    logging.basicConfig(format="%(asctime)s %(filename)s "\
+                               "%(lineno)s %(levelname)s - %(message)s")
     unittest.main()
 
 
