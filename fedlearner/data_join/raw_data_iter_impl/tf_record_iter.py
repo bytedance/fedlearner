@@ -31,7 +31,6 @@ class TfExampleItem(RawDataIter.Item):
         self._event_time = self._parse_event_time(example, record_str)
         self._raw_id = self._parse_raw_id(example, record_str)
         self._csv_record = None
-        self._raw_id = None
         self._gc_example(example)
 
     @property
