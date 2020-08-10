@@ -46,6 +46,8 @@ class RsaPsiPreProcessor(object):
                 concur_futures.ProcessPoolExecutor(
                         options.offload_processor_number
                     )
+        # pre fock sub processor before launch grpc client
+        self._process_pool_executor.submit(min, 1, 2).result()
         self._id_batch_fetcher = IdBatchFetcher(etcd, self._options)
         max_flying_item = options.batch_processor_options.max_flying_item
         if self._options.role == common_pb.FLRole.Leader:
