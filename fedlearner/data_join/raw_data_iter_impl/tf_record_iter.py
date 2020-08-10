@@ -123,6 +123,7 @@ class TfExampleItem(RawDataIter.Item):
     @staticmethod
     def _parse_raw_id(example, record):
         if example is not None:
+            assert isinstance(example, tf.train.Example)
             try:
                 feat = example.features.feature
                 if 'raw_id' in feat:
