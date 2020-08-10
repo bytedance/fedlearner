@@ -230,9 +230,9 @@ class Bridge(object):
                         logging.debug(
                             "Resend queue size: %d, starting from seq_num=%s",
                             len(resend_list), min_seq_num_to_resend)
-                metrics.emit_store(name="sum_of_resend",
-                                   value=int(len(resend_list)),
-                                   tags={})
+                        metrics.emit_store(name="sum_of_resend",
+                                        value=int(len(resend_list)),
+                                        tags={})
             except Exception as e:  # pylint: disable=broad-except
                 if not stop_event.is_set():
                     logging.warning("Bridge streaming broken: %s.", repr(e))
