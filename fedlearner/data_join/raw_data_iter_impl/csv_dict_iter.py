@@ -56,7 +56,7 @@ class CsvItem(RawDataIter.Item):
         if 'raw_id' not in self._raw:
             logging.error("Failed parse raw id since no join "\
                           "id in csv dict raw %s", self._raw)
-            return ''
+            return common.InvalidRawId
         if isinstance(self._raw['raw_id'], bytes):
             return self._raw['raw_id']
         return str(self._raw['raw_id']).encode()
