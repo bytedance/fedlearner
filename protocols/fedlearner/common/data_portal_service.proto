@@ -69,6 +69,7 @@ message MapTask {
   int64 output_partition_num = 4;
   int64 partition_id = 5;
   string part_field = 6;
+  DataPortalType data_portal_type = 7;
 }
 
 message ReduceTask {
