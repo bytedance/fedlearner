@@ -159,7 +159,8 @@ class TestDataPortalWorker(unittest.TestCase):
         map_task.output_partition_num = self._output_partition_num
         map_task.partition_id = 0
         map_task.task_name = 'map_part_{}'.format(map_task.partition_id)
-        map_task.part_field = 'raw_id'
+        map_task.part_field = 'example_id'
+        map_task.data_portal_type = dp_pb.DataPortalType.Streaming
         for partition_id in range(self._input_partition_num):
             map_task.fpaths.append(self._get_input_fpath(partition_id))
 

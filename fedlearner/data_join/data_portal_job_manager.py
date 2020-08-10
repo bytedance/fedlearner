@@ -159,12 +159,14 @@ class DataPortalJobManager(object):
         for seq, fpath in enumerate(map_fpaths):
             logging.info("%d. %s", seq, fpath)
         logging.info("---------------------------------\n")
+        manifset = self._sync_portal_manifest()
         return dp_pb.MapTask(task_name=task_name,
                              fpaths=map_fpaths,
                              output_base_dir=self._map_output_dir(job.job_id),
                              output_partition_num=self._output_partition_num,
                              partition_id=partition_id,
-                             part_field=self._get_part_field())
+                             part_field=self._get_part_field(),
+                             data_portal_type=manifset.data_portal_type)
 
     def _get_part_field(self):
         portal_mainifest = self._sync_portal_manifest()
