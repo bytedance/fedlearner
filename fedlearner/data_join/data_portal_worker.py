@@ -184,7 +184,7 @@ class DataPortalWorker(object):
                 self._etcd_addrs, self._etcd_base_dir, self._use_mock_etcd
             )
             type_repr = 'psi'
-        logging.info("Partitioner rank_id-[%d] start run task %s of type %s"\
+        logging.info("Partitioner rank_id-[%d] start run task %s of type %s "\
                      "for partition %d, input %d files", self._rank_id,
                      partition_options.partitioner_name, type_repr,
                      partition_options.partitioner_rank_id,
