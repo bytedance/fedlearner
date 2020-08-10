@@ -26,8 +26,7 @@ from fedlearner.data_join.rsa_psi.rsa_psi_preprocessor import RsaPsiPreProcessor
 
 if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
-    logging.basicConfig(format="%(asctime)s %(pathname)s "\
-                               "%(filename)s %(funcName)s "\
+    logging.basicConfig(format="%(asctime)s %(filename)s "\
                                "%(lineno)s %(levelname)s - %(message)s")
     parser = argparse.ArgumentParser(description='Rsa Psi Preprocessor!')
     parser.add_argument('--preprocessor_name', type=str, default='test',

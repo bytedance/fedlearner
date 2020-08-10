@@ -57,8 +57,7 @@ def generate_input_csv(base_dir, start_id, end_id, partition_num):
 
 if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
-    logging.basicConfig(format="%(asctime)s %(pathname)s "\
-                               "%(filename)s %(funcName)s "\
+    logging.basicConfig(format="%(asctime)s %(filename)s "\
                                "%(lineno)s %(levelname)s - %(message)s")
     parser = argparse.ArgumentParser(description='csv raw data generator cmd.')
     parser.add_argument('--base_dir', type=str, required=True,

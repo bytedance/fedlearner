@@ -28,8 +28,7 @@ from fedlearner.data_join.raw_data_partitioner import RawDataPartitioner
 
 if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
-    logging.basicConfig(format="%(asctime)s %(pathname)s "\
-                               "%(filename)s %(funcName)s "\
+    logging.basicConfig(format="%(asctime)s %(filename)s "\
                                "%(lineno)s %(levelname)s - %(message)s")
     parser = argparse.ArgumentParser(description='Raw Data Partitioner')
     parser.add_argument('--partitioner_name', type=str, default='test',

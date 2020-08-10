@@ -23,8 +23,7 @@ from fedlearner.data_join.data_portal_worker import DataPortalWorker
 
 if __name__ == '__main__':
     logging.getLogger().setLevel(logging.INFO)
-    logging.basicConfig(format="%(asctime)s %(pathname)s "\
-                               "%(filename)s %(funcName)s "\
+    logging.basicConfig(format="%(asctime)s %(filename)s "\
                                "%(lineno)s %(levelname)s - %(message)s")
     parser = argparse.ArgumentParser(description='DataJointPortal cmd.')
     parser.add_argument("--rank_id", type=int,

@@ -25,8 +25,7 @@ tensorflow.compat.v1.enable_eager_execution()
 
 if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
-    logging.basicConfig(format="%(asctime)s %(pathname)s "\
-                               "%(filename)s %(funcName)s "\
+    logging.basicConfig(format="%(asctime)s %(filename)s "\
                                "%(lineno)s %(levelname)s - %(message)s")
     parser = argparse.ArgumentParser(description='DataJoinWorkerService cmd.')
     parser.add_argument('peer_addr', type=str,
