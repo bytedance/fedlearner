@@ -22,4 +22,6 @@ source /app/deploy/scripts/hdfs_common.sh || true
 python -m fedlearner.trainer_master.${ROLE}_tm \
     -app_id=$APPLICATION_ID \
     -data_source=$DATA_SOURCE \
+    -epoch=${EPOCH:=1} \
+    -shuffle=${SHUFFLE:=False} \
     -p 50051

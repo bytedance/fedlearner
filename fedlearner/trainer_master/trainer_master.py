@@ -52,7 +52,7 @@ class TrainerMaster(object):
         data_block = self._alloc_data_block(block_id=request.block_id)
         response = tm_pb.DataBlockResponse()
         logging.debug("Base TrainerMaster allocated worker_%d"
-                       "with block id %d", request.worker_rank,
+                       "with block id %s", request.worker_rank,
                                            data_block.block_id)
         if data_block:
             response.status.code = common_pb.STATUS_SUCCESS
