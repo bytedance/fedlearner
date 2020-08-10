@@ -171,7 +171,7 @@ class DataPortalWorker(object):
         partition_options = self._make_partitioner_options(task)
         data_partitioner = None
         type_repr = ''
-        if task.data_portal_type == dp_pb.DataPortalType.Streaming
+        if task.data_portal_type == dp_pb.DataPortalType.Streaming:
             data_partitioner = RawDataSortPartitioner(
                 partition_options, task.part_field, self._etcd_name,
                 self._etcd_addrs, self._etcd_base_dir, self._use_mock_etcd
