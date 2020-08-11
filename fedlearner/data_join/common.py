@@ -21,6 +21,7 @@ import threading
 import time
 from contextlib import contextmanager
 from guppy import hpy
+from collections import OrderedDict
 
 import tensorflow.compat.v1 as tf
 from google.protobuf import text_format
@@ -38,7 +39,7 @@ TmpFileSuffix = '.tmp'
 DoneFileSuffix = '.done'
 RawDataFileSuffix = '.rd'
 InvalidEventTime = -9223372036854775808
-InvalidRawId = ''
+InvalidRawId = ''.encode()
 
 @contextmanager
 def make_tf_record_iter(fpath, options=None):
@@ -189,10 +190,20 @@ def convert_dict_to_tf_example(src_dict):
 
 def convert_tf_example_to_dict(src_tf_example):
     assert isinstance(src_tf_example, tf.train.Example)
-    dst_dict = {}
+    dst_dict = OrderedDict()
     tf_feature = src_tf_example.features.feature
-    for key, feat in tf_feature:
-        dst_dict[key] = feat
+    for key, feat in tf_feature.items():
+        csv_val = None
+        if feat.HasField('int64_list'):
+            csv_val = [item for item in feat.int64_list.value]
+        elif feat.HasField('bytes_list'):
+            csv_val = [item for item in feat.bytes_list.value]
+        elif feat.HasField('float_list'):
+            csv_val = [item for item in feat.float_list.value]
+        else:
+            assert False, "feat type must in int64, byte, float"
+        assert isinstance(csv_val, list)
+        dst_dict[key] = csv_val[0] if len(csv_val) == 1 else csv_val
     return dst_dict
 
 def int2bytes(digit, byte_len, byteorder='little'):
