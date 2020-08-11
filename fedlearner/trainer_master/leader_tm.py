@@ -62,8 +62,8 @@ class LeaderTrainerMaster(TrainerMaster):
             if self._shuffle_data_block:
                 random.shuffle(data_block_reps)
             for dbr in data_block_reps:
-                logging.debug('load data block id %s path %s',
-                              dbr.block_id, dbr.data_block_fpath)
+                logging.debug('epoch round-%d: add data block id %s path %s',
+                               rnd, dbr.block_id, dbr.data_block_fpath)
                 self._data_block_queue.put(dbr)
 
     def _alloc_data_block(self, block_id=None):
