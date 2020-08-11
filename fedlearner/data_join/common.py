@@ -20,8 +20,9 @@ import uuid
 import threading
 import time
 from contextlib import contextmanager
-from guppy import hpy
 from collections import OrderedDict
+
+from guppy import hpy
 
 import tensorflow.compat.v1 as tf
 from google.protobuf import text_format
@@ -195,11 +196,11 @@ def convert_tf_example_to_dict(src_tf_example):
     for key, feat in tf_feature.items():
         csv_val = None
         if feat.HasField('int64_list'):
-            csv_val = [item for item in feat.int64_list.value]
+            csv_val = [item for item in feat.int64_list.value] # pylint: disable=unnecessary-comprehension
         elif feat.HasField('bytes_list'):
-            csv_val = [item for item in feat.bytes_list.value]
+            csv_val = [item for item in feat.bytes_list.value] # pylint: disable=unnecessary-comprehension
         elif feat.HasField('float_list'):
-            csv_val = [item for item in feat.float_list.value]
+            csv_val = [item for item in feat.float_list.value] #pylint: disable=unnecessary-comprehension
         else:
             assert False, "feat type must in int64, byte, float"
         assert isinstance(csv_val, list)
