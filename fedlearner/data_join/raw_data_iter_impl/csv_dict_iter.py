@@ -37,8 +37,6 @@ class CsvItem(RawDataIter.Item):
             logging.error("Failed parse example id since no join "\
                           "id in csv dict raw %s", self._raw)
             return common.InvalidExampleId
-        if isinstance(self._raw['example_id'], bytes):
-            return self._raw['example_id']
         return str(self._raw['example_id']).encode()
 
     @property
@@ -57,8 +55,6 @@ class CsvItem(RawDataIter.Item):
             logging.error("Failed parse raw id since no join "\
                           "id in csv dict raw %s", self._raw)
             return common.InvalidRawId
-        if isinstance(self._raw['raw_id'], bytes):
-            return self._raw['raw_id']
         return str(self._raw['raw_id']).encode()
 
     @property
