@@ -18,8 +18,12 @@ set -ex
 
 export CUDA_VISIBLE_DEVICES=
 source /app/deploy/scripts/hdfs_common.sh || true
+source /app/deploy/scripts/env_to_args.sh
+
+epoch_num=$(normalize_env_to_args "--epoch_num" $EPOCH_NUM)
 
 python -m fedlearner.trainer_master.${ROLE}_tm \
     -app_id=$APPLICATION_ID \
     -data_source=$DATA_SOURCE \
-    -p 50051
+    -p 50051 \
+    $epoch_num $ONLINE_TRAINING $SUFFLE_DATA_BLOCK
