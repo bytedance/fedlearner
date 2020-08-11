@@ -212,7 +212,8 @@ class EtcdBasedMockRawDataVisitor(RawDataVisitor):
             self._finished = False
 
     def is_input_data_finish(self):
-        return self._mock_rd_manifest_manager.get_manifest(0).finished
+        manager = self._mock_rd_manifest_manager
+        return manager.get_manifest(self._partition_id).finished
 
     def cleanup_meta_data(self):
         self._mock_rd_manifest_manager.cleanup_meta_data()
