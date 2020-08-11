@@ -55,7 +55,7 @@ class LeaderTrainerMaster(TrainerMaster):
         visitor = self._data_block_visitor
         data_block_reps = [dbr for dbr in visitor.LoadDataBlockRepByTimeFrame(
                            self._start_time, self._end_time).values()
-                           if dbr.data_block_id not in checkpoint]
+                           if dbr.block_id not in checkpoint]
         if self._online_training:
             data_block_reps.sort(key=dbr.data_block_index)
         for rnd in range(self._epoch_num):
