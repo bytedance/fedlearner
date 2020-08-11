@@ -98,9 +98,9 @@ class RsaPsi(unittest.TestCase):
             partition_id = CityHash32(item) % partition_num
             raw = OrderedDict()
             raw['raw_id'] = item
-            raw['feat_0'] = str((partition_id << 30) + 0) + item
-            raw['feat_1'] = str((partition_id << 30) + 1) + item
-            raw['feat_2'] = str((partition_id << 30) + 2) + item
+            raw['feat_0'] = 'leader-' + str((partition_id << 30) + 0) + item
+            raw['feat_1'] = 'leader-' + str((partition_id << 30) + 1) + item
+            raw['feat_2'] = 'leader-' + str((partition_id << 30) + 2) + item
             csv_writers[partition_id].write(raw)
         for csv_writer in csv_writers:
             csv_writer.close()
@@ -122,9 +122,9 @@ class RsaPsi(unittest.TestCase):
             feat = {}
             feat['raw_id'] = tf.train.Feature(
                     bytes_list=tf.train.BytesList(value=[item.encode()]))
-            f0 = str((partition_id << 30) + 0) + item
-            f1 = str((partition_id << 30) + 1) + item
-            f2 = str((partition_id << 30) + 2) + item
+            f0 = 'follower' + str((partition_id << 30) + 0) + item
+            f1 = 'follower' + str((partition_id << 30) + 1) + item
+            f2 = 'follower' + str((partition_id << 30) + 2) + item
             feat['feat_0'] = tf.train.Feature(
                     bytes_list=tf.train.BytesList(value=[f0.encode()]))
             feat['feat_1'] = tf.train.Feature(
