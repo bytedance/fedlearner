@@ -145,7 +145,8 @@ class IdBatchFetcher(ItemBatchSeqProcessor):
                     self._options.preprocessor_name,
                     self._options.partition_id
                 ),
-                self._options.input_file_subscribe_dir
+                self._options.input_file_subscribe_dir,
+                self._options.partition_id
             )
 
 class SignedIdBatch(ItemBatch):
