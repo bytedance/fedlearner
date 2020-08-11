@@ -20,6 +20,8 @@ import uuid
 import threading
 import time
 from contextlib import contextmanager
+from collections import OrderedDict
+
 from guppy import hpy
 
 import tensorflow.compat.v1 as tf
@@ -38,7 +40,7 @@ TmpFileSuffix = '.tmp'
 DoneFileSuffix = '.done'
 RawDataFileSuffix = '.rd'
 InvalidEventTime = -9223372036854775808
-InvalidRawId = ''
+InvalidRawId = ''.encode()
 
 @contextmanager
 def make_tf_record_iter(fpath, options=None):
@@ -137,7 +139,7 @@ def raw_data_pub_etcd_key(pub_base_dir, partition_id, process_index):
     return os.path.join(pub_base_dir, partition_repr(partition_id),
                         '{:08}{}'.format(process_index, RawDataPubSuffix))
 
-_valid_basic_feature_type = (int, str, bytes, float)
+_valid_basic_feature_type = (int, str, float)
 def convert_dict_to_tf_example(src_dict):
     assert isinstance(src_dict, dict)
     tf_feature = {}
@@ -171,10 +173,6 @@ def convert_dict_to_tf_example(src_dict):
             value = feature if isinstance(feature, list) else [feature]
             tf_feature[key] = tf.train.Feature(
                 int64_list=tf.train.Int64List(value=value))
-        elif basic_type == bytes:
-            value = feature if isinstance(feature, list) else [feature]
-            tf_feature[key] = tf.train.Feature(
-                bytes_list=tf.train.BytesList(value=value))
         elif basic_type == str:
             value = [feat.encode() for feat in feature] if \
                      isinstance(feature, list) else [feature.encode()]
@@ -189,10 +187,20 @@ def convert_dict_to_tf_example(src_dict):
 
 def convert_tf_example_to_dict(src_tf_example):
     assert isinstance(src_tf_example, tf.train.Example)
-    dst_dict = {}
+    dst_dict = OrderedDict()
     tf_feature = src_tf_example.features.feature
-    for key, feat in tf_feature:
-        dst_dict[key] = feat
+    for key, feat in tf_feature.items():
+        csv_val = None
+        if feat.HasField('int64_list'):
+            csv_val = [item for item in feat.int64_list.value] # pylint: disable=unnecessary-comprehension
+        elif feat.HasField('bytes_list'):
+            csv_val = [item.decode() for item in feat.bytes_list.value] # pylint: disable=unnecessary-comprehension
+        elif feat.HasField('float_list'):
+            csv_val = [item for item in feat.float_list.value] #pylint: disable=unnecessary-comprehension
+        else:
+            assert False, "feat type must in int64, byte, float"
+        assert isinstance(csv_val, list)
+        dst_dict[key] = csv_val[0] if len(csv_val) == 1 else csv_val
     return dst_dict
 
 def int2bytes(digit, byte_len, byteorder='little'):

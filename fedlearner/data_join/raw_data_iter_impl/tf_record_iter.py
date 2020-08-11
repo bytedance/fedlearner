@@ -80,8 +80,9 @@ class TfExampleItem(RawDataIter.Item):
             feat = example.features.feature
             if isinstance(example_id, str):
                 example_id = example_id.encode()
-            feat['example_id'] = tf.train.Feature(
-                    bytes_list=tf.train.BytesList(value=[example_id])
+            feat['example_id'].CopyFrom(tf.train.Feature(
+                        bytes_list=tf.train.BytesList(value=[example_id])
+                    )
                 )
             self._record_str = example.SerializeToString()
             self._example_id = example_id
