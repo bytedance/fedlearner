@@ -106,6 +106,37 @@ class RsaPsi(unittest.TestCase):
             csv_writer.close()
         return fpaths
 
+    def _generate_input_tf_record(self, cands, base_dir):
+        if not gfile.Exists(base_dir):
+            gfile.MakeDirs(base_dir)
+        fpaths = []
+        random.shuffle(cands)
+        tfr_writers = []
+        partition_num = self._data_source_l.data_source_meta.partition_num
+        for partition_id in range(partition_num):
+            fpath = os.path.join(base_dir, str(partition_id)+common.RawDataFileSuffix)
+            fpaths.append(fpath)
+            tfr_writers.append(tf.io.TFRecordWriter(fpath))
+        for item in cands:
+            partition_id = CityHash32(item) % partition_num
+            feat = {}
+            feat['raw_id'] = tf.train.Feature(
+                    bytes_list=tf.train.BytesList(value=[item.encode()]))
+            f0 = str((partition_id << 30) + 0) + item
+            f1 = str((partition_id << 30) + 1) + item
+            f2 = str((partition_id << 30) + 2) + item
+            feat['feat_0'] = tf.train.Feature(
+                    bytes_list=tf.train.BytesList(value=[f0.encode()]))
+            feat['feat_1'] = tf.train.Feature(
+                    bytes_list=tf.train.BytesList(value=[f1.encode()]))
+            feat['feat_2'] = tf.train.Feature(
+                    bytes_list=tf.train.BytesList(value=[f2.encode()]))
+            example = tf.train.Example(features=tf.train.Features(feature=feat))
+            tfr_writers[partition_id].write(example.SerializeToString())
+        for tfr_writer in tfr_writers:
+            tfr_writer.close()
+        return fpaths
+
     def _setUpRsaPsiConf(self):
         self._input_dir_l = './rsa_psi_raw_input_l'
         self._input_dir_f = './rsa_psi_raw_input_f'
@@ -130,7 +161,7 @@ class RsaPsi(unittest.TestCase):
         self._psi_raw_data_fpaths_l = self._generate_input_csv(
                 list(self._rsa_raw_id_l), self._input_dir_l
             )
-        self._psi_raw_data_fpaths_f = self._generate_input_csv(
+        self._psi_raw_data_fpaths_f = self._generate_input_tf_record(
                 list(self._rsa_raw_id_f), self._input_dir_f
             )
 
@@ -192,7 +223,7 @@ class RsaPsi(unittest.TestCase):
         logging.info("masters turn into Processing state")
 
     def _launch_workers(self):
-        worker_options = dj_pb.DataJoinWorkerOptions(
+        worker_options_l = dj_pb.DataJoinWorkerOptions(
                 use_mock_etcd=True,
                 raw_data_options=dj_pb.RawDataOptions(
                     raw_data_iter='TF_RECORD',
@@ -215,9 +246,36 @@ class RsaPsi(unittest.TestCase):
                     max_flying_item=4096
                 ),
                 data_block_builder_options=dj_pb.WriterOptions(
+                    output_writer='CSV_DICT'
+                )
+            )
+        worker_options_f = dj_pb.DataJoinWorkerOptions(
+                use_mock_etcd=True,
+                raw_data_options=dj_pb.RawDataOptions(
+                    raw_data_iter='CSV_DICT',
+                    read_ahead_size=1<<20,
+                    read_batch_size=128
+                ),
+                example_id_dump_options=dj_pb.ExampleIdDumpOptions(
+                    example_id_dump_interval=1,
+                    example_id_dump_threshold=1024
+                ),
+                example_joiner_options=dj_pb.ExampleJoinerOptions(
+                    example_joiner='SORT_RUN_JOINER',
+                    min_matching_window=64,
+                    max_matching_window=256,
+                    data_block_dump_interval=30,
+                    data_block_dump_threshold=1000
+                ),
+                batch_processor_options=dj_pb.BatchProcessorOptions(
+                    batch_size=1024,
+                    max_flying_item=4096
+                ),
+                data_block_builder_options=dj_pb.WriterOptions(
                     output_writer='TF_RECORD'
                 )
             )
+
         self._worker_addrs_l = ['localhost:4161', 'localhost:4162',
                                 'localhost:4163', 'localhost:4164']
         self._worker_addrs_f = ['localhost:5161', 'localhost:5162',
@@ -231,12 +289,12 @@ class RsaPsi(unittest.TestCase):
                 int(worker_addr_l.split(':')[1]),
                 worker_addr_f, self._master_addr_l, rank_id,
                 self._etcd_name, self._etcd_base_dir_l,
-                self._etcd_addrs, worker_options))
+                self._etcd_addrs, worker_options_l))
             self._workers_f.append(data_join_worker.DataJoinWorkerService(
                 int(worker_addr_f.split(':')[1]),
                 worker_addr_l, self._master_addr_f, rank_id,
                 self._etcd_name, self._etcd_base_dir_f,
-                self._etcd_addrs, worker_options))
+                self._etcd_addrs, worker_options_f))
         for w in self._workers_l:
             w.start()
         for w in self._workers_f:
@@ -347,11 +405,11 @@ class RsaPsi(unittest.TestCase):
                         max_flying_item=1<<14
                     ),
                     input_raw_data=dj_pb.RawDataOptions(
-                        raw_data_iter='CSV_DICT',
+                        raw_data_iter='TF_RECORD',
                         read_ahead_size=1<<20
                     ),
                     writer_options=dj_pb.WriterOptions(
-                        output_writer='TF_RECORD'
+                        output_writer='CSV_DICT'
                     )
                 )
             processor = rsa_psi_preprocessor.RsaPsiPreProcessor(
