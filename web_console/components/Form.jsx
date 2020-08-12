@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import css from 'styled-jsx/css';
-import { Button, Card, Grid, Text, Input, Toggle, Textarea, Note, useTheme } from '@zeit-ui/react';
+import { Button, ButtonGroup, Card, Grid, Text, Input, Toggle, Textarea, Note, useTheme, Collapse, useToasts } from '@zeit-ui/react';
 import FederationSelect from './FederationSelect';
 import JobTypeSelect from './JobTypeSelect';
 import JobRoleSelect from './JobRoleSelect';
 import ServerTicketSelect from './ServerTicketSelect';
 import ClientTicketSelect from './ClientTicketSelect';
 import DataPortalTypeSelect from './DataPortalTypeSelect';
+import NameValueInput from './NameValueGroup';
 
 function useStyles() {
   return css`
@@ -36,10 +37,29 @@ export default function Form({
   fields = [], okText = 'Submit', cancelText = 'Cancel',
   message = 'Please fill out the form before submitting.',
 }) {
+  // cache raw fields data
+  const rawFields = fields
+  // TODO: handle name confilicts
+
+  // flat all group fileds
+  fields = fields.reduce((total, curr) => {
+    if (curr.groupName) {
+      if (Array.isArray(curr.fields)) {
+        total.push(...curr.fields)
+      } else {
+        Object.values(curr.fields).forEach(el => total.push(...el))
+      }
+    } else {
+      total.push(curr)
+    }
+    return total
+  }, [])
   const theme = useTheme();
   const styles = useStyles(theme);
   const [form, setForm] = useState(fields.reduce((total, current) => {
-    total[current.key] = current.value;
+    total[current.key] = current.hasOwnProperty('value')
+      ? current.value
+      : current.value || current.default;
     return total;
   }, {}));
   const disabled = fields.filter((x) => x.required).some((x) => !form[x.key]);
@@ -50,7 +70,7 @@ export default function Form({
     };
     setForm(data);
   };
-  const renderField = ({ key, label, props, type, onChange }) => {
+  const renderField = ({ key, label, props, type, onChange, hideLabel }) => {
     const valueProps = {
       ...props,
       style: {
@@ -72,7 +92,7 @@ export default function Form({
     if (type === 'text' || type === 'json') {
       return (
         <div className="formItemWithLabel">
-          <label className="formItemLabel" htmlFor={key}>{label || key}</label>
+          { !hideLabel ? <label className="formItemLabel" htmlFor={key}>{label || key}</label> : undefined }
           <Textarea
             value={form[key]}
             onChange={(e) => updateForm(key, e.target.value)}
@@ -193,6 +213,36 @@ export default function Form({
       );
     }
 
+    if (type === 'name-value') {
+      const btnStyle = {
+        margin: '20px 0 0 0',
+        width: '100%',
+        fontSize: '16px',
+        fontWeight: 'bolder'
+      }
+
+      const onAddNameValue = () => {
+        // NOTE form[key] is string
+        let preValue = JSON.parse(form[key] || '[]')
+        preValue.push({name: '', value: ''})
+        updateForm(key, JSON.stringify(preValue))
+      }
+      return (
+        <>
+          <label className="formItemLabel" htmlFor={key}>{label || key}</label>
+          <NameValueInput
+            value={form[key]}
+            onChange={value => updateForm(key, value)}
+          />
+          <Button
+            className="addNameValueBtn"
+            style={btnStyle}
+            onClick={onAddNameValue}
+          >add</Button>
+        </>
+      )
+    }
+
     return (
       <Input
         value={form[key]}
@@ -205,8 +255,29 @@ export default function Form({
   const [submitting, setSubmitting] = useState(false);
   const handleSubmit = async () => {
     setSubmitting(true);
+    const formData = rawFields.reduce((total, curr) => {
+      if (curr.groupName) {
+        total[curr.groupName] = {}
+        const fillGroupFields = fields => {
+          for (let field of fields) {
+            total[curr.groupName][field.key] = form[field.key]
+          }
+        }
+        // handle multi formType
+        if (Array.isArray(curr.fields)) {
+          fillGroupFields(curr.fields)
+        } else {
+          for (let formType in curr.fields) {
+            fillGroupFields(curr.fields[formType])
+          }
+        }
+      } else {
+          total[curr.key] = form[curr.key]
+      }
+      return total
+    }, {})
     try {
-      const res = await onSubmit(form);
+      const res = await onSubmit(formData);
       if (res.error) {
         throw new Error(res.error);
       }
@@ -218,6 +289,87 @@ export default function Form({
     }
   };
 
+  const renderFieldInGrid = x => (<Grid key={x.key} xs={x.span || 8} md={x.span || 8}>{renderField(x)}</Grid>)
+
+  const renderGroup = group => {
+    // const [, setToast] = useToasts()
+    const [formType, setFormType] = useState(group.formTypes && group.formTypes[0])
+    const [groupFields, setGroupFields] = useState(
+      Array.isArray(group.fields) ? group.fields : group.fields[formType]
+    )
+
+    /**
+     * form type switch
+     * - set `formTypes` to active form type switch
+     * - fileds must be object with key as form type, value as fields of group
+     * - set `onFormTypeChange` to convert data between types
+     *    - (data, currType, targetType) => object
+     *    - data is an object with form data (json fields as string)
+     *    - the returned object will be used to fill form (json needs to be string)
+     *    - if `error` field in the returned object, switching will be prevented and show error msg
+     */
+    const onFormTypeChange = (e, type) => {
+      e.stopPropagation()
+
+      if (formType === type) return
+      // get form data
+      let data = groupFields.reduce((total, curr) => {
+        total[curr.key] = form[curr.key]
+        return total
+      }, {})
+      let res = group.onFormTypeChange && group.onFormTypeChange(data, formType, type)
+      if (res.error) {
+        // TODO: figure out why this not working
+        // setToast({ text: res.error, type: 'error' })
+        alert(res.error)
+        return
+      }
+
+      let copy = {...form}
+      for (let key in res) {
+        copy[key] = res[key]
+      }
+      setForm(copy)
+
+      setFormType(type)
+      setGroupFields(group.fields[type])
+    }
+    const collapseTitle = () => {
+      return <>
+        {group.groupName}
+        { formType ?
+          <ButtonGroup className="formTypeBtns" size="small" style={{marginLeft: '20px'}}>
+            { group.formTypes.map(type =>
+                <Button
+                  className={formType === type ? 'selecetedType' : 'formTypeBtn'}
+                  onClick={e => onFormTypeChange(e, type)}
+                >
+                  {type}
+                </Button>
+              ) }
+            <style jsx global>{`
+              .formTypeBtns > .selecetedType, .formTypeBtns > .selecetedType:hover {
+                background: #000;
+                color: #fff;
+                border-color: #000;
+              }
+              .formTypeBtns > .formTypeBtn:hover {
+                background: #eee;
+              }
+            `}</style>
+          </ButtonGroup>: undefined }
+      </>
+    }
+
+    return <Grid xs={24}>
+      <Collapse title={collapseTitle()} initialVisible={true}>
+        <Grid.Container gap={2}>
+          { groupFields.map(field => renderFieldInGrid(field)) }
+        </Grid.Container>
+      </Collapse>
+    </Grid>
+  }
+
   return (
     <>
       <div className="heading">
@@ -226,7 +378,7 @@ export default function Form({
       </div>
       <Card shadow>
         <Grid.Container gap={gap}>
-          {fields.map((x) => <Grid key={x.key} xs={x.span || 8} md={x.span || 8}>{renderField(x)}</Grid>)}
+          {rawFields.map((x) => (x.groupName ? renderGroup(x) : renderFieldInGrid(x)))}
         </Grid.Container>
         <Card.Footer className="formCardFooter">
           {error ? <Note small label="error" type="error">{error}</Note> : <Text p>{message}</Text>}
