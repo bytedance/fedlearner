@@ -4,7 +4,10 @@ import useSWR from 'swr';
 import { fetcher } from '../libs/http';
 
 export default function ServerTicketSelect(props) {
-  const { data } = useSWR(`federations/${props.federation_id}/tickets`, fetcher);
+  const { data } = useSWR(
+    props.federation_id ? `federations/${props.federation_id}/tickets` : null,
+    fetcher,
+  );
   const tickets = (data && data.data) || [];
   const actualValue = tickets.find((x) => x.name === props.value)?.value;
   const actualOnChange = (value) => {

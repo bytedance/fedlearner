@@ -112,6 +112,8 @@
     "ylru": "1.2.1"
   },
   "devDependencies": {
+    "@commitlint/cli": "9.1.1",
+    "@commitlint/config-conventional": "9.1.1",
     "babel-eslint": "10.1.0",
     "babel-plugin-import": "1.13.0",
     "cross-env": "7.0.2",
