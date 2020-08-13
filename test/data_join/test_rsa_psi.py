@@ -31,6 +31,7 @@ import unittest
 import tensorflow.compat.v1 as tf
 tf.enable_eager_execution()
 import numpy as np
+import tensorflow_io
 from tensorflow.compat.v1 import gfile
 from google.protobuf import text_format, empty_pb2, timestamp_pb2
 

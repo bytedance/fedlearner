@@ -18,6 +18,7 @@ import unittest
 from os import path
 
 from google.protobuf import timestamp_pb2
+import tensorflow_io
 from tensorflow.compat.v1 import gfile
 import tensorflow.compat.v1 as tf
 tf.enable_eager_execution()

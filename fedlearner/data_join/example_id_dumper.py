@@ -21,6 +21,7 @@ import logging
 from contextlib import contextmanager
 
 import tensorflow.compat.v1 as tf
+import tensorflow_io # pylint: disable=unused-import
 from tensorflow.compat.v1 import gfile
 
 from fedlearner.common import metrics

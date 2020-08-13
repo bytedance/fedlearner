@@ -21,6 +21,7 @@ import copy
 
 import tensorflow.compat.v1 as tf
 from google.protobuf import text_format
+import tensorflow_io # pylint: disable=unused-import
 from tensorflow.compat.v1 import gfile
 
 from fedlearner.common import data_join_service_pb2 as dj_pb

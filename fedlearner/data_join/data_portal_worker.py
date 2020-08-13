@@ -21,6 +21,7 @@ from functools import cmp_to_key
 import gc
 import grpc
 
+import tensorflow_io # pylint: disable=unused-import
 from tensorflow.compat.v1 import gfile
 
 from fedlearner.common import data_portal_service_pb2 as dp_pb
