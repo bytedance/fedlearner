@@ -87,6 +87,10 @@ class elasticSearchHandler(Handler):
             self._es.indices.create(index='metrics')
 
     def emit(self, name, value, tags=None, metrics_type=None):
+        application_id = os.environ.get('APPLICATION_ID', 'test_job')
+        if tags is None:
+            tags = {}
+        tags['application_id'] = str(application_id)
         action = {
             "name": name,
             "value": value,

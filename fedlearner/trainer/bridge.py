@@ -64,7 +64,6 @@ class Bridge(object):
         def Transmit(self, request, context):
             return self._bridge._transmit_handler(request)
 
-        @metrics.timer(func_name="one stream transmit", tags={})
         def StreamTransmit(self, request_iterator, context):
             for request in request_iterator:
                 yield self._bridge._transmit_handler(request)
@@ -160,7 +159,6 @@ class Bridge(object):
         lock = threading.Lock()
         resend_list = collections.deque()
 
-        @metrics.timer(func_name="shutdown_fn", tags={})
         def shutdown_fn():
             with lock:
                 while len(resend_list) > 0 or not self._transmit_queue.empty():
@@ -200,12 +198,7 @@ class Bridge(object):
                                            tags={})
                         yield item
 
-                time_start = time.time()
                 generator = client.StreamTransmit(iterator())
-                time_end = time.time()
-                metrics.emit_timer(name="one_StreamTransmit_spend",
-                                   value=int(time_end-time_start),
-                                   tags={})
                 for response in generator:
                     if response.status.code == common_pb.STATUS_SUCCESS:
                         logging.debug("Message with seq_num=%d is "
@@ -231,8 +224,8 @@ class Bridge(object):
                             "Resend queue size: %d, starting from seq_num=%s",
                             len(resend_list), min_seq_num_to_resend)
                         metrics.emit_store(name="sum_of_resend",
-                                        value=int(len(resend_list)),
-                                        tags={})
+                                           value=int(len(resend_list)),
+                                           tags={})
             except Exception as e:  # pylint: disable=broad-except
                 if not stop_event.is_set():
                     logging.warning("Bridge streaming broken: %s.", repr(e))
@@ -321,7 +314,6 @@ class Bridge(object):
             return tws_pb.TrainerWorkerResponse(
                 next_seq_num=self._next_receive_seq_num)
 
-    @metrics.timer(func_name="data_block_req", tags={})
     def _data_block_handler(self, request):
         assert self._connected, "Cannot load data before connect"
         if not self._data_block_handler_fn:
