@@ -145,7 +145,7 @@ def cross_entropy(y_hat, y):
     y = tf.cast(tf.reshape(y, shape=[-1, 1]), dtype=tf.int32)
     y = tf.one_hot(y, depth=y_hat.shape[-1])
     y = tf.cast(tf.reshape(y, shape=[-1, y_hat.shape[-1]]), dtype=tf.int32)
-    return -tf.math.log(tf.boolean_mask(y_hat, y) + 1e-8)
+    return -tf.math.log(tf.boolean_mask(y_hat, y) + 1e-8) # pylint: disable=invalid-unary-operand-type
 
 
 def sigmoid_cross_entropy(y_hat, y):
@@ -407,7 +407,7 @@ def train(
 
         test_loss, test_auc = test(test_iter, loss)
 
-        with writer.as_default():
+        with writer.as_default(): # pylint: disable=not-context-manager
             tf.summary.scalar('train_loss', train_l_sum / n, step=epoch)
             tf.summary.scalar('train_auc', train_auc.result(), step=epoch)
             # tf.summary.scalar('train_auc', train_acc_sum / n, step=epoch)
