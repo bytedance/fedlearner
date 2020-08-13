@@ -143,7 +143,7 @@ class SortRunMergerWriter(object):
     def append(self, item):
         self._get_output_writer().write_item(item)
         self._merged_num += 1
-        if self._merged_num % (1 << 18) == 0:
+        if self._merged_num % (1 << 20) == 0:
             self._finish_writer()
 
     def finish(self):

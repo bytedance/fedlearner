@@ -151,7 +151,7 @@ class RsaPsiPreProcessor(object):
             logging.debug("%s fetch batch begin at %d, len %d. wakeup %s",
                           self._id_batch_fetcher_name(), batch.begin_index,
                           len(batch), self._psi_rsa_signer_name())
-            if get_oom_risk_checker().check_oom_risk(0.85):
+            if get_oom_risk_checker().check_oom_risk(0.80):
                 logging.warning('early stop the id fetch '\
                                 'since the oom risk')
             self._wakeup_psi_rsa_signer()
@@ -159,7 +159,7 @@ class RsaPsiPreProcessor(object):
     def _id_batch_fetch_cond(self):
         next_index = self._psi_rsa_signer.get_next_index_to_fetch()
         return self._id_batch_fetcher.need_process(next_index) and \
-                not get_oom_risk_checker().check_oom_risk(0.85)
+                not get_oom_risk_checker().check_oom_risk(0.80)
 
     def _psi_rsa_signer_name(self):
         return self._repr + ':psi_rsa_signer'
@@ -246,8 +246,8 @@ class RsaPsiPreProcessor(object):
                   (flying_begin_index <= next_index <
                       flying_begin_index + flying_item_cnt) and
                    (flying_item_cnt-(next_index-flying_begin_index) >=
-                    max_flying_item // 4 or
-                    get_oom_risk_checker().check_oom_risk(0.75))))
+                    max_flying_item // 2 or
+                    get_oom_risk_checker().check_oom_risk(0.70))))
 
     def _sort_run_merger_name(self):
         return self._repr + ':sort_run_merger'
