@@ -24,7 +24,7 @@ from collections import OrderedDict
 
 from guppy import hpy
 
-import tensorflow_io
+import tensorflow_io # pylint: disable=unused-import
 import tensorflow.compat.v1 as tf
 from google.protobuf import text_format
 from tensorflow.compat.v1 import gfile
