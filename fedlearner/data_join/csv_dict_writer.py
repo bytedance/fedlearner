@@ -16,6 +16,7 @@
 
 import csv
 
+import tensorflow_io
 from tensorflow.compat.v1 import gfile
 
 class CsvDictWriter(object):

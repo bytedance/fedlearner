@@ -23,6 +23,7 @@ import threading
 import os
 import gc
 
+import tensorflow_io
 from tensorflow.compat.v1 import gfile
 
 from fedlearner.data_join.raw_data_iter_impl import create_raw_data_iter

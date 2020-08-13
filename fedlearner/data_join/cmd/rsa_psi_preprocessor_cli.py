@@ -18,6 +18,7 @@ import argparse
 import logging
 import os
 
+import tensorflow_io
 from tensorflow.compat.v1 import gfile
 
 from fedlearner.common import common_pb2 as common_pb

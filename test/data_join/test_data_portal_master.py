@@ -21,6 +21,7 @@ import logging
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 from google.protobuf import text_format
+import tensorflow_io
 from tensorflow.compat.v1 import gfile
 from fnmatch import fnmatch
 

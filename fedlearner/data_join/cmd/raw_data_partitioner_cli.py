@@ -20,6 +20,7 @@ from fnmatch import fnmatch
 import os
 
 from cityhash import CityHash32 # pylint: disable=no-name-in-module
+import tensorflow_io
 import tensorflow.compat.v1 as tf
 from tensorflow.compat.v1 import gfile
 

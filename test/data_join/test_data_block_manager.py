@@ -17,6 +17,7 @@
 import unittest
 import os
 
+import tensorflow_io
 import tensorflow.compat.v1 as tf
 tf.enable_eager_execution()
 from google.protobuf import text_format

@@ -19,6 +19,7 @@ import logging
 import os
 import rsa
 
+import tensorflow_io
 from tensorflow.compat.v1 import gfile
 
 from fedlearner.data_join import common

@@ -19,6 +19,7 @@ import re
 import copy
 from os import path
 
+import tensorflow_io
 from tensorflow.compat.v1 import gfile
 
 from fedlearner.data_join.output_writer_impl import create_output_writer

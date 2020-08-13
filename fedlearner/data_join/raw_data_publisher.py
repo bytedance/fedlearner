@@ -18,6 +18,7 @@ import logging
 
 from google.protobuf import text_format, empty_pb2
 
+import tensorflow_io
 from tensorflow.compat.v1 import gfile
 
 from fedlearner.common import data_join_service_pb2 as dj_pb

@@ -24,6 +24,7 @@ from collections import OrderedDict
 
 from guppy import hpy
 
+import tensorflow_io
 import tensorflow.compat.v1 as tf
 from google.protobuf import text_format
 from tensorflow.compat.v1 import gfile

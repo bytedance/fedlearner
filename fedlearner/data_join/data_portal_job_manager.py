@@ -20,6 +20,7 @@ from os import path
 from fnmatch import fnmatch
 
 from google.protobuf import text_format
+import tensorflow_io
 from tensorflow.compat.v1 import gfile
 
 from fedlearner.common import data_portal_service_pb2 as dp_pb

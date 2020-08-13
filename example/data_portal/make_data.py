@@ -16,6 +16,7 @@
 
 import random
 
+import tensorflow_io
 from tensorflow.compat.v1 import gfile
 import tensorflow.compat.v1 as tf
 
