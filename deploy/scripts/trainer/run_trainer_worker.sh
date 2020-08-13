@@ -68,4 +68,4 @@ python main.py \
     --checkpoint-path="$OUTPUT_BASE_DIR/checkpoints" \
     --export-path="$OUTPUT_BASE_DIR/exported_models" \
     $save_checkpoint_steps $sparse_estimator $summary_save_steps \
-    $batch_size $learning_rate
+    $save_checkpoint_secs $batch_size $learning_rate
