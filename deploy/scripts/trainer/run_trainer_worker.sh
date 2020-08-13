@@ -52,8 +52,11 @@ tar -zxvf code.tar.gz
 cd ${ROLE}
 
 save_checkpoint_steps=$(normalize_env_to_args "--save-checkpoint-steps" "$SAVE_CHECKPOINT_STEPS")
+save_checkpoint_secs=$(normalize_env_to_args "--save-checkpoint-secs" "$SAVE_CHECKPOINT_SECS")
 sparse_estimator=$(normalize_env_to_args "--sparse-estimator" "$SPARSE_ESTIMATOR")
 summary_save_steps=$(normalize_env_to_args "--summary-save-steps" "$SUMMARY_SAVE_STEPS")
+batch_size=$(normalize_env_to_args "--batch-size" "$BATCH_SIZE")
+learning_rate=$(normalize_env_to_args "--learning-rate" "$LEARNING_RATE")
 
 python main.py \
     --data-path="$DATA_PATH" \
@@ -64,4 +67,5 @@ python main.py \
     --peer-addr="$PEER_ADDR" \
     --checkpoint-path="$OUTPUT_BASE_DIR/checkpoints" \
     --export-path="$OUTPUT_BASE_DIR/exported_models" \
-    $save_checkpoint_steps $sparse_estimator $summary_save_steps
+    $save_checkpoint_steps $sparse_estimator $summary_save_steps \
+    $save_checkpoint_secs $batch_size $learning_rate
