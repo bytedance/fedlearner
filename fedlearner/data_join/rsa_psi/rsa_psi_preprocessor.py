@@ -246,7 +246,7 @@ class RsaPsiPreProcessor(object):
                   (flying_begin_index <= next_index <
                       flying_begin_index + flying_item_cnt) and
                    (flying_item_cnt-(next_index-flying_begin_index) >=
-                    max_flying_item // 2 or
+                    max_flying_item // 3 or
                     get_oom_risk_checker().check_oom_risk(0.70))))
 
     def _sort_run_merger_name(self):
