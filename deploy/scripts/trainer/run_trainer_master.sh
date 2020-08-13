@@ -21,9 +21,11 @@ source /app/deploy/scripts/hdfs_common.sh || true
 source /app/deploy/scripts/env_to_args.sh
 
 epoch_num=$(normalize_env_to_args "--epoch_num" $EPOCH_NUM)
+start_date=$(normalize_env_to_args "-start_date" $START_DATE)
+end_date=$(normalize_env_to_args "-end_date" $END_DATE)
 
 python -m fedlearner.trainer_master.${ROLE}_tm \
     -app_id=$APPLICATION_ID \
     -data_source=$DATA_SOURCE \
     -p 50051 \
-    $epoch_num $ONLINE_TRAINING $SUFFLE_DATA_BLOCK
+    $start_date $end_date $epoch_num $ONLINE_TRAINING $SUFFLE_DATA_BLOCK
