@@ -28,11 +28,12 @@ if [ $INDEX -lt $((WORKER_REPLICAS / 2)) ]; then
   exec ${psi_signer_cmd} &
   echo "launched psi signer"
 else
-  export INDEX=$((INDEX - WORKER_REPLICAS))
+  HALF=$((WORKER_REPLICAS / 2))
+  export INDEX=$((INDEX - HALF))
   psi_preprocessor_cmd=/app/deploy/scripts/rsa_psi/run_psi_preprocessor.sh 
   exec ${psi_preprocessor_cmd} &
   echo "launched psi preprocessor"
-  export INDEX=$((INDEX + WORKER_REPLICAS))
+  export INDEX=$((INDEX + HALF))
   data_join_cmd=/app/deploy/scripts/data_join/run_data_join_worker.sh
   exec ${data_join_cmd} &
   echo "launched data join worker"
