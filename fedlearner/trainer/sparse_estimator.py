@@ -16,7 +16,7 @@
 
 import tensorflow.compat.v1 as tf
 from tensorflow.compat.v1.estimator import ModeKeys
-from tensorflow.contrib import graph_editor as ge # pylint: disable=no-name-in-module
+from tensorflow.contrib import graph_editor as ge
 
 from fedlearner.trainer import embedding
 from fedlearner.trainer import estimator
