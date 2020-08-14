@@ -4,6 +4,7 @@ import { Link, Text, Input, Fieldset, Button, Card, Description, useTheme, useIn
 import Search from '@zeit-ui/react-icons/search';
 import NextLink from 'next/link';
 import useSWR from 'swr';
+import { StateProvider, useStateValue } from '../store'
 
 import { fetcher } from '../../libs/http';
 import { FLAppStatus, handleStatus, getStatusColor } from '../../utils/job';
@@ -79,9 +80,14 @@ function useStyles(theme) {
 function JobList(props) {
   const theme = useTheme();
   const styles = useStyles(theme);
+  const [{federationID}, ] = useStateValue()
 
   const { data, mutate } = useSWR('jobs', fetcher);
-  const jobs = data ? data.data : null;
+  const jobs = data
+    ? data.data.filter(el =>
+      [undefined, -1, federationID].some(id => id === el.metadata.federation_id)
+    )
+    : null
   const [federationId, setFederationId] = useState(null);
   const fields = [
     { key: 'name', required: true },
@@ -291,4 +297,10 @@ function JobList(props) {
   );
 }
 
-export default JobList;
+export default function Job (props) {
+  return (
+    <StateProvider>
+      <JobList {...props}></JobList>
+    </StateProvider>
+  )
+};

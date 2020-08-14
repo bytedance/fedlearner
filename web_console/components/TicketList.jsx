@@ -5,8 +5,10 @@ import Form from './Form';
 import { fetcher } from '../libs/http';
 import { humanizeTime } from '../utils/time';
 import { getTickets, createTicket, enableTicket, revokeTicket } from '../services/ticket';
+import { useStateValue } from '../pages/store'
 
 export default function TicketList() {
+  const [{federationID: currFederation}, dispatch] = useStateValue()
   const { data, mutate } = useSWR('tickets', fetcher);
   const tickets = data ? data.data : null;
   const columns = tickets
@@ -16,13 +18,15 @@ export default function TicketList() {
     ]
     : [];
   const dataSource = tickets
-    ? tickets.map((x) => ({
-      ...x,
-      is_admin: x.is_admin ? 'Yes' : 'No',
-      created_at: humanizeTime(x.created_at),
-      updated_at: humanizeTime(x.updated_at),
-      deleted_at: humanizeTime(x.deleted_at),
-    }))
+    ? tickets
+      .filter(el => currFederation < 0 || el.federation_id === currFederation)
+      .map((x) => ({
+        ...x,
+        is_admin: x.is_admin ? 'Yes' : 'No',
+        created_at: humanizeTime(x.created_at),
+        updated_at: humanizeTime(x.updated_at),
+        deleted_at: humanizeTime(x.deleted_at),
+      }))
     : [];
   const [formVisible, setFormVisible] = useState(false);
   const fields = [
