@@ -31,6 +31,22 @@ spec:
                   value: application_id
                 - name: OUTPUT_BASE_DIR
                   value: '/data/job_output/application_id'
+                - name: CPU_REQUEST
+                  valueFrom:
+                    resourceFieldRef:
+                      resource: requests.cpu
+                - name: MEM_REQUEST
+                  valueFrom:
+                    resourceFieldRef:
+                      resource: requests.memory
+                - name: CPU_LIMIT
+                  valueFrom:
+                    resourceFieldRef:
+                      resource: limits.cpu
+                - name: MEM_LIMIT
+                  valueFrom:
+                    resourceFieldRef:
+                      resource: limits.memory
                 - name: START_DATE
                   value: '2020041500'
                 - name: END_DATE
@@ -82,6 +98,22 @@ spec:
                   value: application_id
                 - name: OUTPUT_BASE_DIR
                   value: '/data/job_output/application_id'
+                - name: CPU_REQUEST
+                  valueFrom:
+                    resourceFieldRef:
+                      resource: requests.cpu
+                - name: MEM_REQUEST
+                  valueFrom:
+                    resourceFieldRef:
+                      resource: requests.memory
+                - name: CPU_LIMIT
+                  valueFrom:
+                    resourceFieldRef:
+                      resource: limits.cpu
+                - name: MEM_LIMIT
+                  valueFrom:
+                    resourceFieldRef:
+                      resource: limits.memory
                 - name: MODEL_NAME
                   value: fedlearner_model
               image: image_path
@@ -129,6 +161,22 @@ spec:
                   value: application_id
                 - name: OUTPUT_BASE_DIR
                   value: '/data/job_output/application_id'
+                - name: CPU_REQUEST
+                  valueFrom:
+                    resourceFieldRef:
+                      resource: requests.cpu
+                - name: MEM_REQUEST
+                  valueFrom:
+                    resourceFieldRef:
+                      resource: requests.memory
+                - name: CPU_LIMIT
+                  valueFrom:
+                    resourceFieldRef:
+                      resource: limits.cpu
+                - name: MEM_LIMIT
+                  valueFrom:
+                    resourceFieldRef:
+                      resource: limits.memory
                 - name: MODEL_NAME
                   value: fedlearner_model
               image: image_path
