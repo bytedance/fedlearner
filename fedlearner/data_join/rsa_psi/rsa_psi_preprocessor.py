@@ -46,6 +46,7 @@ class RsaPsiPreProcessor(object):
                 concur_futures.ProcessPoolExecutor(
                         options.offload_processor_number
                     )
+        self._callback_submitter = None
         # pre fock sub processor before launch grpc client
         self._process_pool_executor.submit(min, 1, 2).result()
         self._id_batch_fetcher = IdBatchFetcher(etcd, self._options)
@@ -61,6 +62,7 @@ class RsaPsiPreProcessor(object):
             self._repr = 'leader-' + 'rsa_psi_preprocessor'
         else:
             public_key = rsa.PublicKey.load_pkcs1(options.rsa_key_pem)
+            self._callback_submitter = concur_futures.ThreadPoolExecutor(1)
             self._psi_rsa_signer = FollowerPsiRsaSigner(
                     self._id_batch_fetcher, max_flying_item,
                     self._options.max_flying_sign_batch,
@@ -68,7 +70,8 @@ class RsaPsiPreProcessor(object):
                     self._options.sign_rpc_timeout_ms,
                     self._options.slow_sign_threshold,
                     self._options.stub_fanout,
-                    self._process_pool_executor, public_key,
+                    self._process_pool_executor,
+                    self._callback_submitter, public_key,
                     self._options.leader_rsa_psi_signer_addr
                 )
             self._repr = 'follower-' + 'rsa_psi_preprocessor'
@@ -137,6 +140,8 @@ class RsaPsiPreProcessor(object):
                 self._lock.wait()
         self.stop_routine_workers()
         self._process_pool_executor.shutdown()
+        if self._callback_submitter is not None:
+            self._callback_submitter.shutdown()
         self._id_batch_fetcher.cleanup_visitor_meta_data()
 
     def _id_batch_fetcher_name(self):
