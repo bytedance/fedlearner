@@ -488,7 +488,7 @@ class Bridge(object):
         stat = self._rpc_with_retry(
             lambda: self._client.LoadDataBlock(msg),
             "Failed to send load data block request")
-        return stat.code == common_pb.STATUS_SUCCESS:
+        return stat.code == common_pb.STATUS_SUCCESS
 
     def register_prefetch_handler(self, func):
         self._prefetch_handlers.append(func)
