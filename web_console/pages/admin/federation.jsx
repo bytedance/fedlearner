@@ -9,6 +9,7 @@ import Layout from '../../components/Layout';
 import Form from '../../components/Form';
 import { fetcher } from '../../libs/http';
 import { createFederation, updateFederation } from '../../services';
+import produce from 'immer'
 
 import { K8S_SETTINGS } from '../../constants/form-default'
 
@@ -97,105 +98,6 @@ function FederationItem({ data, onEdit }) {
   );
 }
 
-const getK8sSettingFields = () => [
-  { key: 'storage_root_path', default: K8S_SETTINGS.storage_root_path },
-  {
-    key: 'imagePullSecrets',
-    default: 'regcred',
-    span: 12,
-    path: 'global_replica_spec.template.spec.imagePullSecrets'
-  },
-  {
-    key: 'volumes',
-    type: 'json',
-    span: 24,
-    default: K8S_SETTINGS.volumes,
-    props: {
-      minHeight: '150px',
-    },
-    path: 'global_replica_spec.template.spec.volumes' // path为拼接json时的定位
-  },
-  {
-    key: 'Env',
-    type: 'name-value',
-    span: 24,
-    default: K8S_SETTINGS.Env,
-    props: {
-      minHeight: '150px',
-    },
-    path: 'global_replica_spec.template.spec.containers.envs'
-  },
-  {
-    key: 'volumeMounts',
-    type: 'json',
-    span: 24,
-    default: K8S_SETTINGS.volumeMounts,
-    props: {
-      minHeight: '150px',
-    },
-    path: 'global_replica_spec.template.spec.containers.volumeMounts'
-  },
-  {
-    key: 'grpc_spec',
-    type: 'json',
-    span: 24,
-    default: K8S_SETTINGS.grpc_spec,
-    props: {
-      minHeight: '150px',
-    },
-  },
-  {
-    key: 'leader_peer_spec',
-    type: 'json',
-    span: 24,
-    default: K8S_SETTINGS.leader_peer_spec,
-    props: {
-      minHeight: '150px',
-    },
-  },
-  {
-    key: 'follower_peer_spec',
-    type: 'json',
-    span: 24,
-    default: K8S_SETTINGS.follower_peer_spec,
-    props: {
-      minHeight: '150px',
-    },
-  },
-]
-let K8S_SETTINGS_FIELDS = null
-
-const getDefaultFields = () => {
-  K8S_SETTINGS_FIELDS = getK8sSettingFields()
-  return [
-    { key: 'name', required: true },
-    { key: 'trademark' },
-    { key: 'x-federation' },
-    { key: 'email' },
-    { key: 'tel', label: 'telephone' },
-    { key: 'avatar' },
-    {
-      groupName: 'k8s_settings',
-      formTypes: ['form', 'json'],
-      onFormTypeChange: switchK8sSettingsFormType,
-      fields: {
-        form: K8S_SETTINGS_FIELDS,
-        json: [
-          {
-            key: 'k8s_data',
-            type: 'json',
-            hideLabel: true,
-            span: 24,
-            props: {
-              minHeight: '500px'
-            }
-          }
-        ]
-      },
-    },
-  ];
-}
-
 const switchK8sSettingsFormType = (data, currType, targetType) => {
   if (targetType === 'json') {
     const k8s_settings = {}
@@ -240,6 +142,101 @@ const switchK8sSettingsFormType = (data, currType, targetType) => {
   }
 }
 
+const K8S_SETTINGS_FIELDS = [
+  { key: 'storage_root_path', default: K8S_SETTINGS.storage_root_path },
+  {
+    key: 'imagePullSecrets',
+    default: 'regcred',
+    span: 12,
+    path: 'global_replica_spec.template.spec.imagePullSecrets'
+  },
+  {
+    key: 'volumes',
+    type: 'json',
+    span: 24,
+    default: K8S_SETTINGS.volumes,
+    props: {
+      minHeight: '150px',
+    },
+    path: 'global_replica_spec.template.spec.volumes' // path为拼接json时的定位
+  },
+  {
+    key: 'env',
+    type: 'name-value',
+    span: 24,
+    default: K8S_SETTINGS.env,
+    props: {
+      minHeight: '150px',
+    },
+    path: 'global_replica_spec.template.spec.containers.envs'
+  },
+  {
+    key: 'volumeMounts',
+    type: 'json',
+    span: 24,
+    default: K8S_SETTINGS.volumeMounts,
+    props: {
+      minHeight: '150px',
+    },
+    path: 'global_replica_spec.template.spec.containers.volumeMounts'
+  },
+  {
+    key: 'grpc_spec',
+    type: 'json',
+    span: 24,
+    default: K8S_SETTINGS.grpc_spec,
+    props: {
+      minHeight: '150px',
+    },
+  },
+  {
+    key: 'leader_peer_spec',
+    type: 'json',
+    span: 24,
+    default: K8S_SETTINGS.leader_peer_spec,
+    props: {
+      minHeight: '150px',
+    },
+  },
+  {
+    key: 'follower_peer_spec',
+    type: 'json',
+    span: 24,
+    default: K8S_SETTINGS.follower_peer_spec,
+    props: {
+      minHeight: '150px',
+    },
+  },
+]
+
+const DEFAULT_FIELDS = [
+  { key: 'name', required: true },
+  { key: 'trademark' },
+  { key: 'x-federation' },
+  { key: 'email' },
+  { key: 'tel', label: 'telephone' },
+  { key: 'avatar' },
+  {
+    groupName: 'k8s_settings',
+    formTypes: ['form', 'json'],
+    onFormTypeChange: switchK8sSettingsFormType,
+    fields: {
+      form: K8S_SETTINGS_FIELDS,
+      json: [
+        {
+          key: 'k8s_data',
+          type: 'json',
+          hideLabel: true,
+          span: 24,
+          props: {
+            minHeight: '500px'
+          }
+        }
+      ]
+    },
+  },
+];
+
 /**
  * set init value and props of fields
  */
@@ -265,27 +262,28 @@ function fillField(data, field) {
 }
 
 function mapValueToFields(federation, fields) {
-  return fields.map((x) => {
-    if (x.groupName === 'k8s_settings') {
-      x.fields['form'].map(item => fillField(federation['k8s_settings'], item))
-    } else {
-      fillField(federation, x)
-    }
-    return x;
-  });
+  return produce(fields, draft => {
+    draft.map((x) => {
+      if (x.groupName === 'k8s_settings') {
+        x.fields['form'].map(item => fillField(federation['k8s_settings'], item))
+      } else {
+        fillField(federation, x)
+      }
+    })
+  })
 }
 
 export default function FederationList() {
   const { data, mutate } = useSWR('federations', fetcher);
   const federations = data ? data.data : null;
   const [formVisible, setFormVisible] = useState(false);
-  const [fields, setFields] = useState(getDefaultFields());
+  const [fields, setFields] = useState(DEFAULT_FIELDS);
   const [currentFederation, setCurrentFederation] = useState(null);
   const title = currentFederation ? `Edit Federation: ${currentFederation.name}` : 'Create Federation';
   const toggleForm = () => {
     setFormVisible(!formVisible);
     setCurrentFederation(null);
-    setFields(getDefaultFields());
+    setFields(DEFAULT_FIELDS);
   };
   const onOk = (federation) => {
     mutate({
@@ -299,12 +297,19 @@ export default function FederationList() {
     setFormVisible(true);
   };
 
-  const checkValue = (key, value) => {
-    if (key === 'Env' && value) {
+  const checkValue = (field, value) => {
+    if (field.key === 'env' && value) {
       for (let {name, value} of value) {
         if (name === '' || value === '') {
-          return 'Please fill Env'
+          return 'Please fill env'
         }
+      }
+    }
+    if (field.type === 'json') {
+      try {
+        JSON.parse(value)
+      } catch {
+        return 'json parse failed.Please check ' + field.key
       }
     }
   }
@@ -315,13 +320,12 @@ export default function FederationList() {
     for (let field of K8S_SETTINGS_FIELDS) {
       let fieldValue = value.k8s_settings[field.key]
 
-      try {
-        fieldValue = JSON.parse(fieldValue)
-      } catch {}
-
-      let error = checkValue(field.key, fieldValue)
+      let error = checkValue(field, fieldValue)
       if (error) {
         return {error}
+      }
+      if (field.type === 'json') {
+        fieldValue = JSON.parse(fieldValue)
       }
       fieldValue !== undefined && fillJSON(k8s_settings, field.path || [field.key], fieldValue)
     }

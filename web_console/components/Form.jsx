@@ -337,8 +337,8 @@ export default function Form({
     const collapseTitle = () => {
       return <>
         {group.groupName}
-        { formType ?
-          <ButtonGroup className="formTypeBtns" size="small" style={{marginLeft: '20px'}}>
+        { formType
+          ? <ButtonGroup className="formTypeBtns" size="small" style={{marginLeft: '20px'}}>
             { group.formTypes.map(type =>
                 <Button
                   className={formType === type ? 'selecetedType' : 'formTypeBtn'}
@@ -357,7 +357,9 @@ export default function Form({
                 background: #eee;
               }
             `}</style>
-          </ButtonGroup>: undefined }
+          </ButtonGroup>
+          : undefined
+        }
       </>
     }
 

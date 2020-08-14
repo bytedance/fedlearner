@@ -35,7 +35,7 @@ const K8S_SETTINGS = {
     "peerURL": "fedlearner-stack-ingress-nginx-controller.default.svc.cluster.local:80",
     "authority": "external.name",
     "extraHeaders": {
-      "x-host": "fedlearner-webconsole.bytedance.com",
+      "x-host": "",
       "x-federation": "XFEDERATION"
     }
   },
