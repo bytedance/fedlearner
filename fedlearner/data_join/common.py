@@ -20,8 +20,11 @@ import uuid
 import threading
 import time
 from contextlib import contextmanager
+from collections import OrderedDict
+
 from guppy import hpy
 
+import tensorflow_io # pylint: disable=unused-import
 import tensorflow.compat.v1 as tf
 from google.protobuf import text_format
 from tensorflow.compat.v1 import gfile
@@ -38,6 +41,7 @@ TmpFileSuffix = '.tmp'
 DoneFileSuffix = '.done'
 RawDataFileSuffix = '.rd'
 InvalidEventTime = -9223372036854775808
+InvalidRawId = ''.encode()
 
 @contextmanager
 def make_tf_record_iter(fpath, options=None):
@@ -136,7 +140,7 @@ def raw_data_pub_etcd_key(pub_base_dir, partition_id, process_index):
     return os.path.join(pub_base_dir, partition_repr(partition_id),
                         '{:08}{}'.format(process_index, RawDataPubSuffix))
 
-_valid_basic_feature_type = (int, str, bytes, float)
+_valid_basic_feature_type = (int, str, float)
 def convert_dict_to_tf_example(src_dict):
     assert isinstance(src_dict, dict)
     tf_feature = {}
@@ -145,7 +149,7 @@ def convert_dict_to_tf_example(src_dict):
             raise RuntimeError('the key {}({}) of dict must a '\
                                'string'.format(key, type(key)))
         basic_type = type(feature)
-        if basic_type == str and key != 'example_id':
+        if basic_type == str and key not in ('example_id', 'raw_id'):
             if feature.lstrip('-').isdigit():
                 feature = int(feature)
                 basic_type = int
@@ -170,10 +174,6 @@ def convert_dict_to_tf_example(src_dict):
             value = feature if isinstance(feature, list) else [feature]
             tf_feature[key] = tf.train.Feature(
                 int64_list=tf.train.Int64List(value=value))
-        elif basic_type == bytes:
-            value = feature if isinstance(feature, list) else [feature]
-            tf_feature[key] = tf.train.Feature(
-                bytes_list=tf.train.BytesList(value=value))
         elif basic_type == str:
             value = [feat.encode() for feat in feature] if \
                      isinstance(feature, list) else [feature.encode()]
@@ -188,10 +188,20 @@ def convert_dict_to_tf_example(src_dict):
 
 def convert_tf_example_to_dict(src_tf_example):
     assert isinstance(src_tf_example, tf.train.Example)
-    dst_dict = {}
+    dst_dict = OrderedDict()
     tf_feature = src_tf_example.features.feature
-    for key, feat in tf_feature:
-        dst_dict[key] = feat
+    for key, feat in tf_feature.items():
+        csv_val = None
+        if feat.HasField('int64_list'):
+            csv_val = [item for item in feat.int64_list.value] # pylint: disable=unnecessary-comprehension
+        elif feat.HasField('bytes_list'):
+            csv_val = [item.decode() for item in feat.bytes_list.value] # pylint: disable=unnecessary-comprehension
+        elif feat.HasField('float_list'):
+            csv_val = [item for item in feat.float_list.value] #pylint: disable=unnecessary-comprehension
+        else:
+            assert False, "feat type must in int64, byte, float"
+        assert isinstance(csv_val, list)
+        dst_dict[key] = csv_val[0] if len(csv_val) == 1 else csv_val
     return dst_dict
 
 def int2bytes(digit, byte_len, byteorder='little'):
@@ -236,7 +246,7 @@ class _OomRsikChecker(object):
 
 
     def _try_update_memory_usage(self, force):
-        if time.time() - self._latest_updated_ts >= 1 or force:
+        if time.time() - self._latest_updated_ts >= 0.7 or force:
             self._heap_memory_usage = hpy().heap().size
             self._latest_updated_ts = time.time()
 
@@ -244,8 +254,8 @@ class _OomRsikChecker(object):
         with self._lock:
             self._try_update_memory_usage(force)
             reserved_mem = int(self._mem_limit * 0.5)
-            if reserved_mem >= int((1 << 30) * 1.5):
-                reserved_mem = int((1 << 30) * 1.5)
+            if reserved_mem >= 2 << 30:
+                reserved_mem = 2 << 30
             avail_mem = self._mem_limit - reserved_mem
             return self._heap_memory_usage >= avail_mem * water_level_percent
 

@@ -19,6 +19,7 @@ import logging
 import os
 import rsa
 
+import tensorflow_io # pylint: disable=unused-import
 from tensorflow.compat.v1 import gfile
 
 from fedlearner.data_join import common
@@ -32,7 +33,8 @@ def dump_rsa_key_as_pem(output_dir, key, fname):
 
 if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
-    logging.basicConfig(format='%(asctime)s %(message)s')
+    logging.basicConfig(format="%(asctime)s %(filename)s "\
+                               "%(lineno)s %(levelname)s - %(message)s")
     parser = argparse.ArgumentParser(description='Rsa Key Generator')
     parser.add_argument('-l', '--rsa_lenght', type=int, required=True,
                         default=1024, help='the bit length for rsa key')

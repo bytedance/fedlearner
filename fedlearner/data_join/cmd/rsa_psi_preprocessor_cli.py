@@ -18,6 +18,7 @@ import argparse
 import logging
 import os
 
+import tensorflow_io # pylint: disable=unused-import
 from tensorflow.compat.v1 import gfile
 
 from fedlearner.common import common_pb2 as common_pb
@@ -26,7 +27,8 @@ from fedlearner.data_join.rsa_psi.rsa_psi_preprocessor import RsaPsiPreProcessor
 
 if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
-    logging.basicConfig(format='%(asctime)s %(message)s')
+    logging.basicConfig(format="%(asctime)s %(filename)s "\
+                               "%(lineno)s %(levelname)s - %(message)s")
     parser = argparse.ArgumentParser(description='Rsa Psi Preprocessor!')
     parser.add_argument('--preprocessor_name', type=str, default='test',
                         help='the name of rsa psi preprocessor')

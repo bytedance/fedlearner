@@ -198,10 +198,11 @@ class RawDataManifestManager(object):
             etcd_base_key = common.data_source_etcd_base_dir(data_source_name)
             self._etcd.delete_prefix(etcd_base_key)
 
-    def sub_new_raw_data(self):
+    def sub_new_raw_data(self, req_part=None):
         with self._lock:
             for partition_id in range(self._partition_num):
-                self._try_to_sub_raw_data(partition_id)
+                if req_part is None or req_part == partition_id:
+                    self._try_to_sub_raw_data(partition_id)
 
     def _try_to_sub_raw_data(self, partition_id):
         manifest = self._sync_manifest(partition_id)

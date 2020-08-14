@@ -1,0 +1,47 @@
+{{- if .Values.egress.enabled }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ template "fedlearner-test.fullname" . }}-egress
+  namespace: {{ .Release.Namespace }}
+  labels:
+  {{- include "fedlearner-test.labels" . | nindent 6 }}
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-weight": "1"
+    "helm.sh/hook-delete-policy": hook-succeeded,hook-failed
+spec:
+  backoffLimit: 3
+  template:
+    metadata:
+      name: {{ template "fedlearner-test.fullname" . }}-egress
+      labels:
+      {{- include "fedlearner-test.labels" . | nindent 8 }}
+    spec:
+      containers:
+        - name: grpcurl-egress-test
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          env:
+            - name: AUTHORITY
+              value: {{ .Values.egress.authority }}
+            - name: TARGET_HOST
+              value: "{{ .Values.egress.host }}:{{ .Values.egress.port }}"
+            - name: GRPC_SERVICE
+              value: "{{ .Values.egress.grpcService }}"
+           {{- range $key, $value := .Values.egress.extraHeader }}
+            - name: {{ $key }}
+              value: {{ $value | quote }}
+            {{- end }}
+          command:
+            - grpcurl
+          args:
+            - "-authority=$(AUTHORITY)"
+            - "-plaintext"
+            - "-H"
+            - "x-host: $(XHOST)"
+            - "-max-time=5"
+            - "$(TARGET_HOST)"
+            - "$(GRPC_SERVICE)"
+      restartPolicy: Never
+{{- end }}

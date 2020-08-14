@@ -19,6 +19,7 @@ import random
 import unittest
 import logging
 
+import tensorflow_io
 from tensorflow.compat.v1 import gfile
 import tensorflow.compat.v1 as tf
 tf.enable_eager_execution()
@@ -159,7 +160,8 @@ class TestDataPortalWorker(unittest.TestCase):
         map_task.output_partition_num = self._output_partition_num
         map_task.partition_id = 0
         map_task.task_name = 'map_part_{}'.format(map_task.partition_id)
-        map_task.part_field = 'raw_id'
+        map_task.part_field = 'example_id'
+        map_task.data_portal_type = dp_pb.DataPortalType.Streaming
         for partition_id in range(self._input_partition_num):
             map_task.fpaths.append(self._get_input_fpath(partition_id))
 
@@ -186,7 +188,8 @@ class TestDataPortalWorker(unittest.TestCase):
 
 if __name__ == '__main__':
     logging.getLogger().setLevel(logging.INFO)
-    logging.basicConfig(format='%(asctime)s %(message)s')
+    logging.basicConfig(format="%(asctime)s %(filename)s "\
+                               "%(lineno)s %(levelname)s - %(message)s")
     unittest.main()
 
 

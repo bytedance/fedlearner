@@ -26,7 +26,8 @@ from fedlearner.data_join.data_portal_master import DataPortalMasterService
 
 if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
-    logging.basicConfig(format='%(asctime)s %(message)s')
+    logging.basicConfig(format="%(asctime)s %(filename)s "\
+                               "%(lineno)s %(levelname)s - %(message)s")
     parser = argparse.ArgumentParser(description='DataPortalMasterService cmd.')
     parser.add_argument('--etcd_name', type=str,
                         default='test_etcd', help='the name of etcd')

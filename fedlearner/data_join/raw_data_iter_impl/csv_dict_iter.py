@@ -21,6 +21,7 @@ import io
 from collections import OrderedDict
 
 import tensorflow.compat.v1 as tf
+import tensorflow_io # pylint: disable=unused-import
 from tensorflow.compat.v1 import gfile
 
 import fedlearner.data_join.common as common
@@ -37,8 +38,6 @@ class CsvItem(RawDataIter.Item):
             logging.error("Failed parse example id since no join "\
                           "id in csv dict raw %s", self._raw)
             return common.InvalidExampleId
-        if isinstance(self._raw['example_id'], bytes):
-            return self._raw['example_id']
         return str(self._raw['example_id']).encode()
 
     @property
@@ -56,9 +55,7 @@ class CsvItem(RawDataIter.Item):
         if 'raw_id' not in self._raw:
             logging.error("Failed parse raw id since no join "\
                           "id in csv dict raw %s", self._raw)
-            return ''
-        if isinstance(self._raw['raw_id'], bytes):
-            return self._raw['raw_id']
+            return common.InvalidRawId
         return str(self._raw['raw_id']).encode()
 
     @property

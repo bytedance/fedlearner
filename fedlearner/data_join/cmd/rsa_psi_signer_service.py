@@ -18,13 +18,15 @@ import argparse
 import logging
 import rsa
 
+import tensorflow_io # pylint: disable=unused-import
 from tensorflow.compat.v1 import gfile
 
 from fedlearner.data_join.rsa_psi.rsa_psi_signer import RsaPsiSigner
 
 if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
-    logging.basicConfig(format='%(asctime)s %(message)s')
+    logging.basicConfig(format="%(asctime)s %(filename)s "\
+                               "%(lineno)s %(levelname)s - %(message)s")
     parser = argparse.ArgumentParser(description='RsaPsiSigner cmd.')
     parser.add_argument('-p', '--listen_port', type=int, default=40980,
                         help='Listen port of RSA PSI signer')

@@ -46,6 +46,9 @@ class RsaPsiPreProcessor(object):
                 concur_futures.ProcessPoolExecutor(
                         options.offload_processor_number
                     )
+        self._callback_submitter = None
+        # pre fock sub processor before launch grpc client
+        self._process_pool_executor.submit(min, 1, 2).result()
         self._id_batch_fetcher = IdBatchFetcher(etcd, self._options)
         max_flying_item = options.batch_processor_options.max_flying_item
         if self._options.role == common_pb.FLRole.Leader:
@@ -59,6 +62,7 @@ class RsaPsiPreProcessor(object):
             self._repr = 'leader-' + 'rsa_psi_preprocessor'
         else:
             public_key = rsa.PublicKey.load_pkcs1(options.rsa_key_pem)
+            self._callback_submitter = concur_futures.ThreadPoolExecutor(1)
             self._psi_rsa_signer = FollowerPsiRsaSigner(
                     self._id_batch_fetcher, max_flying_item,
                     self._options.max_flying_sign_batch,
@@ -66,7 +70,8 @@ class RsaPsiPreProcessor(object):
                     self._options.sign_rpc_timeout_ms,
                     self._options.slow_sign_threshold,
                     self._options.stub_fanout,
-                    self._process_pool_executor, public_key,
+                    self._process_pool_executor,
+                    self._callback_submitter, public_key,
                     self._options.leader_rsa_psi_signer_addr
                 )
             self._repr = 'follower-' + 'rsa_psi_preprocessor'
@@ -135,6 +140,8 @@ class RsaPsiPreProcessor(object):
                 self._lock.wait()
         self.stop_routine_workers()
         self._process_pool_executor.shutdown()
+        if self._callback_submitter is not None:
+            self._callback_submitter.shutdown()
         self._id_batch_fetcher.cleanup_visitor_meta_data()
 
     def _id_batch_fetcher_name(self):
@@ -149,7 +156,7 @@ class RsaPsiPreProcessor(object):
             logging.debug("%s fetch batch begin at %d, len %d. wakeup %s",
                           self._id_batch_fetcher_name(), batch.begin_index,
                           len(batch), self._psi_rsa_signer_name())
-            if get_oom_risk_checker().check_oom_risk(0.85):
+            if get_oom_risk_checker().check_oom_risk(0.80):
                 logging.warning('early stop the id fetch '\
                                 'since the oom risk')
             self._wakeup_psi_rsa_signer()
@@ -157,7 +164,7 @@ class RsaPsiPreProcessor(object):
     def _id_batch_fetch_cond(self):
         next_index = self._psi_rsa_signer.get_next_index_to_fetch()
         return self._id_batch_fetcher.need_process(next_index) and \
-                not get_oom_risk_checker().check_oom_risk(0.85)
+                not get_oom_risk_checker().check_oom_risk(0.80)
 
     def _psi_rsa_signer_name(self):
         return self._repr + ':psi_rsa_signer'
@@ -244,8 +251,8 @@ class RsaPsiPreProcessor(object):
                   (flying_begin_index <= next_index <
                       flying_begin_index + flying_item_cnt) and
                    (flying_item_cnt-(next_index-flying_begin_index) >=
-                    max_flying_item // 4 or
-                    get_oom_risk_checker().check_oom_risk(0.75))))
+                    max_flying_item // 3 or
+                    get_oom_risk_checker().check_oom_risk(0.70))))
 
     def _sort_run_merger_name(self):
         return self._repr + ':sort_run_merger'

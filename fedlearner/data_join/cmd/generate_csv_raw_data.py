@@ -20,6 +20,7 @@ import os
 from collections import OrderedDict
 from cityhash import CityHash32 # pylint: disable=no-name-in-module
 
+import tensorflow_io # pylint: disable=unused-import
 from tensorflow.compat.v1 import gfile
 
 from fedlearner.common import data_join_service_pb2 as dj_pb
@@ -57,7 +58,8 @@ def generate_input_csv(base_dir, start_id, end_id, partition_num):
 
 if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
-    logging.basicConfig(format='%(asctime)s %(message)s')
+    logging.basicConfig(format="%(asctime)s %(filename)s "\
+                               "%(lineno)s %(levelname)s - %(message)s")
     parser = argparse.ArgumentParser(description='csv raw data generator cmd.')
     parser.add_argument('--base_dir', type=str, required=True,
                         help='the base dir of fs to store the ' \

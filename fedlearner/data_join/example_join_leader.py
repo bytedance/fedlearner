@@ -17,6 +17,7 @@
 from google.protobuf import empty_pb2
 
 from fedlearner.common import data_join_service_pb2 as dj_pb
+from fedlearner.common import metrics
 
 from fedlearner.data_join.joiner_impl import create_example_joiner
 from fedlearner.data_join.transmit_leader import TransmitLeader
@@ -71,6 +72,8 @@ class ExampleJoinLeader(TransmitLeader):
                 join_example=empty_pb2.Empty()
             )
 
+    @metrics.timer(func_name='make_new_impl_ctx',
+                   tags={'role': 'transmit_leader'})
     def _make_new_impl_ctx(self, raw_data_manifest):
         return ExampleJoinLeader.ImplContext(
                 self._etcd, self._data_source,
@@ -80,23 +83,25 @@ class ExampleJoinLeader(TransmitLeader):
 
     def _process_producer_hook(self, impl_ctx):
         assert isinstance(impl_ctx, ExampleJoinLeader.ImplContext)
-        self._sniff_join_data_finished(impl_ctx)
-
-    def _sniff_join_data_finished(self, impl_ctx):
-        assert isinstance(impl_ctx, ExampleJoinLeader.ImplContext)
         if not impl_ctx.is_sync_example_id_finished() or \
                 not impl_ctx.is_raw_data_finished():
-            req = dj_pb.RawDataRequest(
-                    data_source_meta=self._data_source.data_source_meta,
-                    rank_id=self._rank_id,
-                    partition_id=impl_ctx.partition_id
-                )
-            manifest = self._master_client.QueryRawDataManifest(req)
-            if manifest.sync_example_id_rep.state == \
-                    dj_pb.SyncExampleIdState.Synced:
-                impl_ctx.set_sync_example_id_finished()
-            if manifest.finished:
-                impl_ctx.set_raw_data_finished()
+            self._sniff_join_data_finished(impl_ctx)
+
+    @metrics.timer(func_name='sniff_join_data_finished',
+                   tags={'role': 'transmit_leader'})
+    def _sniff_join_data_finished(self, impl_ctx):
+        assert isinstance(impl_ctx, ExampleJoinLeader.ImplContext)
+        req = dj_pb.RawDataRequest(
+                data_source_meta=self._data_source.data_source_meta,
+                rank_id=self._rank_id,
+                partition_id=impl_ctx.partition_id
+            )
+        manifest = self._master_client.QueryRawDataManifest(req)
+        if manifest.sync_example_id_rep.state == \
+                dj_pb.SyncExampleIdState.Synced:
+            impl_ctx.set_sync_example_id_finished()
+        if manifest.finished:
+            impl_ctx.set_raw_data_finished()
 
     def _serialize_sync_content(self, item):
         return dj_pb.SyncContent(data_block_meta=item).SerializeToString()

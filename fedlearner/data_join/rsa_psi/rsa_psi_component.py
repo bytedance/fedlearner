@@ -145,7 +145,8 @@ class IdBatchFetcher(ItemBatchSeqProcessor):
                     self._options.preprocessor_name,
                     self._options.partition_id
                 ),
-                self._options.input_file_subscribe_dir
+                self._options.input_file_subscribe_dir,
+                self._options.partition_id
             )
 
 class SignedIdBatch(ItemBatch):
@@ -480,7 +481,7 @@ class FollowerPsiRsaSigner(PsiRsaSigner):
                  max_flying_sign_batch, max_flying_sign_rpc,
                  sign_rpc_timeout_ms, slow_sign_threshold,
                  stub_fanout, process_pool_executor,
-                 public_key, leader_signer_addr):
+                 callback_submitter, public_key, leader_signer_addr):
         super(FollowerPsiRsaSigner, self).__init__(id_batch_fetcher,
                                                    max_flying_item,
                                                    max_flying_sign_batch,
@@ -497,6 +498,7 @@ class FollowerPsiRsaSigner(PsiRsaSigner):
                  for _ in range(stub_fanout)]
         self._pending_rpc_sign_ctx = []
         self._flying_rpc_num = 0
+        self._callback_submitter = callback_submitter
 
     def _get_active_stub(self):
         with self._lock:
@@ -619,10 +621,8 @@ class FollowerPsiRsaSigner(PsiRsaSigner):
             signed_blinded_hashed_ids = [bytes2int(item) for
                                          item in response.signed_ids]
             assert len(ctx.raw_id_batch) == len(signed_blinded_hashed_ids)
-            self._deblind_signed_id_func(ctx.raw_id_batch,
-                                         ctx.blind_numbers,
-                                         signed_blinded_hashed_ids,
-                                         ctx.notify_future)
+            self._callback_submitter.submit(self._deblind_signed_id_func,
+                                            ctx, signed_blinded_hashed_ids)
             next_ctxs = []
             with self._lock:
                 assert self._flying_rpc_num > 0
@@ -648,15 +648,14 @@ class FollowerPsiRsaSigner(PsiRsaSigner):
             ctx.trigger_retry()
             self._rpc_sign_func(ctx)
 
-    def _deblind_signed_id_func(self, raw_id_batch, blind_numbers,
-                                signed_blinded_hashed_ids, notify_future):
+    def _deblind_signed_id_func(self, ctx, signed_blinded_hashed_ids):
         n = self._public_key.n
         deblind_future = self._process_pool_executor.submit(
                 FollowerPsiRsaSigner._deblind_signed_id_batch,
-                signed_blinded_hashed_ids, blind_numbers, n
+                signed_blinded_hashed_ids, ctx.blind_numbers, n
             )
         deblind_cb = functools.partial(self._deblind_callback,
-                                       raw_id_batch, notify_future)
+                                       ctx.raw_id_batch, ctx.notify_future)
         deblind_future.add_done_callback(deblind_cb)
 
     def _deblind_callback(self, raw_id_batch, notify_future, deblind_future):

@@ -33,6 +33,7 @@ class Embedding(object):
         self._config = config
         self._devices = devices
         self._num_shards = len(devices)
+        self._use_fid_v2 = config['use_fid_v2']
 
         self._weights = []
         with tf.variable_scope("lagrange_embedding_pooling/%s"%config['name']):
@@ -98,6 +99,7 @@ class Embedding(object):
             output = operator.lagrange_lite_ops.lagrange_embedding_pooling(
                 output_size=self._config['output_size'],
                 weight_sizes=self._config['weight_sizes'],
+                use_fid_v2=self._use_fid_v2,
                 num_shards=self._num_shards,
                 batch_size=batch_size,
                 instance_ids=instance_ids,

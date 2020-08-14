@@ -21,6 +21,7 @@ import os
 
 from cityhash import CityHash32 # pylint: disable=no-name-in-module
 import tensorflow.compat.v1 as tf
+import tensorflow_io # pylint: disable=unused-import
 from tensorflow.compat.v1 import gfile
 
 from fedlearner.common import data_join_service_pb2 as dj_pb
@@ -28,7 +29,8 @@ from fedlearner.data_join.raw_data_partitioner import RawDataPartitioner
 
 if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
-    logging.basicConfig(format='%(asctime)s %(message)s')
+    logging.basicConfig(format="%(asctime)s %(filename)s "\
+                               "%(lineno)s %(levelname)s - %(message)s")
     parser = argparse.ArgumentParser(description='Raw Data Partitioner')
     parser.add_argument('--partitioner_name', type=str, default='test',
                         help='the name of raw data partitioner')

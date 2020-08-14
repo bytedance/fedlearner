@@ -1,5 +1,10 @@
 const assert = require('assert');
 const lodash = require('lodash');
+const getConfig = require('./get_confg');
+
+const { NAMESPACE } = getConfig({
+  NAMESPACE: process.env.NAMESPACE,
+});
 
 function joinPath(base, ...rest) {
   const list = [base.replace(/\/$/, '')];
@@ -24,7 +29,10 @@ const permittedJobEnvs = {
     'L2_REGULARIZATION', 'MAX_BINS', 'NUM_PARALELL',
     'VERIFY_EXAMPLE_IDS', 'USE_STREAMING',
   ],
-  nn_model: ['MODEL_NAME', 'SAVE_CHECKPOINT_STEPS'],
+  nn_model: [
+    'MODEL_NAME', 'SAVE_CHECKPOINT_STEPS', 'SAVE_CHECKPOINT_SECS',
+    'BATCH_SIZE', 'LEARNING_RATE'
+  ],
 };
 
 function mergeCustomizer(obj, src, key) {
@@ -117,7 +125,7 @@ function generateYaml(federation, job, job_params, ticket) {
     kind: 'FLApp',
     metadata: {
       name: job.name,
-      namespace: k8s_settings.namespace,
+      namespace: NAMESPACE,
     },
     spec: {
       role: ticket.role,
@@ -201,7 +209,7 @@ function portalGenerateYaml(federation, raw_data) {
     kind: 'FLApp',
     metadata: {
       name: raw_data.name,
-      namespace: k8s_settings.namespace,
+      namespace: NAMESPACE,
     },
     spec: {
       role: 'Follower',

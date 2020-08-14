@@ -70,6 +70,9 @@ class ExampleIdBatchFetcher(ItemBatchSeqProcessor):
             )
         self._batch_size = batch_processor_options.batch_size
         self._partition_id = partition_id
+        ds_name = data_source.data_source_meta.name
+        self._metric_tags = {'data_source_name': ds_name,
+                             'partition': self._partition_id}
 
     @classmethod
     def name(cls):
@@ -100,3 +103,6 @@ class ExampleIdBatchFetcher(ItemBatchSeqProcessor):
             yield next_batch, self._raw_data_visitor.finished()
         yield self._make_item_batch(next_index), \
                 self._raw_data_visitor.finished()
+
+    def _get_metrics_tags(self):
+        return self._metric_tags
