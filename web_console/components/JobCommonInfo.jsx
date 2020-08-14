@@ -91,11 +91,17 @@ export default function JobCommonInfo(props) {
     return parsePods(job.status.flReplicaStatus);
   }, [job]);
 
-  const {
-    data: logsData,
-    error: logsError,
-    isValidating: logsIsValidating,
-  } = useSWR(`job/${job && job.localdata?.name}/logs?start_time=${new Date(job && job.metadata?.creationTimestamp).getTime()}`, fetcher);
+  const options = useMemo(() => ({
+    searchParams: {
+      start_time: new Date(job.metadata.creationTimestamp).getTime(),
+    },
+  }));
+  const { data: logsData, error: logsError, isValidating: logsIsValidating } = useSWR(
+    job && job.localdata && job.metadata
+      ? [`job/${job.localdata.name}/logs`, options]
+      : null,
+    fetcher,
+  );
   const logs = job && job.localdata?.submitted !== false
     ? (logsData && logsData.data) ? logsData.data : ['logs error ' + (logsData?.error || logsError?.message)]
     : null;

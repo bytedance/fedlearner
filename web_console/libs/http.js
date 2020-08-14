@@ -5,4 +5,4 @@ export const client = ky.create({
   throwHttpErrors: false,
 });
 
-export const fetcher = (url) => client.get(url).json();
+export const fetcher = (url, options = {}) => client.get(url, options).json();
