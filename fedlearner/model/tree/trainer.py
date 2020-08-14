@@ -417,12 +417,12 @@ class DataBlockLoader(object):
             block = None
         elif self._trainer_master is not None:
             block = self._trainer_master.request_data_block(msg.block_id)
-            if block is None:
-                raise ValueError("Block %s not found" % msg.block_id)
+            return False
         else:
             block = DataBlockInfo(msg.block_id, None)
         self._count += 1
         self._block_queue.put(block)
+        return True
 
     def _request_data_block(self):
         while True:
@@ -445,12 +445,8 @@ class DataBlockLoader(object):
             while True:
                 block = self._request_data_block()
                 if block is not None:
-                    try:
-                        self._bridge.load_data_block(self._count,
-                                                     block.block_id)
-                    except Exception as e:  # pylint: disable=broad-except
-                        logging.error('load data block %s with error: %s',
-                                      block.block_id, repr(e))
+                    if not self._bridge.load_data_block(
+                            self._count, block.block_id):
                         continue
                 else:
                     self._bridge.load_data_block(self._count, '')
