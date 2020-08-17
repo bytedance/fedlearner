@@ -5,6 +5,7 @@ import Layout from '../../components/Layout';
 import Form from '../../components/Form';
 import { fetcher } from '../../libs/http';
 import { createTicket, updateTicket } from '../../services/ticket';
+import { useStateValue, StateProvider } from '../store'
 
 const DEFAULT_FIELDS = [
   { key: 'name', required: true },
@@ -36,7 +37,8 @@ function mapValueToFields(ticket, fields) {
   });
 }
 
-export default function TicketList() {
+function TicketList() {
+  const [{federationID: currFederation}, dispatch] = useStateValue()
   const { data, mutate } = useSWR('tickets', fetcher);
   const tickets = data ? data.data : null;
   const columns = tickets && tickets.length > 0
@@ -82,10 +84,12 @@ export default function TicketList() {
     return <Link href="#" color onClick={onHandleEdit}>Edit</Link>;
   };
   const dataSource = tickets
-    ? tickets.map((x) => ({
-      ...x,
-      operation,
-    }))
+    ? tickets
+      .filter(el => currFederation < 0 || el.federation_id === currFederation)
+      .map((x) => ({
+        ...x,
+        operation,
+      }))
     : [];
 
   return (
@@ -117,4 +121,12 @@ export default function TicketList() {
         )}
     </Layout>
   );
+}
+
+export default function Ticket () {
+  return (
+    <StateProvider>
+      <TicketList></TicketList>
+    </StateProvider>
+  )
 }
