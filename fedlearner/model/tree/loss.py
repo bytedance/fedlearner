@@ -67,3 +67,30 @@ class LogisticLoss(object):
             'auc': auc,
             'ks': ks,
         }
+
+
+class MSELoss(object):
+    def __init__(self):
+        pass
+
+    def predict(self, x):
+        return x
+
+    def loss(self, x, pred, label):
+        return np.square(pred - label).mean() / 2.0
+
+    def gradient(self, x, pred, label):
+        return pred - label
+
+    def hessian(self, x, pred, label):
+        return np.ones_like(pred)
+
+    def metrics(self, pred, label):
+        mse = np.square(pred - label).mean()
+        msre = np.sqrt(mse)
+        fabs = np.abs(pred - label).mean()
+        return {
+            'mse': mse,
+            'msre': msre,
+            'abs': fabs,
+        }

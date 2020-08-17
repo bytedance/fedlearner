@@ -46,7 +46,8 @@ def make_ready_client(channel, stop_event=None):
             channel_ready.result(timeout=wait_secs)
             break
         except grpc.FutureTimeoutError:
-            logging.warning('Channel has not been ready for %.2f seconds',
+            logging.warning(
+                'Channel has not been ready for %.2f seconds',
                 time.time()-start_time)
             if wait_secs < 5.0:
                 wait_secs *= 1.2
@@ -118,6 +119,7 @@ class Bridge(object):
 
         # grpc client
         self._transmit_send_lock = threading.Lock()
+        self._client_lock = threading.Lock()
         self._grpc_options = [
             ('grpc.max_send_message_length', 2**31-1),
             ('grpc.max_receive_message_length', 2**31-1)
@@ -148,6 +150,23 @@ class Bridge(object):
     @property
     def role(self):
         return self._role
+
+    def _rpc_with_retry(self, sender, err_log):
+        while True:
+            with self._client_lock:
+                try:
+                    return sender()
+                except Exception as e:  # pylint: disable=broad-except
+                    logging.warning(
+                        "%s: %s. Retry in 1s...", err_log, repr(e))
+                    self._channel.close()
+                    time.sleep(1)
+                    self._channel = make_insecure_channel(
+                        self._remote_address, ChannelType.REMOTE,
+                        options=self._grpc_options,
+                        compression=self._compression)
+                    self._client = make_ready_client(self._channel)
+                    self._check_remote_heartbeat(self._client)
 
     def _client_daemon_fn(self):
         stop_event = threading.Event()
@@ -247,7 +266,7 @@ class Bridge(object):
                     self._remote_address, ChannelType.REMOTE,
                     options=self._grpc_options, compression=self._compression)
                 client = make_ready_client(channel, stop_event)
-                self._check_remote_heartbeat()
+                self._check_remote_heartbeat(client)
 
     def _transmit(self, msg):
         assert self._connected, "Cannot transmit before connect"
@@ -259,23 +278,12 @@ class Bridge(object):
                 self._transmit_queue.put(msg)
                 return
 
-            while True:
-                try:
-                    rsp = self._client.Transmit(msg)
-                    assert rsp.status.code == common_pb.STATUS_SUCCESS, \
-                        "Transmit error with code %d."%rsp.status.code
-                    break
-                except Exception as e:  # pylint: disable=broad-except
-                    logging.warning("Bridge transmit failed: %s. " \
-                                    "Retry in 1 second...", repr(e))
-                    self._channel.close()
-                    time.sleep(1)
-                    self._channel = make_insecure_channel(
-                        self._remote_address, ChannelType.REMOTE,
-                        options=self._grpc_options,
-                        compression=self._compression)
-                    self._client = make_ready_client(self._channel)
-                    self._check_remote_heartbeat()
+            def sender():
+                rsp = self._client.Transmit(msg)
+                assert rsp.status.code == common_pb.STATUS_SUCCESS, \
+                    "Transmit error with code %d."%rsp.status.code
+            self._rpc_with_retry(sender, "Bridge transmit failed")
+
 
     def _transmit_handler(self, request):
         assert self._connected, "Cannot transmit before connect"
@@ -327,8 +335,9 @@ class Bridge(object):
         if not self._data_block_handler_fn:
             raise RuntimeError("Received DataBlockMessage but" \
                                 " no handler registered")
-        self._data_block_handler_fn(request)
-        return common_pb.Status(code=common_pb.STATUS_SUCCESS)
+        if self._data_block_handler_fn(request):
+            return common_pb.Status(code=common_pb.STATUS_SUCCESS)
+        return common_pb.Status(code=common_pb.STATUS_INVALID_DATA_BLOCK)
 
     @metrics.timer(func_name="connect_req", tags={})
     def _connect_handler(self, request):
@@ -368,9 +377,9 @@ class Bridge(object):
             self._condition.notifyAll()
         return tws_pb.TerminateResponse()
 
-    def _check_remote_heartbeat(self):
+    def _check_remote_heartbeat(self, client):
         try:
-            rsp = self._client.Heartbeat(tws_pb.HeartbeatRequest())
+            rsp = client.Heartbeat(tws_pb.HeartbeatRequest())
             logging.debug("Heartbeat success: %s:%d at iteration %s.",
                           rsp.app_id, rsp.worker_rank, rsp.current_iter_id)
             return True
@@ -390,16 +399,10 @@ class Bridge(object):
         msg = tws_pb.ConnectRequest(app_id=self._app_id,
                                     worker_rank=self._rank,
                                     identifier=self._identifier)
-        while True:
-            try:
-                self._client.Connect(msg)
-            except Exception as e:  # pylint: disable=broad-except
-                logging.warning("Bridge failed to connect: %s. " \
-                                "Retry in 1 second...",
-                                repr(e))
-                time.sleep(1)
-                continue
-            break
+
+        self._rpc_with_retry(
+            lambda: self._client.Connect(msg),
+            "Bridge failed to connect")
         logging.debug('Has connected to peer.')
 
         # Ensure REQ from peer
@@ -430,16 +433,9 @@ class Bridge(object):
                 'Error during streaming shutdown: %s', repr(e))
 
         # Get ACK from peer
-        while True:
-            try:
-                self._client.Terminate(tws_pb.TerminateRequest())
-                break
-            except Exception as e:  # pylint: disable=broad-except
-                logging.warning(
-                    "Failed to send terminate message: %s. " \
-                    "Retry in 1 second...", repr(e))
-                time.sleep(1)
-                continue
+        self._rpc_with_retry(
+            lambda: self._client.Terminate(tws_pb.TerminateRequest()),
+            "Failed to send terminate message")
         logging.debug('Waiting for peer to terminate.')
 
         # Ensure REQ from peer
@@ -489,7 +485,10 @@ class Bridge(object):
     def load_data_block(self, count, block_id):
         msg = tws_pb.LoadDataBlockRequest(count=count, block_id=block_id)
         logging.debug("sending DataBlock with id %s", block_id)
-        return self._client.LoadDataBlock(msg)
+        stat = self._rpc_with_retry(
+            lambda: self._client.LoadDataBlock(msg),
+            "Failed to send load data block request")
+        return stat.code == common_pb.STATUS_SUCCESS
 
     def register_prefetch_handler(self, func):
         self._prefetch_handlers.append(func)
