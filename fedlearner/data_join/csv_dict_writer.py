@@ -15,6 +15,7 @@
 # coding: utf-8
 
 import csv
+import io
 
 import tensorflow_io # pylint: disable=unused-import
 from tensorflow.compat.v1 import gfile
@@ -24,6 +25,7 @@ class CsvDictWriter(object):
         self._write_raw_num = 0
         self._fpath = fpath
         self._file_hanlde = gfile.Open(fpath, 'w+')
+        self._buffer_handle = io.StringIO()
         self._csv_writer = None
 
     def write(self, raw):
@@ -38,14 +40,22 @@ class CsvDictWriter(object):
             self._csv_writer.writeheader()
         self._csv_writer.writerow(raw)
         self._write_raw_num += 1
+        self._flush_buffer(False)
 
     def close(self):
         if self._file_hanlde is not None:
+            self._flush_buffer(True)
             self._file_hanlde.close()
             self._file_hanlde, self._csv_writer = None, None
 
     def write_raw_num(self):
         return self._write_raw_num
+
+    def _flush_buffer(self, force=False):
+        if self._buffer_handle.tell() > (2 << 20) or force:
+            self._file_hanlde.wrte(self._buffer_handle.getvalue())
+            self._buffer_handle.close()
+            self._buffer_handle = io.StringIO()
 
     def __del__(self):
         if self._file_hanlde is not None:
