@@ -59,6 +59,7 @@ class CsvDictWriter(object):
         if self._buffer_handle.tell() > (2 << 20) or force:
             self._file_hanlde.write(self._buffer_handle.getvalue())
             self._buffer_handle.truncate(0)
+            self._buffer_handle.seek(0)
 
     def __del__(self):
         if self._file_hanlde is not None:
