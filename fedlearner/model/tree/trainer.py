@@ -83,6 +83,10 @@ def create_argument_parser():
                         type=int,
                         default=1,
                         help='Controls the amount of logs to print.')
+    parser.add_argument('--loss-type',
+                        default='logistic',
+                        choices=['logistic', 'mse'],
+                        help='What loss to use for training.')
     parser.add_argument('--learning-rate',
                         type=float,
                         default=0.3,
@@ -130,6 +134,10 @@ def create_argument_parser():
                         type=bool,
                         default=False,
                         help='Whether to send prediction scores to follower.')
+    parser.add_argument('--send-metrics-to-follower',
+                        type=bool,
+                        default=False,
+                        help='Whether to send metrics to follower.')
 
     return parser
 
@@ -351,8 +359,7 @@ def test_one_file(args, bridge, booster, data_file, output_file):
         example_ids=example_ids,
         cat_features=cat_X,
         feature_names=X_names,
-        cat_feature_names=cat_X_names,
-        send_scores_to_follower=args.send_scores_to_follower)
+        cat_feature_names=cat_X_names)
 
     if y is not None:
         metrics = booster.loss.metrics(pred, y)
@@ -508,7 +515,10 @@ def run(args):
             max_depth=args.max_depth,
             l2_regularization=args.l2_regularization,
             max_bins=args.max_bins,
-            num_parallel=args.num_parallel)
+            num_parallel=args.num_parallel,
+            loss_type=args.loss_type,
+            send_scores_to_follower=args.send_scores_to_follower,
+            send_metrics_to_follower=args.send_metrics_to_follower)
 
         if args.load_model_path:
             booster.load_saved_model(args.load_model_path)

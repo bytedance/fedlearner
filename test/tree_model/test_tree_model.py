@@ -46,12 +46,13 @@ class TestBoostingTree(unittest.TestCase):
             cat_X[:, i][nan_mask] = 33
         return cat_X
 
-    def local_test_boosting_tree_helper(self, X, y, cat_X):
+    def local_test_boosting_tree_helper(self, X, y, cat_X, loss_type):
         booster = BoostingTreeEnsamble(
             None,
             max_iters=3,
             max_depth=2,
-            num_parallel=2)
+            num_parallel=2,
+            loss_type=loss_type)
         train_pred = booster.fit(X, y, cat_features=cat_X)
         pred = booster.batch_predict(X, cat_features=cat_X)
         np.testing.assert_almost_equal(train_pred, pred)
@@ -83,7 +84,10 @@ class TestBoostingTree(unittest.TestCase):
         np.testing.assert_almost_equal(pred, 0)
 
     def boosting_tree_helper(self, X, y, cat_X):
-        local_pred = self.local_test_boosting_tree_helper(X, y, cat_X)
+        local_pred = self.local_test_boosting_tree_helper(X, y, cat_X, 'mse')
+        self.assertGreater(sum((local_pred > 0.5) == y)/len(y), 0.80)
+
+        local_pred = self.local_test_boosting_tree_helper(X, y, cat_X, 'logistic')
         self.assertGreater(sum((local_pred > 0.5) == y)/len(y), 0.90)
 
         leader_X = X[:, :X.shape[1]//2]

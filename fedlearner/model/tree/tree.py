@@ -25,7 +25,7 @@ import numpy as np
 from google.protobuf import text_format
 import tensorflow.compat.v1 as tf
 
-from fedlearner.model.tree.loss import LogisticLoss
+from fedlearner.model.tree.loss import LogisticLoss, MSELoss
 from fedlearner.model.crypto import paillier, fixed_point_number
 from fedlearner.common import tree_model_pb2 as tree_pb2
 from fedlearner.common import common_pb2
@@ -101,6 +101,7 @@ def _get_dtype_for_max_value(max_value):
     if max_value < np.iinfo(np.int16).max:
         return np.int16
     return np.int32
+
 
 class BinnedFeatures(object):
     def __init__(self, features, max_bins, cat_features=None):
@@ -810,7 +811,9 @@ def _vectorized_assignment(vec, assignment, direction, peer_direction=None):
 class BoostingTreeEnsamble(object):
     def __init__(self, bridge, learning_rate=0.3, max_iters=50, max_depth=6,
                  max_leaves=0, l2_regularization=1.0, max_bins=33,
-                 grow_policy='depthwise', num_parallel=1):
+                 grow_policy='depthwise', num_parallel=1,
+                 loss_type='logistic', send_scores_to_follower=False,
+                 send_metrics_to_follower=False):
         self._learning_rate = learning_rate
         self._max_iters = max_iters
         self._max_depth = max_depth
@@ -825,10 +828,18 @@ class BoostingTreeEnsamble(object):
         assert max_bins < 255, "Only support max_bins < 255"
         self._max_bins = max_bins
 
-        self._loss = LogisticLoss()
+        if loss_type == 'logistic':
+            self._loss = LogisticLoss()
+        elif loss_type == 'mse':
+            self._loss = MSELoss()
+        else:
+            raise ValueError("Invalid loss type%s"%loss_type)
         self._trees = []
         self._feature_names = None
         self._cat_feature_names = None
+
+        self._send_scores_to_follower = send_scores_to_follower
+        self._send_metrics_to_follower = send_metrics_to_follower
 
         self._bridge = bridge
         if bridge is not None:
@@ -841,6 +852,39 @@ class BoostingTreeEnsamble(object):
     @property
     def loss(self):
         return self._loss
+
+    def _compute_metrics(self, pred, label):
+        if self._role == 'local':
+            return self._loss.metrics(pred, label)
+
+        if label is not None:
+            metrics = self._loss.metrics(pred, label)
+        else:
+            metrics = {}
+
+        self._bridge.start(self._bridge.new_iter_id())
+        if self._role == 'leader':
+            if self._send_metrics_to_follower:
+                send_metrics = metrics
+            else:
+                send_metrics = {}
+
+            msg = tf.train.Features()
+            for k, v in send_metrics.items():
+                msg.feature[k].float_list.value.append(v)
+            self._bridge.send_proto(
+                self._bridge.current_iter_id, 'metrics', msg)
+        else:
+            msg = tf.train.Features()
+            self._bridge.receive_proto(
+                self._bridge.current_iter_id, 'metrics').Unpack(msg)
+            metrics = {}
+            for k, v in msg.feature:
+                metrics[k] = v.float_list.value[0]
+        self._bridge.commit()
+
+        return metrics
+
 
     def _make_key_pair(self):
         # make key pair
@@ -987,12 +1031,11 @@ class BoostingTreeEnsamble(object):
 
     def batch_score(self, features, labels, example_ids):
         pred = self.batch_predict(features, example_ids=example_ids)
-        return self._loss.metrics(pred, labels)
+        return self._compute_metrics(pred, labels)
 
     def batch_predict(self, features, cat_features=None,
                       get_raw_score=False, example_ids=None,
-                      feature_names=None, cat_feature_names=None,
-                      send_scores_to_follower=False):
+                      feature_names=None, cat_feature_names=None):
         if feature_names and self._feature_names:
             assert feature_names == self._feature_names, \
                 "Predict data's feature names does not match loaded model"
@@ -1023,12 +1066,12 @@ class BoostingTreeEnsamble(object):
         if msg.leader_no_data:
             if self._role == 'leader':
                 return self._batch_predict_one_side_leader(
-                    get_raw_score, send_scores_to_follower)
+                    get_raw_score)
             return self._batch_predict_one_side_follower(
                 features, cat_features, get_raw_score)
 
         return self._batch_predict_two_side(
-            features, cat_features, get_raw_score, send_scores_to_follower)
+            features, cat_features, get_raw_score)
 
 
     def _batch_predict_local(self, features, cat_features, get_raw_score):
@@ -1083,8 +1126,7 @@ class BoostingTreeEnsamble(object):
             return raw_prediction
         return self._loss.predict(raw_prediction)
 
-    def _batch_predict_one_side_leader(self, get_raw_score,
-                                       send_scores_to_follower):
+    def _batch_predict_one_side_leader(self, get_raw_score):
         raw_prediction = None
         for idx, tree in enumerate(self._trees):
             logging.debug("Running prediction for tree %d", idx)
@@ -1104,7 +1146,7 @@ class BoostingTreeEnsamble(object):
         self._bridge.start(self._bridge.new_iter_id())
         self._bridge.send(
             self._bridge.current_iter_id, 'raw_prediction',
-            raw_prediction*send_scores_to_follower)
+            raw_prediction*self._send_scores_to_follower)
         self._bridge.commit()
 
         if get_raw_score:
@@ -1112,8 +1154,7 @@ class BoostingTreeEnsamble(object):
         return self._loss.predict(raw_prediction)
 
 
-    def _batch_predict_two_side(self, features, cat_features, get_raw_score,
-                                send_scores_to_follower):
+    def _batch_predict_two_side(self, features, cat_features, get_raw_score):
         N = features.shape[0]
         peer_role = 'leader' if self._role == 'follower' else 'follower'
         raw_prediction = np.zeros(N, dtype=BST_TYPE)
@@ -1144,7 +1185,7 @@ class BoostingTreeEnsamble(object):
         if self._role == 'leader':
             self._bridge.send(
                 self._bridge.current_iter_id, 'raw_prediction',
-                raw_prediction*send_scores_to_follower)
+                raw_prediction*self._send_scores_to_follower)
         else:
             raw_prediction = self._bridge.receive(
                 self._bridge.current_iter_id, 'raw_prediction')
@@ -1269,10 +1310,7 @@ class BoostingTreeEnsamble(object):
                     validation_features,
                     example_ids=validation_example_ids,
                     cat_features=validation_cat_features)
-                if validation_labels is not None:
-                    metrics = self._loss.metrics(val_pred, validation_labels)
-                else:
-                    metrics = {}
+                metrics = self._compute_metrics(val_pred, validation_labels)
                 logging.info(
                     "Validation metrics for iter %d: %s", num_iter, metrics)
                 if output_path is not None:
@@ -1289,7 +1327,7 @@ class BoostingTreeEnsamble(object):
         hess = self._loss.hessian(sum_fx, pred, labels)
         logging.info(
             'Leader starting iteration %d. Metrics are %s',
-            len(self._trees), self._loss.metrics(pred, labels))
+            len(self._trees), self._compute_metrics(pred, labels))
 
         grower = BaseGrower(
             binned, labels, grad, hess,
@@ -1306,13 +1344,14 @@ class BoostingTreeEnsamble(object):
 
     def _fit_one_round_leader(self, sum_fx, binned, labels):
         # compute grad and hess
-        self._bridge.start(self._bridge.new_iter_id())
         pred = self._loss.predict(sum_fx)
         grad = self._loss.gradient(sum_fx, pred, labels)
         hess = self._loss.hessian(sum_fx, pred, labels)
         logging.info(
             'Training metrics at start of iteration %d: %s',
-            len(self._trees), self._loss.metrics(pred, labels))
+            len(self._trees), self._compute_metrics(pred, labels))
+
+        self._bridge.start(self._bridge.new_iter_id())
         _encrypt_and_send_numbers(
             self._bridge, 'grad', self._public_key, grad)
         _encrypt_and_send_numbers(
@@ -1335,6 +1374,9 @@ class BoostingTreeEnsamble(object):
 
 
     def _fit_one_round_follower(self, binned):
+        logging.info(
+            'Training metrics at start of iteration %d: %s',
+            len(self._trees), self._compute_metrics(None, None))
         # compute grad and hess
         self._bridge.start(self._bridge.new_iter_id())
         grad = np.asarray(_receive_encrypted_numbers(
