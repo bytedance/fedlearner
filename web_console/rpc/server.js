@@ -57,7 +57,15 @@ async function getTickets(call, callback) {
       where.job_type = { [Op.eq]: job_type };
     }
     let data = await Ticket.findAll({ where });
-    data = data.map((x) => ({ ...x, public_params: JSON.stringify(x.public_params) }));
+    data = data.map((x) => ({
+      name: x.name,
+      job_type: x.job_type,
+      role: x.role,
+      sdk_version: x.sdk_version,
+      expire_time: x.expire_time,
+      remark: x.remark,
+      public_params: JSON.stringify(x.public_params),
+    }));
     callback(null, { data });
   } catch (err) {
     callback(err);
