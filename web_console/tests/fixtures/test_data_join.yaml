@@ -33,6 +33,22 @@ spec:
                 value: test_data_join
               - name: OUTPUT_BASE_DIR
                 value: /data/data_join/data_source/test_data_join
+              - name: CPU_REQUEST
+                valueFrom:
+                  resourceFieldRef:
+                    resource: requests.cpu
+              - name: MEM_REQUEST
+                valueFrom:
+                  resourceFieldRef:
+                    resource: requests.memory
+              - name: CPU_LIMIT
+                valueFrom:
+                  resourceFieldRef:
+                    resource: limits.cpu
+              - name: MEM_LIMIT
+                valueFrom:
+                  resourceFieldRef:
+                    resource: limits.memory
               - name: ETCD_NAME
                 value: data_join_etcd_name
               - name: ETCD_ADDR
@@ -101,6 +117,22 @@ spec:
                 value: test_data_join
               - name: OUTPUT_BASE_DIR
                 value: /data/data_join/data_source/test_data_join
+              - name: CPU_REQUEST
+                valueFrom:
+                  resourceFieldRef:
+                    resource: requests.cpu
+              - name: MEM_REQUEST
+                valueFrom:
+                  resourceFieldRef:
+                    resource: requests.memory
+              - name: CPU_LIMIT
+                valueFrom:
+                  resourceFieldRef:
+                    resource: limits.cpu
+              - name: MEM_LIMIT
+                valueFrom:
+                  resourceFieldRef:
+                    resource: limits.memory
               - name: ETCD_NAME
                 value: data_join_etcd_name
               - name: ETCD_ADDR
