@@ -870,7 +870,7 @@ class BoostingTreeEnsamble(object):
                 send_metrics = {}
 
             msg = tf.train.Features()
-            for k, v in send_metrics:
+            for k, v in send_metrics.items():
                 msg.feature[k].float_list.value.append(v)
             self._bridge.send_proto(
                 self._bridge.current_iter_id, 'metrics', msg)
