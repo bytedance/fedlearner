@@ -56,7 +56,8 @@ class CsvDictWriter(object):
         return self._write_raw_num
 
     def _flush_buffer(self, force=False):
-        if self._buffer_handle.tell() > (2 << 20) or force:
+        if self._buffer_handle.tell() > (2 << 20) or \
+                (self._buffer_handle.tell() > 0 and force):
             self._file_hanlde.write(self._buffer_handle.getvalue())
             self._buffer_handle.truncate(0)
             self._buffer_handle.seek(0)
