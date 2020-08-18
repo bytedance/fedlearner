@@ -33,7 +33,19 @@ describe('RawData System', () => {
         .expect(400)
         .end((err, res) => {
           if (err) done(err);
-          assert.deepStrictEqual(res.body.error, 'name can only contain letters/numbers/_');
+          assert.deepStrictEqual(res.body.error, 'name can only contain letters/numbers/-');
+          done();
+        });
+    });
+
+    it('respond 400 if output_partition_num is not integer', (done) => {
+      request.post('/api/v1/raw_data')
+        .set('Cookie', userCookie)
+        .send({ ...raw_data, output_partition_num: 'xxx' })
+        .expect(400)
+        .end((err, res) => {
+          if (err) done(err);
+          assert.deepStrictEqual(res.body.error, 'output_partition_num must be integer');
           done();
         });
     });
@@ -111,6 +123,18 @@ describe('RawData System', () => {
           assert.ok(j);
           assert.ok(j.metadata);
           savedRawData = j;
+          done();
+        });
+    });
+
+    it('should return raw_datas filtered by federation', (done) => {
+      request.get('/api/v1/raw_datas')
+        .set('Cookie', userCookie)
+        .set('X-Federation-Id', raw_data.federation_id)
+        .expect(200)
+        .end((err, res) => {
+          if (err) done(err);
+          assert.ok(res.body.data.every((x) => x.federation_id === raw_data.federation_id));
           done();
         });
     });
