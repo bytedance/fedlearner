@@ -91,6 +91,8 @@ class elasticSearchHandler(Handler):
         if tags is None:
             tags = {}
         tags['application_id'] = str(application_id)
+        logging.info('[metrics] name[%s] value[%s] tags[%s]', name, value,
+                     str(tags))
         action = {
             "name": name,
             "value": value,
