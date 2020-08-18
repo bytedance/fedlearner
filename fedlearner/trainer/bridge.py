@@ -65,7 +65,6 @@ class Bridge(object):
         def Transmit(self, request, context):
             return self._bridge._transmit_handler(request)
 
-        @metrics.timer(func_name="one stream transmit", tags={})
         def StreamTransmit(self, request_iterator, context):
             for request in request_iterator:
                 yield self._bridge._transmit_handler(request)
@@ -219,12 +218,7 @@ class Bridge(object):
                                            tags={})
                         yield item
 
-                time_start = time.time()
                 generator = client.StreamTransmit(iterator())
-                time_end = time.time()
-                metrics.emit_timer(name="one_StreamTransmit_spend",
-                                   value=int(time_end-time_start),
-                                   tags={})
                 for response in generator:
                     if response.status.code == common_pb.STATUS_SUCCESS:
                         logging.debug("Message with seq_num=%d is "
@@ -249,9 +243,9 @@ class Bridge(object):
                         logging.debug(
                             "Resend queue size: %d, starting from seq_num=%s",
                             len(resend_list), min_seq_num_to_resend)
-                metrics.emit_store(name="sum_of_resend",
-                                   value=int(len(resend_list)),
-                                   tags={})
+                    metrics.emit_store(name="sum_of_resend",
+                                       value=int(len(resend_list)),
+                                       tags={})
             except Exception as e:  # pylint: disable=broad-except
                 if not stop_event.is_set():
                     logging.warning("Bridge streaming broken: %s.", repr(e))
