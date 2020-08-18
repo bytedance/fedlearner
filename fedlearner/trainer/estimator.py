@@ -27,7 +27,7 @@ from tensorflow_estimator.python.estimator import model_fn as model_fn_lib
 from fedlearner.common.etcd_client import EtcdClient
 from fedlearner.common.summary_hook import SummaryHook
 from fedlearner.trainer import patch  # pylint: disable=unused-import
-
+from fedlearner.common import metrics
 
 SYNC_PATH = '/sync/'
 
@@ -264,7 +264,13 @@ class FLEstimator(object):
                     while not sess.should_stop():
                         self._bridge.start(iter_id)
                         logging.debug('after bridge start.')
+                        start_time = time.time()
                         sess.run(spec.train_op, feed_dict={})
+                        end_time = time.time()
+                        metrics.emit_timer(
+                            name="per_iter_spend",
+                            value=end_time-start_time,
+                            tags={})
                         logging.debug('after session run.')
                         self._bridge.commit()
                         logging.debug('after bridge commit.')

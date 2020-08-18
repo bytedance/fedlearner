@@ -69,6 +69,7 @@ message MapTask {
   int64 output_partition_num = 4;
   int64 partition_id = 5;
   string part_field = 6;
+  DataPortalType data_portal_type = 7;
 }
 
 message ReduceTask {
@@ -111,8 +112,7 @@ message DataPortalWorkerOptions {
   RawDataOptions raw_data_options = 1;
   WriterOptions writer_options = 2;
   BatchProcessorOptions batch_processor_options = 3;
-  int64 merge_buffer_size = 4;
-  int64 merger_read_ahead_size = 5;
-  int64 merger_read_batch_size = 6;
-  bool use_mock_etcd = 7;
+  int64 merger_read_ahead_size = 4;
+  int64 merger_read_batch_size = 5;
+  bool use_mock_etcd = 6;
 }

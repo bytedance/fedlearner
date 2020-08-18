@@ -46,12 +46,15 @@ class RsaPsiPreProcessor(object):
                 concur_futures.ProcessPoolExecutor(
                         options.offload_processor_number
                     )
+        self._callback_submitter = None
+        # pre fock sub processor before launch grpc client
+        self._process_pool_executor.submit(min, 1, 2).result()
         self._id_batch_fetcher = IdBatchFetcher(etcd, self._options)
-        max_flying_item = options.batch_processor_options.max_flying_item
         if self._options.role == common_pb.FLRole.Leader:
             private_key = rsa.PrivateKey.load_pkcs1(options.rsa_key_pem)
             self._psi_rsa_signer = LeaderPsiRsaSigner(
-                    self._id_batch_fetcher, max_flying_item,
+                    self._id_batch_fetcher,
+                    options.batch_processor_options.max_flying_item,
                     self._options.max_flying_sign_batch,
                     self._options.slow_sign_threshold,
                     self._process_pool_executor, private_key,
@@ -59,14 +62,17 @@ class RsaPsiPreProcessor(object):
             self._repr = 'leader-' + 'rsa_psi_preprocessor'
         else:
             public_key = rsa.PublicKey.load_pkcs1(options.rsa_key_pem)
+            self._callback_submitter = concur_futures.ThreadPoolExecutor(1)
             self._psi_rsa_signer = FollowerPsiRsaSigner(
-                    self._id_batch_fetcher, max_flying_item,
+                    self._id_batch_fetcher,
+                    options.batch_processor_options.max_flying_item,
                     self._options.max_flying_sign_batch,
                     self._options.max_flying_sign_rpc,
                     self._options.sign_rpc_timeout_ms,
                     self._options.slow_sign_threshold,
                     self._options.stub_fanout,
-                    self._process_pool_executor, public_key,
+                    self._process_pool_executor,
+                    self._callback_submitter, public_key,
                     self._options.leader_rsa_psi_signer_addr
                 )
             self._repr = 'follower-' + 'rsa_psi_preprocessor'
@@ -135,6 +141,8 @@ class RsaPsiPreProcessor(object):
                 self._lock.wait()
         self.stop_routine_workers()
         self._process_pool_executor.shutdown()
+        if self._callback_submitter is not None:
+            self._callback_submitter.shutdown()
         self._id_batch_fetcher.cleanup_visitor_meta_data()
 
     def _id_batch_fetcher_name(self):
@@ -149,15 +157,15 @@ class RsaPsiPreProcessor(object):
             logging.debug("%s fetch batch begin at %d, len %d. wakeup %s",
                           self._id_batch_fetcher_name(), batch.begin_index,
                           len(batch), self._psi_rsa_signer_name())
-            if get_oom_risk_checker().check_oom_risk(0.85):
+            self._wakeup_psi_rsa_signer()
+            if get_oom_risk_checker().check_oom_risk(0.75):
                 logging.warning('early stop the id fetch '\
                                 'since the oom risk')
-            self._wakeup_psi_rsa_signer()
 
     def _id_batch_fetch_cond(self):
         next_index = self._psi_rsa_signer.get_next_index_to_fetch()
         return self._id_batch_fetcher.need_process(next_index) and \
-                not get_oom_risk_checker().check_oom_risk(0.85)
+                not get_oom_risk_checker().check_oom_risk(0.75)
 
     def _psi_rsa_signer_name(self):
         return self._repr + ':psi_rsa_signer'
@@ -199,7 +207,7 @@ class RsaPsiPreProcessor(object):
         total_item_num = 0
         max_flying_item = self._options.batch_processor_options.max_flying_item
         sort_run_size = max_flying_item // 2
-        while True and total_item_num < sort_run_size:
+        while sort_run_size <= 0 or total_item_num < sort_run_size:
             signed_finished, batch, hint_index = \
                 rsi_signer.fetch_item_batch_by_index(next_index, hint_index)
             if batch is None:
@@ -243,9 +251,9 @@ class RsaPsiPreProcessor(object):
                   next_index is not None and
                   (flying_begin_index <= next_index <
                       flying_begin_index + flying_item_cnt) and
-                   (flying_item_cnt-(next_index-flying_begin_index) >=
-                    max_flying_item // 4 or
-                    get_oom_risk_checker().check_oom_risk(0.75))))
+                   ((flying_item_cnt-(next_index-flying_begin_index) >=
+                     max_flying_item // 2 and max_flying_item > 0) or
+                    get_oom_risk_checker().check_oom_risk(0.50))))
 
     def _sort_run_merger_name(self):
         return self._repr + ':sort_run_merger'

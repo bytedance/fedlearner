@@ -12,7 +12,7 @@ message Ticket {
   string sdk_version = 4;
   string expire_time = 5;
   string remark = 6;
-  string params = 7;
+  string public_params = 7;
 }
 
 message Job {

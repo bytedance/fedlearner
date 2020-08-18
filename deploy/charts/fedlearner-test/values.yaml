@@ -1,0 +1,27 @@
+# Default values for fedlearner-test.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+image:
+  repository: "registry.cn-beijing.aliyuncs.com/fedlearner/grpcurl"
+  pullPolicy: IfNotPresent
+  # Overrides the image tag whose default is the chart appVersion.
+  tag: "latest"
+
+ingress:
+  enabled: true
+  tls: false
+  authority: default.fedlearner.operator
+  secretName: fedlearner-proxy-client
+  host: ""
+  port: 32443
+  grpcService: fedlearner.PairingService.Ping
+
+egress:
+  enabled: true
+  authority: external.name
+  extraHeader:
+    "XHOST": default.flapp.operator
+  host: fedlearner-stack-ingress-nginx-controller
+  port: 80
+  grpcService: fedlearner.PairingService.Ping

@@ -105,8 +105,9 @@ router.get('/api/v1/federations/:id/tickets', SessionMiddleware, async (ctx) => 
     };
     return;
   }
+  const { job_type = '', role = '' } = ctx.query;
   const client = new FederationClient(federation);
-  const { data } = await client.getTickets();
+  const { data } = await client.getTickets({ job_type, role });
   ctx.body = { data };
 });
 

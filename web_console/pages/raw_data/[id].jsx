@@ -11,7 +11,7 @@ import JobCommonInfo, { jsonHandledPopover } from '../../components/JobCommonInf
 export default function RawDataJob() {
   const router = useRouter();
   const { query } = router;
-  const { data, mutate } = useSWR(`raw_data/${query.id}`, fetcher);
+  const { data, mutate } = useSWR(query.id ? `raw_data/${query.id}` : null, fetcher);
   const rawData = data ? data.data : null;
 
   const [loading, setLoading] = useState(false);

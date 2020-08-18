@@ -16,6 +16,8 @@
 
 import threading
 
+from fedlearner.common import metrics
+
 from fedlearner.data_join.routine_worker import RoutineWorker
 
 class TransmitFollower(object):
@@ -60,6 +62,8 @@ class TransmitFollower(object):
         self._impl_ctx = None
         self._started = False
 
+    @metrics.timer(func_name='start_sync_partition',
+                   tags={'role': 'transmit_follower'})
     def start_sync_partition(self, partition_id):
         with self._lock:
             if self._impl_ctx is not None and \
@@ -74,6 +78,8 @@ class TransmitFollower(object):
             return self._impl_ctx.get_next_index(), \
                     self._impl_ctx.get_dumped_index()
 
+    @metrics.timer(func_name='add_synced_item',
+                   tags={'role': 'transmit_follower'})
     def add_synced_item(self, sync_ctnt):
         with self._lock:
             partition_id = \
@@ -84,6 +90,8 @@ class TransmitFollower(object):
                 self._dump_worker.wakeup()
             return filled, next_index, self._impl_ctx.get_dumped_index()
 
+    @metrics.timer(func_name='finish_sync_partition',
+                   tags={'role': 'transmit_follower'})
     def finish_sync_partition(self, partition_id):
         with self._lock:
             self._check_status(partition_id)
@@ -91,6 +99,8 @@ class TransmitFollower(object):
             return not self._impl_ctx.need_dump(), \
                     self._impl_ctx.get_dumped_index()
 
+    @metrics.timer(func_name='reset_partition',
+                   tags={'role': 'transmit_follower'})
     def reset_partition(self, partition_id):
         with self._lock:
             if not self._check_status(partition_id, False):

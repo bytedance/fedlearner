@@ -17,6 +17,9 @@
 import logging
 import os
 import time
+import datetime
+from functools import wraps
+import pytz
 try:
     import thread
     import threading
@@ -78,6 +81,7 @@ class elasticSearchHandler(Handler):
         from elasticsearch import Elasticsearch # pylint: disable=C0415
         super(elasticSearchHandler, self).__init__('elasticsearch')
         self._es = Elasticsearch([ip], port=port)
+        self._tz = pytz.timezone('Asia/Shanghai')
         # initialize index for elastic search
         if self._es.indices.exists(index='metrics') is not True:
             self._es.indices.create(index='metrics')
@@ -87,7 +91,7 @@ class elasticSearchHandler(Handler):
             "name": name,
             "value": value,
             "tags": tags,
-            "timestamp": int(time.time())
+            "date_time": datetime.datetime.now(tz=self._tz)
         }
         self._es.index(index="metrics", body=action)
 
@@ -169,3 +173,18 @@ def emit_timer(name, value, tags=None):
     if not _metrics_client:
         initialize_metrics()
     _metrics_client.emit(name, value, tags, 'timer')
+
+
+def timer(func_name, tags=None):
+    def func_wrapper(func):
+        @wraps(func)
+        def return_wrapper(*args, **kwargs):
+            time_start = time.time()
+
+            result = func(*args, **kwargs)
+            time_end = time.time()
+            time_spend = time_end-time_start
+            emit_timer(func_name, time_spend, tags)
+            return result
+        return return_wrapper
+    return func_wrapper

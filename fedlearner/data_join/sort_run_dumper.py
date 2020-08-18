@@ -19,6 +19,7 @@ import re
 import copy
 from os import path
 
+import tensorflow_io # pylint: disable=unused-import
 from tensorflow.compat.v1 import gfile
 
 from fedlearner.data_join.output_writer_impl import create_output_writer
@@ -125,7 +126,7 @@ class SortRunDumper(object):
         self._dump_finished = False
         self._dumped_sort_run_metas = []
         self._fly_sort_run_dumper = None
-        self._sync_manager_state()
+        self._sync_manager_state(True)
 
     def get_next_index_to_dump(self):
         with self._lock:
@@ -143,7 +144,7 @@ class SortRunDumper(object):
             return self._dump_finished
 
     def dump_sort_runs(self, producer):
-        self._sync_manager_state()
+        self._sync_manager_state(False)
         if self.is_dump_finished():
             return
         assert self._dumped_process_index is not None
@@ -171,8 +172,8 @@ class SortRunDumper(object):
     def sort_run_dump_dir(self):
         return path.join(self._options.output_file_dir, 'sort_run_dump-tmp')
 
-    def _sync_manager_state(self):
-        if self._double_check_dump_finished():
+    def _sync_manager_state(self, init):
+        if self._double_check_dump_finished() and not init:
             return
         if self._fly_sort_run_dumper is not None:
             if gfile.Exists(self._fly_sort_run_dumper.tmp_fpath):

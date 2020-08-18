@@ -21,6 +21,7 @@ from functools import cmp_to_key
 import gc
 import grpc
 
+import tensorflow_io # pylint: disable=unused-import
 from tensorflow.compat.v1 import gfile
 
 from fedlearner.common import data_portal_service_pb2 as dp_pb
@@ -97,7 +98,10 @@ class DataPortalWorker(object):
     def __init__(self, options, master_addr, rank_id, etcd_name,
                  etcd_base_dir, etcd_addrs, use_mock_etcd=False):
         master_channel = make_insecure_channel(
-          master_addr, ChannelType.INTERNAL)
+                master_addr, ChannelType.INTERNAL,
+                options=[('grpc.max_send_message_length', 2**31-1),
+                         ('grpc.max_receive_message_length', 2**31-1)]
+            )
         self._etcd_name = etcd_name
         self._etcd_base_dir = etcd_base_dir
         self._etcd_addrs = etcd_addrs
@@ -164,18 +168,28 @@ class DataPortalWorker(object):
             writer_options=self._options.writer_options,
             output_file_dir=task.reduce_base_dir,
             partition_id=task.partition_id,
-            merge_buffer_size=self._options.merge_buffer_size
         )
 
     def _run_map_task(self, task):
         partition_options = self._make_partitioner_options(task)
-        data_partitioner = RawDataSortPartitioner(
-            partition_options, task.part_field, self._etcd_name,
-            self._etcd_addrs, self._etcd_base_dir, self._use_mock_etcd
-        )
-        logging.info("Partitioner rank_id-[%d] start run task %s for "\
-                     "partition %d, input %d files", self._rank_id,
-                     partition_options.partitioner_name,
+        data_partitioner = None
+        type_repr = ''
+        if task.data_portal_type == dp_pb.DataPortalType.Streaming:
+            data_partitioner = RawDataSortPartitioner(
+                partition_options, task.part_field, self._etcd_name,
+                self._etcd_addrs, self._etcd_base_dir, self._use_mock_etcd
+            )
+            type_repr = 'streaming'
+        else:
+            assert task.data_portal_type == dp_pb.DataPortalType.PSI
+            data_partitioner = RawDataPartitioner(
+                partition_options, task.part_field, self._etcd_name,
+                self._etcd_addrs, self._etcd_base_dir, self._use_mock_etcd
+            )
+            type_repr = 'psi'
+        logging.info("Partitioner rank_id-[%d] start run task %s of type %s "\
+                     "for partition %d, input %d files", self._rank_id,
+                     partition_options.partitioner_name, type_repr,
                      partition_options.partitioner_rank_id,
                      len(partition_options.input_file_paths))
         data_partitioner.start_process()

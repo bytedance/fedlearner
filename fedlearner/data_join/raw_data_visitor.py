@@ -187,30 +187,33 @@ class FileBasedMockRawDataVisitor(RawDataVisitor):
         self._mock_rd_manifest_manager.cleanup_meta_data()
 
 class EtcdBasedMockRawDataVisitor(RawDataVisitor):
-    def __init__(self, etcd, raw_data_options,
-                 mock_data_source_name, raw_data_sub_dir):
+    def __init__(self, etcd, raw_data_options, mock_data_source_name,
+                 raw_data_sub_dir, partition_id):
         mock_data_source = common_pb.DataSource(
                 state=common_pb.DataSourceState.Processing,
                 raw_data_sub_dir=raw_data_sub_dir,
                 data_source_meta=common_pb.DataSourceMeta(
                     name=mock_data_source_name,
-                    partition_num=1
+                    partition_num=partition_id+1
                 )
             )
         self._mock_rd_manifest_manager = RawDataManifestManager(
-                etcd, mock_data_source
+                etcd, mock_data_source, False
             )
+        self._partition_id = partition_id
         super(EtcdBasedMockRawDataVisitor, self).__init__(
-                etcd, mock_data_source, 0, raw_data_options
+                etcd, mock_data_source,
+                partition_id, raw_data_options
             )
 
     def active_visitor(self):
-        self._mock_rd_manifest_manager.sub_new_raw_data()
+        self._mock_rd_manifest_manager.sub_new_raw_data(self._partition_id)
         if self.is_visitor_stale():
             self._finished = False
 
     def is_input_data_finish(self):
-        return self._mock_rd_manifest_manager.get_manifest(0).finished
+        manager = self._mock_rd_manifest_manager
+        return manager.get_manifest(self._partition_id).finished
 
     def cleanup_meta_data(self):
         self._mock_rd_manifest_manager.cleanup_meta_data()

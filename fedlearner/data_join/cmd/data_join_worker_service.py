@@ -25,7 +25,8 @@ tensorflow.compat.v1.enable_eager_execution()
 
 if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
-    logging.basicConfig(format='%(asctime)s %(message)s')
+    logging.basicConfig(format="%(asctime)s %(filename)s "\
+                               "%(lineno)s %(levelname)s - %(message)s")
     parser = argparse.ArgumentParser(description='DataJoinWorkerService cmd.')
     parser.add_argument('peer_addr', type=str,
                         help='the addr(uuid) of peer data join worker')
@@ -74,12 +75,6 @@ if __name__ == "__main__":
     parser.add_argument('--example_id_dump_threshold', type=int, default=4096,
                         help='dump a data block if N example id, <=0'\
                              'means no size limit for dumping example id')
-    parser.add_argument('--example_id_batch_size', type=int, default=4096,
-                        help='size of example id batch combined for '\
-                             'example id sync leader')
-    parser.add_argument('--max_flying_example_id', type=int, default=268435456,
-                        help='max flying example id cached for '\
-                             'example id sync leader')
     parser.add_argument('--data_block_builder', type=str, default='TF_RECORD',
                         choices=['TF_RECORD', 'CSV_DICT'],
                         help='the file type for data block')
@@ -107,8 +102,8 @@ if __name__ == "__main__":
                     example_id_dump_threshold=args.example_id_dump_threshold
                 ),
             batch_processor_options=dj_pb.BatchProcessorOptions(
-                    batch_size=args.example_id_batch_size,
-                    max_flying_item=args.max_flying_example_id
+                    batch_size=4096,
+                    max_flying_item=-1
                 ),
             data_block_builder_options=dj_pb.WriterOptions(
                     output_writer=args.data_block_builder,

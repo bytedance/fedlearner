@@ -34,6 +34,7 @@ from fedlearner.common import common_pb2 as common_pb
 from fedlearner.common import trainer_worker_service_pb2 as tws_pb
 from fedlearner.common import trainer_worker_service_pb2_grpc as tws_grpc
 from fedlearner.proxy.channel import make_insecure_channel, ChannelType
+from fedlearner.common import metrics
 
 
 def make_ready_client(channel, stop_event=None):
@@ -45,7 +46,8 @@ def make_ready_client(channel, stop_event=None):
             channel_ready.result(timeout=wait_secs)
             break
         except grpc.FutureTimeoutError:
-            logging.warning('Channel has not been ready for %.2f seconds',
+            logging.warning(
+                'Channel has not been ready for %.2f seconds',
                 time.time()-start_time)
             if wait_secs < 5.0:
                 wait_secs *= 1.2
@@ -63,6 +65,7 @@ class Bridge(object):
         def Transmit(self, request, context):
             return self._bridge._transmit_handler(request)
 
+        @metrics.timer(func_name="one stream transmit", tags={})
         def StreamTransmit(self, request_iterator, context):
             for request in request_iterator:
                 yield self._bridge._transmit_handler(request)
@@ -116,6 +119,7 @@ class Bridge(object):
 
         # grpc client
         self._transmit_send_lock = threading.Lock()
+        self._client_lock = threading.Lock()
         self._grpc_options = [
             ('grpc.max_send_message_length', 2**31-1),
             ('grpc.max_receive_message_length', 2**31-1)
@@ -147,6 +151,23 @@ class Bridge(object):
     def role(self):
         return self._role
 
+    def _rpc_with_retry(self, sender, err_log):
+        while True:
+            with self._client_lock:
+                try:
+                    return sender()
+                except Exception as e:  # pylint: disable=broad-except
+                    logging.warning(
+                        "%s: %s. Retry in 1s...", err_log, repr(e))
+                    self._channel.close()
+                    time.sleep(1)
+                    self._channel = make_insecure_channel(
+                        self._remote_address, ChannelType.REMOTE,
+                        options=self._grpc_options,
+                        compression=self._compression)
+                    self._client = make_ready_client(self._channel)
+                    self._check_remote_heartbeat(self._client)
+
     def _client_daemon_fn(self):
         stop_event = threading.Event()
         generator = None
@@ -158,6 +179,7 @@ class Bridge(object):
         lock = threading.Lock()
         resend_list = collections.deque()
 
+        @metrics.timer(func_name="shutdown_fn", tags={})
         def shutdown_fn():
             with lock:
                 while len(resend_list) > 0 or not self._transmit_queue.empty():
@@ -182,6 +204,9 @@ class Bridge(object):
                     for item in resend_msgs:
                         logging.warning("Streaming resend message seq_num=%d",
                                         item.seq_num)
+                        metrics.emit_store(name="resend_msg_seq_num",
+                                           value=int(item.seq_num),
+                                           tags={})
                         yield item
                     while True:
                         item = self._transmit_queue.get()
@@ -189,9 +214,17 @@ class Bridge(object):
                             resend_list.append(item)
                         logging.debug("Streaming send message seq_num=%d",
                                       item.seq_num)
+                        metrics.emit_store(name="send_msg_seq_num",
+                                           value=int(item.seq_num),
+                                           tags={})
                         yield item
 
+                time_start = time.time()
                 generator = client.StreamTransmit(iterator())
+                time_end = time.time()
+                metrics.emit_timer(name="one_StreamTransmit_spend",
+                                   value=int(time_end-time_start),
+                                   tags={})
                 for response in generator:
                     if response.status.code == common_pb.STATUS_SUCCESS:
                         logging.debug("Message with seq_num=%d is "
@@ -216,6 +249,9 @@ class Bridge(object):
                         logging.debug(
                             "Resend queue size: %d, starting from seq_num=%s",
                             len(resend_list), min_seq_num_to_resend)
+                metrics.emit_store(name="sum_of_resend",
+                                   value=int(len(resend_list)),
+                                   tags={})
             except Exception as e:  # pylint: disable=broad-except
                 if not stop_event.is_set():
                     logging.warning("Bridge streaming broken: %s.", repr(e))
@@ -230,7 +266,7 @@ class Bridge(object):
                     self._remote_address, ChannelType.REMOTE,
                     options=self._grpc_options, compression=self._compression)
                 client = make_ready_client(channel, stop_event)
-                self._check_remote_heartbeat()
+                self._check_remote_heartbeat(client)
 
     def _transmit(self, msg):
         assert self._connected, "Cannot transmit before connect"
@@ -242,23 +278,12 @@ class Bridge(object):
                 self._transmit_queue.put(msg)
                 return
 
-            while True:
-                try:
-                    rsp = self._client.Transmit(msg)
-                    assert rsp.status.code == common_pb.STATUS_SUCCESS, \
-                        "Transmit error with code %d."%rsp.status.code
-                    break
-                except Exception as e:  # pylint: disable=broad-except
-                    logging.warning("Bridge transmit failed: %s. " \
-                                    "Retry in 1 second...", repr(e))
-                    self._channel.close()
-                    time.sleep(1)
-                    self._channel = make_insecure_channel(
-                        self._remote_address, ChannelType.REMOTE,
-                        options=self._grpc_options,
-                        compression=self._compression)
-                    self._client = make_ready_client(self._channel)
-                    self._check_remote_heartbeat()
+            def sender():
+                rsp = self._client.Transmit(msg)
+                assert rsp.status.code == common_pb.STATUS_SUCCESS, \
+                    "Transmit error with code %d."%rsp.status.code
+            self._rpc_with_retry(sender, "Bridge transmit failed")
+
 
     def _transmit_handler(self, request):
         assert self._connected, "Cannot transmit before connect"
@@ -304,14 +329,17 @@ class Bridge(object):
             return tws_pb.TrainerWorkerResponse(
                 next_seq_num=self._next_receive_seq_num)
 
+    @metrics.timer(func_name="data_block_req", tags={})
     def _data_block_handler(self, request):
         assert self._connected, "Cannot load data before connect"
         if not self._data_block_handler_fn:
             raise RuntimeError("Received DataBlockMessage but" \
                                 " no handler registered")
-        self._data_block_handler_fn(request)
-        return common_pb.Status(code=common_pb.STATUS_SUCCESS)
+        if self._data_block_handler_fn(request):
+            return common_pb.Status(code=common_pb.STATUS_SUCCESS)
+        return common_pb.Status(code=common_pb.STATUS_INVALID_DATA_BLOCK)
 
+    @metrics.timer(func_name="connect_req", tags={})
     def _connect_handler(self, request):
         assert request.app_id == self._app_id, \
             "Connection failed. Application id mismatch: %s vs %s"%(
@@ -349,9 +377,9 @@ class Bridge(object):
             self._condition.notifyAll()
         return tws_pb.TerminateResponse()
 
-    def _check_remote_heartbeat(self):
+    def _check_remote_heartbeat(self, client):
         try:
-            rsp = self._client.Heartbeat(tws_pb.HeartbeatRequest())
+            rsp = client.Heartbeat(tws_pb.HeartbeatRequest())
             logging.debug("Heartbeat success: %s:%d at iteration %s.",
                           rsp.app_id, rsp.worker_rank, rsp.current_iter_id)
             return True
@@ -359,6 +387,7 @@ class Bridge(object):
             logging.warning("Heartbeat request failed: %s", repr(e))
             return False
 
+    @metrics.timer(func_name="connect", tags={})
     def connect(self):
         if self._connected:
             logging.warning("Bridge already connected!")
@@ -370,16 +399,10 @@ class Bridge(object):
         msg = tws_pb.ConnectRequest(app_id=self._app_id,
                                     worker_rank=self._rank,
                                     identifier=self._identifier)
-        while True:
-            try:
-                self._client.Connect(msg)
-            except Exception as e:  # pylint: disable=broad-except
-                logging.warning("Bridge failed to connect: %s. " \
-                                "Retry in 1 second...",
-                                repr(e))
-                time.sleep(1)
-                continue
-            break
+
+        self._rpc_with_retry(
+            lambda: self._client.Connect(msg),
+            "Bridge failed to connect")
         logging.debug('Has connected to peer.')
 
         # Ensure REQ from peer
@@ -395,6 +418,7 @@ class Bridge(object):
             self._client_daemon.start()
         logging.debug('finish connect.')
 
+    @metrics.timer(func_name="terminate", tags={})
     def terminate(self, forced=False):
         if not self._connected or self._terminated:
             return
@@ -409,16 +433,9 @@ class Bridge(object):
                 'Error during streaming shutdown: %s', repr(e))
 
         # Get ACK from peer
-        while True:
-            try:
-                self._client.Terminate(tws_pb.TerminateRequest())
-                break
-            except Exception as e:  # pylint: disable=broad-except
-                logging.warning(
-                    "Failed to send terminate message: %s. " \
-                    "Retry in 1 second...", repr(e))
-                time.sleep(1)
-                continue
+        self._rpc_with_retry(
+            lambda: self._client.Terminate(tws_pb.TerminateRequest()),
+            "Failed to send terminate message")
         logging.debug('Waiting for peer to terminate.')
 
         # Ensure REQ from peer
@@ -468,7 +485,10 @@ class Bridge(object):
     def load_data_block(self, count, block_id):
         msg = tws_pb.LoadDataBlockRequest(count=count, block_id=block_id)
         logging.debug("sending DataBlock with id %s", block_id)
-        return self._client.LoadDataBlock(msg)
+        stat = self._rpc_with_retry(
+            lambda: self._client.LoadDataBlock(msg),
+            "Failed to send load data block request")
+        return stat.code == common_pb.STATUS_SUCCESS
 
     def register_prefetch_handler(self, func):
         self._prefetch_handlers.append(func)
@@ -478,6 +498,7 @@ class Bridge(object):
             iter_id=iter_id, sample_ids=sample_ids))
         self._transmit(msg)
 
+    @metrics.timer(func_name="send proto", tags={})
     def send_proto(self, iter_id, name, proto):
         any_proto = google.protobuf.any_pb2.Any()
         any_proto.Pack(proto)
@@ -487,6 +508,7 @@ class Bridge(object):
         logging.debug('Data: send protobuf %s for iter %d. seq_num=%d.',
                       name, iter_id, msg.seq_num)
 
+    @metrics.timer(func_name="send", tags={})
     def send(self, iter_id, name, x):
         msg = tws_pb.TrainerWorkerMessage(data=tws_pb.DataMessage(
             iter_id=iter_id, name=name, tensor=tf.make_tensor_proto(x)))
@@ -502,6 +524,7 @@ class Bridge(object):
         out = tf.py_function(func=func, inp=[x], Tout=[], name='send_' + name)
         return out
 
+    @metrics.timer(func_name="receive proto", tags={})
     def receive_proto(self, iter_id, name):
         logging.debug('Data: Waiting to receive proto %s for iter %d.',
                       name, iter_id)
@@ -513,6 +536,7 @@ class Bridge(object):
         logging.debug('Data: received %s for iter %d.', name, iter_id)
         return data.any_data
 
+    @metrics.timer(func_name="receive", tags={})
     def receive(self, iter_id, name):
         logging.debug('Data: Waiting to receive %s for iter %d.', name,
                       iter_id)

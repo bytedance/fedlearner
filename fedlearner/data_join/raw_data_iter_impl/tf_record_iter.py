@@ -29,24 +29,26 @@ class TfExampleItem(RawDataIter.Item):
         example = self._parse_example()
         self._example_id = self._parse_example_id(example, record_str)
         self._event_time = self._parse_event_time(example, record_str)
+        self._raw_id = self._parse_raw_id(example, record_str)
         self._csv_record = None
-        self._raw_id = None
         self._gc_example(example)
 
     @property
     def example_id(self):
+        if self._example_id == common.InvalidExampleId:
+            logging.warning('Note!!! return invalid example id')
         return self._example_id
 
     @property
     def raw_id(self):
-        if self._raw_id is None:
-            example = self._parse_example()
-            self._raw_id = self._parse_raw_id(example, self._record_str)
-            self._gc_example(example)
+        if self._raw_id == common.InvalidRawId:
+            logging.warning('Note!!! return invalid raw id')
         return self._raw_id
 
     @property
     def event_time(self):
+        if self._example_id == common.InvalidEventTime:
+            logging.warning('Note!!! return invalid event time')
         return self._event_time
 
     @property
@@ -78,8 +80,9 @@ class TfExampleItem(RawDataIter.Item):
             feat = example.features.feature
             if isinstance(example_id, str):
                 example_id = example_id.encode()
-            feat['example_id'] = tf.train.Feature(
-                    bytes_list=tf.train.BytesList(value=[example_id])
+            feat['example_id'].CopyFrom(tf.train.Feature(
+                        bytes_list=tf.train.BytesList(value=[example_id])
+                    )
                 )
             self._record_str = example.SerializeToString()
             self._example_id = example_id
@@ -111,9 +114,8 @@ class TfExampleItem(RawDataIter.Item):
             assert isinstance(example, tf.train.Example)
             try:
                 feat = example.features.feature
-                if 'example_id' not in feat:
-                    raise ValueError('example_id not in example field')
-                return feat['example_id'].bytes_list.value[0]
+                if 'example_id' in feat:
+                    return feat['example_id'].bytes_list.value[0]
             except Exception as e: # pylint: disable=broad-except
                 logging.error('Failed to parse example id from %s, reason %s',
                                record, e)
@@ -122,15 +124,15 @@ class TfExampleItem(RawDataIter.Item):
     @staticmethod
     def _parse_raw_id(example, record):
         if example is not None:
+            assert isinstance(example, tf.train.Example)
             try:
                 feat = example.features.feature
-                if 'raw_id' not in feat:
-                    raise ValueError('raw_id not in example field')
-                return feat['raw_id'].bytes_list.value[0]
+                if 'raw_id' in feat:
+                    return feat['raw_id'].bytes_list.value[0]
             except Exception as e: # pylint: disable=broad-except
                 logging.error('Failed to parse raw id from %s, reason %s',
                               record, e)
-        return ''
+        return common.InvalidRawId
 
     @staticmethod
     def _parse_event_time(example, record):

@@ -21,7 +21,6 @@ except ImportError:
 import logging
 import tensorflow.compat.v1 as tf
 
-
 class DataBlockLoader(object):
     def __init__(self, batch_size, role, bridge, trainer_master):
         self._batch_size = batch_size
@@ -43,21 +42,18 @@ class DataBlockLoader(object):
         else:
             block = self._trainer_master.request_data_block(msg.block_id)
             if block is None:
-                raise ValueError("Block %s not found" % msg.block_id)
+                return False
         self._count += 1
         self._block_queue.put(block)
+        return True
 
     def get_next_block(self):
         if self._role == 'leader':
             while True:
                 block = self._trainer_master.request_data_block()
                 if block is not None:
-                    try:
-                        self._bridge.load_data_block(self._count,
-                                                     block.block_id)
-                    except Exception as e:  # pylint: disable=broad-except
-                        logging.error('load data block %s with error: %s',
-                                      block.block_id, repr(e))
+                    if not self._bridge.load_data_block(
+                            self._count, block.block_id):
                         continue
                 else:
                     self._bridge.load_data_block(self._count, '')

@@ -1,0 +1,59 @@
+{{- if .Values.ingress.enabled }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ template "fedlearner-test.fullname" . }}-ingress
+  namespace: {{ .Release.Namespace }}
+  labels:
+  {{- include "fedlearner-test.labels" . | nindent 6 }}
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-weight": "0"
+    "helm.sh/hook-delete-policy": hook-succeeded,hook-failed
+spec:
+  backoffLimit: 3
+  template:
+    metadata:
+      name: {{ template "fedlearner-test.fullname" . }}-ingress
+      labels:
+      {{- include "fedlearner-test.labels" . | nindent 8 }}
+    spec:
+      containers:
+        - name: grpcurl-ingress-test
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          env:
+            - name: AUTHORITY
+              value: {{ .Values.ingress.authority }}
+            - name: TARGET_HOST
+              value: "{{ .Values.ingress.host }}:{{ .Values.ingress.port }}"
+            - name: GRPC_SERVICE
+              value: "{{ .Values.ingress.grpcService }}"
+          command:
+            - grpcurl
+          args:
+          {{- if .Values.ingress.tls }}
+            - "-authority=$(AUTHORITY)"
+            - "-servername=$(AUTHORITY)"
+            - "-cacert=/etc/client-secret/all.pem"
+            - "-cert=/etc/client-secret/client.pem"
+            - "-key=/etc/client-secret/client.key"
+            - "-max-time=5"
+            - "$(TARGET_HOST)"
+            - "$(GRPC_SERVICE)"
+          {{- else }}
+            - "-authority=$(AUTHORITY)"
+            - "-insecure"
+            - "-max-time=5"
+            - "$(TARGET_HOST)"
+            - "$(GRPC_SERVICE)"
+          {{- end }}
+          volumeMounts:
+            - mountPath: "/etc/client-secret"
+              name: client-secret
+      restartPolicy: Never
+      volumes:
+        - name: client-secret
+          secret:
+            secretName: {{ .Values.ingress.secretName }}
+{{- end }}

@@ -49,11 +49,13 @@ class TrainerMaster(object):
         raise NotImplementedError("This method needs to be overridden")
 
     def _data_block_response(self, request):
-        logging.debug("In Base TrainerMaster::_data_block_response "\
-                      "block_id = %s", request.block_id)
         data_block = self._alloc_data_block(block_id=request.block_id)
         response = tm_pb.DataBlockResponse()
         if data_block:
+            logging.debug("%s allocated worker_%d with block id %s",
+                          self.__class__.__name__,
+                          request.worker_rank,
+                          data_block.block_id)
             response.status.code = common_pb.STATUS_SUCCESS
             response.status.error_message = 'success'
             response.data_block_info.data_path = \
@@ -61,9 +63,15 @@ class TrainerMaster(object):
             response.data_block_info.meta_path = ''
             response.data_block_info.block_id = str(data_block.block_id)
         elif self._online_training:
+            logging.debug("%s allocated worker_%d with empty data block. "\
+                          "wait for new data block since online traning",
+                          self.__class__.__name__, request.worker_rank)
             response.status.code = common_pb.STATUS_NO_MORE_DATA
             response.status.error_message = 'please wait for datablock ready'
         else:
+            logging.debug("%s allocated worker_%d with empty data block. "\
+                          "exit running since since batch traning",
+                          self.__class__.__name__, request.worker_rank)
             response.status.code = common_pb.STATUS_DATA_FINISHED
             response.status.error_message = 'datablock finished'
         return response

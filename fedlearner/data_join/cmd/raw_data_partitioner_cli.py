@@ -21,6 +21,7 @@ import os
 
 from cityhash import CityHash32 # pylint: disable=no-name-in-module
 import tensorflow.compat.v1 as tf
+import tensorflow_io # pylint: disable=unused-import
 from tensorflow.compat.v1 import gfile
 
 from fedlearner.common import data_join_service_pb2 as dj_pb
@@ -28,7 +29,8 @@ from fedlearner.data_join.raw_data_partitioner import RawDataPartitioner
 
 if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
-    logging.basicConfig(format='%(asctime)s %(message)s')
+    logging.basicConfig(format="%(asctime)s %(filename)s "\
+                               "%(lineno)s %(levelname)s - %(message)s")
     parser = argparse.ArgumentParser(description='Raw Data Partitioner')
     parser.add_argument('--partitioner_name', type=str, default='test',
                         help='the name of raw data partitioner')
@@ -60,10 +62,6 @@ if __name__ == "__main__":
     parser.add_argument('--builder_compressed_type', type=str, default='',
                         choices=['', 'ZLIB', 'GZIP'],
                         help='the compressed type for TF_RECORD builder')
-    parser.add_argument('--raw_data_batch_size', type=int, default=2048,
-                        help='the batch size to load raw data')
-    parser.add_argument('--max_flying_raw_data', type=int, default=2<<20,
-                        help='max flying raw data cached output')
     parser.add_argument('--total_partitioner_num', type=int, required=True,
                         help='the number of partitioner worker for input data')
     parser.add_argument('--partitioner_rank_id', type=int, required=True,
@@ -124,8 +122,8 @@ if __name__ == "__main__":
             ),
             partitioner_rank_id=args.partitioner_rank_id,
             batch_processor_options=dj_pb.BatchProcessorOptions(
-                batch_size=args.raw_data_batch_size,
-                max_flying_item=args.max_flying_raw_data
+                batch_size=4096,
+                max_flying_item=-1
             )
         )
     partitioner = RawDataPartitioner(partitioner_options, args.part_field,

@@ -123,6 +123,13 @@ enum DataBlockType {
   CsvDict = 1;
 }
 
+message JoinerStatsInfo {
+  int64 stats_cum_join_num = 1;
+  int64 actual_cum_join_num = 2;
+  int64 leader_stats_index = 3;
+  int64 follower_stats_index = 4;
+}
+
 message DataBlockMeta {
   string block_id = 1;
   int64 partition_id = 2;
@@ -135,6 +142,7 @@ message DataBlockMeta {
   int64 follower_restart_index = 9;
   int64 data_block_index = 10;
   DataBlockType data_block_type = 11;
+  JoinerStatsInfo joiner_stats_info = 12;
 }
 
 message StartPartitionRequest {
@@ -332,5 +340,4 @@ message SortRunMergerOptions {
   WriterOptions writer_options = 3;
   string output_file_dir = 4;
   int64 partition_id = 5;
-  int64 merge_buffer_size = 6;
 }

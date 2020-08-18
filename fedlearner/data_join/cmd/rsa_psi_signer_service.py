@@ -16,20 +16,21 @@
 
 import argparse
 import logging
+import os
 import rsa
 
+import tensorflow_io # pylint: disable=unused-import
 from tensorflow.compat.v1 import gfile
 
 from fedlearner.data_join.rsa_psi.rsa_psi_signer import RsaPsiSigner
 
 if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
-    logging.basicConfig(format='%(asctime)s %(message)s')
+    logging.basicConfig(format="%(asctime)s %(filename)s "\
+                               "%(lineno)s %(levelname)s - %(message)s")
     parser = argparse.ArgumentParser(description='RsaPsiSigner cmd.')
     parser.add_argument('-p', '--listen_port', type=int, default=40980,
                         help='Listen port of RSA PSI signer')
-    parser.add_argument('--offload_processor_number', type=int, default=0,
-                        help='the number of processor to offload rsa compute')
     parser.add_argument('--rsa_private_key_path', type=str,
                         help='the file path to store rsa private key')
     parser.add_argument('--rsa_privet_key_pem', type=str,
@@ -45,7 +46,8 @@ if __name__ == "__main__":
         with gfile.GFile(args.rsa_private_key_path, 'rb') as f:
             rsa_private_key_pem = f.read()
     rsa_private_key = rsa.PrivateKey.load_pkcs1(rsa_private_key_pem)
+    offload_processor_number = int(os.environ.get('CPU_LIMIT', '1')) - 1
     rsa_psi_signer = RsaPsiSigner(rsa_private_key,
-                                  args.offload_processor_number,
+                                  offload_processor_number,
                                   args.slow_sign_threshold)
     rsa_psi_signer.run(args.listen_port, args.worker_num)

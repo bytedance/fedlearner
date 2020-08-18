@@ -62,7 +62,7 @@ async function setupDatabase() {
     defaults: {
       ...tickets.follower,
       federation_id: leader.id,
-      user_id: admin.id,
+      user_id: adminRecord.id,
     },
   });
   if (followerTicketRecord.deleted_at) {
@@ -136,6 +136,28 @@ describe('Federation System', () => {
         .end((err, res) => {
           if (err) done(err);
           assert.ok(res.body.data.find((x) => x.name === followerTicket.name));
+          done();
+        });
+    });
+
+    it('respond 200 with tickets of specific job_type from federation', (done) => {
+      request.get(`/api/v1/federations/${follower.id}/tickets?job_type=data_join`)
+        .set('Cookie', adminCookie)
+        .expect(200)
+        .end((err, res) => {
+          if (err) done(err);
+          assert.ok(res.body.data.find((x) => x.name === followerTicket.name && x.job_type === 'data_join'));
+          done();
+        });
+    });
+
+    it('respond 200 with tickets of specific role from federation', (done) => {
+      request.get(`/api/v1/federations/${follower.id}/tickets?role=Follower`)
+        .set('Cookie', adminCookie)
+        .expect(200)
+        .end((err, res) => {
+          if (err) done(err);
+          assert.ok(res.body.data.find((x) => x.name === followerTicket.name && x.role === 'Follower'));
           done();
         });
     });

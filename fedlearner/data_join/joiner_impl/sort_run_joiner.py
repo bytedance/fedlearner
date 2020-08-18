@@ -69,8 +69,19 @@ class SortRunExampleJoiner(ExampleJoiner):
                         else self._leader_visitor.get_item()
         follower_item = None if not self._follower_visitor.started() \
                         else self._follower_visitor.get_item()
+        forwarded = False
         if leader_item is None or \
                 (follower_item is not None and
                     leader_item.example_id <= follower_item.example_id):
-            return self._forward_one_step(self._leader_visitor)
-        return self._forward_one_step(self._follower_visitor)
+            forwarded = self._forward_one_step(self._leader_visitor)
+            if forwarded:
+                eids = [(self._leader_visitor.get_index(),
+                         self._leader_visitor.get_item().example_id)]
+                self._joiner_stats.fill_leader_example_ids(eids)
+        else:
+            forwarded = self._forward_one_step(self._follower_visitor)
+            if forwarded:
+                eids = [(self._follower_visitor.get_index(),
+                         self._follower_visitor.get_item().example_id)]
+                self._joiner_stats.fill_follower_example_ids(eids)
+        return forwarded
