@@ -3,8 +3,9 @@ import css from 'styled-jsx/css';
 import { Link, Text, Input, Fieldset, Button, Card, Description, useTheme, useInput } from '@zeit-ui/react';
 import Search from '@zeit-ui/react-icons/search';
 import NextLink from 'next/link';
-import useSWR from 'swr';
+import useSWR, { SWRConfig } from 'swr';
 import { StateProvider, useStateValue } from '../store'
+import produce from 'immer'
 
 import { fetcher } from '../../libs/http';
 import { FLAppStatus, handleStatus, getStatusColor } from '../../utils/job';
@@ -88,8 +89,9 @@ function JobList(props) {
       [undefined, -1, federationID].some(id => id === el.metadata.federation_id)
     )
     : null
-  const [federationId, setFederationId] = useState(null);
-  const fields = [
+  let federationId = null
+
+  const DEFAULT_FIELDS = [
     { key: 'name', required: true },
     { key: 'job_type', type: 'jobType', required: true, span: 12 },
     { key: 'client_ticket_name', type: 'clientTicket', label: 'client_ticket', required: true },
@@ -98,7 +100,10 @@ function JobList(props) {
       type: 'federation',
       label: 'federation',
       required: true,
-      onChange: value => setFederationId(value),
+      onChange: value => {
+        federationId = value
+        setFields(handleFields(fields))
+      },
     },
     {
       key: 'server_ticket_name',
@@ -106,12 +111,35 @@ function JobList(props) {
       label: 'server_ticket',
       required: true,
       props: {
-        federation_id: federationId,
+        federation_id: null,
       },
     },
     { key: 'client_params', type: 'json', span: 24 },
     { key: 'server_params', type: 'json', span: 24 },
-  ];
+  ]
+
+  let [fields, setFields] = useState(DEFAULT_FIELDS)
+
+  function mapValueToFields(job, fields) {
+    return produce(fields, draft => {
+      draft.map((x) => {
+        x.value = job.localdata[x.key] || ''
+
+        if ((x.key === 'client_params' || x.key === 'server_params') && x.value) {
+          x.value = JSON.stringify(x.value, null, 2);
+        }
+
+      });
+    })
+  }
+
+  const handleFields = fields => produce(fields, draft => {
+      draft.map(field => {
+        if (field.key === 'server_ticket_name') {
+          field.props.federation_id = federationId
+        }
+      })
+  })
 
   const labeledList = useMemo(() => {
     const allList = { name: 'All', list: jobs || [] };
@@ -146,7 +174,7 @@ function JobList(props) {
   }, [label, labeledList, filterText]);
 
   const [formVisible, setFormVisible] = useState(false);
-  const toggleForm = useCallback(() => setFormVisible(visible => !visible), []);
+  const toggleForm = useCallback(() => { setFormVisible(visible => !visible) }, []);
   const onOk = () => {
     mutate();
     toggleForm();
@@ -154,11 +182,41 @@ function JobList(props) {
   const onCreateJob = (form) => {
     const params = {
       ...form,
-      client_params: JSON.parse(form.client_params),
-      server_params: JSON.parse(form.server_params),
+      client_params: form.client_params ? JSON.parse(form.client_params) : null,
+      server_params: form.server_params ? JSON.parse(form.server_params) : null,
     };
     return createJob(params);
   };
+
+  const handleClone = (item) => {
+    setFields(mapValueToFields(item, fields))
+    // fields = mapValueToFields(item, DEFAULT_FIELDS)
+    toggleForm()
+  }
+
+  const renderOperation = item => (
+    <>
+      <NextLink
+        href={`/job/${item.localdata.id}`}
+      >
+        <Link color>View Detail</Link>
+      </NextLink>
+      <Text
+        className="actionText"
+        onClick={ () => handleClone(item) }
+        type="success"
+        style={{marginRight: '16pt'}}
+      >
+        Clone
+      </Text>
+      <PopConfirm
+        onConfirm={() => deleteJob(item.localdata.id)}
+        onOk={() => mutate({ data: jobs.filter((i) => i !== item) })}
+      >
+        <Text className="actionText" type="error">Delete</Text>
+      </PopConfirm>
+    </>
+  )
 
   return (
     <div className="page-tasks">
@@ -242,21 +300,7 @@ function JobList(props) {
                                             />
                                             <Description
                                               title="Operation"
-                                              content={(
-                                                <>
-                                                  <NextLink
-                                                    href={`/job/${item.localdata.id}`}
-                                                  >
-                                                    <Link color>View Detail</Link>
-                                                  </NextLink>
-                                                  <PopConfirm
-                                                    onConfirm={() => deleteJob(item.localdata.id)}
-                                                    onOk={() => mutate({ data: jobs.filter((i) => i !== item) })}
-                                                  >
-                                                    <Text className="actionText" type="error">Delete</Text>
-                                                  </PopConfirm>
-                                                </>
-                                              )}
+                                              content={renderOperation(item)}
                                             />
                                           </div>
                                         </li>
@@ -299,8 +343,12 @@ function JobList(props) {
 
 export default function Job (props) {
   return (
-    <StateProvider>
-      <JobList {...props}></JobList>
-    </StateProvider>
+    <SWRConfig value={{
+      loadingTimeout: 10000
+    }}>
+      <StateProvider>
+        <JobList {...props}></JobList>
+      </StateProvider>
+    </SWRConfig>
   )
 };
