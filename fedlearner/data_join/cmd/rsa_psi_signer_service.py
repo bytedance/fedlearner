@@ -16,8 +16,8 @@
 
 import argparse
 import logging
-import rsa
 import os
+import rsa
 
 import tensorflow_io # pylint: disable=unused-import
 from tensorflow.compat.v1 import gfile
