@@ -5,4 +5,10 @@ export const client = ky.create({
   throwHttpErrors: false,
 });
 
-export const fetcher = (url, options = {}) => client.get(url, options).json();
+export const fetcher = (url, options = {}) => {
+  options.headers = {
+    ...options.headers,
+    'X-Federation-Id': localStorage.getItem('federationID')
+  }
+  return client.get(url, options).json();
+}

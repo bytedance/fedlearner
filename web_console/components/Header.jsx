@@ -5,7 +5,6 @@ import useSWR from 'swr';
 import { Avatar, Link, Popover, Spinner, Tabs, Loading, useTheme, Select } from '@zeit-ui/react';
 import { fetcher } from '../libs/http';
 import { logout } from '../services';
-import { useStateValue } from '../pages/store';
 
 function useStyles(theme) {
   return css`
@@ -161,8 +160,14 @@ export default function Header() {
   ].some(el => el === route)
   const { data: fedData } = useSWR('federations', fetcher)
   const federations = fedData ? fedData.data : null
-  const [{ federationID: currFederation }, dispatch] = useStateValue() || [{}, {}]
-  const onFederationChange = v => dispatch({type: 'setFederationID', payload: parseInt(v)})
+  const [currFederation, setCurrFederation] = useState(-1)
+  useEffect(() => {
+    setTimeout(() => setCurrFederation(parseInt(localStorage.getItem('federationID')) || -1))
+  }, [])
+  const onFederationChange = v => {
+    localStorage.setItem('federationID', v)
+    window.location.reload()
+  }
 
   return (
     <div className="space-holder">
@@ -186,7 +191,7 @@ export default function Header() {
             {
               displayFederationFilter &&
               <Select
-                initialValue={currFederation && currFederation.toString()}
+                value={currFederation && currFederation.toString()}
                 onChange={onFederationChange}
                 size="small"
                 style={{marginRight: '16px'}}
