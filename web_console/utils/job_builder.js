@@ -21,7 +21,6 @@ const permittedJobEnvs = {
     'MIN_MATCHING_WINDOW', 'MAX_MATCHING_WINDOW',
     'DATA_BLOCK_DUMP_INTERVAL', 'DATA_BLOCK_DUMP_THRESHOLD',
     'EXAMPLE_ID_DUMP_INTERVAL', 'EXAMPLE_ID_DUMP_THRESHOLD',
-    'MAX_FLYING_EXAMPLE_ID',
   ],
   psi_data_join: [],
   tree_model: [
