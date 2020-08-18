@@ -2,7 +2,6 @@ import React from 'react';
 import { Select, Popover, Code } from '@zeit-ui/react';
 import useSWR from 'swr';
 import { fetcher } from '../libs/http';
-import css from 'styled-jsx/css';
 
 export default function ServerTicketSelect(props) {
   const { data } = useSWR(
