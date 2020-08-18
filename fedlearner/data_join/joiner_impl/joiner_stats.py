@@ -32,7 +32,7 @@ class _SlideCache(object):
             self._stats_index = stats_index
         evict_cnt = 0
         if len(hids) + self._item_cnt > self._stats_windows_size:
-            evict_cnt = len(hids) + self._item_cnt
+            evict_cnt = len(hids) + self._item_cnt - self._stats_windows_size
         evict_hids = [self._slide_buffer[self._inner_index(idx)]
                       for idx in range(evict_cnt)]
         for idx, hid in enumerate(hids):
@@ -43,11 +43,10 @@ class _SlideCache(object):
             else:
                 self._cache[hid] += 1
         for hid in evict_hids:
-            assert hid in self._cache
-            self._cache[hid] -= 1
-            assert self._cache[hid] >= 0
-            if self._cache[hid] == 0:
-                self._cache.pop(hid)
+            if hid in self._cache and self._cache[hid] > 0:
+                self._cache[hid] -= 1
+                if self._cache[hid] == 0:
+                    self._cache.pop(hid)
         if evict_cnt > 0:
             self._item_cnt = self._stats_windows_size
         else:

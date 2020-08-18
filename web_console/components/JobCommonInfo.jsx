@@ -93,7 +93,7 @@ export default function JobCommonInfo(props) {
 
   const options = useMemo(() => ({
     searchParams: {
-      start_time: new Date(job.metadata.creationTimestamp).getTime(),
+      start_time: new Date(job?.metadata?.creationTimestamp).getTime(),
     },
   }));
   const { data: logsData, error: logsError, isValidating: logsIsValidating } = useSWR(
@@ -134,7 +134,7 @@ export default function JobCommonInfo(props) {
             <Link
               color
               target="_blank"
-              href={`/job/pod-log?name=${item.name}&time=${new Date(job.metadata?.creationTimestamp).getTime()}`}
+              href={`/job/pod-log?name=${item.name}&time=${new Date(job?.metadata?.creationTimestamp).getTime()}`}
             >
               Log
             </Link>
