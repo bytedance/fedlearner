@@ -98,7 +98,10 @@ class DataPortalWorker(object):
     def __init__(self, options, master_addr, rank_id, etcd_name,
                  etcd_base_dir, etcd_addrs, use_mock_etcd=False):
         master_channel = make_insecure_channel(
-          master_addr, ChannelType.INTERNAL)
+                master_addr, ChannelType.INTERNAL,
+                options=[('grpc.max_send_message_length', 2**31-1),
+                         ('grpc.max_receive_message_length', 2**31-1)]
+            )
         self._etcd_name = etcd_name
         self._etcd_base_dir = etcd_base_dir
         self._etcd_addrs = etcd_addrs
