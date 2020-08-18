@@ -2,8 +2,10 @@ const assert = require('assert');
 const lodash = require('lodash');
 const getConfig = require('./get_confg');
 
-const { NAMESPACE } = getConfig({
+const { NAMESPACE, ES_HOST, ES_PORT } = getConfig({
   NAMESPACE: process.env.NAMESPACE,
+  ES_HOST: process.env.ES_HOST,
+  ES_PORT: process.env.ES_PORT,
 });
 
 function joinPath(base, ...rest) {
@@ -165,6 +167,8 @@ function generateYaml(federation, job, job_params, ticket) {
               { name: 'MEM_REQUEST', valueFrom: { resourceFieldRef: { resource: 'requests.memory' } } },
               { name: 'CPU_LIMIT', valueFrom: { resourceFieldRef: { resource: 'limits.cpu' } } },
               { name: 'MEM_LIMIT', valueFrom: { resourceFieldRef: { resource: 'limits.memory' } } },
+              { name: 'ES_HOST', value: ES_HOST },
+              { name: 'ES_PORT', value: ES_PORT },
             ],
             imagePullPolicy: 'IfNotPresent',
             name: 'tensorflow',
@@ -240,6 +244,8 @@ function portalGenerateYaml(federation, raw_data) {
           env: [
             { name: 'POD_IP', valueFrom: { fieldRef: { fieldPath: 'status.podIP' } } },
             { name: 'POD_NAME', valueFrom: { fieldRef: { fieldPath: 'metadata.name' } } },
+            { name: 'ES_HOST', value: ES_HOST },
+            { name: 'ES_PORT', value: ES_PORT },
             { name: 'APPLICATION_ID', value: raw_data.name },
             { name: 'DATA_PORTAL_NAME', value: raw_data.name },
             { name: 'OUTPUT_PARTITION_NUM', value: String(raw_data.output_partition_num) },
@@ -271,6 +277,8 @@ function portalGenerateYaml(federation, raw_data) {
             { name: 'MEM_REQUEST', valueFrom: { resourceFieldRef: { resource: 'requests.memory' } } },
             { name: 'CPU_LIMIT', valueFrom: { resourceFieldRef: { resource: 'limits.cpu' } } },
             { name: 'MEM_LIMIT', valueFrom: { resourceFieldRef: { resource: 'limits.memory' } } },
+            { name: 'ES_HOST', value: ES_HOST },
+            { name: 'ES_PORT', value: ES_PORT },
             { name: 'APPLICATION_ID', value: raw_data.name },
             { name: 'BATCH_SIZE', value: String(raw_data.context.batch_size) },
             { name: 'INPUT_DATA_FORMAT', value: raw_data.context.input_data_format },
