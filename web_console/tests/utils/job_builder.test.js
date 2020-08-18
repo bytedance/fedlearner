@@ -384,7 +384,6 @@ describe('DataJoinGenerateYaml', () => {
                       { name: 'DATA_BLOCK_DUMP_THRESHOLD', value: '262144' },
                       { name: 'EXAMPLE_ID_DUMP_INTERVAL', value: '600' },
                       { name: 'EXAMPLE_ID_DUMP_THRESHOLD', value: '262144' },
-                      { name: 'EXAMPLE_ID_BATCH_SIZE', value: '4096' },
                       { name: 'MAX_FLYING_EXAMPLE_ID', value: '307152' },
                     ],
                     resources: {

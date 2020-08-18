@@ -75,9 +75,6 @@ if __name__ == "__main__":
     parser.add_argument('--example_id_dump_threshold', type=int, default=4096,
                         help='dump a data block if N example id, <=0'\
                              'means no size limit for dumping example id')
-    parser.add_argument('--example_id_batch_size', type=int, default=4096,
-                        help='size of example id batch combined for '\
-                             'example id sync leader')
     parser.add_argument('--max_flying_example_id', type=int, default=268435456,
                         help='max flying example id cached for '\
                              'example id sync leader')
@@ -108,7 +105,7 @@ if __name__ == "__main__":
                     example_id_dump_threshold=args.example_id_dump_threshold
                 ),
             batch_processor_options=dj_pb.BatchProcessorOptions(
-                    batch_size=args.example_id_batch_size,
+                    batch_size=4096,
                     max_flying_item=args.max_flying_example_id
                 ),
             data_block_builder_options=dj_pb.WriterOptions(
