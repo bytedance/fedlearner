@@ -238,7 +238,7 @@ class RsaPsiPreProcessor(object):
 
     def _sort_run_dump_cond(self):
         sort_run_dumper = self._sort_run_dumper
-        rsa_signer = sfetch_item_batch_by_index(elf._psi_rsa_signer
+        rsa_signer = self._psi_rsa_signer
         next_index = sort_run_dumper.get_next_index_to_dump()
         max_flying_item = self._options.batch_processor_options.max_flying_item
         dump_finished = sort_run_dumper.is_dump_finished()
