@@ -401,7 +401,11 @@ class FollowerPsiRsaSigner(PsiRsaSigner):
     class SignerStub(object):
         def __init__(self, addr):
             self._lock = threading.Lock()
-            self._channel = make_insecure_channel(addr, ChannelType.REMOTE)
+            self._channel = make_insecure_channel(
+                    addr, ChannelType.REMOTE,
+                    options=[('grpc.max_send_message_length', 2**31-1),
+                             ('grpc.max_receive_message_length', 2**31-1)]
+                )
             self._stub = dj_grpc.RsaPsiSignServiceStub(self._channel)
             self._serial_fail_cnt = 0
             self._rpc_ref_cnt = 0
