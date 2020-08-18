@@ -38,8 +38,6 @@ if __name__ == '__main__':
                         help="the namespace of etcd key for data portal worker")
     parser.add_argument("--use_mock_etcd", action="store_true",
                         help='use to mock etcd for test')
-    parser.add_argument("--merge_buffer_size", type=int,
-                        default=4096, help="the buffer size for merging")
     parser.add_argument("--merger_read_ahead_size", type=int, default=128<<10,
                         help="the read ahead size for merger")
     parser.add_argument("--merger_read_batch_size", type=int, default=32,
@@ -85,7 +83,6 @@ if __name__ == '__main__':
             batch_size=args.batch_size,
             max_flying_item=args.max_flying_item
         ),
-        merge_buffer_size=args.merge_buffer_size,
         merger_read_ahead_size=args.merger_read_ahead_size,
         merger_read_batch_size=args.merger_read_batch_size
     )
