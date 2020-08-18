@@ -62,8 +62,6 @@ if __name__ == "__main__":
     parser.add_argument('--builder_compressed_type', type=str, default='',
                         choices=['', 'ZLIB', 'GZIP'],
                         help='the compressed type for TF_RECORD builder')
-    parser.add_argument('--raw_data_batch_size', type=int, default=2048,
-                        help='the batch size to load raw data')
     parser.add_argument('--total_partitioner_num', type=int, required=True,
                         help='the number of partitioner worker for input data')
     parser.add_argument('--partitioner_rank_id', type=int, required=True,
@@ -124,7 +122,7 @@ if __name__ == "__main__":
             ),
             partitioner_rank_id=args.partitioner_rank_id,
             batch_processor_options=dj_pb.BatchProcessorOptions(
-                batch_size=args.raw_data_batch_size,
+                batch_size=4096,
                 max_flying_item=1<<30
             )
         )
