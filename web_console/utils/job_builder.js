@@ -274,7 +274,6 @@ function portalGenerateYaml(federation, raw_data) {
             { name: 'MEM_LIMIT', valueFrom: { resourceFieldRef: { resource: 'limits.memory' } } },
             { name: 'APPLICATION_ID', value: raw_data.name },
             { name: 'BATCH_SIZE', value: String(raw_data.context.batch_size) },
-            { name: 'MAX_FLYING_ITEM', value: String(raw_data.context.max_flying_item) },
             { name: 'INPUT_DATA_FORMAT', value: raw_data.context.input_data_format },
             { name: 'COMPRESSED_TYPE', value: raw_data.context.compressed_type },
             { name: 'OUTPUT_DATA_FORMAT', value: raw_data.context.output_data_format },

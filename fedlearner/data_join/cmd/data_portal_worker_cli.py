@@ -60,8 +60,6 @@ if __name__ == '__main__':
                         help='the builder for ouput file')
     parser.add_argument("--batch_size", type=int, default=1024,
                         help="the batch size for raw data reader")
-    parser.add_argument("--max_flying_item", type=int, default=1048576,
-                        help='the maximum items processed at the same time')
     args = parser.parse_args()
     if args.input_data_file_iter == 'TF_RECORD' or \
             args.output_builder == 'TF_RECORD':
@@ -81,7 +79,7 @@ if __name__ == '__main__':
         ),
         batch_processor_options=dj_pb.BatchProcessorOptions(
             batch_size=args.batch_size,
-            max_flying_item=args.max_flying_item
+            max_flying_item=1<<30
         ),
         merger_read_ahead_size=args.merger_read_ahead_size,
         merger_read_batch_size=args.merger_read_batch_size

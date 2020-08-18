@@ -31,7 +31,6 @@ read_batch_size=$(normalize_env_to_args "--read_batch_size" $READ_BATCH_SIZE)
 output_builder=$(normalize_env_to_args "--output_builder" $OUTPUT_DATA_FORMAT)
 builder_compressed_type=$(normalize_env_to_args "--builder_compressed_type" $BUILDER_COMPRESSED_TYPE)
 batch_size=$(normalize_env_to_args "--batch_size" $BATCH_SIZE)
-max_flying_item=$(normalize_env_to_args "--max_flying_item" $MAX_FLYING_ITEM)
 
 
 python -m fedlearner.data_join.cmd.data_portal_worker_cli \
@@ -42,5 +41,5 @@ python -m fedlearner.data_join.cmd.data_portal_worker_cli \
   --etcd_base_dir=$ETCD_BASE_DIR \
   $input_data_file_iter $compressed_type $read_ahead_size $read_batch_size \
   $output_builder $builder_compressed_type \
-  $batch_size $max_flying_item $USE_MOCK_ETCD
+  $batch_size $USE_MOCK_ETCD
 
