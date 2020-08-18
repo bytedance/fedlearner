@@ -69,7 +69,8 @@ class ItemBatchSeqProcessor(object):
                 return False
             if self._check_index_rollback(next_index):
                 return True
-            return self._flying_item_count < self._max_flying_item
+            return self._max_flying_item <= 0 or \
+                    self._flying_item_count < self._max_flying_item
 
     def set_input_finished(self):
         with self._lock:
@@ -226,7 +227,8 @@ class ItemBatchSeqProcessor(object):
 
     def _fly_item_full(self):
         with self._lock:
-            return self._flying_item_count > self._max_flying_item
+            return self._max_flying_item > 0 and \
+                    self._flying_item_count > self._max_flying_item
 
     def _update_last_index(self, last_index):
         with self._lock:

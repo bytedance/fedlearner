@@ -103,7 +103,7 @@ if __name__ == "__main__":
                 ),
             batch_processor_options=dj_pb.BatchProcessorOptions(
                     batch_size=4096,
-                    max_flying_item=1<<30
+                    max_flying_item=-1
                 ),
             data_block_builder_options=dj_pb.WriterOptions(
                     output_writer=args.data_block_builder,

@@ -79,7 +79,7 @@ if __name__ == '__main__':
         ),
         batch_processor_options=dj_pb.BatchProcessorOptions(
             batch_size=args.batch_size,
-            max_flying_item=1<<30
+            max_flying_item=-1
         ),
         merger_read_ahead_size=args.merger_read_ahead_size,
         merger_read_batch_size=args.merger_read_batch_size

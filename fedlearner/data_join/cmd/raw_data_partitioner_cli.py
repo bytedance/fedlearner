@@ -123,7 +123,7 @@ if __name__ == "__main__":
             partitioner_rank_id=args.partitioner_rank_id,
             batch_processor_options=dj_pb.BatchProcessorOptions(
                 batch_size=4096,
-                max_flying_item=1<<30
+                max_flying_item=-1
             )
         )
     partitioner = RawDataPartitioner(partitioner_options, args.part_field,

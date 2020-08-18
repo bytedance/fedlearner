@@ -54,8 +54,6 @@ if __name__ == "__main__":
                              'the addr of rsa psi signer of leader')
     parser.add_argument('--process_batch_size', type=int, default=1024,
                         help='the batch size for preprocessor')
-    parser.add_argument('--max_flying_item', type=int, default=1<<20,
-                        help='the process buffer size')
     parser.add_argument('--max_flying_sign_batch', type=int, default=32,
                         help='the max flying sign batch')
     parser.add_argument('--max_flying_sign_rpc', type=int, default=16,
@@ -143,7 +141,7 @@ if __name__ == "__main__":
                 args.sort_run_merger_read_batch_size,
             batch_processor_options=dj_pb.BatchProcessorOptions(
                 batch_size=args.process_batch_size,
-                max_flying_item=args.max_flying_item
+                max_flying_item=-1
             ),
             input_raw_data=dj_pb.RawDataOptions(
                 raw_data_iter=args.raw_data_iter,
