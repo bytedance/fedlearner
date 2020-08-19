@@ -6,9 +6,12 @@ export const client = ky.create({
 });
 
 export const fetcher = (url, options = {}) => {
-  options.headers = {
-    ...options.headers,
-    'X-Federation-Id': localStorage.getItem('federationID')
+  const federationID = localStorage.getItem('federationID')
+  if (federationID) {
+    options.headers = {
+      ...options.headers,
+      'X-Federation-Id':  federationID
+    }
   }
   return client.get(url, options).json();
 }
