@@ -158,6 +158,7 @@ class Bridge(object):
                 except Exception as e:  # pylint: disable=broad-except
                     logging.warning(
                         "%s: %s. Retry in 1s...", err_log, repr(e))
+                    metrics.emit_counter('reconnect_counter', 1)
                     self._channel.close()
                     time.sleep(1)
                     self._channel = make_insecure_channel(
@@ -178,7 +179,6 @@ class Bridge(object):
         lock = threading.Lock()
         resend_list = collections.deque()
 
-        @metrics.timer(func_name="shutdown_fn", tags={})
         def shutdown_fn():
             with lock:
                 while len(resend_list) > 0 or not self._transmit_queue.empty():
@@ -203,9 +203,7 @@ class Bridge(object):
                     for item in resend_msgs:
                         logging.warning("Streaming resend message seq_num=%d",
                                         item.seq_num)
-                        metrics.emit_store(name="resend_msg_seq_num",
-                                           value=int(item.seq_num),
-                                           tags={})
+                        metrics.emit_counter("resend_counter", 1)
                         yield item
                     while True:
                         item = self._transmit_queue.get()
@@ -213,9 +211,6 @@ class Bridge(object):
                             resend_list.append(item)
                         logging.debug("Streaming send message seq_num=%d",
                                       item.seq_num)
-                        metrics.emit_store(name="send_msg_seq_num",
-                                           value=int(item.seq_num),
-                                           tags={})
                         yield item
 
                 generator = client.StreamTransmit(iterator())
@@ -243,15 +238,14 @@ class Bridge(object):
                         logging.debug(
                             "Resend queue size: %d, starting from seq_num=%s",
                             len(resend_list), min_seq_num_to_resend)
-                    metrics.emit_store(name="sum_of_resend",
-                                       value=int(len(resend_list)),
-                                       tags={})
             except Exception as e:  # pylint: disable=broad-except
                 if not stop_event.is_set():
                     logging.warning("Bridge streaming broken: %s.", repr(e))
+                    metrics.emit_counter('reconnect_counter', 1)
             finally:
                 generator.cancel()
                 channel.close()
+                time.sleep(1)
                 logging.warning(
                     "Restarting streaming: resend queue size: %d, "
                     "starting from seq_num=%s", len(resend_list),
@@ -264,6 +258,7 @@ class Bridge(object):
 
     def _transmit(self, msg):
         assert self._connected, "Cannot transmit before connect"
+        metrics.emit_counter('send_counter', 1)
         with self._transmit_send_lock:
             msg.seq_num = self._next_send_seq_num
             self._next_send_seq_num += 1
@@ -281,6 +276,7 @@ class Bridge(object):
 
     def _transmit_handler(self, request):
         assert self._connected, "Cannot transmit before connect"
+        metrics.emit_counter('receive_counter', 1)
         with self._transmit_receive_lock:
             logging.debug("Received message seq_num=%d."
                           " Wanted seq_num=%d.",
@@ -323,17 +319,17 @@ class Bridge(object):
             return tws_pb.TrainerWorkerResponse(
                 next_seq_num=self._next_receive_seq_num)
 
-    @metrics.timer(func_name="data_block_req", tags={})
     def _data_block_handler(self, request):
         assert self._connected, "Cannot load data before connect"
         if not self._data_block_handler_fn:
             raise RuntimeError("Received DataBlockMessage but" \
                                 " no handler registered")
+        metrics.emit_counter('load_data_block_counter', 1)
         if self._data_block_handler_fn(request):
             return common_pb.Status(code=common_pb.STATUS_SUCCESS)
+        metrics.emit_counter('load_data_block_fail_counter', 1)
         return common_pb.Status(code=common_pb.STATUS_INVALID_DATA_BLOCK)
 
-    @metrics.timer(func_name="connect_req", tags={})
     def _connect_handler(self, request):
         assert request.app_id == self._app_id, \
             "Connection failed. Application id mismatch: %s vs %s"%(
@@ -381,7 +377,6 @@ class Bridge(object):
             logging.warning("Heartbeat request failed: %s", repr(e))
             return False
 
-    @metrics.timer(func_name="connect", tags={})
     def connect(self):
         if self._connected:
             logging.warning("Bridge already connected!")
@@ -412,7 +407,6 @@ class Bridge(object):
             self._client_daemon.start()
         logging.debug('finish connect.')
 
-    @metrics.timer(func_name="terminate", tags={})
     def terminate(self, forced=False):
         if not self._connected or self._terminated:
             return
@@ -492,7 +486,6 @@ class Bridge(object):
             iter_id=iter_id, sample_ids=sample_ids))
         self._transmit(msg)
 
-    @metrics.timer(func_name="send proto", tags={})
     def send_proto(self, iter_id, name, proto):
         any_proto = google.protobuf.any_pb2.Any()
         any_proto.Pack(proto)
@@ -502,7 +495,6 @@ class Bridge(object):
         logging.debug('Data: send protobuf %s for iter %d. seq_num=%d.',
                       name, iter_id, msg.seq_num)
 
-    @metrics.timer(func_name="send", tags={})
     def send(self, iter_id, name, x):
         msg = tws_pb.TrainerWorkerMessage(data=tws_pb.DataMessage(
             iter_id=iter_id, name=name, tensor=tf.make_tensor_proto(x)))
@@ -518,7 +510,6 @@ class Bridge(object):
         out = tf.py_function(func=func, inp=[x], Tout=[], name='send_' + name)
         return out
 
-    @metrics.timer(func_name="receive proto", tags={})
     def receive_proto(self, iter_id, name):
         logging.debug('Data: Waiting to receive proto %s for iter %d.',
                       name, iter_id)
@@ -530,16 +521,19 @@ class Bridge(object):
         logging.debug('Data: received %s for iter %d.', name, iter_id)
         return data.any_data
 
-    @metrics.timer(func_name="receive", tags={})
     def receive(self, iter_id, name):
         logging.debug('Data: Waiting to receive %s for iter %d.', name,
                       iter_id)
+        start_time = time.time()
         with self._condition:
             while (iter_id not in self._received_data) \
                     or (name not in self._received_data[iter_id]):
                 self._condition.wait()
             data = self._received_data[iter_id][name]
-        logging.debug('Data: received %s for iter %d.', name, iter_id)
+        metrics.emit_timer('receive_timer', time.time() - start_time)
+        logging.debug(
+            'Data: received %s for iter %d after %f sec.',
+            name, iter_id, duration)
         return tf.make_ndarray(data.tensor)
 
     def receive_op(self, name, dtype):
