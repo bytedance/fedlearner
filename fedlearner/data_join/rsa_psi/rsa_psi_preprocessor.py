@@ -178,8 +178,8 @@ class RsaPsiPreProcessor(object):
                             "consume_item_cnt: %d", total_flying_item,
                             self._produce_item_cnt, self._comsume_item_cnt)
             return True
-        if self._heap_mem_stats.CheckOomRisk(total_flying_item, 0.75):
-            logging.warning("stop fetch id since has oom risk for 0.75, "\
+        if self._heap_mem_stats.CheckOomRisk(total_flying_item, 0.65):
+            logging.warning("stop fetch id since has oom risk for 0.65, "\
                             "flying item reach to %d", total_flying_item)
             return True
         return False

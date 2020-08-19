@@ -26,7 +26,7 @@ then
     exit -1
 fi
 
-preprocessor_name=$(normalize_env_to_args "--preprocessor_name" $NAME)
+preprocessor_name=$(normalize_env_to_args "--preprocessor_name" $APPLICATION_ID)
 input_file_paths=$(normalize_env_to_args "--input_file_paths" $INPUT_FILE_PATHS)
 if [ -z "$INPUT_BASE_DIR" ]
 then
