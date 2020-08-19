@@ -249,7 +249,7 @@ class RsaPsiPreProcessor(object):
             sort_run_dumper.finish_dump_sort_run()
         dump_cnt = len(items_buffer)
         del items_buffer
-        logging.warning("dump %d item in sort run, and gc %d objects."
+        logging.warning("dump %d item in sort run, and gc %d objects.",
                         dump_cnt, gc.collect())
 
     def _sort_run_dump_cond(self):

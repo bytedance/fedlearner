@@ -289,7 +289,6 @@ class HeapMemStats(object):
     def __init__(self, stats_granular, stats_expiration_time):
         self._lock = threading.Lock()
         self._stats_granular = stats_granular
-        self._mem_water_level_percent = mem_water_level_percent
         self._stats_expiration_time = stats_expiration_time
         self._stats_map = {}
 
@@ -313,4 +312,3 @@ class HeapMemStats(object):
 
     def _gen_inner_stats_key(self, stats_key):
         return int(stats_key // self._stats_granular * self._stats_granular)
-

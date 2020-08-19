@@ -21,7 +21,6 @@ except ImportError:
 import logging
 import threading
 import os
-import gc
 
 import tensorflow_io # pylint: disable=unused-import
 from tensorflow.compat.v1 import gfile
