@@ -530,7 +530,8 @@ class Bridge(object):
                     or (name not in self._received_data[iter_id]):
                 self._condition.wait()
             data = self._received_data[iter_id][name]
-        metrics.emit_timer('receive_timer', time.time() - start_time)
+        duration = time.time() - start_time
+        metrics.emit_timer('receive_timer', duration)
         logging.debug(
             'Data: received %s for iter %d after %f sec.',
             name, iter_id, duration)
