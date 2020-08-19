@@ -86,7 +86,7 @@ class TransmitLeader(object):
         self._partition_exhausted = False
         self._impl_ctx = None
         self._started = False
-        self._heap_mem_stats = common.HeapMemStats(16384, 600)
+        self._heap_mem_stats = common.HeapMemStats(32768, None)
         self._worker_map = {}
 
     def start_routine_workers(self):

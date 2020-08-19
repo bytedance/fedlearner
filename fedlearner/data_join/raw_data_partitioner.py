@@ -219,7 +219,7 @@ class RawDataPartitioner(object):
         self._started = False
         self._part_finished = False
         self._cond = threading.Condition()
-        self._heap_mem_stats = common.HeapMemStats(8192, 300)
+        self._heap_mem_stats = common.HeapMemStats(32768, None)
 
     def start_process(self):
         with self._cond:
