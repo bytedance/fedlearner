@@ -249,14 +249,13 @@ class _OomRsikChecker(object):
             self._heap_memory_usage = hpy().heap().size
             self._latest_updated_ts = time.time()
 
-    def check_oom_risk(self, water_level_percent=0.9, force=False):
+    def check_oom_risk(self, heap_mem_usage, water_level_percent=0.9):
         with self._lock:
-            self._try_update_memory_usage(force)
             reserved_mem = int(self._mem_limit * 0.5)
             if reserved_mem >= 2 << 30:
                 reserved_mem = 2 << 30
             avail_mem = self._mem_limit - reserved_mem
-            return self._heap_memory_usage >= avail_mem * water_level_percent
+            return heap_mem_usage >= avail_mem * water_level_percent
 
     def get_mem_usage_rate(self):
         with self._lock:
@@ -264,5 +263,54 @@ class _OomRsikChecker(object):
             return (self._heap_memory_usage + .0) / self._mem_limit
 
 _oom_risk_checker = _OomRsikChecker()
-def get_oom_risk_checker():
-    return _oom_risk_checker
+
+class HeapMemStats(object):
+    class StatsRecord(object):
+        def __init__(self, stats_expiration_time):
+            self._lock = threading.Lock()
+            self._stats_expiration_time = stats_expiration_time
+            self._stats_ts = 0
+            self._heap_mem_usage = 0
+
+        def stats_expiration(self):
+            return self._stats_ts <= 0 or time.time() - self._stats_ts >= \
+                    self._stats_expiration_time
+
+        def update_stats(self):
+            with self._lock:
+                if self.stats_expiration():
+                    self._heap_mem_usage = \
+                            _oom_risk_checker.get_mem_usage_rate()
+                    self._stats_ts = time.time()
+
+        def get_heap_mem_usage(self):
+            return self._heap_mem_usage
+
+    def __init__(self, stats_granular, stats_expiration_time):
+        self._lock = threading.Lock()
+        self._stats_granular = stats_granular
+        self._mem_water_level_percent = mem_water_level_percent
+        self._stats_expiration_time = stats_expiration_time
+        self._stats_map = {}
+
+    def CheckOomRisk(self, stats_key, water_level_percent):
+        inner_key = self._gen_inner_stats_key(stats_key)
+        sr = None
+        with self._lock:
+            if inner_key not self._stats_map:
+                inner_key = self._gen_inner_stats_key(stats_key)
+                self._stats_map[inner_key] = HeapMemStats.StatsRecord()
+            sr = self._stats_map[inner_key]
+            if not sr.stats_expiration():
+                return _oom_risk_checker.check_oom_risk(
+                        sr.get_heap_mem_usage(),
+                        water_level_percent
+                    )
+        assert sr is not None
+        sr.update_stats()
+        return _oom_risk_checker.check_oom_risk(sr.get_heap_mem_usage(),
+                                                water_level_percent)
+
+    def _gen_inner_stats_key(self, stats_key):
+        return int(stats_key // self._stats_granular * self._stats_granular)
+

@@ -31,7 +31,7 @@ from fedlearner.data_join.rsa_psi.rsa_psi_component import \
         IdBatchFetcher, LeaderPsiRsaSigner, FollowerPsiRsaSigner
 from fedlearner.data_join.sort_run_dumper import SortRunDumper
 from fedlearner.data_join.sort_run_merger import SortRunMerger
-from fedlearner.data_join.common import partition_repr, get_oom_risk_checker
+from fedlearner.data_join.common import partition_repr, HeapMemStats
 
 class RsaPsiPreProcessor(object):
     def __init__(self, options, etcd_name, etcd_addrs,
@@ -95,6 +95,7 @@ class RsaPsiPreProcessor(object):
                 ),
                 self._merger_comparator
             )
+        self._heap_mem_stats = HeapMemStats(8192, 300)
         self._started = False
 
     def start_process(self):
@@ -158,15 +159,26 @@ class RsaPsiPreProcessor(object):
                           self._id_batch_fetcher_name(), batch.begin_index,
                           len(batch), self._psi_rsa_signer_name())
             self._wakeup_psi_rsa_signer()
-            if get_oom_risk_checker().check_oom_risk(0.55):
-                logging.warning('early stop the id fetch '\
-                                'since the oom risk')
+            if self._stop_fetch_id():
                 break
 
     def _id_batch_fetch_cond(self):
         next_index = self._psi_rsa_signer.get_next_index_to_fetch()
         return self._id_batch_fetcher.need_process(next_index) and \
-                not get_oom_risk_checker().check_oom_risk(0.55)
+                not self._stop_fetch_id()
+
+    def _stop_fetch_id(self):
+        flying_id_cnt = self._id_batch_fetcher.get_flying_item_count()
+        flying_signer_cnt = self._psi_rsa_signer.get_flying_item_count()
+        total_flyint_item = flying_id_cnt + flying_signer_cnt
+        if total_flyint_item >= 5 << 20:
+            logging.warning("stop fetch id since flying item "\
+                            "reach to %d > 5m", total_flyint_item)
+            return True
+        if self._heap_mem_stats.CheckOomRisk(total_flyint_item, 0.6):
+            logging.warning("stop fetch id since has oom risk for 0.6, "\
+                            "flying item reach to %d", total_flyint_item)
+        return False
 
     def _psi_rsa_signer_name(self):
         return self._repr + ':psi_rsa_signer'
@@ -237,10 +249,8 @@ class RsaPsiPreProcessor(object):
             sort_run_dumper.finish_dump_sort_run()
         dump_cnt = len(items_buffer)
         del items_buffer
-        gc_cnt = gc.collect()
-        logging.warning("dump %d item in sort run, and gc %d objects. "\
-                        "current memory usage %f", dump_cnt, gc_cnt,
-                        get_oom_risk_checker().get_mem_usage_rate())
+        logging.warning("dump %d item in sort run, and gc %d objects."
+                        dump_cnt, gc.collect())
 
     def _sort_run_dump_cond(self):
         sort_run_dumper = self._sort_run_dumper
@@ -261,19 +271,13 @@ class RsaPsiPreProcessor(object):
                  (dump_cands_num >= (1 << 20) or
                   (max_flying_item > 2 and
                     dump_cands_num > max_flying_item // 2)) or
-                 self._dump_since_oom_risk(dump_cands_num))
+                  self._dump_for_forward(dump_cands_num))
 
-    def _dump_since_oom_risk(self, dump_cands_num):
-        if get_oom_risk_checker().check_oom_risk(0.80):
-            logging.warning("sort dump immediately since oom risk "\
-                            "is large than 0.80, dump cands num %d",
-                            dump_cands_num)
-            return True
-        if (not self._id_batch_fetch_cond() or \
-                get_oom_risk_checker().check_oom_risk(0.7)) and \
-                self._psi_rsa_signer.get_flying_item_count() >= \
-                self._id_batch_fetcher.get_flying_item_count():
-            return True
+    def _dump_for_forward(self, dump_cands_num):
+        if self._stop_fetch_id():
+            return dump_cands_num > 0 and \
+                    dump_cands_num >= \
+                        self._id_batch_fetcher.get_flying_item_count() // 3
         return False
 
     def _sort_run_merger_name(self):

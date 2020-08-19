@@ -214,10 +214,6 @@ class SortRunMerger(object):
             writer.append(item.inner_item)
             assert item.reader_index < len(readers)
             self._replenish_item(readers[item.reader_index], pque)
-            if common.get_oom_risk_checker().check_oom_risk(0.85):
-                gc_cnt = gc.collect()
-                logging.info('trigger gc %d object actively since oom risk',
-                             gc_cnt)
         writer.finish()
         return writer.get_merged_fpaths()
 
