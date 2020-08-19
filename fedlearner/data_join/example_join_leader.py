@@ -54,6 +54,9 @@ class ExampleJoinLeader(TransmitLeader):
         def __getattr__(self, attr):
             return getattr(self.example_joiner, attr)
 
+        def get_flying_item_cnt(self):
+            return 0
+
     def __init__(self, peer_client, master_client, rank_id,
                  etcd, data_source, raw_data_options,
                  data_block_builder_options, example_joiner_options):
