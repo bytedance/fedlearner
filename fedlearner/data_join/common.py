@@ -298,7 +298,8 @@ class HeapMemStats(object):
         with self._lock:
             if inner_key not in self._stats_map:
                 inner_key = self._gen_inner_stats_key(stats_key)
-                self._stats_map[inner_key] = HeapMemStats.StatsRecord()
+                self._stats_map[inner_key] = \
+                        HeapMemStats.StatsRecord(self._stats_expiration_time)
             sr = self._stats_map[inner_key]
             if not sr.stats_expiration():
                 return _oom_risk_checker.check_oom_risk(
