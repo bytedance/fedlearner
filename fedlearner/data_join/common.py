@@ -297,7 +297,7 @@ class HeapMemStats(object):
         inner_key = self._gen_inner_stats_key(stats_key)
         sr = None
         with self._lock:
-            if inner_key not self._stats_map:
+            if inner_key not in self._stats_map:
                 inner_key = self._gen_inner_stats_key(stats_key)
                 self._stats_map[inner_key] = HeapMemStats.StatsRecord()
             sr = self._stats_map[inner_key]
