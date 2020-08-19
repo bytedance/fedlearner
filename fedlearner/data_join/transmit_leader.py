@@ -22,6 +22,7 @@ from fedlearner.common import data_join_service_pb2 as dj_pb
 from fedlearner.common import metrics
 
 from fedlearner.data_join.routine_worker import RoutineWorker
+from fedlearner.data_join import common
 
 class TransmitLeader(object):
     class ImplContext(object):
@@ -180,6 +181,10 @@ class TransmitLeader(object):
                 if item is None:
                     continue
                 self._wakeup_data_consumer()
+                if common.get_oom_risk_checker().check_oom_risk(0.8):
+                    logging.warning("%s early stop produce item since "\
+                                    "oom risk", self._repr_str)
+                    break
 
     def _data_producer_cond(self):
         with self._lock:
@@ -187,7 +192,9 @@ class TransmitLeader(object):
                 self._worker_map[self._producer_name()].setup_args(
                         self._impl_ctx
                     )
-            return self._impl_ctx is not None
+            oom_risk = common.get_oom_risk_checker().check_oom_risk(0.8)
+            return self._impl_ctx is not None and not oom_risk and \
+                    not self._impl_ctx.is_produce_finished()
 
     def _wakeup_data_consumer(self):
         self._worker_map[self._consumer_name()].wakeup()

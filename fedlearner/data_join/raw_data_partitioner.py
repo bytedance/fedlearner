@@ -266,12 +266,10 @@ class RawDataPartitioner(object):
         assert len(self._flying_writers) == 0
         fetcher = self._raw_data_batch_fetcher
         fetch_finished = False
-        iter_round = 0
         next_index = self._get_next_part_index()
         hint_index = None
         bp_options = self._options.batch_processor_options
-        signal_round_threhold = bp_options.max_flying_item * 3 // \
-                5 // bp_options.batch_size + 1
+        round_dumped_item = 0
         while not fetch_finished:
             fetch_finished, batch, hint_index = \
                     fetcher.fetch_item_batch_by_index(next_index, hint_index)
@@ -283,19 +281,19 @@ class RawDataPartitioner(object):
                     writer = self._get_file_writer(partition_id)
                     writer.append_item(batch.begin_index+index, item)
                 next_index += len(batch)
-                iter_round += 1
-                oom_risk = common.get_oom_risk_checker().check_oom_risk(0.70)
-                if iter_round % signal_round_threhold == 0 or oom_risk:
+                round_dumped_item += len(batch)
+                if round_dumped_item // self._options.output_partition_num \
+                        > (1<<22) or \
+                        common.get_oom_risk_checker().check_oom_risk(0.70):
                     self._finish_file_writers()
                     self._set_next_part_index(next_index)
                     hint_index = self._evict_staless_batch(hint_index,
                                                            next_index-1)
                     logging.info("consumed %d items", next_index-1)
-                    if oom_risk:
-                        gc_cnt = gc.collect()
-                        logging.warning("earily finish writer partition "\
-                                        "writer since oom risk, trigger "\
-                                        "gc %d actively", gc_cnt)
+                    gc_cnt = gc.collect()
+                    logging.warning("finish writer partition trigger "\
+                                    "gc %d actively", gc_cnt)
+                    round_dumped_item = 0
                     self._wakeup_raw_data_fetcher()
             elif not fetch_finished:
                 with self._cond:

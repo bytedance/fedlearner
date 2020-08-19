@@ -36,8 +36,6 @@ else
 fi
 input_file_subscribe_dir=$(normalize_env_to_args "--input_file_subscribe_dir" $INPUT_FILE_SUBSCRIBE_DIR)
 leader_rsa_psi_signer_addr=$(normalize_env_to_args "--leader_rsa_psi_signer_addr" $PEER_ADDR)
-max_flying_item=$(normalize_env_to_args "--max_flying_item" $MAX_FLYING_ITEM)
-offload_processor_number=$(normalize_env_to_args "--offload_processor_number" $OFFLOAD_PROCESSOR_NUMBER)
 process_batch_size=$(normalize_env_to_args "--process_batch_size" $PSI_PROCESS_BATCH_SIZE)
 max_flying_sign_batch=$(normalize_env_to_args "--max_flying_sign_batch" $MAX_FLYING_SIGNED_BATCH)
 max_flying_sign_rpc=$(normalize_env_to_args "--max_flying_sign_rpc" $MAX_FLYING_SIGN_RPC)
@@ -64,8 +62,8 @@ python -m fedlearner.data_join.cmd.rsa_psi_preprocessor_cli \
     --etcd_addrs=$ETCD_ADDR \
     --etcd_base_dir=$ETCD_BASE_DIR \
     $preprocessor_name $input_file_paths $input_dir $input_file_subscribe_dir \
-    $max_flying_item $max_flying_sign_batch $offload_processor_number \
-    $slow_sign_threshold $sort_run_merger_read_ahead_buffer \
+    $max_flying_sign_batch $slow_sign_threshold \
+    $sort_run_merger_read_ahead_buffer \
     $leader_rsa_psi_signer_addr $max_flying_sign_rpc $sign_rpc_timeout_ms \
     $stub_fanout $process_batch_size \
     $raw_data_iter $compressed_type $read_ahead_size $read_batch_size \

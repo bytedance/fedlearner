@@ -123,13 +123,14 @@ describe('Ticket System', () => {
         });
     });
 
-    it('should return tickets filtered by federation_id', (done) => {
-      request.get(`/api/v1/tickets?federation_id=${leader.id}`)
+    it('should return tickets filtered by federation', (done) => {
+      request.get('/api/v1/tickets')
         .set('Cookie', adminCookie)
+        .set('X-Federation-Id', leader.id)
         .expect(200)
         .end((err, res) => {
           if (err) done(err);
-          assert.ok(res.body.data.find((x) => x.federation_id === leader.id && x.name === followerTicket.name));
+          assert.ok(res.body.data.every((x) => x.federation_id === leader.id));
           done();
         });
     });
