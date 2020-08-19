@@ -95,7 +95,7 @@ class RsaPsiPreProcessor(object):
                 ),
                 self._merger_comparator
             )
-        self._heap_mem_stats = HeapMemStats(8192, 300)
+        self._heap_mem_stats = HeapMemStats(65536*2, None)
         self._started = False
 
     def start_process(self):
@@ -173,11 +173,14 @@ class RsaPsiPreProcessor(object):
         total_flyint_item = flying_id_cnt + flying_signer_cnt
         if total_flyint_item >= 5 << 20:
             logging.warning("stop fetch id since flying item "\
-                            "reach to %d > 5m", total_flyint_item)
+                            "reach to %d > 5m, flying_id_cnt: %d; "\
+                            "flying_signer_cnt: %d", total_flyint_item,
+                            flying_id_cnt, flying_signer_cnt)
             return True
         if self._heap_mem_stats.CheckOomRisk(total_flyint_item, 0.6):
             logging.warning("stop fetch id since has oom risk for 0.6, "\
                             "flying item reach to %d", total_flyint_item)
+            return True
         return False
 
     def _psi_rsa_signer_name(self):
@@ -188,11 +191,16 @@ class RsaPsiPreProcessor(object):
 
     def _psi_rsa_sign_fn(self):
         next_index = self._sort_run_dumper.get_next_index_to_dump()
+        sign_cnt = 0
         for signed_batch in self._psi_rsa_signer.make_processor(next_index):
             logging.debug("%s sign batch begin at %d, len %d. wakeup %s",
                           self._psi_rsa_signer_name(),
                           signed_batch.begin_index, len(signed_batch),
                           self._sort_run_dumper_name())
+            sign_cnt += 1
+            if sign_cnt % 64 == 0:
+                self._wakeup_sort_run_dumper()
+        if sign_cnt > 0:
             self._wakeup_sort_run_dumper()
         staless_index = self._sort_run_dumper.get_next_index_to_dump() - 1
         evict_batch_cnt = self._id_batch_fetcher.evict_staless_item_batch(

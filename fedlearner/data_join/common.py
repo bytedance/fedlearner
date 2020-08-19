@@ -257,10 +257,10 @@ class _OomRsikChecker(object):
             avail_mem = self._mem_limit - reserved_mem
             return heap_mem_usage >= avail_mem * water_level_percent
 
-    def get_mem_usage_rate(self):
+    def get_heap_mem_usage(self):
         with self._lock:
             self._try_update_memory_usage(True)
-            return (self._heap_memory_usage + .0) / self._mem_limit
+            return self._heap_memory_usage
 
 _oom_risk_checker = _OomRsikChecker()
 
@@ -273,14 +273,16 @@ class HeapMemStats(object):
             self._heap_mem_usage = 0
 
         def stats_expiration(self):
-            return self._stats_ts <= 0 or time.time() - self._stats_ts >= \
-                    self._stats_expiration_time
+            return self._stats_ts <= 0 or \
+                    (self._stats_expiration_time is not None and
+                        time.time() - self._stats_ts >= \
+                                self._stats_expiration_time)
 
         def update_stats(self):
             with self._lock:
                 if self.stats_expiration():
                     self._heap_mem_usage = \
-                            _oom_risk_checker.get_mem_usage_rate()
+                            _oom_risk_checker.get_heap_mem_usage()
                     self._stats_ts = time.time()
 
         def get_heap_mem_usage(self):
