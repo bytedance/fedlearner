@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import css from 'styled-jsx/css';
 import { useRouter } from 'next/router';
 import useSWR from 'swr';
-import { Avatar, Link, Popover, Spinner, Tabs, Loading, useTheme } from '@zeit-ui/react';
+import { Avatar, Link, Popover, Spinner, Tabs, Loading, useTheme, Select } from '@zeit-ui/react';
 import { fetcher } from '../libs/http';
 import { logout } from '../services';
 
@@ -83,6 +83,7 @@ export default function Header() {
   const theme = useTheme();
   const styles = useStyles(theme);
   const router = useRouter();
+
   const { data } = useSWR('user', fetcher);
   const { route, query } = router;
   const isAdmin = route.startsWith('/admin/');
@@ -152,6 +153,22 @@ export default function Header() {
     return () => document.removeEventListener('scroll', scrollHandler);
   }, [scrollTop]);
 
+  const displayFederationFilter = [
+    '/job',
+    '/ticket',
+    '/raw_data',
+  ].some(el => el === route)
+  const { data: fedData } = useSWR('federations', fetcher)
+  const federations = fedData ? fedData.data : null
+  const [currFederation, setCurrFederation] = useState(-1)
+  useEffect(() => {
+    setCurrFederation(parseInt(localStorage.getItem('federationID')) || -1)
+  }, [])
+  const onFederationChange = v => {
+    localStorage.setItem('federationID', v)
+    window.location.reload()
+  }
+
   return (
     <div className="space-holder">
       <div className={fixed ? 'headerFixed' : 'header'}>
@@ -171,6 +188,21 @@ export default function Header() {
           </div>
 
           <div className="sidebar">
+            {
+              displayFederationFilter &&
+              <Select
+                value={currFederation && currFederation.toString()}
+                onChange={onFederationChange}
+                size="small"
+                style={{marginRight: '16px'}}
+              >
+                <Select.Option value="-1">All</Select.Option>
+                {federations && federations.map(
+                  fed =>
+                    <Select.Option key={fed.name} value={fed.id.toString()}>{fed.name}</Select.Option>
+                )}
+              </Select>
+            }
             <Popover content={PopoverContent} placement="bottomEnd">
               {user
                 ? (
