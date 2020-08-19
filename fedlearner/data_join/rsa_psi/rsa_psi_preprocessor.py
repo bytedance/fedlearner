@@ -96,6 +96,8 @@ class RsaPsiPreProcessor(object):
                 self._merger_comparator
             )
         self._heap_mem_stats = HeapMemStats(65536*2, None)
+        self._produce_item_cnt = 0
+        self._comsume_item_cnt = 0
         self._started = False
 
     def start_process(self):
@@ -158,6 +160,7 @@ class RsaPsiPreProcessor(object):
             logging.debug("%s fetch batch begin at %d, len %d. wakeup %s",
                           self._id_batch_fetcher_name(), batch.begin_index,
                           len(batch), self._psi_rsa_signer_name())
+            self._produce_item_cnt += len(batch)
             self._wakeup_psi_rsa_signer()
             if self._stop_fetch_id():
                 break
@@ -168,17 +171,15 @@ class RsaPsiPreProcessor(object):
                 not self._stop_fetch_id()
 
     def _stop_fetch_id(self):
-        flying_id_cnt = self._id_batch_fetcher.get_flying_item_count()
-        flying_signer_cnt = self._psi_rsa_signer.get_flying_item_count()
-        total_flyint_item = flying_id_cnt + flying_signer_cnt
+        total_flying_item = self._produce_item_cnt - self._comsume_item_cnt
         if total_flyint_item >= 5 << 20:
             logging.warning("stop fetch id since flying item "\
-                            "reach to %d > 5m, flying_id_cnt: %d; "\
-                            "flying_signer_cnt: %d", total_flyint_item,
-                            flying_id_cnt, flying_signer_cnt)
+                            "reach to %d > 5m, produce_item_cnt: %d; "\
+                            "consume_item_cnt: %d", total_flying_item,
+                            self._produce_item_cnt, self._comsume_item_cnt)
             return True
-        if self._heap_mem_stats.CheckOomRisk(total_flyint_item, 0.6):
-            logging.warning("stop fetch id since has oom risk for 0.6, "\
+        if self._heap_mem_stats.CheckOomRisk(total_flyint_item, 0.75):
+            logging.warning("stop fetch id since has oom risk for 0.75, "\
                             "flying item reach to %d", total_flyint_item)
             return True
         return False
@@ -256,6 +257,7 @@ class RsaPsiPreProcessor(object):
         if signed_finished:
             sort_run_dumper.finish_dump_sort_run()
         dump_cnt = len(items_buffer)
+        self._comsume_item_cnt += dump_cnt
         del items_buffer
         logging.warning("dump %d item in sort run, and gc %d objects.",
                         dump_cnt, gc.collect())
