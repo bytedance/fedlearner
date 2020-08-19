@@ -244,7 +244,6 @@ class _OomRsikChecker(object):
         self._heap_memory_usage = None
         self._try_update_memory_usage(True)
 
-
     def _try_update_memory_usage(self, force):
         if time.time() - self._latest_updated_ts >= 0.7 or force:
             self._heap_memory_usage = hpy().heap().size
@@ -258,6 +257,11 @@ class _OomRsikChecker(object):
                 reserved_mem = 2 << 30
             avail_mem = self._mem_limit - reserved_mem
             return self._heap_memory_usage >= avail_mem * water_level_percent
+
+    def get_mem_usage_rate(self):
+        with self._lock:
+            self._try_update_memory_usage(True)
+            return (self._heap_memory_usage + .0) / self._mem_limit
 
 _oom_risk_checker = _OomRsikChecker()
 def get_oom_risk_checker():

@@ -158,14 +158,15 @@ class RsaPsiPreProcessor(object):
                           self._id_batch_fetcher_name(), batch.begin_index,
                           len(batch), self._psi_rsa_signer_name())
             self._wakeup_psi_rsa_signer()
-            if get_oom_risk_checker().check_oom_risk(0.75):
+            if get_oom_risk_checker().check_oom_risk(0.55):
                 logging.warning('early stop the id fetch '\
                                 'since the oom risk')
+                break
 
     def _id_batch_fetch_cond(self):
         next_index = self._psi_rsa_signer.get_next_index_to_fetch()
         return self._id_batch_fetcher.need_process(next_index) and \
-                not get_oom_risk_checker().check_oom_risk(0.75)
+                not get_oom_risk_checker().check_oom_risk(0.55)
 
     def _psi_rsa_signer_name(self):
         return self._repr + ':psi_rsa_signer'
@@ -234,7 +235,12 @@ class RsaPsiPreProcessor(object):
             self._psi_rsa_signer.evict_staless_item_batch(next_index-1)
         if signed_finished:
             sort_run_dumper.finish_dump_sort_run()
-        gc.collect()
+        dump_cnt = len(items_buffer)
+        del items_buffer
+        gc_cnt = gc.collect()
+        logging.warning("dump %d item in sort run, and gc %d objects. "\
+                        "current memory usage %f", dump_cnt, gc_cnt,
+                        get_oom_risk_checker().get_mem_usage_rate())
 
     def _sort_run_dump_cond(self):
         sort_run_dumper = self._sort_run_dumper
@@ -245,15 +251,30 @@ class RsaPsiPreProcessor(object):
         signed_finished = rsa_signer.get_process_finished()
         flying_item_cnt = rsa_signer.get_flying_item_count()
         flying_begin_index = rsa_signer.get_flying_begin_index()
+        dump_cands_num = 0
+        if flying_begin_index is not None and next_index is not None and \
+                (flying_begin_index <= next_index <
+                    flying_begin_index + flying_item_cnt):
+            dump_cands_num = flying_item_cnt - (next_index - flying_begin_index)
         return not dump_finished and \
                 (signed_finished or
-                 (flying_begin_index is not None and
-                  next_index is not None and
-                  (flying_begin_index <= next_index <
-                      flying_begin_index + flying_item_cnt) and
-                   ((flying_item_cnt-(next_index-flying_begin_index) >=
-                     max_flying_item // 2 and max_flying_item > 0) or
-                    get_oom_risk_checker().check_oom_risk(0.50))))
+                 (dump_cands_num >= (1 << 20) or
+                  (max_flying_item > 2 and
+                    dump_cands_num > max_flying_item // 2)) or
+                 self._dump_since_oom_risk(dump_cands_num))
+
+    def _dump_since_oom_risk(self, dump_cands_num):
+        if get_oom_risk_checker().check_oom_risk(0.80):
+            logging.warning("sort dump immediately since oom risk "\
+                            "is large than 0.80, dump cands num %d",
+                            dump_cands_num)
+            return True
+        if (not self._id_batch_fetch_cond() or \
+                get_oom_risk_checker().check_oom_risk(0.7)) and \
+                self._psi_rsa_signer.get_flying_item_count() >= \
+                self._id_batch_fetcher.get_flying_item_count():
+            return True
+        return False
 
     def _sort_run_merger_name(self):
         return self._repr + ':sort_run_merger'
