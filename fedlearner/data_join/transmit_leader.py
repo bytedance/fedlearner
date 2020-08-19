@@ -196,12 +196,14 @@ class TransmitLeader(object):
 
     def _data_producer_cond(self):
         with self._lock:
+            oom_risk = False
             if self._impl_ctx is not None:
                 self._worker_map[self._producer_name()].setup_args(
                         self._impl_ctx
                     )
-            fly_item_cnt = self._impl_ctx.get_flying_item_cnt()
-            oom_risk = self._heap_mem_stats.CheckOomRisk(fly_item_cnt, 0.75)
+                fly_item_cnt = self._impl_ctx.get_flying_item_cnt()
+                oom_risk = self._heap_mem_stats.CheckOomRisk(fly_item_cnt,
+                                                             0.75)
             return self._impl_ctx is not None and not oom_risk and \
                     not self._impl_ctx.is_produce_finished()
 
