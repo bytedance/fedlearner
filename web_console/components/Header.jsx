@@ -162,7 +162,7 @@ export default function Header() {
   const federations = fedData ? fedData.data : null
   const [currFederation, setCurrFederation] = useState(-1)
   useEffect(() => {
-    setTimeout(() => setCurrFederation(parseInt(localStorage.getItem('federationID')) || -1))
+    setCurrFederation(parseInt(localStorage.getItem('federationID')) || -1)
   }, [])
   const onFederationChange = v => {
     localStorage.setItem('federationID', v)

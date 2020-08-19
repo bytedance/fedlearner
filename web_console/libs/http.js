@@ -7,7 +7,7 @@ export const client = ky.create({
 
 export const fetcher = (url, options = {}) => {
   const federationID = localStorage.getItem('federationID')
-  if (federationID) {
+  if (federationID && federationID > 0) {
     options.headers = {
       ...options.headers,
       'X-Federation-Id':  federationID
