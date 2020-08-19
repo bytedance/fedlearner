@@ -400,8 +400,8 @@ class DataPortalJobManager(object):
                           if f.endswith(common.RawDataFileSuffix)]
             publish_fpaths = []
             if portal_manifest.data_portal_type == dp_pb.DataPortalType.PSI:
-                publish_fpath = self._publish_psi_raw_data(partition_id,
-                                                           dpath, fnames)
+                publish_fpaths = self._publish_psi_raw_data(partition_id,
+                                                            dpath, fnames)
             else:
                 publish_fpaths = self._publish_streaming_raw_data(partition_id,
                                                                  dpath, fnames)
