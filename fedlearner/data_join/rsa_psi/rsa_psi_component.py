@@ -361,9 +361,8 @@ class LeaderPsiRsaSigner(PsiRsaSigner):
                                                  slow_sign_threshold,
                                                  process_pool_executor)
         self._private_key = private_key
-        self._item_additional_cost = 8 * 3 + 256 // 8 + \
+        self._item_additional_cost = 256 // 8 + \
                                      self._private_key.n.bit_length() // 8
-        self._item_additional_cost *= 2
 
     def additional_item_mem_usage(self):
         return self._item_additional_cost
@@ -513,9 +512,8 @@ class FollowerPsiRsaSigner(PsiRsaSigner):
         self._pending_rpc_sign_ctx = []
         self._flying_rpc_num = 0
         self._callback_submitter = callback_submitter
-        self._item_additional_cost = 8 * 4 + 256 * 2 // 8 + \
+        self._item_additional_cost = 256 * 2 // 8 + \
                                      self._public_key.n.bit_length() // 8
-        self._item_additional_cost *= 2
 
     def additional_item_mem_usage(self):
         return self._item_additional_cost

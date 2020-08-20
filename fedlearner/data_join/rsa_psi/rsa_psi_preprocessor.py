@@ -180,9 +180,9 @@ class RsaPsiPreProcessor(object):
             return True
         potential_mem_incr = total_flying_item * \
                              self._psi_rsa_signer.additional_item_mem_usage()
-        if self._heap_mem_stats.CheckOomRisk(total_flying_item, 0.50,
+        if self._heap_mem_stats.CheckOomRisk(total_flying_item, 0.75,
                                              potential_mem_incr):
-            logging.warning("stop fetch id since has oom risk for 0.50, "\
+            logging.warning("stop fetch id since has oom risk for 0.75, "\
                             "flying item reach to %d", total_flying_item)
             return True
         return False
@@ -285,16 +285,16 @@ class RsaPsiPreProcessor(object):
             dump_cands_num = flying_item_cnt - (next_index - flying_begin_index)
         return not dump_finished and \
                 (signed_finished or
-                 (dump_cands_num >= (1 << 20) or
+                 (dump_cands_num >= (2 << 20) or
                   (max_flying_item > 2 and
                     dump_cands_num > max_flying_item // 2)) or
                   self._dump_for_forward(dump_cands_num))
 
     def _dump_for_forward(self, dump_cands_num):
         if self._stop_fetch_id():
+            total_flying_item = self._produce_item_cnt - self._comsume_item_cnt
             return dump_cands_num > 0 and \
-                    dump_cands_num >= \
-                        self._id_batch_fetcher.get_flying_item_count() // 3
+                    dump_cands_num >= total_flying_item // 2
         return False
 
     def _sort_run_merger_name(self):

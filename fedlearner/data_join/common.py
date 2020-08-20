@@ -252,8 +252,8 @@ class _OomRsikChecker(object):
     def check_oom_risk(self, heap_mem_usage, water_level_percent=0.9):
         with self._lock:
             reserved_mem = int(self._mem_limit * 0.5)
-            if reserved_mem >= 2 << 30:
-                reserved_mem = 2 << 30
+            if reserved_mem >= (3 << 30) // 2:
+                reserved_mem = (3 << 30) // 2
             avail_mem = self._mem_limit - reserved_mem
             return heap_mem_usage >= avail_mem * water_level_percent
 
