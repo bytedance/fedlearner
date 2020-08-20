@@ -10,6 +10,15 @@ function getCommonUrl(start_time, end_time, application_id){
     return url;
 }
 
+/**
+ * used for job creation at server-side
+ *
+ * @param {Object} job_type - Federation job's type like data_join and so on
+ * @param {Object} start_time - start time (like "'2020-08-19T09:42:04.402Z'")
+ * @param {Object} end_time - end time (like "'2020-08-19T09:42:40.368Z'")
+ * @param {Object} application_id - Job's application id
+ * @return {Object} - list of metrics chart urls
+ */
 function converted2Urls(job_type, start_time, end_time, application_id) {
     let urls = [];
     for(let i = 0; i <metrics_list[job_type].length; ++i){
