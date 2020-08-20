@@ -154,7 +154,7 @@ export default function Header() {
   }, [scrollTop]);
 
   const displayFederationFilter = [
-    '/job',
+    // '/job',
     '/ticket',
     '/raw_data',
   ].some(el => el === route)
