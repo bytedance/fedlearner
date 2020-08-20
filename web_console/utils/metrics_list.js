@@ -25,7 +25,7 @@ const metrics_list = {
             title: "receive spend"   
         },
         {
-            query: "name%20:%22per_iter_spend%22",
+            query: "name%20:%22iter_spend%22",
             mode: "avg",
             title: "per session run spend"   
         },
