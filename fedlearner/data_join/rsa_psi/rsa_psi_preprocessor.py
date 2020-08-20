@@ -193,24 +193,28 @@ class RsaPsiPreProcessor(object):
     def _wakeup_psi_rsa_signer(self):
         self._worker_map[self._psi_rsa_signer_name()].wakeup()
 
+    def _transmit_signed_batch(self, signed_index):
+        evict_batch_cnt = self._id_batch_fetcher.evict_staless_item_batch(
+                signed_index
+            )
+        self._psi_rsa_signer.update_next_batch_index_hint(evict_batch_cnt)
+        self._wakeup_sort_run_dumper()
+
     def _psi_rsa_sign_fn(self):
         next_index = self._sort_run_dumper.get_next_index_to_dump()
         sign_cnt = 0
+        signed_index = None
         for signed_batch in self._psi_rsa_signer.make_processor(next_index):
             logging.debug("%s sign batch begin at %d, len %d. wakeup %s",
                           self._psi_rsa_signer_name(),
                           signed_batch.begin_index, len(signed_batch),
                           self._sort_run_dumper_name())
             sign_cnt += 1
-            if sign_cnt % 64 == 0:
-                self._wakeup_sort_run_dumper()
-        if sign_cnt > 0:
-            self._wakeup_sort_run_dumper()
-        staless_index = self._sort_run_dumper.get_next_index_to_dump() - 1
-        evict_batch_cnt = self._id_batch_fetcher.evict_staless_item_batch(
-                staless_index
-            )
-        self._psi_rsa_signer.update_next_batch_index_hint(evict_batch_cnt)
+            if signed_batch is not None:
+                signed_index = signed_batch.begin_index + len(signed_batch) - 1
+            if sign_cnt % 16 == 0:
+                self._transmit_signed_batch(signed_index)
+        self._transmit_signed_batch(signed_index)
 
     def _psi_rsa_sign_cond(self):
         next_index = self._sort_run_dumper.get_next_index_to_dump()
