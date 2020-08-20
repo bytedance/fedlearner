@@ -180,9 +180,9 @@ class RsaPsiPreProcessor(object):
             return True
         potential_mem_incr = total_flying_item * \
                              self._psi_rsa_signer.additional_item_mem_usage()
-        if self._heap_mem_stats.CheckOomRisk(total_flying_item, 0.55,
+        if self._heap_mem_stats.CheckOomRisk(total_flying_item, 0.50,
                                              potential_mem_incr):
-            logging.warning("stop fetch id since has oom risk for 0.55, "\
+            logging.warning("stop fetch id since has oom risk for 0.50, "\
                             "flying item reach to %d", total_flying_item)
             return True
         return False

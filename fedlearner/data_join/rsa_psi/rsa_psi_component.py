@@ -363,6 +363,7 @@ class LeaderPsiRsaSigner(PsiRsaSigner):
         self._private_key = private_key
         self._item_additional_cost = 8 * 3 + 256 // 8 + \
                                      self._private_key.n.bit_length() // 8
+        self._item_additional_cost *= 2
 
     def additional_item_mem_usage(self):
         return self._item_additional_cost
@@ -514,6 +515,7 @@ class FollowerPsiRsaSigner(PsiRsaSigner):
         self._callback_submitter = callback_submitter
         self._item_additional_cost = 8 * 4 + 256 * 2 // 8 + \
                                      self._public_key.n.bit_length() // 8
+        self._item_additional_cost *= 2
 
     def additional_item_mem_usage(self):
         return self._item_additional_cost
