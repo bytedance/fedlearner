@@ -14,7 +14,7 @@ function converted2Urls(job_type, start_time, end_time, application_id) {
     let urls = [];
     for(let i = 0; i <metrics_list[job_type].length; ++i){
         let url = getCommonUrl(start_time, end_time, application_id);
-        let qyery = metrics_list[job_type][i]["query"];
+        let query = metrics_list[job_type][i]["query"];
         let mode = metrics_list[job_type][i]["mode"];
         let title = metrics_list[job_type][i]["title"];
         url = url + "query:(language:kuery,query:'" + query +
