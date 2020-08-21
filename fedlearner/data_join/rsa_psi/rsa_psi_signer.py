@@ -33,7 +33,7 @@ class RsaPsiSignServer(dj_grpc.RsaPsiSignServiceServicer):
     def __init__(self, psi_sign_fn, bye_fn):
         super(RsaPsiSignServer, self).__init__()
         self._psi_sign_fn = psi_sign_fn
-        self._bye_fn = byt_fn
+        self._bye_fn = bye_fn
 
     def SignIds(self, request, context):
         try:
