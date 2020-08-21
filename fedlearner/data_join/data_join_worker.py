@@ -234,7 +234,9 @@ class DataJoinWorkerService(object):
     def __init__(self, listen_port, peer_addr, master_addr, rank_id,
                  etcd_name, etcd_base_dir, etcd_addrs, options):
         master_channel = make_insecure_channel(
-                master_addr, ChannelType.INTERNAL
+                master_addr, ChannelType.INTERNAL,
+                options=[('grpc.max_send_message_length', 2**31-1),
+                         ('grpc.max_receive_message_length', 2**31-1)]
             )
         self._master_client = dj_grpc.DataJoinMasterServiceStub(master_channel)
         self._rank_id = rank_id
@@ -244,7 +246,11 @@ class DataJoinWorkerService(object):
         self._data_source_name = data_source.data_source_meta.name
         self._listen_port = listen_port
         self._server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
-        peer_channel = make_insecure_channel(peer_addr, ChannelType.REMOTE)
+        peer_channel = make_insecure_channel(
+                peer_addr, ChannelType.REMOTE,
+                options=[('grpc.max_send_message_length', 2**31-1),
+                         ('grpc.max_receive_message_length', 2**31-1)]
+            )
         peer_client = dj_grpc.DataJoinWorkerServiceStub(peer_channel)
         self._data_join_worker = DataJoinWorker(
                 peer_client, self._master_client,

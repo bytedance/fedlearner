@@ -81,21 +81,15 @@ function useStyles(theme) {
 export default function JobCommonInfo(props) {
   const theme = useTheme();
   const styles = useStyles(theme);
-
   const job = props.job;
-
-  const pods = useMemo(() => {
-    if (!job || !job.status || !job.status.flReplicaStatus) {
-      return null;
-    }
-    return parsePods(job.status.flReplicaStatus);
-  }, [job]);
-
+  const pods = useMemo(() => job?.status?.flReplicaStatus ? parsePods(job.status.flReplicaStatus) : null, [job]);
+  const start_time = job?.metadata?.creationTimestamp
+    ? new Date(job.metadata.creationTimestamp).getTime()
+    : '';
   const options = useMemo(() => ({
-    searchParams: {
-      start_time: new Date(job.metadata.creationTimestamp).getTime(),
-    },
-  }));
+    searchParams: { start_time },
+  }), [job]);
+
   const { data: logsData, error: logsError, isValidating: logsIsValidating } = useSWR(
     job && job.localdata && job.metadata
       ? [`job/${job.localdata.name}/logs`, options]
@@ -134,7 +128,7 @@ export default function JobCommonInfo(props) {
             <Link
               color
               target="_blank"
-              href={`/job/pod-log?name=${item.name}&time=${new Date(job.metadata?.creationTimestamp).getTime()}`}
+              href={`/job/pod-log?name=${item.name}&time=${start_time}`}
             >
               Log
             </Link>

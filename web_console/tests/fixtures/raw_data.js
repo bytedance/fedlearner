@@ -1,9 +1,9 @@
 module.exports = {
-  name: 'raw_data_TEST',
+  name: 'raw-data-test',
   input: 'hdfs://open.aliyun.com/foo/bar',
   output: 'hdfs://open.aliyun.com/foo/bar',
   context: '{}',
-  remark: 'raw_data_TEST comment',
+  remark: 'raw-data-test comment',
   federation_id: 1,
   output_partition_num: 8,
   data_portal_type: 'Streaming',

@@ -82,10 +82,7 @@ export default function TicketList() {
     return <Link href="#" color onClick={onHandleEdit}>Edit</Link>;
   };
   const dataSource = tickets
-    ? tickets.map((x) => ({
-      ...x,
-      operation,
-    }))
+    ? tickets.map((x) => ({ ...x, operation }))
     : [];
 
   return (

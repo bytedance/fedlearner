@@ -216,6 +216,10 @@ class PsiRsaSigner(ItemBatchSeqProcessor):
                     self._next_batch_index_hint >= evit_batch_cnt:
                 self._next_batch_index_hint -= evit_batch_cnt
 
+    def additional_item_mem_usage(self):
+        raise NotImplementedError("additional_item_mem_usage not "\
+                                  "implemented in base PsiRsaSigner")
+
     def _add_sign_stats(self, duration, pending_duration, retry_cnt):
         with self._lock:
             self._total_retry_cnt += retry_cnt
@@ -357,6 +361,12 @@ class LeaderPsiRsaSigner(PsiRsaSigner):
                                                  slow_sign_threshold,
                                                  process_pool_executor)
         self._private_key = private_key
+        self._item_additional_cost = 8 * 3 + 256 // 8 + \
+                                     self._private_key.n.bit_length() // 8
+        self._item_additional_cost *= 2
+
+    def additional_item_mem_usage(self):
+        return self._item_additional_cost
 
     @staticmethod
     def _leader_sign_func(raw_id_batch, d, n):
@@ -401,7 +411,11 @@ class FollowerPsiRsaSigner(PsiRsaSigner):
     class SignerStub(object):
         def __init__(self, addr):
             self._lock = threading.Lock()
-            self._channel = make_insecure_channel(addr, ChannelType.REMOTE)
+            self._channel = make_insecure_channel(
+                    addr, ChannelType.REMOTE,
+                    options=[('grpc.max_send_message_length', 2**31-1),
+                             ('grpc.max_receive_message_length', 2**31-1)]
+                )
             self._stub = dj_grpc.RsaPsiSignServiceStub(self._channel)
             self._serial_fail_cnt = 0
             self._rpc_ref_cnt = 0
@@ -499,6 +513,12 @@ class FollowerPsiRsaSigner(PsiRsaSigner):
         self._pending_rpc_sign_ctx = []
         self._flying_rpc_num = 0
         self._callback_submitter = callback_submitter
+        self._item_additional_cost = 8 * 4 + 256 * 2 // 8 + \
+                                     self._public_key.n.bit_length() // 8
+        self._item_additional_cost *= 2
+
+    def additional_item_mem_usage(self):
+        return self._item_additional_cost
 
     def _get_active_stub(self):
         with self._lock:

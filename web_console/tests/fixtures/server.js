@@ -3,6 +3,7 @@ const path = require('path');
 const router = require('@koa/router')();
 const AdminMiddleware = require('../../middlewares/admin');
 const SessionMiddleware = require('../../middlewares/session');
+const FindOptionsMiddleware = require('../../middlewares/find_options');
 const server = require('../../server');
 
 router.get('/', SessionMiddleware, async (ctx) => {
@@ -21,6 +22,10 @@ router.post('/api/v1/admin/ping', SessionMiddleware, AdminMiddleware, async (ctx
   ctx.body = {
     message: 'pong',
   };
+});
+
+router.get('/find', FindOptionsMiddleware, async (ctx) => {
+  ctx.body = ctx.findOptions;
 });
 
 router.get('/favicon.ico', SessionMiddleware, async (ctx) => {

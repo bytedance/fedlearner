@@ -46,14 +46,15 @@ export default function RawDataList() {
     );
   };
   const dataSource = rawDatas
-    ? rawDatas.map((x) => {
-      const context = JSON.stringify(x.context);
-      return {
-        ...x,
-        context,
-        operation,
-      };
-    })
+    ? rawDatas
+      .map((x) => {
+        const context = JSON.stringify(x.context);
+        return {
+          ...x,
+          context,
+          operation,
+        };
+      })
     : [];
   const [formVisible, setFormVisible] = useState(false);
 

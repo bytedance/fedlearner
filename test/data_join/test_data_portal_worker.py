@@ -82,7 +82,6 @@ class TestDataPortalWorker(unittest.TestCase):
                 batch_size=128,
                 max_flying_item=300000
             ),
-            merge_buffer_size=4096,
             merger_read_ahead_size=1000000,
             merger_read_batch_size=128
         )
