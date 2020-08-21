@@ -184,7 +184,8 @@ class RsaPsiPreProcessor(object):
     def _id_batch_fetch_cond(self):
         next_index = self._psi_rsa_signer.get_next_index_to_fetch()
         return self._id_batch_fetcher.need_process(next_index) and \
-                not self._stop_fetch_id()
+                not self._stop_fetch_id() and \
+                not self._sort_run_dumper.is_dump_finished()
 
     def _stop_fetch_id(self):
         total_flying_item = self._produce_item_cnt - self._comsume_item_cnt
@@ -234,7 +235,8 @@ class RsaPsiPreProcessor(object):
 
     def _psi_rsa_sign_cond(self):
         next_index = self._sort_run_dumper.get_next_index_to_dump()
-        return self._psi_rsa_signer.need_process(next_index)
+        return self._psi_rsa_signer.need_process(next_index) and \
+                not self._sort_run_dumper.is_dump_finished()
 
     def _sort_run_dumper_name(self):
         return self._repr + ':sort_run_dumper'
