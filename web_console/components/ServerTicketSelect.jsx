@@ -18,7 +18,7 @@ export default function ServerTicketSelect(props) {
   const popoverContent = (content) => {
     return (
       <pre className="content">
-        {JSON.stringify(JSON.parse(content), null, 2)}
+        {JSON.stringify(JSON.parse(content || '{}'), null, 2)}
         <style jsx>{`
           .content {
             color: #444;
