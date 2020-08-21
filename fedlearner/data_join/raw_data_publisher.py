@@ -58,6 +58,10 @@ class RawDataPublisher(object):
         while item_index < len(new_raw_data_pubs):
             next_pub_index = self._forward_pub_index(partition_id,
                                                      next_pub_index)
+            if self._check_finish_tag(partition_id, next_pub_index-1):
+                logging.warning("partition %d has been published finish tag "\
+                                "at index %d", partition_id, next_pub_index-1)
+                break
             etcd_key = common.raw_data_pub_etcd_key(self._raw_data_pub_dir,
                                                     partition_id,
                                                     next_pub_index)
@@ -69,6 +73,12 @@ class RawDataPublisher(object):
                 if item_index < len(new_raw_data_pubs):
                     raw_data_pub = new_raw_data_pubs[item_index]
                     data = text_format.MessageToString(raw_data_pub)
+        if item_index < len(new_raw_data_pubs) - 1:
+            logging.warning("%d files are not published since meet finish "\
+                            "tag for partition %d. list following",
+                            len(new_raw_data_pubs) - item_index, partition_id)
+            for idx, pub in enumerate(new_raw_data_pubs[item_index:]):
+                logging.warning("%d. %s", idx, pub.raw_data_meta.file_path)
 
     def finish_raw_data(self, partition_id):
         data = text_format.MessageToString(
@@ -78,6 +88,10 @@ class RawDataPublisher(object):
         while True:
             next_pub_index = self._forward_pub_index(partition_id,
                                                      next_pub_index)
+            if self._check_finish_tag(partition_id, next_pub_index-1):
+                logging.warning("partition %d has been published finish tag"\
+                                "at index %d", partition_id, next_pub_index-1)
+                break
             etcd_key = common.raw_data_pub_etcd_key(self._raw_data_pub_dir,
                                                     partition_id,
                                                     next_pub_index)
@@ -107,3 +121,14 @@ class RawDataPublisher(object):
             if self._etcd.get_data(etcd_key) is None:
                 return next_pub_index
             next_pub_index += 1
+
+    def _check_finish_tag(self, partition_id, last_index):
+        if last_index >= 0:
+            etcd_key = common.raw_data_pub_etcd_key(self._raw_data_pub_dir,
+                                                    partition_id,
+                                                    last_index)
+            data = self._etcd.get_data(etcd_key)
+            if data is not None:
+                pub_item = text_format.Parse(data, dj_pb.RawDatePub())
+                return pub_item.HasField('raw_data_finished')
+        return False

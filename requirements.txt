@@ -1,7 +1,7 @@
 setuptools==41.0.0
 tensorflow==1.15.2
 cityhash
-pylint
+pylint==2.4.4
 jinja2
 grpcio-tools
 etcd3

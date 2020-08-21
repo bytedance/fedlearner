@@ -296,7 +296,7 @@ class DataJoinWorker(unittest.TestCase):
                 if dss_l.state == common_pb.DataSourceState.Ready and \
                         dss_f.state == common_pb.DataSourceState.Ready:
                     break
-            except Exception as e:
+            except Exception as e: #xx
                 pass
             time.sleep(2)
 
