@@ -74,7 +74,7 @@ class RawDataPublisher(object):
                     raw_data_pub = new_raw_data_pubs[item_index]
                     data = text_format.MessageToString(raw_data_pub)
         if item_index < len(new_raw_data_pubs) - 1:
-            logging.warning("%d file is not published since meet finish "\
+            logging.warning("%d files are not published since meet finish "\
                             "tag for partition %d. list following",
                             len(new_raw_data_pubs) - item_index, partition_id)
             for idx, pub in enumerate(new_raw_data_pubs[item_index:]):
