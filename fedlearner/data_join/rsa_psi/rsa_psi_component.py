@@ -292,8 +292,6 @@ class PsiRsaSigner(ItemBatchSeqProcessor):
             wait4batch = len(raw_id_batches) == 0
             signed_batch_futures += self._promise_signed_batches(raw_id_batches)
         yield self._make_item_batch(next_index), True
-        with self._lock:
-            self._next_index_to_fetch = next_index
 
     def _consum_raw_id_batch(self, next_index, required_num):
         raw_id_batches = []
@@ -312,6 +310,8 @@ class PsiRsaSigner(ItemBatchSeqProcessor):
             next_index += len(raw_id_batch)
             if len(raw_id_batch) > 0:
                 raw_id_batches.append(raw_id_batch)
+        with self._lock:
+            self._next_index_to_fetch = next_index
         return raw_id_batches, next_index
 
     def _promise_signed_batches(self, raw_id_batches):
