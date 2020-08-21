@@ -1,3 +1,5 @@
+const { metrics_list } = require('./metrics_list');
+
 function getCommonUrl(start_time, end_time, application_id){
     let url = "http://ad-kibana.bytedance.net/fedlearner/app/kibana#" +
     "/visualize/edit/95e50f80-dd3a-11ea-a472-39251c5aaace?_g=(filter" +
@@ -43,8 +45,8 @@ function converted2Url(start_time, end_time, application_id, query, mode, title)
         "2Ffedlearner%2Fapp%2Fkibana))),label:'name.keyword:%20Desce" +
         "nding',params:())),x:(accessor:0,aggType:date_histogram,for" +
         "mat:(id:date,params:(pattern:'HH:mm:ss')),label:'date_time%" +
-        "20per%20second',params:(bounds:(max:'" + start_time + "',min:'" +
-        end_time + "'),date:!t,format:'HH:mm:ss',interval:PT1S,interv" +
+        "20per%20second',params:(bounds:(max:'" + end_time + "',min:'" +
+        start_time + "'),date:!t,format:'HH:mm:ss',interval:PT1S,interv" +
         "alESUnit:s,intervalESValue:1)),y:!((accessor:2,aggType:avg," +
         "format:(id:number,params:(parsedUrl:(basePath:%2Ffedlearner" +
         ",origin:'http:%2F%2Fad-kibana.bytedance.net',pathname:%2Ffe" +
@@ -73,7 +75,7 @@ function converted2Url(start_time, end_time, application_id, query, mode, title)
  */
 function converted2Urls(job_type, start_time, end_time, application_id) {
     let urls = [];
-    for(let i = 0; i <metrics_list[job_type].length; ++i){
+    for(let i = 0; i < metrics_list[job_type].length; ++i){
         let url = converted2Url(start_time, end_time, application_id,
                                 metrics_list[job_type][i]["query"],
                                 metrics_list[job_type][i]["mode"],
