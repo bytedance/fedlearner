@@ -67,19 +67,19 @@ class Handler(object):
                                   'by Handler subclasses')
 
 
-class loggingHandler(Handler):
+class LoggingHandler(Handler):
     def __init__(self):
-        super(loggingHandler, self).__init__('logging')
+        super(LoggingHandler, self).__init__('logging')
 
     def emit(self, name, value, tags=None, metrics_type=None):
-        logging.info('[metrics] name[%s] value[%s] tags[%s]', name, value,
-                     str(tags))
+        logging.debug('[metrics] name[%s] value[%s] tags[%s]',
+                      name, value, str(tags))
 
 
-class elasticSearchHandler(Handler):
+class ElasticSearchHandler(Handler):
     def __init__(self, ip, port):
         from elasticsearch import Elasticsearch # pylint: disable=C0415
-        super(elasticSearchHandler, self).__init__('elasticsearch')
+        super(ElasticSearchHandler, self).__init__('elasticsearch')
         self._es = Elasticsearch([ip], port=port)
         self._tz = pytz.timezone('Asia/Shanghai')
         # initialize index for elastic search
@@ -87,6 +87,11 @@ class elasticSearchHandler(Handler):
             self._es.indices.create(index='metrics')
 
     def emit(self, name, value, tags=None, metrics_type=None):
+        if tags is None:
+            tags = {}
+        application_id = os.environ.get('APPLICATION_ID', '')
+        if application_id:
+            tags['application_id'] = str(application_id)
         action = {
             "name": name,
             "value": value,
@@ -136,13 +141,12 @@ class Metrics(object):
 
 
 def initialize_metrics():
+    handler = LoggingHandler()
+    metrics_config(handler)
 
     if os.environ.get('ES_HOST', None) and os.environ.get('ES_PORT', None):
-        handler = elasticSearchHandler(os.environ['ES_HOST'],
-                                       os.environ['ES_PORT'])
-        metrics_config(handler)
-    else:
-        handler = loggingHandler()
+        handler = ElasticSearchHandler(
+            os.environ['ES_HOST'], os.environ['ES_PORT'])
         metrics_config(handler)
 
 

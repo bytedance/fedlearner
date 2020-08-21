@@ -268,7 +268,7 @@ class FLEstimator(object):
                         sess.run(spec.train_op, feed_dict={})
                         end_time = time.time()
                         metrics.emit_timer(
-                            name="per_iter_spend",
+                            name="iter_timer",
                             value=end_time-start_time,
                             tags={})
                         logging.debug('after session run.')
@@ -334,7 +334,13 @@ class FLEstimator(object):
                     while not sess.should_stop():
                         self._bridge.start(iter_id)
                         logging.debug('after bridge start.')
+                        start_time = time.time()
                         sess.run(eval_op)
+                        end_time = time.time()
+                        metrics.emit_timer(
+                            name="iter_timer",
+                            value=end_time-start_time,
+                            tags={})
                         logging.debug('after session run.')
                         self._bridge.commit()
                         logging.debug('after bridge commit.')

@@ -22,9 +22,13 @@ export default function ServerTicketSelect(props) {
         <style jsx>{`
           .content {
             color: #444;
-            min-width: 150px;
-            max-width: max-content;
             padding: 0 16px;
+            min-width: 150px;
+            max-height: 600px;
+            max-width: 600px;
+            overflow-wrap: break-word;
+            overflow-y: scroll;
+            overglow-x: hidden;
           }
         `}</style>
       </pre>

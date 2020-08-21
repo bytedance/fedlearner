@@ -241,8 +241,6 @@ describe('portalGenerateYaml', () => {
       context: {
         file_wildcard: '*.rd',
         batch_size: 1024,
-        max_flying_item: 300000,
-        merge_buffer_size: 4096,
         input_data_format: 'TF_RECORD',
         output_data_format: 'TF_RECORD',
         compressed_type: '',
@@ -386,8 +384,6 @@ describe('DataJoinGenerateYaml', () => {
                       { name: 'DATA_BLOCK_DUMP_THRESHOLD', value: '262144' },
                       { name: 'EXAMPLE_ID_DUMP_INTERVAL', value: '600' },
                       { name: 'EXAMPLE_ID_DUMP_THRESHOLD', value: '262144' },
-                      { name: 'EXAMPLE_ID_BATCH_SIZE', value: '4096' },
-                      { name: 'MAX_FLYING_EXAMPLE_ID', value: '307152' },
                     ],
                     resources: {
                       limits: {

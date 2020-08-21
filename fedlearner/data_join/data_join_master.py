@@ -525,7 +525,11 @@ class DataJoinMaster(dj_grpc.DataJoinMasterServiceServicer):
 class DataJoinMasterService(object):
     def __init__(self, listen_port, peer_addr, data_source_name,
                  etcd_name, etcd_base_dir, etcd_addrs, options):
-        channel = make_insecure_channel(peer_addr, ChannelType.REMOTE)
+        channel = make_insecure_channel(
+                peer_addr, ChannelType.REMOTE,
+                options=[('grpc.max_send_message_length', 2**31-1),
+                         ('grpc.max_receive_message_length', 2**31-1)]
+            )
         peer_client = dj_grpc.DataJoinMasterServiceStub(channel)
         self._data_source_name = data_source_name
         self._listen_port = listen_port

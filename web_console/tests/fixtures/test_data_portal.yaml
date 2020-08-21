@@ -116,10 +116,6 @@ spec:
                 value: test_data_portal
               - name: BATCH_SIZE
                 value: "1024"
-              - name: MAX_FLYING_ITEM
-                value: "300000"
-              - name: MERGE_BUFFER_SIZE
-                value: "4096"
               - name: INPUT_DATA_FORMAT
                 value: TF_RECORD
               - name: COMPRESSED_TYPE

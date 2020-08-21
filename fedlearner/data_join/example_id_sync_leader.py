@@ -68,6 +68,9 @@ class ExampleIdSyncLeader(TransmitLeader):
         def set_raw_data_finished(self):
             self.example_id_batch_fetcher.set_input_finished()
 
+        def get_flying_item_cnt(self):
+            return self.example_id_batch_fetcher.get_flying_item_count()
+
     def __init__(self, peer_client, master_client, rank_id, etcd,
                  data_source, raw_data_options, batch_processor_options):
         super(ExampleIdSyncLeader, self).__init__(peer_client, master_client,
