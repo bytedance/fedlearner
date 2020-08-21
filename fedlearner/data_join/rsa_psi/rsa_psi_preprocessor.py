@@ -19,6 +19,7 @@ import threading
 import concurrent.futures as concur_futures
 import os
 import gc
+import time
 import rsa
 
 from fedlearner.common import data_join_service_pb2 as dj_pb
@@ -147,6 +148,21 @@ class RsaPsiPreProcessor(object):
         if self._callback_submitter is not None:
             self._callback_submitter.shutdown()
         self._id_batch_fetcher.cleanup_visitor_meta_data()
+        self._bye_for_signer()
+
+    def _bye_for_signer(self):
+        for rnd in range(10):
+            try:
+                self._psi_rsa_signer.say_signer_bye()
+                logging.info("Success to say bye to signer at round "\
+                             "%d, rsa_psi_preprocessor will exit", rnd)
+                return
+            except Exception as e:
+                logging.warning("Failed to say bye to signer at "\
+                                "round %d, sleep 10s and retry", rnd)
+            time.sleep(10)
+        logging.warning("Give up to say bye to signer after try "\
+                        "10 times, rsa_psi_preprocessor will exit")
 
     def _id_batch_fetcher_name(self):
         return self._repr + ':id_batch_fetcher'

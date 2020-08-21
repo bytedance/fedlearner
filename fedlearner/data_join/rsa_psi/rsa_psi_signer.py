@@ -30,9 +30,10 @@ from fedlearner.common import data_join_service_pb2_grpc as dj_grpc
 from fedlearner.data_join.common import int2bytes, bytes2int
 
 class RsaPsiSignServer(dj_grpc.RsaPsiSignServiceServicer):
-    def __init__(self, psi_sign_fn):
+    def __init__(self, psi_sign_fn, bye_fn):
         super(RsaPsiSignServer, self).__init__()
         self._psi_sign_fn = psi_sign_fn
+        self._bye_fn = byte_fn
 
     def SignIds(self, request, context):
         try:
@@ -41,6 +42,9 @@ class RsaPsiSignServer(dj_grpc.RsaPsiSignServiceServicer):
             response = dj_pb.SignBlindIdsResponse()
             response.status.code = -1
             response.status.error_message = sys.exc_info()
+
+    def Bye(self, request, context):
+        return self._bye_fn()
 
 class RsaPsiSigner(object):
     def __init__(self, rsa_prv_key,
@@ -56,7 +60,8 @@ class RsaPsiSigner(object):
         self._sign_batch_num = 0
         self._slow_sign_batch_num = 0
         self._total_slow_sign_duration = .0
-        self._lock = threading.Lock()
+        self._peer_bye = False
+        self._cond = threading.Condition()
 
     def _psi_sign_fn(self, request):
         d, n = self._rsa_private_key.d, self._rsa_private_key.n
@@ -81,9 +86,15 @@ class RsaPsiSigner(object):
                                    time.time()-start_tm)
         return response
 
+    def _bye_fn(self):
+        with self._cond:
+            self._peer_bye = True
+            self._cond.notify_all()
+        return common_pb.Status(code=0)
+
     def _record_sign_duration(self, begin_index, batch_len, sign_duration):
         logging_record = False
-        with self._lock:
+        with self._cond:
             self._total_sign_duration += sign_duration
             self._sign_batch_num += 1
             if sign_duration >= self._slow_sign_threshold:
@@ -128,7 +139,12 @@ class RsaPsiSigner(object):
             self._process_pool_executor.shutdown(True)
         logging.info('RsaPsiSigner Server stopped')
 
+    def _wait_for_peer_bye(self):
+        with self._cond:
+            while not self._peer_bye:
+                self._cond.wait()
+
     def run(self, listen_port, worker_num):
         self.start(listen_port, worker_num)
-        self._server.wait_for_termination()
+        self._wait_for_peer_bye()
         self.stop()

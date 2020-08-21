@@ -27,6 +27,8 @@ import concurrent.futures as concur_futures
 from cityhash import CityHash64 # pylint: disable=no-name-in-module
 from gmpy2 import powmod, divm # pylint: disable=no-name-in-module
 
+from google.protobuf import empty_pb2
+
 from fedlearner.common import data_join_service_pb2_grpc as dj_grpc
 from fedlearner.common import data_join_service_pb2 as dj_pb
 
@@ -203,6 +205,10 @@ class PsiRsaSigner(ItemBatchSeqProcessor):
     def name(cls):
         return 'PsiRsaSigner'
 
+    def say_signer_bye(self):
+        raise NotImplementedError("say_signer_bye not implemented "\
+                                  "in base PsiRsaSigner")
+
     def _make_item_batch(self, begin_index):
         return SignedIdBatch(begin_index)
 
@@ -367,6 +373,10 @@ class LeaderPsiRsaSigner(PsiRsaSigner):
     def additional_item_mem_usage(self):
         return self._item_additional_cost
 
+
+    def say_signer_bye(self):
+        logging.warning("leader signer has no peer signer")
+
     @staticmethod
     def _leader_sign_func(raw_id_batch, d, n):
         hashed_ids = PsiRsaSigner._crypto_hash_list(
@@ -517,6 +527,17 @@ class FollowerPsiRsaSigner(PsiRsaSigner):
 
     def additional_item_mem_usage(self):
         return self._item_additional_cost
+
+    def say_signer_bye(self):
+        stub = self._get_active_stub()
+        try:
+            stub.Bye(empty_pb2.Empty())
+        except Exception as e: # pylint: disable=broad-except
+            self._revert_stub(stub, True)
+            logging.error("Failed to say Bye to rsa signer: %s, "\
+                          "reason: %s", self._leader_signer_addr, e)
+            raise
+        self._revert_stub(stub, False)
 
     def _get_active_stub(self):
         with self._lock:
