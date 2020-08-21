@@ -157,7 +157,7 @@ class RsaPsiPreProcessor(object):
                 logging.info("Success to say bye to signer at round "\
                              "%d, rsa_psi_preprocessor will exit", rnd)
                 return
-            except Exception as e:
+            except Exception as e: # pylint: disable=broad-except
                 logging.warning("Failed to say bye to signer at "\
                                 "round %d, sleep 10s and retry", rnd)
             time.sleep(10)

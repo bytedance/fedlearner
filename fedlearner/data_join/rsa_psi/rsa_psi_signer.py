@@ -33,7 +33,7 @@ class RsaPsiSignServer(dj_grpc.RsaPsiSignServiceServicer):
     def __init__(self, psi_sign_fn, bye_fn):
         super(RsaPsiSignServer, self).__init__()
         self._psi_sign_fn = psi_sign_fn
-        self._bye_fn = byte_fn
+        self._bye_fn = byt_fn
 
     def SignIds(self, request, context):
         try:
@@ -127,7 +127,8 @@ class RsaPsiSigner(object):
                 futures.ThreadPoolExecutor(max_workers=worker_num)
             )
         dj_grpc.add_RsaPsiSignServiceServicer_to_server(
-                RsaPsiSignServer(self._psi_sign_fn), self._server
+                RsaPsiSignServer(self._psi_sign_fn, self._bye_fn),
+                self._server
             )
         self._server.add_insecure_port('[::]:%d' % listen_port)
         self._server.start()
