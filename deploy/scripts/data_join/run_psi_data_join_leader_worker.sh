@@ -34,6 +34,8 @@ else
   exec ${psi_preprocessor_cmd} &
   echo "launched psi preprocessor"
   export INDEX=$((INDEX + HALF))
+  export RAW_DATA_ITER=$PSI_OUTPUT_BUILDER
+  export COMPRESSED_TYPE=$PSI_OUTPUT_BUILDER_COMPRESSED_TYPE
   data_join_cmd=/app/deploy/scripts/data_join/run_data_join_worker.sh
   exec ${data_join_cmd} &
   echo "launched data join worker"
