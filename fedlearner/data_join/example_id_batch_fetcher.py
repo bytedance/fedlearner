@@ -24,29 +24,33 @@ from fedlearner.data_join.raw_data_visitor import RawDataVisitor
 
 class ExampleIdBatch(ItemBatch):
     def __init__(self, partition_id, begin_index):
-        self._lite_example_ids = dj_pb.LiteExampleIds(
-                partition_id=partition_id,
-                begin_index=begin_index
-            )
+        self._partition_id = partition_id
+        self._begin_index = begin_index
+        self._example_ids = []
+        self._event_times = []
 
     def append(self, item):
-        self._lite_example_ids.example_id.append(item.example_id)
-        self._lite_example_ids.event_time.append(item.event_time)
+        self._example_ids.append(item.example_id)
+        self._event_times.append(item.event_time)
 
     @property
     def begin_index(self):
-        return self._lite_example_ids.begin_index
+        return self._begin_index
 
-    @property
-    def lite_example_ids(self):
-        return self._lite_example_ids
+    def make_lite_example_ids(self):
+        return dj_pb.LiteExampleIds(
+                partition_id=self._partition_id,
+                begin_index=self._begin_index,
+                example_id=self._example_ids,
+                event_time=self._event_times
+            )
 
     @property
     def partition_id(self):
-        return self._lite_example_ids.partition_id
+        return self._partition_id
 
     def __len__(self):
-        return len(self._lite_example_ids.example_id)
+        return len(self._example_ids)
 
     def __lt__(self, other):
         assert isinstance(other, ExampleIdBatch)
@@ -54,10 +58,8 @@ class ExampleIdBatch(ItemBatch):
         return self.begin_index < other.begin_index
 
     def __iter__(self):
-        assert self._lite_example_ids.example_id == \
-                self._lite_example_ids.event_time
-        return iter(zip(self._lite_example_ids.example_id,
-                    self._lite_example_ids.event_time))
+        assert len(self._example_ids) == len(self._event_times)
+        return iter(zip(self._example_ids, self._event_times))
 
 class ExampleIdBatchFetcher(ItemBatchSeqProcessor):
     def __init__(self, etcd, data_source, partition_id,
