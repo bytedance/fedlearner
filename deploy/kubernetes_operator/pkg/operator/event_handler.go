@@ -140,6 +140,7 @@ func (handler *appEventHandler) Pair(ctx context.Context, app *v1alpha1.FLApp) e
 		err, msg := func() (error, string) {
 			ctx, cancel := newContextWithHeaders(peerSpec.ExtraHeaders)
 			defer cancel()
+			klog.Infof("Ready to make pairs for app %v, pairs = %v, app = %v", app.Name, request.Pairs, app)
 			response, err := client.Pair(ctx, request)
 			if err != nil || response.Code != int32(codes.OK) {
 				return fmt.Errorf("Pair failed name = %v, err = %v", name, err), ""
