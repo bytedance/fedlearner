@@ -57,6 +57,7 @@ export default function RawDataList() {
       })
     : [];
   const [formVisible, setFormVisible] = useState(false);
+
   const toggleForm = () => setFormVisible(!formVisible);
   const onOk = (rawData) => {
     mutate({
@@ -64,6 +65,7 @@ export default function RawDataList() {
     });
     toggleForm();
   };
+
   return (
     <Layout>
       {formVisible
