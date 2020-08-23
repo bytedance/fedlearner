@@ -96,11 +96,12 @@ class JoinerStats(object):
             self._stats_cum_join_num += self._leader_cache[hid]
 
     def calc_stats_joined_num(self):
-        joined_num = self._stats_cum_join_num
+        joined_num = 0
         for hid in self._leader_cache:
             if self._follower_cache[hid] > 0:
                 joined_num += 1
-        return joined_num * JoinerStats._SampleRateReciprocal
+        return self._stats_cum_join_num + \
+                joined_num * JoinerStats._SampleRateReciprocal
 
     def get_leader_stats_index(self):
         return self._leader_cache.get_stats_index()
