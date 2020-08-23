@@ -168,7 +168,6 @@ export default function JobList(props) {
 
   const [formVisible, setFormVisible] = useState(false);
   const toggleForm = useCallback(() => {
-    console.log(formVisible)
     if (formVisible) {
       setFields(DEFAULT_FIELDS)
     }
@@ -202,9 +201,9 @@ export default function JobList(props) {
       </NextLink>
       <Text
         className="actionText"
-        onClick={ () => handleClone(item) }
+        onClick={() => handleClone(item)}
         type="success"
-        style={{marginRight: '16pt'}}
+        style={{marginRight: `${theme.layout.gap}`}}
       >
         Clone
       </Text>
