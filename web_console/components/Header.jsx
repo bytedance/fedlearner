@@ -5,7 +5,6 @@ import useSWR from 'swr';
 import { Avatar, Link, Popover, Spinner, Tabs, Loading, useTheme, Select } from '@zeit-ui/react';
 import { fetcher } from '../libs/http';
 import { logout } from '../services';
-import { useStateValue } from '../pages/store';
 
 function useStyles(theme) {
   return css`

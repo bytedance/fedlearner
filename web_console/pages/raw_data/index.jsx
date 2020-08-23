@@ -8,7 +8,6 @@ import Form from '../../components/Form';
 import { fetcher } from '../../libs/http';
 import Empty from '../../components/Empty';
 import { createRawData } from '../../services/raw_data';
-import { useStateValue, StateProvider } from '../store'
 
 const fields = [
   { key: 'name', required: true },
@@ -21,8 +20,7 @@ const fields = [
   { key: 'remark', type: 'text', span: 24 },
 ];
 
-function RawDataList() {
-  const [{federationID}, ] = useStateValue()
+export default function RawDataList() {
   const { data, mutate } = useSWR('raw_datas', fetcher);
   const rawDatas = data ? data.data : null;
   const columns = [
@@ -59,7 +57,6 @@ function RawDataList() {
       })
     : [];
   const [formVisible, setFormVisible] = useState(false);
-
   const toggleForm = () => setFormVisible(!formVisible);
   const onOk = (rawData) => {
     mutate({
@@ -67,7 +64,6 @@ function RawDataList() {
     });
     toggleForm();
   };
-
   return (
     <Layout>
       {formVisible
@@ -110,12 +106,4 @@ function RawDataList() {
       `}</style>
     </Layout>
   );
-}
-
-export default function RawData () {
-  return (
-    <StateProvider>
-      <RawDataList></RawDataList>
-    </StateProvider>
-  )
 }

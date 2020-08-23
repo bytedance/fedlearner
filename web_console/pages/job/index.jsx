@@ -3,8 +3,7 @@ import css from 'styled-jsx/css';
 import { Link, Text, Input, Fieldset, Button, Card, Description, useTheme, useInput } from '@zeit-ui/react';
 import Search from '@zeit-ui/react-icons/search';
 import NextLink from 'next/link';
-import useSWR, { SWRConfig } from 'swr';
-import { StateProvider, useStateValue } from '../store'
+import useSWR from 'swr';
 import produce from 'immer'
 
 import { fetcher } from '../../libs/http';
@@ -81,12 +80,11 @@ function useStyles(theme) {
 export default function JobList(props) {
   const theme = useTheme();
   const styles = useStyles(theme);
-  const [{federationID}, ] = useStateValue()
 
   const { data, mutate } = useSWR('jobs', fetcher);
   const jobs = data ? data.data.filter(x => x.metadata) : null
-  const [federationId, setFederationId] = useState(null);
-  const fields = [
+  let federationId = null
+  const DEFAULT_FIELDS = [
     { key: 'name', required: true },
     { key: 'job_type', type: 'jobType', required: true, span: 12 },
     { key: 'client_ticket_name', type: 'clientTicket', label: 'client_ticket', required: true },
@@ -169,7 +167,13 @@ export default function JobList(props) {
   }, [label, labeledList, filterText]);
 
   const [formVisible, setFormVisible] = useState(false);
-  const toggleForm = useCallback(() => { setFormVisible(visible => !visible) }, []);
+  const toggleForm = useCallback(() => {
+    console.log(formVisible)
+    if (formVisible) {
+      setFields(DEFAULT_FIELDS)
+    }
+    setFormVisible(visible => !visible)
+  }, [formVisible]);
   const onOk = () => {
     mutate();
     toggleForm();
@@ -177,8 +181,8 @@ export default function JobList(props) {
   const onCreateJob = (form) => {
     const params = {
       ...form,
-      client_params: form.client_params ? JSON.parse(form.client_params) : null,
-      server_params: form.server_params ? JSON.parse(form.server_params) : null,
+      client_params: form.client_params ? JSON.parse(form.client_params) : {},
+      server_params: form.server_params ? JSON.parse(form.server_params) : {},
     };
     return createJob(params);
   };
