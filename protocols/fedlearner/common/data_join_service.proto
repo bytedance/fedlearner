@@ -298,6 +298,7 @@ message SignIdsResponse {
 
 service RsaPsiSignService {
   rpc SignIds(SignIdsRequest) returns (SignIdsResponse) {}
+  rpc Bye(google.protobuf.Empty) returns (Status) {}
 }
 
 message RsaPsiPreProcessorOptions {
@@ -340,5 +341,4 @@ message SortRunMergerOptions {
   WriterOptions writer_options = 3;
   string output_file_dir = 4;
   int64 partition_id = 5;
-  int64 merge_buffer_size = 6;
 }

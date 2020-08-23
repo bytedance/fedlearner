@@ -155,14 +155,20 @@ export default function Header() {
   }, [scrollTop]);
 
   const displayFederationFilter = [
-    '/job',
+    // '/job',
     '/ticket',
     '/raw_data',
   ].some(el => el === route)
   const { data: fedData } = useSWR('federations', fetcher)
   const federations = fedData ? fedData.data : null
-  const [{ federationID: currFederation }, dispatch] = useStateValue() || [{}, {}]
-  const onFederationChange = v => dispatch({type: 'setFederationID', payload: parseInt(v)})
+  const [currFederation, setCurrFederation] = useState(-1)
+  useEffect(() => {
+    setCurrFederation(parseInt(localStorage.getItem('federationID')) || -1)
+  }, [])
+  const onFederationChange = v => {
+    localStorage.setItem('federationID', v)
+    window.location.reload()
+  }
 
   return (
     <div className="space-holder">
@@ -186,7 +192,7 @@ export default function Header() {
             {
               displayFederationFilter &&
               <Select
-                initialValue={currFederation && currFederation.toString()}
+                value={currFederation && currFederation.toString()}
                 onChange={onFederationChange}
                 size="small"
                 style={{marginRight: '16px'}}

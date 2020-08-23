@@ -99,12 +99,7 @@ function TicketList() {
     </>;
   };
   const dataSource = tickets
-    ? tickets
-      .filter(el => currFederation < 0 || el.federation_id === currFederation)
-      .map((x) => ({
-        ...x,
-        operation,
-      }))
+    ? tickets.map((x) => ({ ...x, operation }))
     : [];
 
   return (

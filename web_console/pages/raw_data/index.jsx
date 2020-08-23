@@ -49,7 +49,6 @@ function RawDataList() {
   };
   const dataSource = rawDatas
     ? rawDatas
-      .filter(el => el.federation_id === federationID)
       .map((x) => {
         const context = JSON.stringify(x.context);
         return {

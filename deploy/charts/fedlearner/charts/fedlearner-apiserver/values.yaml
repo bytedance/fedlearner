@@ -6,7 +6,7 @@ replicaCount: 1
 
 image:
   repository: fedlearner/fedlearner-apiserver
-  tag: "0b89442"
+  tag: "d69d89e"
   pullPolicy: IfNotPresent
 
 

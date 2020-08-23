@@ -21,7 +21,6 @@ except ImportError:
 import logging
 import threading
 import os
-import gc
 
 import tensorflow_io # pylint: disable=unused-import
 from tensorflow.compat.v1 import gfile
@@ -156,9 +155,6 @@ class SortRunMergerWriter(object):
             fh.write('\n')
         return self._merged_fpaths
 
-    def get_merged_fpaths(self):
-        return self._merged_fpaths
-
     def _finish_writer(self):
         if self._writer is not None:
             self._writer.close()
@@ -214,12 +210,8 @@ class SortRunMerger(object):
             writer.append(item.inner_item)
             assert item.reader_index < len(readers)
             self._replenish_item(readers[item.reader_index], pque)
-            if common.get_oom_risk_checker().check_oom_risk(0.85):
-                gc_cnt = gc.collect()
-                logging.info('trigger gc %d object actively since oom risk',
-                             gc_cnt)
         writer.finish()
-        return writer.get_merged_fpaths()
+        return self._list_merged_sort_run_fpath()
 
     def is_merged_finished(self):
         with self._lock:
@@ -271,18 +263,15 @@ class SortRunMerger(object):
 
     def _sync_merged_state(self):
         self._create_merged_dir_if_need()
-        found_tmp = False
         fnames = gfile.ListDirectory(self._merged_dir)
         metas = []
         for fname in fnames:
             if fname.endswith(common.TmpFileSuffix):
-                found_tmp = True
+                gfile.Remove(os.path.join(self._merged_dir, fname))
             if fname.endswith(common.RawDataFileSuffix):
                 meta = MergedSortRunMeta.decode_sort_run_meta_from_fname(fname)
                 metas.append(meta)
         metas.sort()
-        if not found_tmp:
-            metas = metas[:-1]
         if len(metas) == 0:
             return None, 0
         last_meta = metas[-1]

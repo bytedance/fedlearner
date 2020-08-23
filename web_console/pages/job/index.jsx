@@ -78,20 +78,15 @@ function useStyles(theme) {
   `;
 }
 
-function JobList(props) {
+export default function JobList(props) {
   const theme = useTheme();
   const styles = useStyles(theme);
   const [{federationID}, ] = useStateValue()
 
   const { data, mutate } = useSWR('jobs', fetcher);
-  const jobs = data
-    ? data.data.filter(el =>
-      [undefined, -1, federationID].some(id => id === el.metadata.federation_id)
-    )
-    : null
-  let federationId = null
-
-  const DEFAULT_FIELDS = [
+  const jobs = data ? data.data.filter(x => x.metadata) : null
+  const [federationId, setFederationId] = useState(null);
+  const fields = [
     { key: 'name', required: true },
     { key: 'job_type', type: 'jobType', required: true, span: 12 },
     { key: 'client_ticket_name', type: 'clientTicket', label: 'client_ticket', required: true },
@@ -340,15 +335,3 @@ function JobList(props) {
     </div>
   );
 }
-
-export default function Job (props) {
-  return (
-    <SWRConfig value={{
-      loadingTimeout: 10000
-    }}>
-      <StateProvider>
-        <JobList {...props}></JobList>
-      </StateProvider>
-    </SWRConfig>
-  )
-};
