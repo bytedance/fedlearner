@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import css from 'styled-jsx/css';
-import { Button, ButtonGroup, Card, Grid, Text, Input, Toggle, Textarea, Note, useTheme, Collapse, useToasts } from '@zeit-ui/react';
+import { Button, ButtonGroup, Card, Grid, Text, Input, Toggle, Textarea, Note, useTheme, Collapse, useToasts, Divider } from '@zeit-ui/react';
 import FederationSelect from './FederationSelect';
 import JobTypeSelect from './JobTypeSelect';
 import JobRoleSelect from './JobRoleSelect';
@@ -8,6 +8,7 @@ import ServerTicketSelect from './ServerTicketSelect';
 import ClientTicketSelect from './ClientTicketSelect';
 import DataPortalTypeSelect from './DataPortalTypeSelect';
 import NameValueInput from './NameValueGroup';
+import RawDataSelect from './RawDataSelect'
 
 function useStyles() {
   return css`
@@ -29,6 +30,7 @@ function useStyles() {
  *   required?: boolean;
  *   span?: number; // Grid layout prop
  *   props?: any;
+ *   higherUpdateForm?: (updateFormHook: function) => (value: any) => any
  * }
  */
 
@@ -43,6 +45,7 @@ export default function Form({
 
   // flat all group fileds
   fields = fields.reduce((total, curr) => {
+    if (curr.type === 'label') { return total }
     if (curr.groupName) {
       if (Array.isArray(curr.fields)) {
         total.push(...curr.fields)
@@ -62,6 +65,7 @@ export default function Form({
       : current.value || current.default;
     return total;
   }, {}));
+  // console.log(fields[8], form['num partitions'])
   const disabled = fields.filter((x) => x.required).some((x) => !form[x.key]);
   const updateForm = (key, value) => {
     const data = {
@@ -70,7 +74,8 @@ export default function Form({
     };
     setForm(data);
   };
-  const renderField = ({ key, label, props, type, onChange, hideLabel }) => {
+
+  const renderField = ({ key, label, props, type, onChange, hideLabel, higherUpdateForm }) => {
     const valueProps = {
       ...props,
       style: {
@@ -145,7 +150,12 @@ export default function Form({
           <div className="formItemValue">
             <JobTypeSelect
               value={form[key]}
-              onChange={(value) => updateForm(key, value)}
+              onChange={(value) => {
+                updateForm(key, value);
+                if (onChange) {
+                  onChange(value);
+                }
+              }}
               {...valueProps}
             />
           </div>
@@ -243,6 +253,38 @@ export default function Form({
       )
     }
 
+    if (type === 'rawData') {
+      return (
+        <>
+          <label className="formItemLabel" htmlFor={key}>{label || key}</label>
+          <div className="formItemValue">
+            <RawDataSelect
+              value={form[key]}
+              updateForm={ higherUpdateForm && higherUpdateForm(updateForm) }
+              onChange={(value) => {
+                // the value of form is the id of rawdata
+                updateForm(key, value.id)
+                if (onChange) {
+                  onChange(value);
+                }
+              }}
+              {...valueProps}
+            />
+          </div>
+        </>
+      )
+    }
+
+    if (type === 'label') {
+      return (
+        <div style={{fontWeight: 'bolder', padding: '12px 0'}}>{label || key}</div>
+      )
+    }
+
+    if (type === 'divider') {
+      return <Divider/>
+    }
+
     return (
       <Input
         value={form[key]}
@@ -289,7 +331,10 @@ export default function Form({
     }
   };
 
-  const renderFieldInGrid = x => (<Grid key={x.key} xs={x.span || 8} md={x.span || 8}>{renderField(x)}</Grid>)
+  const renderFieldInGrid = x => {
+    const span = x.type === 'label' ? 24 : x.span || 8
+    return <Grid key={x.key} xs={span} md={span}>{renderField(x)}</Grid>
+  }
 
   const renderGroup = group => {
     // const [, setToast] = useToasts()
@@ -363,8 +408,9 @@ export default function Form({
       </>
     }
 
+    const initialVisible = group.initialVisible === undefined ? true : group.initialVisible
     return <Grid xs={24}>
-      <Collapse title={collapseTitle()} initialVisible={true}>
+      <Collapse title={collapseTitle()} initialVisible={initialVisible}>
         <Grid.Container gap={2}>
           { groupFields.map(field => renderFieldInGrid(field)) }
         </Grid.Container>

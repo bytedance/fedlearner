@@ -5,7 +5,9 @@ import { fetcher } from '../libs/http';
 
 export default function ClientTicketSelect(props) {
   const { data } = useSWR('tickets', fetcher);
-  const tickets = (data && data.data) || [];
+  const tickets = data 
+    ? data.data.filter(el => !props.job_type || el.job_type === props.job_type)
+    : [];
 
   const actualValue = tickets.find((x) => x.name === props.value)?.value;
   const actualOnChange = (value) => {

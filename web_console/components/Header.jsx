@@ -228,6 +228,7 @@ export default function Header() {
     // '/job',
     '/ticket',
     '/raw_data',
+    '/datasource/job'
   ].some(el => el === route)
   const { data: fedData } = useSWR('federations', fetcher)
   const federations = fedData ? fedData.data : null

@@ -59,12 +59,111 @@ const K8S_SETTINGS = {
   }
 }
 
-for (let k in K8S_SETTINGS) {
-  if (typeof K8S_SETTINGS[k] === 'object') {
-    K8S_SETTINGS[k] = JSON.stringify(K8S_SETTINGS[k], null, 2)
+const DATASOURCE_REPLICA_TYPE = ['Master', 'Worker']
+
+const DATASOURCE_PUBLIC_PARAMS = {
+  "Master": {
+    "pair": true,
+    "env": [
+      {
+        "name": "BATCH_MODE",
+        "value": "--batch_mode"
+      },
+      {
+        "name": "PARTITION_NUM",
+        "value": "4"
+      },
+      {
+        "name": "START_TIME",
+        "value": "0"
+      },
+      {
+        "name": "END_TIME",
+        "value": "999999999999"
+      },
+      {
+        "name": "NEGATIVE_SAMPLING_RATE",
+        "value": "1.0"
+      },
+      {
+        "name": "RAW_DATA_SUB_DIR",
+        "value": "portal_publish_dir/data-100wexamples-2"
+      }
+    ],
+    "commend": [
+      "/app/deploy/scripts/wait4pair_wrapper.sh"
+    ],
+    "args": [
+      "/app/deploy/scripts/data_join/run_data_join_master.sh"
+    ]
+  },
+  "Worker": {
+    "pair": true,
+    "env": [
+      {
+        "name": "DATA_BLOCK_DUMP_INTERVAL",
+        "value": "300"
+      },
+      {
+        "name": "DATA_BLOCK_DUMP_THRESHOLD",
+        "value": "65536"
+      },
+      {
+        "name": "EXAMPLE_ID_DUMP_INTERVAL",
+        "value": "600"
+      },
+      {
+        "name": "EXAMPLE_ID_DUMP_THRESHOLD",
+        "value": "262144"
+      },
+      {
+        "name": "EXAMPLE_ID_BATCH_SIZE",
+        "value": "4096"
+      },
+      {
+        "name": "MAX_FLYING_EXAMPLE_ID",
+        "value": "307152"
+      },
+      {
+        "name": "MIN_MATCHING_WINDOW",
+        "value": "256"
+      },
+      {
+        "name": "MAX_MATCHING_WINDOW",
+        "value": "1024"
+      },
+      {
+        "name": "RAW_DATA_ITER",
+        "value": "TF_RECORD"
+      }
+    ],
+    "commend": [
+      "/app/deploy/scripts/wait4pair_wrapper.sh"
+    ],
+    "args": [
+      "/app/deploy/scripts/data_join/run_data_join_master.sh"
+    ]
   }
 }
 
+const DATASOURCE_JOB = {
+  
+}
+
+const _ = [
+  K8S_SETTINGS,
+  DATASOURCE_PUBLIC_PARAMS.Master,
+  DATASOURCE_PUBLIC_PARAMS.Worker
+].forEach(el => {
+  for (let k in el) {
+    if (typeof el[k] === 'object') {
+      el[k] = JSON.stringify(el[k], null, 2)
+    }
+  }
+})
+
 module.exports = {
-  K8S_SETTINGS
+  K8S_SETTINGS,
+  DATASOURCE_REPLICA_TYPE,
+  DATASOURCE_PUBLIC_PARAMS,
 }
