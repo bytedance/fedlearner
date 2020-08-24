@@ -1,7 +1,13 @@
 const { metrics_list } = require('./metrics_list');
+const getConfig = require('./get_confg');
+
+const config = getConfig({
+    KIBANA_HOST: process.env.KIBANA_HOST,
+    KIBANA_PORT: process.env.KIBANA_PORT,
+});
 
 function getCommonUrl(start_time, end_time, application_id){
-    let url = "http://ad-kibana.bytedance.net/fedlearner/app/kibana#" +
+    let url = `https://${config.KIBANA_HOST}:${config.KIBANA_PORT}/fedlearner/app/kibana#` +
     "/visualize/edit/95e50f80-dd3a-11ea-a472-39251c5aaace?_g=(filter" +
     "s:!(),refreshInterval:(pause:!t,value:0),time:(from:'" + start_time +
     "',to:'" + end_time + "'))&_a=(filters:!(('$state':(store:appState)," +
@@ -84,3 +90,5 @@ function converted2Urls(job_type, start_time, end_time, application_id) {
     }
     return urls;
 }
+
+module.exports = { converted2Urls }

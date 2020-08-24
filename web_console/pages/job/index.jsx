@@ -81,7 +81,7 @@ export default function JobList(props) {
   const styles = useStyles(theme);
 
   const { data, mutate } = useSWR('jobs', fetcher);
-  const jobs = data ? data.data.filter(x => x.metadata) : null
+  const jobs = data?.data?.filter(x => x.metadata)
   const [federationId, setFederationId] = useState(null);
   const fields = [
     { key: 'name', required: true },
@@ -242,6 +242,11 @@ export default function JobList(props) {
                                                     href={`/job/${item.localdata.id}`}
                                                   >
                                                     <Link color>View Detail</Link>
+                                                  </NextLink>
+                                                  <NextLink
+                                                    href={`/job/charts/${item.localdata.id}`}
+                                                  >
+                                                    <Link color>View Charts</Link>
                                                   </NextLink>
                                                   <PopConfirm
                                                     onConfirm={() => deleteJob(item.localdata.id)}

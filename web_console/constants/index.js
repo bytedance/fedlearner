@@ -18,6 +18,8 @@ const DEFAULT_SERVER_CONFIG = {
   DB_SOCKET_PATH: null,
   GRPC_HOST: 'localhost',
   GRPC_PORT: 1990,
+  KIBANA_HOST: 'fedlearner-stack-kibana',
+  KIBANA_PORT: 443,
 };
 
 module.exports = {

@@ -56,3 +56,5 @@ const metrics_list = {
         }
     ]
 };
+
+module.exports = { metrics_list }
