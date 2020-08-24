@@ -146,8 +146,9 @@ const K8S_SETTINGS_FIELDS = [
   { key: 'storage_root_path', default: K8S_SETTINGS.storage_root_path },
   {
     key: 'imagePullSecrets',
-    default: 'regcred',
-    span: 12,
+    default: K8S_SETTINGS.imagePullSecrets,
+    type: 'json',
+    span: 24,
     path: 'global_replica_spec.template.spec.imagePullSecrets'
   },
   {
