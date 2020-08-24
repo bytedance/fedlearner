@@ -2,7 +2,7 @@
 // value is the default value of field
 const K8S_SETTINGS = {
   "storage_root_path": "data",
-  "imagePullSecrets": [{"name": "regcred-bd"}],
+  "imagePullSecrets": [{"name": "regcred"}],
   "volumes": [
     {
       "persistentVolumeClaim": {
