@@ -1,6 +1,6 @@
 module.exports = {
   leader: {
-    name: 'leader_job',
+    name: 'leader-job',
     job_type: 'data_join',
     client_ticket_name: 'leader_ticket',
     server_ticket_name: 'follower_ticket',
@@ -8,7 +8,7 @@ module.exports = {
     server_params: {},
   },
   follower: {
-    name: 'follower_job',
+    name: 'follower-job',
     job_type: 'data_join',
     client_ticket_name: 'follower_ticket',
     server_ticket_name: 'leader_ticket',
@@ -16,7 +16,7 @@ module.exports = {
     server_params: {},
   },
   test: {
-    name: 'test_job',
+    name: 'test-job',
     job_type: 'psi_data_join',
     client_ticket_name: 'leader_ticket',
     server_ticket_name: 'follower_ticket',
