@@ -94,6 +94,9 @@ if __name__ == "__main__":
     parser.add_argument('--builder_compressed_type', type=str, default='',
                         choices=['', 'ZLIB', 'GZIP'],
                         help='the compressed type for TF_RECORD builder')
+    parser.add_argument('--preprocessor_offload_processor_number',
+                        type=int, default=-1,
+                        help='the offload processor for preprocessor')
 
     args = parser.parse_args()
     if args.raw_data_iter == 'TF_RECORD' or args.output_builder == 'TF_RECORD':
@@ -115,10 +118,11 @@ if __name__ == "__main__":
         assert args.rsa_key_path is not None
         with gfile.GFile(args.rsa_key_path, 'rb') as f:
             rsa_key_pem = f.read()
-    offload_processor_number = int(os.environ.get('CPU_LIMIT', '2')) - 1
+    offload_processor_number = args.preprocessor_offload_processor_number
+    if offload_processor_number < 0:
+        offload_processor_number = int(os.environ.get('CPU_LIMIT', '2')) - 1
     if offload_processor_number < 1:
-        logging.fatal("The CPU LIMIT should > 2 since should "\
-                      "at least allocate 1 cpu for compute task")
+        logging.fatal("we should at least retain 1 cpu for compute task")
         os._exit(-1) # pylint: disable=protected-access
     preprocessor_options = dj_pb.RsaPsiPreProcessorOptions(
             preprocessor_name=args.preprocessor_name,
