@@ -19,6 +19,7 @@ import threading
 import concurrent.futures as concur_futures
 import os
 import gc
+import time
 import rsa
 
 from fedlearner.common import data_join_service_pb2 as dj_pb
@@ -31,7 +32,7 @@ from fedlearner.data_join.rsa_psi.rsa_psi_component import \
         IdBatchFetcher, LeaderPsiRsaSigner, FollowerPsiRsaSigner
 from fedlearner.data_join.sort_run_dumper import SortRunDumper
 from fedlearner.data_join.sort_run_merger import SortRunMerger
-from fedlearner.data_join.common import partition_repr, get_oom_risk_checker
+from fedlearner.data_join.common import partition_repr, HeapMemStats
 
 class RsaPsiPreProcessor(object):
     def __init__(self, options, etcd_name, etcd_addrs,
@@ -95,6 +96,9 @@ class RsaPsiPreProcessor(object):
                 ),
                 self._merger_comparator
             )
+        self._heap_mem_stats = HeapMemStats(65536*2, None)
+        self._produce_item_cnt = 0
+        self._comsume_item_cnt = 0
         self._started = False
 
     def start_process(self):
@@ -144,6 +148,22 @@ class RsaPsiPreProcessor(object):
         if self._callback_submitter is not None:
             self._callback_submitter.shutdown()
         self._id_batch_fetcher.cleanup_visitor_meta_data()
+        self._bye_for_signer()
+
+    def _bye_for_signer(self):
+        for rnd in range(60):
+            try:
+                self._psi_rsa_signer.say_signer_bye()
+                logging.info("Success to say bye to signer at round "\
+                             "%d, rsa_psi_preprocessor will exit", rnd)
+                return
+            except Exception as e: # pylint: disable=broad-except
+                logging.warning("Failed to say bye to signer at "\
+                                "round %d, sleep 10s and retry", rnd)
+            time.sleep(10)
+        logging.warning("Give up to say bye to signer after try 60"\
+                        "times, rsa_psi_preprocessor will exit as -1")
+        os._exit(-1) # pylint: disable=protected-access
 
     def _id_batch_fetcher_name(self):
         return self._repr + ':id_batch_fetcher'
@@ -157,15 +177,33 @@ class RsaPsiPreProcessor(object):
             logging.debug("%s fetch batch begin at %d, len %d. wakeup %s",
                           self._id_batch_fetcher_name(), batch.begin_index,
                           len(batch), self._psi_rsa_signer_name())
+            self._produce_item_cnt += len(batch)
             self._wakeup_psi_rsa_signer()
-            if get_oom_risk_checker().check_oom_risk(0.75):
-                logging.warning('early stop the id fetch '\
-                                'since the oom risk')
+            if self._stop_fetch_id():
+                break
 
     def _id_batch_fetch_cond(self):
         next_index = self._psi_rsa_signer.get_next_index_to_fetch()
         return self._id_batch_fetcher.need_process(next_index) and \
-                not get_oom_risk_checker().check_oom_risk(0.75)
+                not self._stop_fetch_id() and \
+                not self._sort_run_dumper.is_dump_finished()
+
+    def _stop_fetch_id(self):
+        total_flying_item = self._produce_item_cnt - self._comsume_item_cnt
+        if total_flying_item >= 5 << 20:
+            logging.warning("stop fetch id since flying item "\
+                            "reach to %d > 5m, produce_item_cnt: %d; "\
+                            "consume_item_cnt: %d", total_flying_item,
+                            self._produce_item_cnt, self._comsume_item_cnt)
+            return True
+        potential_mem_incr = total_flying_item * \
+                             self._psi_rsa_signer.additional_item_mem_usage()
+        if self._heap_mem_stats.CheckOomRisk(total_flying_item, 0.85,
+                                             potential_mem_incr):
+            logging.warning("stop fetch id since has oom risk for 0.85, "\
+                            "flying item reach to %d", total_flying_item)
+            return True
+        return False
 
     def _psi_rsa_signer_name(self):
         return self._repr + ':psi_rsa_signer'
@@ -173,23 +211,33 @@ class RsaPsiPreProcessor(object):
     def _wakeup_psi_rsa_signer(self):
         self._worker_map[self._psi_rsa_signer_name()].wakeup()
 
+    def _transmit_signed_batch(self, signed_index):
+        evict_batch_cnt = self._id_batch_fetcher.evict_staless_item_batch(
+                signed_index
+            )
+        self._psi_rsa_signer.update_next_batch_index_hint(evict_batch_cnt)
+        self._wakeup_sort_run_dumper()
+
     def _psi_rsa_sign_fn(self):
         next_index = self._sort_run_dumper.get_next_index_to_dump()
+        sign_cnt = 0
+        signed_index = None
         for signed_batch in self._psi_rsa_signer.make_processor(next_index):
             logging.debug("%s sign batch begin at %d, len %d. wakeup %s",
                           self._psi_rsa_signer_name(),
                           signed_batch.begin_index, len(signed_batch),
                           self._sort_run_dumper_name())
-            self._wakeup_sort_run_dumper()
-        staless_index = self._sort_run_dumper.get_next_index_to_dump() - 1
-        evict_batch_cnt = self._id_batch_fetcher.evict_staless_item_batch(
-                staless_index
-            )
-        self._psi_rsa_signer.update_next_batch_index_hint(evict_batch_cnt)
+            sign_cnt += 1
+            if signed_batch is not None:
+                signed_index = signed_batch.begin_index + len(signed_batch) - 1
+            if sign_cnt % 16 == 0:
+                self._transmit_signed_batch(signed_index)
+        self._transmit_signed_batch(signed_index)
 
     def _psi_rsa_sign_cond(self):
         next_index = self._sort_run_dumper.get_next_index_to_dump()
-        return self._psi_rsa_signer.need_process(next_index)
+        return self._psi_rsa_signer.need_process(next_index) and \
+                not self._sort_run_dumper.is_dump_finished()
 
     def _sort_run_dumper_name(self):
         return self._repr + ':sort_run_dumper'
@@ -234,7 +282,11 @@ class RsaPsiPreProcessor(object):
             self._psi_rsa_signer.evict_staless_item_batch(next_index-1)
         if signed_finished:
             sort_run_dumper.finish_dump_sort_run()
-        gc.collect()
+        dump_cnt = len(items_buffer)
+        self._comsume_item_cnt += dump_cnt
+        del items_buffer
+        logging.warning("dump %d item in sort run, and gc %d objects.",
+                        dump_cnt, gc.collect())
 
     def _sort_run_dump_cond(self):
         sort_run_dumper = self._sort_run_dumper
@@ -245,15 +297,24 @@ class RsaPsiPreProcessor(object):
         signed_finished = rsa_signer.get_process_finished()
         flying_item_cnt = rsa_signer.get_flying_item_count()
         flying_begin_index = rsa_signer.get_flying_begin_index()
+        dump_cands_num = 0
+        if flying_begin_index is not None and next_index is not None and \
+                (flying_begin_index <= next_index <
+                    flying_begin_index + flying_item_cnt):
+            dump_cands_num = flying_item_cnt - (next_index - flying_begin_index)
         return not dump_finished and \
                 (signed_finished or
-                 (flying_begin_index is not None and
-                  next_index is not None and
-                  (flying_begin_index <= next_index <
-                      flying_begin_index + flying_item_cnt) and
-                   ((flying_item_cnt-(next_index-flying_begin_index) >=
-                     max_flying_item // 2 and max_flying_item > 0) or
-                    get_oom_risk_checker().check_oom_risk(0.50))))
+                 (dump_cands_num >= (2 << 20) or
+                  (max_flying_item > 2 and
+                    dump_cands_num > max_flying_item // 2)) or
+                  self._dump_for_forward(dump_cands_num))
+
+    def _dump_for_forward(self, dump_cands_num):
+        if self._stop_fetch_id():
+            total_flying_item = self._produce_item_cnt - self._comsume_item_cnt
+            return dump_cands_num > 0 and \
+                    dump_cands_num >= total_flying_item // 2
+        return False
 
     def _sort_run_merger_name(self):
         return self._repr + ':sort_run_merger'

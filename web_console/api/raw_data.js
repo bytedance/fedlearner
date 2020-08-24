@@ -1,6 +1,7 @@
 const router = require('@koa/router')();
 const { Op } = require('sequelize');
 const SessionMiddleware = require('../middlewares/session');
+const FindOptionsMiddleware = require('../middlewares/find_options');
 const checkParseJson = require('../utils/check_parse_json');
 const k8s = require('../libs/k8s');
 const getConfig = require('../utils/get_confg');
@@ -12,8 +13,11 @@ const config = getConfig({
 });
 const namespace = config.NAMESPACE;
 
-router.get('/api/v1/raw_datas', SessionMiddleware, async (ctx) => {
-  const data = await RawData.findAll({ order: [['created_at', 'DESC']] });
+router.get('/api/v1/raw_datas', SessionMiddleware, FindOptionsMiddleware, async (ctx) => {
+  const data = await RawData.findAll({
+    ...ctx.findOptions,
+    order: [['created_at', 'DESC']],
+  });
   ctx.body = { data };
 });
 
@@ -42,7 +46,7 @@ router.get('/api/v1/raw_data/:id', SessionMiddleware, async (ctx) => {
 });
 
 router.post('/api/v1/raw_data', SessionMiddleware, async (ctx) => {
-  const { name, federation_id, input, output, remark, output_partition_num, data_portal_type } = ctx.request.body;
+  const { name, federation_id, input, output, remark, data_portal_type } = ctx.request.body;
 
   if (!(/^[a-zA-Z\d-]+$/.test(name))) {
     ctx.status = 400;
@@ -52,10 +56,11 @@ router.post('/api/v1/raw_data', SessionMiddleware, async (ctx) => {
     return;
   }
 
-  if (!(/^\d+$/.test(output_partition_num))) {
+  const output_partition_num = parseInt(ctx.request.body.output_partition_num, 10);
+  if (Number.isNaN(output_partition_num) || output_partition_num < 0) {
     ctx.status = 400;
     ctx.body = {
-      error: 'output_partition_num must be int',
+      error: 'output_partition_num must be integer',
     };
     return;
   }

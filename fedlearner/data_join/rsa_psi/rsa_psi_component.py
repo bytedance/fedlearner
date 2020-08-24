@@ -27,6 +27,8 @@ import concurrent.futures as concur_futures
 from cityhash import CityHash64 # pylint: disable=no-name-in-module
 from gmpy2 import powmod, divm # pylint: disable=no-name-in-module
 
+from google.protobuf import empty_pb2
+
 from fedlearner.common import data_join_service_pb2_grpc as dj_grpc
 from fedlearner.common import data_join_service_pb2 as dj_pb
 
@@ -203,6 +205,10 @@ class PsiRsaSigner(ItemBatchSeqProcessor):
     def name(cls):
         return 'PsiRsaSigner'
 
+    def say_signer_bye(self):
+        raise NotImplementedError("say_signer_bye not implemented "\
+                                  "in base PsiRsaSigner")
+
     def _make_item_batch(self, begin_index):
         return SignedIdBatch(begin_index)
 
@@ -215,6 +221,10 @@ class PsiRsaSigner(ItemBatchSeqProcessor):
             if self._next_batch_index_hint is not None and \
                     self._next_batch_index_hint >= evit_batch_cnt:
                 self._next_batch_index_hint -= evit_batch_cnt
+
+    def additional_item_mem_usage(self):
+        raise NotImplementedError("additional_item_mem_usage not "\
+                                  "implemented in base PsiRsaSigner")
 
     def _add_sign_stats(self, duration, pending_duration, retry_cnt):
         with self._lock:
@@ -288,8 +298,6 @@ class PsiRsaSigner(ItemBatchSeqProcessor):
             wait4batch = len(raw_id_batches) == 0
             signed_batch_futures += self._promise_signed_batches(raw_id_batches)
         yield self._make_item_batch(next_index), True
-        with self._lock:
-            self._next_index_to_fetch = next_index
 
     def _consum_raw_id_batch(self, next_index, required_num):
         raw_id_batches = []
@@ -308,6 +316,8 @@ class PsiRsaSigner(ItemBatchSeqProcessor):
             next_index += len(raw_id_batch)
             if len(raw_id_batch) > 0:
                 raw_id_batches.append(raw_id_batch)
+        with self._lock:
+            self._next_index_to_fetch = next_index
         return raw_id_batches, next_index
 
     def _promise_signed_batches(self, raw_id_batches):
@@ -357,6 +367,15 @@ class LeaderPsiRsaSigner(PsiRsaSigner):
                                                  slow_sign_threshold,
                                                  process_pool_executor)
         self._private_key = private_key
+        self._item_additional_cost = 256 // 8 + \
+                                     self._private_key.n.bit_length() // 8
+
+    def additional_item_mem_usage(self):
+        return self._item_additional_cost
+
+
+    def say_signer_bye(self):
+        logging.warning("leader signer has no peer signer")
 
     @staticmethod
     def _leader_sign_func(raw_id_batch, d, n):
@@ -503,6 +522,22 @@ class FollowerPsiRsaSigner(PsiRsaSigner):
         self._pending_rpc_sign_ctx = []
         self._flying_rpc_num = 0
         self._callback_submitter = callback_submitter
+        self._item_additional_cost = 256 * 2 // 8 + \
+                                     self._public_key.n.bit_length() // 8
+
+    def additional_item_mem_usage(self):
+        return self._item_additional_cost
+
+    def say_signer_bye(self):
+        stub = self._get_active_stub()
+        try:
+            stub.Bye(empty_pb2.Empty())
+        except Exception as e: # pylint: disable=broad-except
+            self._revert_stub(stub, True)
+            logging.error("Failed to say Bye to rsa signer: %s, "\
+                          "reason: %s", self._leader_signer_addr, e)
+            raise
+        self._revert_stub(stub, False)
 
     def _get_active_stub(self):
         with self._lock:

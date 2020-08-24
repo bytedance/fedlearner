@@ -68,6 +68,12 @@ class TransmitLeader(object):
                     "in base TransmitLeader ImplContext"
                 )
 
+        def get_flying_item_cnt(self):
+            raise NotImplementedError(
+                    "get_flying_item is not Implemented "\
+                    "in base TransmitLeader ImplContext"
+                )
+
     def __init__(self, peer_client, master_client,
                  rank_id, etcd, data_source, repr_str):
         self._lock = threading.Lock()
@@ -80,6 +86,7 @@ class TransmitLeader(object):
         self._partition_exhausted = False
         self._impl_ctx = None
         self._started = False
+        self._heap_mem_stats = common.HeapMemStats(32768, None)
         self._worker_map = {}
 
     def start_routine_workers(self):
@@ -181,18 +188,22 @@ class TransmitLeader(object):
                 if item is None:
                     continue
                 self._wakeup_data_consumer()
-                if common.get_oom_risk_checker().check_oom_risk(0.8):
+                fly_item_cnt = impl_ctx.get_flying_item_cnt()
+                if self._heap_mem_stats.CheckOomRisk(fly_item_cnt, 0.60):
                     logging.warning("%s early stop produce item since "\
                                     "oom risk", self._repr_str)
                     break
 
     def _data_producer_cond(self):
         with self._lock:
+            oom_risk = False
             if self._impl_ctx is not None:
                 self._worker_map[self._producer_name()].setup_args(
                         self._impl_ctx
                     )
-            oom_risk = common.get_oom_risk_checker().check_oom_risk(0.8)
+                fly_item_cnt = self._impl_ctx.get_flying_item_cnt()
+                oom_risk = self._heap_mem_stats.CheckOomRisk(fly_item_cnt,
+                                                             0.60)
             return self._impl_ctx is not None and not oom_risk and \
                     not self._impl_ctx.is_produce_finished()
 

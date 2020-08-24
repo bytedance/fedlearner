@@ -219,6 +219,7 @@ class RawDataPartitioner(object):
         self._started = False
         self._part_finished = False
         self._cond = threading.Condition()
+        self._heap_mem_stats = common.HeapMemStats(32768, None)
 
     def start_process(self):
         with self._cond:
@@ -282,9 +283,10 @@ class RawDataPartitioner(object):
                     writer.append_item(batch.begin_index+index, item)
                 next_index += len(batch)
                 round_dumped_item += len(batch)
+                fly_item_cnt = fetcher.get_flying_item_count()
                 if round_dumped_item // self._options.output_partition_num \
-                        > (1<<22) or \
-                        common.get_oom_risk_checker().check_oom_risk(0.70):
+                        > (1<<21) or \
+                        self._heap_mem_stats.CheckOomRisk(fly_item_cnt, 0.7):
                     self._finish_file_writers()
                     self._set_next_part_index(next_index)
                     hint_index = self._evict_staless_batch(hint_index,
@@ -425,15 +427,18 @@ class RawDataPartitioner(object):
             logging.debug("fetch batch begin at %d, len %d. wakeup "\
                           "partitioner", batch.begin_index, len(batch))
             self._wakeup_partitioner()
-            if common.get_oom_risk_checker().check_oom_risk(0.80):
+            fly_item_cnt = fetcher.get_flying_item_count()
+            if self._heap_mem_stats.CheckOomRisk(fly_item_cnt, 0.75):
                 logging.warning('early stop the raw data fetch '\
                                 'since the oom risk')
                 break
 
     def _raw_data_batch_fetch_cond(self):
         next_part_index = self._get_next_part_index()
+        fetcher = self._raw_data_batch_fetcher
+        fly_item_cnt = fetcher.get_flying_item_count()
         return self._raw_data_batch_fetcher.need_process(next_part_index) and \
-                not common.get_oom_risk_checker().check_oom_risk(0.80)
+                not self._heap_mem_stats.CheckOomRisk(fly_item_cnt, 0.75)
 
     def _wakeup_partitioner(self):
         self._worker_map['raw_data_partitioner'].wakeup()

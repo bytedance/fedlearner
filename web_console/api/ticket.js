@@ -1,15 +1,12 @@
 const router = require('@koa/router')();
 const { Op } = require('sequelize');
 const SessionMiddleware = require('../middlewares/session');
+const FindOptionsMiddleware = require('../middlewares/find_options');
 const { Ticket } = require('../models');
 const checkParseJson = require('../utils/check_parse_json');
 
-router.get('/api/v1/tickets', SessionMiddleware, async (ctx) => {
-  const where = {};
-  if (ctx.query.federation_id) {
-    where.federation_id = { [Op.eq]: +ctx.query.federation_id };
-  }
-  const data = await Ticket.findAll({ where });
+router.get('/api/v1/tickets', SessionMiddleware, FindOptionsMiddleware, async (ctx) => {
+  const data = await Ticket.findAll(ctx.findOptions);
   ctx.body = { data };
 });
 

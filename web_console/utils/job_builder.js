@@ -1,9 +1,21 @@
+/**
+ * Common utility for Kubernetes job YAML generation
+ *
+ * Prerequisites:
+ * - value of env must be string
+ * - use `${var}` to simply transform var from number to string
+ *
+ * ref: https://kubernetes.io/docs/tasks/inject-data-application/
+ */
+
 const assert = require('assert');
 const lodash = require('lodash');
 const getConfig = require('./get_confg');
 
-const { NAMESPACE } = getConfig({
+const { NAMESPACE, ES_HOST, ES_PORT } = getConfig({
   NAMESPACE: process.env.NAMESPACE,
+  ES_HOST: process.env.ES_HOST,
+  ES_PORT: process.env.ES_PORT,
 });
 
 function joinPath(base, ...rest) {
@@ -165,6 +177,8 @@ function generateYaml(federation, job, job_params, ticket) {
               { name: 'MEM_REQUEST', valueFrom: { resourceFieldRef: { resource: 'requests.memory' } } },
               { name: 'CPU_LIMIT', valueFrom: { resourceFieldRef: { resource: 'limits.cpu' } } },
               { name: 'MEM_LIMIT', valueFrom: { resourceFieldRef: { resource: 'limits.memory' } } },
+              { name: 'ES_HOST', value: ES_HOST },
+              { name: 'ES_PORT', value: `${ES_PORT}` },
             ],
             imagePullPolicy: 'IfNotPresent',
             name: 'tensorflow',
@@ -240,9 +254,11 @@ function portalGenerateYaml(federation, raw_data) {
           env: [
             { name: 'POD_IP', valueFrom: { fieldRef: { fieldPath: 'status.podIP' } } },
             { name: 'POD_NAME', valueFrom: { fieldRef: { fieldPath: 'metadata.name' } } },
+            { name: 'ES_HOST', value: ES_HOST },
+            { name: 'ES_PORT', value: `${ES_PORT}` },
             { name: 'APPLICATION_ID', value: raw_data.name },
             { name: 'DATA_PORTAL_NAME', value: raw_data.name },
-            { name: 'OUTPUT_PARTITION_NUM', value: String(raw_data.output_partition_num) },
+            { name: 'OUTPUT_PARTITION_NUM', value: `${raw_data.output_partition_num}` },
             { name: 'INPUT_BASE_DIR', value: raw_data.input },
             { name: 'OUTPUT_BASE_DIR', value: joinPath(k8s_settings.storage_root_path, 'raw_data', raw_data.name) },
             { name: 'RAW_DATA_PUBLISH_DIR', value: joinPath('portal_publish_dir', raw_data.name) },
@@ -271,8 +287,10 @@ function portalGenerateYaml(federation, raw_data) {
             { name: 'MEM_REQUEST', valueFrom: { resourceFieldRef: { resource: 'requests.memory' } } },
             { name: 'CPU_LIMIT', valueFrom: { resourceFieldRef: { resource: 'limits.cpu' } } },
             { name: 'MEM_LIMIT', valueFrom: { resourceFieldRef: { resource: 'limits.memory' } } },
+            { name: 'ES_HOST', value: ES_HOST },
+            { name: 'ES_PORT', value: `${ES_PORT}` },
             { name: 'APPLICATION_ID', value: raw_data.name },
-            { name: 'BATCH_SIZE', value: String(raw_data.context.batch_size) },
+            { name: 'BATCH_SIZE', value: `${raw_data.context.batch_size}` },
             { name: 'INPUT_DATA_FORMAT', value: raw_data.context.input_data_format },
             { name: 'COMPRESSED_TYPE', value: raw_data.context.compressed_type },
             { name: 'OUTPUT_DATA_FORMAT', value: raw_data.context.output_data_format },

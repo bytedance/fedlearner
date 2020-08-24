@@ -39,6 +39,8 @@ if __name__ == "__main__":
                         help='the threshold to record as slow sign')
     parser.add_argument('--worker_num', type=int, default=32,
                         help='max worker number for grpc server')
+    parser.add_argument('--signer_offload_processor_number', type=int,
+                        default=-1, help='the offload processor for signer')
     args = parser.parse_args()
     rsa_private_key_pem = args.rsa_privet_key_pem
     if rsa_private_key_pem is None or len(rsa_private_key_pem) == 0:
@@ -46,7 +48,9 @@ if __name__ == "__main__":
         with gfile.GFile(args.rsa_private_key_path, 'rb') as f:
             rsa_private_key_pem = f.read()
     rsa_private_key = rsa.PrivateKey.load_pkcs1(rsa_private_key_pem)
-    offload_processor_number = int(os.environ.get('CPU_LIMIT', '1')) - 1
+    offload_processor_number = args.signer_offload_processor_number
+    if offload_processor_number < 0:
+        offload_processor_number = int(os.environ.get('CPU_LIMIT', '1')) - 1
     rsa_psi_signer = RsaPsiSigner(rsa_private_key,
                                   offload_processor_number,
                                   args.slow_sign_threshold)

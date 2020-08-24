@@ -65,6 +65,7 @@ func (ph *PairHandler) Register(ctx context.Context, request *pb.RegisterRequest
 
 func (ph *PairHandler) Pair(ctx context.Context, request *pb.PairRequest) (*pb.Status, error) {
 	name := request.AppId
+	klog.Infof("Pair received, name = %v, pairs = %v", name, request.Pairs)
 
 	leaderReplicas := make(map[string][]string)
 	followerReplicas := make(map[string][]string)
