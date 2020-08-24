@@ -199,6 +199,11 @@ export default function JobList(props) {
       >
         <Link color>View Detail</Link>
       </NextLink>
+      <NextLink
+        href={`/job/charts/${item.localdata.id}`}
+      >
+        <Link color>View Charts</Link>
+      </NextLink>
       <Text
         className="actionText"
         onClick={() => handleClone(item)}
