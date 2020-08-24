@@ -107,6 +107,10 @@ function init_policy {
 
 }
 
+function create_oss_bucket {
+    aliyun oss mb oss://fedlearner --storage-class Standard >/dev/null 2>&1
+}
+
 function create_vpc {
     VPC_ID=`aliyun vpc DescribeVpcs --VpcName $GENERATER_NAME | grep VpcId | awk -F "\"" '{print $4}'`
     if [[ $VPC_ID == "vpc"* ]]
@@ -561,6 +565,7 @@ then
 else
     install_cli
     init_policy
+    create_oss_bucket
     create_vpc
     create_vswitch
     create_secret
