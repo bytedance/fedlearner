@@ -20,9 +20,35 @@ psi_signer_cmd=/app/deploy/scripts/rsa_psi/run_rsa_psi_signer.sh
 psi_preprocessor_cmd=/app/deploy/scripts/rsa_psi/run_psi_preprocessor.sh 
 data_join_worker_cmd=/app/deploy/scripts/data_join/run_data_join_worker.sh
 
+
+if [ -z "$CPU_LIMIT" ] && ([ -z "$PREPROCESSOR_OFFLOAD_PROCESSOR_NUMBER" ] || [ -z $SIGNER_OFFLOAD_PROCESSOR_NUMBER ])
+then
+  echo "Can't infer preprocessor_offload_processor_number for psi preprocessor and signer_offload_processor_number for psi signer"
+  exit -1
+fi
+
+if [ "$PREPROCESSOR_OFFLOAD_PROCESSOR_NUMBER" ]
+then
+  echo "the user set preprocessor_offload_processor_number($PREPROCESSOR_OFFLOAD_PROCESSOR_NUMBER)"
+elif [ "$SIGNER_OFFLOAD_PROCESSOR_NUMBER" ]
+then
+  export PREPROCESSOR_OFFLOAD_PROCESSOR_NUMBER=$(($CPU_LIMIT-$SIGNER_OFFLOAD_PROCESSOR_NUMBER-2))
+  echo "we set preprocessor_offload_processor_number($PREPROCESSOR_OFFLOAD_PROCESSOR_NUMBER) by cpu_limit($CPU_LIMIT)-signer_offload_processor_number($SIGNER_OFFLOAD_PROCESSOR_NUMBER)-RESERVED_CPU(2)"
+else
+  echo "we set preprocessor_offload_processor_number($PREPROCESSOR_OFFLOAD_PROCESSOR_NUMBER) by (cpu_limit($CPU_LIMIT)-reserved_cpu(2))/2"
+  export PREPROCESSOR_OFFLOAD_PROCESSOR_NUMBER=$((($CPU_LIMIT-2)/2))
+fi
+
 echo "launch the leader of psi preprocessor at background"
 exec ${psi_preprocessor_cmd} &
 
+if [ "$SIGNER_OFFLOAD_PROCESSOR_NUMBER" ]
+then
+  echo "the user set signer_offload_processor_number($SIGNER_OFFLOAD_PROCESSOR_NUMBER)"
+else
+  export SIGNER_OFFLOAD_PROCESSOR_NUMBER=$(($CPU_LIMIT-$PREPROCESSOR_OFFLOAD_PROCESSOR_NUMBER-2))
+  echo "we set signer_offload_processor_number($SIGNER_OFFLOAD_PROCESSOR_NUMBER) by cpu_limit($CPU_LIMIT)-preprocessor_offload_processor_number($PREPROCESSOR_OFFLOAD_PROCESSOR_NUMBER)-RESERVED_CPU(2)"
+fi
 echo "launch psi signer for follower of psi preprocessor at front ground"
 exec ${psi_signer_cmd}
 echo "psi signer for follower of psi preprocessor finish"

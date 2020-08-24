@@ -151,7 +151,7 @@ class RsaPsiPreProcessor(object):
         self._bye_for_signer()
 
     def _bye_for_signer(self):
-        for rnd in range(30):
+        for rnd in range(60):
             try:
                 self._psi_rsa_signer.say_signer_bye()
                 logging.info("Success to say bye to signer at round "\
@@ -161,7 +161,7 @@ class RsaPsiPreProcessor(object):
                 logging.warning("Failed to say bye to signer at "\
                                 "round %d, sleep 10s and retry", rnd)
             time.sleep(10)
-        logging.warning("Give up to say bye to signer after try 30"\
+        logging.warning("Give up to say bye to signer after try 60"\
                         "times, rsa_psi_preprocessor will exit as -1")
         os._exit(-1) # pylint: disable=protected-access
 
