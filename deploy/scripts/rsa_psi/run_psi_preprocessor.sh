@@ -20,9 +20,16 @@ export CUDA_VISIBLE_DEVICES=
 source /app/deploy/scripts/hdfs_common.sh || true
 source /app/deploy/scripts/env_to_args.sh
 
-if [ -z "$INPUT_BASE_DIR$INPUT_FILE_PATHS$INPUT_FILE_SUBSCRIBE_DIR" ]
+if [ -z "$INPUT_BASE_DIR" ] && [ -z "$INPUT_FILE_PATHS" ] && [ -z "$INPUT_FILE_SUBSCRIBE_DIR" ]
 then
     echo "no input files or directory for psi preprocessor or etcd subscrube dir"
+    exit -1
+fi
+
+FROLE=`echo $ROLE | tr 'a-z' 'A-Z'`
+if [ "$FROLE" = "FOLLOWER" ] && [ -z "$PEER_ADDR" ]
+then
+    echo "PEER_ADDR should be set for psi preprocessor follower"
     exit -1
 fi
 

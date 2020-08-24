@@ -52,23 +52,23 @@ if __name__ == "__main__":
     parser.add_argument('--leader_rsa_psi_signer_addr', type=str,
                         help='the ras psi follower should set give '\
                              'the addr of rsa psi signer of leader')
-    parser.add_argument('--process_batch_size', type=int, default=1024,
+    parser.add_argument('--process_batch_size', type=int, default=128,
                         help='the batch size for preprocessor')
-    parser.add_argument('--max_flying_sign_batch', type=int, default=32,
+    parser.add_argument('--max_flying_sign_batch', type=int, default=1024,
                         help='the max flying sign batch')
-    parser.add_argument('--max_flying_sign_rpc', type=int, default=16,
+    parser.add_argument('--max_flying_sign_rpc', type=int, default=128,
                         help='the max flying sign rpc request')
-    parser.add_argument('--sign_rpc_timeout_ms', type=int, default=0,
+    parser.add_argument('--sign_rpc_timeout_ms', type=int, default=64000,
                         help='the rpc time ms for rpc sign')
     parser.add_argument('--stub_fanout', type=int, default=4,
                         help='the max stub for follower of rpc of processor')
-    parser.add_argument('--slow_sign_threshold', type=int, default=5,
+    parser.add_argument('--slow_sign_threshold', type=int, default=16,
                         help='the threshold to record as slow sign')
     parser.add_argument('--sort_run_merger_read_ahead_buffer', type=int,
-                        default=1<<20, help='the read ahead buffer for the '\
-                                            'reader of sort run reader')
+                        default=512<<10, help='the read ahead buffer for '\
+                                              'the reader of sort run reader')
     parser.add_argument('--sort_run_merger_read_batch_size', type=int,
-                        default=32, help='the read batch size for the '\
+                        default=64, help='the read batch size for the '\
                                           'sort run reader')
     parser.add_argument('--partition_id', type=int, required=True,
                         help='the partition id will be processed')
@@ -84,9 +84,9 @@ if __name__ == "__main__":
     parser.add_argument('--compressed_type', type=str, default='',
                         choices=['', 'ZLIB', 'GZIP'],
                         help='the compressed type for raw data')
-    parser.add_argument('--read_ahead_size', type=int, default=16<<20,
+    parser.add_argument('--read_ahead_size', type=int, default=8<<20,
                         help='the read ahead size for raw data')
-    parser.add_argument('--read_batch_size', type=int, default=128,
+    parser.add_argument('--read_batch_size', type=int, default=512,
                         help='the read batch size for tf record iter')
     parser.add_argument('--output_builder', type=str, default='TF_RECORD',
                         choices=['TF_RECORD', 'CSV_DICT'],
