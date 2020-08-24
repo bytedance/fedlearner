@@ -20,10 +20,14 @@ psi_preprocessor_cmd=/app/deploy/scripts/rsa_psi/run_psi_preprocessor.sh
 data_join_worker_cmd=/app/deploy/scripts/data_join/run_data_join_worker.sh
 
 echo "launch ras psi preprocessor at front ground"
-exec ${psi_preprocessor_cmd}
+${psi_preprocessor_cmd}
 echo "ras psi preprocessor run finished"
 
-TCP_MSL=`cat /proc/sys/net/ipv4/tcp_fin_timeout`
+TCP_MSL=60
+if [ -f "/proc/sys/net/ipv4/tcp_fin_timeout" ]
+then
+  TCP_MSL=`cat /proc/sys/net/ipv4/tcp_fin_timeout`
+fi
 SLEEP_TM=$((TCP_MSL * 3))
 echo "sleep 3msl($SLEEP_TM) to make sure tcp state at CLOSED"
 sleep $SLEEP_TM
@@ -31,5 +35,5 @@ sleep $SLEEP_TM
 echo "launch data join worker"
 export RAW_DATA_ITER=$PSI_OUTPUT_BUILDER
 export COMPRESSED_TYPE=$PSI_OUTPUT_BUILDER_COMPRESSED_TYPE
-exec ${data_join_worker_cmd}
+${data_join_worker_cmd}
 echo "data join worker finished"
