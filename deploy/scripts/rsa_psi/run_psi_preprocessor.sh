@@ -20,9 +20,16 @@ export CUDA_VISIBLE_DEVICES=
 source /app/deploy/scripts/hdfs_common.sh || true
 source /app/deploy/scripts/env_to_args.sh
 
-if [ -z "$INPUT_BASE_DIR$INPUT_FILE_PATHS$INPUT_FILE_SUBSCRIBE_DIR" ]
+if [ -z "$INPUT_BASE_DIR" ] && [ -z "$INPUT_FILE_PATHS" ] && [ -z "$INPUT_FILE_SUBSCRIBE_DIR" ]
 then
     echo "no input files or directory for psi preprocessor or etcd subscrube dir"
+    exit -1
+fi
+
+FROLE=`echo $ROLE | tr 'a-z' 'A-Z'`
+if [ "$FROLE" = "FOLLOWER" ] && [ -z "$PEER_ADDR" ]
+then
+    echo "PEER_ADDR should be set for psi preprocessor follower"
     exit -1
 fi
 
@@ -50,6 +57,7 @@ read_batch_size=$(normalize_env_to_args "--read_batch_size" $PSI_READ_BATCH_SIZE
 
 output_builder=$(normalize_env_to_args "--output_builder" $PSI_OUTPUT_BUILDER)
 builder_compressed_type=$(normalize_env_to_args "--builder_compressed_type" $PSI_OUTPUT_BUILDER_COMPRESSED_TYPE)
+preprocessor_offload_processor_number=$(normalize_env_to_args "--preprocessor_offload_processor_number" $PREPROCESSOR_OFFLOAD_PROCESSOR_NUMBER)
 
 python -m fedlearner.data_join.cmd.rsa_psi_preprocessor_cli \
     --psi_role=$ROLE \
@@ -67,4 +75,4 @@ python -m fedlearner.data_join.cmd.rsa_psi_preprocessor_cli \
     $leader_rsa_psi_signer_addr $max_flying_sign_rpc $sign_rpc_timeout_ms \
     $stub_fanout $process_batch_size \
     $raw_data_iter $compressed_type $read_ahead_size $read_batch_size \
-    $output_builder $builder_compressed_type
+    $output_builder $builder_compressed_type $preprocessor_offload_processor_number

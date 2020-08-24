@@ -189,7 +189,7 @@ class TransmitLeader(object):
                     continue
                 self._wakeup_data_consumer()
                 fly_item_cnt = impl_ctx.get_flying_item_cnt()
-                if self._heap_mem_stats.CheckOomRisk(fly_item_cnt, 0.75):
+                if self._heap_mem_stats.CheckOomRisk(fly_item_cnt, 0.60):
                     logging.warning("%s early stop produce item since "\
                                     "oom risk", self._repr_str)
                     break
@@ -203,7 +203,7 @@ class TransmitLeader(object):
                     )
                 fly_item_cnt = self._impl_ctx.get_flying_item_cnt()
                 oom_risk = self._heap_mem_stats.CheckOomRisk(fly_item_cnt,
-                                                             0.75)
+                                                             0.60)
             return self._impl_ctx is not None and not oom_risk and \
                     not self._impl_ctx.is_produce_finished()
 

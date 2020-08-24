@@ -114,7 +114,9 @@ class ExampleIdSyncLeader(TransmitLeader):
             impl_ctx.set_raw_data_finished()
 
     def _serialize_sync_content(self, item):
-        sync_ctnt = dj_pb.SyncContent(lite_example_ids=item.lite_example_ids)
+        sync_ctnt = dj_pb.SyncContent(
+                lite_example_ids=item.make_lite_example_ids()
+            )
         return sync_ctnt.SerializeToString()
 
     def _make_finish_raw_data_request(self, impl_ctx):
