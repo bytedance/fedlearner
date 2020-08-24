@@ -50,10 +50,14 @@ else
   echo "we set signer_offload_processor_number($SIGNER_OFFLOAD_PROCESSOR_NUMBER) by cpu_limit($CPU_LIMIT)-preprocessor_offload_processor_number($PREPROCESSOR_OFFLOAD_PROCESSOR_NUMBER)-RESERVED_CPU(2)"
 fi
 echo "launch psi signer for follower of psi preprocessor at front ground"
-exec ${psi_signer_cmd}
+${psi_signer_cmd}
 echo "psi signer for follower of psi preprocessor finish"
 
-TCP_MSL=`cat /proc/sys/net/ipv4/tcp_fin_timeout`
+TCP_MSL=60
+if [ -f "/proc/sys/net/ipv4/tcp_fin_timeout" ]
+then
+  TCP_MSL=`cat /proc/sys/net/ipv4/tcp_fin_timeout`
+fi
 SLEEP_TM=$((TCP_MSL * 3))
 echo "sleep 3msl($SLEEP_TM) to make sure tcp state at CLOSED"
 sleep $SLEEP_TM
@@ -61,7 +65,7 @@ sleep $SLEEP_TM
 echo "launch data join worker"
 export RAW_DATA_ITER=$PSI_OUTPUT_BUILDER
 export COMPRESSED_TYPE=$PSI_OUTPUT_BUILDER_COMPRESSED_TYPE
-exec ${data_join_worker_cmd}
+${data_join_worker_cmd}
 echo "data join worker finish"
 
 echo "waiting for background psi preprocessor exit"
