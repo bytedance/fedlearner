@@ -78,3 +78,7 @@ cluster:
     DB_PORT: 3306
     DB_SYNC: true
     GRPC_AUTHORITY: ""
+    KIBANA_HOST: fedlearner-stack-kibana
+    KIBANA_PORT: 443
+    ES_HOST: fedlearner-stack-elasticsearch-client
+    ES_PORT: 9200
