@@ -48,7 +48,6 @@ const getValueFromJson = (data, path) => {
     path = path.split('.')
   }
   if (path.length === 1) {
-    console.log(data, path)
     return data[path[0]]
   }
   const currPathIsArray = path[0].endsWith('[]')
@@ -242,7 +241,6 @@ const DEFAULT_FIELDS = [
  */
 function fillField(data, field) {
   let v = getValueFromJson(data, field.path || field.key)
-  // console.log(field.key, v)
   if (typeof v === 'object') {
     v = JSON.stringify(v, null, 2)
   }
