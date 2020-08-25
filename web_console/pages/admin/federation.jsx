@@ -152,16 +152,6 @@ const K8S_SETTINGS_FIELDS = [
     path: 'global_replica_spec.template.spec.imagePullSecrets'
   },
   {
-    key: 'volumes',
-    type: 'json',
-    span: 24,
-    default: K8S_SETTINGS.volumes,
-    props: {
-      minHeight: '150px',
-    },
-    path: 'global_replica_spec.template.spec.volumes' // path为拼接json时的定位
-  },
-  {
     key: 'env',
     type: 'name-value',
     span: 24,
@@ -170,16 +160,6 @@ const K8S_SETTINGS_FIELDS = [
       minHeight: '150px',
     },
     path: 'global_replica_spec.template.spec.containers.envs'
-  },
-  {
-    key: 'volumeMounts',
-    type: 'json',
-    span: 24,
-    default: K8S_SETTINGS.volumeMounts,
-    props: {
-      minHeight: '150px',
-    },
-    path: 'global_replica_spec.template.spec.containers.volumeMounts'
   },
   {
     key: 'grpc_spec',
