@@ -307,7 +307,7 @@ export default function FederationList() {
         if (error) {
           return {error}
         }
-        if (field.type === 'json') {
+        if (['json', 'name-value'].some(t => field.type === t)) {
           fieldValue = JSON.parse(fieldValue)
         }
         fieldValue !== undefined && fillJSON(k8s_settings, field.path || [field.key], fieldValue)
