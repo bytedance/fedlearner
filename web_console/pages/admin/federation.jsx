@@ -14,18 +14,33 @@ import produce from 'immer'
 import { K8S_SETTINGS } from '../../constants/form-default'
 
 const fillJSON = (container, path, value) => {
+  let containerIsArray = Array.isArray(container)
   if (typeof path === 'string') {
     path = path.split('.')
   }
   if (path.length === 1) {
-    container[path[0]]= value
+    if (containerIsArray) {
+      container[0]
+        ? container[0][path[0]]= value
+        : container[0] = { [path[0]]: value }
+    } else {
+      container[path[0]] = value
+    }
     return
   }
+  let currPath
   if (container[path[0]] === undefined) {
-    container[path[0]] = {}
+    if (path[0].endsWith('[]')) {
+      currPath = path[0].replace('[]', '')
+      container[currPath] = []
+    } else {
+      container[path[0]] = {}
+      currPath = path[0]
+    }
+  } else {
+    currPath = path[0]
   }
-  let c = container[path[0]]
-  fillJSON(c, path.slice(1), value)
+  fillJSON(container[currPath], path.slice(1), value)
 }
 
 const getValueFromJson = (data, path) => {
@@ -35,8 +50,11 @@ const getValueFromJson = (data, path) => {
   if (path.length === 1) {
     return data[path[0]]
   }
-  if (data[path[0]] === undefined) return undefined
-  return getValueFromJson(data[path[0]], path.slice(1))
+  const currPathIsArray = path[0].endsWith('[]')
+  let currPath = path[0].replace('[]', '')
+  let nextLayer = currPathIsArray ? data[currPath][0] : data[path[0]]
+  if (nextLayer === undefined) return undefined
+  return getValueFromJson(nextLayer, path.slice(1))
 }
 
 function useFederationItemStyles() {
@@ -159,7 +177,7 @@ const K8S_SETTINGS_FIELDS = [
     props: {
       minHeight: '150px',
     },
-    path: 'global_replica_spec.template.spec.containers.envs'
+    path: 'global_replica_spec.template.spec.containers[].env'
   },
   {
     key: 'grpc_spec',
@@ -238,7 +256,6 @@ function fillField(data, field) {
     let xFederation = getValueFromJson(data, 'k8s_settings.grpc_spec.extraHeaders.x-federation')
     xFederation && (field.value = xFederation)
   }
-
   return field
 }
 
