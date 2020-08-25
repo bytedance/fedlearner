@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useReducer, useMemo } from 'react';
 import css from 'styled-jsx/css';
-import { Button, ButtonGroup, Card, Grid, Text, Input, Toggle, Textarea, Note, useTheme, Collapse, useToasts } from '@zeit-ui/react';
+import { Button, ButtonGroup, Card, Grid, Text, Input, Toggle, Textarea, Note, useTheme, Collapse, useToasts, Select } from '@zeit-ui/react';
 import FederationSelect from './FederationSelect';
 import JobTypeSelect from './JobTypeSelect';
 import JobRoleSelect from './JobRoleSelect';
@@ -40,7 +40,7 @@ export default function Form({
   // cache raw fields data
   const rawFields = fields
   // TODO: handle name confilicts
-
+  const groupFormType = useMemo(() => ({}), [])
   // flat all group fileds
   fields = fields.reduce((total, curr) => {
     if (curr.groupName) {
@@ -243,6 +243,27 @@ export default function Form({
       )
     }
 
+    if (type === 'label') {
+      return (
+        <div style={{fontWeight: 'bolder', padding: '12px 0'}}>{label || key}</div>
+      )
+    }
+
+    if (type === 'select') {
+      return (
+        <div className="formItemWithLabel">
+          <label className="formItemLabel" htmlFor={key}>{label || key}</label>
+          <div className="formItemValue">
+            <Select onChange={value => updateForm(key, value)}>
+              {props?.options && props.options.map(opt =>
+                <Select.Option key={opt.label} value={opt.value}>{opt.label}</Select.Option>
+              )}
+            </Select>
+          </div>
+        </div>
+      )
+    }
+
     return (
       <Input
         value={form[key]}
@@ -277,7 +298,7 @@ export default function Form({
       return total
     }, {})
     try {
-      const res = await onSubmit(formData);
+      const res = await onSubmit(formData, groupFormType);
       if (res.error) {
         throw new Error(res.error);
       }
@@ -293,7 +314,11 @@ export default function Form({
 
   const renderGroup = group => {
     // const [, setToast] = useToasts()
-    const [formType, setFormType] = useState(group.formTypes && group.formTypes[0])
+    const formTypeReducer = (_, value) => {
+      groupFormType[group.groupName] = value
+      return value
+    }
+    const [formType, setFormType] = useReducer(formTypeReducer, group.formTypes && group.formTypes[0])
     const [groupFields, setGroupFields] = useState(
       Array.isArray(group.fields) ? group.fields : group.fields[formType]
     )

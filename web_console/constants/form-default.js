@@ -3,14 +3,6 @@
 const K8S_SETTINGS = {
   "storage_root_path": "data",
   "imagePullSecrets": [{"name": "regcred"}],
-  "volumes": [
-    {
-      "persistentVolumeClaim": {
-        "claimName": "pvc-fedlearner-default"
-      },
-      "name": "data"
-    }
-  ],
   "Env": [
     {
       "name": "ETCD_ADDR",
@@ -23,12 +15,6 @@ const K8S_SETTINGS = {
     {
       "name": "EGRESS_HOST",
       "value": "external.name"
-    }
-  ],
-  "volumeMounts": [
-    {
-      "mountPath": "/data",
-      "name": "data"
     }
   ],
   "grpc_spec": {
