@@ -295,20 +295,23 @@ export default function FederationList() {
     }
   }
 
-  const handleSubmit = (value) => {
-    const k8s_settings = {}
+  const handleSubmit = (value, groupFormType) => {
+    let k8s_settings = {}
     // gen json
-    for (let field of K8S_SETTINGS_FIELDS) {
-      let fieldValue = value.k8s_settings[field.key]
-
-      let error = checkValue(field, fieldValue)
-      if (error) {
-        return {error}
+    if (groupFormType['k8s_settings'] === 'json') {
+      k8s_settings = JSON.parse(value.k8s_settings.k8s_data)
+    } else {
+      for (let field of K8S_SETTINGS_FIELDS) {
+        let fieldValue = value.k8s_settings[field.key]
+        let error = checkValue(field, fieldValue)
+        if (error) {
+          return {error}
+        }
+        if (field.type === 'json') {
+          fieldValue = JSON.parse(fieldValue)
+        }
+        fieldValue !== undefined && fillJSON(k8s_settings, field.path || [field.key], fieldValue)
       }
-      if (field.type === 'json') {
-        fieldValue = JSON.parse(fieldValue)
-      }
-      fieldValue !== undefined && fillJSON(k8s_settings, field.path || [field.key], fieldValue)
     }
     // x-federation
     value['x-federation']
