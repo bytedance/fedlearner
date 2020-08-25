@@ -3,7 +3,7 @@
 const K8S_SETTINGS = {
   "storage_root_path": "data",
   "imagePullSecrets": [{"name": "regcred"}],
-  "Env": [
+  "env": [
     {
       "name": "ETCD_ADDR",
       "value": "fedlearner-stack-etcd.default.svc.cluster.local:2379"
