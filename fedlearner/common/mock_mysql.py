@@ -21,11 +21,11 @@ class MockMySQL(object):
         def __init__(self, key, value):
             self._key = key
             self._value = value
-        
+
         @property
         def key(self):
             return self._key
-        
+
         @property
         def value(self):
             return self._value
@@ -34,7 +34,7 @@ class MockMySQL(object):
         self._lock = threading.Lock()
         self._data = {}
         self._base_dir = base_dir
-    
+
     def get_data(self, key):
         with self._lock:
             key = self._generate_key(key)
@@ -43,7 +43,7 @@ class MockMySQL(object):
                     return self._data[key].encode(), None
                 return self._data[key], None
             return None, None
-    
+
     def set_data(self, key, value):
         with self._lock:
             key = self._generate_key(key)
@@ -82,7 +82,7 @@ class MockMySQL(object):
                 return False
             self._data[key] = new_value
             return True
-    
+
     def get_prefix_kvs(self, prefix, ignor_prefix=False):
         kvs = []
         path = self._generate_key(prefix)
@@ -91,7 +91,7 @@ class MockMySQL(object):
                 if ignor_prefix and path == key:
                     continue
                 nkey = self._normalize_output_key(key, self._base_dir)
-                kvs.append((nkey,value))
+                kvs.append((nkey, value))
 
     def _generate_key(self, key):
         return '/'.join([self._base_dir, self._normalize_input_key(key)])
@@ -100,7 +100,7 @@ class MockMySQL(object):
     def _normalize_input_key(key):
         skip_cnt = 0
         while key[skip_cnt] == '.' or key[skip_cnt] == '/':
-            skip_cnt +=1
+            skip_cnt += 1
         if skip_cnt > 0:
             return key[skip_cnt:]
         return key
@@ -128,4 +128,4 @@ class MockMySQLClient(object):
         return getattr(self._mock_mysql, attr)
 
     def close(self):
-        self._mock_mysql.close(self) 
+        self._mock_mysql.close(self)

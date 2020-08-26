@@ -15,8 +15,6 @@
 # coding: utf-8
 """MySQL client."""
 
-import threading
-import random
 import logging
 from contextlib import contextmanager
 from sqlalchemy import create_engine
@@ -25,12 +23,14 @@ from sqlalchemy.ext.automap import automap_base
 from fedlearner.common.mock_mysql import MockMySQLClient
 
 class MySQLClient(object):
-    def __init__(self, name, addr, user, password, base_dir, use_mock_mysql=False):
+    def __init__(self, name, addr, user, password, base_dir,
+                 use_mock_mysql=False):
         if use_mock_mysql:
             self._client = MockMySQLClient(name, base_dir)
         else:
-            self._client = RealMySQLClient(name, addr, user, password, base_dir)
-    
+            self._client = RealMySQLClient(
+                name, addr, user, password, base_dir)
+
     def __getattr__(self, attr):
         return getattr(self._client, attr)
 
@@ -46,8 +46,9 @@ class RealMySQLClient(object):
     def get_data(self, key):
         table = self._base.classes.KV
         with self.closing(self._engine) as clnt:
-            return clnt.query(table).filter(table.key == self._generate_key(key)).one().value
-    
+            return clnt.query(table).filter(table.key ==
+                self._generate_key(key)).one().value
+
     def set_data(self, key, data):
         with self.closing(self._engine) as clnt:
             context = self._base.classes.KV()
@@ -59,14 +60,16 @@ class RealMySQLClient(object):
     def delete(self, key):
         with self.closing(self._engine) as clnt:
             table = self._base.classes.KV
-            context = clnt.query(table).filter(table.key == self._generate_key(key))
+            context = clnt.query(table).filter(table.key ==
+                self._generate_key(key))
             clnt.delete(context)
             clnt.commit()
 
     def delete_prefix(self, key):
         with self.closing(self._engine) as clnt:
             table = self._base.classes.KV
-            contexts = clnt.query(table).filter(table.key.like(self._generate_key(key).join('%')))
+            contexts = clnt.query(table).filter(table.key.\
+                like(self._generate_key(key).join('%')))
             for context in contexts:
                 clnt.delete(context)
             clnt.commit()
@@ -74,28 +77,29 @@ class RealMySQLClient(object):
     def cas(self, key, old_data, new_data):
         with self.closing(self._engine) as clnt:
             table = self._base.classes.KV
+            flag = True
             if old_data is None:
                 context = self._base.classes.KV()
                 context.key = self._generate_key(key)
                 context.value = new_data
                 clnt.add(context)
                 clnt.commit()
-                return True
             else:
-                context = clnt.query(table).filter(table.key == self._generate_key(key))
-                flag = True
+                context = clnt.query(table).filter(table.key ==\
+                    self._generate_key(key))
                 if context.value != old_data:
                     flag = False
                 context.value = new_data
                 clnt.commit()
-                return flag
+            return flag
 
     def get_prefix_kvs(self, prefix, ignor_prefix=False):
         kvs = []
         path = self._generate_key(prefix)
         with self.closing(self._engine) as clnt:
             table = self._base.classes.KV
-            contexts = clnt.query(table).filter(table.key.like(path.join('%')))
+            contexts = clnt.query(table).filter(table.key.\
+                like(path.join('%')))
             for context in contexts:
                 if ignor_prefix and context.key == path:
                     continue
@@ -121,7 +125,7 @@ class RealMySQLClient(object):
     def _normalize_input_key(key):
         skip_cnt = 0
         while key[skip_cnt] == '.' or key[skip_cnt] == '/':
-            skip_cnt +=1
+            skip_cnt += 1
         if skip_cnt > 0:
             return key[skip_cnt:]
         return key
@@ -136,8 +140,8 @@ class RealMySQLClient(object):
 
     def _create_engine_inner(self):
         try:
-            conn_string_pattern = 'mysql://{user}:{passwd}@{host}:{port}/{db_name}?chars\
-                                   et=utf8&&use_unicode=0'
+            conn_string_pattern = 'mysql://{user}:{passwd}@{host}:\
+                {port}/{db_name}?charset=utf8&&use_unicode=0'
             conn_string = conn_string_pattern.format(
                 user=self._user, password=self._password,
                 host=self._addr[0], post=self._addr[1])
@@ -152,10 +156,12 @@ class RealMySQLClient(object):
     @contextmanager
     def closing(cls, engine):
         try:
-            session = scoped_session(sessionmaker(bind=engine, autoflush=False))()
+            session = scoped_session(sessionmaker(bind=engine, autoflush=\
+                False))()
             yield session
         except Exception as e:
-            logging.error('Failed to create sql session, error message: {}'.format(e))
+            logging.error('Failed to create sql session, error message: {}'.\
+                format(e))
             raise e
         finally:
             session.close()
