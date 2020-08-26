@@ -17,73 +17,72 @@
 
 import threading
 import random
+import logging
 from contextlib import contextmanager
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import NullPool
+from sqlalchemy.orm import sessionmaker, scoped_session
 from sqlalchemy.ext.automap import automap_base
-from fedlaerner.common import mock_etcd
+from fedlearner.common.mock_mysql import MockMySQLClient
 
-class MySQLlient(object):
-    MYSQL_CLIENT_POOL_LOCK = threading.Lock()
-    MYSQL_CLIENT_POOL = {}
-    MYSQL_CLIENT_POOL_DESTORY = False
+class MySQLClient(object):
+    def __init__(self, name, addr, user, password, base_dir, use_mock_mysql=False):
+        if use_mock_mysql:
+            self._client = MockMySQLClient(name, base_dir)
+        else:
+            self._client = RealMySQLClient(name, addr, user, password, base_dir)
+    
+    def __getattr__(self, attr):
+        return getattr(self._client, attr)
 
-    def __init__(self, name, addrs, users, passwords, base_dir, use_mock_etcd=False):
+class RealMySQLClient(object):
+    def __init__(self, name, addr, user, password, base_dir):
         self._name = name
-        self._addrs = self._normalize_addr(addrs)
-        self._users = self._normalisze_user(users)
-        self._passwords = self._normalize_password(passwords)
+        self._addr = self._normalize_addr(addr)
+        self._user = user
+        self._password = password
         self._base_dir = base_dir
-        self._check_addrs_users_passwords_legality()
-        self._use_mock_etcd = use_mock_etcd
-        self._base = automap_base()
-
+        self._create_engine_inner()
 
     def get_data(self, key):
-        addr, password, user = self._get_next_addr_password_user()
-        with closing(self.name, addr, password, user, self._use_mock_etcd) as clnt:
-            table = self._base.classes.KV
-            return clnt.query(table.value).filter(table.key=self._generate_key(key))[0]
+        table = self._base.classes.KV
+        with self.closing(self._engine) as clnt:
+            return clnt.query(table).filter(table.key == self._generate_key(key)).one().value
     
     def set_data(self, key, data):
-        addr, password, user = self._get_next_addr_password_user()
-        with closing(self.name, addr, password, user, self._use_mock_etcd) as clnt:
-            context = self._base.classes.KV
+        with self.closing(self._engine) as clnt:
+            context = self._base.classes.KV()
             context.key = self._generate_key(key)
             context.value = data
             clnt.add(context)
             clnt.commit()
 
     def delete(self, key):
-        addr, password, user = self._get_next_addr_password_user()
-        with closing(self.name, addr, password, user, self._use_mock_etcd) as clnt:
+        with self.closing(self._engine) as clnt:
             table = self._base.classes.KV
-            context = clnt.query(table).filter(table.key=self._generate_key(key))
+            context = clnt.query(table).filter(table.key == self._generate_key(key))
             clnt.delete(context)
             clnt.commit()
 
     def delete_prefix(self, key):
-        addr, password, user = self._get_next_addr_password_user()
-        with closing(self.name, addr, password, user, self._use_mock_etcd) as clnt:
+        with self.closing(self._engine) as clnt:
             table = self._base.classes.KV
-            contexts = clnt.query(table).filter(table.key.like(self._generate_key(key)+'%'))
+            contexts = clnt.query(table).filter(table.key.like(self._generate_key(key).join('%')))
             for context in contexts:
                 clnt.delete(context)
             clnt.commit()
 
     def cas(self, key, old_data, new_data):
-        addr, password, user = self._get_next_addr_password_user()
-        with closing(self.name, addr, password, user, self._use_mock_etcd) as clnt:
+        with self.closing(self._engine) as clnt:
             table = self._base.classes.KV
             if old_data is None:
-                context = self._base.classes.KV
+                context = self._base.classes.KV()
                 context.key = self._generate_key(key)
                 context.value = new_data
                 clnt.add(context)
                 clnt.commit()
+                return True
             else:
-                context = clnt.query(table).filter(table.key=self._generate_key(key))
+                context = clnt.query(table).filter(table.key == self._generate_key(key))
                 flag = True
                 if context.value != old_data:
                     flag = False
@@ -92,53 +91,31 @@ class MySQLlient(object):
                 return flag
 
     def get_prefix_kvs(self, prefix, ignor_prefix=False):
-        addr, password, user = self._get_next_addr_password_user()
         kvs = []
-        path = self._generate_key(preix)
-        with closing(self.name, addr, password, user, self._use_mock_etcd) as clnt:
+        path = self._generate_key(prefix)
+        with self.closing(self._engine) as clnt:
             table = self._base.classes.KV
-            contexts = clnt.query(table).filter(table.key.like(path+'%'))
+            contexts = clnt.query(table).filter(table.key.like(path.join('%')))
             for context in contexts:
                 if ignor_prefix and context.key == path:
                     continue
-                nkey = MySQLlient._normalize_output_key(context.key, self._base_dir)
+                nkey = self._normalize_output_key(context.key, self._base_dir)
                 kvs.append((nkey, context.value))
         return kvs
 
     def _generate_key(self, key):
         return '/'.join([self._base_dir, self._normalize_input_key(key)])
 
-    def _get_next_addr_password_user(self):
-        pos = random.randint(0, len(self._addrs) - 1)
-        return self._addrs[pos], self._passwords[pos], self._users[pos]
-
     @staticmethod
-    def _normalize_addr(addrs):
-        naddrs = []
-        for raw_addr in addrs.split(','):
-            (host, port_str) = raw_addr.split(':')
-            try:
-                port = int(port_str)
-                if port < 0 or port > 65535:
-                    raise ValueError('port {} is out of range')
-            except ValueError:
-                raise ValueError('{} is not a valid port'.format(port_str))
-            naddrs.append((host, port))
-        return naddrs
-
-    @staticmethod
-    def _normalize_password(passwords):
-        npasswords = []
-        for raw_password in passwords.split(','):
-            npaaswords.append(raw_password)
-        return npasswords
-
-    @staticmethod
-    def _normalize_user(users):
-        nusers = []
-        for raw_user in users.split(','):
-            nusers.append(raw_user)
-        return nusers
+    def _normalize_addr(addr):
+        (host, port_str) = addr.split(':')
+        try:
+            port = int(port_str)
+            if port < 0 or port > 65535:
+                raise ValueError('port {} is out of range')
+        except ValueError:
+            raise ValueError('{} is not a valid port'.format(port_str))
+        return (host, port_str)
 
     @staticmethod
     def _normalize_input_key(key):
@@ -150,71 +127,35 @@ class MySQLlient(object):
         return key
 
     @staticmethod
-    def normalize_output_key(key, base_dir):
+    def _normalize_output_key(key, base_dir):
         if isinstance(base_dir, str):
             assert key.startswith(base_dir.encode())
         else:
             assert key.startswith(base_dir)
         return key[len(base_dir)+1:]
 
-    def _check_addrs_users_passwords_legality(self):
-        if len(self.addrs) != len(self.users) or
-            len(self.addrs) != len(self.passwords):
-            raise ValueError('illegal user list')
+    def _create_engine_inner(self):
+        try:
+            conn_string_pattern = 'mysql://{user}:{passwd}@{host}:{port}/{db_name}?chars\
+                                   et=utf8&&use_unicode=0'
+            conn_string = conn_string_pattern.format(
+                user=self._user, password=self._password,
+                host=self._addr[0], post=self._addr[1])
+            self._engine = create_engine(conn_string, echo=False,
+                                        pool_recycle=180)
+            self._base = automap_base()
+        except Exception as e:
+            logging.error('create mysql engine failed; [{}]'.format(e))
+            raise e
 
     @classmethod
     @contextmanager
-    def closing(cls, name, addr, password, user, use_mock_etcd):
-        clnt = None
-        with cls.MYSQL_CLIENT_POOL_LOCK:
-            if (name in cls.MYSQL_CLIENT_POOL and
-                len(cls.MYSQL_CLIENT_POOL[name]) > 0):
-                if (user in cls.MYSQL_CLIENT_POOL[name] and
-                    len(cls.MYSQL_CLIENT_POOL[name][user]) > 0):
-                    clnt = cls.MYSQL_CLIENT_POOL[name][user][0]
-                    cls.MYSQL_CLIENT_POOL[name] = cls.MYSQL_CLIENT_POOL[name][user][1:]
-                    
-        if clnt is None:
-            try:
-                if use_mock_etcd:
-                    clnt = mock_etcd.MockEtcdClient(addr[0], addr[1])
-                else:
-                    conn_string_pattern = 'mysql://{user}:{passwd}@{host}:{port}/{db_name}?charset=utf8&&use_unicode=0'
-                    conn_string = conn_string_pattern.format(
-                        user=user, password=password, host=addr[0],
-                        port=addr[1], db_name=name)
-                    engine = create_engine(conn_string, echo=False, poolclass=NullPool)
-                    clnt = sessionmaker(bind=engine, autoflush=False)
-            except Exception as e:
-                clnt.close()
-                raise e
+    def closing(cls, engine):
         try:
-            yield clnt
+            session = scoped_session(sessionmaker(bind=engine, autoflush=False))()
+            yield session
         except Exception as e:
-            clnt.close()
+            logging.error('Failed to create sql session, error message: {}'.format(e))
             raise e
-        else:
-            with cls.MYSQL_CLIENT_POOL_LOCK:
-                if cls.MYSQL_CLIENT_POOL_DESTORY:
-                    clnt.close()
-                else:
-                    if name not in cls.MYSQL_CLIENT_POOL:
-                        cls.MYSQL_CLIENT_POOL[name][user] = [clnt]
-                    else:
-                        if user not in cls.MYSQL_CLIENT_POOL[name]:
-                            cls.MYSQL_CLIENT_POOL[name][user] = [clnt]
-                        else:
-                            cls.MYSQL_CLIENT_POOL[name][user].append(clnt)
-    
-    @classmethod
-    def destroy_client_pool(cls):
-        with cls.ETCD_CLIENT_POOL_LOCK:
-            cls.MYSQL_CLIENT_POOL_DESTORY = True
-            for _, user_dict in cls.MYSQL_CLIENT_POOL.items():
-                for _, clnts in user_dict.items():
-                    for clnt in clnts:
-                        clnt.close()
-
-        
-
-    
+        finally:
+            session.close()
