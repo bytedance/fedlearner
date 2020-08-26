@@ -91,6 +91,8 @@ class MockMySQL(object):
                 if ignor_prefix and path == key:
                     continue
                 nkey = self._normalize_output_key(key, self._base_dir)
+                if isinstance(value, str):
+                    value = value.encode()
                 kvs.append((nkey, value))
 
     def _generate_key(self, key):

@@ -45,8 +45,11 @@ class RealMySQLClient(object):
     def get_data(self, key):
         table = self._base.classes.KV
         with self.closing(self._engine) as clnt:
-            return clnt.query(table).filter(table.key ==
+            value = clnt.query(table).filter(table.key ==
                 self._generate_key(key)).one().value
+            if isinstance(value, str):
+                return value.encode()
+            return value
 
     def set_data(self, key, data):
         with self.closing(self._engine) as clnt:
@@ -59,17 +62,16 @@ class RealMySQLClient(object):
     def delete(self, key):
         with self.closing(self._engine) as clnt:
             table = self._base.classes.KV
-            context = clnt.query(table).filter(table.key ==
-                self._generate_key(key))
-            clnt.delete(context)
-            clnt.commit()
+            for context in clnt.query(table).filter(table.key ==
+                self._generate_key(key)):
+                clnt.delete(context)
+                clnt.commit()
 
     def delete_prefix(self, key):
         with self.closing(self._engine) as clnt:
             table = self._base.classes.KV
-            contexts = clnt.query(table).filter(table.key.\
-                like(self._generate_key(key).join('%')))
-            for context in contexts:
+            for context in clnt.query(table).filter(table.key.\
+                like(self._generate_key(key) + '%')):
                 clnt.delete(context)
             clnt.commit()
 
@@ -85,7 +87,7 @@ class RealMySQLClient(object):
                 clnt.commit()
             else:
                 context = clnt.query(table).filter(table.key ==\
-                    self._generate_key(key))
+                    self._generate_key(key)).one()
                 if context.value != old_data:
                     flag = False
                 context.value = new_data
@@ -97,13 +99,15 @@ class RealMySQLClient(object):
         path = self._generate_key(prefix)
         with self.closing(self._engine) as clnt:
             table = self._base.classes.KV
-            contexts = clnt.query(table).filter(table.key.\
-                like(path.join('%')))
-            for context in contexts:
+            for context in clnt.query(table).filter(table.key.\
+                like(path + '%')):
                 if ignor_prefix and context.key == path:
                     continue
                 nkey = self._normalize_output_key(context.key, self._base_dir)
-                kvs.append((nkey, context.value))
+                value = context.value
+                if isinstance(value, str):
+                    value = value.encode()
+                kvs.append((nkey, value))
         return kvs
 
     def _generate_key(self, key):
