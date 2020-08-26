@@ -15,7 +15,6 @@
 # coding: utf-8
 """MySQL client."""
 
-import logging
 from contextlib import contextmanager
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, scoped_session
@@ -149,8 +148,8 @@ class RealMySQLClient(object):
                                         pool_recycle=180)
             self._base = automap_base()
         except Exception as e:
-            logging.error('create mysql engine failed; [{}]'.format(e))
-            raise e
+            raise ValueError('create mysql engin failed; [{}]'.\
+                format(e))
 
     @classmethod
     @contextmanager
@@ -160,8 +159,7 @@ class RealMySQLClient(object):
                 False))()
             yield session
         except Exception as e:
-            logging.error('Failed to create sql session, error message: {}'.\
-                format(e))
-            raise e
+            raise ValueError('Failed to create sql session, error\
+                 meesage: {}'.format(e))
         finally:
             session.close()
