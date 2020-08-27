@@ -264,7 +264,7 @@ class _MemUsageProxy(object):
         with self._lock:
             if time.time() - self._rss_updated_tm >= 0.5:
                 self._rss_mem_usage = psutil.Process().memory_info().rss
-                self._rss_mem_usage = time.time()
+                self._rss_updated_tm = time.time()
             return self._rss_mem_usage
 
 _mem_usage_proxy = _MemUsageProxy()
@@ -336,5 +336,7 @@ class HeapMemStats(object):
                 self._stats_start_key = stats_key // 2
                 if self._stats_granular <= 0:
                     self._stats_granular = 1
+                logging.warning('auto turing the heap stats granular as %d',
+                                self._stats_granular)
             return self._stats_granular > 0 and \
                     stats_key >= self._stats_start_key
