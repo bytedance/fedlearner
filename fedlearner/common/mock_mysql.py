@@ -17,19 +17,6 @@
 import threading
 
 class MockMySQL(object):
-    class KV(object):
-        def __init__(self, key, value):
-            self._key = key
-            self._value = value
-
-        @property
-        def key(self):
-            return self._key
-
-        @property
-        def value(self):
-            return self._value
-
     def __init__(self, base_dir):
         self._lock = threading.Lock()
         self._data = {}
@@ -40,9 +27,9 @@ class MockMySQL(object):
             key = self._generate_key(key)
             if key in self._data:
                 if isinstance(self._data[key], str):
-                    return self._data[key].encode(), None
-                return self._data[key], None
-            return None, None
+                    return self._data[key].encode()
+                return self._data[key]
+            return None
 
     def set_data(self, key, value):
         with self._lock:
@@ -94,9 +81,14 @@ class MockMySQL(object):
                 if isinstance(value, str):
                     value = value.encode()
                 kvs.append((nkey, value))
+        kvs = sorted(kvs, key=lambda kv: kv[0], reverse=False)
+        return kvs
 
     def _generate_key(self, key):
-        return '/'.join([self._base_dir, self._normalize_input_key(key)])
+        nkey = '/'.join([self._base_dir, self._normalize_input_key(key)])
+        if isinstance(nkey, str):
+            nkey = nkey.encode()
+        return nkey
 
     @staticmethod
     def _normalize_input_key(key):

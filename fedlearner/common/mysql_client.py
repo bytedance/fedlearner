@@ -52,6 +52,8 @@ class RealMySQLClient(object):
             return value
 
     def set_data(self, key, data):
+        if isinstance(data, str):
+            data.encode()
         with self.closing(self._engine) as clnt:
             context = self._base.classes.KV()
             context.key = self._generate_key(key)
@@ -76,6 +78,10 @@ class RealMySQLClient(object):
             clnt.commit()
 
     def cas(self, key, old_data, new_data):
+        if isinstance(old_data, str):
+            old_data = old_data.encode()
+        if isinstance(new_data, str):
+            new_data = new_data.encode()
         with self.closing(self._engine) as clnt:
             table = self._base.classes.KV
             flag = True
@@ -100,7 +106,7 @@ class RealMySQLClient(object):
         with self.closing(self._engine) as clnt:
             table = self._base.classes.KV
             for context in clnt.query(table).filter(table.key.\
-                like(path + '%')):
+                like(path + '%')).order_by(table.key):
                 if ignor_prefix and context.key == path:
                     continue
                 nkey = self._normalize_output_key(context.key, self._base_dir)
@@ -111,7 +117,10 @@ class RealMySQLClient(object):
         return kvs
 
     def _generate_key(self, key):
-        return '/'.join([self._base_dir, self._normalize_input_key(key)])
+        nkey = '/'.join([self._base_dir, self._normalize_input_key(key)])
+        if isinstance(nkey, str):
+            nkey = nkey.encode()
+        return nkey
 
     @staticmethod
     def _normalize_addr(addr):
