@@ -23,12 +23,13 @@ from contextlib import contextmanager
 from collections import OrderedDict
 
 from guppy import hpy
-import psutil
 
 import tensorflow_io # pylint: disable=unused-import
 import tensorflow.compat.v1 as tf
 from google.protobuf import text_format
 from tensorflow.compat.v1 import gfile
+
+import psutil
 
 from fedlearner.common import common_pb2 as common_pb
 from fedlearner.common import data_join_service_pb2 as dj_pb
