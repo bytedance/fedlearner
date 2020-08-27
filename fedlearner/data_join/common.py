@@ -29,6 +29,8 @@ import tensorflow.compat.v1 as tf
 from google.protobuf import text_format
 from tensorflow.compat.v1 import gfile
 
+import psutil
+
 from fedlearner.common import common_pb2 as common_pb
 from fedlearner.common import data_join_service_pb2 as dj_pb
 
@@ -236,33 +238,36 @@ def data_source_data_block_dir(data_source):
 def data_source_example_dumped_dir(data_source):
     return os.path.join(data_source.output_base_dir, 'example_dump')
 
-class _OomRsikChecker(object):
+class _MemUsageProxy(object):
     def __init__(self):
         self._lock = threading.Lock()
         self._mem_limit = int(os.environ.get('MEM_LIMIT', '17179869184'))
-        self._latest_updated_ts = 0
-        self._heap_memory_usage = None
-        self._try_update_memory_usage(True)
+        self._reserved_mem = int(self._mem_limit * 0.5)
+        if self._reserved_mem >= 2 << 30:
+            self._reserved_mem = 2 << 30
+        self._rss_mem_usage = 0
+        self._rss_updated_tm = 0
 
-    def _try_update_memory_usage(self, force):
-        if time.time() - self._latest_updated_ts >= 0.7 or force:
-            self._heap_memory_usage = hpy().heap().size
-            self._latest_updated_ts = time.time()
-
-    def check_oom_risk(self, heap_mem_usage, water_level_percent=0.9):
+    def check_heap_mem_water_level(self, heap_mem_usage, water_level_percent):
         with self._lock:
-            reserved_mem = int(self._mem_limit * 0.5)
-            if reserved_mem >= (3 << 30) // 2:
-                reserved_mem = (3 << 30) // 2
-            avail_mem = self._mem_limit - reserved_mem
+            avail_mem = self._mem_limit - self._reserved_mem
             return heap_mem_usage >= avail_mem * water_level_percent
 
-    def get_heap_mem_usage(self):
-        with self._lock:
-            self._try_update_memory_usage(True)
-            return self._heap_memory_usage
+    def check_rss_mem_water_level(self, water_level_percent):
+        avail_mem = self._mem_limit - self._reserved_mem
+        return self._update_rss_mem_usage() >= avail_mem * water_level_percent
 
-_oom_risk_checker = _OomRsikChecker()
+    def get_heap_mem_usage(self):
+        return hpy().heap().size
+
+    def _update_rss_mem_usage(self):
+        with self._lock:
+            if time.time() - self._rss_updated_tm >= 0.5:
+                self._rss_mem_usage = psutil.Process().memory_info().rss
+                self._rss_mem_usage = time.time()
+            return self._rss_mem_usage
+
+_mem_usage_proxy = _MemUsageProxy()
 
 class HeapMemStats(object):
     class StatsRecord(object):
@@ -282,22 +287,24 @@ class HeapMemStats(object):
         def update_stats(self):
             with self._lock:
                 if self.stats_expiration():
-                    self._heap_mem_usage = \
-                            _oom_risk_checker.get_heap_mem_usage()
+                    self._heap_mem_usage = _mem_usage_proxy.get_heap_mem_usage()
                     self._stats_ts = time.time()
 
         def get_heap_mem_usage(self):
             return self._heap_mem_usage + self._potential_mem_incr
 
-    def __init__(self, stats_granular, stats_expiration_time):
+    def __init__(self, stats_expiration_time):
         self._lock = threading.Lock()
-        self._stats_granular = stats_granular
+        self._stats_granular = 0
+        self._stats_start_key = None
         self._stats_expiration_time = stats_expiration_time
         self._stats_map = {}
 
     def CheckOomRisk(self, stats_key,
                      water_level_percent,
                      potential_mem_incr=0):
+        if not self._need_heap_stats(stats_key):
+            return False
         inner_key = self._gen_inner_stats_key(stats_key)
         sr = None
         with self._lock:
@@ -308,14 +315,26 @@ class HeapMemStats(object):
                                                  self._stats_expiration_time)
             sr = self._stats_map[inner_key]
             if not sr.stats_expiration():
-                return _oom_risk_checker.check_oom_risk(
+                return _mem_usage_proxy.check_heap_mem_water_level(
                         sr.get_heap_mem_usage(),
                         water_level_percent
                     )
         assert sr is not None
         sr.update_stats()
-        return _oom_risk_checker.check_oom_risk(sr.get_heap_mem_usage(),
-                                                water_level_percent)
+        return _mem_usage_proxy.check_heap_mem_water_level(
+                sr.get_heap_mem_usage(), water_level_percent
+            )
 
     def _gen_inner_stats_key(self, stats_key):
         return int(stats_key // self._stats_granular * self._stats_granular)
+
+    def _need_heap_stats(self, stats_key):
+        with self._lock:
+            if self._stats_granular <= 0 and \
+                    _mem_usage_proxy.check_rss_mem_water_level(0.5):
+                self._stats_granular = stats_key // 16
+                self._stats_start_key = stats_key // 2
+                if self._stats_granular <= 0:
+                    self._stats_granular = 1
+            return self._stats_granular > 0 and \
+                    stats_key >= self._stats_start_key
