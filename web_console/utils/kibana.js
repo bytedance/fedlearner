@@ -60,7 +60,7 @@ const config = getConfig({
 });
 
 function getBaseUrl(application_id, from, to) {
-  return `https://${config.KIBANA_HOST}:${config.KIBANA_PORT}/fedlearner/app/kibana#/visualize/edit/95e50f80-dd3a-11ea-a472-39251c5aaace?_g=(filters:!(),refreshInterval:(pause:!t,value:0),time:(from:'${from}',to:'${to}'))&_a=(filters:!(('$state':(store:appState),meta:(alias:!n,disabled:!f,index:'73340100-dd33-11ea-a472-39251c5aaace',key:tags.application_id,negate:!f,params:(query:${application_id}),type:phrase),query:(match_phrase:(tags.application_id:${application_id})))),linked:!f,`;
+  return `https://${config.KIBANA_HOST}:${config.KIBANA_PORT}/fedlearner/app/kibana#/visualize/edit/95e50f80-dd3a-11ea-a472-39251c5aaace?embed=true&_g=(filters:!(),refreshInterval:(pause:!t,value:0),time:(from:'${from}',to:'${to}'))&_a=(filters:!(('$state':(store:appState),meta:(alias:!n,disabled:!f,index:'73340100-dd33-11ea-a472-39251c5aaace',key:tags.application_id,negate:!f,params:(query:${application_id}),type:phrase),query:(match_phrase:(tags.application_id:${application_id})))),linked:!f,`;
 }
 
 /**
