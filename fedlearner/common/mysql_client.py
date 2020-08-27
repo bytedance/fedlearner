@@ -164,9 +164,9 @@ class RealMySQLClient(object):
             raise ValueError('create mysql engin failed; [{}]'.\
                 format(e))
 
-    @classmethod
+    @staticmethod
     @contextmanager
-    def closing(cls, engine):
+    def closing(engine):
         try:
             session = scoped_session(sessionmaker(bind=engine, autoflush=\
                 False))()
