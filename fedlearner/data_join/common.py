@@ -336,5 +336,7 @@ class HeapMemStats(object):
                 self._stats_start_key = stats_key // 2
                 if self._stats_granular <= 0:
                     self._stats_granular = 1
+                logging.warning('auto turing the heap stats granular as %d',
+                                self._stats_granular)
             return self._stats_granular > 0 and \
                     stats_key >= self._stats_start_key
