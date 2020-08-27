@@ -26,6 +26,8 @@ the web console of [Fedlearner][fedlearner].
   * use `server.config.js` to config environment variables
   * `K8S_HOST`: the hostname of Kubernetes api server
   * `K8S_PORT`: the port of Kubernetes api server
+  * use `.env.development` to maintain browser environment config for development
+  * use `.env.production` to maintain browser environment config for production
 - Contribution
   * use [Conventional Commits][conventionalcommits] for commit message
   * code coverage **must be** greater than `80%`
