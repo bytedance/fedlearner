@@ -255,7 +255,7 @@ class _MemUsageProxy(object):
 
     def check_rss_mem_water_level(self, water_level_percent):
         avail_mem = self._mem_limit - self._reserved_mem
-        return avail_mem >= self._update_rss_mem_usage() * water_level_percent
+        return self._update_rss_mem_usage() >= avail_mem * water_level_percent
 
     def get_heap_mem_usage(self):
         return hpy().heap().size
