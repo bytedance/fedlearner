@@ -15,9 +15,11 @@
 # coding: utf-8
 """MySQL client."""
 
+import logging
 from contextlib import contextmanager
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, scoped_session
+from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.ext.automap import automap_base
 from fedlearner.common.mock_mysql import MockMySQLClient
 
@@ -43,78 +45,118 @@ class RealMySQLClient(object):
         self._create_engine_inner()
 
     def get_data(self, key):
-        table = self._base.classes.KV
-        with self.closing(self._engine) as clnt:
-            value = clnt.query(table).filter(table.key ==
-                self._generate_key(key)).one().value
-            if isinstance(value, str):
-                return value.encode()
-            return value
+        with self.closing(self._engine) as sess:
+            try:
+                table = self._base.classes.KV
+                value = sess.query(table).filter(table.key ==
+                    self._generate_key(key)).one().value
+                if isinstance(value, str):
+                    return value.encode()
+                return value
+            except NoResultFound:
+                logging.warning('data is not exists')
+                return None
+            except Exception:
+                logging.error('failed to get data')
+                sess.rollback()
+                return None
 
     def set_data(self, key, data):
         if isinstance(data, str):
             data.encode()
-        with self.closing(self._engine) as clnt:
-            context = self._base.classes.KV()
-            context.key = self._generate_key(key)
-            context.value = data
-            clnt.add(context)
-            clnt.commit()
+        with self.closing(self._engine) as sess:
+            try:
+                context = self._base.classes.KV()
+                context.key = self._generate_key(key)
+                context.value = data
+                sess.add(context)
+                sess.commit()
+                return True
+            except Exception:
+                logging.error('failed to set data')
+                sess.rollback()
+                return False
+
 
     def delete(self, key):
-        with self.closing(self._engine) as clnt:
-            table = self._base.classes.KV
-            for context in clnt.query(table).filter(table.key ==
-                self._generate_key(key)):
-                clnt.delete(context)
-                clnt.commit()
+        with self.closing(self._engine) as sess:
+            try:
+                table = self._base.classes.KV
+                for context in sess.query(table).filter(table.key ==
+                    self._generate_key(key)):
+                    sess.delete(context)
+                sess.commit()
+                return True
+            except Exception:
+                logging.error('failed to delete')
+                sess.rollback()
+                return False
 
     def delete_prefix(self, key):
-        with self.closing(self._engine) as clnt:
-            table = self._base.classes.KV
-            for context in clnt.query(table).filter(table.key.\
-                like(self._generate_key(key) + '%')):
-                clnt.delete(context)
-            clnt.commit()
+        with self.closing(self._engine) as sess:
+            try:
+                table = self._base.classes.KV
+                for context in sess.query(table).filter(table.key.\
+                    like(self._generate_key(key) + '%')):
+                    sess.delete(context)
+                sess.commit()
+                return True
+            except Exception:
+                logging.error('failed to delete prefix')
+                sess.rollback()
+                return False
 
     def cas(self, key, old_data, new_data):
         if isinstance(old_data, str):
             old_data = old_data.encode()
         if isinstance(new_data, str):
             new_data = new_data.encode()
-        with self.closing(self._engine) as clnt:
-            table = self._base.classes.KV
-            flag = True
-            if old_data is None:
-                context = self._base.classes.KV()
-                context.key = self._generate_key(key)
-                context.value = new_data
-                clnt.add(context)
-                clnt.commit()
-            else:
-                context = clnt.query(table).filter(table.key ==\
-                    self._generate_key(key)).one()
-                if context.value != old_data:
-                    flag = False
-                context.value = new_data
-                clnt.commit()
-            return flag
+        with self.closing(self._engine) as sess:
+            try:
+                table = self._base.classes.KV
+                flag = True
+                if old_data is None:
+                    context = self._base.classes.KV()
+                    context.key = self._generate_key(key)
+                    context.value = new_data
+                    sess.add(context)
+                    sess.commit()
+                else:
+                    context = sess.query(table).filter(table.key ==\
+                        self._generate_key(key)).one()
+                    if context.value != old_data:
+                        flag = False
+                        logging.warning('old data and new data \
+                            are not the same')
+                        return flag
+                    context.value = new_data
+                    sess.commit()
+                return flag
+            except Exception:
+                logging.error('failed to cas')
+                sess.rollback()
+                return False
 
     def get_prefix_kvs(self, prefix, ignor_prefix=False):
         kvs = []
         path = self._generate_key(prefix)
-        with self.closing(self._engine) as clnt:
-            table = self._base.classes.KV
-            for context in clnt.query(table).filter(table.key.\
-                like(path + '%')).order_by(table.key):
-                if ignor_prefix and context.key == path:
-                    continue
-                nkey = self._normalize_output_key(context.key, self._base_dir)
-                value = context.value
-                if isinstance(value, str):
-                    value = value.encode()
-                kvs.append((nkey, value))
-        return kvs
+        with self.closing(self._engine) as sess:
+            try:
+                table = self._base.classes.KV
+                for context in sess.query(table).filter(table.key.\
+                    like(path + '%')).order_by(table.key):
+                    if ignor_prefix and context.key == path:
+                        continue
+                    nkey = self._normalize_output_key(context.key, self._base_dir)
+                    value = context.value
+                    if isinstance(value, str):
+                        value = value.encode()
+                    kvs.append((nkey, value))
+                return kvs
+            except Exception:
+                logging.error('failed to get prefix kvs')
+                sess.rollback()
+                return None
 
     def _generate_key(self, key):
         nkey = '/'.join([self._base_dir, self._normalize_input_key(key)])
