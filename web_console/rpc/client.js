@@ -44,7 +44,7 @@ class FederationClient {
       },
     );
     this._request = (method, params) => new Promise((resolve, reject) => {
-      this._client[method](params, this.metadata, (err, data) => {
+      this._client[method](params, this.metadata, { deadline: Date.now() + 3000 }, (err, data) => {
         if (err) reject(err);
         resolve(data);
       });
