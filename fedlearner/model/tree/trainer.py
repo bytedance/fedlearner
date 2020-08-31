@@ -450,7 +450,6 @@ class DataBlockLoader(object):
             return self._request_data_block()
 
         if self._tm_role == 'leader':
-            import pdb;pdb.set_trace()
             while True:
                 block = self._request_data_block()
                 if block is not None:
