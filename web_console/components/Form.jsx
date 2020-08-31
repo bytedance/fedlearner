@@ -341,9 +341,9 @@ export default function Form({
      * - fileds must be object with key as form type, value as fields of group
      * - set `onFormTypeChange` to convert data between types
      *    - (data, currType, targetType) => object
-     *    - data is an object with form data (json fields as string)
-     *    - the returned object will be used to fill form (json needs to be string)
+     *    - data is an object with TOTAL form data (json fields as string)
      *    - if `error` field in the returned object, switching will be prevented and show error msg
+     *    - updated fields need to be returned if no error
      */
     const onFormTypeChange = (e, type) => {
 
