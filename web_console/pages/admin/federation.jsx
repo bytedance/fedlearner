@@ -13,6 +13,7 @@ import produce from 'immer'
 
 import { K8S_SETTINGS } from '../../constants/form-default'
 import { fillJSON, getValueFromJson, getParsedValueFromData } from '../../utils/form_utils'
+import { loadAll } from 'js-yaml';
 
 function useFederationItemStyles() {
   return css`
@@ -308,8 +309,14 @@ export default function FederationList() {
     setFormVisible(true);
   };
 
-  const checkValue = (field, value) => {
+  /**
+   * k8s setting validator
+   * @param {*} field form field
+   * @param {*} value field value. NOTE json is as as string
+   */
+  const checkK8sSetting = (field, value) => {
     if (field.key === 'env' && value) {
+      value = JSON.parse(value)
       for (let {name, value} of value) {
         if (name === '' || value === '') {
           return 'Please fill env'
@@ -326,6 +333,13 @@ export default function FederationList() {
   }
 
   const handleSubmit = (value, groupFormType) => {
+    for (let field of K8S_SETTINGS_FIELDS) {
+      let error = checkK8sSetting(field, value.k8s_settings[field.key])
+      if (error) {
+        return {error}
+      }
+    }
+
     if (groupFormType === 'json') {
       writeJson2FormMeta(value)
     } else {

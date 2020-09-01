@@ -330,6 +330,13 @@ export default function RawDataList() {
     toggleForm();
   };
 
+  const onSubmit = (value, formType) => {
+    let writer = formType === 'json' ? writeJson2FormMeta : writeForm2FormMeta
+    writer(value)
+
+    createRawData(formMeta)
+  }
+
   return (
     <Layout>
       {formVisible
@@ -337,7 +344,7 @@ export default function RawDataList() {
           <Form
             title="Create Raw Data"
             fields={fields}
-            onSubmit={(value) => createRawData(value)}
+            onSubmit={onSubmit}
             onOk={onOk}
             onCancel={toggleForm}
           />
