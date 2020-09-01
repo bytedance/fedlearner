@@ -286,7 +286,7 @@ export default function Form({
         <div className="formItemWithLabel">
           <label className="formItemLabel" htmlFor={key}>{label || key}</label>
           <div className="formItemValue">
-            <Select onChange={value => updateForm(key, value)}>
+            <Select initialValue={form[key]} onChange={value => updateForm(key, value)}>
               {props?.options && props.options.map(opt =>
                 <Select.Option key={opt.label} value={opt.value}>{opt.label}</Select.Option>
               )}

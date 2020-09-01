@@ -13,25 +13,27 @@ export const fillJSON = (container, path, value) => {
     if (containerIsArray) {
       container[0]
         ? container[0][path[0]]= value
-        : container[0] = { [path[0]]: value }
+        : (container[0] = { [path[0]]: value })
     } else {
       container[path[0]] = value
     }
     return
   }
-  let currPath
-  if (container[path[0]] === undefined) {
-    if (path[0].endsWith('[]')) {
-      currPath = path[0].replace('[]', '')
-      container[currPath] = []
-    } else {
-      container[path[0]] = {}
-      currPath = path[0]
-    }
-  } else {
-    currPath = path[0]
+
+  let currLayer = container
+  let currLayerIsArray = path[0].endsWith('[]')
+  let currPath = currLayerIsArray ? path[0].replace('[]', '') : path[0]
+
+  if (containerIsArray) {
+    !container[0] && (container[0] = {})
+    currLayer = container[0]
   }
-  fillJSON(container[currPath], path.slice(1), value)
+
+  if (currLayer[currPath] === undefined) {
+    currLayer[currPath] = currLayer[currPath] || (currLayerIsArray ? [] : {})
+  }
+
+  fillJSON(currLayer[currPath], path.slice(1), value)
 }
 
 /**
@@ -57,7 +59,7 @@ export const getValueFromJson = (data, path) => {
 export function getParsedValueFromData (data, field) {
   let value = (data && data[field.key]) || (field.emptyDefault || '')
   if (['json', 'name-value'].some(el => el === field.type)) {
-    value = JSON.parse(value)
+    value = JSON.parse(value || '{}')
   }
   return value
 }
