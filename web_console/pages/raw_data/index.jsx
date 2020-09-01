@@ -12,12 +12,15 @@ import { createRawData } from '../../services/raw_data';
 import { fillJSON, getValueFromJson, getParsedValueFromData } from '../../utils/form_utils'
 import { RAW_DATA_CONTEXT } from '../../constants/form-default'
 
+const RESOURCE_PATH_PREFIX = 'yaml_spec.spec.flReplicaSpecs.[replicaType].template.spec.containers[].resources'
+const IMAGE_PATH = 'yaml_spec.spec.flReplicaSpecs.[replicaType].template.spec.containers[].image'
+const WORKER_REPLICAS_PATH = 'yaml_spec.spec.flReplicaSpecs.Worker.replicas'
+
 const DATA_FORMAT_OPTIONS = [
   { label: 'TF_RECORD', value: 'TF_RECORD' },
   { label: 'CSV_DICT', value: 'CSV_DICT' },
 ]
-const RESOURCE_PATH_PREFIX = 'yaml_spec.spec.flReplicaSpecs.[replicaType].template.spec.containers[].resources'
-const WORKER_REPLICAS_PATH = 'yaml_spec.spec.flReplicaSpecs.Worker.replicas'
+
 const CONTEXT_FIELDS = [
   { key: 'file_wildcard', default: '*', default: RAW_DATA_CONTEXT.file_wildcard },
   {
@@ -131,6 +134,7 @@ function handleContextData(container, data, field) {
     const [, replicaType,] = field.key.split('.')
     path = field.path.replace('[replicaType]', replicaType)
   }
+
   if (field.key === 'compressed_type') {
     value = data === 'None' ? '' : data
   }
@@ -183,6 +187,15 @@ export default function RawDataList() {
   ];
 
   // form meta convert functions
+  const rewriteFields = (draft, data) => {
+    // image
+    ['Master', 'Worker'].forEach(replicaType => {
+      fillJSON(draft.context, IMAGE_PATH.replace('[replicaType]', replicaType), data['image'])
+    })
+    // output_partition_num
+    data['output_partition_num'] &&
+      fillJSON(draft.context, WORKER_REPLICAS_PATH, data['output_partition_num'])
+  }
   const mapFormMeta2Json = () => {
     let data = {}
     fields.map((x) => {
@@ -210,9 +223,7 @@ export default function RawDataList() {
       fields.map((x) => {
         if (x.groupName === 'context') {
           draft.context = JSON.parse(data.context.context_data)
-          // rewrite output_partition_num
-          data['output_partition_num'] &&
-            fillJSON(draft.context, WORKER_REPLICAS_PATH, data['output_partition_num'])
+          rewriteFields(draft, data)
         } else {
           draft[x.key] = getParsedValueFromData(data, x) || draft[x.key]
         }
@@ -229,9 +240,7 @@ export default function RawDataList() {
             handleContextData(draft.context, data.context[field.key], field)
           }
 
-          // rewrite output_partition_num
-          data['output_partition_num'] &&
-            fillJSON(draft.context, WORKER_REPLICAS_PATH, data['output_partition_num'])
+          rewriteFields(draft, data)
         } else {
           draft[x.key] = getParsedValueFromData(data, x) || draft[x.key]
         }
