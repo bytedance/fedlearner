@@ -343,7 +343,7 @@ export default function RawDataList() {
     let writer = formType === 'json' ? writeJson2FormMeta : writeForm2FormMeta
     writer(value)
 
-    createRawData(formMeta)
+    return createRawData(formMeta)
   }
 
   return (
