@@ -17,7 +17,6 @@
 import argparse
 import logging
 import os
-from collections import OrderedDict
 from cityhash import CityHash32 # pylint: disable=no-name-in-module
 
 import tensorflow_io # pylint: disable=unused-import
@@ -39,16 +38,15 @@ def generate_input_csv(base_dir, start_id, end_id, partition_num):
     csv_writers = [SortRunMergerWriter(base_dir, 0,
                                        partition_id, writer_options)
                    for partition_id in range(partition_num)]
+    field_keys = ['raw_id', 'feat_0', 'feat_1', 'feat_2']
     for idx in range(start_id, end_id):
         if idx % 262144 == 0:
             logging.info("Process at index %d", idx)
         partition_id = CityHash32(str(idx)) % partition_num
-        raw = OrderedDict()
-        raw['raw_id'] = str(idx)
-        raw['feat_0'] = str((partition_id << 30) + 0) + str(idx)
-        raw['feat_1'] = str((partition_id << 30) + 1) + str(idx)
-        raw['feat_2'] = str((partition_id << 30) + 2) + str(idx)
-        csv_writers[partition_id].append(CsvItem(raw))
+        field_vals = [str(idx), str((partition_id << 30) + 0) + str(idx),
+                      str((partition_id << 30) + 1) + str(idx),
+                      str((partition_id << 30) + 2) + str(idx)]
+        csv_writers[partition_id].append(CsvItem(field_keys, field_vals))
     for partition_id, csv_writer in enumerate(csv_writers):
         fpaths = csv_writer.finish()
         logging.info("partition %d dump %d files", partition_id, len(fpaths))
