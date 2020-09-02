@@ -193,7 +193,9 @@ def convert_tf_example_to_csv_record(src_tf_example):
     assert isinstance(src_tf_example, tf.train.Example)
     field_keys, field_vals = [], []
     tf_feature = src_tf_example.features.feature
-    for key, feat in tf_feature.items():
+    sorted_keys = sorted(tf_feature.keys())
+    for key in sorted_keys:
+        feat = tf_feature[key]
         csv_val = None
         if feat.HasField('int64_list'):
             csv_val = [item for item in feat.int64_list.value] # pylint: disable=unnecessary-comprehension
@@ -204,8 +206,15 @@ def convert_tf_example_to_csv_record(src_tf_example):
         else:
             assert False, "feat type must in int64, byte, float"
         assert isinstance(csv_val, list)
-        field_keys.append(key)
-        field_vals.append(csv_val[0] if len(csv_val) == 1 else csv_val)
+        insert_idx = len(field_keys)
+        if key == 'example_id':
+            insert_idx = 0
+        elif key == 'raw_id':
+            insert_idx = 1 if (len(field_keys) > 0 and \
+                               field_keys[0] == 'example_id') else 0
+        rval = csv_val[0] if len(csv_val) == 1 else csv_val
+        field_keys.insert(insert_idx, key)
+        field_vals.insert(insert_idx, rval)
     return field_keys, field_vals
 
 def int2bytes(digit, byte_len, byteorder='little'):
