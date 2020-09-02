@@ -20,8 +20,8 @@ import concurrent.futures as concur_futures
 import os
 import gc
 import time
-import rsa
 import traceback
+import rsa
 
 from fedlearner.common import data_join_service_pb2 as dj_pb
 from fedlearner.common import common_pb2 as common_pb
