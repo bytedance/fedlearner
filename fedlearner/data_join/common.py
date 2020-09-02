@@ -20,7 +20,6 @@ import uuid
 import threading
 import time
 from contextlib import contextmanager
-from collections import OrderedDict
 
 from guppy import hpy
 
@@ -143,10 +142,12 @@ def raw_data_pub_etcd_key(pub_base_dir, partition_id, process_index):
                         '{:08}{}'.format(process_index, RawDataPubSuffix))
 
 _valid_basic_feature_type = (int, str, float)
-def convert_dict_to_tf_example(src_dict):
-    assert isinstance(src_dict, dict)
+def convert_csv_record_to_tf_example(field_keys, field_vals):
+    assert isinstance(field_keys, list) and \
+            isinstance(field_vals, list) and \
+            len(field_keys) == len(field_vals)
     tf_feature = {}
-    for key, feature in src_dict.items():
+    for key, feature in zip(field_keys, field_vals):
         if not isinstance(key, str):
             raise RuntimeError('the key {}({}) of dict must a '\
                                'string'.format(key, type(key)))
@@ -188,11 +189,13 @@ def convert_dict_to_tf_example(src_dict):
                 float_list=tf.train.FloatList(value=value))
     return tf.train.Example(features=tf.train.Features(feature=tf_feature))
 
-def convert_tf_example_to_dict(src_tf_example):
+def convert_tf_example_to_csv_record(src_tf_example):
     assert isinstance(src_tf_example, tf.train.Example)
-    dst_dict = OrderedDict()
+    field_keys, field_vals = [], []
     tf_feature = src_tf_example.features.feature
-    for key, feat in tf_feature.items():
+    sorted_keys = sorted(tf_feature.keys())
+    for key in sorted_keys:
+        feat = tf_feature[key]
         csv_val = None
         if feat.HasField('int64_list'):
             csv_val = [item for item in feat.int64_list.value] # pylint: disable=unnecessary-comprehension
@@ -203,8 +206,16 @@ def convert_tf_example_to_dict(src_tf_example):
         else:
             assert False, "feat type must in int64, byte, float"
         assert isinstance(csv_val, list)
-        dst_dict[key] = csv_val[0] if len(csv_val) == 1 else csv_val
-    return dst_dict
+        insert_idx = len(field_keys)
+        if key == 'example_id':
+            insert_idx = 0
+        elif key == 'raw_id':
+            insert_idx = 1 if (len(field_keys) > 0 and \
+                               field_keys[0] == 'example_id') else 0
+        rval = csv_val[0] if len(csv_val) == 1 else csv_val
+        field_keys.insert(insert_idx, key)
+        field_vals.insert(insert_idx, rval)
+    return field_keys, field_vals
 
 def int2bytes(digit, byte_len, byteorder='little'):
     return int(digit).to_bytes(byte_len, byteorder)
@@ -238,7 +249,18 @@ def data_source_data_block_dir(data_source):
 def data_source_example_dumped_dir(data_source):
     return os.path.join(data_source.output_base_dir, 'example_dump')
 
-class _MemUsageProxy(object):
+
+class Singleton(type):
+    _instances = {}
+    _lck = threading.Lock()
+    def __call__(cls, *args, **kwargs):
+        with cls._lck:
+            if cls not in cls._instances:
+                cls._instances[cls] = super(Singleton, cls).__call__(*args,
+                                                                     **kwargs)
+            return cls._instances[cls]
+
+class _MemUsageProxy(object, metaclass=Singleton):
     def __init__(self):
         self._lock = threading.Lock()
         self._mem_limit = int(os.environ.get('MEM_LIMIT', '17179869184'))
@@ -262,14 +284,15 @@ class _MemUsageProxy(object):
 
     def _update_rss_mem_usage(self):
         with self._lock:
-            if time.time() - self._rss_updated_tm >= 0.5:
+            if time.time() - self._rss_updated_tm >= 0.25:
                 self._rss_mem_usage = psutil.Process().memory_info().rss
                 self._rss_updated_tm = time.time()
             return self._rss_mem_usage
 
-_mem_usage_proxy = _MemUsageProxy()
+def _get_mem_usage_proxy():
+    return _MemUsageProxy()
 
-class HeapMemStats(object):
+class _HeapMemStats(object, metaclass=Singleton):
     class StatsRecord(object):
         def __init__(self, potential_mem_incr, stats_expiration_time):
             self._lock = threading.Lock()
@@ -287,7 +310,8 @@ class HeapMemStats(object):
         def update_stats(self):
             with self._lock:
                 if self.stats_expiration():
-                    self._heap_mem_usage = _mem_usage_proxy.get_heap_mem_usage()
+                    self._heap_mem_usage = \
+                        _get_mem_usage_proxy().get_heap_mem_usage()
                     self._stats_ts = time.time()
 
         def get_heap_mem_usage(self):
@@ -311,17 +335,17 @@ class HeapMemStats(object):
             if inner_key not in self._stats_map:
                 inner_key = self._gen_inner_stats_key(stats_key)
                 self._stats_map[inner_key] = \
-                        HeapMemStats.StatsRecord(potential_mem_incr,
-                                                 self._stats_expiration_time)
+                        _HeapMemStats.StatsRecord(potential_mem_incr,
+                                                  self._stats_expiration_time)
             sr = self._stats_map[inner_key]
             if not sr.stats_expiration():
-                return _mem_usage_proxy.check_heap_mem_water_level(
+                return _get_mem_usage_proxy().check_heap_mem_water_level(
                         sr.get_heap_mem_usage(),
                         water_level_percent
                     )
         assert sr is not None
         sr.update_stats()
-        return _mem_usage_proxy.check_heap_mem_water_level(
+        return _get_mem_usage_proxy().check_heap_mem_water_level(
                 sr.get_heap_mem_usage(), water_level_percent
             )
 
@@ -331,7 +355,7 @@ class HeapMemStats(object):
     def _need_heap_stats(self, stats_key):
         with self._lock:
             if self._stats_granular <= 0 and \
-                    _mem_usage_proxy.check_rss_mem_water_level(0.5):
+                    _get_mem_usage_proxy().check_rss_mem_water_level(0.5):
                 self._stats_granular = stats_key // 16
                 self._stats_start_key = stats_key // 2
                 if self._stats_granular <= 0:
@@ -340,3 +364,6 @@ class HeapMemStats(object):
                                 self._stats_granular)
             return self._stats_granular > 0 and \
                     stats_key >= self._stats_start_key
+
+def get_heap_mem_stats(stats_expiration_time):
+    return _HeapMemStats(stats_expiration_time)
