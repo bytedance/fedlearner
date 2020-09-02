@@ -64,7 +64,7 @@ class CsvItem(RawDataIter.Item):
     def raw_id(self):
         if self._raw_id_index is not None:
             assert self._raw_id_index < len(self._field_vals)
-            return str(self._raw['raw_id']).encode()
+            return str(self._field_vals[self._raw_id_index]).encode()
         logging.error("Failed parse raw id since no raw "\
                       "id from filed key: %s, field val: %s",
                       self._field_keys, self._field_vals)
