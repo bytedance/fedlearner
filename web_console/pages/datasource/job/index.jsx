@@ -15,7 +15,6 @@ import Empty from '../../../components/Empty';
 import { deleteJob, createJob } from '../../../services/job';
 import Form from '../../../components/Form';
 import { DATASOURCE_REPLICA_TYPE, DATASOURCE_PUBLIC_PARAMS } from '../../../constants/form-default'
-import { loadAll } from 'js-yaml';
 
 function useStyles(theme) {
   return css`
@@ -79,6 +78,9 @@ function useStyles(theme) {
   `;
 }
 
+let formMeta = {}
+const setFormMeta = value => { formMeta = value }
+
 export default function JobList(props) {
   const theme = useTheme();
   const styles = useStyles(theme);
@@ -87,6 +89,9 @@ export default function JobList(props) {
   const jobs = data ? data.data.filter(x => x.metadata) : null
 
   let federationId = null, jobType = null
+
+  // form meta convert function
+  // ---end---
   const DEFAULT_FIELDS = useMemo(() => [
     {
       key: 'name',

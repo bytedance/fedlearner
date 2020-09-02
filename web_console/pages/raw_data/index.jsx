@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Table, Button, Card, Text, Link } from '@zeit-ui/react';
 import NextLink from 'next/link';
 import useSWR from 'swr';
@@ -267,7 +267,7 @@ export default function RawDataList() {
     return { newFields }
   }
 
-  const DEFAULT_FIELDS = [
+  const DEFAULT_FIELDS = useMemo(() => [
     { key: 'name', required: true },
     { key: 'federation_id', type: 'federation', label: 'federation', required: true },
     { key: 'output_partition_num', required: true, default: 4 },
@@ -296,7 +296,7 @@ export default function RawDataList() {
         ]
       }
     },
-  ];
+  ], []);
   const [fields, setFields] = useState(DEFAULT_FIELDS)
 
   // eslint-disable-next-line arrow-body-style
