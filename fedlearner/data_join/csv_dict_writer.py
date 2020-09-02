@@ -18,6 +18,7 @@ import csv
 import io
 import os
 import logging
+import traceback
 
 import tensorflow_io # pylint: disable=unused-import
 from tensorflow.compat.v1 import gfile
@@ -46,6 +47,7 @@ class CsvDictWriter(object):
             if self._csv_headers != field_keys:
                 logging.fatal("the schema of csv item is %s, mismatch with "\
                               "previous %s", self._csv_headers, field_keys)
+                traceback.print_stack()
                 os._exit(-1) # pylint: disable=protected-access
         self._csv_writer.writerow(field_vals)
         self._write_raw_num += 1

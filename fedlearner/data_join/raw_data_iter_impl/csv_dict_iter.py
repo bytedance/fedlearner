@@ -18,6 +18,7 @@ import logging
 import csv
 import os
 import io
+import traceback
 
 import tensorflow.compat.v1 as tf
 import tensorflow_io # pylint: disable=unused-import
@@ -146,6 +147,7 @@ class CsvDictIter(RawDataIter):
                             logging.fatal("the schema of %s is %s, mismatch "\
                                           "with previous %s",
                                           fpath, self._headers, csv_headers)
+                            traceback.print_stack()
                             os._exit(-1) # pylint: disable=protected-access
                 aware_headers = False
                 for fields in csv_reader:
@@ -162,6 +164,7 @@ class CsvDictIter(RawDataIter):
         elif idx == -1 and len(read_buffer) > 0:
             logging.fatal("not meet line break in size %d",
                           self._options.read_ahead_size)
+            traceback.print_stack()
             os._exit(-1) # pylint: disable=protected-access
         str_buffer = read_buffer[0:idx+1] if len(rest_buffer) == 0 \
                         else rest_buffer+read_buffer[0:idx+1]

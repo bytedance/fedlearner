@@ -21,6 +21,7 @@ import os
 import gc
 import time
 import rsa
+import traceback
 
 from fedlearner.common import data_join_service_pb2 as dj_pb
 from fedlearner.common import common_pb2 as common_pb
@@ -162,6 +163,7 @@ class RsaPsiPreProcessor(object):
             time.sleep(10)
         logging.warning("Give up to say bye to signer after try 60"\
                         "times, rsa_psi_preprocessor will exit as -1")
+        traceback.print_stack()
         os._exit(-1) # pylint: disable=protected-access
 
     def _id_batch_fetcher_name(self):
