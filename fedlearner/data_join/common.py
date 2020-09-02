@@ -326,8 +326,8 @@ class _HeapMemStats(object, metaclass=Singleton):
             if inner_key not in self._stats_map:
                 inner_key = self._gen_inner_stats_key(stats_key)
                 self._stats_map[inner_key] = \
-                        HeapMemStats.StatsRecord(potential_mem_incr,
-                                                 self._stats_expiration_time)
+                        _HeapMemStats.StatsRecord(potential_mem_incr,
+                                                  self._stats_expiration_time)
             sr = self._stats_map[inner_key]
             if not sr.stats_expiration():
                 return _get_mem_usage_proxy().check_heap_mem_water_level(
