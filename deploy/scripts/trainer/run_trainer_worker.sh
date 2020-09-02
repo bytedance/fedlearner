@@ -60,10 +60,10 @@ summary_save_steps=$(normalize_env_to_args "--summary-save-steps" "$SUMMARY_SAVE
 batch_size=$(normalize_env_to_args "--batch-size" "$BATCH_SIZE")
 learning_rate=$(normalize_env_to_args "--learning-rate" "$LEARNING_RATE")
 
-if (( $WORKER_RANK == 0 )); then
-    summary_path = "$OUTPUT_BASE_DIR/tensorboard"
+if [[ $WORKER_RANK == 0 ]]; then
+    summary_path="$OUTPUT_BASE_DIR/tensorboard"
 else
-    summary_path = ""
+    summary_path=""
 fi
 
 
