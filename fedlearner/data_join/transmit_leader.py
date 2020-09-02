@@ -86,7 +86,7 @@ class TransmitLeader(object):
         self._partition_exhausted = False
         self._impl_ctx = None
         self._started = False
-        self._heap_mem_stats = common.HeapMemStats(32768, None)
+        self._heap_mem_stats = common.HeapMemStats(None)
         self._worker_map = {}
 
     def start_routine_workers(self):
@@ -189,7 +189,7 @@ class TransmitLeader(object):
                     continue
                 self._wakeup_data_consumer()
                 fly_item_cnt = impl_ctx.get_flying_item_cnt()
-                if self._heap_mem_stats.CheckOomRisk(fly_item_cnt, 0.60):
+                if self._heap_mem_stats.CheckOomRisk(fly_item_cnt, 0.50):
                     logging.warning("%s early stop produce item since "\
                                     "oom risk", self._repr_str)
                     break

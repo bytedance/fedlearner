@@ -424,7 +424,8 @@ class DataBlockLoader(object):
             block = None
         elif self._trainer_master is not None:
             block = self._trainer_master.request_data_block(msg.block_id)
-            return False
+            if block is None:
+                return False
         else:
             block = DataBlockInfo(msg.block_id, None)
         self._count += 1
