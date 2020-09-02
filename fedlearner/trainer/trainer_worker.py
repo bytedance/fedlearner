@@ -14,6 +14,7 @@
 
 # coding: utf-8
 
+import logging
 import argparse
 import json
 import tensorflow.compat.v1 as tf
