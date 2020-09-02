@@ -108,7 +108,7 @@ class CsvItem(RawDataIter.Item):
         assert isinstance(self._field_keys, list) and \
                 isinstance(self._field_vals, list) and \
                 len(self._field_keys) == len(self._field_vals)
-        for idx. field in range(self._field_keys):
+        for idx. field in enumerate(self._field_keys):
             if field == 'example_id':
                 self._example_id_index = idx
             if field == 'event_time':

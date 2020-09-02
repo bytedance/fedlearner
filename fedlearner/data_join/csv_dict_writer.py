@@ -16,6 +16,8 @@
 
 import csv
 import io
+import os
+import logging
 
 import tensorflow_io # pylint: disable=unused-import
 from tensorflow.compat.v1 import gfile
