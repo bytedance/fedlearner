@@ -96,7 +96,7 @@ class RsaPsiPreProcessor(object):
                 ),
                 self._merger_comparator
             )
-        self._heap_mem_stats = HeapMemStats(65536*2, None)
+        self._heap_mem_stats = HeapMemStats(None)
         self._produce_item_cnt = 0
         self._comsume_item_cnt = 0
         self._started = False

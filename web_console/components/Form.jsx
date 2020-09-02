@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useReducer, useMemo } from 'react';
 import css from 'styled-jsx/css';
-import { Button, ButtonGroup, Card, Grid, Text, Input, Toggle, Textarea, Note, useTheme, Collapse, useToasts, Divider } from '@zeit-ui/react';
+import { Button, ButtonGroup, Card, Grid, Text, Input, Toggle, Textarea, Note, useTheme, Collapse, useToasts, Select } from '@zeit-ui/react';
 import FederationSelect from './FederationSelect';
 import JobTypeSelect from './JobTypeSelect';
 import JobRoleSelect from './JobRoleSelect';
@@ -43,29 +43,59 @@ export default function Form({
   const rawFields = fields
   // TODO: handle name confilicts
 
-  // flat all group fileds
-  fields = fields.reduce((total, curr) => {
-    if (curr.type === 'label') { return total }
-    if (curr.groupName) {
-      if (Array.isArray(curr.fields)) {
-        total.push(...curr.fields)
-      } else {
-        Object.values(curr.fields).forEach(el => total.push(...el))
-      }
-    } else {
-      total.push(curr)
-    }
-    return total
-  }, [])
+  const groupFormType = useMemo(() => ({}), [])
   const theme = useTheme();
   const styles = useStyles(theme);
-  const [form, setForm] = useState(fields.reduce((total, current) => {
-    total[current.key] = current.hasOwnProperty('value')
-      ? current.value
-      : current.value || current.default;
-    return total;
-  }, {}));
-  // console.log(fields[8], form['num partitions'])
+
+  const mapFields2Form = fields => {
+    // flat all group fileds
+    fields = fields.reduce((total, curr) => {
+      if (curr.groupName) {
+        if (Array.isArray(curr.fields)) {
+          total.push(...curr.fields)
+        } else {
+          Object.values(curr.fields).forEach(el => total.push(...el))
+        }
+      } else {
+        total.push(curr)
+      }
+      return total
+    }, [])
+    const formData = fields.reduce((total, current) => {
+      total[current.key] = current.hasOwnProperty('value')
+        ? current.value
+        : current.value || current.default;
+      return total;
+    }, {})
+    return [fields, formData]
+  }
+  let formData
+  [fields, formData] = mapFields2Form(fields)
+  const [form, setForm] = useState(formData);
+
+  const getFormatFormData = () =>
+    rawFields.reduce((total, curr) => {
+      if (curr.groupName) {
+        total[curr.groupName] = {}
+        const fillGroupFields = fields => {
+          for (let field of fields) {
+            total[curr.groupName][field.key] = form[field.key]
+          }
+        }
+        // handle multi formType
+        if (Array.isArray(curr.fields)) {
+          fillGroupFields(curr.fields)
+        } else {
+          for (let formType in curr.fields) {
+            fillGroupFields(curr.fields[formType])
+          }
+        }
+      } else {
+          total[curr.key] = form[curr.key]
+      }
+      return total
+    }, {})
+
   const disabled = fields.filter((x) => x.required).some((x) => !form[x.key]);
   const updateForm = (key, value) => {
     const data = {
@@ -281,8 +311,19 @@ export default function Form({
       )
     }
 
-    if (type === 'divider') {
-      return <Divider/>
+    if (type === 'select') {
+      return (
+        <div className="formItemWithLabel">
+          <label className="formItemLabel" htmlFor={key}>{label || key}</label>
+          <div className="formItemValue">
+            <Select initialValue={form[key]} onChange={value => updateForm(key, value)}>
+              {props?.options && props.options.map(opt =>
+                <Select.Option key={opt.label} value={opt.value}>{opt.label}</Select.Option>
+              )}
+            </Select>
+          </div>
+        </div>
+      )
     }
 
     return (
@@ -297,29 +338,9 @@ export default function Form({
   const [submitting, setSubmitting] = useState(false);
   const handleSubmit = async () => {
     setSubmitting(true);
-    const formData = rawFields.reduce((total, curr) => {
-      if (curr.groupName) {
-        total[curr.groupName] = {}
-        const fillGroupFields = fields => {
-          for (let field of fields) {
-            total[curr.groupName][field.key] = form[field.key]
-          }
-        }
-        // handle multi formType
-        if (Array.isArray(curr.fields)) {
-          fillGroupFields(curr.fields)
-        } else {
-          for (let formType in curr.fields) {
-            fillGroupFields(curr.fields[formType])
-          }
-        }
-      } else {
-          total[curr.key] = form[curr.key]
-      }
-      return total
-    }, {})
+    const formData = getFormatFormData()
     try {
-      const res = await onSubmit(formData);
+      const res = await onSubmit(formData, groupFormType);
       if (res.error) {
         throw new Error(res.error);
       }
@@ -338,7 +359,11 @@ export default function Form({
 
   const renderGroup = group => {
     // const [, setToast] = useToasts()
-    const [formType, setFormType] = useState(group.formTypes && group.formTypes[0])
+    const formTypeReducer = (_, value) => {
+      groupFormType[group.groupName] = value
+      return value
+    }
+    const [formType, setFormType] = useReducer(formTypeReducer, group.formTypes && group.formTypes[0])
     const [groupFields, setGroupFields] = useState(
       Array.isArray(group.fields) ? group.fields : group.fields[formType]
     )
@@ -349,32 +374,24 @@ export default function Form({
      * - fileds must be object with key as form type, value as fields of group
      * - set `onFormTypeChange` to convert data between types
      *    - (data, currType, targetType) => object
-     *    - data is an object with form data (json fields as string)
-     *    - the returned object will be used to fill form (json needs to be string)
+     *    - data is an object with TOTAL form data (json fields as string)
      *    - if `error` field in the returned object, switching will be prevented and show error msg
+     *    - updated fields need to be returned if no error
      */
     const onFormTypeChange = (e, type) => {
+
       e.stopPropagation()
 
       if (formType === type) return
-      // get form data
-      let data = groupFields.reduce((total, curr) => {
-        total[curr.key] = form[curr.key]
-        return total
-      }, {})
-      let res = group.onFormTypeChange && group.onFormTypeChange(data, formType, type)
+      let res = group.onFormTypeChange && group.onFormTypeChange(getFormatFormData(), formType, type)
       if (res.error) {
         // TODO: figure out why this not working
         // setToast({ text: res.error, type: 'error' })
         alert(res.error)
         return
       }
-
-      let copy = {...form}
-      for (let key in res) {
-        copy[key] = res[key]
-      }
-      setForm(copy)
+      const [, formData] = mapFields2Form(res.newFields)
+      setForm(formData)
 
       setFormType(type)
       setGroupFields(group.fields[type])

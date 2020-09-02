@@ -204,7 +204,7 @@ def read_data(file_type, filename, require_example_ids,
         lambda x: x not in ignore_fields and x not in cat_fields, field_names))
     cont_columns.sort(key=lambda x: x[1])
     cat_columns = list(filter(
-        lambda x: x in cat_fields and x not in cat_fields, field_names))
+        lambda x: x in cat_fields and x not in ignore_fields, field_names))
     cat_columns.sort(key=lambda x: x[1])
 
     features = []
@@ -424,7 +424,8 @@ class DataBlockLoader(object):
             block = None
         elif self._trainer_master is not None:
             block = self._trainer_master.request_data_block(msg.block_id)
-            return False
+            if block is None:
+                return False
         else:
             block = DataBlockInfo(msg.block_id, None)
         self._count += 1

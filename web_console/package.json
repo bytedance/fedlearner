@@ -8,7 +8,7 @@
     "dev": "nodemon bootstrap.js",
     "lint": "eslint . --ext .js,.jsx --fix",
     "start": "node bootstrap.js",
-    "test": "cross-env NODE_ENV=test mocha tests/*"
+    "test": "cross-env NODE_ENV=test mocha -r esm tests/*"
   },
   "commitlint": {
     "extends": [

@@ -12,32 +12,8 @@ import { createFederation, updateFederation } from '../../services';
 import produce from 'immer'
 
 import { K8S_SETTINGS } from '../../constants/form-default'
-
-const fillJSON = (container, path, value) => {
-  if (typeof path === 'string') {
-    path = path.split('.')
-  }
-  if (path.length === 1) {
-    container[path[0]]= value
-    return
-  }
-  if (container[path[0]] === undefined) {
-    container[path[0]] = {}
-  }
-  let c = container[path[0]]
-  fillJSON(c, path.slice(1), value)
-}
-
-const getValueFromJson = (data, path) => {
-  if (typeof path === 'string') {
-    path = path.split('.')
-  }
-  if (path.length === 1) {
-    return data[path[0]]
-  }
-  if (data[path[0]] === undefined) return undefined
-  return getValueFromJson(data[path[0]], path.slice(1))
-}
+import { fillJSON, getValueFromJson, getParsedValueFromData } from '../../utils/form_utils'
+import { loadAll } from 'js-yaml';
 
 function useFederationItemStyles() {
   return css`
@@ -98,67 +74,15 @@ function FederationItem({ data, onEdit }) {
   );
 }
 
-const switchK8sSettingsFormType = (data, currType, targetType) => {
-  if (targetType === 'json') {
-    const k8s_settings = {}
-    for (let field of K8S_SETTINGS_FIELDS) {
-      let fieldValue = data[field.key]
-      if (['json', 'name-value'].some(el => el === field.type)) {
-        try {
-          fieldValue = JSON.parse(
-            fieldValue || (field.type === 'name-value' ? '[]' : '{}')
-          )
-        } catch {
-          return {error: `Error occurred when parsing json. Please check ${field.key}`}
-        }
-      }
-      fillJSON(k8s_settings, field.path || [field.key], fieldValue)
-    }
-    // x-federation
-    data['x-federation']
-      && fillJSON(k8s_settings, 'grpc_spec.extraHeaders.x-federation', data['x-federation'])
-
-    return { k8s_data: JSON.stringify(k8s_settings, null, 2) }
-  }
-  if (targetType === 'form') {
-    const formData = {}
-    let value
-    try {
-      value = JSON.parse(data['k8s_data'])
-    } catch (e) {
-      return {error: 'Error occurred when parsing json. Please check.'}
-    }
-
-    for (let field of K8S_SETTINGS_FIELDS) {
-      let fieldValue = getValueFromJson(value, field.path || [field.key])
-      if (['json', 'name-value'].some(el => el === field.type)) {
-        fieldValue = JSON.stringify(fieldValue, null, 2)
-      }
-      formData[field.key] = fieldValue
-    }
-    formData['x-federation'] = getValueFromJson(value, 'grpc_spec.extraHeaders.x-federation')
-
-    return formData
-  }
-}
-
 const K8S_SETTINGS_FIELDS = [
   { key: 'storage_root_path', default: K8S_SETTINGS.storage_root_path },
   {
     key: 'imagePullSecrets',
-    default: 'regcred',
-    span: 12,
-    path: 'global_replica_spec.template.spec.imagePullSecrets'
-  },
-  {
-    key: 'volumes',
+    default: K8S_SETTINGS.imagePullSecrets,
     type: 'json',
     span: 24,
-    default: K8S_SETTINGS.volumes,
-    props: {
-      minHeight: '150px',
-    },
-    path: 'global_replica_spec.template.spec.volumes' // path为拼接json时的定位
+    path: 'global_replica_spec.template.spec.imagePullSecrets',
+    emptyDefault: {}
   },
   {
     key: 'env',
@@ -168,17 +92,8 @@ const K8S_SETTINGS_FIELDS = [
     props: {
       minHeight: '150px',
     },
-    path: 'global_replica_spec.template.spec.containers.envs'
-  },
-  {
-    key: 'volumeMounts',
-    type: 'json',
-    span: 24,
-    default: K8S_SETTINGS.volumeMounts,
-    props: {
-      minHeight: '150px',
-    },
-    path: 'global_replica_spec.template.spec.containers.volumeMounts'
+    path: 'global_replica_spec.template.spec.containers[].env',
+    emptyDefault: []
   },
   {
     key: 'grpc_spec',
@@ -188,6 +103,7 @@ const K8S_SETTINGS_FIELDS = [
     props: {
       minHeight: '150px',
     },
+    emptyDefault: {}
   },
   {
     key: 'leader_peer_spec',
@@ -197,6 +113,7 @@ const K8S_SETTINGS_FIELDS = [
     props: {
       minHeight: '150px',
     },
+    emptyDefault: {}
   },
   {
     key: 'follower_peer_spec',
@@ -206,41 +123,14 @@ const K8S_SETTINGS_FIELDS = [
     props: {
       minHeight: '150px',
     },
+    emptyDefault: {}
   },
 ]
-
-const DEFAULT_FIELDS = [
-  { key: 'name', required: true },
-  { key: 'trademark' },
-  { key: 'x-federation' },
-  { key: 'email' },
-  { key: 'tel', label: 'telephone' },
-  { key: 'avatar' },
-  {
-    groupName: 'k8s_settings',
-    formTypes: ['form', 'json'],
-    onFormTypeChange: switchK8sSettingsFormType,
-    fields: {
-      form: K8S_SETTINGS_FIELDS,
-      json: [
-        {
-          key: 'k8s_data',
-          type: 'json',
-          hideLabel: true,
-          span: 24,
-          props: {
-            minHeight: '500px'
-          }
-        }
-      ]
-    },
-  },
-];
 
 /**
  * set init value and props of fields
  */
-function fillField(data, field) {
+function fillField(data, field, edit=false) {
   let v = getValueFromJson(data, field.path || field.key)
   if (typeof v === 'object') {
     v = JSON.stringify(v, null, 2)
@@ -250,38 +140,159 @@ function fillField(data, field) {
 
   if (field.key === 'name') {
     field.props = {
-      disabled: true,
+      disabled: edit,
     };
   }
   if (field.key === 'x-federation') {
     let xFederation = getValueFromJson(data, 'k8s_settings.grpc_spec.extraHeaders.x-federation')
     xFederation && (field.value = xFederation)
   }
-
   return field
 }
 
-function mapValueToFields(federation, fields) {
+function mapValueToFields({federation, fields, type='form', edit=false}) {
   return produce(fields, draft => {
     draft.map((x) => {
       if (x.groupName === 'k8s_settings') {
-        x.fields['form'].map(item => fillField(federation['k8s_settings'], item))
+        x.fields[type].map(item => fillField(federation['k8s_settings'], item, edit))
       } else {
-        fillField(federation, x)
+        fillField(federation, x, edit)
       }
     })
   })
 }
 
+let formMeta = {}
+function setFormMeta (value) { formMeta = value }
+
 export default function FederationList() {
+  /**
+   * formMeta is the record of raw form info.
+   * while formType is `form`, value of fields will read from formMeta,
+   * while formType is `json`, json value will use raw data in formMeta.
+   * There are two moments to update formMeta:
+   * 1. switching formType
+   *    formMeta needs to be update **manually** in switchCallback to make data consistency
+   * 2. submitting
+   *    formMeta will be post
+   */
+  // const [formMeta, setFormMeta] = useState({})
+
   const { data, mutate } = useSWR('federations', fetcher);
   const federations = data ? data.data : null;
   const [formVisible, setFormVisible] = useState(false);
-  const [fields, setFields] = useState(DEFAULT_FIELDS);
   const [currentFederation, setCurrentFederation] = useState(null);
   const title = currentFederation ? `Edit Federation: ${currentFederation.name}` : 'Create Federation';
+
+  // form meta convert functions
+  const mapFormMeta2Json = () => {
+    let data = {}
+    fields.map((x) => {
+      if (x.groupName === 'k8s_settings') {
+        data.k8s_settings = { k8s_data: formMeta.k8s_settings }
+      } else {
+        data[x.key] = formMeta[x.key]
+      }
+    })
+    return data
+  }
+  const mapFormMeta2Form = () => {
+    let data = {}
+    fields.map((x) => {
+      if (x.groupName === 'k8s_settings') {
+        data.k8s_settings = formMeta.k8s_settings
+      } else {
+        data[x.key] = formMeta[x.key]
+      }
+    })
+    return data
+  }
+  const writeJson2FormMeta = (data) => {
+    setFormMeta(produce(formMeta, draft => {
+      fields.map((x) => {
+        if (x.groupName === 'k8s_settings') {
+          let k8s_settings = JSON.parse(data.k8s_settings['k8s_data'])
+          data['x-federation']
+            && fillJSON(k8s_settings, 'grpc_spec.extraHeaders.x-federation', data['x-federation'])
+          draft.k8s_settings = {...draft.k8s_settings, ...k8s_settings}
+        } else {
+          draft[x.key] = getParsedValueFromData(data, x) || draft[x.key]
+        }
+      })
+    }))
+  }
+  const writeForm2FormMeta = (data) => {
+    setFormMeta(produce(formMeta, draft => {
+      fields.map(x => {
+        if (x.groupName === 'k8s_settings') {
+          if (!draft.k8s_settings) { draft.k8s_settings = {} }
+          for (let field of K8S_SETTINGS_FIELDS) {
+            fillJSON(
+              draft.k8s_settings, field.path || [field.key],
+              getParsedValueFromData(data.k8s_settings, field)
+            )
+          }
+          data['x-federation']
+            && fillJSON(draft.k8s_settings, 'grpc_spec.extraHeaders.x-federation', data['x-federation'])
+        } else {
+          draft[x.key] = getParsedValueFromData(data, x) || draft[x.key]
+        }
+      })
+    }))
+  }
+  // --- end ---
+  const switchK8sSettingsFormType = (data, currType, targetType) => {
+    let newFields
+    try {
+      if (targetType === 'json') {
+        writeForm2FormMeta(data)
+        newFields = mapValueToFields({federation: mapFormMeta2Json(), fields, type: 'json'})
+        setFields(newFields)
+      }
+      if (targetType === 'form') {
+        writeJson2FormMeta(data)
+        newFields = mapValueToFields({federation: mapFormMeta2Form(), fields, type: 'form'})
+        setFields(newFields)
+      }
+    } catch (error) {
+      return { error }
+    }
+    return { newFields }
+  }
+  const DEFAULT_FIELDS = [
+    { key: 'name', required: true },
+    { key: 'trademark' },
+    { key: 'x-federation' },
+    { key: 'email' },
+    { key: 'tel', label: 'telephone' },
+    { key: 'avatar' },
+    {
+      groupName: 'k8s_settings',
+      formTypes: ['form', 'json'],
+      onFormTypeChange: switchK8sSettingsFormType,
+      fields: {
+        form: K8S_SETTINGS_FIELDS,
+        json: [
+          {
+            key: 'k8s_data',
+            type: 'json',
+            hideLabel: true,
+            span: 24,
+            props: {
+              minHeight: '500px'
+            }
+          }
+        ]
+      },
+    },
+  ];
+  const [fields, setFields] = useState(DEFAULT_FIELDS);
+
   const toggleForm = () => {
     setFormVisible(!formVisible);
+    if (formVisible) {
+      setFormMeta({})
+    }
     setCurrentFederation(null);
     setFields(DEFAULT_FIELDS);
   };
@@ -292,13 +303,20 @@ export default function FederationList() {
     toggleForm();
   };
   const handleEdit = (federation) => {
+    setFormMeta(federation)
     setCurrentFederation(federation);
-    setFields(mapValueToFields(federation, fields));
+    setFields(mapValueToFields({federation, fields, edit: true}));
     setFormVisible(true);
   };
 
-  const checkValue = (field, value) => {
+  /**
+   * k8s setting validator
+   * @param {*} field form field
+   * @param {*} value field value. NOTE json is as as string
+   */
+  const checkK8sSetting = (field, value) => {
     if (field.key === 'env' && value) {
+      value = JSON.parse(value)
       for (let {name, value} of value) {
         if (name === '' || value === '') {
           return 'Please fill env'
@@ -314,35 +332,25 @@ export default function FederationList() {
     }
   }
 
-  const handleSubmit = (value) => {
-    const k8s_settings = {}
-    // gen json
+  const handleSubmit = (value, groupFormType) => {
     for (let field of K8S_SETTINGS_FIELDS) {
-      let fieldValue = value.k8s_settings[field.key]
-
-      let error = checkValue(field, fieldValue)
+      let error = checkK8sSetting(field, value.k8s_settings[field.key])
       if (error) {
         return {error}
       }
-      if (field.type === 'json') {
-        fieldValue = JSON.parse(fieldValue)
-      }
-      fieldValue !== undefined && fillJSON(k8s_settings, field.path || [field.key], fieldValue)
     }
-    // x-federation
-    value['x-federation']
-      && fillJSON(k8s_settings, 'grpc_spec.extraHeaders.x-federation', value['x-federation'])
 
-    const json = {
-      ...value,
-      k8s_settings,
-    };
+    if (groupFormType === 'json') {
+      writeJson2FormMeta(value)
+    } else {
+      writeForm2FormMeta(value)
+    }
 
     if (currentFederation) {
-      return updateFederation(currentFederation.id, json);
+      return updateFederation(currentFederation.id, formMeta);
     }
 
-    return createFederation(json);
+    return createFederation(formMeta);
   };
 
   return (

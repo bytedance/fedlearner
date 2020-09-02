@@ -218,7 +218,7 @@ def train(role, args, input_fn, model_fn, serving_input_receiver_fn):
     else:
         raise ValueError('Allowed values are: --mode=train|eval')
 
-    if args.export_path:
+    if args.export_path and args.worker_rank == 0:
         estimator.export_saved_model(args.export_path,
                                      serving_input_receiver_fn,
                                      checkpoint_path=args.checkpoint_path)
