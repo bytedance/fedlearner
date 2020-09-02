@@ -191,7 +191,7 @@ def convert_csv_record_to_tf_example(field_keys, field_vals):
 
 def convert_tf_example_to_csv_record(src_tf_example):
     assert isinstance(src_tf_example, tf.train.Example)
-    field_keys, field_vals = []. []
+    field_keys, field_vals = [], []
     tf_feature = src_tf_example.features.feature
     for key, feat in tf_feature.items():
         csv_val = None
