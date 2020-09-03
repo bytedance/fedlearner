@@ -343,7 +343,7 @@ router.post('/api/v1/job/:id/update', SessionMiddleware, async (ctx) => {
     return;
   }
 
-  if (old_job.status === 'started' && new_job.status == 'stopped') {
+  if (old_job.status === 'started' && new_job.status === 'stopped') {
     flapp = (await k8s.getFLApp(namespace, new_job.name)).flapp;
     pods = (await k8s.getFLAppPods(namespace, new_job.name)).pods;
     old_job.k8s_meta_snapshot = JSON.stringify({flapp, pods});
