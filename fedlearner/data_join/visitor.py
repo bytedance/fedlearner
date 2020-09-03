@@ -18,6 +18,7 @@ import bisect
 import logging
 import os
 import threading
+import traceback
 
 class IndexMeta(object):
     def __init__(self, process_index, start_index, fpath):
@@ -44,6 +45,7 @@ class IndexMetaManager(object):
             if index != index_meta.process_index:
                 logging.fatal("%s has error process index. expected %d",
                               index_meta.fpath, index)
+                traceback.print_stack()
                 os._exit(-1) # pylint: disable=protected-access
         self._index_metas = preload_metas
 
@@ -245,9 +247,11 @@ class Visitor(object):
             prev_meta = self._index_metas[-1]
             if index_meta.start_index < prev_meta.start_index:
                 logging.fatal("index between index meta is not incremental")
+                traceback.print_stack()
                 os._exit(-1) # pylint: disable=protected-access
         elif index_meta.start_index != 0:
             logging.fatal("the start index of first meta should be 0")
+            traceback.print_stack()
             os._exit(-1) # pylint: disable=protected-access
         self._index_metas.append(index_meta)
 

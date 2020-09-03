@@ -19,6 +19,7 @@ import logging
 import os
 import re
 import gc
+import traceback
 
 import tensorflow_io # pylint: disable=unused-import
 from tensorflow.compat.v1 import gfile
@@ -92,6 +93,7 @@ class RawDataBatchFetcher(ItemBatchSeqProcessor):
                 if index != next_index:
                     logging.fatal("batch raw data visitor is not consecutive, "\
                                   "%d != %d", index, next_index)
+                    traceback.print_stack()
                     os._exit(-1) # pylint: disable=protected-access
                 next_batch.append(item)
                 next_index += 1
