@@ -151,12 +151,89 @@ async function deleteJob(call, callback) {
   }
 }
 
+async function updateJob(call, callback) {
+  try {
+    await authenticate(call.metadata);
+
+    const {
+      name,
+      job_type,
+      client_ticket_name: server_ticket_name,
+      server_ticket_name: client_ticket_name,
+      server_params,
+      status,
+    } = call.request;
+
+    const new_job = {
+      name, job_type, client_ticket_name, server_ticket_name,
+      server_params, status,
+    }
+
+    const old_job = await Job.findOne({
+      where: {
+        name: { [Op.eq]: name },
+      },
+    });
+    if (!old_job) throw new Error('Job not found');
+
+    if (old_job.status === 'error') {
+      throw new Error("Cannot update errored job");
+    }
+    if (old_job.status === 'started' && new_job.status != 'stopped') {
+      throw new Error("Cannot change running job");
+    }
+    if (job_type != old_job.job_type) {
+      throw new Error("Cannot change job type");
+    }
+
+    const ticketRecord = await Ticket.findOne({
+      where: {
+        name: { [Op.eq]: client_ticket_name },
+      },
+    });
+    if (!ticketRecord) throw new Error('Ticket not found');
+    const params = JSON.parse(server_params);
+    validateTicket(ticketRecord, params);
+
+    if (old_job.status === 'started' && status == 'stopped') {
+      flapp = (await k8s.getFLApp(NAMESPACE, name)).flapp;
+      pods = (await k8s.getFLAppPods(NAMESPACE, name)).pods;
+      old_job.k8s_meta_snapshot = JSON.stringify({flapp, pods});
+      await k8s.deleteFLApp(NAMESPACE, name);
+    } else if (old_job.status === 'stopped' && new_job.status === 'started') {
+      const args = serverGenerateYaml(federation, new_job, ticketRecord);
+      await k8s.createFLApp(NAMESPACE, args);
+    }
+
+    old_job.client_ticket_name = new_job.client_ticket_name;
+    old_job.server_ticket_name = new_job.server_ticket_name;
+    old_job.client_params = new_job.client_params;
+    old_job.server_params = new_job.server_params;
+    old_job.status = new_job.status;
+    old_job.save()
+
+    callback(null, {
+      data: {
+        name: new_job.name,
+        job_type: new_job.job_type,
+        client_ticket_name: new_job.server_ticket_name,
+        server_ticket_name: new_job.client_ticket_name,
+        server_params: JSON.stringify(new_job.server_params),
+      },
+      status: new_job.status,
+    });
+  } catch (err) {
+    callback(err);
+  }
+}
+
 const server = new grpc.Server();
 
 server.addService(pkg.federation.Federation.service, {
   getTickets,
   createJob,
   deleteJob,
+  updateJob,
 });
 
 module.exports = server;
