@@ -23,12 +23,6 @@ message Job {
   string server_params = 5;
 }
 
-Enum JobStatus {
-  JOB_STATUS_RUNNING = 0;
-  JOB_STATUS_STOPPED = 1;
-  JOB_STATUS_ERROR = 2;
-}
-
 message GetTicketsRequest {
   string job_type = 1;
   string role = 2;
@@ -65,12 +59,12 @@ message UpdateJobRequest {
   string client_ticket_name = 3;
   string server_ticket_name = 4;
   string server_params = 5;
-  JobStatus status = 6;
+  string status = 6;
 }
 
 message UpdateJobResponse {
   Job data = 1;
-  JobStatus status = 2;
+  string status = 2;
 }
 
 service Federation {
