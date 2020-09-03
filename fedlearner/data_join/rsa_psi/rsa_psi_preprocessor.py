@@ -32,7 +32,7 @@ from fedlearner.data_join.rsa_psi.rsa_psi_component import \
         IdBatchFetcher, LeaderPsiRsaSigner, FollowerPsiRsaSigner
 from fedlearner.data_join.sort_run_dumper import SortRunDumper
 from fedlearner.data_join.sort_run_merger import SortRunMerger
-from fedlearner.data_join.common import partition_repr, HeapMemStats
+from fedlearner.data_join.common import partition_repr, get_heap_mem_stats
 
 class RsaPsiPreProcessor(object):
     def __init__(self, options, etcd_name, etcd_addrs,
@@ -96,7 +96,6 @@ class RsaPsiPreProcessor(object):
                 ),
                 self._merger_comparator
             )
-        self._heap_mem_stats = HeapMemStats(None)
         self._produce_item_cnt = 0
         self._comsume_item_cnt = 0
         self._started = False
@@ -198,9 +197,9 @@ class RsaPsiPreProcessor(object):
             return True
         potential_mem_incr = total_flying_item * \
                              self._psi_rsa_signer.additional_item_mem_usage()
-        if self._heap_mem_stats.CheckOomRisk(total_flying_item, 0.85,
-                                             potential_mem_incr):
-            logging.warning("stop fetch id since has oom risk for 0.85, "\
+        if get_heap_mem_stats(None).CheckOomRisk(total_flying_item, 0.80,
+                                                 potential_mem_incr):
+            logging.warning("stop fetch id since has oom risk for 0.80, "\
                             "flying item reach to %d", total_flying_item)
             return True
         return False
