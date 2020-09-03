@@ -18,6 +18,7 @@ import threading
 import logging
 import os
 import time
+import traceback
 from contextlib import contextmanager
 
 from fedlearner.common import metrics
@@ -157,6 +158,7 @@ class DataBlockDumperManager(object):
             except StopIteration:
                 logging.fatal("raw data finished before when seek to %d",
                               meta.leader_start_index-1)
+                traceback.print_stack()
                 os._exit(-1) # pylint: disable=protected-access
             match_index = 0
             example_num = len(meta.example_ids)
@@ -175,6 +177,7 @@ class DataBlockDumperManager(object):
                         "for data block %s",
                         match_index, example_num, meta.block_id
                     )
+                traceback.print_stack()
                 os._exit(-1) # pylint: disable=protected-access
             dumped_meta = data_block_builder.finish_data_block(True)
             assert dumped_meta == meta, "the generated dumped meta shoud "\
