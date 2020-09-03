@@ -20,6 +20,7 @@ const DEFAULT_SERVER_CONFIG = {
   GRPC_PORT: 1990,
   KIBANA_HOST: 'fedlearner-stack-kibana',
   KIBANA_PORT: 443,
+  TIME_ZONE: 8,
 };
 
 module.exports = {

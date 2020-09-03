@@ -57,6 +57,7 @@ const JOB_METRICS = {
 const config = getConfig({
   KIBANA_HOST: process.env.NEXT_PUBLIC_KIBANA_HOST,
   KIBANA_PORT: process.env.NEXT_PUBLIC_KIBANA_PORT,
+  TIME_ZONE: process.env.TIME_ZONE,
 });
 
 function getBaseUrl(application_id, from, to) {
@@ -87,7 +88,7 @@ function getDashboardUrl(application_id, from, to, query, mode, title) {
  */
 function getJobDashboardUrls(job) {
   const { name, job_type, created_at } = job;
-  const from = dayjs(created_at).subtract(8,'hour').toISOString();
+  const from = dayjs(created_at).subtract(config.TIME_ZONE,'hour').toISOString();
   const to = dayjs().toISOString();
   return JOB_METRICS[job_type].map(({ query, mode, title }) => getDashboardUrl(name, from, to, query, mode, title));
 }
