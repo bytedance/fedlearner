@@ -143,7 +143,9 @@ async function deleteJob(call, callback) {
       },
     });
     if (!job) throw new Error('Job not found');
-    await k8s.deleteFLApp(NAMESPACE, job.name);
+    if (data.status == 'running') {
+      await k8s.deleteFLApp(NAMESPACE, job.name);
+    }
     await job.destroy({ force: true });
     callback(null, { message: 'Delete job successfully' });
   } catch (err) {
@@ -153,7 +155,7 @@ async function deleteJob(call, callback) {
 
 async function updateJob(call, callback) {
   try {
-    await authenticate(call.metadata);
+    const federation = authenticate(call.metadata);
 
     const {
       name,
@@ -195,7 +197,7 @@ async function updateJob(call, callback) {
     const params = JSON.parse(server_params);
     validateTicket(ticketRecord, params);
 
-    if (old_job.status === 'started' && status == 'stopped') {
+    if (old_job.status === 'started' && status === 'stopped') {
       flapp = (await k8s.getFLApp(NAMESPACE, name)).flapp;
       pods = (await k8s.getFLAppPods(NAMESPACE, name)).pods;
       old_job.k8s_meta_snapshot = JSON.stringify({flapp, pods});
