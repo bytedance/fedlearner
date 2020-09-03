@@ -19,37 +19,37 @@ const JOB_METRICS = {
     {
       query: 'name%20:%22receive_timer%22',
       mode: 'avg',
-      title: 'receive spend',
+      title: 'receive%20spend',
     },
     {
       query: 'name%20:%22iter_spend%22',
       mode: 'avg',
-      title: 'per session run spend',
+      title: 'per%20session%20run%20spend',
     },
     {
       query: 'name%20:%22resend_counter%22',
       mode: 'sum',
-      title: 'count of resend',
+      title: 'count%20of%20resend',
     },
     {
       query: 'name%20:%22send_counter%22',
       mode: 'sum',
-      title: 'count of send',
+      title: 'count%20of%20send',
     },
     {
       query: 'name%20:%22reconnect_counter%22',
       mode: 'sum',
-      title: 'count of reconnect',
+      title: 'count%20of%20reconnect',
     },
     {
       query: 'name%20:%22load_data_block_counter%22',
       mode: 'sum',
-      title: 'count of load data block',
+      title: 'count%20of%20load%20data%20block',
     },
     {
       query: 'name%20:%22load_data_block_fail_counter%22',
       mode: 'sum',
-      title: 'count of fail to load data block',
+      title: 'count%20of%20fail%20to%20load%20data%20block',
     },
   ],
 };
