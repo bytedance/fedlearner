@@ -87,7 +87,7 @@ function getDashboardUrl(application_id, from, to, query, mode, title) {
  */
 function getJobDashboardUrls(job) {
   const { name, job_type, created_at } = job;
-  const from = dayjs(created_at).toISOString();
+  const from = dayjs(created_at).subtract(8,'hour').toISOString();
   const to = dayjs().toISOString();
   return JOB_METRICS[job_type].map(({ query, mode, title }) => getDashboardUrl(name, from, to, query, mode, title));
 }
