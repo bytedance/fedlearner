@@ -19,37 +19,37 @@ const JOB_METRICS = {
     {
       query: 'name%20:%22receive_timer%22',
       mode: 'avg',
-      title: 'receive%20spend',
+      title: 'receive_spend',
     },
     {
       query: 'name%20:%22iter_spend%22',
       mode: 'avg',
-      title: 'per%20session%20run%20spend',
+      title: 'per_session_run_spend',
     },
     {
       query: 'name%20:%22resend_counter%22',
       mode: 'sum',
-      title: 'count%20of%20resend',
+      title: 'count_of_resend',
     },
     {
       query: 'name%20:%22send_counter%22',
       mode: 'sum',
-      title: 'count%20of%20send',
+      title: 'count_of_send',
     },
     {
       query: 'name%20:%22reconnect_counter%22',
       mode: 'sum',
-      title: 'count%20of%20reconnect',
+      title: 'count_of_reconnect',
     },
     {
       query: 'name%20:%22load_data_block_counter%22',
       mode: 'sum',
-      title: 'count%20of%20load%20data%20block',
+      title: 'count_of_load_data_block',
     },
     {
       query: 'name%20:%22load_data_block_fail_counter%22',
       mode: 'sum',
-      title: 'count%20of%20fail%20to%20load%20data%20block',
+      title: 'count_of_fail_to_load_data_block',
     },
   ],
 };
@@ -87,7 +87,7 @@ function getDashboardUrl(application_id, from, to, query, mode, title) {
  */
 function getJobDashboardUrls(job) {
   const { name, job_type, created_at } = job;
-  const from = dayjs(created_at).toISOString();
+  const from = dayjs(created_at).subtract(8,'hour').toISOString();
   const to = dayjs().toISOString();
   return JOB_METRICS[job_type].map(({ query, mode, title }) => getDashboardUrl(name, from, to, query, mode, title));
 }
