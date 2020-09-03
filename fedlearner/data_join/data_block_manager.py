@@ -18,7 +18,6 @@ import threading
 import logging
 import os
 import copy
-import traceback
 
 import tensorflow.compat.v1 as tf
 from google.protobuf import text_format
@@ -295,7 +294,6 @@ class DataBlockManager(object):
             gfile.MakeDirs(data_block_dir)
         if not gfile.IsDirectory(data_block_dir):
             logging.fatal("%s should be directory", data_block_dir)
-            traceback.print_stack()
             os._exit(-1) # pylint: disable=protected-access
 
     def _sync_data_block_meta(self, index):
@@ -308,7 +306,6 @@ class DataBlockManager(object):
             if meta is None:
                 logging.fatal("data block index as %d has dumped "\
                               "but vanish", index)
-                traceback.print_stack()
                 os._exit(-1) # pylint: disable=protected-access
             self._data_block_meta_cache[index] = meta
         return self._data_block_meta_cache[index]

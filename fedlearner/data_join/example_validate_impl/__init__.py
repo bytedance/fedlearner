@@ -19,7 +19,6 @@ import os
 import inspect
 import logging
 import sys
-import traceback
 
 from fedlearner.data_join.example_validate_impl.example_validator \
         import ExampleValidator
@@ -42,6 +41,5 @@ def create_example_validator(options):
     if example_validator in example_validator_impl_map:
         return example_validator_impl_map[example_validator](options)
     logging.fatal("Unknown example validator %s", example_validator)
-    traceback.print_stack()
     os._exit(-1) # pylint: disable=protected-access
     return None

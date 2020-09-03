@@ -22,7 +22,6 @@ import functools
 import os
 import time
 import bisect
-import traceback
 import concurrent.futures as concur_futures
 
 from cityhash import CityHash64 # pylint: disable=no-name-in-module
@@ -108,7 +107,6 @@ class IdBatchFetcher(ItemBatchSeqProcessor):
                 if index != next_index:
                     logging.fatal("index of id visitor is not consecutive, "\
                                   "%d != %d", index, next_index)
-                    traceback.print_stack()
                     os._exit(-1) # pylint: disable=protected-access
                 next_batch.append(item)
                 next_index += 1
