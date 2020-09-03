@@ -19,7 +19,6 @@ import os
 import inspect
 import logging
 import sys
-import traceback
 
 from fedlearner.data_join.raw_data_iter_impl.raw_data_iter import RawDataIter
 from fedlearner.data_join.raw_data_iter_impl.tf_record_iter import TfRecordIter
@@ -42,6 +41,5 @@ def create_raw_data_iter(options):
     if rd_iter in iter_impl_map:
         return iter_impl_map[rd_iter](options)
     logging.fatal("Unknown raw data iter %s", rd_iter)
-    traceback.print_stack()
     os._exit(-1) # pylint: disable=protected-access
     return None

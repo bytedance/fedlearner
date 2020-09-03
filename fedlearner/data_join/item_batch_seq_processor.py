@@ -19,7 +19,6 @@ import bisect
 import logging
 import os
 import time
-import traceback
 
 from fedlearner.common import metrics
 
@@ -207,7 +206,6 @@ class ItemBatchSeqProcessor(object):
                                   "%d(expected_index) != %d(supply_index)",
                                   self.name(), expected_index,
                                   next_batch.begin_index)
-                    traceback.print_stack()
                     os._exit(-1) # pylint: disable=protected-access
             self._batch_queue.append(next_batch)
             self._flying_item_count += len(next_batch)

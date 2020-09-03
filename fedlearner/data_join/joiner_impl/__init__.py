@@ -19,7 +19,6 @@ import os
 import inspect
 import logging
 import sys
-import traceback
 
 from fedlearner.data_join.joiner_impl.example_joiner import ExampleJoiner
 from fedlearner.data_join.joiner_impl.stream_joiner import StreamExampleJoiner
@@ -42,6 +41,5 @@ def create_example_joiner(example_joiner_options, *args, **kwargs):
     if joiner in joiner_impl_map:
         return joiner_impl_map[joiner](example_joiner_options, *args, **kwargs)
     logging.fatal("Unknown example joiner %s", joiner)
-    traceback.print_stack()
     os._exit(-1) # pylint: disable=protected-access
     return None

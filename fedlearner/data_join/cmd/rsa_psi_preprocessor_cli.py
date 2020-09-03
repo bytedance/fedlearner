@@ -17,7 +17,6 @@
 import argparse
 import logging
 import os
-import traceback
 
 import tensorflow_io # pylint: disable=unused-import
 from tensorflow.compat.v1 import gfile
@@ -124,7 +123,6 @@ if __name__ == "__main__":
         offload_processor_number = int(os.environ.get('CPU_LIMIT', '2')) - 1
     if offload_processor_number < 1:
         logging.fatal("we should at least retain 1 cpu for compute task")
-        traceback.print_stack()
         os._exit(-1) # pylint: disable=protected-access
     preprocessor_options = dj_pb.RsaPsiPreProcessorOptions(
             preprocessor_name=args.preprocessor_name,

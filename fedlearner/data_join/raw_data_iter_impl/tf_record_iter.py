@@ -67,7 +67,7 @@ class TfExampleItem(RawDataIter.Item):
             if not self._parse_example_error:
                 try:
                     self._csv_record = \
-                        common.convert_tf_example_to_csv_record(example)
+                        common.convert_tf_example_to_dict(example)
                 except Exception as e: # pylint: disable=broad-except
                     logging.error("Failed convert tf example to csv record, "\
                                   "reason %s", e)
