@@ -123,7 +123,7 @@ router.get('/api/v1/job/pod/:pod_name/logs', SessionMiddleware, async (ctx) => {
   ctx.body = { data: logs };
 });
 
-function get_ticket_and_fed(ctx, ticket_name) {
+async function get_ticket_and_fed(ctx, ticket_name) {
   const clientTicket = await Ticket.findOne({
     where: {
       name: { [Op.eq]: ticket_name },
