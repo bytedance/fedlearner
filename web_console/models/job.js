@@ -55,10 +55,10 @@ module.exports = (sequelize, DataTypes) => {
     status: {
       type: DataTypes.STRING(16),
       allowNull: true,
-      default: 'stopped',
+      default: 'started',
       comment: 'status of the current job: started | stopped | error',
     },
-    {
+    federation_id: {
       type: DataTypes.INTEGER,
       allowNull: true,
       default: null,
