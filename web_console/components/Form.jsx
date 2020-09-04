@@ -47,7 +47,7 @@ export default function Form({
 
   const mapFields2Form = fields => {
     // flat all group fileds
-    fields = fields.reduce((total, curr) => {
+    let formFields = fields.reduce((total, curr) => {
       if (curr.groupName) {
         if (Array.isArray(curr.fields)) {
           total.push(...curr.fields)
@@ -59,16 +59,15 @@ export default function Form({
       }
       return total
     }, [])
-    const formData = fields.reduce((total, current) => {
+    const formData = formFields.reduce((total, current) => {
       total[current.key] = current.hasOwnProperty('value')
         ? current.value
         : current.value || current.default;
       return total;
     }, {})
-    return [fields, formData]
+    return [formFields, formData]
   }
-  let formData
-  [fields, formData] = mapFields2Form(fields)
+  let [formFields, formData] = mapFields2Form(fields)
   const [form, setForm] = useState(formData);
 
   const getFormatFormData = () =>
@@ -94,7 +93,7 @@ export default function Form({
       return total
     }, {})
 
-  const disabled = fields.filter((x) => x.required).some((x) => !form[x.key]);
+  const disabled = formFields.filter((x) => x.required).some((x) => !form[x.key]);
   const updateForm = (key, value) => {
     const data = {
       ...form,

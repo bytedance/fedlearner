@@ -13,7 +13,6 @@ import produce from 'immer'
 
 import { K8S_SETTINGS } from '../../constants/form-default'
 import { fillJSON, getValueFromJson, getParsedValueFromData } from '../../utils/form_utils'
-import { loadAll } from 'js-yaml';
 
 function useFederationItemStyles() {
   return css`

@@ -124,6 +124,7 @@
     "eslint-plugin-jsx-a11y": "6.2.3",
     "eslint-plugin-react": "7.20.0",
     "eslint-plugin-react-hooks": "4.0.4",
+    "esm": "3.2.25",
     "husky": "4.2.5",
     "lint-staged": "10.2.9",
     "mocha": "6.2.3",
