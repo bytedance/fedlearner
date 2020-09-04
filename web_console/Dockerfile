@@ -13,4 +13,4 @@ RUN npm run build
 
 EXPOSE 1989
 
-CMD ["node", "bootstrap.js"]
+CMD ["startup.sh"]
