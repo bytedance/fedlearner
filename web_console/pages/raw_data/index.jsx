@@ -193,8 +193,8 @@ export default function RawDataList() {
       fillJSON(draft.context, IMAGE_PATH.replace('[replicaType]', replicaType), data['image'])
     })
     // output_partition_num
-    data['output_partition_num'] &&
-      fillJSON(draft.context, WORKER_REPLICAS_PATH, data['output_partition_num'])
+    // data['output_partition_num'] &&
+    //   fillJSON(draft.context, WORKER_REPLICAS_PATH, data['output_partition_num'])
   }
   const mapFormMeta2Json = () => {
     let data = {}
