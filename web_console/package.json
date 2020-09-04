@@ -8,7 +8,7 @@
     "dev": "nodemon bootstrap.js",
     "lint": "eslint . --ext .js,.jsx --fix",
     "start": "node bootstrap.js",
-    "test": "cross-env NODE_ENV=test mocha tests/*"
+    "test": "cross-env NODE_ENV=test mocha -r esm tests/*"
   },
   "commitlint": {
     "extends": [
@@ -124,6 +124,7 @@
     "eslint-plugin-jsx-a11y": "6.2.3",
     "eslint-plugin-react": "7.20.0",
     "eslint-plugin-react-hooks": "4.0.4",
+    "esm": "3.2.25",
     "husky": "4.2.5",
     "lint-staged": "10.2.9",
     "mocha": "6.2.3",
