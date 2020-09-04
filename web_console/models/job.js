@@ -57,6 +57,12 @@ module.exports = (sequelize, DataTypes) => {
       allowNull: true,
       default: 'stopped',
       comment: 'status of the current job: started | stopped | error',
+    },
+    {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      default: null,
+      comment: 'federation id of job',
     }
   }, {
     tableName: 'jobs',
