@@ -2,38 +2,49 @@
  * fill a json object with given path
  * path rules:
  * - `path.of.some.key` will make obj.path.of.some.key === value
- * - `array[].key` will make obj.array[0].key === value
+ * - `array[].key` will always make obj.array[0].key === value
+ * - `array[-1].key` will push a new object to array
+ * TODO: `array[],[]key`
  */
-export const fillJSON = (container, path, value) => {
-  let containerIsArray = Array.isArray(container)
-  if (typeof path === 'string') {
-    path = path.split('.')
-  }
-  if (path.length === 1) {
-    if (containerIsArray) {
-      container[0]
-        ? container[0][path[0]]= value
-        : (container[0] = { [path[0]]: value })
-    } else {
-      container[path[0]] = value
-    }
-    return
-  }
-
+export function fillJSON(container, path, value) {
+  let paths = path.split('.')
   let currLayer = container
-  let currLayerIsArray = path[0].endsWith('[]')
-  let currPath = currLayerIsArray ? path[0].replace('[]', '') : path[0]
 
-  if (containerIsArray) {
-    !container[0] && (container[0] = {})
-    currLayer = container[0]
+  let cursor = 0
+  while (cursor < paths.length) {
+    let arrayMarks = new RegExp(/\[([\s\S]*?)\]$/).exec(paths[cursor])
+    let isArray = !!arrayMarks
+    let currKey = isArray ? paths[cursor].replace(arrayMarks[0], '') : paths[cursor]
+
+    // insert value
+    if (cursor === paths.length - 1) {
+      currLayer[paths[cursor]] = value
+      break
+    }
+
+    // handle layer
+    if (isArray) {
+      let posToInsert = parseInt(arrayMarks[1] || '0')
+
+      if (!currLayer[currKey]) { currLayer[currKey] = [] }
+
+      switch (posToInsert) {
+        case 0:
+          currLayer[currKey][0] = currLayer[currKey][0] || {}
+          currLayer = currLayer[currKey][0]
+          break
+        case -1:
+          let newObj = {}
+          currLayer[currKey] = currLayer[currKey].concat(newObj)
+          currLayer = newObj
+      }
+    } else {
+      if (!currLayer[currKey]) { currLayer[currKey] = {} }
+
+      currLayer = currLayer[currKey]
+    }
+    cursor++
   }
-
-  if (currLayer[currPath] === undefined) {
-    currLayer[currPath] = currLayer[currPath] || (currLayerIsArray ? [] : {})
-  }
-
-  fillJSON(currLayer[currPath], path.slice(1), value)
 }
 
 /**
@@ -57,9 +68,9 @@ export const getValueFromJson = (data, path) => {
 }
 
 export function getParsedValueFromData (data, field) {
-  let value = (data && data[field.key]) || (field.emptyDefault || '')
+  let value = (data && data[field.key]) || ''
   if (['json', 'name-value'].some(el => el === field.type)) {
-    value = JSON.parse(value || '{}')
+    value = value ? JSON.parse(value) : field.emptyDefault || {}
   }
   return value
 }
