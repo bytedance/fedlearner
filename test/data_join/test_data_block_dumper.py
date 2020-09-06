@@ -23,7 +23,7 @@ from google.protobuf import text_format, timestamp_pb2
 import tensorflow_io
 from tensorflow.compat.v1 import gfile
 
-from fedlearner.common import etcd_client
+from fedlearner.common import mysql_client
 from fedlearner.common import common_pb2 as common_pb
 from fedlearner.common import data_join_service_pb2 as dj_pb
 from fedlearner.data_join import (
@@ -52,11 +52,12 @@ class TestDataBlockDumper(unittest.TestCase):
             gfile.DeleteRecursively(self.data_source_l.output_base_dir)
         if gfile.Exists(self.raw_data_dir_l):
             gfile.DeleteRecursively(self.raw_data_dir_l)
-        self.etcd = etcd_client.EtcdClient('test_cluster', 'localhost:2379',
-                                           'fedlearner', True)
-        self.etcd.delete_prefix(common.data_source_etcd_base_dir(self.data_source_l.data_source_meta.name))
+        self.mysql = mysql_client.MySQLClient('test_cluster', 'localhost:2379',
+                                              'test_user', 'test_password',
+                                              'fedlearner', True)
+        self.mysql.delete_prefix(common.data_source_mysql_base_dir(self.data_source_l.data_source_meta.name))
         self.manifest_manager = raw_data_manifest_manager.RawDataManifestManager(
-            self.etcd, self.data_source_l)
+            self.mysql, self.data_source_l)
 
     def generate_follower_data_block(self):
         dbm = data_block_manager.DataBlockManager(self.data_source_f, 0)
@@ -103,7 +104,7 @@ class TestDataBlockDumper(unittest.TestCase):
         if gfile.Exists(raw_data_dir):
             gfile.DeleteRecursively(raw_data_dir)
         gfile.MakeDirs(raw_data_dir)
-        rdm = raw_data_visitor.RawDataManager(self.etcd, self.data_source_l, 0)
+        rdm = raw_data_visitor.RawDataManager(self.mysql, self.data_source_l, 0)
         block_index = 0
         builder = DataBlockBuilder(
                     self.raw_data_dir_l,
@@ -157,7 +158,7 @@ class TestDataBlockDumper(unittest.TestCase):
         self.generate_follower_data_block()
         self.generate_leader_raw_data()
         dbd = data_block_dumper.DataBlockDumperManager(
-                self.etcd, self.data_source_l, 0,
+                self.mysql, self.data_source_l, 0,
                 dj_pb.RawDataOptions(raw_data_iter='TF_RECORD', read_ahead_size=1<<20, read_batch_size=128),
                 dj_pb.WriterOptions(output_writer='TF_RECORD')
             )
@@ -239,7 +240,7 @@ class TestDataBlockDumper(unittest.TestCase):
             gfile.DeleteRecursively(self.data_source_l.output_base_dir)
         if gfile.Exists(self.raw_data_dir_l):
             gfile.DeleteRecursively(self.raw_data_dir_l)
-        self.etcd.delete_prefix(common.data_source_etcd_base_dir(self.data_source_l.data_source_meta.name))
+        self.mysql.delete_prefix(common.data_source__base_dir(self.data_source_l.data_source_meta.name))
 
 if __name__ == '__main__':
     unittest.main()

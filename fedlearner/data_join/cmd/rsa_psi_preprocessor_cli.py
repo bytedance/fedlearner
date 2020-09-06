@@ -49,7 +49,7 @@ if __name__ == "__main__":
     parser.add_argument('--output_file_dir', type=str, required=True,
                         help='the directory to store the result of processor')
     parser.add_argument('--raw_data_publish_dir', type=str, required=True,
-                        help='the etcd base dir to publish new raw data')
+                        help='the mysql base dir to publish new raw data')
     parser.add_argument('--leader_rsa_psi_signer_addr', type=str,
                         help='the ras psi follower should set give '\
                              'the addr of rsa psi signer of leader')
@@ -73,12 +73,16 @@ if __name__ == "__main__":
                                           'sort run reader')
     parser.add_argument('--partition_id', type=int, required=True,
                         help='the partition id will be processed')
-    parser.add_argument('--etcd_name', type=str,
-                        default='test_etcd', help='the name of etcd')
-    parser.add_argument('--etcd_addrs', type=str,
-                        default='localhost:2379', help='the addrs of etcd')
-    parser.add_argument('--etcd_base_dir', type=str, default='fedlearner_test',
-                        help='the namespace of etcd key')
+    parser.add_argument('--mysql_name', type=str,
+                        default='test_mysql', help='the name of mysql')
+    parser.add_argument('--mysql_addr', type=str,
+                        default='localhost:2379', help='the addr of mysql')
+    parser.add_argument('--mysql_base_dir', type=str, default='fedlearner_test',
+                        help='the namespace of mysql key')
+    parser.add_argument('--mysql_user', type=str,
+                        default='test_user', help='the user of mysql')
+    parser.add_argument('--mysql_password', type=str,
+                        default='test_password', help='the password of mysql')
     parser.add_argument('--raw_data_iter', type=str, default='TF_RECORD',
                         choices=['TF_RECORD', 'CSV_DICT'],
                         help='the type for raw data file')
@@ -165,8 +169,10 @@ if __name__ == "__main__":
     else:
         assert args.psi_role.upper() == 'FOLLOWER'
         preprocessor_options.role = common_pb.FLRole.Follower
-    preprocessor = RsaPsiPreProcessor(preprocessor_options, args.etcd_name,
-                                      args.etcd_addrs, args.etcd_base_dir)
+    preprocessor = RsaPsiPreProcessor(preprocessor_options,
+                                      args.mysql_name,
+                                      args.mysql_base_dir, args.mysql_addr,
+                                      args.mysql_user, args.mysql_password)
     preprocessor.start_process()
     logging.info("PreProcessor launched for %s of RSA PSI", args.psi_role)
     preprocessor.wait_for_finished()

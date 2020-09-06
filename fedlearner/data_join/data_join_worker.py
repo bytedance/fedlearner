@@ -233,7 +233,7 @@ class DataJoinWorker(dj_grpc.DataJoinWorkerServiceServicer):
 class DataJoinWorkerService(object):
     def __init__(self, listen_port, peer_addr, master_addr, rank_id,
                  mysql_name, mysql_base_dir, mysql_addr, mysql_user,
-                 mysql_paasword, options):
+                 mysql_password, options):
         master_channel = make_insecure_channel(
                 master_addr, ChannelType.INTERNAL,
                 options=[('grpc.max_send_message_length', 2**31-1),
@@ -241,8 +241,9 @@ class DataJoinWorkerService(object):
             )
         self._master_client = dj_grpc.DataJoinMasterServiceStub(master_channel)
         self._rank_id = rank_id
-        etcd = EtcdClient(etcd_name, etcd_addrs,
-                          etcd_base_dir, options.use_mock_etcd)
+        mysql = MySQLClient(mysql_name, mysql_addr, mysql_user,
+                            mysql_password, mysql_base_dir,
+                            options.use_mock_mysql)
         data_source = self._sync_data_source()
         self._data_source_name = data_source.data_source_meta.name
         self._listen_port = listen_port
@@ -255,7 +256,7 @@ class DataJoinWorkerService(object):
         peer_client = dj_grpc.DataJoinWorkerServiceStub(peer_channel)
         self._data_join_worker = DataJoinWorker(
                 peer_client, self._master_client,
-                rank_id, etcd, data_source, options
+                rank_id, mysql, data_source, options
             )
         dj_grpc.add_DataJoinWorkerServiceServicer_to_server(
                     self._data_join_worker, self._server

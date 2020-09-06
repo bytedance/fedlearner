@@ -27,7 +27,7 @@ from fedlearner.common import data_join_service_pb2 as dj_pb
 from fedlearner.data_join import visitor
 from fedlearner.data_join.common import (
     DoneFileSuffix, make_tf_record_iter,
-    partition_repr, example_id_anchor_etcd_key,
+    partition_repr, example_id_anchor_mysql_key,
     data_source_example_dumped_dir
 )
 from fedlearner.data_join.raw_data_iter_impl import (
@@ -55,8 +55,8 @@ def decode_index_meta(fpath):
     return None
 
 class ExampleIdManager(visitor.IndexMetaManager):
-    def __init__(self, etcd, data_source, partition_id, visit_only):
-        self._etcd = etcd
+    def __init__(self, mysql, data_source, partition_id, visit_only):
+        self._mysql = mysql
         self._data_source = data_source
         self._partition_id = partition_id
         self._visit_only = visit_only
@@ -139,12 +139,12 @@ class ExampleIdManager(visitor.IndexMetaManager):
                     )
                 )
             self._anchor = None
-            etcd_key = example_id_anchor_etcd_key(
+            mysql_key = example_id_anchor_mysql_key(
                     self._data_source.data_source_meta.name,
                     self._partition_id
                 )
-            self._etcd.set_data(
-                    etcd_key, text_format.MessageToString(new_anchor)
+            self._mysql.set_data(
+                    mysql_key, text_format.MessageToString(new_anchor)
                 )
             self._anchor = new_anchor
 
@@ -205,11 +205,11 @@ class ExampleIdManager(visitor.IndexMetaManager):
 
     def _sync_dumped_example_id_anchor(self):
         if self._anchor is None or self._visit_only:
-            etcd_key = example_id_anchor_etcd_key(
+            mysql_key = example_id_anchor_mysql_key(
                     self._data_source.data_source_meta.name,
                     self._partition_id
                 )
-            data = self._etcd.get_data(etcd_key)
+            data = self._mysql.get_data(mysql_key)
             anchor = dj_pb.DumpedExampleIdAnchor()
             if data is None:
                 self._anchor = \
@@ -282,10 +282,10 @@ class ExampleIdVisitor(visitor.Visitor):
                             )
                         index += 1
 
-    def __init__(self, etcd, data_source, partition_id):
+    def __init__(self, mysql, data_source, partition_id):
         super(ExampleIdVisitor, self).__init__(
                 "example_id_visitor",
-                ExampleIdManager(etcd, data_source, partition_id, True)
+                ExampleIdManager(mysql, data_source, partition_id, True)
             )
 
     def active_visitor(self):

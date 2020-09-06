@@ -53,9 +53,9 @@ class TransmitFollower(object):
             raise NotImplementedError("is_sync_content_finished is not "\
                                       "Implemented in base ImplContext")
 
-    def __init__(self, etcd, data_source, repr_str):
+    def __init__(self, mysql, data_source, repr_str):
         self._lock = threading.Lock()
-        self._etcd = etcd
+        self._mysql = mysql
         self._data_source = data_source
         self._repr_str = repr_str
         self._dump_worker = None

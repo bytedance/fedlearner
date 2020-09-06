@@ -26,7 +26,7 @@ from tensorflow.compat.v1 import gfile
 
 from cityhash import CityHash32 # pylint: disable=no-name-in-module
 
-from fedlearner.common.etcd_client import EtcdClient
+from fedlearner.common.mysql_client import MySQLClient
 
 from fedlearner.data_join.output_writer_impl import create_output_writer
 from fedlearner.data_join.item_batch_seq_processor import \
@@ -58,12 +58,12 @@ class RawDataBatch(ItemBatch):
         self._raw_datas.append(item)
 
 class RawDataBatchFetcher(ItemBatchSeqProcessor):
-    def __init__(self, etcd, options):
+    def __init__(self, mysql, options):
         super(RawDataBatchFetcher, self).__init__(
                 options.batch_processor_options.max_flying_item,
             )
         self._raw_data_visitor = FileBasedMockRawDataVisitor(
-                etcd, options.raw_data_options,
+                mysql, options.raw_data_options,
                 '{}-partitioner-mock-data-source-{:04}'.format(
                         options.partitioner_name,
                         options.partitioner_rank_id
@@ -206,13 +206,15 @@ class RawDataPartitioner(object):
                     )
             return self._writer
 
-    def __init__(self, options, part_field, etcd_name,
-                 etcd_addrs, etcd_base_dir, use_mock_etcd=False):
+    def __init__(self, options, part_field, mysql_name,
+                 mysql_base_dir, mysql_addr, mysql_user,
+                 mysql_password, use_mock_mysql=False):
         self._options = options
         self._part_field = part_field
-        etcd = EtcdClient(etcd_name, etcd_addrs,
-                          etcd_base_dir, use_mock_etcd)
-        self._raw_data_batch_fetcher = RawDataBatchFetcher(etcd, options)
+        mysql = MySQLClient(mysql_name, mysql_addr,
+                            mysql_user, mysql_password,
+                            mysql_base_dir, use_mock_mysql)
+        self._raw_data_batch_fetcher = RawDataBatchFetcher(mysql, options)
         self._next_part_index = None
         self._dumped_process_index = None
         self._flying_writers = []

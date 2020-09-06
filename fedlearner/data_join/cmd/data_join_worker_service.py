@@ -34,14 +34,18 @@ if __name__ == "__main__":
                         help='the addr(uuid) of local data join master')
     parser.add_argument('rank_id', type=int,
                         help='the rank id for this worker')
-    parser.add_argument('--etcd_name', type=str,
-                        default='test_etcd', help='the name of etcd')
-    parser.add_argument('--etcd_base_dir', type=str, default='fedlearner_test',
-                        help='the namespace of etcd key')
-    parser.add_argument('--etcd_addrs', type=str,
-                        default='localhost:4578', help='the addrs of etcd')
-    parser.add_argument('--use_mock_etcd', action='store_true',
-                        help='use to mock etcd for test')
+    parser.add_argument('--mysql_name', type=str,
+                        default='test_mysql', help='the name of mysql')
+    parser.add_argument('--mysql_base_dir', type=str, default='fedlearner_test',
+                        help='the namespace of mysql key')
+    parser.add_argument('--mysql_addr', type=str,
+                        default='localhost:4578', help='the addr of mysql')
+    parser.add_argument('--mysql_user', type=str,
+                        default='test_user', help='the user of mysql')
+    parser.add_argument('--mysql_password', type=str,
+                        default='test_password', help='the password of mysql')
+    parser.add_argument('--use_mock_mysql', action='store_true',
+                        help='use to mock mysql for test')
     parser.add_argument('--listen_port', '-p', type=int, default=4132,
                         help='Listen port of data join master')
     parser.add_argument('--raw_data_iter', type=str, default='TF_RECORD',
@@ -83,7 +87,7 @@ if __name__ == "__main__":
                         help='the compressed type for data block')
     args = parser.parse_args()
     worker_options = dj_pb.DataJoinWorkerOptions(
-            use_mock_etcd=args.use_mock_etcd,
+            use_mock_mysql=args.use_mock_mysql,
             raw_data_options=dj_pb.RawDataOptions(
                     raw_data_iter=args.raw_data_iter,
                     compressed_type=args.compressed_type,
@@ -112,6 +116,7 @@ if __name__ == "__main__":
         )
     worker_srv = DataJoinWorkerService(args.listen_port, args.peer_addr,
                                        args.master_addr, args.rank_id,
-                                       args.etcd_name, args.etcd_base_dir,
-                                       args.etcd_addrs, worker_options)
+                                       args.mysql_name, args.mysql_base_dir,
+                                       args.mysql_addr, args.mysql_user,
+                                       args.password, worker_options)
     worker_srv.run()
