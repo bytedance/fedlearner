@@ -1,4 +1,4 @@
-import React, { useState, useReducer, useMemo } from 'react';
+import React, { useState, useReducer, useMemo, useCallback } from 'react';
 import css from 'styled-jsx/css';
 import { Button, ButtonGroup, Card, Grid, Text, Input, Toggle, Textarea, Note, useTheme, Collapse, useToasts, Select } from '@zeit-ui/react';
 import FederationSelect from './FederationSelect';
@@ -9,6 +9,7 @@ import ClientTicketSelect from './ClientTicketSelect';
 import DataPortalTypeSelect from './DataPortalTypeSelect';
 import NameValueInput from './NameValueGroup';
 import RawDataSelect from './RawDataSelect'
+import produce from 'immer'
 
 function useStyles() {
   return css`
@@ -19,6 +20,54 @@ function useStyles() {
       width: 100%;
     }
   `;
+}
+
+const formatGroupFieldKey = (groupName, key) => `[group:${groupName}].${key}`
+
+// mark group name to handle conflicts
+// TODO: handle conflict between form types in one group
+const handleFieldsToRender = fields => produce(fields, draft => {
+  draft.forEach(curr => {
+    if (!curr.groupName) return
+
+    const handleGroupFields = fields => {
+      fields.forEach(field => {
+        if (field.type === 'label') return
+        field.label = field.label || field.key
+        field.key = formatGroupFieldKey(curr.groupName, field.key)
+      })
+    }
+    if (Array.isArray(curr.fields)) {
+      handleGroupFields(curr.fields)
+    } else {
+      Object.values(curr.fields).forEach(el => handleGroupFields(el))
+    }
+  })
+})
+
+const mapFields2Form = (fields, groupType) => {
+  // flat all group fileds
+  fields = fields.reduce((total, curr) => {
+    if (curr.groupName) {
+      if (Array.isArray(curr.fields)) {
+        total.push(...curr.fields)
+      } else {
+        groupType
+        ? total.push(...curr.fields[groupType])
+        : Object.values(curr.fields).forEach(el => total.push(...el))
+      }
+    } else {
+      total.push(curr)
+    }
+    return total
+  }, [])
+  const formData = fields.reduce((total, current) => {
+    total[current.key] = current.hasOwnProperty('value')
+      ? current.value
+      : current.value || current.default;
+    return total;
+  }, {})
+  return [fields, formData]
 }
 
 /**
@@ -41,36 +90,14 @@ export default function Form({
 }) {
   // cache raw fields data
   const rawFields = fields
-  // TODO: handle name confilicts
+  const fieldsToRender = handleFieldsToRender(fields)
 
   const groupFormType = useMemo(() => ({}), [])
   const theme = useTheme();
   const styles = useStyles(theme);
 
-  const mapFields2Form = fields => {
-    // flat all group fileds
-    fields = fields.reduce((total, curr) => {
-      if (curr.groupName) {
-        if (Array.isArray(curr.fields)) {
-          total.push(...curr.fields)
-        } else {
-          Object.values(curr.fields).forEach(el => total.push(...el))
-        }
-      } else {
-        total.push(curr)
-      }
-      return total
-    }, [])
-    const formData = fields.reduce((total, current) => {
-      total[current.key] = current.hasOwnProperty('value')
-        ? current.value
-        : current.value || current.default;
-      return total;
-    }, {})
-    return [fields, formData]
-  }
   let formData
-  [fields, formData] = mapFields2Form(fields)
+  [fields, formData] = mapFields2Form(fieldsToRender)
   const [form, setForm] = useState(formData);
 
   const getFormatFormData = () =>
@@ -79,7 +106,7 @@ export default function Form({
         total[curr.groupName] = {}
         const fillGroupFields = fields => {
           for (let field of fields) {
-            total[curr.groupName][field.key] = form[field.key]
+            total[curr.groupName][field.key] = form[formatGroupFieldKey(curr.groupName, field.key)]
           }
         }
         // handle multi formType
@@ -273,6 +300,7 @@ export default function Form({
           <NameValueInput
             value={form[key]}
             onChange={value => updateForm(key, value)}
+            {...valueProps}
           />
           <Button
             className="addNameValueBtn"
@@ -390,8 +418,8 @@ export default function Form({
         alert(res.error)
         return
       }
-      const [, formData] = mapFields2Form(res.newFields)
-      setForm(formData)
+      const [, formData] = mapFields2Form(handleFieldsToRender(res.newFields), type)
+      setForm({...form, ...formData})
 
       setFormType(type)
       setGroupFields(group.fields[type])
@@ -443,7 +471,7 @@ export default function Form({
       </div>
       <Card shadow>
         <Grid.Container gap={gap}>
-          {rawFields.map((x) => (x.groupName ? renderGroup(x) : renderFieldInGrid(x)))}
+          {fieldsToRender.map((x) => (x.groupName ? renderGroup(x) : renderFieldInGrid(x)))}
         </Grid.Container>
         <Card.Footer className="formCardFooter">
           {error ? <Note small label="error" type="error">{error}</Note> : <Text p>{message}</Text>}

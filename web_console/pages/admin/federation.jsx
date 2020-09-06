@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import css from 'styled-jsx/css';
 import { Avatar, Button, Card, Code, Text, Grid, Popover, Link } from '@zeit-ui/react';
 import PhoneIcon from '@zeit-ui/react-icons/phone';
@@ -259,7 +259,7 @@ export default function FederationList() {
     }
     return { newFields }
   }
-  const DEFAULT_FIELDS = [
+  const DEFAULT_FIELDS = useMemo(() => [
     { key: 'name', required: true },
     { key: 'trademark' },
     { key: 'x-federation' },
@@ -285,7 +285,7 @@ export default function FederationList() {
         ]
       },
     },
-  ];
+  ], []);
   const [fields, setFields] = useState(DEFAULT_FIELDS);
 
   const toggleForm = () => {

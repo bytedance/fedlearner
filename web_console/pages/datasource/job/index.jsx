@@ -15,6 +15,7 @@ import Empty from '../../../components/Empty';
 import { deleteJob, createJob } from '../../../services/job';
 import Form from '../../../components/Form';
 import { DATASOURCE_REPLICA_TYPE, DATASOURCE_PUBLIC_PARAMS } from '../../../constants/form-default'
+import { getParsedValueFromData, fillJSON, getValueFromJson } from '../../../utils/form_utils';
 
 function useStyles(theme) {
   return css`
@@ -78,6 +79,91 @@ function useStyles(theme) {
   `;
 }
 
+const RESOURCE_PATH_PREFIX = 'spec.flReplicaSpecs.[replicaType].template.spec.containers[].resources'
+const ENV_PATH = 'spec.flReplicaSpecs.[replicaType].template.spec.containers[].env'
+const PARAMS_GROUP = ['client_params', 'server_params']
+
+const PARAMS_FORM_FIELDS = DATASOURCE_REPLICA_TYPE.reduce((total, currType) => {
+  total.push(...[
+    { key: currType, type: 'label' },
+    {
+      key: currType + '.env',
+      label: 'env',
+      type: 'name-value',
+      path: `spec.flReplicaSpecs.${currType}.template.spec.containers[].env`,
+      span: 24,
+      emptyDefault: [],
+      props: {
+        ignoreKeys: ['DATA_SOURCE_NAME']
+      }
+    },
+    {
+      key: 'resoure.' + currType + '.cup_request',
+      label: 'cpu request',
+      path: RESOURCE_PATH_PREFIX.replace('[replicaType]', currType) + '.requests.cpu',
+      span: 12,
+      default: '2000m'
+    },
+    {
+      key: 'resoure.' + currType + '.cup_limit',
+      label: 'cpu limit',
+      path: RESOURCE_PATH_PREFIX.replace('[replicaType]', currType) + '.limits.cpu',
+      span: 12,
+      default: '2000m'
+    },
+    {
+      key: 'resoure.' + currType + '.memory_request',
+      label: 'memory request',
+      path: RESOURCE_PATH_PREFIX.replace('[replicaType]', currType) + '.requests.memory',
+      span: 12,
+      default: '2Gi'
+    },
+    {
+      key: 'resoure.' + currType + '.memory_limit',
+      label: 'memory limit',
+      path: RESOURCE_PATH_PREFIX.replace('[replicaType]', currType) + '.limits.memory',
+      span: 12,
+      default: '2Gi'
+    },
+  ])
+  return total
+}, [])
+
+function handleParamData(container, data, field) {
+  if (field.type === 'label') { return }
+
+  let path = field.path || field.key
+  let value = data
+
+  fillJSON(container, path, value)
+}
+
+function fillField(data, field) {
+  if (data === undefined) return field
+  let v = getValueFromJson(data, field.path || field.key)
+  if (typeof v === 'object') {
+    v = JSON.stringify(v, null, 2)
+  }
+
+  field.value = v
+  field.editing = true
+
+  return field
+}
+
+function mapValueToFields({data, fields, targetGroup, type = 'form'}) {
+  return produce(fields, draft => {
+    draft.map((x) => {
+      x.value = data[x.key] || x.emptyDefault || ''
+
+      if (x.groupName === targetGroup) {
+        x.fields[type].forEach(field => fillField(data[x.groupName], field))
+      }
+
+    });
+  })
+}
+
 let formMeta = {}
 const setFormMeta = value => { formMeta = value }
 
@@ -90,7 +176,84 @@ export default function JobList(props) {
 
   let federationId = null, jobType = null
 
-  // form meta convert function
+  // form meta convert functions
+  const rewriteFields = useCallback((draft, data) => {
+    // this function will be call inner immer
+    // name
+    PARAMS_GROUP.forEach(paramType => {
+      DATASOURCE_REPLICA_TYPE.forEach(replicaType => {
+        if (!draft[paramType]) {
+          draft[paramType] = {}
+        }
+        let envs = getValueFromJson(draft[paramType], ENV_PATH.replace('[replicaType]', replicaType))
+        if (!envs) return
+
+        let envNames = envs.map(env => env.name)
+        let idx = envNames.indexOf('DATA_SOURCE_NAME')
+        if (idx >= 0) {
+          envs[idx].value = data.name
+        } else {
+          // here envs is not extensible, push will throw error
+          envs = envs.concat({name: 'DATA_SOURCE_NAME', value: data.name || ''})
+        }
+        // trigger immer‘s intercepter
+        fillJSON(draft[paramType], ENV_PATH.replace('[replicaType]', replicaType), envs)
+      })
+    })
+  }, [])
+  const mapFormMeta2Json = useCallback(() => {
+    let data = {}
+    fields.map((x) => {
+      if (x.groupName) {
+        data[x.groupName] = { [x.groupName]: formMeta[x.groupName] }
+      } else {
+        data[x.key] = formMeta[x.key]
+      }
+    })
+    return data
+  }, [])
+  const mapFormMeta2Form = useCallback(() => {
+    let data = {}
+    fields.map((x) => {
+      if (x.groupName) {
+        data[x.groupName] = formMeta[x.groupName]
+      } else {
+        data[x.key] = formMeta[x.key]
+      }
+    })
+    return data
+  }, [])
+  const writeJson2FormMeta = useCallback((groupName, data) => {
+    setFormMeta(produce(formMeta, draft => {
+      fields.map((x) => {
+        if (x.groupName === groupName) {
+          draft[groupName] = JSON.parse(data[groupName][groupName])
+        } else {
+          draft[x.key] = getParsedValueFromData(data, x) || draft[x.key]
+        }
+      })
+
+      rewriteFields(draft, data)
+    }))
+  }, [])
+  const writeForm2FormMeta = useCallback((groupName, data) => {
+    setFormMeta(produce(formMeta, draft => {
+      fields.map(x => {
+        if (x.groupName === groupName) {
+          if (!draft[groupName]) { draft[groupName] = {} }
+
+          for (let field of PARAMS_FORM_FIELDS) {
+            let value = getParsedValueFromData(data[groupName], field)
+            handleParamData(draft[groupName], value, field)
+          }
+
+        } else {
+          draft[x.key] = getParsedValueFromData(data, x) || draft[x.key]
+        }
+      })
+      rewriteFields(draft, data)
+    }))
+  }, [])
   // ---end---
   const DEFAULT_FIELDS = useMemo(() => [
     {
@@ -114,6 +277,8 @@ export default function JobList(props) {
     {
       key: 'raw_data',
       type: 'rawData',
+      higherUpdateForm: updateFormHook =>
+        value => updateFormHook('num partitions', value)
     },
     {
       key: 'client_ticket_name',
@@ -144,63 +309,57 @@ export default function JobList(props) {
         job_type: null,
       },
     },
-    ...['client_params', 'server_params'].map(paramsType => ({
+    ...PARAMS_GROUP.map(paramsType => ({
       groupName: paramsType,
       initialVisible: false,
-      fields: [
-        { key: 'env', type: 'name-value', span: 24 },
-        ...DATASOURCE_REPLICA_TYPE.reduce((total, currType) => {
-          total.push(...[
-            { key: currType + ' resources', type: 'label' },
-            {
-              key: currType + '.cup_request',
-              label: 'cpu request',
-              span: 12,
-              default: '2000m'
+      formTypes: ['form', 'json'],
+      onFormTypeChange: (data, currType, targetType) => {
+        let newFields
+        try {
+          if (targetType === 'json') {
+            writeForm2FormMeta(paramsType, data)
+            newFields = mapValueToFields({
+              data: mapFormMeta2Json(paramsType),
+              fields: fields.filter(el => el.groupName === paramsType),
+              targetGroup: paramsType,
+              type: 'json'
+            })
+          }
+          if (targetType === 'form') {
+            writeJson2FormMeta(paramsType, data)
+            newFields = mapValueToFields({
+              data: mapFormMeta2Form(paramsType),
+              fields: fields.filter(el => el.groupName === paramsType),
+              targetGroup: paramsType,
+              type: 'form'
+            })
+          }
+        } catch (error) {
+          return { error }
+        }
+        return { newFields }
+      },
+      fields: {
+        form: PARAMS_FORM_FIELDS,
+        json: [
+          {
+            key: paramsType,
+            type: 'json',
+            span: 24,
+            props: {
+              minHeight: '500px'
             },
-            {
-              key: currType + '.cup_limit',
-              label: 'cpu limit',
-              span: 12,
-              default: '2000m'
-            },
-            {
-              key: currType + '.cup_limit',
-              label: 'memory request',
-              span: 12,
-              default: '2Gi'
-            },
-            {
-              key: 'memory limit',
-              span: 12,
-              default: '2Gi'
-            },
-          ])
-          return total
-        }, []),
-      ]
+          },
+        ]
+      }
     }))
   ], [])
 
   let [fields, setFields] = useState(DEFAULT_FIELDS)
 
-  function mapValueToFields(job, fields) {
-    return produce(fields, draft => {
-      draft.map((x) => {
-        x.value = job.localdata[x.key] || ''
-
-        if ((x.key === 'client_params' || x.key === 'server_params') && x.value) {
-          x.value = JSON.stringify(x.value, null, 2);
-        }
-
-      });
-    })
-  }
-
   const handleFields = fields => produce(fields, draft => {
     draft.map(field => {
       if (field.key === 'client_ticket_name') {
-        console.log(jobType)
         field.props.job_type = jobType
       }
       if (field.key === 'server_ticket_name') {
@@ -252,17 +411,25 @@ export default function JobList(props) {
     mutate();
     toggleForm();
   };
-  const onCreateJob = (form) => {
-    const params = {
-      ...form,
-      client_params: form.client_params ? JSON.parse(form.client_params) : {},
-      server_params: form.server_params ? JSON.parse(form.server_params) : {},
-    };
-    return createJob(params);
+  const onCreateJob = (data, groupFormType) => {
+    PARAMS_GROUP.forEach(paramType => {
+      switch (groupFormType[paramType]) {
+        case 'json':
+          writeJson2FormMeta(paramsType, data)
+          break
+        case 'form':
+          writeForm2FormMeta(paramsType, data)
+      }
+    })
+    console.log(formMeta)
+    // return createJob(formMeta);
   };
 
   const handleClone = (item) => {
-    setFields(mapValueToFields(item, fields))
+    setFields(mapValueToFields({
+      data: item,
+      fields
+    }))
     // fields = mapValueToFields(item, DEFAULT_FIELDS)
     toggleForm()
   }
