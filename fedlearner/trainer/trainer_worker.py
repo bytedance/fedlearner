@@ -121,6 +121,10 @@ def create_argument_parser():
                         type=int,
                         default=1,
                         help='Logging level.')
+    parser.add_argument('--load-model-path',
+                        type=str,
+                        default=None,
+                        help='Path to load models')
 
     return parser
 
@@ -223,6 +227,8 @@ def train(role, args, input_fn, model_fn, serving_input_receiver_fn):
                                 cluster_spec=cluster_spec)
 
     run_mode = args.mode.lower()
+    if args.load_model_path:
+        estimator.load_model(args.load_model_path)
     if run_mode == 'train':
         estimator.train(input_fn,
                         checkpoint_path=args.checkpoint_path,

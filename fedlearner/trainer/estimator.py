@@ -374,6 +374,11 @@ class FLEstimator(object):
 
         return export_dir_base
 
+    def load_model(self, load_model_path):
+        with tf.Graph().as_default():
+            with tf.Session() as sess:
+                tf.saved_model.loader.load(sess, ["serve"],
+                                           load_model_path)
 
 def _extract_metric_update_ops(eval_dict):
     """Separate update operations from metric value operations."""
