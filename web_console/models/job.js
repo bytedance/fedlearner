@@ -46,6 +46,24 @@ module.exports = (sequelize, DataTypes) => {
       default: null,
       comment: 'users.id',
     },
+    k8s_meta_snapshot: {
+      type: DataTypes.TEXT('long'),
+      allowNull: true,
+      default: null,
+      comment: 'k8s metadata snapshot before job is stopped',
+    },
+    status: {
+      type: DataTypes.STRING(16),
+      allowNull: true,
+      default: 'started',
+      comment: 'status of the current job: started | stopped | error',
+    },
+    federation_id: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      default: null,
+      comment: 'federation id of job',
+    }
   }, {
     tableName: 'jobs',
     paranoid: true,

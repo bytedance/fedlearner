@@ -53,6 +53,20 @@ message DeleteJobResponse {
   string message = 1;
 }
 
+message UpdateJobRequest {
+  string name = 1;
+  string job_type = 2;
+  string client_ticket_name = 3;
+  string server_ticket_name = 4;
+  string server_params = 5;
+  string status = 6;
+}
+
+message UpdateJobResponse {
+  Job data = 1;
+  string status = 2;
+}
+
 service Federation {
   // Obtain available tickets
   rpc GetTickets(GetTicketsRequest) returns (GetTicketsResponse) {}
@@ -62,4 +76,7 @@ service Federation {
 
   // Obtain token from preset cipher
   rpc DeleteJob(DeleteJobRequest) returns (DeleteJobResponse) {}
+
+  // Obtain token from preset cipher
+  rpc UpdateJob(UpdateJobRequest) returns (UpdateJobResponse) {}
 }

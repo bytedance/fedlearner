@@ -19,6 +19,7 @@ import os
 import inspect
 import logging
 import sys
+import traceback
 
 from fedlearner.data_join.output_writer_impl.output_writer import OutputWriter
 
@@ -40,5 +41,6 @@ def create_output_writer(writer_options, *args, **kwargs):
     if writer in writer_impl_map:
         return writer_impl_map[writer](writer_options, *args, **kwargs)
     logging.fatal("Unknown output writer %s", writer)
+    traceback.print_stack()
     os._exit(-1) # pylint: disable=protected-access
     return None

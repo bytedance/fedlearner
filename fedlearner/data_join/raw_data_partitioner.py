@@ -19,6 +19,7 @@ import logging
 import os
 import re
 import gc
+import traceback
 
 import tensorflow_io # pylint: disable=unused-import
 from tensorflow.compat.v1 import gfile
@@ -92,6 +93,7 @@ class RawDataBatchFetcher(ItemBatchSeqProcessor):
                 if index != next_index:
                     logging.fatal("batch raw data visitor is not consecutive, "\
                                   "%d != %d", index, next_index)
+                    traceback.print_stack()
                     os._exit(-1) # pylint: disable=protected-access
                 next_batch.append(item)
                 next_index += 1
@@ -219,7 +221,6 @@ class RawDataPartitioner(object):
         self._started = False
         self._part_finished = False
         self._cond = threading.Condition()
-        self._heap_mem_stats = common.HeapMemStats(None)
 
     def start_process(self):
         with self._cond:
@@ -286,7 +287,9 @@ class RawDataPartitioner(object):
                 fly_item_cnt = fetcher.get_flying_item_count()
                 if round_dumped_item // self._options.output_partition_num \
                         > (1<<21) or \
-                        self._heap_mem_stats.CheckOomRisk(fly_item_cnt, 0.7):
+                        common.get_heap_mem_stats(None).CheckOomRisk(
+                                fly_item_cnt, 0.7
+                            ):
                     self._finish_file_writers()
                     self._set_next_part_index(next_index)
                     hint_index = self._evict_staless_batch(hint_index,
@@ -428,7 +431,8 @@ class RawDataPartitioner(object):
                           "partitioner", batch.begin_index, len(batch))
             self._wakeup_partitioner()
             fly_item_cnt = fetcher.get_flying_item_count()
-            if self._heap_mem_stats.CheckOomRisk(fly_item_cnt, 0.75):
+            if common.get_heap_mem_stats(None).CheckOomRisk(fly_item_cnt,
+                                                            0.75):
                 logging.warning('early stop the raw data fetch '\
                                 'since the oom risk')
                 break
@@ -438,7 +442,8 @@ class RawDataPartitioner(object):
         fetcher = self._raw_data_batch_fetcher
         fly_item_cnt = fetcher.get_flying_item_count()
         return self._raw_data_batch_fetcher.need_process(next_part_index) and \
-                not self._heap_mem_stats.CheckOomRisk(fly_item_cnt, 0.75)
+                not common.get_heap_mem_stats(None).CheckOomRisk(fly_item_cnt,
+                                                                 0.75)
 
     def _wakeup_partitioner(self):
         self._worker_map['raw_data_partitioner'].wakeup()

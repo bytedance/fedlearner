@@ -22,7 +22,7 @@ import tensorflow.compat.v1 as tf
 
 class SummaryHook(object):
     summary_path = None
-    save_steps = 10
+    save_steps = 1000
     worker_rank = 0
     role = 'leader'
 

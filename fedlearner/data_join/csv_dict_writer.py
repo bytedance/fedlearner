@@ -16,6 +16,9 @@
 
 import csv
 import io
+import os
+import logging
+import traceback
 
 import tensorflow_io # pylint: disable=unused-import
 from tensorflow.compat.v1 import gfile
@@ -27,18 +30,26 @@ class CsvDictWriter(object):
         self._file_hanlde = gfile.Open(fpath, 'w+')
         self._buffer_handle = io.StringIO()
         self._csv_writer = None
+        self._csv_headers = None
 
-    def write(self, raw):
-        assert isinstance(raw, dict)
-        if len(raw) == 0:
-            return
+    def write(self, fields):
+        assert isinstance(fields, tuple)
+        field_keys, field_vals = fields[0], fields[1]
+        assert isinstance(field_keys, list) and \
+                isinstance(field_vals, list) and \
+                len(field_keys) == len(field_vals)
         if self._csv_writer is None:
-            self._csv_writer = csv.DictWriter(
-                    self._buffer_handle,
-                    fieldnames=raw.keys()
-                )
-            self._csv_writer.writeheader()
-        self._csv_writer.writerow(raw)
+            self._csv_writer = csv.writer(self._buffer_handle)
+            self._csv_headers = field_keys
+            self._csv_writer.writerow(field_keys)
+        else:
+            assert self._csv_headers is not None
+            if self._csv_headers != field_keys:
+                logging.fatal("the schema of csv item is %s, mismatch with "\
+                              "previous %s", self._csv_headers, field_keys)
+                traceback.print_stack()
+                os._exit(-1) # pylint: disable=protected-access
+        self._csv_writer.writerow(field_vals)
         self._write_raw_num += 1
         self._flush_buffer(False)
 
