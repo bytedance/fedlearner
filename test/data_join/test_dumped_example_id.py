@@ -22,7 +22,7 @@ tf.enable_eager_execution()
 import tensorflow_io
 from tensorflow.compat.v1 import gfile
 
-from fedlearner.common import etcd_client
+from fedlearner.common import mysql_client
 from fedlearner.common import common_pb2 as common_pb
 from fedlearner.common import data_join_service_pb2 as dj_pb
 from fedlearner.data_join import (
@@ -31,13 +31,14 @@ from fedlearner.data_join import (
 
 class TestDumpedExampleId(unittest.TestCase):
     def setUp(self):
-        self.etcd = etcd_client.EtcdClient('test_cluster', 'localhost:2379',
-                                           'fedlearner', True)
+        self.mysql = mysql_client.DBClient('test_cluster', 'localhost:2379',
+                                              'test_user', 'test_password',
+                                              'fedlearner', True)
         data_source = common_pb.DataSource()
         data_source.data_source_meta.name = "milestone-x"
         data_source.data_source_meta.partition_num = 1
         data_source.output_base_dir = "./ds_output"
-        self.etcd.delete_prefix(common.data_source_etcd_base_dir(data_source.data_source_meta.name))
+        self.mysql.delete_prefix(common.data_source_mysql_base_dir(data_source.data_source_meta.name))
         self.data_source = data_source
         self.example_id_dump_options = dj_pb.ExampleIdDumpOptions(
                 example_id_dump_interval=-1,
@@ -71,16 +72,16 @@ class TestDumpedExampleId(unittest.TestCase):
 
     def test_example_id_dumper(self):
         example_id_dumper1 = example_id_dumper.ExampleIdDumperManager(
-                self.etcd, self.data_source, 0, self.example_id_dump_options
+                self.mysql, self.data_source, 0, self.example_id_dump_options
             )
         self.assertEqual(example_id_dumper1.get_next_index(), 0)
         self._dump_example_ids(example_id_dumper1, 0, 10, 1024)
         example_id_manager = \
-            example_id_visitor.ExampleIdManager(self.etcd, self.data_source, 0, True)
+            example_id_visitor.ExampleIdManager(self.mysql, self.data_source, 0, True)
         last_dumped_index = example_id_manager.get_last_dumped_index()
         self.assertEqual(last_dumped_index, 10240 - 1)
         example_id_dumper2 = example_id_dumper.ExampleIdDumperManager(
-                self.etcd, self.data_source, 0, self.example_id_dump_options
+                self.mysql, self.data_source, 0, self.example_id_dump_options
             )
         self.assertEqual(example_id_dumper2.get_next_index(), 10240)
         self._dump_example_ids(example_id_dumper2, 10 * 1024, 10, 1024)
@@ -88,7 +89,7 @@ class TestDumpedExampleId(unittest.TestCase):
         self.assertEqual(last_dumped_index, 2 * 10240 - 1)
 
     def test_dumped_example_visitor(self):
-        visitor = example_id_visitor.ExampleIdVisitor(self.etcd, self.data_source, 0)
+        visitor = example_id_visitor.ExampleIdVisitor(self.mysql, self.data_source, 0)
         expected_index = 0
         for (index, example) in visitor:
             self.assertEqual(index, expected_index)
@@ -100,7 +101,7 @@ class TestDumpedExampleId(unittest.TestCase):
         self.assertRaises(StopIteration, visitor.seek, 200)
         self.assertTrue(visitor.finished())
         dumper = example_id_dumper.ExampleIdDumperManager(
-                self.etcd, self.data_source, 0, self.example_id_dump_options
+                self.mysql, self.data_source, 0, self.example_id_dump_options
             )
         self.assertEqual(dumper.get_next_index(), 0)
         self._dump_example_ids(dumper, 0, 10, 1024)
@@ -120,7 +121,7 @@ class TestDumpedExampleId(unittest.TestCase):
         self.assertEqual(expected_index, visitor.get_item().index)
         self.assertEqual(150000000+expected_index, visitor.get_item().event_time)
         dumper2 = example_id_dumper.ExampleIdDumperManager(
-                self.etcd, self.data_source, 0, self.example_id_dump_options
+                self.mysql, self.data_source, 0, self.example_id_dump_options
             )
         self._dump_example_ids(dumper2, 10240, 10, 1024)
         expected_index += 1
@@ -133,7 +134,7 @@ class TestDumpedExampleId(unittest.TestCase):
             self.assertEqual(index, example.index)
             expected_index += 1
         self.assertEqual(10240 * 2, expected_index)
-        visitor2 = example_id_visitor.ExampleIdVisitor(self.etcd, self.data_source, 0)
+        visitor2 = example_id_visitor.ExampleIdVisitor(self.mysql, self.data_source, 0)
         visitor2.seek(886)
         expected_index = 886
         self.assertEqual(expected_index, visitor2.get_index())

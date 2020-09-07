@@ -18,7 +18,7 @@ import argparse
 import logging
 
 from fedlearner.common import common_pb2 as common_pb
-from fedlearner.common.mysql_client import MySQLClient
+from fedlearner.common.mysql_client import DBClient
 from fedlearner.data_join import common
 
 if __name__ == "__main__":
@@ -66,7 +66,7 @@ if __name__ == "__main__":
     data_source.output_base_dir = args.output_base_dir
     data_source.raw_data_sub_dir = args.raw_data_sub_dir
     data_source.state = common_pb.DataSourceState.Init
-    mysql = MySQLClient(args.mysql_name, args.mysql_base_dir,
+    mysql = DBClient(args.mysql_name, args.mysql_base_dir,
                         args.mysql_addr, args.mysql_user,
                         args.mysql_password)
     master_mysql_key = common.data_source_mysql_base_dir(

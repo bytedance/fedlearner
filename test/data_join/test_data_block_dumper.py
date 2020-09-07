@@ -52,7 +52,7 @@ class TestDataBlockDumper(unittest.TestCase):
             gfile.DeleteRecursively(self.data_source_l.output_base_dir)
         if gfile.Exists(self.raw_data_dir_l):
             gfile.DeleteRecursively(self.raw_data_dir_l)
-        self.mysql = mysql_client.MySQLClient('test_cluster', 'localhost:2379',
+        self.mysql = mysql_client.DBClient('test_cluster', 'localhost:2379',
                                               'test_user', 'test_password',
                                               'fedlearner', True)
         self.mysql.delete_prefix(common.data_source_mysql_base_dir(self.data_source_l.data_source_meta.name))

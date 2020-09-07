@@ -25,7 +25,7 @@ from google.protobuf import empty_pb2
 from fedlearner.common import common_pb2 as common_pb
 from fedlearner.common import data_join_service_pb2_grpc as dj_grpc
 from fedlearner.common import data_join_service_pb2 as dj_pb
-from fedlearner.common.mysql_client import MySQLClient
+from fedlearner.common.mysql_client import DBClient
 from fedlearner.proxy.channel import make_insecure_channel, ChannelType
 
 from fedlearner.data_join import (
@@ -241,7 +241,7 @@ class DataJoinWorkerService(object):
             )
         self._master_client = dj_grpc.DataJoinMasterServiceStub(master_channel)
         self._rank_id = rank_id
-        mysql = MySQLClient(mysql_name, mysql_addr, mysql_user,
+        mysql = DBClient(mysql_name, mysql_addr, mysql_user,
                             mysql_password, mysql_base_dir,
                             options.use_mock_mysql)
         data_source = self._sync_data_source()

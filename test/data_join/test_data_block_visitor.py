@@ -49,7 +49,7 @@ class TestDataBlockVisitor(unittest.TestCase):
         self.mysql_base_dir = 'fedlearner'
         self.mysql_user = 'test_user'
         self.mysql_password = 'test_password'
-        self.mysql = mysql_client.MySQLClient(self.mysql_name, self.mysql_addr,
+        self.mysql = mysql_client.DBClient(self.mysql_name, self.mysql_addr,
                                               self.mysql_user, self.mysql_password,
                                               self.mysql_base_dir, True)
         common.commit_data_source(self.mysql, self.data_source)

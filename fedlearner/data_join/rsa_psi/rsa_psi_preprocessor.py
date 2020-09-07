@@ -25,7 +25,7 @@ import rsa
 
 from fedlearner.common import data_join_service_pb2 as dj_pb
 from fedlearner.common import common_pb2 as common_pb
-from fedlearner.common.mysql_client import MySQLClient
+from fedlearner.common.mysql_client import DBClient
 
 from fedlearner.data_join.routine_worker import RoutineWorker
 from fedlearner.data_join.raw_data_publisher import RawDataPublisher
@@ -41,7 +41,7 @@ class RsaPsiPreProcessor(object):
                  use_mock_mysql=False):
         self._lock = threading.Condition()
         self._options = options
-        mysql = MySQLClient(mysql_name, mysql_addr, mysql_user,
+        mysql = DBClient(mysql_name, mysql_addr, mysql_user,
                             mysql_password, mysql_base_dir, use_mock_mysql)
         pub_dir = self._options.raw_data_publish_dir
         self._publisher = RawDataPublisher(mysql, pub_dir)

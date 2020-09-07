@@ -25,7 +25,7 @@ from fedlearner.common import common_pb2 as common_pb
 from fedlearner.common import data_join_service_pb2 as dj_pb
 from fedlearner.common import data_join_service_pb2_grpc as dj_grpc
 
-from fedlearner.common.mysql_client import MySQLClient
+from fedlearner.common.mysql_client import DBClient
 from fedlearner.proxy.channel import make_insecure_channel, ChannelType
 
 from fedlearner.data_join.routine_worker import RoutineWorker
@@ -312,7 +312,7 @@ class DataJoinMaster(dj_grpc.DataJoinMasterServiceServicer):
                  mysql_user, mysql_password, options):
         super(DataJoinMaster, self).__init__()
         self._data_source_name = data_source_name
-        mysql = MySQLClient(mysql_name, mysql_addr, mysql_user,
+        mysql = DBClient(mysql_name, mysql_addr, mysql_user,
                             mysql_password, mysql_base_dir,
                             options.use_mock_mysql)
         self._options = options

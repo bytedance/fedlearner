@@ -26,7 +26,7 @@ from tensorflow.compat.v1 import gfile
 
 from cityhash import CityHash32 # pylint: disable=no-name-in-module
 
-from fedlearner.common.mysql_client import MySQLClient
+from fedlearner.common.mysql_client import DBClient
 
 from fedlearner.data_join.output_writer_impl import create_output_writer
 from fedlearner.data_join.item_batch_seq_processor import \
@@ -211,7 +211,7 @@ class RawDataPartitioner(object):
                  mysql_password, use_mock_mysql=False):
         self._options = options
         self._part_field = part_field
-        mysql = MySQLClient(mysql_name, mysql_addr,
+        mysql = DBClient(mysql_name, mysql_addr,
                             mysql_user, mysql_password,
                             mysql_base_dir, use_mock_mysql)
         self._raw_data_batch_fetcher = RawDataBatchFetcher(mysql, options)

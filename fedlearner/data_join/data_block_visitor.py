@@ -24,7 +24,7 @@ from google.protobuf import text_format
 from fedlearner.common import data_join_service_pb2 as dj_pb
 from fedlearner.common import common_pb2 as common_pb
 
-from fedlearner.common.mysql_client import MySQLClient
+from fedlearner.common.mysql_client import DBClient
 from fedlearner.data_join.common import (
     DataBlockSuffix, encode_data_block_meta_fname,
     load_data_block_meta, encode_data_block_fname,
@@ -107,7 +107,7 @@ class DataBlockVisitor(object):
     def __init__(self, data_source_name, mysql_name,
                  mysql_base_dir, mysql_addr, mysql_user,
                  mysql_password, use_mock_mysql=False):
-        self._mysql = MySQLClient(mysql_name, mysql_addr, mysql_user,
+        self._mysql = DBClient(mysql_name, mysql_addr, mysql_user,
                                   mysql_password, mysql_base_dir,
                                   use_mock_mysql)
         self._data_source = retrieve_data_source(self._mysql, data_source_name)

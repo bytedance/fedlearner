@@ -29,7 +29,7 @@ from fedlearner.data_join import data_join_master, common
 from fedlearner.common import common_pb2 as common_pb
 from fedlearner.common import data_join_service_pb2 as dj_pb
 from fedlearner.common import data_join_service_pb2_grpc as dj_grpc
-from fedlearner.common.mysql_client import MySQLClient
+from fedlearner.common.mysql_client import DBClient
 from fedlearner.proxy.channel import make_insecure_channel, ChannelType
 
 class DataJoinMaster(unittest.TestCase):
@@ -44,9 +44,9 @@ class DataJoinMaster(unittest.TestCase):
         mysql_base_dir_l = 'byefl_l'
         mysql_base_dir_f= 'byefl_f'
         data_source_name = 'test_data_source'
-        mysql_l = MySQLClient(mysql_name, mysql_addr, mysql_user_l,
+        mysql_l = DBClient(mysql_name, mysql_addr, mysql_user_l,
                               mysql_password_l, mysql_base_dir_l, True)
-        mysql_f = MySQLClient(mysql_name, mysql_addr, mysql_user_f,
+        mysql_f = DBClient(mysql_name, mysql_addr, mysql_user_f,
                               mysql_password_f, mysql_base_dir_f, True)
         mysql_l.delete_prefix(common.data_source_mysql_base_dir(data_source_name))
         mysql_f.delete_prefix(common.data_source_mysql_base_dir(data_source_name))

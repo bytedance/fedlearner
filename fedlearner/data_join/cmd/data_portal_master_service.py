@@ -19,7 +19,7 @@ import logging
 from google.protobuf import text_format
 
 from fedlearner.common import data_portal_service_pb2 as dp_pb
-from fedlearner.common.mysql_client import MySQLClient
+from fedlearner.common.mysql_client import DBClient
 
 from fedlearner.data_join import common
 from fedlearner.data_join.data_portal_master import DataPortalMasterService
@@ -63,7 +63,7 @@ if __name__ == "__main__":
                         help='make the data portal long running')
     args = parser.parse_args()
 
-    mysql = MySQLClient(args.mysql_name, args.mysql_addr, args.mysql_user,
+    mysql = DBClient(args.mysql_name, args.mysql_addr, args.mysql_user,
                         args.mysql_password, args.mysql_base_dir,
                         args.use_mock_mysql)
     mysql_key = common.portal_mysql_base_dir(args.data_portal_name)
