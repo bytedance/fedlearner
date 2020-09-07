@@ -9,6 +9,7 @@ import ClientTicketSelect from './ClientTicketSelect';
 import DataPortalTypeSelect from './DataPortalTypeSelect';
 import NameValueInput from './NameValueGroup';
 import RawDataSelect from './RawDataSelect'
+import BooleanSelect from './BooleanSelect'
 import produce from 'immer'
 
 function useStyles() {
@@ -351,6 +352,26 @@ export default function Form({
             </Select>
           </div>
         </div>
+      )
+    }
+
+    if (type === 'bool-select') {
+      return (
+        <>
+          <label className="formItemLabel" htmlFor={key}>{label || key}</label>
+          <div className="formItemValue">
+            <BooleanSelect
+              value={form[key]}
+              onChange={(value) => {
+                updateForm(key, value)
+                if (onChange) {
+                  onChange(value);
+                }
+              }}
+              {...valueProps}
+            />
+          </div>
+        </>
       )
     }
 
