@@ -45,7 +45,8 @@ const K8S_SETTINGS = {
   }
 }
 
-const DATASOURCE_REPLICA_TYPE = ['Master', 'Worker']
+const DATASOURCE_JOB_REPLICA_TYPE = ['Master', 'Worker']
+const DATASOURCE_TICKET_REPLICA_TYPE = ['Master', 'Worker']
 
 const DATASOURCE_PUBLIC_PARAMS = {
   "Master": {
@@ -76,7 +77,7 @@ const DATASOURCE_PUBLIC_PARAMS = {
         "value": "portal_publish_dir/data-100wexamples-2"
       }
     ],
-    "commend": [
+    "command": [
       "/app/deploy/scripts/wait4pair_wrapper.sh"
     ],
     "args": [
@@ -123,7 +124,7 @@ const DATASOURCE_PUBLIC_PARAMS = {
         "value": "TF_RECORD"
       }
     ],
-    "commend": [
+    "command": [
       "/app/deploy/scripts/wait4pair_wrapper.sh"
     ],
     "args": [
@@ -132,7 +133,89 @@ const DATASOURCE_PUBLIC_PARAMS = {
   }
 }
 
-const DATASOURCE_JOB = {
+const DATASOURCE_TICKET_PARAMS = {
+  "Master": {
+    pair: true,
+    env: [
+      {
+        "name": "BATCH_MODE",
+        "value": "--batch_mode"
+      },
+      {
+        "name": "PARTITION_NUM",
+        "value": "4"
+      },
+      {
+        "name": "START_TIME",
+        "value": "0"
+      },
+      {
+        "name": "END_TIME",
+        "value": "999999999999"
+      },
+      {
+        "name": "NEGATIVE_SAMPLING_RATE",
+        "value": "1.0"
+      },
+      {
+        "name": "RAW_DATA_SUB_DIR",
+        "value": "portal_publish_dir/data-100wexamples-2"
+      }
+    ],
+    command: [
+      "/app/deploy/scripts/wait4pair_wrapper.sh"
+    ],
+    args: [
+      "/app/deploy/scripts/data_join/run_data_join_master.sh"
+    ]
+  },
+  "Worker": {
+    pair: true,
+    env: [
+      {
+        "name": "DATA_BLOCK_DUMP_INTERVAL",
+        "value": "300"
+      },
+      {
+        "name": "DATA_BLOCK_DUMP_THRESHOLD",
+        "value": "65536"
+      },
+      {
+        "name": "EXAMPLE_ID_DUMP_INTERVAL",
+        "value": "600"
+      },
+      {
+        "name": "EXAMPLE_ID_DUMP_THRESHOLD",
+        "value": "262144"
+      },
+      {
+        "name": "EXAMPLE_ID_BATCH_SIZE",
+        "value": "4096"
+      },
+      {
+        "name": "MAX_FLYING_EXAMPLE_ID",
+        "value": "307152"
+      },
+      {
+        "name": "MIN_MATCHING_WINDOW",
+        "value": "256"
+      },
+      {
+        "name": "MAX_MATCHING_WINDOW",
+        "value": "1024"
+      },
+      {
+        "name": "RAW_DATA_ITER",
+        "value": "TF_RECORD"
+      }
+    ],
+    command: [
+      "/app/deploy/scripts/wait4pair_wrapper.sh"
+    ],
+    args: [
+      "/app/deploy/scripts/data_join/run_data_join_worker.sh"
+    ]
+  }
 }
 
 const RAW_DATA_CONTEXT = {
@@ -159,7 +242,9 @@ for (let k in K8S_SETTINGS) {
 const _ = [
   K8S_SETTINGS,
   DATASOURCE_PUBLIC_PARAMS.Master,
-  DATASOURCE_PUBLIC_PARAMS.Worker
+  DATASOURCE_PUBLIC_PARAMS.Worker,
+  DATASOURCE_TICKET_PARAMS.Master,
+  DATASOURCE_TICKET_PARAMS.Worker,
 ].forEach(el => {
   for (let k in el) {
     if (typeof el[k] === 'object') {
@@ -170,7 +255,9 @@ const _ = [
 
 module.exports = {
   K8S_SETTINGS,
-  DATASOURCE_REPLICA_TYPE,
+  DATASOURCE_JOB_REPLICA_TYPE,
+  DATASOURCE_TICKET_REPLICA_TYPE,
   DATASOURCE_PUBLIC_PARAMS,
   RAW_DATA_CONTEXT,
+  DATASOURCE_TICKET_PARAMS,
 }

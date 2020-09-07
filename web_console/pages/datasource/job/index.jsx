@@ -14,7 +14,7 @@ import Dot from '../../../components/Dot';
 import Empty from '../../../components/Empty';
 import { deleteJob, createJob } from '../../../services/job';
 import Form from '../../../components/Form';
-import { DATASOURCE_REPLICA_TYPE, DATASOURCE_PUBLIC_PARAMS } from '../../../constants/form-default'
+import { DATASOURCE_JOB_REPLICA_TYPE, DATASOURCE_PUBLIC_PARAMS } from '../../../constants/form-default'
 import { getParsedValueFromData, fillJSON, getValueFromJson } from '../../../utils/form_utils';
 
 function useStyles(theme) {
@@ -83,7 +83,7 @@ const RESOURCE_PATH_PREFIX = 'spec.flReplicaSpecs.[replicaType].template.spec.co
 const ENV_PATH = 'spec.flReplicaSpecs.[replicaType].template.spec.containers[].env'
 const PARAMS_GROUP = ['client_params', 'server_params']
 
-const PARAMS_FORM_FIELDS = DATASOURCE_REPLICA_TYPE.reduce((total, currType) => {
+const PARAMS_FORM_FIELDS = DATASOURCE_JOB_REPLICA_TYPE.reduce((total, currType) => {
   total.push(...[
     { key: currType, type: 'label' },
     {
@@ -181,7 +181,7 @@ export default function JobList(props) {
     // this function will be call inner immer
     // name
     PARAMS_GROUP.forEach(paramType => {
-      DATASOURCE_REPLICA_TYPE.forEach(replicaType => {
+      DATASOURCE_JOB_REPLICA_TYPE.forEach(replicaType => {
         if (!draft[paramType]) {
           draft[paramType] = {}
         }
@@ -259,7 +259,7 @@ export default function JobList(props) {
     {
       key: 'name',
       required: true,
-      path: DATASOURCE_REPLICA_TYPE.reduce((total, currType) => {
+      path: DATASOURCE_JOB_REPLICA_TYPE.reduce((total, currType) => {
         total[currType] = `spec. flReplicaSpecs.${currType}.template.spec.containers.env.DATA_SOURCE_NAME`
         return total
       }, {})
@@ -346,6 +346,7 @@ export default function JobList(props) {
             key: paramsType,
             type: 'json',
             span: 24,
+            hideLabel: true,
             props: {
               minHeight: '500px'
             },

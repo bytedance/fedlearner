@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import css from 'styled-jsx/css';
 import { useRouter } from 'next/router';
 import useSWR from 'swr';
@@ -130,6 +130,13 @@ function useStyles(theme) {
   `;
 }
 
+function isActive(tabValue, route) {
+  if (/^\/datasource/.test(route)) {
+    return tabValue === '/datasource/job'
+  }
+  return tabValue === route
+}
+
 export default function Header() {
   const theme = useTheme();
   const styles = useStyles(theme);
@@ -152,7 +159,7 @@ export default function Header() {
     }
   };
   const title = isAdmin ? 'Admin' : 'Fedlearner';
-  const navs = isAdmin
+  const navs = useMemo(() => isAdmin
     ? [
       { label: 'Federations', value: '/admin/federation' },
       { label: 'Users', value: '/admin/user' },
@@ -179,7 +186,7 @@ export default function Header() {
         ]
       },
       // { label: 'Trainning', value: '/trainning' },
-    ];
+    ], [isAdmin])
 
   const PopoverContent = (
     <>
@@ -209,8 +216,6 @@ export default function Header() {
     </>
   );
 
-  const activeTab = router.pathname;
-
   const onTabChange = useCallback((value, e) => {
     e.stopPropagation()
     router.push(value)
@@ -228,7 +233,8 @@ export default function Header() {
     // '/job',
     '/ticket',
     '/raw_data',
-    '/datasource/job'
+    '/datasource/job',
+    '/datasource/tickets'
   ].some(el => el === route)
   const { data: fedData } = useSWR('federations', fetcher)
   const federations = fedData ? fedData.data : null
@@ -254,10 +260,10 @@ export default function Header() {
             <div className="headerTitle">{title}</div>
             <nav className="nav">
               {/* Popover not work with tab */}
-              <div className="menu" value={activeTab} onChange={onTabChange}>
+              <div className="menu" onChange={onTabChange}>
                 {navs.map((x) =>
                   <div
-                    className={`tab ${activeTab === x.value ? 'active' : ''}`}
+                    className={`tab ${isActive(x.value, router.pathname) ? 'active' : ''}`}
                     key={x.label}
                     onClick={(e) => onTabChange(x.value, e)}
                   >
