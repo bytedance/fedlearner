@@ -29,7 +29,9 @@ from fedlearner.trainer.trainer_master_client import TrainerMasterClient
 
 
 class StepMetricsHook(tf.estimator.SessionRunHook):
-    def __init__(self, tensor_dict={}, every_n_iter=5):
+    def __init__(self, tensor_dict=None, every_n_iter=5):
+        if tensor_dict is None:
+            tensor_dict = {}
         self._tensor_dict = tensor_dict
         self._every_n_iter = every_n_iter
         self._iter = 0
