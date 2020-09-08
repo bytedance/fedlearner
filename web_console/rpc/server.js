@@ -143,7 +143,7 @@ async function deleteJob(call, callback) {
       },
     });
     if (!job) throw new Error('Job not found');
-    if (data.status == 'running') {
+    if (data.status == 'started') {
       await k8s.deleteFLApp(NAMESPACE, job.name);
     }
     await job.destroy({ force: true });
@@ -209,7 +209,6 @@ async function updateJob(call, callback) {
 
     old_job.client_ticket_name = new_job.client_ticket_name;
     old_job.server_ticket_name = new_job.server_ticket_name;
-    old_job.client_params = new_job.client_params;
     old_job.server_params = new_job.server_params;
     old_job.status = new_job.status;
     old_job.save()
