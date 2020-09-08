@@ -142,10 +142,6 @@ function fillField(data, field, edit=false) {
       disabled: edit,
     };
   }
-  if (field.key === 'grpc-x-host') {
-    let xHost = getValueFromJson(data, 'k8s_settings.grpc_spec.extraHeaders.x-host')
-    xHost && (field.value = xHost)
-  }
   if (field.key === 'x-federation') {
     let xFederation = getValueFromJson(data, 'k8s_settings.grpc_spec.extraHeaders.x-federation')
     xFederation && (field.value = xFederation)
@@ -215,8 +211,6 @@ export default function FederationList() {
       fields.map((x) => {
         if (x.groupName === 'k8s_settings') {
           let k8s_settings = JSON.parse(data.k8s_settings['k8s_data'])
-          data['grpc-x-host']
-            && fillJSON(k8s_settings, 'grpc_spec.extraHeaders.x-host', data['grpc-x-host'])
           data['x-federation']
             && fillJSON(k8s_settings, 'grpc_spec.extraHeaders.x-federation', data['x-federation'])
           draft.k8s_settings = {...draft.k8s_settings, ...k8s_settings}
@@ -237,8 +231,6 @@ export default function FederationList() {
               getParsedValueFromData(data.k8s_settings, field)
             )
           }
-          data['grpc-x-host']
-            && fillJSON(draft.k8s_settings, 'grpc_spec.extraHeaders.x-host', data['grpc-x-host'])
           data['x-federation']
             && fillJSON(draft.k8s_settings, 'grpc_spec.extraHeaders.x-federation', data['x-federation'])
         } else {
@@ -268,7 +260,6 @@ export default function FederationList() {
   }
   const DEFAULT_FIELDS = [
     { key: 'name', required: true },
-    { key: 'grpc-x-host' },
     { key: 'x-federation' },
     { key: 'trademark' },
     { key: 'email' },
