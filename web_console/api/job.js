@@ -253,6 +253,8 @@ router.post('/api/v1/job', SessionMiddleware, async (ctx) => {
     return;
   }
 
+  job.federation_id = clientTicket.federation_id;
+
   try {
     clientValidateJob(job, clientTicket);
   } catch (e) {
@@ -374,6 +376,14 @@ router.post('/api/v1/job/:id/update', SessionMiddleware, async (ctx) => {
     ctx.status = 422;
     ctx.body = {
       error: 'client_ticket does not exist',
+    };
+    return;
+  }
+
+  if (clientTicket.federation_id != old_job.federation_id) {
+    ctx.status = 422;
+    ctx.body = {
+      error: 'cannot change job federation',
     };
     return;
   }
