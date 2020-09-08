@@ -52,7 +52,8 @@ class StepLossAucMetricsHook(StepMetricsHook):
     def __init__(self, loss_tensor, auc_tensor, every_n_iter=5):
         tensor_dict = {"loss": loss_tensor,
                        "auc": auc_tensor}
-        super().__init__(tensor_dict, every_n_iter)
+        super(StepLossAucMetricsHook, self).__init__(tensor_dict,
+                                                     every_n_iter)
 
 
 def create_argument_parser():
