@@ -21,7 +21,7 @@ const K8S_SETTINGS = {
     "peerURL": "fedlearner-stack-ingress-nginx-controller.default.svc.cluster.local:80",
     "authority": "external.name",
     "extraHeaders": {
-      "x-host": "",
+      "x-host": "GRPC_X_HOST",
       "x-federation": "XFEDERATION"
     }
   },
@@ -30,7 +30,7 @@ const K8S_SETTINGS = {
       "peerURL": "fedlearner-stack-ingress-nginx-controller.default.svc.cluster.local:80",
       "authority": "external.name",
       "extraHeaders": {
-        "x-host": "follower.flapp.operator"
+        "x-host": "leader.flapp.operator"
       }
     }
   },
