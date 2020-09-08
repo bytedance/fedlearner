@@ -426,9 +426,10 @@ router.post('/api/v1/job/:id/update', SessionMiddleware, async (ctx) => {
   old_job.client_params = new_job.client_params;
   old_job.server_params = new_job.server_params;
   old_job.status = new_job.status;
-  old_job.save()
 
-  ctx.body = { new_job };
+  const data = await old_job.save();
+
+  ctx.body = { data };
 });
 
 router.delete('/api/v1/job/:id', SessionMiddleware, async (ctx) => {
