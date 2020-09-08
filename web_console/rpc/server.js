@@ -194,6 +194,11 @@ async function updateJob(call, callback) {
       },
     });
     if (!ticketRecord) throw new Error('Ticket not found');
+
+    if (ticketRecord.federation_id != old_job.federation_id) {
+      throw new Error("Cannot change job federation");
+    }
+
     const params = JSON.parse(server_params);
     validateTicket(ticketRecord, params);
 
