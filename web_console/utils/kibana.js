@@ -22,7 +22,7 @@ const JOB_METRICS = {
       title: 'receive_spend',
     },
     {
-      query: 'name%20:%22iter_spend%22',
+      query: 'name%20:%22iter_timer%22',
       mode: 'avg',
       title: 'per_session_run_spend',
     },
