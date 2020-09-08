@@ -37,9 +37,11 @@ python -m fedlearner.data_join.cmd.raw_data_partitioner_cli \
     --output_partition_num=$OUTPUT_PARTITION_NUM \
     --total_partitioner_num=$TOTAL_PARTITIONER_NUM \
     --partitioner_rank_id=$INDEX \
-    --etcd_name=$ETCD_NAME \
-    --etcd_addrs=$ETCD_ADDR \
-    --etcd_base_dir=$ETCD_BASE_DIR \
+    --mysql_name=$MYSQL_NAME \
+    --mysql_addr=$MYSQL_ADDR \
+    --mysql_base_dir=$MYSQL_BASE_DIR \
+    --mysql_user=$MYSQL_USER \
+    --mysql_password=$MYSQL_PASSWORD \
     $partitioner_name \
     $raw_data_iter $compressed_type $read_ahead_size $read_batch_size \
     $output_builder $builder_compressed_type \

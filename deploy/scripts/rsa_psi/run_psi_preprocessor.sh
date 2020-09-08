@@ -22,7 +22,7 @@ source /app/deploy/scripts/env_to_args.sh
 
 if [ -z "$INPUT_BASE_DIR" ] && [ -z "$INPUT_FILE_PATHS" ] && [ -z "$INPUT_FILE_SUBSCRIBE_DIR" ]
 then
-    echo "no input files or directory for psi preprocessor or etcd subscrube dir"
+    echo "no input files or directory for psi preprocessor or mysql subscrube dir"
     exit -1
 fi
 
@@ -66,9 +66,11 @@ python -m fedlearner.data_join.cmd.rsa_psi_preprocessor_cli \
     --output_file_dir="$OUTPUT_BASE_DIR/psi_output" \
     --raw_data_publish_dir=$RAW_DATA_PUBLISH_DIR \
     --partition_id=$INDEX \
-    --etcd_name=$ETCD_NAME \
-    --etcd_addrs=$ETCD_ADDR \
-    --etcd_base_dir=$ETCD_BASE_DIR \
+    --mysql_name=$MYSQL_NAME \
+    --mysql_addr=$MYSQL_ADDR \
+    --mysql_base_dir=$MYSQL_BASE_DIR \
+    --mysql_user=$MYSQL_USER \
+    --mysql_password=$MYSQL_PASSWORD \
     $preprocessor_name $input_file_paths $input_dir $input_file_subscribe_dir \
     $max_flying_sign_batch $slow_sign_threshold \
     $sort_run_merger_read_ahead_buffer \
