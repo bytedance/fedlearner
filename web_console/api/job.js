@@ -365,15 +365,37 @@ router.post('/api/v1/job/:id/update', SessionMiddleware, async (ctx) => {
     return;
   }
 
-  const [clientTicket, clientFed] = await get_ticket_and_fed(ctx, client_ticket_name);
-  if (!clientTicket || !clientFed) {
+  const clientTicket = await Ticket.findOne({
+    where: {
+      name: { [Op.eq]: client_ticket_name },
+    },
+  });
+  if (!clientTicket) {
+    ctx.status = 422;
+    ctx.body = {
+      error: 'client_ticket does not exist',
+    };
     return;
   }
 
-  if (!validata_job(ctx, job, clientTicket)) {
+  try {
+    clientValidateJob(new_job, clientTicket);
+  } catch (e) {
+    ctx.status = 400;
+    ctx.body = {
+      error: 'client_params validation failed',
+    };
     return;
   }
 
+  const clientFed = await Federation.findByPk(clientTicket.federation_id);
+  if (!clientFed) {
+    ctx.status = 422;
+    ctx.body = {
+      error: 'Federation does not exist',
+    };
+    return;
+  }
   const rpcClient = new FederationClient(clientFed);
   // update job
   try {
