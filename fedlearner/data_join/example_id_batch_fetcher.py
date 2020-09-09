@@ -16,6 +16,7 @@
 
 import logging
 import os
+import traceback
 
 from fedlearner.common import data_join_service_pb2 as dj_pb
 from fedlearner.data_join.item_batch_seq_processor import \
@@ -97,6 +98,7 @@ class ExampleIdBatchFetcher(ItemBatchSeqProcessor):
                     logging.fatal("index of raw data visitor for partition "\
                                   "%d is not consecutive, %d != %d",
                                   self._partition_id, index, next_index)
+                    traceback.print_stack()
                     os._exit(-1) # pylint: disable=protected-access
                 next_batch.append(item)
                 next_index += 1

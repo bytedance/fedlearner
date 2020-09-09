@@ -221,11 +221,11 @@ class Bridge(object):
                     elif response.status.code == \
                         common_pb.STATUS_MESSAGE_DUPLICATED:
                         logging.debug("Resent Message with seq_num=%d is "
-                            "confirmed", response.next_seq_num-1)
+                            "confirmed", response.next_seq_num)
                     elif response.status.code == \
                         common_pb.STATUS_MESSAGE_MISSING:
                         raise RuntimeError("Message with seq_num=%d is "
-                            "missing!" % (response.next_seq_num-1))
+                            "missing!" % (response.next_seq_num))
                     else:
                         raise RuntimeError("Trainsmit failed with %d" %
                                            response.status.code)

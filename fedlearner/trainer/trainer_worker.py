@@ -14,6 +14,7 @@
 
 # coding: utf-8
 
+import logging
 import argparse
 import json
 import tensorflow.compat.v1 as tf
@@ -116,11 +117,25 @@ def create_argument_parser():
                         type=int,
                         default=None,
                         help='Number of steps to save summary files.')
+    parser.add_argument('--verbosity',
+                        type=int,
+                        default=1,
+                        help='Logging level.')
 
     return parser
 
 
 def train(role, args, input_fn, model_fn, serving_input_receiver_fn):
+    logging.basicConfig(
+        format="%(asctime)-15s [%(filename)s:%(lineno)d] " \
+               "%(levelname)s : %(message)s")
+    if args.verbosity == 0:
+        logging.getLogger().setLevel(logging.WARNING)
+    elif args.verbosity == 1:
+        logging.getLogger().setLevel(logging.INFO)
+    elif args.verbosity > 1:
+        logging.getLogger().setLevel(logging.DEBUG)
+
     if args.application_id:
         bridge = Bridge(role, int(args.local_addr.split(':')[1]),
                         args.peer_addr, args.application_id, args.worker_rank)
