@@ -207,7 +207,8 @@ class FLEstimator(object):
               input_fn,
               checkpoint_path=None,
               save_checkpoint_steps=None,
-              save_checkpoint_secs=None):
+              save_checkpoint_secs=None,
+              load_model_path=None):
         if self._cluster_spec is not None:
             device_fn = tf.train.replica_device_setter(
                 worker_device="/job:worker/task:%d" % self._worker_rank,
@@ -260,6 +261,14 @@ class FLEstimator(object):
                     save_checkpoint_steps=save_checkpoint_steps,
                     save_checkpoint_secs=save_checkpoint_secs,
                     hooks=spec.training_hooks) as sess:
+                    logging.info("saver start")
+                    saver_for_restore = tf.get_collection(tf.GraphKeys.SAVERS)[0]
+                    if load_model_path:
+                        model_path = tf.train.latest_checkpoint(load_model_path)
+                    logging.info("mode_path is %s",str(model_path))
+                    if model_path:
+                        saver_for_restore.restore(sess, model_path)
+                    logging.info("saver success")
                     iter_id = 0
                     while not sess.should_stop():
                         self._bridge.start(iter_id)
@@ -374,11 +383,6 @@ class FLEstimator(object):
 
         return export_dir_base
 
-    def load_model(self, load_model_path):
-        with tf.Graph().as_default():
-            with tf.Session() as sess:
-                tf.saved_model.loader.load(sess, ["serve"],
-                                           load_model_path)
 
 def _extract_metric_update_ops(eval_dict):
     """Separate update operations from metric value operations."""
