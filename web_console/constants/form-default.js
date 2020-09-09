@@ -1,6 +1,7 @@
 // key is the key of form field
 // value is the default value of field
 const K8S_SETTINGS = {
+  "namespace": "default",
   "storage_root_path": "data",
   "imagePullSecrets": [{"name": "regcred"}],
   "env": [
