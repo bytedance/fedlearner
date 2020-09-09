@@ -196,7 +196,37 @@ router.post('/api/v1/job', SessionMiddleware, async (ctx) => {
     client_params, server_params,
   } = ctx.request.body;
 
-  // check if job already exists
+  if (!(/^[a-zA-Z\d-]+$/.test(name))) {
+    ctx.status = 400;
+    ctx.body = {
+      error: 'name can only contain letters/numbers/-',
+    };
+    return;
+  }
+
+  const [client_params_pass] = checkParseJson(JSON.stringify(client_params));
+  if (!client_params_pass) {
+    ctx.status = 400;
+    ctx.body = {
+      error: 'client_params must be json',
+    };
+    return;
+  }
+
+  const [server_params_pass] = checkParseJson(JSON.stringify(server_params));
+  if (!server_params_pass) {
+    ctx.status = 400;
+    ctx.body = {
+      error: 'server_params must be json',
+    };
+    return;
+  }
+
+  const job = {
+    name, job_type, client_ticket_name, server_ticket_name,
+    client_params, server_params, status: 'started'
+  };
+
   const exists = await Job.findOne({
     where: {
       name: { [Op.eq]: name },
@@ -210,21 +240,39 @@ router.post('/api/v1/job', SessionMiddleware, async (ctx) => {
     return;
   }
 
-  const job = {
-    name, job_type, client_ticket_name, server_ticket_name,
-    client_params, server_params, status: 'started',
-  };
-
-  const [clientTicket, clientFed] = get_ticket_and_fed(ctx, client_ticket_name);
-  if (!clientTicket || !clientFed) {
+  const clientTicket = await Ticket.findOne({
+    where: {
+      name: { [Op.eq]: client_ticket_name },
+    },
+  });
+  if (!clientTicket) {
+    ctx.status = 422;
+    ctx.body = {
+      error: 'client_ticket does not exist',
+    };
     return;
   }
 
-  if (!validata_job(ctx, job, clientTicket)) {
+  job.federation_id = clientTicket.federation_id;
+
+  try {
+    clientValidateJob(job, clientTicket);
+  } catch (e) {
+    ctx.status = 400;
+    ctx.body = {
+      error: 'client_params validation failed',
+    };
     return;
   }
 
-  // create job
+  const clientFed = await Federation.findByPk(clientTicket.federation_id);
+  if (!clientFed) {
+    ctx.status = 422;
+    ctx.body = {
+      error: 'Federation does not exist',
+    };
+    return;
+  }
   const rpcClient = new FederationClient(clientFed);
   try {
     await rpcClient.createJob({
@@ -319,15 +367,45 @@ router.post('/api/v1/job/:id/update', SessionMiddleware, async (ctx) => {
     return;
   }
 
-  const [clientTicket, clientFed] = get_ticket_and_fed(ctx, client_ticket_name);
-  if (!clientTicket || !clientFed) {
+  const clientTicket = await Ticket.findOne({
+    where: {
+      name: { [Op.eq]: client_ticket_name },
+    },
+  });
+  if (!clientTicket) {
+    ctx.status = 422;
+    ctx.body = {
+      error: 'client_ticket does not exist',
+    };
     return;
   }
 
-  if (!validata_job(ctx, job, clientTicket)) {
+  if (clientTicket.federation_id != old_job.federation_id) {
+    ctx.status = 422;
+    ctx.body = {
+      error: 'cannot change job federation',
+    };
     return;
   }
 
+  try {
+    clientValidateJob(new_job, clientTicket);
+  } catch (e) {
+    ctx.status = 400;
+    ctx.body = {
+      error: 'client_params validation failed',
+    };
+    return;
+  }
+
+  const clientFed = await Federation.findByPk(clientTicket.federation_id);
+  if (!clientFed) {
+    ctx.status = 422;
+    ctx.body = {
+      error: 'Federation does not exist',
+    };
+    return;
+  }
   const rpcClient = new FederationClient(clientFed);
   // update job
   try {
@@ -358,9 +436,10 @@ router.post('/api/v1/job/:id/update', SessionMiddleware, async (ctx) => {
   old_job.client_params = new_job.client_params;
   old_job.server_params = new_job.server_params;
   old_job.status = new_job.status;
-  old_job.save()
 
-  ctx.body = { new_job };
+  const data = await old_job.save();
+
+  ctx.body = { data };
 });
 
 router.delete('/api/v1/job/:id', SessionMiddleware, async (ctx) => {

@@ -143,7 +143,7 @@ async function deleteJob(call, callback) {
       },
     });
     if (!job) throw new Error('Job not found');
-    if (data.status == 'running') {
+    if (data.status == 'started') {
       await k8s.deleteFLApp(NAMESPACE, job.name);
     }
     await job.destroy({ force: true });
@@ -194,6 +194,11 @@ async function updateJob(call, callback) {
       },
     });
     if (!ticketRecord) throw new Error('Ticket not found');
+
+    if (ticketRecord.federation_id != old_job.federation_id) {
+      throw new Error("Cannot change job federation");
+    }
+
     const params = JSON.parse(server_params);
     validateTicket(ticketRecord, params);
 
@@ -209,20 +214,19 @@ async function updateJob(call, callback) {
 
     old_job.client_ticket_name = new_job.client_ticket_name;
     old_job.server_ticket_name = new_job.server_ticket_name;
-    old_job.client_params = new_job.client_params;
     old_job.server_params = new_job.server_params;
     old_job.status = new_job.status;
-    old_job.save()
+    const data = await old_job.save();
 
     callback(null, {
       data: {
-        name: new_job.name,
-        job_type: new_job.job_type,
-        client_ticket_name: new_job.server_ticket_name,
-        server_ticket_name: new_job.client_ticket_name,
-        server_params: JSON.stringify(new_job.server_params),
+        name: data.name,
+        job_type: data.job_type,
+        client_ticket_name: data.server_ticket_name,
+        server_ticket_name: data.client_ticket_name,
+        server_params: JSON.stringify(data.server_params),
       },
-      status: new_job.status,
+      status: data.status,
     });
   } catch (err) {
     callback(err);
