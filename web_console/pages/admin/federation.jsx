@@ -260,8 +260,8 @@ export default function FederationList() {
   }
   const DEFAULT_FIELDS = [
     { key: 'name', required: true },
-    { key: 'trademark' },
     { key: 'x-federation' },
+    { key: 'trademark' },
     { key: 'email' },
     { key: 'tel', label: 'telephone' },
     { key: 'avatar' },
