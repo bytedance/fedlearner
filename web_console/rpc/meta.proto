@@ -67,6 +67,13 @@ message UpdateJobResponse {
   string status = 2;
 }
 
+message HeartBeatRequest {
+}
+
+message HeartBeatResponse {
+  string status = 1;
+}
+
 service Federation {
   // Obtain available tickets
   rpc GetTickets(GetTicketsRequest) returns (GetTicketsResponse) {}
@@ -79,4 +86,7 @@ service Federation {
 
   // Obtain token from preset cipher
   rpc UpdateJob(UpdateJobRequest) returns (UpdateJobResponse) {}
+
+  // Obtain token from preset cipher
+  rpc HeartBeat(HeartBeatRequest) returns (HeartBeatResponse) {}
 }
