@@ -25,7 +25,7 @@ from fedlearner.common import common_pb2 as common_pb
 from fedlearner.common import data_join_service_pb2 as dj_pb
 from fedlearner.common import data_join_service_pb2_grpc as dj_grpc
 
-from fedlearner.common.etcd_client import EtcdClient
+from fedlearner.common.mysql_client import DBClient
 from fedlearner.proxy.channel import make_insecure_channel, ChannelType
 
 from fedlearner.data_join.routine_worker import RoutineWorker
@@ -56,18 +56,18 @@ class MasterFSM(object):
              common_pb.DataSourceState.Processing]
         )
 
-    def __init__(self, peer_client, data_source_name, etcd, batch_mode):
+    def __init__(self, peer_client, data_source_name, mysql, batch_mode):
         self._lock = threading.Lock()
         self._peer_client = peer_client
         self._data_source_name = data_source_name
-        self._etcd = etcd
+        self._mysql = mysql
         self._batch_mode = batch_mode
         self._init_fsm_action()
         self._data_source = None
         self._sync_data_source()
         self._reset_batch_mode()
         self._raw_data_manifest_manager = RawDataManifestManager(
-                etcd, self._data_source, batch_mode
+                mysql, self._data_source, batch_mode
             )
         self._data_source_meta = self._data_source.data_source_meta
         if self._data_source.role == common_pb.FLRole.Leader:
@@ -162,9 +162,9 @@ class MasterFSM(object):
     def _sync_data_source(self):
         if self._data_source is None:
             self._data_source = \
-                retrieve_data_source(self._etcd, self._data_source_name)
+                retrieve_data_source(self._mysql, self._data_source_name)
         assert self._data_source is not None, \
-            "data source {} is not in etcd".format(self._data_source_name)
+            "data source {} is not in mysql".format(self._data_source_name)
         return self._data_source
 
     def _reset_batch_mode(self):
@@ -278,7 +278,7 @@ class MasterFSM(object):
     def _update_data_source(self, data_source):
         self._data_source = None
         try:
-            commit_data_source(self._etcd, data_source)
+            commit_data_source(self._mysql, data_source)
         except Exception as e:
             logging.error("Failed to update data source: %s since "\
                           "exception: %s", self._data_source_name, e)
@@ -308,14 +308,16 @@ class MasterFSM(object):
 
 class DataJoinMaster(dj_grpc.DataJoinMasterServiceServicer):
     def __init__(self, peer_client, data_source_name,
-                 etcd_name, etcd_addrs, etcd_base_dir, options):
+                 mysql_name, mysql_base_dir, mysql_addr,
+                 mysql_user, mysql_password, options):
         super(DataJoinMaster, self).__init__()
         self._data_source_name = data_source_name
-        etcd = EtcdClient(etcd_name, etcd_addrs,
-                          etcd_base_dir, options.use_mock_etcd)
+        mysql = DBClient(mysql_name, mysql_addr, mysql_user,
+                            mysql_password, mysql_base_dir,
+                            options.use_mock_mysql)
         self._options = options
         self._fsm = MasterFSM(peer_client, data_source_name,
-                              etcd, self._options.batch_mode)
+                              mysql, self._options.batch_mode)
         self._data_source_meta = \
                 self._fsm.get_data_source().data_source_meta
 
@@ -524,7 +526,8 @@ class DataJoinMaster(dj_grpc.DataJoinMasterServiceServicer):
 
 class DataJoinMasterService(object):
     def __init__(self, listen_port, peer_addr, data_source_name,
-                 etcd_name, etcd_base_dir, etcd_addrs, options):
+                 mysql_name, mysql_base_dir, mysql_addr,
+                 mysql_user, mysql_password, options):
         channel = make_insecure_channel(
                 peer_addr, ChannelType.REMOTE,
                 options=[('grpc.max_send_message_length', 2**31-1),
@@ -535,8 +538,9 @@ class DataJoinMasterService(object):
         self._listen_port = listen_port
         self._server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
         self._data_join_master = DataJoinMaster(
-                peer_client, data_source_name, etcd_name,
-                etcd_addrs, etcd_base_dir, options
+                peer_client, data_source_name, mysql_name,
+                mysql_base_dir, mysql_addr, mysql_user,
+                mysql_password, options
             )
         dj_grpc.add_DataJoinMasterServiceServicer_to_server(
                 self._data_join_master, self._server

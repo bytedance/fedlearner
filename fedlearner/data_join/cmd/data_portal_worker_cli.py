@@ -30,14 +30,18 @@ if __name__ == '__main__':
                         help="the rank id of this worker")
     parser.add_argument("--master_addr", type=str,
                         help="the addr of data portal master")
-    parser.add_argument("--etcd_name", type=str,
-                        default='test_etcd', help='the name of etcd')
-    parser.add_argument("--etcd_addrs", type=str,
-                        default="localhost:2379", help="the addrs of etcd")
-    parser.add_argument("--etcd_base_dir", type=str,
-                        help="the namespace of etcd key for data portal worker")
-    parser.add_argument("--use_mock_etcd", action="store_true",
-                        help='use to mock etcd for test')
+    parser.add_argument("--mysql_name", type=str,
+                        default='test_mysql', help='the name of mysql')
+    parser.add_argument("--mysql_addr", type=str,
+                        default="localhost:2379", help="the addrs of mysql")
+    parser.add_argument("--mysql_base_dir", type=str,
+                        help="the namespace of mysql key for data portal worker")
+    parser.add_argument("--mysql_user", type=str,
+                        default="test_user", help="the user of mysql")
+    parser.add_argument("--mysql_password", type=str,
+                        default="test_password", help="the password of mysql")
+    parser.add_argument("--use_mock_mysql", action="store_true",
+                        help='use to mock mysql for test')
     parser.add_argument("--merger_read_ahead_size", type=int, default=128<<10,
                         help="the read ahead size for merger")
     parser.add_argument("--merger_read_batch_size", type=int, default=32,
@@ -87,7 +91,8 @@ if __name__ == '__main__':
 
     data_portal_worker = DataPortalWorker(
             portal_worker_options, args.master_addr,
-            args.rank_id, args.etcd_name, args.etcd_base_dir,
-            args.etcd_addrs, args.use_mock_etcd
+            args.rank_id, args.mysql_name, args.mysql_base_dir,
+            args.mysql_addrs, args.mysql_user,
+            args.mysql_password, args.use_mock_mysql
         )
     data_portal_worker.start()

@@ -32,19 +32,21 @@ from fedlearner.data_join import data_join_master, common
 from fedlearner.common import common_pb2 as common_pb
 from fedlearner.common import data_portal_service_pb2 as dp_pb
 from fedlearner.common import data_portal_service_pb2_grpc as dp_grpc
-from fedlearner.common.etcd_client import EtcdClient
+from fedlearner.common.mysql_client import DBClient
 from fedlearner.proxy.channel import make_insecure_channel, ChannelType
 from fedlearner.data_join.data_portal_master import DataPortalMasterService
 
 class DataPortalMaster(unittest.TestCase):
     def test_api(self):
         logging.getLogger().setLevel(logging.DEBUG)
-        etcd_name = 'test_etcd'
-        etcd_addrs = 'localhost:2379'
-        etcd_base_dir = 'dp_test'
+        mysql_name = 'test_mysql'
+        mysql_addr = 'localhost:2379'
+        mysql_user = 'test_user'
+        mysql_password = 'test_password'
+        mysql_base_dir = 'dp_test'
         data_portal_name = 'test_data_source'
-        etcd = EtcdClient(etcd_name, etcd_addrs, etcd_base_dir, True)
-        etcd.delete_prefix(etcd_base_dir)
+        mysql = DBClient(mysql_name, mysql_addr, mysql_base_dir, True)
+        mysql.delete_prefix(mysql_base_dir)
         portal_input_base_dir='./portal_upload_dir'
         portal_output_base_dir='./portal_output_dir'
         raw_data_publish_dir = 'raw_data_publish_dir'
@@ -59,7 +61,7 @@ class DataPortalMaster(unittest.TestCase):
                 processing_job_id=-1,
                 next_job_id=0
             )
-        etcd.set_data(common.portal_etcd_base_dir(data_portal_name),
+        mysql.set_data(common.portal_mysql_base_dir(data_portal_name),
                       text_format.MessageToString(portal_manifest))
         if gfile.Exists(portal_input_base_dir):
             gfile.DeleteRecursively(portal_input_base_dir)
@@ -72,13 +74,14 @@ class DataPortalMaster(unittest.TestCase):
                 f.write('xxx')
         portal_master_addr = 'localhost:4061'
         portal_options = dp_pb.DataPotraMasterlOptions(
-                use_mock_etcd=True,
+                use_mock_mysql=True,
                 long_running=False
             )
         data_portal_master = DataPortalMasterService(
                 int(portal_master_addr.split(':')[1]),
-                data_portal_name, etcd_name, etcd_base_dir,
-                etcd_addrs, portal_options
+                data_portal_name, mysql_name, mysql_base_dir,
+                mysql_addr, mysql_user, mysql_password,
+                portal_options
             )
         data_portal_master.start()
 
@@ -94,7 +97,7 @@ class DataPortalMaster(unittest.TestCase):
         self.assertEqual(recv_manifest.raw_data_publish_dir, portal_manifest.raw_data_publish_dir)
         self.assertEqual(recv_manifest.next_job_id, 1)
         self.assertEqual(recv_manifest.processing_job_id, 0)
-        self._check_portal_job(etcd, all_fnames, portal_manifest, 0)
+        self._check_portal_job(mysql, all_fnames, portal_manifest, 0)
         mapped_partition = set()
         task_0 = portal_master_cli.RequestNewTask(dp_pb.NewTaskRequest(rank_id=0))
         task_0_1 = portal_master_cli.RequestNewTask(dp_pb.NewTaskRequest(rank_id=0))
@@ -206,9 +209,9 @@ class DataPortalMaster(unittest.TestCase):
         data_portal_master.stop()
         gfile.DeleteRecursively(portal_input_base_dir)
 
-    def _check_portal_job(self, etcd, fnames, portal_manifest, job_id):
-        etcd_key = common.portal_job_etcd_key(portal_manifest.name, job_id)
-        data = etcd.get_data(etcd_key)
+    def _check_portal_job(self, mysql, fnames, portal_manifest, job_id):
+        mysql_key = common.portal_job_mysql_key(portal_manifest.name, job_id)
+        data = mysql.get_data(mysql_key)
         self.assertIsNotNone(data)
         portal_job = text_format.Parse(data, dp_pb.DataPortalJob())
         self.assertEqual(job_id, portal_job.job_id)

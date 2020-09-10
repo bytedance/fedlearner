@@ -40,9 +40,11 @@ python -m fedlearner.data_join.cmd.data_join_worker_service \
     $PEER_ADDR \
     $MASTER_POD_NAMES \
     $INDEX \
-    --etcd_name=$ETCD_NAME \
-    --etcd_addrs=$ETCD_ADDR \
-    --etcd_base_dir=$ETCD_BASE_DIR \
+    --mysql_name=$MYSQL_NAME \
+    --mysql_addr=$MYSQL_ADDR \
+    --mysql_base_dir=$MYSQL_BASE_DIR \
+    --mysql_user=$MYSQL_USER \
+    --mysql_password=$MYSQL_PASSWORD \
     --listen_port=50051 \
     $raw_data_iter $compressed_type $read_ahead_size $read_batch_size \
     $example_joiner $min_matching_window $max_matching_window \

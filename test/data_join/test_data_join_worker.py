@@ -36,7 +36,7 @@ import grpc
 from fedlearner.common import common_pb2 as common_pb
 from fedlearner.common import data_join_service_pb2 as dj_pb
 from fedlearner.common import data_join_service_pb2_grpc as dj_grpc
-from fedlearner.common.etcd_client import EtcdClient
+from fedlearner.common.mysql_client import DBClient
 
 from fedlearner.proxy.channel import make_insecure_channel, ChannelType
 from fedlearner.data_join import (
@@ -49,15 +49,21 @@ from fedlearner.data_join.raw_data_iter_impl.tf_record_iter import TfExampleItem
 
 class DataJoinWorker(unittest.TestCase):
     def setUp(self):
-        etcd_name = 'test_etcd'
-        etcd_addrs = 'localhost:2379'
-        etcd_base_dir_l = 'byefl_l'
-        etcd_base_dir_f= 'byefl_f'
+        mysql_name = 'test_mysql'
+        mysql_addr = 'localhost:2379'
+        mysql_user_l = 'test_user_l'
+        mysql_user_f = 'test_user_f'
+        mysql_password_l = 'test_password_l'
+        mysql_password_f = 'test_password_f'
+        mysql_base_dir_l = 'byefl_l'
+        mysql_base_dir_f= 'byefl_f'
         data_source_name = 'test_data_source'
-        etcd_l = EtcdClient(etcd_name, etcd_addrs, etcd_base_dir_l, True)
-        etcd_f = EtcdClient(etcd_name, etcd_addrs, etcd_base_dir_f, True)
-        etcd_l.delete_prefix(common.data_source_etcd_base_dir(data_source_name))
-        etcd_f.delete_prefix(common.data_source_etcd_base_dir(data_source_name))
+        mysql_l = DBClient(mysql_name, mysql_addr, mysql_user_l,
+                              mysql_password_l, mysql_base_dir_l, True)
+        mysql_f = DBClient(mysql_name, mysql_addr, mysql_user_f,
+                              mysql_password_f, mysql_base_dir_f, True)
+        mysql_l.delete_prefix(common.data_source_mysql_base_dir(data_source_name))
+        mysql_f.delete_prefix(common.data_source_mysql_base_dir(data_source_name))
         data_source_l = common_pb.DataSource()
         self.raw_data_pub_dir_l = './raw_data_pub_dir_l'
         data_source_l.raw_data_sub_dir = self.raw_data_pub_dir_l
@@ -78,24 +84,28 @@ class DataJoinWorker(unittest.TestCase):
         data_source_meta.start_time = 0
         data_source_meta.end_time = 100000000
         data_source_l.data_source_meta.MergeFrom(data_source_meta)
-        common.commit_data_source(etcd_l, data_source_l)
+        common.commit_data_source(mysql_l, data_source_l)
         data_source_f.data_source_meta.MergeFrom(data_source_meta)
-        common.commit_data_source(etcd_f, data_source_f)
+        common.commit_data_source(mysql_f, data_source_f)
 
-        self.etcd_l = etcd_l
-        self.etcd_f = etcd_f
+        self.mysql_l = mysql_l
+        self.mysql_f = mysql_f
         self.data_source_l = data_source_l
         self.data_source_f = data_source_f
         self.data_source_name = data_source_name
-        self.etcd_name = etcd_name
-        self.etcd_addrs = etcd_addrs
-        self.etcd_base_dir_l = etcd_base_dir_l
-        self.etcd_base_dir_f = etcd_base_dir_f
+        self.mysql_name = mysql_name
+        self.mysql_addr = mysql_addr
+        self.mysql_user_l = mysql_user_l
+        self.mysql_user_f = mysql_user_f
+        self.mysql_password_l = mysql_password_l
+        self.mysql_password_f = mysql_password_f
+        self.mysql_base_dir_l = mysql_base_dir_l
+        self.mysql_base_dir_f = mysql_base_dir_f
         self.raw_data_publisher_l = raw_data_publisher.RawDataPublisher(
-                self.etcd_l, self.raw_data_pub_dir_l
+                self.mysql_l, self.raw_data_pub_dir_l
             )
         self.raw_data_publisher_f = raw_data_publisher.RawDataPublisher(
-                self.etcd_f, self.raw_data_pub_dir_f
+                self.mysql_f, self.raw_data_pub_dir_f
             )
         if gfile.Exists(data_source_l.output_base_dir):
             gfile.DeleteRecursively(data_source_l.output_base_dir)
@@ -107,7 +117,7 @@ class DataJoinWorker(unittest.TestCase):
             gfile.DeleteRecursively(self.raw_data_dir_f)
 
         self.worker_options = dj_pb.DataJoinWorkerOptions(
-                use_mock_etcd=True,
+                use_mock_mysql=True,
                 raw_data_options=dj_pb.RawDataOptions(
                     raw_data_iter='TF_RECORD',
                     read_ahead_size=1<<20,
@@ -135,7 +145,7 @@ class DataJoinWorker(unittest.TestCase):
 
         self.total_index = 1 << 12
 
-    def generate_raw_data(self, start_index, etcd, rdp, data_source, raw_data_base_dir, partition_id,
+    def generate_raw_data(self, start_index, mysql, rdp, data_source, raw_data_base_dir, partition_id,
                           block_size, shuffle_win_size, feat_key_fmt, feat_val_fmt):
         dbm = data_block_manager.DataBlockManager(data_source, partition_id)
         raw_data_dir = os.path.join(raw_data_base_dir,
@@ -206,13 +216,13 @@ class DataJoinWorker(unittest.TestCase):
     def _inner_test_round(self, start_index):
         for i in range(self.data_source_l.data_source_meta.partition_num):
             self.generate_raw_data(
-                    start_index, self.etcd_l, self.raw_data_publisher_l,
+                    start_index, self.mysql_l, self.raw_data_publisher_l,
                     self.data_source_l, self.raw_data_dir_l, i, 2048, 64,
                     'leader_key_partition_{}'.format(i) + ':{}',
                     'leader_value_partition_{}'.format(i) + ':{}'
                 )
             self.generate_raw_data(
-                    start_index, self.etcd_f, self.raw_data_publisher_f,
+                    start_index, self.mysql_f, self.raw_data_publisher_f,
                     self.data_source_f, self.raw_data_dir_f, i, 4096, 128,
                     'follower_key_partition_{}'.format(i) + ':{}',
                     'follower_value_partition_{}'.format(i) + ':{}'
@@ -220,18 +230,20 @@ class DataJoinWorker(unittest.TestCase):
 
         master_addr_l = 'localhost:4061'
         master_addr_f = 'localhost:4062'
-        master_options = dj_pb.DataJoinMasterOptions(use_mock_etcd=True,
+        master_options = dj_pb.DataJoinMasterOptions(use_mock_mysql=True,
                                                      batch_mode=True)
         master_l = data_join_master.DataJoinMasterService(
                 int(master_addr_l.split(':')[1]), master_addr_f,
-                self.data_source_name, self.etcd_name, self.etcd_base_dir_l,
-                self.etcd_addrs, master_options,
+                self.data_source_name, self.mysql_name, self.mysql_base_dir_l,
+                self.mysql_addr, self.mysql_user_l, self.mysql_password_l,
+                master_options,
             )
         master_l.start()
         master_f = data_join_master.DataJoinMasterService(
                 int(master_addr_f.split(':')[1]), master_addr_l,
-                self.data_source_name, self.etcd_name, self.etcd_base_dir_f,
-                self.etcd_addrs, master_options
+                self.data_source_name, self.mysql_name, self.mysql_base_dir_f,
+                self.mysql_addr, self.mysql_user_f, self.mysql_password_f,
+                master_options
             )
         master_f.start()
         channel_l = make_insecure_channel(master_addr_l, ChannelType.INTERNAL)
@@ -264,15 +276,17 @@ class DataJoinWorker(unittest.TestCase):
         worker_l = data_join_worker.DataJoinWorkerService(
                 int(worker_addr_l.split(':')[1]),
                 worker_addr_f, master_addr_l, 0,
-                self.etcd_name, self.etcd_base_dir_l,
-                self.etcd_addrs, self.worker_options
+                self.mysql_name, self.mysql_base_dir_l,
+                self.mysql_addr, self.mysql_user_l,
+                self.mysql_password_l, self.worker_options
             )
 
         worker_f = data_join_worker.DataJoinWorkerService(
                 int(worker_addr_f.split(':')[1]),
                 worker_addr_l, master_addr_f, 0,
-                self.etcd_name, self.etcd_base_dir_f,
-                self.etcd_addrs, self.worker_options
+                self.mysql_name, self.mysql_base_dir_f,
+                self.mysql_addr, self.mysql_user_f,
+                self.mysql_password_f, self.worker_options
             )
 
         th_l = threading.Thread(target=worker_l.run, name='worker_l')
@@ -314,8 +328,8 @@ class DataJoinWorker(unittest.TestCase):
             gfile.DeleteRecursively(self.data_source_f.output_base_dir)
         if gfile.Exists(self.raw_data_dir_f):
             gfile.DeleteRecursively(self.raw_data_dir_f)
-        self.etcd_f.delete_prefix(common.data_source_etcd_base_dir(self.etcd_base_dir_f))
-        self.etcd_l.delete_prefix(common.data_source_etcd_base_dir(self.etcd_base_dir_l))
+        self.mysql_f.delete_prefix(common.data_source_mysql_base_dir(self.mysql_base_dir_f))
+        self.mysql_l.delete_prefix(common.data_source_mysql_base_dir(self.mysql_base_dir_l))
 
 if __name__ == '__main__':
         unittest.main()

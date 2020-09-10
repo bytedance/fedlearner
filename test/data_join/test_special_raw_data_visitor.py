@@ -23,7 +23,7 @@ from tensorflow.compat.v1 import gfile
 import tensorflow.compat.v1 as tf
 tf.enable_eager_execution()
 
-from fedlearner.common import etcd_client
+from fedlearner.common import mysql_client
 from fedlearner.common import common_pb2 as common_pb
 from fedlearner.common import data_join_service_pb2 as dj_pb
 from fedlearner.data_join import raw_data_manifest_manager, raw_data_visitor, common
@@ -36,14 +36,15 @@ class TestRawDataVisitor(unittest.TestCase):
         self.raw_data_dir = path.join(
                 path.dirname(path.abspath(__file__)), "../compressed_raw_data"
             )
-        self.etcd = etcd_client.EtcdClient('test_cluster', 'localhost:2379',
-                                           'fedlearner', True)
-        self.etcd.delete_prefix(common.data_source_etcd_base_dir(self.data_source.data_source_meta.name))
+        self.mysql = mysql_client.DBClient('test_cluster', 'localhost:2379',
+                                              'test_user', 'test_password',
+                                              'fedlearner', True)
+        self.mysql.delete_prefix(common.data_source_mysql_base_dir(self.data_source.data_source_meta.name))
         self.assertEqual(self.data_source.data_source_meta.partition_num, 1)
         partition_dir = path.join(self.raw_data_dir, common.partition_repr(0))
         self.assertTrue(gfile.Exists(partition_dir))
         manifest_manager = raw_data_manifest_manager.RawDataManifestManager(
-            self.etcd, self.data_source)
+            self.mysql, self.data_source)
         manifest_manager.add_raw_data(
                 0, [dj_pb.RawDataMeta(file_path=path.join(partition_dir, "0-0.idx"),
                                       timestamp=timestamp_pb2.Timestamp(seconds=3))],
@@ -54,9 +55,9 @@ class TestRawDataVisitor(unittest.TestCase):
                 read_ahead_size=1<<20,
                 read_batch_size=128
             )
-        rdm = raw_data_visitor.RawDataManager(self.etcd, self.data_source,0)
+        rdm = raw_data_visitor.RawDataManager(self.mysql, self.data_source,0)
         self.assertTrue(rdm.check_index_meta_by_process_index(0))
-        rdv = raw_data_visitor.RawDataVisitor(self.etcd, self.data_source, 0,
+        rdv = raw_data_visitor.RawDataVisitor(self.mysql, self.data_source, 0,
                                               raw_data_options)
         expected_index = 0
         for (index, item) in rdv:
@@ -73,14 +74,15 @@ class TestRawDataVisitor(unittest.TestCase):
         self.raw_data_dir = path.join(
                 path.dirname(path.abspath(__file__)), "../csv_raw_data"
             )
-        self.etcd = etcd_client.EtcdClient('test_cluster', 'localhost:2379',
-                                           'fedlearner', True)
-        self.etcd.delete_prefix(common.data_source_etcd_base_dir(self.data_source.data_source_meta.name))
+        self.mysql = mysql_client.DBClient('test_cluster', 'localhost:2379',
+                                              'test_user', 'test_password',
+                                              'fedlearner', True)
+        self.mysql.delete_prefix(common.data_source_mysql_base_dir(self.data_source.data_source_meta.name))
         self.assertEqual(self.data_source.data_source_meta.partition_num, 1)
         partition_dir = path.join(self.raw_data_dir, common.partition_repr(0))
         self.assertTrue(gfile.Exists(partition_dir))
         manifest_manager = raw_data_manifest_manager.RawDataManifestManager(
-            self.etcd, self.data_source)
+            self.mysql, self.data_source)
         manifest_manager.add_raw_data(
                 0, [dj_pb.RawDataMeta(file_path=path.join(partition_dir, "test_raw_data.csv"),
                                       timestamp=timestamp_pb2.Timestamp(seconds=3))],
@@ -89,9 +91,9 @@ class TestRawDataVisitor(unittest.TestCase):
                 raw_data_iter='CSV_DICT',
                 read_ahead_size=1<<20
             )
-        rdm = raw_data_visitor.RawDataManager(self.etcd, self.data_source,0)
+        rdm = raw_data_visitor.RawDataManager(self.mysql, self.data_source,0)
         self.assertTrue(rdm.check_index_meta_by_process_index(0))
-        rdv = raw_data_visitor.RawDataVisitor(self.etcd, self.data_source, 0,
+        rdv = raw_data_visitor.RawDataVisitor(self.mysql, self.data_source, 0,
                                               raw_data_options)
         expected_index = 0
         for (index, item) in rdv:

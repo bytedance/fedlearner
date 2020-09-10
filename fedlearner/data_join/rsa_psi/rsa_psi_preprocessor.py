@@ -25,7 +25,7 @@ import rsa
 
 from fedlearner.common import data_join_service_pb2 as dj_pb
 from fedlearner.common import common_pb2 as common_pb
-from fedlearner.common.etcd_client import EtcdClient
+from fedlearner.common.mysql_client import DBClient
 
 from fedlearner.data_join.routine_worker import RoutineWorker
 from fedlearner.data_join.raw_data_publisher import RawDataPublisher
@@ -36,14 +36,15 @@ from fedlearner.data_join.sort_run_merger import SortRunMerger
 from fedlearner.data_join.common import partition_repr, get_heap_mem_stats
 
 class RsaPsiPreProcessor(object):
-    def __init__(self, options, etcd_name, etcd_addrs,
-                 etcd_base_dir, use_mock_etcd=False):
+    def __init__(self, options, mysql_name, mysql_base_dir,
+                 mysql_addr, mysql_user, mysql_password,
+                 use_mock_mysql=False):
         self._lock = threading.Condition()
         self._options = options
-        etcd = EtcdClient(etcd_name, etcd_addrs,
-                          etcd_base_dir, use_mock_etcd)
+        mysql = DBClient(mysql_name, mysql_addr, mysql_user,
+                            mysql_password, mysql_base_dir, use_mock_mysql)
         pub_dir = self._options.raw_data_publish_dir
-        self._publisher = RawDataPublisher(etcd, pub_dir)
+        self._publisher = RawDataPublisher(mysql, pub_dir)
         self._process_pool_executor = \
                 concur_futures.ProcessPoolExecutor(
                         options.offload_processor_number
@@ -51,7 +52,7 @@ class RsaPsiPreProcessor(object):
         self._callback_submitter = None
         # pre fock sub processor before launch grpc client
         self._process_pool_executor.submit(min, 1, 2).result()
-        self._id_batch_fetcher = IdBatchFetcher(etcd, self._options)
+        self._id_batch_fetcher = IdBatchFetcher(mysql, self._options)
         if self._options.role == common_pb.FLRole.Leader:
             private_key = rsa.PrivateKey.load_pkcs1(options.rsa_key_pem)
             self._psi_rsa_signer = LeaderPsiRsaSigner(

@@ -107,38 +107,38 @@ def load_data_block_meta(meta_fpath):
     with make_tf_record_iter(meta_fpath) as fitr:
         return text_format.Parse(next(fitr).decode(), dj_pb.DataBlockMeta())
 
-def data_source_etcd_base_dir(data_source_name):
+def data_source_mysql_base_dir(data_source_name):
     return os.path.join('data_source', data_source_name)
 
-def retrieve_data_source(etcd, data_source_name):
-    etcd_key = data_source_etcd_base_dir(data_source_name)
-    raw_data = etcd.get_data(etcd_key)
+def retrieve_data_source(mysql, data_source_name):
+    mysql_key = data_source_mysql_base_dir(data_source_name)
+    raw_data = mysql.get_data(mysql_key)
     if raw_data is None:
-        raise ValueError("etcd master key is None for {}".format(
+        raise ValueError("mysql master key is None for {}".format(
             data_source_name)
         )
     return text_format.Parse(raw_data, common_pb.DataSource())
 
-def commit_data_source(etcd, data_source):
-    etcd_key = data_source_etcd_base_dir(data_source.data_source_meta.name)
-    etcd.set_data(etcd_key, text_format.MessageToString(data_source))
+def commit_data_source(mysql, data_source):
+    mysql_key = data_source_mysql_base_dir(data_source.data_source_meta.name)
+    mysql.set_data(mysql_key, text_format.MessageToString(data_source))
 
-def partition_manifest_etcd_key(data_source_name, partition_id):
-    return os.path.join(data_source_etcd_base_dir(data_source_name),
+def partition_manifest_mysql_key(data_source_name, partition_id):
+    return os.path.join(data_source_mysql_base_dir(data_source_name),
                         'raw_data_dir', partition_repr(partition_id))
 
-def raw_data_meta_etcd_key(data_source_name, partition_id, process_index):
-    manifest_etcd_key = partition_manifest_etcd_key(data_source_name,
+def raw_data_meta_mysql_key(data_source_name, partition_id, process_index):
+    manifest_mysql_key = partition_manifest_mysql_key(data_source_name,
                                                     partition_id)
-    return os.path.join(manifest_etcd_key,
+    return os.path.join(manifest_mysql_key,
                         '{}{:08}'.format(RawDataMetaPrefix, process_index))
 
-def example_id_anchor_etcd_key(data_source_name, partition_id):
-    etcd_base_dir = data_source_etcd_base_dir(data_source_name)
-    return os.path.join(etcd_base_dir, 'dumped_example_id_anchor',
+def example_id_anchor_mysql_key(data_source_name, partition_id):
+    mysql_base_dir = data_source_mysql_base_dir(data_source_name)
+    return os.path.join(mysql_base_dir, 'dumped_example_id_anchor',
                         partition_repr(partition_id))
 
-def raw_data_pub_etcd_key(pub_base_dir, partition_id, process_index):
+def raw_data_pub_mysql_key(pub_base_dir, partition_id, process_index):
     return os.path.join(pub_base_dir, partition_repr(partition_id),
                         '{:08}{}'.format(process_index, RawDataPubSuffix))
 
@@ -215,15 +215,15 @@ def bytes2int(byte, byteorder='little'):
 def gen_tmp_fpath(fdir):
     return os.path.join(fdir, str(uuid.uuid1())+TmpFileSuffix)
 
-def portal_etcd_base_dir(portal_name):
+def portal_mysql_base_dir(portal_name):
     return os.path.join('portal', portal_name)
 
-def portal_job_etcd_key(portal_name, job_id):
-    return os.path.join(portal_etcd_base_dir(portal_name), 'job_dir',
+def portal_job_mysql_key(portal_name, job_id):
+    return os.path.join(portal_mysql_base_dir(portal_name), 'job_dir',
                         '{:08}.pj'.format(job_id))
 
-def portal_job_part_etcd_key(portal_name, job_id, partition_id):
-    return os.path.join(portal_job_etcd_key(portal_name, job_id),
+def portal_job_part_mysql_key(portal_name, job_id, partition_id):
+    return os.path.join(portal_job_mysql_key(portal_name, job_id),
                         partition_repr(partition_id))
 
 def portal_map_output_dir(map_base_dir, job_id):

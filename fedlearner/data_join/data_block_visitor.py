@@ -24,12 +24,12 @@ from google.protobuf import text_format
 from fedlearner.common import data_join_service_pb2 as dj_pb
 from fedlearner.common import common_pb2 as common_pb
 
-from fedlearner.common.etcd_client import EtcdClient
+from fedlearner.common.mysql_client import DBClient
 from fedlearner.data_join.common import (
     DataBlockSuffix, encode_data_block_meta_fname,
     load_data_block_meta, encode_data_block_fname,
     decode_block_id, retrieve_data_source, partition_repr,
-    partition_manifest_etcd_key, data_source_data_block_dir
+    partition_manifest_mysql_key, data_source_data_block_dir
 )
 
 class DataBlockRep(object):
@@ -104,11 +104,13 @@ class DataBlockRep(object):
         return self._data_block_index
 
 class DataBlockVisitor(object):
-    def __init__(self, data_source_name, etcd_name,
-                 etcd_base_dir, etcd_addrs, use_mock_etcd=False):
-        self._etcd = EtcdClient(etcd_name, etcd_addrs,
-                                etcd_base_dir, use_mock_etcd)
-        self._data_source = retrieve_data_source(self._etcd, data_source_name)
+    def __init__(self, data_source_name, mysql_name,
+                 mysql_base_dir, mysql_addr, mysql_user,
+                 mysql_password, use_mock_mysql=False):
+        self._mysql = DBClient(mysql_name, mysql_addr, mysql_user,
+                                  mysql_password, mysql_base_dir,
+                                  use_mock_mysql)
+        self._data_source = retrieve_data_source(self._mysql, data_source_name)
 
     def LoadDataBlockRepByTimeFrame(self, start_time=None, end_time=None):
         if (end_time is not None and
@@ -192,9 +194,9 @@ class DataBlockVisitor(object):
         return self._data_source.data_source_meta.name
 
     def _sync_raw_data_manifest(self, partition_id):
-        etcd_key = partition_manifest_etcd_key(self._data_source_name(),
+        mysql_key = partition_manifest_mysql_key(self._data_source_name(),
                                                partition_id)
-        data = self._etcd.get_data(etcd_key)
+        data = self._mysql.get_data(mysql_key)
         assert data is not None, "raw data manifest of partition "\
                                  "{} must be existed".format(partition_id)
         return text_format.Parse(data, dj_pb.RawDataManifest())
