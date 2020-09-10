@@ -1,6 +1,5 @@
-import React from 'react';
-import Layout from '../../../components/Layout';
+import CommonTicket from '../../../components/CommonTicket'
 
-export default function datasouce () {
-  return <Layout></Layout>
+export default function Ticket() {
+  return <CommonTicket trainning></CommonTicket>
 }

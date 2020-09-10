@@ -1,4 +1,4 @@
-import React, { useState, useReducer, useMemo, useCallback } from 'react';
+import React, { useState, useReducer, useMemo, useCallback, useEffect } from 'react';
 import css from 'styled-jsx/css';
 import { Button, ButtonGroup, Card, Grid, Text, Input, Toggle, Textarea, Note, useTheme, Collapse, useToasts, Select } from '@zeit-ui/react';
 import FederationSelect from './FederationSelect';
@@ -71,6 +71,8 @@ const mapFields2Form = (fields, groupType) => {
   return [fields, formData]
 }
 
+const groupFormType = {}
+
 /**
  * interface IField {
  *   key: string;
@@ -83,7 +85,6 @@ const mapFields2Form = (fields, groupType) => {
  *   higherUpdateForm?: (updateFormHook: function) => (value: any) => any
  * }
  */
-
 export default function Form({
   title, onOk, onSubmit, onCancel, gap = 2,
   fields = [], okText = 'Submit', cancelText = 'Cancel',
@@ -93,7 +94,14 @@ export default function Form({
   const rawFields = fields
   const fieldsToRender = handleFieldsToRender(fields)
 
-  const groupFormType = useMemo(() => ({}), [])
+  useEffect(() => {
+    rawFields.forEach(field => {
+      if (field.groupName && field.formTypes) {
+        groupFormType[field.groupName] = field.formTypes[0]
+      }
+    })
+  }, [])
+
   const theme = useTheme();
   const styles = useStyles(theme);
 

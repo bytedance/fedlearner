@@ -132,7 +132,10 @@ function useStyles(theme) {
 
 function isActive(tabValue, route) {
   if (/^\/datasource/.test(route)) {
-    return tabValue === '/datasource/job'
+    return ['/datasource/job', '/datasource/ticket'].some(el => tabValue === el)
+  }
+  if (/^\/trainning/.test(route)) {
+    return ['/trainning/job', '/trainning/ticket'].some(el => tabValue === el)
   }
   return tabValue === route
 }
@@ -166,8 +169,8 @@ export default function Header() {
     ]
     : [
       { label: 'Overview', value: '/' },
-      { label: 'Jobs', value: '/job' },
-      { label: 'Tickets', value: '/ticket' },
+      // { label: 'Jobs', value: '/job' },
+      // { label: 'Tickets', value: '/ticket' },
       { label: 'RawDatas', value: '/raw_data' },
       {
         label: 'DataSource',
@@ -182,7 +185,7 @@ export default function Header() {
         value: '/trainning/job',
         children: [
           { label: 'Job', value: '/trainning/job' },
-          { label: 'Tickets', value: '/datasource/tickets' },
+          { label: 'Tickets', value: '/trainning/tickets' },
         ]
       },
       // { label: 'Trainning', value: '/trainning' },

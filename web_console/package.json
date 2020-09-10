@@ -130,6 +130,7 @@
     "mocha": "6.2.3",
     "nodemon": "2.0.4",
     "nyc": "15.1.0",
+    "sequelize-cli": "6.2.0",
     "supertest": "4.0.2"
   }
 }

@@ -13,7 +13,6 @@ import produce from 'immer'
 
 import { K8S_SETTINGS } from '../../constants/form-default'
 import { fillJSON, getValueFromJson, getParsedValueFromData } from '../../utils/form_utils'
-import { loadAll } from 'js-yaml';
 
 function useFederationItemStyles() {
   return css`
@@ -228,7 +227,7 @@ export default function FederationList() {
           if (!draft.k8s_settings) { draft.k8s_settings = {} }
           for (let field of K8S_SETTINGS_FIELDS) {
             fillJSON(
-              draft.k8s_settings, field.path || [field.key],
+              draft.k8s_settings, field.path || field.key,
               getParsedValueFromData(data.k8s_settings, field)
             )
           }

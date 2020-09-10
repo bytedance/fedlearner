@@ -1,6 +1,5 @@
-import React from 'react';
-import Layout from '../../components/Layout';
+import CommonJobList from '../../../components/CommonJobList'
 
-export default function datasouce () {
-  return <Layout></Layout>
+export default function JobList_() {
+  return <CommonJobList trainning></CommonJobList>
 }
