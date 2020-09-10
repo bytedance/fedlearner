@@ -66,6 +66,10 @@ class FederationClient {
   updateJob(params) {
     return this._request('updateJob', params);
   }
+
+  heartBeat() {
+    return this._request('heartBeat', {});
+  }
 }
 
 module.exports = FederationClient;

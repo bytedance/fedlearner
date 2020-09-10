@@ -111,4 +111,18 @@ router.get('/api/v1/federations/:id/tickets', SessionMiddleware, async (ctx) => 
   ctx.body = { data };
 });
 
+router.get('/api/v1/federations/:id/heartbeat', SessionMiddleware, async (ctx) => {
+  const federation = await Federation.findByPk(ctx.params.id);
+  if (!federation) {
+    ctx.status = 404;
+    ctx.body = {
+      error: 'Federation not found',
+    };
+    return;
+  }
+  const client = new FederationClient(federation);
+  const { data } = await client.heartBeat();
+  ctx.body = { data };
+});
+
 module.exports = router;

@@ -233,6 +233,18 @@ async function updateJob(call, callback) {
   }
 }
 
+/**
+ * get available tickets of current federation
+ */
+async function heartBeat(call, callback) {
+  try {
+    const federation = await authenticate(call.metadata);
+    callback(null, { status: 'success' });
+  } catch (err) {
+    callback(err);
+  }
+}
+
 const server = new grpc.Server();
 
 server.addService(pkg.federation.Federation.service, {
@@ -240,6 +252,7 @@ server.addService(pkg.federation.Federation.service, {
   createJob,
   deleteJob,
   updateJob,
+  heartBeat,
 });
 
 module.exports = server;
