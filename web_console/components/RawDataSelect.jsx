@@ -6,11 +6,11 @@ import { fetcher } from '../libs/http';
 export default function RawDataSelect(props) {
   const { data } = useSWR('raw_datas', fetcher);
   const rawDatas = data ? data.data : [];
-  const actualValue = rawDatas.find((x) => x.id === props.value)?.name;
+  const actualValue = typeof props.value === 'string'
+    ? props.value : props.value.name
   const actualOnChange = (value) => {
     const rawData = rawDatas.find((x) => x.name === value);
     props.onChange(rawData);
-    props.updateForm(rawData.output_partition_num)
   };
   return (
     <Select {...props} value={actualValue} onChange={actualOnChange}>

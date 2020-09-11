@@ -1,7 +1,7 @@
-import { fillJSON } from '../../utils/form_utils'
+import { fillJSON, filterArrayValue } from '../../utils/form_utils'
 const assert = require('assert');
 
-describe('form_utils', () => {
+describe('fillJSON', () => {
   it('should create object with path', () => {
     let path = 'foo.bar.baz'
     let value = 1
@@ -80,5 +80,21 @@ describe('form_utils', () => {
         ]
       }
     })
+  })
+})
+
+describe('filter value', () => {
+  it('should filter undefined', () => {
+    let arr = [1, 2, undefined, 3, undefined]
+    filterArrayValue(arr)
+
+    assert.deepStrictEqual(arr, [1, 2, 3])
+  })
+
+  it('should filter value', () => {
+    let arr = [1, 2, undefined, 3, undefined]
+    filterArrayValue(arr, 3)
+
+    assert.deepStrictEqual(arr, [1, 2, undefined, undefined])
   })
 })

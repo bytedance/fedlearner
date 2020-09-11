@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import css from 'styled-jsx/css';
 import { Loading, Note, Text } from '@zeit-ui/react';
 
-import { fetcher } from '../../libs/http';
+import { fetcher } from '../../../libs/http';
 
 function useStyles() {
   return css`

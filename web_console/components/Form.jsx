@@ -82,7 +82,7 @@ const groupFormType = {}
  *   required?: boolean;
  *   span?: number; // Grid layout prop
  *   props?: any;
- *   higherUpdateForm?: (updateFormHook: function) => (value: any) => any
+ *   callback?: (updateForm: function) => (value: any) => any
  * }
  */
 export default function Form({
@@ -134,14 +134,13 @@ export default function Form({
 
   const disabled = fields.filter((x) => x.required).some((x) => !form[x.key]);
   const updateForm = (key, value) => {
-    const data = {
-      ...form,
-      [key]: value,
-    };
-    setForm(data);
+    setForm(form => ({
+        ...form,
+        [key]: value,
+    }));
   };
 
-  const renderField = ({ key, label, props, type, onChange, hideLabel, higherUpdateForm }) => {
+  const renderField = ({ key, label, props, type, onChange, hideLabel, callback }) => {
     const valueProps = {
       ...props,
       style: {
@@ -327,10 +326,11 @@ export default function Form({
           <div className="formItemValue">
             <RawDataSelect
               value={form[key]}
-              updateForm={ higherUpdateForm && higherUpdateForm(updateForm) }
               onChange={(value) => {
-                // the value of form is the id of rawdata
-                updateForm(key, value.id)
+                updateForm(key, value)
+                setTimeout(() => {
+                  callback && callback(updateForm)(value)
+                })
                 if (onChange) {
                   onChange(value);
                 }
@@ -486,7 +486,7 @@ export default function Form({
     return <Grid xs={24}>
       <Collapse title={collapseTitle()} initialVisible={initialVisible}>
         <Grid.Container gap={2}>
-          { groupFields.map(field => renderFieldInGrid(field)) }
+          { groupFields.map(field => field && renderFieldInGrid(field)) }
         </Grid.Container>
       </Collapse>
     </Grid>
@@ -500,7 +500,7 @@ export default function Form({
       </div>
       <Card shadow>
         <Grid.Container gap={gap}>
-          {fieldsToRender.map((x) => (x.groupName ? renderGroup(x) : renderFieldInGrid(x)))}
+          {fieldsToRender.map((x) => (x.groupName ? renderGroup(x) : x && renderFieldInGrid(x)))}
         </Grid.Container>
         <Card.Footer className="formCardFooter">
           {error ? <Note small label="error" type="error">{error}</Note> : <Text p>{message}</Text>}

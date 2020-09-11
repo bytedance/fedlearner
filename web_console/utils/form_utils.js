@@ -54,6 +54,7 @@ export function fillJSON(container, path, value) {
  * - `array[].key` will return obj.array[0].key
  */
 export const getValueFromJson = (data, path) => {
+  if (!data) return
   if (typeof path === 'string') {
     path = path.split('.')
   }
@@ -73,4 +74,17 @@ export function getParsedValueFromData (data, field) {
     value = value ? JSON.parse(value) : field.emptyDefault || {}
   }
   return value
+}
+
+/**
+ * filter a value from an array.
+ * example: [1, 2, undefined] -> filterArrayValue(arr) -> [1, 2]
+ */
+export function filterArrayValue (arr, value = undefined) {
+  for (let i = arr.length - 1; i >= 0; i--) {
+    if (arr[i] === value) {
+      arr.splice(i, 1)
+    }
+  }
+  return arr
 }

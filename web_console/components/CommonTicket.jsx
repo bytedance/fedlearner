@@ -8,16 +8,42 @@ import { fetcher } from '../libs/http';
 import { createTicket, updateTicket } from '../services/ticket';
 import {
   DATASOURCE_TICKET_REPLICA_TYPE,
-  DATASOURCE_TICKET_PARAMS
+  DATASOURCE_TICKET_PARAMS,
+  TRAINNING_TICKET_PARAMS,
+  TRAINNING_TICKET_REPLICA_TYPE
 } from '../constants/form-default'
-import { getParsedValueFromData, fillJSON, getValueFromJson } from '../utils/form_utils';
+import { getParsedValueFromData, fillJSON, getValueFromJson, filterArrayValue } from '../utils/form_utils';
 import { JOB_TYPE } from '../constants/job'
 
+const ENV_PATH = 'spec.flReplicaSpecs.[replicaType].template.spec.containers[].env'
+const PARAMS_GROUP = ['public_params', 'private_params']
+
+function getValueFromEnv(data, name) {
+  let path = ENV_PATH.replace('[replicaType]', 'Master')
+
+  let envs = getValueFromJson(data['public_params'], path)
+  if (!envs) { envs = [] }
+  let envNames = envs.map(env => env.name)
+  let v = envs[envNames.indexOf(name)]
+  v = v && v.value || ''
+
+  return v
+}
 function fillField(data, field, editing) {
   if (data === undefined && !editing) return field
-  let v = getValueFromJson(data, field.path || field.key)
+  let v = getValueFromJson(data, field.path || field.key) || field.emptyDefault || ''
+
   if (typeof v === 'object') {
     v = JSON.stringify(v, null, 2)
+  }
+  if (field.key === 'raw_data') {
+    v = getValueFromEnv(data, 'RAW_DATA_SUB_DIR')
+  }
+  if (field.key === 'num_partitions') {
+    v = getValueFromEnv(data, 'PARTITION_NUM')
+  }
+  if (field.key === 'image') {
+    v = getValueFromJson(data['public_params'] || {}, field.path.replace('[replicaType]', 'Master'))
   }
 
   field.value = v
@@ -33,10 +59,9 @@ function fillField(data, field, editing) {
 function mapValueToFields({data, fields, targetGroup, type = 'form', editing = false, init = false}) {
   return produce(fields, draft => {
     draft.map((x) => {
-      x.value = data[x.key] || x.emptyDefault || ''
-
       if (x.groupName) {
         editing && (init = true)
+        if (!data[x.groupName]) return
         if (!init && x.groupName !== targetGroup) return
         if (x.formTypes) {
           let types = init ? x.formTypes : [type]
@@ -46,8 +71,9 @@ function mapValueToFields({data, fields, targetGroup, type = 'form', editing = f
         } else {
           x.fields.forEach(field => fillField(data[x.groupName], field, editing))
         }
+      } else {
+        fillField(data, x, editing)
       }
-
     });
   })
 }
@@ -86,9 +112,9 @@ export default function TicketList({
 
     PAGE_NAME = 'trainning'
 
-    TICKET_REPLICA_TYPE = DATASOURCE_TICKET_REPLICA_TYPE
+    TICKET_REPLICA_TYPE = TRAINNING_TICKET_REPLICA_TYPE
 
-    TICKET_PARAMS = DATASOURCE_TICKET_PARAMS
+    TICKET_PARAMS = TRAINNING_TICKET_PARAMS
 
     FILTER_TYPE = JOB_TYPE.trainning
 
@@ -106,10 +132,83 @@ export default function TicketList({
     ]
     : [];
 
-  // form meta convert functions
+  // rewrite functions
+  const commonRewrite = useCallback((draft, data) => {
+    // image
+    draft.image && delete draft.image
+
+    TICKET_REPLICA_TYPE.forEach(replicaType => {
+      let path = `spec.flReplicaSpecs.${replicaType}.template.spec.containers[].image`
+
+      PARAMS_GROUP.forEach(paramType => {
+        if (!draft[paramType]) {
+          draft[paramType] = {}
+        }
+        fillJSON(draft[paramType], path, data.image)
+      })
+    })
+  }, [])
+  const dataSourceRewrite = useCallback((draft, data) => {
+    // envs
+    const insert2Env = [
+      { name: 'RAW_DATA_SUB_DIR', getValue: data => data.raw_data.name },
+      { name: 'PARTITION_NUM', getValue: data => data.num_partitions },
+    ]
+
+    PARAMS_GROUP.forEach(paramType => {
+      let masterPath = ENV_PATH.replace('[replicaType]', 'Master')
+
+      if (!draft[paramType]) {
+        draft[paramType] = {}
+      }
+
+      let envs = getValueFromJson(draft[paramType], masterPath)
+      if (!envs) { envs = [] }
+
+      let envNames = envs.map(env => env.name)
+      insert2Env.forEach(el => {
+        let idx = envNames.indexOf(el.name)
+        let value = el.getValue(data) || ''
+        if (idx >= 0) {
+          envs[idx].value = value.toString()
+        } else {
+          // here envs is not extensible, push will throw error
+          envs = envs.concat({name: el.name, value: value.toString()})
+        }
+      })
+      // trigger immer‘s intercepter
+      fillJSON(draft[paramType], masterPath, envs)
+    })
+
+    // replicas
+    TICKET_REPLICA_TYPE.forEach(replicaType => {
+      let num = replicaType === 'Master' ? 1 : draft.num_partitions
+
+      PARAMS_GROUP.forEach(paramType => {
+        fillJSON(draft[paramType], `spec.flReplicaSpecs.${replicaType}.replicas`, num)
+      })
+    })
+
+    // delete fields
+    draft.raw_data && delete draft.raw_data
+    draft.num_partitions && delete draft.num_partitions
+
+  }, [])
+  const trainningRewrite = useCallback((draft, data) => {
+
+  }, [])
   const rewriteFields = useCallback((draft, data) => {
     // this function will be call inner immer
+    commonRewrite(draft, data)
+    if (datasoure) {
+      dataSourceRewrite(draft, data)
+    }
+    if (trainning) {
+      trainningRewrite(draft, data)
+    }
   }, [])
+  // ---end---
+  // form meta convert functions
   const mapFormMeta2Json = useCallback(() => {
     let data = {}
     fields.map((x) => {
@@ -240,7 +339,7 @@ export default function TicketList({
     []
   ), [])
 
-  const DEFAULT_FIELDS = [
+  const DEFAULT_FIELDS = useMemo(() => filterArrayValue([
     { key: 'name', required: true },
     { key: 'federation_id', type: 'federation', label: 'federation', required: true },
     {
@@ -257,18 +356,16 @@ export default function TicketList({
       path: 'spec.flReplicaSpecs.[replicaType].template.spec.containers[].image',
       props: { width: '100%' }
     },
-    {
+    datasoure ? {
       key: 'raw_data',
       type: 'rawData',
-      higherUpdateForm: updateFormHook =>
-        value => updateFormHook('num partitions', value),
-    },
-    {
-      key: 'num partitions',
-      path: {
-        Master: 'spec.flReplicaSpecs.Master.template.spec.containers[].env[-1].PARTITION_NUM'
-      }
-    },
+      callback: updateForm =>
+        value => updateForm('num_partitions', value?.output_partition_num),
+    } : undefined,
+    datasoure ? {
+      key: 'num_partitions',
+      label: 'num partitions',
+    } : undefined,
     { key: 'remark', type: 'text', span: 24 },
     {
       groupName: 'public_params',
@@ -306,7 +403,7 @@ export default function TicketList({
         },
       ]
     }
-  ]
+  ]), [])
   const [formVisible, setFormVisible] = useState(false);
   const [fields, setFields] = useState(DEFAULT_FIELDS);
   const [currentTicket, setCurrentTicket] = useState(null);
@@ -336,6 +433,8 @@ export default function TicketList({
     writer('public_params', value)
 
     writeJson2FormMeta('private_params', value)
+
+    console.log(JSON.stringify(formMeta, null, 2))
 
     if (currentTicket) {
       return updateTicket(currentTicket.id, formMeta);

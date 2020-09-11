@@ -309,8 +309,8 @@ export default function JobList({
     {
       key: 'raw_data',
       type: 'rawData',
-      higherUpdateForm: updateFormHook =>
-        value => updateFormHook('num partitions', value)
+      callback: updateForm =>
+        value => updateForm('num partitions', value?.output_partition_num)
     },
     {
       key: 'client_ticket_name',
@@ -469,12 +469,12 @@ export default function JobList({
   const renderOperation = item => (
     <>
       <NextLink
-        href={`/job/${item.localdata.id}`}
+        href={`/${NAME_KEY}/job/${item.localdata.id}`}
       >
         <Link color>View Detail</Link>
       </NextLink>
       <NextLink
-        href={`/job/charts/${item.localdata.id}`}
+        href={`/${NAME_KEY}/job/charts/${item.localdata.id}`}
       >
         <Link color>View Charts</Link>
       </NextLink>
