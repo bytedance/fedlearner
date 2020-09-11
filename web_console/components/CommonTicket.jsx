@@ -409,6 +409,7 @@ export default function TicketList({
   const [currentTicket, setCurrentTicket] = useState(null);
   const title = currentTicket ? `Edit Ticket: ${currentTicket.name}` : 'Create Ticket';
   const closeForm = () => {
+    setCurrentTicket(null)
     setFormMeta({})
     setFormVisible(!formVisible)
   };
@@ -433,8 +434,6 @@ export default function TicketList({
     writer('public_params', value)
 
     writeJson2FormMeta('private_params', value)
-
-    console.log(JSON.stringify(formMeta, null, 2))
 
     if (currentTicket) {
       return updateTicket(currentTicket.id, formMeta);

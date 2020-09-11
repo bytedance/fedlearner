@@ -7,7 +7,7 @@ export default function RawDataSelect(props) {
   const { data } = useSWR('raw_datas', fetcher);
   const rawDatas = data ? data.data : [];
   const actualValue = typeof props.value === 'string'
-    ? props.value : props.value.name
+    ? props.value : props.value?.name
   const actualOnChange = (value) => {
     const rawData = rawDatas.find((x) => x.name === value);
     props.onChange(rawData);

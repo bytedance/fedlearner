@@ -16,7 +16,8 @@ export default function ClientTicketSelect({type, ...props}) {
     ? data.data.filter(filter)
     : [];
 
-  const actualValue = tickets.find((x) => x.name === props.value)?.value;
+  // const actualValue = tickets.find((x) => x.name === props.value)?.value;
+  const actualValue = props.value || ''
   const actualOnChange = (value) => {
     const ticket = tickets.find((x) => x.name === value);
     props.onChange(ticket.name);

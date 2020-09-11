@@ -29,7 +29,7 @@ export default function ServerTicketSelect({type, ...props}) {
     props.federation_id ? `federations/${props.federation_id}/tickets` : null,
     fetcher,
   );
-  const tickets = data?.data?.filter(filter) // || mockRes.data;
+  const tickets = data?.data?.filter(filter) || [] // || mockRes.data;
 
   const actualValue = tickets.find((x) => x.name === props.value)?.value;
   const actualOnChange = (value) => {

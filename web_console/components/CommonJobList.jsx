@@ -97,7 +97,7 @@ function handleParamData(container, data, field) {
 
 function fillField(data, field) {
   if (data === undefined) return field
-  let v = getValueFromJson(data, field.path || field.key)
+  let v = getValueFromJson(data, field.path || field.key) || field.emptyDefault || ''
   if (typeof v === 'object') {
     v = JSON.stringify(v, null, 2)
   }
@@ -108,13 +108,25 @@ function fillField(data, field) {
   return field
 }
 
-function mapValueToFields({data, fields, targetGroup, type = 'form'}) {
+function mapValueToFields({data, fields, targetGroup, type = 'form', init = false}) {
   return produce(fields, draft => {
     draft.map((x) => {
-      x.value = data[x.key] || x.emptyDefault || ''
 
-      if (x.groupName === targetGroup) {
-        x.fields[type].forEach(field => fillField(data[x.groupName], field))
+      if (x.groupName) {
+        if (!data[x.groupName]) return
+        if (!init && x.groupName !== targetGroup) return
+
+        if (x.formTypes) {
+          let types = init ? x.formTypes : [type]
+          types.forEach(el => {
+            x.fields[el].forEach(field => fillField(data[x.groupName], field))
+          })
+        } else {
+          x.fields.forEach(field => fillField(data[x.groupName], field))
+        }
+
+      } else {
+        fillField(data, x)
       }
 
     });
@@ -458,23 +470,28 @@ export default function JobList({
   };
 
   const handleClone = (item) => {
-    setFields(mapValueToFields({
-      data: item,
-      fields
+    setFormMeta(item.localdata)
+    console.log(formMeta)
+
+    setFields(fields => mapValueToFields({
+      data: mapFormMeta2Form(),
+      fields,
+      type: 'form',
+      init: true
     }))
-    // fields = mapValueToFields(item, DEFAULT_FIELDS)
+
     toggleForm()
   }
 
   const renderOperation = item => (
     <>
       <NextLink
-        href={`/${NAME_KEY}/job/${item.localdata.id}`}
+        href={`/${PAGE_NAME}/job/${item.localdata.id}`}
       >
         <Link color>View Detail</Link>
       </NextLink>
       <NextLink
-        href={`/${NAME_KEY}/job/charts/${item.localdata.id}`}
+        href={`/${PAGE_NAME}/job/charts/${item.localdata.id}`}
       >
         <Link color>View Charts</Link>
       </NextLink>
