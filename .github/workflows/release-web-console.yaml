@@ -1,9 +1,6 @@
 name: Release Web Console
 
-on:
-  push:
-    branches:
-      - master
+on: [push]
 
 jobs:
   build:
