@@ -246,6 +246,9 @@ export default function JobList({
         fillJSON(draft[paramType], ENV_PATH.replace('[replicaType]', replicaType), envs)
       })
     })
+
+    // delete fields
+    draft.raw_data && delete draft.raw_data
   }, [])
   const mapFormMeta2Json = useCallback(() => {
     let data = {}

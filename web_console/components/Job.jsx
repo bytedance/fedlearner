@@ -3,15 +3,37 @@ import { Description, Button } from '@zeit-ui/react';
 import useSWR from 'swr';
 
 import { fetcher } from '../libs/http';
+import { updateJobStatus } from '../services/job';
 import { handleStatus } from '../utils/job';
 import JobCommonInfo, { jsonHandledPopover } from './JobCommonInfo';
 
+function getJobForm(job, status) {
+  if (!job.localdata) return {}
+
+  const {
+    name, job_type, client_ticket_name,
+    server_ticket_name, client_params, server_params
+  } = job.localdata
+
+  return {
+    status,
+    name, job_type, client_ticket_name,
+    server_ticket_name, client_params, server_params
+  }
+}
+
 export default function Job({id, ...props}) {
-  const { data: jobData } = useSWR(id ? `job/${id}` : null, fetcher);
+  const { data: jobData, mutate } = useSWR(id ? `job/${id}` : null, fetcher);
   const job = jobData ? jobData.data : null;
 
-  const onSubmit = useCallback(() => {}, [])
-  const onStop = useCallback(() => {}, [])
+  const onSubmit = useCallback(async () => {
+    await updateJobStatus(id, getJobForm(job, 'started'))
+    mutate()
+  }, [])
+  const onStop = useCallback(async () => {
+    await updateJobStatus(id, getJobForm(job, 'stopped'))
+    mutate()
+  }, [])
 
   return (
     <JobCommonInfo job={job}>
