@@ -35,7 +35,7 @@ class DBClient(object):
             self._client = MySQLClient(name, addr, user,
                                        password, base_dir,
                                        use_mock_mysql)
-    
+
     def __getattr__(self, attr):
         return getattr(self._client, attr)
 
@@ -73,8 +73,8 @@ class RealMySQLClient(object):
             except NoResultFound:
                 logging.warning('data is not exists')
                 return None
-            except Exception:
-                logging.error('failed to get data')
+            except Exception as e:
+                logging.error('failed to get data. msg[%s]', e)
                 sess.rollback()
                 return None
 
@@ -89,8 +89,8 @@ class RealMySQLClient(object):
                 sess.add(context)
                 sess.commit()
                 return True
-            except Exception:
-                logging.error('failed to set data')
+            except Exception as e:
+                logging.error('failed to set data. msg[%s]', e)
                 sess.rollback()
                 return False
 
@@ -104,8 +104,8 @@ class RealMySQLClient(object):
                     sess.delete(context)
                 sess.commit()
                 return True
-            except Exception:
-                logging.error('failed to delete')
+            except Exception as e:
+                logging.error('failed to delete. msg[%s]', e)
                 sess.rollback()
                 return False
 
@@ -118,8 +118,8 @@ class RealMySQLClient(object):
                     sess.delete(context)
                 sess.commit()
                 return True
-            except Exception:
-                logging.error('failed to delete prefix')
+            except Exception as e:
+                logging.error('failed to delete prefix. msg[%s]', e)
                 sess.rollback()
                 return False
 
@@ -149,8 +149,8 @@ class RealMySQLClient(object):
                     context.value = new_data
                     sess.commit()
                 return flag
-            except Exception:
-                logging.error('failed to cas')
+            except Exception as e:
+                logging.error('failed to cas. msg[%s]', e)
                 sess.rollback()
                 return False
 
@@ -164,14 +164,15 @@ class RealMySQLClient(object):
                     like(path + '%')).order_by(table.key):
                     if ignor_prefix and context.key == path:
                         continue
-                    nkey = self._normalize_output_key(context.key, self._base_dir)
+                    nkey = self._normalize_output_key(context.key,
+                        self._base_dir)
                     value = context.value
                     if isinstance(value, str):
                         value = value.encode()
                     kvs.append((nkey, value))
                 return kvs
-            except Exception:
-                logging.error('failed to get prefix kvs')
+            except Exception as e:
+                logging.error('failed to get prefix kvs. msg[%s]', e)
                 sess.rollback()
                 return None
 

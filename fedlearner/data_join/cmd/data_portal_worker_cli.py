@@ -35,7 +35,8 @@ if __name__ == '__main__':
     parser.add_argument("--mysql_addr", type=str,
                         default="localhost:2379", help="the addrs of mysql")
     parser.add_argument("--mysql_base_dir", type=str,
-                        help="the namespace of mysql key for data portal worker")
+                        help="the namespace of mysql key for data "\
+                             "portal worker")
     parser.add_argument("--mysql_user", type=str,
                         default="test_user", help="the user of mysql")
     parser.add_argument("--mysql_password", type=str,
