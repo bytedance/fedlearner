@@ -23,9 +23,12 @@ from fedlearner.trainer_master.data.data_block_queue import DataBlockQueue
 from fedlearner.data_join.data_block_visitor import DataBlockVisitor
 from .trainer_master import TrainerMaster
 
-ETCD_NAME = os.environ.get('ETCD_NAME', None)
-ETCD_ADDR = os.environ.get('ETCD_ADDR', None)
-ETCD_BASE_DIR = os.environ.get('ETCD_BASE_DIR', None)
+MYSQL_NAME = os.environ.get('MYSQL_NAME', None)
+MYSQL_ADDR = os.environ.get('MYSQL_ADDR', None)
+MYSQL_BASE_DIR = os.environ.get('MYSQL_BASE_DIR', None)
+MYSQL_USER = os.environ.get('MYSQL_USER', None)
+MYSQL_PASSWORD = os.environ.get('MYSQL_PASSWORD', None)
+
 
 
 class LeaderTrainerMaster(TrainerMaster):
@@ -36,7 +39,8 @@ class LeaderTrainerMaster(TrainerMaster):
                                                   None, online_training)
         self._data_block_queue = DataBlockQueue()
         self._data_block_visitor = DataBlockVisitor(
-            data_source, ETCD_NAME, ETCD_BASE_DIR, ETCD_ADDR)
+            data_source, MYSQL_NAME, MYSQL_BASE_DIR, MYSQL_ADDR,
+                MYSQL_USER, MYSQL_PASSWORD)
         self._start_time = start_time
         self._end_time = end_time
         self._epoch_num = epoch_num

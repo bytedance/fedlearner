@@ -28,9 +28,11 @@ from fedlearner.data_join.data_block_visitor import DataBlockVisitor
 
 DataBlockInfo = collections.namedtuple('DataBlockInfo',
                                        ['block_id', 'data_path'])
-ETCD_NAME = os.environ.get('ETCD_NAME', None)
-ETCD_ADDR = os.environ.get('ETCD_ADDR', None)
-ETCD_BASE_DIR = os.environ.get('ETCD_BASE_DIR', None)
+MYSQL_NAME = os.environ.get('MYSQL_NAME', None)
+MYSQL_ADDR = os.environ.get('MYSQL_ADDR', None)
+MYSQL_BASE_DIR = os.environ.get('MYSQL_BASE_DIR', None)
+MYSQL_USER = os.environ.get('MYSQL_USER', None)
+MYSQL_PASSWORD = os.environ.get('MYSQL_PASSWORD', None)
 
 
 class LocalTrainerMasterClient(object):
@@ -47,8 +49,9 @@ class LocalTrainerMasterClient(object):
         self._block_queue = []
         self._block_map = {}
         if from_data_source:
-            data_block_visitor = DataBlockVisitor(path, ETCD_NAME,
-                                                  ETCD_BASE_DIR, ETCD_ADDR)
+            data_block_visitor = DataBlockVisitor(path, MYSQL_NAME,
+                                                  MYSQL_BASE_DIR, MYSQL_ADDR,
+                                                  MYSQL_USER, MYSQL_PASSWORD)
             # pylint: disable=line-too-long
             for block_id, block_item in data_block_visitor.LoadDataBlockRepByTimeFrame(
                     start_time, end_time).items():
