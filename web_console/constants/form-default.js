@@ -6,6 +6,14 @@ const K8S_SETTINGS = {
   "imagePullSecrets": [{"name": "regcred"}],
   "env": [
     {
+      "name": "ETCD_NAME",
+      "value": "fedlearner",
+    },
+    {
+      "name": "ETCD_BASE_DIR",
+      "value": "fedlearner",
+    },
+    {
       "name": "ETCD_ADDR",
       "value": "fedlearner-stack-etcd.default.svc.cluster.local:2379"
     },
