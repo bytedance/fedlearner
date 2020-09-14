@@ -31,7 +31,7 @@ class DBClient(object):
         if os.environ.get('USE_ETCD', False):
             self._client = EtcdClient(name, addr, base_dir,
                                       use_mock_mysql)
-        else :
+        else:
             self._client = MySQLClient(name, addr, user,
                                        password, base_dir,
                                        use_mock_mysql)
@@ -74,7 +74,7 @@ class RealMySQLClient(object):
                 logging.warning('data is not exists')
                 return None
             except Exception as e:
-                logging.error('failed to get data. msg[%s]', e)
+                logging.error('failed to get data. msg[%s]' % e)
                 sess.rollback()
                 return None
 
@@ -90,7 +90,7 @@ class RealMySQLClient(object):
                 sess.commit()
                 return True
             except Exception as e:
-                logging.error('failed to set data. msg[%s]', e)
+                logging.error('failed to set data. msg[%s]' % e)
                 sess.rollback()
                 return False
 
@@ -105,7 +105,7 @@ class RealMySQLClient(object):
                 sess.commit()
                 return True
             except Exception as e:
-                logging.error('failed to delete. msg[%s]', e)
+                logging.error('failed to delete. msg[%s]' % e)
                 sess.rollback()
                 return False
 
@@ -119,7 +119,7 @@ class RealMySQLClient(object):
                 sess.commit()
                 return True
             except Exception as e:
-                logging.error('failed to delete prefix. msg[%s]', e)
+                logging.error('failed to delete prefix. msg[%s]' % e)
                 sess.rollback()
                 return False
 
@@ -150,7 +150,7 @@ class RealMySQLClient(object):
                     sess.commit()
                 return flag
             except Exception as e:
-                logging.error('failed to cas. msg[%s]', e)
+                logging.error('failed to cas. msg[%s]' % e)
                 sess.rollback()
                 return False
 
@@ -172,7 +172,7 @@ class RealMySQLClient(object):
                     kvs.append((nkey, value))
                 return kvs
             except Exception as e:
-                logging.error('failed to get prefix kvs. msg[%s]', e)
+                logging.error('failed to get prefix kvs. msg[%s]' % e)
                 sess.rollback()
                 return None
 
