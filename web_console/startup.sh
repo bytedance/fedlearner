@@ -8,3 +8,4 @@ npx sequelize-cli db:migrate \
 node bootstrap.js &
 
 while true; do sleep 1000; done
+
