@@ -73,8 +73,8 @@ class RealMySQLClient(object):
             except NoResultFound:
                 logging.warning('data is not exists')
                 return None
-            except Exception as e:
-                logging.error('failed to get data. msg[%s]', e)
+            except:
+                logging.error('failed to get data.')
                 sess.rollback()
                 return None
 
@@ -89,8 +89,8 @@ class RealMySQLClient(object):
                 sess.add(context)
                 sess.commit()
                 return True
-            except Exception as e:
-                logging.error('failed to set data. msg[%s]', e)
+            except:
+                logging.error('failed to set data.')
                 sess.rollback()
                 return False
 
@@ -104,8 +104,8 @@ class RealMySQLClient(object):
                     sess.delete(context)
                 sess.commit()
                 return True
-            except Exception as e:
-                logging.error('failed to delete. msg[%s]', e)
+            except:
+                logging.error('failed to delete.')
                 sess.rollback()
                 return False
 
@@ -118,8 +118,8 @@ class RealMySQLClient(object):
                     sess.delete(context)
                 sess.commit()
                 return True
-            except Exception as e:
-                logging.error('failed to delete prefix. msg[%s]', e)
+            except:
+                logging.error('failed to delete prefix.')
                 sess.rollback()
                 return False
 
@@ -149,8 +149,8 @@ class RealMySQLClient(object):
                     context.value = new_data
                     sess.commit()
                 return flag
-            except Exception as e:
-                logging.error('failed to cas. msg[%s]', e)
+            except:
+                logging.error('failed to cas.')
                 sess.rollback()
                 return False
 
@@ -171,8 +171,8 @@ class RealMySQLClient(object):
                         value = value.encode()
                     kvs.append((nkey, value))
                 return kvs
-            except Exception as e:
-                logging.error('failed to get prefix kvs. msg[%s]', e)
+            except:
+                logging.error('failed to get prefix kvs.')
                 sess.rollback()
                 return None
 
