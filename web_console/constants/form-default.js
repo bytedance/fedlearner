@@ -1,6 +1,7 @@
 // key is the key of form field
 // value is the default value of field
 const K8S_SETTINGS = {
+  "namespace": "default",
   "storage_root_path": "data",
   "imagePullSecrets": [{"name": "regcred"}],
   "env": [
@@ -21,7 +22,7 @@ const K8S_SETTINGS = {
     "peerURL": "fedlearner-stack-ingress-nginx-controller.default.svc.cluster.local:80",
     "authority": "external.name",
     "extraHeaders": {
-      "x-host": "",
+      "x-host": "default.flapp.webconsole",
       "x-federation": "XFEDERATION"
     }
   },
@@ -30,7 +31,7 @@ const K8S_SETTINGS = {
       "peerURL": "fedlearner-stack-ingress-nginx-controller.default.svc.cluster.local:80",
       "authority": "external.name",
       "extraHeaders": {
-        "x-host": "follower.flapp.operator"
+        "x-host": "leader.flapp.operator"
       }
     }
   },

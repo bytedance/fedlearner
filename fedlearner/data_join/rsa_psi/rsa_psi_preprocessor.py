@@ -20,6 +20,7 @@ import concurrent.futures as concur_futures
 import os
 import gc
 import time
+import traceback
 import rsa
 
 from fedlearner.common import data_join_service_pb2 as dj_pb
@@ -32,7 +33,7 @@ from fedlearner.data_join.rsa_psi.rsa_psi_component import \
         IdBatchFetcher, LeaderPsiRsaSigner, FollowerPsiRsaSigner
 from fedlearner.data_join.sort_run_dumper import SortRunDumper
 from fedlearner.data_join.sort_run_merger import SortRunMerger
-from fedlearner.data_join.common import partition_repr, HeapMemStats
+from fedlearner.data_join.common import partition_repr, get_heap_mem_stats
 
 class RsaPsiPreProcessor(object):
     def __init__(self, options, etcd_name, etcd_addrs,
@@ -96,7 +97,6 @@ class RsaPsiPreProcessor(object):
                 ),
                 self._merger_comparator
             )
-        self._heap_mem_stats = HeapMemStats(None)
         self._produce_item_cnt = 0
         self._comsume_item_cnt = 0
         self._started = False
@@ -163,6 +163,7 @@ class RsaPsiPreProcessor(object):
             time.sleep(10)
         logging.warning("Give up to say bye to signer after try 60"\
                         "times, rsa_psi_preprocessor will exit as -1")
+        traceback.print_stack()
         os._exit(-1) # pylint: disable=protected-access
 
     def _id_batch_fetcher_name(self):
@@ -198,9 +199,9 @@ class RsaPsiPreProcessor(object):
             return True
         potential_mem_incr = total_flying_item * \
                              self._psi_rsa_signer.additional_item_mem_usage()
-        if self._heap_mem_stats.CheckOomRisk(total_flying_item, 0.85,
-                                             potential_mem_incr):
-            logging.warning("stop fetch id since has oom risk for 0.85, "\
+        if get_heap_mem_stats(None).CheckOomRisk(total_flying_item, 0.80,
+                                                 potential_mem_incr):
+            logging.warning("stop fetch id since has oom risk for 0.80, "\
                             "flying item reach to %d", total_flying_item)
             return True
         return False

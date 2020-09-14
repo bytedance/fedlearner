@@ -290,7 +290,7 @@ function portalGenerateYaml(federation, raw_data) {
             { name: 'ES_HOST', value: ES_HOST },
             { name: 'ES_PORT', value: `${ES_PORT}` },
             { name: 'APPLICATION_ID', value: raw_data.name },
-            { name: 'BATCH_SIZE', value: `${raw_data.context.batch_size}` },
+            { name: 'BATCH_SIZE', value: raw_data.context.batch_size ? `${raw_data.context.batch_size}` : ""  },
             { name: 'INPUT_DATA_FORMAT', value: raw_data.context.input_data_format },
             { name: 'COMPRESSED_TYPE', value: raw_data.context.compressed_type },
             { name: 'OUTPUT_DATA_FORMAT', value: raw_data.context.output_data_format },

@@ -16,6 +16,7 @@
 
 import logging
 import os
+import traceback
 
 from google.protobuf import text_format
 
@@ -67,6 +68,7 @@ class RawDataManager(visitor.IndexMetaManager):
                 logging.fatal("the raw data of partition %d index with "\
                               "%d must in etcd",
                               self._partition_id, process_index)
+                traceback.print_stack()
                 os._exit(-1) # pylint: disable=protected-access
             self._all_metas.append((process_index, raw_data_meta))
         if raw_data_meta.start_index == -1:
@@ -89,6 +91,7 @@ class RawDataManager(visitor.IndexMetaManager):
                                   "%d must start with %d",
                                   self._partition_id, process_index,
                                   start_index)
+                    traceback.print_stack()
                     os._exit(-1) # pylint: disable=protected-access
         return visitor.IndexMeta(process_index, start_index,
                                  raw_data_meta.file_path)
@@ -136,6 +139,7 @@ class RawDataManager(visitor.IndexMetaManager):
                 logging.fatal("process_index mismatch with index %d != %d "\
                               "for file path %s", process_index, meta[0],
                               meta[1].file_path)
+                traceback.print_stack()
                 os._exit(-1) # pylint: disable=protected-access
         return all_metas, index_metas
 
