@@ -172,9 +172,11 @@ class DataBlockDumperManager(object):
                 if index >= meta.leader_end_index:
                     break
             if match_index < example_num:
-                logging.fatal("Data lose corrupt! only match %d/%d example "
-                              "for data block %s",
-                              match_index, example_num, meta.block_id)
+                logging.fatal(
+                        "Data lose corrupt! only match %d/%d example "
+                        "for data block %s",
+                        match_index, example_num, meta.block_id
+                    )
                 traceback.print_stack()
                 os._exit(-1) # pylint: disable=protected-access
             dumped_meta = data_block_builder.finish_data_block(True)

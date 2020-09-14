@@ -19,6 +19,7 @@ import csv
 import os
 import io
 import traceback
+from collections import OrderedDict
 
 import tensorflow.compat.v1 as tf
 import tensorflow_io # pylint: disable=unused-import
@@ -28,64 +29,45 @@ import fedlearner.data_join.common as common
 from fedlearner.data_join.raw_data_iter_impl.raw_data_iter import RawDataIter
 
 class CsvItem(RawDataIter.Item):
-    def __init__(self, field_keys, field_vals):
-        self._field_keys = field_keys
-        self._field_vals = field_vals
+    def __init__(self, raw):
+        self._raw = raw
         self._tf_record = None
-        self._example_id_index = None
-        self._event_time_index = None
-        self._raw_id_index = None
-        self._placed_example_id = None
-        self._parse_csv_item()
 
     @property
     def example_id(self):
-        if self._placed_example_id is not None:
-            return str(self._placed_example_id).encode()
-        if self._example_id_index is not None:
-            return str(self._field_vals[self._example_id_index]).encode()
-        logging.error("Failed parse example id since no example id "\
-                      "in field key: %s, field value: %s",
-                      self._field_keys, self._field_vals)
-        return common.InvalidExampleId
+        if 'example_id' not in self._raw:
+            logging.error("Failed parse example id since no join "\
+                          "id in csv dict raw %s", self._raw)
+            return common.InvalidExampleId
+        return str(self._raw['example_id']).encode()
 
     @property
     def event_time(self):
-        if self._event_time_index is not None:
-            assert self._event_time_index < len(self._field_vals)
+        if 'event_time' in self._raw:
             try:
-                return int(self._field_vals[self._event_time_index])
+                return int(self._raw['event_time'])
             except Exception as e: # pylint: disable=broad-except
                 logging.error("Failed to parse event time as int type from "\
-                              "field key: %s, field val: %s, reason: %s",
-                              self._field_keys, self._field_vals, e)
+                              "%s, reason: %s", self._raw['event_time'], e)
         return common.InvalidEventTime
 
     @property
     def raw_id(self):
-        if self._raw_id_index is not None:
-            assert self._raw_id_index < len(self._field_vals)
-            return str(self._field_vals[self._raw_id_index]).encode()
-        logging.error("Failed parse raw id since no raw "\
-                      "id from filed key: %s, field val: %s",
-                      self._field_keys, self._field_vals)
-        return common.InvalidRawId
+        if 'raw_id' not in self._raw:
+            logging.error("Failed parse raw id since no join "\
+                          "id in csv dict raw %s", self._raw)
+            return common.InvalidRawId
+        return str(self._raw['raw_id']).encode()
 
     @property
     def record(self):
-        return self.csv_record
+        return self._raw
 
     @property
     def tf_record(self):
         if self._tf_record is None:
             try:
-                rfield_keys = self._field_keys
-                rfield_vals = self._field_vals
-                if self._placed_example_id is not None:
-                    rfield_keys = ['example_id'] + self._field_keys
-                    rfield_vals = [self._placed_example_id] + self._field_vals
-                example = common.convert_csv_record_to_tf_example(rfield_keys,
-                                                                  rfield_vals)
+                example = common.convert_dict_to_tf_example(self._raw)
                 self._tf_record = example.SerializeToString()
             except Exception as e: # pylint: disable=broad-except
                 logging.error("Failed convert csv dict to tf example, "\
@@ -95,27 +77,14 @@ class CsvItem(RawDataIter.Item):
 
     @property
     def csv_record(self):
-        if self._placed_example_id is not None:
-            return ['example_id'] + self._field_keys, \
-                    [self._placed_example_id] + self._field_vals
-        return self._field_keys, self._field_vals
+        return self._raw
 
     def set_example_id(self, example_id):
-        self._placed_example_id = example_id
+        new_raw = OrderedDict({'example_id': example_id})
+        new_raw.update(self._raw)
+        self._raw = new_raw
         if self._tf_record is not None:
             self._tf_record = None
-
-    def _parse_csv_item(self):
-        assert isinstance(self._field_keys, list) and \
-                isinstance(self._field_vals, list) and \
-                len(self._field_keys) == len(self._field_vals)
-        for idx, field in enumerate(self._field_keys):
-            if field == 'example_id':
-                self._example_id_index = idx
-            if field == 'event_time':
-                self._event_time_index = idx
-            if field == 'raw_id':
-                self._raw_id_index = idx
 
 class CsvDictIter(RawDataIter):
     def __init__(self, options):
@@ -132,30 +101,25 @@ class CsvDictIter(RawDataIter):
             aware_headers = True
             read_finished = False
             while not read_finished:
-                csv_reader, rest_buffer, read_finished = \
-                        self._make_csv_record_reader(fh, rest_buffer)
-                if aware_headers:
-                    try:
-                        csv_headers = next(csv_reader)
-                    except StopIteration:
-                        logging.warning('%s of csv is empty', fpath)
-                        break
-                    else:
-                        if self._headers is None:
-                            self._headers = csv_headers
-                        elif self._headers != csv_headers:
-                            logging.fatal("the schema of %s is %s, mismatch "\
-                                          "with previous %s",
-                                          fpath, self._headers, csv_headers)
-                            traceback.print_stack()
-                            os._exit(-1) # pylint: disable=protected-access
+                dict_reader, rest_buffer, read_finished = \
+                        self._make_csv_dict_reader(fh, rest_buffer,
+                                                   aware_headers)
                 aware_headers = False
-                for fields in csv_reader:
-                    yield CsvItem(self._headers, fields)
+                if self._headers is None:
+                    self._headers = dict_reader.fieldnames
+                elif self._headers != dict_reader.fieldnames:
+                    logging.fatal("the schema of %s is %s, mismatch "\
+                                  "with previous %s", fpath,
+                                  self._headers, dict_reader.fieldnames)
+                    traceback.print_stack()
+                    os._exit(-1) # pylint: disable=protected-access
+                for raw in dict_reader:
+                    yield CsvItem(raw)
 
-    def _make_csv_record_reader(self, fh, rest_buffer):
+    def _make_csv_dict_reader(self, fh, rest_buffer, aware_headers):
         if self._options.read_ahead_size <= 0:
-            return csv.reader, [], True
+            assert aware_headers
+            return csv.DictReader(fh), [], True
         read_buffer = fh.read(self._options.read_ahead_size)
         read_finished = len(read_buffer) < self._options.read_ahead_size
         idx = read_buffer.rfind('\n')
@@ -168,7 +132,12 @@ class CsvDictIter(RawDataIter):
             os._exit(-1) # pylint: disable=protected-access
         str_buffer = read_buffer[0:idx+1] if len(rest_buffer) == 0 \
                         else rest_buffer+read_buffer[0:idx+1]
-        return csv.reader(io.StringIO(str_buffer)), \
+        if aware_headers:
+            return csv.DictReader(io.StringIO(str_buffer)), \
+                    read_buffer[idx+1:], read_finished
+        assert self._headers is not None
+        return csv.DictReader(io.StringIO(str_buffer),
+                              fieldnames=self._headers), \
                 read_buffer[idx+1:], read_finished
 
     def _reset_iter(self, index_meta):

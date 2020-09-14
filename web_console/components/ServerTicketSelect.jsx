@@ -36,7 +36,7 @@ export default function ServerTicketSelect(props) {
   }
 
   return (
-    <Select {...props} value={actualValue} onChange={actualOnChange}>
+    <Select {...props} initialValue={actualValue} value={actualValue} onChange={actualOnChange}>
       {
         tickets.map((x) =>
           <Select.Option key={x.name} value={x.name}>

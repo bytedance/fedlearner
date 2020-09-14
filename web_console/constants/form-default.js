@@ -1,6 +1,7 @@
 // key is the key of form field
 // value is the default value of field
 const K8S_SETTINGS = {
+  "namespace": "default",
   "storage_root_path": "data",
   "imagePullSecrets": [{"name": "regcred"}],
   "env": [
@@ -21,7 +22,7 @@ const K8S_SETTINGS = {
     "peerURL": "fedlearner-stack-ingress-nginx-controller.default.svc.cluster.local:80",
     "authority": "external.name",
     "extraHeaders": {
-      "x-host": "",
+      "x-host": "default.flapp.webconsole",
       "x-federation": "XFEDERATION"
     }
   },
@@ -30,7 +31,7 @@ const K8S_SETTINGS = {
       "peerURL": "fedlearner-stack-ingress-nginx-controller.default.svc.cluster.local:80",
       "authority": "external.name",
       "extraHeaders": {
-        "x-host": "follower.flapp.operator"
+        "x-host": "leader.flapp.operator"
       }
     }
   },
@@ -45,6 +46,21 @@ const K8S_SETTINGS = {
   }
 }
 
+const RAW_DATA_CONTEXT = {
+  file_wildcard: '*',
+  batch_size: 1024,
+  max_flying_item: 300000,
+  merge_buffer_size: 4096,
+  write_buffer_size: 10000000,
+  resource_master_cpu_request: '1000m',
+  resource_master_cpu_limit: '1000m',
+  resource_master_memory_request: '2Gi',
+  resource_master_memory_limit: '2Gi',
+  input_data_format: 'CSV_DICT',
+  output_data_format: 'TF_RECORD',
+  compressed_type: 'None', // 'None' will be convert to empty string finally
+}
+
 for (let k in K8S_SETTINGS) {
   if (typeof K8S_SETTINGS[k] === 'object') {
     K8S_SETTINGS[k] = JSON.stringify(K8S_SETTINGS[k], null, 2)
@@ -52,5 +68,6 @@ for (let k in K8S_SETTINGS) {
 }
 
 module.exports = {
-  K8S_SETTINGS
+  K8S_SETTINGS,
+  RAW_DATA_CONTEXT,
 }

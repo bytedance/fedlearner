@@ -22,6 +22,7 @@ import random
 import logging
 import csv
 import rsa
+from collections import OrderedDict
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 from cityhash import CityHash32 # pylint: disable=no-name-in-module
@@ -94,13 +95,14 @@ class RsaPsi(unittest.TestCase):
             fpath = os.path.join(base_dir, str(partition_id)+common.RawDataFileSuffix)
             fpaths.append(fpath)
             csv_writers.append(csv_dict_writer.CsvDictWriter(fpath))
-        field_keys = ['raw_id', 'feat_0', 'feat_1', 'feat_2']
         for item in cands:
             partition_id = CityHash32(item) % partition_num
-            field_vals = [item, 'leader-' + str((partition_id << 30) + 0) + item,
-                          'leader-' + str((partition_id << 30) + 1) + item,
-                          'leader-' + str((partition_id << 30) + 2) + item]
-            csv_writers[partition_id].write((field_keys, field_vals))
+            raw = OrderedDict()
+            raw['raw_id'] = item
+            raw['feat_0'] = 'leader-' + str((partition_id << 30) + 0) + item
+            raw['feat_1'] = 'leader-' + str((partition_id << 30) + 1) + item
+            raw['feat_2'] = 'leader-' + str((partition_id << 30) + 2) + item
+            csv_writers[partition_id].write(raw)
         for csv_writer in csv_writers:
             csv_writer.close()
         return fpaths

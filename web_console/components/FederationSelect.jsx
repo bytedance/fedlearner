@@ -13,7 +13,7 @@ export default function FederationSelect(props) {
     props.onChange(federation.id);
   };
   return (
-    <Select {...props} value={actualValue} onChange={actualOnChange}>
+    <Select {...props} initialValue={actualValue} value={actualValue} onChange={actualOnChange}>
       {federations.map((x) => <Select.Option key={x.name} value={x.name}>{x.trademark}</Select.Option>)}
     </Select>
   );
