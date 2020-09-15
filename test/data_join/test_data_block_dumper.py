@@ -240,7 +240,7 @@ class TestDataBlockDumper(unittest.TestCase):
             gfile.DeleteRecursively(self.data_source_l.output_base_dir)
         if gfile.Exists(self.raw_data_dir_l):
             gfile.DeleteRecursively(self.raw_data_dir_l)
-        self.mysql.delete_prefix(common.data_source__base_dir(self.data_source_l.data_source_meta.name))
+        self.mysql.delete_prefix(common.data_source_base_dir(self.data_source_l.data_source_meta.name))
 
 if __name__ == '__main__':
     unittest.main()
