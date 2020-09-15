@@ -139,6 +139,10 @@ function handleContextData(container, data, field) {
     value = data === 'None' ? '' : data
   }
 
+  if (field.key === 'num_workers') {
+    value = parseInt(value || field.default)
+  }
+
   fillJSON(container, path, value)
 }
 
