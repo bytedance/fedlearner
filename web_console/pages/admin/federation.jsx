@@ -340,11 +340,9 @@ export default function FederationList() {
       }
     }
 
-    if (groupFormType === 'json') {
-      writeJson2FormMeta(value)
-    } else {
-      writeForm2FormMeta(value)
-    }
+    const writer = groupFormType.k8s_settings === 'json'
+      ? writeJson2FormMeta : writeForm2FormMeta
+    writer(value)
 
     if (currentFederation) {
       return updateFederation(currentFederation.id, formMeta);
