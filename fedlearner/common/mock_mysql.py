@@ -44,9 +44,9 @@ class MockMySQL(object):
     def delete_prefix(self, prefix):
         with self._lock:
             deleted = []
-            key = self._generate_key(prefix)
+            prefix_key = self._generate_key(prefix)
             for key in self._data:
-                if key.startswith(prefix):
+                if key.startswith(prefix_key):
                     deleted.append(key)
             for key in deleted:
                 self._data.pop(key, None)
