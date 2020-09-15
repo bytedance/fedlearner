@@ -139,6 +139,10 @@ function handleContextData(container, data, field) {
     value = data === 'None' ? '' : data
   }
 
+  if (field.key === 'num_workers') {
+    value = parseInt(value || field.default)
+  }
+
   fillJSON(container, path, value)
 }
 
@@ -340,7 +344,7 @@ export default function RawDataList() {
   };
 
   const onSubmit = (value, formType) => {
-    let writer = formType === 'json' ? writeJson2FormMeta : writeForm2FormMeta
+    let writer = formType.context === 'json' ? writeJson2FormMeta : writeForm2FormMeta
     writer(value)
 
     return createRawData(formMeta)
