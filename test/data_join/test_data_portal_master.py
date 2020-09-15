@@ -45,7 +45,8 @@ class DataPortalMaster(unittest.TestCase):
         mysql_password = 'test_password'
         mysql_base_dir = 'dp_test'
         data_portal_name = 'test_data_source'
-        mysql = DBClient(mysql_name, mysql_addr, mysql_base_dir, True)
+        mysql = DBClient(mysql_name, mysql_addr, mysql_user,
+            mysql_password, mysql_base_dir, True)
         mysql.delete_prefix(mysql_base_dir)
         portal_input_base_dir='./portal_upload_dir'
         portal_output_base_dir='./portal_output_dir'
