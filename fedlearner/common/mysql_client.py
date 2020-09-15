@@ -73,7 +73,7 @@ class RealMySQLClient(object):
             except NoResultFound:
                 logging.warning('data is not exists')
                 return None
-            except Exception as e:
+            except Exception as e: # pylint: disable=broad-except
                 logging.error('failed to get data. msg[%s]', e)
                 sess.rollback()
                 return None
@@ -89,7 +89,7 @@ class RealMySQLClient(object):
                 sess.add(context)
                 sess.commit()
                 return True
-            except Exception as e:
+            except Exception as e: # pylint: disable=broad-except
                 logging.error('failed to set data. msg[%s]', e)
                 sess.rollback()
                 return False
@@ -104,7 +104,7 @@ class RealMySQLClient(object):
                     sess.delete(context)
                 sess.commit()
                 return True
-            except Exception as e:
+            except Exception as e: # pylint: disable=broad-except
                 logging.error('failed to delete. msg[%s]', e)
                 sess.rollback()
                 return False
@@ -118,7 +118,7 @@ class RealMySQLClient(object):
                     sess.delete(context)
                 sess.commit()
                 return True
-            except Exception as e:
+            except Exception as e: # pylint: disable=broad-except
                 logging.error('failed to delete prefix. msg[%s]', e)
                 sess.rollback()
                 return False
@@ -149,7 +149,7 @@ class RealMySQLClient(object):
                     context.value = new_data
                     sess.commit()
                 return flag
-            except Exception as e:
+            except Exception as e: # pylint: disable=broad-except
                 logging.error('failed to cas. msg[%s]', e)
                 sess.rollback()
                 return False
@@ -171,7 +171,7 @@ class RealMySQLClient(object):
                         value = value.encode()
                     kvs.append((nkey, value))
                 return kvs
-            except Exception as e:
+            except Exception as e: # pylint: disable=broad-except
                 logging.error('failed to get prefix kvs. msg[%s]', e)
                 sess.rollback()
                 return None

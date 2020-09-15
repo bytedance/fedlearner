@@ -23,9 +23,9 @@ source /app/deploy/scripts/env_to_args.sh
 input_file_wildcard=$(normalize_env_to_args "--input_file_wildcard" $FILE_WILDCARD)
 
 python -m fedlearner.data_join.cmd.data_portal_master_service \
-    --mysql_name=$MYSQL_NAME \
-    --mysql_addr=$MYSQL_ADDR \
-    --mysql_base_dir=$MYSQL_BASE_DIR \
+    --mysql_name=$ETCD_NAME \
+    --mysql_addr=$ETCD_ADDR \
+    --mysql_base_dir=$ETCD_BASE_DIR \
     --mysql_user=$MYSQL_USER \
     --mysql_password=$MYSQL_PASSWORD \
     --listen_port=50051 \

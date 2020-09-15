@@ -36,9 +36,9 @@ batch_size=$(normalize_env_to_args "--batch_size" $BATCH_SIZE)
 python -m fedlearner.data_join.cmd.data_portal_worker_cli \
   --rank_id=$INDEX \
   --master_addr=$MASTER_POD_NAMES \
-  --mysql_name=$MYSQL_NAME \
-    --mysql_addr=$MYSQL_ADDR \
-    --mysql_base_dir=$MYSQL_BASE_DIR \
+  --mysql_name=$ETCD_NAME \
+    --mysql_addr=$ETCD_ADDR \
+    --mysql_base_dir=$ETCD_BASE_DIR \
     --mysql_user=$MYSQL_USER \
     --mysql_password=$MYSQL_PASSWORD \
   $input_data_file_iter $compressed_type $read_ahead_size $read_batch_size \
