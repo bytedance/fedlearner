@@ -93,7 +93,7 @@ if __name__ == '__main__':
     data_portal_worker = DataPortalWorker(
             portal_worker_options, args.master_addr,
             args.rank_id, args.mysql_name, args.mysql_base_dir,
-            args.mysql_addrs, args.mysql_user,
+            args.mysql_addr, args.mysql_user,
             args.mysql_password, args.use_mock_mysql
         )
     data_portal_worker.start()
