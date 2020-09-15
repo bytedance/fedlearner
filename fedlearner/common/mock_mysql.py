@@ -118,9 +118,9 @@ class MockMySQLClient(object):
 
     def __init__(self, name, base_dir):
         with self.MOCK_MYSQL_CLIENT_POOL_LOCK:
-            if name not in self.MOCK_MYSQL_CLIENT_POOL:
-                self.MOCK_MYSQL_CLIENT_POOL[name] = MockMySQL(base_dir)
-            self._mock_mysql = self.MOCK_MYSQL_CLIENT_POOL[name]
+            if base_dir not in self.MOCK_MYSQL_CLIENT_POOL:
+                self.MOCK_MYSQL_CLIENT_POOL[base_dir] = MockMySQL(base_dir)
+            self._mock_mysql = self.MOCK_MYSQL_CLIENT_POOL[base_dir]
 
     def __getattr__(self, attr):
         return getattr(self._mock_mysql, attr)
