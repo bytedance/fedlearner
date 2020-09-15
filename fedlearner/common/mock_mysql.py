@@ -107,6 +107,10 @@ class MockMySQL(object):
             assert key.startswith(base_dir)
         return key[len(base_dir)+1:]
 
+    def destroy_client_pool(self):
+        with self._lock:
+            self._data.clear()
+
 
 class MockMySQLClient(object):
     MOCK_MYSQL_CLIENT_POOL = {}
@@ -120,6 +124,3 @@ class MockMySQLClient(object):
 
     def __getattr__(self, attr):
         return getattr(self._mock_mysql, attr)
-
-    def close(self):
-        self._mock_mysql.close(self)
