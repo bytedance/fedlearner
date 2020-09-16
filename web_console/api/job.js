@@ -123,73 +123,6 @@ router.get('/api/v1/job/pod/:pod_name/logs', SessionMiddleware, async (ctx) => {
   ctx.body = { data: logs };
 });
 
-async function get_ticket_and_fed(ctx, ticket_name) {
-  const clientTicket = await Ticket.findOne({
-    where: {
-      name: { [Op.eq]: ticket_name },
-    },
-  });
-  if (!clientTicket) {
-    ctx.status = 404;
-    ctx.body = {
-      error: 'Ticket does not exist',
-    };
-    return [null, null];
-  }
-
-  const clientFed = await Federation.findByPk(clientTicket.federation_id);
-  if (!clientFed) {
-    ctx.status = 404;
-    ctx.body = {
-      error: 'Federation does not exist',
-    };
-    return [null, null];
-  }
-
-  return [clientTicket, clientFed];
-}
-
-function validata_job(ctx, job, clientTicket) {
-  if (!(/^[a-zA-Z\d-]+$/.test(job.name))) {
-    ctx.status = 400;
-    ctx.body = {
-      error: 'name can only contain letters/numbers/-',
-    };
-    return false;
-  }
-
-  const [client_params_pass] = checkParseJson(JSON.stringify(job.client_params));
-  if (!client_params_pass) {
-    ctx.status = 400;
-    ctx.body = {
-      error: 'client_params must be json',
-    };
-    return false;
-  }
-
-  const [server_params_pass] = checkParseJson(JSON.stringify(job.server_params));
-  if (!server_params_pass) {
-    ctx.status = 400;
-    ctx.body = {
-      error: 'server_params must be json',
-    };
-    return false;
-  }
-
-  try {
-    clientValidateJob(job, clientTicket);
-  } catch (e) {
-    ctx.status = 400;
-    ctx.body = {
-      error: 'client_params validation failed',
-    };
-    return false;
-  }
-
-  return true;
-}
-
-
 router.post('/api/v1/job', SessionMiddleware, async (ctx) => {
   const {
     name, job_type, client_ticket_name, server_ticket_name,
@@ -255,16 +188,6 @@ router.post('/api/v1/job', SessionMiddleware, async (ctx) => {
 
   job.federation_id = clientTicket.federation_id;
 
-  try {
-    clientValidateJob(job, clientTicket);
-  } catch (e) {
-    ctx.status = 400;
-    ctx.body = {
-      error: 'client_params validation failed',
-    };
-    return;
-  }
-
   const clientFed = await Federation.findByPk(clientTicket.federation_id);
   if (!clientFed) {
     ctx.status = 422;
@@ -274,6 +197,32 @@ router.post('/api/v1/job', SessionMiddleware, async (ctx) => {
     return;
   }
   const rpcClient = new FederationClient(clientFed);
+
+  let serverTicket;
+  try {
+    const { data } = await rpcClient.getTickets({ job_type: '', role: '' });
+    serverTicket = data.find(x => x.name === server_ticket_name);
+    if (!serverTicket) {
+      throw new Error(`Cannot find server ticket ${server_ticket_name}`);
+    }
+  } catch (err) {
+    ctx.status = 500;
+    ctx.body = {
+      error: err.details,
+    };
+    return;
+  }
+
+  try {
+    clientValidateJob(job, clientTicket, serverTicket);
+  } catch (e) {
+    ctx.status = 400;
+    ctx.body = {
+      error: `client_params validation failed: ${e.details}`,
+    };
+    return;
+  }
+
   try {
     await rpcClient.createJob({
       ...job,
@@ -388,16 +337,6 @@ router.post('/api/v1/job/:id/update', SessionMiddleware, async (ctx) => {
     return;
   }
 
-  try {
-    clientValidateJob(new_job, clientTicket);
-  } catch (e) {
-    ctx.status = 400;
-    ctx.body = {
-      error: 'client_params validation failed',
-    };
-    return;
-  }
-
   const clientFed = await Federation.findByPk(clientTicket.federation_id);
   if (!clientFed) {
     ctx.status = 422;
@@ -407,6 +346,32 @@ router.post('/api/v1/job/:id/update', SessionMiddleware, async (ctx) => {
     return;
   }
   const rpcClient = new FederationClient(clientFed);
+
+  let serverTicket;
+  try {
+    const { data } = await rpcClient.getTickets({ job_type: '', role: '' });
+    serverTicket = data.find(x => x.name === server_ticket_name);
+    if (!serverTicket) {
+      throw new Error(`Cannot find server ticket ${server_ticket_name}`);
+    }
+  } catch (err) {
+    ctx.status = 500;
+    ctx.body = {
+      error: err.details,
+    };
+    return;
+  }
+
+  try {
+    clientValidateJob(new_job, clientTicket, serverTicket);
+  } catch (e) {
+    ctx.status = 400;
+    ctx.body = {
+      error: `client_params validation failed: ${e.details}`,
+    };
+    return;
+  }
+
   // update job
   try {
     await rpcClient.updateJob({
