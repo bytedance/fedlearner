@@ -4,7 +4,7 @@ import { Table, Link, Text, Card, Description, Popover, useTheme, Button } from 
 import useSWR from 'swr';
 
 import { fetcher } from '../libs/http';
-import { getStatusColor, handleStatus, FLAppStatus } from '../utils/job';
+import { getStatusColor, handleStatus, FLAppStatus, getJobStatus } from '../utils/job';
 import Layout from './Layout';
 import Dot from './Dot';
 import Empty from './Empty';
@@ -100,7 +100,7 @@ export default function JobCommonInfo(props) {
     ? (logsData && logsData.data) ? logsData.data : ['logs error ' + (logsData?.error || logsError?.message)]
     : null;
 
-  const status = props.jobStatus || handleStatus(job?.status?.appState)
+  const status = props.jobStatus || getJobStatus(job)
 
   const tableData = useMemo(() => {
     if (pods) {

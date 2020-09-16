@@ -29,15 +29,23 @@ export default function Job({id, ...props}) {
   const [jobStatus, setJobStatus] = useState('')
 
   const onSubmit = useCallback(async () => {
-    await updateJobStatus(id, getJobForm(job, 'started'))
-    setJobStatus('')
+    let res = await updateJobStatus(id, getJobForm(job, 'started'))
+    if (!res.error) {
+      setJobStatus('')
+    } else {
+      alert(res.error)
+    }
     mutate()
-  }, [])
+  }, [id, job])
   const onStop = useCallback(async () => {
-    await updateJobStatus(id, getJobForm(job, 'stopped'))
-    setJobStatus(JobStatus.Killed)
+    let res = await updateJobStatus(id, getJobForm(job, 'stopped'))
+    if (!res.error) {
+      setJobStatus(JobStatus.Killed)
+    } else {
+      alert(res.error)
+    }
     mutate()
-  }, [])
+  }, [id, job])
 
   return (
     <JobCommonInfo job={job} jobStatus={jobStatus}>

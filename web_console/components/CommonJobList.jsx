@@ -18,6 +18,7 @@ import {
   DATASOURCE_JOB_REPLICA_TYPE,
 } from '../constants/form-default'
 import { getParsedValueFromData, fillJSON, getValueFromJson } from '../utils/form_utils';
+import { getJobStatus } from '../utils/job'
 import { JOB_TYPE } from '../constants/job'
 
 function useStyles(theme) {
@@ -85,13 +86,6 @@ function useStyles(theme) {
 const RESOURCE_PATH_PREFIX = 'spec.flReplicaSpecs.[replicaType].template.spec.containers[].resources'
 const ENV_PATH = 'spec.flReplicaSpecs.[replicaType].template.spec.containers[].env'
 const PARAMS_GROUP = ['client_params', 'server_params']
-
-function getJobStatus(job) {
-  if (job.localdata?.status === 'stopped') {
-    return JobStatus.Killed
-  }
-  return handleStatus(job.status.appState)
-}
 
 function handleParamData(container, data, field) {
   if (field.type === 'label') { return }
