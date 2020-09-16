@@ -118,5 +118,5 @@ if __name__ == "__main__":
                                        args.master_addr, args.rank_id,
                                        args.mysql_name, args.mysql_base_dir,
                                        args.mysql_addr, args.mysql_user,
-                                       args.password, worker_options)
+                                       args.mysql_password, worker_options)
     worker_srv.run()
