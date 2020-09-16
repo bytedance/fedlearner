@@ -1,7 +1,7 @@
-import { fillJSON, filterArrayValue } from '../../utils/form_utils'
+import { fillJSON } from '../../utils/form_utils'
 const assert = require('assert');
 
-describe('fillJSON', () => {
+describe('form_utils', () => {
   it('should create object with path', () => {
     let path = 'foo.bar.baz'
     let value = 1

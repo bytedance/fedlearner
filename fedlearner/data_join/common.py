@@ -20,6 +20,7 @@ import uuid
 import threading
 import time
 from contextlib import contextmanager
+from collections import OrderedDict
 
 from guppy import hpy
 
@@ -142,12 +143,10 @@ def raw_data_pub_etcd_key(pub_base_dir, partition_id, process_index):
                         '{:08}{}'.format(process_index, RawDataPubSuffix))
 
 _valid_basic_feature_type = (int, str, float)
-def convert_csv_record_to_tf_example(field_keys, field_vals):
-    assert isinstance(field_keys, list) and \
-            isinstance(field_vals, list) and \
-            len(field_keys) == len(field_vals)
+def convert_dict_to_tf_example(src_dict):
+    assert isinstance(src_dict, dict)
     tf_feature = {}
-    for key, feature in zip(field_keys, field_vals):
+    for key, feature in src_dict.items():
         if not isinstance(key, str):
             raise RuntimeError('the key {}({}) of dict must a '\
                                'string'.format(key, type(key)))
@@ -189,13 +188,11 @@ def convert_csv_record_to_tf_example(field_keys, field_vals):
                 float_list=tf.train.FloatList(value=value))
     return tf.train.Example(features=tf.train.Features(feature=tf_feature))
 
-def convert_tf_example_to_csv_record(src_tf_example):
+def convert_tf_example_to_dict(src_tf_example):
     assert isinstance(src_tf_example, tf.train.Example)
-    field_keys, field_vals = [], []
+    dst_dict = OrderedDict()
     tf_feature = src_tf_example.features.feature
-    sorted_keys = sorted(tf_feature.keys())
-    for key in sorted_keys:
-        feat = tf_feature[key]
+    for key, feat in tf_feature.items():
         csv_val = None
         if feat.HasField('int64_list'):
             csv_val = [item for item in feat.int64_list.value] # pylint: disable=unnecessary-comprehension
@@ -206,16 +203,8 @@ def convert_tf_example_to_csv_record(src_tf_example):
         else:
             assert False, "feat type must in int64, byte, float"
         assert isinstance(csv_val, list)
-        insert_idx = len(field_keys)
-        if key == 'example_id':
-            insert_idx = 0
-        elif key == 'raw_id':
-            insert_idx = 1 if (len(field_keys) > 0 and \
-                               field_keys[0] == 'example_id') else 0
-        rval = csv_val[0] if len(csv_val) == 1 else csv_val
-        field_keys.insert(insert_idx, key)
-        field_vals.insert(insert_idx, rval)
-    return field_keys, field_vals
+        dst_dict[key] = csv_val[0] if len(csv_val) == 1 else csv_val
+    return dst_dict
 
 def int2bytes(digit, byte_len, byteorder='little'):
     return int(digit).to_bytes(byte_len, byteorder)
@@ -248,7 +237,6 @@ def data_source_data_block_dir(data_source):
 
 def data_source_example_dumped_dir(data_source):
     return os.path.join(data_source.output_base_dir, 'example_dump')
-
 
 class Singleton(type):
     _instances = {}

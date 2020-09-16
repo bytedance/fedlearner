@@ -288,7 +288,7 @@ class RawDataPartitioner(object):
                 if round_dumped_item // self._options.output_partition_num \
                         > (1<<21) or \
                         common.get_heap_mem_stats(None).CheckOomRisk(
-                                fly_item_cnt, 0.7
+                                fly_item_cnt, 0.65
                             ):
                     self._finish_file_writers()
                     self._set_next_part_index(next_index)
@@ -431,8 +431,7 @@ class RawDataPartitioner(object):
                           "partitioner", batch.begin_index, len(batch))
             self._wakeup_partitioner()
             fly_item_cnt = fetcher.get_flying_item_count()
-            if common.get_heap_mem_stats(None).CheckOomRisk(fly_item_cnt,
-                                                            0.75):
+            if common.get_heap_mem_stats(None).CheckOomRisk(fly_item_cnt, 0.70):
                 logging.warning('early stop the raw data fetch '\
                                 'since the oom risk')
                 break
@@ -443,7 +442,7 @@ class RawDataPartitioner(object):
         fly_item_cnt = fetcher.get_flying_item_count()
         return self._raw_data_batch_fetcher.need_process(next_part_index) and \
                 not common.get_heap_mem_stats(None).CheckOomRisk(fly_item_cnt,
-                                                                 0.75)
+                                                                 0.70)
 
     def _wakeup_partitioner(self):
         self._worker_map['raw_data_partitioner'].wakeup()

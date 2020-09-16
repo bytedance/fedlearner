@@ -68,6 +68,21 @@ function validateTicket(ticket, params) {
 }
 
 function clientValidateJob(job, client_ticket, server_ticket) {
+  if (job.job_type != client_ticket.job_type) {
+    throw new Error(`client_ticket.job_type ${client_ticket.job_type} does not match job.job_type ${job.job_type}`);
+  }
+  if (job.job_type != server_ticket.job_type) {
+    throw new Error(`server_ticket.job_type ${server_ticket.job_type} does not match job.job_type ${job.job_type}`);
+  }
+  if (client_ticket.role === server_ticket.role) {
+    throw new Error(`client_ticket.role ${client_ticket.role} must be different from server_ticket.role ${server_ticket.role}`);
+  }
+
+  let client_replicas = job.client_params.spec.flReplicaSpecs["Worker"]["replicas"];
+  let server_replicas = job.server_params.spec.flReplicaSpecs["Worker"]["replicas"];
+  if (client_replicas != server_replicas) {
+    throw new Error(`replicas in client_params ${client_replicas} is different from replicas in server_params ${server_replicas}`);
+  }
   return true;
 }
 
@@ -290,7 +305,7 @@ function portalGenerateYaml(federation, raw_data) {
             { name: 'ES_HOST', value: ES_HOST },
             { name: 'ES_PORT', value: `${ES_PORT}` },
             { name: 'APPLICATION_ID', value: raw_data.name },
-            { name: 'BATCH_SIZE', value: `${raw_data.context.batch_size}` },
+            { name: 'BATCH_SIZE', value: raw_data.context.batch_size ? `${raw_data.context.batch_size}` : ""  },
             { name: 'INPUT_DATA_FORMAT', value: raw_data.context.input_data_format },
             { name: 'COMPRESSED_TYPE', value: raw_data.context.compressed_type },
             { name: 'OUTPUT_DATA_FORMAT', value: raw_data.context.output_data_format },

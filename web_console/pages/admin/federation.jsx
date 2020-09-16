@@ -74,6 +74,7 @@ function FederationItem({ data, onEdit }) {
 }
 
 const K8S_SETTINGS_FIELDS = [
+  { key: 'namespace', default: K8S_SETTINGS.namespace },
   { key: 'storage_root_path', default: K8S_SETTINGS.storage_root_path },
   {
     key: 'imagePullSecrets',

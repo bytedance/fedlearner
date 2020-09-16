@@ -203,7 +203,7 @@ class TransmitLeader(object):
                     )
                 fly_item_cnt = self._impl_ctx.get_flying_item_cnt()
                 oom_risk = common.get_heap_mem_stats(None).CheckOomRisk(
-                        fly_item_cnt, 0.55
+                        fly_item_cnt, 0.60
                     )
             return self._impl_ctx is not None and not oom_risk and \
                     not self._impl_ctx.is_produce_finished()
