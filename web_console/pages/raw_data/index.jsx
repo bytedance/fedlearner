@@ -136,7 +136,7 @@ function handleContextData(container, data, field) {
   }
 
   if (field.key === 'compressed_type') {
-    value = data === 'None' ? '' : data
+    value = value === 'None' ? '' : value
   }
 
   if (field.key === 'num_workers') {
@@ -159,7 +159,7 @@ function fillField(data, field) {
     v = getValueFromJson(data, field.path.replace('[replicaType]', replicaType))
   }
   if (field.key === 'compressed_type') {
-    v = v === '' ? 'None' : data
+    v = v === '' ? 'None' : data.compressed_type
   }
 
   field.value = v
