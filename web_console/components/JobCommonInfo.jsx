@@ -100,6 +100,8 @@ export default function JobCommonInfo(props) {
     ? (logsData && logsData.data) ? logsData.data : ['logs error ' + (logsData?.error || logsError?.message)]
     : null;
 
+  const status = props.jobStatus || handleStatus(job?.status?.appState)
+
   const tableData = useMemo(() => {
     if (pods) {
       return pods.map((item) => ({
@@ -153,8 +155,8 @@ export default function JobCommonInfo(props) {
                 style={{ width: 140 }}
                 content={(
                   <>
-                    <Dot color={getStatusColor(job?.status?.appState)} />
-                    {handleStatus(job?.status?.appState) || '-'}
+                    <Dot color={getStatusColor(status)} />
+                    {status || '-'}
                   </>
                 )}
               />

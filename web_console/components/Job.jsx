@@ -1,10 +1,10 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useState } from 'react';
 import { Description, Button } from '@zeit-ui/react';
 import useSWR from 'swr';
 
 import { fetcher } from '../libs/http';
 import { updateJobStatus } from '../services/job';
-import { handleStatus } from '../utils/job';
+import { handleStatus, JobStatus } from '../utils/job';
 import JobCommonInfo, { jsonHandledPopover } from './JobCommonInfo';
 
 function getJobForm(job, status) {
@@ -26,17 +26,21 @@ export default function Job({id, ...props}) {
   const { data: jobData, mutate } = useSWR(id ? `job/${id}` : null, fetcher);
   const job = jobData ? jobData.data : null;
 
+  const [jobStatus, setJobStatus] = useState('')
+
   const onSubmit = useCallback(async () => {
     await updateJobStatus(id, getJobForm(job, 'started'))
+    setJobStatus('')
     mutate()
   }, [])
   const onStop = useCallback(async () => {
     await updateJobStatus(id, getJobForm(job, 'stopped'))
+    setJobStatus(JobStatus.Killed)
     mutate()
   }, [])
 
   return (
-    <JobCommonInfo job={job}>
+    <JobCommonInfo job={job} jobStatus={jobStatus}>
       <Description
         title="Job Type"
         style={{ width: 140 }}
@@ -65,8 +69,8 @@ export default function Job({id, ...props}) {
         content={jsonHandledPopover(job?.localdata?.server_params)}
       />
       {
-        job?.status?.appState
-          ? handleStatus(job?.status?.appState) === 'Running'
+        job.localdata
+          ? job.localdata.status === 'started'
               ? <Button size="small" auto type='error' onClick={onStop}>Stop</Button>
               : <Button size="small" auto onClick={onSubmit}>Submit</Button>
           : <Button size="small" auto disabled>Submit</Button>

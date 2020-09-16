@@ -7,7 +7,7 @@ import useSWR from 'swr';
 import produce from 'immer'
 
 import { fetcher } from '../libs/http';
-import { FLAppStatus, handleStatus, getStatusColor } from '../utils/job';
+import { FLAppStatus, handleStatus, getStatusColor, JobStatus } from '../utils/job';
 import Layout from '../components/Layout';
 import PopConfirm from '../components/PopConfirm';
 import Dot from '../components/Dot';
@@ -85,6 +85,13 @@ function useStyles(theme) {
 const RESOURCE_PATH_PREFIX = 'spec.flReplicaSpecs.[replicaType].template.spec.containers[].resources'
 const ENV_PATH = 'spec.flReplicaSpecs.[replicaType].template.spec.containers[].env'
 const PARAMS_GROUP = ['client_params', 'server_params']
+
+function getJobStatus(job) {
+  if (job.localdata?.status === 'stopped') {
+    return JobStatus.Killed
+  }
+  return handleStatus(job.status.appState)
+}
 
 function handleParamData(container, data, field) {
   if (field.type === 'label') { return }
@@ -580,8 +587,8 @@ export default function JobList({
                                               style={{ width: 140 }}
                                               content={(
                                                 <>
-                                                  <Dot color={getStatusColor(item.status.appState)} />
-                                                  {handleStatus(item.status.appState)}
+                                                  <Dot color={getStatusColor(getJobStatus(item))} />
+                                                  {getJobStatus(item)}
                                                 </>
                                               )}
                                             />
