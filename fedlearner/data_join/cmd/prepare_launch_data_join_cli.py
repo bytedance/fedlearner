@@ -46,8 +46,10 @@ if __name__ == "__main__":
                         help='the addrs of mysql')
     parser.add_argument('--mysql_base_dir', type=str, required=True,
                         help='the namespace of mysql key')
-    parser.add_argument('--mysql_user', type=str,
-                        default='')
+    parser.add_argument('--mysql_user', type=str, default='test_user',
+                        help='the user of mysql')
+    parser.add_argument('--mysql_password', type=str, default='test_password',
+                        help='the password of mysql')
     parser.add_argument('--raw_data_sub_dir', type=str, required=True,
                         help='the mysql base dir to subscribe new raw data')
     args = parser.parse_args()
