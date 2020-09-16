@@ -69,7 +69,7 @@ export default function Job({id, ...props}) {
         content={jsonHandledPopover(job?.localdata?.server_params)}
       />
       {
-        job.localdata
+        job?.localdata
           ? job.localdata.status === 'started'
               ? <Button size="small" auto type='error' onClick={onStop}>Stop</Button>
               : <Button size="small" auto onClick={onSubmit}>Submit</Button>

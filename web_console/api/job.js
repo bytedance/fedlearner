@@ -1,6 +1,7 @@
 const router = require('@koa/router')();
 const { Op } = require('sequelize');
 const SessionMiddleware = require('../middlewares/session');
+const FindOptionsMiddleware = require('../middlewares/find_options');
 const k8s = require('../libs/k8s');
 const es = require('../libs/es');
 const { Job, Ticket, Federation } = require('../models');
@@ -20,8 +21,9 @@ try {
   es_oparator_match_phrase = require('../es.match_phrase');
 } catch (err) { /* */ }
 
-router.get('/api/v1/jobs', SessionMiddleware, async (ctx) => {
+router.get('/api/v1/jobs', SessionMiddleware, FindOptionsMiddleware, async (ctx) => {
   const jobs = await Job.findAll({
+    ...ctx.findOptions,
     order: [['created_at', 'DESC']],
   });
   const { flapps } = await k8s.getFLAppsByNamespace(namespace);
