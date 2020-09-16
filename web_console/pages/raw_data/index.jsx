@@ -135,11 +135,11 @@ function handleContextData(container, data, field) {
     path = field.path.replace('[replicaType]', replicaType)
   }
 
-  if (field.key === 'compressed_type') {
-    value = data === 'None' ? '' : data
+  else if (field.key === 'compressed_type') {
+    value = value === 'None' ? '' : value
   }
 
-  if (field.key === 'num_workers') {
+  else if (field.key === 'num_workers') {
     value = parseInt(value || field.default)
   }
 
@@ -151,15 +151,18 @@ function handleContextData(container, data, field) {
  */
 function fillField(data, field) {
   let v = getValueFromJson(data, field.path || field.key)
-  if (typeof v === 'object') {
-    v = JSON.stringify(v, null, 2)
-  }
+
   if (field.key.startsWith('resource')) {
     const [, replicaType,] = field.key.split('.')
     v = getValueFromJson(data, field.path.replace('[replicaType]', replicaType))
   }
-  if (field.key === 'compressed_type') {
-    v = v === '' ? 'None' : data
+
+  else if (field.key === 'compressed_type') {
+    v = v === '' ? 'None' : data.compressed_type
+  }
+
+  if (typeof v === 'object') {
+    v = JSON.stringify(v, null, 2)
   }
 
   field.value = v
