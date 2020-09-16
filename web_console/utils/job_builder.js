@@ -68,6 +68,21 @@ function validateTicket(ticket, params) {
 }
 
 function clientValidateJob(job, client_ticket, server_ticket) {
+  if (job.job_type != client_ticket.job_type) {
+    throw new Error(`client_ticket.job_type ${client_ticket.job_type} does not match job.job_type ${job.job_type}`);
+  }
+  if (job.job_type != server_ticket.job_type) {
+    throw new Error(`server_ticket.job_type ${server_ticket.job_type} does not match job.job_type ${job.job_type}`);
+  }
+  if (client_ticket.role === server_ticket.role) {
+    throw new Error(`client_ticket.role ${client_ticket.role} must be different from server_ticket.role ${server_ticket.role}`);
+  }
+
+  let client_replicas = job.client_params.spec.flReplicaSpecs["Worker"]["replicas"];
+  let server_replicas = job.server_params.spec.flReplicaSpecs["Worker"]["replicas"];
+  if (client_replicas != server_replicas) {
+    throw new Error(`replicas in client_params ${client_replicas} is different from replicas in server_params ${server_replicas}`);
+  }
   return true;
 }
 
