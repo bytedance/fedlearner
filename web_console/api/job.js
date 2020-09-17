@@ -25,10 +25,29 @@ router.get('/api/v1/jobs', SessionMiddleware, async (ctx) => {
     order: [['created_at', 'DESC']],
   });
   const { flapps } = await k8s.getFLAppsByNamespace(namespace);
-  const data = jobs.map((job) => ({
-    ...(flapps.items.find((item) => item.metadata.name === job.name)),
-    localdata: job,
-  }));
+  let data = [];
+  for (job of jobs) {
+    if (job.status == null) job.status = 'started';
+    if (job.federation_id == null) {
+      const clientTicket = await Ticket.findOne({
+        where: {
+          name: { [Op.eq]: job.client_ticket_name },
+        },
+      });
+      job.federation_id = clientTicket.federation_id;
+    }
+    if (job.status === 'stopped') {
+      data.push({
+        ...JSON.parse(job.k8s_meta_snapshot).flapp,
+        localdata: job,
+      });
+    } else {
+      data.push({
+        ...(flapps.items.find((item) => item.metadata.name === job.name)),
+        localdata: job,
+      });
+    }
+  }
   ctx.body = { data };
 });
 
@@ -43,9 +62,19 @@ router.get('/api/v1/job/:id', SessionMiddleware, async (ctx) => {
     return;
   }
 
+  if (job.status == null) job.status = 'started';
+  if (job.federation_id == null) {
+    const clientTicket = await Ticket.findOne({
+      where: {
+        name: { [Op.eq]: job.client_ticket_name },
+      },
+    });
+    job.federation_id = clientTicket.federation_id;
+  }
+
   var flapp;
-  if (job.status != 'started') {
-    flapp = job.k8s_meta_snapshot.flapp;
+  if (job.status === 'stopped') {
+    flapp = JSON.parse(job.k8s_meta_snapshot).flapp;
   } else {
     flapp = (await k8s.getFLApp(namespace, job.name)).flapp;
   }
@@ -76,8 +105,8 @@ router.get('/api/v1/job/:k8s_name/pods', SessionMiddleware, async (ctx) => {
   }
 
   var pods;
-  if (job.status != 'started') {
-    pods = job.k8s_meta_snapshot.pods;
+  if (job.status === 'stopped') {
+    pods = JSON.parse(job.k8s_meta_snapshot).pods;
   } else {
     pods = (await k8s.getFLAppPods(namespace, k8s_name)).pods;
   }
@@ -155,11 +184,6 @@ router.post('/api/v1/job', SessionMiddleware, async (ctx) => {
     return;
   }
 
-  const job = {
-    name, job_type, client_ticket_name, server_ticket_name,
-    client_params, server_params, status: 'started'
-  };
-
   const exists = await Job.findOne({
     where: {
       name: { [Op.eq]: name },
@@ -186,8 +210,6 @@ router.post('/api/v1/job', SessionMiddleware, async (ctx) => {
     return;
   }
 
-  job.federation_id = clientTicket.federation_id;
-
   const clientFed = await Federation.findByPk(clientTicket.federation_id);
   if (!clientFed) {
     ctx.status = 422;
@@ -208,10 +230,16 @@ router.post('/api/v1/job', SessionMiddleware, async (ctx) => {
   } catch (err) {
     ctx.status = 500;
     ctx.body = {
-      error: err.details,
+      error: `Cannot get server ticket: ${err.message}`,
     };
     return;
   }
+
+  const job = {
+    name, job_type, client_ticket_name, server_ticket_name,
+    client_params, server_params, status: 'started',
+    federation_id: clientFed.id,
+  };
 
   try {
     clientValidateJob(job, clientTicket, serverTicket);
@@ -231,7 +259,7 @@ router.post('/api/v1/job', SessionMiddleware, async (ctx) => {
   } catch (err) {
     ctx.status = 500;
     ctx.body = {
-      error: err.details,
+      error: `RPC Error: ${err.details}`,
     };
     return;
   }
@@ -287,12 +315,7 @@ router.post('/api/v1/job/:id/update', SessionMiddleware, async (ctx) => {
     client_params, server_params, status,
   } = ctx.request.body;
 
-  const new_job = {
-    name, job_type, client_ticket_name, server_ticket_name,
-    client_params, server_params, status,
-  };
-
-  if (old_job.status === 'started' && new_job.status != 'stopped') {
+  if (old_job.status === 'started' && status != 'stopped') {
     ctx.status = 422;
     ctx.body = {
       error: 'Cannot change running job',
@@ -300,7 +323,7 @@ router.post('/api/v1/job/:id/update', SessionMiddleware, async (ctx) => {
     return;
   }
 
-  if (new_job.name != old_job.name) {
+  if (name != old_job.name) {
     ctx.status = 422;
     ctx.body = {
       error: 'cannot change job name',
@@ -308,7 +331,7 @@ router.post('/api/v1/job/:id/update', SessionMiddleware, async (ctx) => {
     return;
   }
 
-  if (new_job.job_type != old_job.job_type) {
+  if (job_type != old_job.job_type) {
     ctx.status = 422;
     ctx.body = {
       error: 'cannot change job type',
@@ -324,12 +347,25 @@ router.post('/api/v1/job/:id/update', SessionMiddleware, async (ctx) => {
   if (!clientTicket) {
     ctx.status = 422;
     ctx.body = {
-      error: 'client_ticket does not exist',
+      error: `client_ticket ${client_ticket_name} does not exist`,
     };
     return;
   }
 
-  if (clientTicket.federation_id != old_job.federation_id) {
+  const OldClientTicket = await Ticket.findOne({
+    where: {
+      name: { [Op.eq]: old_job.client_ticket_name },
+    },
+  });
+  if (!OldClientTicket) {
+    ctx.status = 422;
+    ctx.body = {
+      error: `client_ticket ${old_job.client_ticket_name} does not exist`,
+    };
+    return;
+  }
+
+  if (clientTicket.federation_id != OldClientTicket.federation_id) {
     ctx.status = 422;
     ctx.body = {
       error: 'cannot change job federation',
@@ -357,10 +393,16 @@ router.post('/api/v1/job/:id/update', SessionMiddleware, async (ctx) => {
   } catch (err) {
     ctx.status = 500;
     ctx.body = {
-      error: err.details,
+      error: `RPC Error: ${err.details}`,
     };
     return;
   }
+
+  const new_job = {
+    name, job_type, client_ticket_name, server_ticket_name,
+    client_params, server_params, status,
+    federation_id: clientTicket.federation_id,
+  };
 
   try {
     clientValidateJob(new_job, clientTicket, serverTicket);
@@ -381,7 +423,7 @@ router.post('/api/v1/job/:id/update', SessionMiddleware, async (ctx) => {
   } catch (err) {
     ctx.status = 500;
     ctx.body = {
-      error: err.details,
+      error: `RPC Error: ${err.details}`,
     };
     return;
   }
@@ -401,6 +443,7 @@ router.post('/api/v1/job/:id/update', SessionMiddleware, async (ctx) => {
   old_job.client_params = new_job.client_params;
   old_job.server_params = new_job.server_params;
   old_job.status = new_job.status;
+  old_job.federation_id = new_job.federation_id;
 
   const data = await old_job.save();
 
@@ -432,7 +475,7 @@ router.delete('/api/v1/job/:id', SessionMiddleware, async (ctx) => {
   } catch (err) {
     ctx.status = 500;
     ctx.body = {
-      error: err.details,
+      error: `RPC Error: ${err.details}`,
     };
     return;
   }

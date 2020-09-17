@@ -96,6 +96,8 @@ async function createJob(call, callback) {
       },
     });
     if (!ticketRecord) throw new Error('Ticket not found');
+    if (ticketRecord.federation_id != federation.id) throw new Error("Invalid ticket name");
+
     const params = JSON.parse(server_params);
     validateTicket(ticketRecord, params);
 
@@ -110,6 +112,8 @@ async function createJob(call, callback) {
         client_ticket_name,
         server_ticket_name,
         server_params: JSON.parse(server_params),
+        status: 'started',
+        federation_id: federation.id,
       },
     });
     if (!created) throw new Error('Job already exists');
@@ -124,6 +128,8 @@ async function createJob(call, callback) {
         client_ticket_name: data.server_ticket_name,
         server_ticket_name: data.client_ticket_name,
         server_params: JSON.stringify(data.server_params),
+        status: 'started',
+        federation_id: federation.id,
       },
     });
   } catch (err) {
@@ -155,7 +161,7 @@ async function deleteJob(call, callback) {
 
 async function updateJob(call, callback) {
   try {
-    const federation = authenticate(call.metadata);
+    const federation = await authenticate(call.metadata);
 
     const {
       name,
@@ -194,6 +200,7 @@ async function updateJob(call, callback) {
       },
     });
     if (!ticketRecord) throw new Error('Ticket not found');
+    if (ticketRecord.federation_id != federation.id) throw new Error("Invalid ticket name");
 
     if (ticketRecord.federation_id != old_job.federation_id) {
       throw new Error("Cannot change job federation");
@@ -216,6 +223,8 @@ async function updateJob(call, callback) {
     old_job.server_ticket_name = new_job.server_ticket_name;
     old_job.server_params = new_job.server_params;
     old_job.status = new_job.status;
+    old_job.federation_id = new_job.federation_id;
+
     const data = await old_job.save();
 
     callback(null, {
