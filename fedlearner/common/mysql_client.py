@@ -216,7 +216,7 @@ class RealMySQLClient(object):
                 {port}/{db_name}?charset=utf8&&use_unicode=0'
             conn_string = conn_string_pattern.format(
                 user=self._user, passwd=self._password,
-                host=self._addr[0], post=self._addr[1],
+                host=self._addr[0], port=self._addr[1],
                 db_name=self._name)
             self._engine = create_engine(conn_string, echo=False,
                                         pool_recycle=180)
