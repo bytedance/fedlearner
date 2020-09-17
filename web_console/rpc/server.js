@@ -182,7 +182,7 @@ async function updateJob(call, callback) {
         name: { [Op.eq]: name },
       },
     });
-    if (!old_job) throw new Error('Job not found');
+    if (!old_job) throw new Error(`Job ${name} not found`);
 
     if (old_job.status === 'error') {
       throw new Error("Cannot update errored job");

@@ -417,7 +417,7 @@ router.post('/api/v1/job/:id/update', SessionMiddleware, async (ctx) => {
   // update job
   try {
     await rpcClient.updateJob({
-      ...job,
+      ...new_job,
       server_params: JSON.stringify(server_params),
     });
   } catch (err) {
