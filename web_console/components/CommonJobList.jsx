@@ -21,6 +21,8 @@ import { getParsedValueFromData, fillJSON, getValueFromJson } from '../utils/for
 import { getJobStatus } from '../utils/job'
 import { JOB_TYPE } from '../constants/job'
 
+// import {mockJobList} from '../constants/mock_data'
+
 function useStyles(theme) {
   return css`
     .counts-wrap {
@@ -220,6 +222,7 @@ export default function JobList({
 
   const { data, mutate } = useSWR('jobs', fetcher);
   const jobs = data ? data.data.filter(el => el.metadata).filter(filter) : null
+  // const jobs = mockJobList.data
 
   let federationId = null, jobType = null
 
@@ -346,6 +349,9 @@ export default function JobList({
         federationId = value
         setFields(handleFields(fields))
       },
+      props: {
+        initTrigerChange: true
+      }
     },
     {
       key: 'server_ticket_name',
