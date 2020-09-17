@@ -475,7 +475,6 @@ export default function JobList({
 
   const handleClone = (item) => {
     setFormMeta(item.localdata)
-    console.log(formMeta)
 
     setFields(fields => mapValueToFields({
       data: mapFormMeta2Form(),

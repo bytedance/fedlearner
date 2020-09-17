@@ -2,7 +2,8 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import css from 'styled-jsx/css';
 import { useRouter } from 'next/router';
 import useSWR from 'swr';
-import { Avatar, Link, Popover, Spinner, Tabs, Loading, useTheme, Select } from '@zeit-ui/react';
+import { Avatar, Link, Popover, Spinner, Tabs, Loading, useTheme, Select, Spacer } from '@zeit-ui/react';
+import { ChevronDown } from '@geist-ui/react-icons'
 import { fetcher } from '../libs/http';
 import { logout } from '../services';
 
@@ -126,6 +127,13 @@ function useStyles(theme) {
 
     .popover {
       width: 180px !important;
+    }
+
+    .rotate {
+      transition: all .3s ease-in-out;
+    }
+    .tab:hover .rotate {
+      transform: rotate(180deg)
     }
   `;
 }
@@ -273,6 +281,15 @@ export default function Header() {
                     onClick={(e) => onTabChange(x.value, e)}
                   >
                     {x.label}
+                    {
+                      x.children &&
+                      <>
+                        <Spacer x={.25} inline></Spacer>
+                        <div className="rotate">
+                          <ChevronDown size={18}/>
+                        </div>
+                      </>
+                    }
                     {
                       x.children && <div className="tabPopoverArea">
                         <div className="tabPopover">
