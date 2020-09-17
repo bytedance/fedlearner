@@ -64,9 +64,9 @@ class RealMySQLClient(object):
     def get_data(self, key):
         with self.closing(self._engine) as sess:
             try:
-                table = self._base.classes.KV
-                value = sess.query(table).filter(table.key ==
-                    self._generate_key(key)).one().value
+                table = self._base.classes.datasource_meta
+                value = sess.query(table).filter(table.kv_key ==
+                    self._generate_key(key)).one().kv_value
                 if isinstance(value, str):
                     return value.encode()
                 return value
@@ -83,9 +83,9 @@ class RealMySQLClient(object):
             data.encode()
         with self.closing(self._engine) as sess:
             try:
-                context = self._base.classes.KV()
-                context.key = self._generate_key(key)
-                context.value = data
+                context = self._base.classes.datasource_meta()
+                context.kv_key = self._generate_key(key)
+                context.kv_value = data
                 sess.add(context)
                 sess.commit()
                 return True
@@ -98,8 +98,8 @@ class RealMySQLClient(object):
     def delete(self, key):
         with self.closing(self._engine) as sess:
             try:
-                table = self._base.classes.KV
-                for context in sess.query(table).filter(table.key ==
+                table = self._base.classes.datasource_meta
+                for context in sess.query(table).filter(table.kv_key ==
                     self._generate_key(key)):
                     sess.delete(context)
                 sess.commit()
@@ -112,8 +112,8 @@ class RealMySQLClient(object):
     def delete_prefix(self, key):
         with self.closing(self._engine) as sess:
             try:
-                table = self._base.classes.KV
-                for context in sess.query(table).filter(table.key.\
+                table = self._base.classes.datasource_meta
+                for context in sess.query(table).filter(table.kv_key.\
                     like(self._generate_key(key) + '%')):
                     sess.delete(context)
                 sess.commit()
@@ -130,23 +130,23 @@ class RealMySQLClient(object):
             new_data = new_data.encode()
         with self.closing(self._engine) as sess:
             try:
-                table = self._base.classes.KV
+                table = self._base.classes.datasource_meta
                 flag = True
                 if old_data is None:
-                    context = self._base.classes.KV()
-                    context.key = self._generate_key(key)
-                    context.value = new_data
+                    context = self._base.classes.datasource_meta()
+                    context.kv_key = self._generate_key(key)
+                    context.kv_value = new_data
                     sess.add(context)
                     sess.commit()
                 else:
-                    context = sess.query(table).filter(table.key ==\
+                    context = sess.query(table).filter(table.kv_key ==\
                         self._generate_key(key)).one()
-                    if context.value != old_data:
+                    if context.kv_value != old_data:
                         flag = False
                         logging.warning('old data and new data \
                             are not the same')
                         return flag
-                    context.value = new_data
+                    context.kv_value = new_data
                     sess.commit()
                 return flag
             except Exception as e: # pylint: disable=broad-except
@@ -159,14 +159,14 @@ class RealMySQLClient(object):
         path = self._generate_key(prefix)
         with self.closing(self._engine) as sess:
             try:
-                table = self._base.classes.KV
-                for context in sess.query(table).filter(table.key.\
-                    like(path + '%')).order_by(table.key):
-                    if ignor_prefix and context.key == path:
+                table = self._base.classes.datasource_meta
+                for context in sess.query(table).filter(table.kv_key.\
+                    like(path + '%')).order_by(table.kv_key):
+                    if ignor_prefix and context.kv_key == path:
                         continue
-                    nkey = self._normalize_output_key(context.key,
+                    nkey = self._normalize_output_key(context.kv_key,
                         self._base_dir)
-                    value = context.value
+                    value = context.kv_value
                     if isinstance(value, str):
                         value = value.encode()
                     kvs.append((nkey, value))
@@ -216,7 +216,8 @@ class RealMySQLClient(object):
                 {port}/{db_name}?charset=utf8&&use_unicode=0'
             conn_string = conn_string_pattern.format(
                 user=self._user, password=self._password,
-                host=self._addr[0], post=self._addr[1])
+                host=self._addr[0], post=self._addr[1],
+                db_name=self._name)
             self._engine = create_engine(conn_string, echo=False,
                                         pool_recycle=180)
             self._base = automap_base()
