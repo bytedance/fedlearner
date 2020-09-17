@@ -4,7 +4,7 @@ import useSWR from 'swr';
 
 import { fetcher } from '../libs/http';
 import { updateJobStatus } from '../services/job';
-import { handleStatus, JobStatus } from '../utils/job';
+import { JobStatus } from '../utils/job';
 import JobCommonInfo, { jsonHandledPopover } from './JobCommonInfo';
 
 function getJobForm(job, status) {

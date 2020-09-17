@@ -3,9 +3,9 @@ import useSWR from 'swr';
 import { useRouter } from 'next/router';
 import css from 'styled-jsx/css';
 import { Text, Card, Grid } from '@zeit-ui/react';
-import { fetcher } from '../../../../libs/http';
-import Layout from '../../../../components/Layout';
-import getJobDashboardUrls from '../../../../utils/kibana';
+import { fetcher } from '../../libs/http';
+import Layout from '../../components/Layout';
+import getJobDashboardUrls from '../../utils/kibana';
 
 function useStyle() {
   return css`

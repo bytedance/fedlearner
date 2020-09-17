@@ -495,7 +495,7 @@ export default function JobList({
         <Link color>View Detail</Link>
       </NextLink>
       <NextLink
-        href={`/${PAGE_NAME}/job/charts/${item.localdata.id}`}
+        href={`/charts/${item.localdata.id}`}
       >
         <Link color>View Charts</Link>
       </NextLink>

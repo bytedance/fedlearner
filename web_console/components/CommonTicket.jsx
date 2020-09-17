@@ -33,17 +33,18 @@ function fillField(data, field, editing) {
   if (data === undefined && !editing) return field
   let v = getValueFromJson(data, field.path || field.key) || field.emptyDefault || ''
 
-  if (typeof v === 'object') {
-    v = JSON.stringify(v, null, 2)
-  }
   if (field.key === 'raw_data') {
     v = getValueFromEnv(data, 'RAW_DATA_SUB_DIR')
   }
-  if (field.key === 'num_partitions') {
+  else if (field.key === 'num_partitions') {
     v = getValueFromEnv(data, 'PARTITION_NUM')
   }
-  if (field.key === 'image') {
+  else if (field.key === 'image') {
     v = getValueFromJson(data['public_params'] || {}, field.path.replace('[replicaType]', 'Master'))
+  }
+
+  if (typeof v === 'object') {
+    v = JSON.stringify(v, null, 2)
   }
 
   field.value = v
