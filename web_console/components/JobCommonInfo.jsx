@@ -107,14 +107,14 @@ export default function JobCommonInfo(props) {
       return pods.map((item) => ({
         status: item.status,
         pod: item.name.replace(
-          `${job.localdata?.name}-${job.spec?.role.toLowerCase()}-${item.type.toLowerCase()}-`,
+          `${job?.localdata?.name}-${job?.spec?.role.toLowerCase()}-${item.type.toLowerCase()}-`,
           '',
         ),
         type: item.type,
         link: (
           <>
             {
-              job.status?.appState === FLAppStatus.Running && item.status === podStatus.active
+              job?.status?.appState === FLAppStatus.Running && item.status === podStatus.active
                 ? (
                   <Link
                     color
