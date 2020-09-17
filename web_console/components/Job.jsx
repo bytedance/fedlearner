@@ -48,7 +48,7 @@ export default function Job({id, ...props}) {
   }, [id, job])
 
   return (
-    <JobCommonInfo job={job} jobStatus={jobStatus}>
+    job ? <JobCommonInfo job={job} jobStatus={jobStatus}>
       <Description
         title="Job Type"
         style={{ width: 140 }}
@@ -84,5 +84,6 @@ export default function Job({id, ...props}) {
           : <Button size="small" auto disabled>Submit</Button>
       }
     </JobCommonInfo>
+    : null
   );
 }
