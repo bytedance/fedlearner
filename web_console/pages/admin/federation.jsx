@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import css from 'styled-jsx/css';
-import { Avatar, Button, Card, Code, Text, Grid, Popover, Link } from '@zeit-ui/react';
+import { Avatar, Button, Card, Code, Text, Grid, Popover, Link, Spacer } from '@zeit-ui/react';
 import PhoneIcon from '@zeit-ui/react-icons/phone';
 import MailIcon from '@zeit-ui/react-icons/mail';
 import InfoIcon from '@zeit-ui/react-icons/info';
@@ -13,6 +13,7 @@ import produce from 'immer'
 
 import { K8S_SETTINGS } from '../../constants/form-default'
 import { fillJSON, getValueFromJson, getParsedValueFromData } from '../../utils/form_utils'
+import { federationHeartbeat } from '../../services/index'
 
 function useFederationItemStyles() {
   return css`
@@ -28,7 +29,19 @@ function useFederationItemStyles() {
       margin-left: 10px;
       word-break: break-all;
     }
+
   `;
+}
+
+const Status = {
+  unknown: 'unknown',
+  success: 'success',
+  error: 'error',
+}
+
+const StatusColor = {
+  success: 'limegreen',
+  error: 'red',
 }
 
 function FederationItem({ data, onEdit }) {
@@ -38,6 +51,21 @@ function FederationItem({ data, onEdit }) {
     e.preventDefault();
     onEdit(data);
   };
+
+  const [checking, setChecking] = useState(false)
+  const [connStatus, setConnStatus] = useState(Status.unknown)
+  const checkConn = () => {
+    setChecking(true)
+    federationHeartbeat(id).then(res => {
+      if (res.status === Status.success) {
+        setConnStatus(Status.success)
+      } else {
+        setConnStatus(Status.error)
+      }
+      setChecking(false)
+    })
+  }
+
   return (
     <Card shadow>
       <div className="heading">
@@ -56,16 +84,29 @@ function FederationItem({ data, onEdit }) {
           <MailIcon size={14} />
           <span className="description">{email || 'None'}</span>
         </Text>
-        <Text p size={14} style={{ marginBottom: 0 }} type="secondary">
+        <Text p size={14} type="secondary">
           k8s_settings：
           <Popover trigger="hover" content={<Code block>{JSON.stringify(k8s_settings, null, 2)}</Code>}>
             <InfoIcon size={14} />
           </Popover>
         </Text>
+        <Text p size={14} style={{ marginBottom: 0 }} type="secondary">
+          connection status：
+          <span style={{color: StatusColor[connStatus]}}>{connStatus}</span>
+        </Text>
       </div>
 
-      <Card.Footer className="formCardFooter">
+      <Card.Footer className="formCardFooter" disableAutoMargin>
         <Link href="#" color onClick={handleEdit}>Edit</Link>
+        <Button
+          auto
+          loading={checking}
+          size="small"
+          style={{padding: '0 0.8rem'}}
+          onClick={checkConn}
+        >
+          check connection
+        </Button>
       </Card.Footer>
 
       <style jsx>{styles}</style>
