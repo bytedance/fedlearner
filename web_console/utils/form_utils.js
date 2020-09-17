@@ -69,15 +69,16 @@ export const getValueFromJson = (data, path) => {
 }
 
 export function getParsedValueFromData (data, field) {
-  let value = (data && data[field.key]) || ''
+  let value = (data && data[field.key])
 
   if (['json', 'name-value'].some(el => el === field.type)) {
     value = value ? JSON.parse(value) : field.emptyDefault || {}
   }
   else if (field.type === 'bool-select') {
-    value = typeof (data && data[field.key]) === 'boolean'
-      ? data[field.key]
-      : true
+    value = typeof value === 'boolean' ? value : true
+  }
+  else {
+    value = value || data[field.key] || ''
   }
 
   return value

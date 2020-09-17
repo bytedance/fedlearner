@@ -9,7 +9,7 @@ const options = [
 export default function ClientTicketSelect(props) {
   const actualValue = props.value.toString() || 'true'
   const actualOnChange = (value) => {
-    props.onChange(Boolean(value));
+    props.onChange(value === 'true');
   };
   return (
     <Select {...props} initialValue={actualValue} value={actualValue} onChange={actualOnChange}>

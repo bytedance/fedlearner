@@ -31,7 +31,7 @@ function getValueFromEnv(data, name) {
 }
 function fillField(data, field, editing) {
   if (data === undefined && !editing) return field
-  let v = getValueFromJson(data, field.path || field.key) || field.emptyDefault || ''
+  let v = getValueFromJson(data, field.path || field.key)
 
   if (field.key === 'raw_data') {
     v = getValueFromEnv(data, 'RAW_DATA_SUB_DIR')
@@ -41,6 +41,12 @@ function fillField(data, field, editing) {
   }
   else if (field.key === 'image') {
     v = getValueFromJson(data['public_params'] || {}, field.path.replace('[replicaType]', 'Master'))
+  }
+  else if (field.type === 'bool-select') {
+    v = typeof v === 'boolean' ? v : true
+  }
+  else {
+    v = v || field.emptyDefault || ''
   }
 
   if (typeof v === 'object') {
@@ -257,7 +263,7 @@ export default function TicketList({
           }
 
         } else {
-          draft[x.key] = getParsedValueFromData(data, x) || draft[x.key]
+          draft[x.key] = getParsedValueFromData(data, x)
         }
       })
       rewriteFields(draft, data)
