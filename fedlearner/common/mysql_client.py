@@ -69,6 +69,7 @@ class RealMySQLClient(object):
         self._base_dir = base_dir
         self._create_engine_inner()
         Base.metadata.create_all(self._engine)
+        logging.info('success to create table')
 
     def get_data(self, key):
         with self.closing(self._engine) as sess:
@@ -78,6 +79,7 @@ class RealMySQLClient(object):
                     self._generate_key(key)).one().kv_value
                 if isinstance(value, str):
                     return value.encode()
+                logging.info('success to get data')
                 return value
             except NoResultFound:
                 logging.warning('data is not exists')
@@ -97,6 +99,7 @@ class RealMySQLClient(object):
                     kv_value=data)
                 sess.add(context)
                 sess.commit()
+                logging.info('success to set data')
                 return True
             except Exception as e: # pylint: disable=broad-except
                 logging.error('failed to set data. msg[%s]', e)
@@ -112,6 +115,7 @@ class RealMySQLClient(object):
                     self._generate_key(key)):
                     sess.delete(context)
                 sess.commit()
+                logging.info('success to delete')
                 return True
             except Exception as e: # pylint: disable=broad-except
                 logging.error('failed to delete. msg[%s]', e)
@@ -126,6 +130,7 @@ class RealMySQLClient(object):
                     like(self._generate_key(key) + '%')):
                     sess.delete(context)
                 sess.commit()
+                logging.info('success to delete prefix')
                 return True
             except Exception as e: # pylint: disable=broad-except
                 logging.error('failed to delete prefix. msg[%s]', e)
@@ -157,6 +162,7 @@ class RealMySQLClient(object):
                         return flag
                     context.kv_value = new_data
                     sess.commit()
+                logging.info('success to cas')
                 return flag
             except Exception as e: # pylint: disable=broad-except
                 logging.error('failed to cas. msg[%s]', e)
@@ -179,6 +185,7 @@ class RealMySQLClient(object):
                     if isinstance(value, str):
                         value = value.encode()
                     kvs.append((nkey, value))
+                logging.info('success to get prefix kvs')
                 return kvs
             except Exception as e: # pylint: disable=broad-except
                 logging.error('failed to get prefix kvs. msg[%s]', e)
