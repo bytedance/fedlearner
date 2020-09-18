@@ -459,6 +459,7 @@ export default function JobList({
   const toggleForm = useCallback(() => {
     if (formVisible) {
       setFields(DEFAULT_FIELDS)
+      setFormMeta({})
     }
     setFormVisible(visible => !visible)
   }, [formVisible]);
