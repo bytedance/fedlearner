@@ -59,7 +59,7 @@ class RealMySQLClient(object):
         __tablename__ = 'datasource_meta'
 
         kv_key = Column(String(255), primary_key=True)
-        name = Column(String(2048))
+        kv_value = Column(String(2048))
 
     def __init__(self, name, addr, user, password, base_dir):
         self._name = name
