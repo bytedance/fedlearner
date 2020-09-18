@@ -22,3 +22,4 @@ guppy3
 tensorflow-io==0.8.1
 psutil
 sqlalchemy
+mysqlclient
