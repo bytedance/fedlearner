@@ -94,11 +94,19 @@ class RealMySQLClient(object):
             data = data.encode()
         with self.closing(self._engine) as sess:
             try:
-                context = self.Datasource_meta(
-                    kv_key=self._generate_key(key),
-                    kv_value=data)
-                sess.add(context)
-                sess.commit()
+                table = self.Datasource_meta
+                context = sess.query(table).filter(table.kv_key ==
+                    self._generate_key(key))
+                if context:
+                    context = context.one()
+                    context.kv_value = data
+                    sess.commit()
+                else:
+                    context = self.Datasource_meta(
+                        kv_key=self._generate_key(key),
+                        kv_value=data)
+                    sess.add(context)
+                    sess.commit()
                 logging.info('success to set data')
                 return True
             except Exception as e: # pylint: disable=broad-except
@@ -173,10 +181,14 @@ class RealMySQLClient(object):
         kvs = []
         path = self._generate_key(prefix)
         with self.closing(self._engine) as sess:
+            logging.info('start get_prefix_kvs. prefix is [%s] [%s]',
+                prefix, path)
             try:
                 table = self.Datasource_meta
                 for context in sess.query(table).filter(table.kv_key.\
                     like(path + '%')).order_by(table.kv_key):
+                    logging.info('type of kv_key is[%s]',
+                        type(context.kv_value))
                     if ignor_prefix and context.kv_key == path:
                         continue
                     nkey = self._normalize_output_key(context.kv_key,
