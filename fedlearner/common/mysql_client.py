@@ -221,6 +221,7 @@ class RealMySQLClient(object):
             self._engine = create_engine(conn_string, echo=False,
                                         pool_recycle=180)
             self._base = automap_base()
+            logging.info('create engine success')
         except Exception as e:
             raise ValueError('create mysql engin failed; [{}]'.\
                 format(e))
