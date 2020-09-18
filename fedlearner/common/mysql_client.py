@@ -56,7 +56,7 @@ class MySQLClient(object):
 
 class RealMySQLClient(object):
     class Datasource_meta(Base):
-        __tablename__ = 'datasource_meta'
+        __tablename__ = 'datasource_meta_kv'
 
         kv_key = Column(String(255), primary_key=True)
         kv_value = Column(String(2048))
