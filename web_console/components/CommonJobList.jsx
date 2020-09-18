@@ -17,7 +17,7 @@ import Form from '../components/Form';
 import {
   DATASOURCE_JOB_REPLICA_TYPE,
 } from '../constants/form-default'
-import { getParsedValueFromData, fillJSON, getValueFromJson } from '../utils/form_utils';
+import { getParsedValueFromData, fillJSON, getValueFromJson, getValueFromEnv } from '../utils/form_utils';
 import { getJobStatus } from '../utils/job'
 import { JOB_TYPE } from '../constants/job'
 
@@ -480,7 +480,12 @@ export default function JobList({
   };
 
   const handleClone = (item) => {
-    setFormMeta(item.localdata)
+    const envPath = 'spec.flReplicaSpecs.Master.template.spec.containers[].env'
+
+    setFormMeta({
+      ...item.localdata,
+      raw_data: getValueFromEnv(item, envPath, 'RAW_DATA_SUB_DIR')
+    })
 
     setFields(fields => mapValueToFields({
       data: mapFormMeta2Form(),

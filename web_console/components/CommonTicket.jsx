@@ -12,32 +12,23 @@ import {
   TRAINNING_TICKET_PARAMS,
   TRAINNING_TICKET_REPLICA_TYPE
 } from '../constants/form-default'
-import { getParsedValueFromData, fillJSON, getValueFromJson, filterArrayValue } from '../utils/form_utils';
+import { getParsedValueFromData, fillJSON, getValueFromJson, filterArrayValue, getValueFromEnv } from '../utils/form_utils';
 import { JOB_TYPE } from '../constants/job'
 
 const ENV_PATH = 'spec.flReplicaSpecs.[replicaType].template.spec.containers[].env'
 const PARAMS_GROUP = ['public_params', 'private_params']
 
-function getValueFromEnv(data, name) {
-  let path = ENV_PATH.replace('[replicaType]', 'Master')
-
-  let envs = getValueFromJson(data['public_params'], path)
-  if (!envs) { envs = [] }
-  let envNames = envs.map(env => env.name)
-  let v = envs[envNames.indexOf(name)]
-  v = v && v.value || ''
-
-  return v
-}
 function fillField(data, field, editing) {
   if (data === undefined && !editing) return field
   let v = getValueFromJson(data, field.path || field.key)
 
+  const envPath = ENV_PATH.replace('[replicaType]', 'Master')
+
   if (field.key === 'raw_data') {
-    v = getValueFromEnv(data, 'RAW_DATA_SUB_DIR')
+    v = getValueFromEnv(data, envPath,'RAW_DATA_SUB_DIR')
   }
   else if (field.key === 'num_partitions') {
-    v = getValueFromEnv(data, 'PARTITION_NUM')
+    v = getValueFromEnv(data, envPath, 'PARTITION_NUM')
   }
   else if (field.key === 'image') {
     v = getValueFromJson(data['public_params'] || {}, field.path.replace('[replicaType]', 'Master'))

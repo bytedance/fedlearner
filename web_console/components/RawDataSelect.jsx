@@ -13,7 +13,7 @@ export default function RawDataSelect(props) {
     props.onChange(rawData);
   };
   return (
-    <Select {...props} value={actualValue} onChange={actualOnChange}>
+    <Select {...props} initialValue={actualValue} value={actualValue} onChange={actualOnChange}>
       {rawDatas.map((x) => <Select.Option key={x.name} value={x.name}>{x.name}</Select.Option>)}
     </Select>
   );

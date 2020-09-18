@@ -96,3 +96,16 @@ export function filterArrayValue (arr, value = undefined) {
   }
   return arr
 }
+
+/**
+ * get value of an item of env array
+ */
+export function getValueFromEnv(data, envPath, name) {
+  let envs = getValueFromJson(data, envPath)
+  if (!envs) { envs = [] }
+  let envNames = envs.map(env => env.name)
+  let v = envs[envNames.indexOf(name)]
+  v = v && v.value || ''
+
+  return v
+}
