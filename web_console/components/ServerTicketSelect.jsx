@@ -7,13 +7,22 @@ import { JOB_TYPE } from '../constants/job'
 // const mockRes = {
 //   "data": [
 //     {
-//       "name": "falin-join-20200827",
-//       "job_type": "psi_data_join",
+//       "name": "ticket-360-k4",
+//       "job_type": "data_join",
 //       "role": "Follower",
-//       "sdk_version": "c50be61",
-//       "expire_time": "",
+//       "sdk_version": "049ad50",
+//       "expire_time": "Fri Jun 18 2021 00:00:00 GMT+0000 (Coordinated Universal Time)",
 //       "remark": "",
-//       "public_params": "{\"spec\":{\"flReplicaSpecs\":{\"Master\":{\"pair\":true,\"template\":{\"spec\":{\"containers\":[{\"env\":[{\"name\":\"PARTITION_NUM\",\"value\":\"2\"},{\"name\":\"START_TIME\",\"value\":\"0\"},{\"name\":\"END_TIME\",\"value\":\"999999999999\"},{\"name\":\"NEGATIVE_SAMPLING_RATE\",\"value\":\"1.0\"},{\"name\":\"RAW_DATA_SUB_DIR\",\"value\":\"psi_data_join/falin-20200828\"}],\"image\":\"artifact.bytedance.com/fedlearner/fedlearner:c50be61\",\"ports\":[{\"containerPort\":50051,\"name\":\"flapp-port\"}],\"command\":[\"/app/deploy/scripts/wait4pair_wrapper.sh\"],\"args\":[\"/app/deploy/scripts/data_join/run_data_join_leader_master.sh\"]}]}}},\"Worker\":{\"pair\":true,\"template\":{\"spec\":{\"containers\":[{\"env\":[{\"name\":\"PSI_RAW_DATA_ITER\",\"value\":\"CSV_DICT\"},{\"name\":\"PSI_OUTPUT_BUILDER\",\"value\":\"CSV_DICT\"},{\"name\":\"DATA_BLOCK_BUILDER\",\"value\":\"CSV_DICT\"},{\"name\":\"DATA_BLOCK_DUMP_INTERVAL\",\"value\":\"600\"},{\"name\":\"DATA_BLOCK_DUMP_THRESHOLD\",\"value\":\"524288\"},{\"name\":\"EXAMPLE_ID_DUMP_INTERVAL\",\"value\":\"600\"},{\"name\":\"EXAMPLE_ID_DUMP_THRESHOLD\",\"value\":\"524288\"},{\"name\":\"EXAMPLE_JOINER\",\"value\":\"SORT_RUN_JOINER\"},{\"name\":\"INPUT_FILE_SUBSCRIBE_DIR\",\"value\":\"portal_publish_dir/falin-test-20200827-follower\"},{\"name\":\"RAW_DATA_PUBLISH_DIR\",\"value\":\"psi_data_join/falin-20200828\"},{\"name\":\"RSA_KEY_PATH\",\"value\":\"/data/rsa_key/test_rsa_psi.pub\"},{\"name\":\"SIGN_RPC_TIMEOUT_MS\",\"value\":\"128000\"}],\"image\":\"artifact.bytedance.com/fedlearner/fedlearner:c50be61\",\"ports\":[{\"containerPort\":50051,\"name\":\"flapp-port\"}],\"command\":[\"/app/deploy/scripts/wait4pair_wrapper.sh\"],\"args\":[\"/app/deploy/scripts/data_join/run_psi_data_join_follower_worker_v2.sh\"]}]}}}}}}"
+//       "public_params": "null"
+//     },
+//     {
+//       "name": "test-trainning",
+//       "job_type": "nn_model",
+//       "role": "Follower",
+//       "sdk_version": "049ad50",
+//       "expire_time": "Fri Jun 18 2021 00:00:00 GMT+0000 (Coordinated Universal Time)",
+//       "remark": "",
+//       "public_params": "null"
 //     }
 //   ]
 // }
@@ -29,9 +38,10 @@ export default function ServerTicketSelect({type, ...props}) {
     props.federation_id ? `federations/${props.federation_id}/tickets` : null,
     fetcher,
   );
-  const tickets = data?.data?.filter(filter) || [] // || mockRes.data;
+  const tickets = data?.data?.filter(filter) || []
+  // const tickets = mockRes.data;
 
-  const actualValue = tickets.find((x) => x.name === props.value)?.value;
+  const actualValue = tickets.find((x) => x.name === props.value)?.name;
   const actualOnChange = (value) => {
     const ticket = tickets.find((x) => x.name === value);
     props.onChange(ticket.name);
