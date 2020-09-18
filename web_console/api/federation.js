@@ -121,8 +121,8 @@ router.get('/api/v1/federations/:id/heartbeat', SessionMiddleware, async (ctx) =
     return;
   }
   const client = new FederationClient(federation);
-  const { data } = await client.heartBeat();
-  ctx.body = { data };
+  const res = await client.heartBeat();
+  ctx.body = res;
 });
 
 module.exports = router;
