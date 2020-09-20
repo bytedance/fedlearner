@@ -18,9 +18,10 @@
 import os
 import logging
 from contextlib import contextmanager
-from sqlalchemy import create_engine, Column, String
+from sqlalchemy import create_engine, MetaData
 from sqlalchemy.orm import sessionmaker, scoped_session
 from sqlalchemy.orm.exc import NoResultFound
+from sqlalchemy.ext.automap import automap_base
 from sqlalchemy.ext.declarative import declarative_base
 from fedlearner.common.mock_mysql import MockMySQLClient
 from fedlearner.common.etcd_client import EtcdClient
@@ -55,12 +56,6 @@ class MySQLClient(object):
         return getattr(self._client, attr)
 
 class RealMySQLClient(object):
-    class Datasource_meta(Base):
-        __tablename__ = 'datasource_meta_kv'
-
-        kv_key = Column(String(255), primary_key=True)
-        kv_value = Column(String(2048))
-
     def __init__(self, name, addr, user, password, base_dir):
         self._name = name
         self._addr = self._normalize_addr(addr)
@@ -68,13 +63,15 @@ class RealMySQLClient(object):
         self._password = password
         self._base_dir = base_dir
         self._create_engine_inner()
-        Base.metadata.create_all(self._engine)
+        Base = automap_base()
+        Base.prepare(self._engine, reflect=True)
+        self._datasource_meta = Base.classes.datasource_meta
         logging.info('success to create table')
 
     def get_data(self, key):
         with self.closing(self._engine) as sess:
             try:
-                table = self.Datasource_meta
+                table = self._datasource_meta
                 value = sess.query(table).filter(table.kv_key ==
                     self._generate_key(key)).one().kv_value
                 if isinstance(value, str):
@@ -94,14 +91,14 @@ class RealMySQLClient(object):
             data = data.encode()
         with self.closing(self._engine) as sess:
             try:
-                table = self.Datasource_meta
+                table = self._datasource_meta
                 context = sess.query(table).filter(table.kv_key ==
                     self._generate_key(key)).first()
                 if context:
                     context.kv_value = data
                     sess.commit()
                 else:
-                    context = self.Datasource_meta(
+                    context = self._datasource_meta(
                         kv_key=self._generate_key(key),
                         kv_value=data)
                     sess.add(context)
@@ -117,7 +114,7 @@ class RealMySQLClient(object):
     def delete(self, key):
         with self.closing(self._engine) as sess:
             try:
-                table = self.Datasource_meta
+                table = self._datasource_meta
                 for context in sess.query(table).filter(table.kv_key ==
                     self._generate_key(key)):
                     sess.delete(context)
@@ -132,7 +129,7 @@ class RealMySQLClient(object):
     def delete_prefix(self, key):
         with self.closing(self._engine) as sess:
             try:
-                table = self.Datasource_meta
+                table = self._datasource_meta
                 for context in sess.query(table).filter(table.kv_key.\
                     like(self._generate_key(key) + b'%')):
                     sess.delete(context)
@@ -151,10 +148,10 @@ class RealMySQLClient(object):
             new_data = new_data.encode()
         with self.closing(self._engine) as sess:
             try:
-                table = self.Datasource_meta
+                table = self._datasource_meta
                 flag = True
                 if old_data is None:
-                    context = self.Datasource_meta(
+                    context = self._datasource_meta(
                         kv_key=self._generate_key(key),
                         kv_value=new_data)
                     sess.add(context)
@@ -183,7 +180,7 @@ class RealMySQLClient(object):
             logging.info('start get_prefix_kvs. prefix is [%s] [%s]',
                 prefix, path)
             try:
-                table = self.Datasource_meta
+                table = self._datasource_meta
                 for context in sess.query(table).filter(table.kv_key.\
                     like(path + b'%')).order_by(table.kv_key):
                     logging.info('type of kv_key is[%s]',
