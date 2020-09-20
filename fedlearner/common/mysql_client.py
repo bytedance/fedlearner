@@ -60,10 +60,7 @@ class RealMySQLClient(object):
         self._user = user
         self._password = password
         self._base_dir = base_dir
-        Base = automap_base()
         self._create_engine_inner()
-        Base.prepare(engin, reflect=True)
-        self._datasource_meta = Base.classes.datasource_meta
         logging.info('success to create table')
 
     def get_data(self, key):
