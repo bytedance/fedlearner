@@ -173,7 +173,7 @@ class RealMySQLClient(object):
                 for context in sess.query(table).filter(table.kv_key.\
                     like(path + b'%')).order_by(table.kv_key):
                     logging.info('type of kv_key is[%s]',
-                        type(context.kv_value))
+                        type(context.kv_key))
                     if ignor_prefix and context.kv_key == path:
                         continue
                     nkey = self._normalize_output_key(context.kv_key,
@@ -217,11 +217,12 @@ class RealMySQLClient(object):
 
     @staticmethod
     def _normalize_output_key(key, base_dir):
-        logging.info('normalize ouput key is[%s]', key)
+        logging.info('normalize ouput key is[%s] type[%s]', key,
+            type(key))
         if isinstance(key, str):
             assert key.startswith(base_dir)
         else:
-            assert key.decode().startswith(base_dir)
+            assert key.decoder().startswith(base_dir)
         return key[len(base_dir)+1:]
 
     def _create_engine_inner(self):
