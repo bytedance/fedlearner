@@ -20,12 +20,21 @@ const PARAMS_GROUP = ['public_params', 'private_params']
 
 function fillField(data, field, editing) {
   if (data === undefined && !editing) return field
+
   let v = getValueFromJson(data, field.path || field.key)
+  let disabled = false
 
   const envPath = ENV_PATH.replace('[replicaType]', 'Master')
 
   if (field.key === 'raw_data') {
     v = getValueFromEnv(data, envPath,'RAW_DATA_SUB_DIR')
+  }
+  else if (field.key === 'federation_id') {
+    const federationID = parseInt(localStorage.getItem('federationID'))
+    if (federationID > 0) {
+      v = federationID
+      disabled = true
+    }
   }
   else if (field.key === 'num_partitions') {
     v = getValueFromEnv(data, envPath, 'PARTITION_NUM')
@@ -46,6 +55,9 @@ function fillField(data, field, editing) {
 
   field.value = v
   field.editing = true
+
+  if (!field.props) field.props = {}
+  field.props.disabled = disabled
 
   return field
 }
