@@ -38,7 +38,8 @@ function fillField(data, field, editing) {
     }
   }
   else if (field.key === 'num_partitions') {
-    v = getValueFromEnv(data, envPath, 'PARTITION_NUM')
+    v = getValueFromEnv(data['public_params'], envPath, 'PARTITION_NUM')
+      || getValueFromEnv(data['private_params'], envPath, 'PARTITION_NUM')
   }
   else if (field.key === 'image') {
     v = getValueFromJson(data['public_params'] || {}, field.path.replace('[replicaType]', 'Master'))
