@@ -69,7 +69,7 @@ function NameValuePair({value, onChange, onDelete, ...props}) {
   )
 }
 
-export default function NameValueInput({value, onChange, ...props}) {
+export default function NameValueInput({value, onChange, ignoreKeys = [], ...props}) {
   let value_ = JSON.parse(value || '[]')
   const onItemChange = (idx, name, value) => {
     const copy = value_
@@ -85,7 +85,9 @@ export default function NameValueInput({value, onChange, ...props}) {
     <div {...props}>
       {
         value_.map((el, idx) =>
-          <NameValuePair
+          ignoreKeys.some(key => el.name === key)
+          ? undefined
+          : <NameValuePair
             style={{marginTop: '12px'}}
             value={el}
             onChange={(name, value) => onItemChange(idx, name, value)}
