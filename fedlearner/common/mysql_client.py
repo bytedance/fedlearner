@@ -18,7 +18,7 @@
 import os
 import logging
 from contextlib import contextmanager
-from sqlalchemy import create_engine, MetaData
+from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, scoped_session
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.ext.automap import automap_base
@@ -61,12 +61,6 @@ class RealMySQLClient(object):
         self._password = password
         self._base_dir = base_dir
         self._create_engine_inner()
-        metadata = MetaData()
-        metadata.reflect(bind=self._engine,
-            only=['datasource_meta'])
-        Base = automap_base(metadata=metadata)
-        Base.prepare()
-        self._datasource_meta = Base.classes.datasource_meta
         logging.info('success to create table')
 
     def get_data(self, key):
@@ -237,14 +231,16 @@ class RealMySQLClient(object):
 
     def _create_engine_inner(self):
         try:
+            Base = automap_base()
             conn_string_pattern = 'mysql://{user}:{passwd}@{host}:\
                 {port}/{db_name}?charset=utf8&&use_unicode=0'
             conn_string = conn_string_pattern.format(
                 user=self._user, passwd=self._password,
                 host=self._addr[0], port=self._addr[1],
                 db_name=self._name)
-            self._engine = create_engine(conn_string, echo=False,
-                                        pool_recycle=180)
+            self._engine = create_engine(conn_string)
+            Base.prepare(self._engine, reflect=True)
+            self._datasource_meta = Base.classes.datasource_meta
         except Exception as e:
             raise ValueError('create mysql engin failed; [{}]'.\
                 format(e))
