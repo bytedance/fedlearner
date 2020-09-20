@@ -141,7 +141,7 @@ const setFormMeta = value => { formMeta = value }
 
 export default function JobList({
   datasoure,
-  trainning,
+  training,
   filter,
   ...props
 }) {
@@ -161,13 +161,13 @@ export default function JobList({
 
   } else {
 
-    PAGE_NAME = 'trainning'
+    PAGE_NAME = 'training'
 
     JOB_REPLICA_TYPE = DATASOURCE_JOB_REPLICA_TYPE
 
-    NAME_KEY = 'TRAINNING_NAME'
+    NAME_KEY = 'TRAINING_NAME'
 
-    FILTER_TYPES = JOB_TYPE.trainning
+    FILTER_TYPES = JOB_TYPE.training
 
   }
 

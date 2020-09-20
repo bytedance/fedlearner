@@ -9,8 +9,8 @@ import { createTicket, updateTicket } from '../services/ticket';
 import {
   DATASOURCE_TICKET_REPLICA_TYPE,
   DATASOURCE_TICKET_PARAMS,
-  TRAINNING_TICKET_PARAMS,
-  TRAINNING_TICKET_REPLICA_TYPE
+  TRAINING_TICKET_PARAMS,
+  TRAINING_TICKET_REPLICA_TYPE
 } from '../constants/form-default'
 import { getParsedValueFromData, fillJSON, getValueFromJson, filterArrayValue, getValueFromEnv } from '../utils/form_utils';
 import { JOB_TYPE } from '../constants/job'
@@ -90,7 +90,7 @@ const setFormMeta = data => formMeta = data
 
 export default function TicketList({
   datasoure,
-  trainning,
+  training,
   filter,
   ...props
 }) {
@@ -108,13 +108,13 @@ export default function TicketList({
 
   } else {
 
-    PAGE_NAME = 'trainning'
+    PAGE_NAME = 'training'
 
-    TICKET_REPLICA_TYPE = TRAINNING_TICKET_REPLICA_TYPE
+    TICKET_REPLICA_TYPE = TRAINING_TICKET_REPLICA_TYPE
 
-    TICKET_PARAMS = TRAINNING_TICKET_PARAMS
+    TICKET_PARAMS = TRAINING_TICKET_PARAMS
 
-    FILTER_TYPE = JOB_TYPE.trainning
+    FILTER_TYPE = JOB_TYPE.training
 
   }
 
@@ -192,7 +192,7 @@ export default function TicketList({
     draft.num_partitions && delete draft.num_partitions
 
   }, [])
-  const trainningRewrite = useCallback((draft, data) => {
+  const trainingRewrite = useCallback((draft, data) => {
 
   }, [])
   const rewriteFields = useCallback((draft, data) => {
@@ -201,8 +201,8 @@ export default function TicketList({
     if (datasoure) {
       dataSourceRewrite(draft, data)
     }
-    if (trainning) {
-      trainningRewrite(draft, data)
+    if (training) {
+      trainingRewrite(draft, data)
     }
   }, [])
   // ---end---

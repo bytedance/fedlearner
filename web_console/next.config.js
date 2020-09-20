@@ -13,8 +13,8 @@ module.exports = {
           destination: '/datasource/job',
         },
         {
-          source: '/trainning',
-          destination: '/trainning/job',
+          source: '/training',
+          destination: '/training/job',
         },
       ];
     },
