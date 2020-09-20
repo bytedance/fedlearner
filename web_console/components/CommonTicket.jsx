@@ -27,7 +27,8 @@ function fillField(data, field, editing) {
   const envPath = ENV_PATH.replace('[replicaType]', 'Master')
 
   if (field.key === 'raw_data') {
-    v = getValueFromEnv(data, envPath,'RAW_DATA_SUB_DIR')
+    v = getValueFromEnv(data['public_params'], envPath,'RAW_DATA_SUB_DIR')
+      || getValueFromEnv(data['private_params'], envPath,'RAW_DATA_SUB_DIR')
   }
   else if (field.key === 'federation_id') {
     const federationID = parseInt(localStorage.getItem('federationID'))
@@ -41,6 +42,7 @@ function fillField(data, field, editing) {
   }
   else if (field.key === 'image') {
     v = getValueFromJson(data['public_params'] || {}, field.path.replace('[replicaType]', 'Master'))
+      || getValueFromJson(data['private_params'] || {}, field.path.replace('[replicaType]', 'Master'))
   }
   else if (field.type === 'bool-select') {
     v = typeof v === 'boolean' ? v : true
