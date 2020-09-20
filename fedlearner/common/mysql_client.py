@@ -60,7 +60,10 @@ class RealMySQLClient(object):
         self._user = user
         self._password = password
         self._base_dir = base_dir
+        Base = automap_base()
         self._create_engine_inner()
+        Base.prepare(engin, reflect=True)
+        self._datasource_meta = Base.classes.datasource_meta
         logging.info('success to create table')
 
     def get_data(self, key):
@@ -82,8 +85,6 @@ class RealMySQLClient(object):
                 return None
 
     def set_data(self, key, data):
-        if isinstance(data, str):
-            data = data.encode()
         with self.closing(self._engine) as sess:
             try:
                 table = self._datasource_meta
@@ -137,10 +138,6 @@ class RealMySQLClient(object):
                 return False
 
     def cas(self, key, old_data, new_data):
-        if isinstance(old_data, str):
-            old_data = old_data.encode()
-        if isinstance(new_data, str):
-            new_data = new_data.encode()
         with self.closing(self._engine) as sess:
             try:
                 table = self._datasource_meta
@@ -223,10 +220,11 @@ class RealMySQLClient(object):
 
     @staticmethod
     def _normalize_output_key(key, base_dir):
-        if isinstance(base_dir, str):
-            assert key.startswith(base_dir.encode())
-        else:
+        logging.info('normalize ouput key is[%s]', key)
+        if isinstance(key, str):
             assert key.startswith(base_dir)
+        else:
+            assert key.decode().startswith(base_dir)
         return key[len(base_dir)+1:]
 
     def _create_engine_inner(self):
@@ -237,7 +235,8 @@ class RealMySQLClient(object):
                 user=self._user, passwd=self._password,
                 host=self._addr[0], port=self._addr[1],
                 db_name=self._name)
-            self._engine = create_engine(conn_string, pool_recycle=180)
+            self._engine = create_engine(conn_string, echo=False,
+                                        pool_recycle=180)
             Base = automap_base()
             Base.prepare(self._engine, reflect=True)
             self._datasource_meta = Base.classes.datasource_meta
