@@ -18,7 +18,7 @@
 import os
 import logging
 from contextlib import contextmanager
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, MetaData
 from sqlalchemy.orm import sessionmaker, scoped_session
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.ext.automap import automap_base
@@ -61,8 +61,11 @@ class RealMySQLClient(object):
         self._password = password
         self._base_dir = base_dir
         self._create_engine_inner()
-        Base = automap_base()
-        Base.prepare(self._engine, reflect=True)
+        metadata = MetaData()
+        metadata.reflect(bind=self._engine,
+            only=['datasource_meta'])
+        Base = automap_base(metadata=metadata)
+        Base.prepare()
         self._datasource_meta = Base.classes.datasource_meta
         logging.info('success to create table')
 
