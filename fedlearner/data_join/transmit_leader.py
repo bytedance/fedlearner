@@ -16,7 +16,6 @@
 
 import threading
 import logging
-import zlib
 
 from fedlearner.common import data_join_service_pb2 as dj_pb
 from fedlearner.common import metrics
@@ -262,20 +261,10 @@ class TransmitLeader(object):
                    tags={'role': 'transmit_leader'})
     def _send_sync_content(self, impl_ctx, item):
         assert isinstance(impl_ctx, TransmitLeader.ImplContext)
-        compressed = False
-        sync_ctnt = self._serialize_sync_content(item)
-        if len(sync_ctnt) > (2 << 20):
-            compressed_bytes = zlib.compress(sync_ctnt, 5)
-            if len(compressed_bytes) < len(sync_ctnt) * 0.8:
-                sync_ctnt = compressed_bytes
-                compressed = True
-            else:
-                logging.warning('abandon compressed since compress ratio < 0.8')
         req = dj_pb.SyncPartitionRequest(
                 data_source_meta=self._data_source.data_source_meta,
                 rank_id=self._rank_id,
-                content_bytes=sync_ctnt,
-                compressed=compressed
+                sync_content=self._make_sync_content(item)
             )
         rsp = self._peer_client.SyncPartition(req)
         if rsp.status.code != 0:
@@ -322,8 +311,8 @@ class TransmitLeader(object):
         raise NotImplementedError("_make_finish_raw_data_request is not "\
                                   "implemented in base TransmitLeader")
 
-    def _serialize_sync_content(self, item):
-        raise NotImplementedError("_serialize_sync_content is not "\
+    def _make_sync_content(self, item):
+        raise NotImplementedError("_make_sync_content is not "\
                                   "implemented in base TransmitLeader")
 
     @metrics.timer(func_name='update_peer_index',

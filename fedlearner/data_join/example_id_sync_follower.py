@@ -39,7 +39,7 @@ class ExampleIdSyncFollower(TransmitFollower):
 
         def add_synced_content(self, sync_ctnt):
             return self.example_id_dumper_manager.add_example_id_batch(
-                    sync_ctnt.lite_example_ids
+                    sync_ctnt.packed_lite_example_ids
                 )
 
         def finish_sync_content(self):

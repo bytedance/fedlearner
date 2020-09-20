@@ -161,7 +161,13 @@ class TestExampleJoin(unittest.TestCase):
             for example_idx in cands:
                 example_id_batch.example_id.append('{}'.format(example_idx).encode())
                 example_id_batch.event_time.append(150000000 + example_idx)
-            dumper.add_example_id_batch(example_id_batch)
+            packed_example_id_batch = dj_pb.PackedLiteExampleIds(
+                    partition_id=0,
+                    begin_index=req_index*512,
+                    example_id_num=len(cands),
+                    sered_lite_example_ids=example_id_batch.SerializeToString()
+                )
+            dumper.add_example_id_batch(packed_example_id_batch)
             self.assertEqual(dumper.get_next_index(), (req_index + 1) * 512)
         self.assertTrue(dumper.need_dump())
         with dumper.make_example_id_dumper() as eid:
