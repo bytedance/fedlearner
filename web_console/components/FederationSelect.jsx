@@ -23,7 +23,7 @@ export default function FederationSelect(props) {
   rendered = true
 
   // reset flag
-  useEffect(() => () => rendered = false)
+  useEffect(() => () => rendered = false, [])
 
   return (
     <Select {...props} initialValue={actualValue} value={actualValue} onChange={actualOnChange}>
