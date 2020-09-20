@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Select } from '@zeit-ui/react';
 import useSWR from 'swr';
 import { fetcher } from '../libs/http';
@@ -21,6 +21,9 @@ export default function FederationSelect(props) {
     && props.onChange(props.value)
 
   rendered = true
+
+  // reset flag
+  useEffect(() => () => rendered = false)
 
   return (
     <Select {...props} initialValue={actualValue} value={actualValue} onChange={actualOnChange}>
