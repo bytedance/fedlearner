@@ -48,7 +48,9 @@ export default function ServerTicketSelect({type, ...props}) {
   };
 
   const popoverContent = (content) => {
-    content.public_params = JSON.parse(content.public_params || '{}')
+    if (typeof content.public_params === 'string') {
+      content.public_params = JSON.parse(content.public_params || '{}')
+    }
     return (
       <pre className="content">
         {JSON.stringify(content, null, 2)}
