@@ -16,7 +16,6 @@
 
 import time
 import logging
-import zlib
 from concurrent import futures
 
 import grpc
@@ -91,11 +90,7 @@ class DataJoinWorker(dj_grpc.DataJoinWorkerServiceServicer):
                                      partition_id)
         response.status.MergeFrom(status)
         if response.status.code == 0:
-            content_bytes = request.content_bytes
-            if request.compressed:
-                content_bytes = zlib.decompress(content_bytes)
-            sync_content = dj_pb.SyncContent()
-            sync_content.ParseFromString(content_bytes)
+            sync_content = request.sync_content
             filled, response.next_index, response.dumped_index = \
                     self._transmit_follower.add_synced_item(sync_content)
             if not filled:
@@ -128,13 +123,6 @@ class DataJoinWorker(dj_grpc.DataJoinWorkerServiceServicer):
                 self._transmit_follower.reset_partition(partition_id)
             response.status.MergeFrom(status)
         return response
-
-    def _decode_sync_content(self, content_bytes, compressed):
-        if compressed:
-            content_bytes = zlib.decompress(content_bytes)
-        sync_content = dj_pb.SyncContent()
-        sync_content.ParseFromString(content_bytes)
-        return sync_content
 
     def _init_transmit_roles(self, options):
         if self._data_source.role == common_pb.FLRole.Leader:

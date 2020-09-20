@@ -113,11 +113,10 @@ class ExampleIdSyncLeader(TransmitLeader):
         if manifest.finished:
             impl_ctx.set_raw_data_finished()
 
-    def _serialize_sync_content(self, item):
-        sync_ctnt = dj_pb.SyncContent(
-                lite_example_ids=item.make_lite_example_ids()
+    def _make_sync_content(self, item):
+        return dj_pb.SyncContent(
+                packed_lite_example_ids=item.make_packed_lite_example_ids()
             )
-        return sync_ctnt.SerializeToString()
 
     def _make_finish_raw_data_request(self, impl_ctx):
         return dj_pb.RawDataRequest(

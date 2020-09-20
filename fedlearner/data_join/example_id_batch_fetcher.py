@@ -38,12 +38,16 @@ class ExampleIdBatch(ItemBatch):
     def begin_index(self):
         return self._begin_index
 
-    def make_lite_example_ids(self):
-        return dj_pb.LiteExampleIds(
+    def make_packed_lite_example_ids(self):
+        return dj_pb.PackedLiteExampleIds(
                 partition_id=self._partition_id,
                 begin_index=self._begin_index,
-                example_id=self._example_ids,
-                event_time=self._event_times
+                example_id_num=len(self._example_ids),
+                sered_lite_example_ids=dj_pb.LiteExampleIds(
+                    partition_id=self._partition_id,
+                    begin_index=self._begin_index,
+                    example_id=self._example_ids,
+                    event_time=self._event_times).SerializeToString()
             )
 
     @property

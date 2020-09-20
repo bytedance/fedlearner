@@ -106,8 +106,8 @@ class ExampleJoinLeader(TransmitLeader):
         if manifest.finished:
             impl_ctx.set_raw_data_finished()
 
-    def _serialize_sync_content(self, item):
-        return dj_pb.SyncContent(data_block_meta=item).SerializeToString()
+    def _make_sync_content(self, item):
+        return dj_pb.SyncContent(data_block_meta=item)
 
     def _make_finish_raw_data_request(self, impl_ctx):
         return dj_pb.RawDataRequest(

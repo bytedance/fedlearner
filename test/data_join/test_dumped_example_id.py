@@ -62,7 +62,13 @@ class TestDumpedExampleId(unittest.TestCase):
                 example_id_batch.event_time.append(150000000+index)
                 self.end_index = index
                 index += 1
-            dumper.add_example_id_batch(example_id_batch)
+            packed_example_id_batch = dj_pb.PackedLiteExampleIds(
+                    partition_id=0,
+                    begin_index=index-batch_size,
+                    example_id_num=batch_size,
+                    sered_lite_example_ids=example_id_batch.SerializeToString()
+                )
+            dumper.add_example_id_batch(packed_example_id_batch)
             self.assertEqual(dumper.get_next_index(), index)
         dumper.finish_sync_example_id()
         self.assertTrue(dumper.need_dump())
