@@ -165,10 +165,17 @@ message LiteExampleIds {
   repeated int64 event_time = 4;
 }
 
+message PackedLiteExampleIds {
+  int64 partition_id = 1;
+  int64 begin_index = 2;
+  int64 example_id_num = 3;
+  bytes sered_lite_example_ids = 4;
+}
+
 message SyncContent {
   oneof msg {
     DataBlockMeta data_block_meta = 1;
-    LiteExampleIds lite_example_ids = 2;
+    PackedLiteExampleIds packed_lite_example_ids = 2;
   }
 }
 
@@ -176,10 +183,7 @@ message SyncPartitionRequest {
   DataSourceMeta data_source_meta = 1;
   int64 rank_id = 2;
   int64 partition_id = 3;
-  // serialization of SyncContent
-  bytes content_bytes = 4;
-  // if compressed is set true, we use the gzip compress sync content
-  bool compressed = 5;
+  SyncContent sync_content = 4;
 }
 
 message SyncPartitionResponse {

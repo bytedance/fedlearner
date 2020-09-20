@@ -51,7 +51,9 @@ class ExampleIdDumperManager(object):
             assert self._end_index + 1 == example_id_batch.begin_index, \
                 "the recv example id index should be consecutive, {} + 1 "\
                 "!= {}".format(self._end_index, example_id_batch.begin_index)
-            self._tf_record_writer.write(example_id_batch.sered_lite_example_ids)
+            self._tf_record_writer.write(
+                    example_id_batch.sered_lite_example_ids
+                )
             self._end_index += example_id_batch.example_id_num
             self._dumped_example_id_batch_count += 1
 
