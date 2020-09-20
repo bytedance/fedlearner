@@ -231,8 +231,8 @@ class RealMySQLClient(object):
 
     def _create_engine_inner(self):
         try:
-            conn_string_pattern = 'mysql+mysqldb://{user}:{passwd}@{host}:\
-                {port}/{db_name}?charset=utf8&&use_unicode=0'
+            conn_string_pattern = 'mysql://{user}:{passwd}@{host}:'\
+                '{port}/{db_name}'
             conn_string = conn_string_pattern.format(
                 user=self._user, passwd=self._password,
                 host=self._addr[0], port=self._addr[1],
