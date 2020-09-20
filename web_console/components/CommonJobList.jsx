@@ -250,9 +250,6 @@ export default function JobList({
         fillJSON(draft[paramType], ENV_PATH.replace('[replicaType]', replicaType), envs)
       })
     })
-
-    // delete fields
-    draft.raw_data && delete draft.raw_data
   }, [])
   const mapFormMeta2Json = useCallback(() => {
     let data = {}
@@ -324,12 +321,6 @@ export default function JobList({
         jobType = value
         setFields(handleFields(fields))
       },
-    },
-    {
-      key: 'raw_data',
-      type: 'rawData',
-      callback: updateForm =>
-        value => updateForm('num partitions', value?.output_partition_num)
     },
     {
       key: 'client_ticket_name',
@@ -485,7 +476,6 @@ export default function JobList({
 
     setFormMeta({
       ...item.localdata,
-      raw_data: getValueFromEnv(item, envPath, 'RAW_DATA_SUB_DIR')
     })
 
     setFields(fields => mapValueToFields({
