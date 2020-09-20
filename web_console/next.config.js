@@ -8,6 +8,14 @@ module.exports = {
           source: '/admin',
           destination: '/admin/federation',
         },
+        {
+          source: '/datasource',
+          destination: '/datasource/job',
+        },
+        {
+          source: '/trainning',
+          destination: '/trainning/job',
+        },
       ];
     },
   },
