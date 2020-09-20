@@ -93,3 +93,4 @@ config.mk
 server.config.js
 es.match_phrase.js
 es.match_phrase.json
+web_console/config

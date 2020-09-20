@@ -82,11 +82,13 @@
     "url": "https://github.com/bytedance/fedlearner.git"
   },
   "dependencies": {
+    "@geist-ui/react-icons": "1.0.0",
     "@grpc/grpc-js": "1.1.1",
     "@grpc/proto-loader": "0.5.4",
     "@koa/router": "8.0.8",
     "@zeit-ui/react": "1.6.2",
     "@zeit-ui/react-icons": "1.2.2",
+    "autodll-webpack-plugin": "0.4.2",
     "dayjs": "1.8.28",
     "immer": "7.0.7",
     "js-yaml": "3.14.0",
@@ -131,6 +133,7 @@
     "mocha": "6.2.3",
     "nodemon": "2.0.4",
     "nyc": "15.1.0",
+    "sequelize-cli": "6.2.0",
     "supertest": "4.0.2"
   }
 }
