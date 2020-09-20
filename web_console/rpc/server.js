@@ -149,7 +149,7 @@ async function deleteJob(call, callback) {
       },
     });
     if (!job) throw new Error('Job not found');
-    if (data.status == 'started') {
+    if (job.status == 'started') {
       await k8s.deleteFLApp(NAMESPACE, job.name);
     }
     await job.destroy({ force: true });

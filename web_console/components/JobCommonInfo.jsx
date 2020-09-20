@@ -1,10 +1,10 @@
 import React, { useMemo } from 'react';
 import css from 'styled-jsx/css';
-import { Table, Link, Text, Card, Description, Popover, useTheme } from '@zeit-ui/react';
+import { Table, Link, Text, Card, Description, Popover, useTheme, Button } from '@zeit-ui/react';
 import useSWR from 'swr';
 
 import { fetcher } from '../libs/http';
-import { getStatusColor, handleStatus, FLAppStatus } from '../utils/job';
+import { getStatusColor, handleStatus, FLAppStatus, getJobStatus } from '../utils/job';
 import Layout from './Layout';
 import Dot from './Dot';
 import Empty from './Empty';
@@ -100,19 +100,21 @@ export default function JobCommonInfo(props) {
     ? (logsData && logsData.data) ? logsData.data : ['logs error ' + (logsData?.error || logsError?.message)]
     : null;
 
+  const status = props.jobStatus || getJobStatus(job)
+
   const tableData = useMemo(() => {
     if (pods) {
       return pods.map((item) => ({
         status: item.status,
         pod: item.name.replace(
-          `${job.localdata?.name}-${job.spec?.role.toLowerCase()}-${item.type.toLowerCase()}-`,
+          `${job?.localdata?.name}-${job?.spec?.role.toLowerCase()}-${item.type.toLowerCase()}-`,
           '',
         ),
         type: item.type,
         link: (
           <>
             {
-              job.status?.appState === FLAppStatus.Running && item.status === podStatus.active
+              job?.status?.appState === FLAppStatus.Running && item.status === podStatus.active
                 ? (
                   <Link
                     color
@@ -153,8 +155,8 @@ export default function JobCommonInfo(props) {
                 style={{ width: 140 }}
                 content={(
                   <>
-                    <Dot color={getStatusColor(job?.status?.appState)} />
-                    {handleStatus(job?.status?.appState) || '-'}
+                    <Dot color={getStatusColor(status)} />
+                    {status || '-'}
                   </>
                 )}
               />

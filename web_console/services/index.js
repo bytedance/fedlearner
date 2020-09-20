@@ -16,6 +16,10 @@ export async function updateFederation(id, json) {
   return client.put(`federations/${id}`, { json }).json();
 }
 
+export async function federationHeartbeat(id) {
+  return client.get(`federations/${id}/heartbeat`).json();
+}
+
 export async function createUser(json) {
   return client.post('users', { json }).json();
 }

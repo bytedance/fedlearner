@@ -46,4 +46,55 @@ describe('form_utils', () => {
       }
     })
   })
+
+  it('test push new object and insert to the first item', () => {
+    let paths = [
+      'foo.bar[].baz.qux',
+      'foo.bar[-1].baz.quux',
+    ]
+    let value = 1
+    let obj = {}
+    paths.forEach(path => fillJSON(obj, path, value))
+    assert.deepStrictEqual(obj, {
+      foo: {
+        bar: [
+          { baz: { qux: value} },
+          { baz: { quux: value} },
+        ]
+      }
+    })
+  })
+
+  it('test multi push', () => {
+    let paths = [
+      'foo.bar[].baz[].qux',
+      'foo.bar[].baz[-1].quux',
+    ]
+    let value = 1
+    let obj = {}
+    paths.forEach(path => fillJSON(obj, path, value))
+    assert.deepStrictEqual(obj, { 
+      foo: {
+        bar: [
+          { baz: [{ qux: value }, { quux: value } ] },
+        ]
+      }
+    })
+  })
+})
+
+describe('filter value', () => {
+  it('should filter undefined', () => {
+    let arr = [1, 2, undefined, 3, undefined]
+    filterArrayValue(arr)
+
+    assert.deepStrictEqual(arr, [1, 2, 3])
+  })
+
+  it('should filter value', () => {
+    let arr = [1, 2, undefined, 3, undefined]
+    filterArrayValue(arr, 3)
+
+    assert.deepStrictEqual(arr, [1, 2, undefined, undefined])
+  })
 })
