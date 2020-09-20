@@ -124,7 +124,7 @@ class RealMySQLClient(object):
             try:
                 table = self._datasource_meta
                 for context in sess.query(table).filter(table.kv_key.\
-                    like(self._generate_key(key) + b'%')):
+                    like(self._generate_key(key) + '%')):
                     sess.delete(context)
                 sess.commit()
                 logging.info('success to delete prefix')
@@ -171,13 +171,15 @@ class RealMySQLClient(object):
             try:
                 table = self._datasource_meta
                 for context in sess.query(table).filter(table.kv_key.\
-                    like(path + b'%')).order_by(table.kv_key):
+                    like(path + '%')).order_by(table.kv_key):
                     logging.info('type of kv_key is[%s]',
                         type(context.kv_key))
                     if ignor_prefix and context.kv_key == path:
                         continue
                     nkey = self._normalize_output_key(context.kv_key,
                         self._base_dir)
+                    if isinstance(nkey, str):
+                        nkey = nkey.encode()
                     value = context.kv_value
                     if isinstance(value, str):
                         value = value.encode()
@@ -191,8 +193,6 @@ class RealMySQLClient(object):
 
     def _generate_key(self, key):
         nkey = '/'.join([self._base_dir, self._normalize_input_key(key)])
-        if isinstance(nkey, str):
-            nkey = nkey.encode()
         return nkey
 
     @staticmethod
