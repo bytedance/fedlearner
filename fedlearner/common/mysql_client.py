@@ -22,7 +22,6 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, scoped_session
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.ext.automap import automap_base
-from sqlalchemy.ext.declarative import declarative_base
 from fedlearner.common.mock_mysql import MockMySQLClient
 from fedlearner.common.etcd_client import EtcdClient
 
