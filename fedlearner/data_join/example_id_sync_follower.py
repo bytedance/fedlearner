@@ -68,6 +68,7 @@ class ExampleIdSyncFollower(TransmitFollower):
             )
 
     def _extract_partition_id_from_sync_content(self, sync_ctnt):
-        assert sync_ctnt.HasField('lite_example_ids'), \
-            "sync content should has lite_example_ids for ExampleIdSyncFollower"
-        return sync_ctnt.lite_example_ids.partition_id
+        assert sync_ctnt.HasField('packed_lite_example_ids'), \
+            "sync content should has packed_lite_example_ids "\
+            "for ExampleIdSyncFollower"
+        return sync_ctnt.packed_lite_example_ids.partition_id

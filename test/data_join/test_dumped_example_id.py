@@ -64,7 +64,7 @@ class TestDumpedExampleId(unittest.TestCase):
                 index += 1
             packed_example_id_batch = dj_pb.PackedLiteExampleIds(
                     partition_id=0,
-                    begin_index=index,
+                    begin_index=index-batch_size,
                     example_id_num=batch_size,
                     sered_lite_example_ids=example_id_batch.SerializeToString()
                 )
