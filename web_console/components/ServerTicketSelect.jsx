@@ -48,9 +48,12 @@ export default function ServerTicketSelect({type, ...props}) {
   };
 
   const popoverContent = (content) => {
+    if (typeof content.public_params === 'string') {
+      content.public_params = JSON.parse(content.public_params || '{}')
+    }
     return (
       <pre className="content">
-        {JSON.stringify(JSON.parse(content || '{}'), null, 2)}
+        {JSON.stringify(content, null, 2)}
         <style jsx>{`
           .content {
             color: #444;
@@ -76,7 +79,7 @@ export default function ServerTicketSelect({type, ...props}) {
               placement="left"
               offset={24}
               hideArrow={true}
-              content={popoverContent(x.public_params)}
+              content={popoverContent(x)}
               trigger="hover"
             >
               {x.name}

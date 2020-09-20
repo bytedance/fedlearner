@@ -472,11 +472,7 @@ export default function JobList({
   };
 
   const handleClone = (item) => {
-    const envPath = 'spec.flReplicaSpecs.Master.template.spec.containers[].env'
-
-    setFormMeta({
-      ...item.localdata,
-    })
+    setFormMeta(item.localdata)
 
     setFields(fields => mapValueToFields({
       data: mapFormMeta2Form(),
