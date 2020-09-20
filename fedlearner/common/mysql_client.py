@@ -134,7 +134,7 @@ class RealMySQLClient(object):
             try:
                 table = self.Datasource_meta
                 for context in sess.query(table).filter(table.kv_key.\
-                    like(self._generate_key(key) + '%')):
+                    like(self._generate_key(key) + b'%')):
                     sess.delete(context)
                 sess.commit()
                 logging.info('success to delete prefix')
@@ -185,7 +185,7 @@ class RealMySQLClient(object):
             try:
                 table = self.Datasource_meta
                 for context in sess.query(table).filter(table.kv_key.\
-                    like(path + '%')).order_by(table.kv_key):
+                    like(path + b'%')).order_by(table.kv_key):
                     logging.info('type of kv_key is[%s]',
                         type(context.kv_value))
                     if ignor_prefix and context.kv_key == path:
