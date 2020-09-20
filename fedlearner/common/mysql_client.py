@@ -96,9 +96,8 @@ class RealMySQLClient(object):
             try:
                 table = self.Datasource_meta
                 context = sess.query(table).filter(table.kv_key ==
-                    self._generate_key(key))
+                    self._generate_key(key)).first()
                 if context:
-                    context = context.one()
                     context.kv_value = data
                     sess.commit()
                 else:
