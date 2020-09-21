@@ -465,6 +465,11 @@ router.delete('/api/v1/job/:id', SessionMiddleware, async (ctx) => {
     return;
   }
 
+  if (data.status == 'running') {
+    await k8s.deleteFLApp(namespace, data.name);
+  }
+  await data.destroy({ force: true });
+
   const ticket = await Ticket.findOne({
     where: {
       name: { [Op.eq]: data.client_ticket_name },
@@ -481,10 +486,6 @@ router.delete('/api/v1/job/:id', SessionMiddleware, async (ctx) => {
     };
     return;
   }
-  if (data.status == 'running') {
-    await k8s.deleteFLApp(namespace, data.name);
-  }
-  await data.destroy({ force: true });
 
   ctx.body = { data };
 });
