@@ -216,15 +216,17 @@ class RealMySQLClient(object):
 
     def _create_engine_inner(self):
         try:
-            conn_string_pattern = 'mysql://{user}:{passwd}@{addr}'\
-                '/{db_name}'
-            conn_string = conn_string_pattern.format(
-                user=self._user, passwd=self._password,
-                addr=self._addr, db_name=self._name)
-            if os.environ.get('DB_SOCKET_PATH', None):
-                sub = '?unix_socket={}'.\
-                    format(os.environ.get('DB_SOCKET_PATH'))
-                conn_string = conn_string + sub
+            socket_path = os.environ.get('DB_SOCKET_PATH', None)
+            if socket_path:
+                conn_string = 'mysql://{user}:@/?unix_socket={socket}'.\
+                    format(user=self._user, socket=socket_path)
+            else:
+                conn_string_pattern = 'mysql://{user}:{passwd}@{addr}'\
+                    '/{db_name}'
+                conn_string = conn_string_pattern.format(
+                    user=self._user, passwd=self._password,
+                    addr=self._addr, db_name=self._name)
+            logging.info('conn_string is [%s]', conn_string)
             self._engine = create_engine(conn_string, echo=False,
                                         pool_recycle=180)
             Base = automap_base()
