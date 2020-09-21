@@ -9,8 +9,8 @@ import { createTicket, updateTicket } from '../services/ticket';
 import {
   DATASOURCE_TICKET_REPLICA_TYPE,
   DATASOURCE_TICKET_PARAMS,
-  TRAINNING_TICKET_PARAMS,
-  TRAINNING_TICKET_REPLICA_TYPE
+  TRAINING_TICKET_PARAMS,
+  TRAINING_TICKET_REPLICA_TYPE
 } from '../constants/form-default'
 import { getParsedValueFromData, fillJSON, getValueFromJson, filterArrayValue, getValueFromEnv } from '../utils/form_utils';
 import { JOB_TYPE } from '../constants/job'
@@ -20,18 +20,30 @@ const PARAMS_GROUP = ['public_params', 'private_params']
 
 function fillField(data, field, editing) {
   if (data === undefined && !editing) return field
+
   let v = getValueFromJson(data, field.path || field.key)
+  let disabled = false
 
   const envPath = ENV_PATH.replace('[replicaType]', 'Master')
 
   if (field.key === 'raw_data') {
-    v = getValueFromEnv(data, envPath,'RAW_DATA_SUB_DIR')
+    v = getValueFromEnv(data['public_params'], envPath,'RAW_DATA_SUB_DIR')
+      || getValueFromEnv(data['private_params'], envPath,'RAW_DATA_SUB_DIR')
+  }
+  else if (field.key === 'federation_id') {
+    const federationID = parseInt(localStorage.getItem('federationID'))
+    if (federationID > 0) {
+      v = federationID
+      disabled = true
+    }
   }
   else if (field.key === 'num_partitions') {
-    v = getValueFromEnv(data, envPath, 'PARTITION_NUM')
+    v = getValueFromEnv(data['public_params'], envPath, 'PARTITION_NUM')
+      || getValueFromEnv(data['private_params'], envPath, 'PARTITION_NUM')
   }
   else if (field.key === 'image') {
     v = getValueFromJson(data['public_params'] || {}, field.path.replace('[replicaType]', 'Master'))
+      || getValueFromJson(data['private_params'] || {}, field.path.replace('[replicaType]', 'Master'))
   }
   else if (field.type === 'bool-select') {
     v = typeof v === 'boolean' ? v : true
@@ -46,6 +58,9 @@ function fillField(data, field, editing) {
 
   field.value = v
   field.editing = true
+
+  if (!field.props) field.props = {}
+  field.props.disabled = disabled
 
   return field
 }
@@ -90,7 +105,7 @@ const setFormMeta = data => formMeta = data
 
 export default function TicketList({
   datasoure,
-  trainning,
+  training,
   filter,
   ...props
 }) {
@@ -108,13 +123,13 @@ export default function TicketList({
 
   } else {
 
-    PAGE_NAME = 'trainning'
+    PAGE_NAME = 'training'
 
-    TICKET_REPLICA_TYPE = TRAINNING_TICKET_REPLICA_TYPE
+    TICKET_REPLICA_TYPE = TRAINING_TICKET_REPLICA_TYPE
 
-    TICKET_PARAMS = TRAINNING_TICKET_PARAMS
+    TICKET_PARAMS = TRAINING_TICKET_PARAMS
 
-    FILTER_TYPE = JOB_TYPE.trainning
+    FILTER_TYPE = JOB_TYPE.training
 
   }
 
@@ -192,7 +207,7 @@ export default function TicketList({
     draft.num_partitions && delete draft.num_partitions
 
   }, [])
-  const trainningRewrite = useCallback((draft, data) => {
+  const trainingRewrite = useCallback((draft, data) => {
 
   }, [])
   const rewriteFields = useCallback((draft, data) => {
@@ -201,8 +216,8 @@ export default function TicketList({
     if (datasoure) {
       dataSourceRewrite(draft, data)
     }
-    if (trainning) {
-      trainningRewrite(draft, data)
+    if (training) {
+      trainingRewrite(draft, data)
     }
   }, [])
   // ---end---

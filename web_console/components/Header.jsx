@@ -142,8 +142,8 @@ function isActive(tabValue, route) {
   if (/^\/datasource/.test(route)) {
     return ['/datasource/job', '/datasource/ticket'].some(el => tabValue === el)
   }
-  if (/^\/trainning/.test(route)) {
-    return ['/trainning/job', '/trainning/ticket'].some(el => tabValue === el)
+  if (/^\/training/.test(route)) {
+    return ['/training/job', '/training/ticket'].some(el => tabValue === el)
   }
   return tabValue === route
 }
@@ -189,14 +189,14 @@ export default function Header() {
         ]
       },
       {
-        label: 'Trainning',
-        value: '/trainning/job',
+        label: 'Training',
+        value: '/training/job',
         children: [
-          { label: 'Job', value: '/trainning/job' },
-          { label: 'Tickets', value: '/trainning/tickets' },
+          { label: 'Job', value: '/training/job' },
+          { label: 'Tickets', value: '/training/tickets' },
         ]
       },
-      // { label: 'Trainning', value: '/trainning' },
+      // { label: 'training', value: '/training' },
     ], [isAdmin])
 
   const PopoverContent = (
@@ -246,8 +246,8 @@ export default function Header() {
     '/raw_data',
     '/datasource/job',
     '/datasource/tickets',
-    '/trainning/job',
-    '/trainning/tickets'
+    '/training/job',
+    '/training/tickets'
   ].some(el => el === route)
   const { data: fedData } = useSWR('federations', fetcher)
   const federations = fedData ? fedData.data : null
