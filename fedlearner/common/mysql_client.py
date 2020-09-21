@@ -55,10 +55,14 @@ class MySQLClient(object):
 
 class RealMySQLClient(object):
     def __init__(self, name, addr, user, password, base_dir):
+        self._unix_socket = os.environ.get('DB_SOCKET_PATH', None)
         self._name = name
         self._addr = addr
         self._user = user
         self._password = password
+        if self._unix_socket:
+            self._addr = ''
+            self._password = ''
         self._base_dir = base_dir
         self._create_engine_inner()
         logging.info('success to create table')
@@ -216,16 +220,14 @@ class RealMySQLClient(object):
 
     def _create_engine_inner(self):
         try:
-            socket_path = os.environ.get('DB_SOCKET_PATH', None)
-            if socket_path:
-                conn_string = 'mysql://{user}:@/?unix_socket={socket}'.\
-                    format(user=self._user, socket=socket_path)
-            else:
-                conn_string_pattern = 'mysql://{user}:{passwd}@{addr}'\
+            conn_string_pattern = 'mysql+mysqldb://{user}:{passwd}@{addr}'\
                     '/{db_name}'
-                conn_string = conn_string_pattern.format(
-                    user=self._user, passwd=self._password,
-                    addr=self._addr, db_name=self._name)
+            conn_string = conn_string_pattern.format(
+                user=self._user, passwd=self._password,
+                addr=self._addr, db_name=self._name)
+            if self._unix_socket:
+                sub = '?unix_socke={}'.format(self._unix_socket)
+                conn_string = conn_string + sub
             logging.info('conn_string is [%s]', conn_string)
             self._engine = create_engine(conn_string, echo=False,
                                         pool_recycle=180)
