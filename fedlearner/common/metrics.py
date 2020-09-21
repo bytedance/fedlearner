@@ -146,7 +146,9 @@ def initialize_metrics():
     handler = LoggingHandler()
     metrics_config(handler)
 
-    if os.environ.get('ES_HOST', None) and os.environ.get('ES_PORT', None):
+    if os.environ.get('USE_ES_METRICS', None) == 'true' \
+            and os.environ.get('ES_HOST', None) \
+            and os.environ.get('ES_PORT', None):
         handler = ElasticSearchHandler(
             os.environ['ES_HOST'], os.environ['ES_PORT'])
         metrics_config(handler)
