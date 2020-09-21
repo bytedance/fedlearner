@@ -41,5 +41,5 @@ export function getJobStatus(job) {
   if (job.localdata?.status === 'stopped') {
     return JobStatus.Killed
   }
-  return handleStatus(job.status.appState)
+  return handleStatus(job?.status?.appState)
 }
