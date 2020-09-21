@@ -16,7 +16,7 @@ import { JOB_TYPE } from '../constants/job'
 //       "public_params": "null"
 //     },
 //     {
-//       "name": "test-trainning",
+//       "name": "test-training",
 //       "job_type": "nn_model",
 //       "role": "Follower",
 //       "sdk_version": "049ad50",

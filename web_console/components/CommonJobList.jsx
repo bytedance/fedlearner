@@ -100,13 +100,27 @@ function handleParamData(container, data, field) {
 
 function fillField(data, field) {
   if (data === undefined) return field
+
   let v = getValueFromJson(data, field.path || field.key) || field.emptyDefault || ''
+  let disabled = false
+
+  if (field.key === 'federation_id') {
+    const federationID = parseInt(localStorage.getItem('federationID'))
+    if (federationID > 0) {
+      v = federationID
+      disabled = true
+    }
+  }
+
   if (typeof v === 'object') {
     v = JSON.stringify(v, null, 2)
   }
 
   field.value = v
   field.editing = true
+
+  if (!field.props) field.props = {}
+  field.props.disabled = disabled
 
   return field
 }
@@ -141,7 +155,7 @@ const setFormMeta = value => { formMeta = value }
 
 export default function JobList({
   datasoure,
-  trainning,
+  training,
   filter,
   ...props
 }) {
@@ -161,13 +175,13 @@ export default function JobList({
 
   } else {
 
-    PAGE_NAME = 'trainning'
+    PAGE_NAME = 'training'
 
     JOB_REPLICA_TYPE = DATASOURCE_JOB_REPLICA_TYPE
 
-    NAME_KEY = 'TRAINNING_NAME'
+    NAME_KEY = 'TRAINING_NAME'
 
-    FILTER_TYPES = JOB_TYPE.trainning
+    FILTER_TYPES = JOB_TYPE.training
 
   }
 
@@ -319,7 +333,7 @@ export default function JobList({
       required: true,
       onChange: value => {
         jobType = value
-        setFields(handleFields(fields))
+        setFields(fields => handleFields(fields))
       },
     },
     {
@@ -338,7 +352,7 @@ export default function JobList({
       required: true,
       onChange: value => {
         federationId = value
-        setFields(handleFields(fields))
+        setFields(fields => handleFields(fields))
       },
       props: {
         initTrigerChange: true
@@ -447,6 +461,11 @@ export default function JobList({
   }, [label, labeledList, filterText]);
 
   const [formVisible, setFormVisible] = useState(false);
+
+  const onClickCreate = () => {
+    setFields(mapValueToFields({data: formMeta, fields: DEFAULT_FIELDS, init: true}))
+    setFormVisible(true);
+  }
   const toggleForm = useCallback(() => {
     if (formVisible) {
       setFields(DEFAULT_FIELDS)
@@ -555,7 +574,7 @@ export default function JobList({
                         onIconClick={search}
                       />
                     </form>
-                    <Button auto size="small" type="secondary" onClick={toggleForm}>Create Job</Button>
+                    <Button auto size="small" type="secondary" onClick={onClickCreate}>Create Job</Button>
                   </div>
                   <Fieldset.Group value={label} onChange={switchLabel}>
                     {
