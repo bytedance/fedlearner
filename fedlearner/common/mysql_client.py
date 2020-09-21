@@ -226,7 +226,7 @@ class RealMySQLClient(object):
                 user=self._user, passwd=self._password,
                 addr=self._addr, db_name=self._name)
             if self._unix_socket:
-                sub = '?unix_socke={}'.format(self._unix_socket)
+                sub = '?unix_socket={}'.format(self._unix_socket)
                 conn_string = conn_string + sub
             logging.info('conn_string is [%s]', conn_string)
             self._engine = create_engine(conn_string, echo=False,
