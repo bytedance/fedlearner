@@ -229,10 +229,18 @@ class RealMySQLClient(object):
         try:
             conn_string_pattern = 'mysql://{user}:{passwd}@{host}:'\
                 '{port}/{db_name}'
-            conn_string = conn_string_pattern.format(
-                user=self._user, passwd=self._password,
-                host=self._addr[0], port=self._addr[1],
-                db_name=self._name)
+            if os.environ.get('DB_SOCKET_PATH', None):
+                host = 'unix://{}'.\
+                    format(os.environ.get('DB_SOCKET_PATH'))
+                conn_string = conn_string_pattern.format(
+                    user=self._user, passwd='',
+                    host=host, port=self._addr[1],
+                    db_name=self._name)
+            else :
+                conn_string = conn_string_pattern.format(
+                    user=self._user, passwd=self._password,
+                    host=self._addr[0], port=self._addr[1],
+                    db_name=self._name)
             self._engine = create_engine(conn_string, echo=False,
                                         pool_recycle=180)
             Base = automap_base()
