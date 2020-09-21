@@ -29,6 +29,10 @@ function fillField(data, field, editing) {
   if (field.key === 'raw_data') {
     v = getValueFromEnv(data['public_params'], envPath,'RAW_DATA_SUB_DIR')
       || getValueFromEnv(data['private_params'], envPath,'RAW_DATA_SUB_DIR')
+    v = v.replace('portal_publish_dir/', '')
+  }
+  else if (field.key === 'name' && editing) {
+    disabled = true
   }
   else if (field.key === 'federation_id') {
     const federationID = parseInt(localStorage.getItem('federationID'))
@@ -47,6 +51,10 @@ function fillField(data, field, editing) {
   }
   else if (field.type === 'bool-select') {
     v = typeof v === 'boolean' ? v : true
+  }
+  // private_params is init as json
+  else if (field.key === 'private_params') {
+    v = data
   }
   else {
     v = v || field.emptyDefault || ''
@@ -164,33 +172,35 @@ export default function TicketList({
   const dataSourceRewrite = useCallback((draft, data) => {
     // envs
     const insert2Env = [
-      { name: 'RAW_DATA_SUB_DIR', getValue: data => data.raw_data.name },
+      { name: 'RAW_DATA_SUB_DIR', getValue: data => 'portal_publish_dir/' + data.raw_data.name },
       { name: 'PARTITION_NUM', getValue: data => data.num_partitions },
     ]
 
     PARAMS_GROUP.forEach(paramType => {
-      let masterPath = ENV_PATH.replace('[replicaType]', 'Master')
+      TICKET_REPLICA_TYPE.forEach(replicaType => {
+        let envPath = ENV_PATH.replace('[replicaType]', replicaType)
 
-      if (!draft[paramType]) {
-        draft[paramType] = {}
-      }
-
-      let envs = getValueFromJson(draft[paramType], masterPath)
-      if (!envs) { envs = [] }
-
-      let envNames = envs.map(env => env.name)
-      insert2Env.forEach(el => {
-        let idx = envNames.indexOf(el.name)
-        let value = el.getValue(data) || ''
-        if (idx >= 0) {
-          envs[idx].value = value.toString()
-        } else {
-          // here envs is not extensible, push will throw error
-          envs = envs.concat({name: el.name, value: value.toString()})
+        if (!draft[paramType]) {
+          draft[paramType] = {}
         }
+
+        let envs = getValueFromJson(draft[paramType], envPath)
+        if (!envs) { envs = [] }
+
+        let envNames = envs.map(env => env.name)
+        insert2Env.forEach(el => {
+          let idx = envNames.indexOf(el.name)
+          let value = el.getValue(data) || ''
+          if (idx >= 0) {
+            envs[idx].value = value.toString()
+          } else {
+            // here envs is not extensible, push will throw error
+            envs = envs.concat({name: el.name, value: value.toString()})
+          }
+        })
+        // trigger immer‘s intercepter
+        fillJSON(draft[paramType], envPath, envs)
       })
-      // trigger immer‘s intercepter
-      fillJSON(draft[paramType], masterPath, envs)
     })
 
     // replicas
