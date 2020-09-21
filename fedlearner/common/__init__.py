@@ -14,3 +14,5 @@
 
 # coding: utf-8
 """Common utilities and compiled protobuf."""
+
+import tensorflow_io
