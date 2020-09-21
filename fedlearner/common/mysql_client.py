@@ -56,7 +56,7 @@ class MySQLClient(object):
 class RealMySQLClient(object):
     def __init__(self, name, addr, user, password, base_dir):
         self._name = name
-        self._addr = self._normalize_addr(addr)
+        self._addr = addr
         self._user = user
         self._password = password
         self._base_dir = base_dir
@@ -196,17 +196,6 @@ class RealMySQLClient(object):
         return nkey
 
     @staticmethod
-    def _normalize_addr(addr):
-        (host, port_str) = addr.split(':')
-        try:
-            port = int(port_str)
-            if port < 0 or port > 65535:
-                raise ValueError('port {} is out of range')
-        except ValueError:
-            raise ValueError('{} is not a valid port'.format(port_str))
-        return (host, port_str)
-
-    @staticmethod
     def _normalize_input_key(key):
         skip_cnt = 0
         while key[skip_cnt] == '.' or key[skip_cnt] == '/':
@@ -227,20 +216,15 @@ class RealMySQLClient(object):
 
     def _create_engine_inner(self):
         try:
-            conn_string_pattern = 'mysql://{user}:{passwd}@{host}:'\
-                '{port}/{db_name}'
+            conn_string_pattern = 'mysql://{user}:{passwd}@{addr}'\
+                '/{db_name}'
+            conn_string = conn_string_pattern.format(
+                user=self._user, passwd=self._password,
+                addr=self._addr, db_name=self._name)
             if os.environ.get('DB_SOCKET_PATH', None):
-                host = 'unix://{}'.\
+                sub = '?unix_socket={}'.\
                     format(os.environ.get('DB_SOCKET_PATH'))
-                conn_string = conn_string_pattern.format(
-                    user=self._user, passwd='',
-                    host=host, port=self._addr[1],
-                    db_name=self._name)
-            else:
-                conn_string = conn_string_pattern.format(
-                    user=self._user, passwd=self._password,
-                    host=self._addr[0], port=self._addr[1],
-                    db_name=self._name)
+                conn_string = conn_string + sub
             self._engine = create_engine(conn_string, echo=False,
                                         pool_recycle=180)
             Base = automap_base()
