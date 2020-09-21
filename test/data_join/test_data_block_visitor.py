@@ -131,7 +131,6 @@ class TestDataBlockVisitor(unittest.TestCase):
                         meta.block_id == rep.block_id][0]
             except Exception as e:
                 print(e)
-                pass
             self.assertEqual(meta.block_id, rep.block_id)
             self.assertEqual(meta.start_time, rep.start_time)
             self.assertEqual(meta.end_time, rep.end_time)
