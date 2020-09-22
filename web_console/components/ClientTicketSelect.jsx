@@ -2,14 +2,14 @@ import React, { useCallback } from 'react';
 import { Select } from '@zeit-ui/react';
 import useSWR from 'swr';
 import { fetcher } from '../libs/http';
-import { JOB_TYPE } from '../constants/job'
+import { JOB_TYPE_CLASS } from '../constants/job'
 
 let filter = () => true
 export default function ClientTicketSelect({type, ...props}) {
   const { data } = useSWR('tickets', fetcher);
 
   if (type) {
-    filter = el => JOB_TYPE[type].some(t => el.job_type === t)
+    filter = el => JOB_TYPE_CLASS[type].some(t => el.job_type === t)
   }
 
   const tickets = data

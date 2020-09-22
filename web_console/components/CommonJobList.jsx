@@ -15,11 +15,11 @@ import Empty from '../components/Empty';
 import { deleteJob, createJob } from '../services/job';
 import Form from '../components/Form';
 import {
-  DATASOURCE_JOB_REPLICA_TYPE,
+  DATASOURCE_JOB_REPLICA_TYPE, JOB_DATA_JOIN_PARAMS, JOB_NN_PARAMS, JOB_PSI_DATA_JOIN_PARAMS, JOB_TREE_PARAMS,
 } from '../constants/form-default'
 import { getParsedValueFromData, fillJSON, getValueFromJson, getValueFromEnv } from '../utils/form_utils';
 import { getJobStatus } from '../utils/job'
-import { JOB_TYPE } from '../constants/job'
+import { JOB_TYPE_CLASS, JOB_TYPE } from '../constants/job'
 
 // import {mockJobList} from '../constants/mock_data'
 
@@ -101,8 +101,10 @@ function handleParamData(container, data, field) {
 function fillField(data, field) {
   if (data === undefined) return field
 
-  let v = getValueFromJson(data, field.path || field.key) || field.emptyDefault || ''
+  let isSetValueWithEmpty = false
   let disabled = false
+
+  let v = getValueFromJson(data, field.path || field.key) || field.emptyDefault || ''
 
   if (field.key === 'federation_id') {
     const federationID = parseInt(localStorage.getItem('federationID'))
@@ -116,7 +118,9 @@ function fillField(data, field) {
     v = JSON.stringify(v, null, 2)
   }
 
-  field.value = v
+  if (v || (!v && isSetValueWithEmpty)) {
+    field.value = v
+  }
   field.editing = true
 
   if (!field.props) field.props = {}
@@ -124,6 +128,19 @@ function fillField(data, field) {
 
   return field
 }
+
+let federationId = null, jobType = null
+
+const passFieldInfo = fields => produce(fields, draft => {
+  draft.map(field => {
+    if (field.key === 'client_ticket_name') {
+      field.props.job_type = jobType
+    }
+    if (field.key === 'server_ticket_name') {
+      field.props.federation_id = federationId
+    }
+  })
+})
 
 function mapValueToFields({data, fields, targetGroup, type = 'form', init = false}) {
   return produce(fields, draft => {
@@ -162,7 +179,7 @@ export default function JobList({
   const theme = useTheme();
   const styles = useStyles(theme);
 
-  let JOB_REPLICA_TYPE, NAME_KEY, FILTER_TYPES, PAGE_NAME
+  let JOB_REPLICA_TYPE, NAME_KEY, FILTER_TYPES, PAGE_NAME, INIT_PARAMS, DEFAULT_JOB_TYPE
   if (datasoure) {
 
     PAGE_NAME = 'datasource'
@@ -171,7 +188,11 @@ export default function JobList({
 
     NAME_KEY = 'DATA_SOURCE_NAME'
 
-    FILTER_TYPES = JOB_TYPE.datasource
+    FILTER_TYPES = JOB_TYPE_CLASS.datasource
+
+    INIT_PARAMS = JOB_DATA_JOIN_PARAMS
+
+    DEFAULT_JOB_TYPE = JOB_TYPE.data_join
 
   } else {
 
@@ -181,7 +202,11 @@ export default function JobList({
 
     NAME_KEY = 'TRAINING_NAME'
 
-    FILTER_TYPES = JOB_TYPE.training
+    FILTER_TYPES = JOB_TYPE_CLASS.training
+
+    INIT_PARAMS = JOB_NN_PARAMS
+
+    DEFAULT_JOB_TYPE = JOB_TYPE.nn_model
 
   }
 
@@ -207,28 +232,24 @@ export default function JobList({
         label: 'cpu request',
         path: RESOURCE_PATH_PREFIX.replace('[replicaType]', currType) + '.requests.cpu',
         span: 12,
-        default: '2000m'
       },
       {
         key: 'resoure.' + currType + '.cup_limit',
         label: 'cpu limit',
         path: RESOURCE_PATH_PREFIX.replace('[replicaType]', currType) + '.limits.cpu',
         span: 12,
-        default: '2000m'
       },
       {
         key: 'resoure.' + currType + '.memory_request',
         label: 'memory request',
         path: RESOURCE_PATH_PREFIX.replace('[replicaType]', currType) + '.requests.memory',
         span: 12,
-        default: '2Gi'
       },
       {
         key: 'resoure.' + currType + '.memory_limit',
         label: 'memory limit',
         path: RESOURCE_PATH_PREFIX.replace('[replicaType]', currType) + '.limits.memory',
         span: 12,
-        default: '2Gi'
       },
     ])
     return total
@@ -237,8 +258,6 @@ export default function JobList({
   const { data, mutate } = useSWR('jobs', fetcher);
   const jobs = data ? data.data.filter(el => el.metadata).filter(filter) : null
   // const jobs = mockJobList.data
-
-  let federationId = null, jobType = null
 
   // form meta convert functions
   const rewriteFields = useCallback((draft, data) => {
@@ -265,22 +284,12 @@ export default function JobList({
       })
     })
   }, [])
-  const mapFormMeta2Json = useCallback(() => {
+  const mapFormMeta2FullData = useCallback((fields = fields) => {
     let data = {}
     fields.map((x) => {
       if (x.groupName) {
-        data[x.groupName] = { [x.groupName]: formMeta[x.groupName] }
-      } else {
-        data[x.key] = formMeta[x.key]
-      }
-    })
-    return data
-  }, [])
-  const mapFormMeta2Form = useCallback(() => {
-    let data = {}
-    fields.map((x) => {
-      if (x.groupName) {
-        data[x.groupName] = formMeta[x.groupName]
+        data[x.groupName] = { ...formMeta[x.groupName] }
+        data[x.groupName][x.groupName] = formMeta[x.groupName]
       } else {
         data[x.key] = formMeta[x.key]
       }
@@ -321,6 +330,30 @@ export default function JobList({
     }))
   }, [])
   // ---end---
+  const onJobTypeChange = useCallback((value, totalData, groupFormType, updateFormWithFields) => {
+    writeFormMeta(totalData,groupFormType)
+
+    switch (value) {
+      case JOB_TYPE.data_join:
+        setFormMeta({...formMeta, ...JOB_DATA_JOIN_PARAMS}); break
+      case JOB_TYPE.psi_data_join:
+        setFormMeta({...formMeta, ...JOB_PSI_DATA_JOIN_PARAMS}); break
+      case JOB_TYPE.nn_model:
+        setFormMeta({...formMeta, ...JOB_NN_PARAMS}); break
+      case JOB_TYPE.tree_model:
+        setFormMeta({...formMeta, ...JOB_TREE_PARAMS}); break
+    }
+
+    jobType = value
+
+    updateFormWithFields(
+      passFieldInfo(mapValueToFields({
+        data: mapFormMeta2FullData(fields),
+        fields,
+        init: true,
+      }))
+    )
+  }, [])
   const DEFAULT_FIELDS = useMemo(() => [
     {
       key: 'name',
@@ -331,10 +364,16 @@ export default function JobList({
       type: 'jobType',
       props: {type: PAGE_NAME},
       required: true,
-      onChange: value => {
-        jobType = value
-        setFields(fields => handleFields(fields))
-      },
+      label: (
+        <>
+          <span style={{paddingRight: '4px'}}>job_type</span>
+          <Tooltip style={{color: '#444'}} text={<span className="formItemLabel">change job type will reset all params</span>}>
+            <span style={{position: 'relative', top: '4px'}}><AlertCircle size={16}/></span>
+          </Tooltip>
+        </>
+      ),
+      default: DEFAULT_JOB_TYPE,
+      onChange: onJobTypeChange,
     },
     {
       key: 'client_ticket_name',
@@ -352,7 +391,7 @@ export default function JobList({
       required: true,
       onChange: value => {
         federationId = value
-        setFields(fields => handleFields(fields))
+        setFields(fields => passFieldInfo(fields))
       },
       props: {
         initTrigerChange: true
@@ -378,7 +417,7 @@ export default function JobList({
           if (targetType === 'json') {
             writeForm2FormMeta(paramsType, data)
             newFields = mapValueToFields({
-              data: mapFormMeta2Json(paramsType),
+              data: mapFormMeta2FullData(fields),
               fields: fields.filter(el => el.groupName === paramsType),
               targetGroup: paramsType,
               type: 'json'
@@ -387,7 +426,7 @@ export default function JobList({
           if (targetType === 'form') {
             writeJson2FormMeta(paramsType, data)
             newFields = mapValueToFields({
-              data: mapFormMeta2Form(paramsType),
+              data: mapFormMeta2FullData(fields),
               fields: fields.filter(el => el.groupName === paramsType),
               targetGroup: paramsType,
               type: 'form'
@@ -416,17 +455,6 @@ export default function JobList({
   ], [])
 
   let [fields, setFields] = useState(DEFAULT_FIELDS)
-
-  const handleFields = fields => produce(fields, draft => {
-    draft.map(field => {
-      if (field.key === 'client_ticket_name') {
-        field.props.job_type = jobType
-      }
-      if (field.key === 'server_ticket_name') {
-        field.props.federation_id = federationId
-      }
-    })
-  })
 
   const labeledList = useMemo(() => {
     const allList = { name: 'All', list: jobs || [] };
@@ -463,8 +491,9 @@ export default function JobList({
   const [formVisible, setFormVisible] = useState(false);
 
   const onClickCreate = () => {
-    setFields(mapValueToFields({data: formMeta, fields: DEFAULT_FIELDS, init: true}))
-    setFormVisible(true);
+    setFormMeta({...INIT_PARAMS})
+    setFields(mapValueToFields({data: mapFormMeta2FullData(fields), fields, init: true}))
+    toggleForm()
   }
   const toggleForm = useCallback(() => {
     if (formVisible) {
@@ -477,7 +506,8 @@ export default function JobList({
     mutate();
     toggleForm();
   };
-  const onCreateJob = (data, groupFormType) => {
+
+  const writeFormMeta = (data, groupFormType) => {
     PARAMS_GROUP.forEach(paramType => {
       switch (groupFormType[paramType]) {
         case 'json':
@@ -487,6 +517,9 @@ export default function JobList({
           writeForm2FormMeta(paramType, data)
       }
     })
+  }
+  const onCreateJob = (data, groupFormType) => {
+    writeFormMeta(data, groupFormType)
     return createJob(formMeta);
   };
 
@@ -494,7 +527,7 @@ export default function JobList({
     setFormMeta(item.localdata)
 
     setFields(fields => mapValueToFields({
-      data: mapFormMeta2Form(),
+      data: mapFormMeta2FullData(fields),
       fields,
       type: 'form',
       init: true

@@ -139,6 +139,15 @@ export default function Form({
         [key]: value,
     }));
   };
+  const updateFormWithFields = useCallback((fields) => {
+    let [_, data] = mapFields2Form(handleFieldsToRender(fields))
+    setForm(form =>
+      Object.keys(form).reduce((total, curr) => {
+        total[curr] = data[curr] || form[curr]
+        return total
+      }, {})
+    )
+  }, [])
 
   const renderField = ({ key, label, props, type, onChange, hideLabel, callback }) => {
     const valueProps = {
@@ -218,7 +227,7 @@ export default function Form({
               onChange={(value) => {
                 updateForm(key, value);
                 if (onChange) {
-                  onChange(value);
+                  onChange(value, getFormatFormData(),groupFormType, updateFormWithFields);
                 }
               }}
               {...valueProps}
