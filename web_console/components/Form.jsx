@@ -10,6 +10,7 @@ import DataPortalTypeSelect from './DataPortalTypeSelect';
 import NameValueInput from './NameValueGroup';
 import RawDataSelect from './RawDataSelect'
 import BooleanSelect from './BooleanSelect'
+import DataSourceSelect from './DataSourceSelect'
 import produce from 'immer'
 
 function useStyles() {
@@ -378,6 +379,26 @@ export default function Form({
           <label className="formItemLabel" htmlFor={key}>{label || key}</label>
           <div className="formItemValue">
             <BooleanSelect
+              value={form[key]}
+              onChange={(value) => {
+                updateForm(key, value)
+                if (onChange) {
+                  onChange(value);
+                }
+              }}
+              {...valueProps}
+            />
+          </div>
+        </>
+      )
+    }
+
+    if (type === 'datasource') {
+      return (
+        <>
+          <label className="formItemLabel" htmlFor={key}>{label || key}</label>
+          <div className="formItemValue">
+            <DataSourceSelect
               value={form[key]}
               onChange={(value) => {
                 updateForm(key, value)

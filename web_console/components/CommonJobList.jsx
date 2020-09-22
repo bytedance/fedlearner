@@ -1,6 +1,7 @@
 import React, { useMemo, useState, useCallback } from 'react';
 import css from 'styled-jsx/css';
-import { Link, Text, Input, Fieldset, Button, Card, Description, useTheme, useInput } from '@zeit-ui/react';
+import { Link, Text, Input, Fieldset, Button, Card, Description, useTheme, useInput, Tooltip } from '@zeit-ui/react';
+import AlertCircle from '@geist-ui/react-icons/alertCircle'
 import Search from '@zeit-ui/react-icons/search';
 import NextLink from 'next/link';
 import useSWR from 'swr';
@@ -17,7 +18,7 @@ import Form from '../components/Form';
 import {
   DATASOURCE_JOB_REPLICA_TYPE, JOB_DATA_JOIN_PARAMS, JOB_NN_PARAMS, JOB_PSI_DATA_JOIN_PARAMS, JOB_TREE_PARAMS,
 } from '../constants/form-default'
-import { getParsedValueFromData, fillJSON, getValueFromJson, getValueFromEnv } from '../utils/form_utils';
+import { getParsedValueFromData, fillJSON, getValueFromJson, getValueFromEnv, filterArrayValue } from '../utils/form_utils';
 import { getJobStatus } from '../utils/job'
 import { JOB_TYPE_CLASS, JOB_TYPE } from '../constants/job'
 
@@ -106,12 +107,18 @@ function fillField(data, field) {
 
   let v = getValueFromJson(data, field.path || field.key) || field.emptyDefault || ''
 
+  const envPath = ENV_PATH.replace('[replicaType]', 'Master')
+
   if (field.key === 'federation_id') {
     const federationID = parseInt(localStorage.getItem('federationID'))
     if (federationID > 0) {
       v = federationID
       disabled = true
     }
+  }
+  else if (field.key === 'datasource') {
+    v = v = getValueFromEnv(data['public_params'], envPath, 'DATA_SOURCE')
+      || getValueFromEnv(data['private_params'], envPath, 'DATA_SOURCE')
   }
 
   if (typeof v === 'object') {
@@ -262,7 +269,12 @@ export default function JobList({
   // form meta convert functions
   const rewriteFields = useCallback((draft, data) => {
     // this function will be call inner immer
-    // name
+    // env
+    const insert2Env = filterArrayValue([
+      { name: NAME_KEY, getValue: data => data.name },
+      training && { name: 'DATA_SOURCE', getValue: data => data.datasource },
+    ])
+
     PARAMS_GROUP.forEach(paramType => {
       JOB_REPLICA_TYPE.forEach(replicaType => {
         if (!draft[paramType]) {
@@ -272,17 +284,25 @@ export default function JobList({
         if (!envs) return
 
         let envNames = envs.map(env => env.name)
-        let idx = envNames.indexOf(NAME_KEY)
-        if (idx >= 0) {
-          envs[idx].value = data.name
-        } else {
-          // here envs is not extensible, push will throw error
-          envs = envs.concat({name: NAME_KEY, value: data.name || ''})
-        }
+
+        insert2Env.forEach(el => {
+          let idx = envNames.indexOf(el.name)
+          let value = el.getValue(data) || ''
+          if (idx >= 0) {
+            envs[idx].value = value.toString()
+          } else {
+            // here envs is not extensible, push will throw error
+            envs = envs.concat({name: el.name, value: value.toString()})
+          }
+        })
+
         // trigger immer‘s intercepter
         fillJSON(draft[paramType], ENV_PATH.replace('[replicaType]', replicaType), envs)
       })
     })
+
+    // delete useless fields
+    draft.datasource && delete draft.datasource
   }, [])
   const mapFormMeta2FullData = useCallback((fields = fields) => {
     let data = {}
@@ -354,7 +374,7 @@ export default function JobList({
       }))
     )
   }, [])
-  const DEFAULT_FIELDS = useMemo(() => [
+  const DEFAULT_FIELDS = useMemo(() => filterArrayValue([
     {
       key: 'name',
       required: true,
@@ -401,11 +421,16 @@ export default function JobList({
       key: 'server_ticket_name',
       type: 'serverTicket',
       label: 'server_ticket',
-      // required: true,
+      required: true,
       props: {
         federation_id: null,
         type: PAGE_NAME,
       },
+    },
+    training && {
+      key: 'datasource',
+      type: 'datasource',
+      required: true,
     },
     ...PARAMS_GROUP.map(paramsType => ({
       groupName: paramsType,
@@ -452,7 +477,7 @@ export default function JobList({
         ]
       }
     }))
-  ], [])
+  ]), [])
 
   let [fields, setFields] = useState(DEFAULT_FIELDS)
 
