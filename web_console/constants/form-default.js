@@ -67,20 +67,14 @@ const JOB_DATA_JOIN_PARAMS = {
             "spec": {
               "containers": [
                 {
-                  "env": [
-                    {
-                      "name": "TRAINNING_NAME",
-                      "value": "test-train-1"
-                    }
-                  ],
                   "resources": {
-                    "requests": {
-                      "cpu": "3000m",
-                      "memory": "1234Gi"
-                    },
                     "limits": {
                       "cpu": "2000m",
-                      "memory": "2Gi"
+                      "memory": "3Gi"
+                    },
+                    "requests": {
+                      "cpu": "2000m",
+                      "memory": "3Gi"
                     }
                   }
                 }
@@ -89,24 +83,19 @@ const JOB_DATA_JOIN_PARAMS = {
           }
         },
         "Worker": {
+          "replicas": 2,
           "template": {
             "spec": {
               "containers": [
                 {
-                  "env": [
-                    {
-                      "name": "TRAINNING_NAME",
-                      "value": "test-train-1"
-                    }
-                  ],
                   "resources": {
-                    "requests": {
-                      "cpu": "2000m",
-                      "memory": "2Gi"
-                    },
                     "limits": {
                       "cpu": "2000m",
-                      "memory": "2Gi"
+                      "memory": "3Gi"
+                    },
+                    "requests": {
+                      "cpu": "2000m",
+                      "memory": "3Gi"
                     }
                   }
                 }
@@ -125,24 +114,14 @@ const JOB_DATA_JOIN_PARAMS = {
             "spec": {
               "containers": [
                 {
-                  "env": [
-                    {
-                      "name": "TRAINNING_NAME",
-                      "value": "test-train-1"
-                    },
-                    {
-                      "name": "test-flag",
-                      "value": "1234"
-                    }
-                  ],
                   "resources": {
-                    "requests": {
-                      "cpu": "1234m",
-                      "memory": "5Gi"
-                    },
                     "limits": {
-                      "cpu": "6789m",
-                      "memory": "10Gi"
+                      "cpu": "2000m",
+                      "memory": "2Gi"
+                    },
+                    "requests": {
+                      "cpu": "2000m",
+                      "memory": "2Gi"
                     }
                   }
                 }
@@ -151,24 +130,19 @@ const JOB_DATA_JOIN_PARAMS = {
           }
         },
         "Worker": {
+          "replicas": 2,
           "template": {
             "spec": {
               "containers": [
                 {
-                  "env": [
-                    {
-                      "name": "TRAINNING_NAME",
-                      "value": "test-train-1"
-                    }
-                  ],
                   "resources": {
-                    "requests": {
-                      "cpu": "2000m",
-                      "memory": "2Gi"
-                    },
                     "limits": {
                       "cpu": "2000m",
-                      "memory": "2Gi"
+                      "memory": "3Gi"
+                    },
+                    "requests": {
+                      "cpu": "2000m",
+                      "memory": "3Gi"
                     }
                   }
                 }
@@ -186,22 +160,17 @@ const JOB_PSI_DATA_JOIN_PARAMS = {
     "spec": {
       "flReplicaSpecs": {
         "Master": {
+          "replicas": 1,
           "template": {
             "spec": {
               "containers": [
                 {
-                  "env": [
-                    {
-                      "name": "TRAINNING_NAME",
-                      "value": "test-train-1"
-                    }
-                  ],
                   "resources": {
-                    "requests": {
-                      "cpu": "9876m",
+                    "limits": {
+                      "cpu": "2000m",
                       "memory": "2Gi"
                     },
-                    "limits": {
+                    "requests": {
                       "cpu": "2000m",
                       "memory": "2Gi"
                     }
@@ -212,24 +181,19 @@ const JOB_PSI_DATA_JOIN_PARAMS = {
           }
         },
         "Worker": {
+          "replicas": 2,
           "template": {
             "spec": {
               "containers": [
                 {
-                  "env": [
-                    {
-                      "name": "TRAINNING_NAME",
-                      "value": "test-train-1"
-                    }
-                  ],
                   "resources": {
-                    "requests": {
-                      "cpu": "2000m",
-                      "memory": "2Gi"
-                    },
                     "limits": {
-                      "cpu": "2000m",
-                      "memory": "2Gi"
+                      "cpu": "3000m",
+                      "memory": "4Gi"
+                    },
+                    "requests": {
+                      "cpu": "3000m",
+                      "memory": "4Gi"
                     }
                   }
                 }
@@ -240,32 +204,23 @@ const JOB_PSI_DATA_JOIN_PARAMS = {
       }
     }
   },
-  "client_params": {
+  "client_params":  {
     "spec": {
       "flReplicaSpecs": {
         "Master": {
+          "replicas": 1,
           "template": {
             "spec": {
               "containers": [
                 {
-                  "env": [
-                    {
-                      "name": "TRAINNING_NAME",
-                      "value": "test-train-1"
-                    },
-                    {
-                      "name": "test-flag",
-                      "value": "7890"
-                    }
-                  ],
                   "resources": {
-                    "requests": {
-                      "cpu": "2000m",
-                      "memory": "2Gi"
-                    },
                     "limits": {
                       "cpu": "2000m",
-                      "memory": "2Gi"
+                      "memory": "3Gi"
+                    },
+                    "requests": {
+                      "cpu": "2000m",
+                      "memory": "3Gi"
                     }
                   }
                 }
@@ -274,24 +229,19 @@ const JOB_PSI_DATA_JOIN_PARAMS = {
           }
         },
         "Worker": {
+          "replicas": 2,
           "template": {
             "spec": {
               "containers": [
                 {
-                  "env": [
-                    {
-                      "name": "TRAINNING_NAME",
-                      "value": "test-train-1"
-                    }
-                  ],
                   "resources": {
-                    "requests": {
-                      "cpu": "2000m",
-                      "memory": "2Gi"
-                    },
                     "limits": {
                       "cpu": "2000m",
-                      "memory": "2Gi"
+                      "memory": "4Gi"
+                    },
+                    "requests": {
+                      "cpu": "2000m",
+                      "memory": "4Gi"
                     }
                   }
                 }
@@ -313,7 +263,8 @@ const TICKET_DATA_JOIN_PARAMS = {
     "spec": {
       "flReplicaSpecs": {
         "Master": {
-          "pair": false,
+          "pair": true,
+          "replicas": 1,
           "template": {
             "spec": {
               "containers": [
@@ -341,7 +292,14 @@ const TICKET_DATA_JOIN_PARAMS = {
                     },
                     {
                       "name": "RAW_DATA_SUB_DIR",
-                      "value": "test-json"
+                      "value": ""
+                    }
+                  ],
+                  "image": "",
+                  "ports": [
+                    {
+                      "containerPort": 50051,
+                      "name": "flapp-port"
                     }
                   ],
                   "command": [
@@ -349,16 +307,15 @@ const TICKET_DATA_JOIN_PARAMS = {
                   ],
                   "args": [
                     "/app/deploy/scripts/data_join/run_data_join_master.sh"
-                  ],
-                  "image": "artifact.bytedance.com/fedlearner/fedlearner:049ad50"
+                  ]
                 }
               ]
             }
-          },
-          "replicas": 1
+          }
         },
         "Worker": {
           "pair": true,
+          "replicas": 2,
           "template": {
             "spec": {
               "containers": [
@@ -366,11 +323,11 @@ const TICKET_DATA_JOIN_PARAMS = {
                   "env": [
                     {
                       "name": "DATA_BLOCK_DUMP_INTERVAL",
-                      "value": "300"
+                      "value": "600"
                     },
                     {
                       "name": "DATA_BLOCK_DUMP_THRESHOLD",
-                      "value": "65536"
+                      "value": "262144"
                     },
                     {
                       "name": "EXAMPLE_ID_DUMP_INTERVAL",
@@ -390,15 +347,22 @@ const TICKET_DATA_JOIN_PARAMS = {
                     },
                     {
                       "name": "MIN_MATCHING_WINDOW",
-                      "value": "256"
+                      "value": "2048"
                     },
                     {
                       "name": "MAX_MATCHING_WINDOW",
-                      "value": "1024"
+                      "value": "8192"
                     },
                     {
                       "name": "RAW_DATA_ITER",
                       "value": "TF_RECORD"
+                    }
+                  ],
+                  "image": "",
+                  "ports": [
+                    {
+                      "containerPort": 50051,
+                      "name": "flapp-port"
                     }
                   ],
                   "command": [
@@ -406,57 +370,16 @@ const TICKET_DATA_JOIN_PARAMS = {
                   ],
                   "args": [
                     "/app/deploy/scripts/data_join/run_data_join_worker.sh"
-                  ],
-                  "image": "artifact.bytedance.com/fedlearner/fedlearner:049ad50"
-                }
-              ]
-            }
-          },
-          "replicas": 4
-        }
-      }
-    }
-  },
-  "private_params": {
-    "spec": {
-      "flReplicaSpecs": {
-        "Master": {
-          "template": {
-            "spec": {
-              "containers": [
-                {
-                  "image": "artifact.bytedance.com/fedlearner/fedlearner:049ad50",
-                  "env": [
-                    {
-                      "name": "RAW_DATA_SUB_DIR",
-                      "value": "test-json"
-                    },
-                    {
-                      "name": "PARTITION_NUM",
-                      "value": "4"
-                    }
                   ]
                 }
               ]
             }
-          },
-          "replicas": 1
-        },
-        "Worker": {
-          "template": {
-            "spec": {
-              "containers": [
-                {
-                  "image": "artifact.bytedance.com/fedlearner/fedlearner:049ad50"
-                }
-              ]
-            }
-          },
-          "replicas": 4
+          }
         }
       }
     }
-  }
+  },
+  "private_params": {}
 }
 
 const TICKET_PSI_DATA_JOIN_PARAMS = {
@@ -465,19 +388,12 @@ const TICKET_PSI_DATA_JOIN_PARAMS = {
       "flReplicaSpecs": {
         "Master": {
           "pair": true,
+          "replicas": 1,
           "template": {
             "spec": {
               "containers": [
                 {
                   "env": [
-                    {
-                      "name": "TEST FLAG",
-                      "value": "psi data join"
-                    },
-                    {
-                      "name": "BATCH_MODE",
-                      "value": "--batch_mode"
-                    },
                     {
                       "name": "PARTITION_NUM",
                       "value": "4"
@@ -496,7 +412,14 @@ const TICKET_PSI_DATA_JOIN_PARAMS = {
                     },
                     {
                       "name": "RAW_DATA_SUB_DIR",
-                      "value": "test-json"
+                      "value": ""
+                    }
+                  ],
+                  "image": "",
+                  "ports": [
+                    {
+                      "containerPort": 50051,
+                      "name": "flapp-port"
                     }
                   ],
                   "command": [
@@ -504,28 +427,43 @@ const TICKET_PSI_DATA_JOIN_PARAMS = {
                   ],
                   "args": [
                     "/app/deploy/scripts/data_join/run_data_join_master.sh"
-                  ],
-                  "image": "artifact.bytedance.com/fedlearner/fedlearner:049ad50"
+                  ]
                 }
               ]
             }
-          },
-          "replicas": 1
+          }
         },
         "Worker": {
           "pair": true,
+          "replicas": 2,
           "template": {
             "spec": {
               "containers": [
                 {
                   "env": [
                     {
+                      "name": "PSI_RAW_DATA_ITER",
+                      "value": "TF_RECORD"
+                    },
+                    {
+                      "name": "PSI_OUTPUT_BUILDER",
+                      "value": "TF_RECORD"
+                    },
+                    {
+                      "name": "RAW_DATA_ITER",
+                      "value": "TF_RECORD"
+                    },
+                    {
+                      "name": "DATA_BLOCK_BUILDER",
+                      "value": "TF_RECORD"
+                    },
+                    {
                       "name": "DATA_BLOCK_DUMP_INTERVAL",
-                      "value": "300"
+                      "value": "600"
                     },
                     {
                       "name": "DATA_BLOCK_DUMP_THRESHOLD",
-                      "value": "65536"
+                      "value": "2000"
                     },
                     {
                       "name": "EXAMPLE_ID_DUMP_INTERVAL",
@@ -533,11 +471,11 @@ const TICKET_PSI_DATA_JOIN_PARAMS = {
                     },
                     {
                       "name": "EXAMPLE_ID_DUMP_THRESHOLD",
-                      "value": "262144"
+                      "value": "2000"
                     },
                     {
-                      "name": "EXAMPLE_ID_BATCH_SIZE",
-                      "value": "4096"
+                      "name": "EXAMPLE_JOINER",
+                      "value": "SORT_RUN_JOINER"
                     },
                     {
                       "name": "MAX_FLYING_EXAMPLE_ID",
@@ -545,73 +483,83 @@ const TICKET_PSI_DATA_JOIN_PARAMS = {
                     },
                     {
                       "name": "MIN_MATCHING_WINDOW",
-                      "value": "256"
-                    },
-                    {
-                      "name": "MAX_MATCHING_WINDOW",
                       "value": "1024"
                     },
                     {
-                      "name": "RAW_DATA_ITER",
-                      "value": "TF_RECORD"
+                      "name": "MAX_MATCHING_WINDOW",
+                      "value": "8192"
+                    },
+                    {
+                      "name": "INPUT_BASE_DIR",
+                      "value": "/data/raw_data/mnist-tree/map_00000000"
+                    },
+                    {
+                      "name": "RAW_DATA_SUB_DIR",
+                      "value": ""
+                    },
+                    {
+                      "name": "RSA_KEY_PATH",
+                      "value": "/data/rsa_key/rsa_psi.pub"
+                    },
+                    {
+                      "name": "PSI_PROCESS_BATCH_SIZE",
+                      "value": "128"
+                    },
+                    {
+                      "name": "OFFLOAD_PROCESSOR_NUMBER",
+                      "value": "1"
+                    },
+                    {
+                      "name": "MAX_FLYING_ITEM",
+                      "value": "124102"
+                    },
+                    {
+                      "name": "MAX_FLYING_SIGNED_BATCH",
+                      "value": "1024"
+                    },
+                    {
+                      "name": "MAX_FLYING_SIGN_RPC",
+                      "value": "128"
+                    },
+                    {
+                      "name": "SLOW_SIGN_THRESHOLD",
+                      "value": "32"
+                    },
+                    {
+                      "name": "SORT_RUN_MERGER_READ_AHEAD_BUFFER",
+                      "value": "224288"
+                    },
+                    {
+                      "name": "STUB_FANOUT",
+                      "value": "4"
+                    },
+                    {
+                      "name": "SIGN_RPC_TIMEOUT_MS",
+                      "value": "128000"
+                    }
+                  ],
+                  "image": "",
+                  "ports": [
+                    {
+                      "containerPort": 50051,
+                      "name": "flapp-port"
                     }
                   ],
                   "command": [
                     "/app/deploy/scripts/wait4pair_wrapper.sh"
                   ],
                   "args": [
-                    "/app/deploy/scripts/data_join/run_data_join_worker.sh"
-                  ],
-                  "image": "artifact.bytedance.com/fedlearner/fedlearner:049ad50"
-                }
-              ]
-            }
-          },
-          "replicas": 4
-        }
-      }
-    }
-  },
-  "private_params": {
-    "spec": {
-      "flReplicaSpecs": {
-        "Master": {
-          "template": {
-            "spec": {
-              "containers": [
-                {
-                  "image": "artifact.bytedance.com/fedlearner/fedlearner:049ad50",
-                  "env": [
-                    {
-                      "name": "RAW_DATA_SUB_DIR",
-                      "value": "test-json"
-                    },
-                    {
-                      "name": "PARTITION_NUM",
-                      "value": "4"
-                    }
+                    "/app/deploy/scripts/data_join/run_psi_data_join_follower_worker.sh"
                   ]
                 }
               ]
             }
-          },
-          "replicas": 1
-        },
-        "Worker": {
-          "template": {
-            "spec": {
-              "containers": [
-                {
-                  "image": "artifact.bytedance.com/fedlearner/fedlearner:049ad50"
-                }
-              ]
-            }
-          },
-          "replicas": 4
+          }
         }
       }
     }
-  }
+  },
+  "private_params": {}
 }
 // ***************************************************************************************
 
@@ -673,7 +621,7 @@ const JOB_NN_PARAMS = {
                   "resources": {
                     "limits": {
                       "cpu": "2000m",
-                      "memory": "2Gi"
+                      "memory": "4Gi"
                     },
                     "requests": {
                       "cpu": "1000m",
@@ -763,48 +711,6 @@ const JOB_TREE_PARAMS = {
   "server_params": {
     "spec": {
       "flReplicaSpecs": {
-        "Master": {
-          "replicas": 1,
-          "template": {
-            "spec": {
-              "containers": [
-                {
-                  "resources": {
-                    "limits": {
-                      "cpu": "2000m",
-                      "memory": "2Gi"
-                    },
-                    "requests": {
-                      "cpu": "1000m",
-                      "memory": "2Gi"
-                    }
-                  }
-                }
-              ]
-            }
-          }
-        },
-        "PS": {
-          "replicas": 1,
-          "template": {
-            "spec": {
-              "containers": [
-                {
-                  "resources": {
-                    "limits": {
-                      "cpu": "2000m",
-                      "memory": "4Gi"
-                    },
-                    "requests": {
-                      "cpu": "1000m",
-                      "memory": "2Gi"
-                    }
-                  }
-                }
-              ]
-            }
-          }
-        },
         "Worker": {
           "replicas": 1,
           "template": {
@@ -817,7 +723,7 @@ const JOB_TREE_PARAMS = {
                       "memory": "2Gi"
                     },
                     "requests": {
-                      "cpu": "1000m",
+                      "cpu": "2000m",
                       "memory": "2Gi"
                     }
                   }
@@ -832,48 +738,6 @@ const JOB_TREE_PARAMS = {
   "client_params": {
     "spec": {
       "flReplicaSpecs": {
-        "Master": {
-          "replicas": 1,
-          "template": {
-            "spec": {
-              "containers": [
-                {
-                  "resources": {
-                    "limits": {
-                      "cpu": "2000m",
-                      "memory": "2Gi"
-                    },
-                    "requests": {
-                      "cpu": "2000m",
-                      "memory": "2Gi"
-                    }
-                  }
-                }
-              ]
-            }
-          }
-        },
-        "PS": {
-          "replicas": 1,
-          "template": {
-            "spec": {
-              "containers": [
-                {
-                  "resources": {
-                    "limits": {
-                      "cpu": "2000m",
-                      "memory": "4Gi"
-                    },
-                    "requests": {
-                      "cpu": "2000m",
-                      "memory": "4Gi"
-                    }
-                  }
-                }
-              ]
-            }
-          }
-        },
         "Worker": {
           "replicas": 1,
           "template": {
@@ -883,11 +747,11 @@ const JOB_TREE_PARAMS = {
                   "resources": {
                     "limits": {
                       "cpu": "2000m",
-                      "memory": "4Gi"
+                      "memory": "2Gi"
                     },
                     "requests": {
                       "cpu": "2000m",
-                      "memory": "4Gi"
+                      "memory": "2Gi"
                     }
                   }
                 }
@@ -903,308 +767,158 @@ const JOB_TREE_PARAMS = {
 // ***************************************************************************************
 
 // ************************************ taining ticket ************************************
-const TRAINING_TICKET_REPLICA_TYPE = ['Master', 'PS','Worker']
+const TRAINING_TICKET_REPLICA_TYPE = ['Master', 'PS', 'Worker']
 
 const TICKET_NN_PARAMS = {
   "public_params": {
     "spec": {
       "flReplicaSpecs": {
         "Master": {
-          "pair": true,
+          "replicas": 1,
+          "pair": false,
           "template": {
             "spec": {
               "containers": [
                 {
                   "env": [
                     {
-                      "name": "BATCH_MODE",
-                      "value": "--batch_mode"
-                    },
+                      "name": "DATA_SOURCE",
+                      "value": ""
+                    }
+                  ],
+                  "image": "",
+                  "ports": [
                     {
-                      "name": "PARTITION_NUM",
-                      "value": "4"
-                    },
-                    {
-                      "name": "START_TIME",
-                      "value": "0"
-                    },
-                    {
-                      "name": "END_TIME",
-                      "value": "999999999999"
-                    },
-                    {
-                      "name": "NEGATIVE_SAMPLING_RATE",
-                      "value": "1.0"
-                    },
-                    {
-                      "name": "RAW_DATA_SUB_DIR",
-                      "value": "test-json"
+                      "containerPort": 50051,
+                      "name": "flapp-port"
                     }
                   ],
                   "command": [
-                    "/app/deploy/scripts/wait4pair_wrapper.sh"
-                  ],
-                  "args": [
-                    "/app/deploy/scripts/data_join/run_data_join_master.sh"
-                  ],
-                  "image": "artifact.bytedance.com/fedlearner/fedlearner:049ad50"
-                }
-              ]
-            }
-          },
-          "replicas": 1
-        },
-        "Worker": {
-          "pair": true,
-          "template": {
-            "spec": {
-              "containers": [
-                {
-                  "env": [
-                    {
-                      "name": "DATA_BLOCK_DUMP_INTERVAL",
-                      "value": "300"
-                    },
-                    {
-                      "name": "DATA_BLOCK_DUMP_THRESHOLD",
-                      "value": "65536"
-                    },
-                    {
-                      "name": "EXAMPLE_ID_DUMP_INTERVAL",
-                      "value": "600"
-                    },
-                    {
-                      "name": "EXAMPLE_ID_DUMP_THRESHOLD",
-                      "value": "262144"
-                    },
-                    {
-                      "name": "EXAMPLE_ID_BATCH_SIZE",
-                      "value": "4096"
-                    },
-                    {
-                      "name": "MAX_FLYING_EXAMPLE_ID",
-                      "value": "307152"
-                    },
-                    {
-                      "name": "MIN_MATCHING_WINDOW",
-                      "value": "256"
-                    },
-                    {
-                      "name": "MAX_MATCHING_WINDOW",
-                      "value": "1024"
-                    },
-                    {
-                      "name": "RAW_DATA_ITER",
-                      "value": "TF_RECORD"
-                    }
-                  ],
-                  "command": [
-                    "/app/deploy/scripts/wait4pair_wrapper.sh"
-                  ],
-                  "args": [
-                    "/app/deploy/scripts/data_join/run_data_join_worker.sh"
-                  ],
-                  "image": "artifact.bytedance.com/fedlearner/fedlearner:049ad50"
-                }
-              ]
-            }
-          },
-          "replicas": 4
-        }
-      }
-    }
-  },
-  "private_params": {
-    "spec": {
-      "flReplicaSpecs": {
-        "Master": {
-          "template": {
-            "spec": {
-              "containers": [
-                {
-                  "image": "artifact.bytedance.com/fedlearner/fedlearner:049ad50",
-                  "env": [
-                    {
-                      "name": "RAW_DATA_SUB_DIR",
-                      "value": "test-json"
-                    },
-                    {
-                      "name": "PARTITION_NUM",
-                      "value": "4"
-                    }
+                    "/app/deploy/scripts/trainer/run_trainer_master.sh"
                   ]
                 }
               ]
             }
-          },
-          "replicas": 1
+          }
         },
-        "Worker": {
+        "PS": {
+          "pair": false,
           "template": {
             "spec": {
               "containers": [
                 {
-                  "image": "artifact.bytedance.com/fedlearner/fedlearner:049ad50"
+                  "env": [
+                  ],
+                  "image": "",
+                  "ports": [
+                    {
+                      "containerPort": 50051,
+                      "name": "flapp-port"
+                    }
+                  ],
+                  "command": [
+                    "/app/deploy/scripts/trainer/run_trainer_ps.sh"
+                  ]
                 }
               ]
             }
-          },
-          "replicas": 4
+          }
+        },
+        "Worker": {
+          "pair": true,
+          "template": {
+            "spec": {
+              "containers": [
+                {
+                  "env": [
+                    {
+                      "name": "CODE_KEY",
+                      "value": ""
+                    },
+                    {
+                      "name": "SAVE_CHECKPOINT_STEPS",
+                      "value": "1000"
+                    }
+                  ],
+                  "image": "",
+                  "ports": [
+                    {
+                      "containerPort": 50051,
+                      "name": "flapp-port"
+                    },
+                    {
+                      "containerPort": 50052,
+                      "name": "tf-port"
+                    }
+                  ],
+                  "command": [
+                    "/app/deploy/scripts/wait4pair_wrapper.sh"
+                  ],
+                  "args": [
+                    "/app/deploy/scripts/trainer/run_trainer_worker.sh"
+                  ]
+                }
+              ]
+            }
+          }
         }
       }
     }
-  }
+  },
+  "private_params": {}
 }
 
 const TICKET_TREE_PARAMS = {
   "public_params": {
     "spec": {
       "flReplicaSpecs": {
-        "Master": {
-          "pair": true,
-          "template": {
-            "spec": {
-              "containers": [
-                {
-                  "env": [
-                    {
-                      "name": "BATCH_MODE",
-                      "value": "--batch_mode"
-                    },
-                    {
-                      "name": "PARTITION_NUM",
-                      "value": "4"
-                    },
-                    {
-                      "name": "START_TIME",
-                      "value": "0"
-                    },
-                    {
-                      "name": "END_TIME",
-                      "value": "999999999999"
-                    },
-                    {
-                      "name": "NEGATIVE_SAMPLING_RATE",
-                      "value": "1.0"
-                    },
-                    {
-                      "name": "RAW_DATA_SUB_DIR",
-                      "value": "test-json"
-                    }
-                  ],
-                  "command": [
-                    "/app/deploy/scripts/wait4pair_wrapper.sh"
-                  ],
-                  "args": [
-                    "/app/deploy/scripts/data_join/run_data_join_master.sh"
-                  ],
-                  "image": "artifact.bytedance.com/fedlearner/fedlearner:049ad50"
-                }
-              ]
-            }
-          },
-          "replicas": 1
-        },
         "Worker": {
           "pair": true,
+          "replicas": 1,
           "template": {
             "spec": {
               "containers": [
                 {
                   "env": [
                     {
-                      "name": "DATA_BLOCK_DUMP_INTERVAL",
-                      "value": "300"
+                      "name": "DATA_PATH",
+                      "value": ""
                     },
                     {
-                      "name": "DATA_BLOCK_DUMP_THRESHOLD",
-                      "value": "65536"
+                      "name": "FILE_EXT",
+                      "value": ".data"
                     },
                     {
-                      "name": "EXAMPLE_ID_DUMP_INTERVAL",
-                      "value": "600"
+                      "name": "SEND_SCORES_TO_FOLLOWER",
+                      "value": ""
                     },
                     {
-                      "name": "EXAMPLE_ID_DUMP_THRESHOLD",
-                      "value": "262144"
-                    },
+                      "name": "MODE",
+                      "value": "train"
+                    }
+                  ],
+                  "image": "",
+                  "ports": [
                     {
-                      "name": "EXAMPLE_ID_BATCH_SIZE",
-                      "value": "4096"
-                    },
-                    {
-                      "name": "MAX_FLYING_EXAMPLE_ID",
-                      "value": "307152"
-                    },
-                    {
-                      "name": "MIN_MATCHING_WINDOW",
-                      "value": "256"
-                    },
-                    {
-                      "name": "MAX_MATCHING_WINDOW",
-                      "value": "1024"
-                    },
-                    {
-                      "name": "RAW_DATA_ITER",
-                      "value": "TF_RECORD"
+                      "containerPort": 50051,
+                      "name": "flapp-port"
                     }
                   ],
                   "command": [
                     "/app/deploy/scripts/wait4pair_wrapper.sh"
                   ],
                   "args": [
-                    "/app/deploy/scripts/data_join/run_data_join_worker.sh"
-                  ],
-                  "image": "artifact.bytedance.com/fedlearner/fedlearner:049ad50"
-                }
-              ]
-            }
-          },
-          "replicas": 4
-        }
-      }
-    }
-  },
-  "private_params": {
-    "spec": {
-      "flReplicaSpecs": {
-        "Master": {
-          "template": {
-            "spec": {
-              "containers": [
-                {
-                  "image": "artifact.bytedance.com/fedlearner/fedlearner:049ad50",
-                  "env": [
-                    {
-                      "name": "RAW_DATA_SUB_DIR",
-                      "value": "test-json"
-                    },
-                    {
-                      "name": "PARTITION_NUM",
-                      "value": "4"
-                    }
+                    "/app/deploy/scripts/trainer/run_tree_worker.sh"
                   ]
                 }
               ]
             }
-          },
-          "replicas": 1
-        },
-        "Worker": {
-          "template": {
-            "spec": {
-              "containers": [
-                {
-                  "image": "artifact.bytedance.com/fedlearner/fedlearner:049ad50"
-                }
-              ]
-            }
-          },
-          "replicas": 4
+          }
         }
       }
     }
-  }
+  },
+  "private_params": {}
 }
 // ***************************************************************************************
 
@@ -1227,41 +941,56 @@ const RAW_DATA_CONTEXT = {
               "containers": [
                 {
                   "resources": {
-                    "requests": {
-                      "cpu": "1000m",
-                      "memory": "2Gi"
-                    },
                     "limits": {
-                      "cpu": "1000m",
-                      "memory": "2Gi"
+                      "cpu": "2000m",
+                      "memory": "3Gi"
+                    },
+                    "requests": {
+                      "cpu": "2000m",
+                      "memory": "3Gi"
                     }
                   },
-                  "image": "/"
+                  "image": "",
+                  "ports": [
+                    {
+                      "containerPort": 50051,
+                      "name": "flapp-port"
+                    }
+                  ],
+                  "command": [
+                    "/app/deploy/scripts/data_portal/run_data_portal_master.sh"
+                  ],
+                  "args": []
                 }
               ]
             }
           }
         },
         "Worker": {
+          "replicas": 2,
           "template": {
             "spec": {
               "containers": [
                 {
                   "resources": {
                     "limits": {
-                      "cpu": "1000m",
-                      "memory": "2Gi"
+                      "cpu": "2000m",
+                      "memory": "4Gi"
                     },
                     "requests": {
-                      "memory": "2Gi"
+                      "cpu": "2000m",
+                      "memory": "4Gi"
                     }
                   },
-                  "image": "/"
+                  "image": "",
+                  "command": [
+                    "/app/deploy/scripts/data_portal/run_data_portal_worker.sh"
+                  ],
+                  "args": []
                 }
               ]
             }
-          },
-          "replicas": 4
+          }
         }
       }
     }
