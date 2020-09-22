@@ -238,7 +238,11 @@ export default function JobList({
         span: 24,
         emptyDefault: [],
         props: {
-          ignoreKeys: ['DATA_SOURCE_NAME']
+          ignoreKeys: filterArrayValue([
+            datasoure && 'DATA_SOURCE_NAME',
+            training && 'TRAINING_NAME',
+            training && 'DATA_SOURCE'
+          ])
         }
       },
       {
