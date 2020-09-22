@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useMemo } from 'react';
-import { Table, Button, Card, Text, Link } from '@zeit-ui/react';
+import { Table, Button, Card, Text, Link, Tooltip } from '@zeit-ui/react';
+import AlertCircle from '@geist-ui/react-icons/alertCircle'
 import useSWR from 'swr';
 import produce from 'immer'
 import Layout from './Layout';
@@ -8,12 +9,14 @@ import { fetcher } from '../libs/http';
 import { createTicket, updateTicket } from '../services/ticket';
 import {
   DATASOURCE_TICKET_REPLICA_TYPE,
-  DATASOURCE_TICKET_PARAMS,
-  TRAINING_TICKET_PARAMS,
-  TRAINING_TICKET_REPLICA_TYPE
+  TRAINING_TICKET_REPLICA_TYPE,
+  TICKET_DATA_JOIN_PARAMS,
+  TICKET_NN_PARAMS,
+  TICKET_PSI_DATA_JOIN_PARAMS,
+  TICKET_TREE_PARAMS
 } from '../constants/form-default'
 import { getParsedValueFromData, fillJSON, getValueFromJson, filterArrayValue, getValueFromEnv } from '../utils/form_utils';
-import { JOB_TYPE } from '../constants/job'
+import { JOB_TYPE_CLASS, JOB_TYPE } from '../constants/job'
 
 const ENV_PATH = 'spec.flReplicaSpecs.[replicaType].template.spec.containers[].env'
 const PARAMS_GROUP = ['public_params', 'private_params']
@@ -21,14 +24,20 @@ const PARAMS_GROUP = ['public_params', 'private_params']
 function fillField(data, field, editing) {
   if (data === undefined && !editing) return field
 
-  let v = getValueFromJson(data, field.path || field.key)
+  let isSetValueWithEmpty = false
   let disabled = false
+
+  let v = getValueFromJson(data, field.path || field.key)
 
   const envPath = ENV_PATH.replace('[replicaType]', 'Master')
 
   if (field.key === 'raw_data') {
     v = getValueFromEnv(data['public_params'], envPath,'RAW_DATA_SUB_DIR')
       || getValueFromEnv(data['private_params'], envPath,'RAW_DATA_SUB_DIR')
+    v = v.replace('portal_publish_dir/', '')
+  }
+  else if (field.key === 'name' && editing) {
+    disabled = true
   }
   else if (field.key === 'federation_id') {
     const federationID = parseInt(localStorage.getItem('federationID'))
@@ -48,6 +57,10 @@ function fillField(data, field, editing) {
   else if (field.type === 'bool-select') {
     v = typeof v === 'boolean' ? v : true
   }
+  // private_params is init as json
+  else if (field.key === 'private_params') {
+    v = data
+  }
   else {
     v = v || field.emptyDefault || ''
   }
@@ -56,7 +69,9 @@ function fillField(data, field, editing) {
     v = JSON.stringify(v, null, 2)
   }
 
-  field.value = v
+  if (v || (!v && isSetValueWithEmpty)) {
+    field.value = v
+  }
   field.editing = true
 
   if (!field.props) field.props = {}
@@ -110,16 +125,18 @@ export default function TicketList({
   ...props
 }) {
 
-  let TICKET_REPLICA_TYPE, TICKET_PARAMS, FILTER_TYPE, PAGE_NAME
+  let TICKET_REPLICA_TYPE, INIT_PARAMS, FILTER_TYPE, PAGE_NAME, DEFAULT_JOB_TYPE
   if (datasoure) {
 
     PAGE_NAME = 'datasource'
 
     TICKET_REPLICA_TYPE = DATASOURCE_TICKET_REPLICA_TYPE
 
-    TICKET_PARAMS = DATASOURCE_TICKET_PARAMS
+    INIT_PARAMS = TICKET_DATA_JOIN_PARAMS
 
-    FILTER_TYPE = JOB_TYPE.datasource
+    FILTER_TYPE = JOB_TYPE_CLASS.datasource
+
+    DEFAULT_JOB_TYPE = JOB_TYPE.data_join
 
   } else {
 
@@ -127,9 +144,11 @@ export default function TicketList({
 
     TICKET_REPLICA_TYPE = TRAINING_TICKET_REPLICA_TYPE
 
-    TICKET_PARAMS = TRAINING_TICKET_PARAMS
+    INIT_PARAMS = TICKET_NN_PARAMS
 
-    FILTER_TYPE = JOB_TYPE.training
+    FILTER_TYPE = JOB_TYPE_CLASS.training
+
+    DEFAULT_JOB_TYPE = JOB_TYPE.nn_model
 
   }
 
@@ -164,33 +183,35 @@ export default function TicketList({
   const dataSourceRewrite = useCallback((draft, data) => {
     // envs
     const insert2Env = [
-      { name: 'RAW_DATA_SUB_DIR', getValue: data => data.raw_data.name },
+      { name: 'RAW_DATA_SUB_DIR', getValue: data => data.raw_data && 'portal_publish_dir/' + data.raw_data.name },
       { name: 'PARTITION_NUM', getValue: data => data.num_partitions },
     ]
 
     PARAMS_GROUP.forEach(paramType => {
-      let masterPath = ENV_PATH.replace('[replicaType]', 'Master')
+      TICKET_REPLICA_TYPE.forEach(replicaType => {
+        let envPath = ENV_PATH.replace('[replicaType]', replicaType)
 
-      if (!draft[paramType]) {
-        draft[paramType] = {}
-      }
-
-      let envs = getValueFromJson(draft[paramType], masterPath)
-      if (!envs) { envs = [] }
-
-      let envNames = envs.map(env => env.name)
-      insert2Env.forEach(el => {
-        let idx = envNames.indexOf(el.name)
-        let value = el.getValue(data) || ''
-        if (idx >= 0) {
-          envs[idx].value = value.toString()
-        } else {
-          // here envs is not extensible, push will throw error
-          envs = envs.concat({name: el.name, value: value.toString()})
+        if (!draft[paramType]) {
+          draft[paramType] = {}
         }
+
+        let envs = getValueFromJson(draft[paramType], envPath)
+        if (!envs) { envs = [] }
+
+        let envNames = envs.map(env => env.name)
+        insert2Env.forEach(el => {
+          let idx = envNames.indexOf(el.name)
+          let value = el.getValue(data) || ''
+          if (idx >= 0) {
+            envs[idx].value = value.toString()
+          } else {
+            // here envs is not extensible, push will throw error
+            envs = envs.concat({name: el.name, value: value.toString()})
+          }
+        })
+        // trigger immer‘s intercepter
+        fillJSON(draft[paramType], envPath, envs)
       })
-      // trigger immer‘s intercepter
-      fillJSON(draft[paramType], masterPath, envs)
     })
 
     // replicas
@@ -222,22 +243,12 @@ export default function TicketList({
   }, [])
   // ---end---
   // form meta convert functions
-  const mapFormMeta2Json = useCallback(() => {
+  const mapFormMeta2FullData = useCallback((fields = fields) => {
     let data = {}
     fields.map((x) => {
       if (x.groupName) {
-        data[x.groupName] = { [x.groupName]: formMeta[x.groupName] }
-      } else {
-        data[x.key] = formMeta[x.key]
-      }
-    })
-    return data
-  }, [])
-  const mapFormMeta2Form = useCallback(() => {
-    let data = {}
-    fields.map((x) => {
-      if (x.groupName) {
-        data[x.groupName] = formMeta[x.groupName]
+        data[x.groupName] = { ...formMeta[x.groupName] }
+        data[x.groupName][x.groupName] = formMeta[x.groupName]
       } else {
         data[x.key] = formMeta[x.key]
       }
@@ -281,7 +292,7 @@ export default function TicketList({
       if (targetType === 'json') {
         writeForm2FormMeta(paramsType, data)
         newFields = mapValueToFields({
-          data: mapFormMeta2Json(paramsType),
+          data: mapFormMeta2FullData(fields),
           fields: fields.filter(el => el.groupName === paramsType),
           targetGroup: paramsType,
           type: 'json'
@@ -290,7 +301,7 @@ export default function TicketList({
       if (targetType === 'form') {
         writeJson2FormMeta(paramsType, data)
         newFields = mapValueToFields({
-          data: mapFormMeta2Form(paramsType),
+          data: mapFormMeta2FullData(fields),
           fields: fields.filter(el => el.groupName === paramsType),
           targetGroup: paramsType,
           type: 'form'
@@ -303,6 +314,29 @@ export default function TicketList({
   }
   // --end---
 
+  const onJobTypeChange = useCallback((value, totalData, groupFormType, updateFormWithFields) => {
+    writeFormMeta(totalData,groupFormType)
+
+    switch (value) {
+      case JOB_TYPE.data_join:
+        setFormMeta({...formMeta, ...TICKET_DATA_JOIN_PARAMS}); break
+      case JOB_TYPE.psi_data_join:
+        setFormMeta({...formMeta, ...TICKET_PSI_DATA_JOIN_PARAMS}); break
+      case JOB_TYPE.nn_model:
+        setFormMeta({...formMeta, ...TICKET_NN_PARAMS}); break
+      case JOB_TYPE.tree_model:
+        setFormMeta({...formMeta, ...TICKET_TREE_PARAMS}); break
+    }
+
+    updateFormWithFields(
+      mapValueToFields({
+        data: mapFormMeta2FullData(fields),
+        fields,
+        init: true,
+      })
+    )
+  }, [])
+
   const PUBLIC_PARAMS_FIELDS = useMemo(() => TICKET_REPLICA_TYPE.reduce(
     (total, replicaType) => {
       const replicaKey = key => `${replicaType}.${key}`
@@ -314,7 +348,6 @@ export default function TicketList({
           label: 'pair',
           type: 'bool-select',
           path: `spec.flReplicaSpecs.${replicaType}.pair`,
-          default: TICKET_PARAMS[replicaType].pair,
         },
         {
           key: replicaKey('env'),
@@ -322,7 +355,6 @@ export default function TicketList({
           type: 'name-value',
           path: `spec.flReplicaSpecs.${replicaType}.template.spec.containers[].env`,
           emptyDefault: [],
-          default: TICKET_PARAMS[replicaType].env,
           props: {
             ignoreKeys: ['PARTITION_NUM']
           },
@@ -334,7 +366,6 @@ export default function TicketList({
           type: 'json',
           path: `spec.flReplicaSpecs.${replicaType}.template.spec.containers[].command`,
           emptyDefault: [],
-          default: TICKET_PARAMS[replicaType].command,
           span: 24,
         },
         {
@@ -342,7 +373,6 @@ export default function TicketList({
           label: 'args',
           type: 'json',
           path: `spec.flReplicaSpecs.${replicaType}.template.spec.containers[].args`,
-          default: TICKET_PARAMS[replicaType].args,
           emptyDefault: [],
           span: 24,
         }
@@ -358,8 +388,18 @@ export default function TicketList({
     {
       key: 'job_type',
       type: 'jobType',
+      label: (
+        <>
+          <span style={{paddingRight: '4px'}}>job_type</span>
+          <Tooltip style={{color: '#444'}} text={<span className="formItemLabel">change job type will reset all params</span>}>
+            <span style={{position: 'relative', top: '4px'}}><AlertCircle size={16}/></span>
+          </Tooltip>
+        </>
+      ),
       props: {type: PAGE_NAME},
       required: true,
+      default: DEFAULT_JOB_TYPE,
+      onChange: onJobTypeChange,
     },
     { key: 'role', type: 'jobRole', required: true },
     { key: 'expire_time' },
@@ -427,6 +467,7 @@ export default function TicketList({
     setFormVisible(!formVisible)
   };
   const onCreate = () => {
+    setFormMeta({ ...INIT_PARAMS })
     setFields(mapValueToFields({data: formMeta, fields: DEFAULT_FIELDS, init: true}))
     setFormVisible(true);
   }
@@ -441,12 +482,16 @@ export default function TicketList({
     setFields(mapValueToFields({data: ticket, fields: DEFAULT_FIELDS, editing: true}));
     setFormVisible(true);
   };
-  const handleSubmit = (value, formTypes) => {
+
+  const writeFormMeta = (data, formTypes) => {
     const writer = formTypes['public_params'] === 'json'
       ? writeJson2FormMeta : writeForm2FormMeta
-    writer('public_params', value)
+    writer('public_params', data)
 
-    writeJson2FormMeta('private_params', value)
+    writeJson2FormMeta('private_params', data)
+  }
+  const handleSubmit = (data, formTypes) => {
+    writeFormMeta(data, formTypes)
 
     if (currentTicket) {
       return updateTicket(currentTicket.id, formMeta);
