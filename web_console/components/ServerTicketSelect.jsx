@@ -2,7 +2,7 @@ import React from 'react';
 import { Select, Popover, Code } from '@zeit-ui/react';
 import useSWR from 'swr';
 import { fetcher } from '../libs/http';
-import { JOB_TYPE } from '../constants/job'
+import { JOB_TYPE_CLASS } from '../constants/job'
 
 // const mockRes = {
 //   "data": [
@@ -31,7 +31,7 @@ let filter = () => true
 export default function ServerTicketSelect({type, ...props}) {
 
   if (type) {
-    filter = el => JOB_TYPE[type].some(t => el.job_type === t)
+    filter = el => JOB_TYPE_CLASS[type].some(t => el.job_type === t)
   }
 
   const { data } = useSWR(
