@@ -36,15 +36,15 @@ from fedlearner.data_join.sort_run_merger import SortRunMerger
 from fedlearner.data_join.common import partition_repr, get_heap_mem_stats
 
 class RsaPsiPreProcessor(object):
-    def __init__(self, options, mysql_name, mysql_base_dir,
-                 mysql_addr, mysql_user, mysql_password,
-                 use_mock_mysql=False):
+    def __init__(self, options, db_database, db_base_dir,
+                 db_addr, db_username, db_password,
+                 use_mock_db=False):
         self._lock = threading.Condition()
         self._options = options
-        mysql = DBClient(mysql_name, mysql_addr, mysql_user,
-                            mysql_password, mysql_base_dir, use_mock_mysql)
+        kvstore = DBClient(db_database, db_addr, db_username,
+                            db_password, db_base_dir, use_mock_db)
         pub_dir = self._options.raw_data_publish_dir
-        self._publisher = RawDataPublisher(mysql, pub_dir)
+        self._publisher = RawDataPublisher(kvstore, pub_dir)
         self._process_pool_executor = \
                 concur_futures.ProcessPoolExecutor(
                         options.offload_processor_number
@@ -52,7 +52,7 @@ class RsaPsiPreProcessor(object):
         self._callback_submitter = None
         # pre fock sub processor before launch grpc client
         self._process_pool_executor.submit(min, 1, 2).result()
-        self._id_batch_fetcher = IdBatchFetcher(mysql, self._options)
+        self._id_batch_fetcher = IdBatchFetcher(kvstore, self._options)
         if self._options.role == common_pb.FLRole.Leader:
             private_key = rsa.PrivateKey.load_pkcs1(options.rsa_key_pem)
             self._psi_rsa_signer = LeaderPsiRsaSigner(

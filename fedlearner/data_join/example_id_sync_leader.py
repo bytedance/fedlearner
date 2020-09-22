@@ -24,13 +24,13 @@ from fedlearner.data_join.transmit_leader import TransmitLeader
 
 class ExampleIdSyncLeader(TransmitLeader):
     class ImplContext(TransmitLeader.ImplContext):
-        def __init__(self, mysql, data_source, raw_data_manifest,
+        def __init__(self, kvstore, data_source, raw_data_manifest,
                      raw_data_options, batch_processor_options):
             super(ExampleIdSyncLeader.ImplContext, self).__init__(
                     raw_data_manifest
                 )
             self.example_id_batch_fetcher = ExampleIdBatchFetcher(
-                    mysql, data_source, raw_data_manifest.partition_id,
+                    kvstore, data_source, raw_data_manifest.partition_id,
                     raw_data_options, batch_processor_options
                 )
             if raw_data_manifest.finished:
@@ -71,10 +71,10 @@ class ExampleIdSyncLeader(TransmitLeader):
         def get_flying_item_cnt(self):
             return self.example_id_batch_fetcher.get_flying_item_count()
 
-    def __init__(self, peer_client, master_client, rank_id, mysql,
+    def __init__(self, peer_client, master_client, rank_id, kvstore,
                  data_source, raw_data_options, batch_processor_options):
         super(ExampleIdSyncLeader, self).__init__(peer_client, master_client,
-                                                  rank_id, mysql, data_source,
+                                                  rank_id, kvstore, data_source,
                                                   'example_id_syner_leader')
         self._raw_data_options = raw_data_options
         self._batch_processor_options = batch_processor_options
@@ -91,7 +91,7 @@ class ExampleIdSyncLeader(TransmitLeader):
                    tags={'role': 'transmit_leader'})
     def _make_new_impl_ctx(self, raw_data_manifest):
         return ExampleIdSyncLeader.ImplContext(
-                self._mysql, self._data_source, raw_data_manifest,
+                self._kvstore, self._data_source, raw_data_manifest,
                 self._raw_data_options, self._batch_processor_options
             )
 

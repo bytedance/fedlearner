@@ -29,7 +29,7 @@ from fedlearner.data_join.common import (
     DataBlockSuffix, encode_data_block_meta_fname,
     load_data_block_meta, encode_data_block_fname,
     decode_block_id, retrieve_data_source, partition_repr,
-    partition_manifest_mysql_key, data_source_data_block_dir
+    partition_manifest_kvstore_key, data_source_data_block_dir
 )
 
 class DataBlockRep(object):
@@ -104,13 +104,14 @@ class DataBlockRep(object):
         return self._data_block_index
 
 class DataBlockVisitor(object):
-    def __init__(self, data_source_name, mysql_name,
-                 mysql_base_dir, mysql_addr, mysql_user,
-                 mysql_password, use_mock_mysql=False):
-        self._mysql = DBClient(mysql_name, mysql_addr, mysql_user,
-                                  mysql_password, mysql_base_dir,
-                                  use_mock_mysql)
-        self._data_source = retrieve_data_source(self._mysql, data_source_name)
+    def __init__(self, data_source_name, db_database,
+                 db_base_dir, db_addr, db_username,
+                 db_password, use_mock_db=False):
+        self._kvstore = DBClient(db_database, db_addr, db_username,
+                                  db_password, db_base_dir,
+                                  use_mock_db)
+        self._data_source = retrieve_data_source(self._kvstore,
+                                                 data_source_name)
 
     def LoadDataBlockRepByTimeFrame(self, start_time=None, end_time=None):
         if (end_time is not None and
@@ -194,9 +195,9 @@ class DataBlockVisitor(object):
         return self._data_source.data_source_meta.name
 
     def _sync_raw_data_manifest(self, partition_id):
-        mysql_key = partition_manifest_mysql_key(self._data_source_name(),
+        kvstore_key = partition_manifest_kvstore_key(self._data_source_name(),
                                                partition_id)
-        data = self._mysql.get_data(mysql_key)
+        data = self._kvstore.get_data(kvstore_key)
         assert data is not None, "raw data manifest of partition "\
                                  "{} must be existed".format(partition_id)
         return text_format.Parse(data, dj_pb.RawDataManifest())

@@ -26,8 +26,8 @@ from fedlearner.common import data_join_service_pb2 as dj_pb
 from fedlearner.data_join import common
 
 class RawDataPublisher(object):
-    def __init__(self, mysql, raw_data_pub_dir):
-        self._mysql = mysql
+    def __init__(self, kvstore, raw_data_pub_dir):
+        self._kvstore = kvstore
         self._raw_data_pub_dir = raw_data_pub_dir
 
     def publish_raw_data(self, partition_id, fpaths, timestamps=None):
@@ -62,10 +62,11 @@ class RawDataPublisher(object):
                 logging.warning("partition %d has been published finish tag "\
                                 "at index %d", partition_id, next_pub_index-1)
                 break
-            mysql_key = common.raw_data_pub_mysql_key(self._raw_data_pub_dir,
+            kvstore_key = common.raw_data_pub_kvstore_key(
+                                                    self._raw_data_pub_dir,
                                                     partition_id,
                                                     next_pub_index)
-            if self._mysql.cas(mysql_key, None, data):
+            if self._kvstore.cas(kvstore_key, None, data):
                 logging.info("Success publish %s at index %d for partition"\
                              "%d", data, next_pub_index, partition_id)
                 next_pub_index += 1
@@ -90,12 +91,14 @@ class RawDataPublisher(object):
                                                      next_pub_index)
             if self._check_finish_tag(partition_id, next_pub_index-1):
                 logging.warning("partition %d has been published finish tag"\
-                                "at index %d", partition_id, next_pub_index-1)
+                                "at index %d", partition_id,
+                                next_pub_index-1)
                 break
-            mysql_key = common.raw_data_pub_mysql_key(self._raw_data_pub_dir,
+            kvstore_key = common.raw_data_pub_kvstore_key(
+                                                    self._raw_data_pub_dir,
                                                     partition_id,
                                                     next_pub_index)
-            if self._mysql.cas(mysql_key, None, data):
+            if self._kvstore.cas(kvstore_key, None, data):
                 logging.info("Success finish raw data for partition"\
                              "%d", partition_id)
                 break
@@ -106,28 +109,30 @@ class RawDataPublisher(object):
             right_index = 1 << 63
             while left_index <= right_index:
                 index = (left_index + right_index) // 2
-                mysql_key = common.raw_data_pub_mysql_key(
+                kvstore_key = common.raw_data_pub_kvstore_key(
                         self._raw_data_pub_dir, partition_id, index
                     )
-                if self._mysql.get_data(mysql_key) is not None:
+                if self._kvstore.get_data(kvstore_key) is not None:
                     left_index = index + 1
                 else:
                     right_index = index - 1
             return right_index + 1
         while True:
-            mysql_key = common.raw_data_pub_mysql_key(self._raw_data_pub_dir,
+            kvstore_key = common.raw_data_pub_kvstore_key(
+                                                    self._raw_data_pub_dir,
                                                     partition_id,
                                                     next_pub_index)
-            if self._mysql.get_data(mysql_key) is None:
+            if self._kvstore.get_data(kvstore_key) is None:
                 return next_pub_index
             next_pub_index += 1
 
     def _check_finish_tag(self, partition_id, last_index):
         if last_index >= 0:
-            mysql_key = common.raw_data_pub_mysql_key(self._raw_data_pub_dir,
+            kvstore_key = common.raw_data_pub_kvstore_key(
+                                                    self._raw_data_pub_dir,
                                                     partition_id,
                                                     last_index)
-            data = self._mysql.get_data(mysql_key)
+            data = self._kvstore.get_data(kvstore_key)
             if data is not None:
                 pub_item = text_format.Parse(data, dj_pb.RawDatePub())
                 return pub_item.HasField('raw_data_finished')

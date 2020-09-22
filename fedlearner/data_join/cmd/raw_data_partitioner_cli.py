@@ -66,15 +66,15 @@ if __name__ == "__main__":
                         help='the number of partitioner worker for input data')
     parser.add_argument('--partitioner_rank_id', type=int, required=True,
                         help='the rank id of partitioner')
-    parser.add_argument('--mysql_name', type=str, default='test_mysql',
+    parser.add_argument('--db_database', type=str, default='test_mysql',
                         help='the name of mysql cluster')
-    parser.add_argument('--mysql_addr', type=str, default='localhost:2379',
+    parser.add_argument('--db_addr', type=str, default='localhost:2379',
                         help='the addr of mysql server')
-    parser.add_argument('--mysql_user', type=str,
+    parser.add_argument('--db_username', type=str,
                         default='test_user', help='the user of mysql')
-    parser.add_argument('--mysql_password', type=str,
+    parser.add_argument('--db_password', type=str,
                         default='test_password', help='the password of mysql')
-    parser.add_argument('--mysql_base_dir', type=str, default='fedlearner_test',
+    parser.add_argument('--db_base_dir', type=str, default='fedlearner_test',
                         help='the namespace of mysql key')
     parser.add_argument('--part_field', type=str, default='raw_id',
                         help='the field for raw data partition')
@@ -131,9 +131,9 @@ if __name__ == "__main__":
             )
         )
     partitioner = RawDataPartitioner(partitioner_options, args.part_field,
-                                     args.mysql_name, args.mysql_base_dir,
-                                     args.mysql_addr, args.mysql_user,
-                                     args.mysql_password)
+                                     args.db_database, args.db_base_dir,
+                                     args.db_addr, args.db_username,
+                                     args.db_password)
     logging.info("RawDataPartitioner %s of rank %d launched",
                  partitioner_options.partitioner_name,
                  partitioner_options.partitioner_rank_id)

@@ -21,13 +21,13 @@ from fedlearner.data_join.transmit_follower import TransmitFollower
 
 class ExampleIdSyncFollower(TransmitFollower):
     class ImplContext(TransmitFollower.ImplContext):
-        def __init__(self, mysql, data_source,
+        def __init__(self, kvstore, data_source,
                      partition_id, example_id_dump_options):
             super(ExampleIdSyncFollower.ImplContext, self).__init__(
                     partition_id
                 )
             self.example_id_dumper_manager = \
-                    ExampleIdDumperManager(mysql, data_source,
+                    ExampleIdDumperManager(kvstore, data_source,
                                            partition_id,
                                            example_id_dump_options)
 
@@ -54,8 +54,8 @@ class ExampleIdSyncFollower(TransmitFollower):
         def is_sync_content_finished(self):
             return self.example_id_dumper_manager.is_sync_example_id_finished()
 
-    def __init__(self, mysql, data_source, example_id_dump_options):
-        super(ExampleIdSyncFollower, self).__init__(mysql, data_source,
+    def __init__(self, kvstore, data_source, example_id_dump_options):
+        super(ExampleIdSyncFollower, self).__init__(kvstore, data_source,
                                                     'example_id_sync_follower')
         self._example_id_dump_options = example_id_dump_options
 
@@ -63,7 +63,7 @@ class ExampleIdSyncFollower(TransmitFollower):
                    tags={'role': 'transmit_follower'})
     def _make_new_impl_ctx(self, partition_id):
         return ExampleIdSyncFollower.ImplContext(
-                self._mysql, self._data_source,
+                self._kvstore, self._data_source,
                 partition_id, self._example_id_dump_options
             )
 

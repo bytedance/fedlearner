@@ -34,17 +34,17 @@ if __name__ == "__main__":
                         help='the addr(uuid) of local data join master')
     parser.add_argument('rank_id', type=int,
                         help='the rank id for this worker')
-    parser.add_argument('--mysql_name', type=str,
+    parser.add_argument('--db_database', type=str,
                         default='test_mysql', help='the name of mysql')
-    parser.add_argument('--mysql_base_dir', type=str, default='fedlearner_test',
+    parser.add_argument('--db_base_dir', type=str, default='fedlearner_test',
                         help='the namespace of mysql key')
-    parser.add_argument('--mysql_addr', type=str,
+    parser.add_argument('--db_addr', type=str,
                         default='localhost:4578', help='the addr of mysql')
-    parser.add_argument('--mysql_user', type=str,
+    parser.add_argument('--db_username', type=str,
                         default='test_user', help='the user of mysql')
-    parser.add_argument('--mysql_password', type=str,
+    parser.add_argument('--db_password', type=str,
                         default='test_password', help='the password of mysql')
-    parser.add_argument('--use_mock_mysql', action='store_true',
+    parser.add_argument('--use_mock_db', action='store_true',
                         help='use to mock mysql for test')
     parser.add_argument('--listen_port', '-p', type=int, default=4132,
                         help='Listen port of data join master')
@@ -87,7 +87,7 @@ if __name__ == "__main__":
                         help='the compressed type for data block')
     args = parser.parse_args()
     worker_options = dj_pb.DataJoinWorkerOptions(
-            use_mock_mysql=args.use_mock_mysql,
+            use_mock_db=args.use_mock_db,
             raw_data_options=dj_pb.RawDataOptions(
                     raw_data_iter=args.raw_data_iter,
                     compressed_type=args.compressed_type,
@@ -116,7 +116,7 @@ if __name__ == "__main__":
         )
     worker_srv = DataJoinWorkerService(args.listen_port, args.peer_addr,
                                        args.master_addr, args.rank_id,
-                                       args.mysql_name, args.mysql_base_dir,
-                                       args.mysql_addr, args.mysql_user,
-                                       args.mysql_password, worker_options)
+                                       args.db_database, args.db_base_dir,
+                                       args.db_addr, args.db_username,
+                                       args.db_password, worker_options)
     worker_srv.run()

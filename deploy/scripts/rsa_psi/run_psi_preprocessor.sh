@@ -66,11 +66,11 @@ python -m fedlearner.data_join.cmd.rsa_psi_preprocessor_cli \
     --output_file_dir="$OUTPUT_BASE_DIR/psi_output" \
     --raw_data_publish_dir=$RAW_DATA_PUBLISH_DIR \
     --partition_id=$INDEX \
-    --mysql_name=$MYSQL_NAME \
-    --mysql_addr=$MYSQL_ADDR \
-    --mysql_base_dir=$MYSQL_BASE_DIR \
-    --mysql_user=$MYSQL_USER \
-    --mysql_password=$MYSQL_PASSWORD \
+    --db_database=$DB_DATABASE \
+    --db_addr=$DB_ADDR \
+    --db_base_dir=$DB_BASE_DIR \
+    --db_username=$DB_USERNAME \
+    --db_password=$DB_PASSWORD \
     $preprocessor_name $input_file_paths $input_dir $input_file_subscribe_dir \
     $max_flying_sign_batch $slow_sign_threshold \
     $sort_run_merger_read_ahead_buffer \

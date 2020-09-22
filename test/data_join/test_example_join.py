@@ -63,14 +63,14 @@ class TestExampleJoin(unittest.TestCase):
             gfile.DeleteRecursively(self.data_source.output_base_dir)
         if gfile.Exists(self.raw_data_dir):
             gfile.DeleteRecursively(self.raw_data_dir)
-        self.mysql = mysql_client.DBClient('test_cluster', 'localhost:2379',
+        self.kvstore = mysql_client.DBClient('test_cluster', 'localhost:2379',
                                               'test_user', 'test_password',
                                               'fedlearner', True)
-        self.mysql.delete_prefix(common.data_source_mysql_base_dir(self.data_source.data_source_meta.name))
+        self.kvstore.delete_prefix(common.data_source_db_base_dir(self.data_source.data_source_meta.name))
         self.total_raw_data_count = 0
         self.total_example_id_count = 0
         self.manifest_manager = raw_data_manifest_manager.RawDataManifestManager(
-            self.mysql, self.data_source)
+            self.kvstore, self.data_source)
         self.g_data_block_index = 0
 
     def generate_raw_data(self, begin_index, item_count):
@@ -79,7 +79,7 @@ class TestExampleJoin(unittest.TestCase):
             gfile.MakeDirs(raw_data_dir)
         self.total_raw_data_count += item_count
         useless_index = 0
-        rdm = raw_data_visitor.RawDataManager(self.mysql, self.data_source, 0)
+        rdm = raw_data_visitor.RawDataManager(self.kvstore, self.data_source, 0)
         fpaths = []
         for block_index in range(0, item_count // 2048):
             builder = DataBlockBuilder(
@@ -173,7 +173,7 @@ class TestExampleJoin(unittest.TestCase):
                 self.example_joiner_options,
                 self.raw_data_options,
                 dj_pb.WriterOptions(output_writer='TF_RECORD'),
-                self.mysql, self.data_source, 0
+                self.kvstore, self.data_source, 0
             )
         metas = []
         with sei.make_example_joiner() as joiner:
@@ -182,7 +182,7 @@ class TestExampleJoin(unittest.TestCase):
         self.assertEqual(len(metas), 0)
         self.generate_raw_data(0, 2 * 2048)
         dumper = example_id_dumper.ExampleIdDumperManager(
-                self.mysql, self.data_source, 0, self.example_id_dump_options
+                self.kvstore, self.data_source, 0, self.example_id_dump_options
             )
         self.generate_example_id(dumper, 0, 3 * 2048)
         with sei.make_example_joiner() as joiner:
@@ -233,7 +233,7 @@ class TestExampleJoin(unittest.TestCase):
             gfile.DeleteRecursively(self.data_source.output_base_dir)
         if gfile.Exists(self.raw_data_dir):
             gfile.DeleteRecursively(self.raw_data_dir)
-        self.mysql.delete_prefix(common.data_source_mysql_base_dir(self.data_source.data_source_meta.name))
+        self.kvstore.delete_prefix(common.data_source_db_base_dir(self.data_source.data_source_meta.name))
 
 if __name__ == '__main__':
     unittest.main()

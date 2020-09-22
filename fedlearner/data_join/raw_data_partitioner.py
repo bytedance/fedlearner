@@ -58,12 +58,12 @@ class RawDataBatch(ItemBatch):
         self._raw_datas.append(item)
 
 class RawDataBatchFetcher(ItemBatchSeqProcessor):
-    def __init__(self, mysql, options):
+    def __init__(self, kvstore, options):
         super(RawDataBatchFetcher, self).__init__(
                 options.batch_processor_options.max_flying_item,
             )
         self._raw_data_visitor = FileBasedMockRawDataVisitor(
-                mysql, options.raw_data_options,
+                kvstore, options.raw_data_options,
                 '{}-partitioner-mock-data-source-{:04}'.format(
                         options.partitioner_name,
                         options.partitioner_rank_id
@@ -206,15 +206,15 @@ class RawDataPartitioner(object):
                     )
             return self._writer
 
-    def __init__(self, options, part_field, mysql_name,
-                 mysql_base_dir, mysql_addr, mysql_user,
-                 mysql_password, use_mock_mysql=False):
+    def __init__(self, options, part_field, db_database,
+                 db_base_dir, db_addr, db_username,
+                 db_password, use_mock_db=False):
         self._options = options
         self._part_field = part_field
-        mysql = DBClient(mysql_name, mysql_addr,
-                            mysql_user, mysql_password,
-                            mysql_base_dir, use_mock_mysql)
-        self._raw_data_batch_fetcher = RawDataBatchFetcher(mysql, options)
+        kvstore = DBClient(db_database, db_addr,
+                            db_username, db_password,
+                            db_base_dir, use_mock_db)
+        self._raw_data_batch_fetcher = RawDataBatchFetcher(kvstore, options)
         self._next_part_index = None
         self._dumped_process_index = None
         self._flying_writers = []

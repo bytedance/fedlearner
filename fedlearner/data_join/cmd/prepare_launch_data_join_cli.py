@@ -40,15 +40,15 @@ if __name__ == "__main__":
                         help='the role of data join')
     parser.add_argument('--output_base_dir', type=str, required=True,
                         help='the directory of for output data for data join')
-    parser.add_argument('--mysql_name', type=str, default='test_mysql',
+    parser.add_argument('--db_database', type=str, default='test_mysql',
                         help='the name of mysql client')
-    parser.add_argument('--mysql_addr', type=str, required=True,
+    parser.add_argument('--db_addr', type=str, required=True,
                         help='the addrs of mysql')
-    parser.add_argument('--mysql_base_dir', type=str, required=True,
+    parser.add_argument('--db_base_dir', type=str, required=True,
                         help='the namespace of mysql key')
-    parser.add_argument('--mysql_user', type=str, default='test_user',
+    parser.add_argument('--db_username', type=str, default='test_user',
                         help='the user of mysql')
-    parser.add_argument('--mysql_password', type=str, default='test_password',
+    parser.add_argument('--db_password', type=str, default='test_password',
                         help='the password of mysql')
     parser.add_argument('--raw_data_sub_dir', type=str, required=True,
                         help='the mysql base dir to subscribe new raw data')
@@ -68,16 +68,16 @@ if __name__ == "__main__":
     data_source.output_base_dir = args.output_base_dir
     data_source.raw_data_sub_dir = args.raw_data_sub_dir
     data_source.state = common_pb.DataSourceState.Init
-    mysql = DBClient(args.mysql_name, args.mysql_addr,
-                     args.mysql_user, args.mysql_password,
-                     args.mysql_base_dir)
-    master_mysql_key = common.data_source_mysql_base_dir(
+    kvstore = DBClient(args.db_database, args.db_addr,
+                     args.db_username, args.db_password,
+                     args.db_base_dir)
+    master_kvstore_key = common.data_source_db_base_dir(
             data_source.data_source_meta.name
         )
-    raw_data = mysql.get_data(master_mysql_key)
+    raw_data = kvstore.get_data(master_kvstore_key)
     if raw_data is None:
         logging.info("data source %s is not existed", args.data_source_name)
-        common.commit_data_source(mysql, data_source)
+        common.commit_data_source(kvstore, data_source)
         logging.info("apply new data source %s", args.data_source_name)
     else:
         logging.info("data source %s has been existed", args.data_source_name)

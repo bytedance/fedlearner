@@ -63,13 +63,13 @@ class ExampleIdBatch(ItemBatch):
         return iter(zip(self._example_ids, self._event_times))
 
 class ExampleIdBatchFetcher(ItemBatchSeqProcessor):
-    def __init__(self, mysql, data_source, partition_id,
+    def __init__(self, kvstore, data_source, partition_id,
                  raw_data_options, batch_processor_options):
         super(ExampleIdBatchFetcher, self).__init__(
                 batch_processor_options.max_flying_item
             )
         self._raw_data_visitor = RawDataVisitor(
-                mysql, data_source, partition_id, raw_data_options
+                kvstore, data_source, partition_id, raw_data_options
             )
         self._batch_size = batch_processor_options.batch_size
         self._partition_id = partition_id

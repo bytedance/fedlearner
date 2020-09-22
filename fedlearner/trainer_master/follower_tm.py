@@ -22,11 +22,11 @@ from fedlearner.trainer_master.data.data_block_set import DataBlockSet
 from fedlearner.data_join.data_block_visitor import DataBlockVisitor
 from .trainer_master import TrainerMaster
 
-MYSQL_NAME = os.environ.get('MYSQL_NAME', None)
-MYSQL_ADDR = os.environ.get('MYSQL_ADDR', None)
-MYSQL_BASE_DIR = os.environ.get('MYSQL_BASE_DIR', None)
-MYSQL_USER = os.environ.get('MYSQL_USER', None)
-MYSQL_PASSWORD = os.environ.get('MYSQL_PASSWORD', None)
+db_database = os.environ.get('DB_DATABASE', None)
+db_addr = os.environ.get('DB_ADDR', None)
+db_base_dir = os.environ.get('DB_BASE_DIR', None)
+db_username = os.environ.get('DB_USERNAME', None)
+db_password = os.environ.get('DB_PASSWORD', None)
 
 
 
@@ -37,8 +37,8 @@ class FollowerTrainerMaster(TrainerMaster):
                                                     None, online_training)
         self._data_block_set = DataBlockSet()
         self._data_block_visitor = DataBlockVisitor(
-            data_source, MYSQL_NAME, MYSQL_BASE_DIR, MYSQL_ADDR,
-                MYSQL_USER, MYSQL_PASSWORD)
+            data_source, db_database, db_base_dir, db_addr,
+                db_username, db_password)
         self._start_time = start_time
         self._end_time = end_time
 

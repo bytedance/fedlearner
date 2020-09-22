@@ -39,17 +39,17 @@ class TestRawDataVisitor(unittest.TestCase):
         self.data_source.data_source_meta.name = 'fclh_test'
         self.data_source.data_source_meta.partition_num = 1
         self.raw_data_dir = "./raw_data"
-        self.mysql = mysql_client.DBClient('test_cluster', 'localhost:2379',
+        self.kvstore = mysql_client.DBClient('test_cluster', 'localhost:2379',
                                               'test_user', 'test_password',
                                               'fedlearner', True)
-        self.mysql.delete_prefix(common.data_source_mysql_base_dir(self.data_source.data_source_meta.name))
+        self.kvstore.delete_prefix(common.data_source_db_base_dir(self.data_source.data_source_meta.name))
         self.assertEqual(self.data_source.data_source_meta.partition_num, 1)
         partition_dir = os.path.join(self.raw_data_dir, common.partition_repr(0))
         if gfile.Exists(partition_dir):
             gfile.DeleteRecursively(partition_dir)
         gfile.MakeDirs(partition_dir)
         self.manifest_manager = raw_data_manifest_manager.RawDataManifestManager(
-            self.mysql, self.data_source)
+            self.kvstore, self.data_source)
 
     def _gen_raw_data_file(self, start_index, end_index, no_data=False):
         partition_dir = os.path.join(self.raw_data_dir, common.partition_repr(0))
@@ -77,7 +77,7 @@ class TestRawDataVisitor(unittest.TestCase):
         self.manifest_manager.add_raw_data(0, fpaths, True)
 
     def test_raw_data_manager(self):
-        rdm = raw_data_visitor.RawDataManager(self.mysql, self.data_source, 0)
+        rdm = raw_data_visitor.RawDataManager(self.kvstore, self.data_source, 0)
         self.assertEqual(len(rdm.get_index_metas()), 0)
         self.assertFalse(rdm.check_index_meta_by_process_index(0))
         self._gen_raw_data_file(0, 2)
@@ -115,7 +115,7 @@ class TestRawDataVisitor(unittest.TestCase):
         self.assertEqual(manifest.sync_example_id_rep.rank_id, rank_id)
         raw_data_options = dj_pb.RawDataOptions(raw_data_iter='TF_RECORD', read_ahead_size=1<<20, read_batch_size=128)
         rdv = raw_data_visitor.RawDataVisitor( 
-                self.mysql, self.data_source,
+                self.kvstore, self.data_source,
                 manifest.partition_id, raw_data_options
             )
         self.assertRaises(StopIteration, rdv.seek, 0)
@@ -166,7 +166,7 @@ class TestRawDataVisitor(unittest.TestCase):
         self.assertEqual(expected_index, 400)
         self.assertTrue(rdv.finished())
         rdv2 = raw_data_visitor.RawDataVisitor( 
-                self.mysql, self.data_source,
+                self.kvstore, self.data_source,
                 manifest.partition_id, raw_data_options
             )
         expected_index = 0
@@ -178,7 +178,7 @@ class TestRawDataVisitor(unittest.TestCase):
         self.assertTrue(rdv2.finished())
 
     def tearDown(self):
-        self.mysql.delete_prefix(common.data_source_mysql_base_dir(self.data_source.data_source_meta.name))
+        self.kvstore.delete_prefix(common.data_source_db_base_dir(self.data_source.data_source_meta.name))
         if gfile.Exists(self.raw_data_dir):
             gfile.DeleteRecursively(self.raw_data_dir)
 

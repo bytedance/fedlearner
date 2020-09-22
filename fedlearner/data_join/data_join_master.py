@@ -56,18 +56,18 @@ class MasterFSM(object):
              common_pb.DataSourceState.Processing]
         )
 
-    def __init__(self, peer_client, data_source_name, mysql, batch_mode):
+    def __init__(self, peer_client, data_source_name, kvstore, batch_mode):
         self._lock = threading.Lock()
         self._peer_client = peer_client
         self._data_source_name = data_source_name
-        self._mysql = mysql
+        self._kvstore = kvstore
         self._batch_mode = batch_mode
         self._init_fsm_action()
         self._data_source = None
         self._sync_data_source()
         self._reset_batch_mode()
         self._raw_data_manifest_manager = RawDataManifestManager(
-                mysql, self._data_source, batch_mode
+                kvstore, self._data_source, batch_mode
             )
         self._data_source_meta = self._data_source.data_source_meta
         if self._data_source.role == common_pb.FLRole.Leader:
@@ -162,9 +162,9 @@ class MasterFSM(object):
     def _sync_data_source(self):
         if self._data_source is None:
             self._data_source = \
-                retrieve_data_source(self._mysql, self._data_source_name)
+                retrieve_data_source(self._kvstore, self._data_source_name)
         assert self._data_source is not None, \
-            "data source {} is not in mysql".format(self._data_source_name)
+            "data source {} is not in kvstore".format(self._data_source_name)
         return self._data_source
 
     def _reset_batch_mode(self):
@@ -278,7 +278,7 @@ class MasterFSM(object):
     def _update_data_source(self, data_source):
         self._data_source = None
         try:
-            commit_data_source(self._mysql, data_source)
+            commit_data_source(self._kvstore, data_source)
         except Exception as e:
             logging.error("Failed to update data source: %s since "\
                           "exception: %s", self._data_source_name, e)
@@ -308,16 +308,16 @@ class MasterFSM(object):
 
 class DataJoinMaster(dj_grpc.DataJoinMasterServiceServicer):
     def __init__(self, peer_client, data_source_name,
-                 mysql_name, mysql_base_dir, mysql_addr,
-                 mysql_user, mysql_password, options):
+                 db_database, db_base_dir, db_addr,
+                 db_username, db_password, options):
         super(DataJoinMaster, self).__init__()
         self._data_source_name = data_source_name
-        mysql = DBClient(mysql_name, mysql_addr, mysql_user,
-                            mysql_password, mysql_base_dir,
-                            options.use_mock_mysql)
+        kvstore = DBClient(db_database, db_addr, db_username,
+                            db_password, db_base_dir,
+                            options.use_mock_db)
         self._options = options
         self._fsm = MasterFSM(peer_client, data_source_name,
-                              mysql, self._options.batch_mode)
+                              kvstore, self._options.batch_mode)
         self._data_source_meta = \
                 self._fsm.get_data_source().data_source_meta
 
@@ -526,8 +526,8 @@ class DataJoinMaster(dj_grpc.DataJoinMasterServiceServicer):
 
 class DataJoinMasterService(object):
     def __init__(self, listen_port, peer_addr, data_source_name,
-                 mysql_name, mysql_base_dir, mysql_addr,
-                 mysql_user, mysql_password, options):
+                 db_database, db_base_dir, db_addr,
+                 db_username, db_password, options):
         channel = make_insecure_channel(
                 peer_addr, ChannelType.REMOTE,
                 options=[('grpc.max_send_message_length', 2**31-1),
@@ -538,9 +538,9 @@ class DataJoinMasterService(object):
         self._listen_port = listen_port
         self._server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
         self._data_join_master = DataJoinMaster(
-                peer_client, data_source_name, mysql_name,
-                mysql_base_dir, mysql_addr, mysql_user,
-                mysql_password, options
+                peer_client, data_source_name, db_database,
+                db_base_dir, db_addr, db_username,
+                db_password, options
             )
         dj_grpc.add_DataJoinMasterServiceServicer_to_server(
                 self._data_join_master, self._server

@@ -29,7 +29,7 @@ from fedlearner.data_join.data_block_manager import \
 from fedlearner.data_join import common
 
 class DataBlockDumperManager(object):
-    def __init__(self, mysql, data_source, partition_id,
+    def __init__(self, kvstore, data_source, partition_id,
                  raw_data_options, data_block_builder_options):
         self._lock = threading.Lock()
         self._data_source = data_source
@@ -37,7 +37,7 @@ class DataBlockDumperManager(object):
         self._data_block_manager = \
                 DataBlockManager(data_source, partition_id)
         self._raw_data_visitor = \
-                RawDataVisitor(mysql, data_source,
+                RawDataVisitor(kvstore, data_source,
                                partition_id, raw_data_options)
         self._data_block_builder_options = data_block_builder_options
         self._next_data_block_index = \

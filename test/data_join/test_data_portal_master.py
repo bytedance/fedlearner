@@ -39,15 +39,15 @@ from fedlearner.data_join.data_portal_master import DataPortalMasterService
 class DataPortalMaster(unittest.TestCase):
     def test_api(self):
         logging.getLogger().setLevel(logging.DEBUG)
-        mysql_name = 'test_mysql'
-        mysql_addr = 'localhost:2379'
-        mysql_user = 'test_user'
-        mysql_password = 'test_password'
-        mysql_base_dir = 'dp_test'
+        db_database = 'test_mysql'
+        db_addr = 'localhost:2379'
+        db_username = 'test_user'
+        db_password = 'test_password'
+        db_base_dir = 'dp_test'
         data_portal_name = 'test_data_source'
-        mysql = DBClient(mysql_name, mysql_addr, mysql_user,
-            mysql_password, mysql_base_dir, True)
-        mysql.delete_prefix(mysql_base_dir)
+        kvstore = DBClient(db_database, db_addr, db_username,
+            db_password, db_base_dir, True)
+        kvstore.delete_prefix(db_base_dir)
         portal_input_base_dir='./portal_upload_dir'
         portal_output_base_dir='./portal_output_dir'
         raw_data_publish_dir = 'raw_data_publish_dir'
@@ -62,7 +62,7 @@ class DataPortalMaster(unittest.TestCase):
                 processing_job_id=-1,
                 next_job_id=0
             )
-        mysql.set_data(common.portal_mysql_base_dir(data_portal_name),
+        kvstore.set_data(common.portal_db_base_dir(data_portal_name),
                       text_format.MessageToString(portal_manifest))
         if gfile.Exists(portal_input_base_dir):
             gfile.DeleteRecursively(portal_input_base_dir)
@@ -75,13 +75,13 @@ class DataPortalMaster(unittest.TestCase):
                 f.write('xxx')
         portal_master_addr = 'localhost:4061'
         portal_options = dp_pb.DataPotraMasterlOptions(
-                use_mock_mysql=True,
+                use_mock_db=True,
                 long_running=False
             )
         data_portal_master = DataPortalMasterService(
                 int(portal_master_addr.split(':')[1]),
-                data_portal_name, mysql_name, mysql_base_dir,
-                mysql_addr, mysql_user, mysql_password,
+                data_portal_name, db_database, db_base_dir,
+                db_addr, db_username, db_password,
                 portal_options
             )
         data_portal_master.start()
@@ -98,7 +98,7 @@ class DataPortalMaster(unittest.TestCase):
         self.assertEqual(recv_manifest.raw_data_publish_dir, portal_manifest.raw_data_publish_dir)
         self.assertEqual(recv_manifest.next_job_id, 1)
         self.assertEqual(recv_manifest.processing_job_id, 0)
-        self._check_portal_job(mysql, all_fnames, portal_manifest, 0)
+        self._check_portal_job(kvstore, all_fnames, portal_manifest, 0)
         mapped_partition = set()
         task_0 = portal_master_cli.RequestNewTask(dp_pb.NewTaskRequest(rank_id=0))
         task_0_1 = portal_master_cli.RequestNewTask(dp_pb.NewTaskRequest(rank_id=0))
@@ -210,9 +210,9 @@ class DataPortalMaster(unittest.TestCase):
         data_portal_master.stop()
         gfile.DeleteRecursively(portal_input_base_dir)
 
-    def _check_portal_job(self, mysql, fnames, portal_manifest, job_id):
-        mysql_key = common.portal_job_mysql_key(portal_manifest.name, job_id)
-        data = mysql.get_data(mysql_key)
+    def _check_portal_job(self, kvstore, fnames, portal_manifest, job_id):
+        kvstore_key = common.portal_job_kvstore_key(portal_manifest.name, job_id)
+        data = kvstore.get_data(kvstore_key)
         self.assertIsNotNone(data)
         portal_job = text_format.Parse(data, dp_pb.DataPortalJob())
         self.assertEqual(job_id, portal_job.job_id)

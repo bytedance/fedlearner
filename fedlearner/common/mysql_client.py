@@ -28,14 +28,14 @@ from fedlearner.common.etcd_client import EtcdClient
 
 class DBClient(object):
     def __init__(self, name, addr, user, password, base_dir,
-                 use_mock_mysql=False):
+                 use_mock_db=False):
         if os.environ.get('USE_ETCD', False):
             self._client = EtcdClient(name, addr, base_dir,
-                                      use_mock_mysql)
+                                      use_mock_db)
         else:
             self._client = MySQLClient(name, addr, user,
                                        password, base_dir,
-                                       use_mock_mysql)
+                                       use_mock_db)
 
     def __getattr__(self, attr):
         return getattr(self._client, attr)
@@ -43,8 +43,8 @@ class DBClient(object):
 
 class MySQLClient(object):
     def __init__(self, name, addr, user, password, base_dir,
-                 use_mock_mysql=False):
-        if use_mock_mysql:
+                 use_mock_db=False):
+        if use_mock_db:
             self._client = MockMySQLClient(name, base_dir)
         else:
             self._client = RealMySQLClient(

@@ -30,18 +30,18 @@ if __name__ == '__main__':
                         help="the rank id of this worker")
     parser.add_argument("--master_addr", type=str,
                         help="the addr of data portal master")
-    parser.add_argument("--mysql_name", type=str,
+    parser.add_argument("--db_database", type=str,
                         default='test_mysql', help='the name of mysql')
-    parser.add_argument("--mysql_addr", type=str,
+    parser.add_argument("--db_addr", type=str,
                         default="localhost:2379", help="the addrs of mysql")
-    parser.add_argument("--mysql_base_dir", type=str,
+    parser.add_argument("--db_base_dir", type=str,
                         help="the namespace of mysql key for data "\
                              "portal worker")
-    parser.add_argument("--mysql_user", type=str,
+    parser.add_argument("--db_username", type=str,
                         default="test_user", help="the user of mysql")
-    parser.add_argument("--mysql_password", type=str,
+    parser.add_argument("--db_password", type=str,
                         default="test_password", help="the password of mysql")
-    parser.add_argument("--use_mock_mysql", action="store_true",
+    parser.add_argument("--use_mock_db", action="store_true",
                         help='use to mock mysql for test')
     parser.add_argument("--merger_read_ahead_size", type=int, default=128<<10,
                         help="the read ahead size for merger")
@@ -92,8 +92,8 @@ if __name__ == '__main__':
 
     data_portal_worker = DataPortalWorker(
             portal_worker_options, args.master_addr,
-            args.rank_id, args.mysql_name, args.mysql_base_dir,
-            args.mysql_addr, args.mysql_user,
-            args.mysql_password, args.use_mock_mysql
+            args.rank_id, args.db_database, args.db_base_dir,
+            args.db_addr, args.db_username,
+            args.db_password, args.use_mock_db
         )
     data_portal_worker.start()

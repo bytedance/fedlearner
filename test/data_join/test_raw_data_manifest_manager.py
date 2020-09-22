@@ -34,7 +34,7 @@ class TestRawDataManifestManager(unittest.TestCase):
         data_source.data_source_meta.name = "milestone-x"
         data_source.data_source_meta.partition_num = partition_num
         data_source.role = common_pb.FLRole.Leader
-        cli.delete_prefix(common.data_source_mysql_base_dir(data_source.data_source_meta.name))
+        cli.delete_prefix(common.data_source_db_base_dir(data_source.data_source_meta.name))
         manifest_manager = raw_data_manifest_manager.RawDataManifestManager(
             cli, data_source)
         manifest_map = manifest_manager.list_all_manifest()

@@ -95,22 +95,22 @@ class RawDataSortPartitioner(RawDataPartitioner):
         return self._flying_writers[partition_id]
 
 class DataPortalWorker(object):
-    def __init__(self, options, master_addr, rank_id, mysql_name,
-                 mysql_base_dir, mysql_addr, mysql_user,
-                 mysql_password, use_mock_mysql=False):
+    def __init__(self, options, master_addr, rank_id, db_database,
+                 db_base_dir, db_addr, db_username,
+                 db_password, use_mock_db=False):
         master_channel = make_insecure_channel(
                 master_addr, ChannelType.INTERNAL,
                 options=[('grpc.max_send_message_length', 2**31-1),
                          ('grpc.max_receive_message_length', 2**31-1)]
             )
-        self._mysql_name = mysql_name
-        self._mysql_base_dir = mysql_base_dir
-        self._mysql_addr = mysql_addr
-        self._mysql_password = mysql_password
-        self._mysql_user = mysql_user
+        self._db_database = db_database
+        self._db_base_dir = db_base_dir
+        self._db_addr = db_addr
+        self._db_password = db_password
+        self._db_username = db_username
         self._rank_id = rank_id
         self._options = options
-        self._use_mock_mysql = use_mock_mysql
+        self._use_mock_db = use_mock_db
         self._master_client = dp_grpc.DataPortalMasterServiceStub(
             master_channel)
 
@@ -141,8 +141,8 @@ class DataPortalWorker(object):
 
     def start(self):
         logging.info("Start DataPortal Worker, rank_id:%s", self._rank_id)
-        logging.info("mysql_name:%s mysql_addr:%s mysql_base_dir:%s", \
-            self._mysql_name, self._mysql_addr, self._mysql_base_dir)
+        logging.info("db_database:%s db_addr:%s db_base_dir:%s", \
+            self._db_database, self._db_addr, self._db_base_dir)
         self.run()
 
     def _make_partitioner_options(self, task):
@@ -179,19 +179,19 @@ class DataPortalWorker(object):
         type_repr = ''
         if task.data_portal_type == dp_pb.DataPortalType.Streaming:
             data_partitioner = RawDataSortPartitioner(
-                partition_options, task.part_field, self._mysql_name,
-                self._mysql_base_dir, self._mysql_addr,
-                self._mysql_user, self._mysql_password,
-                self._use_mock_mysql
+                partition_options, task.part_field, self._db_database,
+                self._db_base_dir, self._db_addr,
+                self._db_username, self._db_password,
+                self._use_mock_db
             )
             type_repr = 'streaming'
         else:
             assert task.data_portal_type == dp_pb.DataPortalType.PSI
             data_partitioner = RawDataPartitioner(
-                partition_options, task.part_field, self._mysql_name,
-                self._mysql_base_dir, self._mysql_addr,
-                self._mysql_user, self._mysql_password,
-                self._use_mock_mysql
+                partition_options, task.part_field, self._db_database,
+                self._db_base_dir, self._db_addr,
+                self._db_username, self._db_password,
+                self._use_mock_db
             )
             type_repr = 'psi'
         logging.info("Partitioner rank_id-[%d] start run task %s of type %s "\

@@ -257,7 +257,7 @@ message BatchProcessorOptions {
 }
 
 message DataJoinWorkerOptions {
-  bool use_mock_mysql = 1;
+  bool use_mock_db = 1;
   RawDataOptions raw_data_options = 2;
   ExampleJoinerOptions example_joiner_options = 3;
   ExampleIdDumpOptions example_id_dump_options = 4;
@@ -266,7 +266,7 @@ message DataJoinWorkerOptions {
 }
 
 message DataJoinMasterOptions {
-  bool use_mock_mysql = 1;
+  bool use_mock_db = 1;
   bool batch_mode = 2;
 }
 
@@ -279,7 +279,7 @@ message DataJoinPotralOptions {
   ExampleValidatorOptions example_validator = 1;
   int64 reducer_buffer_size = 2;
   RawDataOptions raw_data_options = 3;
-  bool use_mock_mysql = 4;
+  bool use_mock_db = 4;
 }
 
 service DataJoinPotralService {

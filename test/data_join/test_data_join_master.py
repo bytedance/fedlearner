@@ -35,21 +35,21 @@ from fedlearner.proxy.channel import make_insecure_channel, ChannelType
 class DataJoinMaster(unittest.TestCase):
     def test_api(self):
         logging.getLogger().setLevel(logging.DEBUG)
-        mysql_name = 'test_mysql'
-        mysql_addr = 'localhost:2379'
-        mysql_user_l = 'test_user_l'
-        mysql_user_f = 'test_user_f'
-        mysql_password_l = 'test_password_l'
-        mysql_password_f = 'test_password_f'
-        mysql_base_dir_l = 'byefl_l'
-        mysql_base_dir_f= 'byefl_f'
+        db_database = 'test_mysql'
+        db_addr = 'localhost:2379'
+        db_username_l = 'test_user_l'
+        db_username_f = 'test_user_f'
+        db_password_l = 'test_password_l'
+        db_password_f = 'test_password_f'
+        db_base_dir_l = 'byefl_l'
+        db_base_dir_f= 'byefl_f'
         data_source_name = 'test_data_source'
-        mysql_l = DBClient(mysql_name, mysql_addr, mysql_user_l,
-                              mysql_password_l, mysql_base_dir_l, True)
-        mysql_f = DBClient(mysql_name, mysql_addr, mysql_user_f,
-                              mysql_password_f, mysql_base_dir_f, True)
-        mysql_l.delete_prefix(common.data_source_mysql_base_dir(data_source_name))
-        mysql_f.delete_prefix(common.data_source_mysql_base_dir(data_source_name))
+        kvstore_l = DBClient(db_database, db_addr, db_username_l,
+                              db_password_l, db_base_dir_l, True)
+        kvstore_f = DBClient(db_database, db_addr, db_username_f,
+                              db_password_f, db_base_dir_f, True)
+        kvstore_l.delete_prefix(common.data_source_db_base_dir(data_source_name))
+        kvstore_f.delete_prefix(common.data_source_db_base_dir(data_source_name))
         data_source_l = common_pb.DataSource()
         data_source_l.role = common_pb.FLRole.Leader
         data_source_l.state = common_pb.DataSourceState.Init
@@ -64,25 +64,25 @@ class DataJoinMaster(unittest.TestCase):
         data_source_meta.start_time = 0
         data_source_meta.end_time = 100000000
         data_source_l.data_source_meta.MergeFrom(data_source_meta)
-        common.commit_data_source(mysql_l, data_source_l)
+        common.commit_data_source(kvstore_l, data_source_l)
         data_source_f.data_source_meta.MergeFrom(data_source_meta)
-        common.commit_data_source(mysql_f, data_source_f)
+        common.commit_data_source(kvstore_f, data_source_f)
 
         master_addr_l = 'localhost:4061'
         master_addr_f = 'localhost:4062'
-        options = dj_pb.DataJoinMasterOptions(use_mock_mysql=True)
+        options = dj_pb.DataJoinMasterOptions(use_mock_db=True)
         master_l = data_join_master.DataJoinMasterService(
                 int(master_addr_l.split(':')[1]),
-                master_addr_f, data_source_name, mysql_name,
-                mysql_base_dir_l, mysql_addr, mysql_user_l,
-                mysql_password_l, options
+                master_addr_f, data_source_name, db_database,
+                db_base_dir_l, db_addr, db_username_l,
+                db_password_l, options
             )
         master_l.start()
         master_f = data_join_master.DataJoinMasterService(
                 int(master_addr_f.split(':')[1]),
-                master_addr_l, data_source_name, mysql_name,
-                mysql_base_dir_f, mysql_addr, mysql_user_f,
-                mysql_password_f, options
+                master_addr_l, data_source_name, db_database,
+                db_base_dir_f, db_addr, db_username_f,
+                db_password_f, options
             )
         master_f.start()
         channel_l = make_insecure_channel(master_addr_l, ChannelType.INTERNAL)

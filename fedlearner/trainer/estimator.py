@@ -185,18 +185,18 @@ class FLEstimator(object):
 
     def _cheif_barriar(self, is_chief=False, sync_times=300):
         worker_replicas = os.environ.get('REPLICA_NUM', 0)
-        mysql_client = DBClient(os.environ['MYSQL_NAME'],
-                                 os.environ['MYSQL_ADDR'],
-                                 os.environ['MYSQL_USER'],
-                                 os.environ['MYSQL_PASSWORD'],
+        kvstore_client = DBClient(os.environ['DB_DATABASE'],
+                                 os.environ['DB_ADDR'],
+                                 os.environ['DB_USERNAME'],
+                                 os.environ['DB_PASSWORD'],
                                  SYNC_PATH)
         sync_path = '%s/%s' % (os.environ['APPLICATION_ID'],
                                os.environ['WORKER_RANK'])
         logging.info('Creating a sync flag at %s', sync_path)
-        mysql_client.set_data(sync_path, "1")
+        kvstore_client.set_data(sync_path, "1")
         if is_chief:
             for _ in range(sync_times):
-                sync_list = mysql_client.get_prefix_kvs(
+                sync_list = kvstore_client.get_prefix_kvs(
                     os.environ['APPLICATION_ID'])
                 logging.info('Sync file pattern is: %s', sync_list)
                 if len(sync_list) < worker_replicas:

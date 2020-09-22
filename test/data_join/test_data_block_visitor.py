@@ -44,20 +44,20 @@ class TestDataBlockVisitor(unittest.TestCase):
         data_source.output_base_dir = "./ds_output"
         data_source.role = common_pb.FLRole.Follower
         self.data_source = data_source
-        self.mysql_name = 'test_cluster'
-        self.mysql_addr = 'localhost:2379'
-        self.mysql_base_dir = 'fedlearner'
-        self.mysql_user = 'test_user'
-        self.mysql_password = 'test_password'
-        self.mysql = mysql_client.DBClient(self.mysql_name, self.mysql_addr,
-                                              self.mysql_user, self.mysql_password,
-                                              self.mysql_base_dir, True)
-        common.commit_data_source(self.mysql, self.data_source)
+        self.db_database = 'test_cluster'
+        self.db_addr = 'localhost:2379'
+        self.db_base_dir = 'fedlearner'
+        self.db_username = 'test_user'
+        self.db_password = 'test_password'
+        self.kvstore = mysql_client.DBClient(self.db_database, self.db_addr,
+                                              self.db_username, self.db_password,
+                                              self.db_base_dir, True)
+        common.commit_data_source(self.kvstore, self.data_source)
         if gfile.Exists(data_source.output_base_dir):
             gfile.DeleteRecursively(data_source.output_base_dir)
         self.data_block_matas = []
         self.manifest_manager = raw_data_manifest_manager.RawDataManifestManager(
-            self.mysql, self.data_source)
+            self.kvstore, self.data_source)
         partition_num = self.data_source.data_source_meta.partition_num
         for i in range(partition_num):
             self._create_data_block(i)
@@ -105,9 +105,9 @@ class TestDataBlockVisitor(unittest.TestCase):
         for i in range(partition_num):
             self.manifest_manager.forward_peer_dumped_index(i, dumped_index)
         visitor = data_block_visitor.DataBlockVisitor(
-                self.data_source.data_source_meta.name, self.mysql_name,
-                self.mysql_base_dir, self.mysql_addr, self.mysql_user,
-                self.mysql_password, True
+                self.data_source.data_source_meta.name, self.db_database,
+                self.db_base_dir, self.db_addr, self.db_username,
+                self.db_password, True
             )
         reps = visitor.LoadDataBlockRepByTimeFrame(start_time, end_time)
         metas = [meta for meta in self.data_block_matas if

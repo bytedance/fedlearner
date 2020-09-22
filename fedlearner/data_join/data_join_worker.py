@@ -35,11 +35,11 @@ from fedlearner.data_join import (
 
 class DataJoinWorker(dj_grpc.DataJoinWorkerServiceServicer):
     def __init__(self, peer_client, master_client,
-                 rank_id, mysql, data_source, options):
+                 rank_id, kvstore, data_source, options):
         super(DataJoinWorker, self).__init__()
         self._peer_client = peer_client
         self._master_client = master_client
-        self._mysql = mysql
+        self._kvstore = kvstore
         self._rank_id = rank_id
         self._data_source = data_source
         self._transmit_leader = None
@@ -141,13 +141,13 @@ class DataJoinWorker(dj_grpc.DataJoinWorkerServiceServicer):
             self._transmit_leader = \
                     example_id_sync_leader.ExampleIdSyncLeader(
                             self._peer_client, self._master_client,
-                            self._rank_id, self._mysql,
+                            self._rank_id, self._kvstore,
                             self._data_source, options.raw_data_options,
                             options.batch_processor_options
                         )
             self._transmit_follower = \
                     example_join_follower.ExampleJoinFollower(
-                            self._mysql, self._data_source,
+                            self._kvstore, self._data_source,
                             options.raw_data_options,
                             options.data_block_builder_options,
                         )
@@ -157,14 +157,14 @@ class DataJoinWorker(dj_grpc.DataJoinWorkerServiceServicer):
             self._transmit_leader = \
                     example_join_leader.ExampleJoinLeader(
                             self._peer_client, self._master_client,
-                            self._rank_id, self._mysql, self._data_source,
+                            self._rank_id, self._kvstore, self._data_source,
                             options.raw_data_options,
                             options.data_block_builder_options,
                             options.example_joiner_options
                         )
             self._transmit_follower = \
                     example_id_sync_follower.ExampleIdSyncFollower(
-                            self._mysql, self._data_source,
+                            self._kvstore, self._data_source,
                             options.example_id_dump_options
                         )
 
@@ -232,8 +232,8 @@ class DataJoinWorker(dj_grpc.DataJoinWorkerServiceServicer):
 
 class DataJoinWorkerService(object):
     def __init__(self, listen_port, peer_addr, master_addr, rank_id,
-                 mysql_name, mysql_base_dir, mysql_addr, mysql_user,
-                 mysql_password, options):
+                 db_database, db_base_dir, db_addr, db_username,
+                 db_password, options):
         master_channel = make_insecure_channel(
                 master_addr, ChannelType.INTERNAL,
                 options=[('grpc.max_send_message_length', 2**31-1),
@@ -241,9 +241,9 @@ class DataJoinWorkerService(object):
             )
         self._master_client = dj_grpc.DataJoinMasterServiceStub(master_channel)
         self._rank_id = rank_id
-        mysql = DBClient(mysql_name, mysql_addr, mysql_user,
-                            mysql_password, mysql_base_dir,
-                            options.use_mock_mysql)
+        kvstore = DBClient(db_database, db_addr, db_username,
+                            db_password, db_base_dir,
+                            options.use_mock_db)
         data_source = self._sync_data_source()
         self._data_source_name = data_source.data_source_meta.name
         self._listen_port = listen_port
@@ -256,7 +256,7 @@ class DataJoinWorkerService(object):
         peer_client = dj_grpc.DataJoinWorkerServiceStub(peer_channel)
         self._data_join_worker = DataJoinWorker(
                 peer_client, self._master_client,
-                rank_id, mysql, data_source, options
+                rank_id, kvstore, data_source, options
             )
         dj_grpc.add_DataJoinWorkerServiceServicer_to_server(
                     self._data_join_worker, self._server

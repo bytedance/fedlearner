@@ -27,19 +27,19 @@ python -m fedlearner.data_join.cmd.prepare_launch_data_join_cli \
     --negative_sampling_rate=$NEGATIVE_SAMPLING_RATE \
     --role=$ROLE \
     --output_base_dir=$OUTPUT_BASE_DIR \
-    --mysql_name=$MYSQL_NAME \
-    --mysql_addr=$MYSQL_ADDR \
-    --mysql_base_dir=$MYSQL_BASE_DIR \
-    --mysql_user=$MYSQL_USER \
-    --mysql_password=$MYSQL_PASSWORD \
+    --db_database=$DB_DATABASE \
+    --db_addr=$DB_ADDR \
+    --db_base_dir=$DB_BASE_DIR \
+    --db_username=$DB_USERNAME \
+    --db_password=$DB_PASSWORD \
     --raw_data_sub_dir=$RAW_DATA_SUB_DIR
 
 python -m fedlearner.data_join.cmd.data_join_master_service \
     $PEER_ADDR \
-    --mysql_name=$MYSQL_NAME \
-    --mysql_addr=$MYSQL_ADDR \
-    --mysql_base_dir=$MYSQL_BASE_DIR \
-    --mysql_user=$MYSQL_USER \
-    --mysql_password=$MYSQL_PASSWORD \
+    --db_database=$DB_DATABASE \
+    --db_addr=$DB_ADDR \
+    --db_base_dir=$DB_BASE_DIR \
+    --db_username=$DB_USERNAME \
+    --db_password=$DB_PASSWORD \
     --listen_port=50051 \
     --data_source_name=$APPLICATION_ID $BATCH_MODE

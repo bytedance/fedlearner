@@ -27,34 +27,34 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='DataJointMasterService cmd.')
     parser.add_argument('peer_addr', type=str,
                         help='the addr(uuid) of peer data join master')
-    parser.add_argument('--mysql_name', type=str,
+    parser.add_argument('--db_database', type=str,
                         default='test_mysql', help='the name of mysql')
-    parser.add_argument('--mysql_addr', type=str,
+    parser.add_argument('--db_addr', type=str,
                         default='localhost:2379', help='the addrs of mysql')
-    parser.add_argument('--mysql_user', type=str,
+    parser.add_argument('--db_username', type=str,
                         default='test_user', help='the user of mysql')
-    parser.add_argument('--mysql_password', type=str,
+    parser.add_argument('--db_password', type=str,
                         default='test_password', help='the ')
-    parser.add_argument('--mysql_base_dir', type=str, default='fedlearner_test',
+    parser.add_argument('--db_base_dir', type=str, default='fedlearner_test',
                         help='the namespace of mysql key')
     parser.add_argument('--listen_port', '-p', type=int, default=4032,
                         help='Listen port of data join master')
     parser.add_argument('--data_source_name', type=str,
                         default='test_data_source',
                         help='the name of data source')
-    parser.add_argument('--use_mock_mysql', action='store_true',
+    parser.add_argument('--use_mock_db', action='store_true',
                         help='use to mock mysql for test')
     parser.add_argument('--batch_mode', action='store_true',
                         help='make the data join run in batch mode')
     args = parser.parse_args()
     master_options = dj_pb.DataJoinMasterOptions(
-            use_mock_mysql=args.use_mock_mysql,
+            use_mock_db=args.use_mock_db,
             batch_mode=args.batch_mode
         )
     master_srv = DataJoinMasterService(
             args.listen_port, args.peer_addr,
-            args.data_source_name, args.mysql_name,
-            args.mysql_base_dir, args.mysql_addr,
-            args.mysql_user, args.mysql_password, master_options
+            args.data_source_name, args.db_database,
+            args.db_base_dir, args.db_addr,
+            args.db_username, args.db_password, master_options
         )
     master_srv.run()
