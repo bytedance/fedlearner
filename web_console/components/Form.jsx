@@ -1,4 +1,4 @@
-import React, { useState, useReducer, useMemo, useCallback, useEffect } from 'react';
+import React, { useState, useReducer, useMemo, useCallback, useEffect, useRef } from 'react';
 import css from 'styled-jsx/css';
 import { Button, ButtonGroup, Card, Grid, Text, Input, Toggle, Textarea, Note, useTheme, Collapse, useToasts, Select } from '@zeit-ui/react';
 import FederationSelect from './FederationSelect';
@@ -46,6 +46,25 @@ const handleFieldsToRender = fields => produce(fields, draft => {
     }
   })
 })
+
+const needUpdateForm = (newV, oldV) => {
+  if (newV === oldV) return false
+
+  let newKeys = Object.keys(newV)
+  let oldKeys = Object.keys(oldV)
+
+  if (newKeys.length !== oldKeys.length) {
+    return true
+  }
+
+  for (let k in newKeys) {
+    if (newV[k] !== oldV[k]) {
+      return true
+    }
+  }
+
+  return false
+}
 
 const mapFields2Form = (fields, groupType) => {
   // flat all group fileds
@@ -110,6 +129,13 @@ export default function Form({
   [fields, formData] = mapFields2Form(fieldsToRender)
   const [form, setForm] = useState(formData);
 
+  // update form value in rendering
+  useEffect(() => {
+    if (needUpdateForm(formData, form)) {
+      setForm(formData)
+    }
+  })
+
   const getFormatFormData = () =>
     rawFields.reduce((total, curr) => {
       if (curr.groupName) {
@@ -136,19 +162,10 @@ export default function Form({
   const disabled = fields.filter((x) => x.required).some((x) => !form[x.key]);
   const updateForm = (key, value) => {
     setForm(form => ({
-        ...form,
-        [key]: value,
+      ...form,
+      [key]: value,
     }));
   };
-  const updateFormWithFields = useCallback((fields) => {
-    let [_, data] = mapFields2Form(handleFieldsToRender(fields))
-    setForm(form =>
-      Object.keys(form).reduce((total, curr) => {
-        total[curr] = data[curr] || form[curr]
-        return total
-      }, {})
-    )
-  }, [])
 
   const renderField = ({ key, label, props, type, onChange, hideLabel, callback }) => {
     const valueProps = {
@@ -226,9 +243,11 @@ export default function Form({
             <JobTypeSelect
               value={form[key]}
               onChange={(value) => {
-                updateForm(key, value);
+                updateForm(key, value)
+                let data = getFormatFormData()
+                data[key] = value
                 if (onChange) {
-                  onChange(value, getFormatFormData(),groupFormType, updateFormWithFields);
+                  onChange(value, data, groupFormType);
                 }
               }}
               {...valueProps}
@@ -451,9 +470,7 @@ export default function Form({
       return value
     }
     const [formType, setFormType] = useReducer(formTypeReducer, group.formTypes && group.formTypes[0])
-    const [groupFields, setGroupFields] = useState(
-      Array.isArray(group.fields) ? group.fields : group.fields[formType]
-    )
+    let groupFields = Array.isArray(group.fields) ? group.fields : group.fields[formType]
 
     /**
      * form type switch
@@ -480,8 +497,8 @@ export default function Form({
       const [, formData] = mapFields2Form(handleFieldsToRender(res.newFields), type)
       setForm({...form, ...formData})
 
+      groupFields = group.fields[type]
       setFormType(type)
-      setGroupFields(group.fields[type])
     }
     const collapseTitle = () => {
       return <>
