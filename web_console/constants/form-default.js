@@ -54,167 +54,1223 @@ const K8S_SETTINGS = {
   }
 }
 
+// ************************************ datasouce job ************************************
 const DATASOURCE_JOB_REPLICA_TYPE = ['Master', 'Worker']
+
+// inject to formMeta.client_params .server_params
+const JOB_DATA_JOIN_PARAMS = {
+  "server_params": {
+    "spec": {
+      "flReplicaSpecs": {
+        "Master": {
+          "template": {
+            "spec": {
+              "containers": [
+                {
+                  "env": [
+                    {
+                      "name": "TRAINNING_NAME",
+                      "value": "test-train-1"
+                    }
+                  ],
+                  "resources": {
+                    "requests": {
+                      "cpu": "3000m",
+                      "memory": "1234Gi"
+                    },
+                    "limits": {
+                      "cpu": "2000m",
+                      "memory": "2Gi"
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "Worker": {
+          "template": {
+            "spec": {
+              "containers": [
+                {
+                  "env": [
+                    {
+                      "name": "TRAINNING_NAME",
+                      "value": "test-train-1"
+                    }
+                  ],
+                  "resources": {
+                    "requests": {
+                      "cpu": "2000m",
+                      "memory": "2Gi"
+                    },
+                    "limits": {
+                      "cpu": "2000m",
+                      "memory": "2Gi"
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      }
+    }
+  },
+  "client_params": {
+    "spec": {
+      "flReplicaSpecs": {
+        "Master": {
+          "template": {
+            "spec": {
+              "containers": [
+                {
+                  "env": [
+                    {
+                      "name": "TRAINNING_NAME",
+                      "value": "test-train-1"
+                    },
+                    {
+                      "name": "test-flag",
+                      "value": "1234"
+                    }
+                  ],
+                  "resources": {
+                    "requests": {
+                      "cpu": "1234m",
+                      "memory": "5Gi"
+                    },
+                    "limits": {
+                      "cpu": "6789m",
+                      "memory": "10Gi"
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "Worker": {
+          "template": {
+            "spec": {
+              "containers": [
+                {
+                  "env": [
+                    {
+                      "name": "TRAINNING_NAME",
+                      "value": "test-train-1"
+                    }
+                  ],
+                  "resources": {
+                    "requests": {
+                      "cpu": "2000m",
+                      "memory": "2Gi"
+                    },
+                    "limits": {
+                      "cpu": "2000m",
+                      "memory": "2Gi"
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+const JOB_PSI_DATA_JOIN_PARAMS = {
+  "server_params": {
+    "spec": {
+      "flReplicaSpecs": {
+        "Master": {
+          "template": {
+            "spec": {
+              "containers": [
+                {
+                  "env": [
+                    {
+                      "name": "TRAINNING_NAME",
+                      "value": "test-train-1"
+                    }
+                  ],
+                  "resources": {
+                    "requests": {
+                      "cpu": "9876m",
+                      "memory": "2Gi"
+                    },
+                    "limits": {
+                      "cpu": "2000m",
+                      "memory": "2Gi"
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "Worker": {
+          "template": {
+            "spec": {
+              "containers": [
+                {
+                  "env": [
+                    {
+                      "name": "TRAINNING_NAME",
+                      "value": "test-train-1"
+                    }
+                  ],
+                  "resources": {
+                    "requests": {
+                      "cpu": "2000m",
+                      "memory": "2Gi"
+                    },
+                    "limits": {
+                      "cpu": "2000m",
+                      "memory": "2Gi"
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      }
+    }
+  },
+  "client_params": {
+    "spec": {
+      "flReplicaSpecs": {
+        "Master": {
+          "template": {
+            "spec": {
+              "containers": [
+                {
+                  "env": [
+                    {
+                      "name": "TRAINNING_NAME",
+                      "value": "test-train-1"
+                    },
+                    {
+                      "name": "test-flag",
+                      "value": "7890"
+                    }
+                  ],
+                  "resources": {
+                    "requests": {
+                      "cpu": "2000m",
+                      "memory": "2Gi"
+                    },
+                    "limits": {
+                      "cpu": "2000m",
+                      "memory": "2Gi"
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "Worker": {
+          "template": {
+            "spec": {
+              "containers": [
+                {
+                  "env": [
+                    {
+                      "name": "TRAINNING_NAME",
+                      "value": "test-train-1"
+                    }
+                  ],
+                  "resources": {
+                    "requests": {
+                      "cpu": "2000m",
+                      "memory": "2Gi"
+                    },
+                    "limits": {
+                      "cpu": "2000m",
+                      "memory": "2Gi"
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      }
+    }
+  }
+}
+// ***************************************************************************************
+
+// ************************************ datasouce ticket ************************************
 const DATASOURCE_TICKET_REPLICA_TYPE = ['Master', 'Worker']
+
+const TICKET_DATA_JOIN_PARAMS = {
+  "public_params": {
+    "spec": {
+      "flReplicaSpecs": {
+        "Master": {
+          "pair": false,
+          "template": {
+            "spec": {
+              "containers": [
+                {
+                  "env": [
+                    {
+                      "name": "BATCH_MODE",
+                      "value": "--batch_mode"
+                    },
+                    {
+                      "name": "PARTITION_NUM",
+                      "value": "4"
+                    },
+                    {
+                      "name": "START_TIME",
+                      "value": "0"
+                    },
+                    {
+                      "name": "END_TIME",
+                      "value": "999999999999"
+                    },
+                    {
+                      "name": "NEGATIVE_SAMPLING_RATE",
+                      "value": "1.0"
+                    },
+                    {
+                      "name": "RAW_DATA_SUB_DIR",
+                      "value": "test-json"
+                    }
+                  ],
+                  "command": [
+                    "/app/deploy/scripts/wait4pair_wrapper.sh"
+                  ],
+                  "args": [
+                    "/app/deploy/scripts/data_join/run_data_join_master.sh"
+                  ],
+                  "image": "artifact.bytedance.com/fedlearner/fedlearner:049ad50"
+                }
+              ]
+            }
+          },
+          "replicas": 1
+        },
+        "Worker": {
+          "pair": true,
+          "template": {
+            "spec": {
+              "containers": [
+                {
+                  "env": [
+                    {
+                      "name": "DATA_BLOCK_DUMP_INTERVAL",
+                      "value": "300"
+                    },
+                    {
+                      "name": "DATA_BLOCK_DUMP_THRESHOLD",
+                      "value": "65536"
+                    },
+                    {
+                      "name": "EXAMPLE_ID_DUMP_INTERVAL",
+                      "value": "600"
+                    },
+                    {
+                      "name": "EXAMPLE_ID_DUMP_THRESHOLD",
+                      "value": "262144"
+                    },
+                    {
+                      "name": "EXAMPLE_ID_BATCH_SIZE",
+                      "value": "4096"
+                    },
+                    {
+                      "name": "MAX_FLYING_EXAMPLE_ID",
+                      "value": "307152"
+                    },
+                    {
+                      "name": "MIN_MATCHING_WINDOW",
+                      "value": "256"
+                    },
+                    {
+                      "name": "MAX_MATCHING_WINDOW",
+                      "value": "1024"
+                    },
+                    {
+                      "name": "RAW_DATA_ITER",
+                      "value": "TF_RECORD"
+                    }
+                  ],
+                  "command": [
+                    "/app/deploy/scripts/wait4pair_wrapper.sh"
+                  ],
+                  "args": [
+                    "/app/deploy/scripts/data_join/run_data_join_worker.sh"
+                  ],
+                  "image": "artifact.bytedance.com/fedlearner/fedlearner:049ad50"
+                }
+              ]
+            }
+          },
+          "replicas": 4
+        }
+      }
+    }
+  },
+  "private_params": {
+    "spec": {
+      "flReplicaSpecs": {
+        "Master": {
+          "template": {
+            "spec": {
+              "containers": [
+                {
+                  "image": "artifact.bytedance.com/fedlearner/fedlearner:049ad50",
+                  "env": [
+                    {
+                      "name": "RAW_DATA_SUB_DIR",
+                      "value": "test-json"
+                    },
+                    {
+                      "name": "PARTITION_NUM",
+                      "value": "4"
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          "replicas": 1
+        },
+        "Worker": {
+          "template": {
+            "spec": {
+              "containers": [
+                {
+                  "image": "artifact.bytedance.com/fedlearner/fedlearner:049ad50"
+                }
+              ]
+            }
+          },
+          "replicas": 4
+        }
+      }
+    }
+  }
+}
+
+const TICKET_PSI_DATA_JOIN_PARAMS = {
+  "public_params": {
+    "spec": {
+      "flReplicaSpecs": {
+        "Master": {
+          "pair": true,
+          "template": {
+            "spec": {
+              "containers": [
+                {
+                  "env": [
+                    {
+                      "name": "TEST FLAG",
+                      "value": "psi data join"
+                    },
+                    {
+                      "name": "BATCH_MODE",
+                      "value": "--batch_mode"
+                    },
+                    {
+                      "name": "PARTITION_NUM",
+                      "value": "4"
+                    },
+                    {
+                      "name": "START_TIME",
+                      "value": "0"
+                    },
+                    {
+                      "name": "END_TIME",
+                      "value": "999999999999"
+                    },
+                    {
+                      "name": "NEGATIVE_SAMPLING_RATE",
+                      "value": "1.0"
+                    },
+                    {
+                      "name": "RAW_DATA_SUB_DIR",
+                      "value": "test-json"
+                    }
+                  ],
+                  "command": [
+                    "/app/deploy/scripts/wait4pair_wrapper.sh"
+                  ],
+                  "args": [
+                    "/app/deploy/scripts/data_join/run_data_join_master.sh"
+                  ],
+                  "image": "artifact.bytedance.com/fedlearner/fedlearner:049ad50"
+                }
+              ]
+            }
+          },
+          "replicas": 1
+        },
+        "Worker": {
+          "pair": true,
+          "template": {
+            "spec": {
+              "containers": [
+                {
+                  "env": [
+                    {
+                      "name": "DATA_BLOCK_DUMP_INTERVAL",
+                      "value": "300"
+                    },
+                    {
+                      "name": "DATA_BLOCK_DUMP_THRESHOLD",
+                      "value": "65536"
+                    },
+                    {
+                      "name": "EXAMPLE_ID_DUMP_INTERVAL",
+                      "value": "600"
+                    },
+                    {
+                      "name": "EXAMPLE_ID_DUMP_THRESHOLD",
+                      "value": "262144"
+                    },
+                    {
+                      "name": "EXAMPLE_ID_BATCH_SIZE",
+                      "value": "4096"
+                    },
+                    {
+                      "name": "MAX_FLYING_EXAMPLE_ID",
+                      "value": "307152"
+                    },
+                    {
+                      "name": "MIN_MATCHING_WINDOW",
+                      "value": "256"
+                    },
+                    {
+                      "name": "MAX_MATCHING_WINDOW",
+                      "value": "1024"
+                    },
+                    {
+                      "name": "RAW_DATA_ITER",
+                      "value": "TF_RECORD"
+                    }
+                  ],
+                  "command": [
+                    "/app/deploy/scripts/wait4pair_wrapper.sh"
+                  ],
+                  "args": [
+                    "/app/deploy/scripts/data_join/run_data_join_worker.sh"
+                  ],
+                  "image": "artifact.bytedance.com/fedlearner/fedlearner:049ad50"
+                }
+              ]
+            }
+          },
+          "replicas": 4
+        }
+      }
+    }
+  },
+  "private_params": {
+    "spec": {
+      "flReplicaSpecs": {
+        "Master": {
+          "template": {
+            "spec": {
+              "containers": [
+                {
+                  "image": "artifact.bytedance.com/fedlearner/fedlearner:049ad50",
+                  "env": [
+                    {
+                      "name": "RAW_DATA_SUB_DIR",
+                      "value": "test-json"
+                    },
+                    {
+                      "name": "PARTITION_NUM",
+                      "value": "4"
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          "replicas": 1
+        },
+        "Worker": {
+          "template": {
+            "spec": {
+              "containers": [
+                {
+                  "image": "artifact.bytedance.com/fedlearner/fedlearner:049ad50"
+                }
+              ]
+            }
+          },
+          "replicas": 4
+        }
+      }
+    }
+  }
+}
+// ***************************************************************************************
+
+// ************************************ taining job ************************************
+const TRAINING_JOB_REPLICA_TYPE = ['Master', 'PS','Worker']
+
+const JOB_NN_PARAMS = {
+  "server_params": {
+    "spec": {
+      "flReplicaSpecs": {
+        "Master": {
+          "replicas": 1,
+          "template": {
+            "spec": {
+              "containers": [
+                {
+                  "resources": {
+                    "limits": {
+                      "cpu": "2000m",
+                      "memory": "2Gi"
+                    },
+                    "requests": {
+                      "cpu": "1000m",
+                      "memory": "2Gi"
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "PS": {
+          "replicas": 1,
+          "template": {
+            "spec": {
+              "containers": [
+                {
+                  "resources": {
+                    "limits": {
+                      "cpu": "2000m",
+                      "memory": "4Gi"
+                    },
+                    "requests": {
+                      "cpu": "1000m",
+                      "memory": "2Gi"
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "Worker": {
+          "replicas": 1,
+          "template": {
+            "spec": {
+              "containers": [
+                {
+                  "resources": {
+                    "limits": {
+                      "cpu": "2000m",
+                      "memory": "2Gi"
+                    },
+                    "requests": {
+                      "cpu": "1000m",
+                      "memory": "2Gi"
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      }
+    }
+  },
+  "client_params": {
+    "spec": {
+      "flReplicaSpecs": {
+        "Master": {
+          "replicas": 1,
+          "template": {
+            "spec": {
+              "containers": [
+                {
+                  "resources": {
+                    "limits": {
+                      "cpu": "2000m",
+                      "memory": "2Gi"
+                    },
+                    "requests": {
+                      "cpu": "2000m",
+                      "memory": "2Gi"
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "PS": {
+          "replicas": 1,
+          "template": {
+            "spec": {
+              "containers": [
+                {
+                  "resources": {
+                    "limits": {
+                      "cpu": "2000m",
+                      "memory": "4Gi"
+                    },
+                    "requests": {
+                      "cpu": "2000m",
+                      "memory": "4Gi"
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "Worker": {
+          "replicas": 1,
+          "template": {
+            "spec": {
+              "containers": [
+                {
+                  "resources": {
+                    "limits": {
+                      "cpu": "2000m",
+                      "memory": "4Gi"
+                    },
+                    "requests": {
+                      "cpu": "2000m",
+                      "memory": "4Gi"
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+const JOB_TREE_PARAMS = {
+  "server_params": {
+    "spec": {
+      "flReplicaSpecs": {
+        "Master": {
+          "replicas": 1,
+          "template": {
+            "spec": {
+              "containers": [
+                {
+                  "resources": {
+                    "limits": {
+                      "cpu": "2000m",
+                      "memory": "2Gi"
+                    },
+                    "requests": {
+                      "cpu": "1000m",
+                      "memory": "2Gi"
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "PS": {
+          "replicas": 1,
+          "template": {
+            "spec": {
+              "containers": [
+                {
+                  "resources": {
+                    "limits": {
+                      "cpu": "2000m",
+                      "memory": "4Gi"
+                    },
+                    "requests": {
+                      "cpu": "1000m",
+                      "memory": "2Gi"
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "Worker": {
+          "replicas": 1,
+          "template": {
+            "spec": {
+              "containers": [
+                {
+                  "resources": {
+                    "limits": {
+                      "cpu": "2000m",
+                      "memory": "2Gi"
+                    },
+                    "requests": {
+                      "cpu": "1000m",
+                      "memory": "2Gi"
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      }
+    }
+  },
+  "client_params": {
+    "spec": {
+      "flReplicaSpecs": {
+        "Master": {
+          "replicas": 1,
+          "template": {
+            "spec": {
+              "containers": [
+                {
+                  "resources": {
+                    "limits": {
+                      "cpu": "2000m",
+                      "memory": "2Gi"
+                    },
+                    "requests": {
+                      "cpu": "2000m",
+                      "memory": "2Gi"
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "PS": {
+          "replicas": 1,
+          "template": {
+            "spec": {
+              "containers": [
+                {
+                  "resources": {
+                    "limits": {
+                      "cpu": "2000m",
+                      "memory": "4Gi"
+                    },
+                    "requests": {
+                      "cpu": "2000m",
+                      "memory": "4Gi"
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "Worker": {
+          "replicas": 1,
+          "template": {
+            "spec": {
+              "containers": [
+                {
+                  "resources": {
+                    "limits": {
+                      "cpu": "2000m",
+                      "memory": "4Gi"
+                    },
+                    "requests": {
+                      "cpu": "2000m",
+                      "memory": "4Gi"
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+// ***************************************************************************************
+
+// ************************************ taining ticket ************************************
 const TRAINING_TICKET_REPLICA_TYPE = ['Master', 'PS','Worker']
 
-const DATASOURCE_TICKET_PARAMS = {
-  "Master": {
-    pair: true,
-    env: [
-      {
-        "name": "BATCH_MODE",
-        "value": "--batch_mode"
-      },
-      {
-        "name": "PARTITION_NUM",
-        "value": "4"
-      },
-      {
-        "name": "START_TIME",
-        "value": "0"
-      },
-      {
-        "name": "END_TIME",
-        "value": "999999999999"
-      },
-      {
-        "name": "NEGATIVE_SAMPLING_RATE",
-        "value": "1.0"
-      },
-      {
-        "name": "RAW_DATA_SUB_DIR",
-        "value": "portal_publish_dir/data-100wexamples-2"
+const TICKET_NN_PARAMS = {
+  "public_params": {
+    "spec": {
+      "flReplicaSpecs": {
+        "Master": {
+          "pair": true,
+          "template": {
+            "spec": {
+              "containers": [
+                {
+                  "env": [
+                    {
+                      "name": "BATCH_MODE",
+                      "value": "--batch_mode"
+                    },
+                    {
+                      "name": "PARTITION_NUM",
+                      "value": "4"
+                    },
+                    {
+                      "name": "START_TIME",
+                      "value": "0"
+                    },
+                    {
+                      "name": "END_TIME",
+                      "value": "999999999999"
+                    },
+                    {
+                      "name": "NEGATIVE_SAMPLING_RATE",
+                      "value": "1.0"
+                    },
+                    {
+                      "name": "RAW_DATA_SUB_DIR",
+                      "value": "test-json"
+                    }
+                  ],
+                  "command": [
+                    "/app/deploy/scripts/wait4pair_wrapper.sh"
+                  ],
+                  "args": [
+                    "/app/deploy/scripts/data_join/run_data_join_master.sh"
+                  ],
+                  "image": "artifact.bytedance.com/fedlearner/fedlearner:049ad50"
+                }
+              ]
+            }
+          },
+          "replicas": 1
+        },
+        "Worker": {
+          "pair": true,
+          "template": {
+            "spec": {
+              "containers": [
+                {
+                  "env": [
+                    {
+                      "name": "DATA_BLOCK_DUMP_INTERVAL",
+                      "value": "300"
+                    },
+                    {
+                      "name": "DATA_BLOCK_DUMP_THRESHOLD",
+                      "value": "65536"
+                    },
+                    {
+                      "name": "EXAMPLE_ID_DUMP_INTERVAL",
+                      "value": "600"
+                    },
+                    {
+                      "name": "EXAMPLE_ID_DUMP_THRESHOLD",
+                      "value": "262144"
+                    },
+                    {
+                      "name": "EXAMPLE_ID_BATCH_SIZE",
+                      "value": "4096"
+                    },
+                    {
+                      "name": "MAX_FLYING_EXAMPLE_ID",
+                      "value": "307152"
+                    },
+                    {
+                      "name": "MIN_MATCHING_WINDOW",
+                      "value": "256"
+                    },
+                    {
+                      "name": "MAX_MATCHING_WINDOW",
+                      "value": "1024"
+                    },
+                    {
+                      "name": "RAW_DATA_ITER",
+                      "value": "TF_RECORD"
+                    }
+                  ],
+                  "command": [
+                    "/app/deploy/scripts/wait4pair_wrapper.sh"
+                  ],
+                  "args": [
+                    "/app/deploy/scripts/data_join/run_data_join_worker.sh"
+                  ],
+                  "image": "artifact.bytedance.com/fedlearner/fedlearner:049ad50"
+                }
+              ]
+            }
+          },
+          "replicas": 4
+        }
       }
-    ],
-    command: [
-      "/app/deploy/scripts/wait4pair_wrapper.sh"
-    ],
-    args: [
-      "/app/deploy/scripts/data_join/run_data_join_master.sh"
-    ]
+    }
   },
-  "Worker": {
-    pair: true,
-    env: [
-      {
-        "name": "DATA_BLOCK_DUMP_INTERVAL",
-        "value": "300"
-      },
-      {
-        "name": "DATA_BLOCK_DUMP_THRESHOLD",
-        "value": "65536"
-      },
-      {
-        "name": "EXAMPLE_ID_DUMP_INTERVAL",
-        "value": "600"
-      },
-      {
-        "name": "EXAMPLE_ID_DUMP_THRESHOLD",
-        "value": "262144"
-      },
-      {
-        "name": "EXAMPLE_ID_BATCH_SIZE",
-        "value": "4096"
-      },
-      {
-        "name": "MAX_FLYING_EXAMPLE_ID",
-        "value": "307152"
-      },
-      {
-        "name": "MIN_MATCHING_WINDOW",
-        "value": "256"
-      },
-      {
-        "name": "MAX_MATCHING_WINDOW",
-        "value": "1024"
-      },
-      {
-        "name": "RAW_DATA_ITER",
-        "value": "TF_RECORD"
+  "private_params": {
+    "spec": {
+      "flReplicaSpecs": {
+        "Master": {
+          "template": {
+            "spec": {
+              "containers": [
+                {
+                  "image": "artifact.bytedance.com/fedlearner/fedlearner:049ad50",
+                  "env": [
+                    {
+                      "name": "RAW_DATA_SUB_DIR",
+                      "value": "test-json"
+                    },
+                    {
+                      "name": "PARTITION_NUM",
+                      "value": "4"
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          "replicas": 1
+        },
+        "Worker": {
+          "template": {
+            "spec": {
+              "containers": [
+                {
+                  "image": "artifact.bytedance.com/fedlearner/fedlearner:049ad50"
+                }
+              ]
+            }
+          },
+          "replicas": 4
+        }
       }
-    ],
-    command: [
-      "/app/deploy/scripts/wait4pair_wrapper.sh"
-    ],
-    args: [
-      "/app/deploy/scripts/data_join/run_data_join_worker.sh"
-    ]
+    }
   }
 }
 
-const TRAINING_TICKET_PARAMS = {
-  "Master": {
-    pair: false,
-    env: [
-      {
-        "name": "DATA_SOURCE",
-        "value": "federation_test"
+const TICKET_TREE_PARAMS = {
+  "public_params": {
+    "spec": {
+      "flReplicaSpecs": {
+        "Master": {
+          "pair": true,
+          "template": {
+            "spec": {
+              "containers": [
+                {
+                  "env": [
+                    {
+                      "name": "BATCH_MODE",
+                      "value": "--batch_mode"
+                    },
+                    {
+                      "name": "PARTITION_NUM",
+                      "value": "4"
+                    },
+                    {
+                      "name": "START_TIME",
+                      "value": "0"
+                    },
+                    {
+                      "name": "END_TIME",
+                      "value": "999999999999"
+                    },
+                    {
+                      "name": "NEGATIVE_SAMPLING_RATE",
+                      "value": "1.0"
+                    },
+                    {
+                      "name": "RAW_DATA_SUB_DIR",
+                      "value": "test-json"
+                    }
+                  ],
+                  "command": [
+                    "/app/deploy/scripts/wait4pair_wrapper.sh"
+                  ],
+                  "args": [
+                    "/app/deploy/scripts/data_join/run_data_join_master.sh"
+                  ],
+                  "image": "artifact.bytedance.com/fedlearner/fedlearner:049ad50"
+                }
+              ]
+            }
+          },
+          "replicas": 1
+        },
+        "Worker": {
+          "pair": true,
+          "template": {
+            "spec": {
+              "containers": [
+                {
+                  "env": [
+                    {
+                      "name": "DATA_BLOCK_DUMP_INTERVAL",
+                      "value": "300"
+                    },
+                    {
+                      "name": "DATA_BLOCK_DUMP_THRESHOLD",
+                      "value": "65536"
+                    },
+                    {
+                      "name": "EXAMPLE_ID_DUMP_INTERVAL",
+                      "value": "600"
+                    },
+                    {
+                      "name": "EXAMPLE_ID_DUMP_THRESHOLD",
+                      "value": "262144"
+                    },
+                    {
+                      "name": "EXAMPLE_ID_BATCH_SIZE",
+                      "value": "4096"
+                    },
+                    {
+                      "name": "MAX_FLYING_EXAMPLE_ID",
+                      "value": "307152"
+                    },
+                    {
+                      "name": "MIN_MATCHING_WINDOW",
+                      "value": "256"
+                    },
+                    {
+                      "name": "MAX_MATCHING_WINDOW",
+                      "value": "1024"
+                    },
+                    {
+                      "name": "RAW_DATA_ITER",
+                      "value": "TF_RECORD"
+                    }
+                  ],
+                  "command": [
+                    "/app/deploy/scripts/wait4pair_wrapper.sh"
+                  ],
+                  "args": [
+                    "/app/deploy/scripts/data_join/run_data_join_worker.sh"
+                  ],
+                  "image": "artifact.bytedance.com/fedlearner/fedlearner:049ad50"
+                }
+              ]
+            }
+          },
+          "replicas": 4
+        }
       }
-    ],
-    command: [
-      "/app/deploy/scripts/trainer/run_trainer_master.sh"
-    ],
+    }
   },
-  "PS": {
-    pair: false,
-    command: [
-      "/app/deploy/scripts/trainer/run_trainer_ps.sh"
-    ],
-  },
-  "Worker": {
-    pair: true,
-    env: [
-      {
-        "name": "CODE_KEY",
-        "value": "https://gitee.com/piiswrong/fedlearner_models/raw/a2ea5a36000fce1418d831f763a62d2056bfe035/criteo-train.tar.gz"
-      },
-      {
-        "name": "SAVE_CHECKPOINT_STEPS",
-        "value": "1000"
-      },
-      {
-        "name": "SPARSE_ESTIMATOR",
-        "value": "False"
+  "private_params": {
+    "spec": {
+      "flReplicaSpecs": {
+        "Master": {
+          "template": {
+            "spec": {
+              "containers": [
+                {
+                  "image": "artifact.bytedance.com/fedlearner/fedlearner:049ad50",
+                  "env": [
+                    {
+                      "name": "RAW_DATA_SUB_DIR",
+                      "value": "test-json"
+                    },
+                    {
+                      "name": "PARTITION_NUM",
+                      "value": "4"
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          "replicas": 1
+        },
+        "Worker": {
+          "template": {
+            "spec": {
+              "containers": [
+                {
+                  "image": "artifact.bytedance.com/fedlearner/fedlearner:049ad50"
+                }
+              ]
+            }
+          },
+          "replicas": 4
+        }
       }
-    ],
-    command: [
-      "/app/deploy/scripts/wait4pair_wrapper.sh"
-    ],
-    args: [
-      "/app/deploy/scripts/trainer/run_trainer_worker.sh"
-    ]
+    }
   }
 }
+// ***************************************************************************************
 
+
+// inject to formMeta.context
 const RAW_DATA_CONTEXT = {
-  file_wildcard: '*',
-  batch_size: 1024,
-  max_flying_item: 300000,
-  merge_buffer_size: 4096,
-  write_buffer_size: 10000000,
-  resource_master_cpu_request: '1000m',
-  resource_master_cpu_limit: '1000m',
-  resource_master_memory_request: '2Gi',
-  resource_master_memory_limit: '2Gi',
-  input_data_format: 'CSV_DICT',
-  output_data_format: 'TF_RECORD',
-  compressed_type: 'None', // 'None' will be convert to empty string finally
-}
-
-for (let k in K8S_SETTINGS) {
-  if (typeof K8S_SETTINGS[k] === 'object') {
-    K8S_SETTINGS[k] = JSON.stringify(K8S_SETTINGS[k], null, 2)
+  "file_wildcard": "*",
+  "input_data_format": "CSV_DICT",
+  "output_data_format": "TF_RECORD",
+  "compressed_type": "",
+  "batch_size": 1024,
+  "max_flying_item": 300000,
+  "write_buffer_size": 10000000,
+  "yaml_spec": {
+    "spec": {
+      "flReplicaSpecs": {
+        "Master": {
+          "template": {
+            "spec": {
+              "containers": [
+                {
+                  "resources": {
+                    "requests": {
+                      "cpu": "1000m",
+                      "memory": "2Gi"
+                    },
+                    "limits": {
+                      "cpu": "1000m",
+                      "memory": "2Gi"
+                    }
+                  },
+                  "image": "/"
+                }
+              ]
+            }
+          }
+        },
+        "Worker": {
+          "template": {
+            "spec": {
+              "containers": [
+                {
+                  "resources": {
+                    "limits": {
+                      "cpu": "1000m",
+                      "memory": "2Gi"
+                    },
+                    "requests": {
+                      "memory": "2Gi"
+                    }
+                  },
+                  "image": "/"
+                }
+              ]
+            }
+          },
+          "replicas": 4
+        }
+      }
+    }
   }
 }
+
 
 const _ = [
   K8S_SETTINGS,
-  DATASOURCE_TICKET_PARAMS.Master,
-  DATASOURCE_TICKET_PARAMS.Worker,
-  TRAINING_TICKET_PARAMS.Master,
-  TRAINING_TICKET_PARAMS.PS,
-  TRAINING_TICKET_PARAMS.Worker,
 ].forEach(el => {
   for (let k in el) {
     if (typeof el[k] === 'object') {
@@ -225,10 +1281,21 @@ const _ = [
 
 module.exports = {
   K8S_SETTINGS,
-  DATASOURCE_JOB_REPLICA_TYPE,
+
+  RAW_DATA_CONTEXT,
+
   DATASOURCE_TICKET_REPLICA_TYPE,
   TRAINING_TICKET_REPLICA_TYPE,
-  RAW_DATA_CONTEXT,
-  DATASOURCE_TICKET_PARAMS,
-  TRAINING_TICKET_PARAMS,
+  DATASOURCE_JOB_REPLICA_TYPE,
+  TRAINING_JOB_REPLICA_TYPE,
+
+  JOB_DATA_JOIN_PARAMS,
+  JOB_PSI_DATA_JOIN_PARAMS,
+  TICKET_DATA_JOIN_PARAMS,
+  TICKET_PSI_DATA_JOIN_PARAMS,
+
+  JOB_NN_PARAMS,
+  JOB_TREE_PARAMS,
+  TICKET_NN_PARAMS,
+  TICKET_TREE_PARAMS,
 }

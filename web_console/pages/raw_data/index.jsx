@@ -22,12 +22,11 @@ const DATA_FORMAT_OPTIONS = [
 ]
 
 const CONTEXT_FIELDS = [
-  { key: 'file_wildcard', default: '*', default: RAW_DATA_CONTEXT.file_wildcard },
+  { key: 'file_wildcard' },
   {
     key: 'input_data_format',
     type: 'select',
     required: true,
-    default: RAW_DATA_CONTEXT.input_data_format,
     props: {
       options: DATA_FORMAT_OPTIONS
     }
@@ -36,7 +35,6 @@ const CONTEXT_FIELDS = [
     key: 'output_data_format',
     type: 'select',
     required: true,
-    default: RAW_DATA_CONTEXT.output_data_format,
     props: {
       options: DATA_FORMAT_OPTIONS
     }
@@ -45,7 +43,6 @@ const CONTEXT_FIELDS = [
     key: 'compressed_type',
     type: 'select',
     required: true,
-    default: RAW_DATA_CONTEXT.compressed_type,
     props: {
       options: [
         { label: 'GZIP', value: 'GZIP' },
@@ -54,36 +51,32 @@ const CONTEXT_FIELDS = [
       ]
     }
   },
-  { key: 'batch_size', default: RAW_DATA_CONTEXT.batch_size },
-  { key: 'max_flying_item', default: RAW_DATA_CONTEXT.max_flying_item },
-  { key: 'write_buffer_size', default: RAW_DATA_CONTEXT.write_buffer_size },
+  { key: 'batch_size' },
+  { key: 'max_flying_item' },
+  { key: 'write_buffer_size' },
   { key: 'Master Resources', type: 'label', span: 24},
   {
     key: 'resource.Master.cpu_request',
     label: 'cpu request',
     path: RESOURCE_PATH_PREFIX + '.requests.cpu',
-    default: RAW_DATA_CONTEXT.resource_master_cpu_request,
     span: 12,
   },
   {
     key: 'resource.Master.cpu_limit',
     label: 'cpu limit',
     path: RESOURCE_PATH_PREFIX + '.limits.cpu',
-    default: RAW_DATA_CONTEXT.resource_master_cpu_limit,
     span: 12
   },
   {
     key: 'resource.Master.memory_request',
     label: 'memory request',
     path: RESOURCE_PATH_PREFIX + '.requests.memory',
-    default: RAW_DATA_CONTEXT.resource_master_memory_request,
     span: 12,
   },
   {
     key: 'resource.Master.memory_limit',
     label: 'memory limit',
     path: RESOURCE_PATH_PREFIX + '.limits.memory',
-    default: RAW_DATA_CONTEXT.resource_master_memory_limit,
     span: 12
   },
   { key: 'worker Resources', type: 'label', span: 24 },
@@ -91,35 +84,30 @@ const CONTEXT_FIELDS = [
     key: 'resource.Worker.cpu_request',
     label: 'cpu request',
     path: RESOURCE_PATH_PREFIX + '.limits.cpu',
-    default: RAW_DATA_CONTEXT.resource_master_cpu_request,
     span: 12
   },
   {
     key: 'resource.Worker.cpu_limit',
     label: 'cpu limit',
     path: RESOURCE_PATH_PREFIX + '.limits.cpu',
-    default: RAW_DATA_CONTEXT.resource_master_cpu_limit,
     span: 12
   },
   {
     key: 'resource.Worker.memory_request',
     label: 'memory request',
     path: RESOURCE_PATH_PREFIX + '.requests.memory',
-    default: RAW_DATA_CONTEXT.resource_master_memory_request,
     span: 12,
   },
   {
     key: 'resource.Worker.memory_limit',
     label: 'memory limit',
     path: RESOURCE_PATH_PREFIX + '.limits.memory',
-    default: RAW_DATA_CONTEXT.resource_master_memory_limit,
     span: 12
   },
   {
     key: 'num_workers',
     label: 'num workers',
     span: 12,
-    default: 4,
     path: WORKER_REPLICAS_PATH
   },
 ]
@@ -338,6 +326,17 @@ export default function RawDataList() {
     : [];
   const [formVisible, setFormVisible] = useState(false);
 
+
+  const onCreate = () => {
+    setFormMeta({context: RAW_DATA_CONTEXT})
+    setFields(mapValueToFields({
+      data: mapFormMeta2Form(),
+      fields
+    }))
+
+    toggleForm()
+  }
+
   const toggleForm = () => setFormVisible(!formVisible);
   const onOk = (rawData) => {
     mutate({
@@ -369,7 +368,7 @@ export default function RawDataList() {
           <>
             <div className="heading">
               <Text h2>RawDatas</Text>
-              <Button auto type="secondary" onClick={toggleForm}>Create Raw Data</Button>
+              <Button auto type="secondary" onClick={onCreate}>Create Raw Data</Button>
             </div>
             {rawDatas && (
               <Card>
