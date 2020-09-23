@@ -572,8 +572,8 @@ const TICKET_PSI_DATA_JOIN_PARAMS = {
 // ************************************ taining job ************************************
 // This config determines how many parts to render in form
 // Make sure to provide corresponding value in PARAMS config
-const JOB_NN_REPLICA_TYPE = ['Master', 'Worker']
-const JOB_TREE_REPLICA_TYPE = ['Master', 'Worker']
+const JOB_NN_REPLICA_TYPE = ['Master', 'PS', 'Worker']
+const JOB_TREE_REPLICA_TYPE = ['Worker']
 
 const JOB_NN_PARAMS = {
   "server_params": {
@@ -777,8 +777,8 @@ const JOB_TREE_PARAMS = {
 // ************************************ taining ticket ************************************
 // This config determines how many parts to render in form
 // Make sure to provide corresponding value in PARAMS config
-const TICKET_NN_REPLICA_TYPE = ['Master', 'Worker']
-const TICKET_TREE_REPLICA_TYPE = ['Master', 'Worker']
+const TICKET_NN_REPLICA_TYPE = ['Master', 'PS', 'Worker']
+const TICKET_TREE_REPLICA_TYPE = ['Worker']
 
 const TICKET_NN_PARAMS = {
   "public_params": {
