@@ -55,7 +55,10 @@ const K8S_SETTINGS = {
 }
 
 // ************************************ datasouce job ************************************
-const DATASOURCE_JOB_REPLICA_TYPE = ['Master', 'Worker']
+// This config determines how many parts to render in form
+// Make sure to provide corresponding value in PARAMS config
+const JOB_DATA_JOIN_REPLICA_TYPE = ['Master', 'Worker']
+const JOB_PSI_DATA_JOIN_REPLICA_TYPE = ['Master', 'Worker']
 
 // inject to formMeta.client_params .server_params
 const JOB_DATA_JOIN_PARAMS = {
@@ -256,7 +259,10 @@ const JOB_PSI_DATA_JOIN_PARAMS = {
 // ***************************************************************************************
 
 // ************************************ datasouce ticket ************************************
-const DATASOURCE_TICKET_REPLICA_TYPE = ['Master', 'Worker']
+// This config determines how many parts to render in form
+// Make sure to provide corresponding value in PARAMS config
+const TICKET_DATA_JOIN_REPLICA_TYPE = ['Master', 'Worker']
+const TICKET_PSI_DATA_JOIN_REPLICA_TYPE = ['Master', 'Worker']
 
 const TICKET_DATA_JOIN_PARAMS = {
   "public_params": {
@@ -564,7 +570,10 @@ const TICKET_PSI_DATA_JOIN_PARAMS = {
 // ***************************************************************************************
 
 // ************************************ taining job ************************************
-const TRAINING_JOB_REPLICA_TYPE = ['Master', 'PS','Worker']
+// This config determines how many parts to render in form
+// Make sure to provide corresponding value in PARAMS config
+const JOB_NN_REPLICA_TYPE = ['Master', 'PS', 'Worker']
+const JOB_TREE_REPLICA_TYPE = ['Worker']
 
 const JOB_NN_PARAMS = {
   "server_params": {
@@ -763,11 +772,13 @@ const JOB_TREE_PARAMS = {
     }
   }
 }
-
 // ***************************************************************************************
 
 // ************************************ taining ticket ************************************
-const TRAINING_TICKET_REPLICA_TYPE = ['Master', 'PS', 'Worker']
+// This config determines how many parts to render in form
+// Make sure to provide corresponding value in PARAMS config
+const TICKET_NN_REPLICA_TYPE = ['Master', 'PS', 'Worker']
+const TICKET_TREE_REPLICA_TYPE = ['Worker']
 
 const TICKET_NN_PARAMS = {
   "public_params": {
@@ -1013,15 +1024,22 @@ module.exports = {
 
   RAW_DATA_CONTEXT,
 
-  DATASOURCE_TICKET_REPLICA_TYPE,
-  TRAINING_TICKET_REPLICA_TYPE,
-  DATASOURCE_JOB_REPLICA_TYPE,
-  TRAINING_JOB_REPLICA_TYPE,
+  // datasource
+  JOB_DATA_JOIN_REPLICA_TYPE,
+  JOB_PSI_DATA_JOIN_REPLICA_TYPE,
+  TICKET_DATA_JOIN_REPLICA_TYPE,
+  TICKET_PSI_DATA_JOIN_REPLICA_TYPE,
 
   JOB_DATA_JOIN_PARAMS,
   JOB_PSI_DATA_JOIN_PARAMS,
   TICKET_DATA_JOIN_PARAMS,
   TICKET_PSI_DATA_JOIN_PARAMS,
+
+  // training
+  JOB_NN_REPLICA_TYPE,
+  JOB_TREE_REPLICA_TYPE,
+  TICKET_NN_REPLICA_TYPE,
+  TICKET_TREE_REPLICA_TYPE,
 
   JOB_NN_PARAMS,
   JOB_TREE_PARAMS,
