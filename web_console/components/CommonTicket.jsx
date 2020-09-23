@@ -223,7 +223,7 @@ export default function TicketList({
       let num = replicaType === 'Master' ? 1 : draft.num_partitions
 
       PARAMS_GROUP.forEach(paramType => {
-        fillJSON(draft[paramType], `spec.flReplicaSpecs.${replicaType}.replicas`, num)
+        fillJSON(draft[paramType], `spec.flReplicaSpecs.${replicaType}.replicas`, parseInt(num))
       })
     })
 
