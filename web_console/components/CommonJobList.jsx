@@ -103,6 +103,10 @@ function handleParamData(container, data, field) {
   let path = field.path || field.key
   let value = data
 
+  if (/[/s/S]* num$/.test(field.key)) {
+    value = parseInt(value)
+  }
+
   fillJSON(container, path, value)
 }
 
@@ -309,11 +313,24 @@ export default function JobList({
 
         // trigger immer‘s intercepter
         fillJSON(draft[paramType], ENV_PATH.replace('[replicaType]', replicaType), envs)
+
+        // replicas
+        let path = `spec.flReplicaSpecs.${replicaType}.replicas`
+        if (replicaType !== 'Master') {
+          fillJSON(draft[paramType], path, parseInt(data[`${replicaType} num`]))
+        }
+
       })
     })
 
     // delete useless fields
     draft.datasource && delete draft.datasource
+
+    JOB_REPLICA_TYPE
+      .forEach(replicaType =>
+        draft[`${replicaType} num`] && delete draft[`${replicaType} num`]
+      )
+
   }, [JOB_REPLICA_TYPE])
   const mapFormMeta2FullData = useCallback((fields = fields) => {
     let data = {}
@@ -343,18 +360,21 @@ export default function JobList({
   }, [])
   const writeForm2FormMeta = useCallback((groupName, data) => {
     setFormMeta(produce(formMeta, draft => {
+      let value
+
       fields.map(x => {
         if (x.groupName) {
           if (x.groupName !== groupName) return
           if (!draft[groupName]) { draft[groupName] = {} }
 
           for (let field of getParamsFormFields()) {
-            let value = getParsedValueFromData(data[groupName], field)
+            value = getParsedValueFromData(data[groupName], field)
             handleParamData(draft[groupName], value, field)
           }
 
         } else {
-          draft[x.key] = getParsedValueFromData(data, x) || draft[x.key]
+          value = getParsedValueFromData(data, x) || draft[x.key]
+          handleParamData(draft, value, x)
         }
       })
       rewriteFields(draft, data)
@@ -447,6 +467,11 @@ export default function JobList({
       type: 'datasource',
       required: true,
     },
+    ...JOB_REPLICA_TYPE
+      .filter(el => training && el !== 'Master')
+      .map(replicaType => ({
+        key: `${replicaType} num`,
+      })),
     ...PARAMS_GROUP.map(paramsType => ({
       groupName: paramsType,
       initialVisible: false,
