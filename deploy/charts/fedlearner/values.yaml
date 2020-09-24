@@ -29,3 +29,12 @@ fedlearner-web-console:
 
   ingress:
     enabled: true
+
+  extraVolumeMounts:
+  - name: data
+    mountPath: /data
+
+  extraVolumes:
+  - name: data
+    persistentVolumeClaim:
+      claimName: pvc-fedlearner-default

@@ -70,6 +70,10 @@ tolerations: []
 
 affinity: {}
 
+extraVolumes: []
+
+extraVolumeMounts: []
+
 cluster:
   env:
     DB_USERNAME: root
