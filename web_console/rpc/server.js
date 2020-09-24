@@ -88,7 +88,7 @@ async function createJob(call, callback) {
       job_type,
       client_ticket_name: server_ticket_name,
       server_ticket_name: client_ticket_name,
-      server_params,
+      client_params: server_params,
     } = call.request;
     const ticketRecord = await Ticket.findOne({
       where: {
@@ -98,7 +98,7 @@ async function createJob(call, callback) {
     if (!ticketRecord) throw new Error('Ticket not found');
     if (ticketRecord.federation_id != federation.id) throw new Error("Invalid ticket name");
 
-    const params = JSON.parse(server_params);
+    const params = JSON.parse(client_params);
     validateTicket(ticketRecord, params);
 
     const [data, created] = await Job.findOrCreate({
@@ -111,7 +111,7 @@ async function createJob(call, callback) {
         job_type,
         client_ticket_name,
         server_ticket_name,
-        server_params: JSON.parse(server_params),
+        client_params: JSON.parse(client_params),
         status: 'started',
         federation_id: federation.id,
       },
@@ -127,7 +127,7 @@ async function createJob(call, callback) {
         job_type: data.job_type,
         client_ticket_name: data.server_ticket_name,
         server_ticket_name: data.client_ticket_name,
-        server_params: JSON.stringify(data.server_params),
+        server_params: client_params,
         status: 'started',
         federation_id: federation.id,
       },
@@ -168,13 +168,13 @@ async function updateJob(call, callback) {
       job_type,
       client_ticket_name: server_ticket_name,
       server_ticket_name: client_ticket_name,
-      server_params,
+      server_params: client_params,
       status,
     } = call.request;
 
     const new_job = {
       name, job_type, client_ticket_name, server_ticket_name,
-      server_params, status,
+      client_params, status,
     }
 
     const old_job = await Job.findOne({
@@ -206,8 +206,8 @@ async function updateJob(call, callback) {
       throw new Error("Cannot change job federation");
     }
 
-    const params = JSON.parse(server_params);
-    validateTicket(ticketRecord, params);
+    // const params = JSON.parse(client_params);
+    // validateTicket(ticketRecord, params);
 
     if (old_job.status === 'started' && status === 'stopped') {
       flapp = (await k8s.getFLApp(NAMESPACE, name)).flapp;
@@ -221,7 +221,9 @@ async function updateJob(call, callback) {
 
     old_job.client_ticket_name = new_job.client_ticket_name;
     old_job.server_ticket_name = new_job.server_ticket_name;
-    old_job.server_params = new_job.server_params;
+    if (new_job.client_params) {
+      old_job.client_params = new_job.client_params;
+    }
     old_job.status = new_job.status;
     old_job.federation_id = new_job.federation_id;
 
@@ -233,7 +235,7 @@ async function updateJob(call, callback) {
         job_type: data.job_type,
         client_ticket_name: data.server_ticket_name,
         server_ticket_name: data.client_ticket_name,
-        server_params: JSON.stringify(data.server_params),
+        server_params: client_params,
       },
       status: data.status,
     });
