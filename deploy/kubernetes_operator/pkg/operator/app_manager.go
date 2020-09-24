@@ -175,6 +175,9 @@ func (am *appManager) SyncApp(app *v1alpha1.FLApp, deleting bool) error {
 			return am.appStatusUpdater.UpdateAppStateWithRetry(ctx, appCopy, v1alpha1.FLStateFailing)
 		}
 	}
+	if appState == v1alpha1.FLStateNew && am.isAppFinished(appCopy) {
+		return am.appStatusUpdater.UpdateAppStateWithRetry(ctx, appCopy, v1alpha1.FLStateComplete)
+	}
 
 	switch appState {
 	case v1alpha1.FLStateNew:
