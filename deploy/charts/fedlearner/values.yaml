@@ -7,7 +7,7 @@ replicaCount: 1
 fedlearner-operator:
   image:
     repository: fedlearner/fedlearner-operator
-    tag: "712e03a"
+    tag: "0c1898e"
     pullPolicy: IfNotPresent
 
   ingress:
@@ -18,13 +18,13 @@ fedlearner-operator:
 fedlearner-apiserver:
   image:
     repository: fedlearner/fedlearner-apiserver
-    tag: "712e03a"
+    tag: "0c1898e"
     pullPolicy: IfNotPresent
 
 fedlearner-web-console:
   image:
     repository: fedlearner/fedlearner-web-console
-    tag: "712e03a"
+    tag: "0c1898e"
     pullPolicy: IfNotPresent
 
   ingress:
