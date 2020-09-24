@@ -13,7 +13,11 @@ import {
   TICKET_DATA_JOIN_PARAMS,
   TICKET_NN_PARAMS,
   TICKET_PSI_DATA_JOIN_PARAMS,
-  TICKET_TREE_PARAMS
+  TICKET_TREE_PARAMS,
+  TICKET_DATA_JOIN_REPLICA_TYPE,
+  TICKET_NN_REPLICA_TYPE,
+  TICKET_PSI_DATA_JOIN_REPLICA_TYPE,
+  TICKET_TREE_REPLICA_TYPE
 } from '../constants/form-default'
 import { getParsedValueFromData, fillJSON, getValueFromJson, filterArrayValue, getValueFromEnv } from '../utils/form_utils';
 import { JOB_TYPE_CLASS, JOB_TYPE } from '../constants/job'
@@ -130,7 +134,7 @@ export default function TicketList({
 
     PAGE_NAME = 'datasource'
 
-    TICKET_REPLICA_TYPE = DATASOURCE_TICKET_REPLICA_TYPE
+    TICKET_REPLICA_TYPE = TICKET_DATA_JOIN_REPLICA_TYPE
 
     INIT_PARAMS = TICKET_DATA_JOIN_PARAMS
 
@@ -142,7 +146,7 @@ export default function TicketList({
 
     PAGE_NAME = 'training'
 
-    TICKET_REPLICA_TYPE = TRAINING_TICKET_REPLICA_TYPE
+    TICKET_REPLICA_TYPE = TICKET_NN_REPLICA_TYPE
 
     INIT_PARAMS = TICKET_NN_PARAMS
 
@@ -219,7 +223,7 @@ export default function TicketList({
       let num = replicaType === 'Master' ? 1 : draft.num_partitions
 
       PARAMS_GROUP.forEach(paramType => {
-        fillJSON(draft[paramType], `spec.flReplicaSpecs.${replicaType}.replicas`, num)
+        fillJSON(draft[paramType], `spec.flReplicaSpecs.${replicaType}.replicas`, parseInt(num))
       })
     })
 
@@ -274,7 +278,7 @@ export default function TicketList({
         if (x.groupName === groupName) {
           if (!draft[groupName]) { draft[groupName] = {} }
 
-          for (let field of PUBLIC_PARAMS_FIELDS) {
+          for (let field of getPublicParamsFields()) {
             let value = getParsedValueFromData(data[groupName], field)
             handleParamData(draft[groupName], value, field)
           }
@@ -314,30 +318,34 @@ export default function TicketList({
   }
   // --end---
 
-  const onJobTypeChange = useCallback((value, totalData, groupFormType, updateFormWithFields) => {
+  const onJobTypeChange = useCallback((value, totalData, groupFormType) => {
     writeFormMeta(totalData,groupFormType)
 
     switch (value) {
       case JOB_TYPE.data_join:
+        TICKET_REPLICA_TYPE = TICKET_DATA_JOIN_REPLICA_TYPE
         setFormMeta({...formMeta, ...TICKET_DATA_JOIN_PARAMS}); break
       case JOB_TYPE.psi_data_join:
+        TICKET_REPLICA_TYPE = TICKET_PSI_DATA_JOIN_REPLICA_TYPE
         setFormMeta({...formMeta, ...TICKET_PSI_DATA_JOIN_PARAMS}); break
       case JOB_TYPE.nn_model:
+        TICKET_REPLICA_TYPE = TICKET_NN_REPLICA_TYPE
         setFormMeta({...formMeta, ...TICKET_NN_PARAMS}); break
       case JOB_TYPE.tree_model:
+        TICKET_REPLICA_TYPE = TICKET_TREE_REPLICA_TYPE
         setFormMeta({...formMeta, ...TICKET_TREE_PARAMS}); break
     }
 
-    updateFormWithFields(
+    setFields(
       mapValueToFields({
         data: mapFormMeta2FullData(fields),
-        fields,
+        fields: getDefauktFields(),
         init: true,
       })
     )
   }, [])
 
-  const PUBLIC_PARAMS_FIELDS = useMemo(() => TICKET_REPLICA_TYPE.reduce(
+  const getPublicParamsFields = useCallback(() => TICKET_REPLICA_TYPE.reduce(
     (total, replicaType) => {
       const replicaKey = key => `${replicaType}.${key}`
 
@@ -380,9 +388,9 @@ export default function TicketList({
       return total
     },
     []
-  ), [])
+  ), [TICKET_REPLICA_TYPE])
 
-  const DEFAULT_FIELDS = useMemo(() => filterArrayValue([
+  const getDefauktFields = useCallback(() => filterArrayValue([
     { key: 'name', required: true },
     { key: 'federation_id', type: 'federation', label: 'federation', required: true },
     {
@@ -426,7 +434,7 @@ export default function TicketList({
       onFormTypeChange: formTypeChangeHandler('public_params'),
       formTypes: ['form', 'json'],
       fields: {
-        form: PUBLIC_PARAMS_FIELDS,
+        form: getPublicParamsFields(),
         json: [
           {
             key: 'public_params',
@@ -456,9 +464,9 @@ export default function TicketList({
         },
       ]
     }
-  ]), [])
+  ]), [TICKET_REPLICA_TYPE])
   const [formVisible, setFormVisible] = useState(false);
-  const [fields, setFields] = useState(DEFAULT_FIELDS);
+  const [fields, setFields] = useState(getDefauktFields());
   const [currentTicket, setCurrentTicket] = useState(null);
   const title = currentTicket ? `Edit Ticket: ${currentTicket.name}` : 'Create Ticket';
   const closeForm = () => {
@@ -468,7 +476,7 @@ export default function TicketList({
   };
   const onCreate = () => {
     setFormMeta({ ...INIT_PARAMS })
-    setFields(mapValueToFields({data: formMeta, fields: DEFAULT_FIELDS, init: true}))
+    setFields(mapValueToFields({data: formMeta, fields: getDefauktFields(), init: true}))
     setFormVisible(true);
   }
   const onOk = (ticket) => {
@@ -479,7 +487,7 @@ export default function TicketList({
   };
   const handleEdit = (ticket) => {
     setCurrentTicket(ticket);
-    setFields(mapValueToFields({data: ticket, fields: DEFAULT_FIELDS, editing: true}));
+    setFields(mapValueToFields({data: ticket, fields: getDefauktFields(), editing: true}));
     setFormVisible(true);
   };
 
