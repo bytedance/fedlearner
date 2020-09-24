@@ -128,8 +128,14 @@ function fillField(data, field) {
     }
   }
   else if (field.key === 'datasource') {
-    v = v = getValueFromEnv(data['public_params'], envPath, 'DATA_SOURCE')
-      || getValueFromEnv(data['private_params'], envPath, 'DATA_SOURCE')
+    v = getValueFromEnv(data['client_params'], envPath, 'DATA_SOURCE')
+      || getValueFromEnv(data['server_params'], envPath, 'DATA_SOURCE')
+  }
+  else if (/[/s/S]* num$/.test(field.key)) {
+    let replicaType = field.key.split(' ')[0]
+    let path = `spec.flReplicaSpecs.${replicaType}.replicas`
+    v = getValueFromJson(data['client_params'], path)
+      || getValueFromJson(data['server_params'], path)
   }
 
   if (typeof v === 'object') {
