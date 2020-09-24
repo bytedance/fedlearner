@@ -248,7 +248,7 @@ router.post('/api/v1/job', SessionMiddleware, async (ctx) => {
   } catch (e) {
     ctx.status = 400;
     ctx.body = {
-      error: `client_params validation failed: ${e.details}`,
+      error: `client_params validation failed: ${e.message}`,
     };
     return;
   }
@@ -261,7 +261,7 @@ router.post('/api/v1/job', SessionMiddleware, async (ctx) => {
   } catch (err) {
     ctx.status = 500;
     ctx.body = {
-      error: `RPC Error: ${err.details}`,
+      error: `RPC Error: ${err.message}`,
     };
     return;
   }
@@ -395,7 +395,7 @@ router.post('/api/v1/job/:id/update', SessionMiddleware, async (ctx) => {
   } catch (err) {
     ctx.status = 500;
     ctx.body = {
-      error: `RPC Error: ${err.details}`,
+      error: `RPC Error: ${err.message}`,
     };
     return;
   }
@@ -411,7 +411,7 @@ router.post('/api/v1/job/:id/update', SessionMiddleware, async (ctx) => {
   } catch (e) {
     ctx.status = 400;
     ctx.body = {
-      error: `client_params validation failed: ${e.details}`,
+      error: `client_params validation failed: ${e.message}`,
     };
     return;
   }
@@ -425,7 +425,7 @@ router.post('/api/v1/job/:id/update', SessionMiddleware, async (ctx) => {
   } catch (err) {
     ctx.status = 500;
     ctx.body = {
-      error: `RPC Error: ${err.details}`,
+      error: `RPC Error: ${err.message}`,
     };
     return;
   }
@@ -482,7 +482,7 @@ router.delete('/api/v1/job/:id', SessionMiddleware, async (ctx) => {
   } catch (err) {
     ctx.status = 500;
     ctx.body = {
-      error: `RPC Error: ${err.details}`,
+      error: `RPC Error: ${err.message}`,
     };
     return;
   }
