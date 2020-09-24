@@ -323,7 +323,8 @@ export default function JobList({
         // replicas
         let path = `spec.flReplicaSpecs.${replicaType}.replicas`
         if (replicaType !== 'Master') {
-          fillJSON(draft[paramType], path, parseInt(data[`${replicaType} num`]))
+          let num = parseInt(data[`${replicaType} num`])
+          !isNaN(num) && fillJSON(draft[paramType], path, parseInt(data[`${replicaType} num`]))
         }
 
       })
