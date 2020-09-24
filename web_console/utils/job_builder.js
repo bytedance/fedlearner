@@ -78,10 +78,12 @@ function clientValidateJob(job, client_ticket, server_ticket) {
     throw new Error(`client_ticket.role ${client_ticket.role} must be different from server_ticket.role ${server_ticket.role}`);
   }
 
-  let client_replicas = job.client_params.spec.flReplicaSpecs["Worker"]["replicas"];
-  let server_replicas = job.server_params.spec.flReplicaSpecs["Worker"]["replicas"];
-  if (client_replicas != server_replicas) {
-    throw new Error(`replicas in client_params ${client_replicas} is different from replicas in server_params ${server_replicas}`);
+  if (job.server_params) {
+    let client_replicas = job.client_params.spec.flReplicaSpecs["Worker"]["replicas"];
+    let server_replicas = job.server_params.spec.flReplicaSpecs["Worker"]["replicas"];
+    if (client_replicas != server_replicas) {
+      throw new Error(`replicas in client_params ${client_replicas} is different from replicas in server_params ${server_replicas}`);
+    }
   }
   return true;
 }
