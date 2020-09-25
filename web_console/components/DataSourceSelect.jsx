@@ -4,14 +4,14 @@ import useSWR from 'swr';
 import { fetcher } from '../libs/http';
 import { JOB_TYPE_CLASS } from '../constants/job'
 
-export default function ServerTicketSelect({type, ...props}) {
+export default function DataSourceSelect({type, ...props}) {
 
   const filter = el => JOB_TYPE_CLASS.datasource.some(t => el.localdata?.job_type === t)
 
   const { data } = useSWR(`jobs`, fetcher);
   const jobs = data?.data?.filter(filter) || []
 
-  const actualValue = jobs.find((x) => x.name === props.localdata?.name)?.name;
+  const actualValue = jobs.find((x) => x.localdata?.name === props.value)?.localdata?.name;
   const actualOnChange = (value) => {
     props.onChange(value);
   };
