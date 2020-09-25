@@ -162,7 +162,7 @@ router.post('/api/v1/job', SessionMiddleware, async (ctx) => {
   } catch (e) {
     ctx.status = 400;
     ctx.body = {
-      error: 'client_params validation failed',
+      error: `client_params validation failed: ${e.message}`,
     };
     return;
   }
