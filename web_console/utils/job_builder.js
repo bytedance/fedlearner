@@ -16,7 +16,6 @@ const { NAMESPACE, ES_HOST, ES_PORT } = getConfig({
   NAMESPACE: process.env.NAMESPACE,
   ES_HOST: process.env.ES_HOST,
   ES_PORT: process.env.ES_PORT,
-  USE_ES_METRICS: process.env.USE_ES_METRICS,
 });
 
 function joinPath(base, ...rest) {
@@ -180,7 +179,6 @@ function generateYaml(federation, job, job_params, ticket) {
               { name: 'MEM_LIMIT', valueFrom: { resourceFieldRef: { resource: 'limits.memory' } } },
               { name: 'ES_HOST', value: ES_HOST },
               { name: 'ES_PORT', value: `${ES_PORT}` },
-              { name: 'USE_ES_METRICS', value: USE_ES_METRICS },
             ],
             imagePullPolicy: 'IfNotPresent',
             name: 'tensorflow',
@@ -258,7 +256,6 @@ function portalGenerateYaml(federation, raw_data) {
             { name: 'POD_NAME', valueFrom: { fieldRef: { fieldPath: 'metadata.name' } } },
             { name: 'ES_HOST', value: ES_HOST },
             { name: 'ES_PORT', value: `${ES_PORT}` },
-            { name: 'USE_ES_METRICS', value: USE_ES_METRICS },
             { name: 'APPLICATION_ID', value: raw_data.name },
             { name: 'DATA_PORTAL_NAME', value: raw_data.name },
             { name: 'OUTPUT_PARTITION_NUM', value: `${raw_data.output_partition_num}` },
@@ -292,7 +289,6 @@ function portalGenerateYaml(federation, raw_data) {
             { name: 'MEM_LIMIT', valueFrom: { resourceFieldRef: { resource: 'limits.memory' } } },
             { name: 'ES_HOST', value: ES_HOST },
             { name: 'ES_PORT', value: `${ES_PORT}` },
-            { name: 'USE_ES_METRICS', value: USE_ES_METRICS },
             { name: 'APPLICATION_ID', value: raw_data.name },
             { name: 'BATCH_SIZE', value: raw_data.context.batch_size ? `${raw_data.context.batch_size}` : ""  },
             { name: 'INPUT_DATA_FORMAT', value: raw_data.context.input_data_format },
