@@ -89,7 +89,7 @@ router.post('/api/v1/raw_data', SessionMiddleware, async (ctx) => {
   } catch (e) {
     ctx.status = 400;
     ctx.body = {
-      error: 'context not well-formed',
+      error: `context not well-formed ${e.message}`,
     };
     return;
   }
