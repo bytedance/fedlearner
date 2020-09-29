@@ -208,7 +208,8 @@ class StreamExampleJoiner(ExampleJoiner):
             builder = self._get_data_block_builder(True)
             assert builder is not None, "data block builder must be "\
                                         "not None if before dummping"
-            if self._example_joiner_options.enable_dup_example_id:
+            if self._example_joiner_options.enable_dup_example_id and \
+               eid in self._follower_example_cache:
                 fi, item = self._follower_example_cache[eid]
                 builder.append_item(item, li, fi)
             else:

@@ -141,6 +141,12 @@ class TestExampleJoin(unittest.TestCase):
                     begin_index=req_index * 512
                 )
             cands = list(range(req_index * 512, (req_index + 1) * 512))
+            #keep the first 10 example with same id
+            dup_cnt = 10
+            if self.example_joiner_options.enable_dup_example_id:
+                for i in range(dup_cnt-1):
+                    cands[i + 1] = cands[0]
+
             start_index = cands[0]
             for i in range(len(cands)):
                 if random.randint(1, 4) > 1:
@@ -221,17 +227,36 @@ class TestExampleJoin(unittest.TestCase):
         data_block_num = dbm.get_dumped_data_block_count()
         self.assertEqual(len(metas), data_block_num)
         join_count = 0
+        dup_example_id = {}
+        dup_count = 0
         for data_block_index in range(data_block_num):
             meta = dbm.get_data_block_meta_by_index(data_block_index)
             self.assertEqual(meta, metas[data_block_index])
+            for example_id in meta.example_ids:
+                if self.example_joiner_options.enable_dup_example_id is False:
+                    # example id must be unique
+                    self.assertEqual(False, example_id in dup_example_id)
+                elif example_id in dup_example_id:
+                    # stats the repeated num
+                    dup_count += 1
+                dup_example_id[example_id] = True
             join_count += len(meta.example_ids)
+        self.assertEquals(dup_count > 0,
+                         self.example_joiner_options.enable_dup_example_id)
 
-        print("join rate {}/{}({}), min_matching_window {}, "\
+        print("dup_switch {}, dup_cnt {}, join rate {}/{}({}), min_matching_window {}, "\
               "max_matching_window {}".format(
+              self.example_joiner_options.enable_dup_example_id,
+              dup_count,
               join_count, 20480,
               (join_count+.0)/(10 * 2048),
               self.example_joiner_options.min_matching_window,
               self.example_joiner_options.max_matching_window))
+
+    def test_example_joiner_with_dup_example_id(self):
+        self.example_joiner_options.enable_dup_example_id = True
+        self.test_example_joiner()
+        self.example_joiner_options.enable_dup_example_id = False
 
     def tearDown(self):
         if gfile.Exists(self.data_source.output_base_dir):
