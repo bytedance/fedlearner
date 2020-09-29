@@ -81,8 +81,8 @@ if __name__ == "__main__":
     parser.add_argument('--data_block_compressed_type', type=str, default='',
                         choices=['', 'ZLIB', 'GZIP'],
                         help='the compressed type for data block')
-    parser.add_argument('--example_id_allow_dedup', type=bool, default=False,
-                        help='if allow dedup for data block in leader')
+    parser.add_argument('--enable_dup_example_id', type=bool, default=False,
+                        help='if allow dup for data block in leader')
     args = parser.parse_args()
     worker_options = dj_pb.DataJoinWorkerOptions(
             use_mock_etcd=args.use_mock_etcd,
@@ -98,7 +98,7 @@ if __name__ == "__main__":
                     max_matching_window=args.max_matching_window,
                     data_block_dump_interval=args.data_block_dump_interval,
                     data_block_dump_threshold=args.data_block_dump_threshold,
-                    example_id_allow_dedup = args.example_id_allow_dedup,
+                    enable_dup_example_id=args.enable_dup_example_id,
                 ),
             example_id_dump_options=dj_pb.ExampleIdDumpOptions(
                     example_id_dump_interval=args.example_id_dump_interval,

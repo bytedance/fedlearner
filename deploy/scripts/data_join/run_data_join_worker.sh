@@ -35,7 +35,7 @@ example_id_dump_interval=$(normalize_env_to_args "--example_id_dump_interval" $E
 example_id_dump_threshold=$(normalize_env_to_args "--example_id_dump_threshold" $EXAMPLE_ID_DUMP_THRESHOLD)
 data_block_builder=$(normalize_env_to_args "--data_block_builder" $DATA_BLOCK_BUILDER)
 data_block_compressed_type=$(normalize_env_to_args "--data_block_compressed_type" $DATA_BLOCK_COMPRESSED_TYPE)
-example_id_allow_dedup=$(normalize_env_to_args "--example_id_allow_dedup" $EXAMPLE_ID_ALLOW_DEDUP)
+enable_dup_example_id=$(normalize_env_to_args "--enable_dup_example_id" $ENABLE_DUP_EXAMPLE_ID)
 
 
 python -m fedlearner.data_join.cmd.data_join_worker_service \
@@ -51,4 +51,4 @@ python -m fedlearner.data_join.cmd.data_join_worker_service \
     $data_block_dump_interval $data_block_dump_threshold \
     $example_id_dump_interval $example_id_dump_threshold \
     $data_block_builder $data_block_compressed_type  \
-    $example_id_allow_dedup
+    $enable_dup_example_id
