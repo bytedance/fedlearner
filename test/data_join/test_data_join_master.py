@@ -48,8 +48,8 @@ class DataJoinMaster(unittest.TestCase):
                               db_password_l, db_base_dir_l, True)
         kvstore_f = DBClient(db_database, db_addr, db_username_f,
                               db_password_f, db_base_dir_f, True)
-        kvstore_l.delete_prefix(common.data_source_db_base_dir(data_source_name))
-        kvstore_f.delete_prefix(common.data_source_db_base_dir(data_source_name))
+        kvstore_l.delete_prefix(common.data_source_kvstore_base_dir(data_source_name))
+        kvstore_f.delete_prefix(common.data_source_kvstore_base_dir(data_source_name))
         data_source_l = common_pb.DataSource()
         data_source_l.role = common_pb.FLRole.Leader
         data_source_l.state = common_pb.DataSourceState.Init
@@ -70,7 +70,7 @@ class DataJoinMaster(unittest.TestCase):
 
         master_addr_l = 'localhost:4061'
         master_addr_f = 'localhost:4062'
-        options = dj_pb.DataJoinMasterOptions(use_mock_db=True)
+        options = dj_pb.DataJoinMasterOptions(use_mock_etcd=True)
         master_l = data_join_master.DataJoinMasterService(
                 int(master_addr_l.split(':')[1]),
                 master_addr_f, data_source_name, db_database,

@@ -107,11 +107,11 @@ def load_data_block_meta(meta_fpath):
     with make_tf_record_iter(meta_fpath) as fitr:
         return text_format.Parse(next(fitr).decode(), dj_pb.DataBlockMeta())
 
-def data_source_db_base_dir(data_source_name):
+def data_source_kvstore_base_dir(data_source_name):
     return os.path.join('data_source', data_source_name)
 
 def retrieve_data_source(kvstore, data_source_name):
-    kvstore_key = data_source_db_base_dir(data_source_name)
+    kvstore_key = data_source_kvstore_base_dir(data_source_name)
     raw_data = kvstore.get_data(kvstore_key)
     if raw_data is None:
         raise ValueError("kvstore master key is None for {}".format(
@@ -120,11 +120,12 @@ def retrieve_data_source(kvstore, data_source_name):
     return text_format.Parse(raw_data, common_pb.DataSource())
 
 def commit_data_source(kvstore, data_source):
-    kvstore_key = data_source_db_base_dir(data_source.data_source_meta.name)
+    kvstore_key = \
+        data_source_kvstore_base_dir(data_source.data_source_meta.name)
     kvstore.set_data(kvstore_key, text_format.MessageToString(data_source))
 
 def partition_manifest_kvstore_key(data_source_name, partition_id):
-    return os.path.join(data_source_db_base_dir(data_source_name),
+    return os.path.join(data_source_kvstore_base_dir(data_source_name),
                         'raw_data_dir', partition_repr(partition_id))
 
 def raw_data_meta_kvstore_key(data_source_name, partition_id, process_index):
@@ -134,7 +135,7 @@ def raw_data_meta_kvstore_key(data_source_name, partition_id, process_index):
                         '{}{:08}'.format(RawDataMetaPrefix, process_index))
 
 def example_id_anchor_kvstore_key(data_source_name, partition_id):
-    db_base_dir = data_source_db_base_dir(data_source_name)
+    db_base_dir = data_source_kvstore_base_dir(data_source_name)
     return os.path.join(db_base_dir, 'dumped_example_id_anchor',
                         partition_repr(partition_id))
 
@@ -215,11 +216,11 @@ def bytes2int(byte, byteorder='little'):
 def gen_tmp_fpath(fdir):
     return os.path.join(fdir, str(uuid.uuid1())+TmpFileSuffix)
 
-def portal_db_base_dir(portal_name):
+def portal_kvstore_base_dir(portal_name):
     return os.path.join('portal', portal_name)
 
 def portal_job_kvstore_key(portal_name, job_id):
-    return os.path.join(portal_db_base_dir(portal_name), 'job_dir',
+    return os.path.join(portal_kvstore_base_dir(portal_name), 'job_dir',
                         '{:08}.pj'.format(job_id))
 
 def portal_job_part_kvstore_key(portal_name, job_id, partition_id):
@@ -355,3 +356,19 @@ class _HeapMemStats(object, metaclass=Singleton):
 
 def get_heap_mem_stats(stats_expiration_time):
     return _HeapMemStats(stats_expiration_time)
+
+def get_kvstore_config(kvstore_type):
+    if kvstore_type == 'mysql':
+        database = os.environ.get('DB_DATABASE', 'fedlearner')
+        host = os.environ.get('DB_HOST', '127.0.0.1')
+        port = os.environ.get('DB_PORT', '3306')
+        addr = host + port
+        username = os.environ.get('DB_USERNAME', 'fedlearner')
+        password = os.environ.get('DB_PASSWORD', 'fedlearner')
+        base_dir = os.environ.get('DB_BASE_DIR', 'fedlearner')
+        return database, addr, username, password, base_dir
+    else:
+        name = os.environ.get('ETCD_NAME', 'fedlearner')
+        addr = os.environ.get('ETCD_ADDR', 'localhost:2379')
+        base_dir = os.environ.get('ETCD_BASE_DIR', 'fedlearner')
+        return name, addr, None, None, base_dir

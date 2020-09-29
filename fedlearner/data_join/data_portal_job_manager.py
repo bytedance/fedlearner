@@ -247,7 +247,7 @@ class DataPortalJobManager(object):
 
     def _sync_portal_manifest(self):
         if self._portal_manifest is None:
-            kvstore_key = common.portal_db_base_dir(self._portal_name)
+            kvstore_key = common.portal_kvstore_base_dir(self._portal_name)
             data = self._kvstore.get_data(kvstore_key)
             if data is not None:
                 self._portal_manifest = \
@@ -256,7 +256,7 @@ class DataPortalJobManager(object):
 
     def _update_portal_manifest(self, new_portal_manifest):
         self._portal_manifest = None
-        kvstore_key = common.portal_db_base_dir(self._portal_name)
+        kvstore_key = common.portal_kvstore_base_dir(self._portal_name)
         data = text_format.MessageToString(new_portal_manifest)
         self._kvstore.set_data(kvstore_key, data)
         self._portal_manifest = new_portal_manifest

@@ -66,7 +66,7 @@ class TestExampleJoin(unittest.TestCase):
         self.kvstore = mysql_client.DBClient('test_cluster', 'localhost:2379',
                                               'test_user', 'test_password',
                                               'fedlearner', True)
-        self.kvstore.delete_prefix(common.data_source_db_base_dir(self.data_source.data_source_meta.name))
+        self.kvstore.delete_prefix(common.data_source_kvstore_base_dir(self.data_source.data_source_meta.name))
         self.total_raw_data_count = 0
         self.total_example_id_count = 0
         self.manifest_manager = raw_data_manifest_manager.RawDataManifestManager(
@@ -233,7 +233,7 @@ class TestExampleJoin(unittest.TestCase):
             gfile.DeleteRecursively(self.data_source.output_base_dir)
         if gfile.Exists(self.raw_data_dir):
             gfile.DeleteRecursively(self.raw_data_dir)
-        self.kvstore.delete_prefix(common.data_source_db_base_dir(self.data_source.data_source_meta.name))
+        self.kvstore.delete_prefix(common.data_source_kvstore_base_dir(self.data_source.data_source_meta.name))
 
 if __name__ == '__main__':
     unittest.main()

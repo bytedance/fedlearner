@@ -58,6 +58,7 @@ read_batch_size=$(normalize_env_to_args "--read_batch_size" $PSI_READ_BATCH_SIZE
 output_builder=$(normalize_env_to_args "--output_builder" $PSI_OUTPUT_BUILDER)
 builder_compressed_type=$(normalize_env_to_args "--builder_compressed_type" $PSI_OUTPUT_BUILDER_COMPRESSED_TYPE)
 preprocessor_offload_processor_number=$(normalize_env_to_args "--preprocessor_offload_processor_number" $PREPROCESSOR_OFFLOAD_PROCESSOR_NUMBER)
+kvstore_type=$(normalize_env_to_args '--kvstore_type' $KVSTORE_TYPE)
 
 python -m fedlearner.data_join.cmd.rsa_psi_preprocessor_cli \
     --psi_role=$ROLE \
@@ -66,15 +67,11 @@ python -m fedlearner.data_join.cmd.rsa_psi_preprocessor_cli \
     --output_file_dir="$OUTPUT_BASE_DIR/psi_output" \
     --raw_data_publish_dir=$RAW_DATA_PUBLISH_DIR \
     --partition_id=$INDEX \
-    --db_database=$DB_DATABASE \
-    --db_addr=$DB_ADDR \
-    --db_base_dir=$DB_BASE_DIR \
-    --db_username=$DB_USERNAME \
-    --db_password=$DB_PASSWORD \
     $preprocessor_name $input_file_paths $input_dir $input_file_subscribe_dir \
     $max_flying_sign_batch $slow_sign_threshold \
     $sort_run_merger_read_ahead_buffer \
     $leader_rsa_psi_signer_addr $max_flying_sign_rpc $sign_rpc_timeout_ms \
     $stub_fanout $process_batch_size \
     $raw_data_iter $compressed_type $read_ahead_size $read_batch_size \
-    $output_builder $builder_compressed_type $preprocessor_offload_processor_number
+    $output_builder $builder_compressed_type $preprocessor_offload_processor_number \
+    $kvstore_type

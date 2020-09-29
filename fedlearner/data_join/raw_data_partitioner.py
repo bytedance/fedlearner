@@ -208,12 +208,12 @@ class RawDataPartitioner(object):
 
     def __init__(self, options, part_field, db_database,
                  db_base_dir, db_addr, db_username,
-                 db_password, use_mock_db=False):
+                 db_password, use_mock_etcd=False):
         self._options = options
         self._part_field = part_field
         kvstore = DBClient(db_database, db_addr,
                             db_username, db_password,
-                            db_base_dir, use_mock_db)
+                            db_base_dir, use_mock_etcd)
         self._raw_data_batch_fetcher = RawDataBatchFetcher(kvstore, options)
         self._next_part_index = None
         self._dumped_process_index = None

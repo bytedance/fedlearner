@@ -195,7 +195,8 @@ class RawDataManifestManager(object):
     def cleanup_meta_data(self):
         with self._lock:
             data_source_name = self._data_source.data_source_meta.name
-            kvstore_base_key = common.data_source_db_base_dir(data_source_name)
+            kvstore_base_key = \
+                common.data_source_kvstore_base_dir(data_source_name)
             self._kvstore.delete_prefix(kvstore_base_key)
 
     def sub_new_raw_data(self, req_part=None):

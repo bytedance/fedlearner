@@ -104,7 +104,7 @@ service DataPortalMasterService {
 }
 
 message DataPotraMasterlOptions {
-  bool use_mock_db = 1;
+  bool use_mock_etcd = 1;
   bool long_running = 2;
 }
 
@@ -114,5 +114,5 @@ message DataPortalWorkerOptions {
   BatchProcessorOptions batch_processor_options = 3;
   int64 merger_read_ahead_size = 4;
   int64 merger_read_batch_size = 5;
-  bool use_mock_db = 6;
+  bool use_mock_etcd = 6;
 }

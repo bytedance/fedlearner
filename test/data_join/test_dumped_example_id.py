@@ -38,7 +38,7 @@ class TestDumpedExampleId(unittest.TestCase):
         data_source.data_source_meta.name = "milestone-x"
         data_source.data_source_meta.partition_num = 1
         data_source.output_base_dir = "./ds_output"
-        self.kvstore.delete_prefix(common.data_source_db_base_dir(data_source.data_source_meta.name))
+        self.kvstore.delete_prefix(common.data_source_kvstore_base_dir(data_source.data_source_meta.name))
         self.data_source = data_source
         self.example_id_dump_options = dj_pb.ExampleIdDumpOptions(
                 example_id_dump_interval=-1,

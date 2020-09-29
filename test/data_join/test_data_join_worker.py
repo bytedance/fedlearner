@@ -62,8 +62,8 @@ class DataJoinWorker(unittest.TestCase):
                               db_password_l, db_base_dir_l, True)
         kvstore_f = DBClient(db_database, db_addr, db_username_f,
                               db_password_f, db_base_dir_f, True)
-        kvstore_l.delete_prefix(common.data_source_db_base_dir(data_source_name))
-        kvstore_f.delete_prefix(common.data_source_db_base_dir(data_source_name))
+        kvstore_l.delete_prefix(common.data_source_kvstore_base_dir(data_source_name))
+        kvstore_f.delete_prefix(common.data_source_kvstore_base_dir(data_source_name))
         data_source_l = common_pb.DataSource()
         self.raw_data_pub_dir_l = './raw_data_pub_dir_l'
         data_source_l.raw_data_sub_dir = self.raw_data_pub_dir_l
@@ -117,7 +117,7 @@ class DataJoinWorker(unittest.TestCase):
             gfile.DeleteRecursively(self.raw_data_dir_f)
 
         self.worker_options = dj_pb.DataJoinWorkerOptions(
-                use_mock_db=True,
+                use_mock_etcd=True,
                 raw_data_options=dj_pb.RawDataOptions(
                     raw_data_iter='TF_RECORD',
                     read_ahead_size=1<<20,
@@ -230,7 +230,7 @@ class DataJoinWorker(unittest.TestCase):
 
         master_addr_l = 'localhost:4061'
         master_addr_f = 'localhost:4062'
-        master_options = dj_pb.DataJoinMasterOptions(use_mock_db=True,
+        master_options = dj_pb.DataJoinMasterOptions(use_mock_etcd=True,
                                                      batch_mode=True)
         master_l = data_join_master.DataJoinMasterService(
                 int(master_addr_l.split(':')[1]), master_addr_f,
@@ -328,8 +328,8 @@ class DataJoinWorker(unittest.TestCase):
             gfile.DeleteRecursively(self.data_source_f.output_base_dir)
         if gfile.Exists(self.raw_data_dir_f):
             gfile.DeleteRecursively(self.raw_data_dir_f)
-        self.kvstore_f.delete_prefix(common.data_source_db_base_dir(self.db_base_dir_f))
-        self.kvstore_l.delete_prefix(common.data_source_db_base_dir(self.db_base_dir_l))
+        self.kvstore_f.delete_prefix(common.data_source_kvstore_base_dir(self.db_base_dir_f))
+        self.kvstore_l.delete_prefix(common.data_source_kvstore_base_dir(self.db_base_dir_l))
 
 if __name__ == '__main__':
         unittest.main()

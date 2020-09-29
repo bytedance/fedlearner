@@ -31,17 +31,12 @@ read_batch_size=$(normalize_env_to_args "--read_batch_size" $READ_BATCH_SIZE)
 output_builder=$(normalize_env_to_args "--output_builder" $OUTPUT_DATA_FORMAT)
 builder_compressed_type=$(normalize_env_to_args "--builder_compressed_type" $BUILDER_COMPRESSED_TYPE)
 batch_size=$(normalize_env_to_args "--batch_size" $BATCH_SIZE)
-
+kvstore_type=$(normalize_env_to_args '--kvstore_type' $KVSTORE_TYPE)
 
 python -m fedlearner.data_join.cmd.data_portal_worker_cli \
   --rank_id=$INDEX \
   --master_addr=$MASTER_POD_NAMES \
-  --db_database=$DB_DATABASE \
-  --db_addr=$DB_ADDR \
-  --db_base_dir=$DB_BASE_DIR \
-  --db_username=$DB_USERNAME \
-  --db_password=$DB_PASSWORD \
   $input_data_file_iter $compressed_type $read_ahead_size $read_batch_size \
   $output_builder $builder_compressed_type \
-  $batch_size $USE_MOCK_DB
+  $batch_size $kvstore_type
 

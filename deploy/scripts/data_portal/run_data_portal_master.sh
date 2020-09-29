@@ -21,13 +21,9 @@ source /app/deploy/scripts/hdfs_common.sh || true
 source /app/deploy/scripts/env_to_args.sh
 
 input_file_wildcard=$(normalize_env_to_args "--input_file_wildcard" $FILE_WILDCARD)
+kvstore_type=$(normalize_env_to_args '--kvstore_type' $KVSTORE_TYPE)
 
 python -m fedlearner.data_join.cmd.data_portal_master_service \
-    --db_database=$DB_DATABASE \
-    --db_addr=$DB_ADDR \
-    --db_base_dir=$DB_BASE_DIR \
-    --db_username=$DB_USERNAME \
-    --db_password=$DB_PASSWORD \
     --listen_port=50051 \
     --data_portal_name=$DATA_PORTAL_NAME \
     --data_portal_type=$DATA_PORTAL_TYPE \
@@ -35,4 +31,5 @@ python -m fedlearner.data_join.cmd.data_portal_master_service \
     --input_base_dir=$INPUT_BASE_DIR \
     --output_base_dir=$OUTPUT_BASE_DIR \
     --raw_data_publish_dir=$RAW_DATA_PUBLISH_DIR \
-    $input_file_wildcard $USE_MOCK_DB $LONG_RUNNING
+    $input_file_wildcard $LONG_RUNNING \
+    $kvstore_type

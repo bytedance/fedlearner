@@ -20,6 +20,7 @@ import logging
 import tensorflow
 
 from fedlearner.common import data_join_service_pb2 as dj_pb
+from fedlearner.data_join.common import get_kvstore_config
 from fedlearner.data_join.data_join_worker import DataJoinWorkerService
 tensorflow.compat.v1.enable_eager_execution()
 
@@ -34,18 +35,8 @@ if __name__ == "__main__":
                         help='the addr(uuid) of local data join master')
     parser.add_argument('rank_id', type=int,
                         help='the rank id for this worker')
-    parser.add_argument('--db_database', type=str,
-                        default='test_mysql', help='the name of mysql')
-    parser.add_argument('--db_base_dir', type=str, default='fedlearner_test',
-                        help='the namespace of mysql key')
-    parser.add_argument('--db_addr', type=str,
-                        default='localhost:4578', help='the addr of mysql')
-    parser.add_argument('--db_username', type=str,
-                        default='test_user', help='the user of mysql')
-    parser.add_argument('--db_password', type=str,
-                        default='test_password', help='the password of mysql')
-    parser.add_argument('--use_mock_db', action='store_true',
-                        help='use to mock mysql for test')
+    parser.add_argument('--kvstore_type', type=str,
+                        default='etcd', help='the type of kvstore')
     parser.add_argument('--listen_port', '-p', type=int, default=4132,
                         help='Listen port of data join master')
     parser.add_argument('--raw_data_iter', type=str, default='TF_RECORD',
@@ -87,7 +78,7 @@ if __name__ == "__main__":
                         help='the compressed type for data block')
     args = parser.parse_args()
     worker_options = dj_pb.DataJoinWorkerOptions(
-            use_mock_db=args.use_mock_db,
+            use_mock_etcd=(args.kvstore == 'mock'),
             raw_data_options=dj_pb.RawDataOptions(
                     raw_data_iter=args.raw_data_iter,
                     compressed_type=args.compressed_type,
@@ -114,9 +105,11 @@ if __name__ == "__main__":
                     compressed_type=args.data_block_compressed_type
                 )
         )
+    db_database, db_base_dir, db_addr, db_username, db_password = \
+        get_kvstore_config(args.kvstore_type)
     worker_srv = DataJoinWorkerService(args.listen_port, args.peer_addr,
                                        args.master_addr, args.rank_id,
-                                       args.db_database, args.db_base_dir,
-                                       args.db_addr, args.db_username,
-                                       args.db_password, worker_options)
+                                       db_database, db_base_dir,
+                                       db_addr, db_username,
+                                       db_password, worker_options)
     worker_srv.run()

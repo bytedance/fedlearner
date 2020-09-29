@@ -97,7 +97,7 @@ class RawDataSortPartitioner(RawDataPartitioner):
 class DataPortalWorker(object):
     def __init__(self, options, master_addr, rank_id, db_database,
                  db_base_dir, db_addr, db_username,
-                 db_password, use_mock_db=False):
+                 db_password, use_mock_etcd=False):
         master_channel = make_insecure_channel(
                 master_addr, ChannelType.INTERNAL,
                 options=[('grpc.max_send_message_length', 2**31-1),
@@ -110,7 +110,7 @@ class DataPortalWorker(object):
         self._db_username = db_username
         self._rank_id = rank_id
         self._options = options
-        self._use_mock_db = use_mock_db
+        self._use_mock_etcd = use_mock_etcd
         self._master_client = dp_grpc.DataPortalMasterServiceStub(
             master_channel)
 
@@ -182,7 +182,7 @@ class DataPortalWorker(object):
                 partition_options, task.part_field, self._db_database,
                 self._db_base_dir, self._db_addr,
                 self._db_username, self._db_password,
-                self._use_mock_db
+                self._use_mock_etcd
             )
             type_repr = 'streaming'
         else:
@@ -191,7 +191,7 @@ class DataPortalWorker(object):
                 partition_options, task.part_field, self._db_database,
                 self._db_base_dir, self._db_addr,
                 self._db_username, self._db_password,
-                self._use_mock_db
+                self._use_mock_etcd
             )
             type_repr = 'psi'
         logging.info("Partitioner rank_id-[%d] start run task %s of type %s "\

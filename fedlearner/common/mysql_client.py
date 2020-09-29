@@ -24,39 +24,26 @@ from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.ext.automap import automap_base
 from fedlearner.common.mock_mysql import MockMySQLClient
 from fedlearner.common.etcd_client import EtcdClient
-
+from fedlearner.data_join.common import get_kvstore_config
 
 class DBClient(object):
-    def __init__(self, name, addr, user, password, base_dir,
-                 use_mock_db=False):
-        if os.environ.get('USE_ETCD', False):
-            self._client = EtcdClient(name, addr, base_dir,
-                                      use_mock_db)
+    def __init__(self, database, addr, username, password,
+        base_dir, use_mock_etcd=False):
+        if username:
+            self._client = MySQLClient(database, addr, username,
+                                       password, base_dir)
         else:
-            self._client = MySQLClient(name, addr, user,
-                                       password, base_dir,
-                                       use_mock_db)
+            self._client = EtcdClient(database, addr, base_dir,
+                                      use_mock_etcd)
 
     def __getattr__(self, attr):
         return getattr(self._client, attr)
 
 
 class MySQLClient(object):
-    def __init__(self, name, addr, user, password, base_dir,
-                 use_mock_db=False):
-        if use_mock_db:
-            self._client = MockMySQLClient(name, base_dir)
-        else:
-            self._client = RealMySQLClient(
-                name, addr, user, password, base_dir)
-
-    def __getattr__(self, attr):
-        return getattr(self._client, attr)
-
-class RealMySQLClient(object):
-    def __init__(self, name, addr, user, password, base_dir):
+    def __init__(self, database, addr, user, password, base_dir):
         self._unix_socket = os.environ.get('DB_SOCKET_PATH', None)
-        self._name = name
+        self._database = database
         self._addr = addr
         self._user = user
         self._password = password
@@ -224,7 +211,7 @@ class RealMySQLClient(object):
                     '/{db_name}'
             conn_string = conn_string_pattern.format(
                 user=self._user, passwd=self._password,
-                addr=self._addr, db_name=self._name)
+                addr=self._addr, db_name=self._database)
             if self._unix_socket:
                 sub = '?unix_socket={}'.format(self._unix_socket)
                 conn_string = conn_string + sub

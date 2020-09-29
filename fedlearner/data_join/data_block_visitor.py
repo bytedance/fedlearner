@@ -106,10 +106,10 @@ class DataBlockRep(object):
 class DataBlockVisitor(object):
     def __init__(self, data_source_name, db_database,
                  db_base_dir, db_addr, db_username,
-                 db_password, use_mock_db=False):
+                 db_password, use_mock_etcd=False):
         self._kvstore = DBClient(db_database, db_addr, db_username,
                                   db_password, db_base_dir,
-                                  use_mock_db)
+                                  use_mock_etcd)
         self._data_source = retrieve_data_source(self._kvstore,
                                                  data_source_name)
 

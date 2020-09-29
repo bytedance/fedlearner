@@ -25,6 +25,7 @@ from tensorflow.compat.v1 import gfile
 from fedlearner.common import common_pb2 as common_pb
 from fedlearner.common import data_join_service_pb2 as dj_pb
 from fedlearner.data_join.rsa_psi.rsa_psi_preprocessor import RsaPsiPreProcessor
+from fedlearner.data_join.common import get_kvstore_config
 
 if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
@@ -73,16 +74,8 @@ if __name__ == "__main__":
                                           'sort run reader')
     parser.add_argument('--partition_id', type=int, required=True,
                         help='the partition id will be processed')
-    parser.add_argument('--db_database', type=str,
-                        default='test_mysql', help='the name of mysql')
-    parser.add_argument('--db_addr', type=str,
-                        default='localhost:2379', help='the addr of mysql')
-    parser.add_argument('--db_base_dir', type=str, default='fedlearner_test',
-                        help='the namespace of mysql key')
-    parser.add_argument('--db_username', type=str,
-                        default='test_user', help='the user of mysql')
-    parser.add_argument('--db_password', type=str,
-                        default='test_password', help='the password of mysql')
+    parser.add_argument('--kvstore_type', type=str,
+                        default='etcd', help='the type of kvstore')
     parser.add_argument('--raw_data_iter', type=str, default='TF_RECORD',
                         choices=['TF_RECORD', 'CSV_DICT'],
                         help='the type for raw data file')
@@ -169,10 +162,12 @@ if __name__ == "__main__":
     else:
         assert args.psi_role.upper() == 'FOLLOWER'
         preprocessor_options.role = common_pb.FLRole.Follower
+    db_database, db_addr, db_username, db_password, db_base_dir = \
+        get_kvstore_config(args.kvstore_type)
     preprocessor = RsaPsiPreProcessor(preprocessor_options,
-                                      args.db_database,
-                                      args.db_base_dir, args.db_addr,
-                                      args.db_username, args.db_password)
+                                      db_database,
+                                      db_base_dir, db_addr,
+                                      db_username, db_password)
     preprocessor.start_process()
     logging.info("PreProcessor launched for %s of RSA PSI", args.psi_role)
     preprocessor.wait_for_finished()

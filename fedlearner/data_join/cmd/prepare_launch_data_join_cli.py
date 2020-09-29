@@ -40,16 +40,8 @@ if __name__ == "__main__":
                         help='the role of data join')
     parser.add_argument('--output_base_dir', type=str, required=True,
                         help='the directory of for output data for data join')
-    parser.add_argument('--db_database', type=str, default='test_mysql',
-                        help='the name of mysql client')
-    parser.add_argument('--db_addr', type=str, required=True,
-                        help='the addrs of mysql')
-    parser.add_argument('--db_base_dir', type=str, required=True,
-                        help='the namespace of mysql key')
-    parser.add_argument('--db_username', type=str, default='test_user',
-                        help='the user of mysql')
-    parser.add_argument('--db_password', type=str, default='test_password',
-                        help='the password of mysql')
+    parser.add_argument('--kvstore_type', type=str, default='etcd',
+                        help='the type of kvstore')
     parser.add_argument('--raw_data_sub_dir', type=str, required=True,
                         help='the mysql base dir to subscribe new raw data')
     args = parser.parse_args()
@@ -68,10 +60,11 @@ if __name__ == "__main__":
     data_source.output_base_dir = args.output_base_dir
     data_source.raw_data_sub_dir = args.raw_data_sub_dir
     data_source.state = common_pb.DataSourceState.Init
-    kvstore = DBClient(args.db_database, args.db_addr,
-                     args.db_username, args.db_password,
-                     args.db_base_dir)
-    master_kvstore_key = common.data_source_db_base_dir(
+    db_database, db_addr, db_username, db_password, db_base_dir = \
+        common.get_kvstore_config(args.kvstore_type)
+    kvstore = DBClient(db_database, db_addr, db_username,
+        db_password, db_base_dir)
+    master_kvstore_key = common.data_source_kvstore_base_dir(
             data_source.data_source_meta.name
         )
     raw_data = kvstore.get_data(master_kvstore_key)

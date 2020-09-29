@@ -243,7 +243,7 @@ class DataJoinWorkerService(object):
         self._rank_id = rank_id
         kvstore = DBClient(db_database, db_addr, db_username,
                             db_password, db_base_dir,
-                            options.use_mock_db)
+                            options.use_mock_etcd)
         data_source = self._sync_data_source()
         self._data_source_name = data_source.data_source_meta.name
         self._listen_port = listen_port

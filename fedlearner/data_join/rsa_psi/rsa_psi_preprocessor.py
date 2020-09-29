@@ -38,11 +38,11 @@ from fedlearner.data_join.common import partition_repr, get_heap_mem_stats
 class RsaPsiPreProcessor(object):
     def __init__(self, options, db_database, db_base_dir,
                  db_addr, db_username, db_password,
-                 use_mock_db=False):
+                 use_mock_etcd=False):
         self._lock = threading.Condition()
         self._options = options
         kvstore = DBClient(db_database, db_addr, db_username,
-                            db_password, db_base_dir, use_mock_db)
+                            db_password, db_base_dir, use_mock_etcd)
         pub_dir = self._options.raw_data_publish_dir
         self._publisher = RawDataPublisher(kvstore, pub_dir)
         self._process_pool_executor = \

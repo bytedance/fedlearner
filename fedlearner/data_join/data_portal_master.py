@@ -89,7 +89,7 @@ class DataPortalMasterService(object):
         self._server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
         kvstore = DBClient(db_database, db_addr, db_username,
                             db_password, db_base_dir,
-                            portal_options.use_mock_db)
+                            portal_options.use_mock_etcd)
         self._data_portal_master = DataPortalMaster(portal_name, kvstore,
                                                     portal_options)
         dp_grpc.add_DataPortalMasterServiceServicer_to_server(

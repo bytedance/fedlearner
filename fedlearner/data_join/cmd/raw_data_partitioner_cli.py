@@ -26,6 +26,7 @@ from tensorflow.compat.v1 import gfile
 
 from fedlearner.common import data_join_service_pb2 as dj_pb
 from fedlearner.data_join.raw_data_partitioner import RawDataPartitioner
+from fedlearner.data_join.common import get_kvstore_config
 
 if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
@@ -66,16 +67,8 @@ if __name__ == "__main__":
                         help='the number of partitioner worker for input data')
     parser.add_argument('--partitioner_rank_id', type=int, required=True,
                         help='the rank id of partitioner')
-    parser.add_argument('--db_database', type=str, default='test_mysql',
-                        help='the name of mysql cluster')
-    parser.add_argument('--db_addr', type=str, default='localhost:2379',
-                        help='the addr of mysql server')
-    parser.add_argument('--db_username', type=str,
-                        default='test_user', help='the user of mysql')
-    parser.add_argument('--db_password', type=str,
-                        default='test_password', help='the password of mysql')
-    parser.add_argument('--db_base_dir', type=str, default='fedlearner_test',
-                        help='the namespace of mysql key')
+    parser.add_argument('--kvstore_type', type=str, default='etcd',
+                        help='the type of kvstore')
     parser.add_argument('--part_field', type=str, default='raw_id',
                         help='the field for raw data partition')
 
@@ -130,10 +123,12 @@ if __name__ == "__main__":
                 max_flying_item=-1
             )
         )
+    db_database, db_addr, db_username, db_password, db_base_dir = \
+        get_kvstore_config(args.kvstore_type)
     partitioner = RawDataPartitioner(partitioner_options, args.part_field,
-                                     args.db_database, args.db_base_dir,
-                                     args.db_addr, args.db_username,
-                                     args.db_password)
+                                     db_database, db_base_dir,
+                                     db_addr, db_username,
+                                     db_password)
     logging.info("RawDataPartitioner %s of rank %d launched",
                  partitioner_options.partitioner_name,
                  partitioner_options.partitioner_rank_id)

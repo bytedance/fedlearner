@@ -62,7 +62,7 @@ class DataPortalMaster(unittest.TestCase):
                 processing_job_id=-1,
                 next_job_id=0
             )
-        kvstore.set_data(common.portal_db_base_dir(data_portal_name),
+        kvstore.set_data(common.portal_kvstore_base_dir(data_portal_name),
                       text_format.MessageToString(portal_manifest))
         if gfile.Exists(portal_input_base_dir):
             gfile.DeleteRecursively(portal_input_base_dir)
@@ -75,7 +75,7 @@ class DataPortalMaster(unittest.TestCase):
                 f.write('xxx')
         portal_master_addr = 'localhost:4061'
         portal_options = dp_pb.DataPotraMasterlOptions(
-                use_mock_db=True,
+                use_mock_etcd=True,
                 long_running=False
             )
         data_portal_master = DataPortalMasterService(

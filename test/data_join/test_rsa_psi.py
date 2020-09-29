@@ -66,8 +66,8 @@ class RsaPsi(unittest.TestCase):
 
     def _setUpDataSource(self):
         self._data_source_name = 'test_data_source'
-        self._kvstore_l.delete_prefix(common.data_source_db_base_dir(self._data_source_name))
-        self._kvstore_f.delete_prefix(common.data_source_db_base_dir(self._data_source_name))
+        self._kvstore_l.delete_prefix(common.data_source_kvstore_base_dir(self._data_source_name))
+        self._kvstore_f.delete_prefix(common.data_source_kvstore_base_dir(self._data_source_name))
         self._data_source_l = common_pb.DataSource()
         self._data_source_l.role = common_pb.FLRole.Leader
         self._data_source_l.state = common_pb.DataSourceState.Init
@@ -193,7 +193,7 @@ class RsaPsi(unittest.TestCase):
     def _launch_masters(self):
         self._master_addr_l = 'localhost:4061'
         self._master_addr_f = 'localhost:4062'
-        master_options = dj_pb.DataJoinMasterOptions(use_mock_db=True)
+        master_options = dj_pb.DataJoinMasterOptions(use_mock_etcd=True)
         self._master_l = data_join_master.DataJoinMasterService(
                 int(self._master_addr_l.split(':')[1]), self._master_addr_f,
                 self._data_source_name, self._db_database, self._db_base_dir_l,
@@ -233,7 +233,7 @@ class RsaPsi(unittest.TestCase):
 
     def _launch_workers(self):
         worker_options_l = dj_pb.DataJoinWorkerOptions(
-                use_mock_db=True,
+                use_mock_etcd=True,
                 raw_data_options=dj_pb.RawDataOptions(
                     raw_data_iter='TF_RECORD',
                     read_ahead_size=1<<20,
@@ -259,7 +259,7 @@ class RsaPsi(unittest.TestCase):
                 )
             )
         worker_options_f = dj_pb.DataJoinWorkerOptions(
-                use_mock_db=True,
+                use_mock_etcd=True,
                 raw_data_options=dj_pb.RawDataOptions(
                     raw_data_iter='CSV_DICT',
                     read_ahead_size=1<<20,

@@ -42,7 +42,7 @@ class TestRawDataVisitor(unittest.TestCase):
         self.kvstore = mysql_client.DBClient('test_cluster', 'localhost:2379',
                                               'test_user', 'test_password',
                                               'fedlearner', True)
-        self.kvstore.delete_prefix(common.data_source_db_base_dir(self.data_source.data_source_meta.name))
+        self.kvstore.delete_prefix(common.data_source_kvstore_base_dir(self.data_source.data_source_meta.name))
         self.assertEqual(self.data_source.data_source_meta.partition_num, 1)
         partition_dir = os.path.join(self.raw_data_dir, common.partition_repr(0))
         if gfile.Exists(partition_dir):
@@ -178,7 +178,7 @@ class TestRawDataVisitor(unittest.TestCase):
         self.assertTrue(rdv2.finished())
 
     def tearDown(self):
-        self.kvstore.delete_prefix(common.data_source_db_base_dir(self.data_source.data_source_meta.name))
+        self.kvstore.delete_prefix(common.data_source_kvstore_base_dir(self.data_source.data_source_meta.name))
         if gfile.Exists(self.raw_data_dir):
             gfile.DeleteRecursively(self.raw_data_dir)
 

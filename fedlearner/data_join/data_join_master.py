@@ -314,7 +314,7 @@ class DataJoinMaster(dj_grpc.DataJoinMasterServiceServicer):
         self._data_source_name = data_source_name
         kvstore = DBClient(db_database, db_addr, db_username,
                             db_password, db_base_dir,
-                            options.use_mock_db)
+                            options.use_mock_etcd)
         self._options = options
         self._fsm = MasterFSM(peer_client, data_source_name,
                               kvstore, self._options.batch_mode)
