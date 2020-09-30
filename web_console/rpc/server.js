@@ -88,7 +88,7 @@ async function createJob(call, callback) {
       job_type,
       client_ticket_name: server_ticket_name,
       server_ticket_name: client_ticket_name,
-      client_params: server_params,
+      server_params: client_params,
     } = call.request;
     const ticketRecord = await Ticket.findOne({
       where: {
