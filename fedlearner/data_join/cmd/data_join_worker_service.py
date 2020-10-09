@@ -78,7 +78,7 @@ if __name__ == "__main__":
                         help='the compressed type for data block')
     args = parser.parse_args()
     worker_options = dj_pb.DataJoinWorkerOptions(
-            use_mock_etcd=(args.kvstore == 'mock'),
+            use_mock_etcd=(args.kvstore_type == 'mock'),
             raw_data_options=dj_pb.RawDataOptions(
                     raw_data_iter=args.raw_data_iter,
                     compressed_type=args.compressed_type,
