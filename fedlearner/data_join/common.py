@@ -362,7 +362,7 @@ def get_kvstore_config(kvstore_type):
         database = os.environ.get('DB_DATABASE', 'fedlearner')
         host = os.environ.get('DB_HOST', '127.0.0.1')
         port = os.environ.get('DB_PORT', '3306')
-        addr = host + port
+        addr = host + ':' + port
         username = os.environ.get('DB_USERNAME', 'fedlearner')
         password = os.environ.get('DB_PASSWORD', 'fedlearner')
         base_dir = os.environ.get('DB_BASE_DIR', 'fedlearner')
