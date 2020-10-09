@@ -22,9 +22,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, scoped_session
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.ext.automap import automap_base
-from fedlearner.common.mock_mysql import MockMySQLClient
 from fedlearner.common.etcd_client import EtcdClient
-from fedlearner.data_join.common import get_kvstore_config
 
 class DBClient(object):
     def __init__(self, database, addr, username, password,

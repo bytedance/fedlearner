@@ -87,6 +87,6 @@ if __name__ == '__main__':
             portal_worker_options, args.master_addr,
             args.rank_id, db_database, db_base_dir,
             db_addr, db_username, db_password,
-            (args.kvstore_type=='mock')
+            (args.kvstore_type == 'mock')
         )
     data_portal_worker.start()
