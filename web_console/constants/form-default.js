@@ -86,7 +86,6 @@ const JOB_DATA_JOIN_PARAMS = {
           }
         },
         "Worker": {
-          "replicas": 2,
           "template": {
             "spec": {
               "containers": [
@@ -133,7 +132,6 @@ const JOB_DATA_JOIN_PARAMS = {
           }
         },
         "Worker": {
-          "replicas": 2,
           "template": {
             "spec": {
               "containers": [
@@ -163,7 +161,6 @@ const JOB_PSI_DATA_JOIN_PARAMS = {
     "spec": {
       "flReplicaSpecs": {
         "Master": {
-          "replicas": 1,
           "template": {
             "spec": {
               "containers": [
@@ -184,7 +181,6 @@ const JOB_PSI_DATA_JOIN_PARAMS = {
           }
         },
         "Worker": {
-          "replicas": 2,
           "template": {
             "spec": {
               "containers": [
@@ -211,7 +207,6 @@ const JOB_PSI_DATA_JOIN_PARAMS = {
     "spec": {
       "flReplicaSpecs": {
         "Master": {
-          "replicas": 1,
           "template": {
             "spec": {
               "containers": [
@@ -232,7 +227,6 @@ const JOB_PSI_DATA_JOIN_PARAMS = {
           }
         },
         "Worker": {
-          "replicas": 2,
           "template": {
             "spec": {
               "containers": [
