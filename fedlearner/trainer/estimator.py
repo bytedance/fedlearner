@@ -28,6 +28,7 @@ from fedlearner.common.mysql_client import DBClient
 from fedlearner.common.summary_hook import SummaryHook
 from fedlearner.trainer import patch  # pylint: disable=unused-import
 from fedlearner.common import metrics
+from fedlearner.data_join.common import get_kvstore_config
 
 SYNC_PATH = '/sync/'
 
@@ -185,11 +186,14 @@ class FLEstimator(object):
 
     def _cheif_barriar(self, is_chief=False, sync_times=300):
         worker_replicas = os.environ.get('REPLICA_NUM', 0)
-        kvstore_client = DBClient(os.environ['DB_DATABASE'],
-                                 os.environ['DB_ADDR'],
-                                 os.environ['DB_USERNAME'],
-                                 os.environ['DB_PASSWORD'],
-                                 SYNC_PATH)
+        kvstore_type = os.environ.get('KVSTORE_TYPE', 'etcd')
+        db_database, db_addr, db_username, db_password, _ = \
+            get_kvstore_config(kvstore_type)
+        kvstore_client = DBClient(db_database,
+                                  db_addr,
+                                  db_username,
+                                  db_password,
+                                  SYNC_PATH)
         sync_path = '%s/%s' % (os.environ['APPLICATION_ID'],
                                os.environ['WORKER_RANK'])
         logging.info('Creating a sync flag at %s', sync_path)
