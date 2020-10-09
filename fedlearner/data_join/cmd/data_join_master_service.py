@@ -42,7 +42,7 @@ if __name__ == "__main__":
             use_mock_etcd=(args.kvstore_type == 'mock'),
             batch_mode=args.batch_mode
         )
-    db_database, db_base_dir, db_addr, db_username, db_password = \
+    db_database, db_addr, db_username, db_password, db_base_dir= \
         get_kvstore_config(args.kvstore_type)
     master_srv = DataJoinMasterService(
             args.listen_port, args.peer_addr,

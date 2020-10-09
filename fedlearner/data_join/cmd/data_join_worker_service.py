@@ -105,7 +105,7 @@ if __name__ == "__main__":
                     compressed_type=args.data_block_compressed_type
                 )
         )
-    db_database, db_base_dir, db_addr, db_username, db_password = \
+    db_database, db_addr, db_username, db_password, db_base_dir= \
         get_kvstore_config(args.kvstore_type)
     worker_srv = DataJoinWorkerService(args.listen_port, args.peer_addr,
                                        args.master_addr, args.rank_id,
