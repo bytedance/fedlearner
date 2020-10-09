@@ -20,13 +20,12 @@ import os
 
 from fedlearner.trainer_master.data.data_block_set import DataBlockSet
 from fedlearner.data_join.data_block_visitor import DataBlockVisitor
+from fedlearner.data_join.common import get_kvstore_config
 from .trainer_master import TrainerMaster
 
-db_database = os.environ.get('DB_DATABASE', None)
-db_addr = os.environ.get('DB_ADDR', None)
-db_base_dir = os.environ.get('DB_BASE_DIR', None)
-db_username = os.environ.get('DB_USERNAME', None)
-db_password = os.environ.get('DB_PASSWORD', None)
+kvstore_type = os.environ.get('kvstore_type', 'etcd')
+db_database, db_addr, db_username, db_password, db_base_dir = \
+    get_kvstore_config(kvstore_type)
 
 
 

@@ -25,14 +25,13 @@ from fedlearner.common import trainer_master_service_pb2_grpc as tm_grpc
 from fedlearner.proxy.channel import make_insecure_channel, ChannelType
 from fedlearner.common import common_pb2 as common_pb
 from fedlearner.data_join.data_block_visitor import DataBlockVisitor
+from fedlearner.data_join.common import get_kvstore_config
 
 DataBlockInfo = collections.namedtuple('DataBlockInfo',
                                        ['block_id', 'data_path'])
-db_database = os.environ.get('DB_DATABASE', None)
-db_addr = os.environ.get('DB_ADDR', None)
-db_base_dir = os.environ.get('DB_BASE_DIR', None)
-db_username = os.environ.get('DB_USERNAME', None)
-db_password = os.environ.get('DB_PASSWORD', None)
+kvstore_type = os.environ.get('kvstore_type', 'etcd')
+db_database, db_addr, db_username, db_password, db_base_dir = \
+    get_kvstore_config(kvstore_type)
 
 
 class LocalTrainerMasterClient(object):
