@@ -24,7 +24,7 @@ from fedlearner.data_join.data_block_visitor import DataBlockVisitor
 from fedlearner.data_join.common import get_kvstore_config
 from .trainer_master import TrainerMaster
 
-kvstore_type = os.environ.get('kvstore_type', 'etcd')
+kvstore_type = os.environ.get('KVSTORE_TYPE', 'etcd')
 db_database, db_addr, db_username, db_password, db_base_dir = \
     get_kvstore_config(kvstore_type)
 
