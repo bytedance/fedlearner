@@ -29,7 +29,7 @@ class DBClient(object):
         base_dir, use_mock_etcd=False):
         self._client = EtcdClient(database, addr, base_dir,
                                   use_mock_etcd)
-        if database is not None and not use_mock_etcd:
+        if username is not None and not use_mock_etcd:
             self._client = MySQLClient(database, addr, username,
                                        password, base_dir)
 
