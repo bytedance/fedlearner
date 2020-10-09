@@ -27,12 +27,11 @@ from fedlearner.common.etcd_client import EtcdClient
 class DBClient(object):
     def __init__(self, database, addr, username, password,
         base_dir, use_mock_etcd=False):
-        if username:
+        self._client = EtcdClient(database, addr, base_dir,
+                                  use_mock_etcd)
+        if database is not None and not use_mock_etcd:
             self._client = MySQLClient(database, addr, username,
                                        password, base_dir)
-        else:
-            self._client = EtcdClient(database, addr, base_dir,
-                                      use_mock_etcd)
 
     def __getattr__(self, attr):
         return getattr(self._client, attr)
