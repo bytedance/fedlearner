@@ -127,10 +127,6 @@ function fillField(data, field) {
       disabled = true
     }
   }
-  else if (field.key === 'datasource') {
-    v = getValueFromEnv(data['client_params'], envPath, 'DATA_SOURCE')
-      || getValueFromEnv(data['server_params'], envPath, 'DATA_SOURCE')
-  }
   else if (/[/s/S]* num$/.test(field.key)) {
     let replicaType = field.key.split(' ')[0]
     let path = `spec.flReplicaSpecs.${replicaType}.replicas`
@@ -251,7 +247,6 @@ export default function JobList({
           ignoreKeys: filterArrayValue([
             datasoure && 'DATA_SOURCE_NAME',
             training && 'TRAINING_NAME',
-            training && 'DATA_SOURCE'
           ])
         }
       },
@@ -293,7 +288,6 @@ export default function JobList({
     // env
     const insert2Env = filterArrayValue([
       { name: NAME_KEY, getValue: data => data.name },
-      training && { name: 'DATA_SOURCE', getValue: data => data.datasource },
     ])
 
     PARAMS_GROUP.forEach(paramType => {
@@ -331,7 +325,6 @@ export default function JobList({
     })
 
     // delete useless fields
-    draft.datasource && delete draft.datasource
 
     JOB_REPLICA_TYPE
       .forEach(replicaType =>
@@ -468,11 +461,6 @@ export default function JobList({
         federation_id: null,
         type: PAGE_NAME,
       },
-    },
-    training && {
-      key: 'datasource',
-      type: 'datasource',
-      required: true,
     },
     ...JOB_REPLICA_TYPE
       .filter(el => training && el !== 'Master')
