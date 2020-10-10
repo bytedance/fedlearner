@@ -16,10 +16,6 @@
 # pylint: disable=protected-access
 
 import time
-try:
-    import queue
-except ImportError:
-    import Queue as queue
 import logging
 import os
 import threading
