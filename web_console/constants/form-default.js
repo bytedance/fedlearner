@@ -1,57 +1,5 @@
-// key is the key of form field
-// value is the default value of field
 const K8S_SETTINGS = {
-  "namespace": "default",
-  "storage_root_path": "data",
-  "imagePullSecrets": [{"name": "regcred"}],
-  "env": [
-    {
-      "name": "ETCD_NAME",
-      "value": "fedlearner",
-    },
-    {
-      "name": "ETCD_BASE_DIR",
-      "value": "fedlearner",
-    },
-    {
-      "name": "ETCD_ADDR",
-      "value": "fedlearner-stack-etcd.default.svc.cluster.local:2379"
-    },
-    {
-      "name": "EGRESS_URL",
-      "value": "fedlearner-stack-ingress-nginx-controller.default.svc.cluster.local:80"
-    },
-    {
-      "name": "EGRESS_HOST",
-      "value": "external.name"
-    }
-  ],
-  "grpc_spec": {
-    "peerURL": "fedlearner-stack-ingress-nginx-controller.default.svc.cluster.local:80",
-    "authority": "external.name",
-    "extraHeaders": {
-      "x-host": "default.flapp.webconsole",
-      "x-federation": "XFEDERATION"
-    }
-  },
-  "leader_peer_spec": {
-    "Follower": {
-      "peerURL": "fedlearner-stack-ingress-nginx-controller.default.svc.cluster.local:80",
-      "authority": "external.name",
-      "extraHeaders": {
-        "x-host": "leader.flapp.operator"
-      }
-    }
-  },
-  "follower_peer_spec": {
-    "Leader": {
-      "peerURL": "fedlearner-stack-ingress-nginx-controller.default.svc.cluster.local:80",
-      "authority": "external.name",
-      "extraHeaders": {
-        "x-host": "leader.flapp.operator"
-      }
-    }
-  }
+
 }
 
 // ************************************ datasouce job ************************************
@@ -1001,17 +949,6 @@ const RAW_DATA_CONTEXT = {
     }
   }
 }
-
-
-const _ = [
-  K8S_SETTINGS,
-].forEach(el => {
-  for (let k in el) {
-    if (typeof el[k] === 'object') {
-      el[k] = JSON.stringify(el[k], null, 2)
-    }
-  }
-})
 
 module.exports = {
   K8S_SETTINGS,

@@ -119,7 +119,6 @@ const K8S_SETTINGS_FIELDS = [
   { key: 'storage_root_path', default: K8S_SETTINGS.storage_root_path },
   {
     key: 'imagePullSecrets',
-    default: K8S_SETTINGS.imagePullSecrets,
     type: 'json',
     span: 24,
     path: 'global_replica_spec.template.spec.imagePullSecrets',
@@ -129,7 +128,6 @@ const K8S_SETTINGS_FIELDS = [
     key: 'env',
     type: 'name-value',
     span: 24,
-    default: K8S_SETTINGS.env,
     props: {
       minHeight: '150px',
     },
@@ -140,7 +138,6 @@ const K8S_SETTINGS_FIELDS = [
     key: 'grpc_spec',
     type: 'json',
     span: 24,
-    default: K8S_SETTINGS.grpc_spec,
     props: {
       minHeight: '150px',
     },
@@ -150,7 +147,6 @@ const K8S_SETTINGS_FIELDS = [
     key: 'leader_peer_spec',
     type: 'json',
     span: 24,
-    default: K8S_SETTINGS.leader_peer_spec,
     props: {
       minHeight: '150px',
     },
@@ -160,7 +156,6 @@ const K8S_SETTINGS_FIELDS = [
     key: 'follower_peer_spec',
     type: 'json',
     span: 24,
-    default: K8S_SETTINGS.follower_peer_spec,
     props: {
       minHeight: '150px',
     },
@@ -329,6 +324,11 @@ export default function FederationList() {
   ], []);
   const [fields, setFields] = useState(DEFAULT_FIELDS);
 
+  const onClickCreate = () => {
+    setFormMeta({ k8s_settings: K8S_SETTINGS })
+    setFields(mapValueToFields({federation: mapFormMeta2Form(), fields}))
+    setFormVisible(true)
+  }
   const toggleForm = () => {
     setFormVisible(!formVisible);
     if (formVisible) {
@@ -410,7 +410,7 @@ export default function FederationList() {
           <>
             <div className="heading">
               <Text h2>Federations</Text>
-              <Button auto type="secondary" onClick={() => setFormVisible(true)}>Create Federation</Button>
+              <Button auto type="secondary" onClick={onClickCreate}>Create Federation</Button>
             </div>
             <Grid.Container gap={2}>
               {federations && federations.map((x) => (
