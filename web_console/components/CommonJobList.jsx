@@ -138,7 +138,7 @@ function fillField(data, field) {
     v = JSON.stringify(v, null, 2)
   }
 
-  if (v || (!v && isSetValueWithEmpty)) {
+  if (v !== undefined || (v === undefined && isSetValueWithEmpty)) {
     field.value = v
   }
   field.editing = true
