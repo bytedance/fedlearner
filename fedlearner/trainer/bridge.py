@@ -56,6 +56,59 @@ def make_ready_client(channel, stop_event=None):
     return tws_grpc.TrainerWorkerServiceStub(channel)
 
 
+class _MessageQueue(object):
+    def __init__(self, window_size=100):
+        super(_MessageQueue, self).__init__()
+        self._window_size = window_size
+        self._condition = threading.Condition()
+        self._queue = collections.deque()
+        self._next = 0
+
+    def size(self):
+        with self._condition:
+            return len(self._queue)
+
+    def confirm(self, next_seq_num):
+        with self._condition:
+            while self._queue and self._queue[0].seq_num < next_seq_num:
+                self._queue.popleft()
+                if self._next > 0:
+                    self._next -= 1
+            self._condition.notifyAll()
+
+    def resend(self, seq_num):
+        with self._condition:
+            while self._next > 0 and \
+                    (self._next >= len(self._queue) or \
+                     self._queue[self._next].seq_num > seq_num):
+                self._next -= 1
+            if self._queue:
+                logging.warning(
+                    'Message with seq_num=%d missing. Resending from %d',
+                    seq_num, self._queue[self._next].seq_num)
+            self._condition.notifyAll()
+
+    def put(self, msg):
+        with self._condition:
+            while len(self._queue) >= self._window_size:
+                self._condition.wait()
+            self._queue.append(msg)
+            self._condition.notifyAll()
+
+    def get(self):
+        with self._condition:
+            while self._next == len(self._queue):
+                if not self._condition.wait(10.0) and self._queue:
+                    logging.warning(
+                        'Timeout waiting for confirmation. Resending from %d',
+                        self.queue[0].seq_num)
+                    self._next = 0
+            assert self._next < len(self._queue)
+            msg = self._queue[self._next]
+            self._next += 1
+            return msg
+
+
 class Bridge(object):
     class TrainerWorkerServicer(tws_grpc.TrainerWorkerServiceServicer):
         def __init__(self, bridge):
@@ -128,7 +181,7 @@ class Bridge(object):
             options=self._grpc_options, compression=self._compression)
         self._client = tws_grpc.TrainerWorkerServiceStub(self._channel)
         self._next_send_seq_num = 0
-        self._transmit_queue = queue.Queue()
+        self._transmit_queue = _MessageQueue()
         self._client_daemon = None
         self._client_daemon_shutdown_fn = None
 
@@ -176,18 +229,12 @@ class Bridge(object):
             options=self._grpc_options, compression=self._compression)
         client = make_ready_client(channel, stop_event)
 
-        lock = threading.Lock()
-        resend_list = collections.deque()
-
         def shutdown_fn():
-            with lock:
-                while len(resend_list) > 0 or not self._transmit_queue.empty():
-                    logging.debug(
-                        "Waiting for resend queue's being cleaned. "
-                        "Resend queue size: %d", len(resend_list))
-                    lock.release()
-                    time.sleep(1)
-                    lock.acquire()
+            while self._transmit_queue.size():
+                logging.debug(
+                    "Waiting for message queue's being cleaned. "
+                    "Queue size: %d", self._transmit_queue.size())
+                time.sleep(1)
 
             stop_event.set()
             if generator is not None:
@@ -198,17 +245,8 @@ class Bridge(object):
         while not stop_event.is_set():
             try:
                 def iterator():
-                    with lock:
-                        resend_msgs = list(resend_list)
-                    for item in resend_msgs:
-                        logging.warning("Streaming resend message seq_num=%d",
-                                        item.seq_num)
-                        metrics.emit_counter("resend_counter", 1)
-                        yield item
                     while True:
                         item = self._transmit_queue.get()
-                        with lock:
-                            resend_list.append(item)
                         logging.debug("Streaming send message seq_num=%d",
                                       item.seq_num)
                         yield item
@@ -216,28 +254,20 @@ class Bridge(object):
                 generator = client.StreamTransmit(iterator())
                 for response in generator:
                     if response.status.code == common_pb.STATUS_SUCCESS:
+                        self._transmit_queue.confirm(response.next_seq_num)
                         logging.debug("Message with seq_num=%d is "
                             "confirmed", response.next_seq_num-1)
                     elif response.status.code == \
-                        common_pb.STATUS_MESSAGE_DUPLICATED:
+                            common_pb.STATUS_MESSAGE_DUPLICATED:
+                        self._transmit_queue.confirm(response.next_seq_num)
                         logging.debug("Resent Message with seq_num=%d is "
-                            "confirmed", response.next_seq_num)
+                            "confirmed", response.next_seq_num-1)
                     elif response.status.code == \
-                        common_pb.STATUS_MESSAGE_MISSING:
-                        raise RuntimeError("Message with seq_num=%d is "
-                            "missing!" % (response.next_seq_num))
+                            common_pb.STATUS_MESSAGE_MISSING:
+                        self._transmit_queue.resend(response.next_seq_num)
                     else:
                         raise RuntimeError("Trainsmit failed with %d" %
                                            response.status.code)
-                    with lock:
-                        while resend_list and \
-                                resend_list[0].seq_num < response.next_seq_num:
-                            resend_list.popleft()
-                        min_seq_num_to_resend = resend_list[0].seq_num \
-                            if resend_list else "NaN"
-                        logging.debug(
-                            "Resend queue size: %d, starting from seq_num=%s",
-                            len(resend_list), min_seq_num_to_resend)
             except Exception as e:  # pylint: disable=broad-except
                 if not stop_event.is_set():
                     logging.warning("Bridge streaming broken: %s.", repr(e))
@@ -246,10 +276,7 @@ class Bridge(object):
                 generator.cancel()
                 channel.close()
                 time.sleep(1)
-                logging.warning(
-                    "Restarting streaming: resend queue size: %d, "
-                    "starting from seq_num=%s", len(resend_list),
-                    resend_list and resend_list[0].seq_num or "NaN")
+                self._transmit_queue.resend(-1)
                 channel = make_insecure_channel(
                     self._remote_address, ChannelType.REMOTE,
                     options=self._grpc_options, compression=self._compression)
