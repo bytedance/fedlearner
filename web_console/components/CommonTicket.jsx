@@ -8,8 +8,6 @@ import Form from './Form';
 import { fetcher } from '../libs/http';
 import { createTicket, updateTicket } from '../services/ticket';
 import {
-  DATASOURCE_TICKET_REPLICA_TYPE,
-  TRAINING_TICKET_REPLICA_TYPE,
   TICKET_DATA_JOIN_PARAMS,
   TICKET_NN_PARAMS,
   TICKET_PSI_DATA_JOIN_PARAMS,
@@ -77,7 +75,7 @@ function fillField(data, field, editing) {
     v = JSON.stringify(v, null, 2)
   }
 
-  if (v || (!v && isSetValueWithEmpty)) {
+  if (v !== undefined || (v === undefined && isSetValueWithEmpty)) {
     field.value = v
   }
   field.editing = true
