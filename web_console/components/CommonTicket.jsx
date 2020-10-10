@@ -65,6 +65,10 @@ function fillField(data, field, editing) {
   else if (field.key === 'private_params') {
     v = data
   }
+  else if (field.key === 'datasource') {
+    v = getValueFromEnv(data['public_params'], envPath, 'DATA_SOURCE')
+      || getValueFromEnv(data['private_params'], envPath, 'DATA_SOURCE')
+  }
   else {
     v = v || field.emptyDefault || ''
   }
@@ -169,6 +173,34 @@ export default function TicketList({
     : [];
 
   // rewrite functions
+  const rewriteEnvs = useCallback((draft, data,rules) => {
+    PARAMS_GROUP.forEach(paramType => {
+      TICKET_REPLICA_TYPE.forEach(replicaType => {
+        let envPath = ENV_PATH.replace('[replicaType]', replicaType)
+
+        if (!draft[paramType]) {
+          draft[paramType] = {}
+        }
+
+        let envs = getValueFromJson(draft[paramType], envPath)
+        if (!envs) { envs = [] }
+
+        let envNames = envs.map(env => env.name)
+        rules.forEach(el => {
+          let idx = envNames.indexOf(el.name)
+          let value = el.getValue(data) || ''
+          if (idx >= 0) {
+            envs[idx].value = value.toString()
+          } else {
+            // here envs is not extensible, push will throw error
+            envs = envs.concat({name: el.name, value: value.toString()})
+          }
+        })
+        // trigger immer‘s intercepter
+        fillJSON(draft[paramType], envPath, envs)
+      })
+    })
+  }, [])
   const commonRewrite = useCallback((draft, data) => {
     // image
     draft.image && delete draft.image
@@ -190,33 +222,7 @@ export default function TicketList({
       { name: 'RAW_DATA_SUB_DIR', getValue: data => data.raw_data && 'portal_publish_dir/' + data.raw_data.name },
       { name: 'PARTITION_NUM', getValue: data => data.num_partitions },
     ]
-
-    PARAMS_GROUP.forEach(paramType => {
-      TICKET_REPLICA_TYPE.forEach(replicaType => {
-        let envPath = ENV_PATH.replace('[replicaType]', replicaType)
-
-        if (!draft[paramType]) {
-          draft[paramType] = {}
-        }
-
-        let envs = getValueFromJson(draft[paramType], envPath)
-        if (!envs) { envs = [] }
-
-        let envNames = envs.map(env => env.name)
-        insert2Env.forEach(el => {
-          let idx = envNames.indexOf(el.name)
-          let value = el.getValue(data) || ''
-          if (idx >= 0) {
-            envs[idx].value = value.toString()
-          } else {
-            // here envs is not extensible, push will throw error
-            envs = envs.concat({name: el.name, value: value.toString()})
-          }
-        })
-        // trigger immer‘s intercepter
-        fillJSON(draft[paramType], envPath, envs)
-      })
-    })
+    rewriteEnvs(draft, data,insert2Env)
 
     // replicas
     TICKET_REPLICA_TYPE.forEach(replicaType => {
@@ -233,6 +239,14 @@ export default function TicketList({
 
   }, [])
   const trainingRewrite = useCallback((draft, data) => {
+    // envs
+    const insert2Env = [
+      { name: 'DATA_SOURCE', getValue: data => data.datasource },
+    ]
+    rewriteEnvs(draft, data, insert2Env)
+
+    // delete fields
+    draft.datasource && delete draft.datasource
 
   }, [])
   const rewriteFields = useCallback((draft, data) => {
@@ -427,6 +441,11 @@ export default function TicketList({
       key: 'num_partitions',
       label: 'num partitions',
     } : undefined,
+    training && {
+      key: 'datasource',
+      type: 'datasource',
+      required: true,
+    },
     { key: 'remark', type: 'text', span: 24 },
     {
       groupName: 'public_params',
