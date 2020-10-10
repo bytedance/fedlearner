@@ -1,55 +1,138 @@
-// key is the key of form field
-// value is the default value of field
 const K8S_SETTINGS = {
-  "namespace": "default",
-  "storage_root_path": "data",
-  "imagePullSecrets": [{"name": "regcred"}],
-  "env": [
-    {
-      "name": "ETCD_NAME",
-      "value": "fedlearner",
-    },
-    {
-      "name": "ETCD_BASE_DIR",
-      "value": "fedlearner",
-    },
-    {
-      "name": "ETCD_ADDR",
-      "value": "fedlearner-stack-etcd.default.svc.cluster.local:2379"
-    },
-    {
-      "name": "EGRESS_URL",
-      "value": "fedlearner-stack-ingress-nginx-controller.default.svc.cluster.local:80"
-    },
-    {
-      "name": "EGRESS_HOST",
-      "value": "external.name"
+  "namespace": "leader",
+  "storage_root_path": "hdfs:///home/byte_fedlearner_hdfs",
+  "global_replica_spec": {
+    "template": {
+      "spec": {
+        "imagePullSecrets": [
+          {
+            "name": "regcred-bd"
+          }
+        ],
+        "volumes": [
+          {
+            "hostPath": {
+              "path": "/opt/tiger/pyutil"
+            },
+            "name": "pyutil"
+          },
+          {
+            "hostPath": {
+              "path": "/opt/tiger/yarn_deploy"
+            },
+            "name": "yarn-deploy"
+          },
+          {
+            "hostPath": {
+              "path": "/opt/tiger/jdk"
+            },
+            "name": "jdk"
+          }
+        ],
+        "containers": [
+          {
+            "env": [
+              {
+                "name": "SEC_TOKEN_PATH",
+                "value": "/etc/token/identity-token"
+              },
+              {
+                "name": "ETCD_NAME",
+                "value": "fedlearner"
+              },
+              {
+                "name": "ETCD_ADDR",
+                "value": "10.10.73.87:2379"
+              },
+              {
+                "name": "ETCD_BASE_DIR",
+                "value": "fedlearner_all_test"
+              },
+              {
+                "name": "EGRESS_URL",
+                "value": "ingress-nginx.ingress-nginx.svc.cluster.local:80"
+              },
+              {
+                "name": "EGRESS_HOST",
+                "value": "fl-aliyun-test-client-auth.com"
+              },
+              {
+                "name": "EGRESS_DOMAIN",
+                "value": "fl-aliyun-test.com"
+              },
+              {
+                "name": "TCE_PSM",
+                "value": "data.aml.fl"
+              },
+              {
+                "name": "TCE_PSM_GROUP",
+                "value": "default"
+              },
+              {
+                "name": "TCE_PSM_OWNER",
+                "value": "lilongyijia"
+              },
+              {
+                "name": "HADOOP_HOME",
+                "value": "/opt/tiger/yarn_deploy/hadoop"
+              },
+              {
+                "name": "JAVA_HOME",
+                "value": "/opt/tiger/jdk/jdk1.8"
+              },
+              {
+                "name": "RUNTIME_IDC_NAME",
+                "value": "lf"
+              }
+            ],
+            "volumeMounts": [
+              {
+                "mountPath": "/opt/tiger/pyutil",
+                "name": "pyutil"
+              },
+              {
+                "mountPath": "/opt/tiger/yarn_deploy",
+                "name": "yarn-deploy"
+              },
+              {
+                "mountPath": "/opt/tiger/jdk",
+                "name": "jdk"
+              }
+            ]
+          }
+        ]
+      }
     }
-  ],
+  },
   "grpc_spec": {
-    "peerURL": "fedlearner-stack-ingress-nginx-controller.default.svc.cluster.local:80",
-    "authority": "external.name",
+    "peerURL": "ingress-nginx.ingress-nginx.svc.cluster.local:80",
+    "authority": "fl-aliyun-test.com",
     "extraHeaders": {
-      "x-host": "default.flapp.webconsole",
-      "x-federation": "XFEDERATION"
+      "x-host": "default.fedlearner.webconsole",
+      "x-federation": "it-client-federation-v01t03"
     }
   },
   "leader_peer_spec": {
     "Follower": {
-      "peerURL": "fedlearner-stack-ingress-nginx-controller.default.svc.cluster.local:80",
-      "authority": "external.name",
+      "peerURL": "ingress-nginx.ingress-nginx.svc.cluster.local:80",
+      "authority": "fl-aliyun-test.com",
       "extraHeaders": {
-        "x-host": "leader.flapp.operator"
+        "x-host": "default.fedlearner.operator"
       }
     }
   },
   "follower_peer_spec": {
     "Leader": {
-      "peerURL": "fedlearner-stack-ingress-nginx-controller.default.svc.cluster.local:80",
-      "authority": "external.name",
+      "peerURL": "ingress-nginx.ingress-nginx.svc.cluster.local:80",
+      "authority": "fl-aliyun-test.com",
       "extraHeaders": {
-        "x-host": "leader.flapp.operator"
+        "x-host": "default.fedlearner.operator"
       }
+    }
+  },
+  "global_job_spec": {
+    "spec": {
+      "cleanPodPolicy": "All"
     }
   }
 }
@@ -1001,17 +1084,6 @@ const RAW_DATA_CONTEXT = {
     }
   }
 }
-
-
-const _ = [
-  K8S_SETTINGS,
-].forEach(el => {
-  for (let k in el) {
-    if (typeof el[k] === 'object') {
-      el[k] = JSON.stringify(el[k], null, 2)
-    }
-  }
-})
 
 module.exports = {
   K8S_SETTINGS,
