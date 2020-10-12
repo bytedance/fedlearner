@@ -76,9 +76,10 @@ cluster:
     DB_PASSWORD: fedlearner
     DB_HOST: fedlearner-stack-mariadb
     DB_PORT: 3306
-    DB_SYNC: true
+    DB_SYNC: false
     GRPC_AUTHORITY: ""
     KIBANA_HOST: fedlearner-stack-kibana
     KIBANA_PORT: 443
     ES_HOST: fedlearner-stack-elasticsearch-client
     ES_PORT: 9200
+    ETCD_ADDR: "fedlearner-stack-etcd.default.svc.cluster.local:2379"
