@@ -34,8 +34,6 @@ import (
 	pb "github.com/bytedance/fedlearner/deploy/kubernetes_operator/proto"
 )
 
-const clientTimeout = time.Second * 5
-
 type AppEventHandler interface {
 	// Called after follower bootstrapped
 	Register(context.Context, *v1alpha1.FLApp) error
@@ -56,18 +54,20 @@ type AppEventHandler interface {
 }
 
 type appEventHandler struct {
-	namespace  string
-	crdClient  crdclientset.Interface
-	grpcClient map[string]pb.PairingServiceClient
+	namespace     string
+	crdClient     crdclientset.Interface
+	grpcClient    map[string]pb.PairingServiceClient
+	clientTimeout time.Duration
 }
 
 var _ AppEventHandler = &appEventHandler{}
 
-func NewAppEventHandler(namespace string, crdClient crdclientset.Interface) AppEventHandler {
+func NewAppEventHandlerWithClientTimeout(namespace string, crdClient crdclientset.Interface, clientTimeout time.Duration) AppEventHandler {
 	return &appEventHandler{
-		namespace:  namespace,
-		crdClient:  crdClient,
-		grpcClient: make(map[string]pb.PairingServiceClient),
+		namespace:     namespace,
+		crdClient:     crdClient,
+		grpcClient:    make(map[string]pb.PairingServiceClient),
+		clientTimeout: clientTimeout,
 	}
 }
 
@@ -106,7 +106,7 @@ func (handler *appEventHandler) Register(ctx context.Context, app *v1alpha1.FLAp
 		Pairs: pairs,
 	}
 
-	ctx, cancel := newContextWithHeaders(leaderSpec.ExtraHeaders)
+	ctx, cancel := handler.newContextWithHeaders(leaderSpec.ExtraHeaders)
 	defer cancel()
 	response, err := client.Register(ctx, request)
 	if err != nil || response.Code != int32(codes.OK) {
@@ -138,7 +138,7 @@ func (handler *appEventHandler) Pair(ctx context.Context, app *v1alpha1.FLApp) e
 			Pairs: makePairs(app, role),
 		}
 		err, msg := func() (error, string) {
-			ctx, cancel := newContextWithHeaders(peerSpec.ExtraHeaders)
+			ctx, cancel := handler.newContextWithHeaders(peerSpec.ExtraHeaders)
 			defer cancel()
 			klog.Infof("Ready to make pairs for app %v, pairs = %v, app = %v", app.Name, request.Pairs, app)
 			response, err := client.Pair(ctx, request)
@@ -171,7 +171,7 @@ func (handler *appEventHandler) Shutdown(ctx context.Context, app *v1alpha1.FLAp
 			return fmt.Errorf("failed to build client, name = %v, role = %v", name, role)
 		}
 		err, msg := func() (error, string) {
-			ctx, cancel := newContextWithHeaders(peerSpec.ExtraHeaders)
+			ctx, cancel := handler.newContextWithHeaders(peerSpec.ExtraHeaders)
 			defer cancel()
 			response, err := client.ShutDown(ctx, request)
 			if err != nil || response.Code != int32(codes.OK) {
@@ -203,7 +203,7 @@ func (handler *appEventHandler) Finish(ctx context.Context, app *v1alpha1.FLApp)
 			return fmt.Errorf("failed to build client, name = %v, role = %v", name, role)
 		}
 		err, msg := func() (error, string) {
-			ctx, cancel := newContextWithHeaders(peerSpec.ExtraHeaders)
+			ctx, cancel := handler.newContextWithHeaders(peerSpec.ExtraHeaders)
 			defer cancel()
 			response, err := client.Finish(ctx, request)
 			if err != nil || response.Code != int32(codes.OK) {
@@ -276,6 +276,14 @@ func (handler *appEventHandler) PairHandler(ctx context.Context, name string, le
 	app, err := handler.crdClient.FedlearnerV1alpha1().FLApps(handler.namespace).Get(name, metav1.GetOptions{})
 	if err != nil {
 		err = fmt.Errorf("PairHandler name = %v, err = %v", name, err)
+		klog.Error(err)
+		return &pb.Status{
+			Code:         int32(codes.Internal),
+			ErrorMessage: err.Error(),
+		}, status.Error(codes.Internal, err.Error())
+	}
+	if app.Status.AppState != v1alpha1.FLStateSyncSent {
+		err := fmt.Errorf("PairHandler follower is not in syncSent, name = %v, state = %v", name, app.Status.AppState)
 		klog.Error(err)
 		return &pb.Status{
 			Code:         int32(codes.Internal),
@@ -384,8 +392,8 @@ func (handler *appEventHandler) newClient(peerURL, authority string) (pb.Pairing
 	return handler.grpcClient[key], nil
 }
 
-func newContextWithHeaders(headers map[string]string) (context.Context, context.CancelFunc) {
-	ctx, cancel := context.WithTimeout(context.Background(), clientTimeout)
+func (handler *appEventHandler) newContextWithHeaders(headers map[string]string) (context.Context, context.CancelFunc) {
+	ctx, cancel := context.WithTimeout(context.Background(), handler.clientTimeout)
 	return metadata.NewOutgoingContext(ctx, metadata.New(headers)), cancel
 }
 
