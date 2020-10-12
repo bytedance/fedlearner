@@ -34,9 +34,9 @@ spec:
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           command:
-            - node
+            - sh
           args:
-            - bootstrap.js
+            - startup.sh
           env:
             - name: NODE_ENV
               value: production
