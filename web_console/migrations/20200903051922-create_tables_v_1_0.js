@@ -370,6 +370,15 @@ module.exports = {
           },
           {}
         );
+
+        await queryInterface.bulkInsert('users', [{
+          username: 'ada',
+          password: 'fdee430d40bd57de',
+          name: 'Ada',
+          is_admin: true,
+          created_at: new Date(),
+          updated_at: new Date()
+        }]);
       }
 
       await transaction.commit();
