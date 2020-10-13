@@ -128,7 +128,7 @@ function handleContextData(container, data, field) {
   }
 
   else if (field.key === 'num_workers') {
-    value = parseInt(value || field.default)
+    value = parseInt(value)
   }
 
   fillJSON(container, path, value)
