@@ -87,3 +87,4 @@ cluster:
     ES_HOST: fedlearner-stack-elasticsearch-client
     ES_PORT: 9200
     ETCD_ADDR: "fedlearner-stack-etcd.default.svc.cluster.local:2379"
+    KVSTORE_TYPE: "mysql"
