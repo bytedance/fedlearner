@@ -18,6 +18,9 @@ set -ex
 
 export CUDA_VISIBLE_DEVICES=
 source /app/deploy/scripts/hdfs_common.sh || true
+source /app/deploy/scripts/env_to_args.sh
+
+kvstore_type=$(normalize_env_to_args '--kvstore_type' $KVSTORE_TYPE)
 
 python -m fedlearner.data_join.cmd.prepare_launch_data_join_cli \
     --data_source_name=$APPLICATION_ID \
@@ -27,15 +30,11 @@ python -m fedlearner.data_join.cmd.prepare_launch_data_join_cli \
     --negative_sampling_rate=$NEGATIVE_SAMPLING_RATE \
     --role=$ROLE \
     --output_base_dir=$OUTPUT_BASE_DIR \
-    --etcd_name=$ETCD_NAME \
-    --etcd_addrs=$ETCD_ADDR \
-    --etcd_base_dir=$ETCD_BASE_DIR \
-    --raw_data_sub_dir=$RAW_DATA_SUB_DIR
+    --raw_data_sub_dir=$RAW_DATA_SUB_DIR \
+    $kvstore_type
 
 python -m fedlearner.data_join.cmd.data_join_master_service \
     $PEER_ADDR \
-    --etcd_name=$ETCD_NAME \
-    --etcd_addrs=$ETCD_ADDR \
-    --etcd_base_dir=$ETCD_BASE_DIR \
     --listen_port=50051 \
-    --data_source_name=$APPLICATION_ID $BATCH_MODE
+    --data_source_name=$APPLICATION_ID $BATCH_MODE \
+    $kvstore_type

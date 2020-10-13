@@ -74,12 +74,12 @@ class TransmitLeader(object):
                 )
 
     def __init__(self, peer_client, master_client,
-                 rank_id, etcd, data_source, repr_str):
+                 rank_id, kvstore, data_source, repr_str):
         self._lock = threading.Lock()
         self._peer_client = peer_client
         self._master_client = master_client
         self._rank_id = rank_id
-        self._etcd = etcd
+        self._kvstore = kvstore
         self._data_source = data_source
         self._repr_str = repr_str
         self._partition_exhausted = False

@@ -35,17 +35,16 @@ example_id_dump_interval=$(normalize_env_to_args "--example_id_dump_interval" $E
 example_id_dump_threshold=$(normalize_env_to_args "--example_id_dump_threshold" $EXAMPLE_ID_DUMP_THRESHOLD)
 data_block_builder=$(normalize_env_to_args "--data_block_builder" $DATA_BLOCK_BUILDER)
 data_block_compressed_type=$(normalize_env_to_args "--data_block_compressed_type" $DATA_BLOCK_COMPRESSED_TYPE)
+kvstore_type=$(normalize_env_to_args '--kvstore_type' $KVSTORE_TYPE)
 
 python -m fedlearner.data_join.cmd.data_join_worker_service \
     $PEER_ADDR \
     $MASTER_POD_NAMES \
     $INDEX \
-    --etcd_name=$ETCD_NAME \
-    --etcd_addrs=$ETCD_ADDR \
-    --etcd_base_dir=$ETCD_BASE_DIR \
     --listen_port=50051 \
     $raw_data_iter $compressed_type $read_ahead_size $read_batch_size \
     $example_joiner $min_matching_window $max_matching_window \
     $data_block_dump_interval $data_block_dump_threshold \
     $example_id_dump_interval $example_id_dump_threshold \
-    $data_block_builder $data_block_compressed_type
+    $data_block_builder $data_block_compressed_type \
+    $kvstore_type

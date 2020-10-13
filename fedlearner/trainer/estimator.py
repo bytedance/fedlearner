@@ -24,10 +24,11 @@ from tensorflow.compat.v1.train import Optimizer
 from tensorflow.compat.v1.estimator import ModeKeys
 from tensorflow_estimator.python.estimator import model_fn as model_fn_lib
 
-from fedlearner.common.etcd_client import EtcdClient
+from fedlearner.common.mysql_client import DBClient
 from fedlearner.common.summary_hook import SummaryHook
 from fedlearner.trainer import patch  # pylint: disable=unused-import
 from fedlearner.common import metrics
+from fedlearner.data_join.common import get_kvstore_config
 
 SYNC_PATH = '/sync/'
 
@@ -185,15 +186,21 @@ class FLEstimator(object):
 
     def _cheif_barriar(self, is_chief=False, sync_times=300):
         worker_replicas = os.environ.get('REPLICA_NUM', 0)
-        etcd_client = EtcdClient(os.environ['ETCD_NAME'],
-                                 os.environ['ETCD_ADDR'], SYNC_PATH)
+        kvstore_type = os.environ.get('KVSTORE_TYPE', 'etcd')
+        db_database, db_addr, db_username, db_password, _ = \
+            get_kvstore_config(kvstore_type)
+        kvstore_client = DBClient(db_database,
+                                  db_addr,
+                                  db_username,
+                                  db_password,
+                                  SYNC_PATH)
         sync_path = '%s/%s' % (os.environ['APPLICATION_ID'],
                                os.environ['WORKER_RANK'])
         logging.info('Creating a sync flag at %s', sync_path)
-        etcd_client.set_data(sync_path, "1")
+        kvstore_client.set_data(sync_path, "1")
         if is_chief:
             for _ in range(sync_times):
-                sync_list = etcd_client.get_prefix_kvs(
+                sync_list = kvstore_client.get_prefix_kvs(
                     os.environ['APPLICATION_ID'])
                 logging.info('Sync file pattern is: %s', sync_list)
                 if len(sync_list) < worker_replicas:

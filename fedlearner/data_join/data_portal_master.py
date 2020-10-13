@@ -24,19 +24,19 @@ from fedlearner.common import common_pb2 as common_pb
 from fedlearner.common import data_portal_service_pb2 as dp_pb
 from fedlearner.common import data_portal_service_pb2_grpc as dp_grpc
 
-from fedlearner.common.etcd_client import EtcdClient
+from fedlearner.common.mysql_client import DBClient
 
 from fedlearner.data_join.data_portal_job_manager import DataPortalJobManager
 from fedlearner.data_join.routine_worker import RoutineWorker
 
 class DataPortalMaster(dp_grpc.DataPortalMasterServiceServicer):
-    def __init__(self, portal_name, etcd, portal_options):
+    def __init__(self, portal_name, kvstore, portal_options):
         super(DataPortalMaster, self).__init__()
         self._portal_name = portal_name
-        self._etcd = etcd
+        self._kvstore = kvstore
         self._portal_options = portal_options
         self._data_portal_job_manager = DataPortalJobManager(
-                self._etcd, self._portal_name,
+                self._kvstore, self._portal_name,
                 self._portal_options.long_running
             )
         self._bg_worker = None
@@ -81,14 +81,16 @@ class DataPortalMaster(dp_grpc.DataPortalMasterServiceServicer):
 
 class DataPortalMasterService(object):
     def __init__(self, listen_port, portal_name,
-                 etcd_name, etcd_base_dir,
-                 etcd_addrs, portal_options):
+                 db_database, db_base_dir,
+                 db_addr, db_username,
+                 db_password, portal_options):
         self._portal_name = portal_name
         self._listen_port = listen_port
         self._server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
-        etcd = EtcdClient(etcd_name, etcd_addrs, etcd_base_dir,
-                          portal_options.use_mock_etcd)
-        self._data_portal_master = DataPortalMaster(portal_name, etcd,
+        kvstore = DBClient(db_database, db_addr, db_username,
+                            db_password, db_base_dir,
+                            portal_options.use_mock_etcd)
+        self._data_portal_master = DataPortalMaster(portal_name, kvstore,
                                                     portal_options)
         dp_grpc.add_DataPortalMasterServiceServicer_to_server(
                 self._data_portal_master, self._server

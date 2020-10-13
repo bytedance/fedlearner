@@ -29,8 +29,8 @@ from fedlearner.data_join.raw_data_manifest_manager import \
         RawDataManifestManager
 
 class RawDataManager(visitor.IndexMetaManager):
-    def __init__(self, etcd, data_source, partition_id):
-        self._etcd = etcd
+    def __init__(self, kvstore, data_source, partition_id):
+        self._kvstore = kvstore
         self._data_source = data_source
         self._partition_id = partition_id
         self._manifest = self._sync_raw_data_manifest()
@@ -66,7 +66,7 @@ class RawDataManager(visitor.IndexMetaManager):
             raw_data_meta = self._sync_raw_data_meta(process_index)
             if raw_data_meta is None:
                 logging.fatal("the raw data of partition %d index with "\
-                              "%d must in etcd",
+                              "%d must in kvstore",
                               self._partition_id, process_index)
                 traceback.print_stack()
                 os._exit(-1) # pylint: disable=protected-access
@@ -77,11 +77,11 @@ class RawDataManager(visitor.IndexMetaManager):
             new_meta.start_index = start_index
             odata = text_format.MessageToString(raw_data_meta)
             ndata = text_format.MessageToString(new_meta)
-            etcd_key = common.raw_data_meta_etcd_key(
+            kvstore_key = common.raw_data_meta_kvstore_key(
                     self._data_source.data_source_meta.name,
                     self._partition_id, process_index
                 )
-            if not self._etcd.cas(etcd_key, odata, ndata):
+            if not self._kvstore.cas(kvstore_key, odata, ndata):
                 raw_data_meta = self._sync_raw_data_meta(process_index)
                 assert raw_data_meta is not None, \
                     "the raw data meta of process index {} "\
@@ -97,32 +97,33 @@ class RawDataManager(visitor.IndexMetaManager):
                                  raw_data_meta.file_path)
 
     def _sync_raw_data_meta(self, process_index):
-        etcd_key = common.raw_data_meta_etcd_key(
+        kvstore_key = common.raw_data_meta_kvstore_key(
                 self._data_source.data_source_meta.name,
                 self._partition_id, process_index
             )
-        data = self._etcd.get_data(etcd_key)
+        data = self._kvstore.get_data(kvstore_key)
         if data is not None:
             return text_format.Parse(data, dj_pb.RawDataMeta())
         return None
 
     def _sync_raw_data_manifest(self):
-        etcd_key = common.partition_manifest_etcd_key(
+        kvstore_key = common.partition_manifest_kvstore_key(
                 self._data_source.data_source_meta.name,
                 self._partition_id
             )
-        data = self._etcd.get_data(etcd_key)
+        data = self._kvstore.get_data(kvstore_key)
         assert data is not None, "manifest must be existed"
         return text_format.Parse(data, dj_pb.RawDataManifest())
 
     def _preload_raw_data_meta(self):
-        manifest_etcd_key = common.partition_manifest_etcd_key(
+        manifest_kvstore_key = common.partition_manifest_kvstore_key(
                 self._data_source.data_source_meta.name,
                 self._partition_id
             )
         all_metas = []
         index_metas = []
-        for key, val in self._etcd.get_prefix_kvs(manifest_etcd_key, True):
+        for key, val in self._kvstore.get_prefix_kvs(manifest_kvstore_key,
+                                                     True):
             bkey = os.path.basename(key)
             if not bkey.decode().startswith(common.RawDataMetaPrefix):
                 continue
@@ -144,10 +145,10 @@ class RawDataManager(visitor.IndexMetaManager):
         return all_metas, index_metas
 
 class RawDataVisitor(visitor.Visitor):
-    def __init__(self, etcd, data_source, partition_id, raw_data_options):
+    def __init__(self, kvstore, data_source, partition_id, raw_data_options):
         super(RawDataVisitor, self).__init__(
                 "raw_data_visitor",
-                RawDataManager(etcd, data_source, partition_id)
+                RawDataManager(kvstore, data_source, partition_id)
             )
         self._raw_data_options = raw_data_options
 
@@ -163,7 +164,7 @@ class RawDataVisitor(visitor.Visitor):
                         'RawDataVisitor, igonre it')
 
 class FileBasedMockRawDataVisitor(RawDataVisitor):
-    def __init__(self, etcd, raw_data_options,
+    def __init__(self, kvstore, raw_data_options,
                  mock_data_source_name, input_fpaths):
         mock_data_source = common_pb.DataSource(
                 state=common_pb.DataSourceState.Processing,
@@ -173,7 +174,7 @@ class FileBasedMockRawDataVisitor(RawDataVisitor):
                 )
             )
         self._mock_rd_manifest_manager = RawDataManifestManager(
-                etcd, mock_data_source
+                kvstore, mock_data_source
             )
         manifest = self._mock_rd_manifest_manager.get_manifest(0)
         if not manifest.finished:
@@ -184,14 +185,14 @@ class FileBasedMockRawDataVisitor(RawDataVisitor):
             self._mock_rd_manifest_manager.add_raw_data(0, metas, True)
             self._mock_rd_manifest_manager.finish_raw_data(0)
         super(FileBasedMockRawDataVisitor, self).__init__(
-                etcd, mock_data_source, 0, raw_data_options
+                kvstore, mock_data_source, 0, raw_data_options
             )
 
     def cleanup_meta_data(self):
         self._mock_rd_manifest_manager.cleanup_meta_data()
 
-class EtcdBasedMockRawDataVisitor(RawDataVisitor):
-    def __init__(self, etcd, raw_data_options, mock_data_source_name,
+class DBBasedMockRawDataVisitor(RawDataVisitor):
+    def __init__(self, kvstore, raw_data_options, mock_data_source_name,
                  raw_data_sub_dir, partition_id):
         mock_data_source = common_pb.DataSource(
                 state=common_pb.DataSourceState.Processing,
@@ -202,11 +203,11 @@ class EtcdBasedMockRawDataVisitor(RawDataVisitor):
                 )
             )
         self._mock_rd_manifest_manager = RawDataManifestManager(
-                etcd, mock_data_source, False
+                kvstore, mock_data_source, False
             )
         self._partition_id = partition_id
-        super(EtcdBasedMockRawDataVisitor, self).__init__(
-                etcd, mock_data_source,
+        super(DBBasedMockRawDataVisitor, self).__init__(
+                kvstore, mock_data_source,
                 partition_id, raw_data_options
             )
 

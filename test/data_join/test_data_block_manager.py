@@ -23,7 +23,7 @@ tf.enable_eager_execution()
 from google.protobuf import text_format
 from tensorflow.compat.v1 import gfile
 
-from fedlearner.common import etcd_client
+from fedlearner.common import mysql_client
 from fedlearner.common import common_pb2 as common_pb
 from fedlearner.common import data_join_service_pb2 as dj_pb
 from fedlearner.data_join import data_block_manager, common

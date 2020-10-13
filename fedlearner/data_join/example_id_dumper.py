@@ -96,7 +96,7 @@ class ExampleIdDumperManager(object):
         def _get_tmp_fpath(self):
             return common.gen_tmp_fpath(self._example_dumped_dir)
 
-    def __init__(self, etcd, data_source,
+    def __init__(self, kvstore, data_source,
                  partition_id, example_id_dump_options):
         self._lock = threading.Lock()
         self._data_source = data_source
@@ -109,7 +109,7 @@ class ExampleIdDumperManager(object):
         self._example_id_sync_finished = False
         self._latest_dump_timestamp = time.time()
         self._example_id_manager = \
-                ExampleIdManager(etcd, data_source, partition_id, False)
+                ExampleIdManager(kvstore, data_source, partition_id, False)
         last_index = self._example_id_manager.get_last_dumped_index()
         self._next_index = 0 if last_index is None else last_index + 1
         self._example_id_dumper = None
