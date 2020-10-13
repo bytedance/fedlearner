@@ -16,7 +16,6 @@
 
 import time
 import logging
-import zlib
 from concurrent import futures
 
 import grpc
@@ -25,7 +24,7 @@ from google.protobuf import empty_pb2
 from fedlearner.common import common_pb2 as common_pb
 from fedlearner.common import data_join_service_pb2_grpc as dj_grpc
 from fedlearner.common import data_join_service_pb2 as dj_pb
-from fedlearner.common.etcd_client import EtcdClient
+from fedlearner.common.mysql_client import DBClient
 from fedlearner.proxy.channel import make_insecure_channel, ChannelType
 
 from fedlearner.data_join import (
@@ -35,11 +34,11 @@ from fedlearner.data_join import (
 
 class DataJoinWorker(dj_grpc.DataJoinWorkerServiceServicer):
     def __init__(self, peer_client, master_client,
-                 rank_id, etcd, data_source, options):
+                 rank_id, kvstore, data_source, options):
         super(DataJoinWorker, self).__init__()
         self._peer_client = peer_client
         self._master_client = master_client
-        self._etcd = etcd
+        self._kvstore = kvstore
         self._rank_id = rank_id
         self._data_source = data_source
         self._transmit_leader = None
@@ -91,11 +90,7 @@ class DataJoinWorker(dj_grpc.DataJoinWorkerServiceServicer):
                                      partition_id)
         response.status.MergeFrom(status)
         if response.status.code == 0:
-            content_bytes = request.content_bytes
-            if request.compressed:
-                content_bytes = zlib.decompress(content_bytes)
-            sync_content = dj_pb.SyncContent()
-            sync_content.ParseFromString(content_bytes)
+            sync_content = request.sync_content
             filled, response.next_index, response.dumped_index = \
                     self._transmit_follower.add_synced_item(sync_content)
             if not filled:
@@ -129,25 +124,18 @@ class DataJoinWorker(dj_grpc.DataJoinWorkerServiceServicer):
             response.status.MergeFrom(status)
         return response
 
-    def _decode_sync_content(self, content_bytes, compressed):
-        if compressed:
-            content_bytes = zlib.decompress(content_bytes)
-        sync_content = dj_pb.SyncContent()
-        sync_content.ParseFromString(content_bytes)
-        return sync_content
-
     def _init_transmit_roles(self, options):
         if self._data_source.role == common_pb.FLRole.Leader:
             self._transmit_leader = \
                     example_id_sync_leader.ExampleIdSyncLeader(
                             self._peer_client, self._master_client,
-                            self._rank_id, self._etcd,
+                            self._rank_id, self._kvstore,
                             self._data_source, options.raw_data_options,
                             options.batch_processor_options
                         )
             self._transmit_follower = \
                     example_join_follower.ExampleJoinFollower(
-                            self._etcd, self._data_source,
+                            self._kvstore, self._data_source,
                             options.raw_data_options,
                             options.data_block_builder_options,
                         )
@@ -157,14 +145,14 @@ class DataJoinWorker(dj_grpc.DataJoinWorkerServiceServicer):
             self._transmit_leader = \
                     example_join_leader.ExampleJoinLeader(
                             self._peer_client, self._master_client,
-                            self._rank_id, self._etcd, self._data_source,
+                            self._rank_id, self._kvstore, self._data_source,
                             options.raw_data_options,
                             options.data_block_builder_options,
                             options.example_joiner_options
                         )
             self._transmit_follower = \
                     example_id_sync_follower.ExampleIdSyncFollower(
-                            self._etcd, self._data_source,
+                            self._kvstore, self._data_source,
                             options.example_id_dump_options
                         )
 
@@ -232,7 +220,8 @@ class DataJoinWorker(dj_grpc.DataJoinWorkerServiceServicer):
 
 class DataJoinWorkerService(object):
     def __init__(self, listen_port, peer_addr, master_addr, rank_id,
-                 etcd_name, etcd_base_dir, etcd_addrs, options):
+                 db_database, db_base_dir, db_addr, db_username,
+                 db_password, options):
         master_channel = make_insecure_channel(
                 master_addr, ChannelType.INTERNAL,
                 options=[('grpc.max_send_message_length', 2**31-1),
@@ -240,8 +229,9 @@ class DataJoinWorkerService(object):
             )
         self._master_client = dj_grpc.DataJoinMasterServiceStub(master_channel)
         self._rank_id = rank_id
-        etcd = EtcdClient(etcd_name, etcd_addrs,
-                          etcd_base_dir, options.use_mock_etcd)
+        kvstore = DBClient(db_database, db_addr, db_username,
+                            db_password, db_base_dir,
+                            options.use_mock_etcd)
         data_source = self._sync_data_source()
         self._data_source_name = data_source.data_source_meta.name
         self._listen_port = listen_port
@@ -254,7 +244,7 @@ class DataJoinWorkerService(object):
         peer_client = dj_grpc.DataJoinWorkerServiceStub(peer_channel)
         self._data_join_worker = DataJoinWorker(
                 peer_client, self._master_client,
-                rank_id, etcd, data_source, options
+                rank_id, kvstore, data_source, options
             )
         dj_grpc.add_DataJoinWorkerServiceServicer_to_server(
                     self._data_join_worker, self._server

@@ -23,10 +23,10 @@ from fedlearner.common import common_pb2 as common_pb
 from fedlearner.data_join import common
 
 class RawDataManifestManager(object):
-    def __init__(self, etcd, data_source, batch_mode=False):
+    def __init__(self, kvstore, data_source, batch_mode=False):
         self._lock = threading.Lock()
         self._local_manifest = {}
-        self._etcd = etcd
+        self._kvstore = kvstore
         self._data_source = data_source
         self._raw_data_sub_dir = self._data_source.raw_data_sub_dir
         self._existed_fpath = {}
@@ -195,8 +195,9 @@ class RawDataManifestManager(object):
     def cleanup_meta_data(self):
         with self._lock:
             data_source_name = self._data_source.data_source_meta.name
-            etcd_base_key = common.data_source_etcd_base_dir(data_source_name)
-            self._etcd.delete_prefix(etcd_base_key)
+            kvstore_base_key = \
+                common.data_source_kvstore_base_dir(data_source_name)
+            self._kvstore.delete_prefix(kvstore_base_key)
 
     def sub_new_raw_data(self, req_part=None):
         with self._lock:
@@ -213,11 +214,11 @@ class RawDataManifestManager(object):
         raw_data_finished = False
         prev_next_sub_index = manifest.next_raw_data_sub_index
         while True:
-            etcd_key = common.raw_data_pub_etcd_key(
+            kvstore_key = common.raw_data_pub_kvstore_key(
                     self._raw_data_sub_dir,
                     partition_id, next_sub_index
                 )
-            pub_data = self._etcd.get_data(etcd_key)
+            pub_data = self._kvstore.get_data(kvstore_key)
             if pub_data is None:
                 break
             raw_data_pub = text_format.Parse(pub_data, dj_pb.RawDatePub())
@@ -243,13 +244,13 @@ class RawDataManifestManager(object):
             self._local_manifest[partition_id] = None
             process_index = manifest.next_process_index
             for raw_date_meta in new_raw_data_metas:
-                etcd_key = common.raw_data_meta_etcd_key(
+                kvstore_key = common.raw_data_meta_kvstore_key(
                         self._data_source.data_source_meta.name,
                         partition_id, process_index
                     )
                 raw_date_meta.start_index = -1
                 data = text_format.MessageToString(raw_date_meta)
-                self._etcd.set_data(etcd_key, data)
+                self._kvstore.set_data(kvstore_key, data)
                 self._existed_fpath[raw_date_meta.file_path] = \
                         (partition_id, process_index)
                 self._update_raw_data_latest_timestamp(
@@ -319,23 +320,23 @@ class RawDataManifestManager(object):
         self._update_manifest(manifest)
 
     def _get_manifest(self, partition_id):
-        manifest_etcd_key = common.partition_manifest_etcd_key(
+        manifest_kvstore_key = common.partition_manifest_kvstore_key(
                 self._data_source.data_source_meta.name,
                 partition_id
             )
-        manifest_data = self._etcd.get_data(manifest_etcd_key)
+        manifest_data = self._kvstore.get_data(manifest_kvstore_key)
         if manifest_data is not None:
             return text_format.Parse(manifest_data, dj_pb.RawDataManifest())
         return None
 
     def _update_manifest(self, manifest):
         partition_id = manifest.partition_id
-        manifest_etcd_key = common.partition_manifest_etcd_key(
+        manifest_kvstore_key = common.partition_manifest_kvstore_key(
                 self._data_source.data_source_meta.name,
                 partition_id
             )
         self._local_manifest[partition_id] = None
-        self._etcd.set_data(manifest_etcd_key,
+        self._kvstore.set_data(manifest_kvstore_key,
                             text_format.MessageToString(manifest))
         self._local_manifest[partition_id] = manifest
 
@@ -363,12 +364,12 @@ class RawDataManifestManager(object):
         assert manifest is not None and manifest.partition_id == partition_id
         next_process_index = manifest.next_process_index
         while True:
-            meta_etcd_key = \
-                    common.raw_data_meta_etcd_key(
+            meta_kvstore_key = \
+                    common.raw_data_meta_kvstore_key(
                             self._data_source.data_source_meta.name,
                             partition_id, next_process_index
                         )
-            data = self._etcd.get_data(meta_etcd_key)
+            data = self._kvstore.get_data(meta_kvstore_key)
             if data is None:
                 break
             meta = text_format.Parse(data, dj_pb.RawDataMeta())

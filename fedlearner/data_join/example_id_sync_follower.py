@@ -21,13 +21,13 @@ from fedlearner.data_join.transmit_follower import TransmitFollower
 
 class ExampleIdSyncFollower(TransmitFollower):
     class ImplContext(TransmitFollower.ImplContext):
-        def __init__(self, etcd, data_source,
+        def __init__(self, kvstore, data_source,
                      partition_id, example_id_dump_options):
             super(ExampleIdSyncFollower.ImplContext, self).__init__(
                     partition_id
                 )
             self.example_id_dumper_manager = \
-                    ExampleIdDumperManager(etcd, data_source,
+                    ExampleIdDumperManager(kvstore, data_source,
                                            partition_id,
                                            example_id_dump_options)
 
@@ -39,7 +39,7 @@ class ExampleIdSyncFollower(TransmitFollower):
 
         def add_synced_content(self, sync_ctnt):
             return self.example_id_dumper_manager.add_example_id_batch(
-                    sync_ctnt.lite_example_ids
+                    sync_ctnt.packed_lite_example_ids
                 )
 
         def finish_sync_content(self):
@@ -54,8 +54,8 @@ class ExampleIdSyncFollower(TransmitFollower):
         def is_sync_content_finished(self):
             return self.example_id_dumper_manager.is_sync_example_id_finished()
 
-    def __init__(self, etcd, data_source, example_id_dump_options):
-        super(ExampleIdSyncFollower, self).__init__(etcd, data_source,
+    def __init__(self, kvstore, data_source, example_id_dump_options):
+        super(ExampleIdSyncFollower, self).__init__(kvstore, data_source,
                                                     'example_id_sync_follower')
         self._example_id_dump_options = example_id_dump_options
 
@@ -63,11 +63,12 @@ class ExampleIdSyncFollower(TransmitFollower):
                    tags={'role': 'transmit_follower'})
     def _make_new_impl_ctx(self, partition_id):
         return ExampleIdSyncFollower.ImplContext(
-                self._etcd, self._data_source,
+                self._kvstore, self._data_source,
                 partition_id, self._example_id_dump_options
             )
 
     def _extract_partition_id_from_sync_content(self, sync_ctnt):
-        assert sync_ctnt.HasField('lite_example_ids'), \
-            "sync content should has lite_example_ids for ExampleIdSyncFollower"
-        return sync_ctnt.lite_example_ids.partition_id
+        assert sync_ctnt.HasField('packed_lite_example_ids'), \
+            "sync content should has packed_lite_example_ids "\
+            "for ExampleIdSyncFollower"
+        return sync_ctnt.packed_lite_example_ids.partition_id

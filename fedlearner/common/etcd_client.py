@@ -19,7 +19,7 @@ import threading
 import random
 from contextlib import contextmanager
 import etcd3
-from fedlearner.common import mock_etcd
+from fedlearner.common import mock_kvstore
 
 class EtcdClient(object):
     ETCD_CLIENT_POOL_LOCK = threading.Lock()
@@ -150,7 +150,7 @@ class EtcdClient(object):
         if clnt is None:
             try:
                 if use_mock_etcd:
-                    clnt = mock_etcd.MockEtcdClient(addr[0], addr[1])
+                    clnt = mock_kvstore.MockKVStoreClient(addr[0], addr[1])
                 else:
                     options = [('grpc.max_send_message_length', 2**31-1),
                                ('grpc.max_receive_message_length', 2**31-1)]

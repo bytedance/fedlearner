@@ -232,7 +232,7 @@ router.post('/api/v1/job', SessionMiddleware, async (ctx) => {
   } catch (err) {
     ctx.status = 500;
     ctx.body = {
-      error: `Cannot get server ticket: ${err.message}`,
+      error: `client_params validation failed: ${e.message}`,
     };
     return;
   }

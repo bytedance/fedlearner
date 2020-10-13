@@ -25,12 +25,13 @@ from fedlearner.common import trainer_master_service_pb2_grpc as tm_grpc
 from fedlearner.proxy.channel import make_insecure_channel, ChannelType
 from fedlearner.common import common_pb2 as common_pb
 from fedlearner.data_join.data_block_visitor import DataBlockVisitor
+from fedlearner.data_join.common import get_kvstore_config
 
 DataBlockInfo = collections.namedtuple('DataBlockInfo',
                                        ['block_id', 'data_path'])
-ETCD_NAME = os.environ.get('ETCD_NAME', None)
-ETCD_ADDR = os.environ.get('ETCD_ADDR', None)
-ETCD_BASE_DIR = os.environ.get('ETCD_BASE_DIR', None)
+kvstore_type = os.environ.get('KVSTORE_TYPE', 'etcd')
+db_database, db_addr, db_username, db_password, db_base_dir = \
+    get_kvstore_config(kvstore_type)
 
 
 class LocalTrainerMasterClient(object):
@@ -47,8 +48,9 @@ class LocalTrainerMasterClient(object):
         self._block_queue = []
         self._block_map = {}
         if from_data_source:
-            data_block_visitor = DataBlockVisitor(path, ETCD_NAME,
-                                                  ETCD_BASE_DIR, ETCD_ADDR)
+            data_block_visitor = DataBlockVisitor(path, db_database,
+                                                  db_base_dir, db_addr,
+                                                  db_username, db_password)
             # pylint: disable=line-too-long
             for block_id, block_item in data_block_visitor.LoadDataBlockRepByTimeFrame(
                     start_time, end_time).items():

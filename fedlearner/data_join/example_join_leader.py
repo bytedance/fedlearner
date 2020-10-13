@@ -24,7 +24,7 @@ from fedlearner.data_join.transmit_leader import TransmitLeader
 
 class ExampleJoinLeader(TransmitLeader):
     class ImplContext(TransmitLeader.ImplContext):
-        def __init__(self, etcd, data_source, raw_data_manifest,
+        def __init__(self, kvstore, data_source, raw_data_manifest,
                      example_joiner_options, raw_data_options,
                      data_block_builder_options):
             super(ExampleJoinLeader.ImplContext, self).__init__(
@@ -32,7 +32,7 @@ class ExampleJoinLeader(TransmitLeader):
                 )
             self.example_joiner = create_example_joiner(
                     example_joiner_options, raw_data_options,
-                    data_block_builder_options, etcd,
+                    data_block_builder_options, kvstore,
                     data_source, raw_data_manifest.partition_id,
                 )
 
@@ -58,10 +58,10 @@ class ExampleJoinLeader(TransmitLeader):
             return 0
 
     def __init__(self, peer_client, master_client, rank_id,
-                 etcd, data_source, raw_data_options,
+                 kvstore, data_source, raw_data_options,
                  data_block_builder_options, example_joiner_options):
         super(ExampleJoinLeader, self).__init__(peer_client, master_client,
-                                                rank_id, etcd, data_source,
+                                                rank_id, kvstore, data_source,
                                                 'example_join_leader')
         self._raw_data_options = raw_data_options
         self._data_block_builder_options = data_block_builder_options
@@ -79,7 +79,7 @@ class ExampleJoinLeader(TransmitLeader):
                    tags={'role': 'transmit_leader'})
     def _make_new_impl_ctx(self, raw_data_manifest):
         return ExampleJoinLeader.ImplContext(
-                self._etcd, self._data_source,
+                self._kvstore, self._data_source,
                 raw_data_manifest, self._example_joiner_options,
                 self._raw_data_options, self._data_block_builder_options
             )
@@ -106,8 +106,8 @@ class ExampleJoinLeader(TransmitLeader):
         if manifest.finished:
             impl_ctx.set_raw_data_finished()
 
-    def _serialize_sync_content(self, item):
-        return dj_pb.SyncContent(data_block_meta=item).SerializeToString()
+    def _make_sync_content(self, item):
+        return dj_pb.SyncContent(data_block_meta=item)
 
     def _make_finish_raw_data_request(self, impl_ctx):
         return dj_pb.RawDataRequest(

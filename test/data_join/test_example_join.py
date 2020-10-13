@@ -24,7 +24,7 @@ import tensorflow_io
 from tensorflow.compat.v1 import gfile
 from google.protobuf import timestamp_pb2
 
-from fedlearner.common import etcd_client
+from fedlearner.common import mysql_client
 from fedlearner.common import common_pb2 as common_pb
 from fedlearner.common import data_join_service_pb2 as dj_pb
 
@@ -63,13 +63,14 @@ class TestExampleJoin(unittest.TestCase):
             gfile.DeleteRecursively(self.data_source.output_base_dir)
         if gfile.Exists(self.raw_data_dir):
             gfile.DeleteRecursively(self.raw_data_dir)
-        self.etcd = etcd_client.EtcdClient('test_cluster', 'localhost:2379',
-                                           'fedlearner', True)
-        self.etcd.delete_prefix(common.data_source_etcd_base_dir(self.data_source.data_source_meta.name))
+        self.kvstore = mysql_client.DBClient('test_cluster', 'localhost:2379',
+                                              'test_user', 'test_password',
+                                              'fedlearner', True)
+        self.kvstore.delete_prefix(common.data_source_kvstore_base_dir(self.data_source.data_source_meta.name))
         self.total_raw_data_count = 0
         self.total_example_id_count = 0
         self.manifest_manager = raw_data_manifest_manager.RawDataManifestManager(
-            self.etcd, self.data_source)
+            self.kvstore, self.data_source)
         self.g_data_block_index = 0
 
     def generate_raw_data(self, begin_index, item_count):
@@ -78,7 +79,7 @@ class TestExampleJoin(unittest.TestCase):
             gfile.MakeDirs(raw_data_dir)
         self.total_raw_data_count += item_count
         useless_index = 0
-        rdm = raw_data_visitor.RawDataManager(self.etcd, self.data_source, 0)
+        rdm = raw_data_visitor.RawDataManager(self.kvstore, self.data_source, 0)
         fpaths = []
         for block_index in range(0, item_count // 2048):
             builder = DataBlockBuilder(
@@ -161,7 +162,13 @@ class TestExampleJoin(unittest.TestCase):
             for example_idx in cands:
                 example_id_batch.example_id.append('{}'.format(example_idx).encode())
                 example_id_batch.event_time.append(150000000 + example_idx)
-            dumper.add_example_id_batch(example_id_batch)
+            packed_example_id_batch = dj_pb.PackedLiteExampleIds(
+                    partition_id=0,
+                    begin_index=req_index*512,
+                    example_id_num=len(cands),
+                    sered_lite_example_ids=example_id_batch.SerializeToString()
+                )
+            dumper.add_example_id_batch(packed_example_id_batch)
             self.assertEqual(dumper.get_next_index(), (req_index + 1) * 512)
         self.assertTrue(dumper.need_dump())
         with dumper.make_example_id_dumper() as eid:
@@ -172,7 +179,7 @@ class TestExampleJoin(unittest.TestCase):
                 self.example_joiner_options,
                 self.raw_data_options,
                 dj_pb.WriterOptions(output_writer='TF_RECORD'),
-                self.etcd, self.data_source, 0
+                self.kvstore, self.data_source, 0
             )
         metas = []
         with sei.make_example_joiner() as joiner:
@@ -181,7 +188,7 @@ class TestExampleJoin(unittest.TestCase):
         self.assertEqual(len(metas), 0)
         self.generate_raw_data(0, 2 * 2048)
         dumper = example_id_dumper.ExampleIdDumperManager(
-                self.etcd, self.data_source, 0, self.example_id_dump_options
+                self.kvstore, self.data_source, 0, self.example_id_dump_options
             )
         self.generate_example_id(dumper, 0, 3 * 2048)
         with sei.make_example_joiner() as joiner:
@@ -232,7 +239,7 @@ class TestExampleJoin(unittest.TestCase):
             gfile.DeleteRecursively(self.data_source.output_base_dir)
         if gfile.Exists(self.raw_data_dir):
             gfile.DeleteRecursively(self.raw_data_dir)
-        self.etcd.delete_prefix(common.data_source_etcd_base_dir(self.data_source.data_source_meta.name))
+        self.kvstore.delete_prefix(common.data_source_kvstore_base_dir(self.data_source.data_source_meta.name))
 
 if __name__ == '__main__':
     unittest.main()

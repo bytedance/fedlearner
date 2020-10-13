@@ -66,6 +66,8 @@ class Handler(object):
         raise NotImplementedError('emit must be implemented '
                                   'by Handler subclasses')
 
+    def get_name(self):
+        return self._name
 
 class LoggingHandler(Handler):
     def __init__(self):

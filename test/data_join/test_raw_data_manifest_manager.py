@@ -18,22 +18,23 @@ import unittest
 
 from google.protobuf import text_format, timestamp_pb2
 
-from fedlearner.common import etcd_client
+from fedlearner.common import mysql_client
 from fedlearner.common import data_join_service_pb2 as dj_pb
 from fedlearner.common import common_pb2 as common_pb
 from fedlearner.data_join import raw_data_manifest_manager, common
 
 class TestRawDataManifestManager(unittest.TestCase):
     def test_raw_data_manifest_manager(self):
-        cli = etcd_client.EtcdClient('test_cluster', 'localhost:2379',
-                                     'fedlearner', True)
+        cli = mysql_client.DBClient('test_cluster', 'localhost:2379',
+                                              'test_user', 'test_password',
+                                              'fedlearner', True)
         partition_num = 4
         rank_id = 2
         data_source = common_pb.DataSource()
         data_source.data_source_meta.name = "milestone-x"
         data_source.data_source_meta.partition_num = partition_num
         data_source.role = common_pb.FLRole.Leader
-        cli.delete_prefix(common.data_source_etcd_base_dir(data_source.data_source_meta.name))
+        cli.delete_prefix(common.data_source_kvstore_base_dir(data_source.data_source_meta.name))
         manifest_manager = raw_data_manifest_manager.RawDataManifestManager(
             cli, data_source)
         manifest_map = manifest_manager.list_all_manifest()

@@ -19,6 +19,7 @@ import logging
 
 from fedlearner.common import data_join_service_pb2 as dj_pb
 from fedlearner.data_join.data_join_master import DataJoinMasterService
+from fedlearner.data_join.common import get_kvstore_config
 
 if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
@@ -27,29 +28,26 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='DataJointMasterService cmd.')
     parser.add_argument('peer_addr', type=str,
                         help='the addr(uuid) of peer data join master')
-    parser.add_argument('--etcd_name', type=str,
-                        default='test_etcd', help='the name of etcd')
-    parser.add_argument('--etcd_addrs', type=str,
-                        default='localhost:2379', help='the addrs of etcd')
-    parser.add_argument('--etcd_base_dir', type=str, default='fedlearner_test',
-                        help='the namespace of etcd key')
+    parser.add_argument('--kvstore_type', type=str,
+                        default='etcd', help='the name of mysql')
     parser.add_argument('--listen_port', '-p', type=int, default=4032,
                         help='Listen port of data join master')
     parser.add_argument('--data_source_name', type=str,
                         default='test_data_source',
                         help='the name of data source')
-    parser.add_argument('--use_mock_etcd', action='store_true',
-                        help='use to mock etcd for test')
     parser.add_argument('--batch_mode', action='store_true',
                         help='make the data join run in batch mode')
     args = parser.parse_args()
     master_options = dj_pb.DataJoinMasterOptions(
-            use_mock_etcd=args.use_mock_etcd,
+            use_mock_etcd=(args.kvstore_type == 'mock'),
             batch_mode=args.batch_mode
         )
+    db_database, db_addr, db_username, db_password, db_base_dir = \
+        get_kvstore_config(args.kvstore_type)
     master_srv = DataJoinMasterService(
             args.listen_port, args.peer_addr,
-            args.data_source_name, args.etcd_name,
-            args.etcd_base_dir, args.etcd_addrs, master_options
+            args.data_source_name, db_database,
+            db_base_dir, db_addr, db_username,
+            db_password, master_options
         )
     master_srv.run()

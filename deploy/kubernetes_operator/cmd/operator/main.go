@@ -65,6 +65,7 @@ var (
 	leaderElectionLeaseDuration = flag.Duration("leader-election-lease-duration", 15*time.Second, "Leader election lease duration.")
 	leaderElectionRenewDeadline = flag.Duration("leader-election-renew-deadline", 5*time.Second, "Leader election renew deadline.")
 	leaderElectionRetryPeriod   = flag.Duration("leader-election-retry-period", 4*time.Second, "Leader election retry period.")
+	grpcClientTimeout           = flag.Duration("grpc-client-timeout", 15*time.Second, "GRPC Client timetout")
 )
 
 func buildConfig(masterURL string, kubeConfig string) (*rest.Config, error) {
@@ -191,7 +192,7 @@ func main() {
 		crdinformers.WithNamespace(*namespace),
 	)
 
-	appEventHandler := operator.NewAppEventHandler(*namespace, crdClient)
+	appEventHandler := operator.NewAppEventHandlerWithClientTimeout(*namespace, crdClient, *grpcClientTimeout)
 	flController := operator.NewFLController(
 		*namespace,
 		recorder,

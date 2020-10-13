@@ -95,16 +95,19 @@ class RawDataSortPartitioner(RawDataPartitioner):
         return self._flying_writers[partition_id]
 
 class DataPortalWorker(object):
-    def __init__(self, options, master_addr, rank_id, etcd_name,
-                 etcd_base_dir, etcd_addrs, use_mock_etcd=False):
+    def __init__(self, options, master_addr, rank_id, db_database,
+                 db_base_dir, db_addr, db_username,
+                 db_password, use_mock_etcd=False):
         master_channel = make_insecure_channel(
                 master_addr, ChannelType.INTERNAL,
                 options=[('grpc.max_send_message_length', 2**31-1),
                          ('grpc.max_receive_message_length', 2**31-1)]
             )
-        self._etcd_name = etcd_name
-        self._etcd_base_dir = etcd_base_dir
-        self._etcd_addrs = etcd_addrs
+        self._db_database = db_database
+        self._db_base_dir = db_base_dir
+        self._db_addr = db_addr
+        self._db_password = db_password
+        self._db_username = db_username
         self._rank_id = rank_id
         self._options = options
         self._use_mock_etcd = use_mock_etcd
@@ -138,8 +141,8 @@ class DataPortalWorker(object):
 
     def start(self):
         logging.info("Start DataPortal Worker, rank_id:%s", self._rank_id)
-        logging.info("etcd_name:%s etcd_addr:%s etcd_base_dir:%s", \
-            self._etcd_name, self._etcd_addrs, self._etcd_base_dir)
+        logging.info("db_database:%s db_addr:%s db_base_dir:%s", \
+            self._db_database, self._db_addr, self._db_base_dir)
         self.run()
 
     def _make_partitioner_options(self, task):
@@ -176,15 +179,19 @@ class DataPortalWorker(object):
         type_repr = ''
         if task.data_portal_type == dp_pb.DataPortalType.Streaming:
             data_partitioner = RawDataSortPartitioner(
-                partition_options, task.part_field, self._etcd_name,
-                self._etcd_addrs, self._etcd_base_dir, self._use_mock_etcd
+                partition_options, task.part_field, self._db_database,
+                self._db_base_dir, self._db_addr,
+                self._db_username, self._db_password,
+                self._use_mock_etcd
             )
             type_repr = 'streaming'
         else:
             assert task.data_portal_type == dp_pb.DataPortalType.PSI
             data_partitioner = RawDataPartitioner(
-                partition_options, task.part_field, self._etcd_name,
-                self._etcd_addrs, self._etcd_base_dir, self._use_mock_etcd
+                partition_options, task.part_field, self._db_database,
+                self._db_base_dir, self._db_addr,
+                self._db_username, self._db_password,
+                self._use_mock_etcd
             )
             type_repr = 'psi'
         logging.info("Partitioner rank_id-[%d] start run task %s of type %s "\

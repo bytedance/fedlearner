@@ -45,17 +45,16 @@ class ExampleIdDumperManager(object):
             self._dumped_example_id_batch_count = 0
 
         def dump_example_id_batch(self, example_id_batch):
-            if len(example_id_batch.example_id) == 0:
+            if example_id_batch.example_id_num == 0:
                 logging.warning("skip example id batch since empty")
                 return
             assert self._end_index + 1 == example_id_batch.begin_index, \
                 "the recv example id index should be consecutive, {} + 1 "\
                 "!= {}".format(self._end_index, example_id_batch.begin_index)
-            assert len(example_id_batch.example_id) == \
-                    len(example_id_batch.event_time), \
-                    "the size example id and envet time shoud the same"
-            self._tf_record_writer.write(example_id_batch.SerializeToString())
-            self._end_index += len(example_id_batch.example_id)
+            self._tf_record_writer.write(
+                    example_id_batch.sered_lite_example_ids
+                )
+            self._end_index += example_id_batch.example_id_num
             self._dumped_example_id_batch_count += 1
 
         def check_dumper_full(self):
@@ -97,7 +96,7 @@ class ExampleIdDumperManager(object):
         def _get_tmp_fpath(self):
             return common.gen_tmp_fpath(self._example_dumped_dir)
 
-    def __init__(self, etcd, data_source,
+    def __init__(self, kvstore, data_source,
                  partition_id, example_id_dump_options):
         self._lock = threading.Lock()
         self._data_source = data_source
@@ -110,7 +109,7 @@ class ExampleIdDumperManager(object):
         self._example_id_sync_finished = False
         self._latest_dump_timestamp = time.time()
         self._example_id_manager = \
-                ExampleIdManager(etcd, data_source, partition_id, False)
+                ExampleIdManager(kvstore, data_source, partition_id, False)
         last_index = self._example_id_manager.get_last_dumped_index()
         self._next_index = 0 if last_index is None else last_index + 1
         self._example_id_dumper = None
@@ -141,7 +140,7 @@ class ExampleIdDumperManager(object):
                 )
             if example_id_batch.begin_index != self._next_index:
                 return False, self._next_index
-            num_example = len(example_id_batch.example_id)
+            num_example = example_id_batch.example_id_num
             self._fly_example_id_batch.append(example_id_batch)
             self._next_index = example_id_batch.begin_index + num_example
             return True, self._next_index
@@ -273,7 +272,7 @@ class ExampleIdDumperManager(object):
         with self._lock:
             skip_count = 0
             for example_id_batch in self._fly_example_id_batch:
-                example_id_count = len(example_id_batch.example_id)
+                example_id_count = example_id_batch.example_id_num
                 end_index = example_id_batch.begin_index + example_id_count
                 if end_index > next_index:
                     assert example_id_batch.begin_index == next_index, \

@@ -32,16 +32,17 @@ from fedlearner.data_join import common
 
 class ExampleJoiner(object):
     def __init__(self, example_joiner_options, raw_data_options,
-                 data_block_builder_options, etcd, data_source, partition_id):
+                 data_block_builder_options, kvstore, data_source,
+                 partition_id):
         self._lock = threading.Lock()
         self._example_joiner_options = example_joiner_options
         self._raw_data_options = raw_data_options
         self._data_source = data_source
         self._partition_id = partition_id
         self._leader_visitor = \
-                ExampleIdVisitor(etcd, self._data_source, self._partition_id)
+                ExampleIdVisitor(kvstore, self._data_source, self._partition_id)
         self._follower_visitor = \
-                RawDataVisitor(etcd, self._data_source,
+                RawDataVisitor(kvstore, self._data_source,
                                self._partition_id, raw_data_options)
         self._data_block_manager = \
                 DataBlockManager(self._data_source, self._partition_id)

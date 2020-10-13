@@ -90,7 +90,9 @@ class TestDataPortalWorker(unittest.TestCase):
                                                "localhost:5005", 0,
                                                "test_portal_worker_0",
                                                "portal_worker_0",
-                                               "localhost:2379", True)
+                                               "localhost:2379",
+                                               "test_user",
+                                               "test_password", True)
 
     def _clean_up(self):
         if gfile.Exists(self._input_dir):

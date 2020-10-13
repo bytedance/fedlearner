@@ -36,7 +36,7 @@ from fedlearner.common import data_join_service_pb2 as dj_pb
 from fedlearner.proxy.channel import make_insecure_channel, ChannelType
 
 from fedlearner.data_join.raw_data_visitor import \
-        FileBasedMockRawDataVisitor, EtcdBasedMockRawDataVisitor
+        FileBasedMockRawDataVisitor, DBBasedMockRawDataVisitor
 from fedlearner.data_join.item_batch_seq_processor import \
         ItemBatch, ItemBatchSeqProcessor
 from fedlearner.data_join.common import int2bytes, bytes2int
@@ -74,11 +74,11 @@ class IdBatch(ItemBatch):
         return iter(zip(self._raw_ids, self._items))
 
 class IdBatchFetcher(ItemBatchSeqProcessor):
-    def __init__(self, etcd, options):
+    def __init__(self, kvstore, options):
         super(IdBatchFetcher, self).__init__(
                 options.batch_processor_options.max_flying_item,
             )
-        self._etcd = etcd
+        self._kvstore = kvstore
         self._options = options
         self._id_visitor = None
         self._batch_size = options.batch_processor_options.batch_size
@@ -124,7 +124,7 @@ class IdBatchFetcher(ItemBatchSeqProcessor):
                 self.set_input_finished()
         else:
             if self._id_visitor is None:
-                self._id_visitor = self._create_etcd_based_mock_visitor()
+                self._id_visitor = self._create_kvstore_based_mock_visitor()
             self._id_visitor.active_visitor()
             if self._id_visitor.is_input_data_finish():
                 self.set_input_finished()
@@ -132,7 +132,7 @@ class IdBatchFetcher(ItemBatchSeqProcessor):
 
     def _create_file_based_mock_visitor(self):
         return FileBasedMockRawDataVisitor(
-                self._etcd,
+                self._kvstore,
                 self._options.input_raw_data,
                 '{}-rsa_psi_proprocessor-mock-data-source-{:04}'.format(
                     self._options.preprocessor_name,
@@ -141,9 +141,9 @@ class IdBatchFetcher(ItemBatchSeqProcessor):
                 self._options.input_file_paths
             )
 
-    def _create_etcd_based_mock_visitor(self):
-        return EtcdBasedMockRawDataVisitor(
-                self._etcd,
+    def _create_kvstore_based_mock_visitor(self):
+        return DBBasedMockRawDataVisitor(
+                self._kvstore,
                 self._options.input_raw_data,
                 '{}-rsa_psi_proprocessor-mock-data-source-{:04}'.format(
                     self._options.preprocessor_name,

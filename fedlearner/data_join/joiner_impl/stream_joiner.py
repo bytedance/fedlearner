@@ -105,11 +105,12 @@ class _JoinWindow(object):
 
 class StreamExampleJoiner(ExampleJoiner):
     def __init__(self, example_joiner_options, raw_data_options,
-                 data_block_builder_options, etcd, data_source, partition_id):
+                 data_block_builder_options, kvstore, data_source,
+                 partition_id):
         super(StreamExampleJoiner, self).__init__(example_joiner_options,
                                                   raw_data_options,
                                                   data_block_builder_options,
-                                                  etcd, data_source,
+                                                  kvstore, data_source,
                                                   partition_id)
         self._min_window_size = example_joiner_options.min_matching_window
         self._max_window_size = example_joiner_options.max_matching_window

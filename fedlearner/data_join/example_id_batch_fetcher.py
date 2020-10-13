@@ -38,12 +38,16 @@ class ExampleIdBatch(ItemBatch):
     def begin_index(self):
         return self._begin_index
 
-    def make_lite_example_ids(self):
-        return dj_pb.LiteExampleIds(
+    def make_packed_lite_example_ids(self):
+        return dj_pb.PackedLiteExampleIds(
                 partition_id=self._partition_id,
                 begin_index=self._begin_index,
-                example_id=self._example_ids,
-                event_time=self._event_times
+                example_id_num=len(self._example_ids),
+                sered_lite_example_ids=dj_pb.LiteExampleIds(
+                    partition_id=self._partition_id,
+                    begin_index=self._begin_index,
+                    example_id=self._example_ids,
+                    event_time=self._event_times).SerializeToString()
             )
 
     @property
@@ -63,13 +67,13 @@ class ExampleIdBatch(ItemBatch):
         return iter(zip(self._example_ids, self._event_times))
 
 class ExampleIdBatchFetcher(ItemBatchSeqProcessor):
-    def __init__(self, etcd, data_source, partition_id,
+    def __init__(self, kvstore, data_source, partition_id,
                  raw_data_options, batch_processor_options):
         super(ExampleIdBatchFetcher, self).__init__(
                 batch_processor_options.max_flying_item
             )
         self._raw_data_visitor = RawDataVisitor(
-                etcd, data_source, partition_id, raw_data_options
+                kvstore, data_source, partition_id, raw_data_options
             )
         self._batch_size = batch_processor_options.batch_size
         self._partition_id = partition_id
