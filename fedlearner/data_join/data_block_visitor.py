@@ -197,6 +197,8 @@ class DataBlockVisitor(object):
     def _sync_raw_data_manifest(self, partition_id):
         kvstore_key = partition_manifest_kvstore_key(self._data_source_name(),
                                                partition_id)
+
+        logging.info("partition_id %d, key = %s", partition_id, kvstore_key)
         data = self._kvstore.get_data(kvstore_key)
         assert data is not None, "raw data manifest of partition "\
                                  "{} must be existed".format(partition_id)

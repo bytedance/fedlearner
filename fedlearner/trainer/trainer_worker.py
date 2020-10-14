@@ -55,7 +55,6 @@ class StepLossAucMetricsHook(StepMetricsHook):
         super(StepLossAucMetricsHook, self).__init__(tensor_dict,
                                                      every_n_iter)
 
-
 def create_argument_parser():
     parser = argparse.ArgumentParser(description='FedLearner Trainer.')
     parser.add_argument('--local-addr', type=str,
@@ -226,6 +225,7 @@ def train(role, args, input_fn, model_fn, serving_input_receiver_fn):
                                       trainer_master,
                                       role,
                                       worker_rank=args.worker_rank,
+                                      application_id=args.application_id,
                                       cluster_spec=cluster_spec)
     else:
         estimator = FLEstimator(model_fn,
@@ -233,6 +233,7 @@ def train(role, args, input_fn, model_fn, serving_input_receiver_fn):
                                 trainer_master,
                                 role,
                                 worker_rank=args.worker_rank,
+                                application_id=args.application_id,
                                 cluster_spec=cluster_spec)
 
     run_mode = args.mode.lower()

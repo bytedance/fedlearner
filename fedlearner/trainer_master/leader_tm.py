@@ -25,10 +25,9 @@ from fedlearner.data_join.common import get_kvstore_config
 from .trainer_master import TrainerMaster
 
 kvstore_type = os.environ.get('KVSTORE_TYPE', 'etcd')
+kvstore_use_mock = os.environ.get('KVSTORE_USE_MOCK', "off") == "on"
 db_database, db_addr, db_username, db_password, db_base_dir = \
     get_kvstore_config(kvstore_type)
-
-
 
 class LeaderTrainerMaster(TrainerMaster):
     def __init__(self, application_id, data_source,
@@ -39,7 +38,7 @@ class LeaderTrainerMaster(TrainerMaster):
         self._data_block_queue = DataBlockQueue()
         self._data_block_visitor = DataBlockVisitor(
             data_source, db_database, db_base_dir, db_addr,
-                db_username, db_password)
+                db_username, db_password, kvstore_use_mock)
         self._start_time = start_time
         self._end_time = end_time
         self._epoch_num = epoch_num
@@ -74,6 +73,8 @@ class LeaderTrainerMaster(TrainerMaster):
         data_blocks_resp = None
         if not self._data_block_queue.empty():
             data_blocks_resp = self._data_block_queue.get()
+            with self._checkpoint_mutex:
+                self._allocated_data_blockids.add(data_blocks_resp.block_id)
         return data_blocks_resp
 
 
