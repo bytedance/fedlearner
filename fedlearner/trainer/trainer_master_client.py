@@ -107,6 +107,43 @@ class TrainerMasterClient(object):
         if self._role == 'leader':
             self._request.worker_rank = self._task_id
 
+    def get_data_block_checkpoint(self, appid):
+        req = tm_pb.GetDataBlockCheckpointRequest()
+        req.application_id = appid
+        try:
+            result = self._stub.GetDataBlockCheckpoint(req)
+        except Exception as e:  # pylint: disable=broad-except
+            logging.warning("Get data blocks checkpoint failed: %s", \
+                           e.code().name)
+            return []
+        else:
+            if result.status.code == common_pb.STATUS_SUCCESS:
+                return result.block_ids
+            logging.warning("Get data blocks checkpoint error, %d, %s", \
+                           result.status.code,
+                           result.status.error_message)
+            return []
+
+
+    def restore_data_block_checkpoint(self, appid, block_ids):
+        req = tm_pb.RestoreDataBlockCheckpointRequest()
+        req.application_id = appid
+        req.block_ids.extend(block_ids)
+
+        try:
+            result = self._stub.RestoreDataBlockCheckpoint(req)
+        except Exception as e:  # pylint: disable=broad-except
+            logging.warning("Restore data blocks checkpoint failed: %s", \
+                           e.code().name)
+            return False
+        else:
+            if result.status.code == common_pb.STATUS_SUCCESS:
+                return True
+            logging.warning("Restore data blocks checkpoint error, %d, %s", \
+                           result.status.code,
+                           result.status.error_message)
+            return False
+
     def request_data_block(self, block_id=None):
         if self._role == 'follower':
             assert block_id, "Must set block_id for follower"

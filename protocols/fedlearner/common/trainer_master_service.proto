@@ -36,6 +36,26 @@ message DataBlockResponse {
   DataBlockInfo data_block_info = 2;
 }
 
+message GetDataBlockCheckpointRequest {
+  uint32 application_id = 1;
+}
+
+message GetDataBlockCheckpointResponse {
+  Status status = 1;
+  repeated string block_ids = 2;
+}
+
+message RestoreDataBlockCheckpointRequest {
+  uint32 application_id = 1;
+  repeated string block_ids = 2;
+}
+
+message RestoreDataBlockCheckpointResponse {
+  Status status = 1;
+}
+
 service TrainerMasterService {
   rpc RequestDataBlock (DataBlockRequest) returns (DataBlockResponse) {}
+  rpc GetDataBlockCheckpoint (GetDataBlockCheckpointRequest) returns (GetDataBlockCheckpointResponse) {}
+  rpc RestoreDataBlockCheckpoint (RestoreDataBlockCheckpointRequest) returns (RestoreDataBlockCheckpointResponse) {}
 }

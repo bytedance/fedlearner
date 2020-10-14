@@ -31,7 +31,21 @@ from fedlearner.common import metrics
 from fedlearner.data_join.common import get_kvstore_config
 
 SYNC_PATH = '/sync/'
+DATA_CHECKPOINT_KEY = "data_checkpoint"
 
+
+class DataCheckpointSaverListener(tf.estimator.CheckpointSaverListener):
+    def __init__(self, tm, appid):
+        self._trainer_master = tm
+        self._application_id = appid
+
+    def before_save(self, session, global_step_value):
+        logging.debug('About to write a checkpoint at step: %d',
+                      global_step_value)
+        data_checkpoint = self._trainer_master.get_data_block_checkpoint(
+            self._application_id)
+        tf.add_to_collection(DATA_CHECKPOINT_KEY,
+                             data_checkpoint)
 
 class FLModel(object):
     def __init__(self, role, bridge, example_ids, exporting=False):
@@ -164,6 +178,7 @@ class FLEstimator(object):
                  trainer_master,
                  role,
                  worker_rank=0,
+                 application_id=None,
                  cluster_spec=None):
         self._model_fn = model_fn
         self._bridge = bridge
@@ -171,6 +186,7 @@ class FLEstimator(object):
         self._role = role
         self._worker_rank = worker_rank
         self._cluster_spec = cluster_spec
+        self._application_id = application_id
 
     def _get_features_and_labels_from_input_fn(self, input_fn, mode):
         dataset = input_fn(self._bridge, self._trainer_master)
@@ -208,6 +224,11 @@ class FLEstimator(object):
                                  len(sync_list))
                     time.sleep(6)
                 else:
+                    block_ids = tf.get_collection(DATA_CHECKPOINT_KEY)
+                    ok = self._trainer_master.restore_data_block_checkpoint(
+                        self._application_id, block_ids)
+                    if ok is False:
+                        logging.warning("restore data block checkpoints failed")
                     break
 
     def train(self,
@@ -256,6 +277,10 @@ class FLEstimator(object):
                     save_relative_paths=True)  # Must set for portability
                 tf.add_to_collection(tf.GraphKeys.SAVERS, saver)
 
+            listener = DataCheckpointSaverListener(self._trainer_master,
+                                                   self._application_id)
+            saver_hook = tf.estimator.CheckpointSaverHook(
+                checkpoint_path, listeners=[listener])
             self._bridge.connect()
 
             try:
@@ -263,6 +288,7 @@ class FLEstimator(object):
                     master=target,
                     config=config,
                     is_chief=(self._worker_rank == 0),
+                    chief_only_hooks=[saver_hook],
                     checkpoint_dir=checkpoint_path,
                     save_checkpoint_steps=save_checkpoint_steps,
                     save_checkpoint_secs=save_checkpoint_secs,
