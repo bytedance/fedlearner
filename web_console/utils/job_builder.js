@@ -95,10 +95,10 @@ function clientValidateJob(job, client_ticket, server_ticket) {
   return true;
 }
 
-// Only allow some fields to be used from job.server_params because
+// Only allow some fields to be used from job params because
 // it is received from peers and cannot be totally trusted.
 function extractPermittedJobParams(job) {
-  const params = job.server_params;
+  const params = job.client_params;
   const permitted_envs = permittedJobEnvs[job.job_type];
   const extracted = {};
 

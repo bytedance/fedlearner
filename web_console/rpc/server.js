@@ -174,7 +174,7 @@ async function updateJob(call, callback) {
 
     const new_job = {
       name, job_type, client_ticket_name, server_ticket_name,
-      client_params, status,
+      client_params: JSON.parse(client_params), status,
     }
 
     const old_job = await Job.findOne({
