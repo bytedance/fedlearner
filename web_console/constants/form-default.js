@@ -457,7 +457,7 @@ const TICKET_PSI_DATA_JOIN_PARAMS = {
                     "/app/deploy/scripts/wait4pair_wrapper.sh"
                   ],
                   "args": [
-                    "/app/deploy/scripts/data_join/run_data_join_master.sh"
+                    "/app/deploy/scripts/rsa_psi/run_psi_data_join_master.sh"
                   ]
                 }
               ]
@@ -473,15 +473,19 @@ const TICKET_PSI_DATA_JOIN_PARAMS = {
                 {
                   "env": [
                     {
+                      "name": "RAW_DATA_SUB_DIR",
+                      "value": ""
+                    },
+                    {
+                      "name": "RSA_KEY_PEM",
+                      "value": ""
+                    },
+                    {
                       "name": "PSI_RAW_DATA_ITER",
                       "value": "TF_RECORD"
                     },
                     {
                       "name": "PSI_OUTPUT_BUILDER",
-                      "value": "TF_RECORD"
-                    },
-                    {
-                      "name": "RAW_DATA_ITER",
                       "value": "TF_RECORD"
                     },
                     {
@@ -494,7 +498,7 @@ const TICKET_PSI_DATA_JOIN_PARAMS = {
                     },
                     {
                       "name": "DATA_BLOCK_DUMP_THRESHOLD",
-                      "value": "2000"
+                      "value": "524288"
                     },
                     {
                       "name": "EXAMPLE_ID_DUMP_INTERVAL",
@@ -502,67 +506,11 @@ const TICKET_PSI_DATA_JOIN_PARAMS = {
                     },
                     {
                       "name": "EXAMPLE_ID_DUMP_THRESHOLD",
-                      "value": "2000"
+                      "value": "524288"
                     },
                     {
                       "name": "EXAMPLE_JOINER",
                       "value": "SORT_RUN_JOINER"
-                    },
-                    {
-                      "name": "MAX_FLYING_EXAMPLE_ID",
-                      "value": "307152"
-                    },
-                    {
-                      "name": "MIN_MATCHING_WINDOW",
-                      "value": "1024"
-                    },
-                    {
-                      "name": "MAX_MATCHING_WINDOW",
-                      "value": "8192"
-                    },
-                    {
-                      "name": "INPUT_BASE_DIR",
-                      "value": "/data/raw_data/mnist-tree/map_00000000"
-                    },
-                    {
-                      "name": "RAW_DATA_SUB_DIR",
-                      "value": ""
-                    },
-                    {
-                      "name": "RSA_KEY_PATH",
-                      "value": "/data/rsa_key/rsa_psi.pub"
-                    },
-                    {
-                      "name": "PSI_PROCESS_BATCH_SIZE",
-                      "value": "128"
-                    },
-                    {
-                      "name": "OFFLOAD_PROCESSOR_NUMBER",
-                      "value": "1"
-                    },
-                    {
-                      "name": "MAX_FLYING_ITEM",
-                      "value": "124102"
-                    },
-                    {
-                      "name": "MAX_FLYING_SIGNED_BATCH",
-                      "value": "1024"
-                    },
-                    {
-                      "name": "MAX_FLYING_SIGN_RPC",
-                      "value": "128"
-                    },
-                    {
-                      "name": "SLOW_SIGN_THRESHOLD",
-                      "value": "32"
-                    },
-                    {
-                      "name": "SORT_RUN_MERGER_READ_AHEAD_BUFFER",
-                      "value": "224288"
-                    },
-                    {
-                      "name": "STUB_FANOUT",
-                      "value": "4"
                     },
                     {
                       "name": "SIGN_RPC_TIMEOUT_MS",
@@ -580,7 +528,7 @@ const TICKET_PSI_DATA_JOIN_PARAMS = {
                     "/app/deploy/scripts/wait4pair_wrapper.sh"
                   ],
                   "args": [
-                    "/app/deploy/scripts/data_join/run_psi_data_join_follower_worker.sh"
+                    "/app/deploy/scripts/rsa_psi/run_psi_data_join_worker.sh"
                   ]
                 }
               ]
