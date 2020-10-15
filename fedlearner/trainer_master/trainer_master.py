@@ -67,9 +67,7 @@ class TrainerMaster(object):
         assert request.application_id == self._application_id,\
                 "application id not matched"
         with self._checkpoint_mutex:
-            self._allocated_data_blockids |= set(
-                [blk_id for blk_id in request.block_ids]
-            )
+            self._allocated_data_blockids |= set(request.block_ids)
         with self._status_mutex:
             if self._status != MasterStatus.INITIALING:
                 logging.warning("master status is %s, which can not "
