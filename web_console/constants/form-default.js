@@ -1,4 +1,4 @@
-const K8S_SETTINGS = {
+let K8S_SETTINGS = {
   "namespace": "default",
   "storage_root_path": "/data",
   "global_job_spec": {
@@ -92,7 +92,7 @@ const JOB_DATA_JOIN_REPLICA_TYPE = ['Master', 'Worker']
 const JOB_PSI_DATA_JOIN_REPLICA_TYPE = ['Master', 'Worker']
 
 // inject to formMeta.client_params .server_params
-const JOB_DATA_JOIN_PARAMS = {
+let JOB_DATA_JOIN_PARAMS = {
   "server_params": {
     "spec": {
       "flReplicaSpecs": {
@@ -187,7 +187,7 @@ const JOB_DATA_JOIN_PARAMS = {
   }
 }
 
-const JOB_PSI_DATA_JOIN_PARAMS = {
+let JOB_PSI_DATA_JOIN_PARAMS = {
   "server_params": {
     "spec": {
       "flReplicaSpecs": {
@@ -289,7 +289,7 @@ const JOB_PSI_DATA_JOIN_PARAMS = {
 const TICKET_DATA_JOIN_REPLICA_TYPE = ['Master', 'Worker']
 const TICKET_PSI_DATA_JOIN_REPLICA_TYPE = ['Master', 'Worker']
 
-const TICKET_DATA_JOIN_PARAMS = {
+let TICKET_DATA_JOIN_PARAMS = {
   "public_params": {
     "spec": {
       "flReplicaSpecs": {
@@ -413,7 +413,7 @@ const TICKET_DATA_JOIN_PARAMS = {
   "private_params": {}
 }
 
-const TICKET_PSI_DATA_JOIN_PARAMS = {
+let TICKET_PSI_DATA_JOIN_PARAMS = {
   "public_params": {
     "spec": {
       "flReplicaSpecs": {
@@ -548,7 +548,7 @@ const TICKET_PSI_DATA_JOIN_PARAMS = {
 const JOB_NN_REPLICA_TYPE = ['Master', 'PS', 'Worker']
 const JOB_TREE_REPLICA_TYPE = ['Worker']
 
-const JOB_NN_PARAMS = {
+let JOB_NN_PARAMS = {
   "server_params": {
     "spec": {
       "flReplicaSpecs": {
@@ -689,7 +689,7 @@ const JOB_NN_PARAMS = {
   }
 }
 
-const JOB_TREE_PARAMS = {
+let JOB_TREE_PARAMS = {
   "server_params": {
     "spec": {
       "flReplicaSpecs": {
@@ -753,7 +753,7 @@ const JOB_TREE_PARAMS = {
 const TICKET_NN_REPLICA_TYPE = ['Master', 'PS', 'Worker']
 const TICKET_TREE_REPLICA_TYPE = ['Worker']
 
-const TICKET_NN_PARAMS = {
+let TICKET_NN_PARAMS = {
   "public_params": {
     "spec": {
       "flReplicaSpecs": {
@@ -852,7 +852,7 @@ const TICKET_NN_PARAMS = {
   "private_params": {}
 }
 
-const TICKET_TREE_PARAMS = {
+let TICKET_TREE_PARAMS = {
   "public_params": {
     "spec": {
       "flReplicaSpecs": {
@@ -908,7 +908,7 @@ const TICKET_TREE_PARAMS = {
 
 
 // inject to formMeta.context
-const RAW_DATA_CONTEXT = {
+let RAW_DATA_CONTEXT = {
   "file_wildcard": "*",
   "input_data_format": "CSV_DICT",
   "output_data_format": "TF_RECORD",
@@ -979,6 +979,48 @@ const RAW_DATA_CONTEXT = {
       }
     }
   }
+}
+
+
+
+if (process.env.NEXT_PUBLIC_K8S_SETTINGS) {
+  K8S_SETTINGS = JSON.parse(process.env.NEXT_PUBLIC_K8S_SETTINGS);
+}
+
+if (process.env.NEXT_PUBLIC_RAW_DATA_CONTEXT) {
+  RAW_DATA_CONTEXT = JSON.parse(process.env.NEXT_PUBLIC_RAW_DATA_CONTEXT);
+}
+
+if (process.env.NEXT_PUBLIC_JOB_DATA_JOIN_PARAMS) {
+  JOB_DATA_JOIN_PARAMS = JSON.parse(process.env.NEXT_PUBLIC_JOB_DATA_JOIN_PARAMS);
+}
+
+if (process.env.NEXT_PUBLIC_JOB_PSI_DATA_JOIN_PARAMS) {
+  JOB_PSI_DATA_JOIN_PARAMS = JSON.parse(process.env.NEXT_PUBLIC_JOB_PSI_DATA_JOIN_PARAMS);
+}
+
+if (process.env.NEXT_PUBLIC_TICKET_DATA_JOIN_PARAMS) {
+  TICKET_DATA_JOIN_PARAMS = JSON.parse(process.env.NEXT_PUBLIC_TICKET_DATA_JOIN_PARAMS);
+}
+
+if (process.env.NEXT_PUBLIC_TICKET_PSI_DATA_JOIN_PARAMS) {
+  TICKET_PSI_DATA_JOIN_PARAMS = JSON.parse(process.env.NEXT_PUBLIC_TICKET_PSI_DATA_JOIN_PARAMS);
+}
+
+if (process.env.NEXT_PUBLIC_JOB_NN_PARAMS) {
+  JOB_NN_PARAMS = JSON.parse(process.env.NEXT_PUBLIC_JOB_NN_PARAMS);
+}
+
+if (process.env.NEXT_PUBLIC_JOB_TREE_PARAMS) {
+  JOB_TREE_PARAMS = JSON.parse(process.env.NEXT_PUBLIC_JOB_TREE_PARAMS);
+}
+
+if (process.env.NEXT_PUBLIC_TICKET_NN_PARAMS) {
+  TICKET_NN_PARAMS = JSON.parse(process.env.NEXT_PUBLIC_TICKET_NN_PARAMS);
+}
+
+if (process.env.NEXT_PUBLIC_TICKET_TREE_PARAMS) {
+  TICKET_TREE_PARAMS = JSON.parse(process.env.NEXT_PUBLIC_TICKET_TREE_PARAMS);
 }
 
 module.exports = {
