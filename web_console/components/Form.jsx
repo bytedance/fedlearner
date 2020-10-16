@@ -47,23 +47,28 @@ const handleFieldsToRender = fields => produce(fields, draft => {
   })
 })
 
-const needUpdateForm = (newV, oldV) => {
-  if (newV === oldV) return false
-
-  let newKeys = Object.keys(newV)
-  let oldKeys = Object.keys(oldV)
-
-  if (newKeys.length !== oldKeys.length) {
-    return true
+function deepEqual(x, y) {
+  if (x === y) {
+      return true;
   }
-
-  for (let k in newKeys) {
-    if (newV[k] !== oldV[k]) {
-      return true
-    }
+  if (!(typeof x == "object" && x != null) || !(typeof y == "object" && y != null)){
+      return false;
   }
-
-  return false
+  if (Object.keys(x).length != Object.keys(y).length){
+      return false;
+  }
+  for (var prop in x) {
+      if (y.hasOwnProperty(prop))
+      {
+          if (!deepEqual(x[prop], y[prop])){
+              return false;
+          }
+      }
+      else{
+          return false;
+      }
+  }
+  return true;
 }
 
 const mapFields2Form = (fields, groupType) => {
@@ -131,7 +136,7 @@ export default function Form({
 
   // update form value in rendering
   useEffect(() => {
-    if (needUpdateForm(formData, form)) {
+    if (!deepEqual(formData, form)) {
       setForm(formData)
     }
   })
