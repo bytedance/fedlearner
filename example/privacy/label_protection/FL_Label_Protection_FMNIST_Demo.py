@@ -604,7 +604,7 @@ def train(
         regularization_weight=0.1):
     best_test_auc = 0
     best_epoch = 0
-    global _Batch_Labels, _Batch_Positive_Predicted_Probabilities
+    
     for epoch in range(num_epochs):
         train_l_sum, train_acc_sum, n = 0.0, 0.0, 0
         leakage_auc_baseline.reset_states()
@@ -625,6 +625,7 @@ def train(
         gradient_list_3 = []
         label_list = []
         for (idx, (X, y)) in enumerate(train_iter):
+            global _Batch_Labels, _Batch_Positive_Predicted_Probabilities
             batch_size = X.shape[0]
             b_s = datetime.datetime.now()
             _Batch_Labels = y
@@ -889,7 +890,7 @@ print(
         regularization_weight_l2,
         ada_gra_lr))
 
-global _Batch_Labels, _Batch_Positive_Predicted_Probabilities
+# global _Batch_Labels, _Batch_Positive_Predicted_Probabilities
 
 train(
     train_ds_iter,
