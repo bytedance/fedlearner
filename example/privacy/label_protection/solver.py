@@ -33,7 +33,7 @@ def solve_isotropic_covariance(u, v, d, g_norm_square, p, P,
         u ([type]): [the coordinate variance of the negative examples]
         v ([type]): [the coordinate variance of the positive examples]
         d ([type]): [the dimension of activation to protect]
-        g_norm_square ([type]): [squared 2-norm of g_0 - g_1, 
+        g_norm_square ([type]): [squared 2-norm of g_0 - g_1,
             i.e. \|g^{(0)} - g^{(1)}\|_2^2]
         P ([type]): [the power constraint value]
     """
@@ -124,7 +124,7 @@ def solve_isotropic_covariance(u, v, d, g_norm_square, p, P,
 
     lam10, lam20, lam11, lam21, objective = min(solutions, key=lambda x: x[-1])
 
-    # print('sum', p * lam11 + p*(d-1)*lam21 + (1-p) * lam10 + (1-p)*(d-1)*lam20)
+    #print('sum', p * lam11 + p*(d-1)*lam21 + (1-p) * lam10 + (1-p)*(d-1)*lam20)
 
     return (lam10, lam20, lam11, lam21, objective)
 
@@ -205,23 +205,27 @@ def solve_small_neg(
             C = np.float32(D + p * v + (np.float32(1.0) - p) * u)
 
             E = np.float32(math.sqrt((C + (np.float32(1.0) - p)
-                                      * g_norm_square) / (C + p * g_norm_square)))
+                                      * g_norm_square) / \
+                                    (C + p * g_norm_square)))
             tau = np.float32(
-                max((D / p + v - E * u) / (E + (np.float32(1.0) - p) / p), np.float32(0.0)))
+                max((D / p + v - E * u) / (E + (np.float32(1.0) - p) / p),
+                 np.float32(0.0)))
             # print('tau', tau)
             if lam20 <= tau and tau <= np.float32(
                     P / (np.float32(1.0) - p) - (d - np.float32(1.0)) * lam20):
                 # print('A')
                 lam10 = tau
                 lam11 = np.float32(
-                    max(D / p - (np.float32(1.0) - p) * tau / p, 
-                    np.float32(0.0)))
+                    max(D / p - (np.float32(1.0) - p) * tau / p,
+                        np.float32(0.0)))
             else:
                 # print('B')
                 lam10_case1, lam11_case1 = lam20, np.float32(
-                    max(P / p - (np.float32(1.0) - p) * d * lam20 / p, np.float32(0.0)))
+                    max(P / p - (np.float32(1.0) - p) * d * lam20 / p, 
+                        np.float32(0.0)))
                 lam10_case2, lam11_case2 = np.float32(max(
-                    P / (np.float32(1.0) - p) - (d - np.float32(1.0)) * lam20, np.float32(0.0))), np.float32(0.0)
+                    P / (np.float32(1.0) - p) - (d - np.float32(1.0)) * lam20,
+                     np.float32(0.0))), np.float32(0.0)
                 objective1 = symKL_objective(
                     lam10=lam10_case1,
                     lam20=lam20,
@@ -249,12 +253,18 @@ def solve_small_neg(
             D = np.float32(
                 max((P - p * lam11) / (np.float32(1.0) - p), np.float32(0.0)))
 
-            def f(x): return symKL_objective(lam10=D - (d - np.float32(1.0)) * x, lam20=x,
-                                             lam11=lam11, lam21=LAM21, u=u, v=v, d=d, g_norm_square=g_norm_square)
-            # f_prime = lambda x: (d-1)/v - (d-1)/(lam11+v) - (d-1)*v/((x+u)**2) + (lam11 + v + g)*(d-1)/((D-(d-1)*x+u)**2)
+            def f(x): return symKL_objective(lam10=D - (d - np.float32(1.0)) * \
+                                                x, lam20=x,
+                                             lam11=lam11, lam21=LAM21, u=u,
+                                              v=v, d=d, 
+                                              g_norm_square=g_norm_square)
 
-            def f_prime(x): return (d - np.float32(1.0)) / v - (d - np.float32(1.0)) / (lam11 + v) - (d - np.float32(1.0)) / (x + u) * (v / (x + u)) + \
-                (lam11 + v + g_norm_square) / (D - (d - np.float32(1.0)) * x + u) * ((d - np.float32(1.0)) / (D - (d - np.float32(1.0)) * x + u))
+            def f_prime(x): return (d - np.float32(1.0)) / v - \
+             (d - np.float32(1.0)) / (lam11 + v) - (d - np.float32(1.0)) / \
+             (x + u) * (v / (x + u)) + \
+                (lam11 + v + g_norm_square) / (D - (d - np.float32(1.0)) \
+                 * x + u) * ((d - np.float32(1.0)) / \
+                 (D - (d - np.float32(1.0)) * x + u))
             # print('D/d', D/d)
             lam20 = convex_min_1d(
                 xl=np.float32(0.0),
@@ -271,22 +281,30 @@ def solve_small_neg(
 
             def f(x): return symKL_objective(lam10=lam10,
                                              lam20=x,
-                                             lam11=D / p - (np.float32(1.0) - p) * (d - np.float32(1.0)) * x / p,
+                                             lam11=D/p- \
+                                             (np.float32(1.0)-p)*\
+                                             (d-np.float32(1.0)) * x / p,
                                              lam21=LAM21,
                                              u=u,
                                              v=v,
                                              d=d,
                                              g_norm_square=g_norm_square)
-            # f_prime = lambda x: (d-1)/v - (1-p)*(d-1)/(lam10 + u)/p - (d-1)*v/((x+u)**2) + (lam10+u+g)*(1-p)*(d-1)/p/((D/p - (1-p)*(d-1)*x/p + v)**2)
-            def f_prime(x): return (d - np.float32(1.0)) / v - (np.float32(1.0) - p) * (d - np.float32(1.0)) / (lam10 + u) / p - (d - np.float32(1.0)) / (x + u) * (v / (x + u)) + (
-                lam10 + u + g_norm_square) / (D / p - (np.float32(1.0) - p) * (d - np.float32(1.0)) * x / p + v) * (1 - p) * (d - 1) / p / (D / p - (1 - p) * (d - 1) * x / p + v)
+            def f_prime(x): return (d - np.float32(1.0)) / v - \
+            (np.float32(1.0) - p) * (d - np.float32(1.0)) / (lam10 + u) / p - \
+             (d - np.float32(1.0)) / (x + u) * (v / (x + u)) + (
+                lam10 + u + g_norm_square) / (D / p - (np.float32(1.0) - p) * \
+                (d - np.float32(1.0)) * x / p + v) * (1 - p) * (d - 1) / p / \
+                 (D / p - (1 - p) * (d - 1) * x / p + v)
             # print('lam10', 'D/((1-p)*(d-1)', lam10, D/((1-p)*(d-1)))
             lam20 = convex_min_1d(xl=np.float32(0.0), xr=min(
-                D / ((np.float32(1.0) - p) * (d - np.float32(1.0))), lam10), f=f, f_prime=f_prime)
+                D / ((np.float32(1.0) - p) * (d - np.float32(1.0))), lam10), 
+                f=f, f_prime=f_prime)
             lam11 = np.float32(max(D / p - (np.float32(1.0) - p)
-                                   * (d - np.float32(1.0)) * lam20 / p, np.float32(0.0)))
+                                   * (d - np.float32(1.0)) * lam20 / p, 
+                                   np.float32(0.0)))
 
-        # if lam10 <0 or lam20 < 0 or lam11 <0 or LAM21 <0: # check to make sure no negative values
+        # if lam10 <0 or lam20 < 0 or lam11 <0 or LAM21 <0: 
+        # check to make sure no negative values
         #     assert False, i
 
         objective_value_list.append(
@@ -299,15 +317,9 @@ def solve_small_neg(
                 v=v,
                 d=d,
                 g_norm_square=g_norm_square))
-        # print(i)
-        # print(objective_value_list[-1])
-        # print(lam10, lam20, lam11, LAM21, objective_value_list[-1])
-        # print('sum', p * lam11 + p*(d-1)*LAM21 + (1-p) * lam10 + (1-p)*(d-1)*lam20)
-        # logging.info("solve_small_neg, iter: {}, objective_value_list[-1]: {}".format(i, objective_value_list[-1]))
+
         if (i >= 3 and objective_value_list[-4] -
                 objective_value_list[-1] < OBJECTIVE_EPSILON) or i >= 100:
-            # print(i)
-            # logging.info("solve_small_neg, iter: {}, terminated".format(i))
             return (lam10, lam20, lam11, LAM21, np.float32(
                 0.5) * objective_value_list[-1] - d)
 
@@ -343,22 +355,26 @@ def solve_small_pos(
             C = np.float32(D + p * v + (np.float32(1.0) - p) * u)
 
             E = np.float32(math.sqrt((C + (np.float32(1.0) - p)
-                                      * g_norm_square) / (C + p * g_norm_square)))
+                                      * g_norm_square) / \
+                                (C + p * g_norm_square)))
             tau = np.float32(
-                max((D / p + v - E * u) / (E + (np.float32(1.0) - p) / p), np.float32(0.0)))
+                max((D / p + v - E * u) / (E + (np.float32(1.0) - p) / p), 
+                    np.float32(0.0)))
             # print('tau', tau)
             if np.float32(0.0) <= tau and tau <= (
                     P - p * d * lam21) / (np.float32(1.0) - p):
                 # print('A')
                 lam10 = tau
                 lam11 = np.float32(
-                    max(D / p - (np.float32(1.0) - p) * tau / p, np.float32(0.0)))
+                    max(D / p - (np.float32(1.0) - p) * tau / p,
+                     np.float32(0.0)))
             else:
                 # print('B')
                 lam10_case1, lam11_case1 = np.float32(0), np.float32(
                     max(P / p - (d - np.float32(1.0)) * lam21, np.float32(0.0)))
                 lam10_case2, lam11_case2 = np.float32(
-                    max((P - p * d * lam21) / (np.float32(1.0) - p), np.float32(0.0))), lam21
+                    max((P - p * d * lam21) / (np.float32(1.0) - p), 
+                        np.float32(0.0))), lam21
                 objective1 = symKL_objective(
                     lam10=lam10_case1,
                     lam20=LAM20,
@@ -381,48 +397,47 @@ def solve_small_pos(
                     lam10, lam11 = lam10_case1, lam11_case1
                 else:
                     lam10, lam11 = lam10_case2, lam11_case2
-            # logging.info("solve_small_pos, branch: 0, lam10: {}, lam11: {}".format(lam10, lam11))
         elif i % 3 == ordering[1]:  # fix lam11
             D = np.float32(max(P - p * lam11, np.float32(0.0)))
 
-            def f(x): return symKL_objective(lam10=(D - p * (d - 1) * x) / (np.float32(1.0) - p),
-                                             lam20=LAM20, lam11=lam11, lam21=x, u=u, v=v, d=d, g_norm_square=g_norm_square)
-            # f_prime = lambda x: (d-1)/u - p*(d-1)/(lam11+v)/(1-p) - (d-1)*u/((x+v)**2) + (lam11 + v + g)*p*(d-1)/(1-p)/(((D - p*(d-1)*x)/(1-p) + u)**2)
+            def f(x): return symKL_objective(lam10=(D - p * (d - 1) * x) / \
+                (np.float32(1.0) - p),
+                lam20=LAM20, lam11=lam11, lam21=x, u=u, v=v, d=d, 
+                g_norm_square=g_norm_square)
 
-            def f_prime(x): return (d - np.float32(1.0)) / u - p * (d - np.float32(1.0)) / (lam11 + v) / (np.float32(1.0) - p) - (d - 1) / (x + v) * (u / (x + v)) + (lam11 + v + g_norm_square) / \
-                ((D - p * (d - 1) * x) / (np.float32(1.0) - p) + u) * p * (d - np.float32(1.0)) / (np.float32(1.0) - p) / ((D - p * (d - np.float32(1.0)) * x) / (np.float32(1.0) - p) + u)
+            def f_prime(x): return (d - np.float32(1.0)) / u - \
+            p * (d - np.float32(1.0)) / (lam11 + v) / (np.float32(1.0) - p) - \
+            (d - 1) / (x + v) * (u / (x + v)) + (lam11 + v + g_norm_square) / \
+                ((D - p * (d - 1) * x) / (np.float32(1.0) - p) + u) * p * \
+                (d - np.float32(1.0)) / (np.float32(1.0) - p) / ((D - p * \
+                    (d - np.float32(1.0)) * x) / (np.float32(1.0) - p) + u)
 
             # print('lam11', 'D/p/(d-1)', lam11, D/p/(d-1))
             lam21 = convex_min_1d(xl=np.float32(0.0), xr=min(
                 D / p / (d - np.float32(1.0)), lam11), f=f, f_prime=f_prime)
             lam10 = np.float32(
-                max((D - p * (d - 1) * lam21) / (np.float32(1.0) - p), np.float32(0.0)))
-            # logging.info("solve_small_pos, branch: 1, lam10: {}, lam21: {}".format(lam10, lam21))
+                max((D - p * (d - 1) * lam21) / (np.float32(1.0) - p), 
+                    np.float32(0.0)))
 
         else:  # fix lam10
             D = np.float32(max((P - (1 - p) * lam10) / p, np.float32(0.0)))
 
             def f(x): return symKL_objective(lam10=lam10,
                                              lam20=LAM20,
-                                             lam11=D - (d - np.float32(1.0)) * x,
+                                             lam11=D-(d - np.float32(1.0)) * x,
                                              lam21=x,
                                              u=u,
                                              v=v,
                                              d=d,
                                              g_norm_square=g_norm_square)
-            # f_prime = lambda x: (d-1)/u - (d-1)/(lam10+u) - (d-1)*u/((x+v)**2) + (lam10 + u + g)*(d-1)/((D-(d-1)*x+v)**2)
-            def f_prime(x): return (d - np.float32(1.0)) / u - (d - np.float32(1.0)) / (lam10 + u) - (d - np.float32(1.0)) / (x + v) * (u / (x + v)) + \
-                (lam10 + u + g_norm_square) / (D - (d - np.float32(1.0)) * x + v) * (d - np.float32(1.0)) / (D - (d - np.float32(1.0)) * x + v)
-            # def f_prime(x):
-            #     print('x', x)
-            #     print('d, u, v, g', d, u, v, g)
-            #     print('(d-1)/u', (d-1)/u)
-            #     print('(d-1)/(lam10+u)', (d-1)/(lam10+u))
-            #     print('(d-1)*u/((x+v)**2)', (d-1)*u/((x+v)**2))
-            #     print('(lam10 + u + g)*(d-1)/((D-(d-1)*x+v)**2)', (lam10 + u + g)*(d-1)/((D-(d-1)*x+v)**2))
 
-            #     return (d-1)/u - (d-1)/(lam10+u) - (d-1)*u/((x+v)**2) + (lam10 + u + g)*(d-1)/((D-(d-1)*x+v)**2)
-            # print('D/d', D/d)
+            def f_prime(x): return (d - np.float32(1.0)) / u - \
+            (d - np.float32(1.0)) / (lam10 + u) - (d - np.float32(1.0)) / \
+            (x + v) * (u / (x + v)) + \
+                (lam10 + u + g_norm_square) / \
+                (D - (d - np.float32(1.0)) * x + v) * (d - np.float32(1.0)) / \
+                (D - (d - np.float32(1.0)) * x + v)
+
             lam21 = convex_min_1d(
                 xl=np.float32(0.0),
                 xr=D / d,
@@ -430,7 +445,6 @@ def solve_small_pos(
                 f_prime=f_prime)
             lam11 = np.float32(
                 max(D - (d - np.float32(1.0)) * lam21, np.float32(0.0)))
-            # logging.info("solve_small_pos, branch: 2, lam11: {}, lam21: {}".format(lam11, lam21))
 
         # if lam10 <0 or LAM20 <0 or lam11 <0 or lam21 <0:
         #     assert False, i
@@ -448,9 +462,11 @@ def solve_small_pos(
         # print(i)
         # print(objective_value_list[-1])
         # print(lam10, LAM20, lam11, lam21)
-        # print('sum', p * lam11 + p*(d-1)*lam21 + (1-p) * lam10 + (1-p)*(d-1)*LAM20)
+        # print('sum', p * lam11 + p*(d-1)*lam21 + 
+            # (1-p) * lam10 + (1-p)*(d-1)*LAM20)
         logging.info(
-            "solve_small_pos, iter: {}, objective_value_list[-1]: {}".format(i, objective_value_list[-1]))
+            "solve_small_pos, iter: {}, objective_value_list[-1]: {}".format(i,
+             objective_value_list[-1]))
 
         if (i >= 3 and objective_value_list[-4] -
                 objective_value_list[-1] < OBJECTIVE_EPSILON) or i >= 100:
@@ -468,7 +484,6 @@ def convex_min_1d(xl, xr, f, f_prime):
     xm = np.float32((xl + xr) / np.float32(2.0))
     # print('xl', xl, f(xl), f_prime(xl))
     # print('xr', xr, f(xr), f_prime(xr))
-    # logging.info("convex_min_1d, xl: {}, xr: {}, xm: {}, type_xl: {}, type_xr: {}, type_xm: {}".format(xl, xr, xm, type(xl), type(xr), type(xm)))
     if abs(
             xl -
             xr) <= CONVEX_EPSILON or abs(
@@ -488,15 +503,21 @@ def convex_min_1d(xl, xr, f, f_prime):
 
 
 def small_neg_problem_string(u, v, d, g_norm_square, p, P):
-    return 'minimize ({2}-1)*(z + {0})/{1} + ({2}-1)*{1}/(z+{0})+(x+{0}+{3})/(y+{1}) + (y+{1}+{3})/(x+{0}) subject to x>=0, y>=0, z>=0, z<=x, {4}*y+(1-{4})*x+(1-{4})*({2}-1)*z={5}'.format(u, v, d, g_norm_square, p, P)
+    return 'minimize ({2}-1)*(z + {0})/{1} + ({2}-1)*{1}/(z+{0})+(x+{0}+{3})/ \
+    (y+{1}) + (y+{1}+{3})/(x+{0}) subject to x>=0, y>=0, z>=0, z<=x, \
+    {4}*y+(1-{4})*x+(1-{4})*({2}-1)*z={5}'.format(u, v, d, g_norm_square, p, P)
 
 
 def small_pos_problem_string(u, v, d, g_norm_square, p, P):
-    return 'minimize ({2}-1)*{0}/(z+{1}) + ({2}-1)*(z + {1})/{0} + (x+{0}+{3})/(y+{1}) + (y+{1}+{3})/(x+{0}) subject to x>=0, y>=0, z>=0, z<=y, {4}*y+(1-{4})*x+{4}*({2}-1)*z={5}'.format(u, v, d, g_norm_square, p, P)
+    return 'minimize ({2}-1)*{0}/(z+{1}) + ({2}-1)*(z + {1})/{0} + \
+     (x+{0}+{3})/(y+{1}) + (y+{1}+{3})/(x+{0}) subject to x>=0, y>=0, z>=0, \
+     z<=y, {4}*y+(1-{4})*x+{4}*({2}-1)*z={5}'.format(u, v, d, 
+        g_norm_square, p, P)
 
 
 def zero_uv_problem_string(g_norm_square, p, P):
-    return 'minimize (x+{0})/y + (y+{0})/x subject to x>=0, y>=0, {1}*y+(1-{1})*x={2}'.format(
+    return 'minimize (x+{0})/y + (y+{0})/x subject to x>=0, y>=0, \
+        {1}*y+(1-{1})*x={2}'.format(
         g_norm_square, p, P)
 
 

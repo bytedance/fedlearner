@@ -223,9 +223,9 @@ def solve_small_neg(u, v, d, g, p, P, lam10=None, lam20=None, lam11=None):
             # f_prime = lambda x: (d-1)/v - (d-1)/(lam11+v) - 
             # (d-1)*v/((x+u)**2) + (lam11 + v + g)*(d-1)/((D-(d-1)*x+u)**2)
 
-            def f_prime(x): return (d - 1) / v - (d - 1) / (lam11 + v) - 
-                                (d - 1) / (x + u) * (v / ( 
-                            x + u)) + (lam11 + v + g) / (D - (d - 1) 
+            def f_prime(x): return (d - 1) / v - (d - 1) / (lam11 + v) - \
+                                (d - 1) / (x + u) * (v / ( \
+                            x + u)) + (lam11 + v + g) / (D - (d - 1) \
                                 * x + u) * ((d - 1) / (D - (d - 1) * x + u))
             # print('D/d', D/d)
             lam20 = convex_min_1d(xl=0.0, xr=D / d, f=f, f_prime=f_prime)
@@ -236,14 +236,16 @@ def solve_small_neg(u, v, d, g, p, P, lam10=None, lam20=None, lam11=None):
             D = max(P - (1 - p) * lam10, 0.0)
 
             def f(x): return symKL_objective(lam10=lam10, lam20=x, lam11=D / \
-                  p - (1 - p) * (d - 1) * x / p, lam21=LAM21, u=u, v=v, d=d, g=g)
+                  p - (1 - p) * (d - 1) * x / p, lam21=LAM21, u=u, 
+                    v=v, d=d, g=g)
             # f_prime = lambda x: (d-1)/v - (1-p)*(d-1)/(lam10 + u)/p - 
             # (d-1)*v/((x+u)**2) + (lam10+u+g)*(1-p)*(d-1)/p/
             # ((D/p - (1-p)*(d-1)*x/p + v)**2)
-            def f_prime(x): return (d - 1) / v - (1 - p) * (d - 1) / (lam10 + u) 
-                                    / p - (d - 1) / (x + u) * (v / (x + u)) + (
-                lam10 + u + g) / (D / p - (1 - p) * (d - 1) * x / p + v) * 
-                                        (1 - p) * (d - 1) / p / (D / p - (1 - p)
+            def f_prime(x): return (d - 1) / v - (1 - p) * (d - 1) / \
+                                    (lam10 + u) \
+                                    / p - (d - 1) / (x + u) * (v / (x + u))+( \
+                lam10 + u + g) / (D / p - (1 - p) * (d - 1) * x / p + v) * \
+                                    (1 - p) * (d - 1) / p / (D / p - (1 - p) \
                                             * (d - 1) * x / p + v)
             # print('lam10', 'D/((1-p)*(d-1)', lam10, D/((1-p)*(d-1)))
             lam20 = convex_min_1d(xl=0.0, xr=min(
@@ -343,9 +345,10 @@ def solve_small_pos(u, v, d, g, p, P, lam10=None, lam11=None, lam21=None):
              # (d-1)*u/((x+v)**2) + (lam11 + v + g)*p*(d-1)/(1-p)/
              # (((D - p*(d-1)*x)/(1-p) + u)**2)
 
-            def f_prime(x): return (d - 1) / u - p * (d - 1) / (lam11 + v) / 
-            (1 - p) - (d - 1) / (x + v) * (u / (x + v)) + (
-                lam11 + v + g) / ((D - p * (d - 1) * x) / (1 - p) + u) * p * (d - 1)
+            def f_prime(x): return (d - 1) / u - p * (d - 1) / (lam11 + v) / \
+            (1 - p) - (d - 1) / (x + v) * (u / (x + v)) + ( \
+                lam11 + v + g) / ((D - p * (d - 1) * x) / (1 - p) + u) * \
+                 p * (d - 1) \
                  / (1 - p) / ((D - p * (d - 1) * x) / (1 - p) + u)
 
             # print('lam11', 'D/p/(d-1)', lam11, D/p/(d-1))
@@ -361,9 +364,9 @@ def solve_small_pos(u, v, d, g, p, P, lam10=None, lam11=None, lam21=None):
                                             lam21=x, u=u, v=v, d=d, g=g)
             # f_prime = lambda x: (d-1)/u - (d-1)/(lam10+u) - 
                 # (d-1)*u/((x+v)**2) + (lam10 + u + g)*(d-1)/((D-(d-1)*x+v)**2)
-            def f_prime(x): return (d - 1) / u - (d - 1) / (lam10 + u) - 
-                                            (d - 1) / (x + v) * (
-                    u / (x + v)) + (lam10 + u + g) / (D - (d - 1) * x + v)
+            def f_prime(x): return (d - 1) / u - (d - 1) / (lam10 + u) - \
+                                            (d - 1) / (x + v) * ( \
+                    u / (x + v)) + (lam10 + u + g) / (D - (d - 1) * x + v) \
                                      * (d - 1) / (D - (d - 1) * x + v)
             # def f_prime(x):
             #     print('x', x)
@@ -427,13 +430,15 @@ def convex_min_1d(xl, xr, f, f_prime):
 
 
 def small_neg_problem_string(u, v, d, g, p, P):
-    return 'minimize ({2}-1)*(z + {0})/{1} + ({2}-1)*{1}/(z+{0})+(x+{0}+{3})/(y+{1}) + \
+    return 'minimize ({2}-1)*(z + {0})/{1} + ({2}-1)*{1}/(z+{0})+ \
+    (x+{0}+{3})/(y+{1}) + \
                 (y+{1}+{3})/(x+{0}) subject to x>=0, y>=0, z>=0, z<=x,\
                 {4}*y+(1-{4})*x+(1-{4})*({2}-1)*z={5}'.format(u, v, d, g, p, P)
 
 
 def small_pos_problem_string(u, v, d, g, p, P):
-    return 'minimize ({2}-1)*{0}/(z+{1}) + ({2}-1)*(z + {1})/{0} + (x+{0}+{3})/(y+{1}) \
+    return 'minimize ({2}-1)*{0}/(z+{1}) + ({2}-1)*(z + {1})/{0} + \
+    (x+{0}+{3})/(y+{1}) \
     + (y+{1}+{3})/(x+{0}) subject to x>=0, y>=0, z>=0, z<=y, \
     {4}*y+(1-{4})*x+{4}*({2}-1)*z={5}'.format(u, v, d, g, p, P)
 

@@ -2,6 +2,11 @@
 
 ```FL_Label_Protection_FMNIST_Demo.py``` shows how we protect label informaiton in the settings of Federated Learning (FL).
 
+We provide two protection methods in this demo:
+
+* max norm alignment
+* sumKL
+
 ### Usage 
 
 
@@ -56,7 +61,7 @@ After runing above codes, we can get some results as following:
 
 You can vary the value of ```sumKL_threshold``` in the code to achieve the different trade-offs between protection and performance. 
 
-To run with a lower Tensorflow version, please consier to use ```tf.py_func```.
+To run with a lower Tensorflow version such as (tf 1.x), please consier to use ```tf.py_func```.
 
 * Use the function ```compute_lambdas_tf1``` instead of ```compute_lambdas_tf2```
 
