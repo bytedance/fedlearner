@@ -225,8 +225,6 @@ def gradient_masking(x):
     return x, grad_fn
 
 
-# from gradient_noise_solver_tf2 import solve_isotropic_covariance, symKL_objective
-
 @tf.custom_gradient
 def KL_gradient_perturb(x):
     uv_choice = "uv"  # "uv"
@@ -283,7 +281,7 @@ def KL_gradient_perturb(x):
         if tf.math.is_nan(avg_pos_coordinate_var) or tf.math.is_nan(
                 avg_neg_coordinate_var):
             if args.debug:
-                print("no negative/positive instances in the corresponding batch......")
+                print("no negative/positive instances in the corresponding batch")
             return g
         g_diff = pos_g_mean - neg_g_mean
         # g_diff_norm = float(tf.norm(tensor=g_diff).numpy())
@@ -312,12 +310,27 @@ def KL_gradient_perturb(x):
         scale = init_scale
         g_norm_square = g_diff_norm ** 2
 
-        # def print_tensor(pos_g_mean, neg_g_mean, g_diff):
-        #     logging.info("gradient pos_g_mean: {}, neg_g_mean: {}".format(np.mean(pos_g_mean), np.mean(neg_g_mean)))
-        #     logging.info("gradient pos_g_max: {}, neg_g_max: {}".format(np.amax(pos_g_mean), np.amax(neg_g_mean)))
-        #     logging.info("gradient pos_g_min: {}, neg_g_min: {}".format(np.amin(pos_g_mean), np.amin(neg_g_mean)))
-        #     logging.info("gradient pos_g_norm: {}, neg_g_norm: {}".format(np.linalg.norm(pos_g_mean), np.linalg.norm(neg_g_mean)))
-        #     logging.info("gradient g_diff_mean: {}, g_diff_min: {}, g_diff_max: {}, g_diff_norm: {}".format(np.mean(g_diff), np.amin(g_diff), np.amax(g_diff), np.linalg.norm(g_diff)))
+        def print_tensor(pos_g_mean, neg_g_mean, g_diff):
+            logging.info(
+                "gradient pos_g_mean: {}, neg_g_mean: {}".format(
+                    np.mean(pos_g_mean),
+                    np.mean(neg_g_mean)))
+            logging.info(
+                "gradient pos_g_max: {}, neg_g_max: {}".format(
+                    np.amax(pos_g_mean),
+                    np.amax(neg_g_mean)))
+            logging.info(
+                "gradient pos_g_min: {}, neg_g_min: {}".format(
+                    np.amin(pos_g_mean),
+                    np.amin(neg_g_mean)))
+            logging.info("gradient pos_g_norm: {}, neg_g_norm: {}".format(
+                np.linalg.norm(pos_g_mean), np.linalg.norm(neg_g_mean)))
+            logging.info(
+                "gradient g_diff_mean: {}, g_diff_min: {}, g_diff_max: {}, g_diff_norm: {}".format(
+                    np.mean(g_diff),
+                    np.amin(g_diff),
+                    np.amax(g_diff),
+                    np.linalg.norm(g_diff)))
 
         def compute_lambdas_tf2(
             u,
@@ -386,8 +399,6 @@ def KL_gradient_perturb(x):
                 print(
                     "lam10: {}, lam20: {}, lam11:{}, lam21:{}, sumKL:{}".format(
                         lam10, lam20, lam11, lam21, sumKL))
-                # logging.info("math.sqrt(lam10-lam20): {}, math.sqrt(lam11 - lam21): {}".format(np.sqrt((lam10 - lam20)), np.sqrt((lam11 - lam21))))
-                # logging.info("math.sqrt(lam10-lam20)/g_diff_norm: {}, math.sqrt(lam11 - lam21)/g_diff_norm: {}".format(np.sqrt((lam10 - lam20)/g_norm_square), np.sqrt((lam11 - lam21)/g_norm_square)))
                 print(
                     'solve_isotropic_covariance solving time: {}'.format(
                         time.time() - start))
@@ -404,7 +415,7 @@ def KL_gradient_perturb(x):
             pos_g_mean,
             neg_g_mean,
                 g_diff):
-            print_tensor(pos_g_mean, neg_g_mean, g_diff)
+            # print_tensor(pos_g_mean, neg_g_mean, g_diff)
             u = np.float32(np.asscalar(u))
             v = np.float32(np.asscalar(v))
             scale = np.float32(np.asscalar(scale))
@@ -484,7 +495,10 @@ def KL_gradient_perturb(x):
             return lam10, lam20, lam11, lam21, sumKL
 
         # tensorflow 1.x
-        # lam10, lam20, lam11, lam21, sumKL = tf.py_func(compute_lambdas_tf1, [u, v, scale, d, g_norm_square, p, sumKL_threshold,pos_g_mean, neg_g_mean, g_diff], [tf.float32, tf.float32, tf.float32, tf.float32, tf.float32])
+        # lam10, lam20, lam11, lam21, sumKL =
+        # tf.py_func(compute_lambdas_tf1, [u, v, scale, d, g_norm_square, p, sumKL_threshold,
+        # pos_g_mean, neg_g_mean, g_diff], [tf.float32, tf.float32, tf.float32,
+        # tf.float32, tf.float32])
 
         lam10, lam20, lam11, lam21, sumKL = compute_lambdas_tf2(
             u, v, scale, d, g_norm_square, p, sumKL_threshold, pos_g_mean, neg_g_mean, g_diff)

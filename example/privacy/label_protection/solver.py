@@ -16,14 +16,12 @@ def symKL_objective(lam10, lam20, lam11, lam21, u, v, d, g_norm_square):
                            + (lam10 + u + g_norm_square) / (lam11 + v)
                            + (lam11 + v + g_norm_square) / (lam10 + u))
 
-    # logging.info("symKL_objective, objective: {}, type: {}".format(objective, type(objective)))
     return objective
 
 
 def symKL_objective_zero_uv(lam10, lam11, g_norm_square):
     objective = np.float32((lam10 + g_norm_square) / lam11
                            + (lam11 + g_norm_square) / lam10)
-    # logging.info("symKL_objective_zero_uv, objective: {}, type: {}".format(objective, type(objective)))
     return objective
 
 
@@ -35,7 +33,8 @@ def solve_isotropic_covariance(u, v, d, g_norm_square, p, P,
         u ([type]): [the coordinate variance of the negative examples]
         v ([type]): [the coordinate variance of the positive examples]
         d ([type]): [the dimension of activation to protect]
-        g_norm_square ([type]): [squared 2-norm of g_0 - g_1, i.e. \|g^{(0)} - g^{(1)}\|_2^2]
+        g_norm_square ([type]): [squared 2-norm of g_0 - g_1, 
+            i.e. \|g^{(0)} - g^{(1)}\|_2^2]
         P ([type]): [the power constraint value]
     """
     if u == np.float32(0.0) and v == np.float32(0.0):
@@ -75,8 +74,6 @@ def solve_isotropic_covariance(u, v, d, g_norm_square, p, P,
                     lam10 = np.float32(random.random() *
                                        P / (np.float32(1.0) - p))
                 lam11, lam20 = None, None
-                # print('lam10', lam10)
-            # logging.info("solve_isotropic_covariance, u<=v_iter_{}, lam10: {}, lam20: {}, lam11: {}, type_lam10: {}, type_lam20: {}, type_lam11: {}".format(i, lam10, lam20, lam11, type(lam10), type(lam20), type(lam11)))
             solutions.append(
                 solve_small_neg(
                     u=u,
@@ -113,7 +110,6 @@ def solve_isotropic_covariance(u, v, d, g_norm_square, p, P,
                     lam10 = np.float32(random.random() * P / (1 - p))
                 lam11, lam21 = None, None
                 # print('lam10', lam10)
-            # logging.info("solve_isotropic_covariance, u>v_iter_{}, lam10: {}, lam21: {}, lam11: {}, type_lam10: {}, type_lam21: {}, type_lam11: {}".format(i, lam10, lam21, lam11, type(lam10), type(lam21), type(lam11)))
             solutions.append(
                 solve_small_pos(
                     u=u,
@@ -126,10 +122,7 @@ def solve_isotropic_covariance(u, v, d, g_norm_square, p, P,
                     lam11=lam11,
                     lam21=lam21))
 
-    # print(solutions)
-    # logging.info("solve_isotropic_covariance, solutions: {}, len: {}".format(solutions, len(solutions)))
     lam10, lam20, lam11, lam21, objective = min(solutions, key=lambda x: x[-1])
-    # logging.info("solve_isotropic_covariance, lam10: {}, lam20: {}, lam21: {}, lam11: {}, type_lam10: {}, type_lam21: {}, type_lam11: {}, type_lam20: {}".format(lam10, lam20, lam21, lam11, type(lam10), type(lam21), type(lam11), type(lam20)))
 
     # print('sum', p * lam11 + p*(d-1)*lam21 + (1-p) * lam10 + (1-p)*(d-1)*lam20)
 
@@ -143,15 +136,11 @@ def solve_zero_uv(g_norm_square, p, P):
     tau = np.float32(
         max((P / p) / (E + (np.float32(1.0) - p) / p), np.float32(0.0)))
     # print('tau', tau)
-    # logging.info("solve_zero_uv, C: {}, E: {}, tau: {}, type_C: {}, type_E: {}, type_tau: {}".format(C, E, tau, type(C), type(E), type(tau)))
     if 0 <= tau and tau <= P / (np.float32(1.0) - p):
-        # print('A')
         lam10 = tau
         lam11 = np.float32(max(P / p - (np.float32(1.0) - p)
                                * tau / p, np.float32(0.0)))
-        # logging.info("solve_zero_uv, branch_1, lam10: {}, lam11: {}, type_lam10: {}, type_lam11:{}".format(lam10, lam11, type(lam10), type(lam11)))
     else:
-        # print('B')
         lam10_case1, lam11_case1 = np.float32(0.0), max(P / p, np.float32(0.0))
         lam10_case2, lam11_case2 = np.float32(
             max(P / (np.float32(1.0) - p), np.float32(0.0))), np.float32(0.0)
@@ -168,11 +157,8 @@ def solve_zero_uv(g_norm_square, p, P):
         else:
             lam10, lam11 = lam10_case2, lam11_case2
 
-        # logging.info("solve_zero_uv, branch_2, lam10: {}, lam11: {}, type_lam10: {}, type_lam11:{}".format(lam10, lam11, type(lam10), type(lam11)))
-
     objective = symKL_objective_zero_uv(
         lam10=lam10, lam11=lam11, g_norm_square=g_norm_square)
-    # logging.info("solve_zero_uv, objective {},  type: {}".format(objective, type(objective)))
 
     # here we subtract d = 1 because the distribution is essentially
     # one-dimensional
@@ -228,7 +214,8 @@ def solve_small_neg(
                 # print('A')
                 lam10 = tau
                 lam11 = np.float32(
-                    max(D / p - (np.float32(1.0) - p) * tau / p, np.float32(0.0)))
+                    max(D / p - (np.float32(1.0) - p) * tau / p, 
+                    np.float32(0.0)))
             else:
                 # print('B')
                 lam10_case1, lam11_case1 = lam20, np.float32(
