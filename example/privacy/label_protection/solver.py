@@ -527,74 +527,59 @@ def zero_uv_problem_string(g_norm_square, p, P):
         {1}*y+(1-{1})*x={2}'.format(g_norm_square, p, P)
 
 
-if __name__ == '__main__':
-    test_neg = False
+# if __name__ == '__main__':
+#     test_neg = False
+    
+#     u = 3.229033590534426e-15
+#     v = 3.0662190349955726e-15
+#     d = 128.0
+#     g_norm_square = 5.015613264502392e-10
+#     p = 0.253936767578125
+#     P = 2328365.0213796967
 
-    # u=random.random()
-    # v=random.uniform(u, u+random.random())
-    # u = 0.0
-    # v = 0.0
-    # d=random.randint(2, 1000)
-    # g=random.random() * d
-    # p=random.random() * 0.5
-    # p=0.25
+#     print(
+#         'u={0},v={1},d={2},g={3},p={4},P={5}'.format(
+#             u,
+#             v,
+#             d,
+#             g_norm_square,
+#             p,
+#             P))
+#     start = time.time()
+#     lam10, lam20, lam11, lam21, sumKL = solve_isotropic_covariance(
+#         u=u, v=v, d=d, g_norm_square=g_norm_square, p=p, P=P)
+#     print(lam10, lam20, lam11, lam21, sumKL)
+#     print('time', time.time() - start)
+#     if u < v:
+#         print(
+#             small_neg_problem_string(
+#                 u=u,
+#                 v=v,
+#                 d=d,
+#                 g_norm_square=g_norm_square,
+#                 p=p,
+#                 P=P))
+#     else:
+#         print(
+#             small_pos_problem_string(
+#                 u=u,
+#                 v=v,
+#                 d=d,
+#                 g_norm_square=g_norm_square,
+#                 p=p,
+#                 P=P))
 
-    # P=random.random() * d
-
-    # r = lambda x: round(x, 2)
-
-    # u,v,g,p,P = r(u), r(v), r(g), r(p), r(P)
-    # u,v,g,p,P = r(v), r(u), r(g), r(p), r(P) # make sure u > v
-    u = 3.229033590534426e-15
-    v = 3.0662190349955726e-15
-    d = 128.0
-    g_norm_square = 5.015613264502392e-10
-    p = 0.253936767578125
-    P = 2328365.0213796967
-
-    print(
-        'u={0},v={1},d={2},g={3},p={4},P={5}'.format(
-            u,
-            v,
-            d,
-            g_norm_square,
-            p,
-            P))
-    start = time.time()
-    lam10, lam20, lam11, lam21, sumKL = solve_isotropic_covariance(
-        u=u, v=v, d=d, g_norm_square=g_norm_square, p=p, P=P)
-    print(lam10, lam20, lam11, lam21, sumKL)
-    print('time', time.time() - start)
-    if u < v:
-        print(
-            small_neg_problem_string(
-                u=u,
-                v=v,
-                d=d,
-                g_norm_square=g_norm_square,
-                p=p,
-                P=P))
-    else:
-        print(
-            small_pos_problem_string(
-                u=u,
-                v=v,
-                d=d,
-                g_norm_square=g_norm_square,
-                p=p,
-                P=P))
-
-    start = time.time()
-    print(
-        solve_isotropic_covariance(
-            u=u,
-            v=v,
-            d=d,
-            g_norm_square=g_norm_square,
-            p=p,
-            P=P + 10,
-            lam10_init=lam10,
-            lam20_init=lam20,
-            lam11_init=lam11,
-            lam21_init=lam21))
-    print('time', time.time() - start)
+#     start = time.time()
+#     print(
+#         solve_isotropic_covariance(
+#             u=u,
+#             v=v,
+#             d=d,
+#             g_norm_square=g_norm_square,
+#             p=p,
+#             P=P + 10,
+#             lam10_init=lam10,
+#             lam20_init=lam20,
+#             lam11_init=lam11,
+#             lam21_init=lam21))
+#     print('time', time.time() - start)
