@@ -6,7 +6,7 @@ import argparse
 import datetime
 import time
 import random
-import logging
+# import logging
 import numpy as np
 import tensorflow as tf
 from tensorflow.keras.datasets import fashion_mnist
@@ -452,8 +452,8 @@ def KL_gradient_perturb(x):
 
             if kl_obj < sumKL_threshold:
                 # logging.info(
-                #     "lam10: {}, lam20: {}, lam11:{}, lam21:{}, sumKL:{}".format(
-                #         0.0, 0.0, 0.0, 0.0, kl_obj))
+                #     "lam10: {}, lam20: {}, lam11:{}, lam21:{}, sumKL:{} \
+                # ".format(0.0, 0.0, 0.0, 0.0, kl_obj))
                 return np.float32(0.0), np.float32(
                     0.0), np.float32(0.0), np.float32(0.0), kl_obj
 
