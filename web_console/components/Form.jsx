@@ -97,6 +97,7 @@ const mapFields2Form = (fields, groupType) => {
 }
 
 const groupFormType = {}
+let fieldsCache
 
 /**
  * interface IField {
@@ -136,7 +137,8 @@ export default function Form({
 
   // update form value in rendering
   useEffect(() => {
-    if (!deepEqual(formData, form)) {
+    if (!deepEqual(fields, fieldsCache)) {
+      fieldsCache = fields
       setForm(formData)
     }
   })
