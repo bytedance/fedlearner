@@ -1,8 +1,8 @@
 import sys
-import logging
+# import logging
 import math
 import random
-import time
+# import time
 import numpy as np
 
 OBJECTIVE_EPSILON = np.float32(1e-16)
@@ -30,13 +30,14 @@ def symKL_objective_zero_uv(lam10, lam11, g_norm_square):
 def solve_isotropic_covariance(u, v, d, g_norm_square, p, P,
                                lam10_init=None, lam20_init=None,
                                lam11_init=None, lam21_init=None):
+
     """ return the solution to the optimization problem
         Args:
         u ([type]): [the coordinate variance of the negative examples]
         v ([type]): [the coordinate variance of the positive examples]
         d ([type]): [the dimension of activation to protect]
         g_norm_square ([type]): [squared 2-norm of g_0 - g_1,
-            i.e. \|g^{(0)} - g^{(1)}\|_2^2]
+            i.e. |g^{(0)} - g^{(1)}|_2^2]
         P ([type]): [the power constraint value]
     """
     if u == np.float32(0.0) and v == np.float32(0.0):
@@ -213,7 +214,7 @@ def solve_small_neg(
                 max((D / p + v - E * u) / (E + (np.float32(1.0) - p) / p), \
                  np.float32(0.0)))
             # print('tau', tau)
-            if lam20 <= tau and tau <= np.float32(
+            if tau >= lam20 and tau <= np.float32(
                     P / (np.float32(1.0) - p) - (d - np.float32(1.0)) * lam20):
                 # print('A')
                 lam10 = tau
@@ -282,8 +283,7 @@ def solve_small_neg(
             # avoid negative due to numerical error
             D = np.float32(max(P - (np.float32(1.0) - p) \
                                * lam10, np.float32(0.0)))
-
-            def f(x): 
+            def f(x): \
                 return symKL_objective(lam10=lam10,
                                              lam20=x,
                                              lam11=D/p- \
@@ -363,7 +363,7 @@ def solve_small_pos(
                 max((D / p + v - E * u) / (E + (np.float32(1.0) - p) / p), \
                     np.float32(0.0)))
             # print('tau', tau)
-            if np.float32(0.0) <= tau and tau <= ( \
+            if tau >= np.float32(0.0) and tau <= ( \
                     P - p * d * lam21) / (np.float32(1.0) - p):
                 # print('A')
                 lam10 = tau
@@ -471,9 +471,10 @@ def solve_small_pos(
         # print(lam10, LAM20, lam11, lam21)
         # print('sum', p * lam11 + p*(d-1)*lam21 + \
             # (1-p) * lam10 + (1-p)*(d-1)*LAM20)
-        logging.info(
-            "solve_small_pos, iter: {}, objective_value_list[-1]: {}".format(i,
-             objective_value_list[-1]))
+
+        # logging.info(
+        #     "solve_small_pos, iter: {}, objective_value_list[-1]: {}".format(i,
+        #      objective_value_list[-1]))
 
         if (i >= 3 and objective_value_list[-4] -
                 objective_value_list[-1] < OBJECTIVE_EPSILON) or i >= 100:
@@ -501,7 +502,7 @@ def convex_min_1d(xl, xr, f, f_prime):
         return np.float32(min((f(x), x) for x in [xl, xm, xr])[1])
     if f_prime(xl) <= 0 and f_prime(xr) <= 0:
         return np.float32(xr)
-    elif f_prime(xl) >= 0 and f_prime(xr) >= 0:
+    if f_prime(xl) >= 0 and f_prime(xr) >= 0:
         return np.float32(xl)
     if f_prime(xm) > 0:
         return convex_min_1d(xl=xl, xr=xm, f=f, f_prime=f_prime)
@@ -527,9 +528,9 @@ def zero_uv_problem_string(g_norm_square, p, P):
         {1}*y+(1-{1})*x={2}'.format(g_norm_square, p, P)
 
 
-# if __name__ == '__main__':
+# if __name__ == '__main__':\
 #     test_neg = False
-    
+
 #     u = 3.229033590534426e-15
 #     v = 3.0662190349955726e-15
 #     d = 128.0
