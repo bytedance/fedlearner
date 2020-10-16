@@ -6,8 +6,8 @@ import argparse
 import datetime
 import time
 import random
-import numpy as np
 import logging
+import numpy as np
 import tensorflow as tf
 from tensorflow.keras.datasets import fashion_mnist
 from solver import solve_isotropic_covariance, symKL_objective
@@ -506,13 +506,13 @@ def KL_gradient_perturb(x):
 
         # tensorflow 1.x
         # lam10, lam20, lam11, lam21, sumKL =
-        # tf.py_func(compute_lambdas_tf1, [u, v, scale, d, g_norm_square, p, 
+        # tf.py_func(compute_lambdas_tf1, [u, v, scale, d, g_norm_square, p, \
                                                 # sumKL_threshold,
         # pos_g_mean, neg_g_mean, g_diff], [tf.float32, tf.float32, tf.float32,
         # tf.float32, tf.float32])
 
         lam10, lam20, lam11, lam21, sumKL = compute_lambdas_tf2(
-            u, v, scale, d, g_norm_square, p, sumKL_threshold, pos_g_mean, 
+            u, v, scale, d, g_norm_square, p, sumKL_threshold, pos_g_mean, \
                     neg_g_mean, g_diff)
         lam10, lam20, lam11, lam21, sumKL = tf.reshape(
             lam10, shape=[1]), tf.reshape(
@@ -524,8 +524,8 @@ def KL_gradient_perturb(x):
         perturbed_g = g
         y_float = tf.cast(y, dtype=tf.float32)
 
-        noise_1 = tf.reshape(tf.multiply(x=tf.random.normal(shape=tf.shape(y)), 
-                                y=y_float), 
+        noise_1 = tf.reshape(tf.multiply(x=tf.random.normal(shape= \
+                            tf.shape(y)), y=y_float), \
                              shape=(-1, 1)) * g_diff * \
                     (tf.math.sqrt(tf.math.abs(lam11 - lam21)) / g_diff_norm)
         noise_1 = tf.debugging.check_numerics(
@@ -537,8 +537,8 @@ def KL_gradient_perturb(x):
         noise_2 = tf.debugging.check_numerics(
             noise_2, "noise_2 ERROR", name="noise_2_debugging")
 
-        noise_3 = tf.reshape(tf.multiply(x=tf.random.normal(shape=tf.shape(y)), 
-                            y=1 - y_float),
+        noise_3 = tf.reshape(tf.multiply(x=tf.random.normal(shape=\
+                            tf.shape(y)), y=1 - y_float),
                              shape=(-1, 1)) * g_diff * \
                     (tf.math.sqrt(tf.math.abs(lam10 - lam20)) / g_diff_norm)
         noise_3 = tf.debugging.check_numerics(
