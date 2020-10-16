@@ -68,7 +68,7 @@ export default function Overview() {
   const styles = useStyles(theme);
   const router = useRouter();
   const { data } = useSWR('jobs', fetcher);
-  const jobs = data ? data.data.filter((x) => x.metadata) : [];
+  const jobs = (data && data.data) ? data.data.filter((x) => x.metadata) : [];
   const goToJob = () => router.push('/datasource/job');
   return (
     <Layout>
