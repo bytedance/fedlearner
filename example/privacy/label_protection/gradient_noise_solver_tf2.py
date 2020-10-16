@@ -134,7 +134,7 @@ def solve_zero_uv(g, p, P):
     E = math.sqrt((C + (1 - p) * g) / (C + p * g))
     tau = max((P / p) / (E + (1 - p) / p), 0.0)
     # print('tau', tau)
-    if 0 <= tau and tau <= P / (1 - p):
+    if tau >= 0.0 and tau <= P / (1 - p):
         # print('A')
         lam10 = tau
         lam11 = max(P / p - (1 - p) * tau / p, 0.0)
@@ -217,13 +217,15 @@ def solve_small_neg(u, v, d, g, p, P, lam10=None, lam20=None, lam11=None):
         elif i % 3 == ordering[1]:  # fix lam11
             D = max((P - p * lam11) / (1 - p), 0.0)
 
-            def f(x): return symKL_objective(lam10=D - (d - 1) * x,
+            def f(x): \
+                return symKL_objective(lam10=D - (d - 1) * x,
                                              lam20=x, lam11=lam11, 
                                              lam21=LAM21, u=u, v=v, d=d, g=g)
             # f_prime = lambda x: (d-1)/v - (d-1)/(lam11+v) - 
             # (d-1)*v/((x+u)**2) + (lam11 + v + g)*(d-1)/((D-(d-1)*x+u)**2)
 
-            def f_prime(x): return (d - 1) / v - (d - 1) / (lam11 + v) - \
+            def f_prime(x): \
+                return (d - 1) / v - (d - 1) / (lam11 + v) - \
                                 (d - 1) / (x + u) * (v / ( \
                             x + u)) + (lam11 + v + g) / (D - (d - 1) \
                                 * x + u) * ((d - 1) / (D - (d - 1) * x + u))
@@ -235,13 +237,15 @@ def solve_small_neg(u, v, d, g, p, P, lam10=None, lam20=None, lam11=None):
             # avoid negative due to numerical error
             D = max(P - (1 - p) * lam10, 0.0)
 
-            def f(x): return symKL_objective(lam10=lam10, lam20=x, lam11=D / \
+            def f(x): \
+                return symKL_objective(lam10=lam10, lam20=x, lam11=D / \
                   p - (1 - p) * (d - 1) * x / p, lam21=LAM21, u=u, 
                     v=v, d=d, g=g)
             # f_prime = lambda x: (d-1)/v - (1-p)*(d-1)/(lam10 + u)/p - 
             # (d-1)*v/((x+u)**2) + (lam10+u+g)*(1-p)*(d-1)/p/
             # ((D/p - (1-p)*(d-1)*x/p + v)**2)
-            def f_prime(x): return (d - 1) / v - (1 - p) * (d - 1) / \
+            def f_prime(x): \
+                return (d - 1) / v - (1 - p) * (d - 1) / \
                                     (lam10 + u) \
                                     / p - (d - 1) / (x + u) * (v / (x + u))+( \
                 lam10 + u + g) / (D / p - (1 - p) * (d - 1) * x / p + v) * \
@@ -303,7 +307,7 @@ def solve_small_pos(u, v, d, g, p, P, lam10=None, lam11=None, lam21=None):
             E = math.sqrt((C + (1 - p) * g) / (C + p * g))
             tau = max((D / p + v - E * u) / (E + (1 - p) / p), 0.0)
             # print('tau', tau)
-            if 0.0 <= tau and tau <= (P - p * d * lam21) / (1 - p):
+            if tau >= 0.0 and tau <= (P - p * d * lam21) / (1 - p):
                 # print('A')
                 lam10 = tau
                 lam11 = max(D / p - (1 - p) * tau / p, 0.0)
@@ -338,14 +342,16 @@ def solve_small_pos(u, v, d, g, p, P, lam10=None, lam11=None, lam21=None):
         elif i % 3 == ordering[1]:  # fix lam11
             D = max(P - p * lam11, 0.0)
 
-            def f(x): return symKL_objective(lam10=(D - p * (d - 1) * x) / \
-                  (1 - p), lam20=LAM20, lam11=lam11, 
+            def f(x): 
+                return symKL_objective(lam10=(D - p * (d - 1) * x) / \
+                  (1 - p), lam20=LAM20, lam11=lam11, \
                                                 lam21=x, u=u, v=v, d=d, g=g)
             # f_prime = lambda x: (d-1)/u - p*(d-1)/(lam11+v)/(1-p) -
              # (d-1)*u/((x+v)**2) + (lam11 + v + g)*p*(d-1)/(1-p)/
              # (((D - p*(d-1)*x)/(1-p) + u)**2)
 
-            def f_prime(x): return (d - 1) / u - p * (d - 1) / (lam11 + v) / \
+            def f_prime(x): 
+                return (d - 1) / u - p * (d - 1) / (lam11 + v) / \
             (1 - p) - (d - 1) / (x + v) * (u / (x + v)) + ( \
                 lam11 + v + g) / ((D - p * (d - 1) * x) / (1 - p) + u) * \
                  p * (d - 1) \
@@ -359,12 +365,14 @@ def solve_small_pos(u, v, d, g, p, P, lam10=None, lam11=None, lam21=None):
         else:  # fix lam10
             D = max((P - (1 - p) * lam10) / p, 0.0)
 
-            def f(x): return symKL_objective(lam10=lam10, lam20=LAM20,
-                                             lam11=D - (d - 1) * x, 
+            def f(x): \
+                return symKL_objective(lam10=lam10, lam20=LAM20,\
+                                             lam11=D - (d - 1) * x, \
                                             lam21=x, u=u, v=v, d=d, g=g)
             # f_prime = lambda x: (d-1)/u - (d-1)/(lam10+u) - 
                 # (d-1)*u/((x+v)**2) + (lam10 + u + g)*(d-1)/((D-(d-1)*x+v)**2)
-            def f_prime(x): return (d - 1) / u - (d - 1) / (lam10 + u) - \
+            def f_prime(x): \
+                return (d - 1) / u - (d - 1) / (lam10 + u) - \
                                             (d - 1) / (x + v) * ( \
                     u / (x + v)) + (lam10 + u + g) / (D - (d - 1) * x + v) \
                                      * (d - 1) / (D - (d - 1) * x + v)
