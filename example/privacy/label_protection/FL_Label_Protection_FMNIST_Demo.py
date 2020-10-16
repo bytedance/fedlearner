@@ -310,28 +310,28 @@ def KL_gradient_perturb(x):
         scale = init_scale
         g_norm_square = g_diff_norm ** 2
 
-        def print_tensor(pos_g_mean, neg_g_mean, g_diff):
-            logging.info(
-                "gradient pos_g_mean: {}, neg_g_mean: {}".format(
-                    np.mean(pos_g_mean),
-                    np.mean(neg_g_mean)))
-            logging.info(
-                "gradient pos_g_max: {}, neg_g_max: {}".format(
-                    np.amax(pos_g_mean),
-                    np.amax(neg_g_mean)))
-            logging.info(
-                "gradient pos_g_min: {}, neg_g_min: {}".format(
-                    np.amin(pos_g_mean),
-                    np.amin(neg_g_mean)))
-            logging.info("gradient pos_g_norm: {}, neg_g_norm: {}".format(
-                np.linalg.norm(pos_g_mean), np.linalg.norm(neg_g_mean)))
-            logging.info(
-                "gradient g_diff_mean: {}, g_diff_min: {}, g_diff_max: {}, \
-                g_diff_norm: {}".format(
-                    np.mean(g_diff),
-                    np.amin(g_diff),
-                    np.amax(g_diff),
-                    np.linalg.norm(g_diff)))
+        # def print_tensor(pos_g_mean, neg_g_mean, g_diff):
+        #     logging.info(
+        #         "gradient pos_g_mean: {}, neg_g_mean: {}".format(
+        #             np.mean(pos_g_mean),
+        #             np.mean(neg_g_mean)))
+        #     logging.info(
+        #         "gradient pos_g_max: {}, neg_g_max: {}".format(
+        #             np.amax(pos_g_mean),
+        #             np.amax(neg_g_mean)))
+        #     logging.info(
+        #         "gradient pos_g_min: {}, neg_g_min: {}".format(
+        #             np.amin(pos_g_mean),
+        #             np.amin(neg_g_mean)))
+        #     logging.info("gradient pos_g_norm: {}, neg_g_norm: {}".format(
+        #         np.linalg.norm(pos_g_mean), np.linalg.norm(neg_g_mean)))
+        #     logging.info(
+        #         "gradient g_diff_mean: {}, g_diff_min: {}, g_diff_max: {}, \
+        #         g_diff_norm: {}".format(
+        #             np.mean(g_diff),
+        #             np.amin(g_diff),
+        #             np.amax(g_diff),
+        #             np.linalg.norm(g_diff)))
 
         def compute_lambdas_tf2(
             u,
@@ -438,22 +438,22 @@ def KL_gradient_perturb(x):
                 v,
                 d,
                 g_norm_square)
-            logging.info(
-                "u: {}, v:{}, scale:{}, d:{}, g_diff_norm_square:{}, p:{},\
-                 sumKL_threshold:{}, current_kl: {}".format(
-                    u,
-                    v,
-                    scale,
-                    d,
-                    g_norm_square,
-                    p,
-                    sumKL_threshold,
-                    kl_obj))
+            # logging.info(
+            #     "u: {}, v:{}, scale:{}, d:{}, g_diff_norm_square:{}, p:{},\
+            #      sumKL_threshold:{}, current_kl: {}".format(
+            #         u,
+            #         v,
+            #         scale,
+            #         d,
+            #         g_norm_square,
+            #         p,
+            #         sumKL_threshold,
+            #         kl_obj))
 
             if kl_obj < sumKL_threshold:
-                logging.info(
-                    "lam10: {}, lam20: {}, lam11:{}, lam21:{}, sumKL:{}".format(
-                        0.0, 0.0, 0.0, 0.0, kl_obj))
+                # logging.info(
+                #     "lam10: {}, lam20: {}, lam11:{}, lam21:{}, sumKL:{}".format(
+                #         0.0, 0.0, 0.0, 0.0, kl_obj))
                 return np.float32(0.0), np.float32(
                     0.0), np.float32(0.0), np.float32(0.0), kl_obj
 
@@ -472,35 +472,35 @@ def KL_gradient_perturb(x):
                                        lam20_init=lam20,
                                        lam11_init=lam11,
                                        lam21_init=lam21)
-                logging.info(
-                    'scale: {}, sumKL: {}, P:{}, type_scale: {}, type_sumKL: \
-                    {}, type_P:{}'.format(
-                        scale, sumKL, P, type(scale), type(sumKL), type(P)))
+                # logging.info(
+                #     'scale: {}, sumKL: {}, P:{}, type_scale: {}, type_sumKL: \
+                #     {}, type_P:{}'.format(
+                #         scale, sumKL, P, type(scale), type(sumKL), type(P)))
                 if not dynamic or sumKL <= sumKL_threshold:
                     break
 
                 scale *= np.float32(1.5)  # loosen the power constraint
-            logging.info(
-                "lam10: {}, lam20: {}, lam11:{}, lam21:{}, sumKL:{}".format(
-                    lam10, lam20, lam11, lam21, sumKL))
-            logging.info(
-                "math.sqrt(lam10-lam20): {}, math.sqrt(lam11 - lam21): \
-                {}".format(
-                    np.sqrt(
-                        (lam10 - lam20)),
-                    np.sqrt(
-                        (lam11 - lam21))))
-            logging.info(
-                "math.sqrt(lam10-lam20)/g_diff_norm: {}, math.sqrt(lam11 - \
-                lam21)/g_diff_norm: {}".format(
-                    np.sqrt(
-                        (lam10 - lam20) / g_norm_square),
-                    np.sqrt(
-                        (lam11 - lam21) / g_norm_square)))
+            # logging.info(
+            #     "lam10: {}, lam20: {}, lam11:{}, lam21:{}, sumKL:{}".format(
+            #         lam10, lam20, lam11, lam21, sumKL))
+            # logging.info(
+            #     "math.sqrt(lam10-lam20): {}, math.sqrt(lam11 - lam21): \
+            #     {}".format(
+            #         np.sqrt(
+            #             (lam10 - lam20)),
+            #         np.sqrt(
+            #             (lam11 - lam21))))
+            # logging.info(
+            #     "math.sqrt(lam10-lam20)/g_diff_norm: {}, math.sqrt(lam11 - \
+            #     lam21)/g_diff_norm: {}".format(
+            #         np.sqrt(
+            #             (lam10 - lam20) / g_norm_square),
+            #         np.sqrt(
+            #             (lam11 - lam21) / g_norm_square)))
 
-            logging.info(
-                'solve_isotropic_covariance solving time: {}'.format(
-                    time.time() - start))
+            # logging.info(
+            #     'solve_isotropic_covariance solving time: {}'.format(
+            #         time.time() - start))
 
             return lam10, lam20, lam11, lam21, sumKL
 
@@ -888,6 +888,9 @@ print(
         args.batch_size,
         regularization_weight_l2,
         ada_gra_lr))
+
+global _Batch_Labels, _Batch_Positive_Predicted_Probabilities
+
 train(
     train_ds_iter,
     test_ds_iter,
