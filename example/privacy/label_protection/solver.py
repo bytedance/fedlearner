@@ -2,9 +2,8 @@ import sys
 import logging
 import math
 import random
-import numpy as np
 import time
-from collections import Counter
+import numpy as np
 
 OBJECTIVE_EPSILON = np.float32(1e-16)
 CONVEX_EPSILON = np.float32(1e-20)
