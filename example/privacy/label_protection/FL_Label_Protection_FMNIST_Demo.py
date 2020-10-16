@@ -604,7 +604,6 @@ def train(
         regularization_weight=0.1):
     best_test_auc = 0
     best_epoch = 0
-    
     for epoch in range(num_epochs):
         train_l_sum, train_acc_sum, n = 0.0, 0.0, 0
         leakage_auc_baseline.reset_states()
@@ -890,7 +889,8 @@ print(
         regularization_weight_l2,
         ada_gra_lr))
 
-# global _Batch_Labels, _Batch_Positive_Predicted_Probabilities
+global _Batch_Labels, _Batch_Positive_Predicted_Probabilities
+_Batch_Labels, _Batch_Positive_Predicted_Probabilities = None, None
 
 train(
     train_ds_iter,
