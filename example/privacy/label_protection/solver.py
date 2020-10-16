@@ -13,21 +13,21 @@ sys.setrecursionlimit(5000000)
 
 
 def symKL_objective(lam10, lam20, lam11, lam21, u, v, d, g_norm_square):
-    objective = np.float32((d - np.float32(1)) * (lam20 + u) / (lam21 + v)
-                           + (d - np.float32(1)) * (lam21 + v) / (lam20 + u)
-                           + (lam10 + u + g_norm_square) / (lam11 + v)
+    objective = np.float32((d - np.float32(1)) * (lam20 + u) / (lam21 + v) \
+                           + (d - np.float32(1)) * (lam21 + v) / (lam20 + u) \
+                           + (lam10 + u + g_norm_square) / (lam11 + v) \
                            + (lam11 + v + g_norm_square) / (lam10 + u))
 
     return objective
 
 
 def symKL_objective_zero_uv(lam10, lam11, g_norm_square):
-    objective = np.float32((lam10 + g_norm_square) / lam11
-                           + (lam11 + g_norm_square) / lam10)
+    objective = np.float32((lam10 + g_norm_square) / lam11 \
+        + (lam11 + g_norm_square) / lam10)
     return objective
 
 
-def solve_isotropic_covariance(u, v, d, g_norm_square, p, P,
+def solve_isotropic_covariance(u, v, d, g_norm_square, p, P, \
                                lam10_init=None, lam20_init=None,
                                lam11_init=None, lam21_init=None):
 
@@ -57,7 +57,7 @@ def solve_isotropic_covariance(u, v, d, g_norm_square, p, P,
                     lam20 = lam20_init
                     # print('here')
                 else:
-                    lam20 = np.float32(random.random() * P /
+                    lam20 = np.float32(random.random() * P / \
                                        (np.float32(1.0) - p) / d)
                 lam10, lam11 = None, None
                 # print('lam21', lam21)
@@ -74,7 +74,7 @@ def solve_isotropic_covariance(u, v, d, g_norm_square, p, P,
                 if lam10_init:
                     lam10 = lam10_init
                 else:
-                    lam10 = np.float32(random.random() *
+                    lam10 = np.float32(random.random() * \
                                        P / (np.float32(1.0) - p))
                 lam11, lam20 = None, None
             solutions.append(
@@ -139,7 +139,7 @@ def solve_zero_uv(g_norm_square, p, P):
     tau = np.float32(
         max((P / p) / (E + (np.float32(1.0) - p) / p), np.float32(0.0)))
     # print('tau', tau)
-    if tau >= 0 and tau <= P / (np.float32(1.0) - p):
+    if 0 <= tau <= P / (np.float32(1.0) - p):
         lam10 = tau
         lam11 = np.float32(max(P / p - (np.float32(1.0) - p)
                                * tau / p, np.float32(0.0)))
@@ -171,7 +171,7 @@ def solve_zero_uv(g_norm_square, p, P):
         lam11,
         np.float32(0.0),
         np.float32(
-            np.float32(0.5) *
+            np.float32(0.5) * \
             objective -
             np.float32(1.0)))
 
@@ -214,13 +214,12 @@ def solve_small_neg(
                 max((D / p + v - E * u) / (E + (np.float32(1.0) - p) / p), \
                  np.float32(0.0)))
             # print('tau', tau)
-            if tau >= lam20 and tau <= np.float32(
+            if  lam20 <= tau <= np.float32(
                     P / (np.float32(1.0) - p) - (d - np.float32(1.0)) * lam20):
-                # print('A')
                 lam10 = tau
                 lam11 = np.float32(
-                    max(D / p - (np.float32(1.0) - p) * tau / p, \
-                        np.float32(0.0)))
+                        max(D / p - (np.float32(1.0) - p) * tau / p, \
+                            np.float32(0.0)))
             else:
                 # print('B')
                 lam10_case1, lam11_case1 = lam20, np.float32( \
@@ -320,9 +319,9 @@ def solve_small_neg(
                 d=d,
                 g_norm_square=g_norm_square))
 
-        if (i >= 3 and objective_value_list[-4] -
+        if (i >= 3 and objective_value_list[-4] - \
                 objective_value_list[-1] < OBJECTIVE_EPSILON) or i >= 100:
-            return (lam10, lam20, lam11, LAM21, np.float32(
+            return (lam10, lam20, lam11, LAM21, np.float32(\
                 0.5) * objective_value_list[-1] - d)
 
         i += 1
@@ -363,9 +362,8 @@ def solve_small_pos(
                 max((D / p + v - E * u) / (E + (np.float32(1.0) - p) / p), \
                     np.float32(0.0)))
             # print('tau', tau)
-            if tau >= np.float32(0.0) and tau <= ( \
-                    P - p * d * lam21) / (np.float32(1.0) - p):
-                # print('A')
+            if np.float32(0.0) <= tau <= (P - p * d * lam21) / \
+                                    (np.float32(1.0) - p):
                 lam10 = tau
                 lam11 = np.float32( \
                     max(D / p - (np.float32(1.0) - p) * tau / p, \
@@ -445,12 +443,12 @@ def solve_small_pos(
                 (D - (d - np.float32(1.0)) * x + v) * (d - np.float32(1.0)) / \
                 (D - (d - np.float32(1.0)) * x + v)
 
-            lam21 = convex_min_1d(
+            lam21 = convex_min_1d(\
                 xl=np.float32(0.0),
                 xr=D / d,
                 f=f,
                 f_prime=f_prime)
-            lam11 = np.float32(
+            lam11 = np.float32(\
                 max(D - (d - np.float32(1.0)) * lam21, np.float32(0.0)))
 
         # if lam10 <0 or LAM20 <0 or lam11 <0 or lam21 <0:
@@ -472,14 +470,10 @@ def solve_small_pos(
         # print('sum', p * lam11 + p*(d-1)*lam21 + \
             # (1-p) * lam10 + (1-p)*(d-1)*LAM20)
 
-        # logging.info(
-        #     "solve_small_pos, iter: {}, objective_value_list[-1]: {}".format(i,
-        #      objective_value_list[-1]))
-
-        if (i >= 3 and objective_value_list[-4] -
+        if (i >= 3 and objective_value_list[-4] - \
                 objective_value_list[-1] < OBJECTIVE_EPSILON) or i >= 100:
             # logging.info("solve_small_pos, iter: {}, terminated".format(i))
-            return (lam10, LAM20, lam11, lam21, np.float32(
+            return (lam10, LAM20, lam11, lam21, np.float32(\
                 np.float32(0.5) * objective_value_list[-1] - d))
 
         i += 1
@@ -506,8 +500,7 @@ def convex_min_1d(xl, xr, f, f_prime):
         return np.float32(xl)
     if f_prime(xm) > 0:
         return convex_min_1d(xl=xl, xr=xm, f=f, f_prime=f_prime)
-    else:
-        return convex_min_1d(xl=xm, xr=xr, f=f, f_prime=f_prime)
+    return convex_min_1d(xl=xm, xr=xr, f=f, f_prime=f_prime)
 
 
 def small_neg_problem_string(u, v, d, g_norm_square, p, P):
@@ -528,7 +521,7 @@ def zero_uv_problem_string(g_norm_square, p, P):
         {1}*y+(1-{1})*x={2}'.format(g_norm_square, p, P)
 
 
-# if __name__ == '__main__':\
+# if __name__ == '__main__':
 #     test_neg = False
 
 #     u = 3.229033590534426e-15

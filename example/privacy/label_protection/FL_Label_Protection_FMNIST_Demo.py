@@ -11,7 +11,7 @@ import numpy as np
 import tensorflow as tf
 from tensorflow.keras.datasets import fashion_mnist
 from solver import solve_isotropic_covariance, symKL_objective
-
+import shared_var
 parser = argparse.ArgumentParser()
 parser.add_argument("--batch_size", type=int, default=300)
 parser.add_argument('--gpu_option', action='store_true')
@@ -242,8 +242,9 @@ def KL_gradient_perturb(x):
     # elif dynamic:
     #     print('using sumKL_threshold', sumKL_threshold)
 
-    global _Batch_Labels
-    batch_y = tf.reshape(tf.cast(_Batch_Labels, dtype=tf.float32), [-1, 1])
+    # global _Batch_Labels
+    batch_y = tf.reshape(tf.cast(shared_var.G_Batch_Labels, \
+                            dtype=tf.float32), [-1, 1])
 
     def grad_fn(g):
         # logging.info("gradient shape_g: {}".format(tf.shape(g)))
@@ -624,12 +625,12 @@ def train(
         gradient_list_3 = []
         label_list = []
         for (idx, (X, y)) in enumerate(train_iter):
-            global _Batch_Labels, _Batch_Positive_Predicted_Probabilities
+            # global _Batch_Labels, _Batch_Positive_Predicted_Probabilities
             batch_size = X.shape[0]
             b_s = datetime.datetime.now()
-            _Batch_Labels = y
-            _Batch_Positive_Predicted_Probabilities = tf.math.sigmoid(
-                predict(X))
+            shared_var.G_Batch_Labels = y
+            shared_var.G_Batch_Positive_Predicted_Probabilities = \
+                        tf.math.sigmoid(predict(X))
             with tf.GradientTape(persistent=False) as tape:
                 hidden_logits = tf.nn.relu(
                     tf.matmul(tf.reshape(X, shape=(-1, W.shape[0])), W) + b)
@@ -889,8 +890,8 @@ print(
         regularization_weight_l2,
         ada_gra_lr))
 
-global _Batch_Labels, _Batch_Positive_Predicted_Probabilities
-_Batch_Labels, _Batch_Positive_Predicted_Probabilities = None, None
+# global _Batch_Labels, _Batch_Positive_Predicted_Probabilities
+# _Batch_Labels, _Batch_Positive_Predicted_Probabilities = None, None
 
 train(
     train_ds_iter,
