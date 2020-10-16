@@ -393,50 +393,95 @@ def KL_gradient_perturb(x):
                         time.time() - start))
             return lam10, lam20, lam11, lam21, sumKL
 
-        # def compute_lambdas_tf1(u, v, scale, d, g_norm_square, p, sumKL_threshold, pos_g_mean, neg_g_mean, g_diff):
-        #     print_tensor(pos_g_mean, neg_g_mean, g_diff)
-        #     u = np.float32(np.asscalar(u))
-        #     v = np.float32(np.asscalar(v))
-        #     scale = np.float32(np.asscalar(scale))
-        #     d = np.float32(np.asscalar(d))
-        #     g_norm_square = np.float32(np.asscalar(g_norm_square))
-        #     p = np.float32(np.asscalar(p))
-        #     sumKL_threshold = np.float32(np.asscalar(sumKL_threshold))
+        def compute_lambdas_tf1(
+            u,
+            v,
+            scale,
+            d,
+            g_norm_square,
+            p,
+            sumKL_threshold,
+            pos_g_mean,
+            neg_g_mean,
+                g_diff):
+            print_tensor(pos_g_mean, neg_g_mean, g_diff)
+            u = np.float32(np.asscalar(u))
+            v = np.float32(np.asscalar(v))
+            scale = np.float32(np.asscalar(scale))
+            d = np.float32(np.asscalar(d))
+            g_norm_square = np.float32(np.asscalar(g_norm_square))
+            p = np.float32(np.asscalar(p))
+            sumKL_threshold = np.float32(np.asscalar(sumKL_threshold))
 
-        #     kl_obj = symKL_objective(np.float32(0.0), np.float32(0.0), np.float32(0.0), np.float32(0.0), u, v, d, g_norm_square)
-        #     logging.info("u: {}, v:{}, scale:{}, d:{}, g_diff_norm_square:{}, p:{}, sumKL_threshold:{}, current_kl: {}".format(u, v, scale, d, g_norm_square, p, sumKL_threshold, kl_obj))
+            kl_obj = symKL_objective(
+                np.float32(0.0),
+                np.float32(0.0),
+                np.float32(0.0),
+                np.float32(0.0),
+                u,
+                v,
+                d,
+                g_norm_square)
+            logging.info(
+                "u: {}, v:{}, scale:{}, d:{}, g_diff_norm_square:{}, p:{}, sumKL_threshold:{}, current_kl: {}".format(
+                    u,
+                    v,
+                    scale,
+                    d,
+                    g_norm_square,
+                    p,
+                    sumKL_threshold,
+                    kl_obj))
 
-        #     if kl_obj < sumKL_threshold:
-        #         logging.info("lam10: {}, lam20: {}, lam11:{}, lam21:{}, sumKL:{}".format(0.0, 0.0, 0.0, 0.0, kl_obj))
-        # return np.float32(0.0), np.float32(0.0), np.float32(0.0),
-        # np.float32(0.0), kl_obj
+            if kl_obj < sumKL_threshold:
+                logging.info(
+                    "lam10: {}, lam20: {}, lam11:{}, lam21:{}, sumKL:{}".format(
+                        0.0, 0.0, 0.0, 0.0, kl_obj))
+                return np.float32(0.0), np.float32(
+                    0.0), np.float32(0.0), np.float32(0.0), kl_obj
 
-        #     lam10, lam20, lam11, lam21 = None, None, None, None
-        #     start = time.time()
-        #     while True:
-        #         P = scale * g_norm_square
-        #         lam10, lam20, lam11, lam21, sumKL = solve_isotropic_covariance(u=u,
-        #                                                                 v=v,
-        #                                                                 d=d,
-        #                                                                 g_norm_square=g_norm_square,
-        #                                                                 p=p,
-        #                                                                 P=P,
-        #                                                                 lam10_init=lam10,
-        #                                                                 lam20_init=lam20,
-        #                                                                 lam11_init=lam11,
-        #                                                                 lam21_init=lam21)
-        #         logging.info('scale: {}, sumKL: {}, P:{}, type_scale: {}, type_sumKL: {}, type_P:{}'.format(scale, sumKL, P, type(scale), type(sumKL), type(P)))
-        #         if not dynamic or sumKL <= sumKL_threshold:
-        #             break
+            lam10, lam20, lam11, lam21 = None, None, None, None
+            start = time.time()
+            while True:
+                P = scale * g_norm_square
+                lam10, lam20, lam11, lam21, sumKL = solve_isotropic_covariance(u=u,
+                                                                               v=v,
+                                                                               d=d,
+                                                                               g_norm_square=g_norm_square,
+                                                                               p=p,
+                                                                               P=P,
+                                                                               lam10_init=lam10,
+                                                                               lam20_init=lam20,
+                                                                               lam11_init=lam11,
+                                                                               lam21_init=lam21)
+                logging.info(
+                    'scale: {}, sumKL: {}, P:{}, type_scale: {}, type_sumKL: {}, type_P:{}'.format(
+                        scale, sumKL, P, type(scale), type(sumKL), type(P)))
+                if not dynamic or sumKL <= sumKL_threshold:
+                    break
 
-        #         scale *= np.float32(1.5) # loosen the power constraint
-        #     logging.info("lam10: {}, lam20: {}, lam11:{}, lam21:{}, sumKL:{}".format(lam10, lam20, lam11, lam21, sumKL))
-        #     logging.info("math.sqrt(lam10-lam20): {}, math.sqrt(lam11 - lam21): {}".format(np.sqrt((lam10 - lam20)), np.sqrt((lam11 - lam21))))
-        #     logging.info("math.sqrt(lam10-lam20)/g_diff_norm: {}, math.sqrt(lam11 - lam21)/g_diff_norm: {}".format(np.sqrt((lam10 - lam20)/g_norm_square), np.sqrt((lam11 - lam21)/g_norm_square)))
+                scale *= np.float32(1.5)  # loosen the power constraint
+            logging.info(
+                "lam10: {}, lam20: {}, lam11:{}, lam21:{}, sumKL:{}".format(
+                    lam10, lam20, lam11, lam21, sumKL))
+            logging.info(
+                "math.sqrt(lam10-lam20): {}, math.sqrt(lam11 - lam21): {}".format(
+                    np.sqrt(
+                        (lam10 - lam20)),
+                    np.sqrt(
+                        (lam11 - lam21))))
+            logging.info(
+                "math.sqrt(lam10-lam20)/g_diff_norm: {}, math.sqrt(lam11 - lam21)/g_diff_norm: {}".format(
+                    np.sqrt(
+                        (lam10 - lam20) / g_norm_square),
+                    np.sqrt(
+                        (lam11 - lam21) / g_norm_square)))
 
-        #     logging.info('solve_isotropic_covariance solving time: {}'.format(time.time() - start))
+            logging.info(
+                'solve_isotropic_covariance solving time: {}'.format(
+                    time.time() - start))
 
-        #     return lam10, lam20, lam11, lam21, sumKL
+            return lam10, lam20, lam11, lam21, sumKL
 
         # tensorflow 1.x
         # lam10, lam20, lam11, lam21, sumKL = tf.py_func(compute_lambdas_tf1, [u, v, scale, d, g_norm_square, p, sumKL_threshold,pos_g_mean, neg_g_mean, g_diff], [tf.float32, tf.float32, tf.float32, tf.float32, tf.float32])
