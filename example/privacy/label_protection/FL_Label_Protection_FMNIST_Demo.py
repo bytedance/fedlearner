@@ -4,16 +4,22 @@ import sys
 import os
 import argparse
 import datetime
+import time
 import random
 import numpy as np
+import logging
 import tensorflow as tf
 from tensorflow.keras.datasets import fashion_mnist
+from solver import solve_isotropic_covariance, symKL_objective
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--batch_size", type=int, default=300)
 parser.add_argument('--gpu_option', action='store_true')
+parser.add_argument('--gpu_id', type=int, default=0)
 parser.add_argument("--num_epochs", type=int, default=1)
 parser.add_argument("--num_outputs", type=int, default=2)
+parser.add_argument('--max_norm', action='store_true')
+parser.add_argument('--sumKL', action='store_true')
 parser.add_argument('--debug', action='store_true')
 args = parser.parse_args()
 
@@ -53,6 +59,7 @@ print(
         total_test_instances,
         num_batchs))
 
+
 def change_label(y, ratio=10):
     def condition(x):
         if x == 1:
@@ -64,6 +71,7 @@ def change_label(y, ratio=10):
     # res = np.array(list(map(lambda x: condition(x), l)))
     print("positive ratio: {}".format(sum(res) / len(l)))
     return res
+
 
 if args.num_outputs == 2:
     y_train = change_label(y_train)
@@ -85,10 +93,12 @@ else:
     test_ds_iter = tf.data.Dataset.from_tensor_slices(
         (x_test, y_test)).batch(batch_size_test)
 
+
 def get_fashion_mnist_labels(labels):
     text_labels = ['t-shirt', 'trouser', 'pullover', 'dress', 'coat',
                    'sandal', 'shirt', 'sneaker', 'bag', 'ankle boot']
     return [text_labels[int(i)] for i in labels]
+
 
 if sys.platform.startswith('win'):
     num_workers = 0
@@ -170,6 +180,7 @@ def normalized_norm(vector):
     norm_g = norm_g / tf.math.reduce_max(norm_g)
     return norm_g
 
+
 def label_leakge_auc(y, predicted_value, m_auc):
     predicted_value = tf.math.abs(predicted_value)
     val_max = tf.math.reduce_max(predicted_value)
@@ -196,9 +207,11 @@ def label_leakge_auc(y, predicted_value, m_auc):
 #         return res
 #     return x, grad_fn
 
+
 @tf.custom_gradient
 def gradient_masking(x):
     # add scalar noise to align with the maximum norm in the batch
+    # (expectation norm alignment)
     def grad_fn(g):
         g_norm = tf.reshape(tf.norm(g, axis=1, keepdims=True), [-1, 1])
         max_norm = tf.reduce_max(g_norm)
@@ -209,6 +222,262 @@ def gradient_masking(x):
         gaussian_noise = standard_gaussian_noise * stds
         res = g * (1 + gaussian_noise)
         return res
+    return x, grad_fn
+
+
+# from gradient_noise_solver_tf2 import solve_isotropic_covariance, symKL_objective
+
+@tf.custom_gradient
+def KL_gradient_perturb(x):
+    uv_choice = "uv"  # "uv"
+    init_scale = 1.0
+
+    p_frac = 'pos_frac'
+    dynamic = True
+    error_prob_lower_bound = None
+    sumKL_threshold = 0.16  # 0.25 #0.81 #0.64#0.16 #0.64
+
+    if dynamic and (error_prob_lower_bound is not None):
+        sumKL_threshold = (2 - 4 * error_prob_lower_bound)**2
+        # print('error_prob_lower_bound', error_prob_lower_bound)
+        # print('implied sumKL_threshold', sumKL_threshold)
+    # elif dynamic:
+    #     print('using sumKL_threshold', sumKL_threshold)
+
+    global _Batch_Labels
+    batch_y = tf.reshape(tf.cast(_Batch_Labels, dtype=tf.float32), [-1, 1])
+
+    def grad_fn(g):
+        # logging.info("gradient shape_g: {}".format(tf.shape(g)))
+        # print('start')
+        # start = time.time()
+        y = batch_y
+        # pos_g = g[y==1]
+        pos_g = tf.boolean_mask(
+            g, tf.tile(
+                tf.cast(
+                    y, dtype=tf.int32), [
+                    1, tf.shape(g)[1]]))
+        pos_g = tf.reshape(pos_g, [-1, tf.shape(g)[1]])
+
+        pos_g_mean = tf.math.reduce_mean(
+            pos_g, axis=0, keepdims=True)  # shape [1, d]
+        pos_coordinate_var = tf.reduce_mean(
+            tf.math.square(
+                pos_g - pos_g_mean),
+            axis=0)  # use broadcast
+
+        # neg_g = g[y==0]
+        neg_g = tf.boolean_mask(g, tf.tile(
+            1 - tf.cast(y, dtype=tf.int32), [1, tf.shape(g)[1]]))
+        neg_g = tf.reshape(neg_g, [-1, tf.shape(g)[1]])
+
+        neg_g_mean = tf.math.reduce_mean(
+            neg_g, axis=0, keepdims=True)  # shape [1, d]
+        neg_coordinate_var = tf.reduce_mean(
+            tf.math.square(neg_g - neg_g_mean), axis=0)
+
+        avg_pos_coordinate_var = tf.reduce_mean(pos_coordinate_var)
+        avg_neg_coordinate_var = tf.reduce_mean(neg_coordinate_var)
+
+        if tf.math.is_nan(avg_pos_coordinate_var) or tf.math.is_nan(
+                avg_neg_coordinate_var):
+            if args.debug:
+                print("no negative/positive instances in the corresponding batch......")
+            return g
+        g_diff = pos_g_mean - neg_g_mean
+        # g_diff_norm = float(tf.norm(tensor=g_diff).numpy())
+        g_diff_norm = tf.norm(tensor=g_diff)
+        if uv_choice == 'uv':
+            u = avg_neg_coordinate_var
+            v = avg_pos_coordinate_var
+        elif uv_choice == 'same':
+            u = (avg_neg_coordinate_var + avg_pos_coordinate_var) / 2.0
+            v = (avg_neg_coordinate_var + avg_pos_coordinate_var) / 2.0
+        elif uv_choice == 'zero':
+            # logging.info("uv_choice: zero")
+            u, v = 0.0, 0.0
+        # d = float(g.shape[1])
+        # d = float(tf.shape(g)[1])
+        d = tf.cast(tf.shape(g)[1], dtype=tf.float32)
+        if p_frac == 'pos_frac':
+            # p = float(tf.math.reduce_mean(y))
+            # p = float(tf.reshape(tf.math.reduce_mean(y), []))
+            p = tf.math.reduce_mean(y)
+            # p = float(tf.reduce_sum(y) / len(y)) # p is set as the fraction
+            # of positive in the batch
+        else:
+            p = float(p_frac)
+
+        scale = init_scale
+        g_norm_square = g_diff_norm ** 2
+
+        # def print_tensor(pos_g_mean, neg_g_mean, g_diff):
+        #     logging.info("gradient pos_g_mean: {}, neg_g_mean: {}".format(np.mean(pos_g_mean), np.mean(neg_g_mean)))
+        #     logging.info("gradient pos_g_max: {}, neg_g_max: {}".format(np.amax(pos_g_mean), np.amax(neg_g_mean)))
+        #     logging.info("gradient pos_g_min: {}, neg_g_min: {}".format(np.amin(pos_g_mean), np.amin(neg_g_mean)))
+        #     logging.info("gradient pos_g_norm: {}, neg_g_norm: {}".format(np.linalg.norm(pos_g_mean), np.linalg.norm(neg_g_mean)))
+        #     logging.info("gradient g_diff_mean: {}, g_diff_min: {}, g_diff_max: {}, g_diff_norm: {}".format(np.mean(g_diff), np.amin(g_diff), np.amax(g_diff), np.linalg.norm(g_diff)))
+
+        def compute_lambdas_tf2(
+            u,
+            v,
+            scale,
+            d,
+            g_norm_square,
+            p,
+            sumKL_threshold,
+            pos_g_mean,
+            neg_g_mean,
+                g_diff):
+            if args.debug:
+                print(
+                    "u: {}, v:{}, scale:{}, d:{}, g_diff_norm_square:{}, p:{}, sumKL_threshold:{}".format(
+                        u,
+                        v,
+                        scale,
+                        d,
+                        g_norm_square,
+                        p,
+                        sumKL_threshold))
+            # kl_obj = symKL_objective(
+            #     0.0, 0.0, 0.0, 0.0, u, v, d, g_norm_square)
+            # if args.debug:
+            #     print(
+            #         "u: {}, v:{}, scale:{}, d:{}, g_diff_norm_square:{}, p:{}, sumKL_threshold:{}, current_kl: {}".format(
+            #             u,
+            #             v,
+            #             scale,
+            #             d,
+            #             g_norm_square,
+            #             p,
+            #             sumKL_threshold,
+            #             kl_obj))
+
+            # if kl_obj < sumKL_threshold:
+            #     if args.debug:
+            #         print(
+            #             "lam10: {}, lam20: {}, lam11:{}, lam21:{}, sumKL:{}".format(
+            #                 0.0, 0.0, 0.0, 0.0, kl_obj))
+            #     return np.float32(0.0), np.float32(
+            #         0.0), np.float32(0.0), np.float32(0.0), kl_obj
+
+            lam10, lam20, lam11, lam21 = None, None, None, None
+            start = time.time()
+            while True:
+                P = scale * g_norm_square
+                lam10, lam20, lam11, lam21, sumKL = solve_isotropic_covariance(u=u,
+                                                                               v=v,
+                                                                               d=d,
+                                                                               g_norm_square=g_norm_square,
+                                                                               p=p,
+                                                                               P=P,
+                                                                               lam10_init=lam10,
+                                                                               lam20_init=lam20,
+                                                                               lam11_init=lam11,
+                                                                               lam21_init=lam21)
+                if args.debug:
+                    print('scale: {}, sumKL: {}, P:{}'.format(scale, sumKL, P))
+                if not dynamic or sumKL <= sumKL_threshold:
+                    break
+
+                scale *= 1.5  # loosen the power constraint
+            if args.debug:
+                print(
+                    "lam10: {}, lam20: {}, lam11:{}, lam21:{}, sumKL:{}".format(
+                        lam10, lam20, lam11, lam21, sumKL))
+                # logging.info("math.sqrt(lam10-lam20): {}, math.sqrt(lam11 - lam21): {}".format(np.sqrt((lam10 - lam20)), np.sqrt((lam11 - lam21))))
+                # logging.info("math.sqrt(lam10-lam20)/g_diff_norm: {}, math.sqrt(lam11 - lam21)/g_diff_norm: {}".format(np.sqrt((lam10 - lam20)/g_norm_square), np.sqrt((lam11 - lam21)/g_norm_square)))
+                print(
+                    'solve_isotropic_covariance solving time: {}'.format(
+                        time.time() - start))
+            return lam10, lam20, lam11, lam21, sumKL
+
+        # def compute_lambdas_tf1(u, v, scale, d, g_norm_square, p, sumKL_threshold, pos_g_mean, neg_g_mean, g_diff):
+        #     print_tensor(pos_g_mean, neg_g_mean, g_diff)
+        #     u = np.float32(np.asscalar(u))
+        #     v = np.float32(np.asscalar(v))
+        #     scale = np.float32(np.asscalar(scale))
+        #     d = np.float32(np.asscalar(d))
+        #     g_norm_square = np.float32(np.asscalar(g_norm_square))
+        #     p = np.float32(np.asscalar(p))
+        #     sumKL_threshold = np.float32(np.asscalar(sumKL_threshold))
+
+        #     kl_obj = symKL_objective(np.float32(0.0), np.float32(0.0), np.float32(0.0), np.float32(0.0), u, v, d, g_norm_square)
+        #     logging.info("u: {}, v:{}, scale:{}, d:{}, g_diff_norm_square:{}, p:{}, sumKL_threshold:{}, current_kl: {}".format(u, v, scale, d, g_norm_square, p, sumKL_threshold, kl_obj))
+
+        #     if kl_obj < sumKL_threshold:
+        #         logging.info("lam10: {}, lam20: {}, lam11:{}, lam21:{}, sumKL:{}".format(0.0, 0.0, 0.0, 0.0, kl_obj))
+        # return np.float32(0.0), np.float32(0.0), np.float32(0.0),
+        # np.float32(0.0), kl_obj
+
+        #     lam10, lam20, lam11, lam21 = None, None, None, None
+        #     start = time.time()
+        #     while True:
+        #         P = scale * g_norm_square
+        #         lam10, lam20, lam11, lam21, sumKL = solve_isotropic_covariance(u=u,
+        #                                                                 v=v,
+        #                                                                 d=d,
+        #                                                                 g_norm_square=g_norm_square,
+        #                                                                 p=p,
+        #                                                                 P=P,
+        #                                                                 lam10_init=lam10,
+        #                                                                 lam20_init=lam20,
+        #                                                                 lam11_init=lam11,
+        #                                                                 lam21_init=lam21)
+        #         logging.info('scale: {}, sumKL: {}, P:{}, type_scale: {}, type_sumKL: {}, type_P:{}'.format(scale, sumKL, P, type(scale), type(sumKL), type(P)))
+        #         if not dynamic or sumKL <= sumKL_threshold:
+        #             break
+
+        #         scale *= np.float32(1.5) # loosen the power constraint
+        #     logging.info("lam10: {}, lam20: {}, lam11:{}, lam21:{}, sumKL:{}".format(lam10, lam20, lam11, lam21, sumKL))
+        #     logging.info("math.sqrt(lam10-lam20): {}, math.sqrt(lam11 - lam21): {}".format(np.sqrt((lam10 - lam20)), np.sqrt((lam11 - lam21))))
+        #     logging.info("math.sqrt(lam10-lam20)/g_diff_norm: {}, math.sqrt(lam11 - lam21)/g_diff_norm: {}".format(np.sqrt((lam10 - lam20)/g_norm_square), np.sqrt((lam11 - lam21)/g_norm_square)))
+
+        #     logging.info('solve_isotropic_covariance solving time: {}'.format(time.time() - start))
+
+        #     return lam10, lam20, lam11, lam21, sumKL
+
+        # tensorflow 1.x
+        # lam10, lam20, lam11, lam21, sumKL = tf.py_func(compute_lambdas_tf1, [u, v, scale, d, g_norm_square, p, sumKL_threshold,pos_g_mean, neg_g_mean, g_diff], [tf.float32, tf.float32, tf.float32, tf.float32, tf.float32])
+
+        lam10, lam20, lam11, lam21, sumKL = compute_lambdas_tf2(
+            u, v, scale, d, g_norm_square, p, sumKL_threshold, pos_g_mean, neg_g_mean, g_diff)
+        lam10, lam20, lam11, lam21, sumKL = tf.reshape(
+            lam10, shape=[1]), tf.reshape(
+            lam20, shape=[1]), tf.reshape(
+            lam11, shape=[1]), tf.reshape(
+                lam21, shape=[1]), tf.reshape(
+                    sumKL, shape=[1]),
+
+        perturbed_g = g
+        y_float = tf.cast(y, dtype=tf.float32)
+
+        noise_1 = tf.reshape(tf.multiply(x=tf.random.normal(shape=tf.shape(y)), y=y_float),
+                             shape=(-1, 1)) * g_diff * (tf.math.sqrt(tf.math.abs(lam11 - lam21)) / g_diff_norm)
+        noise_1 = tf.debugging.check_numerics(
+            noise_1, "noise_1 ERROR", name="noise_1_debugging")
+
+        noise_2 = tf.random.normal(shape=tf.shape(
+            g)) * tf.reshape(y_float, shape=(-1, 1)) * tf.math.sqrt(tf.math.maximum(lam21, 0.0))
+        noise_2 = tf.debugging.check_numerics(
+            noise_2, "noise_2 ERROR", name="noise_2_debugging")
+
+        noise_3 = tf.reshape(tf.multiply(x=tf.random.normal(shape=tf.shape(y)), y=1 - y_float),
+                             shape=(-1, 1)) * g_diff * (tf.math.sqrt(tf.math.abs(lam10 - lam20)) / g_diff_norm)
+        noise_3 = tf.debugging.check_numerics(
+            noise_3, "noise_3 ERROR", name="noise_3_debugging")
+
+        noise_4 = tf.random.normal(shape=tf.shape(
+            g)) * tf.reshape(1 - y_float, shape=(-1, 1)) * tf.math.sqrt(tf.math.maximum(lam20, 0.0))
+        noise_4 = tf.debugging.check_numerics(
+            noise_4, "noise_3 ERROR", name="noise_4_debugging")
+
+        perturbed_g += (noise_1 + noise_2 + noise_3 + noise_4)
+        perturbed_g = tf.debugging.check_numerics(
+            perturbed_g, "perturbed_g ERROR", name="perturbed_g_debugging")
+        return perturbed_g
+
     return x, grad_fn
 
 
@@ -258,7 +527,7 @@ def train(
         regularization_weight=0.1):
     best_test_auc = 0
     best_epoch = 0
-    # global _Batch_Labels, _Batch_Positive_Predicted_Probabilities
+    global _Batch_Labels, _Batch_Positive_Predicted_Probabilities
     for epoch in range(num_epochs):
         train_l_sum, train_acc_sum, n = 0.0, 0.0, 0
         leakage_auc_baseline.reset_states()
@@ -279,18 +548,25 @@ def train(
         gradient_list_3 = []
         label_list = []
         for (idx, (X, y)) in enumerate(train_iter):
-
             batch_size = X.shape[0]
             b_s = datetime.datetime.now()
-            # _Batch_Labels = y
-            # _Batch_Positive_Predicted_Probabilities = tf.math.sigmoid(
-            #     predict(X))
+            _Batch_Labels = y
+            _Batch_Positive_Predicted_Probabilities = tf.math.sigmoid(
+                predict(X))
             with tf.GradientTape(persistent=False) as tape:
                 hidden_logits = tf.nn.relu(
                     tf.matmul(tf.reshape(X, shape=(-1, W.shape[0])), W) + b)
                 hidden_logits_2 = tf.nn.relu(tf.matmul(tf.reshape(
                     hidden_logits, shape=(-1, W1.shape[0])), W1) + b1)
-                hidden_logits_2_masking = gradient_masking(hidden_logits_2)
+
+                hidden_logits_2_masking = hidden_logits_2
+                # using different perturbation methods
+                if args.max_norm:
+                    hidden_logits_2_masking = gradient_masking(hidden_logits_2)
+                if args.sumKL:
+                    hidden_logits_2_masking = KL_gradient_perturb(
+                        hidden_logits_2)
+
                 logits = tf.matmul(tf.reshape(
                     hidden_logits_2_masking, shape=(-1, W2.shape[0])), W2) + b2
                 l = tf.reduce_sum(loss(logits, y)) + regularization_weight * \
@@ -310,20 +586,20 @@ def train(
                 label_leakge_auc(y, tf.norm(
                     grads[-1], axis=-1, keepdims=False), leakage_auc_baseline)
                 label_leakge_auc(y,
-                    tf.norm(grads[-2],
-                    axis=-1,
-                    keepdims=False),
-                    leakage_auc_not_masked_hiddenlayer_2)
+                                 tf.norm(grads[-2],
+                                         axis=-1,
+                                         keepdims=False),
+                                 leakage_auc_not_masked_hiddenlayer_2)
                 label_leakge_auc(y,
-                    tf.norm(grads[-3],
-                    axis=-1,
-                    keepdims=False),
-                    leakage_auc_masked_hiddenlayer_2)
+                                 tf.norm(grads[-3],
+                                         axis=-1,
+                                         keepdims=False),
+                                 leakage_auc_masked_hiddenlayer_2)
                 label_leakge_auc(y,
-                    tf.norm(grads[-4],
-                    axis=-1,
-                    keepdims=False),
-                    leakage_auc_masked_hiddenlayer_1)
+                                 tf.norm(grads[-4],
+                                         axis=-1,
+                                         keepdims=False),
+                                 leakage_auc_masked_hiddenlayer_1)
                 gradient_list.append(grads[-1])
                 gradient_list_1.append(grads[-2])
                 gradient_list_2.append(grads[-3])
@@ -374,17 +650,17 @@ def train(
             gradients_stack_2_neg_n \
             = \
             compute_gradient_norm(
-            gradients_stack_2, labels_stack)
+                gradients_stack_2, labels_stack)
         gradients_stack_baseline_n, gradients_stack_baseline_pos_n, \
             gradients_stack_baseline_neg_n \
             = \
             compute_gradient_norm(
-            gradients_stack_1, labels_stack)
+                gradients_stack_1, labels_stack)
 
         e_e = datetime.datetime.now()
         print(
             "epoch: {}, loss: {}, train auc: {}, time used: {}".
-                format(
+            format(
                 epoch,
                 train_l_sum / n,
                 train_auc.result(),
@@ -393,17 +669,17 @@ def train(
             print(
                 "epoch: {}, leak_auc baseline_all: {}, masked_HL_1_all: {}".
                 format(
-                epoch, leakage_auc_baseline_all.result(),
-                leakage_auc_masked_hiddenlayer_1_all.result()))
+                    epoch, leakage_auc_baseline_all.result(),
+                    leakage_auc_masked_hiddenlayer_1_all.result()))
             print(
                 "baseline leak_auc:{}, non_masking: {}".
-                    format(
+                format(
                     leakage_auc_baseline.result(),
                     leakage_auc_not_masked_hiddenlayer_2.result()))
             print("masking L1:{}, masking L2: {}".
-                    format(
-                    leakage_auc_masked_hiddenlayer_1.result(),
-                    leakage_auc_masked_hiddenlayer_2.result()))
+                  format(
+                      leakage_auc_masked_hiddenlayer_1.result(),
+                      leakage_auc_masked_hiddenlayer_2.result()))
 
         test_loss, test_auc = test(test_iter, loss)
 
@@ -530,7 +806,7 @@ trainer_opt = tf.keras.optimizers.Adagrad(learning_rate=ada_gra_lr)
 t_s = datetime.datetime.now()
 print(
     "gpu: {}, batch_size: {}, regularization: {}, ada_gra_lr: {}"
-        .format(
+    .format(
         gpu_option,
         args.batch_size,
         regularization_weight_l2,
@@ -551,7 +827,7 @@ train(
     regularization_weight=regularization_weight_l2)
 print(
     "gpu: {}, batch_size: {}, regularization: {}, ada_gra_lr: {}".
-        format(
+    format(
         gpu_option,
         args.batch_size,
         regularization_weight_l2,
@@ -559,7 +835,7 @@ print(
 t_e = datetime.datetime.now()
 print(
     "# training: {}, # test: {}, #_batchs: {}, training used: {}".
-        format(
+    format(
         total_training_instances,
         total_test_instances,
         num_batchs,
