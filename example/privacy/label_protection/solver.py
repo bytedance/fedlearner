@@ -3,6 +3,9 @@ import logging
 import math
 import random
 import numpy as np
+import time
+from collections import Counter
+
 OBJECTIVE_EPSILON = np.float32(1e-16)
 CONVEX_EPSILON = np.float32(1e-20)
 NUM_CANDIDATE = 1
@@ -136,7 +139,7 @@ def solve_zero_uv(g_norm_square, p, P):
     tau = np.float32(
         max((P / p) / (E + (np.float32(1.0) - p) / p), np.float32(0.0)))
     # print('tau', tau)
-    if 0 <= tau and tau <= P / (np.float32(1.0) - p):
+    if tau >= 0 and tau <= P / (np.float32(1.0) - p):
         lam10 = tau
         lam11 = np.float32(max(P / p - (np.float32(1.0) - p)
                                * tau / p, np.float32(0.0)))
@@ -278,7 +281,7 @@ def solve_small_neg(
 
         else:  # fix lam10
             # avoid negative due to numerical error
-            D = np.float32(max(P - (np.float32(1.0) - p)
+            D = np.float32(max(P - (np.float32(1.0) - p) \
                                * lam10, np.float32(0.0)))
 
             def f(x): 
@@ -527,10 +530,6 @@ def zero_uv_problem_string(g_norm_square, p, P):
 
 
 if __name__ == '__main__':
-    import random
-    import time
-    from collections import Counter
-
     test_neg = False
 
     # u=random.random()

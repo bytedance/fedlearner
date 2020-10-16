@@ -1,6 +1,8 @@
 import sys
 import math
 import random
+import time
+from collections import Counter
 
 OBJECTIVE_EPSILON = 1e-16
 CONVEX_EPSILON = 1e-20
@@ -453,10 +455,6 @@ def zero_uv_problem_string(g, p, P):
 
 
 if __name__ == '__main__':
-    import random
-    import time
-    from collections import Counter
-
     test_neg = False
 
     # u=random.random()

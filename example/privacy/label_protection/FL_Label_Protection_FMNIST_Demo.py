@@ -519,7 +519,7 @@ def KL_gradient_perturb(x):
             lam20, shape=[1]), tf.reshape(
             lam11, shape=[1]), tf.reshape(
                 lam21, shape=[1]), tf.reshape(
-                    sumKL, shape=[1]),
+                    sumKL, shape=[1])
 
         perturbed_g = g
         y_float = tf.cast(y, dtype=tf.float32)
