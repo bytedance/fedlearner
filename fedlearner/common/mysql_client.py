@@ -62,6 +62,7 @@ class MySQLClient(object):
                 logging.info('success to get data')
                 return value
             except NoResultFound:
+                logging.warning('key is %s', self._generate_key(key))
                 logging.warning('data is not exists')
                 return None
             except Exception as e: # pylint: disable=broad-except
