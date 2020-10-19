@@ -86,9 +86,15 @@ argo:
 sparkoperator:
   enabled: false
 
+  serviceAccounts:
+    spark:
+      create: true
+      name: spark
+
   operatorImageName: registry.cn-beijing.aliyuncs.com/fedlearner/spark-operator
   operatorVersion: v1beta2-1.2.0-3.0.0
 
+  sparkJobNamespace: default
   installCrds: true
   logLevel: 6
 

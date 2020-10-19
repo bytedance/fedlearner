@@ -9,12 +9,12 @@ rbac:
 serviceAccounts:
   spark:
     create: true
-    name:
+    name: spark
   sparkoperator:
     create: true
     name:
 
-sparkJobNamespace: ""
+sparkJobNamespace: default
 installCrds: true
 controllerThreads: 10
 resyncInterval: 30
