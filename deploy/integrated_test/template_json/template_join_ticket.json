@@ -1,10 +1,4 @@
 {
-  "name": "!name",
-  "federation_id": "!federation_id",
-  "job_type": "data_join",
-  "role": "Leader",
-  "sdk_version": "!sdk_version",
-  "expire_time": "!expire_time",
   "public_params": {
     "spec": {
       "flReplicaSpecs": {
@@ -61,6 +55,7 @@
         },
         "Worker": {
           "pair": true,
+          "replicas": 4,
           "template": {
             "spec": {
               "containers": [
@@ -68,11 +63,11 @@
                   "env": [
                     {
                       "name": "DATA_BLOCK_DUMP_INTERVAL",
-                      "value": "300"
+                      "value": "600"
                     },
                     {
                       "name": "DATA_BLOCK_DUMP_THRESHOLD",
-                      "value": "65536"
+                      "value": "262144"
                     },
                     {
                       "name": "EXAMPLE_ID_DUMP_INTERVAL",
@@ -87,24 +82,28 @@
                       "value": "4096"
                     },
                     {
+                      "name": "MAX_FLYING_EXAMPLE_ID",
+                      "value": "307152"
+                    },
+                    {
                       "name": "MIN_MATCHING_WINDOW",
-                      "value": "512"
+                      "value": "2048"
                     },
                     {
                       "name": "MAX_MATCHING_WINDOW",
-                      "value": "2048"
+                      "value": "8192"
                     },
                     {
                       "name": "RAW_DATA_ITER",
                       "value": "TF_RECORD"
                     },
                     {
-                      "name": "DATA_BLOCK_BUILDER",
-                      "value": "TF_RECORD"
+                      "name": "RAW_DATA_SUB_DIR",
+                      "value": "portal_publish_dir/"
                     },
                     {
-                      "name": "EXAMPLE_JOINER",
-                      "value": "STREAM_JOINER"
+                      "name": "PARTITION_NUM",
+                      "value": "4"
                     }
                   ],
                   "image": "!image",
@@ -128,5 +127,60 @@
       }
     }
   },
-  "private_params": null
+  "private_params": {
+    "spec": {
+      "flReplicaSpecs": {
+        "Master": {
+          "template": {
+            "spec": {
+              "containers": [
+                {
+                  "image": "!image",
+                  "env": [
+                    {
+                      "name": "RAW_DATA_SUB_DIR",
+                      "value": "portal_publish_dir/"
+                    },
+                    {
+                      "name": "PARTITION_NUM",
+                      "value": "4"
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          "replicas": 1
+        },
+        "Worker": {
+          "template": {
+            "spec": {
+              "containers": [
+                {
+                  "image": "!image",
+                  "env": [
+                    {
+                      "name": "RAW_DATA_SUB_DIR",
+                      "value": "portal_publish_dir/"
+                    },
+                    {
+                      "name": "PARTITION_NUM",
+                      "value": "4"
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          "replicas": 4
+        }
+      }
+    }
+  },
+  "name": "!name",
+  "federation_id": "!federation_id",
+  "job_type": "data_join",
+  "role": "!role",
+  "expire_time": "!expire_time",
+  "remark": "Build by integrated test."
 }
