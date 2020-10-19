@@ -1,0 +1,186 @@
+{
+  "public_params": {
+    "spec": {
+      "flReplicaSpecs": {
+        "Master": {
+          "pair": true,
+          "replicas": 1,
+          "template": {
+            "spec": {
+              "containers": [
+                {
+                  "env": [
+                    {
+                      "name": "BATCH_MODE",
+                      "value": "--batch_mode"
+                    },
+                    {
+                      "name": "PARTITION_NUM",
+                      "value": "4"
+                    },
+                    {
+                      "name": "START_TIME",
+                      "value": "0"
+                    },
+                    {
+                      "name": "END_TIME",
+                      "value": "999999999999"
+                    },
+                    {
+                      "name": "NEGATIVE_SAMPLING_RATE",
+                      "value": "1.0"
+                    },
+                    {
+                      "name": "RAW_DATA_SUB_DIR",
+                      "value": "portal_publish_dir/"
+                    }
+                  ],
+                  "image": "!image",
+                  "ports": [
+                    {
+                      "containerPort": 50051,
+                      "name": "flapp-port"
+                    }
+                  ],
+                  "command": [
+                    "/app/deploy/scripts/wait4pair_wrapper.sh"
+                  ],
+                  "args": [
+                    "/app/deploy/scripts/data_join/run_data_join_master.sh"
+                  ]
+                }
+              ]
+            }
+          }
+        },
+        "Worker": {
+          "pair": true,
+          "replicas": 4,
+          "template": {
+            "spec": {
+              "containers": [
+                {
+                  "env": [
+                    {
+                      "name": "DATA_BLOCK_DUMP_INTERVAL",
+                      "value": "600"
+                    },
+                    {
+                      "name": "DATA_BLOCK_DUMP_THRESHOLD",
+                      "value": "262144"
+                    },
+                    {
+                      "name": "EXAMPLE_ID_DUMP_INTERVAL",
+                      "value": "600"
+                    },
+                    {
+                      "name": "EXAMPLE_ID_DUMP_THRESHOLD",
+                      "value": "262144"
+                    },
+                    {
+                      "name": "EXAMPLE_ID_BATCH_SIZE",
+                      "value": "4096"
+                    },
+                    {
+                      "name": "MAX_FLYING_EXAMPLE_ID",
+                      "value": "307152"
+                    },
+                    {
+                      "name": "MIN_MATCHING_WINDOW",
+                      "value": "2048"
+                    },
+                    {
+                      "name": "MAX_MATCHING_WINDOW",
+                      "value": "8192"
+                    },
+                    {
+                      "name": "RAW_DATA_ITER",
+                      "value": "TF_RECORD"
+                    },
+                    {
+                      "name": "RAW_DATA_SUB_DIR",
+                      "value": "portal_publish_dir/"
+                    },
+                    {
+                      "name": "PARTITION_NUM",
+                      "value": "4"
+                    }
+                  ],
+                  "image": "!image",
+                  "ports": [
+                    {
+                      "containerPort": 50051,
+                      "name": "flapp-port"
+                    }
+                  ],
+                  "command": [
+                    "/app/deploy/scripts/wait4pair_wrapper.sh"
+                  ],
+                  "args": [
+                    "/app/deploy/scripts/data_join/run_data_join_worker.sh"
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      }
+    }
+  },
+  "private_params": {
+    "spec": {
+      "flReplicaSpecs": {
+        "Master": {
+          "template": {
+            "spec": {
+              "containers": [
+                {
+                  "image": "!image",
+                  "env": [
+                    {
+                      "name": "RAW_DATA_SUB_DIR",
+                      "value": "portal_publish_dir/"
+                    },
+                    {
+                      "name": "PARTITION_NUM",
+                      "value": "4"
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          "replicas": 1
+        },
+        "Worker": {
+          "template": {
+            "spec": {
+              "containers": [
+                {
+                  "image": "!image",
+                  "env": [
+                    {
+                      "name": "RAW_DATA_SUB_DIR",
+                      "value": "portal_publish_dir/"
+                    },
+                    {
+                      "name": "PARTITION_NUM",
+                      "value": "4"
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          "replicas": 4
+        }
+      }
+    }
+  },
+  "name": "!name",
+  "federation_id": "!federation_id",
+  "job_type": "data_join",
+  "role": "!role",
+  "expire_time": "!expire_time",
+  "remark": "Build by integrated test."
+}

@@ -1,0 +1,170 @@
+{
+  "name": "!name",
+  "federation_id": "!federation_id",
+  "job_type": "nn_model",
+  "role": "!role",
+  "expire_time": "!expire_time",
+  "remark": "Built by integrated test.",
+  "public_params": {
+    "spec": {
+      "flReplicaSpecs": {
+        "Master": {
+          "replicas": 1,
+          "pair": false,
+          "template": {
+            "spec": {
+              "containers": [
+                {
+                  "env": [
+                    {
+                      "name": "DATA_SOURCE",
+                      "value": "!DATA_SOURCE"
+                    }
+                  ],
+                  "image": "!image",
+                  "ports": [
+                    {
+                      "containerPort": 50051,
+                      "name": "flapp-port"
+                    }
+                  ],
+                  "command": [
+                    "/app/deploy/scripts/trainer/run_trainer_master.sh"
+                  ],
+                  "args": []
+                }
+              ]
+            }
+          }
+        },
+        "PS": {
+          "pair": false,
+          "template": {
+            "spec": {
+              "containers": [
+                {
+                  "env": [
+                    {
+                      "name": "DATA_SOURCE",
+                      "value": "!DATA_SOURCE"
+                    }
+                  ],
+                  "image": "!image",
+                  "ports": [
+                    {
+                      "containerPort": 50051,
+                      "name": "flapp-port"
+                    }
+                  ],
+                  "command": [
+                    "/app/deploy/scripts/trainer/run_trainer_ps.sh"
+                  ],
+                  "args": []
+                }
+              ]
+            }
+          }
+        },
+        "Worker": {
+          "pair": true,
+          "template": {
+            "spec": {
+              "containers": [
+                {
+                  "env": [
+                    {
+                      "name": "CODE_KEY",
+                      "value": "/app/deploy/integrated_test/code_key/criteo-train-2.tar.gz"
+                    },
+                    {
+                      "name": "SAVE_CHECKPOINT_STEPS",
+                      "value": "1000"
+                    },
+                    {
+                      "name": "DATA_SOURCE",
+                      "value": "!DATA_SOURCE"
+                    }
+                  ],
+                  "image": "!image",
+                  "ports": [
+                    {
+                      "containerPort": 50051,
+                      "name": "flapp-port"
+                    },
+                    {
+                      "containerPort": 50052,
+                      "name": "tf-port"
+                    }
+                  ],
+                  "command": [
+                    "/app/deploy/scripts/wait4pair_wrapper.sh"
+                  ],
+                  "args": [
+                    "/app/deploy/scripts/trainer/run_trainer_worker.sh"
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      }
+    }
+  },
+  "private_params": {
+    "spec": {
+      "flReplicaSpecs": {
+        "Master": {
+          "template": {
+            "spec": {
+              "containers": [
+                {
+                  "image": "!image",
+                  "env": [
+                    {
+                      "name": "DATA_SOURCE",
+                      "value": "!DATA_SOURCE"
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        },
+        "PS": {
+          "template": {
+            "spec": {
+              "containers": [
+                {
+                  "image": "!image",
+                  "env": [
+                    {
+                      "name": "DATA_SOURCE",
+                      "value": "!DATA_SOURCE"
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        },
+        "Worker": {
+          "template": {
+            "spec": {
+              "containers": [
+                {
+                  "image": "!image",
+                  "env": [
+                    {
+                      "name": "DATA_SOURCE",
+                      "value": "!DATA_SOURCE"
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      }
+    }
+  }
+}
