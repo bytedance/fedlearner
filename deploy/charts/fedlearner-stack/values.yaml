@@ -84,7 +84,7 @@ argo:
   enabled: true
 
 sparkoperator:
-  enabled: true
+  enabled: false
 
   operatorImageName: registry.cn-beijing.aliyuncs.com/fedlearner/spark-operator
   operatorVersion: v1beta2-1.2.0-3.0.0
