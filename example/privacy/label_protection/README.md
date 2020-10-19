@@ -2,9 +2,17 @@
 
 ```FL_Label_Protection_FMNIST_Demo.py``` shows how we protect label informaiton in the settings of Federated Learning (FL).
 
+We provide two protection methods in this demo:
+
+* max norm alignment
+* sumKL
+
 ### Usage 
 
-```python FL_Label_Protection_FMNIST_Demo.py --batch_size 600 --num_epochs 30```
+
+#### Max norm alignment 
+
+```python FL_Label_Protection_FMNIST_Demo.py --batch_size 600 --num_epochs 30 --max_norm```
 
 After runing above codes, we can get some results as following:
 
@@ -13,9 +21,7 @@ After runing above codes, we can get some results as following:
 
 It shows that we can decrease the label leakage AUC from 1.0 to 0.584. The model's performance does not change too much in the above experiments, since FMNIST is not a very complicated dataset. It's worth mentioning we call the function ```change_label``` to change it to a binary classification problem. 
 
-### Our Main Contribution 
-
-The core of the algorithm is:
+The core of the max norm alignment algorithm is:
 
 ```Python
 @tf.custom_gradient
@@ -34,4 +40,31 @@ def gradient_masking(x):
 
 Please refer to the demo to check how to use add the customized function to prevent label leakage.
 
-We have filed a patent for the above algorithm on 6 July 2020. 
+####
+
+```python FL_Label_Protection_FMNIST_Demo.py --batch_size 600 --num_epochs 30 --sumKL```
+
+If you would like to see the detailed prints, please consider to use the arguments ```debug```:
+
+```python FL_Label_Protection_FMNIST_Demo.py --batch_size 600 --num_epochs 30 --sumKL --debug```
+
+
+After runing above codes, we can get some results as following:
+
+* sumKL_threshold = 0.64
+
+> epoch: 4, leak_auc baseline_all: 0.9999999403953552, masked_HL_1_all: 0.6167622804641724
+> baseline leak_auc:1.0, non_masking: 1.0
+> masking L1:0.6150113940238953, masking L2: 0.6152912974357605
+> test loss: 0.08250142087936402, test auc: 0.7901284098625183
+
+
+You can vary the value of ```sumKL_threshold``` in the code to achieve the different trade-offs between protection and performance. 
+
+To run with a lower Tensorflow version such as (tf 1.x), please consier to use ```tf.py_func```.
+
+* Use the function ```compute_lambdas_tf1``` instead of ```compute_lambdas_tf2```
+
+We also provide a tf 2.x version for the ```solver.py``` as ```gradient_noise_solver_tf2.py```.
+
+We have filed patents for both protection methods. 
