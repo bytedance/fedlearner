@@ -944,7 +944,8 @@ class BoostingTreeEnsamble(object):
                     err_msg += "Error: example_ids length: %d vs %d"%(
                         len(example_ids), len(msg.example_ids))
                 else:
-                    for i, a, b in enumerate(zip(example_ids, msg.example_ids)):
+                    for i, (a, b) in enumerate(
+                                        zip(example_ids, msg.example_ids)):
                         if a != b:
                             err_msg += "Error: first mismatching example at " \
                                        "%d: %s vs %s"%(i, a, b)
