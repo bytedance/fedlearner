@@ -196,8 +196,6 @@ class MySQLClient(object):
 
     @staticmethod
     def _normalize_output_key(key, base_dir):
-        logging.info('normalize ouput key is[%s] type[%s]', key,
-            type(key))
         if isinstance(key, str):
             assert key.startswith(base_dir)
         else:
