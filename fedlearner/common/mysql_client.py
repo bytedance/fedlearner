@@ -61,10 +61,8 @@ class MySQLClient(object):
                     self._generate_key(key)).one().kv_value
                 if isinstance(value, str):
                     return value.encode()
-                logging.info('success to get data')
                 return value
             except NoResultFound:
-                logging.warning('data is not exists')
                 return None
             except Exception as e: # pylint: disable=broad-except
                 logging.error('failed to get data. msg[%s]', e)
@@ -86,7 +84,6 @@ class MySQLClient(object):
                         kv_value=data)
                     sess.add(context)
                     sess.commit()
-                logging.info('success to set data')
                 return True
             except Exception as e: # pylint: disable=broad-except
                 logging.error('failed to set data. msg[%s]', e)
@@ -102,7 +99,6 @@ class MySQLClient(object):
                     self._generate_key(key)):
                     sess.delete(context)
                 sess.commit()
-                logging.info('success to delete')
                 return True
             except Exception as e: # pylint: disable=broad-except
                 logging.error('failed to delete. msg[%s]', e)
@@ -117,7 +113,6 @@ class MySQLClient(object):
                     like(self._generate_key(key) + '%')):
                     sess.delete(context)
                 sess.commit()
-                logging.info('success to delete prefix')
                 return True
             except Exception as e: # pylint: disable=broad-except
                 logging.error('failed to delete prefix. msg[%s]', e)
@@ -140,12 +135,9 @@ class MySQLClient(object):
                         self._generate_key(key)).one()
                     if context.kv_value != old_data:
                         flag = False
-                        logging.warning('old data and new data \
-                            are not the same')
                         return flag
                     context.kv_value = new_data
                     sess.commit()
-                logging.info('success to cas')
                 return flag
             except Exception as e: # pylint: disable=broad-except
                 logging.error('failed to cas. msg[%s]', e)
@@ -156,14 +148,10 @@ class MySQLClient(object):
         kvs = []
         path = self._generate_key(prefix)
         with self.closing(self._engine) as sess:
-            logging.info('start get_prefix_kvs. prefix is [%s] [%s]',
-                prefix, path)
             try:
                 table = self._datasource_meta
                 for context in sess.query(table).filter(table.kv_key.\
                     like(path + '%')).order_by(table.kv_key):
-                    logging.info('type of kv_key is[%s]',
-                        type(context.kv_key))
                     if ignor_prefix and context.kv_key == path:
                         continue
                     nkey = self._normalize_output_key(context.kv_key,
@@ -174,7 +162,6 @@ class MySQLClient(object):
                     if isinstance(value, str):
                         value = value.encode()
                     kvs.append((nkey, value))
-                logging.info('success to get prefix kvs')
                 return kvs
             except Exception as e: # pylint: disable=broad-except
                 logging.error('failed to get prefix kvs. msg[%s]', e)
