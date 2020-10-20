@@ -51,7 +51,6 @@ class MySQLClient(object):
         if self._base_dir[0] != '/':
             self._base_dir = '/' + self._base_dir
         self._create_engine_inner()
-        logging.info('success to create connection')
 
     def get_data(self, key):
         with self.closing(self._engine) as sess:
