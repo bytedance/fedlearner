@@ -246,6 +246,7 @@ def read_data_dir(file_ext, file_type, path, require_example_ids,
             subdirname = os.path.join(path, os.path.relpath(dirname, path))
             files.append(os.path.join(subdirname, filename))
 
+    files.sort()
     features = None
     for fullname in files:
         ifeatures, icat_features, icont_columns, icat_columns, \
