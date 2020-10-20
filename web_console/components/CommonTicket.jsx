@@ -186,7 +186,6 @@ export default function TicketList({
         let envNames = envs.map(env => env.name)
         rules.forEach(el => {
           let idx = envNames.indexOf(el.name)
-          console.log(data.raw_data.name || data.raw_data, el.getValue(data))
           let value = el.getValue(data) || ''
           if (idx >= 0) {
             envs[idx].value = value.toString()
@@ -217,7 +216,6 @@ export default function TicketList({
   }, [])
   const dataSourceRewrite = useCallback((draft, data) => {
     // envs
-    // console.log(data.raw_data.name || data.raw_data)
     const insert2Env = [
       { name: 'RAW_DATA_SUB_DIR', getValue: data => 'portal_publish_dir/' + (data.raw_data.name || data.raw_data) },
       { name: 'PARTITION_NUM', getValue: data => data.num_partitions },
