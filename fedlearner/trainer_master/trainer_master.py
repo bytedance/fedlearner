@@ -85,6 +85,7 @@ class TrainerMaster(object):
         response = tm_pb.DataBlockResponse()
         with self._status_mutex:
             if self._status != tm_pb.MasterStatus.RUNNING:
+                logging.info("trainer master is not running, status is %d", self._status)
                 response.status.code = \
                         common_pb.STATUS_WAIT_FOR_SYNCING_CHECKPOINT
                 response.status.error_message = \
