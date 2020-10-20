@@ -51,7 +51,7 @@ class MySQLClient(object):
         if self._base_dir[0] != '/':
             self._base_dir = '/' + self._base_dir
         self._create_engine_inner()
-        logging.info('success to create table')
+        logging.info('success to create connection')
 
     def get_data(self, key):
         with self.closing(self._engine) as sess:
@@ -64,7 +64,6 @@ class MySQLClient(object):
                 logging.info('success to get data')
                 return value
             except NoResultFound:
-                logging.warning('key is %s', self._generate_key(key))
                 logging.warning('data is not exists')
                 return None
             except Exception as e: # pylint: disable=broad-except
@@ -215,7 +214,6 @@ class MySQLClient(object):
             if self._unix_socket:
                 sub = '?unix_socket={}'.format(self._unix_socket)
                 conn_string = conn_string + sub
-            logging.info('conn_string is [%s]', conn_string)
             self._engine = create_engine(conn_string, echo=False,
                                         pool_recycle=180)
             Base = automap_base()
