@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import css from 'styled-jsx/css';
-import { Avatar, Button, Card, Code, Text, Grid, Popover, Link } from '@zeit-ui/react';
+import { Avatar, Button, Card, Code, Text, Grid, Popover, Link, Spacer } from '@zeit-ui/react';
 import PhoneIcon from '@zeit-ui/react-icons/phone';
 import MailIcon from '@zeit-ui/react-icons/mail';
 import InfoIcon from '@zeit-ui/react-icons/info';
@@ -13,6 +13,7 @@ import produce from 'immer'
 
 import { K8S_SETTINGS } from '../../constants/form-default'
 import { fillJSON, getValueFromJson, getParsedValueFromData } from '../../utils/form_utils'
+import { federationHeartbeat } from '../../services/index'
 
 function useFederationItemStyles() {
   return css`
@@ -28,7 +29,19 @@ function useFederationItemStyles() {
       margin-left: 10px;
       word-break: break-all;
     }
+
   `;
+}
+
+const Status = {
+  unknown: 'unknown',
+  success: 'success',
+  error: 'error',
+}
+
+const StatusColor = {
+  success: 'limegreen',
+  error: 'red',
 }
 
 function FederationItem({ data, onEdit }) {
@@ -38,6 +51,21 @@ function FederationItem({ data, onEdit }) {
     e.preventDefault();
     onEdit(data);
   };
+
+  const [checking, setChecking] = useState(false)
+  const [connStatus, setConnStatus] = useState(Status.unknown)
+  const checkConn = () => {
+    setChecking(true)
+    federationHeartbeat(id).then(res => {
+      if (res.status === Status.success) {
+        setConnStatus(Status.success)
+      } else {
+        setConnStatus(Status.error)
+      }
+      setChecking(false)
+    })
+  }
+
   return (
     <Card shadow>
       <div className="heading">
@@ -56,16 +84,29 @@ function FederationItem({ data, onEdit }) {
           <MailIcon size={14} />
           <span className="description">{email || 'None'}</span>
         </Text>
-        <Text p size={14} style={{ marginBottom: 0 }} type="secondary">
+        <Text p size={14} type="secondary">
           k8s_settings：
           <Popover trigger="hover" content={<Code block>{JSON.stringify(k8s_settings, null, 2)}</Code>}>
             <InfoIcon size={14} />
           </Popover>
         </Text>
+        <Text p size={14} style={{ marginBottom: 0 }} type="secondary">
+          connection status：
+          <span style={{color: StatusColor[connStatus]}}>{connStatus}</span>
+        </Text>
       </div>
 
-      <Card.Footer className="formCardFooter">
+      <Card.Footer className="formCardFooter" disableAutoMargin>
         <Link href="#" color onClick={handleEdit}>Edit</Link>
+        <Button
+          auto
+          loading={checking}
+          size="small"
+          style={{padding: '0 0.8rem'}}
+          onClick={checkConn}
+        >
+          check connection
+        </Button>
       </Card.Footer>
 
       <style jsx>{styles}</style>
@@ -78,7 +119,6 @@ const K8S_SETTINGS_FIELDS = [
   { key: 'storage_root_path', default: K8S_SETTINGS.storage_root_path },
   {
     key: 'imagePullSecrets',
-    default: K8S_SETTINGS.imagePullSecrets,
     type: 'json',
     span: 24,
     path: 'global_replica_spec.template.spec.imagePullSecrets',
@@ -88,7 +128,6 @@ const K8S_SETTINGS_FIELDS = [
     key: 'env',
     type: 'name-value',
     span: 24,
-    default: K8S_SETTINGS.env,
     props: {
       minHeight: '150px',
     },
@@ -99,7 +138,6 @@ const K8S_SETTINGS_FIELDS = [
     key: 'grpc_spec',
     type: 'json',
     span: 24,
-    default: K8S_SETTINGS.grpc_spec,
     props: {
       minHeight: '150px',
     },
@@ -109,7 +147,6 @@ const K8S_SETTINGS_FIELDS = [
     key: 'leader_peer_spec',
     type: 'json',
     span: 24,
-    default: K8S_SETTINGS.leader_peer_spec,
     props: {
       minHeight: '150px',
     },
@@ -119,7 +156,6 @@ const K8S_SETTINGS_FIELDS = [
     key: 'follower_peer_spec',
     type: 'json',
     span: 24,
-    default: K8S_SETTINGS.follower_peer_spec,
     props: {
       minHeight: '150px',
     },
@@ -228,7 +264,7 @@ export default function FederationList() {
           if (!draft.k8s_settings) { draft.k8s_settings = {} }
           for (let field of K8S_SETTINGS_FIELDS) {
             fillJSON(
-              draft.k8s_settings, field.path || [field.key],
+              draft.k8s_settings, field.path || field.key,
               getParsedValueFromData(data.k8s_settings, field)
             )
           }
@@ -259,10 +295,10 @@ export default function FederationList() {
     }
     return { newFields }
   }
-  const DEFAULT_FIELDS = [
+  const DEFAULT_FIELDS = useMemo(() => [
     { key: 'name', required: true },
-    { key: 'x-federation' },
     { key: 'trademark' },
+    { key: 'x-federation' },
     { key: 'email' },
     { key: 'tel', label: 'telephone' },
     { key: 'avatar' },
@@ -285,9 +321,14 @@ export default function FederationList() {
         ]
       },
     },
-  ];
+  ], []);
   const [fields, setFields] = useState(DEFAULT_FIELDS);
 
+  const onClickCreate = () => {
+    setFormMeta({ k8s_settings: K8S_SETTINGS })
+    setFields(mapValueToFields({federation: mapFormMeta2Form(), fields}))
+    setFormVisible(true)
+  }
   const toggleForm = () => {
     setFormVisible(!formVisible);
     if (formVisible) {
@@ -367,7 +408,7 @@ export default function FederationList() {
           <>
             <div className="heading">
               <Text h2>Federations</Text>
-              <Button auto type="secondary" onClick={() => setFormVisible(true)}>Create Federation</Button>
+              <Button auto type="secondary" onClick={onClickCreate}>Create Federation</Button>
             </div>
             <Grid.Container gap={2}>
               {federations && federations.map((x) => (

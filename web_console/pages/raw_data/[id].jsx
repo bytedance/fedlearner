@@ -43,7 +43,7 @@ export default function RawDataJob() {
   }, [rawData?.localdata?.id]);
 
   return (
-    <JobCommonInfo job={rawData}>
+    rawData ? <JobCommonInfo job={rawData}>
       <Description
         title="Federation"
         style={{ width: 220 }}
@@ -96,5 +96,6 @@ export default function RawDataJob() {
         loading={loading}
       >Delete Job</Button>
     </JobCommonInfo>
+    : null
   );
 }
