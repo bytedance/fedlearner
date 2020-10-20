@@ -286,7 +286,9 @@ class DataJoinWorkerService(object):
             if data_source.state > common_pb.DataSourceState.Processing:
                 logging.warning("DataSource state run to %d, no task will "\
                                 "be allocated. Data Join Worker-[%d] will "\
-                                "exit", data_source.state, self._rank_id)
+                                "exit after 60s",
+                                data_source.state, self._rank_id)
+                time.sleep(60)
                 break
             if data_source.state == common_pb.DataSourceState.UnKnown:
                 logging.error("DataSource state run to at state Unknow. Data "\
