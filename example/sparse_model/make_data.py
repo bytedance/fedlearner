@@ -49,7 +49,7 @@ elif args.fid_version == 2:
 else:
     raise ValueError("fid_version should be 1 or 2")
 
-N = 10
+N = 20
 chunk_size = 10000
 
 def _make_fid(slot_id, hash_value):

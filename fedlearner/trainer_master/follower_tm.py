@@ -34,15 +34,17 @@ class FollowerTrainerMaster(TrainerMaster):
                  start_time, end_time, online_training):
         super(FollowerTrainerMaster, self).__init__(application_id,
                                                     None, online_training)
+        self.data_source = data_source
         self._data_block_set = DataBlockSet()
         self._data_block_visitor = DataBlockVisitor(
             data_source, db_database, db_base_dir, db_addr,
-                db_username, db_password)
+                db_username, db_password, True)
         self._start_time = start_time
         self._end_time = end_time
 
     def _load_data(self):
         checkpoint = self._get_checkpoint()
+        logging.info("_load checkpoint: %s", checkpoint)
         # pylint: disable=line-too-long
         for block_id, block_item in self._data_block_visitor.LoadDataBlockRepByTimeFrame(
                 self._start_time, self._end_time).items():

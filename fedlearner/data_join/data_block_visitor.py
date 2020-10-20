@@ -125,8 +125,10 @@ class DataBlockVisitor(object):
             data_block_fnames[partition_id] = \
                 self._list_data_block(partition_id)
         data_block_reps = {}
+        print("total: ", len(data_block_fnames))
         for partition_id, fnames in data_block_fnames.items():
             manifest = self._sync_raw_data_manifest(partition_id)
+            print("fnames: %d", len(fnames))
             for idx, fname in enumerate(fnames):
                 check_existed = (idx == len(fnames) - 1)
                 rep = self._make_data_block_rep(partition_id, fname,
@@ -146,6 +148,7 @@ class DataBlockVisitor(object):
                     filtered = False
                 if filtered:
                     logging.debug('skip %s since %s', fname, reason)
+        print("xxxxxxxxxxxxxxxxxxxx", len(data_block_reps))
         return data_block_reps
 
     def LoadDataBlockReqByIndex(self, partition_id, data_block_index):
@@ -197,6 +200,8 @@ class DataBlockVisitor(object):
     def _sync_raw_data_manifest(self, partition_id):
         kvstore_key = partition_manifest_kvstore_key(self._data_source_name(),
                                                partition_id)
+
+        logging.info("partition_id %d, key = %s", partition_id, kvstore_key)
         data = self._kvstore.get_data(kvstore_key)
         assert data is not None, "raw data manifest of partition "\
                                  "{} must be existed".format(partition_id)

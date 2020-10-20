@@ -17,9 +17,11 @@
 
 import os
 import logging
+import traceback
 import time
 import tensorflow.compat.v1 as tf
 
+from tensorflow.compat import as_str_any
 from tensorflow.compat.v1.train import Optimizer
 from tensorflow.compat.v1.estimator import ModeKeys
 from tensorflow_estimator.python.estimator import model_fn as model_fn_lib
@@ -31,7 +33,11 @@ from fedlearner.common import metrics
 from fedlearner.data_join.common import get_kvstore_config
 
 SYNC_PATH = '/sync/'
-DATA_CHECKPOINT_KEY = "data_checkpoint"
+
+DATA_CHECKPOINT_TESO = "data_checkpoint"
+DATA_CHECKPOINT_TESO_NAME = DATA_CHECKPOINT_TESO+":0"
+DATA_CHECKPOINT_PLHD = "data_checkpoint_plhd"
+DATA_CHECKPOINT_PLHD_NAME = DATA_CHECKPOINT_PLHD+":0"
 
 
 class DataCheckpointSaverListener(tf.estimator.CheckpointSaverListener):
@@ -39,13 +45,20 @@ class DataCheckpointSaverListener(tf.estimator.CheckpointSaverListener):
         self._trainer_master = tm
         self._application_id = appid
 
+    def begin(self):
+        ckpt = tf.placeholder(tf.string, name = DATA_CHECKPOINT_PLHD)
+        var_tmp = tf.Variable("_init_", name = DATA_CHECKPOINT_TESO)
+        self._ckpt_tensor = var_tmp.assign(ckpt)
+        logging.info("DataCheckpointSaverListener creates a tensor %s, %s", self._ckpt_tensor, var_tmp)
+
     def before_save(self, session, global_step_value):
-        logging.debug('About to write a checkpoint at step: %d',
-                      global_step_value)
+        logging.info('About to write a checkpoint at step {}'.format(global_step_value))
         data_checkpoint = self._trainer_master.get_data_block_checkpoint(
             self._application_id)
-        tf.add_to_collection(DATA_CHECKPOINT_KEY,
-                             data_checkpoint)
+        logging.info("check point block ids %s", ",".join(data_checkpoint))
+        res = session.run(self._ckpt_tensor, { DATA_CHECKPOINT_PLHD_NAME:
+                                        ",".join(data_checkpoint)})
+        logging.info("after compute the node %s", res)
 
 class FLModel(object):
     def __init__(self, role, bridge, example_ids, exporting=False):
@@ -157,6 +170,7 @@ class FLModel(object):
         if isinstance(predictions, tf.Tensor):
             predictions = {'output': predictions}
         if mode == ModeKeys.TRAIN:
+            print("make_spec")
             train_op = tf.group([train_op] + self._train_ops)
             training_hooks = self._append_summary_hook(training_hooks)
         return tf.estimator.EstimatorSpec(
@@ -194,11 +208,21 @@ class FLEstimator(object):
         return features, labels
 
     def _get_model_spec(self, features, labels, mode):
+        print("_get_model_spec")
         model = FLModel(self._role, self._bridge,
                         features.get('example_id', None),
                         exporting=(mode == ModeKeys.PREDICT))
         spec = self._model_fn(model, features, labels, mode)
         return spec, model
+
+    def _restore_datablock(self, sess, blk_ids):
+        # only chief worker restores from checkpoint.
+        if self._worker_rank != 0:
+            return True
+        block_id_str = as_str_any(blk_ids)
+        block_ids = block_id_str.split(",")
+        return self._trainer_master.restore_data_block_checkpoint(
+            self._application_id, block_ids)
 
     def _cheif_barriar(self, is_chief=False, sync_times=300):
         worker_replicas = os.environ.get('REPLICA_NUM', 0)
@@ -209,7 +233,7 @@ class FLEstimator(object):
                                   db_addr,
                                   db_username,
                                   db_password,
-                                  SYNC_PATH)
+                                  SYNC_PATH, True)
         sync_path = '%s/%s' % (os.environ['APPLICATION_ID'],
                                os.environ['WORKER_RANK'])
         logging.info('Creating a sync flag at %s', sync_path)
@@ -224,11 +248,6 @@ class FLEstimator(object):
                                  len(sync_list))
                     time.sleep(6)
                 else:
-                    block_ids = tf.get_collection(DATA_CHECKPOINT_KEY)
-                    ok = self._trainer_master.restore_data_block_checkpoint(
-                        self._application_id, block_ids)
-                    if ok is False:
-                        logging.warning("restore data block checkpoints failed")
                     break
 
     def train(self,
@@ -244,6 +263,7 @@ class FLEstimator(object):
             cluster_def = self._cluster_spec.as_cluster_def()
             local_address = self._cluster_spec.job_tasks('worker')[
                 self._worker_rank]
+            print(cluster_def, local_address)
             server = tf.train.Server(tf.train.ClusterSpec(
                 {'local': {
                     0: local_address
@@ -280,7 +300,8 @@ class FLEstimator(object):
             listener = DataCheckpointSaverListener(self._trainer_master,
                                                    self._application_id)
             saver_hook = tf.estimator.CheckpointSaverHook(
-                checkpoint_path, listeners=[listener])
+                checkpoint_path, save_secs=save_checkpoint_secs,
+                save_steps=save_checkpoint_steps, listeners=[listener])
             self._bridge.connect()
 
             try:
@@ -294,11 +315,14 @@ class FLEstimator(object):
                     save_checkpoint_secs=save_checkpoint_secs,
                     hooks=spec.training_hooks) as sess:
                     iter_id = 0
+                    #TODO check the result
+                    self._restore_datablock(sess, saver_hook.data_checkpoint)
                     while not sess.should_stop():
                         self._bridge.start(iter_id)
                         logging.debug('after bridge start.')
                         start_time = time.time()
                         sess.run(spec.train_op, feed_dict={})
+                        logging.debug('session run.')
                         end_time = time.time()
                         metrics.emit_timer(
                             name="iter_timer",
@@ -308,6 +332,7 @@ class FLEstimator(object):
                         self._bridge.commit()
                         logging.debug('after bridge commit.')
                         iter_id += 1
+                print(self._cluster_spec)
                 if self._cluster_spec is not None:
                     self._cheif_barriar(is_chief=(self._worker_rank == 0))
             finally:

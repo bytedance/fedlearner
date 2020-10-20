@@ -34,10 +34,11 @@ class LeaderTrainerMaster(TrainerMaster):
                  shuffle_data_block, epoch_num):
         super(LeaderTrainerMaster, self).__init__(application_id,
                                                   None, online_training)
+        self.data_source = data_source
         self._data_block_queue = DataBlockQueue()
         self._data_block_visitor = DataBlockVisitor(
             data_source, db_database, db_base_dir, db_addr,
-                db_username, db_password)
+                db_username, db_password, True)
         self._start_time = start_time
         self._end_time = end_time
         self._epoch_num = epoch_num
@@ -52,6 +53,7 @@ class LeaderTrainerMaster(TrainerMaster):
 
     def _load_data(self):
         checkpoint = self._get_checkpoint()
+        logging.info("leader _load checkpoint: %s", checkpoint)
         # pylint: disable=line-too-long
         visitor = self._data_block_visitor
         data_block_reps = [dbr for dbr in visitor.LoadDataBlockRepByTimeFrame(
@@ -78,7 +80,7 @@ class LeaderTrainerMaster(TrainerMaster):
 
 
 if __name__ == '__main__':
-    logging.getLogger().setLevel(logging.DEBUG)
+    logging.getLogger().setLevel(logging.INFO)
     parser = argparse.ArgumentParser('leader trainer master cmd.')
     parser.add_argument('-p', '--port', type=int, default=50001,
                         help='Listen port of leader trainer master')

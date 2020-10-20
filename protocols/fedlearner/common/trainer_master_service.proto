@@ -18,6 +18,15 @@ syntax = "proto3";
 package fedlearner.common;
 import "fedlearner/common/common.proto";
 
+enum MasterStatus {
+    CREATED = 0;
+    INITIALING = 1;
+    RUNNING = 2;
+    FINISHED = 3;
+    ERROR = 4;
+}
+
+
 message DataBlockRequest {
   uint32 worker_rank = 1;
   //If TM role is follower, trainer request for datablock by block_id from leader.
@@ -37,7 +46,7 @@ message DataBlockResponse {
 }
 
 message GetDataBlockCheckpointRequest {
-  uint32 application_id = 1;
+  string application_id = 1;
 }
 
 message GetDataBlockCheckpointResponse {
@@ -46,7 +55,7 @@ message GetDataBlockCheckpointResponse {
 }
 
 message RestoreDataBlockCheckpointRequest {
-  uint32 application_id = 1;
+  string application_id = 1;
   repeated string block_ids = 2;
 }
 

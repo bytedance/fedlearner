@@ -308,6 +308,7 @@ class RawDataManifestManager(object):
         if field.state == target_state:
             return
         if field.state != src_state:
+            print(field.state, src_state, field.rank_id)
             raise RuntimeError(
                     "partition {} is not allow finished".format(partition_id)
                 )

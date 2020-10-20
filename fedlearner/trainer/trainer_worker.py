@@ -194,6 +194,7 @@ def train(role, args, input_fn, model_fn, serving_input_receiver_fn):
         trainer_master = TrainerMasterClient(args.master_addr, role,
                                              args.worker_rank)
         ps_addrs = args.ps_addrs.split(",")
+        print("settttttttttttttttttt", ps_addrs)
         cluster_spec = tf.train.ClusterSpec({
             'ps': ps_addrs,
             'worker': {
@@ -228,6 +229,7 @@ def train(role, args, input_fn, model_fn, serving_input_receiver_fn):
                                       application_id=args.application_id,
                                       cluster_spec=cluster_spec)
     else:
+        print("settttttttttttttttttt", role, cluster_spec)
         estimator = FLEstimator(model_fn,
                                 bridge,
                                 trainer_master,
@@ -248,6 +250,7 @@ def train(role, args, input_fn, model_fn, serving_input_receiver_fn):
         raise ValueError('Allowed values are: --mode=train|eval')
 
     if args.export_path and args.worker_rank == 0:
+        print("settttttttttttttttttt export saved model")
         estimator.export_saved_model(args.export_path,
                                      serving_input_receiver_fn,
                                      checkpoint_path=args.checkpoint_path)

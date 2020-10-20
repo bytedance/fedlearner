@@ -14,6 +14,7 @@
 
 # coding: utf-8
 
+import time
 try:
     import queue
 except ImportError:
@@ -35,7 +36,7 @@ class DataBlockLoader(object):
             self._bridge.register_data_block_handler(self._data_block_handler)
 
     def _data_block_handler(self, msg):
-        logging.debug('DataBlock: recv "%s" at %d', msg.block_id, msg.count)
+        logging.debug('DataBlock: %s recv "%s" at %d', self._role, msg.block_id, msg.count)
         assert self._count == msg.count
         if not msg.block_id:
             block = None

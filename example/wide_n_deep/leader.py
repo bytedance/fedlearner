@@ -29,16 +29,19 @@ args = parser.parse_args()
 
 def input_fn(bridge, trainer_master=None):
     dataset = flt.data.DataBlockLoader(
-        args.batch_size, ROLE, bridge, trainer_master)
-    feature_map = {"x_{0}".format(i): tf.VarLenFeature(
-        tf.int64) for i in range(512)}
-    feature_map["example_id"] = tf.FixedLenFeature([], tf.string)
-    feature_map["y"] = tf.FixedLenFeature([], tf.int64)
+        args.batch_size, ROLE, bridge, trainer_master).make_dataset()
+    def parse_fn(example):
+        feature_map = {"x_{0}".format(i): tf.VarLenFeature(
+            tf.int64) for i in range(512)}
+        feature_map["example_id"] = tf.FixedLenFeature([], tf.string)
+        feature_map["y"] = tf.FixedLenFeature([], tf.int64)
 
-    record_batch = dataset.make_batch_iterator().get_next()
-    features = tf.parse_example(record_batch, features=feature_map)
-    labels = {'y': features.pop('y')}
-    return features, labels
+        features = tf.parse_example(example, features=feature_map)
+        labels = {'y': features.pop('y')}
+        return features, labels
+    dataset = dataset.map(map_func=parse_fn,
+        num_parallel_calls=tf.data.experimental.AUTOTUNE)
+    return dataset
 
 
 def serving_input_receiver_fn():

@@ -106,6 +106,10 @@ old_CheckpointSaverHook_after_create_session = \
 
 def _new_CheckpointSaverHook_after_create_session(self, sess, coord):
     global_step = sess.run(self._global_step_tensor)
+    ckpt_tensor = sess.graph.get_tensor_by_name('data_checkpoint:0')
+    ckpt_text = sess.run(ckpt_tensor)
+    self.data_checkpoint = ckpt_text
+
     # We do write graph and saver_def at the first call of before_run.
     # We cannot do this in begin, since we let other hooks to change graph and
     # add variables in begin. Graph is finalized after all begin calls.

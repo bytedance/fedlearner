@@ -23,16 +23,18 @@ parser = flt.trainer_worker.create_argument_parser()
 args = parser.parse_args()
 
 def input_fn(bridge, trainer_master):
-    dataset = flt.data.DataBlockLoader(256, 'leader', bridge, trainer_master)
-    feature_map = {
-        "example_id": tf.FixedLenFeature([], tf.string),
-        "x": tf.FixedLenFeature([28 * 28 // 2], tf.float32),
-        "y": tf.FixedLenFeature([], tf.int64)
-    }
-    record_batch = dataset.make_batch_iterator().get_next()
-    features = tf.parse_example(record_batch, features=feature_map)
-    labels = {'y': features.pop('y')}
-    return features, labels
+    dataset = flt.data.DataBlockLoader(256, 'leader', bridge, trainer_master).make_dataset()
+    def parse_fn(example):
+        feature_map = {
+            "example_id": tf.FixedLenFeature([], tf.string),
+            "x": tf.FixedLenFeature([28 * 28 // 2], tf.float32),
+            "y": tf.FixedLenFeature([], tf.int64)
+        }
+        features = tf.parse_example(example, features=feature_map)
+        labels = {'y': features.pop('y')}
+        return features, labels
+    return dataset.map(map_func=parse_fn, 
+            num_parallel_calls=tf.data.experimental.AUTOTUNE)
 
 
 def serving_input_receiver_fn():

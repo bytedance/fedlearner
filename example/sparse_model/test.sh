@@ -18,8 +18,7 @@ python leader.py   --local-addr=localhost:50011 \
                    --checkpoint-path=model/leader \
                    --save-checkpoint-steps=100 \
                    --export-path=model/leader/saved_model \
-                   --sparse-estimator=True 
-
+                   --sparse-estimator=True
 wait
 
 rm -rf data model

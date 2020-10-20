@@ -24,13 +24,6 @@ from fedlearner.common import trainer_master_service_pb2_grpc as tm_grpc
 from fedlearner.common import common_pb2 as common_pb
 from .trainer_master_service import TrainerMasterServer
 
-class MasterStatus(enum.Enum):
-    CREATED = 0
-    INITIALING = 1
-    RUNNING = 2
-    FINISHED = 3
-    ERROR = 4
-
 class TrainerMaster(object):
     def __init__(self, application_id, checkpoint_path=None,
                  online_training=False):
@@ -39,7 +32,7 @@ class TrainerMaster(object):
         self._checkpoint_mutex = threading.Lock()
         self._allocated_data_blockids = set()
         self._status_mutex = threading.Lock()
-        self._status = MasterStatus.CREATED
+        self._status = tm_pb.MasterStatus.CREATED
 
     def run(self, listen_port):
         self._server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
@@ -51,12 +44,12 @@ class TrainerMaster(object):
         self._server.start()
         logging.info('Trainer Master Server start on port[%d].', listen_port)
         self._load_data()
-        self._status = MasterStatus.INITIALING
+        self._status = tm_pb.MasterStatus.INITIALING
         self._server.wait_for_termination()
 
     def _get_checkpoint_fn(self, request):
         assert request.application_id == self._application_id, \
-                "application id not matched"
+                "Application id not matched"
         response = tm_pb.GetDataBlockCheckpointResponse()
         response.status.code = common_pb.STATUS_SUCCESS
         response.status.error_message = 'success'
@@ -65,15 +58,22 @@ class TrainerMaster(object):
 
     def _restore_checkpoint_fn(self, request):
         assert request.application_id == self._application_id,\
-                "application id not matched"
-        with self._checkpoint_mutex:
-            self._allocated_data_blockids |= set(request.block_ids)
+                "Application id not matched"
+        response = tm_pb.RestoreDataBlockCheckpointResponse()
         with self._status_mutex:
-            if self._status != MasterStatus.INITIALING:
-                logging.warning("master status is %s, which can not "
-                                "transfer to RUNNING directly",
-                               self._status.name)
-            self._status = MasterStatus.RUNNING
+            if self._status != tm_pb.MasterStatus.INITIALING:
+                response.status.code = common_pb.STATUS_WAIT_FOR_SYNCING_CHECKPOINT
+                response.status.error_message = \
+                        "master cann't transfer to from %s to RUNNING directly" % self._status
+                return response
+            self._status = tm_pb.MasterStatus.RUNNING
+        with self._checkpoint_mutex:
+            #reset the checkpoints only when the master restarted
+            if len(self._allocated_data_blockids) == 0:
+                self._allocated_data_blockids |= set(request.block_ids)
+        response.status.code = common_pb.STATUS_SUCCESS
+        response.status.error_message = "success"
+        return response
 
     def _get_checkpoint(self):
         return self._allocated_data_blockids
@@ -84,7 +84,7 @@ class TrainerMaster(object):
     def _data_block_response(self, request):
         response = tm_pb.DataBlockResponse()
         with self._status_mutex:
-            if self._status != MasterStatus.RUNNING:
+            if self._status != tm_pb.MasterStatus.RUNNING:
                 response.status.code = \
                         common_pb.STATUS_WAIT_FOR_SYNCING_CHECKPOINT
                 response.status.error_message = \
@@ -114,7 +114,8 @@ class TrainerMaster(object):
                           self.__class__.__name__, request.worker_rank)
             response.status.code = common_pb.STATUS_DATA_FINISHED
             response.status.error_message = 'datablock finished'
-            self._status = MasterStatus.FINISHED
+            self._status = tm_pb.MasterStatus.FINISHED
+        print("_data_block_response-[%s]-[%d][%s]" % (request.block_id, response.status.code, response.status.error_message))
         return response
 
     def _load_data(self):
