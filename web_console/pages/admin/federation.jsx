@@ -115,8 +115,8 @@ function FederationItem({ data, onEdit }) {
 }
 
 const K8S_SETTINGS_FIELDS = [
-  { key: 'namespace', default: K8S_SETTINGS.namespace },
-  { key: 'storage_root_path', default: K8S_SETTINGS.storage_root_path },
+  { key: 'namespace' },
+  { key: 'storage_root_path' },
   {
     key: 'imagePullSecrets',
     type: 'json',
@@ -374,10 +374,12 @@ export default function FederationList() {
   }
 
   const handleSubmit = (value, groupFormType) => {
-    for (let field of K8S_SETTINGS_FIELDS) {
-      let error = checkK8sSetting(field, value.k8s_settings[field.key])
-      if (error) {
-        return {error}
+    if (groupFormType.k8s_settings === 'form') {
+      for (let field of K8S_SETTINGS_FIELDS) {
+        let error = checkK8sSetting(field, value.k8s_settings[field.key])
+        if (error) {
+          return {error}
+        }
       }
     }
 
