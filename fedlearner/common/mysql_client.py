@@ -48,6 +48,8 @@ class MySQLClient(object):
             self._addr = ''
             self._password = ''
         self._base_dir = base_dir
+        if self._base_dir[0] != '/':
+            self._base_dir = '/' + self._base_dir
         self._create_engine_inner()
         logging.info('success to create table')
 
