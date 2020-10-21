@@ -114,7 +114,7 @@ class TrainerMaster(object):
                 response.status.error_message = \
                         "must sync data checkpoint before alloc"
                 return response
-            # only if RUNNING here
+            #only if status is RUNNING
             return True
 
         ready = self._check_status(status_check_fn)

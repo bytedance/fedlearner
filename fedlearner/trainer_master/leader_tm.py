@@ -26,7 +26,6 @@ from .trainer_master import TrainerMaster
 
 kvstore_type = os.environ.get('KVSTORE_TYPE', 'etcd')
 kvstore_use_mock = os.environ.get('KVSTORE_USE_MOCK', "off") == "on"
-print("xxxxxxxxxxxx", os.environ)
 db_database, db_addr, db_username, db_password, db_base_dir = \
     get_kvstore_config(kvstore_type)
 
