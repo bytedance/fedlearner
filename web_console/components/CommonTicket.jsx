@@ -171,7 +171,7 @@ export default function TicketList({
     : [];
 
   // rewrite functions
-  const rewriteEnvs = useCallback((draft, data,rules) => {
+  const rewriteEnvs = useCallback((draft, data, rules) => {
     PARAMS_GROUP.forEach(paramType => {
       TICKET_REPLICA_TYPE.forEach(replicaType => {
         let envPath = ENV_PATH.replace('[replicaType]', replicaType)
@@ -217,10 +217,10 @@ export default function TicketList({
   const dataSourceRewrite = useCallback((draft, data) => {
     // envs
     const insert2Env = [
-      { name: 'RAW_DATA_SUB_DIR', getValue: data => data.raw_data && 'portal_publish_dir/' + data.raw_data.name },
+      { name: 'RAW_DATA_SUB_DIR', getValue: data => 'portal_publish_dir/' + (data.raw_data.name || data.raw_data) },
       { name: 'PARTITION_NUM', getValue: data => data.num_partitions },
     ]
-    rewriteEnvs(draft, data,insert2Env)
+    rewriteEnvs(draft, data, insert2Env)
 
     // replicas
     TICKET_REPLICA_TYPE.forEach(replicaType => {
@@ -504,6 +504,7 @@ export default function TicketList({
   };
   const handleEdit = (ticket) => {
     setCurrentTicket(ticket);
+    setFormMeta(ticket)
     setFields(mapValueToFields({data: ticket, fields: getDefauktFields(), editing: true}));
     setFormVisible(true);
   };
