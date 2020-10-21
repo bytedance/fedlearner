@@ -84,6 +84,8 @@ class ElasticSearchHandler(Handler):
         super(ElasticSearchHandler, self).__init__('elasticsearch')
         self._es = Elasticsearch([ip], port=port)
         self._tz = pytz.timezone('Asia/Shanghai')
+        es_logger = logging.getLogger('elasticsearch')
+        es_logger.setLevel(logging.WARNING)
         # initialize index for elastic search
         if self._es.indices.exists(index='metrics') is not True:
             self._es.indices.create(index='metrics')
