@@ -909,7 +909,7 @@ let TICKET_TREE_PARAMS = {
 
 // inject to formMeta.context
 let RAW_DATA_CONTEXT = {
-  "file_wildcard": "*",
+  "file_wildcard": "",
   "input_data_format": "CSV_DICT",
   "output_data_format": "TF_RECORD",
   "compressed_type": "",
