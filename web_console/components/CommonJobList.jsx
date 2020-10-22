@@ -279,7 +279,7 @@ export default function JobList({
   }, []), [RESOURCE_PATH_PREFIX, JOB_REPLICA_TYPE])
 
   const { data, mutate } = useSWR('jobs', fetcher);
-  const jobs = data ? data.data.filter(el => el.metadata).filter(filter) : null
+  const jobs = data && data.data ? data.data.filter(el => el.metadata).filter(filter) : null
   // const jobs = mockJobList.data
 
   // form meta convert functions
@@ -431,6 +431,19 @@ export default function JobList({
       onChange: onJobTypeChange,
     },
     {
+      key: 'federation_id',
+      type: 'federation',
+      label: 'federation',
+      required: true,
+      onChange: (value, formData) => {
+        federationId = value
+        setFields(fields => passFieldInfo(mapValueToFields({data: formData, fields})))
+      },
+      props: {
+        initTrigerChange: true
+      }
+    },
+    {
       key: 'client_ticket_name',
       type: 'clientTicket',
       label: 'client_ticket',
@@ -440,23 +453,10 @@ export default function JobList({
       required: true
     },
     {
-      key: 'federation_id',
-      type: 'federation',
-      label: 'federation',
-      required: true,
-      onChange: value => {
-        federationId = value
-        setFields(fields => passFieldInfo(fields))
-      },
-      props: {
-        initTrigerChange: true
-      }
-    },
-    {
       key: 'server_ticket_name',
       type: 'serverTicket',
       label: 'server_ticket',
-      required: true,
+      // required: true,
       props: {
         federation_id: null,
         type: PAGE_NAME,
