@@ -230,9 +230,11 @@ export default function Form({
             <FederationSelect
               value={form[key]}
               onChange={(value) => {
-                updateForm(key, value);
+                updateForm(key, value)
+                let formData = getFormatFormData()
+                formData[key] = value
                 if (onChange) {
-                  onChange(value);
+                  onChange(value, formData);
                 }
               }}
               {...valueProps}
