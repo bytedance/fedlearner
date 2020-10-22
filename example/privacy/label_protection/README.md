@@ -7,7 +7,7 @@ We provide two protection methods in this demo:
 * max norm alignment
 * sumKL minimzation 
 
-More details can be viewed at the corresponding technical report. 
+More details can be viewed at our technical report. 
 
 ### Usage 
 
@@ -29,7 +29,7 @@ After runing above codes, we can get some results as following:
 
 It shows that we can decrease the label leakage AUC from 1.0 to 0.584. The model's performance does not change too much in the above experiments, since FMNIST is not a very complicated dataset. It's worth mentioning we call the function ```change_label``` to change it to a binary classification problem. 
 
-The core of the max norm alignment algorithm is:
+The core of the max norm alignment algorithm (work for both tf 1.x and tf 2.x) is:
 
 ```Python
 @tf.custom_gradient
@@ -209,7 +209,6 @@ def KL_gradient_perturb(x):
         return perturbed_g
     return x, grad_fn
 ```
-
 
 The code snippet to compute lambdas can be viewed here:
 
