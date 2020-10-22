@@ -32,6 +32,7 @@ from fedlearner.common import metrics
 from fedlearner.data_join.common import get_kvstore_config
 
 SYNC_PATH = '/sync/'
+DATA_CHECKPOINT_INIT_VALUE = "_init_value"
 
 class DataCheckpointSaverListener(tf.estimator.CheckpointSaverListener):
     def __init__(self, tm, appid):
@@ -40,7 +41,8 @@ class DataCheckpointSaverListener(tf.estimator.CheckpointSaverListener):
 
     def begin(self):
         ckpt = tf.placeholder(tf.string, name="data_checkpoint_plhd")
-        var_tmp = tf.Variable("_init_value", name="data_checkpoint")
+        var_tmp = tf.Variable(DATA_CHECKPOINT_INIT_VALUE, \
+                              name="data_checkpoint")
         self._ckpt_tensor = var_tmp.assign(ckpt)
 
     def before_save(self, session, global_step_value):
@@ -48,8 +50,13 @@ class DataCheckpointSaverListener(tf.estimator.CheckpointSaverListener):
                 global_step_value)
         data_checkpoint = self._trainer_master.get_data_block_checkpoint(
             self._application_id)
+        #if empty block from checkpoint fetched due to exception or
+        # master not ready, no need to save.
+        if len(data_checkpoint) == 0:
+            return
         res = session.run(self._ckpt_tensor, {"data_checkpoint_plhd:0":
                                         ",".join(data_checkpoint)})
+        logging.info("data checkpoint saved result: %s", res)
 
 class FLModel(object):
     def __init__(self, role, bridge, example_ids, exporting=False):
@@ -206,11 +213,13 @@ class FLEstimator(object):
 
     def _restore_datablock(self, sess, blk_ids):
         # only chief worker restores from checkpoint.
-        if self._worker_rank != 0:
+        if self._worker_rank != 0 or blk_ids is None:
             return True
         block_id_str = as_str_any(blk_ids)
-        logging.info("restore: %s", block_id_str)
-        block_ids = block_id_str.split(",")
+        block_ids = []
+        if block_id_str != DATA_CHECKPOINT_INIT_VALUE:
+            block_ids = block_id_str.split(",")
+        logging.info("restore: %s, %s", block_id_str, block_ids)
         return self._trainer_master.restore_data_block_checkpoint(
             self._application_id, block_ids)
 
@@ -304,8 +313,13 @@ class FLEstimator(object):
                     save_checkpoint_secs=save_checkpoint_secs,
                     hooks=spec.training_hooks) as sess:
                     iter_id = 0
-                    #TODO check the result
-                    self._restore_datablock(sess, saver_hook.data_checkpoint)
+
+                    data_checkpoint_value = None
+                    if hasattr(saver_hook, "data_checkpoint"):
+                        data_checkpoint_value = saver_hook.data_checkpoint
+                    if not self._restore_datablock(sess, data_checkpoint_value):
+                        raise ValueError("Restore data checkpoint error")
+
                     while not sess.should_stop():
                         self._bridge.start(iter_id)
                         logging.debug('after bridge start.')

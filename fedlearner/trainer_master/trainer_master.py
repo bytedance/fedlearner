@@ -53,8 +53,8 @@ class TrainerMaster(object):
             if self._status == frm:
                 self._status = to
                 return callback_fn()
-            logging.error("%s invalid status transfer, from %d to %d, "
-                          "when status is %d", self.__class__.__name__,
+            logging.warning("%s invalid status transfer, from %d to %d, "
+                          "while status is %d", self.__class__.__name__,
                           frm, to, self._status)
             self._status = tm_pb.MasterStatus.ERROR
         return False
@@ -68,6 +68,13 @@ class TrainerMaster(object):
         assert request.application_id == self._application_id, \
                 "Application id not matched"
         response = tm_pb.GetDataBlockCheckpointResponse()
+        ckpt_not_ready_fn = lambda status: status not in \
+                (tm_pb.MasterStatus.RUNNING, tm_pb.MasterStatus.FINISHED)
+        if self._check_status(ckpt_not_ready_fn):
+            response.status.code = common_pb.STATUS_WAIT_FOR_SYNCING_CHECKPOINT
+            response.status.error_message = \
+                    "master is not ready for querying daya checkpoint"
+            return response
         response.status.code = common_pb.STATUS_SUCCESS
         response.status.error_message = 'success'
         response.block_ids.extend(list(self._allocated_data_blockids))
@@ -77,6 +84,15 @@ class TrainerMaster(object):
         assert request.application_id == self._application_id,\
                 "Application id not matched"
         response = tm_pb.RestoreDataBlockCheckpointResponse()
+        no_need_restore_fn = lambda status: status in (\
+                                            tm_pb.MasterStatus.RUNNING,\
+                                            tm_pb.MasterStatus.FINISHED,\
+                                            tm_pb.MasterStatus.ERROR)
+        if self._check_status(no_need_restore_fn):
+            logging.info("No need to restore %s", self.__class__.__name__)
+            response.status.code = common_pb.STATUS_SUCCESS
+            response.status.error_message = "success"
+            return response
 
         trans_ok = self._transfer_status(tm_pb.MasterStatus.INITIALING,
                              tm_pb.MasterStatus.RUNNING)
@@ -86,9 +102,7 @@ class TrainerMaster(object):
                     "must sync data checkpoint before alloc"
             return response
         with self._checkpoint_mutex:
-            #reset the checkpoints only when the master restarted
-            if len(self._allocated_data_blockids) == 0:
-                self._allocated_data_blockids |= set(request.block_ids)
+            self._allocated_data_blockids |= set(request.block_ids)
         response.status.code = common_pb.STATUS_SUCCESS
         response.status.error_message = "success"
         return response

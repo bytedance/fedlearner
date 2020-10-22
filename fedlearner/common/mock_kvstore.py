@@ -14,7 +14,12 @@
 
 # coding: utf-8
 
+import os
 import threading
+import json
+
+KVSTORE_LOCAL_PATH = "/tmp/kvstore.db"
+
 try:
     import queue
 except ImportError:
@@ -63,6 +68,27 @@ class MockKVStore(object):
         self._lock = threading.Lock()
         self._data = {}
         self._event_notifier = {}
+        self._need_sync = os.environ.get("KVSTORE_MOCK_DISK_SYNC",
+                                         "off") == "on"
+        self._load_from_disk()
+
+
+    def _load_from_disk(self):
+        #ignore events
+        if self._need_sync:
+            if not os.path.exists(KVSTORE_LOCAL_PATH):
+                os.mknod(KVSTORE_LOCAL_PATH)
+                return
+            with open(KVSTORE_LOCAL_PATH, "rb+") as f:
+                json_data = f.read()
+                if json_data != b'':
+                    self._data = json.loads(json_data.decode())
+
+    def _sync_to_disk(self):
+        #ignore events
+        if self._need_sync:
+            with open(KVSTORE_LOCAL_PATH, "wb+") as f:
+                f.write(json.dumps(self._data).encode())
 
     def get(self, key):
         with self._lock:
@@ -76,11 +102,13 @@ class MockKVStore(object):
         with self._lock:
             self._data[key] = value
             self._notify_if_need(key)
+            self._sync_to_disk()
 
     def delete(self, key):
         with self._lock:
             self._data.pop(key, None)
             self._notify_if_need(key)
+            self._sync_to_disk()
 
     def delete_prefix(self, prefix):
         with self._lock:
@@ -91,6 +119,7 @@ class MockKVStore(object):
             for key in deleted:
                 self._data.pop(key, None)
                 self._notify_if_need(key)
+            self._sync_to_disk()
 
     def put_if_not_exists(self, key, value):
         with self._lock:
@@ -98,6 +127,7 @@ class MockKVStore(object):
                 return False
             self._data[key] = value
             self._notify_if_need(key)
+            self._sync_to_disk()
             return True
 
     def replace(self, key, old_value, new_value):
@@ -109,6 +139,7 @@ class MockKVStore(object):
                 return False
             self._data[key] = new_value
             self._notify_if_need(key)
+            self._sync_to_disk()
             return True
 
     def watch(self, key, clnt):
@@ -127,6 +158,7 @@ class MockKVStore(object):
                         en for en in self._event_notifier[key] if
                         en.get_client_belongto() == clnt
                     ]
+            self._sync_to_disk()
 
     def get_prefix(self, prefix, sort_order='ascend'):
         kvs = []

@@ -36,6 +36,7 @@ db_database, db_addr, db_username, db_password, db_base_dir = \
 
 
 class LocalTrainerMasterClient(object):
+    """Non-thread safe"""
     def __init__(self,
                  role,
                  path,
@@ -43,7 +44,8 @@ class LocalTrainerMasterClient(object):
                  ext='.tfrecord',
                  start_time=None,
                  end_time=None,
-                 from_data_source=False):
+                 from_data_source=False,
+                 skip_datablock_checkpoint=False):
         self._role = role
         self._path = path
         self._block_queue = []
@@ -83,12 +85,17 @@ class LocalTrainerMasterClient(object):
                 self._block_queue.append(block)
                 self._block_map[block_id] = block
         self._status = tm_pb.MasterStatus.INITIALING
+        if skip_datablock_checkpoint:
+            self._status = tm_pb.MasterStatus.RUNNING
 
     def request_data_block(self, block_id=None):
         if self._status != tm_pb.MasterStatus.RUNNING:
-            logging.info("master is waiting for recover"
-                    " from checkpoint %d", self._status)
-            return ""
+            response = tm_pb.DataBlockResponse()
+            response.status.code = \
+                   common_pb.STATUS_WAIT_FOR_SYNCING_CHECKPOINT
+            response.status.error_message = \
+                    "must sync data checkpoint before alloc"
+            return response
         if self._role == 'leader':
             assert block_id is None, "Must not set block_id for leader"
             while self._block_queue:
