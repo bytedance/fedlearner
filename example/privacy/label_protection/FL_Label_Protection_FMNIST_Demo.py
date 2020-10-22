@@ -233,7 +233,7 @@ def KL_gradient_perturb(x):
     p_frac = 'pos_frac'
     dynamic = True
     error_prob_lower_bound = None
-    sumKL_threshold = 0.16  # 0.25 #0.81 #0.64#0.16 #0.64
+    sumKL_threshold = 0.64  # 0.25 #0.81 #0.64#0.16 #0.64
 
     if dynamic and (error_prob_lower_bound is not None):
         sumKL_threshold = (2 - 4 * error_prob_lower_bound)**2
