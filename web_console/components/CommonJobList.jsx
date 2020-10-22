@@ -456,7 +456,7 @@ export default function JobList({
       key: 'server_ticket_name',
       type: 'serverTicket',
       label: 'server_ticket',
-      // required: true,
+      required: true,
       props: {
         federation_id: null,
         type: PAGE_NAME,
