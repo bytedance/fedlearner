@@ -465,7 +465,7 @@ router.delete('/api/v1/job/:id', SessionMiddleware, async (ctx) => {
     return;
   }
 
-  if (data.status == 'running') {
+  if (!data.status || data.status == 'started') {
     await k8s.deleteFLApp(namespace, data.name);
   }
   await data.destroy({ force: true });
