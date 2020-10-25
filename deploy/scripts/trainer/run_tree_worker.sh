@@ -27,6 +27,7 @@ data_path=$(normalize_env_to_args "--data-path" "$DATA_PATH")
 validation_data_path=$(normalize_env_to_args "--validation-data-path" "$VALIDATION_DATA_PATH")
 no_data=$(normalize_env_to_args "--no-data" "$NO_DATA")
 file_ext=$(normalize_env_to_args "--file-ext" "$FILE_EXT")
+file_type=$(normalize_env_to_args "--file-type" "$FILE_TYPE")
 load_model_path=$(normalize_env_to_args "--load-model-path" "$LOAD_MODEL_PATH")
 verbosity=$(normalize_env_to_args "--verbosity" "$VERBOSITY")
 learning_rate=$(normalize_env_to_args "--learning-rate" "$LEARNING_RATE")
@@ -53,7 +54,7 @@ python -m fedlearner.model.tree.trainer \
     --checkpoint-path="$OUTPUT_BASE_DIR/checkpoints" \
     --output-path="$OUTPUT_BASE_DIR/outputs" \
     $mode $data_path $validation_data_path \
-    $no_data $file_ext $load_model_path \
+    $no_data $file_ext $file_type $load_model_path \
     $verbosity $learning_rate $max_iters \
     $max_depth $l2_regularization $max_bins \
     $num_parallel $verify_example_ids $ignore_fields \
