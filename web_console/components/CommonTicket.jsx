@@ -23,6 +23,50 @@ import { JOB_TYPE_CLASS, JOB_TYPE } from '../constants/job'
 const ENV_PATH = 'spec.flReplicaSpecs.[replicaType].template.spec.containers[].env'
 const PARAMS_GROUP = ['public_params', 'private_params']
 
+const All_REPLICAS = Array.from(new Set([
+  ...TICKET_DATA_JOIN_REPLICA_TYPE,
+  ...TICKET_NN_REPLICA_TYPE,
+  ...TICKET_PSI_DATA_JOIN_REPLICA_TYPE,
+  ...TICKET_TREE_REPLICA_TYPE
+]))
+
+/**
+ * search value from params
+ * @param {*} path template string with `[replicaType]` and `[paramType]`
+ */
+function searchValue(data, path) {
+  let value
+
+  for (let paramType of PARAMS_GROUP) {
+    for (let replicaType of All_REPLICAS) {
+      let targetPath = path
+        .replace(/\[paramType\]/g, paramType)
+        .replace(/\[replicaType\]/g, replicaType)
+
+      value = getValueFromJson(data[paramType], targetPath)
+
+      if (value !== undefined) {
+        return value
+      }
+    }
+  }
+  return undefined
+}
+function searchEnvValue(data, key) {
+  let value
+
+  for (let paramType of PARAMS_GROUP) {
+    for (let replicaType of All_REPLICAS) {
+      let path = ENV_PATH.replace('[replicaType]', replicaType)
+      value = getValueFromEnv(data[paramType] || {}, path, key)
+      if (value !== undefined) {
+        return value
+      }
+    }
+  }
+  return undefined
+}
+
 function fillField(data, field, editing) {
   if (data === undefined && !editing) return field
 
@@ -31,11 +75,8 @@ function fillField(data, field, editing) {
 
   let v = getValueFromJson(data, field.path || field.key)
 
-  const envPath = ENV_PATH.replace('[replicaType]', 'Master')
-
   if (field.key === 'raw_data') {
-    v = getValueFromEnv(data['public_params'], envPath,'RAW_DATA_SUB_DIR')
-      || getValueFromEnv(data['private_params'], envPath,'RAW_DATA_SUB_DIR')
+    v = searchEnvValue(data, 'RAW_DATA_SUB_DIR')
     v = v.replace('portal_publish_dir/', '')
   }
   else if (field.key === 'name' && editing) {
@@ -49,23 +90,19 @@ function fillField(data, field, editing) {
     }
   }
   else if (field.key === 'num_partitions') {
-    v = getValueFromEnv(data['public_params'], envPath, 'PARTITION_NUM')
-      || getValueFromEnv(data['private_params'], envPath, 'PARTITION_NUM')
+    v = searchEnvValue(data, 'PARTITION_NUM')
   }
   else if (field.key === 'image') {
-    v = getValueFromJson(data['public_params'] || {}, field.path.replace('[replicaType]', 'Master'))
-      || getValueFromJson(data['private_params'] || {}, field.path.replace('[replicaType]', 'Master'))
+    v = searchValue(data, field.path)
   }
   else if (field.type === 'bool-select') {
     v = typeof v === 'boolean' ? v : true
   }
   else if (field.key === 'datasource') {
-    v = getValueFromEnv(data['public_params'], envPath, 'DATA_SOURCE')
-      || getValueFromEnv(data['private_params'], envPath, 'DATA_SOURCE')
+    v = searchEnvValue(data, 'DATA_SOURCE')
   }
   else if (field.key === 'code_key') {
-    v = getValueFromEnv(data['public_params'], ENV_PATH.replace('[replicaType]', 'Worker'), 'CODE_KEY')
-      || getValueFromEnv(data['private_params'], ENV_PATH.replace('[replicaType]', 'Worker'), 'CODE_KEY')
+    v = searchEnvValue(data, 'CODE_KEY')
   }
   else {
     v = v || field.emptyDefault || ''
@@ -451,7 +488,7 @@ export default function TicketList({
     training && {
       key: 'datasource',
       type: 'datasource',
-      required: true,
+      // required: true,
     },
     (training && jobType === JOB_TYPE.nn_model) ? {
       key: 'code_key',
