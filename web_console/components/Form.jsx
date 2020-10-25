@@ -90,7 +90,7 @@ const mapFields2Form = (fields, groupType) => {
   const formData = fields.reduce((total, current) => {
     total[current.key] = current.hasOwnProperty('value')
       ? current.value
-      : current.value || current.default;
+      : current.value || current.default || '';
     return total;
   }, {})
   return [fields, formData]
