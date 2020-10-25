@@ -488,7 +488,7 @@ export default function TicketList({
     training && {
       key: 'datasource',
       type: 'datasource',
-      // required: true,
+      required: true,
     },
     (training && jobType === JOB_TYPE.nn_model) ? {
       key: 'code_key',
