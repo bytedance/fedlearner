@@ -63,6 +63,10 @@ function fillField(data, field, editing) {
     v = getValueFromEnv(data['public_params'], envPath, 'DATA_SOURCE')
       || getValueFromEnv(data['private_params'], envPath, 'DATA_SOURCE')
   }
+  else if (field.key === 'code_key') {
+    v = getValueFromEnv(data['public_params'], ENV_PATH.replace('[replicaType]', 'Worker'), 'CODE_KEY')
+      || getValueFromEnv(data['private_params'], ENV_PATH.replace('[replicaType]', 'Worker'), 'CODE_KEY')
+  }
   else {
     v = v || field.emptyDefault || ''
   }
@@ -514,6 +518,9 @@ export default function TicketList({
   const handleEdit = (ticket) => {
     setCurrentTicket(ticket);
     setFormMeta(ticket)
+
+    jobType = ticket.job_type
+
     setFields(mapValueToFields({data: ticket, fields: getDefauktFields(), editing: true}));
     setFormVisible(true);
   };
