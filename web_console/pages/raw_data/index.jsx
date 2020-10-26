@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Table, Button, Card, Text, Link } from '@zeit-ui/react';
+import { Table, Button, Card, Text, Link, useTheme } from '@zeit-ui/react';
 import NextLink from 'next/link';
 import useSWR from 'swr';
 import produce from 'immer'
@@ -15,6 +15,8 @@ import { RAW_DATA_CONTEXT } from '../../constants/form-default'
 const RESOURCE_PATH_PREFIX = 'yaml_spec.spec.flReplicaSpecs.[replicaType].template.spec.containers[].resources'
 const IMAGE_PATH = 'yaml_spec.spec.flReplicaSpecs.[replicaType].template.spec.containers[].image'
 const WORKER_REPLICAS_PATH = 'yaml_spec.spec.flReplicaSpecs.Worker.replicas'
+
+const REPLICA_TYPES = ['Master', 'Worker']
 
 const DATA_FORMAT_OPTIONS = [
   { label: 'TF_RECORD', value: 'TF_RECORD' },
@@ -112,6 +114,9 @@ const CONTEXT_FIELDS = [
   },
 ]
 
+/**
+ * write context data to form meta
+ */
 function handleContextData(container, data, field) {
   if (field.type === 'label') { return }
 
@@ -144,16 +149,23 @@ function fillField(data, field) {
     const [, replicaType,] = field.key.split('.')
     v = getValueFromJson(data, field.path.replace('[replicaType]', replicaType))
   }
-
   else if (field.key === 'compressed_type') {
     v = v === '' ? 'None' : data.compressed_type
   }
+  else if (field.key === 'image') {
+    for (let replicaType of REPLICA_TYPES) {
+      v = getValueFromJson(data.context, IMAGE_PATH.replace('[replicaType]', replicaType))
+      if (v) break
+    }
+  }
 
-  if (typeof v === 'object') {
+  if (typeof v === 'object' && v !== null) {
     v = JSON.stringify(v, null, 2)
   }
 
-  field.value = v
+  if (v) {
+    field.value = v
+  }
   field.editing = true
 
   return field
@@ -175,6 +187,9 @@ let formMeta = {}
 const setFormMeta = value => { formMeta = value }
 
 export default function RawDataList() {
+
+  const theme = useTheme()
+
   const { data, mutate } = useSWR('raw_datas', fetcher);
   const rawDatas = data ? data.data : null;
   const columns = [
@@ -184,7 +199,7 @@ export default function RawDataList() {
   // form meta convert functions
   const rewriteFields = (draft, data) => {
     // image
-    ['Master', 'Worker'].forEach(replicaType => {
+    REPLICA_TYPES.forEach(replicaType => {
       fillJSON(draft.context, IMAGE_PATH.replace('[replicaType]', replicaType), data['image'])
     })
     // output_partition_num
@@ -294,6 +309,20 @@ export default function RawDataList() {
   ], []);
   const [fields, setFields] = useState(DEFAULT_FIELDS)
 
+  const handleClone = data => {
+    data.context = JSON.parse(data.context)
+
+    setFormMeta(data)
+
+    setFields(fields => mapValueToFields({
+      data: mapFormMeta2Form(fields),
+      fields,
+      type: 'form',
+    }))
+
+    toggleForm()
+  }
+
   // eslint-disable-next-line arrow-body-style
   const operation = (actions, rowData) => {
     // const onConfirm = () => revokeRawData(rowData.rowValue.id);
@@ -302,10 +331,18 @@ export default function RawDataList() {
     // };
     return (
       <>
+        <Text
+          className="actionText"
+          onClick={() => handleClone(rowData.rowValue)}
+          type="success"
+          style={{marginRight: `${theme.layout.gapHalf}`}}
+        >
+          Clone
+        </Text>
         <NextLink
           href={`/raw_data/${rowData.rowValue.id}`}
         >
-          <Link color>View Detail</Link>
+          <Link color>Detail</Link>
         </NextLink>
         {/* <PopConfirm onConfirm={() => { }} onOk={() => { }}>
           <Text className="actionText" type="error">Revoke</Text>
