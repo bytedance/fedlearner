@@ -221,6 +221,7 @@ def read_data(file_type, filename, require_example_ids,
         features.append([float(line[i]) for i in cont_columns])
         cat_features.append([int(line[i]) for i in cat_columns])
 
+    print(labels, ' ##### ', cont_columns, ' ##### ', features)
     features = np.array(features, dtype=np.float)
     cat_features = np.array(cat_features, dtype=np.int32)
     if labels is not None:
