@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
-import { Table, Button, Card, Text, Link, Tooltip } from '@zeit-ui/react';
+import { Table, Button, Card, Text, Link, Tooltip, useTheme } from '@zeit-ui/react';
 import AlertCircle from '@geist-ui/react-icons/alertCircle'
 import useSWR from 'swr';
 import produce from 'immer'
@@ -108,7 +108,7 @@ function fillField(data, field, editing) {
     v = v || field.emptyDefault || ''
   }
 
-  if (typeof v === 'object') {
+  if (typeof v === 'object'  && v !== null) {
     v = JSON.stringify(v, null, 2)
   }
 
@@ -171,6 +171,8 @@ export default function TicketList({
   filter,
   ...props
 }) {
+
+  const theme = useTheme();
 
   let TICKET_REPLICA_TYPE, INIT_PARAMS, FILTER_TYPE, PAGE_NAME, DEFAULT_JOB_TYPE
   if (datasoure) {
@@ -562,6 +564,15 @@ export default function TicketList({
     setFormVisible(true);
   };
 
+  const handleClone = (ticket) => {
+    setFormMeta(ticket)
+
+    jobType = ticket.job_type
+
+    setFields(mapValueToFields({data: ticket, fields: getDefauktFields(), init: true}));
+    setFormVisible(true);
+  }
+
   const writeFormMeta = (data, formTypes) => {
     const writer = formTypes['public_params'] === 'json'
       ? writeJson2FormMeta : writeForm2FormMeta
@@ -583,7 +594,21 @@ export default function TicketList({
       e.preventDefault();
       handleEdit(rowData.rowValue);
     };
-    return <Link href="#" color onClick={onHandleEdit}>Edit</Link>;
+    const onHandleClone = (e) => {
+      e.preventDefault();
+      handleClone(rowData.rowValue);
+    };
+    return <>
+      <Text
+        className="actionText"
+        onClick={onHandleClone}
+        type="success"
+        style={{marginRight: `${theme.layout.gapHalf}`}}
+      >
+        Clone
+      </Text>
+      <Link href="#" color onClick={onHandleEdit}>Edit</Link>
+    </>
   };
   const dataSource = tickets
     ? tickets.map((x) => ({ ...x, operation }))

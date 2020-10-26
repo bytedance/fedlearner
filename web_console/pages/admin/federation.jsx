@@ -168,7 +168,7 @@ const K8S_SETTINGS_FIELDS = [
  */
 function fillField(data, field, edit=false) {
   let v = getValueFromJson(data, field.path || field.key)
-  if (typeof v === 'object') {
+  if (typeof v === 'object'  && v !== null) {
     v = JSON.stringify(v, null, 2)
   }
   field.value = v

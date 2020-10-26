@@ -118,8 +118,6 @@ function fillField(data, field) {
 
   let v = getValueFromJson(data, field.path || field.key) || field.emptyDefault || ''
 
-  const envPath = ENV_PATH.replace('[replicaType]', 'Master')
-
   if (field.key === 'federation_id') {
     const federationID = parseInt(localStorage.getItem('federationID'))
     if (federationID > 0) {
@@ -134,7 +132,7 @@ function fillField(data, field) {
       || getValueFromJson(data['server_params'], path)
   }
 
-  if (typeof v === 'object') {
+  if (typeof v === 'object'  && v !== null) {
     v = JSON.stringify(v, null, 2)
   }
 
