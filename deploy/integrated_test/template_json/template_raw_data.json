@@ -2,7 +2,7 @@
   "name": "!name",
   "federation_id": "!federation_id",
   "output_partition_num": 4,
-  "data_portal_type": "Streaming",
+  "data_portal_type": "!data_portal_type",
   "input": "/app/deploy/integrated_test/tfrecord_raw_data",
   "image": "!image",
   "context": {
