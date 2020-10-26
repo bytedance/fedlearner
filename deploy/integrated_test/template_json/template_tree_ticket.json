@@ -1,0 +1,89 @@
+{
+  "public_params": {
+    "spec": {
+      "flReplicaSpecs": {
+        "Worker": {
+          "pair": true,
+          "replicas": 1,
+          "template": {
+            "spec": {
+              "containers": [
+                {
+                  "env": [
+                    {
+                      "name": "DATA_PATH",
+                      "value": ""
+                    },
+                    {
+                      "name": "FILE_EXT",
+                      "value": ".data"
+                    },
+                    {
+                      "name": "FILE_TYPE",
+                      "value": "tfrecord"
+                    },
+                    {
+                      "name": "SEND_SCORES_TO_FOLLOWER",
+                      "value": ""
+                    },
+                    {
+                      "name": "MODE",
+                      "value": "train"
+                    },
+                    {
+                      "name": "DATA_SOURCE",
+                      "value": "!DATA_SOURCE"
+                    }
+                  ],
+                  "image": "!image",
+                  "ports": [
+                    {
+                      "containerPort": 50051,
+                      "name": "flapp-port"
+                    }
+                  ],
+                  "command": [
+                    "/app/deploy/scripts/wait4pair_wrapper.sh"
+                  ],
+                  "args": [
+                    "/app/deploy/scripts/trainer/run_tree_worker.sh"
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      }
+    }
+  },
+  "private_params": {
+    "spec": {
+      "flReplicaSpecs": {
+        "Worker": {
+          "template": {
+            "spec": {
+              "containers": [
+                {
+                  "image": "!image",
+                  "env": [
+                    {
+                      "name": "DATA_SOURCE",
+                      "value": "!DATA_SOURCE"
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      }
+    }
+  },
+  "name": "!name",
+  "federation_id": -1,
+  "job_type": "tree_model",
+  "role": "!role",
+  "expire_time": "!expire_time",
+  "remark": "Built by integrated test.",
+  "undefined": ""
+}

@@ -11,10 +11,6 @@
                 {
                   "env": [
                     {
-                      "name": "BATCH_MODE",
-                      "value": "--batch_mode"
-                    },
-                    {
                       "name": "PARTITION_NUM",
                       "value": "4"
                     },
@@ -45,9 +41,7 @@
                   "command": [
                     "/app/deploy/scripts/wait4pair_wrapper.sh"
                   ],
-                  "args": [
-                    "/app/deploy/scripts/data_join/run_data_join_master.sh"
-                  ]
+                  "args": []
                 }
               ]
             }
@@ -62,12 +56,20 @@
                 {
                   "env": [
                     {
+                      "name": "PARTITION_NUM",
+                      "value": "4"
+                    },
+                    {
+                      "name": "RAW_DATA_SUB_DIR",
+                      "value": "portal_publish_dir/"
+                    },
+                    {
                       "name": "DATA_BLOCK_DUMP_INTERVAL",
                       "value": "600"
                     },
                     {
                       "name": "DATA_BLOCK_DUMP_THRESHOLD",
-                      "value": "262144"
+                      "value": "65536"
                     },
                     {
                       "name": "EXAMPLE_ID_DUMP_INTERVAL",
@@ -75,35 +77,27 @@
                     },
                     {
                       "name": "EXAMPLE_ID_DUMP_THRESHOLD",
-                      "value": "262144"
+                      "value": "65536"
                     },
                     {
-                      "name": "EXAMPLE_ID_BATCH_SIZE",
-                      "value": "4096"
-                    },
-                    {
-                      "name": "MAX_FLYING_EXAMPLE_ID",
-                      "value": "307152"
-                    },
-                    {
-                      "name": "MIN_MATCHING_WINDOW",
-                      "value": "2048"
-                    },
-                    {
-                      "name": "MAX_MATCHING_WINDOW",
-                      "value": "8192"
-                    },
-                    {
-                      "name": "RAW_DATA_ITER",
+                      "name": "PSI_RAW_DATA_ITER",
                       "value": "TF_RECORD"
                     },
                     {
-                      "name": "RAW_DATA_SUB_DIR",
-                      "value": "portal_publish_dir/"
+                      "name": "PSI_OUTPUT_BUILDER",
+                      "value": "TF_RECORD"
                     },
                     {
-                      "name": "PARTITION_NUM",
-                      "value": "4"
+                      "name": "DATA_BLOCK_BUILDER",
+                      "value": "TF_RECORD"
+                    },
+                    {
+                      "name": "EXAMPLE_JOINER",
+                      "value": "SORT_RUN_JOINER"
+                    },
+                    {
+                      "name": "SIGN_RPC_TIMEOUT_MS",
+                      "value": "128000"
                     }
                   ],
                   "image": "!image",
@@ -116,9 +110,7 @@
                   "command": [
                     "/app/deploy/scripts/wait4pair_wrapper.sh"
                   ],
-                  "args": [
-                    "/app/deploy/scripts/data_join/run_data_join_worker.sh"
-                  ]
+                  "args": []
                 }
               ]
             }
@@ -179,8 +171,8 @@
   },
   "name": "!name",
   "federation_id": "!federation_id",
-  "job_type": "data_join",
+  "job_type": "psi_data_join",
   "role": "!role",
   "expire_time": "!expire_time",
-  "remark": "Build by integrated test."
+  "remark": "Built by integrated test."
 }
