@@ -45,12 +45,12 @@ function searchValue(data, path) {
 
       value = getValueFromJson(data[paramType], targetPath)
 
-      if (value !== undefined) {
+      if (value) {
         return value
       }
     }
   }
-  return undefined
+  return value
 }
 function searchEnvValue(data, key) {
   let value
@@ -59,12 +59,12 @@ function searchEnvValue(data, key) {
     for (let replicaType of All_REPLICAS) {
       let path = ENV_PATH.replace('[replicaType]', replicaType)
       value = getValueFromEnv(data[paramType] || {}, path, key)
-      if (value !== undefined) {
+      if (value) {
         return value
       }
     }
   }
-  return undefined
+  return value
 }
 
 function fillField(data, field, editing) {
