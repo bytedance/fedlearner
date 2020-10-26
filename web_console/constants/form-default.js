@@ -473,12 +473,8 @@ let TICKET_PSI_DATA_JOIN_PARAMS = {
                 {
                   "env": [
                     {
-                      "name": "RAW_DATA_SUB_DIR",
-                      "value": ""
-                    },
-                    {
-                      "name": "RSA_KEY_PEM",
-                      "value": ""
+                      "name": "RSA_KEY_PATH",
+                      "value": "/data/id_rsa.pub"
                     },
                     {
                       "name": "PSI_RAW_DATA_ITER",
@@ -515,6 +511,10 @@ let TICKET_PSI_DATA_JOIN_PARAMS = {
                     {
                       "name": "SIGN_RPC_TIMEOUT_MS",
                       "value": "128000"
+                    },
+                    {
+                      "name": "RAW_DATA_SUB_DIR",
+                      "value": ""
                     }
                   ],
                   "image": "",
