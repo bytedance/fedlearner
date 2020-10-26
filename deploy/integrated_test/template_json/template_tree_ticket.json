@@ -82,4 +82,8 @@
   "expire_time": "!expire_time",
   "remark": "Built by integrated test.",
   "undefined": ""
+<<<<<<< HEAD
 }
+=======
+}
+>>>>>>> Revert debug, add send metrics in tree trainer, shrink raw data, full integrated test supported
