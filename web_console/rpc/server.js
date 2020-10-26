@@ -88,7 +88,7 @@ async function createJob(call, callback) {
       job_type,
       client_ticket_name: server_ticket_name,
       server_ticket_name: client_ticket_name,
-      server_params,
+      server_params: client_params,
     } = call.request;
     const ticketRecord = await Ticket.findOne({
       where: {
@@ -96,7 +96,9 @@ async function createJob(call, callback) {
       },
     });
     if (!ticketRecord) throw new Error('Ticket not found');
-    const params = JSON.parse(server_params);
+    if (ticketRecord.federation_id != federation.id) throw new Error("Invalid ticket name");
+
+    const params = JSON.parse(client_params);
     validateTicket(ticketRecord, params);
 
     const [data, created] = await Job.findOrCreate({
@@ -109,7 +111,9 @@ async function createJob(call, callback) {
         job_type,
         client_ticket_name,
         server_ticket_name,
-        server_params: JSON.parse(server_params),
+        client_params: JSON.parse(client_params),
+        status: 'started',
+        federation_id: federation.id,
       },
     });
     if (!created) throw new Error('Job already exists');
@@ -123,7 +127,9 @@ async function createJob(call, callback) {
         job_type: data.job_type,
         client_ticket_name: data.server_ticket_name,
         server_ticket_name: data.client_ticket_name,
-        server_params: JSON.stringify(data.server_params),
+        server_params: client_params,
+        status: 'started',
+        federation_id: federation.id,
       },
     });
   } catch (err) {
@@ -143,9 +149,108 @@ async function deleteJob(call, callback) {
       },
     });
     if (!job) throw new Error('Job not found');
-    await k8s.deleteFLApp(NAMESPACE, job.name);
+    if (!job.status || job.status == 'started') {
+      await k8s.deleteFLApp(NAMESPACE, job.name);
+    }
     await job.destroy({ force: true });
     callback(null, { message: 'Delete job successfully' });
+  } catch (err) {
+    callback(err);
+  }
+}
+
+async function updateJob(call, callback) {
+  try {
+    const federation = await authenticate(call.metadata);
+
+    const {
+      name,
+      job_type,
+      client_ticket_name: server_ticket_name,
+      server_ticket_name: client_ticket_name,
+      server_params: client_params,
+      status,
+    } = call.request;
+
+    const new_job = {
+      name, job_type, client_ticket_name, server_ticket_name,
+      client_params: JSON.parse(client_params), status,
+    }
+
+    const old_job = await Job.findOne({
+      where: {
+        name: { [Op.eq]: name },
+      },
+    });
+    if (!old_job) throw new Error(`Job ${name} not found`);
+
+    if (old_job.status === 'error') {
+      throw new Error("Cannot update errored job");
+    }
+    if (old_job.status === 'started' && new_job.status != 'stopped') {
+      throw new Error("Cannot change running job");
+    }
+    if (job_type != old_job.job_type) {
+      throw new Error("Cannot change job type");
+    }
+
+    const ticketRecord = await Ticket.findOne({
+      where: {
+        name: { [Op.eq]: client_ticket_name },
+      },
+    });
+    if (!ticketRecord) throw new Error('Ticket not found');
+    if (ticketRecord.federation_id != federation.id) throw new Error("Invalid ticket name");
+
+    if (ticketRecord.federation_id != old_job.federation_id) {
+      throw new Error("Cannot change job federation");
+    }
+
+    // const params = JSON.parse(client_params);
+    // validateTicket(ticketRecord, params);
+
+    if (old_job.status === 'started' && status === 'stopped') {
+      flapp = (await k8s.getFLApp(NAMESPACE, name)).flapp;
+      pods = (await k8s.getFLAppPods(NAMESPACE, name)).pods;
+      old_job.k8s_meta_snapshot = JSON.stringify({flapp, pods});
+      await k8s.deleteFLApp(NAMESPACE, name);
+    } else if (old_job.status === 'stopped' && new_job.status === 'started') {
+      const args = serverGenerateYaml(federation, new_job, ticketRecord);
+      await k8s.createFLApp(NAMESPACE, args);
+    }
+
+    old_job.client_ticket_name = new_job.client_ticket_name;
+    old_job.server_ticket_name = new_job.server_ticket_name;
+    if (new_job.client_params) {
+      old_job.client_params = new_job.client_params;
+    }
+    old_job.status = new_job.status;
+    old_job.federation_id = new_job.federation_id;
+
+    const data = await old_job.save();
+
+    callback(null, {
+      data: {
+        name: data.name,
+        job_type: data.job_type,
+        client_ticket_name: data.server_ticket_name,
+        server_ticket_name: data.client_ticket_name,
+        server_params: client_params,
+      },
+      status: data.status,
+    });
+  } catch (err) {
+    callback(err);
+  }
+}
+
+/**
+ * get available tickets of current federation
+ */
+async function heartBeat(call, callback) {
+  try {
+    const federation = await authenticate(call.metadata);
+    callback(null, { status: 'success' });
   } catch (err) {
     callback(err);
   }
@@ -157,6 +262,8 @@ server.addService(pkg.federation.Federation.service, {
   getTickets,
   createJob,
   deleteJob,
+  updateJob,
+  heartBeat,
 });
 
 module.exports = server;

@@ -12,10 +12,17 @@ const assert = require('assert');
 const lodash = require('lodash');
 const getConfig = require('./get_confg');
 
-const { NAMESPACE, ES_HOST, ES_PORT } = getConfig({
+const { NAMESPACE, ES_HOST, ES_PORT, DB_HOST, DB_PORT,
+        DB_DATABASE, DB_USERNAME, DB_PASSWORD, KVSTORE_TYPE } = getConfig({
   NAMESPACE: process.env.NAMESPACE,
   ES_HOST: process.env.ES_HOST,
   ES_PORT: process.env.ES_PORT,
+  DB_HOST: process.env.DB_HOST,
+  DB_PORT: process.env.DB_PORT,
+  DB_DATABASE: process.env.DB_DATABASE,
+  DB_USERNAME: process.env.DB_USERNAME,
+  DB_PASSWORD: process.env.DB_PASSWORD,
+  KVSTORE_TYPE: process.env.KVSTORE_TYPE,
 });
 
 function joinPath(base, ...rest) {
@@ -68,13 +75,30 @@ function validateTicket(ticket, params) {
 }
 
 function clientValidateJob(job, client_ticket, server_ticket) {
+  if (job.job_type != client_ticket.job_type) {
+    throw new Error(`client_ticket.job_type ${client_ticket.job_type} does not match job.job_type ${job.job_type}`);
+  }
+  if (job.job_type != server_ticket.job_type) {
+    throw new Error(`server_ticket.job_type ${server_ticket.job_type} does not match job.job_type ${job.job_type}`);
+  }
+  if (client_ticket.role === server_ticket.role) {
+    throw new Error(`client_ticket.role ${client_ticket.role} must be different from server_ticket.role ${server_ticket.role}`);
+  }
+
+  if (job.server_params) {
+    let client_replicas = job.client_params.spec.flReplicaSpecs["Worker"]["replicas"];
+    let server_replicas = job.server_params.spec.flReplicaSpecs["Worker"]["replicas"];
+    if (client_replicas != server_replicas) {
+      throw new Error(`replicas in client_params ${client_replicas} is different from replicas in server_params ${server_replicas}`);
+    }
+  }
   return true;
 }
 
-// Only allow some fields to be used from job.server_params because
+// Only allow some fields to be used from job params because
 // it is received from peers and cannot be totally trusted.
 function extractPermittedJobParams(job) {
-  const params = job.server_params;
+  const params = job.client_params;
   const permitted_envs = permittedJobEnvs[job.job_type];
   const extracted = {};
 
@@ -168,6 +192,7 @@ function generateYaml(federation, job, job_params, ticket) {
           restartPolicy: 'Never',
           containers: [{
             env: [
+              { name: 'STORAGE_ROOT_PATH', value: k8s_settings.storage_root_path },
               { name: 'POD_IP', valueFrom: { fieldRef: { fieldPath: 'status.podIP' } } },
               { name: 'POD_NAME', valueFrom: { fieldRef: { fieldPath: 'metadata.name' } } },
               { name: 'ROLE', value: ticket.role.toLowerCase() },
@@ -179,6 +204,12 @@ function generateYaml(federation, job, job_params, ticket) {
               { name: 'MEM_LIMIT', valueFrom: { resourceFieldRef: { resource: 'limits.memory' } } },
               { name: 'ES_HOST', value: ES_HOST },
               { name: 'ES_PORT', value: `${ES_PORT}` },
+              { name: 'DB_HOST', value: `${DB_HOST}` },
+              { name: 'DB_PORT', value: `${DB_PORT}` },
+              { name: 'DB_DATABASE', value: `${DB_DATABASE}` },
+              { name: 'DB_USERNAME', value: `${DB_USERNAME}` },
+              { name: 'DB_PASSWORD', value: `${DB_PASSWORD}` },
+              { name: 'KVSTORE_TYPE', value: `${KVSTORE_TYPE}` },
             ],
             imagePullPolicy: 'IfNotPresent',
             name: 'tensorflow',
@@ -252,10 +283,17 @@ function portalGenerateYaml(federation, raw_data) {
         restartPolicy: 'Never',
         containers: [{
           env: [
+            { name: 'STORAGE_ROOT_PATH', value: k8s_settings.storage_root_path },
             { name: 'POD_IP', valueFrom: { fieldRef: { fieldPath: 'status.podIP' } } },
             { name: 'POD_NAME', valueFrom: { fieldRef: { fieldPath: 'metadata.name' } } },
             { name: 'ES_HOST', value: ES_HOST },
             { name: 'ES_PORT', value: `${ES_PORT}` },
+            { name: 'DB_HOST', value: `${DB_HOST}` },
+            { name: 'DB_PORT', value: `${DB_PORT}` },
+            { name: 'DB_DATABASE', value: `${DB_DATABASE}` },
+            { name: 'DB_USERNAME', value: `${DB_USERNAME}` },
+            { name: 'DB_PASSWORD', value: `${DB_PASSWORD}` },
+            { name: 'KVSTORE_TYPE', value: `${KVSTORE_TYPE}` },
             { name: 'APPLICATION_ID', value: raw_data.name },
             { name: 'DATA_PORTAL_NAME', value: raw_data.name },
             { name: 'OUTPUT_PARTITION_NUM', value: `${raw_data.output_partition_num}` },
@@ -281,6 +319,7 @@ function portalGenerateYaml(federation, raw_data) {
         restartPolicy: 'Never',
         containers: [{
           env: [
+            { name: 'STORAGE_ROOT_PATH', value: k8s_settings.storage_root_path },
             { name: 'POD_IP', valueFrom: { fieldRef: { fieldPath: 'status.podIP' } } },
             { name: 'POD_NAME', valueFrom: { fieldRef: { fieldPath: 'metadata.name' } } },
             { name: 'CPU_REQUEST', valueFrom: { resourceFieldRef: { resource: 'requests.cpu' } } },
@@ -289,6 +328,12 @@ function portalGenerateYaml(federation, raw_data) {
             { name: 'MEM_LIMIT', valueFrom: { resourceFieldRef: { resource: 'limits.memory' } } },
             { name: 'ES_HOST', value: ES_HOST },
             { name: 'ES_PORT', value: `${ES_PORT}` },
+            { name: 'DB_HOST', value: `${DB_HOST}` },
+            { name: 'DB_PORT', value: `${DB_PORT}` },
+            { name: 'DB_DATABASE', value: `${DB_DATABASE}` },
+            { name: 'DB_USERNAME', value: `${DB_USERNAME}` },
+            { name: 'DB_PASSWORD', value: `${DB_PASSWORD}` },
+            { name: 'KVSTORE_TYPE', value: `${KVSTORE_TYPE}` },
             { name: 'APPLICATION_ID', value: raw_data.name },
             { name: 'BATCH_SIZE', value: raw_data.context.batch_size ? `${raw_data.context.batch_size}` : ""  },
             { name: 'INPUT_DATA_FORMAT', value: raw_data.context.input_data_format },

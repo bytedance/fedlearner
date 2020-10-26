@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import css from 'styled-jsx/css';
 import { useRouter } from 'next/router';
 import useSWR from 'swr';
-import { Avatar, Link, Popover, Spinner, Tabs, Loading, useTheme, Select } from '@zeit-ui/react';
+import { Avatar, Link, Popover, Spinner, Tabs, Loading, useTheme, Select, Spacer } from '@zeit-ui/react';
+import { ChevronDown } from '@geist-ui/react-icons'
 import { fetcher } from '../libs/http';
 import { logout } from '../services';
 
@@ -68,6 +69,57 @@ function useStyles(theme) {
       margin-left: ${theme.layout.pageMargin};
     }
 
+    .menu {
+      display: flex;
+      color: #444;
+    }
+
+    .tab {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      position: relative;
+      cursor: pointer;
+    }
+    .tab.active {
+      color: #000;
+    }
+    .tab.active::after {
+      position: absolute;
+      content: ' ';
+      width: 100%;
+      height: 100%;
+      border-bottom: 2px solid #000;
+    }
+    /* tab popover */
+    .tab .tabPopoverArea {
+      display: none;
+      position: absolute;
+      top: 100%;
+    }
+    .tab:hover .tabPopoverArea {
+      display: block;
+    }
+    .tab .tabPopover {
+      box-shadow: rgba(0, 0, 0, 0.12) 0px 8px 30px;
+      background: #fff;
+      border-radius: 5px;
+      margin-top: 8px;
+      font-size: 16px;
+      padding: 8px 0;
+    }
+    .tabPopover .item {
+      padding: 12px 16px;
+      text-align: center;
+      color: #444;
+    }
+    .tabPopover .item:hover {
+      color: #000;
+      background: #eee;
+      cursor: pointer;
+    }
+    /* tab popover end */
+
     .sidebar {
       display: flex;
       align-items: center !important;
@@ -76,7 +128,24 @@ function useStyles(theme) {
     .popover {
       width: 180px !important;
     }
+
+    .rotate {
+      transition: all .3s ease-in-out;
+    }
+    .tab:hover .rotate {
+      transform: rotate(180deg)
+    }
   `;
+}
+
+function isActive(tabValue, route) {
+  if (/^\/datasource/.test(route)) {
+    return ['/datasource/job', '/datasource/ticket'].some(el => tabValue === el)
+  }
+  if (/^\/training/.test(route)) {
+    return ['/training/job', '/training/ticket'].some(el => tabValue === el)
+  }
+  return tabValue === route
 }
 
 export default function Header() {
@@ -101,17 +170,34 @@ export default function Header() {
     }
   };
   const title = isAdmin ? 'Admin' : 'Fedlearner';
-  const navs = isAdmin
+  const navs = useMemo(() => isAdmin
     ? [
       { label: 'Federations', value: '/admin/federation' },
       { label: 'Users', value: '/admin/user' },
     ]
     : [
       { label: 'Overview', value: '/' },
-      { label: 'Jobs', value: '/job' },
-      { label: 'Tickets', value: '/ticket' },
+      // { label: 'Jobs', value: '/job' },
+      // { label: 'Tickets', value: '/ticket' },
       { label: 'RawDatas', value: '/raw_data' },
-    ];
+      {
+        label: 'DataSource',
+        value: '/datasource/job',
+        children: [
+          { label: 'Job', value: '/datasource/job' },
+          { label: 'Tickets', value: '/datasource/tickets' },
+        ]
+      },
+      {
+        label: 'Training',
+        value: '/training/job',
+        children: [
+          { label: 'Job', value: '/training/job' },
+          { label: 'Tickets', value: '/training/tickets' },
+        ]
+      },
+      // { label: 'training', value: '/training' },
+    ], [isAdmin])
 
   const PopoverContent = (
     <>
@@ -141,9 +227,10 @@ export default function Header() {
     </>
   );
 
-  const activeTab = router.pathname;
-
-  const onTabChange = useCallback((value) => router.push(value), [router]);
+  const onTabChange = useCallback((value, e) => {
+    e.stopPropagation()
+    router.push(value)
+  }, [router]);
 
   useEffect(() => {
     const scrollHandler = () => {
@@ -157,6 +244,10 @@ export default function Header() {
     // '/job',
     '/ticket',
     '/raw_data',
+    '/datasource/job',
+    '/datasource/tickets',
+    '/training/job',
+    '/training/tickets'
   ].some(el => el === route)
   const { data: fedData } = useSWR('federations', fetcher)
   const federations = fedData ? fedData.data : null
@@ -181,9 +272,42 @@ export default function Header() {
             </Link>
             <div className="headerTitle">{title}</div>
             <nav className="nav">
-              <Tabs className="menu" value={activeTab} onChange={onTabChange}>
-                {navs.map((x) => <Tabs.Item key={x.value} label={x.label} value={x.value} />)}
-              </Tabs>
+              {/* Popover not work with tab */}
+              <div className="menu" onChange={onTabChange}>
+                {navs.map((x) =>
+                  <div
+                    className={`tab ${isActive(x.value, router.pathname) ? 'active' : ''}`}
+                    key={x.label}
+                    onClick={(e) => onTabChange(x.value, e)}
+                  >
+                    {x.label}
+                    {
+                      x.children &&
+                      <>
+                        <Spacer x={.25} inline></Spacer>
+                        <div className="rotate">
+                          <ChevronDown size={18}/>
+                        </div>
+                      </>
+                    }
+                    {
+                      x.children && <div className="tabPopoverArea">
+                        <div className="tabPopover">
+                          {x.children.map(item =>
+                            <div
+                              key={item.label}
+                              className="item"
+                              onClick={(e) => onTabChange(item.value, e)}
+                            >
+                              {item.label}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    }
+                  </div>
+                )}
+              </div>
             </nav>
           </div>
 

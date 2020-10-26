@@ -13,7 +13,7 @@ export default function Job() {
   const job = jobData ? jobData.data : null;
 
   return (
-    <JobCommonInfo job={job}>
+    job ? <JobCommonInfo job={job}>
       <Description
         title="Job Type"
         style={{ width: 140 }}
@@ -42,5 +42,6 @@ export default function Job() {
         content={jsonHandledPopover(job?.localdata?.server_params)}
       />
     </JobCommonInfo>
+  : null
   );
 }

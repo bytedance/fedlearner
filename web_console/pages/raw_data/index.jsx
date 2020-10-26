@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Table, Button, Card, Text, Link } from '@zeit-ui/react';
+import React, { useState, useMemo } from 'react';
+import { Table, Button, Card, Text, Link, useTheme } from '@zeit-ui/react';
 import NextLink from 'next/link';
 import useSWR from 'swr';
 import produce from 'immer'
@@ -16,18 +16,19 @@ const RESOURCE_PATH_PREFIX = 'yaml_spec.spec.flReplicaSpecs.[replicaType].templa
 const IMAGE_PATH = 'yaml_spec.spec.flReplicaSpecs.[replicaType].template.spec.containers[].image'
 const WORKER_REPLICAS_PATH = 'yaml_spec.spec.flReplicaSpecs.Worker.replicas'
 
+const REPLICA_TYPES = ['Master', 'Worker']
+
 const DATA_FORMAT_OPTIONS = [
   { label: 'TF_RECORD', value: 'TF_RECORD' },
   { label: 'CSV_DICT', value: 'CSV_DICT' },
 ]
 
 const CONTEXT_FIELDS = [
-  { key: 'file_wildcard', default: '*', default: RAW_DATA_CONTEXT.file_wildcard },
+  { key: 'file_wildcard' },
   {
     key: 'input_data_format',
     type: 'select',
     required: true,
-    default: RAW_DATA_CONTEXT.input_data_format,
     props: {
       options: DATA_FORMAT_OPTIONS
     }
@@ -36,7 +37,6 @@ const CONTEXT_FIELDS = [
     key: 'output_data_format',
     type: 'select',
     required: true,
-    default: RAW_DATA_CONTEXT.output_data_format,
     props: {
       options: DATA_FORMAT_OPTIONS
     }
@@ -45,7 +45,6 @@ const CONTEXT_FIELDS = [
     key: 'compressed_type',
     type: 'select',
     required: true,
-    default: RAW_DATA_CONTEXT.compressed_type,
     props: {
       options: [
         { label: 'GZIP', value: 'GZIP' },
@@ -54,36 +53,32 @@ const CONTEXT_FIELDS = [
       ]
     }
   },
-  { key: 'batch_size', default: RAW_DATA_CONTEXT.batch_size },
-  { key: 'max_flying_item', default: RAW_DATA_CONTEXT.max_flying_item },
-  { key: 'write_buffer_size', default: RAW_DATA_CONTEXT.write_buffer_size },
+  { key: 'batch_size' },
+  { key: 'max_flying_item' },
+  { key: 'write_buffer_size' },
   { key: 'Master Resources', type: 'label', span: 24},
   {
     key: 'resource.Master.cpu_request',
     label: 'cpu request',
     path: RESOURCE_PATH_PREFIX + '.requests.cpu',
-    default: RAW_DATA_CONTEXT.resource_master_cpu_request,
     span: 12,
   },
   {
     key: 'resource.Master.cpu_limit',
     label: 'cpu limit',
     path: RESOURCE_PATH_PREFIX + '.limits.cpu',
-    default: RAW_DATA_CONTEXT.resource_master_cpu_limit,
     span: 12
   },
   {
     key: 'resource.Master.memory_request',
     label: 'memory request',
     path: RESOURCE_PATH_PREFIX + '.requests.memory',
-    default: RAW_DATA_CONTEXT.resource_master_memory_request,
     span: 12,
   },
   {
     key: 'resource.Master.memory_limit',
     label: 'memory limit',
     path: RESOURCE_PATH_PREFIX + '.limits.memory',
-    default: RAW_DATA_CONTEXT.resource_master_memory_limit,
     span: 12
   },
   { key: 'worker Resources', type: 'label', span: 24 },
@@ -91,39 +86,37 @@ const CONTEXT_FIELDS = [
     key: 'resource.Worker.cpu_request',
     label: 'cpu request',
     path: RESOURCE_PATH_PREFIX + '.limits.cpu',
-    default: RAW_DATA_CONTEXT.resource_master_cpu_request,
     span: 12
   },
   {
     key: 'resource.Worker.cpu_limit',
     label: 'cpu limit',
     path: RESOURCE_PATH_PREFIX + '.limits.cpu',
-    default: RAW_DATA_CONTEXT.resource_master_cpu_limit,
     span: 12
   },
   {
     key: 'resource.Worker.memory_request',
     label: 'memory request',
     path: RESOURCE_PATH_PREFIX + '.requests.memory',
-    default: RAW_DATA_CONTEXT.resource_master_memory_request,
     span: 12,
   },
   {
     key: 'resource.Worker.memory_limit',
     label: 'memory limit',
     path: RESOURCE_PATH_PREFIX + '.limits.memory',
-    default: RAW_DATA_CONTEXT.resource_master_memory_limit,
     span: 12
   },
   {
     key: 'num_workers',
     label: 'num workers',
     span: 12,
-    default: 4,
     path: WORKER_REPLICAS_PATH
   },
 ]
 
+/**
+ * write context data to form meta
+ */
 function handleContextData(container, data, field) {
   if (field.type === 'label') { return }
 
@@ -140,7 +133,7 @@ function handleContextData(container, data, field) {
   }
 
   else if (field.key === 'num_workers') {
-    value = parseInt(value || field.default)
+    value = parseInt(value)
   }
 
   fillJSON(container, path, value)
@@ -156,16 +149,23 @@ function fillField(data, field) {
     const [, replicaType,] = field.key.split('.')
     v = getValueFromJson(data, field.path.replace('[replicaType]', replicaType))
   }
-
   else if (field.key === 'compressed_type') {
     v = v === '' ? 'None' : data.compressed_type
   }
+  else if (field.key === 'image') {
+    for (let replicaType of REPLICA_TYPES) {
+      v = getValueFromJson(data.context, IMAGE_PATH.replace('[replicaType]', replicaType))
+      if (v) break
+    }
+  }
 
-  if (typeof v === 'object') {
+  if (typeof v === 'object' && v !== null) {
     v = JSON.stringify(v, null, 2)
   }
 
-  field.value = v
+  if (v) {
+    field.value = v
+  }
   field.editing = true
 
   return field
@@ -187,6 +187,9 @@ let formMeta = {}
 const setFormMeta = value => { formMeta = value }
 
 export default function RawDataList() {
+
+  const theme = useTheme()
+
   const { data, mutate } = useSWR('raw_datas', fetcher);
   const rawDatas = data ? data.data : null;
   const columns = [
@@ -196,12 +199,12 @@ export default function RawDataList() {
   // form meta convert functions
   const rewriteFields = (draft, data) => {
     // image
-    ['Master', 'Worker'].forEach(replicaType => {
+    REPLICA_TYPES.forEach(replicaType => {
       fillJSON(draft.context, IMAGE_PATH.replace('[replicaType]', replicaType), data['image'])
     })
     // output_partition_num
-    // data['output_partition_num'] &&
-    //   fillJSON(draft.context, WORKER_REPLICAS_PATH, data['output_partition_num'])
+    data['output_partition_num'] &&
+      fillJSON(draft.context, WORKER_REPLICAS_PATH, parseInt(data['output_partition_num']))
   }
   const mapFormMeta2Json = () => {
     let data = {}
@@ -274,7 +277,7 @@ export default function RawDataList() {
     return { newFields }
   }
 
-  const DEFAULT_FIELDS = [
+  const DEFAULT_FIELDS = useMemo(() => [
     { key: 'name', required: true },
     { key: 'federation_id', type: 'federation', label: 'federation', required: true },
     { key: 'output_partition_num', required: true, default: 4 },
@@ -303,8 +306,22 @@ export default function RawDataList() {
         ]
       }
     },
-  ];
+  ], []);
   const [fields, setFields] = useState(DEFAULT_FIELDS)
+
+  const handleClone = data => {
+    data.context = JSON.parse(data.context)
+
+    setFormMeta(data)
+
+    setFields(fields => mapValueToFields({
+      data: mapFormMeta2Form(fields),
+      fields,
+      type: 'form',
+    }))
+
+    toggleForm()
+  }
 
   // eslint-disable-next-line arrow-body-style
   const operation = (actions, rowData) => {
@@ -314,10 +331,18 @@ export default function RawDataList() {
     // };
     return (
       <>
+        <Text
+          className="actionText"
+          onClick={() => handleClone(rowData.rowValue)}
+          type="success"
+          style={{marginRight: `${theme.layout.gapHalf}`}}
+        >
+          Clone
+        </Text>
         <NextLink
           href={`/raw_data/${rowData.rowValue.id}`}
         >
-          <Link color>View Detail</Link>
+          <Link color>Detail</Link>
         </NextLink>
         {/* <PopConfirm onConfirm={() => { }} onOk={() => { }}>
           <Text className="actionText" type="error">Revoke</Text>
@@ -337,6 +362,17 @@ export default function RawDataList() {
       })
     : [];
   const [formVisible, setFormVisible] = useState(false);
+
+
+  const onCreate = () => {
+    setFormMeta({context: RAW_DATA_CONTEXT})
+    setFields(mapValueToFields({
+      data: mapFormMeta2Form(),
+      fields
+    }))
+
+    toggleForm()
+  }
 
   const toggleForm = () => setFormVisible(!formVisible);
   const onOk = (rawData) => {
@@ -369,7 +405,7 @@ export default function RawDataList() {
           <>
             <div className="heading">
               <Text h2>RawDatas</Text>
-              <Button auto type="secondary" onClick={toggleForm}>Create Raw Data</Button>
+              <Button auto type="secondary" onClick={onCreate}>Create Raw Data</Button>
             </div>
             {rawDatas && (
               <Card>

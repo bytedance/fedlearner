@@ -22,24 +22,31 @@ source /app/deploy/scripts/env_to_args.sh
 
 NUM_WORKERS=`python -c 'import json, os; print(len(json.loads(os.environ["CLUSTER_SPEC"])["clusterSpec"]["Worker"]))'`
 
+if [[ -z "${DATA_PATH}" && -n "${DATA_SOURCE}" ]]; then
+    export DATA_PATH="${STORAGE_ROOT_PATH}/data_source/${DATA_SOURCE}/data_block"
+fi
+
 mode=$(normalize_env_to_args "--mode" "$MODE")
 data_path=$(normalize_env_to_args "--data-path" "$DATA_PATH")
 validation_data_path=$(normalize_env_to_args "--validation-data-path" "$VALIDATION_DATA_PATH")
 no_data=$(normalize_env_to_args "--no-data" "$NO_DATA")
 file_ext=$(normalize_env_to_args "--file-ext" "$FILE_EXT")
+file_type=$(normalize_env_to_args "--file-type" "$FILE_TYPE")
 load_model_path=$(normalize_env_to_args "--load-model-path" "$LOAD_MODEL_PATH")
 verbosity=$(normalize_env_to_args "--verbosity" "$VERBOSITY")
+loss_type=$(normalize_env_to_args "--loss-type" "$LOSS_TYPE")
 learning_rate=$(normalize_env_to_args "--learning-rate" "$LEARNING_RATE")
 max_iters=$(normalize_env_to_args "--max-iters" "$MAX_ITERS")
 max_depth=$(normalize_env_to_args "--max-depth" "$MAX_DEPTH")
 l2_regularization=$(normalize_env_to_args "--l2-regularization" "$L2_REGULARIZATION")
 max_bins=$(normalize_env_to_args "--max-bins" "$MAX_BINS")
-num_parallel=$(normalize_env_to_args "--num-parallel" "$NUM_PARALELL")
+num_parallel=$(normalize_env_to_args "--num-parallel" "$NUM_PARALLEL")
 verify_example_ids=$(normalize_env_to_args "--verify-example-ids" "$VERIFY_EXAMPLE_IDS")
 ignore_fields=$(normalize_env_to_args "--ignore-fields" "$IGNORE_FIELDS")
 cat_fields=$(normalize_env_to_args "--cat-fields" "$CAT_FIELDS")
 use_streaming=$(normalize_env_to_args "--use-streaming" "$USE_STREAMING")
 send_scores_to_follower=$(normalize_env_to_args "--send-scores-to-follower" "$SEND_SCORES_TO_FOLLOWER")
+send_metrics_to_follower=$(normalize_env_to_args "--send-metrics-to-follower" "$SEND_METRICS_TO_FOLLOWER")
 
 
 python -m fedlearner.model.tree.trainer \
@@ -53,8 +60,9 @@ python -m fedlearner.model.tree.trainer \
     --checkpoint-path="$OUTPUT_BASE_DIR/checkpoints" \
     --output-path="$OUTPUT_BASE_DIR/outputs" \
     $mode $data_path $validation_data_path \
-    $no_data $file_ext $load_model_path \
-    $verbosity $learning_rate $max_iters \
+    $no_data $file_ext $file_type $load_model_path \
+    $verbosity $loss_type $learning_rate $max_iters \
     $max_depth $l2_regularization $max_bins \
     $num_parallel $verify_example_ids $ignore_fields \
-    $cat_fields $use_streaming $send_scores_to_follower
+    $cat_fields $use_streaming $send_scores_to_follower \
+    $send_metrics_to_follower
