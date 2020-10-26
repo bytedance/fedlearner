@@ -192,6 +192,7 @@ function generateYaml(federation, job, job_params, ticket) {
           restartPolicy: 'Never',
           containers: [{
             env: [
+              { name: 'STORAGE_ROOT_PATH', value: k8s_settings.storage_root_path },
               { name: 'POD_IP', valueFrom: { fieldRef: { fieldPath: 'status.podIP' } } },
               { name: 'POD_NAME', valueFrom: { fieldRef: { fieldPath: 'metadata.name' } } },
               { name: 'ROLE', value: ticket.role.toLowerCase() },
@@ -282,6 +283,7 @@ function portalGenerateYaml(federation, raw_data) {
         restartPolicy: 'Never',
         containers: [{
           env: [
+            { name: 'STORAGE_ROOT_PATH', value: k8s_settings.storage_root_path },
             { name: 'POD_IP', valueFrom: { fieldRef: { fieldPath: 'status.podIP' } } },
             { name: 'POD_NAME', valueFrom: { fieldRef: { fieldPath: 'metadata.name' } } },
             { name: 'ES_HOST', value: ES_HOST },
@@ -317,6 +319,7 @@ function portalGenerateYaml(federation, raw_data) {
         restartPolicy: 'Never',
         containers: [{
           env: [
+            { name: 'STORAGE_ROOT_PATH', value: k8s_settings.storage_root_path },
             { name: 'POD_IP', valueFrom: { fieldRef: { fieldPath: 'status.podIP' } } },
             { name: 'POD_NAME', valueFrom: { fieldRef: { fieldPath: 'metadata.name' } } },
             { name: 'CPU_REQUEST', valueFrom: { resourceFieldRef: { resource: 'requests.cpu' } } },
