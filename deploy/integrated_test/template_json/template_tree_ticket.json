@@ -11,10 +11,6 @@
                 {
                   "env": [
                     {
-                      "name": "DATA_PATH",
-                      "value": ""
-                    },
-                    {
                       "name": "FILE_EXT",
                       "value": ".data"
                     },

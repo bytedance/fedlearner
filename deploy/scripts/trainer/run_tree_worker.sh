@@ -22,6 +22,10 @@ source /app/deploy/scripts/env_to_args.sh
 
 NUM_WORKERS=`python -c 'import json, os; print(len(json.loads(os.environ["CLUSTER_SPEC"])["clusterSpec"]["Worker"]))'`
 
+if [[ -z "${DATA_PATH}" && -n "${DATA_SOURCE}" ]]; then
+    export DATA_PATH="${STORAGE_ROOT_PATH}/data_source/${DATA_SOURCE}/data_block"
+fi
+
 mode=$(normalize_env_to_args "--mode" "$MODE")
 data_path=$(normalize_env_to_args "--data-path" "$DATA_PATH")
 validation_data_path=$(normalize_env_to_args "--validation-data-path" "$VALIDATION_DATA_PATH")
