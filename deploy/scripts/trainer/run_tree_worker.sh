@@ -30,6 +30,7 @@ file_ext=$(normalize_env_to_args "--file-ext" "$FILE_EXT")
 file_type=$(normalize_env_to_args "--file-type" "$FILE_TYPE")
 load_model_path=$(normalize_env_to_args "--load-model-path" "$LOAD_MODEL_PATH")
 verbosity=$(normalize_env_to_args "--verbosity" "$VERBOSITY")
+loss_type=$(normalize_env_to_args "--loss-type" "$LOSS_TYPE")
 learning_rate=$(normalize_env_to_args "--learning-rate" "$LEARNING_RATE")
 max_iters=$(normalize_env_to_args "--max-iters" "$MAX_ITERS")
 max_depth=$(normalize_env_to_args "--max-depth" "$MAX_DEPTH")
@@ -56,7 +57,7 @@ python -m fedlearner.model.tree.trainer \
     --output-path="$OUTPUT_BASE_DIR/outputs" \
     $mode $data_path $validation_data_path \
     $no_data $file_ext $file_type $load_model_path \
-    $verbosity $learning_rate $max_iters \
+    $verbosity $loss_type $learning_rate $max_iters \
     $max_depth $l2_regularization $max_bins \
     $num_parallel $verify_example_ids $ignore_fields \
     $cat_fields $use_streaming $send_scores_to_follower \
