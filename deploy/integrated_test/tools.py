@@ -98,7 +98,7 @@ def build_data_join_ticket(args, fed_id, raw_name, filepath, role):
     return ticket_json, name_suffix
 
 
-def build_nn_ticket(args, fed_id, filepath, role, client=True):
+def build_train_ticket(args, fed_id, filepath, role, client=True):
     with open(filepath) as f:
         ticket_json = json.load(f)
         name_suffix = '-train-ticket'
@@ -114,26 +114,5 @@ def build_nn_ticket(args, fed_id, filepath, role, client=True):
                     if d['name'] == 'DATA_SOURCE':
                         d['value'] = (args.x_federation if client else args.name) + '-join-job'
                         break
-        ticket_json = json.dumps(ticket_json, separators=(',', ':'))
-    return ticket_json, name_suffix
-
-
-def build_tree_ticket(args, fed_id, filepath, role, storage_root_path='/data', client=True):
-    with open(filepath) as f:
-        ticket_json = json.load(f)
-        name_suffix = '-train-ticket'
-        ticket_json['name'] = args.name + name_suffix
-        ticket_json['federation_id'] = fed_id
-        ticket_json['role'] = role
-        ticket_json['expire_time'] = str(datetime.datetime.now().year + 1) + '-12-31'
-        for param in ['public_params', 'private_params']:
-            container = ticket_json[param]['spec']['flReplicaSpecs']['Worker']['template']['spec']['containers'][0]
-            container['image'] = args.image
-            data_source = (args.x_federation if client else args.name) + '-join-job'
-            for d in container['env']:
-                if d['name'] == 'DATA_SOURCE':
-                    d['value'] = data_source
-                if d['name'] == 'DATA_PATH':
-                    d['value'] = storage_root_path.rstrip('/') + '/data_source/' + data_source + '/data_block'
         ticket_json = json.dumps(ticket_json, separators=(',', ':'))
     return ticket_json, name_suffix

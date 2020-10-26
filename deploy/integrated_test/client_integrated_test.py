@@ -46,13 +46,16 @@ if __name__ == '__main__':
                         help='Either rsa key path or rsa key pem must be given.')
     parser.add_argument('--url',
                         type=str,
-                        help='URL to webconsole.')
+                        help='URL to webconsole.',
+                        default='127.0.0.1:1989')
     parser.add_argument('--username',
                         type=str,
-                        help='Username of webconsole.')
+                        help='Username of webconsole.',
+                        default='ada')
     parser.add_argument('--password',
                         type=str,
-                        help='Password of webconsole.')
+                        help='Password of webconsole.',
+                        default='ada')
     parser.add_argument('--api-version',
                         help='API version of webconsole.',
                         default=1)
