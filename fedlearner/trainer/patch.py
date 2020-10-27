@@ -109,6 +109,7 @@ def _new_CheckpointSaverHook_after_create_session(self, sess, coord):
     try:
         ckpt_tensor = sess.graph.get_tensor_by_name('data_checkpoint:0')
         self.data_checkpoint = sess.run(ckpt_tensor)
+        logging.info("restore after sess.run %s", self.data_checkpoint)
     except KeyError as e:
         logging.info("tensor data_checkpoint:0 doesn't exist")
 
