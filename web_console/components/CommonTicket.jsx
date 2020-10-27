@@ -405,7 +405,7 @@ export default function TicketList({
     )
   }, [])
 
-  const getPublicParamsFields = useCallback(() => TICKET_REPLICA_TYPE.reduce(
+  const getPublicParamsFields = useCallback((REPLICA_TYPES = TICKET_REPLICA_TYPE) => REPLICA_TYPES.reduce(
     (total, replicaType) => {
       const replicaKey = key => `${replicaType}.${key}`
 
@@ -450,7 +450,7 @@ export default function TicketList({
     []
   ), [TICKET_REPLICA_TYPE])
 
-  const getDefauktFields = useCallback(() => filterArrayValue([
+  const getDefauktFields = useCallback((REPLICA_TYPES = TICKET_REPLICA_TYPE) => filterArrayValue([
     { key: 'name', required: true },
     { key: 'federation_id', type: 'federation', label: 'federation', required: true },
     {
@@ -503,7 +503,7 @@ export default function TicketList({
       onFormTypeChange: formTypeChangeHandler('public_params'),
       formTypes: ['form', 'json'],
       fields: {
-        form: getPublicParamsFields(),
+        form: getPublicParamsFields(REPLICA_TYPES),
         json: [
           {
             key: 'public_params',
@@ -533,7 +533,7 @@ export default function TicketList({
         },
       ]
     }
-  ]), [TICKET_REPLICA_TYPE, training, datasoure, jobType])
+  ]), [TICKET_REPLICA_TYPE, getPublicParamsFields, training, datasoure, jobType])
   const [formVisible, setFormVisible] = useState(false);
   const [fields, setFields] = useState(getDefauktFields());
   const [currentTicket, setCurrentTicket] = useState(null);
@@ -560,7 +560,18 @@ export default function TicketList({
 
     jobType = ticket.job_type
 
-    setFields(mapValueToFields({data: ticket, fields: getDefauktFields(), editing: true}));
+    switch (jobType) {
+      case JOB_TYPE.data_join:
+        TICKET_REPLICA_TYPE = TICKET_DATA_JOIN_REPLICA_TYPE
+      case JOB_TYPE.psi_data_join:
+        TICKET_REPLICA_TYPE = TICKET_PSI_DATA_JOIN_REPLICA_TYPE
+      case JOB_TYPE.nn_model:
+        TICKET_REPLICA_TYPE = TICKET_NN_REPLICA_TYPE
+      case JOB_TYPE.tree_model:
+        TICKET_REPLICA_TYPE = TICKET_TREE_REPLICA_TYPE
+    }
+
+    setFields(mapValueToFields({data: ticket, fields: getDefauktFields(TICKET_REPLICA_TYPE), editing: true}));
     setFormVisible(true);
   };
 
@@ -569,7 +580,7 @@ export default function TicketList({
 
     jobType = ticket.job_type
 
-    setFields(mapValueToFields({data: ticket, fields: getDefauktFields(), init: true}));
+    setFields(mapValueToFields({data: ticket, fields: getDefauktFields(TICKET_REPLICA_TYPE), init: true}));
     setFormVisible(true);
   }
 
