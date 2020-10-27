@@ -22,9 +22,29 @@ from fedlearner.common import common_pb2 as common_pb
 
 
 class TrainerMasterServer(tm_grpc.TrainerMasterServiceServicer):
-    def __init__(self, receiver_fn):
+    def __init__(self, receiver_fn, get_checkpoint_fn, restore_fn):
         super(TrainerMasterServer, self).__init__()
         self._receiver_fn = receiver_fn
+        self._get_checkpoint_fn = get_checkpoint_fn
+        self._restore_checkpoint_fn = restore_fn
+
+    def GetDataBlockCheckpoint(self, request, context):
+        response = tm_pb.GetDataBlockCheckpointResponse()
+        try:
+            response = self._get_checkpoint_fn(request)
+        except Exception:  # pylint: disable=broad-except
+            response.status.code = common_pb.STATUS_UNKNOWN_ERROR
+            response.status.error_message = sys.exc_info()
+        return response
+
+    def RestoreDataBlockCheckpoint(self, request, context):
+        response = tm_pb.RestoreDataBlockCheckpointResponse()
+        try:
+            response = self._restore_checkpoint_fn(request)
+        except Exception:  # pylint: disable=broad-except
+            response.status.code = common_pb.STATUS_UNKNOWN_ERROR
+            response.status.error_message = sys.exc_info()
+        return response
 
     def RequestDataBlock(self, request, context):
         response = tm_pb.DataBlockResponse()

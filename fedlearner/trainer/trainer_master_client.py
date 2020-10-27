@@ -18,6 +18,7 @@ import os
 import time
 import logging
 import collections
+import traceback
 import tensorflow.compat.v1 as tf
 
 from fedlearner.common import trainer_master_service_pb2 as tm_pb
@@ -35,6 +36,7 @@ db_database, db_addr, db_username, db_password, db_base_dir = \
 
 
 class LocalTrainerMasterClient(object):
+    """Non-thread safe"""
     def __init__(self,
                  role,
                  path,
@@ -42,11 +44,14 @@ class LocalTrainerMasterClient(object):
                  ext='.tfrecord',
                  start_time=None,
                  end_time=None,
-                 from_data_source=False):
+                 from_data_source=False,
+                 skip_datablock_checkpoint=False):
         self._role = role
         self._path = path
         self._block_queue = []
         self._block_map = {}
+        self._allocated_data_blockids = set()
+        self._status = tm_pb.MasterStatus.CREATED
         if from_data_source:
             data_block_visitor = DataBlockVisitor(path, db_database,
                                                   db_base_dir, db_addr,
@@ -79,20 +84,47 @@ class LocalTrainerMasterClient(object):
                 block = DataBlockInfo(block_id, fullname)
                 self._block_queue.append(block)
                 self._block_map[block_id] = block
+        self._status = tm_pb.MasterStatus.INITIALING
+        if skip_datablock_checkpoint:
+            self._status = tm_pb.MasterStatus.RUNNING
 
     def request_data_block(self, block_id=None):
+        if self._status != tm_pb.MasterStatus.RUNNING:
+            response = tm_pb.DataBlockResponse()
+            response.status.code = \
+                   common_pb.STATUS_WAIT_FOR_SYNCING_CHECKPOINT
+            response.status.error_message = \
+                    "must sync data checkpoint before alloc"
+            return response
         if self._role == 'leader':
             assert block_id is None, "Must not set block_id for leader"
-            if self._block_queue:
+            while self._block_queue:
                 ret = self._block_queue.pop(0)
-                logging.debug('Return data block %s', ret)
-                return ret
+                logging.debug('Fetch data block %s, ckpt is %s',
+                              ret, ",".join(self._allocated_data_blockids))
+                if ret.block_id not in self._allocated_data_blockids:
+                    self._allocated_data_blockids.add(ret.block_id)
+                    logging.info('Fetch data block %s done', ret)
+                    return ret
             return None
 
         assert block_id, "Must set block_id for follower"
         if block_id not in self._block_map:
             return None
         return self._block_map[block_id]
+    def get_data_block_checkpoint(self, appid):
+        if self._status != tm_pb.MasterStatus.RUNNING:
+            logging.warning("invalid status when "
+                    "getting data block ckpt %s", self._status)
+            return []
+        return list(self._allocated_data_blockids)
+    def restore_data_block_checkpoint(self, appid, block_ids):
+        if self._status != tm_pb.MasterStatus.INITIALING:
+            logging.warning("invalid status when restoring data block ckpt")
+            return False
+        self._allocated_data_blockids |= set(block_ids)
+        self._status = tm_pb.MasterStatus.RUNNING
+        return True
 
 
 class TrainerMasterClient(object):
@@ -106,6 +138,43 @@ class TrainerMasterClient(object):
         self._request = tm_pb.DataBlockRequest()
         if self._role == 'leader':
             self._request.worker_rank = self._task_id
+
+    def get_data_block_checkpoint(self, appid):
+        req = tm_pb.GetDataBlockCheckpointRequest()
+        req.application_id = appid
+        try:
+            result = self._stub.GetDataBlockCheckpoint(req)
+        except Exception as e:  # pylint: disable=broad-except
+            logging.warning("Get data blocks checkpoint failed: %s", \
+                           e.code().name)
+            return []
+        else:
+            if result.status.code == common_pb.STATUS_SUCCESS:
+                return result.block_ids
+            logging.warning("Get data blocks checkpoint error, %d, %s", \
+                           result.status.code,
+                           result.status.error_message)
+            return []
+
+
+    def restore_data_block_checkpoint(self, appid, block_ids):
+        req = tm_pb.RestoreDataBlockCheckpointRequest()
+        req.application_id = appid
+        req.block_ids.extend(block_ids)
+        try:
+            result = self._stub.RestoreDataBlockCheckpoint(req)
+        except Exception as e:  # pylint: disable=broad-except
+            traceback.print_exc()
+            logging.warning("Restore data blocks checkpoint failed: %s", \
+                           e.code().name)
+            return False
+        else:
+            if result.status.code == common_pb.STATUS_SUCCESS:
+                return True
+            logging.warning("Restore data blocks checkpoint error, %d, %s", \
+                           result.status.code,
+                           result.status.error_message)
+            return False
 
     def request_data_block(self, block_id=None):
         if self._role == 'follower':
