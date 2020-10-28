@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { Table, Button, Card, Text, Link, Tooltip, useTheme } from '@zeit-ui/react';
 import AlertCircle from '@geist-ui/react-icons/alertCircle'
 import useSWR from 'swr';
@@ -165,6 +165,8 @@ const setFormMeta = data => formMeta = data
 
 let jobType = ''
 
+let TICKET_REPLICA_TYPE, INIT_PARAMS, FILTER_TYPE, PAGE_NAME, DEFAULT_JOB_TYPE
+
 export default function TicketList({
   datasoure,
   training,
@@ -174,35 +176,88 @@ export default function TicketList({
 
   const theme = useTheme();
 
-  let TICKET_REPLICA_TYPE, INIT_PARAMS, FILTER_TYPE, PAGE_NAME, DEFAULT_JOB_TYPE
-  if (datasoure) {
+  const isFirstRender = useRef(true)
+  useEffect(() => {
+    isFirstRender.current = false
+    return () => isFirstRender.current = true
+  }, [])
 
-    PAGE_NAME = 'datasource'
+  if (isFirstRender.current) {
 
-    TICKET_REPLICA_TYPE = TICKET_DATA_JOIN_REPLICA_TYPE
+    if (datasoure) {
 
-    INIT_PARAMS = TICKET_DATA_JOIN_PARAMS
+      PAGE_NAME = 'datasource'
 
-    FILTER_TYPE = JOB_TYPE_CLASS.datasource
+      TICKET_REPLICA_TYPE = TICKET_DATA_JOIN_REPLICA_TYPE
 
-    DEFAULT_JOB_TYPE = JOB_TYPE.data_join
+      INIT_PARAMS = TICKET_DATA_JOIN_PARAMS
 
-  } else {
+      FILTER_TYPE = JOB_TYPE_CLASS.datasource
 
-    PAGE_NAME = 'training'
+      DEFAULT_JOB_TYPE = JOB_TYPE.data_join
 
-    TICKET_REPLICA_TYPE = TICKET_NN_REPLICA_TYPE
+    } else {
 
-    INIT_PARAMS = TICKET_NN_PARAMS
+      PAGE_NAME = 'training'
 
-    FILTER_TYPE = JOB_TYPE_CLASS.training
+      TICKET_REPLICA_TYPE = TICKET_NN_REPLICA_TYPE
 
-    DEFAULT_JOB_TYPE = JOB_TYPE.nn_model
+      INIT_PARAMS = TICKET_NN_PARAMS
 
+      FILTER_TYPE = JOB_TYPE_CLASS.training
+
+      DEFAULT_JOB_TYPE = JOB_TYPE.nn_model
+
+    }
   }
 
   filter = filter
     || useCallback(job => FILTER_TYPE.some(type => type === job.job_type), [])
+
+  const getPublicParamsFields = useCallback(() => TICKET_REPLICA_TYPE.reduce(
+    (total, replicaType) => {
+      const replicaKey = key => `${replicaType}.${key}`
+
+      total.push(...[
+        { key: replicaType, type: 'label' },
+        {
+          key: replicaKey('pair'),
+          label: 'pair',
+          type: 'bool-select',
+          path: `spec.flReplicaSpecs.${replicaType}.pair`,
+        },
+        {
+          key: replicaKey('env'),
+          label: 'env',
+          type: 'name-value',
+          path: `spec.flReplicaSpecs.${replicaType}.template.spec.containers[].env`,
+          emptyDefault: [],
+          // props: {
+          //   ignoreKeys: ['PARTITION_NUM', 'CODE_KEY']
+          // },
+          span: 24,
+        },
+        {
+          key: replicaKey('command'),
+          label: 'command',
+          type: 'json',
+          path: `spec.flReplicaSpecs.${replicaType}.template.spec.containers[].command`,
+          emptyDefault: [],
+          span: 24,
+        },
+        {
+          key: replicaKey('args'),
+          label: 'args',
+          type: 'json',
+          path: `spec.flReplicaSpecs.${replicaType}.template.spec.containers[].args`,
+          emptyDefault: [],
+          span: 24,
+        }
+      ])
+      return total
+    },
+    []
+  ), [TICKET_REPLICA_TYPE])
 
   const { data, mutate } = useSWR('tickets', fetcher);
   const tickets = data ? data.data.filter(filter) : null;
@@ -258,7 +313,7 @@ export default function TicketList({
 
     // image
     draft.image && delete draft.image
-  }, [])
+  }, [TICKET_REPLICA_TYPE])
   const dataSourceRewrite = useCallback((draft, data) => {
     // envs
     const insert2Env = [
@@ -280,13 +335,15 @@ export default function TicketList({
     draft.raw_data && delete draft.raw_data
     draft.num_partitions && delete draft.num_partitions
 
-  }, [])
+  }, [TICKET_REPLICA_TYPE])
   const trainingRewrite = useCallback((draft, data) => {
     // envs
-    const insert2Env = [
+    const insert2Env = filterArrayValue([
       { name: 'DATA_SOURCE', getValue: data => data.datasource },
-      { name: 'CODE_KEY', getValue: data => data.code_key, writeTo: ['Worker'] },
-    ]
+      jobType === JOB_TYPE.nn_model
+        ? { name: 'CODE_KEY', getValue: data => data.code_key, writeTo: ['Worker'] }
+        : undefined
+    ])
     rewriteEnvs(draft, data, insert2Env)
 
     // delete fields
@@ -348,7 +405,8 @@ export default function TicketList({
       })
       rewriteFields(draft, data)
     }))
-  }, [])
+  }, [getPublicParamsFields])
+
   const formTypeChangeHandler = paramsType => (data, currType, targetType) => {
     let newFields
     try {
@@ -399,58 +457,13 @@ export default function TicketList({
     setFields(
       mapValueToFields({
         data: mapFormMeta2FullData(fields),
-        fields: getDefauktFields(),
+        fields: getDefaultFields(),
         init: true,
       })
     )
   }, [])
 
-  const getPublicParamsFields = useCallback((REPLICA_TYPES = TICKET_REPLICA_TYPE) => REPLICA_TYPES.reduce(
-    (total, replicaType) => {
-      const replicaKey = key => `${replicaType}.${key}`
-
-      total.push(...[
-        { key: replicaType, type: 'label' },
-        {
-          key: replicaKey('pair'),
-          label: 'pair',
-          type: 'bool-select',
-          path: `spec.flReplicaSpecs.${replicaType}.pair`,
-        },
-        {
-          key: replicaKey('env'),
-          label: 'env',
-          type: 'name-value',
-          path: `spec.flReplicaSpecs.${replicaType}.template.spec.containers[].env`,
-          emptyDefault: [],
-          // props: {
-          //   ignoreKeys: ['PARTITION_NUM', 'CODE_KEY']
-          // },
-          span: 24,
-        },
-        {
-          key: replicaKey('command'),
-          label: 'command',
-          type: 'json',
-          path: `spec.flReplicaSpecs.${replicaType}.template.spec.containers[].command`,
-          emptyDefault: [],
-          span: 24,
-        },
-        {
-          key: replicaKey('args'),
-          label: 'args',
-          type: 'json',
-          path: `spec.flReplicaSpecs.${replicaType}.template.spec.containers[].args`,
-          emptyDefault: [],
-          span: 24,
-        }
-      ])
-      return total
-    },
-    []
-  ), [TICKET_REPLICA_TYPE])
-
-  const getDefauktFields = useCallback((REPLICA_TYPES = TICKET_REPLICA_TYPE) => filterArrayValue([
+  const getDefaultFields = useCallback(() => filterArrayValue([
     { key: 'name', required: true },
     { key: 'federation_id', type: 'federation', label: 'federation', required: true },
     {
@@ -503,7 +516,7 @@ export default function TicketList({
       onFormTypeChange: formTypeChangeHandler('public_params'),
       formTypes: ['form', 'json'],
       fields: {
-        form: getPublicParamsFields(REPLICA_TYPES),
+        form: getPublicParamsFields(),
         json: [
           {
             key: 'public_params',
@@ -534,8 +547,9 @@ export default function TicketList({
       ]
     }
   ]), [TICKET_REPLICA_TYPE, getPublicParamsFields, training, datasoure, jobType])
+
   const [formVisible, setFormVisible] = useState(false);
-  const [fields, setFields] = useState(getDefauktFields());
+  const [fields, setFields] = useState(getDefaultFields());
   const [currentTicket, setCurrentTicket] = useState(null);
   const title = currentTicket ? `Edit Ticket: ${currentTicket.name}` : 'Create Ticket';
   const closeForm = () => {
@@ -545,7 +559,7 @@ export default function TicketList({
   };
   const onCreate = () => {
     setFormMeta({ ...INIT_PARAMS })
-    setFields(mapValueToFields({data: formMeta, fields: getDefauktFields(), init: true}))
+    setFields(mapValueToFields({data: formMeta, fields: getDefaultFields(), init: true}))
     setFormVisible(true);
   }
   const onOk = (ticket) => {
@@ -571,7 +585,7 @@ export default function TicketList({
         TICKET_REPLICA_TYPE = TICKET_TREE_REPLICA_TYPE
     }
 
-    setFields(mapValueToFields({data: ticket, fields: getDefauktFields(TICKET_REPLICA_TYPE), editing: true}));
+    setFields(mapValueToFields({data: ticket, fields: getDefaultFields(), editing: true}));
     setFormVisible(true);
   };
 
@@ -580,7 +594,7 @@ export default function TicketList({
 
     jobType = ticket.job_type
 
-    setFields(mapValueToFields({data: ticket, fields: getDefauktFields(TICKET_REPLICA_TYPE), init: true}));
+    setFields(mapValueToFields({data: ticket, fields: getDefaultFields(), init: true}));
     setFormVisible(true);
   }
 
