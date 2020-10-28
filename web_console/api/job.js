@@ -36,7 +36,9 @@ router.get('/api/v1/jobs', SessionMiddleware, FindOptionsMiddleware, async (ctx)
           name: { [Op.eq]: job.client_ticket_name },
         },
       });
-      job.federation_id = clientTicket?.federation_id;
+      if (clientTicket) {
+        job.federation_id = clientTicket.federation_id;
+      }
     }
     if (job.status === 'stopped') {
       data.push({
