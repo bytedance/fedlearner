@@ -164,8 +164,24 @@ let formMeta = {}
 const setFormMeta = data => formMeta = data
 
 let jobType = ''
-
 let TICKET_REPLICA_TYPE, INIT_PARAMS, FILTER_TYPE, PAGE_NAME, DEFAULT_JOB_TYPE
+function setJobType (v) {
+  jobType = v
+
+  switch (jobType) {
+    case JOB_TYPE.data_join:
+      TICKET_REPLICA_TYPE = TICKET_DATA_JOIN_REPLICA_TYPE
+      break
+    case JOB_TYPE.psi_data_join:
+      TICKET_REPLICA_TYPE = TICKET_PSI_DATA_JOIN_REPLICA_TYPE
+      break
+    case JOB_TYPE.nn_model:
+      TICKET_REPLICA_TYPE = TICKET_NN_REPLICA_TYPE
+      break
+    case JOB_TYPE.tree_model:
+      TICKET_REPLICA_TYPE = TICKET_TREE_REPLICA_TYPE
+  }
+}
 
 export default function TicketList({
   datasoure,
@@ -437,20 +453,17 @@ export default function TicketList({
 
   const onJobTypeChange = useCallback((value, totalData, groupFormType) => {
     jobType = value
+    setJobType(value)
     writeFormMeta(totalData,groupFormType)
 
     switch (value) {
       case JOB_TYPE.data_join:
-        TICKET_REPLICA_TYPE = TICKET_DATA_JOIN_REPLICA_TYPE
         setFormMeta({...formMeta, ...TICKET_DATA_JOIN_PARAMS}); break
       case JOB_TYPE.psi_data_join:
-        TICKET_REPLICA_TYPE = TICKET_PSI_DATA_JOIN_REPLICA_TYPE
         setFormMeta({...formMeta, ...TICKET_PSI_DATA_JOIN_PARAMS}); break
       case JOB_TYPE.nn_model:
-        TICKET_REPLICA_TYPE = TICKET_NN_REPLICA_TYPE
         setFormMeta({...formMeta, ...TICKET_NN_PARAMS}); break
       case JOB_TYPE.tree_model:
-        TICKET_REPLICA_TYPE = TICKET_TREE_REPLICA_TYPE
         setFormMeta({...formMeta, ...TICKET_TREE_PARAMS}); break
     }
 
@@ -559,7 +572,7 @@ export default function TicketList({
   };
   const onCreate = () => {
     setFormMeta({ ...INIT_PARAMS })
-    setFields(mapValueToFields({data: formMeta, fields: getDefaultFields(), init: true}))
+    setFields(mapValueToFields({data: mapFormMeta2FullData(fields), fields: getDefaultFields(), init: true}))
     setFormVisible(true);
   }
   const onOk = (ticket) => {
@@ -571,30 +584,17 @@ export default function TicketList({
   const handleEdit = (ticket) => {
     setCurrentTicket(ticket);
     setFormMeta(ticket)
+    setJobType(ticket.job_type)
 
-    jobType = ticket.job_type
-
-    switch (jobType) {
-      case JOB_TYPE.data_join:
-        TICKET_REPLICA_TYPE = TICKET_DATA_JOIN_REPLICA_TYPE
-      case JOB_TYPE.psi_data_join:
-        TICKET_REPLICA_TYPE = TICKET_PSI_DATA_JOIN_REPLICA_TYPE
-      case JOB_TYPE.nn_model:
-        TICKET_REPLICA_TYPE = TICKET_NN_REPLICA_TYPE
-      case JOB_TYPE.tree_model:
-        TICKET_REPLICA_TYPE = TICKET_TREE_REPLICA_TYPE
-    }
-
-    setFields(mapValueToFields({data: ticket, fields: getDefaultFields(), editing: true}));
+    setFields(mapValueToFields({data: mapFormMeta2FullData(fields), fields: getDefaultFields(), editing: true}));
     setFormVisible(true);
   };
 
   const handleClone = (ticket) => {
     setFormMeta(ticket)
+    setJobType(ticket.job_type)
 
-    jobType = ticket.job_type
-
-    setFields(mapValueToFields({data: ticket, fields: getDefaultFields(), init: true}));
+    setFields(mapValueToFields({data: mapFormMeta2FullData(fields), fields: getDefaultFields(), init: true}));
     setFormVisible(true);
   }
 
