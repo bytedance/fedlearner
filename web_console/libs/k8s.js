@@ -78,6 +78,29 @@ class KubernetesClient {
       .catch(parseErrorResponse);
     return response.json();
   }
+
+  async listDeployments(namespace = 'default') {
+    const response = await this.client.get(`namespaces/${namespace}/deployments`).catch(parseErrorResponse);
+    return response.json();
+  }
+
+  async getDeployment(name, namespace = 'default') {
+    const response = await this.client.get(`namespaces/${namespace}/deployments/${name}`).catch(parseErrorResponse);
+    return response.json();
+  }
+
+  async updateDeployment(deployment) {
+    const { name, namespace } = deployment.metadata
+    const response = await this.client.put(`namespaces/${namespace}/deployments/${name}`, {
+      json: deployment,
+    }).catch(parseErrorResponse);
+    return response.json();
+  }
+
+  async deleteDeployment(name, namespace = 'default') {
+    const response = await this.client.delete(`namespaces/${namespace}/deployments/${name}`).catch(parseErrorResponse);
+    return response.json();
+  }
 }
 
 module.exports = new KubernetesClient();

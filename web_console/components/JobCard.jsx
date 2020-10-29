@@ -26,15 +26,16 @@ function useStyles(theme) {
   `;
 }
 
-export default function JobCard({ job }) {
+export default function JobCard({ job, style }) {
   const theme = useTheme();
   const styles = useStyles(theme);
   const router = useRouter();
   const { kind, apiVersion, metadata, spec, status, localdata } = job;
   const { id, name, job_type, created_at } = localdata;
   const goToDetail = () => router.push(`/job/${id}`);
+
   return (
-    <Card shadow>
+    <Card shadow style={style}>
       <div className="title">
         <Text h3>
           {name}
@@ -47,7 +48,7 @@ export default function JobCard({ job }) {
           <Text type="secondary">{status.appState}</Text>
         </Dot>
       </div>
-      <Card.Footer>
+      <Card.Footer style={{ padding: `0 ${theme.layout.gap}` }}>
         <Text>Created at {created_at}</Text>
       </Card.Footer>
 

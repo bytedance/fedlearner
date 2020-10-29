@@ -1,4 +1,5 @@
-# Fedlearner™ Web Console
+Fedlearner™ Web Console
+=======================
 
 the web console of [Fedlearner][fedlearner].
 
@@ -64,7 +65,22 @@ for testing with coverage report:
 npm run cov
 ```
 
-------------------------------------------------------------------------------
+## Release
+
+> release action **should only** be executed by maintainers
+
+make a new release with tagged commit, `m.m.p` **must** follow [semver][semver] standard:
+
+```
+# make sure you are at master branch
+npm run release -- --release-as m.m.p
+git push origin master --tags
+```
+
+then create a new release at [Github][new_github_release] with latest content from `CHANGELOG.md`.
+
+
+
 [conventionalcommits]: https://www.conventionalcommits.org/en/v1.0.0/#summary
 [docker]: https://docs.docker.com/get-docker
 [fedlearner]: https://github.com/bytedance/fedlearner
@@ -72,8 +88,10 @@ npm run cov
 [mariadb]: https://downloads.mariadb.org
 [minikube]: https://minikube.sigs.k8s.io
 [mysql]: https://dev.mysql.com/downloads/mysql
+[new_github_release]: https://github.com/bytedance/fedlearner/releases/new
 [next]: https://nextjs.org/docs
 [node]: https://nodejs.org/en/about/releases
 [nvm]: https://github.com/nvm-sh/nvm
+[semver]: https://semver.org
 [sequelize]: https://sequelize.org
 [zeit_ui]: https://react.zeit-ui.co/zh-cn/components/text
