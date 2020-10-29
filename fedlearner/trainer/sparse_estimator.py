@@ -188,13 +188,16 @@ class SparseFLEstimator(estimator.FLEstimator):
                  trainer_master,
                  role,
                  worker_rank=0,
+                 application_id=None,
                  cluster_spec=None):
         super(SparseFLEstimator, self).__init__(model_fn,
-            bridge, trainer_master, role, worker_rank, cluster_spec)
+            bridge, trainer_master, role, worker_rank,
+            application_id, cluster_spec)
 
         self._bias_slot_configs = None
         self._vec_slot_configs = None
         self._slot_configs = None
+        self._application_id = application_id
         self._embedding_devices = [None,] if cluster_spec is None else \
             ['/job:ps/task:%d'%i for i in range(cluster_spec.num_tasks('ps'))]
         self._num_shards = len(self._embedding_devices)

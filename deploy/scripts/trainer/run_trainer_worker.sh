@@ -66,6 +66,7 @@ learning_rate=$(normalize_env_to_args "--learning-rate" "$LEARNING_RATE")
 
 python main.py \
     --data-path="$DATA_PATH" \
+    --application-id="$APPLICATION_ID" \
     --cluster-spec="$CLUSTER_SPEC" \
     --tf-addr="$POD_IP:50052" \
     --local-addr="$POD_IP:50051" \

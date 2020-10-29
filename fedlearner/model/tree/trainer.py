@@ -401,7 +401,8 @@ class DataBlockLoader(object):
                 files = [os.path.basename(data_path)]
                 data_path = os.path.dirname(data_path)
             self._trainer_master = LocalTrainerMasterClient(
-                self._tm_role, data_path, files=files, ext=ext)
+                self._tm_role, data_path, files=files, ext=ext,
+                skip_datablock_checkpoint=True)
         else:
             self._trainer_master = None
 

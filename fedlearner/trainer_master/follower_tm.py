@@ -35,9 +35,10 @@ class FollowerTrainerMaster(TrainerMaster):
         super(FollowerTrainerMaster, self).__init__(application_id,
                                                     None, online_training)
         self._data_block_set = DataBlockSet()
+        kvstore_use_mock = os.environ.get('KVSTORE_USE_MOCK', "off") == "on"
         self._data_block_visitor = DataBlockVisitor(
             data_source, db_database, db_base_dir, db_addr,
-                db_username, db_password)
+                db_username, db_password, kvstore_use_mock)
         self._start_time = start_time
         self._end_time = end_time
 
