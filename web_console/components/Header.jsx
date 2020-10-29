@@ -3,7 +3,7 @@ import css from 'styled-jsx/css';
 import { useRouter } from 'next/router';
 import useSWR from 'swr';
 import { Avatar, Link, Popover, Spinner, Tabs, Loading, useTheme, Select, Spacer } from '@zeit-ui/react';
-import { ChevronDown } from '@geist-ui/react-icons'
+import { ChevronDown } from '@geist-ui/react-icons';
 import { fetcher } from '../libs/http';
 import { logout } from '../services';
 
@@ -96,6 +96,7 @@ function useStyles(theme) {
       display: none;
       position: absolute;
       top: 100%;
+      z-index: 1;
     }
     .tab:hover .tabPopoverArea {
       display: block;
@@ -140,12 +141,12 @@ function useStyles(theme) {
 
 function isActive(tabValue, route) {
   if (/^\/datasource/.test(route)) {
-    return ['/datasource/job', '/datasource/ticket'].some(el => tabValue === el)
+    return ['/datasource/job', '/datasource/ticket'].some((el) => tabValue === el);
   }
   if (/^\/training/.test(route)) {
-    return ['/training/job', '/training/ticket'].some(el => tabValue === el)
+    return ['/training/job', '/training/ticket'].some((el) => tabValue === el);
   }
-  return tabValue === route
+  return tabValue === route;
 }
 
 export default function Header() {
@@ -170,7 +171,7 @@ export default function Header() {
     }
   };
   const title = isAdmin ? 'Admin' : 'Fedlearner';
-  const navs = useMemo(() => isAdmin
+  const navs = useMemo(() => (isAdmin
     ? [
       { label: 'Federations', value: '/admin/federation' },
       { label: 'Users', value: '/admin/user' },
@@ -186,7 +187,7 @@ export default function Header() {
         children: [
           { label: 'Job', value: '/datasource/job' },
           { label: 'Tickets', value: '/datasource/tickets' },
-        ]
+        ],
       },
       {
         label: 'Training',
@@ -194,10 +195,10 @@ export default function Header() {
         children: [
           { label: 'Job', value: '/training/job' },
           { label: 'Tickets', value: '/training/tickets' },
-        ]
+        ],
       },
       // { label: 'training', value: '/training' },
-    ], [isAdmin])
+    ]), [isAdmin]);
 
   const PopoverContent = (
     <>
@@ -210,11 +211,11 @@ export default function Header() {
       <Popover.Item>
         {isAdmin ? <Link href="/">Dashboard</Link> : <Link href="/admin">Admin</Link>}
       </Popover.Item>
-      <Popover.Item>
+      {/* <Popover.Item>
         <Link href="/docs">Docs</Link>
-      </Popover.Item>
+      </Popover.Item> */}
       <Popover.Item>
-        <Link href="/settings">Settings</Link>
+        <Link href="/setting">Settings</Link>
       </Popover.Item>
       <Popover.Item line />
       {signingOut
@@ -228,8 +229,8 @@ export default function Header() {
   );
 
   const onTabChange = useCallback((value, e) => {
-    e.stopPropagation()
-    router.push(value)
+    e.stopPropagation();
+    router.push(value);
   }, [router]);
 
   useEffect(() => {
@@ -247,18 +248,18 @@ export default function Header() {
     '/datasource/job',
     '/datasource/tickets',
     '/training/job',
-    '/training/tickets'
-  ].some(el => el === route)
-  const { data: fedData } = useSWR('federations', fetcher)
-  const federations = fedData ? fedData.data : null
-  const [currFederation, setCurrFederation] = useState(-1)
+    '/training/tickets',
+  ].some((el) => el === route);
+  const { data: fedData } = useSWR('federations', fetcher);
+  const federations = fedData ? fedData.data : null;
+  const [currFederation, setCurrFederation] = useState(-1);
   useEffect(() => {
-    setCurrFederation(parseInt(localStorage.getItem('federationID')) || -1)
-  }, [])
-  const onFederationChange = v => {
-    localStorage.setItem('federationID', v)
-    window.location.reload()
-  }
+    setCurrFederation(parseInt(localStorage.getItem('federationID')) || -1);
+  }, []);
+  const onFederationChange = (v) => {
+    localStorage.setItem('federationID', v);
+    window.location.reload();
+  };
 
   return (
     <div className="space-holder">
@@ -274,7 +275,7 @@ export default function Header() {
             <nav className="nav">
               {/* Popover not work with tab */}
               <div className="menu" onChange={onTabChange}>
-                {navs.map((x) =>
+                {navs.map((x) => (
                   <div
                     className={`tab ${isActive(x.value, router.pathname) ? 'active' : ''}`}
                     key={x.label}
@@ -282,50 +283,55 @@ export default function Header() {
                   >
                     {x.label}
                     {
-                      x.children &&
-                      <>
-                        <Spacer x={.25} inline></Spacer>
-                        <div className="rotate">
-                          <ChevronDown size={18}/>
-                        </div>
-                      </>
+                      x.children
+                      && (
+                        <>
+                          <Spacer x={0.25} inline />
+                          <div className="rotate">
+                            <ChevronDown size={18} />
+                          </div>
+                        </>
+                      )
                     }
                     {
-                      x.children && <div className="tabPopoverArea">
-                        <div className="tabPopover">
-                          {x.children.map(item =>
-                            <div
-                              key={item.label}
-                              className="item"
-                              onClick={(e) => onTabChange(item.value, e)}
-                            >
-                              {item.label}
-                            </div>
-                          )}
+                      x.children && (
+                        <div className="tabPopoverArea">
+                          <div className="tabPopover">
+                            {x.children.map((item) => (
+                              <div
+                                key={item.label}
+                                className="item"
+                                onClick={(e) => onTabChange(item.value, e)}
+                              >
+                                {item.label}
+                              </div>
+                            ))}
+                          </div>
                         </div>
-                      </div>
+                      )
                     }
                   </div>
-                )}
+                ))}
               </div>
             </nav>
           </div>
 
           <div className="sidebar">
             {
-              displayFederationFilter &&
-              <Select
-                value={currFederation && currFederation.toString()}
-                onChange={onFederationChange}
-                size="small"
-                style={{marginRight: '16px'}}
-              >
-                <Select.Option value="-1">All</Select.Option>
-                {federations && federations.map(
-                  fed =>
-                    <Select.Option key={fed.name} value={fed.id.toString()}>{fed.name}</Select.Option>
-                )}
-              </Select>
+              displayFederationFilter
+              && (
+                <Select
+                  value={currFederation && currFederation.toString()}
+                  onChange={onFederationChange}
+                  size="small"
+                  style={{ marginRight: '16px' }}
+                >
+                  <Select.Option value="-1">All</Select.Option>
+                  {federations && federations.map(
+                    (fed) => <Select.Option key={fed.name} value={fed.id.toString()}>{fed.name}</Select.Option>,
+                  )}
+                </Select>
+              )
             }
             <Popover content={PopoverContent} placement="bottomEnd">
               {user

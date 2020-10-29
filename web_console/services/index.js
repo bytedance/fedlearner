@@ -31,3 +31,7 @@ export async function updateUser(id, json) {
 export async function deleteUser(id) {
   return client.delete(`users/${id}`).json();
 }
+
+export async function updateMe(json) {
+  return client.put('user', { json }).json();
+}

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo, useEffect, useState } from 'react';
 import css from 'styled-jsx/css';
 import { useRouter } from 'next/router';
 import useSWR from 'swr';
@@ -6,7 +6,7 @@ import { Button, Card, Text, Link, useTheme } from '@zeit-ui/react';
 import FolderPlusIcon from '@zeit-ui/react-icons/folderPlus';
 import { fetcher } from '../libs/http';
 import Layout from '../components/Layout';
-import EventListItem from '../components/EventListItem';
+import ActivityListItem from '../components/ActivityListItem';
 import JobCard from '../components/JobCard';
 
 function useStyles(theme) {
@@ -67,9 +67,24 @@ export default function Overview() {
   const theme = useTheme();
   const styles = useStyles(theme);
   const router = useRouter();
-  const { data } = useSWR('jobs', fetcher);
-  const jobs = data ? data.data.filter((x) => x.metadata) : [];
+  const options = useMemo(() => ({
+    searchParams: { offset: 0, limit: 10 },
+  }), []);
+  const [max, setMax] = useState(10);
+  const { data } = useSWR(['jobs', options], fetcher);
+  const { data: activityData } = useSWR(['activities', options], fetcher);
+  const jobs = data?.data.filter((x) => x.metadata).slice(0, max) ?? [];
+  const activities = activityData?.data ?? [];
   const goToJob = () => router.push('/datasource/job');
+
+  useEffect(() => {
+    // tips: make content fit in one page for different resolution with `max`
+    const count = Math.floor((window.innerHeight - 48 - 60 - 62 - 66) / 173.267);
+    if (count < max) {
+      setMax(count);
+    }
+  });
+
   return (
     <Layout>
       <div className="heading">
@@ -78,7 +93,13 @@ export default function Overview() {
       </div>
       <div className="row">
         <div className="jobs">
-          {jobs.length > 0 && jobs.map((x) => <JobCard key={x.localdata.id} job={x} />)}
+          {jobs.length > 0 && jobs.map((x, i) => (
+            <JobCard
+              key={x.localdata.id}
+              job={x}
+              style={i > 0 ? { marginTop: theme.layout.gap } : {}}
+            />
+          ))}
           {jobs.length > 0 && (
             <Text>
               <Link className="colorLink" href="/job" color>View All Jobs</Link>
@@ -95,17 +116,16 @@ export default function Overview() {
         </div>
         <div className="activity">
           <Text h4>Recent Activity</Text>
-          <EventListItem username="marswong" created="10m ago">
-            Mars Wong created <Text small>training</Text> ticket with <Text b>JD</Text>
-          </EventListItem>
-          <EventListItem username="fclh1991" created="1d ago">
-            fclh created <Text small>data_join_psi</Text> ticket with <Text b>JD</Text>
-          </EventListItem>
-          <Text>
-            <Link className="colorLink" href="#" color>View All Activity</Link>
-          </Text>
+          {activities.map((x) => <ActivityListItem key={x.id} activity={x} />)}
+          {activities.length === 0 && <Text>No activity yet</Text>}
+          {activities.length > 0 && (
+            <Text>
+              <Link className="colorLink" href="/activity" color>View All Activity</Link>
+            </Text>
+          )}
         </div>
       </div>
+
       <style jsx>{styles}</style>
     </Layout>
   );

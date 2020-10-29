@@ -9,6 +9,38 @@ router.get('/api/v1/user', SessionMiddleware, async (ctx) => {
   ctx.body = { data: ctx.session.user };
 });
 
+router.put('/api/v1/user', SessionMiddleware, async (ctx) => {
+  const { body } = ctx.request;
+
+  const user = await User.findByPk(ctx.session.user.id);
+  if (!user) {
+    ctx.status = 404;
+    ctx.body = {
+      error: 'User not found',
+    };
+    return;
+  }
+
+  const fields = ['password', 'name', 'tel', 'email', 'avatar', 'is_admin'].reduce((total, current) => {
+    const value = body[current];
+    if (value) {
+      total[current] = current === 'password' ? encrypt(value) : value;
+    }
+    return total;
+  }, {});
+
+  await user.update(fields);
+  ctx.session.user = {
+    id: user.id,
+    username: user.username,
+    name: user.name,
+    tel: user.tel,
+    is_admin: user.is_admin,
+  };
+  ctx.session.manuallyCommit();
+  ctx.body = { data: user };
+});
+
 router.get('/api/v1/users', SessionMiddleware, AdminMiddleware, async (ctx) => {
   const data = await User.findAll({ paranoid: false });
   ctx.body = { data };
@@ -77,6 +109,18 @@ router.put('/api/v1/users/:id', SessionMiddleware, AdminMiddleware, async (ctx) 
   }, {});
 
   await user.update(fields);
+
+  if (user.id === ctx.session.user.id) {
+    ctx.session.user = {
+      id: user.id,
+      username: user.username,
+      name: user.name,
+      tel: user.tel,
+      is_admin: user.is_admin,
+    };
+    ctx.session.manuallyCommit();
+  }
+
   ctx.body = { data: user };
 });
 

@@ -1,4 +1,5 @@
 const dayjs = require('dayjs');
+dayjs.extend(require('dayjs/plugin/duration'));
 
 /**
  * Humanize datetime in humanized format
@@ -31,7 +32,22 @@ function humanizeTimestamp(timestamp, format = 'YYYY-MM-DD HH:mm:ss', placeholde
   return placeholder;
 }
 
+function humanizeDuration(date, placeholder = '-') {
+  const datetime = dayjs(date);
+  if (datetime.isValid()) {
+    const duration = dayjs.duration(datetime.diff(dayjs()));
+    const minutes = -Math.floor(duration.asMinutes());
+    if (minutes < 60) return `${minutes}m ago`;
+    const hours = -Math.floor(duration.asHours());
+    if (hours < 24) return `${hours}h ago`;
+    const days = -Math.floor(duration.asDays());
+    return `${days}d ago`;
+  }
+  return placeholder;
+}
+
 module.exports = {
   humanizeTime,
   humanizeTimestamp,
+  humanizeDuration,
 };
