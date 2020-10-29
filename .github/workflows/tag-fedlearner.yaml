@@ -1,0 +1,21 @@
+name: Tag Fedlearner
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set Short Commit Sha
+        id: vars
+        run: echo "::set-output name=sha_short::$(git rev-parse --short HEAD)"
+      - uses: whoan/docker-build-with-cache-action@v5
+        with:
+          username: fedlearner
+          password: "${{ secrets.DOCKER_REGISTRY }}"
+          image_name: fedlearner
+          image_tag: ${{ github.event.release.tag_name }}
+          context: ./
