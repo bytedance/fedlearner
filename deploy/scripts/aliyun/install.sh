@@ -18,6 +18,7 @@ ACCESS_KEY_ID=$1
 ACCESS_KEY_SECRET=$2
 DB_PASSWORD=$3
 BUCKET=$4
+PAY_TYPE=$5
 
 REGION="cn-beijing"
 ZONE_ID="cn-beijing-h"
@@ -171,7 +172,64 @@ function create_k8s_cluster_config {
 
     echo_log "Generate the kubernetes cluster config file for aliyun."
 
-    cat <<EOF >>k8s.json
+    if [[ $PAY_TYPE == "postpaid" ]]
+    then
+        cat <<EOF >>k8s.json
+{
+    "name": "$GENERATER_NAME",
+    "cluster_type": "ManagedKubernetes",
+    "disable_rollback": true,
+    "timeout_mins": 60,
+    "kubernetes_version": "1.16.9-aliyun.1",
+    "region_id": "$REGION",
+    "snat_entry": true,
+    "cloud_monitor_flags": false,
+    "endpoint_public_access": true,
+    "deletion_protection": false,
+    "node_cidr_mask": "26",
+    "proxy_mode": "ipvs",
+    "tags": [],
+    "addons": [
+        {
+            "name": "flannel"
+        },
+        {
+            "name": "csi-plugin"
+        },
+        {
+            "name": "csi-provisioner"
+        },
+        {
+            "name": "nginx-ingress-controller",
+            "disabled": true
+        }
+    ],
+    "os_type": "Linux",
+    "platform": "CentOS",
+    "runtime": {
+        "name": "docker",
+        "version": "19.03.5"
+    },
+    "worker_instance_types": [
+        "ecs.c6.3xlarge"
+    ],
+    "num_of_nodes": 3,
+    "worker_system_disk_category": "cloud_efficiency",
+    "worker_system_disk_size": 120,
+    "worker_instance_charge_type": "PostPaid",
+    "vpcid": "$VPC_ID",
+    "container_cidr": "172.20.0.0/16",
+    "service_cidr": "172.21.0.0/20",
+    "vswitch_ids": [
+        "$VSWITCH_ID"
+    ],
+    "key_pair": "$GENERATER_NAME",
+    "cpu_policy": "none",
+    "is_enterprise_security_group": true
+}
+EOF
+    else
+        cat <<EOF >>k8s.json
 {
     "name": "$GENERATER_NAME",
     "cluster_type": "ManagedKubernetes",
@@ -229,6 +287,7 @@ function create_k8s_cluster_config {
     "is_enterprise_security_group": true
 }
 EOF
+    fi
 }
 
 function create_k8s {
@@ -272,7 +331,13 @@ function create_db {
     then
         echo_log "Database already exists with id $DB_INSTANCE_ID."
     else
-        aliyun rds CreateDBInstance --Engine MySQL --EngineVersion 8.0 --DBInstanceClass rds.mysql.t1.small --DBInstanceStorage 20  --SecurityIPList 0.0.0.0/0 --DBInstanceNetType Intranet --RegionId $REGION --ZoneId $ZONE_ID --VPCId $VPC_ID --InstanceNetworkType VPC --PayType Prepaid --UsedTime 1 --Period Month --AutoRenew true
+        if [[ $PAY_TYPE == "postpaid" ]]
+        then
+            aliyun rds CreateDBInstance --Engine MySQL --EngineVersion 8.0 --DBInstanceClass rds.mysql.t1.small --DBInstanceStorage 20  --SecurityIPList 0.0.0.0/0 --PayType Postpaid --DBInstanceNetType Intranet --RegionId $REGION --ZoneId $ZONE_ID --VPCId $VPC_ID --InstanceNetworkType VPC
+        else
+            aliyun rds CreateDBInstance --Engine MySQL --EngineVersion 8.0 --DBInstanceClass rds.mysql.t1.small --DBInstanceStorage 20  --SecurityIPList 0.0.0.0/0 --DBInstanceNetType Intranet --RegionId $REGION --ZoneId $ZONE_ID --VPCId $VPC_ID --InstanceNetworkType VPC --PayType Prepaid --UsedTime 1 --Period Month --AutoRenew true
+        fi
+
         DB_INSTANCE_ID=`aliyun rds DescribeDBInstances --VpcId $VPC_ID | grep \"DBInstanceId\" | awk -F "\"" '{print $4}'`
         if [ -n "$DB_INSTANCE_ID" ]
         then
@@ -554,13 +619,15 @@ EOF
 
 function usage {
     echo "Usage: "
-    echo "    ./install.sh access_key_id access_key_secret db_password"
+    echo "    ./install.sh access_key_id access_key_secret db_password bucket pay_type"
     echo ""
     echo "Params:"
     echo ""
     echo "    access_key_id:     the access key id provided by aliyun, required"
     echo "    access_key_secret: the access key secret provided by aliyun, required"
     echo "    db_password:       the database password for fedlearner account, required"
+    echo "    bucket:            the oss bucket to be created, required"
+    echo "    pay_type:          the pay_type, default to Prepaid."
 }
 
 if [[ -z $ACCESS_KEY_ID ]] || [[ -z $ACCESS_KEY_SECRET ]] || [[ -z $DB_PASSWORD ]]
