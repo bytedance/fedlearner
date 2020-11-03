@@ -235,12 +235,17 @@ function getDashboardUrl(application_id, from, to, query, mode, title) {
  * get Kibana dashboard urls of a job
  *
  * @param {Object} job - a job instance
+ * @param {Object} custom - return custom url
  * @return {string[]} - a list of Kibana dashboard url
  */
-function getJobDashboardUrls(job) {
+function getJobDashboardUrls(job, custom) {
   const { name, job_type, created_at } = job;
   const from = dayjs(created_at).subtract(8,'hour').toISOString();
   const to = dayjs().toISOString();
+  if (custom) {
+    const {customMode, customTitle} = custom
+    return getDashboardUrl(name, from, to, `name%20:%22${customTitle}%22`, customMode, customTitle)
+  }
   return JOB_METRICS[job_type].map(({ query, mode, title }) => getDashboardUrl(name, from, to, query, mode, title));
 }
 
