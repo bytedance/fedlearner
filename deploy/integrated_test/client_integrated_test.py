@@ -2,8 +2,7 @@
 import argparse
 import json
 import requests
-from tools import login, request_and_response, build_raw_data, \
-    build_data_join_ticket, build_nn_ticket, build_tree_ticket
+from tools import login, request_and_response, build_raw_data, build_data_join_ticket, build_train_ticket
 
 
 def build_federation_json(args):
@@ -47,7 +46,7 @@ if __name__ == '__main__':
     parser.add_argument('--url',
                         type=str,
                         help='URL to webconsole.',
-                        default='127.0.0.1:1989')
+                        default='http://127.0.0.1:1989')
     parser.add_argument('--username',
                         type=str,
                         help='Username of webconsole.',
@@ -101,11 +100,11 @@ if __name__ == '__main__':
                                                             name_suffix=suffix)
 
     if args.model_type == 'nn_model':
-        train_ticket_json, suffix = build_nn_ticket(args, federation_id,
-                                                    'template_json/template_nn_ticket.json', 'Follower')
+        train_ticket_json, suffix = build_train_ticket(args, federation_id,
+                                                       'template_json/template_nn_ticket.json', 'Follower')
     else:
-        train_ticket_json, suffix = build_tree_ticket(args, federation_id,
-                                                      'template_json/template_tree_ticket.json', 'Follower')
+        train_ticket_json, suffix = build_train_ticket(args, federation_id,
+                                                       'template_json/template_tree_ticket.json', 'Follower')
     train_ticket_id, train_ticket_name = request_and_response(args=args,
                                                               url=args.url + '/tickets',
                                                               json_data=train_ticket_json,
