@@ -4,6 +4,7 @@ module.exports = {
   up: async (queryInterface, Sequelize) => {
     let transaction = await queryInterface.sequelize.transaction();
     try {
+      console.log("Adding column k8s_meta_snapshot");
       await queryInterface.addColumn(
         'jobs',
         'k8s_meta_snapshot',
@@ -15,6 +16,7 @@ module.exports = {
         },
         { transaction }
       );
+      console.log("Adding column status");
       await queryInterface.addColumn(
         'jobs',
         'status',
@@ -25,10 +27,12 @@ module.exports = {
           comment: 'status of the current job: started | stopped | error',
         }
       );
+      console.log("Setting existing job's status to started");
       await queryInterface.sequelize.query(
         'UPDATE jobs SET status="started"',
         { transaction },
       );
+      console.log("Adding column federation_id");
       await queryInterface.addColumn(
         'jobs',
         'federation_id',
@@ -40,6 +44,7 @@ module.exports = {
         },
         { transaction }
       );
+      console.log("Filling federation_id for jobs");
       await queryInterface.sequelize.query(`
         UPDATE jobs
         INNER JOIN tickets ON jobs.client_ticket_name = tickets.name
@@ -49,6 +54,7 @@ module.exports = {
       await transaction.commit();
       return Promise.resolve();
     } catch (err) {
+      console.log("Exception: ", err);
       if (transaction) {
         await transaction.rollback();
       }
@@ -65,6 +71,7 @@ module.exports = {
       await transaction.commit();
       return Promise.resolve();
     } catch (err) {
+      console.log("Exception: ", err);
       if (transaction) {
         await transaction.rollback();
       }

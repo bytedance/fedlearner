@@ -6,6 +6,7 @@ module.exports = {
   up: async (queryInterface, Sequelize) => {
     let transaction = await queryInterface.sequelize.transaction();
     try {
+      console.log("Creating table datasource_meta...")
       await queryInterface.createTable(
         'datasource_meta',
         {
@@ -57,6 +58,7 @@ module.exports = {
       await transaction.commit();
       return Promise.resolve();
     } catch (err) {
+      console.log("Exception: ", err);
       if (transaction) {
         await transaction.rollback();
       }
