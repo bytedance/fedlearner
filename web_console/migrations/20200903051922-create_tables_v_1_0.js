@@ -5,8 +5,10 @@ module.exports = {
     let transaction = await queryInterface.sequelize.transaction();
     try {
       let schema = await queryInterface.showAllSchemas();
+      console.log('DB schema:', schema);
+
       let tables = [];
-      schema.forEach(x => {tables.push(x.Tables_in_fedlearner)});
+      schema.forEach(x => { for (var key in x) tables.push(x[key]) });
 
       console.log("Existing tables:", tables);
 
