@@ -41,8 +41,7 @@ export default function Chart(props) {
   const { state: customTitle, reset: resetCustomTitle, bindings: customTitleBindings } = useInput('')
   const onAddMetrics = useCallback(() => {
     if (!job) return
-    let mockjob = {name: 'mock', job_type: 'data_join', created_at: '2020-10-20'}
-    customerUrls.current.push(getJobDashboardUrls(mockjob, {customMode, customTitle}))
+    customerUrls.current.unshift(getJobDashboardUrls(job, {customMode, customTitle}))
     resetCustomMode()
     resetCustomTitle()
   }, [job, customMode, customTitle])
