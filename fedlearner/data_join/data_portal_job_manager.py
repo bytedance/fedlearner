@@ -345,6 +345,8 @@ class DataPortalJobManager(object):
             finished_job.MergeFrom(self._processing_job)
             finished_job.finished = True
             self._update_processing_job(finished_job)
+        for fpath in processing_job.fpaths:
+            self._processed_fpath.add(fpath)
         self._processing_job = None
         self._job_part_map = {}
         portal_mainifest = self._sync_portal_manifest()
