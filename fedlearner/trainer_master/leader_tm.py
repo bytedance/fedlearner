@@ -18,6 +18,7 @@ import argparse
 import logging
 import os
 import random
+import threading
 
 from fedlearner.trainer_master.data.data_block_queue import DataBlockQueue
 from fedlearner.data_join.data_block_visitor import DataBlockVisitor
@@ -43,39 +44,54 @@ class LeaderTrainerMaster(TrainerMaster):
         self._end_time = end_time
         self._epoch_num = epoch_num
         self._shuffle_data_block = shuffle_data_block
+        self._visited_data_blocks = set()
+        self._lock = threading.Lock()
         if online_training:
-            self._epoch_num = 1
-            self._shuffle_data_block = False
-            logging.warning("Online Training will ignore args "\
-                            "epoch and shuffle data block")
+            assert self._epoch_num == 1 and self._shuffle_data_block == False, \
+                "epoch_num must be 1 and shuffle_data_block must be False " \
+                "online_training is set"
         assert self._epoch_num >= 1, \
                 "epoch_num {} must >= 1".format(self._epoch_num)
 
     def _load_data(self):
         checkpoint = self._get_checkpoint()
         # pylint: disable=line-too-long
-        visitor = self._data_block_visitor
-        data_block_reps = [dbr for dbr in visitor.LoadDataBlockRepByTimeFrame(
-                           self._start_time, self._end_time).values()
-                           if dbr.block_id not in checkpoint]
+        data_block_reps = [
+            dbr for dbr in self._data_block_visitor.LoadDataBlockRepByTimeFrame(
+                self._start_time, self._end_time).values()
+            if dbr.block_id not in checkpoint and
+               dbr.block_id not in self._visited_data_blocks]
+
+        print('leader reps', data_block_reps)
+
+        self._visited_data_blocks.update([i.block_id for i in data_block_reps])
+
         if self._online_training:
-            data_block_reps.sort(key=dbr.data_block_index)
+            data_block_reps.sort(key=lambda x: x.data_block_index)
         for rnd in range(self._epoch_num):
             if self._shuffle_data_block:
                 random.shuffle(data_block_reps)
             for dbr in data_block_reps:
                 logging.debug('epoch round-%d: add data block id %s path %s',
-                               rnd, dbr.block_id, dbr.data_block_fpath)
+                            rnd, dbr.block_id, dbr.data_block_fpath)
                 self._data_block_queue.put(dbr)
 
     def _alloc_data_block(self, block_id=None):
         # block_id is unused in leader role
-        data_blocks_resp = None
-        if not self._data_block_queue.empty():
+        with self._lock:
+            print('alloc', self._data_block_queue._db_queue.queue)
+            if self._data_block_queue.empty() and self._online_training:
+                self._load_data()
+
+            if self._data_block_queue.empty():
+                return None
+
+            print('alloc1', self._data_block_queue._db_queue.queue[0].block_id)
+
             data_blocks_resp = self._data_block_queue.get()
             with self._checkpoint_mutex:
                 self._allocated_data_blockids.add(data_blocks_resp.block_id)
-        return data_blocks_resp
+            return data_blocks_resp
 
 
 if __name__ == '__main__':

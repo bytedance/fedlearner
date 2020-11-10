@@ -34,7 +34,6 @@ class FollowerTrainerMaster(TrainerMaster):
                  start_time, end_time, online_training):
         super(FollowerTrainerMaster, self).__init__(application_id,
                                                     None, online_training)
-        self._data_block_set = DataBlockSet()
         kvstore_use_mock = os.environ.get('KVSTORE_USE_MOCK', "off") == "on"
         self._data_block_visitor = DataBlockVisitor(
             data_source, db_database, db_base_dir, db_addr,
@@ -43,22 +42,14 @@ class FollowerTrainerMaster(TrainerMaster):
         self._end_time = end_time
 
     def _load_data(self):
-        checkpoint = self._get_checkpoint()
-        # pylint: disable=line-too-long
-        for block_id, block_item in self._data_block_visitor.LoadDataBlockRepByTimeFrame(
-                self._start_time, self._end_time).items():
-            if block_id not in checkpoint:
-                logging.debug('load data block id %s path %s',
-                              block_id, block_item.data_block_fpath)
-                self._data_block_set.add(block_item)
-        logging.debug("FollowerTrainerMaster: get all block %s",
-                      self._data_block_set)
+        pass
 
     def _alloc_data_block(self, block_id=None):
         logging.debug("FollowerTrainerMaster is getting block %s", block_id)
         if not block_id:
             raise Exception('follower tm need block_id to alloc.')
-        return self._data_block_set.get(block_id)
+
+        return self._data_block_visitor.LoadDataBlockRepByBlockId(block_id)
 
 
 if __name__ == '__main__':

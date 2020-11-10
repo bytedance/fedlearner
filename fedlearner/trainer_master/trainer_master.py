@@ -82,7 +82,8 @@ class TrainerMaster(object):
 
     def _restore_checkpoint_fn(self, request):
         assert request.application_id == self._application_id,\
-                "Application id not matched"
+                "Application id not matched: %s vs %s"%(
+                    request.application_id, self._application_id)
         response = tm_pb.RestoreDataBlockCheckpointResponse()
         no_need_restore_fn = lambda status: status in (\
                                             tm_pb.MasterStatus.RUNNING,\
@@ -160,7 +161,7 @@ class TrainerMaster(object):
             response.status.error_message = 'datablock finished'
         if response.status.code == common_pb.STATUS_DATA_FINISHED:
             self._transfer_status(tm_pb.MasterStatus.RUNNING,
-                                 tm_pb.MasterStatus.FINISHED)
+                                  tm_pb.MasterStatus.FINISHED)
         return response
 
     def _load_data(self):

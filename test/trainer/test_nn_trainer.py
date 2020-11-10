@@ -20,7 +20,7 @@ import random
 import os
 import time
 import logging
-from multiprocess import Process
+from multiprocessing import Process
 import tensorflow.compat.v1 as tf
 from tensorflow.compat.v1 import gfile
 from queue import PriorityQueue
@@ -376,7 +376,7 @@ class TestNNTraining(unittest.TestCase):
     def setUp(self):
         self.sche = _TaskScheduler(30)
         self.kv_store = [None, None]
-        self.app_id = "test_trainer_v1" 
+        self.app_id = "test_trainer_v1"
         db_database, db_addr, db_username, db_password, db_base_dir = \
                 get_kvstore_config("etcd")
         data_source = [self._gen_ds_meta(common_pb.FLRole.Leader),

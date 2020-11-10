@@ -77,7 +77,6 @@ class MockKVStore(object):
         #ignore events
         if self._need_sync:
             if not os.path.exists(KVSTORE_LOCAL_PATH):
-                os.mknod(KVSTORE_LOCAL_PATH)
                 return
             with open(KVSTORE_LOCAL_PATH, "rb+") as f:
                 json_data = f.read()
