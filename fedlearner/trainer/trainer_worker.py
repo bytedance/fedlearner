@@ -133,6 +133,10 @@ def create_argument_parser():
                         type=int,
                         default=1,
                         help='Logging level.')
+    parser.add_argument('--load-model-path',
+                        type=str,
+                        default=None,
+                        help='Path to load models')
 
     return parser
 
@@ -241,7 +245,8 @@ def train(role, args, input_fn, model_fn, serving_input_receiver_fn):
         estimator.train(input_fn,
                         checkpoint_path=args.checkpoint_path,
                         save_checkpoint_steps=args.save_checkpoint_steps,
-                        save_checkpoint_secs=args.save_checkpoint_secs)
+                        save_checkpoint_secs=args.save_checkpoint_secs,
+                        load_model_path=args.load_model_path)
     elif run_mode == 'eval':
         estimator.evaluate(input_fn, checkpoint_path=args.checkpoint_path)
     else:
