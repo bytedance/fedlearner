@@ -28,7 +28,6 @@ const CONTEXT_FIELDS = [
   {
     key: 'input_data_format',
     type: 'select',
-    required: true,
     props: {
       options: DATA_FORMAT_OPTIONS
     }
@@ -36,7 +35,6 @@ const CONTEXT_FIELDS = [
   {
     key: 'output_data_format',
     type: 'select',
-    required: true,
     props: {
       options: DATA_FORMAT_OPTIONS
     }
@@ -44,7 +42,6 @@ const CONTEXT_FIELDS = [
   {
     key: 'compressed_type',
     type: 'select',
-    required: true,
     props: {
       options: [
         { label: 'GZIP', value: 'GZIP' },
@@ -81,7 +78,15 @@ const CONTEXT_FIELDS = [
     path: RESOURCE_PATH_PREFIX + '.limits.memory',
     span: 12
   },
-  { key: 'worker Resources', type: 'label', span: 24 },
+  {
+    key: 'env.Master',
+    label: 'env',
+    type: 'name-value',
+    path: `yaml_spec.spec.flReplicaSpecs.Master.template.spec.containers[].env`,
+    span: 24,
+    emptyDefault: [],
+  },
+  { key: 'Worker Resources', type: 'label', span: 24 },
   {
     key: 'resource.Worker.cpu_request',
     label: 'cpu request',
@@ -112,6 +117,14 @@ const CONTEXT_FIELDS = [
     span: 12,
     path: WORKER_REPLICAS_PATH
   },
+  {
+    key: 'env.Worker',
+    label: 'env',
+    type: 'name-value',
+    path: `yaml_spec.spec.flReplicaSpecs.Worker.template.spec.containers[].env`,
+    span: 24,
+    emptyDefault: [],
+  },
 ]
 
 /**
@@ -126,6 +139,10 @@ function handleContextData(container, data, field) {
   if (field.key.startsWith('resource')) {
     const [, replicaType,] = field.key.split('.')
     path = field.path.replace('[replicaType]', replicaType)
+  }
+
+  else if (field.key.startsWith('env')) {
+    value = value && JSON.parse(value)
   }
 
   else if (field.key === 'compressed_type') {
@@ -143,7 +160,7 @@ function handleContextData(container, data, field) {
  * set init value and props of fields
  */
 function fillField(data, field) {
-  let v = getValueFromJson(data, field.path || field.key)
+  let v = getValueFromJson(data, field.path || field.key) || field.emptyDefault
 
   if (field.key.startsWith('resource')) {
     const [, replicaType,] = field.key.split('.')
@@ -152,7 +169,7 @@ function fillField(data, field) {
   else if (field.key === 'compressed_type') {
     v = v === '' ? 'None' : data.compressed_type
   }
-  else if (field.key === 'image') {
+  else if (field.key === 'image' && !v) {
     for (let replicaType of REPLICA_TYPES) {
       v = getValueFromJson(data.context, IMAGE_PATH.replace('[replicaType]', replicaType))
       if (v) break
