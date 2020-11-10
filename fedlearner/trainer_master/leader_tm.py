@@ -62,8 +62,6 @@ class LeaderTrainerMaster(TrainerMaster):
             if dbr.block_id not in checkpoint and
                dbr.block_id not in self._visited_data_blocks]
 
-        print('leader reps', data_block_reps)
-
         self._visited_data_blocks.update([i.block_id for i in data_block_reps])
 
         if self._online_training:
@@ -79,14 +77,11 @@ class LeaderTrainerMaster(TrainerMaster):
     def _alloc_data_block(self, block_id=None):
         # block_id is unused in leader role
         with self._lock:
-            print('alloc', self._data_block_queue._db_queue.queue)
             if self._data_block_queue.empty() and self._online_training:
                 self._load_data()
 
             if self._data_block_queue.empty():
                 return None
-
-            print('alloc1', self._data_block_queue._db_queue.queue[0].block_id)
 
             data_blocks_resp = self._data_block_queue.get()
             with self._checkpoint_mutex:
