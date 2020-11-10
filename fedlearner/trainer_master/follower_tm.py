@@ -18,7 +18,6 @@ import argparse
 import logging
 import os
 
-from fedlearner.trainer_master.data.data_block_set import DataBlockSet
 from fedlearner.data_join.data_block_visitor import DataBlockVisitor
 from fedlearner.data_join.common import get_kvstore_config
 from .trainer_master import TrainerMaster

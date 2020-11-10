@@ -47,7 +47,7 @@ class LeaderTrainerMaster(TrainerMaster):
         self._visited_data_blocks = set()
         self._lock = threading.Lock()
         if online_training:
-            assert self._epoch_num == 1 and self._shuffle_data_block == False, \
+            assert self._epoch_num == 1 and not self._shuffle_data_block, \
                 "epoch_num must be 1 and shuffle_data_block must be False " \
                 "online_training is set"
         assert self._epoch_num >= 1, \
@@ -71,7 +71,7 @@ class LeaderTrainerMaster(TrainerMaster):
                 random.shuffle(data_block_reps)
             for dbr in data_block_reps:
                 logging.debug('epoch round-%d: add data block id %s path %s',
-                            rnd, dbr.block_id, dbr.data_block_fpath)
+                              rnd, dbr.block_id, dbr.data_block_fpath)
                 self._data_block_queue.put(dbr)
 
     def _alloc_data_block(self, block_id=None):
