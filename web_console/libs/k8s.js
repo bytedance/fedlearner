@@ -8,6 +8,7 @@ const getConfig = require('../utils/get_confg');
 const parseStream = require('../utils/parse_stream');
 
 const config = getConfig({
+  K8S_URI: process.env.K8S_URI,
   K8S_HOST: process.env.K8S_HOST,
   K8S_PORT: process.env.K8S_PORT,
 });
@@ -26,7 +27,7 @@ const parseErrorResponse = async (e) => {
 
 class KubernetesClient {
   constructor() {
-    const prefixUrl = `http://${config.K8S_HOST}:${config.K8S_PORT}`;
+    const prefixUrl = `${config.K8S_URI}://${config.K8S_HOST}:${config.K8S_PORT}`;
     this.prefixUrl = prefixUrl;
     this.client = ky.create({
       prefixUrl,
