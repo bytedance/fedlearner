@@ -166,6 +166,11 @@ class DataBlockVisitor(object):
                                 fname, partition_id, dirpath)
         return None
 
+    def LoadDataBlockRepByBlockId(self, block_id):
+        block_info = decode_block_id(block_id)
+        return self.LoadDataBlockReqByIndex(
+            block_info['partition_id'], block_info['data_block_index'])
+
     def _list_data_block(self, partition_id):
         dirpath = self._partition_data_block_dir(partition_id)
         if gfile.Exists(dirpath) and gfile.IsDirectory(dirpath):
