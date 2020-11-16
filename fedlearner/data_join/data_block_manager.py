@@ -63,7 +63,8 @@ class DataBlockBuilder(object):
     def set_data_block_manager(self, data_block_manager):
         self._data_block_manager = data_block_manager
 
-    def append_item(self, item, leader_index, follower_index, event_time=None):
+    def append_item(self, item, leader_index, follower_index, event_time=None,\
+                    allow_dup=False):
         example_id = item.example_id
         if event_time is None:
             event_time = item.event_time
@@ -75,10 +76,18 @@ class DataBlockBuilder(object):
             self._data_block_meta.start_time = event_time
             self._data_block_meta.end_time = event_time
         else:
-            assert self._data_block_meta.leader_start_index < leader_index, \
-                "leader start index should be incremental"
-            assert self._data_block_meta.leader_end_index < leader_index, \
-                "leader end index should be incremental"
+            if not allow_dup:
+                assert self._data_block_meta.leader_start_index < leader_index,\
+                        "leader start index should be incremental"
+                assert self._data_block_meta.leader_end_index < leader_index, \
+                        "leader end index should be incremental"
+            else:
+                assert self._data_block_meta.leader_start_index <= \
+                        leader_index,\
+                        "leader start index should be incremental by GE"
+                assert self._data_block_meta.leader_end_index <= leader_index, \
+                    "leader end index should be incremental by LE"
+
             self._data_block_meta.leader_end_index = leader_index
             if event_time < self._data_block_meta.start_time:
                 self._data_block_meta.start_time = event_time

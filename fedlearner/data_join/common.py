@@ -371,3 +371,29 @@ def get_kvstore_config(kvstore_type):
     addr = os.environ.get('ETCD_ADDR', 'localhost:2379')
     base_dir = os.environ.get('ETCD_BASE_DIR', 'fedlearner')
     return name, addr, None, None, base_dir
+
+def interval_to_timestamp(itv):
+    unit = ["Y", "M", "D", "H", "N", "S"]
+    multiple = [3600*24*30*12, 3600*24*30, 3600*24, 3600, 60, 1]
+    unit_order, unit_no = {}, {}
+    for i, item in enumerate(unit):
+        unit_order[item] = len(unit) - i
+    s_no = ""
+    prv_order = len(unit) + 1
+    for c in itv:
+        if c.isdigit():
+            s_no += c
+        else:
+            c = c.upper()
+            if c not in unit_order or prv_order <= unit_order[c]:
+                return None
+            unit_no[c] = s_no
+            prv_order = unit_order[c]
+            s_no = ""
+    tmstmp = 0
+    if len(s_no) > 0 and "S" not in unit_no:
+        unit_no["S"] = s_no
+    for i, item in enumerate(unit):
+        if item in unit_no:
+            tmstmp += int(unit_no[item]) * multiple[i]
+    return tmstmp
