@@ -1,3 +1,7 @@
 Flask
 Flask-Migrate
 Flask-Script
+Flask-HTTPAuth
+flask-restful
+passlib
+flask-jwt-extended

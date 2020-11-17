@@ -1,3 +1,4 @@
+
 # Copyright 2020 The FedLearner Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,4 +15,18 @@
 
 # coding: utf-8
 
-from fedlearner_webconsole import auth
+from passlib.apps import custom_app_context as pwd_context
+
+from fedlearner_webconsole.app import db
+
+class User(db.Model):
+    __tablename__ = 'users_v2'
+    id = db.Column(db.Integer, primary_key = True)
+    username = db.Column(db.String(255), index = True)
+    password = db.Column(db.String(255))
+
+    def set_password(self, password):
+        self.password = pwd_context.encrypt(password)
+
+    def verify_password(self, password):
+        return pwd_context.verify(password, self.password)

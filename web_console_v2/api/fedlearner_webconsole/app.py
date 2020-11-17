@@ -17,13 +17,27 @@
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
-from flask_restful import Resource, Api
+from flask_restful import Api
+from flask_jwt_extended import JWTManager
+
+db = SQLAlchemy()
+migrate = Migrate()
+api = Api(prefix='/api/v2')
+jwt = JWTManager()
+
+from fedlearner_webconsole.auth.apis import initialize_auth_apis
 
 
-app = Flask('fedlearner_webconsole')
-app.config.from_object('config.Config')
 
-db = SQLAlchemy(app)
-migrate = Migrate(app, db)
+def create_app(config):
+    app = Flask('fedlearner_webconsole')
+    app.config.from_object(config)
 
-api = Api(app)
+    db.init_app(app)
+    migrate.init_app(app, db)
+    jwt.init_app(app)
+
+    initialize_auth_apis(api)
+    api.init_app(app)
+
+    return app
