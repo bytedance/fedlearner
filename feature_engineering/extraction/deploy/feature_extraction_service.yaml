@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: feature-extracion
+spec:
+  type: NodePort
+  selector:
+    app: feature-extracion
+  ports:
+    - protocol: TCP
+      port: 5000
+      nodePort: 32081

@@ -1,0 +1,29 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: inference
+  labels:
+    app: inference
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: inference
+  template:
+    metadata:
+      labels:
+        app: inference
+    spec:
+      containers:
+      - image: zhangzh711/serving_test:tfs_wmc_debug2
+        name: inference
+        ports:
+        - containerPort: 8500
+#        env:
+#        - name: MODEL_NAME
+#          value: mnist
+        args: [
+            "--model_config_file=/configs/config_pb.txt",
+            "--model_config_file_poll_wait_seconds=60",
+            "--allow_version_labels_for_unavailable_models=true"
+        ]

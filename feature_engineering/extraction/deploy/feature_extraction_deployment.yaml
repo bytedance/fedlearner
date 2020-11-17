@@ -1,0 +1,24 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: feature-extration
+  labels:
+    app: feature-extration
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: feature-extration
+  template:
+    metadata:
+      labels:
+        app: feature-extration
+    spec:
+      containers:
+      - image: zhangzh711/serving_test:relay-debug
+        name: feature-extraction
+        ports:
+        - containerPort: 5000
+        env:
+        - name: SERVING_HOSTPORT
+          value: inference:8500
