@@ -248,6 +248,13 @@ def train(role, args, input_fn, model_fn, serving_input_receiver_fn):
         raise ValueError('Allowed values are: --mode=train|eval')
 
     if args.export_path and args.worker_rank == 0:
-        estimator.export_saved_model(args.export_path,
+        model_name = args.application_id \
+            if args.application_id is not None else 'model'
+        export_path = '%s/%s_%d'%(
+            args.export_path, model_name, bridge.terminated_at)
+        estimator.export_saved_model(export_path,
                                      serving_input_receiver_fn,
                                      checkpoint_path=args.checkpoint_path)
+        fsuccess = tf.io.gfile.GFile('%s/_SUCCESS'%export_path, 'w')
+        fsuccess.write('%d'%bridge.terminated_at)
+        fsuccess.close()
