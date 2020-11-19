@@ -70,6 +70,7 @@ message ConnectRequest {
 message ConnectResponse {
   string app_id = 1;
   uint32 worker_rank = 2;
+  int64 timestamp = 3;
 }
 
 message HeartbeatRequest {
@@ -85,6 +86,7 @@ message TerminateRequest {
 }
 
 message TerminateResponse {
+  int64 timestamp = 1;
 }
 
 service TrainerWorkerService {

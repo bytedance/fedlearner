@@ -153,7 +153,9 @@ class Bridge(object):
 
         # Connection related
         self._connected = False
+        self._connected_at = 0
         self._terminated = False
+        self._terminated_at = 0
         self._peer_terminated = False
         self._identifier = '%s-%s-%d-%d' % (
             app_id, role, rank, int(time.time())) # Ensure unique per run
@@ -198,6 +200,18 @@ class Bridge(object):
     @property
     def role(self):
         return self._role
+
+    @property
+    def connected_at(self):
+        if self._connected:
+            return self._connected_at
+        return None
+
+    @property
+    def terminated_at(self):
+        if self._terminated:
+            return self._terminated_at
+        return None
 
     def _rpc_with_retry(self, sender, err_log):
         while True:
@@ -374,10 +388,12 @@ class Bridge(object):
             else:
                 self._peer_identifier = request.identifier
                 self._connected = True
+                self._connected_at = max(self._connected_at, int(time.time()))
                 self._condition.notifyAll()
 
-        return tws_pb.ConnectResponse(app_id=self._app_id,
-                                      worker_rank=self._rank)
+        return tws_pb.ConnectResponse(
+            app_id=self._app_id, worker_rank=self._rank,
+            timestamp=self._connected_at)
 
     def _heartbeat_handler(self, request):
         return tws_pb.HeartbeatResponse(app_id=self._app_id,
@@ -387,8 +403,10 @@ class Bridge(object):
     def _terminate_handler(self, request):
         with self._condition:
             self._peer_terminated = True
+            self._terminated_at = max(self._terminated_at, int(time.time()))
             self._condition.notifyAll()
-        return tws_pb.TerminateResponse()
+        return tws_pb.TerminateResponse(
+            timestamp=self._terminated_at)
 
     def _check_remote_heartbeat(self, client):
         try:
@@ -412,13 +430,14 @@ class Bridge(object):
                                     worker_rank=self._rank,
                                     identifier=self._identifier)
 
-        self._rpc_with_retry(
+        resp = self._rpc_with_retry(
             lambda: self._client.Connect(msg),
             "Bridge failed to connect")
         logging.debug('Has connected to peer.')
 
         # Ensure REQ from peer
         with self._condition:
+            self._connected_at = max(self._connected_at, resp.timestamp)
             while not self._connected:
                 self._condition.wait()
         logging.debug('Connected from peer.')
@@ -444,13 +463,14 @@ class Bridge(object):
                 'Error during streaming shutdown: %s', repr(e))
 
         # Get ACK from peer
-        self._rpc_with_retry(
+        resp = self._rpc_with_retry(
             lambda: self._client.Terminate(tws_pb.TerminateRequest()),
             "Failed to send terminate message")
         logging.debug('Waiting for peer to terminate.')
 
         # Ensure REQ from peer
         with self._condition:
+            self._terminated_at = max(self._terminated_at, resp.timestamp)
             while not self._peer_terminated:
                 self._condition.wait()
 

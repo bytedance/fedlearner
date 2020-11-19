@@ -49,7 +49,8 @@ const permittedJobEnvs = {
   ],
   nn_model: [
     'MODEL_NAME', 'SAVE_CHECKPOINT_STEPS', 'SAVE_CHECKPOINT_SECS',
-    'BATCH_SIZE', 'LEARNING_RATE'
+    'BATCH_SIZE', 'LEARNING_RATE', 'MODE', 'EPOCH_NUM', 'START_DATE',
+    'END_DATE'
   ],
 };
 
