@@ -20,17 +20,27 @@ import tensorflow.compat.v1 as tf
 import fedlearner.trainer as flt
 
 
+ROLE = 'follower'
+parser = flt.trainer_worker.create_argument_parser()
+parser.add_argument('--batch-size', type=int, default=256,
+                    help='Training batch size.')
+args = parser.parse_args()
+
 
 def input_fn(bridge, trainer_master):
-    dataset = flt.data.DataBlockLoader(256, 'follower', bridge, trainer_master)
-    feature_map = {
-        "example_id": tf.FixedLenFeature([], tf.string),
-        "x": tf.FixedLenFeature([28 * 28 // 2], tf.float32),
-    }
-    record_batch = dataset.make_batch_iterator().get_next()
-    features = tf.parse_example(record_batch, features=feature_map)
-    return features, {}
+    dataset = flt.data.DataBlockLoader(args.batch_size, ROLE,
+        bridge, trainer_master).make_dataset()
 
+    def parse_fn(example):
+        feature_map = dict()
+        feature_map["example_id"] = tf.FixedLenFeature([], tf.string)
+        feature_map["x"] = tf.FixedLenFeature([28 * 28 // 2], tf.float32)
+        features = tf.parse_example(example, features=feature_map)
+        return features, dict(y=tf.constant(0))
+
+    dataset = dataset.map(map_func=parse_fn,
+        num_parallel_calls=tf.data.experimental.AUTOTUNE)
+    return dataset
 
 def serving_input_receiver_fn():
     feature_map = {
@@ -83,5 +93,5 @@ if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
     parser = flt.trainer_worker.create_argument_parser()
     flt.trainer_worker.train(
-        'follower', parser.parse_args(), input_fn,
+        ROLE, parser.parse_args(), input_fn,
         model_fn, serving_input_receiver_fn)
