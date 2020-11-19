@@ -114,11 +114,6 @@ class DataBlockVisitor(object):
                                                  data_source_name)
 
     def LoadDataBlockRepByTimeFrame(self, start_time=None, end_time=None):
-        if (end_time is not None and
-                end_time < self._data_source.data_source_meta.start_time) or \
-           (start_time is not None and
-                start_time > self._data_source.data_source_meta.end_time):
-            raise ValueError("time frame is out of range")
         partition_num = self._data_source.data_source_meta.partition_num
         data_block_fnames = {}
         for partition_id in range(0, partition_num):
