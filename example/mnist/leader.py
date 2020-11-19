@@ -15,9 +15,6 @@
 # coding: utf-8
 # pylint: disable=no-else-return, inconsistent-return-statements
 
-import sys
-sys.path.insert(0, "/data/code/fl/fedlearner")
-
 import logging
 import tensorflow.compat.v1 as tf
 import fedlearner.trainer as flt
