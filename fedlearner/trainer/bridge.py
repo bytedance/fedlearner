@@ -97,7 +97,7 @@ class _MessageQueue(object):
                 if not self._condition.wait(10.0) and self._queue:
                     logging.warning(
                         'Timeout waiting for confirmation. Resending from %d',
-                        self.queue[0].seq_num)
+                        self._queue[0].seq_num)
                     self._next = 0
             assert self._next < len(self._queue)
             msg = self._queue[self._next]
