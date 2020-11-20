@@ -85,7 +85,7 @@ class TestAuthApi(BaseTestCase):
             '/api/v2/auth/users/%d'%user_id,
             data={
                 'old_password': 'ada1',
-                'old_password': 'ada2',
+                'new_password': 'ada2',
             })
         self.assertEqual(resp.status_code, HTTPStatus.OK)
 

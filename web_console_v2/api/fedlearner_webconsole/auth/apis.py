@@ -84,7 +84,8 @@ class UserApi(Resource):
         user = self._find_user(user_id)
         data = request.get_json()
         new_password = data.pop('new_password', None)
-        old_password = data.pop('old_password', None)
+        if new_password:
+            old_password = data.pop('old_password', None)
 
         if data:
             abort(HTTPStatus.BAD_REQUEST, msg='invalid fields %s'%data.keys())
