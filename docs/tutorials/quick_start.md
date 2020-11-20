@@ -25,14 +25,25 @@ apt-get install libgmp-dev libmpc-dev libmpfr-dev
 
 ## Run Example
 
-To quickly run a simple training example locally:
+There are two ways to run a simple training example locally:
+
+* run test.sh
+
+```
+cd example/mnist
+
+./test.sh
+```
+
+* run it manually and view summary from TensorBoard
 
 ```
 cd example/mnist
 
 python make_data.py
-python leader.py --local-addr=localhost:50051 --peer-addr=localhost:50052 --data-path=data/leader --checkpoint-path=log/checkpoint --save-checkpoint-steps=10 &
-python follower.py --local-addr=localhost:50052 --peer-addr=localhost:50051 --data-path=data/follower/ --checkpoint-path=log/checkpoint --save-checkpoint-steps=10 &
+python leader.py --local-addr=localhost:50051 --peer-addr=localhost:50052 --data-path=data/leader --checkpoint-path=log/checkpoint --save-checkpoint-steps=10 --summary-path=log/summary --summary-save-steps=10 &
+python follower.py --local-addr=localhost:50052 --peer-addr=localhost:50051 --data-path=data/follower/ --checkpoint-path=log/checkpoint --save-checkpoint-steps=10 --summary-path=log/summary --summary-save-steps=10
+tensorboard --logdir=log
 ```
 
 For better display, run the last two commands in two different terminals.
