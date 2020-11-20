@@ -98,4 +98,13 @@ class BaseTestCase(TestCase):
         
         return resp
 
+    def delete_helper(self, url, use_auth=True):
+        headers = {}
+        if use_auth and self._token:
+            headers['Authorization'] = 'Bearer %s'%self._token
+
+        resp = self.client.delete(url, headers=headers)
+        
+        return resp
+
 

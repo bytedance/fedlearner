@@ -104,8 +104,7 @@ class UserApi(Resource):
         user = self._find_user(user_id)
         db.session.delete(user)
         db.session.commit()
-
-        return { 'username', user.username }, HTTPStatus.OK
+        return { 'username': user.username }, HTTPStatus.OK
 
 
 def initialize_auth_apis(api):

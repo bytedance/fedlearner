@@ -91,6 +91,12 @@ class TestAuthApi(BaseTestCase):
 
         self.signin_helper('ada1', 'ada2')
 
+        self.delete_helper('/api/v2/auth/users/%d'%user_id)
+
+        resp = self.get_helper('/api/v2/auth/users')
+        self.assertEqual(resp.status_code, HTTPStatus.OK)
+        self.assertEqual(len(resp.json.get('data')), 1)
+
 
 if __name__ == '__main__':
     unittest.main()
