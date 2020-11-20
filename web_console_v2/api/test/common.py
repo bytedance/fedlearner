@@ -17,6 +17,7 @@
 import json
 import logging
 import secrets
+from http import HTTPStatus
 from flask_testing import TestCase
 from fedlearner_webconsole.app import create_app, db
 from fedlearner_webconsole.auth.models import User
@@ -54,6 +55,7 @@ class BaseTestCase(TestCase):
                 'password': password
             }),
             content_type='application/json')
+        self.assertEqual(resp.status_code, HTTPStatus.OK)
         self.assertTrue('access_token' in resp.json)
         self.assertTrue(len(resp.json.get('access_token')) > 1)
         self._token = resp.json.get('access_token')
@@ -61,7 +63,17 @@ class BaseTestCase(TestCase):
     
     def signout_helper(self):
         self._token = None
-    
+
+    def get_helper(self, url, use_auth=True):
+        headers = {}
+        if use_auth and self._token:
+            headers['Authorization'] = 'Bearer %s'%self._token
+
+        resp = self.client.get(
+            url, headers=headers)
+        
+        return resp
+
     def post_helper(self, url, data, use_auth=True):
         headers = {}
         if use_auth and self._token:
@@ -73,4 +85,17 @@ class BaseTestCase(TestCase):
             headers=headers)
         
         return resp
+
+    def put_helper(self, url, data, use_auth=True):
+        headers = {}
+        if use_auth and self._token:
+            headers['Authorization'] = 'Bearer %s'%self._token
+
+        resp = self.client.put(
+            url, data=json.dumps(data),
+            content_type='application/json',
+            headers=headers)
+        
+        return resp
+
 

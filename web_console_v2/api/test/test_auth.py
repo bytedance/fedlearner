@@ -22,30 +22,31 @@ from fedlearner_webconsole.app import create_app, db
 from common import BaseTestCase
 
 
-class TestAuth(BaseTestCase):
-    def test_signin(self):
+class TestAuthApi(BaseTestCase):
+    def test_auth(self):
         self.signout_helper()
-        resp = self.post_helper(
-            '/api/v2/auth/signup',
-            data={
-                'username': 'ada',
-                'password': 'ada'
-            })
+
+        resp = self.get_helper('/api/v2/auth/users')
         self.assertEqual(resp.status_code, HTTPStatus.UNAUTHORIZED)
 
         resp = self.client.post(
             '/api/v2/auth/signin',
             data=json.dumps({
                 'username': 'ada',
-                'password': 'invalid' 
+                'password': 'wrongpassword' 
             }),
             content_type='application/json')
         self.assertEqual(resp.status_code, HTTPStatus.UNAUTHORIZED)
 
         self.signin_helper()
 
+        resp = self.get_helper('/api/v2/auth/users')
+        self.assertEqual(resp.status_code, HTTPStatus.OK)
+        self.assertEqual(len(resp.json.get('data')), 1)
+        self.assertEqual(resp.json.get('data')[0]['username'], 'ada')
+
         resp = self.post_helper(
-            '/api/v2/auth/signup',
+            '/api/v2/auth/users',
             data={
                 'username': 'ada',
                 'password': 'ada'
@@ -53,7 +54,7 @@ class TestAuth(BaseTestCase):
         self.assertEqual(resp.status_code, HTTPStatus.CONFLICT)
 
         resp = self.post_helper(
-            '/api/v2/auth/signup',
+            '/api/v2/auth/users',
             data={
                 'username': 'ada1',
                 'password': 'ada1'
@@ -61,6 +62,34 @@ class TestAuth(BaseTestCase):
         self.assertEqual(resp.status_code, HTTPStatus.CREATED)
 
         self.signin_helper('ada1', 'ada1')
+
+        resp = self.get_helper('/api/v2/auth/users')
+        self.assertEqual(resp.status_code, HTTPStatus.OK)
+        self.assertEqual(len(resp.json.get('data')), 2)
+        self.assertEqual(resp.json.get('data')[1]['username'], 'ada1')
+        user_id = resp.json.get('data')[1]['id']
+
+        resp = self.put_helper(
+            '/api/v2/auth/users/10',
+            data={})
+        self.assertEqual(resp.status_code, HTTPStatus.NOT_FOUND)
+
+        resp = self.put_helper(
+            '/api/v2/auth/users/%d'%user_id,
+            data={
+                'wrongfield': 'ada1',
+            })
+        self.assertEqual(resp.status_code, HTTPStatus.BAD_REQUEST)
+
+        resp = self.put_helper(
+            '/api/v2/auth/users/%d'%user_id,
+            data={
+                'old_password': 'ada1',
+                'old_password': 'ada2',
+            })
+        self.assertEqual(resp.status_code, HTTPStatus.OK)
+
+        self.signin_helper('ada1', 'ada2')
 
 
 if __name__ == '__main__':
