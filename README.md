@@ -1,5 +1,5 @@
 # Fedlearner™
-Fedlearner is collaborative machine learning frameowork that enables joint modeling of data distributed between institutions.
+Fedlearner is collaborative machine learning framework that enables joint modeling of data distributed between institutions.
 
 
 
