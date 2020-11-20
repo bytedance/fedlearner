@@ -21,8 +21,8 @@ from fedlearner_webconsole.app import db
 
 class User(db.Model):
     __tablename__ = 'users_v2'
-    id = db.Column(db.Integer, primary_key = True)
-    username = db.Column(db.String(255), index = True)
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(255), index=True)
     password = db.Column(db.String(255))
 
     def set_password(self, password):

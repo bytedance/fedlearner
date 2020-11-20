@@ -13,6 +13,7 @@
 # limitations under the License.
 
 # coding: utf-8
+# pylint: disable=cyclic-import
 
 from http import HTTPStatus
 from flask import request
@@ -39,13 +40,13 @@ class SigninApi(Resource):
         if not user.verify_password(password):
             abort(HTTPStatus.UNAUTHORIZED, msg='Invalid password')
         token = create_access_token(identity=username)
-        return { 'access_token': token }, HTTPStatus.OK
+        return {'access_token': token}, HTTPStatus.OK
 
 
 class UsersApi(Resource):
     @jwt_required
     def get(self):
-        return { 'data': [orm_row_to_dict(row) for row in User.query.all()] }
+        return {'data': [orm_row_to_dict(row) for row in User.query.all()]}
 
     @jwt_required
     def post(self):
@@ -63,7 +64,7 @@ class UsersApi(Resource):
         db.session.add(user)
         db.session.commit()
 
-        return { 'username': user.username }, HTTPStatus.CREATED
+        return {'username': user.username}, HTTPStatus.CREATED
 
 
 class UserApi(Resource):
@@ -94,17 +95,17 @@ class UserApi(Resource):
             if not user.verify_password(old_password):
                 abort(HTTPStatus.UNAUTHORIZED, msg='wrong old_password')
             user.set_password(new_password)
-        
+
         db.session.commit()
 
-        return { 'username': user.username }, HTTPStatus.OK
-    
+        return {'username': user.username}, HTTPStatus.OK
+
     @jwt_required
     def delete(self, user_id):
         user = self._find_user(user_id)
         db.session.delete(user)
         db.session.commit()
-        return { 'username': user.username }, HTTPStatus.OK
+        return {'username': user.username}, HTTPStatus.OK
 
 
 def initialize_auth_apis(api):

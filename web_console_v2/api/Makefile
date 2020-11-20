@@ -1,7 +1,7 @@
 .PHONY: test unit-test
 
 lint:
-	pylint --rcfile ci/pylintrc fedlearner_webconsole
+	pylint --rcfile ../../ci/pylintrc fedlearner_webconsole
 
 UNIT_TEST_SCRIPTS := $(shell find test -type f -name "test_*.py")
 UNIT_TESTS := $(UNIT_TEST_SCRIPTS:%.py=%.phony)

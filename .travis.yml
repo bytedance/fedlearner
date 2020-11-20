@@ -7,6 +7,7 @@ install:
   - sudo apt-get -y install libgmp-dev libmpc-dev libmpfr-dev
   - pip install --upgrade pip
   - pip install -r requirements.txt
+  - pip install -r web_console_v2/api/requirements.txt
 # command to run tests
 script:
   - bash ./ci/ci_test.sh

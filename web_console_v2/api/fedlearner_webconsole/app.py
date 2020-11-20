@@ -13,6 +13,7 @@
 # limitations under the License.
 
 # coding: utf-8
+# pylint: disable=wrong-import-position
 
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
