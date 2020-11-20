@@ -20,6 +20,7 @@ protobuf:
 
 lint:
 	pylint --rcfile ci/pylintrc fedlearner example
+	cd web_console_v2/api; make lint
 
 UNIT_TEST_SCRIPTS := $(shell find test -type f -name "test_*.py")
 UNIT_TESTS := $(UNIT_TEST_SCRIPTS:%.py=%.phony)
