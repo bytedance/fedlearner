@@ -111,7 +111,7 @@ class TestDataBlockVisitor(unittest.TestCase):
             )
         reps = visitor.LoadDataBlockRepByTimeFrame(start_time, end_time)
         metas = [meta for meta in self.data_block_matas if
-                    (not (meta.start_time > end_time or meta.end_time < start_time) and
+                    (not (meta.end_time > end_time or meta.end_time <= start_time) and
                         meta.data_block_index <= dumped_index)]
         self.assertEqual(len(reps), len(metas))
         for meta in metas:

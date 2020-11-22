@@ -15,6 +15,7 @@
 # coding: utf-8
 
 import sys
+import traceback
 
 from fedlearner.common import trainer_master_service_pb2 as tm_pb
 from fedlearner.common import trainer_master_service_pb2_grpc as tm_grpc
@@ -34,7 +35,8 @@ class TrainerMasterServer(tm_grpc.TrainerMasterServiceServicer):
             response = self._get_checkpoint_fn(request)
         except Exception:  # pylint: disable=broad-except
             response.status.code = common_pb.STATUS_UNKNOWN_ERROR
-            response.status.error_message = sys.exc_info()
+            err_str = ''.join(traceback.format_exception(*sys.exc_info()))
+            response.status.error_message = err_str
         return response
 
     def RestoreDataBlockCheckpoint(self, request, context):
@@ -43,7 +45,8 @@ class TrainerMasterServer(tm_grpc.TrainerMasterServiceServicer):
             response = self._restore_checkpoint_fn(request)
         except Exception:  # pylint: disable=broad-except
             response.status.code = common_pb.STATUS_UNKNOWN_ERROR
-            response.status.error_message = sys.exc_info()
+            err_str = ''.join(traceback.format_exception(*sys.exc_info()))
+            response.status.error_message = err_str
         return response
 
     def RequestDataBlock(self, request, context):
@@ -52,5 +55,6 @@ class TrainerMasterServer(tm_grpc.TrainerMasterServiceServicer):
             response = self._receiver_fn(request)
         except Exception:  # pylint: disable=broad-except
             response.status.code = common_pb.STATUS_UNKNOWN_ERROR
-            response.status.error_message = sys.exc_info()
+            err_str = ''.join(traceback.format_exception(*sys.exc_info()))
+            response.status.error_message = err_str
         return response

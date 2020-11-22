@@ -130,9 +130,9 @@ class DataBlockVisitor(object):
                 reason = ''
                 if rep is None:
                     reason = 'failed to create data block rep'
-                elif end_time is not None and rep.start_time > end_time:
+                elif end_time is not None and rep.end_time > end_time:
                     reason = 'excess time frame'
-                elif start_time is not None and rep.end_time < start_time:
+                elif start_time is not None and rep.end_time <= start_time:
                     reason = 'less time frame'
                 elif self._filter_by_visible(rep.data_block_index, manifest):
                     reason = 'data block visible'
