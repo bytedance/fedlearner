@@ -34,6 +34,8 @@ class NegativeExampleGenerator(object):
             if idx not in self._buf:
                 continue
             example_id = self._buf[idx].example_id
+            if isinstance(example_id, bytes):
+                example_id=example_id.decode()
             event_time = self._buf[idx].event_time
             example = type(fe).make(example_id, event_time,
                                        example_id, ["label"], [0])
@@ -337,10 +339,10 @@ class AttributionJoiner(ExampleJoiner):
             pairs = self._sort_and_evict_attri_buf(raw_pairs, watermark)
             #3. push the result into builder
             if len(pairs) > 0:
-                self._leader_restart_index = pairs[len(pairs) - 1][1]
-                self._follower_restart_index = pairs[len(pairs) - 1][2]
                 for meta in self._dump_joined_items(pairs):
                     yield meta
+                self._leader_restart_index = pairs[len(pairs) - 1][1]
+                self._follower_restart_index = pairs[len(pairs) - 1][2]
             logging.info("Restart index for leader %d, follwer %d",     \
                           self._leader_restart_index,                   \
                           self._follower_restart_index)
@@ -471,22 +473,27 @@ class AttributionJoiner(ExampleJoiner):
         start_tm = time.time()
         prev_leader_idx = self._leader_restart_index + 1
         for item in matching_list:
-            builder = self._get_data_block_builder(True)
-            assert builder is not None, "data block builder must be "\
-                                        "not None if before dummping"
             (fe, li, fi) = item
-            if self._enable_negative_example_generator:
+            if self._enable_negative_example_generator and li > prev_leader_idx:
                 for example in \
                     self._negative_example_generator.generate(
                         fe, prev_leader_idx, li):
+
+                    builder = self._get_data_block_builder(True)
+                    assert builder is not None, "data block builder must be "\
+                                                "not None if before dummping"
                     builder.append_item(example[0], example[1],
                                         example[2], None, True)
                     if builder.check_data_block_full():
                         yield self._finish_data_block()
+            prev_leader_idx = li + 1
+
+            builder = self._get_data_block_builder(True)
+            assert builder is not None, "data block builder must be "\
+                                        "not None if before dummping"
             builder.append_item(fe, li, fi, None, True)
             if builder.check_data_block_full():
                 yield self._finish_data_block()
-            prev_leader_idx = li
         metrics.emit_timer(name='attribution_joiner_dump_joined_items',
                            value=int(time.time()-start_tm),
                            tags=self._metrics_tags)
