@@ -479,7 +479,6 @@ class AttributionJoiner(ExampleJoiner):
                 for example in \
                     self._negative_example_generator.generate(
                         fe, prev_leader_idx, li):
-                    # fi is useless here
                     builder.append_item(example[0], example[1],
                                         example[2], None, True)
                     if builder.check_data_block_full():

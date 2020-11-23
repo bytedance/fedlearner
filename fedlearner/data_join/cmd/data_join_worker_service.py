@@ -20,6 +20,7 @@ import logging
 import tensorflow
 
 from fedlearner.common import data_join_service_pb2 as dj_pb
+from fedlearner.common.argparse_util import str_as_bool
 from fedlearner.data_join.common import get_kvstore_config
 from fedlearner.data_join.data_join_worker import DataJoinWorkerService
 from fedlearner.data_join.common import interval_to_timestamp
@@ -81,8 +82,8 @@ if __name__ == "__main__":
                         help='the max delay of an impression occurred '\
                         'before a conversion as an attribution pair, unit: '\
                         '{Y|M|D|H|N|S}, i.e. 1N20S equals 80 seconds')
-    parser.add_argument('--enable_negative_example_generator', type=bool,
-                        default=False,
+    parser.add_argument('--enable_negative_example_generator', type=str_as_bool,
+                        default=False, const=True, nargs='?',
                         help="enable the negative example auto-generator, "\
                         "filled with label: 0")
     args = parser.parse_args()
