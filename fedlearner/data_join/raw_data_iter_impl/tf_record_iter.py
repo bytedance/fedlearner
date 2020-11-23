@@ -15,6 +15,7 @@
 # coding: utf-8
 
 import logging
+from collections import OrderedDict
 from contextlib import contextmanager
 
 import tensorflow.compat.v1 as tf
@@ -32,6 +33,20 @@ class TfExampleItem(RawDataIter.Item):
         self._raw_id = self._parse_raw_id(example, record_str)
         self._csv_record = None
         self._gc_example(example)
+
+    @classmethod
+    def make(cls, example_id, event_time, raw_id, fname=None, fvalue=None):
+        fields = OrderedDict()
+        fields["example_id"] = example_id
+        fields["event_time"] = event_time
+        fields["raw_id"] = raw_id
+        if not fname:
+            assert len(fname) == len(fvalue), \
+                    "Field name should match field value"
+            for i, v in enumerate(fname):
+                fields[v] = fvalue[i]
+        ex = common.convert_dict_to_tf_example(fields)
+        return cls(ex.SerializeToString())
 
     @property
     def example_id(self):

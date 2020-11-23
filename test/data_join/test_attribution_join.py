@@ -31,6 +31,12 @@ class _Item(object):
         self.event_time = et
         self.index = idx
 
+    @classmethod
+    def make(cls, example_id, event_time, raw_id, fname=None, fvalue=None):
+        assert fname and fvalue, "Invalid fname"
+        assert fname[0] == "label" and fvalue[0] == 0, "Invalid fvalue"
+        return cls(example_id, event_time, 0)
+
 class TestAttributionJoiner(unittest.TestCase):
     def setUp(self):
         pass
@@ -96,7 +102,7 @@ class TestAttributionJoiner(unittest.TestCase):
         acc = aj._Accumulator(attri)
         conv_window, conv_skips, _ = self.make_sliding_window(conv_size, conv_steps, 10, 1)
         show_window, show_skips, _ = self.make_sliding_window(conv_size, conv_steps, 1, 2)
-        res = acc.join(conv_window, show_window)
+        res, _ = acc.join(conv_window, show_window)
         self.assertEqual(conv_size * conv_steps - conv_skips, len(res))
 
 
@@ -108,7 +114,7 @@ class TestAttributionJoiner(unittest.TestCase):
         acc = aj._Accumulator(attri)
         conv_window, conv_skips, repeated = self.make_sliding_window(conv_size, conv_steps, 10, 1, True)
         show_window, show_skips, _ = self.make_sliding_window(conv_size, conv_steps, 1, 2)
-        res = acc.join(conv_window, show_window)
+        res, _ = acc.join(conv_window, show_window)
         self.assertEqual(conv_size * conv_steps - conv_skips + repeated, len(res))
 
     def test_interval_to_timestamp(self):
@@ -116,6 +122,16 @@ class TestAttributionJoiner(unittest.TestCase):
         test_out = [1000, 60, 864000, 36385200, None, None, 111111, 1234, 61]
         test_out_ = list(map(interval_to_timestamp, test_in))
         self.assertEqual(test_out, test_out_)
+
+    def test_negative_example_generator(self):
+        gen = aj.NegativeExampleGenerator()
+        index_list = list(range(128))
+        for i in index_list:
+            gen.update({i: _Item("example_id_%d"%i, i, i)})
+        item_tpl = _Item("example_id", 100, 0)
+
+        for item in gen.generate(item_tpl, 1, 128):
+            pass
 
     def tearDown(self):
         pass

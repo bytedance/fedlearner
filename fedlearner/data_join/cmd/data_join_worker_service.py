@@ -81,6 +81,10 @@ if __name__ == "__main__":
                         help='the max delay of an impression occurred '\
                         'before a conversion as an attribution pair, unit: '\
                         '{Y|M|D|H|N|S}, i.e. 1N20S equals 80 seconds')
+    parser.add_argument('--enable_negative_example_generator', type=bool,
+                        default=False,
+                        help="enable the negative example auto-generator, "\
+                        "filled with label: 0")
     args = parser.parse_args()
     worker_options = dj_pb.DataJoinWorkerOptions(
             use_mock_etcd=(args.kvstore_type == 'mock'),

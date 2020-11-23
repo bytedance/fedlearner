@@ -22,6 +22,28 @@ from fedlearner.common import metrics
 import fedlearner.data_join.common as common
 from fedlearner.data_join.joiner_impl.example_joiner import ExampleJoiner
 
+class NegativeExampleGenerator(object):
+    def __init__(self):
+        self._buf = {}
+
+    def update(self, mismatches):
+        self._buf.update(mismatches)
+
+    def generate(self, fe, prev_leader_idx, leader_idx):
+        for idx in range(prev_leader_idx, leader_idx):
+            if idx not in self._buf:
+                continue
+            example_id = self._buf[idx].example_id
+            event_time = self._buf[idx].event_time
+            example = type(fe).make(example_id, event_time,
+                                       example_id, ["label"], [0])
+            yield (example, idx, 0)
+            del self._buf[idx]
+
+        del_keys = [k for k in self._buf if k < prev_leader_idx]
+        for k in del_keys:
+            del self._buf[k]
+
 class _Attributor(object):
     """
     How we attribute the covertion event to the show event
@@ -34,7 +56,7 @@ class _Attributor(object):
         assert hasattr(show, "example_id"), "invalid item, no example id"
         return conv.example_id == show.example_id and \
                 conv.event_time > show.event_time and \
-                conv.event_time <= show.event_time + \
+                conv.event_time <= show.event_time +  \
                 self._max_conversion_delay
 
 class _Accumulator(object):
@@ -51,6 +73,7 @@ class _Accumulator(object):
                 with show event
         """
         show_matches = []
+        show_mismatches = {}
         conv_dict = conv_window.as_dict()
         idx = 0
         while idx < show_window.size():
@@ -63,8 +86,10 @@ class _Accumulator(object):
                     conv = conv_window[cd[i]][1]
                     if self._attributor.match(conv, show):
                         show_matches.append((cd[i], idx))
+            else:
+                show_mismatches[show_window[idx][0]] = show
             idx += 1
-        return show_matches
+        return show_matches, show_mismatches
 
 class _Trigger(object):
     """
@@ -256,10 +281,10 @@ class AttributionJoiner(ExampleJoiner):
         self._max_window_size = example_joiner_options.max_matching_window
         self._max_conversion_delay = \
                 example_joiner_options.max_conversion_delay
-        self._leader_join_window = _SlidingWindow(self._min_window_size, \
-                            1000000)
-        self._follower_join_window = _SlidingWindow(self._min_window_size,\
-                                                    self._max_window_size)
+        self._leader_join_window = _SlidingWindow(self._min_window_size,
+                                                  1000000)
+        self._follower_join_window = _SlidingWindow(
+            self._min_window_size, self._max_window_size)
         self._leader_restart_index = -1
         self._sorted_buf_by_leader_index = []
         self._dedup_by_follower_index = {}
@@ -267,6 +292,11 @@ class AttributionJoiner(ExampleJoiner):
         self._trigger = _Trigger(self._max_conversion_delay)
         attri = _Attributor(self._max_conversion_delay)
         self._acc = _Accumulator(attri)
+
+        self._enable_negative_example_generator = \
+                example_joiner_options.enable_negative_example_generator
+        if self._enable_negative_example_generator:
+            self._negative_example_generator = NegativeExampleGenerator()
 
     @classmethod
     def name(cls):
@@ -298,8 +328,10 @@ class AttributionJoiner(ExampleJoiner):
 
             watermark = self._trigger.watermark()
             #1. find all the matched pairs in current window
-            raw_pairs = self._acc.join(self._follower_join_window,\
+            raw_pairs, mismatches = self._acc.join(self._follower_join_window,\
                         self._leader_join_window)
+            if self._enable_negative_example_generator:
+                self._negative_example_generator.update(mismatches)
             #2. cache the pairs, evict the show events which are out of
             # watermark
             pairs = self._sort_and_evict_attri_buf(raw_pairs, watermark)
@@ -309,18 +341,18 @@ class AttributionJoiner(ExampleJoiner):
                 self._follower_restart_index = pairs[len(pairs) - 1][2]
                 for meta in self._dump_joined_items(pairs):
                     yield meta
-            logging.info("Restart index for leader %d, follwer %d",\
-                          self._leader_restart_index,                     \
+            logging.info("Restart index for leader %d, follwer %d",     \
+                          self._leader_restart_index,                   \
                           self._follower_restart_index)
 
-            # update the watermark
-            stride = self._trigger.trigger(self._follower_join_window,\
+            #4. update the watermark
+            stride = self._trigger.trigger(self._follower_join_window,  \
                                            self._leader_join_window)
             self._follower_join_window.forward(stride[0])
             self._leader_join_window.forward(stride[1])
-            logging.info("Stat: pair_buf=%d, raw_pairs=%d, pairs=%d, "\
-                         "stride=%s", \
-                         len(self._sorted_buf_by_leader_index), \
+            logging.info("Stat: pair_buf=%d, raw_pairs=%d, pairs=%d, "  \
+                         "stride=%s",                                   \
+                         len(self._sorted_buf_by_leader_index),         \
                          len(raw_pairs), len(pairs), stride)
 
             if not leader_filled and not sync_example_id_finished:
@@ -333,7 +365,7 @@ class AttributionJoiner(ExampleJoiner):
             if stride == (0, 0):
                 if raw_data_finished:
                     self._leader_join_window.forward(leader_fstep)
-                    leader_fstep = min(leader_fstep * 2, \
+                    leader_fstep = min(leader_fstep * 2,
                                        (self._leader_join_window.size()+1)//2)
 
                 if sync_example_id_finished:
@@ -377,7 +409,7 @@ class AttributionJoiner(ExampleJoiner):
             assert fe.example_id == le.example_id, "Example id must be equal"
             if li <= self._leader_restart_index:
                 logging.warning("Unordered event ignored, leader index should"\
-                                " be greater %d > %d for follower idx %d is" \
+                                " be greater %d > %d for follower idx %d is"  \
                                 " false", li, self._leader_restart_index, fi)
                 continue
 
@@ -437,14 +469,25 @@ class AttributionJoiner(ExampleJoiner):
 
     def _dump_joined_items(self, matching_list):
         start_tm = time.time()
+        prev_leader_idx = self._leader_restart_index + 1
         for item in matching_list:
             builder = self._get_data_block_builder(True)
             assert builder is not None, "data block builder must be "\
                                         "not None if before dummping"
-            #builder.append_item(fe, li, fi)
-            builder.append_item(item[0], item[1], item[2], None, True)
+            (fe, li, fi) = item
+            if self._enable_negative_example_generator:
+                for example in \
+                    self._negative_example_generator.generate(
+                        fe, prev_leader_idx, li):
+                    # fi is useless here
+                    builder.append_item(example[0], example[1],
+                                        example[2], None, True)
+                    if builder.check_data_block_full():
+                        yield self._finish_data_block()
+            builder.append_item(fe, li, fi, None, True)
             if builder.check_data_block_full():
                 yield self._finish_data_block()
+            prev_leader_idx = li
         metrics.emit_timer(name='attribution_joiner_dump_joined_items',
                            value=int(time.time()-start_tm),
                            tags=self._metrics_tags)

@@ -48,6 +48,10 @@ class RawDataIter(object):
                     "csv_record not implement for basic Item"
                 )
 
+        @classmethod
+        def make(cls, example_id, event_time, raw_id, fname=None, fvalue=None):
+            raise NotImplementedError("make not implement for basic Item")
+
     def __init__(self, options):
         self._fiter = None
         self._index_meta = None
