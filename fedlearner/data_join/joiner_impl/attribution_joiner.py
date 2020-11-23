@@ -35,7 +35,7 @@ class NegativeExampleGenerator(object):
                 continue
             example_id = self._buf[idx].example_id
             if isinstance(example_id, bytes):
-                example_id=example_id.decode()
+                example_id = example_id.decode()
             event_time = self._buf[idx].event_time
             example = type(fe).make(example_id, event_time,
                                        example_id, ["label"], [0])
