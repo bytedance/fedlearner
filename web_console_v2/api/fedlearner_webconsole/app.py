@@ -27,7 +27,9 @@ api = Api(prefix='/api/v2')
 jwt = JWTManager()
 
 from fedlearner_webconsole.auth.apis import initialize_auth_apis
+from fedlearner_webconsole.rpc.server import RPCServer
 
+rpc_server = RPCServer()
 
 
 def create_app(config):

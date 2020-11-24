@@ -30,3 +30,8 @@ class User(db.Model):
 
     def verify_password(self, password):
         return pwd_context.verify(password, self.password)
+    
+    def to_dict(self):
+        return {
+            col.name: getattr(self, col.name) for col in self.__table__.columns
+        }
