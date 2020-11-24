@@ -1,7 +1,15 @@
-.PHONY: test unit-test
+TF_PATH=../../thirdparty/tensorflow
+
+.PHONY: test unit-test protobuf
 
 lint:
 	pylint --rcfile ../../ci/pylintrc fedlearner_webconsole
+
+protobuf:
+	python -m grpc_tools.protoc -I protocols -I$(TF_PATH) \
+		--python_out=. \
+		--grpc_python_out=. \
+		protocols/fedlearner_webconsole/proto/*.proto
 
 UNIT_TEST_SCRIPTS := $(shell find test -type f -name "test_*.py")
 UNIT_TESTS := $(UNIT_TEST_SCRIPTS:%.py=%.phony)

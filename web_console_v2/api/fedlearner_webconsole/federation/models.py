@@ -14,5 +14,20 @@
 
 # coding: utf-8
 
-def orm_row_to_dict(row):
-    return {col.name: getattr(row, col.name) for col in row.__table__.columns}
+from fedlearner_webconsole.app import db
+from fedlearner_webconsole.proto import federation_pb2
+
+
+class Federation(db.Model):
+    __tablename__ = 'federations_v2'
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(255), index=True)
+    config = db.Column(db.Text())
+
+    def set_config(self, proto):
+        self.config = proto.SerializeToString()
+
+    def get_config(self):
+        proto = federation_pb2.Federation()
+        proto.ParseFromString(self.config)
+        return proto

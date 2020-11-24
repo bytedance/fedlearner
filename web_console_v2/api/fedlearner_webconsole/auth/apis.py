@@ -22,8 +22,6 @@ from flask_jwt_extended import jwt_required, create_access_token
 
 from fedlearner_webconsole.app import db
 from fedlearner_webconsole.auth.models import User
-from fedlearner_webconsole.common import orm_row_to_dict
-
 
 class SigninApi(Resource):
     def post(self):
@@ -46,7 +44,7 @@ class SigninApi(Resource):
 class UsersApi(Resource):
     @jwt_required
     def get(self):
-        return {'data': [orm_row_to_dict(row) for row in User.query.all()]}
+        return {'data': [row.to_dict() for row in User.query.all()]}
 
     @jwt_required
     def post(self):
@@ -78,7 +76,7 @@ class UserApi(Resource):
     @jwt_required
     def get(self, user_id):
         user = self._find_user(user_id)
-        return orm_row_to_dict(user), HTTPStatus.OK
+        return user.to_dict(), HTTPStatus.OK
 
     @jwt_required
     def put(self, user_id):
