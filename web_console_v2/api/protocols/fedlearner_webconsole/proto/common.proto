@@ -19,7 +19,13 @@ package fedlearner_webconsole.proto;
 
 enum StatusCode {
   STATUS_SUCCESS = 0;
-  STATUS_UNAUTHORIZED = 1;
+  STATUS_UNKNOWN_ERROR = 1;
+  STATUS_UNAUTHORIZED = 2;
+}
+
+message Status {
+  StatusCode code = 1;
+  string msg = 2;
 }
 
 message Variable {

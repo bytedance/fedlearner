@@ -22,12 +22,13 @@ package fedlearner_webconsole.proto;
 
 message CheckConnectionRequest {
     string federation_name = 1;
-    string auth_key = 2;
+    string participant_name = 2;
+    string auth_key = 3;
 }
 
 message CheckConnectionResponse {
-    StatusCode status = 1;
-    string msg = 2;
+    Status status = 1;
+    string participant_name = 2;
 }
 
 service WebConsoleV2Service {
