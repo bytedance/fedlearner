@@ -31,7 +31,7 @@ class RPCServerServicer(service_pb2_grpc.WebConsoleV2ServiceServicer):
 
     def CheckConnection(self, request, context):
         try:
-            with app.app.app_context():
+            with app.current_app.app_context():
                 return self._server.check_connection(request)
         except Exception as e:
             return service_pb2.CheckConnectionResponse(

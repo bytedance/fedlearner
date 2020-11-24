@@ -25,7 +25,7 @@ db = SQLAlchemy()
 migrate = Migrate()
 api = Api(prefix='/api/v2')
 jwt = JWTManager()
-app = None
+current_app = None
 
 from fedlearner_webconsole.auth.apis import initialize_auth_apis
 from fedlearner_webconsole.rpc.server import RPCServer
@@ -34,7 +34,7 @@ rpc_server = RPCServer()
 
 
 def create_app(config):
-    global app
+    global current_app
     app = Flask('fedlearner_webconsole')
     app.config.from_object(config)
 
@@ -48,4 +48,5 @@ def create_app(config):
     rpc_server.stop()
     rpc_server.start(1990)
 
+    current_app = app
     return app
