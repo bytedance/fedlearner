@@ -13,7 +13,7 @@
 # limitations under the License.
 
 # coding: utf-8
-# pylint: disable=wrong-import-position
+# pylint: disable=wrong-import-position, global-statement, cyclic-import
 
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
@@ -25,6 +25,7 @@ db = SQLAlchemy()
 migrate = Migrate()
 api = Api(prefix='/api/v2')
 jwt = JWTManager()
+app = None
 
 from fedlearner_webconsole.auth.apis import initialize_auth_apis
 from fedlearner_webconsole.rpc.server import RPCServer
@@ -33,6 +34,7 @@ rpc_server = RPCServer()
 
 
 def create_app(config):
+    global app
     app = Flask('fedlearner_webconsole')
     app.config.from_object(config)
 
@@ -42,5 +44,8 @@ def create_app(config):
 
     initialize_auth_apis(api)
     api.init_app(app)
+
+    rpc_server.stop()
+    rpc_server.start(1990)
 
     return app

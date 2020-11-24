@@ -26,7 +26,7 @@ class Federation(db.Model):
 
     def set_config(self, proto):
         self.config = proto.SerializeToString()
-    
+
     def get_config(self):
         proto = federation_pb2.Federation()
         proto.ParseFromString(self.config)
