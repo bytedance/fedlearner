@@ -15,17 +15,14 @@
 # coding: utf-8
 
 from flask import url_for
-from flask_script import Manager
-from flask_migrate import Migrate, MigrateCommand
 
 from fedlearner_webconsole.app import create_app, db
 from fedlearner_webconsole.auth.models import User
 
 app = create_app('config.Config')
-manager = Manager(app)
-manager.add_command('db', MigrateCommand)
 
-@manager.command
+
+@app.cli.command('create-db')
 def create_db():
     db.create_all()
     user = User(username='ada')
@@ -33,7 +30,8 @@ def create_db():
     db.session.add(user)
     db.session.commit()
 
-@manager.command
+
+@app.cli.command('list-routes')
 def list_routes():
     import urllib
     output = []
@@ -51,6 +49,3 @@ def list_routes():
 
     for line in sorted(output):
         print(line)
-
-if __name__ == '__main__':
-    manager.run()
