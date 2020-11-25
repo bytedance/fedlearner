@@ -924,6 +924,16 @@ let RAW_DATA_CONTEXT = {
             "spec": {
               "containers": [
                 {
+                  "env": [
+                    {
+                      "name": "LONG_RUNNING",
+                      "value": ""
+                    },
+                    {
+                      "name": "CHECK_SUCCESS_TAG",
+                      "value": ""
+                    }
+                  ],
                   "resources": {
                     "limits": {
                       "cpu": "2000m",

@@ -37,7 +37,8 @@ class DataPortalMaster(dp_grpc.DataPortalMasterServiceServicer):
         self._portal_options = portal_options
         self._data_portal_job_manager = DataPortalJobManager(
                 self._kvstore, self._portal_name,
-                self._portal_options.long_running
+                self._portal_options.long_running,
+                self._portal_options.check_success_tag,
             )
         self._bg_worker = None
 

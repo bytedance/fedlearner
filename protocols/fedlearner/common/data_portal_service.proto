@@ -106,6 +106,7 @@ service DataPortalMasterService {
 message DataPotraMasterlOptions {
   bool use_mock_etcd = 1;
   bool long_running = 2;
+  bool check_success_tag = 3;
 }
 
 message DataPortalWorkerOptions {
