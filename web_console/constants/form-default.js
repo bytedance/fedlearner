@@ -932,7 +932,7 @@ let RAW_DATA_CONTEXT = {
                     {
                       "name": "CHECK_SUCCESS_TAG",
                       "value": ""
-                    },
+                    }
                   ],
                   "resources": {
                     "limits": {
