@@ -66,10 +66,14 @@ learning_rate=$(normalize_env_to_args "--learning-rate" "$LEARNING_RATE")
 
 if [ -z $CHECKPOINT_PATH ]; then
     checkpoint_path="$OUTPUT_BASE_DIR/checkpoints"
+else
+    checkpoint_path="$CHECKPOINT_PATH"
 fi
 
 if [ -z $EXPORT_PATH ]; then
     export_path="$OUTPUT_BASE_DIR/exported_models"
+else
+    export_path="$EXPORT_PATH"
 fi
 
 
