@@ -305,7 +305,8 @@ class DataPortalJobManager(object):
                 fpath = path.join(fdir, fname)
                 if gfile.IsDirectory(fpath):
                     dirs.append(fpath)
-                elif len(wildcard) == 0 or fnmatch(fname, wildcard):
+                elif fname != '_SUCCESS' and (
+                        len(wildcard) == 0 or fnmatch(fname, wildcard)):
                     if self._check_success_tag and not has_succ:
                         continue
                     all_inputs.append(fpath)
