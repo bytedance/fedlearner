@@ -374,7 +374,6 @@ class AttributionJoiner(ExampleJoiner):
                     force_stride = \
                             self._trigger.shrink(self._follower_join_window)
                     self._follower_join_window.forward(force_stride)
-
             else:
                 leader_fstep = 1
 
