@@ -30,10 +30,11 @@ from fedlearner.data_join.raw_data_publisher import RawDataPublisher
 from fedlearner.data_join.sort_run_merger import MergedSortRunMeta
 
 class DataPortalJobManager(object):
-    def __init__(self, kvstore, portal_name, long_running):
+    def __init__(self, kvstore, portal_name, long_running, check_success_tag):
         self._lock = threading.Lock()
         self._kvstore = kvstore
         self._portal_name = portal_name
+        self._check_success_tag = check_success_tag
         self._portal_manifest = None
         self._processing_job = None
         self._sync_portal_manifest()
@@ -298,12 +299,15 @@ class DataPortalJobManager(object):
         while len(dirs) > 0:
             fdir = dirs[0]
             dirs = dirs[1:]
+            has_succ = gfile.Exists(path.join(fdir, '_SUCCESS'))
             fnames = gfile.ListDirectory(fdir)
             for fname in fnames:
                 fpath = path.join(fdir, fname)
                 if gfile.IsDirectory(fpath):
                     dirs.append(fpath)
                 elif len(wildcard) == 0 or fnmatch(fname, wildcard):
+                    if self._check_success_tag and not has_succ:
+                        continue
                     all_inputs.append(fpath)
         return all_inputs
 

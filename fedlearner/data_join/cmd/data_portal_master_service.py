@@ -51,6 +51,9 @@ if __name__ == "__main__":
                         help='the raw data publish dir in mysql')
     parser.add_argument('--long_running', action='store_true',
                         help='make the data portal long running')
+    parser.add_argument('--check_success_tag', action='store_true',
+                        help='Check that a _SUCCESS file exists before '
+                             'processing files in a subfolder')
     args = parser.parse_args()
 
     db_database, db_addr, db_username, db_password, db_base_dir = \
@@ -75,8 +78,10 @@ if __name__ == "__main__":
         kvstore.set_data(kvstore_key, text_format.\
             MessageToString(portal_manifest))
 
-    options = dp_pb.DataPotraMasterlOptions(use_mock_etcd=use_mock_etcd,
-                                            long_running=args.long_running)
+    options = dp_pb.DataPotraMasterlOptions(
+        use_mock_etcd=use_mock_etcd,
+        long_running=args.long_running,
+        check_success_tag=args.check_success_tag)
 
     portal_master_srv = DataPortalMasterService(args.listen_port,
                                                 args.data_portal_name,
