@@ -474,6 +474,9 @@ class AttributionJoiner(ExampleJoiner):
         prev_leader_idx = self._leader_restart_index + 1
         for item in matching_list:
             (fe, li, fi) = item
+            logging.info("Neg example generating from %d to %d when enable=%s",
+                         prev_leader_idx, li,
+                         self._enable_negative_example_generator)
             if self._enable_negative_example_generator and li > prev_leader_idx:
                 for example in \
                     self._negative_example_generator.generate(
