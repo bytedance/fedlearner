@@ -103,6 +103,8 @@ if __name__ == "__main__":
                     data_block_dump_threshold=args.data_block_dump_threshold,
                     max_conversion_delay=interval_to_timestamp(\
                                             args.max_conversion_delay),
+                    enable_negative_example_generator=\
+                        args.enable_negative_example_generator,
                 ),
             example_id_dump_options=dj_pb.ExampleIdDumpOptions(
                     example_id_dump_interval=args.example_id_dump_interval,
