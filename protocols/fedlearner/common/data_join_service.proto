@@ -248,6 +248,8 @@ message ExampleJoinerOptions {
   int64 max_matching_window = 3;
   int64 data_block_dump_interval = 4;
   int64 data_block_dump_threshold = 5;
+  int64 max_conversion_delay = 6;
+  bool enable_negative_example_generator = 7;
 }
 
 message ExampleIdDumpOptions {

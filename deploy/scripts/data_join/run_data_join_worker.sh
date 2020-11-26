@@ -36,7 +36,8 @@ example_id_dump_threshold=$(normalize_env_to_args "--example_id_dump_threshold" 
 data_block_builder=$(normalize_env_to_args "--data_block_builder" $DATA_BLOCK_BUILDER)
 data_block_compressed_type=$(normalize_env_to_args "--data_block_compressed_type" $DATA_BLOCK_COMPRESSED_TYPE)
 kvstore_type=$(normalize_env_to_args '--kvstore_type' $KVSTORE_TYPE)
-
+max_conversion_delay=$(normalize_env_to_args '--max_conversion_delay' $MAX_CONVERSION_DELAY)
+enable_negative_example_generator=$(normalize_env_to_args '--enable_negative_example_generator' $ENABLE_NEGATIVE_EXAMPLE_GENERATOR)
 python -m fedlearner.data_join.cmd.data_join_worker_service \
     $PEER_ADDR \
     $MASTER_POD_NAMES \
@@ -47,4 +48,5 @@ python -m fedlearner.data_join.cmd.data_join_worker_service \
     $data_block_dump_interval $data_block_dump_threshold \
     $example_id_dump_interval $example_id_dump_threshold \
     $data_block_builder $data_block_compressed_type \
-    $kvstore_type
+    $kvstore_type $max_conversion_delay \
+    $enable_negative_example_generator

@@ -20,8 +20,10 @@ import logging
 import tensorflow
 
 from fedlearner.common import data_join_service_pb2 as dj_pb
+from fedlearner.common.argparse_util import str_as_bool
 from fedlearner.data_join.common import get_kvstore_config
 from fedlearner.data_join.data_join_worker import DataJoinWorkerService
+from fedlearner.data_join.common import interval_to_timestamp
 tensorflow.compat.v1.enable_eager_execution()
 
 if __name__ == "__main__":
@@ -76,6 +78,14 @@ if __name__ == "__main__":
     parser.add_argument('--data_block_compressed_type', type=str, default='',
                         choices=['', 'ZLIB', 'GZIP'],
                         help='the compressed type for data block')
+    parser.add_argument('--max_conversion_delay', type=str, default="7D",
+                        help='the max delay of an impression occurred '\
+                        'before a conversion as an attribution pair, unit: '\
+                        '{Y|M|D|H|N|S}, i.e. 1N20S equals 80 seconds')
+    parser.add_argument('--enable_negative_example_generator', type=str_as_bool,
+                        default=False, const=True, nargs='?',
+                        help="enable the negative example auto-generator, "\
+                        "filled with label: 0")
     args = parser.parse_args()
     worker_options = dj_pb.DataJoinWorkerOptions(
             use_mock_etcd=(args.kvstore_type == 'mock'),
@@ -91,6 +101,10 @@ if __name__ == "__main__":
                     max_matching_window=args.max_matching_window,
                     data_block_dump_interval=args.data_block_dump_interval,
                     data_block_dump_threshold=args.data_block_dump_threshold,
+                    max_conversion_delay=interval_to_timestamp(\
+                                            args.max_conversion_delay),
+                    enable_negative_example_generator=\
+                        args.enable_negative_example_generator,
                 ),
             example_id_dump_options=dj_pb.ExampleIdDumpOptions(
                     example_id_dump_interval=args.example_id_dump_interval,

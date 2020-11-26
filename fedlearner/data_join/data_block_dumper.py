@@ -164,7 +164,9 @@ class DataBlockDumperManager(object):
             example_num = len(meta.example_ids)
             for (index, item) in self._raw_data_visitor:
                 example_id = item.example_id
-                if example_id == meta.example_ids[match_index]:
+                # ELements in meta.example_ids maybe duplicated
+                while match_index < example_num and\
+                      example_id == meta.example_ids[match_index]:
                     data_block_builder.write_item(item)
                     match_index += 1
                 if match_index >= example_num:

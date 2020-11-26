@@ -33,6 +33,19 @@ class CsvItem(RawDataIter.Item):
         self._raw = raw
         self._tf_record = None
 
+    @classmethod
+    def make(cls, example_id, event_time, raw_id, fname=None, fvalue=None):
+        raw = OrderedDict()
+        raw["example_id"] = example_id
+        raw["event_time"] = event_time
+        raw["raw_id"] = raw_id
+        if not fname:
+            assert len(fname) == len(fvalue), \
+                    "Field name should match field value"
+            for i, v in enumerate(fname):
+                raw[v] = fvalue[i]
+        return cls(raw)
+
     @property
     def example_id(self):
         if 'example_id' not in self._raw:
