@@ -13,13 +13,17 @@ pip3 install -r requirements.txt
 # Generates python code for proto
 make protobuf
 
-c
+export FLASK_APP=manage:app
 
 # Creates schemas for DB
 flask db upgrade
 
 # Creates initial user
 flask create-db
+
+# Starts the server
+export FLASK_ENV=development
+flask run
 ```
 
 ## Helpers
