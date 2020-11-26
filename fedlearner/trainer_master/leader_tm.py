@@ -56,6 +56,7 @@ class LeaderTrainerMaster(TrainerMaster):
     def _load_data(self):
         checkpoint = self._get_checkpoint()
         # pylint: disable=line-too-long
+        logging.debug("load_data, checkpoint: %s", checkpoint)
         data_block_reps = [
             dbr for dbr in self._data_block_visitor.LoadDataBlockRepByTimeFrame(
                 self._start_time, self._end_time).values()

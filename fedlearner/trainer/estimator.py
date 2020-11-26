@@ -211,7 +211,7 @@ class FLEstimator(object):
         spec = self._model_fn(model, features, labels, mode)
         return spec, model
 
-    def _restore_datablock(self, sess, blk_ids):
+    def _restore_datablock(self, blk_ids):
         # only chief worker restores from checkpoint.
         if self._worker_rank != 0 or blk_ids is None:
             return True
@@ -219,7 +219,7 @@ class FLEstimator(object):
         block_ids = []
         if block_id_str != DATA_CHECKPOINT_INIT_VALUE:
             block_ids = block_id_str.split(",")
-        logging.info("restore: %s, %s", block_id_str, block_ids)
+        logging.info("restore: %s", block_id_str)
         return self._trainer_master.restore_data_block_checkpoint(
             self._application_id, block_ids)
 
@@ -317,7 +317,7 @@ class FLEstimator(object):
                     data_checkpoint_value = None
                     if hasattr(saver_hook, "data_checkpoint"):
                         data_checkpoint_value = saver_hook.data_checkpoint
-                    if not self._restore_datablock(sess, data_checkpoint_value):
+                    if not self._restore_datablock(data_checkpoint_value):
                         raise ValueError("Restore data checkpoint error")
 
                     while not sess.should_stop():
@@ -387,6 +387,8 @@ class FLEstimator(object):
             try:
                 with tf.train.MonitoredSession(
                     session_creator=session_creator, hooks=all_hooks) as sess:
+                    if not self._restore_datablock(DATA_CHECKPOINT_INIT_VALUE):
+                        raise ValueError("Restore data checkpoint error")
                     iter_id = 0
                     while not sess.should_stop():
                         self._bridge.start(iter_id)
