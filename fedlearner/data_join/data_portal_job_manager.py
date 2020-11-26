@@ -303,14 +303,15 @@ class DataPortalJobManager(object):
                 has_succ = gfile.Exists(path.join(fdir, '_SUCCESS'))
             fnames = gfile.ListDirectory(fdir)
             for fname in fnames:
+                if fname == '_SUCCESS':
+                    continue
                 fpath = path.join(fdir, fname)
                 if gfile.IsDirectory(fpath):
                     dirs.append(fpath)
                     num_dirs += 1
                     continue
                 num_files += 1
-                if fname != '_SUCCESS' and (
-                        len(wildcard) == 0 or fnmatch(fname, wildcard)):
+                if len(wildcard) == 0 or fnmatch(fname, wildcard):
                     num_target_files += 1
                     if self._check_success_tag and not has_succ:
                         logging.warning(
