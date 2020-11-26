@@ -299,7 +299,8 @@ class DataPortalJobManager(object):
         while len(dirs) > 0:
             fdir = dirs[0]
             dirs = dirs[1:]
-            has_succ = gfile.Exists(path.join(fdir, '_SUCCESS'))
+            if self._check_success_tag:
+                has_succ = gfile.Exists(path.join(fdir, '_SUCCESS'))
             fnames = gfile.ListDirectory(fdir)
             for fname in fnames:
                 fpath = path.join(fdir, fname)
@@ -308,6 +309,9 @@ class DataPortalJobManager(object):
                 elif fname != '_SUCCESS' and (
                         len(wildcard) == 0 or fnmatch(fname, wildcard)):
                     if self._check_success_tag and not has_succ:
+                        logging.warning(
+                            'File %s skipped because _SUCCESS file is '
+                            'missing under %s'%(fpath, fdir))
                         continue
                     all_inputs.append(fpath)
         return all_inputs

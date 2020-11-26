@@ -67,16 +67,19 @@ class DataPortalMaster(unittest.TestCase):
         if gfile.Exists(portal_input_base_dir):
             gfile.DeleteRecursively(portal_input_base_dir)
         gfile.MakeDirs(portal_input_base_dir)
-        all_fnames = ['{}.done'.format(i) for i in range(100)]
+        all_fnames = ['1001/{}.done'.format(i) for i in range(100)]
         all_fnames.append('{}.xx'.format(100))
+        all_fnames.append('1001/_SUCCESS')
         for fname in all_fnames:
             fpath = os.path.join(portal_input_base_dir, fname)
+            gfile.MakeDirs(os.path.dirname(fpath))
             with gfile.Open(fpath, "w") as f:
                 f.write('xxx')
         portal_master_addr = 'localhost:4061'
         portal_options = dp_pb.DataPotraMasterlOptions(
                 use_mock_etcd=True,
-                long_running=False
+                long_running=False,
+                check_success_tag=True,
             )
         data_portal_master = DataPortalMasterService(
                 int(portal_master_addr.split(':')[1]),
