@@ -264,11 +264,7 @@ class DataPortalJobManager(object):
 
     def _launch_new_portal_job(self):
         assert self._sync_processing_job() is None
-        all_fpaths = self._list_input_dir()
-        rest_fpaths = []
-        for fpath in all_fpaths:
-            if fpath not in self._processed_fpath:
-                rest_fpaths.append(fpath)
+        rest_fpaths = self._list_input_dir()
         if len(rest_fpaths) == 0:
             logging.info("no file left for portal")
             return
@@ -296,21 +292,50 @@ class DataPortalJobManager(object):
         all_inputs = []
         wildcard = self._portal_manifest.input_file_wildcard
         dirs = [self._portal_manifest.input_base_dir]
+
+        num_dirs = 0
+        num_files = 0
+        num_target_files = 0
         while len(dirs) > 0:
             fdir = dirs[0]
             dirs = dirs[1:]
-            has_succ = gfile.Exists(path.join(fdir, '_SUCCESS'))
             fnames = gfile.ListDirectory(fdir)
             for fname in fnames:
                 fpath = path.join(fdir, fname)
+                # OSS does not retain folder structure.
+                # For example, if we have file oss://test/1001/a.txt
+                # list(oss://test) returns 1001/a.txt instead of 1001
+                basename = path.basename(fpath)
+                if basename == '_SUCCESS':
+                    continue
                 if gfile.IsDirectory(fpath):
                     dirs.append(fpath)
-                elif fname != '_SUCCESS' and (
-                        len(wildcard) == 0 or fnmatch(fname, wildcard)):
-                    if self._check_success_tag and not has_succ:
-                        continue
+                    num_dirs += 1
+                    continue
+                num_files += 1
+                if len(wildcard) == 0 or fnmatch(basename, wildcard):
+                    num_target_files += 1
+                    if self._check_success_tag:
+                        has_succ = gfile.Exists(
+                            path.join(path.dirname(fpath), '_SUCCESS'))
+                        if not has_succ:
+                            logging.warning(
+                                'File %s skipped because _SUCCESS file is '
+                                'missing under %s',
+                                fpath, fdir)
+                            continue
                     all_inputs.append(fpath)
-        return all_inputs
+
+        rest_fpaths = []
+        for fpath in all_inputs:
+            if fpath not in self._processed_fpath:
+                rest_fpaths.append(fpath)
+        logging.info(
+            'Listing %s: found %d dirs, %d files, %d files matching wildcard, '
+            '%d files with success tag, %d new files to process',
+            self._portal_manifest.input_base_dir, num_dirs, num_files,
+            num_target_files, len(all_inputs), len(rest_fpaths))
+        return rest_fpaths
 
     def _sync_job_part(self, job_id, partition_id):
         if partition_id not in self._job_part_map or \
