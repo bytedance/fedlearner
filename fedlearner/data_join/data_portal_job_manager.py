@@ -299,26 +299,31 @@ class DataPortalJobManager(object):
         while len(dirs) > 0:
             fdir = dirs[0]
             dirs = dirs[1:]
-            if self._check_success_tag:
-                has_succ = gfile.Exists(path.join(fdir, '_SUCCESS'))
             fnames = gfile.ListDirectory(fdir)
             for fname in fnames:
-                if fname == '_SUCCESS':
-                    continue
                 fpath = path.join(fdir, fname)
+                # OSS does not retain folder structure.
+                # For example, if we have file oss://test/1001/a.txt
+                # list(oss://test) returns 1001/a.txt instead of 1001
+                basename = path.basename(fpath)
+                if basename == '_SUCCESS':
+                    continue
                 if gfile.IsDirectory(fpath):
                     dirs.append(fpath)
                     num_dirs += 1
                     continue
                 num_files += 1
-                if len(wildcard) == 0 or fnmatch(fname, wildcard):
+                if len(wildcard) == 0 or fnmatch(basename, wildcard):
                     num_target_files += 1
-                    if self._check_success_tag and not has_succ:
-                        logging.warning(
-                            'File %s skipped because _SUCCESS file is '
-                            'missing under %s',
-                            fpath, fdir)
-                        continue
+                    if self._check_success_tag:
+                        has_succ = gfile.Exists(
+                            path.join(path.dirname(fpath), '_SUCCESS'))
+                        if not has_succ:
+                            logging.warning(
+                                'File %s skipped because _SUCCESS file is '
+                                'missing under %s',
+                                fpath, fdir)
+                            continue
                     all_inputs.append(fpath)
 
         rest_fpaths = []
