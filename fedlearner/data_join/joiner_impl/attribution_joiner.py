@@ -122,7 +122,7 @@ class _Trigger(object):
         sid = 0
         while show_stride <= show_win_size and sid <= show_win_size    \
                 and conv_win_size >= 0                                 \
-                and conv_window[0][1].event_time >                     \
+                and conv_window[conv_win_size][1].event_time >         \
                 show_window[sid][1].event_time +                       \
                     self._max_conversion_delay:
             show_stride += step
@@ -133,7 +133,7 @@ class _Trigger(object):
               0 <= cid <= conv_win_size and                            \
               show_window[show_win_size][1].event_time >               \
               conv_window[cid][1].event_time +                         \
-                    self._max_conversion_delay:
+                    self._max_conversion_delay/5:
             #FIXME current et is not always the watermark
             self._watermark = max(conv_window[cid][1].event_time,      \
                                   self._watermark)
@@ -284,7 +284,7 @@ class AttributionJoiner(ExampleJoiner):
         self._max_conversion_delay = \
                 example_joiner_options.max_conversion_delay
         self._leader_join_window = _SlidingWindow(self._min_window_size,
-                                                  1000000)
+                                                  2**20)
         self._follower_join_window = _SlidingWindow(
             self._min_window_size, self._max_window_size)
         self._leader_restart_index = -1
@@ -311,7 +311,6 @@ class AttributionJoiner(ExampleJoiner):
                 self._prepare_join(state_stale)
         join_data_finished = False
 
-        leader_fstep = 1
         while True:
             leader_filled = self._fill_leader_join_window()
             leader_exhausted = sync_example_id_finished and \
@@ -323,10 +322,16 @@ class AttributionJoiner(ExampleJoiner):
                     self._max_conversion_delay
             logging.info("Fill: leader_filled=%s, leader_exhausted=%s,"\
                          " follower_filled=%s, follower_exhausted=%s,"\
-                         " sync_example_id_finished=%s, raw_data_finished=%s",\
+                         " sync_example_id_finished=%s, raw_data_finished=%s"\
+                         " leader_win_size=%d, follower_win_size=%d",\
                         leader_filled, leader_exhausted, \
                         follower_filled, follower_exhausted,\
-                        sync_example_id_finished, raw_data_finished)
+                        sync_example_id_finished, raw_data_finished,
+                        self._leader_join_window.size(), \
+                        self._follower_join_window.size())
+            if follower_exhausted or leader_exhausted:
+                join_data_finished = True
+                break
 
             watermark = self._trigger.watermark()
             #1. find all the matched pairs in current window
@@ -357,25 +362,20 @@ class AttributionJoiner(ExampleJoiner):
                          len(self._sorted_buf_by_leader_index),         \
                          len(raw_pairs), len(pairs), stride)
 
-            if not leader_filled and not sync_example_id_finished:
+            if not leader_filled and not sync_example_id_finished and \
+               self._leader_join_window.reserved_size() > 0:
                 logging.info("Wait for Leader syncing example id...")
-                break
-            if leader_exhausted:
-                join_data_finished = True
                 break
 
             if stride == (0, 0):
                 if raw_data_finished:
-                    self._leader_join_window.forward(leader_fstep)
-                    leader_fstep = min(leader_fstep * 2,
-                                       (self._leader_join_window.size()+1)//2)
+                    self._leader_join_window.forward(
+                        self._leader_join_window.size())
 
                 if sync_example_id_finished:
                     force_stride = \
                             self._trigger.shrink(self._follower_join_window)
                     self._follower_join_window.forward(force_stride)
-            else:
-                leader_fstep = 1
 
         if self._get_data_block_builder(False) is not None and \
                 (self._need_finish_data_block_since_interval() or
