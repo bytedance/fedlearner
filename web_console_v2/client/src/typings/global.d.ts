@@ -5,6 +5,8 @@ declare interface FedRouteConfig {
   path: string
   component: React.FunctionComponent
   exact?: boolean
+  auth?: boolean // whether require logged in
+  roles?: string[]
   children?: FedRouteConfig[]
 }
 

@@ -11,18 +11,21 @@ const routes: FedRouteConfig[] = [
       const { t } = useTranslation()
       return <h1>{t('title') + ' ❤️ ' + t('name')}</h1>
     },
+    auth: true,
     children: [],
   },
   {
     path: '/dashboard',
     exact: false,
     component: Dashboard,
+    auth: true,
     children: [],
   },
   {
     path: '/settings',
     exact: false,
     component: Settings,
+    auth: true,
     children: [],
   },
 ]

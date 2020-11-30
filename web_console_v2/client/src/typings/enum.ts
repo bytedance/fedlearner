@@ -3,3 +3,8 @@ export enum FedLanguages {
   English = 'en',
   Japanese = 'ja',
 }
+
+export enum FedRoles {
+  Admin,
+  Operator,
+}

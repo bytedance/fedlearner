@@ -5,4 +5,5 @@ declare interface FedUserInfo {
   email: string
   tel: string
   avatar: string
+  role: string
 }

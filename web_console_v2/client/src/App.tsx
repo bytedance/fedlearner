@@ -3,6 +3,8 @@ import styled from 'styled-components'
 import Header from 'components/Header'
 import Footer from 'components/Footer'
 import RouteViews from 'views'
+import { Switch, Route } from 'react-router-dom'
+import Login from 'views/Login'
 
 const AppLayout = styled.div`
   display: grid;
@@ -33,15 +35,21 @@ const AppMainContent = styled.main`
 
 function App(): ReactElement {
   return (
-    <AppLayout>
-      <AppHeader />
+    <Switch>
+      <Route exact path="/login" component={Login} />
 
-      <AppMainContent>
-        <RouteViews />
-      </AppMainContent>
+      <AppLayout>
+        <AppHeader />
 
-      <AppFooter />
-    </AppLayout>
+        <AppMainContent>
+          <RouteViews />
+        </AppMainContent>
+
+        <AppFooter />
+      </AppLayout>
+
+      <Route path="*">You are lost</Route>
+    </Switch>
   )
 }
 
