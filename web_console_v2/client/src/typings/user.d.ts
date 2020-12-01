@@ -7,3 +7,9 @@ declare interface FedUserInfo {
   avatar: string
   role: string
 }
+
+declare interface FedLoginFormData {
+  username: string
+  passowrd: string
+  remember: boolean
+}

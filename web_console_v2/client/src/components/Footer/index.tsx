@@ -7,7 +7,7 @@ const Container = styled.footer`
 `
 
 function Footer({ className }: StyledComponetProps) {
-  return <Container className={className}>@bytedance</Container>
+  return <Container className={className}>@fl</Container>
 }
 
 export default Footer

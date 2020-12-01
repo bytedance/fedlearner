@@ -6,7 +6,7 @@ declare module 'axios' {
   }
 }
 
-export const HOSTNAME = '/'
+export const HOSTNAME = '/api'
 
 let request: AxiosInstance
 

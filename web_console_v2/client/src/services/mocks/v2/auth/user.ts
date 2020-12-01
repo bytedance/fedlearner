@@ -3,11 +3,11 @@ import { Optional } from 'utility-types'
 
 const fakeUserInfo: Optional<AxiosResponse> = {
   data: {
-    id: '121',
-    username: 'bytedance',
-    name: 'Bytedance',
-    email: 'fl@bytedance.com',
-    tel: '+8613322221111',
+    id: '1010100000100',
+    username: 'mocked',
+    name: 'Mocked',
+    email: 'fl@mocked.com',
+    tel: '',
     avatar: '',
     role: 'admin',
   },
