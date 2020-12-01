@@ -1,1 +1,28 @@
-// TODO: override Antd !
+@import '~antd/lib/style/themes/default.less';
+@import '~antd/dist/antd.less';
+@import './variables.less';
+
+// Variables
+@body-background: #eff2f7;
+
+// Menu
+// --
+@menu-item-active-bg: @gray-2;
+@menu-item-active-border-width: 0;
+
+.ant-menu {
+  &-inline,
+  &-vertical {
+    border-right: none;
+  }
+
+  &-item {
+    transition: color 0.3s cubic-bezier(0.645, 0.045, 0.355, 1),
+      background 0.3s cubic-bezier(0.645, 0.045, 0.355, 1);
+  }
+
+  &-item-selected {
+    border-radius: 2px;
+    font-weight: bold;
+  }
+}

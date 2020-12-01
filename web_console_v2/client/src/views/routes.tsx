@@ -1,6 +1,9 @@
 import React from 'react'
 import { useTranslation } from 'react-i18next'
 import Dashboard from 'views/Dashboard'
+import Projects from 'views/Projects'
+import Workflows from 'views/Workflows'
+import DataResources from 'views/DataResources'
 import Settings from 'views/Settings'
 
 const routes: FedRouteConfig[] = [
@@ -25,6 +28,27 @@ const routes: FedRouteConfig[] = [
     path: '/settings',
     exact: false,
     component: Settings,
+    auth: true,
+    children: [],
+  },
+  {
+    path: '/projects',
+    exact: true,
+    component: Projects,
+    auth: true,
+    children: [],
+  },
+  {
+    path: '/workflows',
+    exact: true,
+    component: Workflows,
+    auth: true,
+    children: [],
+  },
+  {
+    path: '/data-resources',
+    exact: true,
+    component: DataResources,
     auth: true,
     children: [],
   },

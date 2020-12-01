@@ -3,8 +3,9 @@ const messages = {
     title: 'Federation Learner',
     name: 'Bytedance',
 
-    menu_dashboard: 'Dashboard',
-    menu_settings: 'Settings',
+    menu_label_project: 'Projects',
+    menu_label_workflow: 'Workflows',
+    menu_label_datasource: 'Data Resources',
   },
 }
 

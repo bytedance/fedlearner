@@ -16,6 +16,7 @@ const Container = styled.div`
   }
 
   > .username {
+    display: none;
     margin-left: 5px;
   }
 `

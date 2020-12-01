@@ -1,6 +1,7 @@
 import React, { ReactElement } from 'react'
 import styled from 'styled-components'
 import Header from 'components/Header'
+import Sidebar from 'components/Sidebar'
 import Footer from 'components/Footer'
 import RouteViews from 'views'
 import { Switch, Route } from 'react-router-dom'
@@ -8,18 +9,22 @@ import Login from 'views/Login'
 
 const AppLayout = styled.div`
   display: grid;
-  min-height: calc(100vh + 60px);
+  min-height: 100vh;
   grid-template-areas:
-    'header'
-    'main-content'
-    'footer';
-
-  grid-template-rows: 80px 1fr 60px;
+    'header header'
+    'sidebar main-content'
+    'sidebar footer';
+  grid-template-rows: auto 1fr 30px;
+  grid-template-columns: auto 1fr;
 `
 
 const AppHeader = styled(Header)`
   grid-area: header;
   align-self: start;
+`
+
+const AppSidebar = styled(Sidebar)`
+  grid-area: sidebar;
 `
 
 const AppFooter = styled(Footer)`
@@ -40,6 +45,8 @@ function App(): ReactElement {
 
       <AppLayout>
         <AppHeader />
+
+        <AppSidebar />
 
         <AppMainContent>
           <RouteViews />
