@@ -10,6 +10,11 @@ declare interface FedRouteConfig {
   children?: FedRouteConfig[]
 }
 
+declare interface StyledComponetProps {
+  className?: string
+  [key: string]: any
+}
+
 declare namespace JSX {
   interface IntrinsicAttributes extends JSX.IntrinsicAttributes {
     key?: string | number
