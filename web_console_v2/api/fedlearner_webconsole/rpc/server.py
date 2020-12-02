@@ -21,7 +21,7 @@ import grpc
 from fedlearner_webconsole.proto import (
     service_pb2, service_pb2_grpc, common_pb2
 )
-from fedlearner_webconsole.federation.models import Federation
+from fedlearner_webconsole.project.models import Project
 from fedlearner_webconsole import app
 
 
@@ -68,11 +68,11 @@ class RPCServer(object):
             self._started = False
 
     def check_auth_info(self, auth_info):
-        federation = Federation.query.filter_by(
-            name=auth_info.federation_name).first()
-        if federation is None:
+        project = Project.query.filter_by(
+            name=auth_info.project_name).first()
+        if project is None:
             return False
-        fed_proto = federation.get_config()
+        fed_proto = project.get_config()
         if fed_proto.self_name != auth_info.receiver_name:
             return False
         if auth_info.sender_name not in fed_proto.participants:

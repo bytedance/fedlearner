@@ -19,20 +19,20 @@ import unittest
 from http import HTTPStatus
 
 from fedlearner_webconsole.app import create_app, db
-from fedlearner_webconsole.federation.models import Federation
-from fedlearner_webconsole.proto import federation_pb2, common_pb2
+from fedlearner_webconsole.project.models import Project
+from fedlearner_webconsole.proto import project_pb2, common_pb2
 from fedlearner_webconsole.rpc.client import RPCClient
 from common import BaseTestCase
 
 class TestRPC(BaseTestCase):
     def test_check_connection(self):
-        fed = Federation(name='test_fed')
+        fed = Project(name='test_fed')
         fed.set_config(
-            federation_pb2.Federation(
-                federation_name='test_fed',
+            project_pb2.Project(
+                project_name='test_fed',
                 self_name='test_party',
                 participants={
-                    'test_party': federation_pb2.Participant(
+                    'test_party': project_pb2.Participant(
                         name='test_party',
                         url='localhost:1990',
                         sender_auth_token='test_token',

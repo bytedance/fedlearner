@@ -19,28 +19,28 @@ import grpc
 from fedlearner_webconsole.proto import (
     service_pb2, service_pb2_grpc, common_pb2
 )
-from fedlearner_webconsole.federation.models import Federation
+from fedlearner_webconsole.project.models import Project
 
 
 class RPCClient(object):
-    def __init__(self, federation_name, receiver_name):
-        federation = Federation.query.filter_by(
-            name=federation_name).first()
-        assert federation is not None, \
-            'federation %s not found'%federation_name
-        self._federation = federation.get_config()
-        assert receiver_name in self._federation.participants, \
-            'receiver %s not found'%receiver_name
-        self._receiver = self._federation.participants[receiver_name]
+    def __init__(self, project_name, receiver_name):
+        project = Project.query.filter_by(
+            name=project_name).first()
+        assert project is not None, \
+            'project {} not found'.format(project_name)
+        self._project = project.get_config()
+        assert receiver_name in self._project.participants, \
+            'receiver {} not found'.format(receiver_name)
+        self._receiver = self._project.participants[receiver_name]
 
         channel = grpc.insecure_channel(self._receiver.url)
         self._client = service_pb2_grpc.WebConsoleV2ServiceStub(channel)
 
     def check_connection(self):
         msg = service_pb2.CheckConnectionRequest(
-            auth_info=service_pb2.FedAuthInfo(
-                federation_name=self._federation.federation_name,
-                sender_name=self._federation.self_name,
+            auth_info=service_pb2.ProjAuthInfo(
+                project_name=self._project.project_name,
+                sender_name=self._project.self_name,
                 receiver_name=self._receiver.name,
                 auth_token=self._receiver.sender_auth_token))
         try:
