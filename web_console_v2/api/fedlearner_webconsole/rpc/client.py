@@ -27,10 +27,10 @@ class RPCClient(object):
         project = Project.query.filter_by(
             name=project_name).first()
         assert project is not None, \
-            'project %s not found' % project_name
+            'project {} not found'.format(project_name)
         self._project = project.get_config()
         assert receiver_name in self._project.participants, \
-            'receiver %s not found' % receiver_name
+            'receiver {} not found'.format(receiver_name)
         self._receiver = self._project.participants[receiver_name]
 
         channel = grpc.insecure_channel(self._receiver.url)
