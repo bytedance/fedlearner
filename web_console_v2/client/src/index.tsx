@@ -6,6 +6,8 @@ import { ThemeProvider } from 'styled-components'
 import { RecoilRoot } from 'recoil'
 import defaultTheme from 'styles/_theme'
 import './styles/_variables.css'
+import './styles/antd-overrides.less'
+
 import './i18n'
 
 ReactDOM.render(

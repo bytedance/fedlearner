@@ -4,31 +4,41 @@ import { userInfoQuery } from 'stores/user'
 
 import avatar from 'assets/images/fake-avatar.jpg'
 import { useRecoilQuery } from 'hooks/recoil'
+import { Square } from 'styles/mixins'
+import { message } from 'antd'
 
 const Container = styled.div`
   display: flex;
   align-items: center;
 
   > .user-avatar {
-    width: 30px;
-    height: 30px;
+    ${Square(30)}
+
     border-radius: 50%;
   }
 
   > .username {
+    display: none;
     margin-left: 5px;
   }
+`
+
+const Placeholder = styled.div`
+  ${Square(30)}
+
+  border-radius: 50%;
+  background-color: var(--gray5);
 `
 
 function HeaderAccount() {
   const { isLoading, data: userInfo, error } = useRecoilQuery(userInfoQuery)
 
   if (isLoading) {
-    return <div>Loading....</div>
+    return <Placeholder />
   }
 
   if (Boolean(error)) {
-    return <div>Load userinfo error!</div>
+    message.error(error?.message)
   }
 
   return (

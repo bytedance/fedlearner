@@ -1,4 +1,4 @@
-import axios from 'axios'
+import axios, { AxiosInstance } from 'axios'
 
 declare module 'axios' {
   interface AxiosRequestConfig {
@@ -6,11 +6,19 @@ declare module 'axios' {
   }
 }
 
-export const HOSTNAME = '/'
+export const HOSTNAME = '/api'
 
-const request = axios.create({
-  baseURL: HOSTNAME,
-})
+let request: AxiosInstance
+
+if (process.env.NODE_ENV === 'development') {
+  // NOTE: DEAD CODE HERE
+  // will be removed during prod building
+  request = axios.create({ adapter: require('./mockAdapter').default, baseURL: HOSTNAME })
+} else {
+  request = axios.create({
+    baseURL: HOSTNAME,
+  })
+}
 
 const SingletonCollection = new Map()
 

@@ -5,7 +5,14 @@ declare interface FedRouteConfig {
   path: string
   component: React.FunctionComponent
   exact?: boolean
+  auth?: boolean // whether require logged in
+  roles?: string[]
   children?: FedRouteConfig[]
+}
+
+declare interface StyledComponetProps {
+  className?: string
+  [key: string]: any
 }
 
 declare namespace JSX {
