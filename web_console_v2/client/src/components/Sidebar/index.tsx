@@ -68,8 +68,8 @@ const SIDEBAR_MENU_ITEMS = [
     icon: AppstoreOutlined,
   },
   {
-    to: '/data-resources',
-    label: 'menu_label_datasource',
+    to: '/datasets',
+    label: 'menu_label_datasets',
     icon: SettingOutlined,
   },
 ]

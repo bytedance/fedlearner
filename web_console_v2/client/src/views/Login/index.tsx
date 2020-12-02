@@ -96,7 +96,7 @@ function Login() {
   return (
     <Layout>
       <Left>
-        <Slogan>SLOGAN HERE</Slogan>
+        <Slogan>{t('login_slogan')}</Slogan>
       </Left>
 
       <Right>
@@ -106,21 +106,21 @@ function Login() {
           initialValues={{ remember: true }}
           onFinish={onFinish}
         >
-          <h3 className="form-title">账号登录</h3>
+          <h3 className="form-title">{t('login_form_title')}</h3>
 
           <Form.Item
             name="username"
-            rules={[{ required: true, message: 'Please input your Username!' }]}
+            rules={[{ required: true, message: t('login_username_message') }]}
           >
-            <Input name="username" placeholder="用户名/邮箱" />
+            <Input name="username" placeholder={t('login_username_placeholder')} />
           </Form.Item>
 
           <Form.Item
             name="password"
-            rules={[{ required: true, message: 'Please input your Password!' }]}
+            rules={[{ required: true, message: t('login_password_message') }]}
           >
             <Input.Password
-              placeholder="密码"
+              placeholder={t('login_password_placeholder')}
               iconRender={(visible) => (visible ? <EyeTwoTone /> : <EyeInvisibleOutlined />)}
             />
           </Form.Item>
@@ -131,7 +131,7 @@ function Login() {
 
           <Form.Item>
             <LoginFormButton loading={submitting} size="large" type="primary" htmlType="submit">
-              登录
+              {t('login_button')}
             </LoginFormButton>
 
             <p className="aggrement">

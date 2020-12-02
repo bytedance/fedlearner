@@ -1,7 +1,7 @@
 const res = {
   data: {
     success: true,
-    message: '密码错误!!!',
+    message: 'Wrong password!',
   },
   status: 204,
 }

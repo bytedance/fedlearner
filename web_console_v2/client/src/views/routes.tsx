@@ -1,19 +1,16 @@
 import React from 'react'
-import { useTranslation } from 'react-i18next'
+import { Redirect } from 'react-router-dom'
 import Dashboard from 'views/Dashboard'
 import Projects from 'views/Projects'
 import Workflows from 'views/Workflows'
-import DataResources from 'views/DataResources'
+import Datasets from 'views/Datasets'
 import Settings from 'views/Settings'
 
 const routes: FedRouteConfig[] = [
   {
     path: '/',
     exact: true,
-    component: function Home() {
-      const { t } = useTranslation()
-      return <h1>{t('title') + ' ❤️ ' + t('name')}</h1>
-    },
+    component: () => <Redirect to="/projects" />,
     auth: true,
     children: [],
   },
@@ -46,9 +43,9 @@ const routes: FedRouteConfig[] = [
     children: [],
   },
   {
-    path: '/data-resources',
+    path: '/datasets',
     exact: true,
-    component: DataResources,
+    component: Datasets,
     auth: true,
     children: [],
   },
