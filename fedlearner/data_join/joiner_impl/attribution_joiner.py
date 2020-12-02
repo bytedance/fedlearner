@@ -33,7 +33,6 @@ class NegativeExampleGenerator(object):
 
     def _skip(self):
         if self._counter >= self._negative_sampling_frequency:
-            print("skip", self._counter)
             self._counter = 0
             return True
         self._counter += 1
@@ -391,7 +390,7 @@ class AttributionJoiner(ExampleJoiner):
                 logging.info("Wait for Leader syncing example id...")
                 break
 
-            if leader_exhausted or follower_exhausted:
+            if leader_exhausted:
                 join_data_finished = True
                 break
 
