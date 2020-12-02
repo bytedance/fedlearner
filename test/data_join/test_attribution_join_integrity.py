@@ -57,11 +57,12 @@ class TestAttributionJoin(unittest.TestCase):
         self.example_joiner_options = dj_pb.ExampleJoinerOptions(
                 example_joiner='ATTRIBUTION_JOINER',
                 min_matching_window=32,
-                max_matching_window=512,
+                max_matching_window=51200,
                 max_conversion_delay=interval_to_timestamp("124"),
                 enable_negative_example_generator=True,
                 data_block_dump_interval=32,
-                data_block_dump_threshold=128
+                data_block_dump_threshold=128,
+                negative_sampling_frequency=10,
             )
         if gfile.Exists(self.data_source.output_base_dir):
             gfile.DeleteRecursively(self.data_source.output_base_dir)

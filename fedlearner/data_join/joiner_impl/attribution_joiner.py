@@ -23,14 +23,26 @@ import fedlearner.data_join.common as common
 from fedlearner.data_join.joiner_impl.example_joiner import ExampleJoiner
 
 class NegativeExampleGenerator(object):
-    def __init__(self):
+    def __init__(self, negative_sampling_frequency):
         self._buf = {}
+        self._negative_sampling_frequency = negative_sampling_frequency
+        self._counter = 0
 
     def update(self, mismatches):
         self._buf.update(mismatches)
 
+    def _skip(self):
+        if self._counter >= self._negative_sampling_frequency:
+            print("skip", self._counter)
+            self._counter = 0
+            return True
+        self._counter += 1
+        return False
+
     def generate(self, fe, prev_leader_idx, leader_idx):
         for idx in range(prev_leader_idx, leader_idx):
+            if self._skip():
+                continue
             if idx not in self._buf:
                 continue
             example_id = self._buf[idx].example_id
@@ -298,7 +310,8 @@ class AttributionJoiner(ExampleJoiner):
         self._enable_negative_example_generator = \
                 example_joiner_options.enable_negative_example_generator
         if self._enable_negative_example_generator:
-            self._negative_example_generator = NegativeExampleGenerator()
+            sf = example_joiner_options.negative_sampling_frequency
+            self._negative_example_generator = NegativeExampleGenerator(sf)
 
     @classmethod
     def name(cls):
@@ -307,9 +320,11 @@ class AttributionJoiner(ExampleJoiner):
     def _leader_ahead_follower(self):
         ls = self._leader_join_window.size() - 1
         fs = self._follower_join_window.size() - 1
-        if ls < 0 or fs < 0:
+        if ls < 0:
+            # only accessed when leader never be filled
+            return self._max_conversion_delay
+        if fs < 0:
             return 0
-
         return self._follower_join_window[fs][1].event_time - \
             self._leader_join_window[0][1].event_time
 
@@ -328,9 +343,9 @@ class AttributionJoiner(ExampleJoiner):
             follower_filled = self._fill_follower_join_window()
 
             follower_exhausted = raw_data_finished and      \
-                    self._follower_join_window.et_span() <  \
-                    self._max_conversion_delay     and      \
-                    self._leader_ahead_follower() <=        \
+                    self._follower_join_window.size() <     \
+                    self._min_window_size // 2 and          \
+                    self._leader_ahead_follower() <         \
                     self._max_conversion_delay
 
             logging.info("Fill: leader_filled=%s, leader_exhausted=%s,"\
@@ -358,19 +373,17 @@ class AttributionJoiner(ExampleJoiner):
                     yield meta
                 self._leader_restart_index = pairs[len(pairs) - 1][1]
                 self._follower_restart_index = pairs[len(pairs) - 1][2]
-            logging.info("Restart index for leader %d, follwer %d",     \
-                          self._leader_restart_index,                   \
-                          self._follower_restart_index)
+            logging.info("Restart index of leader %d, follwer %d, pair_buf=%d,"\
+                         " raw_pairs=%d, pairs=%d", self._leader_restart_index,\
+                         self._follower_restart_index,
+                         len(self._sorted_buf_by_leader_index), len(raw_pairs),
+                         len(pairs))
 
             #4. update the watermark
             stride = self._trigger.trigger(self._follower_join_window,  \
                                            self._leader_join_window)
             self._follower_join_window.forward(stride[0])
             self._leader_join_window.forward(stride[1])
-            logging.info("Stat: pair_buf=%d, raw_pairs=%d, pairs=%d, "  \
-                         "stride=%s",                                   \
-                         len(self._sorted_buf_by_leader_index),         \
-                         len(raw_pairs), len(pairs), stride)
 
             if not leader_filled and                                    \
                not sync_example_id_finished and                         \
@@ -385,7 +398,7 @@ class AttributionJoiner(ExampleJoiner):
             if stride == (0, 0):
                 if raw_data_finished:
                     self._leader_join_window.forward(
-                        self._leader_join_window.size())
+                        self._follower_join_window.size())
 
                 if sync_example_id_finished:
                     force_stride = \
