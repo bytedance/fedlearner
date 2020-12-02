@@ -20,15 +20,15 @@ import "fedlearner_webconsole/proto/common.proto";
 package fedlearner_webconsole.proto;
 
 
-message FedAuthInfo {
-    string federation_name = 1;
+message ProjAuthInfo {
+    string project_name = 1;
     string sender_name = 2;
     string receiver_name = 3;
     string auth_token = 4;
 }
 
 message CheckConnectionRequest {
-    FedAuthInfo auth_info = 1;
+    ProjAuthInfo auth_info = 1;
 }
 
 message CheckConnectionResponse {

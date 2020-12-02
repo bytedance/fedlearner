@@ -5,3 +5,5 @@ flask-restful
 passlib
 flask-jwt-extended
 Flask-Testing
+grpcio
+grpcio-tools

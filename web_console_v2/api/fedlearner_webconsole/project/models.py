@@ -15,11 +15,11 @@
 # coding: utf-8
 
 from fedlearner_webconsole.app import db
-from fedlearner_webconsole.proto import federation_pb2
+from fedlearner_webconsole.proto import project_pb2
 
 
-class Federation(db.Model):
-    __tablename__ = 'federations_v2'
+class Project(db.Model):
+    __tablename__ = 'projects_v2'
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(255), index=True)
     config = db.Column(db.Text())
@@ -28,6 +28,6 @@ class Federation(db.Model):
         self.config = proto.SerializeToString()
 
     def get_config(self):
-        proto = federation_pb2.Federation()
+        proto = project_pb2.Project()
         proto.ParseFromString(self.config)
         return proto
