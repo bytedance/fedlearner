@@ -1,9 +1,9 @@
-import React, { ReactElement, useState } from 'react'
+import React, { ReactElement } from 'react'
 import styled from 'styled-components'
 import { Form, Input, Space } from 'antd'
 import { useTranslation } from 'react-i18next'
 import AddField from './AddField'
-import RemoveField from './RemoveField'
+import TrashCan from '../TrashCan'
 import { useToggle } from 'react-use'
 
 const Container = styled.div``
@@ -94,21 +94,21 @@ function EnvPathsForm({}: Props): ReactElement {
         {isFolded ? (
           <>
             <span className="toggle hide" onClick={toggleFolded}>
-              环境变量配置
+              {t('project.env_path_config')}
             </span>
           </>
         ) : (
           <>
-            <span className="title">环境变量参数配置</span>
+            <span className="title"> {t('project.show_env_path_config')}</span>
             <span className="toggle show" onClick={toggleFolded}>
-              收起环境变量配置
+              {t('project.hide_env_path_config')}
             </span>
           </>
         )}
       </Header>
       {isFolded ? null : (
         <Body>
-          <Form.List name="names">
+          <Form.List name="variables">
             {(fields, { add, remove }, { errors }) => (
               <>
                 {fields.map((field, index) => (
@@ -135,7 +135,7 @@ function EnvPathsForm({}: Props): ReactElement {
                     >
                       <Input.TextArea placeholder="value" />
                     </Form.Item>
-                    <RemoveField onClick={() => remove(field.name)} />
+                    <TrashCan onClick={() => remove(field.name)} />
                   </Space>
                 ))}
                 <Form.Item>

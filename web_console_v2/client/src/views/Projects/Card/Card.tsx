@@ -3,14 +3,14 @@ import styled from 'styled-components'
 import CardDescribe from './CardDescribe'
 import ProjectAction from '../ProjectAction'
 import CreateTime from '../CreateTime'
-import ConnectStatus from '../ConnectStatus'
+import ConnectionStatus from '../ConnectionStatus'
 import Detail from '../Detail'
-import BaseForm from '../BaseForm'
-import { Tooltip, Modal, Form } from 'antd'
+import { Tooltip, Form } from 'antd'
 import { useTranslation } from 'react-i18next'
-import { ReactComponent as CheckConnectIcon } from 'assets/images/check-connect.svg'
+import { ReactComponent as CheckConnectionIcon } from 'assets/images/check-connect.svg'
 import createWorkFlow from 'assets/images/create-work-flow.svg'
 import ProjectName from '../ProjectName'
+import { useHistory } from 'react-router-dom'
 
 const CardContainer = styled.div`
   height: 208px;
@@ -42,7 +42,7 @@ const CardMainContainer = styled.div`
       color: var(--textColor);
       margin-top: 12px;
     }
-    &-connect-status-wrapper {
+    &-connection-status-wrapper {
       margin-top: 12px;
     }
   }
@@ -66,11 +66,12 @@ const CardFooterContainer = styled.div`
   }
 `
 
-const CheckConnectStyle = styled.div`
+const CheckConnectionStyle = styled.div`
   height: 24px;
   width: 24px;
   padding: 2px 6px 0;
   border-radius: 12px;
+  cursor: pointer;
   path {
     stroke: #4e4f69;
   }
@@ -93,16 +94,17 @@ interface CardHeaderProps {
 
 interface CardMainProps {
   workFlowNumber: number
-  connectStatus: number
+  connectionStatus: number
 }
 
-interface CardFooterProps {}
+interface CardFooterProps {
+  project: Project
+}
 
 function CardHeader({ name, time }: CardHeaderProps): ReactElement {
   return (
     <CardHeaderContainer>
-      {/* FIXME */}
-      <ProjectName text={'sadf单dfadfaddfafakashfhjksafk 化开发和f'} />
+      <ProjectName text={name} />
       <div className="project-time">
         <CreateTime time={time} />
       </div>
@@ -113,16 +115,17 @@ function CardHeader({ name, time }: CardHeaderProps): ReactElement {
 function CardMain({ workFlowNumber }: CardMainProps): ReactElement {
   //FIXME
   const random: number = Math.random() * 3.99
-  const connectStatus = Math.floor(random)
+  const connectionStatus = Math.floor(random)
   const { t } = useTranslation()
   return (
     <CardMainContainer>
-      <CardDescribe describe={t('project_workflow_number')}>
+      <CardDescribe describe={t('project.workflow_number')}>
         <div className="project-work-flow-number">{workFlowNumber}</div>
       </CardDescribe>
-      <CardDescribe describe={t('project_connect_status')}>
-        <div className="project-connect-status-wrapper">
-          <ConnectStatus connectStatus={connectStatus} />
+      <CardDescribe describe={t('project.connection_status')}>
+        <div className="project-connection-status-wrapper">
+          {/* fixme */}
+          <ConnectionStatus connectionStatus={connectionStatus} />
         </div>
       </CardDescribe>
     </CardMainContainer>
@@ -132,56 +135,52 @@ function CardMain({ workFlowNumber }: CardMainProps): ReactElement {
 function CreateWorkFlow(): ReactElement {
   const { t } = useTranslation()
   return (
-    <Tooltip title={t('project_create_work_flow')} placement="top">
+    <Tooltip title={t('project.create_work_flow')} placement="top">
       <img src={createWorkFlow} alt="" />
     </Tooltip>
   )
 }
 
-function CheckConnect(): ReactElement {
+function CheckConnection(): ReactElement {
   const { t } = useTranslation()
   return (
-    <Tooltip title={t('project_check_connect')} placement="top">
-      <CheckConnectStyle>
-        <CheckConnectIcon />
-      </CheckConnectStyle>
+    <Tooltip title={t('project.check_connection')} placement="top">
+      <CheckConnectionStyle>
+        <CheckConnectionIcon />
+      </CheckConnectionStyle>
     </Tooltip>
   )
 }
 
-function CardFooter({}: CardFooterProps): ReactElement {
+function CardFooter({ project }: CardFooterProps): ReactElement {
   const { t } = useTranslation()
-  const creator = '陈胜明'
-  const [isModalVisible, setIsModalVisible] = useState(false)
+  const history = useHistory()
   const [isDrawerVisible, setIsDrawerVisible] = useState(false)
-  const [form] = Form.useForm()
   return (
     <CardFooterContainer>
-      <div className="right">{creator}</div>
+      {/* fixme */}
+      <div className="right">{'陈盛明'}</div>
       <div className="left">
-        <CheckConnect />
+        <CheckConnection />
         <CreateWorkFlow />
         <ProjectAction
           onEdit={() => {
-            setIsModalVisible(true)
+            history.push({
+              pathname: '/edit-project',
+              state: {
+                project,
+              },
+            })
           }}
           onDetail={() => setIsDrawerVisible(true)}
         />
       </div>
-      <Modal
-        title={t('project_edit')}
-        visible={isModalVisible}
-        // onOk={}
-        onCancel={() => setIsModalVisible(false)}
-        width={450}
-        zIndex={2000}
-        okText={t('submit')}
-        cancelText={t('cancel')}
-        bodyStyle={{ padding: '24px 0' }}
-      >
-        <BaseForm form={form} />
-      </Modal>
-      <Detail title="isaflj" onClose={() => setIsDrawerVisible(false)} visible={isDrawerVisible} />
+      <Detail
+        title={project.name}
+        project={project}
+        onClose={() => setIsDrawerVisible(false)}
+        visible={isDrawerVisible}
+      />
     </CardFooterContainer>
   )
 }
@@ -189,9 +188,10 @@ function CardFooter({}: CardFooterProps): ReactElement {
 function Card({ item }: CardProps): ReactElement {
   return (
     <CardContainer>
-      <CardHeader name={item.name} time={item.time} />
-      <CardMain workFlowNumber={2} connectStatus={1} />
-      <CardFooter />
+      <CardHeader name={item.name} time={item.created_at} />
+      {/* fixme */}
+      <CardMain workFlowNumber={2} connectionStatus={1} />
+      <CardFooter project={item} />
     </CardContainer>
   )
 }

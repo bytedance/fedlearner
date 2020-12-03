@@ -1,6 +1,6 @@
-import React, { ReactElement, useState } from 'react'
+import React, { ReactElement } from 'react'
 import styled from 'styled-components'
-import { Button, Input, Radio, Modal, Form } from 'antd'
+import { Button, Input, Radio } from 'antd'
 import { useTranslation } from 'react-i18next'
 import { useHistory } from 'react-router-dom'
 
@@ -36,11 +36,11 @@ const DisplaySelector = styled(Radio.Group)`
 
 const ProjectListDisplayOptions = [
   {
-    labelKey: 'project_display_card',
+    labelKey: 'project.display_card',
     value: 1,
   },
   {
-    labelKey: 'project_display_list',
+    labelKey: 'project.display_list',
     value: 2,
   },
 ]
@@ -60,11 +60,11 @@ function Action({ onDisplayTypeChange }: Props): ReactElement {
             history.push('/create-project')
           }}
         >
-          {t('project_create')}
+          {t('project.create')}
         </CreateButton>
       </Right>
       <Left>
-        <SearchInput placeholder={t('project_search_placeholder')} />
+        <SearchInput placeholder={t('project.search_placeholder')} />
         <DisplaySelector
           defaultValue={1}
           options={ProjectListDisplayOptions.map((i) => ({ label: t(i.labelKey), value: i.value }))}
