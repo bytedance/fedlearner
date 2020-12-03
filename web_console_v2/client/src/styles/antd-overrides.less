@@ -26,3 +26,50 @@
     font-weight: bold;
   }
 }
+
+// ant-input 2 arco-input
+.ant-input, .ant-input-affix-wrapper{
+  border: 1px solid transparent;
+  transition: color .1s linear,border-color .1s linear,background-color .1s linear;
+  box-shadow: none !important;
+}
+
+.ant-input, .ant-input-affix-wrapper{
+  background-color: var(--gray2);
+  color: var(--gray10);
+  &:hover{
+    background-color: var(--gray3);
+    border-color: transparent;
+  }
+  &:focus{
+    border-color: var(--arcoblue6);
+    background-color: var(--colorBgWhite);
+  }
+  &-focused{
+    border-color: var(--arcoblue6) !important;
+    background-color: var(--colorBgWhite) !important;
+  }
+  .ant-input{
+    background-color: transparent;
+    color: var(--gray10);
+  }
+}
+
+.ant-form-item-has-error {
+  .ant-input, .ant-input-affix-wrapper{
+    border-color: transparent;
+    background-color: var(--red1);
+    &:hover{
+      border-color: transparent;
+      background-color: var(--red2);
+    }
+    &:focus{
+      border-color: var(--red6);
+      background-color: var(--colorBgWhite);
+    }
+    &-focused {
+      border-color: var(--red6) !important;
+      background-color: var(--colorBgWhite) !important;
+    }
+  }
+}
