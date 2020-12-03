@@ -1,7 +1,7 @@
 import { atom, selector } from 'recoil'
 import { fetchUserInfo } from 'services/user'
 
-export const userInfoStates = atom<FedUserInfo>({
+export const userInfoState = atom<FedUserInfo>({
   key: 'UserInfo',
   default: {
     id: '',
@@ -10,15 +10,7 @@ export const userInfoStates = atom<FedUserInfo>({
     email: '',
     tel: '',
     avatar: '',
-  },
-})
-
-export const userInfoGetters = selector({
-  key: 'UserInfoComputed',
-  get({ get }) {
-    return {
-      isLoggedIn: Boolean(get(userInfoQuery).id),
-    }
+    role: '',
   },
 })
 
@@ -27,9 +19,22 @@ export const userInfoQuery = selector({
   get: async () => {
     try {
       const userinfo = await fetchUserInfo()
+
       return userinfo.data
     } catch (error) {
       throw error
+    }
+  },
+  set: ({ set }, newValue) => {
+    set(userInfoState, newValue)
+  },
+})
+
+export const userInfoGetters = selector({
+  key: 'UserInfoComputed',
+  get({ get }) {
+    return {
+      isAuthenticated: Boolean(get(userInfoQuery).id),
     }
   },
 })

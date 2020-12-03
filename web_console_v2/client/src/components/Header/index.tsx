@@ -1,9 +1,7 @@
 import React, { ChangeEvent, useState } from 'react'
-import { Link } from 'react-router-dom'
 import styled from 'styled-components'
 import { setLocale } from 'i18n'
 import HeaderAccount from './Account'
-import { useTranslation } from 'react-i18next'
 import { FedLanguages } from 'typings/enum'
 import logo from 'assets/images/logo.svg'
 
@@ -12,63 +10,42 @@ const Container = styled.header`
   top: 0;
   display: grid;
   align-items: center;
-  grid-template-areas: 'logo menu language account-info';
-  grid-template-columns: 200px 1fr;
-  grid-auto-columns: auto;
+  grid-template-areas: 'logo . language account-info';
+  grid-template-columns: auto 1fr auto auto;
   gap: 20px;
-  padding: 0 40px;
-  background-color: white;
-  border-bottom: 1px solid var(--grayColor);
+  height: 60px;
+  padding: 0 30px;
+  background-color: var(--headerBg);
+  color: white;
+  box-shadow: 0px 1px 2px rgba(26, 34, 51, 0.1);
 `
 
 const LogoLink = styled.a`
   grid-area: logo;
 
   > img {
-    width: 100%;
+    height: 30px;
   }
 `
 
-const MenuContainer = styled.div`
-  grid-area: menu;
-  padding-left: 100px;
-
-  > .menu-list {
-    display: flex;
-    gap: 30px;
-  }
-
-  .menu-item > a {
-    color: ${(props) => props.theme.blackColor};
-  }
+const LanguageSelector = styled.select`
+  color: var(--textColor);
 `
 
-function Header() {
+function Header({ className }: StyledComponetProps) {
   const [lng, setLanguage] = useState<string>(FedLanguages.Chinese)
-  const { t } = useTranslation()
 
   return (
-    <Container>
+    <Container className={className}>
       <LogoLink href="/">
-        <img src={logo} alt="Federation Learner" />
+        <img src={logo} alt="Federation Learner logo" />
       </LogoLink>
+      <div className="empty" />
 
-      <MenuContainer>
-        <ul className="menu-list">
-          <li className="menu-item">
-            <Link to="/dashboard">{t('menu_dashboard')}</Link>
-          </li>
-          <li className="menu-item">
-            <Link to="/settings">{t('menu_settings')}</Link>
-          </li>
-        </ul>
-      </MenuContainer>
-
-      <select name="language-selector" value={lng} onChange={onLanguageChange}>
+      <LanguageSelector name="language-selector" value={lng} onChange={onLanguageChange}>
         <option value="cn">简体中文</option>
-        <option value="ja">日本語</option>
         <option value="en">English</option>
-      </select>
+      </LanguageSelector>
 
       <HeaderAccount />
     </Container>

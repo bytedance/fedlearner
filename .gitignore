@@ -69,6 +69,9 @@ node_modules/
 .next
 dist
 
+# Web console 2.0 build output
+build
+
 # Stores VSCode versions used for testing VSCode extensions
 .vscode
 .vscode-test
