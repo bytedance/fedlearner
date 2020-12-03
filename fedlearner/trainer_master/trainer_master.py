@@ -30,7 +30,7 @@ class TrainerMaster(object):
         self._application_id = application_id
         self._online_training = online_training
         self._checkpoint_mutex = threading.Lock()
-        self._allocated_data_blockids = set()
+        self._allocated_data_blockids = None
         self._status_mutex = threading.Lock()
         self._status = tm_pb.MasterStatus.CREATED
 
@@ -96,7 +96,7 @@ class TrainerMaster(object):
             return response
 
         with self._checkpoint_mutex:
-            self._allocated_data_blockids |= set(request.block_ids)
+            self._allocated_data_blockids = set(request.block_ids)
 
         trans_ok = self._transfer_status(tm_pb.MasterStatus.INITIALING,
                              tm_pb.MasterStatus.RUNNING)
