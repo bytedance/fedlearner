@@ -50,7 +50,7 @@ class NegativeExampleGenerator(object):
                 example_id = example_id.decode()
             event_time = self._buf[idx].event_time
             example = type(fe).make(example_id, event_time,
-                                       example_id, ["label"], [0])
+                                       example_id, ["label", "type"], [0, 0])
             yield (example, idx, 0)
             del self._buf[idx]
 
