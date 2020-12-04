@@ -1,6 +1,7 @@
 ## Introduction
 
 Here, we show how to use our embedding protection framework with FMNIST as an example.
+Technical details can be seen in our technical report.
 
 ## Usage 
 ### Requirements
