@@ -1,0 +1,23 @@
+name: CI
+
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    name: CI tests
+    steps:
+      - uses: actions/checkout@v2
+      - name: Setup Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.6'
+      - name: Install dependencies
+        run: |
+          sudo apt-get -y update
+          sudo apt-get -y install libgmp-dev libmpc-dev libmpfr-dev
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r web_console_v2/api/requirements.txt
+      - name: Run CI
+        run: bash ./ci/ci_test.sh
