@@ -1,5 +1,7 @@
 ## Label Protection in FL
 
+* updated on 2020.12.03: the corresponding paper is accepted to SpicyFL 2020 : NeurIPS Workshop on Scalability, Privacy, and Security in Federated Learning
+
 ```FL_Label_Protection_FMNIST_Demo.py``` shows how we protect label informaiton in the settings of Federated Learning (FL).
 
 We provide two protection methods in this demo:
