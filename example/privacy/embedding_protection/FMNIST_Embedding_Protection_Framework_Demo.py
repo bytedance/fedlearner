@@ -4,7 +4,6 @@ import time
 import tensorflow as tf
 from tensorflow.keras import layers
 from tensorflow.keras.datasets import fashion_mnist
-# from util import tf_distance_cov_cor
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--batch_size", type=int, default=200)
