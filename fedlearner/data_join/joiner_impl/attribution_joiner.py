@@ -16,6 +16,7 @@
 
 import logging
 import time
+import random
 
 from fedlearner.common import metrics
 
@@ -23,27 +24,23 @@ import fedlearner.data_join.common as common
 from fedlearner.data_join.joiner_impl.example_joiner import ExampleJoiner
 
 class NegativeExampleGenerator(object):
-    def __init__(self, negative_sampling_frequency):
+    def __init__(self, negative_sampling_rate):
         self._buf = {}
-        self._negative_sampling_frequency = negative_sampling_frequency
-        self._counter = 0
+        self._negative_sampling_rate = negative_sampling_rate
 
     def update(self, mismatches):
         self._buf.update(mismatches)
 
     def _skip(self):
-        if self._counter >= self._negative_sampling_frequency:
-            self._counter = 0
+        if random.random() <= self._negative_sampling_rate:
             return False
-        self._counter += 1
         return True
 
     def generate(self, fe, prev_leader_idx, leader_idx):
         for idx in range(prev_leader_idx, leader_idx):
-            if idx not in self._buf:
-                continue
             if self._skip():
-                del self._buf[idx]
+                continue
+            if idx not in self._buf:
                 continue
             example_id = self._buf[idx].example_id
             if isinstance(example_id, bytes):
@@ -310,7 +307,7 @@ class AttributionJoiner(ExampleJoiner):
         self._enable_negative_example_generator = \
                 example_joiner_options.enable_negative_example_generator
         if self._enable_negative_example_generator:
-            sf = example_joiner_options.negative_sampling_frequency
+            sf = example_joiner_options.negative_sampling_rate
             self._negative_example_generator = NegativeExampleGenerator(sf)
 
     @classmethod
