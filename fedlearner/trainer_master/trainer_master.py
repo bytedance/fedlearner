@@ -43,7 +43,6 @@ class TrainerMaster(object):
         self._server.add_insecure_port('[::]:%d' % listen_port)
         self._server.start()
         logging.info('Trainer Master Server start on port[%d].', listen_port)
-        #self._load_data()
         self._transfer_status(tm_pb.MasterStatus.CREATED,
                               tm_pb.MasterStatus.INITIALING)
         self._server.wait_for_termination()
@@ -97,6 +96,7 @@ class TrainerMaster(object):
 
         with self._checkpoint_mutex:
             self._allocated_data_blockids = set(request.block_ids)
+        self._load_data()
 
         trans_ok = self._transfer_status(tm_pb.MasterStatus.INITIALING,
                              tm_pb.MasterStatus.RUNNING)
