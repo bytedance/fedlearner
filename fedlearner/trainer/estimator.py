@@ -103,6 +103,7 @@ class FLModel(object):
     def recv(self, name, dtype=tf.float32, require_grad=False):
         with tf.control_dependencies([self._example_ids]):
             tensor = self._bridge.receive_op(name, dtype)
+        self._train_ops.append(tensor)
         self._recvs.append((name, tensor, require_grad))
         return tensor
 
