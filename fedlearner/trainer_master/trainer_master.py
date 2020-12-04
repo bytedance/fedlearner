@@ -94,10 +94,6 @@ class TrainerMaster(object):
             response.status.error_message = "success"
             return response
 
-        with self._checkpoint_mutex:
-            self._allocated_data_blockids = set(request.block_ids)
-        self._load_data()
-
         trans_ok = self._transfer_status(tm_pb.MasterStatus.INITIALING,
                              tm_pb.MasterStatus.RUNNING)
         if not trans_ok:
@@ -105,6 +101,11 @@ class TrainerMaster(object):
             response.status.error_message = \
                     "must sync data checkpoint before alloc"
             return response
+
+        with self._checkpoint_mutex:
+            self._allocated_data_blockids = set(request.block_ids)
+        self._load_data()
+
         response.status.code = common_pb.STATUS_SUCCESS
         response.status.error_message = "success"
         return response
