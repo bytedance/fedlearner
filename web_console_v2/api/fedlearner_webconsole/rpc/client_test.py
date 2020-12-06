@@ -1,16 +1,35 @@
-import unittest
-import grpc_testing
+# Copyright 2020 The FedLearner Authors. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
+# coding: utf-8
+import unittest
 from unittest.mock import patch
+
+import grpc_testing
 from grpc import StatusCode
 from grpc.framework.foundation import logging_pool
 
 from fedlearner_webconsole.proto.service_pb2 import DESCRIPTOR
 from fedlearner_webconsole.rpc.client import RpcClient
 from fedlearner_webconsole.project.models import Project as ProjectModel
-from fedlearner_webconsole.proto.common_pb2 import GrpcSpec, Status, StatusCode as FedLearnerStatusCode
+from fedlearner_webconsole.proto.common_pb2 import (
+    GrpcSpec, Status, StatusCode as FedLearnerStatusCode
+)
 from fedlearner_webconsole.proto.project_pb2 import Project, Participant
-from fedlearner_webconsole.proto.service_pb2 import CheckConnectionRequest, ProjAuthInfo
+from fedlearner_webconsole.proto.service_pb2 import (
+    CheckConnectionRequest, ProjAuthInfo
+)
 from fedlearner_webconsole.testing.utils import create_test_db
 from fedlearner_webconsole.proto.service_pb2 import CheckConnectionResponse
 
@@ -68,14 +87,18 @@ class RpcClientTest(unittest.TestCase):
         self._client_execution_thread_pool = logging_pool.pool(1)
 
         # Builds a testing channel
-        self._fake_channel = grpc_testing.channel(DESCRIPTOR.services_by_name.values(),
-                                                  grpc_testing.strict_real_time())
-        self._build_channel_patcher = patch('fedlearner_webconsole.rpc.client._build_channel')
+        self._fake_channel = grpc_testing.channel(
+            DESCRIPTOR.services_by_name.values(),
+            grpc_testing.strict_real_time())
+        self._build_channel_patcher = patch(
+            'fedlearner_webconsole.rpc.client._build_channel')
         self._mock_build_channel = self._build_channel_patcher.start()
         self._mock_build_channel.return_value = self._fake_channel
-        self._client = RpcClient(self._TEST_PROJECT_NAME, self._TEST_RECEIVER_NAME)
+        self._client = RpcClient(
+            self._TEST_PROJECT_NAME, self._TEST_RECEIVER_NAME)
 
-        self._mock_build_channel.assert_called_once_with(self._TEST_URL, self._TEST_AUTHORITY)
+        self._mock_build_channel.assert_called_once_with(
+            self._TEST_URL, self._TEST_AUTHORITY)
 
     def tearDown(self):
         self._build_channel_patcher.stop()
@@ -83,7 +106,7 @@ class RpcClientTest(unittest.TestCase):
 
     def test_check_connection(self):
         call = self._client_execution_thread_pool.submit(
-            lambda: self._client.check_connection())
+            self._client.check_connection)
 
         invocation_metadata, request, rpc = self._fake_channel.take_unary_unary(
             TARGET_SERVICE.methods_by_name['CheckConnection']

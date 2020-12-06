@@ -26,7 +26,8 @@ def _build_channel(url, authority):
     """A helper function to build gRPC channel for easy testing."""
     return grpc.insecure_channel(
             target=url,
-            # options defined at https://github.com/grpc/grpc/blob/master/include/grpc/impl/codegen/grpc_types.h
+            # options defined at
+            # https://github.com/grpc/grpc/blob/master/include/grpc/impl/codegen/grpc_types.h
             options={
                 'grpc.default_authority': authority,
             })
