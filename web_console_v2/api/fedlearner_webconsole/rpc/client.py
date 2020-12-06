@@ -51,7 +51,7 @@ class RpcClient(object):
 
     def _get_metadata(self):
         # Adding this header for identification
-        metadata = [('x-federation', self._project.project_name)]
+        metadata = [('x-auth-token', self._project.project_name)]
         for key, value in self._receiver.grpc_spec.extra_headers.items():
             metadata.append((key, value))
         # metadata is a tuple of tuples
