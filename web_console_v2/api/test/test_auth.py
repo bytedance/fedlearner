@@ -18,7 +18,6 @@ import json
 import unittest
 from http import HTTPStatus
 
-from fedlearner_webconsole.app import create_app, db
 from common import BaseTestCase
 
 

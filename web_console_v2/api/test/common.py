@@ -19,11 +19,12 @@ import logging
 import secrets
 from http import HTTPStatus
 from flask_testing import TestCase
-from fedlearner_webconsole.app import create_app, db
+from fedlearner_webconsole.app import create_app
+from fedlearner_webconsole.db import db
 from fedlearner_webconsole.auth.models import User
 
 class BaseTestCase(TestCase):
-    SQLALCHEMY_DATABASE_URI = "sqlite://"
+    SQLALCHEMY_DATABASE_URI = 'sqlite://'
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     JWT_SECRET_KEY = secrets.token_urlsafe(64)
     PROPAGATE_EXCEPTIONS = True

@@ -1,4 +1,3 @@
-
 # Copyright 2020 The FedLearner Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,24 +13,17 @@
 # limitations under the License.
 
 # coding: utf-8
-
-from passlib.apps import custom_app_context as pwd_context
+from flask import Flask
 
 from fedlearner_webconsole.db import db
 
-class User(db.Model):
-    __tablename__ = 'users_v2'
-    id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(255), index=True)
-    password = db.Column(db.String(255))
 
-    def set_password(self, password):
-        self.password = pwd_context.hash(password)
-
-    def verify_password(self, password):
-        return pwd_context.verify(password, self.password)
-
-    def to_dict(self):
-        return {
-            col.name: getattr(self, col.name) for col in self.__table__.columns
-        }
+def create_test_db():
+    app = Flask('fedlearner_webconsole_test')
+    app.config['TESTING'] = True
+    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
+    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+    db.init_app(app)
+    # this does the binding
+    app.app_context().push()
+    return db
