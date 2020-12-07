@@ -17,6 +17,6 @@ UNIT_TESTS := $(UNIT_TEST_SCRIPTS:%.py=%.phony)
 test/%.phony: test/%.py
 	python $^
 
-unit-test: $(UNIT_TESTS)
+unit-test: protobuf $(UNIT_TESTS)
 
 test: unit-test
