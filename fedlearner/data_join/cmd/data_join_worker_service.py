@@ -86,6 +86,9 @@ if __name__ == "__main__":
                         default=False, const=True, nargs='?',
                         help="enable the negative example auto-generator, "\
                         "filled with label: 0")
+    parser.add_argument('--negative_sampling_rate', type=float, default=0.1,
+                        help="the rate of sampling when auto-generating "\
+                        "negative example, in [0.0, 1.0)")
     args = parser.parse_args()
     worker_options = dj_pb.DataJoinWorkerOptions(
             use_mock_etcd=(args.kvstore_type == 'mock'),
@@ -105,6 +108,8 @@ if __name__ == "__main__":
                                             args.max_conversion_delay),
                     enable_negative_example_generator=\
                         args.enable_negative_example_generator,
+                    negative_sampling_rate=\
+                        args.negative_sampling_rate,
                 ),
             example_id_dump_options=dj_pb.ExampleIdDumpOptions(
                     example_id_dump_interval=args.example_id_dump_interval,

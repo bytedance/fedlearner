@@ -30,7 +30,7 @@ class TrainerMaster(object):
         self._application_id = application_id
         self._online_training = online_training
         self._checkpoint_mutex = threading.Lock()
-        self._allocated_data_blockids = set()
+        self._allocated_data_blockids = None
         self._status_mutex = threading.Lock()
         self._status = tm_pb.MasterStatus.CREATED
 
@@ -43,7 +43,6 @@ class TrainerMaster(object):
         self._server.add_insecure_port('[::]:%d' % listen_port)
         self._server.start()
         logging.info('Trainer Master Server start on port[%d].', listen_port)
-        self._load_data()
         self._transfer_status(tm_pb.MasterStatus.CREATED,
                               tm_pb.MasterStatus.INITIALING)
         self._server.wait_for_termination()
@@ -95,6 +94,12 @@ class TrainerMaster(object):
             response.status.error_message = "success"
             return response
 
+        # In case of race, load data before state transfering to RUNNING, and
+        #   after filling data checkpoint
+        with self._checkpoint_mutex:
+            self._allocated_data_blockids = set(request.block_ids)
+        self._load_data()
+
         trans_ok = self._transfer_status(tm_pb.MasterStatus.INITIALING,
                              tm_pb.MasterStatus.RUNNING)
         if not trans_ok:
@@ -102,8 +107,7 @@ class TrainerMaster(object):
             response.status.error_message = \
                     "must sync data checkpoint before alloc"
             return response
-        with self._checkpoint_mutex:
-            self._allocated_data_blockids |= set(request.block_ids)
+
         response.status.code = common_pb.STATUS_SUCCESS
         response.status.error_message = "success"
         return response
