@@ -50,7 +50,7 @@ message JobDefinition {
     bool is_left = 7;
 }
 
-message Template {
+message WorkflowDefinition {
     //用来定义可配对模版
     string group_alias = 1;
     repeated Variable variables = 2;
