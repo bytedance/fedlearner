@@ -250,6 +250,7 @@ message ExampleJoinerOptions {
   int64 data_block_dump_threshold = 5;
   int64 max_conversion_delay = 6;
   bool enable_negative_example_generator = 7;
+  float negative_sampling_rate = 8;
 }
 
 message ExampleIdDumpOptions {

@@ -57,11 +57,12 @@ class TestAttributionJoin(unittest.TestCase):
         self.example_joiner_options = dj_pb.ExampleJoinerOptions(
                 example_joiner='ATTRIBUTION_JOINER',
                 min_matching_window=32,
-                max_matching_window=512,
+                max_matching_window=51200,
                 max_conversion_delay=interval_to_timestamp("124"),
                 enable_negative_example_generator=True,
                 data_block_dump_interval=32,
-                data_block_dump_threshold=128
+                data_block_dump_threshold=128,
+                negative_sampling_rate=0.8,
             )
         if gfile.Exists(self.data_source.output_base_dir):
             gfile.DeleteRecursively(self.data_source.output_base_dir)
@@ -110,7 +111,13 @@ class TestAttributionJoin(unittest.TestCase):
                 if (abs(cands[a]-i-start_index) <= 32 and
                         abs(cands[b]-i-start_index) <= 32):
                     cands[a], cands[b] = cands[b], cands[a]
+            idx = 0
             for example_idx in cands:
+                # mimic negative sample
+                if idx % 7 == 0:
+                    idx += 1
+                    continue
+                idx += 1
                 feat = {}
                 example_id = '{}'.format(example_idx).encode()
                 feat['example_id'] = tf.train.Feature(
