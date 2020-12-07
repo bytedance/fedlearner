@@ -20,6 +20,8 @@ import grpc_testing
 from grpc import StatusCode
 from grpc.framework.foundation import logging_pool
 
+from testing.common import create_test_db
+
 from fedlearner_webconsole.proto.service_pb2 import DESCRIPTOR
 from fedlearner_webconsole.rpc.client import RpcClient
 from fedlearner_webconsole.project.models import Project as ProjectModel
@@ -30,7 +32,6 @@ from fedlearner_webconsole.proto.project_pb2 import Project, Participant
 from fedlearner_webconsole.proto.service_pb2 import (
     CheckConnectionRequest, ProjAuthInfo
 )
-from fedlearner_webconsole.testing.utils import create_test_db
 from fedlearner_webconsole.proto.service_pb2 import CheckConnectionResponse
 
 TARGET_SERVICE = DESCRIPTOR.services_by_name['WebConsoleV2Service']

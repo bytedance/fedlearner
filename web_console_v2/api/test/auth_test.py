@@ -18,7 +18,7 @@ import json
 import unittest
 from http import HTTPStatus
 
-from common import BaseTestCase
+from testing.common import BaseTestCase
 
 
 class AuthApiTest(BaseTestCase):
