@@ -1,6 +1,6 @@
 TF_PATH=../../thirdparty/tensorflow
 
-.PHONY: test unit-test integration-test protobuf
+.PHONY: test unit-test protobuf
 
 lint:
 	pylint --rcfile ../../ci/pylintrc fedlearner_webconsole
