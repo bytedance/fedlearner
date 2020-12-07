@@ -1,0 +1,59 @@
+/* Copyright 2020 The FedLearner Authors. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+syntax = "proto3";
+
+import "fedlearner_webconsole/proto/common.proto";
+
+package fedlearner_webconsole.proto;
+
+enum JobType {
+    UNSPECIFIED = 0;
+    RAW_DATA = 1;
+    DATA_JOIN = 2;
+    PSI_DATA_JOIN = 3;
+    NN_MODEL_TRANINING = 4;
+    TREE_MODEL_TRAINING = 5;
+    NN_MODEL_EVALUATION = 6;
+    TREE_MODEL_EVALUATION = 7;
+}
+
+// 将在Workflow中使用
+message JobDefinition {
+    string name = 1;
+    JobType type = 2;
+    // 前置job的name
+    repeated string dependencies = 3;
+    repeated Variable variables = 4;
+
+    // k8s任务配置yaml，包含“{var}”形式的通配符，用于填入对应variable。
+    // {var}有三种形式：
+    // 1） {Template.name} 对应Template中的variable
+    // 2） {job.job_name.name} 对应jobdef中的variable
+    // 3） {global.name} 对应环境变量
+    string yaml_template = 5;
+
+    // 用来判断该任务是否需要双边执行
+    bool is_federated = 6;
+    bool is_left = 7;
+}
+
+message Template {
+    //用来定义可配对模版
+    string group_alias = 1;
+    repeated Variable variables = 2;
+    repeated JobDefinition job_definitions = 3;
+}
+
