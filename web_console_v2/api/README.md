@@ -31,7 +31,7 @@ flask run
 ### Unit tests
 ```
 cd <root folder of API>
-make unit_test
+make unit-test
 ```
 
 ## Helpers
