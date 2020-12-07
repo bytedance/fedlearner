@@ -20,7 +20,7 @@ from flask import request
 from flask_restful import Resource, abort
 from flask_jwt_extended import jwt_required, create_access_token
 
-from fedlearner_webconsole.app import db
+from fedlearner_webconsole.db import db
 from fedlearner_webconsole.auth.models import User
 
 class SigninApi(Resource):

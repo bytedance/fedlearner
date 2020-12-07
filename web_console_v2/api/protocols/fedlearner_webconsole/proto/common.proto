@@ -46,3 +46,10 @@ message Variable {
   AccessMode access_mode = 3;
   string validator = 4;
 }
+
+message GrpcSpec {
+  // Endpoint of the server
+  string url = 1;
+  string authority = 2;
+  map<string, string> extra_headers = 3;
+}

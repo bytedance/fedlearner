@@ -22,7 +22,18 @@ from fedlearner_webconsole.proto import (
 from fedlearner_webconsole.project.models import Project
 
 
-class RPCClient(object):
+def _build_channel(url, authority):
+    """A helper function to build gRPC channel for easy testing."""
+    return grpc.insecure_channel(
+            target=url,
+            # options defined at
+            # https://github.com/grpc/grpc/blob/master/include/grpc/impl/codegen/grpc_types.h
+            options={
+                'grpc.default_authority': authority,
+            })
+
+
+class RpcClient(object):
     def __init__(self, project_name, receiver_name):
         project = Project.query.filter_by(
             name=project_name).first()
@@ -33,8 +44,17 @@ class RPCClient(object):
             'receiver {} not found'.format(receiver_name)
         self._receiver = self._project.participants[receiver_name]
 
-        channel = grpc.insecure_channel(self._receiver.url)
-        self._client = service_pb2_grpc.WebConsoleV2ServiceStub(channel)
+        self._client = service_pb2_grpc.WebConsoleV2ServiceStub(_build_channel(
+            self._receiver.grpc_spec.url,
+            self._receiver.grpc_spec.authority
+        ))
+
+    def _get_metadata(self):
+        metadata = []
+        for key, value in self._receiver.grpc_spec.extra_headers.items():
+            metadata.append((key, value))
+        # metadata is a tuple of tuples
+        return tuple(metadata)
 
     def check_connection(self):
         msg = service_pb2.CheckConnectionRequest(
@@ -44,7 +64,9 @@ class RPCClient(object):
                 receiver_name=self._receiver.name,
                 auth_token=self._receiver.sender_auth_token))
         try:
-            return self._client.CheckConnection(msg).status
+            response = self._client.CheckConnection(
+                request=msg, metadata=self._get_metadata())
+            return response.status
         except Exception as e:
             return common_pb2.Status(
                 code=common_pb2.STATUS_UNKNOWN_ERROR,

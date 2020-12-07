@@ -22,7 +22,6 @@ from fedlearner_webconsole.proto import (
     service_pb2, service_pb2_grpc, common_pb2
 )
 from fedlearner_webconsole.project.models import Project
-from fedlearner_webconsole import app
 
 
 class RPCServerServicer(service_pb2_grpc.WebConsoleV2ServiceServicer):
@@ -31,8 +30,7 @@ class RPCServerServicer(service_pb2_grpc.WebConsoleV2ServiceServicer):
 
     def CheckConnection(self, request, context):
         try:
-            with app.current_app.app_context():
-                return self._server.check_connection(request)
+            return self._server.check_connection(request)
         except Exception as e:
             return service_pb2.CheckConnectionResponse(
                 status=common_pb2.Status(
@@ -40,7 +38,7 @@ class RPCServerServicer(service_pb2_grpc.WebConsoleV2ServiceServicer):
                     msg=repr(e)))
 
 
-class RPCServer(object):
+class RpcServer(object):
     def __init__(self):
         self._lock = threading.Lock()
         self._started = False
@@ -90,3 +88,5 @@ class RPCServer(object):
         return service_pb2.CheckConnectionResponse(
             status=common_pb2.Status(
                 code=common_pb2.STATUS_UNAUTHORIZED))
+
+rpc_server = RpcServer()

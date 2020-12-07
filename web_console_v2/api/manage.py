@@ -14,7 +14,8 @@
 
 # coding: utf-8
 
-from fedlearner_webconsole.app import create_app, db
+from fedlearner_webconsole.app import create_app
+from fedlearner_webconsole.db import db
 from fedlearner_webconsole.auth.models import User
 
 app = create_app('config.Config')
