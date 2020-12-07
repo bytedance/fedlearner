@@ -40,7 +40,7 @@ class TfExampleItem(RawDataIter.Item):
         fields["example_id"] = example_id
         fields["event_time"] = event_time
         fields["raw_id"] = raw_id
-        if not fname:
+        if fname:
             assert len(fname) == len(fvalue), \
                     "Field name should match field value"
             for i, v in enumerate(fname):

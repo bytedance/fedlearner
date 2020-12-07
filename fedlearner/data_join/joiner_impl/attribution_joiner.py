@@ -16,6 +16,7 @@
 
 import logging
 import time
+import random
 
 from fedlearner.common import metrics
 
@@ -23,14 +24,22 @@ import fedlearner.data_join.common as common
 from fedlearner.data_join.joiner_impl.example_joiner import ExampleJoiner
 
 class NegativeExampleGenerator(object):
-    def __init__(self):
+    def __init__(self, negative_sampling_rate):
         self._buf = {}
+        self._negative_sampling_rate = negative_sampling_rate
 
     def update(self, mismatches):
         self._buf.update(mismatches)
 
+    def _skip(self):
+        if random.random() <= self._negative_sampling_rate:
+            return False
+        return True
+
     def generate(self, fe, prev_leader_idx, leader_idx):
         for idx in range(prev_leader_idx, leader_idx):
+            if self._skip():
+                continue
             if idx not in self._buf:
                 continue
             example_id = self._buf[idx].example_id
@@ -38,7 +47,7 @@ class NegativeExampleGenerator(object):
                 example_id = example_id.decode()
             event_time = self._buf[idx].event_time
             example = type(fe).make(example_id, event_time,
-                                       example_id, ["label"], [0])
+                                       example_id, ["label", "type"], [0, 0])
             yield (example, idx, 0)
             del self._buf[idx]
 
@@ -122,7 +131,7 @@ class _Trigger(object):
         sid = 0
         while show_stride <= show_win_size and sid <= show_win_size    \
                 and conv_win_size >= 0                                 \
-                and conv_window[0][1].event_time >                     \
+                and conv_window[conv_win_size][1].event_time >         \
                 show_window[sid][1].event_time +                       \
                     self._max_conversion_delay:
             show_stride += step
@@ -284,7 +293,7 @@ class AttributionJoiner(ExampleJoiner):
         self._max_conversion_delay = \
                 example_joiner_options.max_conversion_delay
         self._leader_join_window = _SlidingWindow(self._min_window_size,
-                                                  1000000)
+                                                  2**20)
         self._follower_join_window = _SlidingWindow(
             self._min_window_size, self._max_window_size)
         self._leader_restart_index = -1
@@ -298,7 +307,8 @@ class AttributionJoiner(ExampleJoiner):
         self._enable_negative_example_generator = \
                 example_joiner_options.enable_negative_example_generator
         if self._enable_negative_example_generator:
-            self._negative_example_generator = NegativeExampleGenerator()
+            sf = example_joiner_options.negative_sampling_rate
+            self._negative_example_generator = NegativeExampleGenerator(sf)
 
     @classmethod
     def name(cls):
@@ -311,22 +321,21 @@ class AttributionJoiner(ExampleJoiner):
                 self._prepare_join(state_stale)
         join_data_finished = False
 
-        leader_fstep = 1
         while True:
             leader_filled = self._fill_leader_join_window()
             leader_exhausted = sync_example_id_finished and \
                     self._leader_join_window.et_span() <    \
                     self._max_conversion_delay
             follower_filled = self._fill_follower_join_window()
-            follower_exhausted = raw_data_finished and     \
-                    self._follower_join_window.et_span() < \
-                    self._max_conversion_delay
+
             logging.info("Fill: leader_filled=%s, leader_exhausted=%s,"\
-                         " follower_filled=%s, follower_exhausted=%s,"\
-                         " sync_example_id_finished=%s, raw_data_finished=%s",\
+                         " follower_filled=%s,"\
+                         " sync_example_id_finished=%s, raw_data_finished=%s"\
+                         " leader_win_size=%d, follower_win_size=%d",\
                         leader_filled, leader_exhausted, \
-                        follower_filled, follower_exhausted,\
-                        sync_example_id_finished, raw_data_finished)
+                        follower_filled, sync_example_id_finished, \
+                        raw_data_finished, self._leader_join_window.size(), \
+                        self._follower_join_window.size())
 
             watermark = self._trigger.watermark()
             #1. find all the matched pairs in current window
@@ -343,39 +352,37 @@ class AttributionJoiner(ExampleJoiner):
                     yield meta
                 self._leader_restart_index = pairs[len(pairs) - 1][1]
                 self._follower_restart_index = pairs[len(pairs) - 1][2]
-            logging.info("Restart index for leader %d, follwer %d",     \
-                          self._leader_restart_index,                   \
-                          self._follower_restart_index)
+            logging.info("Restart index of leader %d, follwer %d, pair_buf=%d,"\
+                         " raw_pairs=%d, pairs=%d", self._leader_restart_index,\
+                         self._follower_restart_index,
+                         len(self._sorted_buf_by_leader_index), len(raw_pairs),
+                         len(pairs))
 
             #4. update the watermark
             stride = self._trigger.trigger(self._follower_join_window,  \
                                            self._leader_join_window)
             self._follower_join_window.forward(stride[0])
             self._leader_join_window.forward(stride[1])
-            logging.info("Stat: pair_buf=%d, raw_pairs=%d, pairs=%d, "  \
-                         "stride=%s",                                   \
-                         len(self._sorted_buf_by_leader_index),         \
-                         len(raw_pairs), len(pairs), stride)
 
-            if not leader_filled and not sync_example_id_finished:
+            if not leader_filled and                                    \
+               not sync_example_id_finished and                         \
+               self._leader_join_window.reserved_size() > 0:
                 logging.info("Wait for Leader syncing example id...")
                 break
+
             if leader_exhausted:
                 join_data_finished = True
                 break
 
             if stride == (0, 0):
                 if raw_data_finished:
-                    self._leader_join_window.forward(leader_fstep)
-                    leader_fstep = min(leader_fstep * 2,
-                                       (self._leader_join_window.size()+1)//2)
+                    self._leader_join_window.forward(
+                        self._leader_join_window.size())
 
                 if sync_example_id_finished:
                     force_stride = \
                             self._trigger.shrink(self._follower_join_window)
                     self._follower_join_window.forward(force_stride)
-            else:
-                leader_fstep = 1
 
         if self._get_data_block_builder(False) is not None and \
                 (self._need_finish_data_block_since_interval() or
@@ -474,8 +481,6 @@ class AttributionJoiner(ExampleJoiner):
         for item in matching_list:
             (fe, li, fi) = item
             if self._enable_negative_example_generator and li > prev_leader_idx:
-                logging.info("Neg example generating from %d to %d",
-                             prev_leader_idx, li)
                 for example in \
                     self._negative_example_generator.generate(
                         fe, prev_leader_idx, li):
