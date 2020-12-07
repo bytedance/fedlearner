@@ -15,7 +15,7 @@
     "antd": "^4.8.2",
     "axios": "^0.21.0",
     "classnames": "^2.2.6",
-    "dayjs": "^1.9.4",
+    "dayjs": "^1.9.7",
     "eventemitter3": "^4.0.7",
     "i18next": "^19.8.3",
     "keyboardjs": "^2.6.4",
