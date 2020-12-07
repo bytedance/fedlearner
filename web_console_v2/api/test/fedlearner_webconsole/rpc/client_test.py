@@ -112,7 +112,7 @@ class RpcClientTest(unittest.TestCase):
             TARGET_SERVICE.methods_by_name['CheckConnection']
         )
 
-        self.assertIn(('x-auth-token', self._TEST_PROJECT_NAME),
+        self.assertIn((self._X_HOST_HEADER_KEY, self._TEST_X_HOST),
                       invocation_metadata)
         self.assertEqual(request, CheckConnectionRequest(
             auth_info=ProjAuthInfo(

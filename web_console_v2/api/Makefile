@@ -11,15 +11,12 @@ protobuf:
 		--grpc_python_out=. \
 		protocols/fedlearner_webconsole/proto/*.proto
 
-INTEGRATION_TEST_SCRIPTS := $(shell find test -type f -name "test_*.py")
-INTEGRATION_TESTS := $(INTEGRATION_TEST_SCRIPTS:%.py=%.phony)
+UNIT_TEST_SCRIPTS := $(shell find test -type f -name "*_test.py")
+UNIT_TESTS := $(UNIT_TEST_SCRIPTS:%.py=%.phony)
 
 test/%.phony: test/%.py
 	python $^
 
-unit-test: protobuf
-	python -m unittest discover -s fedlearner_webconsole -p '*_test.py'
+unit-test: $(UNIT_TESTS)
 
-integration-test: $(INTEGRATION_TESTS)
-
-test: unit-test integration-test
+test: unit-test

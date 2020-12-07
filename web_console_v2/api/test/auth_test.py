@@ -21,7 +21,7 @@ from http import HTTPStatus
 from common import BaseTestCase
 
 
-class TestAuthApi(BaseTestCase):
+class AuthApiTest(BaseTestCase):
     def test_auth(self):
         self.signout_helper()
 

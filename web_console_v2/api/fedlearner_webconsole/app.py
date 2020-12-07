@@ -13,7 +13,7 @@
 # limitations under the License.
 
 # coding: utf-8
-# pylint: disable=wrong-import-position, global-statement, cyclic-import
+# pylint: disable=wrong-import-position, global-statement
 
 from flask import Flask
 from flask_migrate import Migrate
