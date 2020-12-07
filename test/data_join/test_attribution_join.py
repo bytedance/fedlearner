@@ -124,7 +124,7 @@ class TestAttributionJoiner(unittest.TestCase):
         self.assertEqual(test_out, test_out_)
 
     def test_negative_example_generator(self):
-        gen = aj.NegativeExampleGenerator()
+        gen = aj.NegativeExampleGenerator(1.0)
         index_list = list(range(128))
         for i in index_list:
             gen.update({i: _Item("example_id_%d"%i, i, i)})
