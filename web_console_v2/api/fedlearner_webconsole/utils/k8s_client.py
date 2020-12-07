@@ -18,7 +18,7 @@ from kubernetes import client, config
 from kubernetes.client.exceptions import ApiException
 
 
-class K8SClient(object):
+class K8sClient(object):
 
     def __init__(self, config_path=None):
         if config_path is None:

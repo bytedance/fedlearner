@@ -7,3 +7,4 @@ flask-jwt-extended
 Flask-Testing
 grpcio
 grpcio-tools
+kubernetes==12.0.1
