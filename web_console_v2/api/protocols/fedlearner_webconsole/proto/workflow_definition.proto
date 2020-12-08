@@ -30,28 +30,18 @@ enum JobType {
     TREE_MODEL_EVALUATION = 7;
 }
 
-// 将在Workflow中使用
+
 message JobDefinition {
     string name = 1;
     JobType type = 2;
-    // 前置job的name
     repeated string dependencies = 3;
     repeated Variable variables = 4;
-
-    // k8s任务配置yaml，包含“{var}”形式的通配符，用于填入对应variable。
-    // {var}有三种形式：
-    // 1） {Template.name} 对应Template中的variable
-    // 2） {job.job_name.name} 对应jobdef中的variable
-    // 3） {global.name} 对应环境变量
     string yaml_template = 5;
-
-    // 用来判断该任务是否需要双边执行
     bool is_federated = 6;
     bool is_left = 7;
 }
 
 message WorkflowDefinition {
-    //用来定义可配对模版
     string group_alias = 1;
     repeated Variable variables = 2;
     repeated JobDefinition job_definitions = 3;

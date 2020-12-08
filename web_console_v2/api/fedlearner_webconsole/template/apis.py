@@ -38,8 +38,6 @@ class TemplateListApi(Resource):
         name = data['name']
         comment = data['comment']
         config = data['config']
-        print(config)
-        print(config)
         if Template.query.filter_by(name=name).first() is not None:
             abort(HTTPStatus.CONFLICT,
                   msg='template %s already exists' % name)
@@ -48,21 +46,21 @@ class TemplateListApi(Resource):
         try:
             template_proto = ParseDict(config, template_proto)
         except ParseError:
-            abort(HTTPStatus.BAD_REQUEST, msg='wrong template form')
+            abort(HTTPStatus.BAD_REQUEST, msg='Invalid template')
         template = Template(name=name, comment=comment,
                             group_alias=template_proto.group_alias)
         template.set_config(template_proto)
         db.session.add(template)
         db.session.commit()
         logging.info('Inserted a template to db')
-        return {'group_alias': template.group_alias}, HTTPStatus.OK
+        return {'template': template.to_dict()}, HTTPStatus.OK
 
 
 class TemplateApi(Resource):
     def get(self, template_id):
         result = Template.query.filter_by(id=template_id).first()
         if result is None:
-            abort(HTTPStatus.BAD_REQUEST,
+            abort(HTTPStatus.NOT_FOUND,
                   msg='The template is not existed')
         return {'data': result.to_dict()}
 

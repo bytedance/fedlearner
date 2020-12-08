@@ -41,6 +41,6 @@ class WorkflowApi(Resource):
 # TODO: fork method to get templates by workflowid
 
 
-def initialize_template_apis(api):
+def initialize_workflow_apis(api):
     api.add_resource(WorkflowListApi, '/workflows')
     api.add_resource(WorkflowApi, '/workflows/<int:workflow_id>')
