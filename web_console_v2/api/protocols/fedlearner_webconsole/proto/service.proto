@@ -35,26 +35,20 @@ message CheckConnectionResponse {
     Status status = 1;
 }
 
-
-
-message UpdateWorkflowRequest{
-
-    string uuid = 1;
-    WorkflowStatus status = 2;
-    ProjAuthInfo auth_info = 3;
-    string name = 4;
-    // Receiver forkable
-    bool forkable = 5;
-    // TODO: use proto form instead of byte-string
-    string config = 6;
-    string peer_config = 7;
-    // TODO: method_type should change to enum
-    MethodType method_type = 8;
+message UpdateWorkflowStateRequest {
+    ProjAuthInfo auth_info = 1;
+    string workflow_name = 2;
+    int64 state = 3;
+    int64 target_state = 4;
+    int64 transaction_state = 5;
 }
-message UpdateWorkflowResponse{
+
+message UpdateWorkflowStateResponse {
     Status status = 1;
+    int64 transaction_state = 5;
 }
+
 service WebConsoleV2Service {
     rpc CheckConnection (CheckConnectionRequest) returns (CheckConnectionResponse) {}
-    rpc UpdateWorkflow (UpdateWorkflowRequest) returns (UpdateWorkflowResponse){}
+    rpc UpdateWorkflowState (UpdateWorkflowStateRequest) returns (UpdateWorkflowStateResponse) {}
 }

@@ -36,6 +36,7 @@ from fedlearner_webconsole.rpc.server import rpc_server
 from fedlearner_webconsole.db import db
 from fedlearner_webconsole.exceptions import (
     make_response, WebConsoleApiException, InvalidArgumentException)
+from fedlearner_webconsole.scheduler.scheduler import scheduler
 
 
 def _handle_bad_request(error):
@@ -89,7 +90,10 @@ def create_app(config):
     app.handle_user_exception = handle_user_exception
 
     rpc_server.stop()
-    rpc_server.start(1990)
+    rpc_server.start(app.config.get('GRPC_LISTEN_PORT', 1999))
+
+    scheduler.stop()
+    scheduler.start()
 
     current_app = app
     return app
