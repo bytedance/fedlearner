@@ -15,36 +15,44 @@
 
 syntax = "proto3";
 
+import "fedlearner_webconsole/proto/common.proto";
+
 package fedlearner_webconsole.proto;
 
-enum StatusCode {
-  STATUS_SUCCESS = 0;
-  STATUS_UNKNOWN_ERROR = 1;
-  STATUS_UNAUTHORIZED = 2;
-}
 
-message Status {
-  StatusCode code = 1;
-  string msg = 2;
-}
-
-message Variable {
-  enum AccessMode {
+message JobDependency {
+  enum DependencyType {
     UNSPECIFIED = 0;
-    PRIVATE = 1;
-    PEER_READABLE = 2;
-    PEER_WRITABLE = 3;
+    ON_COMPLETE = 1;
+    ON_START = 2;
+    MANUAL = 3;
+  }
+  string source = 1;
+  DependencyType type = 2;
+}
+
+message Job {
+  enum JobType {
+    UNSPECIFIED = 0;
+    RAW_DATA = 1;
+    DATA_JOIN = 2;
+    PSI_DATA_JOIN = 3;
+    NN_MODEL_TRANINING = 4;
+    TREE_MODEL_TRAINING = 5;
+    NN_MODEL_EVALUATION = 6;
+    TREE_MODEL_EVALUATION = 7;
   }
 
   string name = 1;
-  string value = 2;
-  AccessMode access_mode = 3;
-  string widget_schema = 4;
+  JobType type = 2;
+  // federated jobs must be started on both side simultaneously
+  bool is_federated = 3;
+  repeated Variable variables = 4;
+  repeated JobDependency dependencies = 5;
+  string template = 6;
 }
 
-message GrpcSpec {
-  // Endpoint of the server
-  string url = 1;
-  string authority = 2;
-  map<string, string> extra_headers = 3;
+message Workflow {
+  repeated Variable variables = 1;
+  repeated Job jobs = 2;
 }

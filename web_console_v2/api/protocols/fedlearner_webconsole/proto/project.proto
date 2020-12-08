@@ -22,15 +22,22 @@ package fedlearner_webconsole.proto;
 
 message Participant {
     string name = 1;
+<<<<<<< HEAD:web_console_v2/api/protocols/fedlearner_webconsole/proto/project.proto
     string sender_auth_token = 2;
     string receiver_auth_token = 3;
     map<string, Variable> variables = 4;
     GrpcSpec grpc_spec = 5;
+=======
+    string url = 2;
+    string sender_auth_token = 3;
+    string receiver_auth_token = 4;
+    repeated Variable variables = 5;
+>>>>>>> a1b5dd6... fix:web_console_v2/api/protocols/fedlearner_webconsole/proto/federation.proto
 }
 
 message Project {
     string project_name = 1;
     string self_name = 2;
     map<string, Participant> participants = 3;
-    map<string, Variable> variables = 4;
+    repeated Variable variables = 4;
 }
