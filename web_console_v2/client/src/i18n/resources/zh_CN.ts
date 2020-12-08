@@ -42,10 +42,19 @@ const messages = {
     project_partner_name_placeholder: '请填写合作伙伴名称',
     project_partner_url_placeholder: '请填写合作伙伴节点地址',
     project_remarks_placeholder: '请填写说明备注',
+    project_name_message: '请填写项目名称！',
+    project_partner_name_message: '请填写合作伙伴名称！',
+    project_partner_url_message: '请填写合作伙伴节点地址！',
     project_edit: '编辑项目',
+    project_workflow: '工作流任务',
+    project_mix_dataset: '融合数据集',
+    project_model: '模型',
 
     terms: '服务协议',
     privacy: '隐私条款',
+    more: '更多',
+    submit: '确认',
+    cancel: '取消',
   },
 }
 

@@ -24,40 +24,49 @@ const ActionListContainer = styled.div`
 
 const ActionStyle = styled.div`
   height: 24px;
-  width: 24px;
-  padding: 10px 4px;
+  display: flex;
   .aciton-icon {
-    height: 4px;
-    width: 16px;
+    height: 24px;
+    width: 24px;
+    padding: 10px 4px;
   }
 `
 
 interface ProjectActionProps {
-  onEdit: () => void
-  onDetail: () => void
+  suffix?: React.ReactNode
+  actionList?: React.ReactNode
+  onEdit?: () => void
+  onDetail?: () => void
 }
 
-
-function ActionList(props: ProjectActionProps): ReactElement {
+function ActionList({ onEdit, onDetail }: ProjectActionProps): ReactElement {
   const { t } = useTranslation()
   return (
     <ActionListContainer>
-      <div className="actionItem" onClick={props.onEdit}>{t('project_action_edit')}</div>
-      <div className="actionItem" onClick={props.onDetail}>{t('project_action_detail')}</div>
+      <div className="actionItem" onClick={onEdit}>
+        {t('project_action_edit')}
+      </div>
+      <div className="actionItem" onClick={onDetail}>
+        {t('project_action_detail')}
+      </div>
     </ActionListContainer>
   )
 }
 
 function ProjectAction(props: ProjectActionProps): ReactElement {
   return (
-    <Popover content={<ActionList {...props}/>} placement="bottomLeft" overlayClassName="project-actions">
+    <Popover
+      content={props.actionList ?? <ActionList {...props} />}
+      placement="bottomLeft"
+      overlayClassName="project-actions"
+      getPopupContainer={(node) => node}
+    >
       <ActionStyle>
         <img src={action} className="aciton-icon" alt="" />
+        {props.suffix ?? null}
       </ActionStyle>
     </Popover>
   )
 }
-
-
 
 export default ProjectAction

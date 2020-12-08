@@ -1,5 +1,5 @@
 import React, { ReactElement } from 'react'
-import styled from "styled-components"
+import styled from 'styled-components'
 import dayjs from 'dayjs'
 
 const Container = styled.div`
@@ -12,13 +12,9 @@ interface CreateTimeProps {
   time: number
 }
 
-function CreateTime(props: CreateTimeProps): ReactElement {
-  const time = dayjs(props.time).format('YYYY-MM-DD HH:mm:ss')
-  return (
-    <Container>
-      { time }
-    </Container>
-  )
+function CreateTime({ time }: CreateTimeProps): ReactElement {
+  const _time = dayjs(time).format('YYYY-MM-DD HH:mm:ss')
+  return <Container>{_time}</Container>
 }
 
 export default CreateTime

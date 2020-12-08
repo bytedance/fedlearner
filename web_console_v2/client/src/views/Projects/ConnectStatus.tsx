@@ -60,17 +60,17 @@ interface ConnectStatusProps {
   connectStatus: number
 }
 
-function ConnectStatus(props: ConnectStatusProps): ReactElement {
+function ConnectStatus({ connectStatus }: ConnectStatusProps): ReactElement {
   const { t } = useTranslation()
   return (
     <Container>
       <div
         className={classNames({
           'project-connect-status': true,
-          [getConnectStatusClassName(props.connectStatus)]: true,
+          [getConnectStatusClassName(connectStatus)]: true,
         })}
       >
-        {t(getConnectStatusTag(props.connectStatus))}
+        {t(getConnectStatusTag(connectStatus))}
       </div>
     </Container>
   )

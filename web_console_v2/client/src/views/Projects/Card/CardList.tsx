@@ -1,4 +1,4 @@
-import React, { ReactElement } from 'react'
+import React, { ReactElement, useState, useEffect } from 'react'
 import styled from 'styled-components'
 import Card from './Card'
 
@@ -9,7 +9,7 @@ const Container = styled.div`
   row-gap: 24px;
   justify-content: space-between;
 
-// 272 * 4 + 24 * 3 + 24 * 2 + 200
+  // 272 * 4 + 24 * 3 + 24 * 2 + 200
   @media screen and (min-width: 1408px) {
     grid-template-columns: repeat(4, minmax(272px, 371px));
   }
@@ -19,11 +19,12 @@ interface CardListProps {
   projectList: Project[]
 }
 
-
-function CardList(props: CardListProps):ReactElement {
+function CardList({ projectList }: CardListProps): ReactElement {
   return (
     <Container>
-      {props.projectList.map(item => <Card item={item} key={item.name} />)}
+      {projectList.map((item, index) => (
+        <Card item={item} key={index} />
+      ))}
     </Container>
   )
 }

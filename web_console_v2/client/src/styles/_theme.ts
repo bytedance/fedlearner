@@ -283,6 +283,9 @@ const defaultTheme = {
   textColor: '#1a2233',
   headerBg: 'white',
   commonTiming: 'cubic-bezier(0.4, 0, 0.2, 1)',
+  colorBgWhite: '#ffffff',
+  failedRed: '#fd5165',
+  successGreen: '#00bab2',
 }
 
 export default defaultTheme

@@ -15,32 +15,31 @@ export enum ConnectStatus {
   Failed,
 }
 
-
 export function getConnectStatusClassName(status: ConnectStatus): string {
   switch (status) {
     case ConnectStatus.Success:
-      return 'success';
+      return 'success'
     case ConnectStatus.Waiting:
-      return 'waiting';
+      return 'waiting'
     case ConnectStatus.Checking:
-      return 'checking';
+      return 'checking'
     case ConnectStatus.Failed:
-      return 'failed';
+      return 'failed'
     default:
-      return 'waiting';
+      return 'waiting' as never
   }
 }
 export function getConnectStatusTag(status: ConnectStatus): string {
   switch (status) {
     case ConnectStatus.Success:
-      return 'project_connect_status_success';
+      return 'project_connect_status_success'
     case ConnectStatus.Waiting:
-      return 'project_connect_status_waiting';
+      return 'project_connect_status_waiting'
     case ConnectStatus.Checking:
-      return 'project_connect_status_checking';
+      return 'project_connect_status_checking'
     case ConnectStatus.Failed:
-      return 'project_connect_status_failed';
+      return 'project_connect_status_failed'
     default:
-      return 'project_connect_status_waiting';
+      return 'project_connect_status_waiting' as never
   }
 }

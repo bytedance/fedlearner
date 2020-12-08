@@ -6,9 +6,9 @@ import CreateTime from '../CreateTime'
 import ConnectStatus from '../ConnectStatus'
 import Detail from '../Detail'
 import BaseForm from '../BaseForm'
-import { Tooltip, Modal, Drawer } from 'antd'
+import { Tooltip, Modal, Form } from 'antd'
 import { useTranslation } from 'react-i18next'
-import { ReactComponent as CheckConnect } from 'assets/images/check-connect.svg'
+import { ReactComponent as CheckConnectIcon } from 'assets/images/check-connect.svg'
 import createWorkFlow from 'assets/images/create-work-flow.svg'
 
 const CardContainer = styled.div`
@@ -67,6 +67,8 @@ const CardFooterContainer = styled.div`
   }
   .left {
     display: flex;
+    min-width: 80px;
+    justify-content: space-between;
   }
 `
 
@@ -102,25 +104,27 @@ interface CardMainProps {
 
 interface CardFooterProps {}
 
-function CardHeader(props: CardHeaderProps): ReactElement {
+function CardHeader({ name, time }: CardHeaderProps): ReactElement {
   return (
     <CardHeaderContainer>
+      {/* FIXME */}
       <div className="project-name">发看过你项目</div>
       <div className="project-time">
-        <CreateTime time={props.time} />
+        <CreateTime time={time} />
       </div>
     </CardHeaderContainer>
   )
 }
 
-function CardMain(props: CardMainProps): ReactElement {
+function CardMain({ workFlowNumber }: CardMainProps): ReactElement {
+  //FIXME
   const random: number = Math.random() * 3.99
-  const connectStatus = Math.ceil(random)
+  const connectStatus = Math.floor(random)
   const { t } = useTranslation()
   return (
     <CardMainContainer>
       <CardDescribe describe={t('project_workflow_number')}>
-        <div className="project-work-flow-number">{props.workFlowNumber}</div>
+        <div className="project-work-flow-number">{workFlowNumber}</div>
       </CardDescribe>
       <CardDescribe describe={t('project_connect_status')}>
         <div className="project-connect-status-wrapper">
@@ -131,53 +135,67 @@ function CardMain(props: CardMainProps): ReactElement {
   )
 }
 
-function CardFooter(props: CardFooterProps): ReactElement {
+function CreateWorkFlow(): ReactElement {
+  const { t } = useTranslation()
+  return (
+    <Tooltip title={t('project_create_work_flow')} placement="top">
+      <img src={createWorkFlow} alt="" />
+    </Tooltip>
+  )
+}
+
+function CheckConnect(): ReactElement {
+  const { t } = useTranslation()
+  return (
+    <Tooltip title={t('project_check_connect')} placement="top">
+      <CheckConnectStyle>
+        <CheckConnectIcon />
+      </CheckConnectStyle>
+    </Tooltip>
+  )
+}
+
+function CardFooter({}: CardFooterProps): ReactElement {
   const { t } = useTranslation()
   const creator = '陈胜明'
-  const [isModalVisible, setIsModalVisible] = useState(false);
-  const [isDrawerVisible, setIsDrawerVisible] = useState(false);
+  const [isModalVisible, setIsModalVisible] = useState(false)
+  const [isDrawerVisible, setIsDrawerVisible] = useState(false)
+  const [form] = Form.useForm()
   return (
     <CardFooterContainer>
       <div className="right">{creator}</div>
       <div className="left">
-        <Tooltip title={t('project_check_connect')} placement="top">
-          <CheckConnectStyle>
-            <CheckConnect className="check-connect-icon" />
-          </CheckConnectStyle>
-        </Tooltip>
-        <Tooltip title={t('project_create_work_flow')} placement="top">
-          <img src={createWorkFlow} alt="" />
-        </Tooltip>
-        <ProjectAction onEdit={()=>{setIsModalVisible(true)}} onDetail={()=>setIsDrawerVisible(true)} />
+        <CheckConnect />
+        <CreateWorkFlow />
+        <ProjectAction
+          onEdit={() => {
+            setIsModalVisible(true)
+          }}
+          onDetail={() => setIsDrawerVisible(true)}
+        />
       </div>
       <Modal
         title={t('project_edit')}
         visible={isModalVisible}
         // onOk={}
-        onCancel={()=>setIsModalVisible(false)}
-        width={400}
+        onCancel={() => setIsModalVisible(false)}
+        width={450}
         zIndex={2000}
+        okText={t('submit')}
+        cancelText={t('cancel')}
+        bodyStyle={{ padding: '24px 0' }}
       >
-        <BaseForm />
+        <BaseForm form={form} />
       </Modal>
-      <Drawer
-        title="isaflj"
-        placement="right"
-        closable={true}
-        onClose={()=>setIsDrawerVisible(false)}
-        visible={isDrawerVisible}
-        width={880}
-      >
-        <Detail />
-      </Drawer>
+      <Detail title="isaflj" onClose={() => setIsDrawerVisible(false)} visible={isDrawerVisible} />
     </CardFooterContainer>
   )
 }
 
-function Card(props: CardProps): ReactElement {
+function Card({ item }: CardProps): ReactElement {
   return (
     <CardContainer>
-      <CardHeader name={props.item.name} time={props.item.time} />
+      <CardHeader name={item.name} time={item.time} />
       <CardMain workFlowNumber={2} connectStatus={1} />
       <CardFooter />
     </CardContainer>
