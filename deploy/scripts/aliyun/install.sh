@@ -338,16 +338,16 @@ function create_db {
             aliyun rds CreateDBInstance --Engine MySQL --EngineVersion 8.0 --DBInstanceClass rds.mysql.t1.small --DBInstanceStorage 20  --SecurityIPList 0.0.0.0/0 --DBInstanceNetType Intranet --RegionId $REGION --ZoneId $ZONE_ID --VPCId $VPC_ID --InstanceNetworkType VPC --PayType Prepaid --UsedTime 1 --Period Month --AutoRenew true
         fi
 
-        DB_INSTANCE_ID=`aliyun rds DescribeDBInstances --VpcId $VPC_ID | grep \"DBInstanceId\" | awk -F "\"" '{print $4}'`
+        DB_INSTANCE_ID=`aliyun rds DescribeDBInstances --VpcId $VPC_ID | grep \"DBInstanceId\" | awk -F "\"" '{print $4}' | head -1`
         if [ -n "$DB_INSTANCE_ID" ]
         then
             echo_log "Create db instance success with instance id $DB_INSTANCE_ID."
-            STATUS=`aliyun rds DescribeDBInstances --VpcId $VPC_ID | grep DBInstanceStatus | awk -F "\"" '{print $4}'`
+            STATUS=`aliyun rds DescribeDBInstances --VpcId $VPC_ID | grep DBInstanceStatus | awk -F "\"" '{print $4}' | head -1`
             while [ "$STATUS" != "Running" ]
             do
                 echo_log "Current db instance status is $STATUS, loop wait until it's running."
                 sleep 30
-                STATUS=`aliyun rds DescribeDBInstances --VpcId $VPC_ID | grep DBInstanceStatus | awk -F "\"" '{print $4}'`
+                STATUS=`aliyun rds DescribeDBInstances --VpcId $VPC_ID | grep DBInstanceStatus | awk -F "\"" '{print $4}' | head -1`
             done
         else
             echo_exit "Failed to create db instance."

@@ -71,7 +71,7 @@ function install {
     VPC_ID=`aliyun vpc DescribeVpcs --VpcName $GENERATER_NAME | grep VpcId | awk -F "\"" '{print $4}'`
     if [[ $VPC_ID == "vpc"* ]]
     then
-        DB_INSTANCE_ID=`aliyun rds DescribeDBInstances --VpcId $VPC_ID | grep \"DBInstanceId\" | awk -F "\"" '{print $4}'`
+        DB_INSTANCE_ID=`aliyun rds DescribeDBInstances --VpcId $VPC_ID | grep \"DBInstanceId\" | awk -F "\"" '{print $4}' | head -1`
         if [ -n "$DB_INSTANCE_ID" ]
         then
             DB_URL=`aliyun rds DescribeDBInstanceNetInfo --DBInstanceId $DB_INSTANCE_ID | grep ConnectionString\" | awk -F "\"" '{print $4}'`
