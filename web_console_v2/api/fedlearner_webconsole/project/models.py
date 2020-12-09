@@ -14,15 +14,21 @@
 
 # coding: utf-8
 
+from sqlalchemy.sql import func
 from fedlearner_webconsole.db import db
 from fedlearner_webconsole.proto import project_pb2
 
 
 class Project(db.Model):
     __tablename__ = 'projects_v2'
-    id = db.Column(db.Integer, primary_key=True)
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     name = db.Column(db.String(255), index=True)
+    token = db.Column(db.String(64), index=True)
     config = db.Column(db.Text())
+    comment = db.Column(db.Text())
+    created_at = db.Column(db.DateTime(timezone=True), server_default=func.now())
+    updated_at = db.Column(db.DateTime(timezone=True), server_onupdate=func.now(), default=func.now())
+    deleted_at = db.Column(db.DateTime(timezone=True))
 
     def set_config(self, proto):
         self.config = proto.SerializeToString()
