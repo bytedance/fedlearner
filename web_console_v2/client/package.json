@@ -10,6 +10,8 @@
     "lint": "eslint '*/**/*.{js,ts,tsx}' --fix"
   },
   "dependencies": {
+    "@formily/antd": "^1.3.8",
+    "@formily/antd-components": "^1.3.8",
     "antd": "^4.8.2",
     "axios": "^0.21.0",
     "classnames": "^2.2.6",
