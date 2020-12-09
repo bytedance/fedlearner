@@ -25,9 +25,11 @@ class Project(db.Model):
     name = db.Column(db.String(255), index=True)
     token = db.Column(db.String(64), index=True)
     config = db.Column(db.Text())
+    certificate = db.Column(db.Text())
     comment = db.Column(db.Text())
     created_at = db.Column(db.DateTime(timezone=True), server_default=func.now())
-    updated_at = db.Column(db.DateTime(timezone=True), server_onupdate=func.now(), default=func.now())
+    updated_at = db.Column(db.DateTime(timezone=True), server_onupdate=func.now(),
+                           server_default=func.now())
     deleted_at = db.Column(db.DateTime(timezone=True))
 
     def set_config(self, proto):
@@ -36,4 +38,12 @@ class Project(db.Model):
     def get_config(self):
         proto = project_pb2.Project()
         proto.ParseFromString(self.config)
+        return proto
+
+    def set_certificate(self, proto):
+        self.certificate = proto.SerializeToString()
+
+    def get_certificate(self):
+        proto = project_pb2.Certificate()
+        proto.ParseFromString(self.certificate)
         return proto

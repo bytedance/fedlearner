@@ -19,13 +19,15 @@ import "fedlearner_webconsole/proto/common.proto";
 
 package fedlearner_webconsole.proto;
 
+message Certificate {
+    map<string, string> certificate = 1;
+}
 
 message Participant {
     string name = 1;
     string domain_name = 2;
-    string url = 3;
-    repeated Variable variables = 4;
-    GrpcSpec grpc_spec = 5;
+    repeated Variable variables = 3;
+    GrpcSpec grpc_spec = 4;
 }
 
 message Project {

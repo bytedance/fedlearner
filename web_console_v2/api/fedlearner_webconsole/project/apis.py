@@ -26,12 +26,12 @@ from flask import request
 from google.protobuf.json_format import ParseDict
 from fedlearner_webconsole.db import db
 from fedlearner_webconsole.project.models import Project
-from fedlearner_webconsole.proto.project_pb2 import Project as ProjectProto
+from fedlearner_webconsole.proto.project_pb2 import Project as ProjectProto, Certificate
 from fedlearner_webconsole.utils.k8s_client import K8sClient
 
 _CERTIFICATE_FILE_NAMES = [
-    'client.crt', 'client.key', 'client.intermediate.pem', 'client.root.pem',
-    'server.crt', 'server.key', 'server.intermediate.pem', 'server.root.pem'
+    'client/client.pem', 'client/client.key', 'client/intermediate.pem', 'client/root.pem',
+    'server/server.pem', 'server/server.key', 'server/intermediate.pem', 'server/root.pem'
 ]
 
 
@@ -58,38 +58,48 @@ class ProjectsApi(Resource):
         # TODO: remove after operator supports multiple participants
         if len(config.get('participants')) > 1:
             abort(HTTPStatus.BAD_REQUEST,
-                  msg=ErrorMessage.PARAM_FORMAT_ERROR.value.format('participants',
-                                                                   'Currently operator only support one participant'))
+                  msg=ErrorMessage.PARAM_FORMAT_ERROR
+                  .value.format('participants',
+                                'Currently operator only supports one participant'))
         comment = request.json.get('comment')
 
         if Project.query.filter_by(name=name).first() is not None:
             abort(HTTPStatus.BAD_REQUEST,
                   msg=ErrorMessage.NAME_CONFLICT.value.format(name))
 
-        # generate token
-        token = uuid4().hex
-        config['token'] = token
-
         # extract certificates
         certificates = {}
         for key, participant in config.get('participants').items():
-            if participant.get('certificates') is None:
-                abort(HTTPStatus.BAD_REQUEST,
-                      msg=ErrorMessage.PARAM_MISSING.value.format('certificates'))
             if participant.get('domain_name') is None:
                 abort(HTTPStatus.BAD_REQUEST,
                       msg=ErrorMessage.PARAM_MISSING.value.format('domain_name'))
-            certificates[participant.get('domain_name')] = participant.get('certificates')
-            # not save certificates in config
-            participant.pop('certificates')
+            if participant.get('url') is None:
+                abort(HTTPStatus.BAD_REQUEST,
+                      msg=ErrorMessage.PARAM_MISSING.value.format('url'))
+            if participant.get('certificates') is not None:
+                certificates[participant.get('domain_name')] = participant.get('certificates')
+                participant.pop('certificates')
+
+            # format participant to proto structure
+            participant['grpc_spec'] = {
+                'url': participant.get('url')
+            }
+            participant.pop('url')
 
         new_project = Project()
+        # generate token
+        # If users send a token, then use it instead.
+        token = config.get('token', uuid4().hex)
+        config['token'] = token
+
         # check format of config
         try:
             new_project.set_config(ParseDict(config, ProjectProto()))
         except Exception as e:
             abort(HTTPStatus.BAD_REQUEST,
                   msg=ErrorMessage.PARAM_FORMAT_ERROR.value.format('config', e))
+        new_project.set_certificate(ParseDict({'certificate': certificates},
+                                              Certificate()))
         new_project.name = name
         new_project.token = token
         new_project.comment = comment
@@ -134,9 +144,9 @@ def _convert_certificates(encoded_gz):
     certificates = {}
     for file in gz.getmembers():
         if gz.extractfile(file) is not None:
-            # raw file name is like `test/client/client.crt`
-            certificates[file.name.split('/')[-1]] = str(b64encode(gz.extractfile(file).read()),
-                                                         encoding='utf-8')
+            # raw file name is like `fl-test.com/client/client.pem`
+            certificates[file.name.split('/', 1)[-1]] = str(b64encode(gz.extractfile(file).read()),
+                                                            encoding='utf-8')
     # check validation
     for file_name in _CERTIFICATE_FILE_NAMES:
         if certificates.get(file_name) is None:

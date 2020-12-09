@@ -22,18 +22,21 @@ from fedlearner_webconsole.project.apis import _convert_certificates, _CERTIFICA
 class ProjectApisTest(unittest.TestCase):
 
     def test_convert_certificates(self):
-        TEST_ENCODED_CERTIFICATES = ('H4sIAMBIz18AA+2Z326DIBSHvd5T8AQd/w48j2lpYjbt'
-                                     'gmzJ3n4IrmULszFRzOr5bs5FTaD99TsgONO752pdKKUa'
-                                     'gISqYqVcxjpCmNBKKCkZU4QyLqioCKw8r8B772rrp1Kf'
-                                     '2qabeM4/dj5PfD5+j2v9J7gh/97YD2NX+xvMyZ9z5vMX'
-                                     'iirMvwQh/+NrY7r12sCc/KkWQ/6g0P8ipPnHcjhat+wY'
-                                     '/vfwyU7kz6/5Cw1D/wcAXhG67DTyYP6O3IJ/2no+SFky'
-                                     '/tvLxR3eTLvYGPf9h1v/l9r7r4BL9L8Eqf/fwWMT2A8Z'
-                                     '/5vOGduaU1M7s0gfuOu/gJ/7P045E+h/CVL/fwePfeDx'
-                                     'yfj/Yj6XHWPW/l/ruP8H9L8Eqf8+eFR+Z6Tnf7Fsu/6z'
-                                     'cf3XuP8vQvD/j+CxGTw+Gf83ff+P5/8KtEL/S5D6j+//'
-                                     '+yPj/5b7f8lguP8BxfH8vwip/7j/3x8Z/7e8/5NM0uA/'
-                                     'w/W/CKn/eP+HIAiyH74AX0xcwQAqAAA=')
+        TEST_ENCODED_CERTIFICATES = ('H4sIAKNx0F8AA+2aPW/TQBjHDRIgGGBjvoXVvdfH7VAJti4IBB3Y'
+                                     'kOVcJYs4iRyDyqfogsR34EMwsPAFmBCfAql773ylPiI3SUXuUurn'
+                                     'J1mXFyd3zl+/e86npG8bPW+SoFBKM6VI24JrKZeutQghCRMZCJCS'
+                                     'MSCUcSkhITTssBzv501em6Hko6qcLDnPnHZ0tOR9dynkov1fuPP4'
+                                     'XnI7SZ7nBXnxmrwh59jXkvvm4Ob4Yg77/Nd6X/ns8PDV+UP7iU/m'
+                                     'OFg45Vb3+qNiWqX5bDbWaZUX47arH98f3v26//Tnyefi9NuTk9//'
+                                     'fplIPy/z4wOdj3S9E24eWOU/FbDgv+SUJeQ4zHD+ZuD+C0qqpqz0'
+                                     'PgOaSba3t8tTIdWuZFzwB9seHRIaa/1O4D5W+m98Waj/goqEqMDj'
+                                     'ahm4/23+c11/MBUgVB/r5i9pRpniJn8BmH8c2vyLcakn4aaBK+XP'
+                                     'pM1fKYb5x8DPv5w0uq70qMwbnc50tak+zO9hZvZl6z91kb8CavKH'
+                                     'TDC8/4uBzZ9ckj8u/24+vv+u2aT5jpX+86zzP7P1XymJ/kfB97/L'
+                                     'H80fCr7/9XQawP51/O/qP1Bb/xUXEv2Pge//n/zR/uHQU//f6Y+b'
+                                     '7eNK9V/Jtv4riv7HoKf+m/xxBhgK/v7fdbj/h3b/BzLA9X8UWv8v'
+                                     'yR9ngZuP779rtlv/wdwLmPoPPEP/Y+D73+WP5g+FHv+3uv8HQjr/'
+                                     'cf0fhR7/sfIPCN//a7H/x93+H+D/P6Pg+4/7fwiCIMPhDMXODNgAMgAA')
         certificates = _convert_certificates(TEST_ENCODED_CERTIFICATES)
         for file_name in _CERTIFICATE_FILE_NAMES:
             self.assertEqual(str(b64decode(certificates.get(file_name)), encoding='utf-8'),
