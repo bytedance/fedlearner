@@ -15,7 +15,6 @@
 # coding: utf-8
 # pylint: disable=protected-access
 
-import os
 import logging
 import time
 import tensorflow.compat.v1 as tf
@@ -25,11 +24,9 @@ from tensorflow.compat.v1.train import Optimizer
 from tensorflow.compat.v1.estimator import ModeKeys
 from tensorflow_estimator.python.estimator import model_fn as model_fn_lib
 
-from fedlearner.common.mysql_client import DBClient
 from fedlearner.common.summary_hook import SummaryHook
 from fedlearner.trainer import patch  # pylint: disable=unused-import
 from fedlearner.common import metrics
-from fedlearner.data_join.common import get_kvstore_config
 
 SYNC_PATH = '/sync/'
 DATA_CHECKPOINT_INIT_VALUE = "_init_value"
@@ -223,32 +220,6 @@ class FLEstimator(object):
         logging.info("restore: %s", block_id_str)
         return self._trainer_master.restore_data_block_checkpoint(
             self._application_id, block_ids)
-
-    def _cheif_barriar(self, is_chief=False, sync_times=300):
-        worker_replicas = os.environ.get('REPLICA_NUM', 0)
-        kvstore_type = os.environ.get('KVSTORE_TYPE', 'etcd')
-        db_database, db_addr, db_username, db_password, _ = \
-            get_kvstore_config(kvstore_type)
-        kvstore_client = DBClient(db_database,
-                                  db_addr,
-                                  db_username,
-                                  db_password,
-                                  SYNC_PATH)
-        sync_path = '%s/%s' % (os.environ['APPLICATION_ID'],
-                               os.environ['WORKER_RANK'])
-        logging.info('Creating a sync flag at %s', sync_path)
-        kvstore_client.set_data(sync_path, "1")
-        if is_chief:
-            for _ in range(sync_times):
-                sync_list = kvstore_client.get_prefix_kvs(
-                    os.environ['APPLICATION_ID'])
-                logging.info('Sync file pattern is: %s', sync_list)
-                if len(sync_list) < worker_replicas:
-                    logging.info('Count of ready workers is %d',
-                                 len(sync_list))
-                    time.sleep(6)
-                else:
-                    break
 
     def train(self,
               input_fn,
