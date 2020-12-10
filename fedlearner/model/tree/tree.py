@@ -872,12 +872,16 @@ class BoostingTreeEnsamble(object):
             msg = tf.train.Features()
             for k, v in send_metrics.items():
                 msg.feature[k].float_list.value.append(v)
+            logging.info("Sending message: %s at iter id=%d", msg,
+                         self._bridge.current_iter_id)
             self._bridge.send_proto(
                 self._bridge.current_iter_id, 'metrics', msg)
         else:
             msg = tf.train.Features()
             self._bridge.receive_proto(
                 self._bridge.current_iter_id, 'metrics').Unpack(msg)
+            logging.info("Received message: %s at iter id=%d", msg,
+                        self._bridge.current_iter_id)
             metrics = {}
             for k, v in msg.feature:
                 metrics[k] = v.float_list.value[0]

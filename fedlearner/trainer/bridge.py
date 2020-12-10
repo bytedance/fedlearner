@@ -260,6 +260,8 @@ class Bridge(object):
                             "confirmed", response.next_seq_num-1)
                     elif response.status.code == \
                             common_pb.STATUS_MESSAGE_MISSING:
+                        logging.debug("Missing Message with seq_num=%d, resend",
+                                      response.next_seq_num)
                         self._transmit_queue.resend(response.next_seq_num)
                     else:
                         raise RuntimeError("Trainsmit failed with %d" %
