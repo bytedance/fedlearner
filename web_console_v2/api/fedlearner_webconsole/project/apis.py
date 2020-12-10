@@ -109,10 +109,7 @@ class ProjectsApi(Resource):
             k8s_client = K8sClient()
             for domain_name, certificate in certificates.items():
                 _create_add_on(k8s_client, certificate, domain_name)
-        except RuntimeError as e:
-            abort(HTTPStatus.INTERNAL_SERVER_ERROR, msg=e)
 
-        try:
             db.session.add(new_project)
             db.session.commit()
         except Exception as e:
@@ -143,10 +140,14 @@ def _convert_certificates(encoded_gz):
     gz = tarfile.open(fileobj=binary_gz)
     certificates = {}
     for file in gz.getmembers():
-        if gz.extractfile(file) is not None:
+        if file.isfile():
             # raw file name is like `fl-test.com/client/client.pem`
-            certificates[file.name.split('/', 1)[-1]] = str(b64encode(gz.extractfile(file).read()),
-                                                            encoding='utf-8')
+            # NOTICE: tar on MacOS is incompatible with Linux one, so it may cause UnicodeDecodeError
+            # https://superuser.com/questions/318809/linux-os-x-tar-incompatibility-tarballs-created-on-os-x-give-errors-when-unt
+            try:
+                certificates[file.name.split('/', 1)[-1]] = gz.extractfile(file).read().decode('utf-8')
+            except UnicodeDecodeError as e:
+                certificates[file.name.split('/', 1)[-1]] = gz.extractfile(file).read().decode('unicode_escape')
     # check validation
     for file_name in _CERTIFICATE_FILE_NAMES:
         if certificates.get(file_name) is None:
