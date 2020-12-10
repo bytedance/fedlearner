@@ -34,15 +34,16 @@ def _build_channel(url, authority):
 
 
 class RpcClient(object):
-    def __init__(self, project_name, receiver_name):
-        project = Project.query.filter_by(
-            name=project_name).first()
-        assert project is not None, \
-            'project {} not found'.format(project_name)
+    def __init__(self, project, receiver_name):
         self._project = project.get_config()
         assert receiver_name in self._project.participants, \
             'receiver {} not found'.format(receiver_name)
         self._receiver = self._project.participants[receiver_name]
+        self._auth_info = service_pb2.ProjAuthInfo(
+            project_name=self._project.project_name,
+            sender_name=self._project.self_name,
+            receiver_name=self._receiver.name,
+            auth_token=self._receiver.sender_auth_token)
 
         self._client = service_pb2_grpc.WebConsoleV2ServiceStub(_build_channel(
             self._receiver.grpc_spec.url,
@@ -58,11 +59,7 @@ class RpcClient(object):
 
     def check_connection(self):
         msg = service_pb2.CheckConnectionRequest(
-            auth_info=service_pb2.ProjAuthInfo(
-                project_name=self._project.project_name,
-                sender_name=self._project.self_name,
-                receiver_name=self._receiver.name,
-                auth_token=self._receiver.sender_auth_token))
+            auth_info=self._auth_info)
         try:
             response = self._client.CheckConnection(
                 request=msg, metadata=self._get_metadata())
@@ -71,3 +68,17 @@ class RpcClient(object):
             return common_pb2.Status(
                 code=common_pb2.STATUS_UNKNOWN_ERROR,
                 msg=repr(e))
+
+    def update_workflow_state(self, state):
+        msg = service_pb2.UpdateWorkflowStateRequest(
+            auth_info=self._auth_info, state=state)
+        try:
+            response = self._client.UpdateWorkflowState(
+                request=msg, metadata=self._get_metadata())
+            return response
+        except Exception as e:
+            return common_pb2.UpdateWorkflowStateResponse(
+                status=common_pb2.Status(
+                    code=common_pb2.STATUS_UNKNOWN_ERROR,
+                    msg=repr(e)))
+                
