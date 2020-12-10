@@ -15,7 +15,6 @@
 # coding: utf-8
 # pylint: disable=protected-access
 
-import os
 import logging
 import time
 import tensorflow.compat.v1 as tf
@@ -25,11 +24,9 @@ from tensorflow.compat.v1.train import Optimizer
 from tensorflow.compat.v1.estimator import ModeKeys
 from tensorflow_estimator.python.estimator import model_fn as model_fn_lib
 
-from fedlearner.common.mysql_client import DBClient
 from fedlearner.common.summary_hook import SummaryHook
 from fedlearner.trainer import patch  # pylint: disable=unused-import
 from fedlearner.common import metrics
-from fedlearner.data_join.common import get_kvstore_config
 
 SYNC_PATH = '/sync/'
 DATA_CHECKPOINT_INIT_VALUE = "_init_value"
