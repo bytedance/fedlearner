@@ -879,8 +879,8 @@ class BoostingTreeEnsamble(object):
             self._bridge.receive_proto(
                 self._bridge.current_iter_id, 'metrics').Unpack(msg)
             metrics = {}
-            for k, v in msg.feature:
-                metrics[k] = v.float_list.value[0]
+            for key in msg.feature:
+                metrics[key] = msg.feature[key].float_list.value[0]
         self._bridge.commit()
 
         return metrics
