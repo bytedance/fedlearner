@@ -1,0 +1,9 @@
+.git
+**/node_modules
+Dockerfile
+
+# Tests
+client/tests
+api/test
+api/testing
+
