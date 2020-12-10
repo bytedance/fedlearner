@@ -224,32 +224,6 @@ class FLEstimator(object):
         return self._trainer_master.restore_data_block_checkpoint(
             self._application_id, block_ids)
 
-    def _cheif_barriar(self, is_chief=False, sync_times=300):
-        worker_replicas = os.environ.get('REPLICA_NUM', 0)
-        kvstore_type = os.environ.get('KVSTORE_TYPE', 'etcd')
-        db_database, db_addr, db_username, db_password, _ = \
-            get_kvstore_config(kvstore_type)
-        kvstore_client = DBClient(db_database,
-                                  db_addr,
-                                  db_username,
-                                  db_password,
-                                  SYNC_PATH)
-        sync_path = '%s/%s' % (os.environ['APPLICATION_ID'],
-                               os.environ['WORKER_RANK'])
-        logging.info('Creating a sync flag at %s', sync_path)
-        kvstore_client.set_data(sync_path, "1")
-        if is_chief:
-            for _ in range(sync_times):
-                sync_list = kvstore_client.get_prefix_kvs(
-                    os.environ['APPLICATION_ID'])
-                logging.info('Sync file pattern is: %s', sync_list)
-                if len(sync_list) < worker_replicas:
-                    logging.info('Count of ready workers is %d',
-                                 len(sync_list))
-                    time.sleep(6)
-                else:
-                    break
-
     def train(self,
               input_fn,
               checkpoint_path=None,
