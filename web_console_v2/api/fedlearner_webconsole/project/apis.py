@@ -17,6 +17,7 @@
 import tarfile
 import io
 import os
+import json
 from enum import Enum
 from uuid import uuid4
 from http import HTTPStatus
@@ -24,6 +25,8 @@ from base64 import b64encode, b64decode
 from flask_restful import Resource, Api, abort
 from flask import request
 from google.protobuf.json_format import ParseDict
+from jsonschema.exceptions import ValidationError
+from jsonschema import validate
 from fedlearner_webconsole.db import db
 from fedlearner_webconsole.project.models import Project
 from fedlearner_webconsole.proto.project_pb2 import Project as ProjectProto, Certificate
@@ -36,31 +39,21 @@ _CERTIFICATE_FILE_NAMES = [
 
 
 class ErrorMessage(Enum):
-    PARAM_MISSING = 'Parameter `{}` is missing.'
-    PARAM_FORMAT_ERROR = 'Format of parameter `{}` is wrong: {}'
-    NAME_CONFLICT = 'Project name `{}` has been used.'
+    PARAM_FORMAT_ERROR = 'Format of parameter {} is wrong: {}'
+    NAME_CONFLICT = 'Project name {} has been used.'
 
 
 class ProjectsApi(Resource):
 
     def post(self):
+        # TODO: remove limit in schema after operator supports multiple participants
+        error_msg = _check_schema(request_body=request.get_json(), schema_name='create_project')
+        if error_msg is not None:
+            abort(HTTPStatus.BAD_REQUEST,
+                  msg=ErrorMessage.PARAM_FORMAT_ERROR.value.format('', error_msg))
+
         name = request.json.get('name')
-        if name is None:
-            abort(HTTPStatus.BAD_REQUEST,
-                  msg=ErrorMessage.PARAM_MISSING.value.format('name'))
         config = request.json.get('config')
-        if config is None:
-            abort(HTTPStatus.BAD_REQUEST,
-                  msg=ErrorMessage.PARAM_MISSING.value.format('config'))
-        if len(config.get('participants')) == 0:
-            abort(HTTPStatus.BAD_REQUEST,
-                  msg=ErrorMessage.PARAM_MISSING.value.format('participants'))
-        # TODO: remove after operator supports multiple participants
-        if len(config.get('participants')) > 1:
-            abort(HTTPStatus.BAD_REQUEST,
-                  msg=ErrorMessage.PARAM_FORMAT_ERROR
-                  .value.format('participants',
-                                'Currently operator only supports one participant'))
         comment = request.json.get('comment')
 
         if Project.query.filter_by(name=name).first() is not None:
@@ -69,13 +62,7 @@ class ProjectsApi(Resource):
 
         # extract certificates
         certificates = {}
-        for key, participant in config.get('participants').items():
-            if participant.get('domain_name') is None:
-                abort(HTTPStatus.BAD_REQUEST,
-                      msg=ErrorMessage.PARAM_MISSING.value.format('domain_name'))
-            if participant.get('url') is None:
-                abort(HTTPStatus.BAD_REQUEST,
-                      msg=ErrorMessage.PARAM_MISSING.value.format('url'))
+        for participant in config.get('participants'):
             if participant.get('certificates') is not None:
                 certificates[participant.get('domain_name')] = participant.get('certificates')
                 participant.pop('certificates')
@@ -124,6 +111,21 @@ class ProjectsApi(Resource):
             },
             'msg': ''
         }
+
+
+def _check_schema(request_body, schema_name):
+    """Checks if request body is valid or not, returns error messages."""
+    current_directory = os.path.dirname(os.path.realpath(__file__))
+    schema_path = os.path.join(current_directory, 'schema/{}.json'.format(schema_name))
+    if os.path.isfile(schema_path):
+        with open(schema_path, 'r') as file:
+            schema = json.load(file)
+        try:
+            validate(request_body, schema)
+        except ValidationError as error:
+            return error.message
+    else:
+        return 'Schema not found'
 
 
 def _convert_certificates(encoded_gz):
