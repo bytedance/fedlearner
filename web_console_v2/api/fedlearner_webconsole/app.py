@@ -44,7 +44,7 @@ def create_app(config):
     api.init_app(app)
 
     rpc_server.stop()
-    rpc_server.start(1990)
+    rpc_server.start(app.config.get('GRPC_LISTEN_PORT', 1999))
 
     scheduler.stop()
     scheduler.start()

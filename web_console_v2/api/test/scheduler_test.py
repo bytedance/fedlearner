@@ -14,17 +14,39 @@
 
 # coding: utf-8
 
-import os
-import logging
-import secrets
+from fedlearner_webconsole.app import create_app
+from fedlearner_webconsole.db import db
+from fedlearner_webconsole.workflow.models import Workflow
 
-BASE_DIR = os.path.abspath(os.path.dirname(__file__))
-
-class Config(object):
-    SQLALCHEMY_DATABASE_URI = 'sqlite:///' + os.path.join(BASE_DIR, 'app.db')
+class LeaderConfig(object):
+    SQLALCHEMY_DATABASE_URI = 'sqlite://'
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     JWT_SECRET_KEY = secrets.token_urlsafe(64)
     PROPAGATE_EXCEPTIONS = True
-    LOGGING_LEVEL = logging.INFO
+    LOGGING_LEVEL = logging.DEBUG
     GRPC_LISTEN_PORT = 1990
 
+
+class FollowerConfig(object):
+    SQLALCHEMY_DATABASE_URI = 'sqlite://'
+    SQLALCHEMY_TRACK_MODIFICATIONS = False
+    JWT_SECRET_KEY = secrets.token_urlsafe(64)
+    PROPAGATE_EXCEPTIONS = True
+    LOGGING_LEVEL = logging.DEBUG
+    GRPC_LISTEN_PORT = 2990
+
+def run_leader():
+    create_app(LeaderConfig)
+    db.create_all()
+    workflow = Workflow(
+        name='test_wf',
+
+    )
+
+
+def run_follower():
+    pass
+
+
+if __name__ == '__main__':
+    pass

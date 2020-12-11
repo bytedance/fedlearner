@@ -55,6 +55,11 @@ class Scheduler(object):
             print('stopping')
         self._thread.join()
         self._running = False
+    
+    def schedule_workflow(self, workflow_id):
+        with self._condition:
+            self._pending.append(workflow_id)
+            self._condition.notify_all()
 
     def _routine(self):
         interval = os.environ.get(

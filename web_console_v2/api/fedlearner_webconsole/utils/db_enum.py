@@ -14,7 +14,7 @@
 
 # coding: utf-8
 
-from fedlearner_webconsole.app import db
+from fedlearner_webconsole.db import db
 
 class DBEnum(db.TypeDecorator):
     impl = db.Integer

@@ -31,6 +31,7 @@ class BaseTestCase(TestCase):
     JWT_SECRET_KEY = secrets.token_urlsafe(64)
     PROPAGATE_EXCEPTIONS = True
     LOGGING_LEVEL = logging.DEBUG
+    GRPC_LISTEN_PORT = 1990
 
     def create_app(self):
         return create_app(self)

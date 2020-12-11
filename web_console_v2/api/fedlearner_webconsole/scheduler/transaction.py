@@ -27,11 +27,12 @@ class TransactionManager(object):
         (WorkflowState.NEW, WorkflowState.READY),
         (WorkflowState.READY, WorkflowState.RUNNING),
         (WorkflowState.RUNNING, WorkflowState.STOPPED),
-        (WorkflowState.STOPPED, WorkflowState.RUNNING)
+        (WorkflowState.STOPPED, WorkflowState.READY)
     ]
 
     VALID_TRANSACTION_TRANSITIONS = [
         (TransactionState.ABORTED, TransactionState.READY),
+        (TransactionState.READY, TransactionState.PARTICIPANT_ABORTING),
 
         (TransactionState.READY, TransactionState.COORDINATOR_PREPARE),
         # (TransactionState.COORDINATOR_PREPARE, TransactionState.COORDINATOR_COMMITTABLE),
@@ -126,13 +127,23 @@ class TransactionManager(object):
         return self._workflow.transaction_state
 
     def commit(self):
+        if self._workflow.target_state == WorkflowState.STOPPED:
+            # TODO: delete jobs from k8s
+            pass
+        elif self._workflow.target_state == WorkflowState.READY:
+            # TODO: create workflow jobs in database according to config
+            pass
+
         self._workflow.state = self._workflow.target_state
         self._workflow.target_state = WorkflowState.INVALID
         self._workflow.transaction_state = TransactionState.READY
         self._reload()
 
     def process(self):
-        self._reload()
+        # reload workflow and resolve -ing states
+        self.update_state(
+            self._workflow.state, self._workflow.target_state,
+            self._workflow.transaction_state)
 
         if not self._recover_from_abort():
             return
@@ -189,7 +200,16 @@ class TransactionManager(object):
         self._workflow = self._sess.query(Workflow).get(self._workflow_id)
 
     def _prepare(self):
-        return True
+        if self._workflow.target_state == WorkflowState.READY:
+            return False
+        elif self._workflow.target_state == WorkflowState.RUNNING:
+            return True
+        elif self._workflow.target_state == WorkflowState.STOPPED:
+            return True
+        else:
+            raise RuntimeError(
+                "Invalid target_state %s"%self._workflow.target_state)
+        return False
 
     def _rollback(self):
         pass
