@@ -38,12 +38,14 @@ message CheckConnectionResponse {
 message UpdateWorkflowStateRequest {
     ProjAuthInfo auth_info = 1;
     string workflow_name = 2;
-    int state = 3;
+    int64 state = 3;
+    int64 target_state = 4;
+    int64 transaction_state = 5;
 }
 
 message UpdateWorkflowStateResponse {
     Status status = 1;
-    int state = 2;
+    int64 transaction_state = 5;
 }
 
 service WebConsoleV2Service {

@@ -20,7 +20,7 @@ class DBEnum(db.TypeDecorator):
     impl = db.Integer
 
     def __init__(self, enumtype, *args, **kwargs):
-        super(IntEnum, self).__init__(*args, **kwargs)
+        super(DBEnum, self).__init__(*args, **kwargs)
         self._enumtype = enumtype
 
     def process_bind_param(self, value, _):

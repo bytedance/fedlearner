@@ -23,43 +23,39 @@ from fedlearner_webconsole.proto import workflow_pb2
 
 class WorkflowState(enum.Enum):
     INVALID = 0
+    NEW = 1
+    READY = 2
+    RUNNING = 3
+    STOPPED = 4
 
-    # 2PC create
-    CREATE_COORDINATOR_PREPARE = 1
-    CREATE_PARTICIPANT_PREPARE = 2
-    CREATE_COORDINATOR_ABORT = 3
-    CREATE_PARTICIPANT_ABORT = 4
-    CREATE_COORDINATOR_COMMITTABLE = 5
-    CREATE_PARTICIPANT_COMMITTABLE = 6
-    CREATED = 7
 
-    # 2PC start
-    RUNNING_COORDINATOR_PREPARE = 8
-    RUNNING_PARTICIPANT_PREPARE = 9
-    RUNNING_COORDINATOR_ABORT = 10
-    RUNNING_PARTICIPANT_ABORT = 11
-    RUNNING_COORDINATOR_COMMITTABLE = 12
-    RUNNING_PARTICIPANT_COMMITTABLE = 13
-    RUNNING = 14
+class TransactionState(enum.Enum):
+    ABORTED = 0
+    READY = 1
 
-    # 2PC stop
-    # stop cannot be rolled back so participants must vote yes
-    STOP_COORDINATOR_PREPARE = 15
-    STOP_PARTICIPANT_PREPARE = 16
-    STOP_COORDINATOR_ABORT = 17
-    STOP_PARTICIPANT_ABORT = 18
-    STOP_COORDINATOR_COMMITTABLE = 19
-    STOP_PARTICIPANT_COMMITTABLE = 20
-    STOPPED = 21
+    COORDINATOR_PREPARE = 2
+    COORDINATOR_COMMITTABLE = 3
+    COORDINATOR_COMMITTING = 4
+    COORDINATOR_ABORTING = 5
+
+    PARTICIPANT_PREPARE = 6
+    PARTICIPANT_COMMITTABLE = 7
+    PARTICIPANT_COMMITTING = 8
+    PARTICIPANT_ABORTING = 9
 
 
 class Workflow(db.Model):
     __tablename__ = 'workflow_v2'
     id = db.Column(db.Integer, primary_key=True)
     project_id = db.Column(db.Integer)
-    name = db.Column(db.String(255), index=True)
+    name = db.Column(db.String(255), unique=True, index=True)
     config = db.Column(db.Text())
     state = db.Column(DBEnum(WorkflowState), default=WorkflowState.INVALID)
+    target_state = db.Column(DBEnum(WorkflowState), default=WorkflowState.INVALID)
+    transaction_state = db.Column(
+        DBEnum(TransactionState), default=TransactionState.READY)
+    transaction_err = db.Column(db.Text())
+
 
     def set_config(self, proto):
         self.config = proto.SerializeToString()
@@ -68,12 +64,3 @@ class Workflow(db.Model):
         proto = workflow_pb2.Workflow()
         proto.ParseFromString(self.config)
         return proto
-
-    def update_state(self, src_state, dst_state):
-        if self.state != src_state:
-            raise ValueError(
-                "Workflow %s failed to transit from %s to %s: "
-                "current state is %s"%(
-                    self.name, src_state.name,
-                    dst_state.name, self.state.name))
-        self.state = dst_state

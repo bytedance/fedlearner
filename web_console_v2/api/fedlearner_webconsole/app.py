@@ -28,6 +28,7 @@ current_app = None
 from fedlearner_webconsole.auth.apis import initialize_auth_apis
 from fedlearner_webconsole.rpc.server import rpc_server
 from fedlearner_webconsole.db import db
+from fedlearner_webconsole.scheduler.scheduler import scheduler
 
 
 def create_app(config):
@@ -44,6 +45,9 @@ def create_app(config):
 
     rpc_server.stop()
     rpc_server.start(1990)
+
+    scheduler.stop()
+    scheduler.start()
 
     current_app = app
     return app
