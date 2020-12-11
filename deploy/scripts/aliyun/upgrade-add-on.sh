@@ -13,13 +13,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-IMAGE_HUB_URL=$1
-IMAGE_HUB_USERNAME=$2
-IMAGE_HUB_PASSWORD=$3
-EXTERNAL_NAME=$4
-GRPC_SSL_NAME=$5
-DB_PASSWORD=$6
-DOMAIN_URL=$7
+ACCESS_KEY_ID=$1
+ACCESS_KEY_SECRET=$2
+IMAGE_HUB_URL=$3
+IMAGE_HUB_USERNAME=$4
+IMAGE_HUB_PASSWORD=$5
+EXTERNAL_NAME=$6
+GRPC_SSL_NAME=$7
+DB_PASSWORD=$8
+DOMAIN_URL=$9
 
 REGION="cn-beijing"
 ZONE_ID="cn-beijing-h"
@@ -30,8 +32,58 @@ function echo_exit {
     exit 1
 }
 
+function echo_log {
+    msg=$1
+    echo $msg
+    echo $msg >> upgrade.log
+}
+
 function json2yaml {
     python -c 'import json; open("config", "w").write(json.load(open("./tmp","r"))["config"]);'
+}
+
+function install_cli {
+    # Download kubectl
+    kubectl help >/dev/null 2>&1
+    if [ $? -ne 0 ]
+    then
+        echo_log "Download kubectl."
+        curl -LO https://storage.googleapis.com/kubernetes-release/release/v1.18.0/bin/darwin/amd64/kubectl
+        mv kubectl /usr/local/bin/
+        chmod 755 /usr/local/bin/kubectl
+    fi
+
+    # Download helm
+    helm version | grep Version:\"v3 >/dev/null 2>&1
+    if [ $? -ne 0 ]
+    then
+        echo_log "Download helm."
+        curl -LO https://get.helm.sh/helm-v3.2.3-darwin-amd64.tar.gz
+        tar -zxvf helm-v3.2.3-darwin-amd64.tar.gz
+        mv darwin-amd64/helm /usr/local/bin/
+        chmod 755 /usr/local/bin/helm
+        rm -rf darwin-amd64 helm-v3.2.3-darwin-amd64.tar.gz
+    fi
+
+    # Download aliyun cli
+    aliyun version >/dev/null 2>&1
+    if [ $? -ne 0 ]
+    then
+        echo_log "Download aliyun cli."
+        curl -LO https://aliyuncli.alicdn.com/aliyun-cli-macosx-3.0.32-amd64.tgz
+        tar -zxvf aliyun-cli-macosx-3.0.32-amd64.tgz
+        mv aliyun /usr/local/bin
+        chmod 755 /usr/local/bin/aliyun
+        rm -rf aliyun-cli-macosx-3.0.32-amd64.tgz
+    fi
+
+    # Configure aliyun cli
+    aliyun auto-completion
+    aliyun configure set --profile akProfile --region $REGION --access-key-id $ACCESS_KEY_ID --access-key-secret $ACCESS_KEY_SECRET --language en
+    if [ $? -ne 0 ]
+    then
+        echo_exit "Failed to initiate aliyun cli."
+    fi
 }
 
 function upgrade {
@@ -113,10 +165,12 @@ function upgrade {
 
 function usage {
     echo "Usage: "
-    echo "    ./upgrade-add-on.sh image_hub_url image_hub_username image_hub_password external_name grpc_ssl_name db_password domain_url"
+    echo "    ./upgrade-add-on.sh access_key_id access_key_secret image_hub_url image_hub_username image_hub_password external_name grpc_ssl_name db_password domain_url"
     echo ""
     echo "Params:"
     echo ""
+    echo "    access_key_id:     the access key id provided by aliyun, required"
+    echo "    access_key_secret: the access key secret provided by aliyun, required"
     echo "    image_hub_url:      the docker image hub url, required"
     echo "    image_hub_username: the docker image hub username, required"
     echo "    image_hub_password: the docker image hub password, required"
@@ -126,10 +180,11 @@ function usage {
     echo "    domain_url:         the domain url, required"
 }
 
-if [[ -z $IMAGE_HUB_URL ]] || [[ -z $IMAGE_HUB_USERNAME ]] || [[ -z $IMAGE_HUB_PASSWORD ]] || [[ -z $EXTERNAL_NAME  ]] || [[ -z $GRPC_SSL_NAME ]] || [[ -z $DOMAIN_URL ]]
+if [[ -z $ACCESS_KEY_ID ]] || [[ -z $ACCESS_KEY_SECRET ]] || [[ -z $IMAGE_HUB_URL ]] || [[ -z $IMAGE_HUB_USERNAME ]] || [[ -z $IMAGE_HUB_PASSWORD ]] || [[ -z $EXTERNAL_NAME  ]] || [[ -z $GRPC_SSL_NAME ]] || [[ -z $DOMAIN_URL ]]
 then
     usage
     exit 1
 else
+    install_cli
     upgrade
 fi
