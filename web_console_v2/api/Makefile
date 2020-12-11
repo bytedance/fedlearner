@@ -1,12 +1,10 @@
-TF_PATH=../../thirdparty/tensorflow
-
 .PHONY: test unit-test protobuf
 
 lint:
 	pylint --rcfile ../../ci/pylintrc fedlearner_webconsole
 
 protobuf:
-	python -m grpc_tools.protoc -I protocols -I$(TF_PATH) \
+	python -m grpc_tools.protoc -I protocols \
 		--python_out=. \
 		--grpc_python_out=. \
 		protocols/fedlearner_webconsole/proto/*.proto
