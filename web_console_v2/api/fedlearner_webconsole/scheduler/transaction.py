@@ -199,7 +199,7 @@ class TransactionManager(object):
         project_config = self._project.get_config()
         states = []
         for receiver_name in project_config.participants:
-            client = RpcClient(self._project, receiver_name)
+            client = RpcClient(None, receiver_name, self._project.get_config())
             resp = client.update_workflow_transaction_state(
                 state, target_state, transaction_state)
             if resp.status.code == common_pb2.STATUS_SUCCESS:
