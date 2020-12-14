@@ -1,6 +1,6 @@
 import React from 'react'
 import styled from 'styled-components'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { Menu } from 'antd'
 import {
   MailOutlined,
@@ -74,15 +74,13 @@ const SIDEBAR_MENU_ITEMS = [
   },
 ]
 
-const defaultActivePath = SIDEBAR_MENU_ITEMS[0].to
-
 function Sidebar({ className }: StyledComponetProps) {
   const { t } = useTranslation()
   const [isFolded, toggleFold] = useToggle(false)
-
+  const location = useLocation()
   return (
     <Container className={classNames(className, { isFolded })}>
-      <Menu mode="inline" defaultSelectedKeys={[defaultActivePath]}>
+      <Menu mode="inline" defaultSelectedKeys={[location.pathname]}>
         {SIDEBAR_MENU_ITEMS.map((menu) => (
           <Menu.Item key={menu.to}>
             {isFolded ? (
