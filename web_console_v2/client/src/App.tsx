@@ -33,9 +33,7 @@ const AppFooter = styled(Footer)`
 
 const AppMainContent = styled.main`
   grid-area: main-content;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  padding: 10px;
 `
 
 function App(): ReactElement {

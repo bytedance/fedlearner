@@ -16,7 +16,8 @@
     "noEmit": true,
     "jsx": "react",
     "baseUrl": "./src",
-    "typeRoots": ["./src/typings", "./node_modules/@types"],
+    "typeRoots": ["./src/typings", "./node_modules/@types"]
   },
-  "include": ["./src", "./src/typings", "tests"]
+  "include": ["./src", "./src/typings", "tests"],
+  "exclude": ["node_modules", "./node_modules", "./node_modules/*"]
 }

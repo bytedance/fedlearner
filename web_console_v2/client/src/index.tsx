@@ -1,5 +1,6 @@
 import React from 'react'
 import ReactDOM from 'react-dom'
+import { ReactQueryDevtools } from 'react-query-devtools'
 import { BrowserRouter } from 'react-router-dom'
 import App from './App'
 import { ThemeProvider } from 'styled-components'
@@ -15,6 +16,7 @@ ReactDOM.render(
     <RecoilRoot>
       <ThemeProvider theme={defaultTheme}>
         <App />
+        <ReactQueryDevtools />
       </ThemeProvider>
     </RecoilRoot>
   </BrowserRouter>,
