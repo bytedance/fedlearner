@@ -1,75 +1,15 @@
-/**
- * Variable Schema Dictionary of Workflow Template
- */
-import { Variable, VariableAccessMode } from 'typings/variables'
-import { ISchema } from '@formily/react-schema-renderer/src/types'
+import { Job, Variable, VariableAccessMode, VariableComponent } from 'typings/workflow'
+import { FormilySchema } from 'typings/formily'
 import VariableLabel from 'components/VariableLabel/index'
 import { merge } from 'lodash'
+import variablePresets from './variablePresets'
 
-//---- Start examples --------
-// ---------------------------
-const JobNameDefinitionBE = {
-  name: 'job_name',
-  value: '',
-  access_mode: VariableAccessMode.PEER_WRITABLE,
-  widget_schema: {
-    index: 2,
-    component: 'Input',
-  },
-}
-const JobNameDefinitionFE = {
-  widget_schema: {
-    label: 'label_job_name',
-    tooltip: 'tooltip_some_message',
-    placeholder: 'please_enter_name',
-    suffix: '.com',
-  },
-}
-const JOB_NAME_INPUT = createInput(merge(JobNameDefinitionBE, JobNameDefinitionFE) as Variable)
-
-const ParticipantDefinitionBE = {
-  name: 'participant',
-  value: 'foobar',
-  access_mode: VariableAccessMode.PEER_READABLE,
-  widget_schema: {
-    index: 3,
-    component: 'Input',
-  },
-}
-
-const PARTICIPANT_INPUT = createInput(ParticipantDefinitionBE as Variable)
-
-const JobTypeDefinitionBE = {
-  name: 'job_type',
-  value: 1,
-  access_mode: VariableAccessMode.PEER_WRITABLE,
-  widget_schema: {
-    index: 2,
-    options: {
-      type: 'static',
-      source: [
-        { label: 'label_data_join', value: 1 },
-        { label: 'label_psi_data_join', value: 2 },
-      ],
-    },
-    multiple: true,
-  },
-}
-const JobTypeDefinitionFE = {
-  widget_schema: {
-    label: 'label_job_type',
-    placeholder: 'please_select_type',
-    filterable: true,
-  },
-}
-const JOB_TYPE_SELECT = createSelect(merge(JobTypeDefinitionBE, JobTypeDefinitionFE) as Variable)
-
-//---- Variable to Form Schema private helpers --------
+//---- Variable to Schema private helpers --------
 
 function _getPermissions({ access_mode }: Variable) {
   return {
-    editable: access_mode === VariableAccessMode.PEER_READABLE,
-    display: access_mode === VariableAccessMode.PRIVATE,
+    readOnly: access_mode === VariableAccessMode.PEER_READABLE,
+    display: access_mode !== VariableAccessMode.PRIVATE,
   }
 }
 
@@ -84,10 +24,11 @@ function _getDatas({ value, widget_schema: { type, options } }: Variable) {
 }
 
 function _getUIs({
+  name,
   widget_schema: { size, placeholder, index, label, tooltip, description },
 }: Variable) {
   return {
-    title: VariableLabel({ label, tooltip }),
+    title: label ? VariableLabel({ label, tooltip }) : name,
     description,
     'x-index': index,
     'x-component-props': {
@@ -100,12 +41,12 @@ function _getUIs({
 function _getValidations({ widget_schema: { pattern, rules } }: Variable) {
   return {
     pattern,
-    rules,
+    'x-rules': rules,
   }
 }
 
-//---- Form Schema builders --------
-export function createInput(variable: Variable): ISchema {
+//---- Form Schema Workers --------
+export function createInput(variable: Variable): FormilySchema {
   const {
     name,
     widget_schema: { prefix, suffix, showCount, maxLength },
@@ -133,10 +74,10 @@ export function createInput(variable: Variable): ISchema {
   }
 }
 
-export function createTextArea(variable: Variable): ISchema {
+export function createTextArea(variable: Variable): FormilySchema {
   const {
     name,
-    widget_schema: { options, rows, showCount, maxLength },
+    widget_schema: { rows, showCount, maxLength },
   } = variable
 
   return {
@@ -146,7 +87,6 @@ export function createTextArea(variable: Variable): ISchema {
       _getPermissions(variable),
       _getValidations(variable),
       {
-        enum: options?.source || [],
         'x-component': 'TextArea',
         'x-component-props': {
           rows,
@@ -158,7 +98,7 @@ export function createTextArea(variable: Variable): ISchema {
   }
 }
 
-export function createSelect(variable: Variable): ISchema {
+export function createSelect(variable: Variable): FormilySchema {
   const {
     name,
     widget_schema: { options, filterOption, multiple },
@@ -185,7 +125,7 @@ export function createSelect(variable: Variable): ISchema {
   }
 }
 
-export function createSwitch(variable: Variable): ISchema {
+export function createSwitch(variable: Variable): FormilySchema {
   const {
     name,
     widget_schema: { checkedChildren, unCheckedChildren },
@@ -208,7 +148,7 @@ export function createSwitch(variable: Variable): ISchema {
   }
 }
 
-export function createCheckbox(variable: Variable): ISchema {
+export function createCheckbox(variable: Variable): FormilySchema {
   const {
     name,
     widget_schema: { options },
@@ -228,7 +168,7 @@ export function createCheckbox(variable: Variable): ISchema {
   }
 }
 
-export function createRadio(variable: Variable): ISchema {
+export function createRadio(variable: Variable): FormilySchema {
   const {
     name,
     widget_schema: { options },
@@ -248,7 +188,7 @@ export function createRadio(variable: Variable): ISchema {
   }
 }
 
-export function createNumberPicker(variable: Variable): ISchema {
+export function createNumberPicker(variable: Variable): FormilySchema {
   const {
     name,
     widget_schema: { min, max, formatter, parser },
@@ -273,7 +213,7 @@ export function createNumberPicker(variable: Variable): ISchema {
   }
 }
 
-export function createUpload(variable: Variable): ISchema {
+export function createUpload(variable: Variable): FormilySchema {
   const {
     name,
     widget_schema: { accept, action, multiple },
@@ -297,4 +237,46 @@ export function createUpload(variable: Variable): ISchema {
       },
     ),
   }
+}
+
+// ---- Component to Workers map --------
+const componentToWorkersMap: { [key: string]: (v: Variable) => FormilySchema } = {
+  [VariableComponent.Input]: createInput,
+  [VariableComponent.Checkbox]: createCheckbox,
+  [VariableComponent.TextArea]: createTextArea,
+  [VariableComponent.Switch]: createSwitch,
+  [VariableComponent.Select]: createSelect,
+  [VariableComponent.Radio]: createRadio,
+  [VariableComponent.NumberPicker]: createNumberPicker,
+  [VariableComponent.Upload]: createUpload,
+}
+
+/**
+ * Merge server side variable.widget_schema with client side's preset
+ * NOTE: server side's config should always priority to client side!
+ */
+function mergeVariableSchemaWithPresets(variable: Variable) {
+  return Object.assign(variablePresets[variable.name] || {}, variable.widget_schema)
+}
+
+/** Return a formily acceptable schema by server job definition */
+export function buildFormFromJobDef(job: Job): FormilySchema {
+  const { variables, name } = job
+
+  const schema: FormilySchema = {
+    type: 'object',
+    title: name,
+    properties: {},
+  }
+
+  return variables.reduce((schema, current, index) => {
+    const worker = componentToWorkersMap[current.widget_schema.component]
+
+    current.widget_schema = mergeVariableSchemaWithPresets(current)
+    current.widget_schema.index = index
+
+    Object.assign(schema.properties, worker(current))
+
+    return schema
+  }, schema)
 }

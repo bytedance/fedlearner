@@ -10,8 +10,6 @@ export enum VariableComponent {
   Upload = 'Upload',
 }
 
-// TODO: Rules design: the simplest way is give a regexp
-// but still need a path to access advanced validation like function
 export type VariableRule = { validator: RegExp | string; message: string }
 
 interface InputWidgetSchema {
@@ -64,6 +62,7 @@ interface UploadWidgetSchema {
   action?: string
   multiple?: boolean
 }
+
 export interface VariableWidgetSchema
   extends UploadWidgetSchema,
     SelectWidgetSchema,
@@ -104,6 +103,8 @@ export interface VariableWidgetSchema
   [key: string]: any
 }
 
+/** 🚧 NOTE: Types below are NOT the final verison at current stage */
+
 export enum VariableAccessMode {
   UNSPECIFIED,
   PRIVATE,
@@ -116,4 +117,36 @@ export interface Variable {
   value: any
   access_mode: VariableAccessMode
   widget_schema: VariableWidgetSchema
+}
+
+export enum JobType {
+  UNSPECIFIED,
+  RAW_DATA,
+  DATA_JOIN,
+  PSI_DATA_JOIN,
+  NN_MODEL_TRANINING,
+  TREE_MODEL_TRAINING,
+  NN_MODEL_EVALUATION,
+  TREE_MODEL_EVALUATION,
+}
+
+enum JobDependencyType {
+  UNSPECIFIED,
+  ON_COMPLETE,
+  ON_START,
+  MANUAL,
+}
+
+export interface JobDependency {
+  source: string
+  type: JobDependencyType
+}
+
+export interface Job {
+  name: string
+  type: JobType
+  template: string
+  is_federated: boolean
+  variables: Variable[]
+  dependencies: JobDependency[]
 }

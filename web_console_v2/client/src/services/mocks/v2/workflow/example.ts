@@ -1,8 +1,9 @@
-import { VariableAccessMode } from 'typings/variables'
+import { VariableAccessMode } from 'typings/workflow'
 
 // Workflow template demo
 const res = {
   data: {
+    vaiables: [], // workflow global variables, TBD
     jobs: [
       {
         name: 'Raw Data process',
@@ -15,6 +16,7 @@ const res = {
             access_mode: VariableAccessMode.PEER_WRITABLE,
             widget_schema: {
               component: 'Input',
+              type: 'string',
             },
           },
           {
@@ -23,11 +25,12 @@ const res = {
             access_mode: VariableAccessMode.PEER_READABLE,
             widget_schema: {
               component: 'Input',
+              type: 'string',
             },
           },
           {
             name: 'job_type',
-            value: 1,
+            value: [1],
             access_mode: VariableAccessMode.PEER_WRITABLE,
             widget_schema: {
               component: 'Select',
@@ -36,6 +39,7 @@ const res = {
                 source: [1, 2],
               },
               multiple: true,
+              type: 'number',
             },
           },
           {
@@ -44,6 +48,7 @@ const res = {
             access_mode: VariableAccessMode.PEER_WRITABLE,
             widget_schema: {
               component: 'Switch',
+              type: 'boolean',
             },
           },
           {
@@ -53,6 +58,7 @@ const res = {
             widget_schema: {
               component: 'TextArea',
               rows: 4,
+              type: 'string',
             },
           },
           {
@@ -62,7 +68,8 @@ const res = {
             widget_schema: {
               component: 'NumberPicker',
               min: 1,
-              max: 90,
+              max: 80,
+              type: 'number',
             },
           },
           {
@@ -74,12 +81,13 @@ const res = {
               accept: '.crt,.pem',
               action: '/api/v2/upload',
               multiple: true,
+              type: 'array',
             },
           },
         ],
         dependencies: [
           {
-            /** TBD */
+            // TBD
           },
         ],
         template: 'demo',
