@@ -33,6 +33,6 @@ message Participant {
 message Project {
     string project_name = 1;
     string token = 2;
-    repeated Participant participants = 3;
+    map<string, Participant> participants = 3;
     repeated Variable variables = 4;
 }

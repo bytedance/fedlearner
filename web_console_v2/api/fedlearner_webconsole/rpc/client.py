@@ -15,6 +15,7 @@
 # coding: utf-8
 # pylint: disable=broad-except
 
+import os
 import grpc
 from fedlearner_webconsole.proto import (
     service_pb2, service_pb2_grpc, common_pb2
@@ -60,9 +61,9 @@ class RpcClient(object):
         msg = service_pb2.CheckConnectionRequest(
             auth_info=service_pb2.ProjAuthInfo(
                 project_name=self._project.project_name,
-                sender_name=self._project.self_name,
-                receiver_name=self._receiver.name,
-                auth_token=self._receiver.sender_auth_token))
+                sender_name=os.environ.get('SELF_DOMAIN_NAME'),
+                receiver_name=self._receiver.domain_name,
+                auth_token=self._project.token))
         try:
             response = self._client.CheckConnection(
                 request=msg, metadata=self._get_metadata())

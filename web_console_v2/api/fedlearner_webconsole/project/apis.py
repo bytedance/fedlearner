@@ -67,8 +67,8 @@ class ProjectsApi(Resource):
                   message='Currently not support multiple participants.')
 
         certificates = {}
-        for participant in config.get('participants'):
-            if {'name', 'domain_name', 'url'} <= participant.keys():
+        for domain_name, participant in config.get('participants').items():
+            if {'name', 'url'} <= participant.keys():
                 if participant.get('certificates') is not None:
                     current_cert = _parse_certificates(participant.get('certificates'))
                     # check validation
@@ -77,7 +77,8 @@ class ProjectsApi(Resource):
                             abort(HTTPStatus.BAD_REQUEST,
                                   message=ErrorMessage.PARAM_FORMAT_ERROR
                                   .value.format('certificates', '{} not existed'.format(file_name)))
-                    certificates[participant.get('domain_name')] = participant.get('certificates')
+                    certificates[domain_name] = participant.get('certificates')
+                    participant['domain_name'] = domain_name
                     participant.pop('certificates')
                 # format participant to proto structure
                 # TODO: fill other fields
@@ -111,9 +112,9 @@ class ProjectsApi(Resource):
 
         # following operations will change the state of k8s and db
         try:
-            k8s_client = K8sClient()
-            for domain_name, certificate in certificates.items():
-                _create_add_on(k8s_client, domain_name, certificate)
+            # k8s_client = K8sClient()
+            # for domain_name, certificate in certificates.items():
+            #     _create_add_on(k8s_client, domain_name, certificate)
 
             db.session.add(new_project)
             db.session.commit()
