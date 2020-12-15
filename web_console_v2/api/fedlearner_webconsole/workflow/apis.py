@@ -17,6 +17,7 @@
 from uuid import uuid4
 from http import HTTPStatus
 import logging
+from grpc import RpcError
 from flask_restful import Resource, abort, reqparse
 from fedlearner_webconsole.workflow.models import Workflow, WorkflowStatus
 from fedlearner_webconsole.template.apis import \
@@ -109,14 +110,14 @@ class WorkflowCreateApi(Resource):
                                           workflow.project_token,
                                           workflow.peer_forkable)
         # TODO: specify the exception class
-        except:
+        except RpcError:
             db.session.rollback()
             release_workflow(workflow)
             abort(HTTPStatus.INTERNAL_SERVER_ERROR,
                   msg='Sending failed')
         db.session.commit()
-        logging.info('update workflow %d status to CREATE_COMMITTABLE_SENDER'
-                     % workflow.id)
+        logging.info('update workflow %d status to CREATE_COMMITTABLE_SENDER',
+                     workflow.id)
         release_workflow(workflow)
         return {'data': workflow.to_dict()}, HTTPStatus.OK
 
@@ -140,8 +141,8 @@ class WorkflowUpdateApi(Resource):
         workflow.peer_forkable = peer_forkable
         workflow.status = WorkflowStatus.CREATE_COMMITTABLE_RECEIVER
         db.session.commit()
-        logging.info('update workflow %d status to %s' % workflow.id
-                     % workflow.status)
+        logging.info('update workflow %d status to %s', workflow.id,
+                      workflow.status)
         release_workflow(workflow)
         return {'data': workflow.to_dict()}, HTTPStatus.OK
 
@@ -156,14 +157,14 @@ class WorkflowUpdateApi(Resource):
                                            workflow.project_token,
                                            workflow.peer_forkable)
         # TODO: specify the exception class
-        except:
+        except RpcError:
             db.session.rollback()
             release_workflow(workflow)
             abort(HTTPStatus.INTERNAL_SERVER_ERROR,
                   msg='Sending failed')
         db.session.commit()
-        logging.info('update workflow %d status to %s' % workflow.id
-                     % workflow.status)
+        logging.info('update workflow %d status to %s', workflow.id,
+                    workflow.status)
         release_workflow(workflow)
         return {'data': workflow.to_dict()}, HTTPStatus.OK
 
@@ -217,7 +218,7 @@ class WorkflowForkApi(Resource):
         workflow.set_peer_config(peer_template_proto)
         db.session.add(workflow)
         db.session.commit()
-        logging.info('Fork a workflow %s to db' % workflow.name)
+        logging.info('Fork a workflow %s to db', workflow.name)
         return {'data': workflow.to_dict()}, HTTPStatus.CREATED
 
 
@@ -232,14 +233,14 @@ class WorkflowForkSend(Resource):
                                         workflow.name, workflow.project_token,
                                         workflow.config, workflow.peer_config)
         # TODO: specify the exception class
-        except:
+        except RpcError:
             db.session.rollback()
             release_workflow(workflow)
             abort(HTTPStatus.INTERNAL_SERVER_ERROR,
                   msg='Sending failed')
         db.session.commit()
-        logging.info('update workflow %d status to %s' % workflow.id
-                     % workflow.status)
+        logging.info("update workflow %d status to %s", workflow.id,
+                     workflow.status)
         release_workflow(workflow)
         return {'data': workflow.to_dict()}, HTTPStatus.OK
 

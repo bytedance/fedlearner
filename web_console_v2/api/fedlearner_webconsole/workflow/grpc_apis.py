@@ -28,7 +28,6 @@ class WorkflowGrpc:
         config should be binary-byte string.
         """
         # TODO:
-        pass
 
     def create_workflow(self, uid, name, config, project_token, forkable):
         # TODO: implement 2pc (TCC) try() confirm() cancel()
@@ -48,5 +47,6 @@ class WorkflowGrpc:
         # TODO: implement 2pc (TCC) try() confirm() cancel()
         return self._grpc_update_workflow(uid=uid, name=name,
                                           project_token=project_token, status=5,
-                                          config=peer_config, peer_config=config,
+                                          config=peer_config,
+                                          peer_config=config,
                                           can_create=True)
