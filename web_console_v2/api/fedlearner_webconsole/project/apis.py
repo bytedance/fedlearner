@@ -58,38 +58,34 @@ class ProjectsApi(Resource):
         if config.get('participants') is None:
             abort(HTTPStatus.BAD_REQUEST,
                   message=ErrorMessage.PARAM_FORMAT_ERROR.value.format('participants', 'Empty'))
-        if len(config.get('participants')) == 0:
-            abort(HTTPStatus.BAD_REQUEST,
-                  message=ErrorMessage.PARAM_FORMAT_ERROR.value.format('participants', 'Length 0'))
-        elif len(config.get('participants')) > 1:
+        elif len(config.get('participants')) != 1:
             # TODO: remove limit in schema after operator supports multiple participants
             abort(HTTPStatus.BAD_REQUEST,
                   message='Currently not support multiple participants.')
 
         certificates = {}
         for domain_name, participant in config.get('participants').items():
-            if {'name', 'url'} <= participant.keys():
-                if participant.get('certificates') is not None:
-                    current_cert = _parse_certificates(participant.get('certificates'))
-                    # check validation
-                    for file_name in _CERTIFICATE_FILE_NAMES:
-                        if current_cert.get(file_name) is None:
-                            abort(HTTPStatus.BAD_REQUEST,
-                                  message=ErrorMessage.PARAM_FORMAT_ERROR
-                                  .value.format('certificates', '{} not existed'.format(file_name)))
-                    certificates[domain_name] = participant.get('certificates')
-                    participant['domain_name'] = domain_name
-                    participant.pop('certificates')
-                # format participant to proto structure
-                # TODO: fill other fields
-                participant['grpc_spec'] = {
-                    'url': participant.get('url')
-                }
-                participant.pop('url')
-            else:
+            if 'name' not in participant.keys() or 'url' not in participant.keys():
                 abort(HTTPStatus.BAD_REQUEST,
                       message=ErrorMessage.PARAM_FORMAT_ERROR.value
-                      .format('participants', 'Participant must have name, domain_name and url.'))
+                      .format('participants', 'Participant must have name and url.'))
+            if participant.get('certificates') is not None:
+                current_cert = _parse_certificates(participant.get('certificates'))
+                # check validation
+                for file_name in _CERTIFICATE_FILE_NAMES:
+                    if current_cert.get(file_name) is None:
+                        abort(HTTPStatus.BAD_REQUEST,
+                              message=ErrorMessage.PARAM_FORMAT_ERROR
+                              .value.format('certificates', '{} not existed'.format(file_name)))
+                certificates[domain_name] = participant.get('certificates')
+                participant['domain_name'] = domain_name
+                participant.pop('certificates')
+            # format participant to proto structure
+            # TODO: fill other fields
+            participant['grpc_spec'] = {
+                'url': participant.get('url')
+            }
+            participant.pop('url')
 
         new_project = Project()
         # generate token
@@ -112,9 +108,10 @@ class ProjectsApi(Resource):
 
         # following operations will change the state of k8s and db
         try:
-            # k8s_client = K8sClient()
-            # for domain_name, certificate in certificates.items():
-            #     _create_add_on(k8s_client, domain_name, certificate)
+            # TODO: singleton k8s client
+            k8s_client = K8sClient()
+            for domain_name, certificate in certificates.items():
+                _create_add_on(k8s_client, domain_name, certificate)
 
             db.session.add(new_project)
             db.session.commit()
@@ -122,8 +119,7 @@ class ProjectsApi(Resource):
             abort(HTTPStatus.INTERNAL_SERVER_ERROR, msg=e)
 
         return {
-            'data': new_project.to_dict(),
-            'message': ''
+            'data': new_project.to_dict()
         }
 
 
