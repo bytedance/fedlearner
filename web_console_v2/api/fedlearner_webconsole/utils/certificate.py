@@ -21,23 +21,24 @@ from fedlearner_webconsole.utils.k8s_client import K8sClient
 
 def create_image_pull_secret():
     """Create certificate for image hub (Once for a system)"""
-    if os.environ.get('IMAGE_HUB_URL', None) is None or \
-        os.environ.get('IMAGE_HUB_USERNAME', None) is None or \
-        os.environ.get('IMAGE_HUB_PASSWORD', None) is None:
+    image_hub_url = os.environ.get('IMAGE_HUB_URL')
+    image_hub_username = os.environ.get('IMAGE_HUB_USERNAME')
+    image_hub_password = os.environ.get('IMAGE_HUB_PASSWORD')
+    if image_hub_url is None or image_hub_username is None or \
+        image_hub_password is None:
         return
 
     client = K8sClient()
     # using base64 to encode authorization information
     encoded_username_password = str(b64encode(
-        '{}:{}'.format(os.environ.get('IMAGE_HUB_USERNAME'),
-                       os.environ.get('IMAGE_HUB_PASSWORD'))
+        '{}:{}'.format(image_hub_username, image_hub_password)
     ))
     encoded_image_cert = str(b64encode(
         json.dumps({
             'auths': {
-                os.environ.get('IMAGE_HUB_URL'): {
-                    'username': os.environ.get('IMAGE_HUB_USERNAME'),
-                    'password': os.environ.get('IMAGE_HUB_PASSWORD'),
+                image_hub_url: {
+                    'username': image_hub_username,
+                    'password': image_hub_password,
                     'auth': encoded_username_password
                 }
             }})), 'utf-8')

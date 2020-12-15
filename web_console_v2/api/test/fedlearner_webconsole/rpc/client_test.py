@@ -45,6 +45,7 @@ class RpcClientTest(unittest.TestCase):
     _TEST_AUTHORITY = 'test-authority'
     _X_HOST_HEADER_KEY = 'x-host'
     _TEST_X_HOST = 'default.fedlearner.webconsole'
+    _TEST_SELF_DOMAIN_NAME = 'fl-test-self.com'
 
     _DB = create_test_db()
 
@@ -79,6 +80,8 @@ class RpcClientTest(unittest.TestCase):
         cls._DB.create_all()
         cls._DB.session.add(cls._project)
         cls._DB.session.commit()
+
+        os.environ['SELF_DOMAIN_NAME'] = cls._TEST_SELF_DOMAIN_NAME
 
     @classmethod
     def tearDownClass(cls):
@@ -119,7 +122,7 @@ class RpcClientTest(unittest.TestCase):
         self.assertEqual(request, CheckConnectionRequest(
             auth_info=ProjAuthInfo(
                 project_name=self._project_config.project_name,
-                sender_name=os.environ.get('SELF_DOMAIN_NAME'),
+                sender_name=self._TEST_SELF_DOMAIN_NAME,
                 receiver_name=self._participant.domain_name,
                 auth_token=self._project_config.token)
         ))

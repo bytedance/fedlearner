@@ -20,7 +20,7 @@ from base64 import b64decode, b64encode
 from fedlearner_webconsole.project.add_on import _parse_certificates
 
 
-class ProjectApisTest(unittest.TestCase):
+class AddOnTest(unittest.TestCase):
 
     def test_parse_certificates(self):
         file_names = [
