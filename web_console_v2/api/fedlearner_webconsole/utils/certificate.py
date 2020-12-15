@@ -14,6 +14,7 @@
 
 # coding: utf-8
 import os
+import json
 from base64 import b64encode
 from fedlearner_webconsole.utils.k8s_client import K8sClient
 
@@ -32,13 +33,16 @@ def create_image_pull_secret():
                        os.environ.get('IMAGE_HUB_PASSWORD'))
     ))
     encoded_image_cert = str(b64encode(
-        '{"auths":{"{}":{"username":"{}","password":"{}","auth":"{}"}}}'.format(
-            os.environ.get('IMAGE_HUB_URL'), os.environ.get('IMAGE_HUB_USERNAME'),
-            os.environ.get('IMAGE_HUB_PASSWORD'), encoded_username_password
-        )
-    ), 'utf-8')
+        json.dumps({
+            'auths': {
+                os.environ.get('IMAGE_HUB_URL'): {
+                    'username': os.environ.get('IMAGE_HUB_USERNAME'),
+                    'password': os.environ.get('IMAGE_HUB_PASSWORD'),
+                    'auth': encoded_username_password
+                }
+            }})), 'utf-8')
 
-    client.create_secret(
+    client.save_secret(
         data={
             '.dockerconfigjson': encoded_image_cert
         },
@@ -46,5 +50,6 @@ def create_image_pull_secret():
             'name': 'regcred',
             'namespace': 'default'
         },
-        type='kubernetes.io/dockerconfigjson'
+        type='kubernetes.io/dockerconfigjson',
+        name='regcred'
     )

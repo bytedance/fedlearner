@@ -35,7 +35,8 @@ class K8sClient(object):
     def _raise_runtime_error(self, exception: ApiException):
         raise RuntimeError('[{}] {}'.format(exception.status, exception.reason))
 
-    def create_secret(self, data: dict, metadata: dict, type: str):
+    def save_secret(self, data: dict, metadata: dict, type: str, name, namespace='default'):
+        """Create secret. If existed, then replace"""
         request = client.V1Secret(api_version='v1',
                                   data=data,
                                   kind='Secret',
