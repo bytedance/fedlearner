@@ -22,6 +22,8 @@ from fedlearner_webconsole.utils.fake_k8s_client import FakeK8sClient
 _k8s_client = None
 
 def get_client():
+    # pylint: disable=global-statement
+    global _k8s_client
     if _k8s_client is None:
         with threading.Lock():
             # Thread-safe singleton
