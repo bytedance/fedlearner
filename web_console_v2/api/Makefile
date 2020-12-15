@@ -1,3 +1,5 @@
+export PYTHONPATH:=${PWD}:$(PYTHONPATH)
+
 .PHONY: test unit-test protobuf
 
 lint:
