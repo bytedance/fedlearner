@@ -26,7 +26,9 @@ jwt = JWTManager()
 current_app = None
 
 from fedlearner_webconsole.auth.apis import initialize_auth_apis
-from fedlearner_webconsole.template.apis import initialize_template_apis
+from fedlearner_webconsole.template.apis import \
+    initialize_workflow_template_apis
+from fedlearner_webconsole.workflow.apis import initialize_workflow_apis
 from fedlearner_webconsole.rpc.server import rpc_server
 from fedlearner_webconsole.db import db
 
@@ -41,7 +43,8 @@ def create_app(config):
     jwt.init_app(app)
 
     initialize_auth_apis(api)
-    initialize_template_apis(api)
+    initialize_workflow_template_apis(api)
+    initialize_workflow_apis(api)
     api.init_app(app)
 
     rpc_server.stop()
