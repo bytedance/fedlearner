@@ -13,6 +13,7 @@
 # limitations under the License.
 
 # coding: utf-8
+import os
 import unittest
 from unittest.mock import patch
 
@@ -44,6 +45,7 @@ class RpcClientTest(unittest.TestCase):
     _TEST_AUTHORITY = 'test-authority'
     _X_HOST_HEADER_KEY = 'x-host'
     _TEST_X_HOST = 'default.fedlearner.webconsole'
+    _TEST_SELF_DOMAIN_NAME = 'fl-test-self.com'
 
     _DB = create_test_db()
 
@@ -58,12 +60,12 @@ class RpcClientTest(unittest.TestCase):
         )
         participant = Participant(
             name=cls._TEST_RECEIVER_NAME,
-            sender_auth_token='test-sender-auth-token',
+            domain_name='fl-test.com',
             grpc_spec=grpc_spec
         )
         project_config = Project(
             project_name=cls._TEST_PROJECT_NAME,
-            self_name=cls._TEST_PROJECT_NAME,
+            token='test-auth-token',
             participants={
                 cls._TEST_RECEIVER_NAME: participant
             }
@@ -78,6 +80,8 @@ class RpcClientTest(unittest.TestCase):
         cls._DB.create_all()
         cls._DB.session.add(cls._project)
         cls._DB.session.commit()
+
+        os.environ['SELF_DOMAIN_NAME'] = cls._TEST_SELF_DOMAIN_NAME
 
     @classmethod
     def tearDownClass(cls):
@@ -118,9 +122,9 @@ class RpcClientTest(unittest.TestCase):
         self.assertEqual(request, CheckConnectionRequest(
             auth_info=ProjAuthInfo(
                 project_name=self._project_config.project_name,
-                sender_name=self._project_config.self_name,
-                receiver_name=self._participant.name,
-                auth_token=self._participant.sender_auth_token)
+                sender_name=self._TEST_SELF_DOMAIN_NAME,
+                receiver_name=self._participant.domain_name,
+                auth_token=self._project_config.token)
         ))
 
         expected_status = Status(
