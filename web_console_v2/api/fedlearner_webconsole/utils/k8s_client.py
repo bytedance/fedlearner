@@ -106,6 +106,3 @@ class K8sClient(object):
             return self._networking.read_namespaced_ingress(name, namespace)
         except ApiException as e:
             self._raise_runtime_error(e)
-
-
-def get_client()
