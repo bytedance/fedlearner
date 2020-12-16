@@ -20,7 +20,6 @@ from fedlearner_webconsole.auth.models import User
 
 app = create_app('config.Config')
 
-
 @app.cli.command('create-db')
 def create_db():
     db.create_all()

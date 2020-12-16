@@ -26,4 +26,3 @@ class Config(object):
     JWT_SECRET_KEY = secrets.token_urlsafe(64)
     PROPAGATE_EXCEPTIONS = True
     LOGGING_LEVEL = logging.INFO
-
