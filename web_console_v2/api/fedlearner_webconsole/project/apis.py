@@ -16,10 +16,12 @@
 
 from enum import Enum
 from uuid import uuid4
+from flask import request
 from flask_restful import Resource, Api, reqparse
 from google.protobuf.json_format import ParseDict
 from fedlearner_webconsole.db import db
 from fedlearner_webconsole.project.models import Project
+from fedlearner_webconsole.proto.common_pb2 import Variable
 from fedlearner_webconsole.proto.project_pb2 import Project as ProjectProto, Certificate
 from fedlearner_webconsole.utils.k8s_client import K8sClient
 from fedlearner_webconsole.project.add_on import _parse_certificates, _create_add_on
@@ -52,7 +54,67 @@ class ProjectsApi(Resource):
 
         if Project.query.filter_by(name=name).first() is not None:
             raise InvalidArgumentException(details=ErrorMessage.NAME_CONFLICT.value.format(name))
-        new_project = _save_project(None, name, config, comment)
+
+        if config.get('participants') is None:
+            raise InvalidArgumentException(details=ErrorMessage
+                                           .PARAM_FORMAT_ERROR.value.format('participants', 'Empty'))
+        elif len(config.get('participants')) != 1:
+            # TODO: remove limit in schema after operator supports multiple participants
+            raise InvalidArgumentException(details='Currently not support multiple participants.')
+
+        certificates = {}
+        for domain_name, participant in config.get('participants').items():
+            if 'name' not in participant.keys() or 'url' not in participant.keys():
+                raise InvalidArgumentException(details=ErrorMessage.PARAM_FORMAT_ERROR.value
+                                               .format('participants', 'Participant must have name and url.'))
+            if participant.get('certificates') is not None:
+                current_cert = _parse_certificates(participant.get('certificates'))
+                # check validation
+                for file_name in _CERTIFICATE_FILE_NAMES:
+                    if current_cert.get(file_name) is None:
+                        raise InvalidArgumentException(details=ErrorMessage
+                                                       .PARAM_FORMAT_ERROR.value
+                                                       .format('certificates', '{} not existed'.format(file_name)))
+                certificates[domain_name] = participant.get('certificates')
+                participant['domain_name'] = domain_name
+                participant.pop('certificates')
+            # format participant to proto structure
+            # TODO: fill other fields
+            participant['grpc_spec'] = {
+                'url': participant.get('url')
+            }
+            participant.pop('url')
+
+        new_project = Project()
+        # generate token
+        # If users send a token, then use it instead.
+        # If `token` is None, generate a new one by uuid.
+        token = config.get('token', uuid4().hex)
+        config['token'] = token
+
+        # check format of config
+        try:
+            new_project.set_config(ParseDict(config, ProjectProto()))
+        except Exception as e:
+            raise InvalidArgumentException(details=ErrorMessage.PARAM_FORMAT_ERROR.value.format('config', e))
+        new_project.set_certificate(ParseDict({'certificate': certificates},
+                                              Certificate()))
+        new_project.name = name
+        new_project.token = token
+        new_project.comment = comment
+
+        # following operations will change the state of k8s and db
+        try:
+            # TODO: singleton k8s client
+            # k8s_client = K8sClient()
+            # for domain_name, certificate in certificates.items():
+            #     _create_add_on(k8s_client, domain_name, certificate)
+
+            new_project = db.session.merge(new_project)
+            db.session.commit()
+        except Exception as e:
+            raise InvalidArgumentException(details=e)
+
         return {
             'data': new_project.to_dict()
         }
@@ -73,88 +135,30 @@ class ProjectApi(Resource):
             'data': project.to_dict()
         }
 
-    def put(self, project_id):
-        parser = reqparse.RequestParser()
-        parser.add_argument('name', required=True, type=str,
-                            help=ErrorMessage.PARAM_FORMAT_ERROR.value.format('name', 'Empty'))
-        parser.add_argument('config', required=True, type=dict,
-                            help=ErrorMessage.PARAM_FORMAT_ERROR.value.format('config', 'Empty'))
-        parser.add_argument('comment')
-        data = parser.parse_args()
-        name = data['name']
-        config = data['config']
-        comment = data['comment']
-
-        if Project.query.filter_by(id=project_id).first() is None:
+    def patch(self, project_id):
+        project = Project.query.filter_by(id=project_id).first()
+        if project is None:
             raise NotFoundException()
-        updated_project = _save_project(project_id, name, config, comment)
+        config = project.get_config()
+        if request.json.get('token') is not None:
+            new_token = request.json.get('token')
+            config.token = new_token
+            project.token = new_token
+        if request.json.get('variables') is not None:
+            del config.variables[:]
+            config.variables.extend([ParseDict(variable, Variable())
+                                     for variable in request.json.get('variables')])
+        project.set_config(config)
+        if request.json.get('comment') is not None:
+            project.comment = request.json.get('comment')
+
+        try:
+            db.session.commit()
+        except Exception as e:
+            raise InvalidArgumentException(details=e)
         return {
-            'data': updated_project.to_dict()
+            'data': project.to_dict()
         }
-
-
-def _save_project(project_id, name, config, comment):
-    if config.get('participants') is None:
-        raise InvalidArgumentException(details=ErrorMessage
-                                       .PARAM_FORMAT_ERROR.value.format('participants', 'Empty'))
-    elif len(config.get('participants')) != 1:
-        # TODO: remove limit in schema after operator supports multiple participants
-        raise InvalidArgumentException(details='Currently not support multiple participants.')
-
-    certificates = {}
-    for domain_name, participant in config.get('participants').items():
-        if 'name' not in participant.keys() or 'url' not in participant.keys():
-            raise InvalidArgumentException(details=ErrorMessage.PARAM_FORMAT_ERROR.value
-                                           .format('participants', 'Participant must have name and url.'))
-        if participant.get('certificates') is not None:
-            current_cert = _parse_certificates(participant.get('certificates'))
-            # check validation
-            for file_name in _CERTIFICATE_FILE_NAMES:
-                if current_cert.get(file_name) is None:
-                    raise InvalidArgumentException(details=ErrorMessage
-                                                   .PARAM_FORMAT_ERROR.value
-                                                   .format('certificates', '{} not existed'.format(file_name)))
-            certificates[domain_name] = participant.get('certificates')
-            participant['domain_name'] = domain_name
-            participant.pop('certificates')
-        # format participant to proto structure
-        # TODO: fill other fields
-        participant['grpc_spec'] = {
-            'url': participant.get('url')
-        }
-        participant.pop('url')
-
-    new_project = Project()
-    # generate token
-    # If users send a token, then use it instead.
-    # If `token` is None, generate a new one by uuid.
-    token = config.get('token', uuid4().hex)
-    config['token'] = token
-
-    # check format of config
-    try:
-        new_project.set_config(ParseDict(config, ProjectProto()))
-    except Exception as e:
-        raise InvalidArgumentException(details=ErrorMessage.PARAM_FORMAT_ERROR.value.format('config', e))
-    new_project.set_certificate(ParseDict({'certificate': certificates},
-                                          Certificate()))
-    new_project.id = project_id
-    new_project.name = name
-    new_project.token = token
-    new_project.comment = comment
-
-    # following operations will change the state of k8s and db
-    try:
-        # TODO: singleton k8s client
-        # k8s_client = K8sClient()
-        # for domain_name, certificate in certificates.items():
-        #     _create_add_on(k8s_client, domain_name, certificate)
-
-        new_project = db.session.merge(new_project)
-        db.session.commit()
-    except Exception as e:
-        raise InvalidArgumentException(details=e)
-    return new_project
 
 
 def initialize_project_apis(api: Api):
