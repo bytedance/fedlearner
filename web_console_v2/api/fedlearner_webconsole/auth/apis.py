@@ -17,26 +17,29 @@
 
 from http import HTTPStatus
 from flask import request
-from flask_restful import Resource, abort
+from flask_restful import Resource, reqparse
 from flask_jwt_extended import jwt_required, create_access_token
 
 from fedlearner_webconsole.db import db
 from fedlearner_webconsole.auth.models import User
+from fedlearner_webconsole.exceptions import (
+    NotFoundException, InvalidArgumentException,
+    ResourceConflictException, UnauthorizedException)
 
 class SigninApi(Resource):
     def post(self):
-        username = request.json.get('username')
-        password = request.json.get('password')
-        if username is None:
-            abort(HTTPStatus.BAD_REQUEST, msg='username is empty')
-        if password is None:
-            abort(HTTPStatus.BAD_REQUEST, msg='password is empty')
+        parser = reqparse.RequestParser()
+        parser.add_argument('username', required=True, help='username is empty')
+        parser.add_argument('password', required=True, help='password is empty')
+        data = parser.parse_args()
+        username = data['username']
+        password = data['password']
 
         user = User.query.filter_by(username=username).first()
         if user is None:
-            abort(HTTPStatus.NOT_FOUND, msg='user %s not found'%username)
+            raise NotFoundException()
         if not user.verify_password(password):
-            abort(HTTPStatus.UNAUTHORIZED, msg='Invalid password')
+            raise UnauthorizedException('Invalid password')
         token = create_access_token(identity=username)
         return {'access_token': token}, HTTPStatus.OK
 
@@ -48,15 +51,16 @@ class UsersApi(Resource):
 
     @jwt_required
     def post(self):
-        username = request.json.get('username')
-        password = request.json.get('password')
-        if username is None:
-            abort(HTTPStatus.BAD_REQUEST, msg='username is empty')
-        if password is None:
-            abort(HTTPStatus.BAD_REQUEST, msg='password is empty')
+        parser = reqparse.RequestParser()
+        parser.add_argument('username', required=True, help='username is empty')
+        parser.add_argument('password', required=True, help='password is empty')
+        data = parser.parse_args()
+        username = data['username']
+        password = data['password']
 
         if User.query.filter_by(username=username).first() is not None:
-            abort(HTTPStatus.CONFLICT, msg='user %s already exists'%username)
+            raise ResourceConflictException(
+                'user {} already exists'.format(username))
         user = User(username=username)
         user.set_password(password)
         db.session.add(user)
@@ -69,8 +73,7 @@ class UserApi(Resource):
     def _find_user(self, user_id):
         user = User.query.filter_by(id=user_id).first()
         if user is None:
-            abort(HTTPStatus.NOT_FOUND,
-                  msg='user with id %d not found'%user_id)
+            raise NotFoundException()
         return user
 
     @jwt_required
@@ -87,15 +90,17 @@ class UserApi(Resource):
             old_password = data.pop('old_password', None)
 
         if data:
-            abort(HTTPStatus.BAD_REQUEST, msg='invalid fields %s'%data.keys())
+            details = {}
+            for key in data.keys():
+                details[key] = 'Invalid field'
+            raise InvalidArgumentException(details=details)
 
         if new_password:
             if not user.verify_password(old_password):
-                abort(HTTPStatus.UNAUTHORIZED, msg='wrong old_password')
+                raise UnauthorizedException(message='Wrong old password')
             user.set_password(new_password)
 
         db.session.commit()
-
         return {'username': user.username}, HTTPStatus.OK
 
     @jwt_required

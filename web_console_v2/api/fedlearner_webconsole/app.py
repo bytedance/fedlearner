@@ -14,8 +14,11 @@
 
 # coding: utf-8
 # pylint: disable=wrong-import-position, global-statement
+import logging
+import traceback
 
-from flask import Flask
+from http import HTTPStatus
+from flask import Flask, jsonify
 from flask_migrate import Migrate
 from flask_restful import Api
 from flask_jwt_extended import JWTManager
@@ -30,6 +33,31 @@ from fedlearner_webconsole.project.apis import initialize_project_apis
 from fedlearner_webconsole.template.apis import initialize_template_apis
 from fedlearner_webconsole.rpc.server import rpc_server
 from fedlearner_webconsole.db import db
+from fedlearner_webconsole.exceptions import (
+    make_response, WebConsoleApiException, InvalidArgumentException)
+
+
+def _handle_bad_request(error):
+    """Handles the bad request raised by reqparse"""
+    if not isinstance(error, WebConsoleApiException):
+        # error.data.message contains the details raised by reqparse
+        details = None
+        if error.data is not None:
+            details = error.data['message']
+        return make_response(InvalidArgumentException(details))
+    return error
+
+
+def _handle_uncaught_exception(error):
+    """A fallback catcher for all exceptions."""
+    logging.error('Uncaught exception %s, stack trace:\n %s', str(error),
+                  traceback.format_exc())
+    response = jsonify(
+        code=500,
+        msg='Unknown error',
+    )
+    response.status_code = HTTPStatus.INTERNAL_SERVER_ERROR
+    return response
 
 
 def create_app(config):
@@ -41,10 +69,21 @@ def create_app(config):
     migrate.init_app(app, db)
     jwt.init_app(app)
 
+    # Error handlers
+    app.register_error_handler(400, _handle_bad_request)
+    app.register_error_handler(WebConsoleApiException, make_response)
+    app.register_error_handler(Exception, _handle_uncaught_exception)
+
     initialize_auth_apis(api)
     initialize_project_apis(api)
     initialize_template_apis(api)
+    # A hack that use our customized error handlers
+    # Ref: https://github.com/flask-restful/flask-restful/issues/280
+    handle_exception = app.handle_exception
+    handle_user_exception = app.handle_user_exception
     api.init_app(app)
+    app.handle_exception = handle_exception
+    app.handle_user_exception = handle_user_exception
 
     rpc_server.stop()
     rpc_server.start(1990)
