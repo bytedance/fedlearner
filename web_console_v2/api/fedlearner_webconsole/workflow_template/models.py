@@ -18,7 +18,7 @@ from fedlearner_webconsole.db import db
 from fedlearner_webconsole.proto import workflow_definition_pb2
 
 
-class Template(db.Model):
+class WorkflowTemplate(db.Model):
     __tablename__ = 'template_v2'
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(255), unique=True, index=True)
