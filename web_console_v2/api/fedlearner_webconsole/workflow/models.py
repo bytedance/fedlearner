@@ -14,17 +14,17 @@
 
 # coding: utf-8
 import enum
-from datetime import datetime
+from sqlalchemy.sql import func
 from google.protobuf import json_format
 from fedlearner_webconsole.db import db
 from fedlearner_webconsole.proto import workflow_definition_pb2
 
 
 class WorkflowStatus(enum.Enum):
-    CREATE_PREPARE_SENDER = 1
-    CREATE_PREPARE_RECEIVER = 2
-    CREATE_COMMITTABLE_SENDER = 3
-    CREATE_COMMITTABLE_RECEIVER = 4
+    CREATE_SENDER_PREPARE = 1
+    CREATE_RECEIVER_PREPARE = 2
+    CREATE_SENDER_COMMITTABLE = 3
+    CREATE_RECEIVER_COMMITTABLE = 4
     CREATED = 5
     FORK_SENDER = 6
 
@@ -43,11 +43,12 @@ class Workflow(db.Model):
     peer_config = db.Column(db.Text())
     comment = db.Column(db.String(255))
 
-    created_at = db.Column(
-        db.DateTime, nullable=False, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow,
-                           onupdate=datetime.utcnow)
-    deleted_at = db.Column(db.DateTime)
+    created_at = db.Column(db.DateTime(timezone=True),
+                           server_default=func.now())
+    updated_at = db.Column(db.DateTime(timezone=True),
+                           server_onupdate=func.now(),
+                           server_default=func.now())
+    deleted_at = db.Column(db.DateTime(timezone=True))
 
     def set_config(self, proto):
         self.config = proto.SerializeToString()

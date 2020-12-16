@@ -13,18 +13,17 @@
 # limitations under the License.
 
 # coding: utf-8
-# pylint: disable=cyclic-import
 class WorkflowGrpc:
     def _grpc_update_workflow(self, uid, status, project_token, name=None,
                               forkable=None, config=None,
                               peer_config=None, can_create=False):
         """
-        CREATE_PREPARE_SENDER = 1
-        CREATE_PREPARE_RECEIVER = 2
-        CREATE_COMMITTABLE_SENDER = 3
-        CREATE_COMMITTABLE_RECEIVER  = 4
+        CREATE_SENDER_PREPARE = 1
+        CREATE_RECEIVER_PREPARE = 2
+        CREATE_SENDER_COMMITTABLE = 3
+        CREATE_RECEIVER_COMMITTABLE  = 4
         CREATED = 5
-
+        FORK_SENDER = 6
         config should be binary-byte string.
         """
         # TODO:

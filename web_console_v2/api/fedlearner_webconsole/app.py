@@ -30,7 +30,9 @@ current_app = None
 
 from fedlearner_webconsole.auth.apis import initialize_auth_apis
 from fedlearner_webconsole.project.apis import initialize_project_apis
-from fedlearner_webconsole.template.apis import initialize_template_apis
+from fedlearner_webconsole.workflow_template.apis \
+    import initialize_workflow_template_apis
+from fedlearner_webconsole.workflow.apis import initialize_workflow_apis
 from fedlearner_webconsole.rpc.server import rpc_server
 from fedlearner_webconsole.db import db
 from fedlearner_webconsole.exceptions import (
@@ -76,7 +78,8 @@ def create_app(config):
 
     initialize_auth_apis(api)
     initialize_project_apis(api)
-    initialize_template_apis(api)
+    initialize_workflow_template_apis(api)
+    initialize_workflow_apis(api)
     # A hack that use our customized error handlers
     # Ref: https://github.com/flask-restful/flask-restful/issues/280
     handle_exception = app.handle_exception
