@@ -17,8 +17,8 @@ import enum
 from sqlalchemy.sql import func
 from google.protobuf import json_format
 from fedlearner_webconsole.db import db
+from fedlearner_webconsole.project.models import Project
 from fedlearner_webconsole.proto import workflow_definition_pb2
-
 
 class WorkflowStatus(enum.Enum):
     CREATE_SENDER_PREPARE = 1
@@ -33,7 +33,7 @@ class Workflow(db.Model):
     __tablename__ = 'workflow_v2'
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(255), index=True)
-    project_token = db.Column(db.String(255), nullable=False)
+    project_id = db.Column(db.Integer, nullable=False)
     status = db.Column(db.Enum(WorkflowStatus), nullable=False)
     uid = db.Column(db.String(255), unique=True, nullable=False, index=True)
     forkable = db.Column(db.Boolean, default=False)
@@ -67,6 +67,10 @@ class Workflow(db.Model):
             proto.ParseFromString(self.peer_config)
         return proto
 
+    def get_project_token(self):
+        project = Project.query.filter_by(id=self.project_id).first
+        return project.token
+
     def to_dict(self):
         dic = {
             col.name: getattr(self, col.name) for col in self.__table__.columns
@@ -76,8 +80,8 @@ class Workflow(db.Model):
         dic['peer_config'] = json_format.MessageToDict(
             self.get_peer_config(), preserving_proto_field_name=True)
         dic['status'] = self.status.value
-        dic['created_at'] = self.created_at.strftime("%Y-%m-%d %H:%M:%S")
-        dic['updated_at'] = self.updated_at.strftime("%Y-%m-%d %H:%M:%S")
+        dic['created_at'] = self.created_at.strftime('%Y-%m-%d %H:%M:%S')
+        dic['updated_at'] = self.updated_at.strftime('%Y-%m-%d %H:%M:%S')
         if self.deleted_at is not None:
-            dic['deleted_at'] = self.deleted_at.strftime("%Y-%m-%d %H:%M:%S")
+            dic['deleted_at'] = self.deleted_at.strftime('%Y-%m-%d %H:%M:%S')
         return dic

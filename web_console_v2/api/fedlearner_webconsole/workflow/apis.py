@@ -19,6 +19,7 @@ import logging
 from threading import Lock
 from grpc import RpcError
 from flask_restful import Resource, reqparse
+from fedlearner_webconsole.project.models import Project
 from fedlearner_webconsole.workflow.models import Workflow, WorkflowStatus
 from fedlearner_webconsole.workflow_template.apis import \
     dict_to_workflow_definition, check_group_same
@@ -62,7 +63,6 @@ class WorkflowListApi(Resource):
                          Workflow.query.all()]}, HTTPStatus.OK
 
     def post(self):
-
         parser = reqparse.RequestParser()
         parser.add_argument('name', required=True, help='name is empty')
         parser.add_argument('comment')
@@ -70,24 +70,26 @@ class WorkflowListApi(Resource):
                             help='config is empty')
         parser.add_argument('peer_forkable', type=bool, required=True,
                             help='peer_forkable is empty')
-        parser.add_argument('project_token', required=True,
-                            help='project_token is empty')
+        parser.add_argument('project_id', required=True,
+                            help='project_id is empty')
         data = parser.parse_args()
         name = data['name']
         comment = data['comment']
         config = data['config']
         peer_forkable = data['peer_forkable']
-        project_token = data['project_token']
-
+        project_id = data['project_id']
+        if Project.query.filter_by(id=project_id).first() is None:
+            raise InvalidArgumentException('project does not exist')
         if Workflow.query.filter_by(name=name).first() is not None:
-            raise ResourceConflictException('workflow %s already exists' % name)
+            raise ResourceConflictException(
+                'Workflow {} already exists.'.format(name))
         # form to proto buffer
         template_proto = dict_to_workflow_definition(config)
         uuid = uuid4().hex
         workflow = Workflow(name=name, comment=comment,
                             group_alias=template_proto.group_alias,
                             peer_forkable=peer_forkable,
-                            project_token=project_token,
+                            project_id=project_id,
                             uid=uuid,
                             status=WorkflowStatus.CREATE_SENDER_PREPARE)
         workflow.set_config(template_proto)
@@ -120,13 +122,13 @@ class WorkflowApi(Resource):
         workflow.peer_forkable = peer_forkable
         workflow.status = WorkflowStatus.CREATE_RECEIVER_COMMITTABLE
         db.session.commit()
-        logging.info('update workflow %d status to %s', workflow.id,
-                     workflow.status)
+        logging.info('update workflow %d status to %s'
+                     , workflow.id, workflow.status)
         release_workflow(workflow)
         return {'data': workflow.to_dict()}, HTTPStatus.OK
 
 
-class WorkflowCreateApi(Resource):
+class WorkflowSendApi(Resource):
     def patch(self, workflow_id, workflow_status):
         workflow = _get_workflow(workflow_id)
         lock_workflow(workflow, [WorkflowStatus(workflow_status)])
@@ -139,7 +141,7 @@ class WorkflowCreateApi(Resource):
                 workflow_grpc.create_workflow(workflow.uid,
                                               workflow.name,
                                               workflow.config,
-                                              workflow.project_token,
+                                              workflow.get_project_token(),
                                               workflow.peer_forkable)
             elif WorkflowStatus(
                    workflow_status) \
@@ -149,7 +151,7 @@ class WorkflowCreateApi(Resource):
                 #  and writeable Variables
                 workflow_grpc.confirm_workflow(workflow.uid,
                                                workflow.config,
-                                               workflow.project_token,
+                                               workflow.get_project_token(),
                                                workflow.peer_forkable)
             elif WorkflowStatus(workflow_status) == WorkflowStatus.FORK_SENDER:
                 workflow.status = WorkflowStatus.CREATED
@@ -157,10 +159,11 @@ class WorkflowCreateApi(Resource):
                 #  and writeable Variables
                 workflow_grpc.fork_workflow(workflow.uid,
                                             workflow.name,
-                                            workflow.project_token,
+                                            workflow.get_project_token(),
                                             workflow.config,
                                             workflow.peer_config)
             else:
+                release_workflow(workflow)
                 raise InvalidArgumentException('Wrong workflow status.')
         # TODO: specify the exception class
         except RpcError:
@@ -174,7 +177,6 @@ class WorkflowCreateApi(Resource):
         return {'data': workflow.to_dict()}, HTTPStatus.OK
 
 
-
 class WorkflowForkApi(Resource):
     def post(self):
         parser = reqparse.RequestParser()
@@ -186,8 +188,6 @@ class WorkflowForkApi(Resource):
         parser.add_argument('config', type=dict, required=True,
                             help='config is empty')
         parser.add_argument('peer_config', type=dict)
-        parser.add_argument('project_token', required=True,
-                            help='project_token is empty')
         data = parser.parse_args()
         origin_id = data['origin_id']
         origin_workflow = _get_workflow(origin_id)
@@ -196,18 +196,19 @@ class WorkflowForkApi(Resource):
         name = data['name']
         comment = data['comment']
         config = data['config']
-        project_token = data['project_token']
+        project_id = origin_workflow.project_id
         peer_config = data['peer_config']
         if Workflow.query.filter_by(name=name).first() is not None:
-            raise ResourceConflictException('workflow %s already exists' % name)
+            raise ResourceConflictException(
+                'workflow {} already exists'.format(name))
         template_proto = dict_to_workflow_definition(config)
         peer_template_proto = dict_to_workflow_definition(peer_config)
 
         # check if fork from orgin
         if (not check_group_same(template_proto,
-                                  origin_workflow.get_config)) and (
+                                  origin_workflow.get_config())) and (
              not check_group_same(peer_template_proto,
-                                   origin_workflow.get_peer_config)):
+                                   origin_workflow.get_peer_config())):
             raise InvalidArgumentException('wrong config form')
 
         uuid = uuid4().hex
@@ -215,7 +216,7 @@ class WorkflowForkApi(Resource):
                             group_alias=template_proto.group_alias,
                             forkable=False,
                             peer_forkable=False,
-                            project_token=project_token,
+                            project_id=project_id,
                             uid=uuid, status=WorkflowStatus.FORK_SENDER)
         workflow.set_config(template_proto)
         workflow.set_peer_config(peer_template_proto)
@@ -228,6 +229,6 @@ class WorkflowForkApi(Resource):
 def initialize_workflow_apis(api):
     api.add_resource(WorkflowListApi, '/workflows')
     api.add_resource(WorkflowApi, '/workflows/<int:workflow_id>')
-    api.add_resource(WorkflowCreateApi,
+    api.add_resource(WorkflowSendApi,
                      '/workflows/send/<int:workflow_id>/<int:workflow_status>')
     api.add_resource(WorkflowForkApi, '/workflows/fork')

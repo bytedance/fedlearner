@@ -15,7 +15,7 @@
 # coding: utf-8
 from http import HTTPStatus
 import logging
-from flask_restful import Resource, reqparse
+from flask_restful import Resource, reqparse, request
 from google.protobuf.json_format import ParseDict, ParseError
 from fedlearner_webconsole.workflow_template.models import WorkflowTemplate
 from fedlearner_webconsole.workflow.models import Workflow
@@ -28,12 +28,8 @@ from fedlearner_webconsole.exceptions import (
 
 def check_group_same(config_a, config_b):
     """
-    check two WorkflowDefinition
-    Args:
-        config_a: WorkflowDefinition
-        config_b: WorkflowDefinition
-    Returns:
-        boolean
+    Checks two workflow definitions are same or
+    not from federated job perspective.
     """
     job_dict_a = {}
     job_dict_b = {}
@@ -48,12 +44,8 @@ def check_group_same(config_a, config_b):
 
 def check_group_match(config_a, config_b):
     """
-    check two WorkflowDefinition
-    Args:
-        config_a: WorkflowDefinition
-        config_b: WorkflowDefinition
-    Returns:
-        boolean
+    Checks two workflow definitions are match
+     or not from federated job perspective.
     """
     job_dict_a = {}
     job_dict_b = {}
@@ -65,6 +57,7 @@ def check_group_match(config_a, config_b):
             job_dict_b[job.name] = not job.is_left
     return job_dict_a == job_dict_b
 
+
 def dict_to_workflow_definition(config):
     template_proto = workflow_definition_pb2.WorkflowDefinition()
     try:
@@ -74,11 +67,29 @@ def dict_to_workflow_definition(config):
     return template_proto
 
 
-class WorkflowTemplateListApi(Resource):
+class WorkflowTemplatesApi(Resource):
+    def _get_match_templates(self, workflow_id):
+        """
+        find templates which match the peer's config.
+        """
+        workflow = Workflow.query.filter_by(id=workflow_id).first()
+        if workflow is None:
+            raise NotFoundException()
+        templates = WorkflowTemplate.query.filter_by(
+            group_alias=workflow.group_alias)
+        result = []
+        for template in templates:
+            if check_group_match(template.get_config(),
+                                 workflow.get_peer_config):
+                result.append(template.to_dict())
+        return {'data': result}, HTTPStatus.OK
 
     def get(self):
+        if 'workflow_id' in request.args:
+            return self._get_match_templates(request.args['workflow_id'])
         return {'data': [row.to_dict() for row in
                          WorkflowTemplate.query.all()]}, HTTPStatus.OK
+
 
     def post(self):
         parser = reqparse.RequestParser()
@@ -92,16 +103,17 @@ class WorkflowTemplateListApi(Resource):
         config = data['config']
         if WorkflowTemplate.query.filter_by(name=name).first() is not None:
             raise ResourceConflictException(
-                'workflow_template %s already exists' % name)
+                'Workflow template {} already exists'.format(name))
         # form to proto buffer
         template_proto = dict_to_workflow_definition(config)
         group_template = WorkflowTemplate.query.filter_by(
             group_alias=template_proto.group_alias).first()
         if group_template is not None:
-            group_proto = group_template.get_config
+            group_proto = group_template.get_config()
             if not (check_group_match(group_proto, template_proto) or
                     check_group_same(group_proto, template_proto)):
-                raise InvalidArgumentException('Cant match the group')
+                raise InvalidArgumentException(
+                    'The group is not matched with existing groups.')
         template = WorkflowTemplate(name=name, comment=comment,
                             group_alias=template_proto.group_alias)
         template.set_config(template_proto)
@@ -119,24 +131,7 @@ class WorkflowTemplateApi(Resource):
         return {'data': result.to_dict()}, HTTPStatus.OK
 
 
-class WorkflowTemplateGroupApi(Resource):
-    def get(self, workflow_id):
-        workflow = Workflow.query.filter_by(id=workflow_id).first()
-        if workflow is None:
-            raise NotFoundException()
-        templates = WorkflowTemplate.query.filter_by(
-            group_alias=workflow.group_alias)
-        result = []
-        for template in templates:
-            if check_group_match(template.get_config(),
-                                 workflow.get_peer_config):
-                result.append(template.to_dict())
-        return {'data': result}, HTTPStatus.OK
-
-
 def initialize_workflow_template_apis(api):
-    api.add_resource(WorkflowTemplateListApi, '/workflow_templates')
+    api.add_resource(WorkflowTemplatesApi, '/workflow_templates')
     api.add_resource(WorkflowTemplateApi,
                      '/workflow_templates/<int:template_id>')
-    api.add_resource(WorkflowTemplateGroupApi
-                     , '/workflow_templates/creat_workflow/<int:workflow_id>')
