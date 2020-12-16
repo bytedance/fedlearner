@@ -28,6 +28,7 @@ class WorkflowTemplate(db.Model):
 
     def set_config(self, proto):
         self.config = proto.SerializeToString()
+
     def get_config(self):
         proto = workflow_definition_pb2.WorkflowDefinition()
         proto.ParseFromString(self.config)

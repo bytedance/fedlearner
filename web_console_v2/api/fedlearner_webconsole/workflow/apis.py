@@ -18,7 +18,7 @@ from http import HTTPStatus
 import logging
 from threading import Lock
 from grpc import RpcError
-from flask_restful import Resource, reqparse
+from flask_restful import Resource, reqparse, request
 from fedlearner_webconsole.project.models import Project
 from fedlearner_webconsole.workflow.models import Workflow, WorkflowStatus
 from fedlearner_webconsole.workflow_template.apis import \
@@ -127,9 +127,10 @@ class WorkflowApi(Resource):
         release_workflow(workflow)
         return {'data': workflow.to_dict()}, HTTPStatus.OK
 
-
-class WorkflowSendApi(Resource):
-    def patch(self, workflow_id, workflow_status):
+    def patch(self, workflow_id):
+        if 'workflow_status' not in request.args:
+            raise InvalidArgumentException('workflow_status is empty.')
+        workflow_status = request.args['workflow_status']
         workflow = _get_workflow(workflow_id)
         lock_workflow(workflow, [WorkflowStatus(workflow_status)])
         try:
@@ -165,23 +166,19 @@ class WorkflowSendApi(Resource):
             else:
                 release_workflow(workflow)
                 raise InvalidArgumentException('Wrong workflow status.')
+            db.session.commit()
+            logging.info('update workflow %d status to %s',
+                         workflow.id, workflow.status)
+            release_workflow(workflow)
         # TODO: specify the exception class
         except RpcError:
             db.session.rollback()
             release_workflow(workflow)
             raise ResourceConflictException('Rpc Sending failed')
-        db.session.commit()
-        logging.info('update workflow %d status to %s',
-                     workflow.id, workflow.status)
-        release_workflow(workflow)
         return {'data': workflow.to_dict()}, HTTPStatus.OK
 
-
-class WorkflowForkApi(Resource):
-    def post(self):
+    def post(self, workflow_id):
         parser = reqparse.RequestParser()
-        parser.add_argument('origin_id', required=True,
-                            help='origin_id is empty')
         parser.add_argument('name', required=True,
                             help='name is empty')
         parser.add_argument('comment')
@@ -189,7 +186,7 @@ class WorkflowForkApi(Resource):
                             help='config is empty')
         parser.add_argument('peer_config', type=dict)
         data = parser.parse_args()
-        origin_id = data['origin_id']
+        origin_id = workflow_id
         origin_workflow = _get_workflow(origin_id)
         lock_workflow(origin_workflow, [WorkflowStatus.CREATED])
         release_workflow(origin_workflow)
@@ -229,6 +226,3 @@ class WorkflowForkApi(Resource):
 def initialize_workflow_apis(api):
     api.add_resource(WorkflowListApi, '/workflows')
     api.add_resource(WorkflowApi, '/workflows/<int:workflow_id>')
-    api.add_resource(WorkflowSendApi,
-                     '/workflows/send/<int:workflow_id>/<int:workflow_status>')
-    api.add_resource(WorkflowForkApi, '/workflows/fork')
