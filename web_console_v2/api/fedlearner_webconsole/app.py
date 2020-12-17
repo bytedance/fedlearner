@@ -93,7 +93,3 @@ def create_app(config):
 
     current_app = app
     return app
-
-
-def get_current_app():
-    return current_app
