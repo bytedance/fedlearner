@@ -24,7 +24,6 @@ from flask_restful import Api
 from flask_jwt_extended import JWTManager
 
 migrate = Migrate()
-api = Api(prefix='/api/v2')
 jwt = JWTManager()
 current_app = None
 
@@ -76,6 +75,7 @@ def create_app(config):
     app.register_error_handler(WebConsoleApiException, make_response)
     app.register_error_handler(Exception, _handle_uncaught_exception)
 
+    api = Api(prefix='/api/v2')
     initialize_auth_apis(api)
     initialize_project_apis(api)
     initialize_workflow_template_apis(api)
@@ -93,3 +93,7 @@ def create_app(config):
 
     current_app = app
     return app
+
+
+def get_current_app():
+    return current_app

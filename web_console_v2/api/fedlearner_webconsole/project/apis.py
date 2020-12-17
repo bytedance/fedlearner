@@ -20,10 +20,10 @@ from flask import request
 from flask_restful import Resource, Api, reqparse
 from google.protobuf.json_format import ParseDict
 from fedlearner_webconsole.db import db
+from fedlearner_webconsole.k8s_client import get_client
 from fedlearner_webconsole.project.models import Project
 from fedlearner_webconsole.proto.common_pb2 import Variable
 from fedlearner_webconsole.proto.project_pb2 import Project as ProjectProto, Certificate
-from fedlearner_webconsole.utils.k8s_client import K8sClient
 from fedlearner_webconsole.project.add_on import _parse_certificates, _create_add_on
 from fedlearner_webconsole.exceptions import InvalidArgumentException, NotFoundException
 
@@ -105,15 +105,14 @@ class ProjectsApi(Resource):
 
         # following operations will change the state of k8s and db
         try:
-            # TODO: singleton k8s client
-            # k8s_client = K8sClient()
-            # for domain_name, certificate in certificates.items():
-            #     _create_add_on(k8s_client, domain_name, certificate)
+            k8s_client = get_client()
+            for domain_name, certificate in certificates.items():
+                _create_add_on(k8s_client, domain_name, certificate)
 
             new_project = db.session.merge(new_project)
             db.session.commit()
         except Exception as e:
-            raise InvalidArgumentException(details=e)
+            raise InvalidArgumentException(details=str(e))
 
         return {
             'data': new_project.to_dict()
