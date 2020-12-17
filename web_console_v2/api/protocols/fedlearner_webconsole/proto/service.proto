@@ -35,6 +35,20 @@ message CheckConnectionResponse {
     Status status = 1;
 }
 
+message UpdateWorkflowRequest{
+    string uid = 1;
+    int32 status = 2;
+    ProjAuthInfo auth_info = 3;
+    string name = 4;
+    bool forkable = 5;
+    string config = 6;
+    string peer_config = 7;
+    string method_type = 8;
+}
+message UpdateWorkflowResponse{
+    Status status = 1;
+}
 service WebConsoleV2Service {
     rpc CheckConnection (CheckConnectionRequest) returns (CheckConnectionResponse) {}
+    rpc UpdateWorkflow (UpdateWorkflowRequest) returns (UpdateWorkflowResponse){}
 }

@@ -72,3 +72,25 @@ class RpcClient(object):
             return common_pb2.Status(
                 code=common_pb2.STATUS_UNKNOWN_ERROR,
                 msg=repr(e))
+
+    def update_workflow(self, uid, status, name,
+                              forkable, config,
+                              peer_config, method_type):
+        msg = service_pb2.UpdateWorkflowRequest(
+            auth_info=service_pb2.ProjAuthInfo(
+                project_name=self._project.project_name,
+                sender_name=os.environ.get('SELF_DOMAIN_NAME'),
+                receiver_name=self._receiver.domain_name,
+                auth_token=self._project.token),
+            uid=uid, status=status, name=name, forkable=forkable,
+            config=config, peer_config=peer_config,
+            method_type=method_type
+        )
+        try:
+            response = self._client.UpdateWorkflow(
+                request=msg, metadata=self._get_metadata())
+            return response.status
+        except Exception as e:
+            return common_pb2.Status(
+                code=common_pb2.STATUS_UNKNOWN_ERROR,
+                msg=repr(e))

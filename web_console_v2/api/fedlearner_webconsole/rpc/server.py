@@ -21,8 +21,17 @@ import grpc
 from fedlearner_webconsole.proto import (
     service_pb2, service_pb2_grpc, common_pb2
 )
+from fedlearner_webconsole.db import db
 from fedlearner_webconsole.project.models import Project
+from fedlearner_webconsole.workflow.models import Workflow
+from fedlearner_webconsole.workflow.models import WorkflowStatus
+from fedlearner_webconsole.workflow.apis import lock_workflow, release_workflow
 
+workflow_status_map = {
+    WorkflowStatus.CREATED: [WorkflowStatus.CREATE_SENDER_COMMITTABLE]}
+workflow_finished_map = {
+    WorkflowStatus.CREATED: [WorkflowStatus.CREATED]
+}
 
 class RPCServerServicer(service_pb2_grpc.WebConsoleV2ServiceServicer):
     def __init__(self, server):
@@ -37,8 +46,18 @@ class RPCServerServicer(service_pb2_grpc.WebConsoleV2ServiceServicer):
                     code=common_pb2.STATUS_UNKNOWN_ERROR,
                     msg=repr(e)))
 
+    def UpdateWorkflow(self, request, context):
+        try:
+            return self._server.update_workflow(request)
+        except Exception as e:
+            return service_pb2.UpdateWorkflowResponse(
+                status=common_pb2.Status(
+                    code=common_pb2.STATUS_UNKNOWN_ERROR,
+                    msg=repr(e)))
+
 
 class RpcServer(object):
+
     def __init__(self):
         self._lock = threading.Lock()
         self._started = False
@@ -88,5 +107,68 @@ class RpcServer(object):
         return service_pb2.CheckConnectionResponse(
             status=common_pb2.Status(
                 code=common_pb2.STATUS_UNAUTHORIZED))
+
+    def _create_workflow(self, request, workflow):
+        if workflow is not None:
+            return service_pb2.UpdateWorkflowResponse(
+                status=common_pb2.Status(
+                    code=common_pb2.STATUS_SUCCESS,
+                    msg='Workflow has already existed'))
+        new_name = '{}_受邀'.format(request.name)
+        if Workflow.query.filter_by(name=new_name).first() is not None:
+            return service_pb2.UpdateWorkflowResponse(
+                status=common_pb2.Status(
+                    code=common_pb2.STATUS_SUCCESS,
+                    msg='Workflow has conflict name'))
+        workflow = Workflow(uid=request.uid,
+                            status=WorkflowStatus(request.status),
+                            project_name=request.auth_info.project_name,
+                            name=new_name, forkable=request.forkable,
+                            config=request.config,
+                            peer_config=request.peer_config)
+        db.session.add(workflow)
+        db.session.commit()
+        return service_pb2.UpdateWorkflowResponse(
+            status=common_pb2.Status(
+                code=common_pb2.STATUS_SUCCESS,
+                msg='Workflow created'))
+
+    def update_workflow(self, request):
+
+        if not self.check_auth_info(request.auth_info):
+            return service_pb2.UpdateWorkflowResponse(
+                status=common_pb2.Status(
+                    code=common_pb2.STATUS_UNAUTHORIZED))
+        workflow = Workflow.query.filter_by(uid=request.uid).first()
+        if request.method_type in ['create', 'fork']:
+            # TODO: when fork combine origin
+            #  definition to protect PRIVATE Variable
+            return self._create_workflow(request, workflow)
+
+        if workflow is None:
+            return service_pb2.UpdateWorkflowResponse(
+                status=common_pb2.Status(
+                    code=common_pb2.STATUS_UNKNOWN_ERROR,
+                    msg='Workflow not existed'))
+        status = WorkflowStatus(request.status)
+        if workflow.status in workflow_finished_map[status]:
+            return service_pb2.UpdateWorkflowResponse(
+                status=common_pb2.Status(
+                    code=common_pb2.STATUS_SUCCESS,
+                    msg='Workflow has already updated'))
+        lock_workflow(workflow, workflow_status_map[status])
+        workflow.status = request.status
+        workflow.forkable = request.forkable
+        workflow.peer_config = workflow.peer_config
+        db.session.commit()
+        release_workflow(workflow)
+        return service_pb2.UpdateWorkflowResponse(
+            status=common_pb2.Status(
+                code=common_pb2.STATUS_SUCCESS,
+                msg='Workflow updated'))
+
+
+
+
 
 rpc_server = RpcServer()
