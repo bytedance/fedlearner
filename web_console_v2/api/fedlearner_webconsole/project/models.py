@@ -19,9 +19,11 @@ from fedlearner_webconsole.db import db, to_dict_mixin
 from fedlearner_webconsole.proto import project_pb2
 
 
-@to_dict_mixin(extras={
-    'config': (lambda project: project.get_config())
-})
+@to_dict_mixin(
+    ignores=['certificate'],
+    extras={
+        'config': (lambda project: project.get_config())
+    })
 class Project(db.Model):
     __tablename__ = 'projects_v2'
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
