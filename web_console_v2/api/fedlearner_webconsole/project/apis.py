@@ -16,14 +16,16 @@
 
 from enum import Enum
 from uuid import uuid4
-from http import HTTPStatus
-from flask_restful import Resource, Api, abort, reqparse
+from flask import request
+from flask_restful import Resource, Api, reqparse
 from google.protobuf.json_format import ParseDict
 from fedlearner_webconsole.db import db
 from fedlearner_webconsole.project.models import Project
+from fedlearner_webconsole.proto.common_pb2 import Variable
 from fedlearner_webconsole.proto.project_pb2 import Project as ProjectProto, Certificate
 from fedlearner_webconsole.utils.k8s_client import K8sClient
 from fedlearner_webconsole.project.add_on import _parse_certificates, _create_add_on
+from fedlearner_webconsole.exceptions import InvalidArgumentException, NotFoundException
 
 _CERTIFICATE_FILE_NAMES = [
     'client/client.pem', 'client/client.key', 'client/intermediate.pem', 'client/root.pem',
@@ -45,38 +47,34 @@ class ProjectsApi(Resource):
         parser.add_argument('config', required=True, type=dict,
                             help=ErrorMessage.PARAM_FORMAT_ERROR.value.format('config', 'Empty'))
         parser.add_argument('comment')
-
         data = parser.parse_args()
         name = data['name']
         config = data['config']
         comment = data['comment']
 
         if Project.query.filter_by(name=name).first() is not None:
-            abort(HTTPStatus.BAD_REQUEST,
-                  message=ErrorMessage.NAME_CONFLICT.value.format(name))
+            raise InvalidArgumentException(details=ErrorMessage.NAME_CONFLICT.value.format(name))
 
         if config.get('participants') is None:
-            abort(HTTPStatus.BAD_REQUEST,
-                  message=ErrorMessage.PARAM_FORMAT_ERROR.value.format('participants', 'Empty'))
+            raise InvalidArgumentException(details=ErrorMessage
+                                           .PARAM_FORMAT_ERROR.value.format('participants', 'Empty'))
         elif len(config.get('participants')) != 1:
             # TODO: remove limit in schema after operator supports multiple participants
-            abort(HTTPStatus.BAD_REQUEST,
-                  message='Currently not support multiple participants.')
+            raise InvalidArgumentException(details='Currently not support multiple participants.')
 
         certificates = {}
         for domain_name, participant in config.get('participants').items():
             if 'name' not in participant.keys() or 'url' not in participant.keys():
-                abort(HTTPStatus.BAD_REQUEST,
-                      message=ErrorMessage.PARAM_FORMAT_ERROR.value
-                      .format('participants', 'Participant must have name and url.'))
+                raise InvalidArgumentException(details=ErrorMessage.PARAM_FORMAT_ERROR.value
+                                               .format('participants', 'Participant must have name and url.'))
             if participant.get('certificates') is not None:
                 current_cert = _parse_certificates(participant.get('certificates'))
                 # check validation
                 for file_name in _CERTIFICATE_FILE_NAMES:
                     if current_cert.get(file_name) is None:
-                        abort(HTTPStatus.BAD_REQUEST,
-                              message=ErrorMessage.PARAM_FORMAT_ERROR
-                              .value.format('certificates', '{} not existed'.format(file_name)))
+                        raise InvalidArgumentException(details=ErrorMessage
+                                                       .PARAM_FORMAT_ERROR.value
+                                                       .format('certificates', '{} not existed'.format(file_name)))
                 certificates[domain_name] = participant.get('certificates')
                 participant['domain_name'] = domain_name
                 participant.pop('certificates')
@@ -98,8 +96,7 @@ class ProjectsApi(Resource):
         try:
             new_project.set_config(ParseDict(config, ProjectProto()))
         except Exception as e:
-            abort(HTTPStatus.BAD_REQUEST,
-                  message=ErrorMessage.PARAM_FORMAT_ERROR.value.format('config', e))
+            raise InvalidArgumentException(details=ErrorMessage.PARAM_FORMAT_ERROR.value.format('config', e))
         new_project.set_certificate(ParseDict({'certificate': certificates},
                                               Certificate()))
         new_project.name = name
@@ -109,19 +106,61 @@ class ProjectsApi(Resource):
         # following operations will change the state of k8s and db
         try:
             # TODO: singleton k8s client
-            k8s_client = K8sClient()
-            for domain_name, certificate in certificates.items():
-                _create_add_on(k8s_client, domain_name, certificate)
+            # k8s_client = K8sClient()
+            # for domain_name, certificate in certificates.items():
+            #     _create_add_on(k8s_client, domain_name, certificate)
 
-            db.session.add(new_project)
+            new_project = db.session.merge(new_project)
             db.session.commit()
         except Exception as e:
-            abort(HTTPStatus.INTERNAL_SERVER_ERROR, msg=e)
+            raise InvalidArgumentException(details=e)
 
         return {
             'data': new_project.to_dict()
         }
 
+    def get(self):
+        return {
+            'data': [project.to_dict() for project in Project.query.all()]
+        }
+
+
+class ProjectApi(Resource):
+
+    def get(self, project_id):
+        project = Project.query.filter_by(id=project_id).first()
+        if project is None:
+            raise NotFoundException()
+        return {
+            'data': project.to_dict()
+        }
+
+    def patch(self, project_id):
+        project = Project.query.filter_by(id=project_id).first()
+        if project is None:
+            raise NotFoundException()
+        config = project.get_config()
+        if request.json.get('token') is not None:
+            new_token = request.json.get('token')
+            config.token = new_token
+            project.token = new_token
+        if request.json.get('variables') is not None:
+            del config.variables[:]
+            config.variables.extend([ParseDict(variable, Variable())
+                                     for variable in request.json.get('variables')])
+        project.set_config(config)
+        if request.json.get('comment') is not None:
+            project.comment = request.json.get('comment')
+
+        try:
+            db.session.commit()
+        except Exception as e:
+            raise InvalidArgumentException(details=e)
+        return {
+            'data': project.to_dict()
+        }
+
 
 def initialize_project_apis(api: Api):
     api.add_resource(ProjectsApi, '/projects')
+    api.add_resource(ProjectApi, '/projects/<int:project_id>')
