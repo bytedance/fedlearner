@@ -40,3 +40,9 @@ make unit-test
 export FLASK_APP=manage:app
 flask routes
 ```
+
+## References
+
+### Default date time in sqlalchemy
+https://stackoverflow.com/questions/13370317/sqlalchemy-default-datetime/33532154#33532154
+
