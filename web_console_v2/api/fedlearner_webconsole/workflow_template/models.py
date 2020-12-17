@@ -35,4 +35,3 @@ class WorkflowTemplate(db.Model):
         proto = workflow_definition_pb2.WorkflowDefinition()
         proto.ParseFromString(self.config)
         return proto
-
