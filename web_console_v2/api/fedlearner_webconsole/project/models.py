@@ -15,11 +15,13 @@
 # coding: utf-8
 
 from sqlalchemy.sql import func
-from google.protobuf.json_format import MessageToDict
-from fedlearner_webconsole.db import db
+from fedlearner_webconsole.db import db, to_dict_mixin
 from fedlearner_webconsole.proto import project_pb2
 
 
+@to_dict_mixin(extras={
+    'config': (lambda project: project.get_config())
+})
 class Project(db.Model):
     __tablename__ = 'projects_v2'
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
@@ -48,14 +50,3 @@ class Project(db.Model):
         proto = project_pb2.Certificate()
         proto.ParseFromString(self.certificate)
         return proto
-
-    def to_dict(self):
-        return {
-            'id': self.id,
-            'name': self.name,
-            'token': self.token,
-            'config': MessageToDict(self.get_config()),
-            'comment': self.comment,
-            'created_at': self.created_at.strftime("%Y-%m-%d %H:%M:%S"),
-            'updated_at': self.updated_at.strftime("%Y-%m-%d %H:%M:%S"),
-        }

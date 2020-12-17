@@ -13,11 +13,13 @@
 # limitations under the License.
 
 # coding: utf-8
-from google.protobuf import json_format
-from fedlearner_webconsole.db import db
+from fedlearner_webconsole.db import db, to_dict_mixin
 from fedlearner_webconsole.proto import workflow_definition_pb2
 
 
+@to_dict_mixin(extras={
+    'config': (lambda wft: wft.get_config())
+})
 class WorkflowTemplate(db.Model):
     __tablename__ = 'template_v2'
     id = db.Column(db.Integer, primary_key=True)
@@ -34,10 +36,3 @@ class WorkflowTemplate(db.Model):
         proto.ParseFromString(self.config)
         return proto
 
-    def to_dict(self):
-        dic = {
-            col.name: getattr(self, col.name) for col in self.__table__.columns
-        }
-        dic['config'] = json_format.MessageToDict(
-            self.get_config(), preserving_proto_field_name=True)
-        return dic

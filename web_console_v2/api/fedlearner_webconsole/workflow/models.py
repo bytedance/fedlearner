@@ -15,10 +15,10 @@
 # coding: utf-8
 import enum
 from sqlalchemy.sql import func
-from google.protobuf import json_format
-from fedlearner_webconsole.db import db
+from fedlearner_webconsole.db import db, to_dict_mixin
 from fedlearner_webconsole.project.models import Project
 from fedlearner_webconsole.proto import workflow_definition_pb2
+
 
 class WorkflowStatus(enum.Enum):
     CREATE_SENDER_PREPARE = 1
@@ -29,6 +29,10 @@ class WorkflowStatus(enum.Enum):
     FORK_SENDER = 6
 
 
+@to_dict_mixin(extras={
+    'config': (lambda wf: wf.get_config()),
+    'peer_config': (lambda wf: wf.get_peer_config())
+})
 class Workflow(db.Model):
     __tablename__ = 'workflow_v2'
     id = db.Column(db.Integer, primary_key=True)
@@ -70,18 +74,3 @@ class Workflow(db.Model):
     def get_project_token(self):
         project = Project.query.filter_by(id=self.project_id).first
         return project.token
-
-    def to_dict(self):
-        dic = {
-            col.name: getattr(self, col.name) for col in self.__table__.columns
-        }
-        dic['config'] = json_format.MessageToDict(
-            self.get_config(), preserving_proto_field_name=True)
-        dic['peer_config'] = json_format.MessageToDict(
-            self.get_peer_config(), preserving_proto_field_name=True)
-        dic['status'] = self.status.value
-        dic['created_at'] = self.created_at.strftime('%Y-%m-%d %H:%M:%S')
-        dic['updated_at'] = self.updated_at.strftime('%Y-%m-%d %H:%M:%S')
-        if self.deleted_at is not None:
-            dic['deleted_at'] = self.deleted_at.strftime('%Y-%m-%d %H:%M:%S')
-        return dic

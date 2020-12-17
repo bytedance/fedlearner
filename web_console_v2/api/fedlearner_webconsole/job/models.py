@@ -14,9 +14,10 @@
 
 # coding: utf-8
 from sqlalchemy.sql import func
-from fedlearner_webconsole.db import db
+from fedlearner_webconsole.db import db, to_dict_mixin
 
 
+@to_dict_mixin()
 class Job(db.Model):
     __tablename__ = 'job_v2'
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)

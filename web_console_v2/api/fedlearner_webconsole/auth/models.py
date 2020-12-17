@@ -17,8 +17,10 @@
 
 from passlib.apps import custom_app_context as pwd_context
 
-from fedlearner_webconsole.db import db
+from fedlearner_webconsole.db import db, to_dict_mixin
 
+
+@to_dict_mixin(ignores=['password'])
 class User(db.Model):
     __tablename__ = 'users_v2'
     id = db.Column(db.Integer, primary_key=True)
@@ -30,8 +32,3 @@ class User(db.Model):
 
     def verify_password(self, password):
         return pwd_context.verify(password, self.password)
-
-    def to_dict(self):
-        return {
-            col.name: getattr(self, col.name) for col in self.__table__.columns
-        }
