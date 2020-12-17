@@ -70,15 +70,15 @@ class WorkflowListApi(Resource):
                             help='config is empty')
         parser.add_argument('peer_forkable', type=bool, required=True,
                             help='peer_forkable is empty')
-        parser.add_argument('project_id', required=True,
-                            help='project_id is empty')
+        parser.add_argument('project_name', required=True,
+                            help='project_name is empty')
         data = parser.parse_args()
         name = data['name']
         comment = data['comment']
         config = data['config']
         peer_forkable = data['peer_forkable']
-        project_id = data['project_id']
-        if Project.query.filter_by(id=project_id).first() is None:
+        project_name = data['project_name']
+        if Project.query.filter_by(id=project_name).first() is None:
             raise InvalidArgumentException('project does not exist')
         if Workflow.query.filter_by(name=name).first() is not None:
             raise ResourceConflictException(
@@ -89,7 +89,7 @@ class WorkflowListApi(Resource):
         workflow = Workflow(name=name, comment=comment,
                             group_alias=template_proto.group_alias,
                             peer_forkable=peer_forkable,
-                            project_id=project_id,
+                            project_name=project_name,
                             uid=uuid,
                             status=WorkflowStatus.CREATE_SENDER_PREPARE)
         workflow.set_config(template_proto)
@@ -130,7 +130,7 @@ class WorkflowApi(Resource):
     def patch(self, workflow_id):
         if 'workflow_status' not in request.args:
             raise InvalidArgumentException('workflow_status is empty.')
-        workflow_status = request.args['workflow_status']
+        workflow_status = int(request.args['workflow_status'])
         workflow = _get_workflow(workflow_id)
         lock_workflow(workflow, [WorkflowStatus(workflow_status)])
         try:
@@ -142,7 +142,7 @@ class WorkflowApi(Resource):
                 workflow_grpc.create_workflow(workflow.uid,
                                               workflow.name,
                                               workflow.config,
-                                              workflow.get_project_token(),
+                                              workflow.project_name,
                                               workflow.peer_forkable)
             elif WorkflowStatus(
                    workflow_status) \
@@ -152,7 +152,7 @@ class WorkflowApi(Resource):
                 #  and writeable Variables
                 workflow_grpc.confirm_workflow(workflow.uid,
                                                workflow.config,
-                                               workflow.get_project_token(),
+                                               workflow.project_name,
                                                workflow.peer_forkable)
             elif WorkflowStatus(workflow_status) == WorkflowStatus.FORK_SENDER:
                 workflow.status = WorkflowStatus.CREATED
@@ -160,7 +160,7 @@ class WorkflowApi(Resource):
                 #  and writeable Variables
                 workflow_grpc.fork_workflow(workflow.uid,
                                             workflow.name,
-                                            workflow.get_project_token(),
+                                            workflow.project_name,
                                             workflow.config,
                                             workflow.peer_config)
             else:
@@ -193,7 +193,7 @@ class WorkflowApi(Resource):
         name = data['name']
         comment = data['comment']
         config = data['config']
-        project_id = origin_workflow.project_id
+        project_name = origin_workflow.project_name
         peer_config = data['peer_config']
         if Workflow.query.filter_by(name=name).first() is not None:
             raise ResourceConflictException(
@@ -213,7 +213,7 @@ class WorkflowApi(Resource):
                             group_alias=template_proto.group_alias,
                             forkable=False,
                             peer_forkable=False,
-                            project_id=project_id,
+                            project_name=project_name,
                             uid=uuid, status=WorkflowStatus.FORK_SENDER)
         workflow.set_config(template_proto)
         workflow.set_peer_config(peer_template_proto)

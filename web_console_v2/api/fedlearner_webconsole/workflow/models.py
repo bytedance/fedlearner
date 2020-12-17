@@ -33,13 +33,14 @@ class Workflow(db.Model):
     __tablename__ = 'workflow_v2'
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(255), index=True)
-    project_id = db.Column(db.Integer, nullable=False)
+    project_name = db.Column(db.Integer, nullable=False)
     status = db.Column(db.Enum(WorkflowStatus), nullable=False)
     uid = db.Column(db.String(255), unique=True, nullable=False, index=True)
     forkable = db.Column(db.Boolean, default=False)
     peer_forkable = db.Column(db.Boolean, default=False)
     group_alias = db.Column(db.String(255), index=True)
     config = db.Column(db.Text())
+    # TODO: change to config dict to handle muti-participants
     peer_config = db.Column(db.Text())
     comment = db.Column(db.String(255))
 
@@ -68,7 +69,7 @@ class Workflow(db.Model):
         return proto
 
     def get_project_token(self):
-        project = Project.query.filter_by(id=self.project_id).first
+        project = Project.query.filter_by(name=self.project_name).first
         return project.token
 
     def to_dict(self):
