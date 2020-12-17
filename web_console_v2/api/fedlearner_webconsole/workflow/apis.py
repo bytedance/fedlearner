@@ -171,10 +171,10 @@ class WorkflowApi(Resource):
                          workflow.id, workflow.status)
             release_workflow(workflow)
         # TODO: specify the exception class
-        except RpcError:
+        except RpcError as e:
             db.session.rollback()
             release_workflow(workflow)
-            raise ResourceConflictException('Rpc Sending failed')
+            raise ResourceConflictException('Rpc Sending failed') from e
         return {'data': workflow.to_dict()}, HTTPStatus.OK
 
     def post(self, workflow_id):
