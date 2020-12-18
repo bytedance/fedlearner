@@ -2,7 +2,7 @@ import React, { ReactElement, useState } from 'react'
 import styled from 'styled-components'
 import { Button, Input, Radio, Modal, Form } from 'antd'
 import { useTranslation } from 'react-i18next'
-import BaseForm from './BaseForm'
+import { useHistory } from 'react-router-dom'
 
 const Container = styled.div`
   margin: 18px 0;
@@ -45,45 +45,35 @@ const ProjectListDisplayOptions = [
   },
 ]
 
-function Action(): ReactElement {
-  const { t } = useTranslation()
-  const [isModalVisible, setIsModalVisible] = useState(false)
-  const [form] = Form.useForm()
+interface Props {
+  onDisplayTypeChange: (type: number) => void
+}
 
-  // FIXME
-  async function createProject() {
-    try {
-      const val = await form.validateFields()
-      console.log(val)
-    } catch (error) {
-      console.log(error)
-    }
-  }
+function Action({ onDisplayTypeChange }: Props): ReactElement {
+  const { t } = useTranslation()
+  const history = useHistory()
   return (
     <Container>
       <Right>
-        <CreateButton onClick={() => setIsModalVisible(true)}>{t('project_create')}</CreateButton>
+        <CreateButton
+          onClick={() => {
+            history.push('/create-project')
+          }}
+        >
+          {t('project_create')}
+        </CreateButton>
       </Right>
       <Left>
         <SearchInput placeholder={t('project_search_placeholder')} />
         <DisplaySelector
+          defaultValue={1}
           options={ProjectListDisplayOptions.map((i) => ({ label: t(i.labelKey), value: i.value }))}
           optionType="button"
+          onChange={(e) => {
+            onDisplayTypeChange(e.target.value)
+          }}
         />
       </Left>
-      <Modal
-        title="新建项目"
-        visible={isModalVisible}
-        onOk={createProject}
-        onCancel={() => setIsModalVisible(false)}
-        width={450}
-        zIndex={2000}
-        okText={t('submit')}
-        cancelText={t('cancel')}
-        bodyStyle={{ padding: '24px 0' }}
-      >
-        <BaseForm form={form} />
-      </Modal>
     </Container>
   )
 }

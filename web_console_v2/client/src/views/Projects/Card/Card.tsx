@@ -10,6 +10,7 @@ import { Tooltip, Modal, Form } from 'antd'
 import { useTranslation } from 'react-i18next'
 import { ReactComponent as CheckConnectIcon } from 'assets/images/check-connect.svg'
 import createWorkFlow from 'assets/images/create-work-flow.svg'
+import ProjectName from '../ProjectName'
 
 const CardContainer = styled.div`
   height: 208px;
@@ -24,15 +25,8 @@ const CardHeaderContainer = styled.div`
   border-bottom: 1px solid var(--gray3);
   justify-content: space-between;
   .project {
-    &-name {
-      color: var(--gray10);
-      font-weight: 500;
-      font-size: 15px;
-      line-height: 40px;
-      margin-left: 16px;
-    }
     &-time {
-      margin-right: 16px;
+      min-width: 146px;
     }
   }
 `
@@ -108,7 +102,7 @@ function CardHeader({ name, time }: CardHeaderProps): ReactElement {
   return (
     <CardHeaderContainer>
       {/* FIXME */}
-      <div className="project-name">发看过你项目</div>
+      <ProjectName text={'sadf单dfadfaddfafakashfhjksafk 化开发和f'} />
       <div className="project-time">
         <CreateTime time={time} />
       </div>

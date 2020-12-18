@@ -3,7 +3,7 @@ import CardPaenl from 'components/Container/CardPanel'
 import Action from './Action'
 import { useTranslation } from 'react-i18next'
 import CardList from './Card/CardList'
-// import TableLish from 'components/Container/Projects/Table/TableList'
+import TableLish from './Table/TableList'
 import { Pagination } from 'antd'
 
 const project_list: Project[] = new Array(100)
@@ -20,6 +20,7 @@ function ProjectsPage(): ReactElement {
   const [page_size, setPageSize] = useState(10)
   const [currentPage, setCurrentPage] = useState(1)
   const [total, setTotal] = useState(100)
+  const [displayType, setDisplayType] = useState(1)
 
   const changeHandle = useCallback(async () => {
     try {
@@ -35,8 +36,12 @@ function ProjectsPage(): ReactElement {
   }, [changeHandle])
   return (
     <CardPaenl title={t('menu_label_project')}>
-      <Action />
-      <CardList projectList={projectList} />
+      <Action
+        onDisplayTypeChange={(type: number) => {
+          setDisplayType(type)
+        }}
+      />
+      {displayType === 1 ? <CardList projectList={projectList} /> : <TableLish />}
       <Pagination size="small" total={total} showSizeChanger onChange={changeHandle} />
     </CardPaenl>
   )

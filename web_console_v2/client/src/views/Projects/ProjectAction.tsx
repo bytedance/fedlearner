@@ -1,5 +1,5 @@
 import React, { ReactElement, useState } from 'react'
-import styled from 'styled-components'
+import styled, { CSSProperties } from 'styled-components'
 import { useTranslation } from 'react-i18next'
 import action from 'assets/images/project-action.svg'
 import { Popover } from 'antd'
@@ -37,6 +37,7 @@ interface ProjectActionProps {
   actionList?: React.ReactNode
   onEdit?: () => void
   onDetail?: () => void
+  style?: CSSProperties
 }
 
 function ActionList({ onEdit, onDetail }: ProjectActionProps): ReactElement {
@@ -61,7 +62,7 @@ function ProjectAction(props: ProjectActionProps): ReactElement {
       overlayClassName="project-actions"
       getPopupContainer={(node) => node}
     >
-      <ActionStyle>
+      <ActionStyle style={props.style}>
         <img src={action} className="aciton-icon" alt="" />
         {props.suffix ?? null}
       </ActionStyle>
