@@ -25,6 +25,10 @@ class FakeK8sClient(K8sClient):
 
     With this client we can decouple the dependency of k8s cluster.
     """
+    def __init__(self):
+        # Do not call super constructor
+        pass
+
     def close(self):
         pass
 

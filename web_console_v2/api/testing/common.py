@@ -31,6 +31,8 @@ class BaseTestCase(TestCase):
     JWT_SECRET_KEY = secrets.token_urlsafe(64)
     PROPAGATE_EXCEPTIONS = True
     LOGGING_LEVEL = logging.DEBUG
+    TESTING = True
+    ENV = 'development'
 
     def create_app(self):
         return create_app(self)

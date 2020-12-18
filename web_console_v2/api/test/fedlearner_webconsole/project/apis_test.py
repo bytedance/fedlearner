@@ -15,6 +15,8 @@
 # coding: utf-8
 import os
 import json
+import unittest
+
 from base64 import b64encode
 from http import HTTPStatus
 from google.protobuf.json_format import ParseDict
@@ -104,12 +106,26 @@ class ProjectApiTest(BaseTestCase):
         self.assertEqual(created_project, queried_project.to_dict())
 
     def test_post_conflict_name_project(self):
-        name = 'test-project'
+        config = {
+            'participants': {
+                'fl-test-post.com': {
+                    'name': 'test-post-participant',
+                    'url': 'https://127.0.0.1:32443',
+                    'certificates': self.TEST_CERTIFICATES
+                }
+            },
+            'variables': [
+                {
+                    'name': 'test-post',
+                    'value': 'test'
+                }
+            ]
+        }
         create_response = self.client.post(
             '/api/v2/projects',
             data=json.dumps({
-                'name': name,
-                'config': None,
+                'name': self.default_project.name,
+                'config': config,
                 'comment': ''
             }),
             content_type='application/json')
@@ -119,7 +135,7 @@ class ProjectApiTest(BaseTestCase):
         list_response = self.client.get('/api/v2/projects')
         project_list = json.loads(list_response.data).get('data')
         for project in project_list:
-            queried_project = Project.query.filter_by(name=project.name).first()
+            queried_project = Project.query.filter_by(name=project['name']).first()
             self.assertEqual(project, queried_project.to_dict())
 
     def test_update_project(self):
@@ -143,3 +159,7 @@ class ProjectApiTest(BaseTestCase):
             }),
             content_type='application/json')
         self.assertEqual(update_response.status_code, HTTPStatus.NOT_FOUND)
+
+
+if __name__ == '__main__':
+    unittest.main()

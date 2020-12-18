@@ -14,12 +14,13 @@
 
 # coding: utf-8
 import threading
+import os
 
-from fedlearner_webconsole.app import current_app
 from fedlearner_webconsole.utils.k8s_client import K8sClient
 from fedlearner_webconsole.utils.fake_k8s_client import FakeK8sClient
 
 _k8s_client = None
+
 
 def get_client():
     # pylint: disable=global-statement
@@ -28,7 +29,7 @@ def get_client():
         with threading.Lock():
             # Thread-safe singleton
             if _k8s_client is None:
-                if current_app.env == 'production':
+                if os.environ.get('FLASK_ENV') == 'production':
                     _k8s_client = K8sClient()
                 else:
                     _k8s_client = FakeK8sClient()
