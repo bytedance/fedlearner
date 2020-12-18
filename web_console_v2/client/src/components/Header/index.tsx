@@ -2,10 +2,11 @@ import React, { ChangeEvent, useState } from 'react'
 import styled from 'styled-components'
 import { setLocale } from 'i18n'
 import HeaderAccount from './Account'
-import { FedLanguages } from 'typings/enum'
+import { FedLanguages } from 'typings/app'
 import logo from 'assets/images/logo-colorful.svg'
 import store from 'store2'
 import LOCAL_STORAGE_KEYS from 'shared/localStorageKeys'
+import { StyledComponetProps } from 'typings/component'
 
 const Container = styled.header`
   position: sticky;

@@ -11,6 +11,7 @@ import { useToggle } from 'react-use'
 import { useTranslation } from 'react-i18next'
 import store from 'store2'
 import LOCAL_STORAGE_KEYS from 'shared/localStorageKeys'
+import { FedLoginFormData } from 'typings/auth'
 
 const Layout = styled.main`
   display: grid;

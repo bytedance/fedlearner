@@ -1,3 +1,5 @@
+import { ComponentSize } from './component'
+
 export enum VariableComponent {
   Input = 'Input',
   Select = 'Select',

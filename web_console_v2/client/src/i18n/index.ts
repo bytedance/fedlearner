@@ -2,7 +2,7 @@ import i18n from 'i18next'
 import { initReactI18next } from 'react-i18next'
 import cn from './resources/zh_CN'
 import en from './resources/en'
-import { FedLanguages } from 'typings/enum'
+import { FedLanguages } from 'typings/app'
 import store from 'store2'
 
 const preferredLng = store.get('language')

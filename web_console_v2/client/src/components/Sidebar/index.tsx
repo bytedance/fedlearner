@@ -14,6 +14,7 @@ import { useTranslation } from 'react-i18next'
 import { useToggle } from 'react-use'
 import { MixinFlexAlignCenter, MixinSquare } from 'styles/mixins'
 import classNames from 'classnames'
+import { StyledComponetProps } from 'typings/component'
 
 const Container = styled.nav`
   display: flex;

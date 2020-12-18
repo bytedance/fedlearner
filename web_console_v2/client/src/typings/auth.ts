@@ -1,4 +1,4 @@
-declare interface FedUserInfo {
+export interface FedUserInfo {
   id: string
   username: string
   name: string
@@ -8,7 +8,12 @@ declare interface FedUserInfo {
   role: string
 }
 
-declare interface FedLoginFormData {
+export interface FedLoginFormData {
   username: string
   passowrd: string
+}
+
+export enum FedRoles {
+  Admin,
+  Operator,
 }

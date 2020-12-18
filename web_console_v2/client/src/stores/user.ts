@@ -4,6 +4,7 @@ import { atom, selector } from 'recoil'
 import { fetchUserInfo } from 'services/user'
 import LOCAL_STORAGE_KEYS from 'shared/localStorageKeys'
 import { isNil } from 'lodash'
+import { FedUserInfo } from 'typings/auth'
 
 export const userInfoState = atom<FedUserInfo>({
   key: 'UserInfo',

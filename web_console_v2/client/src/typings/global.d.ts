@@ -1,24 +1,9 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 
-/** Federation Learner global types */
-declare interface FedRouteConfig {
-  path: string
-  component: React.FunctionComponent
-  exact?: boolean
-  auth?: boolean // whether require logged in
-  roles?: string[]
-  children?: FedRouteConfig[]
-}
-
-declare interface StyledComponetProps {
-  className?: string
-  [key: string]: any
-}
-
 declare namespace JSX {
   interface IntrinsicAttributes extends JSX.IntrinsicAttributes {
     key?: string | number
-    routes?: FedRouteConfig[]
+    // routes?: FedRouteConfig[]
   }
 }
 
