@@ -116,7 +116,7 @@ function Login() {
   return (
     <Layout>
       <Left>
-        <Slogan>{t('login_slogan')}</Slogan>
+        <Slogan>{t('login.slogan')}</Slogan>
       </Left>
 
       <Right>
@@ -126,21 +126,21 @@ function Login() {
           initialValues={{ remember: true }}
           onFinish={onSubmit}
         >
-          <h3 className="form-title">{t('login_form_title')}</h3>
+          <h3 className="form-title">{t('login.form_title')}</h3>
 
           <Form.Item
             name="username"
-            rules={[{ required: true, message: t('login_username_message') }]}
+            rules={[{ required: true, message: t('login.username_message') }]}
           >
-            <Input name="username" placeholder={t('login_username_placeholder')} />
+            <Input name="username" placeholder={t('login.username_placeholder')} />
           </Form.Item>
 
           <Form.Item
             name="password"
-            rules={[{ required: true, message: t('login_password_message') }]}
+            rules={[{ required: true, message: t('login.password_message') }]}
           >
             <Input.Password
-              placeholder={t('login_password_placeholder')}
+              placeholder={t('login.password_placeholder')}
               iconRender={(visible) => (visible ? <EyeTwoTone /> : <EyeInvisibleOutlined />)}
             />
           </Form.Item>
@@ -151,11 +151,11 @@ function Login() {
 
           <Form.Item>
             <LoginFormButton loading={submitting} size="large" type="primary" htmlType="submit">
-              {t('login_button')}
+              {t('login.button')}
             </LoginFormButton>
 
             <p className="aggrement">
-              {t('login_aggrement', {
+              {t('login.aggrement', {
                 terms: `${t('terms')}`,
                 privacy: `${t('privacy')}`,
                 interpolation: { escapeValue: false },

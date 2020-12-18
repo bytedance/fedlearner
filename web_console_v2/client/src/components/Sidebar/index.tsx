@@ -60,17 +60,17 @@ const FoldButton = styled.div`
 const SIDEBAR_MENU_ITEMS = [
   {
     to: '/projects',
-    label: 'menu_label_project',
+    label: 'menu.label_project',
     icon: MailOutlined,
   },
   {
     to: '/workflows',
-    label: 'menu_label_workflow',
+    label: 'menu.label_workflow',
     icon: AppstoreOutlined,
   },
   {
     to: '/datasets',
-    label: 'menu_label_datasets',
+    label: 'menu.label_datasets',
     icon: SettingOutlined,
   },
 ]

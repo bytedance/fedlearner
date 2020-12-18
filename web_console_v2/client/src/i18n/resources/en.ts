@@ -48,24 +48,30 @@ const project = {
   drag_to_upload: 'Drag and drop here to upload',
 }
 
+const login = {
+  slogan: 'SLOGAN HERE',
+  form_title: 'Sign in',
+  username_message: 'Please enter username!',
+  username_placeholder: 'Username / Phone number',
+  password_message: 'Please enter password!',
+  password_placeholder: 'Password',
+  remember: 'Remember me',
+  button: 'Sign in',
+  aggrement: 'I accept and agree {{terms}} and {{privacy}}',
+}
+
+const menu = {
+  label_project: 'Projects',
+  label_workflow: 'Workflows',
+  label_datasets: 'Datasets',
+}
+
 const messages = {
   translation: {
     errors,
     project,
-
-    menu_label_project: 'Projects',
-    menu_label_workflow: 'Workflows',
-    menu_label_datasets: 'Datasets',
-
-    login_slogan: 'SLOGAN HERE',
-    login_form_title: 'Sign in',
-    login_username_message: 'Please enter username!',
-    login_username_placeholder: 'Username / Phone number',
-    login_password_message: 'Please enter password!',
-    login_password_placeholder: 'Password',
-    login_remember: 'Remember me',
-    login_button: 'Sign in',
-    login_aggrement: 'I accept and agree {{terms}} and {{privacy}}',
+    login,
+    menu,
 
     terms: 'Terms of Services',
     privacy: 'Privacy Protocol',
