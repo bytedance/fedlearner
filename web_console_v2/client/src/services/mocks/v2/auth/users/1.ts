@@ -12,7 +12,7 @@ const fakeUserInfo: Optional<AxiosResponse> = {
     role: 'admin',
   },
   // to mock server error, just tweak the status code below
-  status: 200,
+  status: 300,
 }
 
 export default fakeUserInfo

@@ -2,7 +2,7 @@ import { Job, Variable, VariableAccessMode, VariableComponent } from 'typings/wo
 import { FormilySchema } from 'typings/formily'
 import VariableLabel from 'components/VariableLabel/index'
 import { merge } from 'lodash'
-import variablePresets from './variablePresets'
+import variablePresets, { VariablePresets } from './variablePresets'
 
 //---- Variable to Schema private helpers --------
 
@@ -255,8 +255,8 @@ const componentToWorkersMap: { [key: string]: (v: Variable) => FormilySchema } =
  * Merge server side variable.widget_schema with client side's preset
  * NOTE: server side's config should always priority to client side!
  */
-function mergeVariableSchemaWithPresets(variable: Variable) {
-  return Object.assign(variablePresets[variable.name] || {}, variable.widget_schema)
+function mergeVariableSchemaWithPresets(variable: Variable, presets: VariablePresets) {
+  return Object.assign(presets[variable.name] || {}, variable.widget_schema)
 }
 
 /** Return a formily acceptable schema by server job definition */
@@ -272,7 +272,7 @@ export function buildFormFromJobDef(job: Job): FormilySchema {
   return variables.reduce((schema, current, index) => {
     const worker = componentToWorkersMap[current.widget_schema.component]
 
-    current.widget_schema = mergeVariableSchemaWithPresets(current)
+    current.widget_schema = mergeVariableSchemaWithPresets(current, variablePresets)
     current.widget_schema.index = index
 
     Object.assign(schema.properties, worker(current))

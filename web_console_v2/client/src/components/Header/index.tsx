@@ -3,7 +3,9 @@ import styled from 'styled-components'
 import { setLocale } from 'i18n'
 import HeaderAccount from './Account'
 import { FedLanguages } from 'typings/enum'
-import logo from 'assets/images/logo.svg'
+import logo from 'assets/images/logo-colorful.svg'
+import store from 'store2'
+import LOCAL_STORAGE_KEYS from 'shared/localStorageKeys'
 
 const Container = styled.header`
   position: sticky;
@@ -17,7 +19,7 @@ const Container = styled.header`
   padding: 0 30px;
   background-color: var(--headerBg);
   color: white;
-  box-shadow: 0px 1px 2px rgba(26, 34, 51, 0.1);
+  border-bottom: 1px solid var(--gray3);
 `
 
 const LogoLink = styled.a`
@@ -55,6 +57,7 @@ function Header({ className }: StyledComponetProps) {
     const value = event.target.value as FedLanguages
     setLanguage(value)
     setLocale(value)
+    store.set(LOCAL_STORAGE_KEYS, value)
   }
 }
 

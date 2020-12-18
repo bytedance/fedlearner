@@ -281,6 +281,6 @@
   --darkGray10: #f6f6f6;
   --primaryColor: #286af4;
   --textColor: #1a2233;
-  --headerBg: #081f40;
+  --headerBg: white;
   --commonTiming: cubic-bezier(0.4, 0, 0.2, 1);
 }

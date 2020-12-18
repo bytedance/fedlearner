@@ -7,8 +7,10 @@
 import { VariableWidgetSchema } from 'typings/workflow'
 import { Optional } from 'utility-types'
 
+export type VariablePresets = { [key: string]: Optional<VariableWidgetSchema> }
+
 // FXIME: demo codes belows
-const variablePresets: { [key: string]: Optional<VariableWidgetSchema> } = {
+const variablePresets: VariablePresets = {
   job_name: {
     label: 'label_job_name',
     tooltip: 'tooltip_some_message',

@@ -1,7 +1,7 @@
 import { convertToUnit } from 'shared/helpers'
 import defaultTheme from './_theme'
 
-export function Square(size: any) {
+export function MixinSquare(size: any) {
   const converted = convertToUnit(size)
   return `
     width: ${converted};
@@ -9,14 +9,21 @@ export function Square(size: any) {
   `
 }
 
-export function FlexAlignCenter() {
+export function MixinCircle(diameter: any) {
+  return `
+    ${MixinSquare(diameter)}
+    border-radius: 50%;
+  `
+}
+
+export function MixinFlexAlignCenter() {
   return `
     justify-content: center;
     align-items: center;
   `
 }
 
-export function commonTransition(props: string | string[] | undefined) {
+export function MixinCommonTransition(props: string | string[] | undefined) {
   if (!props) return `transition: 0.2s ${defaultTheme.commonTiming}`
 
   const arr = []

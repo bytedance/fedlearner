@@ -1,6 +1,6 @@
 import React from 'react'
 import styled from 'styled-components'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { Menu } from 'antd'
 import {
   MailOutlined,
@@ -12,7 +12,7 @@ import {
 import { Tooltip } from 'antd'
 import { useTranslation } from 'react-i18next'
 import { useToggle } from 'react-use'
-import { FlexAlignCenter, Square } from 'styles/mixins'
+import { MixinFlexAlignCenter, MixinSquare } from 'styles/mixins'
 import classNames from 'classnames'
 
 const Container = styled.nav`
@@ -42,8 +42,8 @@ const Container = styled.nav`
 `
 
 const FoldButton = styled.div`
-  ${Square(24)}
-  ${FlexAlignCenter()}
+  ${MixinSquare(24)}
+  ${MixinFlexAlignCenter()}
 
   display: inline-flex;
   background-color: var(--gray1);
@@ -74,15 +74,14 @@ const SIDEBAR_MENU_ITEMS = [
   },
 ]
 
-const defaultActivePath = SIDEBAR_MENU_ITEMS[0].to
-
 function Sidebar({ className }: StyledComponetProps) {
   const { t } = useTranslation()
   const [isFolded, toggleFold] = useToggle(false)
+  const location = useLocation()
 
   return (
     <Container className={classNames(className, { isFolded })}>
-      <Menu mode="inline" defaultSelectedKeys={[defaultActivePath]}>
+      <Menu mode="inline" defaultSelectedKeys={[location.pathname]}>
         {SIDEBAR_MENU_ITEMS.map((menu) => (
           <Menu.Item key={menu.to}>
             {isFolded ? (

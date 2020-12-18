@@ -1,8 +1,8 @@
 import { AxiosPromise } from 'axios'
 import request from 'libs/request'
 
-export function fetchUserInfo(): AxiosPromise<FedUserInfo> {
-  return request('/v2/auth/user')
+export function fetchUserInfo(id: string): AxiosPromise<FedUserInfo> {
+  return request(`/v2/auth/users/${id}`)
 }
 
 export function login(data: FedLoginFormData) {
