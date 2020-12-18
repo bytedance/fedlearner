@@ -1,7 +1,8 @@
 const res = {
   data: {
-    success: true,
-    message: 'Wrong password!',
+    access_token: 'token',
+    id: 1,
+    msg: 'Wrong password!',
   },
   status: 204,
 }

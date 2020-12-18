@@ -1,4 +1,4 @@
-import { commonTransition } from './mixins'
+import { MixinCommonTransition } from './mixins'
 import defaultTheme from './_theme'
 
 describe('Common transition mixin', () => {
@@ -14,7 +14,7 @@ describe('Common transition mixin', () => {
     ]
 
     cases.forEach(({ i, o }) => {
-      expect(commonTransition(i).trim()).toBe(o)
+      expect(MixinCommonTransition(i).trim()).toBe(o)
     })
   })
 })

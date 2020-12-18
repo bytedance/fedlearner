@@ -11,5 +11,4 @@ declare interface FedUserInfo {
 declare interface FedLoginFormData {
   username: string
   passowrd: string
-  remember: boolean
 }

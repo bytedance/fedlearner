@@ -1,5 +1,11 @@
+const errors = {
+  please_sign_in: 'Pelase Sign in',
+}
+
 const messages = {
   translation: {
+    errors,
+
     menu_label_project: 'Projects',
     menu_label_workflow: 'Workflows',
     menu_label_datasets: 'Datasets',

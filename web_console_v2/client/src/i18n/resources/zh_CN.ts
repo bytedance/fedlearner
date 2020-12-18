@@ -1,5 +1,11 @@
+const errors = {
+  please_sign_in: '请登录',
+}
+
 const messages = {
   translation: {
+    errors,
+
     menu_label_project: ' 项目管理',
     menu_label_workflow: '工作流管理',
     menu_label_datasets: '数据管理',

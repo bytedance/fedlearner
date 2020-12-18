@@ -18,6 +18,7 @@
     "dayjs": "^1.9.4",
     "eventemitter3": "^4.0.7",
     "i18next": "^19.8.3",
+    "keyboardjs": "^2.6.4",
     "lodash-es": "^4.17.15",
     "react": "^17.0.1",
     "react-app-polyfill": "^2.0.0",
@@ -29,6 +30,7 @@
     "react-router-dom": "^5.2.0",
     "react-use": "^15.3.4",
     "recoil": "^0.1.2",
+    "store2": "^2.12.0",
     "styled-components": "^5.2.1",
     "utility-types": "^3.10.0"
   },
@@ -41,6 +43,7 @@
     "@testing-library/user-event": "^12.2.0",
     "@types/classnames": "^2.2.11",
     "@types/jest": "^26.0.15",
+    "@types/keyboardjs": "^2.5.0",
     "@types/less": "^3.0.1",
     "@types/lodash": "^4.14.164",
     "@types/node": "^12.19.3",

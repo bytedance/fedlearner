@@ -1,5 +1,9 @@
+import i18n from 'i18n'
+import store from 'store2'
 import { atom, selector } from 'recoil'
 import { fetchUserInfo } from 'services/user'
+import LOCAL_STORAGE_KEYS from 'shared/localStorageKeys'
+import { isNil } from 'lodash'
 
 export const userInfoState = atom<FedUserInfo>({
   key: 'UserInfo',
@@ -18,7 +22,12 @@ export const userInfoQuery = selector({
   key: 'UserInfoQuery',
   get: async () => {
     try {
-      const userinfo = await fetchUserInfo()
+      const currentUserId = store.get(LOCAL_STORAGE_KEYS.current_user)?.id
+
+      if (isNil(currentUserId)) {
+        throw new Error(i18n.t('errors.please_sign_in'))
+      }
+      const userinfo = await fetchUserInfo(currentUserId)
 
       return userinfo.data
     } catch (error) {

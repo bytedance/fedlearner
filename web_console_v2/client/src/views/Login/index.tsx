@@ -1,14 +1,16 @@
-import React from 'react'
+import React, { useCallback } from 'react'
 import styled from 'styled-components'
 import { Input, Checkbox, Form, Button, message } from 'antd'
 import { EyeInvisibleOutlined, EyeTwoTone } from '@ant-design/icons'
 import loginLeftBg from 'assets/images/login-left-bg.jpg'
 import logoWhite from 'assets/images/logo-white.svg'
-import { FlexAlignCenter } from 'styles/mixins'
+import { MixinFlexAlignCenter } from 'styles/mixins'
 import { login } from 'services/user'
 import { useHistory } from 'react-router-dom'
 import { useToggle } from 'react-use'
 import { useTranslation } from 'react-i18next'
+import store from 'store2'
+import LOCAL_STORAGE_KEYS from 'shared/localStorageKeys'
 
 const Layout = styled.main`
   display: grid;
@@ -35,7 +37,7 @@ const Slogan = styled.h1`
 `
 
 const Left = styled(Block)`
-  ${FlexAlignCenter()}
+  ${MixinFlexAlignCenter()}
 
   display: flex;
   flex-direction: column;
@@ -50,7 +52,7 @@ const Left = styled(Block)`
 `
 
 const Right = styled(Block)`
-  ${FlexAlignCenter()}
+  ${MixinFlexAlignCenter()}
 
   display: flex;
   background-color: white;
@@ -93,6 +95,23 @@ function Login() {
   const { t } = useTranslation()
   const [submitting, toggleSubmit] = useToggle(false)
 
+  const onSubmit = useCallback(
+    async (payload: unknown) => {
+      toggleSubmit(true)
+      try {
+        const { data } = await login(payload as FedLoginFormData)
+
+        store.set(LOCAL_STORAGE_KEYS.current_user, { ...data, date: Date.now() })
+
+        history.push('/')
+      } catch (error) {
+        message.error(error.message)
+      }
+      toggleSubmit(false)
+    },
+    [toggleSubmit, history],
+  )
+
   return (
     <Layout>
       <Left>
@@ -104,7 +123,7 @@ function Login() {
           size="large"
           name="login-form"
           initialValues={{ remember: true }}
-          onFinish={onFinish}
+          onFinish={onSubmit}
         >
           <h3 className="form-title">{t('login_form_title')}</h3>
 
@@ -148,16 +167,6 @@ function Login() {
   )
 
   // -------- Handlers ------------
-  async function onFinish(data: unknown) {
-    toggleSubmit(true)
-    try {
-      await login(data as FedLoginFormData)
-      history.push('/')
-    } catch (error) {
-      message.error(error.message)
-    }
-    toggleSubmit(false)
-  }
 }
 
 export default Login

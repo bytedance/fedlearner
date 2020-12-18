@@ -12,7 +12,7 @@ import {
 import { Tooltip } from 'antd'
 import { useTranslation } from 'react-i18next'
 import { useToggle } from 'react-use'
-import { FlexAlignCenter, Square } from 'styles/mixins'
+import { MixinFlexAlignCenter, MixinSquare } from 'styles/mixins'
 import classNames from 'classnames'
 
 const Container = styled.nav`
@@ -42,8 +42,8 @@ const Container = styled.nav`
 `
 
 const FoldButton = styled.div`
-  ${Square(24)}
-  ${FlexAlignCenter()}
+  ${MixinSquare(24)}
+  ${MixinFlexAlignCenter()}
 
   display: inline-flex;
   background-color: var(--gray1);
@@ -78,6 +78,7 @@ function Sidebar({ className }: StyledComponetProps) {
   const { t } = useTranslation()
   const [isFolded, toggleFold] = useToggle(false)
   const location = useLocation()
+
   return (
     <Container className={classNames(className, { isFolded })}>
       <Menu mode="inline" defaultSelectedKeys={[location.pathname]}>
