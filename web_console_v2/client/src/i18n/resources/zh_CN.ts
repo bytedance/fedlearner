@@ -1,6 +1,39 @@
 const errors = {
   please_sign_in: '请登录',
 }
+const Project = {
+  project_create: '创建项目',
+  project_search_placeholder: '输入项目名称关键词搜索',
+  project_display_card: '卡片视图',
+  project_display_list: '表格视图',
+  project_connect_status_success: '成功',
+  project_connect_status_waiting: '待检查',
+  project_connect_status_checking: '检查中',
+  project_connect_status_failed: '失败',
+  project_action_edit: '编辑',
+  project_action_detail: '详情',
+  project_check_connect: '检查连接',
+  project_create_work_flow: '创建工作流',
+  project_connect_status: '连接状态',
+  project_workflow_number: '工作流任务数量',
+  project_name: '项目名称',
+  project_partner_name: '合作伙伴名称',
+  project_partner_url: '合作伙伴节点地址',
+  project_remarks: '说明备注',
+  project_name_placeholder: '请填写项目名称',
+  project_partner_name_placeholder: '请填写合作伙伴名称',
+  project_partner_url_placeholder: '请填写合作伙伴节点地址',
+  project_remarks_placeholder: '请填写说明备注',
+  project_name_message: '请填写项目名称！',
+  project_partner_name_message: '请填写合作伙伴名称！',
+  project_partner_url_message: '请填写合作伙伴节点地址！',
+  project_edit: '编辑项目',
+  project_workflow: '工作流任务',
+  project_mix_dataset: '融合数据集',
+  project_model: '模型',
+  project_creator: '创建者',
+  project_creat_time: '创建时间',
+}
 
 const messages = {
   translation: {
@@ -22,6 +55,10 @@ const messages = {
 
     terms: '服务协议',
     privacy: '隐私条款',
+    more: '更多',
+    submit: '确认',
+    cancel: '取消',
+    operation: '操作',
   },
 }
 

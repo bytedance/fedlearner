@@ -1,0 +1,153 @@
+import React, { ReactElement, useState } from 'react'
+import styled from 'styled-components'
+import { Form, Input, Space } from 'antd'
+import { useTranslation } from 'react-i18next'
+import AddField from './AddField'
+import RemoveField from './RemoveField'
+import { useToggle } from 'react-use'
+
+const Container = styled.div``
+
+const Body = styled.div`
+  width: 800px;
+  .ant-space-item {
+    &:nth-child(1) {
+      flex: 1;
+      .ant-form-item-label {
+        min-width: 166px;
+      }
+    }
+
+    &:nth-child(2) {
+      flex: 1;
+      .ant-form-item-label {
+        max-width: 100px;
+        .ant-form-item-required {
+          &::before {
+            display: none;
+          }
+        }
+      }
+    }
+  }
+`
+
+const Header = styled.div`
+  position: relative;
+  padding-bottom: 32px;
+  .title {
+    font-weight: 600;
+    font-size: 16px;
+    line-height: 24px;
+    color: var(--gray10);
+  }
+  .toggle {
+    font-size: 14px;
+    line-height: 24px;
+    color: var(--arcoblue6);
+    position: absolute;
+    left: 166px;
+    &.hide {
+      &::after {
+        width: 0;
+        height: 0;
+        content: '';
+        display: inline-block;
+        border: 3px solid transparent;
+        border-bottom: 5px solid var(--arcoblue6);
+        border-radius: 1px;
+        margin-left: 8px;
+        margin-bottom: 2px;
+        transform: rotate(0deg);
+      }
+    }
+
+    &.show {
+      &::after {
+        width: 0;
+        height: 0;
+        content: '';
+        display: inline-block;
+        border: 3px solid transparent;
+        border-top: 5px solid var(--arcoblue6);
+        border-radius: 1px;
+        margin-left: 8px;
+        margin-top: 2px;
+      }
+    }
+  }
+`
+
+interface Props {}
+
+interface EnvPath {
+  name: string
+  value: string
+}
+
+function EnvPathsForm({}: Props): ReactElement {
+  const { t } = useTranslation()
+  const [isFolded, toggleFolded] = useToggle(true)
+  return (
+    <Container>
+      <Header>
+        {isFolded ? (
+          <>
+            <span className="toggle hide" onClick={toggleFolded}>
+              环境变量配置
+            </span>
+          </>
+        ) : (
+          <>
+            <span className="title">环境变量参数配置</span>
+            <span className="toggle show" onClick={toggleFolded}>
+              收起环境变量配置
+            </span>
+          </>
+        )}
+      </Header>
+      {isFolded ? null : (
+        <Body>
+          <Form.List name="names">
+            {(fields, { add, remove }, { errors }) => (
+              <>
+                {fields.map((field, index) => (
+                  <Space
+                    key={field.key}
+                    style={{ display: 'flex', marginBottom: 8 }}
+                    align="baseline"
+                  >
+                    <Form.Item
+                      {...field}
+                      label="Name"
+                      name={[field.name, 'name']}
+                      fieldKey={[field.fieldKey, 'name']}
+                      rules={[{ required: true, message: 'Missing first name' }]}
+                    >
+                      <Input placeholder="name" />
+                    </Form.Item>
+                    <Form.Item
+                      label="Value"
+                      {...field}
+                      name={[field.name, 'value']}
+                      fieldKey={[field.fieldKey, 'value']}
+                      rules={[{ required: true, message: 'Missing first name' }]}
+                    >
+                      <Input.TextArea placeholder="value" />
+                    </Form.Item>
+                    <RemoveField onClick={() => remove(field.name)} />
+                  </Space>
+                ))}
+                <Form.Item>
+                  <AddField onClick={() => add()} />
+                </Form.Item>
+              </>
+            )}
+          </Form.List>
+        </Body>
+      )}
+    </Container>
+  )
+}
+
+export default EnvPathsForm

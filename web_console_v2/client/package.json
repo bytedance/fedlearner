@@ -7,7 +7,8 @@
     "start": "node scripts/start.js",
     "build": "node scripts/build.js",
     "test": "node scripts/test.js",
-    "lint": "eslint '*/**/*.{js,ts,tsx}' --fix"
+    "lint": "eslint '*/**/*.{js,ts,tsx}' --fix",
+    "pritter": "npx prettier --write ./src"
   },
   "dependencies": {
     "@formily/antd": "^1.3.8",
@@ -15,7 +16,7 @@
     "antd": "^4.8.2",
     "axios": "^0.21.0",
     "classnames": "^2.2.6",
-    "dayjs": "^1.9.4",
+    "dayjs": "^1.9.7",
     "eventemitter3": "^4.0.7",
     "i18next": "^19.8.3",
     "keyboardjs": "^2.6.4",

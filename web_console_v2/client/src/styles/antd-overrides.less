@@ -26,3 +26,91 @@
     font-weight: bold;
   }
 }
+
+// ant-input 2 arco-input
+.ant-input,
+.ant-input-affix-wrapper {
+  border: 1px solid transparent;
+  transition: color 0.1s linear, border-color 0.1s linear, background-color 0.1s linear;
+  box-shadow: none !important;
+}
+
+.ant-input,
+.ant-input-affix-wrapper {
+  background-color: var(--gray2);
+  color: var(--gray10);
+  &:hover {
+    background-color: var(--gray3);
+    border-color: transparent;
+  }
+  &:focus {
+    border-color: var(--arcoblue6);
+    background-color: var(--colorBgWhite);
+  }
+  &-focused {
+    border-color: var(--arcoblue6) !important;
+    background-color: var(--colorBgWhite) !important;
+  }
+  .ant-input {
+    background-color: transparent;
+    color: var(--gray10);
+  }
+}
+
+.ant-form-item-has-error {
+  .ant-input,
+  .ant-input-affix-wrapper {
+    border-color: transparent;
+    background-color: var(--red1);
+    &:hover {
+      border-color: transparent;
+      background-color: var(--red2);
+    }
+    &:focus {
+      border-color: var(--red6);
+      background-color: var(--colorBgWhite);
+    }
+    &-focused {
+      border-color: var(--red6) !important;
+      background-color: var(--colorBgWhite) !important;
+    }
+  }
+}
+
+.ant-input-group-addon {
+  background-color: transparent !important;
+}
+
+.project-actions {
+  width: 72px;
+  border: 1px solid #e5e6e8;
+  box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
+  border-radius: 4px;
+  overflow: hidden;
+  padding: 0;
+  .ant-popover-content {
+    .ant-popover-arrow {
+      display: none !important;
+    }
+    .ant-popover-inner {
+      border-radius: 0;
+      .ant-popover-inner-content {
+        padding: 0;
+      }
+    }
+  }
+}
+
+.ant-drawer {
+  .ant-drawer-header {
+    .ant-drawer-header {
+      border-bottom: none;
+    }
+  }
+}
+
+.ellipsis {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
