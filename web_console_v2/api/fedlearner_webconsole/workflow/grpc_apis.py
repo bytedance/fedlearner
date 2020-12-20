@@ -15,12 +15,13 @@
 # coding: utf-8
 import logging
 from grpc import RpcError
+
 from fedlearner_webconsole.proto import common_pb2
 from fedlearner_webconsole.project.models import Project
 from fedlearner_webconsole.rpc.client import RpcClient
 from fedlearner_webconsole.exceptions import InvalidArgumentException
 class WorkflowGrpc:
-    def _grpc_update_workflow(self, uid, status, project_name,
+    def _grpc_update_workflow(self, uuid, status, project_name,
                               method_type, name=None,
                               forkable=None, config=None,
                               peer_config=None):
@@ -41,7 +42,7 @@ class WorkflowGrpc:
         for receiver_name in receiver_names:
             stub = RpcClient(project_name=project_name,
                              receiver_name=receiver_name)
-            result = stub.update_workflow(uid, status, name,
+            result = stub.update_workflow(uuid, status, name,
                                           forkable, config,
                                           peer_config, method_type)
             if result.code == common_pb2.STATUS_UNKNOWN_ERROR:
@@ -52,27 +53,27 @@ class WorkflowGrpc:
                 logging.error('RPC: %s %s Unauthorized.', project_name
                               , receiver_name)
                 raise RpcError
-            logging.info('RPC: %s %s %s peer succeeded update. msg:%s',
+            logging.warning('RPC: %s %s %s peer succeeded update. msg:%s',
                          project_name,
                          receiver_name, name, result.msg)
 
-    def create_workflow(self, uid, name, config, project_name, forkable):
+    def create_workflow(self, uuid, name, config, project_name, forkable):
         # TODO: implement 2pc (TCC) try() confirm() cancel()
-        return self._grpc_update_workflow(uid=uid, project_name=project_name,
+        return self._grpc_update_workflow(uuid=uuid, project_name=project_name,
                                           name=name, status=2,
                                           forkable=forkable, peer_config=config,
                                           method_type='create')
 
-    def confirm_workflow(self, uid, config, project_name, forkable):
+    def confirm_workflow(self, uuid, config, project_name, forkable):
         # TODO: implement 2pc (TCC) try() confirm() cancel()
-        return self._grpc_update_workflow(uid=uid, project_name=project_name,
+        return self._grpc_update_workflow(uuid=uuid, project_name=project_name,
                                           status=5,
                                           forkable=forkable, peer_config=config,
                                           method_type='fork')
 
-    def fork_workflow(self, uid, name, project_name, config, peer_config):
+    def fork_workflow(self, uuid, name, project_name, config, peer_config):
         # TODO: implement 2pc (TCC) try() confirm() cancel()
-        return self._grpc_update_workflow(uid=uid, name=name,
+        return self._grpc_update_workflow(uuid=uuid, name=name,
                                           project_name=project_name, status=5,
                                           config=peer_config,
                                           peer_config=config,

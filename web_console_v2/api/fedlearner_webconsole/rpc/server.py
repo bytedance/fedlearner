@@ -13,8 +13,9 @@
 # limitations under the License.
 
 # coding: utf-8
-# pylint: disable=broad-except
-
+# pylint: disable=broad-except, cyclic-import
+import os
+import logging
 import threading
 from concurrent import futures
 import grpc
@@ -22,16 +23,20 @@ from fedlearner_webconsole.proto import (
     service_pb2, service_pb2_grpc, common_pb2
 )
 from fedlearner_webconsole.db import db
+from fedlearner_webconsole import app
 from fedlearner_webconsole.project.models import Project
 from fedlearner_webconsole.workflow.models import Workflow
 from fedlearner_webconsole.workflow.models import WorkflowStatus
-from fedlearner_webconsole.workflow.apis import lock_workflow, release_workflow
+from fedlearner_webconsole.workflow.workflow_lock import get_worklow_lock
 
+# use to get status which can be change to the target
 workflow_status_map = {
     WorkflowStatus.CREATED: [WorkflowStatus.CREATE_SENDER_COMMITTABLE]}
+# use to get status which suggest the workflow has been updated
 workflow_finished_map = {
     WorkflowStatus.CREATED: [WorkflowStatus.CREATED]
 }
+
 
 class RPCServerServicer(service_pb2_grpc.WebConsoleV2ServiceServicer):
     def __init__(self, server):
@@ -48,8 +53,10 @@ class RPCServerServicer(service_pb2_grpc.WebConsoleV2ServiceServicer):
 
     def UpdateWorkflow(self, request, context):
         try:
-            return self._server.update_workflow(request)
+            with app.current_app.app_context():
+                return self._server.update_workflow(request)
         except Exception as e:
+            logging.error(e.args)
             return service_pb2.UpdateWorkflowResponse(
                 status=common_pb2.Status(
                     code=common_pb2.STATUS_UNKNOWN_ERROR,
@@ -65,7 +72,6 @@ class RpcServer(object):
 
     def start(self, listen_port):
         assert not self._started, "Already started"
-
         with self._lock:
             self._server = grpc.server(
                 futures.ThreadPoolExecutor(max_workers=10))
@@ -74,6 +80,7 @@ class RpcServer(object):
             self._server.add_insecure_port('[::]:%d' % listen_port)
             self._server.start()
             self._started = True
+
 
     def stop(self):
         if not self._started:
@@ -90,12 +97,11 @@ class RpcServer(object):
         if project is None:
             return False
         fed_proto = project.get_config()
-        if fed_proto.self_name != auth_info.receiver_name:
+        if os.environ.get('SELF_DOMAIN_NAME') != auth_info.receiver_name:
             return False
         if auth_info.sender_name not in fed_proto.participants:
             return False
-        party = fed_proto.participants[auth_info.sender_name]
-        if party.receiver_auth_token != auth_info.auth_token:
+        if project.token != auth_info.auth_token:
             return False
         return True
 
@@ -107,7 +113,7 @@ class RpcServer(object):
         return service_pb2.CheckConnectionResponse(
             status=common_pb2.Status(
                 code=common_pb2.STATUS_UNAUTHORIZED))
-
+    # TODO: separate the business code into another file
     def _create_workflow(self, request, workflow):
         if workflow is not None:
             return service_pb2.UpdateWorkflowResponse(
@@ -120,7 +126,7 @@ class RpcServer(object):
                 status=common_pb2.Status(
                     code=common_pb2.STATUS_SUCCESS,
                     msg='Workflow has conflict name'))
-        workflow = Workflow(uid=request.uid,
+        workflow = Workflow(uuid=request.uuid,
                             status=WorkflowStatus(request.status),
                             project_name=request.auth_info.project_name,
                             name=new_name, forkable=request.forkable,
@@ -134,12 +140,12 @@ class RpcServer(object):
                 msg='Workflow created'))
 
     def update_workflow(self, request):
-
+        workflow_lock = get_worklow_lock()
         if not self.check_auth_info(request.auth_info):
             return service_pb2.UpdateWorkflowResponse(
                 status=common_pb2.Status(
                     code=common_pb2.STATUS_UNAUTHORIZED))
-        workflow = Workflow.query.filter_by(uid=request.uid).first()
+        workflow = Workflow.query.filter_by(uuid=request.uuid).first()
         if request.method_type in ['create', 'fork']:
             # TODO: when fork combine origin
             #  definition to protect PRIVATE Variable
@@ -156,19 +162,16 @@ class RpcServer(object):
                 status=common_pb2.Status(
                     code=common_pb2.STATUS_SUCCESS,
                     msg='Workflow has already updated'))
-        lock_workflow(workflow, workflow_status_map[status])
+        workflow_lock.lock(workflow, workflow_status_map[status])
         workflow.status = request.status
         workflow.forkable = request.forkable
         workflow.peer_config = workflow.peer_config
         db.session.commit()
-        release_workflow(workflow)
+        workflow_lock.release_workflow(workflow)
         return service_pb2.UpdateWorkflowResponse(
             status=common_pb2.Status(
                 code=common_pb2.STATUS_SUCCESS,
                 msg='Workflow updated'))
-
-
-
 
 
 rpc_server = RpcServer()

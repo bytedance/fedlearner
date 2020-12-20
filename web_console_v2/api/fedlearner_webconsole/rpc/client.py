@@ -29,9 +29,10 @@ def _build_channel(url, authority):
             target=url,
             # options defined at
             # https://github.com/grpc/grpc/blob/master/include/grpc/impl/codegen/grpc_types.h
-            options={
-                'grpc.default_authority': authority,
-            })
+            # options={
+            #     'grpc.default_authority': authority,
+            # }
+    )
 
 
 class RpcClient(object):
@@ -41,6 +42,7 @@ class RpcClient(object):
         assert project is not None, \
             'project {} not found'.format(project_name)
         self._project = project.get_config()
+        self._project.project_name = project.name
         assert receiver_name in self._project.participants, \
             'receiver {} not found'.format(receiver_name)
         self._receiver = self._project.participants[receiver_name]
@@ -73,7 +75,7 @@ class RpcClient(object):
                 code=common_pb2.STATUS_UNKNOWN_ERROR,
                 msg=repr(e))
 
-    def update_workflow(self, uid, status, name,
+    def update_workflow(self, uuid, status, name,
                               forkable, config,
                               peer_config, method_type):
         msg = service_pb2.UpdateWorkflowRequest(
@@ -82,7 +84,7 @@ class RpcClient(object):
                 sender_name=os.environ.get('SELF_DOMAIN_NAME'),
                 receiver_name=self._receiver.domain_name,
                 auth_token=self._project.token),
-            uid=uid, status=status, name=name, forkable=forkable,
+            uuid=uuid, status=status, name=name, forkable=forkable,
             config=config, peer_config=peer_config,
             method_type=method_type
         )

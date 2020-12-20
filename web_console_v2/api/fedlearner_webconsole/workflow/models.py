@@ -31,15 +31,16 @@ class WorkflowStatus(enum.Enum):
 
 @to_dict_mixin(extras={
     'config': (lambda wf: wf.get_config()),
-    'peer_config': (lambda wf: wf.get_peer_config())
+    'peer_config': (lambda wf: wf.get_peer_config()),
+    'status': (lambda wf: wf.status.value)
 })
 class Workflow(db.Model):
     __tablename__ = 'workflow_v2'
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(255), index=True)
-    project_name = db.Column(db.Integer, nullable=False)
+    project_name = db.Column(db.String(255), nullable=False)
     status = db.Column(db.Enum(WorkflowStatus), nullable=False)
-    uid = db.Column(db.String(255), unique=True, nullable=False, index=True)
+    uuid = db.Column(db.String(255), unique=True, nullable=False, index=True)
     forkable = db.Column(db.Boolean, default=False)
     peer_forkable = db.Column(db.Boolean, default=False)
     group_alias = db.Column(db.String(255), index=True)
