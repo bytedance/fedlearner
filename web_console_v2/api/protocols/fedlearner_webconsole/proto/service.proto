@@ -36,10 +36,11 @@ message CheckConnectionResponse {
 }
 
 
+
 message UpdateWorkflowRequest{
+
     string uuid = 1;
-    // TODO: status should change to enum
-    int32 status = 2;
+    WorkflowStatus status = 2;
     ProjAuthInfo auth_info = 3;
     string name = 4;
     // Receiver forkable
@@ -48,7 +49,7 @@ message UpdateWorkflowRequest{
     string config = 6;
     string peer_config = 7;
     // TODO: method_type should change to enum
-    string method_type = 8;
+    MethodType method_type = 8;
 }
 message UpdateWorkflowResponse{
     Status status = 1;

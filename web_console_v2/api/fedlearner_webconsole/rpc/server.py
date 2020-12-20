@@ -146,7 +146,7 @@ class RpcServer(object):
                 status=common_pb2.Status(
                     code=common_pb2.STATUS_UNAUTHORIZED))
         workflow = Workflow.query.filter_by(uuid=request.uuid).first()
-        if request.method_type in ['create', 'fork']:
+        if request.method_type in [common_pb2.CREATED, common_pb2.FORK]:
             # TODO: when fork combine origin
             #  definition to protect PRIVATE Variable
             return self._create_workflow(request, workflow)

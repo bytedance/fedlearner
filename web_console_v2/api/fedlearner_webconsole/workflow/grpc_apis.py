@@ -62,14 +62,14 @@ class WorkflowGrpc:
         return self._grpc_update_workflow(uuid=uuid, project_name=project_name,
                                           name=name, status=2,
                                           forkable=forkable, peer_config=config,
-                                          method_type='create')
+                                          method_type=common_pb2.CREATE)
 
     def confirm_workflow(self, uuid, config, project_name, forkable):
         # TODO: implement 2pc (TCC) try() confirm() cancel()
         return self._grpc_update_workflow(uuid=uuid, project_name=project_name,
                                           status=5,
                                           forkable=forkable, peer_config=config,
-                                          method_type='fork')
+                                          method_type=common_pb2.UPDATE)
 
     def fork_workflow(self, uuid, name, project_name, config, peer_config):
         # TODO: implement 2pc (TCC) try() confirm() cancel()
@@ -77,4 +77,4 @@ class WorkflowGrpc:
                                           project_name=project_name, status=5,
                                           config=peer_config,
                                           peer_config=config,
-                                          method_type='update')
+                                          method_type=common_pb2.FORK)
