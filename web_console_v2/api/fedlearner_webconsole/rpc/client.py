@@ -36,11 +36,11 @@ def _build_channel(url, authority):
 
 
 class RpcClient(object):
-    def __init__(self, project_name, receiver_name):
+    def __init__(self, project_id, receiver_name):
         project = Project.query.filter_by(
-            name=project_name).first()
+            name=project_id).first()
         assert project is not None, \
-            'project {} not found'.format(project_name)
+            'project {} not found'.format(project_id)
         self._project = project.get_config()
         self._project.project_name = project.name
         assert receiver_name in self._project.participants, \

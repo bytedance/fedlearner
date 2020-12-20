@@ -52,15 +52,15 @@ class WorkflowListApi(Resource):
                             help='config is empty')
         parser.add_argument('peer_forkable', type=bool, required=True,
                             help='peer_forkable is empty')
-        parser.add_argument('project_name', required=True,
-                            help='project_name is empty')
+        parser.add_argument('project_id', required=True,
+                            help='project_id is empty')
         data = parser.parse_args()
         name = data['name']
         comment = data['comment']
         config = data['config']
         peer_forkable = data['peer_forkable']
-        project_name = data['project_name']
-        if Project.query.filter_by(id=project_name).first() is None:
+        project_id = data['project_id']
+        if Project.query.filter_by(id=project_id).first() is None:
             raise InvalidArgumentException('project does not exist')
         if Workflow.query.filter_by(name=name).first() is not None:
             raise ResourceConflictException(
@@ -71,7 +71,7 @@ class WorkflowListApi(Resource):
         workflow = Workflow(name=name, comment=comment,
                             group_alias=template_proto.group_alias,
                             peer_forkable=peer_forkable,
-                            project_name=project_name,
+                            project_id=project_id,
                             uuid=uuid,
                             status=WorkflowStatus.CREATE_SENDER_PREPARE)
         workflow.set_config(template_proto)
@@ -126,7 +126,7 @@ class WorkflowApi(Resource):
                 workflow_grpc.create_workflow(workflow.uuid,
                                               workflow.name,
                                               workflow.config,
-                                              workflow.project_name,
+                                              workflow.project_id,
                                               workflow.peer_forkable)
             elif WorkflowStatus(
                    workflow_status) \
@@ -136,7 +136,7 @@ class WorkflowApi(Resource):
                 #  and writeable Variables
                 workflow_grpc.confirm_workflow(workflow.uuid,
                                                workflow.config,
-                                               workflow.project_name,
+                                               workflow.project_id,
                                                workflow.peer_forkable)
             elif WorkflowStatus(workflow_status) == WorkflowStatus.FORK_SENDER:
                 workflow.status = WorkflowStatus.CREATED
@@ -144,7 +144,7 @@ class WorkflowApi(Resource):
                 #  and writeable Variables
                 workflow_grpc.fork_workflow(workflow.uuid,
                                             workflow.name,
-                                            workflow.project_name,
+                                            workflow.project_id,
                                             workflow.config,
                                             workflow.peer_config)
             else:
@@ -182,7 +182,7 @@ class WorkflowApi(Resource):
         name = data['name']
         comment = data['comment']
         config = data['config']
-        project_name = origin_workflow.project_name
+        project_id = origin_workflow.project_id
         peer_config = data['peer_config']
         if Workflow.query.filter_by(name=name).first() is not None:
             raise ResourceConflictException(
@@ -202,7 +202,7 @@ class WorkflowApi(Resource):
                             group_alias=template_proto.group_alias,
                             forkable=False,
                             peer_forkable=False,
-                            project_name=project_name,
+                            project_id=project_id,
                             uuid=uuid, status=WorkflowStatus.FORK_SENDER)
         workflow.set_config(template_proto)
         workflow.set_peer_config(peer_template_proto)
