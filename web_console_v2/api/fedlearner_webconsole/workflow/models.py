@@ -21,12 +21,13 @@ from fedlearner_webconsole.proto import workflow_definition_pb2
 
 
 class WorkflowStatus(enum.Enum):
-    CREATE_SENDER_PREPARE = 0
-    CREATE_RECEIVER_PREPARE = 1
-    CREATE_SENDER_COMMITTABLE = 2
-    CREATE_RECEIVER_COMMITTABLE = 3
-    CREATED = 4
-    FORK_SENDER = 5
+    UNSPECIFIED = 0
+    CREATE_SENDER_PREPARE = 1
+    CREATE_RECEIVER_PREPARE = 2
+    CREATE_SENDER_COMMITTABLE = 3
+    CREATE_RECEIVER_COMMITTABLE = 4
+    CREATED = 5
+    FORK_SENDER = 6
 
 
 @to_dict_mixin(extras={
@@ -73,5 +74,5 @@ class Workflow(db.Model):
         return proto
 
     def get_project_token(self):
-        project = Project.query.filter_by(name=self.project_id).first
+        project = Project.query.filter_by(id=self.project_id).first
         return project.token

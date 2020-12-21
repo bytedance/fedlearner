@@ -25,8 +25,8 @@ class WorkflowLock:
         self.workflow_mutex = {}
 
     def lock(self, workflow, prepare_status):
-        if workflow.uuid in self.\
-                workflow_mutex and self.workflow_mutex[workflow.uuid]:
+        if workflow.uuid in self.workflow_mutex \
+             and self.workflow_mutex[workflow.uuid]:
             raise RemoteError('The workflow status is being modified')
         if workflow.status not in prepare_status:
             raise RemoteError(

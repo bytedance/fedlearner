@@ -29,9 +29,9 @@ def _build_channel(url, authority):
             target=url,
             # options defined at
             # https://github.com/grpc/grpc/blob/master/include/grpc/impl/codegen/grpc_types.h
-            # options={
-            #     'grpc.default_authority': authority,
-            # }
+            options={
+                'grpc.default_authority': authority,
+            }
     )
 
 

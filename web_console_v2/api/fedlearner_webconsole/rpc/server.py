@@ -29,11 +29,11 @@ from fedlearner_webconsole.workflow.models import Workflow
 from fedlearner_webconsole.workflow.models import WorkflowStatus
 from fedlearner_webconsole.workflow.workflow_lock import get_worklow_lock
 
-# use to get status which can be change to the target
-workflow_status_map = {
+# to get status which can be change to the target
+WORKFLOW_READY_STATUS = {
     WorkflowStatus.CREATED: [WorkflowStatus.CREATE_SENDER_COMMITTABLE]}
-# use to get status which suggest the workflow has been updated
-workflow_finished_map = {
+# to get status which suggest the workflow has been updated
+WORKFLOW_FINISHED_STATUS = {
     WorkflowStatus.CREATED: [WorkflowStatus.CREATED]
 }
 
@@ -157,12 +157,12 @@ class RpcServer(object):
                     code=common_pb2.STATUS_UNKNOWN_ERROR,
                     msg='Workflow not existed'))
         status = WorkflowStatus(request.status)
-        if workflow.status in workflow_finished_map[status]:
+        if workflow.status in WORKFLOW_FINISHED_STATUS[status]:
             return service_pb2.UpdateWorkflowResponse(
                 status=common_pb2.Status(
                     code=common_pb2.STATUS_SUCCESS,
                     msg='Workflow has already updated'))
-        workflow_lock.lock(workflow, workflow_status_map[status])
+        workflow_lock.lock(workflow, WORKFLOW_READY_STATUS[status])
         workflow.status = request.status
         workflow.forkable = request.forkable
         workflow.peer_config = workflow.peer_config
