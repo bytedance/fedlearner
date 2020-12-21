@@ -3,7 +3,6 @@
 declare namespace JSX {
   interface IntrinsicAttributes extends JSX.IntrinsicAttributes {
     key?: string | number
-    // routes?: FedRouteConfig[]
   }
 }
 

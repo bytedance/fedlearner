@@ -36,7 +36,7 @@ const routes: FedRouteConfig[] = [
   },
   {
     path: '/workflows',
-    exact: true,
+    exact: false,
     component: Workflows,
     auth: true,
   },

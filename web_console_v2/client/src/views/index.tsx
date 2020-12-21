@@ -5,6 +5,10 @@ import { Switch, Route } from 'react-router-dom'
 import ProtectedRoute from './ProtectedRoute'
 
 function RouterViews() {
+  if (!routes) {
+    return null
+  }
+
   return (
     <Switch>
       {routes.map((route, index) => {
@@ -15,7 +19,7 @@ function RouterViews() {
             key={index}
             path={route.path}
             exact={route.exact}
-            render={(props: any) => <route.component {...props} routes={route.children} />}
+            render={(props: any) => <route.component {...props} />}
           />
         )
       })}

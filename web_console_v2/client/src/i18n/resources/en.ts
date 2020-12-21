@@ -66,12 +66,21 @@ const menu = {
   label_datasets: 'Datasets',
 }
 
+const workflows = {
+  action_re_run: 'Re-run',
+  action_run: '',
+  action_stop_running: '',
+  action_duplicate: '',
+  action_detail: '',
+}
+
 const messages = {
   translation: {
     errors,
     project,
     login,
     menu,
+    workflows,
 
     terms: 'Terms of Services',
     privacy: 'Privacy Protocol',

@@ -1,17 +1,21 @@
 import React, { ReactElement } from 'react'
-import { Card } from 'antd'
+
 import styled from 'styled-components'
 import ErrorBoundary from 'antd/lib/alert/ErrorBoundary'
+import { Route } from 'react-router-dom'
+import WorkflowsTable from './WorkflowsTable'
+import WorkflowsCreate from './WorkflowsCreate'
 
 const Container = styled.div`
   width: 100%;
 `
 
-function WorkflowsPage(): ReactElement {
+function WorkflowsPage(props: any): ReactElement {
   return (
     <ErrorBoundary>
       <Container>
-        <Card />
+        <Route path="/workflows" exact component={WorkflowsTable} />
+        <Route path="/workflows/create" exact component={WorkflowsCreate} />
       </Container>
     </ErrorBoundary>
   )

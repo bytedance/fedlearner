@@ -10,6 +10,7 @@ import { StyledComponetProps } from 'typings/component'
 
 const Container = styled.header`
   position: sticky;
+  z-index: 2;
   top: 0;
   display: grid;
   align-items: center;
@@ -60,7 +61,7 @@ function Header({ className }: StyledComponetProps) {
     const value = event.target.value as FedLanguages
     setLanguage(value)
     setLocale(value)
-    store.set(LOCAL_STORAGE_KEYS, value)
+    store.set(LOCAL_STORAGE_KEYS.language, value)
   }
 }
 

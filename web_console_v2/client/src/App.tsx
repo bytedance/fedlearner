@@ -3,8 +3,8 @@ import styled from 'styled-components'
 import Header from 'components/Header'
 import Sidebar from 'components/Sidebar'
 import Footer from 'components/Footer'
-import RouteViews from 'views'
-import { Switch, Route, Redirect } from 'react-router-dom'
+import RouterViews from 'views'
+import { Switch, Route } from 'react-router-dom'
 import Login from 'views/Login'
 
 const AppLayout = styled.div`
@@ -47,7 +47,7 @@ function App(): ReactElement {
         <AppSidebar />
 
         <AppMainContent>
-          <RouteViews />
+          <RouterViews />
         </AppMainContent>
 
         <AppFooter />

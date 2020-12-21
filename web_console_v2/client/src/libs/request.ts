@@ -29,6 +29,7 @@ if (process.env.NODE_ENV === 'development') {
 
   request = axios.create({ adapter: require('./mockAdapter').default, baseURL: HOSTNAME })
 
+  // Mock controlling
   request.interceptors.request.use((config) => {
     const key = `${config.method}|${config.url}`
     const hasSet = typeof getRequestMockState(key) === 'boolean'

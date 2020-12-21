@@ -69,18 +69,63 @@ const menu = {
   label_datasets: '数据管理',
 }
 
+const workflows = {
+  placeholder_name_searchbox: '根据工作流名称搜索',
+  placeholder_name: '请输入工作流名称',
+  placeholder_template: '请选择模板',
+  placeholder_project: '请关联一个项目',
+  placeholder_comment: '请输入工作流模板说明',
+  action_re_run: '重新运行',
+  action_run: '立即运行',
+  action_stop_running: '停止运行',
+  action_duplicate: '复制',
+  action_detail: '详情',
+  name: '工作流名称',
+  col_status: '任务状态',
+  col_project: ' 隶属项目',
+  col_creator: ' 创建者',
+  col_date: ' 创建时间',
+  col_actions: '操作',
+  status_success: '成功',
+  status_failed: '失败',
+  status_running: '运行中',
+  status_pending: '待发送',
+  status_configuring: '合作伙伴配置中',
+  sent_failed: '发送失败',
+  sent_failed_desc: '与合作伙伴连接失败，失败原因，请检查连接状态成功后在工作流列表中重新发送',
+  override_warn: '重新运行将覆盖历史结果',
+  override_warn_desc: '是否确认重新运行当前工作流任务将覆盖历史运行结果？',
+  label_name: '工作流名称',
+  label_project: '关联项目',
+  label_peer_forkable: '合作伙伴复制权限',
+  label_template: '工作流模板',
+  label_allow: '允许',
+  label_not_allow: '不允许',
+  label_exist_template: '选择已有',
+  label_new_template: '新建模板',
+  msg_sent_success: '工作流发送成功',
+}
+
+const upload = {
+  placeholder: '点击或拖拽文件到此处上传',
+  hint: '请上传{filteTypes}格式文件，大小不超过{maxSize}{sizeUnit}',
+}
+
 const messages = {
   translation: {
     errors,
     project,
     login,
     menu,
+    workflows,
+    upload,
 
     terms: '服务协议',
     privacy: '隐私条款',
     more: '更多',
     submit: '确认',
     cancel: '取消',
+    next_step: '下一步',
     operation: '操作',
     certificate: '证书',
   },
