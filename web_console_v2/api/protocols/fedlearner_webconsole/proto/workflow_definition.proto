@@ -19,7 +19,11 @@ import "fedlearner_webconsole/proto/common.proto";
 
 package fedlearner_webconsole.proto;
 
-enum JobType {
+
+
+
+message JobDefinition {
+    enum JobType {
     UNSPECIFIED = 0;
     RAW_DATA = 1;
     DATA_JOIN = 2;
@@ -29,9 +33,6 @@ enum JobType {
     NN_MODEL_EVALUATION = 6;
     TREE_MODEL_EVALUATION = 7;
 }
-
-
-message JobDefinition {
     string name = 1;
     JobType type = 2;
     repeated string dependencies = 3;

@@ -21,6 +21,7 @@ from fedlearner_webconsole.proto import workflow_definition_pb2
 
 
 class WorkflowStatus(enum.Enum):
+    UNSPECIFIED = 0
     CREATE_SENDER_PREPARE = 1
     CREATE_RECEIVER_PREPARE = 2
     CREATE_SENDER_COMMITTABLE = 3
@@ -31,7 +32,8 @@ class WorkflowStatus(enum.Enum):
 
 @to_dict_mixin(extras={
     'config': (lambda wf: wf.get_config()),
-    'peer_config': (lambda wf: wf.get_peer_config())
+    'peer_config': (lambda wf: wf.get_peer_config()),
+    'status': (lambda wf: wf.status.value)
 })
 class Workflow(db.Model):
     __tablename__ = 'workflow_v2'
@@ -39,14 +41,14 @@ class Workflow(db.Model):
     name = db.Column(db.String(255), index=True)
     project_id = db.Column(db.Integer, nullable=False)
     status = db.Column(db.Enum(WorkflowStatus), nullable=False)
-    uid = db.Column(db.String(255), unique=True, nullable=False, index=True)
+    uuid = db.Column(db.String(255), unique=True, nullable=False, index=True)
     forkable = db.Column(db.Boolean, default=False)
     peer_forkable = db.Column(db.Boolean, default=False)
     group_alias = db.Column(db.String(255), index=True)
     config = db.Column(db.Text())
+    # TODO: change to config dict to handle muti-participants
     peer_config = db.Column(db.Text())
     comment = db.Column(db.String(255))
-
     created_at = db.Column(db.DateTime(timezone=True),
                            server_default=func.now())
     updated_at = db.Column(db.DateTime(timezone=True),

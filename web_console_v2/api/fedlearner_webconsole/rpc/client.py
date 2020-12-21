@@ -31,16 +31,18 @@ def _build_channel(url, authority):
             # https://github.com/grpc/grpc/blob/master/include/grpc/impl/codegen/grpc_types.h
             options={
                 'grpc.default_authority': authority,
-            })
+            }
+    )
 
 
 class RpcClient(object):
-    def __init__(self, project_name, receiver_name):
+    def __init__(self, project_id, receiver_name):
         project = Project.query.filter_by(
-            name=project_name).first()
+            name=project_id).first()
         assert project is not None, \
-            'project {} not found'.format(project_name)
+            'project {} not found'.format(project_id)
         self._project = project.get_config()
+        self._project.project_name = project.name
         assert receiver_name in self._project.participants, \
             'receiver {} not found'.format(receiver_name)
         self._receiver = self._project.participants[receiver_name]
@@ -66,6 +68,28 @@ class RpcClient(object):
                 auth_token=self._project.token))
         try:
             response = self._client.CheckConnection(
+                request=msg, metadata=self._get_metadata())
+            return response.status
+        except Exception as e:
+            return common_pb2.Status(
+                code=common_pb2.STATUS_UNKNOWN_ERROR,
+                msg=repr(e))
+
+    def update_workflow(self, uuid, status, name,
+                              forkable, config,
+                              peer_config, method_type):
+        msg = service_pb2.UpdateWorkflowRequest(
+            auth_info=service_pb2.ProjAuthInfo(
+                project_name=self._project.project_name,
+                sender_name=os.environ.get('SELF_DOMAIN_NAME'),
+                receiver_name=self._receiver.domain_name,
+                auth_token=self._project.token),
+            uuid=uuid, status=status, name=name, forkable=forkable,
+            config=config, peer_config=peer_config,
+            method_type=method_type
+        )
+        try:
+            response = self._client.UpdateWorkflow(
                 request=msg, metadata=self._get_metadata())
             return response.status
         except Exception as e:

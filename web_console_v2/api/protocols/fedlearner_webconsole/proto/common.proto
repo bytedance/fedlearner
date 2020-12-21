@@ -53,3 +53,19 @@ message GrpcSpec {
   string authority = 2;
   map<string, string> extra_headers = 3;
 }
+enum MethodType{
+    CREATE = 0;
+    UPDATE = 1;
+    FORK = 2;
+}
+
+enum WorkflowStatus{
+    UNSPECIFIED = 0;
+    CREATE_SENDER_PREPARE = 1;
+    CREATE_RECEIVER_PREPARE = 2;
+    CREATE_SENDER_COMMITTABLE = 3;
+    CREATE_RECEIVER_COMMITTABLE = 4;
+    CREATED = 5;
+    FORK_SENDER = 6;
+}
+

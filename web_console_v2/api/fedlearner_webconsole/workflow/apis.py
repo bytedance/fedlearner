@@ -16,11 +16,11 @@
 from uuid import uuid4
 from http import HTTPStatus
 import logging
-from threading import Lock
 from grpc import RpcError
 from flask_restful import Resource, reqparse, request
 from fedlearner_webconsole.project.models import Project
 from fedlearner_webconsole.workflow.models import Workflow, WorkflowStatus
+from fedlearner_webconsole.workflow.workflow_lock import get_worklow_lock
 from fedlearner_webconsole.workflow_template.apis import \
     dict_to_workflow_definition, check_group_same
 from fedlearner_webconsole.db import db
@@ -28,33 +28,15 @@ from fedlearner_webconsole.workflow.grpc_apis import WorkflowGrpc
 from fedlearner_webconsole.exceptions import (
     NotFoundException, InvalidArgumentException,
     ResourceConflictException)
-lock = Lock()
-workflow_mutex = {}
-workflow_grpc = WorkflowGrpc()
 
+workflow_grpc = WorkflowGrpc()
 
 def _get_workflow(workflow_id):
     result = Workflow.query.filter_by(id=workflow_id).first()
     if result is None:
         raise NotFoundException()
+    logging.info('%s has been loaded', result.uuid)
     return result
-
-
-def lock_workflow(workflow, prepare_status):
-    global workflow_mutex
-    with lock:
-        if workflow.uid in workflow_mutex and workflow_mutex[workflow.uid]:
-            raise ResourceConflictException(
-                'The workflow status is being modified')
-        if workflow.status not in prepare_status:
-            raise NotFoundException()
-        workflow_mutex[workflow.uid] = True
-
-
-def release_workflow(workflow):
-    global workflow_mutex
-    with lock:
-        workflow_mutex[workflow.uid] = False
 
 
 class WorkflowListApi(Resource):
@@ -90,7 +72,7 @@ class WorkflowListApi(Resource):
                             group_alias=template_proto.group_alias,
                             peer_forkable=peer_forkable,
                             project_id=project_id,
-                            uid=uuid,
+                            uuid=uuid,
                             status=WorkflowStatus.CREATE_SENDER_PREPARE)
         workflow.set_config(template_proto)
         db.session.add(workflow)
@@ -105,6 +87,7 @@ class WorkflowApi(Resource):
         return {'data': result.to_dict()}, HTTPStatus.OK
 
     def put(self, workflow_id):
+        workflow_lock = get_worklow_lock()
         parser = reqparse.RequestParser()
         parser.add_argument('comment')
         parser.add_argument('peer_forkable', required=True,
@@ -116,7 +99,7 @@ class WorkflowApi(Resource):
         peer_forkable = data['peer_forkable']
         config = data['config']
         workflow = _get_workflow(workflow_id)
-        lock_workflow(workflow, [WorkflowStatus.CREATE_RECEIVER_PREPARE])
+        workflow_lock.lock(workflow, [WorkflowStatus.CREATE_RECEIVER_PREPARE])
         workflow.set_config(dict_to_workflow_definition(config))
         workflow.comment = comment
         workflow.peer_forkable = peer_forkable
@@ -124,25 +107,26 @@ class WorkflowApi(Resource):
         db.session.commit()
         logging.info('update workflow %d status to %s'
                      , workflow.id, workflow.status)
-        release_workflow(workflow)
+        workflow_lock.release(workflow)
         return {'data': workflow.to_dict()}, HTTPStatus.OK
 
     def patch(self, workflow_id):
+        workflow_lock = get_worklow_lock()
         if 'workflow_status' not in request.args:
             raise InvalidArgumentException('workflow_status is empty.')
-        workflow_status = request.args['workflow_status']
+        workflow_status = int(request.args['workflow_status'])
         workflow = _get_workflow(workflow_id)
-        lock_workflow(workflow, [WorkflowStatus(workflow_status)])
+        workflow_lock.lock(workflow, [WorkflowStatus(workflow_status)])
         try:
             if WorkflowStatus(
                    workflow_status) == WorkflowStatus.CREATE_SENDER_PREPARE:
                 workflow.status = WorkflowStatus.CREATE_SENDER_COMMITTABLE
                 # TODO: filter the config only send readable
                 #  and writeable Variables
-                workflow_grpc.create_workflow(workflow.uid,
+                workflow_grpc.create_workflow(workflow.uuid,
                                               workflow.name,
                                               workflow.config,
-                                              workflow.get_project_token(),
+                                              workflow.project_id,
                                               workflow.peer_forkable)
             elif WorkflowStatus(
                    workflow_status) \
@@ -150,34 +134,39 @@ class WorkflowApi(Resource):
                 workflow.status = WorkflowStatus.CREATED
                 # TODO: filter the config only send readable
                 #  and writeable Variables
-                workflow_grpc.confirm_workflow(workflow.uid,
+                workflow_grpc.confirm_workflow(workflow.uuid,
                                                workflow.config,
-                                               workflow.get_project_token(),
+                                               workflow.project_id,
                                                workflow.peer_forkable)
             elif WorkflowStatus(workflow_status) == WorkflowStatus.FORK_SENDER:
                 workflow.status = WorkflowStatus.CREATED
                 # TODO: filter the config only send readable
                 #  and writeable Variables
-                workflow_grpc.fork_workflow(workflow.uid,
+                workflow_grpc.fork_workflow(workflow.uuid,
                                             workflow.name,
-                                            workflow.get_project_token(),
+                                            workflow.project_id,
                                             workflow.config,
                                             workflow.peer_config)
             else:
-                release_workflow(workflow)
+                db.session.rollback()
+                db.session.refresh(workflow)
+                workflow_lock.release(workflow)
                 raise InvalidArgumentException('Wrong workflow status.')
             db.session.commit()
             logging.info('update workflow %d status to %s',
                          workflow.id, workflow.status)
-            release_workflow(workflow)
+            workflow_lock.release(workflow)
         # TODO: specify the exception class
         except RpcError as e:
+            # https://docs.sqlalchemy.org/en/14/errors.html#error-bhk3
             db.session.rollback()
-            release_workflow(workflow)
+            db.session.refresh(workflow)
+            workflow_lock.release(workflow)
             raise ResourceConflictException('Rpc Sending failed') from e
         return {'data': workflow.to_dict()}, HTTPStatus.OK
 
     def post(self, workflow_id):
+        workflow_lock = get_worklow_lock()
         parser = reqparse.RequestParser()
         parser.add_argument('name', required=True,
                             help='name is empty')
@@ -188,8 +177,8 @@ class WorkflowApi(Resource):
         data = parser.parse_args()
         origin_id = workflow_id
         origin_workflow = _get_workflow(origin_id)
-        lock_workflow(origin_workflow, [WorkflowStatus.CREATED])
-        release_workflow(origin_workflow)
+        workflow_lock.lock(origin_workflow, [WorkflowStatus.CREATED])
+        workflow_lock.release(origin_workflow)
         name = data['name']
         comment = data['comment']
         config = data['config']
@@ -214,7 +203,7 @@ class WorkflowApi(Resource):
                             forkable=False,
                             peer_forkable=False,
                             project_id=project_id,
-                            uid=uuid, status=WorkflowStatus.FORK_SENDER)
+                            uuid=uuid, status=WorkflowStatus.FORK_SENDER)
         workflow.set_config(template_proto)
         workflow.set_peer_config(peer_template_proto)
         db.session.add(workflow)
