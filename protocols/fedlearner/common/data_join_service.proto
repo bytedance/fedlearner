@@ -340,6 +340,7 @@ message RawDataPartitionerOptions {
   WriterOptions writer_options = 6;
   int64 partitioner_rank_id = 7;
   BatchProcessorOptions batch_processor_options = 8;
+  float memory_limit_ratio = 9;
 }
 
 message SortRunMergerOptions {

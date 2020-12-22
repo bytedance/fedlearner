@@ -71,6 +71,9 @@ if __name__ == "__main__":
                         help='the type of kvstore')
     parser.add_argument('--part_field', type=str, default='raw_id',
                         help='the field for raw data partition')
+    parser.add_argument('--memory_limit_ratio', type=int, default=70,
+                        choices=range(40, 80),
+                        help='the ratio(*100) of memory used for map&reduce')
 
     args = parser.parse_args()
     if args.raw_data_iter == 'TF_RECORD' or \
@@ -121,7 +124,8 @@ if __name__ == "__main__":
             batch_processor_options=dj_pb.BatchProcessorOptions(
                 batch_size=4096,
                 max_flying_item=-1
-            )
+            ),
+            memory_limit_ratio=args.memory_limit_ratio/100
         )
     db_database, db_addr, db_username, db_password, db_base_dir = \
         get_kvstore_config(args.kvstore_type)

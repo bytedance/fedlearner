@@ -57,6 +57,10 @@ if __name__ == '__main__':
                         help='the builder for ouput file')
     parser.add_argument("--batch_size", type=int, default=1024,
                         help="the batch size for raw data reader")
+    parser.add_argument('--memory_limit_ratio', type=int, default=70,
+                        choices=range(40, 80),
+                        help='the ratio(*100) of memory used for map&reduce')
+
     args = parser.parse_args()
     if args.input_data_file_iter == 'TF_RECORD' or \
             args.output_builder == 'TF_RECORD':
@@ -79,7 +83,8 @@ if __name__ == '__main__':
             max_flying_item=-1
         ),
         merger_read_ahead_size=args.merger_read_ahead_size,
-        merger_read_batch_size=args.merger_read_batch_size
+        merger_read_batch_size=args.merger_read_batch_size,
+        memory_limit_ratio=args.memory_limit_ratio/100
     )
     db_database, db_addr, db_username, db_password, db_base_dir = \
         get_kvstore_config(args.kvstore_type)
