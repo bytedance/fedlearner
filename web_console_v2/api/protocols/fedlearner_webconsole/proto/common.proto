@@ -48,8 +48,9 @@ message Variable {
 }
 
 message GrpcSpec {
-  // Endpoint of the server
-  string url = 1;
+  // Endpoint of the ingress nginx controller
+  // e.g. fedlearner-stack-ingress-nginx-controller.default.svc.cluster.local:80
+  string peer_url = 1;
   string authority = 2;
   map<string, string> extra_headers = 3;
 }

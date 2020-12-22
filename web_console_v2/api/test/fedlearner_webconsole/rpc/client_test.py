@@ -52,7 +52,7 @@ class RpcClientTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         grpc_spec = GrpcSpec(
-            url=cls._TEST_URL,
+            peer_url=cls._TEST_URL,
             authority=cls._TEST_AUTHORITY,
             extra_headers={
                 cls._X_HOST_HEADER_KEY: cls._TEST_X_HOST
@@ -66,9 +66,9 @@ class RpcClientTest(unittest.TestCase):
         project_config = Project(
             project_name=cls._TEST_PROJECT_NAME,
             token='test-auth-token',
-            participants={
-                cls._TEST_RECEIVER_NAME: participant
-            }
+            participants=[
+                participant
+            ]
         )
 
         cls._participant = participant

@@ -17,7 +17,7 @@
 import os
 import unittest
 from base64 import b64decode, b64encode
-from fedlearner_webconsole.project.add_on import _parse_certificates
+from fedlearner_webconsole.project.add_on import parse_certificates
 
 
 class AddOnTest(unittest.TestCase):
@@ -29,7 +29,7 @@ class AddOnTest(unittest.TestCase):
         ]
         with open(os.path.join(os.path.dirname(os.path.realpath(__file__)),
                                'test.tar.gz'), 'rb') as file:
-            certificates = _parse_certificates(b64encode(file.read()))
+            certificates = parse_certificates(b64encode(file.read()))
         for file_name in file_names:
             self.assertEqual(str(b64decode(certificates.get(file_name)), encoding='utf-8'),
                              'test {}'.format(file_name))

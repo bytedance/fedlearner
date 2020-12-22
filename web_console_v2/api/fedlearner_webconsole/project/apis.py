@@ -23,8 +23,8 @@ from fedlearner_webconsole.db import db
 from fedlearner_webconsole.k8s_client import get_client
 from fedlearner_webconsole.project.models import Project
 from fedlearner_webconsole.proto.common_pb2 import Variable
-from fedlearner_webconsole.proto.project_pb2 import Project as ProjectProto, Certificate
-from fedlearner_webconsole.project.add_on import _parse_certificates, _create_add_on
+from fedlearner_webconsole.proto.project_pb2 import Project as ProjectProto, CertificateStorage
+from fedlearner_webconsole.project.add_on import parse_certificates, create_add_on
 from fedlearner_webconsole.exceptions import InvalidArgumentException, NotFoundException
 
 _CERTIFICATE_FILE_NAMES = [
@@ -63,27 +63,22 @@ class ProjectsApi(Resource):
             raise InvalidArgumentException(details='Currently not support multiple participants.')
 
         certificates = {}
-        for domain_name, participant in config.get('participants').items():
-            if 'name' not in participant.keys() or 'url' not in participant.keys():
+        for participant in config.get('participants'):
+            if 'name' not in participant.keys() or 'url' not in participant.keys() \
+                or 'domain_name' not in participant.keys():
                 raise InvalidArgumentException(details=ErrorMessage.PARAM_FORMAT_ERROR.value
                                                .format('participants', 'Participant must have name and url.'))
+            domain_name = participant.get('domain_name')
             if participant.get('certificates') is not None:
-                current_cert = _parse_certificates(participant.get('certificates'))
+                current_cert = parse_certificates(participant.get('certificates'))
                 # check validation
                 for file_name in _CERTIFICATE_FILE_NAMES:
                     if current_cert.get(file_name) is None:
                         raise InvalidArgumentException(details=ErrorMessage
                                                        .PARAM_FORMAT_ERROR.value
                                                        .format('certificates', '{} not existed'.format(file_name)))
-                certificates[domain_name] = participant.get('certificates')
-                participant['domain_name'] = domain_name
+                certificates[domain_name] = {'certs': current_cert}
                 participant.pop('certificates')
-            # format participant to proto structure
-            # TODO: fill other fields
-            participant['grpc_spec'] = {
-                'url': participant.get('url')
-            }
-            participant.pop('url')
 
         new_project = Project()
         # generate token
@@ -97,8 +92,8 @@ class ProjectsApi(Resource):
             new_project.set_config(ParseDict(config, ProjectProto()))
         except Exception as e:
             raise InvalidArgumentException(details=ErrorMessage.PARAM_FORMAT_ERROR.value.format('config', e))
-        new_project.set_certificate(ParseDict({'certificate': certificates},
-                                              Certificate()))
+        new_project.set_certificate(ParseDict({'domain_name_to_cert': certificates},
+                                              CertificateStorage()))
         new_project.name = name
         new_project.token = token
         new_project.comment = comment
@@ -107,7 +102,7 @@ class ProjectsApi(Resource):
         try:
             k8s_client = get_client()
             for domain_name, certificate in certificates.items():
-                _create_add_on(k8s_client, domain_name, certificate)
+                create_add_on(k8s_client, domain_name, certificate.get('certs'))
 
             new_project = db.session.merge(new_project)
             db.session.commit()

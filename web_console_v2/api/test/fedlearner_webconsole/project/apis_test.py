@@ -23,7 +23,8 @@ from google.protobuf.json_format import ParseDict
 from testing.common import BaseTestCase
 from fedlearner_webconsole.db import db
 from fedlearner_webconsole.project.models import Project
-from fedlearner_webconsole.proto.project_pb2 import Project as ProjectProto, Certificate
+from fedlearner_webconsole.project.add_on import parse_certificates
+from fedlearner_webconsole.proto.project_pb2 import Project as ProjectProto, CertificateStorage
 
 
 class ProjectApiTest(BaseTestCase):
@@ -36,15 +37,13 @@ class ProjectApiTest(BaseTestCase):
         self.default_project = Project()
         self.default_project.name = 'test-self.default_project'
         self.default_project.set_config(ParseDict({
-            'participants': {
-                'fl-test.com': {
+            'participants': [
+                {
                     'name': 'test-participant',
                     'domain_name': 'fl-test.com',
-                    'grpcSpec': {
-                        'url': 'https://127.0.0.1:32443',
-                    }
+                    'url': '127.0.0.1:32443'
                 }
-            },
+            ],
             'variables': [
                 {
                     'name': 'test',
@@ -53,8 +52,10 @@ class ProjectApiTest(BaseTestCase):
             ]
         }, ProjectProto()))
         self.default_project.set_certificate(ParseDict({
-            'certificate': {'*.fl-test.com': self.TEST_CERTIFICATES},
-        }, Certificate()))
+            'domain_name_to_cert': {'*.fl-test.com':
+                                        {'certs':
+                                             parse_certificates(self.TEST_CERTIFICATES)}},
+        }, CertificateStorage()))
         self.default_project.comment = 'test comment'
         db.session.add(self.default_project)
         db.session.commit()
@@ -76,13 +77,14 @@ class ProjectApiTest(BaseTestCase):
     def test_post_project(self):
         name = 'test-post-project'
         config = {
-            'participants': {
-                'fl-test-post.com': {
+            'participants': [
+                {
                     'name': 'test-post-participant',
-                    'url': 'https://127.0.0.1:32443',
+                    'domain_name': 'fl-test-post.com',
+                    'url': '127.0.0.1:32443',
                     'certificates': self.TEST_CERTIFICATES
                 }
-            },
+            ],
             'variables': [
                 {
                     'name': 'test-post',
@@ -110,7 +112,7 @@ class ProjectApiTest(BaseTestCase):
             'participants': {
                 'fl-test-post.com': {
                     'name': 'test-post-participant',
-                    'url': 'https://127.0.0.1:32443',
+                    'url': '127.0.0.1:32443',
                     'certificates': self.TEST_CERTIFICATES
                 }
             },

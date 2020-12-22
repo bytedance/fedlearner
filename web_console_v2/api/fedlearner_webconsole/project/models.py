@@ -27,7 +27,7 @@ from fedlearner_webconsole.proto import project_pb2
 class Project(db.Model):
     __tablename__ = 'projects_v2'
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    name = db.Column(db.String(255), index=True)
+    name = db.Column(db.String(255), index=True, unique=True)
     token = db.Column(db.String(64), index=True)
     config = db.Column(db.Text())
     certificate = db.Column(db.Text())
