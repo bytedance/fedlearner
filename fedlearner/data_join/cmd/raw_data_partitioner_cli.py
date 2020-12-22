@@ -72,7 +72,7 @@ if __name__ == "__main__":
     parser.add_argument('--part_field', type=str, default='raw_id',
                         help='the field for raw data partition')
     parser.add_argument('--memory_limit_ratio', type=int, default=70,
-                        choices=range(40, 80),
+                        choices=range(40, 81),
                         help='the ratio(*100) of memory used for map&reduce')
 
     args = parser.parse_args()

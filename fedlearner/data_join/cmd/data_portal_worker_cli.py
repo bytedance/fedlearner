@@ -58,7 +58,7 @@ if __name__ == '__main__':
     parser.add_argument("--batch_size", type=int, default=1024,
                         help="the batch size for raw data reader")
     parser.add_argument('--memory_limit_ratio', type=int, default=70,
-                        choices=range(40, 80),
+                        choices=range(40, 81),
                         help='the ratio(*100) of memory used for map&reduce')
 
     args = parser.parse_args()
