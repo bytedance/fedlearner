@@ -14,9 +14,13 @@
 
 # coding: utf-8
 
-from fedlearner_webconsole.app import create_app
-from fedlearner_webconsole.db import db
-from fedlearner_webconsole.workflow.models import Workflow
+import json
+import unittest
+from http import HTTPStatus
+
+from testing.common import BaseTestCase
+
+ROLE = os.environ.get('TEST_ROLE', 'leader')
 
 class LeaderConfig(object):
     SQLALCHEMY_DATABASE_URI = 'sqlite://'
@@ -35,18 +39,25 @@ class FollowerConfig(object):
     LOGGING_LEVEL = logging.DEBUG
     GRPC_LISTEN_PORT = 2990
 
-def run_leader():
-    create_app(LeaderConfig)
-    db.create_all()
-    workflow = Workflow(
-        name='test_wf',
+if ROLE == 'leader':
+    Config = LeaderConfig
+else:
+    Config = FollowerConfig
 
-    )
+class WorkflowTest(Config, BaseTestCase):
+    def test_workflow(self):
+        if ROLE == 'leader':
+            self.leader_test_workflow()
+        else:
+            self.follower_test_workflow()
+    
+    def leader_test_workflow(self):
+        pass
+    
+    def follower_test_workflow(self):
+        pass
 
-
-def run_follower():
-    pass
 
 
 if __name__ == '__main__':
-    pass
+    unittest.main()

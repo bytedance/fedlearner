@@ -112,17 +112,30 @@ class RpcServer(object):
             return service_pb2.UpdateWorkflowStateResponse(
                 status=common_pb2.Status(
                     code=common_pb2.STATUS_UNAUTHORIZED))
+        name = request.workflow_name
+        state = WorkflowState(request.state)
+        target_state = WorkflowState(request.target_state)
+        transaction_state = TransactionState(request.transaction_state)
         workflow = Workflow.query.filter_by(
-            name=workflow_name, project_id=project.project_id).first()
+            name=request.workflow_name,
+            project_id=project.project_id).first()
         if workflow is None:
-            service_pb2.UpdateWorkflowStateResponse(
-                status=common_pb2.Status(
-                    code=common_pb2.STATUS_NOT_FOUND))
+            assert state == WorkflowState.NEW
+            assert target_state == WorkflowState.READY
+            workflow = Workflow(
+                name=request.workflow_name,
+                state=state, target_state=target_state,
+                transaction_state=TransactionState.READY)
+            db.session.add(workflow)
+            db.session.commit()
+            workflow = Workflow.query.filter_by(
+                name=request.workflow_name,
+                project_id=project.project_id).first()
+            assert workflow is not None
+
         tm = TransactionManager(workflow.workflow_id)
         ret = tm.update_workflow_state(
-            WorkflowState(tm.state),
-            WorkflowState(tm.target_state),
-            TransactionState(tm.transaction_state))
+            state, target_state, transaction_state)
         return service_pb2.UpdateWorkflowStateResponse(
                 status=common_pb2.Status(
                     code=common_pb2.STATUS_SUCCESS),

@@ -24,15 +24,16 @@ package fedlearner_webconsole.proto;
 
 message JobDefinition {
     enum JobType {
-    UNSPECIFIED = 0;
-    RAW_DATA = 1;
-    DATA_JOIN = 2;
-    PSI_DATA_JOIN = 3;
-    NN_MODEL_TRANINING = 4;
-    TREE_MODEL_TRAINING = 5;
-    NN_MODEL_EVALUATION = 6;
-    TREE_MODEL_EVALUATION = 7;
-}
+        UNSPECIFIED = 0;
+        RAW_DATA = 1;
+        DATA_JOIN = 2;
+        PSI_DATA_JOIN = 3;
+        NN_MODEL_TRANINING = 4;
+        TREE_MODEL_TRAINING = 5;
+        NN_MODEL_EVALUATION = 6;
+        TREE_MODEL_EVALUATION = 7;
+    }
+
     string name = 1;
     JobType type = 2;
     repeated string dependencies = 3;
