@@ -23,7 +23,7 @@ from fedlearner_webconsole.db import db
 from fedlearner_webconsole.k8s_client import get_client
 from fedlearner_webconsole.project.models import Project
 from fedlearner_webconsole.proto.common_pb2 import Variable
-from fedlearner_webconsole.proto.project_pb2 import Project as ProjectProto, Certificate
+from fedlearner_webconsole.proto.project_pb2 import Project as ProjectProto, CertificateStorage
 from fedlearner_webconsole.project.add_on import _parse_certificates, _create_add_on
 from fedlearner_webconsole.exceptions import InvalidArgumentException, NotFoundException
 
@@ -62,8 +62,7 @@ class ProjectsApi(Resource):
             # TODO: remove limit in schema after operator supports multiple participants
             raise InvalidArgumentException(details='Currently not support multiple participants.')
 
-        certificates_parsed = {}
-        certificates_store = {}
+        certificates = {}
         for participant in config.get('participants'):
             if 'name' not in participant.keys() or 'url' not in participant.keys() \
                 or 'domain_name' not in participant.keys():
@@ -78,8 +77,7 @@ class ProjectsApi(Resource):
                         raise InvalidArgumentException(details=ErrorMessage
                                                        .PARAM_FORMAT_ERROR.value
                                                        .format('certificates', '{} not existed'.format(file_name)))
-                certificates_store[domain_name] = participant.get('certificates')
-                certificates_parsed[domain_name] = current_cert
+                certificates[domain_name] = {'certs': current_cert}
                 participant.pop('certificates')
 
         new_project = Project()
@@ -94,8 +92,8 @@ class ProjectsApi(Resource):
             new_project.set_config(ParseDict(config, ProjectProto()))
         except Exception as e:
             raise InvalidArgumentException(details=ErrorMessage.PARAM_FORMAT_ERROR.value.format('config', e))
-        new_project.set_certificate(ParseDict({'certificate': certificates_store},
-                                              Certificate()))
+        new_project.set_certificate(ParseDict({'domain_name_to_cert': certificates},
+                                              CertificateStorage()))
         new_project.name = name
         new_project.token = token
         new_project.comment = comment
@@ -103,8 +101,8 @@ class ProjectsApi(Resource):
         # following operations will change the state of k8s and db
         try:
             k8s_client = get_client()
-            for domain_name, certificate in certificates_parsed.items():
-                _create_add_on(k8s_client, domain_name, certificate)
+            for domain_name, certificate in certificates.items():
+                _create_add_on(k8s_client, domain_name, certificate.get('certs'))
 
             new_project = db.session.merge(new_project)
             db.session.commit()

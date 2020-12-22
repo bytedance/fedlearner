@@ -19,8 +19,13 @@ import "fedlearner_webconsole/proto/common.proto";
 
 package fedlearner_webconsole.proto;
 
-message Certificate {
-    map<string, string> certificate = 1;
+message CertificateStorage {
+    message Certificate {
+        // key is file name, e.g. client/client.pem
+        // value is the content of certificate
+        map<string, string> certs = 1;
+    }
+    map<string, Certificate> domain_name_to_cert = 1;
 }
 
 message Participant {

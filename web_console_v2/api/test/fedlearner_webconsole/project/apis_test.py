@@ -23,7 +23,8 @@ from google.protobuf.json_format import ParseDict
 from testing.common import BaseTestCase
 from fedlearner_webconsole.db import db
 from fedlearner_webconsole.project.models import Project
-from fedlearner_webconsole.proto.project_pb2 import Project as ProjectProto, Certificate
+from fedlearner_webconsole.project.add_on import _parse_certificates
+from fedlearner_webconsole.proto.project_pb2 import Project as ProjectProto, CertificateStorage
 
 
 class ProjectApiTest(BaseTestCase):
@@ -51,8 +52,10 @@ class ProjectApiTest(BaseTestCase):
             ]
         }, ProjectProto()))
         self.default_project.set_certificate(ParseDict({
-            'certificate': {'*.fl-test.com': self.TEST_CERTIFICATES},
-        }, Certificate()))
+            'domain_name_to_cert': {'*.fl-test.com':
+                                        {'certs':
+                                             _parse_certificates(self.TEST_CERTIFICATES)}},
+        }, CertificateStorage()))
         self.default_project.comment = 'test comment'
         db.session.add(self.default_project)
         db.session.commit()
