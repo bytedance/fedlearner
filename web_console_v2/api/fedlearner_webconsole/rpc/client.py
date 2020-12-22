@@ -43,7 +43,8 @@ class RpcClient(object):
             'project {} not found'.format(project_id)
         self._project = project.get_config()
         self._project.project_name = project.name
-        self._receiver = next((participant for participant in self._project.participants
+        self._receiver = next((participant
+                               for participant in self._project.participants
                                if participant.name == receiver_name), None)
         assert self._receiver is not None, \
             'receiver {} not found'.format(receiver_name)
