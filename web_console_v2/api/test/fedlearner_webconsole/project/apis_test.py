@@ -36,15 +36,13 @@ class ProjectApiTest(BaseTestCase):
         self.default_project = Project()
         self.default_project.name = 'test-self.default_project'
         self.default_project.set_config(ParseDict({
-            'participants': {
-                'fl-test.com': {
+            'participants': [
+                {
                     'name': 'test-participant',
                     'domain_name': 'fl-test.com',
-                    'grpcSpec': {
-                        'url': 'https://127.0.0.1:32443',
-                    }
+                    'url': '127.0.0.1:32443'
                 }
-            },
+            ],
             'variables': [
                 {
                     'name': 'test',
@@ -76,13 +74,14 @@ class ProjectApiTest(BaseTestCase):
     def test_post_project(self):
         name = 'test-post-project'
         config = {
-            'participants': {
-                'fl-test-post.com': {
+            'participants': [
+                {
                     'name': 'test-post-participant',
-                    'url': 'https://127.0.0.1:32443',
+                    'domain_name': 'fl-test-post.com',
+                    'url': '127.0.0.1:32443',
                     'certificates': self.TEST_CERTIFICATES
                 }
-            },
+            ],
             'variables': [
                 {
                     'name': 'test-post',
@@ -110,7 +109,7 @@ class ProjectApiTest(BaseTestCase):
             'participants': {
                 'fl-test-post.com': {
                     'name': 'test-post-participant',
-                    'url': 'https://127.0.0.1:32443',
+                    'url': '127.0.0.1:32443',
                     'certificates': self.TEST_CERTIFICATES
                 }
             },

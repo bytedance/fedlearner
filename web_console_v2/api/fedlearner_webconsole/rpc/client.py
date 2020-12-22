@@ -43,12 +43,13 @@ class RpcClient(object):
             'project {} not found'.format(project_id)
         self._project = project.get_config()
         self._project.project_name = project.name
-        assert receiver_name in self._project.participants, \
+        self._receiver = next((participant for participant in self._project.participants
+                               if participant.name == receiver_name), None)
+        assert self._receiver is not None, \
             'receiver {} not found'.format(receiver_name)
-        self._receiver = self._project.participants[receiver_name]
 
         self._client = service_pb2_grpc.WebConsoleV2ServiceStub(_build_channel(
-            self._receiver.grpc_spec.url,
+            self._receiver.grpc_spec.peer_url,
             self._receiver.grpc_spec.authority
         ))
 

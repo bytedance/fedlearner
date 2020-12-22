@@ -59,7 +59,7 @@ class DbTest(unittest.TestCase):
             token='test-token',
             created_at=datetime.fromtimestamp(created_at_ts)
         )
-        test_grpc_spec = common_pb2.GrpcSpec(url='test-url', authority='test-authority')
+        test_grpc_spec = common_pb2.GrpcSpec(peer_url='test-url', authority='test-authority')
         test_model.set_grpc_spec(test_grpc_spec)
         self._db.session.add(test_model)
         self._db.session.commit()
@@ -71,7 +71,7 @@ class DbTest(unittest.TestCase):
             'name': 'test-model',
             'created_at': created_at_ts,
             'extra_key': {
-                'url': 'test-url',
+                'peerUrl': 'test-url',
                 'authority': 'test-authority'
             }
         })
