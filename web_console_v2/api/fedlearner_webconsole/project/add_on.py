@@ -19,7 +19,7 @@ import io
 from base64 import b64encode, b64decode
 
 
-def _parse_certificates(encoded_gz):
+def parse_certificates(encoded_gz):
     """
     Parse certificates from base64-encoded string to a dict
     Args:
@@ -38,7 +38,7 @@ def _parse_certificates(encoded_gz):
     return certificates
 
 
-def _create_add_on(client, domain_name, certificates):
+def create_add_on(client, domain_name, certificates):
     """Create add on and upgrade nginx-ingress and operator"""
     # TODO
     pass

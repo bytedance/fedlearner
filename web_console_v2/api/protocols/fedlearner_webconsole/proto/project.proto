@@ -31,6 +31,8 @@ message CertificateStorage {
 message Participant {
     string name = 1;
     string domain_name = 2;
+    // participant's address
+    // e.g. 127.0.0.1:32443, localhost:32443
     string url = 3;
     repeated Variable variables = 4;
     GrpcSpec grpc_spec = 5;
