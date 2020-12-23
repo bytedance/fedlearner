@@ -36,22 +36,14 @@ def _build_channel(url, authority):
 
 
 class RpcClient(object):
-    def __init__(self, project_name, receiver_name, project_config=None):
-        if project_config is None:
-            project = Project.query.filter_by(
-                name=project_name).first()
-            assert project is not None, \
-                'project {} not found'.format(project_name)
-            project_config = project.get_config()
+    def __init__(self, project_config, receiver_config):
         self._project = project_config
-        assert receiver_name in self._project.participants, \
-            'receiver {} not found'.format(receiver_name)
-        self._receiver = self._project.participants[receiver_name]
+        self._receiver = receiver_config
         self._auth_info = service_pb2.ProjAuthInfo(
-            project__name=self._receiver.domain_name,
-            auth_tokname=self._project.project_name,
-            sender_name=os.environ.get('SELF_DOMAIN_NAME'),
-            receiveren=self._project.token)
+            project_name=self._project.name,
+            source_domain=self._project.domain_name,
+            target_domain=self._receiver.domain_name,
+            auth_token=self._project.token)
 
         self._client = service_pb2_grpc.WebConsoleV2ServiceStub(_build_channel(
             self._receiver.grpc_spec.peer_url,

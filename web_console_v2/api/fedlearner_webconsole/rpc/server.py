@@ -30,6 +30,9 @@ from fedlearner_webconsole.workflow.models import (
 )
 from fedlearner_webconsole.scheduler.transaction import TransactionManager
 
+from fedlearner_webconsole.exceptions import (
+    UnauthorizedException
+)
 
 class RPCServerServicer(service_pb2_grpc.WebConsoleV2ServiceServicer):
     def __init__(self, server):
@@ -38,6 +41,11 @@ class RPCServerServicer(service_pb2_grpc.WebConsoleV2ServiceServicer):
     def CheckConnection(self, request, context):
         try:
             return self._server.check_connection(request)
+        except UnauthorizedException as e:
+            return service_pb2.CheckConnectionResponse(
+                status=common_pb2.Status(
+                    code=common_pb2.STATUS_UNAUTHORIZED,
+                    msg=repr(e)))
         except Exception as e:
             return service_pb2.CheckConnectionResponse(
                 status=common_pb2.Status(
@@ -47,6 +55,11 @@ class RPCServerServicer(service_pb2_grpc.WebConsoleV2ServiceServicer):
     def UpdateWorkflowState(self, request, context):
         try:
             return self._server.update_workflow_state(request)
+        except UnauthorizedException as e:
+            return service_pb2.UpdateWorkflowStateResponse(
+                status=common_pb2.Status(
+                    code=common_pb2.STATUS_UNAUTHORIZED,
+                    msg=repr(e)))
         except Exception as e:
             return service_pb2.UpdateWorkflowStateResponse(
                 status=common_pb2.Status(
@@ -86,32 +99,28 @@ class RpcServer(object):
         project = Project.query.filter_by(
             name=auth_info.project_name).first()
         if project is None:
-            return None
-        fed_proto = project.get_config()
-        if fed_proto.self_name != auth_info.receiver_name:
-            return None
-        if auth_info.sender_name not in fed_proto.participants:
-            return None
-        party = fed_proto.participants[auth_info.sender_name]
-        if party.receiver_auth_token != auth_info.auth_token:
-            return None
-        return project
+            raise UnauthorizedException('Invalid project')
+        project_config = project.get_config()
+        if project_config.token != auth_info.auth_token:
+            raise UnauthorizedException('Invalid token')
+        if project_config.domain_name != auth_info.target_domain:
+            raise UnauthorizedException('Invalid domain')
+        source_party = None
+        for party in project_config.participants:
+            if party.domain_name == auth_info.source_domain:
+                source_party = party
+        if source_party is None:
+            raise UnauthorizedException('Invalid domain')
+        return project, _
 
     def check_connection(self, request):
-        if self.check_auth_info(request.auth_info):
-            return service_pb2.CheckConnectionResponse(
-                status=common_pb2.Status(
-                    code=common_pb2.STATUS_SUCCESS))
+        _, _ = self.check_auth_info(request.auth_info)
         return service_pb2.CheckConnectionResponse(
             status=common_pb2.Status(
-                code=common_pb2.STATUS_UNAUTHORIZED))
-    
+                code=common_pb2.STATUS_SUCCESS))
+
     def update_workflow_state(self, request):
-        project = self.check_auth_info(request.auth_info)
-        if not project:
-            return service_pb2.UpdateWorkflowStateResponse(
-                status=common_pb2.Status(
-                    code=common_pb2.STATUS_UNAUTHORIZED))
+        project, _ = self.check_auth_info(request.auth_info)
         name = request.workflow_name
         state = WorkflowState(request.state)
         target_state = WorkflowState(request.target_state)
