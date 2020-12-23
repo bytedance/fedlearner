@@ -17,14 +17,12 @@
 
 import logging
 from http import HTTPStatus
-from grpc import RpcError
-from flask_restful import Resource, reqparse, request
-from fedlearner_webconsole.project.models import Project
+from flask_restful import Resource, reqparse
 from fedlearner_webconsole.workflow.models import (
     Workflow, WorkflowState, TransactionState
 )
 from fedlearner_webconsole.workflow_template.apis import \
-    dict_to_workflow_definition, check_group_same
+    dict_to_workflow_definition
 from fedlearner_webconsole.db import db
 from fedlearner_webconsole.exceptions import (
     NotFoundException, InvalidArgumentException,
@@ -88,7 +86,7 @@ class WorkflowApi(Resource):
         parser.add_argument('forkable', type=bool, required=True,
                             help='forkable is empty')
         parser.add_argument('comment')
-        data = parser.parse_args()        
+        data = parser.parse_args()
 
         workflow = _get_workflow(workflow_id)
         workflow.comment = data['comment']
@@ -106,7 +104,7 @@ class WorkflowApi(Resource):
         target_state = parser.parse_args()['target_state']
 
         workflow = _get_workflow(workflow_id)
-    
+
         if target_state == 'RUNNING':
             workflow.run()
         elif target_state == 'STOPPED':

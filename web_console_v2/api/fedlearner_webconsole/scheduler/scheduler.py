@@ -13,15 +13,14 @@
 # limitations under the License.
 
 # coding: utf-8
+# pylint: disable=broad-except
 
 import os
 import threading
 import logging
 
 from fedlearner_webconsole.db import db
-from fedlearner_webconsole.workflow.models import Workflow, WorkflowState
-from fedlearner_webconsole.project.models import Project
-from fedlearner_webconsole.rpc.client import RpcClient
+from fedlearner_webconsole.workflow.models import Workflow
 from fedlearner_webconsole.scheduler.transaction import TransactionManager
 
 class Scheduler(object):
@@ -55,7 +54,7 @@ class Scheduler(object):
             print('stopping')
         self._thread.join()
         self._running = False
-    
+
     def schedule_workflow(self, workflow_id):
         with self._condition:
             self._pending.append(workflow_id)

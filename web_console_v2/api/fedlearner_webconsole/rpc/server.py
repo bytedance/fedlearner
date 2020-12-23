@@ -14,8 +14,7 @@
 
 # coding: utf-8
 # pylint: disable=broad-except, cyclic-import
-import os
-import logging
+
 import threading
 from concurrent import futures
 import grpc
@@ -23,7 +22,6 @@ from fedlearner_webconsole.proto import (
     service_pb2, service_pb2_grpc, common_pb2
 )
 from fedlearner_webconsole.db import db
-from fedlearner_webconsole import app
 from fedlearner_webconsole.project.models import Project
 from fedlearner_webconsole.workflow.models import (
     Workflow, WorkflowState, TransactionState
@@ -111,7 +109,7 @@ class RpcServer(object):
                 source_party = party
         if source_party is None:
             raise UnauthorizedException('Invalid domain')
-        return project, _
+        return project, source_party
 
     def check_connection(self, request):
         _, _ = self.check_auth_info(request.auth_info)
@@ -149,6 +147,6 @@ class RpcServer(object):
                 status=common_pb2.Status(
                     code=common_pb2.STATUS_SUCCESS),
                 transaction_state=ret.value)
-        
+
 
 rpc_server = RpcServer()

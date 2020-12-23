@@ -16,8 +16,6 @@
 import enum
 from sqlalchemy.sql import func
 from fedlearner_webconsole.db import db, to_dict_mixin
-from fedlearner_webconsole.utils.db_enum import DBEnum
-from fedlearner_webconsole.project.models import Project
 from fedlearner_webconsole.proto import workflow_definition_pb2
 
 
@@ -46,8 +44,6 @@ class TransactionState(enum.Enum):
 
 @to_dict_mixin(extras={
     'config': (lambda wf: wf.get_config()),
-    'peer_config': (lambda wf: wf.get_peer_config()),
-    'status': (lambda wf: wf.status.value)
 })
 class Workflow(db.Model):
     __tablename__ = 'workflow_v2'
@@ -58,10 +54,11 @@ class Workflow(db.Model):
     forked_from = db.Column(db.Integer, default=None)
     comment = db.Column(db.String(255))
 
-    state = db.Column(DBEnum(WorkflowState), default=WorkflowState.INVALID)
-    target_state = db.Column(DBEnum(WorkflowState), default=WorkflowState.INVALID)
+    state = db.Column(db.Enum(WorkflowState), default=WorkflowState.INVALID)
+    target_state = db.Column(
+        db.Enum(WorkflowState), default=WorkflowState.INVALID)
     transaction_state = db.Column(
-        DBEnum(TransactionState), default=TransactionState.READY)
+        db.Enum(TransactionState), default=TransactionState.READY)
     transaction_err = db.Column(db.Text())
 
     created_at = db.Column(db.DateTime(timezone=True),

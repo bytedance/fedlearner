@@ -21,6 +21,17 @@ package fedlearner_webconsole.proto;
 
 
 
+message JobDependency {
+  enum DependencyType {
+    UNSPECIFIED = 0;
+    ON_COMPLETE = 1;
+    ON_START = 2;
+    MANUAL = 3;
+  }
+  string source = 1;
+  DependencyType type = 2;
+}
+
 
 message JobDefinition {
     enum JobType {
@@ -36,16 +47,15 @@ message JobDefinition {
 
     string name = 1;
     JobType type = 2;
-    repeated string dependencies = 3;
+    bool is_federated = 3;
     repeated Variable variables = 4;
-    string yaml_template = 5;
-    bool is_federated = 6;
-    bool is_left = 7;
+    repeated JobDependency dependencies = 5;
+    string yaml_template = 6;
 }
 
 message WorkflowDefinition {
     string group_alias = 1;
-    repeated Variable variables = 2;
-    repeated JobDefinition job_definitions = 3;
+    bool is_left = 2;
+    repeated Variable variables = 3;
+    repeated JobDefinition job_definitions = 4;
 }
-

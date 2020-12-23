@@ -13,7 +13,7 @@
 # limitations under the License.
 
 # coding: utf-8
-
+# pylint: disable=broad-except
 
 from fedlearner_webconsole.db import db
 from fedlearner_webconsole.rpc.client import RpcClient
@@ -21,6 +21,7 @@ from fedlearner_webconsole.project.models import Project
 from fedlearner_webconsole.workflow.models import (
     Workflow, WorkflowState, TransactionState
 )
+from fedlearner_webconsole.proto import common_pb2
 
 class TransactionManager(object):
     VALID_TRANSITIONS = [
@@ -35,30 +36,40 @@ class TransactionManager(object):
         (TransactionState.READY, TransactionState.PARTICIPANT_ABORTING),
 
         (TransactionState.READY, TransactionState.COORDINATOR_PREPARE),
-        # (TransactionState.COORDINATOR_PREPARE, TransactionState.COORDINATOR_COMMITTABLE),
-        (TransactionState.COORDINATOR_COMMITTABLE, TransactionState.COORDINATOR_COMMITTING),
-        # (TransactionState.COORDINATOR_PREPARE, TransactionState.COORDINATOR_ABORTING),
-        (TransactionState.COORDINATOR_COMMITTABLE, TransactionState.COORDINATOR_ABORTING),
-        (TransactionState.COORDINATOR_ABORTING, TransactionState.ABORTED),
+        # (TransactionState.COORDINATOR_PREPARE,
+        #  TransactionState.COORDINATOR_COMMITTABLE),
+        (TransactionState.COORDINATOR_COMMITTABLE,
+         TransactionState.COORDINATOR_COMMITTING),
+        # (TransactionState.COORDINATOR_PREPARE,
+        #  TransactionState.COORDINATOR_ABORTING),
+        (TransactionState.COORDINATOR_COMMITTABLE,
+         TransactionState.COORDINATOR_ABORTING),
+        (TransactionState.COORDINATOR_ABORTING,
+         TransactionState.ABORTED),
 
         (TransactionState.READY, TransactionState.PARTICIPANT_PREPARE),
-        # (TransactionState.PARTICIPANT_PREPARE, TransactionState.PARTICIPANT_COMMITTABLE),
-        (TransactionState.PARTICIPANT_COMMITTABLE, TransactionState.PARTICIPANT_COMMITTING),
-        # (TransactionState.PARTICIPANT_PREPARE, TransactionState.PARTICIPANT_ABORTING),
-        (TransactionState.PARTICIPANT_COMMITTABLE, TransactionState.PARTICIPANT_ABORTING),
-        # (TransactionState.PARTICIPANT_ABORTING, TransactionState.ABORTED),
+        # (TransactionState.PARTICIPANT_PREPARE,
+        #  TransactionState.PARTICIPANT_COMMITTABLE),
+        (TransactionState.PARTICIPANT_COMMITTABLE,
+         TransactionState.PARTICIPANT_COMMITTING),
+        # (TransactionState.PARTICIPANT_PREPARE,
+        #  TransactionState.PARTICIPANT_ABORTING),
+        (TransactionState.PARTICIPANT_COMMITTABLE,
+         TransactionState.PARTICIPANT_ABORTING),
+        # (TransactionState.PARTICIPANT_ABORTING,
+        #  TransactionState.ABORTED),
     ]
 
     def __init__(self, workflow_id):
         self._workflow_id = workflow_id
         self._workflow = Workflow.query.get(workflow_id)
         self._project = Project.query.get(self._workflow.project_id)
-        self._sess = db.create_session()
-    
+        self._sess = db.create_session(None)
+
     @property
     def workflow(self):
         return self._workflow
-    
+
     @property
     def project(self):
         return self._project
@@ -76,7 +87,7 @@ class TransactionManager(object):
         changed = False
         if transaction_state is not None:
             if (self._workflow.transaction_state, transaction_state) in \
-                    VALID_TRANSACTION_TRANSITIONS:
+                    TransactionManager.VALID_TRANSACTION_TRANSITIONS:
                 self._workflow.transaction_state = transaction_state
                 changed = True
 
@@ -87,7 +98,7 @@ class TransactionManager(object):
                 if self._prepare():
                     self._workflow.transaction_state = \
                         TransactionState.COORDINATOR_COMMITTABLE
-            except:
+            except Exception as e:
                 self._workflow.transaction_state = \
                     TransactionState.COORDINATOR_ABORTING
 
@@ -95,7 +106,7 @@ class TransactionManager(object):
                 TransactionState.COORDINATOR_ABORTING:
             try:
                 self._rollback()
-            except:
+            except Exception as e:
                 pass
 
         # participant prepare & rollback & commit
@@ -105,7 +116,7 @@ class TransactionManager(object):
                 if self._prepare():
                     self._workflow.transaction_state = \
                         TransactionState.PARTICIPANT_COMMITTABLE
-            except:
+            except Exception as e:
                 self._workflow.transaction_state = \
                     TransactionState.PARTICIPANT_ABORTING
 
@@ -113,7 +124,7 @@ class TransactionManager(object):
                 TransactionState.PARTICIPANT_ABORTING:
             try:
                 self._rollback()
-            except:
+            except Exception as e:
                 pass
             self._workflow.target_state = WorkflowState.INVALID
             self._workflow.transaction_state = \
@@ -156,7 +167,7 @@ class TransactionManager(object):
                 "Cannot process invalid workflow %s"%self._workflow.name)
 
         assert (self._workflow.state, self._workflow.target_state) \
-            in VALID_TRANSITIONS
+            in TransactionManager.VALID_TRANSITIONS
 
         if self._workflow.transaction_state == TransactionState.READY:
             # prepare self as coordinator
@@ -202,14 +213,12 @@ class TransactionManager(object):
     def _prepare(self):
         if self._workflow.target_state == WorkflowState.READY:
             return False
-        elif self._workflow.target_state == WorkflowState.RUNNING:
+        if self._workflow.target_state == WorkflowState.RUNNING:
             return True
-        elif self._workflow.target_state == WorkflowState.STOPPED:
+        if self._workflow.target_state == WorkflowState.STOPPED:
             return True
-        else:
-            raise RuntimeError(
-                "Invalid target_state %s"%self._workflow.target_state)
-        return False
+        raise RuntimeError(
+            "Invalid target_state %s"%self._workflow.target_state)
 
     def _rollback(self):
         pass
@@ -231,8 +240,8 @@ class TransactionManager(object):
     def _broadcast_state_and_check(self,
             state, target_state, transaction_state, target_transaction_state):
         states = self._broadcast_state(state, target_state, transaction_state)
-        for state in states:
-            if state != target_transaction_state:
+        for i in states:
+            if i != target_transaction_state:
                 return False
         return True
 

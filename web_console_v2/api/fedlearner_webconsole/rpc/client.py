@@ -15,12 +15,10 @@
 # coding: utf-8
 # pylint: disable=broad-except
 
-import os
 import grpc
 from fedlearner_webconsole.proto import (
     service_pb2, service_pb2_grpc, common_pb2
 )
-from fedlearner_webconsole.project.models import Project
 
 
 def _build_channel(url, authority):
@@ -81,4 +79,3 @@ class RpcClient(object):
                 status=common_pb2.Status(
                     code=common_pb2.STATUS_UNKNOWN_ERROR,
                     msg=repr(e)))
-                
