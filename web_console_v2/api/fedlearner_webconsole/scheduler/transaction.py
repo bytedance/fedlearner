@@ -90,9 +90,13 @@ class TransactionManager(object):
                     TransactionManager.VALID_TRANSACTION_TRANSITIONS:
                 self._workflow.transaction_state = transaction_state
                 changed = True
+        
+        if not changed:
+            self._reload()
+            return self._workflow.transaction_state
 
         # coordinator prepare & rollback
-        if self._workflow.transaction_state == \
+        if changed and self._workflow.transaction_state == \
                 TransactionState.COORDINATOR_PREPARE:
             try:
                 if self._prepare():
@@ -110,7 +114,7 @@ class TransactionManager(object):
                 pass
 
         # participant prepare & rollback & commit
-        if self._workflow.transaction_state == \
+        if changed and self._workflow.transaction_state == \
                 TransactionState.PARTICIPANT_PREPARE:
             try:
                 if self._prepare():
@@ -210,6 +214,7 @@ class TransactionManager(object):
         self._sess.commit()
         self._workflow = self._sess.query(Workflow).get(self._workflow_id)
 
+    # returns bool: whether is prepare successed immediately and committable
     def _prepare(self):
         if self._workflow.target_state == WorkflowState.READY:
             return False

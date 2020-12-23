@@ -77,35 +77,35 @@ class Workflow(db.Model):
 
     def ready(self, config_proto):
         assert self.state == WorkflowState.NEW, \
-            "Cannot stop workflow in %s state"%self.state.name
+            'Cannot stop workflow in %s state'%self.state.name
         assert self.target_state == WorkflowState.INVALID and \
             self.transaction_state == TransactionState.READY, \
-                "Cannot run workflow: another action is pending"
+                'Cannot run workflow: another action is pending'
         self.target_state = WorkflowState.READY
         self.set_config(config_proto)
         # TODO: also create jobs
 
     def run(self):
         assert self.state == WorkflowState.READY, \
-            "Cannot run workflow in %s state"%self.state.name
+            'Cannot run workflow in %s state'%self.state.name
         assert self.target_state == WorkflowState.INVALID and \
             self.transaction_state == TransactionState.READY, \
-                "Cannot run workflow: another action is pending"
+                'Cannot run workflow: another action is pending'
         self.target_state = WorkflowState.RUNNING
 
     def stop(self):
         assert self.state == WorkflowState.RUNNING, \
-            "Cannot stop workflow in %s state"%self.state.name
+            'Cannot stop workflow in %s state'%self.state.name
         assert self.target_state == WorkflowState.INVALID and \
             self.transaction_state == TransactionState.READY, \
-                "Cannot run workflow: another action is pending"
+                'Cannot run workflow: another action is pending'
         self.target_state = WorkflowState.STOPPED
 
     def reset(self):
         assert self.state == WorkflowState.STOPPED, \
-            "Cannot stop workflow in %s state"%self.state.name
+            'Cannot stop workflow in %s state'%self.state.name
         assert self.target_state == WorkflowState.INVALID and \
             self.transaction_state == TransactionState.READY, \
-                "Cannot run workflow: another action is pending"
+                'Cannot run workflow: another action is pending'
         self.target_state = WorkflowState.READY
         # TODO: also reset jobs
