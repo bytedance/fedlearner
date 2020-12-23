@@ -43,7 +43,7 @@ def create_image_pull_secret():
                 }
             }})), 'utf-8')
 
-    client.save_secret(
+    client.create_or_update_secret(
         data={
             '.dockerconfigjson': encoded_image_cert
         },
@@ -51,6 +51,6 @@ def create_image_pull_secret():
             'name': 'regcred',
             'namespace': 'default'
         },
-        type='kubernetes.io/dockerconfigjson',
+        secret_type='kubernetes.io/dockerconfigjson',
         name='regcred'
     )

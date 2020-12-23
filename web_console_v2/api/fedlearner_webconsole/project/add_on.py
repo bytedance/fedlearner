@@ -18,6 +18,13 @@ import tarfile
 import io
 import os
 from base64 import b64encode, b64decode
+from typing import Type, Dict
+from fedlearner_webconsole.utils.k8s_client import K8sClient
+
+CA_SECRET_NAME = 'ca-secret'
+OPERATOR_NAME = 'fedlearner-operator'
+SERVER_SECRET_NAME = 'fedlearner-proxy-server'
+INGRESS_NGINX_CONTROLLER_NAME = 'fedlearner-stack-ingress-nginx-controller'
 
 
 def parse_certificates(encoded_gz):
@@ -34,17 +41,20 @@ def parse_certificates(encoded_gz):
         for file in gz.getmembers():
             if file.isfile():
                 # raw file name is like `fl-test.com/client/client.pem`
-                certificates[file.name.split('/', 1)[-1]] = str(b64encode(gz.extractfile(file).read()),
-                                                                encoding='utf-8')
+                certificates[file.name.split('/', 1)[-1]] = \
+                    str(b64encode(gz.extractfile(file).read()),
+                        encoding='utf-8')
     return certificates
 
 
-def create_add_on(client, domain_name, url, certificates):
+def create_add_on(client: Type[K8sClient], domain_name: str, url: str,
+                  certificates: Dict[str, str]):
     """
     Idempotent
     Create add on and upgrade nginx-ingress and operator.
     If add on of domain_name exists, replace it.
     """
+    # url: xxx.xxx.xxx.xxx:xxxxx
     ip = url.split(':')[0]
     port = int(url.split(':')[1])
     client_all_pem = str(b64encode('{}\n{}'.format(
@@ -57,57 +67,54 @@ def create_add_on(client, domain_name, url, certificates):
             encoding='utf-8').strip(),
         str(b64decode(certificates.get('server/root.pem')),
             encoding='utf-8').strip()).encode()), encoding='utf-8')
-    ca_secret_name = 'ca-secret'
-    operator_name = 'fedlearner-operator'
-    server_secret_name = 'fedlearner-proxy-server'
-    ingress_nginx_controller_name = 'fedlearner-stack-ingress-nginx-controller'
     name = domain_name.split('.')[0]
     client_secret_name = '{}-client'.format(name)
     client_auth_ingress_name = '-client-auth.'.join(domain_name.split('.'))
 
     # Create server certificate secret
-    # If users verify gRpc in external gateway, `AUTHORIZATION_MODE` should be set to `EXTERNAL`.
+    # If users verify gRpc in external gateway,
+    # `AUTHORIZATION_MODE` should be set to `EXTERNAL`.
     if os.environ.get('AUTHORIZATION_MODE') != 'EXTERNAL':
-        client.save_secret(
+        client.create_or_update_secret(
             data={
                 'ca.crt': certificates.get('server/intermediate.pem'),
                 'tls.crt': certificates.get('server/server.pem'),
                 'tls.key': certificates.get('server/server.key')
             },
             metadata={
-                'name': server_secret_name,
+                'name': SERVER_SECRET_NAME,
                 'namespace': 'default'
             },
-            type='Opaque',
-            name=server_secret_name
+            secret_type='Opaque',
+            name=SERVER_SECRET_NAME
         )
-        client.save_secret(
+        client.create_or_update_secret(
             data={
                 'ca.crt': server_all_pem
             },
             metadata={
-                'name': ca_secret_name,
+                'name': CA_SECRET_NAME,
                 'namespace': 'default'
             },
-            type='Opaque',
-            name=ca_secret_name
+            secret_type='Opaque',
+            name=CA_SECRET_NAME
         )
         # TODO: Support multiple participants
-        operator = client.get_deployment(operator_name)
+        operator = client.get_deployment(OPERATOR_NAME)
         new_args = list(filter(lambda arg: not arg.startswith('--ingress'),
                                operator.spec.template.spec.containers[0].args))
         new_args.extend([
             '--ingress-extra-host-suffix=".{}"'.format(domain_name),
             '--ingress-client-auth-secret-name="default/ca-secret"',
             '--ingress-enabled-client-auth=true',
-            '--ingress-secret-name={}'.format(server_secret_name)])
+            '--ingress-secret-name={}'.format(SERVER_SECRET_NAME)])
         operator.spec.template.spec.containers[0].args = new_args
-        client.save_deployment(metadata=operator.metadata,
-                               spec=operator.spec,
-                               name=operator_name)
+        client.create_or_update_deployment(metadata=operator.metadata,
+                                           spec=operator.spec,
+                                           name=OPERATOR_NAME)
 
     # Create client certificate secret
-    client.save_secret(
+    client.create_or_update_secret(
         data={
             'client.pem': certificates.get('client/intermediate.pem'),
             'client.key': certificates.get('client/client.key'),
@@ -116,37 +123,44 @@ def create_add_on(client, domain_name, url, certificates):
         metadata={
             'name': client_secret_name
         },
-        type='Opaque',
+        secret_type='Opaque',
         name=client_secret_name
     )
 
     # Update ingress-nginx-controller to load client secret
-    ingress_nginx_controller = client.get_deployment(ingress_nginx_controller_name)
-    volumes = ingress_nginx_controller.spec.template.spec.volumes
-    volumes = [] if volumes is None else \
-        list(filter(lambda volume: volume.name != client_secret_name, volumes))
+    ingress_nginx_controller = client.get_deployment(
+        INGRESS_NGINX_CONTROLLER_NAME
+    )
+    volumes = ingress_nginx_controller.spec.template.spec.volumes or []
+    volumes = list(filter(lambda volume: volume.name != client_secret_name,
+                          volumes))
     volumes.append({
         'name': client_secret_name,
         'secret': {
             'secretName': client_secret_name
         }
     })
-    volume_mounts = ingress_nginx_controller.spec.template.spec.containers[0].volume_mounts
-    volume_mounts = [] if volume_mounts is None else \
-        list(filter(lambda mount: mount.name != client_secret_name, volume_mounts))
+    volume_mounts = ingress_nginx_controller.spec.template\
+                        .spec.containers[0].volume_mounts or []
+    volume_mounts = list(filter(lambda mount: mount.name != client_secret_name,
+                                volume_mounts))
     volume_mounts.append(
         {
             'mountPath': '/etc/{}/client/'.format(name),
             'name': client_secret_name
         })
     ingress_nginx_controller.spec.template.spec.volumes = volumes
-    ingress_nginx_controller.spec.template.spec.containers[0].volume_mounts = volume_mounts
-    client.save_deployment(metadata=ingress_nginx_controller.metadata,
-                           spec=ingress_nginx_controller.spec,
-                           name=ingress_nginx_controller_name)
+    ingress_nginx_controller.spec.template\
+        .spec.containers[0].volume_mounts = volume_mounts
+    client.create_or_update_deployment(
+        metadata=ingress_nginx_controller.metadata,
+        spec=ingress_nginx_controller.spec,
+        name=INGRESS_NGINX_CONTROLLER_NAME
+    )
+    # TODO: check ingress-nginx-controller's health
 
     # Create ingress to forward request to peer
-    client.save_service(
+    client.create_or_update_service(
         metadata={
             'name': name,
             'namespace': 'default'
@@ -157,7 +171,7 @@ def create_add_on(client, domain_name, url, certificates):
         },
         name=name
     )
-    client.save_ingress(
+    client.create_or_update_ingress(
         metadata={
             'name': domain_name,
             'namespace': 'default',
@@ -165,9 +179,10 @@ def create_add_on(client, domain_name, url, certificates):
                 'kubernetes.io/ingress.class': 'nginx',
                 'nginx.ingress.kubernetes.io/backend-protocol': 'GRPCS',
                 'nginx.ingress.kubernetes.io/http2-insecure-port': 't',
-                'nginx.ingress.kubernetes.io/configuration-snippet': 'grpc_next_upstream_tries 5;\n'
-                                                                     'grpc_set_header Host $http_x_host;\n'
-                                                                     'grpc_set_header Authority $http_x_host;'
+                'nginx.ingress.kubernetes.io/configuration-snippet':
+                    'grpc_next_upstream_tries 5;\n'
+                    'grpc_set_header Host $http_x_host;\n'
+                    'grpc_set_header Authority $http_x_host;'
             }
         },
         spec={
@@ -188,7 +203,7 @@ def create_add_on(client, domain_name, url, certificates):
         },
         name=domain_name
     )
-    client.save_ingress(
+    client.create_or_update_ingress(
         metadata={
             'name': client_auth_ingress_name,
             'namespace': 'default',
@@ -196,16 +211,18 @@ def create_add_on(client, domain_name, url, certificates):
                 'kubernetes.io/ingress.class': 'nginx',
                 'nginx.ingress.kubernetes.io/backend-protocol': 'GRPCS',
                 'nginx.ingress.kubernetes.io/http2-insecure-port': 't',
-                'nginx.ingress.kubernetes.io/configuration-snippet': 'grpc_next_upstream_tries 5;\n'
-                                                                     'grpc_set_header Host $http_x_host;\n'
-                                                                     'grpc_set_header Authority $http_x_host;',
-                'nginx.ingress.kubernetes.io/server-snippet': 'grpc_ssl_verify on;\n'
-                                                              'grpc_ssl_server_name on;\n'
-                                                              'grpc_ssl_name $http_x_host;\n'
-                                                              'grpc_ssl_trusted_certificate /etc/{}/client/all.pem;\n'
-                                                              'grpc_ssl_certificate /etc/{}/client/client.pem;\n'
-                                                              'grpc_ssl_certificate_key /etc/{}/client/client.key;'
-                    .format(name, name, name)
+                'nginx.ingress.kubernetes.io/configuration-snippet':
+                    'grpc_next_upstream_tries 5;\n'
+                    'grpc_set_header Host $http_x_host;\n'
+                    'grpc_set_header Authority $http_x_host;',
+                'nginx.ingress.kubernetes.io/server-snippet':
+                    'grpc_ssl_verify on;\n'
+                    'grpc_ssl_server_name on;\n'
+                    'grpc_ssl_name $http_x_host;\n'
+                    'grpc_ssl_trusted_certificate /etc/{0}/client/all.pem;\n'
+                    'grpc_ssl_certificate /etc/{0}/client/client.pem;\n'
+                    'grpc_ssl_certificate_key /etc/{0}/client/client.key;'
+                    .format(name)
             }
         },
         spec={

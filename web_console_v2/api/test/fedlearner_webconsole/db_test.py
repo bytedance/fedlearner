@@ -71,7 +71,7 @@ class DbTest(unittest.TestCase):
             'name': 'test-model',
             'created_at': created_at_ts,
             'extra_key': {
-                'peerUrl': 'test-url',
+                'peer_url': 'test-url',
                 'authority': 'test-authority'
             }
         })
