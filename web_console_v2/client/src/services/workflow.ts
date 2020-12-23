@@ -1,10 +1,12 @@
+import { AxiosPromise } from 'axios'
 import request from 'libs/request'
+import { WorkflowTemplate } from 'typings/workflow'
 
 export function fetchExampleWorkflowTemplate() {
   return request('/v2/workflows/example')
 }
 
-export function fetchWorkflowTemplateList() {
+export function fetchWorkflowTemplateList(): AxiosPromise<{ list: WorkflowTemplate[] }> {
   return request('/v2/workflow_templates')
 }
 

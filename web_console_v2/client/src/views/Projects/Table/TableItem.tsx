@@ -1,6 +1,7 @@
 import React, { ReactElement, useState } from 'react'
 import styled, { CSSProperties } from 'styled-components'
 import { Divider } from 'antd'
+import { Project } from 'typings/project'
 import ConnectionStatus from '../ConnectionStatus'
 import CreateTime from '../CreateTime'
 import ProjectName from '../ProjectName'

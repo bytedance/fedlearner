@@ -30,19 +30,16 @@ const routes: FedRouteConfig[] = [
   },
   {
     path: '/projects',
-    exact: true,
     component: Projects,
     auth: true,
   },
   {
     path: '/workflows',
-    exact: false,
     component: Workflows,
     auth: true,
   },
   {
     path: '/datasets',
-    exact: true,
     component: Datasets,
     auth: true,
   },

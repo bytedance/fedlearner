@@ -11,6 +11,7 @@ import { ReactComponent as CheckConnectionIcon } from 'assets/images/check-conne
 import createWorkFlow from 'assets/images/create-work-flow.svg'
 import ProjectName from '../ProjectName'
 import { useHistory } from 'react-router-dom'
+import { Project } from 'typings/project'
 
 const CardContainer = styled.div`
   height: 208px;

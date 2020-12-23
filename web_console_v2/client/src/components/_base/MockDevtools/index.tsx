@@ -1,10 +1,10 @@
 import React, { useState } from 'react'
 import styled from 'styled-components'
 import { MixinCircle } from 'styles/mixins'
-import { Modal, Switch, Table, Tag, Input, Divider, Tooltip } from 'antd'
+import { Modal, Switch, Table, Tag, Input, Divider, Tooltip, Button } from 'antd'
 import { useToggle } from 'react-use'
 import LOCAL_STORAGE_KEYS from 'shared/localStorageKeys'
-import { toggleRequestMockState } from './utils'
+import { removeRequestMock, toggleRequestMockState } from './utils'
 import { useListenKeyboard, useReactiveLocalStorage } from 'hooks'
 import store from 'store2'
 import { ApiTwoTone } from '@ant-design/icons'
@@ -64,9 +64,18 @@ const tableCols = [
 
   {
     title: 'Toggle',
-    key: 'key',
+    key: 'toggle',
     render: (_: any, record: { key: string; value: boolean }) => (
       <Switch checked={record.value} onChange={(val) => toggleRequestMockState(record.key, val)} />
+    ),
+  },
+  {
+    title: 'Actions',
+    key: 'actions',
+    render: (_: any, record: { key: string }) => (
+      <Button type="link" danger onClick={() => removeRequestMock(record.key)}>
+        删除
+      </Button>
     ),
   },
 ]
@@ -86,59 +95,59 @@ function MockDevtools() {
     store.set(MOCK_BUTTON_VISIBLE_KEY, !curr)
   })
 
-  if (process.env.NODE_ENV !== 'development') {
-    return null
+  if (process.env.NODE_ENV === 'development') {
+    const dataSource = Object.entries(mockConfigs || {})
+      .map(([key, value]) => {
+        const [method, path] = key.split('|')
+        return {
+          key,
+          method,
+          path,
+          value,
+        }
+      })
+      .filter(({ path }) => path.includes(keyword))
+
+    return (
+      <>
+        {visible.toString() === 'true' && (
+          <Tooltip
+            placement="left"
+            title={() => (
+              <>
+                Mock 控制面板，<Kbd>Ctrl</Kbd> + <Kbd>M</Kbd> 切换按钮的 隐藏/显示
+              </>
+            )}
+          >
+            <FloatButton onClick={toggleModal}>
+              <ApiTwoTone style={{ fontSize: '18px' }} />
+            </FloatButton>
+          </Tooltip>
+        )}
+
+        <Modal
+          title="Mock 接口列表"
+          centered
+          visible={modalVisible}
+          onOk={() => toggleModal(false)}
+          onCancel={() => toggleModal(false)}
+          width={1000}
+        >
+          <Input.Search placeholder="根据 Path 搜索" onSearch={setKeyword} enterButton />
+          <Divider />
+
+          <Table
+            columns={tableCols}
+            size="small"
+            dataSource={dataSource}
+            pagination={{ pageSize: 10 }}
+          />
+        </Modal>
+      </>
+    )
   }
 
-  const dataSource = Object.entries(mockConfigs || {})
-    .map(([key, value]) => {
-      const [method, path] = key.split('|')
-      return {
-        key,
-        method,
-        path,
-        value,
-      }
-    })
-    .filter(({ path }) => path.includes(keyword))
-
-  return (
-    <>
-      {visible.toString() === 'true' && (
-        <Tooltip
-          placement="left"
-          title={() => (
-            <>
-              Mock 控制面板，<Kbd>Ctrl</Kbd> + <Kbd>M</Kbd> 切换按钮的 隐藏/显示
-            </>
-          )}
-        >
-          <FloatButton onClick={toggleModal}>
-            <ApiTwoTone style={{ fontSize: '18px' }} />
-          </FloatButton>
-        </Tooltip>
-      )}
-
-      <Modal
-        title="Mock 接口列表"
-        centered
-        visible={modalVisible}
-        onOk={() => toggleModal(false)}
-        onCancel={() => toggleModal(false)}
-        width={1000}
-      >
-        <Input.Search placeholder="根据 Path 搜索" onSearch={setKeyword} enterButton />
-        <Divider />
-
-        <Table
-          columns={tableCols}
-          size="small"
-          dataSource={dataSource}
-          pagination={{ pageSize: 10 }}
-        />
-      </Modal>
-    </>
-  )
+  return null
 }
 
 export default MockDevtools

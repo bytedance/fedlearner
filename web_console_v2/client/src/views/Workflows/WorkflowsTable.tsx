@@ -51,7 +51,7 @@ const tableCols = [
   },
   {
     title: i18n.t('workflows.col_actions'),
-    key: 'actions',
+    dataIndex: 'create_at',
     render: (_: any, record: any) => (
       <div>
         <Button type="link">{i18n.t('workflows.action_run')}</Button>
@@ -77,7 +77,7 @@ function WorkflowsTable() {
   }
 
   function handleSearch(query: any) {
-    history.push('/workflows/create')
+    history.push('/workflows/create/basic')
   }
 
   return (

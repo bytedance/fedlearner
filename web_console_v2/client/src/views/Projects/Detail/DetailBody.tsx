@@ -2,8 +2,9 @@ import React, { ReactElement } from 'react'
 import styled from 'styled-components'
 import { Tabs } from 'antd'
 import { useTranslation } from 'react-i18next'
-const Container = styled.div``
+import { Project, Participant } from 'typings/project'
 
+const Container = styled.div``
 const ParamsContainer = styled.div`
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -11,7 +12,6 @@ const ParamsContainer = styled.div`
   border-radius: 4px;
   padding: 10px 0;
 `
-
 const ParamContainer = styled.div`
   height: 36px;
   display: flex;

@@ -1,4 +1,13 @@
-import { ComponentSize } from './component'
+import {
+  ComponentSize,
+  InputWidgetSchema,
+  SelectWidgetSchema,
+  UploadWidgetSchema,
+  NumberPickerWidgetSchema,
+  SwitchWidgetSchema,
+  TextAreaWidgetSchema,
+  WidgetWithOptionsSchema,
+} from './component'
 
 export enum VariableComponent {
   Input = 'Input',
@@ -13,57 +22,6 @@ export enum VariableComponent {
 }
 
 export type VariableRule = { validator: RegExp | string; message: string }
-
-interface InputWidgetSchema {
-  /** ------ UIs ------ */
-  prefix?: string
-  suffix?: string
-  showCount?: boolean
-  maxLength?: number
-}
-
-interface NumberPickerWidgetSchema {
-  /** ------ UIs ------ */
-  max?: number
-  min?: number
-  formatter?: (v: number) => string
-  parser?: (s: string) => number
-}
-
-interface TextAreaWidgetSchema {
-  /** ------ UIs ------ */
-  showCount?: boolean
-  maxLength?: number
-  rows?: number
-}
-
-interface SelectWidgetSchema {
-  /** ------ Datas ------ */
-  multiple?: boolean
-  filterable?: boolean
-}
-
-interface WidgetWithOptionsSchema {
-  /** ------ Datas ------ */
-  options?: {
-    type: 'static' | 'dynamic'
-    // 1. static options for components like select | checkbox group | radio group...
-    // 2. dynamic options is an endpoint of source
-    source: Array<string | number | { value: any; label: string }> | string
-  }
-}
-interface SwitchWidgetSchema {
-  /** ------ uIs ------ */
-  checkedChildren?: string
-  unCheckedChildren?: string
-}
-
-interface UploadWidgetSchema {
-  /** ------ Datas ------ */
-  accept?: string
-  action?: string
-  multiple?: boolean
-}
 
 export interface VariableWidgetSchema
   extends UploadWidgetSchema,
@@ -81,7 +39,7 @@ export interface VariableWidgetSchema
   /** ------ Datas ------ */
   // NOTE: for array type value, it clould be either a Multiple-select/Checkbox
   // or a Group-items which allow user add | delete. eg. ENV field
-  type: 'string' | 'numebr' | 'boolean' | 'array' | 'object'
+  type: 'string' | 'number' | 'boolean' | 'array' | 'object'
   initialValue?: string | number | boolean | any[] | object
 
   /** ------ UIs ------ */
@@ -149,6 +107,35 @@ export interface Job {
   type: JobType
   template: string
   is_federated: boolean
+  is_left: boolean
   variables: Variable[]
   dependencies: JobDependency[]
+}
+
+export type WorkflowConfig = {
+  group_alias: string
+  variables?: Variable[]
+  jobs: Job[]
+}
+
+export interface WorkflowTemplate {
+  id: number
+  name: string
+  comment: string
+  group_alias: string
+  config: WorkflowConfig
+}
+
+export type WorkflowTemplateForm = {
+  name: string
+  template: any
+  comment?: string
+}
+
+export type WorkflowForm = {
+  name: string
+  project_token: string
+  peer_forkable: boolean
+  config: WorkflowConfig
+  comment?: string
 }

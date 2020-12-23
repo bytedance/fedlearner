@@ -1,10 +1,11 @@
-import React, { ReactElement, useState } from 'react'
+import React, { ReactElement } from 'react'
 import styled from 'styled-components'
 import ProjectAction from '../ProjectAction'
 import { ReactComponent as CheckConnectionIcon } from 'assets/images/check-connect.svg'
 import { ReactComponent as CreateWorkFlow } from 'assets/images/create-work-flow.svg'
 import { useTranslation } from 'react-i18next'
 import { useHistory } from 'react-router-dom'
+import { Project } from 'typings/project'
 
 const Container = styled.div`
   width: 100%;

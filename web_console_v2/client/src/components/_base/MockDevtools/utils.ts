@@ -1,4 +1,5 @@
 import { AxiosRequestConfig } from 'axios'
+import { omit } from 'lodash'
 import LOCAL_STORAGE_KEYS from 'shared/localStorageKeys'
 import store from 'store2'
 
@@ -29,6 +30,12 @@ export function setRequestMockState(key: string, val: boolean): void {
   mocksConfig[key] = val
 
   store.set(LOCAL_STORAGE_KEYS.mock_configs, mocksConfig)
+}
+
+export function removeRequestMock(key: string): void {
+  const mocksConfig = getMockConfigs()
+
+  store.set(LOCAL_STORAGE_KEYS.mock_configs, omit(mocksConfig, key))
 }
 
 export function toggleRequestMockState(key: string, val?: boolean): void {

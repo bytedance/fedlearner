@@ -12,6 +12,8 @@ const Container = styled.div`
 `
 
 type Props = {
+  top?: number | string
+  left?: number | string
   gap?: number | string
   justify?:
     | 'start'
@@ -23,9 +25,16 @@ type Props = {
     | 'space-evenly'
 }
 
-const GridRow: FunctionComponent<Props> = (props) => {
+/**
+ * Row component with ability to specify gap between items
+ */
+const GridRow: FunctionComponent<Props> = ({ top, left, ...props }) => {
   return (
-    <Container role="grid" {...props}>
+    <Container
+      role="grid"
+      {...props}
+      style={{ marginTop: convertToUnit(top), marginLeft: convertToUnit(left) }}
+    >
       {props.children}
     </Container>
   )

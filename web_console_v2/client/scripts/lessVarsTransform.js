@@ -69,7 +69,8 @@ function compile() {
           const themeString = `const defaultTheme = {
 ${Object.entries(output)
   .map(([varName, varValue]) => {
-    return `  ${varName}: '${varValue}',`
+    varValue = varValue.replace(/\n/g, '')
+    return `  ${varName}: ${varValue.startsWith("'") ? `"${varValue}"` : `'${varValue}'`},`
   })
   .join('\n')}
 }

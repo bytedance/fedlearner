@@ -1,28 +1,28 @@
-declare interface PaginationConfig {
+export interface PaginationConfig {
   total: number
   page_size: number
   page: number
 }
 
-declare interface Variable {
+export interface Variable {
   name: string
   value: string
 }
 
-declare interface Participant {
+export interface Participant {
   name: string
   domain_name: string
   url: string
   certificates?: string | null
 }
 
-declare interface UpdateProjectFormData {
+export interface UpdateProjectFormData {
   token?: string
   variables?: Variable[]
   comment: string
 }
 
-declare interface CreateProjectFormData {
+export interface CreateProjectFormData {
   name: string
   config: {
     token?: string
@@ -31,7 +31,7 @@ declare interface CreateProjectFormData {
   }
   comment: string
 }
-declare interface Project extends CreateProjectFormData {
+export interface Project extends CreateProjectFormData {
   id: number
   token: string
   created_at: number
@@ -39,12 +39,12 @@ declare interface Project extends CreateProjectFormData {
   deleted_at: null
 }
 
-declare interface ProjectList {
+export interface ProjectList {
   project_list: Project[]
   pagination: PaginationConfig
 }
 
-declare interface FormInitialValues {
+export interface ProjectFormInitialValues {
   certificateConfigType: number
   name: string
   participantName: string

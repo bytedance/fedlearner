@@ -5,7 +5,6 @@ export interface FedRouteConfig {
   exact?: boolean
   auth?: boolean // whether require logged in
   roles?: string[]
-  children?: FedRouteConfig[]
 }
 
 export enum FedLanguages {

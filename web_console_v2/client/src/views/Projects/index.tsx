@@ -1,4 +1,4 @@
-import React, { ReactElement, useState, useEffect, useCallback } from 'react'
+import React, { ReactElement, useState, useEffect } from 'react'
 import CardPaenl from 'components/Container/CardPanel'
 import Action from './Action'
 import { useTranslation } from 'react-i18next'
@@ -9,6 +9,7 @@ import styled, { createGlobalStyle } from 'styled-components'
 import { projectListQuery } from 'stores/projects'
 import { useRecoilQuery } from 'hooks/recoil'
 import { DisplayType } from 'typings/enum'
+import { Project } from 'typings/project'
 
 const GlobalStyle = createGlobalStyle`
 .project-actions {

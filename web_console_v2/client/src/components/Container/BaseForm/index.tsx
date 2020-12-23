@@ -7,6 +7,12 @@ import EnvPathsForm from './EnvPathsForm'
 import FileUploaded from '../FileUploaded'
 import UploadArea from '../UploadArea'
 import { CertificateConfigType } from 'typings/enum'
+import {
+  ProjectFormInitialValues,
+  CreateProjectFormData,
+  UpdateProjectFormData,
+  Participant,
+} from 'typings/project'
 
 const Container = styled.div`
   padding: 16px;
@@ -49,7 +55,7 @@ const layout = {
 interface Props {
   onSubmit: <T>(payload: T) => void
   edit?: boolean
-  initialValues?: FormInitialValues
+  initialValues?: ProjectFormInitialValues
 }
 
 const SubmitContainer = styled(Form.Item)`
@@ -63,7 +69,7 @@ const SubmitContainer = styled(Form.Item)`
   }
 `
 
-const defaultInitialValues: FormInitialValues = {
+const defaultInitialValues: ProjectFormInitialValues = {
   certificateConfigType: CertificateConfigType.Upload,
   name: '',
   participantName: '',
@@ -80,7 +86,7 @@ function BaseForm({ onSubmit, edit, initialValues }: Props): ReactElement {
   const [certificatesName, setCertificatesName] = useState('')
   const [certificatesUploading, setCertificatesUploading] = useState(false)
 
-  const defaultValues: FormInitialValues = initialValues ?? defaultInitialValues
+  const defaultValues: ProjectFormInitialValues = initialValues ?? defaultInitialValues
   const [certificateConfigType, setCertificateConfigType] = useState(
     defaultValues.certificateConfigType,
   )

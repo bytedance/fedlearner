@@ -2,6 +2,7 @@ import React, { ReactElement } from 'react'
 import styled from 'styled-components'
 import { useTranslation } from 'react-i18next'
 import TableItem from './TableItem'
+import { Project } from 'typings/project'
 
 const Container = styled.div`
   min-width: 1160px;

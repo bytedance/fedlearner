@@ -7,7 +7,15 @@ async function axiosMockAdapter(config: AxiosRequestConfig) {
     try {
       await sleep(Math.random() * 1000)
 
-      const data = require(`../services/mocks${config.url}`).default
+      const method = config.method?.toLowerCase()!
+
+      let exportKey = 'default'
+
+      if (method !== 'get') {
+        exportKey = method
+      }
+
+      const data = require(`../services/mocks${config.url}`)[exportKey]
 
       // HTTP code other than 2xx, 3xx should be rejected
       if (['2', '3'].includes(data.status.toString().charAt(0))) {

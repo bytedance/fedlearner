@@ -1,5 +1,6 @@
-import React, { ReactElement, useState, useEffect } from 'react'
+import React, { ReactElement } from 'react'
 import styled from 'styled-components'
+import { Project } from 'typings/project'
 import Card from './Card'
 
 const Container = styled.div`

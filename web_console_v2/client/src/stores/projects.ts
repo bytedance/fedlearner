@@ -1,5 +1,6 @@
 import { atom, selector } from 'recoil'
-import { fetchProjects, fetchProject } from 'services/project'
+import { fetchProjects } from 'services/project'
+import { Project } from 'typings/project'
 
 export const projectListState = atom<Project[]>({
   key: 'ProejctList',

@@ -1,8 +1,8 @@
-import React, { ReactElement } from 'react'
+import React from 'react'
 
 import styled from 'styled-components'
 import ErrorBoundary from 'antd/lib/alert/ErrorBoundary'
-import { Route } from 'react-router-dom'
+import { Route, Redirect } from 'react-router-dom'
 import WorkflowsTable from './WorkflowsTable'
 import WorkflowsCreate from './WorkflowsCreate'
 
@@ -10,12 +10,17 @@ const Container = styled.div`
   width: 100%;
 `
 
-function WorkflowsPage(props: any): ReactElement {
+function WorkflowsPage() {
   return (
     <ErrorBoundary>
       <Container>
         <Route path="/workflows" exact component={WorkflowsTable} />
-        <Route path="/workflows/create" exact component={WorkflowsCreate} />
+        <Route
+          path="/workflows/create"
+          exact
+          component={() => <Redirect to="/workflows/create/basic" />}
+        />
+        <Route path="/workflows/create/:step" component={WorkflowsCreate} />
       </Container>
     </ErrorBoundary>
   )

@@ -1,7 +1,8 @@
-import { ChangeEvent, useEffect, useState } from 'react'
+import { ChangeEvent, useCallback, useEffect, useState } from 'react'
 import store from 'store2'
 import keyboardjs, { KeyEvent } from 'keyboardjs'
 import { useToggle } from 'react-use'
+import PubSub from 'pubsub-js'
 
 export function useInputChange<T>(defaultValue: T) {
   const [value, setState] = useState(defaultValue)
@@ -66,4 +67,12 @@ export function useListenKeyboard(
   }, [combination, cb, set, shouldDoublePress])
 
   return [isPressed]
+}
+
+export function useSubscribe(channel: string, cb: any) {
+  useEffect(() => {
+    PubSub.subscribe(channel, cb)
+
+    return () => PubSub.unsubscribe(channel)
+  }, [cb, channel])
 }

@@ -7,6 +7,7 @@ import { useHistory } from 'react-router-dom'
 import { updateProject } from 'services/project'
 import { useTranslation } from 'react-i18next'
 import { CertificateConfigType } from 'typings/enum'
+import { Project, ProjectFormInitialValues } from 'typings/project'
 
 const Container = styled.div``
 
@@ -17,7 +18,7 @@ function CreateProject(props: any): ReactElement {
 
   if (!project) history.push('/projects')
 
-  const initialValues: FormInitialValues = {
+  const initialValues: ProjectFormInitialValues = {
     certificateConfigType: CertificateConfigType.BackendConfig,
     name: project.name,
     participantName: project.config.participants[0].name,
