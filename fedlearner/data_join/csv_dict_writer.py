@@ -38,6 +38,11 @@ class CsvDictWriter(object):
                     fieldnames=raw.keys()
                 )
             self._csv_writer.writeheader()
+        # ignore the unnecessary fields
+        diff = raw.keys() - self._csv_writer.fieldnames
+        if diff:
+            for k in diff:
+                del raw[k]
         self._csv_writer.writerow(raw)
         self._write_raw_num += 1
         self._flush_buffer(False)
