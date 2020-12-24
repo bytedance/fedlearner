@@ -64,7 +64,8 @@ class RpcClientTest(unittest.TestCase):
             grpc_spec=grpc_spec
         )
         project_config = Project(
-            project_name=cls._TEST_PROJECT_NAME,
+            name=cls._TEST_PROJECT_NAME,
+            domain_name=cls._TEST_SELF_DOMAIN_NAME,
             token='test-auth-token',
             participants=[
                 participant
@@ -80,8 +81,6 @@ class RpcClientTest(unittest.TestCase):
         cls._DB.create_all()
         cls._DB.session.add(cls._project)
         cls._DB.session.commit()
-
-        os.environ['SELF_DOMAIN_NAME'] = cls._TEST_SELF_DOMAIN_NAME
 
     @classmethod
     def tearDownClass(cls):
@@ -100,7 +99,7 @@ class RpcClientTest(unittest.TestCase):
         self._mock_build_channel = self._build_channel_patcher.start()
         self._mock_build_channel.return_value = self._fake_channel
         self._client = RpcClient(
-            self._TEST_PROJECT_NAME, self._TEST_RECEIVER_NAME)
+            self._project_config, self._participant)
 
         self._mock_build_channel.assert_called_once_with(
             self._TEST_URL, self._TEST_AUTHORITY)
@@ -121,9 +120,9 @@ class RpcClientTest(unittest.TestCase):
                       invocation_metadata)
         self.assertEqual(request, CheckConnectionRequest(
             auth_info=ProjAuthInfo(
-                project_name=self._project_config.project_name,
-                sender_name=self._TEST_SELF_DOMAIN_NAME,
-                receiver_name=self._participant.domain_name,
+                project_name=self._project_config.name,
+                source_domain=self._TEST_SELF_DOMAIN_NAME,
+                target_domain=self._participant.domain_name,
                 auth_token=self._project_config.token)
         ))
 

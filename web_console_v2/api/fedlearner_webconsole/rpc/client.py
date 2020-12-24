@@ -15,12 +15,10 @@
 # coding: utf-8
 # pylint: disable=broad-except
 
-import os
 import grpc
 from fedlearner_webconsole.proto import (
     service_pb2, service_pb2_grpc, common_pb2
 )
-from fedlearner_webconsole.project.models import Project
 
 
 def _build_channel(url, authority):
@@ -36,18 +34,14 @@ def _build_channel(url, authority):
 
 
 class RpcClient(object):
-    def __init__(self, project_id, receiver_name):
-        project = Project.query.filter_by(
-            name=project_id).first()
-        assert project is not None, \
-            'project {} not found'.format(project_id)
-        self._project = project.get_config()
-        self._project.project_name = project.name
-        self._receiver = next((participant
-                               for participant in self._project.participants
-                               if participant.name == receiver_name), None)
-        assert self._receiver is not None, \
-            'receiver {} not found'.format(receiver_name)
+    def __init__(self, project_config, receiver_config):
+        self._project = project_config
+        self._receiver = receiver_config
+        self._auth_info = service_pb2.ProjAuthInfo(
+            project_name=self._project.name,
+            source_domain=self._project.domain_name,
+            target_domain=self._receiver.domain_name,
+            auth_token=self._project.token)
 
         self._client = service_pb2_grpc.WebConsoleV2ServiceStub(_build_channel(
             self._receiver.grpc_spec.peer_url,
@@ -63,11 +57,7 @@ class RpcClient(object):
 
     def check_connection(self):
         msg = service_pb2.CheckConnectionRequest(
-            auth_info=service_pb2.ProjAuthInfo(
-                project_name=self._project.project_name,
-                sender_name=os.environ.get('SELF_DOMAIN_NAME'),
-                receiver_name=self._receiver.domain_name,
-                auth_token=self._project.token))
+            auth_info=self._auth_info)
         try:
             response = self._client.CheckConnection(
                 request=msg, metadata=self._get_metadata())
@@ -77,24 +67,15 @@ class RpcClient(object):
                 code=common_pb2.STATUS_UNKNOWN_ERROR,
                 msg=repr(e))
 
-    def update_workflow(self, uuid, status, name,
-                              forkable, config,
-                              peer_config, method_type):
-        msg = service_pb2.UpdateWorkflowRequest(
-            auth_info=service_pb2.ProjAuthInfo(
-                project_name=self._project.project_name,
-                sender_name=os.environ.get('SELF_DOMAIN_NAME'),
-                receiver_name=self._receiver.domain_name,
-                auth_token=self._project.token),
-            uuid=uuid, status=status, name=name, forkable=forkable,
-            config=config, peer_config=peer_config,
-            method_type=method_type
-        )
+    def update_workflow_state(self, state):
+        msg = service_pb2.UpdateWorkflowStateRequest(
+            auth_info=self._auth_info, state=state)
         try:
-            response = self._client.UpdateWorkflow(
+            response = self._client.UpdateWorkflowState(
                 request=msg, metadata=self._get_metadata())
-            return response.status
+            return response
         except Exception as e:
-            return common_pb2.Status(
-                code=common_pb2.STATUS_UNKNOWN_ERROR,
-                msg=repr(e))
+            return common_pb2.UpdateWorkflowStateResponse(
+                status=common_pb2.Status(
+                    code=common_pb2.STATUS_UNKNOWN_ERROR,
+                    msg=repr(e)))
