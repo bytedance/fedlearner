@@ -12,3 +12,4 @@ grpcio
 grpcio-tools==1.33.2
 grpcio-testing==1.33.2
 kubernetes==12.0.1
+snakebite
