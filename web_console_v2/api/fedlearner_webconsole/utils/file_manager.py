@@ -3,8 +3,8 @@ import importlib
 import logging
 import os
 import shutil
-from typing import List
 
+from typing import List
 from snakebite.client import AutoConfigClient
 
 
@@ -42,7 +42,7 @@ class _DefaultFileManager(FileManagerBase):
         try:
             shutil.move(source, destination)
             return True
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-except
             logging.error('Error during move %s', e)
             return False
 
@@ -51,10 +51,10 @@ class _DefaultFileManager(FileManagerBase):
             if os.path.isfile(path):
                 os.remove(path)
                 return True
-            elif os.path.isdir(path):
+            if os.path.isdir(path):
                 shutil.rmtree(path)
                 return True
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-except
             logging.error('Error during remove %s', e)
         return False
 
@@ -75,14 +75,15 @@ class HdfsFileManager(FileManagerBase):
         return len(list(self._client.rename(source, destination))) > 0
 
     def remove(self, path: str) -> bool:
-        return len(list(self._client.delete([path], recursive=True))) > 0
+        return len(list(self._client.delete([path]))) > 0
 
 
 class FileManager(FileManagerBase):
     """A centralized manager to handle files.
 
-    Please extend `FileManagerBase` and put the class path into `CUSTOMIZED_FILE_MANAGER`.
-    For example, 'fedlearner_webconsole.utils.file_manager:HdfsFileManager'"""
+    Please extend `FileManagerBase` and put the class path into
+    `CUSTOMIZED_FILE_MANAGER`. For example,
+    'fedlearner_webconsole.utils.file_manager:HdfsFileManager'"""
     def __init__(self):
         self._file_managers = []
         cfm_path = os.environ.get('CUSTOMIZED_FILE_MANAGER')
