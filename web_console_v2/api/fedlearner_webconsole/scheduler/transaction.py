@@ -17,54 +17,18 @@
 
 from fedlearner_webconsole.db import db
 from fedlearner_webconsole.rpc.client import RpcClient
-from fedlearner_webconsole.project.models import Project
 from fedlearner_webconsole.workflow.models import (
-    Workflow, WorkflowState, TransactionState
+    Workflow, WorkflowState, TransactionState, VALID_TRANSITIONS
 )
 from fedlearner_webconsole.proto import common_pb2
 
 class TransactionManager(object):
-    VALID_TRANSITIONS = [
-        (WorkflowState.NEW, WorkflowState.READY),
-        (WorkflowState.READY, WorkflowState.RUNNING),
-        (WorkflowState.RUNNING, WorkflowState.STOPPED),
-        (WorkflowState.STOPPED, WorkflowState.READY)
-    ]
-
-    VALID_TRANSACTION_TRANSITIONS = [
-        (TransactionState.ABORTED, TransactionState.READY),
-        (TransactionState.READY, TransactionState.PARTICIPANT_ABORTING),
-
-        (TransactionState.READY, TransactionState.COORDINATOR_PREPARE),
-        # (TransactionState.COORDINATOR_PREPARE,
-        #  TransactionState.COORDINATOR_COMMITTABLE),
-        (TransactionState.COORDINATOR_COMMITTABLE,
-         TransactionState.COORDINATOR_COMMITTING),
-        # (TransactionState.COORDINATOR_PREPARE,
-        #  TransactionState.COORDINATOR_ABORTING),
-        (TransactionState.COORDINATOR_COMMITTABLE,
-         TransactionState.COORDINATOR_ABORTING),
-        (TransactionState.COORDINATOR_ABORTING,
-         TransactionState.ABORTED),
-
-        (TransactionState.READY, TransactionState.PARTICIPANT_PREPARE),
-        # (TransactionState.PARTICIPANT_PREPARE,
-        #  TransactionState.PARTICIPANT_COMMITTABLE),
-        (TransactionState.PARTICIPANT_COMMITTABLE,
-         TransactionState.PARTICIPANT_COMMITTING),
-        # (TransactionState.PARTICIPANT_PREPARE,
-        #  TransactionState.PARTICIPANT_ABORTING),
-        (TransactionState.PARTICIPANT_COMMITTABLE,
-         TransactionState.PARTICIPANT_ABORTING),
-        # (TransactionState.PARTICIPANT_ABORTING,
-        #  TransactionState.ABORTED),
-    ]
-
     def __init__(self, workflow_id):
         self._workflow_id = workflow_id
         self._workflow = Workflow.query.get(workflow_id)
-        self._project = Project.query.get(self._workflow.project_id)
-        self._sess = db.create_session(None)
+        assert self._workflow is not None
+        self._project = self._workflow.project
+        assert self._project is not None
 
     @property
     def workflow(self):
@@ -74,91 +38,12 @@ class TransactionManager(object):
     def project(self):
         return self._project
 
-    def update_state(self, state, target_state, transaction_state):
-        if state is not None and self._workflow.state != state:
-            return self._workflow.transaction_state
-
-        if target_state and self._workflow.target_state != target_state:
-            if self._workflow.target_state == WorkflowState.INVALID:
-                self._workflow.target_state = target_state
-            else:
-                return self._workflow.transaction_state
-
-        changed = False
-        if transaction_state is not None:
-            if (self._workflow.transaction_state, transaction_state) in \
-                    TransactionManager.VALID_TRANSACTION_TRANSITIONS:
-                self._workflow.transaction_state = transaction_state
-                changed = True
-
-        if not changed:
-            self._reload()
-            return self._workflow.transaction_state
-
-        # coordinator prepare & rollback
-        if self._workflow.transaction_state == \
-                TransactionState.COORDINATOR_PREPARE:
-            try:
-                if self._prepare():
-                    self._workflow.transaction_state = \
-                        TransactionState.COORDINATOR_COMMITTABLE
-            except Exception as e:
-                self._workflow.transaction_state = \
-                    TransactionState.COORDINATOR_ABORTING
-
-        if self._workflow.transaction_state == \
-                TransactionState.COORDINATOR_ABORTING:
-            try:
-                self._rollback()
-            except Exception as e:
-                pass
-
-        # participant prepare & rollback & commit
-        if self._workflow.transaction_state == \
-                TransactionState.PARTICIPANT_PREPARE:
-            try:
-                if self._prepare():
-                    self._workflow.transaction_state = \
-                        TransactionState.PARTICIPANT_COMMITTABLE
-            except Exception as e:
-                self._workflow.transaction_state = \
-                    TransactionState.PARTICIPANT_ABORTING
-
-        if self._workflow.transaction_state == \
-                TransactionState.PARTICIPANT_ABORTING:
-            try:
-                self._rollback()
-            except Exception as e:
-                pass
-            self._workflow.target_state = WorkflowState.INVALID
-            self._workflow.transaction_state = \
-                TransactionState.ABORTED
-
-        if self._workflow.transaction_state == \
-                TransactionState.PARTICIPANT_COMMITTING:
-            self.commit()
-
-        self._reload()
-        return self._workflow.transaction_state
-
-    def commit(self):
-        if self._workflow.target_state == WorkflowState.STOPPED:
-            # TODO: delete jobs from k8s
-            pass
-        elif self._workflow.target_state == WorkflowState.READY:
-            # TODO: create workflow jobs in database according to config
-            pass
-
-        self._workflow.state = self._workflow.target_state
-        self._workflow.target_state = WorkflowState.INVALID
-        self._workflow.transaction_state = TransactionState.READY
-        self._reload()
-
     def process(self):
         # reload workflow and resolve -ing states
-        self.update_state(
+        self._workflow.update_state(
             self._workflow.state, self._workflow.target_state,
             self._workflow.transaction_state)
+        self._reload()
 
         if not self._recover_from_abort():
             return
@@ -171,12 +56,13 @@ class TransactionManager(object):
                 "Cannot process invalid workflow %s"%self._workflow.name)
 
         assert (self._workflow.state, self._workflow.target_state) \
-            in TransactionManager.VALID_TRANSITIONS
+            in VALID_TRANSITIONS
 
         if self._workflow.transaction_state == TransactionState.READY:
             # prepare self as coordinator
-            self.update_state(
+            self._workflow.update_state(
                 None, None, TransactionState.COORDINATOR_PREPARE)
+            self._reload()
 
         if self._workflow.transaction_state == \
                 TransactionState.COORDINATOR_COMMITTABLE:
@@ -190,13 +76,15 @@ class TransactionManager(object):
                     committable = False
                 if state == TransactionState.ABORTED:
                     # abort as coordinator if some participants aborted
-                    self.update_state(
+                    self._workflow.update_state(
                         None, None, TransactionState.COORDINATOR_ABORTING)
+                    self._reload()
                     break
             # commit as coordinator if participants all committable
             if committable:
-                self.update_state(
+                self._workflow.update_state(
                     None, None, TransactionState.COORDINATOR_COMMITTING)
+                self._reload()
 
         if self._workflow.transaction_state == \
                 TransactionState.COORDINATOR_COMMITTING:
@@ -206,38 +94,25 @@ class TransactionManager(object):
                     TransactionState.PARTICIPANT_COMMITTING,
                     TransactionState.READY):
                 # all participants committed. finish.
-                self.commit()
+                self._workflow.commit()
+                self._reload()
 
         self._recover_from_abort()
 
     def _reload(self):
-        self._sess.commit()
-        self._workflow = self._sess.query(Workflow).get(self._workflow_id)
-
-    # returns bool: whether is prepare successed immediately and committable
-    def _prepare(self):
-        if self._workflow.target_state == WorkflowState.READY:
-            return False
-        if self._workflow.target_state == WorkflowState.RUNNING:
-            return True
-        if self._workflow.target_state == WorkflowState.STOPPED:
-            return True
-        raise RuntimeError(
-            "Invalid target_state %s"%self._workflow.target_state)
-
-    def _rollback(self):
-        pass
+        db.session.commit()
+        db.session.refresh(self._workflow)
 
     def _broadcast_state(
             self, state, target_state, transaction_state):
         project_config = self._project.get_config()
         states = []
-        for receiver_name in project_config.participants:
-            client = RpcClient(None, receiver_name, self._project.get_config())
-            resp = client.update_workflow_transaction_state(
-                state, target_state, transaction_state)
+        for party in project_config.participants:
+            client = RpcClient(project_config, party)
+            resp = client.update_workflow_state(
+                self._workflow.name, state, target_state, transaction_state)
             if resp.status.code == common_pb2.STATUS_SUCCESS:
-                states.append(TransactionState(resp.state))
+                states.append(TransactionState(resp.transaction_state))
             else:
                 states.append(None)
         return states
@@ -258,8 +133,9 @@ class TransactionManager(object):
                     TransactionState.PARTICIPANT_ABORTING,
                     TransactionState.ABORTED):
                 return False
-            self.update_state(
+            self._workflow.update_state(
                 None, WorkflowState.INVALID, TransactionState.ABORTED)
+            self._reload()
 
         if self._workflow.transaction_state != TransactionState.ABORTED:
             return True
@@ -270,5 +146,6 @@ class TransactionManager(object):
                 self._workflow.state, WorkflowState.INVALID,
                 TransactionState.READY, TransactionState.READY):
             return False
-        self.update_state(None, None, TransactionState.READY)
+        self._workflow.update_state(None, None, TransactionState.READY)
+        self._reload()
         return True

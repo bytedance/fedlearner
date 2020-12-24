@@ -13,6 +13,8 @@
 # limitations under the License.
 
 # coding: utf-8
+
+from enum import Enum
 from datetime import datetime
 from typing import List, Dict, Callable
 
@@ -51,6 +53,8 @@ def to_dict_mixin(ignores: List[str] = None,
                 elif isinstance(value, Message):
                     dic[key] = MessageToDict(value,
                                              preserving_proto_field_name=True)
+                elif isinstance(value, Enum):
+                    dic[key] = value.name
             return dic
 
         setattr(cls, 'to_dict', to_dict)

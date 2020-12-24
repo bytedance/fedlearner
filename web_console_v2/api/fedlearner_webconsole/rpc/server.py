@@ -15,6 +15,8 @@
 # coding: utf-8
 # pylint: disable=broad-except, cyclic-import
 
+import logging
+
 import threading
 from concurrent import futures
 import grpc
@@ -26,8 +28,6 @@ from fedlearner_webconsole.project.models import Project
 from fedlearner_webconsole.workflow.models import (
     Workflow, WorkflowState, TransactionState
 )
-from fedlearner_webconsole.scheduler.transaction import TransactionManager
-
 from fedlearner_webconsole.exceptions import (
     UnauthorizedException
 )
@@ -66,14 +66,16 @@ class RPCServerServicer(service_pb2_grpc.WebConsoleV2ServiceServicer):
 
 
 class RpcServer(object):
-
     def __init__(self):
         self._lock = threading.Lock()
         self._started = False
         self._server = None
+        self._app = None
 
-    def start(self, listen_port):
+    def start(self, app):
         assert not self._started, "Already started"
+        self._app = app
+        listen_port = app.config.get('GRPC_LISTEN_PORT', 1999)
         with self._lock:
             self._server = grpc.server(
                 futures.ThreadPoolExecutor(max_workers=10))
@@ -82,7 +84,6 @@ class RpcServer(object):
             self._server.add_insecure_port('[::]:%d' % listen_port)
             self._server.start()
             self._started = True
-
 
     def stop(self):
         if not self._started:
@@ -94,13 +95,15 @@ class RpcServer(object):
             self._started = False
 
     def check_auth_info(self, auth_info):
+        logging.debug('auth_info: %s', auth_info)
         project = Project.query.filter_by(
             name=auth_info.project_name).first()
         if project is None:
             raise UnauthorizedException('Invalid project')
         project_config = project.get_config()
-        if project_config.token != auth_info.auth_token:
-            raise UnauthorizedException('Invalid token')
+        # TODO: fix token verification
+        # if project_config.token != auth_info.auth_token:
+        #     raise UnauthorizedException('Invalid token')
         if project_config.domain_name != auth_info.target_domain:
             raise UnauthorizedException('Invalid domain')
         source_party = None
@@ -112,41 +115,46 @@ class RpcServer(object):
         return project, source_party
 
     def check_connection(self, request):
-        _, _ = self.check_auth_info(request.auth_info)
-        return service_pb2.CheckConnectionResponse(
-            status=common_pb2.Status(
-                code=common_pb2.STATUS_SUCCESS))
+        with self._app.app_context():
+            _, party = self.check_auth_info(request.auth_info)
+            logging.debug(
+                'received check_connection from %s', party.domain_name)
+            return service_pb2.CheckConnectionResponse(
+                status=common_pb2.Status(
+                    code=common_pb2.STATUS_SUCCESS))
 
     def update_workflow_state(self, request):
-        project, _ = self.check_auth_info(request.auth_info)
-        name = request.workflow_name
-        state = WorkflowState(request.state)
-        target_state = WorkflowState(request.target_state)
-        transaction_state = TransactionState(request.transaction_state)
-        workflow = Workflow.query.filter_by(
-            name=request.workflow_name,
-            project_id=project.project_id).first()
-        if workflow is None:
-            assert state == WorkflowState.NEW
-            assert target_state == WorkflowState.READY
-            workflow = Workflow(
-                name=request.workflow_name,
-                state=state, target_state=target_state,
-                transaction_state=TransactionState.READY)
-            db.session.add(workflow)
-            db.session.commit()
+        with self._app.app_context():
+            project, party = self.check_auth_info(request.auth_info)
+            logging.debug(
+                'received update_workflow_state from %s: %s',
+                party.domain_name, request)
+            name = request.workflow_name
+            state = WorkflowState(request.state)
+            target_state = WorkflowState(request.target_state)
+            transaction_state = TransactionState(request.transaction_state)
             workflow = Workflow.query.filter_by(
                 name=request.workflow_name,
-                project_id=project.project_id).first()
-            assert workflow is not None
+                project_id=project.id).first()
+            if workflow is None:
+                assert state == WorkflowState.NEW
+                assert target_state == WorkflowState.READY
+                workflow = Workflow(
+                    name=request.workflow_name,
+                    project_id=project.id,
+                    state=state, target_state=target_state,
+                    transaction_state=TransactionState.READY)
+                db.session.add(workflow)
+                db.session.commit()
+                db.session.refresh(workflow)
 
-        tm = TransactionManager(workflow.workflow_id)
-        ret = tm.update_workflow_state(
-            state, target_state, transaction_state)
-        return service_pb2.UpdateWorkflowStateResponse(
-                status=common_pb2.Status(
-                    code=common_pb2.STATUS_SUCCESS),
-                transaction_state=ret.value)
+            workflow.update_state(
+                state, target_state, transaction_state)
+            db.session.commit()
+            return service_pb2.UpdateWorkflowStateResponse(
+                    status=common_pb2.Status(
+                        code=common_pb2.STATUS_SUCCESS),
+                    transaction_state=workflow.transaction_state.value)
 
 
 rpc_server = RpcServer()
