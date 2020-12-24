@@ -90,13 +90,13 @@ class TransactionManager(object):
                     TransactionManager.VALID_TRANSACTION_TRANSITIONS:
                 self._workflow.transaction_state = transaction_state
                 changed = True
-        
+
         if not changed:
             self._reload()
             return self._workflow.transaction_state
 
         # coordinator prepare & rollback
-        if changed and self._workflow.transaction_state == \
+        if self._workflow.transaction_state == \
                 TransactionState.COORDINATOR_PREPARE:
             try:
                 if self._prepare():
@@ -106,7 +106,7 @@ class TransactionManager(object):
                 self._workflow.transaction_state = \
                     TransactionState.COORDINATOR_ABORTING
 
-        if changed and self._workflow.transaction_state == \
+        if self._workflow.transaction_state == \
                 TransactionState.COORDINATOR_ABORTING:
             try:
                 self._rollback()
@@ -114,7 +114,7 @@ class TransactionManager(object):
                 pass
 
         # participant prepare & rollback & commit
-        if changed and self._workflow.transaction_state == \
+        if self._workflow.transaction_state == \
                 TransactionState.PARTICIPANT_PREPARE:
             try:
                 if self._prepare():
