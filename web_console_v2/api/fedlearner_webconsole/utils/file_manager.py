@@ -1,10 +1,11 @@
-import glob
 import importlib
 import logging
 import os
 import shutil
 
+from pathlib import Path
 from typing import List
+
 from snakebite.client import AutoConfigClient
 
 
@@ -29,14 +30,31 @@ class FileManagerBase(object):
         raise NotImplementedError()
 
 
-class _DefaultFileManager(FileManagerBase):
+class DefaultFileManager(FileManagerBase):
     """Default file manager for native file system or NFS."""
 
     def can_handle(self, path):
         return path.startswith('/')
 
     def ls(self, path: str, recursive=False) -> List[str]:
-        return glob.glob(path, recursive=recursive)
+        if not Path(path).exists():
+            return []
+        # If it is a file
+        if Path(path).is_file():
+            return [path]
+
+        files = []
+        if recursive:
+            for root, dirs, fs in os.walk(path):
+                for file in fs:
+                    files.append(os.path.join(root, file))
+        else:
+            files = [
+                os.path.join(path, file)
+                for file in os.listdir(path)
+            ]
+        # Files only
+        return list(filter(lambda f: Path(f).is_file(), files))
 
     def move(self, source: str, destination: str) -> bool:
         try:
@@ -69,10 +87,14 @@ class HdfsFileManager(FileManagerBase):
         self._client = AutoConfigClient()
 
     def ls(self, path: str, recursive=False) -> List[str]:
-        return list(self._client.ls([path], recurse=recursive))
+        files = []
+        for file in self._client.ls([path], recurse=recursive):
+            if file['file_type'] == 'f':
+                files.append(file['path'])
+        return files
 
     def move(self, source: str, destination: str) -> bool:
-        return len(list(self._client.rename(source, destination))) > 0
+        return len(list(self._client.rename([source], destination))) > 0
 
     def remove(self, path: str) -> bool:
         return len(list(self._client.delete([path]))) > 0
@@ -93,7 +115,7 @@ class FileManager(FileManagerBase):
             # Dynamically construct a file manager
             customized_file_manager = getattr(module, class_name)
             self._file_managers.append(customized_file_manager())
-        self._file_managers.append(_DefaultFileManager())
+        self._file_managers.append(DefaultFileManager())
 
     def can_handle(self, path):
         for fm in self._file_managers:
