@@ -43,7 +43,7 @@ def create_image_pull_secret():
                 }
             }})), 'utf-8')
 
-    client.save_secret(
+    client.create_or_update_secret(
         data={
             '.dockerconfigjson': encoded_image_cert
         },

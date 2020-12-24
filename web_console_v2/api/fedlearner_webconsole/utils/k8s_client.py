@@ -19,7 +19,6 @@ from kubernetes.client.exceptions import ApiException
 
 
 class K8sClient(object):
-
     def __init__(self, config_path=None):
         if config_path is None:
             config.load_incluster_config()
@@ -27,16 +26,22 @@ class K8sClient(object):
             config.load_kube_config(config_path)
         self._core = client.CoreV1Api()
         self._networking = client.NetworkingV1beta1Api()
+        self._app = client.AppsV1Api()
 
     def close(self):
         self._core.api_client.close()
         self._networking.api_client.close()
 
     def _raise_runtime_error(self, exception: ApiException):
-        raise RuntimeError('[{}] {}'.format(exception.status, exception.reason))
+        raise RuntimeError('[{}] {}'.format(exception.status,
+                                            exception.reason))
 
-    def save_secret(self, data: dict, metadata: dict, secret_type: str,
-                    name, namespace='default'):
+    def create_or_update_secret(self,
+                                data,
+                                metadata,
+                                secret_type,
+                                name,
+                                namespace='default'):
         """Create secret. If existed, then replace"""
         request = client.V1Secret(api_version='v1',
                                   data=data,
@@ -44,9 +49,17 @@ class K8sClient(object):
                                   metadata=metadata,
                                   type=secret_type)
         try:
-            self._core.create_namespaced_secret(
-                namespace=metadata.get('namespace', 'default'),
-                body=request)
+            self._core.read_namespaced_secret(name, namespace)
+            # If the secret already exists, then we use patch to replace it.
+            # We don't use replace method because it requires `resourceVersion`.
+            self._core.patch_namespaced_secret(name, namespace, request)
+            return
+        except ApiException as e:
+            # 404 is expected if the secret does not exist
+            if e.status != 404:
+                self._raise_runtime_error(e)
+        try:
+            self._core.create_namespaced_secret(namespace, request)
         except ApiException as e:
             self._raise_runtime_error(e)
 
@@ -62,14 +75,28 @@ class K8sClient(object):
         except ApiException as e:
             self._raise_runtime_error(e)
 
-    def create_service(self, metadata: dict, spec: dict):
+    def create_or_update_service(self,
+                                 metadata,
+                                 spec,
+                                 name,
+                                 namespace='default'):
+        """Create secret. If existed, then replace"""
         request = client.V1Service(api_version='v1',
                                    kind='Service',
                                    metadata=metadata,
                                    spec=spec)
         try:
-            self._core.create_namespaced_service(namespace='default',
-                                                 body=request)
+            self._core.read_namespaced_service(name, namespace)
+            # If the service already exists, then we use patch to replace it.
+            # We don't use replace method because it requires `resourceVersion`.
+            self._core.patch_namespaced_service(name, namespace, request)
+            return
+        except ApiException as e:
+            # 404 is expected if the service does not exist
+            if e.status != 404:
+                self._raise_runtime_error(e)
+        try:
+            self._core.create_namespaced_service(namespace, request)
         except ApiException as e:
             self._raise_runtime_error(e)
 
@@ -85,16 +112,28 @@ class K8sClient(object):
         except ApiException as e:
             self._raise_runtime_error(e)
 
-    def create_ingress(self, metadata: dict, spec: dict):
+    def create_or_update_ingress(self,
+                                 metadata,
+                                 spec,
+                                 name,
+                                 namespace='default'):
         request = client.NetworkingV1beta1Ingress(
             api_version='networking.k8s.io/v1beta1',
             kind='Ingress',
             metadata=metadata,
-            spec=spec
-        )
+            spec=spec)
         try:
-            self._networking.create_namespaced_ingress(namespace='default',
-                                                       body=request)
+            self._networking.read_namespaced_ingress(name, namespace)
+            # If the ingress already exists, then we use patch to replace it.
+            # We don't use replace method because it requires `resourceVersion`.
+            self._networking.patch_namespaced_ingress(name, namespace, request)
+            return
+        except ApiException as e:
+            # 404 is expected if the ingress does not exist
+            if e.status != 404:
+                self._raise_runtime_error(e)
+        try:
+            self._networking.create_namespaced_ingress(namespace, request)
         except ApiException as e:
             self._raise_runtime_error(e)
 
@@ -107,5 +146,41 @@ class K8sClient(object):
     def get_ingress(self, name, namespace='default'):
         try:
             return self._networking.read_namespaced_ingress(name, namespace)
+        except ApiException as e:
+            self._raise_runtime_error(e)
+
+    def create_or_update_deployment(self,
+                                    metadata,
+                                    spec,
+                                    name,
+                                    namespace='default'):
+        request = client.V1Deployment(api_version='apps/v1',
+                                      kind='Deployment',
+                                      metadata=metadata,
+                                      spec=spec)
+        try:
+            self._app.read_namespaced_deployment(name, namespace)
+            # If the deployment already exists, then we use patch to replace it.
+            # We don't use replace method because it requires `resourceVersion`.
+            self._app.patch_namespaced_deployment(name, namespace, request)
+            return
+        except ApiException as e:
+            # 404 is expected if the deployment does not exist
+            if e.status != 404:
+                self._raise_runtime_error(e)
+        try:
+            self._app.create_namespaced_deployment(namespace, request)
+        except ApiException as e:
+            self._raise_runtime_error(e)
+
+    def delete_deployment(self, name, namespace='default'):
+        try:
+            self._app.delete_namespaced_deployment(name, namespace)
+        except ApiException as e:
+            self._raise_runtime_error(e)
+
+    def get_deployment(self, name, namespace='default'):
+        try:
+            return self._app.read_namespaced_deployment(name, namespace)
         except ApiException as e:
             self._raise_runtime_error(e)

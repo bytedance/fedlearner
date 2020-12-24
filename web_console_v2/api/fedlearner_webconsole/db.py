@@ -49,7 +49,8 @@ def to_dict_mixin(ignores: List[str] = None,
                 if isinstance(value, datetime):
                     dic[key] = value.timestamp()
                 elif isinstance(value, Message):
-                    dic[key] = MessageToDict(value)
+                    dic[key] = MessageToDict(value,
+                                             preserving_proto_field_name=True)
             return dic
 
         setattr(cls, 'to_dict', to_dict)
