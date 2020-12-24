@@ -51,6 +51,6 @@ def create_image_pull_secret():
             'name': 'regcred',
             'namespace': 'default'
         },
-        type='kubernetes.io/dockerconfigjson',
+        secret_type='kubernetes.io/dockerconfigjson',
         name='regcred'
     )

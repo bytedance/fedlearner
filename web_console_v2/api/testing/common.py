@@ -33,6 +33,7 @@ class BaseTestCase(TestCase):
     LOGGING_LEVEL = logging.DEBUG
     TESTING = True
     ENV = 'development'
+    GRPC_LISTEN_PORT = 1990
 
     def create_app(self):
         return create_app(self)

@@ -13,6 +13,7 @@
 # limitations under the License.
 
 # coding: utf-8
+
 import logging
 
 from fedlearner_webconsole.utils.k8s_client import K8sClient
@@ -25,23 +26,21 @@ class FakeK8sClient(K8sClient):
 
     With this client we can decouple the dependency of k8s cluster.
     """
-    def __init__(self):
+    def __init__(self):  # pylint: disable=super-init-not-called
         # Do not call super constructor
         pass
 
     def close(self):
         pass
 
-    def create_secret(self, data: dict, metadata: dict, type: str):
+    def create_secret(self, data: dict, metadata: dict, secret_type: str):
         if _RAISE_EXCEPTION_KEY in data:
             raise RuntimeError('[500] Fake exception for create_secret')
         # Otherwise succeeds
         logging.info('======================')
-        logging.info('Created a secret with: data: {}, metadata: {}, type: {}'.format(
-            data,
-            metadata,
-            type
-        ))
+        logging.info(
+            'Created a secret with: data: %s, metadata: %s, type: %s',
+            data, metadata, secret_type)
 
     def delete_secret(self, name, namespace='default'):
         raise NotImplementedError()

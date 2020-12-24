@@ -21,6 +21,7 @@ enum StatusCode {
   STATUS_SUCCESS = 0;
   STATUS_UNKNOWN_ERROR = 1;
   STATUS_UNAUTHORIZED = 2;
+  STATUS_NOT_FOUND = 3;
 }
 
 message Status {
@@ -30,21 +31,16 @@ message Status {
 
 message Variable {
   enum AccessMode {
-    AM_UNSPECIFIED = 0;
-    AM_PRIVATE = 1;
-    AM_PEER_READABLE = 2;
-    AM_PEER_WRITABLE = 3;
-  }
-  enum WidgetType {
-    WT_UNSPECIFIED = 0;
-    WT_INPUT = 1;
-    WT_DATE_TIME = 2;
+    UNSPECIFIED = 0;
+    PRIVATE = 1;
+    PEER_READABLE = 2;
+    PEER_WRITABLE = 3;
   }
 
   string name = 1;
   string value = 2;
   AccessMode access_mode = 3;
-  string validator = 4;
+  string widget_schema = 4;
 }
 
 message GrpcSpec {
