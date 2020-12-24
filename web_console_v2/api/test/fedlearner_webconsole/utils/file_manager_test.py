@@ -36,32 +36,32 @@ class DefaultFileManagerTest(unittest.TestCase):
     def test_ls(self):
         # List file
         self.assertEqual(self._fm.ls(self._get_temp_path('f1.txt')),
-                             [self._get_temp_path('f1.txt')])
+                         [self._get_temp_path('f1.txt')])
         # List folder
         self.assertEqual(
-            self._fm.ls(self._get_temp_path()),
-            [
+            sorted(self._fm.ls(self._get_temp_path())),
+            sorted([
                 self._get_temp_path('f1.txt'),
                 self._get_temp_path('f2.txt')
-            ])
+            ]))
         # List folder recursively
         self.assertEqual(
-            self._fm.ls(self._get_temp_path(), recursive=True),
-            [
+            sorted(self._fm.ls(self._get_temp_path(), recursive=True)),
+            sorted([
                 self._get_temp_path('f1.txt'),
                 self._get_temp_path('f2.txt'),
                 self._get_temp_path('subdir/s1.txt')
-            ])
+            ]))
 
     def test_move(self):
         # Moves to another folder
         self._fm.move(self._get_temp_path('f1.txt'), self._get_temp_path('subdir/'))
         self.assertEqual(
-            self._fm.ls(self._get_temp_path('subdir')),
-            [
+            sorted(self._fm.ls(self._get_temp_path('subdir'))),
+            sorted([
                 self._get_temp_path('subdir/s1.txt'),
                 self._get_temp_path('subdir/f1.txt')
-            ])
+            ]))
         # Renames
         self._fm.move(self._get_temp_path('f2.txt'), self._get_temp_path('f3.txt'))
         self.assertEqual(
