@@ -74,6 +74,7 @@ class WorkflowTest(BaseTestCase):
             'participants': [
                 {
                     'name': 'party_%s'%peer_role,
+                    'url': '127.0.0.1:%d'%peer_port,
                     'domain_name': 'fl-%s.com'%peer_role,
                     'grpc_spec': {
                         'peer_url': '127.0.0.1:%d'%peer_port,
