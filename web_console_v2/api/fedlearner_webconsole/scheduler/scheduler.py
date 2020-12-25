@@ -85,7 +85,8 @@ class Scheduler(object):
                     workflow_ids = self._pending
                     self._pending = []
                 else:
-                    workflow_ids = db.session.query.with_entities(Workflow.id)
+                    workflow_ids = db.session.query().with_entities(
+                        Workflow.id)
                 self._poll(workflow_ids)
 
     def _poll(self, workflow_ids):
