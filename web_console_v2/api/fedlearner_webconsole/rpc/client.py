@@ -15,6 +15,7 @@
 # coding: utf-8
 # pylint: disable=broad-except
 
+import logging
 import grpc
 from fedlearner_webconsole.proto import (
     service_pb2, service_pb2_grpc, common_pb2
@@ -27,9 +28,9 @@ def _build_channel(url, authority):
             target=url,
             # options defined at
             # https://github.com/grpc/grpc/blob/master/include/grpc/impl/codegen/grpc_types.h
-            options={
-                'grpc.default_authority': authority,
-            }
+            # options={
+            #     'grpc.default_authority': authority,
+            # }
     )
 
 
@@ -61,21 +62,35 @@ class RpcClient(object):
         try:
             response = self._client.CheckConnection(
                 request=msg, metadata=self._get_metadata())
+            if response.status.code != common_pb2.STATUS_SUCCESS:
+                logging.debug('check_connection request error: %s',
+                              response.status.msg)
             return response.status
         except Exception as e:
+            logging.debug('check_connection request error: %s', repr(e))
             return common_pb2.Status(
                 code=common_pb2.STATUS_UNKNOWN_ERROR,
                 msg=repr(e))
 
-    def update_workflow_state(self, state):
+    def update_workflow_state(self, name, state, target_state,
+                              transaction_state):
         msg = service_pb2.UpdateWorkflowStateRequest(
-            auth_info=self._auth_info, state=state)
+            auth_info=self._auth_info,
+            workflow_name=name,
+            state=state.value,
+            target_state=target_state.value,
+            transaction_state=transaction_state.value)
         try:
             response = self._client.UpdateWorkflowState(
                 request=msg, metadata=self._get_metadata())
+            if response.status.code != common_pb2.STATUS_SUCCESS:
+                logging.debug(
+                    'update_workflow_state request error: %s',
+                    response.status.msg)
             return response
         except Exception as e:
-            return common_pb2.UpdateWorkflowStateResponse(
+            logging.debug('update_workflow_state request error: %s', repr(e))
+            return service_pb2.UpdateWorkflowStateResponse(
                 status=common_pb2.Status(
                     code=common_pb2.STATUS_UNKNOWN_ERROR,
                     msg=repr(e)))
