@@ -46,6 +46,8 @@ class WorkflowsApi(Resource):
         parser.add_argument('name', required=True, help='name is empty')
         parser.add_argument('project_id', type=int, required=True,
                             help='project_id is empty')
+        # TODO: should verify if the config is compatible with
+        # workflow template
         parser.add_argument('config', type=dict, required=True,
                             help='config is empty')
         parser.add_argument('forkable', type=bool, required=True,
