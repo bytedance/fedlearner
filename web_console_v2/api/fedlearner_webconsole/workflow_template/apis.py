@@ -59,12 +59,12 @@ def check_group_match(config_a, config_b):
 
 
 def dict_to_workflow_definition(config):
-    template_proto = workflow_definition_pb2.WorkflowDefinition()
     try:
-        template_proto = ParseDict(config, template_proto)
+        template_proto = ParseDict(config,
+                                   workflow_definition_pb2.WorkflowDefinition())
+        return template_proto
     except ParseError as e:
         raise InvalidArgumentException('Invalid workflow_template') from e
-    return template_proto
 
 
 class WorkflowTemplatesApi(Resource):
@@ -90,7 +90,6 @@ class WorkflowTemplatesApi(Resource):
         return {'data': [row.to_dict() for row in
                          WorkflowTemplate.query.all()]}, HTTPStatus.OK
 
-
     def post(self):
         parser = reqparse.RequestParser()
         parser.add_argument('name', required=True, help='name is empty')
@@ -115,7 +114,7 @@ class WorkflowTemplatesApi(Resource):
                 raise InvalidArgumentException(
                     'The group is not matched with existing groups.')
         template = WorkflowTemplate(name=name, comment=comment,
-                            group_alias=template_proto.group_alias)
+                                    group_alias=template_proto.group_alias)
         template.set_config(template_proto)
         db.session.add(template)
         db.session.commit()

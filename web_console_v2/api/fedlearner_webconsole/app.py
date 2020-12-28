@@ -87,10 +87,12 @@ def create_app(config):
     app.handle_exception = handle_exception
     app.handle_user_exception = handle_user_exception
 
-    rpc_server.stop()
-    rpc_server.start(app)
+    if app.config.get('START_GRPC_SERVER', True):
+        rpc_server.stop()
+        rpc_server.start(app)
 
-    scheduler.stop()
-    scheduler.start(app)
+    if app.config.get('START_SCHEDULER', True):
+        scheduler.stop()
+        scheduler.start(app)
 
     return app
