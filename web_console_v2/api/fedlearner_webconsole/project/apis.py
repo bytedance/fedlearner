@@ -111,6 +111,7 @@ class ProjectsApi(Resource):
         # generate token
         # If users send a token, then use it instead.
         # If `token` is None, generate a new one by uuid.
+        config['name'] = name
         token = config.get('token', uuid4().hex)
         config['token'] = token
 

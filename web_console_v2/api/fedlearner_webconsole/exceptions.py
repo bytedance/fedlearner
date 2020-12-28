@@ -25,6 +25,10 @@ class WebConsoleApiException(Exception):
         self.message = message
         self.details = details
 
+    def __repr__(self):
+        return '%s(%d %s: %s)'%(
+            type(self).__name__, self.error_code, self.message, self.details)
+
     def to_dict(self):
         dic = {
             'code': self.error_code,

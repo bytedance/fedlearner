@@ -25,15 +25,14 @@ from fedlearner_webconsole.workflow_template.apis import \
     dict_to_workflow_definition
 from fedlearner_webconsole.db import db
 from fedlearner_webconsole.exceptions import (
-    NotFoundException, InvalidArgumentException,
-    ResourceConflictException)
+    NotFoundException, ResourceConflictException)
+from fedlearner_webconsole.scheduler.scheduler import scheduler
 
 
 def _get_workflow(workflow_id):
     result = Workflow.query.filter_by(id=workflow_id).first()
     if result is None:
         raise NotFoundException()
-    logging.info('%s has been loaded', result.uuid)
     return result
 
 
@@ -45,6 +44,8 @@ class WorkflowsApi(Resource):
     def post(self):
         parser = reqparse.RequestParser()
         parser.add_argument('name', required=True, help='name is empty')
+        parser.add_argument('project_id', type=int, required=True,
+                            help='project_id is empty')
         parser.add_argument('config', type=dict, required=True,
                             help='config is empty')
         parser.add_argument('forkable', type=bool, required=True,
@@ -62,6 +63,7 @@ class WorkflowsApi(Resource):
         # form to proto buffer
         template_proto = dict_to_workflow_definition(data['config'])
         workflow = Workflow(name=name, comment=data['comment'],
+                            project_id=data['project_id'],
                             forkable=data['forkable'],
                             forked_from=data['forked_from'],
                             state=WorkflowState.NEW,
@@ -71,6 +73,7 @@ class WorkflowsApi(Resource):
         db.session.add(workflow)
         db.session.commit()
         logging.info('Inserted a workflow to db')
+        scheduler.wakeup(workflow.id)
         return {'data': workflow.to_dict()}, HTTPStatus.CREATED
 
 
@@ -91,7 +94,8 @@ class WorkflowApi(Resource):
         workflow = _get_workflow(workflow_id)
         workflow.comment = data['comment']
         workflow.forkable = data['forkable']
-        workflow.ready(dict_to_workflow_definition(data['config']))
+        workflow.set_config(dict_to_workflow_definition(data['config']))
+        workflow.prepare()
         db.session.commit()
         logging.info('update workflow %d target_state to %s',
                      workflow.id, workflow.target_state)
@@ -104,16 +108,7 @@ class WorkflowApi(Resource):
         target_state = parser.parse_args()['target_state']
 
         workflow = _get_workflow(workflow_id)
-
-        if target_state == 'RUNNING':
-            workflow.run()
-        elif target_state == 'STOPPED':
-            workflow.stop()
-        elif target_state == 'READY':
-            workflow.reset()
-        else:
-            raise InvalidArgumentException(
-                'Invalid target_state %s'%target_state)
+        workflow.update_state(None, WorkflowState[target_state], None)
         db.session.commit()
         logging.info('update workflow %d target_state to %s',
                      workflow.id, workflow.target_state)

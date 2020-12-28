@@ -26,17 +26,22 @@ from fedlearner_webconsole.auth.models import User
 
 
 class BaseTestCase(TestCase):
-    SQLALCHEMY_DATABASE_URI = 'sqlite://'
-    SQLALCHEMY_TRACK_MODIFICATIONS = False
-    JWT_SECRET_KEY = secrets.token_urlsafe(64)
-    PROPAGATE_EXCEPTIONS = True
-    LOGGING_LEVEL = logging.DEBUG
-    TESTING = True
-    ENV = 'development'
-    GRPC_LISTEN_PORT = 1990
+    def get_config(self):
+        class Config(object):
+            SQLALCHEMY_DATABASE_URI = 'sqlite://'
+            SQLALCHEMY_TRACK_MODIFICATIONS = False
+            JWT_SECRET_KEY = secrets.token_urlsafe(64)
+            PROPAGATE_EXCEPTIONS = True
+            LOGGING_LEVEL = logging.DEBUG
+            TESTING = True
+            ENV = 'development'
+            GRPC_LISTEN_PORT = 1990
+        return Config
 
     def create_app(self):
-        return create_app(self)
+        app = create_app(self.get_config())
+        app.app_context().push()
+        return app
 
     def setUp(self):
         db.create_all()

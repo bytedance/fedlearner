@@ -25,7 +25,6 @@ from flask_jwt_extended import JWTManager
 
 migrate = Migrate()
 jwt = JWTManager()
-current_app = None
 
 from fedlearner_webconsole.auth.apis import initialize_auth_apis
 from fedlearner_webconsole.project.apis import initialize_project_apis
@@ -63,7 +62,6 @@ def _handle_uncaught_exception(error):
 
 
 def create_app(config):
-    global current_app
     app = Flask('fedlearner_webconsole')
     app.config.from_object(config)
 
@@ -90,10 +88,9 @@ def create_app(config):
     app.handle_user_exception = handle_user_exception
 
     rpc_server.stop()
-    rpc_server.start(app.config.get('GRPC_LISTEN_PORT', 1999))
+    rpc_server.start(app)
 
     scheduler.stop()
-    scheduler.start()
+    scheduler.start(app)
 
-    current_app = app
     return app

@@ -18,6 +18,7 @@
 import os
 import threading
 import logging
+import traceback
 
 from fedlearner_webconsole.db import db
 from fedlearner_webconsole.workflow.models import Workflow
@@ -30,12 +31,15 @@ class Scheduler(object):
         self._terminate = False
         self._thread = None
         self._pending = []
+        self._app = None
 
-    def start(self, force=False):
+    def start(self, app, force=False):
         if self._running:
             if not force:
                 raise RuntimeError("Scheduler is already started")
             self.stop()
+
+        self._app = app
 
         with self._condition:
             self._running = True
@@ -43,6 +47,7 @@ class Scheduler(object):
             self._thread = threading.Thread(target=self._routine)
             self._thread.daemon = True
             self._thread.start()
+            logging.info('Scheduler started')
 
     def stop(self):
         if not self._running:
@@ -54,6 +59,12 @@ class Scheduler(object):
             print('stopping')
         self._thread.join()
         self._running = False
+        logging.info('Scheduler stopped')
+
+    def wakeup(self, workflow_id):
+        with self._condition:
+            self._pending.append(workflow_id)
+            self._condition.notify_all()
 
     def schedule_workflow(self, workflow_id):
         with self._condition:
@@ -61,32 +72,35 @@ class Scheduler(object):
             self._condition.notify_all()
 
     def _routine(self):
+        self._app.app_context().push()
         interval = os.environ.get(
             "FEDLEARNER_WEBCONSOLE_POLLING_INTERVAL", 300)
 
         while True:
             with self._condition:
-                timeout = self._condition.wait(interval)
-                print('timeout', timeout)
+                notified = self._condition.wait(interval)
                 if self._terminate:
                     return
-                if timeout:
+                if notified:
                     workflow_ids = self._pending
-                    self._pending.clear()
+                    self._pending = []
                 else:
-                    workflow_ids = db.session.query.with_entities(Workflow.id)
+                    workflow_ids = db.session.query().with_entities(
+                        Workflow.id)
                 self._poll(workflow_ids)
 
     def _poll(self, workflow_ids):
+        logging.info('Scheduler polling %d workflows...', len(workflow_ids))
         for workflow_id in workflow_ids:
             try:
                 self._schedule_workflow(workflow_id)
             except Exception as e:
                 logging.warning(
-                    "Error while scheduling workflow %d: %s",
-                    workflow_id, e)
+                    "Error while scheduling workflow %d:\n%s",
+                    workflow_id, traceback.format_exc())
 
     def _schedule_workflow(self, workflow_id):
+        logging.debug('Scheduling workflow %d', workflow_id)
         tm = TransactionManager(workflow_id)
         tm.process()
 
