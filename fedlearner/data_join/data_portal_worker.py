@@ -155,7 +155,8 @@ class DataPortalWorker(object):
             partitioner_rank_id=task.partition_id,
             batch_processor_options=self._options.batch_processor_options,
             raw_data_options=self._options.raw_data_options,
-            writer_options=self._options.writer_options
+            writer_options=self._options.writer_options,
+            memory_limit_ratio=self._options.memory_limit_ratio
         )
 
     def _make_merger_options(self, task):

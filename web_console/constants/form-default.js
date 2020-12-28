@@ -932,6 +932,10 @@ let RAW_DATA_CONTEXT = {
                     {
                       "name": "CHECK_SUCCESS_TAG",
                       "value": ""
+                    },
+                    {
+                      "name": "MEMORY_LIMIT_RATIO",
+                      "value": ""
                     }
                   ],
                   "resources": {

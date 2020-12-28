@@ -31,6 +31,7 @@ builder_compressed_type=$(normalize_env_to_args "--builder_compressed_type" $BUI
 
 file_paths=$(normalize_env_to_args "--file_paths" $INPUT_FILE_PATHS)
 kvstore_type=$(normalize_env_to_args "--kvstore_type" $KVSTORE_TYPE) 
+memory_limit_ratio=$(normalize_env_to_args '--memory_limit_ratio' $MEMORY_LIMIT_RATIO)
 
 python -m fedlearner.data_join.cmd.raw_data_partitioner_cli \
     --input_dir=$INPUT_DIR \
@@ -41,4 +42,4 @@ python -m fedlearner.data_join.cmd.raw_data_partitioner_cli \
     $partitioner_name $kvstore_type\
     $raw_data_iter $compressed_type $read_ahead_size $read_batch_size \
     $output_builder $builder_compressed_type \
-    $file_paths $input_file_wildcard 
+    $file_paths $input_file_wildcard $memory_limit_ratio

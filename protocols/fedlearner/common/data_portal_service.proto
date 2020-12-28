@@ -116,4 +116,5 @@ message DataPortalWorkerOptions {
   int64 merger_read_ahead_size = 4;
   int64 merger_read_batch_size = 5;
   bool use_mock_etcd = 6;
+  float memory_limit_ratio=7;
 }
