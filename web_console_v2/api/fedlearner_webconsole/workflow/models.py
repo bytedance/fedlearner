@@ -86,14 +86,19 @@ IGNORED_TRANSACTION_TRANSITIONS = [
         TransactionState.PARTICIPANT_PREPARE),
 ]
 
-@to_dict_mixin(extras={
-    'config': (lambda wf: wf.get_config()),
-})
+@to_dict_mixin(
+    ignores=[
+        'forked_from'
+    ],
+    extras={
+        'config': (lambda wf: wf.get_config()),
+    }
+)
 class Workflow(db.Model):
     __tablename__ = 'workflow_v2'
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(255), unique=True, index=True)
-    project_id = db.Column(db.Integer, index=True, nullable=False)
+    project_id = db.Column(db.Integer, db.ForeignKey(Project.id))
     config = db.Column(db.Text())
     forkable = db.Column(db.Boolean, default=False)
     forked_from = db.Column(db.Integer, default=None)

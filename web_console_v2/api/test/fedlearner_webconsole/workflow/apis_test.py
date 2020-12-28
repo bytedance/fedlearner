@@ -17,17 +17,23 @@ import json
 import unittest
 from http import HTTPStatus
 from pathlib import Path
+from unittest.mock import patch
 
+from fedlearner_webconsole.workflow.models import Workflow
 from testing.common import BaseTestCase
 
 
 class WorkflowsApiTest(BaseTestCase):
-    START_GRPC_SERVER = False
-    START_SCHEDULER = False
+    def get_config(self):
+        config = super().get_config()
+        config.START_GRPC_SERVER = False
+        config.START_SCHEDULER = False
+        return config
 
-    def test_create_new_workflow(self):
+    @patch('fedlearner_webconsole.workflow.apis.scheduler.wakeup')
+    def test_create_new_workflow(self, mock_wakeup):
         with open(
-                Path(__file__, '../../test_data/workflow_config.json').resolve()
+            Path(__file__, '../../test_data/workflow_config.json').resolve()
         ) as workflow_config:
             config = json.load(workflow_config)
         workflow = {
@@ -37,12 +43,46 @@ class WorkflowsApiTest(BaseTestCase):
             'comment': 'test-comment',
             'config': config
         }
-        create_response = self.client.post('/api/v2/workflows',
-                                           data=json.dumps(workflow),
-                                           content_type='application/json')
-        self.assertEqual(create_response.status_code, HTTPStatus.CREATED)
+        response = self.client.post('/api/v2/workflows',
+                                    data=json.dumps(workflow),
+                                    content_type='application/json')
+        self.assertEqual(response.status_code, HTTPStatus.CREATED)
+        created_workflow = json.loads(response.data).get('data')
+        # Check scheduler
+        mock_wakeup.assert_called_once_with(created_workflow['id'])
+        self.assertIsNotNone(created_workflow['id'])
+        self.assertIsNotNone(created_workflow['created_at'])
+        self.assertIsNotNone(created_workflow['updated_at'])
+        del created_workflow['id']
+        del created_workflow['created_at']
+        del created_workflow['updated_at']
+        self.assertEqual(created_workflow, {
+            'name': 'test-workflow',
+            'project_id': 1234567,
+            'forkable': True,
+            'comment': 'test-comment',
+            'config': config,
+            'state': 'NEW',
+            'target_state': 'READY',
+            'transaction_state': 'READY',
+            'transaction_err': None,
+        })
+        # Check DB
+        self.assertTrue(len(Workflow.query.all()) == 1)
+
+        # Post again
+        mock_wakeup.reset_mock()
+        response = self.client.post('/api/v2/workflows',
+                                    data=json.dumps(workflow),
+                                    content_type='application/json')
+        self.assertEqual(response.status_code, HTTPStatus.CONFLICT)
+        # Check mock
+        mock_wakeup.assert_not_called()
+        # Check DB
+        self.assertTrue(len(Workflow.query.all()) == 1)
 
     def test_fork_workflow(self):
+        # TODO: insert into db first, and then copy it.
         pass
 
 
