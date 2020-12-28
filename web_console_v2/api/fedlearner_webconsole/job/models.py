@@ -18,7 +18,8 @@ import json
 from sqlalchemy.sql import func
 from fedlearner_webconsole.db import db, to_dict_mixin
 from fedlearner_webconsole.exceptions import ResourceConflictException
-
+from fedlearner_webconsole.project.adapter import ProjectK8sAdapter
+from fedlearner_webconsole.k8s_client import get_client
 
 class JobStatus(enum.Enum):
     UNSPECIFIED = 'NEW'
@@ -26,22 +27,6 @@ class JobStatus(enum.Enum):
     STOPPED = 'STOPPED'
 
 
-
-class ProjectK8sAdapter():
-    def get_namespace(self):
-        pass
-
-    def get_storage_root_path(self):
-        pass
-
-    def get_global_job_spec(self):
-        pass
-
-    def get_global_replica_spec(self):
-        pass
-
-    def get_worker_grpc_spec(self):
-        pass
 
 
 def merge_two_dicts(x, y):
@@ -76,16 +61,17 @@ class Job(db.Model):
                            server_onupdate=func.now())
     deleted_at = db.Column(db.DateTime(timezone=True))
     project_adapter = ProjectK8sAdapter(id)
+    k8s_client = get_client()
 
 
     def set_snapshot_flapp(self):
-        flapp = json.dumps('k8s.get_flapp(self.'
-                           'project_adapter.get_namespace(), self.name)')
+        flapp = json.dumps(self.k8s_client.get_flapp(self.
+                           project_adapter.get_namespace(), self.name))
         self.flapp_snapshot = json.dumps(flapp)
 
     def set_snapshot_pods(self):
-        flapp = json.dumps('k8s.get_pods(self.'
-                           'project_adapter.get_namespace(), self.name)')
+        flapp = json.dumps(self.k8s_client.get_pods(self.
+                           project_adapter.get_namespace(), self.name))
         self.flapp_snapshot = json.dumps(flapp)
 
 
@@ -101,12 +87,11 @@ class Job(db.Model):
         return json.loads(self.pods_snapshot)
 
     def run(self):
-        if  self.status == JobStatus.STARTED:
+        if self.status == JobStatus.STARTED:
             raise ResourceConflictException('Job has been started')
         self.status = JobStatus.STARTED
-        # k8s.createFLApp(self.project_adapter.
-        # get_namespace(), self.yaml)
-
+        self.k8s_client.createFLApp(self.project_adapter.
+                                    get_namespace(), self.yaml)
 
     def stop(self):
         if self.status == JobStatus.STOPPED:
@@ -114,11 +99,10 @@ class Job(db.Model):
         self.status = JobStatus.STOPPED
         self.set_snapshot_pods()
         self.set_snapshot_flapp()
-        # k8s.deleteFLApp(self.project_adapter.
-        # get_namespace(), name)
+        self.k8s_client.deleteFLApp(self.project_adapter.
+                                    get_namespace(), self.name)
 
     def set_yaml(self, yaml_template, job_config):
-        yaml = merge_two_dicts(yaml_template, self.project_adapter.get_global_job_spec())
-        yaml = merge_two_dicts(yaml, self.project_adapter)
-
-
+        yaml = merge_two_dicts(yaml_template, self.
+                               project_adapter.get_global_job_spec())
+        # TODO: complete yaml
