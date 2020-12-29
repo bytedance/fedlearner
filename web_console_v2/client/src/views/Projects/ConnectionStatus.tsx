@@ -1,11 +1,11 @@
 import React, { ReactElement } from 'react'
 import styled from 'styled-components'
 import classNames from 'classnames'
-import { getConnectStatusClassName, getConnectStatusTag } from 'typings/enum'
+import { getConnectionStatusClassName, getConnectionStatusTag } from 'typings/enum'
 import { useTranslation } from 'react-i18next'
 
 const Container = styled.div`
-  .project-connect-status {
+  .project-connection-status {
     font-size: 13px;
     line-height: 22px;
     color: var(--textColor);
@@ -56,24 +56,24 @@ const Container = styled.div`
   }
 `
 
-interface ConnectStatusProps {
-  connectStatus: number
+interface ConnectionStatusProps {
+  connectionStatus: number
 }
 
-function ConnectStatus({ connectStatus }: ConnectStatusProps): ReactElement {
+function ConnectionStatus({ connectionStatus }: ConnectionStatusProps): ReactElement {
   const { t } = useTranslation()
   return (
     <Container>
       <div
         className={classNames({
-          'project-connect-status': true,
-          [getConnectStatusClassName(connectStatus)]: true,
+          'project-connection-status': true,
+          [getConnectionStatusClassName(connectionStatus)]: true,
         })}
       >
-        {t(getConnectStatusTag(connectStatus))}
+        {t(getConnectionStatusTag(connectionStatus))}
       </div>
     </Container>
   )
 }
 
-export default ConnectStatus
+export default ConnectionStatus

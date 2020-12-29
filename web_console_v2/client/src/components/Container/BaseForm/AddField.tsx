@@ -1,18 +1,21 @@
 import React, { ReactElement } from 'react'
 import styled from 'styled-components'
-import { Pagination } from 'antd'
 import { useTranslation } from 'react-i18next'
 
 const Container = styled.div`
-  display: flex;
-  width: 101px;
+  width: 65px;
+  margin-left: 166px;
 `
 
 const TextStyle = styled.div`
   font-size: 13px;
-  line-height: 28px;
-  color: #424e66;
-  margin-left: 8px;
+  line-height: 22px;
+  color: var(--arcoblue6);
+  &::before {
+    display: inline;
+    font-weight: 800;
+    content: '+ ';
+  }
 `
 
 interface Props {
@@ -23,7 +26,7 @@ function AddField({ onClick }: Props): ReactElement {
   const { t } = useTranslation()
   return (
     <Container onClick={onClick}>
-      <TextStyle>添加参数</TextStyle>
+      <TextStyle>{t('project.add_parameters')}</TextStyle>
     </Container>
   )
 }

@@ -1,27 +1,39 @@
-import React, { ReactElement } from 'react'
-import BaseForm from './BaseForm'
+import React, { ReactElement, useState } from 'react'
+import BaseForm from 'components/Container/BaseForm'
 import styled from 'styled-components'
-import { Form } from 'antd'
-import Breadcrumb from 'components/Container/Breadcrumb'
+import { Breadcrumb } from 'antd'
+import BreadcrumbSplit from 'components/Container/BreadcrumbSplit'
+import { useHistory } from 'react-router-dom'
+import { createProject } from 'services/project'
+import { useTranslation } from 'react-i18next'
 
 const Container = styled.div``
-// async function createProject() {
-//   try {
-//     const val = await form.validateFields()
-//     console.log(val)
-//   } catch (error) {
-//     console.log(error)
-//   }
-// }
 
 function CreateProject(): ReactElement {
-  const [form] = Form.useForm()
+  const history = useHistory()
+  const { t } = useTranslation()
   return (
     <Container>
-      <Breadcrumb />
-      <BaseForm form={form} />
+      <Breadcrumb separator={<BreadcrumbSplit />}>
+        <Breadcrumb.Item
+          onClick={() => {
+            history.push('/projects')
+          }}
+        >
+          {t('menu_label_project')}
+        </Breadcrumb.Item>
+        <Breadcrumb.Item>{t('project.create')}</Breadcrumb.Item>
+      </Breadcrumb>
+      <BaseForm onSubmit={onSubmit} />
     </Container>
   )
+  async function onSubmit<CreateProjectFormData>(payload: CreateProjectFormData) {
+    try {
+      await createProject(payload)
+    } catch (error) {
+      throw error
+    }
+  }
 }
 
 export default CreateProject

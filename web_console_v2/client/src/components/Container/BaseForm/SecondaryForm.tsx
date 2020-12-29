@@ -1,7 +1,5 @@
 import React, { ReactElement } from 'react'
-import { useToggle } from 'react-use'
 import styled from 'styled-components'
-import classNames from 'classnames'
 
 const Container = styled.div`
   background-color: white;
@@ -24,14 +22,14 @@ const Body = styled.div`
 
 interface Props {
   children: React.ReactNode
-  title?: string
+  title: string
   suffix?: React.ReactNode
 }
 
 function SecondaryForm({ title, children, suffix }: Props): ReactElement {
   return (
     <Container>
-      {title ? <Header>{title}</Header> : null}
+      <Header>{title}</Header>
       <Body>{children}</Body>
       {suffix ?? null}
     </Container>
