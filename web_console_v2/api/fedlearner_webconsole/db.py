@@ -49,10 +49,12 @@ def to_dict_mixin(ignores: List[str] = None,
             for key in dic:
                 value = dic[key]
                 if isinstance(value, datetime):
-                    dic[key] = value.timestamp()
+                    dic[key] = int(value.timestamp())
                 elif isinstance(value, Message):
-                    dic[key] = MessageToDict(value,
-                                             preserving_proto_field_name=True)
+                    dic[key] = MessageToDict(
+                        value,
+                        preserving_proto_field_name=True,
+                        including_default_value_fields=True)
                 elif isinstance(value, Enum):
                     dic[key] = value.name
             return dic
