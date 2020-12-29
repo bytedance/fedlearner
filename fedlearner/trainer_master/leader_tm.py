@@ -56,7 +56,7 @@ class LeaderTrainerMaster(TrainerMaster):
     def _load_data(self):
         checkpoint = self._get_checkpoint()
         # pylint: disable=line-too-long
-        logging.debug("load_data, checkpoint: %s", checkpoint)
+        logging.info("load_data, checkpoint: %s", checkpoint)
         data_block_reps = [
             dbr for dbr in self._data_block_visitor.LoadDataBlockRepByTimeFrame(
                 self._start_time, self._end_time).values()
@@ -79,9 +79,11 @@ class LeaderTrainerMaster(TrainerMaster):
         # block_id is unused in leader role
         with self._lock:
             if self._data_block_queue.empty() and self._online_training:
+                logging.info("Load data when queue empty and online training")
                 self._load_data()
 
             if self._data_block_queue.empty():
+                logging.info("Allocate: data_block_queue is empty")
                 return None
 
             data_blocks_resp = self._data_block_queue.get()
