@@ -150,7 +150,7 @@ class FakeK8sClient(K8sClient):
             )
         )
 
-    def getWebshellSession(self, namespace, pod_name, mode):
+    def get_webshell_session(self, namespace, pod_name, mode):
         logging.info('======================')
         logging.info('get container from pod : {}'.format(
             pod_name
@@ -171,17 +171,17 @@ class FakeK8sClient(K8sClient):
         ))
         return {'name': job_name}
 
-    def createFLApp(self, namespace, yaml):
+    def create_flapp(self, namespace, yaml):
         logging.info('======================')
         logging.info('create flapp from yaml : {}'.format(
             yaml
         ))
 
-    def deleteFLApp(self, namespace, job_name):
+    def delete_flapp(self, namespace, job_name):
         logging.info('======================')
         logging.info('delete flapp: {}'.format(
             job_name
         ))
 
-    def getBaseUrl(self):
+    def get_base_url(self):
         return "fake/url"
