@@ -16,63 +16,58 @@
 from elasticsearch import Elasticsearch
 from config import Config
 
-_es_client = None
 
+class ElasticSearchClient(object):
+    def __init__(self, host, port):
+        self._es_client = Elasticsearch([{'host': host,
+                                          'port': port}])
 
-def get_es():
-    # pylint: disable=global-statement
-    global _es_client
-    if _es_client is None:
-        _es_client = Elasticsearch([{'host': Config.ES_HOST,
-                                     'port': Config.ES_PORT}])
-
-    return _es_client
-
-
-def query_log(index, keyword, pod_name, start_time, end_time,
-              match_phrase=None):
-    es = get_es()
-    query_body = {
-        "version": True,
-        "size": 8000,
-        "sort": [
-            {
-                "log.offset": {
-                    "order": "desc",
-                    "unmapped_type": "long"
+    def query_log(self, index, keyword, pod_name, start_time, end_time,
+                  match_phrase=None):
+        query_body = {
+            "version": True,
+            "size": 8000,
+            "sort": [
+                {
+                    "log.offset": {
+                        "order": "desc",
+                        "unmapped_type": "long"
+                    }
                 }
-            }
-        ],
-        "_source": ["message"],
-        "query": {
-            "bool": {
-                "must": (
-                    [{
-                        "query_string": {
-                            "query": keyword,
-                            "analyze_wildcard": True,
-                            "default_field": "*"
-                        }
-                    }] if keyword else []
-                ).extend([
-                    match_phrase if match_phrase else
-                    {
-                        "prefix": {
-                            "kubernetes.pod.name": pod_name
-                        }
-                    },
-                    {
-                        "range": {
-                            "@timestamp": {
-                                "gte": start_time,
-                                "lte": end_time,
-                                "format": "epoch_millis"
+            ],
+            "_source": ["message"],
+            "query": {
+                "bool": {
+                    "must": (
+                        [{
+                            "query_string": {
+                                "query": keyword,
+                                "analyze_wildcard": True,
+                                "default_field": "*"
+                            }
+                        }] if keyword else []
+                    ).extend([
+                        match_phrase if match_phrase else
+                        {
+                            "prefix": {
+                                "kubernetes.pod.name": pod_name
+                            }
+                        },
+                        {
+                            "range": {
+                                "@timestamp": {
+                                    "gte": start_time,
+                                    "lte": end_time,
+                                    "format": "epoch_millis"
+                                }
                             }
                         }
-                    }
-                ])
+                    ])
+                }
             }
         }
-    }
-    response = es.search(index=index, body=query_body)
-    return [item['_source']['message'] for item in response['hits']['hits']]
+        response = self._es_client.search(index=index, body=query_body)
+        return [item['_source']['message'] for item in response['hits']['hits']]
+
+
+es = ElasticSearchClient(Config.ES_HOST, Config.ES_PORT)

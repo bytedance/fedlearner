@@ -19,6 +19,8 @@ from sqlalchemy.sql import func
 from fedlearner_webconsole.db import db, to_dict_mixin
 from fedlearner_webconsole.exceptions import ResourceConflictException
 from fedlearner_webconsole.project.adapter import ProjectK8sAdapter
+from fedlearner_webconsole.project.models import Project
+from fedlearner_webconsole.workflow.models import Workflow
 from fedlearner_webconsole.k8s_client import get_client
 
 class JobStatus(enum.Enum):
@@ -49,8 +51,10 @@ class Job(db.Model):
     status = db.Column(db.Enum(JobStatus), nullable=False)
     yaml = db.Column(db.Text(), nullable=False)
 
-    workflow_id = db.Column(db.Integer, nullable=False, index=True)
-    project_id = db.Column(db.Integer, nullable=False)
+    workflow_id = db.Column(db.Integer, db.ForeignKey(Workflow.id),
+                            nullable=False, index=True)
+    project_id = db.Column(db.Integer, db.ForeignKey(Project.id),
+                           nullable=False)
 
     flapp_snapshot = db.Column(db.Text())
     pods_snapshot = db.Column(db.Text())
@@ -60,30 +64,27 @@ class Job(db.Model):
                            server_default=func.now(),
                            server_onupdate=func.now())
     deleted_at = db.Column(db.DateTime(timezone=True))
-    project_adapter = ProjectK8sAdapter(id)
+    project_adapter = ProjectK8sAdapter(project_id)
     k8s_client = get_client()
 
-
-    def set_snapshot_flapp(self):
+    def _set_snapshot_flapp(self):
         flapp = json.dumps(self.k8s_client.get_flapp(self.
                            project_adapter.get_namespace(), self.name))
         self.flapp_snapshot = json.dumps(flapp)
 
-    def set_snapshot_pods(self):
+    def _set_snapshot_pods(self):
         flapp = json.dumps(self.k8s_client.get_pods(self.
                            project_adapter.get_namespace(), self.name))
         self.flapp_snapshot = json.dumps(flapp)
 
-
-
     def get_flapp(self):
         if self.status == JobStatus.STARTED:
-            self.set_snapshot_flapp()
+            self._set_snapshot_flapp()
         return json.loads(self.flapp_snapshot)
 
     def get_pods(self):
         if self.status == JobStatus.STARTED:
-            self.set_snapshot_pods()
+            self._set_snapshot_pods()
         return json.loads(self.pods_snapshot)
 
     def run(self):
@@ -97,8 +98,8 @@ class Job(db.Model):
         if self.status == JobStatus.STOPPED:
             raise ResourceConflictException('Job has stopped')
         self.status = JobStatus.STOPPED
-        self.set_snapshot_pods()
-        self.set_snapshot_flapp()
+        self._set_snapshot_flapp()
+        self._set_snapshot_pods()
         self.k8s_client.deleteFLApp(self.project_adapter.
                                     get_namespace(), self.name)
 

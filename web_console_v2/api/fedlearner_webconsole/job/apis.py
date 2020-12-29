@@ -16,7 +16,7 @@
 import time
 from flask_restful import Resource, request
 from fedlearner_webconsole.job.models import Job
-from fedlearner_webconsole.job.es import query_log
+from fedlearner_webconsole.job.es import es
 from fedlearner_webconsole.exceptions import NotFoundException, \
     InvalidArgumentException
 from fedlearner_webconsole.k8s_client import get_client
@@ -41,9 +41,9 @@ class PodLogApi(Resource):
     def get(self, pod_name):
         if 'start_time' not in request.args:
             raise InvalidArgumentException('start_time is required')
-        return {'data': query_log('filebeat-*', '', pod_name,
-                                  request.args['start_time']
-                                  , int(time.time() * 1000))}
+        return {'data': es.query_log('filebeat-*', '', pod_name,
+                                     request.args['start_time'],
+                                     int(time.time() * 1000))}
 
 
 class PodContainerApi(Resource):
@@ -57,7 +57,7 @@ class PodContainerApi(Resource):
 
 
 def initialize_job_apis(api):
-    api.add_resource(JobsApi, '/jobs/<int:workflow_id>')
+    api.add_resource(JobsApi, '/workflows/<int:workflow_id>/jobs')
     api.add_resource(JobApi, '/jobs/job/<int:job_id>')
     api.add_resource(PodLogApi, '/jobs/job/pod/<string:pod_name>/log')
     api.add_resource(PodContainerApi, '/jobs/job/pod/'
