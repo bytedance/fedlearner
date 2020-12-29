@@ -66,11 +66,6 @@ class Scheduler(object):
             self._pending.append(workflow_id)
             self._condition.notify_all()
 
-    def schedule_workflow(self, workflow_id):
-        with self._condition:
-            self._pending.append(workflow_id)
-            self._condition.notify_all()
-
     def _routine(self):
         self._app.app_context().push()
         interval = os.environ.get(
