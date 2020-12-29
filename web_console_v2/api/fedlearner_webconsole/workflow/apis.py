@@ -110,7 +110,7 @@ class WorkflowApi(Resource):
         target_state = parser.parse_args()['target_state']
 
         workflow = _get_workflow(workflow_id)
-        workflow.update_state(None, WorkflowState[target_state], None)
+        workflow.update_state(None, WorkflowState[target_state], TransactionState.COORDINATOR_PREPARE)
         db.session.commit()
         logging.info('update workflow %d target_state to %s',
                      workflow.id, workflow.target_state)
