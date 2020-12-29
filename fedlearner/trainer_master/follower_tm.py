@@ -53,15 +53,10 @@ class FollowerTrainerMaster(object):
         self._server.wait_for_termination()
 
     def _get_checkpoint_fn(self, request):
-        logging.warning("%s does not serve _get_checkpoint_fn",
-                     self.__class__.__module__)
-    def _load_data(self):
-        logging.warning("%s does not serve _load_data",
-                    self.__class__.__module__)
+        raise NotImplementedError("_get_checkpoint_fn")
 
     def _restore_checkpoint_fn(self, request):
-        logging.warning("%s does not serve _load_data",
-                    self.__class__.__module__)
+        raise NotImplementedError("_restore_checkpoint_fn")
 
     def _alloc_data_block(self, block_id=None):
         logging.info("FollowerTrainerMaster is getting block %s", block_id)

@@ -83,7 +83,7 @@ class LeaderTrainerMaster(TrainerMaster):
                 self._load_data()
 
             if self._data_block_queue.empty():
-                logging.info("Allocate: data_block_queue is empty")
+                logging.info("Allocate when data_block_queue is empty")
                 return None
 
             data_blocks_resp = self._data_block_queue.get()
