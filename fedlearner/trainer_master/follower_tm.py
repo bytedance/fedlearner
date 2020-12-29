@@ -53,10 +53,18 @@ class FollowerTrainerMaster(object):
         self._server.wait_for_termination()
 
     def _get_checkpoint_fn(self, request):
-        raise NotImplementedError("_get_checkpoint_fn")
+        response = tm_pb.GetDataBlockCheckpointResponse()
+        response.status.code = common_pb.STATUS_SUCCESS
+        response.status.error_message = 'success'
+        logging.info("Follower _get_checkpoint_fn, do nothing")
+        return response
 
     def _restore_checkpoint_fn(self, request):
-        raise NotImplementedError("_restore_checkpoint_fn")
+        response = tm_pb.RestoreDataBlockCheckpointResponse()
+        response.status.code = common_pb.STATUS_SUCCESS
+        response.status.error_message = "success"
+        logging.info("Follower _restore_checkpoint_fn, do nothing")
+        return response
 
     def _alloc_data_block(self, block_id=None):
         logging.info("FollowerTrainerMaster is getting block %s", block_id)
