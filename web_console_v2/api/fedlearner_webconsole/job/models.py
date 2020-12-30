@@ -17,13 +17,13 @@ import enum
 import json
 from sqlalchemy.sql import func
 from fedlearner_webconsole.db import db, to_dict_mixin
-from fedlearner_webconsole.exceptions import ResourceConflictException
 from fedlearner_webconsole.project.adapter import ProjectK8sAdapter
 from fedlearner_webconsole.project.models import Project
 from fedlearner_webconsole.workflow.models import Workflow
 from fedlearner_webconsole.k8s_client import get_client
 from fedlearner_webconsole.proto.job_pb2 import Context
 from fedlearner_webconsole.proto.workflow_definition_pb2 import JobDependency
+from fedlearner_webconsole.scheduler.job_scheduler import job_scheduler
 class JobStatus(enum.Enum):
     UNSPECIFIED = 'NEW'
     PRERUN = 'PRERUN'
@@ -111,33 +111,18 @@ class Job(db.Model):
         self.status = JobStatus.STARTED
         self._k8s_client.create_flapp(self._project_adapter.
                                       get_namespace(), self.yaml)
-
-    def pre_run(self):
-        if self.status == JobStatus.PRERUN:
-            return
-        if self.status == JobStatus.STARTED:
-            self.stop()
-        self.status = JobStatus.PRERUN
-        context = self.get_context()
-        successors = context.successors
-        for successor in successors:
-            job = Job.query.filter_by(name=successor.source).first()
-            if job is not None:
-                job.pre_run()
+        db.session.commit()
 
     def stop(self):
-        context = self.get_context()
-        successors = context.successors
+        if self.status == JobStatus.PRERUN:
+            job_scheduler.sleep(self.id)
         if self.status == JobStatus.STARTED:
             self._set_snapshot_flapp()
             self._set_snapshot_pods()
             self._k8s_client.deleteFLApp(self.project_adapter.
                                          get_namespace(), self.name)
         self.status = JobStatus.STOPPED
-        for successor in successors:
-            job = Job.query.filter_by(name=successor.source).first()
-            if job is not None:
-                job.stop()
+        db.session.commit()
 
     def set_yaml(self, yaml_template, job_config):
         yaml = merge(yaml_template,
