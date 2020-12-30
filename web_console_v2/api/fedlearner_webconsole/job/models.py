@@ -23,7 +23,6 @@ from fedlearner_webconsole.workflow.models import Workflow
 from fedlearner_webconsole.k8s_client import get_client
 from fedlearner_webconsole.proto.job_pb2 import Context
 from fedlearner_webconsole.proto.workflow_definition_pb2 import JobDependency
-from fedlearner_webconsole.scheduler.job_scheduler import job_scheduler
 class JobStatus(enum.Enum):
     UNSPECIFIED = 'NEW'
     PRERUN = 'PRERUN'
@@ -114,8 +113,6 @@ class Job(db.Model):
         db.session.commit()
 
     def stop(self):
-        if self.status == JobStatus.PRERUN:
-            job_scheduler.sleep(self.id)
         if self.status == JobStatus.STARTED:
             self._set_snapshot_flapp()
             self._set_snapshot_pods()
