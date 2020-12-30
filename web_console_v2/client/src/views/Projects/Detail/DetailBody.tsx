@@ -28,26 +28,51 @@ const ParamContainer = styled.div`
     flex: 1;
   }
 `
+interface DetailBodyProps {
+  project: Project
+}
 
-function Param(): ReactElement {
+interface ParamsProps {
+  participants: Participant[]
+  comment: string
+}
+
+interface ParamProps {
+  valueKey: string
+  value: string
+}
+
+function Param({ valueKey, value }: ParamProps): ReactElement {
   const { t } = useTranslation()
   return (
     <ParamContainer>
-      <div className="key">
-        {Math.random() > 0.5 ? t('project_partner_name') : t('project_partner_url')}
-      </div>
-      <div className="value">猿辅导-教育部</div>
+      <div className="key">{t(geti18nKey(valueKey))}</div>
+      <div className="value">{value}</div>
     </ParamContainer>
   )
+  function geti18nKey(key: string): string {
+    switch (key) {
+      case 'name':
+        return 'project.participant_name'
+      case 'domain_name':
+        return 'project.participant_domain'
+      case 'url':
+        return 'project.participant_url'
+      case 'comment':
+        return 'project.remarks'
+      default:
+        return null as never
+    }
+  }
 }
 
-function Params(): ReactElement {
+function Params({ participants, comment }: ParamsProps): ReactElement {
   return (
     <ParamsContainer>
-      <Param />
-      <Param />
-      <Param />
-      <Param />
+      {Object.entries(participants[0]).map((i) => (
+        <Param valueKey={i[0]} value={i[1]} key={i[1]} />
+      ))}
+      <Param valueKey="comment" value={comment} />
     </ParamsContainer>
   )
 }
@@ -56,13 +81,13 @@ function WorkFlowTabs(): ReactElement {
   const { t } = useTranslation()
   return (
     <Tabs defaultActiveKey="1">
-      <Tabs.TabPane tab={t('project_workflow')} key="1">
+      <Tabs.TabPane tab={t('project.workflow')} key="1">
         Content of Tab Pane 1
       </Tabs.TabPane>
-      <Tabs.TabPane tab={t('project_mix_dataset')} key="2">
+      <Tabs.TabPane tab={t('project.mix_dataset')} key="2">
         Content of Tab Pane 2
       </Tabs.TabPane>
-      <Tabs.TabPane tab={t('project_model')} key="3">
+      <Tabs.TabPane tab={t('project.model')} key="3">
         Content of Tab Pane 3
       </Tabs.TabPane>
       <Tabs.TabPane tab="API" key="4">
@@ -72,10 +97,10 @@ function WorkFlowTabs(): ReactElement {
   )
 }
 
-function DetailBody(): ReactElement {
+function DetailBody({ project }: DetailBodyProps): ReactElement {
   return (
     <Container>
-      <Params />
+      <Params participants={project.config.participants} comment={project.comment} />
       <WorkFlowTabs />
     </Container>
   )

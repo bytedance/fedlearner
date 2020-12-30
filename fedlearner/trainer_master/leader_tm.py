@@ -14,27 +14,37 @@
 
 # coding: utf-8
 
-import argparse
 import logging
+from concurrent import futures
+import threading
+import argparse
 import os
 import random
-import threading
-
-from fedlearner.trainer_master.data.data_block_queue import DataBlockQueue
-from fedlearner.data_join.data_block_visitor import DataBlockVisitor
+import grpc
+from fedlearner.common import trainer_master_service_pb2 as tm_pb
+from fedlearner.common import trainer_master_service_pb2_grpc as tm_grpc
+from fedlearner.common import common_pb2 as common_pb
 from fedlearner.data_join.common import get_kvstore_config
-from .trainer_master import TrainerMaster
+from fedlearner.data_join.data_block_visitor import DataBlockVisitor
+from fedlearner.trainer_master.data.data_block_queue import DataBlockQueue
+
+from .trainer_master_service import TrainerMasterServer
 
 kvstore_type = os.environ.get('KVSTORE_TYPE', 'etcd')
 db_database, db_addr, db_username, db_password, db_base_dir = \
-    get_kvstore_config(kvstore_type)
+        get_kvstore_config(kvstore_type)
 
-class LeaderTrainerMaster(TrainerMaster):
+class LeaderTrainerMaster(object):
     def __init__(self, application_id, data_source,
                  start_time, end_time, online_training,
                  shuffle_data_block, epoch_num):
-        super(LeaderTrainerMaster, self).__init__(application_id,
-                                                  None, online_training)
+        self._application_id = application_id
+        self._online_training = online_training
+        self._checkpoint_mutex = threading.Lock()
+        self._allocated_data_blockids = None
+        self._status_mutex = threading.Lock()
+        self._status = tm_pb.MasterStatus.CREATED
+
         kvstore_use_mock = os.environ.get('KVSTORE_USE_MOCK', "off") == "on"
         self._data_block_queue = DataBlockQueue()
         self._data_block_visitor = DataBlockVisitor(
@@ -53,10 +63,141 @@ class LeaderTrainerMaster(TrainerMaster):
         assert self._epoch_num >= 1, \
                 "epoch_num {} must >= 1".format(self._epoch_num)
 
+    def run(self, listen_port):
+        self._server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
+        tm_grpc.add_TrainerMasterServiceServicer_to_server(
+            TrainerMasterServer(self._data_block_response,
+                                self._get_checkpoint_fn,
+                                self._restore_checkpoint_fn), self._server)
+        self._server.add_insecure_port('[::]:%d' % listen_port)
+        self._server.start()
+        logging.info('Trainer Master Server start on port[%d].', listen_port)
+        self._transfer_status(tm_pb.MasterStatus.CREATED,
+                              tm_pb.MasterStatus.INITIALING)
+        self._server.wait_for_termination()
+
+    def _transfer_status(self, frm, to, callback_fn=lambda *args: True):
+        with self._status_mutex:
+            if self._status == frm:
+                self._status = to
+                return callback_fn()
+            logging.warning("%s invalid status transfer, from %d to %d, "
+                          "while status is %d", self.__class__.__name__,
+                          frm, to, self._status)
+            self._status = tm_pb.MasterStatus.ERROR
+        return False
+
+    def _check_status(self, callback_fn):
+        with self._status_mutex:
+            return callback_fn(self._status)
+        raise ValueError("unreachable")
+
+    def _get_checkpoint_fn(self, request):
+        assert request.application_id == self._application_id, \
+                "Application id not matched"
+        response = tm_pb.GetDataBlockCheckpointResponse()
+        ckpt_not_ready_fn = lambda status: status not in \
+                (tm_pb.MasterStatus.RUNNING, tm_pb.MasterStatus.FINISHED)
+        if self._check_status(ckpt_not_ready_fn):
+            response.status.code = common_pb.STATUS_WAIT_FOR_SYNCING_CHECKPOINT
+            response.status.error_message = \
+                    "master is not ready for querying daya checkpoint"
+            return response
+        response.status.code = common_pb.STATUS_SUCCESS
+        response.status.error_message = 'success'
+        response.block_ids.extend(list(self._allocated_data_blockids))
+        return response
+
+    def _restore_checkpoint_fn(self, request):
+        assert request.application_id == self._application_id,\
+                "Application id not matched: %s vs %s"%(
+                    request.application_id, self._application_id)
+        response = tm_pb.RestoreDataBlockCheckpointResponse()
+        no_need_restore_fn = lambda status: status in (\
+                                            tm_pb.MasterStatus.RUNNING,\
+                                            tm_pb.MasterStatus.FINISHED,\
+                                            tm_pb.MasterStatus.ERROR)
+        if self._check_status(no_need_restore_fn):
+            logging.info("No need to restore %s", self.__class__.__name__)
+            response.status.code = common_pb.STATUS_SUCCESS
+            response.status.error_message = "success"
+            return response
+
+        # In case of race, load data before state transfering to RUNNING, and
+        #   after filling data checkpoint
+        with self._checkpoint_mutex:
+            self._allocated_data_blockids = set(request.block_ids)
+        self._load_data()
+
+        trans_ok = self._transfer_status(tm_pb.MasterStatus.INITIALING,
+                             tm_pb.MasterStatus.RUNNING)
+        if not trans_ok:
+            response.status.code = common_pb.STATUS_WAIT_FOR_SYNCING_CHECKPOINT
+            response.status.error_message = \
+                    "must sync data checkpoint before alloc"
+            return response
+
+        response.status.code = common_pb.STATUS_SUCCESS
+        response.status.error_message = "success"
+        return response
+
+    def _get_checkpoint(self):
+        return self._allocated_data_blockids
+
+    def _data_block_response(self, request):
+        response = tm_pb.DataBlockResponse()
+        def status_check_fn(status):
+            response = tm_pb.DataBlockResponse()
+            if status in (tm_pb.MasterStatus.FINISHED, \
+                    tm_pb.MasterStatus.ERROR):
+                response.status.code = common_pb.STATUS_DATA_FINISHED
+                response.status.error_message = 'datablock finished'
+                return response
+            if status != tm_pb.MasterStatus.RUNNING:
+                response.status.code = \
+                       common_pb.STATUS_WAIT_FOR_SYNCING_CHECKPOINT
+                response.status.error_message = \
+                        "must sync data checkpoint before alloc"
+                return response
+            #only if status is RUNNING
+            return True
+
+        ready = self._check_status(status_check_fn)
+        if ready is not True:
+            return ready
+        data_block = self._alloc_data_block(block_id=request.block_id)
+        if data_block:
+            logging.debug("%s allocated worker_%d with block id %s",
+                          self.__class__.__name__,
+                          request.worker_rank,
+                          data_block.block_id)
+            response.status.code = common_pb.STATUS_SUCCESS
+            response.status.error_message = 'success'
+            response.data_block_info.data_path = \
+                str(data_block.data_block_fpath)
+            response.data_block_info.meta_path = ''
+            response.data_block_info.block_id = str(data_block.block_id)
+        elif self._online_training:
+            logging.debug("%s allocated worker_%d with empty data block. "\
+                          "wait for new data block since online traning",
+                          self.__class__.__name__, request.worker_rank)
+            response.status.code = common_pb.STATUS_NO_MORE_DATA
+            response.status.error_message = 'please wait for datablock ready'
+        else:
+            logging.debug("%s allocated worker_%d with empty data block. "\
+                          "exit running since since batch traning",
+                          self.__class__.__name__, request.worker_rank)
+            response.status.code = common_pb.STATUS_DATA_FINISHED
+            response.status.error_message = 'datablock finished'
+        if response.status.code == common_pb.STATUS_DATA_FINISHED:
+            self._transfer_status(tm_pb.MasterStatus.RUNNING,
+                                  tm_pb.MasterStatus.FINISHED)
+        return response
+
     def _load_data(self):
         checkpoint = self._get_checkpoint()
         # pylint: disable=line-too-long
-        logging.debug("load_data, checkpoint: %s", checkpoint)
+        logging.info("load_data, checkpoint: %s", checkpoint)
         data_block_reps = [
             dbr for dbr in self._data_block_visitor.LoadDataBlockRepByTimeFrame(
                 self._start_time, self._end_time).values()
@@ -79,9 +220,11 @@ class LeaderTrainerMaster(TrainerMaster):
         # block_id is unused in leader role
         with self._lock:
             if self._data_block_queue.empty() and self._online_training:
+                logging.info("Load data when queue empty and online training")
                 self._load_data()
 
             if self._data_block_queue.empty():
+                logging.info("Allocate when data_block_queue is empty")
                 return None
 
             data_blocks_resp = self._data_block_queue.get()

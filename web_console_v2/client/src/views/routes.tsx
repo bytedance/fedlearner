@@ -6,6 +6,7 @@ import Workflows from 'views/Workflows'
 import Datasets from 'views/Datasets'
 import Settings from 'views/Settings'
 import CreateProject from 'views/CreateProject'
+import EditProject from 'views/EditProject'
 
 const routes: FedRouteConfig[] = [
   {
@@ -54,6 +55,13 @@ const routes: FedRouteConfig[] = [
     path: '/create-project',
     exact: true,
     component: CreateProject,
+    auth: true,
+    children: [],
+  },
+  {
+    path: '/edit-project',
+    exact: true,
+    component: EditProject,
     auth: true,
     children: [],
   },

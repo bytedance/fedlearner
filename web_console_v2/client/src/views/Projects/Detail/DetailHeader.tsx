@@ -1,11 +1,10 @@
 import React, { ReactElement, useState } from 'react'
 import styled from 'styled-components'
 import ProjectAction from '../ProjectAction'
-import { ReactComponent as CheckConnectIcon } from 'assets/images/check-connect.svg'
+import { ReactComponent as CheckConnectionIcon } from 'assets/images/check-connect.svg'
 import { ReactComponent as CreateWorkFlow } from 'assets/images/create-work-flow.svg'
-import { Modal, Form } from 'antd'
 import { useTranslation } from 'react-i18next'
-import BaseForm from '../BaseForm'
+import { useHistory } from 'react-router-dom'
 
 const Container = styled.div`
   width: 100%;
@@ -67,10 +66,11 @@ const HeaderActionContainer = styled.div`
   }
 `
 
-const CheckConnectStyle = styled.div`
+const CheckConnectionStyle = styled.div`
   height: 28px;
   display: flex;
-  .connect-icon {
+  cursor: pointer;
+  .connection-icon {
     height: 12px;
     width: 12px;
     margin-top: 8px;
@@ -79,7 +79,7 @@ const CheckConnectStyle = styled.div`
       stroke: #424e66;
     }
   }
-  .connect-describe {
+  .connection-describe {
     font-size: 12px;
     line-height: 28px;
     color: #424e66;
@@ -89,6 +89,7 @@ const CheckConnectStyle = styled.div`
 const CreateWorkFlowContainer = styled.div`
   height: 28px;
   display: flex;
+  cursor: pointer;
   circle {
     fill: #f2f3f5;
   }
@@ -114,6 +115,7 @@ const ActionListContainer = styled.div`
     background-color: transparent;
     line-height: 30px;
     padding-left: 12px;
+    cursor: pointer;
     &:hover {
       background-color: var(--gray1);
     }
@@ -128,23 +130,27 @@ interface ActionListProps {
   onEdit: () => void
 }
 
+interface DetailHeaderProps {
+  project: Project
+}
+
 function CreateWorkFlowAction(): ReactElement {
   const { t } = useTranslation()
   return (
     <CreateWorkFlowContainer>
       <CreateWorkFlow className="create-icon" />
-      <div className="create-describe">{t('project_create_work_flow')}</div>
+      <div className="create-describe">{t('project.create_work_flow')}</div>
     </CreateWorkFlowContainer>
   )
 }
 
-function CheckConnect(): ReactElement {
+function CheckConnection(): ReactElement {
   const { t } = useTranslation()
   return (
-    <CheckConnectStyle>
-      <CheckConnectIcon className="connect-icon" />
-      <div className="connect-describe">{t('project_check_connect')}</div>
-    </CheckConnectStyle>
+    <CheckConnectionStyle>
+      <CheckConnectionIcon className="connection-icon" />
+      <div className="connection-describe">{t('project.check_connection')}</div>
+    </CheckConnectionStyle>
   )
 }
 
@@ -157,21 +163,19 @@ function ActionList({ onEdit }: ActionListProps): ReactElement {
   return (
     <ActionListContainer>
       <div className="actionItem" onClick={onEdit}>
-        {t('project_action_edit')}
+        {t('project.action_edit')}
       </div>
     </ActionListContainer>
   )
 }
 
-function DetailHeader(): ReactElement {
+function DetailHeader({ project }: DetailHeaderProps): ReactElement {
   const { t } = useTranslation()
-  const [isModalVisible, setIsModalVisible] = useState(false)
-  const [form] = Form.useForm()
+  const history = useHistory()
   return (
     <Container>
       <Right>
-        {/* FIXME\ */}
-        <ProjectName>大发放的f</ProjectName>
+        <ProjectName>{project.name}</ProjectName>
         <Status>
           {/* FIXME */}
           <div className="text">连接检查中</div>
@@ -179,7 +183,7 @@ function DetailHeader(): ReactElement {
       </Right>
       <Left>
         <HeaderAction>
-          <CheckConnect />
+          <CheckConnection />
         </HeaderAction>
         <HeaderAction>
           <CreateWorkFlowAction />
@@ -190,26 +194,18 @@ function DetailHeader(): ReactElement {
             actionList={
               <ActionList
                 onEdit={() => {
-                  setIsModalVisible(true)
+                  history.push({
+                    pathname: '/edit-project',
+                    state: {
+                      project,
+                    },
+                  })
                 }}
               />
             }
           />
         </HeaderAction>
       </Left>
-      <Modal
-        title={t('project_edit')}
-        visible={isModalVisible}
-        // onOk={}
-        onCancel={() => setIsModalVisible(false)}
-        width={450}
-        zIndex={2000}
-        okText={t('submit')}
-        cancelText={t('cancel')}
-        bodyStyle={{ padding: '24px 0' }}
-      >
-        <BaseForm form={form} />
-      </Modal>
     </Container>
   )
 }
