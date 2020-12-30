@@ -235,8 +235,7 @@ def run_ps(port, env=None):
 def run_follower_tm(app_id, data_source, port, env=None):
     if env is not None:
         os.environ = env
-    follower_tm = FollowerTrainerMaster(app_id, data_source,
-                                       None, None, False)
+    follower_tm = FollowerTrainerMaster(app_id, data_source, False)
     follower_tm.run(listen_port=int(port))
 
 def run_lm(args, env=None):

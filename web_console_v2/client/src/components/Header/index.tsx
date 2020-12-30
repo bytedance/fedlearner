@@ -38,7 +38,7 @@ function Header({ className }: StyledComponetProps) {
   const [lng, setLanguage] = useState<string>(FedLanguages.Chinese)
 
   return (
-    <Container className={className}>
+    <Container className={className} id="page-header">
       <LogoLink href="/">
         <img src={logo} alt="Federation Learner logo" />
       </LogoLink>
@@ -49,7 +49,9 @@ function Header({ className }: StyledComponetProps) {
         <option value="en">English</option>
       </LanguageSelector>
 
-      <HeaderAccount />
+      <React.Suspense fallback={<div>Loading...</div>}>
+        <HeaderAccount />
+      </React.Suspense>
     </Container>
   )
 

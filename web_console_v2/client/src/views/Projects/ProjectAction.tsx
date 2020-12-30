@@ -1,4 +1,4 @@
-import React, { ReactElement, useState } from 'react'
+import React, { ReactElement } from 'react'
 import styled, { CSSProperties } from 'styled-components'
 import { useTranslation } from 'react-i18next'
 import action from 'assets/images/project-action.svg'
@@ -16,6 +16,7 @@ const ActionListContainer = styled.div`
     background-color: transparent;
     line-height: 30px;
     padding-left: 12px;
+    cursor: pointer;
     &:hover {
       background-color: var(--gray1);
     }
@@ -25,6 +26,7 @@ const ActionListContainer = styled.div`
 const ActionStyle = styled.div`
   height: 24px;
   display: flex;
+  cursor: pointer;
   .aciton-icon {
     height: 24px;
     width: 24px;
@@ -45,10 +47,10 @@ function ActionList({ onEdit, onDetail }: ProjectActionProps): ReactElement {
   return (
     <ActionListContainer>
       <div className="actionItem" onClick={onEdit}>
-        {t('project_action_edit')}
+        {t('project.action_edit')}
       </div>
       <div className="actionItem" onClick={onDetail}>
-        {t('project_action_detail')}
+        {t('project.action_detail')}
       </div>
     </ActionListContainer>
   )

@@ -29,16 +29,15 @@ const Container = styled.div`
 interface CardPanelProps {
   title: string
   children?: React.ReactNode
+  tip?: string
 }
 
 interface CardTitleProps {
   title: string
+  tip?: string
 }
 
-const tip =
-  '提供项目的新增和管理功能，支持对项目进行新增、编辑、查询、删除功能，可查看一个项目下的联邦工作流任务列表、模型列表、API列表，一个项目下可创建多个联邦工作流任务。'
-
-function CardTitle({ title }: CardTitleProps): ReactElement {
+function CardTitle({ title, tip }: CardTitleProps): ReactElement {
   return (
     <div className="title-wrapper">
       <span className="title">{title}</span>
@@ -49,10 +48,10 @@ function CardTitle({ title }: CardTitleProps): ReactElement {
   )
 }
 
-function CardPanel({ title, children }: CardPanelProps): ReactElement {
+function CardPanel({ title, children, tip }: CardPanelProps): ReactElement {
   return (
     <Container>
-      <CardTitle title={title} />
+      <CardTitle title={title} tip={tip} />
       {children}
     </Container>
   )

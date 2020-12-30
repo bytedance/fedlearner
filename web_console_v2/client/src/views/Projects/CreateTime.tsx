@@ -14,7 +14,7 @@ interface CreateTimeProps {
 }
 
 function CreateTime({ time, style }: CreateTimeProps): ReactElement {
-  const _time = dayjs(time).format('YYYY-MM-DD HH:mm:ss')
+  const _time = dayjs(time * 1000).format('YYYY-MM-DD HH:mm:ss')
   return <Container style={style}>{_time}</Container>
 }
 

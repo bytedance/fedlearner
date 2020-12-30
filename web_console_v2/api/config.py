@@ -27,6 +27,6 @@ class Config(object):
     PROPAGATE_EXCEPTIONS = True
     LOGGING_LEVEL = logging.INFO
     GRPC_LISTEN_PORT = 1990
-    ES_HOST = "fedlearner-stack-elasticsearch-client"
+    ES_HOST = 'fedlearner-stack-elasticsearch-client'
     ES_PORT = 9200
 

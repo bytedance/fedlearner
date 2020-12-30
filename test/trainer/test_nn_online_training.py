@@ -135,7 +135,7 @@ class TestOnlineTraining(unittest.TestCase):
         follower_ds = TestDataSource('./output', 'test_ds', 'follower')
         follower_ds.add_data_block(0, np.zeros((100, 10)), np.zeros((100,), dtype=np.int32))
         follower_tm = fedlearner.trainer_master.follower_tm.FollowerTrainerMaster(
-            'follower_test', 'test_ds', None, None, True)
+            'follower_test', 'test_ds', True)
         follower_thread = threading.Thread(target=follower_tm.run, args=(50052,))
         follower_thread.daemon = True
         follower_thread.start()

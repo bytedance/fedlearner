@@ -49,16 +49,17 @@ class PodLogApi(Resource):
 class PodContainerApi(Resource):
     def get(self, job_id, pod_name):
         k8s = get_client()
-        base = k8s.getBaseUrl()
-        container_id = k8s.getWebshellSession(ProjectK8sAdapter(job_id)
-                                              .get_namespace(), pod_name,
-                                              'tensorflow')
+        base = k8s.get_base_url()
+        container_id = k8s.get_webshell_session(ProjectK8sAdapter(job_id)
+                                                .get_namespace(), pod_name,
+                                                'tensorflow')
         return {'data': {'id': container_id, 'base': base}}
 
 
 def initialize_job_apis(api):
     api.add_resource(JobsApi, '/workflows/<int:workflow_id>/jobs')
-    api.add_resource(JobApi, '/jobs/job/<int:job_id>')
-    api.add_resource(PodLogApi, '/jobs/job/pod/<string:pod_name>/log')
-    api.add_resource(PodContainerApi, '/jobs/job/pod/'
-                                      '<int:job_id>/<string:pod_name>')
+    api.add_resource(JobApi, '/jobs/<int:job_id>')
+    api.add_resource(PodLogApi,
+                     '/jobs/<int:job_id>/pods/<string:pod_name>/log')
+    api.add_resource(PodContainerApi,
+                     '/jobs/<int:job_id>/pods/<string:pod_name>/container')

@@ -363,8 +363,11 @@ class Bridge(object):
                                 " no handler registered")
         metrics.emit_counter('load_data_block_counter', 1)
         if self._data_block_handler_fn(request):
+            logging.info('Succeeded to load data block %s',
+                         request.block_id)
             return common_pb.Status(code=common_pb.STATUS_SUCCESS)
         metrics.emit_counter('load_data_block_fail_counter', 1)
+        logging.info('Failed to load data block %s', request.block_id)
         return common_pb.Status(code=common_pb.STATUS_INVALID_DATA_BLOCK)
 
     def _connect_handler(self, request):
@@ -519,7 +522,12 @@ class Bridge(object):
         stat = self._rpc_with_retry(
             lambda: self._client.LoadDataBlock(msg),
             "Failed to send load data block request")
-        return stat.code == common_pb.STATUS_SUCCESS
+        if stat.code == common_pb.STATUS_SUCCESS:
+            logging.info('Remote succeeded to load data block %s', block_id)
+            return True
+        logging.info('Remoted failed to load data block %s. code: %d',
+                     block_id, stat.code)
+        return False
 
     def register_prefetch_handler(self, func):
         self._prefetch_handlers.append(func)

@@ -20,6 +20,7 @@ interface DetailProps {
   visible: boolean
   title: string
   onClose: () => void
+  project: Project
 }
 
 function Close(): ReactElement {
@@ -30,7 +31,7 @@ function Close(): ReactElement {
   )
 }
 
-function Detail({ visible, onClose }: DetailProps): ReactElement {
+function Detail({ visible, onClose, project }: DetailProps): ReactElement {
   return (
     <Drawer
       placement="right"
@@ -40,9 +41,9 @@ function Detail({ visible, onClose }: DetailProps): ReactElement {
       closeIcon={<Close />}
       visible={visible}
       onClose={onClose}
-      title={<DetailHeader />}
+      title={<DetailHeader project={project} />}
     >
-      <DetailBody />
+      <DetailBody project={project} />
     </Drawer>
   )
 }

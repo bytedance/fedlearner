@@ -1,7 +1,5 @@
 import React, { ReactElement } from 'react'
 import styled from 'styled-components'
-import { Pagination } from 'antd'
-import { useTranslation } from 'react-i18next'
 import { ReactComponent as TrashCan } from 'assets/images/trash-can.svg'
 
 const Container = styled.div`
@@ -12,8 +10,7 @@ interface Props {
   onClick: () => void
 }
 
-function RemoveField({ onClick }: Props): ReactElement {
-  const { t } = useTranslation()
+function TrashCanRemove({ onClick }: Props): ReactElement {
   return (
     <Container onClick={onClick}>
       <TrashCan />
@@ -21,4 +18,4 @@ function RemoveField({ onClick }: Props): ReactElement {
   )
 }
 
-export default RemoveField
+export default TrashCanRemove
