@@ -31,12 +31,10 @@ class WorkflowState(enum.Enum):
     STOPPED = 4
 
 
-VALID_TRANSITIONS = [
-    (WorkflowState.NEW, WorkflowState.READY),
-    (WorkflowState.READY, WorkflowState.RUNNING),
-    (WorkflowState.RUNNING, WorkflowState.STOPPED),
-    (WorkflowState.STOPPED, WorkflowState.READY)
-]
+VALID_TRANSITIONS = [(WorkflowState.NEW, WorkflowState.READY),
+                     (WorkflowState.READY, WorkflowState.RUNNING),
+                     (WorkflowState.RUNNING, WorkflowState.STOPPED),
+                     (WorkflowState.STOPPED, WorkflowState.READY)]
 
 
 class TransactionState(enum.Enum):
@@ -57,7 +55,6 @@ class TransactionState(enum.Enum):
 VALID_TRANSACTION_TRANSITIONS = [
     (TransactionState.ABORTED, TransactionState.READY),
     (TransactionState.READY, TransactionState.PARTICIPANT_ABORTING),
-
     (TransactionState.READY, TransactionState.COORDINATOR_PREPARE),
     # (TransactionState.COORDINATOR_PREPARE,
     #  TransactionState.COORDINATOR_COMMITTABLE),
@@ -67,9 +64,7 @@ VALID_TRANSACTION_TRANSITIONS = [
     #  TransactionState.COORDINATOR_ABORTING),
     (TransactionState.COORDINATOR_COMMITTABLE,
      TransactionState.COORDINATOR_ABORTING),
-    (TransactionState.COORDINATOR_ABORTING,
-     TransactionState.ABORTED),
-
+    (TransactionState.COORDINATOR_ABORTING, TransactionState.ABORTED),
     (TransactionState.READY, TransactionState.PARTICIPANT_PREPARE),
     # (TransactionState.PARTICIPANT_PREPARE,
     #  TransactionState.PARTICIPANT_COMMITTABLE),
@@ -89,14 +84,10 @@ IGNORED_TRANSACTION_TRANSITIONS = [
 ]
 
 
-@to_dict_mixin(
-    ignores=[
-        'forked_from'
-    ],
-    extras={
-        'config': (lambda wf: wf.get_config()),
-    }
-)
+@to_dict_mixin(ignores=['forked_from'],
+               extras={
+                   'config': (lambda wf: wf.get_config()),
+               })
 class Workflow(db.Model):
     __tablename__ = 'workflow_v2'
     id = db.Column(db.Integer, primary_key=True)
@@ -108,10 +99,10 @@ class Workflow(db.Model):
     comment = db.Column(db.String(255))
 
     state = db.Column(db.Enum(WorkflowState), default=WorkflowState.INVALID)
-    target_state = db.Column(
-        db.Enum(WorkflowState), default=WorkflowState.INVALID)
-    transaction_state = db.Column(
-        db.Enum(TransactionState), default=TransactionState.READY)
+    target_state = db.Column(db.Enum(WorkflowState),
+                             default=WorkflowState.INVALID)
+    transaction_state = db.Column(db.Enum(TransactionState),
+                                  default=TransactionState.READY)
     transaction_err = db.Column(db.Text())
 
     created_at = db.Column(db.DateTime(timezone=True),
@@ -134,9 +125,6 @@ class Workflow(db.Model):
             proto.ParseFromString(self.config)
             return proto
         return None
-
-    def nominate_as_coordinator(self):
-        self.transaction_state = TransactionState.COORDINATOR_PREPARE
 
     def update_state(self, asserted_state, target_state, transaction_state):
         assert asserted_state is None or self.state == asserted_state, \
@@ -236,6 +224,5 @@ class Workflow(db.Model):
     def log_states(self):
         logging.debug(
             'workflow %d updated to state=%s, target_state=%s, '
-            'transaction_state=%s', self.id,
-            self.state.name, self.target_state.name,
-            self.transaction_state.name)
+            'transaction_state=%s', self.id, self.state.name,
+            self.target_state.name, self.transaction_state.name)
