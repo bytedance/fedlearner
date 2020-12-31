@@ -145,10 +145,12 @@ class Workflow(db.Model):
             assert self.transaction_state == TransactionState.READY, \
                 'Another transaction is in progress'
             assert (self.state, target_state) in VALID_TRANSITIONS, \
-                'Invalid transition from {} to {}'.format(self.state, target_state)
+                'Invalid transition from {} to {}'.format(
+                    self.state, target_state)
 
         # No action needed if transaction state does not change
-        if transaction_state == self.transaction_state:
+        if transaction_state is None or \
+            transaction_state == self.transaction_state:
             return self.transaction_state
 
         if (self.transaction_state, transaction_state) in \
@@ -203,7 +205,8 @@ class Workflow(db.Model):
         elif target_state == WorkflowState.STOPPED:
             success = True
         else:
-            logging.warning('Invalid target_state in prepare %s', self.target_state)
+            logging.warning('Invalid target_state in prepare %s',
+                            self.target_state)
         if success:
             self.target_state = target_state
         return success
