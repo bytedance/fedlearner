@@ -23,8 +23,6 @@ import logging
 import multiprocessing
 from http import HTTPStatus
 
-from fedlearner_webconsole.scheduler.scheduler import scheduler
-
 from testing.common import BaseTestCase
 
 ROLE = os.environ.get('TEST_ROLE', 'leader')
@@ -48,6 +46,14 @@ class FollowerConfig(object):
 
 
 class WorkflowTest(BaseTestCase):
+    @classmethod
+    def setUpClass(cls):
+        os.environ['FEDLEARNER_WEBCONSOLE_POLLING_INTERVAL'] = '1'
+
+    @classmethod
+    def tearDownClass(cls):
+        del os.environ['FEDLEARNER_WEBCONSOLE_POLLING_INTERVAL']
+
     def get_config(self):
         if ROLE == 'leader':
             return LeaderConfig
@@ -70,14 +76,14 @@ class WorkflowTest(BaseTestCase):
 
         name = 'test-project'
         config = {
-            'domain_name': 'fl-%s.com'%role,
+            'domain_name': f'fl-{role}.com',
             'participants': [
                 {
-                    'name': 'party_%s'%peer_role,
-                    'url': '127.0.0.1:%d'%peer_port,
-                    'domain_name': 'fl-%s.com'%peer_role,
+                    'name': f'party_{peer_role}',
+                    'url': f'127.0.0.1:{peer_port}',
+                    'domain_name': f'fl-{peer_role}.com',
                     'grpc_spec': {
-                        'peer_url': '127.0.0.1:%d'%peer_port,
+                        'peer_url': f'127.0.0.1:{peer_port}',
                     }
                 }
             ]
@@ -92,7 +98,7 @@ class WorkflowTest(BaseTestCase):
         return json.loads(create_response.data).get('data')
     
     def leader_test_workflow(self):
-        project = self.setup_project(ROLE)
+        self.setup_project('leader')
 
         cwf_resp = self.post_helper(
             '/api/v2/workflows',
@@ -107,17 +113,15 @@ class WorkflowTest(BaseTestCase):
         self._check_workflow_state(1, 'READY', 'INVALID', 'READY')
 
     def follower_test_workflow(self):
-        self.setup_project(ROLE)
-
+        self.setup_project('follower')
         self._check_workflow_state(1, 'NEW', 'READY', 'PARTICIPANT_PREPARE')
 
-        resp = self.put_helper(
+        self.put_helper(
             '/api/v2/workflows/1',
             data={
                 'forkable': True,
                 'config': {'group_alias': 'test-template'},
             })
-        
         self._check_workflow_state(1, 'READY', 'INVALID', 'READY')
 
 
@@ -125,7 +129,6 @@ class WorkflowTest(BaseTestCase):
                               transaction_state):
         while True:
             time.sleep(1)
-            scheduler.wakeup(workflow_id)
             resp = self.get_helper('/api/v2/workflows/%d'%workflow_id)
             if resp.status_code != HTTPStatus.OK:
                 continue

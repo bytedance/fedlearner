@@ -13,7 +13,6 @@
 # limitations under the License.
 
 # coding: utf-8
-# pylint: disable=broad-except
 
 from fedlearner_webconsole.db import db
 from fedlearner_webconsole.rpc.client import RpcClient
@@ -61,7 +60,9 @@ class TransactionManager(object):
         if self._workflow.transaction_state == TransactionState.READY:
             # prepare self as coordinator
             self._workflow.update_state(
-                None, None, TransactionState.COORDINATOR_PREPARE)
+                self._workflow.state,
+                self._workflow.target_state,
+                TransactionState.COORDINATOR_PREPARE)
             self._reload()
 
         if self._workflow.transaction_state == \

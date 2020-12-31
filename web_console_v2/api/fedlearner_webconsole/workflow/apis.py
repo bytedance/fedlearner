@@ -97,7 +97,7 @@ class WorkflowApi(Resource):
         workflow.comment = data['comment']
         workflow.forkable = data['forkable']
         workflow.set_config(dict_to_workflow_definition(data['config']))
-        workflow.prepare()
+        workflow.prepare(WorkflowState.READY)
         db.session.commit()
         logging.info('update workflow %d target_state to %s',
                      workflow.id, workflow.target_state)

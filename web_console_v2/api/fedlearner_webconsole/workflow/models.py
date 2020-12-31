@@ -135,6 +135,9 @@ class Workflow(db.Model):
             return proto
         return None
 
+    def nominate_as_coordinator(self):
+        self.transaction_state = TransactionState.COORDINATOR_PREPARE
+
     def update_state(self, asserted_state, target_state, transaction_state):
         assert asserted_state is None or self.state == asserted_state, \
             'Cannot change current state directly'
@@ -165,27 +168,15 @@ class Workflow(db.Model):
 
         # coordinator prepare & rollback
         if self.transaction_state == TransactionState.COORDINATOR_PREPARE:
-            prepared = self.prepare(target_state)
-            if prepared:
-                self.transaction_state = \
-                    TransactionState.COORDINATOR_COMMITTABLE
-            else:
-                self.transaction_state = \
-                    TransactionState.COORDINATOR_ABORTING
-        elif self.transaction_state == TransactionState.COORDINATOR_ABORTING:
-            self.rollback()
-        # participant prepare & rollback & commit
-        elif self.transaction_state == TransactionState.PARTICIPANT_PREPARE:
-            prepared = self.prepare(target_state)
-            if prepared:
-                self.transaction_state = \
-                    TransactionState.PARTICIPANT_COMMITTABLE
-            else:
-                self.transaction_state = \
-                    TransactionState.PARTICIPANT_ABORTING
-        elif self.transaction_state == TransactionState.PARTICIPANT_ABORTING:
+            self.prepare(target_state)
+        if self.transaction_state == TransactionState.COORDINATOR_ABORTING:
             self.rollback()
 
+        # participant prepare & rollback & commit
+        if self.transaction_state == TransactionState.PARTICIPANT_PREPARE:
+            self.prepare(target_state)
+        if self.transaction_state == TransactionState.PARTICIPANT_ABORTING:
+            self.rollback()
         if self.transaction_state == TransactionState.PARTICIPANT_COMMITTING:
             self.commit()
 
@@ -207,9 +198,18 @@ class Workflow(db.Model):
         else:
             logging.warning('Invalid target_state in prepare %s',
                             self.target_state)
+            if self.transaction_state == TransactionState.COORDINATOR_PREPARE:
+                self.transaction_state = TransactionState.COORDINATOR_ABORTING
+            else:
+                self.transaction_state = TransactionState.PARTICIPANT_ABORTING
         if success:
             self.target_state = target_state
-        return success
+            if self.transaction_state == TransactionState.COORDINATOR_PREPARE:
+                self.transaction_state = \
+                    TransactionState.COORDINATOR_COMMITTABLE
+            else:
+                self.transaction_state = \
+                    TransactionState.PARTICIPANT_COMMITTABLE
 
     def rollback(self):
         self.target_state = WorkflowState.INVALID

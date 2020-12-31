@@ -73,8 +73,8 @@ class Scheduler(object):
 
     def _routine(self):
         self._app.app_context().push()
-        interval = os.environ.get(
-            "FEDLEARNER_WEBCONSOLE_POLLING_INTERVAL", 300)
+        interval = int(os.environ.get(
+            "FEDLEARNER_WEBCONSOLE_POLLING_INTERVAL", 300))
 
         while True:
             with self._condition:
@@ -85,8 +85,8 @@ class Scheduler(object):
                     workflow_ids = self._pending
                     self._pending = []
                 else:
-                    workflow_ids = db.session.query().with_entities(
-                        Workflow.id)
+                    workflow_ids = [
+                        wid for wid, in db.session.query(Workflow.id).all()]
                 self._poll(workflow_ids)
 
     def _poll(self, workflow_ids):
