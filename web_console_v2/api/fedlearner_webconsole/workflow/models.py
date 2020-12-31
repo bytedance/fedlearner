@@ -13,7 +13,6 @@
 # limitations under the License.
 
 # coding: utf-8
-# pylint: disable=broad-except
 
 import logging
 import enum
@@ -31,12 +30,14 @@ class WorkflowState(enum.Enum):
     RUNNING = 3
     STOPPED = 4
 
+
 VALID_TRANSITIONS = [
     (WorkflowState.NEW, WorkflowState.READY),
     (WorkflowState.READY, WorkflowState.RUNNING),
     (WorkflowState.RUNNING, WorkflowState.STOPPED),
     (WorkflowState.STOPPED, WorkflowState.READY)
 ]
+
 
 class TransactionState(enum.Enum):
     READY = 0
@@ -52,6 +53,7 @@ class TransactionState(enum.Enum):
     PARTICIPANT_COMMITTING = 8
     PARTICIPANT_ABORTING = 9
 
+
 VALID_TRANSACTION_TRANSITIONS = [
     (TransactionState.ABORTED, TransactionState.READY),
     (TransactionState.READY, TransactionState.PARTICIPANT_ABORTING),
@@ -60,31 +62,32 @@ VALID_TRANSACTION_TRANSITIONS = [
     # (TransactionState.COORDINATOR_PREPARE,
     #  TransactionState.COORDINATOR_COMMITTABLE),
     (TransactionState.COORDINATOR_COMMITTABLE,
-        TransactionState.COORDINATOR_COMMITTING),
+     TransactionState.COORDINATOR_COMMITTING),
     # (TransactionState.COORDINATOR_PREPARE,
     #  TransactionState.COORDINATOR_ABORTING),
     (TransactionState.COORDINATOR_COMMITTABLE,
-        TransactionState.COORDINATOR_ABORTING),
+     TransactionState.COORDINATOR_ABORTING),
     (TransactionState.COORDINATOR_ABORTING,
-        TransactionState.ABORTED),
+     TransactionState.ABORTED),
 
     (TransactionState.READY, TransactionState.PARTICIPANT_PREPARE),
     # (TransactionState.PARTICIPANT_PREPARE,
     #  TransactionState.PARTICIPANT_COMMITTABLE),
     (TransactionState.PARTICIPANT_COMMITTABLE,
-        TransactionState.PARTICIPANT_COMMITTING),
+     TransactionState.PARTICIPANT_COMMITTING),
     # (TransactionState.PARTICIPANT_PREPARE,
     #  TransactionState.PARTICIPANT_ABORTING),
     (TransactionState.PARTICIPANT_COMMITTABLE,
-        TransactionState.PARTICIPANT_ABORTING),
+     TransactionState.PARTICIPANT_ABORTING),
     # (TransactionState.PARTICIPANT_ABORTING,
     #  TransactionState.ABORTED),
 ]
 
 IGNORED_TRANSACTION_TRANSITIONS = [
     (TransactionState.PARTICIPANT_COMMITTABLE,
-        TransactionState.PARTICIPANT_PREPARE),
+     TransactionState.PARTICIPANT_PREPARE),
 ]
+
 
 @to_dict_mixin(
     ignores=[
@@ -132,8 +135,8 @@ class Workflow(db.Model):
             return proto
         return None
 
-    def update_state(self, state, target_state, transaction_state):
-        assert state is None or self.state == state, \
+    def update_state(self, asserted_state, target_state, transaction_state):
+        assert asserted_state is None or self.state == asserted_state, \
             'Cannot change current state directly'
 
         if target_state and self.target_state != target_state:
@@ -142,91 +145,79 @@ class Workflow(db.Model):
             assert self.transaction_state == TransactionState.READY, \
                 'Another transaction is in progress'
             assert (self.state, target_state) in VALID_TRANSITIONS, \
-                'Invalid transition from %s to %s'%(self.state, target_state)
-            self.target_state = target_state
+                'Invalid transition from {} to {}'.format(self.state, target_state)
 
-        if transaction_state is None or \
-                transaction_state == self.transaction_state:
+        # No action needed if transaction state does not change
+        if transaction_state == self.transaction_state:
             return self.transaction_state
 
         if (self.transaction_state, transaction_state) in \
-                IGNORED_TRANSACTION_TRANSITIONS:
+            IGNORED_TRANSACTION_TRANSITIONS:
             return self.transaction_state
 
         assert (self.transaction_state, transaction_state) in \
-            VALID_TRANSACTION_TRANSITIONS, \
-                'Invalid transaction transition from %s to %s'%(
-                    self.transaction_state, transaction_state)
+               VALID_TRANSACTION_TRANSITIONS, \
+            'Invalid transaction transition from {} to {}'.format(
+                self.transaction_state, transaction_state)
         self.transaction_state = transaction_state
 
         # coordinator prepare & rollback
         if self.transaction_state == TransactionState.COORDINATOR_PREPARE:
-            try:
-                self.prepare()
-            except Exception as e:
+            prepared = self.prepare(target_state)
+            if prepared:
+                self.transaction_state = \
+                    TransactionState.COORDINATOR_COMMITTABLE
+            else:
                 self.transaction_state = \
                     TransactionState.COORDINATOR_ABORTING
-
-        if self.transaction_state == TransactionState.COORDINATOR_ABORTING:
-            try:
-                self.rollback()
-            except Exception as e:
-                pass
-
+        elif self.transaction_state == TransactionState.COORDINATOR_ABORTING:
+            self.rollback()
         # participant prepare & rollback & commit
-        if self.transaction_state == TransactionState.PARTICIPANT_PREPARE:
-            try:
-                self.prepare()
-            except Exception as e:
+        elif self.transaction_state == TransactionState.PARTICIPANT_PREPARE:
+            prepared = self.prepare(target_state)
+            if prepared:
+                self.transaction_state = \
+                    TransactionState.PARTICIPANT_COMMITTABLE
+            else:
                 self.transaction_state = \
                     TransactionState.PARTICIPANT_ABORTING
-
-        if self.transaction_state == TransactionState.PARTICIPANT_ABORTING:
-            try:
-                self.rollback()
-            except Exception as e:
-                pass
-            self.target_state = WorkflowState.INVALID
-            self.transaction_state = \
-                TransactionState.ABORTED
+        elif self.transaction_state == TransactionState.PARTICIPANT_ABORTING:
+            self.rollback()
 
         if self.transaction_state == TransactionState.PARTICIPANT_COMMITTING:
             self.commit()
 
         return self.transaction_state
 
-    def prepare(self):
+    def prepare(self, target_state):
         assert self.transaction_state in [
             TransactionState.COORDINATOR_PREPARE,
             TransactionState.PARTICIPANT_PREPARE], \
-                "Workflow not in prepare state"
+            'Workflow not in prepare state'
 
         success = False
-        if self.target_state == WorkflowState.READY:
+        if target_state == WorkflowState.READY:
             success = bool(self.config)
-        elif self.target_state == WorkflowState.RUNNING:
+        elif target_state == WorkflowState.RUNNING:
             success = True
-        elif self.target_state == WorkflowState.STOPPED:
+        elif target_state == WorkflowState.STOPPED:
             success = True
         else:
-            raise RuntimeError(
-                "Invalid target_state %s"%self.target_state)
+            logging.warning('Invalid target_state in prepare %s', self.target_state)
         if success:
-            if self.transaction_state == TransactionState.COORDINATOR_PREPARE:
-                self.transaction_state = \
-                    TransactionState.COORDINATOR_COMMITTABLE
-            else:
-                self.transaction_state = \
-                    TransactionState.PARTICIPANT_COMMITTABLE
+            self.target_state = target_state
+        return success
 
     def rollback(self):
-        pass
+        self.target_state = WorkflowState.INVALID
+        self.transaction_state = \
+            TransactionState.ABORTED
 
     def commit(self):
         assert self.transaction_state in [
             TransactionState.COORDINATOR_COMMITTING,
             TransactionState.PARTICIPANT_COMMITTING], \
-                "Workflow not in prepare state"
+            'Workflow not in prepare state'
 
         if self.target_state == WorkflowState.STOPPED:
             # TODO: delete jobs from k8s
