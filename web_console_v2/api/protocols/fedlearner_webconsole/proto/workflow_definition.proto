@@ -26,7 +26,6 @@ message JobDependency {
     UNSPECIFIED = 0;
     ON_COMPLETE = 1;
     ON_START = 2;
-    MANUAL = 3;
   }
   string source = 1;
   DependencyType type = 2;
@@ -48,9 +47,10 @@ message JobDefinition {
     string name = 1;
     JobType type = 2;
     bool is_federated = 3;
-    repeated Variable variables = 4;
-    repeated JobDependency dependencies = 5;
-    string yaml_template = 6;
+    bool is_manual = 4;
+    repeated Variable variables = 5;
+    repeated JobDependency dependencies = 6;
+    string yaml_template = 7;
 }
 
 message WorkflowDefinition {
