@@ -108,7 +108,7 @@ class Workflow(db.Model):
     state = db.Column(db.Enum(WorkflowState), default=WorkflowState.INVALID)
     target_state = db.Column(
         db.Enum(WorkflowState), default=WorkflowState.INVALID)
-    target_job = db.Column(db.String(255), defalut=None)
+    target_job = db.Column(db.String(255), default=None)
     transaction_state = db.Column(
         db.Enum(TransactionState), default=TransactionState.READY)
     transaction_err = db.Column(db.Text())
@@ -222,6 +222,22 @@ class Workflow(db.Model):
                 self.transaction_state = \
                     TransactionState.PARTICIPANT_COMMITTABLE
 
+    def pre_run(self, job):
+        all_successors = job.get_all_successors()
+        for suc in all_successors:
+            suc_job = Job.query.filter_by(id=suc).first()
+            if suc_job and suc_job.status != JobStatus.STARTED:
+                suc_job.status = JobStatus.READY
+        db.session.commit()
+        job_scheduler.wakeup(all_successors)
+
+    def stop(self, job):
+        all_successors = job.get_all_successors()
+        job_scheduler.sleep(all_successors)
+        for suc in all_successors:
+            suc = Job.query.filter_by(id=suc).first()
+            if suc is not None:
+                suc.stop()
     def rollback(self):
         pass
 
@@ -234,12 +250,7 @@ class Workflow(db.Model):
         if self.target_state == WorkflowState.STOPPED:
             job = Job.query.filter_by(name=self.target_job).first()
             if job is not None:
-                all_successors = job.get_all_successors()
-                job_scheduler.sleep(all_successors)
-                for suc in all_successors:
-                    suc = Job.query.filter_by(id=suc).first()
-                    if suc is not None:
-                        suc.stop()
+                self.stop(job)
         elif self.target_state == WorkflowState.READY:
             job_definitions = self.get_config().job_definitions
             for job_definition in job_definitions:
@@ -265,13 +276,7 @@ class Workflow(db.Model):
         elif self.target_state == WorkflowState.RUNNING:
             job = Job.query.filter_by(name=self.target_job).first()
             if job is not None:
-                all_successors = job.get_all_successors()
-                for suc in all_successors:
-                    suc_job = Job.query.filter_by(id=suc).first()
-                    if suc_job and suc_job.status != JobStatus.STARTED:
-                        suc_job.status = JobStatus.READY
-                db.session.commit()
-                job_scheduler.wakeup(all_successors)
+                self.pre_run(job)
 
         self.state = self.target_state
         self.target_state = WorkflowState.INVALID
