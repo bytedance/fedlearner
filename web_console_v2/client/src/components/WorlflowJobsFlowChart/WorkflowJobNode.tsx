@@ -6,6 +6,7 @@ import completetdIcon from 'assets/icons/workflow-completed.svg'
 import warningIcon from 'assets/icons/workflow-warning.svg'
 import GridRow from 'components/_base/GridRow'
 import { JobNodeData, JobNodeStatus } from './helpers'
+import i18n from 'i18n'
 
 const Container = styled.div``
 const JobName = styled.h5`
@@ -32,10 +33,10 @@ const statusIcons: Record<JobNodeStatus, string> = {
 }
 
 const statusText: Record<JobNodeStatus, string> = {
-  [JobNodeStatus.Pending]: '待配置',
-  [JobNodeStatus.Configuring]: '配置中',
-  [JobNodeStatus.Completed]: '配置完成',
-  [JobNodeStatus.Unfinished]: '未完成配置',
+  [JobNodeStatus.Pending]: i18n.t('workflow.job_node_pending'),
+  [JobNodeStatus.Configuring]: i18n.t('workflow.job_node_configuring'),
+  [JobNodeStatus.Completed]: i18n.t('workflow.job_node_completed'),
+  [JobNodeStatus.Unfinished]: i18n.t('workflow.job_node_unfinished'),
 }
 
 interface Props extends NodeComponentProps {

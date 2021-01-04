@@ -26,6 +26,7 @@ import { useRecoilState } from 'recoil'
 import { workflowConfigValue } from 'stores/workflow'
 import { IFormState } from '@formily/antd'
 import { to } from 'shared/helpers'
+import { useTranslation } from 'react-i18next'
 
 const Container = styled(Drawer)`
   top: 60px;
@@ -68,6 +69,7 @@ const JobFormDrawer: ForwardRefRenderFunction<JobFormDrawerExposedRef, Props> = 
   { data, toggleVisible, onConfirm, ...props },
   parentRef,
 ) => {
+  const { t } = useTranslation()
   const setSelectedElements = useStoreActions((actions) => actions.setSelectedElements)
   const [formSchema, setFormSchema] = useState<FormilySchema>(null as any)
   const jobNodes = useStoreState((store) => store.nodes)
@@ -96,9 +98,9 @@ const JobFormDrawer: ForwardRefRenderFunction<JobFormDrawerExposedRef, Props> = 
   const currentJobIdx = data.index
   const currentJobIdxDisplay = currentJobIdx + 1
   const isFinalStep = currentJobIdxDisplay === jobNodes.length
-  const confirmButtonText = `${isFinalStep ? '配置完成' : '配置下一步（'} ${currentJobIdxDisplay}/${
-    jobNodes.length
-  }）`
+  const confirmButtonText = isFinalStep
+    ? t('workflow.btn_conf_done')
+    : t('workflow.btn_conf_next_step', { current: currentJobIdxDisplay, total: jobNodes.length })
 
   return (
     <Container
@@ -111,10 +113,10 @@ const JobFormDrawer: ForwardRefRenderFunction<JobFormDrawerExposedRef, Props> = 
       {...props}
     >
       <DrawerHeader align="middle" justify="space-between">
-        <DrawerTitle>上传数据集</DrawerTitle>
+        <DrawerTitle>{data.raw.name}</DrawerTitle>
         <GridRow gap="10">
           <Button size="small" icon={<EyeOutlined />}>
-            查看对方配置
+            {t('workflow.btn_see_ptcpt_config')}
           </Button>
           <Button size="small" icon={<CloseOutlined />} onClick={closeDrawer} />
         </GridRow>
@@ -122,7 +124,7 @@ const JobFormDrawer: ForwardRefRenderFunction<JobFormDrawerExposedRef, Props> = 
 
       <PermissionDisplay>
         <GridRow gap="20">
-          <label>合作伙伴编辑权限:</label>
+          <label>{t('workflow.ptcpt_permission')}:</label>
           <VariablePermission.Writable desc />
           <VariablePermission.Readable desc />
           <VariablePermission.Private desc />
@@ -137,7 +139,7 @@ const JobFormDrawer: ForwardRefRenderFunction<JobFormDrawerExposedRef, Props> = 
             onConfirm={confirmAndGoNextJob}
             onCancel={closeDrawer}
             confirmText={confirmButtonText}
-            cancelText={'关闭'}
+            cancelText={t('workflow.btn_close')}
           />
         )}
       </FormContainer>

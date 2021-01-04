@@ -21,7 +21,7 @@ const DataTable = styled(Table)`
 
 const tableCols = [
   {
-    title: i18n.t('workflows.name'),
+    title: i18n.t('workflow.name'),
     dataIndex: 'name',
     render: (text: string, record: any) => (
       <Link to={`/workflows/${record.id}`} rel="nopener">
@@ -30,35 +30,35 @@ const tableCols = [
     ),
   },
   {
-    title: i18n.t('workflows.col_status'),
+    title: i18n.t('workflow.col_status'),
     dataIndex: 'status',
     render: (status: string) => <div>{status}</div>,
   },
   {
-    title: i18n.t('workflows.col_project'),
+    title: i18n.t('workflow.col_project'),
     dataIndex: 'project_token',
     render: (project: string) => <div>{project}</div>,
   },
   {
-    title: i18n.t('workflows.col_creator'),
+    title: i18n.t('workflow.col_creator'),
     dataIndex: 'creator',
     render: (creator: string) => <div>{creator}</div>,
   },
   {
-    title: i18n.t('workflows.col_date'),
+    title: i18n.t('workflow.col_date'),
     dataIndex: 'create_at',
     render: (date: number) => <div>{formatTimestamp(date)}</div>,
   },
   {
-    title: i18n.t('workflows.col_actions'),
+    title: i18n.t('workflow.col_actions'),
     dataIndex: 'create_at',
     render: (_: any, record: any) => (
       <div>
-        <Button type="link">{i18n.t('workflows.action_run')}</Button>
-        {/* <Button type="link">{i18n.t('workflows.action_stop_running')}</Button> */}
-        {/* <Button type="link">{i18n.t('workflows.action_re_run')}</Button> */}
-        <Button type="link">{i18n.t('workflows.action_duplicate')}</Button>
-        <Button type="link">{i18n.t('workflows.action_detail')}</Button>
+        <Button type="link">{i18n.t('workflow.action_run')}</Button>
+        {/* <Button type="link">{i18n.t('workflow.action_stop_running')}</Button> */}
+        {/* <Button type="link">{i18n.t('workflow.action_re_run')}</Button> */}
+        <Button type="link">{i18n.t('workflow.action_duplicate')}</Button>
+        <Button type="link">{i18n.t('workflow.action_detail')}</Button>
       </div>
     ),
   },
@@ -68,7 +68,7 @@ function WorkflowsTable() {
   const [form] = Form.useForm()
   const history = useHistory()
   const { t } = useTranslation()
-  const [projectList] = useList([{ value: 'all', label: '全部' }])
+  const [projectList] = useList([{ value: 'all', label: i18n.t('all') }])
 
   const { isLoading, isError, data: res, error } = useQuery('fetchWorkflowList', fetchWorkflowList)
 
@@ -85,7 +85,7 @@ function WorkflowsTable() {
       <Row gutter={16} justify="space-between">
         <Col>
           <Link to="/workflows/create">
-            <Button type="primary">创建工作流</Button>
+            <Button type="primary">{t('workflow.create_workflow')}</Button>
           </Link>
         </Col>
         <Col>
@@ -95,7 +95,7 @@ function WorkflowsTable() {
             form={form}
             onFinish={handleSearch}
           >
-            <FilterItem name="project" label="项目">
+            <FilterItem name="project" label={t('term.project')}>
               <Select onChange={form.submit}>
                 {projectList.map((item) => (
                   <Select.Option key={item.value} value={item.value}>
@@ -106,7 +106,7 @@ function WorkflowsTable() {
             </FilterItem>
             <FilterItem name="keyword">
               <Input.Search
-                placeholder={t('workflows.placeholder_name_searchbox')}
+                placeholder={t('workflow.placeholder_name_searchbox')}
                 onPressEnter={form.submit}
               />
             </FilterItem>

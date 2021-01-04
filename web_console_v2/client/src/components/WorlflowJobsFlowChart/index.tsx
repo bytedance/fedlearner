@@ -1,4 +1,4 @@
-import React, { FC, useCallback, useEffect, useState } from 'react'
+import React, { FC, useEffect, useState } from 'react'
 import WorkflowJobNode from './WorkflowJobNode'
 import styled from 'styled-components'
 import ReactFlow, {
@@ -57,7 +57,6 @@ const Container = styled.div`
 // Internal pub-sub channels, needless to put in any shared file
 const CHANNELS = {
   update_node_status: 'workflow_job_flow_chart.update_node_status',
-  select_node: 'workflow_job_flow_chart.select_node',
 }
 
 type Props = {
@@ -75,7 +74,12 @@ const WorkflowJobsFlowChart: FC<Props> = ({ onJobClick, onCanvasClick }) => {
     setElements(convertJobsToElements(jobs))
   }, [jobs])
 
-  useSubscribe(CHANNELS.update_node_status, updateNodeStatus)
+  useSubscribe(
+    CHANNELS.update_node_status,
+    (_: string, arg: { id: string; status: JobNodeStatus }) => {
+      updateNodeStatus(arg)
+    },
+  )
 
   return (
     <Container>
@@ -104,7 +108,7 @@ const WorkflowJobsFlowChart: FC<Props> = ({ onJobClick, onCanvasClick }) => {
   function onLoad(_reactFlowInstance: OnLoadParams) {
     _reactFlowInstance!.fitView({ padding: 2 })
   }
-  function updateNodeStatus(_: string, arg: { id: string; status: JobNodeStatus }) {
+  function updateNodeStatus(arg: { id: string; status: JobNodeStatus }) {
     setElements((els) => {
       return els.map((el) => {
         if (el.id === arg.id) {

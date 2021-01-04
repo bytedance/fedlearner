@@ -79,6 +79,7 @@ const tableCols = [
 
 const MOCK_BUTTON_VISIBLE_KEY = 'mock_button_visible'
 
+/* i18n ignore */
 function MockDevtools() {
   const [keyword, setKeyword] = useState('')
   const [visible] = useReactiveLocalStorage<any>(MOCK_BUTTON_VISIBLE_KEY, false)

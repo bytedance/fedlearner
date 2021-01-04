@@ -46,6 +46,7 @@ function WorkflowsCreateStepOne() {
   }, [tplListErr])
 
   useSubscribe(WORKFLOW_CHANNELS.tpl_create_succeed, (_: string, res: WorkflowTemplate) => {
+    // After click confirm, once tpl create succeed, go next step
     setWorflowTemplate(res)
     goNextStep()
   })
@@ -63,34 +64,34 @@ function WorkflowsCreateStepOne() {
           <Form.Item
             name="name"
             hasFeedback
-            label={t('workflows.label_name')}
+            label={t('workflow.label_name')}
             rules={[{ required: true }]}
           >
-            <Input placeholder={t('workflows.placeholder_name')} />
+            <Input placeholder={t('workflow.placeholder_name')} />
           </Form.Item>
 
           <Form.Item
             name="project_token"
-            label={t('workflows.label_project')}
+            label={t('workflow.label_project')}
             hasFeedback
             rules={[{ required: true, message: 'Please select your country!' }]}
           >
-            <Select placeholder={t('workflows.placeholder_project')}>
+            <Select placeholder={t('workflow.placeholder_project')}>
               <Select.Option value="1">Project - 1</Select.Option>
             </Select>
           </Form.Item>
 
-          <Form.Item name="peer_forkable" label={t('workflows.label_peer_forkable')}>
+          <Form.Item name="peer_forkable" label={t('workflow.label_peer_forkable')}>
             <Radio.Group>
-              <Radio value={true}>{t('workflows.label_allow')}</Radio>
-              <Radio value={false}>{t('workflows.label_not_allow')}</Radio>
+              <Radio value={true}>{t('workflow.label_allow')}</Radio>
+              <Radio value={false}>{t('workflow.label_not_allow')}</Radio>
             </Radio.Group>
           </Form.Item>
 
-          <Form.Item name="_templateType" label={t('workflows.label_template')}>
+          <Form.Item name="_templateType" label={t('workflow.label_template')}>
             <Radio.Group>
-              <Radio.Button value={'existed'}>{t('workflows.label_exist_template')}</Radio.Button>
-              <Radio.Button value={'create'}>{t('workflows.label_new_template')}</Radio.Button>
+              <Radio.Button value={'existed'}>{t('workflow.label_exist_template')}</Radio.Button>
+              <Radio.Button value={'create'}>{t('workflow.label_new_template')}</Radio.Button>
             </Radio.Group>
           </Form.Item>
 
@@ -111,13 +112,13 @@ function WorkflowsCreateStepOne() {
                   </>
                 )
               }
-              rules={[{ required: true, message: t('workflows.msg_template_required') }]}
+              rules={[{ required: true, message: t('workflow.msg_template_required') }]}
             >
               <Select
                 loading={tplLoading}
                 disabled={!!tplListErr}
                 onChange={onTemplateSelectChange}
-                placeholder={t('workflows.placeholder_template')}
+                placeholder={t('workflow.placeholder_template')}
               >
                 {tplList &&
                   tplList.map((tpl) => (
@@ -167,13 +168,14 @@ function WorkflowsCreateStepOne() {
   }
   async function onNextStepClick() {
     try {
-      // Any form invalid happens will throw error to stop the try block
+      // Any form invalidation happens will throw error to stop the try block
       await formInstance.validateFields()
 
       if (whetherCreateNewTpl) {
         // If the template is newly create, stop the flow and
         // notify the create-template form to send a creation request
         // then waiting for crearte succeed
+        // see the subscription of WORKFLOW_CHANNELS.tpl_create_succeed above
         setSubmitting(true)
         return workflowPubsub.publish(WORKFLOW_CHANNELS.create_new_tpl)
       } else {

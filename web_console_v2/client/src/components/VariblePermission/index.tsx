@@ -1,3 +1,4 @@
+import i18n from 'i18n'
 import React, { FunctionComponent } from 'react'
 import styled from 'styled-components'
 import { MixinCircle, MixinSquare } from 'styles/mixins'
@@ -42,15 +43,15 @@ type Props = {
 }
 
 const Writable: FunctionComponent<Props> = (props) => {
-  return <WritableShape {...props} data-desc="可编辑" />
+  return <WritableShape {...props} data-desc={i18n.t('workflow.var_auth_write')} />
 }
 
 const Readable: FunctionComponent<Props> = (props) => {
-  return <ReadableShape {...props} data-desc="可见" />
+  return <ReadableShape {...props} data-desc={i18n.t('workflow.var_auth_read')} />
 }
 
 const Private: FunctionComponent<Props> = (props) => {
-  return <PrivateShape {...props} data-desc="不可见" />
+  return <PrivateShape {...props} data-desc={i18n.t('workflow.var_auth_private')} />
 }
 
 const VariablePermission = { Writable, Readable, Private }

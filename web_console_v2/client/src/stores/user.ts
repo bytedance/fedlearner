@@ -26,7 +26,7 @@ export const userInfoQuery = selector({
       const currentUserId = store.get(LOCAL_STORAGE_KEYS.current_user)?.id
 
       if (isNil(currentUserId)) {
-        throw new Error(i18n.t('errors.please_sign_in'))
+        throw new Error(i18n.t('error.please_sign_in'))
       }
       const userinfo = await fetchUserInfo(currentUserId)
 

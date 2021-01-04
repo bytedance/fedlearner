@@ -44,16 +44,16 @@ const CreateTemplateForm: FunctionComponent = () => {
     >
       <Form.Item
         name="name"
-        label={t('workflows.label_new_template_name')}
+        label={t('workflow.label_new_template_name')}
         rules={[{ required: true }]}
       >
-        <Input placeholder={t('workflows.placeholder_template_name')} />
+        <Input placeholder={t('workflow.placeholder_template_name')} />
       </Form.Item>
 
       <Form.Item name="_files" noStyle>
         <Form.Item
           name="template"
-          label={t('workflows.label_upload_template')}
+          label={t('workflow.label_upload_template')}
           rules={[{ required: true }]}
         >
           <FileUpload
@@ -67,8 +67,8 @@ const CreateTemplateForm: FunctionComponent = () => {
         </Form.Item>
       </Form.Item>
 
-      <Form.Item name="comment" label={t('workflows.label_template_comment')}>
-        <Input.TextArea rows={4} placeholder={t('workflows.placeholder_comment')} />
+      <Form.Item name="comment" label={t('workflow.label_template_comment')}>
+        <Input.TextArea rows={4} placeholder={t('workflow.placeholder_comment')} />
       </Form.Item>
     </Form>
   )
@@ -79,7 +79,7 @@ const CreateTemplateForm: FunctionComponent = () => {
 
   function beforeUpload(file: File) {
     if (formData.template) {
-      message.error('只允许上传一个模板文件！')
+      message.error(t('workflow.msg_only_1_tpl'))
       return false
     }
 

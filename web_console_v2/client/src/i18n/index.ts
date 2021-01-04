@@ -12,7 +12,8 @@ i18n.use(initReactI18next).init({
     cn,
     en,
   },
-  lng: preferredLng || 'cn', // doesn't support hyphen eg. zh-cn
+  fallbackLng: FedLanguages.Chinese,
+  lng: preferredLng || FedLanguages.Chinese, // doesn't support hyphen eg. zh-cn
   keySeparator: '.',
   interpolation: {
     escapeValue: false,

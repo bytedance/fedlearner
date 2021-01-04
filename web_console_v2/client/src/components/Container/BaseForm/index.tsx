@@ -233,7 +233,7 @@ function BaseForm({ onSubmit, edit, initialValues }: Props): ReactElement {
         }
         await onSubmit(params)
       }
-      message.success(`${edit ? '编辑' : '创建'}项目成功！`)
+      message.success(edit ? t('project.edit_success') : t('proejct.create_success'))
       history.push('/projects')
     } catch (error) {
       form.scrollToField(error.errorFields[0].name[0], { block: 'center' })

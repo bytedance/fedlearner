@@ -11,6 +11,8 @@ import { ExclamationCircleOutlined } from '@ant-design/icons'
 import { useHistory } from 'react-router-dom'
 import { useRecoilValue } from 'recoil'
 import { workflowConfigValue } from 'stores/workflow'
+import { useTranslation } from 'react-i18next'
+import i18n from 'i18n'
 
 const Container = styled.section``
 const Header = styled.header`
@@ -34,6 +36,7 @@ const CanvasAndForm: FC = () => {
   const drawerRef = useRef<JobFormDrawerExposedRef>()
   const jobNodes = useStoreState((store) => store.nodes as JobNode[])
   const history = useHistory()
+  const { t } = useTranslation()
   const [drawerVisible, toggleDrawerVisible] = useToggle(false)
   const [data, setData] = useState<JobNodeData>()
   const configValue = useRecoilValue(workflowConfigValue)
@@ -42,7 +45,7 @@ const CanvasAndForm: FC = () => {
     <>
       <Container>
         <Header>
-          <ChartTitle className="">我方配置</ChartTitle>
+          <ChartTitle className="">{t('workflow.our_config')}</ChartTitle>
         </Header>
 
         <WorkflowJobsFlowChart onJobClick={selectJob} onCanvasClick={onCanvasClick} />
@@ -58,10 +61,10 @@ const CanvasAndForm: FC = () => {
         <Footer>
           <GridRow gap="12">
             <Button type="primary" onClick={onSubmit}>
-              发送给合作伙伴
+              {t('workflow.btn_send_2_ptcpt')}
             </Button>
-            <Button onClick={onPrevStepClick}>上一步</Button>
-            <Button onClick={onCancelCreationClick}>取消</Button>
+            <Button onClick={onPrevStepClick}> {t('previous_step')}</Button>
+            <Button onClick={onCancelCreationClick}>{t('cancel')}</Button>
           </GridRow>
         </Footer>
       </Container>
@@ -93,11 +96,11 @@ const CanvasAndForm: FC = () => {
   }
   function onSubmit() {
     if (!checkIfAllJobConfigCompleted()) {
-      return message.warn('未完成配置，请先完成配置后再次点击发送')
+      return message.warn(i18n.t('workflow.msg_config_unfinished'))
     }
 
     notification.open({
-      message: '当前配置',
+      message: i18n.t('workflow.current_config'),
       description: JSON.stringify(configValue.jobs),
       duration: null,
     })
@@ -107,9 +110,9 @@ const CanvasAndForm: FC = () => {
   }
   function onCancelCreationClick() {
     Modal.confirm({
-      title: '确认取消创建工作流？',
+      title: i18n.t('workflow.msg_sure_2_cancel_create'),
       icon: <ExclamationCircleOutlined />,
-      content: '取消后，已配置内容将不再保留',
+      content: i18n.t('workflow.msg_effect_of_cancel_create'),
       style: {
         top: '30%',
       },

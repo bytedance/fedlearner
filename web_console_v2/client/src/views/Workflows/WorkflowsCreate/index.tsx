@@ -5,7 +5,8 @@ import WorkflowsCreateStepOne from './StepOneBasic'
 import WorkflowsCreateStepTwo from './SteptTwoConfig'
 import { useSubscribe } from 'hooks'
 import WORKFLOW_CHANNELS from './pubsub'
-import { Prompt, Route, useParams, useHistory } from 'react-router-dom'
+import { Prompt, Route, useParams } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 
 const { Step } = Steps
 
@@ -22,7 +23,7 @@ enum CreateSteps {
 }
 
 function WorkflowsCreate() {
-  const history = useHistory()
+  const { t } = useTranslation()
   const params = useParams<{ step: keyof typeof CreateSteps }>()
   const [currentStep, setStep] = useState(CreateSteps[params.step || 'basic'])
 
@@ -34,7 +35,7 @@ function WorkflowsCreate() {
     <>
       {/* Route guards */}
       {process.env.NODE_ENV !== 'development' && (
-        <Prompt when={true} message={'确定要离开吗，当前表单内容将全部丢失！'} />
+        <Prompt when={true} message={t('workflow.msg_sure_2_exist_create')} />
       )}
 
       {/* Content */}
@@ -42,8 +43,8 @@ function WorkflowsCreate() {
         <Row justify="center">
           <StepContainer>
             <Steps current={currentStep}>
-              <Step title="基础配置" />
-              <Step title="工作流配置" />
+              <Step title={t('workflow.step_basic')} />
+              <Step title={t('workflow.step_config')} />
             </Steps>
           </StepContainer>
         </Row>
