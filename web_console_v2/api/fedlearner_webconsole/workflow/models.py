@@ -21,9 +21,10 @@ import enum
 from sqlalchemy.sql import func
 from fedlearner_webconsole.db import db, to_dict_mixin
 from fedlearner_webconsole.proto import workflow_definition_pb2
+from fedlearner_webconsole.proto import job_pb2
 from fedlearner_webconsole.project.models import Project
-
-
+from fedlearner_webconsole.job.models import Job, JobStatus
+from fedlearner_webconsole.scheduler.job_scheduler import job_scheduler
 class WorkflowState(enum.Enum):
     INVALID = 0
     NEW = 1
@@ -107,6 +108,7 @@ class Workflow(db.Model):
     state = db.Column(db.Enum(WorkflowState), default=WorkflowState.INVALID)
     target_state = db.Column(
         db.Enum(WorkflowState), default=WorkflowState.INVALID)
+    target_job = db.Column(db.String(255), defalut=None)
     transaction_state = db.Column(
         db.Enum(TransactionState), default=TransactionState.READY)
     transaction_err = db.Column(db.Text())
@@ -132,7 +134,7 @@ class Workflow(db.Model):
             return proto
         return None
 
-    def update_state(self, state, target_state, transaction_state):
+    def update_state(self, state, target_state, transaction_state, target_job):
         assert state is None or self.state == state, \
             'Cannot change current state directly'
 
@@ -144,6 +146,7 @@ class Workflow(db.Model):
             assert (self.state, target_state) in VALID_TRANSITIONS, \
                 'Invalid transition from %s to %s'%(self.state, target_state)
             self.target_state = target_state
+            self.target_job = target_job
 
         if transaction_state is None or \
                 transaction_state == self.transaction_state:
@@ -229,11 +232,46 @@ class Workflow(db.Model):
                 "Workflow not in prepare state"
 
         if self.target_state == WorkflowState.STOPPED:
-            # TODO: delete jobs from k8s
-            pass
+            job = Job.query.filter_by(name=self.target_job).first()
+            if job is not None:
+                all_successors = job.get_all_successors()
+                job_scheduler.sleep(all_successors)
+                for suc in all_successors:
+                    suc = Job.query.filter_by(id=suc).first()
+                    if suc is not None:
+                        suc.stop()
         elif self.target_state == WorkflowState.READY:
-            # TODO: create workflow jobs in database according to config
-            pass
+            job_definitions = self.get_config().job_definitions
+            for job_definition in job_definitions:
+                job = Job(name=job_definition.name+self.name,
+                          job_type=job_definition.type,
+                          config=job_definition.SerializeToString(),
+                          workflow_id=self.id,
+                          project_id=self.project_id)
+                context = job_pb2.Context()
+                for dependency in job_definition.dependencies:
+                    depend = context.dependencies.add()
+                    depend.source = dependency.source + self.name
+                    depend.type = dependency.type
+                for job_def_suc in job_definitions:
+                    for dependency in job_def_suc:
+                        if dependency.source == job_definition.name:
+                            successor = context.successors.add()
+                            successor.source = job_def_suc.name+self.name
+                            successor.type = dependency.type
+                job.context = context.SerializeToString()
+                job.set_yaml(job_definition.yaml_template)
+                db.session.add(job)
+        elif self.target_state == WorkflowState.RUNNING:
+            job = Job.query.filter_by(name=self.target_job).first()
+            if job is not None:
+                all_successors = job.get_all_successors()
+                for suc in all_successors:
+                    suc_job = Job.query.filter_by(id=suc).first()
+                    if suc_job and suc_job.status != JobStatus.STARTED:
+                        suc_job.status = JobStatus.READY
+                db.session.commit()
+                job_scheduler.wakeup(all_successors)
 
         self.state = self.target_state
         self.target_state = WorkflowState.INVALID

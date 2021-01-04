@@ -13,7 +13,7 @@
 # limitations under the License.
 
 # coding: utf-8
-
+import time
 import threading
 import logging
 from fedlearner_webconsole.job.models import Job, JobStatus
@@ -36,13 +36,9 @@ class JobScheduler(object):
             self.stop()
 
         self._app = app
-
         with self._condition:
             self._running = True
             self._terminate = False
-            with self._app.app_context():
-                self._pending = [job.id for job in Job.query.filter_by(
-                    status=JobStatus.PRERUN)]
             self._thread = threading.Thread(target=self._routine)
             self._thread.daemon = True
             self._thread.start()
@@ -60,19 +56,25 @@ class JobScheduler(object):
         self._running = False
         logging.info('Job_Scheduler stopped')
 
-    def wakeup(self, job_id):
+    def wakeup(self, job_ids):
         with self._condition:
-            if job_id not in self._pending:
-                self._pending.append(job_id)
-                self._condition.notify_all()
+            for job_id in job_ids:
+                if job_id not in self._pending:
+                    self._pending.append(job_id)
+            self._condition.notify_all()
 
-    def sleep(self, job_id):
+    def sleep(self, job_ids):
         with self._condition:
-            if job_id in self._pending:
-                self._pending.remove(job_id)
+            for job_id in job_ids:
+                if job_id in self._pending:
+                    self._pending.remove(job_id)
 
     def _routine(self):
         self._app.app_context().push()
+        # TODO: separate the scheduler to a new process to remove this.
+        time.sleep(10)
+        self._pending = [job.id for job in
+                         Job.query.filter_by(status=JobStatus.READY)]
         while True:
             with self._condition:
                 self._condition.wait(60)

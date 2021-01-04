@@ -15,14 +15,12 @@
 # coding: utf-8
 import time
 from flask_restful import Resource, request
-from fedlearner_webconsole.db import db
-from fedlearner_webconsole.job.models import Job, JobStatus
+from fedlearner_webconsole.job.models import Job
 from fedlearner_webconsole.job.es import es
 from fedlearner_webconsole.exceptions import NotFoundException, \
     InvalidArgumentException
 from fedlearner_webconsole.k8s_client import get_client
 from fedlearner_webconsole.project.adapter import ProjectK8sAdapter
-from fedlearner_webconsole.scheduler.job_scheduler import job_scheduler
 
 
 class JobsApi(Resource):
@@ -56,32 +54,6 @@ class PodContainerApi(Resource):
                                                 .get_namespace(), pod_name,
                                                 'tensorflow')
         return {'data': {'id': container_id, 'base': base}}
-
-
-def pre_run(job):
-    if job.status == JobStatus.PRERUN:
-        return
-    job.status = JobStatus.PRERUN
-    context = job.get_context()
-    successors = context.successors
-    db.session.commit()
-    job_scheduler.wakeup(job.id)
-    for successor in successors:
-        suc = Job.query.filter_by(name=successor.source).first()
-        if suc is not None:
-            suc.pre_run()
-
-
-def stop(job):
-    context = job.get_context()
-    successors = context.successors
-    if job.status == JobStatus.PRERUN:
-        job_scheduler.sleep(job.id)
-    job.stop()
-    for successor in successors:
-        suc = Job.query.filter_by(name=successor.source).first()
-        if suc is not None:
-            suc.stop()
 
 
 def initialize_job_apis(api):

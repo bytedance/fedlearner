@@ -19,18 +19,26 @@ from sqlalchemy.sql import func
 from fedlearner_webconsole.db import db, to_dict_mixin
 from fedlearner_webconsole.project.adapter import ProjectK8sAdapter
 from fedlearner_webconsole.project.models import Project
-from fedlearner_webconsole.workflow.models import Workflow
 from fedlearner_webconsole.k8s_client import get_client
 from fedlearner_webconsole.proto.job_pb2 import Context
 from fedlearner_webconsole.proto.workflow_definition_pb2 import JobDependency
+
 class JobStatus(enum.Enum):
-    UNSPECIFIED = 'NEW'
-    PRERUN = 'PRERUN'
+    UNSPECIFIED = 'UNSPECIFIED'
+    READY = 'READY'
     STARTED = 'STARTED'
     STOPPED = 'STOPPED'
 
 
-
+class JobType(enum.Enum):
+    UNSPECIFIED = 0
+    RAW_DATA = 1
+    DATA_JOIN = 2
+    PSI_DATA_JOIN = 3
+    NN_MODEL_TRANINING = 4
+    TREE_MODEL_TRAINING = 5
+    NN_MODEL_EVALUATION = 6
+    TREE_MODEL_EVALUATION = 7
 
 def merge(x, y):
     """Given two dictionaries, merge them into a new dict as a shallow copy."""
@@ -47,11 +55,12 @@ class Job(db.Model):
     __tablename__ = 'job_v2'
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     name = db.Column(db.String(255), unique=True)
-    job_type = db.Column(db.String(16), nullable=False)
-    status = db.Column(db.Enum(JobStatus), nullable=False)
+    job_type = db.Column(db.Enum(JobType), nullable=False)
+    status = db.Column(db.Enum(JobStatus), nullable=False,
+                       default=JobStatus.UNSPECIFIED)
     yaml = db.Column(db.Text(), nullable=False)
-
-    workflow_id = db.Column(db.Integer, db.ForeignKey(Workflow.id),
+    config = db.Column(db.Text(), nullable=False)
+    workflow_id = db.Column(db.Integer,
                             nullable=False, index=True)
     project_id = db.Column(db.Integer, db.ForeignKey(Project.id),
                            nullable=False)
@@ -65,7 +74,6 @@ class Job(db.Model):
                            server_default=func.now(),
                            server_onupdate=func.now())
     deleted_at = db.Column(db.DateTime(timezone=True))
-    _project_adapter = ProjectK8sAdapter(project_id)
     _k8s_client = get_client()
 
     def get_context(self):
@@ -76,13 +84,15 @@ class Job(db.Model):
         return None
 
     def _set_snapshot_flapp(self):
-        flapp = json.dumps(self._k8s_client.get_flapp(self.
-                           _project_adapter.get_namespace(), self.name))
+        project_adapter = ProjectK8sAdapter(self.project_id)
+        flapp = json.dumps(self._k8s_client.get_flapp(
+                           project_adapter.get_namespace(), self.name))
         self.flapp_snapshot = json.dumps(flapp)
 
     def _set_snapshot_pods(self):
-        flapp = json.dumps(self._k8s_client.get_pods(self.
-                           _project_adapter.get_namespace(), self.name))
+        project_adapter = ProjectK8sAdapter(self.project_id)
+        flapp = json.dumps(self._k8s_client.get_pods(
+                           project_adapter.get_namespace(), self.name))
         self.flapp_snapshot = json.dumps(flapp)
 
     def get_flapp(self):
@@ -95,8 +105,18 @@ class Job(db.Model):
             self._set_snapshot_pods()
         return json.loads(self.pods_snapshot)
 
+    def get_all_successors(self):
+        result = [self.id]
+        context = self.get_context()
+        successors = context.successors
+        for successor in successors:
+            suc = Job.query.filter_by(name=successor.source).first()
+            if suc is not None:
+                result.append(suc.get_all_successors())
+        return result
+
     def run(self):
-        if self.status != JobStatus.PRERUN:
+        if self.status != JobStatus.READY:
             return
         context = self.get_context()
         dependencies = context.dependencies
@@ -108,20 +128,24 @@ class Job(db.Model):
                 if job.get_flapp()['status']['appState'] != 'FLStateComplete':
                     return
         self.status = JobStatus.STARTED
-        self._k8s_client.create_flapp(self._project_adapter.
+        project_adapter = ProjectK8sAdapter(self.project_id)
+        self._k8s_client.create_flapp(project_adapter.
                                       get_namespace(), self.yaml)
         db.session.commit()
 
     def stop(self):
+        project_adapter = ProjectK8sAdapter(self.project_id)
         if self.status == JobStatus.STARTED:
             self._set_snapshot_flapp()
             self._set_snapshot_pods()
-            self._k8s_client.deleteFLApp(self.project_adapter.
+            self._k8s_client.deleteFLApp(project_adapter.
                                          get_namespace(), self.name)
         self.status = JobStatus.STOPPED
         db.session.commit()
 
-    def set_yaml(self, yaml_template, job_config):
+
+    def set_yaml(self, yaml_template):
+        project_adapter = ProjectK8sAdapter(self.project_id)
         yaml = merge(yaml_template,
-                     self._project_adapter.get_global_job_spec())
+                     project_adapter.get_global_job_spec())
         # TODO: complete yaml

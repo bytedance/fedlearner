@@ -86,7 +86,8 @@ def create_app(config):
     api.init_app(app)
     app.handle_exception = handle_exception
     app.handle_user_exception = handle_user_exception
-
+    # TODO: flask will start twice, but following stop code does not work.
+    #  Separate the server and schedulers to a new process to fix the bug.
     if app.config.get('START_GRPC_SERVER', True):
         rpc_server.stop()
         rpc_server.start(app)
