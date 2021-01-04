@@ -165,6 +165,7 @@ class Workflow(db.Model):
             self.prepare(target_state)
         if self.transaction_state == TransactionState.PARTICIPANT_ABORTING:
             self.rollback()
+            self.transaction_state = TransactionState.ABORTED
         if self.transaction_state == TransactionState.PARTICIPANT_COMMITTING:
             self.commit()
 
@@ -201,8 +202,6 @@ class Workflow(db.Model):
 
     def rollback(self):
         self.target_state = WorkflowState.INVALID
-        self.transaction_state = \
-            TransactionState.ABORTED
 
     def commit(self):
         assert self.transaction_state in [
