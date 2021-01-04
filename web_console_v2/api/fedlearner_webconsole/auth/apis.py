@@ -41,7 +41,7 @@ class SigninApi(Resource):
         if not user.verify_password(password):
             raise UnauthorizedException('Invalid password')
         token = create_access_token(identity=username)
-        return {'access_token': token}, HTTPStatus.OK
+        return {'id': user.id, 'access_token': token}, HTTPStatus.OK
 
 
 class UsersApi(Resource):
@@ -66,7 +66,7 @@ class UsersApi(Resource):
         db.session.add(user)
         db.session.commit()
 
-        return {'username': user.username}, HTTPStatus.CREATED
+        return {'id': user.id, 'username': user.username}, HTTPStatus.CREATED
 
 
 class UserApi(Resource):
