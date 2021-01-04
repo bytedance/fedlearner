@@ -130,15 +130,6 @@ class Workflow(db.Model):
         assert asserted_state is None or self.state == asserted_state, \
             'Cannot change current state directly'
 
-        if target_state and self.target_state != target_state:
-            assert self.target_state == WorkflowState.INVALID, \
-                'Another transaction is in progress'
-            assert self.transaction_state == TransactionState.READY, \
-                'Another transaction is in progress'
-            assert (self.state, target_state) in VALID_TRANSITIONS, \
-                'Invalid transition from {} to {}'.format(
-                    self.state, target_state)
-
         # No action needed if transaction state does not change
         if transaction_state is None or \
             transaction_state == self.transaction_state:
@@ -177,22 +168,39 @@ class Workflow(db.Model):
             TransactionState.PARTICIPANT_PREPARE], \
             'Workflow not in prepare state'
 
-        success = False
-        if target_state == WorkflowState.READY:
-            success = bool(self.config)
-        elif target_state == WorkflowState.RUNNING:
-            success = True
-        elif target_state == WorkflowState.STOPPED:
-            success = True
-        else:
+        # TODO(tjulinfan): remove this
+        if target_state is None:
+            # No action
+            return
+
+        # Validation
+        valid = True
+        if self.target_state != target_state \
+                and self.target_state != WorkflowState.INVALID:
+            valid = False
+            logging.warning('Another transaction is in progress [%s]', self.id)
+        if target_state not in [WorkflowState.READY,
+                                WorkflowState.RUNNING,
+                                WorkflowState.STOPPED]:
+            valid = False
             logging.warning('Invalid target_state in prepare %s',
                             self.target_state)
-            if self.transaction_state == TransactionState.COORDINATOR_PREPARE:
-                self.transaction_state = TransactionState.COORDINATOR_ABORTING
-            else:
-                self.transaction_state = TransactionState.PARTICIPANT_ABORTING
+        if (self.state, target_state) not in VALID_TRANSITIONS:
+            valid = False
+            logging.warning('Invalid transition from %s to %s', self.state,
+                            target_state)
+        if not valid:
+            self.transaction_state = TransactionState.ABORTED
+            return
+
+        self.target_state = target_state
+        success = True
+        if target_state == WorkflowState.READY:
+            # This is a hack, if config is not set then
+            # no action needed
+            # TODO(tjulinfan): validate if the config is legal or not
+            success = bool(self.config)
         if success:
-            self.target_state = target_state
             if self.transaction_state == TransactionState.COORDINATOR_PREPARE:
                 self.transaction_state = \
                     TransactionState.COORDINATOR_COMMITTABLE
