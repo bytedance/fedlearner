@@ -58,6 +58,7 @@ export interface VariableWidgetSchema
   // RegExp string '\d'
   pattern?: string
   rules?: VariableRule[]
+  required?: boolean
 
   /** ------ Miscs ------ */
   [key: string]: any
@@ -90,7 +91,7 @@ export enum JobType {
   TREE_MODEL_EVALUATION,
 }
 
-enum JobDependencyType {
+export enum JobDependencyType {
   UNSPECIFIED,
   ON_COMPLETE,
   ON_START,

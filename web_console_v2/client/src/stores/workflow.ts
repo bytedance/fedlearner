@@ -1,6 +1,12 @@
 import { atom, selector } from 'recoil'
 import { fetchWorkflowTemplateList } from 'services/workflow'
-import { WorkflowConfig, WorkflowForm, WorkflowTemplateForm } from 'typings/workflow'
+import {
+  WorkflowConfig,
+  WorkflowForm,
+  WorkflowTemplate,
+  WorkflowTemplateForm,
+} from 'typings/workflow'
+import template from 'services/mocks/v2/workflow_templates/example'
 
 export type StepOneForm = {
   _templateType: 'existed' | 'create'
@@ -19,9 +25,8 @@ export const workflowCreating = atom<StepOneForm>({
     _templateType: 'existed',
     _templateSelected: undefined,
 
-    // FIXME: remove mock name and project_token
-    name: 'foo',
-    project_token: 'bar',
+    name: '',
+    project_token: '',
     peer_forkable: true,
   },
 })
@@ -54,13 +59,10 @@ export const workflowTemplateListQuery = selector({
   },
 })
 
-export const currentWorkflowConfig = atom<WorkflowConfig>({
-  key: 'CurrentWorkflowConfig',
-  default: {
-    group_alias: '',
-    jobs: [],
-    variables: [],
-  },
+// Tamplate be using when creating workflow
+export const currentWorkflowTemplate = atom<WorkflowTemplate>({
+  key: 'CurrentWorkflowTemplate',
+  default: template.data as WorkflowTemplate,
 })
 
 export const workflowGetters = selector({
@@ -69,6 +71,17 @@ export const workflowGetters = selector({
     return {
       whetherCreateNewTpl: get(workflowCreating)._templateType === 'create',
       hasTplSelected: Boolean(get(workflowTemplateCreating).template),
+
+      // TODO: distinguish current creation is user side or participant side
+      // isParticipantConfiguring: false
     }
+  },
+})
+
+export const workflowConfigValue = atom({
+  key: 'WorkflowConfigValue',
+  default: {
+    group_alias: '',
+    jobs: [] as Array<{}>,
   },
 })

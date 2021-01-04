@@ -1,4 +1,9 @@
-import { VariableAccessMode, VariableComponent, WorkflowTemplate } from 'typings/workflow'
+import {
+  JobDependencyType,
+  VariableAccessMode,
+  VariableComponent,
+  WorkflowTemplate,
+} from 'typings/workflow'
 import { DeepPartial } from 'utility-types'
 
 // Workflow template demo
@@ -11,7 +16,7 @@ const get: { data: DeepPartial<WorkflowTemplate>; status: number } = {
       variables: [], // workflow global variables, TBD
       jobs: [
         {
-          name: 'Raw Data process',
+          name: 'Initiative',
           type: 1,
           is_federated: true,
           variables: [
@@ -22,6 +27,7 @@ const get: { data: DeepPartial<WorkflowTemplate>; status: number } = {
               widget_schema: {
                 component: VariableComponent.Input,
                 type: 'string',
+                required: true,
               },
             },
             {
@@ -31,12 +37,13 @@ const get: { data: DeepPartial<WorkflowTemplate>; status: number } = {
               widget_schema: {
                 component: VariableComponent.Input,
                 type: 'string',
+                required: true,
               },
             },
             {
               name: 'job_type',
               value: [1],
-              access_mode: VariableAccessMode.PEER_WRITABLE,
+              access_mode: VariableAccessMode.PEER_READABLE,
               widget_schema: {
                 component: VariableComponent.Select,
                 options: {
@@ -45,12 +52,13 @@ const get: { data: DeepPartial<WorkflowTemplate>; status: number } = {
                 },
                 multiple: true,
                 type: 'number',
+                required: true,
               },
             },
             {
               name: 'is_pair',
               value: false,
-              access_mode: VariableAccessMode.PEER_WRITABLE,
+              access_mode: VariableAccessMode.PRIVATE,
               widget_schema: {
                 component: VariableComponent.Switch,
                 type: 'boolean',
@@ -59,7 +67,7 @@ const get: { data: DeepPartial<WorkflowTemplate>; status: number } = {
             {
               name: 'comment',
               value: '',
-              access_mode: VariableAccessMode.PEER_WRITABLE,
+              access_mode: VariableAccessMode.PEER_READABLE,
               widget_schema: {
                 component: VariableComponent.TextArea,
                 rows: 4,
@@ -69,7 +77,7 @@ const get: { data: DeepPartial<WorkflowTemplate>; status: number } = {
             {
               name: 'cpu_limit',
               value: 0,
-              access_mode: VariableAccessMode.PEER_WRITABLE,
+              access_mode: VariableAccessMode.PRIVATE,
               widget_schema: {
                 component: VariableComponent.NumberPicker,
                 min: 1,
@@ -87,6 +95,108 @@ const get: { data: DeepPartial<WorkflowTemplate>; status: number } = {
                 action: '/api/v2/upload',
                 multiple: true,
                 type: 'array',
+              },
+            },
+          ],
+        },
+        {
+          name: 'Raw data upload',
+          type: 1,
+          is_federated: true,
+          dependencies: [{ source: 'Initiative', type: JobDependencyType.MANUAL }],
+          variables: [
+            {
+              name: 'job_name2',
+              value: '',
+              access_mode: VariableAccessMode.PEER_WRITABLE,
+              widget_schema: {
+                component: VariableComponent.Input,
+                type: 'string',
+              },
+            },
+            {
+              name: 'comment2',
+              value: '',
+              access_mode: VariableAccessMode.PRIVATE,
+              widget_schema: {
+                component: VariableComponent.TextArea,
+                rows: 4,
+                type: 'string',
+                required: true,
+              },
+            },
+          ],
+        },
+
+        {
+          name: 'Raw data process',
+          type: 1,
+          is_federated: true,
+          dependencies: [{ source: 'Initiative', type: JobDependencyType.MANUAL }],
+          variables: [
+            {
+              name: 'job_name3',
+              value: '',
+              access_mode: VariableAccessMode.PEER_WRITABLE,
+              widget_schema: {
+                component: VariableComponent.Input,
+                type: 'string',
+                required: true,
+              },
+            },
+          ],
+        },
+        {
+          name: 'Raw data save',
+          type: 1,
+          is_federated: true,
+          dependencies: [{ source: 'Initiative', type: JobDependencyType.MANUAL }],
+          variables: [
+            {
+              name: 'job_name4',
+              value: '',
+              access_mode: VariableAccessMode.PEER_WRITABLE,
+              widget_schema: {
+                component: VariableComponent.Input,
+                type: 'string',
+              },
+            },
+          ],
+        },
+        {
+          name: 'Training',
+          type: 1,
+          is_federated: true,
+          dependencies: [
+            { source: 'Raw data upload', type: JobDependencyType.ON_COMPLETE },
+            { source: 'Raw data process', type: JobDependencyType.ON_COMPLETE },
+            { source: 'Raw data save', type: JobDependencyType.ON_COMPLETE },
+          ],
+          variables: [
+            {
+              name: 'job_name5',
+              value: '',
+              access_mode: VariableAccessMode.PEER_WRITABLE,
+              widget_schema: {
+                component: VariableComponent.Input,
+                type: 'string',
+              },
+            },
+          ],
+        },
+        {
+          name: 'Finish/clear',
+          type: 1,
+          is_federated: true,
+          dependencies: [{ source: 'Training', type: JobDependencyType.ON_COMPLETE }],
+          variables: [
+            {
+              name: 'job_name6',
+              value: '',
+              access_mode: VariableAccessMode.PEER_WRITABLE,
+              widget_schema: {
+                component: VariableComponent.Input,
+                type: 'string',
               },
             },
           ],

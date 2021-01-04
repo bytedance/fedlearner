@@ -10,16 +10,15 @@ import store from 'store2'
 import { ApiTwoTone } from '@ant-design/icons'
 
 const FloatButton = styled.button`
-  ${MixinCircle(43)}
+  ${MixinCircle(50)}
 
   position: fixed;
-  right: 8px;
+  right: 10px;
   bottom: 64px;
-  background-color: white;
+  background-color: var(--blue1);
   color: white;
   cursor: pointer;
   font-size: 12px;
-  border: 2px solid #333;
 
   &,
   &:focus,
@@ -29,7 +28,6 @@ const FloatButton = styled.button`
     box-shadow: none;
   }
 `
-
 const Kbd = styled.kbd`
   padding: 0 5px;
   font-size: 12px;
@@ -38,7 +36,6 @@ const Kbd = styled.kbd`
   border-radius: 2px;
 }
 `
-
 const methodColor: { [key: string]: string } = {
   get: 'blue',
   post: 'green',

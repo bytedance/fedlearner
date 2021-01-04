@@ -8,8 +8,9 @@ import variablePresets, { VariablePresets } from './variablePresets'
 
 function _getPermissions({ access_mode }: Variable) {
   return {
-    readOnly: access_mode === VariableAccessMode.PEER_READABLE,
-    display: access_mode !== VariableAccessMode.PRIVATE,
+    // FIXME: only control participant side's permissions
+    readOnly: false && access_mode === VariableAccessMode.PEER_READABLE,
+    display: true || access_mode !== VariableAccessMode.PRIVATE,
   }
 }
 
@@ -25,10 +26,13 @@ function _getDatas({ value, widget_schema: { type, options } }: Variable) {
 
 function _getUIs({
   name,
+  access_mode,
   widget_schema: { size, placeholder, index, label, tooltip, description },
 }: Variable) {
   return {
-    title: label ? VariableLabel({ label, tooltip }) : name,
+    title: label
+      ? VariableLabel({ label, tooltip, access_mode })
+      : VariableLabel({ label: name, access_mode }),
     description,
     'x-index': index,
     'x-component-props': {
@@ -38,8 +42,9 @@ function _getUIs({
   }
 }
 
-function _getValidations({ widget_schema: { pattern, rules } }: Variable) {
+function _getValidations({ widget_schema: { pattern, rules, required } }: Variable) {
   return {
+    required,
     pattern,
     'x-rules': rules,
   }
@@ -49,7 +54,7 @@ function _getValidations({ widget_schema: { pattern, rules } }: Variable) {
 export function createInput(variable: Variable): FormilySchema {
   const {
     name,
-    widget_schema: { prefix, suffix, showCount, maxLength },
+    widget_schema: { prefix, suffix, maxLength },
   } = variable
 
   return {
@@ -65,7 +70,6 @@ export function createInput(variable: Variable): FormilySchema {
           // https://ant.design/components/input/#Input
           prefix,
           suffix,
-          showCount,
           maxLength,
           allowClear: true,
         },
@@ -201,6 +205,8 @@ export function createNumberPicker(variable: Variable): FormilySchema {
       _getPermissions(variable),
       _getValidations(variable),
       {
+        minimum: min,
+        maximum: max,
         'x-component': 'NumberPicker',
         'x-component-props': {
           min,
@@ -260,7 +266,7 @@ function mergeVariableSchemaWithPresets(variable: Variable, presets: VariablePre
 }
 
 /** Return a formily acceptable schema by server job definition */
-export function buildFormFromJobDef(job: Job): FormilySchema {
+export function buildFormSchemaFromJob(job: Job): FormilySchema {
   const { variables, name } = job
 
   const schema: FormilySchema = {

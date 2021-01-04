@@ -55,13 +55,14 @@ function Action({ onDisplayTypeChange }: Props): ReactElement {
   return (
     <Container>
       <Right>
-        <CreateButton
+        <Button
+          type="primary"
           onClick={() => {
             history.push('/create-project')
           }}
         >
           {t('project.create')}
-        </CreateButton>
+        </Button>
       </Right>
       <Left>
         <SearchInput placeholder={t('project.search_placeholder')} />

@@ -58,7 +58,7 @@ function ProjectsPage(): ReactElement {
   if (isLoading) return <span>loading</span>
 
   return (
-    <CardPaenl title={t('menu_label_project')} tip={t('project.describe')}>
+    <CardPaenl title={t('menu.label_project')} tip={t('project.describe')}>
       <Action
         onDisplayTypeChange={(type: number) => {
           setDisplayType(type)

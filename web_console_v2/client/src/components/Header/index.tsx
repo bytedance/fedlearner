@@ -10,7 +10,7 @@ import { StyledComponetProps } from 'typings/component'
 
 const Container = styled.header`
   position: sticky;
-  z-index: 2;
+  z-index: 1001; // > Drawer's 1000
   top: 0;
   display: grid;
   align-items: center;
@@ -19,7 +19,7 @@ const Container = styled.header`
   gap: 20px;
   height: 60px;
   padding: 0 30px;
-  background-color: var(--headerBg);
+  background-color: var(--headerBackground);
   color: white;
   border-bottom: 1px solid var(--gray3);
 `
@@ -44,6 +44,7 @@ function Header({ className }: StyledComponetProps) {
       <LogoLink href="/">
         <img src={logo} alt="Federation Learner logo" />
       </LogoLink>
+      {/* This empty element is used to fill the space blank */}
       <div className="empty" />
 
       <LanguageSelector name="language-selector" value={lng} onChange={onLanguageChange}>
@@ -51,9 +52,7 @@ function Header({ className }: StyledComponetProps) {
         <option value="en">English</option>
       </LanguageSelector>
 
-      <React.Suspense fallback={<div>Loading...</div>}>
-        <HeaderAccount />
-      </React.Suspense>
+      <HeaderAccount />
     </Container>
   )
 

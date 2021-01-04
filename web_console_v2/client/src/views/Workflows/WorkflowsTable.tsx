@@ -55,8 +55,8 @@ const tableCols = [
     render: (_: any, record: any) => (
       <div>
         <Button type="link">{i18n.t('workflows.action_run')}</Button>
-        <Button type="link">{i18n.t('workflows.action_stop_running')}</Button>
-        <Button type="link">{i18n.t('workflows.action_re_run')}</Button>
+        {/* <Button type="link">{i18n.t('workflows.action_stop_running')}</Button> */}
+        {/* <Button type="link">{i18n.t('workflows.action_re_run')}</Button> */}
         <Button type="link">{i18n.t('workflows.action_duplicate')}</Button>
         <Button type="link">{i18n.t('workflows.action_detail')}</Button>
       </div>

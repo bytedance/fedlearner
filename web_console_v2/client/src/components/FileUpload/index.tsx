@@ -5,6 +5,7 @@ import { PlusOutlined, CheckCircleFilled, DeleteFilled } from '@ant-design/icons
 import { useTranslation } from 'react-i18next'
 import classNames from 'classnames'
 import { MixinCommonTransition } from 'styles/mixins'
+import { ReactComponent as FileIcon } from 'assets/images/file.svg'
 
 type Props = {
   maxSize?: string
@@ -17,7 +18,6 @@ const Container = styled.div`
   background-color: var(--gray2);
   border-radius: 2px;
 `
-
 const WithoutFile = styled.div`
   ${MixinCommonTransition(['max-height', 'opacity'])};
 
@@ -28,12 +28,12 @@ const WithoutFile = styled.div`
     max-height: 0;
   }
 `
-
 const FileItem = styled.div`
   ${MixinCommonTransition(['opacity'])};
 
   position: absolute;
   top: 0;
+  z-index: 2;
   display: flex;
   height: 32px;
   width: 100%;
@@ -54,6 +54,7 @@ const FileItem = styled.div`
   }
 
   > .filename {
+    padding-left: 10px;
     flex: 1;
   }
 
@@ -61,7 +62,6 @@ const FileItem = styled.div`
     color: var(--successColor);
   }
 `
-
 const DeleteFileBtn = styled.div`
   position: absolute;
   right: -20px;
@@ -71,26 +71,25 @@ const DeleteFileBtn = styled.div`
     color: var(--primaryColor);
   }
 `
-
 const ContentInner = styled.div`
   padding: 20px 0 40px;
 `
-
 const PlusIcon = styled.p`
   font-size: 16px;
 `
-
 const UploadPlaceholder = styled.div`
   margin-bottom: 4px;
   line-height: 24px;
   font-size: 16px;
 `
-
 const UploadHint = styled.small`
   display: block;
   font-size: 12px;
   line-height: 18px;
   color: var(--textColorSecondary);
+`
+const DragUpload = styled(Upload.Dragger)`
+  padding: 0;
 `
 
 const FileUpload = ({ maxSize, value, onRemoveFile, ...props }: Props) => {
@@ -101,14 +100,13 @@ const FileUpload = ({ maxSize, value, onRemoveFile, ...props }: Props) => {
   return (
     <Container>
       <FileItem className={classNames({ visible: hasValue })}>
+        <FileIcon />
         <span className="filename">{filename}</span>
-        <CheckCircleFilled />
-
         <DeleteFileBtn onClick={onRemoveFile}>
           <DeleteFilled />
         </DeleteFileBtn>
       </FileItem>
-      <Upload.Dragger disabled={hasValue} {...(props as any)} onChange={onFileChange}>
+      <DragUpload disabled={hasValue} {...(props as any)} onChange={onFileChange}>
         <WithoutFile className={classNames({ hidden: hasValue })}>
           <ContentInner>
             <PlusIcon>
@@ -122,7 +120,7 @@ const FileUpload = ({ maxSize, value, onRemoveFile, ...props }: Props) => {
             </UploadHint>
           </ContentInner>
         </WithoutFile>
-      </Upload.Dragger>
+      </DragUpload>
     </Container>
   )
 

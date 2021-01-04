@@ -42,37 +42,27 @@ const Header = styled.div`
     color: var(--gray10);
   }
   .toggle {
+    display: inline-flex;
+    align-items: center;
     font-size: 14px;
     line-height: 24px;
     color: var(--arcoblue6);
     position: absolute;
     left: 166px;
-    &.hide {
-      &::after {
-        width: 0;
-        height: 0;
-        content: '';
-        display: inline-block;
-        border: 3px solid transparent;
-        border-bottom: 5px solid var(--arcoblue6);
-        border-radius: 1px;
-        margin-left: 8px;
-        margin-bottom: 2px;
-        transform: rotate(0deg);
-      }
+    &::after {
+      width: 0;
+      height: 0;
+      content: '';
+      display: inline-block;
+      margin-left: 8px;
+      transform: translateY(2px);
+      border: 3px solid transparent;
+      border-top: 4px solid var(--arcoblue6);
     }
 
     &.show {
       &::after {
-        width: 0;
-        height: 0;
-        content: '';
-        display: inline-block;
-        border: 3px solid transparent;
-        border-top: 5px solid var(--arcoblue6);
-        border-radius: 1px;
-        margin-left: 8px;
-        margin-top: 2px;
+        transform: translateY(-2px) rotate(180deg);
       }
     }
   }

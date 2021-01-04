@@ -17,14 +17,13 @@ const Container = styled.div`
 `
 const FileSvgWrapper = styled.div`
   &::after {
-    content: 'g';
+    position: absolute;
+    content: '';
     font-family: Nunito Sans;
-    font-size: 14px;
+    font-size: 12px;
+    font-weight: bold;
     color: #ffffff;
     display: inline-block;
-    position: relative;
-    left: -12px;
-    top: -5px;
   }
 `
 

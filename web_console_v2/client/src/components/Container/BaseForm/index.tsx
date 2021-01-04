@@ -1,6 +1,6 @@
 import React, { ReactElement, useState } from 'react'
 import styled from 'styled-components'
-import { Form, Input, Button, Radio, Upload } from 'antd'
+import { Form, Input, Button, Radio, Upload, message } from 'antd'
 import { useTranslation } from 'react-i18next'
 import SecondaryForm from './SecondaryForm'
 import EnvPathsForm from './EnvPathsForm'
@@ -13,6 +13,7 @@ import {
   UpdateProjectFormData,
   Participant,
 } from 'typings/project'
+import { useHistory } from 'react-router-dom'
 
 const Container = styled.div`
   padding: 16px;
@@ -85,6 +86,8 @@ function BaseForm({ onSubmit, edit, initialValues }: Props): ReactElement {
   const [certificates, setCertificates] = useState('')
   const [certificatesName, setCertificatesName] = useState('')
   const [certificatesUploading, setCertificatesUploading] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const history = useHistory()
 
   const defaultValues: ProjectFormInitialValues = initialValues ?? defaultInitialValues
   const [certificateConfigType, setCertificateConfigType] = useState(
@@ -134,11 +137,11 @@ function BaseForm({ onSubmit, edit, initialValues }: Props): ReactElement {
               options={[
                 {
                   label: t('project.upload_certificate'),
-                  value: 1,
+                  value: 0,
                 },
                 {
                   label: t('project.backend_config_certificate'),
-                  value: 2,
+                  value: 1,
                 },
               ]}
               optionType="button"
@@ -183,8 +186,9 @@ function BaseForm({ onSubmit, edit, initialValues }: Props): ReactElement {
             />
           </Form.Item>
         </SecondaryForm>
+
         <SubmitContainer>
-          <Button type="primary" onClick={handleSubmit}>
+          <Button type="primary" loading={loading} onClick={handleSubmit}>
             {t('submit')}
           </Button>
           <Button className="cancel-button">{t('cancel')}</Button>
@@ -198,15 +202,18 @@ function BaseForm({ onSubmit, edit, initialValues }: Props): ReactElement {
       form.scrollToField('certificateConfigType', { block: 'center' })
       return
     }
+    setLoading(true)
     try {
       const data = await form.validateFields()
       let params: CreateProjectFormData | UpdateProjectFormData
+
       if (edit) {
+        // Is Editting
         params = {
           variables: data.variables ?? [],
           comment: data.comment,
         }
-        onSubmit(params)
+        await onSubmit(params)
       } else {
         let participants: Participant[] = []
         participants.push({
@@ -224,11 +231,14 @@ function BaseForm({ onSubmit, edit, initialValues }: Props): ReactElement {
           },
           comment: data.comment,
         }
-        onSubmit(params)
+        await onSubmit(params)
       }
+      message.success(`${edit ? '编辑' : '创建'}项目成功！`)
+      history.push('/projects')
     } catch (error) {
       form.scrollToField(error.errorFields[0].name[0], { block: 'center' })
     }
+    setLoading(false)
   }
   function onUpload(file: File) {
     if (file.size > 20 * 1024 * 1024) {

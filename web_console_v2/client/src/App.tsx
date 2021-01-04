@@ -2,7 +2,6 @@ import React, { ReactElement } from 'react'
 import styled from 'styled-components'
 import Header from 'components/Header'
 import Sidebar from 'components/Sidebar'
-import Footer from 'components/Footer'
 import RouterViews from 'views'
 import { Switch, Route } from 'react-router-dom'
 import Login from 'views/Login'
@@ -10,12 +9,13 @@ import Login from 'views/Login'
 const AppLayout = styled.div`
   display: grid;
   min-height: 100vh;
+  max-height: 100vh;
   grid-template-areas:
     'header header'
-    'sidebar main-content'
-    'sidebar footer';
-  grid-template-rows: auto 1fr 30px;
+    'sidebar main-content';
+  grid-template-rows: auto 1fr;
   grid-template-columns: auto 1fr;
+  overflow: hidden;
 `
 
 const AppHeader = styled(Header)`
@@ -27,13 +27,11 @@ const AppSidebar = styled(Sidebar)`
   grid-area: sidebar;
 `
 
-const AppFooter = styled(Footer)`
-  grid-area: footer;
-`
-
 const AppMainContent = styled.main`
   grid-area: main-content;
   padding: 10px;
+  padding-bottom: 0;
+  overflow: auto;
 `
 
 function App(): ReactElement {
@@ -46,11 +44,9 @@ function App(): ReactElement {
 
         <AppSidebar />
 
-        <AppMainContent>
+        <AppMainContent id="app-content">
           <RouterViews />
         </AppMainContent>
-
-        <AppFooter />
       </AppLayout>
 
       <Route path="*">You are lost</Route>

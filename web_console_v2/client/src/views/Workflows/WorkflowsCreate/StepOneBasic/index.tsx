@@ -6,7 +6,7 @@ import GridRow from 'components/_base/GridRow'
 import CreateTemplateForm from './CreateTemplate'
 import { useHistory } from 'react-router-dom'
 import {
-  currentWorkflowConfig,
+  currentWorkflowTemplate,
   forceReloadTplList,
   StepOneForm,
   workflowCreating,
@@ -19,8 +19,6 @@ import { useSubscribe } from 'hooks'
 import { useRecoilQuery } from 'hooks/recoil'
 import { WorkflowTemplate } from 'typings/workflow'
 import { useToggle } from 'react-use'
-
-const { Option } = Select
 
 const FormsContainer = styled.div`
   width: 500px;
@@ -35,7 +33,7 @@ function WorkflowsCreateStepOne() {
   const [formData, setFormData] = useRecoilState(workflowCreating)
   const { whetherCreateNewTpl } = useRecoilValue(workflowGetters)
   const reloadTplList = useSetRecoilState(forceReloadTplList)
-  const setWorflowConfig = useSetRecoilState(currentWorkflowConfig)
+  const setWorflowTemplate = useSetRecoilState(currentWorkflowTemplate)
 
   const { isLoading: tplLoading, data: tplList, error: tplListErr } = useRecoilQuery(
     workflowTemplateListQuery,
@@ -48,13 +46,9 @@ function WorkflowsCreateStepOne() {
   }, [tplListErr])
 
   useSubscribe(WORKFLOW_CHANNELS.tpl_create_succeed, (_: string, res: WorkflowTemplate) => {
-    setWorflowConfig(res.config)
+    setWorflowTemplate(res)
     goNextStep()
   })
-
-  const backToList = useCallback(() => {
-    history.push('/workflows')
-  }, [history])
 
   return (
     <Card>
@@ -82,7 +76,7 @@ function WorkflowsCreateStepOne() {
             rules={[{ required: true, message: 'Please select your country!' }]}
           >
             <Select placeholder={t('workflows.placeholder_project')}>
-              <Option value="1">Project - 1</Option>
+              <Select.Option value="1">Project - 1</Select.Option>
             </Select>
           </Form.Item>
 
@@ -127,9 +121,9 @@ function WorkflowsCreateStepOne() {
               >
                 {tplList &&
                   tplList.map((tpl) => (
-                    <Option key={tpl.id} value={tpl.id}>
+                    <Select.Option key={tpl.id} value={tpl.id}>
                       {tpl.name}
-                    </Option>
+                    </Select.Option>
                   ))}
               </Select>
             </Form.Item>
@@ -154,21 +148,23 @@ function WorkflowsCreateStepOne() {
     </Card>
   )
 
+  async function goNextStep() {
+    setSubmitting(false)
+    history.push('/workflows/create/config')
+    workflowPubsub.publish(WORKFLOW_CHANNELS.go_config_step)
+  }
+  function backToList() {
+    history.push('/workflows')
+  }
+  // --------- Handlers -----------
   function onFormChange(_: any, values: StepOneForm) {
     setFormData(values)
   }
-
   function onTemplateSelectChange(id: number) {
     const target = tplList?.find((item) => item.id === id)
     if (!target) return
-    setWorflowConfig(target.config)
+    setWorflowTemplate(target)
   }
-
-  async function goNextStep() {
-    setSubmitting(false)
-    workflowPubsub.publish(WORKFLOW_CHANNELS.go_config_step)
-  }
-
   async function onNextStepClick() {
     try {
       // Any form invalid happens will throw error to stop the try block

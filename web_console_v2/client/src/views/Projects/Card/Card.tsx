@@ -135,17 +135,22 @@ function CardMain({ workFlowNumber }: CardMainProps): ReactElement {
 
 function CreateWorkFlow(): ReactElement {
   const { t } = useTranslation()
+  const history = useHistory()
   return (
     <Tooltip title={t('project.create_work_flow')} placement="top">
-      <img src={createWorkFlow} alt="" />
+      <img onClick={goCreateWorkflow} src={createWorkFlow} style={{ cursor: 'pointer' }} alt="" />
     </Tooltip>
   )
+
+  function goCreateWorkflow() {
+    history.push('/workflows/create/basic')
+  }
 }
 
 function CheckConnection(): ReactElement {
   const { t } = useTranslation()
   return (
-    <Tooltip title={t('project.check_connection')} placement="top">
+    <Tooltip title={t('project.check_connection') + ' (Not ready yet)'} placement="top">
       <CheckConnectionStyle>
         <CheckConnectionIcon />
       </CheckConnectionStyle>

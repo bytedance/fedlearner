@@ -1,8 +1,8 @@
 import React, { useState } from 'react'
 import styled from 'styled-components'
 import { Steps, Row, Card } from 'antd'
-import WorkflowsCreateStepOne from './StepOne'
-import WorkflowsCreateStepTwo from './SteptTwo'
+import WorkflowsCreateStepOne from './StepOneBasic'
+import WorkflowsCreateStepTwo from './SteptTwoConfig'
 import { useSubscribe } from 'hooks'
 import WORKFLOW_CHANNELS from './pubsub'
 import { Prompt, Route, useParams, useHistory } from 'react-router-dom'
@@ -12,7 +12,6 @@ const { Step } = Steps
 const FormArea = styled.main`
   margin-top: 12px;
 `
-
 const StepContainer = styled.div`
   width: 350px;
 `
@@ -29,7 +28,6 @@ function WorkflowsCreate() {
 
   useSubscribe(WORKFLOW_CHANNELS.go_config_step, () => {
     setStep(CreateSteps.config)
-    history.push('/workflows/create/config')
   })
 
   return (

@@ -5,6 +5,7 @@ import styled from 'styled-components'
 const Container = styled.div`
   display: grid;
   grid-gap: ${(props: Props) => convertToUnit(props.gap)};
+  align-items: ${(props: Props) => props.align || 'center'};
   justify-content: ${(props: Props) => props.justify || 'start'};
   grid-auto-columns: auto;
   grid-template-rows: auto;
@@ -15,6 +16,7 @@ type Props = {
   top?: number | string
   left?: number | string
   gap?: number | string
+  align?: 'center' | 'start' | 'end'
   justify?:
     | 'start'
     | 'end'
