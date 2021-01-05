@@ -21,7 +21,8 @@ from fedlearner_webconsole.project.adapter import ProjectK8sAdapter
 from fedlearner_webconsole.project.models import Project
 from fedlearner_webconsole.k8s_client import get_client
 from fedlearner_webconsole.proto.job_pb2 import Context
-from fedlearner_webconsole.proto.workflow_definition_pb2 import JobDependency
+from fedlearner_webconsole.proto.workflow_definition_pb2 import \
+    JobDependency, JobDefinition
 
 class JobStatus(enum.Enum):
     UNSPECIFIED = 'UNSPECIFIED'
@@ -74,7 +75,15 @@ class Job(db.Model):
                            server_default=func.now(),
                            server_onupdate=func.now())
     deleted_at = db.Column(db.DateTime(timezone=True))
+    project = db.relationship(Project)
     _k8s_client = get_client()
+
+    def get_config(self):
+        if self.config is not None:
+            proto = JobDefinition()
+            proto.ParseFromString(self.config)
+            return proto
+        return None
 
     def get_context(self):
         if self.context is not None:

@@ -13,10 +13,9 @@
 # limitations under the License.
 
 # coding: utf-8
-import time
 import threading
 import logging
-from fedlearner_webconsole.job.models import Job, JobStatus
+from fedlearner_webconsole.job.models import Job
 
 
 class JobScheduler(object):

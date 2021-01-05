@@ -128,8 +128,7 @@ class Workflow(db.Model):
             return proto
         return None
 
-    def update_state(self, asserted_state, target_state, transaction_state,
-                     target_job=None):
+    def update_state(self, asserted_state, target_state, transaction_state):
         assert asserted_state is None or self.state == asserted_state, \
             'Cannot change current state directly'
 
@@ -150,7 +149,7 @@ class Workflow(db.Model):
 
         # coordinator prepare & rollback
         if self.transaction_state == TransactionState.COORDINATOR_PREPARE:
-            self.prepare(target_state, target_job)
+            self.prepare(target_state)
         if self.transaction_state == TransactionState.COORDINATOR_ABORTING:
             self.rollback()
 
@@ -165,7 +164,7 @@ class Workflow(db.Model):
 
         return self.transaction_state
 
-    def prepare(self, target_state, target_job=None):
+    def prepare(self, target_state):
         assert self.transaction_state in [
             TransactionState.COORDINATOR_PREPARE,
             TransactionState.PARTICIPANT_PREPARE], \
@@ -203,8 +202,6 @@ class Workflow(db.Model):
             # no action needed
             # TODO(tjulinfan): validate if the config is legal or not
             success = bool(self.config)
-        elif target_state == WorkflowState.RUNNING:
-            self.target_job = target_job
         if success:
             if self.transaction_state == TransactionState.COORDINATOR_PREPARE:
                 self.transaction_state = \
@@ -213,22 +210,7 @@ class Workflow(db.Model):
                 self.transaction_state = \
                     TransactionState.PARTICIPANT_COMMITTABLE
 
-    def pre_run(self, job):
-        all_successors = job.get_all_successors()
-        for suc in all_successors:
-            suc_job = Job.query.filter_by(id=suc).first()
-            if suc_job and suc_job.status != JobStatus.STARTED:
-                suc_job.status = JobStatus.READY
-        db.session.commit()
-        job_scheduler.wakeup(all_successors)
 
-    def stop(self, job):
-        all_successors = job.get_all_successors()
-        job_scheduler.sleep(all_successors)
-        for suc in all_successors:
-            suc = Job.query.filter_by(id=suc).first()
-            if suc is not None:
-                suc.stop()
     def rollback(self):
         self.target_state = WorkflowState.INVALID
 
@@ -236,14 +218,24 @@ class Workflow(db.Model):
         assert self.transaction_state in [
             TransactionState.COORDINATOR_COMMITTING,
             TransactionState.PARTICIPANT_COMMITTING], \
-            'Workflow not in prepare state'
+                "Workflow not in prepare state"
 
         if self.target_state == WorkflowState.STOPPED:
-            job = Job.query.filter_by(name=self.target_job).first()
-            if job is not None:
-                self.stop(job)
+            job_ids = [job.id for job in
+                       Job.query.filter_by(workflow_id=self.id).all()]
+            job_scheduler.sleep(job_ids)
+            for job_id in job_ids:
+                job = Job.query.filter_by(id=job_id).first()
+                job.stop()
         elif self.target_state == WorkflowState.READY:
             job_definitions = self.get_config().job_definitions
+            sucs = {}
+            for job_definition in job_definitions:
+                for dependency in job_definition.dependencies:
+                    if dependency.source not in sucs:
+                        sucs[dependency.source] = {}
+                    sucs[dependency.source][
+                        job_definition.name] = dependency.type
             for job_definition in job_definitions:
                 job = Job(name=f'{self.name}-{job_definition.name}',
                           job_type=job_definition.type,
@@ -255,19 +247,23 @@ class Workflow(db.Model):
                     depend = context.dependencies.add()
                     depend.source = f'{dependency.source}-{self.name}'
                     depend.type = dependency.type
-                for job_def_suc in job_definitions:
-                    for dependency in job_def_suc:
-                        if dependency.source == job_definition.name:
-                            successor = context.successors.add()
-                            successor.source = f'{job_def_suc.name}-{self.name}'
-                            successor.type = dependency.type
+                if job_definition.name in sucs:
+                    for suc in sucs[job_definition.name]:
+                        successor = context.successors.add()
+                        successor.source = f'{suc}-{self.name}'
+                        successor.type = sucs[job_definition.name][suc]
                 job.context = context.SerializeToString()
                 job.set_yaml(job_definition.yaml_template)
                 db.session.add(job)
         elif self.target_state == WorkflowState.RUNNING:
-            job = Job.query.filter_by(name=self.target_job).first()
-            if job is not None:
-                self.pre_run(job)
+            job_ids = [job.id for job in
+                       Job.query.filter_by(workflow_id=self.id).all()]
+            for job_id in job_ids:
+                job = Job.query.filter_by(id=job_id).first()
+                if job.status != JobStatus.STARTED:
+                    job.status = JobStatus.READY
+            db.session.commit()
+            job_scheduler.wakeup(job_ids)
 
         self.state = self.target_state
         self.target_state = WorkflowState.INVALID
@@ -276,5 +272,6 @@ class Workflow(db.Model):
     def log_states(self):
         logging.debug(
             'workflow %d updated to state=%s, target_state=%s, '
-            'transaction_state=%s', self.id, self.state.name,
-            self.target_state.name, self.transaction_state.name)
+            'transaction_state=%s', self.id,
+            self.state.name, self.target_state.name,
+            self.transaction_state.name)

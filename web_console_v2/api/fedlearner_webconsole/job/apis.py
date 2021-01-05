@@ -14,26 +14,86 @@
 
 # coding: utf-8
 import time
+from google.protobuf.json_format import MessageToDict
 from flask_restful import Resource, request
-from fedlearner_webconsole.job.models import Job
+from fedlearner_webconsole.job.models import Job, JobStatus
+from fedlearner_webconsole.workflow.models import Workflow, WorkflowState
 from fedlearner_webconsole.job.es import es
 from fedlearner_webconsole.exceptions import NotFoundException, \
     InvalidArgumentException
 from fedlearner_webconsole.k8s_client import get_client
 from fedlearner_webconsole.project.adapter import ProjectK8sAdapter
-
+from fedlearner_webconsole.db import db
+from fedlearner_webconsole.scheduler.job_scheduler import job_scheduler
+from fedlearner_webconsole.rpc.client import RpcClient
 
 class JobsApi(Resource):
     def get(self, workflow_id):
-        return {'data': [row.to_dict() for row in
-                         Job.query.filter_by(workflow_id=workflow_id).all()]}
+        workflow = Workflow.query.filter_by(id=workflow_id).first()
+        project_config = workflow.project.get_config()
+        peer_jobs = {}
+        for party in project_config.participants:
+            client = RpcClient(project_config, party)
+            resp = client.get_jobs(workflow.name)
+            peer_jobs[party.name] = MessageToDict(
+                        resp.jobs,
+                        preserving_proto_field_name=True,
+                        including_default_value_fields=True)
+        return {'data': {'self': [row.to_dict() for row in
+                         Job.query.filter_by(workflow_id=workflow_id).all()],
+                         'peers': peer_jobs}}
 
 
 class JobApi(Resource):
+    def _pre_run(self, job):
+        all_successors = job.get_all_successors()
+        for suc in all_successors:
+            suc_job = Job.query.filter_by(id=suc).first()
+            if suc_job and suc_job.status != JobStatus.STARTED:
+                suc_job.status = JobStatus.READY
+        db.session.commit()
+        job_scheduler.wakeup(all_successors)
+
+    def _stop(self, job):
+        all_successors = job.get_all_successors()
+        job_scheduler.sleep(all_successors)
+        for suc in all_successors:
+            suc = Job.query.filter_by(id=suc).first()
+            if suc is not None:
+                suc.stop()
+
     def get(self, job_id):
         job = Job.query.filter_by(job=job_id).first()
         if job is None:
             raise NotFoundException()
+        return {'data': job.to_dict()}
+
+    def patch(self, job_id):
+        if 'option' not in request.args:
+            raise InvalidArgumentException('option is required')
+        job = Job.query.filter_by(job=job_id).first()
+        if job is None:
+            raise NotFoundException()
+        workflow = Workflow.query.filter_by(id=job.workflow_id).first()
+        if workflow is None or workflow.status != WorkflowState.RUNNING:
+            raise InvalidArgumentException('workflow is not running')
+        # get federated jobs
+        job_ids = job.get_all_successors()
+        federated_job_names = []
+        for item in job_ids:
+            federated_job = Job.query.filter_by(id=item).first()
+            if federated_job.get_config().is_federated:
+                federated_job_names.append(federated_job.name)
+        # trigger participants
+        project_config = job.project.get_config()
+        for party in project_config.participants:
+            client = RpcClient(project_config, party)
+            resp = client.patch_job(federated_job_names,
+                                    request.args['option'] == 'run')
+        if request.args['option'] == 'run':
+            self._pre_run(job)
+        else:
+            self._stop(job)
         return {'data': job.to_dict()}
 
 
