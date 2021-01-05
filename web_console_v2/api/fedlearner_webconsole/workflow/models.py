@@ -134,7 +134,7 @@ class Workflow(db.Model):
             return proto
         return None
 
-    def update_state(self, state, target_state, transaction_state, target_job):
+    def update_state(self, state, target_state, transaction_state, target_job=None):
         assert state is None or self.state == state, \
             'Cannot change current state directly'
 
@@ -254,7 +254,7 @@ class Workflow(db.Model):
         elif self.target_state == WorkflowState.READY:
             job_definitions = self.get_config().job_definitions
             for job_definition in job_definitions:
-                job = Job(name=job_definition.name+self.name,
+                job = Job(name=f'{self.name}-{job_definition.name}',
                           job_type=job_definition.type,
                           config=job_definition.SerializeToString(),
                           workflow_id=self.id,
@@ -262,13 +262,13 @@ class Workflow(db.Model):
                 context = job_pb2.Context()
                 for dependency in job_definition.dependencies:
                     depend = context.dependencies.add()
-                    depend.source = dependency.source + self.name
+                    depend.source = f'{dependency.source}-{self.name}'
                     depend.type = dependency.type
                 for job_def_suc in job_definitions:
                     for dependency in job_def_suc:
                         if dependency.source == job_definition.name:
                             successor = context.successors.add()
-                            successor.source = job_def_suc.name+self.name
+                            successor.source = f'{job_def_suc.name}-{self.name}'
                             successor.type = dependency.type
                 job.context = context.SerializeToString()
                 job.set_yaml(job_definition.yaml_template)

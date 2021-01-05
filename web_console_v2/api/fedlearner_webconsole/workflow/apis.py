@@ -111,7 +111,7 @@ class WorkflowApi(Resource):
 
         workflow = _get_workflow(workflow_id)
         workflow.update_state(None, WorkflowState[target_state],
-                              TransactionState.COORDINATOR_PREPARE)
+                              None)
         db.session.commit()
         logging.info('update workflow %d target_state to %s',
                      workflow.id, workflow.target_state)

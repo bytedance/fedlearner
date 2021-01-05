@@ -72,9 +72,9 @@ class JobScheduler(object):
     def _routine(self):
         self._app.app_context().push()
         # TODO: separate the scheduler to a new process to remove this.
-        time.sleep(10)
-        self._pending = [job.id for job in
-                         Job.query.filter_by(status=JobStatus.READY)]
+        # time.sleep(10)
+        # self._pending = [job.id for job in
+        #                  Job.query.filter_by(status=JobStatus.READY)]
         while True:
             with self._condition:
                 self._condition.wait(60)
