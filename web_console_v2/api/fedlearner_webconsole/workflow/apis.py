@@ -97,7 +97,7 @@ class WorkflowApi(Resource):
         workflow.comment = data['comment']
         workflow.forkable = data['forkable']
         workflow.set_config(dict_to_workflow_definition(data['config']))
-        workflow.prepare()
+        workflow.prepare(WorkflowState.READY)
         db.session.commit()
         logging.info('update workflow %d target_state to %s',
                      workflow.id, workflow.target_state)
@@ -111,7 +111,7 @@ class WorkflowApi(Resource):
 
         workflow = _get_workflow(workflow_id)
         workflow.update_state(None, WorkflowState[target_state],
-                              None)
+                              TransactionState.COORDINATOR_PREPARE)
         db.session.commit()
         logging.info('update workflow %d target_state to %s',
                      workflow.id, workflow.target_state)

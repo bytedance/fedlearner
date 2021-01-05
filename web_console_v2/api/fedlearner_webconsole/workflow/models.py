@@ -32,12 +32,12 @@ class WorkflowState(enum.Enum):
     RUNNING = 3
     STOPPED = 4
 
-VALID_TRANSITIONS = [
-    (WorkflowState.NEW, WorkflowState.READY),
-    (WorkflowState.READY, WorkflowState.RUNNING),
-    (WorkflowState.RUNNING, WorkflowState.STOPPED),
-    (WorkflowState.STOPPED, WorkflowState.READY)
-]
+
+VALID_TRANSITIONS = [(WorkflowState.NEW, WorkflowState.READY),
+                     (WorkflowState.READY, WorkflowState.RUNNING),
+                     (WorkflowState.RUNNING, WorkflowState.STOPPED),
+                     (WorkflowState.STOPPED, WorkflowState.READY)]
+
 
 class TransactionState(enum.Enum):
     READY = 0
@@ -53,48 +53,43 @@ class TransactionState(enum.Enum):
     PARTICIPANT_COMMITTING = 8
     PARTICIPANT_ABORTING = 9
 
+
 VALID_TRANSACTION_TRANSITIONS = [
     (TransactionState.ABORTED, TransactionState.READY),
     (TransactionState.READY, TransactionState.PARTICIPANT_ABORTING),
-
     (TransactionState.READY, TransactionState.COORDINATOR_PREPARE),
     # (TransactionState.COORDINATOR_PREPARE,
     #  TransactionState.COORDINATOR_COMMITTABLE),
     (TransactionState.COORDINATOR_COMMITTABLE,
-        TransactionState.COORDINATOR_COMMITTING),
+     TransactionState.COORDINATOR_COMMITTING),
     # (TransactionState.COORDINATOR_PREPARE,
     #  TransactionState.COORDINATOR_ABORTING),
     (TransactionState.COORDINATOR_COMMITTABLE,
-        TransactionState.COORDINATOR_ABORTING),
-    (TransactionState.COORDINATOR_ABORTING,
-        TransactionState.ABORTED),
-
+     TransactionState.COORDINATOR_ABORTING),
+    (TransactionState.COORDINATOR_ABORTING, TransactionState.ABORTED),
     (TransactionState.READY, TransactionState.PARTICIPANT_PREPARE),
     # (TransactionState.PARTICIPANT_PREPARE,
     #  TransactionState.PARTICIPANT_COMMITTABLE),
     (TransactionState.PARTICIPANT_COMMITTABLE,
-        TransactionState.PARTICIPANT_COMMITTING),
+     TransactionState.PARTICIPANT_COMMITTING),
     # (TransactionState.PARTICIPANT_PREPARE,
     #  TransactionState.PARTICIPANT_ABORTING),
     (TransactionState.PARTICIPANT_COMMITTABLE,
-        TransactionState.PARTICIPANT_ABORTING),
+     TransactionState.PARTICIPANT_ABORTING),
     # (TransactionState.PARTICIPANT_ABORTING,
     #  TransactionState.ABORTED),
 ]
 
 IGNORED_TRANSACTION_TRANSITIONS = [
     (TransactionState.PARTICIPANT_COMMITTABLE,
-        TransactionState.PARTICIPANT_PREPARE),
+     TransactionState.PARTICIPANT_PREPARE),
 ]
 
-@to_dict_mixin(
-    ignores=[
-        'forked_from'
-    ],
-    extras={
-        'config': (lambda wf: wf.get_config()),
-    }
-)
+
+@to_dict_mixin(ignores=['forked_from'],
+               extras={
+                   'config': (lambda wf: wf.get_config()),
+               })
 class Workflow(db.Model):
     __tablename__ = 'workflow_v2'
     id = db.Column(db.Integer, primary_key=True)
@@ -106,13 +101,12 @@ class Workflow(db.Model):
     comment = db.Column(db.String(255))
 
     state = db.Column(db.Enum(WorkflowState), default=WorkflowState.INVALID)
-    target_state = db.Column(
-        db.Enum(WorkflowState), default=WorkflowState.INVALID)
-    target_job = db.Column(db.String(255), default=None)
-    transaction_state = db.Column(
-        db.Enum(TransactionState), default=TransactionState.READY)
+    target_state = db.Column(db.Enum(WorkflowState),
+                             default=WorkflowState.INVALID)
+    transaction_state = db.Column(db.Enum(TransactionState),
+                                  default=TransactionState.READY)
     transaction_err = db.Column(db.Text())
-
+    target_job = db.Column(db.String(255), default=None)
     created_at = db.Column(db.DateTime(timezone=True),
                            server_default=func.now())
     updated_at = db.Column(db.DateTime(timezone=True),
@@ -134,86 +128,83 @@ class Workflow(db.Model):
             return proto
         return None
 
-    def update_state(self, state, target_state, transaction_state, target_job=None):
-        assert state is None or self.state == state, \
+    def update_state(self, asserted_state, target_state, transaction_state,
+                     target_job=None):
+        assert asserted_state is None or self.state == asserted_state, \
             'Cannot change current state directly'
 
-        if target_state and self.target_state != target_state:
-            assert self.target_state == WorkflowState.INVALID, \
-                'Another transaction is in progress'
-            assert self.transaction_state == TransactionState.READY, \
-                'Another transaction is in progress'
-            assert (self.state, target_state) in VALID_TRANSITIONS, \
-                'Invalid transition from %s to %s'%(self.state, target_state)
-            self.target_state = target_state
-            self.target_job = target_job
-
+        # No action needed if transaction state does not change
         if transaction_state is None or \
-                transaction_state == self.transaction_state:
+            transaction_state == self.transaction_state:
             return self.transaction_state
 
         if (self.transaction_state, transaction_state) in \
-                IGNORED_TRANSACTION_TRANSITIONS:
+            IGNORED_TRANSACTION_TRANSITIONS:
             return self.transaction_state
 
         assert (self.transaction_state, transaction_state) in \
-            VALID_TRANSACTION_TRANSITIONS, \
-                'Invalid transaction transition from %s to %s'%(
-                    self.transaction_state, transaction_state)
+               VALID_TRANSACTION_TRANSITIONS, \
+            'Invalid transaction transition from {} to {}'.format(
+                self.transaction_state, transaction_state)
         self.transaction_state = transaction_state
 
         # coordinator prepare & rollback
         if self.transaction_state == TransactionState.COORDINATOR_PREPARE:
-            try:
-                self.prepare()
-            except Exception as e:
-                self.transaction_state = \
-                    TransactionState.COORDINATOR_ABORTING
-
+            self.prepare(target_state, target_job)
         if self.transaction_state == TransactionState.COORDINATOR_ABORTING:
-            try:
-                self.rollback()
-            except Exception as e:
-                pass
+            self.rollback()
 
         # participant prepare & rollback & commit
         if self.transaction_state == TransactionState.PARTICIPANT_PREPARE:
-            try:
-                self.prepare()
-            except Exception as e:
-                self.transaction_state = \
-                    TransactionState.PARTICIPANT_ABORTING
-
+            self.prepare(target_state)
         if self.transaction_state == TransactionState.PARTICIPANT_ABORTING:
-            try:
-                self.rollback()
-            except Exception as e:
-                pass
-            self.target_state = WorkflowState.INVALID
-            self.transaction_state = \
-                TransactionState.ABORTED
-
+            self.rollback()
+            self.transaction_state = TransactionState.ABORTED
         if self.transaction_state == TransactionState.PARTICIPANT_COMMITTING:
             self.commit()
 
         return self.transaction_state
 
-    def prepare(self):
+    def prepare(self, target_state, target_job=None):
         assert self.transaction_state in [
             TransactionState.COORDINATOR_PREPARE,
             TransactionState.PARTICIPANT_PREPARE], \
-                "Workflow not in prepare state"
+            'Workflow not in prepare state'
 
-        success = False
-        if self.target_state == WorkflowState.READY:
+        # TODO(tjulinfan): remove this
+        if target_state is None:
+            # No action
+            return
+
+        # Validation
+        valid = True
+        if self.target_state != target_state \
+                and self.target_state != WorkflowState.INVALID:
+            valid = False
+            logging.warning('Another transaction is in progress [%s]', self.id)
+        if target_state not in [WorkflowState.READY,
+                                WorkflowState.RUNNING,
+                                WorkflowState.STOPPED]:
+            valid = False
+            logging.warning('Invalid target_state in prepare %s',
+                            self.target_state)
+        if (self.state, target_state) not in VALID_TRANSITIONS:
+            valid = False
+            logging.warning('Invalid transition from %s to %s', self.state,
+                            target_state)
+        if not valid:
+            self.transaction_state = TransactionState.ABORTED
+            return
+
+        self.target_state = target_state
+        success = True
+        if target_state == WorkflowState.READY:
+            # This is a hack, if config is not set then
+            # no action needed
+            # TODO(tjulinfan): validate if the config is legal or not
             success = bool(self.config)
-        elif self.target_state == WorkflowState.RUNNING:
-            success = True
-        elif self.target_state == WorkflowState.STOPPED:
-            success = True
-        else:
-            raise RuntimeError(
-                "Invalid target_state %s"%self.target_state)
+        elif target_state == WorkflowState.RUNNING:
+            self.target_job = target_job
         if success:
             if self.transaction_state == TransactionState.COORDINATOR_PREPARE:
                 self.transaction_state = \
@@ -239,13 +230,13 @@ class Workflow(db.Model):
             if suc is not None:
                 suc.stop()
     def rollback(self):
-        pass
+        self.target_state = WorkflowState.INVALID
 
     def commit(self):
         assert self.transaction_state in [
             TransactionState.COORDINATOR_COMMITTING,
             TransactionState.PARTICIPANT_COMMITTING], \
-                "Workflow not in prepare state"
+            'Workflow not in prepare state'
 
         if self.target_state == WorkflowState.STOPPED:
             job = Job.query.filter_by(name=self.target_job).first()
@@ -285,6 +276,5 @@ class Workflow(db.Model):
     def log_states(self):
         logging.debug(
             'workflow %d updated to state=%s, target_state=%s, '
-            'transaction_state=%s', self.id,
-            self.state.name, self.target_state.name,
-            self.transaction_state.name)
+            'transaction_state=%s', self.id, self.state.name,
+            self.target_state.name, self.transaction_state.name)
