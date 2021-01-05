@@ -1,11 +1,6 @@
 import { atom, selector } from 'recoil'
 import { fetchWorkflowTemplateList } from 'services/workflow'
-import {
-  WorkflowConfig,
-  WorkflowForm,
-  WorkflowTemplate,
-  WorkflowTemplateForm,
-} from 'typings/workflow'
+import { WorkflowForm, WorkflowTemplate, WorkflowTemplateForm } from 'typings/workflow'
 import template from 'services/mocks/v2/workflow_templates/example'
 
 export type StepOneForm = {
@@ -59,7 +54,7 @@ export const workflowTemplateListQuery = selector({
   },
 })
 
-// Tamplate be using when creating workflow
+// Template being used when creating workflow
 export const currentWorkflowTemplate = atom<WorkflowTemplate>({
   key: 'CurrentWorkflowTemplate',
   default: template.data as WorkflowTemplate,
