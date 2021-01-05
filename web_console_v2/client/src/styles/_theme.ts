@@ -1,3 +1,8 @@
+
+/**
+ * WARNING: This file is auto-generated
+ * DO NOT modify it directly, ./variable.less is the file you should go
+ */
 const defaultTheme = {
   red1: '#ffece8',
   red2: '#fdcdc5',
