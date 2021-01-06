@@ -21,7 +21,8 @@ import threading
 from concurrent import futures
 import grpc
 from fedlearner_webconsole.proto import (
-    service_pb2, service_pb2_grpc, common_pb2
+    service_pb2, service_pb2_grpc,
+    common_pb2, workflow_definition_pb2
 )
 from fedlearner_webconsole.db import db
 from fedlearner_webconsole.project.models import Project
@@ -64,6 +65,19 @@ class RPCServerServicer(service_pb2_grpc.WebConsoleV2ServiceServicer):
                     code=common_pb2.STATUS_UNKNOWN_ERROR,
                     msg=repr(e)))
 
+    def GetWorkflow(self, request, context):
+        try:
+            return self._server.get_workflow(request)
+        except UnauthorizedException as e:
+            return service_pb2.GetWorkflowResponse(
+                status=common_pb2.Status(
+                    code=common_pb2.STATUS_UNAUTHORIZED,
+                    msg=repr(e)))
+        except Exception as e:
+            return service_pb2.GetWorkflowResponse(
+                status=common_pb2.Status(
+                    code=common_pb2.STATUS_UNKNOWN_ERROR,
+                    msg=repr(e)))
 
 class RpcServer(object):
     def __init__(self):
@@ -155,6 +169,40 @@ class RpcServer(object):
                     status=common_pb2.Status(
                         code=common_pb2.STATUS_SUCCESS),
                     transaction_state=workflow.transaction_state.value)
+    def get_workflow(self, request):
+        with self._app.app_context():
+            project, party = self.check_auth_info(request.auth_info)
+            logging.debug(
+                'received update_workflow_state from %s: %s',
+                party.domain_name, request)
+            workflow = Workflow.query.filter_by(
+                name=request.workflow_name,
+                project_id=project.id).first()
+            assert workflow is not None
+            config = workflow.get_config()
+            # filter peer-readable and peer-writable variables
+            safe_config = workflow_definition_pb2.WorkflowDefinition()
+            safe_config.group_alias = config.group_alias
+            safe_config.is_left = config.is_left
+            for var in config.variables:
+                if var.access_mode > common_pb2.Variable.PRIVATE:
+                    safe_var = safe_config.variables.add()
+                    safe_var.CopyFrom(var)
+            for job_def in config.job_definitions:
+                job = safe_config.job_definitions.add()
+                job.CopyFrom(job_def)
+                job.variables.Clear()
+                for var in job_def.variables:
+                    if var.access_mode > common_pb2.Variable.PRIVATE:
+                        safe_var = job.variables.add()
+                        safe_var.CopyFrom(var)
+            return service_pb2.GetWorkflowResponse(
+                status=common_pb2.Status(
+                    code=common_pb2.STATUS_SUCCESS),
+                state=workflow.state.value,
+                forkable=workflow.forkable,
+                workflow_definition=config
+            )
 
 
 rpc_server = RpcServer()
