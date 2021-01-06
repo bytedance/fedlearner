@@ -13,16 +13,25 @@
 # limitations under the License.
 
 # coding: utf-8
-
+import enum
 import json
 import logging
 import secrets
 from http import HTTPStatus
+from typing import Dict
+
 from flask import Flask
 from flask_testing import TestCase
 from fedlearner_webconsole.app import create_app
 from fedlearner_webconsole.db import db
 from fedlearner_webconsole.auth.models import User
+
+
+class _HttpMethod(enum.Enum):
+    GET = 'GET'
+    POST = 'POST'
+    PUT = 'PUT'
+    PATCH = 'PATCH'
 
 
 class BaseTestCase(TestCase):
@@ -75,48 +84,40 @@ class BaseTestCase(TestCase):
     def signout_helper(self):
         self._token = None
 
-    def get_helper(self, url, use_auth=True):
+    def _get_headers(self, use_auth=True):
         headers = {}
         if use_auth and self._token:
-            headers['Authorization'] = 'Bearer %s'%self._token
+            headers['Authorization'] = f'Bearer {self._token}'
+        return headers
 
-        resp = self.client.get(
-            url, headers=headers)
-        
-        return resp
+    def get_helper(self, url, use_auth=True):
+        return self.client.get(
+            url, headers=self._get_headers(use_auth))
 
     def post_helper(self, url, data, use_auth=True):
-        headers = {}
-        if use_auth and self._token:
-            headers['Authorization'] = 'Bearer %s'%self._token
-
-        resp = self.client.post(
-            url, data=json.dumps(data),
+        return self.client.post(
+            url,
+            data=json.dumps(data),
             content_type='application/json',
-            headers=headers)
-        
-        return resp
+            headers=self._get_headers(use_auth))
 
     def put_helper(self, url, data, use_auth=True):
-        headers = {}
-        if use_auth and self._token:
-            headers['Authorization'] = 'Bearer %s'%self._token
-
-        resp = self.client.put(
-            url, data=json.dumps(data),
+        return self.client.put(
+            url,
+            data=json.dumps(data),
             content_type='application/json',
-            headers=headers)
-        
-        return resp
+            headers=self._get_headers(use_auth))
+
+    def patch_helper(self, url, data, use_auth=True):
+        return self.client.patch(
+            url,
+            data=json.dumps(data),
+            content_type='application/json',
+            headers=self._get_headers(use_auth))
 
     def delete_helper(self, url, use_auth=True):
-        headers = {}
-        if use_auth and self._token:
-            headers['Authorization'] = 'Bearer %s'%self._token
-
-        resp = self.client.delete(url, headers=headers)
-        
-        return resp
+        return self.client.delete(url,
+                                  headers=self._get_headers(use_auth))
 
 
 def create_test_db():

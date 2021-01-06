@@ -19,7 +19,9 @@ from http import HTTPStatus
 from pathlib import Path
 from unittest.mock import patch
 
-from fedlearner_webconsole.workflow.models import Workflow
+from fedlearner_webconsole.db import db
+from fedlearner_webconsole.proto.workflow_definition_pb2 import WorkflowDefinition
+from fedlearner_webconsole.workflow.models import Workflow, WorkflowState
 from testing.common import BaseTestCase
 
 
@@ -84,6 +86,74 @@ class WorkflowsApiTest(BaseTestCase):
     def test_fork_workflow(self):
         # TODO: insert into db first, and then copy it.
         pass
+
+
+class WorkflowApiTest(BaseTestCase):
+    @patch('fedlearner_webconsole.workflow.apis.scheduler.wakeup')
+    def test_patch_successfully(self, mock_wakeup):
+        workflow = Workflow(
+            name='test-workflow',
+            project_id=123,
+            config=WorkflowDefinition().SerializeToString(),
+            forkable=False,
+            state=WorkflowState.READY,
+        )
+        db.session.add(workflow)
+        db.session.commit()
+        db.session.refresh(workflow)
+
+        response = self.patch_helper(
+            f'/api/v2/workflows/{workflow.id}',
+            data={
+                'target_state': 'RUNNING'
+            })
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+        patched_data = json.loads(response.data).get('data')
+        self.assertEqual(patched_data['id'], workflow.id)
+        self.assertEqual(patched_data['state'], 'READY')
+        self.assertEqual(patched_data['target_state'], 'RUNNING')
+        # Checks DB
+        patched_workflow = Workflow.query.get(workflow.id)
+        self.assertEqual(patched_workflow.target_state, WorkflowState.RUNNING)
+        # Checks scheduler
+        mock_wakeup.assert_called_once_with(workflow.id)
+
+    @patch('fedlearner_webconsole.workflow.apis.scheduler.wakeup')
+    def test_patch_invalid_target_state(self, mock_wakeup):
+        workflow = Workflow(
+            name='test-workflow',
+            project_id=123,
+            config=WorkflowDefinition().SerializeToString(),
+            forkable=False,
+            state=WorkflowState.READY,
+            target_state=WorkflowState.RUNNING
+        )
+        db.session.add(workflow)
+        db.session.commit()
+        db.session.refresh(workflow)
+
+        response = self.patch_helper(
+            f'/api/v2/workflows/{workflow.id}',
+            data={
+                'target_state': 'READY'
+            })
+        self.assertEqual(response.status_code, HTTPStatus.BAD_REQUEST)
+        self.assertEqual(json.loads(response.data).get('details'),
+                         'Another transaction is in progress [1]')
+        # Checks DB
+        patched_workflow = Workflow.query.get(workflow.id)
+        self.assertEqual(patched_workflow.state, WorkflowState.READY)
+        self.assertEqual(patched_workflow.target_state, WorkflowState.RUNNING)
+        # Checks scheduler
+        mock_wakeup.assert_not_called()
+
+    def test_patch_not_found(self):
+        response = self.patch_helper(
+            '/api/v2/workflows/1',
+            data={
+                'target_state': 'RUNNING'
+            })
+        self.assertEqual(response.status_code, HTTPStatus.NOT_FOUND)
 
 
 if __name__ == '__main__':
