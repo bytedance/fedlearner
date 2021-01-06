@@ -15,7 +15,9 @@
 # coding: utf-8
 
 bind = ':1991'
-workers = 6
+workers = 1
+threads = 10
+worker_class = 'gthread'
 secure_scheme_headers = {
     'X-FORWARDED-PROTOCOL': 'https',
     'X-FORWARDED-PROTO': 'https',
