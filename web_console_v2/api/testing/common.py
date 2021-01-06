@@ -13,25 +13,16 @@
 # limitations under the License.
 
 # coding: utf-8
-import enum
 import json
 import logging
 import secrets
 from http import HTTPStatus
-from typing import Dict
 
 from flask import Flask
 from flask_testing import TestCase
 from fedlearner_webconsole.app import create_app
 from fedlearner_webconsole.db import db
 from fedlearner_webconsole.auth.models import User
-
-
-class _HttpMethod(enum.Enum):
-    GET = 'GET'
-    POST = 'POST'
-    PUT = 'PUT'
-    PATCH = 'PATCH'
 
 
 class BaseTestCase(TestCase):
