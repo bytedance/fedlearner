@@ -28,6 +28,7 @@ from fedlearner_webconsole.project.models import Project
 from fedlearner_webconsole.workflow.models import (
     Workflow, WorkflowState, TransactionState
 )
+from fedlearner_webconsole.job.models import Job
 from fedlearner_webconsole.exceptions import (
     UnauthorizedException
 )
@@ -60,6 +61,20 @@ class RPCServerServicer(service_pb2_grpc.WebConsoleV2ServiceServicer):
                     msg=repr(e)))
         except Exception as e:
             return service_pb2.UpdateWorkflowStateResponse(
+                status=common_pb2.Status(
+                    code=common_pb2.STATUS_UNKNOWN_ERROR,
+                    msg=repr(e)))
+
+    def GetJobs(self, request, context):
+        try:
+            return self._server.get_jobs(request)
+        except UnauthorizedException as e:
+            return service_pb2.GetJobsResponse(
+                status=common_pb2.Status(
+                    code=common_pb2.STATUS_UNAUTHORIZED,
+                    msg=repr(e)))
+        except Exception as e:
+            return service_pb2.GetJobsResponse(
                 status=common_pb2.Status(
                     code=common_pb2.STATUS_UNKNOWN_ERROR,
                     msg=repr(e)))
@@ -155,6 +170,24 @@ class RpcServer(object):
                     status=common_pb2.Status(
                         code=common_pb2.STATUS_SUCCESS),
                     transaction_state=workflow.transaction_state.value)
+    def get_jobs(self, request):
+        with self._app.app_context():
+            project, party = self.check_auth_info(request.auth_info)
+            logging.debug(
+                'received update_workflow_state from %s: %s',
+                party.domain_name, request)
+            workflow = Workflow.query.filter_by(
+                name=request.workflow_name,
+                project_id=project.id).first()
+            assert workflow is not None
+            jobs = [service_pb2.JobDetail(
+                job_name=job.name, job_status=job.status)
+                for job in Job.query.filter_by(workflow_id=workflow.id).all()]
+            return service_pb2.GetJobsResponse(
+                status=common_pb2.Status(code=common_pb2.STATUS_SUCCESS),
+                jobs=jobs)
+
+
 
 
 rpc_server = RpcServer()

@@ -17,7 +17,8 @@ import time
 from google.protobuf.json_format import MessageToDict
 from flask_restful import Resource, request
 from fedlearner_webconsole.job.models import Job, JobStatus
-from fedlearner_webconsole.workflow.models import Workflow, WorkflowState
+from fedlearner_webconsole.workflow.models import Workflow, \
+    WorkflowState, TransactionState
 from fedlearner_webconsole.job.es import es
 from fedlearner_webconsole.exceptions import NotFoundException, \
     InvalidArgumentException
@@ -77,6 +78,8 @@ class JobApi(Resource):
         workflow = Workflow.query.filter_by(id=job.workflow_id).first()
         if workflow is None or workflow.status != WorkflowState.RUNNING:
             raise InvalidArgumentException('workflow is not running')
+        if workflow.transaction_state != TransactionState.READY:
+            raise InvalidArgumentException('workflow is in transaction')
         # get federated jobs
         job_ids = job.get_all_successors()
         federated_job_names = []

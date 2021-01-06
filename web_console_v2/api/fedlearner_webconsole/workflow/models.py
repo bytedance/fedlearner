@@ -106,7 +106,6 @@ class Workflow(db.Model):
     transaction_state = db.Column(db.Enum(TransactionState),
                                   default=TransactionState.READY)
     transaction_err = db.Column(db.Text())
-    target_job = db.Column(db.String(255), default=None)
     created_at = db.Column(db.DateTime(timezone=True),
                            server_default=func.now())
     updated_at = db.Column(db.DateTime(timezone=True),
