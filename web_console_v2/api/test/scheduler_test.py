@@ -132,9 +132,9 @@ class WorkflowTest(BaseTestCase):
             resp = self.get_helper('/api/v2/workflows/%d'%workflow_id)
             if resp.status_code != HTTPStatus.OK:
                 continue
-            if resp.json['data']['state'] == state and \
-                    resp.json['data']['target_state'] == target_state and \
-                    resp.json['data']['transaction_state'] == transaction_state:
+            if resp.json['data']['self']['state'] == state and \
+                    resp.json['data']['self']['target_state'] == target_state and \
+                    resp.json['data']['self']['transaction_state'] == transaction_state:
                 return
  
  
