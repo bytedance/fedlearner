@@ -50,8 +50,7 @@ class WorkflowsApi(Resource):
         # workflow template
         parser.add_argument('config', type=dict, required=True,
                             help='config is empty')
-        parser.add_argument('forkable', type=bool, required=True,
-                            help='forkable is empty')
+        parser.add_argument('forkable', type=bool, default=False)
         parser.add_argument('forked_from', type=int, required=False,
                             help='forkable is empty')
         parser.add_argument('comment')
