@@ -89,6 +89,51 @@ class WorkflowsApiTest(BaseTestCase):
 
 
 class WorkflowApiTest(BaseTestCase):
+    def test_put_successfully(self):
+        workflow = Workflow(
+            name='test-workflow',
+            project_id=123,
+            state=WorkflowState.NEW,
+        )
+        db.session.add(workflow)
+        db.session.commit()
+        db.session.refresh(workflow)
+
+        response = self.put_helper(
+            f'/api/v2/workflows/{workflow.id}',
+            data={
+                'forkable': True,
+                'config': {'group_alias': 'test-template'},
+                'comment': 'test comment'
+            })
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+
+        updated_workflow = Workflow.query.get(workflow.id)
+        self.assertIsNotNone(updated_workflow.config)
+        self.assertTrue(updated_workflow.forkable)
+        self.assertEqual(updated_workflow.comment, 'test comment')
+        self.assertEqual(updated_workflow.target_state, WorkflowState.READY)
+
+    def test_put_resetting(self):
+        workflow = Workflow(
+            name='test-workflow',
+            project_id=123,
+            config=WorkflowDefinition(
+                group_alias='test-template').SerializeToString(),
+            state=WorkflowState.NEW,
+        )
+        db.session.add(workflow)
+        db.session.commit()
+        db.session.refresh(workflow)
+
+        response = self.put_helper(
+            f'/api/v2/workflows/{workflow.id}',
+            data={
+                'forkable': True,
+                'config': {'group_alias': 'test-template'},
+            })
+        self.assertEqual(response.status_code, HTTPStatus.CONFLICT)
+
     @patch('fedlearner_webconsole.workflow.apis.scheduler.wakeup')
     def test_patch_successfully(self, mock_wakeup):
         workflow = Workflow(

@@ -144,19 +144,15 @@ class Workflow(db.Model):
         assert asserted_state is None or self.state == asserted_state, \
             'Cannot change current state directly'
 
-        # No action needed if transaction state does not change
-        if transaction_state == self.transaction_state:
-            return self.transaction_state
-
-        if (self.transaction_state, transaction_state) in \
-            IGNORED_TRANSACTION_TRANSITIONS:
-            return self.transaction_state
-
-        assert (self.transaction_state, transaction_state) in \
-               VALID_TRANSACTION_TRANSITIONS, \
-            'Invalid transaction transition from {} to {}'.format(
-                self.transaction_state, transaction_state)
-        self.transaction_state = transaction_state
+        if transaction_state != self.transaction_state:
+            if (self.transaction_state, transaction_state) in \
+                    IGNORED_TRANSACTION_TRANSITIONS:
+                return self.transaction_state
+            assert (self.transaction_state, transaction_state) in \
+                   VALID_TRANSACTION_TRANSITIONS, \
+                'Invalid transaction transition from {} to {}'.format(
+                    self.transaction_state, transaction_state)
+            self.transaction_state = transaction_state
 
         # coordinator prepare & rollback
         if self.transaction_state == TransactionState.COORDINATOR_PREPARE:

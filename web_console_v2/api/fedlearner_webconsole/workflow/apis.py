@@ -94,10 +94,14 @@ class WorkflowApi(Resource):
         data = parser.parse_args()
 
         workflow = _get_workflow(workflow_id)
+        if workflow.config:
+            raise ResourceConflictException(
+                'Resetting workflow is not allowed')
+
         workflow.comment = data['comment']
         workflow.forkable = data['forkable']
         workflow.set_config(dict_to_workflow_definition(data['config']))
-        workflow.prepare(WorkflowState.READY)
+        workflow.update_target_state(WorkflowState.READY)
         db.session.commit()
         logging.info('update workflow %d target_state to %s',
                      workflow.id, workflow.target_state)
