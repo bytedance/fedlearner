@@ -23,6 +23,7 @@ from fedlearner_webconsole.k8s_client import get_client
 from fedlearner_webconsole.proto.workflow_definition_pb2 import \
     JobDependency, JobDefinition
 
+# must be consistent with JobState in proto
 class JobState(enum.Enum):
     UNSPECIFIED = 1
     READY = 2
@@ -96,6 +97,7 @@ class Job(db.Model):
         self.flapp_snapshot = json.dumps(flapp)
 
     def get_flapp(self):
+        # TODO: remove set_snapshot to scheduler
         if self.state == JobState.STARTED:
             self._set_snapshot_flapp()
         return json.loads(self.flapp_snapshot)
@@ -105,32 +107,8 @@ class Job(db.Model):
             self._set_snapshot_pods()
         return json.loads(self.pods_snapshot)
 
-    def get_all_successors(self):
-        jobs = self.workflow.jobs
-        result = []
-        for job in jobs:
-            for depend in job.get_config().dependencies:
-                if depend.source == self.get_config().name \
-                        and job.name not in result:
-                    result.append(job.name)
-                    result.extend(job.get_all_successors())
-        return result
 
-    def run(self):
-        if self.state != JobState.READY:
-            return
-        dependencies = self.get_config().dependencies
-        for dependency in dependencies:
-            job = Job.query.filter_by(name=dependency.source).first()
-            if job is None or job.state != JobState.STARTED:
-                return
-            if dependency.type == JobDependency.ON_COMPLETE:
-                if job.get_flapp()['status']['appState'] != 'FLStateComplete':
-                    return
-        self.state = JobState.STARTED
-        project_adapter = ProjectK8sAdapter(self.project_id)
-        self._k8s_client.create_flapp(project_adapter.
-                                      get_namespace(), self.yaml)
+
 
     def stop(self):
         project_adapter = ProjectK8sAdapter(self.project_id)

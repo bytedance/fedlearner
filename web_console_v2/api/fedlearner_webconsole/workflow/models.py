@@ -213,7 +213,7 @@ class Workflow(db.Model):
         assert self.transaction_state in [
             TransactionState.COORDINATOR_COMMITTING,
             TransactionState.PARTICIPANT_COMMITTING], \
-                "Workflow not in prepare state"
+                'Workflow not in prepare state'
 
         if self.target_state == WorkflowState.STOPPED:
             job_ids = [job.id for job in
@@ -225,13 +225,6 @@ class Workflow(db.Model):
                 db.session.commit()
         elif self.target_state == WorkflowState.READY:
             job_definitions = self.get_config().job_definitions
-            sucs = {}
-            for job_definition in job_definitions:
-                for dependency in job_definition.dependencies:
-                    if dependency.source not in sucs:
-                        sucs[dependency.source] = {}
-                    sucs[dependency.source][
-                        job_definition.name] = dependency.type
             for job_definition in job_definitions:
                 job = Job(name=f'{self.name}-{job_definition.name}',
                           job_type=job_definition.type,
