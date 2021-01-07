@@ -171,13 +171,12 @@ class RpcServer(object):
 
 
     def _filter_variables(self, variables):
-        delete_list = []
+        result = []
         for var in variables:
             if var.access_mode in [common_pb2.Variable.PEER_READABLE,
                                    common_pb2.Variable.PEER_WRITABLE]:
-                delete_list.append(var)
-        for var in delete_list:
-            variables.remove(var)
+                result.append(var)
+        return result
 
     def get_workflow(self, request):
         with self._app.app_context():
@@ -188,11 +187,11 @@ class RpcServer(object):
             assert workflow is not None
             config = workflow.get_config()
             # filter peer-readable and peer-writable variables
-            self._filter_variables(config.variables)
+            config.variable[:] = self._filter_variables(config.variables)
             for job_def in config.job_definitions:
                 job = config.job_definitions.add()
                 job.CopyFrom(job_def)
-                self._filter_variables(job.variables)
+                job.variables[:] = self._filter_variables(job.variables)
             return service_pb2.GetWorkflowResponse(
                 status=common_pb2.Status(
                     code=common_pb2.STATUS_SUCCESS),
