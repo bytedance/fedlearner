@@ -144,6 +144,4 @@ class Job(db.Model):
 
     def set_yaml(self, yaml_template):
         project_adapter = ProjectK8sAdapter(self.project_id)
-        yaml = merge(yaml_template,
-                     project_adapter.get_global_job_spec())
         # TODO: complete yaml
