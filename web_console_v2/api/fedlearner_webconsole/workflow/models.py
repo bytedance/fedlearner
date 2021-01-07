@@ -21,7 +21,6 @@ import enum
 from sqlalchemy.sql import func
 from fedlearner_webconsole.db import db, to_dict_mixin
 from fedlearner_webconsole.proto import workflow_definition_pb2
-from fedlearner_webconsole.proto import job_pb2
 from fedlearner_webconsole.project.models import Project
 from fedlearner_webconsole.job.models import Job, JobState
 from fedlearner_webconsole.scheduler.job_scheduler import job_scheduler
@@ -242,17 +241,6 @@ class Workflow(db.Model):
                           config=job_definition.SerializeToString(),
                           workflow_id=self.id,
                           project_id=self.project_id)
-                context = job_pb2.Context()
-                for dependency in job_definition.dependencies:
-                    depend = context.dependencies.add()
-                    depend.source = f'{dependency.source}-{self.name}'
-                    depend.type = dependency.type
-                if job_definition.name in sucs:
-                    for suc in sucs[job_definition.name]:
-                        successor = context.successors.add()
-                        successor.source = f'{suc}-{self.name}'
-                        successor.type = sucs[job_definition.name][suc]
-                job.context = context.SerializeToString()
                 job.set_yaml(job_definition.yaml_template)
                 db.session.add(job)
         elif self.target_state == WorkflowState.RUNNING:
