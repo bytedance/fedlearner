@@ -16,9 +16,8 @@
 import time
 from google.protobuf.json_format import MessageToDict
 from flask_restful import Resource, request
-from fedlearner_webconsole.job.models import Job, JobState
-from fedlearner_webconsole.workflow.models import Workflow, \
-    WorkflowState, TransactionState
+from fedlearner_webconsole.job.models import Job
+from fedlearner_webconsole.workflow.models import Workflow
 from fedlearner_webconsole.job.es import es
 from fedlearner_webconsole.exceptions import NotFoundException, \
     InvalidArgumentException
@@ -45,8 +44,8 @@ class JobsApi(Resource):
                             including_default_value_fields=True)
             return {'data': {'self': [row.to_dict() for row in workflow.jobs],
                              'peers': peer_jobs}}
-        else:
-            return {'data': {'self': [row.to_dict() for row in workflow.jobs]}}
+
+        return {'data': {'self': [row.to_dict() for row in workflow.jobs]}}
 
 
 class JobApi(Resource):
