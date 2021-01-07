@@ -22,7 +22,7 @@ from concurrent import futures
 import grpc
 from fedlearner_webconsole.proto import (
     service_pb2, service_pb2_grpc,
-    common_pb2, workflow_definition_pb2
+    common_pb2
 )
 from fedlearner_webconsole.db import db
 from fedlearner_webconsole.project.models import Project
@@ -170,12 +170,14 @@ class RpcServer(object):
                     transaction_state=workflow.transaction_state.value)
 
 
-    def _filter_variables(self, variables, target_variables):
+    def _filter_variables(self, variables):
+        delete_list = []
         for var in variables:
             if var.access_mode in [common_pb2.Variable.PEER_READABLE,
                                    common_pb2.Variable.PEER_WRITABLE]:
-                safe_var = target_variables.add()
-                safe_var.CopyFrom(var)
+                delete_list.append(var)
+        for var in delete_list:
+            variables.remove(var)
 
     def get_workflow(self, request):
         with self._app.app_context():
@@ -186,15 +188,11 @@ class RpcServer(object):
             assert workflow is not None
             config = workflow.get_config()
             # filter peer-readable and peer-writable variables
-            safe_config = workflow_definition_pb2.WorkflowDefinition()
-            safe_config.group_alias = config.group_alias
-            safe_config.is_left = config.is_left
-            self._filter_variables(config.variables, safe_config.variables)
+            self._filter_variables(config.variables)
             for job_def in config.job_definitions:
-                job = safe_config.job_definitions.add()
+                job = config.job_definitions.add()
                 job.CopyFrom(job_def)
-                job.variables.Clear()
-                self._filter_variables(job_def.variables, job.variables)
+                self._filter_variables(job.variables)
             return service_pb2.GetWorkflowResponse(
                 status=common_pb2.Status(
                     code=common_pb2.STATUS_SUCCESS),
