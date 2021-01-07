@@ -136,7 +136,6 @@ class RpcServer(object):
             return service_pb2.CheckConnectionResponse(
                 status=common_pb2.Status(
                     code=common_pb2.STATUS_SUCCESS))
-
     def update_workflow_state(self, request):
         with self._app.app_context():
             project, party = self.check_auth_info(request.auth_info)
@@ -169,12 +168,18 @@ class RpcServer(object):
                     status=common_pb2.Status(
                         code=common_pb2.STATUS_SUCCESS),
                     transaction_state=workflow.transaction_state.value)
+
+
+    def _filter_variables(self, variables, target_variables):
+        for var in variables:
+            if var.access_mode in [common_pb2.Variable.PEER_READABLE,
+                                   common_pb2.Variable.PEER_WRITABLE]:
+                safe_var = target_variables.add()
+                safe_var.CopyFrom(var)
+
     def get_workflow(self, request):
         with self._app.app_context():
             project, party = self.check_auth_info(request.auth_info)
-            logging.debug(
-                'received update_workflow_state from %s: %s',
-                party.domain_name, request)
             workflow = Workflow.query.filter_by(
                 name=request.workflow_name,
                 project_id=project.id).first()
@@ -184,18 +189,12 @@ class RpcServer(object):
             safe_config = workflow_definition_pb2.WorkflowDefinition()
             safe_config.group_alias = config.group_alias
             safe_config.is_left = config.is_left
-            for var in config.variables:
-                if var.access_mode > common_pb2.Variable.PRIVATE:
-                    safe_var = safe_config.variables.add()
-                    safe_var.CopyFrom(var)
+            self._filter_variables(config.variables, safe_config.variables)
             for job_def in config.job_definitions:
                 job = safe_config.job_definitions.add()
                 job.CopyFrom(job_def)
                 job.variables.Clear()
-                for var in job_def.variables:
-                    if var.access_mode > common_pb2.Variable.PRIVATE:
-                        safe_var = job.variables.add()
-                        safe_var.CopyFrom(var)
+                self._filter_variables(job_def.variables, job.variables)
             return service_pb2.GetWorkflowResponse(
                 status=common_pb2.Status(
                     code=common_pb2.STATUS_SUCCESS),

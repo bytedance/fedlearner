@@ -103,12 +103,12 @@ class RpcClient(object):
             response = self._client.GetWorkflow(
                 request=msg, metadata=self._get_metadata())
             if response.status.code != common_pb2.STATUS_SUCCESS:
-                logging.debug(
+                logging.error(
                     'get_workflow request error: %s',
                     response.status.msg)
             return response
         except Exception as e:
-            logging.debug('get_workflow request error: %s', repr(e))
+            logging.error('get_workflow request error: %s', repr(e))
             return service_pb2.GetWorkflowResponse(
                 status=common_pb2.Status(
                     code=common_pb2.STATUS_UNKNOWN_ERROR,
