@@ -16,12 +16,17 @@
 
 set -e
 
-export FLASK_APP=manage:app
-export FLASK_ENV=development
+if ! type coverage &> /dev/null ; then
+  echo "coverage is not found, please install it by \`pip3 install coverage\`"
+  exit 1
+fi
 
-# Migrates DB schemas
-flask db upgrade
-# Loads initial data
-flask create-db
-# Runs flask
-flask run --port=1991 --host=0.0.0.0
+# Removes old coverage data
+coverage erase
+for file in $(find test -type f); do
+  if [[ $file =~ .*_test\.py$ ]]; then
+    coverage run "$file"
+  fi
+done
+coverage combine
+coverage html
