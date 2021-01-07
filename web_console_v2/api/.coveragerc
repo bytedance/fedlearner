@@ -1,0 +1,11 @@
+[run]
+concurrency = multiprocessing
+include = fedlearner_webconsole/*
+omit = fedlearner_webconsole/proto/*
+data_file = .coverage
+
+[report]
+show_missing = True
+
+[html]
+directory = .coverage_html_report

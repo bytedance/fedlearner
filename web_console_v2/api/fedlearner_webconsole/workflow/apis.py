@@ -25,7 +25,7 @@ from fedlearner_webconsole.workflow_template.apis import \
     dict_to_workflow_definition
 from fedlearner_webconsole.db import db
 from fedlearner_webconsole.exceptions import (
-    NotFoundException, ResourceConflictException)
+    NotFoundException, ResourceConflictException, InvalidArgumentException)
 from fedlearner_webconsole.scheduler.scheduler import scheduler
 
 
@@ -94,10 +94,14 @@ class WorkflowApi(Resource):
         data = parser.parse_args()
 
         workflow = _get_workflow(workflow_id)
+        if workflow.config:
+            raise ResourceConflictException(
+                'Resetting workflow is not allowed')
+
         workflow.comment = data['comment']
         workflow.forkable = data['forkable']
         workflow.set_config(dict_to_workflow_definition(data['config']))
-        workflow.prepare(WorkflowState.READY)
+        workflow.update_target_state(WorkflowState.READY)
         db.session.commit()
         logging.info('update workflow %d target_state to %s',
                      workflow.id, workflow.target_state)
@@ -110,11 +114,14 @@ class WorkflowApi(Resource):
         target_state = parser.parse_args()['target_state']
 
         workflow = _get_workflow(workflow_id)
-        workflow.update_state(None, WorkflowState[target_state],
-                              TransactionState.COORDINATOR_PREPARE)
-        db.session.commit()
-        logging.info('update workflow %d target_state to %s',
-                     workflow.id, workflow.target_state)
+        try:
+            workflow.update_target_state(WorkflowState[target_state])
+            db.session.commit()
+            logging.info('updated workflow %d target_state to %s',
+                         workflow.id, workflow.target_state)
+            scheduler.wakeup(workflow.id)
+        except ValueError as e:
+            raise InvalidArgumentException(details=str(e)) from e
         return {'data': workflow.to_dict()}, HTTPStatus.OK
 
 

@@ -127,24 +127,33 @@ class Workflow(db.Model):
             return proto
         return None
 
+    def update_target_state(self, target_state):
+        if self.target_state != target_state \
+                and self.target_state != WorkflowState.INVALID:
+            raise ValueError(f'Another transaction is in progress [{self.id}]')
+        if target_state not in [WorkflowState.READY,
+                                WorkflowState.RUNNING,
+                                WorkflowState.STOPPED]:
+            raise ValueError(
+                f'Invalid target_state {self.target_state}')
+        if (self.state, target_state) not in VALID_TRANSITIONS:
+            raise ValueError(
+                f'Invalid transition from {self.state} to {target_state}')
+        self.target_state = target_state
+
     def update_state(self, asserted_state, target_state, transaction_state):
         assert asserted_state is None or self.state == asserted_state, \
             'Cannot change current state directly'
 
-        # No action needed if transaction state does not change
-        if transaction_state is None or \
-            transaction_state == self.transaction_state:
-            return self.transaction_state
-
-        if (self.transaction_state, transaction_state) in \
-            IGNORED_TRANSACTION_TRANSITIONS:
-            return self.transaction_state
-
-        assert (self.transaction_state, transaction_state) in \
-               VALID_TRANSACTION_TRANSITIONS, \
-            'Invalid transaction transition from {} to {}'.format(
-                self.transaction_state, transaction_state)
-        self.transaction_state = transaction_state
+        if transaction_state != self.transaction_state:
+            if (self.transaction_state, transaction_state) in \
+                    IGNORED_TRANSACTION_TRANSITIONS:
+                return self.transaction_state
+            assert (self.transaction_state, transaction_state) in \
+                   VALID_TRANSACTION_TRANSITIONS, \
+                'Invalid transaction transition from {} to {}'.format(
+                    self.transaction_state, transaction_state)
+            self.transaction_state = transaction_state
 
         # coordinator prepare & rollback
         if self.transaction_state == TransactionState.COORDINATOR_PREPARE:
@@ -175,28 +184,16 @@ class Workflow(db.Model):
             return
 
         # Validation
-        valid = True
-        if self.target_state != target_state \
-                and self.target_state != WorkflowState.INVALID:
-            valid = False
-            logging.warning('Another transaction is in progress [%s]', self.id)
-        if target_state not in [WorkflowState.READY,
-                                WorkflowState.RUNNING,
-                                WorkflowState.STOPPED]:
-            valid = False
-            logging.warning('Invalid target_state in prepare %s',
-                            self.target_state)
-        if (self.state, target_state) not in VALID_TRANSITIONS:
-            valid = False
-            logging.warning('Invalid transition from %s to %s', self.state,
-                            target_state)
-        if not valid:
+        try:
+            self.update_target_state(target_state)
+        except ValueError as e:
+            logging.warning(
+                'Error during update target state in prepare: %s', str(e))
             self.transaction_state = TransactionState.ABORTED
             return
 
-        self.target_state = target_state
         success = True
-        if target_state == WorkflowState.READY:
+        if self.target_state == WorkflowState.READY:
             # This is a hack, if config is not set then
             # no action needed
             # TODO(tjulinfan): validate if the config is legal or not

@@ -1,3 +1,5 @@
+#!/bin/bash
+#
 # Copyright 2020 The FedLearner Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,14 +14,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# coding: utf-8
+set -e
 
-bind = ':1991'
-workers = 1
-threads = 10
-worker_class = 'gthread'
-secure_scheme_headers = {
-    'X-FORWARDED-PROTOCOL': 'https',
-    'X-FORWARDED-PROTO': 'https',
-    'X-FORWARDED-SSL': 'on'
-}
+if ! type coverage &> /dev/null ; then
+  echo "coverage is not found, please install it by \`pip3 install coverage\`"
+  exit 1
+fi
+
+# Removes old coverage data
+coverage erase
+for file in $(find test -type f); do
+  if [[ $file =~ .*_test\.py$ ]]; then
+    coverage run "$file"
+  fi
+done
+coverage combine
+coverage html
