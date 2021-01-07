@@ -64,7 +64,38 @@ class WorkflowTemplatesApiTest(BaseTestCase):
         self.assertEqual(len(data), 2)
 
     def test_post_without_required_arguments(self):
-        pass
+        response = self.post_helper(
+            '/api/v2/workflow_templates',
+            data={})
+        self.assertEqual(response.status_code, HTTPStatus.BAD_REQUEST)
+        self.assertEqual(json.loads(response.data).get('details'),
+                         {'name': 'name is empty'})
+
+        response = self.post_helper(
+            '/api/v2/workflow_templates',
+            data={
+                'name': 'test',
+                'comment': 'test-comment',
+                'config': {
+                    'is_left': True
+                }
+            })
+        self.assertEqual(response.status_code, HTTPStatus.BAD_REQUEST)
+        self.assertEqual(json.loads(response.data).get('details'),
+                         {'config.group_alias': 'config.group_alias is required'})
+
+        response = self.post_helper(
+            '/api/v2/workflow_templates',
+            data={
+                'name': 'test',
+                'comment': 'test-comment',
+                'config': {
+                    'group_alias': 'g222',
+                }
+            })
+        self.assertEqual(response.status_code, HTTPStatus.BAD_REQUEST)
+        self.assertEqual(json.loads(response.data).get('details'),
+                         {'config.is_left': 'config.is_left is required'})
 
     def test_post_successfully(self):
         template_name = 'test-nb-template'

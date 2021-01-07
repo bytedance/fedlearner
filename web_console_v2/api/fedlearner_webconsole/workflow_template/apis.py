@@ -56,11 +56,11 @@ class WorkflowTemplatesApi(Resource):
         config = data['config']
 
         if 'group_alias' not in config:
-            raise InvalidArgumentException(
-                details=['config.group_alias is required'])
+            raise InvalidArgumentException(details={
+                'config.group_alias': 'config.group_alias is required'})
         if 'is_left' not in config:
             raise InvalidArgumentException(
-                details=['config.is_left is required'])
+                details={'config.is_left': 'config.is_left is required'})
 
         if WorkflowTemplate.query.filter_by(name=name).first() is not None:
             raise ResourceConflictException(
