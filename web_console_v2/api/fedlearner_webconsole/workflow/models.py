@@ -23,7 +23,7 @@ from fedlearner_webconsole.db import db, to_dict_mixin
 from fedlearner_webconsole.proto import workflow_definition_pb2
 from fedlearner_webconsole.proto import job_pb2
 from fedlearner_webconsole.project.models import Project
-from fedlearner_webconsole.job.models import Job, JobStatus
+from fedlearner_webconsole.job.models import Job, JobState
 from fedlearner_webconsole.scheduler.job_scheduler import job_scheduler
 class WorkflowState(enum.Enum):
     INVALID = 0
@@ -111,7 +111,7 @@ class Workflow(db.Model):
     updated_at = db.Column(db.DateTime(timezone=True),
                            server_onupdate=func.now(),
                            server_default=func.now())
-
+    jobs = db.relationship('Job', back_populates='workflow')
     project = db.relationship(Project)
 
     def set_config(self, proto):
@@ -226,6 +226,7 @@ class Workflow(db.Model):
             for job_id in job_ids:
                 job = Job.query.filter_by(id=job_id).first()
                 job.stop()
+                db.session.commit()
         elif self.target_state == WorkflowState.READY:
             job_definitions = self.get_config().job_definitions
             sucs = {}
@@ -259,8 +260,8 @@ class Workflow(db.Model):
                        Job.query.filter_by(workflow_id=self.id).all()]
             for job_id in job_ids:
                 job = Job.query.filter_by(id=job_id).first()
-                if job.status != JobStatus.STARTED:
-                    job.status = JobStatus.READY
+                if job.state != JobState.STARTED:
+                    job.state = JobState.READY
             db.session.commit()
             job_scheduler.wakeup(job_ids)
 

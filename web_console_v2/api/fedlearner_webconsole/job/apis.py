@@ -16,7 +16,7 @@
 import time
 from google.protobuf.json_format import MessageToDict
 from flask_restful import Resource, request
-from fedlearner_webconsole.job.models import Job, JobStatus
+from fedlearner_webconsole.job.models import Job, JobState
 from fedlearner_webconsole.workflow.models import Workflow, \
     WorkflowState, TransactionState
 from fedlearner_webconsole.job.es import es
@@ -50,8 +50,8 @@ class JobApi(Resource):
         all_successors = job.get_all_successors()
         for suc in all_successors:
             suc_job = Job.query.filter_by(id=suc).first()
-            if suc_job and suc_job.status != JobStatus.STARTED:
-                suc_job.status = JobStatus.READY
+            if suc_job and suc_job.state != JobState.STARTED:
+                suc_job.state = JobState.READY
         db.session.commit()
         job_scheduler.wakeup(all_successors)
 
@@ -62,6 +62,7 @@ class JobApi(Resource):
             suc = Job.query.filter_by(id=suc).first()
             if suc is not None:
                 suc.stop()
+                db.session.commit()
 
     def get(self, job_id):
         job = Job.query.filter_by(job=job_id).first()
@@ -69,6 +70,7 @@ class JobApi(Resource):
             raise NotFoundException()
         return {'data': job.to_dict()}
 
+    # TODO: A future feature in process
     def patch(self, job_id):
         if 'option' not in request.args:
             raise InvalidArgumentException('option is required')

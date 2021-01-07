@@ -181,7 +181,7 @@ class RpcServer(object):
                 project_id=project.id).first()
             assert workflow is not None
             jobs = [service_pb2.JobDetail(
-                job_name=job.name, job_status=job.status)
+                job_name=job.name, job_state=job.state)
                 for job in Job.query.filter_by(workflow_id=workflow.id).all()]
             return service_pb2.GetJobsResponse(
                 status=common_pb2.Status(code=common_pb2.STATUS_SUCCESS),

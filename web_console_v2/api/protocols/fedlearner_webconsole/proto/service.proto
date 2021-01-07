@@ -27,7 +27,7 @@ message ProjAuthInfo {
     string auth_token = 4;
 }
 message JobDetail{
-    enum JobStatus {
+    enum JobState {
         UNSPECIFIED = 0;
         READY = 1;
         STARTED = 2;
@@ -35,7 +35,7 @@ message JobDetail{
 
     }
     string job_name = 1;
-    JobStatus job_status = 2;
+    JobState job_state = 2;
 }
 
 message CheckConnectionRequest {

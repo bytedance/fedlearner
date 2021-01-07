@@ -20,15 +20,14 @@ from fedlearner_webconsole.db import db, to_dict_mixin
 from fedlearner_webconsole.project.adapter import ProjectK8sAdapter
 from fedlearner_webconsole.project.models import Project
 from fedlearner_webconsole.k8s_client import get_client
-from fedlearner_webconsole.proto.job_pb2 import Context
 from fedlearner_webconsole.proto.workflow_definition_pb2 import \
     JobDependency, JobDefinition
 
-class JobStatus(enum.Enum):
-    UNSPECIFIED = 'UNSPECIFIED'
-    READY = 'READY'
-    STARTED = 'STARTED'
-    STOPPED = 'STOPPED'
+class JobState(enum.Enum):
+    UNSPECIFIED = 1
+    READY = 2
+    STARTED = 3
+    STOPPED = 4
 
 
 class JobType(enum.Enum):
@@ -57,16 +56,14 @@ class Job(db.Model):
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     name = db.Column(db.String(255), unique=True)
     job_type = db.Column(db.Enum(JobType), nullable=False)
-    status = db.Column(db.Enum(JobStatus), nullable=False,
-                       default=JobStatus.UNSPECIFIED)
+    state = db.Column(db.Enum(JobState), nullable=False,
+                      default=JobState.UNSPECIFIED)
     yaml = db.Column(db.Text(), nullable=False)
     config = db.Column(db.Text(), nullable=False)
-    workflow_id = db.Column(db.Integer,
+    workflow_id = db.Column(db.Integer, db.ForeignKey('workflow_v2.id'),
                             nullable=False, index=True)
     project_id = db.Column(db.Integer, db.ForeignKey(Project.id),
                            nullable=False)
-    # dependencies and successors in proto form
-    context = db.Column(db.Text())
     flapp_snapshot = db.Column(db.Text())
     pods_snapshot = db.Column(db.Text())
     created_at = db.Column(db.DateTime(timezone=True),
@@ -76,19 +73,13 @@ class Job(db.Model):
                            server_onupdate=func.now())
     deleted_at = db.Column(db.DateTime(timezone=True))
     project = db.relationship(Project)
+    workflow = db.relationship('Workflow')
     _k8s_client = get_client()
 
     def get_config(self):
         if self.config is not None:
             proto = JobDefinition()
             proto.ParseFromString(self.config)
-            return proto
-        return None
-
-    def get_context(self):
-        if self.context is not None:
-            proto = Context()
-            proto.ParseFromString(self.context)
             return proto
         return None
 
@@ -105,52 +96,50 @@ class Job(db.Model):
         self.flapp_snapshot = json.dumps(flapp)
 
     def get_flapp(self):
-        if self.status == JobStatus.STARTED:
+        if self.state == JobState.STARTED:
             self._set_snapshot_flapp()
         return json.loads(self.flapp_snapshot)
 
     def get_pods(self):
-        if self.status == JobStatus.STARTED:
+        if self.state == JobState.STARTED:
             self._set_snapshot_pods()
         return json.loads(self.pods_snapshot)
 
     def get_all_successors(self):
-        result = [self.id]
-        context = self.get_context()
-        successors = context.successors
-        for successor in successors:
-            suc = Job.query.filter_by(name=successor.source).first()
-            if suc is not None:
-                result.append(suc.get_all_successors())
+        jobs = self.workflow.jobs
+        result = []
+        for job in jobs:
+            for depend in job.get_config().dependencies:
+                if depend.source == self.get_config().name \
+                        and job.name not in result:
+                    result.append(job.name)
+                    result.extend(job.get_all_successors())
         return result
 
     def run(self):
-        if self.status != JobStatus.READY:
+        if self.state != JobState.READY:
             return
-        context = self.get_context()
-        dependencies = context.dependencies
+        dependencies = self.get_config().dependencies
         for dependency in dependencies:
             job = Job.query.filter_by(name=dependency.source).first()
-            if job is None or job.status != JobStatus.STARTED:
+            if job is None or job.state != JobState.STARTED:
                 return
             if dependency.type == JobDependency.ON_COMPLETE:
                 if job.get_flapp()['status']['appState'] != 'FLStateComplete':
                     return
-        self.status = JobStatus.STARTED
+        self.state = JobState.STARTED
         project_adapter = ProjectK8sAdapter(self.project_id)
         self._k8s_client.create_flapp(project_adapter.
                                       get_namespace(), self.yaml)
-        db.session.commit()
 
     def stop(self):
         project_adapter = ProjectK8sAdapter(self.project_id)
-        if self.status == JobStatus.STARTED:
+        if self.state == JobState.STARTED:
             self._set_snapshot_flapp()
             self._set_snapshot_pods()
             self._k8s_client.deleteFLApp(project_adapter.
                                          get_namespace(), self.name)
-        self.status = JobStatus.STOPPED
-        db.session.commit()
+        self.state = JobState.STOPPED
 
 
     def set_yaml(self, yaml_template):

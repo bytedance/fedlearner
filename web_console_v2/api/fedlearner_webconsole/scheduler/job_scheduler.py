@@ -16,6 +16,7 @@
 import threading
 import logging
 from fedlearner_webconsole.job.models import Job
+from fedlearner_webconsole.db import db
 
 
 class JobScheduler(object):
@@ -73,7 +74,7 @@ class JobScheduler(object):
         # TODO: separate the scheduler to a new process to remove this.
         # time.sleep(10)
         # self._pending = [job.id for job in
-        #                  Job.query.filter_by(status=JobStatus.READY)]
+        #                  Job.query.filter_by(status=JobState.READY)]
         while True:
             with self._condition:
                 self._condition.wait(60)
@@ -84,6 +85,7 @@ class JobScheduler(object):
                     job = Job.query.filter_by(id=job_id).first()
                     if job is not None:
                         job.run()
+                        db.session.commit()
 
 
 job_scheduler = JobScheduler()
