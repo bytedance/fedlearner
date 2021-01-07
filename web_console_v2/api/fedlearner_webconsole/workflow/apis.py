@@ -17,7 +17,7 @@
 
 import logging
 from http import HTTPStatus
-from flask_restful import Resource, reqparse
+from flask_restful import Resource, reqparse, request
 from google.protobuf.json_format import MessageToDict
 from fedlearner_webconsole.workflow.models import (
     Workflow, WorkflowState, TransactionState
@@ -81,16 +81,18 @@ class WorkflowsApi(Resource):
 
 class WorkflowApi(Resource):
     def get(self, workflow_id):
+        # TODO: get jobs details
         workflow = _get_workflow(workflow_id)
         project_config = workflow.project.get_config()
         peer_workflows = {}
-        for party in project_config.participants:
-            client = RpcClient(project_config, party)
-            resp = client.get_workflow(workflow.name)
-            peer_workflows[party.name] = MessageToDict(
-                resp,
-                preserving_proto_field_name=True,
-                including_default_value_fields=True)
+        if 'peer_workflow' in request.args:
+            for party in project_config.participants:
+                client = RpcClient(project_config, party)
+                resp = client.get_workflow(workflow.name)
+                peer_workflows[party.name] = MessageToDict(
+                    resp,
+                    preserving_proto_field_name=True,
+                    including_default_value_fields=True)
         return {'data': {'self': workflow.to_dict(),
                          'peers': peer_workflows}}, HTTPStatus.OK
 
