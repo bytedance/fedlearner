@@ -24,4 +24,4 @@ flask db upgrade
 # Loads initial data
 flask create-db
 # Runs flask
-flask run --port=1991
+flask run --port=1991 --host=0.0.0.0

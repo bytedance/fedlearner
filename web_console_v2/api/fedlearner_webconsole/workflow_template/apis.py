@@ -64,7 +64,7 @@ def dict_to_workflow_definition(config):
                                    workflow_definition_pb2.WorkflowDefinition())
         return template_proto
     except ParseError as e:
-        raise InvalidArgumentException('Invalid workflow_template') from e
+        raise InvalidArgumentException(details=str(e)) from e
 
 
 class WorkflowTemplatesApi(Resource):
