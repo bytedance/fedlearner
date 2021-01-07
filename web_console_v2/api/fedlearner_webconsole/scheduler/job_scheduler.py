@@ -15,9 +15,11 @@
 # coding: utf-8
 import threading
 import logging
-from fedlearner_webconsole.job.models import Job
+from fedlearner_webconsole.job.models import Job, JobState
 from fedlearner_webconsole.db import db
-
+from fedlearner_webconsole.project.adapter import ProjectK8sAdapter
+from fedlearner_webconsole.proto.workflow_definition_pb2 import JobDependency
+from fedlearner_webconsole.k8s_client import get_client
 
 class JobScheduler(object):
     def __init__(self):
@@ -69,6 +71,23 @@ class JobScheduler(object):
                 if job_id in self._pending:
                     self._pending.remove(job_id)
 
+    def _run(self, job):
+        if job.state != JobState.READY:
+            return
+        dependencies = job.get_config().dependencies
+        for dependency in dependencies:
+            depend = Job.query.filter_by(name=dependency.source).first()
+            if depend is None or depend.state != JobState.STARTED:
+                return
+            if dependency.type == JobDependency.ON_COMPLETE:
+                if depend.get_flapp()['status']['appState'] != 'FLStateComplete':
+                    return
+        job.state = JobState.STARTED
+        project_adapter = ProjectK8sAdapter(job.project_id)
+        k8s_client = get_client()
+        k8s_client.create_flapp(project_adapter.
+                                get_namespace(), job.yaml)
+
     def _routine(self):
         self._app.app_context().push()
         # TODO: separate the scheduler to a new process to remove this.
@@ -84,7 +103,7 @@ class JobScheduler(object):
                 for job_id in job_ids:
                     job = Job.query.filter_by(id=job_id).first()
                     if job is not None:
-                        job.run()
+                        self._run(job)
                         db.session.commit()
 
 

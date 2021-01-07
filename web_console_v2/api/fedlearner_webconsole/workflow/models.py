@@ -216,11 +216,9 @@ class Workflow(db.Model):
                 'Workflow not in prepare state'
 
         if self.target_state == WorkflowState.STOPPED:
-            job_ids = [job.id for job in
-                       Job.query.filter_by(workflow_id=self.id).all()]
+            job_ids = [job.id for job in self.jobs]
             job_scheduler.sleep(job_ids)
-            for job_id in job_ids:
-                job = Job.query.filter_by(id=job_id).first()
+            for job in self.jobs:
                 job.stop()
                 db.session.commit()
         elif self.target_state == WorkflowState.READY:
@@ -234,10 +232,8 @@ class Workflow(db.Model):
                 job.set_yaml(job_definition.yaml_template)
                 db.session.add(job)
         elif self.target_state == WorkflowState.RUNNING:
-            job_ids = [job.id for job in
-                       Job.query.filter_by(workflow_id=self.id).all()]
-            for job_id in job_ids:
-                job = Job.query.filter_by(id=job_id).first()
+            job_ids = [job.id for job in self.jobs]
+            for job in self.jobs:
                 if job.state != JobState.STARTED:
                     job.state = JobState.READY
             db.session.commit()

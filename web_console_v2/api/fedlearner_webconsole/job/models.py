@@ -20,8 +20,7 @@ from fedlearner_webconsole.db import db, to_dict_mixin
 from fedlearner_webconsole.project.adapter import ProjectK8sAdapter
 from fedlearner_webconsole.project.models import Project
 from fedlearner_webconsole.k8s_client import get_client
-from fedlearner_webconsole.proto.workflow_definition_pb2 import \
-    JobDependency, JobDefinition
+from fedlearner_webconsole.proto.workflow_definition_pb2 import JobDefinition
 
 # must be consistent with JobState in proto
 class JobState(enum.Enum):
