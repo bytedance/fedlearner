@@ -1,4 +1,4 @@
-name: Release Web Console
+name: Release Web Console V2
 
 on: [push]
 
@@ -12,8 +12,9 @@ jobs:
       run: echo "::set-output name=sha_short::$(git rev-parse --short HEAD)"
     - uses: whoan/docker-build-with-cache-action@v5
       with:
-        context: ./web_console
-        image_name: fedlearner/fedlearner-web-console
+        context: ./web_console_v2
+        dockerfile: "$context"/Dockerfile
+        image_name: fedlearner/fedlearner-web-console-v2
         image_tag: ${{ steps.vars.outputs.sha_short }}
         username: fedlearner
         password: "${{ secrets.DOCKER_REGISTRY }}"
