@@ -71,19 +71,19 @@ class DefaultFileManager(FileManagerBase):
         if recursive:
             for root, dirs, fs in os.walk(path):
                 for file in fs:
-                    if Path(file).is_file():
+                    if Path(os.path.join(root, file)).is_file():
                         files.append({
                             'path': os.path.join(root, file),
-                            'size': os.path.getsize(os.path.join(path, file))
+                            'size': os.path.getsize(os.path.join(root, file))
                         })
         else:
-            files = [
-                {
-                    'path': os.path.join(path, file),
-                    'size': os.path.getsize(os.path.join(path, file))
-                }
-                for file in os.listdir(path)
-            ]
+            for file in os.listdir(path):
+                if Path(os.path.join(path, file)).is_file():
+                    files.append(
+                        {
+                            'path': os.path.join(path, file),
+                            'size': os.path.getsize(os.path.join(path, file))
+                        })
         # Files only
         return files
 
@@ -139,8 +139,7 @@ class HdfsFileManager(FileManagerBase):
             if file['file_type'] == 'f':
                 files.append({
                     'path': file['path'],
-                    # snakebite return a string like `1024L`
-                    'size': int(file['length'][:-1])
+                    'size': file['length']
                 })
         return files
 

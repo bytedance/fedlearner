@@ -51,46 +51,62 @@ class DefaultFileManagerTest(unittest.TestCase):
     def test_ls(self):
         # List file
         self.assertEqual(self._fm.ls(self._get_temp_path('f1.txt')),
-                         [self._get_temp_path('f1.txt')])
+                         [{'path': self._get_temp_path('f1.txt'),
+                           'size': os.path.getsize(
+                               self._get_temp_path('f1.txt'))}])
         # List folder
         self.assertEqual(
-            sorted(self._fm.ls(self._get_temp_path())),
+            sorted(self._fm.ls(self._get_temp_path()),
+                   key=lambda file: file['path']),
             sorted([
-                self._get_temp_path('f1.txt'),
-                self._get_temp_path('f2.txt')
-            ]))
+                {'path': self._get_temp_path('f1.txt'),
+                 'size': os.path.getsize(self._get_temp_path('f1.txt'))},
+                {'path': self._get_temp_path('f2.txt'),
+                 'size': os.path.getsize(self._get_temp_path('f2.txt'))}
+            ], key=lambda file: file['path']))
         # List folder recursively
         self.assertEqual(
-            sorted(self._fm.ls(self._get_temp_path(), recursive=True)),
+            sorted(self._fm.ls(self._get_temp_path(), recursive=True),
+                   key=lambda file: file['path']),
             sorted([
-                self._get_temp_path('f1.txt'),
-                self._get_temp_path('f2.txt'),
-                self._get_temp_path('subdir/s1.txt')
-            ]))
+                {'path': self._get_temp_path('f1.txt'),
+                 'size': os.path.getsize(self._get_temp_path('f1.txt'))},
+                {'path': self._get_temp_path('f2.txt'),
+                 'size': os.path.getsize(self._get_temp_path('f2.txt'))},
+                {'path': self._get_temp_path('subdir/s1.txt'),
+                 'size': os.path.getsize(self._get_temp_path('subdir/s1.txt'))},
+            ], key=lambda file: file['path']))
 
     def test_move(self):
         # Moves to another folder
-        self._fm.move(self._get_temp_path('f1.txt'), self._get_temp_path('subdir/'))
+        self._fm.move(self._get_temp_path('f1.txt'),
+                      self._get_temp_path('subdir/'))
         self.assertEqual(
-            sorted(self._fm.ls(self._get_temp_path('subdir'))),
+            sorted(self._fm.ls(self._get_temp_path('subdir')),
+                   key=lambda file: file['path']),
             sorted([
-                self._get_temp_path('subdir/s1.txt'),
-                self._get_temp_path('subdir/f1.txt')
-            ]))
+                {'path': self._get_temp_path('subdir/s1.txt'),
+                 'size': os.path.getsize(self._get_temp_path('subdir/s1.txt'))},
+                {'path': self._get_temp_path('subdir/f1.txt'),
+                 'size': os.path.getsize(self._get_temp_path('subdir/f1.txt'))},
+            ], key=lambda file: file['path']))
         # Renames
-        self._fm.move(self._get_temp_path('f2.txt'), self._get_temp_path('f3.txt'))
+        self._fm.move(self._get_temp_path('f2.txt'),
+                      self._get_temp_path('f3.txt'))
         self.assertEqual(
             self._fm.ls(self._get_temp_path('f2.txt')), [])
         self.assertEqual(
             self._fm.ls(self._get_temp_path('f3.txt')),
-            [self._get_temp_path('f3.txt')])
+            [{'path': self._get_temp_path('f3.txt'),
+              'size': os.path.getsize(self._get_temp_path('f3.txt'))}])
 
     def test_remove(self):
         self._fm.remove(self._get_temp_path('f1.txt'))
         self._fm.remove(self._get_temp_path('subdir'))
         self.assertEqual(
             self._fm.ls(self._get_temp_path(), recursive=True),
-            [self._get_temp_path('f2.txt')])
+            [{'path': self._get_temp_path('f2.txt'),
+              'size': os.path.getsize(self._get_temp_path('f2.txt'))}])
 
 
 class HdfsFileManagerTest(unittest.TestCase):
@@ -112,12 +128,12 @@ class HdfsFileManagerTest(unittest.TestCase):
         mock_ls = MagicMock()
         self._mock_client.ls = mock_ls
         mock_ls.return_value = [
-            {'file_type': 'f', 'path': '/data/abc'},
-            {'file_type': 'd', 'path': '/data'}
+            {'file_type': 'f', 'path': '/data/abc', 'length': 0},
+            {'file_type': 'd', 'path': '/data', 'length': 0}
         ]
         self.assertEqual(
             self._fm.ls('/data', recursive=True),
-            ['/data/abc']
+            [{'path': '/data/abc', 'size': 0}]
         )
         mock_ls.assert_called_once_with(['/data'], recurse=True)
 
@@ -150,7 +166,8 @@ class HdfsFileManagerTest(unittest.TestCase):
 class FileManagerTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        os.environ['CUSTOMIZED_FILE_MANAGER'] = 'testing.fake_file_manager:FakeFileManager'
+        os.environ[
+            'CUSTOMIZED_FILE_MANAGER'] = 'testing.fake_file_manager:FakeFileManager'
 
     @classmethod
     def tearDownClass(cls):
@@ -166,13 +183,18 @@ class FileManagerTest(unittest.TestCase):
         self.assertFalse(self._fm.can_handle('hdfs://123'))
 
     def test_ls(self):
-        self.assertEqual(self._fm.ls('fake://data'), ['fake://data/f1.txt'])
+        self.assertEqual(self._fm.ls('fake://data'), [{
+            'path': 'fake://data/f1.txt',
+            'size': 0
+        }])
 
     def test_move(self):
         self.assertTrue(self._fm.move('fake://move/123', 'fake://move/234'))
-        self.assertFalse(self._fm.move('fake://do_not_move/123', 'fake://move/234'))
+        self.assertFalse(
+            self._fm.move('fake://do_not_move/123', 'fake://move/234'))
         # No file manager can handle this
-        self.assertRaises(RuntimeError, lambda: self._fm.move('hdfs://123', 'fake://abc'))
+        self.assertRaises(RuntimeError,
+                          lambda: self._fm.move('hdfs://123', 'fake://abc'))
 
     def test_remove(self):
         self.assertTrue(self._fm.remove('fake://remove/123'))

@@ -32,7 +32,11 @@ class BatchState(enum.Enum):
     IMPORTING = 'IMPORTING'
 
 
-@to_dict_mixin()
+@to_dict_mixin(
+    extras={
+        'batch': lambda dataset: dataset.get_batch()
+    }
+)
 class Dataset(db.Model):
     __tablename__ = 'datasets_v2'
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
@@ -47,11 +51,14 @@ class Dataset(db.Model):
                            server_onupdate=func.now())
     deleted_at = db.Column(db.DateTime(timezone=True))
 
+    def get_batch(self):
+        return [batch.to_dict() for batch in
+                Batch.query.filter_by(dataset_id=self.id).all()]
+
 
 @to_dict_mixin(
     extras={
-        'source': (lambda batch: batch.get_source()),
-        'failed_source': (lambda batch: batch.get_failed_source())
+        'source': (lambda batch: batch.get_source())
     })
 class Batch(db.Model):
     __tablename__ = 'batches_v2'
@@ -62,9 +69,7 @@ class Batch(db.Model):
     state = db.Column(db.Enum(BatchState))
     source = db.Column(db.Text(),
                        default=dataset_pb2.DatasetSource().SerializeToString())
-    failed_source = db.Column(db.Text(),
-                              default=dataset_pb2.DatasetSource()
-                              .SerializeToString())
+    failed_source = db.Column(db.Text())
     file_size = db.Column(db.Integer, default=0)
     imported_file_num = db.Column(db.Integer, default=0)
     file_num = db.Column(db.Integer, default=0)
@@ -84,14 +89,4 @@ class Batch(db.Model):
             return None
         proto = dataset_pb2.DatasetSource()
         proto.ParseFromString(self.source)
-        return proto
-
-    def set_failed_source(self, proto):
-        self.failed_source = proto.SerializeToString()
-
-    def get_failed_source(self):
-        if self.failed_source is None:
-            return None
-        proto = dataset_pb2.DatasetSource()
-        proto.ParseFromString(self.failed_source)
         return proto
