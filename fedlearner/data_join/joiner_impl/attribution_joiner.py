@@ -16,44 +16,13 @@
 
 import logging
 import time
-import random
 
 from fedlearner.common import metrics
 
 import fedlearner.data_join.common as common
 from fedlearner.data_join.joiner_impl.example_joiner import ExampleJoiner
-
-class NegativeExampleGenerator(object):
-    def __init__(self, negative_sampling_rate):
-        self._buf = {}
-        self._negative_sampling_rate = negative_sampling_rate
-
-    def update(self, mismatches):
-        self._buf.update(mismatches)
-
-    def _skip(self):
-        if random.random() <= self._negative_sampling_rate:
-            return False
-        return True
-
-    def generate(self, fe, prev_leader_idx, leader_idx):
-        for idx in range(prev_leader_idx, leader_idx):
-            if self._skip():
-                continue
-            if idx not in self._buf:
-                continue
-            example_id = self._buf[idx].example_id
-            if isinstance(example_id, bytes):
-                example_id = example_id.decode()
-            event_time = self._buf[idx].event_time
-            example = type(fe).make(example_id, event_time,
-                                       example_id, ["label", "type"], [0, 0])
-            yield (example, idx, 0)
-            del self._buf[idx]
-
-        del_keys = [k for k in self._buf if k < prev_leader_idx]
-        for k in del_keys:
-            del self._buf[k]
+from fedlearner.data_join.negative_example_generator \
+        import NegativeExampleGenerator
 
 class _Attributor(object):
     """
