@@ -67,7 +67,7 @@ request.interceptors.response.use(
   (error) => {
     const response = error.response.data
     if (response && typeof response === 'object') {
-      const serverError = new ServerError(error.response.data.msg, error.satus)
+      const serverError = new ServerError(error.response.data.message, error.satus)
 
       return Promise.reject(serverError)
     }

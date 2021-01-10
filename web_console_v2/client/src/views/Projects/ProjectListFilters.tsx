@@ -5,25 +5,10 @@ import { useTranslation } from 'react-i18next'
 import { useHistory } from 'react-router-dom'
 
 const Container = styled.div`
-  margin: 18px 0;
   height: 32px;
   display: flex;
   justify-content: space-between;
 `
-
-const Right = styled.div``
-
-const Left = styled.div``
-
-const CreateButton = styled(Button)`
-  display: inline-block;
-  background-color: var(--primaryColor);
-  color: white;
-  font-weight: 500;
-  font-size: 13px;
-  line-height: 22px;
-`
-
 const SearchInput = styled(Input.Search)`
   display: inline-block;
   width: 227px;
@@ -54,7 +39,7 @@ function Action({ onDisplayTypeChange }: Props): ReactElement {
   const history = useHistory()
   return (
     <Container>
-      <Right>
+      <div>
         <Button
           type="primary"
           onClick={() => {
@@ -63,8 +48,8 @@ function Action({ onDisplayTypeChange }: Props): ReactElement {
         >
           {t('project.create')}
         </Button>
-      </Right>
-      <Left>
+      </div>
+      <div>
         <SearchInput placeholder={t('project.search_placeholder')} />
         <DisplaySelector
           defaultValue={1}
@@ -74,7 +59,7 @@ function Action({ onDisplayTypeChange }: Props): ReactElement {
             onDisplayTypeChange(e.target.value)
           }}
         />
-      </Left>
+      </div>
     </Container>
   )
 }

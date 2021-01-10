@@ -1,35 +1,47 @@
-import React, { FunctionComponent, useCallback } from 'react'
+import React, { FC, useCallback } from 'react'
 import { Form, Input, message } from 'antd'
 import FileUpload from 'components/FileUpload'
 import { useTranslation } from 'react-i18next'
 import { useRecoilState } from 'recoil'
-import { workflowTemplateCreating, StepOneTemplateForm } from 'stores/workflow'
-import WORKFLOW_CHANNELS, { workflowPubsub } from '../pubsub'
+import { workflowTemplateForm, StepOneTemplateForm } from 'stores/workflow'
+import WORKFLOW_CHANNELS from '../pubsub'
 import { createWorkflowTemplate } from 'services/workflow'
 import { useSubscribe } from 'hooks'
 import { to } from 'shared/helpers'
+import { removePrivateKeys } from 'shared/object'
 import { readJSONFromInput } from 'shared/file'
+import { WorkflowTemplatePayload } from 'typings/workflow'
+import { stringifyWidgetSchemas } from 'shared/formSchema'
 
-const CreateTemplateForm: FunctionComponent = () => {
+type Props = {
+  onSuccess?(res: any): void
+  onError?(error: any): void
+}
+
+const CreateTemplateForm: FC<Props> = ({ onSuccess, onError }) => {
   const { t } = useTranslation()
   const [formInstance] = Form.useForm<StepOneTemplateForm>()
-  const [formData, setFormData] = useRecoilState(workflowTemplateCreating)
+  const [formData, setFormData] = useRecoilState(workflowTemplateForm)
 
   const createNewTpl = useCallback(async () => {
-    const [payload, validError] = await to(formInstance.validateFields())
+    const [values, validError] = await to(formInstance.validateFields())
 
     if (validError) {
+      onError && onError(validError)
       return
     }
+
+    const payload = stringifyWidgetSchemas(removePrivateKeys(values) as WorkflowTemplatePayload)
 
     const [res, error] = await to(createWorkflowTemplate(payload))
 
     if (error) {
+      onError && onError(error)
       return message.error(error.message)
     }
 
-    workflowPubsub.publish(WORKFLOW_CHANNELS.tpl_create_succeed, res.data)
-  }, [formInstance])
+    onSuccess && onSuccess(res.data.data)
+  }, [formInstance, onError, onSuccess])
 
   // Subscribe if need request to create new one
   useSubscribe(WORKFLOW_CHANNELS.create_new_tpl, createNewTpl)
@@ -52,13 +64,13 @@ const CreateTemplateForm: FunctionComponent = () => {
 
       <Form.Item name="_files" noStyle>
         <Form.Item
-          name="template"
+          name="config"
           label={t('workflow.label_upload_template')}
           rules={[{ required: true }]}
         >
           <FileUpload
             showUploadList={false}
-            value={formData.template}
+            value={formData.config}
             accept=".json"
             maxSize="20MB"
             beforeUpload={beforeUpload}
@@ -78,7 +90,7 @@ const CreateTemplateForm: FunctionComponent = () => {
   }
 
   function beforeUpload(file: File) {
-    if (formData.template) {
+    if (formData.config) {
       message.error(t('workflow.msg_only_1_tpl'))
       return false
     }
@@ -86,31 +98,31 @@ const CreateTemplateForm: FunctionComponent = () => {
     to(readJSONFromInput(file)).then(([tplConfig, error]) => {
       if (error) {
         message.error(error.message)
-        return false
+        return
       }
 
       setFormData({
         ...formData,
-        template: tplConfig,
+        config: tplConfig,
       })
 
       formInstance.setFieldsValue({
         _files: [],
-        template: tplConfig,
+        config: tplConfig,
       })
     })
 
     return false
   }
 
-  function removeTemplate(eve: any) {
+  function removeTemplate() {
     setFormData({
       ...formData,
-      template: '',
+      config: '',
     })
     formInstance.setFieldsValue({
       _files: [],
-      template: '',
+      config: '',
     })
   }
 }

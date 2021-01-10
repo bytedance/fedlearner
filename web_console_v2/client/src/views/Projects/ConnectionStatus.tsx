@@ -1,7 +1,7 @@
 import React, { ReactElement } from 'react'
 import styled from 'styled-components'
 import classNames from 'classnames'
-import { getConnectionStatusClassName, getConnectionStatusTag } from 'typings/enum'
+import { getConnectionStatusClassName, getConnectionStatusTag } from 'typings/project'
 import { useTranslation } from 'react-i18next'
 
 const Container = styled.div`
@@ -60,7 +60,7 @@ interface ConnectionStatusProps {
   connectionStatus: number
 }
 
-function ConnectionStatus({ connectionStatus }: ConnectionStatusProps): ReactElement {
+function ProjectConnectionStatus({ connectionStatus }: ConnectionStatusProps): ReactElement {
   const { t } = useTranslation()
   return (
     <Container>
@@ -76,4 +76,4 @@ function ConnectionStatus({ connectionStatus }: ConnectionStatusProps): ReactEle
   )
 }
 
-export default ConnectionStatus
+export default ProjectConnectionStatus

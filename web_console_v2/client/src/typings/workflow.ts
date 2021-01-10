@@ -67,10 +67,10 @@ export interface VariableWidgetSchema
 /** 🚧 NOTE: Types below are NOT the final verison at current stage */
 
 export enum VariableAccessMode {
-  UNSPECIFIED,
-  PRIVATE,
-  PEER_READABLE,
-  PEER_WRITABLE,
+  UNSPECIFIED = 'UNSPECIFIED',
+  PRIVATE = 'PRIVATE',
+  PEER_READABLE = 'PEER_READABLE',
+  PEER_WRITABLE = 'PEER_WRITABLE',
 }
 
 export interface Variable {
@@ -81,21 +81,21 @@ export interface Variable {
 }
 
 export enum JobType {
-  UNSPECIFIED,
-  RAW_DATA,
-  DATA_JOIN,
-  PSI_DATA_JOIN,
-  NN_MODEL_TRANINING,
-  TREE_MODEL_TRAINING,
-  NN_MODEL_EVALUATION,
-  TREE_MODEL_EVALUATION,
+  UNSPECIFIED = 'UNSPECIFIED',
+  RAW_DATA = 'RAW_DATA',
+  DATA_JOIN = 'DATA_JOIN',
+  PSI_DATA_JOIN = 'PSI_DATA_JOIN',
+  NN_MODEL_TRANINING = 'NN_MODEL_TRANINING',
+  TREE_MODEL_TRAINING = 'TREE_MODEL_TRAINING',
+  NN_MODEL_EVALUATION = 'NN_MODEL_EVALUATION',
+  TREE_MODEL_EVALUATION = 'TREE_MODEL_EVALUATION',
 }
 
 export enum JobDependencyType {
-  UNSPECIFIED,
-  ON_COMPLETE,
-  ON_START,
-  MANUAL,
+  UNSPECIFIED = 'UNSPECIFIED',
+  ON_COMPLETE = 'ON_COMPLETE',
+  ON_START = 'ON_START',
+  MANUAL = 'MANUAL',
 }
 
 export interface JobDependency {
@@ -116,27 +116,29 @@ export interface Job {
 export type WorkflowConfig = {
   group_alias: string
   variables?: Variable[]
-  jobs: Job[]
+  job_definitions: Job[]
 }
 
 export interface WorkflowTemplate {
   id: number
   name: string
   comment: string
+  is_left: boolean
   group_alias: string
   config: WorkflowConfig
 }
 
-export type WorkflowTemplateForm = {
+export type WorkflowTemplatePayload = {
   name: string
-  template: any
   comment?: string
+  config: any
 }
 
-export type WorkflowForm = {
+export type WorkflowPayload = {
   name: string
-  project_token: string
-  peer_forkable: boolean
+  project_id: string
+  forkable: boolean
+  forked_from?: boolean
   config: WorkflowConfig
   comment?: string
 }

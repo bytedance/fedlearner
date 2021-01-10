@@ -21,12 +21,14 @@ import {
   JobNodeStatus,
 } from 'components/WorlflowJobsFlowChart/helpers'
 import { updateNodeStatusById } from 'components/WorlflowJobsFlowChart'
-import { cloneDeep, omitBy } from 'lodash'
+import { cloneDeep } from 'lodash'
 import { useRecoilState } from 'recoil'
-import { workflowConfigValue } from 'stores/workflow'
+import { workflowJobsConfigForm } from 'stores/workflow'
 import { IFormState } from '@formily/antd'
 import { to } from 'shared/helpers'
 import { useTranslation } from 'react-i18next'
+import { removeUndefinedKeys } from 'shared/object'
+import ErrorBoundary from 'antd/lib/alert/ErrorBoundary'
 
 const Container = styled(Drawer)`
   top: 60px;
@@ -54,15 +56,11 @@ const PermissionDisplay = styled.div`
 const FormContainer = styled.div`
   padding-right: 68px;
 `
+
 interface Props extends DrawerProps {
   data?: JobNodeData
   toggleVisible?: Function
   onConfirm: Function
-}
-
-export type JobFormDrawerExposedRef = {
-  validateCurrentJobForm(): Promise<boolean>
-  saveCurrentValues(): void
 }
 
 const JobFormDrawer: ForwardRefRenderFunction<JobFormDrawerExposedRef, Props> = (
@@ -74,14 +72,12 @@ const JobFormDrawer: ForwardRefRenderFunction<JobFormDrawerExposedRef, Props> = 
   const [formSchema, setFormSchema] = useState<FormilySchema>(null as any)
   const jobNodes = useStoreState((store) => store.nodes)
   // Current config value from store
-  const [configValues, setConfigValues] = useRecoilState(workflowConfigValue)
+  const [jobsConfig, setJobsConfigData] = useRecoilState(workflowJobsConfigForm)
+
   useEffect(() => {
     if (data) {
-      // NOTE: data.raw is unwritable by default from Recoil's design,
-      // but meanwhile buildFormSchemaFromJob has side effects to data
-      // so we need to make a copy here
-      const jobData = cloneDeep(data)
-      setFormSchema(buildFormSchemaFromJob(jobData.raw))
+      const schema = buildFormSchemaFromJob(data.raw)
+      setFormSchema(schema)
     }
   }, [data])
   useImperativeHandle(parentRef, () => {
@@ -103,47 +99,49 @@ const JobFormDrawer: ForwardRefRenderFunction<JobFormDrawerExposedRef, Props> = 
     : t('workflow.btn_conf_next_step', { current: currentJobIdxDisplay, total: jobNodes.length })
 
   return (
-    <Container
-      getContainer="#app-content"
-      title={data.raw.name}
-      mask={false}
-      width="640px"
-      onClose={closeDrawer}
-      headerStyle={{ display: 'none' }}
-      {...props}
-    >
-      <DrawerHeader align="middle" justify="space-between">
-        <DrawerTitle>{data.raw.name}</DrawerTitle>
-        <GridRow gap="10">
-          <Button size="small" icon={<EyeOutlined />}>
-            {t('workflow.btn_see_ptcpt_config')}
-          </Button>
-          <Button size="small" icon={<CloseOutlined />} onClick={closeDrawer} />
-        </GridRow>
-      </DrawerHeader>
+    <ErrorBoundary>
+      <Container
+        getContainer="#app-content"
+        title={data.raw.name}
+        mask={false}
+        width="640px"
+        onClose={closeDrawer}
+        headerStyle={{ display: 'none' }}
+        {...props}
+      >
+        <DrawerHeader align="middle" justify="space-between">
+          <DrawerTitle>{data.raw.name}</DrawerTitle>
+          <GridRow gap="10">
+            <Button size="small" icon={<EyeOutlined />}>
+              {t('workflow.btn_see_ptcpt_config')}
+            </Button>
+            <Button size="small" icon={<CloseOutlined />} onClick={closeDrawer} />
+          </GridRow>
+        </DrawerHeader>
 
-      <PermissionDisplay>
-        <GridRow gap="20">
-          <label>{t('workflow.ptcpt_permission')}:</label>
-          <VariablePermission.Writable desc />
-          <VariablePermission.Readable desc />
-          <VariablePermission.Private desc />
-        </GridRow>
-      </PermissionDisplay>
+        <PermissionDisplay>
+          <GridRow gap="20">
+            <label>{t('workflow.ptcpt_permission')}:</label>
+            <VariablePermission.Writable desc />
+            <VariablePermission.Readable desc />
+            <VariablePermission.Private desc />
+          </GridRow>
+        </PermissionDisplay>
 
-      {/* ☢️ Form Area */}
-      <FormContainer>
-        {formSchema && (
-          <VariableSchemaForm
-            schema={formSchema}
-            onConfirm={confirmAndGoNextJob}
-            onCancel={closeDrawer}
-            confirmText={confirmButtonText}
-            cancelText={t('workflow.btn_close')}
-          />
-        )}
-      </FormContainer>
-    </Container>
+        {/* ☢️ Form Area */}
+        <FormContainer>
+          {formSchema && (
+            <VariableSchemaForm
+              schema={formSchema}
+              onConfirm={confirmAndGoNextJob}
+              onCancel={closeDrawer as any}
+              confirmText={confirmButtonText}
+              cancelText={t('workflow.btn_close')}
+            />
+          )}
+        </FormContainer>
+      </Container>
+    </ErrorBoundary>
   )
 
   function deselectAllNode() {
@@ -183,23 +181,42 @@ const JobFormDrawer: ForwardRefRenderFunction<JobFormDrawerExposedRef, Props> = 
 
     if (nextNodeToSelect) {
       setSelectedElements([nextNodeToSelect])
+      // Tell parent component that need to point next job
       onConfirm && onConfirm(nextNodeToSelect)
     }
   }
   function saveCurrentValuesToRecoil() {
     formActions.getFormState((state: IFormState) => {
-      const { jobs, group_alias } = configValues
+      const { job_definitions, ...others } = jobsConfig
 
-      const jobsValuesCopy = cloneDeep(jobs)
+      // NOTE: jobsConfig is unwritable by default from Recoil's design,
+      // so we need to make a copy here
+      const jobsCopy = cloneDeep(job_definitions)
+      const values = removeUndefinedKeys(state.values)
+      const targetJob = jobsCopy.find(({ name }) => name === data?.raw.name)
 
-      jobsValuesCopy[currentJobIdx] = omitBy(state.values, (v: any) => v === undefined)
+      if (targetJob) {
+        const targetJobIdx = jobsCopy.findIndex(({ name }) => name === data?.raw.name)
 
-      setConfigValues({
-        group_alias,
-        jobs: jobsValuesCopy,
-      })
+        Object.entries(values).forEach(([key, val]) => {
+          const targetVariable = targetJob?.variables.find((item) => item.name === key)
+          targetVariable!.value = val
+        })
+
+        jobsCopy[targetJobIdx] = targetJob
+
+        setJobsConfigData({
+          ...others,
+          job_definitions: jobsCopy,
+        })
+      }
     })
   }
+}
+
+export type JobFormDrawerExposedRef = {
+  validateCurrentJobForm(): Promise<boolean>
+  saveCurrentValues(): void
 }
 
 export default forwardRef(JobFormDrawer)

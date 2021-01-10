@@ -18,8 +18,6 @@ import {
 } from '@formily/antd-components'
 import styled from 'styled-components'
 
-export const formActions = createFormActions()
-
 const components = {
   Input,
   NumberPicker,
@@ -42,6 +40,8 @@ interface Props extends IAntdSchemaFormProps {
   confirmText: string
   cancelText: string
 }
+
+export const formActions = createFormActions()
 
 const VariableSchemaForm: FunctionComponent<Props> = ({
   schema,

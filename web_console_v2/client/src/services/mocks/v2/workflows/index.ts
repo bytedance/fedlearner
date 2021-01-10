@@ -4,11 +4,10 @@ const res = {
       {
         id: 1,
         name: 'Foo bar workflow',
-        project_token: 'token',
+        project_id: 'token',
         status: 1,
         uid: '2h3217u123ye8h',
         forkable: false,
-        peer_forkable: false,
         group_alias: 'ddddd',
         config: {}, //template dict
         peer_config: {}, //template dict

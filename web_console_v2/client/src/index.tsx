@@ -12,7 +12,7 @@ import './styles/antd-overrides.less'
 import './i18n'
 
 ReactDOM.render(
-  <BrowserRouter>
+  <BrowserRouter basename="/v2">
     <RecoilRoot>
       <ThemeProvider theme={defaultTheme}>
         <App />

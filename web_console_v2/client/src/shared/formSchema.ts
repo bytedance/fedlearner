@@ -1,7 +1,13 @@
-import { Job, Variable, VariableAccessMode, VariableComponent } from 'typings/workflow'
+import {
+  Job,
+  Variable,
+  VariableAccessMode,
+  VariableComponent,
+  WorkflowTemplatePayload,
+} from 'typings/workflow'
 import { FormilySchema } from 'typings/formily'
 import VariableLabel from 'components/VariableLabel/index'
-import { merge } from 'lodash'
+import { cloneDeep, merge } from 'lodash'
 import variablePresets, { VariablePresets } from './variablePresets'
 
 //---- Variable to Schema private helpers --------
@@ -267,8 +273,7 @@ function mergeVariableSchemaWithPresets(variable: Variable, presets: VariablePre
 
 /** Return a formily acceptable schema by server job definition */
 export function buildFormSchemaFromJob(job: Job): FormilySchema {
-  const { variables, name } = job
-
+  const { variables, name } = cloneDeep(job)
   const schema: FormilySchema = {
     type: 'object',
     title: name,
@@ -285,4 +290,32 @@ export function buildFormSchemaFromJob(job: Job): FormilySchema {
 
     return schema
   }, schema)
+}
+
+export function stringifyWidgetSchemas(template: WorkflowTemplatePayload) {
+  const ret = cloneDeep(template)
+
+  ret.config?.job_definitions.forEach((job: any) => {
+    job.variables.forEach((variable: any) => {
+      if (typeof variable.widget_schema === 'object') {
+        variable.widget_schema = JSON.stringify(variable.widget_schema)
+      }
+    })
+  })
+
+  return ret
+}
+
+export function parseWidgetSchemas(template: WorkflowTemplatePayload) {
+  const ret = cloneDeep(template)
+
+  ret.config?.job_definitions.forEach((job: any) => {
+    job.variables.forEach((variable: any) => {
+      if (typeof variable.widget_schema === 'string') {
+        variable.widget_schema = variable.widget_schema ? JSON.parse(variable.widget_schema) : {}
+      }
+    })
+  })
+
+  return ret
 }

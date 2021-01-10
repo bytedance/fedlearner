@@ -1,21 +1,22 @@
-import React, { useCallback, useEffect } from 'react'
+import React, { useEffect } from 'react'
 import styled from 'styled-components'
 import { Card, Form, Select, Radio, Button, Input, message } from 'antd'
 import { useTranslation } from 'react-i18next'
 import GridRow from 'components/_base/GridRow'
 import CreateTemplateForm from './CreateTemplate'
 import { useHistory } from 'react-router-dom'
+import { cloneDeep } from 'lodash'
 import {
   currentWorkflowTemplate,
   forceReloadTplList,
   StepOneForm,
-  workflowCreating,
+  workflowBasicForm,
   workflowGetters,
+  workflowJobsConfigForm,
   workflowTemplateListQuery,
 } from 'stores/workflow'
 import { useRecoilState, useRecoilValue, useSetRecoilState } from 'recoil'
 import WORKFLOW_CHANNELS, { workflowPubsub } from '../pubsub'
-import { useSubscribe } from 'hooks'
 import { useRecoilQuery } from 'hooks/recoil'
 import { WorkflowTemplate } from 'typings/workflow'
 import { useToggle } from 'react-use'
@@ -30,10 +31,11 @@ function WorkflowsCreateStepOne() {
   const [formInstance] = Form.useForm<StepOneForm>()
   const history = useHistory()
   const [submitting, setSubmitting] = useToggle(false)
-  const [formData, setFormData] = useRecoilState(workflowCreating)
+  const [formData, setFormData] = useRecoilState(workflowBasicForm)
+  const setJobsConfigData = useSetRecoilState(workflowJobsConfigForm)
   const { whetherCreateNewTpl } = useRecoilValue(workflowGetters)
   const reloadTplList = useSetRecoilState(forceReloadTplList)
-  const setWorflowTemplate = useSetRecoilState(currentWorkflowTemplate)
+  const setWorkflowTemplate = useSetRecoilState(currentWorkflowTemplate)
 
   const { isLoading: tplLoading, data: tplList, error: tplListErr } = useRecoilQuery(
     workflowTemplateListQuery,
@@ -44,12 +46,6 @@ function WorkflowsCreateStepOne() {
       message.error(tplListErr.message)
     }
   }, [tplListErr])
-
-  useSubscribe(WORKFLOW_CHANNELS.tpl_create_succeed, (_: string, res: WorkflowTemplate) => {
-    // After click confirm, once tpl create succeed, go next step
-    setWorflowTemplate(res)
-    goNextStep()
-  })
 
   return (
     <Card>
@@ -71,7 +67,7 @@ function WorkflowsCreateStepOne() {
           </Form.Item>
 
           <Form.Item
-            name="project_token"
+            name="project_id"
             label={t('workflow.label_project')}
             hasFeedback
             rules={[{ required: true, message: 'Please select your country!' }]}
@@ -81,7 +77,7 @@ function WorkflowsCreateStepOne() {
             </Select>
           </Form.Item>
 
-          <Form.Item name="peer_forkable" label={t('workflow.label_peer_forkable')}>
+          <Form.Item name="forkable" label={t('workflow.label_peer_forkable')}>
             <Radio.Group>
               <Radio value={true}>{t('workflow.label_allow')}</Radio>
               <Radio value={false}>{t('workflow.label_not_allow')}</Radio>
@@ -132,7 +128,9 @@ function WorkflowsCreateStepOne() {
         </Form>
 
         {/* If choose to create a new template */}
-        {formData._templateType === 'create' && <CreateTemplateForm />}
+        {formData._templateType === 'create' && (
+          <CreateTemplateForm onSuccess={onTplCreateSuccess} onError={onTplCreateError} />
+        )}
 
         <Form.Item wrapperCol={{ offset: 6 }}>
           <GridRow gap={16} top="12">
@@ -150,12 +148,16 @@ function WorkflowsCreateStepOne() {
   )
 
   async function goNextStep() {
-    setSubmitting(false)
     history.push('/workflows/create/config')
     workflowPubsub.publish(WORKFLOW_CHANNELS.go_config_step)
   }
   function backToList() {
     history.push('/workflows')
+  }
+  function setCurrentUsingTemplate(tpl: WorkflowTemplate) {
+    setWorkflowTemplate(tpl)
+    // Set empty jobs config data once choose different template
+    setJobsConfigData(tpl.config)
   }
   // --------- Handlers -----------
   function onFormChange(_: any, values: StepOneForm) {
@@ -164,7 +166,17 @@ function WorkflowsCreateStepOne() {
   function onTemplateSelectChange(id: number) {
     const target = tplList?.find((item) => item.id === id)
     if (!target) return
-    setWorflowTemplate(target)
+    setCurrentUsingTemplate(cloneDeep(target))
+  }
+
+  function onTplCreateSuccess(res: WorkflowTemplate) {
+    setSubmitting(false)
+    // After click confirm, once tpl create succeed, go next step
+    setCurrentUsingTemplate(res)
+    goNextStep()
+  }
+  function onTplCreateError() {
+    setSubmitting(false)
   }
   async function onNextStepClick() {
     try {

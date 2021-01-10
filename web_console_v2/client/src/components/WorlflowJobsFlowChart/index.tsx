@@ -8,12 +8,11 @@ import ReactFlow, {
   OnLoadParams,
   FlowElement,
 } from 'react-flow-renderer'
-import { useRecoilValue } from 'recoil'
-import { currentWorkflowTemplate } from 'stores/workflow'
 import { convertJobsToElements, JobNode, JobNodeStatus, NODE_HEIGHT, NODE_WIDTH } from './helpers'
 import { convertToUnit } from 'shared/helpers'
 import PubSub from 'pubsub-js'
 import { useSubscribe } from 'hooks'
+import { Job } from 'typings/workflow'
 
 const Container = styled.div`
   position: relative;
@@ -60,15 +59,13 @@ const CHANNELS = {
 }
 
 type Props = {
+  jobs: Job[]
   onJobClick: (node: JobNode) => void
   onCanvasClick: () => void
 }
 
-const WorkflowJobsFlowChart: FC<Props> = ({ onJobClick, onCanvasClick }) => {
+const WorkflowJobsFlowChart: FC<Props> = ({ jobs, onJobClick, onCanvasClick }) => {
   const [elements, setElements] = useState<FlowElement[]>([])
-  const {
-    config: { jobs },
-  } = useRecoilValue(currentWorkflowTemplate)
 
   useEffect(() => {
     setElements(convertJobsToElements(jobs))

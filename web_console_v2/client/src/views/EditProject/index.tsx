@@ -6,7 +6,7 @@ import BreadcrumbSplit from 'components/Container/BreadcrumbSplit'
 import { useHistory } from 'react-router-dom'
 import { updateProject } from 'services/project'
 import { useTranslation } from 'react-i18next'
-import { CertificateConfigType } from 'typings/enum'
+import { CertificateConfigType } from 'typings/project'
 import { Project, ProjectFormInitialValues } from 'typings/project'
 
 const Container = styled.div``

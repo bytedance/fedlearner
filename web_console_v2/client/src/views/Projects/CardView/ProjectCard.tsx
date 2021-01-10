@@ -1,37 +1,46 @@
 import React, { ReactElement, useState } from 'react'
 import styled from 'styled-components'
-import CardDescribe from './CardDescribe'
+import ProjectProp from './ProjectProp'
 import ProjectAction from '../ProjectAction'
 import CreateTime from '../CreateTime'
-import ConnectionStatus from '../ConnectionStatus'
 import Detail from '../Detail'
-import { Tooltip, Form } from 'antd'
+import { Tooltip } from 'antd'
 import { useTranslation } from 'react-i18next'
 import { ReactComponent as CheckConnectionIcon } from 'assets/images/check-connect.svg'
 import createWorkFlow from 'assets/images/create-work-flow.svg'
 import ProjectName from '../ProjectName'
 import { useHistory } from 'react-router-dom'
 import { Project } from 'typings/project'
+import ProjectConnectionStatus from '../ConnectionStatus'
+import { MixinCommonTransition } from 'styles/mixins'
 
 const CardContainer = styled.div`
+  ${MixinCommonTransition('transform')}
+
   height: 208px;
   display: flex;
   flex-direction: column;
-  border: 1px solid #e5e6eb;
-  box-shadow: 0px 4px 10px #f2f3f5;
+  border: 1px solid var(--gray3);
+  border-radius: 4px;
+  box-shadow: 0px 4px 10px var(--gray2);
+
+  &:hover {
+    transform: translateY(-2px);
+  }
 `
 const CardHeaderContainer = styled.div`
   display: flex;
   height: 40px;
   border-bottom: 1px solid var(--gray3);
   justify-content: space-between;
+  cursor: pointer;
+
   .project {
     &-time {
       min-width: 146px;
     }
   }
 `
-
 const CardMainContainer = styled.div`
   display: flex;
   padding: 25px 0;
@@ -48,7 +57,6 @@ const CardMainContainer = styled.div`
     }
   }
 `
-
 const CardFooterContainer = styled.div`
   flex: 1;
   display: flex;
@@ -66,7 +74,6 @@ const CardFooterContainer = styled.div`
     justify-content: space-between;
   }
 `
-
 const CheckConnectionStyle = styled.div`
   height: 24px;
   width: 24px;
@@ -120,15 +127,14 @@ function CardMain({ workFlowNumber }: CardMainProps): ReactElement {
   const { t } = useTranslation()
   return (
     <CardMainContainer>
-      <CardDescribe describe={t('project.workflow_number')}>
+      <ProjectProp describe={t('project.workflow_number')}>
         <div className="project-work-flow-number">{workFlowNumber}</div>
-      </CardDescribe>
-      <CardDescribe describe={t('project.connection_status')}>
+      </ProjectProp>
+      <ProjectProp describe={t('project.connection_status')}>
         <div className="project-connection-status-wrapper">
-          {/* fixme */}
-          <ConnectionStatus connectionStatus={connectionStatus} />
+          <ProjectConnectionStatus connectionStatus={connectionStatus} />
         </div>
-      </CardDescribe>
+      </ProjectProp>
     </CardMainContainer>
   )
 }
@@ -159,7 +165,6 @@ function CheckConnection(): ReactElement {
 }
 
 function CardFooter({ project }: CardFooterProps): ReactElement {
-  const { t } = useTranslation()
   const history = useHistory()
   const [isDrawerVisible, setIsDrawerVisible] = useState(false)
   return (

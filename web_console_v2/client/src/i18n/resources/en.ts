@@ -16,12 +16,17 @@ const messages = {
     project: project.en,
     workflow: workflow.en,
 
+    all: 'All',
     terms: 'Terms of Services',
     privacy: 'Privacy Protocol',
     more: 'More',
     submit: 'OK',
     cancel: 'Cancel',
     operation: 'Operation',
+    previous_step: 'previous step',
+    next_step: 'Next step',
+    certificate: 'Certificate',
+    click_to_retry: 'Click to retry',
   },
 }
 

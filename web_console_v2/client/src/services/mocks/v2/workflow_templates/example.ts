@@ -1,5 +1,6 @@
 import {
   JobDependencyType,
+  JobType,
   VariableAccessMode,
   VariableComponent,
   WorkflowTemplate,
@@ -12,12 +13,14 @@ const get: { data: DeepPartial<WorkflowTemplate>; status: number } = {
     id: 1,
     name: 'bar template',
     group_alias: 'foo group',
+    is_left: true,
     config: {
+      group_alias: 'foo group',
       variables: [], // workflow global variables, TBD
-      jobs: [
+      job_definitions: [
         {
           name: 'Initiative',
-          type: 1,
+          type: JobType.RAW_DATA,
           is_federated: true,
           variables: [
             {
@@ -42,7 +45,7 @@ const get: { data: DeepPartial<WorkflowTemplate>; status: number } = {
             },
             {
               name: 'job_type',
-              value: [1],
+              value: '1',
               access_mode: VariableAccessMode.PEER_READABLE,
               widget_schema: {
                 component: VariableComponent.Select,
@@ -57,7 +60,7 @@ const get: { data: DeepPartial<WorkflowTemplate>; status: number } = {
             },
             {
               name: 'is_pair',
-              value: false,
+              value: '',
               access_mode: VariableAccessMode.PRIVATE,
               widget_schema: {
                 component: VariableComponent.Switch,
@@ -76,7 +79,7 @@ const get: { data: DeepPartial<WorkflowTemplate>; status: number } = {
             },
             {
               name: 'cpu_limit',
-              value: 0,
+              value: '10',
               access_mode: VariableAccessMode.PRIVATE,
               widget_schema: {
                 component: VariableComponent.NumberPicker,
@@ -87,13 +90,12 @@ const get: { data: DeepPartial<WorkflowTemplate>; status: number } = {
             },
             {
               name: 'certification',
-              value: null,
+              value: '',
               access_mode: VariableAccessMode.PEER_WRITABLE,
               widget_schema: {
                 component: VariableComponent.Upload,
                 accept: '.crt,.pem',
                 action: '/api/v2/upload',
-                multiple: true,
                 type: 'array',
               },
             },
@@ -101,7 +103,7 @@ const get: { data: DeepPartial<WorkflowTemplate>; status: number } = {
         },
         {
           name: 'Raw data upload',
-          type: 1,
+          type: JobType.RAW_DATA,
           is_federated: true,
           dependencies: [{ source: 'Initiative', type: JobDependencyType.MANUAL }],
           variables: [
@@ -130,7 +132,7 @@ const get: { data: DeepPartial<WorkflowTemplate>; status: number } = {
 
         {
           name: 'Raw data process',
-          type: 1,
+          type: JobType.NN_MODEL_TRANINING,
           is_federated: true,
           dependencies: [{ source: 'Initiative', type: JobDependencyType.MANUAL }],
           variables: [
@@ -148,12 +150,12 @@ const get: { data: DeepPartial<WorkflowTemplate>; status: number } = {
         },
         {
           name: 'Raw data save',
-          type: 1,
+          type: JobType.RAW_DATA,
           is_federated: true,
           dependencies: [{ source: 'Initiative', type: JobDependencyType.MANUAL }],
           variables: [
             {
-              name: 'job_name4',
+              name: 'job_name',
               value: '',
               access_mode: VariableAccessMode.PEER_WRITABLE,
               widget_schema: {
@@ -165,7 +167,7 @@ const get: { data: DeepPartial<WorkflowTemplate>; status: number } = {
         },
         {
           name: 'Training',
-          type: 1,
+          type: JobType.NN_MODEL_TRANINING,
           is_federated: true,
           dependencies: [
             { source: 'Raw data upload', type: JobDependencyType.ON_COMPLETE },
@@ -174,7 +176,7 @@ const get: { data: DeepPartial<WorkflowTemplate>; status: number } = {
           ],
           variables: [
             {
-              name: 'job_name5',
+              name: 'job_name2',
               value: '',
               access_mode: VariableAccessMode.PEER_WRITABLE,
               widget_schema: {
@@ -186,7 +188,7 @@ const get: { data: DeepPartial<WorkflowTemplate>; status: number } = {
         },
         {
           name: 'Finish/clear',
-          type: 1,
+          type: JobType.TREE_MODEL_EVALUATION,
           is_federated: true,
           dependencies: [{ source: 'Training', type: JobDependencyType.ON_COMPLETE }],
           variables: [

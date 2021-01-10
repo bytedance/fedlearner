@@ -1,22 +1,19 @@
-import React from 'react'
+import React, { useState } from 'react'
 import styled from 'styled-components'
-import { Row, Col, Button, Form, Input, Select, Table, message, Card } from 'antd'
+import { Row, Col, Button, Form, Input, Select, Table, message } from 'antd'
 import { useList } from 'react-use'
-import { Link, useHistory } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { useQuery } from 'react-query'
 import { fetchWorkflowList } from 'services/workflow'
 import i18n from 'i18n'
 import { formatTimestamp } from 'shared/date'
 import { useTranslation } from 'react-i18next'
+import ListPageLayout from 'components/ListPageLayout'
 
 const FilterItem = styled(Form.Item)`
   > .ant-form-item-control {
     width: 227px;
   }
-`
-
-const DataTable = styled(Table)`
-  margin-top: 18px;
 `
 
 const tableCols = [
@@ -31,12 +28,12 @@ const tableCols = [
   },
   {
     title: i18n.t('workflow.col_status'),
-    dataIndex: 'status',
-    render: (status: string) => <div>{status}</div>,
+    dataIndex: 'state',
+    render: (state: string) => <div>{state}</div>,
   },
   {
     title: i18n.t('workflow.col_project'),
-    dataIndex: 'project_token',
+    dataIndex: 'project_id',
     render: (project: string) => <div>{project}</div>,
   },
   {
@@ -46,12 +43,12 @@ const tableCols = [
   },
   {
     title: i18n.t('workflow.col_date'),
-    dataIndex: 'create_at',
+    dataIndex: 'created_at',
     render: (date: number) => <div>{formatTimestamp(date)}</div>,
   },
   {
     title: i18n.t('workflow.col_actions'),
-    dataIndex: 'create_at',
+    dataIndex: 'created_at',
     render: (_: any, record: any) => (
       <div>
         <Button type="link">{i18n.t('workflow.action_run')}</Button>
@@ -64,24 +61,35 @@ const tableCols = [
   },
 ]
 
-function WorkflowsTable() {
-  const [form] = Form.useForm()
-  const history = useHistory()
-  const { t } = useTranslation()
-  const [projectList] = useList([{ value: 'all', label: i18n.t('all') }])
+type QueryParams = {
+  project?: string
+  name?: string
+}
 
-  const { isLoading, isError, data: res, error } = useQuery('fetchWorkflowList', fetchWorkflowList)
+function WorkflowsTable() {
+  const { t } = useTranslation()
+  const [form] = Form.useForm<QueryParams>()
+  const [projectList] = useList([{ value: '', label: i18n.t('all') }])
+  const [params, setParams] = useState<QueryParams>({
+    project: '',
+    name: undefined,
+  })
+
+  const { isLoading, isError, data: res, error } = useQuery(
+    ['fetchWorkflowList', params.project, params.name],
+    () => fetchWorkflowList(params),
+  )
 
   if (isError && error) {
     message.error((error as Error).message)
   }
 
-  function handleSearch(query: any) {
-    history.push('/workflows/create/basic')
+  function handleSearch(values: QueryParams) {
+    setParams(values)
   }
 
   return (
-    <Card>
+    <ListPageLayout title={t('term.workflow')}>
       <Row gutter={16} justify="space-between">
         <Col>
           <Link to="/workflows/create">
@@ -89,12 +97,7 @@ function WorkflowsTable() {
           </Link>
         </Col>
         <Col>
-          <Form
-            initialValues={{ project: 'all' }}
-            layout="inline"
-            form={form}
-            onFinish={handleSearch}
-          >
+          <Form initialValues={{ project: '' }} layout="inline" form={form} onFinish={handleSearch}>
             <FilterItem name="project" label={t('term.project')}>
               <Select onChange={form.submit}>
                 {projectList.map((item) => (
@@ -104,7 +107,7 @@ function WorkflowsTable() {
                 ))}
               </Select>
             </FilterItem>
-            <FilterItem name="keyword">
+            <FilterItem name="name">
               <Input.Search
                 placeholder={t('workflow.placeholder_name_searchbox')}
                 onPressEnter={form.submit}
@@ -114,8 +117,8 @@ function WorkflowsTable() {
         </Col>
       </Row>
 
-      <DataTable loading={isLoading} dataSource={res?.data?.list || []} columns={tableCols} />
-    </Card>
+      <Table loading={isLoading} dataSource={res?.data.data || []} columns={tableCols} />
+    </ListPageLayout>
   )
 }
 

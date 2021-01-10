@@ -1,11 +1,7 @@
-import React, { ChangeEvent, useState } from 'react'
+import React from 'react'
 import styled from 'styled-components'
-import { setLocale } from 'i18n'
 import HeaderAccount from './Account'
-import { FedLanguages } from 'typings/app'
 import logo from 'assets/images/logo-colorful.svg'
-import store from 'store2'
-import LOCAL_STORAGE_KEYS from 'shared/localStorageKeys'
 import { StyledComponetProps } from 'typings/component'
 
 const Container = styled.header`
@@ -23,7 +19,6 @@ const Container = styled.header`
   color: white;
   border-bottom: 1px solid var(--gray3);
 `
-
 const LogoLink = styled.a`
   grid-area: logo;
 
@@ -32,12 +27,12 @@ const LogoLink = styled.a`
   }
 `
 
-const LanguageSelector = styled.select`
-  color: var(--textColor);
-`
+// const LanguageSelector = styled.select`
+//   color: var(--textColor);
+// `
 
 function Header({ className }: StyledComponetProps) {
-  const [lng, setLanguage] = useState<string>(FedLanguages.Chinese)
+  // const [lng, setLanguage] = useState<string>(store.get('language'))
 
   return (
     <Container className={className} id="page-header">
@@ -47,21 +42,21 @@ function Header({ className }: StyledComponetProps) {
       {/* This empty element is used to fill the space blank */}
       <div className="empty" />
 
-      <LanguageSelector name="language-selector" value={lng} onChange={onLanguageChange}>
+      {/* <LanguageSelector name="language-selector" value={lng} onChange={onLanguageChange}>
         <option value="cn">简体中文</option>
         <option value="en">English</option>
-      </LanguageSelector>
+      </LanguageSelector> */}
 
       <HeaderAccount />
     </Container>
   )
 
-  function onLanguageChange(event: ChangeEvent<HTMLSelectElement>) {
-    const value = event.target.value as FedLanguages
-    setLanguage(value)
-    setLocale(value)
-    store.set(LOCAL_STORAGE_KEYS.language, value)
-  }
+  // function onLanguageChange(event: ChangeEvent<HTMLSelectElement>) {
+  //   const value = event.target.value as FedLanguages
+  //   setLanguage(value)
+  //   setLocale(value)
+  //   store.set(LOCAL_STORAGE_KEYS.language, value)
+  // }
 }
 
 export default Header

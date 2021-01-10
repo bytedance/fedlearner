@@ -10,11 +10,13 @@ import { Button, message, Modal, notification } from 'antd'
 import { ExclamationCircleOutlined } from '@ant-design/icons'
 import { useHistory } from 'react-router-dom'
 import { useRecoilValue } from 'recoil'
-import { workflowConfigValue } from 'stores/workflow'
+import { workflowJobsConfigForm, workflowGetters, workflowBasicForm } from 'stores/workflow'
 import { useTranslation } from 'react-i18next'
 import i18n from 'i18n'
+import ErrorBoundary from 'antd/lib/alert/ErrorBoundary'
+import { createWorkflow } from 'services/workflow'
+import { to } from 'shared/helpers'
 
-const Container = styled.section``
 const Header = styled.header`
   padding: 13px 20px;
   font-size: 14px;
@@ -36,19 +38,26 @@ const CanvasAndForm: FC = () => {
   const drawerRef = useRef<JobFormDrawerExposedRef>()
   const jobNodes = useStoreState((store) => store.nodes as JobNode[])
   const history = useHistory()
+  const [creating, setCreating] = useToggle(false)
   const { t } = useTranslation()
   const [drawerVisible, toggleDrawerVisible] = useToggle(false)
   const [data, setData] = useState<JobNodeData>()
-  const configValue = useRecoilValue(workflowConfigValue)
+  const { currentWorkflowTpl } = useRecoilValue(workflowGetters)
+  const jobsConfigPayload = useRecoilValue(workflowJobsConfigForm)
+  const basicPayload = useRecoilValue(workflowBasicForm)
 
   return (
-    <>
-      <Container>
+    <ErrorBoundary>
+      <section>
         <Header>
-          <ChartTitle className="">{t('workflow.our_config')}</ChartTitle>
+          <ChartTitle>{t('workflow.our_config')}</ChartTitle>
         </Header>
 
-        <WorkflowJobsFlowChart onJobClick={selectJob} onCanvasClick={onCanvasClick} />
+        <WorkflowJobsFlowChart
+          jobs={currentWorkflowTpl.config.job_definitions}
+          onJobClick={selectJob}
+          onCanvasClick={onCanvasClick}
+        />
 
         <JobFormDrawer
           ref={drawerRef as any}
@@ -60,21 +69,23 @@ const CanvasAndForm: FC = () => {
 
         <Footer>
           <GridRow gap="12">
-            <Button type="primary" onClick={onSubmit}>
+            <Button type="primary" loading={creating} onClick={submitToCreate}>
               {t('workflow.btn_send_2_ptcpt')}
             </Button>
             <Button onClick={onPrevStepClick}> {t('previous_step')}</Button>
             <Button onClick={onCancelCreationClick}>{t('cancel')}</Button>
           </GridRow>
         </Footer>
-      </Container>
-    </>
+      </section>
+    </ErrorBoundary>
   )
 
   function checkIfAllJobConfigCompleted() {
-    return jobNodes.every((node) => {
+    const isAllCompleted = jobNodes.every((node) => {
       return node.data.status === JobNodeStatus.Completed
     })
+
+    return isAllCompleted
   }
   // ---------- Handlers ----------------
   function onCanvasClick() {
@@ -94,16 +105,16 @@ const CanvasAndForm: FC = () => {
 
     toggleDrawerVisible(true)
   }
-  function onSubmit() {
+  async function submitToCreate() {
     if (!checkIfAllJobConfigCompleted()) {
       return message.warn(i18n.t('workflow.msg_config_unfinished'))
     }
 
-    notification.open({
-      message: i18n.t('workflow.current_config'),
-      description: JSON.stringify(configValue.jobs),
-      duration: null,
-    })
+    const payload = { config: jobsConfigPayload, ...basicPayload }
+    setCreating(true)
+    // TODO: Loading splash
+    await to(createWorkflow(payload))
+    setCreating(false)
   }
   function onPrevStepClick() {
     history.goBack()
@@ -118,9 +129,6 @@ const CanvasAndForm: FC = () => {
       },
       onOk() {
         history.push('/workflows')
-      },
-      onCancel() {
-        console.log('Cancel')
       },
     })
   }

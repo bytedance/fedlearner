@@ -1,12 +1,13 @@
 import { AxiosPromise } from 'axios'
 import request from 'libs/request'
+import { removeUndefinedKeys } from 'shared/object'
 import { WorkflowTemplate } from 'typings/workflow'
 
 export function fetchExampleWorkflowTemplate() {
   return request('/v2/workflows/example')
 }
 
-export function fetchWorkflowTemplateList(): AxiosPromise<{ list: WorkflowTemplate[] }> {
+export function fetchWorkflowTemplateList(): AxiosPromise<{ data: WorkflowTemplate[] }> {
   return request('/v2/workflow_templates')
 }
 
@@ -18,8 +19,10 @@ export function createWorkflowTemplate(payload: any) {
   return request.post('/v2/workflow_templates', payload)
 }
 
-export function fetchWorkflowList() {
-  return request('/v2/workflows')
+export function fetchWorkflowList(params: { project?: string; name?: string }) {
+  return request('/v2/workflows', {
+    params: removeUndefinedKeys(params),
+  })
 }
 
 export function getWorkflowById(id: number) {

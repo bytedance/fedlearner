@@ -1,7 +1,7 @@
 import React, { ReactElement } from 'react'
 import styled from 'styled-components'
 import { Project } from 'typings/project'
-import Card from './Card'
+import ProjectCard from './ProjectCard'
 
 const Container = styled.div`
   display: grid;
@@ -24,7 +24,7 @@ function CardList({ projectList }: CardListProps): ReactElement {
   return (
     <Container>
       {projectList.map((item, index) => (
-        <Card item={item} key={index} />
+        <ProjectCard item={item} key={'p-' + index} />
       ))}
     </Container>
   )

@@ -20,10 +20,11 @@ function CreateProject(): ReactElement {
             history.push('/projects')
           }}
         >
-          {t('menu_label_project')}
+          {t('menu.label_project')}
         </Breadcrumb.Item>
         <Breadcrumb.Item>{t('project.create')}</Breadcrumb.Item>
       </Breadcrumb>
+
       <BaseForm onSubmit={onSubmit} />
     </Container>
   )

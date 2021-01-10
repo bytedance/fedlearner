@@ -1,9 +1,16 @@
-export interface PaginationConfig {
-  total: number
-  page_size: number
-  page: number
+import { PaginationConfig } from './component'
+
+export enum ProjectConnectionStatus {
+  Success,
+  Waiting,
+  Checking,
+  Failed,
 }
 
+export enum CertificateConfigType {
+  Upload,
+  BackendConfig,
+}
 export interface Variable {
   name: string
   value: string
@@ -52,4 +59,33 @@ export interface ProjectFormInitialValues {
   participantDomainName: string
   comment: string
   variables?: Variable[]
+}
+
+export function getConnectionStatusClassName(status: ProjectConnectionStatus): string {
+  switch (status) {
+    case ProjectConnectionStatus.Success:
+      return 'success'
+    case ProjectConnectionStatus.Waiting:
+      return 'waiting'
+    case ProjectConnectionStatus.Checking:
+      return 'checking'
+    case ProjectConnectionStatus.Failed:
+      return 'failed'
+    default:
+      return 'waiting' as never
+  }
+}
+export function getConnectionStatusTag(status: ProjectConnectionStatus): string {
+  switch (status) {
+    case ProjectConnectionStatus.Success:
+      return 'project.connection_status_success'
+    case ProjectConnectionStatus.Waiting:
+      return 'project.connection_status_waiting'
+    case ProjectConnectionStatus.Checking:
+      return 'project.connection_status_checking'
+    case ProjectConnectionStatus.Failed:
+      return 'project.connection_status_failed'
+    default:
+      return 'project.connection_status_waiting' as never
+  }
 }

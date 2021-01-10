@@ -2,7 +2,7 @@ import React, { ReactElement, useState } from 'react'
 import styled, { CSSProperties } from 'styled-components'
 import { Divider } from 'antd'
 import { Project } from 'typings/project'
-import ConnectionStatus from '../ConnectionStatus'
+import ProjectConnectionStatus from '../ConnectionStatus'
 import CreateTime from '../CreateTime'
 import ProjectName from '../ProjectName'
 import ProjectAction from '../ProjectAction'
@@ -99,7 +99,7 @@ const getCellContent = function (i18nKey: string, project: Project): ReactElemen
         />
       )
     case 'project.connection_status':
-      return <ConnectionStatus connectionStatus={1} />
+      return <ProjectConnectionStatus connectionStatus={1} />
     case 'project.workflow_number':
       return (
         <Describe text={'12'} style={{ lineHeight: '50px', color: '#1A2233', fontSize: '13px' }} />

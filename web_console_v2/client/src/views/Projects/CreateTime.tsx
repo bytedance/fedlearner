@@ -1,6 +1,6 @@
 import React, { ReactElement } from 'react'
 import styled, { CSSProperties } from 'styled-components'
-import dayjs from 'dayjs'
+import { formatTimestamp } from 'shared/date'
 
 const Container = styled.div`
   color: var(--gray7);
@@ -14,7 +14,7 @@ interface CreateTimeProps {
 }
 
 function CreateTime({ time, style }: CreateTimeProps): ReactElement {
-  const _time = dayjs(time * 1000).format('YYYY-MM-DD HH:mm:ss')
+  const _time = formatTimestamp(time)
   return <Container style={style}>{_time}</Container>
 }
 

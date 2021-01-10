@@ -1,19 +1,25 @@
 import { atom, selector } from 'recoil'
 import { fetchWorkflowTemplateList } from 'services/workflow'
-import { WorkflowForm, WorkflowTemplate, WorkflowTemplateForm } from 'typings/workflow'
-import template from 'services/mocks/v2/workflow_templates/example'
+import {
+  WorkflowConfig,
+  WorkflowPayload,
+  WorkflowTemplate,
+  WorkflowTemplatePayload,
+} from 'typings/workflow'
+import tpls from 'services/mocks/v2/workflow_templates'
+import { parseWidgetSchemas } from 'shared/formSchema'
 
 export type StepOneForm = {
   _templateType: 'existed' | 'create'
   _templateSelected?: string
-} & Pick<WorkflowForm, 'name' | 'peer_forkable' | 'project_token'>
+} & Pick<WorkflowPayload, 'name' | 'forkable' | 'project_id'>
 
 export type StepOneTemplateForm = {
   _files: File[]
-} & WorkflowTemplateForm
+} & WorkflowTemplatePayload
 
-export const workflowCreating = atom<StepOneForm>({
-  key: 'WorkflowCreating',
+export const workflowBasicForm = atom<StepOneForm>({
+  key: 'WorkflowBasicForm',
   default: {
     // Fields start with underscore are solely UI releated things,
     // will not pass to backend on submit
@@ -21,18 +27,26 @@ export const workflowCreating = atom<StepOneForm>({
     _templateSelected: undefined,
 
     name: '',
-    project_token: '',
-    peer_forkable: true,
+    project_id: '',
+    forkable: true,
   },
 })
 
-export const workflowTemplateCreating = atom<StepOneTemplateForm>({
-  key: 'WorkflowTemplateCreating',
+export const workflowJobsConfigForm = atom<WorkflowConfig>({
+  key: 'WorkflowJobsConfigForm',
+  default: {
+    group_alias: '',
+    job_definitions: [],
+  } as any,
+})
+
+export const workflowTemplateForm = atom<StepOneTemplateForm>({
+  key: 'WorkflowTemplateForm',
   default: {
     _files: [],
 
     name: '',
-    template: '',
+    config: '',
     comment: '',
   },
 })
@@ -47,7 +61,7 @@ export const workflowTemplateListQuery = selector({
     get(forceReloadTplList)
     try {
       const res = await fetchWorkflowTemplateList()
-      return res.data.list
+      return res.data.data
     } catch (error) {
       throw error
     }
@@ -57,26 +71,19 @@ export const workflowTemplateListQuery = selector({
 // Template being used when creating workflow
 export const currentWorkflowTemplate = atom<WorkflowTemplate>({
   key: 'CurrentWorkflowTemplate',
-  default: template.data as WorkflowTemplate,
+  default: tpls.data.data[0] as any,
 })
 
 export const workflowGetters = selector({
   key: 'WorkflowGetters',
   get: ({ get }) => {
     return {
-      whetherCreateNewTpl: get(workflowCreating)._templateType === 'create',
-      hasTplSelected: Boolean(get(workflowTemplateCreating).template),
+      whetherCreateNewTpl: get(workflowBasicForm)._templateType === 'create',
+      hasTplSelected: Boolean(get(workflowTemplateForm).config),
+      currentWorkflowTpl: parseWidgetSchemas(get(currentWorkflowTemplate)),
 
       // TODO: distinguish current creation is user side or participant side
       // isParticipantConfiguring: false
     }
-  },
-})
-
-export const workflowConfigValue = atom({
-  key: 'WorkflowConfigValue',
-  default: {
-    group_alias: '',
-    jobs: [] as Array<{}>,
   },
 })

@@ -5,11 +5,11 @@ describe('Common transition mixin', () => {
   it('Should works fine', () => {
     const t = defaultTheme.commonTiming
     const cases = [
-      { i: undefined, o: `transition: 0.4s ${t}` },
-      { i: 'color', o: `transition: color 0.4s ${t}` },
+      { i: undefined, o: `transition: 0.4s ${t};` },
+      { i: 'color', o: `transition: color 0.4s ${t};` },
       {
         i: ['color', 'opacity'],
-        o: `transition: color 0.4s ${t},opacity 0.4s ${t}`,
+        o: `transition: color 0.4s ${t},opacity 0.4s ${t};`,
       },
     ]
 

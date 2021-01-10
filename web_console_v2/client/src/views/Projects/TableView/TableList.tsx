@@ -7,7 +7,6 @@ import { Project } from 'typings/project'
 const Container = styled.div`
   min-width: 1160px;
 `
-
 const HeaderContainer = styled.div`
   display: flex;
   width: 100%;
@@ -15,7 +14,6 @@ const HeaderContainer = styled.div`
   background-color: var(--gray2);
   padding: 0 16px;
 `
-
 const HeaderItemContainer = styled.div`
   font-weight: 500;
   font-size: 12px;

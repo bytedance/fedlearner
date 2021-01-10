@@ -6,7 +6,7 @@ import SecondaryForm from './SecondaryForm'
 import EnvPathsForm from './EnvPathsForm'
 import FileUploaded from '../FileUploaded'
 import UploadArea from '../UploadArea'
-import { CertificateConfigType } from 'typings/enum'
+import { CertificateConfigType } from 'typings/project'
 import {
   ProjectFormInitialValues,
   CreateProjectFormData,
@@ -16,7 +16,6 @@ import {
 import { useHistory } from 'react-router-dom'
 
 const Container = styled.div`
-  padding: 16px;
   width: 100%;
 `
 

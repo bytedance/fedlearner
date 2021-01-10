@@ -29,8 +29,7 @@ const AppSidebar = styled(Sidebar)`
 
 const AppMainContent = styled.main`
   grid-area: main-content;
-  padding: 10px;
-  padding-bottom: 0;
+  padding: 16px;
   overflow: auto;
 `
 
