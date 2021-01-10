@@ -127,9 +127,10 @@ class WorkflowApi(Resource):
         return {'data': workflow.to_dict()}, HTTPStatus.OK
 
 
-class PeerWorkflowApi(Resource):
+class PeerWorkflowsApi(Resource):
     def get(self, workflow_id):
         # TODO: get jobs details
+
         workflow = _get_workflow(workflow_id)
         project_config = workflow.project.get_config()
         peer_workflows = {}
@@ -147,5 +148,5 @@ class PeerWorkflowApi(Resource):
 def initialize_workflow_apis(api):
     api.add_resource(WorkflowsApi, '/workflows')
     api.add_resource(WorkflowApi, '/workflows/<int:workflow_id>')
-    api.add_resource(PeerWorkflowApi,
+    api.add_resource(PeerWorkflowsApi,
                      '/workflows/<int:workflow_id>/peer_workflows')
