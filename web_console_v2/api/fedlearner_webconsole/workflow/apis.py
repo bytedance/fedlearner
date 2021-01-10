@@ -138,6 +138,7 @@ class WorkflowApi(Resource):
 class PeerWorkflowsApi(Resource):
     def get(self, workflow_id):
         # TODO: get jobs details
+
         workflow = _get_workflow(workflow_id)
         project_config = workflow.project.get_config()
         peer_workflows = {}
