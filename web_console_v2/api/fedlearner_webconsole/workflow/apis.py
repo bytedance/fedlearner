@@ -30,6 +30,7 @@ from fedlearner_webconsole.exceptions import (
 from fedlearner_webconsole.scheduler.scheduler import scheduler
 from fedlearner_webconsole.rpc.client import RpcClient
 
+
 def _get_workflow(workflow_id):
     result = Workflow.query.filter_by(id=workflow_id).first()
     if result is None:
