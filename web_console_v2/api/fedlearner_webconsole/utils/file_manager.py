@@ -19,7 +19,7 @@ import os
 import shutil
 
 from pathlib import Path
-from typing import List
+from typing import List, Dict
 
 from snakebite.client import AutoConfigClient
 
@@ -53,14 +53,6 @@ class FileManagerBase(object):
         """Creates a directory. If already exists, return False"""
         raise NotImplementedError()
 
-    def get_size(self, path: str) -> int:
-        """Get size of a file or directory."""
-        raise NotImplementedError()
-
-    def is_dir(self, path: str) -> bool:
-        """Is path a directory"""
-        raise NotImplementedError()
-
 
 class DefaultFileManager(FileManagerBase):
     """Default file manager for native file system or NFS."""
@@ -68,25 +60,32 @@ class DefaultFileManager(FileManagerBase):
     def can_handle(self, path):
         return path.startswith('/')
 
-    def ls(self, path: str, recursive=False) -> List[str]:
+    def ls(self, path: str, recursive=False) -> List[Dict]:
         if not Path(path).exists():
             return []
         # If it is a file
         if Path(path).is_file():
-            return [path]
+            return [{'path': path, 'size': os.path.getsize(path)}]
 
         files = []
         if recursive:
             for root, dirs, fs in os.walk(path):
                 for file in fs:
-                    files.append(os.path.join(root, file))
+                    if Path(file).is_file():
+                        files.append({
+                            'path': os.path.join(root, file),
+                            'size': os.path.getsize(os.path.join(path, file))
+                        })
         else:
             files = [
-                os.path.join(path, file)
+                {
+                    'path': os.path.join(path, file),
+                    'size': os.path.getsize(os.path.join(path, file))
+                }
                 for file in os.listdir(path)
             ]
         # Files only
-        return list(filter(lambda f: Path(f).is_file(), files))
+        return files
 
     def move(self, source: str, destination: str) -> bool:
         try:
@@ -124,12 +123,6 @@ class DefaultFileManager(FileManagerBase):
             logging.error('Error during create %s', e)
         return False
 
-    def get_size(self, path: str) -> int:
-        return os.path.getsize(path)
-
-    def is_dir(self, path: str) -> bool:
-        return os.path.isdir(path)
-
 
 class HdfsFileManager(FileManagerBase):
     """A wrapper of snakebite client."""
@@ -140,11 +133,15 @@ class HdfsFileManager(FileManagerBase):
     def __init__(self):
         self._client = AutoConfigClient()
 
-    def ls(self, path: str, recursive=False) -> List[str]:
+    def ls(self, path: str, recursive=False) -> List[Dict]:
         files = []
         for file in self._client.ls([path], recurse=recursive):
             if file['file_type'] == 'f':
-                files.append(file['path'])
+                files.append({
+                    'path': file['path'],
+                    # snakebite return a string like `1024L`
+                    'size': int(file['length'][:-1])
+                })
         return files
 
     def move(self, source: str, destination: str) -> bool:
@@ -160,13 +157,6 @@ class HdfsFileManager(FileManagerBase):
     def mkdir(self, path: str) -> bool:
         return next(self._client.mkdir([path], create_parent=True))\
             .get('result')
-
-    def get_size(self, path: str) -> int:
-        # return like [{'path': '/', 'length': 123L}]
-        return int(self._client.du([path])[0].get('length')[:-1])
-
-    def is_dir(self, path: str) -> bool:
-        return self._client.test(path, directory=True)
 
 
 class FileManager(FileManagerBase):
@@ -192,7 +182,7 @@ class FileManager(FileManagerBase):
                 return True
         return False
 
-    def ls(self, path: str, recursive=False) -> List[str]:
+    def ls(self, path: str, recursive=False) -> List[Dict]:
         for fm in self._file_managers:
             if fm.can_handle(path):
                 return fm.ls(path, recursive=recursive)
@@ -225,17 +215,3 @@ class FileManager(FileManagerBase):
             if fm.can_handle(path):
                 return fm.mkdir(path)
         raise RuntimeError('mkdir is not supported')
-
-    def get_size(self, path: str) -> int:
-        logging.info('Get size of [%s]', path)
-        for fm in self._file_managers:
-            if fm.can_handle(path):
-                return fm.get_size(path)
-        raise RuntimeError('get_size is not supported')
-
-    def is_dir(self, path: str) -> bool:
-        logging.info('Test is dir [%s]', path)
-        for fm in self._file_managers:
-            if fm.can_handle(path):
-                return fm.is_dir(path)
-        raise RuntimeError('is_dir is not supported')

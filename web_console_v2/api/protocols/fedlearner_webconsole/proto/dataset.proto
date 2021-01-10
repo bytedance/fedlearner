@@ -18,5 +18,6 @@ syntax = "proto3";
 package fedlearner_webconsole.proto;
 
 message DatasetSource {
+    // absolute path
     repeated string file = 1;
 }
