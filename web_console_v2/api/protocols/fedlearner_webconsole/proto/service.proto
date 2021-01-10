@@ -71,6 +71,5 @@ message GetJobsResponse {
 service WebConsoleV2Service {
     rpc CheckConnection (CheckConnectionRequest) returns (CheckConnectionResponse) {}
     rpc UpdateWorkflowState (UpdateWorkflowStateRequest) returns (UpdateWorkflowStateResponse) {}
-    rpc PatchJob (PatchJobRequest) returns (PatchJobResponse) {}
     rpc GetJobs (GetJobsRequest) returns (GetJobsResponse) {}
 }
