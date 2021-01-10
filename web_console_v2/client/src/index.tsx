@@ -14,7 +14,7 @@ import './i18n'
 import MockDevtools from 'components/_base/MockDevtools'
 
 ReactDOM.render(
-  <BrowserRouter>
+  <BrowserRouter basename="/v2">
     <RecoilRoot>
       <ThemeProvider theme={defaultTheme}>
         <App />
