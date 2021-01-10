@@ -17,7 +17,7 @@
 
 import logging
 from http import HTTPStatus
-from flask_restful import Resource, reqparse, request
+from flask_restful import Resource, reqparse
 from google.protobuf.json_format import MessageToDict
 from fedlearner_webconsole.workflow.models import (
     Workflow, WorkflowState, TransactionState
