@@ -80,7 +80,8 @@ class JobScheduler(object):
             if depend is None or depend.state != JobState.STARTED:
                 return
             if dependency.type == JobDependency.ON_COMPLETE:
-                if depend.get_flapp()['status']['appState'] != 'FLStateComplete':
+                if depend.get_flapp()['status']['appState'] \
+                     != 'FLStateComplete':
                     return
         job.state = JobState.STARTED
         project_adapter = ProjectK8sAdapter(job.project_id)
