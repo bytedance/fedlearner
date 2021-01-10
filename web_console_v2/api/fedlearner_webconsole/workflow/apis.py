@@ -18,6 +18,7 @@
 import logging
 from http import HTTPStatus
 from flask_restful import Resource, reqparse
+from google.protobuf.json_format import MessageToDict
 from fedlearner_webconsole.workflow.models import (
     Workflow, WorkflowState, TransactionState
 )
@@ -27,6 +28,7 @@ from fedlearner_webconsole.db import db
 from fedlearner_webconsole.exceptions import (
     NotFoundException, ResourceConflictException, InvalidArgumentException)
 from fedlearner_webconsole.scheduler.scheduler import scheduler
+from fedlearner_webconsole.rpc.client import RpcClient
 
 
 def _get_workflow(workflow_id):
@@ -81,8 +83,8 @@ class WorkflowsApi(Resource):
 
 class WorkflowApi(Resource):
     def get(self, workflow_id):
-        result = _get_workflow(workflow_id)
-        return {'data': result.to_dict()}, HTTPStatus.OK
+        workflow = _get_workflow(workflow_id)
+        return {'data': workflow.to_dict()}, HTTPStatus.OK
 
     def put(self, workflow_id):
         parser = reqparse.RequestParser()
@@ -125,6 +127,26 @@ class WorkflowApi(Resource):
         return {'data': workflow.to_dict()}, HTTPStatus.OK
 
 
+class PeerWorkflowsApi(Resource):
+    def get(self, workflow_id):
+        # TODO: get jobs details
+
+        workflow = _get_workflow(workflow_id)
+        project_config = workflow.project.get_config()
+        peer_workflows = {}
+        for party in project_config.participants:
+            client = RpcClient(project_config, party)
+            resp = client.get_workflow(workflow.name)
+            peer_workflows[party.name] = MessageToDict(
+                resp,
+                preserving_proto_field_name=True,
+                including_default_value_fields=True)
+        return {'data': {'self': workflow.to_dict(),
+                         'peers': peer_workflows}}, HTTPStatus.OK
+
+
 def initialize_workflow_apis(api):
     api.add_resource(WorkflowsApi, '/workflows')
     api.add_resource(WorkflowApi, '/workflows/<int:workflow_id>')
+    api.add_resource(PeerWorkflowsApi,
+                     '/workflows/<int:workflow_id>/peer_workflows')

@@ -21,7 +21,8 @@ import threading
 from concurrent import futures
 import grpc
 from fedlearner_webconsole.proto import (
-    service_pb2, service_pb2_grpc, common_pb2
+    service_pb2, service_pb2_grpc,
+    common_pb2
 )
 from fedlearner_webconsole.db import db
 from fedlearner_webconsole.project.models import Project
@@ -64,6 +65,19 @@ class RPCServerServicer(service_pb2_grpc.WebConsoleV2ServiceServicer):
                     code=common_pb2.STATUS_UNKNOWN_ERROR,
                     msg=repr(e)))
 
+    def GetWorkflow(self, request, context):
+        try:
+            return self._server.get_workflow(request)
+        except UnauthorizedException as e:
+            return service_pb2.GetWorkflowResponse(
+                status=common_pb2.Status(
+                    code=common_pb2.STATUS_UNAUTHORIZED,
+                    msg=repr(e)))
+        except Exception as e:
+            return service_pb2.GetWorkflowResponse(
+                status=common_pb2.Status(
+                    code=common_pb2.STATUS_UNKNOWN_ERROR,
+                    msg=repr(e)))
 
 class RpcServer(object):
     def __init__(self):
@@ -122,7 +136,6 @@ class RpcServer(object):
             return service_pb2.CheckConnectionResponse(
                 status=common_pb2.Status(
                     code=common_pb2.STATUS_SUCCESS))
-
     def update_workflow_state(self, request):
         with self._app.app_context():
             project, party = self.check_auth_info(request.auth_info)
@@ -155,6 +168,35 @@ class RpcServer(object):
                     status=common_pb2.Status(
                         code=common_pb2.STATUS_SUCCESS),
                     transaction_state=workflow.transaction_state.value)
+
+
+    def _filter_variables(self, variables):
+        result = []
+        for var in variables:
+            if var.access_mode in [common_pb2.Variable.PEER_READABLE,
+                                   common_pb2.Variable.PEER_WRITABLE]:
+                result.append(var)
+        return result
+
+    def get_workflow(self, request):
+        with self._app.app_context():
+            project, party = self.check_auth_info(request.auth_info)
+            workflow = Workflow.query.filter_by(
+                name=request.workflow_name,
+                project_id=project.id).first()
+            assert workflow is not None
+            config = workflow.get_config()
+            # filter peer-readable and peer-writable variables
+            config.variable[:] = self._filter_variables(config.variables)
+            for job_def in config.job_definitions:
+                job_def.variables[:] = self._filter_variables(job_def.variables)
+            return service_pb2.GetWorkflowResponse(
+                status=common_pb2.Status(
+                    code=common_pb2.STATUS_SUCCESS),
+                state=workflow.state.value,
+                forkable=workflow.forkable,
+                workflow_definition=config
+            )
 
 
 rpc_server = RpcServer()
