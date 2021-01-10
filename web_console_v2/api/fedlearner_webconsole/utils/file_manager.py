@@ -44,6 +44,23 @@ class FileManagerBase(object):
         """Removes files under a path."""
         raise NotImplementedError()
 
+    def copy(self, source: str, destination: str) -> bool:
+        """Copies a file from source to destination, if destination
+        is a folder then move into that folder."""
+        raise NotImplementedError()
+
+    def mkdir(self, path: str) -> bool:
+        """Creates a directory. If already exists, return False"""
+        raise NotImplementedError()
+
+    def get_size(self, path: str) -> int:
+        """Get size of a file or directory."""
+        raise NotImplementedError()
+
+    def is_dir(self, path: str) -> bool:
+        """Is path a directory"""
+        raise NotImplementedError()
+
 
 class DefaultFileManager(FileManagerBase):
     """Default file manager for native file system or NFS."""
@@ -91,6 +108,28 @@ class DefaultFileManager(FileManagerBase):
             logging.error('Error during remove %s', e)
         return False
 
+    def copy(self, source: str, destination: str) -> bool:
+        try:
+            shutil.copy(source, destination)
+            return True
+        except Exception as e:  # pylint: disable=broad-except
+            logging.error('Error during copy %s', e)
+        return False
+
+    def mkdir(self, path: str) -> bool:
+        try:
+            os.makedirs(path)
+            return True
+        except Exception as e:  # pylint: disable=broad-except
+            logging.error('Error during create %s', e)
+        return False
+
+    def get_size(self, path: str) -> int:
+        return os.path.getsize(path)
+
+    def is_dir(self, path: str) -> bool:
+        return os.path.isdir(path)
+
 
 class HdfsFileManager(FileManagerBase):
     """A wrapper of snakebite client."""
@@ -113,6 +152,21 @@ class HdfsFileManager(FileManagerBase):
 
     def remove(self, path: str) -> bool:
         return len(list(self._client.delete([path]))) > 0
+
+    def copy(self, source: str, destination: str) -> bool:
+        # TODO
+        raise NotImplementedError()
+
+    def mkdir(self, path: str) -> bool:
+        return next(self._client.mkdir([path], create_parent=True))\
+            .get('result')
+
+    def get_size(self, path: str) -> int:
+        # return like [{'path': '/', 'length': 123L}]
+        return int(self._client.du([path])[0].get('length')[:-1])
+
+    def is_dir(self, path: str) -> bool:
+        return self._client.test(path, directory=True)
 
 
 class FileManager(FileManagerBase):
@@ -157,3 +211,31 @@ class FileManager(FileManagerBase):
             if fm.can_handle(path):
                 return fm.remove(path)
         raise RuntimeError('remove is not supported')
+
+    def copy(self, source: str, destination: str) -> bool:
+        logging.info('Copying file from [%s] to [%s]', source, destination)
+        for fm in self._file_managers:
+            if fm.can_handle(source) and fm.can_handle(destination):
+                return fm.copy(source, destination)
+        raise RuntimeError('copy is not supported')
+
+    def mkdir(self, path: str) -> bool:
+        logging.info('Create directory [%s]', path)
+        for fm in self._file_managers:
+            if fm.can_handle(path):
+                return fm.mkdir(path)
+        raise RuntimeError('mkdir is not supported')
+
+    def get_size(self, path: str) -> int:
+        logging.info('Get size of [%s]', path)
+        for fm in self._file_managers:
+            if fm.can_handle(path):
+                return fm.get_size(path)
+        raise RuntimeError('get_size is not supported')
+
+    def is_dir(self, path: str) -> bool:
+        logging.info('Test is dir [%s]', path)
+        for fm in self._file_managers:
+            if fm.can_handle(path):
+                return fm.is_dir(path)
+        raise RuntimeError('is_dir is not supported')
