@@ -189,9 +189,7 @@ class RpcServer(object):
             # filter peer-readable and peer-writable variables
             config.variable[:] = self._filter_variables(config.variables)
             for job_def in config.job_definitions:
-                job = config.job_definitions.add()
-                job.CopyFrom(job_def)
-                job.variables[:] = self._filter_variables(job.variables)
+                job_def.variables[:] = self._filter_variables(job_def.variables)
             return service_pb2.GetWorkflowResponse(
                 status=common_pb2.Status(
                     code=common_pb2.STATUS_SUCCESS),

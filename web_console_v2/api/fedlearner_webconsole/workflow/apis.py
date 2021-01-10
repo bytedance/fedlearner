@@ -82,20 +82,8 @@ class WorkflowsApi(Resource):
 
 class WorkflowApi(Resource):
     def get(self, workflow_id):
-        # TODO: get jobs details
         workflow = _get_workflow(workflow_id)
-        project_config = workflow.project.get_config()
-        peer_workflows = {}
-        if 'peer_workflow' in request.args:
-            for party in project_config.participants:
-                client = RpcClient(project_config, party)
-                resp = client.get_workflow(workflow.name)
-                peer_workflows[party.name] = MessageToDict(
-                    resp,
-                    preserving_proto_field_name=True,
-                    including_default_value_fields=True)
-        return {'data': {'self': workflow.to_dict(),
-                         'peers': peer_workflows}}, HTTPStatus.OK
+        return {'data': workflow.to_dict()}, HTTPStatus.OK
 
     def put(self, workflow_id):
         parser = reqparse.RequestParser()
@@ -138,6 +126,25 @@ class WorkflowApi(Resource):
         return {'data': workflow.to_dict()}, HTTPStatus.OK
 
 
+class PeerWorkflowApi(Resource):
+    def get(self, workflow_id):
+        # TODO: get jobs details
+        workflow = _get_workflow(workflow_id)
+        project_config = workflow.project.get_config()
+        peer_workflows = {}
+        for party in project_config.participants:
+            client = RpcClient(project_config, party)
+            resp = client.get_workflow(workflow.name)
+            peer_workflows[party.name] = MessageToDict(
+                resp,
+                preserving_proto_field_name=True,
+                including_default_value_fields=True)
+        return {'data': {'self': workflow.to_dict(),
+                         'peers': peer_workflows}}, HTTPStatus.OK
+
+
 def initialize_workflow_apis(api):
     api.add_resource(WorkflowsApi, '/workflows')
     api.add_resource(WorkflowApi, '/workflows/<int:workflow_id>')
+    api.add_resource(PeerWorkflowApi,
+                     '/workflows/<int:workflow_id>/peer_workflows')
