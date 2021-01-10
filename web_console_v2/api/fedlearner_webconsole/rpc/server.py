@@ -156,7 +156,7 @@ class RpcServer(object):
                     name=request.workflow_name,
                     project_id=project.id,
                     state=state, target_state=target_state,
-                    transaction_state=TransactionState.READY)
+                    transaction_state=transaction_state)
                 db.session.add(workflow)
                 db.session.commit()
                 db.session.refresh(workflow)

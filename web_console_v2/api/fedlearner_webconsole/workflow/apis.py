@@ -17,7 +17,7 @@
 
 import logging
 from http import HTTPStatus
-from flask_restful import Resource, reqparse
+from flask_restful import Resource, reqparse, request
 from google.protobuf.json_format import MessageToDict
 from fedlearner_webconsole.workflow.models import (
     Workflow, WorkflowState, TransactionState
@@ -40,8 +40,16 @@ def _get_workflow(workflow_id):
 
 class WorkflowsApi(Resource):
     def get(self):
+        result = Workflow.query
+        if 'project' in request.args and request.args['project'] is not None:
+            project_id = request.args['project']
+            result = result.filter_by(project_id=project_id)
+        if 'key_word' in request.args and request.args['key_word'] is not None:
+            key_word = request.args['key_word']
+            result = result.filter(Workflow.name.like(
+                '%{}%'.format(key_word)))
         return {'data': [row.to_dict() for row in
-                         Workflow.query.all()]}, HTTPStatus.OK
+                         result.all()]}, HTTPStatus.OK
 
     def post(self):
         parser = reqparse.RequestParser()

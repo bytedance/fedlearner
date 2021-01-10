@@ -36,12 +36,13 @@ def dict_to_workflow_definition(config):
 
 class WorkflowTemplatesApi(Resource):
     def get(self):
+        templates = WorkflowTemplate.query
         if 'group_alias' in request.args:
-            templates = WorkflowTemplate.query.filter_by(
+            templates = templates.filter_by(
                 group_alias=request.args['group_alias'])
-        else:
-            templates = WorkflowTemplate.query.all()
-        return {'data': [t.to_dict() for t in templates]}, \
+            if 'is_left' in request.args:
+                templates = templates.filter_by(is_left=request.args['is_left'])
+        return {'data': [t.to_dict() for t in templates.all()]}, \
                HTTPStatus.OK
 
     def post(self):
@@ -65,12 +66,12 @@ class WorkflowTemplatesApi(Resource):
         if WorkflowTemplate.query.filter_by(name=name).first() is not None:
             raise ResourceConflictException(
                 'Workflow template {} already exists'.format(name))
-
         # form to proto buffer
         template_proto = dict_to_workflow_definition(config)
         template = WorkflowTemplate(name=name,
                                     comment=comment,
-                                    group_alias=template_proto.group_alias)
+                                    group_alias=template_proto.group_alias,
+                                    is_left=template_proto.is_left)
         template.set_config(template_proto)
         db.session.add(template)
         db.session.commit()

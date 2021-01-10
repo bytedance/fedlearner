@@ -27,7 +27,7 @@ class WorkflowTemplate(db.Model):
     comment = db.Column(db.String(255))
     group_alias = db.Column(db.String(255), nullable=False, index=True)
     config = db.Column(db.Text(), nullable=False)
-
+    is_left = db.Column(db.Boolean, nullable=False)
     def set_config(self, proto):
         self.config = proto.SerializeToString()
 
