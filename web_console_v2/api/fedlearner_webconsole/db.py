@@ -26,11 +26,14 @@ db = SQLAlchemy()
 
 
 def to_dict_mixin(ignores: List[str] = None,
-                  extras: Dict[str, Callable] = None):
+                  extras: Dict[str, Callable] = None,
+                  relations: List[str] = None):
     if ignores is None:
         ignores = []
     if extras is None:
         extras = {}
+    if relations is None:
+        relations = []
 
     def decorator(cls):
         """A decorator to add a to_dict method to a sqlalchemy model class."""
@@ -42,6 +45,10 @@ def to_dict_mixin(ignores: List[str] = None,
                 if col.name in ignores:
                     continue
                 dic[col.name] = getattr(self, col.name)
+            # Load relation
+            for relation in relations:
+                dic[relation] = [foreign_model.to_dict() for foreign_model in
+                                 getattr(self, relation)]
             # Puts extra items specified by consumer
             for extra_key, func in extras.items():
                 dic[extra_key] = func(self)

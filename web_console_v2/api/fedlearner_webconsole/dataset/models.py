@@ -16,7 +16,7 @@
 
 import enum
 from sqlalchemy.sql import func
-from sqlalchemy import UniqueConstraint
+from sqlalchemy import PrimaryKeyConstraint
 from fedlearner_webconsole.db import db, to_dict_mixin
 from fedlearner_webconsole.proto import dataset_pb2
 
@@ -33,16 +33,13 @@ class BatchState(enum.Enum):
 
 
 @to_dict_mixin(
-    extras={
-        'batch': lambda dataset: dataset.get_batch()
-    }
+    relations=['data_batches']
 )
 class Dataset(db.Model):
     __tablename__ = 'datasets_v2'
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     name = db.Column(db.String(255), unique=True)
     type = db.Column(db.Enum(DatasetType))
-    batch = db.relationship('Batch')
     comment = db.Column(db.Text())
     created_at = db.Column(db.DateTime(timezone=True),
                            server_default=func.now())
@@ -51,20 +48,17 @@ class Dataset(db.Model):
                            server_onupdate=func.now())
     deleted_at = db.Column(db.DateTime(timezone=True))
 
-    def get_batch(self):
-        return [batch.to_dict() for batch in
-                Batch.query.filter_by(dataset_id=self.id).all()]
+    data_batches = db.relationship('DataBatch', back_populates='dataset')
 
 
 @to_dict_mixin(
     extras={
         'source': (lambda batch: batch.get_source())
     })
-class Batch(db.Model):
-    __tablename__ = 'batches_v2'
-    __table_args__ = (UniqueConstraint('event_time', 'dataset_id'),)
-    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    event_time = db.Column(db.String(255))
+class DataBatch(db.Model):
+    __tablename__ = 'data_batches_v2'
+    __table_args__ = (PrimaryKeyConstraint('event_time', 'dataset_id'),)
+    event_time = db.Column(db.TIMESTAMP(timezone=True))
     dataset_id = db.Column(db.Integer, db.ForeignKey(Dataset.id))
     state = db.Column(db.Enum(BatchState))
     source = db.Column(db.Text(),
@@ -80,6 +74,8 @@ class Batch(db.Model):
                            server_default=func.now(),
                            server_onupdate=func.now())
     deleted_at = db.Column(db.DateTime(timezone=True))
+
+    dataset = db.relationship('Dataset', back_populates='data_batches')
 
     def set_source(self, proto):
         self.source = proto.SerializeToString()

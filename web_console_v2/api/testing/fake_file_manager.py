@@ -31,3 +31,9 @@ class FakeFileManager(FileManagerBase):
 
     def remove(self, path: str) -> bool:
         return path.startswith('fake://remove')
+
+    def copy(self, source: str, destination: str) -> bool:
+        return source.startswith('fake://copy')
+
+    def mkdir(self, path: str) -> bool:
+        return path.startswith('fake://mkdir')

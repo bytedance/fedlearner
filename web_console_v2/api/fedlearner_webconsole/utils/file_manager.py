@@ -61,29 +61,28 @@ class DefaultFileManager(FileManagerBase):
         return path.startswith('/')
 
     def ls(self, path: str, recursive=False) -> List[Dict]:
+
+        def _get_file_stats(path: str):
+            return {'path': path, 'size': os.path.getsize(path)}
+
         if not Path(path).exists():
             return []
         # If it is a file
         if Path(path).is_file():
-            return [{'path': path, 'size': os.path.getsize(path)}]
+            return [_get_file_stats(path)]
 
         files = []
         if recursive:
             for root, dirs, fs in os.walk(path):
                 for file in fs:
                     if Path(os.path.join(root, file)).is_file():
-                        files.append({
-                            'path': os.path.join(root, file),
-                            'size': os.path.getsize(os.path.join(root, file))
-                        })
+                        files.append(
+                            _get_file_stats(os.path.join(root, file)))
         else:
             for file in os.listdir(path):
                 if Path(os.path.join(path, file)).is_file():
                     files.append(
-                        {
-                            'path': os.path.join(path, file),
-                            'size': os.path.getsize(os.path.join(path, file))
-                        })
+                        _get_file_stats(os.path.join(path, file)))
         # Files only
         return files
 

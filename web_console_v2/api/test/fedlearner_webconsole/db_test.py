@@ -24,7 +24,7 @@ from testing.common import create_test_db
 
 @to_dict_mixin(ignores=['token', 'grpc_spec'], extras={
     'extra_key': (lambda model: model.get_grpc_spec())
-})
+}, relations=['relations'])
 class _TestModel(db.Model):
     __tablename__ = 'test_table'
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
@@ -32,6 +32,7 @@ class _TestModel(db.Model):
     token = db.Column(db.String(64), index=True)
     created_at = db.Column(db.DateTime(timezone=True))
     grpc_spec = db.Column(db.Text())
+    relations = db.relationship('_TestRelationModel')
 
     def set_grpc_spec(self, proto):
         self.grpc_spec = proto.SerializeToString()
@@ -40,6 +41,13 @@ class _TestModel(db.Model):
         proto = common_pb2.GrpcSpec()
         proto.ParseFromString(self.grpc_spec)
         return proto
+
+
+@to_dict_mixin()
+class _TestRelationModel(db.Model):
+    __tablename__ = 'test_relation_table'
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    test_model_id = db.Column(db.Integer, db.ForeignKey(_TestModel.id))
 
 
 class DbTest(unittest.TestCase):
@@ -64,6 +72,12 @@ class DbTest(unittest.TestCase):
         self._db.session.add(test_model)
         self._db.session.commit()
 
+        test_relation_model = _TestRelationModel(
+            test_model_id=test_model.id
+        )
+        self._db.session.add(test_relation_model)
+        self._db.session.commit()
+
         models = _TestModel.query.all()
         self.assertEqual(len(models), 1)
         self.assertDictEqual(models[0].to_dict(), {
@@ -74,7 +88,13 @@ class DbTest(unittest.TestCase):
                 'peer_url': 'test-url',
                 'authority': 'test-authority',
                 'extra_headers': {},
-            }
+            },
+            'relations': [
+                {
+                    'id': 1,
+                    'test_model_id': 1
+                }
+            ]
         })
 
 
