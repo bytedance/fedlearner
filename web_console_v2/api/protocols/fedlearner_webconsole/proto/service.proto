@@ -16,7 +16,7 @@
 syntax = "proto3";
 
 import "fedlearner_webconsole/proto/common.proto";
-
+import "fedlearner_webconsole/proto/workflow_definition.proto";
 package fedlearner_webconsole.proto;
 
 
@@ -68,9 +68,22 @@ message GetJobsResponse {
     repeated JobDetail jobs = 2;
 }
 
+message GetWorkflowRequest {
+    ProjAuthInfo auth_info = 1;
+    string workflow_name = 2;
+}
+message GetWorkflowResponse{
+    Status status = 1;
+    int64 state = 2;
+    bool forkable = 3;
+    WorkflowDefinition workflow_definition = 4;
+}
+
+
 service WebConsoleV2Service {
     rpc CheckConnection (CheckConnectionRequest) returns (CheckConnectionResponse) {}
     rpc UpdateWorkflowState (UpdateWorkflowStateRequest) returns (UpdateWorkflowStateResponse) {}
     // TODO: merge this service to GetWorkflow
     rpc GetJobs (GetJobsRequest) returns (GetJobsResponse) {}
+    rpc GetWorkflow (GetWorkflowRequest) returns (GetWorkflowResponse) {}
 }
