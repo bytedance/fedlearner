@@ -22,14 +22,13 @@ from fedlearner_webconsole.project.models import Project
 from fedlearner_webconsole.k8s_client import get_client
 from fedlearner_webconsole.proto.workflow_definition_pb2 import JobDefinition
 
-# must be consistent with JobState in proto
 class JobState(enum.Enum):
     UNSPECIFIED = 1
     READY = 2
     STARTED = 3
     STOPPED = 4
 
-
+# must be consistent with JobType in proto
 class JobType(enum.Enum):
     UNSPECIFIED = 0
     RAW_DATA = 1

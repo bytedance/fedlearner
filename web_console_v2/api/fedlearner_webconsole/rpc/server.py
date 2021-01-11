@@ -29,7 +29,6 @@ from fedlearner_webconsole.project.models import Project
 from fedlearner_webconsole.workflow.models import (
     Workflow, WorkflowState, TransactionState
 )
-from fedlearner_webconsole.job.models import Job
 from fedlearner_webconsole.exceptions import (
     UnauthorizedException
 )
@@ -183,25 +182,6 @@ class RpcServer(object):
                     status=common_pb2.Status(
                         code=common_pb2.STATUS_SUCCESS),
                     transaction_state=workflow.transaction_state.value)
-    def get_jobs(self, request):
-        with self._app.app_context():
-            project, party = self.check_auth_info(request.auth_info)
-            logging.debug(
-                'received update_workflow_state from %s: %s',
-                party.domain_name, request)
-            workflow = Workflow.query.filter_by(
-                name=request.workflow_name,
-                project_id=project.id).first()
-            assert workflow is not None
-            jobs = [service_pb2.JobDetail(
-                job_name=job.name, job_state=job.state)
-                for job in Job.query.filter_by(workflow_id=workflow.id).all()]
-            return service_pb2.GetJobsResponse(
-                status=common_pb2.Status(code=common_pb2.STATUS_SUCCESS),
-                jobs=jobs)
-
-
-
 
     def _filter_variables(self, variables):
         result = []
@@ -223,12 +203,17 @@ class RpcServer(object):
             config.variable[:] = self._filter_variables(config.variables)
             for job_def in config.job_definitions:
                 job_def.variables[:] = self._filter_variables(job_def.variables)
+            # job details
+            jobs = [service_pb2.JobDetail(
+                job_name=job.name, job_state=job.state)
+                for job in workflow.jobs]
             return service_pb2.GetWorkflowResponse(
                 status=common_pb2.Status(
                     code=common_pb2.STATUS_SUCCESS),
                 state=workflow.state.value,
                 forkable=workflow.forkable,
-                workflow_definition=config
+                workflow_definition=config,
+                jobs=jobs
             )
 
 

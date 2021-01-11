@@ -113,23 +113,3 @@ class RpcClient(object):
                 status=common_pb2.Status(
                     code=common_pb2.STATUS_UNKNOWN_ERROR,
                     msg=repr(e)))
-
-    def get_jobs(self, workflow_name):
-        msg = service_pb2.GetJobsRequest(
-            auth_info=self._auth_info,
-            workflow_name=workflow_name
-        )
-        try:
-            response = self._client.GetJobs(
-                request=msg, metadata=self._get_metadata())
-            if response.status.code != common_pb2.STATUS_SUCCESS:
-                logging.debug(
-                    'patch_job request error: %s',
-                    response.status.msg)
-            return response
-        except Exception as e:
-            logging.debug('patch_job request error: %s', repr(e))
-            return service_pb2.GetJobsResponse(
-                status=common_pb2.Status(
-                    code=common_pb2.STATUS_UNKNOWN_ERROR,
-                    msg=repr(e)))
