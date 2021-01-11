@@ -101,7 +101,7 @@ class WorkflowsApiTest(BaseTestCase):
             'transaction_err': None,
         })
         # Check DB
-        self.assertTrue(len(Workflow.query.all()) == 1)
+        self.assertEqual(len(Workflow.query.all()), 4)
 
         # Post again
         mock_wakeup.reset_mock()
@@ -112,7 +112,7 @@ class WorkflowsApiTest(BaseTestCase):
         # Check mock
         mock_wakeup.assert_not_called()
         # Check DB
-        self.assertTrue(len(Workflow.query.all()) == 1)
+        self.assertEqual(len(Workflow.query.all()), 4)
 
     def test_fork_workflow(self):
         # TODO: insert into db first, and then copy it.
