@@ -8,7 +8,7 @@ image:
   repository: fedlearner/fedlearner-web-console-v2
   pullPolicy: IfNotPresent
   # Overrides the image tag whose default is the chart appVersion.
-  tag: "8c8e3ad"
+  tag: "latest"
 
 imagePullSecrets: []
 nameOverride: ""
@@ -49,7 +49,7 @@ ingress:
     nginx.ingress.kubernetes.io/backend-protocol: GRPC
     # kubernetes.io/tls-acme: "true"
   hosts:
-    - host: default.fedlearner.webconsole-v2
+    - host: v2.fedlearner.webconsole
       paths: ["/"]
   tls: []
   #  - secretName: chart-example-tls
