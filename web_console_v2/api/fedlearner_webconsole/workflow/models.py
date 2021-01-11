@@ -35,7 +35,7 @@ class WorkflowState(enum.Enum):
 VALID_TRANSITIONS = [(WorkflowState.NEW, WorkflowState.READY),
                      (WorkflowState.READY, WorkflowState.RUNNING),
                      (WorkflowState.RUNNING, WorkflowState.STOPPED),
-                     (WorkflowState.STOPPED, WorkflowState.READY)]
+                     (WorkflowState.STOPPED, WorkflowState.RUNNING)]
 
 
 class TransactionState(enum.Enum):
@@ -209,6 +209,7 @@ class Workflow(db.Model):
     def rollback(self):
         self.target_state = WorkflowState.INVALID
 
+    # TODO: separate this method to another module
     def commit(self):
         assert self.transaction_state in [
             TransactionState.COORDINATOR_COMMITTING,

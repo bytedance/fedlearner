@@ -71,5 +71,6 @@ message GetJobsResponse {
 service WebConsoleV2Service {
     rpc CheckConnection (CheckConnectionRequest) returns (CheckConnectionResponse) {}
     rpc UpdateWorkflowState (UpdateWorkflowStateRequest) returns (UpdateWorkflowStateResponse) {}
+    // TODO: merge this service to GetWorkflow
     rpc GetJobs (GetJobsRequest) returns (GetJobsResponse) {}
 }

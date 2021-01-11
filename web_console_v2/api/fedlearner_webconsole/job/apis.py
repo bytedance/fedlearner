@@ -27,6 +27,7 @@ from fedlearner_webconsole.rpc.client import RpcClient
 
 class JobsApi(Resource):
     def get(self, workflow_id):
+        # TODO: merge this to get workflow api
         if 'peer_jobs' not in request.args:
             raise InvalidArgumentException('peer_jobs flag required')
         workflow = Workflow.query.filter_by(id=workflow_id).first()

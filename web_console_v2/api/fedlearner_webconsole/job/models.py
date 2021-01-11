@@ -96,7 +96,7 @@ class Job(db.Model):
         self.flapp_snapshot = json.dumps(flapp)
 
     def get_flapp(self):
-        # TODO: remove set_snapshot to scheduler
+        # TODO: remove update snapshot to scheduler
         if self.state == JobState.STARTED:
             self._set_snapshot_flapp()
         return json.loads(self.flapp_snapshot)
