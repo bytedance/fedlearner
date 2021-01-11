@@ -41,9 +41,12 @@ class WorkflowTemplatesApi(Resource):
             templates = templates.filter_by(
                 group_alias=request.args['group_alias'])
             if 'is_left' in request.args:
-                templates = templates.filter_by(is_left=request.args['is_left'])
-        return {'data': [t.to_dict() for t in templates.all()]}, \
-               HTTPStatus.OK
+                is_left = request.args.get(key='is_left', type=int)
+                if is_left is None:
+                    raise InvalidArgumentException('is_left must be bool')
+                templates = templates.filter_by(is_left=is_left)
+        return {'data': [t.to_dict() for t in templates.all()]}\
+            , HTTPStatus.OK
 
     def post(self):
         parser = reqparse.RequestParser()

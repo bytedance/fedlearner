@@ -44,10 +44,10 @@ class WorkflowsApi(Resource):
         if 'project' in request.args and request.args['project'] is not None:
             project_id = request.args['project']
             result = result.filter_by(project_id=project_id)
-        if 'key_word' in request.args and request.args['key_word'] is not None:
-            key_word = request.args['key_word']
+        if 'keyword' in request.args and request.args['keyword'] is not None:
+            keyword = request.args['keyword']
             result = result.filter(Workflow.name.like(
-                '%{}%'.format(key_word)))
+                '%{}%'.format(keyword)))
         return {'data': [row.to_dict() for row in
                          result.all()]}, HTTPStatus.OK
 

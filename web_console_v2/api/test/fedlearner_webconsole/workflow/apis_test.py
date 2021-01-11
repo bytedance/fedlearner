@@ -32,6 +32,37 @@ class WorkflowsApiTest(BaseTestCase):
         config.START_SCHEDULER = False
         return config
 
+    def setUp(self):
+        super().setUp()
+        # Inserts data
+        workflow1 = Workflow(name='workflow_key_get1',
+                             project_id=1
+                             )
+        workflow2 = Workflow(name='workflow_kay_get2',
+                             project_id=2
+                             )
+        workflow3 = Workflow(name='workflow_key_get3',
+                             project_id=2
+                             )
+        db.session.add(workflow1)
+        db.session.add(workflow2)
+        db.session.add(workflow3)
+        db.session.commit()
+
+    def test_get_with_project(self):
+        response = self.get_helper('/api/v2/workflows?project=1')
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+        data = json.loads(response.data).get('data')
+        self.assertEqual(len(data), 1)
+        self.assertEqual(data[0]['name'], 'workflow_key_get1')
+
+    def test_get_with_keyword(self):
+        response = self.get_helper('/api/v2/workflows?keyword=key')
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+        data = json.loads(response.data).get('data')
+        self.assertEqual(len(data), 2)
+        self.assertEqual(data[0]['name'], 'workflow_key_get1')
+
     @patch('fedlearner_webconsole.workflow.apis.scheduler.wakeup')
     def test_create_new_workflow(self, mock_wakeup):
         with open(
