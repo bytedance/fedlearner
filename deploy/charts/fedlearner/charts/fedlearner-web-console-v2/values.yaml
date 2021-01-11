@@ -8,7 +8,7 @@ image:
   repository: fedlearner/fedlearner-web-console-v2
   pullPolicy: IfNotPresent
   # Overrides the image tag whose default is the chart appVersion.
-  tag: "latest"
+  tag: "8c8e3ad"
 
 imagePullSecrets: []
 nameOverride: ""
