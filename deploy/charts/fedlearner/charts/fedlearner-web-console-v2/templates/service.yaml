@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "fedlearner-web-console-v2.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "fedlearner-web-console-v2.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+    - port: {{ .Values.service.port }}
+      targetPort: 1990
+      protocol: TCP
+      name: grpc
+  selector:
+    {{- include "fedlearner-web-console-v2.selectorLabels" . | nindent 4 }}
