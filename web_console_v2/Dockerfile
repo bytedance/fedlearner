@@ -24,13 +24,11 @@ RUN make protobuf
 RUN echo "daemon off;" >> /etc/nginx/nginx.conf
 COPY nginx.conf /etc/nginx/conf.d/nginx.conf
 
-# Supervisor configuration
-COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
-
 # Port for webconsole http server
 EXPOSE 1989
 # Port for webconsole gRPC server
 # This should not be exposed in PROD
 EXPOSE 1990
 
-CMD /usr/bin/supervisord
+WORKDIR /app
+CMD /usr/bin/supervisord -c supervisord.conf
