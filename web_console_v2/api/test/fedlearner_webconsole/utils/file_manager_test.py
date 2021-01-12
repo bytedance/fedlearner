@@ -31,18 +31,10 @@ class DefaultFileManagerTest(unittest.TestCase):
         self._test_dir = tempfile.mkdtemp()
         subdir = Path(self._test_dir).joinpath('subdir')
         subdir.mkdir()
-        with open(Path(self._test_dir).joinpath('f1.txt'), 'w') as file1:
-            with open(Path(self._test_dir).joinpath('f2.txt'), 'w') as file2:
-                with open(subdir.joinpath('s1.txt'), 'w') as file3:
-                    for _ in range(1000):
-                        for _ in range(100):
-                            file1.write('1234567890')
-                            file2.write('1234567890')
-                            file3.write('1234567890')
-                        file1.write('\n')
-                        file2.write('\n')
-                        file3.write('\n')
-        self.FILE_SIZE = 1001000
+        Path(self._test_dir).joinpath('f1.txt').write_text('xxx')
+        Path(self._test_dir).joinpath('f2.txt').write_text('xxx')
+        subdir.joinpath('s1.txt').write_text('xxx')
+        self.FILE_SIZE = 3
 
         self._fm = DefaultFileManager()
 
@@ -241,7 +233,7 @@ class FileManagerTest(unittest.TestCase):
     def test_copy(self):
         self.assertTrue(self._fm.copy('fake://copy/123', 'fake://copy/234'))
         self.assertFalse(
-            self._fm.move('fake://do_not_copy/123', 'fake://copy/234'))
+            self._fm.copy('fake://do_not_copy/123', 'fake://copy/234'))
         # No file manager can handle this
         self.assertRaises(RuntimeError,
                           lambda: self._fm.copy('hdfs://123', 'fake://abc'))

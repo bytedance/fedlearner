@@ -33,13 +33,17 @@ class BatchState(enum.Enum):
 
 
 @to_dict_mixin(
-    relations=['data_batches']
+    extras={
+        'data_batches': lambda dataset: [data_batch.to_dict()
+                                         for data_batch in dataset.data_batches]
+    }
 )
 class Dataset(db.Model):
     __tablename__ = 'datasets_v2'
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     name = db.Column(db.String(255), unique=True)
     type = db.Column(db.Enum(DatasetType))
+    external_storage_path = db.Column(db.Text())
     comment = db.Column(db.Text())
     created_at = db.Column(db.DateTime(timezone=True),
                            server_default=func.now())
