@@ -208,27 +208,32 @@ class StreamExampleJoiner(ExampleJoiner):
     def _dump_joined_items(self):
         start_tm = time.time()
         prev_leader_idx = 0
+        neg_samples = {}
         for (li, le) in self._leader_join_window:
             if prev_leader_idx == 0:
                 prev_leader_idx = li
             eid = le.example_id
             if eid not in self._follower_example_cache and \
                     eid not in self._joined_cache:
+                if self._enable_negative_example_generator:
+                    neg_samples[li] = le
                 continue
             if eid not in self._joined_cache:
                 self._joined_cache[eid] = \
                         self._follower_example_cache[eid]
             fe = self._joined_cache[eid]
             if self._enable_negative_example_generator and li > prev_leader_idx:
+                self._negative_example_generator.update(neg_samples)
                 for example in \
                     self._negative_example_generator.generate(
-                    fe, prev_leader_idx, li):
+                        fe[1], prev_leader_idx, li):
                     builder = self._get_data_block_builder(True)
                     assert builder is not None, "data block builder must be "\
                                                 "not None if before dummping"
-                    builder.append(example[0], example[1], example[2])
+                    builder.append_item(example[0], example[1], example[2])
                     if builder.check_data_block_full():
                         yield self._finish_data_block()
+                neg_samples = {}
             builder = self._get_data_block_builder(True)
             assert builder is not None, "data block builder must be "\
                                         "not None if before dummping"
