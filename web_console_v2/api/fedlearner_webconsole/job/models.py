@@ -113,11 +113,11 @@ class Job(db.Model):
         if self.state == JobState.STARTED:
             self._set_snapshot_flapp()
             self._set_snapshot_pods()
-            self._k8s_client.deleteFLApp(project_adapter.
+            self._k8s_client.delete_flapp(project_adapter.
                                          get_namespace(), self.name)
         self.state = JobState.STOPPED
 
 
     def set_yaml(self, yaml_template):
-        project_adapter = ProjectK8sAdapter(self.project_id)
         # TODO: complete yaml
+        self.yaml = yaml_template
