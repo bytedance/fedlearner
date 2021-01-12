@@ -1,10 +1,10 @@
-import project from './modules/project'
-import workflow from './modules/workflow'
-import login from './modules/login'
-import menu from './modules/menu'
-import error from './modules/error'
-import upload from './modules/upload'
-import term from './modules/term'
+import project from './modules/project';
+import workflow from './modules/workflow';
+import login from './modules/login';
+import menu from './modules/menu';
+import error from './modules/error';
+import upload from './modules/upload';
+import term from './modules/term';
 
 const messages = {
   translation: {
@@ -28,6 +28,6 @@ const messages = {
     certificate: 'Certificate',
     click_to_retry: 'Click to retry',
   },
-}
+};
 
-export default messages
+export default messages;

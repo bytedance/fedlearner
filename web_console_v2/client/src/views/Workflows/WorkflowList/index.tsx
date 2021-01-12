@@ -1,24 +1,24 @@
-import React, { useState } from 'react'
-import styled from 'styled-components'
-import { Row, Col, Button, Form, Input, Select, Table, message } from 'antd'
-import { useList } from 'react-use'
-import { Link } from 'react-router-dom'
-import { useQuery } from 'react-query'
-import { fetchWorkflowList } from 'services/workflow'
-import i18n from 'i18n'
-import { formatTimestamp } from 'shared/date'
-import { useTranslation } from 'react-i18next'
-import ListPageLayout from 'components/ListPageLayout'
-import { Workflow } from 'typings/workflow'
-import WorkflowStage from './WorkflowStage'
-import { isStopped, isRunning, isPendingAccpet, isReadyToRun } from 'shared/workflow'
-import ProjectCell from 'components/ProjectCell'
+import React, { useState } from 'react';
+import styled from 'styled-components';
+import { Row, Col, Button, Form, Input, Select, Table, message } from 'antd';
+import { useList } from 'react-use';
+import { Link } from 'react-router-dom';
+import { useQuery } from 'react-query';
+import { fetchWorkflowList } from 'services/workflow';
+import i18n from 'i18n';
+import { formatTimestamp } from 'shared/date';
+import { useTranslation } from 'react-i18next';
+import ListPageLayout from 'components/ListPageLayout';
+import { Workflow } from 'typings/workflow';
+import WorkflowStage from './WorkflowStage';
+import { isStopped, isRunning, isPendingAccpet, isReadyToRun } from 'shared/workflow';
+import ProjectCell from 'components/ProjectCell';
 
 const FilterItem = styled(Form.Item)`
   > .ant-form-item-control {
     width: 227px;
   }
-`
+`;
 
 const tableColumns = [
   {
@@ -27,13 +27,13 @@ const tableColumns = [
     key: 'name',
     render: (name: string, record: Workflow) => {
       if (isPendingAccpet(record)) {
-        return name
+        return name;
       }
       return (
         <Link to={`/workflows/${record.id}`} rel="nopener">
           {name}
         </Link>
-      )
+      );
     },
   },
   {
@@ -92,30 +92,30 @@ const tableColumns = [
       </div>
     ),
   },
-]
+];
 
 type QueryParams = {
-  project?: string
-  keyword?: string
-}
+  project?: string;
+  keyword?: string;
+};
 
 function WorkflowsTable() {
-  const { t } = useTranslation()
-  const [form] = Form.useForm<QueryParams>()
-  const [projectList] = useList([{ value: '', label: t('all') }])
-  const [params, setParams] = useState<QueryParams>({ project: '', keyword: '' })
+  const { t } = useTranslation();
+  const [form] = Form.useForm<QueryParams>();
+  const [projectList] = useList([{ value: '', label: t('all') }]);
+  const [params, setParams] = useState<QueryParams>({ project: '', keyword: '' });
 
   const { isLoading, isError, data: res, error } = useQuery(
     ['fetchWorkflowList', params.project, params.keyword],
     () => fetchWorkflowList(params),
-  )
+  );
 
   if (isError && error) {
-    message.error((error as Error).message)
+    message.error((error as Error).message);
   }
 
   function handleSearch(values: QueryParams) {
-    setParams(values)
+    setParams(values);
   }
 
   return (
@@ -149,7 +149,7 @@ function WorkflowsTable() {
 
       <Table loading={isLoading} dataSource={res?.data.data || []} columns={tableColumns} />
     </ListPageLayout>
-  )
+  );
 }
 
-export default WorkflowsTable
+export default WorkflowsTable;

@@ -1,6 +1,6 @@
-import React, { FunctionComponent } from 'react'
-import { convertToUnit } from 'shared/helpers'
-import styled from 'styled-components'
+import React, { FunctionComponent } from 'react';
+import { convertToUnit } from 'shared/helpers';
+import styled from 'styled-components';
 
 const Container = styled.div`
   display: grid;
@@ -10,13 +10,13 @@ const Container = styled.div`
   grid-auto-columns: auto;
   grid-template-rows: auto;
   grid-auto-flow: column;
-`
+`;
 
 type Props = {
-  top?: number | string
-  left?: number | string
-  gap?: number | string
-  align?: 'center' | 'start' | 'end'
+  top?: number | string;
+  left?: number | string;
+  gap?: number | string;
+  align?: 'center' | 'start' | 'end';
   justify?:
     | 'start'
     | 'end'
@@ -24,8 +24,8 @@ type Props = {
     | 'stretch'
     | 'space-between'
     | 'space-around'
-    | 'space-evenly'
-}
+    | 'space-evenly';
+};
 
 /**
  * Row component with ability to specify gap between items
@@ -39,7 +39,7 @@ const GridRow: FunctionComponent<Props> = ({ top, left, ...props }) => {
     >
       {props.children}
     </Container>
-  )
-}
+  );
+};
 
-export default GridRow
+export default GridRow;

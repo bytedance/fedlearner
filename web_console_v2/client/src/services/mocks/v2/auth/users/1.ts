@@ -1,5 +1,5 @@
-import { AxiosResponse } from 'axios'
-import { Optional } from 'utility-types'
+import { AxiosResponse } from 'axios';
+import { Optional } from 'utility-types';
 
 const fakeUserInfo: Optional<AxiosResponse> = {
   data: {
@@ -13,6 +13,6 @@ const fakeUserInfo: Optional<AxiosResponse> = {
   },
   // to mock server error, just tweak the status code below
   status: 300,
-}
+};
 
-export default fakeUserInfo
+export default fakeUserInfo;

@@ -1,11 +1,11 @@
-import React from 'react'
-import styled from 'styled-components'
-import { userInfoQuery } from 'stores/user'
+import React from 'react';
+import styled from 'styled-components';
+import { userInfoQuery } from 'stores/user';
 
-import avatar from 'assets/images/fake-avatar.jpg'
-import { useRecoilQuery } from 'hooks/recoil'
-import { MixinSquare } from 'styles/mixins'
-import { message } from 'antd'
+import avatar from 'assets/images/fake-avatar.jpg';
+import { useRecoilQuery } from 'hooks/recoil';
+import { MixinSquare } from 'styles/mixins';
+import { message } from 'antd';
 
 const Container = styled.div`
   display: flex;
@@ -21,25 +21,25 @@ const Container = styled.div`
     display: none;
     margin-left: 5px;
   }
-`
+`;
 
 const EmptyAvatar = styled.div`
   ${MixinSquare(30)}
 
   border-radius: 50%;
   background-color: var(--gray5);
-`
+`;
 
 function HeaderAccount() {
-  const { isLoading, data: userInfo, error } = useRecoilQuery(userInfoQuery)
+  const { isLoading, data: userInfo, error } = useRecoilQuery(userInfoQuery);
 
   if (isLoading) {
-    return <EmptyAvatar />
+    return <EmptyAvatar />;
   }
 
   if (Boolean(error)) {
-    message.error(error?.message)
-    return null
+    message.error(error?.message);
+    return null;
   }
 
   return (
@@ -48,7 +48,7 @@ function HeaderAccount() {
 
       <span className="username">{userInfo?.name}</span>
     </Container>
-  )
+  );
 }
 
-export default HeaderAccount
+export default HeaderAccount;

@@ -1,12 +1,12 @@
-import React, { FunctionComponent } from 'react'
-import { Button } from 'antd'
+import React, { FunctionComponent } from 'react';
+import { Button } from 'antd';
 import {
   SchemaForm,
   FormButtonGroup,
   Submit,
   IAntdSchemaFormProps,
   createFormActions,
-} from '@formily/antd'
+} from '@formily/antd';
 import {
   Input,
   NumberPicker,
@@ -15,8 +15,8 @@ import {
   Checkbox,
   Switch,
   Upload,
-} from '@formily/antd-components'
-import styled from 'styled-components'
+} from '@formily/antd-components';
+import styled from 'styled-components';
 
 const components = {
   Input,
@@ -27,21 +27,21 @@ const components = {
   TextArea: Input.TextArea,
   Switch,
   Upload,
-}
+};
 
 const SchemaFormContainer = styled(SchemaForm)`
   .ant-form-item-label > .ant-form-item-required::before {
     order: 2;
   }
-`
+`;
 interface Props extends IAntdSchemaFormProps {
-  onConfirm: (val: any) => void
-  onCancel: (_: any) => void
-  confirmText: string
-  cancelText: string
+  onConfirm: (val: any) => void;
+  onCancel: (_: any) => void;
+  confirmText: string;
+  cancelText: string;
 }
 
-export const formActions = createFormActions()
+export const formActions = createFormActions();
 
 const VariableSchemaForm: FunctionComponent<Props> = ({
   schema,
@@ -65,7 +65,7 @@ const VariableSchemaForm: FunctionComponent<Props> = ({
         {cancelText && <Button onClick={onCancel}>{cancelText}</Button>}
       </FormButtonGroup>
     </SchemaFormContainer>
-  )
-}
+  );
+};
 
-export default VariableSchemaForm
+export default VariableSchemaForm;

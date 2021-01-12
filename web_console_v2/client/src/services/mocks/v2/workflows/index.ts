@@ -1,7 +1,7 @@
-import { Workflow } from 'typings/workflow'
-import { newlyCreated, awaitParticipantConfig } from './example'
+import { Workflow } from 'typings/workflow';
+import { newlyCreated, awaitParticipantConfig } from './example';
 
-const list: Workflow[] = [awaitParticipantConfig, newlyCreated]
+const list: Workflow[] = [awaitParticipantConfig, newlyCreated];
 
 export const get = {
   data: {
@@ -9,6 +9,6 @@ export const get = {
     msg: '',
   },
   status: 200,
-}
+};
 
-export default get
+export default get;

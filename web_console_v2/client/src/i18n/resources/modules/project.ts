@@ -1,4 +1,4 @@
-import { separateLng } from 'i18n/helpers'
+import { separateLng } from 'i18n/helpers';
 
 const project = {
   create: { zh: '创建项目', en: 'Create project' },
@@ -69,6 +69,6 @@ const project = {
   drag_to_upload: { zh: '拖拽到这里进行上传', en: 'Drag and drop here to upload' },
   create_success: { zh: '创建项目成功', en: 'Create project succeed!' },
   edit_success: { zh: '编辑项目成功', en: 'Edit project succeed!' },
-}
+};
 
-export default separateLng(project)
+export default separateLng(project);

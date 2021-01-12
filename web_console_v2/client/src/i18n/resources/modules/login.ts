@@ -1,4 +1,4 @@
-import { separateLng } from 'i18n/helpers'
+import { separateLng } from 'i18n/helpers';
 
 const login = {
   slogan: { zh: '标语占位', en: 'SLOGAN HERE' },
@@ -13,6 +13,6 @@ const login = {
     zh: '登录即表示同意 {{- terms}} 和 {{privacy}}',
     en: 'I accept and agree {{terms}} and {{privacy}}',
   },
-}
+};
 
-export default separateLng(login)
+export default separateLng(login);

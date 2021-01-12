@@ -1,4 +1,4 @@
-import { PaginationConfig } from './component'
+import { PaginationConfig } from './component';
 
 export enum ProjectConnectionStatus {
   Success,
@@ -12,80 +12,80 @@ export enum CertificateConfigType {
   BackendConfig,
 }
 export interface Variable {
-  name: string
-  value: string
+  name: string;
+  value: string;
 }
 
 export interface Participant {
-  name: string
-  domain_name: string
-  url: string
-  certificates?: string | null
+  name: string;
+  domain_name: string;
+  url: string;
+  certificates?: string | null;
 }
 
 export interface UpdateProjectFormData {
-  token?: string
-  variables?: Variable[]
-  comment: string
+  token?: string;
+  variables?: Variable[];
+  comment: string;
 }
 
 export interface CreateProjectFormData {
-  name: string
+  name: string;
   config: {
-    token?: string
-    participants: Participant[]
-    variables: Variable[]
-  }
-  comment: string
+    token?: string;
+    participants: Participant[];
+    variables: Variable[];
+  };
+  comment: string;
 }
 export interface Project extends CreateProjectFormData {
-  id: number
-  token: string
-  created_at: number
-  updated_at: number
-  deleted_at: null
+  id: number;
+  token: string;
+  created_at: number;
+  updated_at: number;
+  deleted_at: null;
 }
 
 export interface ProjectList {
-  project_list: Project[]
-  pagination: PaginationConfig
+  project_list: Project[];
+  pagination: PaginationConfig;
 }
 
 export interface ProjectFormInitialValues {
-  certificateConfigType: number
-  name: string
-  participantName: string
-  participantUrl: string
-  participantDomainName: string
-  comment: string
-  variables?: Variable[]
+  certificateConfigType: number;
+  name: string;
+  participantName: string;
+  participantUrl: string;
+  participantDomainName: string;
+  comment: string;
+  variables?: Variable[];
 }
 
 export function getConnectionStatusClassName(status: ProjectConnectionStatus) {
   switch (status) {
     case ProjectConnectionStatus.Success:
-      return 'success'
+      return 'success';
     case ProjectConnectionStatus.Waiting:
-      return 'warning'
+      return 'warning';
     case ProjectConnectionStatus.Checking:
-      return 'primary'
+      return 'primary';
     case ProjectConnectionStatus.Failed:
-      return 'fail'
+      return 'fail';
     default:
-      return 'unknown' as never
+      return 'unknown' as never;
   }
 }
 export function getConnectionStatusTag(status: ProjectConnectionStatus): string {
   switch (status) {
     case ProjectConnectionStatus.Success:
-      return 'project.connection_status_success'
+      return 'project.connection_status_success';
     case ProjectConnectionStatus.Waiting:
-      return 'project.connection_status_waiting'
+      return 'project.connection_status_waiting';
     case ProjectConnectionStatus.Checking:
-      return 'project.connection_status_checking'
+      return 'project.connection_status_checking';
     case ProjectConnectionStatus.Failed:
-      return 'project.connection_status_failed'
+      return 'project.connection_status_failed';
     default:
-      return 'project.connection_status_waiting' as never
+      return 'project.connection_status_waiting' as never;
   }
 }

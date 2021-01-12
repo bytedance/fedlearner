@@ -1,18 +1,18 @@
-import React, { FC, useEffect, useState } from 'react'
-import WorkflowJobNode from './WorkflowJobNode'
-import styled from 'styled-components'
+import React, { FC, useEffect, useState } from 'react';
+import WorkflowJobNode from './WorkflowJobNode';
+import styled from 'styled-components';
 import ReactFlow, {
   Background,
   BackgroundVariant,
   isNode,
   OnLoadParams,
   FlowElement,
-} from 'react-flow-renderer'
-import { convertJobsToElements, JobNode, JobNodeStatus, NODE_HEIGHT, NODE_WIDTH } from './helpers'
-import { convertToUnit } from 'shared/helpers'
-import PubSub from 'pubsub-js'
-import { useSubscribe } from 'hooks'
-import { Job } from 'typings/workflow'
+} from 'react-flow-renderer';
+import { convertJobsToElements, JobNode, JobNodeStatus, NODE_HEIGHT, NODE_WIDTH } from './helpers';
+import { convertToUnit } from 'shared/helpers';
+import PubSub from 'pubsub-js';
+import { useSubscribe } from 'hooks';
+import { Job } from 'typings/workflow';
 
 const Container = styled.div`
   position: relative;
@@ -52,31 +52,31 @@ const Container = styled.div`
       stroke: var(--gray4);
     }
   }
-`
+`;
 // Internal pub-sub channels, needless to put in any shared file
 const CHANNELS = {
   update_node_status: 'workflow_job_flow_chart.update_node_status',
-}
+};
 
 type Props = {
-  jobs: Job[]
-  onJobClick?: (node: JobNode) => void
-  onCanvasClick?: () => void
-}
+  jobs: Job[];
+  onJobClick?: (node: JobNode) => void;
+  onCanvasClick?: () => void;
+};
 
 const WorkflowJobsFlowChart: FC<Props> = ({ jobs, onJobClick, onCanvasClick }) => {
-  const [elements, setElements] = useState<FlowElement[]>([])
+  const [elements, setElements] = useState<FlowElement[]>([]);
 
   useEffect(() => {
-    setElements(convertJobsToElements(jobs))
-  }, [jobs])
+    setElements(convertJobsToElements(jobs));
+  }, [jobs]);
 
   useSubscribe(
     CHANNELS.update_node_status,
     (_: string, arg: { id: string; status: JobNodeStatus }) => {
-      updateNodeStatus(arg)
+      updateNodeStatus(arg);
     },
-  )
+  );
 
   return (
     <Container>
@@ -95,15 +95,15 @@ const WorkflowJobsFlowChart: FC<Props> = ({ jobs, onJobClick, onCanvasClick }) =
         <Background variant={BackgroundVariant.Dots} gap={12} size={1} color="#E1E6ED" />
       </ReactFlow>
     </Container>
-  )
+  );
 
   function onElementsClick(element: FlowElement) {
     if (isNode(element)) {
-      onJobClick && onJobClick(element as JobNode)
+      onJobClick && onJobClick(element as JobNode);
     }
   }
   function onLoad(_reactFlowInstance: OnLoadParams) {
-    _reactFlowInstance!.fitView({ padding: 2 })
+    _reactFlowInstance!.fitView({ padding: 2 });
   }
   function updateNodeStatus(arg: { id: string; status: JobNodeStatus }) {
     setElements((els) => {
@@ -112,16 +112,16 @@ const WorkflowJobsFlowChart: FC<Props> = ({ jobs, onJobClick, onCanvasClick }) =
           el.data = {
             ...el.data,
             status: arg.status,
-          }
+          };
         }
-        return el
-      })
-    })
+        return el;
+      });
+    });
   }
-}
+};
 
 export function updateNodeStatusById(arg: { id: string; status: JobNodeStatus }) {
-  PubSub.publish(CHANNELS.update_node_status, arg)
+  PubSub.publish(CHANNELS.update_node_status, arg);
 }
 
-export default WorkflowJobsFlowChart
+export default WorkflowJobsFlowChart;

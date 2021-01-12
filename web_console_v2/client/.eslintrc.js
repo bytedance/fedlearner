@@ -1,4 +1,4 @@
-const isProd = process.env.NODE_ENV === 'production'
+const isProd = process.env.NODE_ENV === 'production';
 
 module.exports = {
   parser: '@typescript-eslint/parser',
@@ -30,7 +30,6 @@ module.exports = {
         html: true,
       },
     ],
-    semi: 'off',
     '@typescript-eslint/semi': 'off',
     '@typescript-eslint/explicit-module-boundary-types': 'off',
     'prettier/prettier': ['warn', {}, { usePrettierrc: true }],
@@ -43,4 +42,4 @@ module.exports = {
       },
     },
   ],
-}
+};

@@ -1,24 +1,24 @@
-import { useRecoilQuery } from 'hooks/recoil'
-import React from 'react'
-import { Redirect, Route, RouteProps } from 'react-router-dom'
-import { userInfoGetters } from 'stores/user'
+import { useRecoilQuery } from 'hooks/recoil';
+import React from 'react';
+import { Redirect, Route, RouteProps } from 'react-router-dom';
+import { userInfoGetters } from 'stores/user';
 
 interface Props extends RouteProps {
-  isAuthenticated?: boolean
+  isAuthenticated?: boolean;
 }
 
 function ProtectedRoute(props: Props) {
-  const { isLoading, data } = useRecoilQuery(userInfoGetters)
+  const { isLoading, data } = useRecoilQuery(userInfoGetters);
 
   if (isLoading) {
-    return <Route {...props} />
+    return <Route {...props} />;
   }
 
   if (!data || !data.isAuthenticated) {
-    return <Redirect to="/login" />
+    return <Redirect to="/login" />;
   }
 
-  return <Route {...props} />
+  return <Route {...props} />;
 }
 
-export default ProtectedRoute
+export default ProtectedRoute;

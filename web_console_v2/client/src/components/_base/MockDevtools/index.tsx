@@ -1,13 +1,13 @@
-import React, { useState } from 'react'
-import styled from 'styled-components'
-import { MixinCircle } from 'styles/mixins'
-import { Modal, Switch, Table, Tag, Input, Divider, Tooltip, Button } from 'antd'
-import { useToggle } from 'react-use'
-import LOCAL_STORAGE_KEYS from 'shared/localStorageKeys'
-import { removeRequestMock, toggleRequestMockState } from './utils'
-import { useListenKeyboard, useReactiveLocalStorage } from 'hooks'
-import store from 'store2'
-import { ApiTwoTone } from '@ant-design/icons'
+import React, { useState } from 'react';
+import styled from 'styled-components';
+import { MixinCircle } from 'styles/mixins';
+import { Modal, Switch, Table, Tag, Input, Divider, Tooltip, Button } from 'antd';
+import { useToggle } from 'react-use';
+import LOCAL_STORAGE_KEYS from 'shared/localStorageKeys';
+import { removeRequestMock, toggleRequestMockState } from './utils';
+import { useListenKeyboard, useReactiveLocalStorage } from 'hooks';
+import store from 'store2';
+import { ApiTwoTone } from '@ant-design/icons';
 
 const FloatButton = styled.button`
   ${MixinCircle(50)}
@@ -27,7 +27,7 @@ const FloatButton = styled.button`
     outline: none;
     box-shadow: none;
   }
-`
+`;
 const Kbd = styled.kbd`
   padding: 0 5px;
   font-size: 12px;
@@ -35,14 +35,14 @@ const Kbd = styled.kbd`
   color: var(--darkGray1);
   border-radius: 2px;
 }
-`
+`;
 const methodColor: { [key: string]: string } = {
   get: 'blue',
   post: 'green',
   put: 'orange',
   patch: 'cyan',
   delete: 'red',
-}
+};
 
 const tableCols = [
   {
@@ -73,36 +73,36 @@ const tableCols = [
       </Button>
     ),
   },
-]
+];
 
-const MOCK_BUTTON_VISIBLE_KEY = 'mock_button_visible'
+const MOCK_BUTTON_VISIBLE_KEY = 'mock_button_visible';
 
 /* i18n ignore */
 function MockDevtools() {
-  const [keyword, setKeyword] = useState('')
-  const [visible] = useReactiveLocalStorage<any>(MOCK_BUTTON_VISIBLE_KEY, false)
-  const [modalVisible, toggleModal] = useToggle(false)
+  const [keyword, setKeyword] = useState('');
+  const [visible] = useReactiveLocalStorage<any>(MOCK_BUTTON_VISIBLE_KEY, false);
+  const [modalVisible, toggleModal] = useToggle(false);
   const [mockConfigs] = useReactiveLocalStorage<{ [key: string]: boolean }>(
     LOCAL_STORAGE_KEYS.mock_configs,
-  )
+  );
 
   useListenKeyboard('ctrl + m', () => {
-    const curr = store.get(MOCK_BUTTON_VISIBLE_KEY)
-    store.set(MOCK_BUTTON_VISIBLE_KEY, !curr)
-  })
+    const curr = store.get(MOCK_BUTTON_VISIBLE_KEY);
+    store.set(MOCK_BUTTON_VISIBLE_KEY, !curr);
+  });
 
   if (process.env.NODE_ENV === 'development' || process.env.REACT_APP_ENABLE_FULLY_MOCK) {
     const dataSource = Object.entries(mockConfigs || {})
       .map(([key, value]) => {
-        const [method, path] = key.split('|')
+        const [method, path] = key.split('|');
         return {
           key,
           method,
           path,
           value,
-        }
+        };
       })
-      .filter(({ path }) => path.includes(keyword))
+      .filter(({ path }) => path.includes(keyword));
 
     return (
       <>
@@ -140,10 +140,10 @@ function MockDevtools() {
           />
         </Modal>
       </>
-    )
+    );
   }
 
-  return null
+  return null;
 }
 
-export default MockDevtools
+export default MockDevtools;

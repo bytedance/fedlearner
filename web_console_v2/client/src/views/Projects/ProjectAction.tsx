@@ -1,8 +1,8 @@
-import React, { ReactElement } from 'react'
-import styled, { CSSProperties } from 'styled-components'
-import { useTranslation } from 'react-i18next'
-import action from 'assets/images/project-action.svg'
-import { Popover } from 'antd'
+import React, { ReactElement } from 'react';
+import styled, { CSSProperties } from 'styled-components';
+import { useTranslation } from 'react-i18next';
+import action from 'assets/images/project-action.svg';
+import { Popover } from 'antd';
 
 const ActionListContainer = styled.div`
   display: flex;
@@ -21,7 +21,7 @@ const ActionListContainer = styled.div`
       background-color: var(--gray1);
     }
   }
-`
+`;
 
 const ActionStyle = styled.div`
   height: 24px;
@@ -32,18 +32,18 @@ const ActionStyle = styled.div`
     width: 24px;
     padding: 10px 4px;
   }
-`
+`;
 
 interface ProjectActionProps {
-  suffix?: React.ReactNode
-  actionList?: React.ReactNode
-  onEdit?: () => void
-  onDetail?: () => void
-  style?: CSSProperties
+  suffix?: React.ReactNode;
+  actionList?: React.ReactNode;
+  onEdit?: () => void;
+  onDetail?: () => void;
+  style?: CSSProperties;
 }
 
 function ActionList({ onEdit, onDetail }: ProjectActionProps): ReactElement {
-  const { t } = useTranslation()
+  const { t } = useTranslation();
   return (
     <ActionListContainer>
       <div className="actionItem" onClick={onEdit}>
@@ -53,7 +53,7 @@ function ActionList({ onEdit, onDetail }: ProjectActionProps): ReactElement {
         {t('project.action_detail')}
       </div>
     </ActionListContainer>
-  )
+  );
 }
 
 function ProjectAction(props: ProjectActionProps): ReactElement {
@@ -69,7 +69,7 @@ function ProjectAction(props: ProjectActionProps): ReactElement {
         {props.suffix ?? null}
       </ActionStyle>
     </Popover>
-  )
+  );
 }
 
-export default ProjectAction
+export default ProjectAction;

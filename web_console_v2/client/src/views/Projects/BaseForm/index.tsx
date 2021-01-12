@@ -1,23 +1,23 @@
-import React, { ReactElement, useState } from 'react'
-import styled from 'styled-components'
-import { Form, Input, Button, Radio, Upload, message } from 'antd'
-import { useTranslation } from 'react-i18next'
-import SecondaryForm from './SecondaryForm'
-import EnvPathsForm from './EnvPathsForm'
-import FileUploaded from '../../../components/Container/FileUploaded'
-import UploadArea from '../../../components/Container/UploadArea'
-import { CertificateConfigType } from 'typings/project'
+import React, { ReactElement, useState } from 'react';
+import styled from 'styled-components';
+import { Form, Input, Button, Radio, Upload, message } from 'antd';
+import { useTranslation } from 'react-i18next';
+import SecondaryForm from './SecondaryForm';
+import EnvPathsForm from './EnvPathsForm';
+import FileUploaded from '../../../components/Container/FileUploaded';
+import UploadArea from '../../../components/Container/UploadArea';
+import { CertificateConfigType } from 'typings/project';
 import {
   ProjectFormInitialValues,
   CreateProjectFormData,
   UpdateProjectFormData,
   Participant,
-} from 'typings/project'
-import { useHistory } from 'react-router-dom'
+} from 'typings/project';
+import { useHistory } from 'react-router-dom';
 
 const Container = styled.div`
   width: 100%;
-`
+`;
 
 const BaseFormStyle = styled(Form)`
   width: 100%;
@@ -36,7 +36,7 @@ const BaseFormStyle = styled(Form)`
       margin-bottom: 0;
     }
   }
-`
+`;
 
 const FileFormItem = styled(Form.Item)`
   flex-wrap: nowrap;
@@ -45,17 +45,17 @@ const FileFormItem = styled(Form.Item)`
     border-radius: 2px;
     border: none;
   }
-`
+`;
 
 const layout = {
   labelCol: { span: 8 },
   wrapperCol: { span: 20 },
-}
+};
 
 interface Props {
-  onSubmit: <T>(payload: T) => void
-  edit?: boolean
-  initialValues?: ProjectFormInitialValues
+  onSubmit: <T>(payload: T) => void;
+  edit?: boolean;
+  initialValues?: ProjectFormInitialValues;
 }
 
 const SubmitContainer = styled(Form.Item)`
@@ -67,7 +67,7 @@ const SubmitContainer = styled(Form.Item)`
   .cancel-button {
     margin-left: 16px;
   }
-`
+`;
 
 const defaultInitialValues: ProjectFormInitialValues = {
   certificateConfigType: CertificateConfigType.Upload,
@@ -77,21 +77,21 @@ const defaultInitialValues: ProjectFormInitialValues = {
   participantDomainName: '',
   comment: '',
   variables: [],
-}
+};
 
 function BaseForm({ onSubmit, edit, initialValues }: Props): ReactElement {
-  const { t } = useTranslation()
-  const [form] = Form.useForm()
-  const [certificates, setCertificates] = useState('')
-  const [certificatesName, setCertificatesName] = useState('')
-  const [certificatesUploading, setCertificatesUploading] = useState(false)
-  const [loading, setLoading] = useState(false)
-  const history = useHistory()
+  const { t } = useTranslation();
+  const [form] = Form.useForm();
+  const [certificates, setCertificates] = useState('');
+  const [certificatesName, setCertificatesName] = useState('');
+  const [certificatesUploading, setCertificatesUploading] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const history = useHistory();
 
-  const defaultValues: ProjectFormInitialValues = initialValues ?? defaultInitialValues
+  const defaultValues: ProjectFormInitialValues = initialValues ?? defaultInitialValues;
   const [certificateConfigType, setCertificateConfigType] = useState(
     defaultValues.certificateConfigType,
-  )
+  );
   return (
     <Container>
       <BaseFormStyle {...layout} initialValues={defaultValues} form={form} colon={false}>
@@ -145,7 +145,7 @@ function BaseForm({ onSubmit, edit, initialValues }: Props): ReactElement {
               ]}
               optionType="button"
               onChange={(e) => {
-                setCertificateConfigType(e.target.value)
+                setCertificateConfigType(e.target.value);
               }}
               disabled={edit}
             />
@@ -194,34 +194,34 @@ function BaseForm({ onSubmit, edit, initialValues }: Props): ReactElement {
         </SubmitContainer>
       </BaseFormStyle>
     </Container>
-  )
+  );
   async function handleSubmit() {
     if (!edit && certificateConfigType === CertificateConfigType.Upload && certificates === '') {
-      form.setFields([{ name: 'upload', errors: [t('project.upload_certificate_message')] }])
-      form.scrollToField('certificateConfigType', { block: 'center' })
-      return
+      form.setFields([{ name: 'upload', errors: [t('project.upload_certificate_message')] }]);
+      form.scrollToField('certificateConfigType', { block: 'center' });
+      return;
     }
-    setLoading(true)
+    setLoading(true);
     try {
-      const data = await form.validateFields()
-      let params: CreateProjectFormData | UpdateProjectFormData
+      const data = await form.validateFields();
+      let params: CreateProjectFormData | UpdateProjectFormData;
 
       if (edit) {
         // Is Editting
         params = {
           variables: data.variables ?? [],
           comment: data.comment,
-        }
-        await onSubmit(params)
+        };
+        await onSubmit(params);
       } else {
-        let participants: Participant[] = []
+        let participants: Participant[] = [];
         participants.push({
           name: data.participantName,
           url: data.participantUrl,
           domain_name: data.participantDomainName,
           certificates:
             certificateConfigType === CertificateConfigType.Upload ? certificates : null,
-        })
+        });
         params = {
           name: data.name,
           config: {
@@ -229,38 +229,38 @@ function BaseForm({ onSubmit, edit, initialValues }: Props): ReactElement {
             variables: data.variables ?? [],
           },
           comment: data.comment,
-        }
-        await onSubmit(params)
+        };
+        await onSubmit(params);
       }
-      message.success(edit ? t('project.edit_success') : t('proejct.create_success'))
-      history.push('/projects')
+      message.success(edit ? t('project.edit_success') : t('proejct.create_success'));
+      history.push('/projects');
     } catch (error) {
-      form.scrollToField(error.errorFields[0].name[0], { block: 'center' })
+      form.scrollToField(error.errorFields[0].name[0], { block: 'center' });
     }
-    setLoading(false)
+    setLoading(false);
   }
   function onUpload(file: File) {
     if (file.size > 20 * 1024 * 1024) {
-      form.setFields([{ name: 'upload', errors: [t('project.upload_certificate_placeholder')] }])
-      return false
+      form.setFields([{ name: 'upload', errors: [t('project.upload_certificate_placeholder')] }]);
+      return false;
     }
-    var reader = new FileReader()
-    setCertificatesName(file.name)
-    setCertificatesUploading(true)
+    var reader = new FileReader();
+    setCertificatesName(file.name);
+    setCertificatesUploading(true);
     reader.onload = function (e) {
       if (typeof reader.result === 'string') {
-        setCertificates(btoa(reader.result))
-        form.setFields([{ name: 'upload', errors: [] }])
+        setCertificates(btoa(reader.result));
+        form.setFields([{ name: 'upload', errors: [] }]);
       }
-      setCertificatesUploading(false)
-    }
-    reader.readAsBinaryString(file)
-    return false
+      setCertificatesUploading(false);
+    };
+    reader.readAsBinaryString(file);
+    return false;
   }
   function handelFileDelete() {
-    setCertificates('')
-    setCertificatesName('')
+    setCertificates('');
+    setCertificatesName('');
   }
 }
 
-export default BaseForm
+export default BaseForm;

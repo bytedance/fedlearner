@@ -1,21 +1,21 @@
-import React, { ReactElement } from 'react'
-import styled from 'styled-components'
-import ProjectAction from '../ProjectAction'
-import { ReactComponent as CheckConnectionIcon } from 'assets/images/check-connect.svg'
-import { ReactComponent as CreateWorkFlow } from 'assets/images/create-work-flow.svg'
-import { useTranslation } from 'react-i18next'
-import { useHistory } from 'react-router-dom'
-import { Project } from 'typings/project'
+import React, { ReactElement } from 'react';
+import styled from 'styled-components';
+import ProjectAction from '../ProjectAction';
+import { ReactComponent as CheckConnectionIcon } from 'assets/images/check-connect.svg';
+import { ReactComponent as CreateWorkFlow } from 'assets/images/create-work-flow.svg';
+import { useTranslation } from 'react-i18next';
+import { useHistory } from 'react-router-dom';
+import { Project } from 'typings/project';
 
 const Container = styled.div`
   width: 100%;
   display: flex;
-`
+`;
 
 const Right = styled.div`
   flex: 1;
   display: flex;
-`
+`;
 
 const Left = styled.div`
   max-width: 440px;
@@ -27,14 +27,14 @@ const Left = styled.div`
     line-height: 28px;
     color: #424e66;
   }
-`
+`;
 
 const ProjectName = styled.div`
   font-weight: 500;
   font-size: 20px;
   line-height: 28px;
   color: var(--textColor);
-`
+`;
 
 const Status = styled.div`
   background: #eaf0fe;
@@ -48,7 +48,7 @@ const Status = styled.div`
     line-height: 22px;
     color: var(--primaryColor);
   }
-`
+`;
 
 const HeaderActionContainer = styled.div`
   background: #f2f3f5;
@@ -65,7 +65,7 @@ const HeaderActionContainer = styled.div`
       fill: #e5e6eb;
     }
   }
-`
+`;
 
 const CheckConnectionStyle = styled.div`
   height: 28px;
@@ -85,7 +85,7 @@ const CheckConnectionStyle = styled.div`
     line-height: 28px;
     color: #424e66;
   }
-`
+`;
 
 const CreateWorkFlowContainer = styled.div`
   height: 28px;
@@ -102,7 +102,7 @@ const CreateWorkFlowContainer = styled.div`
   .create-icon {
     margin-top: 2px;
   }
-`
+`;
 
 const ActionListContainer = styled.div`
   display: flex;
@@ -121,58 +121,58 @@ const ActionListContainer = styled.div`
       background-color: var(--gray1);
     }
   }
-`
+`;
 
 interface HeaderActionProps {
-  children: React.ReactNode
+  children: React.ReactNode;
 }
 
 interface ActionListProps {
-  onEdit: () => void
+  onEdit: () => void;
 }
 
 interface DetailHeaderProps {
-  project: Project
+  project: Project;
 }
 
 function CreateWorkFlowAction(): ReactElement {
-  const { t } = useTranslation()
+  const { t } = useTranslation();
   return (
     <CreateWorkFlowContainer>
       <CreateWorkFlow className="create-icon" />
       <div className="create-describe">{t('project.create_work_flow')}</div>
     </CreateWorkFlowContainer>
-  )
+  );
 }
 
 function CheckConnection(): ReactElement {
-  const { t } = useTranslation()
+  const { t } = useTranslation();
   return (
     <CheckConnectionStyle>
       <CheckConnectionIcon className="connection-icon" />
       <div className="connection-describe">{t('project.check_connection')}</div>
     </CheckConnectionStyle>
-  )
+  );
 }
 
 function HeaderAction({ children }: HeaderActionProps): ReactElement {
-  return <HeaderActionContainer>{children}</HeaderActionContainer>
+  return <HeaderActionContainer>{children}</HeaderActionContainer>;
 }
 
 function ActionList({ onEdit }: ActionListProps): ReactElement {
-  const { t } = useTranslation()
+  const { t } = useTranslation();
   return (
     <ActionListContainer>
       <div className="actionItem" onClick={onEdit}>
         {t('project.action_edit')}
       </div>
     </ActionListContainer>
-  )
+  );
 }
 
 function DetailHeader({ project }: DetailHeaderProps): ReactElement {
-  const { t } = useTranslation()
-  const history = useHistory()
+  const { t } = useTranslation();
+  const history = useHistory();
   return (
     <Container>
       <Right>
@@ -200,7 +200,7 @@ function DetailHeader({ project }: DetailHeaderProps): ReactElement {
                     state: {
                       project,
                     },
-                  })
+                  });
                 }}
               />
             }
@@ -208,7 +208,7 @@ function DetailHeader({ project }: DetailHeaderProps): ReactElement {
         </HeaderAction>
       </Left>
     </Container>
-  )
+  );
 }
 
-export default DetailHeader
+export default DetailHeader;

@@ -22,13 +22,13 @@ const project_list = new Array(100).fill({
   created_at: 1608582145.0,
   updated_at: 1608582145.0,
   deleted_at: null,
-})
+});
 
 const res = {
   data: {
     data: project_list,
   },
   status: 200,
-}
+};
 
-export default res
+export default res;
