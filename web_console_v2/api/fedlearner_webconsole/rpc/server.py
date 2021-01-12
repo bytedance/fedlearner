@@ -78,19 +78,6 @@ class RPCServerServicer(service_pb2_grpc.WebConsoleV2ServiceServicer):
                 status=common_pb2.Status(
                     code=common_pb2.STATUS_UNKNOWN_ERROR,
                     msg=repr(e)))
-    def GetJobs(self, request, context):
-        try:
-            return self._server.get_jobs(request)
-        except UnauthorizedException as e:
-            return service_pb2.GetJobsResponse(
-                status=common_pb2.Status(
-                    code=common_pb2.STATUS_UNAUTHORIZED,
-                    msg=repr(e)))
-        except Exception as e:
-            return service_pb2.GetJobsResponse(
-                status=common_pb2.Status(
-                    code=common_pb2.STATUS_UNKNOWN_ERROR,
-                    msg=repr(e)))
 
 
 class RpcServer(object):
