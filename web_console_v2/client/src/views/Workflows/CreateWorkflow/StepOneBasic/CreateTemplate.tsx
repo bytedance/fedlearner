@@ -8,7 +8,7 @@ import WORKFLOW_CHANNELS from '../pubsub'
 import { createWorkflowTemplate } from 'services/workflow'
 import { useSubscribe } from 'hooks'
 import { to } from 'shared/helpers'
-import { removePrivateKeys } from 'shared/object'
+import { removePrivate } from 'shared/object'
 import { readJSONFromInput } from 'shared/file'
 import { WorkflowTemplatePayload } from 'typings/workflow'
 import { stringifyWidgetSchemas } from 'shared/formSchema'
@@ -31,7 +31,7 @@ const CreateTemplateForm: FC<Props> = ({ onSuccess, onError }) => {
       return
     }
 
-    const payload = stringifyWidgetSchemas(removePrivateKeys(values) as WorkflowTemplatePayload)
+    const payload = stringifyWidgetSchemas(removePrivate(values) as WorkflowTemplatePayload)
 
     const [res, error] = await to(createWorkflowTemplate(payload))
 

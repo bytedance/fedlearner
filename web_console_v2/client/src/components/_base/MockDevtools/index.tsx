@@ -52,13 +52,11 @@ const tableCols = [
       <Tag color={methodColor[text.toLowerCase()]}>{text.toUpperCase()}</Tag>
     ),
   },
-
   {
     title: 'Path',
     dataIndex: 'path',
     render: (text: string) => <h4>{text}</h4>,
   },
-
   {
     title: 'Toggle',
     key: 'toggle',
@@ -93,7 +91,7 @@ function MockDevtools() {
     store.set(MOCK_BUTTON_VISIBLE_KEY, !curr)
   })
 
-  if (process.env.NODE_ENV === 'development') {
+  if (process.env.NODE_ENV === 'development' || process.env.REACT_APP_ENABLE_FULLY_MOCK) {
     const dataSource = Object.entries(mockConfigs || {})
       .map(([key, value]) => {
         const [method, path] = key.split('|')

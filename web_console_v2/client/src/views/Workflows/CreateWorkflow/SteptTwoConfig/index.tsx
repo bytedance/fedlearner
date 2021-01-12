@@ -6,7 +6,7 @@ import JobFormDrawer, { JobFormDrawerExposedRef } from './JobFormDrawer'
 import WorkflowJobsFlowChart, { updateNodeStatusById } from 'components/WorlflowJobsFlowChart'
 import { JobNode, JobNodeData, JobNodeStatus } from 'components/WorlflowJobsFlowChart/helpers'
 import GridRow from 'components/_base/GridRow'
-import { Button, message, Modal, notification } from 'antd'
+import { Button, message, Modal, Spin } from 'antd'
 import { ExclamationCircleOutlined } from '@ant-design/icons'
 import { useHistory } from 'react-router-dom'
 import { useRecoilValue } from 'recoil'
@@ -16,6 +16,7 @@ import i18n from 'i18n'
 import ErrorBoundary from 'antd/lib/alert/ErrorBoundary'
 import { createWorkflow } from 'services/workflow'
 import { to } from 'shared/helpers'
+import { WorkflowCreateProps } from '..'
 
 const Header = styled.header`
   padding: 13px 20px;
@@ -34,11 +35,11 @@ const ChartTitle = styled.h3`
   margin-bottom: 0;
 `
 
-const CanvasAndForm: FC = () => {
+const CanvasAndForm: FC<WorkflowCreateProps> = ({ isInitiate, isAccept }) => {
   const drawerRef = useRef<JobFormDrawerExposedRef>()
   const jobNodes = useStoreState((store) => store.nodes as JobNode[])
   const history = useHistory()
-  const [creating, setCreating] = useToggle(false)
+  const [submitting, setSubmitting] = useToggle(false)
   const { t } = useTranslation()
   const [drawerVisible, toggleDrawerVisible] = useToggle(false)
   const [data, setData] = useState<JobNodeData>()
@@ -46,37 +47,45 @@ const CanvasAndForm: FC = () => {
   const jobsConfigPayload = useRecoilValue(workflowJobsConfigForm)
   const basicPayload = useRecoilValue(workflowBasicForm)
 
+  const isDisabled = { disabled: submitting }
+
   return (
     <ErrorBoundary>
-      <section>
-        <Header>
-          <ChartTitle>{t('workflow.our_config')}</ChartTitle>
-        </Header>
+      <Spin spinning={submitting}>
+        <section>
+          <Header>
+            <ChartTitle>{t('workflow.our_config')}</ChartTitle>
+          </Header>
 
-        <WorkflowJobsFlowChart
-          jobs={currentWorkflowTpl.config.job_definitions}
-          onJobClick={selectJob}
-          onCanvasClick={onCanvasClick}
-        />
+          <WorkflowJobsFlowChart
+            jobs={currentWorkflowTpl.config.job_definitions}
+            onJobClick={selectJob}
+            onCanvasClick={onCanvasClick}
+          />
 
-        <JobFormDrawer
-          ref={drawerRef as any}
-          data={data}
-          visible={drawerVisible}
-          toggleVisible={toggleDrawerVisible}
-          onConfirm={selectJob}
-        />
+          <JobFormDrawer
+            ref={drawerRef as any}
+            data={data}
+            visible={drawerVisible}
+            toggleVisible={toggleDrawerVisible}
+            onConfirm={selectJob}
+          />
 
-        <Footer>
-          <GridRow gap="12">
-            <Button type="primary" loading={creating} onClick={submitToCreate}>
-              {t('workflow.btn_send_2_ptcpt')}
-            </Button>
-            <Button onClick={onPrevStepClick}> {t('previous_step')}</Button>
-            <Button onClick={onCancelCreationClick}>{t('cancel')}</Button>
-          </GridRow>
-        </Footer>
-      </section>
+          <Footer>
+            <GridRow gap="12">
+              <Button type="primary" loading={submitting} onClick={submitToCreate}>
+                {t('workflow.btn_send_2_ptcpt')}
+              </Button>
+              <Button onClick={onPrevStepClick} {...isDisabled}>
+                {t('previous_step')}
+              </Button>
+              <Button onClick={onCancelCreationClick} {...isDisabled}>
+                {t('cancel')}
+              </Button>
+            </GridRow>
+          </Footer>
+        </section>
+      </Spin>
     </ErrorBoundary>
   )
 
@@ -110,11 +119,13 @@ const CanvasAndForm: FC = () => {
       return message.warn(i18n.t('workflow.msg_config_unfinished'))
     }
 
-    const payload = { config: jobsConfigPayload, ...basicPayload }
-    setCreating(true)
+    toggleDrawerVisible(false)
+    setSubmitting(true)
     // TODO: Loading splash
+    const payload = { config: jobsConfigPayload, ...basicPayload }
     await to(createWorkflow(payload))
-    setCreating(false)
+    setSubmitting(false)
+    history.push('/workflows')
   }
   function onPrevStepClick() {
     history.goBack()

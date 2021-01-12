@@ -44,13 +44,15 @@ const CardHeaderContainer = styled.div`
 const CardMainContainer = styled.div`
   display: flex;
   padding: 25px 0;
+
   .project {
     &-work-flow-number {
-      font-family: Clarity Mono;
+      display: block;
+      margin-top: 14px;
       font-size: 32px;
       line-height: 22px;
       color: var(--textColor);
-      margin-top: 12px;
+      font-family: Clarity Mono;
     }
     &-connection-status-wrapper {
       margin-top: 12px;
@@ -128,7 +130,7 @@ function CardMain({ workFlowNumber }: CardMainProps): ReactElement {
   return (
     <CardMainContainer>
       <ProjectProp describe={t('project.workflow_number')}>
-        <div className="project-work-flow-number">{workFlowNumber}</div>
+        <strong className="project-work-flow-number">{workFlowNumber}</strong>
       </ProjectProp>
       <ProjectProp describe={t('project.connection_status')}>
         <div className="project-connection-status-wrapper">
@@ -149,7 +151,7 @@ function CreateWorkFlow(): ReactElement {
   )
 
   function goCreateWorkflow() {
-    history.push('/workflows/create/basic')
+    history.push('/workflows/initiate/basic')
   }
 }
 
@@ -177,7 +179,7 @@ function CardFooter({ project }: CardFooterProps): ReactElement {
         <ProjectAction
           onEdit={() => {
             history.push({
-              pathname: '/edit-project',
+              pathname: '/projects/edit',
               state: {
                 project,
               },

@@ -27,7 +27,7 @@ import { workflowJobsConfigForm } from 'stores/workflow'
 import { IFormState } from '@formily/antd'
 import { to } from 'shared/helpers'
 import { useTranslation } from 'react-i18next'
-import { removeUndefinedKeys } from 'shared/object'
+import { removeUndefined } from 'shared/object'
 import ErrorBoundary from 'antd/lib/alert/ErrorBoundary'
 
 const Container = styled(Drawer)`
@@ -192,7 +192,7 @@ const JobFormDrawer: ForwardRefRenderFunction<JobFormDrawerExposedRef, Props> = 
       // NOTE: jobsConfig is unwritable by default from Recoil's design,
       // so we need to make a copy here
       const jobsCopy = cloneDeep(job_definitions)
-      const values = removeUndefinedKeys(state.values)
+      const values = removeUndefined(state.values)
       const targetJob = jobsCopy.find(({ name }) => name === data?.raw.name)
 
       if (targetJob) {

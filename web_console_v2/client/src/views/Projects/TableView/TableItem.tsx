@@ -70,7 +70,7 @@ function Action({ project }: { project: Project }): ReactElement {
           style={{ marginTop: '13px' }}
           onEdit={() => {
             history.push({
-              pathname: '/edit-project',
+              pathname: '/projects/edit',
               state: {
                 project,
               },

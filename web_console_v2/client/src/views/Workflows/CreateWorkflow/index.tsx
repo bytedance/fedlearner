@@ -1,8 +1,8 @@
-import React, { useState } from 'react'
+import React, { FC, useState } from 'react'
 import styled from 'styled-components'
 import { Steps, Row, Card } from 'antd'
-import WorkflowsCreateStepOne from './StepOneBasic'
-import WorkflowsCreateStepTwo from './SteptTwoConfig'
+import StepOneBasic from './StepOneBasic'
+import SteptTwoConfig from './SteptTwoConfig'
 import { useSubscribe } from 'hooks'
 import WORKFLOW_CHANNELS from './pubsub'
 import { Prompt, Route, useParams } from 'react-router-dom'
@@ -22,14 +22,21 @@ enum CreateSteps {
   config,
 }
 
-function WorkflowsCreate() {
+export type WorkflowCreateProps = {
+  isInitiate?: boolean
+  isAccept?: boolean
+}
+
+const WorkflowsCreate: FC<WorkflowCreateProps> = (parentProps) => {
   const { t } = useTranslation()
-  const params = useParams<{ step: keyof typeof CreateSteps }>()
+  const params = useParams<{ step: keyof typeof CreateSteps; id?: string }>()
   const [currentStep, setStep] = useState(CreateSteps[params.step || 'basic'])
 
   useSubscribe(WORKFLOW_CHANNELS.go_config_step, () => {
     setStep(CreateSteps.config)
   })
+
+  const createType = parentProps.isInitiate ? 'initiate' : `accept/${params.id}`
 
   return (
     <>
@@ -50,10 +57,18 @@ function WorkflowsCreate() {
         </Row>
       </Card>
 
+      {/* TODO: avoid directly visit create/config, redirect user to basic */}
       <FormArea>
-        <Route path={`/workflows/create/basic`} exact component={WorkflowsCreateStepOne} />
-        {/* TODO: avoid directly visit create/config, redirect user to basic */}
-        <Route path={`/workflows/create/config`} exact component={WorkflowsCreateStepTwo} />
+        <Route
+          path={`/workflows/${createType}/basic`}
+          exact
+          render={(props) => <StepOneBasic {...props} {...parentProps} />}
+        />
+        <Route
+          path={`/workflows/${createType}/config`}
+          exact
+          render={(props) => <SteptTwoConfig {...props} {...parentProps} />}
+        />
       </FormArea>
     </>
   )

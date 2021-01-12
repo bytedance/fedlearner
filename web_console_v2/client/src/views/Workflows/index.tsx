@@ -2,19 +2,26 @@ import React from 'react'
 
 import ErrorBoundary from 'antd/lib/alert/ErrorBoundary'
 import { Route, Redirect } from 'react-router-dom'
-import WorkflowsTable from './WorkflowsTable'
-import WorkflowsCreate from './WorkflowsCreate'
+import WorkflowsList from './WorkflowList'
+import WorkflowsCreate from './CreateWorkflow'
+import WorkflowDetail from './WorkflowDetail'
 
 function WorkflowsPage() {
   return (
     <ErrorBoundary>
-      <Route path="/workflows" exact component={WorkflowsTable} />
+      <Route path="/workflows" exact component={WorkflowsList} />
       <Route
-        path="/workflows/create"
+        path="/workflows/initiate"
         exact
-        component={() => <Redirect to="/workflows/create/basic" />}
+        render={() => <Redirect to="/workflows/initiate/basic" />}
       />
-      <Route path="/workflows/create/:step" component={WorkflowsCreate} />
+      <Route
+        path="/workflows/initiate/:step"
+        exact
+        render={(props: any) => <WorkflowsCreate {...props} isInitiate={true} />}
+      />
+
+      <Route path="/workflows/:id" exact component={WorkflowDetail} />
     </ErrorBoundary>
   )
 }

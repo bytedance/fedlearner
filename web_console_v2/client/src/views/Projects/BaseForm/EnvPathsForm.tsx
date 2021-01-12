@@ -3,7 +3,7 @@ import styled from 'styled-components'
 import { Form, Input, Space } from 'antd'
 import { useTranslation } from 'react-i18next'
 import AddField from './AddField'
-import TrashCan from '../TrashCan'
+import TrashCan from '../../../components/Container/TrashCan'
 import { useToggle } from 'react-use'
 
 const Container = styled.div``

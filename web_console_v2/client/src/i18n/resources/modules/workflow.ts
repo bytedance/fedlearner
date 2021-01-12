@@ -9,6 +9,7 @@ const workflow: I18nMessageModule = {
 
   action_re_run: { zh: '重新运行' },
   action_run: { zh: '立即运行' },
+  action_configure: { zh: '立即配置' },
   action_stop_running: { zh: '停止运行' },
   action_duplicate: { zh: '复制' },
   action_detail: { zh: '详情' },
@@ -18,17 +19,23 @@ const workflow: I18nMessageModule = {
   btn_conf_next_step: { zh: '配置下一步（{{current}}/{{total}}）' },
   btn_see_ptcpt_config: { zh: '查看对方配置' },
   btn_send_2_ptcpt: { zh: '发送给合作伙伴' },
+  btn_show_report: { zh: ' 查看模型报告' },
 
   col_status: { zh: '任务状态' },
   col_project: { zh: ' 隶属项目' },
   col_creator: { zh: ' 创建者' },
   col_date: { zh: ' 创建时间' },
   col_actions: { zh: '操作' },
-  status_success: { zh: '成功' },
-  status_failed: { zh: '失败' },
-  status_running: { zh: '运行中' },
-  status_pending: { zh: '待发送' },
-  status_configuring: { zh: '合作伙伴配置中' },
+
+  state_success: { zh: '成功' },
+  state_failed: { zh: '失败' },
+  state_stopped: { zh: '已停止' },
+  state_running: { zh: '运行中' },
+  state_pending_accept: { zh: '待配置' },
+  state_ready_to_run: { zh: '配置成功' },
+  state_configuring: { zh: '合作伙伴配置中' },
+  state_unknown: { zh: '状态未知' },
+
   sent_failed: { zh: '发送失败' },
   sent_failed_desc: {
     zh: '与合作伙伴连接失败，失败原因，请检查连接状态成功后在工作流列表中重新发送',
@@ -47,6 +54,8 @@ const workflow: I18nMessageModule = {
   label_new_template_name: { zh: '新建模板名称' },
   label_upload_template: { zh: '上传模板文件' },
   label_template_comment: { zh: '工作流模板说明' },
+  label_template_name: { zh: '模板名称' },
+  label_running_time: { zh: '运行时长' },
 
   placeholder_name_searchbox: { zh: '根据工作流名称搜索' },
   placeholder_name: { zh: '请输入工作流名称' },
@@ -63,6 +72,8 @@ const workflow: I18nMessageModule = {
   msg_sure_2_cancel_create: { zh: '确认取消创建工作流？' },
   msg_sure_2_exist_create: { zh: '确定要离开吗，当前表单内容将全部丢失！' },
   msg_effect_of_cancel_create: { zh: '取消后，已配置内容将不再保留' },
+  msg_project_required: { zh: '请选择项目！' },
+  msg_name_required: { zh: '请输入名称！' },
 
   var_auth_write: { zh: '可编辑' },
   var_auth_read: { zh: '可见' },

@@ -1,14 +1,15 @@
 import { AxiosPromise } from 'axios'
 import request from 'libs/request'
-import { removeUndefinedKeys } from 'shared/object'
-import { WorkflowTemplate } from 'typings/workflow'
+import { Workflow, WorkflowTemplate } from 'typings/workflow'
 
-export function fetchExampleWorkflowTemplate() {
-  return request('/v2/workflows/example')
-}
-
-export function fetchWorkflowTemplateList(): AxiosPromise<{ data: WorkflowTemplate[] }> {
-  return request('/v2/workflow_templates')
+export function fetchWorkflowTemplateList(params?: {
+  is_left?: boolean
+  group_alias?: string
+}): AxiosPromise<{ data: WorkflowTemplate[] }> {
+  return request('/v2/workflow_templates', {
+    params,
+    removeFalsy: true,
+  })
 }
 
 export function getWorkflowTemplateById(id: number) {
@@ -19,13 +20,18 @@ export function createWorkflowTemplate(payload: any) {
   return request.post('/v2/workflow_templates', payload)
 }
 
-export function fetchWorkflowList(params: { project?: string; name?: string }) {
+export function fetchWorkflowList(params?: { project?: string; keyword?: string }) {
   return request('/v2/workflows', {
-    params: removeUndefinedKeys(params),
+    params,
+    removeFalsy: true,
   })
 }
 
-export function getWorkflowById(id: number) {
+export function getPeerWorkflowConfig() {
+  return request('/v2/workflows/id/peer_workflows')
+}
+
+export function getWorkflowDetailById(id: string): AxiosPromise<Workflow> {
   return request(`/v2/workflows/${id}`)
 }
 
@@ -33,15 +39,11 @@ export function createWorkflow(payload: any) {
   return request.post('/v2/workflows', payload)
 }
 
-export function sendWorkflowToParticipant(id: number) {
-  return request.patch(`/v2/workflows/create/${id}`)
+export function acceptNFillTheWorkflowConfig(id: number) {
+  return request.put(`/v2/workflows/${id}`)
 }
 
-export function participantFillTheConfig(id: number) {
-  return request.put(`/v2/workflows/update/${id}`)
-}
-
-export function participantConfirmToStart(id: number) {
+export function peerConfirmToStart(id: number) {
   return request.put(`/v2/workflows/update/${id}`)
 }
 
@@ -53,6 +55,6 @@ export function forkWorkflok(payload: any) {
   return request.post(`/v2/workflows/fork`, payload)
 }
 
-export function participantConfirmFork(id: number) {
+export function peerConfirmFork(id: number) {
   return request.post(`/v2/workflows/fork/${id}`)
 }

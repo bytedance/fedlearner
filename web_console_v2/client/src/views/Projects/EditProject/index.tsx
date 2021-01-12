@@ -1,5 +1,5 @@
 import React, { ReactElement } from 'react'
-import BaseForm from 'components/Container/BaseForm'
+import BaseForm from '../BaseForm'
 import styled from 'styled-components'
 import { Breadcrumb } from 'antd'
 import BreadcrumbSplit from 'components/Container/BreadcrumbSplit'

@@ -60,8 +60,8 @@ const CHANNELS = {
 
 type Props = {
   jobs: Job[]
-  onJobClick: (node: JobNode) => void
-  onCanvasClick: () => void
+  onJobClick?: (node: JobNode) => void
+  onCanvasClick?: () => void
 }
 
 const WorkflowJobsFlowChart: FC<Props> = ({ jobs, onJobClick, onCanvasClick }) => {
@@ -99,7 +99,7 @@ const WorkflowJobsFlowChart: FC<Props> = ({ jobs, onJobClick, onCanvasClick }) =
 
   function onElementsClick(element: FlowElement) {
     if (isNode(element)) {
-      onJobClick(element as JobNode)
+      onJobClick && onJobClick(element as JobNode)
     }
   }
   function onLoad(_reactFlowInstance: OnLoadParams) {

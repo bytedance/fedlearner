@@ -4,8 +4,8 @@ import { Form, Input, Button, Radio, Upload, message } from 'antd'
 import { useTranslation } from 'react-i18next'
 import SecondaryForm from './SecondaryForm'
 import EnvPathsForm from './EnvPathsForm'
-import FileUploaded from '../FileUploaded'
-import UploadArea from '../UploadArea'
+import FileUploaded from '../../../components/Container/FileUploaded'
+import UploadArea from '../../../components/Container/UploadArea'
 import { CertificateConfigType } from 'typings/project'
 import {
   ProjectFormInitialValues,

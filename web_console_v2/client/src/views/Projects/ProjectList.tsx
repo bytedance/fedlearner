@@ -3,7 +3,7 @@ import ProjectListFilters from './ProjectListFilters'
 import { useTranslation } from 'react-i18next'
 import CardList from './CardView/CardList'
 import TableList from './TableView/TableList'
-import { Pagination } from 'antd'
+import { Pagination, Spin } from 'antd'
 import styled, { createGlobalStyle } from 'styled-components'
 import { projectListQuery } from 'stores/projects'
 import { useRecoilQuery } from 'hooks/recoil'
@@ -55,31 +55,31 @@ function ProjectList(): ReactElement {
     }
   }, [pageSize, currentPage, projectList])
 
-  if (isLoading) return <span>loading</span>
-
   return (
-    <ListPageLayout title={t('term.project')} tip={t('project.describe')}>
-      <ProjectListFilters
-        onDisplayTypeChange={(type: number) => {
-          setDisplayType(type)
-        }}
-      />
-      {displayType === DisplayType.Card ? (
-        <CardList projectList={projectListShow} />
-      ) : (
-        <TableList projectList={projectListShow} />
-      )}
-      <PaginationStyle
-        pageSizeOptions={['12', '24', '36']}
-        pageSize={pageSize}
-        size="small"
-        total={total}
-        current={currentPage}
-        showSizeChanger
-        onChange={handleChange}
-      />
-      <GlobalStyle />
-    </ListPageLayout>
+    <Spin spinning={isLoading}>
+      <ListPageLayout title={t('term.project')} tip={t('project.describe')}>
+        <ProjectListFilters
+          onDisplayTypeChange={(type: number) => {
+            setDisplayType(type)
+          }}
+        />
+        {displayType === DisplayType.Card ? (
+          <CardList projectList={projectListShow} />
+        ) : (
+          <TableList projectList={projectListShow} />
+        )}
+        <PaginationStyle
+          pageSizeOptions={['12', '24', '36']}
+          pageSize={pageSize}
+          size="small"
+          total={total}
+          current={currentPage}
+          showSizeChanger
+          onChange={handleChange}
+        />
+        <GlobalStyle />
+      </ListPageLayout>
+    </Spin>
   )
   function handleChange(currentPage: number, page_size: number | undefined) {
     setCurrentPage(currentPage)

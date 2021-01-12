@@ -9,6 +9,10 @@ import i18n from 'i18n'
 import { formatTimestamp } from 'shared/date'
 import { useTranslation } from 'react-i18next'
 import ListPageLayout from 'components/ListPageLayout'
+import { Workflow } from 'typings/workflow'
+import WorkflowStage from './WorkflowStage'
+import { isStopped, isRunning, isPendingAccpet, isReadyToRun } from 'shared/workflow'
+import ProjectCell from 'components/ProjectCell'
 
 const FilterItem = styled(Form.Item)`
   > .ant-form-item-control {
@@ -16,46 +20,75 @@ const FilterItem = styled(Form.Item)`
   }
 `
 
-const tableCols = [
+const tableColumns = [
   {
     title: i18n.t('workflow.name'),
     dataIndex: 'name',
-    render: (text: string, record: any) => (
-      <Link to={`/workflows/${record.id}`} rel="nopener">
-        {text.toUpperCase()}
-      </Link>
-    ),
+    key: 'name',
+    render: (name: string, record: Workflow) => {
+      if (isPendingAccpet(record)) {
+        return name
+      }
+      return (
+        <Link to={`/workflows/${record.id}`} rel="nopener">
+          {name}
+        </Link>
+      )
+    },
   },
   {
     title: i18n.t('workflow.col_status'),
     dataIndex: 'state',
-    render: (state: string) => <div>{state}</div>,
+    name: 'state',
+    render: (_: string, record: Workflow) => <WorkflowStage data={record} />,
   },
   {
     title: i18n.t('workflow.col_project'),
     dataIndex: 'project_id',
-    render: (project: string) => <div>{project}</div>,
-  },
-  {
-    title: i18n.t('workflow.col_creator'),
-    dataIndex: 'creator',
-    render: (creator: string) => <div>{creator}</div>,
+    name: 'project_id',
+    width: 150,
+    render: (project_id: number) => <ProjectCell id={project_id} />,
   },
   {
     title: i18n.t('workflow.col_date'),
     dataIndex: 'created_at',
+    name: 'created_at',
     render: (date: number) => <div>{formatTimestamp(date)}</div>,
   },
   {
     title: i18n.t('workflow.col_actions'),
     dataIndex: 'created_at',
-    render: (_: any, record: any) => (
+    name: 'created_at',
+    render: (_: any, record: Workflow) => (
       <div>
-        <Button type="link">{i18n.t('workflow.action_run')}</Button>
-        {/* <Button type="link">{i18n.t('workflow.action_stop_running')}</Button> */}
-        {/* <Button type="link">{i18n.t('workflow.action_re_run')}</Button> */}
-        <Button type="link">{i18n.t('workflow.action_duplicate')}</Button>
-        <Button type="link">{i18n.t('workflow.action_detail')}</Button>
+        {isPendingAccpet(record) && (
+          <Link to={`/workflows/accept/${record.id}/basic`}>
+            <Button size="small" type="link">
+              {i18n.t('workflow.action_configure')}
+            </Button>
+          </Link>
+        )}
+        {isReadyToRun(record) && (
+          <Button size="small" type="link">
+            {i18n.t('workflow.action_run')}
+          </Button>
+        )}
+        {isRunning(record) && (
+          <Button size="small" type="link">
+            {i18n.t('workflow.action_stop_running')}
+          </Button>
+        )}
+        {isStopped(record) && (
+          <Button size="small" type="link">
+            {i18n.t('workflow.action_re_run')}
+          </Button>
+        )}
+        <Button size="small" type="link">
+          {i18n.t('workflow.action_duplicate')}
+        </Button>
+        <Button size="small" type="link">
+          {i18n.t('workflow.action_detail')}
+        </Button>
       </div>
     ),
   },
@@ -63,20 +96,17 @@ const tableCols = [
 
 type QueryParams = {
   project?: string
-  name?: string
+  keyword?: string
 }
 
 function WorkflowsTable() {
   const { t } = useTranslation()
   const [form] = Form.useForm<QueryParams>()
-  const [projectList] = useList([{ value: '', label: i18n.t('all') }])
-  const [params, setParams] = useState<QueryParams>({
-    project: '',
-    name: undefined,
-  })
+  const [projectList] = useList([{ value: '', label: t('all') }])
+  const [params, setParams] = useState<QueryParams>({ project: '', keyword: '' })
 
   const { isLoading, isError, data: res, error } = useQuery(
-    ['fetchWorkflowList', params.project, params.name],
+    ['fetchWorkflowList', params.project, params.keyword],
     () => fetchWorkflowList(params),
   )
 
@@ -92,12 +122,12 @@ function WorkflowsTable() {
     <ListPageLayout title={t('term.workflow')}>
       <Row gutter={16} justify="space-between">
         <Col>
-          <Link to="/workflows/create">
+          <Link to="/workflows/initiate/basic">
             <Button type="primary">{t('workflow.create_workflow')}</Button>
           </Link>
         </Col>
         <Col>
-          <Form initialValues={{ project: '' }} layout="inline" form={form} onFinish={handleSearch}>
+          <Form initialValues={{ ...params }} layout="inline" form={form} onFinish={handleSearch}>
             <FilterItem name="project" label={t('term.project')}>
               <Select onChange={form.submit}>
                 {projectList.map((item) => (
@@ -107,7 +137,7 @@ function WorkflowsTable() {
                 ))}
               </Select>
             </FilterItem>
-            <FilterItem name="name">
+            <FilterItem name="keyword">
               <Input.Search
                 placeholder={t('workflow.placeholder_name_searchbox')}
                 onPressEnter={form.submit}
@@ -117,7 +147,7 @@ function WorkflowsTable() {
         </Col>
       </Row>
 
-      <Table loading={isLoading} dataSource={res?.data.data || []} columns={tableCols} />
+      <Table loading={isLoading} dataSource={res?.data.data || []} columns={tableColumns} />
     </ListPageLayout>
   )
 }

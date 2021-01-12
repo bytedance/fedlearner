@@ -2,7 +2,7 @@ import { atom, selector } from 'recoil'
 import { fetchWorkflowTemplateList } from 'services/workflow'
 import {
   WorkflowConfig,
-  WorkflowPayload,
+  WorkflowInitiatePayload,
   WorkflowTemplate,
   WorkflowTemplatePayload,
 } from 'typings/workflow'
@@ -10,9 +10,9 @@ import tpls from 'services/mocks/v2/workflow_templates'
 import { parseWidgetSchemas } from 'shared/formSchema'
 
 export type StepOneForm = {
-  _templateType: 'existed' | 'create'
+  _templateType: 'existing' | 'create'
   _templateSelected?: string
-} & Pick<WorkflowPayload, 'name' | 'forkable' | 'project_id'>
+} & Partial<Pick<WorkflowInitiatePayload, 'name' | 'forkable' | 'project_id'>>
 
 export type StepOneTemplateForm = {
   _files: File[]
@@ -23,11 +23,11 @@ export const workflowBasicForm = atom<StepOneForm>({
   default: {
     // Fields start with underscore are solely UI releated things,
     // will not pass to backend on submit
-    _templateType: 'existed',
+    _templateType: 'existing',
     _templateSelected: undefined,
 
     name: '',
-    project_id: '',
+    project_id: undefined,
     forkable: true,
   },
 })

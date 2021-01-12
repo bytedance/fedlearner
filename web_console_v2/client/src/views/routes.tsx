@@ -5,8 +5,8 @@ import Projects from 'views/Projects'
 import Workflows from 'views/Workflows'
 import Datasets from 'views/Datasets'
 import Settings from 'views/Settings'
-import CreateProject from 'views/CreateProject'
-import EditProject from 'views/EditProject'
+import CreateProject from 'views/Projects/CreateProject'
+import EditProject from 'views/Projects/EditProject'
 import { FedRouteConfig } from 'typings/app'
 
 const routes: FedRouteConfig[] = [
@@ -50,7 +50,7 @@ const routes: FedRouteConfig[] = [
     auth: true,
   },
   {
-    path: '/edit-project',
+    path: '/projects/edit',
     exact: true,
     component: EditProject,
     auth: true,

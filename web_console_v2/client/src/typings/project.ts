@@ -61,18 +61,18 @@ export interface ProjectFormInitialValues {
   variables?: Variable[]
 }
 
-export function getConnectionStatusClassName(status: ProjectConnectionStatus): string {
+export function getConnectionStatusClassName(status: ProjectConnectionStatus) {
   switch (status) {
     case ProjectConnectionStatus.Success:
       return 'success'
     case ProjectConnectionStatus.Waiting:
-      return 'waiting'
+      return 'warning'
     case ProjectConnectionStatus.Checking:
-      return 'checking'
+      return 'primary'
     case ProjectConnectionStatus.Failed:
-      return 'failed'
+      return 'fail'
     default:
-      return 'waiting' as never
+      return 'unknown' as never
   }
 }
 export function getConnectionStatusTag(status: ProjectConnectionStatus): string {

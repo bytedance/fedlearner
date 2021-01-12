@@ -196,7 +196,7 @@ function DetailHeader({ project }: DetailHeaderProps): ReactElement {
               <ActionList
                 onEdit={() => {
                   history.push({
-                    pathname: '/edit-project',
+                    pathname: '/projects/edit',
                     state: {
                       project,
                     },

@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react'
+import React, { FC, useState } from 'react'
 import styled from 'styled-components'
 import { Card, Form, Select, Radio, Button, Input, message } from 'antd'
 import { useTranslation } from 'react-i18next'
@@ -8,44 +8,47 @@ import { useHistory } from 'react-router-dom'
 import { cloneDeep } from 'lodash'
 import {
   currentWorkflowTemplate,
-  forceReloadTplList,
   StepOneForm,
   workflowBasicForm,
   workflowGetters,
   workflowJobsConfigForm,
-  workflowTemplateListQuery,
 } from 'stores/workflow'
 import { useRecoilState, useRecoilValue, useSetRecoilState } from 'recoil'
 import WORKFLOW_CHANNELS, { workflowPubsub } from '../pubsub'
 import { useRecoilQuery } from 'hooks/recoil'
 import { WorkflowTemplate } from 'typings/workflow'
 import { useToggle } from 'react-use'
+import { projectListQuery } from 'stores/projects'
+import { useQuery } from 'react-query'
+import { fetchWorkflowTemplateList } from 'services/workflow'
+import { WorkflowCreateProps } from '..'
 
 const FormsContainer = styled.div`
   width: 500px;
   margin: 0 auto;
 `
 
-function WorkflowsCreateStepOne() {
+const WorkflowsCreateStepOne: FC<WorkflowCreateProps> = ({ isInitiate, isAccept }) => {
   const { t } = useTranslation()
   const [formInstance] = Form.useForm<StepOneForm>()
   const history = useHistory()
   const [submitting, setSubmitting] = useToggle(false)
+  const [is_left, setIsLeft] = useState(isInitiate)
+  const [group_alias, setGroupAlias] = useState('')
   const [formData, setFormData] = useRecoilState(workflowBasicForm)
   const setJobsConfigData = useSetRecoilState(workflowJobsConfigForm)
   const { whetherCreateNewTpl } = useRecoilValue(workflowGetters)
-  const reloadTplList = useSetRecoilState(forceReloadTplList)
   const setWorkflowTemplate = useSetRecoilState(currentWorkflowTemplate)
 
-  const { isLoading: tplLoading, data: tplList, error: tplListErr } = useRecoilQuery(
-    workflowTemplateListQuery,
+  const { data: projectList } = useRecoilQuery(projectListQuery)
+
+  const { isLoading: tplLoading, data: tplListRes, error: tplListErr } = useQuery(
+    ['fetchWorkflowTemplateList', is_left, group_alias],
+    () => fetchWorkflowTemplateList({ is_left, group_alias }),
   )
 
-  useEffect(() => {
-    if (tplListErr) {
-      message.error(tplListErr.message)
-    }
-  }, [tplListErr])
+  const tplList = tplListRes?.data.data || []
+  const noAvailableTpl = tplList.length === 0
 
   return (
     <Card>
@@ -61,7 +64,7 @@ function WorkflowsCreateStepOne() {
             name="name"
             hasFeedback
             label={t('workflow.label_name')}
-            rules={[{ required: true }]}
+            rules={[{ required: true, message: t('workflow.msg_name_required') }]}
           >
             <Input placeholder={t('workflow.placeholder_name')} />
           </Form.Item>
@@ -70,10 +73,15 @@ function WorkflowsCreateStepOne() {
             name="project_id"
             label={t('workflow.label_project')}
             hasFeedback
-            rules={[{ required: true, message: 'Please select your country!' }]}
+            rules={[{ required: true, message: t('workflow.msg_project_required') }]}
           >
             <Select placeholder={t('workflow.placeholder_project')}>
-              <Select.Option value="1">Project - 1</Select.Option>
+              {projectList &&
+                projectList.map((pj) => (
+                  <Select.Option key={pj.id} value={pj.id}>
+                    {pj.name}
+                  </Select.Option>
+                ))}
             </Select>
           </Form.Item>
 
@@ -86,43 +94,36 @@ function WorkflowsCreateStepOne() {
 
           <Form.Item name="_templateType" label={t('workflow.label_template')}>
             <Radio.Group>
-              <Radio.Button value={'existed'}>{t('workflow.label_exist_template')}</Radio.Button>
+              <Radio.Button value={'existing'}>{t('workflow.label_exist_template')}</Radio.Button>
               <Radio.Button value={'create'}>{t('workflow.label_new_template')}</Radio.Button>
             </Radio.Group>
           </Form.Item>
 
-          {/* If choose to use an existed template */}
-          {formData._templateType === 'existed' && (
+          {/* If choose to use an existing template */}
+          {formData._templateType === 'existing' && (
             <Form.Item
               name="_templateSelected"
               wrapperCol={{ offset: 6 }}
               hasFeedback
-              validateStatus={tplListErr && ('error' as any)}
-              help={
-                tplListErr && (
-                  <>
-                    {t('msg_get_template_failed')}
-                    <Button size="small" type="link" onClick={() => reloadTplList(Math.random())}>
-                      {t('click_to_retry')}
-                    </Button>
-                  </>
-                )
-              }
               rules={[{ required: true, message: t('workflow.msg_template_required') }]}
             >
-              <Select
-                loading={tplLoading}
-                disabled={!!tplListErr}
-                onChange={onTemplateSelectChange}
-                placeholder={t('workflow.placeholder_template')}
-              >
-                {tplList &&
-                  tplList.map((tpl) => (
-                    <Select.Option key={tpl.id} value={tpl.id}>
-                      {tpl.name}
-                    </Select.Option>
-                  ))}
-              </Select>
+              {noAvailableTpl && !tplLoading ? (
+                <div>暂无可用模板，请新建</div>
+              ) : (
+                <Select
+                  loading={tplLoading}
+                  disabled={Boolean(tplListErr) || noAvailableTpl}
+                  onChange={onTemplateSelectChange}
+                  placeholder={t('workflow.placeholder_template')}
+                >
+                  {tplList &&
+                    tplList.map((tpl) => (
+                      <Select.Option key={tpl.id} value={tpl.id}>
+                        {tpl.name}
+                      </Select.Option>
+                    ))}
+                </Select>
+              )}
             </Form.Item>
           )}
         </Form>
@@ -148,7 +149,7 @@ function WorkflowsCreateStepOne() {
   )
 
   async function goNextStep() {
-    history.push('/workflows/create/config')
+    history.push('/workflows/initiate/config')
     workflowPubsub.publish(WORKFLOW_CHANNELS.go_config_step)
   }
   function backToList() {

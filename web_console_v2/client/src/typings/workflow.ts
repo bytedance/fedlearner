@@ -91,6 +91,10 @@ export enum JobType {
   TREE_MODEL_EVALUATION = 'TREE_MODEL_EVALUATION',
 }
 
+export enum JobState {
+  READY = 'READY',
+}
+
 export enum JobDependencyType {
   UNSPECIFIED = 'UNSPECIFIED',
   ON_COMPLETE = 'ON_COMPLETE',
@@ -106,15 +110,18 @@ export interface JobDependency {
 export interface Job {
   name: string
   type: JobType
-  template: string
+  template?: string
   is_federated: boolean
-  is_left: boolean
+  is_left?: boolean
+  is_manual?: boolean
   variables: Variable[]
   dependencies: JobDependency[]
+  yaml_template?: string
 }
 
 export type WorkflowConfig = {
   group_alias: string
+  is_left: boolean
   variables?: Variable[]
   job_definitions: Job[]
 }
@@ -134,11 +141,51 @@ export type WorkflowTemplatePayload = {
   config: any
 }
 
-export type WorkflowPayload = {
+export type WorkflowInitiatePayload = {
   name: string
   project_id: string
   forkable: boolean
   forked_from?: boolean
   config: WorkflowConfig
   comment?: string
+}
+
+export enum WorkflowState {
+  INVALID = 'INVALID',
+  NEW = 'NEW',
+  READY = 'READY',
+  RUNNING = 'RUNNING',
+  STOPPED = 'STOPPED',
+  COMPLETED = 'COMPLETED',
+}
+
+export enum TransactionState {
+  READY = 'READY',
+  ABORTED = 'ABORTED',
+
+  COORDINATOR_PREPARE = 'COORDINATOR_PREPARE',
+  COORDINATOR_COMMITTABLE = 'COORDINATOR_COMMITTABLE',
+  COORDINATOR_COMMITTING = 'COORDINATOR_COMMITTING',
+  COORDINATOR_ABORTING = 'COORDINATOR_ABORTING',
+
+  PARTICIPANT_PREPARE = 'PARTICIPANT_PREPARE',
+  PARTICIPANT_COMMITTABLE = 'PARTICIPANT_COMMITTABLE',
+  PARTICIPANT_COMMITTING = 'PARTICIPANT_COMMITTING',
+  PARTICIPANT_ABORTING = 'PARTICIPANT_ABORTING',
+}
+
+export type Workflow = {
+  id: number
+  name: string
+  project_id: number
+  config: WorkflowConfig | null
+  forkable: boolean
+  forked_from?: boolean | null
+  comment: string | null
+  state: WorkflowState
+  target_state: WorkflowState
+  transaction_state: TransactionState
+  transaction_err: string | null
+  created_at: DateTime
+  updated_at: DateTime
 }

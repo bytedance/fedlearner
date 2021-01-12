@@ -21,7 +21,11 @@ export const userInfoState = atom<FedUserInfo>({
 
 export const userInfoQuery = selector({
   key: 'UserInfoQuery',
-  get: async () => {
+  get: async ({ get }) => {
+    if (process.env.REACT_APP_ENABLE_FULLY_MOCK) {
+      return get(userInfoState)
+    }
+
     try {
       const currentUserId = store.get(LOCAL_STORAGE_KEYS.current_user)?.id
 
@@ -35,16 +39,13 @@ export const userInfoQuery = selector({
       throw error
     }
   },
-  set: ({ set }, newValue) => {
-    set(userInfoState, newValue)
-  },
 })
 
 export const userInfoGetters = selector({
   key: 'UserInfoComputed',
   get({ get }) {
     return {
-      isAuthenticated: Boolean(get(userInfoQuery).id),
+      isAuthenticated: Boolean(get(userInfoQuery).id) || process.env.REACT_APP_ENABLE_FULLY_MOCK,
     }
   },
 })

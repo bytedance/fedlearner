@@ -43,7 +43,7 @@ function Action({ onDisplayTypeChange }: Props): ReactElement {
         <Button
           type="primary"
           onClick={() => {
-            history.push('/create-project')
+            history.push('/projects/create')
           }}
         >
           {t('project.create')}
