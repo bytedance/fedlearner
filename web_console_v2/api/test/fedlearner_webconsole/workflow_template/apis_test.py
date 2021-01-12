@@ -35,13 +35,15 @@ class WorkflowTemplatesApiTest(BaseTestCase):
         # Inserts data
         template1 = WorkflowTemplate(name='t1',
                                      comment='comment for t1',
-                                     group_alias='g1')
+                                     group_alias='g1',
+                                     is_left=True)
         template1.set_config(WorkflowDefinition(
             group_alias='g1',
             is_left=True,
         ))
         template2 = WorkflowTemplate(name='t2',
-                                     group_alias='g2')
+                                     group_alias='g2',
+                                     is_left=False)
         template2.set_config(WorkflowDefinition(
             group_alias='g2',
             is_left=False,
@@ -56,6 +58,17 @@ class WorkflowTemplatesApiTest(BaseTestCase):
         data = json.loads(response.data).get('data')
         self.assertEqual(len(data), 1)
         self.assertEqual(data[0]['name'], 't1')
+
+    def test_get_with_group_alias_with_is_left(self):
+        response = self.get_helper('/api/v2/workflow_templates?group_alias=g1&is_left=1')
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+        data = json.loads(response.data).get('data')
+        self.assertEqual(len(data), 1)
+        self.assertEqual(data[0]['name'], 't1')
+        response = self.get_helper('/api/v2/workflow_templates?group_alias=g1&is_left=0')
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+        data = json.loads(response.data).get('data')
+        self.assertEqual(len(data), 0)
 
     def test_get_all_templates(self):
         response = self.get_helper('/api/v2/workflow_templates')
