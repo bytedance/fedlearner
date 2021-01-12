@@ -1,15 +1,22 @@
-import { Job, Variable, VariableAccessMode, VariableComponent } from 'typings/workflow'
+import {
+  Job,
+  Variable,
+  VariableAccessMode,
+  VariableComponent,
+  WorkflowTemplatePayload,
+} from 'typings/workflow'
 import { FormilySchema } from 'typings/formily'
 import VariableLabel from 'components/VariableLabel/index'
-import { merge } from 'lodash'
+import { cloneDeep, merge } from 'lodash'
 import variablePresets, { VariablePresets } from './variablePresets'
 
 //---- Variable to Schema private helpers --------
 
 function _getPermissions({ access_mode }: Variable) {
   return {
-    readOnly: access_mode === VariableAccessMode.PEER_READABLE,
-    display: access_mode !== VariableAccessMode.PRIVATE,
+    // FIXME: only control participant side's permissions
+    readOnly: false && access_mode === VariableAccessMode.PEER_READABLE,
+    display: true || access_mode !== VariableAccessMode.PRIVATE,
   }
 }
 
@@ -25,10 +32,13 @@ function _getDatas({ value, widget_schema: { type, options } }: Variable) {
 
 function _getUIs({
   name,
+  access_mode,
   widget_schema: { size, placeholder, index, label, tooltip, description },
 }: Variable) {
   return {
-    title: label ? VariableLabel({ label, tooltip }) : name,
+    title: label
+      ? VariableLabel({ label, tooltip, access_mode })
+      : VariableLabel({ label: name, access_mode }),
     description,
     'x-index': index,
     'x-component-props': {
@@ -38,8 +48,9 @@ function _getUIs({
   }
 }
 
-function _getValidations({ widget_schema: { pattern, rules } }: Variable) {
+function _getValidations({ widget_schema: { pattern, rules, required } }: Variable) {
   return {
+    required,
     pattern,
     'x-rules': rules,
   }
@@ -49,7 +60,7 @@ function _getValidations({ widget_schema: { pattern, rules } }: Variable) {
 export function createInput(variable: Variable): FormilySchema {
   const {
     name,
-    widget_schema: { prefix, suffix, showCount, maxLength },
+    widget_schema: { prefix, suffix, maxLength },
   } = variable
 
   return {
@@ -65,7 +76,6 @@ export function createInput(variable: Variable): FormilySchema {
           // https://ant.design/components/input/#Input
           prefix,
           suffix,
-          showCount,
           maxLength,
           allowClear: true,
         },
@@ -201,6 +211,8 @@ export function createNumberPicker(variable: Variable): FormilySchema {
       _getPermissions(variable),
       _getValidations(variable),
       {
+        minimum: min,
+        maximum: max,
         'x-component': 'NumberPicker',
         'x-component-props': {
           min,
@@ -260,9 +272,8 @@ function mergeVariableSchemaWithPresets(variable: Variable, presets: VariablePre
 }
 
 /** Return a formily acceptable schema by server job definition */
-export function buildFormFromJobDef(job: Job): FormilySchema {
-  const { variables, name } = job
-
+export function buildFormSchemaFromJob(job: Job): FormilySchema {
+  const { variables, name } = cloneDeep(job)
   const schema: FormilySchema = {
     type: 'object',
     title: name,
@@ -279,4 +290,32 @@ export function buildFormFromJobDef(job: Job): FormilySchema {
 
     return schema
   }, schema)
+}
+
+export function stringifyWidgetSchemas(template: WorkflowTemplatePayload) {
+  const ret = cloneDeep(template)
+
+  ret.config?.job_definitions.forEach((job: any) => {
+    job.variables.forEach((variable: any) => {
+      if (typeof variable.widget_schema === 'object') {
+        variable.widget_schema = JSON.stringify(variable.widget_schema)
+      }
+    })
+  })
+
+  return ret
+}
+
+export function parseWidgetSchemas(template: WorkflowTemplatePayload) {
+  const ret = cloneDeep(template)
+
+  ret.config?.job_definitions.forEach((job: any) => {
+    job.variables.forEach((variable: any) => {
+      if (typeof variable.widget_schema === 'string') {
+        variable.widget_schema = variable.widget_schema ? JSON.parse(variable.widget_schema) : {}
+      }
+    })
+  })
+
+  return ret
 }

@@ -1,0 +1,224 @@
+{
+  "id": 2,
+  "name": "foo template",
+  "group_alias": "test-1",
+  "is_left": true,
+  "job_definitions": [
+    {
+      "name": "Initiative 2",
+      "type": 1,
+      "is_federated": true,
+      "variables": [
+        {
+          "name": "job_name",
+          "value": "",
+          "access_mode": 3,
+          "widget_schema": {
+            "component": "Input",
+            "type": "string",
+            "required": true
+          }
+        },
+        {
+          "name": "participant",
+          "value": "foobar",
+          "access_mode": 2,
+          "widget_schema": {
+            "component": "Input",
+            "type": "string",
+            "required": true
+          }
+        },
+        {
+          "name": "job_type",
+          "value": "1",
+          "access_mode": 2,
+          "widget_schema": {
+            "component": "Select",
+            "options": {
+              "type": "static",
+              "source": [
+                "1",
+                "2"
+              ]
+            },
+            "type": "number",
+            "required": true
+          }
+        },
+        {
+          "name": "is_pair",
+          "value": "",
+          "access_mode": 1,
+          "widget_schema": {
+            "component": "Switch",
+            "type": "boolean"
+          }
+        },
+        {
+          "name": "comment",
+          "value": "",
+          "access_mode": 2,
+          "widget_schema": {
+            "component": "TextArea",
+            "rows": 4,
+            "type": "string"
+          }
+        },
+        {
+          "name": "cpu_limit",
+          "value": "10",
+          "access_mode": 1,
+          "widget_schema": {
+            "component": "NumberPicker",
+            "min": 1,
+            "max": 80,
+            "type": "number"
+          }
+        },
+        {
+          "name": "certification",
+          "value": "",
+          "access_mode": 3,
+          "widget_schema": {
+            "component": "Upload",
+            "accept": ".crt,.pem",
+            "action": "/api/v2/upload",
+            "multiple": true,
+            "type": "array"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Raw data upload",
+      "type": 1,
+      "is_federated": true,
+      "dependencies": [
+        {
+          "source": "Initiative",
+          "type": 3
+        }
+      ],
+      "variables": [
+        {
+          "name": "job_name2",
+          "value": "",
+          "access_mode": 3,
+          "widget_schema": {
+            "component": "Input",
+            "type": "string"
+          }
+        },
+        {
+          "name": "comment2",
+          "value": "",
+          "access_mode": 1,
+          "widget_schema": {
+            "component": "TextArea",
+            "rows": 4,
+            "type": "string",
+            "required": true
+          }
+        }
+      ]
+    },
+    {
+      "name": "Raw data process",
+      "type": 1,
+      "is_federated": true,
+      "dependencies": [
+        {
+          "source": "Initiative",
+          "type": 3
+        }
+      ],
+      "variables": [
+        {
+          "name": "job_name3",
+          "value": "",
+          "access_mode": 3,
+          "widget_schema": {
+            "component": "Input",
+            "type": "string",
+            "required": true
+          }
+        }
+      ]
+    },
+    {
+      "name": "Raw data save",
+      "type": 1,
+      "is_federated": true,
+      "dependencies": [
+        {
+          "source": "Initiative",
+          "type": 3
+        }
+      ],
+      "variables": [
+        {
+          "name": "job_name",
+          "value": "",
+          "access_mode": 3,
+          "widget_schema": {
+            "component": "Input",
+            "type": "string"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Training",
+      "type": 1,
+      "is_federated": true,
+      "dependencies": [
+        {
+          "source": "Raw data upload",
+          "type": 1
+        },
+        {
+          "source": "Raw data process",
+          "type": 1
+        },
+        {
+          "source": "Raw data save",
+          "type": 1
+        }
+      ],
+      "variables": [
+        {
+          "name": "job_name2",
+          "value": "",
+          "access_mode": 3,
+          "widget_schema": {
+            "component": "Input",
+            "type": "string"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Finish/clear",
+      "type": 1,
+      "is_federated": true,
+      "dependencies": [
+        {
+          "source": "Training",
+          "type": 1
+        }
+      ],
+      "variables": [
+        {
+          "name": "job_name6",
+          "value": "",
+          "access_mode": 3,
+          "widget_schema": {
+            "component": "Input",
+            "type": "string"
+          }
+        }
+      ]
+    }
+  ]
+}

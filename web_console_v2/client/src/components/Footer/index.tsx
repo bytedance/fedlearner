@@ -1,5 +1,6 @@
 import React from 'react'
 import styled from 'styled-components'
+import { StyledComponetProps } from 'typings/component'
 
 const Container = styled.footer`
   text-align: center;

@@ -27,7 +27,8 @@
   }
 }
 
-// ant-input 2 arco-input
+// Input
+// --
 .ant-input,
 .ant-input-affix-wrapper {
   border: 1px solid transparent;
@@ -45,11 +46,11 @@
   }
   &:focus {
     border-color: var(--arcoblue6);
-    background-color: var(--colorBgWhite);
+    background-color: white;
   }
   &-focused {
     border-color: var(--arcoblue6) !important;
-    background-color: var(--colorBgWhite) !important;
+    background-color: white !important;
   }
   .ant-input {
     background-color: transparent;
@@ -68,11 +69,11 @@
     }
     &:focus {
       border-color: var(--red6);
-      background-color: var(--colorBgWhite);
+      background-color: white;
     }
     &-focused {
       border-color: var(--red6) !important;
-      background-color: var(--colorBgWhite) !important;
+      background-color: white !important;
     }
   }
 }
@@ -81,6 +82,8 @@
   background-color: transparent !important;
 }
 
+// Drawer
+// --
 .ant-drawer {
   .ant-drawer-header {
     .ant-drawer-header {
@@ -89,8 +92,30 @@
   }
 }
 
-.ellipsis {
+// Upload
+// --
+.ant-upload {
+  color: @dark-gray-1;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+
+  &.ant-upload-drag.ant-upload-drag {
+    border-color: transparent;
+    background-color: @gray-2;
+    background-clip: content-box;
+
+    &:not(.ant-upload-disabled):hover {
+      background-color: @arcoblue-1;
+
+      .anticon-plus {
+        color: @primary-color;
+      }
+    }
+
+    .anticon-plus {
+      display: block;
+      padding: 20px 0 30px;
+      font-size: 16px;
+      color: @text-color;
+    }
+  }
 }

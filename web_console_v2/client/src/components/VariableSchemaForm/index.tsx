@@ -1,5 +1,12 @@
-import React from 'react'
-import { SchemaForm, FormButtonGroup, Submit } from '@formily/antd'
+import React, { FunctionComponent } from 'react'
+import { Button } from 'antd'
+import {
+  SchemaForm,
+  FormButtonGroup,
+  Submit,
+  IAntdSchemaFormProps,
+  createFormActions,
+} from '@formily/antd'
 import {
   Input,
   NumberPicker,
@@ -9,6 +16,7 @@ import {
   Switch,
   Upload,
 } from '@formily/antd-components'
+import styled from 'styled-components'
 
 const components = {
   Input,
@@ -21,19 +29,42 @@ const components = {
   Upload,
 }
 
-type Props = {
-  schema: any
+const SchemaFormContainer = styled(SchemaForm)`
+  .ant-form-item-label > .ant-form-item-required::before {
+    order: 2;
+  }
+`
+interface Props extends IAntdSchemaFormProps {
   onConfirm: (val: any) => void
+  onCancel: (_: any) => void
+  confirmText: string
+  cancelText: string
 }
 
-function VariableSchemaForm({ schema, onConfirm }: Props) {
+export const formActions = createFormActions()
+
+const VariableSchemaForm: FunctionComponent<Props> = ({
+  schema,
+  onConfirm,
+  onCancel,
+  cancelText,
+  confirmText,
+}: Props) => {
   return (
-    <SchemaForm components={components} schema={schema} labelCol={4} onSubmit={onConfirm}>
-      <FormButtonGroup>
-        {/* FIXME: demo button here */}
-        <Submit>Print</Submit>
+    <SchemaFormContainer
+      labelAlign="left"
+      components={components}
+      schema={schema}
+      actions={formActions}
+      labelCol={8}
+      onSubmit={onConfirm}
+    >
+      <FormButtonGroup offset={8}>
+        <Submit>{confirmText}</Submit>
+
+        {cancelText && <Button onClick={onCancel}>{cancelText}</Button>}
       </FormButtonGroup>
-    </SchemaForm>
+    </SchemaFormContainer>
   )
 }
 

@@ -1,27 +1,11 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 
-/** Federation Learner global types */
-declare interface FedRouteConfig {
-  path: string
-  component: React.FunctionComponent
-  exact?: boolean
-  auth?: boolean // whether require logged in
-  roles?: string[]
-  children?: FedRouteConfig[]
-}
-
-declare interface StyledComponetProps {
-  className?: string
-  [key: string]: any
-}
-
+declare type DateTime = number
 declare namespace JSX {
   interface IntrinsicAttributes extends JSX.IntrinsicAttributes {
     key?: string | number
-    routes?: FedRouteConfig[]
   }
 }
-
 declare namespace NodeJS {
   interface ProcessEnv {
     readonly NODE_ENV: 'development' | 'production' | 'test'

@@ -1,6 +1,7 @@
 import React, { ReactElement } from 'react'
 import styled from 'styled-components'
 import { Drawer } from 'antd'
+import { Project } from 'typings/project'
 import DetailBody from './DetailBody'
 import DetailHeader from './DetailHeader'
 import { ReactComponent as CloseIcon } from 'assets/images/close-icon.svg'

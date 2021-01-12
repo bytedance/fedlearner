@@ -1,42 +1,27 @@
-import React, { ReactElement, useState } from 'react'
-import { Card } from 'antd'
-import { useQuery } from 'react-query'
-import { fetchExampleWorkflowTemplate } from 'services/workflow'
-import styled from 'styled-components'
-import VariableSchemaForm from 'components/VariableSchemaForm'
-import { buildFormFromJobDef } from 'shared/formSchema'
+import React from 'react'
+
 import ErrorBoundary from 'antd/lib/alert/ErrorBoundary'
+import { Route, Redirect } from 'react-router-dom'
+import WorkflowsList from './WorkflowList'
+import WorkflowsCreate from './CreateWorkflow'
+import WorkflowDetail from './WorkflowDetail'
 
-const Container = styled.div`
-  width: 100%;
-`
-
-const DemoValueDisplay = styled.pre`
-  display: block;
-  background-color: #fff;
-`
-
-function WorkflowsPage(): ReactElement {
-  const { isLoading, error, data: res } = useQuery('exampleTemplate', fetchExampleWorkflowTemplate)
-
-  const [currentValue, setValue] = useState({})
-
-  if (isLoading) return <div>Loading...</div>
-  if (error) return <div>Error!</div>
-
-  const firstJob = res?.data.jobs[0]
-
-  const firstJobFormSchema = buildFormFromJobDef(firstJob)
-
+function WorkflowsPage() {
   return (
     <ErrorBoundary>
-      <Container>
-        <Card>
-          <VariableSchemaForm schema={firstJobFormSchema} onConfirm={setValue} />
-        </Card>
-      </Container>
+      <Route path="/workflows" exact component={WorkflowsList} />
+      <Route
+        path="/workflows/initiate"
+        exact
+        render={() => <Redirect to="/workflows/initiate/basic" />}
+      />
+      <Route
+        path="/workflows/initiate/:step"
+        exact
+        render={(props: any) => <WorkflowsCreate {...props} isInitiate={true} />}
+      />
 
-      <DemoValueDisplay>{JSON.stringify(currentValue)}</DemoValueDisplay>
+      <Route path="/workflows/:id" exact component={WorkflowDetail} />
     </ErrorBoundary>
   )
 }

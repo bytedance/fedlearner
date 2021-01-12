@@ -14,6 +14,9 @@ import { useTranslation } from 'react-i18next'
 import { useToggle } from 'react-use'
 import { MixinFlexAlignCenter, MixinSquare } from 'styles/mixins'
 import classNames from 'classnames'
+import { StyledComponetProps } from 'typings/component'
+import store from 'store2'
+import LOCAL_STORAGE_KEYS from 'shared/localStorageKeys'
 
 const Container = styled.nav`
   display: flex;
@@ -59,24 +62,24 @@ const FoldButton = styled.div`
 const SIDEBAR_MENU_ITEMS = [
   {
     to: '/projects',
-    label: 'menu_label_project',
+    label: 'menu.label_project',
     icon: MailOutlined,
   },
   {
     to: '/workflows',
-    label: 'menu_label_workflow',
+    label: 'menu.label_workflow',
     icon: AppstoreOutlined,
   },
   {
     to: '/datasets',
-    label: 'menu_label_datasets',
+    label: 'menu.label_datasets',
     icon: SettingOutlined,
   },
 ]
 
 function Sidebar({ className }: StyledComponetProps) {
   const { t } = useTranslation()
-  const [isFolded, toggleFold] = useToggle(false)
+  const [isFolded, toggleFold] = useToggle(store.get(LOCAL_STORAGE_KEYS.sidebar_folded))
   const location = useLocation()
 
   return (
@@ -100,11 +103,16 @@ function Sidebar({ className }: StyledComponetProps) {
         ))}
       </Menu>
 
-      <FoldButton onClick={toggleFold}>
+      <FoldButton onClick={onFoldClick}>
         {isFolded ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
       </FoldButton>
     </Container>
   )
+
+  function onFoldClick() {
+    toggleFold()
+    store.set(LOCAL_STORAGE_KEYS.sidebar_folded, !isFolded)
+  }
 }
 
 export default Sidebar

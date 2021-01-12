@@ -23,10 +23,18 @@ export function MixinFlexAlignCenter() {
   `
 }
 
-export function MixinCommonTransition(props: string | string[] | undefined) {
-  if (!props) return `transition: 0.2s ${defaultTheme.commonTiming}`
+export function MixinEllipsis() {
+  return `
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  `
+}
 
-  const arr = []
+export function MixinCommonTransition(props?: string | string[] | undefined) {
+  if (!props) return `transition: 0.4s ${defaultTheme.commonTiming};`
+
+  const arr: string[] = []
 
   if (typeof props === 'string') {
     arr.push(props)
@@ -35,6 +43,6 @@ export function MixinCommonTransition(props: string | string[] | undefined) {
   }
 
   return `
-    transition: ${arr.map((i) => `${i} 0.2s ${defaultTheme.commonTiming}`).join(',')}
+    transition: ${arr.map((i) => `${i} 0.4s ${defaultTheme.commonTiming}`).join(',')};
   `
 }

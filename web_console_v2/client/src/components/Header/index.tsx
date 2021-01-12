@@ -1,14 +1,12 @@
-import React, { ChangeEvent, useState } from 'react'
+import React from 'react'
 import styled from 'styled-components'
-import { setLocale } from 'i18n'
 import HeaderAccount from './Account'
-import { FedLanguages } from 'typings/enum'
 import logo from 'assets/images/logo-colorful.svg'
-import store from 'store2'
-import LOCAL_STORAGE_KEYS from 'shared/localStorageKeys'
+import { StyledComponetProps } from 'typings/component'
 
 const Container = styled.header`
   position: sticky;
+  z-index: 1001; // > Drawer's 1000
   top: 0;
   display: grid;
   align-items: center;
@@ -17,11 +15,10 @@ const Container = styled.header`
   gap: 20px;
   height: 60px;
   padding: 0 30px;
-  background-color: var(--headerBg);
+  background-color: var(--headerBackground);
   color: white;
   border-bottom: 1px solid var(--gray3);
 `
-
 const LogoLink = styled.a`
   grid-area: logo;
 
@@ -30,37 +27,36 @@ const LogoLink = styled.a`
   }
 `
 
-const LanguageSelector = styled.select`
-  color: var(--textColor);
-`
+// const LanguageSelector = styled.select`
+//   color: var(--textColor);
+// `
 
 function Header({ className }: StyledComponetProps) {
-  const [lng, setLanguage] = useState<string>(FedLanguages.Chinese)
+  // const [lng, setLanguage] = useState<string>(store.get('language'))
 
   return (
     <Container className={className} id="page-header">
       <LogoLink href="/">
         <img src={logo} alt="Federation Learner logo" />
       </LogoLink>
+      {/* This empty element is used to fill the space blank */}
       <div className="empty" />
 
-      <LanguageSelector name="language-selector" value={lng} onChange={onLanguageChange}>
+      {/* <LanguageSelector name="language-selector" value={lng} onChange={onLanguageChange}>
         <option value="cn">简体中文</option>
         <option value="en">English</option>
-      </LanguageSelector>
+      </LanguageSelector> */}
 
-      <React.Suspense fallback={<div>Loading...</div>}>
-        <HeaderAccount />
-      </React.Suspense>
+      <HeaderAccount />
     </Container>
   )
 
-  function onLanguageChange(event: ChangeEvent<HTMLSelectElement>) {
-    const value = event.target.value as FedLanguages
-    setLanguage(value)
-    setLocale(value)
-    store.set(LOCAL_STORAGE_KEYS, value)
-  }
+  // function onLanguageChange(event: ChangeEvent<HTMLSelectElement>) {
+  //   const value = event.target.value as FedLanguages
+  //   setLanguage(value)
+  //   setLocale(value)
+  //   store.set(LOCAL_STORAGE_KEYS.language, value)
+  // }
 }
 
 export default Header

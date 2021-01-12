@@ -48,6 +48,10 @@ function compile() {
             .join('\n')
 
           const stringToRender = `
+          /**
+ * WARNING: This file is auto-generated
+ * DO NOT modify it directly, ./variables.less is the file you should go
+ */
           ${lessVarsString}
 
           :root {
@@ -66,10 +70,16 @@ function compile() {
         try {
           const output = lessToJs(lessVarsString)
 
-          const themeString = `const defaultTheme = {
+          const themeString = `
+/**
+ * WARNING: This file is auto-generated
+ * DO NOT modify it directly, ./variables.less is the file you should go
+ */
+const defaultTheme = {
 ${Object.entries(output)
   .map(([varName, varValue]) => {
-    return `  ${varName}: '${varValue}',`
+    varValue = varValue.replace(/\n/g, '')
+    return `  ${varName}: ${varValue.startsWith("'") ? `"${varValue}"` : `'${varValue}'`},`
   })
   .join('\n')}
 }

@@ -1,3 +1,8 @@
+
+/**
+ * WARNING: This file is auto-generated
+ * DO NOT modify it directly, ./variables.less is the file you should go
+ */
 const defaultTheme = {
   red1: '#ffece8',
   red2: '#fdcdc5',
@@ -280,12 +285,20 @@ const defaultTheme = {
   darkGray9: '#dfdfdf',
   darkGray10: '#f6f6f6',
   primaryColor: '#286af4',
-  textColor: '#1a2233',
-  headerBg: 'white',
+  infoColor: '#286af4',
+  successColor: '#00b42a',
+  processingColor: '#3491fa',
+  errorColor: '#f53f3f',
+  highlightColor: '#f76560',
+  warningColor: '#ff7d00',
+  normalColor: '#dfdfdf',
+  textColor: '#4e5969',
+  textColorStrong: '#1d2129',
+  textColorSecondary: '#86909c',
+  textColorInverse: 'white',
+  headerBackground: 'white',
   commonTiming: 'cubic-bezier(0.4, 0, 0.2, 1)',
-  colorBgWhite: '#ffffff',
-  failedRed: '#fd5165',
-  successGreen: '#00bab2',
+  fontFamily: "'nunito_for_arco', 'Helvetica Neue', Helvetica, 'PingFang SC', 'Hiragino Sans GB',  'Microsoft YaHei', '微软雅黑', Arial, sans-serif",
 }
 
 export default defaultTheme
