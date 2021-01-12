@@ -1,0 +1,14 @@
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: fedlearner-web-console-v2
+  namespace: {{ .Release.Namespace }}
+subjects:
+  - kind: ServiceAccount
+    name: fedlearner-web-console-v2
+    namespace: {{ .Release.Namespace }}
+roleRef:
+  kind: ClusterRole
+  name: fedlearner-web-console-v2
+  apiGroup: rbac.authorization.k8s.io
+---
