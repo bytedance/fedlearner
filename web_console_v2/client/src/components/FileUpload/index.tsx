@@ -1,23 +1,23 @@
-import React, { useState } from 'react'
-import styled from 'styled-components'
-import { Upload } from 'antd'
-import { PlusOutlined, CheckCircleFilled, DeleteFilled } from '@ant-design/icons'
-import { useTranslation } from 'react-i18next'
-import classNames from 'classnames'
-import { MixinCommonTransition } from 'styles/mixins'
-import { ReactComponent as FileIcon } from 'assets/images/file.svg'
+import React, { useState } from 'react';
+import styled from 'styled-components';
+import { Upload } from 'antd';
+import { PlusOutlined, CheckCircleFilled, DeleteFilled } from '@ant-design/icons';
+import { useTranslation } from 'react-i18next';
+import classNames from 'classnames';
+import { MixinCommonTransition } from 'styles/mixins';
+import { ReactComponent as FileIcon } from 'assets/images/file.svg';
 
 type Props = {
-  maxSize?: string
-  value?: any
-  onRemoveFile?: (...args: any[]) => any
-} & React.ComponentProps<typeof Upload>
+  maxSize?: string;
+  value?: any;
+  onRemoveFile?: (...args: any[]) => any;
+} & React.ComponentProps<typeof Upload>;
 
 const Container = styled.div`
   min-height: 32px;
   background-color: var(--gray2);
   border-radius: 2px;
-`
+`;
 const WithoutFile = styled.div`
   ${MixinCommonTransition(['max-height', 'opacity'])};
 
@@ -27,7 +27,7 @@ const WithoutFile = styled.div`
   &.hidden {
     max-height: 0;
   }
-`
+`;
 const FileItem = styled.div`
   ${MixinCommonTransition(['opacity'])};
 
@@ -61,7 +61,7 @@ const FileItem = styled.div`
   > .anticon-check-circle {
     color: var(--successColor);
   }
-`
+`;
 const DeleteFileBtn = styled.div`
   position: absolute;
   right: -20px;
@@ -70,32 +70,32 @@ const DeleteFileBtn = styled.div`
   &:hover {
     color: var(--primaryColor);
   }
-`
+`;
 const ContentInner = styled.div`
   padding: 20px 0 40px;
-`
+`;
 const PlusIcon = styled.p`
   font-size: 16px;
-`
+`;
 const UploadPlaceholder = styled.div`
   margin-bottom: 4px;
   line-height: 24px;
   font-size: 16px;
-`
+`;
 const UploadHint = styled.small`
   display: block;
   font-size: 12px;
   line-height: 18px;
   color: var(--textColorSecondary);
-`
+`;
 const DragUpload = styled(Upload.Dragger)`
   padding: 0;
-`
+`;
 
 const FileUpload = ({ maxSize, value, onRemoveFile, ...props }: Props) => {
-  const { t } = useTranslation()
-  const hasValue = !!value
-  const [filename, setFilename] = useState('')
+  const { t } = useTranslation();
+  const hasValue = !!value;
+  const [filename, setFilename] = useState('');
 
   return (
     <Container>
@@ -122,11 +122,11 @@ const FileUpload = ({ maxSize, value, onRemoveFile, ...props }: Props) => {
         </WithoutFile>
       </DragUpload>
     </Container>
-  )
+  );
 
   function onFileChange({ file }: any) {
-    setFilename(file.name)
+    setFilename(file.name);
   }
-}
+};
 
-export default FileUpload
+export default FileUpload;

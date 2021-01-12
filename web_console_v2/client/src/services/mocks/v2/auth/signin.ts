@@ -5,4 +5,4 @@ export const post = {
     msg: 'Wrong password!',
   },
   status: 204,
-}
+};

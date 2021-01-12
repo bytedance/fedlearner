@@ -1,7 +1,7 @@
-import React, { FC } from 'react'
-import styled from 'styled-components'
-import { Tooltip } from 'antd'
-import { QuestionCircleOutlined } from '@ant-design/icons'
+import React, { FC } from 'react';
+import styled from 'styled-components';
+import { Tooltip } from 'antd';
+import { QuestionCircleOutlined } from '@ant-design/icons';
 
 const Container = styled.div`
   display: flex;
@@ -31,19 +31,19 @@ const Container = styled.div`
   &.is-primary {
     --color: var(--primaryColor);
   }
-`
+`;
 const QuestionMark = styled(QuestionCircleOutlined)`
   width: 12px;
   height: 12px;
   color: var(--gray6);
-`
+`;
 
-export type StateTypes = 'primary' | 'success' | 'warning' | 'fail' | 'unknown'
+export type StateTypes = 'primary' | 'success' | 'warning' | 'fail' | 'unknown';
 type Props = {
-  tip?: string
-  type: StateTypes
-  text: string
-}
+  tip?: string;
+  type: StateTypes;
+  text: string;
+};
 
 const StateIndicator: FC<Props> = ({ text, type = 'unknown', tip }) => {
   return (
@@ -55,7 +55,7 @@ const StateIndicator: FC<Props> = ({ text, type = 'unknown', tip }) => {
         </Tooltip>
       )}
     </Container>
-  )
-}
+  );
+};
 
-export default StateIndicator
+export default StateIndicator;

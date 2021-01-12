@@ -1,7 +1,7 @@
-import React, { ReactElement } from 'react'
-import styled from 'styled-components'
-import { Project } from 'typings/project'
-import ProjectCard from './ProjectCard'
+import React, { ReactElement } from 'react';
+import styled from 'styled-components';
+import { Project } from 'typings/project';
+import ProjectCard from './ProjectCard';
 
 const Container = styled.div`
   display: grid;
@@ -14,10 +14,10 @@ const Container = styled.div`
   @media screen and (min-width: 1408px) {
     grid-template-columns: repeat(4, minmax(272px, 371px));
   }
-`
+`;
 
 interface CardListProps {
-  projectList: Project[]
+  projectList: Project[];
 }
 
 function CardList({ projectList }: CardListProps): ReactElement {
@@ -27,7 +27,7 @@ function CardList({ projectList }: CardListProps): ReactElement {
         <ProjectCard item={item} key={'p-' + index} />
       ))}
     </Container>
-  )
+  );
 }
 
-export default CardList
+export default CardList;

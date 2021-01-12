@@ -1,12 +1,12 @@
-import React, { ReactElement } from 'react'
-import styled from 'styled-components'
-import { Form, Input, Space } from 'antd'
-import { useTranslation } from 'react-i18next'
-import AddField from './AddField'
-import TrashCan from '../../../components/Container/TrashCan'
-import { useToggle } from 'react-use'
+import React, { ReactElement } from 'react';
+import styled from 'styled-components';
+import { Form, Input, Space } from 'antd';
+import { useTranslation } from 'react-i18next';
+import AddField from './AddField';
+import TrashCan from '../../../components/Container/TrashCan';
+import { useToggle } from 'react-use';
 
-const Container = styled.div``
+const Container = styled.div``;
 
 const Body = styled.div`
   width: 800px;
@@ -30,7 +30,7 @@ const Body = styled.div`
       }
     }
   }
-`
+`;
 
 const Header = styled.div`
   position: relative;
@@ -66,18 +66,18 @@ const Header = styled.div`
       }
     }
   }
-`
+`;
 
 interface Props {}
 
 interface EnvPath {
-  name: string
-  value: string
+  name: string;
+  value: string;
 }
 
 function EnvPathsForm({}: Props): ReactElement {
-  const { t } = useTranslation()
-  const [isFolded, toggleFolded] = useToggle(true)
+  const { t } = useTranslation();
+  const [isFolded, toggleFolded] = useToggle(true);
   return (
     <Container>
       <Header>
@@ -137,7 +137,7 @@ function EnvPathsForm({}: Props): ReactElement {
         </Body>
       )}
     </Container>
-  )
+  );
 }
 
-export default EnvPathsForm
+export default EnvPathsForm;

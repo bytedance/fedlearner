@@ -1,22 +1,22 @@
-import React from 'react'
-import styled from 'styled-components'
-import { Link, useLocation } from 'react-router-dom'
-import { Menu } from 'antd'
+import React from 'react';
+import styled from 'styled-components';
+import { Link, useLocation } from 'react-router-dom';
+import { Menu } from 'antd';
 import {
   MailOutlined,
   AppstoreOutlined,
   SettingOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
-} from '@ant-design/icons'
-import { Tooltip } from 'antd'
-import { useTranslation } from 'react-i18next'
-import { useToggle } from 'react-use'
-import { MixinFlexAlignCenter, MixinSquare } from 'styles/mixins'
-import classNames from 'classnames'
-import { StyledComponetProps } from 'typings/component'
-import store from 'store2'
-import LOCAL_STORAGE_KEYS from 'shared/localStorageKeys'
+} from '@ant-design/icons';
+import { Tooltip } from 'antd';
+import { useTranslation } from 'react-i18next';
+import { useToggle } from 'react-use';
+import { MixinFlexAlignCenter, MixinSquare } from 'styles/mixins';
+import classNames from 'classnames';
+import { StyledComponetProps } from 'typings/component';
+import store from 'store2';
+import LOCAL_STORAGE_KEYS from 'shared/localStorageKeys';
 
 const Container = styled.nav`
   display: flex;
@@ -42,7 +42,7 @@ const Container = styled.nav`
       }
     }
   }
-`
+`;
 
 const FoldButton = styled.div`
   ${MixinSquare(24)}
@@ -57,7 +57,7 @@ const FoldButton = styled.div`
   &:hover {
     background-color: var(--gray2);
   }
-`
+`;
 
 const SIDEBAR_MENU_ITEMS = [
   {
@@ -75,12 +75,12 @@ const SIDEBAR_MENU_ITEMS = [
     label: 'menu.label_datasets',
     icon: SettingOutlined,
   },
-]
+];
 
 function Sidebar({ className }: StyledComponetProps) {
-  const { t } = useTranslation()
-  const [isFolded, toggleFold] = useToggle(store.get(LOCAL_STORAGE_KEYS.sidebar_folded))
-  const location = useLocation()
+  const { t } = useTranslation();
+  const [isFolded, toggleFold] = useToggle(store.get(LOCAL_STORAGE_KEYS.sidebar_folded));
+  const location = useLocation();
 
   return (
     <Container className={classNames(className, { isFolded })}>
@@ -107,12 +107,12 @@ function Sidebar({ className }: StyledComponetProps) {
         {isFolded ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
       </FoldButton>
     </Container>
-  )
+  );
 
   function onFoldClick() {
-    toggleFold()
-    store.set(LOCAL_STORAGE_KEYS.sidebar_folded, !isFolded)
+    toggleFold();
+    store.set(LOCAL_STORAGE_KEYS.sidebar_folded, !isFolded);
   }
 }
 
-export default Sidebar
+export default Sidebar;

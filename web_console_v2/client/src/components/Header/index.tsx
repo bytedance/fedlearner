@@ -1,8 +1,8 @@
-import React from 'react'
-import styled from 'styled-components'
-import HeaderAccount from './Account'
-import logo from 'assets/images/logo-colorful.svg'
-import { StyledComponetProps } from 'typings/component'
+import React from 'react';
+import styled from 'styled-components';
+import HeaderAccount from './Account';
+import logo from 'assets/images/logo-colorful.svg';
+import { StyledComponetProps } from 'typings/component';
 
 const Container = styled.header`
   position: sticky;
@@ -18,14 +18,14 @@ const Container = styled.header`
   background-color: var(--headerBackground);
   color: white;
   border-bottom: 1px solid var(--gray3);
-`
+`;
 const LogoLink = styled.a`
   grid-area: logo;
 
   > img {
     height: 30px;
   }
-`
+`;
 
 // const LanguageSelector = styled.select`
 //   color: var(--textColor);
@@ -49,7 +49,7 @@ function Header({ className }: StyledComponetProps) {
 
       <HeaderAccount />
     </Container>
-  )
+  );
 
   // function onLanguageChange(event: ChangeEvent<HTMLSelectElement>) {
   //   const value = event.target.value as FedLanguages
@@ -59,4 +59,4 @@ function Header({ className }: StyledComponetProps) {
   // }
 }
 
-export default Header
+export default Header;

@@ -1,10 +1,10 @@
-import React from 'react'
+import React from 'react';
 
-import ErrorBoundary from 'antd/lib/alert/ErrorBoundary'
-import { Route, Redirect } from 'react-router-dom'
-import WorkflowsList from './WorkflowList'
-import WorkflowsCreate from './CreateWorkflow'
-import WorkflowDetail from './WorkflowDetail'
+import ErrorBoundary from 'antd/lib/alert/ErrorBoundary';
+import { Route, Redirect } from 'react-router-dom';
+import WorkflowsList from './WorkflowList';
+import WorkflowsCreate from './CreateWorkflow';
+import WorkflowDetail from './WorkflowDetail';
 
 function WorkflowsPage() {
   return (
@@ -23,7 +23,7 @@ function WorkflowsPage() {
 
       <Route path="/workflows/:id" exact component={WorkflowDetail} />
     </ErrorBoundary>
-  )
+  );
 }
 
-export default WorkflowsPage
+export default WorkflowsPage;

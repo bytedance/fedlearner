@@ -1,5 +1,3 @@
-
-
 const { resolveModuleName } = require('ts-pnp');
 
 exports.resolveModuleName = (
@@ -7,14 +5,14 @@ exports.resolveModuleName = (
   moduleName,
   containingFile,
   compilerOptions,
-  resolutionHost
+  resolutionHost,
 ) => {
   return resolveModuleName(
     moduleName,
     containingFile,
     compilerOptions,
     resolutionHost,
-    typescript.resolveModuleName
+    typescript.resolveModuleName,
   );
 };
 
@@ -23,13 +21,13 @@ exports.resolveTypeReferenceDirective = (
   moduleName,
   containingFile,
   compilerOptions,
-  resolutionHost
+  resolutionHost,
 ) => {
   return resolveModuleName(
     moduleName,
     containingFile,
     compilerOptions,
     resolutionHost,
-    typescript.resolveTypeReferenceDirective
+    typescript.resolveTypeReferenceDirective,
   );
 };

@@ -4,8 +4,8 @@ import {
   VariableAccessMode,
   VariableComponent,
   WorkflowTemplate,
-} from 'typings/workflow'
-import { DeepPartial } from 'utility-types'
+} from 'typings/workflow';
+import { DeepPartial } from 'utility-types';
 
 // Workflow template demo
 const get: { data: DeepPartial<WorkflowTemplate>; status: number } = {
@@ -207,6 +207,6 @@ const get: { data: DeepPartial<WorkflowTemplate>; status: number } = {
     },
   },
   status: 200,
-}
+};
 
-export default get
+export default get;

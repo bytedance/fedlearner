@@ -7,7 +7,7 @@ import {
   SwitchWidgetSchema,
   TextAreaWidgetSchema,
   WidgetWithOptionsSchema,
-} from './component'
+} from './component';
 
 export enum VariableComponent {
   Input = 'Input',
@@ -21,7 +21,7 @@ export enum VariableComponent {
   Upload = 'Upload',
 }
 
-export type VariableRule = { validator: RegExp | string; message: string }
+export type VariableRule = { validator: RegExp | string; message: string };
 
 export interface VariableWidgetSchema
   extends UploadWidgetSchema,
@@ -34,34 +34,34 @@ export interface VariableWidgetSchema
     WidgetWithOptionsSchema {
   /** ------ Metas ------ */
   // which component to use
-  component: VariableComponent
+  component: VariableComponent;
 
   /** ------ Datas ------ */
   // NOTE: for array type value, it clould be either a Multiple-select/Checkbox
   // or a Group-items which allow user add | delete. eg. ENV field
-  type: 'string' | 'number' | 'boolean' | 'array' | 'object'
-  initialValue?: string | number | boolean | any[] | object
+  type: 'string' | 'number' | 'boolean' | 'array' | 'object';
+  initialValue?: string | number | boolean | any[] | object;
 
   /** ------ UIs ------ */
   // i18n key for job name form-item label
-  label: string
+  label: string;
   // display order
-  index: number
+  index: number;
   // will render a question icon beside the label, hover it to show the tooltip
-  tooltip?: string
+  tooltip?: string;
   // will render some text below the form item
-  description?: string
-  placeholder?: string
-  size?: ComponentSize
+  description?: string;
+  placeholder?: string;
+  size?: ComponentSize;
 
   /** ------ Validations ------ */
   // RegExp string '\d'
-  pattern?: string
-  rules?: VariableRule[]
-  required?: boolean
+  pattern?: string;
+  rules?: VariableRule[];
+  required?: boolean;
 
   /** ------ Miscs ------ */
-  [key: string]: any
+  [key: string]: any;
 }
 
 /** 🚧 NOTE: Types below are NOT the final verison at current stage */
@@ -74,10 +74,10 @@ export enum VariableAccessMode {
 }
 
 export interface Variable {
-  name: string
-  value: any
-  access_mode: VariableAccessMode
-  widget_schema: VariableWidgetSchema
+  name: string;
+  value: any;
+  access_mode: VariableAccessMode;
+  widget_schema: VariableWidgetSchema;
 }
 
 export enum JobType {
@@ -103,52 +103,52 @@ export enum JobDependencyType {
 }
 
 export interface JobDependency {
-  source: string
-  type: JobDependencyType
+  source: string;
+  type: JobDependencyType;
 }
 
 export interface Job {
-  name: string
-  type: JobType
-  template?: string
-  is_federated: boolean
-  is_left?: boolean
-  is_manual?: boolean
-  variables: Variable[]
-  dependencies: JobDependency[]
-  yaml_template?: string
+  name: string;
+  type: JobType;
+  template?: string;
+  is_federated: boolean;
+  is_left?: boolean;
+  is_manual?: boolean;
+  variables: Variable[];
+  dependencies: JobDependency[];
+  yaml_template?: string;
 }
 
 export type WorkflowConfig = {
-  group_alias: string
-  is_left: boolean
-  variables?: Variable[]
-  job_definitions: Job[]
-}
+  group_alias: string;
+  is_left: boolean;
+  variables?: Variable[];
+  job_definitions: Job[];
+};
 
 export interface WorkflowTemplate {
-  id: number
-  name: string
-  comment: string
-  is_left: boolean
-  group_alias: string
-  config: WorkflowConfig
+  id: number;
+  name: string;
+  comment: string;
+  is_left: boolean;
+  group_alias: string;
+  config: WorkflowConfig;
 }
 
 export type WorkflowTemplatePayload = {
-  name: string
-  comment?: string
-  config: any
-}
+  name: string;
+  comment?: string;
+  config: any;
+};
 
 export type WorkflowInitiatePayload = {
-  name: string
-  project_id: string
-  forkable: boolean
-  forked_from?: boolean
-  config: WorkflowConfig
-  comment?: string
-}
+  name: string;
+  project_id: string;
+  forkable: boolean;
+  forked_from?: boolean;
+  config: WorkflowConfig;
+  comment?: string;
+};
 
 export enum WorkflowState {
   INVALID = 'INVALID',
@@ -175,17 +175,17 @@ export enum TransactionState {
 }
 
 export type Workflow = {
-  id: number
-  name: string
-  project_id: number
-  config: WorkflowConfig | null
-  forkable: boolean
-  forked_from?: boolean | null
-  comment: string | null
-  state: WorkflowState
-  target_state: WorkflowState
-  transaction_state: TransactionState
-  transaction_err: string | null
-  created_at: DateTime
-  updated_at: DateTime
-}
+  id: number;
+  name: string;
+  project_id: number;
+  config: WorkflowConfig | null;
+  forkable: boolean;
+  forked_from?: boolean | null;
+  comment: string | null;
+  state: WorkflowState;
+  target_state: WorkflowState;
+  transaction_state: TransactionState;
+  transaction_err: string | null;
+  created_at: DateTime;
+  updated_at: DateTime;
+};

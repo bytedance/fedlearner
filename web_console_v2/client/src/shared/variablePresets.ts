@@ -4,10 +4,10 @@
  * all the data model things should be described by server-side, e.g. type, name, pattern...
  */
 
-import { VariableWidgetSchema } from 'typings/workflow'
-import { Optional } from 'utility-types'
+import { VariableWidgetSchema } from 'typings/workflow';
+import { Optional } from 'utility-types';
 
-export type VariablePresets = { [key: string]: Optional<VariableWidgetSchema> }
+export type VariablePresets = { [key: string]: Optional<VariableWidgetSchema> };
 
 // FXIME: demo codes belows
 const variablePresets: VariablePresets = {
@@ -34,6 +34,6 @@ const variablePresets: VariablePresets = {
     parser: (value: string) => value.replace('%', ''),
   },
   certification: {},
-} as const
+} as const;
 
-export default variablePresets
+export default variablePresets;

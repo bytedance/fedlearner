@@ -3,7 +3,7 @@ import {
   TransactionState,
   VariableAccessMode,
   JobDependencyType,
-} from 'typings/workflow'
+} from 'typings/workflow';
 
 export const awaitParticipantConfig = {
   id: 1,
@@ -18,7 +18,7 @@ export const awaitParticipantConfig = {
   transaction_err: null,
   created_at: 1610238602,
   updated_at: 1610238602,
-}
+};
 
 export const newlyCreated = {
   id: 2,
@@ -93,4 +93,4 @@ export const newlyCreated = {
   transaction_err: null,
   created_at: 1610239831,
   updated_at: 1610239831,
-}
+};

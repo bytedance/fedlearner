@@ -1,22 +1,22 @@
-import React, { ReactElement } from 'react'
-import BaseForm from '../BaseForm'
-import styled from 'styled-components'
-import { Breadcrumb } from 'antd'
-import BreadcrumbSplit from 'components/Container/BreadcrumbSplit'
-import { useHistory } from 'react-router-dom'
-import { updateProject } from 'services/project'
-import { useTranslation } from 'react-i18next'
-import { CertificateConfigType } from 'typings/project'
-import { Project, ProjectFormInitialValues } from 'typings/project'
+import React, { ReactElement } from 'react';
+import BaseForm from '../BaseForm';
+import styled from 'styled-components';
+import { Breadcrumb } from 'antd';
+import BreadcrumbSplit from 'components/Container/BreadcrumbSplit';
+import { useHistory } from 'react-router-dom';
+import { updateProject } from 'services/project';
+import { useTranslation } from 'react-i18next';
+import { CertificateConfigType } from 'typings/project';
+import { Project, ProjectFormInitialValues } from 'typings/project';
 
-const Container = styled.div``
+const Container = styled.div``;
 
 function CreateProject(props: any): ReactElement {
-  const history = useHistory()
-  const { t } = useTranslation()
-  const project: Project = props?.location?.state?.project
+  const history = useHistory();
+  const { t } = useTranslation();
+  const project: Project = props?.location?.state?.project;
 
-  if (!project) history.push('/projects')
+  if (!project) history.push('/projects');
 
   const initialValues: ProjectFormInitialValues = {
     certificateConfigType: CertificateConfigType.BackendConfig,
@@ -26,13 +26,13 @@ function CreateProject(props: any): ReactElement {
     participantDomainName: project.config.participants[0].domain_name,
     comment: project.comment,
     variables: project.config.variables || [],
-  }
+  };
   return (
     <Container>
       <Breadcrumb separator={<BreadcrumbSplit />}>
         <Breadcrumb.Item
           onClick={() => {
-            history.push('/projects')
+            history.push('/projects');
           }}
         >
           {t('menu_label_project')}
@@ -41,14 +41,14 @@ function CreateProject(props: any): ReactElement {
       </Breadcrumb>
       <BaseForm onSubmit={onSubmit} edit initialValues={initialValues} />
     </Container>
-  )
+  );
   async function onSubmit<UpdateProjectFormData>(payload: UpdateProjectFormData) {
     try {
-      await updateProject(project.id, payload)
+      await updateProject(project.id, payload);
     } catch (error) {
-      throw error
+      throw error;
     }
   }
 }
 
-export default CreateProject
+export default CreateProject;

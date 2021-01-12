@@ -1,4 +1,4 @@
-import { I18nMessageModule, separateLng } from 'i18n/helpers'
+import { I18nMessageModule, separateLng } from 'i18n/helpers';
 
 const workflow: I18nMessageModule = {
   name: { zh: '工作流名称' },
@@ -86,6 +86,6 @@ const workflow: I18nMessageModule = {
   job_node_configuring: { zh: '配置中' },
   job_node_completed: { zh: '配置完成' },
   job_node_unfinished: { zh: '未完成配置' },
-}
+};
 
-export default separateLng(workflow)
+export default separateLng(workflow);

@@ -1,18 +1,18 @@
-import React, { ReactElement, useState } from 'react'
-import styled from 'styled-components'
-import ProjectProp from './ProjectProp'
-import ProjectAction from '../ProjectAction'
-import CreateTime from '../CreateTime'
-import Detail from '../Detail'
-import { Tooltip } from 'antd'
-import { useTranslation } from 'react-i18next'
-import { ReactComponent as CheckConnectionIcon } from 'assets/images/check-connect.svg'
-import createWorkFlow from 'assets/images/create-work-flow.svg'
-import ProjectName from '../ProjectName'
-import { useHistory } from 'react-router-dom'
-import { Project } from 'typings/project'
-import ProjectConnectionStatus from '../ConnectionStatus'
-import { MixinCommonTransition } from 'styles/mixins'
+import React, { ReactElement, useState } from 'react';
+import styled from 'styled-components';
+import ProjectProp from './ProjectProp';
+import ProjectAction from '../ProjectAction';
+import CreateTime from '../CreateTime';
+import Detail from '../Detail';
+import { Tooltip } from 'antd';
+import { useTranslation } from 'react-i18next';
+import { ReactComponent as CheckConnectionIcon } from 'assets/images/check-connect.svg';
+import createWorkFlow from 'assets/images/create-work-flow.svg';
+import ProjectName from '../ProjectName';
+import { useHistory } from 'react-router-dom';
+import { Project } from 'typings/project';
+import ProjectConnectionStatus from '../ConnectionStatus';
+import { MixinCommonTransition } from 'styles/mixins';
 
 const CardContainer = styled.div`
   ${MixinCommonTransition('transform')}
@@ -27,7 +27,7 @@ const CardContainer = styled.div`
   &:hover {
     transform: translateY(-2px);
   }
-`
+`;
 const CardHeaderContainer = styled.div`
   display: flex;
   height: 40px;
@@ -40,7 +40,7 @@ const CardHeaderContainer = styled.div`
       min-width: 146px;
     }
   }
-`
+`;
 const CardMainContainer = styled.div`
   display: flex;
   padding: 25px 0;
@@ -58,7 +58,7 @@ const CardMainContainer = styled.div`
       margin-top: 12px;
     }
   }
-`
+`;
 const CardFooterContainer = styled.div`
   flex: 1;
   display: flex;
@@ -75,7 +75,7 @@ const CardFooterContainer = styled.div`
     min-width: 80px;
     justify-content: space-between;
   }
-`
+`;
 const CheckConnectionStyle = styled.div`
   height: 24px;
   width: 24px;
@@ -91,24 +91,24 @@ const CheckConnectionStyle = styled.div`
       stroke: var(--primaryColor);
     }
   }
-`
+`;
 
 interface CardProps {
-  item: Project
+  item: Project;
 }
 
 interface CardHeaderProps {
-  name: string
-  time: number
+  name: string;
+  time: number;
 }
 
 interface CardMainProps {
-  workFlowNumber: number
-  connectionStatus: number
+  workFlowNumber: number;
+  connectionStatus: number;
 }
 
 interface CardFooterProps {
-  project: Project
+  project: Project;
 }
 
 function CardHeader({ name, time }: CardHeaderProps): ReactElement {
@@ -119,14 +119,14 @@ function CardHeader({ name, time }: CardHeaderProps): ReactElement {
         <CreateTime time={time} />
       </div>
     </CardHeaderContainer>
-  )
+  );
 }
 
 function CardMain({ workFlowNumber }: CardMainProps): ReactElement {
   //FIXME
-  const random: number = Math.random() * 3.99
-  const connectionStatus = Math.floor(random)
-  const { t } = useTranslation()
+  const random: number = Math.random() * 3.99;
+  const connectionStatus = Math.floor(random);
+  const { t } = useTranslation();
   return (
     <CardMainContainer>
       <ProjectProp describe={t('project.workflow_number')}>
@@ -138,37 +138,37 @@ function CardMain({ workFlowNumber }: CardMainProps): ReactElement {
         </div>
       </ProjectProp>
     </CardMainContainer>
-  )
+  );
 }
 
 function CreateWorkFlow(): ReactElement {
-  const { t } = useTranslation()
-  const history = useHistory()
+  const { t } = useTranslation();
+  const history = useHistory();
   return (
     <Tooltip title={t('project.create_work_flow')} placement="top">
       <img onClick={goCreateWorkflow} src={createWorkFlow} style={{ cursor: 'pointer' }} alt="" />
     </Tooltip>
-  )
+  );
 
   function goCreateWorkflow() {
-    history.push('/workflows/initiate/basic')
+    history.push('/workflows/initiate/basic');
   }
 }
 
 function CheckConnection(): ReactElement {
-  const { t } = useTranslation()
+  const { t } = useTranslation();
   return (
     <Tooltip title={t('project.check_connection') + ' (Not ready yet)'} placement="top">
       <CheckConnectionStyle>
         <CheckConnectionIcon />
       </CheckConnectionStyle>
     </Tooltip>
-  )
+  );
 }
 
 function CardFooter({ project }: CardFooterProps): ReactElement {
-  const history = useHistory()
-  const [isDrawerVisible, setIsDrawerVisible] = useState(false)
+  const history = useHistory();
+  const [isDrawerVisible, setIsDrawerVisible] = useState(false);
   return (
     <CardFooterContainer>
       {/* fixme */}
@@ -183,7 +183,7 @@ function CardFooter({ project }: CardFooterProps): ReactElement {
               state: {
                 project,
               },
-            })
+            });
           }}
           onDetail={() => setIsDrawerVisible(true)}
         />
@@ -195,7 +195,7 @@ function CardFooter({ project }: CardFooterProps): ReactElement {
         visible={isDrawerVisible}
       />
     </CardFooterContainer>
-  )
+  );
 }
 
 function Card({ item }: CardProps): ReactElement {
@@ -206,7 +206,7 @@ function Card({ item }: CardProps): ReactElement {
       <CardMain workFlowNumber={2} connectionStatus={1} />
       <CardFooter project={item} />
     </CardContainer>
-  )
+  );
 }
 
-export default Card
+export default Card;

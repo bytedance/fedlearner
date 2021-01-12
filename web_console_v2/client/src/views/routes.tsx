@@ -1,13 +1,13 @@
-import React from 'react'
-import { Redirect } from 'react-router-dom'
-import Dashboard from 'views/Dashboard'
-import Projects from 'views/Projects'
-import Workflows from 'views/Workflows'
-import Datasets from 'views/Datasets'
-import Settings from 'views/Settings'
-import CreateProject from 'views/Projects/CreateProject'
-import EditProject from 'views/Projects/EditProject'
-import { FedRouteConfig } from 'typings/app'
+import React from 'react';
+import { Redirect } from 'react-router-dom';
+import Dashboard from 'views/Dashboard';
+import Projects from 'views/Projects';
+import Workflows from 'views/Workflows';
+import Datasets from 'views/Datasets';
+import Settings from 'views/Settings';
+import CreateProject from 'views/Projects/CreateProject';
+import EditProject from 'views/Projects/EditProject';
+import { FedRouteConfig } from 'typings/app';
 
 const routes: FedRouteConfig[] = [
   {
@@ -55,6 +55,6 @@ const routes: FedRouteConfig[] = [
     component: EditProject,
     auth: true,
   },
-]
+];
 
-export default routes
+export default routes;

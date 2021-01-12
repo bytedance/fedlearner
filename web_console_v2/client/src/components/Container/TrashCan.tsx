@@ -1,13 +1,13 @@
-import React, { ReactElement } from 'react'
-import styled from 'styled-components'
-import { ReactComponent as TrashCan } from 'assets/images/trash-can.svg'
+import React, { ReactElement } from 'react';
+import styled from 'styled-components';
+import { ReactComponent as TrashCan } from 'assets/images/trash-can.svg';
 
 const Container = styled.div`
   cursor: pointer;
-`
+`;
 
 interface Props {
-  onClick: () => void
+  onClick: () => void;
 }
 
 function TrashCanRemove({ onClick }: Props): ReactElement {
@@ -15,7 +15,7 @@ function TrashCanRemove({ onClick }: Props): ReactElement {
     <Container onClick={onClick}>
       <TrashCan />
     </Container>
-  )
+  );
 }
 
-export default TrashCanRemove
+export default TrashCanRemove;

@@ -1,10 +1,10 @@
-import React, { ReactElement } from 'react'
-import styled from 'styled-components'
-import { Drawer } from 'antd'
-import { Project } from 'typings/project'
-import DetailBody from './DetailBody'
-import DetailHeader from './DetailHeader'
-import { ReactComponent as CloseIcon } from 'assets/images/close-icon.svg'
+import React, { ReactElement } from 'react';
+import styled from 'styled-components';
+import { Drawer } from 'antd';
+import { Project } from 'typings/project';
+import DetailBody from './DetailBody';
+import DetailHeader from './DetailHeader';
+import { ReactComponent as CloseIcon } from 'assets/images/close-icon.svg';
 
 const CloseIconStyle = styled.div`
   height: 24px;
@@ -16,12 +16,12 @@ const CloseIconStyle = styled.div`
   &:hover {
     background: #e5e6eb;
   }
-`
+`;
 interface DetailProps {
-  visible: boolean
-  title: string
-  onClose: () => void
-  project: Project
+  visible: boolean;
+  title: string;
+  onClose: () => void;
+  project: Project;
 }
 
 function Close(): ReactElement {
@@ -29,7 +29,7 @@ function Close(): ReactElement {
     <CloseIconStyle>
       <CloseIcon />
     </CloseIconStyle>
-  )
+  );
 }
 
 function Detail({ visible, onClose, project }: DetailProps): ReactElement {
@@ -46,7 +46,7 @@ function Detail({ visible, onClose, project }: DetailProps): ReactElement {
     >
       <DetailBody project={project} />
     </Drawer>
-  )
+  );
 }
 
-export default Detail
+export default Detail;

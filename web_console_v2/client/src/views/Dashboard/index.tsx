@@ -1,7 +1,7 @@
-import React, { ReactElement } from 'react'
+import React, { ReactElement } from 'react';
 
 function DashboardPage(): ReactElement {
-  return <div className="container">dashboard</div>
+  return <div className="container">dashboard</div>;
 }
 
-export default DashboardPage
+export default DashboardPage;

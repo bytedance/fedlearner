@@ -1,7 +1,7 @@
-import React, { ReactElement } from 'react'
-import styled, { CSSProperties } from 'styled-components'
-import { Tooltip } from 'antd'
-import { MixinEllipsis } from 'styles/mixins'
+import React, { ReactElement } from 'react';
+import styled, { CSSProperties } from 'styled-components';
+import { Tooltip } from 'antd';
+import { MixinEllipsis } from 'styles/mixins';
 
 const Container = styled.div`
   ${MixinEllipsis()}
@@ -11,11 +11,11 @@ const Container = styled.div`
   font-size: 15px;
   line-height: 40px;
   margin-left: 16px;
-`
+`;
 
 interface CreateTimeProps {
-  text: string
-  style?: CSSProperties
+  text: string;
+  style?: CSSProperties;
 }
 
 function ProjectName({ text, style }: CreateTimeProps): ReactElement {
@@ -23,7 +23,7 @@ function ProjectName({ text, style }: CreateTimeProps): ReactElement {
     <Tooltip title={text}>
       <Container style={style}>{text}</Container>
     </Tooltip>
-  )
+  );
 }
 
-export default ProjectName
+export default ProjectName;

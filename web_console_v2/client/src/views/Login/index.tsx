@@ -1,17 +1,17 @@
-import React, { useCallback } from 'react'
-import styled from 'styled-components'
-import { Input, Checkbox, Form, Button, message } from 'antd'
-import { EyeInvisibleOutlined, EyeTwoTone } from '@ant-design/icons'
-import loginLeftBg from 'assets/images/login-left-bg.jpg'
-import logoWhite from 'assets/images/logo-white.svg'
-import { MixinFlexAlignCenter } from 'styles/mixins'
-import { login } from 'services/user'
-import { useHistory } from 'react-router-dom'
-import { useToggle } from 'react-use'
-import { useTranslation } from 'react-i18next'
-import store from 'store2'
-import LOCAL_STORAGE_KEYS from 'shared/localStorageKeys'
-import { FedLoginFormData } from 'typings/auth'
+import React, { useCallback } from 'react';
+import styled from 'styled-components';
+import { Input, Checkbox, Form, Button, message } from 'antd';
+import { EyeInvisibleOutlined, EyeTwoTone } from '@ant-design/icons';
+import loginLeftBg from 'assets/images/login-left-bg.jpg';
+import logoWhite from 'assets/images/logo-white.svg';
+import { MixinFlexAlignCenter } from 'styles/mixins';
+import { login } from 'services/user';
+import { useHistory } from 'react-router-dom';
+import { useToggle } from 'react-use';
+import { useTranslation } from 'react-i18next';
+import store from 'store2';
+import LOCAL_STORAGE_KEYS from 'shared/localStorageKeys';
+import { FedLoginFormData } from 'typings/auth';
 
 const Layout = styled.main`
   display: grid;
@@ -25,17 +25,17 @@ const Layout = styled.main`
   @media screen and (max-width: 1040px) {
     grid-template-columns: 1fr 520px;
   }
-`
+`;
 
 const Block = styled.section`
   height: 100%;
-`
+`;
 
 const Slogan = styled.h1`
   color: white;
   font-size: 50px;
   font-weight: bolder;
-`
+`;
 
 const Left = styled(Block)`
   ${MixinFlexAlignCenter()}
@@ -50,14 +50,14 @@ const Left = styled(Block)`
   @media screen and (max-width: 520px) {
     display: none;
   }
-`
+`;
 
 const Right = styled(Block)`
   ${MixinFlexAlignCenter()}
 
   display: flex;
   background-color: white;
-`
+`;
 
 const LoginForm = styled(Form)`
   width: 360px;
@@ -81,37 +81,37 @@ const LoginForm = styled(Form)`
   > .checkboxItem {
     margin-bottom: 0;
   }
-`
+`;
 
 const LoginFormButton = styled(Button)`
   width: 100%;
-`
+`;
 
 const LoginFormCheckbox = styled(Checkbox)`
   color: #7a8499;
-`
+`;
 
 function Login() {
-  const history = useHistory()
-  const { t } = useTranslation()
-  const [submitting, toggleSubmit] = useToggle(false)
+  const history = useHistory();
+  const { t } = useTranslation();
+  const [submitting, toggleSubmit] = useToggle(false);
 
   const onSubmit = useCallback(
     async (payload: unknown) => {
-      toggleSubmit(true)
+      toggleSubmit(true);
       try {
-        const { data } = await login(payload as FedLoginFormData)
+        const { data } = await login(payload as FedLoginFormData);
 
-        store.set(LOCAL_STORAGE_KEYS.current_user, { ...data, date: Date.now() })
+        store.set(LOCAL_STORAGE_KEYS.current_user, { ...data, date: Date.now() });
 
-        history.push('/')
+        history.push('/');
       } catch (error) {
-        message.error(error.message)
+        message.error(error.message);
       }
-      toggleSubmit(false)
+      toggleSubmit(false);
     },
     [toggleSubmit, history],
-  )
+  );
 
   return (
     <Layout>
@@ -165,9 +165,9 @@ function Login() {
         </LoginForm>
       </Right>
     </Layout>
-  )
+  );
 
   // -------- Handlers ------------
 }
 
-export default Login
+export default Login;
