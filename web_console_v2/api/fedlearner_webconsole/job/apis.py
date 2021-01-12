@@ -23,18 +23,14 @@ from fedlearner_webconsole.k8s_client import get_client
 from fedlearner_webconsole.project.adapter import ProjectK8sAdapter
 
 
-class JobsApi(Resource):
-    def get(self, workflow_id):
-        return {'data': [row.to_dict() for row in
-                         Job.query.filter_by(workflow_id=workflow_id).all()]}
-
-
 class JobApi(Resource):
     def get(self, job_id):
         job = Job.query.filter_by(job=job_id).first()
         if job is None:
             raise NotFoundException()
         return {'data': job.to_dict()}
+
+    # TODO: manual start jobs
 
 
 class PodLogApi(Resource):
@@ -57,7 +53,6 @@ class PodContainerApi(Resource):
 
 
 def initialize_job_apis(api):
-    api.add_resource(JobsApi, '/workflows/<int:workflow_id>/jobs')
     api.add_resource(JobApi, '/jobs/<int:job_id>')
     api.add_resource(PodLogApi,
                      '/jobs/<int:job_id>/pods/<string:pod_name>/log')

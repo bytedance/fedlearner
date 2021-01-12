@@ -13,6 +13,7 @@
 # limitations under the License.
 
 # coding: utf-8
+# pylint: disable=broad-except
 
 import logging
 import enum
@@ -21,8 +22,8 @@ from sqlalchemy.sql import func
 from fedlearner_webconsole.db import db, to_dict_mixin
 from fedlearner_webconsole.proto import workflow_definition_pb2
 from fedlearner_webconsole.project.models import Project
-
-
+from fedlearner_webconsole.job.models import Job, JobState
+from fedlearner_webconsole.scheduler.job_scheduler import job_scheduler
 class WorkflowState(enum.Enum):
     INVALID = 0
     NEW = 1
@@ -34,7 +35,7 @@ class WorkflowState(enum.Enum):
 VALID_TRANSITIONS = [(WorkflowState.NEW, WorkflowState.READY),
                      (WorkflowState.READY, WorkflowState.RUNNING),
                      (WorkflowState.RUNNING, WorkflowState.STOPPED),
-                     (WorkflowState.STOPPED, WorkflowState.READY)]
+                     (WorkflowState.STOPPED, WorkflowState.RUNNING)]
 
 
 class TransactionState(enum.Enum):
@@ -104,13 +105,12 @@ class Workflow(db.Model):
     transaction_state = db.Column(db.Enum(TransactionState),
                                   default=TransactionState.READY)
     transaction_err = db.Column(db.Text())
-
     created_at = db.Column(db.DateTime(timezone=True),
                            server_default=func.now())
     updated_at = db.Column(db.DateTime(timezone=True),
                            server_onupdate=func.now(),
                            server_default=func.now())
-
+    jobs = db.relationship('Job', back_populates='workflow')
     project = db.relationship(Project)
 
     def set_config(self, proto):
@@ -205,21 +205,40 @@ class Workflow(db.Model):
                 self.transaction_state = \
                     TransactionState.PARTICIPANT_COMMITTABLE
 
+
     def rollback(self):
         self.target_state = WorkflowState.INVALID
 
+    # TODO: separate this method to another module
     def commit(self):
         assert self.transaction_state in [
             TransactionState.COORDINATOR_COMMITTING,
             TransactionState.PARTICIPANT_COMMITTING], \
-            'Workflow not in prepare state'
+                'Workflow not in prepare state'
 
         if self.target_state == WorkflowState.STOPPED:
-            # TODO: delete jobs from k8s
-            pass
+            job_ids = [job.id for job in self.jobs]
+            job_scheduler.sleep(job_ids)
+            for job in self.jobs:
+                job.stop()
+                db.session.commit()
         elif self.target_state == WorkflowState.READY:
-            # TODO: create workflow jobs in database according to config
-            pass
+            job_definitions = self.get_config().job_definitions
+            for job_definition in job_definitions:
+                job = Job(name=f'{self.name}-{job_definition.name}',
+                          job_type=job_definition.type,
+                          config=job_definition.SerializeToString(),
+                          workflow_id=self.id,
+                          project_id=self.project_id)
+                job.set_yaml(job_definition.yaml_template)
+                db.session.add(job)
+        elif self.target_state == WorkflowState.RUNNING:
+            job_ids = [job.id for job in self.jobs]
+            for job in self.jobs:
+                if job.state != JobState.STARTED:
+                    job.state = JobState.READY
+            db.session.commit()
+            job_scheduler.wakeup(job_ids)
 
         self.state = self.target_state
         self.target_state = WorkflowState.INVALID
@@ -228,5 +247,6 @@ class Workflow(db.Model):
     def log_states(self):
         logging.debug(
             'workflow %d updated to state=%s, target_state=%s, '
-            'transaction_state=%s', self.id, self.state.name,
-            self.target_state.name, self.transaction_state.name)
+            'transaction_state=%s', self.id,
+            self.state.name, self.target_state.name,
+            self.transaction_state.name)

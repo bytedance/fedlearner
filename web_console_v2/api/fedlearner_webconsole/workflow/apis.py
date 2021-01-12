@@ -92,7 +92,9 @@ class WorkflowsApi(Resource):
 class WorkflowApi(Resource):
     def get(self, workflow_id):
         workflow = _get_workflow(workflow_id)
-        return {'data': workflow.to_dict()}, HTTPStatus.OK
+        result = workflow.to_dict()
+        result['jobs'] = [job.to_dict() for job in workflow.jobs]
+        return {'data': result}, HTTPStatus.OK
 
     def put(self, workflow_id):
         parser = reqparse.RequestParser()
@@ -137,8 +139,6 @@ class WorkflowApi(Resource):
 
 class PeerWorkflowsApi(Resource):
     def get(self, workflow_id):
-        # TODO: get jobs details
-
         workflow = _get_workflow(workflow_id)
         project_config = workflow.project.get_config()
         peer_workflows = {}
@@ -149,8 +149,7 @@ class PeerWorkflowsApi(Resource):
                 resp,
                 preserving_proto_field_name=True,
                 including_default_value_fields=True)
-        return {'data': {'self': workflow.to_dict(),
-                         'peers': peer_workflows}}, HTTPStatus.OK
+        return {'data': peer_workflows}, HTTPStatus.OK
 
 
 def initialize_workflow_apis(api):
