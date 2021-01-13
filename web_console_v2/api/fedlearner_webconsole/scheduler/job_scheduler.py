@@ -80,7 +80,7 @@ class JobScheduler(object):
             if depend is None or depend.state != JobState.STARTED:
                 return
             if dependency.type == JobDependency.ON_COMPLETE:
-                if depend.get_flapp()['status']['appState'] \
+                if depend.get_custom_object()['status']['appState'] \
                      != 'FLStateComplete':
                     return
         job.state = JobState.STARTED

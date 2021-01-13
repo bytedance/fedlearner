@@ -16,7 +16,8 @@
 # pylint: disable=logging-format-interpolation
 import logging
 from kubernetes import client
-from fedlearner_webconsole.utils.k8s_client import K8sClient
+from fedlearner_webconsole.utils.k8s_client import (K8sClient,
+                                                    CrdLowercasePluralKind)
 
 _RAISE_EXCEPTION_KEY = 'raise_exception'
 
@@ -26,6 +27,7 @@ class FakeK8sClient(K8sClient):
 
     With this client we can decouple the dependency of k8s cluster.
     """
+
     def __init__(self):  # pylint: disable=super-init-not-called
         # Do not call super constructor
         pass
@@ -150,38 +152,53 @@ class FakeK8sClient(K8sClient):
             )
         )
 
-    def get_webshell_session(self, namespace, pod_name, mode):
-        logging.info('======================')
-        logging.info('get container from pod : {}'.format(
-            pod_name
-        ))
-        return 'A container Id'
+    def create_from_dict(self, dic_object):
+        return dic_object
 
-    def get_flapp(self, namespace, job_name):
-        logging.info('======================')
-        logging.info('get detail from job : {}'.format(
-            job_name
-        ))
-        return {'name':job_name}
+    def get_custom_object(self, kind: CrdLowercasePluralKind,
+                          custom_object_name: str, namespace='default'):
+        return {
+            'kind': kind.value,
+            'metadata': {
+                'name': custom_object_name,
+                'namesapce': namespace
+            }
+        }
 
-    def get_pods(self, namespace, job_name):
-        logging.info('======================')
-        logging.info('get pods from job : {}'.format(
-            job_name
-        ))
-        return {'name': job_name}
+    def delete_custom_object(self, kind: CrdLowercasePluralKind,
+                             custom_object_name: str, namespace='default'):
+        return {
+            'kind': kind.value,
+            'metadata': {
+                'name': custom_object_name,
+                'namesapce': namespace
+            }
+        }
 
-    def create_flapp(self, namespace, yaml):
-        logging.info('======================')
-        logging.info('create flapp from yaml : {}'.format(
-            yaml
-        ))
+    def list_resource_of_custom_object(self, kind: CrdLowercasePluralKind,
+                                       custom_object_name: str,
+                                       resource_type: str, namespace='default'):
+        return {
+            'pods': {
+                'metadata': {
+                    'selfLink': '/api/v1/namespaces/default/pods',
+                    'resourceVersion': '780480990'
+                }
+            },
+            'items': [
+                {
+                    'metadata': {
+                        'name': '{}-0'.format(custom_object_name)
+                    }
+                },
+                {
+                    'metadata': {
+                        'name': '{}-1'.format(custom_object_name)
+                    }
+                }
+            ]
+        }
 
-    def delete_flapp(self, namespace, job_name):
-        logging.info('======================')
-        logging.info('delete flapp: {}'.format(
-            job_name
-        ))
-
-    def get_base_url(self):
-        return "fake/url"
+    def get_webshell_session(self, flapp_name: CrdLowercasePluralKind,
+                             container_name: str, namespace='default'):
+        return {'id': 1}

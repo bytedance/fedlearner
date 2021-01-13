@@ -84,8 +84,8 @@ class Job(db.Model):
 
     def _set_snapshot_flapp(self):
         project_adapter = ProjectK8sAdapter(self.project_id)
-        flapp = json.dumps(self._k8s_client.get_flapp(
-                           project_adapter.get_namespace(), self.name))
+        flapp = json.dumps(self._k8s_client.get_custom_object(
+            'flapps', self.name, project_adapter.get_namespace()))
         self.flapp_snapshot = json.dumps(flapp)
 
     def _set_snapshot_pods(self):
