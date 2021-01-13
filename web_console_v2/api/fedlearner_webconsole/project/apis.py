@@ -142,13 +142,15 @@ class ProjectsApi(Resource):
         return {'data': new_project.to_dict()}
 
     def get(self):
+        # TODO: Not count soft-deleted workflow
+        projects = db.session.query(
+            Project, func.count(Workflow.id).label('workflow_num'))\
+            .join(Workflow.project).group_by(Project.id).all()
         result = []
-        for project in Project.query.all():
-            current = project.to_dict()
-            # func.count is faster than select
-            current['workflow_num'] = db.session.query(func.count(Workflow.id))\
-                .filter_by(project_id=project.id).scalar()
-            result.append(current)
+        for project in projects:
+            project_dict = project.Project.to_dict()
+            project_dict['workflow_num'] = project.workflow_num
+            result.append(project_dict)
         return {'data': result}
 
 
