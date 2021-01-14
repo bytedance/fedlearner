@@ -1,8 +1,3 @@
-from workflow_template_test import make_workflow_template
-import requests
-from google.protobuf.json_format import MessageToDict
-
-
 # Copyright 2020 The FedLearner Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the 'License');
@@ -29,7 +24,7 @@ from fedlearner_webconsole.workflow.models import Workflow, WorkflowState
 from fedlearner_webconsole.scheduler.transaction import TransactionState
 from fedlearner_webconsole.scheduler.scheduler import scheduler
 from fedlearner_webconsole.proto import project_pb2
-
+from workflow_template_test import make_workflow_template
 
 class WorkflowsCommitTest(BaseTestCase):
 
