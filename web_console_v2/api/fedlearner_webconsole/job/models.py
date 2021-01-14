@@ -119,5 +119,4 @@ class Job(db.Model):
 
 
     def set_yaml(self, yaml_template):
-        # TODO: complete yaml
         self.yaml = yaml_template
