@@ -68,7 +68,7 @@ class WorkflowsCommitTest(BaseTestCase):
         db.session.add(workflow)
         db.session.commit()
         scheduler.wakeup(20)
-        time.sleep(5)
+        time.sleep(1)
         workflow = Workflow.query.filter_by(id=20).first()
         self.assertEqual(workflow.state, WorkflowState.READY)
         self.assertEqual(len(workflow.jobs), 2)
@@ -80,7 +80,7 @@ class WorkflowsCommitTest(BaseTestCase):
         workflow.transaction_state = TransactionState.PARTICIPANT_COMMITTING
         db.session.commit()
         scheduler.wakeup(20)
-        time.sleep(5)
+        time.sleep(1)
         workflow = Workflow.query.filter_by(id=20).first()
         self.assertEqual(workflow.state, WorkflowState.RUNNING)
         self.assertEqual(workflow.jobs[0].state, JobState.STARTED)
@@ -91,7 +91,7 @@ class WorkflowsCommitTest(BaseTestCase):
         workflow.transaction_state = TransactionState.PARTICIPANT_COMMITTING
         db.session.commit()
         scheduler.wakeup(20)
-        time.sleep(5)
+        time.sleep(1)
         workflow = Workflow.query.filter_by(id=20).first()
         self.assertEqual(workflow.state, WorkflowState.STOPPED)
         self.assertEqual(workflow.jobs[0].state, JobState.STOPPED)
