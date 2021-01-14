@@ -1,21 +1,23 @@
-import React, { useState } from 'react';
+import React, { useState, FC } from 'react';
 import styled from 'styled-components';
 import { Upload } from 'antd';
-import { PlusOutlined, CheckCircleFilled, DeleteFilled } from '@ant-design/icons';
+import { PlusOutlined, DeleteFilled } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import classNames from 'classnames';
 import { MixinCommonTransition } from 'styles/mixins';
 import { ReactComponent as FileIcon } from 'assets/images/file.svg';
+import { RcFile } from 'antd/lib/upload';
 
-type Props = {
-  maxSize?: string;
+type Props = React.ComponentProps<typeof Upload> & {
+  reader: (file: File) => Promise<any>;
+  maxSize?: number;
   value?: any;
+  onChange?: (file: File) => void;
   onRemoveFile?: (...args: any[]) => any;
-} & React.ComponentProps<typeof Upload>;
+};
 
 const Container = styled.div`
   min-height: 32px;
-  background-color: var(--gray2);
   border-radius: 2px;
 `;
 const WithoutFile = styled.div`
@@ -28,7 +30,7 @@ const WithoutFile = styled.div`
     max-height: 0;
   }
 `;
-const FileItem = styled.div`
+const File = styled.div`
   ${MixinCommonTransition(['opacity'])};
 
   position: absolute;
@@ -48,7 +50,6 @@ const FileItem = styled.div`
     pointer-events: initial;
 
     > .anticon-check-circle {
-      /* animation-name: diffZoomIn1; */
       animation: zoomIn 0.3s cubic-bezier(0.12, 0.4, 0.29, 1.46);
     }
   }
@@ -59,7 +60,7 @@ const FileItem = styled.div`
   }
 
   > .anticon-check-circle {
-    color: var(--successColor);
+    color: var(--errorColor);
   }
 `;
 const DeleteFileBtn = styled.div`
@@ -92,21 +93,33 @@ const DragUpload = styled(Upload.Dragger)`
   padding: 0;
 `;
 
-const FileUpload = ({ maxSize, value, onRemoveFile, ...props }: Props) => {
+const ReadFile: FC<Props> = ({ maxSize, value, reader, onRemoveFile, onChange, ...props }) => {
   const { t } = useTranslation();
-  const hasValue = !!value;
-  const [filename, setFilename] = useState('');
+  const valueInternal = value;
+  const [file, setFile] = useState<File>();
+
+  const { beforeUpload } = props;
+  const hasValue = Boolean(valueInternal);
+
+  const uploadProps = {
+    ...props,
+    disabled: hasValue || props.disabled,
+    showUploadList: false,
+    onChange: onFileChange,
+    beforeUpload: onFileInput,
+  };
 
   return (
     <Container>
-      <FileItem className={classNames({ visible: hasValue })}>
+      <File className={classNames({ visible: hasValue })}>
         <FileIcon />
-        <span className="filename">{filename}</span>
-        <DeleteFileBtn onClick={onRemoveFile}>
+        <span className="filename">{file?.name}</span>
+        <DeleteFileBtn onClick={onDeleteClick}>
           <DeleteFilled />
         </DeleteFileBtn>
-      </FileItem>
-      <DragUpload disabled={hasValue} {...(props as any)} onChange={onFileChange}>
+      </File>
+
+      <DragUpload {...(uploadProps as any)}>
         <WithoutFile className={classNames({ hidden: hasValue })}>
           <ContentInner>
             <PlusIcon>
@@ -125,8 +138,21 @@ const FileUpload = ({ maxSize, value, onRemoveFile, ...props }: Props) => {
   );
 
   function onFileChange({ file }: any) {
-    setFilename(file.name);
+    return reader(file).then((result) => {
+      onChange && onChange(result);
+      setFile(file);
+    });
+  }
+  function onFileInput(file: RcFile, fileList: RcFile[]) {
+    beforeUpload && beforeUpload(file, fileList);
+
+    return false;
+  }
+  function onDeleteClick() {
+    onRemoveFile && onRemoveFile(file);
+    onChange && onChange(null as any);
+    setFile(null as any);
   }
 };
 
-export default FileUpload;
+export default ReadFile;

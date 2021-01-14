@@ -4,15 +4,27 @@ import { Project } from 'typings/project';
 import ProjectCard from './ProjectCard';
 
 const Container = styled.div`
-  display: grid;
-  grid-template-columns: repeat(3, minmax(272px, 371px));
-  column-gap: 24px;
-  row-gap: 24px;
-  justify-content: space-between;
+  --cols: 4;
 
-  // 272 * 4 + 24 * 3 + 24 * 2 + 200
-  @media screen and (min-width: 1408px) {
-    grid-template-columns: repeat(4, minmax(272px, 371px));
+  display: grid;
+  grid-template-columns: repeat(var(--cols), 1fr);
+  justify-content: space-between;
+  grid-gap: 24px 20px;
+
+  @media screen and (min-width: 1920px) and (max-width: 2560px) {
+    --cols: 5;
+  }
+
+  @media screen and (max-width: 1440px) {
+    --cols: 3;
+  }
+
+  @media screen and (max-width: 1200px) {
+    --cols: 2;
+  }
+
+  @media screen and (max-width: 750px) {
+    --cols: 1;
   }
 `;
 

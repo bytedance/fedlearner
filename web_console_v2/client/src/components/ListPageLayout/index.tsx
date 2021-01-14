@@ -5,6 +5,8 @@ import { Tooltip, Card } from 'antd';
 import GridRow from 'components/_base/GridRow';
 
 const Container = styled(Card)`
+  min-height: calc(100vh - 60px - 32px);
+
   > .ant-card-body {
     display: grid;
     grid-auto-flow: row;

@@ -1,24 +1,27 @@
 import React, { FC, useCallback } from 'react';
 import { Form, Input, message } from 'antd';
-import FileUpload from 'components/FileUpload';
+import ReadFile from 'components/ReadFile';
 import { useTranslation } from 'react-i18next';
 import { useRecoilState } from 'recoil';
 import { workflowTemplateForm, StepOneTemplateForm } from 'stores/workflow';
 import WORKFLOW_CHANNELS from '../pubsub';
-import { createWorkflowTemplate } from 'services/workflow';
+import { initiateAWorkflowTemplate } from 'services/workflow';
 import { useSubscribe } from 'hooks';
 import { to } from 'shared/helpers';
 import { removePrivate } from 'shared/object';
-import { readJSONFromInput } from 'shared/file';
-import { WorkflowTemplatePayload } from 'typings/workflow';
+import { readAsJSONFromFile } from 'shared/file';
+import { WorkflowTemplatePayload, WorkflowTemplate } from 'typings/workflow';
 import { stringifyWidgetSchemas } from 'shared/formSchema';
+import i18n from 'i18n';
 
 type Props = {
   onSuccess?(res: any): void;
   onError?(error: any): void;
+  groupAlias?: string;
+  isLeft?: boolean;
 };
 
-const CreateTemplateForm: FC<Props> = ({ onSuccess, onError }) => {
+const CreateTemplateForm: FC<Props> = ({ onSuccess, onError, groupAlias, isLeft }) => {
   const { t } = useTranslation();
   const [formInstance] = Form.useForm<StepOneTemplateForm>();
   const [formData, setFormData] = useRecoilState(workflowTemplateForm);
@@ -33,7 +36,7 @@ const CreateTemplateForm: FC<Props> = ({ onSuccess, onError }) => {
 
     const payload = stringifyWidgetSchemas(removePrivate(values) as WorkflowTemplatePayload);
 
-    const [res, error] = await to(createWorkflowTemplate(payload));
+    const [res, error] = await to(initiateAWorkflowTemplate(payload));
 
     if (error) {
       onError && onError(error);
@@ -48,7 +51,7 @@ const CreateTemplateForm: FC<Props> = ({ onSuccess, onError }) => {
 
   return (
     <Form
-      initialValues={{ ...formData, _files: [] }}
+      initialValues={{ ...formData }}
       labelCol={{ span: 6 }}
       wrapperCol={{ span: 18 }}
       form={formInstance}
@@ -57,26 +60,17 @@ const CreateTemplateForm: FC<Props> = ({ onSuccess, onError }) => {
       <Form.Item
         name="name"
         label={t('workflow.label_new_template_name')}
-        rules={[{ required: true }]}
+        rules={[{ required: true, message: t('workflow.msg_tpl_name_required') }]}
       >
         <Input placeholder={t('workflow.placeholder_template_name')} />
       </Form.Item>
 
-      <Form.Item name="_files" noStyle>
-        <Form.Item
-          name="config"
-          label={t('workflow.label_upload_template')}
-          rules={[{ required: true }]}
-        >
-          <FileUpload
-            showUploadList={false}
-            value={formData.config}
-            accept=".json"
-            maxSize="20MB"
-            beforeUpload={beforeUpload}
-            onRemoveFile={removeTemplate}
-          />
-        </Form.Item>
+      <Form.Item
+        name="config"
+        label={t('workflow.label_upload_template')}
+        rules={[{ required: true, message: t('workflow.msg_tpl_file_required') }]}
+      >
+        <ReadFile accept=".json" reader={readConfig} maxSize={20} />
       </Form.Item>
 
       <Form.Item name="comment" label={t('workflow.label_template_comment')}>
@@ -89,41 +83,32 @@ const CreateTemplateForm: FC<Props> = ({ onSuccess, onError }) => {
     setFormData(values);
   }
 
-  function beforeUpload(file: File) {
-    if (formData.config) {
-      message.error(t('workflow.msg_only_1_tpl'));
-      return false;
+  async function readConfig(file: File) {
+    const template = await readAsJSONFromFile<WorkflowTemplate>(file);
+    if (!template.config) {
+      message.error(i18n.t('workflow.msg_tpl_config_missing'));
+      return;
     }
-
-    to(readJSONFromInput(file)).then(([tplConfig, error]) => {
-      if (error) {
-        message.error(error.message);
+    const { config } = template;
+    if (!config.group_alias) {
+      message.error(i18n.t('workflow.msg_tpl_alias_missing'));
+      return;
+    }
+    if (config.is_left === undefined) {
+      message.error(i18n.t('workflow.msg_tpl_is_left_missing'));
+      return;
+    }
+    if (isLeft === false && groupAlias) {
+      if (config.is_left === true) {
+        message.error(i18n.t('workflow.msg_tpl_is_left_wrong'));
         return;
       }
-
-      setFormData({
-        ...formData,
-        config: tplConfig,
-      });
-
-      formInstance.setFieldsValue({
-        _files: [],
-        config: tplConfig,
-      });
-    });
-
-    return false;
-  }
-
-  function removeTemplate() {
-    setFormData({
-      ...formData,
-      config: '',
-    });
-    formInstance.setFieldsValue({
-      _files: [],
-      config: '',
-    });
+      if (config.group_alias !== groupAlias) {
+        message.error(i18n.t('workflow.msg_tpl_alias_wrong'));
+        return;
+      }
+    }
+    return config;
   }
 };
 

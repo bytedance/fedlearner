@@ -1,31 +1,28 @@
-import React, { ReactElement, useState } from 'react';
+import React, { FC, ReactElement, useState } from 'react';
 import styled from 'styled-components';
-import ProjectProp from './ProjectProp';
-import ProjectAction from '../ProjectAction';
-import CreateTime from '../CreateTime';
-import Detail from '../Detail';
-import { Tooltip } from 'antd';
+import ProjectProp from './ProjectCardProp';
+import ProjectMoreActions from '../../ProjectMoreActions';
+import CreateTime from '../../CreateTime';
+import ProjectDetailDrawer from '../../ProjectDetailDrawer';
+import { Tooltip, Row } from 'antd';
 import { useTranslation } from 'react-i18next';
 import { ReactComponent as CheckConnectionIcon } from 'assets/images/check-connect.svg';
-import createWorkFlow from 'assets/images/create-work-flow.svg';
-import ProjectName from '../ProjectName';
+import initiateAWorkflow from 'assets/images/create-work-flow.svg';
+import ProjectName from '../../ProjectName';
 import { useHistory } from 'react-router-dom';
 import { Project } from 'typings/project';
-import ProjectConnectionStatus from '../ConnectionStatus';
-import { MixinCommonTransition } from 'styles/mixins';
+import ProjectConnectionStatus from '../../ConnectionStatus';
+import { MixinCommonTransition, MixinFontClarity } from 'styles/mixins';
 
 const CardContainer = styled.div`
-  ${MixinCommonTransition('transform')}
+  ${MixinCommonTransition('box-shadow')}
 
-  height: 208px;
-  display: flex;
-  flex-direction: column;
   border: 1px solid var(--gray3);
   border-radius: 4px;
-  box-shadow: 0px 4px 10px var(--gray2);
+  overflow: hidden; // Prevent card from expanding grid
 
   &:hover {
-    transform: translateY(-2px);
+    box-shadow: 0px 4px 10px var(--gray2);
   }
 `;
 const CardHeaderContainer = styled.div`
@@ -34,43 +31,31 @@ const CardHeaderContainer = styled.div`
   border-bottom: 1px solid var(--gray3);
   justify-content: space-between;
   cursor: pointer;
-
-  .project {
-    &-time {
-      min-width: 146px;
-    }
-  }
+  gap: 10px;
 `;
 const CardMainContainer = styled.div`
   display: flex;
   padding: 25px 0;
 
-  .project {
-    &-work-flow-number {
-      display: block;
-      margin-top: 14px;
-      font-size: 32px;
-      line-height: 22px;
-      color: var(--textColor);
-      font-family: Clarity Mono;
-    }
-    &-connection-status-wrapper {
-      margin-top: 12px;
-    }
+  .workflow-number {
+    ${MixinFontClarity()}
+
+    font-size: 32px;
+    text-indent: 1px;
+    color: var(--textColorStrong);
   }
 `;
-const CardFooterContainer = styled.div`
-  flex: 1;
-  display: flex;
-  padding: 10px;
-  .right {
+const CardFooterContainer = styled(Row)`
+  padding: 12px 10px;
+
+  .left {
     flex: 1;
     font-size: 12px;
     line-height: 22px;
     color: var(--gray7);
     padding-left: 6px;
   }
-  .left {
+  .right {
     display: flex;
     min-width: 80px;
     justify-content: space-between;
@@ -107,17 +92,15 @@ interface CardMainProps {
   connectionStatus: number;
 }
 
-interface CardFooterProps {
+type SharedProps = {
   project: Project;
-}
+};
 
 function CardHeader({ name, time }: CardHeaderProps): ReactElement {
   return (
     <CardHeaderContainer>
       <ProjectName text={name} />
-      <div className="project-time">
-        <CreateTime time={time} />
-      </div>
+      <CreateTime time={time} />
     </CardHeaderContainer>
   );
 }
@@ -127,35 +110,40 @@ function CardMain({ workFlowNumber }: CardMainProps): ReactElement {
   const random: number = Math.random() * 3.99;
   const connectionStatus = Math.floor(random);
   const { t } = useTranslation();
+
   return (
     <CardMainContainer>
-      <ProjectProp describe={t('project.workflow_number')}>
-        <strong className="project-work-flow-number">{workFlowNumber}</strong>
+      <ProjectProp label={t('project.workflow_number')}>
+        <strong className="workflow-number">{workFlowNumber}</strong>
       </ProjectProp>
-      <ProjectProp describe={t('project.connection_status')}>
-        <div className="project-connection-status-wrapper">
-          <ProjectConnectionStatus connectionStatus={connectionStatus} />
-        </div>
+
+      <ProjectProp label={t('project.connection_status')}>
+        <ProjectConnectionStatus connectionStatus={connectionStatus} />
       </ProjectProp>
     </CardMainContainer>
   );
 }
 
-function CreateWorkFlow(): ReactElement {
+const CreateWorkflow: FC<SharedProps> = ({ project }) => {
   const { t } = useTranslation();
   const history = useHistory();
   return (
     <Tooltip title={t('project.create_work_flow')} placement="top">
-      <img onClick={goCreateWorkflow} src={createWorkFlow} style={{ cursor: 'pointer' }} alt="" />
+      <img
+        onClick={goinitiateAWorkflow}
+        src={initiateAWorkflow}
+        style={{ cursor: 'pointer' }}
+        alt=""
+      />
     </Tooltip>
   );
 
-  function goCreateWorkflow() {
-    history.push('/workflows/initiate/basic');
+  function goinitiateAWorkflow() {
+    history.push(`/workflows/initiate/basic?project=${project.id}`);
   }
-}
+};
 
-function CheckConnection(): ReactElement {
+const CheckConnection: FC<SharedProps> = () => {
   const { t } = useTranslation();
   return (
     <Tooltip title={t('project.check_connection') + ' (Not ready yet)'} placement="top">
@@ -164,19 +152,22 @@ function CheckConnection(): ReactElement {
       </CheckConnectionStyle>
     </Tooltip>
   );
-}
+};
 
-function CardFooter({ project }: CardFooterProps): ReactElement {
+const CardFooter: FC<SharedProps> = ({ project }) => {
   const history = useHistory();
   const [isDrawerVisible, setIsDrawerVisible] = useState(false);
+
+  const participant = project.config.participants[0].name || '-';
+
   return (
-    <CardFooterContainer>
-      {/* fixme */}
-      <div className="right">{'陈盛明'}</div>
-      <div className="left">
-        <CheckConnection />
-        <CreateWorkFlow />
-        <ProjectAction
+    <CardFooterContainer align="middle">
+      <div className="left">{participant}</div>
+      <div className="right">
+        <CheckConnection project={project} />
+        <CreateWorkflow project={project} />
+
+        <ProjectMoreActions
           onEdit={() => {
             history.push({
               pathname: '/projects/edit',
@@ -185,10 +176,10 @@ function CardFooter({ project }: CardFooterProps): ReactElement {
               },
             });
           }}
-          onDetail={() => setIsDrawerVisible(true)}
+          onViewDetail={() => setIsDrawerVisible(true)}
         />
       </div>
-      <Detail
+      <ProjectDetailDrawer
         title={project.name}
         project={project}
         onClose={() => setIsDrawerVisible(false)}
@@ -196,14 +187,14 @@ function CardFooter({ project }: CardFooterProps): ReactElement {
       />
     </CardFooterContainer>
   );
-}
+};
 
 function Card({ item }: CardProps): ReactElement {
   return (
     <CardContainer>
       <CardHeader name={item.name} time={item.created_at} />
-      {/* fixme */}
-      <CardMain workFlowNumber={2} connectionStatus={1} />
+      {/* FIXME: remove connection status mock */}
+      <CardMain workFlowNumber={item.workflow_num} connectionStatus={1} />
       <CardFooter project={item} />
     </CardContainer>
   );

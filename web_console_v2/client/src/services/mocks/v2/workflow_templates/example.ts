@@ -10,7 +10,7 @@ import { DeepPartial } from 'utility-types';
 // Workflow template demo
 const get: { data: DeepPartial<WorkflowTemplate>; status: number } = {
   data: {
-    id: 1,
+    id: 2,
     name: 'bar template',
     group_alias: 'foo group',
     is_left: true,

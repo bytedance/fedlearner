@@ -1,11 +1,10 @@
 import React, { ReactElement, useState } from 'react';
 import styled from 'styled-components';
-import { Form, Input, Button, Radio, Upload, message } from 'antd';
+import { Form, Input, Button, Radio, message, Modal } from 'antd';
+import { ExclamationCircleOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import SecondaryForm from './SecondaryForm';
 import EnvPathsForm from './EnvPathsForm';
-import FileUploaded from '../../../components/Container/FileUploaded';
-import UploadArea from '../../../components/Container/UploadArea';
 import { CertificateConfigType } from 'typings/project';
 import {
   ProjectFormInitialValues,
@@ -14,13 +13,18 @@ import {
   Participant,
 } from 'typings/project';
 import { useHistory } from 'react-router-dom';
+import ReadFile from 'components/ReadFile';
+import { readAsBinaryStringFromFile } from 'shared/file';
+import GridRow from 'components/_base/GridRow';
+import i18n from 'i18n';
 
 const Container = styled.div`
-  width: 100%;
+  flex: 1;
 `;
+const StyledForm = styled(Form)`
+  display: grid;
+  grid-auto-rows: auto 1fr auto;
 
-const BaseFormStyle = styled(Form)`
-  width: 100%;
   > .form-title {
     margin-bottom: 24px;
     font-size: 27px;
@@ -37,14 +41,8 @@ const BaseFormStyle = styled(Form)`
     }
   }
 `;
-
 const FileFormItem = styled(Form.Item)`
   flex-wrap: nowrap;
-  .ant-upload {
-    background: var(--gray2);
-    border-radius: 2px;
-    border: none;
-  }
 `;
 
 const layout = {
@@ -64,9 +62,6 @@ const SubmitContainer = styled(Form.Item)`
   margin-top: 14px;
   border-radius: 4px;
   width: 100%;
-  .cancel-button {
-    margin-left: 16px;
-  }
 `;
 
 const defaultInitialValues: ProjectFormInitialValues = {
@@ -82,9 +77,6 @@ const defaultInitialValues: ProjectFormInitialValues = {
 function BaseForm({ onSubmit, edit, initialValues }: Props): ReactElement {
   const { t } = useTranslation();
   const [form] = Form.useForm();
-  const [certificates, setCertificates] = useState('');
-  const [certificatesName, setCertificatesName] = useState('');
-  const [certificatesUploading, setCertificatesUploading] = useState(false);
   const [loading, setLoading] = useState(false);
   const history = useHistory();
 
@@ -94,9 +86,16 @@ function BaseForm({ onSubmit, edit, initialValues }: Props): ReactElement {
   );
   return (
     <Container>
-      <BaseFormStyle {...layout} initialValues={defaultValues} form={form} colon={false}>
+      <StyledForm
+        {...layout}
+        initialValues={defaultValues}
+        form={form}
+        colon={false}
+        onFinish={onFinish}
+      >
         <SecondaryForm title={t('project.basic_information')}>
           <Form.Item
+            hasFeedback
             name="name"
             label={t('project.name')}
             rules={[{ required: true, message: t('project.name_message') }]}
@@ -106,6 +105,7 @@ function BaseForm({ onSubmit, edit, initialValues }: Props): ReactElement {
         </SecondaryForm>
         <SecondaryForm title={t('project.participant_information')} suffix={<EnvPathsForm />}>
           <Form.Item
+            hasFeedback
             name="participantName"
             label={t('project.participant_name')}
             rules={[{ required: true, message: t('project.participant_name_message') }]}
@@ -117,6 +117,7 @@ function BaseForm({ onSubmit, edit, initialValues }: Props): ReactElement {
             />
           </Form.Item>
           <Form.Item
+            hasFeedback
             name="participantUrl"
             label={t('project.participant_url')}
             rules={[{ required: true, message: t('project.participant_url_message') }]}
@@ -150,22 +151,20 @@ function BaseForm({ onSubmit, edit, initialValues }: Props): ReactElement {
               disabled={edit}
             />
           </Form.Item>
+
           {certificateConfigType === CertificateConfigType.Upload ? (
-            <FileFormItem label name="upload">
-              {certificates ? (
-                <FileUploaded
-                  onDelete={handelFileDelete}
-                  fileName={certificatesName}
-                  loading={certificatesUploading}
-                />
-              ) : (
-                <Upload.Dragger disabled={edit} beforeUpload={onUpload} accept=".gz">
-                  <UploadArea suffix={t('project.upload_certificate_placeholder')} />
-                </Upload.Dragger>
-              )}
+            <FileFormItem
+              label
+              name="certificate"
+              rules={[{ required: true, message: t('project.upload_certificate_message') }]}
+            >
+              {/* TODO: read error info from form-item */}
+              <ReadFile disabled={edit} accept=".gz" reader={readAsBinaryStringFromFile} />
             </FileFormItem>
           ) : null}
+
           <Form.Item
+            hasFeedback
             name="participantDomainName"
             label={t('project.participant_domain')}
             rules={[{ required: true, message: t('project.participant_domain_message') }]}
@@ -187,23 +186,45 @@ function BaseForm({ onSubmit, edit, initialValues }: Props): ReactElement {
         </SecondaryForm>
 
         <SubmitContainer>
-          <Button type="primary" loading={loading} onClick={handleSubmit}>
-            {t('submit')}
-          </Button>
-          <Button className="cancel-button">{t('cancel')}</Button>
+          <GridRow gap="16">
+            <Button type="primary" loading={loading} onClick={onSubmitClick}>
+              {t('submit')}
+            </Button>
+            <Button onClick={onCancelClick}>{t('cancel')}</Button>
+          </GridRow>
         </SubmitContainer>
-      </BaseFormStyle>
+      </StyledForm>
     </Container>
   );
-  async function handleSubmit() {
-    if (!edit && certificateConfigType === CertificateConfigType.Upload && certificates === '') {
-      form.setFields([{ name: 'upload', errors: [t('project.upload_certificate_message')] }]);
+
+  function backToList() {
+    history.push('/projects');
+  }
+  function onCancelClick() {
+    Modal.confirm({
+      title: i18n.t('project.msg_sure_2_cancel'),
+      icon: <ExclamationCircleOutlined />,
+      content: i18n.t('project.msg_effect_of_cancel'),
+      style: {
+        top: '30%',
+      },
+      onOk: backToList,
+    });
+  }
+  function onSubmitClick() {
+    form.submit();
+  }
+  async function onFinish(data: any) {
+    if (
+      !edit &&
+      certificateConfigType === CertificateConfigType.Upload &&
+      data.certificates === ''
+    ) {
       form.scrollToField('certificateConfigType', { block: 'center' });
       return;
     }
     setLoading(true);
     try {
-      const data = await form.validateFields();
       let params: CreateProjectFormData | UpdateProjectFormData;
 
       if (edit) {
@@ -219,8 +240,7 @@ function BaseForm({ onSubmit, edit, initialValues }: Props): ReactElement {
           name: data.participantName,
           url: data.participantUrl,
           domain_name: data.participantDomainName,
-          certificates:
-            certificateConfigType === CertificateConfigType.Upload ? certificates : null,
+          certificates: data.certificate || null,
         });
         params = {
           name: data.name,
@@ -232,34 +252,12 @@ function BaseForm({ onSubmit, edit, initialValues }: Props): ReactElement {
         };
         await onSubmit(params);
       }
-      message.success(edit ? t('project.edit_success') : t('proejct.create_success'));
-      history.push('/projects');
+      message.success(edit ? i18n.t('project.edit_success') : i18n.t('proejct.create_success'));
+      backToList();
     } catch (error) {
-      form.scrollToField(error.errorFields[0].name[0], { block: 'center' });
+      message.error(error.message);
     }
     setLoading(false);
-  }
-  function onUpload(file: File) {
-    if (file.size > 20 * 1024 * 1024) {
-      form.setFields([{ name: 'upload', errors: [t('project.upload_certificate_placeholder')] }]);
-      return false;
-    }
-    var reader = new FileReader();
-    setCertificatesName(file.name);
-    setCertificatesUploading(true);
-    reader.onload = function (e) {
-      if (typeof reader.result === 'string') {
-        setCertificates(btoa(reader.result));
-        form.setFields([{ name: 'upload', errors: [] }]);
-      }
-      setCertificatesUploading(false);
-    };
-    reader.readAsBinaryString(file);
-    return false;
-  }
-  function handelFileDelete() {
-    setCertificates('');
-    setCertificatesName('');
   }
 }
 

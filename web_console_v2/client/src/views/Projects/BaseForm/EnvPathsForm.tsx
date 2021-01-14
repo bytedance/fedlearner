@@ -3,7 +3,7 @@ import styled from 'styled-components';
 import { Form, Input, Space } from 'antd';
 import { useTranslation } from 'react-i18next';
 import AddField from './AddField';
-import TrashCan from '../../../components/Container/TrashCan';
+import TrashCan from 'components/Container/TrashCan';
 import { useToggle } from 'react-use';
 
 const Container = styled.div``;
@@ -68,25 +68,17 @@ const Header = styled.div`
   }
 `;
 
-interface Props {}
-
-interface EnvPath {
-  name: string;
-  value: string;
-}
-
-function EnvPathsForm({}: Props): ReactElement {
+function EnvPathsForm(): ReactElement {
   const { t } = useTranslation();
   const [isFolded, toggleFolded] = useToggle(true);
+
   return (
     <Container>
       <Header>
         {isFolded ? (
-          <>
-            <span className="toggle hide" onClick={toggleFolded}>
-              {t('project.env_path_config')}
-            </span>
-          </>
+          <span className="toggle hide" onClick={toggleFolded}>
+            {t('project.env_path_config')}
+          </span>
         ) : (
           <>
             <span className="title"> {t('project.show_env_path_config')}</span>
@@ -112,7 +104,7 @@ function EnvPathsForm({}: Props): ReactElement {
                       label="Name"
                       name={[field.name, 'name']}
                       fieldKey={[field.fieldKey, 'name']}
-                      rules={[{ required: true, message: 'Missing first name' }]}
+                      rules={[{ required: true, message: t('project.msg_var_name') }]}
                     >
                       <Input placeholder="name" />
                     </Form.Item>
@@ -121,9 +113,9 @@ function EnvPathsForm({}: Props): ReactElement {
                       {...field}
                       name={[field.name, 'value']}
                       fieldKey={[field.fieldKey, 'value']}
-                      rules={[{ required: true, message: 'Missing first name' }]}
+                      rules={[{ required: true, message: t('project.msg_var_value') }]}
                     >
-                      <Input.TextArea placeholder="value" />
+                      <Input.TextArea placeholder="value" rows={1} />
                     </Form.Item>
                     <TrashCan onClick={() => remove(field.name)} />
                   </Space>

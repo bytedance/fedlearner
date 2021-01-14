@@ -150,6 +150,12 @@ export type WorkflowInitiatePayload = {
   comment?: string;
 };
 
+export type WorkflowAcceptPayload = {
+  forkable: boolean;
+  config: WorkflowConfig;
+  comment?: string;
+};
+
 export enum WorkflowState {
   INVALID = 'INVALID',
   NEW = 'NEW',

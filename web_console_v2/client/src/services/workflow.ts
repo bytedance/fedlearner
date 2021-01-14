@@ -1,14 +1,20 @@
 import { AxiosPromise } from 'axios';
 import request from 'libs/request';
-import { Workflow, WorkflowTemplate } from 'typings/workflow';
+import {
+  Workflow,
+  WorkflowInitiatePayload,
+  WorkflowTemplate,
+  WorkflowAcceptPayload,
+} from 'typings/workflow';
 
 export function fetchWorkflowTemplateList(params?: {
-  is_left?: boolean;
-  group_alias?: string;
+  isLeft?: boolean;
+  groupAlias?: string;
 }): AxiosPromise<{ data: WorkflowTemplate[] }> {
   return request('/v2/workflow_templates', {
     params,
     removeFalsy: true,
+    snake_case: true,
   });
 }
 
@@ -16,7 +22,7 @@ export function getWorkflowTemplateById(id: number) {
   return request(`/v2/workflow_templates/${id}`);
 }
 
-export function createWorkflowTemplate(payload: any) {
+export function initiateAWorkflowTemplate(payload: any) {
   return request.post('/v2/workflow_templates', payload);
 }
 
@@ -27,20 +33,22 @@ export function fetchWorkflowList(params?: { project?: string; keyword?: string 
   });
 }
 
-export function getPeerWorkflowConfig() {
-  return request('/v2/workflows/id/peer_workflows');
+export function getPeerWorkflowsConfig(
+  id: string | number,
+): AxiosPromise<{ data: Record<string, Workflow> }> {
+  return request(`/v2/workflows/${id}/peer_workflows`);
 }
 
-export function getWorkflowDetailById(id: string): AxiosPromise<Workflow> {
+export function getWorkflowDetailById(id: string | number): AxiosPromise<{ data: Workflow }> {
   return request(`/v2/workflows/${id}`);
 }
 
-export function createWorkflow(payload: any) {
+export function initiateAWorkflow(payload: WorkflowInitiatePayload) {
   return request.post('/v2/workflows', payload);
 }
 
-export function acceptNFillTheWorkflowConfig(id: number) {
-  return request.put(`/v2/workflows/${id}`);
+export function acceptNFillTheWorkflowConfig(id: number | string, payload: WorkflowAcceptPayload) {
+  return request.put(`/v2/workflows/${id}`, payload);
 }
 
 export function peerConfirmToStart(id: number) {

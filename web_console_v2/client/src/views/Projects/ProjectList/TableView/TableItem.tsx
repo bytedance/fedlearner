@@ -2,17 +2,18 @@ import React, { ReactElement, useState } from 'react';
 import styled, { CSSProperties } from 'styled-components';
 import { Divider } from 'antd';
 import { Project } from 'typings/project';
-import ProjectConnectionStatus from '../ConnectionStatus';
-import CreateTime from '../CreateTime';
-import ProjectName from '../ProjectName';
-import ProjectAction from '../ProjectAction';
-import Detail from '../Detail';
+import ProjectConnectionStatus from '../../ConnectionStatus';
+import CreateTime from '../../CreateTime';
+import ProjectName from '../../ProjectName';
+import ProjectMoreActions from '../../ProjectMoreActions';
+import Detail from '../../ProjectDetailDrawer';
 import { useHistory } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 
 const Container = styled.div`
   display: flex;
   width: 100%;
+  align-items: center;
   padding: 0 16px;
 `;
 
@@ -66,7 +67,7 @@ function Action({ project }: { project: Project }): ReactElement {
       <ActionItemContainer>{t('project.check_connection')}</ActionItemContainer>
       <ActionItemContainer>{t('project.create_work_flow')}</ActionItemContainer>
       <ActionItemContainer>
-        <ProjectAction
+        <ProjectMoreActions
           style={{ marginTop: '13px' }}
           onEdit={() => {
             history.push({
@@ -76,7 +77,7 @@ function Action({ project }: { project: Project }): ReactElement {
               },
             });
           }}
-          onDetail={() => setIsDrawerVisible(true)}
+          onViewDetail={() => setIsDrawerVisible(true)}
         />
       </ActionItemContainer>
       <Detail
@@ -102,13 +103,16 @@ const getCellContent = function (i18nKey: string, project: Project): ReactElemen
       return <ProjectConnectionStatus connectionStatus={1} />;
     case 'project.workflow_number':
       return (
-        <Describe text={'12'} style={{ lineHeight: '50px', color: '#1A2233', fontSize: '13px' }} />
+        <Describe
+          text={String(project.workflow_num)}
+          style={{ lineHeight: '50px', color: '#1A2233', fontSize: '13px' }}
+        />
       );
     case 'project.creator':
       // fixme
       return (
         <Describe
-          text={'陈盛明'}
+          text={project.config.participants[0].name}
           style={{ lineHeight: '50px', color: '#1A2233', fontSize: '13px' }}
         />
       );

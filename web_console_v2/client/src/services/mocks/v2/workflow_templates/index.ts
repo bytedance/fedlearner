@@ -1,12 +1,6 @@
 import { stringifyWidgetSchemas } from 'shared/formSchema';
 import exampleWorkflow from './example';
 
-export const post = {
-  data: exampleWorkflow.data,
-  status: 200,
-};
-
-const fooTpl = stringifyWidgetSchemas(require('./example.json'));
 const barTpl = stringifyWidgetSchemas(exampleWorkflow.data as any);
 const simpleTpl = {
   id: 1,
@@ -87,9 +81,13 @@ const simpleTpl = {
 
 const get = {
   data: {
-    data: [simpleTpl, fooTpl, barTpl],
+    data: [simpleTpl, barTpl],
   },
   status: 200,
+};
+
+export const post = (config: any) => {
+  return { data: { data: JSON.parse(config.data) }, status: 200 };
 };
 
 export default get;

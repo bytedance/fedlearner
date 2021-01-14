@@ -1,155 +1,212 @@
 import React, { FC, useState } from 'react';
 import styled from 'styled-components';
-import { Card, Form, Select, Radio, Button, Input, message } from 'antd';
+import { Form, Select, Radio, Button, Input, Spin } from 'antd';
 import { useTranslation } from 'react-i18next';
 import GridRow from 'components/_base/GridRow';
 import CreateTemplateForm from './CreateTemplate';
-import { useHistory } from 'react-router-dom';
+import { useHistory, useLocation, useParams } from 'react-router-dom';
 import { cloneDeep } from 'lodash';
 import {
-  currentWorkflowTemplate,
+  templateInUsing,
   StepOneForm,
   workflowBasicForm,
   workflowGetters,
+  workflowInEditing,
   workflowJobsConfigForm,
 } from 'stores/workflow';
 import { useRecoilState, useRecoilValue, useSetRecoilState } from 'recoil';
 import WORKFLOW_CHANNELS, { workflowPubsub } from '../pubsub';
 import { useRecoilQuery } from 'hooks/recoil';
-import { WorkflowTemplate } from 'typings/workflow';
+import { Workflow, WorkflowTemplate } from 'typings/workflow';
 import { useToggle } from 'react-use';
 import { projectListQuery } from 'stores/projects';
 import { useQuery } from 'react-query';
-import { fetchWorkflowTemplateList } from 'services/workflow';
+import {
+  fetchWorkflowTemplateList,
+  getPeerWorkflowsConfig,
+  getWorkflowDetailById,
+} from 'services/workflow';
 import { WorkflowCreateProps } from '..';
 
 const FormsContainer = styled.div`
   width: 500px;
   margin: 0 auto;
 `;
+const Container = styled.div`
+  margin-top: 20px;
+`;
 
 const WorkflowsCreateStepOne: FC<WorkflowCreateProps> = ({ isInitiate, isAccept }) => {
   const { t } = useTranslation();
-  const [formInstance] = Form.useForm<StepOneForm>();
   const history = useHistory();
+  const location = useLocation();
+  const params = useParams<{ id: string }>();
+
+  const isLeft = isInitiate || !isAccept;
+  const [groupAlias, setGroupAlias] = useState('');
+
+  const [formInstance] = Form.useForm<StepOneForm>();
   const [submitting, setSubmitting] = useToggle(false);
-  const [is_left, setIsLeft] = useState(isInitiate);
-  const [group_alias, setGroupAlias] = useState('');
+
+  const { data: projectList } = useRecoilQuery(projectListQuery);
   const [formData, setFormData] = useRecoilState(workflowBasicForm);
   const setJobsConfigData = useSetRecoilState(workflowJobsConfigForm);
   const { whetherCreateNewTpl } = useRecoilValue(workflowGetters);
-  const setWorkflowTemplate = useSetRecoilState(currentWorkflowTemplate);
+  const setWorkflowTemplate = useSetRecoilState(templateInUsing);
+  // Using when Participant accept the initiation
+  // it's will be null if it's Coordinator iniitiating
+  const [workflow, setWorkflow] = useRecoilState(workflowInEditing);
 
-  const { data: projectList } = useRecoilQuery(projectListQuery);
-
-  const { isLoading: tplLoading, data: tplListRes, error: tplListErr } = useQuery(
-    ['fetchWorkflowTemplateList', is_left, group_alias],
-    () => fetchWorkflowTemplateList({ is_left, group_alias }),
+  const workflowRes = useQuery(['getWorkflow', params.id], getWorkflowDetail, {
+    // Only do workflow fetching if:
+    // 1. id existed in url
+    // 2. in Acception mode
+    // 3. workflow on store is null (when user landing here not from workflow list)
+    enabled: params.id && isAccept && !Boolean(workflow),
+    refetchOnWindowFocus: false,
+  });
+  const peerWorkflowRes = useQuery(['getPeerWorkflow', params.id], getPeerWorkflows, {
+    enabled: params.id && isAccept,
+    refetchOnWindowFocus: false,
+  });
+  const tplListRes = useQuery(
+    ['getTemplateList', isLeft, groupAlias],
+    async () => fetchWorkflowTemplateList({ isLeft, groupAlias }),
+    {
+      enabled: isInitiate || (!!peerWorkflowRes.data && groupAlias),
+      refetchOnWindowFocus: false,
+    },
   );
 
-  const tplList = tplListRes?.data.data || [];
+  const tplList = tplListRes.data?.data.data || [];
   const noAvailableTpl = tplList.length === 0;
+  const usingExistingTpl = formData._templateType === 'existing';
+
+  const projectId = Number(new URLSearchParams(location.search).get('project')) || undefined;
+  const initValues = _getInitialValues(formData, workflow, projectId);
+
+  const pairingPrefix = isAccept ? 'pairing_' : '';
 
   return (
-    <Card>
-      <FormsContainer>
-        <Form
-          labelCol={{ span: 6 }}
-          wrapperCol={{ span: 18 }}
-          form={formInstance}
-          onValuesChange={onFormChange as any}
-          initialValues={{ ...formData }}
-        >
-          <Form.Item
-            name="name"
-            hasFeedback
-            label={t('workflow.label_name')}
-            rules={[{ required: true, message: t('workflow.msg_name_required') }]}
+    <Spin spinning={workflowRes.isLoading}>
+      <Container>
+        <FormsContainer>
+          <Form
+            labelCol={{ span: 6 }}
+            wrapperCol={{ span: 18 }}
+            form={formInstance}
+            onValuesChange={onFormChange as any}
+            initialValues={initValues}
           >
-            <Input placeholder={t('workflow.placeholder_name')} />
-          </Form.Item>
-
-          <Form.Item
-            name="project_id"
-            label={t('workflow.label_project')}
-            hasFeedback
-            rules={[{ required: true, message: t('workflow.msg_project_required') }]}
-          >
-            <Select placeholder={t('workflow.placeholder_project')}>
-              {projectList &&
-                projectList.map((pj) => (
-                  <Select.Option key={pj.id} value={pj.id}>
-                    {pj.name}
-                  </Select.Option>
-                ))}
-            </Select>
-          </Form.Item>
-
-          <Form.Item name="forkable" label={t('workflow.label_peer_forkable')}>
-            <Radio.Group>
-              <Radio value={true}>{t('workflow.label_allow')}</Radio>
-              <Radio value={false}>{t('workflow.label_not_allow')}</Radio>
-            </Radio.Group>
-          </Form.Item>
-
-          <Form.Item name="_templateType" label={t('workflow.label_template')}>
-            <Radio.Group>
-              <Radio.Button value={'existing'}>{t('workflow.label_exist_template')}</Radio.Button>
-              <Radio.Button value={'create'}>{t('workflow.label_new_template')}</Radio.Button>
-            </Radio.Group>
-          </Form.Item>
-
-          {/* If choose to use an existing template */}
-          {formData._templateType === 'existing' && (
             <Form.Item
-              name="_templateSelected"
-              wrapperCol={{ offset: 6 }}
+              name="name"
               hasFeedback
-              rules={[{ required: true, message: t('workflow.msg_template_required') }]}
+              label={t('workflow.label_name')}
+              rules={[{ required: true, message: t('workflow.msg_name_required') }]}
             >
-              {noAvailableTpl && !tplLoading ? (
-                <div>暂无可用模板，请新建</div>
-              ) : (
-                <Select
-                  loading={tplLoading}
-                  disabled={Boolean(tplListErr) || noAvailableTpl}
-                  onChange={onTemplateSelectChange}
-                  placeholder={t('workflow.placeholder_template')}
-                >
-                  {tplList &&
-                    tplList.map((tpl) => (
-                      <Select.Option key={tpl.id} value={tpl.id}>
-                        {tpl.name}
-                      </Select.Option>
-                    ))}
-                </Select>
-              )}
+              <Input disabled={isAccept} placeholder={t('workflow.placeholder_name')} />
             </Form.Item>
+
+            <Form.Item
+              name="project_id"
+              label={t('workflow.label_project')}
+              hasFeedback
+              rules={[{ required: true, message: t('workflow.msg_project_required') }]}
+            >
+              <Select disabled={isAccept} placeholder={t('workflow.placeholder_project')}>
+                {projectList &&
+                  projectList.map((pj) => (
+                    <Select.Option key={pj.id} value={pj.id}>
+                      {pj.name}
+                    </Select.Option>
+                  ))}
+              </Select>
+            </Form.Item>
+
+            <Form.Item name="forkable" label={t('workflow.label_peer_forkable')}>
+              <Radio.Group disabled={isAccept}>
+                <Radio value={true}>{t('workflow.label_allow')}</Radio>
+                <Radio value={false}>{t('workflow.label_not_allow')}</Radio>
+              </Radio.Group>
+            </Form.Item>
+
+            <Form.Item name="_templateType" label={t('workflow.label_template')}>
+              <Radio.Group>
+                <Radio.Button value={'existing'}>
+                  {t(`workflow.label_${pairingPrefix}exist_template`)}
+                </Radio.Button>
+                <Radio.Button value={'create'}>
+                  {t(`workflow.label_${pairingPrefix}new_template`)}
+                </Radio.Button>
+              </Radio.Group>
+            </Form.Item>
+
+            {/* If choose to use an existing template */}
+            {usingExistingTpl && (
+              <Form.Item
+                name="_templateSelected"
+                wrapperCol={{ offset: 6 }}
+                hasFeedback
+                rules={[{ required: true, message: t('workflow.msg_template_required') }]}
+              >
+                {noAvailableTpl && !tplListRes.isLoading && !tplListRes.isIdle ? (
+                  <span>{t(`workflow.msg_${pairingPrefix}no_abailable_tpl`)}</span>
+                ) : (
+                  <Select
+                    loading={tplListRes.isLoading}
+                    disabled={Boolean(tplListRes.error) || noAvailableTpl}
+                    onChange={onTemplateSelectChange}
+                    placeholder={t('workflow.placeholder_template')}
+                  >
+                    {tplList &&
+                      tplList.map((tpl) => (
+                        <Select.Option key={tpl.id} value={tpl.id}>
+                          {tpl.name}
+                        </Select.Option>
+                      ))}
+                  </Select>
+                )}
+              </Form.Item>
+            )}
+          </Form>
+
+          {/* If choose to create a new template */}
+          {!usingExistingTpl && (
+            <CreateTemplateForm
+              onSuccess={onTplCreateSuccess}
+              onError={onTplCreateError}
+              groupAlias={groupAlias}
+              isLeft={isLeft}
+            />
           )}
-        </Form>
 
-        {/* If choose to create a new template */}
-        {formData._templateType === 'create' && (
-          <CreateTemplateForm onSuccess={onTplCreateSuccess} onError={onTplCreateError} />
-        )}
+          <Form.Item wrapperCol={{ offset: 6 }}>
+            <GridRow gap={16} top="12">
+              <Button
+                type="primary"
+                htmlType="submit"
+                loading={submitting}
+                onClick={onNextStepClick}
+              >
+                {t('next_step')}
+              </Button>
 
-        <Form.Item wrapperCol={{ offset: 6 }}>
-          <GridRow gap={16} top="12">
-            <Button type="primary" htmlType="submit" loading={submitting} onClick={onNextStepClick}>
-              {t('next_step')}
-            </Button>
-
-            <Button disabled={submitting} onClick={backToList}>
-              {t('cancel')}
-            </Button>
-          </GridRow>
-        </Form.Item>
-      </FormsContainer>
-    </Card>
+              <Button disabled={submitting} onClick={backToList}>
+                {t('cancel')}
+              </Button>
+            </GridRow>
+          </Form.Item>
+        </FormsContainer>
+      </Container>
+    </Spin>
   );
 
   async function goNextStep() {
-    history.push('/workflows/initiate/config');
+    const nextRoute = isInitiate
+      ? '/workflows/initiate/config'
+      : `/workflows/accept/config/${params.id}`;
+    history.push(nextRoute);
+
     workflowPubsub.publish(WORKFLOW_CHANNELS.go_config_step);
   }
   function backToList() {
@@ -160,6 +217,18 @@ const WorkflowsCreateStepOne: FC<WorkflowCreateProps> = ({ isInitiate, isAccept 
     // Set empty jobs config data once choose different template
     setJobsConfigData(tpl.config);
   }
+  async function getWorkflowDetail() {
+    const { data } = await getWorkflowDetailById(params.id);
+    setWorkflow(data.data);
+    formInstance.setFieldsValue((data.data as any) as StepOneForm);
+  }
+  async function getPeerWorkflows() {
+    const res = await getPeerWorkflowsConfig(params.id);
+    const anyPeerWorkflow = Object.values(res.data.data).find((item) => !!item.config)!;
+    setGroupAlias(anyPeerWorkflow.config?.group_alias || '');
+
+    return res;
+  }
   // --------- Handlers -----------
   function onFormChange(_: any, values: StepOneForm) {
     setFormData(values);
@@ -169,7 +238,6 @@ const WorkflowsCreateStepOne: FC<WorkflowCreateProps> = ({ isInitiate, isAccept 
     if (!target) return;
     setCurrentUsingTemplate(cloneDeep(target));
   }
-
   function onTplCreateSuccess(res: WorkflowTemplate) {
     setSubmitting(false);
     // After click confirm, once tpl create succeed, go next step
@@ -201,5 +269,17 @@ const WorkflowsCreateStepOne: FC<WorkflowCreateProps> = ({ isInitiate, isAccept 
     }
   }
 };
+
+function _getInitialValues(form: StepOneForm, workflow: Workflow, projectId?: number) {
+  return Object.assign(
+    {
+      ...form,
+      // When user landing from clicking create workflow button
+      // in Project page, hydrate project_ud
+      project_id: projectId,
+    },
+    workflow,
+  );
+}
 
 export default WorkflowsCreateStepOne;

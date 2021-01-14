@@ -54,7 +54,7 @@ const WorkflowDetail: FC = () => {
     getWorkflowDetailById(params.id),
   );
 
-  const workflow = data?.data;
+  const workflow = data?.data.data;
 
   return (
     <Spin spinning={isLoading}>

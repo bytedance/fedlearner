@@ -1,8 +1,8 @@
 import React, { ReactElement, useState, useEffect } from 'react';
-import ProjectListFilters from './ProjectListFilters';
+import ProjectListFilters from '../ProjectListFilters';
 import { useTranslation } from 'react-i18next';
-import CardList from './CardView/CardList';
-import TableList from './TableView/TableList';
+import CardView from './CardView';
+import TableView from './TableView';
 import { Pagination, Spin } from 'antd';
 import styled, { createGlobalStyle } from 'styled-components';
 import { projectListQuery } from 'stores/projects';
@@ -57,16 +57,16 @@ function ProjectList(): ReactElement {
 
   return (
     <Spin spinning={isLoading}>
-      <ListPageLayout title={t('term.project')} tip={t('project.describe')}>
+      <ListPageLayout title={t('menu.label_project')} tip={t('project.describe')}>
         <ProjectListFilters
           onDisplayTypeChange={(type: number) => {
             setDisplayType(type);
           }}
         />
         {displayType === DisplayType.Card ? (
-          <CardList projectList={projectListShow} />
+          <CardView projectList={projectListShow} />
         ) : (
-          <TableList projectList={projectListShow} />
+          <TableView projectList={projectListShow} />
         )}
         <PaginationStyle
           pageSizeOptions={['12', '24', '36']}

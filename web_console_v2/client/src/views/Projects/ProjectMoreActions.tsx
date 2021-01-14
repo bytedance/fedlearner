@@ -34,29 +34,29 @@ const ActionStyle = styled.div`
   }
 `;
 
-interface ProjectActionProps {
+interface ProjectMoreActionsProps {
   suffix?: React.ReactNode;
   actionList?: React.ReactNode;
   onEdit?: () => void;
-  onDetail?: () => void;
+  onViewDetail?: () => void;
   style?: CSSProperties;
 }
 
-function ActionList({ onEdit, onDetail }: ProjectActionProps): ReactElement {
+function ActionList({ onEdit, onViewDetail }: ProjectMoreActionsProps): ReactElement {
   const { t } = useTranslation();
   return (
     <ActionListContainer>
       <div className="actionItem" onClick={onEdit}>
         {t('project.action_edit')}
       </div>
-      <div className="actionItem" onClick={onDetail}>
+      <div className="actionItem" onClick={onViewDetail}>
         {t('project.action_detail')}
       </div>
     </ActionListContainer>
   );
 }
 
-function ProjectAction(props: ProjectActionProps): ReactElement {
+function ProjectMoreActions(props: ProjectMoreActionsProps): ReactElement {
   return (
     <Popover
       content={props.actionList ?? <ActionList {...props} />}
@@ -72,4 +72,4 @@ function ProjectAction(props: ProjectActionProps): ReactElement {
   );
 }
 
-export default ProjectAction;
+export default ProjectMoreActions;

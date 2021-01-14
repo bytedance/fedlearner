@@ -11,7 +11,7 @@ export enum CertificateConfigType {
   Upload,
   BackendConfig,
 }
-export interface Variable {
+export interface ProjectVariable {
   name: string;
   value: string;
 }
@@ -25,7 +25,7 @@ export interface Participant {
 
 export interface UpdateProjectFormData {
   token?: string;
-  variables?: Variable[];
+  variables?: ProjectVariable[];
   comment: string;
 }
 
@@ -34,7 +34,7 @@ export interface CreateProjectFormData {
   config: {
     token?: string;
     participants: Participant[];
-    variables: Variable[];
+    variables: ProjectVariable[];
   };
   comment: string;
 }
@@ -44,6 +44,7 @@ export interface Project extends CreateProjectFormData {
   created_at: number;
   updated_at: number;
   deleted_at: null;
+  workflow_num: number;
 }
 
 export interface ProjectList {
@@ -58,7 +59,7 @@ export interface ProjectFormInitialValues {
   participantUrl: string;
   participantDomainName: string;
   comment: string;
-  variables?: Variable[];
+  variables?: ProjectVariable[];
 }
 
 export function getConnectionStatusClassName(status: ProjectConnectionStatus) {

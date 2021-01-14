@@ -3,10 +3,10 @@ import styled, { CSSProperties } from 'styled-components';
 import { formatTimestamp } from 'shared/date';
 
 const Container = styled.div`
+  flex-shrink: 0;
   padding-right: 16px;
   color: var(--gray7);
   font-size: 12px;
-  text-align: right;
   line-height: 40px;
 `;
 

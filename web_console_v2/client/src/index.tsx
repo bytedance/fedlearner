@@ -7,6 +7,7 @@ import App from './App';
 import { ThemeProvider } from 'styled-components';
 import { RecoilRoot } from 'recoil';
 import defaultTheme from 'styles/_theme';
+import 'assets/fonts/ClarityMono/index.less';
 import './styles/_variables.css';
 import './styles/antd-overrides.less';
 import './i18n';

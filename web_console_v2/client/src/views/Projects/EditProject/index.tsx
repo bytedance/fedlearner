@@ -27,6 +27,7 @@ function CreateProject(props: any): ReactElement {
     comment: project.comment,
     variables: project.config.variables || [],
   };
+
   return (
     <Container>
       <Breadcrumb separator={<BreadcrumbSplit />}>

@@ -1,13 +1,14 @@
 import axios, { AxiosInstance } from 'axios';
 import { getRequestMockState, setRequestMockState } from 'components/_base/MockDevtools/utils';
 import LOCAL_STORAGE_KEYS from 'shared/localStorageKeys';
-import { removeFalsy } from 'shared/object';
+import { removeFalsy, transformKeysToSnakeCase, binarizeBoolean } from 'shared/object';
 import store from 'store2';
 
 declare module 'axios' {
   interface AxiosRequestConfig {
     singleton?: symbol;
     removeFalsy?: boolean;
+    snake_case?: boolean;
   }
 }
 
@@ -63,15 +64,25 @@ request.interceptors.request.use((config) => {
   return config;
 });
 
-/** Remove falsy value of params  */
+/**
+ * Params preprocrssing (NOTE: all optional):
+ * 1. Remove undefined, null, empty string keys
+ * 2. Turn camelCase keys to snake_case
+ */
 request.interceptors.request.use((config) => {
   if (config.removeFalsy && config.params) {
     config.params = removeFalsy(config.params);
   }
+  if (config.snake_case && config.params) {
+    config.params = transformKeysToSnakeCase(config.params);
+  }
+  if (config.params) {
+    config.params = binarizeBoolean(config.params);
+  }
   return config;
 });
 
-/** Error pre-handler */
+/** Error prehandler */
 request.interceptors.response.use(
   (response) => {
     return response;

@@ -15,7 +15,12 @@ async function axiosMockAdapter(config: AxiosRequestConfig) {
         exportKey = method;
       }
 
-      const data = require(`../services/mocks${config.url}`)[exportKey];
+      let data = require(`../services/mocks${config.url}`)[exportKey];
+
+      if (typeof data === 'function') {
+        data = data(config);
+      }
+
       if (data.status === undefined) {
         console.error(
           `[⚠️ Mock Adapter]: the data /mocks/${config.url}.ts exported should have a status! e.g. 200`,

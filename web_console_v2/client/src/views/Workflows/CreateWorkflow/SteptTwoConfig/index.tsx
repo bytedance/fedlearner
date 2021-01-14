@@ -8,15 +8,17 @@ import { JobNode, JobNodeData, JobNodeStatus } from 'components/WorlflowJobsFlow
 import GridRow from 'components/_base/GridRow';
 import { Button, message, Modal, Spin } from 'antd';
 import { ExclamationCircleOutlined } from '@ant-design/icons';
-import { useHistory } from 'react-router-dom';
+import { Redirect, useHistory, useParams } from 'react-router-dom';
 import { useRecoilValue } from 'recoil';
 import { workflowJobsConfigForm, workflowGetters, workflowBasicForm } from 'stores/workflow';
 import { useTranslation } from 'react-i18next';
 import i18n from 'i18n';
 import ErrorBoundary from 'antd/lib/alert/ErrorBoundary';
-import { createWorkflow } from 'services/workflow';
+import { acceptNFillTheWorkflowConfig, initiateAWorkflow } from 'services/workflow';
 import { to } from 'shared/helpers';
 import { WorkflowCreateProps } from '..';
+import { WorkflowInitiatePayload } from 'typings/workflow';
+import { useResetCreateForms } from 'hooks/workflow';
 
 const Header = styled.header`
   padding: 13px 20px;
@@ -39,15 +41,27 @@ const CanvasAndForm: FC<WorkflowCreateProps> = ({ isInitiate, isAccept }) => {
   const drawerRef = useRef<JobFormDrawerExposedRef>();
   const jobNodes = useStoreState((store) => store.nodes as JobNode[]);
   const history = useHistory();
-  const [submitting, setSubmitting] = useToggle(false);
+  const params = useParams<{ id: string }>();
   const { t } = useTranslation();
+  const [submitting, setSubmitting] = useToggle(false);
   const [drawerVisible, toggleDrawerVisible] = useToggle(false);
   const [data, setData] = useState<JobNodeData>();
+
+  const reset = useResetCreateForms();
+
   const { currentWorkflowTpl } = useRecoilValue(workflowGetters);
   const jobsConfigPayload = useRecoilValue(workflowJobsConfigForm);
   const basicPayload = useRecoilValue(workflowBasicForm);
 
   const isDisabled = { disabled: submitting };
+
+  if (currentWorkflowTpl === null) {
+    debugger;
+    const redirectTo = isInitiate
+      ? '/workflows/initiate/basic'
+      : `/workflows/accept/basic/${params.id}`;
+    return <Redirect to={redirectTo} />;
+  }
 
   return (
     <ErrorBoundary>
@@ -121,11 +135,31 @@ const CanvasAndForm: FC<WorkflowCreateProps> = ({ isInitiate, isAccept }) => {
 
     toggleDrawerVisible(false);
     setSubmitting(true);
-    // TODO: Loading splash
-    const payload = { config: jobsConfigPayload, ...basicPayload };
-    await to(createWorkflow(payload));
+
+    let finalError = (null as any) as Error;
+
+    if (isInitiate) {
+      const payload = { config: jobsConfigPayload, ...basicPayload };
+      const [_, error] = await to(initiateAWorkflow(payload as WorkflowInitiatePayload));
+      finalError = error;
+    }
+
+    if (isAccept) {
+      const [_, error] = await to(
+        acceptNFillTheWorkflowConfig(params.id, {
+          config: jobsConfigPayload,
+          forkable: basicPayload.forkable!,
+        }),
+      );
+      finalError = error;
+    }
+
     setSubmitting(false);
-    history.push('/workflows');
+
+    if (!finalError) {
+      reset();
+      history.push('/workflows');
+    }
   }
   function onPrevStepClick() {
     history.goBack();
@@ -145,10 +179,10 @@ const CanvasAndForm: FC<WorkflowCreateProps> = ({ isInitiate, isAccept }) => {
   }
 };
 
-const WorkflowsCreateStepTwo: FC = () => {
+const WorkflowsCreateStepTwo: FC<WorkflowCreateProps> = (props) => {
   return (
     <ReactFlowProvider>
-      <CanvasAndForm />
+      <CanvasAndForm {...props} />
     </ReactFlowProvider>
   );
 };

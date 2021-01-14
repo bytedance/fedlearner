@@ -7,13 +7,11 @@ import { useHistory } from 'react-router-dom';
 import { createProject } from 'services/project';
 import { useTranslation } from 'react-i18next';
 
-const Container = styled.div``;
-
 function CreateProject(): ReactElement {
   const history = useHistory();
   const { t } = useTranslation();
   return (
-    <Container>
+    <>
       <Breadcrumb separator={<BreadcrumbSplit />}>
         <Breadcrumb.Item
           onClick={() => {
@@ -26,7 +24,7 @@ function CreateProject(): ReactElement {
       </Breadcrumb>
 
       <BaseForm onSubmit={onSubmit} />
-    </Container>
+    </>
   );
   async function onSubmit<CreateProjectFormData>(payload: CreateProjectFormData) {
     try {

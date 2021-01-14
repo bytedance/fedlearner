@@ -69,6 +69,10 @@ const project = {
   drag_to_upload: { zh: '拖拽到这里进行上传', en: 'Drag and drop here to upload' },
   create_success: { zh: '创建项目成功', en: 'Create project succeed!' },
   edit_success: { zh: '编辑项目成功', en: 'Edit project succeed!' },
+  msg_var_name: { zh: '请输入变量名' },
+  msg_var_value: { zh: '请输入变量值' },
+  msg_sure_2_cancel: { zh: '确认取消？' },
+  msg_effect_of_cancel: { zh: '取消后，已填写内容将不再保留' },
 };
 
 export default separateLng(project);

@@ -1,8 +1,8 @@
 import React, { ReactElement } from 'react';
 import styled from 'styled-components';
-import ProjectAction from '../ProjectAction';
+import ProjectMoreActions from '../ProjectMoreActions';
 import { ReactComponent as CheckConnectionIcon } from 'assets/images/check-connect.svg';
-import { ReactComponent as CreateWorkFlow } from 'assets/images/create-work-flow.svg';
+import { ReactComponent as CreateWorkflow } from 'assets/images/create-work-flow.svg';
 import { useTranslation } from 'react-i18next';
 import { useHistory } from 'react-router-dom';
 import { Project } from 'typings/project';
@@ -87,7 +87,7 @@ const CheckConnectionStyle = styled.div`
   }
 `;
 
-const CreateWorkFlowContainer = styled.div`
+const CreateWorkflowContainer = styled.div`
   height: 28px;
   display: flex;
   cursor: pointer;
@@ -135,13 +135,13 @@ interface DetailHeaderProps {
   project: Project;
 }
 
-function CreateWorkFlowAction(): ReactElement {
+function CreateWorkflowAction(): ReactElement {
   const { t } = useTranslation();
   return (
-    <CreateWorkFlowContainer>
-      <CreateWorkFlow className="create-icon" />
+    <CreateWorkflowContainer>
+      <CreateWorkflow className="create-icon" />
       <div className="create-describe">{t('project.create_work_flow')}</div>
-    </CreateWorkFlowContainer>
+    </CreateWorkflowContainer>
   );
 }
 
@@ -187,10 +187,10 @@ function DetailHeader({ project }: DetailHeaderProps): ReactElement {
           <CheckConnection />
         </HeaderAction>
         <HeaderAction>
-          <CreateWorkFlowAction />
+          <CreateWorkflowAction />
         </HeaderAction>
         <HeaderAction>
-          <ProjectAction
+          <ProjectMoreActions
             suffix={<div className="more">{t('more')}</div>}
             actionList={
               <ActionList
