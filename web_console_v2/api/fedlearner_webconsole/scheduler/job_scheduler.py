@@ -86,8 +86,8 @@ class JobScheduler(object):
         job.state = JobState.STARTED
         project_adapter = ProjectK8sAdapter(job.project_id)
         k8s_client = get_client()
-        formatter = YamlFormatter
-        yaml = formatter.format(job.yaml,
+        formatter = YamlFormatter()
+        yaml = formatter.format(format_string=job.yaml,
                                 workflow=job.workflow,
                                 project=job.project)
         k8s_client.create_flapp(project_adapter.
