@@ -20,7 +20,7 @@ from fedlearner_webconsole.db import db
 from fedlearner_webconsole.project.adapter import ProjectK8sAdapter
 from fedlearner_webconsole.proto.workflow_definition_pb2 import JobDependency
 from fedlearner_webconsole.k8s_client import get_client
-
+from fedlearner_webconsole.scheduler.yaml_formatter import YamlFormatter
 class JobScheduler(object):
     def __init__(self):
         self._condition = threading.Condition(threading.RLock())
@@ -86,9 +86,12 @@ class JobScheduler(object):
         job.state = JobState.STARTED
         project_adapter = ProjectK8sAdapter(job.project_id)
         k8s_client = get_client()
-        # TODO: complete yaml
+        formatter = YamlFormatter
+        yaml = formatter.format(job.yaml,
+                                workflow=job.workflow,
+                                project=job.project)
         k8s_client.create_flapp(project_adapter.
-                                get_namespace(), job.yaml)
+                                get_namespace(), yaml)
 
     def _routine(self):
         self._app.app_context().push()

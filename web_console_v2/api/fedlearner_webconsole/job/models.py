@@ -48,7 +48,8 @@ def merge(x, y):
 
 @to_dict_mixin(extras={
     'flapp': (lambda job: job.get_flapp()),
-    'pods': (lambda job: job.get_pods())
+    'pods': (lambda job: job.get_pods()),
+    'config': (lambda job: job.get_config())
 })
 class Job(db.Model):
     __tablename__ = 'job_v2'
@@ -98,12 +99,16 @@ class Job(db.Model):
         # TODO: remove update snapshot to scheduler
         if self.state == JobState.STARTED:
             self._set_snapshot_flapp()
-        return json.loads(self.flapp_snapshot)
+        if self.flapp_snapshot is not None:
+            return json.loads(self.flapp_snapshot)
+        return None
 
     def get_pods(self):
         if self.state == JobState.STARTED:
             self._set_snapshot_pods()
-        return json.loads(self.pods_snapshot)
+        if self.pods_snapshot is not None:
+            return json.loads(self.pods_snapshot)
+        return None
 
 
 

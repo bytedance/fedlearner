@@ -85,7 +85,7 @@ def make_workflow_template():
   "apiVersion": "fedlearner.k8s.io/v1alpha1",
   "kind": "FLApp",
   "metadata": {
-    "name": "{workflow.raw_data_job.name}",
+    "name": "{workflow.jobs.raw_data_job.name}",
     "namespace": "{project.variables.namespace}",
   },
   "spec": {
@@ -122,11 +122,11 @@ def make_workflow_template():
                   {project.variables.basic_envs},
                   {
                     "name": "APPLICATION_ID",
-                    "value": "{workflow.raw_data_job.name}"
+                    "value": "{workflow.jobs.raw_data_job.name}"
                   },
                   {
                     "name": "DATA_PORTAL_NAME",
-                    "value": "{workflow.raw_data_job.name}"
+                    "value": "{workflow.jobs.raw_data_job.name}"
                   },
                   {
                     "name": "OUTPUT_PARTITION_NUM",
@@ -134,15 +134,15 @@ def make_workflow_template():
                   },
                   {
                     "name": "INPUT_BASE_DIR",
-                    "value": "{workflow.raw_data_job.variables.input_dir}"
+                    "value": "{workflow.jobs.raw_data_job.variables.input_dir}"
                   },
                   {
                     "name": "OUTPUT_BASE_DIR",
-                    "value": "{project.variables.storage_root_dir}/raw_data/{workflow.raw_data_job.name}"
+                    "value": "{project.variables.storage_root_dir}/raw_data/{workflow.jobs.raw_data_job.name}"
                   },
                   {
                     "name": "RAW_DATA_PUBLISH_DIR",
-                    "value": "portal_publish_dir/{workflow.raw_data_job.name}"
+                    "value": "portal_publish_dir/{workflow.jobs.raw_data_job.name}"
                   },
                   {
                     "name": "DATA_PORTAL_TYPE",
@@ -150,7 +150,7 @@ def make_workflow_template():
                   },
                   {
                     "name": "FILE_WILDCARD",
-                    "value": "{workflow.raw_data_job.variables.file_wildcard}"
+                    "value": "{workflow.jobs.raw_data_job.variables.file_wildcard}"
                   }
                 ],
                 "image": "hub.docker.com/fedlearner/fedlearner:{workflow.variables.image_version}",
@@ -164,12 +164,12 @@ def make_workflow_template():
                 ],
                 "resources": {
                   "limits": {
-                    "cpu": "{workflow.raw_data_job.variables.master_cpu}",
-                    "memory": "{workflow.raw_data_job.variables.master_mem}"
+                    "cpu": "{workflow.jobs.raw_data_job.variables.master_cpu}",
+                    "memory": "{workflow.jobs.raw_data_job.variables.master_mem}"
                   },
                   "requests": {
-                    "cpu": "{workflow.raw_data_job.variables.master_cpu}",
-                    "memory": "{workflow.raw_data_job.variables.master_mem}"
+                    "cpu": "{workflow.jobs.raw_data_job.variables.master_cpu}",
+                    "memory": "{workflow.jobs.raw_data_job.variables.master_mem}"
                   }
                 },
                 "volumeMounts": [
@@ -267,22 +267,22 @@ def make_workflow_template():
                   },
                   {
                     "name": "APPLICATION_ID",
-                    "value": "{workflow.raw_data_job.name}"
+                    "value": "{workflow.jobs.raw_data_job.name}"
                   },
                   {
                     "name": "BATCH_SIZE",
-                    "value": "{workflow.raw_data_job.variables.batch_size}"
+                    "value": "{workflow.jobs.raw_data_job.variables.batch_size}"
                   },
                   {
                     "name": "INPUT_DATA_FORMAT",
-                    "value": "{workflow.raw_data_job.variables.input_format}"
+                    "value": "{workflow.jobs.raw_data_job.variables.input_format}"
                   },
                   {
                     "name": "COMPRESSED_TYPE"
                   },
                   {
                     "name": "OUTPUT_DATA_FORMAT",
-                    "value": "{workflow.raw_data_job.variables.output_format}"
+                    "value": "{workflow.jobs.raw_data_job.variables.output_format}"
                   }
                 ],
                 "image": "hub.docker.com/fedlearner/fedlearner:{workflow.variables.image_version}",
@@ -290,12 +290,12 @@ def make_workflow_template():
                 "name": "tensorflow",
                 "resources": {
                   "limits": {
-                    "cpu": "{workflow.raw_data_job.variables.worker_cpu}",
-                    "memory": "{workflow.raw_data_job.variables.worker_mem}"
+                    "cpu": "{workflow.jobs.raw_data_job.variables.worker_cpu}",
+                    "memory": "{workflow.jobs.raw_data_job.variables.worker_mem}"
                   },
                   "requests": {
-                    "cpu": "{workflow.raw_data_job.variables.worker_cpu}",
-                    "memory": "{workflow.raw_data_job.variables.worker_mem}"
+                    "cpu": "{workflow.jobs.raw_data_job.variables.worker_cpu}",
+                    "memory": "{workflow.jobs.raw_data_job.variables.worker_mem}"
                   }
                 },
                 "volumeMounts": [
@@ -368,7 +368,7 @@ def make_workflow_template():
   "apiVersion": "fedlearner.k8s.io/v1alpha1",
   "kind": "FLApp",
   "metadata": {
-    "name": "{workflow.data_join_job.name}",
+    "name": "{workflow.jobs.data_join_job.name}",
     "namespace": "{project.variables.namespace}",
   },
   "spec": {
@@ -411,15 +411,15 @@ def make_workflow_template():
                   {project.variables.basic_envs},
                   {
                     "name": "ROLE",
-                    "value": "{workflow.data_join_job.variables.role}"
+                    "value": "{workflow.jobs.data_join_job.variables.role}"
                   },
                   {
                     "name": "APPLICATION_ID",
-                    "value": "{workflow.data_join_job.name}"
+                    "value": "{workflow.jobs.data_join_job.name}"
                   },
                   {
                     "name": "OUTPUT_BASE_DIR",
-                    "value": "{project.variables.storage_root_dir}/data_source/{workflow.data_join_job.name}"
+                    "value": "{project.variables.storage_root_dir}/data_source/{workflow.jobs.data_join_job.name}"
                   },
                   {
                     "name": "CPU_REQUEST",
@@ -463,7 +463,7 @@ def make_workflow_template():
                   },
                   {
                     "name": "PARTITION_NUM",
-                    "value": "{workflow.raw_data_job.variables.num_partitions}"
+                    "value": "{workflow.jobs.raw_data_job.variables.num_partitions}"
                   },
                   {
                     "name": "START_TIME",
@@ -479,15 +479,15 @@ def make_workflow_template():
                   },
                   {
                     "name": "RAW_DATA_SUB_DIR",
-                    "value": "portal_publish_dir/{workflow.data_join_job.name}"
+                    "value": "portal_publish_dir/{workflow.jobs.data_join_job.name}"
                   },
                   {
                     "name": "RAW_DATA_SUB_DIR",
-                    "value": "portal_publish_dir/{workflow.data_join_job.name}"
+                    "value": "portal_publish_dir/{workflow.jobs.data_join_job.name}"
                   },
                   {
                     "name": "PARTITION_NUM",
-                    "value": "{workflow.raw_data_job.variables.num_partitions}"
+                    "value": "{workflow.jobs.raw_data_job.variables.num_partitions}"
                   }
                 ],
                 "image": "hub.docker.com/fedlearner/fedlearner:{workflow.variables.image_version}",
@@ -501,12 +501,12 @@ def make_workflow_template():
                 ],
                 "resources": {
                   "limits": {
-                    "cpu": "{workflow.data_join_job.variables.master_cpu}",
-                    "memory": "{workflow.data_join_job.variables.master_mem}"
+                    "cpu": "{workflow.jobs.data_join_job.variables.master_cpu}",
+                    "memory": "{workflow.jobs.data_join_job.variables.master_mem}"
                   },
                   "requests": {
-                    "cpu": "{workflow.data_join_job.variables.master_cpu}",
-                    "memory": "{workflow.data_join_job.variables.master_mem}"
+                    "cpu": "{workflow.jobs.data_join_job.variables.master_cpu}",
+                    "memory": "{workflow.jobs.data_join_job.variables.master_mem}"
                   }
                 },
                 "volumeMounts": [
@@ -536,7 +536,7 @@ def make_workflow_template():
       },
       "Worker": {
         "pair": true,
-        "replicas": {workflow.raw_data_job.variables.num_partitions},
+        "replicas": {workflow.jobs.raw_data_job.variables.num_partitions},
         "template": {
           "metadata": {
             "creationTimestamp": null
@@ -571,15 +571,15 @@ def make_workflow_template():
                   {project.variables.basic_envs},
                   {
                     "name": "ROLE",
-                    "value": "{workflow.data_join_job.variables.role}"
+                    "value": "{workflow.jobs.data_join_job.variables.role}"
                   },
                   {
                     "name": "APPLICATION_ID",
-                    "value": "{workflow.data_join_job.name}"
+                    "value": "{workflow.jobs.data_join_job.name}"
                   },
                   {
                     "name": "OUTPUT_BASE_DIR",
-                    "value": "{project.variables.storage_root_dir}/data_source/{workflow.data_join_job.name}"
+                    "value": "{project.variables.storage_root_dir}/data_source/{workflow.jobs.data_join_job.name}"
                   },
                   {
                     "name": "CPU_REQUEST",
@@ -619,11 +619,11 @@ def make_workflow_template():
                   },
                   {
                     "name": "PARTITION_NUM",
-                    "value": "{workflow.raw_data_job.variables.num_partitions}"
+                    "value": "{workflow.jobs.raw_data_job.variables.num_partitions}"
                   },
                   {
                     "name": "RAW_DATA_SUB_DIR",
-                    "value": "portal_publish_dir/{workflow.data_join_job.name}"
+                    "value": "portal_publish_dir/{workflow.jobs.data_join_job.name}"
                   },
                   {
                     "name": "DATA_BLOCK_DUMP_INTERVAL",
@@ -659,15 +659,15 @@ def make_workflow_template():
                   },
                   {
                     "name": "RAW_DATA_ITER",
-                    "value": "{workflow.raw_data_job.variables.output_format}"
+                    "value": "{workflow.jobs.raw_data_job.variables.output_format}"
                   },
                   {
                     "name": "RAW_DATA_SUB_DIR",
-                    "value": "portal_publish_dir/{workflow.raw_data_job.name}"
+                    "value": "portal_publish_dir/{workflow.jobs.raw_data_job.name}"
                   },
                   {
                     "name": "PARTITION_NUM",
-                    "value": "{workflow.raw_data_job.variables.num_partitions}"
+                    "value": "{workflow.jobs.raw_data_job.variables.num_partitions}"
                   }
                 ],
                 "image": "artifact.bytedance.com/fedlearner/fedlearner:5b499dd",
@@ -681,12 +681,12 @@ def make_workflow_template():
                 ],
                 "resources": {
                   "limits": {
-                    "cpu": "{workflow.data_join_job.variables.master_cpu}",
-                    "memory": "{workflow.data_join_job.variables.master_mem}"
+                    "cpu": "{workflow.jobs.data_join_job.variables.master_cpu}",
+                    "memory": "{workflow.jobs.data_join_job.variables.master_mem}"
                   },
                   "requests": {
-                    "cpu": "{workflow.data_join_job.variables.master_cpu}",
-                    "memory": "{workflow.data_join_job.variables.master_mem}"
+                    "cpu": "{workflow.jobs.data_join_job.variables.master_cpu}",
+                    "memory": "{workflow.jobs.data_join_job.variables.master_mem}"
                   }
                 },
                 "volumeMounts": [
