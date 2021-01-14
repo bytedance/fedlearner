@@ -69,7 +69,7 @@ class Scheduler(object):
     def _routine(self):
         self._app.app_context().push()
         interval = int(os.environ.get(
-            "FEDLEARNER_WEBCONSOLE_POLLING_INTERVAL", 300))
+            'FEDLEARNER_WEBCONSOLE_POLLING_INTERVAL', 60))
 
         while True:
             with self._condition:
