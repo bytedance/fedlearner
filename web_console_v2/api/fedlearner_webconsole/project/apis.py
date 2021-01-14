@@ -144,12 +144,12 @@ class ProjectsApi(Resource):
     def get(self):
         # TODO: Not count soft-deleted workflow
         projects = db.session.query(
-            Project, func.count(Workflow.id).label('workflow_num'))\
+            Project, func.count(Workflow.id).label('num_workflow'))\
             .join(Workflow.project).group_by(Project.id).all()
         result = []
         for project in projects:
             project_dict = project.Project.to_dict()
-            project_dict['workflow_num'] = project.workflow_num
+            project_dict['num_workflow'] = project.num_workflow
             result.append(project_dict)
         return {'data': result}
 

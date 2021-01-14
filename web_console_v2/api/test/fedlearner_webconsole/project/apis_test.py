@@ -143,7 +143,7 @@ class ProjectApiTest(BaseTestCase):
         for project in project_list:
             queried_project = Project.query.filter_by(name=project['name']).first()
             result = queried_project.to_dict()
-            result['workflow_num'] = 1
+            result['num_workflow'] = 1
             self.assertEqual(project, result)
 
     def test_update_project(self):
