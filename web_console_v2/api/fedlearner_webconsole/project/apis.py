@@ -15,21 +15,27 @@
 # coding: utf-8
 # pylint: disable=raise-missing-from
 
+import os
 from enum import Enum
 from uuid import uuid4
+from concurrent import futures
+
 from flask import request
 from flask_restful import Resource, Api, reqparse
 from google.protobuf.json_format import ParseDict
+
 from fedlearner_webconsole.db import db
 from fedlearner_webconsole.k8s_client import get_client
 from fedlearner_webconsole.project.models import Project
-from fedlearner_webconsole.proto.common_pb2 import Variable
+from fedlearner_webconsole.proto.common_pb2 import Variable, StatusCode
 from fedlearner_webconsole.proto.project_pb2 \
-    import Project as ProjectProto, CertificateStorage
+    import Project as ProjectProto, CertificateStorage, \
+    Participant as ParticipantProto
 from fedlearner_webconsole.project.add_on \
     import parse_certificates, create_add_on
 from fedlearner_webconsole.exceptions \
     import InvalidArgumentException, NotFoundException
+from fedlearner_webconsole.rpc.client import RpcClient
 
 _CERTIFICATE_FILE_NAMES = [
     'client/client.pem', 'client/client.key', 'client/intermediate.pem',
@@ -83,7 +89,7 @@ class ProjectsApi(Resource):
                 raise InvalidArgumentException(
                     details=ErrorMessage.PARAM_FORMAT_ERROR.value.format(
                         'participants', 'Participant must have name, '
-                        'domain_name and url.'))
+                                        'domain_name and url.'))
             domain_name = participant.get('domain_name')
             if participant.get('certificates') is not None:
                 current_cert = parse_certificates(
@@ -93,7 +99,7 @@ class ProjectsApi(Resource):
                     if current_cert.get(file_name) is None:
                         raise InvalidArgumentException(
                             details=ErrorMessage.PARAM_FORMAT_ERROR.value.
-                            format('certificates', '{} not existed'.format(
+                                format('certificates', '{} not existed'.format(
                                 file_name)))
                 certificates[domain_name] = {'certs': current_cert}
                 participant.pop('certificates')
@@ -174,6 +180,42 @@ class ProjectApi(Resource):
         return {'data': project.to_dict()}
 
 
+class CheckConnectionApi(Resource):
+    def __init__(self):
+        self.executor = futures.ThreadPoolExecutor(max_workers=8)
+
+    def post(self, project_id):
+        project = Project.query.filter_by(id=project_id).first()
+        if project is None:
+            raise NotFoundException()
+        future_list = [self.executor.submit(self.check_connection,
+                                            project.get_config(), participant)
+                       for participant in project.get_config().participants]
+        result = {
+            'success': True,
+            'details': []
+        }
+        for future in futures.as_completed(future_list):
+            current = future.result()
+            result['success'] = result['status'] & \
+                                (current.code == StatusCode.STATUS_SUCCESS)
+            if current.code != StatusCode.STATUS_SUCCESS:
+                result['details'].append(current.msg)
+        return result
+
+    def check_connection(self, project_config: ProjectProto,
+                         participant_proto: ParticipantProto):
+        grpc_spec = participant_proto.grpc_spec
+        grpc_spec.peer_url = participant_proto.url
+        grpc_spec.authority = participant_proto.domain_name
+        grpc_spec.extra_headers['x-host'] = \
+            os.environ.get('WEBCONSOLE_INGRESS_HOST',
+                           'v2.fedlearner.webconsole')
+        client = RpcClient(project_config, participant_proto)
+        return client.check_connection()
+
+
 def initialize_project_apis(api: Api):
     api.add_resource(ProjectsApi, '/projects')
     api.add_resource(ProjectApi, '/projects/<int:project_id>')
+    api.add_resource(CheckConnectionApi, '/connection/<int:project_id>')
