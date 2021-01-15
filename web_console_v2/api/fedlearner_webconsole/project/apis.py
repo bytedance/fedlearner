@@ -15,10 +15,8 @@
 # coding: utf-8
 # pylint: disable=raise-missing-from
 
-import os
 from enum import Enum
 from uuid import uuid4
-from concurrent import futures
 
 from flask import request
 from flask_restful import Resource, Api, reqparse
@@ -104,6 +102,12 @@ class ProjectsApi(Resource):
                 certificates[domain_name] = {'certs': current_cert}
                 participant.pop('certificates')
 
+                # Grpc spec
+                participant['grpc_spec'] = {
+                    'peer_url': participant['url'],
+                    'authority': participant['domain_name']
+                }
+
                 # create add on
                 try:
                     k8s_client = get_client()
@@ -181,36 +185,30 @@ class ProjectApi(Resource):
 
 
 class CheckConnectionApi(Resource):
-    def __init__(self):
-        self.executor = futures.ThreadPoolExecutor(max_workers=8)
-
     def post(self, project_id):
         project = Project.query.filter_by(id=project_id).first()
         if project is None:
             raise NotFoundException()
-        future_list = [self.executor.submit(self.check_connection,
-                                            project.get_config(), participant)
-                       for participant in project.get_config().participants]
-        result = {
-            'success': True,
-            'details': []
-        }
-        for future in futures.as_completed(future_list):
-            current = future.result()
-            result['success'] = result['status'] & \
-                                (current.code == StatusCode.STATUS_SUCCESS)
-            if current.code != StatusCode.STATUS_SUCCESS:
-                result['details'].append(current.msg)
-        return result
+        success = True
+        details = []
+        # TODO: Concurrently check
+        for participant in project.get_config().participants:
+            result = self.check_connection(project.get_config(),
+                                           participant)
+            success = success & (result.code == StatusCode.STATUS_SUCCESS)
+            if result.code != StatusCode.STATUS_SUCCESS:
+                details.append(result.msg)
+        return {'data': {'success': success, 'details': details}}
 
     def check_connection(self, project_config: ProjectProto,
                          participant_proto: ParticipantProto):
-        grpc_spec = participant_proto.grpc_spec
-        grpc_spec.peer_url = participant_proto.url
-        grpc_spec.authority = participant_proto.domain_name
-        grpc_spec.extra_headers['x-host'] = \
-            os.environ.get('WEBCONSOLE_INGRESS_HOST',
-                           'v2.fedlearner.webconsole')
+        participant_proto.grpc_spec.extra_headers['x-host'] = \
+            'v2.fedlearner.webconsole'
+        for variable in project_config.variables:
+            if variable.name == 'X_HOST':
+                participant_proto.grpc_spec.extra_headers['x-host'] = \
+                    variable.value
+                break
         client = RpcClient(project_config, participant_proto)
         return client.check_connection()
 
@@ -218,4 +216,5 @@ class CheckConnectionApi(Resource):
 def initialize_project_apis(api: Api):
     api.add_resource(ProjectsApi, '/projects')
     api.add_resource(ProjectApi, '/projects/<int:project_id>')
-    api.add_resource(CheckConnectionApi, '/connection/<int:project_id>')
+    api.add_resource(CheckConnectionApi,
+                     '/projects/<int:project_id>/connection_checks')
