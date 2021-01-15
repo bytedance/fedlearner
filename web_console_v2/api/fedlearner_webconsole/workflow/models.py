@@ -22,8 +22,9 @@ from sqlalchemy.sql import func
 from fedlearner_webconsole.db import db, to_dict_mixin
 from fedlearner_webconsole.proto import workflow_definition_pb2
 from fedlearner_webconsole.project.models import Project
-from fedlearner_webconsole.job.models import Job, JobState, JobType
-from fedlearner_webconsole.scheduler.job_scheduler import job_scheduler
+from fedlearner_webconsole.job.models import Job, JobType, JobState
+
+
 class WorkflowState(enum.Enum):
     INVALID = 0
     NEW = 1
@@ -217,11 +218,8 @@ class Workflow(db.Model):
                 'Workflow not in prepare state'
 
         if self.target_state == WorkflowState.STOPPED:
-            job_ids = [job.id for job in self.jobs]
-            job_scheduler.sleep(job_ids)
             for job in self.jobs:
                 job.stop()
-                db.session.commit()
         elif self.target_state == WorkflowState.READY:
             job_definitions = self.get_config().job_definitions
             for job_definition in job_definitions:
@@ -233,12 +231,9 @@ class Workflow(db.Model):
                 job.set_yaml(job_definition.yaml_template)
                 db.session.add(job)
         elif self.target_state == WorkflowState.RUNNING:
-            job_ids = [job.id for job in self.jobs]
+            # Scheduler will take care of scheduling
             for job in self.jobs:
-                if job.state != JobState.STARTED:
-                    job.state = JobState.READY
-            db.session.commit()
-            job_scheduler.wakeup(job_ids)
+                job.state = JobState.READY
 
         self.state = self.target_state
         self.target_state = WorkflowState.INVALID
