@@ -67,7 +67,7 @@ message GetWorkflowResponse{
     Status status = 1;
     int64 state = 2;
     bool forkable = 3;
-    WorkflowDefinition workflow_definition = 4;
+    WorkflowDefinition config = 4;
     repeated JobDetail jobs = 5;
 }
 

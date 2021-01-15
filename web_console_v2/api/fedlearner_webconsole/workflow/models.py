@@ -22,7 +22,7 @@ from sqlalchemy.sql import func
 from fedlearner_webconsole.db import db, to_dict_mixin
 from fedlearner_webconsole.proto import workflow_definition_pb2
 from fedlearner_webconsole.project.models import Project
-from fedlearner_webconsole.job.models import Job, JobState
+from fedlearner_webconsole.job.models import Job, JobState, JobType
 from fedlearner_webconsole.scheduler.job_scheduler import job_scheduler
 class WorkflowState(enum.Enum):
     INVALID = 0
@@ -226,7 +226,7 @@ class Workflow(db.Model):
             job_definitions = self.get_config().job_definitions
             for job_definition in job_definitions:
                 job = Job(name=f'{self.name}-{job_definition.name}',
-                          job_type=job_definition.type,
+                          job_type=JobType(job_definition.type),
                           config=job_definition.SerializeToString(),
                           workflow_id=self.id,
                           project_id=self.project_id)

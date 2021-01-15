@@ -43,6 +43,8 @@ class Project(db.Model):
         self.config = proto.SerializeToString()
 
     def get_config(self):
+        if self.config is None:
+            return None
         proto = project_pb2.Project()
         proto.ParseFromString(self.config)
         return proto
@@ -51,6 +53,8 @@ class Project(db.Model):
         self.certificate = proto.SerializeToString()
 
     def get_certificate(self):
+        if self.certificate is None:
+            return None
         proto = project_pb2.CertificateStorage()
         proto.ParseFromString(self.certificate)
         return proto
