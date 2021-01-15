@@ -199,7 +199,7 @@ class RpcServer(object):
                     code=common_pb2.STATUS_SUCCESS),
                 state=workflow.state.value,
                 forkable=workflow.forkable,
-                workflow_definition=config,
+                config=config,
                 jobs=jobs
             )
 

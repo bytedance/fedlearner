@@ -21,7 +21,8 @@ import logging
 import traceback
 
 from fedlearner_webconsole.db import db
-from fedlearner_webconsole.workflow.models import Workflow
+from fedlearner_webconsole.job.models import JobState
+from fedlearner_webconsole.workflow.models import Workflow, WorkflowState
 from fedlearner_webconsole.scheduler.transaction import TransactionManager
 
 class Scheduler(object):
@@ -69,7 +70,7 @@ class Scheduler(object):
     def _routine(self):
         self._app.app_context().push()
         interval = int(os.environ.get(
-            "FEDLEARNER_WEBCONSOLE_POLLING_INTERVAL", 300))
+            'FEDLEARNER_WEBCONSOLE_POLLING_INTERVAL', 60))
 
         while True:
             with self._condition:
@@ -97,8 +98,34 @@ class Scheduler(object):
     def _schedule_workflow(self, workflow_id):
         logging.debug('Scheduling workflow %d', workflow_id)
         tm = TransactionManager(workflow_id)
-        tm.process()
-
+        workflow = tm.process()
         # schedule jobs in workflow
+        if workflow.state == WorkflowState.RUNNING:
+            self._schedule_jobs(workflow)
+
+    def _schedule_jobs(self, workflow):
+        jobs = workflow.jobs
+        name_to_job = {}
+        for job in jobs:
+            name_to_job[job.name] = job
+        for job in jobs:
+            if job.state != JobState.READY:
+                continue
+            ready_to_run = True
+            # TODO: use relationships in db
+            dependencies = job.get_config().dependencies
+            for dependency in dependencies:
+                dep_job_name = f'{workflow.name}-{dependency.source}'
+                if dep_job_name not in name_to_job:
+                    ready_to_run = False
+                    break
+                if name_to_job[dep_job_name].get_flapp()\
+                    ['status']['appState'] != 'FLStateComplete':
+                    ready_to_run = False
+                    break
+            if ready_to_run:
+                job.run()
+        db.session.commit()
+
 
 scheduler = Scheduler()

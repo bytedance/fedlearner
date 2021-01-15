@@ -18,6 +18,7 @@
 from enum import Enum
 from uuid import uuid4
 
+from sqlalchemy.sql import func
 from flask import request
 from flask_restful import Resource, Api, reqparse
 from google.protobuf.json_format import ParseDict
@@ -34,6 +35,7 @@ from fedlearner_webconsole.project.add_on \
 from fedlearner_webconsole.exceptions \
     import InvalidArgumentException, NotFoundException
 from fedlearner_webconsole.rpc.client import RpcClient
+from fedlearner_webconsole.workflow.models import Workflow
 
 _CERTIFICATE_FILE_NAMES = [
     'client/client.pem', 'client/client.key', 'client/intermediate.pem',
@@ -148,7 +150,16 @@ class ProjectsApi(Resource):
         return {'data': new_project.to_dict()}
 
     def get(self):
-        return {'data': [project.to_dict() for project in Project.query.all()]}
+        # TODO: Not count soft-deleted workflow
+        projects = db.session.query(
+            Project, func.count(Workflow.id).label('num_workflow'))\
+            .join(Workflow.project).group_by(Project.id).all()
+        result = []
+        for project in projects:
+            project_dict = project.Project.to_dict()
+            project_dict['num_workflow'] = project.num_workflow
+            result.append(project_dict)
+        return {'data': result}
 
 
 class ProjectApi(Resource):

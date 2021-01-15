@@ -731,9 +731,9 @@ def make_workflow_template():
             )
         ])
     
-    print(text_format.MessageToString(workflow))
+    return workflow
 
 
 if __name__ == '__main__':
-    make_workflow_template()
+    print((make_workflow_template()))
 # %%
