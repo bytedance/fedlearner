@@ -20,6 +20,7 @@ from fedlearner_webconsole.db import db, to_dict_mixin
 from fedlearner_webconsole.project.adapter import ProjectK8sAdapter
 from fedlearner_webconsole.project.models import Project
 from fedlearner_webconsole.k8s_client import get_client
+from fedlearner_webconsole.utils.k8s_client import CrdKind
 from fedlearner_webconsole.proto.workflow_definition_pb2 import JobDefinition
 
 class JobState(enum.Enum):
@@ -85,13 +86,13 @@ class Job(db.Model):
     def _set_snapshot_flapp(self):
         project_adapter = ProjectK8sAdapter(self.project_id)
         flapp = json.dumps(self._k8s_client.get_custom_object(
-            'flapps', self.name, project_adapter.get_namespace()))
+            CrdKind.FLAPP, self.name, project_adapter.get_namespace()))
         self.flapp_snapshot = json.dumps(flapp)
 
     def _set_snapshot_pods(self):
         project_adapter = ProjectK8sAdapter(self.project_id)
-        flapp = json.dumps(self._k8s_client.get_pods(
-                           project_adapter.get_namespace(), self.name))
+        flapp = json.dumps(self._k8s_client.list_resource_of_custom_object(
+            CrdKind.FLAPP, self.name, 'pods', project_adapter.get_namespace()))
         self.flapp_snapshot = json.dumps(flapp)
 
     def get_flapp(self):
@@ -113,8 +114,8 @@ class Job(db.Model):
         if self.state == JobState.STARTED:
             self._set_snapshot_flapp()
             self._set_snapshot_pods()
-            self._k8s_client.delete_flapp(project_adapter.
-                                         get_namespace(), self.name)
+            self._k8s_client.delete_custom_object(
+                CrdKind.FLAPP, self.name, project_adapter.get_namespace())
         self.state = JobState.STOPPED
 
 

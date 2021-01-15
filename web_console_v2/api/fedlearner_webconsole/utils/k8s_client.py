@@ -15,8 +15,8 @@
 # coding: utf-8
 
 import os
-import enum
 from http import HTTPStatus
+import enum
 
 import requests
 

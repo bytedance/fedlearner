@@ -16,8 +16,7 @@
 # pylint: disable=logging-format-interpolation
 import logging
 from kubernetes import client
-from fedlearner_webconsole.utils.k8s_client import (K8sClient,
-                                                    CrdKind)
+from fedlearner_webconsole.utils.k8s_client import K8sClient
 
 _RAISE_EXCEPTION_KEY = 'raise_exception'
 
@@ -155,8 +154,8 @@ class FakeK8sClient(K8sClient):
     def create_from_dict(self, dic_object):
         return dic_object
 
-    def get_custom_object(self, kind: CrdKind,
-                          custom_object_name: str, namespace='default'):
+    def get_custom_object(self, kind, custom_object_name: str,
+                          namespace='default'):
         return {
             'kind': kind.value,
             'metadata': {
@@ -165,8 +164,8 @@ class FakeK8sClient(K8sClient):
             }
         }
 
-    def delete_custom_object(self, kind: CrdKind,
-                             custom_object_name: str, namespace='default'):
+    def delete_custom_object(self, kind, custom_object_name: str,
+                             namespace='default'):
         return {
             'kind': kind.value,
             'metadata': {
@@ -175,8 +174,7 @@ class FakeK8sClient(K8sClient):
             }
         }
 
-    def list_resource_of_custom_object(self, kind: CrdKind,
-                                       custom_object_name: str,
+    def list_resource_of_custom_object(self, kind, custom_object_name: str,
                                        resource_type: str, namespace='default'):
         return {
             'pods': {
@@ -199,6 +197,6 @@ class FakeK8sClient(K8sClient):
             ]
         }
 
-    def get_webshell_session(self, flapp_name: CrdKind,
-                             container_name: str, namespace='default'):
+    def get_webshell_session(self, flapp_name, container_name: str,
+                             namespace='default'):
         return {'id': 1}
