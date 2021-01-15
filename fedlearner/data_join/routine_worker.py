@@ -90,7 +90,7 @@ class RoutineWorker(object):
 
     def _routine(self):
         exec_round = 0
-        err_code = -1
+        err_code = ""
         while not self.is_stopped():
             start_timepoint = time.time()
             while self._wait_for_exec():
@@ -115,6 +115,7 @@ class RoutineWorker(object):
             except Exception as e: # pylint: disable=broad-except
                 new_err_code, new_err = self._parse_ex(e)
                 if err_code != new_err_code:
+                    logging.info("err_code %s, new %s", err_code, new_err_code)
                     # only dedup network error
                     if new_err_code is not None:
                         err_code = new_err_code
