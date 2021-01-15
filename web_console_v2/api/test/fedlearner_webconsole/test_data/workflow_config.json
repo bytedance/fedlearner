@@ -40,8 +40,7 @@
       "variables": [],
       "dependencies": [
         {
-          "source": "data-import",
-          "type": "ON_COMPLETE"
+          "source": "data-import"
         }
       ]
     },
@@ -54,8 +53,7 @@
       "variables": [],
       "dependencies": [
         {
-          "source": "data-join",
-          "type": "ON_COMPLETE"
+          "source": "data-join"
         }
       ]
     }

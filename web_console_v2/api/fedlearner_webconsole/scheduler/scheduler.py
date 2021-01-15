@@ -21,9 +21,12 @@ import logging
 import traceback
 
 from fedlearner_webconsole.db import db
-from fedlearner_webconsole.job.models import JobState
 from fedlearner_webconsole.workflow.models import Workflow, WorkflowState
+from fedlearner_webconsole.job.models import Job, JobState, JobDependency
 from fedlearner_webconsole.scheduler.transaction import TransactionManager
+from fedlearner_webconsole.k8s_client import get_client
+from fedlearner_webconsole.project.adapter import ProjectK8sAdapter
+
 
 class Scheduler(object):
     def __init__(self):
@@ -31,7 +34,8 @@ class Scheduler(object):
         self._running = False
         self._terminate = False
         self._thread = None
-        self._pending = []
+        self._pending_workflows = []
+        self._pending_jobs = []
         self._app = None
 
     def start(self, app, force=False):
@@ -62,9 +66,16 @@ class Scheduler(object):
         self._running = False
         logging.info('Scheduler stopped')
 
-    def wakeup(self, workflow_id):
+    def wakeup(self, workflow_ids=None, job_ids=None):
         with self._condition:
-            self._pending.append(workflow_id)
+            if workflow_ids:
+                if isinstance(workflow_ids, int):
+                    workflow_ids = [workflow_ids]
+                self._pending_workflows.extend(workflow_ids)
+            if job_ids:
+                if isinstance(job_ids, int):
+                    job_ids = [job_ids]
+                self._pending_jobs.extend(job_ids)
             self._condition.notify_all()
 
     def _routine(self):
@@ -78,14 +89,29 @@ class Scheduler(object):
                 if self._terminate:
                     return
                 if notified:
-                    workflow_ids = self._pending
-                    self._pending = []
-                else:
-                    workflow_ids = [
-                        wid for wid, in db.session.query(Workflow.id).all()]
-                self._poll(workflow_ids)
+                    workflow_ids = self._pending_workflows
+                    self._pending_workflows = []
+                    self._poll_workflows(workflow_ids)
 
-    def _poll(self, workflow_ids):
+                    job_ids = self._pending_jobs
+                    self._pending_jobs = []
+                    for workflow_id in workflow_ids:
+                        job_ids.extend([
+                            jid for jid, in db.session.query(Job.id) \
+                                .filter(Job.state == JobState.WAITING) \
+                                .filter(Job.workflow_id == workflow_id)])
+                    self._poll_jobs(job_ids)
+                    continue
+
+                workflows = db.session.query(Workflow.id).filter(
+                    Workflow.target_state != WorkflowState.INVALID).all()
+                self._poll_workflows([wid for wid, in workflows])
+
+                jobs = db.session.query(Job.id).filter(
+                    Job.state == JobState.WAITING).all()
+                self._poll_jobs([jid for jid, in jobs])
+
+    def _poll_workflows(self, workflow_ids):
         logging.info('Scheduler polling %d workflows...', len(workflow_ids))
         for workflow_id in workflow_ids:
             try:
@@ -95,37 +121,41 @@ class Scheduler(object):
                     "Error while scheduling workflow %d:\n%s",
                     workflow_id, traceback.format_exc())
 
+    def _poll_jobs(self, job_ids):
+        logging.info('Scheduler polling %d jobs...', len(job_ids))
+        for job_id in job_ids:
+            try:
+                self._schedule_job(job_id)
+            except Exception as e:
+                logging.warning(
+                    "Error while scheduling job %d:\n%s",
+                    job_id, traceback.format_exc())
+
     def _schedule_workflow(self, workflow_id):
         logging.debug('Scheduling workflow %d', workflow_id)
         tm = TransactionManager(workflow_id)
-        workflow = tm.process()
-        # schedule jobs in workflow
-        if workflow.state == WorkflowState.RUNNING:
-            self._schedule_jobs(workflow)
+        return tm.process()
 
-    def _schedule_jobs(self, workflow):
-        jobs = workflow.jobs
-        name_to_job = {}
-        for job in jobs:
-            name_to_job[job.name] = job
-        for job in jobs:
-            if job.state != JobState.READY:
-                continue
-            ready_to_run = True
-            # TODO: use relationships in db
-            dependencies = job.get_config().dependencies
-            for dependency in dependencies:
-                dep_job_name = f'{workflow.name}-{dependency.source}'
-                if dep_job_name not in name_to_job:
-                    ready_to_run = False
-                    break
-                if name_to_job[dep_job_name].get_flapp()\
-                    ['status']['appState'] != 'FLStateComplete':
-                    ready_to_run = False
-                    break
-            if ready_to_run:
-                job.run()
+    def _schedule_job(self, job_id):
+        job = Job.query.get(job_id)
+        assert job is not None, 'Job %d not found'%job_id
+        if job.state != JobState.WAITING:
+            return job.state
+        deps = JobDependency.query.filter(
+            JobDependency.dst_job_id == job.id).all()
+        for dep in deps:
+            src_job = Job.query.get(dep.src_job_id)
+            assert src_job is not None, 'Job %d not found'%dep.src_job_id
+            if not src_job.is_complete():
+                return job.state
+
+        project_adapter = ProjectK8sAdapter(job.project_id)
+        k8s_client = get_client()
+        k8s_client.create_flapp(project_adapter.
+                                get_namespace(), job.yaml)
+        job.start()
         db.session.commit()
 
+        return job.state
 
 scheduler = Scheduler()

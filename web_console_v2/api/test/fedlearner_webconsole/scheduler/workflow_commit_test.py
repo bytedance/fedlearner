@@ -84,9 +84,9 @@ class WorkflowsCommitTest(BaseTestCase):
         db.session.commit()
         scheduler.wakeup(20)
         workflow = self._wait_until(20, WorkflowState.READY)
-        self.assertEqual(len(workflow.jobs), 2)
-        self.assertEqual(workflow.jobs[0].state, JobState.UNSPECIFIED)
-        self.assertEqual(workflow.jobs[1].state, JobState.UNSPECIFIED)
+        self.assertEqual(len(workflow.get_jobs), 2)
+        self.assertEqual(workflow.get_jobs[0].state, JobState.STOPPED)
+        self.assertEqual(workflow.get_jobs[1].state, JobState.STOPPED)
 
         # test the committing stage for workflow running
         workflow.target_state = WorkflowState.RUNNING
@@ -94,8 +94,8 @@ class WorkflowsCommitTest(BaseTestCase):
         db.session.commit()
         scheduler.wakeup(20)
         workflow = self._wait_until(20, WorkflowState.RUNNING)
-        self.assertEqual(workflow.jobs[0].state, JobState.STARTED)
-        self.assertEqual(workflow.jobs[1].state, JobState.READY)
+        self.assertEqual(workflow.get_jobs[0].state, JobState.STARTED)
+        self.assertEqual(workflow.get_jobs[1].state, JobState.WAITING)
 
         # test the committing stage for workflow stopping
         workflow.target_state = WorkflowState.STOPPED
@@ -103,8 +103,8 @@ class WorkflowsCommitTest(BaseTestCase):
         db.session.commit()
         scheduler.wakeup(20)
         workflow = self._wait_until(20, WorkflowState.STOPPED)
-        self.assertEqual(workflow.jobs[0].state, JobState.STOPPED)
-        self.assertEqual(workflow.jobs[1].state, JobState.STOPPED)
+        self.assertEqual(workflow.get_jobs[0].state, JobState.STOPPED)
+        self.assertEqual(workflow.get_jobs[1].state, JobState.STOPPED)
 
 
 if __name__ == '__main__':

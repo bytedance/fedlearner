@@ -22,8 +22,9 @@ from sqlalchemy.sql import func
 from fedlearner_webconsole.db import db, to_dict_mixin
 from fedlearner_webconsole.proto import workflow_definition_pb2
 from fedlearner_webconsole.project.models import Project
-from fedlearner_webconsole.job.models import Job, JobType, JobState
-
+from fedlearner_webconsole.job.models import (
+    Job, JobState, JobType, JobDependency
+)
 
 class WorkflowState(enum.Enum):
     INVALID = 0
@@ -32,6 +33,12 @@ class WorkflowState(enum.Enum):
     RUNNING = 3
     STOPPED = 4
 
+class RecurType(enum.Enum):
+    NONE = 0
+    ON_NEW_DATA = 1
+    HOURLY = 2
+    DAILY = 3
+    WEEKLY = 4
 
 VALID_TRANSITIONS = [(WorkflowState.NEW, WorkflowState.READY),
                      (WorkflowState.READY, WorkflowState.RUNNING),
@@ -96,9 +103,19 @@ class Workflow(db.Model):
     name = db.Column(db.String(255), unique=True, index=True)
     project_id = db.Column(db.Integer, db.ForeignKey(Project.id))
     config = db.Column(db.Text())
+    comment = db.Column(db.String(255))
+
     forkable = db.Column(db.Boolean, default=False)
     forked_from = db.Column(db.Integer, default=None)
-    comment = db.Column(db.String(255))
+    # index in config.job_defs instead of job's id
+    forked_job_indices = db.Column(db.TEXT())
+
+    recur_type = db.Column(db.Enum(RecurType), default=RecurType.NONE)
+    recur_at = db.Column(db.Interval)
+    trigger_dataset = db.Column(db.Integer)
+    last_triggered_batch = db.Column(db.Integer)
+
+    job_ids = db.Column(db.TEXT())
 
     state = db.Column(db.Enum(WorkflowState), default=WorkflowState.INVALID)
     target_state = db.Column(db.Enum(WorkflowState),
@@ -111,7 +128,8 @@ class Workflow(db.Model):
     updated_at = db.Column(db.DateTime(timezone=True),
                            server_onupdate=func.now(),
                            server_default=func.now())
-    jobs = db.relationship('Job', back_populates='workflow')
+
+    owned_jobs = db.relationship('Job', back_populates='workflow')
     project = db.relationship(Project)
 
     def set_config(self, proto):
@@ -126,6 +144,26 @@ class Workflow(db.Model):
             proto.ParseFromString(self.config)
             return proto
         return None
+
+    def set_job_ids(self, job_ids):
+        self.job_ids = ','.join([str(i) for i in job_ids])
+
+    def get_job_ids(self):
+        if not self.job_ids:
+            return []
+        return [int(i) for i in self.job_ids.split(',')]
+
+    def get_jobs(self):
+        return [Job.query.get(i) for i in self.get_job_ids()]
+
+    def set_forked_job_indices(self, forked_job_indices):
+        self.forked_job_indices = ','.join(
+            [str(i) for i in forked_job_indices])
+
+    def get_forked_job_indices(self):
+        if not self.forked_job_indices:
+            return []
+        return [int(i) for i in self.forked_job_indices.split(',')]
 
     def update_target_state(self, target_state):
         if self.target_state != target_state \
@@ -218,26 +256,63 @@ class Workflow(db.Model):
                 'Workflow not in prepare state'
 
         if self.target_state == WorkflowState.STOPPED:
-            for job in self.jobs:
+            for job in self.owned_jobs:
                 job.stop()
         elif self.target_state == WorkflowState.READY:
-            job_definitions = self.get_config().job_definitions
-            for job_definition in job_definitions:
-                job = Job(name=f'{self.name}-{job_definition.name}',
-                          job_type=JobType(job_definition.type),
-                          config=job_definition.SerializeToString(),
-                          workflow_id=self.id,
-                          project_id=self.project_id)
-                job.set_yaml(job_definition.yaml_template)
-                db.session.add(job)
+            self._setup_jobs()
         elif self.target_state == WorkflowState.RUNNING:
-            # Scheduler will take care of scheduling
-            for job in self.jobs:
-                job.state = JobState.READY
+            for job in self.owned_jobs:
+                job.schedule()
 
         self.state = self.target_state
         self.target_state = WorkflowState.INVALID
         self.transaction_state = TransactionState.READY
+
+    def _setup_jobs(self):
+        job_defs = self.get_config().job_definitions
+        name2index = {
+            job.name: i for i, job in enumerate(job_defs)
+        }
+
+        jobs = []
+        if self.forked_from is not None:
+            trunk = Workflow.query.get(self.forked_from)
+            assert trunk is not None, \
+                'Source workflow %d not found'%self.forked_from
+        else:
+            assert not self.get_forked_job_indices()
+
+        for i, job_def in enumerate(job_defs):
+            if i in self.get_forked_job_indices():
+                job = Job.query.get(trunk.get_job_ids()[i])
+                assert job is not None, \
+                    'Job %d not found'%trunk.get_job_ids()[i]
+                # TODO: check forked jobs does not depend on non-forked jobs
+            else:
+                job = Job(name=f'{self.name}-{job_def.name}',
+                          job_type=JobType(job_def.type),
+                          config=job_def.SerializeToString(),
+                          workflow_id=self.id,
+                          project_id=self.project_id,
+                          state=JobState.STOPPED)
+                job.set_yaml(job_def.yaml_template)
+                db.session.add(job)
+            jobs.append(job)
+        db.session.commit()
+
+        for i, job in enumerate(jobs):
+            if i in self.get_forked_job_indices():
+                continue
+            for j, dep_def in enumerate(job.get_config().dependencies):
+                dep = JobDependency(
+                    src_job_id=jobs[name2index[dep_def.source]].id,
+                    dst_job_id=job.id,
+                    dep_index=j)
+                db.session.add(dep)
+
+        self.set_job_ids([job.id for job in jobs])
+
+        db.session.commit()
 
     def log_states(self):
         logging.debug(

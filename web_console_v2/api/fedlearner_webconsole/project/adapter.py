@@ -17,7 +17,7 @@ import json
 
 DEFAULT_VALUE = {
     'NAMESPACE': 'default',
-    'STORAGE_ROOT_PATH': '/',
+    'STORAGE_ROOT_PATH': '/data',
     'CLEAN_POD_POLICY': 'All',
     'VOLUMES': '[]',
     'VOLUME_MOUNTS': '[]',
