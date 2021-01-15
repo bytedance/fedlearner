@@ -44,9 +44,12 @@ class PodLogApi(Resource):
 
 class PodContainerApi(Resource):
     def get(self, job_id, pod_name):
+        job = Job.query.filter_by(job=job_id).first()
+        if job is None:
+            raise NotFoundException()
         k8s = get_client()
         base = k8s.get_base_url()
-        container_id = k8s.get_webshell_session(ProjectK8sAdapter(job_id)
+        container_id = k8s.get_webshell_session(ProjectK8sAdapter(job.project)
                                                 .get_namespace(), pod_name,
                                                 'tensorflow')
         return {'data': {'id': container_id, 'base': base}}
