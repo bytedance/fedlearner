@@ -8,7 +8,7 @@ image:
   repository: fedlearner/fedlearner-web-console-v2
   pullPolicy: IfNotPresent
   # Overrides the image tag whose default is the chart appVersion.
-  tag: "8c8e3ad"
+  tag: "25ee029"
 
 imagePullSecrets: []
 nameOverride: ""
@@ -82,3 +82,5 @@ cluster:
     ES_PORT: 9200
     ETCD_ADDR: "fedlearner-stack-etcd.default.svc.cluster.local:2379"
     KVSTORE_TYPE: "mysql"
+    FLASK_ENV: production
+    AUTHORIZATION_MODE: EXTERNAL
