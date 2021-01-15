@@ -17,7 +17,7 @@
 import logging
 from kubernetes import client
 from fedlearner_webconsole.utils.k8s_client import (K8sClient,
-                                                    CrdLowercasePluralKind)
+                                                    CrdKind)
 
 _RAISE_EXCEPTION_KEY = 'raise_exception'
 
@@ -155,7 +155,7 @@ class FakeK8sClient(K8sClient):
     def create_from_dict(self, dic_object):
         return dic_object
 
-    def get_custom_object(self, kind: CrdLowercasePluralKind,
+    def get_custom_object(self, kind: CrdKind,
                           custom_object_name: str, namespace='default'):
         return {
             'kind': kind.value,
@@ -165,7 +165,7 @@ class FakeK8sClient(K8sClient):
             }
         }
 
-    def delete_custom_object(self, kind: CrdLowercasePluralKind,
+    def delete_custom_object(self, kind: CrdKind,
                              custom_object_name: str, namespace='default'):
         return {
             'kind': kind.value,
@@ -175,7 +175,7 @@ class FakeK8sClient(K8sClient):
             }
         }
 
-    def list_resource_of_custom_object(self, kind: CrdLowercasePluralKind,
+    def list_resource_of_custom_object(self, kind: CrdKind,
                                        custom_object_name: str,
                                        resource_type: str, namespace='default'):
         return {
@@ -199,6 +199,6 @@ class FakeK8sClient(K8sClient):
             ]
         }
 
-    def get_webshell_session(self, flapp_name: CrdLowercasePluralKind,
+    def get_webshell_session(self, flapp_name: CrdKind,
                              container_name: str, namespace='default'):
         return {'id': 1}

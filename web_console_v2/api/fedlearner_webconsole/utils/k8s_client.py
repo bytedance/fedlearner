@@ -16,6 +16,7 @@
 
 import os
 import enum
+from http import HTTPStatus
 
 import requests
 
@@ -26,7 +27,7 @@ FEDLEARNER_CUSTOM_GROUP = 'fedlearner.k8s.io'
 FEDLEARNER_CUSTOM_VERSION = 'v1alpha1'
 
 
-class CrdLowercasePluralKind(enum.Enum):
+class CrdKind(enum.Enum):
     FLAPP = 'flapps'
     SPARK_APPLICATION = 'sparkapplications'
 
@@ -41,6 +42,7 @@ class K8sClient(object):
         self._networking = client.NetworkingV1beta1Api()
         self._app = client.AppsV1Api()
         self._custom_object = client.CustomObjectsApi()
+        self._client = client.ApiClient()
         self._api_server_url = 'http://{}:{}'.format(
             os.environ.get('FL_API_SERVER_HOST', 'fedlearner-apiserver'),
             os.environ.get('FL_API_SERVER_PORT', 8101))
@@ -73,7 +75,7 @@ class K8sClient(object):
             return
         except ApiException as e:
             # 404 is expected if the secret does not exist
-            if e.status != 404:
+            if e.status != HTTPStatus.NOT_FOUND:
                 self._raise_runtime_error(e)
         try:
             self._core.create_namespaced_secret(namespace, request)
@@ -110,7 +112,7 @@ class K8sClient(object):
             return
         except ApiException as e:
             # 404 is expected if the service does not exist
-            if e.status != 404:
+            if e.status != HTTPStatus.NOT_FOUND:
                 self._raise_runtime_error(e)
         try:
             self._core.create_namespaced_service(namespace, request)
@@ -147,7 +149,7 @@ class K8sClient(object):
             return
         except ApiException as e:
             # 404 is expected if the ingress does not exist
-            if e.status != 404:
+            if e.status != HTTPStatus.NOT_FOUND:
                 self._raise_runtime_error(e)
         try:
             self._networking.create_namespaced_ingress(namespace, request)
@@ -183,7 +185,7 @@ class K8sClient(object):
             return
         except ApiException as e:
             # 404 is expected if the deployment does not exist
-            if e.status != 404:
+            if e.status != HTTPStatus.NOT_FOUND:
                 self._raise_runtime_error(e)
         try:
             self._app.create_namespaced_deployment(namespace, request)
@@ -208,7 +210,7 @@ class K8sClient(object):
         except ApiException as e:
             self._raise_runtime_error(e)
 
-    def get_custom_object(self, kind: CrdLowercasePluralKind,
+    def get_custom_object(self, kind: CrdKind,
                           custom_object_name: str, namespace='default'):
         try:
             response = self._custom_object.get_namespaced_custom_object(
@@ -221,7 +223,7 @@ class K8sClient(object):
         except ApiException as e:
             self._raise_runtime_error(e)
 
-    def delete_custom_object(self, kind: CrdLowercasePluralKind,
+    def delete_custom_object(self, kind: CrdKind,
                              custom_object_name: str, namespace='default'):
         try:
             response = self._custom_object.delete_namespaced_custom_object(
@@ -234,7 +236,7 @@ class K8sClient(object):
         except ApiException as e:
             self._raise_runtime_error(e)
 
-    def list_resource_of_custom_object(self, kind: CrdLowercasePluralKind,
+    def list_resource_of_custom_object(self, kind: CrdKind,
                                        custom_object_name: str,
                                        resource_type: str, namespace='default'):
         response = requests.get(
@@ -245,7 +247,7 @@ class K8sClient(object):
                 plural=kind.value,
                 name=custom_object_name,
                 resource_type=resource_type))
-        if response.status_code != 200:
+        if response.status_code != HTTPStatus.OK:
             raise RuntimeError('{}:{}'.format(response.status_code,
                                               response.reason))
         return response.json()
@@ -259,7 +261,7 @@ class K8sClient(object):
                 namespace=namespace,
                 custom_object_name=flapp_name,
                 container_name=container_name))
-        if response.status_code != 200:
+        if response.status_code != HTTPStatus.OK:
             raise RuntimeError('{}:{}'.format(response.status_code,
                                               response.reason))
         return response.json()
