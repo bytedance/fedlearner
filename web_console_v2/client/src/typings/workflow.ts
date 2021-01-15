@@ -195,3 +195,8 @@ export type Workflow = {
   created_at: DateTime;
   updated_at: DateTime;
 };
+
+export type WorkflowRunningDetails = {
+  jobs: Job[];
+  start_running_at: number;
+};

@@ -11,7 +11,7 @@ const workflow: I18nMessageModule = {
   action_run: { zh: '立即运行' },
   action_configure: { zh: '立即配置' },
   action_stop_running: { zh: '停止运行' },
-  action_duplicate: { zh: '复制' },
+  action_fork: { zh: '复制' },
   action_detail: { zh: '详情' },
 
   btn_close: { zh: '关闭' },
@@ -31,6 +31,9 @@ const workflow: I18nMessageModule = {
   state_failed: { zh: '失败' },
   state_stopped: { zh: '已停止' },
   state_running: { zh: '运行中' },
+  state_prepare_run: { zh: '正在启动中' },
+  state_prepare_stop: { zh: '正在停止中' },
+  state_warmup_underhood: { zh: '系统预热中' },
   state_pending_accept: { zh: '待配置' },
   state_ready_to_run: { zh: '配置成功' },
   state_configuring: { zh: '合作伙伴配置中' },

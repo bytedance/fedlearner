@@ -1,6 +1,6 @@
 import React, { FC, useState } from 'react';
 import styled from 'styled-components';
-import { Form, Select, Radio, Button, Input, Spin } from 'antd';
+import { Form, Select, Radio, Button, Input, Spin, Card } from 'antd';
 import { useTranslation } from 'react-i18next';
 import GridRow from 'components/_base/GridRow';
 import CreateTemplateForm from './CreateTemplate';
@@ -32,7 +32,7 @@ const FormsContainer = styled.div`
   width: 500px;
   margin: 0 auto;
 `;
-const Container = styled.div`
+const Container = styled(Card)`
   margin-top: 20px;
 `;
 
@@ -57,7 +57,7 @@ const WorkflowsCreateStepOne: FC<WorkflowCreateProps> = ({ isInitiate, isAccept 
   // it's will be null if it's Coordinator iniitiating
   const [workflow, setWorkflow] = useRecoilState(workflowInEditing);
 
-  const workflowRes = useQuery(['getWorkflow', params.id], getWorkflowDetail, {
+  const workflowQuery = useQuery(['getWorkflow', params.id], getWorkflowDetail, {
     // Only do workflow fetching if:
     // 1. id existed in url
     // 2. in Acception mode
@@ -65,20 +65,20 @@ const WorkflowsCreateStepOne: FC<WorkflowCreateProps> = ({ isInitiate, isAccept 
     enabled: params.id && isAccept && !Boolean(workflow),
     refetchOnWindowFocus: false,
   });
-  const peerWorkflowRes = useQuery(['getPeerWorkflow', params.id], getPeerWorkflows, {
+  const peerWorkflowQuery = useQuery(['getPeerWorkflow', params.id], getPeerWorkflows, {
     enabled: params.id && isAccept,
     refetchOnWindowFocus: false,
   });
-  const tplListRes = useQuery(
+  const tplListQuery = useQuery(
     ['getTemplateList', isLeft, groupAlias],
     async () => fetchWorkflowTemplateList({ isLeft, groupAlias }),
     {
-      enabled: isInitiate || (!!peerWorkflowRes.data && groupAlias),
+      enabled: isInitiate || (!!peerWorkflowQuery.data && groupAlias),
       refetchOnWindowFocus: false,
     },
   );
 
-  const tplList = tplListRes.data?.data.data || [];
+  const tplList = tplListQuery.data?.data || [];
   const noAvailableTpl = tplList.length === 0;
   const usingExistingTpl = formData._templateType === 'existing';
 
@@ -88,7 +88,7 @@ const WorkflowsCreateStepOne: FC<WorkflowCreateProps> = ({ isInitiate, isAccept 
   const pairingPrefix = isAccept ? 'pairing_' : '';
 
   return (
-    <Spin spinning={workflowRes.isLoading}>
+    <Spin spinning={workflowQuery.isLoading}>
       <Container>
         <FormsContainer>
           <Form
@@ -149,12 +149,12 @@ const WorkflowsCreateStepOne: FC<WorkflowCreateProps> = ({ isInitiate, isAccept 
                 hasFeedback
                 rules={[{ required: true, message: t('workflow.msg_template_required') }]}
               >
-                {noAvailableTpl && !tplListRes.isLoading && !tplListRes.isIdle ? (
+                {noAvailableTpl && !tplListQuery.isLoading && !tplListQuery.isIdle ? (
                   <span>{t(`workflow.msg_${pairingPrefix}no_abailable_tpl`)}</span>
                 ) : (
                   <Select
-                    loading={tplListRes.isLoading}
-                    disabled={Boolean(tplListRes.error) || noAvailableTpl}
+                    loading={tplListQuery.isLoading}
+                    disabled={Boolean(tplListQuery.error) || noAvailableTpl}
                     onChange={onTemplateSelectChange}
                     placeholder={t('workflow.placeholder_template')}
                   >
@@ -219,12 +219,12 @@ const WorkflowsCreateStepOne: FC<WorkflowCreateProps> = ({ isInitiate, isAccept 
   }
   async function getWorkflowDetail() {
     const { data } = await getWorkflowDetailById(params.id);
-    setWorkflow(data.data);
-    formInstance.setFieldsValue((data.data as any) as StepOneForm);
+    setWorkflow(data);
+    formInstance.setFieldsValue((data as any) as StepOneForm);
   }
   async function getPeerWorkflows() {
     const res = await getPeerWorkflowsConfig(params.id);
-    const anyPeerWorkflow = Object.values(res.data.data).find((item) => !!item.config)!;
+    const anyPeerWorkflow = Object.values(res.data).find((item) => !!item.config)!;
     setGroupAlias(anyPeerWorkflow.config?.group_alias || '');
 
     return res;

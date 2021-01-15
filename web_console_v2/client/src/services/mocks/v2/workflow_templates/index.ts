@@ -5,7 +5,7 @@ const barTpl = stringifyWidgetSchemas(exampleWorkflow.data as any);
 const simpleTpl = {
   id: 1,
   name: 'simple',
-  comment: 'simplesimple',
+  comment: 'Comment here',
   group_alias: 'test-2',
   config: {
     group_alias: 'test-2',

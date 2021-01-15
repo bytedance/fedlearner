@@ -10,6 +10,12 @@ declare module 'axios' {
     removeFalsy?: boolean;
     snake_case?: boolean;
   }
+
+  // AxiosResponse has a struct like { data: YourRealResponse, status, config },
+  // but we only want YourRealResponse as return,
+  // thus we implement an interceptor to extract AxiosResponse.data
+  // plus a typing overriding below to achieve the goal
+  export interface AxiosResponse<T = any> extends Promise<T> {}
 }
 
 export class ServerError extends Error {
@@ -32,7 +38,10 @@ if (process.env.NODE_ENV === 'development' || process.env.REACT_APP_ENABLE_FULLY
   // NOTE: DEAD CODES HERE
   // will be removed during prod building
 
-  request = axios.create({ adapter: require('./mockAdapter').default, baseURL: HOSTNAME });
+  request = axios.create({
+    adapter: require('./mockAdapter').default,
+    baseURL: HOSTNAME,
+  });
 
   // Mock controlling
   request.interceptors.request.use((config) => {
@@ -82,15 +91,18 @@ request.interceptors.request.use((config) => {
   return config;
 });
 
-/** Error prehandler */
+/** Extract data handler & Error prehandler */
 request.interceptors.response.use(
   (response) => {
-    return response;
+    return response.data;
   },
   (error) => {
     const response = error.response.data;
     if (response && typeof response === 'object') {
-      const serverError = new ServerError(error.response.data.message, error.satus);
+      const serverError = new ServerError(
+        error.response.data.message || error.response.data.msg,
+        error.satus,
+      );
 
       return Promise.reject(serverError);
     }

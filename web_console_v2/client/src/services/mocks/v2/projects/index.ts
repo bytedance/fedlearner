@@ -23,7 +23,7 @@ const project_list = new Array(5).fill(undefined).map((_, index) => {
     created_at: 1608582145,
     updated_at: 1608582145,
     deleted_at: null,
-    workflow_num: ~~(Math.random() * 10),
+    num_workflow: ~~(Math.random() * 10),
   };
 });
 

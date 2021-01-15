@@ -104,7 +104,7 @@ const getCellContent = function (i18nKey: string, project: Project): ReactElemen
     case 'project.workflow_number':
       return (
         <Describe
-          text={String(project.workflow_num)}
+          text={String(project.num_workflow)}
           style={{ lineHeight: '50px', color: '#1A2233', fontSize: '13px' }}
         />
       );

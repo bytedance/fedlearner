@@ -16,7 +16,6 @@ async function axiosMockAdapter(config: AxiosRequestConfig) {
       }
 
       let data = require(`../services/mocks${config.url}`)[exportKey];
-
       if (typeof data === 'function') {
         data = data(config);
       }

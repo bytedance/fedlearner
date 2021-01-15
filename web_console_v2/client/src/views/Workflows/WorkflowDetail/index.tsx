@@ -5,12 +5,14 @@ import { useParams } from 'react-router-dom';
 import { useQuery } from 'react-query';
 import { getWorkflowDetailById } from 'services/workflow';
 import { Job } from 'typings/workflow';
-import WorkflowJobsFlowChart from 'components/WorlflowJobsFlowChart';
-import { isStopped, isRunning, isReadyToRun } from 'shared/workflow';
+import WorkflowJobsFlowChart from 'components/WorkflowJobsFlowChart';
+import { isRunning, isReadyToRun } from 'shared/workflow';
 import GridRow from 'components/_base/GridRow';
 import { useTranslation } from 'react-i18next';
-import { CopyOutlined, SyncOutlined } from '@ant-design/icons';
-import exampleTpl from 'services/mocks/v2/workflow_templates/example';
+import { CopyOutlined, SyncOutlined, BookOutlined } from '@ant-design/icons';
+import { xShapeTemplate } from 'services/mocks/v2/workflow_templates/example';
+import ProjectCell from 'components/ProjectCell';
+import { fromNow } from 'shared/date';
 
 const ChartSection = styled.section`
   margin-top: 16px;
@@ -50,11 +52,15 @@ const WorkflowDetail: FC = () => {
   const params = useParams<{ id: string }>();
   const { t } = useTranslation();
 
-  const { isLoading, data, error } = useQuery(['getWorkflowDetailById', params.id], () =>
-    getWorkflowDetailById(params.id),
+  const { isLoading, data, error } = useQuery(
+    ['getWorkflowDetailById', params.id],
+    () => getWorkflowDetailById(params.id),
+    {
+      cacheTime: 1,
+    },
   );
 
-  const workflow = data?.data.data;
+  const workflow = data?.data;
 
   return (
     <Spin spinning={isLoading}>
@@ -69,27 +75,33 @@ const WorkflowDetail: FC = () => {
               {isRunning(workflow) && (
                 <Button size="small">{t('workflow.action_stop_running')}</Button>
               )}
-              <Button size="small" icon={<SyncOutlined />}>
+              <Button size="small" icon={<BookOutlined />}>
                 {t('workflow.btn_show_report')}
               </Button>
               <Button size="small" icon={<SyncOutlined />}>
                 {t('workflow.action_re_run')}
               </Button>
               <Button size="small" icon={<CopyOutlined />}>
-                {t('workflow.action_duplicate')}
+                {t('workflow.action_fork')}
               </Button>
             </GridRow>
           )}
         </Row>
         <PropsRow>
           <Col span={8}>
-            <Prop data-label={t('workflow.label_template_name')}>111</Prop>
+            <Prop data-label={t('workflow.label_template_name')}>
+              {workflow?.config?.group_alias}
+            </Prop>
           </Col>
           <Col span={8}>
-            <Prop data-label={t('workflow.label_project')}>2222</Prop>
+            <Prop data-label={t('workflow.label_project')}>
+              <ProjectCell id={workflow?.project_id || 0} />
+            </Prop>
           </Col>
           <Col span={8}>
-            <Prop data-label={t('workflow.label_running_time')}>3333</Prop>
+            <Prop data-label={t('workflow.label_running_time')}>
+              {fromNow(workflow?.start_running_at || 1610238602, true)}
+            </Prop>
           </Col>
         </PropsRow>
       </Card>
@@ -98,7 +110,7 @@ const WorkflowDetail: FC = () => {
         <Header>
           <ChartTitle>{t('workflow.our_config')}</ChartTitle>
         </Header>
-        <WorkflowJobsFlowChart jobs={exampleTpl.data.config!.job_definitions as Job[]} />
+        <WorkflowJobsFlowChart jobs={workflow?.config?.job_definitions || []} />
       </ChartSection>
     </Spin>
   );

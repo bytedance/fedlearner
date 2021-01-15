@@ -43,7 +43,7 @@ const CreateTemplateForm: FC<Props> = ({ onSuccess, onError, groupAlias, isLeft 
       return message.error(error.message);
     }
 
-    onSuccess && onSuccess(res.data.data);
+    onSuccess && onSuccess(res.data);
   }, [formInstance, onError, onSuccess]);
 
   // Subscribe if need request to create new one

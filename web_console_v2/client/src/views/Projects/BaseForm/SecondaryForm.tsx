@@ -1,4 +1,4 @@
-import React, { ReactElement } from 'react';
+import React, { FC } from 'react';
 import styled from 'styled-components';
 
 const Container = styled.div`
@@ -20,20 +20,13 @@ const Body = styled.div`
   margin-top: 32px;
 `;
 
-interface Props {
-  children: React.ReactNode;
-  title: string;
-  suffix?: React.ReactNode;
-}
-
-function SecondaryForm({ title, children, suffix }: Props): ReactElement {
+const SecondaryForm: FC<{ title: string }> = ({ title, children }) => {
   return (
     <Container>
       <Header>{title}</Header>
       <Body>{children}</Body>
-      {suffix ?? null}
     </Container>
   );
-}
+};
 
 export default SecondaryForm;

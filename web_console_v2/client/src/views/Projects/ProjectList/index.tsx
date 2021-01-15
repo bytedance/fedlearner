@@ -55,8 +55,12 @@ function ProjectList(): ReactElement {
     }
   }, [pageSize, currentPage, projectList]);
 
+  const isEmpty = projectListShow.length === 0;
+
   return (
     <Spin spinning={isLoading}>
+      <GlobalStyle />
+
       <ListPageLayout title={t('menu.label_project')} tip={t('project.describe')}>
         <ProjectListFilters
           onDisplayTypeChange={(type: number) => {
@@ -77,7 +81,6 @@ function ProjectList(): ReactElement {
           showSizeChanger
           onChange={handleChange}
         />
-        <GlobalStyle />
       </ListPageLayout>
     </Spin>
   );

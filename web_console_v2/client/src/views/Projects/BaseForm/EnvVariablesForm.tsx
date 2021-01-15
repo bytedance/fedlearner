@@ -68,7 +68,7 @@ const Header = styled.div`
   }
 `;
 
-function EnvPathsForm(): ReactElement {
+function EnvVariablesForm(): ReactElement {
   const { t } = useTranslation();
   const [isFolded, toggleFolded] = useToggle(true);
 
@@ -95,7 +95,7 @@ function EnvPathsForm(): ReactElement {
               <>
                 {fields.map((field, index) => (
                   <Space
-                    key={field.key}
+                    key={field.key + index}
                     style={{ display: 'flex', marginBottom: 8 }}
                     align="baseline"
                   >
@@ -117,6 +117,7 @@ function EnvPathsForm(): ReactElement {
                     >
                       <Input.TextArea placeholder="value" rows={1} />
                     </Form.Item>
+
                     <TrashCan onClick={() => remove(field.name)} />
                   </Space>
                 ))}
@@ -132,4 +133,4 @@ function EnvPathsForm(): ReactElement {
   );
 }
 
-export default EnvPathsForm;
+export default EnvVariablesForm;

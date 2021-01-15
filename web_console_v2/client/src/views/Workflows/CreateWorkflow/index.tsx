@@ -10,7 +10,7 @@ import { useTranslation } from 'react-i18next';
 
 const { Step } = Steps;
 
-const FormArea = styled(Card)`
+const FormArea = styled.section`
   flex: 1;
   margin-top: 12px;
   background-color: white;

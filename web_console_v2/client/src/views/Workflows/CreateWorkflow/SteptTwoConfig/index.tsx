@@ -3,8 +3,8 @@ import styled from 'styled-components';
 import { ReactFlowProvider, useStoreState } from 'react-flow-renderer';
 import { useToggle } from 'react-use';
 import JobFormDrawer, { JobFormDrawerExposedRef } from './JobFormDrawer';
-import WorkflowJobsFlowChart, { updateNodeStatusById } from 'components/WorlflowJobsFlowChart';
-import { JobNode, JobNodeData, JobNodeStatus } from 'components/WorlflowJobsFlowChart/helpers';
+import WorkflowJobsFlowChart, { updateNodeStatusById } from 'components/WorkflowJobsFlowChart';
+import { JobNode, JobNodeData, JobNodeStatus } from 'components/WorkflowJobsFlowChart/helpers';
 import GridRow from 'components/_base/GridRow';
 import { Button, message, Modal, Spin } from 'antd';
 import { ExclamationCircleOutlined } from '@ant-design/icons';
@@ -56,7 +56,6 @@ const CanvasAndForm: FC<WorkflowCreateProps> = ({ isInitiate, isAccept }) => {
   const isDisabled = { disabled: submitting };
 
   if (currentWorkflowTpl === null) {
-    debugger;
     const redirectTo = isInitiate
       ? '/workflows/initiate/basic'
       : `/workflows/accept/basic/${params.id}`;

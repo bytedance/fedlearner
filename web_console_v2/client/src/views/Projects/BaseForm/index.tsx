@@ -4,7 +4,7 @@ import { Form, Input, Button, Radio, message, Modal } from 'antd';
 import { ExclamationCircleOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import SecondaryForm from './SecondaryForm';
-import EnvPathsForm from './EnvPathsForm';
+import EnvVariablesForm from './EnvVariablesForm';
 import { CertificateConfigType } from 'typings/project';
 import {
   ProjectFormInitialValues,
@@ -103,7 +103,7 @@ function BaseForm({ onSubmit, edit, initialValues }: Props): ReactElement {
             <Input name="name" placeholder={t('project.name_placeholder')} disabled={edit} />
           </Form.Item>
         </SecondaryForm>
-        <SecondaryForm title={t('project.participant_information')} suffix={<EnvPathsForm />}>
+        <SecondaryForm title={t('project.participant_information')}>
           <Form.Item
             hasFeedback
             name="participantName"
@@ -183,6 +183,8 @@ function BaseForm({ onSubmit, edit, initialValues }: Props): ReactElement {
               placeholder={t('project.remarks_placeholder')}
             />
           </Form.Item>
+
+          <EnvVariablesForm />
         </SecondaryForm>
 
         <SubmitContainer>

@@ -1,17 +1,26 @@
 import React, { FC } from 'react';
 import styled from 'styled-components';
-import question from 'assets/images/question.svg';
 import { Tooltip, Card } from 'antd';
 import GridRow from 'components/_base/GridRow';
+import { QuestionCircle } from 'components/IconPark';
 
 const Container = styled(Card)`
   min-height: calc(100vh - 60px - 32px);
 
   > .ant-card-body {
-    display: grid;
-    grid-auto-flow: row;
-    grid-gap: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
     padding: 22px 24px;
+
+    @supports (gap: 18px) {
+      gap: 18px;
+    }
+    @supports not (gap: 18px) {
+      > *::not(::last-child) {
+        margin-bottom: 18px;
+      }
+    }
 
     &::before {
       content: none;
@@ -28,6 +37,9 @@ const ListTitle = styled.h2`
   font-size: 20px;
   line-height: 28px;
 `;
+const Tip = styled(Tooltip)`
+  line-height: 0;
+`;
 
 interface Props {
   title: string;
@@ -42,10 +54,9 @@ const ListPageCard: FC<Props> = ({ title, children, tip }) => {
         <ListTitle className="title">{title}</ListTitle>
 
         {tip && (
-          <Tooltip title={tip} placement="rightBottom">
-            {/* FIXME: icon park */}
-            <img src={question} alt="" className="title-question" />
-          </Tooltip>
+          <Tip title={tip} placement="rightBottom">
+            <QuestionCircle />
+          </Tip>
         )}
       </GridRow>
 

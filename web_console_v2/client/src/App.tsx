@@ -6,7 +6,6 @@ import RouterViews from 'views';
 import { Switch, Route } from 'react-router-dom';
 import Login from 'views/Login';
 import { useRecoilQuery } from 'hooks/recoil';
-import { projectListQuery } from 'stores/projects';
 import { userInfoQuery } from 'stores/user';
 
 const AppLayout = styled.div`
@@ -39,7 +38,6 @@ const AppMainContent = styled.main`
 `;
 
 function App(): ReactElement {
-  useRecoilQuery(projectListQuery);
   useRecoilQuery(userInfoQuery);
 
   return (

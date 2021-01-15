@@ -13,8 +13,6 @@ export const userInfoState = atom<FedUserInfo>({
     username: '',
     name: '',
     email: '',
-    tel: '',
-    avatar: '',
     role: '',
   },
 });

@@ -10,9 +10,9 @@ export const projectListQuery = selector({
   get: async ({ get }) => {
     get(forceReloadProjectList);
     try {
-      const { data } = await fetchProjectList();
+      const res = await fetchProjectList();
 
-      return data.data;
+      return res.data;
     } catch (error) {
       throw error;
     }

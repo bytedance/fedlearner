@@ -90,10 +90,12 @@ const WorkflowList: FC = () => {
 
   return (
     <ListPageLayout title={t('menu.label_workflow')}>
-      <Row gutter={16} justify="space-between">
+      <Row gutter={16} justify="space-between" align="middle">
         <Col>
           <Link to="/workflows/initiate/basic">
-            <Button type="primary">{t('workflow.create_workflow')}</Button>
+            <Button size="large" type="primary">
+              {t('workflow.create_workflow')}
+            </Button>
           </Link>
         </Col>
         <Col>
@@ -117,7 +119,7 @@ const WorkflowList: FC = () => {
         </Col>
       </Row>
 
-      <Table loading={isLoading} dataSource={res?.data.data || []} columns={tableColumns} />
+      <Table loading={isLoading} dataSource={res?.data || []} columns={tableColumns} />
     </ListPageLayout>
   );
 };

@@ -5,4 +5,9 @@ const get = {
   status: 200,
 };
 
+export const put = {
+  data: { data: {} },
+  status: 200,
+};
+
 export default get;
