@@ -37,6 +37,8 @@ class _CmpCtnt(object):
         assert isinstance(other, _CmpCtnt)
         return self._event_time == other._event_time and \
                 self._example_id == other._example_id
+    def __str__(self):
+        return "%s:%s"%(self._example_id, self._event_time)
 
 class _JoinWindow(object):
     def __init__(self, pt_rate, qt_rate):
@@ -156,6 +158,16 @@ class StreamExampleJoiner(ExampleJoiner):
                 join_data_finished = not delay_dump
             elif follower_exhausted:
                 join_data_finished = True
+            logging.info("delay_dump %s, join_data_finished %s, "
+                           "leader_exhausted %s, follower_exhausted %s",
+                           delay_dump, join_data_finished, leader_exhausted,
+                           follower_exhausted)
+            logging.info("leader window size %d, follwer %d, "
+                           "follower cache %d, leader unjoined example %d",
+                           self._leader_join_window.size(),
+                           self._follower_join_window.size(),
+                          len(self._follower_example_cache),
+                          len(self._leader_unjoined_example_ids))
             if delay_dump or join_data_finished:
                 break
         if self._get_data_block_builder(False) is not None and \
@@ -177,6 +189,8 @@ class StreamExampleJoiner(ExampleJoiner):
             return False
         leader_qt = self._leader_join_window.qt()
         follower_qt = self._follower_join_window.qt()
+        logging.info("Need_delay_dump leader %s, follower %s",
+                     leader_qt, follower_qt)
         if leader_qt is not None and follower_qt is not None and \
                 not follower_qt < leader_qt:
             return False
@@ -302,13 +316,17 @@ class StreamExampleJoiner(ExampleJoiner):
 
     def _evit_stale_follower_cache(self):
         start_tm = time.time()
+        tmp_sz = self._follower_join_window.size()
         reserved_items = self._evict_impl(self._follower_join_window,
                                           self._evict_if_useless)
+        logging.info("evict_if_useless %d to %d", tmp_sz, len(reserved_items))
         if len(reserved_items) < self._max_window_size:
             self._follower_join_window.reset(reserved_items, False)
             return
+        tmp_sz = len(reserved_items)
         reserved_items = self._evict_impl(reserved_items,
                                           self._evict_if_force)
+        logging.info("evict_if_force %d to %d", tmp_sz, len(reserved_items))
         self._follower_join_window.reset(reserved_items, False)
         metrics.emit_timer(name='stream_joiner_evit_stale_follower_cache',
                            value=int(time.time()-start_tm),
