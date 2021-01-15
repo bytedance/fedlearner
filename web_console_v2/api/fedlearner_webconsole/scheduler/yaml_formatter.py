@@ -51,17 +51,27 @@ class YamlFormatter(Formatter):
         # loop through the rest of the field_name, doing
         #  getattr or getitem as needed
         for is_attr, i in rest:
-            if is_attr:
-                if hasattr(obj, i):
-                    obj = getattr(obj, i)
-                else:
-                    if i == 'variables':
-                        obj = obj.get_config().variables
-                        continue
-                    for item in obj:
-                        if item.name == i:
-                            obj = getattr(item, 'value') if hasattr(item, 'value') else item
-                            break
+            if isinstance(obj, dict):
+                if i in obj:
+                    obj = obj[i]
+                    continue
+                obj = 'unknown_variable'
+                continue
+            if hasattr(obj, i):
+                obj = getattr(obj, i)
             else:
-                obj = obj[i]
+                if hasattr(obj, 'get_config') and i == 'variables':
+                    obj = obj.get_config().variables
+                    continue
+                flag = True
+                for item in obj:
+                    name = item.name.split('-')[-1]
+                    if name == i:
+                        obj = getattr(item, 'value') \
+                            if hasattr(item, 'value') else item
+                        flag = False
+                        break
+                if flag:
+                    # TODO: raise exception to check out invalid config
+                    obj = 'unknown_variable'
         return obj, first

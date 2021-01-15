@@ -15,6 +15,7 @@
 # coding: utf-8
 import threading
 import logging
+import os
 from fedlearner_webconsole.job.models import Job, JobState
 from fedlearner_webconsole.db import db
 from fedlearner_webconsole.project.adapter import ProjectK8sAdapter
@@ -87,9 +88,16 @@ class JobScheduler(object):
         project_adapter = ProjectK8sAdapter(job.project_id)
         k8s_client = get_client()
         formatter = YamlFormatter()
-        yaml = formatter.format(format_string=job.yaml,
+        system_dict = {
+            'basic_envs': os.environ.get(
+                'BASIC_ENVS',
+                '{"name": "BASIC_ENVS","value": null}')}
+        # TODO: move format to workflow's creating stage
+        #  to check whether the config is valid
+        yaml = formatter.format(job.yaml,
                                 workflow=job.workflow,
-                                project=job.project)
+                                project=job.project,
+                                system=system_dict)
         k8s_client.create_flapp(project_adapter.
                                 get_namespace(), yaml)
 
