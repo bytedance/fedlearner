@@ -81,8 +81,8 @@ class RoutineWorker(object):
 
     def _parse_ex(self, e):
         new_err_msg = "%s" % e
-        new_err_code = re.findall(new_err_msg,
-                                    r'Received http2 header with status: (\d+)')
+        new_err_code = re.findall(r'Received http2 header with status: (\d+)',
+                                  new_err_msg)
         if len(new_err_code) == 0:
             return None, new_err_msg
         return new_err_code[0], new_err_msg
@@ -115,7 +115,6 @@ class RoutineWorker(object):
             except Exception as e: # pylint: disable=broad-except
                 new_err_code, new_err = self._parse_ex(e)
                 if err_code != new_err_code:
-                    logging.info("err_code %s, new %s", err_code, new_err_code)
                     # only dedup network error
                     if new_err_code is not None:
                         err_code = new_err_code
