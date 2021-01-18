@@ -84,3 +84,4 @@ cluster:
     KVSTORE_TYPE: "mysql"
     FLASK_ENV: production
     AUTHORIZATION_MODE: EXTERNAL
+    WEBCONSOLE_INGRESS_NAME: v2.fedlearner.webconsole

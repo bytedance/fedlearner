@@ -58,6 +58,32 @@ def _handle_uncaught_exception(error):
     response.status_code = HTTPStatus.INTERNAL_SERVER_ERROR
     return response
 
+@jwt.unauthorized_loader
+def _handle_unauthorized_request(reason):
+    response = jsonify(
+        code=HTTPStatus.UNAUTHORIZED,
+        msg=reason
+    )
+    response.status_code = HTTPStatus.UNAUTHORIZED
+    return response
+
+@jwt.invalid_token_loader
+def _handle_invalid_jwt_request(reason):
+    response = jsonify(
+        code=HTTPStatus.UNPROCESSABLE_ENTITY,
+        msg=reason
+    )
+    response.status_code = HTTPStatus.UNPROCESSABLE_ENTITY
+    return response
+
+@jwt.expired_token_loader
+def _handle_token_expired_request(expired_token):
+    response = jsonify(
+        code=HTTPStatus.UNAUTHORIZED,
+        msg='Token has expired'
+    )
+    response.status_code = HTTPStatus.UNAUTHORIZED
+    return response
 
 def create_app(config):
     app = Flask('fedlearner_webconsole')
