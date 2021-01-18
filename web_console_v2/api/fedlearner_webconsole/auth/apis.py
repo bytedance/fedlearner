@@ -22,17 +22,16 @@ from flask_jwt_extended import jwt_required, \
     create_access_token, get_raw_jwt
 
 from fedlearner_webconsole.db import db, jwt
-from fedlearner_webconsole.auth.models import User
+from fedlearner_webconsole.auth.models import User, RevokedToken
 from fedlearner_webconsole.exceptions import (
     NotFoundException, InvalidArgumentException,
     ResourceConflictException, UnauthorizedException)
 
-blacklist = set()
 
 @jwt.token_in_blacklist_loader
 def check_if_token_in_blacklist(decrypted_token):
     jti = decrypted_token['jti']
-    return jti in blacklist
+    return RevokedToken.is_jti_blacklisted(jti)
 
 
 class SigninApi(Resource):
@@ -124,7 +123,10 @@ class UserSignOutApi(Resource):
     @jwt_required
     def post(self):
         jti = get_raw_jwt()['jti']
-        blacklist.add(jti)
+        # invalidate access token
+        revoked_token = RevokedToken(jti=jti)
+        db.session.add(revoked_token)
+        db.session.commit()
         return {'message': 'Successfully logged out'}, HTTPStatus.OK
 
 
