@@ -49,6 +49,13 @@ class RpcClient(object):
 
     def _get_metadata(self):
         metadata = []
+        x_host = 'v2.fedlearner.webconsole'
+        for variable in self._project.variables:
+            if variable.name == 'X_HOST':
+                x_host = variable.value
+                break
+        metadata.append(('x-host', x_host))
+
         for key, value in self._receiver.grpc_spec.extra_headers.items():
             metadata.append((key, value))
         # metadata is a tuple of tuples

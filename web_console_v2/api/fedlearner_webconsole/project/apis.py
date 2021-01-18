@@ -213,13 +213,6 @@ class CheckConnectionApi(Resource):
 
     def check_connection(self, project_config: ProjectProto,
                          participant_proto: ParticipantProto):
-        participant_proto.grpc_spec.extra_headers['x-host'] = \
-            'v2.fedlearner.webconsole'
-        for variable in project_config.variables:
-            if variable.name == 'X_HOST':
-                participant_proto.grpc_spec.extra_headers['x-host'] = \
-                    variable.value
-                break
         client = RpcClient(project_config, participant_proto)
         return client.check_connection()
 
