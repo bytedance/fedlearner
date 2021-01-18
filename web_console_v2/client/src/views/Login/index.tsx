@@ -1,64 +1,75 @@
-import React, { useCallback } from 'react';
+import React, { FC } from 'react';
 import styled from 'styled-components';
 import { Input, Checkbox, Form, Button, message } from 'antd';
 import { EyeInvisibleOutlined, EyeTwoTone } from '@ant-design/icons';
 import loginLeftBg from 'assets/images/login-left-bg.jpg';
 import logoWhite from 'assets/images/logo-white.svg';
+import logColorful from 'assets/images/logo-colorful.svg';
 import { MixinFlexAlignCenter } from 'styles/mixins';
 import { login } from 'services/user';
-import { useHistory } from 'react-router-dom';
+import { Redirect, useHistory } from 'react-router-dom';
 import { useToggle } from 'react-use';
 import { useTranslation } from 'react-i18next';
 import store from 'store2';
 import LOCAL_STORAGE_KEYS from 'shared/localStorageKeys';
 import { FedLoginFormData } from 'typings/auth';
+import { useRecoilQuery } from 'hooks/recoil';
+import { userInfoQuery } from 'stores/user';
 
 const Layout = styled.main`
   display: grid;
   grid-template-areas: 'left right';
-  grid-template-columns: minmax(0, 37%) 1fr;
+  grid-template-columns: 520px 1fr;
   min-width: 500px;
   height: 100vh;
   min-height: 500px;
   background-color: #fff;
 
-  @media screen and (max-width: 1040px) {
-    grid-template-columns: 1fr 520px;
+  @media screen and (max-width: 1000px) {
+    grid-template-columns: 0 1fr;
   }
 `;
-
 const Block = styled.section`
+  position: relative;
   height: 100%;
 `;
-
-const Slogan = styled.h1`
-  color: white;
-  font-size: 50px;
-  font-weight: bolder;
-`;
-
 const Left = styled(Block)`
-  ${MixinFlexAlignCenter()}
-
   display: flex;
+  justify-content: center;
+  align-items: center;
   flex-direction: column;
   background: url(${logoWhite}) top 24px left 32px no-repeat,
     linear-gradient(270deg, rgba(40, 106, 244, 0.9) 0%, rgba(62, 151, 254, 0.9) 100%),
     url(${loginLeftBg}) no-repeat;
   background-size: 121px auto, contain, cover;
 
-  @media screen and (max-width: 520px) {
-    display: none;
+  > * {
+    transform: translateY(-9vh);
   }
 `;
-
+const Slogan = styled.h1`
+  width: 80%;
+  margin-bottom: 0;
+  color: white;
+  font-size: 50px;
+  font-weight: bolder;
+`;
+const Vision = styled.small`
+  width: 80%;
+  font-size: 16px;
+  line-height: 22px;
+  color: white;
+`;
 const Right = styled(Block)`
   ${MixinFlexAlignCenter()}
 
   display: flex;
   background-color: white;
-`;
 
+  @media screen and (max-width: 1000px) {
+    background: url(${logColorful}) top 24px left 32px no-repeat;
+  }
+`;
 const LoginForm = styled(Form)`
   width: 360px;
 
@@ -67,56 +78,42 @@ const LoginForm = styled(Form)`
     font-size: 27px;
     line-height: 36px;
   }
-
   > .ant-space {
     display: flex;
   }
-
-  .aggrement {
+  .no-account {
     margin-top: 16px;
-    color: #7a8499;
-    font-size: 13px;
+    color: var(--textColorSecondary);
+    font-size: 12px;
+    white-space: nowrap;
   }
-
   > .checkboxItem {
     margin-bottom: 0;
   }
 `;
-
 const LoginFormButton = styled(Button)`
   width: 100%;
 `;
-
 const LoginFormCheckbox = styled(Checkbox)`
   color: #7a8499;
 `;
 
-function Login() {
+const Login: FC = () => {
   const history = useHistory();
   const { t } = useTranslation();
   const [submitting, toggleSubmit] = useToggle(false);
 
-  const onSubmit = useCallback(
-    async (payload: unknown) => {
-      toggleSubmit(true);
-      try {
-        const { data } = await login(payload as FedLoginFormData);
+  const userQuery = useRecoilQuery(userInfoQuery);
 
-        store.set(LOCAL_STORAGE_KEYS.current_user, { ...data, date: Date.now() });
-
-        history.push('/');
-      } catch (error) {
-        message.error(error.message);
-      }
-      toggleSubmit(false);
-    },
-    [toggleSubmit, history],
-  );
+  if (userQuery.data?.id) {
+    return <Redirect to="/projects" />;
+  }
 
   return (
     <Layout>
       <Left>
         <Slogan>{t('login.slogan')}</Slogan>
+        <Vision>{t('login.vision')}</Vision>
       </Left>
 
       <Right>
@@ -146,7 +143,7 @@ function Login() {
           </Form.Item>
 
           <Form.Item name="remember" valuePropName="checked" className="checkboxItem">
-            <LoginFormCheckbox>记住登录状态</LoginFormCheckbox>
+            <LoginFormCheckbox>{t('login.remember')}</LoginFormCheckbox>
           </Form.Item>
 
           <Form.Item>
@@ -154,11 +151,9 @@ function Login() {
               {t('login.button')}
             </LoginFormButton>
 
-            <p className="aggrement">
-              {t('login.aggrement', {
-                terms: `${t('terms')}`,
-                privacy: `${t('privacy')}`,
-                interpolation: { escapeValue: false },
+            <p className="no-account">
+              {t('login.no_account_tip', {
+                email: 'admin@fedlearner.com',
               })}
             </p>
           </Form.Item>
@@ -168,6 +163,20 @@ function Login() {
   );
 
   // -------- Handlers ------------
-}
+
+  async function onSubmit(payload: unknown) {
+    toggleSubmit(true);
+    try {
+      const { data } = await login(payload as FedLoginFormData);
+
+      store.set(LOCAL_STORAGE_KEYS.current_user, { ...data, date: Date.now() });
+
+      history.push('/');
+    } catch (error) {
+      message.error(error.message);
+    }
+    toggleSubmit(false);
+  }
+};
 
 export default Login;

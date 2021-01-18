@@ -150,6 +150,12 @@ export type WorkflowInitiatePayload = {
   comment?: string;
 };
 
+export type WorkflowAcceptPayload = {
+  forkable: boolean;
+  config: WorkflowConfig;
+  comment?: string;
+};
+
 export enum WorkflowState {
   INVALID = 'INVALID',
   NEW = 'NEW',
@@ -188,4 +194,9 @@ export type Workflow = {
   transaction_err: string | null;
   created_at: DateTime;
   updated_at: DateTime;
+};
+
+export type WorkflowRunningDetails = {
+  jobs: Job[];
+  start_running_at: number;
 };

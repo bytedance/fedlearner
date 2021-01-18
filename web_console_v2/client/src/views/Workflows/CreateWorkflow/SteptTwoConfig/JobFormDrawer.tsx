@@ -19,8 +19,8 @@ import {
   getNodeIdByJob,
   JobNodeData,
   JobNodeStatus,
-} from 'components/WorlflowJobsFlowChart/helpers';
-import { updateNodeStatusById } from 'components/WorlflowJobsFlowChart';
+} from 'components/WorkflowJobsFlowChart/helpers';
+import { updateNodeStatusById } from 'components/WorkflowJobsFlowChart';
 import { cloneDeep } from 'lodash';
 import { useRecoilState } from 'recoil';
 import { workflowJobsConfigForm } from 'stores/workflow';

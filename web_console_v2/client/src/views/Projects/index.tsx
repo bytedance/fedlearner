@@ -10,7 +10,7 @@ const ProjectsPage: FC = () => {
     <ErrorBoundary>
       <Route path="/projects" exact component={ProjectList} />
       <Route path="/projects/create" exact component={CreateProject} />
-      <Route path="/projects/edit" exact component={EditProject} />
+      <Route path="/projects/edit/:id" exact component={EditProject} />
     </ErrorBoundary>
   );
 };

@@ -1,7 +1,7 @@
 import { newlyCreated } from './example';
 
 const get = {
-  data: newlyCreated,
+  data: { data: newlyCreated },
   status: 200,
 };
 

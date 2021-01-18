@@ -1,6 +1,12 @@
 import { convertToUnit } from 'shared/helpers';
 import defaultTheme from './_theme';
 
+export function MixinFontClarity() {
+  return `
+    font-family: 'ClarityMono', sans-serif;
+  `;
+}
+
 export function MixinSquare(size: any) {
   const converted = convertToUnit(size);
   return `

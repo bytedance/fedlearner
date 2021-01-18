@@ -5,6 +5,7 @@ import menu from './modules/menu';
 import error from './modules/error';
 import upload from './modules/upload';
 import term from './modules/term';
+import app from './modules/app';
 
 const messages = {
   translation: {
@@ -15,6 +16,7 @@ const messages = {
     menu: menu.en,
     project: project.en,
     workflow: workflow.en,
+    app: app.en,
 
     all: 'All',
     terms: 'Terms of Services',

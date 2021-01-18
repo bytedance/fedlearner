@@ -5,13 +5,15 @@ import StepOneBasic from './StepOneBasic';
 import SteptTwoConfig from './SteptTwoConfig';
 import { useSubscribe } from 'hooks';
 import WORKFLOW_CHANNELS from './pubsub';
-import { Prompt, Route, useParams } from 'react-router-dom';
+import { Route, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 
 const { Step } = Steps;
 
-const FormArea = styled.main`
+const FormArea = styled.section`
+  flex: 1;
   margin-top: 12px;
+  background-color: white;
 `;
 const StepContainer = styled.div`
   width: 350px;
@@ -27,6 +29,11 @@ export type WorkflowCreateProps = {
   isAccept?: boolean;
 };
 
+/**
+ * NOTE: Workflow Creation actually has 2 situations:
+ * 1. Coordinator initiate a workflow
+ * 2. Participant accept and fill config of the workflow Coordinator initiated
+ */
 const WorkflowsCreate: FC<WorkflowCreateProps> = (parentProps) => {
   const { t } = useTranslation();
   const params = useParams<{ step: keyof typeof CreateSteps; id?: string }>();
@@ -36,15 +43,8 @@ const WorkflowsCreate: FC<WorkflowCreateProps> = (parentProps) => {
     setStep(CreateSteps.config);
   });
 
-  const createType = parentProps.isInitiate ? 'initiate' : `accept/${params.id}`;
-
   return (
     <>
-      {/* Route guards */}
-      {process.env.NODE_ENV !== 'development' && (
-        <Prompt when={true} message={t('workflow.msg_sure_2_exist_create')} />
-      )}
-
       {/* Content */}
       <Card>
         <Row justify="center">
@@ -60,12 +60,22 @@ const WorkflowsCreate: FC<WorkflowCreateProps> = (parentProps) => {
       {/* TODO: avoid directly visit create/config, redirect user to basic */}
       <FormArea>
         <Route
-          path={`/workflows/${createType}/basic`}
+          path={`/workflows/initiate/basic`}
           exact
           render={(props) => <StepOneBasic {...props} {...parentProps} />}
         />
         <Route
-          path={`/workflows/${createType}/config`}
+          path={`/workflows/initiate/config`}
+          exact
+          render={(props) => <SteptTwoConfig {...props} {...parentProps} />}
+        />
+        <Route
+          path={`/workflows/accept/basic/:id`}
+          exact
+          render={(props) => <StepOneBasic {...props} {...parentProps} />}
+        />
+        <Route
+          path={`/workflows/accept/config/:id`}
           exact
           render={(props) => <SteptTwoConfig {...props} {...parentProps} />}
         />
