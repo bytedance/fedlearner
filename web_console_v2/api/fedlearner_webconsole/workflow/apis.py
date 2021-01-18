@@ -97,7 +97,7 @@ class WorkflowApi(Resource):
     def get(self, workflow_id):
         workflow = _get_workflow(workflow_id)
         result = workflow.to_dict()
-        result['jobs'] = [job.to_dict() for job in workflow.jobs]
+        result['jobs'] = [job.to_dict() for job in workflow.get_jobs()]
         return {'data': result}, HTTPStatus.OK
 
     @jwt_required

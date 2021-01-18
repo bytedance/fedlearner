@@ -22,13 +22,7 @@ package fedlearner_webconsole.proto;
 
 
 message JobDependency {
-  enum DependencyType {
-    UNSPECIFIED = 0;
-    ON_COMPLETE = 1;
-    ON_START = 2;
-  }
   string source = 1;
-  DependencyType type = 2;
 }
 
 
