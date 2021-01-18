@@ -22,7 +22,7 @@ export default IconWrapper(
               strokeLinecap="round"
               strokeLinejoin="round"
               strokeWidth="4"
-              stroke="#333"
+              stroke="currentColor"
               fill="none"
               fillRule="evenodd"
             />
@@ -32,7 +32,7 @@ export default IconWrapper(
               strokeLinecap="round"
               strokeLinejoin="round"
               strokeWidth="4"
-              stroke="#333"
+              stroke="currentColor"
               fill="none"
               fillRule="evenodd"
             />
@@ -42,7 +42,7 @@ export default IconWrapper(
               strokeLinecap="round"
               strokeLinejoin="round"
               strokeWidth="4"
-              stroke="#333"
+              stroke="currentColor"
               fill="none"
               fillRule="evenodd"
             />
@@ -52,7 +52,7 @@ export default IconWrapper(
               strokeLinecap="round"
               strokeLinejoin="round"
               strokeWidth="4"
-              stroke="#333"
+              stroke="currentColor"
               fill="none"
               fillRule="evenodd"
             />
@@ -62,7 +62,7 @@ export default IconWrapper(
               strokeLinecap="round"
               strokeLinejoin="round"
               strokeWidth="4"
-              stroke="#333"
+              stroke="currentColor"
               fill="none"
               fillRule="evenodd"
             />
@@ -72,7 +72,7 @@ export default IconWrapper(
               strokeLinecap="round"
               strokeLinejoin="round"
               strokeWidth="4"
-              stroke="#333"
+              stroke="currentColor"
               fill="none"
               fillRule="evenodd"
             />
@@ -82,7 +82,7 @@ export default IconWrapper(
               strokeLinecap="round"
               strokeLinejoin="round"
               strokeWidth="4"
-              stroke="#333"
+              stroke="currentColor"
               fill="none"
               fillRule="evenodd"
             />
@@ -92,7 +92,7 @@ export default IconWrapper(
               strokeLinecap="round"
               strokeLinejoin="round"
               strokeWidth="4"
-              stroke="#333"
+              stroke="currentColor"
               fill="none"
               fillRule="evenodd"
             />
@@ -102,7 +102,7 @@ export default IconWrapper(
               strokeLinecap="round"
               strokeLinejoin="round"
               strokeWidth="4"
-              stroke="#333"
+              stroke="currentColor"
               fill="none"
               fillRule="evenodd"
             />

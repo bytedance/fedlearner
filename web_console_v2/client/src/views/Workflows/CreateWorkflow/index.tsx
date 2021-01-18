@@ -1,6 +1,7 @@
 import React, { FC, useState } from 'react';
 import styled from 'styled-components';
 import { Steps, Row, Card } from 'antd';
+import BreadcrumbLink from 'components/BreadcrumbLink';
 import StepOneBasic from './StepOneBasic';
 import SteptTwoConfig from './SteptTwoConfig';
 import { useSubscribe } from 'hooks';
@@ -45,6 +46,13 @@ const WorkflowsCreate: FC<WorkflowCreateProps> = (parentProps) => {
 
   return (
     <>
+      <BreadcrumbLink
+        paths={[
+          { label: 'menu.label_workflow', to: '/workflows' },
+          { label: 'workflow.create_workflow' },
+        ]}
+      />
+
       {/* Content */}
       <Card>
         <Row justify="center">

@@ -13,12 +13,10 @@ const SearchInput = styled(Input.Search)`
   display: inline-block;
   width: 227px;
 `;
-
 const DisplaySelector = styled(Radio.Group)`
   display: inline-block;
   margin-left: 15px;
 `;
-
 const ProjectListDisplayOptions = [
   {
     labelKey: 'project.display_card',
@@ -42,6 +40,7 @@ function Action({ onDisplayTypeChange }: Props): ReactElement {
       <div>
         <Button
           type="primary"
+          size="large"
           onClick={() => {
             history.push('/projects/create');
           }}

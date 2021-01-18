@@ -3,7 +3,7 @@ import { useRecoilQuery } from 'hooks/recoil';
 import React, { FC } from 'react';
 import { projectListQuery } from 'stores/projects';
 
-const ProjectCell: FC<{ id: number | number }> = ({ id }) => {
+const WhichProject: FC<{ id: number | number }> = ({ id }) => {
   const { isLoading, data } = useRecoilQuery(projectListQuery);
 
   if (isLoading) {
@@ -15,4 +15,4 @@ const ProjectCell: FC<{ id: number | number }> = ({ id }) => {
   return <span>{project.name}</span>;
 };
 
-export default ProjectCell;
+export default WhichProject;

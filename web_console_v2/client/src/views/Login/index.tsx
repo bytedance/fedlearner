@@ -15,6 +15,8 @@ import LOCAL_STORAGE_KEYS from 'shared/localStorageKeys';
 import { FedLoginFormData } from 'typings/auth';
 import { useRecoilQuery } from 'hooks/recoil';
 import { userInfoQuery } from 'stores/user';
+import { useSetRecoilState } from 'recoil';
+import i18n from 'i18n';
 
 const Layout = styled.main`
   display: grid;
@@ -93,6 +95,8 @@ const LoginForm = styled(Form)`
 `;
 const LoginFormButton = styled(Button)`
   width: 100%;
+  height: 48px;
+  background-image: linear-gradient(270deg, #286af4 0%, #3e97fe 100%);
 `;
 const LoginFormCheckbox = styled(Checkbox)`
   color: #7a8499;
@@ -102,6 +106,7 @@ const Login: FC = () => {
   const history = useHistory();
   const { t } = useTranslation();
   const [submitting, toggleSubmit] = useToggle(false);
+  const setUserInfo = useSetRecoilState(userInfoQuery);
 
   const userQuery = useRecoilQuery(userInfoQuery);
 
@@ -129,7 +134,7 @@ const Login: FC = () => {
             name="username"
             rules={[{ required: true, message: t('login.username_message') }]}
           >
-            <Input name="username" placeholder={t('login.username_placeholder')} />
+            <Input allowClear name="username" placeholder={t('login.username_placeholder')} />
           </Form.Item>
 
           <Form.Item
@@ -137,6 +142,7 @@ const Login: FC = () => {
             rules={[{ required: true, message: t('login.password_message') }]}
           >
             <Input.Password
+              allowClear
               placeholder={t('login.password_placeholder')}
               iconRender={(visible) => (visible ? <EyeTwoTone /> : <EyeInvisibleOutlined />)}
             />
@@ -167,11 +173,12 @@ const Login: FC = () => {
   async function onSubmit(payload: unknown) {
     toggleSubmit(true);
     try {
-      const { data } = await login(payload as FedLoginFormData);
-
+      const data = await login(payload as FedLoginFormData);
       store.set(LOCAL_STORAGE_KEYS.current_user, { ...data, date: Date.now() });
+      setUserInfo(data);
+      message.success(i18n.t('app.login_success'));
 
-      history.push('/');
+      history.push('/projects');
     } catch (error) {
       message.error(error.message);
     }

@@ -13,13 +13,13 @@ const workflow: I18nMessageModule = {
   action_stop_running: { zh: '停止运行' },
   action_fork: { zh: '复制' },
   action_detail: { zh: '详情' },
+  action_show_report: { zh: '查看模型报告' },
 
   btn_close: { zh: '关闭' },
   btn_conf_done: { zh: '配置完成' },
   btn_conf_next_step: { zh: '配置下一步（{{current}}/{{total}}）' },
   btn_see_ptcpt_config: { zh: '查看对方配置' },
   btn_send_2_ptcpt: { zh: '发送给合作伙伴' },
-  btn_show_report: { zh: ' 查看模型报告' },
 
   col_status: { zh: '任务状态' },
   col_project: { zh: ' 隶属项目' },

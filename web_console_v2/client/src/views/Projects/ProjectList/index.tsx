@@ -1,9 +1,9 @@
 import React, { ReactElement, useState, useEffect } from 'react';
-import ProjectListFilters from '../ProjectListFilters';
+import ProjectListFilters from './ProjectListFilters';
 import { useTranslation } from 'react-i18next';
 import CardView from './CardView';
 import TableView from './TableView';
-import { Pagination, Spin } from 'antd';
+import { Pagination, Spin, Row } from 'antd';
 import styled, { createGlobalStyle } from 'styled-components';
 import { projectListQuery } from 'stores/projects';
 import { useRecoilQuery } from 'hooks/recoil';
@@ -33,9 +33,11 @@ const GlobalStyle = createGlobalStyle`
   }
 }
 `;
-const PaginationStyle = styled(Pagination)`
-  padding: 20px 0 !important;
-  float: right;
+const StyledPagination = styled(Pagination)`
+  margin-top: 20px;
+`;
+const ListContainer = styled.section`
+  flex: 1;
 `;
 
 function ProjectList(): ReactElement {
@@ -67,20 +69,24 @@ function ProjectList(): ReactElement {
             setDisplayType(type);
           }}
         />
-        {displayType === DisplayType.Card ? (
-          <CardView projectList={projectListShow} />
-        ) : (
-          <TableView projectList={projectListShow} />
-        )}
-        <PaginationStyle
-          pageSizeOptions={['12', '24', '36']}
-          pageSize={pageSize}
-          size="small"
-          total={total}
-          current={currentPage}
-          showSizeChanger
-          onChange={handleChange}
-        />
+        <ListContainer>
+          {displayType === DisplayType.Card ? (
+            <CardView projectList={projectListShow} />
+          ) : (
+            <TableView projectList={projectListShow} />
+          )}
+        </ListContainer>
+
+        <Row justify="end">
+          <StyledPagination
+            pageSizeOptions={['12', '24']}
+            pageSize={pageSize}
+            total={total}
+            current={currentPage}
+            showSizeChanger
+            onChange={handleChange}
+          />
+        </Row>
       </ListPageLayout>
     </Spin>
   );

@@ -53,15 +53,16 @@ const WorkflowsCreateStepOne: FC<WorkflowCreateProps> = ({ isInitiate, isAccept 
   const setJobsConfigData = useSetRecoilState(workflowJobsConfigForm);
   const { whetherCreateNewTpl } = useRecoilValue(workflowGetters);
   const setWorkflowTemplate = useSetRecoilState(templateInUsing);
+
   // Using when Participant accept the initiation
-  // it's will be null if it's Coordinator iniitiating
+  // it should be null if it's Coordinator side initiate a workflow
   const [workflow, setWorkflow] = useRecoilState(workflowInEditing);
 
   const workflowQuery = useQuery(['getWorkflow', params.id], getWorkflowDetail, {
-    // Only do workflow fetching if:
+    // Only do workflow fetch if:
     // 1. id existed in url
-    // 2. in Acception mode
-    // 3. workflow on store is null (when user landing here not from workflow list)
+    // 2. in Acceptance mode
+    // 3. workflow on store is null (i.e. user landing here not from workflow list)
     enabled: params.id && isAccept && !Boolean(workflow),
     refetchOnWindowFocus: false,
   });
@@ -80,7 +81,6 @@ const WorkflowsCreateStepOne: FC<WorkflowCreateProps> = ({ isInitiate, isAccept 
 
   const tplList = tplListQuery.data?.data || [];
   const noAvailableTpl = tplList.length === 0;
-  const usingExistingTpl = formData._templateType === 'existing';
 
   const projectId = Number(new URLSearchParams(location.search).get('project')) || undefined;
   const initValues = _getInitialValues(formData, workflow, projectId);
@@ -89,7 +89,7 @@ const WorkflowsCreateStepOne: FC<WorkflowCreateProps> = ({ isInitiate, isAccept 
 
   return (
     <Spin spinning={workflowQuery.isLoading}>
-      <Container>
+      <Container bordered={false}>
         <FormsContainer>
           <Form
             labelCol={{ span: 6 }}
@@ -142,7 +142,7 @@ const WorkflowsCreateStepOne: FC<WorkflowCreateProps> = ({ isInitiate, isAccept 
             </Form.Item>
 
             {/* If choose to use an existing template */}
-            {usingExistingTpl && (
+            {!whetherCreateNewTpl && (
               <Form.Item
                 name="_templateSelected"
                 wrapperCol={{ offset: 6 }}
@@ -171,7 +171,7 @@ const WorkflowsCreateStepOne: FC<WorkflowCreateProps> = ({ isInitiate, isAccept 
           </Form>
 
           {/* If choose to create a new template */}
-          {!usingExistingTpl && (
+          {whetherCreateNewTpl && (
             <CreateTemplateForm
               onSuccess={onTplCreateSuccess}
               onError={onTplCreateError}

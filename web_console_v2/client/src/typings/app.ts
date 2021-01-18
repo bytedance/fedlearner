@@ -8,6 +8,6 @@ export interface FedRouteConfig {
 }
 
 export enum FedLanguages {
-  Chinese = 'cn',
+  Chinese = 'zh',
   English = 'en',
 }

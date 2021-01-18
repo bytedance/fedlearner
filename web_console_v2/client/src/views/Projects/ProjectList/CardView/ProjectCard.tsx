@@ -120,7 +120,7 @@ function Card({ item: project }: CardProps): ReactElement {
 
   return (
     <CardContainer>
-      <CardHeader>
+      <CardHeader onClick={viewDetail}>
         <ProjectName text={project.name} />
         <CreateTime time={project.created_at} />
       </CardHeader>
@@ -145,7 +145,7 @@ function Card({ item: project }: CardProps): ReactElement {
             onEdit={() => {
               history.push(`/projects/edit/${project.id}`);
             }}
-            onViewDetail={() => setIsDrawerVisible(true)}
+            onViewDetail={viewDetail}
           />
         </div>
         <ProjectDetailDrawer
@@ -158,6 +158,9 @@ function Card({ item: project }: CardProps): ReactElement {
     </CardContainer>
   );
 
+  function viewDetail() {
+    setIsDrawerVisible(true);
+  }
   function initiateWorkflow() {
     history.push(`/workflows/initiate/basic?project=${project.id}`);
   }

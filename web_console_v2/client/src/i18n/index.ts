@@ -1,6 +1,6 @@
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
-import cn from './resources/zh_CN';
+import zh from './resources/zh_CN';
 import en from './resources/en';
 import { FedLanguages } from 'typings/app';
 import store from 'store2';
@@ -9,13 +9,17 @@ import LOCAL_STORAGE_KEYS from 'shared/localStorageKeys';
 
 export const FALLBACK_LNG = FedLanguages.Chinese;
 
-const preferredLng = store.get(LOCAL_STORAGE_KEYS.language || FALLBACK_LNG);
+const storedLng = store.get(LOCAL_STORAGE_KEYS.language);
+
+const preferredLng = storedLng || FALLBACK_LNG;
+
+store.set(LOCAL_STORAGE_KEYS.language, preferredLng);
 
 dayjs.locale(preferredLng);
 
 i18n.use(initReactI18next).init({
   resources: {
-    cn,
+    zh,
     en,
   },
   fallbackLng: FedLanguages.Chinese,

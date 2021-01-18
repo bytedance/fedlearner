@@ -1,18 +1,19 @@
 import React, { FC } from 'react';
 import styled from 'styled-components';
-import { Card, Spin, Row, Button, Col } from 'antd';
+import { Card, Spin, Row, Col } from 'antd';
 import { useParams } from 'react-router-dom';
 import { useQuery } from 'react-query';
 import { getWorkflowDetailById } from 'services/workflow';
 import { Job } from 'typings/workflow';
 import WorkflowJobsFlowChart from 'components/WorkflowJobsFlowChart';
-import { isRunning, isReadyToRun } from 'shared/workflow';
-import GridRow from 'components/_base/GridRow';
 import { useTranslation } from 'react-i18next';
-import { CopyOutlined, SyncOutlined, BookOutlined } from '@ant-design/icons';
+import { SyncOutlined, BookOutlined } from '@ant-design/icons';
 import { xShapeTemplate } from 'services/mocks/v2/workflow_templates/example';
-import ProjectCell from 'components/ProjectCell';
+import WhichProject from 'components/WhichProject';
 import { fromNow } from 'shared/date';
+import WorkflowActions from '../WorkflowActions';
+import WorkflowStage from '../WorkflowList/WorkflowStage';
+import GridRow from 'components/_base/GridRow';
 
 const ChartSection = styled.section`
   margin-top: 16px;
@@ -66,26 +67,11 @@ const WorkflowDetail: FC = () => {
     <Spin spinning={isLoading}>
       <Card>
         <Row justify="space-between" align="middle">
-          <div>
+          <GridRow gap="8">
             <Name>{workflow?.name}</Name>
-          </div>
-          {workflow && (
-            <GridRow gap="8">
-              {isReadyToRun(workflow) && <Button size="small">{t('workflow.action_run')}</Button>}
-              {isRunning(workflow) && (
-                <Button size="small">{t('workflow.action_stop_running')}</Button>
-              )}
-              <Button size="small" icon={<BookOutlined />}>
-                {t('workflow.btn_show_report')}
-              </Button>
-              <Button size="small" icon={<SyncOutlined />}>
-                {t('workflow.action_re_run')}
-              </Button>
-              <Button size="small" icon={<CopyOutlined />}>
-                {t('workflow.action_fork')}
-              </Button>
-            </GridRow>
-          )}
+            {workflow && <WorkflowStage data={workflow} tag />}
+          </GridRow>
+          {workflow && <WorkflowActions workflow={workflow} without={['detail']} />}
         </Row>
         <PropsRow>
           <Col span={8}>
@@ -95,7 +81,7 @@ const WorkflowDetail: FC = () => {
           </Col>
           <Col span={8}>
             <Prop data-label={t('workflow.label_project')}>
-              <ProjectCell id={workflow?.project_id || 0} />
+              <WhichProject id={workflow?.project_id || 0} />
             </Prop>
           </Col>
           <Col span={8}>

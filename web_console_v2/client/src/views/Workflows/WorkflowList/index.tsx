@@ -11,9 +11,8 @@ import { useTranslation } from 'react-i18next';
 import ListPageLayout from 'components/ListPageLayout';
 import { Workflow } from 'typings/workflow';
 import WorkflowStage from './WorkflowStage';
-import { isPendingAccpet } from 'shared/workflow';
-import WorkflowActions from './WorkflowActions';
-import ProjectCell from 'components/ProjectCell';
+import WorkflowActions from '../WorkflowActions';
+import WhichProject from 'components/WhichProject';
 
 const FilterItem = styled(Form.Item)`
   > .ant-form-item-control {
@@ -27,9 +26,6 @@ const tableColumns = [
     dataIndex: 'name',
     key: 'name',
     render: (name: string, record: Workflow) => {
-      if (isPendingAccpet(record)) {
-        return name;
-      }
       return (
         <Link to={`/workflows/${record.id}`} rel="nopener">
           {name}
@@ -48,7 +44,7 @@ const tableColumns = [
     dataIndex: 'project_id',
     name: 'project_id',
     width: 150,
-    render: (project_id: number) => <ProjectCell id={project_id} />,
+    render: (project_id: number) => <WhichProject id={project_id} />,
   },
   {
     title: i18n.t('workflow.col_date'),
@@ -60,7 +56,9 @@ const tableColumns = [
     title: i18n.t('workflow.col_actions'),
     dataIndex: 'created_at',
     name: 'created_at',
-    render: (_: any, record: Workflow) => <WorkflowActions workflow={record} />,
+    render: (_: any, record: Workflow) => (
+      <WorkflowActions workflow={record} type="link" without={['report']} />
+    ),
   },
 ];
 
