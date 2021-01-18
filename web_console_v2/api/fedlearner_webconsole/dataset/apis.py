@@ -65,7 +65,7 @@ class DatasetsApi(Resource):
         except Exception as e:
             db.session.rollback()
             raise InvalidArgumentException(details=str(e))
-        return {'data': dataset}
+        return {'data': dataset.to_dict()}
 
 
 class BatchesApi(Resource):
@@ -73,9 +73,9 @@ class BatchesApi(Resource):
         parser = reqparse.RequestParser()
         parser.add_argument('dataset_id', type=int, required=True,
                             help=_FORMAT_ERROR_MESSAGE.format('dataset_id'))
-        parser.add_argument('event_time',
+        parser.add_argument('event_time', type=int,
                             help=_FORMAT_ERROR_MESSAGE.format('event_time'))
-        parser.add_argument('files', required=True,
+        parser.add_argument('files', required=True, type=str, action='append',
                             help=_FORMAT_ERROR_MESSAGE.format('files'))
         parser.add_argument('move', type=bool,
                             help=_FORMAT_ERROR_MESSAGE.format('move'))
@@ -111,9 +111,9 @@ class BatchesApi(Resource):
         # TODO: Call scheduler to import
         db.session.add(batch)
         db.session.commit()
-        return batch.to_dict()
+        return {'data': batch.to_dict()}
 
 
 def initialize_dataset_apis(api: Api):
     api.add_resource(DatasetsApi, '/datasets')
-    api.add_resource(BatchesApi, '/batches')
+    api.add_resource(BatchesApi, '/data_batches')
