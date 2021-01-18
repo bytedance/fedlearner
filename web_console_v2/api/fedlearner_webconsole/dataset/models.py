@@ -70,7 +70,7 @@ class DataBatch(db.Model):
     failed_source = db.Column(db.Text())
     file_size = db.Column(db.Integer, default=0)
     imported_file_num = db.Column(db.Integer, default=0)
-    file_num = db.Column(db.Integer, default=0)
+    num_file = db.Column(db.Integer, default=0)
     comment = db.Column(db.Text())
     created_at = db.Column(db.DateTime(timezone=True),
                            server_default=func.now())
