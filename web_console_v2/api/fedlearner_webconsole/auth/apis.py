@@ -119,7 +119,7 @@ class UserApi(Resource):
         return {'username': user.username}, HTTPStatus.OK
 
 
-class UserSignOutApi(Resource):
+class SignOutApi(Resource):
     @jwt_required
     def post(self):
         jti = get_raw_jwt()['jti']
@@ -134,4 +134,4 @@ def initialize_auth_apis(api):
     api.add_resource(SigninApi, '/auth/signin')
     api.add_resource(UsersApi, '/auth/users')
     api.add_resource(UserApi, '/auth/users/<int:user_id>')
-    api.add_resource(UserSignOutApi, '/auth/signout')
+    api.add_resource(SignOutApi, '/auth/signout')

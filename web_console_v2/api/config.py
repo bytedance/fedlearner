@@ -27,6 +27,8 @@ class Config(object):
     JWT_SECRET_KEY = secrets.token_urlsafe(64)
     JWT_BLACKLIST_ENABLED = True
     JWT_BLACKLIST_TOKEN_CHECKS = ['access']
+    # 1 day
+    JWT_ACCESS_TOKEN_EXPIRES = 86400
     PROPAGATE_EXCEPTIONS = True
     LOGGING_LEVEL = logging.INFO
     GRPC_LISTEN_PORT = 1990

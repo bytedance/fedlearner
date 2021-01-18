@@ -16,7 +16,7 @@
 # coding: utf-8
 
 from passlib.apps import custom_app_context as pwd_context
-
+from sqlalchemy.sql import func
 from fedlearner_webconsole.db import db, to_dict_mixin
 
 
@@ -43,6 +43,8 @@ class RevokedToken(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     jti = db.Column(db.String(120))
+    created_at = db.Column(db.DateTime(timezone=True),
+                           server_default=func.now())
 
     @classmethod
     def is_jti_blacklisted(cls, jti):
