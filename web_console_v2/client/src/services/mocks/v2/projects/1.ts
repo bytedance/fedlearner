@@ -26,11 +26,13 @@ const project_list = [
   },
 ];
 
-const res = {
+const get = {
   data: {
     data: project_list,
   },
   status: 200,
 };
 
-export default res;
+export const patch = { data: {}, status: 200 };
+
+export default get;

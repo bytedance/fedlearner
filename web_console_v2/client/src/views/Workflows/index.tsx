@@ -15,10 +15,17 @@ function WorkflowsPage() {
         exact
         render={() => <Redirect to="/workflows/initiate/basic" />}
       />
+      {/* Coordinator initiate a worklflow */}
       <Route
         path="/workflows/initiate/:step"
         exact
         render={(props: any) => <WorkflowsCreate {...props} isInitiate={true} />}
+      />
+      {/* Participant accept and fill the workflow config */}
+      <Route
+        path="/workflows/accept/:id/:step"
+        exact
+        render={(props: any) => <WorkflowsCreate {...props} isAccept={true} />}
       />
 
       <Route path="/workflows/:id" exact component={WorkflowDetail} />

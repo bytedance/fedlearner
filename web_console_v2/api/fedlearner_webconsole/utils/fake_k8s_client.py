@@ -162,7 +162,10 @@ class FakeK8sClient(K8sClient):
         logging.info('get detail from job : {}'.format(
             job_name
         ))
-        return {'name':job_name}
+        state = 'FLStateReady'
+        if job_name == 'raw_data_job':
+            state = 'FLStateComplete'
+        return {'name': job_name, 'status': {'appState': state}}
 
     def get_pods(self, namespace, job_name):
         logging.info('======================')

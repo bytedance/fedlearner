@@ -5,6 +5,7 @@ import menu from './modules/menu';
 import error from './modules/error';
 import upload from './modules/upload';
 import term from './modules/term';
+import app from './modules/app';
 
 const messages = {
   translation: {
@@ -14,6 +15,7 @@ const messages = {
     login: login.zh,
     menu: menu.zh,
     project: project.zh,
+    app: app.zh,
     workflow: workflow.zh,
 
     all: '全部',

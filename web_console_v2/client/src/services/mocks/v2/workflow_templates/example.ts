@@ -8,9 +8,9 @@ import {
 import { DeepPartial } from 'utility-types';
 
 // Workflow template demo
-const get: { data: DeepPartial<WorkflowTemplate>; status: number } = {
+const exampleTemplate: { data: DeepPartial<WorkflowTemplate>; status: number } = {
   data: {
-    id: 1,
+    id: 2,
     name: 'bar template',
     group_alias: 'foo group',
     is_left: true,
@@ -209,4 +209,158 @@ const get: { data: DeepPartial<WorkflowTemplate>; status: number } = {
   status: 200,
 };
 
-export default get;
+export const complexDepsTemplate: { data: DeepPartial<WorkflowTemplate>; status: number } = {
+  data: {
+    id: 10,
+    name: 'Complex deps template',
+    group_alias: 'c-group',
+    is_left: true,
+    config: {
+      group_alias: 'c-group',
+      job_definitions: [
+        {
+          name: 'Initiative',
+          type: JobType.RAW_DATA,
+          is_federated: true,
+          variables: [
+            {
+              name: 'job_name',
+              value: '',
+              access_mode: VariableAccessMode.PEER_WRITABLE,
+              widget_schema: {
+                component: VariableComponent.Input,
+                type: 'string',
+                required: true,
+              },
+            },
+          ],
+        },
+        {
+          name: 'Raw data upload',
+          type: JobType.RAW_DATA,
+          is_federated: true,
+          dependencies: [{ source: 'Initiative', type: JobDependencyType.MANUAL }],
+          variables: [
+            {
+              name: 'job_name2',
+              value: '',
+              access_mode: VariableAccessMode.PEER_WRITABLE,
+              widget_schema: {
+                component: VariableComponent.Input,
+                type: 'string',
+              },
+            },
+          ],
+        },
+
+        {
+          name: 'Raw data process',
+          type: JobType.NN_MODEL_TRANINING,
+          is_federated: true,
+          dependencies: [{ source: 'Initiative', type: JobDependencyType.MANUAL }],
+          variables: [
+            {
+              name: 'job_name3',
+              value: '',
+              access_mode: VariableAccessMode.PEER_WRITABLE,
+              widget_schema: {
+                component: VariableComponent.Input,
+                type: 'string',
+                required: true,
+              },
+            },
+          ],
+        },
+        {
+          name: 'Raw data save',
+          type: JobType.RAW_DATA,
+          is_federated: true,
+          dependencies: [{ source: 'Initiative', type: JobDependencyType.MANUAL }],
+          variables: [],
+        },
+        {
+          name: 'Training',
+          type: JobType.NN_MODEL_TRANINING,
+          is_federated: true,
+          dependencies: [
+            { source: 'Raw data upload', type: JobDependencyType.ON_COMPLETE },
+            { source: 'Raw data process', type: JobDependencyType.ON_COMPLETE },
+          ],
+          variables: [
+            {
+              name: 'job_name2',
+              value: '',
+              access_mode: VariableAccessMode.PEER_WRITABLE,
+              widget_schema: {
+                component: VariableComponent.Input,
+                type: 'string',
+              },
+            },
+          ],
+        },
+        {
+          name: 'Finish/clear',
+          type: JobType.TREE_MODEL_EVALUATION,
+          is_federated: true,
+          dependencies: [
+            { source: 'Training', type: JobDependencyType.ON_COMPLETE },
+            { source: 'Raw data save', type: JobDependencyType.ON_COMPLETE },
+          ],
+          variables: [
+            {
+              name: 'job_name6',
+              value: '',
+              access_mode: VariableAccessMode.PEER_WRITABLE,
+              widget_schema: {
+                component: VariableComponent.Input,
+                type: 'string',
+              },
+            },
+          ],
+        },
+      ],
+    },
+  },
+  status: 200,
+};
+
+export const xShapeTemplate: { data: DeepPartial<WorkflowTemplate> } = {
+  data: {
+    id: 10,
+    name: 'X Shape template',
+    group_alias: 'x-group',
+    is_left: true,
+    config: {
+      group_alias: 'x-group',
+      job_definitions: [
+        {
+          name: '1-1',
+          type: JobType.RAW_DATA,
+          is_federated: true,
+          variables: [],
+        },
+        {
+          name: '1-2',
+          type: JobType.RAW_DATA,
+          is_federated: true,
+          variables: [],
+        },
+        {
+          name: '2-1',
+          type: JobType.RAW_DATA,
+          is_federated: true,
+          dependencies: [{ source: '1-2', type: JobDependencyType.ON_COMPLETE }],
+          variables: [],
+        },
+        {
+          name: '2-2',
+          type: JobType.RAW_DATA,
+          is_federated: true,
+          dependencies: [{ source: '1-1', type: JobDependencyType.ON_COMPLETE }],
+          variables: [],
+        },
+      ],
+    },
+  },
+};
+export default exampleTemplate;

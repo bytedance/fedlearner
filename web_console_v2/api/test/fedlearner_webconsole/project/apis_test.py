@@ -25,6 +25,7 @@ from fedlearner_webconsole.db import db
 from fedlearner_webconsole.project.models import Project
 from fedlearner_webconsole.project.add_on import parse_certificates
 from fedlearner_webconsole.proto.project_pb2 import Project as ProjectProto, CertificateStorage
+from fedlearner_webconsole.workflow.models import Workflow
 
 
 class ProjectApiTest(BaseTestCase):
@@ -58,6 +59,9 @@ class ProjectApiTest(BaseTestCase):
         }, CertificateStorage()))
         self.default_project.comment = 'test comment'
         db.session.add(self.default_project)
+        workflow = Workflow(name='workflow_key_get1',
+                            project_id=1)
+        db.session.add(workflow)
         db.session.commit()
 
     def test_get_project(self):
@@ -138,7 +142,9 @@ class ProjectApiTest(BaseTestCase):
         project_list = json.loads(list_response.data).get('data')
         for project in project_list:
             queried_project = Project.query.filter_by(name=project['name']).first()
-            self.assertEqual(project, queried_project.to_dict())
+            result = queried_project.to_dict()
+            result['num_workflow'] = 1
+            self.assertEqual(project, result)
 
     def test_update_project(self):
         updated_comment = 'updated comment'

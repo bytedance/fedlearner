@@ -45,10 +45,10 @@ class TransactionManager(object):
         self._reload()
 
         if not self._recover_from_abort():
-            return
+            return self._workflow
 
         if self._workflow.target_state == WorkflowState.INVALID:
-            return
+            return self._workflow
 
         if self._workflow.state == WorkflowState.INVALID:
             raise RuntimeError(
@@ -99,6 +99,7 @@ class TransactionManager(object):
                 self._reload()
 
         self._recover_from_abort()
+        return self._workflow
 
     def _reload(self):
         db.session.commit()

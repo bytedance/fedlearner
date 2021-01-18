@@ -1,18 +1,34 @@
-export function readJSONFromInput<T>(selectedFile: File): Promise<T> {
+export function readAsJSONFromFile<T = object>(file: File): Promise<T> {
   return new Promise((resolve, reject) => {
     if (!window.FileReader) {
       return reject(
-        new Error('Detect that FileReader is not supported, please using lastest Chrome'),
+        new Error(
+          "Detect that Environment doesn't support FileReader yet, please using lastest Chrome",
+        ),
       );
     }
     const reader = new FileReader();
-    reader.readAsText(selectedFile);
-
     reader.onload = function () {
       let result = JSON.parse(this.result?.toString()!);
       resolve(result);
     };
     reader.onerror = reject;
     reader.onabort = reject;
+
+    reader.readAsText(file);
+  });
+}
+
+export function readAsBinaryStringFromFile(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = function () {
+      if (typeof reader.result === 'string') {
+        resolve(btoa(reader.result));
+      }
+    };
+    reader.onerror = reject;
+    reader.onabort = reject;
+    reader.readAsBinaryString(file);
   });
 }

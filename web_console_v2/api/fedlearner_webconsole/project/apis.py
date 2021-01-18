@@ -17,19 +17,25 @@
 
 from enum import Enum
 from uuid import uuid4
+
+from sqlalchemy.sql import func
 from flask import request
 from flask_restful import Resource, Api, reqparse
 from google.protobuf.json_format import ParseDict
+
 from fedlearner_webconsole.db import db
 from fedlearner_webconsole.k8s_client import get_client
 from fedlearner_webconsole.project.models import Project
-from fedlearner_webconsole.proto.common_pb2 import Variable
+from fedlearner_webconsole.proto.common_pb2 import Variable, StatusCode
 from fedlearner_webconsole.proto.project_pb2 \
-    import Project as ProjectProto, CertificateStorage
+    import Project as ProjectProto, CertificateStorage, \
+    Participant as ParticipantProto
 from fedlearner_webconsole.project.add_on \
     import parse_certificates, create_add_on
 from fedlearner_webconsole.exceptions \
     import InvalidArgumentException, NotFoundException
+from fedlearner_webconsole.rpc.client import RpcClient
+from fedlearner_webconsole.workflow.models import Workflow
 
 _CERTIFICATE_FILE_NAMES = [
     'client/client.pem', 'client/client.key', 'client/intermediate.pem',
@@ -83,7 +89,7 @@ class ProjectsApi(Resource):
                 raise InvalidArgumentException(
                     details=ErrorMessage.PARAM_FORMAT_ERROR.value.format(
                         'participants', 'Participant must have name, '
-                        'domain_name and url.'))
+                                        'domain_name and url.'))
             domain_name = participant.get('domain_name')
             if participant.get('certificates') is not None:
                 current_cert = parse_certificates(
@@ -93,10 +99,16 @@ class ProjectsApi(Resource):
                     if current_cert.get(file_name) is None:
                         raise InvalidArgumentException(
                             details=ErrorMessage.PARAM_FORMAT_ERROR.value.
-                            format('certificates', '{} not existed'.format(
+                                format('certificates', '{} not existed'.format(
                                 file_name)))
                 certificates[domain_name] = {'certs': current_cert}
                 participant.pop('certificates')
+
+                # Grpc spec
+                participant['grpc_spec'] = {
+                    'peer_url': participant['url'],
+                    'authority': participant['domain_name']
+                }
 
                 # create add on
                 try:
@@ -138,7 +150,16 @@ class ProjectsApi(Resource):
         return {'data': new_project.to_dict()}
 
     def get(self):
-        return {'data': [project.to_dict() for project in Project.query.all()]}
+        # TODO: Not count soft-deleted workflow
+        projects = db.session.query(
+            Project, func.count(Workflow.id).label('num_workflow'))\
+            .join(Workflow.project).group_by(Project.id).all()
+        result = []
+        for project in projects:
+            project_dict = project.Project.to_dict()
+            project_dict['num_workflow'] = project.num_workflow
+            result.append(project_dict)
+        return {'data': result}
 
 
 class ProjectApi(Resource):
@@ -174,6 +195,30 @@ class ProjectApi(Resource):
         return {'data': project.to_dict()}
 
 
+class CheckConnectionApi(Resource):
+    def post(self, project_id):
+        project = Project.query.filter_by(id=project_id).first()
+        if project is None:
+            raise NotFoundException()
+        success = True
+        details = []
+        # TODO: Concurrently check
+        for participant in project.get_config().participants:
+            result = self.check_connection(project.get_config(),
+                                           participant)
+            success = success & (result.code == StatusCode.STATUS_SUCCESS)
+            if result.code != StatusCode.STATUS_SUCCESS:
+                details.append(result.msg)
+        return {'data': {'success': success, 'details': details}}
+
+    def check_connection(self, project_config: ProjectProto,
+                         participant_proto: ParticipantProto):
+        client = RpcClient(project_config, participant_proto)
+        return client.check_connection()
+
+
 def initialize_project_apis(api: Api):
     api.add_resource(ProjectsApi, '/projects')
     api.add_resource(ProjectApi, '/projects/<int:project_id>')
+    api.add_resource(CheckConnectionApi,
+                     '/projects/<int:project_id>/connection_checks')
