@@ -91,7 +91,7 @@ class JobScheduler(object):
         system_dict = {
             'basic_envs': os.environ.get(
                 'BASIC_ENVS',
-                '{"name": "BASIC_ENVS","value": null}')}
+                '')}
         # TODO: move format to workflow's creating stage
         #  to check whether the config is valid
         yaml = formatter.format(job.yaml,
