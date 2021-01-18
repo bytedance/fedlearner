@@ -15,6 +15,7 @@
 # coding: utf-8
 import time
 from flask_restful import Resource, request
+from flask_jwt_extended import jwt_required
 from fedlearner_webconsole.job.models import Job
 from fedlearner_webconsole.job.es import es
 from fedlearner_webconsole.exceptions import NotFoundException, \
@@ -24,6 +25,7 @@ from fedlearner_webconsole.project.adapter import ProjectK8sAdapter
 
 
 class JobApi(Resource):
+    @jwt_required
     def get(self, job_id):
         job = Job.query.filter_by(job=job_id).first()
         if job is None:
@@ -34,6 +36,7 @@ class JobApi(Resource):
 
 
 class PodLogApi(Resource):
+    @jwt_required
     def get(self, pod_name):
         if 'start_time' not in request.args:
             raise InvalidArgumentException('start_time is required')
@@ -43,6 +46,7 @@ class PodLogApi(Resource):
 
 
 class PodContainerApi(Resource):
+    @jwt_required
     def get(self, job_id, pod_name):
         job = Job.query.filter_by(job=job_id).first()
         if job is None:

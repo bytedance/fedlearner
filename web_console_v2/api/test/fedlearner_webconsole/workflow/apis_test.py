@@ -76,9 +76,8 @@ class WorkflowsApiTest(BaseTestCase):
             'comment': 'test-comment',
             'config': config
         }
-        response = self.client.post('/api/v2/workflows',
-                                    data=json.dumps(workflow),
-                                    content_type='application/json')
+        response = self.post_helper('/api/v2/workflows',
+                                    data=workflow)
         self.assertEqual(response.status_code, HTTPStatus.CREATED)
         created_workflow = json.loads(response.data).get('data')
         # Check scheduler
@@ -105,9 +104,8 @@ class WorkflowsApiTest(BaseTestCase):
 
         # Post again
         mock_wakeup.reset_mock()
-        response = self.client.post('/api/v2/workflows',
-                                    data=json.dumps(workflow),
-                                    content_type='application/json')
+        response = self.post_helper('/api/v2/workflows',
+                                    data=workflow)
         self.assertEqual(response.status_code, HTTPStatus.CONFLICT)
         # Check mock
         mock_wakeup.assert_not_called()

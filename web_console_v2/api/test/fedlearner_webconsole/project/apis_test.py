@@ -65,7 +65,7 @@ class ProjectApiTest(BaseTestCase):
         db.session.commit()
 
     def test_get_project(self):
-        get_response = self.client.get(
+        get_response = self.get_helper(
             '/api/v2/projects/{}'.format(1)
         )
         self.assertEqual(get_response.status_code, HTTPStatus.OK)
@@ -73,7 +73,7 @@ class ProjectApiTest(BaseTestCase):
         self.assertEqual(queried_project, self.default_project.to_dict())
 
     def test_get_not_found_project(self):
-        get_response = self.client.get(
+        get_response = self.get_helper(
             '/api/v2/projects/{}'.format(1000)
         )
         self.assertEqual(get_response.status_code, HTTPStatus.NOT_FOUND)
@@ -97,14 +97,13 @@ class ProjectApiTest(BaseTestCase):
             ]
         }
         comment = 'test post project'
-        create_response = self.client.post(
+        create_response = self.post_helper(
             '/api/v2/projects',
-            data=json.dumps({
+            data={
                 'name': name,
                 'config': config,
                 'comment': comment
-            }),
-            content_type='application/json')
+            })
         self.assertEqual(create_response.status_code, HTTPStatus.OK)
         created_project = json.loads(create_response.data).get('data')
 
@@ -127,18 +126,17 @@ class ProjectApiTest(BaseTestCase):
                 }
             ]
         }
-        create_response = self.client.post(
+        create_response = self.post_helper(
             '/api/v2/projects',
-            data=json.dumps({
+            data={
                 'name': self.default_project.name,
                 'config': config,
                 'comment': ''
-            }),
-            content_type='application/json')
+            })
         self.assertEqual(create_response.status_code, HTTPStatus.BAD_REQUEST)
 
     def test_list_project(self):
-        list_response = self.client.get('/api/v2/projects')
+        list_response = self.get_helper('/api/v2/projects')
         project_list = json.loads(list_response.data).get('data')
         for project in project_list:
             queried_project = Project.query.filter_by(name=project['name']).first()
@@ -160,12 +158,11 @@ class ProjectApiTest(BaseTestCase):
 
     def test_update_not_found_project(self):
         updated_comment = 'updated comment'
-        update_response = self.client.patch(
+        update_response = self.patch_helper(
             '/api/v2/projects/{}'.format(1000),
-            data=json.dumps({
+            data={
                 'comment': updated_comment
-            }),
-            content_type='application/json')
+            })
         self.assertEqual(update_response.status_code, HTTPStatus.NOT_FOUND)
 
 

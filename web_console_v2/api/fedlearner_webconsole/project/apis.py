@@ -21,6 +21,7 @@ from uuid import uuid4
 from sqlalchemy.sql import func
 from flask import request
 from flask_restful import Resource, Api, reqparse
+from flask_jwt_extended import jwt_required
 from google.protobuf.json_format import ParseDict
 
 from fedlearner_webconsole.db import db
@@ -50,6 +51,7 @@ class ErrorMessage(Enum):
 
 
 class ProjectsApi(Resource):
+    @jwt_required
     def post(self):
         parser = reqparse.RequestParser()
         parser.add_argument('name',
@@ -149,6 +151,7 @@ class ProjectsApi(Resource):
 
         return {'data': new_project.to_dict()}
 
+    @jwt_required
     def get(self):
         # TODO: Not count soft-deleted workflow
         projects = db.session.query(
@@ -163,12 +166,14 @@ class ProjectsApi(Resource):
 
 
 class ProjectApi(Resource):
+    @jwt_required
     def get(self, project_id):
         project = Project.query.filter_by(id=project_id).first()
         if project is None:
             raise NotFoundException()
         return {'data': project.to_dict()}
 
+    @jwt_required
     def patch(self, project_id):
         project = Project.query.filter_by(id=project_id).first()
         if project is None:
@@ -196,6 +201,7 @@ class ProjectApi(Resource):
 
 
 class CheckConnectionApi(Resource):
+    @jwt_required
     def post(self, project_id):
         project = Project.query.filter_by(id=project_id).first()
         if project is None:
@@ -211,6 +217,7 @@ class CheckConnectionApi(Resource):
                 details.append(result.msg)
         return {'data': {'success': success, 'details': details}}
 
+    @jwt_required
     def check_connection(self, project_config: ProjectProto,
                          participant_proto: ParticipantProto):
         client = RpcClient(project_config, participant_proto)

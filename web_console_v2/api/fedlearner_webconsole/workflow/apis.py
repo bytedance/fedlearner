@@ -18,6 +18,7 @@
 import logging
 from http import HTTPStatus
 from flask_restful import Resource, reqparse, request
+from flask_jwt_extended import jwt_required
 from google.protobuf.json_format import MessageToDict
 from fedlearner_webconsole.workflow.models import (
     Workflow, WorkflowState, TransactionState
@@ -39,6 +40,7 @@ def _get_workflow(workflow_id):
 
 
 class WorkflowsApi(Resource):
+    @jwt_required
     def get(self):
         result = Workflow.query
         if 'project' in request.args and request.args['project'] is not None:
@@ -51,6 +53,7 @@ class WorkflowsApi(Resource):
         return {'data': [row.to_dict() for row in
                          result.all()]}, HTTPStatus.OK
 
+    @jwt_required
     def post(self):
         parser = reqparse.RequestParser()
         parser.add_argument('name', required=True, help='name is empty')
@@ -90,12 +93,14 @@ class WorkflowsApi(Resource):
 
 
 class WorkflowApi(Resource):
+    @jwt_required
     def get(self, workflow_id):
         workflow = _get_workflow(workflow_id)
         result = workflow.to_dict()
         result['jobs'] = [job.to_dict() for job in workflow.jobs]
         return {'data': result}, HTTPStatus.OK
 
+    @jwt_required
     def put(self, workflow_id):
         parser = reqparse.RequestParser()
         parser.add_argument('config', type=dict, required=True,
@@ -119,6 +124,7 @@ class WorkflowApi(Resource):
                      workflow.id, workflow.target_state)
         return {'data': workflow.to_dict()}, HTTPStatus.OK
 
+    @jwt_required
     def patch(self, workflow_id):
         parser = reqparse.RequestParser()
         parser.add_argument('target_state', type=str, required=True,
@@ -138,6 +144,7 @@ class WorkflowApi(Resource):
 
 
 class PeerWorkflowsApi(Resource):
+    @jwt_required
     def get(self, workflow_id):
         workflow = _get_workflow(workflow_id)
         project_config = workflow.project.get_config()
