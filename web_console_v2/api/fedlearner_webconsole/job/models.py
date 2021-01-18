@@ -15,11 +15,13 @@
 # coding: utf-8
 import enum
 import json
+import os
 from sqlalchemy.sql import func
 from fedlearner_webconsole.db import db, to_dict_mixin
 from fedlearner_webconsole.project.adapter import ProjectK8sAdapter
 from fedlearner_webconsole.project.models import Project
 from fedlearner_webconsole.k8s_client import get_client
+from fedlearner_webconsole.scheduler.yaml_formatter import YamlFormatter
 from fedlearner_webconsole.proto.workflow_definition_pb2 import JobDefinition
 
 class JobState(enum.Enum):
@@ -113,9 +115,19 @@ class Job(db.Model):
     def run(self):
         project_adapter = ProjectK8sAdapter(self.project)
         k8s_client = get_client()
-        # TODO: complete yaml
+        formatter = YamlFormatter()
+        system_dict = {
+            'basic_envs': os.environ.get(
+                'BASIC_ENVS',
+                '')}
+        # TODO: move format to workflow's creating stage
+        #  to check whether the config is valid
+        yaml = formatter.format(self.yaml,
+                                workflow=self.workflow,
+                                project=self.project,
+                                system=system_dict)
         k8s_client.create_flapp(project_adapter.get_namespace(),
-                                self.yaml)
+                                yaml)
         self.state = JobState.STARTED
 
     def stop(self):
