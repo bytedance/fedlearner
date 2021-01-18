@@ -146,12 +146,11 @@ class ProjectApiTest(BaseTestCase):
 
     def test_update_project(self):
         updated_comment = 'updated comment'
-        update_response = self.client.patch(
+        update_response = self.patch_helper(
             '/api/v2/projects/{}'.format(1),
-            data=json.dumps({
+            data={
                 'comment': updated_comment
-            }),
-            content_type='application/json')
+            })
         self.assertEqual(update_response.status_code, HTTPStatus.OK)
         queried_project = Project.query.filter_by(id=1).first()
         self.assertEqual(queried_project.comment, updated_comment)
