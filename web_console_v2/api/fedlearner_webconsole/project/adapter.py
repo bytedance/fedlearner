@@ -14,7 +14,6 @@
 
 # coding: utf-8
 import json
-from fedlearner_webconsole.project.models import Project
 
 DEFAULT_VALUE = {
     'NAMESPACE': 'default',
@@ -31,11 +30,9 @@ DEFAULT_VALUE = {
 
 class ProjectK8sAdapter:
     """Project Adapter for getting K8s settings"""
-    def __init__(self, project_id):
-        self.project = Project.query.filter_by(id=project_id).first()
-        if self.project is None:
-            raise RuntimeError('No such project')
-        self._config = self.project.to_dict().get('config')
+    def __init__(self, project):
+        self._project = project
+        self._config = self._project.to_dict().get('config')
 
     def get_namespace(self):
         return self._exact_variable_from_config('NAMESPACE')
@@ -87,7 +84,7 @@ class ProjectK8sAdapter:
                     'x-host': self._exact_variable_from_config(
                         'WEB_CONSOLE_URL')
                 }
-            } for participant in self.project.get_participants()
+            } for participant in self._project.get_participants()
         }
 
     def get_worker_grpc_spec(self):
@@ -99,7 +96,7 @@ class ProjectK8sAdapter:
                     'x-host': self._exact_variable_from_config(
                         'OPERATOR_URL')
                 }
-            } for participant in self.project.get_participants()
+            } for participant in self._project.get_participants()
         }
 
     def _exact_variable_from_config(self, variable_name):

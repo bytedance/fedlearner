@@ -36,7 +36,6 @@ from fedlearner_webconsole.db import db
 from fedlearner_webconsole.exceptions import (
     make_response, WebConsoleApiException, InvalidArgumentException)
 from fedlearner_webconsole.scheduler.scheduler import scheduler
-from fedlearner_webconsole.scheduler.job_scheduler import job_scheduler
 
 def _handle_bad_request(error):
     """Handles the bad request raised by reqparse"""
@@ -95,9 +94,5 @@ def create_app(config):
     if app.config.get('START_SCHEDULER', True):
         scheduler.stop()
         scheduler.start(app)
-
-    if app.config.get('START_JOB_SCHEDULER', True):
-        job_scheduler.stop()
-        job_scheduler.start(app)
 
     return app

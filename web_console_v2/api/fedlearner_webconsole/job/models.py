@@ -106,18 +106,22 @@ class Job(db.Model):
             self._set_snapshot_pods()
         return json.loads(self.pods_snapshot)
 
-
-
+    def run(self):
+        project_adapter = ProjectK8sAdapter(self.project)
+        k8s_client = get_client()
+        # TODO: complete yaml
+        k8s_client.create_flapp(project_adapter.get_namespace(),
+                                self.yaml)
+        self.state = JobState.STARTED
 
     def stop(self):
-        project_adapter = ProjectK8sAdapter(self.project_id)
+        project_adapter = ProjectK8sAdapter(self.project)
         if self.state == JobState.STARTED:
             self._set_snapshot_flapp()
             self._set_snapshot_pods()
             self._k8s_client.delete_custom_object(
                 CrdKind.FLAPP, self.name, project_adapter.get_namespace())
         self.state = JobState.STOPPED
-
 
     def set_yaml(self, yaml_template):
         self.yaml = yaml_template
