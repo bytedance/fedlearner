@@ -204,9 +204,9 @@ class K8sClient(object):
         except ApiException as e:
             self._raise_runtime_error(e)
 
-    def create_from_dict(self, dic_object):
+    def create_from_dict(self, dictionary):
         try:
-            return utils.create_from_dict(self._client, dic_object)
+            return utils.create_from_dict(self._client, dictionary)
         except ApiException as e:
             self._raise_runtime_error(e)
 

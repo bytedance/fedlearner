@@ -23,11 +23,13 @@ from fedlearner_webconsole.k8s_client import get_client
 from fedlearner_webconsole.utils.k8s_client import CrdKind
 from fedlearner_webconsole.proto.workflow_definition_pb2 import JobDefinition
 
+
 class JobState(enum.Enum):
     UNSPECIFIED = 1
     READY = 2
     STARTED = 3
     STOPPED = 4
+
 
 # must be consistent with JobType in proto
 class JobType(enum.Enum):
@@ -39,6 +41,7 @@ class JobType(enum.Enum):
     TREE_MODEL_TRAINING = 5
     NN_MODEL_EVALUATION = 6
     TREE_MODEL_EVALUATION = 7
+
 
 def merge(x, y):
     """Given two dictionaries, merge them into a new dict as a shallow copy."""
@@ -86,16 +89,16 @@ class Job(db.Model):
     def _set_snapshot_flapp(self):
         project_adapter = ProjectK8sAdapter(
             Project.query.filter_by(id=self.project.id).first())
-        flapp = json.dumps(self._k8s_client.get_custom_object(
-            CrdKind.FLAPP, self.name, project_adapter.get_namespace()))
+        flapp = self._k8s_client.get_custom_object(
+            CrdKind.FLAPP, self.name, project_adapter.get_namespace())
         self.flapp_snapshot = json.dumps(flapp)
 
     def _set_snapshot_pods(self):
         project_adapter = ProjectK8sAdapter(
             Project.query.filter_by(id=self.project.id).first())
-        flapp = json.dumps(self._k8s_client.list_resource_of_custom_object(
-            CrdKind.FLAPP, self.name, 'pods', project_adapter.get_namespace()))
-        self.flapp_snapshot = json.dumps(flapp)
+        pods = self._k8s_client.list_resource_of_custom_object(
+            CrdKind.FLAPP, self.name, 'pods', project_adapter.get_namespace())
+        self.pods_snapshot = json.dumps(pods)
 
     def get_flapp(self):
         # TODO: remove update snapshot to scheduler

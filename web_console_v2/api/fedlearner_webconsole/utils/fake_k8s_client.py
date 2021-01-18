@@ -151,8 +151,8 @@ class FakeK8sClient(K8sClient):
             )
         )
 
-    def create_from_dict(self, dic_object):
-        return dic_object
+    def create_from_dict(self, dictionary):
+        return dictionary
 
     def get_custom_object(self, kind, custom_object_name: str,
                           namespace='default'):
