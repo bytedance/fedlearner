@@ -31,6 +31,8 @@ class BaseTestCase(TestCase):
             SQLALCHEMY_DATABASE_URI = 'sqlite://'
             SQLALCHEMY_TRACK_MODIFICATIONS = False
             JWT_SECRET_KEY = secrets.token_urlsafe(64)
+            JWT_BLACKLIST_ENABLED = True
+            JWT_BLACKLIST_TOKEN_CHECKS = ['access']
             PROPAGATE_EXCEPTIONS = True
             LOGGING_LEVEL = logging.DEBUG
             TESTING = True

@@ -21,10 +21,8 @@ from http import HTTPStatus
 from flask import Flask, jsonify
 from flask_migrate import Migrate
 from flask_restful import Api
-from flask_jwt_extended import JWTManager
-
 migrate = Migrate()
-jwt = JWTManager()
+
 
 from fedlearner_webconsole.auth.apis import initialize_auth_apis
 from fedlearner_webconsole.project.apis import initialize_project_apis
@@ -32,10 +30,11 @@ from fedlearner_webconsole.workflow_template.apis \
     import initialize_workflow_template_apis
 from fedlearner_webconsole.workflow.apis import initialize_workflow_apis
 from fedlearner_webconsole.rpc.server import rpc_server
-from fedlearner_webconsole.db import db
+from fedlearner_webconsole.db import db, jwt
 from fedlearner_webconsole.exceptions import (
     make_response, WebConsoleApiException, InvalidArgumentException)
 from fedlearner_webconsole.scheduler.scheduler import scheduler
+
 
 def _handle_bad_request(error):
     """Handles the bad request raised by reqparse"""

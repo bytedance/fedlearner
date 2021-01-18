@@ -17,13 +17,13 @@
 from enum import Enum
 from datetime import datetime
 from typing import List, Dict, Callable
-
+from flask_jwt_extended import JWTManager
 from flask_sqlalchemy import SQLAlchemy
 from google.protobuf.message import Message
 from google.protobuf.json_format import MessageToDict
 
 db = SQLAlchemy()
-
+jwt = JWTManager()
 
 def to_dict_mixin(ignores: List[str] = None,
                   extras: Dict[str, Callable] = None):

@@ -18,13 +18,22 @@
 from http import HTTPStatus
 from flask import request
 from flask_restful import Resource, reqparse
-from flask_jwt_extended import jwt_required, create_access_token
+from flask_jwt_extended import jwt_required, \
+    create_access_token, get_raw_jwt
 
-from fedlearner_webconsole.db import db
+from fedlearner_webconsole.db import db, jwt
 from fedlearner_webconsole.auth.models import User
 from fedlearner_webconsole.exceptions import (
     NotFoundException, InvalidArgumentException,
     ResourceConflictException, UnauthorizedException)
+
+blacklist = set()
+
+@jwt.token_in_blacklist_loader
+def check_if_token_in_blacklist(decrypted_token):
+    jti = decrypted_token['jti']
+    return jti in blacklist
+
 
 class SigninApi(Resource):
     def post(self):
@@ -111,7 +120,16 @@ class UserApi(Resource):
         return {'username': user.username}, HTTPStatus.OK
 
 
+class UserSignOutApi(Resource):
+    @jwt_required
+    def post(self):
+        jti = get_raw_jwt()['jti']
+        blacklist.add(jti)
+        return {'message': 'Successfully logged out'}, HTTPStatus.OK
+
+
 def initialize_auth_apis(api):
     api.add_resource(SigninApi, '/auth/signin')
     api.add_resource(UsersApi, '/auth/users')
     api.add_resource(UserApi, '/auth/users/<int:user_id>')
+    api.add_resource(UserSignOutApi, '/auth/signout')

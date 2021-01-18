@@ -24,6 +24,8 @@ class Config(object):
     SQLALCHEMY_DATABASE_URI = 'sqlite:///' + os.path.join(BASE_DIR, 'app.db')
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     JWT_SECRET_KEY = secrets.token_urlsafe(64)
+    JWT_BLACKLIST_ENABLED = True
+    JWT_BLACKLIST_TOKEN_CHECKS = ['access']
     PROPAGATE_EXCEPTIONS = True
     LOGGING_LEVEL = logging.INFO
     GRPC_LISTEN_PORT = 1990

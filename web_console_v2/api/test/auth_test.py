@@ -17,11 +17,18 @@
 import json
 import unittest
 from http import HTTPStatus
-
 from testing.common import BaseTestCase
 
 
 class AuthApiTest(BaseTestCase):
+    def test_singout(self):
+        self.signin_helper()
+        resp = self.post_helper('/api/v2/auth/signout', '')
+        self.assertEqual(resp.status_code, HTTPStatus.OK)
+        resp = self.post_helper('/api/v2/auth/signout', '')
+        self.assertEqual(resp.status_code, HTTPStatus.UNAUTHORIZED)
+
+
     def test_auth(self):
         self.signout_helper()
 
