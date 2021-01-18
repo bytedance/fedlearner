@@ -149,7 +149,7 @@ class Scheduler(object):
             if not src_job.is_complete():
                 return job.state
 
-        project_adapter = ProjectK8sAdapter(job.project_id)
+        project_adapter = ProjectK8sAdapter(job.project)
         k8s_client = get_client()
         k8s_client.create_flapp(project_adapter.
                                 get_namespace(), job.yaml)
