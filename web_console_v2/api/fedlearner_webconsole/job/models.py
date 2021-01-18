@@ -84,13 +84,15 @@ class Job(db.Model):
         return None
 
     def _set_snapshot_flapp(self):
-        project_adapter = ProjectK8sAdapter(self.project_id)
+        project_adapter = ProjectK8sAdapter(
+            Project.query.filter_by(id=self.project.id).first())
         flapp = json.dumps(self._k8s_client.get_custom_object(
             CrdKind.FLAPP, self.name, project_adapter.get_namespace()))
         self.flapp_snapshot = json.dumps(flapp)
 
     def _set_snapshot_pods(self):
-        project_adapter = ProjectK8sAdapter(self.project_id)
+        project_adapter = ProjectK8sAdapter(
+            Project.query.filter_by(id=self.project.id).first())
         flapp = json.dumps(self._k8s_client.list_resource_of_custom_object(
             CrdKind.FLAPP, self.name, 'pods', project_adapter.get_namespace()))
         self.flapp_snapshot = json.dumps(flapp)
@@ -110,8 +112,7 @@ class Job(db.Model):
         project_adapter = ProjectK8sAdapter(self.project)
         k8s_client = get_client()
         # TODO: complete yaml
-        k8s_client.create_flapp(project_adapter.get_namespace(),
-                                self.yaml)
+        k8s_client.create_from_dict(self.yaml)
         self.state = JobState.STARTED
 
     def stop(self):
