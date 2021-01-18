@@ -5,6 +5,57 @@
 // Variables
 @body-background: #eff2f7;
 
+// Button
+// --
+@btn-default-color: @gray-8;
+@btn-default-bg: @gray-2;
+@btn-default-border: @gray-2;
+
+.ant-btn {
+  border: none;
+
+  > .anticon,
+  > .anticon {
+    // Remove sturt
+    display: flex;
+    justify-content: center;
+    line-height: 0;
+  }
+
+  &:hover {
+    color: @btn-default-color;
+    border-color: @gray-2;
+    background-color: @gray-3;
+  }
+  &-sm {
+    height: 28px;
+    padding: 0 16px;
+  }
+  &-lg {
+    height: 36px;
+    padding: 0 20px;
+  }
+  &-primary {
+    &:hover {
+      background-color: @arcoblue-5;
+      color: white;
+    }
+    &:active {
+      background-color: @arcoblue-7;
+      color: white;
+    }
+  }
+}
+
+// Icon
+// --
+.anticon {
+  > svg {
+    width: 1em;
+    fill: currentColor;
+  }
+}
+
 // Menu
 // --
 @menu-item-active-bg: @gray-2;
@@ -117,5 +168,12 @@
       font-size: 16px;
       color: @text-color;
     }
+  }
+}
+
+.ant-form-item-has-error {
+  .ant-upload.ant-upload-drag.ant-upload-drag:not(:hover) {
+    border-color: transparent;
+    background-color: var(--red1);
   }
 }

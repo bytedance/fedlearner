@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { FC, useState } from 'react';
 import styled from 'styled-components';
 import { Row, Col, Button, Form, Input, Select, Table, message } from 'antd';
 import { useList } from 'react-use';
@@ -11,7 +11,8 @@ import { useTranslation } from 'react-i18next';
 import ListPageLayout from 'components/ListPageLayout';
 import { Workflow } from 'typings/workflow';
 import WorkflowStage from './WorkflowStage';
-import { isStopped, isRunning, isPendingAccpet, isReadyToRun } from 'shared/workflow';
+import { isPendingAccpet } from 'shared/workflow';
+import WorkflowActions from './WorkflowActions';
 import ProjectCell from 'components/ProjectCell';
 
 const FilterItem = styled(Form.Item)`
@@ -59,38 +60,7 @@ const tableColumns = [
     title: i18n.t('workflow.col_actions'),
     dataIndex: 'created_at',
     name: 'created_at',
-    render: (_: any, record: Workflow) => (
-      <div>
-        {isPendingAccpet(record) && (
-          <Link to={`/workflows/accept/${record.id}/basic`}>
-            <Button size="small" type="link">
-              {i18n.t('workflow.action_configure')}
-            </Button>
-          </Link>
-        )}
-        {isReadyToRun(record) && (
-          <Button size="small" type="link">
-            {i18n.t('workflow.action_run')}
-          </Button>
-        )}
-        {isRunning(record) && (
-          <Button size="small" type="link">
-            {i18n.t('workflow.action_stop_running')}
-          </Button>
-        )}
-        {isStopped(record) && (
-          <Button size="small" type="link">
-            {i18n.t('workflow.action_re_run')}
-          </Button>
-        )}
-        <Button size="small" type="link">
-          {i18n.t('workflow.action_duplicate')}
-        </Button>
-        <Button size="small" type="link">
-          {i18n.t('workflow.action_detail')}
-        </Button>
-      </div>
-    ),
+    render: (_: any, record: Workflow) => <WorkflowActions workflow={record} />,
   },
 ];
 
@@ -99,7 +69,7 @@ type QueryParams = {
   keyword?: string;
 };
 
-function WorkflowsTable() {
+const WorkflowList: FC = () => {
   const { t } = useTranslation();
   const [form] = Form.useForm<QueryParams>();
   const [projectList] = useList([{ value: '', label: t('all') }]);
@@ -119,11 +89,13 @@ function WorkflowsTable() {
   }
 
   return (
-    <ListPageLayout title={t('term.workflow')}>
-      <Row gutter={16} justify="space-between">
+    <ListPageLayout title={t('menu.label_workflow')}>
+      <Row gutter={16} justify="space-between" align="middle">
         <Col>
           <Link to="/workflows/initiate/basic">
-            <Button type="primary">{t('workflow.create_workflow')}</Button>
+            <Button size="large" type="primary">
+              {t('workflow.create_workflow')}
+            </Button>
           </Link>
         </Col>
         <Col>
@@ -147,9 +119,9 @@ function WorkflowsTable() {
         </Col>
       </Row>
 
-      <Table loading={isLoading} dataSource={res?.data.data || []} columns={tableColumns} />
+      <Table loading={isLoading} dataSource={res?.data || []} columns={tableColumns} />
     </ListPageLayout>
   );
-}
+};
 
-export default WorkflowsTable;
+export default WorkflowList;

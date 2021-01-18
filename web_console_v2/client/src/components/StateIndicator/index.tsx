@@ -7,7 +7,7 @@ const Container = styled.div`
   display: flex;
   align-items: center;
   font-size: 13px;
-  line-height: 22px;
+  line-height: 1;
 
   &::before {
     content: '●';
