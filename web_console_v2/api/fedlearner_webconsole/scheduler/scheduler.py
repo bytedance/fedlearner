@@ -25,7 +25,6 @@ from fedlearner_webconsole.workflow.models import Workflow, WorkflowState
 from fedlearner_webconsole.job.models import Job, JobState, JobDependency
 from fedlearner_webconsole.scheduler.transaction import TransactionManager
 from fedlearner_webconsole.k8s_client import get_client
-from fedlearner_webconsole.project.adapter import ProjectK8sAdapter
 
 
 class Scheduler(object):
@@ -150,10 +149,8 @@ class Scheduler(object):
             if not src_job.is_complete():
                 return job.state
 
-        project_adapter = ProjectK8sAdapter(job.project)
         k8s_client = get_client()
-        k8s_client.create_flapp(project_adapter.
-                                get_namespace(), job.yaml)
+        k8s_client.create_from_dict(job.yaml)
         job.start()
         db.session.commit()
 

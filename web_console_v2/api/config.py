@@ -23,12 +23,12 @@ BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 class Config(object):
     SQLALCHEMY_DATABASE_URI = 'sqlite:///' + os.path.join(BASE_DIR, 'app.db')
     SQLALCHEMY_TRACK_MODIFICATIONS = False
-    # TODO: persistent the key
-    JWT_SECRET_KEY = secrets.token_urlsafe(64)
     JWT_BLACKLIST_ENABLED = True
     JWT_BLACKLIST_TOKEN_CHECKS = ['access']
     # 1 day
     JWT_ACCESS_TOKEN_EXPIRES = 86400
+    JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY',
+                               secrets.token_urlsafe(64))
     PROPAGATE_EXCEPTIONS = True
     LOGGING_LEVEL = logging.INFO
     GRPC_LISTEN_PORT = 1990
