@@ -32,25 +32,32 @@ class ProjectK8sAdapter:
     """Project Adapter for getting K8s settings"""
     def __init__(self, project):
         self._project = project
-        self._config = self._project.to_dict().get('config')
+        self._variables = {
+            var.name: var.value
+            for var in project.get_config().variables
+        }
 
     def get_namespace(self):
-        return self._exact_variable_from_config('NAMESPACE')
+        return self._exact_variable('NAMESPACE')
 
     def get_storage_root_path(self):
-        return self._exact_variable_from_config('STORAGE_ROOT_PATH')
+        return self._exact_variable('STORAGE_ROOT_PATH')
 
     def get_global_job_spec(self):
         return {
             'global_job_spec': {
                 'spec': {
                     'cleanPodPolicy':
-                        self._exact_variable_from_config('CLEAN_POD_POLICY')
+                        self._exact_variable('CLEAN_POD_POLICY')
                 }
             }
         }
 
     def get_global_replica_spec(self):
+        variable_list = [
+            {'name': key, 'value': value}
+            for key, value in self._variables.items()
+        ]
         return {
             'global_replica_spec': {
                 'template': {
@@ -61,12 +68,12 @@ class ProjectK8sAdapter:
                             }
                         ],
                         'volumes': json.loads(
-                            self._exact_variable_from_config('VOLUMES')),
+                            self._exact_variable('VOLUMES')),
                         'containers': [
                             {
-                                'env': self._config.get('variables'),
+                                'env': variable_list,
                                 'volumeMounts':
-                                    json.loads(self._exact_variable_from_config(
+                                    json.loads(self._exact_variable(
                                         'VOLUME_MOUNTS'))
                             }
                         ]
@@ -78,10 +85,10 @@ class ProjectK8sAdapter:
     def get_web_console_grpc_spec(self):
         return {
             participant.domain_name: {
-                'peerUrl': self._exact_variable_from_config('EGRESS_URL'),
+                'peerUrl': self._exact_variable('EGRESS_URL'),
                 'authority': participant.domain_name,
                 'extraHeaders': {
-                    'x-host': self._exact_variable_from_config(
+                    'x-host': self._exact_variable(
                         'WEB_CONSOLE_URL')
                 }
             } for participant in self._project.get_participants()
@@ -90,17 +97,16 @@ class ProjectK8sAdapter:
     def get_worker_grpc_spec(self):
         return {
             participant.domain_name: {
-                'peerUrl': self._exact_variable_from_config('EGRESS_URL'),
+                'peerUrl': self._exact_variable('EGRESS_URL'),
                 'authority': participant.domain_name,
                 'extraHeaders': {
-                    'x-host': self._exact_variable_from_config(
+                    'x-host': self._exact_variable(
                         'OPERATOR_URL')
                 }
             } for participant in self._project.get_participants()
         }
 
-    def _exact_variable_from_config(self, variable_name):
-        for variable in self._config.get('variables'):
-            if variable.get('name') == variable_name:
-                return variable.get('value')
+    def _exact_variable(self, variable_name):
+        if variable_name in self._variables:
+            return self._variables[variable_name]
         return DEFAULT_VALUE.get(variable_name)

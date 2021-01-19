@@ -70,18 +70,18 @@ class ProjectK8sAdapterTest(BaseTestCase):
         self.default_project.comment = 'test comment'
         db.session.add(self.default_project)
         db.session.commit()
-        self.project_k8s_adapter = ProjectK8sAdapter(self.default_project.id)
+        db.session.refresh(self.default_project)
+        self.project_k8s_adapter = ProjectK8sAdapter(self.default_project)
 
     def test_exact_variable_from_config(self):
         # no default value
         self.assertEqual('test',
-                         self.project_k8s_adapter
-                         ._exact_variable_from_config(
+                         self.project_k8s_adapter._exact_variable(
                              'TEST_NO_DEFAULT_VARIABLE'))
         # using default value
         self.assertEqual('default',
-                         self.project_k8s_adapter
-                         ._exact_variable_from_config('NAMESPACE'))
+                         self.project_k8s_adapter._exact_variable(
+                             'NAMESPACE'))
         # using new value
         self.assertEqual(json.dumps([
             {'hostPath': {
@@ -89,7 +89,7 @@ class ProjectK8sAdapterTest(BaseTestCase):
             },
                 'name': 'test'
             }
-        ]), self.project_k8s_adapter._exact_variable_from_config('VOLUMES'))
+        ]), self.project_k8s_adapter._exact_variable('VOLUMES'))
 
     def test_get_global_replica_spec(self):
         self.assertEqual({
@@ -125,5 +125,6 @@ class ProjectK8sAdapterTest(BaseTestCase):
             }
         }, self.project_k8s_adapter.get_global_replica_spec())
 
-        if __name__ == '__main__':
-            unittest.main()
+
+if __name__ == '__main__':
+    unittest.main()
