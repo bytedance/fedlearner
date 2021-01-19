@@ -1,5 +1,5 @@
 import { Elements, Node, XYPosition, Edge } from 'react-flow-renderer';
-import { Job } from 'typings/workflow';
+import { Job, JobExecutionDetalis, JobState } from 'typings/job';
 import { isHead, isLast } from 'shared/array';
 import { head, last } from 'lodash';
 
@@ -11,13 +11,16 @@ export const NODE_GAP = 30;
 
 export enum JobNodeStatus {
   Pending,
-  Configuring,
-  Unfinished,
-  Completed,
+  Processing,
+  Warning,
+  Success,
+  Error,
 }
 
+export type JobRawData = Job & Partial<JobExecutionDetalis>;
+
 export type JobNodeData = {
-  raw: Job; // each jobs raw-config
+  raw: JobRawData; // each jobs raw-config plus it's execution details if has
   index: number;
   isSource?: boolean;
   isTarget?: boolean;
@@ -28,7 +31,9 @@ export interface JobNode extends Node {
   data: JobNodeData;
 }
 
-export function convertJobsToElements(jobs: Job[]): any {
+export type JobNodeType = 'config' | 'execution';
+
+export function convertJobsToElements(jobs: JobRawData[], type: JobNodeType): any {
   // 1. Group Jobs to rows by dependiences
   // e.g. Say we have jobs like [1, 2, 3, 4, 5] in which 2,3,4 is depend on 1, 5 depend on 2,3,4
   // we need to render jobs like charts below,
@@ -75,9 +80,12 @@ export function convertJobsToElements(jobs: Job[]): any {
     }
 
     function createNode(): JobNode {
+      const status = job.state ? convertExecutionStateToStatus(job.state) : JobNodeStatus.Pending;
+
       return {
         id: getNodeIdByJob(job),
-        data: { raw: job, index: jobIdx, status: JobNodeStatus.Pending },
+        type,
+        data: { raw: job, index: jobIdx, status },
         position: { x: 0, y: 0 }, // position will be calculated in later step
       };
     }
@@ -154,4 +162,16 @@ function createEdge(source: JobNode, target: JobNode): Edge {
     target: target.id,
     type: 'smoothstep',
   };
+}
+
+export function convertExecutionStateToStatus(state: JobState): JobNodeStatus {
+  return {
+    [JobState.NEW]: JobNodeStatus.Pending,
+    [JobState.WAITING]: JobNodeStatus.Pending,
+    [JobState.RUNNING]: JobNodeStatus.Processing,
+    [JobState.COMPLETE]: JobNodeStatus.Success,
+    [JobState.STOPPED]: JobNodeStatus.Error,
+    [JobState.FAILED]: JobNodeStatus.Warning,
+    [JobState.INVALID]: JobNodeStatus.Warning,
+  }[state];
 }

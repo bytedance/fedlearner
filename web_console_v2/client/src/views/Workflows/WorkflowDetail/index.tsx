@@ -1,45 +1,40 @@
-import React, { FC } from 'react';
+import React, { FC, useState } from 'react';
 import styled from 'styled-components';
-import { Card, Spin, Row, Col } from 'antd';
-import { useParams } from 'react-router-dom';
+import { Card, Spin, Row } from 'antd';
+import { useParams, Link } from 'react-router-dom';
 import { useQuery } from 'react-query';
 import { getWorkflowDetailById } from 'services/workflow';
-import { Job } from 'typings/workflow';
 import WorkflowJobsFlowChart from 'components/WorkflowJobsFlowChart';
 import { useTranslation } from 'react-i18next';
-import { SyncOutlined, BookOutlined } from '@ant-design/icons';
-import { xShapeTemplate } from 'services/mocks/v2/workflow_templates/example';
 import WhichProject from 'components/WhichProject';
 import { fromNow } from 'shared/date';
 import WorkflowActions from '../WorkflowActions';
 import WorkflowStage from '../WorkflowList/WorkflowStage';
 import GridRow from 'components/_base/GridRow';
+import BreadcrumbLink from 'components/BreadcrumbLink';
+import JobExecutionDetailsDrawer from './JobExecutionDetailsDrawer';
+import { useToggle } from 'react-use';
+import { JobNode, JobNodeData } from 'components/WorkflowJobsFlowChart/helpers';
+import PropertyList from 'components/PropertyList';
 
+const Container = styled.div`
+  display: flex;
+  flex-direction: column;
+  height: var(--contentHeight);
+`;
 const ChartSection = styled.section`
   margin-top: 16px;
+  flex: 1;
+`;
+const HeaderRow = styled(Row)`
+  margin-bottom: 30px;
 `;
 const Name = styled.h3`
   margin-bottom: 0;
   font-size: 20px;
   line-height: 28px;
 `;
-const PropsRow = styled.dl`
-  display: flex;
-  margin-top: 30px;
-  padding: 7px 16px;
-  background-color: var(--gray1);
-`;
-const Prop = styled.dd`
-  margin-bottom: 0;
-  font-size: 13px;
-  line-height: 36px;
-
-  &::before {
-    content: attr(data-label) '：';
-    color: var(--textColorSecondary);
-  }
-`;
-const Header = styled.header`
+const ChartHeader = styled.header`
   padding: 13px 20px;
   font-size: 14px;
   line-height: 22px;
@@ -52,8 +47,11 @@ const ChartTitle = styled.h3`
 const WorkflowDetail: FC = () => {
   const params = useParams<{ id: string }>();
   const { t } = useTranslation();
+  const [drawerVisible, toggleDrawerVisible] = useToggle(false);
+  const [isPeerSide, setIsPeerSide] = useState(false);
+  const [data, setData] = useState<JobNodeData>();
 
-  const { isLoading, data, error } = useQuery(
+  const detailQuery = useQuery(
     ['getWorkflowDetailById', params.id],
     () => getWorkflowDetailById(params.id),
     {
@@ -61,45 +59,83 @@ const WorkflowDetail: FC = () => {
     },
   );
 
-  const workflow = data?.data;
+  const workflow = detailQuery.data?.data;
+  const jobDefs = workflow?.config?.job_definitions || [];
+  const jobsWithExecutionDetails = jobDefs.map((item) => {
+    return Object.assign(
+      item,
+      workflow?.jobs.find((j) => j.name === item.name),
+    );
+  });
 
   return (
-    <Spin spinning={isLoading}>
-      <Card>
-        <Row justify="space-between" align="middle">
-          <GridRow gap="8">
-            <Name>{workflow?.name}</Name>
-            {workflow && <WorkflowStage data={workflow} tag />}
-          </GridRow>
-          {workflow && <WorkflowActions workflow={workflow} without={['detail']} />}
-        </Row>
-        <PropsRow>
-          <Col span={8}>
-            <Prop data-label={t('workflow.label_template_name')}>
-              {workflow?.config?.group_alias}
-            </Prop>
-          </Col>
-          <Col span={8}>
-            <Prop data-label={t('workflow.label_project')}>
-              <WhichProject id={workflow?.project_id || 0} />
-            </Prop>
-          </Col>
-          <Col span={8}>
-            <Prop data-label={t('workflow.label_running_time')}>
-              {fromNow(workflow?.start_running_at || 1610238602, true)}
-            </Prop>
-          </Col>
-        </PropsRow>
-      </Card>
+    <Spin spinning={detailQuery.isLoading}>
+      <Container>
+        <BreadcrumbLink
+          paths={[
+            { label: 'menu.label_workflow', to: '/workflows' },
+            { label: 'workflow.execution_detail' },
+          ]}
+        />
+        <Card>
+          <HeaderRow justify="space-between" align="middle">
+            <GridRow gap="8">
+              <Name>{workflow?.name}</Name>
+              {workflow && <WorkflowStage workflow={workflow} tag />}
+            </GridRow>
+            {workflow && <WorkflowActions workflow={workflow} without={['detail']} />}
+          </HeaderRow>
 
-      <ChartSection>
-        <Header>
-          <ChartTitle>{t('workflow.our_config')}</ChartTitle>
-        </Header>
-        <WorkflowJobsFlowChart jobs={workflow?.config?.job_definitions || []} />
-      </ChartSection>
+          <PropertyList
+            cols={3}
+            properties={[
+              {
+                label: t('workflow.label_template_name'),
+                value: workflow?.config?.group_alias || (
+                  <Link to={`/workflows/accept/basic/${workflow?.id}`}>
+                    {t('workflow.job_node_pending')}
+                  </Link>
+                ),
+              },
+              {
+                label: t('workflow.label_project'),
+                value: <WhichProject id={workflow?.project_id || 0} />,
+              },
+              {
+                label: t('workflow.label_running_time'),
+                value: fromNow(workflow?.start_running_at || 0, true),
+              },
+            ]}
+          />
+        </Card>
+
+        <ChartSection>
+          <ChartHeader>
+            <ChartTitle>{t('workflow.our_config')}</ChartTitle>
+          </ChartHeader>
+
+          <WorkflowJobsFlowChart
+            type="execution"
+            jobs={jobsWithExecutionDetails}
+            onJobClick={viewJobDetail}
+          />
+        </ChartSection>
+
+        <JobExecutionDetailsDrawer
+          visible={drawerVisible}
+          toggleVisible={toggleDrawerVisible}
+          data={data}
+          isPeerSide={isPeerSide}
+        />
+      </Container>
     </Spin>
   );
+
+  function viewJobDetail(jobNode: JobNode) {
+    setData(jobNode.data);
+
+    toggleDrawerVisible(true);
+  }
 };
 
 export default WorkflowDetail;

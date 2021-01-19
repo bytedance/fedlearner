@@ -158,7 +158,6 @@ function BaseForm({ onSubmit, edit, initialValues }: Props): ReactElement {
               name="certificate"
               rules={[{ required: true, message: t('project.upload_certificate_message') }]}
             >
-              {/* TODO: read error info from form-item */}
               <ReadFile disabled={edit} accept=".gz" reader={readAsBinaryStringFromFile} />
             </FileFormItem>
           ) : null}
@@ -254,7 +253,7 @@ function BaseForm({ onSubmit, edit, initialValues }: Props): ReactElement {
         };
         await onSubmit(params);
       }
-      message.success(edit ? i18n.t('project.edit_success') : i18n.t('proejct.create_success'));
+      message.success(edit ? i18n.t('project.edit_success') : i18n.t('project.create_success'));
       backToList();
     } catch (error) {
       message.error(error.message);

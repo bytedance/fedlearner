@@ -1,6 +1,7 @@
 import { separateLng } from 'i18n/helpers';
 
 const project = {
+  no_result: { zh: '暂无项目', en: 'No project yet' },
   create: { zh: '创建项目', en: 'Create project' },
   describe: {
     zh:

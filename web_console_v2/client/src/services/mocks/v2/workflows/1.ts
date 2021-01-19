@@ -1,12 +1,12 @@
-import { awaitParticipantConfig } from './example';
+import { awaitParticipantConfig, withExecutionDetail } from './example';
 
 const get = {
-  data: { data: awaitParticipantConfig },
+  data: { data: withExecutionDetail },
   status: 200,
 };
 
 export const put = {
-  data: { data: {} },
+  data: { data: { success: true } },
   status: 200,
 };
 

@@ -83,6 +83,17 @@ const LoginForm = styled(Form)`
   > .ant-space {
     display: flex;
   }
+  .ant-form-item {
+    margin-bottom: 32px;
+
+    &.ant-form-item-with-help {
+      margin-bottom: 8px;
+    }
+  }
+  .ant-input-lg {
+    padding: 5.5px 0 !important;
+    font-size: 14px;
+  }
   .no-account {
     margin-top: 16px;
     color: var(--textColorSecondary);

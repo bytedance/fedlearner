@@ -1,8 +1,10 @@
 import axios, { AxiosInstance } from 'axios';
 import { getRequestMockState, setRequestMockState } from 'components/_base/MockDevtools/utils';
+import i18n from 'i18n';
 import LOCAL_STORAGE_KEYS from 'shared/localStorageKeys';
 import { removeFalsy, transformKeysToSnakeCase, binarizeBoolean } from 'shared/object';
 import store from 'store2';
+import { ErrorCodes } from 'typings/app';
 
 declare module 'axios' {
   interface AxiosRequestConfig {
@@ -74,7 +76,7 @@ request.interceptors.request.use((config) => {
 });
 
 /**
- * Params preprocrssing (NOTE: all optional):
+ * Params preprocessing (NOTE: every processor is optional):
  * 1. Remove undefined, null, empty string keys
  * 2. Turn camelCase keys to snake_case
  */
@@ -98,6 +100,14 @@ request.interceptors.response.use(
   },
   (error) => {
     const response = error.response.data;
+
+    // Access token expired due to time fly or server reboot
+    if (response.code === ErrorCodes.TokenExpired) {
+      return Promise.reject(
+        new ServerError(i18n.t('error.token_expired'), ErrorCodes.TokenExpired),
+      );
+    }
+    // Common errors handle
     if (response && typeof response === 'object') {
       const serverError = new ServerError(
         error.response.data.message || error.response.data.msg,

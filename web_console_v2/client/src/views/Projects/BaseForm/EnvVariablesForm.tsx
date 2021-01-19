@@ -1,10 +1,10 @@
 import React, { ReactElement } from 'react';
 import styled from 'styled-components';
-import { Form, Input, Space } from 'antd';
+import { Form, Input, Space, Button } from 'antd';
 import { useTranslation } from 'react-i18next';
 import AddField from './AddField';
-import TrashCan from 'components/Container/TrashCan';
 import { useToggle } from 'react-use';
+import { Delete } from 'components/IconPark';
 
 const Container = styled.div``;
 
@@ -42,13 +42,15 @@ const Header = styled.div`
     color: var(--gray10);
   }
   .toggle {
+    position: absolute;
+    left: 166px;
     display: inline-flex;
     align-items: center;
     font-size: 14px;
     line-height: 24px;
     color: var(--arcoblue6);
-    position: absolute;
-    left: 166px;
+    cursor: pointer;
+
     &::after {
       width: 0;
       height: 0;
@@ -91,7 +93,7 @@ function EnvVariablesForm(): ReactElement {
       {isFolded ? null : (
         <Body>
           <Form.List name="variables">
-            {(fields, { add, remove }, { errors }) => (
+            {(fields, { add, remove }) => (
               <>
                 {fields.map((field, index) => (
                   <Space
@@ -118,7 +120,13 @@ function EnvVariablesForm(): ReactElement {
                       <Input.TextArea placeholder="value" rows={1} />
                     </Form.Item>
 
-                    <TrashCan onClick={() => remove(field.name)} />
+                    <Button
+                      size="small"
+                      icon={<Delete />}
+                      shape="circle"
+                      type="text"
+                      onClick={() => remove(field.name)}
+                    />
                   </Space>
                 ))}
                 <Form.Item>

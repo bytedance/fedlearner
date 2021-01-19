@@ -8,12 +8,14 @@ import { message, Popover, Button, Row } from 'antd';
 import GridRow from 'components/_base/GridRow';
 import { Public } from 'components/IconPark';
 import LanguageSwitch from './LanguageSwitch';
-import { useHistory } from 'react-router-dom';
+import { Redirect, useHistory } from 'react-router-dom';
 import { logout } from 'services/user';
 import { useTranslation } from 'react-i18next';
 import store from 'store2';
 import LOCAL_STORAGE_KEYS from 'shared/localStorageKeys';
 import { useResetRecoilState } from 'recoil';
+import { ErrorCodes } from 'typings/app';
+import i18n from 'i18n';
 
 const Container = styled.div`
   ${MixinCommonTransition()}
@@ -120,6 +122,11 @@ const Username: FC<{ name: string }> = ({ name }) => {
 
 function HeaderAccount() {
   const { isLoading, data: userInfo, error } = useRecoilQuery(userInfoQuery);
+
+  if (error && error.code === ErrorCodes.TokenExpired) {
+    message.info(i18n.t('error.token_expired'));
+    return <Redirect to="/login" />;
+  }
 
   if (isLoading) {
     return <EmptyAvatar />;

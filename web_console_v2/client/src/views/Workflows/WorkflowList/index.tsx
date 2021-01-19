@@ -1,6 +1,6 @@
 import React, { FC, useState } from 'react';
 import styled from 'styled-components';
-import { Row, Col, Button, Form, Input, Select, Table, message } from 'antd';
+import { Row, Col, Button, Form, Input, Select, Table, message, Spin } from 'antd';
 import { useList } from 'react-use';
 import { Link } from 'react-router-dom';
 import { useQuery } from 'react-query';
@@ -13,11 +13,17 @@ import { Workflow } from 'typings/workflow';
 import WorkflowStage from './WorkflowStage';
 import WorkflowActions from '../WorkflowActions';
 import WhichProject from 'components/WhichProject';
+import NoResult from 'components/NoResult';
 
 const FilterItem = styled(Form.Item)`
   > .ant-form-item-control {
     width: 227px;
   }
+`;
+const ListContainer = styled.div`
+  display: flex;
+  flex: 1;
+  width: 100%;
 `;
 
 const tableColumns = [
@@ -37,7 +43,7 @@ const tableColumns = [
     title: i18n.t('workflow.col_status'),
     dataIndex: 'state',
     name: 'state',
-    render: (_: string, record: Workflow) => <WorkflowStage data={record} />,
+    render: (_: string, record: Workflow) => <WorkflowStage workflow={record} />,
   },
   {
     title: i18n.t('workflow.col_project'),
@@ -82,44 +88,54 @@ const WorkflowList: FC = () => {
     message.error((error as Error).message);
   }
 
-  function handleSearch(values: QueryParams) {
-    setParams(values);
-  }
+  const isEmpty = !res?.data.length;
 
   return (
-    <ListPageLayout title={t('menu.label_workflow')}>
-      <Row gutter={16} justify="space-between" align="middle">
-        <Col>
-          <Link to="/workflows/initiate/basic">
-            <Button size="large" type="primary">
-              {t('workflow.create_workflow')}
-            </Button>
-          </Link>
-        </Col>
-        <Col>
-          <Form initialValues={{ ...params }} layout="inline" form={form} onFinish={handleSearch}>
-            <FilterItem name="project" label={t('term.project')}>
-              <Select onChange={form.submit}>
-                {projectList.map((item) => (
-                  <Select.Option key={item.value} value={item.value}>
-                    {item.label}
-                  </Select.Option>
-                ))}
-              </Select>
-            </FilterItem>
-            <FilterItem name="keyword">
-              <Input.Search
-                placeholder={t('workflow.placeholder_name_searchbox')}
-                onPressEnter={form.submit}
-              />
-            </FilterItem>
-          </Form>
-        </Col>
-      </Row>
+    <Spin spinning={isLoading}>
+      <ListPageLayout title={t('menu.label_workflow')}>
+        <Row gutter={16} justify="space-between" align="middle">
+          <Col>
+            <Link to="/workflows/initiate/basic">
+              <Button size="large" type="primary">
+                {t('workflow.create_workflow')}
+              </Button>
+            </Link>
+          </Col>
+          <Col>
+            <Form initialValues={{ ...params }} layout="inline" form={form} onFinish={onSearch}>
+              <FilterItem name="project" label={t('term.project')}>
+                <Select onChange={form.submit}>
+                  {projectList.map((item) => (
+                    <Select.Option key={item.value} value={item.value}>
+                      {item.label}
+                    </Select.Option>
+                  ))}
+                </Select>
+              </FilterItem>
+              <FilterItem name="keyword">
+                <Input.Search
+                  placeholder={t('workflow.placeholder_name_searchbox')}
+                  onPressEnter={form.submit}
+                />
+              </FilterItem>
+            </Form>
+          </Col>
+        </Row>
 
-      <Table loading={isLoading} dataSource={res?.data || []} columns={tableColumns} />
-    </ListPageLayout>
+        <ListContainer>
+          {isEmpty ? (
+            <NoResult text={t('workflow.no_result')} to="/workflows/initiate/basic" />
+          ) : (
+            <Table dataSource={res?.data || []} columns={tableColumns} />
+          )}
+        </ListContainer>
+      </ListPageLayout>
+    </Spin>
   );
+
+  function onSearch(values: QueryParams) {
+    setParams(values);
+  }
 };
 
 export default WorkflowList;

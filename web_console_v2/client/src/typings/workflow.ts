@@ -8,6 +8,7 @@ import {
   TextAreaWidgetSchema,
   WidgetWithOptionsSchema,
 } from './component';
+import { Job, JobExecutionDetalis } from './job';
 
 export enum VariableComponent {
   Input = 'Input',
@@ -91,34 +92,6 @@ export enum JobType {
   TREE_MODEL_EVALUATION = 'TREE_MODEL_EVALUATION',
 }
 
-export enum JobState {
-  READY = 'READY',
-}
-
-export enum JobDependencyType {
-  UNSPECIFIED = 'UNSPECIFIED',
-  ON_COMPLETE = 'ON_COMPLETE',
-  ON_START = 'ON_START',
-  MANUAL = 'MANUAL',
-}
-
-export interface JobDependency {
-  source: string;
-  type: JobDependencyType;
-}
-
-export interface Job {
-  name: string;
-  type: JobType;
-  template?: string;
-  is_federated: boolean;
-  is_left?: boolean;
-  is_manual?: boolean;
-  variables: Variable[];
-  dependencies: JobDependency[];
-  yaml_template?: string;
-}
-
 export type WorkflowConfig = {
   group_alias: string;
   is_left: boolean;
@@ -196,7 +169,7 @@ export type Workflow = {
   updated_at: DateTime;
 };
 
-export type WorkflowRunningDetails = {
-  jobs: Job[];
+export type WorkflowExecutionDetails = {
+  jobs: JobExecutionDetalis[];
   start_running_at: number;
-};
+} & Workflow;

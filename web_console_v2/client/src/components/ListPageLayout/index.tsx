@@ -5,8 +5,7 @@ import GridRow from 'components/_base/GridRow';
 import { QuestionCircle } from 'components/IconPark';
 
 const Container = styled(Card)`
-  // header height: 60px; content padding: 6px;
-  height: calc(100vh - 60px - 16px * 2);
+  height: var(--contentHeight);
 
   > .ant-card-body {
     display: flex;

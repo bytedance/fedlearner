@@ -1,6 +1,8 @@
 import { I18nMessageModule, separateLng } from 'i18n/helpers';
 
 const workflow: I18nMessageModule = {
+  no_result: { zh: '暂无工作流' },
+  execution_detail: { zh: '工作流详情' },
   name: { zh: '工作流名称' },
   our_config: { zh: '我方配置' },
   ptcpt_permission: { zh: '合作伙伴编辑权限' },
@@ -26,6 +28,9 @@ const workflow: I18nMessageModule = {
   col_creator: { zh: ' 创建者' },
   col_date: { zh: ' 创建时间' },
   col_actions: { zh: '操作' },
+  col_pod: { zh: 'POD' },
+  col_worker_status: { zh: '运行状体' },
+  col_worker_type: { zh: '类型' },
 
   state_success: { zh: '成功' },
   state_failed: { zh: '失败' },
@@ -59,8 +64,12 @@ const workflow: I18nMessageModule = {
   label_new_template_name: { zh: '新建模板名称' },
   label_upload_template: { zh: '上传模板文件' },
   label_template_comment: { zh: '工作流模板说明' },
-  label_template_name: { zh: '模板名称' },
+  label_template_name: { zh: '模板 (Group)' },
   label_running_time: { zh: '运行时长' },
+  label_role: { zh: 'Role' },
+  label_job_type: { zh: '任务类型' },
+  label_job_created: { zh: '任务创建时间' },
+  label_job_vars: { zh: '任务参数' },
 
   placeholder_name_searchbox: { zh: '根据工作流名称搜索' },
   placeholder_name: { zh: '请输入工作流名称' },
@@ -97,8 +106,13 @@ const workflow: I18nMessageModule = {
 
   job_node_pending: { zh: ' 待配置' },
   job_node_configuring: { zh: '配置中' },
-  job_node_completed: { zh: '配置完成' },
+  job_node_config_completed: { zh: '配置完成' },
   job_node_unfinished: { zh: '未完成配置' },
+  job_node_success: { zh: '运行成功' },
+  job_node_waiting: { zh: '待运行' },
+  job_node_failed: { zh: '运行失败' },
+  job_node_running: { zh: '运行中' },
+  job_node_stop_running: { zh: '手动停止运行' },
 };
 
 export default separateLng(workflow);

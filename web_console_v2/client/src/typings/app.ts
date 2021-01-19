@@ -11,3 +11,7 @@ export enum FedLanguages {
   Chinese = 'zh',
   English = 'en',
 }
+
+export enum ErrorCodes {
+  TokenExpired = 422,
+}

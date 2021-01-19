@@ -20,6 +20,9 @@ import { WorkflowCreateProps } from '..';
 import { WorkflowInitiatePayload } from 'typings/workflow';
 import { useResetCreateForms } from 'hooks/workflow';
 
+const Container = styled.section`
+  height: 100%;
+`;
 const Header = styled.header`
   padding: 13px 20px;
   font-size: 14px;
@@ -64,47 +67,48 @@ const CanvasAndForm: FC<WorkflowCreateProps> = ({ isInitiate, isAccept }) => {
 
   return (
     <ErrorBoundary>
-      <Spin spinning={submitting}>
-        <section>
-          <Header>
-            <ChartTitle>{t('workflow.our_config')}</ChartTitle>
-          </Header>
+      <Container>
+        <Spin spinning={submitting} />
 
-          <WorkflowJobsFlowChart
-            jobs={currentWorkflowTpl.config.job_definitions}
-            onJobClick={selectJob}
-            onCanvasClick={onCanvasClick}
-          />
+        <Header>
+          <ChartTitle>{t('workflow.our_config')}</ChartTitle>
+        </Header>
 
-          <JobFormDrawer
-            ref={drawerRef as any}
-            data={data}
-            visible={drawerVisible}
-            toggleVisible={toggleDrawerVisible}
-            onConfirm={selectJob}
-          />
+        <WorkflowJobsFlowChart
+          jobs={currentWorkflowTpl.config.job_definitions}
+          type="config"
+          onJobClick={selectJob}
+          onCanvasClick={onCanvasClick}
+        />
 
-          <Footer>
-            <GridRow gap="12">
-              <Button type="primary" loading={submitting} onClick={submitToCreate}>
-                {t('workflow.btn_send_2_ptcpt')}
-              </Button>
-              <Button onClick={onPrevStepClick} {...isDisabled}>
-                {t('previous_step')}
-              </Button>
-              <Button onClick={onCancelCreationClick} {...isDisabled}>
-                {t('cancel')}
-              </Button>
-            </GridRow>
-          </Footer>
-        </section>
-      </Spin>
+        <JobFormDrawer
+          ref={drawerRef as any}
+          data={data}
+          visible={drawerVisible}
+          toggleVisible={toggleDrawerVisible}
+          onConfirm={selectJob}
+        />
+
+        <Footer>
+          <GridRow gap="12">
+            <Button type="primary" loading={submitting} onClick={submitToCreate}>
+              {t('workflow.btn_send_2_ptcpt')}
+            </Button>
+            <Button onClick={onPrevStepClick} {...isDisabled}>
+              {t('previous_step')}
+            </Button>
+            <Button onClick={onCancelCreationClick} {...isDisabled}>
+              {t('cancel')}
+            </Button>
+          </GridRow>
+        </Footer>
+      </Container>
     </ErrorBoundary>
   );
 
   function checkIfAllJobConfigCompleted() {
     const isAllCompleted = jobNodes.every((node) => {
-      return node.data.status === JobNodeStatus.Completed;
+      return node.data.status === JobNodeStatus.Success;
     });
 
     return isAllCompleted;
@@ -115,9 +119,9 @@ const CanvasAndForm: FC<WorkflowCreateProps> = ({ isInitiate, isAccept }) => {
     toggleDrawerVisible(false);
   }
   async function selectJob(jobNode: JobNode) {
-    updateNodeStatusById({ id: jobNode.id, status: JobNodeStatus.Configuring });
+    updateNodeStatusById({ id: jobNode.id, status: JobNodeStatus.Processing });
 
-    if (jobNode.data.status !== JobNodeStatus.Configuring) {
+    if (jobNode.data.status !== JobNodeStatus.Processing) {
       await drawerRef.current?.validateCurrentJobForm();
     }
     if (data) {

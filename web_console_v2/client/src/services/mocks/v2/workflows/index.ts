@@ -6,7 +6,6 @@ const list: Workflow[] = [awaitParticipantConfig, newlyCreated];
 export const get = {
   data: {
     data: list,
-    msg: '',
   },
   status: 200,
 };

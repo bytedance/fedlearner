@@ -10,6 +10,7 @@ import { useRecoilQuery } from 'hooks/recoil';
 import { DisplayType } from 'typings/component';
 import { Project } from 'typings/project';
 import ListPageLayout from 'components/ListPageLayout';
+import NoResult from 'components/NoResult';
 
 const GlobalStyle = createGlobalStyle`
 .project-actions {
@@ -37,7 +38,9 @@ const StyledPagination = styled(Pagination)`
   margin-top: 20px;
 `;
 const ListContainer = styled.section`
+  display: flex;
   flex: 1;
+  align-items: flex-start;
 `;
 
 function ProjectList(): ReactElement {
@@ -70,7 +73,9 @@ function ProjectList(): ReactElement {
           }}
         />
         <ListContainer>
-          {displayType === DisplayType.Card ? (
+          {isEmpty ? (
+            <NoResult text={t('project.no_result')} to="/projects/create" />
+          ) : displayType === DisplayType.Card ? (
             <CardView projectList={projectListShow} />
           ) : (
             <TableView projectList={projectListShow} />
@@ -78,14 +83,16 @@ function ProjectList(): ReactElement {
         </ListContainer>
 
         <Row justify="end">
-          <StyledPagination
-            pageSizeOptions={['12', '24']}
-            pageSize={pageSize}
-            total={total}
-            current={currentPage}
-            showSizeChanger
-            onChange={handleChange}
-          />
+          {!isEmpty && (
+            <StyledPagination
+              pageSizeOptions={['12', '24']}
+              pageSize={pageSize}
+              total={total}
+              current={currentPage}
+              showSizeChanger
+              onChange={handleChange}
+            />
+          )}
         </Row>
       </ListPageLayout>
     </Spin>

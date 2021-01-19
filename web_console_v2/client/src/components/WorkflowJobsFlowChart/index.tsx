@@ -1,5 +1,6 @@
 import React, { FC, useEffect, useState } from 'react';
 import WorkflowJobNode from './WorkflowJobNode';
+import { JobNodeType } from './helpers';
 import styled from 'styled-components';
 import ReactFlow, {
   Background,
@@ -12,11 +13,12 @@ import { convertJobsToElements, JobNode, JobNodeStatus, NODE_HEIGHT, NODE_WIDTH 
 import { convertToUnit } from 'shared/helpers';
 import PubSub from 'pubsub-js';
 import { useSubscribe } from 'hooks';
-import { Job } from 'typings/workflow';
+import { Job } from 'typings/job';
 
 const Container = styled.div`
   position: relative;
-  height: 900px;
+  /* TODO: remove hard-coded 48px of chart header */
+  height: ${(props: any) => `calc(100% - ${props.top || '0px'} - 48px)`};
   background-color: var(--gray1);
 
   /* react flow styles override */
@@ -26,10 +28,14 @@ const Container = styled.div`
     padding: 14px 20px;
     cursor: pointer;
 
-    &-default {
+    &-execution,
+    &-config {
+      border-radius: 4px;
       font-size: 1em;
       border-color: transparent;
       text-align: initial;
+      border: 1px solid white;
+      background-color: white;
 
       &.selected {
         border-color: var(--primaryColor);
@@ -60,16 +66,18 @@ const CHANNELS = {
 
 type Props = {
   jobs: Job[];
+  type: JobNodeType;
   onJobClick?: (node: JobNode) => void;
   onCanvasClick?: () => void;
 };
 
-const WorkflowJobsFlowChart: FC<Props> = ({ jobs, onJobClick, onCanvasClick }) => {
+const WorkflowJobsFlowChart: FC<Props> = ({ jobs, type, onJobClick, onCanvasClick }) => {
   const [elements, setElements] = useState<FlowElement[]>([]);
 
   useEffect(() => {
-    setElements(convertJobsToElements(jobs));
-  }, [jobs]);
+    const eles = convertJobsToElements(jobs, type);
+    setElements(eles);
+  }, [jobs, type]);
 
   useSubscribe(
     CHANNELS.update_node_status,
@@ -90,7 +98,7 @@ const WorkflowJobsFlowChart: FC<Props> = ({ jobs, onJobClick, onCanvasClick }) =
         zoomOnDoubleClick={false}
         minZoom={1}
         maxZoom={1}
-        nodeTypes={{ default: WorkflowJobNode }}
+        nodeTypes={WorkflowJobNode}
       >
         <Background variant={BackgroundVariant.Dots} gap={12} size={1} color="#E1E6ED" />
       </ReactFlow>

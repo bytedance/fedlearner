@@ -5,7 +5,7 @@ import {
   WorkflowTemplate,
   WorkflowAcceptPayload,
   WorkflowState,
-  WorkflowRunningDetails,
+  WorkflowExecutionDetails,
 } from 'typings/workflow';
 
 export function fetchWorkflowTemplateList(params?: {
@@ -42,7 +42,7 @@ export function getPeerWorkflowsConfig(
 
 export function getWorkflowDetailById(
   id: string | number,
-): Promise<{ data: Workflow & WorkflowRunningDetails }> {
+): Promise<{ data: WorkflowExecutionDetails }> {
   return request(`/v2/workflows/${id}`);
 }
 

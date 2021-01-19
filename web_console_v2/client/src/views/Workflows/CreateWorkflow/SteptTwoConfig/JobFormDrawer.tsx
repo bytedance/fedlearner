@@ -62,6 +62,10 @@ interface Props extends DrawerProps {
   toggleVisible?: Function;
   onConfirm: Function;
 }
+export type JobFormDrawerExposedRef = {
+  validateCurrentJobForm(): Promise<boolean>;
+  saveCurrentValues(): void;
+};
 
 const JobFormDrawer: ForwardRefRenderFunction<JobFormDrawerExposedRef, Props> = (
   { data, toggleVisible, onConfirm, ...props },
@@ -102,7 +106,6 @@ const JobFormDrawer: ForwardRefRenderFunction<JobFormDrawerExposedRef, Props> = 
     <ErrorBoundary>
       <Container
         getContainer="#app-content"
-        title={data.raw.name}
         mask={false}
         width="640px"
         onClose={closeDrawer}
@@ -152,12 +155,12 @@ const JobFormDrawer: ForwardRefRenderFunction<JobFormDrawerExposedRef, Props> = 
     if (!data) return true;
 
     const nodeId = getNodeIdByJob(data.raw);
-    const { Unfinished, Completed } = JobNodeStatus;
+    const { Warning, Success } = JobNodeStatus;
     const [_, error] = await to(formActions.validate());
 
     updateNodeStatusById({
       id: nodeId,
-      status: error ? Unfinished : Completed,
+      status: error ? Warning : Success,
     });
 
     return !error;
@@ -212,11 +215,6 @@ const JobFormDrawer: ForwardRefRenderFunction<JobFormDrawerExposedRef, Props> = 
       }
     });
   }
-};
-
-export type JobFormDrawerExposedRef = {
-  validateCurrentJobForm(): Promise<boolean>;
-  saveCurrentValues(): void;
 };
 
 export default forwardRef(JobFormDrawer);

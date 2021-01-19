@@ -1,13 +1,15 @@
+import { cloneDeep } from 'lodash';
+import { JobState, JobType, PodState } from 'typings/job';
 import {
   WorkflowState,
   TransactionState,
   VariableAccessMode,
-  JobDependencyType,
+  WorkflowExecutionDetails,
 } from 'typings/workflow';
 
 export const awaitParticipantConfig = {
   id: 1,
-  name: 'put_test',
+  name: 'Await configure',
   project_id: 1,
   config: null,
   forkable: true,
@@ -22,7 +24,7 @@ export const awaitParticipantConfig = {
 
 export const newlyCreated = {
   id: 2,
-  name: 'Mocked Workflow → id: 2',
+  name: 'Newly created',
   project_id: 1,
   config: {
     group_alias: 'test-2',
@@ -30,7 +32,7 @@ export const newlyCreated = {
     job_definitions: [
       {
         name: 'Initiative',
-        type: 'RAW_DATA' as any,
+        job_type: 'RAW_DATA' as any,
         is_federated: true,
         variables: [
           {
@@ -46,7 +48,7 @@ export const newlyCreated = {
       },
       {
         name: 'Raw data upload',
-        type: 'RAW_DATA' as any,
+        job_type: 'RAW_DATA' as any,
         is_federated: true,
         variables: [
           {
@@ -62,13 +64,13 @@ export const newlyCreated = {
             widget_schema: '{"component":"TextArea","rows":4,"type":"string","required":true}' as any,
           },
         ],
-        dependencies: [{ source: 'Initiative', type: 'ON_COMPLETE' as JobDependencyType }],
+        dependencies: [{ source: 'Initiative' }],
         is_manual: false,
         yaml_template: '',
       },
       {
         name: 'Training',
-        type: 'RAW_DATA',
+        job_type: 'RAW_DATA',
         is_federated: true,
         variables: [
           {
@@ -78,7 +80,7 @@ export const newlyCreated = {
             widget_schema: '{"component":"Input","type":"string"}',
           },
         ],
-        dependencies: [{ source: 'Raw data upload', type: 'ON_COMPLETE' as JobDependencyType }],
+        dependencies: [{ source: 'Raw data upload' }],
         is_manual: false,
         yaml_template: '',
       },
@@ -93,4 +95,56 @@ export const newlyCreated = {
   transaction_err: null,
   created_at: 1610239831,
   updated_at: 1610239831,
+};
+
+export const withExecutionDetail: WorkflowExecutionDetails = {
+  ...cloneDeep(newlyCreated),
+  start_running_at: ~~(new Date('2021-01-12 12:22:33').getTime() / 1000),
+  jobs: [
+    {
+      id: 1,
+      name: 'Initiative',
+      job_type: JobType.RAW_DATA,
+      state: JobState.COMPLETE,
+      yaml_template: '',
+      workflow_id: 1,
+      project_id: 1,
+      pods: [],
+      created_at: 1611006571,
+      updated_at: 1611006571,
+      deleted_at: 0,
+    },
+    {
+      id: 2,
+      name: 'Raw data upload',
+      job_type: JobType.DATA_JOIN,
+      state: JobState.RUNNING,
+      yaml_template: '',
+      workflow_id: 1,
+      project_id: 1,
+      pods: [
+        {
+          name: '0-79f60e7a-520e-4cd7-a679-95b12df2c4fd',
+          pod_type: 'Master',
+          state: PodState.COMPLETE,
+        },
+      ],
+      created_at: 1611006571,
+      updated_at: 1611006571,
+      deleted_at: 0,
+    },
+    {
+      id: 3,
+      name: 'Training',
+      job_type: JobType.DATA_JOIN,
+      state: JobState.STOPPED,
+      yaml_template: '',
+      workflow_id: 1,
+      project_id: 1,
+      pods: [],
+      created_at: 1611006571,
+      updated_at: 1611006571,
+      deleted_at: 0,
+    },
+  ],
 };

@@ -16,7 +16,7 @@ const Container = styled.header`
   grid-template-areas: 'logo . language account-info';
   grid-template-columns: auto 1fr auto auto;
   gap: 12px;
-  height: 60px;
+  height: var(--headerHeight);
   padding: 0 30px;
   background-color: var(--headerBackground);
   color: white;

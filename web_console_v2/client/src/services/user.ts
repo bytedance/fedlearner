@@ -1,4 +1,4 @@
-import { AxiosPromise, AxiosResponse } from 'axios';
+import { AxiosPromise } from 'axios';
 import request from 'libs/request';
 import { FedLoginFormData, FedUserInfo } from 'typings/auth';
 

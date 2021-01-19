@@ -32,18 +32,23 @@ const CardHeader = styled.div`
   border-bottom: 1px solid var(--gray3);
   justify-content: space-between;
   cursor: pointer;
-  gap: 10px;
+
+  @supports (gap: 10px) {
+    gap: 10px;
+  }
 `;
 
 const CardMain = styled.div`
   display: flex;
   padding: 25px 0;
+  cursor: pointer;
 
   .workflow-number {
     ${MixinFontClarity()}
 
     font-size: 32px;
     text-indent: 1px;
+    line-height: 1;
     color: var(--textColorStrong);
   }
 `;
@@ -125,7 +130,7 @@ function Card({ item: project }: CardProps): ReactElement {
         <CreateTime time={project.created_at} />
       </CardHeader>
 
-      <CardMain>
+      <CardMain onClick={viewDetail}>
         <ProjectProp label={t('project.workflow_number')}>
           <strong className="workflow-number">{project.num_workflow || 0}</strong>
         </ProjectProp>

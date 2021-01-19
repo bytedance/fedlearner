@@ -1,10 +1,10 @@
 import {
-  Job,
   Variable,
   VariableAccessMode,
   VariableComponent,
   WorkflowTemplatePayload,
 } from 'typings/workflow';
+import { Job } from 'typings/job';
 import { FormilySchema } from 'typings/formily';
 import VariableLabel from 'components/VariableLabel/index';
 import { cloneDeep, merge } from 'lodash';

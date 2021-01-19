@@ -8,8 +8,10 @@ const Container = styled.div`
 
   display: grid;
   grid-template-columns: repeat(var(--cols), 1fr);
+  align-items: start;
   justify-content: space-between;
   grid-gap: 24px 20px;
+  width: 100%;
 
   @media screen and (min-width: 1920px) and (max-width: 2560px) {
     --cols: 5;

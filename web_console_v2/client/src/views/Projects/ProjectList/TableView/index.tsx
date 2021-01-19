@@ -6,6 +6,7 @@ import { Project } from 'typings/project';
 
 const Container = styled.div`
   min-width: 1160px;
+  width: 100%;
 `;
 const HeaderContainer = styled.div`
   display: flex;
