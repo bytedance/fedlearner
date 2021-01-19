@@ -79,6 +79,7 @@ class Scheduler(object):
             self._condition.notify_all()
 
     def _routine(self):
+        # TODO: delete RevokedToken regularly
         self._app.app_context().push()
         interval = int(os.environ.get(
             'FEDLEARNER_WEBCONSOLE_POLLING_INTERVAL', 60))
