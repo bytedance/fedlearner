@@ -117,7 +117,9 @@ class Job(db.Model):
 
     def is_complete(self):
         flapp = self.get_flapp()
-        if flapp is None or 'status' not in flapp or 'appState' not in flapp['status']:
+        if flapp is None \
+                or 'status' not in flapp \
+                or 'appState' not in flapp['status']:
             return False
         return flapp['status']['appState'] == 'FLStateComplete'
 
