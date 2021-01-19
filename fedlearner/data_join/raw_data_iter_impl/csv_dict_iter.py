@@ -14,19 +14,19 @@
 
 # coding: utf-8
 
-import logging
 import csv
-import os
 import io
+import logging
+import os
 import traceback
 from collections import OrderedDict
 
 import tensorflow.compat.v1 as tf
-import tensorflow_io # pylint: disable=unused-import
 from tensorflow.compat.v1 import gfile
 
 import fedlearner.data_join.common as common
 from fedlearner.data_join.raw_data_iter_impl.raw_data_iter import RawDataIter
+
 
 class CsvItem(RawDataIter.Item):
     def __init__(self, raw, optional_stats_fields=None):
@@ -79,8 +79,7 @@ class CsvItem(RawDataIter.Item):
         if len(self._optional_stats_fields) > 0:
             return {field: str(self._raw.get(field, common.NonExistentField))
                     for field in self._optional_stats_fields}
-        else:
-            return common.NonExistentStats
+        return common.NonExistentStats
 
     @property
     def record(self):

@@ -22,7 +22,7 @@ import tensorflow.compat.v1 as tf
 
 import fedlearner.data_join.common as common
 from fedlearner.data_join.raw_data_iter_impl.raw_data_iter import RawDataIter
-import inspect
+
 
 class TfExampleItem(RawDataIter.Item):
     """

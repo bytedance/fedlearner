@@ -14,21 +14,20 @@
 
 # coding: utf-8
 
-import threading
 import logging
 import os
+import threading
 import time
 import traceback
-from contextlib import contextmanager
 from collections import defaultdict
+from contextlib import contextmanager
 
-from fedlearner.common import metrics
 from fedlearner.common import data_join_service_pb2 as dj_pb
-
-from fedlearner.data_join.raw_data_visitor import RawDataVisitor
-from fedlearner.data_join.data_block_manager import \
-        DataBlockManager, DataBlockBuilder
+from fedlearner.common import metrics
 from fedlearner.data_join import common
+from fedlearner.data_join.data_block_manager import \
+    DataBlockManager, DataBlockBuilder
+from fedlearner.data_join.raw_data_visitor import RawDataVisitor
 
 
 class DataBlockDumperManager(object):
@@ -235,8 +234,7 @@ class DataBlockDumperManager(object):
                     # else iterate raw data without matching
                     if len(self._optional_stats_fields) == 0:
                         break
-                    else:
-                        need_match = False
+                    need_match = False
                 if index >= meta.leader_end_index:
                     break
             if match_index < example_num:
