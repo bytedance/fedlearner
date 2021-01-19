@@ -33,6 +33,7 @@ class WorkflowsApiTest(BaseTestCase):
         return config
 
     def setUp(self):
+        self.maxDiff = None
         super().setUp()
         # Inserts data
         workflow1 = Workflow(name='workflow_key_get1',
@@ -99,6 +100,13 @@ class WorkflowsApiTest(BaseTestCase):
             'target_state': 'READY',
             'transaction_state': 'READY',
             'transaction_err': None,
+            'forked_job_indices': None,
+            'job_ids': None,
+            'last_triggered_batch': None,
+            'recur_at': None,
+            'recur_type': 'NONE',
+            'transaction_state': 'READY',
+            'trigger_dataset': None
         })
         # Check DB
         self.assertEqual(len(Workflow.query.all()), 4)

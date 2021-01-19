@@ -21,14 +21,17 @@ from fedlearner_webconsole.db import db, to_dict_mixin
 from fedlearner_webconsole.project.adapter import ProjectK8sAdapter
 from fedlearner_webconsole.project.models import Project
 from fedlearner_webconsole.k8s_client import get_client
+from fedlearner_webconsole.utils.k8s_client import CrdKind
 from fedlearner_webconsole.scheduler.yaml_formatter import YamlFormatter
 from fedlearner_webconsole.proto.workflow_definition_pb2 import JobDefinition
 
+
 class JobState(enum.Enum):
-    UNSPECIFIED = 1
-    READY = 2
+    INVALID = 0
+    STOPPED = 1
+    WAITING = 2
     STARTED = 3
-    STOPPED = 4
+
 
 # must be consistent with JobType in proto
 class JobType(enum.Enum):
@@ -40,6 +43,7 @@ class JobType(enum.Enum):
     TREE_MODEL_TRAINING = 5
     NN_MODEL_EVALUATION = 6
     TREE_MODEL_EVALUATION = 7
+
 
 def merge(x, y):
     """Given two dictionaries, merge them into a new dict as a shallow copy."""
@@ -59,7 +63,7 @@ class Job(db.Model):
     name = db.Column(db.String(255), unique=True)
     job_type = db.Column(db.Enum(JobType), nullable=False)
     state = db.Column(db.Enum(JobState), nullable=False,
-                      default=JobState.UNSPECIFIED)
+                      default=JobState.INVALID)
     yaml = db.Column(db.Text(), nullable=False)
     config = db.Column(db.Text(), nullable=False)
     workflow_id = db.Column(db.Integer, db.ForeignKey('workflow_v2.id'),
@@ -74,6 +78,7 @@ class Job(db.Model):
                            server_default=func.now(),
                            server_onupdate=func.now())
     deleted_at = db.Column(db.DateTime(timezone=True))
+
     project = db.relationship(Project)
     workflow = db.relationship('Workflow')
     _k8s_client = get_client()
@@ -87,15 +92,15 @@ class Job(db.Model):
 
     def _set_snapshot_flapp(self):
         project_adapter = ProjectK8sAdapter(self.project)
-        flapp = self._k8s_client.get_flapp(
-            project_adapter.get_namespace(), self.name)
+        flapp = self._k8s_client.get_custom_object(
+            CrdKind.FLAPP, self.name, project_adapter.get_namespace())
         self.flapp_snapshot = json.dumps(flapp)
 
     def _set_snapshot_pods(self):
         project_adapter = ProjectK8sAdapter(self.project)
-        flapp = self._k8s_client.get_pods(
-            project_adapter.get_namespace(), self.name)
-        self.flapp_snapshot = json.dumps(flapp)
+        pods = self._k8s_client.list_resource_of_custom_object(
+            CrdKind.FLAPP, self.name, 'pods', project_adapter.get_namespace())
+        self.pods_snapshot = json.dumps(pods)
 
     def get_flapp(self):
         # TODO: remove update snapshot to scheduler
@@ -112,32 +117,34 @@ class Job(db.Model):
             return json.loads(self.pods_snapshot)
         return None
 
-    def run(self):
-        project_adapter = ProjectK8sAdapter(self.project)
-        k8s_client = get_client()
-        formatter = YamlFormatter()
-        system_dict = {
-            'basic_envs': os.environ.get(
-                'BASIC_ENVS',
-                '')}
-        # TODO: move format to workflow's creating stage
-        #  to check whether the config is valid
-        yaml = formatter.format(self.yaml,
-                                workflow=self.workflow,
-                                project=self.project,
-                                system=system_dict)
-        k8s_client.create_flapp(project_adapter.get_namespace(),
-                                yaml)
-        self.state = JobState.STARTED
+    def is_complete(self):
+        return self.get_flapp()['status']['appState'] == 'FLStateComplete'
 
     def stop(self):
         project_adapter = ProjectK8sAdapter(self.project)
         if self.state == JobState.STARTED:
             self._set_snapshot_flapp()
             self._set_snapshot_pods()
-            self._k8s_client.delete_flapp(project_adapter.
-                                         get_namespace(), self.name)
+            self._k8s_client.delete_custom_object(
+                CrdKind.FLAPP, self.name, project_adapter.get_namespace())
         self.state = JobState.STOPPED
+
+    def schedule(self):
+        assert self.state == JobState.STOPPED
+        self.pods_snapshot = None
+        self.flapp_snapshot = None
+        self.state = JobState.WAITING
+
+    def start(self):
+        self.state = JobState.STARTED
 
     def set_yaml(self, yaml_template):
         self.yaml = yaml_template
+
+
+class JobDependency(db.Model):
+    __tablename__ = 'job_dependency_v2'
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    src_job_id = db.Column(db.Integer, index=True)
+    dst_job_id = db.Column(db.Integer, index=True)
+    dep_index = db.Column(db.Integer)

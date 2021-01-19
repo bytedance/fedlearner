@@ -358,10 +358,7 @@ def make_workflow_template():
                         access_mode=Variable.PEER_WRITABLE),
                 ],
                 dependencies=[
-                    JobDependency(
-                        source='raw_data_job',
-                        type=JobDependency.ON_COMPLETE
-                    )
+                    JobDependency(source='raw_data_job')
                 ],
                 yaml_template='''
 {
