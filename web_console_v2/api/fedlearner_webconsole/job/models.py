@@ -62,7 +62,7 @@ class Job(db.Model):
     job_type = db.Column(db.Enum(JobType), nullable=False)
     state = db.Column(db.Enum(JobState), nullable=False,
                       default=JobState.INVALID)
-    yaml = db.Column(db.Text(), nullable=False)
+    yaml_template = db.Column(db.Text(), nullable=False)
     config = db.Column(db.Text(), nullable=False)
     workflow_id = db.Column(db.Integer, db.ForeignKey('workflow_v2.id'),
                             nullable=False, index=True)
@@ -142,7 +142,7 @@ class Job(db.Model):
         self.state = JobState.STARTED
 
     def set_yaml(self, yaml_template):
-        self.yaml = yaml_template
+        self.yaml_template = yaml_template
 
 
 class JobDependency(db.Model):

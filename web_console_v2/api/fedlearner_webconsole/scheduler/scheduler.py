@@ -166,7 +166,7 @@ class Scheduler(object):
             dep_job.name.split('-')[-1]: self._make_variables(dep_job.to_dict())
             for dep_job in job.workflow.get_jobs()}
         project = self._make_variables(job.project.to_dict())
-        yaml = formatter.format(job.yaml,
+        yaml = formatter.format(job.yaml_template,
                                 workflow=workflow,
                                 project=project,
                                 system=system_dict)
