@@ -171,7 +171,7 @@ class Workflow(db.Model):
             proto.ParseFromString(self.config)
             return proto
         return None
-    
+
     def set_fork_proposal_config(self, proto):
         if proto is not None:
             self.fork_proposal_config = proto.SerializeToString()
@@ -204,7 +204,7 @@ class Workflow(db.Model):
         if not self.reuse_job_indices:
             return []
         return [int(i) for i in self.reuse_job_indices.split(',')]
-    
+
     def set_peer_reuse_job_indices(self, peer_reuse_job_indices):
         self.peer_reuse_job_indices = ','.join(
             [str(i) for i in peer_reuse_job_indices])
