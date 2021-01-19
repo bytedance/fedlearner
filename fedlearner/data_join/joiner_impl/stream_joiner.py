@@ -253,6 +253,7 @@ class StreamExampleJoiner(ExampleJoiner):
                                         "not None if before dummping"
             fi, item = self._joined_cache[eid]
             builder.append_item(item, li, fi)
+            self._update_stats(item)
             if builder.check_data_block_full():
                 yield self._finish_data_block()
         metrics.emit_timer(name='stream_joiner_dump_joined_items',
@@ -363,6 +364,8 @@ class StreamExampleJoiner(ExampleJoiner):
     def _consume_item_until_count(self, visitor, windows,
                                   required_item_count, cache=None):
         for (index, item) in visitor:
+            if visitor is self._follower_visitor:
+                self._update_stats(item, kind='total')
             if item.example_id == common.InvalidExampleId:
                 logging.warning("ignore item indexed as %d from %s since "\
                                 "invalid example id", index, visitor.name())

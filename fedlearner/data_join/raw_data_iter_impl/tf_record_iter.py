@@ -22,15 +22,23 @@ import tensorflow.compat.v1 as tf
 
 import fedlearner.data_join.common as common
 from fedlearner.data_join.raw_data_iter_impl.raw_data_iter import RawDataIter
+import inspect
 
 class TfExampleItem(RawDataIter.Item):
-    def __init__(self, record_str):
+    """
+    build an Item through `cls.make` -> `self._parse_example`
+    """
+    def __init__(self, record_str, optional_stats_fields=None):
+        if optional_stats_fields is None:
+            optional_stats_fields = []
         self._record_str = record_str
         self._parse_example_error = False
         example = self._parse_example()
         self._example_id = self._parse_example_id(example, record_str)
         self._event_time = self._parse_event_time(example, record_str)
         self._raw_id = self._parse_raw_id(example, record_str)
+        self._optional_stats = self._parse_optional(
+            example, record_str, optional_stats_fields)
         self._csv_record = None
         self._gc_example(example)
 
@@ -65,6 +73,10 @@ class TfExampleItem(RawDataIter.Item):
         if self._example_id == common.InvalidEventTime:
             logging.warning('Note!!! return invalid event time')
         return self._event_time
+
+    @property
+    def optional_stats(self):
+        return self._optional_stats
 
     @property
     def record(self):
@@ -150,6 +162,33 @@ class TfExampleItem(RawDataIter.Item):
         return common.InvalidRawId
 
     @staticmethod
+    def _parse_optional(example, record, optional_stats_fields):
+        if example is not None and len(optional_stats_fields) > 0:
+            assert isinstance(example, tf.train.Example)
+            try:
+                feat = example.features.feature
+                optional_values = {}
+                for k in optional_stats_fields:
+                    if k in feat:
+                        if feat[k].HasField('int64_list'):
+                            optional_values[k] = \
+                                str(feat[k].int64_list.value[0])
+                        elif feat[k].HasField('bytes_list'):
+                            optional_values[k] = \
+                                str(feat[k].bytes_list.value[0])
+                        else:
+                            assert feat[k].HasField('float_list')
+                            optional_values[k] = \
+                                str(feat[k].float_list.value[0])
+                    else:
+                        optional_values[k] = common.NonExistentField
+                return optional_values
+            except Exception as e:  # pylint: disable=broad-except
+                logging.error('Failed to parse label from %s, reason %s',
+                              record, e)
+        return common.NonExistentStats
+
+    @staticmethod
     def _parse_event_time(example, record):
         if example is not None:
             assert isinstance(example, tf.train.Example)
@@ -199,16 +238,18 @@ class TfRecordIter(RawDataIter):
         if expt is not None:
             raise expt
 
-    def _inner_iter(self, fpath):
+    def _inner_iter(self, fpath, optional_stats_fields=None):
         with self._data_set(fpath) as data_set:
             for batch in iter(data_set):
                 for raw_data in batch.numpy():
-                    yield TfExampleItem(raw_data)
+                    yield TfExampleItem(raw_data, optional_stats_fields)
 
     def _reset_iter(self, index_meta):
         if index_meta is not None:
             fpath = index_meta.fpath
-            fiter = self._inner_iter(fpath)
+            optional_stats_fields = list(self._options.optional_stats_fields) \
+                if self._options is not None else []
+            fiter = self._inner_iter(fpath, optional_stats_fields)
             item = next(fiter)
             return fiter, item
         return None, None

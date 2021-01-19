@@ -44,6 +44,8 @@ DoneFileSuffix = '.done'
 RawDataFileSuffix = '.rd'
 InvalidEventTime = -9223372036854775808
 InvalidRawId = ''.encode()
+NonExistentStats = None
+NonExistentField = '__None__'  # use str as this will be dict key
 
 @contextmanager
 def make_tf_record_iter(fpath, options=None):

@@ -21,6 +21,7 @@ import copy
 import traceback
 
 import tensorflow.compat.v1 as tf
+from collections import defaultdict
 from google.protobuf import text_format
 import tensorflow_io # pylint: disable=unused-import
 from tensorflow.compat.v1 import gfile
@@ -196,6 +197,46 @@ class DataBlockBuilder(object):
                      meta.joiner_stats_info.leader_stats_index,
                      meta.joiner_stats_info.follower_stats_index,
                      leader_join_rate, follower_join_rate)
+
+    def _emit_optional_stats(self, meta, metrics_tags):
+        stats_info = meta.joiner_stats_info
+        # will pass the for loop if total_optional_stats is empty
+        for field in stats_info.total_optional_stats:
+            joined_map = stats_info.joined_optional_stats.get(field, None)
+            # use defaultdict as maybe no examples are joined
+            joined_counter = defaultdict(int, joined_map.counter) \
+                if joined_map is not None else defaultdict(int)
+            total_counter = dict(stats_info.total_optional_stats[field].counter)
+            field_joined = 0
+            field_total = 0
+            for value, total_count in total_counter:
+                joined_count = joined_counter[value]
+                field_joined += joined_count
+                field_total += total_count
+                metrics.emit_store(
+                    name='{f}_{v}_total_count'.format(f=field, v=value),
+                    value=total_count,
+                    tags=metrics_tags
+                )
+                metrics.emit_store(
+                    name='{f}_{v}_joined_count'.format(f=field, v=value),
+                    value=joined_count,
+                    tags=metrics_tags
+                )
+                metrics.emit_store(
+                    name='{f}_{v}_join_rate_percent'.format(f=field, v=value),
+                    value=joined_count / max(total_count, 1) * 100,
+                    tags=metrics_tags
+                )
+            metrics.emit_store(name='{f}_total_count'.format(f=field),
+                               value=field_total,
+                               tags=metrics_tags)
+            metrics.emit_store(name='{f}_joined_count'.format(f=field),
+                               value=field_joined,
+                               tags=metrics_tags)
+            metrics.emit_store(name='{f}_join_rate_percent'.format(f=field),
+                               value=field_joined / max(field_total, 1) * 100,
+                               tags=metrics_tags)
 
     def _get_data_block_dir(self):
         return os.path.join(self._dirname,

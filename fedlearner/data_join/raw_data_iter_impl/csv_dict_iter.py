@@ -29,9 +29,11 @@ import fedlearner.data_join.common as common
 from fedlearner.data_join.raw_data_iter_impl.raw_data_iter import RawDataIter
 
 class CsvItem(RawDataIter.Item):
-    def __init__(self, raw):
+    def __init__(self, raw, optional_stats_fields=None):
         self._raw = raw
         self._tf_record = None
+        self._optional_stats_fields = [] \
+            if optional_stats_fields is None else optional_stats_fields
 
     @classmethod
     def make(cls, example_id, event_time, raw_id, fname=None, fvalue=None):
@@ -73,6 +75,14 @@ class CsvItem(RawDataIter.Item):
         return str(self._raw['raw_id']).encode()
 
     @property
+    def optional_stats(self):
+        if len(self._optional_stats_fields) > 0:
+            return {field: str(self._raw.get(field, common.NonExistentField))
+                    for field in self._optional_stats_fields}
+        else:
+            return common.NonExistentStats
+
+    @property
     def record(self):
         return self._raw
 
@@ -108,7 +118,7 @@ class CsvDictIter(RawDataIter):
     def name(cls):
         return 'CSV_DICT'
 
-    def _inner_iter(self, fpath):
+    def _inner_iter(self, fpath, optional_stats_fields=None):
         with gfile.Open(fpath, 'r') as fh:
             rest_buffer = []
             aware_headers = True
@@ -127,7 +137,7 @@ class CsvDictIter(RawDataIter):
                     traceback.print_stack()
                     os._exit(-1) # pylint: disable=protected-access
                 for raw in dict_reader:
-                    yield CsvItem(raw)
+                    yield CsvItem(raw, optional_stats_fields)
 
     def _make_csv_dict_reader(self, fh, rest_buffer, aware_headers):
         if self._options.read_ahead_size <= 0:
@@ -156,7 +166,9 @@ class CsvDictIter(RawDataIter):
     def _reset_iter(self, index_meta):
         if index_meta is not None:
             fpath = index_meta.fpath
-            fiter = self._inner_iter(fpath)
+            optional_stats_fields = list(self._options.optional_stats_fields) \
+                if self._options is not None else []
+            fiter = self._inner_iter(fpath, optional_stats_fields)
             item = next(fiter)
             return fiter, item
         return None, None

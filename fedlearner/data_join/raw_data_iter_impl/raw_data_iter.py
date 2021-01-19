@@ -31,6 +31,12 @@ class RawDataIter(object):
                 )
 
         @property
+        def optional_stats(self):
+            raise NotImplementedError(
+                "Optional stats not implemented in base class Item."
+            )
+
+        @property
         def record(self):
             raise NotImplementedError(
                     "record not implement for basic Item"

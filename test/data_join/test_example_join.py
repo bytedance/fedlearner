@@ -46,7 +46,8 @@ class TestExampleJoin(unittest.TestCase):
         self.data_source = data_source
         self.raw_data_options = dj_pb.RawDataOptions(
                 raw_data_iter='TF_RECORD',
-                compressed_type=''
+                compressed_type='',
+                optional_stats_fields=['label']
             )
         self.example_id_dump_options = dj_pb.ExampleIdDumpOptions(
                 example_id_dump_interval=1,
@@ -114,6 +115,10 @@ class TestExampleJoin(unittest.TestCase):
                 event_time = 150000000 + example_idx
                 feat['event_time'] = tf.train.Feature(
                         int64_list=tf.train.Int64List(value=[event_time]))
+                label = random.choice([1, 0])
+                if random.random() < 0.8:
+                    feat['label'] = tf.train.Feature(
+                        int64_list=tf.train.Int64List(value=[label]))
                 example = tf.train.Example(features=tf.train.Features(feature=feat))
                 builder.append_item(TfExampleItem(example.SerializeToString()),
                                     useless_index, useless_index)
@@ -224,7 +229,9 @@ class TestExampleJoin(unittest.TestCase):
         join_count = 0
         for data_block_index in range(data_block_num):
             meta = dbm.get_data_block_meta_by_index(data_block_index)
-            self.assertEqual(meta, metas[data_block_index])
+            # !!! the next line should be commented if using optional stats,
+            #     as the meta will be different due to stats recording
+            # self.assertEqual(meta, metas[data_block_index])
             join_count += len(meta.example_ids)
 
         print("join rate {}/{}({}), min_matching_window {}, "\
