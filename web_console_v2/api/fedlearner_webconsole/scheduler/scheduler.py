@@ -136,11 +136,12 @@ class Scheduler(object):
         tm = TransactionManager(workflow_id)
         return tm.process()
 
-
-    def _make_variables(self, dic):
-        dic['variables'] = {var['name']: var['value']
-                            for var in dic['config']['variables']}
-        return dic
+    def _make_variables_dict(self, variables):
+        var_dict = {
+            var.name: var.value
+            for var in variables
+        }
+        return var_dict
 
     def _schedule_job(self, job_id):
         job = Job.query.get(job_id)
@@ -161,11 +162,19 @@ class Scheduler(object):
             'basic_envs': os.environ.get(
                 'BASIC_ENVS',
                 '{}')}
-        workflow = self._make_variables(job.workflow.to_dict())
-        workflow['jobs'] = {
-            dep_job.name.split('-')[-1]: self._make_variables(dep_job.to_dict())
-            for dep_job in job.workflow.get_jobs()}
-        project = self._make_variables(job.project.to_dict())
+        workflow = job.workflow.to_dict()
+        workflow['variables'] = self._make_variables_dict(
+            job.workflow.get_config().variables)
+
+        workflow['jobs'] = {}
+        for j in job.workflow.get_jobs():
+            variables = self._make_variables_dict(j.get_config().variables)
+            j_dic = j.to_dict()
+            j_dic['variables'] = variables
+            workflow['jobs'][j.get_config().name] = j_dic
+        project = job.project.to_dict()
+        project['variables'] = self._make_variables_dict(
+            job.project.get_config().variables)
         yaml = formatter.format(job.yaml_template,
                                 workflow=workflow,
                                 project=project,

@@ -56,6 +56,20 @@ class WorkflowsCommitTest(BaseTestCase):
                         'peer_url': '127.0.0.1:1991',
                     }
                 }
+            ],
+            'variables': [
+                {
+                    'name': 'namespace',
+                    'value': 'leader'
+                },
+                {
+                    'name': 'basic_envs',
+                    'value': '{}'
+                },
+                {
+                    'name': 'storage_root_dir',
+                    'value': '/'
+                }
             ]
         }
         project = Project(name='test',

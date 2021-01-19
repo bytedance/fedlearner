@@ -141,7 +141,7 @@ class Job(db.Model):
     def start(self):
         self.state = JobState.STARTED
 
-    def set_yaml(self, yaml_template):
+    def set_yaml_template(self, yaml_template):
         self.yaml_template = yaml_template
 
 
