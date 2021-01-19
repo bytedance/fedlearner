@@ -14,3 +14,4 @@ grpcio-testing==1.33.2
 kubernetes==12.0.1
 snakebite-py3
 elasticsearch
+flatten-dict
