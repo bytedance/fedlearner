@@ -214,7 +214,8 @@ class RpcServer(object):
                 transaction_state=workflow.transaction_state.value,
                 forkable=workflow.forkable,
                 forked_from=forked_from,
-                forked_job_indices=workflow.get_forked_job_indices(),
+                reuse_job_indices=workflow.get_reuse_job_indices(),
+                peer_reuse_job_indices=workflow.get_peer_reuse_job_indices(),
                 fork_proposal_config=workflow.get_fork_proposal_config()
             )
 

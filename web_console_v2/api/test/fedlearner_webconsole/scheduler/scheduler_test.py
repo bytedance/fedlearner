@@ -147,7 +147,8 @@ class WorkflowTest(BaseTestCase):
                 'project_id': 1,
                 'forkable': True,
                 'forked_from': 1,
-                'forked_job_indices': [0],
+                'reuse_job_indices': [0],
+                'peer_reuse_job_indices': [1],
                 'config': self._wf_template,
                 'fork_proposal_config': {
                     'job_definitions': [
@@ -170,9 +171,6 @@ class WorkflowTest(BaseTestCase):
             })
         # import pdb;pdb.set_trace()
         self.assertEqual(cwf_resp.status_code, HTTPStatus.CREATED)
-
-        print('xxx', Workflow.query.get(2).forked_job_indices)
-
         self._check_workflow_state(2, 'READY', 'INVALID', 'READY')
 
 
@@ -191,9 +189,9 @@ class WorkflowTest(BaseTestCase):
 
         # test fork
         json = self._check_workflow_state(2, 'READY', 'INVALID', 'READY')
-
-        print('yyy', Workflow.query.get(2).forked_job_indices)
         self.assertEqual(len(Job.query.all()), 3)
+        self.assertEqual(json['data']['reuse_job_indices'], [1])
+        self.assertEqual(json['data']['peer_reuse_job_indices'], [0])
         jobs = json['data']['config']['job_definitions']
         self.assertEqual(jobs[0]['variables'][0]['value'], '2')
         self.assertEqual(jobs[1]['variables'][0]['value'], '2')

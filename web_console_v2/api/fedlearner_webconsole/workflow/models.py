@@ -116,6 +116,11 @@ def _merge_workflow_config(base, new, access_mode):
 @to_dict_mixin(ignores=['forked_from', 'fork_proposal_config'],
                extras={
                    'config': (lambda wf: wf.get_config()),
+                   'job_ids': (lambda wf: wf.get_job_ids()),
+                   'reuse_job_indices': (lambda wf: wf.get_reuse_job_indices()),
+                   'peer_reuse_job_indices':
+                       (lambda wf: wf.get_peer_reuse_job_indices()),
+
                })
 class Workflow(db.Model):
     __tablename__ = 'workflow_v2'
@@ -128,7 +133,8 @@ class Workflow(db.Model):
     forkable = db.Column(db.Boolean, default=False)
     forked_from = db.Column(db.Integer, default=None)
     # index in config.job_defs instead of job's id
-    forked_job_indices = db.Column(db.TEXT())
+    reuse_job_indices = db.Column(db.TEXT())
+    peer_reuse_job_indices = db.Column(db.TEXT())
     fork_proposal_config = db.Column(db.TEXT())
 
     recur_type = db.Column(db.Enum(RecurType), default=RecurType.NONE)
@@ -190,14 +196,23 @@ class Workflow(db.Model):
     def get_jobs(self):
         return [Job.query.get(i) for i in self.get_job_ids()]
 
-    def set_forked_job_indices(self, forked_job_indices):
-        self.forked_job_indices = ','.join(
-            [str(i) for i in forked_job_indices])
+    def set_reuse_job_indices(self, reuse_job_indices):
+        self.reuse_job_indices = ','.join(
+            [str(i) for i in reuse_job_indices])
 
-    def get_forked_job_indices(self):
-        if not self.forked_job_indices:
+    def get_reuse_job_indices(self):
+        if not self.reuse_job_indices:
             return []
-        return [int(i) for i in self.forked_job_indices.split(',')]
+        return [int(i) for i in self.reuse_job_indices.split(',')]
+    
+    def set_peer_reuse_job_indices(self, peer_reuse_job_indices):
+        self.peer_reuse_job_indices = ','.join(
+            [str(i) for i in peer_reuse_job_indices])
+
+    def get_peer_reuse_job_indices(self):
+        if not self.peer_reuse_job_indices:
+            return []
+        return [int(i) for i in self.peer_reuse_job_indices.split(',')]
 
     def update_target_state(self, target_state):
         if self.target_state != target_state \
@@ -314,10 +329,10 @@ class Workflow(db.Model):
             assert trunk is not None, \
                 'Source workflow %d not found'%self.forked_from
         else:
-            assert not self.get_forked_job_indices()
+            assert not self.get_reuse_job_indices()
 
         for i, job_def in enumerate(job_defs):
-            if i in self.get_forked_job_indices():
+            if i in self.get_reuse_job_indices():
                 job = Job.query.get(trunk.get_job_ids()[i])
                 assert job is not None, \
                     'Job %d not found'%trunk.get_job_ids()[i]
@@ -335,7 +350,7 @@ class Workflow(db.Model):
         db.session.commit()
 
         for i, job in enumerate(jobs):
-            if i in self.get_forked_job_indices():
+            if i in self.get_reuse_job_indices():
                 continue
             for j, dep_def in enumerate(job.get_config().dependencies):
                 dep = JobDependency(
@@ -376,7 +391,8 @@ class Workflow(db.Model):
                 return False
             self.forked_from = base_workflow.id
             self.forkable = base_workflow.forkable
-            self.set_forked_job_indices(peer_workflow.forked_job_indices)
+            self.set_reuse_job_indices(peer_workflow.peer_reuse_job_indices)
+            self.set_peer_reuse_job_indices(peer_workflow.reuse_job_indices)
             config = base_workflow.get_config()
             _merge_workflow_config(
                 config, peer_workflow.fork_proposal_config,
