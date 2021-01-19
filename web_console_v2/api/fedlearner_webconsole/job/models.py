@@ -58,7 +58,7 @@ class Job(db.Model):
     __tablename__ = 'job_v2'
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     name = db.Column(db.String(255), unique=True)
-    job_type = db.Column(db.Enum(JobType), nullable=False)
+    type = db.Column(db.Enum(JobType), nullable=False)
     state = db.Column(db.Enum(JobState), nullable=False,
                       default=JobState.INVALID)
     yaml = db.Column(db.Text(), nullable=False)
