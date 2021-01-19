@@ -89,7 +89,7 @@ class ProjectsApi(Resource):
                 raise InvalidArgumentException(
                     details=ErrorMessage.PARAM_FORMAT_ERROR.value.format(
                         'participants', 'Participant must have name, '
-                                        'domain_name and url.'))
+                        'domain_name and url.'))
             domain_name = participant.get('domain_name')
             if participant.get('certificates') is not None:
                 current_cert = parse_certificates(
@@ -99,7 +99,7 @@ class ProjectsApi(Resource):
                     if current_cert.get(file_name) is None:
                         raise InvalidArgumentException(
                             details=ErrorMessage.PARAM_FORMAT_ERROR.value.
-                                format('certificates', '{} not existed'.format(
+                            format('certificates', '{} not existed'.format(
                                 file_name)))
                 certificates[domain_name] = {'certs': current_cert}
                 participant.pop('certificates')
@@ -152,8 +152,10 @@ class ProjectsApi(Resource):
     def get(self):
         # TODO: Not count soft-deleted workflow
         projects = db.session.query(
-            Project, func.count(Workflow.id).label('num_workflow'))\
-            .join(Workflow.project).group_by(Project.id).all()
+                Project, func.count(Workflow.id).label('num_workflow'))\
+            .join(Workflow, Workflow.project_id == Project.id, isouter=True)\
+            .group_by(Project.id)\
+            .all()
         result = []
         for project in projects:
             project_dict = project.Project.to_dict()
@@ -204,8 +206,7 @@ class CheckConnectionApi(Resource):
         details = []
         # TODO: Concurrently check
         for participant in project.get_config().participants:
-            result = self.check_connection(project.get_config(),
-                                           participant)
+            result = self.check_connection(project.get_config(), participant)
             success = success & (result.code == StatusCode.STATUS_SUCCESS)
             if result.code != StatusCode.STATUS_SUCCESS:
                 details.append(result.msg)
