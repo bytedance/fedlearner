@@ -86,7 +86,7 @@ def make_workflow_template():
   "kind": "FLApp",
   "metadata": {
     "name": "{workflow.jobs.raw_data_job.name}",
-    "namespace": "{project.variables.namespace}",
+    "namespace": "{project.variables.namespace}"
   },
   "spec": {
     "cleanPodPolicy": "All",
@@ -366,7 +366,7 @@ def make_workflow_template():
   "kind": "FLApp",
   "metadata": {
     "name": "{workflow.jobs.data_join_job.name}",
-    "namespace": "{project.variables.namespace}",
+    "namespace": "{project.variables.namespace}"
   },
   "spec": {
     "cleanPodPolicy": "All",

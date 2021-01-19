@@ -15,14 +15,12 @@
 # coding: utf-8
 import enum
 import json
-import os
 from sqlalchemy.sql import func
 from fedlearner_webconsole.db import db, to_dict_mixin
 from fedlearner_webconsole.project.adapter import ProjectK8sAdapter
 from fedlearner_webconsole.project.models import Project
 from fedlearner_webconsole.k8s_client import get_client
 from fedlearner_webconsole.utils.k8s_client import CrdKind
-from fedlearner_webconsole.scheduler.yaml_formatter import YamlFormatter
 from fedlearner_webconsole.proto.workflow_definition_pb2 import JobDefinition
 
 
@@ -118,7 +116,10 @@ class Job(db.Model):
         return None
 
     def is_complete(self):
-        return self.get_flapp()['status']['appState'] == 'FLStateComplete'
+        flapp = self.get_flapp()
+        if flapp is None or 'status' not in flapp or 'appState' not in flapp['status']:
+            return False
+        return flapp['status']['appState'] == 'FLStateComplete'
 
     def stop(self):
         project_adapter = ProjectK8sAdapter(self.project)
