@@ -53,8 +53,8 @@ class DataBlockDumperManager(object):
                 ...
             }
         }
-        Will only count follower examples here as no fields are transmitted from
-            leader other than lite example_id.
+        Will only count leader examples here as no fields are transmitted from
+            follower other than example_ids.
         """
         self._lock = threading.Lock()
         self._data_source = data_source

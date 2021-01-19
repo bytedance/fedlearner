@@ -187,6 +187,7 @@ class DataBlockBuilder(object):
         metrics.emit_store(name='follower_join_rate_percent',
                            value=int(follower_join_rate*100),
                            tags=nmetric_tags)
+        self._emit_optional_stats(meta, nmetric_tags)
         logging.info("create new data block id: %s, data block index: %d," \
                      "stats:\n stats_cum_join_num: %d, actual_cum_join_num: "\
                      "%d, leader_stats_index: %d, follower_stats_index: %d, "\
@@ -198,7 +199,8 @@ class DataBlockBuilder(object):
                      meta.joiner_stats_info.follower_stats_index,
                      leader_join_rate, follower_join_rate)
 
-    def _emit_optional_stats(self, meta, metrics_tags):
+    @staticmethod
+    def _emit_optional_stats(meta, metrics_tags):
         stats_info = meta.joiner_stats_info
         # will pass the for loop if total_optional_stats is empty
         for field in stats_info.total_optional_stats:
@@ -209,34 +211,37 @@ class DataBlockBuilder(object):
             total_counter = dict(stats_info.total_optional_stats[field].counter)
             field_joined = 0
             field_total = 0
-            for value, total_count in total_counter:
+            for value, total_count in total_counter.items():
                 joined_count = joined_counter[value]
                 field_joined += joined_count
                 field_total += total_count
-                metrics.emit_store(
-                    name='{f}_{v}_total_count'.format(f=field, v=value),
-                    value=total_count,
-                    tags=metrics_tags
-                )
-                metrics.emit_store(
-                    name='{f}_{v}_joined_count'.format(f=field, v=value),
-                    value=joined_count,
-                    tags=metrics_tags
-                )
-                metrics.emit_store(
-                    name='{f}_{v}_join_rate_percent'.format(f=field, v=value),
-                    value=joined_count / max(total_count, 1) * 100,
-                    tags=metrics_tags
-                )
-            metrics.emit_store(name='{f}_total_count'.format(f=field),
+                prefix = '{f}_{v}'.format(f=field, v=value)
+                join_rate = joined_count / max(total_count, 1) * 100
+                metrics.emit_store(name='{}_total_num'.format(prefix),
+                                   value=total_count,
+                                   tags=metrics_tags)
+                metrics.emit_store(name='{}_join_num'.format(prefix),
+                                   value=joined_count,
+                                   tags=metrics_tags)
+                metrics.emit_store(name='{}_join_rate_percent'.format(prefix),
+                                   value=join_rate,
+                                   tags=metrics_tags)
+                logging.info('Cumulative stats of `%s`:\n total_count: %d, '
+                             'joined_count: %d, join_rate: %f',
+                             prefix, total_count, joined_count, join_rate)
+            total_join_rate = field_joined / max(field_total, 1) * 100
+            metrics.emit_store(name='{f}_total_num'.format(f=field),
                                value=field_total,
                                tags=metrics_tags)
-            metrics.emit_store(name='{f}_joined_count'.format(f=field),
+            metrics.emit_store(name='{f}_join_num'.format(f=field),
                                value=field_joined,
                                tags=metrics_tags)
             metrics.emit_store(name='{f}_join_rate_percent'.format(f=field),
-                               value=field_joined / max(field_total, 1) * 100,
+                               value=total_join_rate,
                                tags=metrics_tags)
+            logging.info('Cumulative overall stats of field `%s`:\n '
+                         'total_num: %d, join_num: %d, join_rate: %f',
+                         field, field_total, field_joined, total_join_rate)
 
     def _get_data_block_dir(self):
         return os.path.join(self._dirname,
