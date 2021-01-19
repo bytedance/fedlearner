@@ -38,11 +38,8 @@ class DatasetsApi(Resource):
         parser.add_argument('type', required=True,
                             type=DatasetType,
                             help=_FORMAT_ERROR_MESSAGE.format('type'))
-        parser.add_argument('external_storage_path', type=str,
-                            help=_FORMAT_ERROR_MESSAGE
-                            .format('external_storage_path'))
-        parser.add_argument('comment', type=str,
-                            help=_FORMAT_ERROR_MESSAGE.format('comment'))
+        parser.add_argument('external_storage_path', type=str)
+        parser.add_argument('comment', type=str)
         body = parser.parse_args()
         name = body.get('name')
         dataset_type = body.get('type')
@@ -73,14 +70,11 @@ class BatchesApi(Resource):
         parser = reqparse.RequestParser()
         parser.add_argument('dataset_id', type=int, required=True,
                             help=_FORMAT_ERROR_MESSAGE.format('dataset_id'))
-        parser.add_argument('event_time', type=int,
-                            help=_FORMAT_ERROR_MESSAGE.format('event_time'))
+        parser.add_argument('event_time', type=int)
         parser.add_argument('files', required=True, type=str, action='append',
                             help=_FORMAT_ERROR_MESSAGE.format('files'))
-        parser.add_argument('move', type=bool,
-                            help=_FORMAT_ERROR_MESSAGE.format('move'))
-        parser.add_argument('comment', type=str,
-                            help=_FORMAT_ERROR_MESSAGE.format('comment'))
+        parser.add_argument('move', type=bool)
+        parser.add_argument('comment', type=str)
         body = parser.parse_args()
         dataset_id = body.get('dataset_id')
         event_time = body.get('event_time')
