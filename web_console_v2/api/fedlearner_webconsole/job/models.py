@@ -52,7 +52,8 @@ def merge(x, y):
 
 @to_dict_mixin(extras={
     'flapp': (lambda job: job.get_flapp()),
-    'pods': (lambda job: job.get_pods())
+    'pods': (lambda job: job.get_pods()),
+    'config': (lambda job: job.get_config())
 })
 class Job(db.Model):
     __tablename__ = 'job_v2'
@@ -61,7 +62,7 @@ class Job(db.Model):
     job_type = db.Column(db.Enum(JobType), nullable=False)
     state = db.Column(db.Enum(JobState), nullable=False,
                       default=JobState.INVALID)
-    yaml = db.Column(db.Text(), nullable=False)
+    yaml_template = db.Column(db.Text(), nullable=False)
     config = db.Column(db.Text(), nullable=False)
     workflow_id = db.Column(db.Integer, db.ForeignKey('workflow_v2.id'),
                             nullable=False, index=True)
@@ -103,15 +104,24 @@ class Job(db.Model):
         # TODO: remove update snapshot to scheduler
         if self.state == JobState.STARTED:
             self._set_snapshot_flapp()
-        return json.loads(self.flapp_snapshot)
+        if self.flapp_snapshot is not None:
+            return json.loads(self.flapp_snapshot)
+        return None
 
     def get_pods(self):
         if self.state == JobState.STARTED:
             self._set_snapshot_pods()
-        return json.loads(self.pods_snapshot)
+        if self.pods_snapshot is not None:
+            return json.loads(self.pods_snapshot)
+        return None
 
     def is_complete(self):
-        return self.get_flapp()['status']['appState'] == 'FLStateComplete'
+        flapp = self.get_flapp()
+        if flapp is None \
+                or 'status' not in flapp \
+                or 'appState' not in flapp['status']:
+            return False
+        return flapp['status']['appState'] == 'FLStateComplete'
 
     def stop(self):
         project_adapter = ProjectK8sAdapter(self.project)
@@ -131,8 +141,8 @@ class Job(db.Model):
     def start(self):
         self.state = JobState.STARTED
 
-    def set_yaml(self, yaml_template):
-        self.yaml = yaml_template
+    def set_yaml_template(self, yaml_template):
+        self.yaml_template = yaml_template
 
 
 class JobDependency(db.Model):

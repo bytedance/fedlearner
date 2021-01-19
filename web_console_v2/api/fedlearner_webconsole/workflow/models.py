@@ -295,7 +295,7 @@ class Workflow(db.Model):
                           workflow_id=self.id,
                           project_id=self.project_id,
                           state=JobState.STOPPED)
-                job.set_yaml(job_def.yaml_template)
+                job.set_yaml_template(job_def.yaml_template)
                 db.session.add(job)
             jobs.append(job)
         db.session.commit()

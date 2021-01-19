@@ -16,10 +16,11 @@
 # pylint: disable=broad-except
 
 import os
+import json
 import threading
 import logging
 import traceback
-
+from fedlearner_webconsole.scheduler.yaml_formatter import YamlFormatter
 from fedlearner_webconsole.db import db
 from fedlearner_webconsole.workflow.models import Workflow, WorkflowState
 from fedlearner_webconsole.job.models import Job, JobState, JobDependency
@@ -135,6 +136,13 @@ class Scheduler(object):
         tm = TransactionManager(workflow_id)
         return tm.process()
 
+    def _make_variables_dict(self, variables):
+        var_dict = {
+            var.name: var.value
+            for var in variables
+        }
+        return var_dict
+
     def _schedule_job(self, job_id):
         job = Job.query.get(job_id)
         assert job is not None, 'Job %d not found'%job_id
@@ -149,10 +157,34 @@ class Scheduler(object):
                 return job.state
 
         k8s_client = get_client()
-        k8s_client.create_from_dict(job.yaml)
+        formatter = YamlFormatter()
+        system_dict = {
+            'basic_envs': os.environ.get(
+                'BASIC_ENVS',
+                '{}')}
+        workflow = job.workflow.to_dict()
+        workflow['variables'] = self._make_variables_dict(
+            job.workflow.get_config().variables)
+
+        workflow['jobs'] = {}
+        for j in job.workflow.get_jobs():
+            variables = self._make_variables_dict(j.get_config().variables)
+            j_dic = j.to_dict()
+            j_dic['variables'] = variables
+            workflow['jobs'][j.get_config().name] = j_dic
+        project = job.project.to_dict()
+        project['variables'] = self._make_variables_dict(
+            job.project.get_config().variables)
+        yaml = formatter.format(job.yaml_template,
+                                workflow=workflow,
+                                project=project,
+                                system=system_dict)
+        yaml = json.loads(yaml)
+        k8s_client.create_from_dict(yaml)
         job.start()
         db.session.commit()
 
         return job.state
+
 
 scheduler = Scheduler()
