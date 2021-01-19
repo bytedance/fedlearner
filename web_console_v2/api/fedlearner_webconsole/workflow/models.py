@@ -20,11 +20,14 @@ import enum
 
 from sqlalchemy.sql import func
 from fedlearner_webconsole.db import db, to_dict_mixin
-from fedlearner_webconsole.proto import workflow_definition_pb2
+from fedlearner_webconsole.proto import (
+    common_pb2, workflow_definition_pb2
+)
 from fedlearner_webconsole.project.models import Project
 from fedlearner_webconsole.job.models import (
     Job, JobState, JobType, JobDependency
 )
+from fedlearner_webconsole.rpc.client import RpcClient
 
 class WorkflowState(enum.Enum):
     INVALID = 0
@@ -93,7 +96,24 @@ IGNORED_TRANSACTION_TRANSITIONS = [
 ]
 
 
-@to_dict_mixin(ignores=['forked_from'],
+def _merge_variables(base, new, access_mode):
+    new_dict = {i.name: i.value for i in new}
+    for var in base:
+        if var.access_mode in access_mode and var.name in new_dict:
+            var.value = new_dict[var.name]
+
+def _merge_workflow_config(base, new, access_mode):
+    _merge_variables(base.variables, new.variables, access_mode)
+    if not new.job_definitions:
+        return
+    assert len(base.job_definitions) == len(new.job_definitions)
+    for base_job, new_job in \
+            zip(base.job_definitions, new.job_definitions):
+        _merge_variables(base_job.variables, new_job.variables, access_mode)
+
+
+
+@to_dict_mixin(ignores=['forked_from', 'fork_proposal_config'],
                extras={
                    'config': (lambda wf: wf.get_config()),
                })
@@ -109,6 +129,7 @@ class Workflow(db.Model):
     forked_from = db.Column(db.Integer, default=None)
     # index in config.job_defs instead of job's id
     forked_job_indices = db.Column(db.TEXT())
+    fork_proposal_config = db.Column(db.TEXT())
 
     recur_type = db.Column(db.Enum(RecurType), default=RecurType.NONE)
     recur_at = db.Column(db.Interval)
@@ -142,6 +163,19 @@ class Workflow(db.Model):
         if self.config is not None:
             proto = workflow_definition_pb2.WorkflowDefinition()
             proto.ParseFromString(self.config)
+            return proto
+        return None
+    
+    def set_fork_proposal_config(self, proto):
+        if proto is not None:
+            self.fork_proposal_config = proto.SerializeToString()
+        else:
+            self.fork_proposal_config = None
+
+    def get_fork_proposal_config(self):
+        if self.fork_proposal_config is not None:
+            proto = workflow_definition_pb2.WorkflowDefinition()
+            proto.ParseFromString(self.fork_proposal_config)
             return proto
         return None
 
@@ -232,10 +266,8 @@ class Workflow(db.Model):
 
         success = True
         if self.target_state == WorkflowState.READY:
-            # This is a hack, if config is not set then
-            # no action needed
-            # TODO(tjulinfan): validate if the config is legal or not
-            success = bool(self.config)
+            success = self._prepare_for_ready()
+
         if success:
             if self.transaction_state == TransactionState.COORDINATOR_PREPARE:
                 self.transaction_state = \
@@ -260,9 +292,11 @@ class Workflow(db.Model):
                 job.stop()
         elif self.target_state == WorkflowState.READY:
             self._setup_jobs()
+            self.fork_proposal_config = None
         elif self.target_state == WorkflowState.RUNNING:
             for job in self.owned_jobs:
-                job.schedule()
+                if not job.get_config().is_manual:
+                    job.schedule()
 
         self.state = self.target_state
         self.target_state = WorkflowState.INVALID
@@ -320,3 +354,33 @@ class Workflow(db.Model):
             'transaction_state=%s', self.id,
             self.state.name, self.target_state.name,
             self.transaction_state.name)
+
+    def _get_peer_workflow(self):
+        project_config = self.project.get_config()
+        # TODO: find coordinator for multiparty
+        client = RpcClient(project_config, project_config.participants[0])
+        return client.get_workflow(self.name)
+
+    def _prepare_for_ready(self):
+        # This is a hack, if config is not set then
+        # no action needed
+        if self.transaction_state == TransactionState.COORDINATOR_PREPARE:
+            # TODO(tjulinfan): validate if the config is legal or not
+            return bool(self.config)
+
+        peer_workflow = self._get_peer_workflow()
+        if peer_workflow.forked_from:
+            base_workflow = Workflow.query.filter(
+                Workflow.name == peer_workflow.forked_from).first()
+            if base_workflow is None or not base_workflow.forkable:
+                return False
+            self.forked_from = base_workflow.id
+            self.forkable = base_workflow.forkable
+            self.set_forked_job_indices(peer_workflow.forked_job_indices)
+            config = base_workflow.get_config()
+            _merge_workflow_config(
+                config, peer_workflow.fork_proposal_config,
+                [common_pb2.Variable.PEER_WRITABLE])
+            self.set_config(config)
+            return True
+        return bool(self.config)

@@ -95,11 +95,10 @@ class Scheduler(object):
 
                     job_ids = self._pending_jobs
                     self._pending_jobs = []
-                    for workflow_id in workflow_ids:
-                        job_ids.extend([
-                            jid for jid, in db.session.query(Job.id) \
-                                .filter(Job.state == JobState.WAITING) \
-                                .filter(Job.workflow_id == workflow_id)])
+                    job_ids.extend([
+                        jid for jid, in db.session.query(Job.id) \
+                            .filter(Job.state == JobState.WAITING) \
+                            .filter(Job.workflow_id in workflow_ids)])
                     self._poll_jobs(job_ids)
                     continue
 

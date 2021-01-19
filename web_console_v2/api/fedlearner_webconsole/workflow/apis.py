@@ -63,7 +63,11 @@ class WorkflowsApi(Resource):
         parser.add_argument('forkable', type=bool, required=True,
                             help='forkable is empty')
         parser.add_argument('forked_from', type=int, required=False,
-                            help='forkable is empty')
+                            help='fork from base workflow')
+        parser.add_argument('forked_job_indices', type=list, required=False,
+                            location='json', help='fork and inherit jobs')
+        parser.add_argument('fork_proposal_config', type=dict, required=False,
+                            help='fork and edit peer config')
         parser.add_argument('comment')
         data = parser.parse_args()
 
@@ -81,6 +85,17 @@ class WorkflowsApi(Resource):
                             state=WorkflowState.NEW,
                             target_state=WorkflowState.READY,
                             transaction_state=TransactionState.READY)
+
+        if workflow.forked_from is not None:
+            fork_config = dict_to_workflow_definition(
+                data['fork_proposal_config'])
+            if len(fork_config.job_definitions) != \
+                    len(template_proto.job_definitions):
+                raise InvalidArgumentException(
+                    'Forked workflow\'s template does not match base workflow')
+            workflow.set_fork_proposal_config(fork_config)
+            workflow.set_forked_job_indices(data['forked_job_indices'])
+
         workflow.set_config(template_proto)
         db.session.add(workflow)
         db.session.commit()

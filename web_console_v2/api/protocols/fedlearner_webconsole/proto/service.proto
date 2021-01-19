@@ -65,10 +65,18 @@ message GetWorkflowRequest {
 }
 message GetWorkflowResponse{
     Status status = 1;
-    int64 state = 2;
-    bool forkable = 3;
-    WorkflowDefinition config = 4;
-    repeated JobDetail jobs = 5;
+
+    WorkflowDefinition config = 2;
+    repeated JobDetail jobs = 3;
+
+    int64 state = 4;
+    int64 target_state = 5;
+    int64 transaction_state = 6;
+
+    bool forkable = 7;
+    string forked_from = 8;
+    repeated int64 forked_job_indices = 9;
+    WorkflowDefinition fork_proposal_config = 10;
 }
 
 

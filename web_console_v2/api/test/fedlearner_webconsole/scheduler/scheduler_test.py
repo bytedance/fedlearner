@@ -24,6 +24,8 @@ import multiprocessing
 from http import HTTPStatus
 
 from testing.common import BaseTestCase
+from fedlearner_webconsole.job.models import Job
+from fedlearner_webconsole.workflow.models import Workflow
 
 ROLE = os.environ.get('TEST_ROLE', 'leader')
 
@@ -61,6 +63,31 @@ class WorkflowTest(BaseTestCase):
             return FollowerConfig
 
     def test_workflow(self):
+        self._wf_template = {
+            'group_alias': 'test-template',
+            'job_definitions': [
+                {
+                    'name': 'job1',
+                    'variables': [
+                        {
+                            'name': 'x',
+                            'value': '1',
+                            'access_mode': 3
+                        }
+                    ]
+                },
+                {
+                    'name': 'job2',
+                    'variables': [
+                        {
+                            'name': 'y',
+                            'value': '2',
+                            'access_mode': 2
+                        }
+                    ]
+                }
+            ]
+        }
         if ROLE == 'leader':
             self.leader_test_workflow()
         else:
@@ -106,11 +133,48 @@ class WorkflowTest(BaseTestCase):
                 'name': 'test-workflow',
                 'project_id': 1,
                 'forkable': True,
-                'config': {'group_alias': 'test-template'},
+                'config': self._wf_template,
             })
         self.assertEqual(cwf_resp.status_code, HTTPStatus.CREATED)
 
         self._check_workflow_state(1, 'READY', 'INVALID', 'READY')
+
+        # test fork
+        cwf_resp = self.post_helper(
+            '/api/v2/workflows',
+            data={
+                'name': 'test-workflow2',
+                'project_id': 1,
+                'forkable': True,
+                'forked_from': 1,
+                'forked_job_indices': [0],
+                'config': self._wf_template,
+                'fork_proposal_config': {
+                    'job_definitions': [
+                        {
+                            'variables': [
+                                {
+                                    'name': 'x', 'value': '2'
+                                }
+                            ]
+                        },
+                        {
+                            'variables': [
+                                {
+                                    'name': 'y', 'value': '3'
+                                }
+                            ]
+                        }
+                    ]
+                }
+            })
+        # import pdb;pdb.set_trace()
+        self.assertEqual(cwf_resp.status_code, HTTPStatus.CREATED)
+
+        print('xxx', Workflow.query.get(2).forked_job_indices)
+
+        self._check_workflow_state(2, 'READY', 'INVALID', 'READY')
+
 
     def follower_test_workflow(self):
         self.setup_project('follower')
@@ -120,9 +184,19 @@ class WorkflowTest(BaseTestCase):
             '/api/v2/workflows/1',
             data={
                 'forkable': True,
-                'config': {'group_alias': 'test-template'},
+                'config': self._wf_template,
             })
         self._check_workflow_state(1, 'READY', 'INVALID', 'READY')
+        self.assertEqual(len(Job.query.all()), 2)
+
+        # test fork
+        json = self._check_workflow_state(2, 'READY', 'INVALID', 'READY')
+
+        print('yyy', Workflow.query.get(2).forked_job_indices)
+        self.assertEqual(len(Job.query.all()), 3)
+        jobs = json['data']['config']['job_definitions']
+        self.assertEqual(jobs[0]['variables'][0]['value'], '2')
+        self.assertEqual(jobs[1]['variables'][0]['value'], '2')
 
 
     def _check_workflow_state(self, workflow_id, state, target_state,
@@ -135,7 +209,7 @@ class WorkflowTest(BaseTestCase):
             if resp.json['data']['state'] == state and \
                     resp.json['data']['target_state'] == target_state and \
                     resp.json['data']['transaction_state'] == transaction_state:
-                return
+                return resp.json
  
  
 def test_main(role):
@@ -152,4 +226,4 @@ if __name__ == '__main__':
         process.start()
     test_main(ROLE)
     if ROLE == 'leader':
-        process.join()
+        assert process.join()
