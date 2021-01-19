@@ -208,6 +208,8 @@ class LeaderTrainerMaster(object):
 
         if self._online_training:
             data_block_reps.sort(key=lambda x: x.data_block_index)
+        else:
+            data_block_reps.sort(key=lambda x: x.start_time)
         for rnd in range(self._epoch_num):
             if self._shuffle_data_block:
                 random.shuffle(data_block_reps)
