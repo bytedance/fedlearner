@@ -17,6 +17,7 @@
 import logging
 from collections import OrderedDict
 from contextlib import contextmanager
+from itertools import chain
 
 import tensorflow.compat.v1 as tf
 
@@ -25,20 +26,17 @@ from fedlearner.data_join.raw_data_iter_impl.raw_data_iter import RawDataIter
 
 
 class TfExampleItem(RawDataIter.Item):
-    """
-    build an Item through `cls.make` -> `self._parse_example`
-    """
-    def __init__(self, record_str, optional_stats_fields=None):
-        if optional_stats_fields is None:
-            optional_stats_fields = []
+    def __init__(self, record_str, optional_fields=None):
+        if optional_fields is None:
+            optional_fields = []
         self._record_str = record_str
         self._parse_example_error = False
         example = self._parse_example()
         self._example_id = self._parse_example_id(example, record_str)
         self._event_time = self._parse_event_time(example, record_str)
         self._raw_id = self._parse_raw_id(example, record_str)
-        self._optional_stats = self._parse_optional(
-            example, record_str, optional_stats_fields)
+        self._optional_fields = self._parse_optional(
+            example, record_str, optional_fields)
         self._csv_record = None
         self._gc_example(example)
 
@@ -75,8 +73,8 @@ class TfExampleItem(RawDataIter.Item):
         return self._event_time
 
     @property
-    def optional_stats(self):
-        return self._optional_stats
+    def optional_fields(self):
+        return self._optional_fields
 
     @property
     def record(self):
@@ -162,13 +160,13 @@ class TfExampleItem(RawDataIter.Item):
         return common.InvalidRawId
 
     @staticmethod
-    def _parse_optional(example, record, optional_stats_fields):
-        if example is not None and len(optional_stats_fields) > 0:
+    def _parse_optional(example, record, optional_fields):
+        if example is not None and len(optional_fields) > 0:
             assert isinstance(example, tf.train.Example)
             try:
                 feat = example.features.feature
                 optional_values = {}
-                for k in optional_stats_fields:
+                for k in optional_fields:
                     if k in feat:
                         if feat[k].HasField('int64_list'):
                             optional_values[k] = \
@@ -186,7 +184,7 @@ class TfExampleItem(RawDataIter.Item):
             except Exception as e:  # pylint: disable=broad-except
                 logging.error('Failed to parse label from %s, reason %s',
                               record, e)
-        return common.NonExistentStats
+        return common.NoOptionalFields
 
     @staticmethod
     def _parse_event_time(example, record):
@@ -208,6 +206,7 @@ class TfExampleItem(RawDataIter.Item):
     def clear(self):
         del self._record_str
         del self._csv_record
+
 
 class TfRecordIter(RawDataIter):
     @classmethod
@@ -238,18 +237,22 @@ class TfRecordIter(RawDataIter):
         if expt is not None:
             raise expt
 
-    def _inner_iter(self, fpath, optional_stats_fields=None):
+    def _inner_iter(self, fpath, optional_fields=None):
         with self._data_set(fpath) as data_set:
             for batch in iter(data_set):
                 for raw_data in batch.numpy():
-                    yield TfExampleItem(raw_data, optional_stats_fields)
+                    yield TfExampleItem(raw_data, optional_fields)
 
     def _reset_iter(self, index_meta):
         if index_meta is not None:
             fpath = index_meta.fpath
-            optional_stats_fields = list(self._options.optional_stats_fields) \
-                if self._options is not None else []
-            fiter = self._inner_iter(fpath, optional_stats_fields)
+            # chain up all the optional fields lists from options,
+            # use set to de-duplicate
+            optional_fields = list(set(chain.from_iterable(
+                self._options.optional_fields[key].fields
+                for key in self._options.optional_fields
+            ))) if self._options is not None else []
+            fiter = self._inner_iter(fpath, optional_fields)
             item = next(fiter)
             return fiter, item
         return None, None

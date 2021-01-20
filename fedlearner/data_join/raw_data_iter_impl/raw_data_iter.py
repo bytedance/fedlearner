@@ -16,6 +16,7 @@
 
 import logging
 
+
 class RawDataIter(object):
     class Item(object):
         @property
@@ -31,9 +32,9 @@ class RawDataIter(object):
                 )
 
         @property
-        def optional_stats(self):
+        def optional_fields(self):
             raise NotImplementedError(
-                "Optional stats not implemented in base class Item."
+                "Optional fields not implemented in base class Item."
             )
 
         @property

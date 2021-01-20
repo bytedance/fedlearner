@@ -104,7 +104,10 @@ if __name__ == "__main__":
                     compressed_type=args.compressed_type,
                     read_ahead_size=args.read_ahead_size,
                     read_batch_size=args.read_batch_size,
-                    optional_stats_fields=optional_stats_fields
+                    optional_fields={
+                        'optional_stats': dj_pb.OptionalFields(
+                            fields=optional_stats_fields)
+                    }
                 ),
             example_joiner_options=dj_pb.ExampleJoinerOptions(
                     example_joiner=args.example_joiner,

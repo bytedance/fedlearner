@@ -19,7 +19,6 @@ import logging
 import os
 import threading
 import traceback
-from collections import defaultdict
 
 import tensorflow.compat.v1 as tf
 from google.protobuf import text_format
@@ -186,7 +185,6 @@ class DataBlockBuilder(object):
         metrics.emit_store(name='follower_join_rate_percent',
                            value=int(follower_join_rate*100),
                            tags=nmetric_tags)
-        self._emit_optional_stats(meta, nmetric_tags)
         logging.info("create new data block id: %s, data block index: %d," \
                      "stats:\n stats_cum_join_num: %d, actual_cum_join_num: "\
                      "%d, leader_stats_index: %d, follower_stats_index: %d, "\
@@ -197,50 +195,6 @@ class DataBlockBuilder(object):
                      meta.joiner_stats_info.leader_stats_index,
                      meta.joiner_stats_info.follower_stats_index,
                      leader_join_rate, follower_join_rate)
-
-    @staticmethod
-    def _emit_optional_stats(meta, metrics_tags):
-        stats_info = meta.joiner_stats_info
-        # will pass the for loop if total_optional_stats is empty
-        for field in stats_info.total_optional_stats:
-            joined_map = stats_info.joined_optional_stats.get(field, None)
-            # use defaultdict as maybe no examples are joined
-            joined_counter = defaultdict(int, joined_map.counter) \
-                if joined_map is not None else defaultdict(int)
-            total_counter = dict(stats_info.total_optional_stats[field].counter)
-            field_joined = 0
-            field_total = 0
-            for value, total_count in total_counter.items():
-                joined_count = joined_counter[value]
-                field_joined += joined_count
-                field_total += total_count
-                prefix = '{f}_{v}'.format(f=field, v=value)
-                join_rate = joined_count / max(total_count, 1) * 100
-                metrics.emit_store(name='{}_total_num'.format(prefix),
-                                   value=total_count,
-                                   tags=metrics_tags)
-                metrics.emit_store(name='{}_join_num'.format(prefix),
-                                   value=joined_count,
-                                   tags=metrics_tags)
-                metrics.emit_store(name='{}_join_rate_percent'.format(prefix),
-                                   value=join_rate,
-                                   tags=metrics_tags)
-                logging.info('Cumulative stats of `%s`:\n total_count: %d, '
-                             'joined_count: %d, join_rate: %f',
-                             prefix, total_count, joined_count, join_rate)
-            total_join_rate = field_joined / max(field_total, 1) * 100
-            metrics.emit_store(name='{f}_total_num'.format(f=field),
-                               value=field_total,
-                               tags=metrics_tags)
-            metrics.emit_store(name='{f}_join_num'.format(f=field),
-                               value=field_joined,
-                               tags=metrics_tags)
-            metrics.emit_store(name='{f}_join_rate_percent'.format(f=field),
-                               value=total_join_rate,
-                               tags=metrics_tags)
-            logging.info('Cumulative overall stats of field `%s`:\n '
-                         'total_num: %d, join_num: %d, join_rate: %f',
-                         field, field_total, field_joined, total_join_rate)
 
     def _get_data_block_dir(self):
         return os.path.join(self._dirname,
@@ -268,6 +222,7 @@ class DataBlockBuilder(object):
     def __del__(self):
         if self._writer is not None:
             del self._writer
+
 
 class DataBlockManager(object):
     def __init__(self, data_source, partition_id):

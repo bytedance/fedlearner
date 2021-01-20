@@ -17,46 +17,23 @@
 import logging
 import threading
 import time
-
 from contextlib import contextmanager
-from collections import defaultdict
 
 from fedlearner.common import data_join_service_pb2 as dj_pb
 from fedlearner.common import metrics
-
-from fedlearner.data_join.raw_data_visitor import RawDataVisitor
-from fedlearner.data_join.example_id_visitor import ExampleIdVisitor
-from fedlearner.data_join.data_block_manager import \
-        DataBlockManager, DataBlockBuilder
-from fedlearner.data_join.joiner_impl.joiner_stats import JoinerStats
 from fedlearner.data_join import common
+from fedlearner.data_join.data_block_manager import \
+    DataBlockManager, DataBlockBuilder
+from fedlearner.data_join.example_id_visitor import ExampleIdVisitor
+from fedlearner.data_join.joiner_impl.joiner_stats import JoinerStats
+from fedlearner.data_join.joiner_impl.optional_stats import OptionalStats
+from fedlearner.data_join.raw_data_visitor import RawDataVisitor
+
 
 class ExampleJoiner(object):
     def __init__(self, example_joiner_options, raw_data_options,
                  data_block_builder_options, kvstore, data_source,
                  partition_id):
-        """
-        self._optional_stats:
-        Counters for optional stats, will count total joined num and total num
-            of different values of every stat field.
-            E.g., for stat field='label', the values of field `label` will be
-            0(positive example) and 1(negative_example):
-        {
-            'joined': {
-                # '__None__' for examples without label field
-                'label': {1: 123, 0: 345, '__None__': 45},
-                'other_field': {...},
-                ...
-            },
-            'total': {
-                'label': {1: 234, 0: 456, '__None__': 56}
-                'other_field': {...},
-                ...
-            }
-        }
-        Will only count follower examples here as no fields are transmitted from
-            leader other than lite example_id.
-        """
         self._lock = threading.Lock()
         self._example_joiner_options = example_joiner_options
         self._raw_data_options = raw_data_options
@@ -70,28 +47,14 @@ class ExampleJoiner(object):
         self._data_block_manager = \
                 DataBlockManager(self._data_source, self._partition_id)
         meta = self._data_block_manager.get_lastest_data_block_meta()
-        self._optional_stats_fields = raw_data_options.optional_stats_fields
         if meta is None:
             self._joiner_stats = JoinerStats(0, -1, -1)
-            self._optional_stats = {
-                'joined': {stat_field: defaultdict(int)
-                           for stat_field in self._optional_stats_fields},
-                'total': {stat_field: defaultdict(int)
-                          for stat_field in self._optional_stats_fields}
-            }
         else:
             stats_info = meta.joiner_stats_info
             self._joiner_stats = JoinerStats(stats_info.stats_cum_join_num,
                                              stats_info.leader_stats_index,
                                              stats_info.follower_stats_index)
-            self._optional_stats = {
-                'joined': {field: defaultdict(
-                    int, stats_info.joined_optional_stats[field].counter)
-                    for field in stats_info.joined_optional_stats},
-                'total': {field: defaultdict(
-                    int, stats_info.total_optional_stats[field].counter)
-                    for field in stats_info.joined_optional_stats}
-            }
+        self._optional_stats = OptionalStats(raw_data_options, meta)
         self._data_block_builder_options = data_block_builder_options
         self._data_block_builder = None
         self._state_stale = False
@@ -160,20 +123,6 @@ class ExampleJoiner(object):
                 return True
             return self._need_finish_data_block_since_interval()
 
-    def _update_stats(self, item, kind='joined'):
-        """
-        optional_stats[field] retrieve the counter of field (e.g. 'label')
-        [optional_stats[field]] retrieved the count value
-        For field='label', [optional_stats[field]] += 1 will increment the
-            count of specific `kind` of positive examples (value == 1)
-            if optional_stats[field] == 1, else the neg count if the value == 0,
-            else the '__None__' (examples without 'label' field) count
-        """
-        if item.optional_stats == common.NonExistentStats:
-            return
-        for field in self._optional_stats_fields:
-            self._optional_stats[kind][field][item.optional_stats[field]] += 1
-
     def _prepare_join(self, state_stale):
         if state_stale:
             self._sync_state()
@@ -237,9 +186,13 @@ class ExampleJoiner(object):
             self._data_block_builder.set_join_stats_info(
                     self._create_join_stats_info()
                 )
+            self._data_block_builder.set_join_stats_info(
+                self._optional_stats.create_join_stats_info()
+            )
             meta = self._data_block_builder.finish_data_block(
                     True, self._metrics_tags
                 )
+            self._optional_stats.emit_optional_stats(self._metrics_tags)
             # delete as these stats cannot be transmitted to peer directly
             meta.joiner_stats_info.joined_optional_stats.clear()
             meta.joiner_stats_info.total_optional_stats.clear()
@@ -256,22 +209,12 @@ class ExampleJoiner(object):
         meta = self._data_block_manager.get_lastest_data_block_meta()
         if meta is not None:
             nactual_cum_join_num += meta.joiner_stats_info.actual_cum_join_num
-        joined_map, total_map = {}, {}
-        if len(self._optional_stats_fields) > 0:
-            for field, counter in self._optional_stats['joined'].items():
-                joined_map[field] = dj_pb.OptionalStatCounter(counter=counter)
-            for field, counter in self._optional_stats['total'].items():
-                total_map[field] = dj_pb.OptionalStatCounter(counter=counter)
         return dj_pb.JoinerStatsInfo(
-                stats_cum_join_num=nstats_cum_join_num,
-                actual_cum_join_num=nactual_cum_join_num,
-                leader_stats_index=\
-                    self._joiner_stats.get_leader_stats_index(),
-                follower_stats_index=\
-                    self._joiner_stats.get_follower_stats_index(),
-                joined_optional_stats=joined_map,
-                total_optional_stats=total_map
-            )
+            stats_cum_join_num=nstats_cum_join_num,
+            actual_cum_join_num=nactual_cum_join_num,
+            leader_stats_index=self._joiner_stats.get_leader_stats_index(),
+            follower_stats_index=self._joiner_stats.get_follower_stats_index()
+        )
 
     def _reset_data_block_builder(self):
         builder = None

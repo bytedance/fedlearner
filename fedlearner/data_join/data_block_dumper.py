@@ -19,42 +19,19 @@ import os
 import threading
 import time
 import traceback
-from collections import defaultdict
 from contextlib import contextmanager
 
-from fedlearner.common import data_join_service_pb2 as dj_pb
 from fedlearner.common import metrics
 from fedlearner.data_join import common
 from fedlearner.data_join.data_block_manager import \
     DataBlockManager, DataBlockBuilder
+from fedlearner.data_join.joiner_impl.optional_stats import OptionalStats
 from fedlearner.data_join.raw_data_visitor import RawDataVisitor
 
 
 class DataBlockDumperManager(object):
     def __init__(self, kvstore, data_source, partition_id,
                  raw_data_options, data_block_builder_options):
-        """
-        self._optional_stats:
-        Counters for optional stats, will count total joined num and total num
-            of different values of every stat field.
-            E.g., for stat field='label', the values of field `label` will be
-            0(positive example) and 1(negative_example):
-        {
-            'joined': {
-                # '__None__' for examples without label field
-                'label': {1: 123, 0: 345, '__None__': 45},
-                'other_field': {...},
-                ...
-            },
-            'total': {
-                'label': {1: 234, 0: 456, '__None__': 56}
-                'other_field': {...},
-                ...
-            }
-        }
-        Will only count leader examples here as no fields are transmitted from
-            follower other than example_ids.
-        """
         self._lock = threading.Lock()
         self._data_source = data_source
         self._partition_id = partition_id
@@ -67,24 +44,7 @@ class DataBlockDumperManager(object):
         self._next_data_block_index = \
                 self._data_block_manager.get_dumped_data_block_count()
         meta = self._data_block_manager.get_lastest_data_block_meta()
-        self._optional_stats_fields = raw_data_options.optional_stats_fields
-        if meta is None:
-            self._optional_stats = {
-                'joined': {stat_field: defaultdict(int)
-                           for stat_field in self._optional_stats_fields},
-                'total': {stat_field: defaultdict(int)
-                          for stat_field in self._optional_stats_fields}
-            }
-        else:
-            stats_info = meta.joiner_stats_info
-            self._optional_stats = {
-                'joined': {field: defaultdict(
-                    int, stats_info.joined_optional_stats[field].counter)
-                    for field in stats_info.joined_optional_stats},
-                'total': {field: defaultdict(
-                    int, stats_info.total_optional_stats[field].counter)
-                    for field in stats_info.joined_optional_stats}
-            }
+        self._optional_stats = OptionalStats(raw_data_options, meta)
         self._fly_data_block_meta = []
         self._state_stale = False
         self._synced_data_block_meta_finished = False
@@ -147,20 +107,6 @@ class DataBlockDumperManager(object):
         with self._lock:
             return self._synced_data_block_meta_finished
 
-    def _update_stats(self, item, kind='joined'):
-        """
-        optional_stats[field] retrieve the counter of field (e.g. 'label')
-        [optional_stats[field]] retrieved the count value
-        For field='label', [optional_stats[field]] += 1 will increment the
-            count of specific `kind` of positive examples (value == 1)
-            if optional_stats[field] == 1, else the neg count if the value == 0,
-            else the '__None__' (examples without 'label' field) count
-        """
-        if item.optional_stats == common.NonExistentStats:
-            return
-        for field in self._optional_stats_fields:
-            self._optional_stats[kind][field][item.optional_stats[field]] += 1
-
     def _acquire_state_stale(self):
         with self._lock:
             self._state_stale = True
@@ -221,18 +167,18 @@ class DataBlockDumperManager(object):
             example_num = len(meta.example_ids)
             need_match = True
             for (index, item) in self._raw_data_visitor:
-                self._update_stats(item, kind='total')
+                self._optional_stats.update_stats(item, kind='total')
                 example_id = item.example_id
                 # ELements in meta.example_ids maybe duplicated
                 while need_match and match_index < example_num and \
                         example_id == meta.example_ids[match_index]:
                     data_block_builder.write_item(item)
-                    self._update_stats(item, kind='joined')
+                    self._optional_stats.update_stats(item, kind='joined')
                     match_index += 1
                 if match_index >= example_num:
                     # if no need to get the total num of examples, break
                     # else iterate raw data without matching
-                    if len(self._optional_stats_fields) == 0:
+                    if not self._optional_stats.need_stats():
                         break
                     need_match = False
                 if index >= meta.leader_end_index:
@@ -246,13 +192,15 @@ class DataBlockDumperManager(object):
                 traceback.print_stack()
                 os._exit(-1) # pylint: disable=protected-access
             data_block_builder.set_join_stats_info(
-                self._create_stats_info()
+                self._optional_stats.create_join_stats_info()
             )
             dumped_meta = data_block_builder.finish_data_block(
                 True, self._metrics_tags
             )
-            dumped_meta.joiner_stats_info.joined_optional_stats.clear()
-            dumped_meta.joiner_stats_info.total_optional_stats.clear()
+            self._optional_stats.emit_optional_stats(self._metrics_tags)
+            # currently no need to manually clear the optional stats.
+            # dumped_meta.joiner_stats_info.joined_optional_stats.clear()
+            # dumped_meta.joiner_stats_info.total_optional_stats.clear()
             assert dumped_meta == meta, "the generated dumped meta should "\
                                         "be the same with input mata"
             with self._lock:
@@ -278,15 +226,3 @@ class DataBlockDumperManager(object):
                 skip_count += 1
             self._fly_data_block_meta = \
                     self._fly_data_block_meta[skip_count:]
-
-    def _create_stats_info(self):
-        joined_map, total_map = {}, {}
-        if len(self._optional_stats_fields) > 0:
-            for field, counter in self._optional_stats['joined'].items():
-                joined_map[field] = dj_pb.OptionalStatCounter(counter=counter)
-            for field, counter in self._optional_stats['total'].items():
-                total_map[field] = dj_pb.OptionalStatCounter(counter=counter)
-        return dj_pb.JoinerStatsInfo(
-                joined_optional_stats=joined_map,
-                total_optional_stats=total_map
-            )
