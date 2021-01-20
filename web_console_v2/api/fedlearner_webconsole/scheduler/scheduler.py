@@ -20,7 +20,7 @@ import json
 import threading
 import logging
 import traceback
-from fedlearner_webconsole.scheduler.yaml_formatter import YamlFormatter
+from fedlearner_webconsole.job.yaml_formatter import format_yaml
 from fedlearner_webconsole.db import db
 from fedlearner_webconsole.workflow.models import Workflow, WorkflowState
 from fedlearner_webconsole.job.models import Job, JobState, JobDependency
@@ -157,7 +157,6 @@ class Scheduler(object):
                 return job.state
 
         k8s_client = get_client()
-        formatter = YamlFormatter()
         system_dict = {
             'basic_envs': os.environ.get(
                 'BASIC_ENVS',
@@ -175,10 +174,10 @@ class Scheduler(object):
         project = job.project.to_dict()
         project['variables'] = self._make_variables_dict(
             job.project.get_config().variables)
-        yaml = formatter.format(job.yaml_template,
-                                workflow=workflow,
-                                project=project,
-                                system=system_dict)
+        yaml = format_yaml(job.yaml_template,
+                           workflow=workflow,
+                           project=project,
+                           system=system_dict)
         yaml = json.loads(yaml)
         k8s_client.create_from_dict(yaml)
         job.start()
