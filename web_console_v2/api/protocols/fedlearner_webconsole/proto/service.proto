@@ -75,8 +75,8 @@ message GetWorkflowResponse{
 
     bool forkable = 7;
     string forked_from = 8;
-    repeated int64 reuse_job_indices = 9;
-    repeated int64 peer_reuse_job_indices = 10;
+    repeated string reuse_job_names = 9;
+    repeated string peer_reuse_job_names = 10;
     WorkflowDefinition fork_proposal_config = 11;
 }
 

@@ -64,9 +64,9 @@ class WorkflowsApi(Resource):
                             help='forkable is empty')
         parser.add_argument('forked_from', type=int, required=False,
                             help='fork from base workflow')
-        parser.add_argument('reuse_job_indices', type=list, required=False,
+        parser.add_argument('reuse_job_names', type=list, required=False,
                             location='json', help='fork and inherit jobs')
-        parser.add_argument('peer_reuse_job_indices', type=list,
+        parser.add_argument('peer_reuse_job_names', type=list,
                             required=False, location='json',
                             help='peer fork and inherit jobs')
         parser.add_argument('fork_proposal_config', type=dict, required=False,
@@ -97,8 +97,8 @@ class WorkflowsApi(Resource):
                 raise InvalidArgumentException(
                     'Forked workflow\'s template does not match base workflow')
             workflow.set_fork_proposal_config(fork_config)
-            workflow.set_reuse_job_indices(data['reuse_job_indices'])
-            workflow.set_peer_reuse_job_indices(data['peer_reuse_job_indices'])
+            workflow.set_reuse_job_names(data['reuse_job_names'])
+            workflow.set_peer_reuse_job_names(data['peer_reuse_job_names'])
 
         workflow.set_config(template_proto)
         db.session.add(workflow)

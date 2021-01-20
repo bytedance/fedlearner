@@ -117,9 +117,9 @@ def _merge_workflow_config(base, new, access_mode):
                extras={
                    'config': (lambda wf: wf.get_config()),
                    'job_ids': (lambda wf: wf.get_job_ids()),
-                   'reuse_job_indices': (lambda wf: wf.get_reuse_job_indices()),
-                   'peer_reuse_job_indices':
-                       (lambda wf: wf.get_peer_reuse_job_indices()),
+                   'reuse_job_names': (lambda wf: wf.get_reuse_job_names()),
+                   'peer_reuse_job_names':
+                       (lambda wf: wf.get_peer_reuse_job_names()),
 
                })
 class Workflow(db.Model):
@@ -133,8 +133,8 @@ class Workflow(db.Model):
     forkable = db.Column(db.Boolean, default=False)
     forked_from = db.Column(db.Integer, default=None)
     # index in config.job_defs instead of job's id
-    reuse_job_indices = db.Column(db.TEXT())
-    peer_reuse_job_indices = db.Column(db.TEXT())
+    reuse_job_names = db.Column(db.TEXT())
+    peer_reuse_job_names = db.Column(db.TEXT())
     fork_proposal_config = db.Column(db.TEXT())
 
     recur_type = db.Column(db.Enum(RecurType), default=RecurType.NONE)
@@ -196,23 +196,21 @@ class Workflow(db.Model):
     def get_jobs(self):
         return [Job.query.get(i) for i in self.get_job_ids()]
 
-    def set_reuse_job_indices(self, reuse_job_indices):
-        self.reuse_job_indices = ','.join(
-            [str(i) for i in reuse_job_indices])
+    def set_reuse_job_names(self, reuse_job_names):
+        self.reuse_job_names = ','.join(reuse_job_names)
 
-    def get_reuse_job_indices(self):
-        if not self.reuse_job_indices:
+    def get_reuse_job_names(self):
+        if not self.reuse_job_names:
             return []
-        return [int(i) for i in self.reuse_job_indices.split(',')]
+        return self.reuse_job_names.split(',')
 
-    def set_peer_reuse_job_indices(self, peer_reuse_job_indices):
-        self.peer_reuse_job_indices = ','.join(
-            [str(i) for i in peer_reuse_job_indices])
+    def set_peer_reuse_job_names(self, peer_reuse_job_names):
+        self.peer_reuse_job_names = ','.join(peer_reuse_job_names)
 
-    def get_peer_reuse_job_indices(self):
-        if not self.peer_reuse_job_indices:
+    def get_peer_reuse_job_names(self):
+        if not self.peer_reuse_job_names:
             return []
-        return [int(i) for i in self.peer_reuse_job_indices.split(',')]
+        return self.peer_reuse_job_names.split(',')
 
     def update_target_state(self, target_state):
         if self.target_state != target_state \
@@ -318,26 +316,31 @@ class Workflow(db.Model):
         self.transaction_state = TransactionState.READY
 
     def _setup_jobs(self):
-        job_defs = self.get_config().job_definitions
-        name2index = {
-            job.name: i for i, job in enumerate(job_defs)
-        }
-
-        jobs = []
         if self.forked_from is not None:
             trunk = Workflow.query.get(self.forked_from)
             assert trunk is not None, \
                 'Source workflow %d not found'%self.forked_from
+            trunk_job_defs = trunk.get_config().job_definitions
+            trunk_name2index = {
+                job.name: i for i, job in enumerate(trunk_job_defs)
+            }
         else:
-            assert not self.get_reuse_job_indices()
+            assert not self.get_reuse_job_names()
 
+        job_defs = self.get_config().job_definitions
+        jobs = []
+        reuse_jobs = set(self.get_reuse_job_names())
         for i, job_def in enumerate(job_defs):
-            if i in self.get_reuse_job_indices():
-                job = Job.query.get(trunk.get_job_ids()[i])
+            if job_def.name in reuse_jobs:
+                assert job_def.name in trunk_name2index, \
+                    "Job %s not found in base workflow"%job_def.name
+                j = trunk.get_job_ids()[trunk_name2index[job_def.name]]
+                job = Job.query.get(j)
                 assert job is not None, \
-                    'Job %d not found'%trunk.get_job_ids()[i]
+                    'Job %d not found'%j
                 # TODO: check forked jobs does not depend on non-forked jobs
             else:
+                print('create job', f'{self.name}-{job_def.name}')
                 job = Job(name=f'{self.name}-{job_def.name}',
                           job_type=JobType(job_def.type),
                           config=job_def.SerializeToString(),
@@ -349,8 +352,11 @@ class Workflow(db.Model):
             jobs.append(job)
         db.session.commit()
 
+        name2index = {
+            job.name: i for i, job in enumerate(job_defs)
+        }
         for i, job in enumerate(jobs):
-            if i in self.get_reuse_job_indices():
+            if job.name in reuse_jobs:
                 continue
             for j, dep_def in enumerate(job.get_config().dependencies):
                 dep = JobDependency(
@@ -391,8 +397,8 @@ class Workflow(db.Model):
                 return False
             self.forked_from = base_workflow.id
             self.forkable = base_workflow.forkable
-            self.set_reuse_job_indices(peer_workflow.peer_reuse_job_indices)
-            self.set_peer_reuse_job_indices(peer_workflow.reuse_job_indices)
+            self.set_reuse_job_names(peer_workflow.peer_reuse_job_names)
+            self.set_peer_reuse_job_names(peer_workflow.reuse_job_names)
             config = base_workflow.get_config()
             _merge_workflow_config(
                 config, peer_workflow.fork_proposal_config,
