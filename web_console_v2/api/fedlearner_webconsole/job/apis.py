@@ -20,7 +20,6 @@ from fedlearner_webconsole.job.es import es
 from fedlearner_webconsole.exceptions import NotFoundException, \
     InvalidArgumentException
 from fedlearner_webconsole.k8s_client import get_client
-from fedlearner_webconsole.project.adapter import ProjectK8sAdapter
 
 
 class JobApi(Resource):
@@ -49,8 +48,8 @@ class PodContainerApi(Resource):
             raise NotFoundException()
         k8s = get_client()
         base = k8s.get_base_url()
-        container_id = k8s.get_webshell_session(ProjectK8sAdapter(job.project)
-                                                .get_namespace(), pod_name,
+        container_id = k8s.get_webshell_session(job.project.get_namespace(),
+                                                pod_name,
                                                 'tensorflow')
         return {'data': {'id': container_id, 'base': base}}
 
