@@ -79,12 +79,11 @@ class WorkflowsCommitTest(BaseTestCase):
         db.session.commit()
 
     @staticmethod
-    def _wait_until(workflow_id, state):
+    def _wait_until(cond):
         while True:
             time.sleep(1)
-            workflow = Workflow.query.filter_by(id=workflow_id).first()
-            if workflow.state == state:
-                return workflow
+            if cond():
+                return
 
     def test_workflow_commit(self):
         # test the committing stage for workflow creating
@@ -97,7 +96,9 @@ class WorkflowsCommitTest(BaseTestCase):
         db.session.add(workflow)
         db.session.commit()
         scheduler.wakeup(20)
-        workflow = self._wait_until(20, WorkflowState.READY)
+        self._wait_until(
+            lambda: Workflow.query.get(20).state == WorkflowState.READY)
+        workflow = Workflow.query.get(20)
         self.assertEqual(len(workflow.get_jobs()), 2)
         self.assertEqual(workflow.get_jobs()[0].state, JobState.STOPPED)
         self.assertEqual(workflow.get_jobs()[1].state, JobState.STOPPED)
@@ -107,8 +108,11 @@ class WorkflowsCommitTest(BaseTestCase):
         workflow.transaction_state = TransactionState.PARTICIPANT_COMMITTING
         db.session.commit()
         scheduler.wakeup(20)
-        workflow = self._wait_until(20, WorkflowState.RUNNING)
-        self.assertEqual(workflow.get_jobs()[0].state, JobState.STARTED)
+        self._wait_until(
+            lambda: Workflow.query.get(20).state == WorkflowState.RUNNING)
+        workflow = Workflow.query.get(20)
+        self._wait_until(
+            lambda: workflow.get_jobs()[0].state == JobState.STARTED)
         self.assertEqual(workflow.get_jobs()[1].state, JobState.WAITING)
 
         # test the committing stage for workflow stopping
@@ -116,8 +120,11 @@ class WorkflowsCommitTest(BaseTestCase):
         workflow.transaction_state = TransactionState.PARTICIPANT_COMMITTING
         db.session.commit()
         scheduler.wakeup(20)
-        workflow = self._wait_until(20, WorkflowState.STOPPED)
-        self.assertEqual(workflow.get_jobs()[0].state, JobState.STOPPED)
+        self._wait_until(
+            lambda: Workflow.query.get(20).state == WorkflowState.STOPPED)
+        workflow = Workflow.query.get(20)
+        self._wait_until(
+            lambda: workflow.get_jobs()[0].state == JobState.STOPPED)
         self.assertEqual(workflow.get_jobs()[1].state, JobState.STOPPED)
 
 
