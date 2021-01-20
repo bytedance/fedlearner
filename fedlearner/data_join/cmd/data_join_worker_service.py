@@ -94,9 +94,10 @@ if __name__ == "__main__":
                              'by comma between fields, e.g. "label,rit". '
                              'Each field will be stripped.')
     args = parser.parse_args()
-    optional_stats_fields = [field.strip() for field in
-                             args.optional_stats_fields.split(',')
-                             if field != '']
+    optional_stats_fields = list(
+        field for field in map(str.strip, args.optional_stats_fields.split(','))
+        if field != ''
+    )
     worker_options = dj_pb.DataJoinWorkerOptions(
             use_mock_etcd=(args.kvstore_type == 'mock'),
             raw_data_options=dj_pb.RawDataOptions(
