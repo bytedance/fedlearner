@@ -187,13 +187,20 @@ class RpcServer(object):
             assert workflow is not None
             config = workflow.get_config()
             # filter peer-readable and peer-writable variables
-            config.variable[:] = self._filter_variables(config.variables)
+            temp_config = self._filter_variables(config.variables)
+            # For repeated composite types, can not use person.id[:] = [xxx]
+            # to assign replace. You have to first delete them
+            # all and then extend
+            del config.variables[:]
+            config.variables.extend(temp_config)
             for job_def in config.job_definitions:
-                job_def.variables[:] = self._filter_variables(job_def.variables)
+                temp_config = self._filter_variables(job_def.variables)
+                del job_def.variables[:]
+                job_def.variables.extend(temp_config)
             # job details
             jobs = [service_pb2.JobDetail(
                 job_name=job.name, job_state=job.state)
-                for job in workflow.jobs]
+                for job in workflow.get_jobs()]
             return service_pb2.GetWorkflowResponse(
                 status=common_pb2.Status(
                     code=common_pb2.STATUS_SUCCESS),

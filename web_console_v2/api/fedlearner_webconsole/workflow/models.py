@@ -17,7 +17,7 @@
 
 import logging
 import enum
-
+from datetime import datetime
 from sqlalchemy.sql import func
 from fedlearner_webconsole.db import db, to_dict_mixin
 from fedlearner_webconsole.proto import workflow_definition_pb2
@@ -96,6 +96,7 @@ IGNORED_TRANSACTION_TRANSITIONS = [
 @to_dict_mixin(ignores=['forked_from'],
                extras={
                    'config': (lambda wf: wf.get_config()),
+                   'runtime': (lambda wf: wf.get_runtime()),
                })
 class Workflow(db.Model):
     __tablename__ = 'workflow_v2'
@@ -123,6 +124,8 @@ class Workflow(db.Model):
     transaction_state = db.Column(db.Enum(TransactionState),
                                   default=TransactionState.READY)
     transaction_err = db.Column(db.Text())
+
+    last_runtime = db.Column(db.Integer)
     created_at = db.Column(db.DateTime(timezone=True),
                            server_default=func.now())
     updated_at = db.Column(db.DateTime(timezone=True),
@@ -164,6 +167,11 @@ class Workflow(db.Model):
         if not self.forked_job_indices:
             return []
         return [int(i) for i in self.forked_job_indices.split(',')]
+
+    def get_runtime(self):
+        if self.last_runtime is None:
+            return (datetime.now()-self.updated_at).seconds
+        return self.last_runtime
 
     def update_target_state(self, target_state):
         if self.target_state != target_state \
@@ -256,11 +264,13 @@ class Workflow(db.Model):
                 'Workflow not in prepare state'
 
         if self.target_state == WorkflowState.STOPPED:
+            self.last_runtime = (datetime.now()-self.updated_at).seconds
             for job in self.owned_jobs:
                 job.stop()
         elif self.target_state == WorkflowState.READY:
             self._setup_jobs()
         elif self.target_state == WorkflowState.RUNNING:
+            self.last_runtime = None
             for job in self.owned_jobs:
                 job.schedule()
 
