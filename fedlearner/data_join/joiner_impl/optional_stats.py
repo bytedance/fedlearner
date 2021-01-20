@@ -1,16 +1,19 @@
 import logging
+import random
 from collections import defaultdict
 
 import fedlearner.common.data_join_service_pb2 as dj_pb
 from fedlearner.common import metrics
 from fedlearner.data_join import common
 
+POOL_LENGTH = 10
+
 
 class OptionalStats:
     """
     Cumulative stats for optional fields in data join, will count total joined
-        num and total num of different values of every optional field.
-        E.g., for optional field='label', the values of field `label` will be
+        num and total num of different values of every optional stats field.
+        E.g., for optional field=`label`, the values of field `label` will be
         0(positive example) and 1(negative_example):
         {
             'joined': {
@@ -62,6 +65,9 @@ class OptionalStats:
                     int, stats_info.total_optional_stats[field].counter)
                     for field in stats_info.joined_optional_stats}
             }
+        self._unjoined_example_id_pool = []
+        self._pool_index = 0
+        self._need_sample = raw_data_options.sample_unjoined
 
     def update_stats(self, item, kind='joined'):
         """
@@ -77,6 +83,13 @@ class OptionalStats:
             return
         for field in self._stats_fields:
             self._stats[kind][field][item.optional_fields[field]] += 1
+
+    def need_sample(self):
+        """
+        Returns: bool
+        Whether needs sampling unjoined example ids.
+        """
+        return self._need_sample
 
     def need_stats(self):
         """
@@ -100,6 +113,13 @@ class OptionalStats:
                                      total_optional_stats=total_map)
 
     def emit_optional_stats(self, metrics_tags=None):
+        """
+        Args:
+            metrics_tags: dict. Metrics tag for Kibana.
+
+        Returns: None
+        Emit the result to ES or logger. Clear the unjoined pool for next block.
+        """
         # will pass the for loop if total_optional_stats is empty
         for field, total_counter in self._stats['total'].items():
             joined_counter = self._stats['joined'][field]
@@ -118,16 +138,39 @@ class OptionalStats:
                 prefix = '{f}_{v}'.format(f=field, v=value)
                 join_rate = joined / max(total, 1) * 100
                 self._emit_metrics(total, joined, prefix, metrics_tags)
-                logging.warning('Cumulative stats of `%s`:\n total: %d, '
+                logging.info('Cumulative stats of `%s`:\n total: %d, '
                              'joined: %d, join_rate: %f',
                              prefix, total, joined, join_rate)
             total_join_rate = overall_joined / max(overall_total, 1) * 100
             self._emit_metrics(
                 overall_total, overall_joined, field, metrics_tags
             )
-            logging.warning('Cumulative overall stats of field `%s`:\n '
+            logging.info('Cumulative overall stats of field `%s`:\n '
                          'total: %d, joined: %d, join_rate: %f',
                          field, overall_total, overall_joined, total_join_rate)
+        if self._need_sample:
+            logging.info('Unjoined example ids: %s',
+                         self._unjoined_example_id_pool)
+            self._unjoined_example_id_pool = []
+            self._pool_index = 0
+
+    def add_unjoined(self, example_id):
+        """
+        Args:
+            example_id: bytes. example_id to be sampled into the sample pool.
+
+        Returns: None
+        Sample example_id. For N example_id to be sampled, each has a
+            probability of POOL_LENGTH / N to be eventually sampled.
+        """
+        if len(self._unjoined_example_id_pool) < POOL_LENGTH:
+            self._unjoined_example_id_pool.append(example_id)
+            self._pool_index += 1
+            return
+        insert_idx = random.randint(0, self._pool_index)
+        if insert_idx < POOL_LENGTH:
+            self._unjoined_example_id_pool[insert_idx] = example_id
+            self._pool_index += 1
 
     @staticmethod
     def _emit_metrics(total_count, joined_count, prefix, metrics_tags):

@@ -63,7 +63,7 @@ class DataBlockDumperManager(object):
         with self._lock:
             if self._synced_data_block_meta_finished:
                 raise RuntimeError(
-                        "data block dmuper manager has been mark as "\
+                        "data block dumper manager has been mark as "\
                         "no more data block meta"
                     )
             if self._next_data_block_index != meta.data_block_index:
@@ -169,12 +169,16 @@ class DataBlockDumperManager(object):
             for (index, item) in self._raw_data_visitor:
                 self._optional_stats.update_stats(item, kind='total')
                 example_id = item.example_id
-                # ELements in meta.example_ids maybe duplicated
+                joined = False
+                # Elements in meta.example_ids maybe duplicated
                 while need_match and match_index < example_num and \
                         example_id == meta.example_ids[match_index]:
                     data_block_builder.write_item(item)
                     self._optional_stats.update_stats(item, kind='joined')
                     match_index += 1
+                    joined = True
+                if not joined and self._optional_stats.need_sample():
+                    self._optional_stats.add_unjoined(example_id)
                 if match_index >= example_num:
                     # if no need to get the total num of examples, break
                     # else iterate raw data without matching

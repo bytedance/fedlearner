@@ -248,6 +248,7 @@ message RawDataOptions {
   // read batch size for tf record, <=0 means batch size == 1
   int64 read_batch_size = 4;
   map<string, OptionalFields> optional_fields = 5;
+  bool sample_unjoined = 6;
 }
 
 message WriterOptions {

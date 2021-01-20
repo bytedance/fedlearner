@@ -340,11 +340,19 @@ class StreamExampleJoiner(ExampleJoiner):
         reserved_items = []
         for (index, item) in candidates:
             example_id = item.example_id
+            if self._optional_stats.need_sample():
+                self._sample_unjoined(item)
             if filter_fn(item):
                 self._follower_example_cache.pop(example_id, None)
             else:
                 reserved_items.append((index, item))
         return reserved_items
+
+    def _sample_unjoined(self, item):
+        if item.example_id not in self._joined_cache and \
+                self._leader_join_window.committed_pt() is not None and \
+                _CmpCtnt(item) < self._leader_join_window.committed_pt():
+            self._optional_stats.add_unjoined(item.example_id)
 
     def _evit_stale_follower_cache(self):
         start_tm = time.time()
