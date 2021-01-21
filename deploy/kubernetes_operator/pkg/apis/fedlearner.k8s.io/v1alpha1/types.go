@@ -122,6 +122,21 @@ type ReplicaStatus struct {
 	Failed sets.String `json:"failed"`
 }
 
+// IngressSpec is the description for a FLApp ingress
+type IngressSpec struct {
+	// HostSuffix is the suffix appended to FLApp hostname
+	HostSuffix string
+
+	// ClientAuthSecretName is the name for Ingress client-auth
+	ClientAuthSecretName string
+
+	// TLSSecretName is the name for Ingress TLS secrets
+	TLSSecretName string
+
+	// IngressClassName is the Ingress-class name
+	IngressClassName string
+}
+
 // FLReplicaStatus describe FLReplicaStatus for each FLReplicaType
 type FLReplicaStatus map[FLReplicaType]ReplicaStatus
 
@@ -206,6 +221,9 @@ type FLAppSpec struct {
 
 	// Defines all the controllers involved in the app
 	PeerSpecs PeerSpecs `json:"peerSpecs"`
+
+	// IngressSpec defines the ingress created by controller
+	IngressSpec *IngressSpec `json:"ingressSpec"`
 }
 
 // FLAppStatus is the status for a FLApp resource
