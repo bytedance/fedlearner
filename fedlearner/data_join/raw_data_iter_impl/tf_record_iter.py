@@ -62,7 +62,7 @@ class TfExampleItem(RawDataIter.Item):
 
     @property
     def event_time(self):
-        if self._example_id == common.InvalidEventTime:
+        if self._event_time == common.InvalidEventTime:
             logging.warning('Note!!! return invalid event time')
         return self._event_time
 
@@ -183,7 +183,7 @@ class TfRecordIter(RawDataIter):
             data_set = tf.data.TFRecordDataset(
                     [fpath],
                     compression_type=self._options.compressed_type,
-                    num_parallel_reads=4,
+                    num_parallel_reads=1,
                     buffer_size=None if self._options.read_ahead_size <= 0 \
                             else self._options.read_ahead_size
                 )
