@@ -17,7 +17,7 @@ const Prop = styled.dd`
 
   &::before {
     display: inline-block;
-    width: var(--labelWidth, 'auto');
+    min-width: var(--labelWidth, 'auto');
     margin-right: 5px;
     content: attr(data-label) ': ';
     color: var(--textColorSecondary);

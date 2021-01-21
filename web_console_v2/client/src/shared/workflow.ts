@@ -41,9 +41,12 @@ export function isWarmUpUnderTheHood(workflow: Workflow) {
   return (
     state === NEW &&
     target_state === W_READY &&
-    [COORDINATOR_COMMITTING, PARTICIPANT_COMMITTABLE, PARTICIPANT_COMMITTING].includes(
-      transaction_state,
-    )
+    [
+      PARTICIPANT_PREPARE,
+      COORDINATOR_COMMITTING,
+      PARTICIPANT_COMMITTABLE,
+      PARTICIPANT_COMMITTING,
+    ].includes(transaction_state)
   );
 }
 

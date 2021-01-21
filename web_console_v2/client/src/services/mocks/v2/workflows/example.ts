@@ -99,11 +99,11 @@ export const newlyCreated = {
 
 export const withExecutionDetail: WorkflowExecutionDetails = {
   ...cloneDeep(newlyCreated),
-  start_running_at: ~~(new Date('2021-01-12 12:22:33').getTime() / 1000),
+  run_time: 100000, // second level
   jobs: [
     {
       id: 1,
-      name: 'Initiative',
+      name: 'Newly created-Initiative',
       job_type: JobType.RAW_DATA,
       state: JobState.COMPLETE,
       yaml_template: '',
@@ -116,7 +116,7 @@ export const withExecutionDetail: WorkflowExecutionDetails = {
     },
     {
       id: 2,
-      name: 'Raw data upload',
+      name: 'Newly created-Raw data upload',
       job_type: JobType.DATA_JOIN,
       state: JobState.RUNNING,
       yaml_template: '',
@@ -135,7 +135,7 @@ export const withExecutionDetail: WorkflowExecutionDetails = {
     },
     {
       id: 3,
-      name: 'Training',
+      name: 'Newly created-Training',
       job_type: JobType.DATA_JOIN,
       state: JobState.STOPPED,
       yaml_template: '',

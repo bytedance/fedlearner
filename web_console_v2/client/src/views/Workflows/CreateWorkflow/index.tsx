@@ -8,6 +8,8 @@ import { useSubscribe } from 'hooks';
 import WORKFLOW_CHANNELS from './pubsub';
 import { Route, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { useUnmount } from 'react-use';
+import { useResetCreateForms } from 'hooks/workflow';
 
 const { Step } = Steps;
 
@@ -26,7 +28,9 @@ enum CreateSteps {
 }
 
 export type WorkflowCreateProps = {
+  // is Coordinator initaiting a workflow
   isInitiate?: boolean;
+  // is Participant accepting a workflow from Coordinator
   isAccept?: boolean;
 };
 
@@ -39,9 +43,13 @@ const WorkflowsCreate: FC<WorkflowCreateProps> = (parentProps) => {
   const { t } = useTranslation();
   const params = useParams<{ step: keyof typeof CreateSteps; id?: string }>();
   const [currentStep, setStep] = useState(CreateSteps[params.step || 'basic']);
+  const reset = useResetCreateForms();
 
   useSubscribe(WORKFLOW_CHANNELS.go_config_step, () => {
     setStep(CreateSteps.config);
+  });
+  useUnmount(() => {
+    reset();
   });
 
   return (
@@ -53,7 +61,6 @@ const WorkflowsCreate: FC<WorkflowCreateProps> = (parentProps) => {
         ]}
       />
 
-      {/* Content */}
       <Card>
         <Row justify="center">
           <StepContainer>
@@ -65,7 +72,6 @@ const WorkflowsCreate: FC<WorkflowCreateProps> = (parentProps) => {
         </Row>
       </Card>
 
-      {/* TODO: avoid directly visit create/config, redirect user to basic */}
       <FormArea>
         <Route
           path={`/workflows/initiate/basic`}

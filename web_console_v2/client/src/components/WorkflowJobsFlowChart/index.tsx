@@ -13,11 +13,11 @@ import { convertJobsToElements, JobNode, JobNodeStatus, NODE_HEIGHT, NODE_WIDTH 
 import { convertToUnit } from 'shared/helpers';
 import PubSub from 'pubsub-js';
 import { useSubscribe } from 'hooks';
-import { Job } from 'typings/job';
+import { Job, JobExecutionDetalis } from 'typings/job';
 
 const Container = styled.div`
   position: relative;
-  /* TODO: remove hard-coded 48px of chart header */
+  /* TODO: remove the hard-coded 48px of chart header */
   height: ${(props: any) => `calc(100% - ${props.top || '0px'} - 48px)`};
   background-color: var(--gray1);
 
@@ -65,7 +65,7 @@ const CHANNELS = {
 };
 
 type Props = {
-  jobs: Job[];
+  jobs: (Job | JobExecutionDetalis)[];
   type: JobNodeType;
   onJobClick?: (node: JobNode) => void;
   onCanvasClick?: () => void;
@@ -75,7 +75,7 @@ const WorkflowJobsFlowChart: FC<Props> = ({ jobs, type, onJobClick, onCanvasClic
   const [elements, setElements] = useState<FlowElement[]>([]);
 
   useEffect(() => {
-    const eles = convertJobsToElements(jobs, type);
+    const eles = convertJobsToElements(jobs as Job[], type);
     setElements(eles);
   }, [jobs, type]);
 

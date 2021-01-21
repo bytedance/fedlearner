@@ -76,9 +76,9 @@ function ProjectList(): ReactElement {
           {isEmpty ? (
             <NoResult text={t('project.no_result')} to="/projects/create" />
           ) : displayType === DisplayType.Card ? (
-            <CardView projectList={projectListShow} />
+            <CardView list={projectListShow} />
           ) : (
-            <TableView projectList={projectListShow} />
+            <TableView list={projectListShow} />
           )}
         </ListContainer>
 

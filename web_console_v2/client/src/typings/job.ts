@@ -38,9 +38,10 @@ export interface Job {
 }
 
 export enum PodState {
-  RUNNING = 'RUNNING',
-  COMPLETE = 'COMPLETE',
-  FAILED = 'FAILED',
+  // the value is from very underside so the value is lowercase
+  RUNNING = 'active',
+  COMPLETE = 'succeeded',
+  FAILED = 'failed',
 }
 
 export interface Pod {

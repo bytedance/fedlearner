@@ -27,7 +27,7 @@ export function initiateAWorkflowTemplate(payload: any) {
   return request.post('/v2/workflow_templates', payload);
 }
 
-export function fetchWorkflowList(params?: { project?: string; keyword?: string }) {
+export function fetchWorkflowList(params?: { project?: string | number; keyword?: string }) {
   return request('/v2/workflows', {
     params,
     removeFalsy: true,
@@ -36,7 +36,7 @@ export function fetchWorkflowList(params?: { project?: string; keyword?: string 
 
 export function getPeerWorkflowsConfig(
   id: string | number,
-): Promise<{ data: Record<string, Workflow> }> {
+): Promise<{ data: Record<string, WorkflowExecutionDetails> }> {
   return request(`/v2/workflows/${id}/peer_workflows`);
 }
 

@@ -110,7 +110,7 @@ request.interceptors.response.use(
     // Common errors handle
     if (response && typeof response === 'object') {
       const serverError = new ServerError(
-        error.response.data.message || error.response.data.msg,
+        error.response.data.details || error.response.data.message || error.response.data.msg,
         error.satus,
       );
 

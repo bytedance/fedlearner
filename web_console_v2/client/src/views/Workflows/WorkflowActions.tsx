@@ -12,14 +12,23 @@ import {
 } from 'shared/workflow';
 import { Workflow } from 'typings/workflow';
 import { useTranslation } from 'react-i18next';
-import { Button } from 'antd';
+import { Button, message, Spin } from 'antd';
 import { useHistory } from 'react-router-dom';
 import { useSetRecoilState } from 'recoil';
 import { workflowInEditing } from 'stores/workflow';
 import { runTheWorkflow, stopTheWorkflow } from 'services/workflow';
 import GridRow from 'components/_base/GridRow';
-import { Copy, Sync, TableReport, SettingConfig, PlayCircle, Stop, Eye } from 'components/IconPark';
+import {
+  Copy,
+  Sync,
+  TableReport,
+  SettingConfig,
+  PlayCircle,
+  Pause,
+  Eye,
+} from 'components/IconPark';
 import { Icon } from 'components/IconPark/runtime';
+import { useToggle } from 'react-use';
 
 const Container = styled(GridRow)`
   margin-left: ${(props: any) => (props.type === 'link' ? '-15px !important' : 0)};
@@ -31,6 +40,7 @@ type Props = {
   type?: 'link' | 'default';
   without?: Action[];
   showIcon?: boolean;
+  onSuccess?: Function;
 };
 
 const icons: Record<Action, Icon> = {
@@ -38,14 +48,16 @@ const icons: Record<Action, Icon> = {
   configure: SettingConfig,
   run: PlayCircle,
   rerun: Sync,
-  stop: Stop,
+  stop: Pause,
   detail: Eye,
   fork: Copy,
 };
 
-const WorkflowActions: FC<Props> = ({ workflow, type = 'default', without = [] }) => {
+const WorkflowActions: FC<Props> = ({ workflow, type = 'default', without = [], onSuccess }) => {
   const { t } = useTranslation();
   const history = useHistory();
+  const [loading, toggleLoading] = useToggle(false);
+
   const setStoreWorkflow = useSetRecoilState(workflowInEditing);
 
   const visible: Record<Action, boolean> = {
@@ -69,73 +81,75 @@ const WorkflowActions: FC<Props> = ({ workflow, type = 'default', without = [] }
   const isDefaultType = type === 'default';
 
   return (
-    <Container {...{ type }} gap={isDefaultType ? 8 : 0}>
-      {visible.report && (
-        <Button
-          size="small"
-          type={type}
-          {...withIcon('report')}
-          onClick={onAcceptClick}
-          disabled={disabled.configure}
-        >
-          {t('workflow.action_show_report')}
-        </Button>
-      )}
-      {visible.configure && (
-        <Button size="small" type={type} {...withIcon('configure')} onClick={onAcceptClick}>
-          {t('workflow.action_configure')}
-        </Button>
-      )}
-      {visible.run && (
-        <Button
-          size="small"
-          type={type}
-          {...withIcon('run')}
-          onClick={onRunClick}
-          disabled={disabled.run}
-        >
-          {t('workflow.action_run')}
-        </Button>
-      )}
-      {visible.stop && (
-        <Button
-          size="small"
-          type={type}
-          {...withIcon('stop')}
-          onClick={onStopClick}
-          disabled={disabled.stop}
-        >
-          {t('workflow.action_stop_running')}
-        </Button>
-      )}
-      {visible.rerun && (
-        <Button
-          size="small"
-          type={type}
-          {...withIcon('rerun')}
-          onClick={onRunClick}
-          disabled={disabled.rerun}
-        >
-          {t('workflow.action_re_run')}
-        </Button>
-      )}
-      {visible.fork && (
-        <Button
-          size="small"
-          type={type}
-          {...withIcon('fork')}
-          onClick={onForkClick}
-          disabled={disabled.fork}
-        >
-          {t('workflow.action_fork')}
-        </Button>
-      )}
-      {visible.detail && (
-        <Button size="small" type={type} {...withIcon('detail')} onClick={onViewDetailClick}>
-          {t('workflow.action_detail')}
-        </Button>
-      )}
-    </Container>
+    <Spin spinning={loading} size="small">
+      <Container {...{ type }} gap={isDefaultType ? 8 : 0}>
+        {visible.report && (
+          <Button
+            size="small"
+            type={type}
+            {...withIcon('report')}
+            onClick={onAcceptClick}
+            disabled={disabled.configure}
+          >
+            {t('workflow.action_show_report')}
+          </Button>
+        )}
+        {visible.configure && (
+          <Button size="small" type={type} {...withIcon('configure')} onClick={onAcceptClick}>
+            {t('workflow.action_configure')}
+          </Button>
+        )}
+        {visible.run && (
+          <Button
+            size="small"
+            type={type}
+            {...withIcon('run')}
+            onClick={onRunClick}
+            disabled={disabled.run}
+          >
+            {t('workflow.action_run')}
+          </Button>
+        )}
+        {visible.stop && (
+          <Button
+            size="small"
+            type={type}
+            {...withIcon('stop')}
+            onClick={onStopClick}
+            disabled={disabled.stop}
+          >
+            {t('workflow.action_stop_running')}
+          </Button>
+        )}
+        {visible.rerun && (
+          <Button
+            size="small"
+            type={type}
+            {...withIcon('rerun')}
+            onClick={onRunClick}
+            disabled={disabled.rerun}
+          >
+            {t('workflow.action_re_run')}
+          </Button>
+        )}
+        {visible.fork && (
+          <Button
+            size="small"
+            type={type}
+            {...withIcon('fork')}
+            onClick={onForkClick}
+            disabled={disabled.fork}
+          >
+            {t('workflow.action_fork')}
+          </Button>
+        )}
+        {visible.detail && (
+          <Button size="small" type={type} {...withIcon('detail')} onClick={onViewDetailClick}>
+            {t('workflow.action_detail')}
+          </Button>
+        )}
+      </Container>
+    </Spin>
   );
 
   function withIcon(action: Action) {
@@ -157,10 +171,24 @@ const WorkflowActions: FC<Props> = ({ workflow, type = 'default', without = [] }
     // TODO: fork workflow
   }
   async function onRunClick() {
-    await runTheWorkflow(workflow.id);
+    toggleLoading(true);
+    try {
+      await runTheWorkflow(workflow.id);
+      onSuccess && onSuccess(workflow);
+    } catch (error) {
+      message.error(error.message);
+    }
+    toggleLoading(false);
   }
   async function onStopClick() {
-    await stopTheWorkflow(workflow.id);
+    toggleLoading(true);
+    try {
+      await stopTheWorkflow(workflow.id);
+      onSuccess && onSuccess(workflow);
+    } catch (error) {
+      message.error(error.message);
+    }
+    toggleLoading(false);
   }
 };
 

@@ -14,6 +14,7 @@ import { MixinCommonTransition, MixinFontClarity } from 'styles/mixins';
 import { checkConnection } from 'services/project';
 import { useQuery } from 'react-query';
 import { Command, Workbench } from 'components/IconPark';
+import IconButton from 'components/IconButton';
 
 const CardContainer = styled.div`
   ${MixinCommonTransition('box-shadow')}
@@ -82,13 +83,7 @@ const CreateWorkflow: FC<IconButtonProps> = ({ onClick }) => {
 
   return (
     <Tooltip title={t('project.create_work_flow')} placement="top">
-      <Button
-        onClick={onClick as any}
-        type="text"
-        icon={<Workbench />}
-        shape="circle"
-        size="small"
-      />
+      <IconButton onClick={onClick as any} icon={<Workbench />} circle />
     </Tooltip>
   );
 };
@@ -98,7 +93,7 @@ const CheckConnection: FC<IconButtonProps> = ({ onClick }) => {
 
   return (
     <Tooltip title={t('project.check_connection')} placement="top">
-      <Button onClick={onClick as any} type="text" icon={<Command />} shape="circle" size="small" />
+      <IconButton onClick={onClick as any} icon={<Command />} circle />
     </Tooltip>
   );
 };
@@ -153,6 +148,7 @@ function Card({ item: project }: CardProps): ReactElement {
             onViewDetail={viewDetail}
           />
         </div>
+
         <ProjectDetailDrawer
           title={project.name}
           project={project}

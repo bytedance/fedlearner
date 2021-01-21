@@ -1,10 +1,12 @@
-import { newlyCreated } from '../example';
+import { newlyCreated, withExecutionDetail } from '../example';
 
-const get = {
-  data: {
-    data: newlyCreated,
-  },
-  status: 200,
+const get = () => {
+  return {
+    data: {
+      data: { peer_1: withExecutionDetail || newlyCreated },
+    },
+    status: 200,
+  };
 };
 
 export default get;

@@ -31,13 +31,13 @@ const Container = styled.div`
 `;
 
 interface CardListProps {
-  projectList: Project[];
+  list: Project[];
 }
 
-function CardList({ projectList }: CardListProps): ReactElement {
+function CardList({ list }: CardListProps): ReactElement {
   return (
     <Container>
-      {projectList.map((item, index) => (
+      {list.map((item, index) => (
         <ProjectCard item={item} key={'p-' + index} />
       ))}
     </Container>

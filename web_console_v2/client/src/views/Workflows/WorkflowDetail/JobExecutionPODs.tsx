@@ -25,6 +25,7 @@ const tablecolumns = [
     title: i18n.t('workflow.name'),
     dataIndex: 'name',
     key: 'name',
+    width: 400,
   },
   {
     title: i18n.t('workflow.col_worker_status'),
@@ -62,10 +63,14 @@ type Props = {
 };
 
 const JobExecutionPODs: FC<Props> = ({ pods }) => {
+  let data = pods;
+  if (!Array.isArray(pods)) {
+    data = [];
+  }
   return (
     <Container>
       <h3>各 worker 运行日志及状态</h3>
-      <Table dataSource={pods || []} columns={tablecolumns} size="small" />
+      <Table dataSource={data || []} columns={tablecolumns} size="small" />
     </Container>
   );
 };

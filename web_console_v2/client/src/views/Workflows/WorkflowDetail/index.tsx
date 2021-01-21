@@ -1,9 +1,9 @@
 import React, { FC, useState } from 'react';
 import styled from 'styled-components';
-import { Card, Spin, Row } from 'antd';
+import { Card, Spin, Row, Button } from 'antd';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery } from 'react-query';
-import { getWorkflowDetailById } from 'services/workflow';
+import { getPeerWorkflowsConfig, getWorkflowDetailById } from 'services/workflow';
 import WorkflowJobsFlowChart from 'components/WorkflowJobsFlowChart';
 import { useTranslation } from 'react-i18next';
 import WhichProject from 'components/WhichProject';
@@ -16,6 +16,10 @@ import JobExecutionDetailsDrawer from './JobExecutionDetailsDrawer';
 import { useToggle } from 'react-use';
 import { JobNode, JobNodeData } from 'components/WorkflowJobsFlowChart/helpers';
 import PropertyList from 'components/PropertyList';
+import { Eye, EyeInvisible } from 'components/IconPark';
+import { WorkflowExecutionDetails } from 'typings/workflow';
+import { JobExecutionDetalis, Job } from 'typings/job';
+import { ReactFlowProvider } from 'react-flow-renderer';
 
 const Container = styled.div`
   display: flex;
@@ -23,7 +27,13 @@ const Container = styled.div`
   height: var(--contentHeight);
 `;
 const ChartSection = styled.section`
+  display: flex;
+  gap: 16px;
   margin-top: 16px;
+  flex: 1;
+`;
+const ChartContainer = styled.div`
+  height: 100%;
   flex: 1;
 `;
 const HeaderRow = styled(Row)`
@@ -34,8 +44,9 @@ const Name = styled.h3`
   font-size: 20px;
   line-height: 28px;
 `;
-const ChartHeader = styled.header`
-  padding: 13px 20px;
+const ChartHeader = styled(Row)`
+  height: 48px;
+  padding: 0 20px;
   font-size: 14px;
   line-height: 22px;
   background-color: white;
@@ -45,8 +56,9 @@ const ChartTitle = styled.h3`
 `;
 
 const WorkflowDetail: FC = () => {
-  const params = useParams<{ id: string }>();
   const { t } = useTranslation();
+  const params = useParams<{ id: string }>();
+  const [peerJobsVisible, togglePeerJobsVisible] = useToggle(false);
   const [drawerVisible, toggleDrawerVisible] = useToggle(false);
   const [isPeerSide, setIsPeerSide] = useState(false);
   const [data, setData] = useState<JobNodeData>();
@@ -58,15 +70,31 @@ const WorkflowDetail: FC = () => {
       cacheTime: 1,
     },
   );
+  const peerWorkflowQuery = useQuery(['getPeerWorkflow', params.id], getPeerWorkflow, {
+    refetchOnWindowFocus: false,
+    retry: false,
+  });
 
   const workflow = detailQuery.data?.data;
-  const jobDefs = workflow?.config?.job_definitions || [];
-  const jobsWithExecutionDetails = jobDefs.map((item) => {
-    return Object.assign(
-      item,
-      workflow?.jobs.find((j) => j.name === item.name),
-    );
-  });
+  const transactionErr = workflow?.transaction_err;
+  const workflowProps = [
+    {
+      label: t('workflow.label_template_name'),
+      value: workflow?.config?.group_alias || (
+        <Link to={`/workflows/accept/basic/${workflow?.id}`}>{t('workflow.job_node_pending')}</Link>
+      ),
+    },
+    {
+      label: t('workflow.label_project'),
+      value: <WhichProject id={workflow?.project_id || 0} />,
+    },
+    {
+      label: t('workflow.label_running_time'),
+      value: fromNow(workflow?.run_time || 0, true),
+    },
+  ];
+  const jobsWithExecutionDetails = mergeJobDefsWithExecutionDetails(workflow);
+  const peerJobsWithExecutionDetails = mergeJobDefsWithExecutionDetails(peerWorkflowQuery.data);
 
   return (
     <Spin spinning={detailQuery.isLoading}>
@@ -83,42 +111,61 @@ const WorkflowDetail: FC = () => {
               <Name>{workflow?.name}</Name>
               {workflow && <WorkflowStage workflow={workflow} tag />}
             </GridRow>
-            {workflow && <WorkflowActions workflow={workflow} without={['detail']} />}
+            {workflow && (
+              <WorkflowActions
+                workflow={workflow}
+                without={['detail']}
+                onSuccess={detailQuery.refetch}
+              />
+            )}
           </HeaderRow>
 
-          <PropertyList
-            cols={3}
-            properties={[
-              {
-                label: t('workflow.label_template_name'),
-                value: workflow?.config?.group_alias || (
-                  <Link to={`/workflows/accept/basic/${workflow?.id}`}>
-                    {t('workflow.job_node_pending')}
-                  </Link>
-                ),
-              },
-              {
-                label: t('workflow.label_project'),
-                value: <WhichProject id={workflow?.project_id || 0} />,
-              },
-              {
-                label: t('workflow.label_running_time'),
-                value: fromNow(workflow?.start_running_at || 0, true),
-              },
-            ]}
-          />
+          {/* i.e. Workflow execution error  */}
+          {transactionErr && <p>{transactionErr}</p>}
+
+          <PropertyList cols={3} properties={workflowProps} />
         </Card>
 
         <ChartSection>
-          <ChartHeader>
-            <ChartTitle>{t('workflow.our_config')}</ChartTitle>
-          </ChartHeader>
+          {/* Our config */}
+          <ChartContainer>
+            <ChartHeader justify="space-between" align="middle">
+              <ChartTitle data-note={t('workflow.federated_note')}>
+                {t('workflow.our_config')}
+              </ChartTitle>
 
-          <WorkflowJobsFlowChart
-            type="execution"
-            jobs={jobsWithExecutionDetails}
-            onJobClick={viewJobDetail}
-          />
+              {!peerJobsVisible && (
+                <Button icon={<Eye />} onClick={() => togglePeerJobsVisible(true)}>
+                  {t('workflow.btn_see_peer_config')}
+                </Button>
+              )}
+            </ChartHeader>
+            <ReactFlowProvider>
+              <WorkflowJobsFlowChart
+                type="execution"
+                onCanvasClick={() => toggleDrawerVisible(false)}
+                jobs={jobsWithExecutionDetails}
+                onJobClick={viewJobDetail}
+              />
+            </ReactFlowProvider>
+          </ChartContainer>
+
+          {/* Peer config */}
+          {peerJobsVisible && (
+            <ChartContainer>
+              <ChartHeader justify="space-between" align="middle">
+                <ChartTitle>{t('workflow.peer_config')}</ChartTitle>
+
+                <Button icon={<EyeInvisible />} onClick={() => togglePeerJobsVisible(false)}>
+                  {t('workflow.btn_hide_peer_config')}
+                </Button>
+              </ChartHeader>
+
+              <ReactFlowProvider>
+                <WorkflowJobsFlowChart type="execution" jobs={peerJobsWithExecutionDetails} />
+              </ReactFlowProvider>
+            </ChartContainer>
+          )}
         </ChartSection>
 
         <JobExecutionDetailsDrawer
@@ -132,10 +179,37 @@ const WorkflowDetail: FC = () => {
   );
 
   function viewJobDetail(jobNode: JobNode) {
+    setIsPeerSide(false);
+    showJobDetailesDrawer(jobNode);
+  }
+  function viewPeerJobDetail(jobNode: JobNode) {
+    setIsPeerSide(true);
+    showJobDetailesDrawer(jobNode);
+  }
+  function showJobDetailesDrawer(jobNode: JobNode) {
     setData(jobNode.data);
-
     toggleDrawerVisible(true);
   }
+  async function getPeerWorkflow() {
+    const res = await getPeerWorkflowsConfig(params.id);
+    const anyPeerWorkflow = Object.values(res.data).find((item) => !!item.config)!;
+
+    return anyPeerWorkflow;
+  }
 };
+
+function mergeJobDefsWithExecutionDetails(
+  workflow: WorkflowExecutionDetails | undefined,
+): (Job & JobExecutionDetalis)[] {
+  if (!workflow) return [];
+
+  return workflow.config?.job_definitions.map((item) => {
+    return Object.assign(
+      item,
+      workflow?.jobs?.find((j) => j.name === `${workflow.name}-${item.name}`),
+      { name: item.name },
+    );
+  }) as (Job & JobExecutionDetalis)[];
+}
 
 export default WorkflowDetail;

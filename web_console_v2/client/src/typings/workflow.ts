@@ -171,5 +171,5 @@ export type Workflow = {
 
 export type WorkflowExecutionDetails = {
   jobs: JobExecutionDetalis[];
-  start_running_at: number;
+  run_time: number;
 } & Workflow;

@@ -5,6 +5,8 @@ const workflow: I18nMessageModule = {
   execution_detail: { zh: '工作流详情' },
   name: { zh: '工作流名称' },
   our_config: { zh: '我方配置' },
+  peer_config: { zh: '对方配置' },
+  federated_note: { zh: '与对方工作流相同颜色的模块为关联模块' },
   ptcpt_permission: { zh: '合作伙伴编辑权限' },
   current_config: { zh: '当前配置' },
   create_workflow: { zh: '创建工作流', en: 'Create workflow' },
@@ -20,7 +22,8 @@ const workflow: I18nMessageModule = {
   btn_close: { zh: '关闭' },
   btn_conf_done: { zh: '配置完成' },
   btn_conf_next_step: { zh: '配置下一步（{{current}}/{{total}}）' },
-  btn_see_ptcpt_config: { zh: '查看对方配置' },
+  btn_see_peer_config: { zh: '查看对方配置' },
+  btn_hide_peer_config: { zh: '隐藏对方配置' },
   btn_send_2_ptcpt: { zh: '发送给合作伙伴' },
 
   col_status: { zh: '任务状态' },
@@ -96,6 +99,7 @@ const workflow: I18nMessageModule = {
   msg_tpl_alias_missing: { zh: '模板格式错误，缺少 config.group_alias 字段！' },
   msg_tpl_alias_wrong: { zh: '模板 group_alias 与合作方模板不一致，请检查！' },
   msg_tpl_is_left_wrong: { zh: '模板 is_left 须为 false，请检查！' },
+  msg_peer_config_failed: { zh: '获取对侧工作流配置失败' },
 
   var_auth_write: { zh: '可编辑' },
   var_auth_read: { zh: '可见' },

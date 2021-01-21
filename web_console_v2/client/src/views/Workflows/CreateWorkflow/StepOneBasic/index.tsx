@@ -1,6 +1,6 @@
-import React, { FC, useState } from 'react';
+import React, { FC, useState, useEffect } from 'react';
 import styled from 'styled-components';
-import { Form, Select, Radio, Button, Input, Spin, Card } from 'antd';
+import { Form, Select, Radio, Button, Input, Spin, Card, notification } from 'antd';
 import { useTranslation } from 'react-i18next';
 import GridRow from 'components/_base/GridRow';
 import CreateTemplateForm from './CreateTemplate';
@@ -13,6 +13,7 @@ import {
   workflowGetters,
   workflowInEditing,
   workflowJobsConfigForm,
+  peerConfigInPairing,
 } from 'stores/workflow';
 import { useRecoilState, useRecoilValue, useSetRecoilState } from 'recoil';
 import WORKFLOW_CHANNELS, { workflowPubsub } from '../pubsub';
@@ -53,6 +54,7 @@ const WorkflowsCreateStepOne: FC<WorkflowCreateProps> = ({ isInitiate, isAccept 
   const setJobsConfigData = useSetRecoilState(workflowJobsConfigForm);
   const { whetherCreateNewTpl } = useRecoilValue(workflowGetters);
   const setWorkflowTemplate = useSetRecoilState(templateInUsing);
+  const setPeerConfig = useSetRecoilState(peerConfigInPairing);
 
   // Using when Participant accept the initiation
   // it should be null if it's Coordinator side initiate a workflow
@@ -66,10 +68,12 @@ const WorkflowsCreateStepOne: FC<WorkflowCreateProps> = ({ isInitiate, isAccept 
     enabled: params.id && isAccept && !Boolean(workflow),
     refetchOnWindowFocus: false,
   });
-  const peerWorkflowQuery = useQuery(['getPeerWorkflow', params.id], getPeerWorkflows, {
+  const peerWorkflowQuery = useQuery(['getPeerWorkflow', params.id], getPeerWorkflow, {
     enabled: params.id && isAccept,
     refetchOnWindowFocus: false,
+    retry: false,
   });
+
   const tplListQuery = useQuery(
     ['getTemplateList', isLeft, groupAlias],
     async () => fetchWorkflowTemplateList({ isLeft, groupAlias }),
@@ -78,6 +82,17 @@ const WorkflowsCreateStepOne: FC<WorkflowCreateProps> = ({ isInitiate, isAccept 
       refetchOnWindowFocus: false,
     },
   );
+
+  const peerErrorMsg = (peerWorkflowQuery.error as Error)?.message;
+  useEffect(() => {
+    if (peerErrorMsg) {
+      notification.error({
+        message: t('workflow.msg_peer_config_failed'),
+        description: peerErrorMsg + ' 请稍后重试',
+        duration: 0,
+      });
+    }
+  }, [peerErrorMsg]);
 
   const tplList = tplListQuery.data?.data || [];
   const noAvailableTpl = tplList.length === 0;
@@ -222,12 +237,15 @@ const WorkflowsCreateStepOne: FC<WorkflowCreateProps> = ({ isInitiate, isAccept 
     setWorkflow(data);
     formInstance.setFieldsValue((data as any) as StepOneForm);
   }
-  async function getPeerWorkflows() {
+  async function getPeerWorkflow() {
     const res = await getPeerWorkflowsConfig(params.id);
+
     const anyPeerWorkflow = Object.values(res.data).find((item) => !!item.config)!;
+
+    setPeerConfig(anyPeerWorkflow.config!);
     setGroupAlias(anyPeerWorkflow.config?.group_alias || '');
 
-    return res;
+    return anyPeerWorkflow;
   }
   // --------- Handlers -----------
   function onFormChange(_: any, values: StepOneForm) {

@@ -191,7 +191,6 @@ function DetailHeader({ project }: DetailHeaderProps): ReactElement {
         </HeaderAction>
         <HeaderAction>
           <ProjectMoreActions
-            suffix={<div className="more">{t('more')}</div>}
             actionList={
               <ActionList
                 onEdit={() => {

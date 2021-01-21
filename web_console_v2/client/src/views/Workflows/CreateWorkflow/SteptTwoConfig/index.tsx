@@ -10,7 +10,12 @@ import { Button, message, Modal, Spin } from 'antd';
 import { ExclamationCircleOutlined } from '@ant-design/icons';
 import { Redirect, useHistory, useParams } from 'react-router-dom';
 import { useRecoilValue } from 'recoil';
-import { workflowJobsConfigForm, workflowGetters, workflowBasicForm } from 'stores/workflow';
+import {
+  workflowJobsConfigForm,
+  workflowGetters,
+  workflowBasicForm,
+  peerConfigInPairing,
+} from 'stores/workflow';
 import { useTranslation } from 'react-i18next';
 import i18n from 'i18n';
 import ErrorBoundary from 'antd/lib/alert/ErrorBoundary';
@@ -18,7 +23,7 @@ import { acceptNFillTheWorkflowConfig, initiateAWorkflow } from 'services/workfl
 import { to } from 'shared/helpers';
 import { WorkflowCreateProps } from '..';
 import { WorkflowInitiatePayload } from 'typings/workflow';
-import { useResetCreateForms } from 'hooks/workflow';
+import InspectPeerConfigs from './InspectPeerConfig';
 
 const Container = styled.section`
   height: 100%;
@@ -48,13 +53,13 @@ const CanvasAndForm: FC<WorkflowCreateProps> = ({ isInitiate, isAccept }) => {
   const { t } = useTranslation();
   const [submitting, setSubmitting] = useToggle(false);
   const [drawerVisible, toggleDrawerVisible] = useToggle(false);
+  const [peerCfgVisible, togglePeerCfgVisible] = useToggle(false);
   const [data, setData] = useState<JobNodeData>();
-
-  const reset = useResetCreateForms();
 
   const { currentWorkflowTpl } = useRecoilValue(workflowGetters);
   const jobsConfigPayload = useRecoilValue(workflowJobsConfigForm);
   const basicPayload = useRecoilValue(workflowBasicForm);
+  const peerConfig = useRecoilValue(peerConfigInPairing);
 
   const isDisabled = { disabled: submitting };
 
@@ -87,6 +92,14 @@ const CanvasAndForm: FC<WorkflowCreateProps> = ({ isInitiate, isAccept }) => {
           visible={drawerVisible}
           toggleVisible={toggleDrawerVisible}
           onConfirm={selectJob}
+          isAccept={isAccept}
+          onViewPeerConfigClick={onViewPeerConfigClick}
+        />
+
+        <InspectPeerConfigs
+          config={peerConfig}
+          visible={peerCfgVisible}
+          toggleVisible={togglePeerCfgVisible}
         />
 
         <Footer>
@@ -160,7 +173,6 @@ const CanvasAndForm: FC<WorkflowCreateProps> = ({ isInitiate, isAccept }) => {
     setSubmitting(false);
 
     if (!finalError) {
-      reset();
       history.push('/workflows');
     }
   }
@@ -179,6 +191,9 @@ const CanvasAndForm: FC<WorkflowCreateProps> = ({ isInitiate, isAccept }) => {
         history.push('/workflows');
       },
     });
+  }
+  function onViewPeerConfigClick() {
+    togglePeerCfgVisible(true);
   }
 };
 

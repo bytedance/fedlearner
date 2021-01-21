@@ -76,14 +76,14 @@ function HeaderItem({ i18nKey, width }: HeaderItemProps): ReactElement {
 }
 
 interface TableListProps {
-  projectList: Project[];
+  list: Project[];
 }
 
-function TableList({ projectList }: TableListProps): ReactElement {
+function TableList({ list }: TableListProps): ReactElement {
   return (
     <Container>
       <Header />
-      {projectList.map((item, index) => (
+      {list.map((item, index) => (
         <TableItem item={item} tableConfigs={TableConfigs} key={index} />
       ))}
     </Container>

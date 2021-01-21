@@ -30,8 +30,12 @@ async function axiosMockAdapter(config: AxiosRequestConfig) {
 
       // HTTP code other than 2xx, 3xx should be rejected
       if (['2', '3'].includes(data.status.toString().charAt(0))) {
+        try {
+          axios.defaults.adapter!(config);
+        } catch {}
         return data;
       }
+
       return Promise.reject(data.data);
     } catch (error) {
       console.error('[⚠️ Mock Adapter]: ', error);

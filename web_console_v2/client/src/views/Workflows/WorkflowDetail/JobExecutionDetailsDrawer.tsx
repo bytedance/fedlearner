@@ -72,7 +72,7 @@ const JobExecutionDetailsDrawer: ForwardRefRenderFunction<JobExecutionDetailsExp
     },
     {
       label: t('workflow.label_job_created'),
-      value: formatTimestamp(job.created_at!),
+      value: formatTimestamp(job.created_at || 0),
     },
   ];
 
