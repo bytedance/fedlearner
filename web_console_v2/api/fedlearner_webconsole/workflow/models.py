@@ -308,8 +308,6 @@ class Workflow(db.Model):
                 job.set_yaml_template(job_def.yaml_template)
                 db.session.add(job)
             jobs.append(job)
-        db.session.commit()
-
         for i, job in enumerate(jobs):
             if i in self.get_forked_job_indices():
                 continue
@@ -322,7 +320,6 @@ class Workflow(db.Model):
 
         self.set_job_ids([job.id for job in jobs])
 
-        db.session.commit()
 
     def log_states(self):
         logging.debug(
