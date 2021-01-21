@@ -16,16 +16,16 @@
 
 import os
 import logging
-import secrets
 
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 
-class Right(object):
-    SQLALCHEMY_DATABASE_URI = 'sqlite:///' + os.path.join(BASE_DIR, 'right_app.db')
+class Config(object):
+    SQLALCHEMY_DATABASE_URI = 'sqlite:///' + os.path.join(BASE_DIR, 'app_a.db')
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     JWT_SECRET_KEY = 'secret'
     PROPAGATE_EXCEPTIONS = True
     LOGGING_LEVEL = logging.DEBUG
-    GRPC_LISTEN_PORT = 1991
+    GRPC_LISTEN_PORT = 1993
+    JWT_ACCESS_TOKEN_EXPIRES = 86400
     ES_HOST = 'fedlearner-stack-elasticsearch-client'
     ES_PORT = 9200

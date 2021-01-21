@@ -23,14 +23,14 @@ from fedlearner_webconsole.auth.models import User
 from fedlearner_webconsole.proto import project_pb2
 from fedlearner_webconsole.project.models import Project
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
-right_app = create_app('right_config.Right')
-# export FLASK_APP=right_manage:right_app
+
+app = create_app('test_config_a.Config')
+# export FLASK_APP=test_manage_a:app
 # flask create-db
 # export FLASK_ENV=development
-# flask run --host=0.0.0.0 -p 8000
+# flask run --host=0.0.0.0 -p 5000
 
-
-@right_app.cli.command('create-db')
+@app.cli.command('create-db')
 def create_db():
     db.create_all()
     user = User(username='ada')
@@ -38,21 +38,21 @@ def create_db():
     db.session.add(user)
     config = {
         'name': 'test',
-        'domain_name': 'fl-follower.com',
+        'domain_name': 'fl-leader.com',
         'participants': [
             {
-                'name': 'party_leader',
-                'url': '127.0.0.1:1993',
-                'domain_name': 'fl-leader.com',
+                'name': 'party_follower',
+                'url': '127.0.0.1:1991',
+                'domain_name': 'fl-follower.com',
                 'grpc_spec': {
-                    'peer_url': '127.0.0.1:1993',
+                    'peer_url': '127.0.0.1:1991',
                 }
             }
         ],
         'variables': [
             {
                 'name': 'namespace',
-                'value': 'follower'
+                'value': 'leader'
             },
             {
                 'name': 'basic_envs',
