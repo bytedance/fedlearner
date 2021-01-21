@@ -170,16 +170,18 @@ class RpcServer(object):
                         code=common_pb2.STATUS_SUCCESS),
                     transaction_state=workflow.transaction_state.value)
 
-    def _filter_workflow(self, workflow, mode):
+    def _filter_workflow(self, workflow, modes):
         # filter peer-readable and peer-writable variables
-        var = [i for i in workflow.variables if i.access_mode in mode]
+        var_list = [
+            i for i in workflow.variables if i.access_mode in modes]
         workflow.ClearField('variables')
-        for i in var:
+        for i in var_list:
             workflow.variables.append(i)
         for job_def in workflow.job_definitions:
-            var = [i for i in job_def.variables if i.access_mode in mode]
+            var_list = [
+                i for i in job_def.variables if i.access_mode in modes]
             job_def.ClearField('variables')
-            for i in var:
+            for i in var_list:
                 job_def.variables.append(i)
 
     def get_workflow(self, request):

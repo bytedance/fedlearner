@@ -92,6 +92,7 @@ class WorkflowsApi(Resource):
         if workflow.forked_from is not None:
             fork_config = dict_to_workflow_definition(
                 data['fork_proposal_config'])
+            # TODO: more validations
             if len(fork_config.job_definitions) != \
                     len(template_proto.job_definitions):
                 raise InvalidArgumentException(
