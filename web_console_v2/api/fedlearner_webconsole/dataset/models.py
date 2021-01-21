@@ -49,7 +49,7 @@ class Dataset(db.Model):
                            server_default=func.now())
     updated_at = db.Column(db.DateTime(timezone=True),
                            server_default=func.now(),
-                           server_onupdate=func.now())
+                           onupdate=func.now())
     deleted_at = db.Column(db.DateTime(timezone=True))
 
     data_batches = db.relationship('DataBatch', back_populates='dataset')

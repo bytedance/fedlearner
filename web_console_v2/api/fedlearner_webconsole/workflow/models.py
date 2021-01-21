@@ -113,10 +113,10 @@ def _merge_workflow_config(base, new, access_mode):
 
 
 
-@to_dict_mixin(ignores=['forked_from', 'last_runtime', 'fork_proposal_config'],
+@to_dict_mixin(ignores=['forked_from', 'last_start_time', 'fork_proposal_config'],
                extras={
                    'config': (lambda wf: wf.get_config()),
-                   'runtime': (lambda wf: wf.get_runtime()),
+                   'run_time': (lambda wf: wf.get_run_time()),
                    'job_ids': (lambda wf: wf.get_job_ids()),
                    'reuse_job_names': (lambda wf: wf.get_reuse_job_names()),
                    'peer_reuse_job_names':
@@ -152,11 +152,11 @@ class Workflow(db.Model):
                                   default=TransactionState.READY)
     transaction_err = db.Column(db.Text())
 
-    last_runtime = db.Column(db.Integer)
+    last_start_time = db.Column(db.Integer)
     created_at = db.Column(db.DateTime(timezone=True),
                            server_default=func.now())
     updated_at = db.Column(db.DateTime(timezone=True),
-                           server_onupdate=func.now(),
+                           onupdate=func.now(),
                            server_default=func.now())
 
     owned_jobs = db.relationship('Job', back_populates='workflow')
@@ -215,10 +215,14 @@ class Workflow(db.Model):
             return []
         return self.peer_reuse_job_names.split(',')
 
-    def get_runtime(self):
-        if self.last_runtime is None:
-            return (datetime.now()-self.updated_at).seconds
-        return self.last_runtime
+    def get_run_time(self):
+        if self.state not in [WorkflowState.RUNNING,
+                              WorkflowState.STOPPED]:
+            return 0
+
+        if self.last_start_time is None:
+            return (datetime.utcnow()-self.updated_at).seconds
+        return self.last_start_time
 
     def update_target_state(self, target_state):
         if self.target_state != target_state \
@@ -309,14 +313,14 @@ class Workflow(db.Model):
                 'Workflow not in prepare state'
 
         if self.target_state == WorkflowState.STOPPED:
-            self.last_runtime = (datetime.now()-self.updated_at).seconds
+            self.last_start_time = (datetime.utcnow()-self.updated_at).seconds
             for job in self.owned_jobs:
                 job.stop()
         elif self.target_state == WorkflowState.READY:
             self._setup_jobs()
             self.fork_proposal_config = None
         elif self.target_state == WorkflowState.RUNNING:
-            self.last_runtime = None
+            self.last_start_time = None
             for job in self.owned_jobs:
                 if not job.get_config().is_manual:
                     job.schedule()

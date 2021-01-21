@@ -205,7 +205,7 @@ class RpcServer(object):
                 ])
             # job details
             jobs = [service_pb2.JobDetail(
-                name=job.name, state=job.state)
+                name=job.name, state=job.get_state_for_front())
                 for job in workflow.get_jobs()]
             # fork info
             forked_from = ''
