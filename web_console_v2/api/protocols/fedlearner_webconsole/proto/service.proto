@@ -27,8 +27,8 @@ message ProjAuthInfo {
     string auth_token = 4;
 }
 message JobDetail{
-    string job_name = 1;
-    string job_state = 2;
+    string name = 1;
+    string state = 2;
 }
 
 message CheckConnectionRequest {
@@ -62,6 +62,7 @@ message GetWorkflowResponse{
     bool forkable = 3;
     WorkflowDefinition config = 4;
     repeated JobDetail jobs = 5;
+    string name = 6;
 }
 
 

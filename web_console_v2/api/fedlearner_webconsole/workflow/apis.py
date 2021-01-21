@@ -27,7 +27,8 @@ from fedlearner_webconsole.workflow_template.apis import \
     dict_to_workflow_definition
 from fedlearner_webconsole.db import db
 from fedlearner_webconsole.exceptions import (
-    NotFoundException, ResourceConflictException, InvalidArgumentException)
+    NotFoundException, ResourceConflictException, InvalidArgumentException,
+    InternalException)
 from fedlearner_webconsole.scheduler.scheduler import scheduler
 from fedlearner_webconsole.rpc.client import RpcClient
 
@@ -147,9 +148,7 @@ class PeerWorkflowsApi(Resource):
             client = RpcClient(project_config, party)
             resp = client.get_workflow(workflow.name)
             if resp.status.code != common_pb2.STATUS_SUCCESS:
-                raise InvalidArgumentException('participant {} rpc error: {}'
-                                               .format(party.name,
-                                                       resp.status.msg))
+                raise InternalException()
             peer_workflows[party.name] = MessageToDict(
                 resp,
                 preserving_proto_field_name=True,

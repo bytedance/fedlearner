@@ -157,7 +157,7 @@ class RpcServer(object):
                 assert state == WorkflowState.NEW
                 assert target_state == WorkflowState.READY
                 workflow = Workflow(
-                    name=request.workflow_name,
+                    name=name,
                     project_id=project.id,
                     state=state, target_state=target_state,
                     transaction_state=transaction_state)
@@ -191,7 +191,7 @@ class RpcServer(object):
             config = workflow.get_config()
             # filter peer-readable and peer-writable variables
             temp_config = self._filter_variables(config.variables)
-            # For repeated composite types, can not use person.id[:] = [xxx]
+            # For repeated composite types, can not use variables[:] = [xxx]
             # to assign replace. You have to first delete them
             # all and then extend
             del config.variables[:]
@@ -202,9 +202,10 @@ class RpcServer(object):
                 job_def.variables.extend(temp_config)
             # job details
             jobs = [service_pb2.JobDetail(
-                job_name=job.name, job_state=job.get_state_for_front())
+                name=job.name, state=job.get_state_for_front())
                 for job in workflow.get_jobs()]
             return service_pb2.GetWorkflowResponse(
+                name=request.workflow_name,
                 status=common_pb2.Status(
                     code=common_pb2.STATUS_SUCCESS),
                 state=workflow.state.value,
