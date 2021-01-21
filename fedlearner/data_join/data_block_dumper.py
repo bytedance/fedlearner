@@ -177,7 +177,7 @@ class DataBlockDumperManager(object):
                     self._optional_stats.update_stats(item, kind='joined')
                     match_index += 1
                     joined = True
-                if not joined and self._optional_stats.need_sample():
+                if not joined:
                     self._optional_stats.add_unjoined(example_id)
                 if match_index >= example_num:
                     # if no need to get the total num of examples, break

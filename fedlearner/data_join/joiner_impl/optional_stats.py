@@ -86,13 +86,6 @@ class OptionalStats:
         for field in self._stats_fields:
             self._stats[kind][field][item.optional_fields[field]] += 1
 
-    def need_sample(self):
-        """
-        Returns: bool
-        Whether needs sampling unjoined example ids.
-        """
-        return self._need_sample
-
     def need_stats(self):
         """
         Returns: bool.
@@ -166,14 +159,15 @@ class OptionalStats:
             sampled, each id has a probability of self._reservoir_length / N to
             be eventually sampled.
         """
-        if len(self._unjoined_example_id_reservoir) < self._reservoir_length:
-            self._unjoined_example_id_reservoir.append(example_id)
-            self._sample_receive_num += 1
-            return
-        reservoir_idx = random.randint(0, self._sample_receive_num)
-        if reservoir_idx < self._reservoir_length:
-            self._unjoined_example_id_reservoir[reservoir_idx] = example_id
-            self._sample_receive_num += 1
+        if self._need_sample:
+            if len(self._unjoined_example_id_reservoir) < self._reservoir_length:
+                self._unjoined_example_id_reservoir.append(example_id)
+                self._sample_receive_num += 1
+                return
+            reservoir_idx = random.randint(0, self._sample_receive_num)
+            if reservoir_idx < self._reservoir_length:
+                self._unjoined_example_id_reservoir[reservoir_idx] = example_id
+                self._sample_receive_num += 1
 
     @staticmethod
     def _emit_metrics(total_count, joined_count, prefix, metrics_tags):
