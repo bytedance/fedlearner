@@ -112,8 +112,9 @@ def _merge_workflow_config(base, new, access_mode):
         _merge_variables(base_job.variables, new_job.variables, access_mode)
 
 
-
-@to_dict_mixin(ignores=['forked_from', 'last_start_time', 'fork_proposal_config'],
+@to_dict_mixin(ignores=['forked_from',
+                        'last_start_time',
+                        'fork_proposal_config'],
                extras={
                    'config': (lambda wf: wf.get_config()),
                    'run_time': (lambda wf: wf.get_run_time()),
