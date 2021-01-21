@@ -99,6 +99,7 @@ class WorkflowsApiTest(BaseTestCase):
             'state': 'NEW',
             'target_state': 'READY',
             'transaction_state': 'READY',
+            'runtime': 0,
             'transaction_err': None,
             'forked_job_indices': None,
             'job_ids': None,

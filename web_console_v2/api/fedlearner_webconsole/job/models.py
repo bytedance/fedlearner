@@ -144,7 +144,7 @@ class Job(db.Model):
         if self.state == JobState.STOPPED:
             if self.get_flapp() is None:
                 return 'NEW'
-        return self.state
+        return self.state.name
 
     def is_failed(self):
         flapp = self.get_flapp()

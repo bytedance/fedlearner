@@ -46,6 +46,7 @@ class RPCServerServicer(service_pb2_grpc.WebConsoleV2ServiceServicer):
                     code=common_pb2.STATUS_UNAUTHORIZED,
                     msg=repr(e)))
         except Exception as e:
+            logging.error('CheckConnection rpc server error: %s', repr(e))
             return service_pb2.CheckConnectionResponse(
                 status=common_pb2.Status(
                     code=common_pb2.STATUS_UNKNOWN_ERROR,
@@ -60,6 +61,7 @@ class RPCServerServicer(service_pb2_grpc.WebConsoleV2ServiceServicer):
                     code=common_pb2.STATUS_UNAUTHORIZED,
                     msg=repr(e)))
         except Exception as e:
+            logging.error('UpdateWorkflowState rpc server error: %s', repr(e))
             return service_pb2.UpdateWorkflowStateResponse(
                 status=common_pb2.Status(
                     code=common_pb2.STATUS_UNKNOWN_ERROR,
@@ -74,6 +76,7 @@ class RPCServerServicer(service_pb2_grpc.WebConsoleV2ServiceServicer):
                     code=common_pb2.STATUS_UNAUTHORIZED,
                     msg=repr(e)))
         except Exception as e:
+            logging.error('GetWorkflow rpc server error: %s', repr(e))
             return service_pb2.GetWorkflowResponse(
                 status=common_pb2.Status(
                     code=common_pb2.STATUS_UNKNOWN_ERROR,
@@ -199,7 +202,7 @@ class RpcServer(object):
                 job_def.variables.extend(temp_config)
             # job details
             jobs = [service_pb2.JobDetail(
-                job_name=job.name, job_state=job.state)
+                job_name=job.name, job_state=job.get_state_for_front())
                 for job in workflow.get_jobs()]
             return service_pb2.GetWorkflowResponse(
                 status=common_pb2.Status(

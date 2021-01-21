@@ -93,7 +93,7 @@ IGNORED_TRANSACTION_TRANSITIONS = [
 ]
 
 
-@to_dict_mixin(ignores=['forked_from'],
+@to_dict_mixin(ignores=['forked_from', 'last_runtime'],
                extras={
                    'config': (lambda wf: wf.get_config()),
                    'runtime': (lambda wf: wf.get_runtime()),
