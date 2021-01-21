@@ -98,20 +98,18 @@ class Job(db.Model):
         self.pods_snapshot = json.dumps(pods)
 
     def get_flapp(self):
-        project_adapter = ProjectK8sAdapter(self.project)
         if self.state == JobState.STARTED:
             return self._k8s_client.list_resource_of_custom_object(
                 CrdKind.FLAPP, self.name, 'pods',
-                project_adapter.get_namespace())
+                self.project.get_namespace())
         if self.flapp_snapshot is not None:
             return json.loads(self.flapp_snapshot)
         return None
 
     def get_pods(self):
-        project_adapter = ProjectK8sAdapter(self.project)
         if self.state == JobState.STARTED:
             return self._k8s_client.list_resource_of_custom_object(
-            CrdKind.FLAPP, self.name, 'pods', project_adapter.get_namespace())
+            CrdKind.FLAPP, self.name, 'pods', self.project.get_namespace())
         if self.pods_snapshot is not None:
             return json.loads(self.pods_snapshot)
         return None

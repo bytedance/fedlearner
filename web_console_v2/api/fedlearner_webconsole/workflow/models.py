@@ -399,7 +399,7 @@ class Workflow(db.Model):
             return bool(self.config)
 
         peer_workflow = self._get_peer_workflow()
-        if peer_workflow.forked_from:
+        if hasattr(peer_workflow, 'forked_from') and peer_workflow.forked_from:
             base_workflow = Workflow.query.filter(
                 Workflow.name == peer_workflow.forked_from).first()
             if base_workflow is None or not base_workflow.forkable:

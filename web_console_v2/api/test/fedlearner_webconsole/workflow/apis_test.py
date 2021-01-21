@@ -90,6 +90,7 @@ class WorkflowsApiTest(BaseTestCase):
         del created_workflow['id']
         del created_workflow['created_at']
         del created_workflow['updated_at']
+        del created_workflow['runtime']
         self.assertEqual(created_workflow, {
             'name': 'test-workflow',
             'project_id': 1234567,
@@ -99,7 +100,6 @@ class WorkflowsApiTest(BaseTestCase):
             'state': 'NEW',
             'target_state': 'READY',
             'transaction_state': 'READY',
-            'runtime': 0,
             'transaction_err': None,
             'reuse_job_names': [],
             'peer_reuse_job_names': [],
