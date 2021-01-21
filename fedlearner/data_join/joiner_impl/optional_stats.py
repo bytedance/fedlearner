@@ -1,12 +1,11 @@
 import logging
 import random
+import copy
 from collections import defaultdict
 
 import fedlearner.common.data_join_service_pb2 as dj_pb
 from fedlearner.common import metrics
 from fedlearner.data_join import common
-
-POOL_LENGTH = 10
 
 
 class OptionalStats:
@@ -34,13 +33,15 @@ class OptionalStats:
         without `label` field.
     This will only count local examples as optional fields are not transmitted
         from peer.
+    If raw_data_options.sample_unjoined = True, will sample unjoined example ids
+        based on reservoir sampling.
     """
 
     def __init__(self, raw_data_options, meta=None):
         """
         Args:
-            raw_data_options: list(str). A list of str which stands for the
-                fields that need stats.
+            raw_data_options: dj_pb.RawDataOptions. A protobuf containing
+                optional stats options and arguments.
             meta: dj_pb.DataBlockMeta. DataBlockMeta from latest data block.
                 Restore stats from it if it's not None.
         """
@@ -65,8 +66,9 @@ class OptionalStats:
                     int, stats_info.total_optional_stats[field].counter)
                     for field in stats_info.joined_optional_stats}
             }
-        self._unjoined_example_id_pool = []
-        self._pool_index = 0
+        self._unjoined_example_id_reservoir = []
+        self._sample_receive_num = 0
+        self._reservoir_length = raw_data_options.sample_reservoir_length
         self._need_sample = raw_data_options.sample_unjoined
 
     def update_stats(self, item, kind='joined'):
@@ -118,7 +120,7 @@ class OptionalStats:
             metrics_tags: dict. Metrics tag for Kibana.
 
         Returns: None
-        Emit the result to ES or logger. Clear the unjoined pool for next block.
+        Emit the result to ES or logger. Clear the reservoir for next block.
         """
         # will pass the for loop if total_optional_stats is empty
         for field, total_counter in self._stats['total'].items():
@@ -126,6 +128,8 @@ class OptionalStats:
             # overall joined and total example nums for each field
             overall_joined = 0
             overall_total = 0
+            field_tags = copy.deepcopy(metrics_tags)
+            field_tags.update({'optional_stat': field})
             for value, total in total_counter.items():
                 # total: total example nums for one value of this field
                 # joined: joined example nums for one value of this field
@@ -137,40 +141,39 @@ class OptionalStats:
                 overall_total += total
                 prefix = '{f}_{v}'.format(f=field, v=value)
                 join_rate = joined / max(total, 1) * 100
-                self._emit_metrics(total, joined, prefix, metrics_tags)
+                self._emit_metrics(total, joined, prefix, field_tags)
                 logging.info('Cumulative stats of `%s`:\n total: %d, '
                              'joined: %d, join_rate: %f',
                              prefix, total, joined, join_rate)
             total_join_rate = overall_joined / max(overall_total, 1) * 100
-            self._emit_metrics(
-                overall_total, overall_joined, field, metrics_tags
-            )
+            self._emit_metrics(overall_total, overall_joined, field, field_tags)
             logging.info('Cumulative overall stats of field `%s`:\n '
                          'total: %d, joined: %d, join_rate: %f',
                          field, overall_total, overall_joined, total_join_rate)
         if self._need_sample:
             logging.info('Unjoined example ids: %s',
-                         self._unjoined_example_id_pool)
-            self._unjoined_example_id_pool = []
-            self._pool_index = 0
+                         self._unjoined_example_id_reservoir)
+            self._unjoined_example_id_reservoir = []
+            self._sample_receive_num = 0
 
     def add_unjoined(self, example_id):
         """
         Args:
-            example_id: bytes. example_id to be sampled into the sample pool.
+            example_id: bytes. example_id to be sampled into the reservoir.
 
         Returns: None
-        Sample example_id. For N example_id to be sampled, each has a
-            probability of POOL_LENGTH / N to be eventually sampled.
+        Sample example_id based on reservoir sampling. For N example_ids to be
+            sampled, each id has a probability of self._reservoir_length / N to
+            be eventually sampled.
         """
-        if len(self._unjoined_example_id_pool) < POOL_LENGTH:
-            self._unjoined_example_id_pool.append(example_id)
-            self._pool_index += 1
+        if len(self._unjoined_example_id_reservoir) < self._reservoir_length:
+            self._unjoined_example_id_reservoir.append(example_id)
+            self._sample_receive_num += 1
             return
-        insert_idx = random.randint(0, self._pool_index)
-        if insert_idx < POOL_LENGTH:
-            self._unjoined_example_id_pool[insert_idx] = example_id
-            self._pool_index += 1
+        reservoir_idx = random.randint(0, self._sample_receive_num)
+        if reservoir_idx < self._reservoir_length:
+            self._unjoined_example_id_reservoir[reservoir_idx] = example_id
+            self._sample_receive_num += 1
 
     @staticmethod
     def _emit_metrics(total_count, joined_count, prefix, metrics_tags):

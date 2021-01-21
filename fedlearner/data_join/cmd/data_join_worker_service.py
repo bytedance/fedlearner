@@ -96,6 +96,8 @@ if __name__ == "__main__":
     parser.add_argument('--sample_unjoined', type=bool, action='store_true',
                         help='whether to sample unjoined example ids and log'
                              'them. 10 samples per data block if true.')
+    parser.add_argument('--sample_reservoir_length', type=int, default=10,
+                        help='unjoined examples sample reservoir length.')
     args = parser.parse_args()
     optional_stats_fields = list(
         field for field in map(str.strip, args.optional_stats_fields.split(','))
@@ -112,7 +114,8 @@ if __name__ == "__main__":
                         'optional_stats': dj_pb.OptionalFields(
                             fields=optional_stats_fields)
                     },
-                    sample_unjoined=args.sample_unjoined
+                    sample_unjoined=args.sample_unjoined,
+                    sample_reservoir_length=args.sample_reservoir_length
                 ),
             example_joiner_options=dj_pb.ExampleJoinerOptions(
                     example_joiner=args.example_joiner,
