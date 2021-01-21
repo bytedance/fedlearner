@@ -17,7 +17,6 @@ import enum
 import json
 from sqlalchemy.sql import func
 from fedlearner_webconsole.db import db, to_dict_mixin
-from fedlearner_webconsole.project.adapter import ProjectK8sAdapter
 from fedlearner_webconsole.project.models import Project
 from fedlearner_webconsole.k8s_client import get_client
 from fedlearner_webconsole.utils.k8s_client import CrdKind
@@ -89,15 +88,13 @@ class Job(db.Model):
         return None
 
     def _set_snapshot_flapp(self):
-        project_adapter = ProjectK8sAdapter(self.project)
         flapp = self._k8s_client.get_custom_object(
-            CrdKind.FLAPP, self.name, project_adapter.get_namespace())
+            CrdKind.FLAPP, self.name, self.project.get_namespace())
         self.flapp_snapshot = json.dumps(flapp)
 
     def _set_snapshot_pods(self):
-        project_adapter = ProjectK8sAdapter(self.project)
         pods = self._k8s_client.list_resource_of_custom_object(
-            CrdKind.FLAPP, self.name, 'pods', project_adapter.get_namespace())
+            CrdKind.FLAPP, self.name, 'pods', self.project.get_namespace())
         self.pods_snapshot = json.dumps(pods)
 
     def get_flapp(self):
@@ -164,12 +161,11 @@ class Job(db.Model):
         return flapp['status']['appState'] == 'FLStateComplete'
 
     def stop(self):
-        project_adapter = ProjectK8sAdapter(self.project)
         if self.state == JobState.STARTED:
             self._set_snapshot_flapp()
             self._set_snapshot_pods()
             self._k8s_client.delete_custom_object(
-                CrdKind.FLAPP, self.name, project_adapter.get_namespace())
+                CrdKind.FLAPP, self.name, self.project.get_namespace())
         self.state = JobState.STOPPED
 
     def schedule(self):

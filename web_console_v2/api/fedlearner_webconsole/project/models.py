@@ -58,3 +58,12 @@ class Project(db.Model):
         proto = project_pb2.CertificateStorage()
         proto.ParseFromString(self.certificate)
         return proto
+
+    def get_namespace(self):
+        config = self.get_config()
+        if config is not None:
+            variables = self.get_config().variables
+            for variable in variables:
+                if variable.name == 'NAMESPACE':
+                    return variable.value
+        return 'default'
