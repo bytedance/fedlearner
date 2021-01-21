@@ -75,12 +75,12 @@ class RPCServerServicer(service_pb2_grpc.WebConsoleV2ServiceServicer):
                 status=common_pb2.Status(
                     code=common_pb2.STATUS_UNAUTHORIZED,
                     msg=repr(e)))
-        # except Exception as e:
-        #     logging.error('GetWorkflow rpc server error: %s', repr(e))
-        #     return service_pb2.GetWorkflowResponse(
-        #         status=common_pb2.Status(
-        #             code=common_pb2.STATUS_UNKNOWN_ERROR,
-        #             msg=repr(e)))
+        except Exception as e:
+            logging.error('GetWorkflow rpc server error: %s', repr(e))
+            return service_pb2.GetWorkflowResponse(
+                status=common_pb2.Status(
+                    code=common_pb2.STATUS_UNKNOWN_ERROR,
+                    msg=repr(e)))
 
 
 class RpcServer(object):
