@@ -93,7 +93,7 @@ if __name__ == "__main__":
                         help='optional stats fields used in joiner, separated '
                              'by comma between fields, e.g. "label,rit". '
                              'Each field will be stripped.')
-    parser.add_argument('--sample_unjoined', type=bool, action='store_true',
+    parser.add_argument('--sample_unjoined', action='store_true',
                         help='whether to sample unjoined example ids and log'
                              'them. 10 samples per data block if true.')
     parser.add_argument('--sample_reservoir_length', type=int, default=10,

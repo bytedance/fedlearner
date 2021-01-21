@@ -124,11 +124,9 @@ class OptionalStats:
             self._stats['joined'].keys(), self._stats['unjoined'].keys()
         )))
         field_values.sort()  # for better order in logging
-        # will pass the for loop if total_optional_stats is empty
         for field_value in field_values:
             joined_count = self._stats['joined'][field_value]
             unjoined_count = self._stats['unjoined'][field_value]
-            # overall joined and total example nums for each field
             tags = copy.deepcopy(metrics_tags)
             tags.update({'optional_stat_count': field_value})
             self._emit_metrics(joined_count, unjoined_count, field_value, tags)
