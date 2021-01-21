@@ -1,7 +1,8 @@
+import copy
 import logging
 import random
-import copy
 from collections import defaultdict
+from itertools import chain
 
 import fedlearner.common.data_join_service_pb2 as dj_pb
 from fedlearner.common import metrics
@@ -16,14 +17,16 @@ class OptionalStats:
         0(positive example) and 1(negative_example):
         {
             'joined': {
-                # '__None__' for examples without label field
-                'label': {'1': 123, '0': 345, '__None__': 45},
-                'other_field': {...},
+                # '#None#' for examples without label field
+                'label_1': 123,
+                'label_0': 345,
+                'label_#None#': 45
                 ...
             },
-            'total': {
-                'label': {'1': 234, '0': 456, '__None__': 56}
-                'other_field': {...},
+            'unjoined': {
+                'label_1': 234,
+                'label_0': 456,
+                'label_#None#': 56
                 ...
             }
         }
@@ -37,7 +40,7 @@ class OptionalStats:
         based on reservoir sampling.
     """
 
-    def __init__(self, raw_data_options, meta=None):
+    def __init__(self, raw_data_options, metric_tags, meta=None):
         """
         Args:
             raw_data_options: dj_pb.RawDataOptions. A protobuf containing
@@ -50,41 +53,45 @@ class OptionalStats:
             raw_data_options.optional_fields['optional_stats'].fields
         if meta is None:
             self._stats = {
-                'joined': {stat_field: defaultdict(int)
-                           for stat_field in self._stats_fields},
-                'total': {stat_field: defaultdict(int)
-                          for stat_field in self._stats_fields}
+                'joined': defaultdict(int),
+                'unjoined': defaultdict(int)
             }
         else:
             assert isinstance(meta, dj_pb.DataBlockMeta)
             stats_info = meta.joiner_stats_info
             self._stats = {
-                'joined': {field: defaultdict(
-                    int, stats_info.joined_optional_stats[field].counter)
-                    for field in stats_info.joined_optional_stats},
-                'total': {field: defaultdict(
-                    int, stats_info.total_optional_stats[field].counter)
-                    for field in stats_info.joined_optional_stats}
+                'joined': defaultdict(int, stats_info.joined_optional_stats),
+                'unjoined': defaultdict(int, stats_info.unjoined_optional_stats)
             }
-        self._unjoined_example_id_reservoir = []
+        self._sample_reservoir = []
         self._sample_receive_num = 0
-        self._reservoir_length = raw_data_options.sample_reservoir_length
+        self._reservoir_length = 10
         self._need_sample = raw_data_options.sample_unjoined
+        self._tags = copy.deepcopy(metric_tags)
 
     def update_stats(self, item, kind='joined'):
         """
         Args:
             item: RawDataIter.Item. Item from iterating RawDataVisitor
-            kind: str. 'joined' or 'total'. Indicate where the item should be
+            kind: str. 'joined' or 'unjoined'. Indicate where the item should be
                 counted towards.
         Returns: None
         No-op if optional fields are not set in the raw data options, or no
             `optional_stats` entry in the optional fields of raw data options.
         """
+        assert kind in ('joined', 'unjoined')
         if item.optional_fields == common.NoOptionalFields:
             return
         for field in self._stats_fields:
-            self._stats[kind][field][item.optional_fields[field]] += 1
+            tags = copy.deepcopy(self._tags)
+            tags.update({'optional_stat': field})
+            field_value = item.optional_fields[field]
+            if field_value is None:
+                field_value = '#None#'
+            self._stats[kind]['{}_{}'.format(field, field_value)] += 1
+            metrics.emit_store(name='{}_{}'.format(field, field_value),
+                               value=int(kind == 'joined'),
+                               tags=tags)
 
     def need_stats(self):
         """
@@ -98,14 +105,10 @@ class OptionalStats:
         Gather all the stats accumulated and dump in a protobuf for data block
             dumping.
         """
-        joined_map, total_map = {}, {}
-        if len(self._stats_fields) > 0:
-            for field, counter in self._stats['joined'].items():
-                joined_map[field] = dj_pb.OptionalStatsCounter(counter=counter)
-            for field, counter in self._stats['total'].items():
-                total_map[field] = dj_pb.OptionalStatsCounter(counter=counter)
-        return dj_pb.JoinerStatsInfo(joined_optional_stats=joined_map,
-                                     total_optional_stats=total_map)
+        return dj_pb.JoinerStatsInfo(
+            joined_optional_stats=self._stats['joined'],
+            unjoined_optional_stats=self._stats['unjoined']
+        )
 
     def emit_optional_stats(self, metrics_tags=None):
         """
@@ -114,42 +117,28 @@ class OptionalStats:
 
         Returns: None
         Emit the result to ES or logger. Clear the reservoir for next block.
+        field_value: a `field`_`value` pair, e.g., for field = `label`,
+            field_value may be `label_1`, `label_0` and `label_#None#`
         """
+        field_values = list(set(chain(
+            self._stats['joined'].keys(), self._stats['unjoined'].keys()
+        )))
+        field_values.sort()  # for better order in logging
         # will pass the for loop if total_optional_stats is empty
-        for field, total_counter in self._stats['total'].items():
-            joined_counter = self._stats['joined'][field]
+        for field_value in field_values:
+            joined_count = self._stats['joined'][field_value]
+            unjoined_count = self._stats['unjoined'][field_value]
             # overall joined and total example nums for each field
-            overall_joined = 0
-            overall_total = 0
-            field_tags = copy.deepcopy(metrics_tags)
-            field_tags.update({'optional_stat': field})
-            for value, total in total_counter.items():
-                # total: total example nums for one value of this field
-                # joined: joined example nums for one value of this field
-                # E.g., 1 and 0 are two values of `label` field, for value = 1,
-                # total = nums of all positive examples,
-                # joined = nums of all joined positive examples.
-                joined = joined_counter[value]
-                overall_joined += joined
-                overall_total += total
-                prefix = '{f}_{v}'.format(f=field, v=value)
-                join_rate = joined / max(total, 1) * 100
-                self._emit_metrics(total, joined, prefix, field_tags)
-                logging.info('Cumulative stats of `%s`:\n total: %d, '
-                             'joined: %d, join_rate: %f',
-                             prefix, total, joined, join_rate)
-            total_join_rate = overall_joined / max(overall_total, 1) * 100
-            self._emit_metrics(overall_total, overall_joined, field, field_tags)
-            logging.info('Cumulative overall stats of field `%s`:\n '
-                         'total: %d, joined: %d, join_rate: %f',
-                         field, overall_total, overall_joined, total_join_rate)
+            tags = copy.deepcopy(metrics_tags)
+            tags.update({'optional_stat_count': field_value})
+            self._emit_metrics(joined_count, unjoined_count, field_value, tags)
         if self._need_sample:
             logging.info('Unjoined example ids: %s',
-                         self._unjoined_example_id_reservoir)
-            self._unjoined_example_id_reservoir = []
+                         self._sample_reservoir)
+            self._sample_reservoir = []
             self._sample_receive_num = 0
 
-    def add_unjoined(self, example_id):
+    def sample_unjoined(self, example_id):
         """
         Args:
             example_id: bytes. example_id to be sampled into the reservoir.
@@ -160,24 +149,30 @@ class OptionalStats:
             be eventually sampled.
         """
         if self._need_sample:
-            if len(self._unjoined_example_id_reservoir) < self._reservoir_length:
-                self._unjoined_example_id_reservoir.append(example_id)
+            if len(self._sample_reservoir) < self._reservoir_length:
+                self._sample_reservoir.append(example_id)
                 self._sample_receive_num += 1
                 return
             reservoir_idx = random.randint(0, self._sample_receive_num)
             if reservoir_idx < self._reservoir_length:
-                self._unjoined_example_id_reservoir[reservoir_idx] = example_id
+                self._sample_reservoir[reservoir_idx] = example_id
                 self._sample_receive_num += 1
 
     @staticmethod
-    def _emit_metrics(total_count, joined_count, prefix, metrics_tags):
+    def _emit_metrics(joined_count, unjoined_count, field_value, metrics_tags):
+        total_count = joined_count + unjoined_count
         join_rate = joined_count / max(total_count, 1) * 100
-        metrics.emit_store(name='{}_total_num'.format(prefix),
+        metrics.emit_store(name='{}_total_num'.format(field_value),
                            value=total_count,
                            tags=metrics_tags)
-        metrics.emit_store(name='{}_join_num'.format(prefix),
+        metrics.emit_store(name='{}_join_num'.format(field_value),
                            value=joined_count,
                            tags=metrics_tags)
-        metrics.emit_store(name='{}_join_rate_percent'.format(prefix),
+        metrics.emit_store(name='{}_join_rate_percent'.format(field_value),
                            value=join_rate,
                            tags=metrics_tags)
+        logging.info(
+            'Cumulative stats of `%s`:\n '
+            'total: %d, joined: %d, unjoined: %d, join_rate: %f',
+            field_value, total_count, joined_count, unjoined_count, join_rate
+        )

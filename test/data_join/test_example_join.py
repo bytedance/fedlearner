@@ -51,8 +51,7 @@ class TestExampleJoin(unittest.TestCase):
                     'optional_stats': dj_pb.OptionalFields(
                         fields=['label'])
                 },
-                sample_unjoined=True,
-                sample_reservoir_length=10,
+                sample_unjoined=True
             )
         self.example_id_dump_options = dj_pb.ExampleIdDumpOptions(
                 example_id_dump_interval=1,

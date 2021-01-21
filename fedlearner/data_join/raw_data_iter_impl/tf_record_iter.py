@@ -27,8 +27,6 @@ from fedlearner.data_join.raw_data_iter_impl.raw_data_iter import RawDataIter
 
 class TfExampleItem(RawDataIter.Item):
     def __init__(self, record_str, optional_fields=None):
-        if optional_fields is None:
-            optional_fields = []
         self._record_str = record_str
         self._parse_example_error = False
         example = self._parse_example()
@@ -160,8 +158,10 @@ class TfExampleItem(RawDataIter.Item):
         return common.InvalidRawId
 
     @staticmethod
-    def _parse_optional(example, record, optional_fields):
-        if example is not None and len(optional_fields) > 0:
+    def _parse_optional(example, record, optional_fields=None):
+        if example is not None \
+                and optional_fields is not None \
+                and len(optional_fields) > 0:
             assert isinstance(example, tf.train.Example)
             try:
                 feat = example.features.feature
@@ -179,7 +179,7 @@ class TfExampleItem(RawDataIter.Item):
                             optional_values[k] = \
                                 str(feat[k].float_list.value[0])
                     else:
-                        optional_values[k] = common.NonExistentField
+                        optional_values[k] = None
                 return optional_values
             except Exception as e:  # pylint: disable=broad-except
                 logging.error('Failed to parse label from %s, reason %s',

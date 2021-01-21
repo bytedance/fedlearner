@@ -336,24 +336,33 @@ class StreamExampleJoiner(ExampleJoiner):
         return self._leader_join_window.qt() is None or \
                 _CmpCtnt(item) < self._leader_join_window.qt()
 
-    def _evict_impl(self, candidates, filter_fn):
+    def _evict_impl(self, candidates, filter_fn, force=False):
         reserved_items = []
         for (index, item) in candidates:
             example_id = item.example_id
-            self._sample_if_unjoined(item)
+            self._stat_if_unjoined(item, force)
             if filter_fn(item):
                 self._follower_example_cache.pop(example_id, None)
             else:
                 reserved_items.append((index, item))
         return reserved_items
 
-    def _sample_if_unjoined(self, item):
+    def _stat_if_unjoined(self, item, force):
+        # pylint: disable=line-too-long
         # if item not in joined cache, and will be evicted, then it is unjoined
         # because if it was in joined cache, it would have been evicted.
-        if item.example_id not in self._joined_cache and \
-            (self._leader_join_window.committed_pt() is None or
-             _CmpCtnt(item) < self._leader_join_window.committed_pt()):
-            self._optional_stats.add_unjoined(item.example_id)
+        # conditions from self._evict_if_useless
+        unjoined = not force \
+                   and item.example_id not in self._joined_cache \
+                   and (self._leader_join_window.committed_pt() is None
+                        or _CmpCtnt(item) < self._leader_join_window.committed_pt())
+        # conditions from self._evict_if_force
+        force_unjoined = force \
+                         and (self._leader_join_window.qt() is None
+                              or _CmpCtnt(item) < self._leader_join_window.qt())
+        if unjoined or force_unjoined:
+            self._optional_stats.update_stats(item, kind='unjoined')
+            self._optional_stats.sample_unjoined(item.example_id)
 
     def _evit_stale_follower_cache(self):
         start_tm = time.time()
@@ -366,7 +375,8 @@ class StreamExampleJoiner(ExampleJoiner):
             return
         tmp_sz = len(reserved_items)
         reserved_items = self._evict_impl(reserved_items,
-                                          self._evict_if_force)
+                                          self._evict_if_force,
+                                          force=True)
         logging.debug("evict_if_force %d to %d", tmp_sz, len(reserved_items))
         self._follower_join_window.reset(reserved_items, False)
         metrics.emit_timer(name='stream_joiner_evit_stale_follower_cache',
@@ -376,8 +386,6 @@ class StreamExampleJoiner(ExampleJoiner):
     def _consume_item_until_count(self, visitor, windows,
                                   required_item_count, cache=None):
         for (index, item) in visitor:
-            if visitor is self._follower_visitor:
-                self._optional_stats.update_stats(item, kind='total')
             if item.example_id == common.InvalidExampleId:
                 logging.warning("ignore item indexed as %d from %s since "\
                                 "invalid example id", index, visitor.name())
@@ -395,6 +403,9 @@ class StreamExampleJoiner(ExampleJoiner):
 
     def _finish_data_block(self):
         meta = super(StreamExampleJoiner, self)._finish_data_block()
+        # delete as these stats cannot be transmitted to peer directly
+        meta.joiner_stats_info.joined_optional_stats.clear()
+        meta.joiner_stats_info.unjoined_optional_stats.clear()
         self._follower_restart_index = self._follower_visitor.get_index()
         if self._follower_join_window.size() > 0:
             self._follower_restart_index = \

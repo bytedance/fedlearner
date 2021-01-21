@@ -44,13 +44,14 @@ class DataBlockDumperManager(object):
         self._next_data_block_index = \
                 self._data_block_manager.get_dumped_data_block_count()
         meta = self._data_block_manager.get_lastest_data_block_meta()
-        self._optional_stats = OptionalStats(raw_data_options, meta)
         self._fly_data_block_meta = []
         self._state_stale = False
         self._synced_data_block_meta_finished = False
         ds_name = self._data_source.data_source_meta.name
         self._metrics_tags = {'data_source_name': ds_name,
                               'partition': self._partition_id}
+        self._optional_stats = OptionalStats(
+            raw_data_options, self._metrics_tags, meta)
 
     def get_next_data_block_index(self):
         with self._lock:
@@ -165,26 +166,21 @@ class DataBlockDumperManager(object):
                 os._exit(-1) # pylint: disable=protected-access
             match_index = 0
             example_num = len(meta.example_ids)
-            need_match = True
             for (index, item) in self._raw_data_visitor:
-                self._optional_stats.update_stats(item, kind='total')
                 example_id = item.example_id
                 joined = False
                 # Elements in meta.example_ids maybe duplicated
-                while need_match and match_index < example_num and \
+                while match_index < example_num and \
                         example_id == meta.example_ids[match_index]:
                     data_block_builder.write_item(item)
                     self._optional_stats.update_stats(item, kind='joined')
                     match_index += 1
                     joined = True
                 if not joined:
-                    self._optional_stats.add_unjoined(example_id)
+                    self._optional_stats.update_stats(item, kind='unjoined')
+                    self._optional_stats.sample_unjoined(example_id)
                 if match_index >= example_num:
-                    # if no need to get the total num of examples, break
-                    # else iterate raw data without matching
-                    if not self._optional_stats.need_stats():
-                        break
-                    need_match = False
+                    break
                 if index >= meta.leader_end_index:
                     break
             if match_index < example_num:

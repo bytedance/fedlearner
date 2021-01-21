@@ -78,7 +78,7 @@ class CsvItem(RawDataIter.Item):
     @property
     def optional_fields(self):
         if len(self._optional_fields) > 0:
-            return {field: str(self._raw.get(field, common.NonExistentField))
+            return {field: str(self._raw.get(field, None))
                     for field in self._optional_fields}
         return common.NoOptionalFields
 

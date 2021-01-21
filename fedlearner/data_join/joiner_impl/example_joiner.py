@@ -54,7 +54,6 @@ class ExampleJoiner(object):
             self._joiner_stats = JoinerStats(stats_info.stats_cum_join_num,
                                              stats_info.leader_stats_index,
                                              stats_info.follower_stats_index)
-        self._optional_stats = OptionalStats(raw_data_options, meta)
         self._data_block_builder_options = data_block_builder_options
         self._data_block_builder = None
         self._state_stale = False
@@ -66,6 +65,8 @@ class ExampleJoiner(object):
         self._metrics_tags = {'data_source_name': ds_name,
                               'partition': partition_id,
                               'joiner_name': self.name()}
+        self._optional_stats = OptionalStats(
+            raw_data_options, self._metrics_tags, meta)
         self._latest_dump_timestamp = time.time()
         self._sync_state()
 
@@ -193,9 +194,6 @@ class ExampleJoiner(object):
                     True, self._metrics_tags
                 )
             self._optional_stats.emit_optional_stats(self._metrics_tags)
-            # delete as these stats cannot be transmitted to peer directly
-            meta.joiner_stats_info.joined_optional_stats.clear()
-            meta.joiner_stats_info.total_optional_stats.clear()
             self._reset_data_block_builder()
             self._update_latest_dump_timestamp()
             return meta

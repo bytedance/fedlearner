@@ -115,7 +115,6 @@ if __name__ == "__main__":
                             fields=optional_stats_fields)
                     },
                     sample_unjoined=args.sample_unjoined,
-                    sample_reservoir_length=args.sample_reservoir_length
                 ),
             example_joiner_options=dj_pb.ExampleJoinerOptions(
                     example_joiner=args.example_joiner,
