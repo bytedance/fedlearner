@@ -78,7 +78,6 @@ class OptionalStats:
             item_stat[field] = value
             self._stats[kind]['{}_{}'.format(field, value)] += 1
         tags.update(item_stat)
-        print(tags)
         metrics.emit_store(name='stat', value='datajoin', tags=tags)
 
     def need_stats(self):
