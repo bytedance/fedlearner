@@ -78,7 +78,9 @@ class OptionalStats:
             item_stat[field] = value
             self._stats[kind]['{}_{}'.format(field, value)] += 1
         tags.update(item_stat)
-        metrics.emit_store(name='stat', value='datajoin', tags=tags)
+        event_time = item.event_time \
+            if item.event_time is not common.InvalidEventTime else 0
+        metrics.emit_store(name='datajoin', value=event_time, tags=tags)
 
     def need_stats(self):
         """
