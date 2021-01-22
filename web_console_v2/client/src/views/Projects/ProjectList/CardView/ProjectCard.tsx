@@ -1,20 +1,18 @@
-import React, { FC, ReactElement, useState } from 'react';
+import React, { FC, ReactElement } from 'react';
 import styled from 'styled-components';
 import ProjectProp from './ProjectCardProp';
 import ProjectMoreActions from '../../ProjectMoreActions';
 import CreateTime from '../../CreateTime';
-import ProjectDetailDrawer from '../../ProjectDetailDrawer';
-import { Tooltip, Row, Button } from 'antd';
+import { Tooltip, Row } from 'antd';
 import { useTranslation } from 'react-i18next';
 import ProjectName from '../../ProjectName';
 import { useHistory } from 'react-router-dom';
-import { Project, ConnectionStatus } from 'typings/project';
+import { Project } from 'typings/project';
 import ProjectConnectionStatus from '../../ConnectionStatus';
 import { MixinCommonTransition, MixinFontClarity } from 'styles/mixins';
-import { checkConnection } from 'services/project';
-import { useQuery } from 'react-query';
 import { Command, Workbench } from 'components/IconPark';
 import IconButton from 'components/IconButton';
+import { useCheckConnection } from 'hooks/project';
 
 const CardContainer = styled.div`
   ${MixinCommonTransition('box-shadow')}
@@ -72,6 +70,7 @@ const CardFooter = styled(Row)`
 
 interface CardProps {
   item: Project;
+  onViewDetail: (project: Project) => void;
 }
 
 type IconButtonProps = {
@@ -98,25 +97,12 @@ const CheckConnection: FC<IconButtonProps> = ({ onClick }) => {
   );
 };
 
-function Card({ item: project }: CardProps): ReactElement {
+function Card({ item: project, onViewDetail }: CardProps): ReactElement {
   const { t } = useTranslation();
   const history = useHistory();
-  const [token, setToken] = useState(0);
-  const [isDrawerVisible, setIsDrawerVisible] = useState(false);
-
-  const checkQuery = useQuery(['checkConnection', token], () => checkConnection(project.id), {
-    cacheTime: 1,
-    retry: false,
-    refetchOnWindowFocus: false,
-  });
+  const [status, checkConnection] = useCheckConnection(project);
 
   const participant = project.config.participants[0].name || '-';
-  const successOrFail = checkQuery.isError
-    ? ConnectionStatus.CheckFailed
-    : checkQuery.data?.data.success
-    ? ConnectionStatus.Success
-    : ConnectionStatus.Failed;
-  const status = checkQuery.isLoading ? ConnectionStatus.Checking : successOrFail;
 
   return (
     <CardContainer>
@@ -131,14 +117,14 @@ function Card({ item: project }: CardProps): ReactElement {
         </ProjectProp>
 
         <ProjectProp label={t('project.connection_status')}>
-          <ProjectConnectionStatus connectionStatus={status} />
+          <ProjectConnectionStatus status={status} />
         </ProjectProp>
       </CardMain>
 
       <CardFooter align="middle">
         <div className="left">{participant}</div>
         <div className="right">
-          <CheckConnection onClick={doCheckConnection} />
+          <CheckConnection onClick={checkConnection} />
           <CreateWorkflow onClick={initiateWorkflow} />
 
           <ProjectMoreActions
@@ -148,25 +134,15 @@ function Card({ item: project }: CardProps): ReactElement {
             onViewDetail={viewDetail}
           />
         </div>
-
-        <ProjectDetailDrawer
-          title={project.name}
-          project={project}
-          onClose={() => setIsDrawerVisible(false)}
-          visible={isDrawerVisible}
-        />
       </CardFooter>
     </CardContainer>
   );
 
   function viewDetail() {
-    setIsDrawerVisible(true);
+    onViewDetail(project);
   }
   function initiateWorkflow() {
     history.push(`/workflows/initiate/basic?project=${project.id}`);
-  }
-  async function doCheckConnection() {
-    setToken(Math.random());
   }
 }
 

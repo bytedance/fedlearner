@@ -43,7 +43,6 @@ const WorkflowsCreateStepOne: FC<WorkflowCreateProps> = ({ isInitiate, isAccept 
   const location = useLocation();
   const params = useParams<{ id: string }>();
 
-  const isLeft = isInitiate || !isAccept;
   const [groupAlias, setGroupAlias] = useState('');
 
   const [formInstance] = Form.useForm<StepOneForm>();
@@ -74,9 +73,15 @@ const WorkflowsCreateStepOne: FC<WorkflowCreateProps> = ({ isInitiate, isAccept 
     retry: false,
   });
 
+  const allowedIsLeftValue = isInitiate ? 'ALL' : !peerWorkflowQuery.data?.config?.is_left;
+
   const tplListQuery = useQuery(
-    ['getTemplateList', isLeft, groupAlias],
-    async () => fetchWorkflowTemplateList({ isLeft, groupAlias }),
+    ['getTemplateList', allowedIsLeftValue, groupAlias],
+    async () =>
+      fetchWorkflowTemplateList({
+        isLeft: allowedIsLeftValue === 'ALL' ? undefined : allowedIsLeftValue,
+        groupAlias,
+      }),
     {
       enabled: isInitiate || (!!peerWorkflowQuery.data && groupAlias),
       refetchOnWindowFocus: false,
@@ -191,7 +196,7 @@ const WorkflowsCreateStepOne: FC<WorkflowCreateProps> = ({ isInitiate, isAccept 
               onSuccess={onTplCreateSuccess}
               onError={onTplCreateError}
               groupAlias={groupAlias}
-              isLeft={isLeft}
+              allowedIsLeftValue={allowedIsLeftValue}
             />
           )}
 

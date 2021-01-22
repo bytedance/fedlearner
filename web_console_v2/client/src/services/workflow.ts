@@ -1,6 +1,5 @@
 import request from 'libs/request';
 import {
-  Workflow,
   WorkflowInitiatePayload,
   WorkflowTemplate,
   WorkflowAcceptPayload,

@@ -22,6 +22,7 @@ interface CreateTimeProps {
 function ProjectName({ text, style }: CreateTimeProps): ReactElement {
   const eleRef = useRef<HTMLDivElement>();
   const [trigger, setTrigger] = useState('click');
+
   useMount(() => {
     // Check element overflow at next-tick
     setImmediate(() => {

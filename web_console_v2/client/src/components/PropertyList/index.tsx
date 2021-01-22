@@ -11,6 +11,8 @@ const Container = styled.dl`
   background-color: var(--gray1);
 `;
 const Prop = styled.dd`
+  display: flex;
+  align-items: flex-start;
   margin-bottom: 0;
   font-size: 13px;
   line-height: 36px;

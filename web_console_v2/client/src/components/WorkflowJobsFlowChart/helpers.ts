@@ -4,7 +4,7 @@ import { isHead, isLast } from 'shared/array';
 import { head, last } from 'lodash';
 
 const TOP_OFFSET = 100;
-const LEFT_OFFSET = 30;
+const LEFT_OFFSET = 100;
 export const NODE_WIDTH = 200;
 export const NODE_HEIGHT = 80;
 export const NODE_GAP = 30;
@@ -17,7 +17,8 @@ export enum JobNodeStatus {
   Error,
 }
 
-export type JobRawData = Job & Partial<JobExecutionDetalis>;
+export type JobColorsMark = 'blue' | 'green' | 'yellow' | 'magenta' | 'cyan';
+export type JobRawData = Job & Partial<JobExecutionDetalis> & { mark?: JobColorsMark };
 
 export type JobNodeData = {
   raw: JobRawData; // each jobs raw-config plus it's execution details if has
@@ -26,6 +27,7 @@ export type JobNodeData = {
   isTarget?: boolean;
   status: JobNodeStatus;
   values?: object;
+  mark?: JobColorsMark;
 };
 export interface JobNode extends Node {
   data: JobNodeData;
@@ -33,7 +35,10 @@ export interface JobNode extends Node {
 
 export type JobNodeType = 'config' | 'execution';
 
-export function convertJobsToElements(jobs: JobRawData[], type: JobNodeType): any {
+export function convertJobsToElements(
+  jobs: JobRawData[],
+  options: { type: JobNodeType; selectable: boolean },
+): any {
   // 1. Group Jobs to rows by dependiences
   // e.g. Say we have jobs like [1, 2, 3, 4, 5] in which 2,3,4 is depend on 1, 5 depend on 2,3,4
   // we need to render jobs like charts below,
@@ -84,9 +89,9 @@ export function convertJobsToElements(jobs: JobRawData[], type: JobNodeType): an
 
       return {
         id: getNodeIdByJob(job),
-        type,
-        data: { raw: job, index: jobIdx, status },
+        data: { raw: job, index: jobIdx, status, mark: job.mark || undefined },
         position: { x: 0, y: 0 }, // position will be calculated in later step
+        ...options,
       };
     }
   }, []);

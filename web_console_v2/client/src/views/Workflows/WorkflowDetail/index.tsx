@@ -7,19 +7,24 @@ import { getPeerWorkflowsConfig, getWorkflowDetailById } from 'services/workflow
 import WorkflowJobsFlowChart from 'components/WorkflowJobsFlowChart';
 import { useTranslation } from 'react-i18next';
 import WhichProject from 'components/WhichProject';
-import { fromNow } from 'shared/date';
 import WorkflowActions from '../WorkflowActions';
 import WorkflowStage from '../WorkflowList/WorkflowStage';
 import GridRow from 'components/_base/GridRow';
 import BreadcrumbLink from 'components/BreadcrumbLink';
+import CountTime from 'components/CountTime';
 import JobExecutionDetailsDrawer from './JobExecutionDetailsDrawer';
 import { useToggle } from 'react-use';
-import { JobNode, JobNodeData } from 'components/WorkflowJobsFlowChart/helpers';
+import {
+  JobColorsMark,
+  JobNode,
+  JobNodeData,
+  JobRawData,
+} from 'components/WorkflowJobsFlowChart/helpers';
 import PropertyList from 'components/PropertyList';
 import { Eye, EyeInvisible } from 'components/IconPark';
-import { WorkflowExecutionDetails } from 'typings/workflow';
-import { JobExecutionDetalis, Job } from 'typings/job';
+import { Workflow, WorkflowExecutionDetails } from 'typings/workflow';
 import { ReactFlowProvider } from 'react-flow-renderer';
+import { isRunning } from 'shared/workflow';
 
 const Container = styled.div`
   display: flex;
@@ -53,6 +58,13 @@ const ChartHeader = styled(Row)`
 `;
 const ChartTitle = styled.h3`
   margin-bottom: 0;
+
+  &::after {
+    margin-left: 25px;
+    content: attr(data-note);
+    font-size: 12px;
+    color: var(--darkGray6);
+  }
 `;
 
 const WorkflowDetail: FC = () => {
@@ -71,7 +83,6 @@ const WorkflowDetail: FC = () => {
     },
   );
   const peerWorkflowQuery = useQuery(['getPeerWorkflow', params.id], getPeerWorkflow, {
-    refetchOnWindowFocus: false,
     retry: false,
   });
 
@@ -90,11 +101,16 @@ const WorkflowDetail: FC = () => {
     },
     {
       label: t('workflow.label_running_time'),
-      value: fromNow(workflow?.run_time || 0, true),
+
+      value: workflow && (
+        <CountTime time={workflow?.run_time || 0} isStatic={isRunning(workflow as Workflow)} />
+      ),
     },
   ];
-  const jobsWithExecutionDetails = mergeJobDefsWithExecutionDetails(workflow);
-  const peerJobsWithExecutionDetails = mergeJobDefsWithExecutionDetails(peerWorkflowQuery.data);
+  const jobsWithExeDetails = mergeJobDefsWithExecutionDetails(workflow);
+  const peerJobsWithExeDetails = mergeJobDefsWithExecutionDetails(peerWorkflowQuery.data);
+
+  markFederatedJobs(jobsWithExeDetails, peerJobsWithExeDetails);
 
   return (
     <Spin spinning={detailQuery.isLoading}>
@@ -130,7 +146,7 @@ const WorkflowDetail: FC = () => {
           {/* Our config */}
           <ChartContainer>
             <ChartHeader justify="space-between" align="middle">
-              <ChartTitle data-note={t('workflow.federated_note')}>
+              <ChartTitle data-note={peerJobsVisible ? t('workflow.federated_note') : ''}>
                 {t('workflow.our_config')}
               </ChartTitle>
 
@@ -140,11 +156,12 @@ const WorkflowDetail: FC = () => {
                 </Button>
               )}
             </ChartHeader>
+
             <ReactFlowProvider>
               <WorkflowJobsFlowChart
                 type="execution"
                 onCanvasClick={() => toggleDrawerVisible(false)}
-                jobs={jobsWithExecutionDetails}
+                jobs={jobsWithExeDetails}
                 onJobClick={viewJobDetail}
               />
             </ReactFlowProvider>
@@ -154,7 +171,9 @@ const WorkflowDetail: FC = () => {
           {peerJobsVisible && (
             <ChartContainer>
               <ChartHeader justify="space-between" align="middle">
-                <ChartTitle>{t('workflow.peer_config')}</ChartTitle>
+                <ChartTitle data-note={peerJobsVisible ? t('workflow.federated_note') : ''}>
+                  {t('workflow.peer_config')}
+                </ChartTitle>
 
                 <Button icon={<EyeInvisible />} onClick={() => togglePeerJobsVisible(false)}>
                   {t('workflow.btn_hide_peer_config')}
@@ -162,7 +181,11 @@ const WorkflowDetail: FC = () => {
               </ChartHeader>
 
               <ReactFlowProvider>
-                <WorkflowJobsFlowChart type="execution" jobs={peerJobsWithExecutionDetails} />
+                <WorkflowJobsFlowChart
+                  type="execution"
+                  selectable={false}
+                  jobs={peerJobsWithExeDetails}
+                />
               </ReactFlowProvider>
             </ChartContainer>
           )}
@@ -200,16 +223,36 @@ const WorkflowDetail: FC = () => {
 
 function mergeJobDefsWithExecutionDetails(
   workflow: WorkflowExecutionDetails | undefined,
-): (Job & JobExecutionDetalis)[] {
+): JobRawData[] {
   if (!workflow) return [];
 
   return workflow.config?.job_definitions.map((item) => {
     return Object.assign(
       item,
-      workflow?.jobs?.find((j) => j.name === `${workflow.name}-${item.name}`),
+      workflow?.jobs?.find((j) => j.name === `${workflow.name}-${item.name}`) || {},
       { name: item.name },
     );
-  }) as (Job & JobExecutionDetalis)[];
+  }) as JobRawData[];
+}
+
+/** NOTE: Has Side effect to inputs! */
+function markFederatedJobs(aJobs: JobRawData[], bJobs: JobRawData[]) {
+  const colorPools: JobColorsMark[] = ['blue', 'green', 'yellow', 'magenta', 'cyan'];
+  const markedJobs: Record<string, JobColorsMark> = {};
+
+  aJobs.forEach((job) => {
+    if (job.is_federated) {
+      const color = colorPools.shift() || 'blue';
+      markedJobs[job.name!] = color;
+      job.mark = color;
+    }
+  });
+
+  bJobs.forEach((job) => {
+    if (job.is_federated) {
+      job.mark = markedJobs[job.name];
+    }
+  });
 }
 
 export default WorkflowDetail;

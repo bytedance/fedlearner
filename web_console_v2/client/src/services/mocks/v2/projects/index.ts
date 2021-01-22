@@ -1,4 +1,4 @@
-const project_list = new Array(5).fill(undefined).map((_, index) => {
+const project_list = new Array(1).fill(undefined).map((_, index) => {
   return {
     id: index + 1,
     name: `Project-${index + 1}`,

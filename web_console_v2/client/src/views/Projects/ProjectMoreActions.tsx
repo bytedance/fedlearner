@@ -53,7 +53,6 @@ function ProjectMoreActions(props: ProjectMoreActionsProps): ReactElement {
       content={props.actionList ?? <ActionList {...props} />}
       placement="bottomLeft"
       overlayClassName="project-actions"
-      getPopupContainer={(node) => node}
     >
       <IconButton icon={<More />} circle />
     </Popover>

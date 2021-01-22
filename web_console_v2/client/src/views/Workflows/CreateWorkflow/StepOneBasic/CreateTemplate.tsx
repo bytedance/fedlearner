@@ -18,10 +18,10 @@ type Props = {
   onSuccess?(res: any): void;
   onError?(error: any): void;
   groupAlias?: string;
-  isLeft?: boolean;
+  allowedIsLeftValue?: boolean | 'ALL';
 };
 
-const CreateTemplateForm: FC<Props> = ({ onSuccess, onError, groupAlias, isLeft }) => {
+const CreateTemplateForm: FC<Props> = ({ onSuccess, onError, groupAlias, allowedIsLeftValue }) => {
   const { t } = useTranslation();
   const [formInstance] = Form.useForm<StepOneTemplateForm>();
   const [formData, setFormData] = useRecoilState(workflowTemplateForm);
@@ -98,9 +98,9 @@ const CreateTemplateForm: FC<Props> = ({ onSuccess, onError, groupAlias, isLeft 
       message.error(i18n.t('workflow.msg_tpl_is_left_missing'));
       return;
     }
-    if (isLeft === false && groupAlias) {
-      if (config.is_left === true) {
-        message.error(i18n.t('workflow.msg_tpl_is_left_wrong'));
+    if (typeof allowedIsLeftValue === 'boolean' && groupAlias) {
+      if (config.is_left !== allowedIsLeftValue) {
+        message.error(i18n.t('workflow.msg_tpl_is_left_wrong', { value: allowedIsLeftValue }));
         return;
       }
       if (config.group_alias !== groupAlias) {

@@ -32,13 +32,14 @@ const Container = styled.div`
 
 interface CardListProps {
   list: Project[];
+  onViewDetail: (project: Project) => void;
 }
 
-function CardList({ list }: CardListProps): ReactElement {
+function CardList({ list, onViewDetail }: CardListProps): ReactElement {
   return (
     <Container>
       {list.map((item, index) => (
-        <ProjectCard item={item} key={'p-' + index} />
+        <ProjectCard item={item} key={'p-' + index} onViewDetail={onViewDetail} />
       ))}
     </Container>
   );

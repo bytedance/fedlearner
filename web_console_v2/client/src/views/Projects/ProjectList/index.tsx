@@ -11,6 +11,9 @@ import { DisplayType } from 'typings/component';
 import { Project } from 'typings/project';
 import ListPageLayout from 'components/ListPageLayout';
 import NoResult from 'components/NoResult';
+import ProjectDetailDrawer from '../ProjectDetailDrawer';
+import store from 'store2';
+import LOCAL_STORAGE_KEYS from 'shared/localStorageKeys';
 
 const GlobalStyle = createGlobalStyle`
 .project-actions {
@@ -50,7 +53,11 @@ function ProjectList(): ReactElement {
   const [pageSize, setPageSize] = useState(12);
   const [currentPage, setCurrentPage] = useState(1);
   const [total, setTotal] = useState(0);
-  const [displayType, setDisplayType] = useState(DisplayType.Card);
+  const [drawerVisible, setDrawerVisible] = useState(false);
+  const [project, setCurrentProject] = useState<Project>();
+  const [displayType, setDisplayType] = useState(
+    store.get(LOCAL_STORAGE_KEYS.projects_display) || DisplayType.Card,
+  );
   const { isLoading, data: projectList } = useRecoilQuery(projectListQuery);
 
   useEffect(() => {
@@ -69,6 +76,7 @@ function ProjectList(): ReactElement {
       <ListPageLayout title={t('menu.label_project')} tip={t('project.describe')}>
         <ProjectListFilters
           onDisplayTypeChange={(type: number) => {
+            store.set(LOCAL_STORAGE_KEYS.projects_display, type);
             setDisplayType(type);
           }}
         />
@@ -76,11 +84,17 @@ function ProjectList(): ReactElement {
           {isEmpty ? (
             <NoResult text={t('project.no_result')} to="/projects/create" />
           ) : displayType === DisplayType.Card ? (
-            <CardView list={projectListShow} />
+            <CardView list={projectListShow} onViewDetail={viewDetail} />
           ) : (
-            <TableView list={projectListShow} />
+            <TableView list={projectListShow} onViewDetail={viewDetail} />
           )}
         </ListContainer>
+
+        <ProjectDetailDrawer
+          project={project}
+          onClose={() => setDrawerVisible(false)}
+          visible={drawerVisible}
+        />
 
         <Row justify="end">
           {!isEmpty && (
@@ -100,6 +114,10 @@ function ProjectList(): ReactElement {
   function handleChange(currentPage: number, page_size: number | undefined) {
     setCurrentPage(currentPage);
     setPageSize(Number(page_size));
+  }
+  function viewDetail(project: Project) {
+    setCurrentProject(project);
+    setDrawerVisible(true);
   }
 }
 

@@ -19,9 +19,8 @@ const CloseIconStyle = styled.div`
 `;
 interface DetailProps {
   visible: boolean;
-  title: string;
   onClose: () => void;
-  project: Project;
+  project?: Project;
 }
 
 function Close(): ReactElement {
@@ -32,7 +31,9 @@ function Close(): ReactElement {
   );
 }
 
-function Detail({ visible, onClose, project }: DetailProps): ReactElement {
+function ProjectDetailDrawer({ visible, onClose, project }: DetailProps) {
+  if (!project) return null;
+
   return (
     <Drawer
       placement="right"
@@ -49,4 +50,4 @@ function Detail({ visible, onClose, project }: DetailProps): ReactElement {
   );
 }
 
-export default Detail;
+export default ProjectDetailDrawer;

@@ -1,6 +1,6 @@
 import React, { FC, useEffect, useState } from 'react';
 import WorkflowJobNode from './WorkflowJobNode';
-import { JobNodeType } from './helpers';
+import { JobNodeType, JobRawData } from './helpers';
 import styled from 'styled-components';
 import ReactFlow, {
   Background,
@@ -9,8 +9,8 @@ import ReactFlow, {
   OnLoadParams,
   FlowElement,
 } from 'react-flow-renderer';
-import { convertJobsToElements, JobNode, JobNodeStatus, NODE_HEIGHT, NODE_WIDTH } from './helpers';
-import { convertToUnit } from 'shared/helpers';
+import { convertJobsToElements, JobNode, JobNodeStatus } from './helpers';
+
 import PubSub from 'pubsub-js';
 import { useSubscribe } from 'hooks';
 import { Job, JobExecutionDetalis } from 'typings/job';
@@ -23,20 +23,16 @@ const Container = styled.div`
 
   /* react flow styles override */
   .react-flow__node {
-    width: ${convertToUnit(NODE_WIDTH)};
-    height: ${convertToUnit(NODE_HEIGHT)};
-    padding: 14px 20px;
-    cursor: pointer;
+    border-radius: 4px;
+    font-size: 1em;
+    border-color: transparent;
+    text-align: initial;
+    border: 1px solid white;
+    background-color: white;
+    cursor: initial;
 
     &-execution,
     &-config {
-      border-radius: 4px;
-      font-size: 1em;
-      border-color: transparent;
-      text-align: initial;
-      border: 1px solid white;
-      background-color: white;
-
       &.selected {
         border-color: var(--primaryColor);
         box-shadow: none;
@@ -44,8 +40,12 @@ const Container = styled.div`
       }
     }
 
-    &:hover {
-      box-shadow: 0px 4px 10px #e0e0e0;
+    &.selectable {
+      cursor: pointer;
+
+      &:hover {
+        box-shadow: 0px 4px 10px #e0e0e0;
+      }
     }
   }
   .react-flow__handle {
@@ -67,17 +67,24 @@ const CHANNELS = {
 type Props = {
   jobs: (Job | JobExecutionDetalis)[];
   type: JobNodeType;
+  selectable?: boolean;
   onJobClick?: (node: JobNode) => void;
   onCanvasClick?: () => void;
 };
 
-const WorkflowJobsFlowChart: FC<Props> = ({ jobs, type, onJobClick, onCanvasClick }) => {
+const WorkflowJobsFlowChart: FC<Props> = ({
+  jobs,
+  type,
+  selectable = true,
+  onJobClick,
+  onCanvasClick,
+}) => {
   const [elements, setElements] = useState<FlowElement[]>([]);
 
   useEffect(() => {
-    const eles = convertJobsToElements(jobs as Job[], type);
+    const eles = convertJobsToElements(jobs as JobRawData[], { type, selectable });
     setElements(eles);
-  }, [jobs, type]);
+  }, [jobs, type, selectable]);
 
   useSubscribe(
     CHANNELS.update_node_status,

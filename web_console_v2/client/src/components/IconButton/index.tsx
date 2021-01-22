@@ -13,7 +13,7 @@ const IconButton: FC<ButtonProps & { circle?: boolean }> = ({ circle, size, ...p
   return (
     <ButtonContainer
       type="text"
-      shape={circle ? 'circle' : 'round'}
+      shape={circle ? 'circle' : undefined}
       {...props}
       size={size || 'small'}
     />

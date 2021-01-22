@@ -98,7 +98,7 @@ const workflow: I18nMessageModule = {
   msg_tpl_config_missing: { zh: '模板格式错误，缺少 config 字段！' },
   msg_tpl_alias_missing: { zh: '模板格式错误，缺少 config.group_alias 字段！' },
   msg_tpl_alias_wrong: { zh: '模板 group_alias 与合作方模板不一致，请检查！' },
-  msg_tpl_is_left_wrong: { zh: '模板 is_left 须为 false，请检查！' },
+  msg_tpl_is_left_wrong: { zh: '模板 is_left 值须为{{value}}，请检查' },
   msg_peer_config_failed: { zh: '获取对侧工作流配置失败' },
 
   var_auth_write: { zh: '可编辑' },

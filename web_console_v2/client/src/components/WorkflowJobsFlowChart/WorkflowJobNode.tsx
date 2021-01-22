@@ -6,10 +6,38 @@ import completetdIcon from 'assets/icons/workflow-completed.svg';
 import warningIcon from 'assets/icons/workflow-warning.svg';
 import errorIcon from 'assets/icons/workflow-error.svg';
 import GridRow from 'components/_base/GridRow';
-import { JobNodeData, JobNodeStatus, JobNodeType } from './helpers';
+import { JobNodeData, JobNodeStatus, JobNodeType, NODE_HEIGHT, NODE_WIDTH } from './helpers';
+import { convertToUnit } from 'shared/helpers';
 import i18n from 'i18n';
+import classNames from 'classnames';
 
-const Container = styled.div``;
+const Container = styled.div`
+  position: relative;
+  width: ${convertToUnit(NODE_WIDTH)};
+  height: ${convertToUnit(NODE_HEIGHT)};
+  padding: 14px 20px;
+  border-radius: 4px;
+
+  &.federated-mark {
+    box-shadow: 6px 0 0 -2px var(--fed-color, transparent) inset;
+  }
+
+  &.blue {
+    --fed-color: var(--primaryColor);
+  }
+  &.green {
+    --fed-color: var(--successColor);
+  }
+  &.yellow {
+    --fed-color: var(--darkGold6);
+  }
+  &.magenta {
+    --fed-color: var(--magenta5);
+  }
+  &.cyan {
+    --fed-color: var(--cyan6);
+  }
+`;
 const JobName = styled.h5`
   font-size: 16px;
   line-height: 20px;
@@ -77,7 +105,7 @@ const ExecutionJobNode: FC<Props> = ({ data, id }) => {
   const text = jobExecutionStatusText[data.status];
 
   return (
-    <Container>
+    <Container className={classNames([data.raw.is_federated && 'federated-mark', data.mark])}>
       {data.isTarget && <Handle type="target" position={Position.Top} />}
       <JobName>{id}</JobName>
       <GridRow gap={5}>
