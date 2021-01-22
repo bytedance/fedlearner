@@ -1,4 +1,5 @@
 import React, { FC } from 'react';
+import { useTranslation } from 'react-i18next';
 import styled from 'styled-components';
 
 const Container = styled.div`
@@ -12,9 +13,10 @@ const ResultPanel = styled.div`
 `;
 
 const JobExecutionMetrics: FC = () => {
+  const { t } = useTranslation();
   return (
     <Container>
-      <h3>任务运行结果指标</h3>
+      <h3>{t('workflow.label_job_metrics')}</h3>
       <ResultPanel />
     </Container>
   );

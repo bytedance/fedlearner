@@ -92,7 +92,11 @@ const JobExecutionDetailsDrawer: ForwardRefRenderFunction<JobExecutionDetailsExp
           <Row align="middle">
             <DrawerTitle>{data.raw.name}</DrawerTitle>
 
-            {isPeerSide ? <Tag color="orange">对方</Tag> : <Tag color="cyan">我方</Tag>}
+            {isPeerSide ? (
+              <Tag color="orange">{t('workflow.peer_config')}</Tag>
+            ) : (
+              <Tag color="cyan">{t('workflow.our_config')}</Tag>
+            )}
 
             <Tag color={tagColors[jobStatus]}>{jobExecutionStatusText[jobStatus]}</Tag>
           </Row>

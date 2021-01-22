@@ -19,6 +19,7 @@ const workflow: I18nMessageModule = {
   action_detail: { zh: '详情' },
   action_show_report: { zh: '查看模型报告' },
 
+  btn_inspect_logs: { zh: '查看日志' },
   btn_close: { zh: '关闭' },
   btn_conf_done: { zh: '配置完成' },
   btn_conf_next_step: { zh: '配置下一步（{{current}}/{{total}}）' },
@@ -73,6 +74,9 @@ const workflow: I18nMessageModule = {
   label_job_type: { zh: '任务类型' },
   label_job_created: { zh: '任务创建时间' },
   label_job_vars: { zh: '任务参数' },
+  label_job_metrics: { zh: '任务运行结果指标' },
+  label_job_logs: { zh: '任务运行日志' },
+  label_pod_list: { zh: '各 worker 运行日志及状态' },
 
   placeholder_name_searchbox: { zh: '根据工作流名称搜索' },
   placeholder_name: { zh: '请输入工作流名称' },

@@ -46,14 +46,14 @@ const InspectPeerConfig: FC<
       {...props}
       zIndex={1002}
       onOk={closeModal}
-      okText={'关闭'}
+      okText={t('close')}
       cancelButtonProps={{
         style: { display: 'none' },
       }}
       width={455}
       closeIcon={<Button size="small" icon={<Close />} onClick={closeModal} />}
     >
-      <ModalHeader>对方配置内容</ModalHeader>
+      <ModalHeader>{t('workflow.peer_config')}</ModalHeader>
       {config && (
         <JobTabs type="card" defaultActiveKey={jobs[0].name}>
           {jobs.map((item) => {

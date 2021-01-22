@@ -5,6 +5,7 @@ import { Pod, PodState } from 'typings/job';
 import i18n from 'i18n';
 import { Button } from 'antd';
 import StateIndicator, { StateTypes } from 'components/StateIndicator';
+import { useTranslation } from 'react-i18next';
 
 const Container = styled.div`
   margin-top: 30px;
@@ -16,9 +17,9 @@ const stateType: { [key: string]: StateTypes } = {
   [PodState.FAILED]: 'error',
 };
 const stateText: { [key: string]: string } = {
-  [PodState.COMPLETE]: '成功',
-  [PodState.RUNNING]: '运行中',
-  [PodState.FAILED]: '失败',
+  [PodState.COMPLETE]: i18n.t('workflow.job_node_success'),
+  [PodState.RUNNING]: i18n.t('workflow.job_node_running'),
+  [PodState.FAILED]: i18n.t('workflow.job_node_failed'),
 };
 const tablecolumns = [
   {
@@ -50,7 +51,7 @@ const tablecolumns = [
             Shell
           </Button>
           <Button type="link" size="small">
-            查看日志
+            {i18n.t('workflow.btn_inspect_logs')}
           </Button>
         </>
       );
@@ -63,13 +64,14 @@ type Props = {
 };
 
 const JobExecutionPODs: FC<Props> = ({ pods }) => {
+  const { t } = useTranslation();
   let data = pods;
   if (!Array.isArray(pods)) {
     data = [];
   }
   return (
     <Container>
-      <h3>各 worker 运行日志及状态</h3>
+      <h3>{t('workflow.label_pod_list')}</h3>
       <Table dataSource={data || []} columns={tablecolumns} size="small" />
     </Container>
   );

@@ -33,7 +33,6 @@ export interface Job {
   is_manual?: boolean;
   variables: Variable[];
   dependencies: JobDependency[];
-  // TODO: remove yaml
   yaml_template?: string;
 }
 
@@ -61,5 +60,6 @@ export interface JobExecutionDetalis {
   created_at: number;
   updated_at: number;
   deleted_at: number;
+  completed_at?: number;
   yaml_template?: string;
 }
