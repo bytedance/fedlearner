@@ -29,6 +29,7 @@ from fedlearner_webconsole.job.models import (
 )
 from fedlearner_webconsole.rpc.client import RpcClient
 
+
 class WorkflowState(enum.Enum):
     INVALID = 0
     NEW = 1
@@ -113,11 +114,9 @@ def _merge_workflow_config(base, new, access_mode):
 
 
 @to_dict_mixin(ignores=['forked_from',
-                        'last_start_time',
                         'fork_proposal_config'],
                extras={
                    'config': (lambda wf: wf.get_config()),
-                   'run_time': (lambda wf: wf.get_run_time()),
                    'job_ids': (lambda wf: wf.get_job_ids()),
                    'reuse_job_names': (lambda wf: wf.get_reuse_job_names()),
                    'peer_reuse_job_names':
@@ -153,7 +152,9 @@ class Workflow(db.Model):
                                   default=TransactionState.READY)
     transaction_err = db.Column(db.Text())
 
-    last_start_time = db.Column(db.Integer)
+    start_at = db.Column(db.Integer)
+    stop_at = db.Column(db.Integer)
+
     created_at = db.Column(db.DateTime(timezone=True),
                            server_default=func.now())
     updated_at = db.Column(db.DateTime(timezone=True),
@@ -215,15 +216,6 @@ class Workflow(db.Model):
         if not self.peer_reuse_job_names:
             return []
         return self.peer_reuse_job_names.split(',')
-
-    def get_run_time(self):
-        if self.state not in [WorkflowState.RUNNING,
-                              WorkflowState.STOPPED]:
-            return 0
-
-        if self.last_start_time is None:
-            return (datetime.utcnow()-self.updated_at).seconds
-        return self.last_start_time
 
     def update_target_state(self, target_state):
         if self.target_state != target_state \
@@ -314,14 +306,14 @@ class Workflow(db.Model):
                 'Workflow not in prepare state'
 
         if self.target_state == WorkflowState.STOPPED:
-            self.last_start_time = (datetime.utcnow()-self.updated_at).seconds
+            self.stop_at = int(datetime.utcnow().timestamp())
             for job in self.owned_jobs:
                 job.stop()
         elif self.target_state == WorkflowState.READY:
             self._setup_jobs()
             self.fork_proposal_config = None
         elif self.target_state == WorkflowState.RUNNING:
-            self.last_start_time = None
+            self.start_at = int(datetime.utcnow().timestamp())
             for job in self.owned_jobs:
                 if not job.get_config().is_manual:
                     job.schedule()
@@ -402,9 +394,8 @@ class Workflow(db.Model):
         if self.transaction_state == TransactionState.COORDINATOR_PREPARE:
             # TODO(tjulinfan): validate if the config is legal or not
             return bool(self.config)
-
         peer_workflow = self._get_peer_workflow()
-        if hasattr(peer_workflow, 'forked_from') and peer_workflow.forked_from:
+        if peer_workflow.forked_from:
             base_workflow = Workflow.query.filter(
                 Workflow.name == peer_workflow.forked_from).first()
             if base_workflow is None or not base_workflow.forkable:

@@ -52,7 +52,8 @@ def merge(x, y):
 @to_dict_mixin(extras={
     'state': (lambda job: job.get_state_for_front()),
     'pods': (lambda job: job.get_pods_for_front()),
-    'config': (lambda job: job.get_config())
+    'config': (lambda job: job.get_config()),
+    'complete_at': (lambda job: job.get_complete_at())
 })
 class Job(db.Model):
     __tablename__ = 'job_v2'
@@ -144,8 +145,8 @@ class Job(db.Model):
     def is_failed(self):
         flapp = self.get_flapp()
         if flapp is None \
-            or 'status' not in flapp \
-            or 'appState' not in flapp['status']:
+                or 'status' not in flapp \
+                or 'appState' not in flapp['status']:
             return False
         return flapp['status']['appState'] in ['FLStateFailed',
                                                'FLStateShutDown']
@@ -157,6 +158,14 @@ class Job(db.Model):
                 or 'appState' not in flapp['status']:
             return False
         return flapp['status']['appState'] == 'FLStateComplete'
+
+    def get_complete_at(self):
+        flapp = self.get_flapp()
+        if flapp is None \
+                or 'status' not in flapp \
+                or 'complete_at' not in flapp['status']:
+            return None
+        return flapp['status']['complete_at']
 
     def stop(self):
         if self.state == JobState.STARTED:
