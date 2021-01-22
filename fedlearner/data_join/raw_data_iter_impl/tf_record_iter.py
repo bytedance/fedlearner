@@ -169,15 +169,13 @@ class TfExampleItem(RawDataIter.Item):
                 for k in optional_fields:
                     if k in feat:
                         if feat[k].HasField('int64_list'):
-                            optional_values[k] = \
-                                str(feat[k].int64_list.value[0])
+                            optional_values[k] = feat[k].int64_list.value[0]
                         elif feat[k].HasField('bytes_list'):
                             optional_values[k] = \
                                 str(feat[k].bytes_list.value[0])
                         else:
                             assert feat[k].HasField('float_list')
-                            optional_values[k] = \
-                                str(feat[k].float_list.value[0])
+                            optional_values[k] = feat[k].float_list.value[0]
                 return optional_values
             except Exception as e:  # pylint: disable=broad-except
                 logging.error('Failed to parse label from %s, reason %s',
