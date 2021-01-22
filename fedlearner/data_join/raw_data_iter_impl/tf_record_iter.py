@@ -178,8 +178,6 @@ class TfExampleItem(RawDataIter.Item):
                             assert feat[k].HasField('float_list')
                             optional_values[k] = \
                                 str(feat[k].float_list.value[0])
-                    else:
-                        optional_values[k] = None
                 return optional_values
             except Exception as e:  # pylint: disable=broad-except
                 logging.error('Failed to parse label from %s, reason %s',
@@ -248,10 +246,8 @@ class TfRecordIter(RawDataIter):
             fpath = index_meta.fpath
             # chain up all the optional fields lists from options,
             # use set to de-duplicate
-            optional_fields = list(set(chain.from_iterable(
-                self._options.optional_fields[key].fields
-                for key in self._options.optional_fields
-            ))) if self._options is not None else []
+            optional_fields = self._options.optional_fields \
+                if self._options is not None else []
             fiter = self._inner_iter(fpath, optional_fields)
             item = next(fiter)
             return fiter, item

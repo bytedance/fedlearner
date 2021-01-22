@@ -66,7 +66,7 @@ class ExampleJoiner(object):
                               'partition': partition_id,
                               'joiner_name': self.name()}
         self._optional_stats = OptionalStats(
-            raw_data_options, self._metrics_tags, meta)
+            raw_data_options, self._metrics_tags)
         self._latest_dump_timestamp = time.time()
         self._sync_state()
 
@@ -187,9 +187,6 @@ class ExampleJoiner(object):
             self._data_block_builder.set_join_stats_info(
                     self._create_join_stats_info()
                 )
-            self._data_block_builder.set_join_stats_info(
-                self._optional_stats.create_join_stats_info()
-            )
             meta = self._data_block_builder.finish_data_block(
                     True, self._metrics_tags
                 )

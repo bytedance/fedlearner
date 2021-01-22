@@ -403,9 +403,6 @@ class StreamExampleJoiner(ExampleJoiner):
 
     def _finish_data_block(self):
         meta = super(StreamExampleJoiner, self)._finish_data_block()
-        # delete as these stats cannot be transmitted to peer directly
-        meta.joiner_stats_info.joined_optional_stats.clear()
-        meta.joiner_stats_info.unjoined_optional_stats.clear()
         self._follower_restart_index = self._follower_visitor.get_index()
         if self._follower_join_window.size() > 0:
             self._follower_restart_index = \

@@ -47,10 +47,7 @@ class TestExampleJoin(unittest.TestCase):
         self.raw_data_options = dj_pb.RawDataOptions(
                 raw_data_iter='TF_RECORD',
                 compressed_type='',
-                optional_fields={
-                    'optional_stats': dj_pb.OptionalFields(
-                        fields=['label'])
-                },
+                optional_fields=['label'],
                 sample_unjoined=True
             )
         self.example_id_dump_options = dj_pb.ExampleIdDumpOptions(

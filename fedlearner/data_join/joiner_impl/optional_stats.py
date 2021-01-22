@@ -40,29 +40,18 @@ class OptionalStats:
         based on reservoir sampling.
     """
 
-    def __init__(self, raw_data_options, metric_tags, meta=None):
+    def __init__(self, raw_data_options, metric_tags):
         """
         Args:
             raw_data_options: dj_pb.RawDataOptions. A protobuf containing
                 optional stats options and arguments.
-            meta: dj_pb.DataBlockMeta. DataBlockMeta from latest data block.
-                Restore stats from it if it's not None.
         """
         assert isinstance(raw_data_options, dj_pb.RawDataOptions)
-        self._stats_fields = \
-            raw_data_options.optional_fields['optional_stats'].fields
-        if meta is None:
-            self._stats = {
-                'joined': defaultdict(int),
-                'unjoined': defaultdict(int)
-            }
-        else:
-            assert isinstance(meta, dj_pb.DataBlockMeta)
-            stats_info = meta.joiner_stats_info
-            self._stats = {
-                'joined': defaultdict(int, stats_info.joined_optional_stats),
-                'unjoined': defaultdict(int, stats_info.unjoined_optional_stats)
-            }
+        self._stats_fields = raw_data_options.optional_fields
+        self._stats = {
+            'joined': defaultdict(int),
+            'unjoined': defaultdict(int)
+        }
         self._sample_reservoir = []
         self._sample_receive_num = 0
         self._reservoir_length = 10
@@ -83,13 +72,12 @@ class OptionalStats:
         if item.optional_fields == common.NoOptionalFields:
             return
         for field in self._stats_fields:
+            value = item.optional_fields.get(field, '#None#')
             tags = copy.deepcopy(self._tags)
-            tags.update({'optional_stat': field})
-            field_value = item.optional_fields[field]
-            if field_value is None:
-                field_value = '#None#'
-            self._stats[kind]['{}_{}'.format(field, field_value)] += 1
-            metrics.emit_store(name='{}_{}'.format(field, field_value),
+            tags.update({'stat_field': field,
+                         'field_value': value})
+            self._stats[kind]['{}_{}'.format(field, value)] += 1
+            metrics.emit_store(name='optional_stats',
                                value=int(kind == 'joined'),
                                tags=tags)
 
@@ -117,19 +105,20 @@ class OptionalStats:
 
         Returns: None
         Emit the result to ES or logger. Clear the reservoir for next block.
-        field_value: a `field`_`value` pair, e.g., for field = `label`,
-            field_value may be `label_1`, `label_0` and `label_#None#`
+        field_and_value: a `field`_`value` pair, e.g., for field = `label`,
+            field_and_value may be `label_1`, `label_0` and `label_#None#`
         """
-        field_values = list(set(chain(
+        field_and_values = list(set(chain(
             self._stats['joined'].keys(), self._stats['unjoined'].keys()
         )))
-        field_values.sort()  # for better order in logging
-        for field_value in field_values:
-            joined_count = self._stats['joined'][field_value]
-            unjoined_count = self._stats['unjoined'][field_value]
+        field_and_values.sort()  # for better order in logging
+        for field_and_value in field_and_values:
+            joined_count = self._stats['joined'][field_and_value]
+            unjoined_count = self._stats['unjoined'][field_and_value]
             tags = copy.deepcopy(metrics_tags)
-            tags.update({'optional_stat_count': field_value})
-            self._emit_metrics(joined_count, unjoined_count, field_value, tags)
+            tags.update({'optional_stat_count': field_and_value})
+            self._emit_metrics(
+                joined_count, unjoined_count, field_and_value, tags)
         if self._need_sample:
             logging.info('Unjoined example ids: %s',
                          self._sample_reservoir)

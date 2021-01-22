@@ -264,8 +264,6 @@ class ExampleIdVisitor(visitor.Visitor):
 
         def _inner_iter(self, fpath, optional_fields=None):
             # optional fields is useless here but must be retained
-            if optional_fields is None:
-                optional_fields = []
             with make_tf_record_iter(fpath) as record_iter:
                 for record in record_iter:
                     lite_example_ids = dj_pb.LiteExampleIds()

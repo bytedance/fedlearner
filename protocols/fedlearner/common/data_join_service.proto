@@ -128,9 +128,6 @@ message JoinerStatsInfo {
   int64 actual_cum_join_num = 2;
   int64 leader_stats_index = 3;
   int64 follower_stats_index = 4;
-  // maps from optional stat field to counters
-  map<string, int64> joined_optional_stats = 5;
-  map<string, int64> unjoined_optional_stats = 6;
 }
 
 message DataBlockMeta {
@@ -230,10 +227,6 @@ message DumpedExampleIdAnchor {
   }
 }
 
-message OptionalFields {
-  repeated string fields = 1;
-}
-
 message RawDataOptions {
   string raw_data_iter = 1;
   // only support three compressed, ''(UnCompressed), ZLIB, GZIP
@@ -242,7 +235,7 @@ message RawDataOptions {
   int64 read_ahead_size = 3;
   // read batch size for tf record, <=0 means batch size == 1
   int64 read_batch_size = 4;
-  map<string, OptionalFields> optional_fields = 5;
+  repeated string optional_fields = 5;
   bool sample_unjoined = 6;
 }
 

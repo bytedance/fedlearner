@@ -78,8 +78,7 @@ class CsvItem(RawDataIter.Item):
     @property
     def optional_fields(self):
         if len(self._optional_fields) > 0:
-            return {field: str(self._raw.get(field, None))
-                    for field in self._optional_fields}
+            return self._raw
         return common.NoOptionalFields
 
     @property
@@ -168,10 +167,8 @@ class CsvDictIter(RawDataIter):
             fpath = index_meta.fpath
             # chain up all the optional fields lists from options
             # use set to de-duplicate
-            optional_fields = list(set(chain.from_iterable(
-                self._options.optional_fields[key].fields
-                for key in self._options.optional_fields
-            ))) if self._options is not None else []
+            optional_fields = self._options.optional_fields \
+                if self._options is not None else []
             fiter = self._inner_iter(fpath, optional_fields)
             item = next(fiter)
             return fiter, item

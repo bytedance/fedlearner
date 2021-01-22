@@ -122,10 +122,7 @@ class DataJoinWorker(unittest.TestCase):
                     raw_data_iter='TF_RECORD',
                     read_ahead_size=1<<20,
                     read_batch_size=128,
-                    optional_fields={
-                        'optional_stats': dj_pb.OptionalFields(
-                            fields=['label'])
-                    }
+                    optional_fields=['label']
                 ),
                 example_id_dump_options=dj_pb.ExampleIdDumpOptions(
                     example_id_dump_interval=1,
@@ -146,7 +143,6 @@ class DataJoinWorker(unittest.TestCase):
                     output_writer='TF_RECORD'
                 )
             )
-
         self.total_index = 1 << 12
 
     def generate_raw_data(self, start_index, kvstore, rdp, data_source, raw_data_base_dir, partition_id,

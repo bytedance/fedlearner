@@ -43,7 +43,6 @@ class DataBlockDumperManager(object):
         self._data_block_builder_options = data_block_builder_options
         self._next_data_block_index = \
                 self._data_block_manager.get_dumped_data_block_count()
-        meta = self._data_block_manager.get_lastest_data_block_meta()
         self._fly_data_block_meta = []
         self._state_stale = False
         self._synced_data_block_meta_finished = False
@@ -51,7 +50,7 @@ class DataBlockDumperManager(object):
         self._metrics_tags = {'data_source_name': ds_name,
                               'partition': self._partition_id}
         self._optional_stats = OptionalStats(
-            raw_data_options, self._metrics_tags, meta)
+            raw_data_options, self._metrics_tags)
 
     def get_next_data_block_index(self):
         with self._lock:
@@ -191,16 +190,8 @@ class DataBlockDumperManager(object):
                     )
                 traceback.print_stack()
                 os._exit(-1) # pylint: disable=protected-access
-            data_block_builder.set_join_stats_info(
-                self._optional_stats.create_join_stats_info()
-            )
-            dumped_meta = data_block_builder.finish_data_block(
-                True, self._metrics_tags
-            )
+            dumped_meta = data_block_builder.finish_data_block(True)
             self._optional_stats.emit_optional_stats(self._metrics_tags)
-            # currently no need to manually clear the optional stats.
-            # dumped_meta.joiner_stats_info.joined_optional_stats.clear()
-            # dumped_meta.joiner_stats_info.total_optional_stats.clear()
             assert dumped_meta == meta, "the generated dumped meta should "\
                                         "be the same with input mata"
             with self._lock:
