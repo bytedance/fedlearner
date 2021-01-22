@@ -1,15 +1,21 @@
 import React, { FC } from 'react';
 import styled from 'styled-components';
 import { userInfoQuery } from 'stores/user';
-
 import avatar from 'assets/images/avatar.svg';
 import { useRecoilQuery } from 'hooks/recoil';
 import { MixinCircle, MixinCommonTransition, MixinSquare } from 'styles/mixins';
 import { message, Popover, Button, Row } from 'antd';
 import GridRow from 'components/_base/GridRow';
+import { Public } from 'components/IconPark';
 import LanguageSwitch from './LanguageSwitch';
-import { useHistory } from 'react-router-dom';
+import { Redirect, useHistory } from 'react-router-dom';
 import { logout } from 'services/user';
+import { useTranslation } from 'react-i18next';
+import store from 'store2';
+import LOCAL_STORAGE_KEYS from 'shared/localStorageKeys';
+import { useResetRecoilState } from 'recoil';
+import { ErrorCodes } from 'typings/app';
+import i18n from 'i18n';
 
 const Container = styled.div`
   ${MixinCommonTransition()}
@@ -75,20 +81,29 @@ const LogoutButton = styled(Button)`
 
 const AccountPopover: FC = () => {
   const history = useHistory();
+  const { t } = useTranslation();
+  const resetUserInfo = useResetRecoilState(userInfoQuery);
 
   return (
     <div>
       <LanguageRow justify="space-between" align="middle">
-        <div>切换语言</div>
+        <GridRow gap="5">
+          <Public />
+          {t('app.switch_lng')}
+        </GridRow>
         <LanguageSwitch />
       </LanguageRow>
-      <LogoutButton onClick={onLogoutClick}>退出登录</LogoutButton>
+      <LogoutButton size="large" onClick={onLogoutClick}>
+        {t('app.logout')}
+      </LogoutButton>
     </div>
   );
 
   async function onLogoutClick() {
     try {
       await logout();
+      store.remove(LOCAL_STORAGE_KEYS.current_user);
+      resetUserInfo();
       history.push('/login');
     } catch (error) {
       message.error(error.message);
@@ -108,12 +123,16 @@ const Username: FC<{ name: string }> = ({ name }) => {
 function HeaderAccount() {
   const { isLoading, data: userInfo, error } = useRecoilQuery(userInfoQuery);
 
+  if (error && error.code === ErrorCodes.TokenExpired) {
+    message.info(i18n.t('error.token_expired'));
+    return <Redirect to="/login" />;
+  }
+
   if (isLoading) {
     return <EmptyAvatar />;
   }
 
   if (Boolean(error)) {
-    message.error(error?.message);
     return null;
   }
 
@@ -122,7 +141,7 @@ function HeaderAccount() {
       <Popover
         content={<AccountPopover />}
         trigger="hover"
-        title={<Username name={userInfo?.name || ''} />}
+        title={<Username name={userInfo?.username || ''} />}
         placement="bottomLeft"
       >
         <Avatar src={avatar} alt="avatar" className="user-avatar" />

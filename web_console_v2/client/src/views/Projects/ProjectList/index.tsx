@@ -1,15 +1,19 @@
 import React, { ReactElement, useState, useEffect } from 'react';
-import ProjectListFilters from '../ProjectListFilters';
+import ProjectListFilters from './ProjectListFilters';
 import { useTranslation } from 'react-i18next';
 import CardView from './CardView';
 import TableView from './TableView';
-import { Pagination, Spin } from 'antd';
+import { Pagination, Spin, Row } from 'antd';
 import styled, { createGlobalStyle } from 'styled-components';
 import { projectListQuery } from 'stores/projects';
 import { useRecoilQuery } from 'hooks/recoil';
 import { DisplayType } from 'typings/component';
 import { Project } from 'typings/project';
 import ListPageLayout from 'components/ListPageLayout';
+import NoResult from 'components/NoResult';
+import ProjectDetailDrawer from '../ProjectDetailDrawer';
+import store from 'store2';
+import LOCAL_STORAGE_KEYS from 'shared/localStorageKeys';
 
 const GlobalStyle = createGlobalStyle`
 .project-actions {
@@ -33,9 +37,13 @@ const GlobalStyle = createGlobalStyle`
   }
 }
 `;
-const PaginationStyle = styled(Pagination)`
-  padding: 20px 0 !important;
-  float: right;
+const StyledPagination = styled(Pagination)`
+  margin-top: 20px;
+`;
+const ListContainer = styled.section`
+  display: flex;
+  flex: 1;
+  align-items: flex-start;
 `;
 
 function ProjectList(): ReactElement {
@@ -45,7 +53,11 @@ function ProjectList(): ReactElement {
   const [pageSize, setPageSize] = useState(12);
   const [currentPage, setCurrentPage] = useState(1);
   const [total, setTotal] = useState(0);
-  const [displayType, setDisplayType] = useState(DisplayType.Card);
+  const [drawerVisible, setDrawerVisible] = useState(false);
+  const [project, setCurrentProject] = useState<Project>();
+  const [displayType, setDisplayType] = useState(
+    store.get(LOCAL_STORAGE_KEYS.projects_display) || DisplayType.Card,
+  );
   const { isLoading, data: projectList } = useRecoilQuery(projectListQuery);
 
   useEffect(() => {
@@ -64,29 +76,48 @@ function ProjectList(): ReactElement {
       <ListPageLayout title={t('menu.label_project')} tip={t('project.describe')}>
         <ProjectListFilters
           onDisplayTypeChange={(type: number) => {
+            store.set(LOCAL_STORAGE_KEYS.projects_display, type);
             setDisplayType(type);
           }}
         />
-        {displayType === DisplayType.Card ? (
-          <CardView projectList={projectListShow} />
-        ) : (
-          <TableView projectList={projectListShow} />
-        )}
-        <PaginationStyle
-          pageSizeOptions={['12', '24', '36']}
-          pageSize={pageSize}
-          size="small"
-          total={total}
-          current={currentPage}
-          showSizeChanger
-          onChange={handleChange}
+        <ListContainer>
+          {isEmpty ? (
+            <NoResult text={t('project.no_result')} to="/projects/create" />
+          ) : displayType === DisplayType.Card ? (
+            <CardView list={projectListShow} onViewDetail={viewDetail} />
+          ) : (
+            <TableView list={projectListShow} onViewDetail={viewDetail} />
+          )}
+        </ListContainer>
+
+        <ProjectDetailDrawer
+          project={project}
+          onClose={() => setDrawerVisible(false)}
+          visible={drawerVisible}
         />
+
+        <Row justify="end">
+          {!isEmpty && (
+            <StyledPagination
+              pageSizeOptions={['12', '24']}
+              pageSize={pageSize}
+              total={total}
+              current={currentPage}
+              showSizeChanger
+              onChange={handleChange}
+            />
+          )}
+        </Row>
       </ListPageLayout>
     </Spin>
   );
   function handleChange(currentPage: number, page_size: number | undefined) {
     setCurrentPage(currentPage);
     setPageSize(Number(page_size));
+  }
+  function viewDetail(project: Project) {
+    setCurrentProject(project);
+    setDrawerVisible(true);
   }
 }
 

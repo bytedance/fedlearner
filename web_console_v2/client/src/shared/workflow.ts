@@ -13,6 +13,8 @@ const {
   PARTICIPANT_COMMITTING,
 } = TransactionState;
 
+// --------------- State judgement ----------------
+
 export function isAwaitParticipantConfig(workflow: Workflow) {
   const { state, target_state, transaction_state } = workflow;
 
@@ -39,9 +41,12 @@ export function isWarmUpUnderTheHood(workflow: Workflow) {
   return (
     state === NEW &&
     target_state === W_READY &&
-    [COORDINATOR_COMMITTING, PARTICIPANT_COMMITTABLE, PARTICIPANT_COMMITTING].includes(
-      transaction_state,
-    )
+    [
+      PARTICIPANT_PREPARE,
+      COORDINATOR_COMMITTING,
+      PARTICIPANT_COMMITTABLE,
+      PARTICIPANT_COMMITTING,
+    ].includes(transaction_state)
   );
 }
 
@@ -81,6 +86,8 @@ export function isCompleted(workflow: Workflow) {
   return state === COMPLETED;
 }
 
+// --------------- Xable judgement ----------------
+
 /**
  * When target_state is not INVALID,
  * means underlying service of two sides are communicating
@@ -91,11 +98,18 @@ export function isOperable(workflow: Workflow) {
   return workflow.target_state === INVALID;
 }
 
+export function isForkable(workflow: Workflow) {
+  const { state } = workflow;
+  return [RUNNING, STOPPED, W_READY].includes(state);
+}
+
+// --------------- General stage getter ----------------
+
 export function getWorkflowStage(workflow: Workflow): { type: StateTypes; text: string } {
   if (isAwaitParticipantConfig(workflow)) {
     return {
       text: i18n.t('workflow.state_configuring'),
-      type: 'primary',
+      type: 'processing',
     };
   }
 
@@ -123,28 +137,28 @@ export function getWorkflowStage(workflow: Workflow): { type: StateTypes; text: 
   if (isReadyToRun(workflow)) {
     return {
       text: i18n.t('workflow.state_ready_to_run'),
-      type: 'primary',
+      type: 'processing',
     };
   }
 
   if (isRunning(workflow)) {
     return {
       text: i18n.t('workflow.state_running'),
-      type: 'primary',
+      type: 'processing',
     };
   }
 
   if (isPreparingStop(workflow)) {
     return {
       text: i18n.t('workflow.state_prepare_stop'),
-      type: 'fail',
+      type: 'error',
     };
   }
 
   if (isStopped(workflow)) {
     return {
       text: i18n.t('workflow.state_stopped'),
-      type: 'fail',
+      type: 'error',
     };
   }
 
@@ -157,6 +171,6 @@ export function getWorkflowStage(workflow: Workflow): { type: StateTypes; text: 
 
   return {
     text: i18n.t('workflow.state_unknown'),
-    type: 'unknown',
+    type: 'default',
   };
 }

@@ -299,6 +299,9 @@ const defaultTheme = {
   headerBackground: 'white',
   commonTiming: 'cubic-bezier(0.4, 0, 0.2, 1)',
   fontFamily: "'nunito_for_arco', 'Helvetica Neue', Helvetica, 'PingFang SC', 'Hiragino Sans GB',  'Microsoft YaHei', '微软雅黑', Arial, sans-serif",
+  headerHeight: '60px',
+  contentOuterPadding: '16px',
+  contentHeight: 'calc(100vh - @header-height - @content-outer-padding * 2)',
 }
 
 export default defaultTheme

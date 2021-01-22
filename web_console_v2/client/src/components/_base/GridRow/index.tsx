@@ -1,4 +1,4 @@
-import React, { FunctionComponent } from 'react';
+import React, { FC } from 'react';
 import { convertToUnit } from 'shared/helpers';
 import styled from 'styled-components';
 
@@ -30,12 +30,16 @@ type Props = {
 /**
  * Row component with ability to specify gap between items
  */
-const GridRow: FunctionComponent<Props> = ({ top, left, ...props }) => {
+const GridRow: FC<Props> = ({ top, left, ...props }) => {
   return (
     <Container
       role="grid"
       {...props}
-      style={{ marginTop: convertToUnit(top), marginLeft: convertToUnit(left) }}
+      style={{
+        marginTop: convertToUnit(top),
+        marginLeft: convertToUnit(left),
+        ...((props as any).style || {}),
+      }}
     >
       {props.children}
     </Container>

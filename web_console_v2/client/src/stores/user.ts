@@ -9,9 +9,8 @@ import { FedUserInfo } from 'typings/auth';
 export const userInfoState = atom<FedUserInfo>({
   key: 'UserInfo',
   default: {
-    id: '',
+    id: store.get(LOCAL_STORAGE_KEYS.current_user)?.id,
     username: '',
-    name: '',
     email: '',
     role: '',
   },
@@ -20,22 +19,21 @@ export const userInfoState = atom<FedUserInfo>({
 export const userInfoQuery = selector({
   key: 'UserInfoQuery',
   get: async ({ get }) => {
-    if (process.env.REACT_APP_ENABLE_FULLY_MOCK) {
-      return get(userInfoState);
-    }
-
     try {
-      const currentUserId = store.get(LOCAL_STORAGE_KEYS.current_user)?.id;
+      const currentUserId = get(userInfoState).id;
 
       if (isNil(currentUserId)) {
         throw new Error(i18n.t('error.please_sign_in'));
       }
       const userinfo = await fetchUserInfo(currentUserId);
 
-      return userinfo.data;
+      return userinfo;
     } catch (error) {
       throw error;
     }
+  },
+  set: ({ set }, newValue: any) => {
+    set(userInfoState, { ...newValue });
   },
 });
 

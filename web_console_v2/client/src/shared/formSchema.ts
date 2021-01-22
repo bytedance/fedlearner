@@ -1,10 +1,10 @@
 import {
-  Job,
   Variable,
   VariableAccessMode,
   VariableComponent,
   WorkflowTemplatePayload,
 } from 'typings/workflow';
+import { Job } from 'typings/job';
 import { FormilySchema } from 'typings/formily';
 import VariableLabel from 'components/VariableLabel/index';
 import { cloneDeep, merge } from 'lodash';
@@ -281,7 +281,7 @@ export function buildFormSchemaFromJob(job: Job): FormilySchema {
   };
 
   return variables.reduce((schema, current, index) => {
-    const worker = componentToWorkersMap[current.widget_schema.component];
+    const worker = componentToWorkersMap[current.widget_schema?.component] || createInput;
 
     current.widget_schema = mergeVariableSchemaWithPresets(current, variablePresets);
     current.widget_schema.index = index;

@@ -1,8 +1,8 @@
 import React, { FC, useState } from 'react';
 import styled from 'styled-components';
-import { Row, Col, Button, Form, Input, Select, Table, message } from 'antd';
+import { Row, Col, Button, Form, Input, Select, Table, message, Spin } from 'antd';
 import { useList } from 'react-use';
-import { Link } from 'react-router-dom';
+import { Link, useHistory } from 'react-router-dom';
 import { useQuery } from 'react-query';
 import { fetchWorkflowList } from 'services/workflow';
 import i18n from 'i18n';
@@ -11,58 +11,77 @@ import { useTranslation } from 'react-i18next';
 import ListPageLayout from 'components/ListPageLayout';
 import { Workflow } from 'typings/workflow';
 import WorkflowStage from './WorkflowStage';
-import { isPendingAccpet } from 'shared/workflow';
-import WorkflowActions from './WorkflowActions';
-import ProjectCell from 'components/ProjectCell';
+import WorkflowActions from '../WorkflowActions';
+import WhichProject from 'components/WhichProject';
+import NoResult from 'components/NoResult';
+import { useRecoilQuery } from 'hooks/recoil';
+import { projectListQuery } from 'stores/projects';
 
 const FilterItem = styled(Form.Item)`
   > .ant-form-item-control {
     width: 227px;
   }
 `;
+const ListContainer = styled.div`
+  display: flex;
+  flex: 1;
+  width: 100%;
+`;
 
-const tableColumns = [
-  {
-    title: i18n.t('workflow.name'),
-    dataIndex: 'name',
-    key: 'name',
-    render: (name: string, record: Workflow) => {
-      if (isPendingAccpet(record)) {
-        return name;
-      }
-      return (
-        <Link to={`/workflows/${record.id}`} rel="nopener">
-          {name}
-        </Link>
-      );
+export const getTableColumns = (
+  options: { onSuccess?: Function; withoutActions?: boolean } = {},
+) => {
+  const ret = [
+    {
+      title: i18n.t('workflow.name'),
+      dataIndex: 'name',
+      key: 'name',
+      render: (name: string, record: Workflow) => {
+        return (
+          <Link to={`/workflows/${record.id}`} rel="nopener">
+            {name}
+          </Link>
+        );
+      },
     },
-  },
-  {
-    title: i18n.t('workflow.col_status'),
-    dataIndex: 'state',
-    name: 'state',
-    render: (_: string, record: Workflow) => <WorkflowStage data={record} />,
-  },
-  {
-    title: i18n.t('workflow.col_project'),
-    dataIndex: 'project_id',
-    name: 'project_id',
-    width: 150,
-    render: (project_id: number) => <ProjectCell id={project_id} />,
-  },
-  {
-    title: i18n.t('workflow.col_date'),
-    dataIndex: 'created_at',
-    name: 'created_at',
-    render: (date: number) => <div>{formatTimestamp(date)}</div>,
-  },
-  {
-    title: i18n.t('workflow.col_actions'),
-    dataIndex: 'created_at',
-    name: 'created_at',
-    render: (_: any, record: Workflow) => <WorkflowActions workflow={record} />,
-  },
-];
+    {
+      title: i18n.t('workflow.col_status'),
+      dataIndex: 'state',
+      name: 'state',
+      render: (_: string, record: Workflow) => <WorkflowStage workflow={record} />,
+    },
+    {
+      title: i18n.t('workflow.col_project'),
+      dataIndex: 'project_id',
+      name: 'project_id',
+      width: 150,
+      render: (project_id: number) => <WhichProject id={project_id} />,
+    },
+    {
+      title: i18n.t('workflow.col_date'),
+      dataIndex: 'created_at',
+      name: 'created_at',
+      render: (date: number) => <div>{formatTimestamp(date)}</div>,
+    },
+  ];
+  if (!options.withoutActions) {
+    ret.push({
+      title: i18n.t('workflow.col_actions'),
+      dataIndex: 'created_at',
+      name: 'created_at',
+      render: (_: any, record: Workflow) => (
+        <WorkflowActions
+          onSuccess={options.onSuccess}
+          workflow={record}
+          type="link"
+          without={['report']}
+        />
+      ),
+    });
+  }
+
+  return ret;
+};
 
 type QueryParams = {
   project?: string;
@@ -72,10 +91,12 @@ type QueryParams = {
 const WorkflowList: FC = () => {
   const { t } = useTranslation();
   const [form] = Form.useForm<QueryParams>();
-  const [projectList] = useList([{ value: '', label: t('all') }]);
-  const [params, setParams] = useState<QueryParams>({ project: '', keyword: '' });
+  const history = useHistory();
+  const [params, setParams] = useState<QueryParams>({ keyword: '' });
 
-  const { isLoading, isError, data: res, error } = useQuery(
+  const projectsQuery = useRecoilQuery(projectListQuery);
+
+  const { isLoading, isError, data: res, error, refetch } = useQuery(
     ['fetchWorkflowList', params.project, params.keyword],
     () => fetchWorkflowList(params),
   );
@@ -84,44 +105,65 @@ const WorkflowList: FC = () => {
     message.error((error as Error).message);
   }
 
-  function handleSearch(values: QueryParams) {
-    setParams(values);
-  }
+  const isEmpty = !res?.data.length;
 
   return (
-    <ListPageLayout title={t('menu.label_workflow')}>
-      <Row gutter={16} justify="space-between" align="middle">
-        <Col>
-          <Link to="/workflows/initiate/basic">
-            <Button size="large" type="primary">
+    <Spin spinning={isLoading}>
+      <ListPageLayout title={t('menu.label_workflow')}>
+        <Row gutter={16} justify="space-between" align="middle">
+          <Col>
+            <Button size="large" type="primary" onClick={goCreate}>
               {t('workflow.create_workflow')}
             </Button>
-          </Link>
-        </Col>
-        <Col>
-          <Form initialValues={{ ...params }} layout="inline" form={form} onFinish={handleSearch}>
-            <FilterItem name="project" label={t('term.project')}>
-              <Select onChange={form.submit}>
-                {projectList.map((item) => (
-                  <Select.Option key={item.value} value={item.value}>
-                    {item.label}
-                  </Select.Option>
-                ))}
-              </Select>
-            </FilterItem>
-            <FilterItem name="keyword">
-              <Input.Search
-                placeholder={t('workflow.placeholder_name_searchbox')}
-                onPressEnter={form.submit}
-              />
-            </FilterItem>
-          </Form>
-        </Col>
-      </Row>
+          </Col>
+          <Col>
+            <Form initialValues={{ ...params }} layout="inline" form={form} onFinish={onSearch}>
+              <FilterItem name="project" label={t('term.project')}>
+                <Select
+                  onChange={form.submit}
+                  onClear={form.submit}
+                  loading={projectsQuery.isLoading}
+                  disabled={!!projectsQuery.error}
+                  allowClear
+                  placeholder={t('all')}
+                >
+                  {projectsQuery.data?.map((item) => (
+                    <Select.Option key={item.id} value={item.id}>
+                      {item.name}
+                    </Select.Option>
+                  ))}
+                </Select>
+              </FilterItem>
+              <FilterItem name="keyword">
+                <Input.Search
+                  placeholder={t('workflow.placeholder_name_searchbox')}
+                  onPressEnter={form.submit}
+                />
+              </FilterItem>
+            </Form>
+          </Col>
+        </Row>
 
-      <Table loading={isLoading} dataSource={res?.data || []} columns={tableColumns} />
-    </ListPageLayout>
+        <ListContainer>
+          {isEmpty ? (
+            <NoResult text={t('workflow.no_result')} to="/workflows/initiate/basic" />
+          ) : (
+            <Table dataSource={res?.data || []} columns={getTableColumns({ onSuccess })} />
+          )}
+        </ListContainer>
+      </ListPageLayout>
+    </Spin>
   );
+
+  function onSearch(values: QueryParams) {
+    setParams(values);
+  }
+  function onSuccess() {
+    refetch();
+  }
+  function goCreate() {
+    history.push('/workflows/initiate/basic');
+  }
 };
 
 export default WorkflowList;

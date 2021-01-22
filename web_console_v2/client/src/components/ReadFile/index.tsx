@@ -10,7 +10,7 @@ import { RcFile } from 'antd/lib/upload';
 
 type Props = React.ComponentProps<typeof Upload> & {
   reader: (file: File) => Promise<any>;
-  maxSize?: number;
+  maxSize?: number; // unit: MB
   value?: any;
   onChange?: (file: File) => void;
   onRemoveFile?: (...args: any[]) => any;

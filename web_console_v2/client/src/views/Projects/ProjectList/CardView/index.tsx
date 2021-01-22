@@ -8,8 +8,10 @@ const Container = styled.div`
 
   display: grid;
   grid-template-columns: repeat(var(--cols), 1fr);
+  align-items: start;
   justify-content: space-between;
   grid-gap: 24px 20px;
+  width: 100%;
 
   @media screen and (min-width: 1920px) and (max-width: 2560px) {
     --cols: 5;
@@ -29,14 +31,15 @@ const Container = styled.div`
 `;
 
 interface CardListProps {
-  projectList: Project[];
+  list: Project[];
+  onViewDetail: (project: Project) => void;
 }
 
-function CardList({ projectList }: CardListProps): ReactElement {
+function CardList({ list, onViewDetail }: CardListProps): ReactElement {
   return (
     <Container>
-      {projectList.map((item, index) => (
-        <ProjectCard item={item} key={'p-' + index} />
+      {list.map((item, index) => (
+        <ProjectCard item={item} key={'p-' + index} onViewDetail={onViewDetail} />
       ))}
     </Container>
   );

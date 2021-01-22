@@ -33,7 +33,7 @@ const AppMainContent = styled.main`
   display: flex;
   flex-direction: column;
   grid-area: main-content;
-  padding: 16px;
+  padding: var(--contentOuterPadding);
   overflow: auto;
 `;
 

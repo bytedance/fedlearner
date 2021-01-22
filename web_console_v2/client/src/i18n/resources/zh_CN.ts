@@ -24,6 +24,7 @@ const messages = {
     more: '更多',
     submit: '确认',
     cancel: '取消',
+    close: '关闭',
     previous_step: '上一步',
     next_step: '下一步',
     operation: '操作',

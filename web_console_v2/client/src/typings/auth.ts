@@ -1,7 +1,6 @@
 export interface FedUserInfo {
   id: string;
   username?: string;
-  name: string;
   email?: string;
   role?: string;
 }

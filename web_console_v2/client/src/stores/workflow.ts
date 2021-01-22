@@ -54,6 +54,11 @@ export const workflowInEditing = atom<Workflow>({
   default: (null as unknown) as Workflow,
 });
 
+export const peerConfigInPairing = atom<WorkflowConfig>({
+  key: 'PeerConfigInPairing',
+  default: (null as unknown) as WorkflowConfig,
+});
+
 // Template being used when creating workflow
 export const templateInUsing = atom<WorkflowTemplate>({
   key: 'templateInUsing',

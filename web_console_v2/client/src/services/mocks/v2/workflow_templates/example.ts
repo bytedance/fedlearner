@@ -1,10 +1,4 @@
-import {
-  JobDependencyType,
-  JobType,
-  VariableAccessMode,
-  VariableComponent,
-  WorkflowTemplate,
-} from 'typings/workflow';
+import { JobType, VariableAccessMode, VariableComponent, WorkflowTemplate } from 'typings/workflow';
 import { DeepPartial } from 'utility-types';
 
 // Workflow template demo
@@ -20,7 +14,7 @@ const exampleTemplate: { data: DeepPartial<WorkflowTemplate>; status: number } =
       job_definitions: [
         {
           name: 'Initiative',
-          type: JobType.RAW_DATA,
+          job_type: JobType.RAW_DATA,
           is_federated: true,
           variables: [
             {
@@ -103,9 +97,9 @@ const exampleTemplate: { data: DeepPartial<WorkflowTemplate>; status: number } =
         },
         {
           name: 'Raw data upload',
-          type: JobType.RAW_DATA,
+          job_type: JobType.RAW_DATA,
           is_federated: true,
-          dependencies: [{ source: 'Initiative', type: JobDependencyType.MANUAL }],
+          dependencies: [{ source: 'Initiative' }],
           variables: [
             {
               name: 'job_name2',
@@ -132,9 +126,9 @@ const exampleTemplate: { data: DeepPartial<WorkflowTemplate>; status: number } =
 
         {
           name: 'Raw data process',
-          type: JobType.NN_MODEL_TRANINING,
+          job_type: JobType.NN_MODEL_TRANINING,
           is_federated: true,
-          dependencies: [{ source: 'Initiative', type: JobDependencyType.MANUAL }],
+          dependencies: [{ source: 'Initiative' }],
           variables: [
             {
               name: 'job_name3',
@@ -150,9 +144,9 @@ const exampleTemplate: { data: DeepPartial<WorkflowTemplate>; status: number } =
         },
         {
           name: 'Raw data save',
-          type: JobType.RAW_DATA,
+          job_type: JobType.RAW_DATA,
           is_federated: true,
-          dependencies: [{ source: 'Initiative', type: JobDependencyType.MANUAL }],
+          dependencies: [{ source: 'Initiative' }],
           variables: [
             {
               name: 'job_name',
@@ -167,12 +161,12 @@ const exampleTemplate: { data: DeepPartial<WorkflowTemplate>; status: number } =
         },
         {
           name: 'Training',
-          type: JobType.NN_MODEL_TRANINING,
+          job_type: JobType.NN_MODEL_TRANINING,
           is_federated: true,
           dependencies: [
-            { source: 'Raw data upload', type: JobDependencyType.ON_COMPLETE },
-            { source: 'Raw data process', type: JobDependencyType.ON_COMPLETE },
-            { source: 'Raw data save', type: JobDependencyType.ON_COMPLETE },
+            { source: 'Raw data upload' },
+            { source: 'Raw data process' },
+            { source: 'Raw data save' },
           ],
           variables: [
             {
@@ -188,9 +182,9 @@ const exampleTemplate: { data: DeepPartial<WorkflowTemplate>; status: number } =
         },
         {
           name: 'Finish/clear',
-          type: JobType.TREE_MODEL_EVALUATION,
+          job_type: JobType.TREE_MODEL_EVALUATION,
           is_federated: true,
-          dependencies: [{ source: 'Training', type: JobDependencyType.ON_COMPLETE }],
+          dependencies: [{ source: 'Training' }],
           variables: [
             {
               name: 'job_name6',
@@ -220,7 +214,7 @@ export const complexDepsTemplate: { data: DeepPartial<WorkflowTemplate>; status:
       job_definitions: [
         {
           name: 'Initiative',
-          type: JobType.RAW_DATA,
+          job_type: JobType.RAW_DATA,
           is_federated: true,
           variables: [
             {
@@ -237,9 +231,9 @@ export const complexDepsTemplate: { data: DeepPartial<WorkflowTemplate>; status:
         },
         {
           name: 'Raw data upload',
-          type: JobType.RAW_DATA,
+          job_type: JobType.RAW_DATA,
           is_federated: true,
-          dependencies: [{ source: 'Initiative', type: JobDependencyType.MANUAL }],
+          dependencies: [{ source: 'Initiative' }],
           variables: [
             {
               name: 'job_name2',
@@ -255,9 +249,9 @@ export const complexDepsTemplate: { data: DeepPartial<WorkflowTemplate>; status:
 
         {
           name: 'Raw data process',
-          type: JobType.NN_MODEL_TRANINING,
+          job_type: JobType.NN_MODEL_TRANINING,
           is_federated: true,
-          dependencies: [{ source: 'Initiative', type: JobDependencyType.MANUAL }],
+          dependencies: [{ source: 'Initiative' }],
           variables: [
             {
               name: 'job_name3',
@@ -273,19 +267,16 @@ export const complexDepsTemplate: { data: DeepPartial<WorkflowTemplate>; status:
         },
         {
           name: 'Raw data save',
-          type: JobType.RAW_DATA,
+          job_type: JobType.RAW_DATA,
           is_federated: true,
-          dependencies: [{ source: 'Initiative', type: JobDependencyType.MANUAL }],
+          dependencies: [{ source: 'Initiative' }],
           variables: [],
         },
         {
           name: 'Training',
-          type: JobType.NN_MODEL_TRANINING,
+          job_type: JobType.NN_MODEL_TRANINING,
           is_federated: true,
-          dependencies: [
-            { source: 'Raw data upload', type: JobDependencyType.ON_COMPLETE },
-            { source: 'Raw data process', type: JobDependencyType.ON_COMPLETE },
-          ],
+          dependencies: [{ source: 'Raw data upload' }, { source: 'Raw data process' }],
           variables: [
             {
               name: 'job_name2',
@@ -300,12 +291,9 @@ export const complexDepsTemplate: { data: DeepPartial<WorkflowTemplate>; status:
         },
         {
           name: 'Finish/clear',
-          type: JobType.TREE_MODEL_EVALUATION,
+          job_type: JobType.TREE_MODEL_EVALUATION,
           is_federated: true,
-          dependencies: [
-            { source: 'Training', type: JobDependencyType.ON_COMPLETE },
-            { source: 'Raw data save', type: JobDependencyType.ON_COMPLETE },
-          ],
+          dependencies: [{ source: 'Training' }, { source: 'Raw data save' }],
           variables: [
             {
               name: 'job_name6',
@@ -335,28 +323,28 @@ export const xShapeTemplate: { data: DeepPartial<WorkflowTemplate> } = {
       job_definitions: [
         {
           name: '1-1',
-          type: JobType.RAW_DATA,
+          job_type: JobType.RAW_DATA,
           is_federated: true,
           variables: [],
         },
         {
           name: '1-2',
-          type: JobType.RAW_DATA,
+          job_type: JobType.RAW_DATA,
           is_federated: true,
           variables: [],
         },
         {
           name: '2-1',
-          type: JobType.RAW_DATA,
+          job_type: JobType.RAW_DATA,
           is_federated: true,
-          dependencies: [{ source: '1-2', type: JobDependencyType.ON_COMPLETE }],
+          dependencies: [{ source: '1-2' }],
           variables: [],
         },
         {
           name: '2-2',
-          type: JobType.RAW_DATA,
+          job_type: JobType.RAW_DATA,
           is_federated: true,
-          dependencies: [{ source: '1-1', type: JobDependencyType.ON_COMPLETE }],
+          dependencies: [{ source: '1-1' }],
           variables: [],
         },
       ],

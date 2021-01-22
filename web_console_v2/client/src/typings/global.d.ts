@@ -6,6 +6,7 @@ declare type DateTime = number;
 declare namespace JSX {
   interface IntrinsicAttributes extends JSX.IntrinsicAttributes {
     key?: string | number;
+    style?: React.CSSProperties;
   }
 }
 

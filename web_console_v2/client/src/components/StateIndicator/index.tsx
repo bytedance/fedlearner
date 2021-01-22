@@ -1,6 +1,6 @@
 import React, { FC } from 'react';
 import styled from 'styled-components';
-import { Tooltip } from 'antd';
+import { Tooltip, Tag } from 'antd';
 import { QuestionCircleOutlined } from '@ant-design/icons';
 
 const Container = styled.div`
@@ -25,10 +25,10 @@ const Container = styled.div`
   &.is-warning {
     --color: var(--orange6);
   }
-  &.is-fail {
+  &.is-error {
     --color: #fd5165;
   }
-  &.is-primary {
+  &.is-processing {
     --color: var(--primaryColor);
   }
 `;
@@ -38,14 +38,18 @@ const QuestionMark = styled(QuestionCircleOutlined)`
   color: var(--gray6);
 `;
 
-export type StateTypes = 'primary' | 'success' | 'warning' | 'fail' | 'unknown';
+export type StateTypes = 'processing' | 'success' | 'warning' | 'error' | 'default';
 type Props = {
   tip?: string;
   type: StateTypes;
   text: string;
+  tag?: boolean;
 };
 
-const StateIndicator: FC<Props> = ({ text, type = 'unknown', tip }) => {
+const StateIndicator: FC<Props> = ({ text, type = 'default', tip, tag }) => {
+  if (tag) {
+    return <Tag color={type}>{text}</Tag>;
+  }
   return (
     <Container className={`is-${type}`}>
       {text}

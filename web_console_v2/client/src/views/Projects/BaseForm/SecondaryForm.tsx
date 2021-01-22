@@ -4,8 +4,11 @@ import styled from 'styled-components';
 const Container = styled.div`
   background-color: white;
   padding: 24px;
-  margin-top: 14px;
   border-radius: 4px;
+
+  &:not(:first-of-type) {
+    margin-top: 14px;
+  }
 `;
 
 const Header = styled.div`

@@ -1,20 +1,25 @@
 import React, { ReactElement, useState } from 'react';
 import styled, { CSSProperties } from 'styled-components';
-import { Divider } from 'antd';
 import { Project } from 'typings/project';
 import ProjectConnectionStatus from '../../ConnectionStatus';
 import CreateTime from '../../CreateTime';
 import ProjectName from '../../ProjectName';
 import ProjectMoreActions from '../../ProjectMoreActions';
-import Detail from '../../ProjectDetailDrawer';
-import { useHistory } from 'react-router-dom';
+import { Link, useHistory } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { Button } from 'antd';
+import GridRow from 'components/_base/GridRow';
 
 const Container = styled.div`
   display: flex;
   width: 100%;
+  height: 60px;
   align-items: center;
   padding: 0 16px;
+
+  &:not(:last-of-type) {
+    border-bottom: 1px solid var(--darkGray10);
+  }
 `;
 
 const ContainerItem = styled.div`
@@ -25,120 +30,79 @@ const ContainerItem = styled.div`
   }
 `;
 
-const DescribeContainer = styled.div``;
-
-const ActionContainer = styled.div`
-  display: flex;
-  line-height: 50px;
-  color: var(--primaryColor);
+const Cell = styled.div`
+  font-size: 13px;
 `;
 
-const ActionItemContainer = styled.div`
-  cursor: pointer;
-  &:not(:first-child) {
-    margin-left: 16px;
-  }
-`;
-
-interface TableConfig {
-  i18nKey: string;
-  width: number;
-}
 interface TableItemProps {
-  tableConfigs: TableConfig[];
+  tableConfigs: {
+    i18nKey: string;
+    width: number;
+  }[];
   item: Project;
+  onViewDetail: (project: Project) => void;
 }
 
-interface DescribeProps {
-  text: string;
-  style: CSSProperties;
-}
-
-function Describe({ text, style }: DescribeProps): ReactElement {
-  return <DescribeContainer style={style}>{text}</DescribeContainer>;
-}
-
-function Action({ project }: { project: Project }): ReactElement {
-  const [isDrawerVisible, setIsDrawerVisible] = useState(false);
-  const history = useHistory();
+function Action({ project, onViewDetail }: any): ReactElement {
   const { t } = useTranslation();
+  const history = useHistory();
+
   return (
-    <ActionContainer>
-      <ActionItemContainer>{t('project.check_connection')}</ActionItemContainer>
-      <ActionItemContainer>{t('project.create_work_flow')}</ActionItemContainer>
-      <ActionItemContainer>
-        <ProjectMoreActions
-          style={{ marginTop: '13px' }}
-          onEdit={() => {
-            history.push({
-              pathname: '/projects/edit',
-              state: {
-                project,
-              },
-            });
-          }}
-          onViewDetail={() => setIsDrawerVisible(true)}
-        />
-      </ActionItemContainer>
-      <Detail
-        title={project.name}
-        onClose={() => setIsDrawerVisible(false)}
-        visible={isDrawerVisible}
-        project={project}
+    <GridRow style={{ marginLeft: '-12px' }}>
+      <Button size="small" type="link">
+        {t('project.check_connection')}
+      </Button>
+      <Button size="small" type="link">
+        {t('project.create_work_flow')}
+      </Button>
+
+      <ProjectMoreActions
+        style={{ marginTop: '13px' }}
+        onEdit={() => {
+          history.push(`/projects/edit/${project.id}`);
+        }}
+        onViewDetail={() => onViewDetail(project)}
       />
-    </ActionContainer>
+    </GridRow>
   );
 }
 
-const getCellContent = function (i18nKey: string, project: Project): ReactElement {
+const getCellContent = ({
+  project,
+  i18nKey,
+  onViewDetail,
+}: {
+  i18nKey: string;
+  project: Project;
+  onViewDetail: (project: Project) => void;
+}) => {
   switch (i18nKey) {
     case 'project.name':
-      return (
-        <ProjectName
-          text={project.name}
-          style={{ color: '#286AF4', lineHeight: '50px', fontSize: '13px', marginLeft: '0' }}
-        />
-      );
-    case 'project.connection_status':
-      return <ProjectConnectionStatus connectionStatus={1} />;
+      return <Button onClick={() => onViewDetail(project)}>{project.name}</Button>;
     case 'project.workflow_number':
-      return (
-        <Describe
-          text={String(project.num_workflow)}
-          style={{ lineHeight: '50px', color: '#1A2233', fontSize: '13px' }}
-        />
-      );
+      return <Cell>{project.num_workflow}</Cell>;
     case 'project.creator':
-      // fixme
-      return (
-        <Describe
-          text={project.config.participants[0].name}
-          style={{ lineHeight: '50px', color: '#1A2233', fontSize: '13px' }}
-        />
-      );
+      return <Cell>{project.config.participants[0].name}</Cell>;
     case 'project.creat_time':
       return (
         <CreateTime time={project.created_at} style={{ lineHeight: '50px', color: '#1A2233' }} />
       );
     case 'operation':
-      return <Action project={project} />;
+      return <Action project={project} onViewDetail={onViewDetail} />;
     default:
       return null as never;
   }
 };
 
-function TableItem({ tableConfigs, item }: TableItemProps): ReactElement {
+function TableItem({ tableConfigs, item: project, onViewDetail }: TableItemProps): ReactElement {
   return (
-    <>
-      <Container>
-        {tableConfigs.map((i) => (
-          <ContainerItem style={{ flex: i.width }} key={i.i18nKey}>
-            {getCellContent(i.i18nKey, item)}
-          </ContainerItem>
-        ))}
-      </Container>
-      <Divider style={{ margin: 0 }} />
-    </>
+    <Container>
+      {tableConfigs.map((item) => (
+        <ContainerItem style={{ flex: item.width }} key={item.i18nKey}>
+          {getCellContent({ i18nKey: item.i18nKey, project, onViewDetail })}
+        </ContainerItem>
+      ))}
+    </Container>
   );
 }
 

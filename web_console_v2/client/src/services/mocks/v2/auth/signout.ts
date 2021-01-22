@@ -1,6 +1,4 @@
-const res = {
-  data: null,
+export const post = {
+  data: { success: true },
   status: 204,
 };
-
-export default res;

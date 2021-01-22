@@ -5,12 +5,13 @@ import GridRow from 'components/_base/GridRow';
 import { QuestionCircle } from 'components/IconPark';
 
 const Container = styled(Card)`
-  min-height: calc(100vh - 60px - 32px);
+  height: var(--contentHeight);
 
   > .ant-card-body {
     display: flex;
     flex-direction: column;
     gap: 18px;
+    height: 100%;
     padding: 22px 24px;
 
     @supports (gap: 18px) {
