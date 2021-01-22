@@ -1,5 +1,7 @@
 import { useQuery } from 'react-query';
+import { useSetRecoilState } from 'recoil';
 import { checkConnection } from 'services/project';
+import { forceReloadProjectList } from 'stores/projects';
 import { ConnectionStatus, Project } from 'typings/project';
 
 export function useCheckConnection(project: Project): [ConnectionStatus, Function] {
@@ -17,4 +19,12 @@ export function useCheckConnection(project: Project): [ConnectionStatus, Functio
   const status = checkQuery.isFetching ? ConnectionStatus.Checking : successOrFailed;
 
   return [status, checkQuery.refetch];
+}
+
+export function useReloadProjectList() {
+  const setter = useSetRecoilState(forceReloadProjectList);
+
+  return function () {
+    setter(Math.random());
+  };
 }

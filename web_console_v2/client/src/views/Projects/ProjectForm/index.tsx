@@ -17,6 +17,7 @@ import ReadFile from 'components/ReadFile';
 import { readAsBinaryStringFromFile } from 'shared/file';
 import GridRow from 'components/_base/GridRow';
 import i18n from 'i18n';
+import { useReloadProjectList } from 'hooks/project';
 
 const Container = styled.div`
   flex: 1;
@@ -79,6 +80,7 @@ function ProjectForm({ onSubmit, isEdit, initialValues }: Props): ReactElement {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
   const history = useHistory();
+  const reloadProjectList = useReloadProjectList();
 
   const defaultValues: ProjectFormInitialValues = initialValues ?? defaultInitialValues;
   const [certificateConfigType, setCertificateConfigType] = useState(
@@ -262,7 +264,8 @@ function ProjectForm({ onSubmit, isEdit, initialValues }: Props): ReactElement {
         };
         await onSubmit(params);
       }
-      message.success(isEdit ? i18n.t('project.edit_success') : i18n.t('project.create_success'));
+      message.success(edit ? i18n.t('project.edit_success') : i18n.t('project.create_success'));
+      reloadProjectList();
       backToList();
     } catch (error) {
       message.error(error.message);
