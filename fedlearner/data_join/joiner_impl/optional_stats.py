@@ -75,12 +75,12 @@ class OptionalStats:
         tags = copy.deepcopy(self._tags)
         for field in self._stats_fields:
             value = item.optional_fields.get(field, '#None#')
-            item_stat[field] = value
+            item_stat[field] = str(value)
             self._stats[kind]['{}_{}'.format(field, value)] += 1
         tags.update(item_stat)
-        tags['example_id'] = item.example_id
-        tags['raw_id'] = item.raw_id
-        tags['event_time'] = item.event_time
+        tags['example_id'] = str(item.example_id)
+        tags['raw_id'] = str(item.raw_id)
+        tags['event_time'] = str(item.event_time)
         metrics.emit_store(name='datajoin', value=0, tags=tags)
 
     def need_stats(self):
