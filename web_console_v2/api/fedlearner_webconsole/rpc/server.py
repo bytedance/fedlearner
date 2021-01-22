@@ -46,6 +46,7 @@ class RPCServerServicer(service_pb2_grpc.WebConsoleV2ServiceServicer):
                     code=common_pb2.STATUS_UNAUTHORIZED,
                     msg=repr(e)))
         except Exception as e:
+            logging.error('CheckConnection rpc server error: %s', repr(e))
             return service_pb2.CheckConnectionResponse(
                 status=common_pb2.Status(
                     code=common_pb2.STATUS_UNKNOWN_ERROR,
@@ -60,6 +61,7 @@ class RPCServerServicer(service_pb2_grpc.WebConsoleV2ServiceServicer):
                     code=common_pb2.STATUS_UNAUTHORIZED,
                     msg=repr(e)))
         except Exception as e:
+            logging.error('UpdateWorkflowState rpc server error: %s', repr(e))
             return service_pb2.UpdateWorkflowStateResponse(
                 status=common_pb2.Status(
                     code=common_pb2.STATUS_UNKNOWN_ERROR,
@@ -74,6 +76,7 @@ class RPCServerServicer(service_pb2_grpc.WebConsoleV2ServiceServicer):
                     code=common_pb2.STATUS_UNAUTHORIZED,
                     msg=repr(e)))
         except Exception as e:
+            logging.error('GetWorkflow rpc server error: %s', repr(e))
             return service_pb2.GetWorkflowResponse(
                 status=common_pb2.Status(
                     code=common_pb2.STATUS_UNKNOWN_ERROR,
@@ -154,7 +157,7 @@ class RpcServer(object):
                 assert state == WorkflowState.NEW
                 assert target_state == WorkflowState.READY
                 workflow = Workflow(
-                    name=request.workflow_name,
+                    name=name,
                     project_id=project.id,
                     state=state, target_state=target_state,
                     transaction_state=transaction_state)
@@ -172,6 +175,8 @@ class RpcServer(object):
 
     def _filter_workflow(self, workflow, modes):
         # filter peer-readable and peer-writable variables
+        if workflow is None:
+            return
         var_list = [
             i for i in workflow.variables if i.access_mode in modes]
         workflow.ClearField('variables')
@@ -200,13 +205,14 @@ class RpcServer(object):
                 ])
             # job details
             jobs = [service_pb2.JobDetail(
-                job_name=job.name, job_state=job.state)
+                name=job.name, state=job.get_state_for_front())
                 for job in workflow.get_jobs()]
             # fork info
             forked_from = ''
             if workflow.forked_from:
                 forked_from = Workflow.query.get(workflow.forked_from).name
             return service_pb2.GetWorkflowResponse(
+                name=request.workflow_name,
                 status=common_pb2.Status(
                     code=common_pb2.STATUS_SUCCESS),
                 config=config,

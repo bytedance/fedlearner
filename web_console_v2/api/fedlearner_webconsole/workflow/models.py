@@ -17,7 +17,7 @@
 
 import logging
 import enum
-
+from datetime import datetime
 from sqlalchemy.sql import func
 from fedlearner_webconsole.db import db, to_dict_mixin
 from fedlearner_webconsole.proto import (
@@ -28,6 +28,7 @@ from fedlearner_webconsole.job.models import (
     Job, JobState, JobType, JobDependency
 )
 from fedlearner_webconsole.rpc.client import RpcClient
+
 
 class WorkflowState(enum.Enum):
     INVALID = 0
@@ -112,8 +113,8 @@ def _merge_workflow_config(base, new, access_mode):
         _merge_variables(base_job.variables, new_job.variables, access_mode)
 
 
-
-@to_dict_mixin(ignores=['forked_from', 'fork_proposal_config'],
+@to_dict_mixin(ignores=['forked_from',
+                        'fork_proposal_config'],
                extras={
                    'config': (lambda wf: wf.get_config()),
                    'job_ids': (lambda wf: wf.get_job_ids()),
@@ -150,10 +151,14 @@ class Workflow(db.Model):
     transaction_state = db.Column(db.Enum(TransactionState),
                                   default=TransactionState.READY)
     transaction_err = db.Column(db.Text())
+
+    start_at = db.Column(db.Integer)
+    stop_at = db.Column(db.Integer)
+
     created_at = db.Column(db.DateTime(timezone=True),
                            server_default=func.now())
     updated_at = db.Column(db.DateTime(timezone=True),
-                           server_onupdate=func.now(),
+                           onupdate=func.now(),
                            server_default=func.now())
 
     owned_jobs = db.relationship('Job', back_populates='workflow')
@@ -301,12 +306,14 @@ class Workflow(db.Model):
                 'Workflow not in prepare state'
 
         if self.target_state == WorkflowState.STOPPED:
+            self.stop_at = int(datetime.utcnow().timestamp())
             for job in self.owned_jobs:
                 job.stop()
         elif self.target_state == WorkflowState.READY:
             self._setup_jobs()
             self.fork_proposal_config = None
         elif self.target_state == WorkflowState.RUNNING:
+            self.start_at = int(datetime.utcnow().timestamp())
             for job in self.owned_jobs:
                 if not job.get_config().is_manual:
                     job.schedule()
@@ -340,7 +347,6 @@ class Workflow(db.Model):
                     'Job %d not found'%j
                 # TODO: check forked jobs does not depend on non-forked jobs
             else:
-                print('create job', f'{self.name}-{job_def.name}')
                 job = Job(name=f'{self.name}-{job_def.name}',
                           job_type=JobType(job_def.type),
                           config=job_def.SerializeToString(),
@@ -388,7 +394,6 @@ class Workflow(db.Model):
         if self.transaction_state == TransactionState.COORDINATOR_PREPARE:
             # TODO(tjulinfan): validate if the config is legal or not
             return bool(self.config)
-
         peer_workflow = self._get_peer_workflow()
         if peer_workflow.forked_from:
             base_workflow = Workflow.query.filter(

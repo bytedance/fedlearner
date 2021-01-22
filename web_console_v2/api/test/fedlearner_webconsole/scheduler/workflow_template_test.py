@@ -13,8 +13,7 @@
 # limitations under the License.
 
 # coding: utf-8
-
-from google.protobuf import text_format
+from google.protobuf.json_format import MessageToDict
 from fedlearner_webconsole.proto.workflow_definition_pb2 import (
     WorkflowDefinition, JobDefinition, JobDependency
 )
@@ -729,7 +728,9 @@ def make_workflow_template():
         ])
     
     return workflow
-
-
+import json
 if __name__ == '__main__':
-    print((make_workflow_template()))
+    print(json.dumps(MessageToDict(
+                        make_workflow_template(),
+                        preserving_proto_field_name=True,
+                        including_default_value_fields=True)))

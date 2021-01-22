@@ -161,6 +161,31 @@ class FakeK8sClient(K8sClient):
             'metadata': {
                 'name': custom_object_name,
                 'namesapce': namespace
+            },
+            'status': {
+                'appState': 'FLStateRunning',
+                'flReplicaStatus':{
+                    'Master': {
+                        'active': {
+                            'laomiao-raw-data-1223-v1-follower'
+                            '-master-0-717b53c4-'
+                            'fef7-4d65-a309-63cf62494286': {}
+                        }
+
+                    },
+                    'Worker': {
+                        'active': {
+                            'laomiao-raw-data-1223-v1-follower'
+                            '-worker-0-61e49961-'
+                            'e6dd-4015-a246-b6d25e69a61c': {},
+                            'laomiao-raw-data-1223-v1-follower'
+                            '-worker-1-accef16a-'
+                            '317f-440f-8f3f-7dd5b3552d25': {}
+                        }
+
+                    }
+
+                }
             }
         }
 

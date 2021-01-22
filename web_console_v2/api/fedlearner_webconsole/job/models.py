@@ -50,9 +50,10 @@ def merge(x, y):
 
 
 @to_dict_mixin(extras={
-    'flapp': (lambda job: job.get_flapp()),
-    'pods': (lambda job: job.get_pods()),
-    'config': (lambda job: job.get_config())
+    'state': (lambda job: job.get_state_for_front()),
+    'pods': (lambda job: job.get_pods_for_front()),
+    'config': (lambda job: job.get_config()),
+    'complete_at': (lambda job: job.get_complete_at())
 })
 class Job(db.Model):
     __tablename__ = 'job_v2'
@@ -73,7 +74,7 @@ class Job(db.Model):
                            server_default=func.now())
     updated_at = db.Column(db.DateTime(timezone=True),
                            server_default=func.now(),
-                           server_onupdate=func.now())
+                           onupdate=func.now())
     deleted_at = db.Column(db.DateTime(timezone=True))
 
     project = db.relationship(Project)
@@ -98,19 +99,57 @@ class Job(db.Model):
         self.pods_snapshot = json.dumps(pods)
 
     def get_flapp(self):
-        # TODO: remove update snapshot to scheduler
         if self.state == JobState.STARTED:
-            self._set_snapshot_flapp()
+            return self._k8s_client.list_resource_of_custom_object(
+                CrdKind.FLAPP, self.name, 'pods',
+                self.project.get_namespace())
         if self.flapp_snapshot is not None:
             return json.loads(self.flapp_snapshot)
         return None
 
     def get_pods(self):
         if self.state == JobState.STARTED:
-            self._set_snapshot_pods()
+            return self._k8s_client.list_resource_of_custom_object(
+            CrdKind.FLAPP, self.name, 'pods', self.project.get_namespace())
         if self.pods_snapshot is not None:
             return json.loads(self.pods_snapshot)
         return None
+
+    def get_pods_for_front(self):
+        result = []
+        flapp = self.get_flapp()
+        if flapp is not None \
+                and 'status' in flapp \
+                and 'flReplicaStatus' in flapp['status']:
+            replicas = flapp['status']['flReplicaStatus']
+            for pod_type in replicas:
+                for state in replicas[pod_type]:
+                    for pod in replicas[pod_type][state]:
+                        result.append({'name': pod,
+                                       'state': state,
+                                       'pod_type': pod_type})
+        return result
+
+    def get_state_for_front(self):
+        if self.state == JobState.STARTED:
+            if self.is_complete():
+                return 'COMPLETE'
+            if self.is_failed():
+                return 'FAILED'
+            return 'RUNNING'
+        if self.state == JobState.STOPPED:
+            if self.get_flapp() is None:
+                return 'NEW'
+        return self.state.name
+
+    def is_failed(self):
+        flapp = self.get_flapp()
+        if flapp is None \
+                or 'status' not in flapp \
+                or 'appState' not in flapp['status']:
+            return False
+        return flapp['status']['appState'] in ['FLStateFailed',
+                                               'FLStateShutDown']
 
     def is_complete(self):
         flapp = self.get_flapp()
@@ -119,6 +158,14 @@ class Job(db.Model):
                 or 'appState' not in flapp['status']:
             return False
         return flapp['status']['appState'] == 'FLStateComplete'
+
+    def get_complete_at(self):
+        flapp = self.get_flapp()
+        if flapp is None \
+                or 'status' not in flapp \
+                or 'complete_at' not in flapp['status']:
+            return None
+        return flapp['status']['complete_at']
 
     def stop(self):
         if self.state == JobState.STARTED:
