@@ -71,15 +71,15 @@ class OptionalStats:
         assert kind in ('joined', 'unjoined')
         if item.optional_fields == common.NoOptionalFields:
             return
+        item_stat = {'joined': int(kind == 'joined')}
+        tags = copy.deepcopy(self._tags)
         for field in self._stats_fields:
             value = item.optional_fields.get(field, '#None#')
-            tags = copy.deepcopy(self._tags)
-            tags.update({'stat_field': field,
-                         'field_value': value})
+            item_stat[field] = value
             self._stats[kind]['{}_{}'.format(field, value)] += 1
-            metrics.emit_store(name='optional_stats',
-                               value=int(kind == 'joined'),
-                               tags=tags)
+        tags.update(item_stat)
+        print(tags)
+        metrics.emit_store(name='stat', value='datajoin', tags=tags)
 
     def need_stats(self):
         """
