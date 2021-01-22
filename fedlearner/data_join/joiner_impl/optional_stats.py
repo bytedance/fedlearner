@@ -3,6 +3,7 @@ import logging
 import random
 from collections import defaultdict
 from itertools import chain
+from datetime import datetime
 
 import fedlearner.common.data_join_service_pb2 as dj_pb
 from fedlearner.common import metrics
@@ -77,10 +78,24 @@ class OptionalStats:
             value = item.optional_fields.get(field, '#None#')
             item_stat[field] = str(value)
             self._stats[kind]['{}_{}'.format(field, value)] += 1
+        event_time = str(item.event_time)
+        if len(event_time) == 8:
+            timestamp = datetime.timestamp(
+                datetime.strptime(event_time, '%Y%m%d')
+            )
+        elif len(event_time) == 14:
+            timestamp = datetime.timestamp(
+                datetime.strptime(event_time, '%Y%m%d%H%M%S')
+            )
+        elif event_time.isdigit():
+            timestamp = int(event_time)
+        else:
+            timestamp = 0
         tags.update(item_stat)
         tags['example_id'] = str(item.example_id)
         tags['raw_id'] = str(item.raw_id)
-        tags['event_time'] = str(item.event_time)
+        tags['event_time'] = event_time
+        tags['timestamp'] = timestamp
         metrics.emit_store(name='datajoin', value=0, tags=tags)
 
     def need_stats(self):
