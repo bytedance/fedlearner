@@ -60,6 +60,7 @@ class DefaultFileManager(FileManagerBase):
     def can_handle(self, path):
         return path.startswith('/')
 
+    # TODO: use named tuple as return
     def ls(self, path: str, recursive=False) -> List[Dict]:
 
         def _get_file_stats(path: str):
@@ -116,7 +117,7 @@ class DefaultFileManager(FileManagerBase):
 
     def mkdir(self, path: str) -> bool:
         try:
-            os.makedirs(path)
+            os.makedirs(path, exist_ok=True)
             return True
         except Exception as e:  # pylint: disable=broad-except
             logging.error('Error during create %s', e)

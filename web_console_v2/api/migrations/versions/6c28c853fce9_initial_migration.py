@@ -1,8 +1,8 @@
 """Initial migration.
 
-Revision ID: 87ef039c2018
+Revision ID: 6c28c853fce9
 Revises: 
-Create Date: 2021-01-24 18:45:26.444300
+Create Date: 2021-01-24 21:44:36.568419
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = '87ef039c2018'
+revision = '6c28c853fce9'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -22,7 +22,6 @@ def upgrade():
     sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
     sa.Column('name', sa.String(length=255), nullable=True),
     sa.Column('type', sa.Enum('PSI', 'STREAMING', name='datasettype'), nullable=True),
-    sa.Column('external_storage_path', sa.Text(), nullable=True),
     sa.Column('comment', sa.Text(), nullable=True),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=True),
     sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=True),
@@ -72,20 +71,22 @@ def upgrade():
     )
     op.create_index(op.f('ix_users_v2_username'), 'users_v2', ['username'], unique=False)
     op.create_table('data_batches_v2',
-    sa.Column('event_time', sa.TIMESTAMP(timezone=True), nullable=False),
-    sa.Column('dataset_id', sa.Integer(), nullable=False),
-    sa.Column('state', sa.Enum('SUCCESS', 'FAILED', 'IMPORTING', name='batchstate'), nullable=True),
-    sa.Column('source', sa.Text(), nullable=True),
-    sa.Column('failed_source', sa.Text(), nullable=True),
+    sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
+    sa.Column('event_time', sa.TIMESTAMP(timezone=True), nullable=True),
+    sa.Column('dataset_id', sa.Integer(), nullable=True),
+    sa.Column('state', sa.Enum('NEW', 'SUCCESS', 'FAILED', 'IMPORTING', name='batchstate'), nullable=True),
+    sa.Column('move', sa.Boolean(), nullable=True),
+    sa.Column('details', sa.Text(), nullable=True),
     sa.Column('file_size', sa.Integer(), nullable=True),
-    sa.Column('imported_file_num', sa.Integer(), nullable=True),
+    sa.Column('num_imported_file', sa.Integer(), nullable=True),
     sa.Column('num_file', sa.Integer(), nullable=True),
     sa.Column('comment', sa.Text(), nullable=True),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=True),
     sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=True),
     sa.Column('deleted_at', sa.DateTime(timezone=True), nullable=True),
     sa.ForeignKeyConstraint(['dataset_id'], ['datasets_v2.id'], ),
-    sa.PrimaryKeyConstraint('event_time', 'dataset_id')
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('event_time', 'dataset_id')
     )
     op.create_table('workflow_v2',
     sa.Column('id', sa.Integer(), nullable=False),

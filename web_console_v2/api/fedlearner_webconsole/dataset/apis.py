@@ -16,8 +16,8 @@
 # pylint: disable=raise-missing-from
 
 import datetime
+import os
 
-from google.protobuf.json_format import ParseDict
 from flask_restful import Resource, Api, reqparse
 
 from fedlearner_webconsole.dataset.models import (Dataset, DatasetType,
@@ -25,7 +25,8 @@ from fedlearner_webconsole.dataset.models import (Dataset, DatasetType,
 from fedlearner_webconsole.exceptions import (InvalidArgumentException,
                                               NotFoundException)
 from fedlearner_webconsole.db import db
-from fedlearner_webconsole.proto.dataset_pb2 import DatasetSource
+from fedlearner_webconsole.proto import dataset_pb2
+from fedlearner_webconsole.scheduler.scheduler import scheduler
 
 _FORMAT_ERROR_MESSAGE = '{} is empty'
 
@@ -38,12 +39,10 @@ class DatasetsApi(Resource):
         parser.add_argument('type', required=True,
                             type=DatasetType,
                             help=_FORMAT_ERROR_MESSAGE.format('type'))
-        parser.add_argument('external_storage_path', type=str)
         parser.add_argument('comment', type=str)
         body = parser.parse_args()
         name = body.get('name')
         dataset_type = body.get('type')
-        external_storage_path = body.get('external_storage_path')
         comment = body.get('comment')
 
         if Dataset.query.filter_by(name=name).first() is not None:
@@ -54,7 +53,6 @@ class DatasetsApi(Resource):
             dataset = Dataset(
                 name=name,
                 type=dataset_type,
-                external_storage_path=external_storage_path,
                 comment=comment)
             db.session.add(dataset)
             # TODO: scan cronjob
@@ -66,17 +64,15 @@ class DatasetsApi(Resource):
 
 
 class BatchesApi(Resource):
-    def post(self):
+    def post(self, dataset_id: int):
         parser = reqparse.RequestParser()
-        parser.add_argument('dataset_id', type=int, required=True,
-                            help=_FORMAT_ERROR_MESSAGE.format('dataset_id'))
         parser.add_argument('event_time', type=int)
-        parser.add_argument('files', required=True, type=str, action='append',
+        parser.add_argument('files', required=True, type=list,
+                            location='json',
                             help=_FORMAT_ERROR_MESSAGE.format('files'))
         parser.add_argument('move', type=bool)
         parser.add_argument('comment', type=str)
         body = parser.parse_args()
-        dataset_id = body.get('dataset_id')
         event_time = body.get('event_time')
         files = body.get('files')
         move = body.get('move', False)
@@ -85,29 +81,38 @@ class BatchesApi(Resource):
         dataset = Dataset.query.filter_by(id=dataset_id).first()
         if dataset is None:
             raise NotFoundException()
-        if dataset.external_storage_path:
-            raise InvalidArgumentException(
-                details='Cannot import into dataset for scanning')
         if event_time is None and dataset.type == DatasetType.STREAMING:
             raise InvalidArgumentException(
                 details='data_batch.event_time is empty')
 
         # Create batch
-        batch = DataBatch()
-        # Use current timestamp to fill when type is PSI
-        batch.event_time = datetime.datetime.fromtimestamp(
-            event_time or datetime.datetime.now().timestamp())
-        batch.dataset_id = dataset.id
-        batch.comment = comment
-        batch.state = BatchState.IMPORTING
-        batch.num_file = len(files)
-        batch.set_source(ParseDict({'files': files}, DatasetSource()))
-        # TODO: Call scheduler to import
+        batch = DataBatch(
+            dataset_id=dataset.id,
+            # Use current timestamp to fill when type is PSI
+            event_time = datetime.datetime.fromtimestamp(
+                event_time or datetime.datetime.now().timestamp()),
+            comment=comment,
+            state=BatchState.NEW,
+            move=move,
+            num_file=len(files)
+        )
+        batch_details = dataset_pb2.DataBatch()
+        root_dir = os.getenv('STORAGE_ROOT', '/tmp/data')
+        batch_folder_name = batch.event_time.strftime('%Y%m%d%H%M%S')
+        for file_path in files:
+            file = batch_details.files.add()
+            file.source_path = file_path
+            file_name = file_path.split('/')[-1]
+            file.destination_path = f'{root_dir}/dataset/{dataset.id}' \
+                                    f'/batch/{batch_folder_name}/{file_name}'
+        batch.set_details(batch_details)
         db.session.add(batch)
         db.session.commit()
+        db.session.refresh(batch)
+        scheduler.wakeup(data_batch_ids=[batch.id])
         return {'data': batch.to_dict()}
 
 
 def initialize_dataset_apis(api: Api):
     api.add_resource(DatasetsApi, '/datasets')
-    api.add_resource(BatchesApi, '/data_batches')
+    api.add_resource(BatchesApi, '/datasets/<int:dataset_id>/batches')

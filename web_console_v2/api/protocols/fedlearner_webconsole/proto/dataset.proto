@@ -17,7 +17,23 @@ syntax = "proto3";
 
 package fedlearner_webconsole.proto;
 
-message DatasetSource {
-    // absolute path
-    repeated string files = 1;
+message File {
+    enum State {
+        UNSPECIFIED = 0;
+        COMPLETED = 1;
+        FAILED = 2;
+    }
+    // Absolute path
+    string source_path = 1;
+    string destination_path = 2;
+    // If the file is moved/copied
+    State state = 3;
+    // File size in byte
+    int64 size = 4;
+    // This will be populated if the file is failed to move/copy
+    string error_message = 5;
+}
+
+message DataBatch {
+    repeated File files = 1;
 }

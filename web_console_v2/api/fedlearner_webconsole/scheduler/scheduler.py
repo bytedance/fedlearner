@@ -22,6 +22,7 @@ import logging
 import traceback
 from fedlearner_webconsole.job.yaml_formatter import format_yaml
 from fedlearner_webconsole.db import db
+from fedlearner_webconsole.dataset.import_handler import ImportHandler
 from fedlearner_webconsole.workflow.models import Workflow, WorkflowState
 from fedlearner_webconsole.job.models import Job, JobState, JobDependency
 from fedlearner_webconsole.scheduler.transaction import TransactionManager
@@ -37,6 +38,7 @@ class Scheduler(object):
         self._pending_workflows = []
         self._pending_jobs = []
         self._app = None
+        self._import_handler = ImportHandler()
 
     def start(self, app, force=False):
         if self._running:
@@ -52,6 +54,7 @@ class Scheduler(object):
             self._thread = threading.Thread(target=self._routine)
             self._thread.daemon = True
             self._thread.start()
+            self._import_handler.init(app)
             logging.info('Scheduler started')
 
     def stop(self):
@@ -66,7 +69,9 @@ class Scheduler(object):
         self._running = False
         logging.info('Scheduler stopped')
 
-    def wakeup(self, workflow_ids=None, job_ids=None):
+    def wakeup(self, workflow_ids=None,
+                     job_ids=None,
+                     data_batch_ids=None):
         with self._condition:
             if workflow_ids:
                 if isinstance(workflow_ids, int):
@@ -76,6 +81,8 @@ class Scheduler(object):
                 if isinstance(job_ids, int):
                     job_ids = [job_ids]
                 self._pending_jobs.extend(job_ids)
+            if data_batch_ids:
+                self._import_handler.schedule_to_handle(data_batch_ids)
             self._condition.notify_all()
 
     def _routine(self):
@@ -100,6 +107,8 @@ class Scheduler(object):
                             .filter(Job.state == JobState.WAITING) \
                             .filter(Job.workflow_id in workflow_ids)])
                     self._poll_jobs(job_ids)
+
+                    self._import_handler.handle(pull=False)
                     continue
 
                 workflows = db.session.query(Workflow.id).filter(
@@ -109,6 +118,8 @@ class Scheduler(object):
                 jobs = db.session.query(Job.id).filter(
                     Job.state == JobState.WAITING).all()
                 self._poll_jobs([jid for jid, in jobs])
+
+                self._import_handler.handle(pull=True)
 
     def _poll_workflows(self, workflow_ids):
         logging.info('Scheduler polling %d workflows...', len(workflow_ids))
