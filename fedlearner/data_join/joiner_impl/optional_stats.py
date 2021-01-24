@@ -1,10 +1,9 @@
-import sys
 import copy
 import logging
 import random
 from collections import defaultdict
+from datetime import datetime, timedelta
 from itertools import chain
-from datetime import datetime
 
 import fedlearner.common.data_join_service_pb2 as dj_pb
 from fedlearner.common import metrics
@@ -66,9 +65,10 @@ class OptionalStats:
             item: RawDataIter.Item. Item from iterating RawDataVisitor
             kind: str. 'joined' or 'unjoined'. Indicate where the item should be
                 counted towards.
+
         Returns: None
-        No-op if optional fields are not set in the raw data options, or no
-            `optional_stats` entry in the optional fields of raw data options.
+        No-op if optional fields are not set in the raw data options, or empty
+            optional_fields of raw data options.
         """
         assert kind in ('joined', 'unjoined')
         if item.optional_fields == common.NoOptionalFields:
@@ -76,43 +76,22 @@ class OptionalStats:
         item_stat = {'joined': int(kind == 'joined')}
         tags = copy.deepcopy(self._tags)
         for field in self._stats_fields:
-            value = item.optional_fields.get(field, -sys.maxsize)
-            value = self._convert_to_numeric_if_possible(value)
+            value = self._convert_from_bytes(
+                item.optional_fields.get(field, '#None#')
+            )
             item_stat[field] = value
             self._stats[kind]['{}={}'.format(field, value)] += 1
-        example_id = self._convert_to_numeric_if_possible(item.example_id)
-        raw_id = self._convert_to_numeric_if_possible(item.raw_id)
-        event_time = self._convert_to_numeric_if_possible(item.event_time)
-        timestamp = self._convert_to_timestamp_if_possible(item.event_time)
         tags.update(item_stat)
-        tags['example_id'] = example_id
-        tags['raw_id'] = raw_id
-        tags['event_time'] = event_time
-        tags['timestamp'] = timestamp
-        print(tags)
+        tags['example_id'] = self._convert_from_bytes(item.example_id)
+        tags['raw_id'] = self._convert_from_bytes(item.raw_id)
+        tags['event_time'] = self._convert_from_bytes(item.event_time)
+        tags['timestamp'] = self._convert_to_timestamp(item.event_time)
         metrics.emit_store(name='datajoin', value=0, tags=tags)
-
-    def need_stats(self):
-        """
-        Returns: bool.
-        """
-        return len(self._stats_fields) > 0
-
-    def create_join_stats_info(self):
-        """
-        Returns: dj_pb.JoinerStatsInfo
-        Gather all the stats accumulated and dump in a protobuf for data block
-            dumping.
-        """
-        return dj_pb.JoinerStatsInfo(
-            joined_optional_stats=self._stats['joined'],
-            unjoined_optional_stats=self._stats['unjoined']
-        )
 
     def emit_optional_stats(self, metrics_tags=None):
         """
         Args:
-            metrics_tags: dict. Metrics tag for Kibana.
+            metrics_tags: dict. Metrics tags for Kibana.
 
         Returns: None
         Emit the result to ES or logger. Clear the reservoir for next block.
@@ -157,40 +136,51 @@ class OptionalStats:
                 self._sample_receive_num += 1
 
     @staticmethod
-    def _convert_to_timestamp_if_possible(value):
+    def _convert_to_timestamp(value):
+        """
+        Args:
+            value: bytes | str | int | float. Value to be converted.
+
+        Returns: int.
+        Try to convert a datetime str to timestamp. First try to convert based
+            on the length of str. If this str does not match any datetime format
+            supported, return the default timestamp 0. If value is already
+            numeric, convert to int WITHOUT checking if it is a valid timestamp.
+        """
         if isinstance(value, bytes):
             value = value.decode()
+        assert isinstance(value, (str, int, float))
+        # first try to parse datetime from value
         if isinstance(value, str):
             try:
                 if len(value) == 8:
-                    timestamp = datetime.timestamp(
+                    value = datetime.timestamp(
                         datetime.strptime(value, '%Y%m%d')
                     )
                 elif len(value) == 14:
-                    timestamp = datetime.timestamp(
+                    value = datetime.timestamp(
                         datetime.strptime(value, '%Y%m%d%H%M%S')
                     )
-                else:
-                    timestamp = max(int(value), 0)
-            except ValueError:
-                timestamp = 0
-        else:
-            assert isinstance(value, (int, float))
-            timestamp = int(value)
-        return timestamp
+            except ValueError:  # Not fitting any of above patterns
+                pass
+        # then try to convert directly
+        timestamp_left = (datetime.now() - timedelta(days=20 * 365)).timestamp()
+        timestamp_right = (datetime.now() + timedelta(days=5 * 365)).timestamp()
+        try:
+            value = float(value)
+        except ValueError:
+            value = 0.
+        if value != 0. and not timestamp_left <= value <= timestamp_right:
+            logging.info('OptionalStats: timestamp %s does not reside in the '
+                         'time range of [now - 20 years, now + 5 years]. '
+                         'Defaults to 0.', value)
+            value = 0.
+        return value
 
     @staticmethod
-    def _convert_to_numeric_if_possible(value):
+    def _convert_from_bytes(value):
         if isinstance(value, bytes):
             value = value.decode()
-        if isinstance(value, str):
-            try:
-                value = float(value)
-            except ValueError:
-                pass
-        assert isinstance(value, (str, float, int))
-        if isinstance(value, float):
-            value = int(value) if value.is_integer() else value
         return value
 
     @staticmethod
