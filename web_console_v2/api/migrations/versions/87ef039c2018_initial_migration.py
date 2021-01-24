@@ -1,8 +1,8 @@
 """Initial migration.
 
-Revision ID: a57d2b2f19f2
+Revision ID: 87ef039c2018
 Revises: 
-Create Date: 2021-01-19 13:32:54.786425
+Create Date: 2021-01-24 18:45:26.444300
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = 'a57d2b2f19f2'
+revision = '87ef039c2018'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -95,7 +95,9 @@ def upgrade():
     sa.Column('comment', sa.String(length=255), nullable=True),
     sa.Column('forkable', sa.Boolean(), nullable=True),
     sa.Column('forked_from', sa.Integer(), nullable=True),
-    sa.Column('forked_job_indices', sa.TEXT(), nullable=True),
+    sa.Column('reuse_job_names', sa.TEXT(), nullable=True),
+    sa.Column('peer_reuse_job_names', sa.TEXT(), nullable=True),
+    sa.Column('fork_proposal_config', sa.TEXT(), nullable=True),
     sa.Column('recur_type', sa.Enum('NONE', 'ON_NEW_DATA', 'HOURLY', 'DAILY', 'WEEKLY', name='recurtype'), nullable=True),
     sa.Column('recur_at', sa.Interval(), nullable=True),
     sa.Column('trigger_dataset', sa.Integer(), nullable=True),
@@ -105,6 +107,8 @@ def upgrade():
     sa.Column('target_state', sa.Enum('INVALID', 'NEW', 'READY', 'RUNNING', 'STOPPED', name='workflowstate'), nullable=True),
     sa.Column('transaction_state', sa.Enum('READY', 'ABORTED', 'COORDINATOR_PREPARE', 'COORDINATOR_COMMITTABLE', 'COORDINATOR_COMMITTING', 'COORDINATOR_ABORTING', 'PARTICIPANT_PREPARE', 'PARTICIPANT_COMMITTABLE', 'PARTICIPANT_COMMITTING', 'PARTICIPANT_ABORTING', name='transactionstate'), nullable=True),
     sa.Column('transaction_err', sa.Text(), nullable=True),
+    sa.Column('start_at', sa.Integer(), nullable=True),
+    sa.Column('stop_at', sa.Integer(), nullable=True),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=True),
     sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=True),
     sa.ForeignKeyConstraint(['project_id'], ['projects_v2.id'], ),
@@ -116,7 +120,7 @@ def upgrade():
     sa.Column('name', sa.String(length=255), nullable=True),
     sa.Column('job_type', sa.Enum('UNSPECIFIED', 'RAW_DATA', 'DATA_JOIN', 'PSI_DATA_JOIN', 'NN_MODEL_TRANINING', 'TREE_MODEL_TRAINING', 'NN_MODEL_EVALUATION', 'TREE_MODEL_EVALUATION', name='jobtype'), nullable=False),
     sa.Column('state', sa.Enum('INVALID', 'STOPPED', 'WAITING', 'STARTED', name='jobstate'), nullable=False),
-    sa.Column('yaml', sa.Text(), nullable=False),
+    sa.Column('yaml_template', sa.Text(), nullable=False),
     sa.Column('config', sa.Text(), nullable=False),
     sa.Column('workflow_id', sa.Integer(), nullable=False),
     sa.Column('project_id', sa.Integer(), nullable=False),
