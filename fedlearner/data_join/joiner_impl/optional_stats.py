@@ -1,3 +1,4 @@
+import sys
 import copy
 import logging
 import random
@@ -75,27 +76,20 @@ class OptionalStats:
         item_stat = {'joined': int(kind == 'joined')}
         tags = copy.deepcopy(self._tags)
         for field in self._stats_fields:
-            value = item.optional_fields.get(field, '#None#')
-            item_stat[field] = str(value)
-            self._stats[kind]['{}_{}'.format(field, value)] += 1
-        event_time = str(item.event_time)
-        if len(event_time) == 8:
-            timestamp = datetime.timestamp(
-                datetime.strptime(event_time, '%Y%m%d')
-            )
-        elif len(event_time) == 14:
-            timestamp = datetime.timestamp(
-                datetime.strptime(event_time, '%Y%m%d%H%M%S')
-            )
-        elif event_time.isdigit():
-            timestamp = int(event_time)
-        else:
-            timestamp = 0
+            value = item.optional_fields.get(field, -sys.maxsize)
+            value = self._convert_to_numeric_if_possible(value)
+            item_stat[field] = value
+            self._stats[kind]['{}={}'.format(field, value)] += 1
+        example_id = self._convert_to_numeric_if_possible(item.example_id)
+        raw_id = self._convert_to_numeric_if_possible(item.raw_id)
+        event_time = self._convert_to_numeric_if_possible(item.event_time)
+        timestamp = self._convert_to_timestamp_if_possible(item.event_time)
         tags.update(item_stat)
-        tags['example_id'] = str(item.example_id)
-        tags['raw_id'] = str(item.raw_id)
+        tags['example_id'] = example_id
+        tags['raw_id'] = raw_id
         tags['event_time'] = event_time
         tags['timestamp'] = timestamp
+        print(tags)
         metrics.emit_store(name='datajoin', value=0, tags=tags)
 
     def need_stats(self):
@@ -161,6 +155,43 @@ class OptionalStats:
             if reservoir_idx < self._reservoir_length:
                 self._sample_reservoir[reservoir_idx] = example_id
                 self._sample_receive_num += 1
+
+    @staticmethod
+    def _convert_to_timestamp_if_possible(value):
+        if isinstance(value, bytes):
+            value = value.decode()
+        if isinstance(value, str):
+            try:
+                if len(value) == 8:
+                    timestamp = datetime.timestamp(
+                        datetime.strptime(value, '%Y%m%d')
+                    )
+                elif len(value) == 14:
+                    timestamp = datetime.timestamp(
+                        datetime.strptime(value, '%Y%m%d%H%M%S')
+                    )
+                else:
+                    timestamp = max(int(value), 0)
+            except ValueError:
+                timestamp = 0
+        else:
+            assert isinstance(value, (int, float))
+            timestamp = int(value)
+        return timestamp
+
+    @staticmethod
+    def _convert_to_numeric_if_possible(value):
+        if isinstance(value, bytes):
+            value = value.decode()
+        if isinstance(value, str):
+            try:
+                value = float(value)
+            except ValueError:
+                pass
+        assert isinstance(value, (str, float, int))
+        if isinstance(value, float):
+            value = int(value) if value.is_integer() else value
+        return value
 
     @staticmethod
     def _emit_metrics(joined_count, unjoined_count, field_value, metrics_tags):
