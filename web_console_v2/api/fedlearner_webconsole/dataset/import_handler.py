@@ -44,6 +44,50 @@ class ImportHandler(object):
             dataset_batch_ids = [dataset_batch_ids]
         self._pending_imports.update(dataset_batch_ids)
 
+    def _copy_file(self, source_path, destination_path,
+                   move=False, num_retry=3):
+        logging.info('%s from %s to %s',
+                     'moving' if move else 'copying',
+                     source_path,
+                     destination_path)
+        # Creates parent folders if needed
+        parent_folder = os.path.dirname(destination_path)
+        self._file_manager.mkdir(parent_folder)
+        success = False
+        error_message = ''
+        for _ in range(num_retry):
+            try:
+                if move:
+                    success = self._file_manager.move(
+                        source_path,
+                        destination_path)
+                else:
+                    success = self._file_manager.copy(
+                        source_path,
+                        destination_path)
+                if not success:
+                    error_message = 'Unknown error'
+                else:
+                    break
+            except Exception as e:  # pylint: disable=broad-except
+                logging.error(
+                    'Error occurred when importing file from %s to %s',
+                    source_path,
+                    destination_path)
+                error_message = str(e)
+        file = dataset_pb2.File(
+            source_path=source_path,
+            destination_path=destination_path
+        )
+        if not success:
+            file.error_message = error_message
+            file.state = dataset_pb2.File.State.FAILED
+        else:
+            file.size = self._file_manager.ls(
+                destination_path)[0]['size']
+            file.state = dataset_pb2.File.State.COMPLETED
+        return file
+
     def _import_batch(self, batch_id):
         self._import_lock.acquire()
         if batch_id in self._running_imports:
@@ -55,7 +99,7 @@ class ImportHandler(object):
         self._app.app_context().push()
 
         logging.info('Importing batch %d', batch_id)
-        batch = DataBatch.query.filter_by(id=batch_id).first()
+        batch = DataBatch.query.get(batch_id)
         batch.state = BatchState.IMPORTING
         db.session.commit()
         db.session.refresh(batch)
@@ -70,37 +114,10 @@ class ImportHandler(object):
                     file.state = dataset_pb2.File.State.COMPLETED
                     continue
                 # Moves/Copies
-                try:
-                    logging.info('%s from %s to %s',
-                                 'moving' if batch.move else 'copying',
-                                 file.source_path,
-                                 file.destination_path)
-                    # Creates parent folders if needed
-                    parent_folder = '/'.join(
-                        file.destination_path.split('/')[:-1])
-                    self._file_manager.mkdir(parent_folder)
-                    if batch.move:
-                        success = self._file_manager.move(
-                            file.source_path,
-                            file.destination_path)
-                    else:
-                        success = self._file_manager.copy(
-                            file.source_path,
-                            file.destination_path)
-                    if not success:
-                        file.error_message = 'Unknown error'
-                        file.state = dataset_pb2.File.State.FAILED
-                    else:
-                        file.size = self._file_manager.ls(
-                            file.destination_path)[0]['size']
-                        file.state = dataset_pb2.File.State.COMPLETED
-                except Exception as e:  # pylint: disable=broad-except
-                    logging.error(
-                        'Error occurred when importing file from %s to %s',
-                        file.source_path,
-                        file.destination_path)
-                    file.error_message = str(e)
-                    file.state = dataset_pb2.File.State.FAILED
+                file.MergeFrom(self._copy_file(
+                    source_path=file.source_path,
+                    destination_path=file.destination_path,
+                    move=batch.move))
 
         batch.set_details(details)
         db.session.commit()
