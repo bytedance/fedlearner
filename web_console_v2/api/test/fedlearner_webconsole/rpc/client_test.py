@@ -52,7 +52,7 @@ class RpcClientTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         grpc_spec = GrpcSpec(
-            peer_url=cls._TEST_URL,
+            egress_url=cls._TEST_URL,
             authority=cls._TEST_AUTHORITY,
             extra_headers={
                 cls._X_HOST_HEADER_KEY: cls._TEST_X_HOST

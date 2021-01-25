@@ -184,9 +184,8 @@ def create_add_on(client: Type[K8sClient], domain_name: str, url: str,
     configuration_snippet_template = 'grpc_next_upstream_tries 5;\n'\
                                      'grpc_set_header Host {0};\n'\
                                      'grpc_set_header Authority {0};'
-    configuration_snippet = configuration_snippet_template.format(custom_host)\
-        if custom_host\
-        else configuration_snippet_template.format('$http_x_host')
+    configuration_snippet = \
+        configuration_snippet_template.format(custom_host or '$http_x_host')
     client.create_or_update_ingress(
         metadata={
             'name': domain_name,
@@ -224,8 +223,8 @@ def create_add_on(client: Type[K8sClient], domain_name: str, url: str,
         'grpc_ssl_trusted_certificate /etc/{1}/client/all.pem;\n'\
         'grpc_ssl_certificate /etc/{1}/client/client.pem;\n'\
         'grpc_ssl_certificate_key /etc/{1}/client/client.key;'
-    server_snippet = server_snippet_template.format(custom_host, name)\
-        if custom_host else server_snippet_template.format('$http_x_host', name)
+    server_snippet = server_snippet_template.format(
+        custom_host or '$http_x_host', name)
     client.create_or_update_ingress(
         metadata={
             'name': client_auth_ingress_name,

@@ -15,7 +15,6 @@
 # coding: utf-8
 # pylint: disable=raise-missing-from
 
-import os
 from enum import Enum
 from uuid import uuid4
 
@@ -82,6 +81,15 @@ class ProjectsApi(Resource):
             raise InvalidArgumentException(
                 details='Currently not support multiple participants.')
 
+        custom_host = None
+        egress_url = 'fedlearner-stack-ingress-nginx-controller.default'\
+                     '.svc.cluster.local:80'
+        for variable in config.get('variables', []):
+            if variable.get('name') == 'CUSTOM_HOST':
+                custom_host = variable.get('value')
+            if variable.get('name') == 'EGRESS_URL':
+                egress_url = variable.get('value')
+
         certificates = {}
         for participant in config.get('participants'):
             if 'name' not in participant.keys() or \
@@ -106,10 +114,7 @@ class ProjectsApi(Resource):
 
                 # Grpc spec
                 participant['grpc_spec'] = {
-                    'peer_url': os.environ.get(
-                        'EGRESS_URL',
-                        'fedlearner-stack-ingress-nginx-controller.default'
-                        '.svc.cluster.local:80'),
+                    'egress_url': egress_url,
                     'authority': participant['domain_name']
                 }
 
@@ -118,10 +123,11 @@ class ProjectsApi(Resource):
                     k8s_client = get_client()
                     for domain_name, certificate in certificates.items():
                         create_add_on(k8s_client, domain_name,
-                                      participant.get('url'), current_cert)
+                                      participant.get('url'), current_cert,
+                                      custom_host)
                 except RuntimeError as e:
                     raise InvalidArgumentException(details=str(e))
-            if 'certificates' in participant.keys:
+            if 'certificates' in participant.keys():
                 participant.pop('certificates')
 
         new_project = Project()
@@ -191,6 +197,17 @@ class ProjectApi(Resource):
                 ParseDict(variable, Variable())
                 for variable in request.json.get('variables')
             ])
+        custom_host = None
+        egress_url = 'fedlearner-stack-ingress-nginx-controller.default'\
+                     '.svc.cluster.local:80'
+        for variable in config.variables:
+            if variable.name == 'CUSTOM_HOST':
+                custom_host = variable.value
+            if variable.name == 'EGRESS_URL':
+                egress_url = variable.value
+        for participant in config.participants:
+            participant.grpc_spec.egress_url = egress_url
+            # TODO: update add-on's custom_host
         project.set_config(config)
         if request.json.get('comment') is not None:
             project.comment = request.json.get('comment')

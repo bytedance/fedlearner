@@ -53,7 +53,7 @@ class WorkflowsCommitTest(BaseTestCase):
                     'url': '127.0.0.1:5000',
                     'domain_name': 'fl-leader.com',
                     'grpc_spec': {
-                        'peer_url': '127.0.0.1:1991',
+                        'egress_url': '127.0.0.1:1991',
                     }
                 }
             ],
