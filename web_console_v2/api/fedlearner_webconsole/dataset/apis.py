@@ -16,8 +16,9 @@
 # pylint: disable=raise-missing-from
 
 import datetime
+import os
 
-from flask import current_app
+from flask import current_app, request
 from flask_restful import Resource, Api, reqparse
 
 from fedlearner_webconsole.dataset.models import (Dataset, DatasetType,
@@ -27,6 +28,7 @@ from fedlearner_webconsole.exceptions import (InvalidArgumentException,
 from fedlearner_webconsole.db import db
 from fedlearner_webconsole.proto import dataset_pb2
 from fedlearner_webconsole.scheduler.scheduler import scheduler
+from fedlearner_webconsole.utils.file_manager import FileManager
 
 _FORMAT_ERROR_MESSAGE = '{} is empty'
 
@@ -124,8 +126,24 @@ class BatchesApi(Resource):
         scheduler.wakeup(data_batch_ids=[batch.id])
         return {'data': batch.to_dict()}
 
+class FilesApi(Resource):
+    def __init__(self):
+        self._file_manager = FileManager()
+
+    def get(self):
+        # TODO: consider the security factor
+        if 'directory' in request.args:
+            directory = request.args['directory']
+        else:
+            directory = os.path.join(
+                current_app.config.get('STORAGE_ROOT'),
+                'upload')
+        files = self._file_manager.ls(directory, recursive=True)
+        return {'data': [dict(file._asdict()) for file in files]}
+
 
 def initialize_dataset_apis(api: Api):
     api.add_resource(DatasetsApi, '/datasets')
     api.add_resource(DatasetApi, '/datasets/<int:dataset_id>')
     api.add_resource(BatchesApi, '/datasets/<int:dataset_id>/batches')
+    api.add_resource(FilesApi, '/files')

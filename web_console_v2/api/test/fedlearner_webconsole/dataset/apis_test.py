@@ -16,8 +16,12 @@
 
 import json
 import datetime
+import os
+import shutil
+import tempfile
 import unittest
 from http import HTTPStatus
+from pathlib import Path
 from unittest.mock import patch
 
 from testing.common import BaseTestCase
@@ -100,6 +104,57 @@ class DatasetApiTest(BaseTestCase):
         self.assertEqual(created_data_batch, queried_data_batch.to_dict())
         mock_wakeup.assert_called_once_with(
             data_batch_ids=[created_data_batch['id']])
+
+
+class FilesApiTest(BaseTestCase):
+    def get_config(self):
+        config = super().get_config()
+        config.STORAGE_ROOT = tempfile.gettempdir()
+        return config
+
+    def setUp(self):
+        super().setUp()
+        # Create a temporary directory
+        self._tempdir = os.path.join(tempfile.gettempdir(), 'upload')
+        os.makedirs(self._tempdir, exist_ok=True)
+        subdir = Path(self._tempdir).joinpath('s')
+        subdir.mkdir()
+        Path(self._tempdir).joinpath('f1.txt').write_text('f1')
+        Path(self._tempdir).joinpath('f2.txt').write_text('f2f2')
+        subdir.joinpath('s3.txt').write_text('s3s3s3')
+
+    def tearDown(self):
+        # Remove the directory after the test
+        shutil.rmtree(self._tempdir)
+        super().tearDown()
+
+    def _get_temp_path(self, file_path: str = None) -> str:
+        return str(Path(self._tempdir, file_path or '').absolute())
+
+    def test_get_default_storage_root(self):
+        get_response = self.get_helper(
+            '/api/v2/files')
+        self.assertEqual(get_response.status_code, HTTPStatus.OK)
+        files = self.get_response_data(get_response)
+        self.assertEqual(sorted(files, key=lambda f: f['size']), [
+            {'path': self._get_temp_path('f1.txt'),
+             'size': 2},
+            {'path': self._get_temp_path('f2.txt'),
+             'size': 4},
+            {'path': self._get_temp_path('s/s3.txt'),
+             'size': 6},
+        ])
+
+    def test_get_specified_directory(self):
+        dir = self._get_temp_path('s')
+        get_response = self.get_helper(
+            f'/api/v2/files?directory={dir}')
+        self.assertEqual(get_response.status_code, HTTPStatus.OK)
+        files = self.get_response_data(get_response)
+        self.assertEqual(files, [
+            {'path': self._get_temp_path('s/s3.txt'),
+             'size': 6},
+        ])
 
 if __name__ == '__main__':
     unittest.main()
