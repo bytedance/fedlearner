@@ -233,6 +233,11 @@ type FLAppStatus struct {
 	AppState FLState `json:"appState"`
 	// A map of FLReplicaType to FLReplicaStatus
 	FLReplicaStatus FLReplicaStatus `json:"flReplicaStatus"`
+	// Represents time when the job was completed. It is not guaranteed to
+	// be set in happens-before order across separate operations.
+	// It is represented in RFC3339 form and is in UTC.
+	// +optional
+	CompletionTime *metav1.Time
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
