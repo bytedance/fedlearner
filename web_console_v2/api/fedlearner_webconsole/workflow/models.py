@@ -356,8 +356,7 @@ class Workflow(db.Model):
                 job.set_yaml_template(job_def.yaml_template)
                 db.session.add(job)
             jobs.append(job)
-        db.session.commit()
-
+        db.session.flush()
         name2index = {
             job.name: i for i, job in enumerate(job_defs)
         }
@@ -372,8 +371,6 @@ class Workflow(db.Model):
                 db.session.add(dep)
 
         self.set_job_ids([job.id for job in jobs])
-
-        db.session.commit()
 
     def log_states(self):
         logging.debug(

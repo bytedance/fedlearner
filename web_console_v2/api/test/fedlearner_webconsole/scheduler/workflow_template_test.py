@@ -355,6 +355,10 @@ def make_workflow_template():
                         name='worker_mem',
                         value='3Gi',
                         access_mode=Variable.PEER_WRITABLE),
+                    Variable(
+                        name='role',
+                        value='Follower',
+                        access_mode=Variable.PEER_WRITABLE),
                 ],
                 dependencies=[
                     JobDependency(source='raw_data_job')
