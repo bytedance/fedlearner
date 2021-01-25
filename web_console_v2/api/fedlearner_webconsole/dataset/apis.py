@@ -31,7 +31,19 @@ from fedlearner_webconsole.scheduler.scheduler import scheduler
 _FORMAT_ERROR_MESSAGE = '{} is empty'
 
 
+class DatasetApi(Resource):
+    def get(self, dataset_id):
+        dataset = Dataset.query.get(dataset_id)
+        if dataset is None:
+            raise NotFoundException()
+        return {'data': dataset.to_dict()}
+
+
 class DatasetsApi(Resource):
+    def get(self):
+        datasets = Dataset.query.all()
+        return {'data': [d.to_dict() for d in datasets]}
+
     def post(self):
         parser = reqparse.RequestParser()
         parser.add_argument('name', required=True,
@@ -115,4 +127,5 @@ class BatchesApi(Resource):
 
 def initialize_dataset_apis(api: Api):
     api.add_resource(DatasetsApi, '/datasets')
+    api.add_resource(DatasetApi, '/datasets/<int:dataset_id>')
     api.add_resource(BatchesApi, '/datasets/<int:dataset_id>/batches')

@@ -18,6 +18,7 @@ import json
 import datetime
 import unittest
 from http import HTTPStatus
+from unittest.mock import patch
 
 from testing.common import BaseTestCase
 from fedlearner_webconsole.db import db
@@ -31,12 +32,31 @@ class DatasetApiTest(BaseTestCase):
         super().setUp()
         self.default_dataset = Dataset()
         self.default_dataset.name = 'default_dataset'
-        self.default_dataset.type = DatasetType.STREAMING
+        self.default_dataset.dataset_type = DatasetType.STREAMING
         self.default_dataset.comment = 'test comment'
         db.session.add(self.default_dataset)
         db.session.commit()
 
-    def test_post_dataset(self):
+    def test_get_dataset(self):
+        get_response = self.get_helper(
+            f'/api/v2/datasets/{self.default_dataset.id}')
+        self.assertEqual(get_response.status_code, HTTPStatus.OK)
+        dataset = self.get_response_data(get_response)
+        self.assertEqual(dataset['name'], 'default_dataset')
+        self.assertEqual(dataset['dataset_type'], 'STREAMING')
+        self.assertEqual(dataset['comment'], 'test comment')
+
+    def test_get_dataset_not_found(self):
+        get_response = self.get_helper('/api/v2/datasets/10086')
+        self.assertEqual(get_response.status_code, HTTPStatus.NOT_FOUND)
+
+    def test_get_datasets(self):
+        get_response = self.get_helper('/api/v2/datasets')
+        self.assertEqual(get_response.status_code, HTTPStatus.OK)
+        datasets = self.get_response_data(get_response)
+        self.assertEqual(len(datasets), 1)
+
+    def test_post_datasets(self):
         name = 'test_post_dataset'
         dataset_type = DatasetType.STREAMING.value
         comment = 'test comment'
@@ -49,13 +69,14 @@ class DatasetApiTest(BaseTestCase):
             }),
             content_type='application/json')
         self.assertEqual(create_response.status_code, HTTPStatus.OK)
-        created_dataset = json.loads(create_response.data).get('data')
+        created_dataset = self.get_response_data(create_response)
 
         queried_dataset = Dataset.query.filter_by(
             id=created_dataset.get('id')).first()
         self.assertEqual(created_dataset, queried_dataset.to_dict())
 
-    def test_post_data_batch(self):
+    @patch('fedlearner_webconsole.dataset.apis.scheduler.wakeup')
+    def test_post_batches(self, mock_wakeup):
         dataset_id = self.default_dataset.id
         event_time = int(datetime.datetime.now().timestamp())
         files = ['/data/upload/1.csv', '/data/upload/2.csv']
@@ -71,13 +92,14 @@ class DatasetApiTest(BaseTestCase):
             }),
             content_type='application/json')
         self.assertEqual(create_response.status_code, HTTPStatus.OK)
-        created_data_batch = json.loads(create_response.data).get('data')
+        created_data_batch = self.get_response_data(create_response)
 
         queried_data_batch = DataBatch.query.filter_by(
             event_time=datetime.datetime.fromtimestamp(event_time),
             dataset_id=dataset_id).first()
         self.assertEqual(created_data_batch, queried_data_batch.to_dict())
-
+        mock_wakeup.assert_called_once_with(
+            data_batch_ids=[created_data_batch['id']])
 
 if __name__ == '__main__':
     unittest.main()
