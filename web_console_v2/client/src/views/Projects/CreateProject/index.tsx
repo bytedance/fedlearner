@@ -1,5 +1,5 @@
 import React, { ReactElement } from 'react';
-import BaseForm from '../BaseForm';
+import ProjectForm from '../ProjectForm';
 import BreadcrumbLink from 'components/BreadcrumbLink';
 import { createProject } from 'services/project';
 import { useTranslation } from 'react-i18next';
@@ -12,7 +12,7 @@ function CreateProject(): ReactElement {
         paths={[{ label: 'menu.label_project', to: '/projects' }, { label: 'project.create' }]}
       />
 
-      <BaseForm onSubmit={onSubmit} />
+      <ProjectForm onSubmit={onSubmit} />
     </>
   );
   async function onSubmit<CreateProjectFormData>(payload: CreateProjectFormData) {
