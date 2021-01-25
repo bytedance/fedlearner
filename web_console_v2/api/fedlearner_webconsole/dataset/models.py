@@ -16,7 +16,7 @@
 
 import enum
 from sqlalchemy.sql import func
-from sqlalchemy import PrimaryKeyConstraint
+from sqlalchemy import UniqueConstraint
 from fedlearner_webconsole.db import db, to_dict_mixin
 from fedlearner_webconsole.proto import dataset_pb2
 
@@ -27,6 +27,7 @@ class DatasetType(enum.Enum):
 
 
 class BatchState(enum.Enum):
+    NEW = 'NEW'
     SUCCESS = 'SUCCESS'
     FAILED = 'FAILED'
     IMPORTING = 'IMPORTING'
@@ -42,8 +43,7 @@ class Dataset(db.Model):
     __tablename__ = 'datasets_v2'
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     name = db.Column(db.String(255), unique=True)
-    type = db.Column(db.Enum(DatasetType))
-    external_storage_path = db.Column(db.Text())
+    dataset_type = db.Column(db.Enum(DatasetType))
     comment = db.Column(db.Text())
     created_at = db.Column(db.DateTime(timezone=True),
                            server_default=func.now())
@@ -57,19 +57,20 @@ class Dataset(db.Model):
 
 @to_dict_mixin(
     extras={
-        'source': (lambda batch: batch.get_source())
+        'details': (lambda batch: batch.get_details())
     })
 class DataBatch(db.Model):
     __tablename__ = 'data_batches_v2'
-    __table_args__ = (PrimaryKeyConstraint('event_time', 'dataset_id'),)
+    __table_args__ = (UniqueConstraint('event_time', 'dataset_id'),)
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     event_time = db.Column(db.TIMESTAMP(timezone=True))
     dataset_id = db.Column(db.Integer, db.ForeignKey(Dataset.id))
-    state = db.Column(db.Enum(BatchState))
-    source = db.Column(db.Text(),
-                       default=dataset_pb2.DatasetSource().SerializeToString())
-    failed_source = db.Column(db.Text())
+    state = db.Column(db.Enum(BatchState), default=BatchState.NEW)
+    move = db.Column(db.Boolean, default=False)
+    # Serialized proto of DatasetBatch
+    details = db.Column(db.Text())
     file_size = db.Column(db.Integer, default=0)
-    imported_file_num = db.Column(db.Integer, default=0)
+    num_imported_file = db.Column(db.Integer, default=0)
     num_file = db.Column(db.Integer, default=0)
     comment = db.Column(db.Text())
     created_at = db.Column(db.DateTime(timezone=True),
@@ -81,12 +82,30 @@ class DataBatch(db.Model):
 
     dataset = db.relationship('Dataset', back_populates='data_batches')
 
-    def set_source(self, proto):
-        self.source = proto.SerializeToString()
+    def set_details(self, proto):
+        self.num_file = len(proto.files)
+        num_imported_file = 0
+        num_failed_file = 0
+        file_size = 0
+        # Aggregates stats
+        for file in proto.files:
+            if file.state == dataset_pb2.File.State.COMPLETED:
+                num_imported_file += 1
+                file_size += file.size
+            elif file.state == dataset_pb2.File.State.FAILED:
+                num_failed_file += 1
+        if num_imported_file + num_failed_file == self.num_file:
+            if num_failed_file > 0:
+                self.state = BatchState.FAILED
+            else:
+                self.state = BatchState.SUCCESS
+        self.num_imported_file = num_imported_file
+        self.file_size = file_size
+        self.details = proto.SerializeToString()
 
-    def get_source(self):
-        if self.source is None:
+    def get_details(self):
+        if self.details is None:
             return None
-        proto = dataset_pb2.DatasetSource()
-        proto.ParseFromString(self.source)
+        proto = dataset_pb2.DataBatch()
+        proto.ParseFromString(self.details)
         return proto

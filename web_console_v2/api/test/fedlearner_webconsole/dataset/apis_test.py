@@ -44,7 +44,7 @@ class DatasetApiTest(BaseTestCase):
             '/api/v2/datasets',
             data=json.dumps({
                 'name': name,
-                'type': dataset_type,
+                'dataset_type': dataset_type,
                 'comment': comment
             }),
             content_type='application/json')
@@ -62,9 +62,8 @@ class DatasetApiTest(BaseTestCase):
         move = False
         comment = 'test post comment'
         create_response = self.client.post(
-            '/api/v2/data_batches',
+            f'/api/v2/datasets/{dataset_id}/batches',
             data=json.dumps({
-                'dataset_id': dataset_id,
                 'event_time': event_time,
                 'files': files,
                 'move': move,
