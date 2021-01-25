@@ -71,6 +71,8 @@ class OptionalStats:
             optional_fields of raw data options.
         """
         assert kind in ('joined', 'unjoined')
+        if kind == 'unjoined':
+            self.sample_unjoined(item.example_id)
         if item.optional_fields == common.NoOptionalFields:
             return
         item_stat = {'joined': int(kind == 'joined')}
@@ -145,7 +147,7 @@ class OptionalStats:
         Try to convert a datetime str to timestamp. First try to convert based
             on the length of str. If this str does not match any datetime format
             supported, return the default timestamp 0. If value is already
-            numeric, convert to int WITHOUT checking if it is a valid timestamp.
+            numeric, convert to float WITHOUT checking if it is a valid timestamp.
         """
         if isinstance(value, bytes):
             value = value.decode()

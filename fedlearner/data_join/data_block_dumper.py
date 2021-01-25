@@ -177,7 +177,6 @@ class DataBlockDumperManager(object):
                     joined = True
                 if not joined:
                     self._optional_stats.update_stats(item, kind='unjoined')
-                    self._optional_stats.sample_unjoined(example_id)
                 if match_index >= example_num:
                     break
                 if index >= meta.leader_end_index:

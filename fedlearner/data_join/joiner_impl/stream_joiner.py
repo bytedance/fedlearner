@@ -362,7 +362,6 @@ class StreamExampleJoiner(ExampleJoiner):
                               or _CmpCtnt(item) < self._leader_join_window.qt())
         if unjoined or force_unjoined:
             self._optional_stats.update_stats(item, kind='unjoined')
-            self._optional_stats.sample_unjoined(item.example_id)
 
     def _evit_stale_follower_cache(self):
         start_tm = time.time()

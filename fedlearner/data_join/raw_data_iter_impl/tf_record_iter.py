@@ -17,7 +17,6 @@
 import logging
 from collections import OrderedDict
 from contextlib import contextmanager
-from itertools import chain
 
 import tensorflow.compat.v1 as tf
 
