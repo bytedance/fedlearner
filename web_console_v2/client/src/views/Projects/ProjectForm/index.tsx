@@ -52,7 +52,7 @@ const layout = {
 
 interface Props {
   onSubmit: <T>(payload: T) => void;
-  edit?: boolean;
+  isEdit?: boolean;
   initialValues?: ProjectFormInitialValues;
 }
 
@@ -74,7 +74,7 @@ const defaultInitialValues: ProjectFormInitialValues = {
   variables: [],
 };
 
-function BaseForm({ onSubmit, edit, initialValues }: Props): ReactElement {
+function ProjectForm({ onSubmit, isEdit, initialValues }: Props): ReactElement {
   const { t } = useTranslation();
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
@@ -84,6 +84,7 @@ function BaseForm({ onSubmit, edit, initialValues }: Props): ReactElement {
   const [certificateConfigType, setCertificateConfigType] = useState(
     defaultValues.certificateConfigType,
   );
+
   return (
     <Container>
       <StyledForm
@@ -100,7 +101,15 @@ function BaseForm({ onSubmit, edit, initialValues }: Props): ReactElement {
             label={t('project.name')}
             rules={[{ required: true, message: t('project.name_message') }]}
           >
-            <Input name="name" placeholder={t('project.name_placeholder')} disabled={edit} />
+            <Input name="name" placeholder={t('project.name_placeholder')} disabled={isEdit} />
+          </Form.Item>
+          <Form.Item
+            hasFeedback
+            name="domain_name"
+            label={t('project.selft_domain')}
+            rules={[{ required: true, message: t('project.msg_domian_required') }]}
+          >
+            <Input name="name" placeholder={t('project.msg_domian_required')} disabled={isEdit} />
           </Form.Item>
         </SecondaryForm>
         <SecondaryForm title={t('project.participant_information')}>
@@ -113,7 +122,7 @@ function BaseForm({ onSubmit, edit, initialValues }: Props): ReactElement {
             <Input
               name="participantName"
               placeholder={t('project.participant_name_placeholder')}
-              disabled={edit}
+              disabled={isEdit}
             />
           </Form.Item>
           <Form.Item
@@ -125,7 +134,7 @@ function BaseForm({ onSubmit, edit, initialValues }: Props): ReactElement {
             <Input
               name="participantUrl"
               placeholder={t('project.participant_url_placeholder')}
-              disabled={edit}
+              disabled={isEdit}
             />
           </Form.Item>
           <Form.Item
@@ -148,7 +157,7 @@ function BaseForm({ onSubmit, edit, initialValues }: Props): ReactElement {
               onChange={(e) => {
                 setCertificateConfigType(e.target.value);
               }}
-              disabled={edit}
+              disabled={isEdit}
             />
           </Form.Item>
 
@@ -158,7 +167,7 @@ function BaseForm({ onSubmit, edit, initialValues }: Props): ReactElement {
               name="certificate"
               rules={[{ required: true, message: t('project.upload_certificate_message') }]}
             >
-              <ReadFile disabled={edit} accept=".gz" reader={readAsBinaryStringFromFile} />
+              <ReadFile disabled={isEdit} accept=".gz" reader={readAsBinaryStringFromFile} />
             </FileFormItem>
           ) : null}
 
@@ -166,12 +175,12 @@ function BaseForm({ onSubmit, edit, initialValues }: Props): ReactElement {
             hasFeedback
             name="participantDomainName"
             label={t('project.participant_domain')}
-            rules={[{ required: true, message: t('project.participant_domain_message') }]}
+            rules={[{ required: true, message: t('project.msg_domian_required') }]}
           >
             <Input
               name="participantDomainName"
               placeholder={t('project.participant_domain_placeholder')}
-              disabled={edit}
+              disabled={isEdit}
             />
           </Form.Item>
           <Form.Item name="comment" label={t('project.remarks')}>
@@ -217,7 +226,7 @@ function BaseForm({ onSubmit, edit, initialValues }: Props): ReactElement {
   }
   async function onFinish(data: any) {
     if (
-      !edit &&
+      !isEdit &&
       certificateConfigType === CertificateConfigType.Upload &&
       data.certificates === ''
     ) {
@@ -228,8 +237,7 @@ function BaseForm({ onSubmit, edit, initialValues }: Props): ReactElement {
     try {
       let params: CreateProjectFormData | UpdateProjectFormData;
 
-      if (edit) {
-        // Is Editting
+      if (isEdit) {
         params = {
           variables: data.variables ?? [],
           comment: data.comment,
@@ -245,6 +253,7 @@ function BaseForm({ onSubmit, edit, initialValues }: Props): ReactElement {
         });
         params = {
           name: data.name,
+          domain_name: data.domain_name,
           config: {
             participants,
             variables: data.variables ?? [],
@@ -253,7 +262,7 @@ function BaseForm({ onSubmit, edit, initialValues }: Props): ReactElement {
         };
         await onSubmit(params);
       }
-      message.success(edit ? i18n.t('project.edit_success') : i18n.t('project.create_success'));
+      message.success(isEdit ? i18n.t('project.edit_success') : i18n.t('project.create_success'));
       backToList();
     } catch (error) {
       message.error(error.message);
@@ -262,4 +271,4 @@ function BaseForm({ onSubmit, edit, initialValues }: Props): ReactElement {
   }
 }
 
-export default BaseForm;
+export default ProjectForm;

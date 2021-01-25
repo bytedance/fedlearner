@@ -1,16 +1,14 @@
 import React, { ReactElement } from 'react';
-import BaseForm from '../BaseForm';
+import ProjectForm from '../ProjectForm';
 import { Spin } from 'antd';
 import { useParams } from 'react-router-dom';
 import { getProjectDetailById, updateProject } from 'services/project';
-import { useTranslation } from 'react-i18next';
 import { CertificateConfigType } from 'typings/project';
 import { ProjectFormInitialValues } from 'typings/project';
 import { useQuery } from 'react-query';
 import BreadcrumbLink from 'components/BreadcrumbLink';
 
 function EditProject(): ReactElement {
-  const { t } = useTranslation();
   const { id } = useParams<{ id: string }>();
 
   const projectQuery = useQuery(['getProjectDetail', id], () => getProjectDetailById(id), {
@@ -41,9 +39,9 @@ function EditProject(): ReactElement {
       />
 
       {project && (
-        <BaseForm
+        <ProjectForm
           onSubmit={onSubmit}
-          edit
+          isEdit
           initialValues={initialValues as ProjectFormInitialValues}
         />
       )}
