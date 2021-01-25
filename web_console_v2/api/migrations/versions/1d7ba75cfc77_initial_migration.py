@@ -1,8 +1,8 @@
 """Initial migration.
 
-Revision ID: 6c28c853fce9
+Revision ID: 1d7ba75cfc77
 Revises: 
-Create Date: 2021-01-24 21:44:36.568419
+Create Date: 2021-01-25 12:11:36.556472
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = '6c28c853fce9'
+revision = '1d7ba75cfc77'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -21,7 +21,7 @@ def upgrade():
     op.create_table('datasets_v2',
     sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
     sa.Column('name', sa.String(length=255), nullable=True),
-    sa.Column('type', sa.Enum('PSI', 'STREAMING', name='datasettype'), nullable=True),
+    sa.Column('dataset_type', sa.Enum('PSI', 'STREAMING', name='datasettype'), nullable=True),
     sa.Column('comment', sa.Text(), nullable=True),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=True),
     sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=True),

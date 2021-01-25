@@ -17,6 +17,7 @@ import logging
 import threading
 import os
 from concurrent.futures.thread import ThreadPoolExecutor
+from datetime import timedelta, datetime
 
 from fedlearner_webconsole.dataset.models import DataBatch, BatchState
 from fedlearner_webconsole.db import db
@@ -118,10 +119,14 @@ class ImportHandler(object):
             # TODO: should separate pull logic to a cron job,
             # otherwise there will be a race condition that two handlers
             # are trying to move the same batch
+            one_hour_ago = datetime.utcnow() - timedelta(hours=1)
             pulled_batches = db.session.query(DataBatch.id).filter(
-                (DataBatch.state == BatchState.NEW) |
-                (DataBatch.state == BatchState.IMPORTING)).all()
-            batches_to_run.update(pulled_batches)
+                    (DataBatch.state == BatchState.NEW) |
+                    (DataBatch.state == BatchState.IMPORTING))\
+                .filter(DataBatch.updated_at < one_hour_ago)\
+                .all()
+            pulled_ids = [bid for bid, in pulled_batches]
+            batches_to_run.update(pulled_ids)
 
         for batch in batches_to_run:
             self._executor.submit(self._import_batch, batch)

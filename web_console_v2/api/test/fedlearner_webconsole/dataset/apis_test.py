@@ -44,7 +44,7 @@ class DatasetApiTest(BaseTestCase):
             '/api/v2/datasets',
             data=json.dumps({
                 'name': name,
-                'type': dataset_type,
+                'dataset_type': dataset_type,
                 'comment': comment
             }),
             content_type='application/json')

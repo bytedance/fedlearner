@@ -30,3 +30,4 @@ class Config(object):
     GRPC_LISTEN_PORT = 1990
     ES_HOST = 'fedlearner-stack-elasticsearch-client'
     ES_PORT = 9200
+    STORAGE_ROOT = os.getenv('STORAGE_ROOT', '/tmp/data')

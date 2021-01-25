@@ -16,8 +16,8 @@
 # pylint: disable=raise-missing-from
 
 import datetime
-import os
 
+from flask import current_app
 from flask_restful import Resource, Api, reqparse
 
 from fedlearner_webconsole.dataset.models import (Dataset, DatasetType,
@@ -36,13 +36,13 @@ class DatasetsApi(Resource):
         parser = reqparse.RequestParser()
         parser.add_argument('name', required=True,
                             type=str, help=_FORMAT_ERROR_MESSAGE.format('name'))
-        parser.add_argument('type', required=True,
+        parser.add_argument('dataset_type', required=True,
                             type=DatasetType,
-                            help=_FORMAT_ERROR_MESSAGE.format('type'))
+                            help=_FORMAT_ERROR_MESSAGE.format('dataset_type'))
         parser.add_argument('comment', type=str)
         body = parser.parse_args()
         name = body.get('name')
-        dataset_type = body.get('type')
+        dataset_type = body.get('dataset_type')
         comment = body.get('comment')
 
         if Dataset.query.filter_by(name=name).first() is not None:
@@ -52,7 +52,7 @@ class DatasetsApi(Resource):
             # Create dataset
             dataset = Dataset(
                 name=name,
-                type=dataset_type,
+                dataset_type=dataset_type,
                 comment=comment)
             db.session.add(dataset)
             # TODO: scan cronjob
@@ -84,20 +84,20 @@ class BatchesApi(Resource):
         if event_time is None and dataset.type == DatasetType.STREAMING:
             raise InvalidArgumentException(
                 details='data_batch.event_time is empty')
+        # TODO: PSI dataset should not allow multi batches
 
         # Create batch
         batch = DataBatch(
             dataset_id=dataset.id,
             # Use current timestamp to fill when type is PSI
-            event_time = datetime.datetime.fromtimestamp(
+            event_time=datetime.datetime.fromtimestamp(
                 event_time or datetime.datetime.now().timestamp()),
             comment=comment,
             state=BatchState.NEW,
             move=move,
-            num_file=len(files)
         )
         batch_details = dataset_pb2.DataBatch()
-        root_dir = os.getenv('STORAGE_ROOT', '/tmp/data')
+        root_dir = current_app.config.get('STORAGE_ROOT')
         batch_folder_name = batch.event_time.strftime('%Y%m%d%H%M%S')
         for file_path in files:
             file = batch_details.files.add()

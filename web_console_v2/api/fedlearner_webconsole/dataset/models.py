@@ -43,7 +43,7 @@ class Dataset(db.Model):
     __tablename__ = 'datasets_v2'
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     name = db.Column(db.String(255), unique=True)
-    type = db.Column(db.Enum(DatasetType))
+    dataset_type = db.Column(db.Enum(DatasetType))
     comment = db.Column(db.Text())
     created_at = db.Column(db.DateTime(timezone=True),
                            server_default=func.now())
