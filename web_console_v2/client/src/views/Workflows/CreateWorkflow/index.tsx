@@ -4,8 +4,6 @@ import { Steps, Row, Card } from 'antd';
 import BreadcrumbLink from 'components/BreadcrumbLink';
 import StepOneBasic from './StepOneBasic';
 import SteptTwoConfig from './SteptTwoConfig';
-import { useSubscribe } from 'hooks';
-import WORKFLOW_CHANNELS from './pubsub';
 import { Route, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useUnmount } from 'react-use';
@@ -45,9 +43,6 @@ const WorkflowsCreate: FC<WorkflowCreateProps> = (parentProps) => {
   const [currentStep, setStep] = useState(CreateSteps[params.step || 'basic']);
   const reset = useResetCreateForms();
 
-  useSubscribe(WORKFLOW_CHANNELS.go_config_step, () => {
-    setStep(CreateSteps.config);
-  });
   useUnmount(() => {
     reset();
   });
@@ -76,7 +71,9 @@ const WorkflowsCreate: FC<WorkflowCreateProps> = (parentProps) => {
         <Route
           path={`/workflows/initiate/basic`}
           exact
-          render={(props) => <StepOneBasic {...props} {...parentProps} />}
+          render={(props) => (
+            <StepOneBasic onSuccess={setToConfigStep} {...props} {...parentProps} />
+          )}
         />
         <Route
           path={`/workflows/initiate/config`}
@@ -86,7 +83,9 @@ const WorkflowsCreate: FC<WorkflowCreateProps> = (parentProps) => {
         <Route
           path={`/workflows/accept/basic/:id`}
           exact
-          render={(props) => <StepOneBasic {...props} {...parentProps} />}
+          render={(props) => (
+            <StepOneBasic onSuccess={setToConfigStep} {...props} {...parentProps} />
+          )}
         />
         <Route
           path={`/workflows/accept/config/:id`}
@@ -96,6 +95,10 @@ const WorkflowsCreate: FC<WorkflowCreateProps> = (parentProps) => {
       </FormArea>
     </>
   );
+
+  function setToConfigStep() {
+    setStep(CreateSteps.config);
+  }
 };
 
 export default WorkflowsCreate;

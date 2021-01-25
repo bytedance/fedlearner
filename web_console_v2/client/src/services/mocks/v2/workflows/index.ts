@@ -1,5 +1,5 @@
 import { Workflow } from 'typings/workflow';
-import { newlyCreated, awaitParticipantConfig } from './example';
+import { newlyCreated, awaitParticipantConfig } from './examples';
 
 const list: Workflow[] = [awaitParticipantConfig, newlyCreated];
 

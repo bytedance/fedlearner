@@ -65,7 +65,7 @@ function ProjectList(): ReactElement {
   const { isLoading, data: projectList } = useRecoilQuery(projectListQuery);
 
   useMount(() => {
-    if (!isLoading) {
+    if (!isLoading || projectList) {
       // If the projectListQuery not fetching when enter the page
       // means project list data on store may has a chance tobe stale
       // so what we do is force to reload the list once entering

@@ -6,6 +6,7 @@ import error from './modules/error';
 import upload from './modules/upload';
 import term from './modules/term';
 import app from './modules/app';
+import dataset from './modules/dataset';
 
 const messages = {
   translation: {
@@ -17,6 +18,7 @@ const messages = {
     project: project.en,
     workflow: workflow.en,
     app: app.en,
+    dataset: dataset.en,
 
     all: 'All',
     terms: 'Terms of Services',

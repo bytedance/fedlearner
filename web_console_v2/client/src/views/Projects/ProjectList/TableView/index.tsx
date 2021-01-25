@@ -72,7 +72,9 @@ function TableList({ list, onViewDetail }: TableListProps): ReactElement {
       dataIndex: 'status',
       name: 'status',
       width: 120,
-      render: (_: any, record: any) => <ProjectConnectionStatus status={statuses[0]} />,
+      render: (_: any, record: Project, index: number) => (
+        <ProjectConnectionStatus status={statuses[index]} />
+      ),
     },
     {
       title: t('project.workflow_number'),
@@ -127,6 +129,7 @@ function TableList({ list, onViewDetail }: TableListProps): ReactElement {
   );
 
   function setProjectStatus(index: number, newStatus: ConnectionStatus) {
+    console.log('🚀 ~ file: index.tsx ~ line 130 ~ setProjectStatus ~ index', index);
     let newStatuses = [...statuses];
     newStatuses[index] = newStatus;
     setStatuses(newStatuses);

@@ -8,6 +8,7 @@ const Container = styled.div`
   align-items: center;
   font-size: 13px;
   line-height: 1;
+  white-space: nowrap;
 
   &::before {
     content: '●';
@@ -16,21 +17,27 @@ const Container = styled.div`
     color: var(--color, #e0e0e0);
   }
 
-  &.is-unknown {
-    --color: var(--gray3);
+  &[color='unknown'] {
+    --color: var(--backgroundGray);
   }
-  &.is-success {
+  &[color='success'] {
     --color: #00bab2;
   }
-  &.is-warning {
+  &[color='warning'] {
     --color: var(--orange6);
   }
-  &.is-error {
+  &[color='error'] {
     --color: #fd5165;
   }
-  &.is-processing {
+  &[color='processing'] {
     --color: var(--primaryColor);
   }
+`;
+const Text = styled.span`
+  margin-right: 5px;
+`;
+const Help = styled.div`
+  cursor: help;
 `;
 const QuestionMark = styled(QuestionCircleOutlined)`
   width: 12px;
@@ -47,19 +54,28 @@ type Props = {
 };
 
 const StateIndicator: FC<Props> = ({ text, type = 'default', tip, tag }) => {
+  let Wrapper = tag ? Tag : Container;
+
   if (tag) {
     return <Tag color={type}>{text}</Tag>;
   }
-  return (
-    <Container className={`is-${type}`}>
-      {text}
-      {tip && (
-        <Tooltip title={tip}>
-          <QuestionMark />
-        </Tooltip>
-      )}
-    </Container>
+
+  const Content = (
+    <Wrapper color={type}>
+      <Text>{text}</Text>
+      {tip && <QuestionMark />}
+    </Wrapper>
   );
+
+  if (tip?.trim()) {
+    return (
+      <Tooltip title={tip}>
+        <Help>{Content}</Help>
+      </Tooltip>
+    );
+  }
+
+  return Content;
 };
 
 export default StateIndicator;

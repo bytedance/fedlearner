@@ -61,7 +61,7 @@ const JobExecutionDetailsDrawer: ForwardRefRenderFunction<JobExecutionDetailsExp
 
   const job = data.raw;
 
-  const displayProps = [
+  const displayedProps = [
     {
       label: 'Job ID',
       value: job.id,
@@ -105,7 +105,7 @@ const JobExecutionDetailsDrawer: ForwardRefRenderFunction<JobExecutionDetailsExp
           </GridRow>
         </DrawerHeader>
 
-        <PropertyList cols={2} properties={displayProps} labelWidth={90} />
+        <PropertyList cols={2} properties={displayedProps} labelWidth={90} />
 
         <JobExecutionMetrics />
         <JobExecutionLogs />

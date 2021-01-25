@@ -1,5 +1,4 @@
 import React, { ReactElement } from 'react';
-import styled from 'styled-components';
 import { Tabs, Table } from 'antd';
 import { useTranslation } from 'react-i18next';
 import { Project } from 'typings/project';
@@ -7,7 +6,7 @@ import ErrorBoundary from 'antd/lib/alert/ErrorBoundary';
 import PropertyList from 'components/PropertyList';
 import { useQuery } from 'react-query';
 import { fetchWorkflowList } from 'services/workflow';
-import { getTableColumns } from 'views/Workflows/WorkflowList';
+import { getWorkflowTableColumns } from 'views/Workflows/WorkflowList';
 
 interface DetailBodyProps {
   project: Project;
@@ -49,7 +48,7 @@ function DetailBody({ project }: DetailBodyProps): ReactElement {
           <Table
             loading={workflowQuery.isLoading}
             dataSource={workflowQuery.data?.data || []}
-            columns={getTableColumns({ withoutActions: true })}
+            columns={getWorkflowTableColumns({ withoutActions: true })}
           />
         </Tabs.TabPane>
         <Tabs.TabPane tab={t('project.mix_dataset')} key="dataset">

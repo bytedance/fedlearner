@@ -14,9 +14,9 @@ export default IconWrapper(
   (props: ISvgIconProps) => (
     <svg
       t="1573032519333"
-      class="icon"
+      className="icon"
       viewBox="0 0 1024 1024"
-      pId="63423"
+      p-id="63423"
       width={props.size}
       height={props.size}
     >

@@ -30,6 +30,7 @@ export function fetchWorkflowList(params?: { project?: string | number; keyword?
   return request('/v2/workflows', {
     params,
     removeFalsy: true,
+    snake_case: true,
   });
 }
 

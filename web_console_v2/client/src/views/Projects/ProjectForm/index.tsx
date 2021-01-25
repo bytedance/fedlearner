@@ -80,12 +80,12 @@ function ProjectForm({ onSubmit, isEdit, initialValues }: Props): ReactElement {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
   const history = useHistory();
-  const reloadProjectList = useReloadProjectList();
-
   const defaultValues: ProjectFormInitialValues = initialValues ?? defaultInitialValues;
   const [certificateConfigType, setCertificateConfigType] = useState(
     defaultValues.certificateConfigType,
   );
+
+  const reloadList = useReloadProjectList();
 
   return (
     <Container>
@@ -255,6 +255,7 @@ function ProjectForm({ onSubmit, isEdit, initialValues }: Props): ReactElement {
         });
         params = {
           name: data.name,
+          domain_name: data.domain_name,
           config: {
             domain_name: data.domain_name,
             participants,
@@ -264,8 +265,8 @@ function ProjectForm({ onSubmit, isEdit, initialValues }: Props): ReactElement {
         };
         await onSubmit(params);
       }
-      message.success(edit ? i18n.t('project.edit_success') : i18n.t('project.create_success'));
-      reloadProjectList();
+      message.success(isEdit ? i18n.t('project.edit_success') : i18n.t('project.create_success'));
+      reloadList();
       backToList();
     } catch (error) {
       message.error(error.message);

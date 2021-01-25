@@ -6,6 +6,7 @@ import error from './modules/error';
 import upload from './modules/upload';
 import term from './modules/term';
 import app from './modules/app';
+import dataset from './modules/dataset';
 
 const messages = {
   translation: {
@@ -17,6 +18,7 @@ const messages = {
     project: project.zh,
     app: app.zh,
     workflow: workflow.zh,
+    dataset: dataset.zh,
 
     all: '全部',
     terms: '服务协议',
@@ -30,6 +32,8 @@ const messages = {
     operation: '操作',
     certificate: '证书',
     click_to_retry: '点此重试',
+    creator: '创建者',
+    created_at: '创建时间',
   },
 };
 

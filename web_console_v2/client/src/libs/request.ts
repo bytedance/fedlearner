@@ -79,6 +79,7 @@ request.interceptors.request.use((config) => {
  * Params preprocessing (NOTE: every processor is optional):
  * 1. Remove undefined, null, empty string keys
  * 2. Turn camelCase keys to snake_case
+ * 3. Turn true/false to 1/0
  */
 request.interceptors.request.use((config) => {
   if (config.removeFalsy && config.params) {

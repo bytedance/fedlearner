@@ -11,6 +11,7 @@ export function formatTimestamp(input: number, format = 'YYYY-MM-DD HH:mm:ss') {
   return dayjs(input).format(format);
 }
 
+/** Inpput is accurate to seconds */
 export function fomatTimeCount(input: number) {
   const hours = Math.floor(input / 3600).toString();
   const minutes = Math.floor((input % 3600) / 60).toString();

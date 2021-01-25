@@ -14,16 +14,16 @@ export default IconWrapper(
   (props: ISvgIconProps) => (
     <svg
       t="1561636071618"
-      class="icon"
+      className="icon"
       viewBox="0 0 1024 1024"
-      pId="396860"
+      p-id="396860"
       width={props.size}
       height={props.size}
     >
       <defs />
       <path
         d="M512 613.12l346.88-347.52a21.12 21.12 0 0 1 30.08 0l30.08 30.72a21.12 21.12 0 0 1 0 30.08L542.08 704a42.24 42.24 0 0 1-60.16 0L104.96 326.4a21.12 21.12 0 0 1 0-30.08l30.08-30.72a21.12 21.12 0 0 1 30.08 0z"
-        pId="396861"
+        p-id="396861"
       />
     </svg>
   ),

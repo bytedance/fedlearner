@@ -167,8 +167,8 @@ export type Workflow = {
   transaction_err: string | null;
   created_at: DateTime;
   updated_at: DateTime;
-  started_at?: DateTime;
-  stopped_at?: DateTime;
+  started_at?: DateTime | null;
+  stopped_at?: DateTime | null;
 };
 
 export type WorkflowExecutionDetails = {

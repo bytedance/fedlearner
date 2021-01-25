@@ -17,7 +17,7 @@ import { useCheckConnection } from 'hooks/project';
 const CardContainer = styled.div`
   ${MixinCommonTransition('box-shadow')}
 
-  border: 1px solid var(--gray3);
+  border: 1px solid var(--backgroundGray);
   border-radius: 4px;
   overflow: hidden; // Prevent card from expanding grid
 
@@ -28,7 +28,7 @@ const CardContainer = styled.div`
 const CardHeader = styled.div`
   display: flex;
   height: 40px;
-  border-bottom: 1px solid var(--gray3);
+  border-bottom: 1px solid var(--backgroundGray);
   justify-content: space-between;
   cursor: pointer;
 
