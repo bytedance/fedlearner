@@ -15,6 +15,7 @@
 # coding: utf-8
 # pylint: disable=raise-missing-from
 
+import os
 from enum import Enum
 from uuid import uuid4
 
@@ -102,11 +103,13 @@ class ProjectsApi(Resource):
                             format('certificates', '{} not existed'.format(
                                 file_name)))
                 certificates[domain_name] = {'certs': current_cert}
-                participant.pop('certificates')
 
                 # Grpc spec
                 participant['grpc_spec'] = {
-                    'peer_url': participant['url'],
+                    'peer_url': os.environ.get(
+                        'EGRESS_URL',
+                        'fedlearner-stack-ingress-nginx-controller.default'
+                        '.svc.cluster.local:80'),
                     'authority': participant['domain_name']
                 }
 
@@ -118,6 +121,8 @@ class ProjectsApi(Resource):
                                       participant.get('url'), current_cert)
                 except RuntimeError as e:
                     raise InvalidArgumentException(details=str(e))
+            if 'certificates' in participant.keys:
+                participant.pop('certificates')
 
         new_project = Project()
         # generate token
