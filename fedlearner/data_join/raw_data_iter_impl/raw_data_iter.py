@@ -15,10 +15,20 @@
 # coding: utf-8
 
 import logging
+from collections import OrderedDict
 
 
 class RawDataIter(object):
     class Item(object):
+        def __init__(self):
+            # please modify the set according to alphabetical order.
+            self._allowed_fields = {
+                'click_id', 'example_id', 'event_time', 'event_time_deep',
+                'event_time_shallow', 'id', 'id_type', 'label', 'raw_id', 'rit',
+                'type'
+            }
+            self._features = OrderedDict()
+
         @property
         def example_id(self):
             raise NotImplementedError(
@@ -30,12 +40,6 @@ class RawDataIter(object):
             raise NotImplementedError(
                     "event_time not implement for basic Item"
                 )
-
-        @property
-        def optional_fields(self):
-            raise NotImplementedError(
-                "Optional fields not implemented in base class Item."
-            )
 
         @property
         def record(self):
@@ -58,6 +62,33 @@ class RawDataIter(object):
         @classmethod
         def make(cls, example_id, event_time, raw_id, fname=None, fvalue=None):
             raise NotImplementedError("make not implement for basic Item")
+
+        def __getattr__(self, item):
+            if item in self._features:
+                return self._features[item]
+            else:
+                raise AttributeError
+
+        def __getitem__(self, item):
+            return self._features[item]
+
+        def __contains__(self, item):
+            return item in self._features
+
+        def keys(self):
+            return self._features.keys()
+
+        def values(self):
+            return self._features.values()
+
+        def items(self):
+            return self._features.items()
+
+        def get(self, field, default=None):
+            return self._features.get(field, default)
+
+        def update(self, dic):
+            self._features.update(dic)
 
     def __init__(self, options):
         self._fiter = None
@@ -140,7 +171,7 @@ class RawDataIter(object):
         self._check_valid()
         return self._item
 
-    def _reset_iter(self):
+    def _reset_iter(self, index_meta):
         raise NotImplementedError(
                 "_reset_iter not implement for class %s" %
                 RawDataIter.name()

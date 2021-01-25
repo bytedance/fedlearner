@@ -2,12 +2,11 @@ import copy
 import logging
 import random
 from collections import defaultdict
-from datetime import datetime, timedelta
+from datetime import datetime
 from itertools import chain
 
 import fedlearner.common.data_join_service_pb2 as dj_pb
 from fedlearner.common import metrics
-from fedlearner.data_join import common
 
 
 class OptionalStats:
@@ -73,14 +72,10 @@ class OptionalStats:
         assert kind in ('joined', 'unjoined')
         if kind == 'unjoined':
             self.sample_unjoined(item.example_id)
-        if item.optional_fields == common.NoOptionalFields:
-            return
         item_stat = {'joined': int(kind == 'joined')}
         tags = copy.deepcopy(self._tags)
         for field in self._stats_fields:
-            value = self._convert_from_bytes(
-                item.optional_fields.get(field, '#None#')
-            )
+            value = self._convert_from_bytes(getattr(item, field, '#None#'))
             item_stat[field] = value
             self._stats[kind]['{}={}'.format(field, value)] += 1
         tags.update(item_stat)
@@ -166,16 +161,9 @@ class OptionalStats:
             except ValueError:  # Not fitting any of above patterns
                 pass
         # then try to convert directly
-        timestamp_left = (datetime.now() - timedelta(days=20 * 365)).timestamp()
-        timestamp_right = (datetime.now() + timedelta(days=5 * 365)).timestamp()
         try:
             value = float(value)
-        except ValueError:
-            value = 0.
-        if value != 0. and not timestamp_left <= value <= timestamp_right:
-            logging.info('OptionalStats: timestamp %s does not reside in the '
-                         'time range of [now - 20 years, now + 5 years]. '
-                         'Defaults to 0.', value)
+        except ValueError:  # might be a non-number str
             value = 0.
         return value
 

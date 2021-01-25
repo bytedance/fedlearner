@@ -25,15 +25,12 @@ from fedlearner.data_join.raw_data_iter_impl.raw_data_iter import RawDataIter
 
 
 class TfExampleItem(RawDataIter.Item):
-    def __init__(self, record_str, optional_fields=None):
+    def __init__(self, record_str):
+        super().__init__()
         self._record_str = record_str
         self._parse_example_error = False
         example = self._parse_example()
-        self._example_id = self._parse_example_id(example, record_str)
-        self._event_time = self._parse_event_time(example, record_str)
-        self._raw_id = self._parse_raw_id(example, record_str)
-        self._optional_fields = self._parse_optional(
-            example, record_str, optional_fields)
+        self._parse_to_dict(example)
         self._csv_record = None
         self._gc_example(example)
 
@@ -51,27 +48,30 @@ class TfExampleItem(RawDataIter.Item):
         ex = common.convert_dict_to_tf_example(fields)
         return cls(ex.SerializeToString())
 
+    def _parse_to_dict(self, example):
+        dic = common.convert_tf_example_to_dict(example)
+        self.update({dic[key] for key in dic if key in self._allowed_fields})
+
     @property
     def example_id(self):
-        if self._example_id == common.InvalidExampleId:
+        res = self.get('example_id', common.InvalidExampleId)
+        if res == common.InvalidExampleId:
             logging.warning('Note!!! return invalid example id')
-        return self._example_id
+        return res
 
     @property
     def raw_id(self):
-        if self._raw_id == common.InvalidRawId:
+        res = self.get('raw_id', common.InvalidRawId)
+        if res == common.InvalidRawId:
             logging.warning('Note!!! return invalid raw id')
-        return self._raw_id
+        return res
 
     @property
     def event_time(self):
-        if self._example_id == common.InvalidEventTime:
+        res = self.get('event_time', common.InvalidEventTime)
+        if res == common.InvalidEventTime:
             logging.warning('Note!!! return invalid event time')
-        return self._event_time
-
-    @property
-    def optional_fields(self):
-        return self._optional_fields
+        return res
 
     @property
     def record(self):
@@ -130,74 +130,6 @@ class TfExampleItem(RawDataIter.Item):
             example.Clear()
             del example
 
-    @staticmethod
-    def _parse_example_id(example, record):
-        if example is not None:
-            assert isinstance(example, tf.train.Example)
-            try:
-                feat = example.features.feature
-                if 'example_id' in feat:
-                    return feat['example_id'].bytes_list.value[0]
-            except Exception as e: # pylint: disable=broad-except
-                logging.error('Failed to parse example id from %s, reason %s',
-                               record, e)
-        return common.InvalidExampleId
-
-    @staticmethod
-    def _parse_raw_id(example, record):
-        if example is not None:
-            assert isinstance(example, tf.train.Example)
-            try:
-                feat = example.features.feature
-                if 'raw_id' in feat:
-                    return feat['raw_id'].bytes_list.value[0]
-            except Exception as e: # pylint: disable=broad-except
-                logging.error('Failed to parse raw id from %s, reason %s',
-                              record, e)
-        return common.InvalidRawId
-
-    @staticmethod
-    def _parse_optional(example, record, optional_fields=None):
-        if example is not None \
-                and optional_fields is not None \
-                and len(optional_fields) > 0:
-            assert isinstance(example, tf.train.Example)
-            try:
-                feat = example.features.feature
-                optional_values = {}
-                for k in optional_fields:
-                    if k in feat:
-                        if feat[k].HasField('int64_list'):
-                            optional_values[k] = feat[k].int64_list.value[0]
-                        elif feat[k].HasField('bytes_list'):
-                            optional_values[k] = \
-                                str(feat[k].bytes_list.value[0])
-                        else:
-                            assert feat[k].HasField('float_list')
-                            optional_values[k] = feat[k].float_list.value[0]
-                return optional_values
-            except Exception as e:  # pylint: disable=broad-except
-                logging.error('Failed to parse label from %s, reason %s',
-                              record, e)
-        return common.NoOptionalFields
-
-    @staticmethod
-    def _parse_event_time(example, record):
-        if example is not None:
-            assert isinstance(example, tf.train.Example)
-            try:
-                feat = example.features.feature
-                if 'event_time' in feat:
-                    if feat['event_time'].HasField('int64_list'):
-                        return feat['event_time'].int64_list.value[0]
-                    if feat['event_time'].HasField('bytes_list'):
-                        return int(feat['event_time'].bytes_list.value[0])
-                    raise ValueError('event_time not support float_list')
-            except Exception as e: # pylint: disable=broad-except
-                logging.error("Failed parse event time from %s, reason %s",
-                              record, e)
-        return common.InvalidEventTime
-
     def clear(self):
         del self._record_str
         del self._csv_record
@@ -232,20 +164,18 @@ class TfRecordIter(RawDataIter):
         if expt is not None:
             raise expt
 
-    def _inner_iter(self, fpath, optional_fields=None):
+    def _inner_iter(self, fpath):
         with self._data_set(fpath) as data_set:
             for batch in iter(data_set):
                 for raw_data in batch.numpy():
-                    yield TfExampleItem(raw_data, optional_fields)
+                    yield TfExampleItem(raw_data)
 
     def _reset_iter(self, index_meta):
         if index_meta is not None:
             fpath = index_meta.fpath
             # chain up all the optional fields lists from options,
             # use set to de-duplicate
-            optional_fields = self._options.optional_fields \
-                if self._options is not None else []
-            fiter = self._inner_iter(fpath, optional_fields)
+            fiter = self._inner_iter(fpath)
             item = next(fiter)
             return fiter, item
         return None, None
