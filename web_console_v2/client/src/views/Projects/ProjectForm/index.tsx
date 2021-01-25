@@ -253,8 +253,8 @@ function ProjectForm({ onSubmit, isEdit, initialValues }: Props): ReactElement {
         });
         params = {
           name: data.name,
-          domain_name: data.domain_name,
           config: {
+            domain_name: data.domain_name,
             participants,
             variables: data.variables ?? [],
           },

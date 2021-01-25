@@ -32,8 +32,8 @@ export interface UpdateProjectFormData {
 
 export interface CreateProjectFormData {
   name: string;
-  domain_name: string;
   config: {
+    domain_name: string;
     token?: string;
     participants: Participant[];
     variables: ProjectVariable[];
