@@ -240,6 +240,7 @@ class ExampleIdManager(visitor.IndexMetaManager):
 class ExampleIdVisitor(visitor.Visitor):
     class ExampleIdItem(raw_data_iter.RawDataIter.Item):
         def __init__(self, example_id, event_time, index):
+            super().__init__()
             self._index = index
             self._example_id = example_id
             self._event_time = event_time

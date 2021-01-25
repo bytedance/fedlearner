@@ -66,8 +66,7 @@ class RawDataIter(object):
         def __getattr__(self, item):
             if item in self._features:
                 return self._features[item]
-            else:
-                raise AttributeError
+            raise AttributeError
 
         def __getitem__(self, item):
             return self._features[item]
