@@ -110,7 +110,7 @@ class WorkflowTest(BaseTestCase):
                     'url': f'127.0.0.1:{peer_port}',
                     'domain_name': f'fl-{peer_role}.com',
                     'grpc_spec': {
-                        'peer_url': f'127.0.0.1:{peer_port}',
+                        'egress_url': f'127.0.0.1:{peer_port}',
                     }
                 }
             ]

@@ -48,11 +48,21 @@ def parse_certificates(encoded_gz):
 
 
 def create_add_on(client: Type[K8sClient], domain_name: str, url: str,
-                  certificates: Dict[str, str]):
+                  certificates: Dict[str, str], custom_host: str = None):
     """
     Idempotent
     Create add on and upgrade nginx-ingress and operator.
     If add on of domain_name exists, replace it.
+
+    Args:
+        client:       K8s client instance
+        domain_name:  participant's domain name, used to create Ingress
+        url:          participant's external ip, used to create ExternalName
+                      Service
+        certificates: used for two-way tls authentication and to create one
+                      server Secret, one client Secret and one CA
+        custom_host:  used for case where participant is using an external
+                      authentication gateway
     """
     # url: xxx.xxx.xxx.xxx:xxxxx
     ip = url.split(':')[0]
@@ -171,6 +181,11 @@ def create_add_on(client: Type[K8sClient], domain_name: str, url: str,
         },
         name=name
     )
+    configuration_snippet_template = 'grpc_next_upstream_tries 5;\n'\
+                                     'grpc_set_header Host {0};\n'\
+                                     'grpc_set_header Authority {0};'
+    configuration_snippet = \
+        configuration_snippet_template.format(custom_host or '$http_x_host')
     client.create_or_update_ingress(
         metadata={
             'name': domain_name,
@@ -180,9 +195,7 @@ def create_add_on(client: Type[K8sClient], domain_name: str, url: str,
                 'nginx.ingress.kubernetes.io/backend-protocol': 'GRPCS',
                 'nginx.ingress.kubernetes.io/http2-insecure-port': 't',
                 'nginx.ingress.kubernetes.io/configuration-snippet':
-                    'grpc_next_upstream_tries 5;\n'
-                    'grpc_set_header Host $http_x_host;\n'
-                    'grpc_set_header Authority $http_x_host;'
+                configuration_snippet
             }
         },
         spec={
@@ -203,6 +216,15 @@ def create_add_on(client: Type[K8sClient], domain_name: str, url: str,
         },
         name=domain_name
     )
+    server_snippet_template = \
+        'grpc_ssl_verify on;\n'\
+        'grpc_ssl_server_name on;\n'\
+        'grpc_ssl_name {0};\n'\
+        'grpc_ssl_trusted_certificate /etc/{1}/client/all.pem;\n'\
+        'grpc_ssl_certificate /etc/{1}/client/client.pem;\n'\
+        'grpc_ssl_certificate_key /etc/{1}/client/client.key;'
+    server_snippet = server_snippet_template.format(
+        custom_host or '$http_x_host', name)
     client.create_or_update_ingress(
         metadata={
             'name': client_auth_ingress_name,
@@ -212,17 +234,8 @@ def create_add_on(client: Type[K8sClient], domain_name: str, url: str,
                 'nginx.ingress.kubernetes.io/backend-protocol': 'GRPCS',
                 'nginx.ingress.kubernetes.io/http2-insecure-port': 't',
                 'nginx.ingress.kubernetes.io/configuration-snippet':
-                    'grpc_next_upstream_tries 5;\n'
-                    'grpc_set_header Host $http_x_host;\n'
-                    'grpc_set_header Authority $http_x_host;',
-                'nginx.ingress.kubernetes.io/server-snippet':
-                    'grpc_ssl_verify on;\n'
-                    'grpc_ssl_server_name on;\n'
-                    'grpc_ssl_name $http_x_host;\n'
-                    'grpc_ssl_trusted_certificate /etc/{0}/client/all.pem;\n'
-                    'grpc_ssl_certificate /etc/{0}/client/client.pem;\n'
-                    'grpc_ssl_certificate_key /etc/{0}/client/client.key;'
-                    .format(name)
+                configuration_snippet,
+                'nginx.ingress.kubernetes.io/server-snippet': server_snippet
             }
         },
         spec={

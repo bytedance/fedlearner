@@ -43,7 +43,7 @@ class RpcClient(object):
             auth_token=self._project.token)
 
         self._client = service_pb2_grpc.WebConsoleV2ServiceStub(_build_channel(
-            self._receiver.grpc_spec.peer_url,
+            self._receiver.grpc_spec.egress_url,
             self._receiver.grpc_spec.authority
         ))
 
