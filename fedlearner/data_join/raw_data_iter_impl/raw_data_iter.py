@@ -75,21 +75,6 @@ class RawDataIter(object):
         def __contains__(self, item):
             return item in self._features
 
-        def keys(self):
-            return self._features.keys()
-
-        def values(self):
-            return self._features.values()
-
-        def items(self):
-            return self._features.items()
-
-        def get(self, field, default=None):
-            return self._features.get(field, default)
-
-        def update(self, dic):
-            self._features.update(dic)
-
     def __init__(self, options):
         self._fiter = None
         self._index_meta = None

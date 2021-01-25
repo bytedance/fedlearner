@@ -31,7 +31,7 @@ from fedlearner.data_join.raw_data_iter_impl.raw_data_iter import RawDataIter
 class CsvItem(RawDataIter.Item):
     def __init__(self, raw):
         super().__init__()
-        self.update(raw)
+        self._features.update(raw)
         self._tf_record = None
 
     @classmethod
