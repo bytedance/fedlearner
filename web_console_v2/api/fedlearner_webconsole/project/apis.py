@@ -81,6 +81,7 @@ class ProjectsApi(Resource):
             raise InvalidArgumentException(
                 details='Currently not support multiple participants.')
 
+        # exact configuration from variables
         custom_host = None
         egress_url = 'fedlearner-stack-ingress-nginx-controller.default'\
                      '.svc.cluster.local:80'
@@ -100,6 +101,13 @@ class ProjectsApi(Resource):
                         'participants', 'Participant must have name, '
                         'domain_name and url.'))
             domain_name = participant.get('domain_name')
+            # Grpc spec
+            participant['grpc_spec'] = {
+                'egress_url': egress_url,
+                'authority': domain_name
+            }
+
+            # create add on
             if participant.get('certificates') is not None:
                 current_cert = parse_certificates(
                     participant.get('certificates'))
@@ -111,14 +119,6 @@ class ProjectsApi(Resource):
                             format('certificates', '{} not existed'.format(
                                 file_name)))
                 certificates[domain_name] = {'certs': current_cert}
-
-                # Grpc spec
-                participant['grpc_spec'] = {
-                    'egress_url': egress_url,
-                    'authority': participant['domain_name']
-                }
-
-                # create add on
                 try:
                     k8s_client = get_client()
                     for domain_name, certificate in certificates.items():
@@ -127,6 +127,7 @@ class ProjectsApi(Resource):
                                       custom_host)
                 except RuntimeError as e:
                     raise InvalidArgumentException(details=str(e))
+
             if 'certificates' in participant.keys():
                 participant.pop('certificates')
 

@@ -51,10 +51,7 @@ class WorkflowsCommitTest(BaseTestCase):
                 {
                     'name': 'party_leader',
                     'url': '127.0.0.1:5000',
-                    'domain_name': 'fl-leader.com',
-                    'grpc_spec': {
-                        'egress_url': '127.0.0.1:1991',
-                    }
+                    'domain_name': 'fl-leader.com'
                 }
             ],
             'variables': [
@@ -69,6 +66,10 @@ class WorkflowsCommitTest(BaseTestCase):
                 {
                     'name': 'storage_root_dir',
                     'value': '/'
+                },
+                {
+                    'name': 'EGRESS_URL',
+                    'value': '127.0.0.1:1991'
                 }
             ]
         }

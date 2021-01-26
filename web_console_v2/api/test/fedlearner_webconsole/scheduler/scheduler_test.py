@@ -108,10 +108,13 @@ class WorkflowTest(BaseTestCase):
                 {
                     'name': f'party_{peer_role}',
                     'url': f'127.0.0.1:{peer_port}',
-                    'domain_name': f'fl-{peer_role}.com',
-                    'grpc_spec': {
-                        'egress_url': f'127.0.0.1:{peer_port}',
-                    }
+                    'domain_name': f'fl-{peer_role}.com'
+                }
+            ],
+            'variables': [
+                {
+                    'name': 'EGRESS_URL',
+                    'value': f'127.0.0.1:{peer_port}'
                 }
             ]
         }
