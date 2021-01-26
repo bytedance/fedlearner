@@ -84,7 +84,7 @@ class ImportHandler(object):
             file.state = dataset_pb2.File.State.FAILED
         else:
             file.size = self._file_manager.ls(
-                destination_path)[0]['size']
+                destination_path)[0].size
             file.state = dataset_pb2.File.State.COMPLETED
         return file
 
