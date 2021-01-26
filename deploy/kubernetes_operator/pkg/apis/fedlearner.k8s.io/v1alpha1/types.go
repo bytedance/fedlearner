@@ -125,16 +125,16 @@ type ReplicaStatus struct {
 // IngressSpec is the description for a FLApp ingress
 type IngressSpec struct {
 	// HostSuffix is the suffix appended to FLApp hostname
-	HostSuffix string
+	HostSuffix string `json:"hostSuffix"`
 
 	// ClientAuthSecretName is the name for Ingress client-auth
-	ClientAuthSecretName string
+	ClientAuthSecretName string `json:"clientAuthSecretName"`
 
 	// TLSSecretName is the name for Ingress TLS secrets
-	TLSSecretName string
+	TLSSecretName string `json:"tlsSecretName"`
 
 	// IngressClassName is the Ingress-class name
-	IngressClassName string
+	IngressClassName string `json:"ingressClassName"`
 }
 
 // FLReplicaStatus describe FLReplicaStatus for each FLReplicaType
@@ -169,7 +169,8 @@ const (
 // +resource:path=flapp
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="STATUS",type=string,JSONPath=`.status.appState`
-// +kubebuilder:printcolumn:name="AGE",type=date,JSONPath=`.metadata.creationTimestamp`
+// +kubebuilder:printcolumn:name="START",type=date,JSONPath=`.metadata.creationTimestamp`
+// +kubebuilder:printcolumn:name="END",type=date,JSONPath=`.status.completionTime`
 
 // FLApp is a specification for a FLApp resource
 type FLApp struct {
@@ -237,7 +238,7 @@ type FLAppStatus struct {
 	// be set in happens-before order across separate operations.
 	// It is represented in RFC3339 form and is in UTC.
 	// +optional
-	CompletionTime *metav1.Time
+	CompletionTime *metav1.Time `json:"completionTime"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

@@ -19,4 +19,4 @@ vendor:
 	go mod vendor
 
 crd:
-	controller-gen paths=./pkg/apis/... output:dir=../charts/manifests  crd:trivialVersions=true
+	controller-gen paths=./pkg/apis/... output:dir=../charts/fedlearner/charts/fedlearner-operator/templates/  crd:trivialVersions=true
