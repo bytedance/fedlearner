@@ -1,4 +1,4 @@
-import { awaitParticipantConfig, withExecutionDetail } from './example';
+import { awaitParticipantConfig, withExecutionDetail } from './examples';
 
 const get = {
   data: { data: withExecutionDetail },

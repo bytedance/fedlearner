@@ -2,7 +2,11 @@ import { noop } from 'lodash';
 import React, { FC, useState, useEffect } from 'react';
 import { fomatTimeCount } from 'shared/date';
 
-const CountTime: FC<{ time: number; isStatic: boolean }> = ({ time, isStatic }) => {
+type Props = {
+  time: number; // Accurate to seconds
+  isStatic: boolean;
+};
+const CountTime: FC<Props> = ({ time, isStatic }) => {
   let [formatted, setFormatted] = useState(fomatTimeCount(time));
 
   useEffect(() => {

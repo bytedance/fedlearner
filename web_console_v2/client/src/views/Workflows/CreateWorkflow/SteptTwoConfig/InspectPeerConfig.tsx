@@ -6,6 +6,7 @@ import { Close } from 'components/IconPark';
 import { useTranslation } from 'react-i18next';
 import { WorkflowConfig } from 'typings/workflow';
 import PropertyList from 'components/PropertyList';
+import { Z_INDEX_GREATER_THAN_HEADER } from 'components/Header';
 
 const InspectModal = styled(Modal)`
   top: 20%;
@@ -44,7 +45,7 @@ const InspectPeerConfig: FC<
   return (
     <InspectModal
       {...props}
-      zIndex={1002}
+      zIndex={Z_INDEX_GREATER_THAN_HEADER}
       onOk={closeModal}
       okText={t('close')}
       cancelButtonProps={{

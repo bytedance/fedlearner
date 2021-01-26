@@ -56,6 +56,7 @@ const PermissionDisplay = styled.div`
 `;
 const FormContainer = styled.div`
   padding-right: 68px;
+  padding-bottom: 200px;
 `;
 
 interface Props extends DrawerProps {

@@ -2,7 +2,7 @@ import React, { FC } from 'react';
 import styled from 'styled-components';
 import { Input, Checkbox, Form, Button, message } from 'antd';
 import { EyeInvisibleOutlined, EyeTwoTone } from '@ant-design/icons';
-import loginLeftBg from 'assets/images/login-left-bg.jpg';
+import leftBackground from 'assets/images/hacker-codes.jpg';
 import logoWhite from 'assets/images/logo-white.svg';
 import logColorful from 'assets/images/logo-colorful.svg';
 import { MixinFlexAlignCenter } from 'styles/mixins';
@@ -42,7 +42,7 @@ const Left = styled(Block)`
   flex-direction: column;
   background: url(${logoWhite}) top 24px left 32px no-repeat,
     linear-gradient(270deg, rgba(40, 106, 244, 0.9) 0%, rgba(62, 151, 254, 0.9) 100%),
-    url(${loginLeftBg}) no-repeat;
+    url(${leftBackground}) no-repeat;
   background-size: 121px auto, contain, cover;
 
   > * {
@@ -114,10 +114,10 @@ const LoginFormCheckbox = styled(Checkbox)`
 `;
 
 const Login: FC = () => {
-  const history = useHistory();
   const { t } = useTranslation();
   const [submitting, toggleSubmit] = useToggle(false);
   const setUserInfo = useSetRecoilState(userInfoQuery);
+  const history = useHistory();
 
   const userQuery = useRecoilQuery(userInfoQuery);
 
@@ -188,6 +188,13 @@ const Login: FC = () => {
       store.set(LOCAL_STORAGE_KEYS.current_user, { ...data, date: Date.now() });
       setUserInfo(data);
       message.success(i18n.t('app.login_success'));
+
+      if (history.location.search) {
+        const from = new URLSearchParams(history.location.search).get('from');
+        if (from) {
+          return history.push(decodeURIComponent(from) || '/projects');
+        }
+      }
 
       history.push('/projects');
     } catch (error) {

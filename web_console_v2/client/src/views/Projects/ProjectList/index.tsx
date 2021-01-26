@@ -14,6 +14,8 @@ import NoResult from 'components/NoResult';
 import ProjectDetailDrawer from '../ProjectDetailDrawer';
 import store from 'store2';
 import LOCAL_STORAGE_KEYS from 'shared/localStorageKeys';
+import { useMount } from 'react-use';
+import { useReloadProjectList } from 'hooks/project';
 
 const GlobalStyle = createGlobalStyle`
 .project-actions {
@@ -58,7 +60,18 @@ function ProjectList(): ReactElement {
   const [displayType, setDisplayType] = useState(
     store.get(LOCAL_STORAGE_KEYS.projects_display) || DisplayType.Card,
   );
+
+  const reloadList = useReloadProjectList();
   const { isLoading, data: projectList } = useRecoilQuery(projectListQuery);
+
+  useMount(() => {
+    if (!isLoading || projectList) {
+      // If the projectListQuery not fetching when enter the page
+      // means project list data on store may has a chance tobe stale
+      // so what we do is force to reload the list once entering
+      reloadList();
+    }
+  });
 
   useEffect(() => {
     if (projectList) {

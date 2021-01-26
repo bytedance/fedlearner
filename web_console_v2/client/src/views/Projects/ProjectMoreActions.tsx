@@ -54,7 +54,7 @@ function ProjectMoreActions(props: ProjectMoreActionsProps): ReactElement {
       placement="bottomLeft"
       overlayClassName="project-actions"
     >
-      <IconButton icon={<More />} circle />
+      <IconButton type="text" icon={<More />} circle />
     </Popover>
   );
 }

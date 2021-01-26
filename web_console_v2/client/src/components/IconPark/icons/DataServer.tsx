@@ -10,13 +10,13 @@ export default IconWrapper(
     <svg width={props.size} height={props.size} viewBox="0 0 24 24" fill="currentColor">
       <g
         stroke="none"
-        stroke-width="1"
+        strokeWidth="1"
         fill="none"
         fill-rule="evenodd"
         stroke-linecap="square"
         stroke-linejoin="round"
       >
-        <g transform="translate(-106.000000, -111.000000)" stroke="currentColor" stroke-width="2">
+        <g transform="translate(-106.000000, -111.000000)" stroke="currentColor" strokeWidth="2">
           <g transform="translate(107.000000, 112.000000)">
             <path d="M0,17 C0,18.65685 1.343145,20 3,20 L17,20 C18.65685,20 20,18.65685 20,17" />
             <path d="M0,17 C0,15.34315 1.343145,14 3,14 L17,14 C18.65685,14 20,15.34315 20,17" />

@@ -6,10 +6,12 @@ const Container = styled.div`
   margin-top: 30px;
 `;
 const ResultPanel = styled.div`
-  height: 300px;
+  padding: 15px;
+  height: 250px;
   margin-bottom: 20px;
-  background-color: #111;
+  background-color: #17114f;
   border-radius: 4px;
+  color: #fefefe;
 `;
 
 const JobExecutionMetrics: FC = () => {

@@ -1,7 +1,6 @@
 import React, { FC, useState } from 'react';
 import styled from 'styled-components';
 import { Row, Col, Button, Form, Input, Select, Table, message, Spin } from 'antd';
-import { useList } from 'react-use';
 import { Link, useHistory } from 'react-router-dom';
 import { useQuery } from 'react-query';
 import { fetchWorkflowList } from 'services/workflow';
@@ -28,7 +27,7 @@ const ListContainer = styled.div`
   width: 100%;
 `;
 
-export const getTableColumns = (
+export const getWorkflowTableColumns = (
   options: { onSuccess?: Function; withoutActions?: boolean } = {},
 ) => {
   const ret = [
@@ -117,7 +116,12 @@ const WorkflowList: FC = () => {
             </Button>
           </Col>
           <Col>
-            <Form initialValues={{ ...params }} layout="inline" form={form} onFinish={onSearch}>
+            <Form
+              initialValues={{ ...params }}
+              layout="inline"
+              form={form}
+              onFinish={onParamsChange}
+            >
               <FilterItem name="project" label={t('term.project')}>
                 <Select
                   onChange={form.submit}
@@ -148,14 +152,15 @@ const WorkflowList: FC = () => {
           {isEmpty ? (
             <NoResult text={t('workflow.no_result')} to="/workflows/initiate/basic" />
           ) : (
-            <Table dataSource={res?.data || []} columns={getTableColumns({ onSuccess })} />
+            <Table dataSource={res?.data || []} columns={getWorkflowTableColumns({ onSuccess })} />
           )}
         </ListContainer>
       </ListPageLayout>
     </Spin>
   );
 
-  function onSearch(values: QueryParams) {
+  function onParamsChange(values: QueryParams) {
+    // Set params will auto-trigger list query
     setParams(values);
   }
   function onSuccess() {

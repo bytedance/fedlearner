@@ -26,7 +26,7 @@ const Container = styled.div`
   border-radius: 50%;
 
   &:hover {
-    background: var(--gray3);
+    background: var(--backgroundGray);
   }
 `;
 
@@ -40,7 +40,7 @@ const EmptyAvatar = styled.div`
 
   border-radius: 50%;
   border: 4px solid transparent;
-  background-color: var(--gray3);
+  background-color: var(--backgroundGray);
   background-clip: content-box;
 `;
 const UsernameRow = styled(GridRow)`
@@ -61,7 +61,7 @@ const Role = styled.div`
   font-size: 12px;
   line-height: 1;
   font-weight: normal;
-  background-color: var(--gray3);
+  background-color: var(--backgroundGray);
 
   &::before {
     ${MixinCircle(14)}
@@ -137,16 +137,15 @@ function HeaderAccount() {
   }
 
   return (
-    <Container>
-      <Popover
-        content={<AccountPopover />}
-        trigger="hover"
-        title={<Username name={userInfo?.username || ''} />}
-        placement="bottomLeft"
-      >
+    <Popover
+      content={<AccountPopover />}
+      title={<Username name={userInfo?.username || ''} />}
+      placement="bottomLeft"
+    >
+      <Container>
         <Avatar src={avatar} alt="avatar" className="user-avatar" />
-      </Popover>
-    </Container>
+      </Container>
+    </Popover>
   );
 }
 

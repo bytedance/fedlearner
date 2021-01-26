@@ -1,6 +1,6 @@
 import { cloneDeep } from 'lodash';
 import { JobState } from 'typings/job';
-import { newlyCreated, withExecutionDetail } from '../example';
+import { newlyCreated, withExecutionDetail } from '../examples';
 
 const get = () => {
   const modified = cloneDeep(withExecutionDetail);

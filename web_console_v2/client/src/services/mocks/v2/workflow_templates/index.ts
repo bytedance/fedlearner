@@ -1,5 +1,5 @@
 import { stringifyWidgetSchemas } from 'shared/formSchema';
-import exampleWorkflow from './example';
+import exampleWorkflow from './examples';
 
 const barTpl = stringifyWidgetSchemas(exampleWorkflow.data as any);
 const simpleTpl = {

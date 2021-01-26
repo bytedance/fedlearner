@@ -1,7 +1,7 @@
 import ErrorBoundary from 'antd/lib/alert/ErrorBoundary';
 import React, { ForwardRefRenderFunction } from 'react';
 import styled from 'styled-components';
-import { Drawer, Row, Col, Button, Tag } from 'antd';
+import { Drawer, Row, Button, Tag } from 'antd';
 import { DrawerProps } from 'antd/lib/drawer';
 import { JobNodeData, JobNodeStatus } from 'components/WorkflowJobsFlowChart/helpers';
 import { useTranslation } from 'react-i18next';
@@ -24,8 +24,12 @@ const Container = styled(Drawer)`
   }
 `;
 const DrawerHeader = styled(Row)`
+  position: sticky;
+  z-index: 2;
+  top: 0;
   margin: 0 -24px 0;
   padding: 20px 16px 20px 24px;
+  background-color: white;
 `;
 const DrawerTitle = styled.h3`
   margin-bottom: 0;
@@ -61,7 +65,7 @@ const JobExecutionDetailsDrawer: ForwardRefRenderFunction<JobExecutionDetailsExp
 
   const job = data.raw;
 
-  const displayProps = [
+  const displayedProps = [
     {
       label: 'Job ID',
       value: job.id,
@@ -75,6 +79,13 @@ const JobExecutionDetailsDrawer: ForwardRefRenderFunction<JobExecutionDetailsExp
       value: formatTimestamp(job.created_at || 0),
     },
   ];
+
+  job.variables.forEach((item) => {
+    displayedProps.push({
+      label: item.name,
+      value: item.value,
+    });
+  });
 
   const jobStatus = convertExecutionStateToStatus(job.state!);
 
@@ -105,11 +116,11 @@ const JobExecutionDetailsDrawer: ForwardRefRenderFunction<JobExecutionDetailsExp
           </GridRow>
         </DrawerHeader>
 
-        <PropertyList cols={2} properties={displayProps} labelWidth={90} />
+        <PropertyList initialVisibleRows={3} cols={2} properties={displayedProps} labelWidth={90} />
 
         <JobExecutionMetrics />
         <JobExecutionLogs />
-        <JobExecutionPODs pods={job.pods || []} />
+        <JobExecutionPODs job={job} />
       </Container>
     </ErrorBoundary>
   );

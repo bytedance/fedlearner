@@ -22,9 +22,11 @@ import {
 } from 'components/WorkflowJobsFlowChart/helpers';
 import PropertyList from 'components/PropertyList';
 import { Eye, EyeInvisible } from 'components/IconPark';
-import { Workflow, WorkflowExecutionDetails } from 'typings/workflow';
+import { WorkflowExecutionDetails } from 'typings/workflow';
 import { ReactFlowProvider } from 'react-flow-renderer';
-import { isRunning } from 'shared/workflow';
+import { isRunning, isStopped } from 'shared/workflow';
+import dayjs from 'dayjs';
+import NoResult from 'components/NoResult';
 
 const Container = styled.div`
   display: flex;
@@ -48,6 +50,11 @@ const Name = styled.h3`
   margin-bottom: 0;
   font-size: 20px;
   line-height: 28px;
+`;
+const NoJobs = styled.div`
+  display: flex;
+  height: calc(100% - 48px);
+  background-color: var(--gray1);
 `;
 const ChartHeader = styled(Row)`
   height: 48px;
@@ -88,6 +95,22 @@ const WorkflowDetail: FC = () => {
 
   const workflow = detailQuery.data?.data;
   const transactionErr = workflow?.transaction_err;
+
+  let isRunning_ = false;
+  let isStopped_ = false;
+
+  let runningTime: number = 0;
+
+  if (workflow) {
+    isRunning_ = isRunning(workflow);
+    isStopped_ = isStopped(workflow);
+
+    if (isRunning_ || isStopped_) {
+      const { stop_at, start_at } = workflow;
+      runningTime = isStopped_ ? stop_at! - start_at! : dayjs().unix() - start_at!;
+    }
+  }
+
   const workflowProps = [
     {
       label: t('workflow.label_template_name'),
@@ -102,15 +125,13 @@ const WorkflowDetail: FC = () => {
     {
       label: t('workflow.label_running_time'),
 
-      value: workflow && (
-        <CountTime time={workflow?.run_time || 0} isStatic={isRunning(workflow as Workflow)} />
-      ),
+      value: workflow && <CountTime time={runningTime} isStatic={!isRunning_} />,
     },
   ];
   const jobsWithExeDetails = mergeJobDefsWithExecutionDetails(workflow);
   const peerJobsWithExeDetails = mergeJobDefsWithExecutionDetails(peerWorkflowQuery.data);
 
-  markFederatedJobs(jobsWithExeDetails, peerJobsWithExeDetails);
+  _markFederatedJobs(jobsWithExeDetails, peerJobsWithExeDetails);
 
   return (
     <Spin spinning={detailQuery.isLoading}>
@@ -157,14 +178,24 @@ const WorkflowDetail: FC = () => {
               )}
             </ChartHeader>
 
-            <ReactFlowProvider>
-              <WorkflowJobsFlowChart
-                type="execution"
-                onCanvasClick={() => toggleDrawerVisible(false)}
-                jobs={jobsWithExeDetails}
-                onJobClick={viewJobDetail}
-              />
-            </ReactFlowProvider>
+            {jobsWithExeDetails.length === 0 ? (
+              <NoJobs>
+                <NoResult
+                  text={t('workflow.msg_not_config')}
+                  CTAText={t('workflow.action_configure')}
+                  to={`/workflows/accept/basic/${params.id}`}
+                />
+              </NoJobs>
+            ) : (
+              <ReactFlowProvider>
+                <WorkflowJobsFlowChart
+                  type="execution"
+                  onCanvasClick={() => toggleDrawerVisible(false)}
+                  jobs={jobsWithExeDetails}
+                  onJobClick={viewJobDetail}
+                />
+              </ReactFlowProvider>
+            )}
           </ChartContainer>
 
           {/* Peer config */}
@@ -180,13 +211,19 @@ const WorkflowDetail: FC = () => {
                 </Button>
               </ChartHeader>
 
-              <ReactFlowProvider>
-                <WorkflowJobsFlowChart
-                  type="execution"
-                  selectable={false}
-                  jobs={peerJobsWithExeDetails}
-                />
-              </ReactFlowProvider>
+              {peerJobsWithExeDetails.length === 0 ? (
+                <NoJobs>
+                  <NoResult text={t('workflow.msg_peer_not_ready')} />
+                </NoJobs>
+              ) : (
+                <ReactFlowProvider>
+                  <WorkflowJobsFlowChart
+                    type="execution"
+                    selectable={false}
+                    jobs={peerJobsWithExeDetails}
+                  />
+                </ReactFlowProvider>
+              )}
             </ChartContainer>
           )}
         </ChartSection>
@@ -205,7 +242,8 @@ const WorkflowDetail: FC = () => {
     setIsPeerSide(false);
     showJobDetailesDrawer(jobNode);
   }
-  function viewPeerJobDetail(jobNode: JobNode) {
+  // TODO: Maybe it's incorrect to show other side my job execution details?
+  function __viewPeerJobDetail__(jobNode: JobNode) {
     setIsPeerSide(true);
     showJobDetailesDrawer(jobNode);
   }
@@ -236,7 +274,7 @@ function mergeJobDefsWithExecutionDetails(
 }
 
 /** NOTE: Has Side effect to inputs! */
-function markFederatedJobs(aJobs: JobRawData[], bJobs: JobRawData[]) {
+function _markFederatedJobs(aJobs: JobRawData[], bJobs: JobRawData[]) {
   const colorPools: JobColorsMark[] = ['blue', 'green', 'yellow', 'magenta', 'cyan'];
   const markedJobs: Record<string, JobColorsMark> = {};
 

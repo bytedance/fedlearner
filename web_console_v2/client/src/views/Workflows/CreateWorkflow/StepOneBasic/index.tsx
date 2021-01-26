@@ -37,7 +37,11 @@ const Container = styled(Card)`
   margin-top: 20px;
 `;
 
-const WorkflowsCreateStepOne: FC<WorkflowCreateProps> = ({ isInitiate, isAccept }) => {
+const WorkflowsCreateStepOne: FC<WorkflowCreateProps & { onSuccess?: any }> = ({
+  isInitiate,
+  isAccept,
+  onSuccess,
+}) => {
   const { t } = useTranslation();
   const history = useHistory();
   const location = useLocation();
@@ -97,7 +101,7 @@ const WorkflowsCreateStepOne: FC<WorkflowCreateProps> = ({ isInitiate, isAccept 
         duration: 0,
       });
     }
-  }, [peerErrorMsg]);
+  }, [peerErrorMsg, t]);
 
   const tplList = tplListQuery.data?.data || [];
   const noAvailableTpl = tplList.length === 0;
@@ -222,12 +226,12 @@ const WorkflowsCreateStepOne: FC<WorkflowCreateProps> = ({ isInitiate, isAccept 
   );
 
   async function goNextStep() {
+    onSuccess && onSuccess();
+
     const nextRoute = isInitiate
       ? '/workflows/initiate/config'
       : `/workflows/accept/config/${params.id}`;
     history.push(nextRoute);
-
-    workflowPubsub.publish(WORKFLOW_CHANNELS.go_config_step);
   }
   function backToList() {
     history.push('/workflows');
