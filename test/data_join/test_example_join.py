@@ -47,7 +47,7 @@ class TestExampleJoin(unittest.TestCase):
         self.raw_data_options = dj_pb.RawDataOptions(
                 raw_data_iter='TF_RECORD',
                 compressed_type='',
-                optional_fields=['label'],
+                stat_fields=['label'],
                 sample_unjoined=True
             )
         self.example_id_dump_options = dj_pb.ExampleIdDumpOptions(
@@ -230,9 +230,7 @@ class TestExampleJoin(unittest.TestCase):
         join_count = 0
         for data_block_index in range(data_block_num):
             meta = dbm.get_data_block_meta_by_index(data_block_index)
-            # !!! the next line should be commented if using optional stats,
-            #     as the meta will be different due to stats recording
-            # self.assertEqual(meta, metas[data_block_index])
+            self.assertEqual(meta, metas[data_block_index])
             join_count += len(meta.example_ids)
 
         print("join rate {}/{}({}), min_matching_window {}, "\

@@ -89,8 +89,8 @@ if __name__ == "__main__":
     parser.add_argument('--negative_sampling_rate', type=float, default=0.1,
                         help="the rate of sampling when auto-generating "\
                         "negative example, in [0.0, 1.0)")
-    parser.add_argument('--optional_stats_fields', type=str, default='',
-                        help='optional stats fields used in joiner, separated '
+    parser.add_argument('--stat_fields', type=str, default='',
+                        help='optional stat fields used in joiner, separated '
                              'by comma between fields, e.g. "label,rit". '
                              'Each field will be stripped.')
     parser.add_argument('--sample_unjoined', action='store_true',
@@ -99,8 +99,8 @@ if __name__ == "__main__":
     parser.add_argument('--sample_reservoir_length', type=int, default=10,
                         help='unjoined examples sample reservoir length.')
     args = parser.parse_args()
-    optional_stats_fields = list(
-        field for field in map(str.strip, args.optional_stats_fields.split(','))
+    stat_fields = list(
+        field for field in map(str.strip, args.stat_fields.split(','))
         if field != ''
     )
     worker_options = dj_pb.DataJoinWorkerOptions(
@@ -110,7 +110,7 @@ if __name__ == "__main__":
                     compressed_type=args.compressed_type,
                     read_ahead_size=args.read_ahead_size,
                     read_batch_size=args.read_batch_size,
-                    optional_fields=optional_stats_fields,
+                    stat_fields=stat_fields,
                     sample_unjoined=args.sample_unjoined,
                 ),
             example_joiner_options=dj_pb.ExampleJoinerOptions(

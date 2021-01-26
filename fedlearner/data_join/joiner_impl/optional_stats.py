@@ -34,6 +34,7 @@ class OptionalStats:
         345 negatives joined, with a total of 456 negatives;
         45 examples without `label` field joined, with a total of 56 examples
         without `label` field.
+        In the meantime, this will emit metrics to ES if ES address is set.
     This will only count local examples as optional fields are not transmitted
         from peer.
     If raw_data_options.sample_unjoined = True, will sample unjoined example ids
@@ -47,7 +48,7 @@ class OptionalStats:
                 optional stats options and arguments.
         """
         assert isinstance(raw_data_options, dj_pb.RawDataOptions)
-        self._stats_fields = raw_data_options.optional_fields
+        self._stat_fields = raw_data_options.stat_fields
         self._stats = {
             'joined': defaultdict(int),
             'unjoined': defaultdict(int)
@@ -67,14 +68,15 @@ class OptionalStats:
 
         Returns: None
         No-op if optional fields are not set in the raw data options, or empty
-            optional_fields of raw data options.
+            stat_fields of raw data options. Update stats dict. Emit join
+            status and other fields of each item to ES.
         """
         assert kind in ('joined', 'unjoined')
         if kind == 'unjoined':
             self.sample_unjoined(item.example_id)
         item_stat = {'joined': int(kind == 'joined')}
         tags = copy.deepcopy(self._tags)
-        for field in self._stats_fields:
+        for field in self._stat_fields:
             value = self._convert_from_bytes(getattr(item, field, '#None#'))
             item_stat[field] = value
             self._stats[kind]['{}={}'.format(field, value)] += 1
@@ -85,13 +87,9 @@ class OptionalStats:
         tags['timestamp'] = self._convert_to_timestamp(item.event_time)
         metrics.emit_store(name='datajoin', value=0, tags=tags)
 
-    def emit_optional_stats(self, metrics_tags=None):
+    def emit_optional_stats(self):
         """
-        Args:
-            metrics_tags: dict. Metrics tags for Kibana.
-
-        Returns: None
-        Emit the result to ES or logger. Clear the reservoir for next block.
+        Emit the stats to logger. Clear the reservoir for next block.
         field_and_value: a `field`_`value` pair, e.g., for field = `label`,
             field_and_value may be `label_1`, `label_0` and `label_#None#`
         """
@@ -102,10 +100,14 @@ class OptionalStats:
         for field_and_value in field_and_values:
             joined_count = self._stats['joined'][field_and_value]
             unjoined_count = self._stats['unjoined'][field_and_value]
-            tags = copy.deepcopy(metrics_tags)
-            tags.update({'optional_stat_count': field_and_value})
-            self._emit_metrics(
-                joined_count, unjoined_count, field_and_value, tags)
+            total_count = joined_count + unjoined_count
+            join_rate = joined_count / max(total_count, 1) * 100
+            logging.info(
+                'Cumulative stats of `%s`:\n '
+                'total: %d, joined: %d, unjoined: %d, join_rate: %f',
+                field_and_value, total_count, joined_count, unjoined_count,
+                join_rate
+            )
         if self._need_sample:
             logging.info('Unjoined example ids: %s',
                          self._sample_reservoir)
@@ -118,7 +120,7 @@ class OptionalStats:
             example_id: bytes. example_id to be sampled into the reservoir.
 
         Returns: None
-        Sample example_id based on reservoir sampling. For N example_ids to be
+        Sample example_id based on Reservoir Sampling. For N example_ids to be
             sampled, each id has a probability of self._reservoir_length / N to
             be eventually sampled.
         """
@@ -173,22 +175,3 @@ class OptionalStats:
         if isinstance(value, bytes):
             value = value.decode()
         return value
-
-    @staticmethod
-    def _emit_metrics(joined_count, unjoined_count, field_value, metrics_tags):
-        total_count = joined_count + unjoined_count
-        join_rate = joined_count / max(total_count, 1) * 100
-        metrics.emit_store(name='{}_total_num'.format(field_value),
-                           value=total_count,
-                           tags=metrics_tags)
-        metrics.emit_store(name='{}_join_num'.format(field_value),
-                           value=joined_count,
-                           tags=metrics_tags)
-        metrics.emit_store(name='{}_join_rate_percent'.format(field_value),
-                           value=join_rate,
-                           tags=metrics_tags)
-        logging.info(
-            'Cumulative stats of `%s`:\n '
-            'total: %d, joined: %d, unjoined: %d, join_rate: %f',
-            field_value, total_count, joined_count, unjoined_count, join_rate
-        )

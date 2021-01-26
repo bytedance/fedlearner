@@ -44,7 +44,6 @@ DoneFileSuffix = '.done'
 RawDataFileSuffix = '.rd'
 InvalidEventTime = -9223372036854775808
 InvalidRawId = ''.encode()
-NoOptionalFields = '__None__'
 
 
 @contextmanager

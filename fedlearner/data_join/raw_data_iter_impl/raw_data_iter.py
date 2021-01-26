@@ -74,7 +74,7 @@ class RawDataIter(object):
         def __contains__(self, item):
             return item in self._features
 
-        # because Item has implemented __getattr__, the two methods below are
+        # Because Item has implemented __getattr__, the two methods below are
         # necessary. These are the default __getstate__ and __setstate__.
         def __getstate__(self):
             return self.__dict__

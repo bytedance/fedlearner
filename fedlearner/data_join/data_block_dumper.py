@@ -190,7 +190,7 @@ class DataBlockDumperManager(object):
                 traceback.print_stack()
                 os._exit(-1) # pylint: disable=protected-access
             dumped_meta = data_block_builder.finish_data_block(True)
-            self._optional_stats.emit_optional_stats(self._metrics_tags)
+            self._optional_stats.emit_optional_stats()
             assert dumped_meta == meta, "the generated dumped meta should "\
                                         "be the same with input mata"
             with self._lock:

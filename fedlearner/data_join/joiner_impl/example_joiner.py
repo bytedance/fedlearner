@@ -190,7 +190,7 @@ class ExampleJoiner(object):
             meta = self._data_block_builder.finish_data_block(
                     True, self._metrics_tags
                 )
-            self._optional_stats.emit_optional_stats(self._metrics_tags)
+            self._optional_stats.emit_optional_stats()
             self._reset_data_block_builder()
             self._update_latest_dump_timestamp()
             return meta

@@ -356,6 +356,8 @@ class StreamExampleJoiner(ExampleJoiner):
                    and item.example_id not in self._joined_cache \
                    and (self._leader_join_window.committed_pt() is None
                         or _CmpCtnt(item) < self._leader_join_window.committed_pt())
+        # items that are in join cache have already been evicted when calling
+        # self._evict_if_force.
         # conditions from self._evict_if_force
         force_unjoined = force \
                          and (self._leader_join_window.qt() is None
