@@ -171,7 +171,8 @@ class Scheduler(object):
         system_dict = {
             'basic_envs': os.environ.get(
                 'BASIC_ENVS',
-                '{}')}
+                '{"name": "SYSTEM_BASIC_ENVS_DEFAULT",'
+                '"value": ""}')}
         workflow = job.workflow.to_dict()
         workflow['variables'] = self._make_variables_dict(
             job.workflow.get_config().variables)
