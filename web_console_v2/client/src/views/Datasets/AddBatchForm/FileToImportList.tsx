@@ -23,8 +23,8 @@ const TableContainer = styled.div`
 const columns = [
   {
     title: i18n.t('workflow.name'),
-    dataIndex: 'source_path',
-    key: 'source_path',
+    dataIndex: 'path',
+    key: 'path',
     ellipsis: true,
     render: (path: string) => {
       return <strong>{path}</strong>;
@@ -43,17 +43,17 @@ const columns = [
     dataIndex: 'created_at',
     name: 'created_at',
     width: 190,
-    render: (date: number) => <div>{formatTimestamp(date)}</div>,
+    render: (date: number) => <div>{formatTimestamp(date || Date.now())}</div>,
   },
 ];
 
-type Value = FileToImport[];
+type Value = string[];
 type Props = {
   value?: Value;
   onChange?: (val: Value) => any;
 };
 
-const FileList: FC<Props> = ({ value, onChange }) => {
+const FileToImportList: FC<Props> = ({ value, onChange }) => {
   const { t } = useTranslation();
   const [query, setQuery] = useState({
     dateRange: [] as Dayjs[],
@@ -65,16 +65,8 @@ const FileList: FC<Props> = ({ value, onChange }) => {
   });
 
   const listData = (listQuery.data?.data || [])
-    .map((item) => ({ ...item, key: item.source_path }))
-    .filter((item) => {
-      const nameMatched = item.source_path.includes(query.name.trim());
-      const timeMatched =
-        isEmpty(query.dateRange) ||
-        (query.dateRange[0].isBefore(dayjs.unix(item.created_at)) &&
-          query.dateRange[1].isAfter(dayjs.unix(item.created_at)));
-
-      return nameMatched && timeMatched;
-    });
+    .map((item) => ({ ...item, key: item.path }))
+    .filter(filesFilter);
 
   return (
     <Container>
@@ -88,13 +80,13 @@ const FileList: FC<Props> = ({ value, onChange }) => {
         <Col span={9}>
           <Input
             suffix={<Search />}
-            placeholder={'输入文件名进行筛选'}
+            placeholder={t('dataset.placeholder_filename_filter')}
             onChange={onKeywordChange}
           />
         </Col>
         <Col span={2}>
           <Button type="link" size="small">
-            重置
+            {t('reset')}
           </Button>
         </Col>
       </FiltersRow>
@@ -108,7 +100,7 @@ const FileList: FC<Props> = ({ value, onChange }) => {
           pagination={false}
           rowSelection={{
             onChange(_: any, selected) {
-              onChange && onChange(selected);
+              onChange && onChange(selected.map((item) => item.path));
             },
           }}
         />
@@ -131,6 +123,15 @@ const FileList: FC<Props> = ({ value, onChange }) => {
   function disableFuture(date: any) {
     return dayjs(date).valueOf() > Date.now();
   }
+  function filesFilter(item: FileToImport): boolean {
+    const nameMatched = item.path.includes(query.name.trim());
+    const timeMatched =
+      isEmpty(query.dateRange) ||
+      (query.dateRange[0].isBefore(dayjs.unix(item.created_at)) &&
+        query.dateRange[1].isAfter(dayjs.unix(item.created_at)));
+
+    return nameMatched && timeMatched;
+  }
 };
 
-export default FileList;
+export default FileToImportList;

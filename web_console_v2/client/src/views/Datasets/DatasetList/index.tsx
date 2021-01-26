@@ -1,7 +1,7 @@
 import React, { FC, useState } from 'react';
 import ListPageLayout from 'components/ListPageLayout';
 import { useTranslation } from 'react-i18next';
-import { Row, Button, Col, Form, Input, Table } from 'antd';
+import { Row, Button, Col, Form, Input, Table, message } from 'antd';
 import { useHistory } from 'react-router-dom';
 import i18n from 'i18n';
 import { formatTimestamp } from 'shared/date';
@@ -11,18 +11,36 @@ import { useQuery } from 'react-query';
 import { fetchDatasetList } from 'services/dataset';
 import styled from 'styled-components';
 import NoResult from 'components/NoResult';
-import ImportProgress from '../ImportProgress';
-import { getTotalDataSize } from 'shared/dataset';
-import DatasetActions from '../DatasetActions';
+import ImportProgress from './ImportProgress';
+import { getTotalDataSize, isImporting } from 'shared/dataset';
+import DatasetActions, { DatasetAction } from './DatasetActions';
 import { noop } from 'lodash';
+import BatchImportRecordsModal from './BatchImportRecordsModal';
+import { useToggle } from 'react-use';
+import AddBatchModal from './AddBatchModal';
 
 const ListContainer = styled.div`
   display: flex;
   flex: 1;
 `;
 
-export const getDatasetTableColumns = (options: { onSuccess: any; withoutActions?: boolean }) => {
-  const ret = [
+type ColumnsGetterOptions = {
+  onViewReordsClick?: any;
+  onDeleteClick?: any;
+  onAddDataBatchClick?: any;
+  onSuccess?: any;
+  withoutActions?: boolean;
+};
+export const getDatasetTableColumns = (options: ColumnsGetterOptions) => {
+  const onPerformAction = (payload: { action: DatasetAction; dataset: Dataset }) => {
+    return {
+      delete: options.onDeleteClick,
+      'add-batch': options.onAddDataBatchClick,
+      'view-records': options.onViewReordsClick,
+    }[payload.action](payload.dataset);
+  };
+
+  const cols = [
     {
       title: i18n.t('dataset.col_name'),
       dataIndex: 'name',
@@ -36,6 +54,7 @@ export const getDatasetTableColumns = (options: { onSuccess: any; withoutActions
       title: i18n.t('dataset.col_type'),
       dataIndex: 'dataset_type',
       name: 'dataset_type',
+      width: 150,
     },
     {
       title: i18n.t('dataset.status'),
@@ -71,17 +90,17 @@ export const getDatasetTableColumns = (options: { onSuccess: any; withoutActions
     },
   ];
   if (!options.withoutActions) {
-    ret.push({
+    cols.push({
       title: i18n.t('operation'),
       dataIndex: 'operation',
       name: 'operation',
       render: (_: number, record: Dataset) => (
-        <DatasetActions onSuccess={options.onSuccess} dataset={record} type="link" />
+        <DatasetActions onPerformAction={onPerformAction} dataset={record} type="link" />
       ),
     } as any);
   }
 
-  return ret;
+  return cols;
 };
 
 const DatasetList: FC = () => {
@@ -89,9 +108,13 @@ const DatasetList: FC = () => {
   const [form] = Form.useForm();
   const history = useHistory();
   const [params, setParams] = useState({ keyword: '' });
+  const [recordsVisible, toggleRecordsVisible] = useToggle(false);
+  const [addBatchVisible, toggleAddBatchVisible] = useToggle(false);
+  const [curDataset, setCurDataset] = useState<Dataset>();
 
   const listQuery = useQuery(['datasetList', params.keyword], () => fetchDatasetList(params), {
     retry: 2,
+    refetchOnWindowFocus: false,
   });
 
   const isEmpty = !listQuery.isFetching && listQuery.data?.data.length === 0;
@@ -122,18 +145,77 @@ const DatasetList: FC = () => {
           <Table
             loading={listQuery.isFetching}
             dataSource={listQuery.data?.data || []}
-            columns={getDatasetTableColumns({ onSuccess: noop })}
+            columns={getDatasetTableColumns({
+              onSuccess: noop,
+              onViewReordsClick,
+              onAddDataBatchClick,
+              onDeleteClick,
+            })}
           />
         )}
       </ListContainer>
+
+      <BatchImportRecordsModal
+        records={curDataset?.data_batches || []}
+        visible={recordsVisible}
+        toggleVisible={toggleRecordsVisible}
+        onOk={showAddBatchModal}
+      />
+
+      <AddBatchModal
+        datasetType={curDataset?.dataset_type}
+        datasetId={curDataset?.id}
+        visible={addBatchVisible}
+        toggleVisible={toggleAddBatchVisible}
+        onSuccess={onAddBatchSuccess}
+      />
     </ListPageLayout>
   );
 
   function onSearch(values: any) {
     setParams(values);
   }
+  function onViewReordsClick(dataset: Dataset) {
+    setCurDataset(dataset);
+    toggleRecordsVisible(true);
+  }
+  function onAddDataBatchClick(dataset: Dataset) {
+    if (!checkIfHasImportingBatches(dataset)) {
+      return;
+    }
+
+    setCurDataset(dataset);
+    toggleAddBatchVisible(true);
+  }
+  function onAddBatchSuccess() {
+    toggleAddBatchVisible(false);
+    listQuery.refetch();
+  }
+  function showAddBatchModal() {
+    if (!curDataset) return;
+
+    if (!checkIfHasImportingBatches(curDataset)) {
+      return;
+    }
+
+    toggleRecordsVisible(false);
+    toggleAddBatchVisible(true);
+  }
+  function onDeleteClick() {
+    // TODO: coming soon
+    message.info('Coming soon');
+  }
   function goCreate() {
     history.push('/datasets/create');
+  }
+  /** DO NOT SUPPORT add batches for dataset which has unfinished importing */
+  function checkIfHasImportingBatches(dataset: Dataset) {
+    if (isImporting(dataset)) {
+      message.info(t('dataset.msg_is_importing'));
+      return false;
+    }
+
+    return true;
   }
 };
 

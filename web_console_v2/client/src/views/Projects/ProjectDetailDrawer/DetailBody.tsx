@@ -15,7 +15,7 @@ interface DetailBodyProps {
 function DetailBody({ project }: DetailBodyProps): ReactElement {
   const { t } = useTranslation();
 
-  const workflowQuery = useQuery(['fetchWorkflowList', project.id], () =>
+  const workflowsQuery = useQuery(['fetchWorkflowList', project.id], () =>
     fetchWorkflowList({ project: project.id }),
   );
 
@@ -46,19 +46,19 @@ function DetailBody({ project }: DetailBodyProps): ReactElement {
       <Tabs defaultActiveKey="workflow">
         <Tabs.TabPane tab={t('project.workflow')} key="workflow">
           <Table
-            loading={workflowQuery.isLoading}
-            dataSource={workflowQuery.data?.data || []}
+            loading={workflowsQuery.isLoading}
+            dataSource={workflowsQuery.data?.data || []}
             columns={getWorkflowTableColumns({ withoutActions: true })}
           />
         </Tabs.TabPane>
         <Tabs.TabPane tab={t('project.mix_dataset')} key="dataset">
-          Dataset table here
+          <Table />
         </Tabs.TabPane>
         <Tabs.TabPane tab={t('project.model')} key="model">
-          Model table here
+          <Table />
         </Tabs.TabPane>
         <Tabs.TabPane tab="API" key="api">
-          API table here
+          <Table />
         </Tabs.TabPane>
       </Tabs>
     </ErrorBoundary>

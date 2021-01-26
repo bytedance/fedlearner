@@ -7,8 +7,7 @@ import { useTranslation } from 'react-i18next';
 import { useToggle } from 'react-use';
 import { Steps, Row } from 'antd';
 import StepOneBasic from './StepOneBasic';
-import StepTwoAddBatches from './StepTwoAddBatches';
-import { noop } from 'lodash';
+import StepTwoAddBatch from './StepTwoAddBatch';
 import { useResetCreateForm } from 'hooks/dataset';
 
 const ContainerModal = styled(Modal)`
@@ -55,13 +54,13 @@ const CreateDataset: FC = () => {
         </Steps>
       </StepRow>
 
-      {step === 0 && <StepOneBasic onSuccess={goAddBatches} onCancel={onCancel} />}
+      {step === 0 && <StepOneBasic onSuccess={goAddBatch} onCancel={closeModal} />}
 
       {step === 1 && (
-        <StepTwoAddBatches
+        <StepTwoAddBatch
           onSuccess={onCreateNStartImportSuccess}
           onPrevious={backToStepBasic}
-          onCancel={onCancel}
+          onCancel={closeModal}
         />
       )}
     </ContainerModal>
@@ -70,18 +69,18 @@ const CreateDataset: FC = () => {
   function afterClose() {
     history.push('/datasets');
   }
-  function goAddBatches() {
+  function goAddBatch() {
     setStep(1);
   }
   function backToStepBasic() {
     setStep(0);
   }
-  function onCancel() {
+  function closeModal() {
+    resetForm();
     toggleVisible(false);
   }
   function onCreateNStartImportSuccess() {
-    resetForm();
-    toggleVisible(false);
+    closeModal();
   }
 };
 

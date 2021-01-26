@@ -28,6 +28,7 @@ function EditProject(): ReactElement {
       participantUrl: project.config.participants[0].url,
       participantDomainName: project.config.participants[0].domain_name,
       comment: project.comment,
+      domain_name: project.config.domain_name,
       variables: project.config.variables || [],
     });
   }

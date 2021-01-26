@@ -12,7 +12,7 @@ const ButtonContainer = styled(Button)`
 const IconButton: FC<ButtonProps & { circle?: boolean }> = ({ circle, size, ...props }) => {
   return (
     <ButtonContainer
-      type="text"
+      type="default"
       shape={circle ? 'circle' : undefined}
       {...props}
       size={size || 'small'}

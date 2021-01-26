@@ -82,7 +82,7 @@ const CreateWorkflow: FC<IconButtonProps> = ({ onClick }) => {
 
   return (
     <Tooltip title={t('project.create_work_flow')} placement="top">
-      <IconButton onClick={onClick as any} icon={<Workbench />} circle />
+      <IconButton type="text" onClick={onClick as any} icon={<Workbench />} circle />
     </Tooltip>
   );
 };
@@ -92,7 +92,7 @@ const CheckConnection: FC<IconButtonProps> = ({ onClick }) => {
 
   return (
     <Tooltip title={t('project.check_connection')} placement="top">
-      <IconButton onClick={onClick as any} icon={<Command />} circle />
+      <IconButton type="text" onClick={onClick as any} icon={<Command />} circle />
     </Tooltip>
   );
 };

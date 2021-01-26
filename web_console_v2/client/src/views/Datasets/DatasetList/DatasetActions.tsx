@@ -1,6 +1,6 @@
 import React, { FC } from 'react';
 import styled from 'styled-components';
-import { Dataset } from 'typings/dataset';
+import { Dataset, DatasetType } from 'typings/dataset';
 import GridRow from 'components/_base/GridRow';
 import { useTranslation } from 'react-i18next';
 import { Button } from 'antd';
@@ -9,34 +9,39 @@ import { ButtonType } from 'antd/lib/button';
 
 const Container = styled(GridRow)`
   margin-left: ${(props: any) => (props.type === 'link' ? '-15px !important' : 0)};
+
+  > .hide-on-bush {
+    visibility: hidden;
+    pointer-events: none;
+  }
 `;
 
-type Action = 'add-batch' | 'view-records' | 'delete';
+export type DatasetAction = 'add-batch' | 'view-records' | 'delete';
 type Props = {
   dataset: Dataset;
   type: ButtonType;
-  onSuccess: (args: { action: Action; response: any }) => void;
+  onPerformAction: (args: { action: DatasetAction; dataset: Dataset }) => void;
 };
 
-const actions: Action[] = ['add-batch', 'view-records', 'delete'];
+const actions: DatasetAction[] = ['add-batch', 'view-records', 'delete'];
 
-const DatasetActions: FC<Props> = ({ dataset, type = 'default', onSuccess }) => {
+const DatasetActions: FC<Props> = ({ dataset, type = 'default', onPerformAction }) => {
   const { t } = useTranslation();
 
-  const clickHandler: Record<Action, any> = {
-    'add-batch': onAddBatchClick,
-    'view-records': onAddRecordClick,
-    delete: onDeleteClick,
-  };
-  const disabled: Record<Action, boolean> = {
+  const disabled: Record<DatasetAction, boolean> = {
     'add-batch': isImportFailed(dataset),
     'view-records': false,
     delete: false,
   };
+  const visible = {
+    'add-batch': dataset.dataset_type === DatasetType.STREAMING,
+    'view-records': true,
+    delete: true,
+  };
   const text = {
     'add-batch': t('dataset.btn_add_batch'),
     'view-records': t('dataset.btn_view_records'),
-    delete: t('dataset.btn_delete'),
+    delete: t('delete'),
   };
 
   return (
@@ -46,8 +51,9 @@ const DatasetActions: FC<Props> = ({ dataset, type = 'default', onSuccess }) => 
           <Button
             size="small"
             type={type}
-            onClick={clickHandler[action]}
+            onClick={() => onPerformAction({ action, dataset })}
             disabled={disabled[action]}
+            className={!visible[action] ? 'hide-on-bush' : ''}
           >
             {text[action]}
           </Button>
@@ -55,10 +61,6 @@ const DatasetActions: FC<Props> = ({ dataset, type = 'default', onSuccess }) => 
       })}
     </Container>
   );
-
-  function onAddBatchClick() {}
-  function onAddRecordClick() {}
-  function onDeleteClick() {}
 };
 
 export default DatasetActions;

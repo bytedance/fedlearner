@@ -48,7 +48,7 @@ const QuestionMark = styled(QuestionCircleOutlined)`
 export type StateTypes = 'processing' | 'success' | 'warning' | 'error' | 'default';
 type Props = {
   tip?: string;
-  type: StateTypes;
+  type: StateTypes | string;
   text: string;
   tag?: boolean;
 };

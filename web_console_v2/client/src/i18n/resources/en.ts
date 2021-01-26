@@ -27,6 +27,8 @@ const messages = {
     submit: 'OK',
     cancel: 'Cancel',
     close: 'Close',
+    delete: 'Delete',
+    reset: 'Reset',
     operation: 'Operation',
     previous_step: 'previous step',
     next_step: 'Next step',

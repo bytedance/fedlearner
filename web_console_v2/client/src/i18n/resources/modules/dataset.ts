@@ -8,8 +8,8 @@ const error = {
   btn_create: { zh: '创建数据集', en: 'Create Dataset' },
   btn_add_batch: { zh: '追加数据', en: ' Add databatch' },
   btn_view_records: { zh: '查看记录', en: 'View records' },
-  btn_delete: { zh: '删除', en: 'Delete' },
-  btn_finish_n_import: { zh: '完成创建并导入', en: 'Confirm' },
+  btn_finish_n_import: { zh: '完成创建并导入', en: 'Submit and start importing' },
+  btn_import: { zh: '开始导入', en: 'Start importing' },
 
   col_name: { zh: '数据集名称' },
   col_type: { zh: '类型' },
@@ -22,6 +22,8 @@ const error = {
   msg_event_time_required: { zh: '请选择数据产生时间' },
   msg_quit_warning: { zh: '取消后，已配置内容将不再保留' },
   msg_file_required: { zh: '请选择需要导入的文件' },
+  msg_id_required: { zh: '缺少数据集 ID，请检查' },
+  msg_is_importing: { zh: '存在数据正在导入中，暂不支持追加数据' },
 
   tip_move_file: { zh: '导入成功后将移除所有原文件以节省磁盘空间' },
 
@@ -29,11 +31,12 @@ const error = {
   label_type: { zh: '数据集类型' },
   label_comment: { zh: '数据集说明' },
   label_event_time: { zh: '数据产生时间' },
-  label_move_file: { zh: '移除原文件' },
+  label_move_file: { zh: '导入后移除源文件' },
 
   placeholder_name_searchbox: { zh: '输入数据名称搜索', en: 'Search by name' },
   placeholder_name: { zh: '请输入数据集名称' },
   placeholder_comment: { zh: '请输入数据集说明' },
+  placeholder_filename_filter: { zh: '输入文件名进行筛选' },
 
   title_create: { zh: '创建数据集' },
 

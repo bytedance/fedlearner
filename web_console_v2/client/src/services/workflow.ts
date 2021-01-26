@@ -50,7 +50,7 @@ export function initiateAWorkflow(payload: WorkflowInitiatePayload) {
   return request.post('/v2/workflows', payload);
 }
 
-export function acceptNFillTheWorkflowConfig(id: number | string, payload: WorkflowAcceptPayload) {
+export function acceptNFillTheWorkflowConfig(id: ID, payload: WorkflowAcceptPayload) {
   return request.put(`/v2/workflows/${id}`, payload);
 }
 

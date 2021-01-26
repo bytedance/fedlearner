@@ -17,16 +17,17 @@ export enum FileState {
 }
 
 export type FileToImport = {
-  source_path: string;
+  path: string;
   size: number;
   created_at: DateTime;
 };
 
 export type DataFile = {
   state: FileState;
+  source_path: string;
   destination_path: string;
   error_message?: string | null;
-} & Pick<FileToImport, 'size' | 'source_path'>;
+} & Pick<FileToImport, 'size'>;
 
 export type DataBatch = {
   id: number;
@@ -62,6 +63,5 @@ export type Dataset = {
 export type DatasetCreatePayload = Pick<Dataset, 'name' | 'dataset_type' | 'comment'>;
 
 export type DataBatchImportPayload = {
-  dataset_id: number;
   files: FileToImport[];
-} & Pick<DataBatch, 'event_time' | 'move' | 'comment'>;
+} & Pick<DataBatch, 'event_time' | 'move'>;

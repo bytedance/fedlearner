@@ -14,14 +14,14 @@ export function createDataset(payload: DatasetCreatePayload) {
   return request.post('/v2/datasets', payload);
 }
 
-export function startToImportDataBatch(payload: DataBatchImportPayload) {
-  return request.post('/v2/datasets/import', payload);
+export function startToImportDataBatch(id: ID, payload: DataBatchImportPayload) {
+  return request.post(`/v2/datasets/${id}/batches`, payload);
 }
 
-export function fetchFileList(params: any): Promise<{ data: FileToImport[] }> {
-  return request('/v2/datasets/files', { params, removeFalsy: true });
+export function fetchFileList(): Promise<{ data: FileToImport[] }> {
+  return request('/v2/files', { removeFalsy: true });
 }
 
-export function deleteDataset(id: number | string) {
+export function deleteDataset(id: ID) {
   return request.delete(`/v2/datasets/${id}`);
 }
