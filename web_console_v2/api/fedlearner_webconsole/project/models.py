@@ -31,7 +31,7 @@ class Project(db.Model):
     token = db.Column(db.String(64), index=True)
     config = db.Column(db.Text())
     certificate = db.Column(db.Text())
-    comment = db.Column(db.Text())
+    comment = db.Column('cmt', db.Text())
     created_at = db.Column(db.DateTime(timezone=True),
                            server_default=func.now())
     updated_at = db.Column(db.DateTime(timezone=True),

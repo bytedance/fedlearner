@@ -129,7 +129,7 @@ class Workflow(db.Model):
     name = db.Column(db.String(255), unique=True, index=True)
     project_id = db.Column(db.Integer, db.ForeignKey(Project.id))
     config = db.Column(db.Text())
-    comment = db.Column(db.String(255))
+    comment = db.Column('cmt', db.String(255))
 
     forkable = db.Column(db.Boolean, default=False)
     forked_from = db.Column(db.Integer, default=None)
@@ -138,17 +138,22 @@ class Workflow(db.Model):
     peer_reuse_job_names = db.Column(db.TEXT())
     fork_proposal_config = db.Column(db.TEXT())
 
-    recur_type = db.Column(db.Enum(RecurType), default=RecurType.NONE)
+    recur_type = db.Column(db.Enum(RecurType, native_enum=False),
+                           default=RecurType.NONE)
     recur_at = db.Column(db.Interval)
     trigger_dataset = db.Column(db.Integer)
     last_triggered_batch = db.Column(db.Integer)
 
     job_ids = db.Column(db.TEXT())
 
-    state = db.Column(db.Enum(WorkflowState), default=WorkflowState.INVALID)
-    target_state = db.Column(db.Enum(WorkflowState),
+    state = db.Column(db.Enum(WorkflowState, native_enum=False,
+                              name='workflow_state'),
+                      default=WorkflowState.INVALID)
+    target_state = db.Column(db.Enum(WorkflowState, native_enum=False,
+                                     name='workflow_target_state'),
                              default=WorkflowState.INVALID)
-    transaction_state = db.Column(db.Enum(TransactionState),
+    transaction_state = db.Column(db.Enum(TransactionState,
+                                          native_enum=False),
                                   default=TransactionState.READY)
     transaction_err = db.Column(db.Text())
 

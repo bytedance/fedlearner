@@ -42,9 +42,10 @@ class BatchState(enum.Enum):
 class Dataset(db.Model):
     __tablename__ = 'datasets_v2'
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    name = db.Column(db.String(255), unique=True)
-    dataset_type = db.Column(db.Enum(DatasetType))
-    comment = db.Column(db.Text())
+    name = db.Column(db.String(255), unique=True, nullable=False)
+    dataset_type = db.Column(db.Enum(DatasetType, native_enum=False),
+                             nullable=False)
+    comment = db.Column('cmt', db.Text())
     created_at = db.Column(db.DateTime(timezone=True),
                            server_default=func.now())
     updated_at = db.Column(db.DateTime(timezone=True),
@@ -63,16 +64,18 @@ class DataBatch(db.Model):
     __tablename__ = 'data_batches_v2'
     __table_args__ = (UniqueConstraint('event_time', 'dataset_id'),)
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    event_time = db.Column(db.TIMESTAMP(timezone=True))
+    event_time = db.Column(db.TIMESTAMP(timezone=True),
+                           nullable=False)
     dataset_id = db.Column(db.Integer, db.ForeignKey(Dataset.id))
-    state = db.Column(db.Enum(BatchState), default=BatchState.NEW)
+    state = db.Column(db.Enum(BatchState, native_enum=False),
+                      default=BatchState.NEW)
     move = db.Column(db.Boolean, default=False)
     # Serialized proto of DatasetBatch
     details = db.Column(db.Text())
     file_size = db.Column(db.Integer, default=0)
     num_imported_file = db.Column(db.Integer, default=0)
     num_file = db.Column(db.Integer, default=0)
-    comment = db.Column(db.Text())
+    comment = db.Column('cmt', db.Text())
     created_at = db.Column(db.DateTime(timezone=True),
                            server_default=func.now())
     updated_at = db.Column(db.DateTime(timezone=True),

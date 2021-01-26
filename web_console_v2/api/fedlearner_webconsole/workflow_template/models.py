@@ -24,7 +24,7 @@ class WorkflowTemplate(db.Model):
     __tablename__ = 'template_v2'
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(255), unique=True, index=True)
-    comment = db.Column(db.String(255))
+    comment = db.Column('cmt', db.String(255))
     group_alias = db.Column(db.String(255), nullable=False, index=True)
     config = db.Column(db.Text(), nullable=False)
     is_left = db.Column(db.Boolean)
