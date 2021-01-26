@@ -20,7 +20,7 @@ import enum
 
 import requests
 
-from kubernetes import client, config, utils
+from kubernetes import client, config
 from kubernetes.client.exceptions import ApiException
 
 FEDLEARNER_CUSTOM_GROUP = 'fedlearner.k8s.io'
@@ -204,12 +204,6 @@ class K8sClient(object):
         except ApiException as e:
             self._raise_runtime_error(e)
 
-    def create_from_dict(self, dictionary):
-        try:
-            return utils.create_from_dict(self._client, dictionary)
-        except ApiException as e:
-            self._raise_runtime_error(e)
-
     def get_custom_object(self, kind: CrdKind,
                           custom_object_name: str, namespace='default'):
         try:
@@ -235,6 +229,20 @@ class K8sClient(object):
             return response
         except ApiException as e:
             self._raise_runtime_error(e)
+
+    def create_custom_object(self, crd_kind: CrdKind, json_object,
+                             namespace='default'):
+        response = requests.post(
+            '{api_server_url}/namespaces/{namespace}/fedlearner/'
+            'v1alpha1/{crd_kind}'.format(
+                api_server_url=self._api_server_url,
+                namespace=namespace,
+                crd_kind=crd_kind.value),
+            json=json_object)
+        if response.status_code != HTTPStatus.CREATED:
+            raise RuntimeError('{}:{}'.format(response.status_code,
+                                              response.reason))
+        return response.json()
 
     def list_resource_of_custom_object(self, kind: CrdKind,
                                        custom_object_name: str,

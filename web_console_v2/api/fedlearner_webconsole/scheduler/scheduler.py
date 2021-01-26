@@ -27,6 +27,7 @@ from fedlearner_webconsole.workflow.models import Workflow, WorkflowState
 from fedlearner_webconsole.job.models import Job, JobState, JobDependency
 from fedlearner_webconsole.scheduler.transaction import TransactionManager
 from fedlearner_webconsole.k8s_client import get_client
+from fedlearner_webconsole.utils.k8s_client import CrdKind
 
 
 class Scheduler(object):
@@ -189,7 +190,7 @@ class Scheduler(object):
                            project=project,
                            system=system_dict)
         yaml = json.loads(yaml)
-        k8s_client.create_from_dict(yaml)
+        k8s_client.create_custom_object(CrdKind.FLAPP, yaml)
         job.start()
         db.session.commit()
 
