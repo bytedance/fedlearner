@@ -28,6 +28,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	clientset "k8s.io/client-go/kubernetes"
 	listerscorev1 "k8s.io/client-go/listers/core/v1"
@@ -66,6 +67,7 @@ type appManager struct {
 	podLister       listerscorev1.PodLister
 	serviceLister   listerscorev1.ServiceLister
 	ingressLister   listersnetworking.IngressLister
+	secretLister    listerscorev1.SecretLister
 
 	appStatusUpdater StatusUpdater
 	appEventHandler  AppEventHandler
@@ -94,6 +96,7 @@ func NewAppManager(
 	podLister listerscorev1.PodLister,
 	serviceLister listerscorev1.ServiceLister,
 	ingressLister listersnetworking.IngressLister,
+	secretLister listerscorev1.SecretLister,
 	appEventHandler AppEventHandler,
 ) AppManager {
 	manager := &appManager{
@@ -112,6 +115,7 @@ func NewAppManager(
 		podLister:       podLister,
 		serviceLister:   serviceLister,
 		ingressLister:   ingressLister,
+		secretLister:    secretLister,
 
 		appStatusUpdater: NewAppStatusUpdater(crdClient, namespace),
 		appEventHandler:  appEventHandler,
@@ -318,28 +322,44 @@ func (am *appManager) createIngress(ctx context.Context, app *v1alpha1.FLApp) er
 	ingressName := GenName(name, strings.ToLower(app.Spec.Role))
 	ownerReference := am.GenOwnerReference(app)
 	labels := GenLabels(app)
-	// TODO: support more kinds of ingress
+	ingressClassName := GetIngressClassName(app)
 	annotations := map[string]string{
-		"kubernetes.io/ingress.class":                       "nginx",
+		"kubernetes.io/ingress.class":                       ingressClassName,
 		"nginx.ingress.kubernetes.io/backend-protocol":      "GRPC",
 		"nginx.ingress.kubernetes.io/configuration-snippet": "grpc_next_upstream_tries 5;",
 		"nginx.ingress.kubernetes.io/http2-insecure-port":   "true",
 	}
+
 	if am.ingressEnableClientAuth {
-		annotations["nginx.ingress.kubernetes.io/auth-tls-verify-client"] = "on"
-		annotations["nginx.ingress.kubernetes.io/auth-tls-secret"] = am.ingressClientAuthSecretName
+		if clientAuthSecretName := GetIngressClientAuthSecretNameOrDefault(app, am.ingressClientAuthSecretName); len(clientAuthSecretName) > 0 {
+			namespacedName := parseNamespacedName(clientAuthSecretName, am.namespace)
+			if _, err := am.secretLister.Secrets(namespacedName.Namespace).Get(namespacedName.Name); err != nil {
+				return err
+			}
+			annotations["nginx.ingress.kubernetes.io/auth-tls-verify-client"] = "on"
+			annotations["nginx.ingress.kubernetes.io/auth-tls-secret"] = namespacedName.String()
+		}
 	}
+
 	ingress, err := am.ingressLister.Ingresses(am.namespace).Get(ingressName)
 	if err != nil && !errors.IsNotFound(err) {
 		return err
 	}
 	if ingress == nil {
+		tlsSecretName := GetIngressTLSSecretNameOrDefault(app, am.ingressSecretName)
+		if _, err := am.secretLister.Secrets(am.namespace).Get(tlsSecretName); err != nil {
+			return err
+		}
+
 		newIngress := &networking.Ingress{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:            ingressName,
 				Labels:          labels,
 				Annotations:     annotations,
 				OwnerReferences: []metav1.OwnerReference{*ownerReference},
+			},
+			Spec: networking.IngressSpec{
+				IngressClassName: &ingressClassName,
 			},
 		}
 		for rtype := range app.Spec.FLReplicaSpecs {
@@ -353,7 +373,7 @@ func (am *appManager) createIngress(ctx context.Context, app *v1alpha1.FLApp) er
 							ServicePort: intstr.FromString(v1alpha1.DefaultPortName),
 						},
 					}
-					host := GenIndexName(app.Name, strings.ToLower(app.Spec.Role), rt, strconv.Itoa(index)) + am.ingressExtraHostSuffix
+					host := GenIndexName(app.Name, strings.ToLower(app.Spec.Role), rt, strconv.Itoa(index)) + GetIngressHostSuffix(app, am.ingressExtraHostSuffix)
 					rule := networking.IngressRule{
 						Host: host,
 						IngressRuleValue: networking.IngressRuleValue{
@@ -366,7 +386,7 @@ func (am *appManager) createIngress(ctx context.Context, app *v1alpha1.FLApp) er
 					if am.ingressSecretName != "" {
 						tls := networking.IngressTLS{
 							Hosts:      []string{host},
-							SecretName: am.ingressSecretName,
+							SecretName: tlsSecretName,
 						}
 						newIngress.Spec.TLS = append(newIngress.Spec.TLS, tls)
 					}
@@ -650,4 +670,18 @@ func getReplicas(app *v1alpha1.FLApp, rtype v1alpha1.FLReplicaType) int {
 
 func needPair(app *v1alpha1.FLApp, rtype v1alpha1.FLReplicaType) bool {
 	return app.Spec.FLReplicaSpecs[rtype].Pair != nil && *app.Spec.FLReplicaSpecs[rtype].Pair == true
+}
+
+func parseNamespacedName(name string, defaultNamespace string) types.NamespacedName {
+	subStrings := strings.SplitN(name, string(types.Separator), -1)
+	if len(subStrings) == 2 {
+		return types.NamespacedName{
+			Namespace: subStrings[0],
+			Name:      subStrings[1],
+		}
+	}
+	return types.NamespacedName{
+		Namespace: defaultNamespace,
+		Name:      name,
+	}
 }

@@ -53,7 +53,7 @@ func (updater *appStatusUpdater) UpdateAppStateWithRetry(ctx context.Context, ap
 			replicaStatus := status.DeepCopy()
 
 			pods := make([]string, 0)
-			for pod, _ := range replicaStatus.Active {
+			for pod := range replicaStatus.Active {
 				pods = append(pods, pod)
 			}
 
@@ -68,6 +68,14 @@ func (updater *appStatusUpdater) UpdateAppStateWithRetry(ctx context.Context, ap
 				}
 			}
 			flapp.Status.FLReplicaStatus[rtype] = *replicaStatus
+		}
+
+
+		if state == v1alpha1.FLStateComplete || state == v1alpha1.FLStateFailed {
+			now := metav1.Now()
+			flapp.Status.CompletionTime = &now
+		} else {
+			flapp.Status.CompletionTime = nil
 		}
 
 		if flapp.Status.AppState == state {
