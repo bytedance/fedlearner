@@ -2,14 +2,18 @@ import React, { ReactElement } from 'react';
 import styled from 'styled-components';
 import { Form, Input, Space, Button } from 'antd';
 import { useTranslation } from 'react-i18next';
-import AddField from './AddField';
 import { useToggle } from 'react-use';
-import { Delete } from 'components/IconPark';
+import { Delete, Plus } from 'components/IconPark';
 
 const Container = styled.div``;
 
-const Body = styled.div`
+const ListContainer = styled.div`
   width: 800px;
+
+  &.is-folded {
+    display: none;
+  }
+
   .ant-space-item {
     &:nth-child(1) {
       flex: 1;
@@ -90,53 +94,53 @@ function EnvVariablesForm(): ReactElement {
           </>
         )}
       </Header>
-      {isFolded ? null : (
-        <Body>
-          <Form.List name="variables">
-            {(fields, { add, remove }) => (
-              <>
-                {fields.map((field, index) => (
-                  <Space
-                    key={field.key + index}
-                    style={{ display: 'flex', marginBottom: 8 }}
-                    align="baseline"
+      <ListContainer className={isFolded ? 'is-folded' : ''}>
+        <Form.List name="variables">
+          {(fields, { add, remove }) => (
+            <>
+              {fields.map((field, index) => (
+                <Space
+                  key={field.key + index}
+                  style={{ display: 'flex', marginBottom: 8 }}
+                  align="baseline"
+                >
+                  <Form.Item
+                    {...field}
+                    label="Name"
+                    name={[field.name, 'name']}
+                    fieldKey={[field.fieldKey, 'name']}
+                    rules={[{ required: true, message: t('project.msg_var_name') }]}
                   >
-                    <Form.Item
-                      {...field}
-                      label="Name"
-                      name={[field.name, 'name']}
-                      fieldKey={[field.fieldKey, 'name']}
-                      rules={[{ required: true, message: t('project.msg_var_name') }]}
-                    >
-                      <Input placeholder="name" />
-                    </Form.Item>
-                    <Form.Item
-                      label="Value"
-                      {...field}
-                      name={[field.name, 'value']}
-                      fieldKey={[field.fieldKey, 'value']}
-                      rules={[{ required: true, message: t('project.msg_var_value') }]}
-                    >
-                      <Input.TextArea placeholder="value" rows={1} />
-                    </Form.Item>
+                    <Input placeholder="name" />
+                  </Form.Item>
+                  <Form.Item
+                    label="Value"
+                    {...field}
+                    name={[field.name, 'value']}
+                    fieldKey={[field.fieldKey, 'value']}
+                    rules={[{ required: true, message: t('project.msg_var_value') }]}
+                  >
+                    <Input.TextArea placeholder="value" rows={1} />
+                  </Form.Item>
 
-                    <Button
-                      size="small"
-                      icon={<Delete />}
-                      shape="circle"
-                      type="text"
-                      onClick={() => remove(field.name)}
-                    />
-                  </Space>
-                ))}
-                <Form.Item>
-                  <AddField onClick={() => add()} />
-                </Form.Item>
-              </>
-            )}
-          </Form.List>
-        </Body>
-      )}
+                  <Button
+                    size="small"
+                    icon={<Delete />}
+                    shape="circle"
+                    type="text"
+                    onClick={() => remove(field.name)}
+                  />
+                </Space>
+              ))}
+              <Form.Item wrapperCol={{ offset: 5 }}>
+                <Button type="primary" size="small" icon={<Plus />} onClick={add}>
+                  {t('project.add_parameters')}
+                </Button>
+              </Form.Item>
+            </>
+          )}
+        </Form.List>
+      </ListContainer>
     </Container>
   );
 }
