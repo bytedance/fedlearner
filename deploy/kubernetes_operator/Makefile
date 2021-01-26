@@ -14,7 +14,6 @@ update-codegen:
 
 update-defaulter:
 	defaulter-gen --input-dirs github.com/bytedance/fedlearner/deploy/kubernetes_operator/pkg/apis/fedlearner.k8s.io/v1alpha1 --go-header-file ./hack/boilerplate.go.txt
-	defaulter-gen --input-dirs github.com/bytedance/fedlearner/deploy/kubernetes_operator/pkg/apis/fedlearner.k8s.io/v1alpha2 --go-header-file ./hack/boilerplate.go.txt
 
 vendor:
 	go mod vendor
