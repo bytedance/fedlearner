@@ -95,6 +95,7 @@ function ProjectForm({ onSubmit, isEdit, initialValues }: Props): ReactElement {
         form={form}
         colon={false}
         onFinish={onFinish}
+        preserve
       >
         <SecondaryForm title={t('project.basic_information')}>
           <Form.Item

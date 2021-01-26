@@ -208,7 +208,7 @@ const DatasetList: FC = () => {
   function goCreate() {
     history.push('/datasets/create');
   }
-  /** DO NOT SUPPORT add batches for dataset which has unfinished importing */
+  /** DOESN'T SUPPORT add batches for dataset which has unfinished importing YET */
   function checkIfHasImportingBatches(dataset: Dataset) {
     if (isImporting(dataset)) {
       message.info(t('dataset.msg_is_importing'));
