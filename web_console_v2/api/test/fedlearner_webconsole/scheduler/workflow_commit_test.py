@@ -17,7 +17,7 @@ import os
 import time
 import unittest
 from google.protobuf.json_format import ParseDict
-from testing.common import BaseTestCase
+from testing.common import BaseTestCase, TestAppProcess
 from fedlearner_webconsole.db import db
 from fedlearner_webconsole.job.models import JobState
 from fedlearner_webconsole.project.models import Project
@@ -28,19 +28,13 @@ from fedlearner_webconsole.proto import project_pb2
 from workflow_template_test import make_workflow_template
 
 class WorkflowsCommitTest(BaseTestCase):
+    class Config(BaseTestCase.Config):
+        START_GRPC_SERVER = False
+        START_SCHEDULER = True
+
     @classmethod
-    def setUpClass(cls):
+    def setUpClass(self):
         os.environ['FEDLEARNER_WEBCONSOLE_POLLING_INTERVAL'] = '1'
-
-    @classmethod
-    def tearDownClass(cls):
-        del os.environ['FEDLEARNER_WEBCONSOLE_POLLING_INTERVAL']
-
-    def get_config(self):
-        config = super().get_config()
-        config.START_GRPC_SERVER = False
-        config.START_SCHEDULER = True
-        return config
 
     def setUp(self):
         super().setUp()
