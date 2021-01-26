@@ -48,7 +48,7 @@ class OptionalStats:
                 optional stats options and arguments.
         """
         assert isinstance(raw_data_options, dj_pb.RawDataOptions)
-        self._stat_fields = raw_data_options.stat_fields
+        self._stat_fields = raw_data_options.optional_fields
         self._stats = {
             'joined': defaultdict(int),
             'unjoined': defaultdict(int)
@@ -68,7 +68,7 @@ class OptionalStats:
 
         Returns: None
         No-op if optional fields are not set in the raw data options, or empty
-            stat_fields of raw data options. Update stats dict. Emit join
+            optional_fields of raw data options. Update stats dict. Emit join
             status and other fields of each item to ES.
         """
         assert kind in ('joined', 'unjoined')
