@@ -306,7 +306,7 @@ func (am *appManager) reconcileIngress(ctx context.Context, app *v1alpha1.FLApp)
 			return err
 		}
 		if ingress != nil {
-			return am.kubeClient.NetworkingV1beta1().Ingresses(am.namespace).Delete(ingressName, &metav1.DeleteOptions{})
+			return am.kubeClient.NetworkingV1beta1().Ingresses(am.namespace).Delete(ctx, ingressName, metav1.DeleteOptions{})
 		}
 		return nil
 	}
@@ -373,7 +373,7 @@ func (am *appManager) createIngress(ctx context.Context, app *v1alpha1.FLApp) er
 				}
 			}
 		}
-		_, err := am.kubeClient.NetworkingV1beta1().Ingresses(am.namespace).Create(newIngress)
+		_, err := am.kubeClient.NetworkingV1beta1().Ingresses(am.namespace).Create(ctx, newIngress, metav1.CreateOptions{})
 		return err
 	}
 	return nil
@@ -407,11 +407,11 @@ func (am *appManager) createOrUpdateConfigMap(ctx context.Context, app *v1alpha1
 		newConfigMap.Data = configMap.Data
 	}
 	if createConfigMap {
-		_, err := am.kubeClient.CoreV1().ConfigMaps(am.namespace).Create(newConfigMap)
+		_, err := am.kubeClient.CoreV1().ConfigMaps(am.namespace).Create(ctx, newConfigMap, metav1.CreateOptions{})
 		return err
 	}
 
-	_, err = am.kubeClient.CoreV1().ConfigMaps(am.namespace).Update(newConfigMap)
+	_, err = am.kubeClient.CoreV1().ConfigMaps(am.namespace).Update(ctx, newConfigMap, metav1.UpdateOptions{})
 	return err
 }
 
@@ -628,7 +628,7 @@ func (am *appManager) freeResource(ctx context.Context, app *v1alpha1.FLApp) err
 			return err
 		}
 	}
-	if err := am.kubeClient.CoreV1().ConfigMaps(am.namespace).DeleteCollection(&metav1.DeleteOptions{
+	if err := am.kubeClient.CoreV1().ConfigMaps(am.namespace).DeleteCollection(ctx, metav1.DeleteOptions{
 		PropagationPolicy: &deletePropagationBackground,
 	}, metav1.ListOptions{
 		LabelSelector: selector.String(),
@@ -636,7 +636,7 @@ func (am *appManager) freeResource(ctx context.Context, app *v1alpha1.FLApp) err
 		return err
 	}
 	ingressName := GenName(app.Name, strings.ToLower(app.Spec.Role))
-	if err := am.kubeClient.NetworkingV1beta1().Ingresses(am.namespace).Delete(ingressName, &metav1.DeleteOptions{
+	if err := am.kubeClient.NetworkingV1beta1().Ingresses(am.namespace).Delete(ctx, ingressName, metav1.DeleteOptions{
 		PropagationPolicy: &deletePropagationBackground,
 	}); err != nil && !errors.IsNotFound(err) {
 		return err

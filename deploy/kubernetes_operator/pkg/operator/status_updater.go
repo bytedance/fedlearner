@@ -91,7 +91,7 @@ func (updater *appStatusUpdater) UpdateStatusWithRetry(
 
 	for {
 		if refresh {
-			freshApp, err = updater.crdClient.FedlearnerV1alpha1().FLApps(updater.namespace).Get(app.Name, metav1.GetOptions{})
+			freshApp, err = updater.crdClient.FedlearnerV1alpha1().FLApps(updater.namespace).Get(ctx, app.Name, metav1.GetOptions{})
 			if err != nil || freshApp == nil {
 				return nil, fmt.Errorf("failed to get app %s: %v", freshApp.Name, err)
 			}
@@ -110,7 +110,7 @@ func (updater *appStatusUpdater) UpdateStatusWithRetry(
 			freshApp.Name,
 			updater.namespace,
 			freshApp.Status.AppState)
-		_, err = updater.crdClient.FedlearnerV1alpha1().FLApps(updater.namespace).UpdateStatus(freshApp)
+		_, err = updater.crdClient.FedlearnerV1alpha1().FLApps(updater.namespace).UpdateStatus(ctx, freshApp, metav1.UpdateOptions{})
 		if err != nil && errors.IsConflict(err) {
 			refresh = true
 			continue
