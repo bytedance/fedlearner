@@ -114,10 +114,10 @@ const LoginFormCheckbox = styled(Checkbox)`
 `;
 
 const Login: FC = () => {
-  const history = useHistory();
   const { t } = useTranslation();
   const [submitting, toggleSubmit] = useToggle(false);
   const setUserInfo = useSetRecoilState(userInfoQuery);
+  const history = useHistory();
 
   const userQuery = useRecoilQuery(userInfoQuery);
 
@@ -188,6 +188,13 @@ const Login: FC = () => {
       store.set(LOCAL_STORAGE_KEYS.current_user, { ...data, date: Date.now() });
       setUserInfo(data);
       message.success(i18n.t('app.login_success'));
+
+      if (history.location.search) {
+        const from = new URLSearchParams(history.location.search).get('from');
+        if (from) {
+          return history.push(decodeURIComponent(from) || '/projects');
+        }
+      }
 
       history.push('/projects');
     } catch (error) {

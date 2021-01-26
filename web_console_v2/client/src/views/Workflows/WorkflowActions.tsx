@@ -12,7 +12,7 @@ import {
 } from 'shared/workflow';
 import { Workflow } from 'typings/workflow';
 import { useTranslation } from 'react-i18next';
-import { Button, message, Spin } from 'antd';
+import { Button, message, Spin, Popconfirm } from 'antd';
 import { useHistory } from 'react-router-dom';
 import { useSetRecoilState } from 'recoil';
 import { workflowInEditing } from 'stores/workflow';
@@ -111,15 +111,11 @@ const WorkflowActions: FC<Props> = ({ workflow, type = 'default', without = [], 
           </Button>
         )}
         {visible.stop && (
-          <Button
-            size="small"
-            type={type}
-            {...withIcon('stop')}
-            onClick={onStopClick}
-            disabled={disabled.stop}
-          >
-            {t('workflow.action_stop_running')}
-          </Button>
+          <Popconfirm title="确认停止运行该工作流吗?" onConfirm={onStopClick}>
+            <Button size="small" type={type} {...withIcon('stop')} disabled={disabled.stop}>
+              {t('workflow.action_stop_running')}
+            </Button>
+          </Popconfirm>
         )}
         {visible.rerun && (
           <Button

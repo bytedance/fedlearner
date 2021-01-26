@@ -129,7 +129,6 @@ function TableList({ list, onViewDetail }: TableListProps): ReactElement {
   );
 
   function setProjectStatus(index: number, newStatus: ConnectionStatus) {
-    console.log('🚀 ~ file: index.tsx ~ line 130 ~ setProjectStatus ~ index', index);
     let newStatuses = [...statuses];
     newStatuses[index] = newStatus;
     setStatuses(newStatuses);

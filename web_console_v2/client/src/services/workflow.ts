@@ -65,6 +65,11 @@ export function stopTheWorkflow(id: number) {
     target_state: WorkflowState.STOPPED,
   });
 }
+
 export function forkWorkflow(id: number) {
   return request.post(`/v2/workflows/fork/${id}`);
+}
+
+export function fetchPodLogs(jobId: ID, podName: string) {
+  return request(`/v2/jobs/${jobId}/pods/${podName}/logs`);
 }

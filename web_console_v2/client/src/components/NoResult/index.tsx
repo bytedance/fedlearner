@@ -27,7 +27,7 @@ const Text = styled.span`
 type Props = {
   text: string;
   CTAText?: string; // call to action text
-  to: string;
+  to?: string;
 };
 
 /**
@@ -40,7 +40,14 @@ const NoResult: FC<Props> = ({ text, CTAText, to }) => {
     <Container>
       <Illustration src={illustration} />
       <Text>
-        <span>{text}</span>, <Link to={to}>{CTAText || t('app.go_create')}</Link>
+        <span>{text}</span>
+
+        {to && (
+          <>
+            <span>, </span>
+            <Link to={to}>{CTAText || t('app.go_create')}</Link>
+          </>
+        )}
       </Text>
     </Container>
   );

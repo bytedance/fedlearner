@@ -137,16 +137,15 @@ function HeaderAccount() {
   }
 
   return (
-    <Container>
-      <Popover
-        content={<AccountPopover />}
-        trigger="hover"
-        title={<Username name={userInfo?.username || ''} />}
-        placement="bottomLeft"
-      >
+    <Popover
+      content={<AccountPopover />}
+      title={<Username name={userInfo?.username || ''} />}
+      placement="bottomLeft"
+    >
+      <Container>
         <Avatar src={avatar} alt="avatar" className="user-avatar" />
-      </Popover>
-    </Container>
+      </Container>
+    </Popover>
   );
 }
 

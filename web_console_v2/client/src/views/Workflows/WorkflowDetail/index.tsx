@@ -25,6 +25,8 @@ import { Eye, EyeInvisible } from 'components/IconPark';
 import { WorkflowExecutionDetails } from 'typings/workflow';
 import { ReactFlowProvider } from 'react-flow-renderer';
 import { isRunning, isStopped } from 'shared/workflow';
+import dayjs from 'dayjs';
+import NoResult from 'components/NoResult';
 
 const Container = styled.div`
   display: flex;
@@ -48,6 +50,11 @@ const Name = styled.h3`
   margin-bottom: 0;
   font-size: 20px;
   line-height: 28px;
+`;
+const NoJobs = styled.div`
+  display: flex;
+  height: calc(100% - 48px);
+  background-color: var(--gray1);
 `;
 const ChartHeader = styled(Row)`
   height: 48px;
@@ -99,8 +106,8 @@ const WorkflowDetail: FC = () => {
     isStopped_ = isStopped(workflow);
 
     if (isRunning_ || isStopped_) {
-      const { stopped_at, started_at } = workflow;
-      runningTime = isStopped_ ? stopped_at! - started_at! : ~~(Date.now() / 1000) - started_at!;
+      const { stop_at, start_at } = workflow;
+      runningTime = isStopped_ ? stop_at! - start_at! : dayjs().unix() - start_at!;
     }
   }
 
@@ -171,14 +178,24 @@ const WorkflowDetail: FC = () => {
               )}
             </ChartHeader>
 
-            <ReactFlowProvider>
-              <WorkflowJobsFlowChart
-                type="execution"
-                onCanvasClick={() => toggleDrawerVisible(false)}
-                jobs={jobsWithExeDetails}
-                onJobClick={viewJobDetail}
-              />
-            </ReactFlowProvider>
+            {jobsWithExeDetails.length === 0 ? (
+              <NoJobs>
+                <NoResult
+                  text={t('workflow.msg_not_config')}
+                  CTAText={t('workflow.action_configure')}
+                  to={`/workflows/accept/basic/${params.id}`}
+                />
+              </NoJobs>
+            ) : (
+              <ReactFlowProvider>
+                <WorkflowJobsFlowChart
+                  type="execution"
+                  onCanvasClick={() => toggleDrawerVisible(false)}
+                  jobs={jobsWithExeDetails}
+                  onJobClick={viewJobDetail}
+                />
+              </ReactFlowProvider>
+            )}
           </ChartContainer>
 
           {/* Peer config */}
@@ -194,13 +211,19 @@ const WorkflowDetail: FC = () => {
                 </Button>
               </ChartHeader>
 
-              <ReactFlowProvider>
-                <WorkflowJobsFlowChart
-                  type="execution"
-                  selectable={false}
-                  jobs={peerJobsWithExeDetails}
-                />
-              </ReactFlowProvider>
+              {peerJobsWithExeDetails.length === 0 ? (
+                <NoJobs>
+                  <NoResult text={t('workflow.msg_peer_not_ready')} />
+                </NoJobs>
+              ) : (
+                <ReactFlowProvider>
+                  <WorkflowJobsFlowChart
+                    type="execution"
+                    selectable={false}
+                    jobs={peerJobsWithExeDetails}
+                  />
+                </ReactFlowProvider>
+              )}
             </ChartContainer>
           )}
         </ChartSection>
