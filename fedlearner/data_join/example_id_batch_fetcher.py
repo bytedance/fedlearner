@@ -29,10 +29,16 @@ class ExampleIdBatch(ItemBatch):
         self._begin_index = begin_index
         self._example_ids = []
         self._event_times = []
+        self._id_types = []
+        self._event_time_deeps = []
+        self._click_ids = []
 
     def append(self, item):
         self._example_ids.append(item.example_id)
         self._event_times.append(item.event_time)
+        self._id_types.append(item.id_type)
+        self._event_time_deeps.append(item._event_time_deep)
+        self._click_ids.append(item.click_id)
 
     @property
     def begin_index(self):

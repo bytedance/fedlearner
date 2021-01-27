@@ -163,6 +163,9 @@ message LiteExampleIds {
   int64 begin_index = 2;
   repeated bytes example_id = 3;
   repeated int64 event_time = 4;
+  repeated string id_type = 5;
+  repeated int64 event_time_deep = 6;
+  repeated bytes click_id = 7
 }
 
 message PackedLiteExampleIds {
