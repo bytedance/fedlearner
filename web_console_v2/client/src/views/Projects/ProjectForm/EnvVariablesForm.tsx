@@ -133,7 +133,7 @@ function EnvVariablesForm(): ReactElement {
                 </Space>
               ))}
               <Form.Item wrapperCol={{ offset: 5 }}>
-                <Button type="primary" size="small" icon={<Plus />} onClick={add}>
+                <Button type="primary" size="small" icon={<Plus />} onClick={() => add()}>
                   {t('project.add_parameters')}
                 </Button>
               </Form.Item>
