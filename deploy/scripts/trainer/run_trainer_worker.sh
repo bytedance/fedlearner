@@ -68,6 +68,24 @@ if [ -z $CHECKPOINT_PATH ]; then
     checkpoint_path="$OUTPUT_BASE_DIR/checkpoints"
 fi
 
+if [ -n $LOAD_CHECKPOINT_FROM ] && [ $WORKER_RANK == 0 ]; then
+    python -c "
+import tensorflow as tf
+import tensorflow_io
+src = '${STORAGE_ROOT_PATH}/job_output/${LOAD_CHECKPOINT_FROM}/checkpoints'
+dst = '$CHECKPOINT_PATH'
+for root, _, files in tf.io.gfile.walk(src):
+    root = root[len(src):]
+    print('makedirs', dst + '/' + root)
+    tf.io.gfile.makedirs(dst + '/' + root)
+    for f in files:
+        src_file = src + '/' + root + '/' + f
+        dst_file = dst + '/' + root + '/' + f
+        print('copy', src_file, 'to', dst_file)
+        tf.io.gfile.copy(src_file, dst_file)
+"
+fi
+
 if [ -z $EXPORT_PATH ]; then
     export_path="$OUTPUT_BASE_DIR/exported_models"
 fi
