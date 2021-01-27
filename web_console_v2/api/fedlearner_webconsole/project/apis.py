@@ -146,10 +146,6 @@ class ProjectsApi(Resource):
             raise InvalidArgumentException(
                 details=ErrorMessage.PARAM_FORMAT_ERROR.value.format(
                     'config', e))
-        x = CertificateStorage()
-        ParseDict({'domain_name_to_cert': certificates},
-                  x)
-        print(x)
         new_project.set_certificate(
             ParseDict({'domain_name_to_cert': certificates},
                       CertificateStorage()))
