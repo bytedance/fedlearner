@@ -42,8 +42,14 @@ class RpcClient(object):
             target_domain=self._receiver.domain_name,
             auth_token=self._project.token)
 
+        egress_url = 'fedlearner-stack-ingress-nginx-controller.default'\
+                     '.svc.cluster.local:80'
+        for variable in self._project.variables:
+            if variable.name == 'EGRESS_URL':
+                egress_url = variable.value
+                break
         self._client = service_pb2_grpc.WebConsoleV2ServiceStub(_build_channel(
-            self._receiver.grpc_spec.egress_url,
+            egress_url,
             self._receiver.grpc_spec.authority
         ))
 
