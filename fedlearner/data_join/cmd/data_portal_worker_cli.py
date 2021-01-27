@@ -60,6 +60,8 @@ if __name__ == '__main__':
     parser.add_argument('--memory_limit_ratio', type=int, default=70,
                         choices=range(40, 81),
                         help='the ratio(*100) of memory used for map&reduce')
+    parser.add_argument('--input_data_validation_ratio', type=float, default=.0,
+                        help='sample ratio for input data validation')
 
     args = parser.parse_args()
     if args.input_data_file_iter == 'TF_RECORD' or \
@@ -72,7 +74,8 @@ if __name__ == '__main__':
             raw_data_iter=args.input_data_file_iter,
             compressed_type=args.compressed_type,
             read_ahead_size=args.read_ahead_size,
-            read_batch_size=args.read_batch_size
+            read_batch_size=args.read_batch_size,
+            validation_ratio=args.input_data_validation_ratio
         ),
         writer_options=dj_pb.WriterOptions(
             output_writer=args.output_builder,

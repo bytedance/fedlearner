@@ -15,6 +15,8 @@
 # coding: utf-8
 
 import logging
+from fedlearner.data_join.raw_data_iter_impl.validator import Validator
+
 
 class RawDataIter(object):
     class Item(object):
@@ -58,6 +60,11 @@ class RawDataIter(object):
         self._item = None
         self._index = None
         self._iter_failed = False
+        self._validator = Validator(required={
+            "example_id": "type(str)",
+            "event_time": "type(int)datetime(%Y%m%d)",
+            "raw_id": "type(str)"
+        })
         self._options = options
 
     def reset_iter(self, index_meta=None, force=False):

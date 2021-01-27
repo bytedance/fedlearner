@@ -18,6 +18,7 @@ import logging
 import csv
 import os
 import io
+import random
 import traceback
 from collections import OrderedDict
 
@@ -99,6 +100,7 @@ class CsvItem(RawDataIter.Item):
         if self._tf_record is not None:
             self._tf_record = None
 
+
 class CsvDictIter(RawDataIter):
     def __init__(self, options):
         super(CsvDictIter, self).__init__(options)
@@ -127,6 +129,12 @@ class CsvDictIter(RawDataIter):
                     traceback.print_stack()
                     os._exit(-1) # pylint: disable=protected-access
                 for raw in dict_reader:
+                    if random.random() < self._options.validation_ratio:
+                        try:
+                            self._validator.check_type(raw)
+                        except Exception as e:  # pylint: disable=broad-except
+                            logging.error(e)
+                            continue
                     yield CsvItem(raw)
 
     def _make_csv_dict_reader(self, fh, rest_buffer, aware_headers):
