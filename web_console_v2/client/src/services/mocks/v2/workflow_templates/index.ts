@@ -1,7 +1,7 @@
 import { stringifyWidgetSchemas } from 'shared/formSchema';
-import exampleWorkflow from './examples';
+import { normalTemplate } from './examples';
 
-const barTpl = stringifyWidgetSchemas(exampleWorkflow.data as any);
+const normalTpl = stringifyWidgetSchemas(normalTemplate.data as any);
 const simpleTpl = {
   id: 1,
   name: 'simple',
@@ -81,7 +81,7 @@ const simpleTpl = {
 
 const get = {
   data: {
-    data: [simpleTpl, barTpl],
+    data: [normalTpl, simpleTpl],
   },
   status: 200,
 };

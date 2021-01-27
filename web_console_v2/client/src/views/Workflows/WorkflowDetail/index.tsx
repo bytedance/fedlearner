@@ -127,6 +127,7 @@ const WorkflowDetail: FC = () => {
 
       value: workflow && <CountTime time={runningTime} isStatic={!isRunning_} />,
     },
+    ...(workflow?.config?.variables || []).map((item) => ({ label: item.name, value: item.value })),
   ];
   const jobsWithExeDetails = mergeJobDefsWithExecutionDetails(workflow);
   const peerJobsWithExeDetails = mergeJobDefsWithExecutionDetails(peerWorkflowQuery.data);
@@ -160,7 +161,12 @@ const WorkflowDetail: FC = () => {
           {/* i.e. Workflow execution error  */}
           {transactionErr && <p>{transactionErr}</p>}
 
-          <PropertyList cols={3} properties={workflowProps} />
+          <PropertyList
+            labelWidth={100}
+            initialVisibleRows={3}
+            cols={3}
+            properties={workflowProps}
+          />
         </Card>
 
         <ChartSection>

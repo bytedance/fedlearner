@@ -1,5 +1,4 @@
 import {
-  ComponentSize,
   InputWidgetSchema,
   SelectWidgetSchema,
   UploadWidgetSchema,
@@ -41,7 +40,6 @@ export interface VariableWidgetSchema
   // NOTE: for array type value, it clould be either a Multiple-select/Checkbox
   // or a Group-items which allow user add | delete. eg. ENV field
   type: 'string' | 'number' | 'boolean' | 'array' | 'object';
-  initialValue?: string | number | boolean | any[] | object;
 
   /** ------ UIs ------ */
   // i18n key for job name form-item label
@@ -53,7 +51,6 @@ export interface VariableWidgetSchema
   // will render some text below the form item
   description?: string;
   placeholder?: string;
-  size?: ComponentSize;
 
   /** ------ Validations ------ */
   // RegExp string '\d'
@@ -64,8 +61,6 @@ export interface VariableWidgetSchema
   /** ------ Miscs ------ */
   [key: string]: any;
 }
-
-/** 🚧 NOTE: Types below are NOT the final verison at current stage */
 
 export enum VariableAccessMode {
   UNSPECIFIED = 'UNSPECIFIED',

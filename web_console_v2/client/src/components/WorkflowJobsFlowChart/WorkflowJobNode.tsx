@@ -6,7 +6,14 @@ import completetdIcon from 'assets/icons/workflow-completed.svg';
 import warningIcon from 'assets/icons/workflow-warning.svg';
 import errorIcon from 'assets/icons/workflow-error.svg';
 import GridRow from 'components/_base/GridRow';
-import { JobNodeData, JobNodeStatus, JobNodeType, NODE_HEIGHT, NODE_WIDTH } from './helpers';
+import {
+  JobNodeData,
+  JobNodeStatus,
+  JobNodeType,
+  NODE_HEIGHT,
+  NODE_WIDTH,
+  GLOBAL_CONFIG_NODE_SIZE,
+} from './helpers';
 import { convertToUnit } from 'shared/helpers';
 import i18n from 'i18n';
 import classNames from 'classnames';
@@ -53,6 +60,16 @@ const JobStatusText = styled.small`
   font-size: 13px;
   line-height: 1;
   color: var(--textColorSecondary);
+`;
+const GlobalConfigNodeContainer = styled.div`
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: ${convertToUnit(GLOBAL_CONFIG_NODE_SIZE)};
+  height: ${convertToUnit(GLOBAL_CONFIG_NODE_SIZE)};
+  border-radius: 50%;
 `;
 
 const statusIcons: Record<JobNodeStatus, string> = {
@@ -117,8 +134,24 @@ const ExecutionJobNode: FC<Props> = ({ data, id }) => {
   );
 };
 
+const GlobalJobNode: FC<Props> = ({ data, id }) => {
+  const icon = statusIcons[data.status];
+  const text = jobConfigStatusText[data.status];
+
+  return (
+    <GlobalConfigNodeContainer>
+      <JobName>{id}</JobName>
+      <GridRow gap={5}>
+        {icon && <StatusIcon src={icon} />}
+        <JobStatusText>{text}</JobStatusText>
+      </GridRow>
+    </GlobalConfigNodeContainer>
+  );
+};
+
 const WorkflowJobNode: Record<JobNodeType, FC<Props>> = {
   config: ConfigJobNode,
+  global: GlobalJobNode,
   execution: ExecutionJobNode,
 };
 

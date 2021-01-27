@@ -56,6 +56,7 @@ const workflow: I18nMessageModule = {
   override_warn_desc: { zh: '是否确认重新运行当前工作流任务将覆盖历史运行结果？' },
 
   label_name: { zh: '工作流名称' },
+  label_global_config: { zh: ' 全局配置' },
   label_project: { zh: '关联项目' },
   label_peer_forkable: { zh: '合作伙伴复制权限' },
   label_template: { zh: '工作流模板' },
