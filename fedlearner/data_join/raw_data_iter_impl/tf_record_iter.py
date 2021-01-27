@@ -69,7 +69,7 @@ class TfExampleItem(RawDataIter.Item):
         res = self._features.get('event_time', common.InvalidEventTime)
         if res == common.InvalidEventTime:
             logging.warning('Note!!! return invalid event time')
-        return res
+        return int(res)
 
     @property
     def record(self):
