@@ -82,15 +82,13 @@ class ProjectsApi(Resource):
                 details='Currently not support multiple participants.')
 
         # exact configuration from variables
+        # TODO: one custom host for one participant
         custom_host = None
-        egress_url = 'fedlearner-stack-ingress-nginx-controller.default'\
-                     '.svc.cluster.local:80'
         for variable in config.get('variables', []):
             if variable.get('name') == 'CUSTOM_HOST':
                 custom_host = variable.get('value')
-            if variable.get('name') == 'EGRESS_URL':
-                egress_url = variable.get('value')
 
+        # parse participant
         certificates = {}
         for participant in config.get('participants'):
             if 'name' not in participant.keys() or \
@@ -103,31 +101,12 @@ class ProjectsApi(Resource):
             domain_name = participant.get('domain_name')
             # Grpc spec
             participant['grpc_spec'] = {
-                'egress_url': egress_url,
                 'authority': domain_name
             }
-
-            # create add on
             if participant.get('certificates') is not None:
                 current_cert = parse_certificates(
                     participant.get('certificates'))
-                # check validation
-                for file_name in _CERTIFICATE_FILE_NAMES:
-                    if current_cert.get(file_name) is None:
-                        raise InvalidArgumentException(
-                            details=ErrorMessage.PARAM_FORMAT_ERROR.value.
-                            format('certificates', '{} not existed'.format(
-                                file_name)))
                 certificates[domain_name] = {'certs': current_cert}
-                try:
-                    k8s_client = get_client()
-                    for domain_name, certificate in certificates.items():
-                        create_add_on(k8s_client, domain_name,
-                                      participant.get('url'), current_cert,
-                                      custom_host)
-                except RuntimeError as e:
-                    raise InvalidArgumentException(details=str(e))
-
             if 'certificates' in participant.keys():
                 participant.pop('certificates')
 
@@ -153,6 +132,14 @@ class ProjectsApi(Resource):
         new_project.token = token
         new_project.comment = comment
 
+        # create add on
+        for participant in new_project.get_config().participants:
+            if participant.domain_name in\
+                new_project.get_certificate().domain_name_to_cert.keys():
+                _create_add_on(participant,
+                               new_project.get_certificate()
+                               .domain_name_to_cert[participant.domain_name],
+                               custom_host)
         try:
             new_project = db.session.merge(new_project)
             db.session.commit()
@@ -198,21 +185,24 @@ class ProjectApi(Resource):
                 ParseDict(variable, Variable())
                 for variable in request.json.get('variables')
             ])
+
+        # exact configuration from variables
         custom_host = None
-        egress_url = 'fedlearner-stack-ingress-nginx-controller.default'\
-                     '.svc.cluster.local:80'
         for variable in config.variables:
             if variable.name == 'CUSTOM_HOST':
                 custom_host = variable.value
-            if variable.name == 'EGRESS_URL':
-                egress_url = variable.value
-        for participant in config.participants:
-            participant.grpc_spec.egress_url = egress_url
-            # TODO: update add-on's custom_host
+
         project.set_config(config)
         if request.json.get('comment') is not None:
             project.comment = request.json.get('comment')
 
+        for participant in project.get_config().participants:
+            if participant.domain_name in\
+                project.get_certificate().domain_name_to_cert.keys():
+                _create_add_on(participant,
+                               project.get_certificate()
+                               .domain_name_to_cert[participant.domain_name],
+                               custom_host)
         try:
             db.session.commit()
         except Exception as e:
@@ -246,3 +236,20 @@ def initialize_project_apis(api: Api):
     api.add_resource(ProjectApi, '/projects/<int:project_id>')
     api.add_resource(CheckConnectionApi,
                      '/projects/<int:project_id>/connection_checks')
+
+
+def _create_add_on(participant, certificate, custom_host=None):
+    if certificate is None:
+        return
+    # check validation
+    for file_name in _CERTIFICATE_FILE_NAMES:
+        if certificate.certs.get(file_name) is None:
+            raise InvalidArgumentException(
+                details=ErrorMessage.PARAM_FORMAT_ERROR.value.
+                    format('certificates', '{} not existed'.format(file_name)))
+    try:
+        k8s_client = get_client()
+        create_add_on(k8s_client, participant.domain_name,
+                      participant.url, certificate.certs, custom_host)
+    except RuntimeError as e:
+        raise InvalidArgumentException(details=str(e))
