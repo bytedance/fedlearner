@@ -42,17 +42,17 @@ for i in "${WORKER_GROUPS[@]}"; do
     fi
 done
 fi
-
-if [[ ${CODE_KEY} == "hdfs://"* ]]; then
-    ${HADOOP_HOME}/bin/hadoop fs -copyToLocal ${CODE_KEY} code.tar.gz
-elif [[ ${CODE_KEY} == "http://"* || ${CODE_KEY} == "https://"* ]]; then
-    wget ${CODE_KEY} -O code.tar.gz
-elif [[ ${CODE_KEY} == "oss://"* ]]; then
-    python -c "import tensorflow as tf; import tensorflow_io; open('code.tar.gz', 'wb').write(tf.io.gfile.GFile('${CODE_KEY}', 'rb').read())"
-else
-    cp ${CODE_KEY} code.tar.gz
-fi
-tar -zxvf code.tar.gz
+pull_code ${CODE_KEY} $PWD
+#if [[ ${CODE_KEY} == "hdfs://"* ]]; then
+#    ${HADOOP_HOME}/bin/hadoop fs -copyToLocal ${CODE_KEY} code.tar.gz
+#elif [[ ${CODE_KEY} == "http://"* || ${CODE_KEY} == "https://"* ]]; then
+#    wget ${CODE_KEY} -O code.tar.gz
+#elif [[ ${CODE_KEY} == "oss://"* ]]; then
+#    python -c "import tensorflow as tf; import tensorflow_io; open('code.tar.gz', 'wb').write(tf.io.gfile.GFile('${CODE_KEY}', 'rb').read())"
+#else
+#    cp ${CODE_KEY} code.tar.gz
+#fi
+#tar -zxvf code.tar.gz
 cd ${ROLE}
 
 mode=$(normalize_env_to_args "--mode" "$MODE")

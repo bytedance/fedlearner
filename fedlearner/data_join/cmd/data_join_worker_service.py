@@ -89,6 +89,11 @@ if __name__ == "__main__":
     parser.add_argument('--negative_sampling_rate', type=float, default=0.1,
                         help="the rate of sampling when auto-generating "\
                         "negative example, in [0.0, 1.0)")
+    parser.add_argument('--join_expr', type=str,
+                        help="join expression for universal joiner")
+    parser.add_argument('--join_key_mapping', type=str,
+                        help="key mapping, format: name="\
+                        "schema:///path/to/mapper.tar.gz")
     args = parser.parse_args()
     worker_options = dj_pb.DataJoinWorkerOptions(
             use_mock_etcd=(args.kvstore_type == 'mock'),
@@ -110,6 +115,8 @@ if __name__ == "__main__":
                         args.enable_negative_example_generator,
                     negative_sampling_rate=\
                         args.negative_sampling_rate,
+                    join_expr=join_expr,
+                    join_key_mapping=join_key_mapping,
                 ),
             example_id_dump_options=dj_pb.ExampleIdDumpOptions(
                     example_id_dump_interval=args.example_id_dump_interval,

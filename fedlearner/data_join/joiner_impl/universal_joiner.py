@@ -63,10 +63,11 @@ class _JoinerImpl(object):
         idx = 0
         while idx < show_window.size():
             show = show_window[idx][1]
-            #1. find the first matching key 
+            #1. find the first matching key
             tuple_idx = []
             mapped_item = self._mapper.leader_mapping(show)
-            key_str_arr = get_key_instance_by_attr(keys, show, mapped_item, tuple_idx)
+            key_str_arr = get_key_instance_by_attr(
+                keys, show, mapped_item, tuple_idx)
             found = False
             for idx, k in enumerate(key_str_arr):
                 if k not in conv_dict:
@@ -77,7 +78,7 @@ class _JoinerImpl(object):
                     #A show can match multiple conversion event, add
                     # all the matched conversion-show pair to result
                     conv = conv_window[cd[i]][1]
-                    #2. select all the matching items from the specific key in follower side. 
+                    #2. select all the matching items from the specific key in follower side.
                     if self._expr.run_func(tuple_idx)(show, conv):
                         show_matches.append((cd[i], idx))
                 found = True
@@ -293,8 +294,9 @@ class UniversalJoiner(ExampleJoiner):
 
         self._trigger = _Trigger(self._max_conversion_delay)
 
-        self._expr = expr.JoinExpr("click_id or (id_type, id, lt(event_time_deep))")
-        self._key_mapper = km.create_mapper("CLICKID")
+        self._expr = expr.JoinExpr(example_joiner_options.join_expr)
+        self._key_mapper = km.create_mapper(
+            example_joiner_options.join_key_mapping)
         self._joiner = _JoinerImpl(self._expr, self._key_mapper)
 
         self._enable_negative_example_generator = \

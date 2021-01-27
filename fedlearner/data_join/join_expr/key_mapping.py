@@ -6,7 +6,7 @@ class BaseKeyMapper(object):
         raise NotImplementedError
 
     @classmethod
-    def name(self):
+    def name(cls):
         raise NotImplementedError
 
 class DefaultKeyMapper(BaseKeyMapper):
@@ -17,5 +17,5 @@ class DefaultKeyMapper(BaseKeyMapper):
         return dict()
 
     @classmethod
-    def name(self):
+    def name(cls):
         return "DEFAULT"
