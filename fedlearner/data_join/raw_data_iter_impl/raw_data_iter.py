@@ -17,6 +17,8 @@ import logging
 from collections import OrderedDict
 import fedlearner.data_join.common as common
 from fedlearner.common.db_client import DBClient
+from fedlearner.data_join.raw_data_iter_impl.validator import Validator
+
 
 class RawDataIter(object):
     class Item(object):
@@ -84,6 +86,11 @@ class RawDataIter(object):
         self._item = None
         self._index = None
         self._iter_failed = False
+        self._validator = Validator(required={
+            "example_id": "type(str)",
+            "event_time": "type(int)datetime(%Y%m%d)",
+            "raw_id": "type(str)"
+        })
         self._options = options
         #_options will be None for example id visitor
         if self._options and self._options.raw_data_cache_type == "disk":

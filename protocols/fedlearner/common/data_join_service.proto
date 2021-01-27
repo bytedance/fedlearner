@@ -242,6 +242,8 @@ message RawDataOptions {
   float input_data_stat_sample_ratio = 6;
   // storage to cache the raw data record, memory or disk
   string raw_data_cache_type = 7;
+  // read batch size for tf record, <=0 means batch size == 1
+  float validation_ratio = 8;
 }
 
 message WriterOptions {

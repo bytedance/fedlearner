@@ -16,6 +16,7 @@
 
 import os
 import random
+import csv
 import unittest
 import logging
 
@@ -32,53 +33,66 @@ from fedlearner.data_join.data_portal_worker import DataPortalWorker
 from fedlearner.data_join.raw_data_iter_impl.tf_record_iter import TfExampleItem
 from fedlearner.data_join import common
 
+
 class TestDataPortalWorker(unittest.TestCase):
 
     def _get_input_fpath(self, partition_id):
         return "{}/raw_data_partition_{}".format(self._input_dir, partition_id)
 
-    def _generate_one_partition(self, partition_id, example_id, num_examples):
+    def _generate_one_partition(self, partition_id, example_id, num_examples, raw_data_iter):
         fpath = self._get_input_fpath(partition_id)
-        with tf.io.TFRecordWriter(fpath) as writer:
-            for i in range(num_examples):
-                example_id += random.randint(1, 5)
-                # real_id = example_id.encode("utf-8")
-                event_time = 150000000 + random.randint(10000000, 20000000)
-                feat = {}
-                label = random.choice([1, 0])
-                if random.random() < 0.8:
-                    feat['label'] = tf.train.Feature(
-                        int64_list=tf.train.Int64List(value=[label]))
-                feat['example_id'] = tf.train.Feature(
-                    bytes_list=tf.train.BytesList(value=[str(example_id).encode('utf-8')]))
-                feat['raw_id'] = tf.train.Feature(
-                    bytes_list=tf.train.BytesList(value=[str(example_id).encode('utf-8')]))
-                feat['event_time'] = tf.train.Feature(
-                    int64_list=tf.train.Int64List(value=[event_time]))
-                example = tf.train.Example(features=tf.train.Features(feature=feat))
-                writer.write(example.SerializeToString())
+        if raw_data_iter == 'CSV_DICT':
+            with open(fpath, "w") as file:
+                field_names = ['example_id', 'raw_id', 'event_time']
+                writer = csv.DictWriter(file, fieldnames=field_names)
+                writer.writeheader()
+                for i in range(num_examples):
+                    example_id += random.randint(1, 5)
+                    event_time = 150000000 + random.randint(10000000, 20000000)
+                    feat = {
+                        'example_id': str(example_id),
+                        'raw_id': str(example_id),
+                        'event_time': event_time
+                    }
+                    writer.writerow(feat)
+        else:
+            with tf.io.TFRecordWriter(fpath) as writer:
+                for i in range(num_examples):
+                    example_id += random.randint(1, 5)
+                    # real_id = example_id.encode("utf-8")
+                    event_time = 150000000 + random.randint(10000000, 20000000)
+                    feat = {}
+                    feat['example_id'] = tf.train.Feature(
+                        bytes_list=tf.train.BytesList(value=[str(example_id).encode('utf-8')]))
+                    feat['raw_id'] = tf.train.Feature(
+                        bytes_list=tf.train.BytesList(value=[str(example_id).encode('utf-8')]))
+                    feat['event_time'] = tf.train.Feature(
+                        int64_list=tf.train.Int64List(value=[event_time]))
+                    example = tf.train.Example(features=tf.train.Features(feature=feat))
+                    writer.write(example.SerializeToString())
         return example_id
 
-
-    def _generate_input_data(self):
+    def _generate_input_data(self, raw_data_iter):
         self._partition_item_num = 1 << 16
         self._clean_up()
         gfile.MakeDirs(self._input_dir)
         success_flag_fpath = "{}/_SUCCESS".format(self._input_dir)
         example_id = 1000001
         for partition_id in range(self._input_partition_num):
-            example_id = self._generate_one_partition(partition_id, example_id, self._partition_item_num)
+            example_id = self._generate_one_partition(
+                partition_id, example_id, self._partition_item_num, raw_data_iter)
         
         with gfile.GFile(success_flag_fpath, 'w') as fh:
             fh.write('')
 
-    def _make_portal_worker(self):
+    def _make_portal_worker(self, raw_data_iter, validation_ratio):
         portal_worker_options = dp_pb.DataPortalWorkerOptions(
             raw_data_options=dj_pb.RawDataOptions(
-                raw_data_iter="TF_RECORD",
+                raw_data_iter=raw_data_iter,
                 read_ahead_size=1<<20,
                 read_batch_size=128,
-                optional_fields=['label']
+                optional_fields=['label'],
+                validation_ratio=validation_ratio,
             ),
             writer_options=dj_pb.WriterOptions(
                 output_writer="TF_RECORD"
@@ -104,22 +118,20 @@ class TestDataPortalWorker(unittest.TestCase):
         if gfile.Exists(self._merge_output_dir):
             gfile.DeleteRecursively(self._merge_output_dir)
 
-    def _prepare_test(self):
+    def _prepare_test(self, raw_data_iter='TF_RECORD', validation_ratio=.0):
         self._input_dir = './portal_worker_input'
         self._partition_output_dir = './portal_worker_partition_output'
         self._merge_output_dir = './portal_worker_merge_output'
         self._input_partition_num = 4
         self._output_partition_num = 2
-        self._generate_input_data()
-        self._make_portal_worker()
+        self._generate_input_data(raw_data_iter)
+        self._make_portal_worker(raw_data_iter, validation_ratio)
 
     def _check_partitioner(self, map_task):
         output_partitions = gfile.ListDirectory(map_task.output_base_dir)
         output_partitions = [x for x in output_partitions if "SUCCESS" not in x]
         self.assertEqual(len(output_partitions), map_task.output_partition_num)
-        partition_dirs = ["{}/{}".format(map_task.output_base_dir, x) \
-            for x in output_partitions]
-        
+
         total_cnt = 0
         for partition in output_partitions:
             dpath = "{}/{}".format(map_task.output_base_dir, partition)
@@ -136,7 +148,7 @@ class TestDataPortalWorker(unittest.TestCase):
                     self.assertEqual(partition_id, CityHash32(tf_item.raw_id) \
                         % map_task.output_partition_num)
                     total_cnt += 1
-        self.assertEqual(total_cnt, self._partition_item_num * self._input_partition_num)
+        return total_cnt
 
     def _check_merge(self, reduce_task):
         dpath = os.path.join(self._merge_output_dir, \
@@ -155,9 +167,7 @@ class TestDataPortalWorker(unittest.TestCase):
                 total_cnt += 1
         return total_cnt
 
-
-    def test_portal_worker(self):
-        self._prepare_test()
+    def _run_map_task(self):
         map_task = dp_pb.MapTask()
         map_task.output_base_dir = self._partition_output_dir
         map_task.output_partition_num = self._output_partition_num
@@ -172,8 +182,13 @@ class TestDataPortalWorker(unittest.TestCase):
         task = dp_pb.NewTaskResponse()
         task.map_task.CopyFrom(map_task)
         self._portal_worker._run_map_task(task.map_task)
+        return task
 
-        self._check_partitioner(task.map_task)
+    def test_portal_worker(self):
+        self._prepare_test()
+        task = self._run_map_task()
+        total_cnt = self._check_partitioner(task.map_task)
+        self.assertEqual(total_cnt, self._partition_item_num * self._input_partition_num)
 
         # merge
         total_cnt = 0
@@ -188,6 +203,24 @@ class TestDataPortalWorker(unittest.TestCase):
 
         self.assertEqual(total_cnt, self._partition_item_num * self._input_partition_num)
         self._clean_up()
+
+    def test_portal_worker_with_validation(self):
+        self._prepare_test(validation_ratio=0.001)
+        task = self._run_map_task()
+        map_task = task.map_task
+
+        total_cnt = self._check_partitioner(map_task)
+        self.assertLess(total_cnt, self._partition_item_num * self._input_partition_num)
+        self._clean_up()
+
+        self._prepare_test(raw_data_iter='CSV_DICT', validation_ratio=0.001)
+        task = self._run_map_task()
+        map_task = task.map_task
+
+        total_cnt = self._check_partitioner(map_task)
+        self.assertLess(total_cnt, self._partition_item_num * self._input_partition_num)
+        self._clean_up()
+
 
 if __name__ == '__main__':
     logging.getLogger().setLevel(logging.INFO)

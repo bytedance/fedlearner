@@ -60,6 +60,8 @@ if __name__ == '__main__':
                         help='optional stat fields used in joiner, separated '
                              'by comma between fields, e.g. "label,rit". '
                              'Each field will be stripped.')
+    parser.add_argument('--input_data_validation_ratio', type=float, default=.0,
+                        help='sample ratio for input data validation')
 
     args = parser.parse_args()
     set_logger()
@@ -79,7 +81,8 @@ if __name__ == '__main__':
             compressed_type=args.compressed_type,
             read_ahead_size=args.read_ahead_size,
             read_batch_size=args.read_batch_size,
-            optional_fields=optional_fields
+            optional_fields=optional_fields,
+            validation_ratio=args.input_data_validation_ratio
         ),
         writer_options=dj_pb.WriterOptions(
             output_writer=args.output_builder,

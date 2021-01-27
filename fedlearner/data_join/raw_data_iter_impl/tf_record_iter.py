@@ -17,10 +17,12 @@
 import logging
 from collections import OrderedDict
 from contextlib import contextmanager
+import random
 
 import tensorflow.compat.v1 as tf
 import fedlearner.data_join.common as common
 from fedlearner.data_join.raw_data_iter_impl.raw_data_iter import RawDataIter
+
 
 class TfExampleItem(RawDataIter.Item):
     def __init__(self, record_str, cache_type=None, index=None):
@@ -114,17 +116,24 @@ class TfExampleItem(RawDataIter.Item):
                 self._csv_record = None
         self._gc_example(example)
 
-    def _parse_example(self, record_str):
+    def _parse_example(self):
+        res = None
+        if not self._parse_example_error:
+            res = TfExampleItem.parse_example(self._record_str)
+        if res is None:
+            self._parse_example_error = True
+        return res
+
+    @staticmethod
+    def parse_example(record_str):
         try:
-            if not self._parse_example_error:
-                example = tf.train.Example()
-                example.ParseFromString(record_str)
-                return example
-        except Exception as e: # pylint: disable=broad-except
+            example = tf.train.Example()
+            example.ParseFromString(record_str)
+            return example
+        except Exception as e:  # pylint: disable=broad-except
             logging.error("Failed parse tf.Example from record %s, reason %s",
                           record_str, e)
-            self._parse_example_error = True
-        return None
+            return None
 
     @staticmethod
     def _gc_example(example):
@@ -172,6 +181,15 @@ class TfRecordIter(RawDataIter):
         with self._data_set(fpath) as data_set:
             for batch in iter(data_set):
                 for raw_data in batch.numpy():
+                    if random.random() < self._options.validation_ratio:
+                        try:
+                            example = TfExampleItem.parse_example(raw_data)
+                            example_dict = \
+                                common.convert_tf_example_to_dict(example)
+                            self._validator.check_type(example_dict)
+                        except Exception as e:  # pylint: disable=broad-except
+                            logging.error(e)
+                            continue
                     index = self._index
                     if index is None:
                         index = 0
