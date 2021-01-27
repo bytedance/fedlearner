@@ -15,9 +15,9 @@ class BaseFunction(object):
     def __call__(self, show, conv, args: list[str]) -> bool:
         raise NotImplementedError
 
-class LastClickFuncDef(BaseFunction):
+class LTFuncDef(BaseFunction):
     def __init__(self):
-        super(LastClickFuncDef, self).__init__(2)
+        super(LTFuncDef, self).__init__(2)
 
     def __call__(self, show, conv, args):
         assert all([hasattr(conv, att) for att in args]), "Arg missed"
@@ -26,7 +26,7 @@ class LastClickFuncDef(BaseFunction):
         conv_event_time = getattr(conv, args[0])
         return show_event_time < conv_event_time
 
-LINK_MAP = dict({"last_click": LastClickFuncDef()})
+LINK_MAP = dict({"lt": LTFuncDef()})
 
 class Token(object):
     def __init__(self, tok):
@@ -198,8 +198,9 @@ class JoinExpr(object):
         self.add_ast(cur_tuple)
         assert left_bracket == 0, "( should match )"
 
+"""
 if __name__ == "__main__":
-    exp = "click_id or (id_type, id, last_click(event_time_deep, 1000), id2)"
+    exp = "click_id or (id_type, id, lt(event_time_deep, 1000), id2)"
     k = JoinExpr(exp)
     print(k)
     print("keys", k.keys())
@@ -209,18 +210,18 @@ if __name__ == "__main__":
     print(k)
     print("keys", k.keys())
 
-    exp = "last_click(event_time_deep, 1000)"
+    exp = "lt(event_time_deep, 1000)"
     k = JoinExpr(exp)
     print(k)
     print("keys", k.keys())
 
-    exp = "(last_click(event_time_deep, 11212))"
+    exp = "(lt(event_time_deep, 11212))"
     k = JoinExpr(exp)
     print(k)
     print("keys", k.keys())
 
     # TODO: bugfix
-    exp = "(last_click(event_time_deep, 2121), id) or click_id"
+    exp = "(lt(event_time_deep, 2121), id) or click_id"
     k = JoinExpr(exp)
     print(k)
     print("keys", k.keys())
@@ -230,8 +231,9 @@ if __name__ == "__main__":
     print(k)
     print("keys", k.keys())
 
-    exp = "click_id or (id_type, id, last_click(event_time_deep, 2222), last_click(event_time_shallow, 3333))"
+    exp = "click_id or (id_type, id, lt(event_time_deep, 2222), lt(event_time_shallow, 3333))"
     k = JoinExpr(exp)
     print(k)
     print(k.basic_block(1)[2].arg(1).name)
     print("keys", k.keys())
+"""

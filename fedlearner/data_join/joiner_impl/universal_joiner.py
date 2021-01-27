@@ -25,24 +25,26 @@ from fedlearner.data_join.joiner_impl.example_joiner import ExampleJoiner
 from fedlearner.data_join.negative_example_generator \
         import NegativeExampleGenerator
 
-from fedlearner.common import expression as expr
+from fedlearner.data_join.join_expr import expression as expr
+from fedlearner.data_join.join_expr import _key_mapping as km
 
-def get_key_by_attr(keys, item, idx=None):
+def get_key_instance_by_attr(keys, item, mapped_item, tuple_idx=None):
     key_str_arr = []
-    for key in keys:
+    for idx, key in enumerate(keys):
         key_arr = key
         if isinstance(key, str):
             key_arr = [key]
-        if all([hasattr(item, att) for att in key_arr]):
+        if all([hasattr(item, att) or (att in mapped_item) for att in key_arr]):
+            tuple_idx.append(idx)
             key_str_arr.append("_".join(
                 ["%s:%s"%(name, getattr(item, name)) for name in key_arr]))
     return key_str_arr
 
 
-class _Accumulator(object):
-    def __init__(self, max_conversion_delay, expr):
-        self._max_conversion_delay = max_conversion_delay
+class _JoinerImpl(object):
+    def __init__(self, expr, mapper):
         self._expr = expr
+        self._mapper = mapper
 
     def join(self, conv_window, show_window):
         """
@@ -57,13 +59,14 @@ class _Accumulator(object):
         show_mismatches = {}
         # keys example: [(req_id, cid), click_id]
         keys = self._expr.keys()
-        conv_dict = conv_window.as_dict(keys)
+        conv_dict = conv_window.as_dict(keys, self._mapper.follower_mapping)
         idx = 0
         while idx < show_window.size():
             show = show_window[idx][1]
             #1. find the first matching key 
             tuple_idx = []
-            key_str_arr = get_key_by_attr(keys, show, tuple_idx)
+            mapped_item = self._mapper.leader_mapping(show)
+            key_str_arr = get_key_instance_by_attr(keys, show, mapped_item, tuple_idx)
             found = False
             for idx, k in enumerate(key_str_arr):
                 if k not in conv_dict:
@@ -86,7 +89,7 @@ class _Accumulator(object):
 
 class _Trigger(object):
     """
-    Decide how to move forward the watermark
+    Decide to move forward the watermark. We assume the item contains field event_time
     """
     def __init__(self, max_conversion_delay):
         self._max_conversion_delay = max_conversion_delay
@@ -155,7 +158,7 @@ class _SlidingWindow(object):
                 (self._start, self._end, self._size, self._alloc_size,     \
                  self._ring_buffer[self.start():                           \
                                    (self.start()+20)%self._alloc_size])
-    def as_dict(self, keys):
+    def as_dict(self, keys, map_func):
         buf = {}
         idx = 0
         """
@@ -165,7 +168,8 @@ class _SlidingWindow(object):
         """
         while idx < self.size():
             item = self.__getitem__(idx)[1]
-            for key in get_key_by_attr(keys, item):
+            mapped_item = map_func(item)
+            for key in get_key_instance_by_attr(keys, item, mapped_item):
                 if key not in buf:
                     buf[key] = [idx]
                 else:
@@ -223,11 +227,11 @@ class _SlidingWindow(object):
 
     def extend(self):
         logging.info("%s extend begin, begin=%d, end=%d, size=%d, "
-                     "alloc_size=%d, len(ring_buffer)=%d, extend_cnt=%d",  \
-                     self.__class__.__name__, self._start, self._end,      \
-                     self._size, self._alloc_size, len(self._ring_buffer), \
+                     "alloc_size=%d, len(ring_buffer)=%d, extend_cnt=%d",     \
+                     self.__class__.__name__, self._start, self._end,         \
+                     self._size, self._alloc_size, len(self._ring_buffer),    \
                      self._debug_extend_cnt)
-        assert self._alloc_size < self._max_window_size,                   \
+        assert self._alloc_size < self._max_window_size,                      \
                 "Can't extend ring buffer due to max_window_size limit"
         new_alloc_size = min(self._alloc_size * 2, self._max_window_size)
         new_buf = list(range(new_alloc_size))
@@ -238,9 +242,9 @@ class _SlidingWindow(object):
         self._ring_buffer = new_buf
         self._debug_extend_cnt += 1
         logging.info("%s extend end, begin=%d, end=%d, size=%d, "
-                     "alloc_size=%d, len(ring_buffer)=%d, extend_cnt=%d",  \
-                     self.__class__.__name__, self._start, self._end,      \
-                     self._size, self._alloc_size, len(self._ring_buffer), \
+                     "alloc_size=%d, len(ring_buffer)=%d, extend_cnt=%d",     \
+                     self.__class__.__name__, self._start, self._end,         \
+                     self._size, self._alloc_size, len(self._ring_buffer),    \
                      self._debug_extend_cnt)
 
     def reset(self, new_buffer, state_stale):
@@ -254,7 +258,7 @@ class _SlidingWindow(object):
 
     def __getitem__(self, index):
         if index > self._alloc_size:
-            logging.warning("index %d out of range %d, be truncated", \
+            logging.warning("index %d out of range %d, be truncated",         \
                          index, self._alloc_size)
         return self._ring_buffer[self._index(index)]
 
@@ -289,8 +293,9 @@ class UniversalJoiner(ExampleJoiner):
 
         self._trigger = _Trigger(self._max_conversion_delay)
 
-        self._expr = expr.JoinExpr("click_id or (id_type, id, last_click(event_time_deep))")
-        self._acc = _Accumulator(self._max_conversion_delay, self._expr)
+        self._expr = expr.JoinExpr("click_id or (id_type, id, lt(event_time_deep))")
+        self._key_mapper = km.create_mapper("CLICKID")
+        self._joiner = _JoinerImpl(self._expr, self._key_mapper)
 
         self._enable_negative_example_generator = \
                 example_joiner_options.enable_negative_example_generator
@@ -327,7 +332,7 @@ class UniversalJoiner(ExampleJoiner):
 
             watermark = self._trigger.watermark()
             #1. find all the matched pairs in current window
-            raw_pairs, mismatches = self._acc.join(self._follower_join_window,  \
+            raw_pairs, mismatches = self._joiner.join(self._follower_join_window,  \
                         self._leader_join_window)
             if self._enable_negative_example_generator:
                 self._negative_example_generator.update(mismatches)
@@ -488,7 +493,7 @@ class UniversalJoiner(ExampleJoiner):
             builder.append_item(fe, li, fi, None, True)
             if builder.check_data_block_full():
                 yield self._finish_data_block()
-        metrics.emit_timer(name='attribution_joiner_dump_joined_items',
+        metrics.emit_timer(name='universal_joiner_dump_joined_items',
                            value=int(time.time()-start_tm),
                            tags=self._metrics_tags)
 
@@ -505,7 +510,7 @@ class UniversalJoiner(ExampleJoiner):
 
         self._joiner_stats.fill_leader_example_ids(eids)
         metrics.emit_timer(name=\
-                           'attribution_joiner_fill_leader_join_window',
+                           'universal_joiner_fill_leader_join_window',
                            value=int(time.time()-start_tm),
                            tags=self._metrics_tags)
         return filled_new_example
@@ -523,7 +528,7 @@ class UniversalJoiner(ExampleJoiner):
 
         self._joiner_stats.fill_follower_example_ids(eids)
         metrics.emit_timer(name=\
-                           'attribution_joiner_fill_follower_join_window',
+                           'universal_joiner_fill_follower_join_window',
                            value=int(time.time()-start_tm),
                            tags=self._metrics_tags)
         return filled_new_example
