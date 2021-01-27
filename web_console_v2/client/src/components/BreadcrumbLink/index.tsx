@@ -6,6 +6,7 @@ import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 
 const Container = styled(Breadcrumb)`
+  padding-left: 3px;
   margin-bottom: 16px;
 `;
 

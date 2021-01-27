@@ -227,6 +227,8 @@ function ProjectForm({ onSubmit, isEdit, initialValues }: Props): ReactElement {
     form.submit();
   }
   async function onFinish(data: any) {
+    console.log('🚀 ~ file: index.tsx ~ line 230 ~ onFinish ~ data', data);
+
     if (
       !isEdit &&
       certificateConfigType === CertificateConfigType.Upload &&
@@ -255,7 +257,6 @@ function ProjectForm({ onSubmit, isEdit, initialValues }: Props): ReactElement {
         });
         params = {
           name: data.name,
-          domain_name: data.domain_name,
           config: {
             domain_name: data.domain_name,
             participants,

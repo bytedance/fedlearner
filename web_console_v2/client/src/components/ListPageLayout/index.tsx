@@ -5,7 +5,9 @@ import GridRow from 'components/_base/GridRow';
 import { QuestionCircle } from 'components/IconPark';
 
 const Container = styled(Card)`
-  height: var(--contentHeight);
+  display: grid;
+  grid-auto-flow: row;
+  min-height: var(--contentHeight);
 
   > .ant-card-body {
     display: flex;

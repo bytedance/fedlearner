@@ -164,6 +164,7 @@ const JobFormDrawer: ForwardRefRenderFunction<JobFormDrawerExposedRef, Props> = 
     const { Warning, Success } = JobNodeStatus;
     const [_, error] = await to(formActions.validate());
 
+    // Update job node status to validation result
     updateNodeStatusById({
       id: nodeId,
       status: error ? Warning : Success,

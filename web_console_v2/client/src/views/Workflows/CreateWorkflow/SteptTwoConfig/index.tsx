@@ -7,7 +7,6 @@ import WorkflowJobsFlowChart, { updateNodeStatusById } from 'components/Workflow
 import { JobNode, JobNodeData, JobNodeStatus } from 'components/WorkflowJobsFlowChart/helpers';
 import GridRow from 'components/_base/GridRow';
 import { Button, message, Modal, Spin } from 'antd';
-import { ExclamationCircleOutlined } from '@ant-design/icons';
 import { Redirect, useHistory, useParams } from 'react-router-dom';
 import { useRecoilValue } from 'recoil';
 import {
@@ -24,6 +23,8 @@ import { to } from 'shared/helpers';
 import { WorkflowCreateProps } from '..';
 import { WorkflowInitiatePayload } from 'typings/workflow';
 import InspectPeerConfigs from './InspectPeerConfig';
+import { ExclamationCircle } from 'components/IconPark';
+import { Z_INDEX_GREATER_THAN_HEADER } from 'components/Header';
 
 const Container = styled.section`
   height: 100%;
@@ -80,8 +81,9 @@ const CanvasAndForm: FC<WorkflowCreateProps> = ({ isInitiate, isAccept }) => {
         </Header>
 
         <WorkflowJobsFlowChart
-          jobs={currentWorkflowTpl.config.job_definitions}
           type="config"
+          jobs={currentWorkflowTpl.config.job_definitions}
+          globalVariables={currentWorkflowTpl.config.variables}
           onJobClick={selectJob}
           onCanvasClick={onCanvasClick}
         />
@@ -132,6 +134,7 @@ const CanvasAndForm: FC<WorkflowCreateProps> = ({ isInitiate, isAccept }) => {
     toggleDrawerVisible(false);
   }
   async function selectJob(jobNode: JobNode) {
+    // Turn node status to configuring
     updateNodeStatusById({ id: jobNode.id, status: JobNodeStatus.Processing });
 
     if (jobNode.data.status !== JobNodeStatus.Processing) {
@@ -182,7 +185,8 @@ const CanvasAndForm: FC<WorkflowCreateProps> = ({ isInitiate, isAccept }) => {
   function onCancelCreationClick() {
     Modal.confirm({
       title: i18n.t('workflow.msg_sure_2_cancel_create'),
-      icon: <ExclamationCircleOutlined />,
+      icon: <ExclamationCircle />,
+      zIndex: Z_INDEX_GREATER_THAN_HEADER,
       content: i18n.t('workflow.msg_effect_of_cancel_create'),
       style: {
         top: '30%',

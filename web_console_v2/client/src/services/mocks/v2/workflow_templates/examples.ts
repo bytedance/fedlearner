@@ -1,21 +1,34 @@
 import { JobType, VariableAccessMode, VariableComponent, WorkflowTemplate } from 'typings/workflow';
 import { DeepPartial } from 'utility-types';
 
-// Workflow template demo
-const exampleTemplate: { data: DeepPartial<WorkflowTemplate>; status: number } = {
+export const normalTemplate: { data: DeepPartial<WorkflowTemplate>; status: number } = {
   data: {
     id: 2,
-    name: 'bar template',
+    name: 'Test template',
     group_alias: 'foo group',
     is_left: true,
     config: {
       group_alias: 'foo group',
-      variables: [], // workflow global variables, TBD
+      variables: [
+        {
+          name: 'image_version',
+          value: 'v1.5-rc3',
+          access_mode: VariableAccessMode.PEER_READABLE,
+          widget_schema: '' as any,
+        },
+        {
+          name: 'num_partitions',
+          value: '4',
+          access_mode: VariableAccessMode.PEER_READABLE,
+          widget_schema: '' as any,
+        },
+      ],
       job_definitions: [
         {
           name: 'Initiative',
           job_type: JobType.RAW_DATA,
           is_federated: true,
+          dependencies: [],
           variables: [
             {
               name: 'job_name',
@@ -211,11 +224,13 @@ export const complexDepsTemplate: { data: DeepPartial<WorkflowTemplate>; status:
     is_left: true,
     config: {
       group_alias: 'c-group',
+      variables: [],
       job_definitions: [
         {
           name: 'Initiative',
           job_type: JobType.RAW_DATA,
           is_federated: true,
+          dependencies: [],
           variables: [
             {
               name: 'job_name',
@@ -351,4 +366,3 @@ export const xShapeTemplate: { data: DeepPartial<WorkflowTemplate> } = {
     },
   },
 };
-export default exampleTemplate;

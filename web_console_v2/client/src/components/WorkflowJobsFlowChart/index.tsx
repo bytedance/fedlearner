@@ -1,6 +1,6 @@
 import React, { FC, useEffect, useState } from 'react';
 import WorkflowJobNode from './WorkflowJobNode';
-import { JobNodeType, JobRawData } from './helpers';
+import { JobNodeType, JobRawData, convertJobsToElements, JobNode, JobNodeStatus } from './helpers';
 import styled from 'styled-components';
 import ReactFlow, {
   Background,
@@ -9,11 +9,10 @@ import ReactFlow, {
   OnLoadParams,
   FlowElement,
 } from 'react-flow-renderer';
-import { convertJobsToElements, JobNode, JobNodeStatus } from './helpers';
 
 import PubSub from 'pubsub-js';
 import { useSubscribe } from 'hooks';
-import { Job, JobExecutionDetalis } from 'typings/job';
+import { Variable } from 'typings/workflow';
 
 const Container = styled.div`
   position: relative;
@@ -65,7 +64,8 @@ const CHANNELS = {
 };
 
 type Props = {
-  jobs: (Job | JobExecutionDetalis)[];
+  globalVariables?: Variable[];
+  jobs: JobRawData[];
   type: JobNodeType;
   selectable?: boolean;
   onJobClick?: (node: JobNode) => void;
@@ -73,6 +73,7 @@ type Props = {
 };
 
 const WorkflowJobsFlowChart: FC<Props> = ({
+  globalVariables,
   jobs,
   type,
   selectable = true,
@@ -82,9 +83,10 @@ const WorkflowJobsFlowChart: FC<Props> = ({
   const [elements, setElements] = useState<FlowElement[]>([]);
 
   useEffect(() => {
-    const eles = convertJobsToElements(jobs as JobRawData[], { type, selectable });
-    setElements(eles);
-  }, [jobs, type, selectable]);
+    const jobElements = convertJobsToElements({ jobs }, { type, selectable });
+
+    setElements(jobElements);
+  }, [jobs, type, selectable, globalVariables]);
 
   useSubscribe(
     CHANNELS.update_node_status,

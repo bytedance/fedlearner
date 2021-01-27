@@ -288,7 +288,7 @@ const WorkflowsCreateStepOne: FC<WorkflowCreateProps & { onSuccess?: any }> = ({
         return workflowPubsub.publish(WORKFLOW_CHANNELS.create_new_tpl);
       } else {
         // And if not
-        // just carry on next step
+        // just go next step
         goNextStep();
       }
     } catch {
@@ -301,10 +301,10 @@ function _getInitialValues(form: StepOneForm, workflow: Workflow, projectId?: nu
   return Object.assign(
     {
       ...form,
-      // When user landing from clicking create workflow button
-      // in Project page, hydrate project_ud
-      project_id: projectId,
     },
+    // When user landing from clicking create workflow button
+    // in Project page, hydrate project_ud
+    projectId ? { project_id: projectId } : null,
     workflow,
   );
 }
