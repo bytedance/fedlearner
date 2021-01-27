@@ -128,15 +128,15 @@ class Workflow(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(255), unique=True, index=True)
     project_id = db.Column(db.Integer, db.ForeignKey(Project.id))
-    config = db.Column(db.Text())
-    comment = db.Column('cmt', db.String(255))
+    config = db.Column(db.LargeBinary())
+    comment = db.Column('cmt', db.String(255), key='comment')
 
     forkable = db.Column(db.Boolean, default=False)
     forked_from = db.Column(db.Integer, default=None)
     # index in config.job_defs instead of job's id
     reuse_job_names = db.Column(db.TEXT())
     peer_reuse_job_names = db.Column(db.TEXT())
-    fork_proposal_config = db.Column(db.TEXT())
+    fork_proposal_config = db.Column(db.LargeBinary())
 
     recur_type = db.Column(db.Enum(RecurType, native_enum=False),
                            default=RecurType.NONE)

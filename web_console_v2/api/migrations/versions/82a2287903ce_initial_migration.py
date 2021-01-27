@@ -1,8 +1,8 @@
 """Initial migration.
 
-Revision ID: 337465b4d187
+Revision ID: 82a2287903ce
 Revises: 
-Create Date: 2021-01-26 22:39:17.053899
+Create Date: 2021-01-27 13:32:31.822120
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = '337465b4d187'
+revision = '82a2287903ce'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -23,8 +23,8 @@ def upgrade():
     sa.Column('name', sa.String(length=255), nullable=False),
     sa.Column('dataset_type', sa.Enum('PSI', 'STREAMING', name='datasettype', native_enum=False), nullable=False),
     sa.Column('cmt', sa.Text(), nullable=True),
-    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=True),
-    sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=True),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=True),
+    sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=True),
     sa.Column('deleted_at', sa.DateTime(timezone=True), nullable=True),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('name')
@@ -42,11 +42,11 @@ def upgrade():
     sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
     sa.Column('name', sa.String(length=255), nullable=True),
     sa.Column('token', sa.String(length=64), nullable=True),
-    sa.Column('config', sa.Text(), nullable=True),
-    sa.Column('certificate', sa.Text(), nullable=True),
+    sa.Column('config', sa.LargeBinary(), nullable=True),
+    sa.Column('certificate', sa.LargeBinary(), nullable=True),
     sa.Column('cmt', sa.Text(), nullable=True),
-    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=True),
-    sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=True),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=True),
+    sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=True),
     sa.Column('deleted_at', sa.DateTime(timezone=True), nullable=True),
     sa.PrimaryKeyConstraint('id')
     )
@@ -57,7 +57,7 @@ def upgrade():
     sa.Column('name', sa.String(length=255), nullable=True),
     sa.Column('cmt', sa.String(length=255), nullable=True),
     sa.Column('group_alias', sa.String(length=255), nullable=False),
-    sa.Column('config', sa.Text(), nullable=False),
+    sa.Column('config', sa.LargeBinary(), nullable=False),
     sa.Column('is_left', sa.Boolean(), nullable=True),
     sa.PrimaryKeyConstraint('id')
     )
@@ -76,13 +76,13 @@ def upgrade():
     sa.Column('dataset_id', sa.Integer(), nullable=True),
     sa.Column('state', sa.Enum('NEW', 'SUCCESS', 'FAILED', 'IMPORTING', name='batchstate', native_enum=False), nullable=True),
     sa.Column('move', sa.Boolean(), nullable=True),
-    sa.Column('details', sa.Text(), nullable=True),
+    sa.Column('details', sa.LargeBinary(), nullable=True),
     sa.Column('file_size', sa.Integer(), nullable=True),
     sa.Column('num_imported_file', sa.Integer(), nullable=True),
     sa.Column('num_file', sa.Integer(), nullable=True),
     sa.Column('cmt', sa.Text(), nullable=True),
-    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=True),
-    sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=True),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=True),
+    sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=True),
     sa.Column('deleted_at', sa.DateTime(timezone=True), nullable=True),
     sa.ForeignKeyConstraint(['dataset_id'], ['datasets_v2.id'], ),
     sa.PrimaryKeyConstraint('id'),
@@ -92,13 +92,13 @@ def upgrade():
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('name', sa.String(length=255), nullable=True),
     sa.Column('project_id', sa.Integer(), nullable=True),
-    sa.Column('config', sa.Text(), nullable=True),
+    sa.Column('config', sa.LargeBinary(), nullable=True),
     sa.Column('cmt', sa.String(length=255), nullable=True),
     sa.Column('forkable', sa.Boolean(), nullable=True),
     sa.Column('forked_from', sa.Integer(), nullable=True),
     sa.Column('reuse_job_names', sa.TEXT(), nullable=True),
     sa.Column('peer_reuse_job_names', sa.TEXT(), nullable=True),
-    sa.Column('fork_proposal_config', sa.TEXT(), nullable=True),
+    sa.Column('fork_proposal_config', sa.LargeBinary(), nullable=True),
     sa.Column('recur_type', sa.Enum('NONE', 'ON_NEW_DATA', 'HOURLY', 'DAILY', 'WEEKLY', name='recurtype', native_enum=False), nullable=True),
     sa.Column('recur_at', sa.Interval(), nullable=True),
     sa.Column('trigger_dataset', sa.Integer(), nullable=True),
@@ -110,8 +110,8 @@ def upgrade():
     sa.Column('transaction_err', sa.Text(), nullable=True),
     sa.Column('start_at', sa.Integer(), nullable=True),
     sa.Column('stop_at', sa.Integer(), nullable=True),
-    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=True),
-    sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=True),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=True),
+    sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=True),
     sa.ForeignKeyConstraint(['project_id'], ['projects_v2.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
@@ -121,14 +121,14 @@ def upgrade():
     sa.Column('name', sa.String(length=255), nullable=True),
     sa.Column('job_type', sa.Enum('UNSPECIFIED', 'RAW_DATA', 'DATA_JOIN', 'PSI_DATA_JOIN', 'NN_MODEL_TRANINING', 'TREE_MODEL_TRAINING', 'NN_MODEL_EVALUATION', 'TREE_MODEL_EVALUATION', name='jobtype', native_enum=False), nullable=False),
     sa.Column('state', sa.Enum('INVALID', 'STOPPED', 'WAITING', 'STARTED', name='jobstate', native_enum=False), nullable=False),
-    sa.Column('yaml_template', sa.Text(), nullable=False),
-    sa.Column('config', sa.Text(), nullable=False),
+    sa.Column('yaml_template', sa.Text(), nullable=True),
+    sa.Column('config', sa.LargeBinary(), nullable=True),
     sa.Column('workflow_id', sa.Integer(), nullable=False),
     sa.Column('project_id', sa.Integer(), nullable=False),
     sa.Column('flapp_snapshot', sa.Text(), nullable=True),
     sa.Column('pods_snapshot', sa.Text(), nullable=True),
-    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=True),
-    sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=True),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=True),
+    sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=True),
     sa.Column('deleted_at', sa.DateTime(timezone=True), nullable=True),
     sa.ForeignKeyConstraint(['project_id'], ['projects_v2.id'], ),
     sa.ForeignKeyConstraint(['workflow_id'], ['workflow_v2.id'], ),

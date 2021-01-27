@@ -64,8 +64,8 @@ class Job(db.Model):
     state = db.Column(db.Enum(JobState, native_enum=False),
                       nullable=False,
                       default=JobState.INVALID)
-    yaml_template = db.Column(db.Text(), nullable=False)
-    config = db.Column(db.Text(), nullable=False)
+    yaml_template = db.Column(db.Text())
+    config = db.Column(db.LargeBinary())
     workflow_id = db.Column(db.Integer, db.ForeignKey('workflow_v2.id'),
                             nullable=False, index=True)
     project_id = db.Column(db.Integer, db.ForeignKey(Project.id),

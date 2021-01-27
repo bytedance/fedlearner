@@ -29,9 +29,9 @@ class Project(db.Model):
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     name = db.Column(db.String(255), index=True, unique=True)
     token = db.Column(db.String(64), index=True)
-    config = db.Column(db.Text())
-    certificate = db.Column(db.Text())
-    comment = db.Column('cmt', db.Text())
+    config = db.Column(db.LargeBinary())
+    certificate = db.Column(db.LargeBinary())
+    comment = db.Column('cmt', db.Text(), key='comment')
     created_at = db.Column(db.DateTime(timezone=True),
                            server_default=func.now())
     updated_at = db.Column(db.DateTime(timezone=True),

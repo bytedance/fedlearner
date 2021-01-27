@@ -45,7 +45,7 @@ class Dataset(db.Model):
     name = db.Column(db.String(255), unique=True, nullable=False)
     dataset_type = db.Column(db.Enum(DatasetType, native_enum=False),
                              nullable=False)
-    comment = db.Column('cmt', db.Text())
+    comment = db.Column('cmt', db.Text(), key='comment')
     created_at = db.Column(db.DateTime(timezone=True),
                            server_default=func.now())
     updated_at = db.Column(db.DateTime(timezone=True),
@@ -71,11 +71,11 @@ class DataBatch(db.Model):
                       default=BatchState.NEW)
     move = db.Column(db.Boolean, default=False)
     # Serialized proto of DatasetBatch
-    details = db.Column(db.Text())
+    details = db.Column(db.LargeBinary())
     file_size = db.Column(db.Integer, default=0)
     num_imported_file = db.Column(db.Integer, default=0)
     num_file = db.Column(db.Integer, default=0)
-    comment = db.Column('cmt', db.Text())
+    comment = db.Column('cmt', db.Text(), key='comment')
     created_at = db.Column(db.DateTime(timezone=True),
                            server_default=func.now())
     updated_at = db.Column(db.DateTime(timezone=True),
