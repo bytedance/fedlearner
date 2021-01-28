@@ -26,6 +26,10 @@ class Config(object):
         'sqlite:///' + os.path.join(BASE_DIR, 'app.db')
     )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+    MYSQL_CHARSET = 'utf8mb4'
+    # For unicode strings
+    # Ref: https://stackoverflow.com/questions/14853694/python-jsonify-dictionary-in-utf-8
+    JSON_AS_ASCII = False
     JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY',
                                secrets.token_urlsafe(64))
     PROPAGATE_EXCEPTIONS = True
