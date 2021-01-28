@@ -77,11 +77,8 @@ class OptionalStats:
             self._stats[kind]['{}={}'.format(field, value)] += 1
         tags.update(item_stat)
         tags['example_id'] = self._convert_to_str(item.example_id)
-        tags['raw_id'] = self._convert_to_str(item.raw_id)
         tags['event_time'] = self._convert_to_str(item.event_time)
-        iso_format, timestamp = self._convert_to_iso_format(item.event_time)
-        tags['event_time_iso'] = iso_format
-        tags['timestamp'] = timestamp
+        tags['event_time_iso'] = self._convert_to_iso_format(item.event_time)
         metrics.emit_store(name='datajoin', value=0, tags=tags)
 
     def emit_optional_stats(self):
@@ -105,8 +102,7 @@ class OptionalStats:
                 field_and_value, total_count, joined_count, unjoined_count,
                 join_rate
             )
-        logging.info('Unjoined example ids: %s',
-                     self._sample_reservoir)
+        logging.info('Unjoined example ids: %s', self._sample_reservoir)
         self._sample_reservoir = []
         self._sample_receive_num = 0
 
@@ -136,12 +132,12 @@ class OptionalStats:
             value: bytes | str | int | float. Value to be converted. Expected to
                 be a numeric in the format of yyyymmdd or yyyymmddhhMMss.
 
-        Returns: int.
-        Try to convert a datetime str or numeric to iso format datetime str and
-            timestamp. First try to convert based on the length of str. If it
-            does not match any datetime format supported, convert the value
-            assuming it is a timestamp. If the value is not a timestamp, return
-            timestamp=0 and iso format of timestamp=0.
+        Returns: str.
+        Try to convert a datetime str or numeric to iso format datetime str.
+            First try to convert based on the length of str. If it does not
+            match any datetime format supported, convert the value assuming it
+            is a timestamp. If the value is not a timestamp, return iso format
+            of timestamp=0.
         """
         assert isinstance(value, (bytes, str, int, float))
         if isinstance(value, bytes):
@@ -151,27 +147,23 @@ class OptionalStats:
         # first try to parse datetime from value
         try:
             if len(value) == 8:
-                value = datetime.strptime(value, '%Y%m%d')
+                iso = datetime.strptime(value, '%Y%m%d').isoformat()
             elif len(value) == 14:
-                value = datetime.strptime(value, '%Y%m%d%H%M%S')
+                iso = datetime.strptime(value, '%Y%m%d%H%M%S').isoformat()
             else:
                 raise ValueError
-            timestamp = datetime.timestamp(value)
-            iso_format = value.isoformat()
-            return iso_format, timestamp
+            return iso
         except ValueError:  # Not fitting any of above patterns
             logging.info('OPTIONAL_STATS: event time %s not converted '
                          'correctly.', value)
             # then try to convert directly
             try:
-                timestamp = float(value)
-                iso_format = datetime.fromtimestamp(timestamp).isoformat()
+                iso = datetime.fromtimestamp(float(value)).isoformat()
             except ValueError:  # might be a non-number str
                 logging.info('OPTIONAL_STATS: unable to parse event time %s, '
                              'defaults to 0.', value)
-                timestamp = 0.
-                iso_format = datetime.fromtimestamp(timestamp).isoformat()
-            return iso_format, timestamp
+                iso = datetime.fromtimestamp(0).isoformat()
+            return iso
 
     @staticmethod
     def _convert_to_str(value):
