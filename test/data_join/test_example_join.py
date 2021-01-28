@@ -47,8 +47,7 @@ class TestExampleJoin(unittest.TestCase):
         self.raw_data_options = dj_pb.RawDataOptions(
                 raw_data_iter='TF_RECORD',
                 compressed_type='',
-                optional_fields=['label'],
-                sample_unjoined=True
+                optional_fields=['label']
             )
         self.example_id_dump_options = dj_pb.ExampleIdDumpOptions(
                 example_id_dump_interval=1,

@@ -53,4 +53,4 @@ python -m fedlearner.data_join.cmd.data_join_worker_service \
     $data_block_builder $data_block_compressed_type \
     $kvstore_type $max_conversion_delay \
     $enable_negative_example_generator $negative_sampling_rate \
-    $optional_fields $SAMPLE_UNJOINED
+    $optional_fields

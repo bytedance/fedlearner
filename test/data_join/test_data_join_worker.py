@@ -122,8 +122,7 @@ class DataJoinWorker(unittest.TestCase):
                     raw_data_iter='TF_RECORD',
                     read_ahead_size=1<<20,
                     read_batch_size=128,
-                    optional_fields=['label'],
-                    sample_unjoined=True
+                    optional_fields=['label']
                 ),
                 example_id_dump_options=dj_pb.ExampleIdDumpOptions(
                     example_id_dump_interval=1,

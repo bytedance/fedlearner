@@ -24,8 +24,7 @@ class RawDataIter(object):
             # please modify the set according to alphabetical order.
             self._allowed_fields = {
                 'click_id', 'example_id', 'event_time', 'event_time_deep',
-                'event_time_shallow', 'id', 'id_type', 'label', 'raw_id', 'rit',
-                'type'
+                'event_time_shallow', 'id', 'id_type', 'label', 'raw_id', 'type'
             }
             self._features = OrderedDict()
 
