@@ -29,7 +29,7 @@ const components = {
   Upload,
 };
 
-const SchemaFormContainer = styled(SchemaForm)`
+const StyledSchemaForm = styled(SchemaForm)`
   .ant-form-item-label > .ant-form-item-required::before {
     order: 2;
   }
@@ -51,7 +51,7 @@ const VariableSchemaForm: FunctionComponent<Props> = ({
   confirmText,
 }: Props) => {
   return (
-    <SchemaFormContainer
+    <StyledSchemaForm
       labelAlign="left"
       components={components}
       schema={schema}
@@ -64,7 +64,7 @@ const VariableSchemaForm: FunctionComponent<Props> = ({
 
         {cancelText && <Button onClick={onCancel}>{cancelText}</Button>}
       </FormButtonGroup>
-    </SchemaFormContainer>
+    </StyledSchemaForm>
   );
 };
 

@@ -13,8 +13,8 @@ export function removeFalsy(values: object) {
 }
 
 /** Remove keys starts with _underscore */
-export function removePrivate(values: object) {
-  return omitBy(values, (_, key) => key.startsWith('_'));
+export function removePrivate<T = object>(values: T): T {
+  return (omitBy((values as unknown) as object, (_, key) => key.startsWith('_')) as unknown) as T;
 }
 
 /**

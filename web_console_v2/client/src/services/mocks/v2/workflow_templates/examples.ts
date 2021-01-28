@@ -1,5 +1,28 @@
-import { JobType, VariableAccessMode, VariableComponent, WorkflowTemplate } from 'typings/workflow';
+import {
+  JobType,
+  VariableAccessMode,
+  VariableComponent,
+  WorkflowTemplate,
+  Variable,
+} from 'typings/workflow';
 import { DeepPartial } from 'utility-types';
+
+export const gloabalVariables: Variable[] = [
+  {
+    name: 'image_version',
+    value: 'v1.5-rc3',
+    access_mode: VariableAccessMode.PEER_READABLE,
+    widget_schema: {
+      required: true,
+    },
+  },
+  {
+    name: 'num_partitions',
+    value: '4',
+    access_mode: VariableAccessMode.PEER_READABLE,
+    widget_schema: '' as any,
+  },
+];
 
 export const normalTemplate: { data: DeepPartial<WorkflowTemplate>; status: number } = {
   data: {
@@ -9,20 +32,7 @@ export const normalTemplate: { data: DeepPartial<WorkflowTemplate>; status: numb
     is_left: true,
     config: {
       group_alias: 'foo group',
-      variables: [
-        {
-          name: 'image_version',
-          value: 'v1.5-rc3',
-          access_mode: VariableAccessMode.PEER_READABLE,
-          widget_schema: '' as any,
-        },
-        {
-          name: 'num_partitions',
-          value: '4',
-          access_mode: VariableAccessMode.PEER_READABLE,
-          widget_schema: '' as any,
-        },
-      ],
+      variables: gloabalVariables,
       job_definitions: [
         {
           name: 'Initiative',
@@ -42,7 +52,7 @@ export const normalTemplate: { data: DeepPartial<WorkflowTemplate>; status: numb
             },
             {
               name: 'participant',
-              value: 'foobar',
+              value: '',
               access_mode: VariableAccessMode.PEER_READABLE,
               widget_schema: {
                 component: VariableComponent.Input,
@@ -115,7 +125,7 @@ export const normalTemplate: { data: DeepPartial<WorkflowTemplate>; status: numb
           dependencies: [{ source: 'Initiative' }],
           variables: [
             {
-              name: 'job_name2',
+              name: 'job_name',
               value: '',
               access_mode: VariableAccessMode.PEER_WRITABLE,
               widget_schema: {
@@ -144,7 +154,7 @@ export const normalTemplate: { data: DeepPartial<WorkflowTemplate>; status: numb
           dependencies: [{ source: 'Initiative' }],
           variables: [
             {
-              name: 'job_name3',
+              name: 'job_name',
               value: '',
               access_mode: VariableAccessMode.PEER_WRITABLE,
               widget_schema: {
@@ -183,7 +193,7 @@ export const normalTemplate: { data: DeepPartial<WorkflowTemplate>; status: numb
           ],
           variables: [
             {
-              name: 'job_name2',
+              name: 'job_name',
               value: '',
               access_mode: VariableAccessMode.PEER_WRITABLE,
               widget_schema: {
@@ -200,7 +210,7 @@ export const normalTemplate: { data: DeepPartial<WorkflowTemplate>; status: numb
           dependencies: [{ source: 'Training' }],
           variables: [
             {
-              name: 'job_name6',
+              name: 'job_name',
               value: '',
               access_mode: VariableAccessMode.PEER_WRITABLE,
               widget_schema: {
@@ -251,7 +261,7 @@ export const complexDepsTemplate: { data: DeepPartial<WorkflowTemplate>; status:
           dependencies: [{ source: 'Initiative' }],
           variables: [
             {
-              name: 'job_name2',
+              name: 'job_name',
               value: '',
               access_mode: VariableAccessMode.PEER_WRITABLE,
               widget_schema: {
@@ -269,7 +279,7 @@ export const complexDepsTemplate: { data: DeepPartial<WorkflowTemplate>; status:
           dependencies: [{ source: 'Initiative' }],
           variables: [
             {
-              name: 'job_name3',
+              name: 'job_name',
               value: '',
               access_mode: VariableAccessMode.PEER_WRITABLE,
               widget_schema: {
@@ -311,7 +321,7 @@ export const complexDepsTemplate: { data: DeepPartial<WorkflowTemplate>; status:
           dependencies: [{ source: 'Training' }, { source: 'Raw data save' }],
           variables: [
             {
-              name: 'job_name6',
+              name: 'job_name2',
               value: '',
               access_mode: VariableAccessMode.PEER_WRITABLE,
               widget_schema: {
@@ -335,6 +345,7 @@ export const xShapeTemplate: { data: DeepPartial<WorkflowTemplate> } = {
     is_left: true,
     config: {
       group_alias: 'x-group',
+      variables: [],
       job_definitions: [
         {
           name: '1-1',

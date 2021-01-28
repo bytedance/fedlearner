@@ -228,8 +228,6 @@ function ProjectForm({ onSubmit, isEdit, initialValues }: Props): ReactElement {
     form.submit();
   }
   async function onFinish(data: any) {
-    console.log('🚀 ~ file: index.tsx ~ line 230 ~ onFinish ~ data', data);
-
     if (
       !isEdit &&
       certificateConfigType === CertificateConfigType.Upload &&

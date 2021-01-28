@@ -8,10 +8,11 @@ import { Delete, Plus } from 'components/IconPark';
 const Container = styled.div``;
 
 const ListContainer = styled.div`
-  width: 800px;
+  width: 1000px;
 
   &.is-folded {
-    display: none;
+    height: 0;
+    overflow: hidden;
   }
 
   .ant-space-item {
@@ -54,6 +55,7 @@ const Header = styled.div`
     line-height: 24px;
     color: var(--arcoblue6);
     cursor: pointer;
+    user-select: none;
 
     &::after {
       width: 0;
@@ -120,7 +122,7 @@ function EnvVariablesForm(): ReactElement {
                     fieldKey={[field.fieldKey, 'value']}
                     rules={[{ required: true, message: t('project.msg_var_value') }]}
                   >
-                    <Input.TextArea placeholder="value" rows={1} />
+                    <Input.TextArea placeholder="value" rows={3} />
                   </Form.Item>
 
                   <Button
@@ -133,7 +135,8 @@ function EnvVariablesForm(): ReactElement {
                 </Space>
               ))}
               <Form.Item wrapperCol={{ offset: 5 }}>
-                <Button type="primary" size="small" icon={<Plus />} onClick={add}>
+                {/* DO NOT simplify `() => add()` to `add`, it will pollute form value with $event */}
+                <Button type="primary" size="small" icon={<Plus />} onClick={() => add()}>
                   {t('project.add_parameters')}
                 </Button>
               </Form.Item>

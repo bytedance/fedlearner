@@ -16,13 +16,8 @@ const Container = styled(Card)`
     height: 100%;
     padding: 22px 24px;
 
-    @supports (gap: 18px) {
-      gap: 18px;
-    }
-    @supports not (gap: 18px) {
-      > *::not(::last-child) {
-        margin-bottom: 18px;
-      }
+    > *:not(:last-child) {
+      margin-bottom: 18px;
     }
 
     &::before {

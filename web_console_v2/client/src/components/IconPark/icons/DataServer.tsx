@@ -12,9 +12,9 @@ export default IconWrapper(
         stroke="none"
         strokeWidth="1"
         fill="none"
-        fill-rule="evenodd"
-        stroke-linecap="square"
-        stroke-linejoin="round"
+        fillRule="evenodd"
+        strokeLinecap="square"
+        strokeLinejoin="round"
       >
         <g transform="translate(-106.000000, -111.000000)" stroke="currentColor" strokeWidth="2">
           <g transform="translate(107.000000, 112.000000)">

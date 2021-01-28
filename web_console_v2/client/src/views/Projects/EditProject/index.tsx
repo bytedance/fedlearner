@@ -7,6 +7,11 @@ import { CertificateConfigType } from 'typings/project';
 import { ProjectFormInitialValues } from 'typings/project';
 import { useQuery } from 'react-query';
 import BreadcrumbLink from 'components/BreadcrumbLink';
+import styled from 'styled-components';
+
+const SpinContainer = styled(Spin)`
+  min-height: 500px;
+`;
 
 function EditProject(): ReactElement {
   const { id } = useParams<{ id: string }>();
@@ -34,19 +39,19 @@ function EditProject(): ReactElement {
   }
 
   return (
-    <Spin spinning={projectQuery.isLoading}>
+    <SpinContainer spinning={projectQuery.isLoading}>
       <BreadcrumbLink
         paths={[{ label: 'menu.label_project', to: '/projects' }, { label: 'project.edit' }]}
       />
 
-      {project && (
+      {project && !projectQuery.isFetching && (
         <ProjectForm
           onSubmit={onSubmit}
           isEdit
           initialValues={initialValues as ProjectFormInitialValues}
         />
       )}
-    </Spin>
+    </SpinContainer>
   );
   async function onSubmit<UpdateProjectFormData>(payload: UpdateProjectFormData) {
     try {
