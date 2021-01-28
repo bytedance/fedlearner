@@ -130,7 +130,7 @@ class OptionalStats:
         """
         Args:
             value: bytes | str | int | float. Value to be converted. Expected to
-                be a numeric in the format of yyyymmdd or yyyymmddhhMMss.
+                be a numeric in the format of yyyymmdd or yyyymmddhhnnss.
 
         Returns: str.
         Try to convert a datetime str or numeric to iso format datetime str.
