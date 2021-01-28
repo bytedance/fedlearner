@@ -89,14 +89,23 @@ if __name__ == "__main__":
     parser.add_argument('--negative_sampling_rate', type=float, default=0.1,
                         help="the rate of sampling when auto-generating "\
                         "negative example, in [0.0, 1.0)")
+    parser.add_argument('--optional_fields', type=str, default='',
+                        help='optional stat fields used in joiner, separated '
+                             'by comma between fields, e.g. "label,rit". '
+                             'Each field will be stripped.')
     args = parser.parse_args()
+    optional_fields = list(
+        field for field in map(str.strip, args.optional_fields.split(','))
+        if field != ''
+    )
     worker_options = dj_pb.DataJoinWorkerOptions(
             use_mock_etcd=(args.kvstore_type == 'mock'),
             raw_data_options=dj_pb.RawDataOptions(
                     raw_data_iter=args.raw_data_iter,
                     compressed_type=args.compressed_type,
                     read_ahead_size=args.read_ahead_size,
-                    read_batch_size=args.read_batch_size
+                    read_batch_size=args.read_batch_size,
+                    optional_fields=optional_fields
                 ),
             example_joiner_options=dj_pb.ExampleJoinerOptions(
                     example_joiner=args.example_joiner,

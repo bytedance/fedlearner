@@ -17,12 +17,12 @@
 import logging
 import time
 
-from fedlearner.common import metrics
-
 import fedlearner.data_join.common as common
+from fedlearner.common import metrics
 from fedlearner.data_join.joiner_impl.example_joiner import ExampleJoiner
 from fedlearner.data_join.negative_example_generator \
-        import NegativeExampleGenerator
+    import NegativeExampleGenerator
+
 
 class _CmpCtnt(object):
     def __init__(self, item):
@@ -38,9 +38,11 @@ class _CmpCtnt(object):
     def __eq__(self, other):
         assert isinstance(other, _CmpCtnt)
         return self._event_time == other._event_time and \
-                self._example_id == other._example_id
+            self._example_id == other._example_id
+
     def __str__(self):
         return "%s:%s"%(self._example_id, self._event_time)
+
 
 class _JoinWindow(object):
     def __init__(self, pt_rate, qt_rate):
@@ -106,6 +108,7 @@ class _JoinWindow(object):
         if pos == len(self._buffer):
             pos = len(self._buffer) - 1
         return self._cmp_ctnt[pos]
+
 
 class StreamExampleJoiner(ExampleJoiner):
     def __init__(self, example_joiner_options, raw_data_options,
@@ -242,17 +245,18 @@ class StreamExampleJoiner(ExampleJoiner):
                     self._negative_example_generator.generate(
                         fe[1], prev_leader_idx, li):
                     builder = self._get_data_block_builder(True)
-                    assert builder is not None, "data block builder must be "\
-                                                "not None if before dummping"
+                    assert builder is not None, "data block builder must not " \
+                                                "be None before dumping"
                     builder.append_item(example[0], example[1], example[2])
                     if builder.check_data_block_full():
                         yield self._finish_data_block()
                 neg_samples = {}
             builder = self._get_data_block_builder(True)
-            assert builder is not None, "data block builder must be "\
-                                        "not None if before dummping"
+            assert builder is not None, "data block builder must not be "\
+                                        "None before dumping"
             fi, item = self._joined_cache[eid]
             builder.append_item(item, li, fi)
+            self._optional_stats.update_stats(item, kind='joined')
             if builder.check_data_block_full():
                 yield self._finish_data_block()
         metrics.emit_timer(name='stream_joiner_dump_joined_items',
@@ -324,13 +328,18 @@ class StreamExampleJoiner(ExampleJoiner):
         return join_window.size() >= self._max_window_size
 
     def _evict_if_useless(self, item):
-        return item.example_id in self._joined_cache or \
-                self._leader_join_window.committed_pt() is None or \
-                _CmpCtnt(item) < self._leader_join_window.committed_pt()
+        outdated = self._leader_join_window.committed_pt() is None \
+                   or _CmpCtnt(item) < self._leader_join_window.committed_pt()
+        if outdated and item.example_id not in self._joined_cache:
+            self._optional_stats.update_stats(item, kind='unjoined')
+        return outdated or item.example_id in self._joined_cache
 
     def _evict_if_force(self, item):
-        return self._leader_join_window.qt() is None or \
+        outdated = self._leader_join_window.qt() is None or \
                 _CmpCtnt(item) < self._leader_join_window.qt()
+        if outdated:
+            self._optional_stats.update_stats(item, kind='unjoined')
+        return outdated
 
     def _evict_impl(self, candidates, filter_fn):
         reserved_items = []

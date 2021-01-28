@@ -53,7 +53,7 @@ class ProjectApiTest(BaseTestCase):
             ]
         }, ProjectProto()))
         self.default_project.set_certificate(ParseDict({
-            'domain_name_to_cert': {'*.fl-test.com':
+            'domain_name_to_cert': {'fl-test.com':
                                         {'certs':
                                              parse_certificates(self.TEST_CERTIFICATES)}},
         }, CertificateStorage()))

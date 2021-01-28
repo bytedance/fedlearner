@@ -45,6 +45,7 @@ RawDataFileSuffix = '.rd'
 InvalidEventTime = -9223372036854775808
 InvalidRawId = ''.encode()
 
+
 @contextmanager
 def make_tf_record_iter(fpath, options=None):
     record_iter = None
@@ -194,11 +195,10 @@ def convert_tf_example_to_dict(src_tf_example):
     dst_dict = OrderedDict()
     tf_feature = src_tf_example.features.feature
     for key, feat in tf_feature.items():
-        csv_val = None
         if feat.HasField('int64_list'):
             csv_val = [item for item in feat.int64_list.value] # pylint: disable=unnecessary-comprehension
         elif feat.HasField('bytes_list'):
-            csv_val = [item.decode() for item in feat.bytes_list.value] # pylint: disable=unnecessary-comprehension
+            csv_val = [item for item in feat.bytes_list.value] # pylint: disable=unnecessary-comprehension
         elif feat.HasField('float_list'):
             csv_val = [item for item in feat.float_list.value] #pylint: disable=unnecessary-comprehension
         else:

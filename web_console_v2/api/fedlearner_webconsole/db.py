@@ -39,9 +39,9 @@ def to_dict_mixin(ignores: List[str] = None,
             dic = {}
             # Puts all columns into the dict
             for col in self.__table__.columns:
-                if col.name in ignores:
+                if col.key in ignores:
                     continue
-                dic[col.name] = getattr(self, col.name)
+                dic[col.key] = getattr(self, col.key)
             # Puts extra items specified by consumer
             for extra_key, func in extras.items():
                 dic[extra_key] = func(self)

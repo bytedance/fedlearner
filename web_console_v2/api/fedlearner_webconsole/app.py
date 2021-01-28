@@ -14,7 +14,9 @@
 
 # coding: utf-8
 # pylint: disable=wrong-import-position, global-statement
+import importlib
 import logging
+import os
 import traceback
 
 from http import HTTPStatus
@@ -87,7 +89,16 @@ def _handle_token_expired_request(expired_token):
     response.status_code = HTTPStatus.UNAUTHORIZED
     return response
 
+
 def create_app(config):
+    before_hook_path = os.getenv(
+        'FEDLEARNER_WEBCONSOLE_BEFORE_APP_START')
+    if before_hook_path:
+        module_path, func_name = before_hook_path.split(':')
+        module = importlib.import_module(module_path)
+        # Dynamically run the function
+        getattr(module, func_name)()
+
     app = Flask('fedlearner_webconsole')
     app.config.from_object(config)
 

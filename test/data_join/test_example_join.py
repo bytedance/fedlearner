@@ -46,7 +46,8 @@ class TestExampleJoin(unittest.TestCase):
         self.data_source = data_source
         self.raw_data_options = dj_pb.RawDataOptions(
                 raw_data_iter='TF_RECORD',
-                compressed_type=''
+                compressed_type='',
+                optional_fields=['label']
             )
         self.example_id_dump_options = dj_pb.ExampleIdDumpOptions(
                 example_id_dump_interval=1,
@@ -114,6 +115,10 @@ class TestExampleJoin(unittest.TestCase):
                 event_time = 150000000 + example_idx
                 feat['event_time'] = tf.train.Feature(
                         int64_list=tf.train.Int64List(value=[event_time]))
+                label = random.choice([1, 0])
+                if random.random() < 0.8:
+                    feat['label'] = tf.train.Feature(
+                        int64_list=tf.train.Int64List(value=[label]))
                 example = tf.train.Example(features=tf.train.Features(feature=feat))
                 builder.append_item(TfExampleItem(example.SerializeToString()),
                                     useless_index, useless_index)

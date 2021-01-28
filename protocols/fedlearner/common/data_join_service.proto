@@ -235,6 +235,7 @@ message RawDataOptions {
   int64 read_ahead_size = 3;
   // read batch size for tf record, <=0 means batch size == 1
   int64 read_batch_size = 4;
+  repeated string optional_fields = 5;
 }
 
 message WriterOptions {
