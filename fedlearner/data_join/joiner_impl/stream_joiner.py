@@ -328,42 +328,28 @@ class StreamExampleJoiner(ExampleJoiner):
         return join_window.size() >= self._max_window_size
 
     def _evict_if_useless(self, item):
-        return item.example_id in self._joined_cache or \
-                self._leader_join_window.committed_pt() is None or \
-                _CmpCtnt(item) < self._leader_join_window.committed_pt()
+        outdated = self._leader_join_window.committed_pt() is None \
+                   or _CmpCtnt(item) < self._leader_join_window.committed_pt()
+        if outdated and item.example_id not in self._joined_cache:
+            self._optional_stats.update_stats(item, kind='unjoined')
+        return outdated or item.example_id in self._joined_cache
 
     def _evict_if_force(self, item):
-        return self._leader_join_window.qt() is None or \
+        outdated = self._leader_join_window.qt() is None or \
                 _CmpCtnt(item) < self._leader_join_window.qt()
+        if outdated:
+            self._optional_stats.update_stats(item, kind='unjoined')
+        return outdated
 
-    def _evict_impl(self, candidates, filter_fn, force=False):
+    def _evict_impl(self, candidates, filter_fn):
         reserved_items = []
         for (index, item) in candidates:
             example_id = item.example_id
-            self._stat_if_unjoined(item, force)
             if filter_fn(item):
                 self._follower_example_cache.pop(example_id, None)
             else:
                 reserved_items.append((index, item))
         return reserved_items
-
-    def _stat_if_unjoined(self, item, force):
-        # pylint: disable=line-too-long
-        # if item not in joined cache, and will be evicted, then it is unjoined
-        # because if it was in joined cache, it would have been evicted.
-        # conditions from self._evict_if_useless
-        unjoined = not force \
-                   and item.example_id not in self._joined_cache \
-                   and (self._leader_join_window.committed_pt() is None
-                        or _CmpCtnt(item) < self._leader_join_window.committed_pt())
-        # items that are in join cache have already been evicted when calling
-        # self._evict_if_force.
-        # conditions from self._evict_if_force
-        force_unjoined = force \
-                         and (self._leader_join_window.qt() is None
-                              or _CmpCtnt(item) < self._leader_join_window.qt())
-        if unjoined or force_unjoined:
-            self._optional_stats.update_stats(item, kind='unjoined')
 
     def _evit_stale_follower_cache(self):
         start_tm = time.time()
@@ -376,8 +362,7 @@ class StreamExampleJoiner(ExampleJoiner):
             return
         tmp_sz = len(reserved_items)
         reserved_items = self._evict_impl(reserved_items,
-                                          self._evict_if_force,
-                                          force=True)
+                                          self._evict_if_force)
         logging.debug("evict_if_force %d to %d", tmp_sz, len(reserved_items))
         self._follower_join_window.reset(reserved_items, False)
         metrics.emit_timer(name='stream_joiner_evit_stale_follower_cache',
