@@ -17,18 +17,18 @@
 import logging
 import threading
 import time
-
 from contextlib import contextmanager
 
 from fedlearner.common import data_join_service_pb2 as dj_pb
 from fedlearner.common import metrics
-
-from fedlearner.data_join.raw_data_visitor import RawDataVisitor
-from fedlearner.data_join.example_id_visitor import ExampleIdVisitor
-from fedlearner.data_join.data_block_manager import \
-        DataBlockManager, DataBlockBuilder
-from fedlearner.data_join.joiner_impl.joiner_stats import JoinerStats
 from fedlearner.data_join import common
+from fedlearner.data_join.data_block_manager import \
+    DataBlockManager, DataBlockBuilder
+from fedlearner.data_join.example_id_visitor import ExampleIdVisitor
+from fedlearner.data_join.joiner_impl.joiner_stats import JoinerStats
+from fedlearner.data_join.joiner_impl.optional_stats import OptionalStats
+from fedlearner.data_join.raw_data_visitor import RawDataVisitor
+
 
 class ExampleJoiner(object):
     def __init__(self, example_joiner_options, raw_data_options,
@@ -65,6 +65,8 @@ class ExampleJoiner(object):
         self._metrics_tags = {'data_source_name': ds_name,
                               'partition': partition_id,
                               'joiner_name': self.name()}
+        self._optional_stats = OptionalStats(
+            raw_data_options, self._metrics_tags)
         self._latest_dump_timestamp = time.time()
         self._sync_state()
 
@@ -188,6 +190,7 @@ class ExampleJoiner(object):
             meta = self._data_block_builder.finish_data_block(
                     True, self._metrics_tags
                 )
+            self._optional_stats.emit_optional_stats()
             self._reset_data_block_builder()
             self._update_latest_dump_timestamp()
             return meta
@@ -202,13 +205,11 @@ class ExampleJoiner(object):
         if meta is not None:
             nactual_cum_join_num += meta.joiner_stats_info.actual_cum_join_num
         return dj_pb.JoinerStatsInfo(
-                stats_cum_join_num=nstats_cum_join_num,
-                actual_cum_join_num=nactual_cum_join_num,
-                leader_stats_index=\
-                    self._joiner_stats.get_leader_stats_index(),
-                follower_stats_index=\
-                    self._joiner_stats.get_follower_stats_index()
-            )
+            stats_cum_join_num=nstats_cum_join_num,
+            actual_cum_join_num=nactual_cum_join_num,
+            leader_stats_index=self._joiner_stats.get_leader_stats_index(),
+            follower_stats_index=self._joiner_stats.get_follower_stats_index()
+        )
 
     def _reset_data_block_builder(self):
         builder = None

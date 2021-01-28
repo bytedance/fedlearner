@@ -14,23 +14,24 @@
 
 # coding: utf-8
 
-import logging
 import csv
-import os
 import io
+import logging
+import os
 import traceback
 from collections import OrderedDict
 
 import tensorflow.compat.v1 as tf
-import tensorflow_io # pylint: disable=unused-import
 from tensorflow.compat.v1 import gfile
 
 import fedlearner.data_join.common as common
 from fedlearner.data_join.raw_data_iter_impl.raw_data_iter import RawDataIter
 
+
 class CsvItem(RawDataIter.Item):
     def __init__(self, raw):
-        self._raw = raw
+        super().__init__()
+        self._features.update(raw)
         self._tf_record = None
 
     @classmethod
@@ -48,39 +49,39 @@ class CsvItem(RawDataIter.Item):
 
     @property
     def example_id(self):
-        if 'example_id' not in self._raw:
+        if 'example_id' not in self._features:
             logging.error("Failed parse example id since no join "\
-                          "id in csv dict raw %s", self._raw)
+                          "id in csv dict raw %s", self._features)
             return common.InvalidExampleId
-        return str(self._raw['example_id']).encode()
+        return str(self._features['example_id']).encode()
 
     @property
     def event_time(self):
-        if 'event_time' in self._raw:
+        if 'event_time' in self._features:
             try:
-                return int(self._raw['event_time'])
+                return int(self._features['event_time'])
             except Exception as e: # pylint: disable=broad-except
                 logging.error("Failed to parse event time as int type from "\
-                              "%s, reason: %s", self._raw['event_time'], e)
+                              "%s, reason: %s", self._features['event_time'], e)
         return common.InvalidEventTime
 
     @property
     def raw_id(self):
-        if 'raw_id' not in self._raw:
+        if 'raw_id' not in self._features:
             logging.error("Failed parse raw id since no join "\
-                          "id in csv dict raw %s", self._raw)
+                          "id in csv dict raw %s", self._features)
             return common.InvalidRawId
-        return str(self._raw['raw_id']).encode()
+        return str(self._features['raw_id']).encode()
 
     @property
     def record(self):
-        return self._raw
+        return self._features
 
     @property
     def tf_record(self):
         if self._tf_record is None:
             try:
-                example = common.convert_dict_to_tf_example(self._raw)
+                example = common.convert_dict_to_tf_example(self._features)
                 self._tf_record = example.SerializeToString()
             except Exception as e: # pylint: disable=broad-except
                 logging.error("Failed convert csv dict to tf example, "\
@@ -90,14 +91,15 @@ class CsvItem(RawDataIter.Item):
 
     @property
     def csv_record(self):
-        return self._raw
+        return self._features
 
     def set_example_id(self, example_id):
-        new_raw = OrderedDict({'example_id': example_id})
-        new_raw.update(self._raw)
-        self._raw = new_raw
+        new_features = OrderedDict({'example_id': example_id})
+        new_features.update(self._features)
+        self._features = new_features
         if self._tf_record is not None:
             self._tf_record = None
+
 
 class CsvDictIter(RawDataIter):
     def __init__(self, options):

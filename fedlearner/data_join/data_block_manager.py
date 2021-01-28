@@ -14,20 +14,18 @@
 
 # coding: utf-8
 
-import threading
+import copy
 import logging
 import os
-import copy
+import threading
 import traceback
 
 import tensorflow.compat.v1 as tf
 from google.protobuf import text_format
-import tensorflow_io # pylint: disable=unused-import
 from tensorflow.compat.v1 import gfile
 
 from fedlearner.common import data_join_service_pb2 as dj_pb
 from fedlearner.common import metrics
-
 from fedlearner.data_join.common import (
     encode_data_block_meta_fname, partition_repr,
     load_data_block_meta, encode_block_id,
@@ -35,6 +33,7 @@ from fedlearner.data_join.common import (
     data_source_data_block_dir
 )
 from fedlearner.data_join.output_writer_impl import create_output_writer
+
 
 class DataBlockBuilder(object):
     def __init__(self, dirname, data_source_name, partition_id,
@@ -223,6 +222,7 @@ class DataBlockBuilder(object):
     def __del__(self):
         if self._writer is not None:
             del self._writer
+
 
 class DataBlockManager(object):
     def __init__(self, data_source, partition_id):
