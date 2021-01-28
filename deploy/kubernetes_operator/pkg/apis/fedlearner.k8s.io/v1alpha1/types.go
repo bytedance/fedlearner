@@ -237,7 +237,7 @@ type FLAppStatus struct {
 	// Represents time when the job was completed. It is not guaranteed to
 	// be set in happens-before order across separate operations.
 	// It is represented in RFC3339 form and is in UTC.
-	// +optional
+	// +nullable
 	CompletionTime *metav1.Time `json:"completionTime"`
 }
 

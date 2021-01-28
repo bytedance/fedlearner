@@ -6353,6 +6353,7 @@ spec:
                 to be set in happens-before order across separate operations. It is
                 represented in RFC3339 form and is in UTC.
               format: date-time
+              nullable: true
               type: string
             flReplicaStatus:
               additionalProperties:
@@ -6421,6 +6422,7 @@ spec:
               type: object
           required:
           - appState
+          - completionTime
           - flReplicaStatus
           type: object
       type: object
