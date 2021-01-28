@@ -6337,7 +6337,6 @@ spec:
               type: integer
           required:
           - flReplicaSpecs
-          - ingressSpec
           - peerSpecs
           - role
           type: object

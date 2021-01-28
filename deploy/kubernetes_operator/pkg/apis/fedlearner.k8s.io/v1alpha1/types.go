@@ -224,7 +224,8 @@ type FLAppSpec struct {
 	PeerSpecs PeerSpecs `json:"peerSpecs"`
 
 	// IngressSpec defines the ingress created by controller
-	IngressSpec *IngressSpec `json:"ingressSpec"`
+	// +optional
+	IngressSpec *IngressSpec `json:"ingressSpec,omitempty"`
 }
 
 // FLAppStatus is the status for a FLApp resource
