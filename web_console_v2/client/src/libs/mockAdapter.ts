@@ -32,6 +32,7 @@ async function axiosMockAdapter(config: AxiosRequestConfig) {
       if (['2', '3'].includes(data.status.toString().charAt(0))) {
         return data;
       }
+
       return Promise.reject(data.data);
     } catch (error) {
       console.error('[⚠️ Mock Adapter]: ', error);

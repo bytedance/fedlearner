@@ -81,6 +81,14 @@ class ProjectsApi(Resource):
             raise InvalidArgumentException(
                 details='Currently not support multiple participants.')
 
+        # exact configuration from variables
+        # TODO: one custom host for one participant
+        custom_host = None
+        for variable in config.get('variables', []):
+            if variable.get('name') == 'CUSTOM_HOST':
+                custom_host = variable.get('value')
+
+        # parse participant
         certificates = {}
         for participant in config.get('participants'):
             if 'name' not in participant.keys() or \
@@ -89,35 +97,18 @@ class ProjectsApi(Resource):
                 raise InvalidArgumentException(
                     details=ErrorMessage.PARAM_FORMAT_ERROR.value.format(
                         'participants', 'Participant must have name, '
-                                        'domain_name and url.'))
+                        'domain_name and url.'))
             domain_name = participant.get('domain_name')
+            # Grpc spec
+            participant['grpc_spec'] = {
+                'authority': domain_name
+            }
             if participant.get('certificates') is not None:
                 current_cert = parse_certificates(
                     participant.get('certificates'))
-                # check validation
-                for file_name in _CERTIFICATE_FILE_NAMES:
-                    if current_cert.get(file_name) is None:
-                        raise InvalidArgumentException(
-                            details=ErrorMessage.PARAM_FORMAT_ERROR.value.
-                                format('certificates', '{} not existed'.format(
-                                file_name)))
                 certificates[domain_name] = {'certs': current_cert}
+            if 'certificates' in participant.keys():
                 participant.pop('certificates')
-
-                # Grpc spec
-                participant['grpc_spec'] = {
-                    'peer_url': participant['url'],
-                    'authority': participant['domain_name']
-                }
-
-                # create add on
-                try:
-                    k8s_client = get_client()
-                    for domain_name, certificate in certificates.items():
-                        create_add_on(k8s_client, domain_name,
-                                      participant.get('url'), current_cert)
-                except RuntimeError as e:
-                    raise InvalidArgumentException(details=str(e))
 
         new_project = Project()
         # generate token
@@ -141,6 +132,14 @@ class ProjectsApi(Resource):
         new_project.token = token
         new_project.comment = comment
 
+        # create add on
+        for participant in new_project.get_config().participants:
+            if participant.domain_name in\
+                new_project.get_certificate().domain_name_to_cert.keys():
+                _create_add_on(participant,
+                               new_project.get_certificate()
+                               .domain_name_to_cert[participant.domain_name],
+                               custom_host)
         try:
             new_project = db.session.merge(new_project)
             db.session.commit()
@@ -152,8 +151,10 @@ class ProjectsApi(Resource):
     def get(self):
         # TODO: Not count soft-deleted workflow
         projects = db.session.query(
-            Project, func.count(Workflow.id).label('num_workflow'))\
-            .join(Workflow.project).group_by(Project.id).all()
+                Project, func.count(Workflow.id).label('num_workflow'))\
+            .join(Workflow, Workflow.project_id == Project.id, isouter=True)\
+            .group_by(Project.id)\
+            .all()
         result = []
         for project in projects:
             project_dict = project.Project.to_dict()
@@ -184,10 +185,24 @@ class ProjectApi(Resource):
                 ParseDict(variable, Variable())
                 for variable in request.json.get('variables')
             ])
+
+        # exact configuration from variables
+        custom_host = None
+        for variable in config.variables:
+            if variable.name == 'CUSTOM_HOST':
+                custom_host = variable.value
+
         project.set_config(config)
         if request.json.get('comment') is not None:
             project.comment = request.json.get('comment')
 
+        for participant in project.get_config().participants:
+            if participant.domain_name in\
+                project.get_certificate().domain_name_to_cert.keys():
+                _create_add_on(participant,
+                               project.get_certificate()
+                               .domain_name_to_cert[participant.domain_name],
+                               custom_host)
         try:
             db.session.commit()
         except Exception as e:
@@ -204,8 +219,7 @@ class CheckConnectionApi(Resource):
         details = []
         # TODO: Concurrently check
         for participant in project.get_config().participants:
-            result = self.check_connection(project.get_config(),
-                                           participant)
+            result = self.check_connection(project.get_config(), participant)
             success = success & (result.code == StatusCode.STATUS_SUCCESS)
             if result.code != StatusCode.STATUS_SUCCESS:
                 details.append(result.msg)
@@ -222,3 +236,20 @@ def initialize_project_apis(api: Api):
     api.add_resource(ProjectApi, '/projects/<int:project_id>')
     api.add_resource(CheckConnectionApi,
                      '/projects/<int:project_id>/connection_checks')
+
+
+def _create_add_on(participant, certificate, custom_host=None):
+    if certificate is None:
+        return
+    # check validation
+    for file_name in _CERTIFICATE_FILE_NAMES:
+        if certificate.certs.get(file_name) is None:
+            raise InvalidArgumentException(
+                details=ErrorMessage.PARAM_FORMAT_ERROR.value.
+                    format('certificates', '{} not existed'.format(file_name)))
+    try:
+        k8s_client = get_client()
+        create_add_on(k8s_client, participant.domain_name,
+                      participant.url, certificate.certs, custom_host)
+    except RuntimeError as e:
+        raise InvalidArgumentException(details=str(e))

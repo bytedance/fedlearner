@@ -1,8 +1,9 @@
 import React, { ReactElement } from 'react';
 import styled, { CSSProperties } from 'styled-components';
 import { useTranslation } from 'react-i18next';
-import action from 'assets/images/project-action.svg';
 import { Popover } from 'antd';
+import IconButton from 'components/IconButton';
+import { More } from 'components/IconPark';
 
 const ActionListContainer = styled.div`
   display: flex;
@@ -10,6 +11,7 @@ const ActionListContainer = styled.div`
   height: 74px;
   padding: 6px 0;
   border-radius: 4px;
+
   .actionItem {
     flex: 1;
     width: 100%;
@@ -20,17 +22,6 @@ const ActionListContainer = styled.div`
     &:hover {
       background-color: var(--gray1);
     }
-  }
-`;
-
-const ActionStyle = styled.div`
-  height: 24px;
-  display: flex;
-  cursor: pointer;
-  .aciton-icon {
-    height: 24px;
-    width: 24px;
-    padding: 10px 4px;
   }
 `;
 
@@ -62,12 +53,8 @@ function ProjectMoreActions(props: ProjectMoreActionsProps): ReactElement {
       content={props.actionList ?? <ActionList {...props} />}
       placement="bottomLeft"
       overlayClassName="project-actions"
-      getPopupContainer={(node) => node}
     >
-      <ActionStyle style={props.style}>
-        <img src={action} className="aciton-icon" alt="" />
-        {props.suffix ?? null}
-      </ActionStyle>
+      <IconButton type="text" icon={<More />} circle />
     </Popover>
   );
 }

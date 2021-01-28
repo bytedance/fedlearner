@@ -4,6 +4,9 @@ import styled from 'styled-components';
 import { MixinCircle, MixinSquare } from 'styles/mixins';
 
 const Container = styled.div`
+  display: inline-flex;
+  align-items: center;
+
   &::before {
     content: '';
     display: inline-block;

@@ -16,15 +16,18 @@
 # pylint: disable=broad-except
 
 import os
+import json
 import threading
 import logging
 import traceback
-
+from fedlearner_webconsole.job.yaml_formatter import format_yaml
 from fedlearner_webconsole.db import db
+from fedlearner_webconsole.dataset.import_handler import ImportHandler
 from fedlearner_webconsole.workflow.models import Workflow, WorkflowState
 from fedlearner_webconsole.job.models import Job, JobState, JobDependency
 from fedlearner_webconsole.scheduler.transaction import TransactionManager
 from fedlearner_webconsole.k8s_client import get_client
+from fedlearner_webconsole.utils.k8s_client import CrdKind
 
 
 class Scheduler(object):
@@ -36,6 +39,7 @@ class Scheduler(object):
         self._pending_workflows = []
         self._pending_jobs = []
         self._app = None
+        self._import_handler = ImportHandler()
 
     def start(self, app, force=False):
         if self._running:
@@ -51,6 +55,7 @@ class Scheduler(object):
             self._thread = threading.Thread(target=self._routine)
             self._thread.daemon = True
             self._thread.start()
+            self._import_handler.init(app)
             logging.info('Scheduler started')
 
     def stop(self):
@@ -65,7 +70,9 @@ class Scheduler(object):
         self._running = False
         logging.info('Scheduler stopped')
 
-    def wakeup(self, workflow_ids=None, job_ids=None):
+    def wakeup(self, workflow_ids=None,
+                     job_ids=None,
+                     data_batch_ids=None):
         with self._condition:
             if workflow_ids:
                 if isinstance(workflow_ids, int):
@@ -75,6 +82,8 @@ class Scheduler(object):
                 if isinstance(job_ids, int):
                     job_ids = [job_ids]
                 self._pending_jobs.extend(job_ids)
+            if data_batch_ids:
+                self._import_handler.schedule_to_handle(data_batch_ids)
             self._condition.notify_all()
 
     def _routine(self):
@@ -94,12 +103,13 @@ class Scheduler(object):
 
                     job_ids = self._pending_jobs
                     self._pending_jobs = []
-                    for workflow_id in workflow_ids:
-                        job_ids.extend([
-                            jid for jid, in db.session.query(Job.id) \
-                                .filter(Job.state == JobState.WAITING) \
-                                .filter(Job.workflow_id == workflow_id)])
+                    job_ids.extend([
+                        jid for jid, in db.session.query(Job.id) \
+                            .filter(Job.state == JobState.WAITING) \
+                            .filter(Job.workflow_id in workflow_ids)])
                     self._poll_jobs(job_ids)
+
+                    self._import_handler.handle(pull=False)
                     continue
 
                 workflows = db.session.query(Workflow.id).filter(
@@ -109,6 +119,8 @@ class Scheduler(object):
                 jobs = db.session.query(Job.id).filter(
                     Job.state == JobState.WAITING).all()
                 self._poll_jobs([jid for jid, in jobs])
+
+                self._import_handler.handle(pull=True)
 
     def _poll_workflows(self, workflow_ids):
         logging.info('Scheduler polling %d workflows...', len(workflow_ids))
@@ -135,6 +147,13 @@ class Scheduler(object):
         tm = TransactionManager(workflow_id)
         return tm.process()
 
+    def _make_variables_dict(self, variables):
+        var_dict = {
+            var.name: var.value
+            for var in variables
+        }
+        return var_dict
+
     def _schedule_job(self, job_id):
         job = Job.query.get(job_id)
         assert job is not None, 'Job %d not found'%job_id
@@ -149,10 +168,34 @@ class Scheduler(object):
                 return job.state
 
         k8s_client = get_client()
-        k8s_client.create_from_dict(job.yaml)
+        system_dict = {
+            'basic_envs': os.environ.get(
+                'BASIC_ENVS',
+                '{"name": "SYSTEM_BASIC_ENVS_DEFAULT",'
+                '"value": ""}')}
+        workflow = job.workflow.to_dict()
+        workflow['variables'] = self._make_variables_dict(
+            job.workflow.get_config().variables)
+
+        workflow['jobs'] = {}
+        for j in job.workflow.get_jobs():
+            variables = self._make_variables_dict(j.get_config().variables)
+            j_dic = j.to_dict()
+            j_dic['variables'] = variables
+            workflow['jobs'][j.get_config().name] = j_dic
+        project = job.project.to_dict()
+        project['variables'] = self._make_variables_dict(
+            job.project.get_config().variables)
+        yaml = format_yaml(job.yaml_template,
+                           workflow=workflow,
+                           project=project,
+                           system=system_dict)
+        yaml = json.loads(yaml)
+        k8s_client.create_custom_object(CrdKind.FLAPP, yaml)
         job.start()
         db.session.commit()
 
         return job.state
+
 
 scheduler = Scheduler()

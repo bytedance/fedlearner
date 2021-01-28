@@ -46,6 +46,7 @@ class RPCServerServicer(service_pb2_grpc.WebConsoleV2ServiceServicer):
                     code=common_pb2.STATUS_UNAUTHORIZED,
                     msg=repr(e)))
         except Exception as e:
+            logging.error('CheckConnection rpc server error: %s', repr(e))
             return service_pb2.CheckConnectionResponse(
                 status=common_pb2.Status(
                     code=common_pb2.STATUS_UNKNOWN_ERROR,
@@ -60,6 +61,7 @@ class RPCServerServicer(service_pb2_grpc.WebConsoleV2ServiceServicer):
                     code=common_pb2.STATUS_UNAUTHORIZED,
                     msg=repr(e)))
         except Exception as e:
+            logging.error('UpdateWorkflowState rpc server error: %s', repr(e))
             return service_pb2.UpdateWorkflowStateResponse(
                 status=common_pb2.Status(
                     code=common_pb2.STATUS_UNKNOWN_ERROR,
@@ -74,6 +76,7 @@ class RPCServerServicer(service_pb2_grpc.WebConsoleV2ServiceServicer):
                     code=common_pb2.STATUS_UNAUTHORIZED,
                     msg=repr(e)))
         except Exception as e:
+            logging.error('GetWorkflow rpc server error: %s', repr(e))
             return service_pb2.GetWorkflowResponse(
                 status=common_pb2.Status(
                     code=common_pb2.STATUS_UNKNOWN_ERROR,
@@ -154,7 +157,7 @@ class RpcServer(object):
                 assert state == WorkflowState.NEW
                 assert target_state == WorkflowState.READY
                 workflow = Workflow(
-                    name=request.workflow_name,
+                    name=name,
                     project_id=project.id,
                     state=state, target_state=target_state,
                     transaction_state=transaction_state)
@@ -170,13 +173,21 @@ class RpcServer(object):
                         code=common_pb2.STATUS_SUCCESS),
                     transaction_state=workflow.transaction_state.value)
 
-    def _filter_variables(self, variables):
-        result = []
-        for var in variables:
-            if var.access_mode in [common_pb2.Variable.PEER_READABLE,
-                                   common_pb2.Variable.PEER_WRITABLE]:
-                result.append(var)
-        return result
+    def _filter_workflow(self, workflow, modes):
+        # filter peer-readable and peer-writable variables
+        if workflow is None:
+            return
+        var_list = [
+            i for i in workflow.variables if i.access_mode in modes]
+        workflow.ClearField('variables')
+        for i in var_list:
+            workflow.variables.append(i)
+        for job_def in workflow.job_definitions:
+            var_list = [
+                i for i in job_def.variables if i.access_mode in modes]
+            job_def.ClearField('variables')
+            for i in var_list:
+                job_def.variables.append(i)
 
     def get_workflow(self, request):
         with self._app.app_context():
@@ -186,21 +197,34 @@ class RpcServer(object):
                 project_id=project.id).first()
             assert workflow is not None
             config = workflow.get_config()
-            # filter peer-readable and peer-writable variables
-            config.variable[:] = self._filter_variables(config.variables)
-            for job_def in config.job_definitions:
-                job_def.variables[:] = self._filter_variables(job_def.variables)
+            self._filter_workflow(
+                config,
+                [
+                    common_pb2.Variable.PEER_READABLE,
+                    common_pb2.Variable.PEER_WRITABLE
+                ])
             # job details
             jobs = [service_pb2.JobDetail(
-                job_name=job.name, job_state=job.state)
-                for job in workflow.jobs]
+                name=job.name, state=job.get_state_for_front())
+                for job in workflow.get_jobs()]
+            # fork info
+            forked_from = ''
+            if workflow.forked_from:
+                forked_from = Workflow.query.get(workflow.forked_from).name
             return service_pb2.GetWorkflowResponse(
+                name=request.workflow_name,
                 status=common_pb2.Status(
                     code=common_pb2.STATUS_SUCCESS),
-                state=workflow.state.value,
-                forkable=workflow.forkable,
                 config=config,
-                jobs=jobs
+                jobs=jobs,
+                state=workflow.state.value,
+                target_state=workflow.target_state.value,
+                transaction_state=workflow.transaction_state.value,
+                forkable=workflow.forkable,
+                forked_from=forked_from,
+                reuse_job_names=workflow.get_reuse_job_names(),
+                peer_reuse_job_names=workflow.get_peer_reuse_job_names(),
+                fork_proposal_config=workflow.get_fork_proposal_config()
             )
 
 

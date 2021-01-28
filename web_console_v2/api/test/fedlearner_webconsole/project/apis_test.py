@@ -53,7 +53,7 @@ class ProjectApiTest(BaseTestCase):
             ]
         }, ProjectProto()))
         self.default_project.set_certificate(ParseDict({
-            'domain_name_to_cert': {'*.fl-test.com':
+            'domain_name_to_cert': {'fl-test.com':
                                         {'certs':
                                              parse_certificates(self.TEST_CERTIFICATES)}},
         }, CertificateStorage()))
@@ -140,6 +140,7 @@ class ProjectApiTest(BaseTestCase):
     def test_list_project(self):
         list_response = self.client.get('/api/v2/projects')
         project_list = json.loads(list_response.data).get('data')
+        self.assertEqual(len(project_list), 1)
         for project in project_list:
             queried_project = Project.query.filter_by(name=project['name']).first()
             result = queried_project.to_dict()

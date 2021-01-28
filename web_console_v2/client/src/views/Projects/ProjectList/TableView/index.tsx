@@ -1,92 +1,138 @@
-import React, { ReactElement } from 'react';
+import React, { ReactElement, useState } from 'react';
 import styled from 'styled-components';
 import { useTranslation } from 'react-i18next';
-import TableItem from './TableItem';
-import { Project } from 'typings/project';
+import { Button, Table } from 'antd';
+import { ConnectionStatus, Project } from 'typings/project';
+import { useHistory } from 'react-router-dom';
+import ProjectConnectionStatus from 'views/Projects/ConnectionStatus';
+import Username from 'components/Username';
+import { formatTimestamp } from 'shared/date';
+import { checkConnection } from 'services/project';
+import ProjectMoreActions from 'views/Projects/ProjectMoreActions';
+import GridRow from 'components/_base/GridRow';
 
 const Container = styled.div`
-  min-width: 1160px;
-`;
-const HeaderContainer = styled.div`
-  display: flex;
   width: 100%;
-  height: 34px;
-  background-color: var(--gray2);
-  padding: 0 16px;
 `;
-const HeaderItemContainer = styled.div`
+const Name = styled.strong`
+  color: var(--primaryColor);
+  cursor: pointer;
   font-weight: 500;
-  font-size: 12px;
-  line-height: 34px;
-  color: #424e66;
-  flex: 1;
+  font-size: 13px;
 `;
-interface TableConfig {
-  i18nKey: string;
-  width: number;
-  jsx?: React.ReactNode;
-}
-
-const TableConfigs: TableConfig[] = [
-  {
-    i18nKey: 'project.name',
-    width: 298,
-  },
-  {
-    i18nKey: 'project.connection_status',
-    width: 149,
-  },
-  {
-    i18nKey: 'project.workflow_number',
-    width: 175,
-  },
-  {
-    i18nKey: 'project.creator',
-    width: 133,
-  },
-  {
-    i18nKey: 'project.creat_time',
-    width: 190,
-  },
-  {
-    i18nKey: 'operation',
-    width: 183,
-  },
-];
-
-function Header(): ReactElement {
-  return (
-    <HeaderContainer>
-      {TableConfigs.map((i) => (
-        <HeaderItem {...i} key={i.i18nKey} width={i.width} />
-      ))}
-    </HeaderContainer>
-  );
-}
-
-interface HeaderItemProps {
-  i18nKey: string;
-  width: number;
-}
-
-function HeaderItem({ i18nKey, width }: HeaderItemProps): ReactElement {
-  const { t } = useTranslation();
-  return <HeaderItemContainer style={{ flex: width }}>{t(i18nKey)}</HeaderItemContainer>;
-}
 
 interface TableListProps {
-  projectList: Project[];
+  list: Project[];
+  onViewDetail: (project: Project) => void;
 }
 
-function TableList({ projectList }: TableListProps): ReactElement {
+function TableList({ list, onViewDetail }: TableListProps): ReactElement {
+  const { t } = useTranslation();
+  const history = useHistory();
+
+  const [statuses, setStatuses] = useState(
+    list.map((_) => {
+      return ConnectionStatus.Waiting;
+    }),
+  );
+
+  const statefulList = list.map((item, index) => {
+    const onCheckConnectionClick = async () => {
+      try {
+        setProjectStatus(index, ConnectionStatus.Checking);
+
+        const res = await checkConnection(item.id);
+        if (res.data.success) {
+          setProjectStatus(index, ConnectionStatus.Success);
+        } else {
+          setProjectStatus(index, ConnectionStatus.Failed);
+        }
+      } catch (error) {
+        setProjectStatus(index, ConnectionStatus.CheckFailed);
+      }
+    };
+    return {
+      ...item,
+      onCheckConnectionClick,
+    };
+  });
+
+  const columns = [
+    {
+      title: t('project.name'),
+      dataIndex: 'name',
+      key: 'name',
+      ellipsis: true,
+      render: (name: string, record: Project) => {
+        return <Name onClick={() => onViewDetail(record)}>{name}</Name>;
+      },
+    },
+    {
+      title: t('project.connection_status'),
+      dataIndex: 'status',
+      name: 'status',
+      width: 120,
+      render: (_: any, record: Project, index: number) => (
+        <ProjectConnectionStatus status={statuses[index]} />
+      ),
+    },
+    {
+      title: t('project.workflow_number'),
+      dataIndex: 'num_workflow',
+      name: 'num_workflow',
+    },
+    {
+      title: t('project.creator'),
+      dataIndex: 'creator',
+      name: 'creator',
+      render: (_: string) => <Username />,
+    },
+    {
+      title: t('project.creat_time'),
+      dataIndex: 'created_at',
+      name: 'created_at',
+      render: (date: number) => <div>{formatTimestamp(date)}</div>,
+    },
+
+    {
+      title: t('operation'),
+      dataIndex: 'created_at',
+      name: 'created_at',
+      render: (_: any, record: Project & { onCheckConnectionClick: any }) => (
+        <GridRow left={-12}>
+          <Button size="small" type="link" onClick={record.onCheckConnectionClick}>
+            {t('project.check_connection')}
+          </Button>
+          <Button
+            size="small"
+            type="link"
+            onClick={() => history.push(`/workflows/initiate/basic?project=${record.id}`)}
+          >
+            {t('project.create_work_flow')}
+          </Button>
+
+          <ProjectMoreActions
+            style={{ marginTop: '13px' }}
+            onEdit={() => {
+              history.push(`/projects/edit/${record.id}`);
+            }}
+            onViewDetail={() => onViewDetail(record)}
+          />
+        </GridRow>
+      ),
+    },
+  ];
   return (
     <Container>
-      <Header />
-      {projectList.map((item, index) => (
-        <TableItem item={item} tableConfigs={TableConfigs} key={index} />
-      ))}
+      <Table dataSource={statefulList} columns={columns} />
     </Container>
   );
+
+  function setProjectStatus(index: number, newStatus: ConnectionStatus) {
+    let newStatuses = [...statuses];
+    newStatuses[index] = newStatus;
+    setStatuses(newStatuses);
+  }
 }
 
 export default TableList;

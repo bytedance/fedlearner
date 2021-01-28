@@ -1,11 +1,10 @@
 import request from 'libs/request';
 import {
-  Workflow,
   WorkflowInitiatePayload,
   WorkflowTemplate,
   WorkflowAcceptPayload,
   WorkflowState,
-  WorkflowRunningDetails,
+  WorkflowExecutionDetails,
 } from 'typings/workflow';
 
 export function fetchWorkflowTemplateList(params?: {
@@ -27,22 +26,23 @@ export function initiateAWorkflowTemplate(payload: any) {
   return request.post('/v2/workflow_templates', payload);
 }
 
-export function fetchWorkflowList(params?: { project?: string; keyword?: string }) {
+export function fetchWorkflowList(params?: { project?: string | number; keyword?: string }) {
   return request('/v2/workflows', {
     params,
     removeFalsy: true,
+    snake_case: true,
   });
 }
 
 export function getPeerWorkflowsConfig(
   id: string | number,
-): Promise<{ data: Record<string, Workflow> }> {
+): Promise<{ data: Record<string, WorkflowExecutionDetails> }> {
   return request(`/v2/workflows/${id}/peer_workflows`);
 }
 
 export function getWorkflowDetailById(
   id: string | number,
-): Promise<{ data: Workflow & WorkflowRunningDetails }> {
+): Promise<{ data: WorkflowExecutionDetails }> {
   return request(`/v2/workflows/${id}`);
 }
 
@@ -50,7 +50,7 @@ export function initiateAWorkflow(payload: WorkflowInitiatePayload) {
   return request.post('/v2/workflows', payload);
 }
 
-export function acceptNFillTheWorkflowConfig(id: number | string, payload: WorkflowAcceptPayload) {
+export function acceptNFillTheWorkflowConfig(id: ID, payload: WorkflowAcceptPayload) {
   return request.put(`/v2/workflows/${id}`, payload);
 }
 
@@ -65,6 +65,11 @@ export function stopTheWorkflow(id: number) {
     target_state: WorkflowState.STOPPED,
   });
 }
+
 export function forkWorkflow(id: number) {
   return request.post(`/v2/workflows/fork/${id}`);
+}
+
+export function fetchPodLogs(jobId: ID, podName: string) {
+  return request(`/v2/jobs/${jobId}/pods/${podName}/logs`);
 }

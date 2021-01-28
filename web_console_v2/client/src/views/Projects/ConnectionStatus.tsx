@@ -1,20 +1,27 @@
-import React, { ReactElement } from 'react';
-import { getConnectionStatusClassName, getConnectionStatusTag } from 'typings/project';
+import React, { FC } from 'react';
+import {
+  ConnectionStatus,
+  getConnectionStatusClassName,
+  getConnectionStatusTag,
+} from 'typings/project';
 import { useTranslation } from 'react-i18next';
 import StateIndicator from 'components/StateIndicator';
 
-interface ConnectionStatusProps {
-  connectionStatus: number;
+interface Props {
+  status: ConnectionStatus;
+  tag?: boolean;
 }
 
-function ProjectConnectionStatus({ connectionStatus }: ConnectionStatusProps): ReactElement {
+const ProjectConnectionStatus: FC<Props> = ({ status, tag }: Props) => {
   const { t } = useTranslation();
+
   return (
     <StateIndicator
-      type={getConnectionStatusClassName(connectionStatus)}
-      text={t(getConnectionStatusTag(connectionStatus))}
+      type={getConnectionStatusClassName(status)}
+      text={t(getConnectionStatusTag(status))}
+      tag={tag}
     />
   );
-}
+};
 
 export default ProjectConnectionStatus;

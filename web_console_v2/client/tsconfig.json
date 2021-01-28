@@ -19,5 +19,5 @@
     "typeRoots": ["./src/typings", "./node_modules/@types"]
   },
   "include": ["./src", "./src/typings", "tests"],
-  "exclude": ["node_modules", "./node_modules", "./node_modules/*"]
+  "exclude": ["node_modules", "./node_modules", "./node_modules/*", "build", "build/*"]
 }

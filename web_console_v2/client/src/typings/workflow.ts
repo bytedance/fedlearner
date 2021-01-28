@@ -1,5 +1,4 @@
 import {
-  ComponentSize,
   InputWidgetSchema,
   SelectWidgetSchema,
   UploadWidgetSchema,
@@ -8,6 +7,7 @@ import {
   TextAreaWidgetSchema,
   WidgetWithOptionsSchema,
 } from './component';
+import { Job, JobExecutionDetalis } from './job';
 
 export enum VariableComponent {
   Input = 'Input',
@@ -40,7 +40,6 @@ export interface VariableWidgetSchema
   // NOTE: for array type value, it clould be either a Multiple-select/Checkbox
   // or a Group-items which allow user add | delete. eg. ENV field
   type: 'string' | 'number' | 'boolean' | 'array' | 'object';
-  initialValue?: string | number | boolean | any[] | object;
 
   /** ------ UIs ------ */
   // i18n key for job name form-item label
@@ -52,7 +51,6 @@ export interface VariableWidgetSchema
   // will render some text below the form item
   description?: string;
   placeholder?: string;
-  size?: ComponentSize;
 
   /** ------ Validations ------ */
   // RegExp string '\d'
@@ -63,8 +61,6 @@ export interface VariableWidgetSchema
   /** ------ Miscs ------ */
   [key: string]: any;
 }
-
-/** 🚧 NOTE: Types below are NOT the final verison at current stage */
 
 export enum VariableAccessMode {
   UNSPECIFIED = 'UNSPECIFIED',
@@ -89,34 +85,6 @@ export enum JobType {
   TREE_MODEL_TRAINING = 'TREE_MODEL_TRAINING',
   NN_MODEL_EVALUATION = 'NN_MODEL_EVALUATION',
   TREE_MODEL_EVALUATION = 'TREE_MODEL_EVALUATION',
-}
-
-export enum JobState {
-  READY = 'READY',
-}
-
-export enum JobDependencyType {
-  UNSPECIFIED = 'UNSPECIFIED',
-  ON_COMPLETE = 'ON_COMPLETE',
-  ON_START = 'ON_START',
-  MANUAL = 'MANUAL',
-}
-
-export interface JobDependency {
-  source: string;
-  type: JobDependencyType;
-}
-
-export interface Job {
-  name: string;
-  type: JobType;
-  template?: string;
-  is_federated: boolean;
-  is_left?: boolean;
-  is_manual?: boolean;
-  variables: Variable[];
-  dependencies: JobDependency[];
-  yaml_template?: string;
 }
 
 export type WorkflowConfig = {
@@ -194,9 +162,11 @@ export type Workflow = {
   transaction_err: string | null;
   created_at: DateTime;
   updated_at: DateTime;
+  start_at?: DateTime | null;
+  stop_at?: DateTime | null;
 };
 
-export type WorkflowRunningDetails = {
-  jobs: Job[];
-  start_running_at: number;
-};
+export type WorkflowExecutionDetails = {
+  jobs: JobExecutionDetalis[];
+  run_time: number;
+} & Workflow;

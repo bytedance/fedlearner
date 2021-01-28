@@ -1,17 +1,14 @@
 import React, { ReactElement } from 'react';
-import BaseForm from '../BaseForm';
-import { Breadcrumb, Spin } from 'antd';
-import BreadcrumbSplit from 'components/Container/BreadcrumbSplit';
-import { useHistory, useParams } from 'react-router-dom';
+import ProjectForm from '../ProjectForm';
+import { Spin } from 'antd';
+import { useParams } from 'react-router-dom';
 import { getProjectDetailById, updateProject } from 'services/project';
-import { useTranslation } from 'react-i18next';
 import { CertificateConfigType } from 'typings/project';
 import { ProjectFormInitialValues } from 'typings/project';
 import { useQuery } from 'react-query';
+import BreadcrumbLink from 'components/BreadcrumbLink';
 
 function EditProject(): ReactElement {
-  const history = useHistory();
-  const { t } = useTranslation();
   const { id } = useParams<{ id: string }>();
 
   const projectQuery = useQuery(['getProjectDetail', id], () => getProjectDetailById(id), {
@@ -31,27 +28,21 @@ function EditProject(): ReactElement {
       participantUrl: project.config.participants[0].url,
       participantDomainName: project.config.participants[0].domain_name,
       comment: project.comment,
+      domain_name: project.config.domain_name,
       variables: project.config.variables || [],
     });
   }
 
   return (
     <Spin spinning={projectQuery.isLoading}>
-      <Breadcrumb separator={<BreadcrumbSplit />}>
-        <Breadcrumb.Item
-          onClick={() => {
-            history.push('/projects');
-          }}
-        >
-          {t('menu.label_project')}
-        </Breadcrumb.Item>
-        <Breadcrumb.Item>{t('project.edit')}</Breadcrumb.Item>
-      </Breadcrumb>
+      <BreadcrumbLink
+        paths={[{ label: 'menu.label_project', to: '/projects' }, { label: 'project.edit' }]}
+      />
 
       {project && (
-        <BaseForm
+        <ProjectForm
           onSubmit={onSubmit}
-          edit
+          isEdit
           initialValues={initialValues as ProjectFormInitialValues}
         />
       )}

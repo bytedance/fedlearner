@@ -1,4 +1,4 @@
-import { newlyCreated } from './example';
+import { newlyCreated } from './examples';
 
 const get = {
   data: { data: newlyCreated },

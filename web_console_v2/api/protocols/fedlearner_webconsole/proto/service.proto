@@ -27,15 +27,8 @@ message ProjAuthInfo {
     string auth_token = 4;
 }
 message JobDetail{
-    enum JobState {
-        UNSPECIFIED = 0;
-        READY = 1;
-        STARTED = 2;
-        STOPPED = 3;
-
-    }
-    string job_name = 1;
-    JobState job_state = 2;
+    string name = 1;
+    string state = 2;
 }
 
 message CheckConnectionRequest {
@@ -65,10 +58,19 @@ message GetWorkflowRequest {
 }
 message GetWorkflowResponse{
     Status status = 1;
-    int64 state = 2;
-    bool forkable = 3;
-    WorkflowDefinition config = 4;
-    repeated JobDetail jobs = 5;
+    string name = 2;
+    WorkflowDefinition config = 3;
+    repeated JobDetail jobs = 4;
+
+    int64 state = 5;
+    int64 target_state = 6;
+    int64 transaction_state = 7;
+
+    bool forkable = 8;
+    string forked_from = 9;
+    repeated string reuse_job_names = 10;
+    repeated string peer_reuse_job_names = 11;
+    WorkflowDefinition fork_proposal_config = 12;
 }
 
 

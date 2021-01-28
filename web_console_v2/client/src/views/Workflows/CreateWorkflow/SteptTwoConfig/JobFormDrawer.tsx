@@ -6,7 +6,7 @@ import React, {
   ForwardRefRenderFunction,
 } from 'react';
 import styled from 'styled-components';
-import { EyeOutlined, CloseOutlined } from '@ant-design/icons';
+import { CloseOutlined } from '@ant-design/icons';
 import { Drawer, Row, Button } from 'antd';
 import { buildFormSchemaFromJob } from 'shared/formSchema';
 import VariableSchemaForm, { formActions } from 'components/VariableSchemaForm';
@@ -29,6 +29,7 @@ import { to } from 'shared/helpers';
 import { useTranslation } from 'react-i18next';
 import { removeUndefined } from 'shared/object';
 import ErrorBoundary from 'antd/lib/alert/ErrorBoundary';
+import { Eye } from 'components/IconPark';
 
 const Container = styled(Drawer)`
   top: 60px;
@@ -55,16 +56,23 @@ const PermissionDisplay = styled.div`
 `;
 const FormContainer = styled.div`
   padding-right: 68px;
+  padding-bottom: 200px;
 `;
 
 interface Props extends DrawerProps {
   data?: JobNodeData;
   toggleVisible?: Function;
   onConfirm: Function;
+  onViewPeerConfigClick: (...args: any[]) => void;
+  isAccept?: boolean;
 }
+export type JobFormDrawerExposedRef = {
+  validateCurrentJobForm(): Promise<boolean>;
+  saveCurrentValues(): void;
+};
 
 const JobFormDrawer: ForwardRefRenderFunction<JobFormDrawerExposedRef, Props> = (
-  { data, toggleVisible, onConfirm, ...props },
+  { data, toggleVisible, onConfirm, isAccept, onViewPeerConfigClick, ...props },
   parentRef,
 ) => {
   const { t } = useTranslation();
@@ -102,7 +110,6 @@ const JobFormDrawer: ForwardRefRenderFunction<JobFormDrawerExposedRef, Props> = 
     <ErrorBoundary>
       <Container
         getContainer="#app-content"
-        title={data.raw.name}
         mask={false}
         width="640px"
         onClose={closeDrawer}
@@ -112,9 +119,11 @@ const JobFormDrawer: ForwardRefRenderFunction<JobFormDrawerExposedRef, Props> = 
         <DrawerHeader align="middle" justify="space-between">
           <DrawerTitle>{data.raw.name}</DrawerTitle>
           <GridRow gap="10">
-            <Button size="small" icon={<EyeOutlined />}>
-              {t('workflow.btn_see_ptcpt_config')}
-            </Button>
+            {isAccept && (
+              <Button size="small" icon={<Eye />} onClick={onViewPeerConfigClick}>
+                {t('workflow.btn_see_peer_config')}
+              </Button>
+            )}
             <Button size="small" icon={<CloseOutlined />} onClick={closeDrawer} />
           </GridRow>
         </DrawerHeader>
@@ -152,12 +161,13 @@ const JobFormDrawer: ForwardRefRenderFunction<JobFormDrawerExposedRef, Props> = 
     if (!data) return true;
 
     const nodeId = getNodeIdByJob(data.raw);
-    const { Unfinished, Completed } = JobNodeStatus;
+    const { Warning, Success } = JobNodeStatus;
     const [_, error] = await to(formActions.validate());
 
+    // Update job node status to validation result
     updateNodeStatusById({
       id: nodeId,
-      status: error ? Unfinished : Completed,
+      status: error ? Warning : Success,
     });
 
     return !error;
@@ -212,11 +222,6 @@ const JobFormDrawer: ForwardRefRenderFunction<JobFormDrawerExposedRef, Props> = 
       }
     });
   }
-};
-
-export type JobFormDrawerExposedRef = {
-  validateCurrentJobForm(): Promise<boolean>;
-  saveCurrentValues(): void;
 };
 
 export default forwardRef(JobFormDrawer);

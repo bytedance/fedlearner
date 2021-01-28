@@ -1,6 +1,7 @@
 import { separateLng } from 'i18n/helpers';
 
 const project = {
+  no_result: { zh: '暂无项目', en: 'No project yet' },
   create: { zh: '创建项目', en: 'Create project' },
   describe: {
     zh:
@@ -29,6 +30,7 @@ const project = {
   participant_name: { zh: '合作伙伴名称', en: 'Participant name' },
   participant_url: { zh: '合作伙伴节点地址', en: 'Participant node address' },
   participant_domain: { zh: '泛域名', en: "Participant participant's domain" },
+  selft_domain: { zh: '本侧泛域名', en: 'Self domain name' },
   remarks: { zh: '说明备注', en: 'Remarks' },
   name_placeholder: { zh: '请填写项目名称', en: 'Please enter name' },
   participant_name_placeholder: { zh: '请填写合作伙伴名称', en: 'Please enter participant name' },
@@ -38,13 +40,13 @@ const project = {
   },
   participant_domain_placeholder: { zh: '请填写泛域名', en: 'Please enter domain' },
   remarks_placeholder: { zh: '请填写说明备注', en: 'Please enter remarks' },
-  name_message: { zh: '请填写项目名称！', en: 'Please enter name!' },
-  participant_name_message: { zh: '请填写合作伙伴名称！', en: 'Please enter participant name!' },
+  name_message: { zh: '请填写项目名称', en: 'Please enter name' },
+  participant_name_message: { zh: '请填写合作伙伴名称', en: 'Please enter participant name' },
   participant_url_message: {
-    zh: '请填写合作伙伴节点地址！',
+    zh: '请填写合作伙伴节点地址',
     en: 'Please enter participant node address',
   },
-  participant_domain_message: { zh: '请填写泛域名！', en: null },
+  msg_domian_required: { zh: '请填写泛域名', en: null },
   edit: { zh: '编辑项目', en: 'Edit project' },
   workflow: { zh: '工作流任务', en: 'Workflow task' },
   mix_dataset: { zh: '融合数据集', en: 'Fusion data set' },

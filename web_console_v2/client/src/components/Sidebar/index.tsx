@@ -12,7 +12,7 @@ import store from 'store2';
 import LOCAL_STORAGE_KEYS from 'shared/localStorageKeys';
 import { Apps, DataServer, Workbench, MenuFold, MenuUnfold } from 'components/IconPark';
 
-const Container = styled.nav`
+const Container = styled.aside`
   display: flex;
   flex-direction: column;
   justify-content: space-between;

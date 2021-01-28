@@ -2,7 +2,7 @@ import React, { FC } from 'react';
 import styled from 'styled-components';
 import { Input, Checkbox, Form, Button, message } from 'antd';
 import { EyeInvisibleOutlined, EyeTwoTone } from '@ant-design/icons';
-import loginLeftBg from 'assets/images/login-left-bg.jpg';
+import leftBackground from 'assets/images/hacker-codes.jpg';
 import logoWhite from 'assets/images/logo-white.svg';
 import logColorful from 'assets/images/logo-colorful.svg';
 import { MixinFlexAlignCenter } from 'styles/mixins';
@@ -15,6 +15,8 @@ import LOCAL_STORAGE_KEYS from 'shared/localStorageKeys';
 import { FedLoginFormData } from 'typings/auth';
 import { useRecoilQuery } from 'hooks/recoil';
 import { userInfoQuery } from 'stores/user';
+import { useSetRecoilState } from 'recoil';
+import i18n from 'i18n';
 
 const Layout = styled.main`
   display: grid;
@@ -40,7 +42,7 @@ const Left = styled(Block)`
   flex-direction: column;
   background: url(${logoWhite}) top 24px left 32px no-repeat,
     linear-gradient(270deg, rgba(40, 106, 244, 0.9) 0%, rgba(62, 151, 254, 0.9) 100%),
-    url(${loginLeftBg}) no-repeat;
+    url(${leftBackground}) no-repeat;
   background-size: 121px auto, contain, cover;
 
   > * {
@@ -81,6 +83,17 @@ const LoginForm = styled(Form)`
   > .ant-space {
     display: flex;
   }
+  .ant-form-item {
+    margin-bottom: 32px;
+
+    &.ant-form-item-with-help {
+      margin-bottom: 8px;
+    }
+  }
+  .ant-input-lg {
+    padding: 5.5px 0 !important;
+    font-size: 14px;
+  }
   .no-account {
     margin-top: 16px;
     color: var(--textColorSecondary);
@@ -93,15 +106,18 @@ const LoginForm = styled(Form)`
 `;
 const LoginFormButton = styled(Button)`
   width: 100%;
+  height: 48px;
+  background-image: linear-gradient(270deg, #286af4 0%, #3e97fe 100%);
 `;
 const LoginFormCheckbox = styled(Checkbox)`
   color: #7a8499;
 `;
 
 const Login: FC = () => {
-  const history = useHistory();
   const { t } = useTranslation();
   const [submitting, toggleSubmit] = useToggle(false);
+  const setUserInfo = useSetRecoilState(userInfoQuery);
+  const history = useHistory();
 
   const userQuery = useRecoilQuery(userInfoQuery);
 
@@ -129,7 +145,7 @@ const Login: FC = () => {
             name="username"
             rules={[{ required: true, message: t('login.username_message') }]}
           >
-            <Input name="username" placeholder={t('login.username_placeholder')} />
+            <Input allowClear name="username" placeholder={t('login.username_placeholder')} />
           </Form.Item>
 
           <Form.Item
@@ -137,6 +153,7 @@ const Login: FC = () => {
             rules={[{ required: true, message: t('login.password_message') }]}
           >
             <Input.Password
+              allowClear
               placeholder={t('login.password_placeholder')}
               iconRender={(visible) => (visible ? <EyeTwoTone /> : <EyeInvisibleOutlined />)}
             />
@@ -167,11 +184,19 @@ const Login: FC = () => {
   async function onSubmit(payload: unknown) {
     toggleSubmit(true);
     try {
-      const { data } = await login(payload as FedLoginFormData);
-
+      const data = await login(payload as FedLoginFormData);
       store.set(LOCAL_STORAGE_KEYS.current_user, { ...data, date: Date.now() });
+      setUserInfo(data);
+      message.success(i18n.t('app.login_success'));
 
-      history.push('/');
+      if (history.location.search) {
+        const from = new URLSearchParams(history.location.search).get('from');
+        if (from) {
+          return history.push(decodeURIComponent(from) || '/projects');
+        }
+      }
+
+      history.push('/projects');
     } catch (error) {
       message.error(error.message);
     }

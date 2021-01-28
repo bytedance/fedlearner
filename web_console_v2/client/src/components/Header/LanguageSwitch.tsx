@@ -11,7 +11,7 @@ const Container = styled.div`
   position: relative;
   display: flex;
   padding: 3px;
-  border: 1px solid var(--gray3);
+  border: 1px solid var(--backgroundGray);
   border-radius: 100px;
 `;
 const Lng = styled.div`
@@ -54,9 +54,9 @@ const Langs = [
 ];
 
 const LanguageSwitch: FC = () => {
-  const [current, setLng] = useState(store.get(LOCAL_STORAGE_KEYS.language || FALLBACK_LNG));
+  const [current, setLng] = useState(store.get(LOCAL_STORAGE_KEYS.language) || FALLBACK_LNG);
   const idx = Langs.findIndex((item) => item.val === current);
-  const sliderOffset = idx * 32;
+  const sliderOffset = (idx === -1 ? 0 : idx) * 32;
 
   return (
     <Container>

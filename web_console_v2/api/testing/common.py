@@ -57,6 +57,9 @@ class BaseTestCase(TestCase):
 
         db.session.remove()
         db.drop_all()
+
+    def get_response_data(self, response):
+        return json.loads(response.data).get('data')
     
     def signin_helper(self, username='ada', password='ada'):
         resp = self.client.post(

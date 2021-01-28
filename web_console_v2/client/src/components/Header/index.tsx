@@ -7,20 +7,23 @@ import { StyledComponetProps } from 'typings/component';
 import { QuestionCircle } from 'components/IconPark';
 import { useTranslation } from 'react-i18next';
 
+export const Z_INDEX_HEADER = 1001;
+export const Z_INDEX_GREATER_THAN_HEADER = 1002;
+
 const Container = styled.header`
   position: sticky;
-  z-index: 1001; // > Drawer's 1000
+  z-index: ${Z_INDEX_HEADER}; // > Drawer's 1000
   top: 0;
   display: grid;
   align-items: center;
   grid-template-areas: 'logo . language account-info';
   grid-template-columns: auto 1fr auto auto;
   gap: 12px;
-  height: 60px;
+  height: var(--headerHeight);
   padding: 0 30px;
   background-color: var(--headerBackground);
   color: white;
-  border-bottom: 1px solid var(--gray3);
+  border-bottom: 1px solid var(--backgroundGray);
 `;
 const LogoLink = styled.a`
   grid-area: logo;

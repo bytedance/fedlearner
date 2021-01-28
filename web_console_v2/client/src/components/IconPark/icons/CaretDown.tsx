@@ -11,16 +11,16 @@ import { ISvgIconProps, IconWrapper } from '../runtime';
 export default IconWrapper('caret-down', false, (props: ISvgIconProps) => (
   <svg
     t="1561625742692"
-    class="icon"
+    className="icon"
     viewBox="0 0 1024 1024"
-    pId="35464"
+    p-id="35464"
     width={props.size}
     height={props.size}
   >
     <defs />
     <path
       d="M195.2 341.12H832a21.76 21.76 0 0 1 21.12 21.76 20.48 20.48 0 0 1-5.12 13.44l-320 372.48a21.12 21.12 0 0 1-30.08 0L179.2 376.32a21.12 21.12 0 0 1 0-30.08 21.76 21.76 0 0 1 16-5.12z"
-      pId="35465"
+      p-id="35465"
     />
   </svg>
 ));

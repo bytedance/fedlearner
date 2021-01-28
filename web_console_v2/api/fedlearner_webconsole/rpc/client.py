@@ -42,8 +42,14 @@ class RpcClient(object):
             target_domain=self._receiver.domain_name,
             auth_token=self._project.token)
 
+        egress_url = 'fedlearner-stack-ingress-nginx-controller.default'\
+                     '.svc.cluster.local:80'
+        for variable in self._project.variables:
+            if variable.name == 'EGRESS_URL':
+                egress_url = variable.value
+                break
         self._client = service_pb2_grpc.WebConsoleV2ServiceStub(_build_channel(
-            self._receiver.grpc_spec.peer_url,
+            egress_url,
             self._receiver.grpc_spec.authority
         ))
 
@@ -89,12 +95,12 @@ class RpcClient(object):
             response = self._client.UpdateWorkflowState(
                 request=msg, metadata=self._get_metadata())
             if response.status.code != common_pb2.STATUS_SUCCESS:
-                logging.debug(
+                logging.error(
                     'update_workflow_state request error: %s',
                     response.status.msg)
             return response
         except Exception as e:
-            logging.debug('update_workflow_state request error: %s', repr(e))
+            logging.error('update_workflow_state request error: %s', repr(e))
             return service_pb2.UpdateWorkflowStateResponse(
                 status=common_pb2.Status(
                     code=common_pb2.STATUS_UNKNOWN_ERROR,

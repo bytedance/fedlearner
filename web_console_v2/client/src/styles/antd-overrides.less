@@ -14,12 +14,18 @@
 .ant-btn {
   border: none;
 
-  > .anticon,
   > .anticon {
     // Remove sturt
-    display: flex;
+    display: inline-flex;
     justify-content: center;
     line-height: 0;
+  }
+
+  > .ant-btn-loading-icon .anticon {
+    position: relative;
+    z-index: 1;
+    padding-right: 0;
+    margin-right: 8px;
   }
 
   &:hover {
@@ -36,6 +42,8 @@
     padding: 0 20px;
   }
   &-primary {
+    box-shadow: none;
+
     &:hover {
       background-color: @arcoblue-5;
       color: white;
@@ -78,21 +86,46 @@
   }
 }
 
+// Form
+// ---
+.ant-form-item {
+  margin-bottom: 20px;
+
+  &-label {
+    > label {
+      font-size: 13px;
+      &::after {
+        margin-right: 14px;
+      }
+    }
+  }
+
+  &-explain {
+    height: 20px;
+    min-height: auto;
+    line-height: 20px;
+    font-size: 12px;
+  }
+}
+
 // Input
-// --
+// ---
+.ant-input {
+  &::placeholder {
+    color: @gray-7;
+  }
+}
+
 .ant-input,
 .ant-input-affix-wrapper {
   border: 1px solid transparent;
   transition: color 0.1s linear, border-color 0.1s linear, background-color 0.1s linear;
   box-shadow: none !important;
-}
-
-.ant-input,
-.ant-input-affix-wrapper {
   background-color: var(--gray2);
   color: var(--gray10);
+
   &:hover {
-    background-color: var(--gray3);
+    background-color: var(--backgroundGray);
     border-color: transparent;
   }
   &:focus {
@@ -103,6 +136,7 @@
     border-color: var(--arcoblue6) !important;
     background-color: white !important;
   }
+
   .ant-input {
     background-color: transparent;
     color: var(--gray10);
@@ -112,18 +146,19 @@
 .ant-form-item-has-error {
   .ant-input,
   .ant-input-affix-wrapper {
-    border-color: transparent;
-    background-color: var(--red1);
+    border-color: @error-color;
+    background-color: white;
+
     &:hover {
       border-color: transparent;
       background-color: var(--red2);
     }
     &:focus {
-      border-color: var(--red6);
+      border-color: @error-color;
       background-color: white;
     }
     &-focused {
-      border-color: var(--red6) !important;
+      border-color: @error-color !important;
       background-color: white !important;
     }
   }
@@ -176,4 +211,74 @@
     border-color: transparent;
     background-color: var(--red1);
   }
+}
+
+// Breadcrumb
+// ---
+.ant-breadcrumb {
+  > span:last-child {
+    color: @text-color-strong;
+    font-weight: 500;
+  }
+}
+
+// Table
+// ---
+.ant-table-wrapper {
+  width: 100%;
+  max-width: 100%;
+}
+
+// Radio
+// ---
+.ant-radio-button-wrapper {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 70px;
+  border: none !important;
+
+  > .ant-radio-button {
+    padding: 3px;
+    border-radius: 6px;
+    background-color: white;
+    background-clip: content-box;
+    transition: 0.3s ease-out var(--commonTiming);
+  }
+
+  &:focus-within {
+    box-shadow: none;
+  }
+  &:hover {
+    z-index: 1;
+    color: var(--textColor);
+
+    > .ant-radio-button {
+      background-color: white;
+    }
+  }
+  &-checked:not(.ant-radio-button-wrapper-disabled) {
+    // Emphasize but not casue size change
+    text-shadow: 0 0 var(--primaryColor);
+
+    &:focus-within {
+      box-shadow: none;
+    }
+  }
+  &:not(:first-child)::before {
+    content: none;
+  }
+
+  > .ant-radio-button {
+    padding: 3px;
+    border-radius: 6px;
+    background-color: white;
+    background-clip: content-box;
+  }
+}
+
+// Picker
+// ---
+.ant-picker-footer {
+  padding: 5px 15px;
 }

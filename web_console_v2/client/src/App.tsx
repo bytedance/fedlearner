@@ -7,6 +7,8 @@ import { Switch, Route } from 'react-router-dom';
 import Login from 'views/Login';
 import { useRecoilQuery } from 'hooks/recoil';
 import { userInfoQuery } from 'stores/user';
+import ProtectedRoute from 'views/ProtectedRoute';
+import LogsViewer from 'views/LogsViewer';
 
 const AppLayout = styled.div`
   display: grid;
@@ -33,7 +35,7 @@ const AppMainContent = styled.main`
   display: flex;
   flex-direction: column;
   grid-area: main-content;
-  padding: 16px;
+  padding: var(--contentOuterPadding);
   overflow: auto;
 `;
 
@@ -44,11 +46,11 @@ function App(): ReactElement {
     <Switch>
       <Route exact path="/login" component={Login} />
 
+      <ProtectedRoute path="/logs" component={LogsViewer} />
+
       <AppLayout>
         <AppHeader />
-
         <AppSidebar />
-
         <AppMainContent id="app-content">
           <RouterViews />
         </AppMainContent>

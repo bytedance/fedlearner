@@ -133,16 +133,6 @@
   --magenta8: #a11069;
   --magenta9: #77064f;
   --magenta10: #4d0034;
-  --gray1: #f7f8fa;
-  --gray2: #f2f3f5;
-  --gray3: #e5e6eb;
-  --gray4: #c9cdd4;
-  --gray5: #a9aeb8;
-  --gray6: #86909c;
-  --gray7: #6b7785;
-  --gray8: #4e5969;
-  --gray9: #272e3b;
-  --gray10: #1d2129;
   --darkRed1: #4d000a;
   --darkRed2: #770611;
   --darkRed3: #a1161f;
@@ -273,6 +263,16 @@
   --darkMagenta8: #fb9ec8;
   --darkMagenta9: #fdc3db;
   --darkMagenta10: #ffe8f1;
+  --gray1: #f7f8fa;
+  --gray2: #f2f3f5;
+  --gray3: #e5e6eb;
+  --gray4: #c9cdd4;
+  --gray5: #a9aeb8;
+  --gray6: #86909c;
+  --gray7: #6b7785;
+  --gray8: #4e5969;
+  --gray9: #272e3b;
+  --gray10: #1d2129;
   --darkGray1: #17171a;
   --darkGray2: #2e2e30;
   --darkGray3: #484849;
@@ -295,7 +295,12 @@
   --textColorStrong: #1d2129;
   --textColorSecondary: #86909c;
   --textColorInverse: white;
+  --componentGray: #f2f3f5;
+  --backgroundGray: #e5e6eb;
   --headerBackground: white;
   --commonTiming: cubic-bezier(0.4, 0, 0.2, 1);
   --fontFamily: 'nunito_for_arco', 'Helvetica Neue', Helvetica, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', '微软雅黑', Arial, sans-serif;
+  --headerHeight: 60px;
+  --contentOuterPadding: 16px;
+  --contentHeight: calc(100vh - 60px - 16px * 2);
 }

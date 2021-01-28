@@ -32,7 +32,9 @@ export interface UpdateProjectFormData {
 
 export interface CreateProjectFormData {
   name: string;
+  domain_name: string;
   config: {
+    domain_name: string;
     token?: string;
     participants: Participant[];
     variables: ProjectVariable[];
@@ -70,13 +72,13 @@ export function getConnectionStatusClassName(status: ConnectionStatus) {
     case ConnectionStatus.Waiting:
       return 'warning';
     case ConnectionStatus.Checking:
-      return 'primary';
+      return 'processing';
     case ConnectionStatus.Failed:
-      return 'fail';
+      return 'error';
     case ConnectionStatus.CheckFailed:
-      return 'fail';
+      return 'error';
     default:
-      return 'unknown' as never;
+      return 'default' as never;
   }
 }
 export function getConnectionStatusTag(status: ConnectionStatus): string {
