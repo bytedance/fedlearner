@@ -72,28 +72,28 @@ func IsLeader(role string) bool {
 }
 
 func GetIngressHostSuffix(app *v1alpha1.FLApp, defaultSuffix string) string {
-	if app.Spec.IngressSpec != nil {
+	if app.Spec.IngressSpec != nil && len(app.Spec.IngressSpec.HostSuffix) > 0 {
 		return app.Spec.IngressSpec.HostSuffix
 	}
 	return defaultSuffix
 }
 
 func GetIngressTLSSecretNameOrDefault(app *v1alpha1.FLApp, defaultName string) string {
-	if app.Spec.IngressSpec != nil {
+	if app.Spec.IngressSpec != nil && len(app.Spec.IngressSpec.TLSSecretName) > 0 {
 		return app.Spec.IngressSpec.TLSSecretName
 	}
 	return defaultName
 }
 
 func GetIngressClientAuthSecretNameOrDefault(app *v1alpha1.FLApp, defaultName string) string {
-	if app.Spec.IngressSpec != nil {
+	if app.Spec.IngressSpec != nil && len(app.Spec.IngressSpec.ClientAuthSecretName) > 0 {
 		return app.Spec.IngressSpec.ClientAuthSecretName
 	}
 	return defaultName
 }
 
 func GetIngressClassName(app *v1alpha1.FLApp) string {
-	if app.Spec.IngressSpec != nil {
+	if app.Spec.IngressSpec != nil && len(app.Spec.IngressSpec.IngressClassName) > 0 {
 		return app.Spec.IngressSpec.IngressClassName
 	}
 	return "nginx"
