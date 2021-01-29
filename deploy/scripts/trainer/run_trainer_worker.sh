@@ -64,16 +64,18 @@ summary_save_steps=$(normalize_env_to_args "--summary-save-steps" "$SUMMARY_SAVE
 batch_size=$(normalize_env_to_args "--batch-size" "$BATCH_SIZE")
 learning_rate=$(normalize_env_to_args "--learning-rate" "$LEARNING_RATE")
 
-if [ -z $CHECKPOINT_PATH ]; then
+if [ -n "$CHECKPOINT_PATH" ]; then
+    checkpoint_path="$CHECKPOINT_PATH"
+else
     checkpoint_path="$OUTPUT_BASE_DIR/checkpoints"
 fi
 
-if [ -n $LOAD_CHECKPOINT_FROM ] && [ $WORKER_RANK == 0 ]; then
+if [[ -n "$LOAD_CHECKPOINT_FROM" ]] && (( $WORKER_RANK == 0 )); then
     python -c "
 import tensorflow as tf
 import tensorflow_io
 src = '${STORAGE_ROOT_PATH}/job_output/${LOAD_CHECKPOINT_FROM}/checkpoints'
-dst = '$CHECKPOINT_PATH'
+dst = '${checkpoint_path}'
 for root, _, files in tf.io.gfile.walk(src):
     root = root[len(src):]
     print('makedirs', dst + '/' + root)
@@ -83,10 +85,12 @@ for root, _, files in tf.io.gfile.walk(src):
         dst_file = dst + '/' + root + '/' + f
         print('copy', src_file, 'to', dst_file)
         tf.io.gfile.copy(src_file, dst_file)
-"
+    "
 fi
 
-if [ -z $EXPORT_PATH ]; then
+if [[ -n "$EXPORT_PATH" ]]; then
+    export_path="$EXPORT_PATH"
+else
     export_path="$OUTPUT_BASE_DIR/exported_models"
 fi
 
