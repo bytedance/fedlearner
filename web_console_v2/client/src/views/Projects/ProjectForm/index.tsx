@@ -1,28 +1,36 @@
-import React, { ReactElement, useState } from 'react';
+import React, { FC, useState } from 'react';
 import styled from 'styled-components';
-import { Form, Input, Button, Radio, message, Modal } from 'antd';
+import { Form, Input, Button, message, Modal } from 'antd';
 import { ExclamationCircleOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import SecondaryForm from './SecondaryForm';
-import EnvVariablesForm from './EnvVariablesForm';
+import EnvVariablesForm, {
+  VARIABLES_FIELD_NAME,
+  VARIABLES_ERROR_CHANNEL,
+  VARIABLES_CHANGE_CHANNEL,
+} from './EnvVariablesForm';
 import { CertificateConfigType } from 'typings/project';
 import {
   ProjectFormInitialValues,
-  CreateProjectFormData,
-  UpdateProjectFormData,
+  CreateProjectPayload,
+  UpdateProjectPayload,
   Participant,
 } from 'typings/project';
 import { useHistory } from 'react-router-dom';
-import ReadFile from 'components/ReadFile';
-import { readAsBinaryStringFromFile } from 'shared/file';
 import GridRow from 'components/_base/GridRow';
 import i18n from 'i18n';
 import { useReloadProjectList } from 'hooks/project';
+import IPPortRegx from 'ip-port-regex';
+import Certificate from './Certificate';
+import { wrapWithDomainName } from 'shared/project';
+import { Z_INDEX_GREATER_THAN_HEADER } from 'components/Header';
 
 const Container = styled.div`
   flex: 1;
 `;
 const StyledForm = styled(Form)`
+  --form-width: 500px;
+
   display: grid;
   grid-auto-rows: auto 1fr auto;
 
@@ -42,20 +50,11 @@ const StyledForm = styled(Form)`
     }
   }
 `;
-const FileFormItem = styled(Form.Item)`
-  flex-wrap: nowrap;
-`;
 
 const layout = {
   labelCol: { span: 8 },
-  wrapperCol: { span: 20 },
+  wrapperCol: { span: 16 },
 };
-
-interface Props {
-  onSubmit: <T>(payload: T) => void;
-  isEdit?: boolean;
-  initialValues?: ProjectFormInitialValues;
-}
 
 const SubmitContainer = styled(Form.Item)`
   background-color: white;
@@ -75,17 +74,25 @@ const defaultInitialValues: ProjectFormInitialValues = {
   variables: [],
 };
 
-function ProjectForm({ onSubmit, isEdit, initialValues }: Props): ReactElement {
+interface Props {
+  onSubmit: (payload: any) => Promise<void>;
+  isEdit?: boolean;
+  initialValues?: ProjectFormInitialValues;
+}
+
+const ProjectForm: FC<Props> = ({ onSubmit, isEdit, initialValues }) => {
   const { t } = useTranslation();
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
+  const [isCertRequired, setCertRequired] = useState(!isEdit);
   const history = useHistory();
   const defaultValues: ProjectFormInitialValues = initialValues ?? defaultInitialValues;
-  const [certificateConfigType, setCertificateConfigType] = useState(
-    defaultValues.certificateConfigType,
-  );
 
   const reloadList = useReloadProjectList();
+  const domainRules = [
+    { required: true, message: t('project.msg_domian_required') },
+    { pattern: /^[0-9a-z-]+$/g, message: t('project.msg_domian_invalid') },
+  ];
 
   return (
     <Container>
@@ -95,8 +102,11 @@ function ProjectForm({ onSubmit, isEdit, initialValues }: Props): ReactElement {
         form={form}
         colon={false}
         onFinish={onFinish}
-        preserve
+        onFinishFailed={onFinishFailed}
+        onFieldsChange={onFieldsChange}
+        scrollToFirstError
       >
+        {/* Project Config */}
         <SecondaryForm title={t('project.basic_information')}>
           <Form.Item
             hasFeedback
@@ -106,15 +116,18 @@ function ProjectForm({ onSubmit, isEdit, initialValues }: Props): ReactElement {
           >
             <Input name="name" placeholder={t('project.name_placeholder')} disabled={isEdit} />
           </Form.Item>
-          <Form.Item
-            hasFeedback
-            name="domain_name"
-            label={t('project.selft_domain')}
-            rules={[{ required: true, message: t('project.msg_domian_required') }]}
-          >
-            <Input name="name" placeholder={t('project.msg_domian_required')} disabled={isEdit} />
+          <Form.Item name="domainName" label={t('project.selft_domain')} rules={domainRules}>
+            <Input
+              name="domainName"
+              addonBefore="fl-"
+              addonAfter=".com"
+              placeholder={t('project.placeholder_domain_name')}
+              disabled={isEdit}
+            />
           </Form.Item>
         </SecondaryForm>
+
+        {/* Participant config */}
         <SecondaryForm title={t('project.participant_information')}>
           <Form.Item
             hasFeedback
@@ -128,64 +141,57 @@ function ProjectForm({ onSubmit, isEdit, initialValues }: Props): ReactElement {
               disabled={isEdit}
             />
           </Form.Item>
+
+          <Form.Item
+            name="participantDomainName"
+            label={t('project.participant_domain')}
+            rules={domainRules}
+          >
+            <Input
+              name="participantDomainName"
+              addonBefore="fl-"
+              addonAfter=".com"
+              placeholder={t('project.placeholder_domain_name')}
+              disabled={isEdit}
+            />
+          </Form.Item>
+
           <Form.Item
             hasFeedback
             name="participantUrl"
             label={t('project.participant_url')}
-            rules={[{ required: true, message: t('project.participant_url_message') }]}
+            rules={[
+              { required: true, message: t('project.participant_url_message') },
+              {
+                validator(_, value) {
+                  if (IPPortRegx({ exact: true }).test(value)) {
+                    return Promise.resolve();
+                  } else {
+                    return Promise.reject(t('project.msg_ip_addr_invalid'));
+                  }
+                },
+              },
+            ]}
           >
             <Input
               name="participantUrl"
-              placeholder={t('project.participant_url_placeholder')}
+              placeholder={t('project.placeholder_participant_url')}
               disabled={isEdit}
             />
           </Form.Item>
           <Form.Item
-            name="certificateConfigType"
+            name="certificate"
             label={t('certificate')}
-            rules={[{ required: true }]}
+            rules={[{ required: isCertRequired, message: t('project.upload_certificate_message') }]}
           >
-            <Radio.Group
-              options={[
-                {
-                  label: t('project.upload_certificate'),
-                  value: 0,
-                },
-                {
-                  label: t('project.backend_config_certificate'),
-                  value: 1,
-                },
-              ]}
-              optionType="button"
-              onChange={(e) => {
-                setCertificateConfigType(e.target.value);
+            <Certificate
+              isEdit={isEdit}
+              onTypeChange={(val) => {
+                setCertRequired(val === CertificateConfigType.Upload);
               }}
-              disabled={isEdit}
             />
           </Form.Item>
 
-          {certificateConfigType === CertificateConfigType.Upload ? (
-            <FileFormItem
-              label
-              name="certificate"
-              rules={[{ required: true, message: t('project.upload_certificate_message') }]}
-            >
-              <ReadFile disabled={isEdit} accept=".gz" reader={readAsBinaryStringFromFile} />
-            </FileFormItem>
-          ) : null}
-
-          <Form.Item
-            hasFeedback
-            name="participantDomainName"
-            label={t('project.participant_domain')}
-            rules={[{ required: true, message: t('project.msg_domian_required') }]}
-          >
-            <Input
-              name="participantDomainName"
-              placeholder={t('project.participant_domain_placeholder')}
-              disabled={isEdit}
-            />
-          </Form.Item>
           <Form.Item name="comment" label={t('project.remarks')}>
             <Input.TextArea
               rows={4}
@@ -195,7 +201,7 @@ function ProjectForm({ onSubmit, isEdit, initialValues }: Props): ReactElement {
             />
           </Form.Item>
 
-          <EnvVariablesForm />
+          <EnvVariablesForm layout={layout} formInstance={form} />
         </SecondaryForm>
 
         <SubmitContainer>
@@ -218,6 +224,8 @@ function ProjectForm({ onSubmit, isEdit, initialValues }: Props): ReactElement {
       title: i18n.t('project.msg_sure_2_cancel'),
       icon: <ExclamationCircleOutlined />,
       content: i18n.t('project.msg_effect_of_cancel'),
+      zIndex: Z_INDEX_GREATER_THAN_HEADER,
+      getContainer: 'body',
       style: {
         top: '30%',
       },
@@ -227,18 +235,31 @@ function ProjectForm({ onSubmit, isEdit, initialValues }: Props): ReactElement {
   function onSubmitClick() {
     form.submit();
   }
-  async function onFinish(data: any) {
+  function onFieldsChange(arg: any) {
+    if (arg.some((item: { name: string[] }) => item.name.includes(VARIABLES_FIELD_NAME))) {
+      PubSub.publish(VARIABLES_CHANGE_CHANNEL);
+    }
+  }
+  function onFinishFailed({ errorFields }: any) {
     if (
-      !isEdit &&
-      certificateConfigType === CertificateConfigType.Upload &&
-      data.certificates === ''
+      errorFields.some(
+        (item: any) =>
+          item.name === VARIABLES_FIELD_NAME || item.name.includes(VARIABLES_FIELD_NAME),
+      )
     ) {
+      PubSub.publish(VARIABLES_ERROR_CHANNEL);
+    }
+  }
+  async function onFinish(data: any) {
+    if (!isEdit && data.certificates === '') {
       form.scrollToField('certificateConfigType', { block: 'center' });
       return;
     }
+
     setLoading(true);
+
     try {
-      let params: CreateProjectFormData | UpdateProjectFormData;
+      let params: CreateProjectPayload | UpdateProjectPayload;
 
       if (isEdit) {
         params = {
@@ -251,13 +272,14 @@ function ProjectForm({ onSubmit, isEdit, initialValues }: Props): ReactElement {
         participants.push({
           name: data.participantName,
           url: data.participantUrl,
-          domain_name: data.participantDomainName,
+          domain_name: wrapWithDomainName(data.participantDomainName),
           certificates: data.certificate || null,
         });
+
         params = {
           name: data.name,
           config: {
-            domain_name: data.domain_name,
+            domain_name: wrapWithDomainName(data.domainName),
             participants,
             variables: data.variables ?? [],
           },
@@ -273,6 +295,6 @@ function ProjectForm({ onSubmit, isEdit, initialValues }: Props): ReactElement {
     }
     setLoading(false);
   }
-}
+};
 
 export default ProjectForm;

@@ -1,112 +1,137 @@
-import React, { ReactElement } from 'react';
+import React, { FC, useEffect, useRef, useState } from 'react';
 import styled from 'styled-components';
-import { Form, Input, Space, Button } from 'antd';
+import { Form, Input, Button, Row, Col } from 'antd';
 import { useTranslation } from 'react-i18next';
 import { useToggle } from 'react-use';
-import { Delete, Plus } from 'components/IconPark';
+import { CaretDown, Delete, Plus } from 'components/IconPark';
+import { MixinCommonTransition } from 'styles/mixins';
+import { FormInstance } from 'antd/lib/form';
+import { convertToUnit, giveWeakRandomKey } from 'shared/helpers';
+import { useSubscribe } from 'hooks';
 
-const Container = styled.div``;
+const Container = styled.div`
+  margin-top: 30px;
+`;
+const Header = styled.div`
+  margin-bottom: 20px;
+`;
+const Heading = styled.h3`
+  ${MixinCommonTransition()}
+  margin-bottom: 0;
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 24px;
+  color: var(--gray10);
 
+  &[data-folded='true'] {
+    opacity: 0;
+    transform: translateX(30px);
+  }
+`;
+const Toggler = styled.div`
+  display: inline-flex;
+
+  align-items: center;
+  font-size: 14px;
+  line-height: 1;
+  color: var(--arcoblue6);
+  cursor: pointer;
+  user-select: none;
+
+  > .anticon {
+    ${MixinCommonTransition()}
+    margin-left: 5px;
+  }
+
+  &[data-folded='false'] {
+    > .anticon {
+      transform: rotate(-180deg);
+    }
+  }
+`;
+const NoVariable = styled(Form.Item)`
+  color: var(--textColorSecondary);
+`;
+const AddButton = styled(Button)``;
 const ListContainer = styled.div`
-  width: 1000px;
+  ${MixinCommonTransition()}
+  width: calc(var(--form-width, 500px) * 2);
+  overflow: hidden;
 
   &.is-folded {
-    height: 0;
+    opacity: 0;
     overflow: hidden;
   }
-
-  .ant-space-item {
-    &:nth-child(1) {
-      flex: 1;
-      .ant-form-item-label {
-        min-width: 166px;
-      }
-    }
-
-    &:nth-child(2) {
-      flex: 1;
-      .ant-form-item-label {
-        max-width: 100px;
-        .ant-form-item-required {
-          &::before {
-            display: none;
-          }
-        }
-      }
-    }
-  }
+`;
+const RemoveButton = styled(Button)`
+  position: absolute;
+  right: 0;
 `;
 
-const Header = styled.div`
-  position: relative;
-  padding-bottom: 32px;
-  .title {
-    font-weight: 600;
-    font-size: 16px;
-    line-height: 24px;
-    color: var(--gray10);
-  }
-  .toggle {
-    position: absolute;
-    left: 166px;
-    display: inline-flex;
-    align-items: center;
-    font-size: 14px;
-    line-height: 24px;
-    color: var(--arcoblue6);
-    cursor: pointer;
-    user-select: none;
+export const VARIABLES_FIELD_NAME = 'variables';
+export const VARIABLES_ERROR_CHANNEL = 'project.field_variables_error';
+export const VARIABLES_CHANGE_CHANNEL = 'project.variables_change';
 
-    &::after {
-      width: 0;
-      height: 0;
-      content: '';
-      display: inline-block;
-      margin-left: 8px;
-      transform: translateY(2px);
-      border: 3px solid transparent;
-      border-top: 4px solid var(--arcoblue6);
-    }
+type EnvVariable = { name: string; value: string };
 
-    &.show {
-      &::after {
-        transform: translateY(-2px) rotate(180deg);
-      }
-    }
-  }
-`;
-
-function EnvVariablesForm(): ReactElement {
+const EnvVariablesForm: FC<{
+  layout: {
+    labelCol: { span: number };
+    wrapperCol: { span: number };
+  };
+  formInstance?: FormInstance;
+}> = ({ layout }) => {
   const { t } = useTranslation();
   const [isFolded, toggleFolded] = useToggle(true);
+  const [seed, setSeed] = useState(giveWeakRandomKey());
+  const listDom = useRef<HTMLDivElement>();
+  const [listMaxHeight, setMaxHeight] = useState<number>(0);
+
+  useSubscribe(VARIABLES_ERROR_CHANNEL, () => {
+    toggleFolded(false);
+    // TODO: find a better way to implement next-tick
+    // Re calc max height at next-tick
+    setImmediate(() => {
+      setSeed(giveWeakRandomKey());
+    });
+  });
+  useSubscribe(VARIABLES_CHANGE_CHANNEL, () => {
+    // When variables change, re-set a random seed to trigger re-setMaxHeight effect below!
+    setSeed(giveWeakRandomKey());
+  });
+
+  useEffect(() => {
+    setMaxHeight((listDom.current?.offsetHeight || 0) + 30);
+  }, [seed, listDom, isFolded]);
 
   return (
     <Container>
       <Header>
-        {isFolded ? (
-          <span className="toggle hide" onClick={toggleFolded}>
-            {t('project.env_path_config')}
-          </span>
-        ) : (
-          <>
-            <span className="title"> {t('project.show_env_path_config')}</span>
-            <span className="toggle show" onClick={toggleFolded}>
-              {t('project.hide_env_path_config')}
-            </span>
-          </>
-        )}
+        <Row align="middle">
+          <Col {...layout.labelCol}>
+            <Heading data-folded={String(isFolded)}>{t('project.show_env_path_config')}</Heading>
+          </Col>
+          <Col {...layout.wrapperCol}>
+            <Toggler onClick={toggleFolded} data-folded={String(isFolded)}>
+              {t('project.hide_env_path_config')} <CaretDown />
+            </Toggler>
+          </Col>
+        </Row>
       </Header>
-      <ListContainer className={isFolded ? 'is-folded' : ''}>
-        <Form.List name="variables">
+
+      <ListContainer
+        className={isFolded ? 'is-folded' : ''}
+        style={{
+          maxHeight: convertToUnit(isFolded ? 0 : listMaxHeight),
+        }}
+      >
+        <Form.List name={VARIABLES_FIELD_NAME}>
           {(fields, { add, remove }) => (
-            <>
+            <div ref={listDom as any}>
               {fields.map((field, index) => (
-                <Space
-                  key={field.key + index}
-                  style={{ display: 'flex', marginBottom: 8 }}
-                  align="baseline"
-                >
+                <Row key={field.fieldKey + index} align="top" style={{ position: 'relative' }}>
                   <Form.Item
+                    style={{ flex: '0 0 50%' }}
                     {...field}
                     label="Name"
                     name={[field.name, 'name']}
@@ -115,37 +140,45 @@ function EnvVariablesForm(): ReactElement {
                   >
                     <Input placeholder="name" />
                   </Form.Item>
+
                   <Form.Item
+                    labelCol={{ span: 4 }}
+                    wrapperCol={{ span: 18 }}
+                    style={{ flex: '0 0 50%' }}
                     label="Value"
                     {...field}
                     name={[field.name, 'value']}
                     fieldKey={[field.fieldKey, 'value']}
                     rules={[{ required: true, message: t('project.msg_var_value') }]}
                   >
-                    <Input.TextArea placeholder="value" rows={3} />
+                    <Input.TextArea placeholder="value" />
                   </Form.Item>
 
-                  <Button
+                  <RemoveButton
                     size="small"
                     icon={<Delete />}
                     shape="circle"
                     type="text"
                     onClick={() => remove(field.name)}
                   />
-                </Space>
+                </Row>
               ))}
-              <Form.Item wrapperCol={{ offset: 5 }}>
+
+              {fields.length === 0 && (
+                <NoVariable wrapperCol={{ offset: 4 }}>{t('project.msg_no_var_yet')}</NoVariable>
+              )}
+              <Form.Item wrapperCol={{ offset: 4 }}>
                 {/* DO NOT simplify `() => add()` to `add`, it will pollute form value with $event */}
-                <Button type="primary" size="small" icon={<Plus />} onClick={() => add()}>
+                <AddButton type="primary" size="small" icon={<Plus />} onClick={() => add()}>
                   {t('project.add_parameters')}
-                </Button>
+                </AddButton>
               </Form.Item>
-            </>
+            </div>
           )}
         </Form.List>
       </ListContainer>
     </Container>
   );
-}
+};
 
 export default EnvVariablesForm;

@@ -90,8 +90,8 @@ const JobFormDrawer: ForwardRefRenderFunction<JobFormDrawerExposedRef, Props> = 
     if (node?.data) {
       setRandomKey(giveWeakRandomKey());
       // prop 'node' is from `templateInUsing` which only has job definition
-      // in order to hydrate the Form, we need get user-inputs (whick storing on `workflowConfigForm`)
-      // and merge the yser-inputs to definition
+      // in order to hydrate the Form, we need get user-inputs (whick stored on `workflowConfigForm`)
+      // and merge the user-inputs to definition
       const jobDataMergedWithValue = _mergeDefsWithValues(node, workflowConfig);
       const schema = buildFormSchemaFromJob(jobDataMergedWithValue);
       setFormSchema(schema);

@@ -90,7 +90,11 @@
 // Form
 // ---
 .ant-form-item {
-  margin-bottom: 20px;
+  --margin-bottom: 20px;
+
+  &:not(.ant-form-item-with-help) {
+    margin-bottom: var(--margin-bottom);
+  }
 
   &-label {
     > label {
@@ -102,9 +106,9 @@
   }
 
   &-explain {
-    height: 20px;
+    height: var(--margin-bottom);
     min-height: auto;
-    line-height: 20px;
+    line-height: var(--margin-bottom);
     font-size: 12px;
   }
 }
@@ -126,7 +130,7 @@
   color: var(--gray10);
 
   &:hover {
-    background-color: var(--backgroundGray);
+    background-color: var(--backgroundColorGray);
     border-color: transparent;
   }
   &:focus {
@@ -148,11 +152,11 @@
   .ant-input,
   .ant-input-affix-wrapper {
     border-color: @error-color;
-    background-color: white;
+    background-color: var(--backgroundColorError);
 
     &:hover {
       border-color: transparent;
-      background-color: var(--red2);
+      background-color: var(--backgroundColorErrorHover);
     }
     &:focus {
       border-color: @error-color;
@@ -163,10 +167,23 @@
       background-color: white !important;
     }
   }
+  .ant-input-group-addon {
+    background-color: var(--backgroundColorError);
+  }
 }
 
 .ant-input-group-addon {
-  background-color: transparent !important;
+  --border-color: var(--backgroundColorGray);
+
+  background-color: var(--componentBackgroundColorGray);
+  border-width: 0;
+
+  &:first-child {
+    border-right: 1px solid var(--border-color);
+  }
+  &:last-child {
+    border-left: 1px solid var(--border-color);
+  }
 }
 
 // Drawer

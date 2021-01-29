@@ -1,4 +1,4 @@
-import React, { useState, FC } from 'react';
+import React, { useState, FC, useEffect } from 'react';
 import styled from 'styled-components';
 import { Upload } from 'antd';
 import { PlusOutlined, DeleteFilled } from '@ant-design/icons';
@@ -7,16 +7,10 @@ import classNames from 'classnames';
 import { MixinCommonTransition } from 'styles/mixins';
 import { ReactComponent as FileIcon } from 'assets/images/file.svg';
 import { RcFile } from 'antd/lib/upload';
-
-type Props = React.ComponentProps<typeof Upload> & {
-  reader: (file: File) => Promise<any>;
-  maxSize?: number; // unit: MB
-  value?: any;
-  onChange?: (file: File) => void;
-  onRemoveFile?: (...args: any[]) => any;
-};
+import { isNil } from 'lodash';
 
 const Container = styled.div`
+  position: relative;
   min-height: 32px;
   border-radius: 2px;
 `;
@@ -93,13 +87,27 @@ const DragUpload = styled(Upload.Dragger)`
   padding: 0;
 `;
 
+type Props = React.ComponentProps<typeof Upload> & {
+  reader: (file: File) => Promise<any>;
+  maxSize?: number; // unit: MB
+  value?: any | null;
+  onChange?: <T>(val: T, file?: File) => void;
+  onRemoveFile?: (...args: any[]) => any;
+};
+
 const ReadFile: FC<Props> = ({ maxSize, value, reader, onRemoveFile, onChange, ...props }) => {
+  const { beforeUpload } = props;
+
   const { t } = useTranslation();
-  const valueInternal = value;
   const [file, setFile] = useState<File>();
 
-  const { beforeUpload } = props;
-  const hasValue = Boolean(valueInternal);
+  const hasValue = Boolean(value);
+
+  useEffect(() => {
+    if (isNil(value)) {
+      setFile(null as any);
+    }
+  }, [value]);
 
   const uploadProps = {
     ...props,
@@ -139,7 +147,7 @@ const ReadFile: FC<Props> = ({ maxSize, value, reader, onRemoveFile, onChange, .
 
   function onFileChange({ file }: any) {
     return reader(file).then((result) => {
-      onChange && onChange(result);
+      onChange && onChange(result, file);
       setFile(file);
     });
   }

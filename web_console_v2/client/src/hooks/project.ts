@@ -5,10 +5,14 @@ import { forceReloadProjectList } from 'stores/projects';
 import { ConnectionStatus, Project } from 'typings/project';
 
 export function useCheckConnection(project: Project): [ConnectionStatus, Function] {
-  const checkQuery = useQuery(`checkConnection-${project.id}`, () => checkConnection(project.id), {
-    cacheTime: 1,
-    retry: false,
-  });
+  const checkQuery = useQuery(
+    [`checkConnection-${project.id}`, project.id],
+    () => checkConnection(project.id),
+    {
+      cacheTime: 1,
+      retry: false,
+    },
+  );
 
   const successOrFailed = checkQuery.isError
     ? ConnectionStatus.CheckFailed
