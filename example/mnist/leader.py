@@ -15,7 +15,6 @@
 # coding: utf-8
 # pylint: disable=no-else-return, inconsistent-return-statements
 
-import os
 import logging
 import tensorflow.compat.v1 as tf
 import fedlearner.trainer as flt
@@ -117,11 +116,6 @@ def model_fn(model, features, labels, mode):
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
-
-    # Training for multiple epoches
-    # Set 'EPOCH_NUM' in leader environment
-    # os.environ['EPOCH_NUM'] = '10'
-
     flt.trainer_worker.train(
         ROLE, args, input_fn,
         model_fn, serving_input_receiver_fn)
