@@ -23,14 +23,16 @@ import tensorflow.compat.v1 as tf
 import fedlearner.data_join.common as common
 from fedlearner.data_join.raw_data_iter_impl.raw_data_iter import RawDataIter
 
+
 class TfExampleItem(RawDataIter.Item):
     def __init__(self, record_str):
+        super().__init__()
         self._record_str = record_str
         self._parse_example_error = False
         example = self._parse_example()
-        self._example_id = self._parse_example_id(example, record_str)
-        self._event_time = self._parse_event_time(example, record_str)
-        self._raw_id = self._parse_raw_id(example, record_str)
+        dic = common.convert_tf_example_to_dict(example)
+        self._features.update({key: dic[key] for key in dic
+                               if key in self._allowed_fields})
         self._csv_record = None
         self._gc_example(example)
 
@@ -50,21 +52,24 @@ class TfExampleItem(RawDataIter.Item):
 
     @property
     def example_id(self):
-        if self._example_id == common.InvalidExampleId:
+        res = self._features.get('example_id', common.InvalidExampleId)
+        if res == common.InvalidExampleId:
             logging.warning('Note!!! return invalid example id')
-        return self._example_id
+        return res
 
     @property
     def raw_id(self):
-        if self._raw_id == common.InvalidRawId:
+        res = self._features.get('raw_id', common.InvalidRawId)
+        if res == common.InvalidRawId:
             logging.warning('Note!!! return invalid raw id')
-        return self._raw_id
+        return res
 
     @property
     def event_time(self):
-        if self._example_id == common.InvalidEventTime:
+        res = self._features.get('event_time', common.InvalidEventTime)
+        if res == common.InvalidEventTime:
             logging.warning('Note!!! return invalid event time')
-        return self._event_time
+        return int(res)
 
     @property
     def record(self):
@@ -123,52 +128,10 @@ class TfExampleItem(RawDataIter.Item):
             example.Clear()
             del example
 
-    @staticmethod
-    def _parse_example_id(example, record):
-        if example is not None:
-            assert isinstance(example, tf.train.Example)
-            try:
-                feat = example.features.feature
-                if 'example_id' in feat:
-                    return feat['example_id'].bytes_list.value[0]
-            except Exception as e: # pylint: disable=broad-except
-                logging.error('Failed to parse example id from %s, reason %s',
-                               record, e)
-        return common.InvalidExampleId
-
-    @staticmethod
-    def _parse_raw_id(example, record):
-        if example is not None:
-            assert isinstance(example, tf.train.Example)
-            try:
-                feat = example.features.feature
-                if 'raw_id' in feat:
-                    return feat['raw_id'].bytes_list.value[0]
-            except Exception as e: # pylint: disable=broad-except
-                logging.error('Failed to parse raw id from %s, reason %s',
-                              record, e)
-        return common.InvalidRawId
-
-    @staticmethod
-    def _parse_event_time(example, record):
-        if example is not None:
-            assert isinstance(example, tf.train.Example)
-            try:
-                feat = example.features.feature
-                if 'event_time' in feat:
-                    if feat['event_time'].HasField('int64_list'):
-                        return feat['event_time'].int64_list.value[0]
-                    if feat['event_time'].HasField('bytes_list'):
-                        return int(feat['event_time'].bytes_list.value[0])
-                    raise ValueError('event_time not support float_list')
-            except Exception as e: # pylint: disable=broad-except
-                logging.error("Failed parse event time from %s, reason %s",
-                              record, e)
-        return common.InvalidEventTime
-
     def clear(self):
         del self._record_str
         del self._csv_record
+
 
 class TfRecordIter(RawDataIter):
     @classmethod
@@ -183,7 +146,7 @@ class TfRecordIter(RawDataIter):
             data_set = tf.data.TFRecordDataset(
                     [fpath],
                     compression_type=self._options.compressed_type,
-                    num_parallel_reads=4,
+                    num_parallel_reads=1,
                     buffer_size=None if self._options.read_ahead_size <= 0 \
                             else self._options.read_ahead_size
                 )

@@ -14,3 +14,6 @@ dependencies:
 - name: fedlearner-web-console
   version: 0.1.0
   condition: fedlearner-web-console.enabled
+- name: fedlearner-web-console-v2
+  version: 0.1.0
+  condition: fedlearner-web-console-v2.enabled

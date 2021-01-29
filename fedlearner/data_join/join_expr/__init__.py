@@ -22,10 +22,11 @@ for _, module, ispackage in pkgutil.walk_packages(
         keymapper_impl_map[m.name()] = m
 
 def create_example_joiner(example_joiner_options, *args, **kwargs):
-  joiner = example_joiner_options.example_joiner
-  if joiner in keymapper_impl_map:
-      return keymapper_impl_map[joiner](example_joiner_options, *args, **kwargs)
-  logging.fatal("Unknown key mapper%s", joiner)
-  traceback.print_stack()
-  os._exit(-1) # pylint: disable=protected-access
-  return None
+    joiner = example_joiner_options.example_joiner
+    if joiner in keymapper_impl_map:
+        return keymapper_impl_map[joiner](
+            example_joiner_options, *args, **kwargs)
+    logging.fatal("Unknown key mapper%s", joiner)
+    traceback.print_stack()
+    os._exit(-1) # pylint: disable=protected-access
+    return None

@@ -15,7 +15,11 @@ async function axiosMockAdapter(config: AxiosRequestConfig) {
         exportKey = method;
       }
 
-      const data = require(`../services/mocks${config.url}`)[exportKey];
+      let data = require(`../services/mocks${config.url}`)[exportKey];
+      if (typeof data === 'function') {
+        data = data(config);
+      }
+
       if (data.status === undefined) {
         console.error(
           `[⚠️ Mock Adapter]: the data /mocks/${config.url}.ts exported should have a status! e.g. 200`,
@@ -28,6 +32,7 @@ async function axiosMockAdapter(config: AxiosRequestConfig) {
       if (['2', '3'].includes(data.status.toString().charAt(0))) {
         return data;
       }
+
       return Promise.reject(data.data);
     } catch (error) {
       console.error('[⚠️ Mock Adapter]: ', error);

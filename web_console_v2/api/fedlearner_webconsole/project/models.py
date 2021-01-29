@@ -29,13 +29,13 @@ class Project(db.Model):
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     name = db.Column(db.String(255), index=True, unique=True)
     token = db.Column(db.String(64), index=True)
-    config = db.Column(db.Text())
-    certificate = db.Column(db.Text())
-    comment = db.Column(db.Text())
+    config = db.Column(db.LargeBinary())
+    certificate = db.Column(db.LargeBinary())
+    comment = db.Column('cmt', db.Text(), key='comment')
     created_at = db.Column(db.DateTime(timezone=True),
                            server_default=func.now())
     updated_at = db.Column(db.DateTime(timezone=True),
-                           server_onupdate=func.now(),
+                           onupdate=func.now(),
                            server_default=func.now())
     deleted_at = db.Column(db.DateTime(timezone=True))
 
@@ -58,3 +58,12 @@ class Project(db.Model):
         proto = project_pb2.CertificateStorage()
         proto.ParseFromString(self.certificate)
         return proto
+
+    def get_namespace(self):
+        config = self.get_config()
+        if config is not None:
+            variables = self.get_config().variables
+            for variable in variables:
+                if variable.name == 'NAMESPACE':
+                    return variable.value
+        return 'default'

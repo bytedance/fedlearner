@@ -1,17 +1,11 @@
 import { stringifyWidgetSchemas } from 'shared/formSchema';
-import exampleWorkflow from './example';
+import { normalTemplate } from './examples';
 
-export const post = {
-  data: exampleWorkflow.data,
-  status: 200,
-};
-
-const fooTpl = stringifyWidgetSchemas(require('./example.json'));
-const barTpl = stringifyWidgetSchemas(exampleWorkflow.data as any);
+const normalTpl = stringifyWidgetSchemas(normalTemplate.data as any);
 const simpleTpl = {
   id: 1,
   name: 'simple',
-  comment: 'simplesimple',
+  comment: 'Comment here',
   group_alias: 'test-2',
   config: {
     group_alias: 'test-2',
@@ -87,9 +81,13 @@ const simpleTpl = {
 
 const get = {
   data: {
-    data: [simpleTpl, fooTpl, barTpl],
+    data: [normalTpl, simpleTpl],
   },
   status: 200,
+};
+
+export const post = (config: any) => {
+  return { data: { data: JSON.parse(config.data) }, status: 200 };
 };
 
 export default get;

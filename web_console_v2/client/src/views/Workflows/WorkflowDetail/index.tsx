@@ -1,107 +1,302 @@
-import React, { FC } from 'react';
+import React, { FC, useState } from 'react';
 import styled from 'styled-components';
-import { Card, Spin, Row, Button, Col } from 'antd';
-import { useParams } from 'react-router-dom';
+import { Card, Spin, Row, Button } from 'antd';
+import { useParams, Link } from 'react-router-dom';
 import { useQuery } from 'react-query';
-import { getWorkflowDetailById } from 'services/workflow';
-import { Job } from 'typings/workflow';
-import WorkflowJobsFlowChart from 'components/WorlflowJobsFlowChart';
-import { isStopped, isRunning, isReadyToRun } from 'shared/workflow';
-import GridRow from 'components/_base/GridRow';
+import { getPeerWorkflowsConfig, getWorkflowDetailById } from 'services/workflow';
+import WorkflowJobsFlowChart from 'components/WorkflowJobsFlowChart';
 import { useTranslation } from 'react-i18next';
-import { CopyOutlined, SyncOutlined } from '@ant-design/icons';
-import exampleTpl from 'services/mocks/v2/workflow_templates/example';
+import WhichProject from 'components/WhichProject';
+import WorkflowActions from '../WorkflowActions';
+import WorkflowStage from '../WorkflowList/WorkflowStage';
+import GridRow from 'components/_base/GridRow';
+import BreadcrumbLink from 'components/BreadcrumbLink';
+import CountTime from 'components/CountTime';
+import JobExecutionDetailsDrawer from './JobExecutionDetailsDrawer';
+import { useToggle } from 'react-use';
+import {
+  JobColorsMark,
+  JobNode,
+  JobNodeData,
+  JobRawData,
+} from 'components/WorkflowJobsFlowChart/helpers';
+import PropertyList from 'components/PropertyList';
+import { Eye, EyeInvisible } from 'components/IconPark';
+import { WorkflowExecutionDetails } from 'typings/workflow';
+import { ReactFlowProvider } from 'react-flow-renderer';
+import { isRunning, isStopped } from 'shared/workflow';
+import dayjs from 'dayjs';
+import NoResult from 'components/NoResult';
 
+const Container = styled.div`
+  display: flex;
+  flex-direction: column;
+  height: var(--contentHeight);
+`;
 const ChartSection = styled.section`
+  display: flex;
+  gap: 16px;
   margin-top: 16px;
+  flex: 1;
+`;
+const ChartContainer = styled.div`
+  height: 100%;
+  flex: 1;
+`;
+const HeaderRow = styled(Row)`
+  margin-bottom: 30px;
 `;
 const Name = styled.h3`
   margin-bottom: 0;
   font-size: 20px;
   line-height: 28px;
 `;
-const PropsRow = styled.dl`
+const NoJobs = styled.div`
   display: flex;
-  margin-top: 30px;
-  padding: 7px 16px;
+  height: calc(100% - 48px);
   background-color: var(--gray1);
 `;
-const Prop = styled.dd`
-  margin-bottom: 0;
-  font-size: 13px;
-  line-height: 36px;
-
-  &::before {
-    content: attr(data-label) '：';
-    color: var(--textColorSecondary);
-  }
-`;
-const Header = styled.header`
-  padding: 13px 20px;
+const ChartHeader = styled(Row)`
+  height: 48px;
+  padding: 0 20px;
   font-size: 14px;
   line-height: 22px;
   background-color: white;
 `;
 const ChartTitle = styled.h3`
   margin-bottom: 0;
+
+  &::after {
+    margin-left: 25px;
+    content: attr(data-note);
+    font-size: 12px;
+    color: var(--darkGray6);
+  }
 `;
 
 const WorkflowDetail: FC = () => {
-  const params = useParams<{ id: string }>();
   const { t } = useTranslation();
+  const params = useParams<{ id: string }>();
+  const [peerJobsVisible, togglePeerJobsVisible] = useToggle(false);
+  const [drawerVisible, toggleDrawerVisible] = useToggle(false);
+  const [isPeerSide, setIsPeerSide] = useState(false);
+  const [data, setData] = useState<JobNodeData>();
 
-  const { isLoading, data, error } = useQuery(['getWorkflowDetailById', params.id], () =>
-    getWorkflowDetailById(params.id),
+  const detailQuery = useQuery(
+    ['getWorkflowDetailById', params.id],
+    () => getWorkflowDetailById(params.id),
+    {
+      cacheTime: 1,
+    },
   );
+  const peerWorkflowQuery = useQuery(['getPeerWorkflow', params.id], getPeerWorkflow, {
+    retry: false,
+  });
 
-  const workflow = data?.data;
+  const workflow = detailQuery.data?.data;
+  const transactionErr = workflow?.transaction_err;
+
+  let isRunning_ = false;
+  let isStopped_ = false;
+
+  let runningTime: number = 0;
+
+  if (workflow) {
+    isRunning_ = isRunning(workflow);
+    isStopped_ = isStopped(workflow);
+
+    if (isRunning_ || isStopped_) {
+      const { stop_at, start_at } = workflow;
+      runningTime = isStopped_ ? stop_at! - start_at! : dayjs().unix() - start_at!;
+    }
+  }
+
+  const workflowProps = [
+    {
+      label: t('workflow.label_template_name'),
+      value: workflow?.config?.group_alias || (
+        <Link to={`/workflows/accept/basic/${workflow?.id}`}>{t('workflow.job_node_pending')}</Link>
+      ),
+    },
+    {
+      label: t('workflow.label_project'),
+      value: <WhichProject id={workflow?.project_id || 0} />,
+    },
+    {
+      label: t('workflow.label_running_time'),
+
+      value: workflow && <CountTime time={runningTime} isStatic={!isRunning_} />,
+    },
+    ...(workflow?.config?.variables || []).map((item) => ({ label: item.name, value: item.value })),
+  ];
+  const jobsWithExeDetails = mergeJobDefsWithExecutionDetails(workflow);
+  const peerJobsWithExeDetails = mergeJobDefsWithExecutionDetails(peerWorkflowQuery.data);
+
+  _markFederatedJobs(jobsWithExeDetails, peerJobsWithExeDetails);
 
   return (
-    <Spin spinning={isLoading}>
-      <Card>
-        <Row justify="space-between" align="middle">
-          <div>
-            <Name>{workflow?.name}</Name>
-          </div>
-          {workflow && (
+    <Spin spinning={detailQuery.isLoading}>
+      <Container>
+        <BreadcrumbLink
+          paths={[
+            { label: 'menu.label_workflow', to: '/workflows' },
+            { label: 'workflow.execution_detail' },
+          ]}
+        />
+        <Card>
+          <HeaderRow justify="space-between" align="middle">
             <GridRow gap="8">
-              {isReadyToRun(workflow) && <Button size="small">{t('workflow.action_run')}</Button>}
-              {isRunning(workflow) && (
-                <Button size="small">{t('workflow.action_stop_running')}</Button>
-              )}
-              <Button size="small" icon={<SyncOutlined />}>
-                {t('workflow.btn_show_report')}
-              </Button>
-              <Button size="small" icon={<SyncOutlined />}>
-                {t('workflow.action_re_run')}
-              </Button>
-              <Button size="small" icon={<CopyOutlined />}>
-                {t('workflow.action_duplicate')}
-              </Button>
+              <Name>{workflow?.name}</Name>
+              {workflow && <WorkflowStage workflow={workflow} tag />}
             </GridRow>
-          )}
-        </Row>
-        <PropsRow>
-          <Col span={8}>
-            <Prop data-label={t('workflow.label_template_name')}>111</Prop>
-          </Col>
-          <Col span={8}>
-            <Prop data-label={t('workflow.label_project')}>2222</Prop>
-          </Col>
-          <Col span={8}>
-            <Prop data-label={t('workflow.label_running_time')}>3333</Prop>
-          </Col>
-        </PropsRow>
-      </Card>
+            {workflow && (
+              <WorkflowActions
+                workflow={workflow}
+                without={['detail']}
+                onSuccess={detailQuery.refetch}
+              />
+            )}
+          </HeaderRow>
 
-      <ChartSection>
-        <Header>
-          <ChartTitle>{t('workflow.our_config')}</ChartTitle>
-        </Header>
-        <WorkflowJobsFlowChart jobs={exampleTpl.data.config!.job_definitions as Job[]} />
-      </ChartSection>
+          {/* i.e. Workflow execution error  */}
+          {transactionErr && <p>{transactionErr}</p>}
+
+          <PropertyList
+            labelWidth={100}
+            initialVisibleRows={3}
+            cols={3}
+            properties={workflowProps}
+          />
+        </Card>
+
+        <ChartSection>
+          {/* Our config */}
+          <ChartContainer>
+            <ChartHeader justify="space-between" align="middle">
+              <ChartTitle data-note={peerJobsVisible ? t('workflow.federated_note') : ''}>
+                {t('workflow.our_config')}
+              </ChartTitle>
+
+              {!peerJobsVisible && (
+                <Button icon={<Eye />} onClick={() => togglePeerJobsVisible(true)}>
+                  {t('workflow.btn_see_peer_config')}
+                </Button>
+              )}
+            </ChartHeader>
+
+            {jobsWithExeDetails.length === 0 ? (
+              <NoJobs>
+                <NoResult
+                  text={t('workflow.msg_not_config')}
+                  CTAText={t('workflow.action_configure')}
+                  to={`/workflows/accept/basic/${params.id}`}
+                />
+              </NoJobs>
+            ) : (
+              <ReactFlowProvider>
+                <WorkflowJobsFlowChart
+                  type="execution"
+                  onCanvasClick={() => toggleDrawerVisible(false)}
+                  jobs={jobsWithExeDetails}
+                  onJobClick={viewJobDetail}
+                />
+              </ReactFlowProvider>
+            )}
+          </ChartContainer>
+
+          {/* Peer config */}
+          {peerJobsVisible && (
+            <ChartContainer>
+              <ChartHeader justify="space-between" align="middle">
+                <ChartTitle data-note={peerJobsVisible ? t('workflow.federated_note') : ''}>
+                  {t('workflow.peer_config')}
+                </ChartTitle>
+
+                <Button icon={<EyeInvisible />} onClick={() => togglePeerJobsVisible(false)}>
+                  {t('workflow.btn_hide_peer_config')}
+                </Button>
+              </ChartHeader>
+
+              {peerJobsWithExeDetails.length === 0 ? (
+                <NoJobs>
+                  <NoResult text={t('workflow.msg_peer_not_ready')} />
+                </NoJobs>
+              ) : (
+                <ReactFlowProvider>
+                  <WorkflowJobsFlowChart
+                    type="execution"
+                    selectable={false}
+                    jobs={peerJobsWithExeDetails}
+                  />
+                </ReactFlowProvider>
+              )}
+            </ChartContainer>
+          )}
+        </ChartSection>
+
+        <JobExecutionDetailsDrawer
+          visible={drawerVisible}
+          toggleVisible={toggleDrawerVisible}
+          data={data}
+          isPeerSide={isPeerSide}
+        />
+      </Container>
     </Spin>
   );
+
+  function viewJobDetail(jobNode: JobNode) {
+    setIsPeerSide(false);
+    showJobDetailesDrawer(jobNode);
+  }
+  // TODO: Maybe it's incorrect to show other side my job execution details?
+  function __viewPeerJobDetail__(jobNode: JobNode) {
+    setIsPeerSide(true);
+    showJobDetailesDrawer(jobNode);
+  }
+  function showJobDetailesDrawer(jobNode: JobNode) {
+    setData(jobNode.data);
+    toggleDrawerVisible(true);
+  }
+  async function getPeerWorkflow() {
+    const res = await getPeerWorkflowsConfig(params.id);
+    const anyPeerWorkflow = Object.values(res.data).find((item) => !!item.config)!;
+
+    return anyPeerWorkflow;
+  }
 };
+
+function mergeJobDefsWithExecutionDetails(
+  workflow: WorkflowExecutionDetails | undefined,
+): JobRawData[] {
+  if (!workflow) return [];
+
+  return workflow.config?.job_definitions.map((item) => {
+    return Object.assign(
+      item,
+      workflow?.jobs?.find((j) => j.name === `${workflow.name}-${item.name}`) || {},
+      { name: item.name },
+    );
+  }) as JobRawData[];
+}
+
+/** NOTE: Has Side effect to inputs! */
+function _markFederatedJobs(aJobs: JobRawData[], bJobs: JobRawData[]) {
+  const colorPools: JobColorsMark[] = ['blue', 'green', 'yellow', 'magenta', 'cyan'];
+  const markedJobs: Record<string, JobColorsMark> = {};
+
+  aJobs.forEach((job) => {
+    if (job.is_federated) {
+      const color = colorPools.shift() || 'blue';
+      markedJobs[job.name!] = color;
+      job.mark = color;
+    }
+  });
+
+  bJobs.forEach((job) => {
+    if (job.is_federated) {
+      job.mark = markedJobs[job.name];
+    }
+  });
+}
 
 export default WorkflowDetail;

@@ -1,6 +1,7 @@
 import { separateLng } from 'i18n/helpers';
 
 const project = {
+  no_result: { zh: '暂无项目', en: 'No project yet' },
   create: { zh: '创建项目', en: 'Create project' },
   describe: {
     zh:
@@ -18,6 +19,7 @@ const project = {
   connection_status_waiting: { zh: '待检查', en: 'To be checked' },
   connection_status_checking: { zh: '检查中', en: 'Checking' },
   connection_status_failed: { zh: '失败', en: 'Failed' },
+  connection_status_check_failed: { zh: '请重新检查' },
   action_edit: { zh: '编辑', en: 'Edit' },
   action_detail: { zh: '详情', en: 'Detail' },
   check_connection: { zh: '检查连接', en: 'Check connection' },
@@ -28,6 +30,7 @@ const project = {
   participant_name: { zh: '合作伙伴名称', en: 'Participant name' },
   participant_url: { zh: '合作伙伴节点地址', en: 'Participant node address' },
   participant_domain: { zh: '泛域名', en: "Participant participant's domain" },
+  selft_domain: { zh: '本侧泛域名', en: 'Self domain name' },
   remarks: { zh: '说明备注', en: 'Remarks' },
   name_placeholder: { zh: '请填写项目名称', en: 'Please enter name' },
   participant_name_placeholder: { zh: '请填写合作伙伴名称', en: 'Please enter participant name' },
@@ -37,13 +40,13 @@ const project = {
   },
   participant_domain_placeholder: { zh: '请填写泛域名', en: 'Please enter domain' },
   remarks_placeholder: { zh: '请填写说明备注', en: 'Please enter remarks' },
-  name_message: { zh: '请填写项目名称！', en: 'Please enter name!' },
-  participant_name_message: { zh: '请填写合作伙伴名称！', en: 'Please enter participant name!' },
+  name_message: { zh: '请填写项目名称', en: 'Please enter name' },
+  participant_name_message: { zh: '请填写合作伙伴名称', en: 'Please enter participant name' },
   participant_url_message: {
-    zh: '请填写合作伙伴节点地址！',
+    zh: '请填写合作伙伴节点地址',
     en: 'Please enter participant node address',
   },
-  participant_domain_message: { zh: '请填写泛域名！', en: null },
+  msg_domian_required: { zh: '请填写泛域名', en: null },
   edit: { zh: '编辑项目', en: 'Edit project' },
   workflow: { zh: '工作流任务', en: 'Workflow task' },
   mix_dataset: { zh: '融合数据集', en: 'Fusion data set' },
@@ -69,6 +72,10 @@ const project = {
   drag_to_upload: { zh: '拖拽到这里进行上传', en: 'Drag and drop here to upload' },
   create_success: { zh: '创建项目成功', en: 'Create project succeed!' },
   edit_success: { zh: '编辑项目成功', en: 'Edit project succeed!' },
+  msg_var_name: { zh: '请输入变量名' },
+  msg_var_value: { zh: '请输入变量值' },
+  msg_sure_2_cancel: { zh: '确认取消？' },
+  msg_effect_of_cancel: { zh: '取消后，已填写内容将不再保留' },
 };
 
 export default separateLng(project);

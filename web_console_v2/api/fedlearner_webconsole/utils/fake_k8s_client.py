@@ -26,6 +26,7 @@ class FakeK8sClient(K8sClient):
 
     With this client we can decouple the dependency of k8s cluster.
     """
+
     def __init__(self):  # pylint: disable=super-init-not-called
         # Do not call super constructor
         pass
@@ -150,38 +151,78 @@ class FakeK8sClient(K8sClient):
             )
         )
 
-    def get_webshell_session(self, namespace, pod_name, mode):
-        logging.info('======================')
-        logging.info('get container from pod : {}'.format(
-            pod_name
-        ))
-        return 'A container Id'
+    def get_custom_object(self, kind, custom_object_name: str,
+                          namespace='default'):
+        return {
+            'kind': kind.value,
+            'metadata': {
+                'name': custom_object_name,
+                'namesapce': namespace
+            },
+            'status': {
+                'appState': 'FLStateRunning',
+                'flReplicaStatus':{
+                    'Master': {
+                        'active': {
+                            'laomiao-raw-data-1223-v1-follower'
+                            '-master-0-717b53c4-'
+                            'fef7-4d65-a309-63cf62494286': {}
+                        }
 
-    def get_flapp(self, namespace, job_name):
-        logging.info('======================')
-        logging.info('get detail from job : {}'.format(
-            job_name
-        ))
-        return {'name':job_name}
+                    },
+                    'Worker': {
+                        'active': {
+                            'laomiao-raw-data-1223-v1-follower'
+                            '-worker-0-61e49961-'
+                            'e6dd-4015-a246-b6d25e69a61c': {},
+                            'laomiao-raw-data-1223-v1-follower'
+                            '-worker-1-accef16a-'
+                            '317f-440f-8f3f-7dd5b3552d25': {}
+                        }
 
-    def get_pods(self, namespace, job_name):
-        logging.info('======================')
-        logging.info('get pods from job : {}'.format(
-            job_name
-        ))
-        return {'name': job_name}
+                    }
 
-    def create_flapp(self, namespace, yaml):
-        logging.info('======================')
-        logging.info('create flapp from yaml : {}'.format(
-            yaml
-        ))
+                }
+            }
+        }
 
-    def delete_flapp(self, namespace, job_name):
-        logging.info('======================')
-        logging.info('delete flapp: {}'.format(
-            job_name
-        ))
+    def delete_custom_object(self, kind, custom_object_name: str,
+                             namespace='default'):
+        return {
+            'kind': kind.value,
+            'metadata': {
+                'name': custom_object_name,
+                'namesapce': namespace
+            }
+        }
 
-    def get_base_url(self):
-        return "fake/url"
+    def list_resource_of_custom_object(self, kind, custom_object_name: str,
+                                       resource_type: str, namespace='default'):
+        return {
+            'pods': {
+                'metadata': {
+                    'selfLink': '/api/v1/namespaces/default/pods',
+                    'resourceVersion': '780480990'
+                }
+            },
+            'items': [
+                {
+                    'metadata': {
+                        'name': '{}-0'.format(custom_object_name)
+                    }
+                },
+                {
+                    'metadata': {
+                        'name': '{}-1'.format(custom_object_name)
+                    }
+                }
+            ]
+        }
+
+    def create_custom_object(self, crd_kind, json_object,
+                             namespace='default'):
+        return json_object
+
+    def get_webshell_session(self, flapp_name, container_name: str,
+                             namespace='default'):
+        return {'id': 1}

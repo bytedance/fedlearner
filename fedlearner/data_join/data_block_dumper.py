@@ -14,19 +14,20 @@
 
 # coding: utf-8
 
-import threading
 import logging
 import os
+import threading
 import time
 import traceback
 from contextlib import contextmanager
 
 from fedlearner.common import metrics
-
-from fedlearner.data_join.raw_data_visitor import RawDataVisitor
-from fedlearner.data_join.data_block_manager import \
-        DataBlockManager, DataBlockBuilder
 from fedlearner.data_join import common
+from fedlearner.data_join.data_block_manager import \
+    DataBlockManager, DataBlockBuilder
+from fedlearner.data_join.joiner_impl.optional_stats import OptionalStats
+from fedlearner.data_join.raw_data_visitor import RawDataVisitor
+
 
 class DataBlockDumperManager(object):
     def __init__(self, kvstore, data_source, partition_id,
@@ -47,7 +48,9 @@ class DataBlockDumperManager(object):
         self._synced_data_block_meta_finished = False
         ds_name = self._data_source.data_source_meta.name
         self._metrics_tags = {'data_source_name': ds_name,
-                              'partiton': self._partition_id}
+                              'partition': self._partition_id}
+        self._optional_stats = OptionalStats(
+            raw_data_options, self._metrics_tags)
 
     def get_next_data_block_index(self):
         with self._lock:
@@ -60,7 +63,7 @@ class DataBlockDumperManager(object):
         with self._lock:
             if self._synced_data_block_meta_finished:
                 raise RuntimeError(
-                        "data block dmuper manager has been mark as "\
+                        "data block dumper manager has been mark as "\
                         "no more data block meta"
                     )
             if self._next_data_block_index != meta.data_block_index:
@@ -164,11 +167,16 @@ class DataBlockDumperManager(object):
             example_num = len(meta.example_ids)
             for (index, item) in self._raw_data_visitor:
                 example_id = item.example_id
-                # ELements in meta.example_ids maybe duplicated
-                while match_index < example_num and\
-                      example_id == meta.example_ids[match_index]:
+                joined = False
+                # Elements in meta.example_ids maybe duplicated
+                while match_index < example_num and \
+                        example_id == meta.example_ids[match_index]:
                     data_block_builder.write_item(item)
+                    self._optional_stats.update_stats(item, kind='joined')
                     match_index += 1
+                    joined = True
+                if not joined:
+                    self._optional_stats.update_stats(item, kind='unjoined')
                 if match_index >= example_num:
                     break
                 if index >= meta.leader_end_index:
@@ -182,7 +190,8 @@ class DataBlockDumperManager(object):
                 traceback.print_stack()
                 os._exit(-1) # pylint: disable=protected-access
             dumped_meta = data_block_builder.finish_data_block(True)
-            assert dumped_meta == meta, "the generated dumped meta shoud "\
+            self._optional_stats.emit_optional_stats()
+            assert dumped_meta == meta, "the generated dumped meta should "\
                                         "be the same with input mata"
             with self._lock:
                 assert self._fly_data_block_meta[0] == meta

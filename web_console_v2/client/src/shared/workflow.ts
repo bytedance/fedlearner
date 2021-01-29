@@ -7,8 +7,13 @@ const {
   READY: T_READY,
   COORDINATOR_PREPARE,
   COORDINATOR_COMMITTABLE,
+  COORDINATOR_COMMITTING,
   PARTICIPANT_PREPARE,
+  PARTICIPANT_COMMITTABLE,
+  PARTICIPANT_COMMITTING,
 } = TransactionState;
+
+// --------------- State judgement ----------------
 
 export function isAwaitParticipantConfig(workflow: Workflow) {
   const { state, target_state, transaction_state } = workflow;
@@ -31,16 +36,42 @@ export function isPendingAccpet(workflow: Workflow) {
   );
 }
 
+export function isWarmUpUnderTheHood(workflow: Workflow) {
+  const { state, target_state, transaction_state } = workflow;
+  return (
+    state === NEW &&
+    target_state === W_READY &&
+    [
+      PARTICIPANT_PREPARE,
+      COORDINATOR_COMMITTING,
+      PARTICIPANT_COMMITTABLE,
+      PARTICIPANT_COMMITTING,
+    ].includes(transaction_state)
+  );
+}
+
 export function isReadyToRun(workflow: Workflow) {
   const { state, target_state, transaction_state } = workflow;
 
   return state === W_READY && target_state === INVALID && transaction_state === T_READY;
 }
 
+export function isPreparingRun(workflow: Workflow) {
+  const { state, target_state } = workflow;
+
+  return target_state === RUNNING && [W_READY, STOPPED].includes(state);
+}
+
 export function isRunning(workflow: Workflow) {
   const { state, target_state } = workflow;
 
   return target_state === RUNNING || (state === RUNNING && target_state === INVALID);
+}
+
+export function isPreparingStop(workflow: Workflow) {
+  const { state, target_state } = workflow;
+
+  return target_state === STOPPED && state === RUNNING;
 }
 
 export function isStopped(workflow: Workflow) {
@@ -55,6 +86,8 @@ export function isCompleted(workflow: Workflow) {
   return state === COMPLETED;
 }
 
+// --------------- Xable judgement ----------------
+
 /**
  * When target_state is not INVALID,
  * means underlying service of two sides are communicating
@@ -62,14 +95,21 @@ export function isCompleted(workflow: Workflow) {
  * server would response 'bad request'
  */
 export function isOperable(workflow: Workflow) {
-  return workflow.target_state !== INVALID;
+  return workflow.target_state === INVALID;
 }
+
+export function isForkable(workflow: Workflow) {
+  const { state } = workflow;
+  return [RUNNING, STOPPED, W_READY].includes(state);
+}
+
+// --------------- General stage getter ----------------
 
 export function getWorkflowStage(workflow: Workflow): { type: StateTypes; text: string } {
   if (isAwaitParticipantConfig(workflow)) {
     return {
       text: i18n.t('workflow.state_configuring'),
-      type: 'primary',
+      type: 'processing',
     };
   }
 
@@ -80,24 +120,45 @@ export function getWorkflowStage(workflow: Workflow): { type: StateTypes; text: 
     };
   }
 
+  if (isWarmUpUnderTheHood(workflow)) {
+    return {
+      text: i18n.t('workflow.state_warmup_underhood'),
+      type: 'warning',
+    };
+  }
+
+  if (isPreparingRun(workflow)) {
+    return {
+      text: i18n.t('workflow.state_prepare_run'),
+      type: 'warning',
+    };
+  }
+
   if (isReadyToRun(workflow)) {
     return {
       text: i18n.t('workflow.state_ready_to_run'),
-      type: 'primary',
+      type: 'processing',
     };
   }
 
   if (isRunning(workflow)) {
     return {
       text: i18n.t('workflow.state_running'),
-      type: 'primary',
+      type: 'processing',
+    };
+  }
+
+  if (isPreparingStop(workflow)) {
+    return {
+      text: i18n.t('workflow.state_prepare_stop'),
+      type: 'error',
     };
   }
 
   if (isStopped(workflow)) {
     return {
       text: i18n.t('workflow.state_stopped'),
-      type: 'fail',
+      type: 'error',
     };
   }
 
@@ -110,6 +171,6 @@ export function getWorkflowStage(workflow: Workflow): { type: StateTypes; text: 
 
   return {
     text: i18n.t('workflow.state_unknown'),
-    type: 'unknown',
+    type: 'default',
   };
 }

@@ -18,7 +18,7 @@ import logging
 import time
 
 from fedlearner.common import metrics
-from fedlearner.data_join.common import interval_to_timestamp
+#from fedlearner.data_join.common import interval_to_timestamp
 
 import fedlearner.data_join.common as common
 from fedlearner.data_join.joiner_impl.example_joiner import ExampleJoiner
@@ -42,8 +42,8 @@ def get_key_instance_by_attr(keys, item, mapped_item, tuple_idx=None):
 
 
 class _JoinerImpl(object):
-    def __init__(self, expr, mapper):
-        self._expr = expr
+    def __init__(self, exp, mapper):
+        self._expr = exp
         self._mapper = mapper
 
     def join(self, conv_window, show_window):
@@ -78,7 +78,8 @@ class _JoinerImpl(object):
                     #A show can match multiple conversion event, add
                     # all the matched conversion-show pair to result
                     conv = conv_window[cd[i]][1]
-                    #2. select all the matching items from the specific key in follower side.
+                    #2. select all the matching items from the specific key
+                    # in follower side.
                     if self._expr.run_func(tuple_idx)(show, conv):
                         show_matches.append((cd[i], idx))
                 found = True
@@ -90,7 +91,8 @@ class _JoinerImpl(object):
 
 class _Trigger(object):
     """
-    Decide to move forward the watermark. We assume the item contains field event_time
+    Decide to move forward the watermark. We assume the item contains
+        field event_time
     """
     def __init__(self, max_conversion_delay):
         self._max_conversion_delay = max_conversion_delay
@@ -112,7 +114,7 @@ class _Trigger(object):
     def trigger(self, conv_window, show_window):
         conv_stride, show_stride = 0, 0
         ## step can be increased to accelerate this
-        step, sid  = 1, 0
+        step, sid = 1, 0
         show_win_size = show_window.size() - 1
         conv_win_size = conv_window.size() - 1
         while show_stride <= show_win_size and                              \
@@ -160,13 +162,13 @@ class _SlidingWindow(object):
                  self._ring_buffer[self.start():                           \
                                    (self.start()+20)%self._alloc_size])
     def as_dict(self, keys, map_func):
-        buf = {}
-        idx = 0
         """
             multi-key index construction:
                 buf:    key -> [idx]
                 window: idx -> item
         """
+        buf = {}
+        idx = 0
         while idx < self.size():
             item = self.__getitem__(idx)[1]
             mapped_item = map_func(item)
@@ -323,19 +325,19 @@ class UniversalJoiner(ExampleJoiner):
                     self._max_conversion_delay
             follower_filled = self._fill_follower_join_window()
 
-            logging.info("Fill: leader_filled=%s, leader_exhausted=%s,"         \
-                         " follower_filled=%s,"                                 \
-                         " sync_example_id_finished=%s, raw_data_finished=%s"   \
-                         " leader_win_size=%d, follower_win_size=%d",           \
-                        leader_filled, leader_exhausted,                        \
-                        follower_filled, sync_example_id_finished,              \
-                        raw_data_finished, self._leader_join_window.size(),     \
+            logging.info("Fill: leader_filled=%s, leader_exhausted=%s,"        \
+                         " follower_filled=%s,"                                \
+                         " sync_example_id_finished=%s, raw_data_finished=%s"  \
+                         " leader_win_size=%d, follower_win_size=%d",          \
+                        leader_filled, leader_exhausted,                       \
+                        follower_filled, sync_example_id_finished,             \
+                        raw_data_finished, self._leader_join_window.size(),    \
                         self._follower_join_window.size())
 
             watermark = self._trigger.watermark()
             #1. find all the matched pairs in current window
-            raw_pairs, mismatches = self._joiner.join(self._follower_join_window,  \
-                        self._leader_join_window)
+            raw_pairs, mismatches = self._joiner.join(
+                self._follower_join_window, self._leader_join_window)
             if self._enable_negative_example_generator:
                 self._negative_example_generator.update(mismatches)
             #2. cache the pairs, evict the show events which are out of

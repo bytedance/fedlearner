@@ -16,13 +16,19 @@
 # pylint: disable=broad-except
 
 import os
+import json
 import threading
 import logging
 import traceback
-
+from fedlearner_webconsole.job.yaml_formatter import format_yaml
 from fedlearner_webconsole.db import db
-from fedlearner_webconsole.workflow.models import Workflow
+from fedlearner_webconsole.dataset.import_handler import ImportHandler
+from fedlearner_webconsole.workflow.models import Workflow, WorkflowState
+from fedlearner_webconsole.job.models import Job, JobState, JobDependency
 from fedlearner_webconsole.scheduler.transaction import TransactionManager
+from fedlearner_webconsole.k8s_client import get_client
+from fedlearner_webconsole.utils.k8s_client import CrdKind
+
 
 class Scheduler(object):
     def __init__(self):
@@ -30,8 +36,10 @@ class Scheduler(object):
         self._running = False
         self._terminate = False
         self._thread = None
-        self._pending = []
+        self._pending_workflows = []
+        self._pending_jobs = []
         self._app = None
+        self._import_handler = ImportHandler()
 
     def start(self, app, force=False):
         if self._running:
@@ -47,6 +55,7 @@ class Scheduler(object):
             self._thread = threading.Thread(target=self._routine)
             self._thread.daemon = True
             self._thread.start()
+            self._import_handler.init(app)
             logging.info('Scheduler started')
 
     def stop(self):
@@ -61,15 +70,26 @@ class Scheduler(object):
         self._running = False
         logging.info('Scheduler stopped')
 
-    def wakeup(self, workflow_id):
+    def wakeup(self, workflow_ids=None,
+                     job_ids=None,
+                     data_batch_ids=None):
         with self._condition:
-            self._pending.append(workflow_id)
+            if workflow_ids:
+                if isinstance(workflow_ids, int):
+                    workflow_ids = [workflow_ids]
+                self._pending_workflows.extend(workflow_ids)
+            if job_ids:
+                if isinstance(job_ids, int):
+                    job_ids = [job_ids]
+                self._pending_jobs.extend(job_ids)
+            if data_batch_ids:
+                self._import_handler.schedule_to_handle(data_batch_ids)
             self._condition.notify_all()
 
     def _routine(self):
         self._app.app_context().push()
         interval = int(os.environ.get(
-            "FEDLEARNER_WEBCONSOLE_POLLING_INTERVAL", 300))
+            'FEDLEARNER_WEBCONSOLE_POLLING_INTERVAL', 60))
 
         while True:
             with self._condition:
@@ -77,14 +97,32 @@ class Scheduler(object):
                 if self._terminate:
                     return
                 if notified:
-                    workflow_ids = self._pending
-                    self._pending = []
-                else:
-                    workflow_ids = [
-                        wid for wid, in db.session.query(Workflow.id).all()]
-                self._poll(workflow_ids)
+                    workflow_ids = self._pending_workflows
+                    self._pending_workflows = []
+                    self._poll_workflows(workflow_ids)
 
-    def _poll(self, workflow_ids):
+                    job_ids = self._pending_jobs
+                    self._pending_jobs = []
+                    job_ids.extend([
+                        jid for jid, in db.session.query(Job.id) \
+                            .filter(Job.state == JobState.WAITING) \
+                            .filter(Job.workflow_id in workflow_ids)])
+                    self._poll_jobs(job_ids)
+
+                    self._import_handler.handle(pull=False)
+                    continue
+
+                workflows = db.session.query(Workflow.id).filter(
+                    Workflow.target_state != WorkflowState.INVALID).all()
+                self._poll_workflows([wid for wid, in workflows])
+
+                jobs = db.session.query(Job.id).filter(
+                    Job.state == JobState.WAITING).all()
+                self._poll_jobs([jid for jid, in jobs])
+
+                self._import_handler.handle(pull=True)
+
+    def _poll_workflows(self, workflow_ids):
         logging.info('Scheduler polling %d workflows...', len(workflow_ids))
         for workflow_id in workflow_ids:
             try:
@@ -94,11 +132,70 @@ class Scheduler(object):
                     "Error while scheduling workflow %d:\n%s",
                     workflow_id, traceback.format_exc())
 
+    def _poll_jobs(self, job_ids):
+        logging.info('Scheduler polling %d jobs...', len(job_ids))
+        for job_id in job_ids:
+            try:
+                self._schedule_job(job_id)
+            except Exception as e:
+                logging.warning(
+                    "Error while scheduling job %d:\n%s",
+                    job_id, traceback.format_exc())
+
     def _schedule_workflow(self, workflow_id):
         logging.debug('Scheduling workflow %d', workflow_id)
         tm = TransactionManager(workflow_id)
-        tm.process()
+        return tm.process()
 
-        # schedule jobs in workflow
+    def _make_variables_dict(self, variables):
+        var_dict = {
+            var.name: var.value
+            for var in variables
+        }
+        return var_dict
+
+    def _schedule_job(self, job_id):
+        job = Job.query.get(job_id)
+        assert job is not None, 'Job %d not found'%job_id
+        if job.state != JobState.WAITING:
+            return job.state
+        deps = JobDependency.query.filter(
+            JobDependency.dst_job_id == job.id).all()
+        for dep in deps:
+            src_job = Job.query.get(dep.src_job_id)
+            assert src_job is not None, 'Job %d not found'%dep.src_job_id
+            if not src_job.is_complete():
+                return job.state
+
+        k8s_client = get_client()
+        system_dict = {
+            'basic_envs': os.environ.get(
+                'BASIC_ENVS',
+                '{"name": "SYSTEM_BASIC_ENVS_DEFAULT",'
+                '"value": ""}')}
+        workflow = job.workflow.to_dict()
+        workflow['variables'] = self._make_variables_dict(
+            job.workflow.get_config().variables)
+
+        workflow['jobs'] = {}
+        for j in job.workflow.get_jobs():
+            variables = self._make_variables_dict(j.get_config().variables)
+            j_dic = j.to_dict()
+            j_dic['variables'] = variables
+            workflow['jobs'][j.get_config().name] = j_dic
+        project = job.project.to_dict()
+        project['variables'] = self._make_variables_dict(
+            job.project.get_config().variables)
+        yaml = format_yaml(job.yaml_template,
+                           workflow=workflow,
+                           project=project,
+                           system=system_dict)
+        yaml = json.loads(yaml)
+        k8s_client.create_custom_object(CrdKind.FLAPP, yaml)
+        job.start()
+        db.session.commit()
+
+        return job.state
+
 
 scheduler = Scheduler()

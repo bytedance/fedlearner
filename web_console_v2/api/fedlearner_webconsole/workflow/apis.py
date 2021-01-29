@@ -22,11 +22,13 @@ from google.protobuf.json_format import MessageToDict
 from fedlearner_webconsole.workflow.models import (
     Workflow, WorkflowState, TransactionState
 )
+from fedlearner_webconsole.proto import common_pb2
 from fedlearner_webconsole.workflow_template.apis import \
     dict_to_workflow_definition
 from fedlearner_webconsole.db import db
 from fedlearner_webconsole.exceptions import (
-    NotFoundException, ResourceConflictException, InvalidArgumentException)
+    NotFoundException, ResourceConflictException, InvalidArgumentException,
+    InternalException)
 from fedlearner_webconsole.scheduler.scheduler import scheduler
 from fedlearner_webconsole.rpc.client import RpcClient
 
@@ -63,7 +65,14 @@ class WorkflowsApi(Resource):
         parser.add_argument('forkable', type=bool, required=True,
                             help='forkable is empty')
         parser.add_argument('forked_from', type=int, required=False,
-                            help='forkable is empty')
+                            help='fork from base workflow')
+        parser.add_argument('reuse_job_names', type=list, required=False,
+                            location='json', help='fork and inherit jobs')
+        parser.add_argument('peer_reuse_job_names', type=list,
+                            required=False, location='json',
+                            help='peer fork and inherit jobs')
+        parser.add_argument('fork_proposal_config', type=dict, required=False,
+                            help='fork and edit peer config')
         parser.add_argument('comment')
         data = parser.parse_args()
 
@@ -81,6 +90,19 @@ class WorkflowsApi(Resource):
                             state=WorkflowState.NEW,
                             target_state=WorkflowState.READY,
                             transaction_state=TransactionState.READY)
+
+        if workflow.forked_from is not None:
+            fork_config = dict_to_workflow_definition(
+                data['fork_proposal_config'])
+            # TODO: more validations
+            if len(fork_config.job_definitions) != \
+                    len(template_proto.job_definitions):
+                raise InvalidArgumentException(
+                    'Forked workflow\'s template does not match base workflow')
+            workflow.set_fork_proposal_config(fork_config)
+            workflow.set_reuse_job_names(data['reuse_job_names'])
+            workflow.set_peer_reuse_job_names(data['peer_reuse_job_names'])
+
         workflow.set_config(template_proto)
         db.session.add(workflow)
         db.session.commit()
@@ -93,7 +115,7 @@ class WorkflowApi(Resource):
     def get(self, workflow_id):
         workflow = _get_workflow(workflow_id)
         result = workflow.to_dict()
-        result['jobs'] = [job.to_dict() for job in workflow.jobs]
+        result['jobs'] = [job.to_dict() for job in workflow.get_jobs()]
         return {'data': result}, HTTPStatus.OK
 
     def put(self, workflow_id):
@@ -145,6 +167,8 @@ class PeerWorkflowsApi(Resource):
         for party in project_config.participants:
             client = RpcClient(project_config, party)
             resp = client.get_workflow(workflow.name)
+            if resp.status.code != common_pb2.STATUS_SUCCESS:
+                raise InternalException()
             peer_workflows[party.name] = MessageToDict(
                 resp,
                 preserving_proto_field_name=True,

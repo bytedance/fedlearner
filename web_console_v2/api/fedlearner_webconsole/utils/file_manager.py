@@ -17,11 +17,14 @@ import importlib
 import logging
 import os
 import shutil
+from collections import namedtuple
 
 from pathlib import Path
-from typing import List, Dict
+from typing import List
 
 from snakebite.client import AutoConfigClient
+
+File = namedtuple('File', ['path', 'size'])
 
 
 class FileManagerBase(object):
@@ -60,10 +63,10 @@ class DefaultFileManager(FileManagerBase):
     def can_handle(self, path):
         return path.startswith('/')
 
-    def ls(self, path: str, recursive=False) -> List[Dict]:
-
+    def ls(self, path: str, recursive=False) -> List[File]:
         def _get_file_stats(path: str):
-            return {'path': path, 'size': os.path.getsize(path)}
+            return File(path=path,
+                        size=os.path.getsize(path))
 
         if not Path(path).exists():
             return []
@@ -116,7 +119,7 @@ class DefaultFileManager(FileManagerBase):
 
     def mkdir(self, path: str) -> bool:
         try:
-            os.makedirs(path)
+            os.makedirs(path, exist_ok=True)
             return True
         except Exception as e:  # pylint: disable=broad-except
             logging.error('Error during create %s', e)
@@ -132,14 +135,13 @@ class HdfsFileManager(FileManagerBase):
     def __init__(self):
         self._client = AutoConfigClient()
 
-    def ls(self, path: str, recursive=False) -> List[Dict]:
+    def ls(self, path: str, recursive=False) -> List[File]:
         files = []
         for file in self._client.ls([path], recurse=recursive):
             if file['file_type'] == 'f':
-                files.append({
-                    'path': file['path'],
-                    'size': file['length']
-                })
+                files.append(File(
+                    path=file['path'],
+                    size=file['length']))
         return files
 
     def move(self, source: str, destination: str) -> bool:
@@ -180,7 +182,7 @@ class FileManager(FileManagerBase):
                 return True
         return False
 
-    def ls(self, path: str, recursive=False) -> List[Dict]:
+    def ls(self, path: str, recursive=False) -> List[File]:
         for fm in self._file_managers:
             if fm.can_handle(path):
                 return fm.ls(path, recursive=recursive)

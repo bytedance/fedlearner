@@ -1,6 +1,4 @@
-import os
 import string
-import pdb
 
 ALL_CHARS = string.ascii_letters+string.digits+'_'
 
@@ -37,13 +35,14 @@ class Token(object):
         return self._tok
 
     def __str__(self):
-        return "Token: " + self._tok + ":%s" % ("i" if self._is_numeric else "s")
+        return "Token: " + self._tok + ":%s" % (
+            "i" if self._is_numeric else "s")
 
     @property
     def name(self):
         return self._tok
 
-class Tuple(Token):
+class Tuple(object):
     def __init__(self, tuples):
         self._tokens = []
         for tok in tuples:
@@ -57,7 +56,8 @@ class Tuple(Token):
         return "Tuple: " + ", ".join([it.__str__() for it in self._tokens])
 
     def key(self):
-        return [tok.key() for tok in self._tokens if not isinstance(tok, FunctionDecl)]
+        return [tok.key() for tok in self._tokens \
+                if not isinstance(tok, FunctionDecl)]
 
     def __getitem__(self, index):
         return self._tokens[index]
@@ -79,7 +79,7 @@ class Tuple(Token):
     def name(self):
         raise NotImplementedError
 
-class FunctionDecl(Token):
+class FunctionDecl(object):
     def __init__(self, func_name, args):
         self._func_name = func_name
         self._args = [Token(arg) for arg in args]
@@ -151,7 +151,7 @@ class JoinExpr(object):
                 else:
                     assert tup not in LINK_MAP, "Invalid expression"
                     cur_tuple.append(tup)
-                if arg_sz > 0 and arg_reader >= arg_sz and func is not None:
+                if arg_reader >= arg_sz > 0 and func is not None:
                     #pdb.set_trace()
                     result.append(FunctionDecl(func, cur_tuple))
                     func = None
@@ -178,7 +178,7 @@ class JoinExpr(object):
                     else:
                         cur_tuple.append(tok)
                 tok_pos = i+1
-            elif c == ')' or c == ' ' or c == ',':
+            elif c in (')', ' ', ','):
                 if c == ')':
                     left_bracket -= 1
                     if left_bracket < 0:
@@ -193,47 +193,8 @@ class JoinExpr(object):
                 tok_pos = i+1
             else:
                 assert c in ALL_CHARS, "Illegal character [%s]"%c
-        if i > tok_pos:
-            cur_tuple.append(strip_key[tok_pos:i])
+        assert left_bracket == 0, "( should match )"
+        if len(strip_key) > tok_pos:
+            cur_tuple.append(strip_key[tok_pos:])
         self.add_ast(cur_tuple)
         assert left_bracket == 0, "( should match )"
-
-"""
-if __name__ == "__main__":
-    exp = "click_id or (id_type, id, lt(event_time_deep, 1000), id2)"
-    k = JoinExpr(exp)
-    print(k)
-    print("keys", k.keys())
-
-    exp = "click_id"
-    k = JoinExpr(exp)
-    print(k)
-    print("keys", k.keys())
-
-    exp = "lt(event_time_deep, 1000)"
-    k = JoinExpr(exp)
-    print(k)
-    print("keys", k.keys())
-
-    exp = "(lt(event_time_deep, 11212))"
-    k = JoinExpr(exp)
-    print(k)
-    print("keys", k.keys())
-
-    # TODO: bugfix
-    exp = "(lt(event_time_deep, 2121), id) or click_id"
-    k = JoinExpr(exp)
-    print(k)
-    print("keys", k.keys())
-
-    exp = "(req_id, c_id)"
-    k = JoinExpr(exp)
-    print(k)
-    print("keys", k.keys())
-
-    exp = "click_id or (id_type, id, lt(event_time_deep, 2222), lt(event_time_shallow, 3333))"
-    k = JoinExpr(exp)
-    print(k)
-    print(k.basic_block(1)[2].arg(1).name)
-    print("keys", k.keys())
-"""

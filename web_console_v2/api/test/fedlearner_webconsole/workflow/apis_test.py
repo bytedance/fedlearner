@@ -33,6 +33,7 @@ class WorkflowsApiTest(BaseTestCase):
         return config
 
     def setUp(self):
+        self.maxDiff = None
         super().setUp()
         # Inserts data
         workflow1 = Workflow(name='workflow_key_get1',
@@ -89,6 +90,8 @@ class WorkflowsApiTest(BaseTestCase):
         del created_workflow['id']
         del created_workflow['created_at']
         del created_workflow['updated_at']
+        del created_workflow['start_at']
+        del created_workflow['stop_at']
         self.assertEqual(created_workflow, {
             'name': 'test-workflow',
             'project_id': 1234567,
@@ -99,6 +102,14 @@ class WorkflowsApiTest(BaseTestCase):
             'target_state': 'READY',
             'transaction_state': 'READY',
             'transaction_err': None,
+            'reuse_job_names': [],
+            'peer_reuse_job_names': [],
+            'job_ids': [],
+            'last_triggered_batch': None,
+            'recur_at': None,
+            'recur_type': 'NONE',
+            'transaction_state': 'READY',
+            'trigger_dataset': None
         })
         # Check DB
         self.assertEqual(len(Workflow.query.all()), 4)

@@ -2,13 +2,6 @@ import React from 'react';
 import styled from 'styled-components';
 import { Link, useLocation } from 'react-router-dom';
 import { Menu } from 'antd';
-import {
-  MailOutlined,
-  AppstoreOutlined,
-  SettingOutlined,
-  MenuFoldOutlined,
-  MenuUnfoldOutlined,
-} from '@ant-design/icons';
 import { Tooltip } from 'antd';
 import { useTranslation } from 'react-i18next';
 import { useToggle } from 'react-use';
@@ -17,8 +10,9 @@ import classNames from 'classnames';
 import { StyledComponetProps } from 'typings/component';
 import store from 'store2';
 import LOCAL_STORAGE_KEYS from 'shared/localStorageKeys';
+import { Apps, DataServer, Workbench, MenuFold, MenuUnfold } from 'components/IconPark';
 
-const Container = styled.nav`
+const Container = styled.aside`
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -63,17 +57,17 @@ const SIDEBAR_MENU_ITEMS = [
   {
     to: '/projects',
     label: 'menu.label_project',
-    icon: MailOutlined,
+    icon: Apps,
   },
   {
     to: '/workflows',
     label: 'menu.label_workflow',
-    icon: AppstoreOutlined,
+    icon: Workbench,
   },
   {
     to: '/datasets',
     label: 'menu.label_datasets',
-    icon: SettingOutlined,
+    icon: DataServer,
   },
 ];
 
@@ -103,9 +97,7 @@ function Sidebar({ className }: StyledComponetProps) {
         ))}
       </Menu>
 
-      <FoldButton onClick={onFoldClick}>
-        {isFolded ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
-      </FoldButton>
+      <FoldButton onClick={onFoldClick}>{isFolded ? <MenuUnfold /> : <MenuFold />}</FoldButton>
     </Container>
   );
 

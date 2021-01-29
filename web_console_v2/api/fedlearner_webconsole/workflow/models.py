@@ -17,13 +17,19 @@
 
 import logging
 import enum
-
+from datetime import datetime
 from sqlalchemy.sql import func
 from fedlearner_webconsole.db import db, to_dict_mixin
-from fedlearner_webconsole.proto import workflow_definition_pb2
+from fedlearner_webconsole.proto import (
+    common_pb2, workflow_definition_pb2
+)
 from fedlearner_webconsole.project.models import Project
-from fedlearner_webconsole.job.models import Job, JobState
-from fedlearner_webconsole.scheduler.job_scheduler import job_scheduler
+from fedlearner_webconsole.job.models import (
+    Job, JobState, JobType, JobDependency
+)
+from fedlearner_webconsole.rpc.client import RpcClient
+
+
 class WorkflowState(enum.Enum):
     INVALID = 0
     NEW = 1
@@ -31,6 +37,12 @@ class WorkflowState(enum.Enum):
     RUNNING = 3
     STOPPED = 4
 
+class RecurType(enum.Enum):
+    NONE = 0
+    ON_NEW_DATA = 1
+    HOURLY = 2
+    DAILY = 3
+    WEEKLY = 4
 
 VALID_TRANSITIONS = [(WorkflowState.NEW, WorkflowState.READY),
                      (WorkflowState.READY, WorkflowState.RUNNING),
@@ -85,32 +97,76 @@ IGNORED_TRANSACTION_TRANSITIONS = [
 ]
 
 
-@to_dict_mixin(ignores=['forked_from'],
+def _merge_variables(base, new, access_mode):
+    new_dict = {i.name: i.value for i in new}
+    for var in base:
+        if var.access_mode in access_mode and var.name in new_dict:
+            var.value = new_dict[var.name]
+
+def _merge_workflow_config(base, new, access_mode):
+    _merge_variables(base.variables, new.variables, access_mode)
+    if not new.job_definitions:
+        return
+    assert len(base.job_definitions) == len(new.job_definitions)
+    for base_job, new_job in \
+            zip(base.job_definitions, new.job_definitions):
+        _merge_variables(base_job.variables, new_job.variables, access_mode)
+
+
+@to_dict_mixin(ignores=['forked_from',
+                        'fork_proposal_config'],
                extras={
                    'config': (lambda wf: wf.get_config()),
+                   'job_ids': (lambda wf: wf.get_job_ids()),
+                   'reuse_job_names': (lambda wf: wf.get_reuse_job_names()),
+                   'peer_reuse_job_names':
+                       (lambda wf: wf.get_peer_reuse_job_names()),
+
                })
 class Workflow(db.Model):
     __tablename__ = 'workflow_v2'
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(255), unique=True, index=True)
     project_id = db.Column(db.Integer, db.ForeignKey(Project.id))
-    config = db.Column(db.Text())
+    config = db.Column(db.LargeBinary())
+    comment = db.Column('cmt', db.String(255), key='comment')
+
     forkable = db.Column(db.Boolean, default=False)
     forked_from = db.Column(db.Integer, default=None)
-    comment = db.Column(db.String(255))
+    # index in config.job_defs instead of job's id
+    reuse_job_names = db.Column(db.TEXT())
+    peer_reuse_job_names = db.Column(db.TEXT())
+    fork_proposal_config = db.Column(db.LargeBinary())
 
-    state = db.Column(db.Enum(WorkflowState), default=WorkflowState.INVALID)
-    target_state = db.Column(db.Enum(WorkflowState),
+    recur_type = db.Column(db.Enum(RecurType, native_enum=False),
+                           default=RecurType.NONE)
+    recur_at = db.Column(db.Interval)
+    trigger_dataset = db.Column(db.Integer)
+    last_triggered_batch = db.Column(db.Integer)
+
+    job_ids = db.Column(db.TEXT())
+
+    state = db.Column(db.Enum(WorkflowState, native_enum=False,
+                              name='workflow_state'),
+                      default=WorkflowState.INVALID)
+    target_state = db.Column(db.Enum(WorkflowState, native_enum=False,
+                                     name='workflow_target_state'),
                              default=WorkflowState.INVALID)
-    transaction_state = db.Column(db.Enum(TransactionState),
+    transaction_state = db.Column(db.Enum(TransactionState,
+                                          native_enum=False),
                                   default=TransactionState.READY)
     transaction_err = db.Column(db.Text())
+
+    start_at = db.Column(db.Integer)
+    stop_at = db.Column(db.Integer)
+
     created_at = db.Column(db.DateTime(timezone=True),
                            server_default=func.now())
     updated_at = db.Column(db.DateTime(timezone=True),
-                           server_onupdate=func.now(),
+                           onupdate=func.now(),
                            server_default=func.now())
-    jobs = db.relationship('Job', back_populates='workflow')
+
+    owned_jobs = db.relationship('Job', back_populates='workflow')
     project = db.relationship(Project)
 
     def set_config(self, proto):
@@ -125,6 +181,46 @@ class Workflow(db.Model):
             proto.ParseFromString(self.config)
             return proto
         return None
+
+    def set_fork_proposal_config(self, proto):
+        if proto is not None:
+            self.fork_proposal_config = proto.SerializeToString()
+        else:
+            self.fork_proposal_config = None
+
+    def get_fork_proposal_config(self):
+        if self.fork_proposal_config is not None:
+            proto = workflow_definition_pb2.WorkflowDefinition()
+            proto.ParseFromString(self.fork_proposal_config)
+            return proto
+        return None
+
+    def set_job_ids(self, job_ids):
+        self.job_ids = ','.join([str(i) for i in job_ids])
+
+    def get_job_ids(self):
+        if not self.job_ids:
+            return []
+        return [int(i) for i in self.job_ids.split(',')]
+
+    def get_jobs(self):
+        return [Job.query.get(i) for i in self.get_job_ids()]
+
+    def set_reuse_job_names(self, reuse_job_names):
+        self.reuse_job_names = ','.join(reuse_job_names)
+
+    def get_reuse_job_names(self):
+        if not self.reuse_job_names:
+            return []
+        return self.reuse_job_names.split(',')
+
+    def set_peer_reuse_job_names(self, peer_reuse_job_names):
+        self.peer_reuse_job_names = ','.join(peer_reuse_job_names)
+
+    def get_peer_reuse_job_names(self):
+        if not self.peer_reuse_job_names:
+            return []
+        return self.peer_reuse_job_names.split(',')
 
     def update_target_state(self, target_state):
         if self.target_state != target_state \
@@ -193,10 +289,8 @@ class Workflow(db.Model):
 
         success = True
         if self.target_state == WorkflowState.READY:
-            # This is a hack, if config is not set then
-            # no action needed
-            # TODO(tjulinfan): validate if the config is legal or not
-            success = bool(self.config)
+            success = self._prepare_for_ready()
+
         if success:
             if self.transaction_state == TransactionState.COORDINATOR_PREPARE:
                 self.transaction_state = \
@@ -217,32 +311,71 @@ class Workflow(db.Model):
                 'Workflow not in prepare state'
 
         if self.target_state == WorkflowState.STOPPED:
-            job_ids = [job.id for job in self.jobs]
-            job_scheduler.sleep(job_ids)
-            for job in self.jobs:
+            self.stop_at = int(datetime.utcnow().timestamp())
+            for job in self.owned_jobs:
                 job.stop()
-                db.session.commit()
         elif self.target_state == WorkflowState.READY:
-            job_definitions = self.get_config().job_definitions
-            for job_definition in job_definitions:
-                job = Job(name=f'{self.name}-{job_definition.name}',
-                          job_type=job_definition.type,
-                          config=job_definition.SerializeToString(),
-                          workflow_id=self.id,
-                          project_id=self.project_id)
-                job.set_yaml(job_definition.yaml_template)
-                db.session.add(job)
+            self._setup_jobs()
+            self.fork_proposal_config = None
         elif self.target_state == WorkflowState.RUNNING:
-            job_ids = [job.id for job in self.jobs]
-            for job in self.jobs:
-                if job.state != JobState.STARTED:
-                    job.state = JobState.READY
-            db.session.commit()
-            job_scheduler.wakeup(job_ids)
+            self.start_at = int(datetime.utcnow().timestamp())
+            for job in self.owned_jobs:
+                if not job.get_config().is_manual:
+                    job.schedule()
 
         self.state = self.target_state
         self.target_state = WorkflowState.INVALID
         self.transaction_state = TransactionState.READY
+
+    def _setup_jobs(self):
+        if self.forked_from is not None:
+            trunk = Workflow.query.get(self.forked_from)
+            assert trunk is not None, \
+                'Source workflow %d not found'%self.forked_from
+            trunk_job_defs = trunk.get_config().job_definitions
+            trunk_name2index = {
+                job.name: i for i, job in enumerate(trunk_job_defs)
+            }
+        else:
+            assert not self.get_reuse_job_names()
+
+        job_defs = self.get_config().job_definitions
+        jobs = []
+        reuse_jobs = set(self.get_reuse_job_names())
+        for i, job_def in enumerate(job_defs):
+            if job_def.name in reuse_jobs:
+                assert job_def.name in trunk_name2index, \
+                    "Job %s not found in base workflow"%job_def.name
+                j = trunk.get_job_ids()[trunk_name2index[job_def.name]]
+                job = Job.query.get(j)
+                assert job is not None, \
+                    'Job %d not found'%j
+                # TODO: check forked jobs does not depend on non-forked jobs
+            else:
+                job = Job(name=f'{self.name}-{job_def.name}',
+                          job_type=JobType(job_def.type),
+                          config=job_def.SerializeToString(),
+                          workflow_id=self.id,
+                          project_id=self.project_id,
+                          state=JobState.STOPPED)
+                job.set_yaml_template(job_def.yaml_template)
+                db.session.add(job)
+            jobs.append(job)
+        db.session.flush()
+        name2index = {
+            job.name: i for i, job in enumerate(job_defs)
+        }
+        for i, job in enumerate(jobs):
+            if job.name in reuse_jobs:
+                continue
+            for j, dep_def in enumerate(job.get_config().dependencies):
+                dep = JobDependency(
+                    src_job_id=jobs[name2index[dep_def.source]].id,
+                    dst_job_id=job.id,
+                    dep_index=j)
+                db.session.add(dep)
+
+        self.set_job_ids([job.id for job in jobs])
 
     def log_states(self):
         logging.debug(
@@ -250,3 +383,33 @@ class Workflow(db.Model):
             'transaction_state=%s', self.id,
             self.state.name, self.target_state.name,
             self.transaction_state.name)
+
+    def _get_peer_workflow(self):
+        project_config = self.project.get_config()
+        # TODO: find coordinator for multiparty
+        client = RpcClient(project_config, project_config.participants[0])
+        return client.get_workflow(self.name)
+
+    def _prepare_for_ready(self):
+        # This is a hack, if config is not set then
+        # no action needed
+        if self.transaction_state == TransactionState.COORDINATOR_PREPARE:
+            # TODO(tjulinfan): validate if the config is legal or not
+            return bool(self.config)
+        peer_workflow = self._get_peer_workflow()
+        if peer_workflow.forked_from:
+            base_workflow = Workflow.query.filter(
+                Workflow.name == peer_workflow.forked_from).first()
+            if base_workflow is None or not base_workflow.forkable:
+                return False
+            self.forked_from = base_workflow.id
+            self.forkable = base_workflow.forkable
+            self.set_reuse_job_names(peer_workflow.peer_reuse_job_names)
+            self.set_peer_reuse_job_names(peer_workflow.reuse_job_names)
+            config = base_workflow.get_config()
+            _merge_workflow_config(
+                config, peer_workflow.fork_proposal_config,
+                [common_pb2.Variable.PEER_WRITABLE])
+            self.set_config(config)
+            return True
+        return bool(self.config)

@@ -1,13 +1,14 @@
 import React, { FC } from 'react';
 import styled from 'styled-components';
-import { Tooltip } from 'antd';
+import { Tooltip, Tag } from 'antd';
 import { QuestionCircleOutlined } from '@ant-design/icons';
 
 const Container = styled.div`
   display: flex;
   align-items: center;
   font-size: 13px;
-  line-height: 22px;
+  line-height: 1;
+  white-space: nowrap;
 
   &::before {
     content: '●';
@@ -16,21 +17,27 @@ const Container = styled.div`
     color: var(--color, #e0e0e0);
   }
 
-  &.is-unknown {
-    --color: var(--gray3);
+  &[color='unknown'] {
+    --color: var(--backgroundGray);
   }
-  &.is-success {
+  &[color='success'] {
     --color: #00bab2;
   }
-  &.is-warning {
+  &[color='warning'] {
     --color: var(--orange6);
   }
-  &.is-fail {
+  &[color='error'] {
     --color: #fd5165;
   }
-  &.is-primary {
+  &[color='processing'] {
     --color: var(--primaryColor);
   }
+`;
+const Text = styled.span`
+  margin-right: 5px;
+`;
+const Help = styled.div`
+  cursor: help;
 `;
 const QuestionMark = styled(QuestionCircleOutlined)`
   width: 12px;
@@ -38,24 +45,37 @@ const QuestionMark = styled(QuestionCircleOutlined)`
   color: var(--gray6);
 `;
 
-export type StateTypes = 'primary' | 'success' | 'warning' | 'fail' | 'unknown';
+export type StateTypes = 'processing' | 'success' | 'warning' | 'error' | 'default';
 type Props = {
   tip?: string;
-  type: StateTypes;
+  type: StateTypes | string;
   text: string;
+  tag?: boolean;
 };
 
-const StateIndicator: FC<Props> = ({ text, type = 'unknown', tip }) => {
-  return (
-    <Container className={`is-${type}`}>
-      {text}
-      {tip && (
-        <Tooltip title={tip}>
-          <QuestionMark />
-        </Tooltip>
-      )}
-    </Container>
+const StateIndicator: FC<Props> = ({ text, type = 'default', tip, tag }) => {
+  let Wrapper = tag ? Tag : Container;
+
+  if (tag) {
+    return <Tag color={type}>{text}</Tag>;
+  }
+
+  const Content = (
+    <Wrapper color={type}>
+      <Text>{text}</Text>
+      {tip && <QuestionMark />}
+    </Wrapper>
   );
+
+  if (tip?.trim()) {
+    return (
+      <Tooltip title={tip}>
+        <Help>{Content}</Help>
+      </Tooltip>
+    );
+  }
+
+  return Content;
 };
 
 export default StateIndicator;

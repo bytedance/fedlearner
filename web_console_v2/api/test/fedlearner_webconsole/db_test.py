@@ -29,7 +29,8 @@ class _TestModel(db.Model):
     __tablename__ = 'test_table'
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     name = db.Column(db.String(255))
-    token = db.Column(db.String(64), index=True)
+    token = db.Column('token_string', db.String(64), index=True,
+                      key='token')
     created_at = db.Column(db.DateTime(timezone=True))
     grpc_spec = db.Column(db.Text())
 
@@ -59,7 +60,7 @@ class DbTest(unittest.TestCase):
             token='test-token',
             created_at=datetime.fromtimestamp(created_at_ts)
         )
-        test_grpc_spec = common_pb2.GrpcSpec(peer_url='test-url', authority='test-authority')
+        test_grpc_spec = common_pb2.GrpcSpec(authority='test-authority')
         test_model.set_grpc_spec(test_grpc_spec)
         self._db.session.add(test_model)
         self._db.session.commit()
@@ -71,7 +72,6 @@ class DbTest(unittest.TestCase):
             'name': 'test-model',
             'created_at': created_at_ts,
             'extra_key': {
-                'peer_url': 'test-url',
                 'authority': 'test-authority',
                 'extra_headers': {},
             }

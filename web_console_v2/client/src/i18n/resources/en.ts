@@ -5,6 +5,8 @@ import menu from './modules/menu';
 import error from './modules/error';
 import upload from './modules/upload';
 import term from './modules/term';
+import app from './modules/app';
+import dataset from './modules/dataset';
 
 const messages = {
   translation: {
@@ -15,6 +17,8 @@ const messages = {
     menu: menu.en,
     project: project.en,
     workflow: workflow.en,
+    app: app.en,
+    dataset: dataset.en,
 
     all: 'All',
     terms: 'Terms of Services',
@@ -22,6 +26,9 @@ const messages = {
     more: 'More',
     submit: 'OK',
     cancel: 'Cancel',
+    close: 'Close',
+    delete: 'Delete',
+    reset: 'Reset',
     operation: 'Operation',
     previous_step: 'previous step',
     next_step: 'Next step',

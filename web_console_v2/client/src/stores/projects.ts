@@ -1,31 +1,29 @@
 import { atom, selector } from 'recoil';
-import { fetchProjects } from 'services/project';
-import { Project } from 'typings/project';
+import { fetchProjectList } from 'services/project';
 
-export const projectListState = atom<Project[]>({
-  key: 'ProejctList',
-  default: [],
+export const forceReloadProjectList = atom({
+  key: 'ForceReloadTplList',
+  default: 0,
 });
-
 export const projectListQuery = selector({
   key: 'FetchProjectList',
-  get: async () => {
+  get: async ({ get }) => {
+    get(forceReloadProjectList);
     try {
-      const { data } = await fetchProjects();
+      const res = await fetchProjectList();
 
-      return data.data;
+      return res.data;
     } catch (error) {
       throw error;
     }
-  },
-  set: ({ set }, newValue) => {
-    set(projectListState, newValue);
   },
 });
 
 export const projectListGetters = selector({
   key: 'ProjectListComputed',
   get({ get }) {
-    return get(projectListState);
+    return {
+      projectCount: get(projectListQuery).length,
+    };
   },
 });

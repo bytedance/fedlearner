@@ -17,7 +17,7 @@
 import threading
 import logging
 import time
-import traceback
+import re
 
 class RoutineWorker(object):
     def __init__(self, name, routine_fn, cond_fn, exec_interval=None):
@@ -79,8 +79,18 @@ class RoutineWorker(object):
             self._kwargs = dict()
             return args, kwargs
 
+    def _parse_http_code(self, e):
+        new_err_msg = "%s" % e
+        new_err_code = re.findall(r'Received http2 header with status: (\d+)',
+                                  new_err_msg)
+        if len(new_err_code) == 0:
+            return None, new_err_msg
+        return new_err_code[0], new_err_msg
+
+
     def _routine(self):
         exec_round = 0
+        err_code = ""
         while not self.is_stopped():
             start_timepoint = time.time()
             while self._wait_for_exec():
@@ -103,9 +113,13 @@ class RoutineWorker(object):
                 args, kwargs = self.obtain_args()
                 self._routine_fn(*args, **kwargs)
             except Exception as e: # pylint: disable=broad-except
-                logging.error("worker: %s run %d rounds with exception: %s",
-                              self._name, exec_round, e)
-                traceback.print_exc()
+                new_err_code, new_err = self._parse_http_code(e)
+                if err_code != new_err_code:
+                    # only dedup network error
+                    if new_err_code is not None:
+                        err_code = new_err_code
+                    logging.error("worker: %s run %d rounds with exception: %s",
+                                  self._name, exec_round, new_err)
             else:
                 logging.debug("worker: %s exec %d round",
                               self._name, exec_round)

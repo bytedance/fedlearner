@@ -38,3 +38,6 @@ fedlearner-web-console:
   - name: data
     persistentVolumeClaim:
       claimName: pvc-fedlearner-default
+
+fedlearner-web-console-v2:
+  enabled: false

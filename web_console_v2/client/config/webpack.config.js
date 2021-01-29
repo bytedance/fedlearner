@@ -25,6 +25,7 @@ const ModuleNotFoundPlugin = require('react-dev-utils/ModuleNotFoundPlugin');
 const ForkTsCheckerWebpackPlugin = require('react-dev-utils/ForkTsCheckerWebpackPlugin');
 const typescriptFormatter = require('react-dev-utils/typescriptFormatter');
 const ReactRefreshWebpackPlugin = require('@pmmmwh/react-refresh-webpack-plugin');
+const AntdDayjsWebpackPlugin = require('antd-dayjs-webpack-plugin');
 
 const postcssNormalize = require('postcss-normalize');
 
@@ -545,6 +546,7 @@ module.exports = function (webpackEnv) {
       ],
     },
     plugins: [
+      new AntdDayjsWebpackPlugin(),
       getHtmlPluginConfig('index'),
       // getHtmlPluginConfig('login'),
       // Inlines the webpack runtime script. This script is too small to warrant

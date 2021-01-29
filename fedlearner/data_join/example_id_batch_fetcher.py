@@ -41,7 +41,7 @@ class ExampleIdBatch(ItemBatch):
         self._event_times.append(item.event_time)
         if self._version == VERSION.V2:
             self._id_types.append(item.id_type)
-            self._event_time_deeps.append(item._event_time_deep)
+            self._event_time_deeps.append(item.event_time_deep)
             self._click_ids.append(item.click_id)
 
     @property

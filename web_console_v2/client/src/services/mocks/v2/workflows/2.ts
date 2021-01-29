@@ -1,7 +1,7 @@
-import { newlyCreated } from './example';
+import { newlyCreated } from './examples';
 
 const get = {
-  data: newlyCreated,
+  data: { data: newlyCreated },
   status: 200,
 };
 

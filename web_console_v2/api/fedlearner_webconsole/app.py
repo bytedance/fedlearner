@@ -14,7 +14,9 @@
 
 # coding: utf-8
 # pylint: disable=wrong-import-position, global-statement
+import importlib
 import logging
+import os
 import traceback
 
 from http import HTTPStatus
@@ -31,12 +33,12 @@ from fedlearner_webconsole.project.apis import initialize_project_apis
 from fedlearner_webconsole.workflow_template.apis \
     import initialize_workflow_template_apis
 from fedlearner_webconsole.workflow.apis import initialize_workflow_apis
+from fedlearner_webconsole.dataset.apis import initialize_dataset_apis
 from fedlearner_webconsole.rpc.server import rpc_server
 from fedlearner_webconsole.db import db
 from fedlearner_webconsole.exceptions import (
     make_response, WebConsoleApiException, InvalidArgumentException)
 from fedlearner_webconsole.scheduler.scheduler import scheduler
-from fedlearner_webconsole.scheduler.job_scheduler import job_scheduler
 
 def _handle_bad_request(error):
     """Handles the bad request raised by reqparse"""
@@ -60,8 +62,43 @@ def _handle_uncaught_exception(error):
     response.status_code = HTTPStatus.INTERNAL_SERVER_ERROR
     return response
 
+@jwt.unauthorized_loader
+def _handle_unauthorized_request(reason):
+    response = jsonify(
+        code=HTTPStatus.UNAUTHORIZED,
+        msg=reason
+    )
+    response.status_code = HTTPStatus.UNAUTHORIZED
+    return response
+
+@jwt.invalid_token_loader
+def _handle_invalid_jwt_request(reason):
+    response = jsonify(
+        code=HTTPStatus.UNPROCESSABLE_ENTITY,
+        msg=reason
+    )
+    response.status_code = HTTPStatus.UNPROCESSABLE_ENTITY
+    return response
+
+@jwt.expired_token_loader
+def _handle_token_expired_request(expired_token):
+    response = jsonify(
+        code=HTTPStatus.UNAUTHORIZED,
+        msg='Token has expired'
+    )
+    response.status_code = HTTPStatus.UNAUTHORIZED
+    return response
+
 
 def create_app(config):
+    before_hook_path = os.getenv(
+        'FEDLEARNER_WEBCONSOLE_BEFORE_APP_START')
+    if before_hook_path:
+        module_path, func_name = before_hook_path.split(':')
+        module = importlib.import_module(module_path)
+        # Dynamically run the function
+        getattr(module, func_name)()
+
     app = Flask('fedlearner_webconsole')
     app.config.from_object(config)
 
@@ -79,6 +116,7 @@ def create_app(config):
     initialize_project_apis(api)
     initialize_workflow_template_apis(api)
     initialize_workflow_apis(api)
+    initialize_dataset_apis(api)
     # A hack that use our customized error handlers
     # Ref: https://github.com/flask-restful/flask-restful/issues/280
     handle_exception = app.handle_exception
@@ -95,9 +133,5 @@ def create_app(config):
     if app.config.get('START_SCHEDULER', True):
         scheduler.stop()
         scheduler.start(app)
-
-    if app.config.get('START_JOB_SCHEDULER', True):
-        job_scheduler.stop()
-        job_scheduler.start(app)
 
     return app

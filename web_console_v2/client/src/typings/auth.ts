@@ -1,11 +1,8 @@
 export interface FedUserInfo {
   id: string;
-  username: string;
-  name: string;
-  email: string;
-  tel: string;
-  avatar: string;
-  role: string;
+  username?: string;
+  email?: string;
+  role?: string;
 }
 
 export interface FedLoginFormData {

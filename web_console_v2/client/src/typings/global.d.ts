@@ -1,11 +1,21 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 
+declare type ID = number | string;
+
 declare type DateTime = number;
 declare namespace JSX {
   interface IntrinsicAttributes extends JSX.IntrinsicAttributes {
     key?: string | number;
+    style?: React.CSSProperties;
   }
 }
+
+declare namespace React {
+  interface SVGAttributes {
+    [key: string]: any;
+  }
+}
+
 declare namespace NodeJS {
   interface ProcessEnv {
     readonly NODE_ENV: 'development' | 'production' | 'test';

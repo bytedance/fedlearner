@@ -1,32 +1,19 @@
 import React, { ReactElement } from 'react';
-import BaseForm from '../BaseForm';
-import styled from 'styled-components';
-import { Breadcrumb } from 'antd';
-import BreadcrumbSplit from 'components/Container/BreadcrumbSplit';
-import { useHistory } from 'react-router-dom';
+import ProjectForm from '../ProjectForm';
+import BreadcrumbLink from 'components/BreadcrumbLink';
 import { createProject } from 'services/project';
 import { useTranslation } from 'react-i18next';
 
-const Container = styled.div``;
-
 function CreateProject(): ReactElement {
-  const history = useHistory();
   const { t } = useTranslation();
   return (
-    <Container>
-      <Breadcrumb separator={<BreadcrumbSplit />}>
-        <Breadcrumb.Item
-          onClick={() => {
-            history.push('/projects');
-          }}
-        >
-          {t('menu.label_project')}
-        </Breadcrumb.Item>
-        <Breadcrumb.Item>{t('project.create')}</Breadcrumb.Item>
-      </Breadcrumb>
+    <>
+      <BreadcrumbLink
+        paths={[{ label: 'menu.label_project', to: '/projects' }, { label: 'project.create' }]}
+      />
 
-      <BaseForm onSubmit={onSubmit} />
-    </Container>
+      <ProjectForm onSubmit={onSubmit} />
+    </>
   );
   async function onSubmit<CreateProjectFormData>(payload: CreateProjectFormData) {
     try {

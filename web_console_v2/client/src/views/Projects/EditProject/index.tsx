@@ -1,54 +1,60 @@
 import React, { ReactElement } from 'react';
-import BaseForm from '../BaseForm';
-import styled from 'styled-components';
-import { Breadcrumb } from 'antd';
-import BreadcrumbSplit from 'components/Container/BreadcrumbSplit';
-import { useHistory } from 'react-router-dom';
-import { updateProject } from 'services/project';
-import { useTranslation } from 'react-i18next';
+import ProjectForm from '../ProjectForm';
+import { Spin } from 'antd';
+import { useParams } from 'react-router-dom';
+import { getProjectDetailById, updateProject } from 'services/project';
 import { CertificateConfigType } from 'typings/project';
-import { Project, ProjectFormInitialValues } from 'typings/project';
+import { ProjectFormInitialValues } from 'typings/project';
+import { useQuery } from 'react-query';
+import BreadcrumbLink from 'components/BreadcrumbLink';
 
-const Container = styled.div``;
+function EditProject(): ReactElement {
+  const { id } = useParams<{ id: string }>();
 
-function CreateProject(props: any): ReactElement {
-  const history = useHistory();
-  const { t } = useTranslation();
-  const project: Project = props?.location?.state?.project;
+  const projectQuery = useQuery(['getProjectDetail', id], () => getProjectDetailById(id), {
+    cacheTime: 1,
+  });
 
-  if (!project) history.push('/projects');
-
-  const initialValues: ProjectFormInitialValues = {
+  const initialValues = {
     certificateConfigType: CertificateConfigType.BackendConfig,
-    name: project.name,
-    participantName: project.config.participants[0].name,
-    participantUrl: project.config.participants[0].url,
-    participantDomainName: project.config.participants[0].domain_name,
-    comment: project.comment,
-    variables: project.config.variables || [],
   };
+
+  const project = projectQuery.data?.data;
+
+  if (project) {
+    Object.assign(initialValues, {
+      name: project.name,
+      participantName: project.config.participants[0].name,
+      participantUrl: project.config.participants[0].url,
+      participantDomainName: project.config.participants[0].domain_name,
+      comment: project.comment,
+      domain_name: project.config.domain_name,
+      variables: project.config.variables || [],
+    });
+  }
+
   return (
-    <Container>
-      <Breadcrumb separator={<BreadcrumbSplit />}>
-        <Breadcrumb.Item
-          onClick={() => {
-            history.push('/projects');
-          }}
-        >
-          {t('menu_label_project')}
-        </Breadcrumb.Item>
-        <Breadcrumb.Item>{t('project.edit')}</Breadcrumb.Item>
-      </Breadcrumb>
-      <BaseForm onSubmit={onSubmit} edit initialValues={initialValues} />
-    </Container>
+    <Spin spinning={projectQuery.isLoading}>
+      <BreadcrumbLink
+        paths={[{ label: 'menu.label_project', to: '/projects' }, { label: 'project.edit' }]}
+      />
+
+      {project && (
+        <ProjectForm
+          onSubmit={onSubmit}
+          isEdit
+          initialValues={initialValues as ProjectFormInitialValues}
+        />
+      )}
+    </Spin>
   );
   async function onSubmit<UpdateProjectFormData>(payload: UpdateProjectFormData) {
     try {
-      await updateProject(project.id, payload);
+      await updateProject(project!.id, payload);
     } catch (error) {
       throw error;
     }
   }
 }
 
-export default CreateProject;
+export default EditProject;

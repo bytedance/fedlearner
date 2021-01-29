@@ -121,7 +121,8 @@ class DataJoinWorker(unittest.TestCase):
                 raw_data_options=dj_pb.RawDataOptions(
                     raw_data_iter='TF_RECORD',
                     read_ahead_size=1<<20,
-                    read_batch_size=128
+                    read_batch_size=128,
+                    optional_fields=['label']
                 ),
                 example_id_dump_options=dj_pb.ExampleIdDumpOptions(
                     example_id_dump_interval=1,
@@ -142,7 +143,6 @@ class DataJoinWorker(unittest.TestCase):
                     output_writer='TF_RECORD'
                 )
             )
-
         self.total_index = 1 << 12
 
     def generate_raw_data(self, start_index, kvstore, rdp, data_source, raw_data_base_dir, partition_id,
@@ -187,6 +187,10 @@ class DataJoinWorker(unittest.TestCase):
                 event_time = 150000000 + example_idx
                 feat['event_time'] = tf.train.Feature(
                         int64_list=tf.train.Int64List(value=[event_time]))
+                label = random.choice([1, 0])
+                if random.random() < 0.8:
+                    feat['label'] = tf.train.Feature(
+                        int64_list=tf.train.Int64List(value=[label]))
                 feat[feat_key_fmt.format(example_idx)] = tf.train.Feature(
                         bytes_list=tf.train.BytesList(
                             value=[feat_val_fmt.format(example_idx).encode()]))
@@ -332,4 +336,4 @@ class DataJoinWorker(unittest.TestCase):
         self.kvstore_l.delete_prefix(common.data_source_kvstore_base_dir(self.db_base_dir_l))
 
 if __name__ == '__main__':
-        unittest.main()
+    unittest.main()
