@@ -10,7 +10,7 @@ class BaseFunction(object):
     def args_size(self):
         return self._arg_size
 
-    def __call__(self, show, conv, args: list[str]) -> bool:
+    def __call__(self, show, conv, args: list[str]):
         raise NotImplementedError
 
 class LTFuncDef(BaseFunction):
