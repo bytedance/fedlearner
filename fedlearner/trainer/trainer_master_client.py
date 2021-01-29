@@ -82,8 +82,20 @@ class LocalTrainerMasterClient(object):
                 block_map[block_id] = filename
                 fullname = os.path.join(path, filename)
                 block = DataBlockInfo(block_id, fullname)
-                self._block_queue.append(block)
                 self._block_map[block_id] = block
+
+            if os.environ.get('EPOCH_NUM') is None:
+                epoch_num = 1
+            else:
+                epoch_num = int(os.environ.get('EPOCH_NUM'))
+
+            for rnd in range(epoch_num):
+                for filename in files:
+                    block_id, _ = os.path.splitext(os.path.basename(filename))
+                    fullname = os.path.join(path, filename)
+                    block = DataBlockInfo(block_id, fullname)
+                    self._block_queue.append(block)
+                    
         self._status = tm_pb.MasterStatus.INITIALING
         if skip_datablock_checkpoint:
             self._status = tm_pb.MasterStatus.RUNNING
