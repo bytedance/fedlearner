@@ -35,3 +35,10 @@ export async function to<T, E = Error>(promise: Promise<T>): Promise<[T, E]> {
     return [(null as unknown) as T, e];
   }
 }
+
+/**
+ * Give a random string base on Math.random
+ */
+export function giveWeakRandomKey() {
+  return Math.random().toString(16).slice(2);
+}

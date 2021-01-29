@@ -4,16 +4,16 @@ import { ReactFlowProvider, useStoreState } from 'react-flow-renderer';
 import { useToggle } from 'react-use';
 import JobFormDrawer, { JobFormDrawerExposedRef } from './JobFormDrawer';
 import WorkflowJobsFlowChart, { updateNodeStatusById } from 'components/WorkflowJobsFlowChart';
-import { JobNode, JobNodeData, JobNodeStatus } from 'components/WorkflowJobsFlowChart/helpers';
+import { GlobalConfigNode, JobNode, JobNodeStatus } from 'components/WorkflowJobsFlowChart/helpers';
 import GridRow from 'components/_base/GridRow';
 import { Button, message, Modal, Spin } from 'antd';
 import { Redirect, useHistory, useParams } from 'react-router-dom';
 import { useRecoilValue } from 'recoil';
 import {
-  workflowJobsConfigForm,
-  workflowGetters,
+  workflowConfigForm,
   workflowBasicForm,
   peerConfigInPairing,
+  templateInUsing,
 } from 'stores/workflow';
 import { useTranslation } from 'react-i18next';
 import i18n from 'i18n';
@@ -21,10 +21,12 @@ import ErrorBoundary from 'antd/lib/alert/ErrorBoundary';
 import { acceptNFillTheWorkflowConfig, initiateAWorkflow } from 'services/workflow';
 import { to } from 'shared/helpers';
 import { WorkflowCreateProps } from '..';
-import { WorkflowInitiatePayload } from 'typings/workflow';
+import { WorkflowAcceptPayload, WorkflowInitiatePayload } from 'typings/workflow';
 import InspectPeerConfigs from './InspectPeerConfig';
 import { ExclamationCircle } from 'components/IconPark';
 import { Z_INDEX_GREATER_THAN_HEADER } from 'components/Header';
+import { stringifyWidgetSchemas } from 'shared/formSchema';
+import { removePrivate } from 'shared/object';
 
 const Container = styled.section`
   height: 100%;
@@ -55,16 +57,16 @@ const CanvasAndForm: FC<WorkflowCreateProps> = ({ isInitiate, isAccept }) => {
   const [submitting, setSubmitting] = useToggle(false);
   const [drawerVisible, toggleDrawerVisible] = useToggle(false);
   const [peerCfgVisible, togglePeerCfgVisible] = useToggle(false);
-  const [data, setData] = useState<JobNodeData>();
+  const [currNode, setCurrNode] = useState<JobNode | GlobalConfigNode>();
 
-  const { currentWorkflowTpl } = useRecoilValue(workflowGetters);
-  const jobsConfigPayload = useRecoilValue(workflowJobsConfigForm);
+  const templateInUsingValue = useRecoilValue(templateInUsing);
+  const workflowConfigValue = useRecoilValue(workflowConfigForm);
   const basicPayload = useRecoilValue(workflowBasicForm);
   const peerConfig = useRecoilValue(peerConfigInPairing);
 
   const isDisabled = { disabled: submitting };
 
-  if (currentWorkflowTpl === null) {
+  if (!templateInUsingValue?.config) {
     const redirectTo = isInitiate
       ? '/workflows/initiate/basic'
       : `/workflows/accept/basic/${params.id}`;
@@ -82,18 +84,18 @@ const CanvasAndForm: FC<WorkflowCreateProps> = ({ isInitiate, isAccept }) => {
 
         <WorkflowJobsFlowChart
           type="config"
-          jobs={currentWorkflowTpl.config.job_definitions}
-          globalVariables={currentWorkflowTpl.config.variables}
-          onJobClick={selectJob}
+          jobs={templateInUsingValue.config.job_definitions}
+          globalVariables={templateInUsingValue.config.variables}
+          onJobClick={selectNode}
           onCanvasClick={onCanvasClick}
         />
 
         <JobFormDrawer
           ref={drawerRef as any}
-          data={data}
+          node={currNode!}
           visible={drawerVisible}
           toggleVisible={toggleDrawerVisible}
-          onConfirm={selectJob}
+          onConfirm={selectNode}
           isAccept={isAccept}
           onViewPeerConfigClick={onViewPeerConfigClick}
         />
@@ -133,17 +135,18 @@ const CanvasAndForm: FC<WorkflowCreateProps> = ({ isInitiate, isAccept }) => {
     drawerRef.current?.validateCurrentJobForm();
     toggleDrawerVisible(false);
   }
-  async function selectJob(jobNode: JobNode) {
-    // Turn node status to configuring
-    updateNodeStatusById({ id: jobNode.id, status: JobNodeStatus.Processing });
-
-    if (jobNode.data.status !== JobNodeStatus.Processing) {
+  async function selectNode(nextNode: JobNode | GlobalConfigNode) {
+    const prevData = currNode?.data;
+    if (prevData) {
+      // Validate & Save current form before go another job
+      await drawerRef.current?.saveCurrentValues();
       await drawerRef.current?.validateCurrentJobForm();
     }
-    if (data) {
-      drawerRef.current?.saveCurrentValues();
-    }
-    setData(jobNode.data);
+
+    // Turn target node status to configuring
+    updateNodeStatusById({ id: nextNode.id, status: JobNodeStatus.Processing });
+
+    setCurrNode(nextNode);
 
     toggleDrawerVisible(true);
   }
@@ -158,18 +161,25 @@ const CanvasAndForm: FC<WorkflowCreateProps> = ({ isInitiate, isAccept }) => {
     let finalError = (null as any) as Error;
 
     if (isInitiate) {
-      const payload = { config: jobsConfigPayload, ...basicPayload };
-      const [_, error] = await to(initiateAWorkflow(payload as WorkflowInitiatePayload));
+      const payload = stringifyWidgetSchemas(
+        removePrivate({
+          config: workflowConfigValue,
+          ...basicPayload,
+        }) as WorkflowInitiatePayload,
+      );
+      const [, error] = await to(initiateAWorkflow(payload));
       finalError = error;
     }
 
     if (isAccept) {
-      const [_, error] = await to(
-        acceptNFillTheWorkflowConfig(params.id, {
-          config: jobsConfigPayload,
+      const payload = stringifyWidgetSchemas(
+        removePrivate({
+          config: workflowConfigValue,
           forkable: basicPayload.forkable!,
-        }),
+        }) as WorkflowAcceptPayload,
       );
+
+      const [, error] = await to(acceptNFillTheWorkflowConfig(params.id, payload));
       finalError = error;
     }
 

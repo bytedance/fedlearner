@@ -23,7 +23,7 @@ const BreadcrumbLink: FC<Props> = ({ paths }) => {
   return (
     <Container separator={<Slash />}>
       {paths.map((item, index) => (
-        <Breadcrumb.Item>
+        <Breadcrumb.Item key={item.label}>
           {index === paths.length - 1 ? t(item.label) : <Link to={item.to!}>{t(item.label)}</Link>}
         </Breadcrumb.Item>
       ))}

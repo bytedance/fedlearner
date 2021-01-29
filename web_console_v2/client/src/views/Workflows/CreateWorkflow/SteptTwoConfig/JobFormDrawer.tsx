@@ -17,19 +17,21 @@ import { useStoreActions, useStoreState } from 'react-flow-renderer';
 import { DrawerProps } from 'antd/lib/drawer';
 import {
   getNodeIdByJob,
-  JobNodeData,
+  GlobalConfigNode,
+  JobNode,
   JobNodeStatus,
 } from 'components/WorkflowJobsFlowChart/helpers';
 import { updateNodeStatusById } from 'components/WorkflowJobsFlowChart';
 import { cloneDeep } from 'lodash';
 import { useRecoilState } from 'recoil';
-import { workflowJobsConfigForm } from 'stores/workflow';
+import { workflowConfigForm } from 'stores/workflow';
 import { IFormState } from '@formily/antd';
-import { to } from 'shared/helpers';
+import { giveWeakRandomKey, to } from 'shared/helpers';
 import { useTranslation } from 'react-i18next';
 import { removeUndefined } from 'shared/object';
 import ErrorBoundary from 'antd/lib/alert/ErrorBoundary';
 import { Eye } from 'components/IconPark';
+import { WorkflowConfig } from 'typings/workflow';
 
 const Container = styled(Drawer)`
   top: 60px;
@@ -60,7 +62,7 @@ const FormContainer = styled.div`
 `;
 
 interface Props extends DrawerProps {
-  data?: JobNodeData;
+  node: JobNode | GlobalConfigNode;
   toggleVisible?: Function;
   onConfirm: Function;
   onViewPeerConfigClick: (...args: any[]) => void;
@@ -69,31 +71,42 @@ interface Props extends DrawerProps {
 export type JobFormDrawerExposedRef = {
   validateCurrentJobForm(): Promise<boolean>;
   saveCurrentValues(): void;
+  getCurrentNodeID(): string | undefined;
 };
 
 const JobFormDrawer: ForwardRefRenderFunction<JobFormDrawerExposedRef, Props> = (
-  { data, toggleVisible, onConfirm, isAccept, onViewPeerConfigClick, ...props },
+  { node, toggleVisible, onConfirm, isAccept, onViewPeerConfigClick, ...props },
   parentRef,
 ) => {
   const { t } = useTranslation();
+  const [randomKey, setRandomKey] = useState<string>(giveWeakRandomKey());
   const setSelectedElements = useStoreActions((actions) => actions.setSelectedElements);
   const [formSchema, setFormSchema] = useState<FormilySchema>(null as any);
   const jobNodes = useStoreState((store) => store.nodes);
-  // Current config value from store
-  const [jobsConfig, setJobsConfigData] = useRecoilState(workflowJobsConfigForm);
+  // Current workflow config value on store
+  const [workflowConfig, setWorkflowConfigData] = useRecoilState(workflowConfigForm);
 
   useEffect(() => {
-    if (data) {
-      const schema = buildFormSchemaFromJob(data.raw);
+    if (node?.data) {
+      setRandomKey(giveWeakRandomKey());
+      // prop 'node' is from `templateInUsing` which only has job definition
+      // in order to hydrate the Form, we need get user-inputs (whick stored on `workflowConfigForm`)
+      // and merge the user-inputs to definition
+      const jobDataMergedWithValue = _mergeDefsWithValues(node, workflowConfig);
+      const schema = buildFormSchemaFromJob(jobDataMergedWithValue);
       setFormSchema(schema);
     }
-  }, [data]);
+  }, [node, workflowConfig]);
+
   useImperativeHandle(parentRef, () => {
     return {
       validateCurrentJobForm: validateCurrentForm,
       saveCurrentValues: saveCurrentValuesToRecoil,
+      getCurrentNodeID: () => data?.raw.name,
     };
   });
+
+  const data = node?.data;
 
   if (!data) {
     return null;
@@ -141,6 +154,7 @@ const JobFormDrawer: ForwardRefRenderFunction<JobFormDrawerExposedRef, Props> = 
         <FormContainer>
           {formSchema && (
             <VariableSchemaForm
+              key={randomKey}
               schema={formSchema}
               onConfirm={confirmAndGoNextJob}
               onCancel={closeDrawer as any}
@@ -195,33 +209,89 @@ const JobFormDrawer: ForwardRefRenderFunction<JobFormDrawerExposedRef, Props> = 
       onConfirm && onConfirm(nextNodeToSelect);
     }
   }
-  function saveCurrentValuesToRecoil() {
-    formActions.getFormState((state: IFormState) => {
-      const { job_definitions, ...others } = jobsConfig;
+  /**
+   * Write current form values to workflowConfigForm on recoil
+   */
+  function saveCurrentValuesToRecoil(): Promise<void> {
+    return new Promise((resolve) => {
+      formActions.getFormState((state: IFormState) => {
+        const values = removeUndefined(state.values);
+        const { variables, job_definitions, ...others } = workflowConfig;
 
-      // NOTE: jobsConfig is unwritable by default from Recoil's design,
-      // so we need to make a copy here
-      const jobsCopy = cloneDeep(job_definitions);
-      const values = removeUndefined(state.values);
-      const targetJob = jobsCopy.find(({ name }) => name === data?.raw.name);
+        // If it's global config node
+        if (node.type === 'global') {
+          // NOTE: value from recoil is readonly
+          const variablesCopy = cloneDeep(variables);
 
-      if (targetJob) {
-        const targetJobIdx = jobsCopy.findIndex(({ name }) => name === data?.raw.name);
+          setWorkflowConfigData({
+            ...others,
+            job_definitions,
+            variables: variablesCopy?.map((item) => {
+              return {
+                ...item,
+                value: values[item.name],
+              };
+            }),
+          });
+          return resolve();
+        }
 
-        Object.entries(values).forEach(([key, val]) => {
-          const targetVariable = targetJob?.variables.find((item) => item.name === key);
-          targetVariable!.value = val;
-        });
+        // If normal job config node
+        const jobsDefsCopy = cloneDeep(job_definitions);
+        const targetJobDef = jobsDefsCopy.find(({ name }) => name === data?.raw.name);
 
-        jobsCopy[targetJobIdx] = targetJob;
+        if (targetJobDef) {
+          const targetJobIdx = jobsDefsCopy.findIndex(({ name }) => name === data?.raw.name);
 
-        setJobsConfigData({
-          ...others,
-          job_definitions: jobsCopy,
-        });
-      }
+          targetJobDef.variables = targetJobDef.variables.map((item) => {
+            return {
+              ...item,
+              value: values[item.name],
+            };
+          });
+
+          jobsDefsCopy[targetJobIdx] = targetJobDef;
+
+          setWorkflowConfigData({
+            ...others,
+            variables,
+            job_definitions: jobsDefsCopy,
+          });
+        }
+
+        resolve();
+      });
     });
   }
 };
+
+function _mergeDefsWithValues(node: JobNode | GlobalConfigNode, workflowConfig: WorkflowConfig) {
+  if (node.type === 'global') {
+    const copy = cloneDeep(node);
+    workflowConfig.variables?.forEach((item) => {
+      const target = copy.data.raw.variables.find((varDef) => varDef.name === item.name);
+      if (target) {
+        target.value = item.value;
+      }
+    });
+    return copy.data.raw;
+  }
+
+  if (node.type === 'config') {
+    const copy = cloneDeep(node);
+
+    const theJob = workflowConfig.job_definitions.find((def) => def.name === node.data.raw.name);
+
+    theJob?.variables.forEach((item) => {
+      const target = copy.data.raw.variables.find((varDef) => varDef.name === item.name);
+      if (target) {
+        target.value = item.value;
+      }
+    });
+    return copy.data.raw;
+  }
+
+  return node.data.raw as never;
+}
 
 export default forwardRef(JobFormDrawer);

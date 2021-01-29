@@ -11,7 +11,7 @@ const Container = styled.div`
   position: relative;
   display: flex;
   padding: 3px;
-  border: 1px solid var(--backgroundGray);
+  border: 1px solid var(--backgroundColorGray);
   border-radius: 100px;
 `;
 const Lng = styled.div`

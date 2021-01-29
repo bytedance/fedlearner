@@ -18,6 +18,7 @@
     "classnames": "^2.2.6",
     "dayjs": "^1.9.7",
     "i18next": "^19.8.3",
+    "ip-port-regex": "^2.0.0",
     "keyboardjs": "^2.6.4",
     "lodash-es": "^4.17.15",
     "pubsub-js": "^1.9.2",

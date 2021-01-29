@@ -6,7 +6,7 @@ import i18n from 'i18n';
 import { Button } from 'antd';
 import StateIndicator, { StateTypes } from 'components/StateIndicator';
 import { useTranslation } from 'react-i18next';
-import { JobRawData } from 'components/WorkflowJobsFlowChart/helpers';
+import { JobNodeRawData } from 'components/WorkflowJobsFlowChart/helpers';
 
 const Container = styled.div`
   margin-top: 30px;
@@ -16,15 +16,17 @@ const stateType: { [key: string]: StateTypes } = {
   [PodState.COMPLETE]: 'success',
   [PodState.RUNNING]: 'processing',
   [PodState.FAILED]: 'error',
+  [PodState.LOCAL]: 'default',
 };
 const stateText: { [key: string]: string } = {
   [PodState.COMPLETE]: i18n.t('workflow.job_node_success'),
   [PodState.RUNNING]: i18n.t('workflow.job_node_running'),
   [PodState.FAILED]: i18n.t('workflow.job_node_failed'),
+  [PodState.LOCAL]: i18n.t('workflow.job_node_stopped'),
 };
 
 type Props = {
-  job: JobRawData;
+  job: JobNodeRawData;
 };
 
 const JobExecutionPODs: FC<Props> = ({ job }) => {

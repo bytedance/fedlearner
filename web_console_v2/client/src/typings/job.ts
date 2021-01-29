@@ -41,6 +41,7 @@ export enum PodState {
   RUNNING = 'active',
   COMPLETE = 'succeeded',
   FAILED = 'failed',
+  LOCAL = 'local', // when a job is totally stopped
 }
 
 export interface Pod {

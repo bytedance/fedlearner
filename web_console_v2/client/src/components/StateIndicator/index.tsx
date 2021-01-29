@@ -18,7 +18,7 @@ const Container = styled.div`
   }
 
   &[color='unknown'] {
-    --color: var(--backgroundGray);
+    --color: var(--backgroundColorGray);
   }
   &[color='success'] {
     --color: #00bab2;

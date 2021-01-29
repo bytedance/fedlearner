@@ -10,23 +10,22 @@ const Container = styled.div`
     margin-top: 14px;
   }
 `;
-
-const Header = styled.div`
+const Heading = styled.h3`
+  margin-bottom: 0;
   font-weight: 600;
   font-size: 16px;
   line-height: 24px;
   color: var(--gray10);
 `;
-
 const Body = styled.div`
-  width: 500px;
+  width: var(--form-width, 500px);
   margin-top: 32px;
 `;
 
 const SecondaryForm: FC<{ title: string }> = ({ title, children }) => {
   return (
     <Container>
-      <Header>{title}</Header>
+      <Heading>{title}</Heading>
       <Body>{children}</Body>
     </Container>
   );

@@ -23,7 +23,7 @@ const Container = styled.div`
 `;
 const FooterRow = styled(Row)`
   padding-top: 15px;
-  border-top: 1px solid var(--backgroundGray);
+  border-top: 1px solid var(--backgroundColorGray);
 `;
 
 type Props = {

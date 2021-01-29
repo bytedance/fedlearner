@@ -2,6 +2,10 @@ import {
   Variable,
   VariableAccessMode,
   VariableComponent,
+  WorkflowAcceptPayload,
+  WorkflowConfig,
+  WorkflowInitiatePayload,
+  WorkflowTemplate,
   WorkflowTemplatePayload,
 } from 'typings/workflow';
 import { Job } from 'typings/job';
@@ -292,30 +296,40 @@ export function buildFormSchemaFromJob(job: Job): FormilySchema {
   }, schema);
 }
 
-export function stringifyWidgetSchemas(template: WorkflowTemplatePayload) {
-  const ret = cloneDeep(template);
+export function stringifyWidgetSchemas<
+  T extends WorkflowInitiatePayload | WorkflowTemplatePayload | WorkflowAcceptPayload
+>(input: T): T {
+  const ret = cloneDeep(input);
 
   ret.config?.job_definitions.forEach((job: any) => {
-    job.variables.forEach((variable: any) => {
-      if (typeof variable.widget_schema === 'object') {
-        variable.widget_schema = JSON.stringify(variable.widget_schema);
-      }
-    });
+    job.variables.forEach(_stringify);
   });
 
+  ret.config.variables?.forEach(_stringify);
+
   return ret;
+
+  function _stringify(variable: any) {
+    if (typeof variable.widget_schema === 'object') {
+      variable.widget_schema = JSON.stringify(variable.widget_schema);
+    }
+  }
 }
 
-export function parseWidgetSchemas(template: WorkflowTemplatePayload) {
+export function parseWidgetSchemas(template: WorkflowTemplate) {
   const ret = cloneDeep(template);
 
   ret.config?.job_definitions.forEach((job: any) => {
-    job.variables.forEach((variable: any) => {
-      if (typeof variable.widget_schema === 'string') {
-        variable.widget_schema = variable.widget_schema ? JSON.parse(variable.widget_schema) : {};
-      }
-    });
+    job.variables.forEach(_parse);
   });
 
+  ret.config.variables?.forEach(_parse);
+
   return ret;
+
+  function _parse(variable: Variable): any {
+    if (typeof variable.widget_schema === 'string') {
+      variable.widget_schema = variable.widget_schema ? JSON.parse(variable.widget_schema) : {};
+    }
+  }
 }

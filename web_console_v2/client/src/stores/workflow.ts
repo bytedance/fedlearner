@@ -6,7 +6,6 @@ import {
   WorkflowTemplate,
   WorkflowTemplatePayload,
 } from 'typings/workflow';
-import { parseWidgetSchemas } from 'shared/formSchema';
 
 export type StepOneForm = {
   _templateType: 'existing' | 'create';
@@ -15,38 +14,32 @@ export type StepOneForm = {
 
 export type StepOneTemplateForm = WorkflowTemplatePayload;
 
-export const DEFAULT_BASIC_VALUES = {
-  // Fields start with underscore are solely UI releated things,
-  // will not pass to backend on submit
-  _templateType: 'existing' as const,
-  _templateSelected: undefined,
-
-  name: '',
-  project_id: undefined,
-  forkable: true,
-};
 export const workflowBasicForm = atom<StepOneForm>({
   key: 'WorkflowBasicForm',
-  default: DEFAULT_BASIC_VALUES,
+  default: {
+    // Fields start with underscore are solely UI releated things,
+    // will not pass to backend on submit
+    _templateType: 'existing' as const,
+    _templateSelected: undefined,
+
+    name: '',
+    project_id: undefined,
+    forkable: true,
+  },
 });
 
-export const DEFAULT_JOBS_CONFIG_VALUES = ({
-  group_alias: '',
-  job_definitions: [],
-} as any) as WorkflowConfig;
-export const workflowJobsConfigForm = atom<WorkflowConfig>({
-  key: 'WorkflowJobsConfigForm',
-  default: DEFAULT_JOBS_CONFIG_VALUES,
+export const workflowConfigForm = atom<WorkflowConfig>({
+  key: 'WorkflowConfigForm',
+  default: {
+    group_alias: '',
+    variables: [],
+    job_definitions: [],
+  } as any,
 });
 
-export const DEFAULT_TEMPLATE_VALUES = {
-  name: '',
-  config: '',
-  comment: '',
-};
 export const workflowTemplateForm = atom<StepOneTemplateForm>({
   key: 'WorkflowTemplateForm',
-  default: DEFAULT_TEMPLATE_VALUES,
+  default: { name: '', config: '', comment: '' } as any,
 });
 
 export const workflowInEditing = atom<Workflow>({
@@ -71,7 +64,6 @@ export const workflowGetters = selector({
     return {
       whetherCreateNewTpl: get(workflowBasicForm)._templateType === 'create',
       hasTplSelected: Boolean(get(workflowTemplateForm).config),
-      currentWorkflowTpl: get(templateInUsing) && parseWidgetSchemas(get(templateInUsing)),
     };
   },
 });

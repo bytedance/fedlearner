@@ -24,13 +24,13 @@ export interface Participant {
   certificates?: string | null;
 }
 
-export interface UpdateProjectFormData {
+export interface UpdateProjectPayload {
   token?: string;
   variables?: ProjectVariable[];
   comment: string;
 }
 
-export interface CreateProjectFormData {
+export interface CreateProjectPayload {
   name: string;
   domain_name: string;
   config: {
@@ -41,7 +41,7 @@ export interface CreateProjectFormData {
   };
   comment: string;
 }
-export interface Project extends CreateProjectFormData {
+export interface Project extends CreateProjectPayload {
   id: number;
   token: string;
   created_at: number;

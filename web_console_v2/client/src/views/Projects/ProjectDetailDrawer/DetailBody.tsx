@@ -38,10 +38,11 @@ function DetailBody({ project }: DetailBodyProps): ReactElement {
       label: t('project.remarks'),
       value: project.comment || '-',
     },
+    ...project.config.variables.map((item) => ({ label: item.name, value: item.value })),
   ];
   return (
     <ErrorBoundary>
-      <PropertyList properties={properties} cols={2} labelWidth={105} />
+      <PropertyList initialVisibleRows={3} properties={properties} cols={2} labelWidth={105} />
 
       <Tabs defaultActiveKey="workflow">
         <Tabs.TabPane tab={t('project.workflow')} key="workflow">

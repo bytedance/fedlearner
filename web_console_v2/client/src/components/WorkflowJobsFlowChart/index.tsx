@@ -1,6 +1,12 @@
 import React, { FC, useEffect, useState } from 'react';
 import WorkflowJobNode from './WorkflowJobNode';
-import { JobNodeType, JobRawData, convertJobsToElements, JobNode, JobNodeStatus } from './helpers';
+import {
+  JobNodeType,
+  JobNodeRawData,
+  convertJobsToElements,
+  JobNode,
+  JobNodeStatus,
+} from './helpers';
 import styled from 'styled-components';
 import ReactFlow, {
   Background,
@@ -24,18 +30,16 @@ const Container = styled.div`
   .react-flow__node {
     border-radius: 4px;
     font-size: 1em;
-    border-color: transparent;
     text-align: initial;
-    border: 1px solid white;
-    background-color: white;
+    background-color: transparent;
     cursor: initial;
 
+    &-global,
     &-execution,
     &-config {
       &.selected {
-        border-color: var(--primaryColor);
-        box-shadow: none;
-        background-color: #f2f6ff;
+        --selected-background: #f2f6ff;
+        --selected-border-color: var(--primaryColor);
       }
     }
 
@@ -43,7 +47,7 @@ const Container = styled.div`
       cursor: pointer;
 
       &:hover {
-        box-shadow: 0px 4px 10px #e0e0e0;
+        filter: drop-shadow(0px 4px 10px #e0e0e0);
       }
     }
   }
@@ -65,7 +69,7 @@ const CHANNELS = {
 
 type Props = {
   globalVariables?: Variable[];
-  jobs: JobRawData[];
+  jobs: JobNodeRawData[];
   type: JobNodeType;
   selectable?: boolean;
   onJobClick?: (node: JobNode) => void;
@@ -83,7 +87,7 @@ const WorkflowJobsFlowChart: FC<Props> = ({
   const [elements, setElements] = useState<FlowElement[]>([]);
 
   useEffect(() => {
-    const jobElements = convertJobsToElements({ jobs }, { type, selectable });
+    const jobElements = convertJobsToElements({ jobs, globalVariables }, { type, selectable });
 
     setElements(jobElements);
   }, [jobs, type, selectable, globalVariables]);
