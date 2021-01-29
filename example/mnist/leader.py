@@ -120,7 +120,7 @@ if __name__ == '__main__':
 
     # Training for multiple epoches
     # Set 'EPOCH_NUM' in leader environment
-    os.environ['EPOCH_NUM'] = '10'
+    # os.environ['EPOCH_NUM'] = '10'
 
     flt.trainer_worker.train(
         ROLE, args, input_fn,
