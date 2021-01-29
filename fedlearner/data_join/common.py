@@ -15,6 +15,7 @@
 # coding: utf-8
 
 import os
+import enum
 import logging
 import uuid
 import threading
@@ -44,6 +45,10 @@ DoneFileSuffix = '.done'
 RawDataFileSuffix = '.rd'
 InvalidEventTime = -9223372036854775808
 InvalidRawId = ''.encode()
+
+class VERSION(enum.Enum):
+    V1 = 1
+    V2 = 2
 
 @contextmanager
 def make_tf_record_iter(fpath, options=None):

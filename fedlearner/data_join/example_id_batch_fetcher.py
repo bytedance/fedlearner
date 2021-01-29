@@ -19,41 +19,52 @@ import os
 import traceback
 
 from fedlearner.common import data_join_service_pb2 as dj_pb
+from fedlearner.data_join.common import VERSION
 from fedlearner.data_join.item_batch_seq_processor import \
         ItemBatch, ItemBatchSeqProcessor
 from fedlearner.data_join.raw_data_visitor import RawDataVisitor
 
 class ExampleIdBatch(ItemBatch):
-    def __init__(self, partition_id, begin_index):
+    def __init__(self, partition_id, begin_index, version=VERSION.V1):
         self._partition_id = partition_id
         self._begin_index = begin_index
         self._example_ids = []
         self._event_times = []
-        self._id_types = []
-        self._event_time_deeps = []
-        self._click_ids = []
+        if version == VERSION.V2:
+            self._id_types = []
+            self._event_time_deeps = []
+            self._click_ids = []
+        self._version = version
 
     def append(self, item):
         self._example_ids.append(item.example_id)
         self._event_times.append(item.event_time)
-        self._id_types.append(item.id_type)
-        self._event_time_deeps.append(item._event_time_deep)
-        self._click_ids.append(item.click_id)
+        if self._version == VERSION.V2:
+            self._id_types.append(item.id_type)
+            self._event_time_deeps.append(item._event_time_deep)
+            self._click_ids.append(item.click_id)
 
     @property
     def begin_index(self):
         return self._begin_index
 
     def make_packed_lite_example_ids(self):
+        serde_lite_examples = dj_pb.LiteExampleIds(
+            partition_id=self._partition_id,
+            begin_index=self._begin_index,
+            example_id=self._example_ids,
+            event_time=self._event_times,
+            version=self._version,
+        )
+        if self._version == VERSION.V2:
+            serde_lite_examples.id_type = self._id_types
+            serde_lite_examples.event_time_deep = self._event_time_deeps
+            serde_lite_examples.click_id = self._click_ids
         return dj_pb.PackedLiteExampleIds(
                 partition_id=self._partition_id,
                 begin_index=self._begin_index,
                 example_id_num=len(self._example_ids),
-                sered_lite_example_ids=dj_pb.LiteExampleIds(
-                    partition_id=self._partition_id,
-                    begin_index=self._begin_index,
-                    example_id=self._example_ids,
-                    event_time=self._event_times).SerializeToString()
+                sered_lite_example_ids=serde_lite_examples.SerializeToString()
             )
 
     @property
@@ -70,6 +81,14 @@ class ExampleIdBatch(ItemBatch):
 
     def __iter__(self):
         assert len(self._example_ids) == len(self._event_times)
+        if self._version == VERSION.V2:
+            return iter(zip(
+                self._example_ids,
+                self._event_times,
+                self._id_types,
+                self._event_time_deeps,
+                self._click_ids
+            ))
         return iter(zip(self._example_ids, self._event_times))
 
 class ExampleIdBatchFetcher(ItemBatchSeqProcessor):
@@ -91,10 +110,10 @@ class ExampleIdBatchFetcher(ItemBatchSeqProcessor):
     def name(cls):
         return 'ExampleIdBatchFetcher'
 
-    def _make_item_batch(self, begin_index):
-        return ExampleIdBatch(self._partition_id, begin_index)
+    def _make_item_batch(self, begin_index, version=VERSION.V1):
+        return ExampleIdBatch(self._partition_id, begin_index, version)
 
-    def _make_inner_generator(self, next_index):
+    def _make_inner_generator(self, next_index, version=VERSION.V1):
         self._raw_data_visitor.active_visitor()
         if next_index == 0:
             self._raw_data_visitor.reset()
@@ -102,7 +121,7 @@ class ExampleIdBatchFetcher(ItemBatchSeqProcessor):
             self._raw_data_visitor.seek(next_index - 1)
         while not self._raw_data_visitor.finished() and \
                 not self._fly_item_full():
-            next_batch = self._make_item_batch(next_index)
+            next_batch = self._make_item_batch(next_index, version)
             for (index, item) in self._raw_data_visitor:
                 if index != next_index:
                     logging.fatal("index of raw data visitor for partition "\
@@ -115,7 +134,7 @@ class ExampleIdBatchFetcher(ItemBatchSeqProcessor):
                 if len(next_batch) > self._batch_size:
                     break
             yield next_batch, self._raw_data_visitor.finished()
-        yield self._make_item_batch(next_index), \
+        yield self._make_item_batch(next_index, version), \
                 self._raw_data_visitor.finished()
 
     def _get_metrics_tags(self):
