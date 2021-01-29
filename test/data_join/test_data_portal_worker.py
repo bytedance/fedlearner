@@ -45,6 +45,10 @@ class TestDataPortalWorker(unittest.TestCase):
                 # real_id = example_id.encode("utf-8")
                 event_time = 150000000 + random.randint(10000000, 20000000)
                 feat = {}
+                label = random.choice([1, 0])
+                if random.random() < 0.8:
+                    feat['label'] = tf.train.Feature(
+                        int64_list=tf.train.Int64List(value=[label]))
                 feat['example_id'] = tf.train.Feature(
                     bytes_list=tf.train.BytesList(value=[str(example_id).encode('utf-8')]))
                 feat['raw_id'] = tf.train.Feature(
@@ -73,7 +77,9 @@ class TestDataPortalWorker(unittest.TestCase):
             raw_data_options=dj_pb.RawDataOptions(
                 raw_data_iter="TF_RECORD",
                 read_ahead_size=1<<20,
-                read_batch_size=128
+                read_batch_size=128,
+                optional_fields=['label'],
+                sample_ratio=0.001
             ),
             writer_options=dj_pb.WriterOptions(
                 output_writer="TF_RECORD"

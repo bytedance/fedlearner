@@ -236,6 +236,8 @@ message RawDataOptions {
   // read batch size for tf record, <=0 means batch size == 1
   int64 read_batch_size = 4;
   repeated string optional_fields = 5;
+  // sample ratio for statistic and validation
+  float sample_ratio = 6;
 }
 
 message WriterOptions {

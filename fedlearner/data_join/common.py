@@ -21,6 +21,7 @@ import threading
 import time
 from contextlib import contextmanager
 from collections import OrderedDict
+from datetime import datetime
 
 from guppy import hpy
 
@@ -397,3 +398,43 @@ def interval_to_timestamp(itv):
         if item in unit_no:
             tmstmp += int(unit_no[item]) * multiple[i]
     return tmstmp
+
+
+def convert_to_iso_format(value):
+    """
+    Args:
+        value: bytes | str | int | float. Value to be converted. Expected to
+            be a numeric in the format of yyyymmdd or yyyymmddhhnnss.
+
+    Returns: str.
+    Try to convert a datetime str or numeric to iso format datetime str.
+        First try to convert based on the length of str. If it does not
+        match any datetime format supported, convert the value assuming it
+        is a timestamp. If the value is not a timestamp, return iso format
+        of timestamp=0.
+    """
+    assert isinstance(value, (bytes, str, int, float))
+    if isinstance(value, bytes):
+        value = value.decode()
+    elif isinstance(value, (int, float)):
+        value = str(value)
+    # first try to parse datetime from value
+    try:
+        if len(value) == 8:
+            iso = datetime.strptime(value, '%Y%m%d').isoformat()
+        elif len(value) == 14:
+            iso = datetime.strptime(value, '%Y%m%d%H%M%S').isoformat()
+        else:
+            raise ValueError
+        return iso
+    except ValueError:  # Not fitting any of above patterns
+        logging.info('OPTIONAL_STATS: event time %s not converted '
+                     'correctly.', value)
+        # then try to convert directly
+        try:
+            iso = datetime.fromtimestamp(float(value)).isoformat()
+        except ValueError:  # might be a non-number str
+            logging.info('OPTIONAL_STATS: unable to parse event time %s, '
+                         'defaults to 0.', value)
+            iso = datetime.fromtimestamp(0).isoformat()
+        return iso
