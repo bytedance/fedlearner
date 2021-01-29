@@ -151,10 +151,10 @@ class FakeK8sClient(K8sClient):
             )
         )
 
-    def get_custom_object(self, kind, custom_object_name: str,
+    def get_custom_object(self, crd_kind, custom_object_name: str,
                           namespace='default'):
         return {
-            'kind': kind.value,
+            'kind': crd_kind.value,
             'metadata': {
                 'name': custom_object_name,
                 'namesapce': namespace
@@ -186,17 +186,17 @@ class FakeK8sClient(K8sClient):
             }
         }
 
-    def delete_custom_object(self, kind, custom_object_name: str,
+    def delete_custom_object(self, crd_kind, custom_object_name: str,
                              namespace='default'):
         return {
-            'kind': kind.value,
+            'kind': crd_kind.value,
             'metadata': {
                 'name': custom_object_name,
                 'namesapce': namespace
             }
         }
 
-    def list_resource_of_custom_object(self, kind, custom_object_name: str,
+    def list_resource_of_custom_object(self, crd_kind, custom_object_name: str,
                                        resource_type: str, namespace='default'):
         return {
             'pods': {
