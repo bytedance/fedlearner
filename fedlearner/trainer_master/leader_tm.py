@@ -204,15 +204,20 @@ class LeaderTrainerMaster(object):
             import tensorflow as tf
             from fedlearner.data_join.data_block_visitor import DataBlockRep, decode_block_id
             root = os.environ.get("OVERRIDE_DATASOURCE", None)
+            logging.info('root %s', root)
             root = os.path.normpath(root)
             dsname = os.path.basename(root)
             block_root = os.path.join(root, 'data_block')
             data_block_reps = []
+            logging.info('block_root %s, dsname %s', block_root, dsname)
             for dirname, _, files in tf.io.gfile.walk(block_root):
+                logging.info('files:%s:%s', dirname, files)
                 for fname in files:
+                    
                     if not fname.endswith('.data'):
                         continue
                     block = DataBlockRep(dsname, fname, decode_block_id(fname[:-5])['partition_id'], dirname)
+                    logging.info('block id %s', block.block_id)
                     data_block_reps.append(block)
         else:
             data_block_reps = [
