@@ -205,7 +205,7 @@ class LeaderTrainerMaster(object):
             from fedlearner.data_join.data_block_visitor import DataBlockRep, decode_block_id
             root = os.environ.get("OVERRIDE_DATASOURCE", None)
             logging.info('root %s', root)
-            root = os.path.normpath(root)
+            # root = os.path.normpath(root)
             dsname = os.path.basename(root)
             block_root = os.path.join(root, 'data_block')
             data_block_reps = []
