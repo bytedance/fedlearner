@@ -199,8 +199,8 @@ class LeaderTrainerMaster(object):
         # pylint: disable=line-too-long
         logging.info("load_data, checkpoint: %s", checkpoint)
 
+        import os
         if os.environ.get("OVERRIDE_DATASOURCE", None):
-            import os
             import tensorflow as tf
             from fedlearner.data_join.data_block_visitor import DataBlockRep, decode_block_id
             root = os.environ.get("OVERRIDE_DATASOURCE", None)
