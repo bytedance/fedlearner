@@ -47,6 +47,7 @@ class LeaderTrainerMaster(object):
 
         kvstore_use_mock = os.environ.get('KVSTORE_USE_MOCK', "off") == "on"
         self._data_block_queue = DataBlockQueue()
+        self._data_source_name = data_source
         self._data_block_visitor = DataBlockVisitor(
             data_source, db_database, db_base_dir, db_addr,
                 db_username, db_password, kvstore_use_mock)
@@ -216,7 +217,7 @@ class LeaderTrainerMaster(object):
                     
                     if not fname.endswith('.data'):
                         continue
-                    block = DataBlockRep(dsname, fname, decode_block_id(fname[:-5])['partition_id'], dirname)
+                    block = DataBlockRep(self._data_source_name, fname, decode_block_id(fname[:-5])['partition_id'], dirname)
                     logging.info('block id %s', block.block_id)
                     data_block_reps.append(block)
         else:
