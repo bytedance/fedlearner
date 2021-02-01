@@ -89,7 +89,7 @@ if __name__ == "__main__":
     parser.add_argument('--negative_sampling_rate', type=float, default=0.1,
                         help="the rate of sampling when auto-generating "\
                         "negative example, in [0.0, 1.0)")
-    parser.add_argument('--join_expr', type=str,
+    parser.add_argument('--join_expr', type=str, default="example_id",
                         help="join expression for universal joiner")
     parser.add_argument('--join_key_mapping', type=str,
                         help="key mapping, format: name="\

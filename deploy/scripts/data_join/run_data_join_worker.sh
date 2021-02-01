@@ -47,7 +47,7 @@ join_key_mapping=$(normalize_env_to_args '--join_key_mapping' $JOIN_KEY_MAPPING)
 
 if [ -z "$join_key_mapping" ]; then
     IFS='=' mapper=$("$string")
-    pull_code ${mapper[1]} /app/fedlearner/data_join/join_expr/
+    pull_code ${mapper[1]} /app/fedlearner/data_join/key_mapper/
     join_key_mapping=${mapper[0]}
 fi
 

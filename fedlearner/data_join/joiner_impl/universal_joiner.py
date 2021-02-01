@@ -18,7 +18,6 @@ import logging
 import time
 
 from fedlearner.common import metrics
-#from fedlearner.data_join.common import interval_to_timestamp
 
 import fedlearner.data_join.common as common
 from fedlearner.data_join.joiner_impl.example_joiner import ExampleJoiner
@@ -26,7 +25,7 @@ from fedlearner.data_join.negative_example_generator \
         import NegativeExampleGenerator
 
 from fedlearner.data_join.join_expr import expression as expr
-from fedlearner.data_join.join_expr import _key_mapping as km
+from fedlearner.data_join.key_mapper import create_key_mapper
 
 def get_key_instance_by_attr(keys, item, mapped_item, tuple_idx=None):
     key_str_arr = []
@@ -297,7 +296,7 @@ class UniversalJoiner(ExampleJoiner):
         self._trigger = _Trigger(self._max_conversion_delay)
 
         self._expr = expr.JoinExpr(example_joiner_options.join_expr)
-        self._key_mapper = km.create_mapper(
+        self._key_mapper = create_key_mapper(
             example_joiner_options.join_key_mapping)
         self._joiner = _JoinerImpl(self._expr, self._key_mapper)
 

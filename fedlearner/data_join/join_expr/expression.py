@@ -1,4 +1,5 @@
 import string
+import pdb
 
 ALL_CHARS = string.ascii_letters+string.digits+'_'
 
@@ -10,7 +11,7 @@ class BaseFunction(object):
     def args_size(self):
         return self._arg_size
 
-    def __call__(self, show, conv, args: list[str]):
+    def __call__(self, show, conv, args):
         raise NotImplementedError
 
 class LTFuncDef(BaseFunction):
@@ -49,8 +50,13 @@ class Tuple(object):
             if isinstance(tok, FunctionDecl):
                 self._tokens.append(tok)
             else:
-                assert isinstance(tok, str), "Unknown type of %s"%tok
-                self._tokens.append(Token(tok))
+                #pdb.set_trace()
+                print(tok)
+                if isinstance(tok, str):
+                    self._tokens.append(Token(tok))
+                else:
+                    assert isinstance(tok, Token), "Unknown type of %s"%tok
+                    self._tokens.append(tok)
 
     def __str__(self):
         return "Tuple: " + ", ".join([it.__str__() for it in self._tokens])
@@ -131,6 +137,7 @@ class JoinExpr(object):
         return self._basic_block[tuple_idx].run_func()
 
     def add_ast(self, tuples):
+        #pdb.set_trace()
         if len(tuples) == 0:
             return
         if len(tuples) == 1:
@@ -139,13 +146,13 @@ class JoinExpr(object):
             func = None
             arg_sz = 0
             arg_reader = 0
-            cur_tuple = [str]
+            cur_tuple = []
             result = []
             for tup in tuples:
                 if tup in LINK_MAP:
                     result.extend(cur_tuple)
                     cur_tuple = []
-                    arg_sz = LINK_MAP[tup].arg_size
+                    arg_sz = LINK_MAP[tup].args_size
                     func = tup
                     arg_reader = 0
                 else:
@@ -159,7 +166,10 @@ class JoinExpr(object):
                 arg_reader += 1
 
             if len(cur_tuple) > 0:
-                result.extend(cur_tuple)
+                if func is not None:
+                    result.append(FunctionDecl(func, cur_tuple))
+                else:
+                    result.extend(cur_tuple)
             self._basic_block.append(Tuple(result))
 
     def _parse(self):
