@@ -11,13 +11,14 @@ import { MixinCommonTransition } from 'styles/mixins';
 const { Upload, BackendConfig } = CertificateConfigType;
 
 const UploadContainer = styled.div`
-  ${MixinCommonTransition(['max-height', 'opacity'])};
+  ${MixinCommonTransition(['max-height', 'opacity', 'padding-top'])};
   padding-top: 15px;
   max-height: 400px;
   will-change: max-height;
   overflow: hidden;
 
   &.is-hidden {
+    padding-top: 0;
     max-height: 0;
     opacity: 0;
   }

@@ -33,7 +33,7 @@ const project = {
   selft_domain: { zh: '本侧泛域名', en: 'Self domain name' },
   remarks: { zh: '说明备注', en: 'Remarks' },
   name_placeholder: { zh: '请填写项目名称（两侧必须相同）', en: 'Please enter name' },
-  participant_name_placeholder: { zh: '请填写合作伙伴名称', en: 'Please enter participant name' },
+  participant_name_placeholder: { zh: '请输入合作伙伴名称', en: 'Please enter participant name' },
 
   participant_domain_placeholder: { zh: '请填写泛域名', en: 'Please enter domain' },
   remarks_placeholder: { zh: '请填写说明备注', en: 'Please enter remarks' },
@@ -79,7 +79,7 @@ const project = {
 
   placeholder_domain_name: { zh: '泛域名间值' },
   placeholder_participant_url: {
-    zh: '合作伙伴 IPv4/v6 地址（包含端口）',
+    zh: 'IPv4/v6 地址（包含端口）',
     en: 'IP(v4 or v6) address with Port',
   },
 };

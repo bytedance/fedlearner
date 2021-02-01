@@ -1,4 +1,4 @@
-import React, { FC, useEffect, useRef, useState } from 'react';
+import React, { FC, useCallback, useLayoutEffect, useRef } from 'react';
 import styled from 'styled-components';
 import { Form, Input, Button, Row, Col } from 'antd';
 import { useTranslation } from 'react-i18next';
@@ -6,7 +6,7 @@ import { useToggle } from 'react-use';
 import { CaretDown, Delete, Plus } from 'components/IconPark';
 import { MixinCommonTransition } from 'styles/mixins';
 import { FormInstance } from 'antd/lib/form';
-import { convertToUnit, giveWeakRandomKey } from 'shared/helpers';
+import { convertToUnit } from 'shared/helpers';
 import { useSubscribe } from 'hooks';
 
 const Container = styled.div`
@@ -58,7 +58,7 @@ const ListContainer = styled.div`
   width: calc(var(--form-width, 500px) * 2);
   overflow: hidden;
 
-  &.is-folded {
+  &[data-folded='true'] {
     opacity: 0;
     overflow: hidden;
   }
@@ -72,8 +72,6 @@ export const VARIABLES_FIELD_NAME = 'variables';
 export const VARIABLES_ERROR_CHANNEL = 'project.field_variables_error';
 export const VARIABLES_CHANGE_CHANNEL = 'project.variables_change';
 
-type EnvVariable = { name: string; value: string };
-
 const EnvVariablesForm: FC<{
   layout: {
     labelCol: { span: number };
@@ -83,26 +81,38 @@ const EnvVariablesForm: FC<{
 }> = ({ layout }) => {
   const { t } = useTranslation();
   const [isFolded, toggleFolded] = useToggle(true);
-  const [seed, setSeed] = useState(giveWeakRandomKey());
-  const listDom = useRef<HTMLDivElement>();
-  const [listMaxHeight, setMaxHeight] = useState<number>(0);
+  const listInnerRef = useRef<HTMLDivElement>();
+  const listContainerRef = useRef<HTMLDivElement>();
 
   useSubscribe(VARIABLES_ERROR_CHANNEL, () => {
     toggleFolded(false);
-    // TODO: find a better way to implement next-tick
-    // Re calc max height at next-tick
-    setImmediate(() => {
-      setSeed(giveWeakRandomKey());
-    });
-  });
-  useSubscribe(VARIABLES_CHANGE_CHANNEL, () => {
-    // When variables change, re-set a random seed to trigger re-setMaxHeight effect below!
-    setSeed(giveWeakRandomKey());
   });
 
-  useEffect(() => {
-    setMaxHeight((listDom.current?.offsetHeight || 0) + 30);
-  }, [seed, listDom, isFolded]);
+  const setListContainerMaxHeight = useCallback(
+    (nextHeight: any) => {
+      listContainerRef.current!.style.maxHeight = convertToUnit(nextHeight);
+    },
+    [listContainerRef],
+  );
+  const getListInnerHeight = useCallback(() => {
+    return listInnerRef.current!.offsetHeight!;
+  }, [listInnerRef]);
+
+  useLayoutEffect(() => {
+    const innerHeight = getListInnerHeight() + 30;
+
+    if (isFolded) {
+      setListContainerMaxHeight(innerHeight);
+      // Q: Why read inner's height one time before set maxHeight to 0 for folding
+      // A: Since we set maxHeight to 'initial' everytime unfold-transition ended, it's important
+      // to re-set maxHeight to innerHeight before folding, we need a ${specific value} → 0 transition
+      // not the `initial` → 0 in which case animation would lost
+      getListInnerHeight();
+      setListContainerMaxHeight(0);
+    } else {
+      setListContainerMaxHeight(innerHeight);
+    }
+  }, [isFolded, getListInnerHeight, setListContainerMaxHeight]);
 
   return (
     <Container>
@@ -120,14 +130,13 @@ const EnvVariablesForm: FC<{
       </Header>
 
       <ListContainer
-        className={isFolded ? 'is-folded' : ''}
-        style={{
-          maxHeight: convertToUnit(isFolded ? 0 : listMaxHeight),
-        }}
+        ref={listContainerRef as any}
+        data-folded={String(isFolded)}
+        onTransitionEnd={onFoldAnimationEnd}
       >
         <Form.List name={VARIABLES_FIELD_NAME}>
           {(fields, { add, remove }) => (
-            <div ref={listDom as any}>
+            <div ref={listInnerRef as any}>
               {fields.map((field, index) => (
                 <Row key={field.fieldKey + index} align="top" style={{ position: 'relative' }}>
                   <Form.Item
@@ -163,10 +172,11 @@ const EnvVariablesForm: FC<{
                   />
                 </Row>
               ))}
-
+              {/* Empty placeholder */}
               {fields.length === 0 && (
                 <NoVariable wrapperCol={{ offset: 4 }}>{t('project.msg_no_var_yet')}</NoVariable>
               )}
+
               <Form.Item wrapperCol={{ offset: 4 }}>
                 {/* DO NOT simplify `() => add()` to `add`, it will pollute form value with $event */}
                 <AddButton type="primary" size="small" icon={<Plus />} onClick={() => add()}>
@@ -179,6 +189,14 @@ const EnvVariablesForm: FC<{
       </ListContainer>
     </Container>
   );
+
+  function onFoldAnimationEnd(_: React.TransitionEvent) {
+    if (!isFolded) {
+      // Because of user can adjust list inner's height by resize value-textarea or add/remove variable
+      // we MUST set container's maxHeight to 'initial' after unfolded (after which user can interact)
+      listContainerRef.current!.style.maxHeight = 'initial';
+    }
+  }
 };
 
 export default EnvVariablesForm;

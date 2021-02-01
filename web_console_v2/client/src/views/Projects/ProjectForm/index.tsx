@@ -20,7 +20,7 @@ import { useHistory } from 'react-router-dom';
 import GridRow from 'components/_base/GridRow';
 import i18n from 'i18n';
 import { useReloadProjectList } from 'hooks/project';
-import IPPortRegx from 'ip-port-regex';
+import ip from 'ip-port-regex';
 import Certificate from './Certificate';
 import { wrapWithDomainName } from 'shared/project';
 import { Z_INDEX_GREATER_THAN_HEADER } from 'components/Header';
@@ -164,7 +164,7 @@ const ProjectForm: FC<Props> = ({ onSubmit, isEdit, initialValues }) => {
               { required: true, message: t('project.participant_url_message') },
               {
                 validator(_, value) {
-                  if (IPPortRegx({ exact: true }).test(value)) {
+                  if (ip({ exact: true }).test(value)) {
                     return Promise.resolve();
                   } else {
                     return Promise.reject(t('project.msg_ip_addr_invalid'));
