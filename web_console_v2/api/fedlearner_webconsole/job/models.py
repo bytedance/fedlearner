@@ -109,8 +109,9 @@ class Job(db.Model):
                     self.project.get_namespace())
                 return flapp
             except RuntimeError as e:
-                logging.error('Get %d flapp error msg: %s'
-                              , self.id, e.args)
+                logging.error('Get %d flapp error msg: %s',
+                              self.id,
+                              e.args)
                 return None
         if self.flapp_snapshot is not None:
             return json.loads(self.flapp_snapshot)
