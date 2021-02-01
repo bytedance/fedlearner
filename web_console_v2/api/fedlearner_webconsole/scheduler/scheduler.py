@@ -191,7 +191,7 @@ class Scheduler(object):
                            project=project,
                            system=system_dict)
         yaml = json.loads(yaml)
-        k8s_client.create_custom_object(CrdKind.FLAPP, yaml)
+        k8s_client.create_or_replace_custom_object(CrdKind.FLAPP, yaml)
         job.start()
         db.session.commit()
 
