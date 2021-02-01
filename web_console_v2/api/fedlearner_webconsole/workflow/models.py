@@ -312,8 +312,14 @@ class Workflow(db.Model):
 
         if self.target_state == WorkflowState.STOPPED:
             self.stop_at = int(datetime.utcnow().timestamp())
-            for job in self.owned_jobs:
-                job.stop()
+            try:
+                for job in self.owned_jobs:
+                    job.stop()
+            except RuntimeError as e:
+                # errors from k8s
+                logging.error('Stop workflow %d has Runtime error msg: %s'
+                              , self.id, e.args)
+                return
         elif self.target_state == WorkflowState.READY:
             self._setup_jobs()
             self.fork_proposal_config = None

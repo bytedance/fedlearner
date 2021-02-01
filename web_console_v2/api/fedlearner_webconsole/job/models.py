@@ -13,6 +13,7 @@
 # limitations under the License.
 
 # coding: utf-8
+import logging
 import enum
 import json
 from sqlalchemy.sql import func
@@ -102,19 +103,17 @@ class Job(db.Model):
 
     def get_flapp(self):
         if self.state == JobState.STARTED:
-            return self._k8s_client.list_resource_of_custom_object(
-                CrdKind.FLAPP, self.name, 'pods',
-                self.project.get_namespace())
+            try:
+                flapp = self._k8s_client.list_resource_of_custom_object(
+                    CrdKind.FLAPP, self.name, 'pods',
+                    self.project.get_namespace())
+                return flapp
+            except RuntimeError as e:
+                logging.error('Get %d flapp error msg: %s'
+                              , self.id, e.args)
+                return None
         if self.flapp_snapshot is not None:
             return json.loads(self.flapp_snapshot)
-        return None
-
-    def get_pods(self):
-        if self.state == JobState.STARTED:
-            return self._k8s_client.list_resource_of_custom_object(
-            CrdKind.FLAPP, self.name, 'pods', self.project.get_namespace())
-        if self.pods_snapshot is not None:
-            return json.loads(self.pods_snapshot)
         return None
 
     def get_pods_for_front(self):

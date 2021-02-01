@@ -191,7 +191,12 @@ class Scheduler(object):
                            project=project,
                            system=system_dict)
         yaml = json.loads(yaml)
-        k8s_client.create_custom_object(CrdKind.FLAPP, yaml)
+        try:
+            k8s_client.create_custom_object(CrdKind.FLAPP, yaml)
+        except RuntimeError as e:
+            logging.error('Start job %d has Runtime error msg: %s'
+                          , job_id, e.args)
+            return job.state
         job.start()
         db.session.commit()
 
