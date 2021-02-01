@@ -43,17 +43,14 @@ class StepMetricsHook(tf.estimator.SessionRunHook):
         self._iter += 1
         if self._iter % self._every_n_iter == 0:
             for name, value in run_value.results.items():
-                metrics.emit_store(name=name,
-                                   value=value,
-                                   tags={})
+                metrics.emit_store(name=name, value=value, tags={})
 
 
 class StepLossAucMetricsHook(StepMetricsHook):
     def __init__(self, loss_tensor, auc_tensor, every_n_iter=5):
-        tensor_dict = {"loss": loss_tensor,
-                       "auc": auc_tensor}
-        super(StepLossAucMetricsHook, self).__init__(tensor_dict,
-                                                     every_n_iter)
+        tensor_dict = {"loss": loss_tensor, "auc": auc_tensor}
+        super(StepLossAucMetricsHook, self).__init__(tensor_dict, every_n_iter)
+
 
 def create_argument_parser():
     parser = argparse.ArgumentParser(description='FedLearner Trainer.')
@@ -117,6 +114,10 @@ def create_argument_parser():
                         type=str,
                         default='train',
                         help='Train or eval.')
+    parser.add_argument('--epoch_num',
+                        type=int,
+                        default=1,
+                        help='number of epoch for training')
     parser.add_argument('--save-checkpoint-secs',
                         type=int,
                         default=None,
@@ -156,7 +157,9 @@ def train(role, args, input_fn, model_fn, serving_input_receiver_fn):
                         args.peer_addr)
 
     if args.data_path:
-        trainer_master = LocalTrainerMasterClient(role, args.data_path)
+        trainer_master = LocalTrainerMasterClient(role,
+                                                  args.data_path,
+                                                  epoch_num=args.epoch_num)
         if args.ps_addrs is not None:
             ps_addrs = args.ps_addrs.split(",")
             cluster_spec = tf.train.ClusterSpec({
@@ -207,7 +210,8 @@ def train(role, args, input_fn, model_fn, serving_input_receiver_fn):
         trainer_master = LocalTrainerMasterClient(role,
                                                   args.data_source,
                                                   start_time=args.start_time,
-                                                  end_time=args.end_time)
+                                                  end_time=args.end_time,
+                                                  epoch_num=args.epoch_num)
         cluster_spec = None
     else:
         raise ValueError("Either --master-addr or --data-path must be set")
@@ -243,13 +247,12 @@ def train(role, args, input_fn, model_fn, serving_input_receiver_fn):
                         save_checkpoint_steps=args.save_checkpoint_steps,
                         save_checkpoint_secs=args.save_checkpoint_secs)
         if args.export_path and args.worker_rank == 0:
-            export_path = '%s/%d'%(
-                args.export_path, bridge.terminated_at)
+            export_path = '%s/%d' % (args.export_path, bridge.terminated_at)
             estimator.export_saved_model(export_path,
                                          serving_input_receiver_fn,
                                          checkpoint_path=args.checkpoint_path)
-            fsuccess = tf.io.gfile.GFile('%s/_SUCCESS'%export_path, 'w')
-            fsuccess.write('%d'%bridge.terminated_at)
+            fsuccess = tf.io.gfile.GFile('%s/_SUCCESS' % export_path, 'w')
+            fsuccess.write('%d' % bridge.terminated_at)
             fsuccess.close()
 
     elif run_mode == 'eval':

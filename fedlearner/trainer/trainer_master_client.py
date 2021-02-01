@@ -45,7 +45,8 @@ class LocalTrainerMasterClient(object):
                  start_time=None,
                  end_time=None,
                  from_data_source=False,
-                 skip_datablock_checkpoint=False):
+                 skip_datablock_checkpoint=False,
+                 epoch_num=1):
         self._role = role
         self._path = path
         self._block_queue = []
@@ -73,29 +74,18 @@ class LocalTrainerMasterClient(object):
                         files.append(os.path.join(subdirname, filename))
             files.sort()
 
-            block_map = {}
+            # Hack way for supporting multiple epochs
+            blocks = []
             for filename in files:
                 block_id, _ = os.path.splitext(os.path.basename(filename))
-                assert block_id not in block_map, \
-                    "Duplicate file names: %s and %s"%(
-                        filename, block_map[block_id])
-                block_map[block_id] = filename
                 fullname = os.path.join(path, filename)
                 block = DataBlockInfo(block_id, fullname)
-                self._block_map[block_id] = block
-
-            if os.environ.get('EPOCH_NUM') is None:
-                epoch_num = 1
-            else:
-                epoch_num = int(os.environ.get('EPOCH_NUM'))
-
+                blocks.append(block)
+            self._block_map = {block.block_id: block for block in blocks}
             for rnd in range(epoch_num):
-                for filename in files:
-                    block_id, _ = os.path.splitext(os.path.basename(filename))
-                    fullname = os.path.join(path, filename)
-                    block = DataBlockInfo(block_id, fullname)
+                for block in blocks:
                     self._block_queue.append(block)
-                    
+
         self._status = tm_pb.MasterStatus.INITIALING
         if skip_datablock_checkpoint:
             self._status = tm_pb.MasterStatus.RUNNING
@@ -112,24 +102,27 @@ class LocalTrainerMasterClient(object):
             assert block_id is None, "Must not set block_id for leader"
             while self._block_queue:
                 ret = self._block_queue.pop(0)
-                logging.debug('Fetch data block %s, ckpt is %s',
-                              ret, ",".join(self._allocated_data_blockids))
-                if ret.block_id not in self._allocated_data_blockids:
-                    self._allocated_data_blockids.add(ret.block_id)
-                    logging.info('Fetch data block %s done', ret)
-                    return ret
+                logging.debug('Fetch data block %s, ckpt is %s', ret,
+                              ",".join(self._allocated_data_blockids))
+                #if ret.block_id not in self._allocated_data_blockids:
+                self._allocated_data_blockids.add(ret.block_id)
+                logging.info('Fetch data block %s done', ret)
+                return ret
             return None
 
         assert block_id, "Must set block_id for follower"
         if block_id not in self._block_map:
             return None
         return self._block_map[block_id]
+
     def get_data_block_checkpoint(self, appid):
         if self._status != tm_pb.MasterStatus.RUNNING:
-            logging.warning("invalid status when "
-                    "getting data block ckpt %s", self._status)
+            logging.warning(
+                "invalid status when "
+                "getting data block ckpt %s", self._status)
             return []
         return list(self._allocated_data_blockids)
+
     def restore_data_block_checkpoint(self, appid, block_ids):
         if self._status != tm_pb.MasterStatus.INITIALING:
             logging.warning("invalid status when restoring data block ckpt")
@@ -167,7 +160,6 @@ class TrainerMasterClient(object):
                            result.status.code,
                            result.status.error_message)
             return []
-
 
     def restore_data_block_checkpoint(self, appid, block_ids):
         req = tm_pb.RestoreDataBlockCheckpointRequest()
