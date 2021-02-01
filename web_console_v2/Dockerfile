@@ -4,7 +4,7 @@ RUN apt-get update && apt install -y curl
 # For nodejs PA
 RUN curl -sL https://deb.nodesource.com/setup_14.x | bash
 # Install dependencies
-RUN apt-get install -y make nodejs nginx supervisor
+RUN apt-get install -y make nodejs nginx
 
 WORKDIR /app
 # Copies all source code
@@ -30,5 +30,5 @@ EXPOSE 1989
 # This should not be exposed in PROD
 EXPOSE 1990
 
-WORKDIR /app
-CMD /usr/bin/supervisord -c supervisord.conf
+WORKDIR /app/api
+CMD sh run_prod.sh
