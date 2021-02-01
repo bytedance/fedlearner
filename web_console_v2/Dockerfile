@@ -21,7 +21,6 @@ RUN pip3 install -r requirements.txt
 RUN make protobuf
 
 # Nginx configuration
-RUN echo "daemon off;" >> /etc/nginx/nginx.conf
 COPY nginx.conf /etc/nginx/conf.d/nginx.conf
 
 # Port for webconsole http server
@@ -30,5 +29,5 @@ EXPOSE 1989
 # This should not be exposed in PROD
 EXPOSE 1990
 
-WORKDIR /app/api
+WORKDIR /app
 CMD sh run_prod.sh
