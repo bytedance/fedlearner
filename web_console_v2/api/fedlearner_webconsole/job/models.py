@@ -104,9 +104,8 @@ class Job(db.Model):
     def get_flapp(self):
         if self.state == JobState.STARTED:
             try:
-                flapp = self._k8s_client.list_resource_of_custom_object(
-                    CrdKind.FLAPP, self.name, 'pods',
-                    self.project.get_namespace())
+                flapp = self._k8s_client.get_custom_object(
+                    CrdKind.FLAPP, self.name, self.project.get_namespace())
                 return flapp
             except RuntimeError as e:
                 logging.error('Get %d flapp error msg: %s',
