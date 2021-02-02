@@ -23,6 +23,9 @@ from pathlib import Path
 from typing import List
 
 from snakebite.client import AutoConfigClient
+from tensorflow.io import gfile
+
+from fedlearner_webconsole import envs
 
 File = namedtuple('File', ['path', 'size'])
 
@@ -126,6 +129,18 @@ class DefaultFileManager(FileManagerBase):
         return False
 
 
+_hdfs_client = None
+
+
+def build_hdfs_client():
+    # pylint: disable=global-statement
+    global _hdfs_client
+    _hdfs_client = AutoConfigClient()
+    # To warm up the connection to the namenode
+    # Otherwise it may take 3+ minutes at the first time
+    _hdfs_client.df()
+
+
 class HdfsFileManager(FileManagerBase):
     """A wrapper of snakebite client."""
 
@@ -133,28 +148,56 @@ class HdfsFileManager(FileManagerBase):
         return path.startswith('hdfs://')
 
     def __init__(self):
-        self._client = AutoConfigClient()
+        assert _hdfs_client is not None, \
+            'HDFS client should be initialized'
+        self._client = _hdfs_client
+
+    def _unwrap_path(self, path):
+        if path.startswith('hdfs://'):
+            return path[7:]
+        return path
+
+    def _wrap_path(self, path):
+        if not path.startswith('hdfs://'):
+            return f'hdfs://{path}'
+        return path
 
     def ls(self, path: str, recursive=False) -> List[File]:
+        path = self._unwrap_path(path)
         files = []
-        for file in self._client.ls([path], recurse=recursive):
-            if file['file_type'] == 'f':
-                files.append(File(
-                    path=file['path'],
-                    size=file['length']))
+        try:
+            for file in self._client.ls([path], recurse=recursive):
+                if file['file_type'] == 'f':
+                    files.append(File(
+                        path=self._wrap_path(file['path']),
+                        size=file['length']))
+        except RuntimeError as error:
+            # This is a hack that snakebite can not handle generator
+            if str(error) == 'generator raised StopIteration':
+                pass
+            else:
+                raise
         return files
 
     def move(self, source: str, destination: str) -> bool:
+        source = self._unwrap_path(source)
+        destination = self._unwrap_path(destination)
         return len(list(self._client.rename([source], destination))) > 0
 
     def remove(self, path: str) -> bool:
+        path = self._unwrap_path(path)
         return len(list(self._client.delete([path]))) > 0
 
     def copy(self, source: str, destination: str) -> bool:
-        # TODO
-        raise NotImplementedError()
+        try:
+            gfile.copy(source, destination)
+            return True
+        except Exception as e:  # pylint: disable=broad-except
+            logging.error('Error during copy %s', e)
+        return False
 
     def mkdir(self, path: str) -> bool:
+        path = self._unwrap_path(path)
         return next(self._client.mkdir([path], create_parent=True))\
             .get('result')
 
@@ -174,6 +217,8 @@ class FileManager(FileManagerBase):
             # Dynamically construct a file manager
             customized_file_manager = getattr(module, class_name)
             self._file_managers.append(customized_file_manager())
+        if envs.SUPPORT_HDFS:
+            self._file_managers.append(HdfsFileManager())
         self._file_managers.append(DefaultFileManager())
 
     def can_handle(self, path):

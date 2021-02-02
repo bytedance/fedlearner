@@ -25,6 +25,9 @@ from flask_migrate import Migrate
 from flask_restful import Api
 from flask_jwt_extended import JWTManager
 
+from fedlearner_webconsole import envs
+from fedlearner_webconsole.utils.file_manager import build_hdfs_client
+
 migrate = Migrate()
 jwt = JWTManager()
 
@@ -135,3 +138,7 @@ def create_app(config):
         scheduler.start(app)
 
     return app
+
+
+if envs.SUPPORT_HDFS:
+    build_hdfs_client()
