@@ -219,8 +219,8 @@ class FakeK8sClient(K8sClient):
             ]
         }
 
-    def create_custom_object(self, crd_kind, json_object,
-                             namespace='default'):
+    def create_or_replace_custom_object(self, crd_kind, json_object,
+                                        namespace='default'):
         return json_object
 
     def get_webshell_session(self, flapp_name, container_name: str,
