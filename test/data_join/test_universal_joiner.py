@@ -38,7 +38,7 @@ from fedlearner.data_join import (
 from fedlearner.data_join.data_block_manager import DataBlockBuilder
 from fedlearner.data_join.raw_data_iter_impl.tf_record_iter import TfExampleItem
 
-from test.common import datasource_producer as dsp 
+import datasource_producer as dsp
 
 import pdb
 
