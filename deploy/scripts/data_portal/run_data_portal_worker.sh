@@ -33,11 +33,15 @@ builder_compressed_type=$(normalize_env_to_args "--builder_compressed_type" $BUI
 batch_size=$(normalize_env_to_args "--batch_size" $BATCH_SIZE)
 kvstore_type=$(normalize_env_to_args '--kvstore_type' $KVSTORE_TYPE)
 memory_limit_ratio=$(normalize_env_to_args '--memory_limit_ratio' $MEMORY_LIMIT_RATIO)
+optional_fields=$(normalize_env_to_args '--optional_fields' $OPTIONAL_FIELDS)
+input_data_stat_sample_ratio=$(normalize_env_to_args '--input_data_stat_sample_ratio' $INPUT_DATA_STAT_SAMPLE_RATIO)
+
 
 python -m fedlearner.data_join.cmd.data_portal_worker_cli \
   --rank_id=$INDEX \
   --master_addr=$MASTER_POD_NAMES \
   $input_data_file_iter $compressed_type $read_ahead_size $read_batch_size \
   $output_builder $builder_compressed_type \
-  $batch_size $kvstore_type $memory_limit_ratio
+  $batch_size $kvstore_type $memory_limit_ratio \
+  $optional_fields $input_data_stat_sample_ratio
 
