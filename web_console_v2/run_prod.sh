@@ -6,4 +6,4 @@ service nginx restart
 
 # Starts API server
 cd /app/api
-sh run_prod.sh
+sh run_prod.sh --migrate
