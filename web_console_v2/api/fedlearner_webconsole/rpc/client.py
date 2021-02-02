@@ -78,7 +78,8 @@ class RpcClient(object):
                               response.status.msg)
             return response.status
         except Exception as e:
-            logging.debug('check_connection request error: %s', repr(e))
+            logging.error('check_connection request error: %s',
+                          repr(e))
             return common_pb2.Status(
                 code=common_pb2.STATUS_UNKNOWN_ERROR,
                 msg=repr(e))
@@ -100,7 +101,8 @@ class RpcClient(object):
                     response.status.msg)
             return response
         except Exception as e:
-            logging.error('update_workflow_state request error: %s', repr(e))
+            logging.error('workflow %s update_workflow_state request error: %s'
+                          , name, repr(e))
             return service_pb2.UpdateWorkflowStateResponse(
                 status=common_pb2.Status(
                     code=common_pb2.STATUS_UNKNOWN_ERROR,
@@ -115,11 +117,14 @@ class RpcClient(object):
                 request=msg, metadata=self._get_metadata())
             if response.status.code != common_pb2.STATUS_SUCCESS:
                 logging.error(
-                    'get_workflow request error: %s',
+                    'workflow %s get_workflow request error: %s',
+                    name,
                     response.status.msg)
             return response
         except Exception as e:
-            logging.error('get_workflow request error: %s', repr(e))
+            logging.error('workflow %s get_workflow request error: %s',
+                          name,
+                          repr(e))
             return service_pb2.GetWorkflowResponse(
                 status=common_pb2.Status(
                     code=common_pb2.STATUS_UNKNOWN_ERROR,
