@@ -32,6 +32,7 @@ from fedlearner.data_join.output_writer_impl import create_output_writer
 from fedlearner.data_join.item_batch_seq_processor import \
         ItemBatch, ItemBatchSeqProcessor
 from fedlearner.data_join.routine_worker import RoutineWorker
+from fedlearner.data_join.raw_data_iter_impl.metric_stats import MetricStats
 from fedlearner.data_join.raw_data_visitor import FileBasedMockRawDataVisitor
 from fedlearner.data_join import common
 
@@ -71,6 +72,12 @@ class RawDataBatchFetcher(ItemBatchSeqProcessor):
                 options.input_file_paths
             )
         self._batch_size = options.batch_processor_options.batch_size
+        self._metrics_tags = {
+            'partition_name': options.partitioner_name,
+            'partition': options.partitioner_rank_id
+        }
+        self._metric_stats = MetricStats(options.raw_data_options,
+                                         self._metrics_tags)
         self.set_input_finished()
 
     @classmethod
@@ -95,6 +102,7 @@ class RawDataBatchFetcher(ItemBatchSeqProcessor):
                                   "%d != %d", index, next_index)
                     traceback.print_stack()
                     os._exit(-1) # pylint: disable=protected-access
+                self._metric_stats.emit_metric(item)
                 next_batch.append(item)
                 next_index += 1
                 if len(next_batch) >= self._batch_size:
