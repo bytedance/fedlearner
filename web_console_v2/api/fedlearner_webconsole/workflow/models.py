@@ -384,6 +384,7 @@ class Workflow(db.Model):
         self.set_job_ids([job.id for job in jobs])
 
 
+
     def log_states(self):
         logging.debug(
             'workflow %d updated to state=%s, target_state=%s, '
