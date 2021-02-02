@@ -1,5 +1,5 @@
 import string
-import pdb
+#import pdb
 
 ALL_CHARS = string.ascii_letters+string.digits+'_'
 
@@ -16,9 +16,10 @@ class BaseFunction(object):
 
 class LTFuncDef(BaseFunction):
     def __init__(self):
-        super(LTFuncDef, self).__init__(2)
+        super(LTFuncDef, self).__init__(1)
 
     def __call__(self, show, conv, args):
+        #pdb.set_trace()
         assert all([hasattr(conv, att) for att in args]), "Arg missed"
         assert all([hasattr(show, att) for att in args]), "Arg missed"
         show_event_time = getattr(show, args[0])
@@ -43,6 +44,9 @@ class Token(object):
     def name(self):
         return self._tok
 
+    def has_func(self):
+        return False
+
 class Tuple(object):
     def __init__(self, tuples):
         self._tokens = []
@@ -50,8 +54,6 @@ class Tuple(object):
             if isinstance(tok, FunctionDecl):
                 self._tokens.append(tok)
             else:
-                #pdb.set_trace()
-                print(tok)
                 if isinstance(tok, str):
                     self._tokens.append(Token(tok))
                 else:
@@ -72,12 +74,9 @@ class Tuple(object):
         return any(isinstance(item, FunctionDecl) for item in self._tokens)
 
     def run_func(self):
-        """
-            返回一个函数
-        """
-        assert self.has_func(), "No func declared"
+        """ return all the function we have."""
         def run(show, conv):
-            return all([LINK_MAP[f.name](show, conv) \
+            return all([LINK_MAP[f.name](show, conv, f.args(True)) \
                         for f in self._tokens if isinstance(f, FunctionDecl)])
         return run
 
@@ -88,6 +87,8 @@ class Tuple(object):
 class FunctionDecl(object):
     def __init__(self, func_name, args):
         self._func_name = func_name
+        assert all(isinstance(arg, str) for arg in args), \
+                "Arguments can only be str"
         self._args = [Token(arg) for arg in args]
 
     def __str__(self):
@@ -100,8 +101,9 @@ class FunctionDecl(object):
     def arg(self, i):
         return self._args[i]
 
-    @property
-    def args(self):
+    def args(self, by_str=False):
+        if by_str:
+            return [f.key() for f in self._args]
         return self._args
 
     @property
@@ -119,7 +121,6 @@ class JoinExpr(object):
         return self._basic_block[i]
 
     def __str__(self):
-        #print(self._basic_block)
         expr_str = "AST of [%s]:\n"%(self._expr_str)
         sep = "\n"
         for tok in self._basic_block:
@@ -131,13 +132,16 @@ class JoinExpr(object):
         return expr_str
 
     def keys(self):
-        return [bb.key() for bb in self._basic_block]
+        return [bb.key() for bb in self._basic_block if len(bb.key()) > 0]
+
 
     def run_func(self, tuple_idx):
+        item = self._basic_block[tuple_idx]
+        if not item.has_func():
+            return lambda x, y: True
         return self._basic_block[tuple_idx].run_func()
 
     def add_ast(self, tuples):
-        #pdb.set_trace()
         if len(tuples) == 0:
             return
         if len(tuples) == 1:
@@ -159,7 +163,6 @@ class JoinExpr(object):
                     assert tup not in LINK_MAP, "Invalid expression"
                     cur_tuple.append(tup)
                 if arg_reader >= arg_sz > 0 and func is not None:
-                    #pdb.set_trace()
                     result.append(FunctionDecl(func, cur_tuple))
                     func = None
                     cur_tuple = []

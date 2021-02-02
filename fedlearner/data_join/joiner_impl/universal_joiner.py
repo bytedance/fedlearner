@@ -30,11 +30,13 @@ from fedlearner.data_join.key_mapper import create_key_mapper
 def get_key_instance_by_attr(keys, item, mapped_item, tuple_idx=None):
     key_str_arr = []
     for idx, key in enumerate(keys):
+        #pdb.set_trace()
         key_arr = key
         if isinstance(key, str):
             key_arr = [key]
         if all([hasattr(item, att) or (att in mapped_item) for att in key_arr]):
-            tuple_idx.append(idx)
+            if tuple_idx is not None:
+                tuple_idx.append(idx)
             key_str_arr.append("_".join(
                 ["%s:%s"%(name, getattr(item, name)) for name in key_arr]))
     return key_str_arr
@@ -58,6 +60,7 @@ class _JoinerImpl(object):
         show_mismatches = {}
         # keys example: [(req_id, cid), click_id]
         keys = self._expr.keys()
+        #pdb.set_trace()
         conv_dict = conv_window.as_dict(keys, self._mapper.follower_mapping)
         idx = 0
         while idx < show_window.size():
@@ -68,17 +71,18 @@ class _JoinerImpl(object):
             key_str_arr = get_key_instance_by_attr(
                 keys, show, mapped_item, tuple_idx)
             found = False
-            for idx, k in enumerate(key_str_arr):
+            for ki, k in enumerate(key_str_arr):
                 if k not in conv_dict:
                     continue
                 cd = conv_dict[k]
-                tuple_idx = tuple_idx[idx]
+                tuple_idx = tuple_idx[ki]
                 for i in reversed(range(len(cd))):
                     #A show can match multiple conversion event, add
                     # all the matched conversion-show pair to result
                     conv = conv_window[cd[i]][1]
                     #2. select all the matching items from the specific key
                     # in follower side.
+                    #pdb.set_trace()
                     if self._expr.run_func(tuple_idx)(show, conv):
                         show_matches.append((cd[i], idx))
                 found = True
@@ -297,7 +301,7 @@ class UniversalJoiner(ExampleJoiner):
 
         self._expr = expr.JoinExpr(example_joiner_options.join_expr)
         self._key_mapper = create_key_mapper(
-            example_joiner_options.join_key_mapping)
+            example_joiner_options.join_key_mapper)
         self._joiner = _JoinerImpl(self._expr, self._key_mapper)
 
         self._enable_negative_example_generator = \
@@ -333,6 +337,7 @@ class UniversalJoiner(ExampleJoiner):
                         raw_data_finished, self._leader_join_window.size(),    \
                         self._follower_join_window.size())
 
+            #pdb.set_trace()
             watermark = self._trigger.watermark()
             #1. find all the matched pairs in current window
             raw_pairs, mismatches = self._joiner.join(
@@ -484,6 +489,7 @@ class UniversalJoiner(ExampleJoiner):
                     builder = self._get_data_block_builder(True)
                     assert builder is not None, "data block builder must be "\
                                                 "not None if before dummping"
+                    # example:  (li, fi, item)
                     builder.append_item(example[0], example[1],
                                         example[2], None, True)
                     if builder.check_data_block_full():

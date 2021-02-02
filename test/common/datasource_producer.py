@@ -38,24 +38,25 @@ from fedlearner.data_join import (
 from fedlearner.data_join.data_block_manager import DataBlockBuilder
 from fedlearner.data_join.raw_data_iter_impl.tf_record_iter import TfExampleItem
 
-class TestAttributionJoin(unittest.TestCase):
-    def setUp(self):
+class DataSourceProducer(unittest.TestCase):
+    def init(self, dsname, joiner_name):
         data_source = common_pb.DataSource()
-        data_source.data_source_meta.name = "milestone-f"
+        data_source.data_source_meta.name = dsname
         data_source.data_source_meta.partition_num = 1
-        data_source.output_base_dir = "./ds_output"
-        self.raw_data_dir = "./raw_data"
+        data_source.output_base_dir = "%s_ds_output" % dsname
+        self.raw_data_dir = "%s_raw_data" % dsname
         self.data_source = data_source
         self.raw_data_options = dj_pb.RawDataOptions(
                 raw_data_iter='TF_RECORD',
-                compressed_type=''
+                compressed_type='',
+                #optional_fields = [], #FIXME
             )
         self.example_id_dump_options = dj_pb.ExampleIdDumpOptions(
                 example_id_dump_interval=1,
                 example_id_dump_threshold=1024
             )
         self.example_joiner_options = dj_pb.ExampleJoinerOptions(
-                example_joiner='ATTRIBUTION_JOINER',
+                example_joiner=joiner_name,
                 min_matching_window=32,
                 max_matching_window=51200,
                 max_conversion_delay=interval_to_timestamp("124"),
@@ -63,6 +64,8 @@ class TestAttributionJoin(unittest.TestCase):
                 data_block_dump_interval=32,
                 data_block_dump_threshold=128,
                 negative_sampling_rate=0.8,
+                join_expr="example_id",
+                join_key_mapper="DEFAULT",
             )
         if gfile.Exists(self.data_source.output_base_dir):
             gfile.DeleteRecursively(self.data_source.output_base_dir)
@@ -198,73 +201,9 @@ class TestAttributionJoin(unittest.TestCase):
         with dumper.make_example_id_dumper() as eid:
             eid()
 
-    def test_example_joiner(self):
-        sei = joiner_impl.create_example_joiner(
-                self.example_joiner_options,
-                self.raw_data_options,
-                dj_pb.WriterOptions(output_writer='TF_RECORD'),
-                self.kvstore, self.data_source, 0
-            )
-        metas = []
-        with sei.make_example_joiner() as joiner:
-            for meta in joiner:
-                metas.append(meta)
-        self.assertEqual(len(metas), 0)
-        self.generate_raw_data(0, 2 * 2048)
-        dumper = example_id_dumper.ExampleIdDumperManager(
-                self.kvstore, self.data_source, 0, self.example_id_dump_options
-            )
-        self.generate_example_id(dumper, 0, 3 * 2048)
-        with sei.make_example_joiner() as joiner:
-            for meta in joiner:
-                metas.append(meta)
-        self.generate_raw_data(2 * 2048, 2048)
-        self.generate_example_id(dumper, 3 * 2048, 3 * 2048)
-        with sei.make_example_joiner() as joiner:
-            for meta in joiner:
-                metas.append(meta)
-        self.generate_raw_data(3 * 2048, 5 * 2048)
-        self.generate_example_id(dumper, 6 * 2048, 2048)
-        with sei.make_example_joiner() as joiner:
-            for meta in joiner:
-                metas.append(meta)
-        self.generate_raw_data(8 * 2048, 2 * 2048)
-        with sei.make_example_joiner() as joiner:
-            for meta in joiner:
-                metas.append(meta)
-        self.generate_example_id(dumper, 7 * 2048, 3 * 2048)
-        with sei.make_example_joiner() as joiner:
-            for meta in joiner:
-                metas.append(meta)
-        sei.set_sync_example_id_finished()
-        sei.set_raw_data_finished()
-        with sei.make_example_joiner() as joiner:
-            for meta in joiner:
-                metas.append(meta)
-
-        dbm = data_block_manager.DataBlockManager(self.data_source, 0)
-        data_block_num = dbm.get_dumped_data_block_count()
-        self.assertEqual(len(metas), data_block_num)
-        join_count = 0
-        for data_block_index in range(data_block_num):
-            meta = dbm.get_data_block_meta_by_index(data_block_index)
-            self.assertEqual(meta, metas[data_block_index])
-            join_count += len(meta.example_ids)
-
-        print("join rate {}/{}({}), min_matching_window {}, "\
-              "max_matching_window {}".format(
-              join_count, 20480 * 2,
-              (join_count+.0)/(10 * 2048 * 2),
-              self.example_joiner_options.min_matching_window,
-              self.example_joiner_options.max_matching_window))
-
     def tearDown(self):
         if gfile.Exists(self.data_source.output_base_dir):
             gfile.DeleteRecursively(self.data_source.output_base_dir)
         if gfile.Exists(self.raw_data_dir):
             gfile.DeleteRecursively(self.raw_data_dir)
         self.kvstore.delete_prefix(common.data_source_kvstore_base_dir(self.data_source.data_source_meta.name))
-
-if __name__ == '__main__':
-    logging.basicConfig(level=logging.INFO)
-    unittest.main()

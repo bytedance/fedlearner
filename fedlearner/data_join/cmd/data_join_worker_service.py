@@ -91,8 +91,8 @@ if __name__ == "__main__":
                         "negative example, in [0.0, 1.0)")
     parser.add_argument('--join_expr', type=str, default="example_id",
                         help="join expression for universal joiner")
-    parser.add_argument('--join_key_mapping', type=str,
-                        help="key mapping, format: name="\
+    parser.add_argument('--join_key_mapper', type=str,
+                        help="key mapper, format: name="\
                         "schema:///path/to/mapper.tar.gz")
     parser.add_argument('--rawdata_version', type=int, default=2,
                         help="1 for version V1 and 2 for V2 of rawdata and "\
@@ -129,7 +129,7 @@ if __name__ == "__main__":
                     negative_sampling_rate=\
                         args.negative_sampling_rate,
                     join_expr=args.join_expr,
-                    join_key_mapping=args.join_key_mapping,
+                    join_key_mapper=args.join_key_mapper,
                 ),
             example_id_dump_options=dj_pb.ExampleIdDumpOptions(
                     example_id_dump_interval=args.example_id_dump_interval,
