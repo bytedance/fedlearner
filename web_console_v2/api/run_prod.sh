@@ -20,12 +20,22 @@ set -e
 ROOT_DIRECTORY=$(dirname "$0")
 export PYTHONPATH=$PYTHONPATH:"$ROOT_DIRECTORY"
 
-# TODO: those should be removed after prod is ready
-export FLASK_APP=manage:app
-# Migrates DB schemas
-flask db upgrade
+# Iterates arguments
+while test $# -gt 0
+do
+    case "$1" in
+        --migrate)
+            echo "Migrating DB"
+            export FLASK_APP=manage:app
+            # Migrates DB schemas
+            flask db upgrade
+            ;;
+    esac
+    shift
+done
+
 # Loads initial data
-flask create-db
+flask create-initial-data
 
 gunicorn manage:app \
     --config="$ROOT_DIRECTORY/gunicorn_config.py"
