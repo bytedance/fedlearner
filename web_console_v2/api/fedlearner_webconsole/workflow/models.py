@@ -372,7 +372,7 @@ class Workflow(db.Model):
             job.name: i for i, job in enumerate(job_defs)
         }
         for i, job in enumerate(jobs):
-            if job.name in reuse_jobs:
+            if job.get_config().name in reuse_jobs:
                 continue
             for j, dep_def in enumerate(job.get_config().dependencies):
                 dep = JobDependency(
