@@ -120,8 +120,7 @@ class ItemBatchSeqProcessor(object):
         iter_round = 0
         processed_index = None
         start_tm = time.time()
-        for batch, batch_finished in self._make_inner_generator(
-            next_index):
+        for batch, batch_finished in self._make_inner_generator(next_index):
             if batch is not None:
                 if len(batch) > 0:
                     latency_mn = '{}.produce.latency'.format(self.name())
