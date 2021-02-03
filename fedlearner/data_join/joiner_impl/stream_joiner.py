@@ -259,6 +259,7 @@ class StreamExampleJoiner(ExampleJoiner):
             follower_idx, item = self._joined_cache[eid]
             builder.append_item(item, leader_idx, follower_idx)
             self._optional_stats.update_stats(item, kind='joined')
+            prev_leader_idx = leader_idx
             if builder.check_data_block_full():
                 yield self._finish_data_block()
         metrics.emit_timer(name='stream_joiner_dump_joined_items',
