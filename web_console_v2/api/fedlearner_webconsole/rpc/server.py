@@ -16,7 +16,7 @@
 # pylint: disable=broad-except, cyclic-import
 
 import logging
-
+import json
 import threading
 from concurrent import futures
 import grpc
@@ -205,7 +205,9 @@ class RpcServer(object):
                 ])
             # job details
             jobs = [service_pb2.JobDetail(
-                name=job.name, state=job.get_state_for_front())
+                name=job.name,
+                state=job.get_state_for_front(),
+                pods=json.dumps(job.get_pods_for_front()))
                 for job in workflow.get_jobs()]
             # fork info
             forked_from = ''

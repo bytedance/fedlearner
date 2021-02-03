@@ -16,6 +16,7 @@
 # coding: utf-8
 
 import logging
+import json
 from http import HTTPStatus
 from flask_restful import Resource, reqparse, request
 from google.protobuf.json_format import MessageToDict
@@ -169,10 +170,13 @@ class PeerWorkflowsApi(Resource):
             resp = client.get_workflow(workflow.name)
             if resp.status.code != common_pb2.STATUS_SUCCESS:
                 raise InternalException()
-            peer_workflows[party.name] = MessageToDict(
+            peer_workflow = MessageToDict(
                 resp,
                 preserving_proto_field_name=True,
                 including_default_value_fields=True)
+            for job in peer_workflow['jobs']:
+                job['pods'] = json.loads(job['pods'])
+            peer_workflows[party.name] = peer_workflow
         return {'data': peer_workflows}, HTTPStatus.OK
 
 
