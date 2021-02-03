@@ -25,3 +25,9 @@ export function useResetCreateForms() {
     resetBasicForm();
   };
 }
+
+export function useResetForkForms() {
+  return function () {
+    // TODO: define fork form
+  };
+}

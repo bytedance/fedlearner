@@ -47,7 +47,7 @@ function _getUIs({
     'x-index': index,
     'x-component-props': {
       size,
-      placeholder,
+      placeholder: placeholder || `请输入 ${name}`,
     },
   };
 }
@@ -276,7 +276,7 @@ function mergeVariableSchemaWithPresets(variable: Variable, presets: VariablePre
 }
 
 /** Return a formily acceptable schema by server job definition */
-export function buildFormSchemaFromJob(job: Job): FormilySchema {
+export function buildFormSchemaFromJobDef(job: Job): FormilySchema {
   const { variables, name } = cloneDeep(job);
   const schema: FormilySchema = {
     type: 'object',

@@ -49,10 +49,10 @@ const Toggler = styled.div`
     }
   }
 `;
-const NoVariable = styled(Form.Item)`
+const NoVariables = styled(Form.Item)`
   color: var(--textColorSecondary);
 `;
-const AddButton = styled(Button)``;
+const AddButton = Button;
 const ListContainer = styled.div`
   ${MixinCommonTransition()}
   width: calc(var(--form-width, 500px) * 2);
@@ -70,7 +70,6 @@ const RemoveButton = styled(Button)`
 
 export const VARIABLES_FIELD_NAME = 'variables';
 export const VARIABLES_ERROR_CHANNEL = 'project.field_variables_error';
-export const VARIABLES_CHANGE_CHANNEL = 'project.variables_change';
 
 const EnvVariablesForm: FC<{
   layout: {
@@ -119,11 +118,12 @@ const EnvVariablesForm: FC<{
       <Header>
         <Row align="middle">
           <Col {...layout.labelCol}>
-            <Heading data-folded={String(isFolded)}>{t('project.show_env_path_config')}</Heading>
+            <Heading data-folded={String(isFolded)}>{t('project.env_path_config')}</Heading>
           </Col>
           <Col {...layout.wrapperCol}>
             <Toggler onClick={toggleFolded} data-folded={String(isFolded)}>
-              {t('project.hide_env_path_config')} <CaretDown />
+              {t(isFolded ? 'project.show_env_path_config' : 'project.hide_env_path_config')}
+              <CaretDown />
             </Toggler>
           </Col>
         </Row>
@@ -174,7 +174,7 @@ const EnvVariablesForm: FC<{
               ))}
               {/* Empty placeholder */}
               {fields.length === 0 && (
-                <NoVariable wrapperCol={{ offset: 4 }}>{t('project.msg_no_var_yet')}</NoVariable>
+                <NoVariables wrapperCol={{ offset: 4 }}>{t('project.msg_no_var_yet')}</NoVariables>
               )}
 
               <Form.Item wrapperCol={{ offset: 4 }}>

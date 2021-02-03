@@ -1,11 +1,18 @@
-import React, { FC, useEffect, useState } from 'react';
+import React, {
+  useEffect,
+  useState,
+  forwardRef,
+  useImperativeHandle,
+  ForwardRefRenderFunction,
+} from 'react';
 import WorkflowJobNode from './WorkflowJobNode';
 import {
-  JobNodeType,
-  JobNodeRawData,
-  convertJobsToElements,
+  ChartNodeType,
+  NodeDataRaw,
+  convertToChartElements,
   JobNode,
   JobNodeStatus,
+  ChartNodes,
 } from './helpers';
 import styled from 'styled-components';
 import ReactFlow, {
@@ -14,11 +21,13 @@ import ReactFlow, {
   isNode,
   OnLoadParams,
   FlowElement,
+  useStoreActions,
+  useStoreState,
 } from 'react-flow-renderer';
 
 import PubSub from 'pubsub-js';
 import { useSubscribe } from 'hooks';
-import { Variable } from 'typings/workflow';
+import { Variable, WorkflowConfig } from 'typings/workflow';
 
 const Container = styled.div`
   position: relative;
@@ -36,6 +45,7 @@ const Container = styled.div`
 
     &-global,
     &-execution,
+    &-fork,
     &-config {
       &.selected {
         --selected-background: #f2f6ff;
@@ -68,29 +78,41 @@ const CHANNELS = {
 };
 
 type Props = {
-  globalVariables?: Variable[];
-  jobs: JobNodeRawData[];
-  type: JobNodeType;
+  workflowConfig: WorkflowConfig<NodeDataRaw>;
+  nodeType: ChartNodeType;
   selectable?: boolean;
   onJobClick?: (node: JobNode) => void;
   onCanvasClick?: () => void;
 };
+export type ChartExposedRef = {
+  nodes: ChartNodes;
+  setSelectedNodes: (nodes: ChartNodes) => void;
+};
 
-const WorkflowJobsFlowChart: FC<Props> = ({
-  globalVariables,
-  jobs,
-  type,
-  selectable = true,
-  onJobClick,
-  onCanvasClick,
-}) => {
+const WorkflowJobsFlowChart: ForwardRefRenderFunction<ChartExposedRef | undefined, Props> = (
+  { workflowConfig, nodeType, selectable = true, onJobClick, onCanvasClick },
+  parentRef,
+) => {
   const [elements, setElements] = useState<FlowElement[]>([]);
+  // WARNING: since we using react-flow hooks here,
+  // an ReactFlowProvider is REQUIRED to wrap this component inside
+  const jobNodes = useStoreState((store) => store.nodes) as ChartNodes;
+  const setSelectedElements = useStoreActions((actions) => actions.setSelectedElements);
 
   useEffect(() => {
-    const jobElements = convertJobsToElements({ jobs, globalVariables }, { type, selectable });
-
+    const jobElements = convertToChartElements(
+      { jobs: workflowConfig.job_definitions, globalVariables: workflowConfig.variables || [] },
+      { type: nodeType, selectable },
+    );
     setElements(jobElements);
-  }, [jobs, type, selectable, globalVariables]);
+  }, [nodeType, selectable, workflowConfig]);
+
+  useImperativeHandle(parentRef, () => {
+    return {
+      nodes: jobNodes,
+      setSelectedNodes: setSelectedElements,
+    };
+  });
 
   useSubscribe(
     CHANNELS.update_node_status,
@@ -145,4 +167,4 @@ export function updateNodeStatusById(arg: { id: string; status: JobNodeStatus })
   PubSub.publish(CHANNELS.update_node_status, arg);
 }
 
-export default WorkflowJobsFlowChart;
+export default forwardRef(WorkflowJobsFlowChart);

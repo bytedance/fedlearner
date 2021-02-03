@@ -3,7 +3,7 @@ import { Form, Input, message } from 'antd';
 import ReadFile from 'components/ReadFile';
 import { useTranslation } from 'react-i18next';
 import { useRecoilState } from 'recoil';
-import { workflowTemplateForm, StepOneTemplateForm } from 'stores/workflow';
+import { workflowTemplateForm, CreateTemplateForm } from 'stores/workflow';
 import WORKFLOW_CHANNELS from '../pubsub';
 import { initiateAWorkflowTemplate } from 'services/workflow';
 import { useSubscribe } from 'hooks';
@@ -21,9 +21,9 @@ type Props = {
   allowedIsLeftValue?: boolean | 'ALL';
 };
 
-const CreateTemplateForm: FC<Props> = ({ onSuccess, onError, groupAlias, allowedIsLeftValue }) => {
+const CreateTemplate: FC<Props> = ({ onSuccess, onError, groupAlias, allowedIsLeftValue }) => {
   const { t } = useTranslation();
-  const [formInstance] = Form.useForm<StepOneTemplateForm>();
+  const [formInstance] = Form.useForm<CreateTemplateForm>();
   const [formData, setFormData] = useRecoilState(workflowTemplateForm);
 
   const createNewTpl = useCallback(async () => {
@@ -79,7 +79,7 @@ const CreateTemplateForm: FC<Props> = ({ onSuccess, onError, groupAlias, allowed
     </Form>
   );
 
-  function onFormChange(_: any, values: StepOneTemplateForm) {
+  function onFormChange(_: any, values: CreateTemplateForm) {
     setFormData(values);
   }
 
@@ -112,4 +112,4 @@ const CreateTemplateForm: FC<Props> = ({ onSuccess, onError, groupAlias, allowed
   }
 };
 
-export default CreateTemplateForm;
+export default CreateTemplate;

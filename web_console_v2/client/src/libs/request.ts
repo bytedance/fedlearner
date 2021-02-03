@@ -11,6 +11,7 @@ declare module 'axios' {
     singleton?: symbol;
     removeFalsy?: boolean;
     snake_case?: boolean;
+    _id?: ID;
   }
 
   // AxiosResponse has a struct like { data: YourRealResponse, status, config },

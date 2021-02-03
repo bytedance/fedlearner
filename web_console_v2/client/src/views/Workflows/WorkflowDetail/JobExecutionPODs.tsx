@@ -6,7 +6,7 @@ import i18n from 'i18n';
 import { Button } from 'antd';
 import StateIndicator, { StateTypes } from 'components/StateIndicator';
 import { useTranslation } from 'react-i18next';
-import { JobNodeRawData } from 'components/WorkflowJobsFlowChart/helpers';
+import { NodeDataRaw } from 'components/WorkflowJobsFlowChart/helpers';
 
 const Container = styled.div`
   margin-top: 30px;
@@ -26,7 +26,7 @@ const stateText: { [key: string]: string } = {
 };
 
 type Props = {
-  job: JobNodeRawData;
+  job: NodeDataRaw;
 };
 
 const JobExecutionPODs: FC<Props> = ({ job }) => {

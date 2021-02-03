@@ -7,9 +7,9 @@ import warningIcon from 'assets/icons/workflow-warning.svg';
 import errorIcon from 'assets/icons/workflow-error.svg';
 import GridRow from 'components/_base/GridRow';
 import {
-  JobNodeData,
+  NodeData,
   JobNodeStatus,
-  JobNodeType,
+  ChartNodeType,
   NODE_HEIGHT,
   NODE_WIDTH,
   GLOBAL_CONFIG_NODE_SIZE,
@@ -72,7 +72,8 @@ const GlobalConfigNodeContainer = styled.div`
   width: ${convertToUnit(GLOBAL_CONFIG_NODE_SIZE)};
   height: ${convertToUnit(GLOBAL_CONFIG_NODE_SIZE)};
   border-radius: 50%;
-  background-color: white;
+  background-color: var(--selected-background, white);
+  border: 1px solid var(--selected-border-color, transparent);
 `;
 
 const statusIcons: Record<JobNodeStatus, string> = {
@@ -100,7 +101,7 @@ export const jobExecutionStatusText: Record<JobNodeStatus, string> = {
 };
 
 interface Props extends NodeComponentProps {
-  data: JobNodeData;
+  data: NodeData;
 }
 
 const ConfigJobNode: FC<Props> = ({ data, id }) => {
@@ -152,7 +153,7 @@ const GlobalJobNode: FC<Props> = ({ data, id }) => {
   );
 };
 
-const WorkflowJobNode: Record<JobNodeType, FC<Props>> = {
+const WorkflowJobNode: Record<ChartNodeType, FC<Props>> = {
   config: ConfigJobNode,
   global: GlobalJobNode,
   execution: ExecutionJobNode,

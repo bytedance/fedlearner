@@ -7,7 +7,6 @@ import SecondaryForm from './SecondaryForm';
 import EnvVariablesForm, {
   VARIABLES_FIELD_NAME,
   VARIABLES_ERROR_CHANNEL,
-  VARIABLES_CHANGE_CHANNEL,
 } from './EnvVariablesForm';
 import { CertificateConfigType } from 'typings/project';
 import {
@@ -22,7 +21,7 @@ import i18n from 'i18n';
 import { useReloadProjectList } from 'hooks/project';
 import ip from 'ip-port-regex';
 import Certificate from './Certificate';
-import { wrapWithDomainName } from 'shared/project';
+import { DOMAIN_PREFIX, DOMAIN_SUFFIX, wrapWithDomainName } from 'shared/project';
 import { Z_INDEX_GREATER_THAN_HEADER } from 'components/Header';
 
 const Container = styled.div`
@@ -103,7 +102,6 @@ const ProjectForm: FC<Props> = ({ onSubmit, isEdit, initialValues }) => {
         colon={false}
         onFinish={onFinish}
         onFinishFailed={onFinishFailed}
-        onFieldsChange={onFieldsChange}
         scrollToFirstError
       >
         {/* Project Config */}
@@ -119,8 +117,8 @@ const ProjectForm: FC<Props> = ({ onSubmit, isEdit, initialValues }) => {
           <Form.Item name="domainName" label={t('project.selft_domain')} rules={domainRules}>
             <Input
               name="domainName"
-              addonBefore="fl-"
-              addonAfter=".com"
+              addonBefore={DOMAIN_PREFIX}
+              addonAfter={DOMAIN_SUFFIX}
               placeholder={t('project.placeholder_domain_name')}
               disabled={isEdit}
             />
@@ -149,8 +147,8 @@ const ProjectForm: FC<Props> = ({ onSubmit, isEdit, initialValues }) => {
           >
             <Input
               name="participantDomainName"
-              addonBefore="fl-"
-              addonAfter=".com"
+              addonBefore={DOMAIN_PREFIX}
+              addonAfter={DOMAIN_SUFFIX}
               placeholder={t('project.placeholder_domain_name')}
               disabled={isEdit}
             />
@@ -234,11 +232,6 @@ const ProjectForm: FC<Props> = ({ onSubmit, isEdit, initialValues }) => {
   }
   function onSubmitClick() {
     form.submit();
-  }
-  function onFieldsChange(arg: any) {
-    if (arg.some((item: { name: string[] }) => item.name.includes(VARIABLES_FIELD_NAME))) {
-      PubSub.publish(VARIABLES_CHANGE_CHANNEL);
-    }
   }
   function onFinishFailed({ errorFields }: any) {
     if (

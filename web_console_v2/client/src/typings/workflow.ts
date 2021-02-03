@@ -87,11 +87,11 @@ export enum JobType {
   TREE_MODEL_EVALUATION = 'TREE_MODEL_EVALUATION',
 }
 
-export type WorkflowConfig = {
+export type WorkflowConfig<J = Job> = {
   group_alias: string;
   is_left: boolean;
-  variables?: Variable[];
-  job_definitions: Job[];
+  variables: Variable[];
+  job_definitions: J[];
 };
 
 export interface WorkflowTemplate {
@@ -111,9 +111,8 @@ export type WorkflowTemplatePayload = {
 
 export type WorkflowInitiatePayload = {
   name: string;
-  project_id: string;
+  project_id: ID;
   forkable: boolean;
-  forked_from?: boolean;
   config: WorkflowConfig;
   comment?: string;
 };
@@ -122,6 +121,13 @@ export type WorkflowAcceptPayload = {
   forkable: boolean;
   config: WorkflowConfig;
   comment?: string;
+};
+
+export type WorkflowForkPayload = WorkflowInitiatePayload & {
+  forked_from: ID;
+  reuse_job_names: string[]; // e.g. [raw_data, training...]
+  peer_reuse_job_names: string[];
+  fork_proposal_config: WorkflowConfig;
 };
 
 export enum WorkflowState {

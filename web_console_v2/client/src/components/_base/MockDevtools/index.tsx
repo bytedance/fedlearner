@@ -58,7 +58,7 @@ const tableCols = [
     render: (text: string) => <h4>{text}</h4>,
   },
   {
-    title: 'Toggle',
+    title: 'Enable mock',
     key: 'toggle',
     render: (_: any, record: { key: string; value: boolean }) => (
       <Switch checked={record.value} onChange={(val) => toggleRequestMockState(record.key, val)} />

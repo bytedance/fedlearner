@@ -3,7 +3,7 @@ import React, { ForwardRefRenderFunction } from 'react';
 import styled from 'styled-components';
 import { Drawer, Row, Button, Tag } from 'antd';
 import { DrawerProps } from 'antd/lib/drawer';
-import { JobNodeData, JobNodeStatus } from 'components/WorkflowJobsFlowChart/helpers';
+import { NodeData, JobNodeStatus } from 'components/WorkflowJobsFlowChart/helpers';
 import { useTranslation } from 'react-i18next';
 import { Close } from 'components/IconPark';
 import GridRow from 'components/_base/GridRow';
@@ -38,7 +38,7 @@ const DrawerTitle = styled.h3`
 
 interface Props extends DrawerProps {
   isPeerSide: boolean;
-  data?: JobNodeData;
+  data?: NodeData;
   toggleVisible?: Function;
 }
 export type JobExecutionDetailsExposedRef = {};

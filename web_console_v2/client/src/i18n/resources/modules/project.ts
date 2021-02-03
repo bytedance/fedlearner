@@ -50,8 +50,8 @@ const project = {
   creator: { zh: '创建者', en: 'Creator' },
   creat_time: { zh: '创建时间', en: 'Creation time' },
   add_parameters: { zh: '添加参数', en: 'Add parameters' },
-  env_path_config: { zh: '展开环境变量配置', en: 'Environment variable configuration' },
-  show_env_path_config: { zh: '环境变量参数配置', en: 'Expand environment variable configuration' },
+  env_path_config: { zh: '环境变量参数配置', en: 'Expand environment variable configuration' },
+  show_env_path_config: { zh: '展开环境变量配置', en: 'Environment variable configuration' },
   hide_env_path_config: {
     zh: '收起环境变量配置',
     en: 'Collapse environment variable configuration',

@@ -10,6 +10,7 @@ const workflow: I18nMessageModule = {
   ptcpt_permission: { zh: '合作伙伴编辑权限' },
   current_config: { zh: '当前配置' },
   create_workflow: { zh: '创建工作流', en: 'Create workflow' },
+  fork_workflow: { zh: '复制工作流', en: 'Fork workflow' },
 
   action_re_run: { zh: '重新运行' },
   action_run: { zh: '立即运行' },

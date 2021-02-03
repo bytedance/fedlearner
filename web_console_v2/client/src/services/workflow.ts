@@ -1,5 +1,6 @@
 import request from 'libs/request';
 import {
+  WorkflowForkPayload,
   WorkflowInitiatePayload,
   WorkflowTemplate,
   WorkflowAcceptPayload,
@@ -66,8 +67,8 @@ export function stopTheWorkflow(id: number) {
   });
 }
 
-export function forkWorkflow(id: number) {
-  return request.post(`/v2/workflows/fork/${id}`);
+export function forkTheWorkflow(payload: WorkflowForkPayload) {
+  return request.post(`/v2/workflows`, payload);
 }
 
 export function fetchPodLogs(jobId: ID, podName: string) {

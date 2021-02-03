@@ -6,6 +6,6 @@
 
 Basically eequal to react-flow's Node definition, except that we extend the `data` field to meet our Job design
 
-### 2. JobNodeData
+### 2. NodeData
 
 Jobnode's data, contains node's index, status, job-form values

@@ -1,7 +1,9 @@
-const get = {
+import { AxiosRequestConfig } from 'axios';
+
+const get = (config: AxiosRequestConfig) => ({
   data: {
     data: {
-      id: 1,
+      id: config._id,
       name: 'Foo project',
       token: '51aa8b39a5444f24ae7e403ac7f6029c',
       config: {
@@ -27,7 +29,7 @@ const get = {
     },
   },
   status: 200,
-};
+});
 
 export const patch = { data: {}, status: 200 };
 

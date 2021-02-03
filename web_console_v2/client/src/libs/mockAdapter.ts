@@ -15,7 +15,13 @@ async function axiosMockAdapter(config: AxiosRequestConfig) {
         exportKey = method;
       }
 
-      let data = require(`../services/mocks${config.url}`)[exportKey];
+      const path = config.url?.replace(/\/([\d])+/i, (_, id) => {
+        config._id = id;
+
+        return '/:id';
+      });
+
+      let data = require(`../services/mocks${path}`)[exportKey];
       if (typeof data === 'function') {
         data = data(config);
       }

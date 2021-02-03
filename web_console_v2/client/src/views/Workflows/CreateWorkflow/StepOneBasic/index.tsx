@@ -7,7 +7,7 @@ import CreateTemplateForm from './CreateTemplate';
 import { useHistory, useLocation, useParams } from 'react-router-dom';
 import { cloneDeep } from 'lodash';
 import {
-  StepOneForm,
+  CreateWorkflowBasicForm,
   workflowBasicForm,
   workflowGetters,
   workflowInEditing,
@@ -30,12 +30,12 @@ import {
 import { WorkflowCreateProps } from '..';
 import { parseWidgetSchemas } from 'shared/formSchema';
 
-const FormsContainer = styled.div`
+const Container = styled(Card)`
+  padding-top: 20px;
+`;
+const StyledForm = styled.div`
   width: 500px;
   margin: 0 auto;
-`;
-const Container = styled(Card)`
-  margin-top: 20px;
 `;
 
 const WorkflowsCreateStepOne: FC<WorkflowCreateProps & { onSuccess?: any }> = ({
@@ -50,7 +50,7 @@ const WorkflowsCreateStepOne: FC<WorkflowCreateProps & { onSuccess?: any }> = ({
 
   const [groupAlias, setGroupAlias] = useState('');
 
-  const [formInstance] = Form.useForm<StepOneForm>();
+  const [formInstance] = Form.useForm<CreateWorkflowBasicForm>();
   const [submitting, setSubmitting] = useToggle(false);
 
   const { data: projectList } = useRecoilQuery(projectListQuery);
@@ -115,7 +115,7 @@ const WorkflowsCreateStepOne: FC<WorkflowCreateProps & { onSuccess?: any }> = ({
   return (
     <Spin spinning={workflowQuery.isLoading}>
       <Container bordered={false}>
-        <FormsContainer>
+        <StyledForm>
           <Form
             labelCol={{ span: 6 }}
             wrapperCol={{ span: 18 }}
@@ -130,7 +130,7 @@ const WorkflowsCreateStepOne: FC<WorkflowCreateProps & { onSuccess?: any }> = ({
               rules={[
                 { required: true, message: t('workflow.msg_name_required') },
                 // TODO: remove workflow name restriction by using hashed job name
-                { pattern: /^[0-9a-z.-\s]+$/g, message: t('workflow.msg_workflow_name_invalid') },
+                { pattern: /[0-9a-z.\-\s]+/g, message: t('workflow.msg_workflow_name_invalid') },
               ]}
             >
               <Input disabled={isAccept} placeholder={t('workflow.placeholder_name')} />
@@ -225,7 +225,7 @@ const WorkflowsCreateStepOne: FC<WorkflowCreateProps & { onSuccess?: any }> = ({
               </Button>
             </GridRow>
           </Form.Item>
-        </FormsContainer>
+        </StyledForm>
       </Container>
     </Spin>
   );
@@ -242,7 +242,7 @@ const WorkflowsCreateStepOne: FC<WorkflowCreateProps & { onSuccess?: any }> = ({
     history.push('/workflows');
   }
   function setCurrentUsingTemplate(tpl: WorkflowTemplate) {
-    // Widget schemas of templates from backend side are JSON string
+    // Widget schemas of the template from backend side are JSON-string type
     // parse it before using
     const parsedTpl = parseWidgetSchemas(tpl);
     // For flow chart render
@@ -253,7 +253,7 @@ const WorkflowsCreateStepOne: FC<WorkflowCreateProps & { onSuccess?: any }> = ({
   async function getWorkflowDetail() {
     const { data } = await getWorkflowDetailById(params.id);
     setWorkflow(data);
-    formInstance.setFieldsValue((data as any) as StepOneForm);
+    formInstance.setFieldsValue((data as any) as CreateWorkflowBasicForm);
   }
   async function getPeerWorkflow() {
     const res = await getPeerWorkflowsConfig(params.id);
@@ -266,7 +266,7 @@ const WorkflowsCreateStepOne: FC<WorkflowCreateProps & { onSuccess?: any }> = ({
     return anyPeerWorkflow;
   }
   // --------- Handlers -----------
-  function onFormChange(_: any, values: StepOneForm) {
+  function onFormChange(_: any, values: CreateWorkflowBasicForm) {
     setFormData(values);
   }
   function onTemplateSelectChange(id: number) {
@@ -289,8 +289,8 @@ const WorkflowsCreateStepOne: FC<WorkflowCreateProps & { onSuccess?: any }> = ({
       await formInstance.validateFields();
 
       if (whetherCreateNewTpl) {
-        // If the template is newly create, stop the flow and
-        // notify the create-template form to send a creation request
+        // If choose to create a new template, pause the flow and
+        // notify the CreateTemplate form to send a creation request
         // then waiting for crearte succeed
         // see the subscription of WORKFLOW_CHANNELS.tpl_create_succeed above
         setSubmitting(true);
@@ -306,7 +306,7 @@ const WorkflowsCreateStepOne: FC<WorkflowCreateProps & { onSuccess?: any }> = ({
   }
 };
 
-function _getInitialValues(form: StepOneForm, workflow: Workflow, projectId?: number) {
+function _getInitialValues(form: CreateWorkflowBasicForm, workflow: Workflow, projectId?: number) {
   return Object.assign(
     {
       ...form,

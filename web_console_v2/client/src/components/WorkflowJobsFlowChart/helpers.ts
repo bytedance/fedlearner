@@ -1,5 +1,5 @@
 import { Node, XYPosition, Edge } from 'react-flow-renderer';
-import { Job, JobExecutionDetalis, JobState, JobType } from 'typings/job';
+import { Job, JobExecutionDetalis, JobState } from 'typings/job';
 import { isHead, isLast } from 'shared/array';
 import { head, isEmpty, isNil, last } from 'lodash';
 import { Variable } from 'typings/workflow';
@@ -21,41 +21,42 @@ export enum JobNodeStatus {
   Error,
 }
 
-export type JobNodeType = 'config' | 'execution' | 'global';
+export type ChartNodeType = 'config' | 'execution' | 'global';
 export type JobColorsMark = 'blue' | 'green' | 'yellow' | 'magenta' | 'cyan';
 /**
- * 1. At Workflow create stage, JobNodeRawData === Job only
- * 2. At Workflow detail page, JobNodeRawData would contain JobExecutionDetalis and JobColorsMark additionally
+ * 1. At Workflow create stage, NodeDataRaw === Job or GlobalVariables
+ * 2. At Workflow detail page, NodeDataRaw would contain JobExecutionDetalis and JobColorsMark additionally
  */
-export type JobNodeRawData = Job & Partial<JobExecutionDetalis> & { mark?: JobColorsMark };
+export type NodeDataRaw = Job & Partial<JobExecutionDetalis> & { mark?: JobColorsMark };
 
-export type JobNodeData = {
-  raw: JobNodeRawData; // each jobs raw-config plus it's execution details if has
+export type NodeData = {
+  raw: NodeDataRaw;
   index: number;
   isSource?: boolean;
   isTarget?: boolean;
   status: JobNodeStatus;
-  // values?: object;
   mark?: JobColorsMark;
 };
 export interface JobNode extends Node {
-  data: JobNodeData;
-  type: JobNodeType;
+  data: NodeData;
+  type: ChartNodeType;
 }
 export interface GlobalConfigNode extends Node {
-  data: JobNodeData & { raw: { variables: Variable[] } };
-  type: JobNodeType;
+  data: NodeData;
+  type: ChartNodeType;
 }
-export type JobElements = (GlobalConfigNode | JobNode | Edge)[];
+export type ChartNode = JobNode | GlobalConfigNode;
+export type ChartNodes = ChartNode[];
+export type ChartElements = (GlobalConfigNode | JobNode | Edge)[];
 
 /**
  * Turn job defintitions to flow elements (include edges),
  * NOTE: globalVariables is considered as a Node as well
  */
-export function convertJobsToElements(
-  { jobs, globalVariables }: { jobs: JobNodeRawData[]; globalVariables?: Variable[] },
-  options: { type: JobNodeType; selectable: boolean },
-): JobElements {
+export function convertToChartElements(
+  { jobs, globalVariables }: { jobs: NodeDataRaw[]; globalVariables?: Variable[] },
+  options: { type: ChartNodeType; selectable: boolean },
+): ChartElements {
   const hasGlobalVars = !isNil(globalVariables) && !isEmpty(globalVariables);
   // 1. Group Jobs to rows by dependiences
   // e.g. Say we have jobs like [1, 2, 3, 4, 5] in which 2,3,4 is depend on 1, 5 depend on 2,3,4
@@ -68,7 +69,7 @@ export function convertJobsToElements(
   // row-3        █5█
   //
   // thus the processed rows will looks like [[1], [2, 3, 4], [5]]
-  const rows: Array<(JobNode | GlobalConfigNode)[]> = [];
+  const rows: Array<ChartNode[]> = [];
   let rowIdx = 0;
 
   // If global variables existing, always put it into first row
@@ -126,7 +127,7 @@ export function convertJobsToElements(
         rowIdx,
         nodeIdx,
         midlineX,
-        type: node.type! as JobNodeType,
+        type: node.type,
       });
 
       Object.assign(node.position, position);
@@ -154,7 +155,7 @@ export function convertJobsToElements(
       result.push(node);
     });
     return result;
-  }, [] as JobElements);
+  }, [] as ChartElements);
 }
 
 export function convertExecutionStateToStatus(state: JobState): JobNodeStatus {
@@ -187,7 +188,7 @@ function _createGlobalConfigNode(variables: Variable[]): GlobalConfigNode {
         variables,
         name,
         dependencies: [],
-      } as unknown) as JobNodeRawData,
+      } as unknown) as NodeDataRaw,
       index: 0,
       status: JobNodeStatus.Pending,
     },
@@ -196,7 +197,7 @@ function _createGlobalConfigNode(variables: Variable[]): GlobalConfigNode {
 }
 
 function _createJobNode(params: {
-  job: JobNodeRawData;
+  job: NodeDataRaw;
   index: number;
   options: any;
   hasGlobalVars?: boolean;
@@ -208,7 +209,7 @@ function _createJobNode(params: {
     id: getNodeIdByJob(job),
     data: {
       raw: job,
-      index: hasGlobalVars ? index + 1 : index, // if have global variables, all nodes should be put behind it
+      index: hasGlobalVars ? index + 1 : index, // if have global variables, all nodes should put after it
       mark: job.mark || undefined,
       status,
     },
@@ -217,7 +218,7 @@ function _createJobNode(params: {
   };
 }
 
-function _createEdge(source: JobNode, target: JobNode): Edge {
+function _createEdge(source: ChartNode, target: ChartNode): Edge {
   return {
     id: `E|${source.id}-${target.id}`,
     source: source.id,
@@ -235,7 +236,7 @@ type GetPositionParams = {
   rowIdx: number;
   nodeIdx: number;
   midlineX: number;
-  type: JobNodeType;
+  type: ChartNodeType;
 };
 function _getNodePosition({
   nodesCount,

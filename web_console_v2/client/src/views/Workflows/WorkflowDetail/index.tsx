@@ -17,8 +17,8 @@ import { useToggle } from 'react-use';
 import {
   JobColorsMark,
   JobNode,
-  JobNodeData,
-  JobNodeRawData,
+  NodeData,
+  NodeDataRaw,
 } from 'components/WorkflowJobsFlowChart/helpers';
 import PropertyList from 'components/PropertyList';
 import { Eye, EyeInvisible } from 'components/IconPark';
@@ -35,13 +35,16 @@ const Container = styled.div`
 `;
 const ChartSection = styled.section`
   display: flex;
-  gap: 16px;
-  margin-top: 16px;
+  margin-top: 12px;
   flex: 1;
 `;
 const ChartContainer = styled.div`
   height: 100%;
   flex: 1;
+
+  & + & {
+    margin-left: 16px;
+  }
 `;
 const HeaderRow = styled(Row)`
   margin-bottom: 30px;
@@ -81,7 +84,7 @@ const WorkflowDetail: FC = () => {
   const [peerJobsVisible, togglePeerJobsVisible] = useToggle(false);
   const [drawerVisible, toggleDrawerVisible] = useToggle(false);
   const [isPeerSide, setIsPeerSide] = useState(false);
-  const [data, setData] = useState<JobNodeData>();
+  const [data, setData] = useState<NodeData>();
 
   const detailQuery = useQuery(
     ['getWorkflowDetailById', params.id],
@@ -197,10 +200,14 @@ const WorkflowDetail: FC = () => {
             ) : (
               <ReactFlowProvider>
                 <WorkflowJobsFlowChart
-                  type="execution"
-                  onCanvasClick={() => toggleDrawerVisible(false)}
-                  jobs={jobsWithExeDetails}
+                  nodeType="execution"
+                  workflowConfig={{
+                    ...workflow?.config!,
+                    job_definitions: jobsWithExeDetails,
+                    variables: [],
+                  }}
                   onJobClick={viewJobDetail}
+                  onCanvasClick={() => toggleDrawerVisible(false)}
                 />
               </ReactFlowProvider>
             )}
@@ -226,9 +233,13 @@ const WorkflowDetail: FC = () => {
               ) : (
                 <ReactFlowProvider>
                   <WorkflowJobsFlowChart
-                    type="execution"
+                    nodeType="execution"
                     selectable={false}
-                    jobs={peerJobsWithExeDetails}
+                    workflowConfig={{
+                      ...peerWorkflowQuery.data?.config!,
+                      job_definitions: peerJobsWithExeDetails,
+                      variables: [],
+                    }}
                   />
                 </ReactFlowProvider>
               )}
@@ -269,7 +280,7 @@ const WorkflowDetail: FC = () => {
 
 function mergeJobDefsWithExecutionDetails(
   workflow: WorkflowExecutionDetails | undefined,
-): JobNodeRawData[] {
+): NodeDataRaw[] {
   if (!workflow) return [];
 
   return (
@@ -284,7 +295,7 @@ function mergeJobDefsWithExecutionDetails(
 }
 
 /** NOTE: Has Side effect to inputs! */
-function _markFederatedJobs(aJobs: JobNodeRawData[], bJobs: JobNodeRawData[]) {
+function _markFederatedJobs(aJobs: NodeDataRaw[], bJobs: NodeDataRaw[]) {
   const colorPools: JobColorsMark[] = ['blue', 'green', 'yellow', 'magenta', 'cyan'];
   const markedJobs: Record<string, JobColorsMark> = {};
 

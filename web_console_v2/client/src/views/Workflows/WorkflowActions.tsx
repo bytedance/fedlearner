@@ -164,7 +164,7 @@ const WorkflowActions: FC<Props> = ({ workflow, type = 'default', without = [], 
     history.push(`/workflows/${workflow.id}`);
   }
   function onForkClick() {
-    // TODO: fork workflow
+    history.push(`/workflows/fork/basic/${workflow.id}`);
   }
   async function onRunClick() {
     toggleLoading(true);

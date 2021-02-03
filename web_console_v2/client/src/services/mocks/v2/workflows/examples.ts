@@ -6,6 +6,7 @@ import {
   VariableAccessMode,
   WorkflowExecutionDetails,
 } from 'typings/workflow';
+import { normalTemplate } from '../workflow_templates/examples';
 
 export const awaitParticipantConfig = {
   id: 1,
@@ -147,4 +148,14 @@ export const withExecutionDetail: WorkflowExecutionDetails = {
       deleted_at: 0,
     },
   ],
+};
+
+export const completed = {
+  ...cloneDeep(newlyCreated),
+  id: 3,
+  name: 'All completed',
+  config: normalTemplate.data.config as any,
+  state: WorkflowState.COMPLETED,
+  target_state: WorkflowState.INVALID,
+  transaction_state: TransactionState.ABORTED,
 };

@@ -105,17 +105,6 @@ export const normalTemplate: { data: DeepPartial<WorkflowTemplate>; status: numb
                 type: 'number',
               },
             },
-            {
-              name: 'certification',
-              value: '',
-              access_mode: VariableAccessMode.PEER_WRITABLE,
-              widget_schema: {
-                component: VariableComponent.Upload,
-                accept: '.crt,.pem',
-                action: '/api/v2/upload',
-                type: 'array',
-              },
-            },
           ],
         },
         {

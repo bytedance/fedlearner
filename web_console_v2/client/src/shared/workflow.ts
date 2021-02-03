@@ -99,8 +99,8 @@ export function isOperable(workflow: Workflow) {
 }
 
 export function isForkable(workflow: Workflow) {
-  const { state } = workflow;
-  return [RUNNING, STOPPED, W_READY].includes(state);
+  const { state, forkable } = workflow;
+  return [RUNNING, STOPPED, W_READY, COMPLETED].includes(state) && forkable;
 }
 
 // --------------- General stage getter ----------------
