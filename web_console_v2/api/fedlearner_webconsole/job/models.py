@@ -154,6 +154,7 @@ class Job(db.Model):
         pods = pods['pods']['items']
         index = 0
         for pod in pods:
+            # TODO: make this more readable for frontend
             result[index]['pod_name'] = pod['metadata']['name']
             result[index]['status'] = pod['status']['phase']
             result[index]['conditions'] = pod['status']['conditions']
