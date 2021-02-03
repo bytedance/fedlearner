@@ -101,6 +101,22 @@ class Job(db.Model):
             CrdKind.FLAPP, self.name, 'pods', self.project.get_namespace())
         self.pods_snapshot = json.dumps(pods)
 
+
+    def get_pods(self):
+        if self.state == JobState.STARTED:
+            try:
+                pods = self._k8s_client.list_resource_of_custom_object(
+            CrdKind.FLAPP, self.name, 'pods', self.project.get_namespace())
+                return pods
+            except RuntimeError as e:
+                logging.error('Get %d pods error msg: %s',
+                              self.id,
+                              e.args)
+                return None
+        if self.pods_snapshot is not None:
+            return json.loads(self.pods_snapshot)
+        return None
+
     def get_flapp(self):
         if self.state == JobState.STARTED:
             try:
@@ -119,8 +135,11 @@ class Job(db.Model):
     def get_pods_for_front(self):
         result = []
         flapp = self.get_flapp()
-        if flapp is not None \
-                and 'status' in flapp \
+        pods = self.get_pods()
+        if flapp is None:
+            return result
+        flapp = flapp['flapp']
+        if 'status' in flapp \
                 and 'flReplicaStatus' in flapp['status']:
             replicas = flapp['status']['flReplicaStatus']
             for pod_type in replicas:
@@ -129,6 +148,18 @@ class Job(db.Model):
                         result.append({'name': pod,
                                        'state': state,
                                        'pod_type': pod_type})
+        # msg from pods
+        if pods is None:
+            return result
+        pods = pods['pods']['items']
+        index = 0
+        for pod in pods:
+            result[index]['pod_name'] = pod['metadata']['name']
+            result[index]['status'] = pod['status']['phase']
+            result[index]['conditions'] = pod['status']['conditions']
+            result[index]['containers_status'] =\
+                pod['status']['containerStatuses']
+            index = index + 1
         return result
 
     def get_state_for_front(self):

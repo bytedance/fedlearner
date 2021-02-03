@@ -24,7 +24,7 @@ from fedlearner_webconsole.k8s_client import get_client
 
 class JobApi(Resource):
     def get(self, job_id):
-        job = Job.query.filter_by(job=job_id).first()
+        job = Job.query.filter_by(id=job_id).first()
         if job is None:
             raise NotFoundException()
         return {'data': job.to_dict()}
@@ -40,6 +40,15 @@ class PodLogApi(Resource):
                                      request.args['start_time'],
                                      int(time.time() * 1000))}
 
+
+class JobLogApi(Resource):
+    def get(self, job_name):
+        if 'start_time' not in request.args:
+            raise InvalidArgumentException('start_time is required')
+        return {'data': es.query_log('filebeat-*', job_name,
+                                     'fedlearner-operator',
+                                     request.args['start_time'],
+                                     int(time.time() * 1000))}
 
 class PodContainerApi(Resource):
     def get(self, job_id, pod_name):
@@ -57,6 +66,8 @@ class PodContainerApi(Resource):
 def initialize_job_apis(api):
     api.add_resource(JobApi, '/jobs/<int:job_id>')
     api.add_resource(PodLogApi,
-                     '/jobs/<int:job_id>/pods/<string:pod_name>/log')
+                     '/jobs/pods/<string:pod_name>/log')
+    api.add_resource(JobLogApi,
+                     '/jobs/<string:job_name>/log')
     api.add_resource(PodContainerApi,
                      '/jobs/<int:job_id>/pods/<string:pod_name>/container')
