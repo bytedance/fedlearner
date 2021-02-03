@@ -60,16 +60,17 @@ class OptionalStats:
         """
         Args:
             item: RawDataIter.Item. Item from iterating RawDataVisitor
-            kind: str. 'joined' or 'unjoined'. Indicate where the item should be
-                counted towards.
+            kind: str. 'joined', 'unjoined', 'negative'. Indicate where the item
+                should be counted towards.
 
         Returns: None
         Update stats dict. Emit join status and other fields of each item to ES.
         """
-        assert kind in ('joined', 'unjoined')
+        assert kind in ('joined', 'unjoined', 'negative')
         if kind == 'unjoined':
             self.sample_unjoined(item.example_id)
-        item_stat = {'joined': int(kind == 'joined')}
+        item_stat = {'joined': int(kind == 'joined'),
+                     'negative': int(kind == 'negative')}
         tags = copy.deepcopy(self._tags)
         for field in self._stat_fields:
             value = self._convert_to_str(getattr(item, field, '#None#'))
