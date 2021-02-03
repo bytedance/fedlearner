@@ -22,6 +22,8 @@ const Container = styled.div`
   position: relative;
   width: ${convertToUnit(NODE_WIDTH)};
   height: ${convertToUnit(NODE_HEIGHT)};
+  background-color: var(--selected-background, white);
+  border: 1px solid var(--selected-border-color, transparent);
   padding: 14px 20px;
   border-radius: 4px;
 
@@ -65,11 +67,12 @@ const GlobalConfigNodeContainer = styled.div`
   position: relative;
   display: flex;
   flex-direction: column;
-  align-items: center;
   justify-content: center;
+  align-items: center;
   width: ${convertToUnit(GLOBAL_CONFIG_NODE_SIZE)};
   height: ${convertToUnit(GLOBAL_CONFIG_NODE_SIZE)};
   border-radius: 50%;
+  background-color: white;
 `;
 
 const statusIcons: Record<JobNodeStatus, string> = {

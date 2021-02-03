@@ -40,8 +40,6 @@ from fedlearner.data_join.raw_data_iter_impl.tf_record_iter import TfExampleItem
 
 import datasource_producer as dsp
 
-import pdb
-
 class TestUniversalJoin(dsp.DataSourceProducer):
     def setUp(self):
         self.init("test_uni_joiner", "invalid joiner as placeholder")
@@ -67,7 +65,7 @@ class TestUniversalJoin(dsp.DataSourceProducer):
             )
         self.run_join(sei)
 
-    @unittest.skip("121")
+    #@unittest.skip("test2")
     def test_universal_join(self):
         self.example_joiner_options = dj_pb.ExampleJoinerOptions(
                   example_joiner='UNIVERSAL_JOINER',
@@ -78,9 +76,10 @@ class TestUniversalJoin(dsp.DataSourceProducer):
                   data_block_dump_interval=32,
                   data_block_dump_threshold=128,
                   negative_sampling_rate=0.8,
-                  join_expr="example_id",
+                  join_expr="(id_type, example_id)",
                   join_key_mapper="DEFAULT",
               )
+        self.version = dsp.Version.V2
 
         sei = joiner_impl.create_example_joiner(
                 self.example_joiner_options,
@@ -90,7 +89,7 @@ class TestUniversalJoin(dsp.DataSourceProducer):
             )
         self.run_join(sei)
 
-    #@unittest.skip("212")
+    @unittest.skip("test3")
     def test_universal_join_attribution(self):
         self.example_joiner_options = dj_pb.ExampleJoinerOptions(
                   example_joiner='UNIVERSAL_JOINER',
@@ -104,6 +103,7 @@ class TestUniversalJoin(dsp.DataSourceProducer):
                   join_expr="example_id or lt(event_time)",
                   join_key_mapper="DEFAULT",
               )
+        self.version = dsp.Version.V2
 
         sei = joiner_impl.create_example_joiner(
                 self.example_joiner_options,

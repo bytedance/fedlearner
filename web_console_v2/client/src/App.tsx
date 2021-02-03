@@ -37,6 +37,7 @@ const AppMainContent = styled.main`
   grid-area: main-content;
   padding: var(--contentOuterPadding);
   overflow: auto;
+  overflow-anchor: auto;
 `;
 
 function App(): ReactElement {

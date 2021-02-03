@@ -312,8 +312,14 @@ class Workflow(db.Model):
 
         if self.target_state == WorkflowState.STOPPED:
             self.stop_at = int(datetime.utcnow().timestamp())
-            for job in self.owned_jobs:
-                job.stop()
+            try:
+                for job in self.owned_jobs:
+                    job.stop()
+            except RuntimeError as e:
+                # errors from k8s
+                logging.error('Stop workflow %d has Runtime error msg: %s'
+                              , self.id, e.args)
+                return
         elif self.target_state == WorkflowState.READY:
             self._setup_jobs()
             self.fork_proposal_config = None
@@ -366,7 +372,7 @@ class Workflow(db.Model):
             job.name: i for i, job in enumerate(job_defs)
         }
         for i, job in enumerate(jobs):
-            if job.name in reuse_jobs:
+            if job.get_config().name in reuse_jobs:
                 continue
             for j, dep_def in enumerate(job.get_config().dependencies):
                 dep = JobDependency(
@@ -376,6 +382,8 @@ class Workflow(db.Model):
                 db.session.add(dep)
 
         self.set_job_ids([job.id for job in jobs])
+
+
 
     def log_states(self):
         logging.debug(

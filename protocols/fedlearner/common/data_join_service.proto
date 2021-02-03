@@ -163,10 +163,9 @@ message LiteExampleIds {
   int64 begin_index = 2;
   repeated bytes example_id = 3;
   repeated int64 event_time = 4;
-  int32 version = 5;
-  repeated string id_type = 6;
-  repeated int64 event_time_deep = 7;
-  repeated bytes click_id = 8; 
+  repeated string id_type = 5;
+  repeated int64 event_time_deep = 6;
+  repeated bytes click_id = 7; 
 }
 
 message PackedLiteExampleIds {
@@ -240,7 +239,8 @@ message RawDataOptions {
   // read batch size for tf record, <=0 means batch size == 1
   int64 read_batch_size = 4;
   repeated string optional_fields = 5;
-  int32 version = 6;
+  // sample ratio for input data's statistic and validation
+  float input_data_stat_sample_ratio = 6;
 }
 
 message WriterOptions {

@@ -4,7 +4,7 @@ RUN apt-get update && apt install -y curl
 # For nodejs PA
 RUN curl -sL https://deb.nodesource.com/setup_14.x | bash
 # Install dependencies
-RUN apt-get install -y make nodejs nginx supervisor
+RUN apt-get install -y make nodejs nginx
 
 WORKDIR /app
 # Copies all source code
@@ -21,7 +21,6 @@ RUN pip3 install -r requirements.txt
 RUN make protobuf
 
 # Nginx configuration
-RUN echo "daemon off;" >> /etc/nginx/nginx.conf
 COPY nginx.conf /etc/nginx/conf.d/nginx.conf
 
 # Port for webconsole http server
@@ -31,4 +30,4 @@ EXPOSE 1989
 EXPOSE 1990
 
 WORKDIR /app
-CMD /usr/bin/supervisord -c supervisord.conf
+CMD sh run_prod.sh

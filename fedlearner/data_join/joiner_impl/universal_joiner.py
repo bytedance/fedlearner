@@ -30,7 +30,6 @@ from fedlearner.data_join.key_mapper import create_key_mapper
 def get_key_instance_by_attr(keys, item, mapped_item, tuple_idx=None):
     key_str_arr = []
     for idx, key in enumerate(keys):
-        #pdb.set_trace()
         key_arr = key
         if isinstance(key, str):
             key_arr = [key]
@@ -38,65 +37,60 @@ def get_key_instance_by_attr(keys, item, mapped_item, tuple_idx=None):
             if tuple_idx is not None:
                 tuple_idx.append(idx)
             key_str_arr.append("_".join(
-                ["%s:%s"%(name, getattr(item, name)) for name in key_arr]))
+                ["%s:%s"%(name, common.convert_to_str(getattr(item, name))) \
+                 for name in key_arr]))
     return key_str_arr
 
 
 class _JoinerImpl(object):
-    def __init__(self, exp, mapper):
+    def __init__(self, exp):
         self._expr = exp
-        self._mapper = mapper
 
-    def join(self, conv_window, show_window):
+    def join(self, follower_window, leader_window):
         """
-        Assume show stream is exponentially larger than convert stream,
+        Assume leader stream is exponentially larger than follower stream,
         we cache the all the events from now back to watermark. example id
-        maybe duplicated in convert stream
+        maybe duplicated in follower stream
         Return:
-            show_matches: an array with tuples(convet, show), in same order
-                with show event
+            show_matches: an array with tuples(follower, leader), in same order
+                with leader event
         """
-        show_matches = []
-        show_mismatches = {}
+        leader_matches = []
+        leader_mismatches = {}
         # keys example: [(req_id, cid), click_id]
         keys = self._expr.keys()
-        #pdb.set_trace()
-        conv_dict = conv_window.as_dict(keys, self._mapper.follower_mapping)
+        follower_dict = follower_window.as_dict(keys)
         idx = 0
-        while idx < show_window.size():
-            show = show_window[idx][1]
+        while idx < leader_window.size():
+            leader = leader_window[idx].item
             #1. find the first matching key
             tuple_idx = []
-            mapped_item = self._mapper.leader_mapping(show)
+            mapped_item = leader_window.key_map_fn(leader)
             key_str_arr = get_key_instance_by_attr(
-                keys, show, mapped_item, tuple_idx)
+                keys, leader, mapped_item, tuple_idx)
             found = False
             for ki, k in enumerate(key_str_arr):
-                if k not in conv_dict:
+                if k not in follower_dict:
                     continue
-                cd = conv_dict[k]
+                cd = follower_dict[k]
                 tuple_idx = tuple_idx[ki]
                 for i in reversed(range(len(cd))):
-                    #A show can match multiple conversion event, add
-                    # all the matched conversion-show pair to result
-                    conv = conv_window[cd[i]][1]
+                    #A leader can match multiple conversion event, add
+                    # all the matched conversion-leader pair to result
+                    follower = follower_window[cd[i]].item
                     #2. select all the matching items from the specific key
                     # in follower side.
-                    #pdb.set_trace()
-                    if self._expr.run_func(tuple_idx)(show, conv):
-                        show_matches.append((cd[i], idx))
+                    if self._expr.run_func(tuple_idx)(leader, follower):
+                        leader_matches.append((cd[i], idx))
                 found = True
                 break
             if not found:
-                show_mismatches[show_window[idx][0]] = show
+                leader_mismatches[leader_window[idx].index] = leader
             idx += 1
-        return show_matches, show_mismatches
+        return leader_matches, leader_mismatches
 
 class _Trigger(object):
-    """
-    Decide to move forward the watermark. We assume the item contains
-        field event_time
-    """
+    """Update watermark. We assume the item contains field event_time"""
     def __init__(self, max_conversion_delay):
         self._max_conversion_delay = max_conversion_delay
         self._watermark = 0
@@ -104,52 +98,55 @@ class _Trigger(object):
     def watermark(self):
         return self._watermark
 
-    def shrink(self, conv_window):
-        ed = conv_window[conv_window.size() - 1]
+    def shrink(self, follower_window):
+        ed = follower_window[follower_window.size() - 1]
         idx = 0
-        while idx < conv_window.size()                                      \
-                and ed[1].event_time >                                      \
-              conv_window[idx][1].event_time + self._max_conversion_delay:
-            self._watermark = conv_window[idx][1].event_time
+        while idx < follower_window.size()                                     \
+                and ed.item.event_time >                                       \
+              follower_window[idx].item.event_time + self._max_conversion_delay:
+            self._watermark = follower_window[idx].item.event_time
             idx += 1
         return idx
 
-    def trigger(self, conv_window, show_window):
-        conv_stride, show_stride = 0, 0
-        ## step can be increased to accelerate this
+    def trigger(self, follower_window, leader_window):
+        follower_stride, leader_stride = 0, 0
         step, sid = 1, 0
-        show_win_size = show_window.size() - 1
-        conv_win_size = conv_window.size() - 1
-        while show_stride <= show_win_size and                              \
-                sid <= show_win_size and                                    \
-                conv_win_size >= 0 and                                      \
-                conv_window[conv_win_size][1].event_time >                  \
-                show_window[sid][1].event_time +                            \
+        leader_win_size = leader_window.size() - 1
+        follower_win_size = follower_window.size() - 1
+        while leader_stride <= leader_win_size and                             \
+                sid <= leader_win_size and                                     \
+                follower_win_size >= 0 and                                     \
+                follower_window[follower_win_size].item.event_time >           \
+                leader_window[sid].item.event_time +                           \
                     self._max_conversion_delay:
-            show_stride += step
+            leader_stride += step
             sid += 1
 
         cid = 0
-        while conv_stride <= conv_win_size and                              \
-                show_win_size >= 0 and                                      \
-                0 <= cid <= conv_win_size and                               \
-                show_window[show_win_size][1].event_time >                  \
-                conv_window[cid][1].event_time + self._max_conversion_delay:
+        while follower_stride <= follower_win_size and                         \
+                leader_win_size >= 0 and                                       \
+                0 <= cid <= follower_win_size and                              \
+                leader_window[leader_win_size].item.event_time >               \
+                follower_window[cid].item.event_time +                         \
+                    self._max_conversion_delay:
             #FIXME current et is not always the watermark
-            self._watermark = max(conv_window[cid][1].event_time,           \
+            self._watermark = max(follower_window[cid].item.event_time,        \
                                   self._watermark)
-            conv_stride += step
+            follower_stride += step
             cid += 1
 
-        logging.info("Watermark forward to %d by (conv: %d, show: %d)",     \
-                    self._watermark, conv_stride, show_stride)
-        return (conv_stride, show_stride)
+        logging.info("Watermark forward to %d by (follower: %d, leader: %d)",  \
+                    self._watermark, follower_stride, leader_stride)
+        return (follower_stride, leader_stride)
 
 class _SlidingWindow(object):
-    """
-    Sliding and unfixed-size window
-    """
-    def __init__(self, init_window_size, max_window_size):
+    """Sliding and unfixed-size window"""
+    class Element(object):
+        """index is the index of item in rawdata"""
+        def __init__(self, idx, item):
+            self.index = idx
+            self.item = item
+    def __init__(self, init_window_size, max_window_size, mapper):
         self._init_window_size = max(init_window_size, 1)
         self._max_window_size = max_window_size
         self._ring_buffer = list(range(self._init_window_size))
@@ -158,13 +155,17 @@ class _SlidingWindow(object):
         self._alloc_size = self._init_window_size
         self._size = 0
         self._debug_extend_cnt = 0
+        self._key_map_fn = mapper
+
+    def key_map_fn(self, item):
+        return self._key_map_fn(item)
 
     def __str__(self):
         return "start: %d, end: %d, size: %d, alloc_size: %d, buffer: %s"% \
                 (self._start, self._end, self._size, self._alloc_size,     \
                  self._ring_buffer[self.start():                           \
                                    (self.start()+20)%self._alloc_size])
-    def as_dict(self, keys, map_func):
+    def as_dict(self, keys):
         """
             multi-key index construction:
                 buf:    key -> [idx]
@@ -173,8 +174,8 @@ class _SlidingWindow(object):
         buf = {}
         idx = 0
         while idx < self.size():
-            item = self.__getitem__(idx)[1]
-            mapped_item = map_func(item)
+            item = self.__getitem__(idx).item
+            mapped_item = self._key_map_fn(item)
             for key in get_key_instance_by_attr(keys, item, mapped_item):
                 if key not in buf:
                     buf[key] = [idx]
@@ -198,8 +199,8 @@ class _SlidingWindow(object):
     def et_span(self):
         if self._size == 0:
             return 0
-        st = self._ring_buffer[self._start][1].event_time
-        ed = self._ring_buffer[self._index(self._size - 1)][1].event_time
+        st = self._ring_buffer[self._start].item.event_time
+        ed = self._ring_buffer[self._index(self._size - 1)].item.event_time
         return ed - st
 
     def reserved_size(self):
@@ -210,7 +211,7 @@ class _SlidingWindow(object):
         if self._size >= self._alloc_size:
             self.extend()
         assert self._size < self._alloc_size, "Window extend failed"
-        self._ring_buffer[self._end] = (index, item)
+        self._ring_buffer[self._end] = self.Element(index, item)
         self._end = (self._end + 1) % self._alloc_size
         self._size += 1
 
@@ -285,14 +286,18 @@ class UniversalJoiner(ExampleJoiner):
                                                   kvstore, data_source,
                                                   partition_id)
         self._min_window_size = example_joiner_options.min_matching_window
-        # max_window_size must be lesser than max_conversion_delay
+        # max_window_size must be lesser than max_followerersion_delay
         self._max_window_size = example_joiner_options.max_matching_window
         self._max_conversion_delay = \
                 example_joiner_options.max_conversion_delay
-        self._leader_join_window = _SlidingWindow(self._min_window_size,
-                                                  2**20)
+        self._key_mapper = create_key_mapper(
+            example_joiner_options.join_key_mapper)
+        self._leader_join_window = _SlidingWindow(
+            self._min_window_size,
+            2**20, self._key_mapper.leader_mapping)
         self._follower_join_window = _SlidingWindow(
-            self._min_window_size, self._max_window_size)
+            self._min_window_size, self._max_window_size,
+            self._key_mapper.follower_mapping)
         self._leader_restart_index = -1
         self._sorted_buf_by_leader_index = []
         self._dedup_by_follower_index = {}
@@ -300,9 +305,7 @@ class UniversalJoiner(ExampleJoiner):
         self._trigger = _Trigger(self._max_conversion_delay)
 
         self._expr = expr.JoinExpr(example_joiner_options.join_expr)
-        self._key_mapper = create_key_mapper(
-            example_joiner_options.join_key_mapper)
-        self._joiner = _JoinerImpl(self._expr, self._key_mapper)
+        self._joiner = _JoinerImpl(self._expr)
 
         self._enable_negative_example_generator = \
                 example_joiner_options.enable_negative_example_generator
@@ -337,14 +340,13 @@ class UniversalJoiner(ExampleJoiner):
                         raw_data_finished, self._leader_join_window.size(),    \
                         self._follower_join_window.size())
 
-            #pdb.set_trace()
             watermark = self._trigger.watermark()
             #1. find all the matched pairs in current window
             raw_pairs, mismatches = self._joiner.join(
                 self._follower_join_window, self._leader_join_window)
             if self._enable_negative_example_generator:
                 self._negative_example_generator.update(mismatches)
-            #2. cache the pairs, evict the show events which are out of
+            #2. cache the pairs, evict the leader events which are out of
             # watermark
             pairs = self._sort_and_evict_leader_buf(raw_pairs, watermark)
             #3. push the result into builder
@@ -413,16 +415,19 @@ class UniversalJoiner(ExampleJoiner):
             #fi: follower index, fe: follower example
             assert cid < self._follower_join_window.size(), "Invalid l index"
             assert sid < self._leader_join_window.size(), "Invalid f index"
-            (fi, fe) = self._follower_join_window[cid]
-            (li, le) = self._leader_join_window[sid]
-            assert fe.example_id == le.example_id, "Example id must be equal"
+
+            example_with_index = self._follower_join_window[cid]
+            fi, fe = example_with_index.index, example_with_index.item
+
+            example_with_index = self._leader_join_window[sid]
+            li, le = example_with_index.index, example_with_index.item
             if li <= self._leader_restart_index:
                 logging.warning("Unordered event ignored, leader index should"\
                                 " be greater %d > %d for follower idx %d is"  \
                                 " false", li, self._leader_restart_index, fi)
                 continue
 
-            # cache the latest show event
+            # cache the latest leader event
             updated = False
             if fi in self._dedup_by_follower_index:
                 if self._dedup_by_follower_index[fi][1] > le.event_time:
@@ -513,8 +518,8 @@ class UniversalJoiner(ExampleJoiner):
                                        self._leader_join_window)
         eids = []
         while idx < self._leader_join_window.size():
-            eids.append((self._leader_join_window[idx][0],
-                        self._leader_join_window[idx][1].example_id))
+            eids.append((self._leader_join_window[idx].index,
+                        self._leader_join_window[idx].item.example_id))
             idx += 1
 
         self._joiner_stats.fill_leader_example_ids(eids)
@@ -531,8 +536,8 @@ class UniversalJoiner(ExampleJoiner):
                                       self._follower_join_window)
         eids = []
         while idx < self._follower_join_window.size():
-            eids.append((self._follower_join_window[idx][0],
-                 self._follower_join_window[idx][1].example_id))
+            eids.append((self._follower_join_window[idx].index,
+                 self._follower_join_window[idx].item.example_id))
             idx += 1
 
         self._joiner_stats.fill_follower_example_ids(eids)

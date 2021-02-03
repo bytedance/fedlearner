@@ -20,10 +20,11 @@ from fedlearner_webconsole.auth.models import User
 
 app = create_app('config.Config')
 
-@app.cli.command('create-db')
-def create_db():
-    db.create_all()
-    user = User(username='ada')
-    user.set_password('ada')
-    db.session.add(user)
-    db.session.commit()
+@app.cli.command('create-initial-data')
+def create_initial_data():
+    # Creates ada if it not exists
+    if User.query.filter_by(username='ada').first() is None:
+        user = User(username='ada')
+        user.set_password('ada')
+        db.session.add(user)
+        db.session.commit()

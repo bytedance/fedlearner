@@ -106,7 +106,7 @@ export interface WorkflowTemplate {
 export type WorkflowTemplatePayload = {
   name: string;
   comment?: string;
-  config: any;
+  config: WorkflowConfig;
 };
 
 export type WorkflowInitiatePayload = {

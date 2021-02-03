@@ -111,7 +111,7 @@ const WorkflowActions: FC<Props> = ({ workflow, type = 'default', without = [], 
           </Button>
         )}
         {visible.stop && (
-          <Popconfirm title="确认停止运行该工作流吗?" onConfirm={onStopClick}>
+          <Popconfirm title={t('workflow.msg_sure_to_stop')} onConfirm={onStopClick}>
             <Button size="small" type={type} {...withIcon('stop')} disabled={disabled.stop}>
               {t('workflow.action_stop_running')}
             </Button>

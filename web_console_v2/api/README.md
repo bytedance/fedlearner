@@ -20,7 +20,7 @@ export FLASK_APP=manage:app
 flask db upgrade
 
 # Creates initial user
-flask create-db
+flask create-initial-data
 
 # Starts the server
 export FLASK_ENV=development

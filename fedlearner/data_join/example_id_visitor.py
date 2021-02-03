@@ -270,17 +270,29 @@ class ExampleIdVisitor(visitor.Visitor):
                     lite_example_ids.ParseFromString(record)
                     example_id_num = len(lite_example_ids.example_id)
                     event_time_num = len(lite_example_ids.event_time)
+                    if len(lite_example_ids.id_type) > 0:
+                        assert example_id_num == len(lite_example_ids.id_type),\
+                                "Incomplete new example"
                     assert example_id_num == event_time_num, \
                         "the size of example id and event time must the "\
                         "same. {} != {}".format(example_id_num,
                                                 event_time_num)
                     index = 0
                     while index < len(lite_example_ids.example_id):
-                        yield ExampleIdVisitor.ExampleIdItem(
+
+                        example_id_item = ExampleIdVisitor.ExampleIdItem(
                                 lite_example_ids.example_id[index],
                                 lite_example_ids.event_time[index],
                                 index + lite_example_ids.begin_index
                             )
+                        if len(lite_example_ids.id_type) > 0:
+                            example_id_item.click_id = \
+                                    lite_example_ids.click_id[index]
+                            example_id_item.id_type = \
+                                    lite_example_ids.id_type[index]
+                            example_id_item.event_time_deep = \
+                                    lite_example_ids.event_time_deep[index]
+                        yield example_id_item
                         index += 1
 
     def __init__(self, kvstore, data_source, partition_id):

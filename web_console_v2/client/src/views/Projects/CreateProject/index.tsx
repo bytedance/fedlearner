@@ -2,10 +2,9 @@ import React, { ReactElement } from 'react';
 import ProjectForm from '../ProjectForm';
 import BreadcrumbLink from 'components/BreadcrumbLink';
 import { createProject } from 'services/project';
-import { useTranslation } from 'react-i18next';
+import { CreateProjectPayload } from 'typings/project';
 
 function CreateProject(): ReactElement {
-  const { t } = useTranslation();
   return (
     <>
       <BreadcrumbLink
@@ -15,7 +14,7 @@ function CreateProject(): ReactElement {
       <ProjectForm onSubmit={onSubmit} />
     </>
   );
-  async function onSubmit<CreateProjectFormData>(payload: CreateProjectFormData) {
+  async function onSubmit(payload: CreateProjectPayload) {
     try {
       await createProject(payload);
     } catch (error) {

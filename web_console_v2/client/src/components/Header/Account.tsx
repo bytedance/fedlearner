@@ -26,7 +26,7 @@ const Container = styled.div`
   border-radius: 50%;
 
   &:hover {
-    background: var(--backgroundGray);
+    background: var(--backgroundColorGray);
   }
 `;
 
@@ -40,7 +40,7 @@ const EmptyAvatar = styled.div`
 
   border-radius: 50%;
   border: 4px solid transparent;
-  background-color: var(--backgroundGray);
+  background-color: var(--backgroundColorGray);
   background-clip: content-box;
 `;
 const UsernameRow = styled(GridRow)`
@@ -61,7 +61,7 @@ const Role = styled.div`
   font-size: 12px;
   line-height: 1;
   font-weight: normal;
-  background-color: var(--backgroundGray);
+  background-color: var(--backgroundColorGray);
 
   &::before {
     ${MixinCircle(14)}

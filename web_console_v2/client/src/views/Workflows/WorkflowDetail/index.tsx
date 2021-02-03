@@ -18,7 +18,7 @@ import {
   JobColorsMark,
   JobNode,
   JobNodeData,
-  JobRawData,
+  JobNodeRawData,
 } from 'components/WorkflowJobsFlowChart/helpers';
 import PropertyList from 'components/PropertyList';
 import { Eye, EyeInvisible } from 'components/IconPark';
@@ -51,6 +51,7 @@ const Name = styled.h3`
   font-size: 20px;
   line-height: 28px;
 `;
+// TODO: find a better way to define no-result's container
 const NoJobs = styled.div`
   display: flex;
   height: calc(100% - 48px);
@@ -127,6 +128,7 @@ const WorkflowDetail: FC = () => {
 
       value: workflow && <CountTime time={runningTime} isStatic={!isRunning_} />,
     },
+    // Display workflow global variables
     ...(workflow?.config?.variables || []).map((item) => ({ label: item.name, value: item.value })),
   ];
   const jobsWithExeDetails = mergeJobDefsWithExecutionDetails(workflow);
@@ -248,7 +250,7 @@ const WorkflowDetail: FC = () => {
     setIsPeerSide(false);
     showJobDetailesDrawer(jobNode);
   }
-  // TODO: Maybe it's incorrect to show other side my job execution details?
+  // TODO: Is it proper to show other-side my job execution details?
   function __viewPeerJobDetail__(jobNode: JobNode) {
     setIsPeerSide(true);
     showJobDetailesDrawer(jobNode);
@@ -267,20 +269,22 @@ const WorkflowDetail: FC = () => {
 
 function mergeJobDefsWithExecutionDetails(
   workflow: WorkflowExecutionDetails | undefined,
-): JobRawData[] {
+): JobNodeRawData[] {
   if (!workflow) return [];
 
-  return workflow.config?.job_definitions.map((item) => {
-    return Object.assign(
-      item,
-      workflow?.jobs?.find((j) => j.name === `${workflow.name}-${item.name}`) || {},
-      { name: item.name },
-    );
-  }) as JobRawData[];
+  return (
+    workflow.config?.job_definitions.map((item) => {
+      return Object.assign(
+        item,
+        workflow?.jobs?.find((j) => j.name === `${workflow.name}-${item.name}`) || {},
+        { name: item.name },
+      );
+    }) || []
+  );
 }
 
 /** NOTE: Has Side effect to inputs! */
-function _markFederatedJobs(aJobs: JobRawData[], bJobs: JobRawData[]) {
+function _markFederatedJobs(aJobs: JobNodeRawData[], bJobs: JobNodeRawData[]) {
   const colorPools: JobColorsMark[] = ['blue', 'green', 'yellow', 'magenta', 'cyan'];
   const markedJobs: Record<string, JobColorsMark> = {};
 

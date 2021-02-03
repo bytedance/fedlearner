@@ -17,11 +17,11 @@
 import unittest
 import os
 import random
-import logging
+import pdb
+import enum
 
 import tensorflow.compat.v1 as tf
 tf.enable_eager_execution()
-import tensorflow_io
 from tensorflow.compat.v1 import gfile
 from google.protobuf import timestamp_pb2
 
@@ -38,8 +38,12 @@ from fedlearner.data_join import (
 from fedlearner.data_join.data_block_manager import DataBlockBuilder
 from fedlearner.data_join.raw_data_iter_impl.tf_record_iter import TfExampleItem
 
+class Version:
+    V1 = 1
+    V2 = 2
+
 class DataSourceProducer(unittest.TestCase):
-    def init(self, dsname, joiner_name):
+    def init(self, dsname, joiner_name, version=Version.V1):
         data_source = common_pb.DataSource()
         data_source.data_source_meta.name = dsname
         data_source.data_source_meta.partition_num = 1
@@ -80,6 +84,7 @@ class DataSourceProducer(unittest.TestCase):
         self.manifest_manager = raw_data_manifest_manager.RawDataManifestManager(
             self.kvstore, self.data_source)
         self.g_data_block_index = 0
+        self.version = version 
 
     def generate_raw_data(self, begin_index, item_count):
         raw_data_dir = os.path.join(self.raw_data_dir, common.partition_repr(0))
@@ -128,6 +133,16 @@ class DataSourceProducer(unittest.TestCase):
                 event_time = 150000000 + example_idx + 1
                 feat['event_time'] = tf.train.Feature(
                         int64_list=tf.train.Int64List(value=[event_time]))
+                if self.version == Version.V2:
+                    feat['id_type'] = tf.train.Feature(
+                        bytes_list=tf.train.BytesList(value=['IMEI'.encode()]))
+                    feat['event_time_deep'] = tf.train.Feature(
+                        int64_list=tf.train.Int64List(value=[event_time + 1]))
+                    feat['req_id'] = tf.train.Feature(
+                        bytes_list=tf.train.BytesList(value=[example_id]))
+                    feat['cid'] = tf.train.Feature(
+                        bytes_list=tf.train.BytesList(value=[example_id]))
+
                 example = tf.train.Example(features=tf.train.Features(feature=feat))
                 builder.append_item(TfExampleItem(example.SerializeToString()),
                                     useless_index, useless_index)
@@ -139,6 +154,15 @@ class DataSourceProducer(unittest.TestCase):
                 event_time = 150000000 + example_idx + 111
                 feat['event_time'] = tf.train.Feature(
                         int64_list=tf.train.Int64List(value=[event_time]))
+                if self.version == Version.V2:
+                    feat['id_type'] = tf.train.Feature(
+                        bytes_list=tf.train.BytesList(value=['IMEI'.encode()]))
+                    feat['event_time_deep'] = tf.train.Feature(
+                        int64_list=tf.train.Int64List(value=[event_time + 1]))
+                    feat['req_id'] = tf.train.Feature(
+                        bytes_list=tf.train.BytesList(value=[example_id]))
+                    feat['cid'] = tf.train.Feature(
+                        bytes_list=tf.train.BytesList(value=[example_id]))
                 example = tf.train.Example(features=tf.train.Features(feature=feat))
                 builder.append_item(TfExampleItem(example.SerializeToString()),
                                     useless_index, useless_index)
@@ -189,6 +213,10 @@ class DataSourceProducer(unittest.TestCase):
             for example_idx in cands:
                 example_id_batch.example_id.append('{}'.format(example_idx).encode())
                 example_id_batch.event_time.append(150000000 + example_idx)
+                if self.version == Version.V2:
+                    example_id_batch.click_id.append('{}'.format(example_idx).encode())
+                    example_id_batch.id_type.append('IMEI'.encode())
+                    example_id_batch.event_time_deep.append(150000000 + example_idx + 1)
             packed_example_id_batch = dj_pb.PackedLiteExampleIds(
                     partition_id=0,
                     begin_index=req_index*512,
@@ -202,6 +230,7 @@ class DataSourceProducer(unittest.TestCase):
             eid()
 
     def tearDown(self):
+        #pdb.set_trace()
         if gfile.Exists(self.data_source.output_base_dir):
             gfile.DeleteRecursively(self.data_source.output_base_dir)
         if gfile.Exists(self.raw_data_dir):

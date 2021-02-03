@@ -1,11 +1,10 @@
-import { cloneDeep } from 'lodash';
-import { useSetRecoilState } from 'recoil';
-import { datasetBasicForm, DEFAULT_BASIC_VALUES } from 'stores/dataset';
+import { useResetRecoilState } from 'recoil';
+import { datasetBasicForm } from 'stores/dataset';
 
 export function useResetCreateForm() {
-  const setBasicForm = useSetRecoilState(datasetBasicForm);
+  const resetBasicForm = useResetRecoilState(datasetBasicForm);
 
   return function () {
-    setBasicForm(cloneDeep(DEFAULT_BASIC_VALUES));
+    resetBasicForm();
   };
 }

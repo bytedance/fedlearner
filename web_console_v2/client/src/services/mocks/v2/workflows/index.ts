@@ -1,3 +1,4 @@
+import { AxiosRequestConfig } from 'axios';
 import { Workflow } from 'typings/workflow';
 import { newlyCreated, awaitParticipantConfig } from './examples';
 
@@ -8,6 +9,15 @@ export const get = {
     data: list,
   },
   status: 200,
+};
+
+export const post = (config: AxiosRequestConfig) => {
+  return {
+    data: {
+      data: config.data,
+    },
+    status: 200,
+  };
 };
 
 export default get;

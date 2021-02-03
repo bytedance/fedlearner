@@ -94,9 +94,6 @@ if __name__ == "__main__":
     parser.add_argument('--join_key_mapper', type=str,
                         help="key mapper, format: name="\
                         "schema:///path/to/mapper.tar.gz")
-    parser.add_argument('--rawdata_version', type=int, default=2,
-                        help="1 for version V1 and 2 for V2 of rawdata and "\
-                        "example ids")
     parser.add_argument('--optional_fields', type=str, default='',
                         help='optional stat fields used in joiner, separated '
                              'by comma between fields, e.g. "label,rit". '
@@ -113,7 +110,6 @@ if __name__ == "__main__":
                     compressed_type=args.compressed_type,
                     read_ahead_size=args.read_ahead_size,
                     read_batch_size=args.read_batch_size,
-                    version=args.rawdata_version,
                     optional_fields=optional_fields
                 ),
             example_joiner_options=dj_pb.ExampleJoinerOptions(

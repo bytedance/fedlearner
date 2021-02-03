@@ -86,7 +86,8 @@ class K8sClient(object):
         try:
             self._core.delete_namespaced_secret(name, namespace)
         except ApiException as e:
-            self._raise_runtime_error(e)
+            if e.status != HTTPStatus.NOT_FOUND:
+                self._raise_runtime_error(e)
 
     def get_secret(self, name, namespace='default'):
         try:
@@ -123,7 +124,8 @@ class K8sClient(object):
         try:
             self._core.delete_namespaced_service(name, namespace)
         except ApiException as e:
-            self._raise_runtime_error(e)
+            if e.status != HTTPStatus.NOT_FOUND:
+                self._raise_runtime_error(e)
 
     def get_service(self, name, namespace='default'):
         try:
@@ -166,7 +168,8 @@ class K8sClient(object):
         try:
             return self._networking.read_namespaced_ingress(name, namespace)
         except ApiException as e:
-            self._raise_runtime_error(e)
+            if e.status != HTTPStatus.NOT_FOUND:
+                self._raise_runtime_error(e)
 
     def create_or_update_deployment(self,
                                     metadata,
@@ -196,7 +199,8 @@ class K8sClient(object):
         try:
             self._app.delete_namespaced_deployment(name, namespace)
         except ApiException as e:
-            self._raise_runtime_error(e)
+            if e.status != HTTPStatus.NOT_FOUND:
+                self._raise_runtime_error(e)
 
     def get_deployment(self, name, namespace='default'):
         try:
@@ -204,34 +208,50 @@ class K8sClient(object):
         except ApiException as e:
             self._raise_runtime_error(e)
 
-    def get_custom_object(self, kind: CrdKind,
+    def get_custom_object(self, crd_kind: CrdKind,
                           custom_object_name: str, namespace='default'):
-        try:
-            response = self._custom_object.get_namespaced_custom_object(
-                group=FEDLEARNER_CUSTOM_GROUP,
-                version=FEDLEARNER_CUSTOM_VERSION, namespace=namespace,
-                plural=kind.value,
-                name=custom_object_name
-            )
-            return response
-        except ApiException as e:
-            self._raise_runtime_error(e)
+        response = requests.get(
+            '{api_server_url}/namespaces/{namespace}/fedlearner/'
+            'v1alpha1/{crd_kind}/{name}'.format(
+                api_server_url=self._api_server_url,
+                namespace=namespace,
+                crd_kind=crd_kind.value,
+                name=custom_object_name))
+        if response.status_code != HTTPStatus.OK:
+            raise RuntimeError('{}:{}'.format(response.status_code,
+                                              response.content))
+        return response.json()
 
-    def delete_custom_object(self, kind: CrdKind,
+    def delete_custom_object(self, crd_kind: CrdKind,
                              custom_object_name: str, namespace='default'):
-        try:
-            response = self._custom_object.delete_namespaced_custom_object(
-                group=FEDLEARNER_CUSTOM_GROUP,
-                version=FEDLEARNER_CUSTOM_VERSION, namespace=namespace,
-                plural=kind.value,
-                name=custom_object_name
-            )
-            return response
-        except ApiException as e:
-            self._raise_runtime_error(e)
+        response = requests.delete(
+            '{api_server_url}/namespaces/{namespace}/fedlearner/'
+            'v1alpha1/{crd_kind}/{name}'.format(
+                api_server_url=self._api_server_url,
+                namespace=namespace,
+                crd_kind=crd_kind.value,
+                name=custom_object_name))
+        if response.status_code not in [HTTPStatus.OK, HTTPStatus.NOT_FOUND]:
+            raise RuntimeError('{}:{}'.format(response.status_code,
+                                              response.content))
+        return response.json()
 
-    def create_custom_object(self, crd_kind: CrdKind, json_object,
-                             namespace='default'):
+    def create_or_replace_custom_object(self, crd_kind: CrdKind, json_object,
+                                        namespace='default'):
+        custom_object_name = json_object['metadata']['name']
+        response = requests.get(
+            '{api_server_url}/namespaces/{namespace}/fedlearner/'
+            'v1alpha1/{crd_kind}/{name}'.format(
+                api_server_url=self._api_server_url,
+                namespace=namespace,
+                crd_kind=crd_kind.value,
+                name=custom_object_name))
+        if response.status_code == HTTPStatus.OK:
+            # If exist, replace
+            self.delete_custom_object(crd_kind, custom_object_name, namespace)
+        elif response.status_code != HTTPStatus.NOT_FOUND:
+            raise RuntimeError('{}:{}'.format(response.status_code,
+                                              response.content))
         response = requests.post(
             '{api_server_url}/namespaces/{namespace}/fedlearner/'
             'v1alpha1/{crd_kind}'.format(
@@ -241,10 +261,10 @@ class K8sClient(object):
             json=json_object)
         if response.status_code != HTTPStatus.CREATED:
             raise RuntimeError('{}:{}'.format(response.status_code,
-                                              response.reason))
+                                              response.content))
         return response.json()
 
-    def list_resource_of_custom_object(self, kind: CrdKind,
+    def list_resource_of_custom_object(self, crd_kind: CrdKind,
                                        custom_object_name: str,
                                        resource_type: str, namespace='default'):
         response = requests.get(
@@ -252,12 +272,12 @@ class K8sClient(object):
             '{plural}/{name}/{resource_type}'.format(
                 api_server_url=self._api_server_url,
                 namespace=namespace,
-                plural=kind.value,
+                plural=crd_kind.value,
                 name=custom_object_name,
                 resource_type=resource_type))
         if response.status_code != HTTPStatus.OK:
             raise RuntimeError('{}:{}'.format(response.status_code,
-                                              response.reason))
+                                              response.content))
         return response.json()
 
     def get_webshell_session(self, flapp_name: str,
@@ -271,5 +291,5 @@ class K8sClient(object):
                 container_name=container_name))
         if response.status_code != HTTPStatus.OK:
             raise RuntimeError('{}:{}'.format(response.status_code,
-                                              response.reason))
+                                              response.content))
         return response.json()

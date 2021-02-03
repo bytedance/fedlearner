@@ -9,7 +9,7 @@ import { datasetBasicForm } from 'stores/dataset';
 
 const FooterRow = styled(GridRow)`
   padding-top: 15px;
-  border-top: 1px solid var(--backgroundGray);
+  border-top: 1px solid var(--backgroundColorGray);
 `;
 
 type Props = {

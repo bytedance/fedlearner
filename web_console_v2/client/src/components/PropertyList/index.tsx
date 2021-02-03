@@ -18,9 +18,10 @@ const Container = styled.dl`
 const Prop = styled.dd`
   display: flex;
   align-items: flex-start;
-  margin-bottom: 0;
+  margin-bottom: 3px;
   font-size: 13px;
   line-height: 36px;
+  word-break: break-word;
 
   &::before {
     display: inline-block;
@@ -38,8 +39,8 @@ const CollapseButton = styled.div`
   display: flex;
   justify-content: center;
   align-items: center;
-  width: 30px;
-  height: 30px;
+  width: 25px;
+  height: 25px;
   transform: translate(-50%, 50%);
   padding: 2px 0 1px;
   border-radius: 50%;
@@ -53,6 +54,7 @@ const CollapseButton = styled.div`
   > .anticon {
     ${MixinCommonTransition()}
     margin-top: 1px;
+    font-size: 10px;
   }
 
   &.is-reverse {

@@ -22,7 +22,6 @@ import time
 import traceback
 
 from fedlearner.common import metrics
-from fedlearner.data_join.common import VERSION
 
 class ItemBatch(object):
     def append(self, item):
@@ -103,7 +102,7 @@ class ItemBatchSeqProcessor(object):
         raise NotImplementedError("_make_item_batch is not implemented "\
                                   "in {}".format(self.name()))
 
-    def make_processor(self, next_index, version=VERSION.V1):
+    def make_processor(self, next_index):
         input_finished = False
         with self._lock:
             if next_index is None:
@@ -122,7 +121,7 @@ class ItemBatchSeqProcessor(object):
         processed_index = None
         start_tm = time.time()
         for batch, batch_finished in self._make_inner_generator(
-            next_index, version):
+            next_index):
             if batch is not None:
                 if len(batch) > 0:
                     latency_mn = '{}.produce.latency'.format(self.name())
@@ -151,7 +150,7 @@ class ItemBatchSeqProcessor(object):
     def _get_metrics_tags(self):
         return {}
 
-    def _make_inner_generator(self, next_index, version):
+    def _make_inner_generator(self, next_index):
         raise NotImplementedError("_make_inner_generator is not "\
                                   "implemented in {}".format(self.name()))
 

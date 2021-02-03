@@ -2,11 +2,11 @@ import copy
 import logging
 import random
 from collections import defaultdict
-from datetime import datetime
 from itertools import chain
 
 import fedlearner.common.data_join_service_pb2 as dj_pb
 from fedlearner.common import metrics
+from fedlearner.data_join.common import convert_to_iso_format
 
 
 class OptionalStats:
@@ -78,7 +78,7 @@ class OptionalStats:
         tags.update(item_stat)
         tags['example_id'] = self._convert_to_str(item.example_id)
         tags['event_time'] = self._convert_to_str(item.event_time)
-        tags['event_time_iso'] = self._convert_to_iso_format(item.event_time)
+        tags['event_time_iso'] = convert_to_iso_format(item.event_time)
         metrics.emit_store(name='datajoin', value=0, tags=tags)
 
     def emit_optional_stats(self):
@@ -124,46 +124,6 @@ class OptionalStats:
         if reservoir_idx < self._reservoir_length:
             self._sample_reservoir[reservoir_idx] = example_id
             self._sample_receive_num += 1
-
-    @staticmethod
-    def _convert_to_iso_format(value):
-        """
-        Args:
-            value: bytes | str | int | float. Value to be converted. Expected to
-                be a numeric in the format of yyyymmdd or yyyymmddhhnnss.
-
-        Returns: str.
-        Try to convert a datetime str or numeric to iso format datetime str.
-            First try to convert based on the length of str. If it does not
-            match any datetime format supported, convert the value assuming it
-            is a timestamp. If the value is not a timestamp, return iso format
-            of timestamp=0.
-        """
-        assert isinstance(value, (bytes, str, int, float))
-        if isinstance(value, bytes):
-            value = value.decode()
-        elif isinstance(value, (int, float)):
-            value = str(value)
-        # first try to parse datetime from value
-        try:
-            if len(value) == 8:
-                iso = datetime.strptime(value, '%Y%m%d').isoformat()
-            elif len(value) == 14:
-                iso = datetime.strptime(value, '%Y%m%d%H%M%S').isoformat()
-            else:
-                raise ValueError
-            return iso
-        except ValueError:  # Not fitting any of above patterns
-            logging.info('OPTIONAL_STATS: event time %s not converted '
-                         'correctly.', value)
-            # then try to convert directly
-            try:
-                iso = datetime.fromtimestamp(float(value)).isoformat()
-            except ValueError:  # might be a non-number str
-                logging.info('OPTIONAL_STATS: unable to parse event time %s, '
-                             'defaults to 0.', value)
-                iso = datetime.fromtimestamp(0).isoformat()
-            return iso
 
     @staticmethod
     def _convert_to_str(value):

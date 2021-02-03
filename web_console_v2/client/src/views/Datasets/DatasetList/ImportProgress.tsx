@@ -12,7 +12,7 @@ const ProgressBar = styled.div`
   margin-top: 5px;
   margin-left: 15px;
   border-radius: 10px;
-  background-color: var(--backgroundGray);
+  background-color: var(--backgroundColorGray);
   overflow: hidden;
 
   &::before {

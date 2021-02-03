@@ -40,7 +40,6 @@ max_conversion_delay=$(normalize_env_to_args '--max_conversion_delay' $MAX_CONVE
 enable_negative_example_generator=$(normalize_env_to_args '--enable_negative_example_generator' $ENABLE_NEGATIVE_EXAMPLE_GENERATOR)
 negative_sampling_rate=$(normalize_env_to_args '--negative_sampling_rate' $NEGATIVE_SAMPLING_RATE)
 optional_fields=$(normalize_env_to_args '--optional_fields' $OPTIONAL_FIELDS)
-rawdata_version=$(normalize_env_to_args '--rawdata_version' $RAWDATA_VERSION)
 
 join_expr=$(normalize_env_to_args '--join_expr' $JOIN_EXPR)
 join_key_mapper=$(normalize_env_to_args '--join_key_mapper' $JOIN_KEY_MAPPER)
@@ -63,4 +62,4 @@ python -m fedlearner.data_join.cmd.data_join_worker_service \
     $data_block_builder $data_block_compressed_type \
     $kvstore_type $max_conversion_delay \
     $enable_negative_example_generator $negative_sampling_rate \
-    $join_expr $join_key_mapper $optional_fields $rawdata_version
+    $join_expr $join_key_mapper $optional_fields

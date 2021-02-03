@@ -1,7 +1,9 @@
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
+import UTC from 'dayjs/plugin/utc';
 
 dayjs.extend(relativeTime);
+dayjs.extend(UTC);
 
 export function formatTimestamp(input: number, format = 'YYYY-MM-DD HH:mm:ss') {
   if (input.toString().length === 10) {

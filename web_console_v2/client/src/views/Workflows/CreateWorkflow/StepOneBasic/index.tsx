@@ -7,13 +7,13 @@ import CreateTemplateForm from './CreateTemplate';
 import { useHistory, useLocation, useParams } from 'react-router-dom';
 import { cloneDeep } from 'lodash';
 import {
-  templateInUsing,
   StepOneForm,
   workflowBasicForm,
   workflowGetters,
   workflowInEditing,
-  workflowJobsConfigForm,
+  workflowConfigForm,
   peerConfigInPairing,
+  templateInUsing,
 } from 'stores/workflow';
 import { useRecoilState, useRecoilValue, useSetRecoilState } from 'recoil';
 import WORKFLOW_CHANNELS, { workflowPubsub } from '../pubsub';
@@ -28,6 +28,7 @@ import {
   getWorkflowDetailById,
 } from 'services/workflow';
 import { WorkflowCreateProps } from '..';
+import { parseWidgetSchemas } from 'shared/formSchema';
 
 const FormsContainer = styled.div`
   width: 500px;
@@ -54,9 +55,9 @@ const WorkflowsCreateStepOne: FC<WorkflowCreateProps & { onSuccess?: any }> = ({
 
   const { data: projectList } = useRecoilQuery(projectListQuery);
   const [formData, setFormData] = useRecoilState(workflowBasicForm);
-  const setJobsConfigData = useSetRecoilState(workflowJobsConfigForm);
+  const setTemplateInUsing = useSetRecoilState(templateInUsing);
+  const setWorkflowConfigForm = useSetRecoilState(workflowConfigForm);
   const { whetherCreateNewTpl } = useRecoilValue(workflowGetters);
-  const setWorkflowTemplate = useSetRecoilState(templateInUsing);
   const setPeerConfig = useSetRecoilState(peerConfigInPairing);
 
   // Using when Participant accept the initiation
@@ -126,7 +127,11 @@ const WorkflowsCreateStepOne: FC<WorkflowCreateProps & { onSuccess?: any }> = ({
               name="name"
               hasFeedback
               label={t('workflow.label_name')}
-              rules={[{ required: true, message: t('workflow.msg_name_required') }]}
+              rules={[
+                { required: true, message: t('workflow.msg_name_required') },
+                // TODO: remove workflow name restriction by using hashed job name
+                { pattern: /^[0-9a-z.-\s]+$/g, message: t('workflow.msg_workflow_name_invalid') },
+              ]}
             >
               <Input disabled={isAccept} placeholder={t('workflow.placeholder_name')} />
             </Form.Item>
@@ -237,9 +242,13 @@ const WorkflowsCreateStepOne: FC<WorkflowCreateProps & { onSuccess?: any }> = ({
     history.push('/workflows');
   }
   function setCurrentUsingTemplate(tpl: WorkflowTemplate) {
-    setWorkflowTemplate(tpl);
-    // Set empty jobs config data once choose different template
-    setJobsConfigData(tpl.config);
+    // Widget schemas of templates from backend side are JSON string
+    // parse it before using
+    const parsedTpl = parseWidgetSchemas(tpl);
+    // For flow chart render
+    setTemplateInUsing(parsedTpl);
+    // For initiate workflow config's data
+    setWorkflowConfigForm(parsedTpl.config);
   }
   async function getWorkflowDetail() {
     const { data } = await getWorkflowDetailById(params.id);

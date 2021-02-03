@@ -56,7 +56,7 @@ const workflow: I18nMessageModule = {
   override_warn_desc: { zh: '是否确认重新运行当前工作流任务将覆盖历史运行结果？' },
 
   label_name: { zh: '工作流名称' },
-  label_global_config: { zh: ' 全局配置' },
+  label_global_config: { zh: '全局配置' },
   label_project: { zh: '关联项目' },
   label_peer_forkable: { zh: '合作伙伴复制权限' },
   label_template: { zh: '工作流模板' },
@@ -107,6 +107,8 @@ const workflow: I18nMessageModule = {
   msg_peer_config_failed: { zh: '获取对侧工作流配置失败' },
   msg_peer_not_ready: { zh: '对侧配置未完成' },
   msg_not_config: { zh: '工作流配置未完成' },
+  msg_workflow_name_invalid: { zh: '工作流名字只能是小写英文字母和空格' },
+  msg_sure_to_stop: { zh: '确认停止运行该工作流吗?' },
 
   var_auth_write: { zh: '可编辑' },
   var_auth_read: { zh: '可见' },
@@ -124,6 +126,7 @@ const workflow: I18nMessageModule = {
   job_node_failed: { zh: '运行失败' },
   job_node_running: { zh: '运行中' },
   job_node_stop_running: { zh: '手动停止运行' },
+  job_node_stopped: { zh: '已停止' },
 };
 
 export default separateLng(workflow);

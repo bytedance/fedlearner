@@ -23,6 +23,13 @@ declare namespace NodeJS {
   }
 }
 
+declare module 'ip-port-regex' {
+  declare const ip: {
+    (options?: { exact?: boolean }): RegExp;
+  };
+  export default ip;
+}
+
 /** File type modules */
 declare module '*.avif' {
   const src: string;

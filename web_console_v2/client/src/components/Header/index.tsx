@@ -23,7 +23,7 @@ const Container = styled.header`
   padding: 0 30px;
   background-color: var(--headerBackground);
   color: white;
-  border-bottom: 1px solid var(--backgroundGray);
+  border-bottom: 1px solid var(--backgroundColorGray);
 `;
 const LogoLink = styled.a`
   grid-area: logo;
