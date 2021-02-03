@@ -44,7 +44,7 @@ class TestUniversalJoin(dsp.DataSourceProducer):
     def setUp(self):
         self.init("test_uni_joiner", "invalid joiner as placeholder")
 
-    @unittest.skip("test")
+    #@unittest.skip("test")
     def test_attribution_join(self):
         self.example_joiner_options = dj_pb.ExampleJoinerOptions(
                   example_joiner='ATTRIBUTION_JOINER',
@@ -89,7 +89,7 @@ class TestUniversalJoin(dsp.DataSourceProducer):
             )
         self.run_join(sei)
 
-    @unittest.skip("test3")
+    #@unittest.skip("test3")
     def test_universal_join_attribution(self):
         self.example_joiner_options = dj_pb.ExampleJoinerOptions(
                   example_joiner='UNIVERSAL_JOINER',
