@@ -247,7 +247,6 @@ class StreamExampleJoiner(ExampleJoiner):
                     builder = self._get_data_block_builder(True)
                     assert builder is not None, "data block builder must not " \
                                                 "be None before dumping"
-                    logging.warning('Negative Sampling!')
                     builder.append_item(example[0], example[1], example[2])
                     self._optional_stats.update_stats(example[0],
                                                       kind='negative')

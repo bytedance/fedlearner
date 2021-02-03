@@ -15,6 +15,7 @@
 # coding: utf-8
 
 import threading
+import traceback
 import logging
 import time
 import re
@@ -120,6 +121,7 @@ class RoutineWorker(object):
                         err_code = new_err_code
                     logging.error("worker: %s run %d rounds with exception: %s",
                                   self._name, exec_round, new_err)
+                    traceback.print_exc()
             else:
                 logging.debug("worker: %s exec %d round",
                               self._name, exec_round)

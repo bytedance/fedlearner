@@ -49,7 +49,8 @@ class OptionalStats:
         self._stat_fields = raw_data_options.optional_fields
         self._stats = {
             'joined': defaultdict(int),
-            'unjoined': defaultdict(int)
+            'unjoined': defaultdict(int),
+            'negative': defaultdict(int)
         }
         self._sample_reservoir = []
         self._sample_receive_num = 0
@@ -70,6 +71,7 @@ class OptionalStats:
         if kind == 'unjoined':
             self.sample_unjoined(item.example_id)
         item_stat = {'joined': int(kind == 'joined'),
+                     'original': int(kind != 'negative'),
                      'negative': int(kind == 'negative')}
         tags = copy.deepcopy(self._tags)
         for field in self._stat_fields:
