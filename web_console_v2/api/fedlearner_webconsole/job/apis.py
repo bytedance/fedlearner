@@ -52,7 +52,7 @@ class JobLogApi(Resource):
 
 class PodContainerApi(Resource):
     def get(self, job_id, pod_name):
-        job = Job.query.filter_by(job=job_id).first()
+        job = Job.query.filter_by(id=job_id).first()
         if job is None:
             raise NotFoundException()
         k8s = get_client()
@@ -66,7 +66,7 @@ class PodContainerApi(Resource):
 def initialize_job_apis(api):
     api.add_resource(JobApi, '/jobs/<int:job_id>')
     api.add_resource(PodLogApi,
-                     '/jobs/pods/<string:pod_name>/log')
+                     '/pods/<string:pod_name>/log')
     api.add_resource(JobLogApi,
                      '/jobs/<string:job_name>/log')
     api.add_resource(PodContainerApi,
