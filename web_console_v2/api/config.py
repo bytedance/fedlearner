@@ -35,6 +35,7 @@ class Config(object):
     PROPAGATE_EXCEPTIONS = True
     LOGGING_LEVEL = logging.INFO
     GRPC_LISTEN_PORT = 1990
+    JWT_ACCESS_TOKEN_EXPIRES = 86400
     ES_HOST = 'fedlearner-stack-elasticsearch-client'
     ES_PORT = 9200
     STORAGE_ROOT = os.getenv('STORAGE_ROOT', '/tmp/data')

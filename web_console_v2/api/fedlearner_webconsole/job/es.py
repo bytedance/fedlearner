@@ -47,6 +47,7 @@ class ElasticSearchClient(object):
             'query_string': {
                 'query': keyword,
                 'analyze_wildcard': True,
+                'default_operator': 'AND',
                 'default_field': '*'
             }
         }] if keyword else []

@@ -28,6 +28,7 @@ message ProjAuthInfo {
 message JobDetail{
     string name = 1;
     string state = 2;
+    string pods = 3;
 }
 
 message CheckConnectionRequest {
