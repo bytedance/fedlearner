@@ -1,9 +1,9 @@
-import React, { FC, useState } from 'react';
+import React, { FC, useEffect, useState } from 'react';
 import styled from 'styled-components';
-import { Row, Col, Button, Form, Input, Select, Table, message, Spin } from 'antd';
+import { Row, Col, Button, Form, Input, Select, Table, message, Spin, Switch } from 'antd';
 import { Link, useHistory } from 'react-router-dom';
 import { useQuery } from 'react-query';
-import { fetchWorkflowList } from 'services/workflow';
+import { fetchWorkflowList, toggleWofklowForkable } from 'services/workflow';
 import i18n from 'i18n';
 import { formatTimestamp } from 'shared/date';
 import { useTranslation } from 'react-i18next';
@@ -15,6 +15,8 @@ import WhichProject from 'components/WhichProject';
 import NoResult from 'components/NoResult';
 import { useRecoilQuery } from 'hooks/recoil';
 import { projectListQuery } from 'stores/projects';
+import { giveWeakRandomKey } from 'shared/helpers';
+import ForkableSwitch from './ForkableSwitch';
 
 const FilterItem = styled(Form.Item)`
   > .ant-form-item-control {
@@ -28,7 +30,11 @@ const ListContainer = styled.div`
 `;
 
 export const getWorkflowTableColumns = (
-  options: { onSuccess?: Function; withoutActions?: boolean } = {},
+  options: {
+    onSuccess?: Function;
+    withoutActions?: boolean;
+    onForkableChange?: (record: Workflow, val: boolean) => void;
+  } = {},
 ) => {
   const ret = [
     {
@@ -62,6 +68,15 @@ export const getWorkflowTableColumns = (
       name: 'created_at',
       render: (date: number) => <div>{formatTimestamp(date)}</div>,
     },
+    {
+      title: i18n.t('workflow.col_forkable'),
+      dataIndex: 'forkable',
+      name: 'forkable',
+      width: 150,
+      render: (_: any, record: Workflow) => (
+        <ForkableSwitch workflow={record} onSuccess={options.onSuccess} />
+      ),
+    },
   ];
   if (!options.withoutActions) {
     ret.push({
@@ -91,6 +106,8 @@ const WorkflowList: FC = () => {
   const { t } = useTranslation();
   const [form] = Form.useForm<QueryParams>();
   const history = useHistory();
+
+  const [listData, setList] = useState<Workflow[]>([]);
   const [params, setParams] = useState<QueryParams>({ keyword: '' });
 
   const projectsQuery = useRecoilQuery(projectListQuery);
@@ -104,7 +121,11 @@ const WorkflowList: FC = () => {
     message.error((error as Error).message);
   }
 
-  const isEmpty = !res?.data.length;
+  useEffect(() => {
+    setList(res?.data || []);
+  }, [res?.data]);
+
+  const isEmpty = listData.length === 0;
 
   return (
     <Spin spinning={isLoading}>
@@ -152,7 +173,7 @@ const WorkflowList: FC = () => {
           {isEmpty ? (
             <NoResult text={t('workflow.no_result')} to="/workflows/initiate/basic" />
           ) : (
-            <Table dataSource={res?.data || []} columns={getWorkflowTableColumns({ onSuccess })} />
+            <Table dataSource={listData} columns={getWorkflowTableColumns({ onSuccess })} />
           )}
         </ListContainer>
       </ListPageLayout>
@@ -166,6 +187,7 @@ const WorkflowList: FC = () => {
   function onSuccess() {
     refetch();
   }
+
   function goCreate() {
     history.push('/workflows/initiate/basic');
   }

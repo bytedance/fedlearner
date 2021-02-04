@@ -7,7 +7,6 @@ import SecondaryForm from './SecondaryForm';
 import EnvVariablesForm, {
   VARIABLES_FIELD_NAME,
   VARIABLES_ERROR_CHANNEL,
-  VARIABLES_CHANGE_CHANNEL,
 } from './EnvVariablesForm';
 import { CertificateConfigType } from 'typings/project';
 import {
@@ -20,9 +19,9 @@ import { useHistory } from 'react-router-dom';
 import GridRow from 'components/_base/GridRow';
 import i18n from 'i18n';
 import { useReloadProjectList } from 'hooks/project';
-import IPPortRegx from 'ip-port-regex';
+import ip from 'ip-port-regex';
 import Certificate from './Certificate';
-import { wrapWithDomainName } from 'shared/project';
+import { DOMAIN_PREFIX, DOMAIN_SUFFIX, wrapWithDomainName } from 'shared/project';
 import { Z_INDEX_GREATER_THAN_HEADER } from 'components/Header';
 
 const Container = styled.div`
@@ -103,7 +102,6 @@ const ProjectForm: FC<Props> = ({ onSubmit, isEdit, initialValues }) => {
         colon={false}
         onFinish={onFinish}
         onFinishFailed={onFinishFailed}
-        onFieldsChange={onFieldsChange}
         scrollToFirstError
       >
         {/* Project Config */}
@@ -114,17 +112,22 @@ const ProjectForm: FC<Props> = ({ onSubmit, isEdit, initialValues }) => {
             label={t('project.name')}
             rules={[{ required: true, message: t('project.name_message') }]}
           >
-            <Input name="name" placeholder={t('project.name_placeholder')} disabled={isEdit} />
-          </Form.Item>
-          <Form.Item name="domainName" label={t('project.selft_domain')} rules={domainRules}>
             <Input
-              name="domainName"
-              addonBefore="fl-"
-              addonAfter=".com"
-              placeholder={t('project.placeholder_domain_name')}
-              disabled={isEdit}
+              name="name"
+              placeholder={t('project.name_placeholder')}
+              disabled={isEdit || loading}
             />
           </Form.Item>
+          {/* <Form.Item
+            name="token"
+            label={t('project.label_token')}
+            rules={[
+              { required: true, message: t('project.msg_token_required') },
+              { pattern: /^[a-zA-Z0-9]{0,64}$/g, message: t('project.msg_token_invalid') },
+            ]}
+          >
+            <Input placeholder={t('project.placeholder_token')} disabled={isEdit || loading} />
+          </Form.Item> */}
         </SecondaryForm>
 
         {/* Participant config */}
@@ -138,7 +141,7 @@ const ProjectForm: FC<Props> = ({ onSubmit, isEdit, initialValues }) => {
             <Input
               name="participantName"
               placeholder={t('project.participant_name_placeholder')}
-              disabled={isEdit}
+              disabled={loading}
             />
           </Form.Item>
 
@@ -149,10 +152,10 @@ const ProjectForm: FC<Props> = ({ onSubmit, isEdit, initialValues }) => {
           >
             <Input
               name="participantDomainName"
-              addonBefore="fl-"
-              addonAfter=".com"
+              addonBefore={DOMAIN_PREFIX}
+              addonAfter={DOMAIN_SUFFIX}
               placeholder={t('project.placeholder_domain_name')}
-              disabled={isEdit}
+              disabled={isEdit || loading}
             />
           </Form.Item>
 
@@ -164,7 +167,7 @@ const ProjectForm: FC<Props> = ({ onSubmit, isEdit, initialValues }) => {
               { required: true, message: t('project.participant_url_message') },
               {
                 validator(_, value) {
-                  if (IPPortRegx({ exact: true }).test(value)) {
+                  if (ip({ exact: true }).test(value)) {
                     return Promise.resolve();
                   } else {
                     return Promise.reject(t('project.msg_ip_addr_invalid'));
@@ -176,7 +179,7 @@ const ProjectForm: FC<Props> = ({ onSubmit, isEdit, initialValues }) => {
             <Input
               name="participantUrl"
               placeholder={t('project.placeholder_participant_url')}
-              disabled={isEdit}
+              disabled={isEdit || loading}
             />
           </Form.Item>
           <Form.Item
@@ -189,6 +192,7 @@ const ProjectForm: FC<Props> = ({ onSubmit, isEdit, initialValues }) => {
               onTypeChange={(val) => {
                 setCertRequired(val === CertificateConfigType.Upload);
               }}
+              disabled={loading}
             />
           </Form.Item>
 
@@ -197,11 +201,12 @@ const ProjectForm: FC<Props> = ({ onSubmit, isEdit, initialValues }) => {
               rows={4}
               style={{ resize: 'none' }}
               name="comment"
+              disabled={loading}
               placeholder={t('project.remarks_placeholder')}
             />
           </Form.Item>
 
-          <EnvVariablesForm layout={layout} formInstance={form} />
+          <EnvVariablesForm layout={layout} formInstance={form} disabled={loading} />
         </SecondaryForm>
 
         <SubmitContainer>
@@ -234,11 +239,6 @@ const ProjectForm: FC<Props> = ({ onSubmit, isEdit, initialValues }) => {
   }
   function onSubmitClick() {
     form.submit();
-  }
-  function onFieldsChange(arg: any) {
-    if (arg.some((item: { name: string[] }) => item.name.includes(VARIABLES_FIELD_NAME))) {
-      PubSub.publish(VARIABLES_CHANGE_CHANNEL);
-    }
   }
   function onFinishFailed({ errorFields }: any) {
     if (
@@ -279,7 +279,7 @@ const ProjectForm: FC<Props> = ({ onSubmit, isEdit, initialValues }) => {
         params = {
           name: data.name,
           config: {
-            domain_name: wrapWithDomainName(data.domainName),
+            token: data.token || '',
             participants,
             variables: data.variables ?? [],
           },

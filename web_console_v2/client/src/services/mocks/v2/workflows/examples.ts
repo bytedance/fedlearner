@@ -6,6 +6,7 @@ import {
   VariableAccessMode,
   WorkflowExecutionDetails,
 } from 'typings/workflow';
+import { normalTemplate } from '../workflow_templates/examples';
 
 export const awaitParticipantConfig = {
   id: 1,
@@ -55,7 +56,7 @@ export const newlyCreated = {
             name: 'job_name2',
             value: '2',
             access_mode: 'PEER_WRITABLE' as VariableAccessMode,
-            widget_schema: '{"component":"Input","type":"string"}' as any,
+            widget_schema: '{"component":"Input","type":"string","required":true}' as any,
           },
           {
             name: 'comment2',
@@ -126,7 +127,7 @@ export const withExecutionDetail: WorkflowExecutionDetails = {
         {
           name: '0-79f60e7a-520e-4cd7-a679-95b12df2c4fd',
           pod_type: 'Master',
-          state: PodState.COMPLETE,
+          status: PodState.COMPLETE,
         },
       ],
       created_at: 1611006571,
@@ -147,4 +148,15 @@ export const withExecutionDetail: WorkflowExecutionDetails = {
       deleted_at: 0,
     },
   ],
+};
+
+export const completed = {
+  ...cloneDeep(newlyCreated),
+  id: 3,
+  name: 'All completed',
+  config: normalTemplate.data.config as any,
+  state: WorkflowState.COMPLETED,
+  target_state: WorkflowState.INVALID,
+  transaction_state: TransactionState.ABORTED,
+  jobs: [],
 };

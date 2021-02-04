@@ -36,6 +36,9 @@ const messages = {
     click_to_retry: '点此重试',
     creator: '创建者',
     created_at: '创建时间',
+    yes: '是',
+    no: '否',
+    pls_try_again_later: '请稍后重试',
   },
 };
 

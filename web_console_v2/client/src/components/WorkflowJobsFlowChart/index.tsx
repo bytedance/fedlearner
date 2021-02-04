@@ -1,11 +1,18 @@
-import React, { FC, useEffect, useState } from 'react';
+import React, {
+  useEffect,
+  useState,
+  forwardRef,
+  useImperativeHandle,
+  ForwardRefRenderFunction,
+} from 'react';
 import WorkflowJobNode from './WorkflowJobNode';
 import {
-  JobNodeType,
-  JobNodeRawData,
-  convertJobsToElements,
+  ChartNodeType,
+  NodeDataRaw,
+  convertToChartElements,
   JobNode,
   JobNodeStatus,
+  ChartNodes,
 } from './helpers';
 import styled from 'styled-components';
 import ReactFlow, {
@@ -14,11 +21,11 @@ import ReactFlow, {
   isNode,
   OnLoadParams,
   FlowElement,
+  useStoreActions,
+  useStoreState,
 } from 'react-flow-renderer';
 
-import PubSub from 'pubsub-js';
-import { useSubscribe } from 'hooks';
-import { Variable } from 'typings/workflow';
+import { WorkflowConfig } from 'typings/workflow';
 
 const Container = styled.div`
   position: relative;
@@ -36,6 +43,7 @@ const Container = styled.div`
 
     &-global,
     &-execution,
+    &-fork,
     &-config {
       &.selected {
         --selected-background: #f2f6ff;
@@ -62,42 +70,58 @@ const Container = styled.div`
     }
   }
 `;
-// Internal pub-sub channels, needless to put in any shared file
-const CHANNELS = {
-  update_node_status: 'workflow_job_flow_chart.update_node_status',
-};
 
 type Props = {
-  globalVariables?: Variable[];
-  jobs: JobNodeRawData[];
-  type: JobNodeType;
+  workflowConfig: WorkflowConfig<NodeDataRaw>;
+  nodeType: ChartNodeType;
   selectable?: boolean;
   onJobClick?: (node: JobNode) => void;
   onCanvasClick?: () => void;
 };
+export type ChartExposedRef = {
+  nodes: ChartNodes;
+  updateNodeStatusById: (args: { id: string; status: JobNodeStatus }) => void;
+  setSelectedNodes: (nodes: ChartNodes) => void;
+};
 
-const WorkflowJobsFlowChart: FC<Props> = ({
-  globalVariables,
-  jobs,
-  type,
-  selectable = true,
-  onJobClick,
-  onCanvasClick,
-}) => {
+const WorkflowJobsFlowChart: ForwardRefRenderFunction<ChartExposedRef | undefined, Props> = (
+  { workflowConfig, nodeType, selectable = true, onJobClick, onCanvasClick },
+  parentRef,
+) => {
   const [elements, setElements] = useState<FlowElement[]>([]);
+  // WARNING: since we using react-flow hooks here,
+  // an ReactFlowProvider is REQUIRED to wrap this component inside
+  const jobNodes = useStoreState((store) => store.nodes) as ChartNodes;
+  const setSelectedElements = useStoreActions((actions) => actions.setSelectedElements);
+
+  // To decide if need to re-generate jobElements, look out that re-gen elements
+  // will lead all nodes loose it's status!!💣
+  //
+  // Q: why not put workflowConfig directly as the dependent?
+  // A: At workflowConfig's inner may contains variables' value
+  // and will change during user configuring, but we do not want
+  // re-generate chart elements for that
+  const workflowIdentifyString = workflowConfig.job_definitions
+    .map((item) => item.name)
+    .concat(workflowConfig.variables.map((item) => item.name))
+    .join('|');
 
   useEffect(() => {
-    const jobElements = convertJobsToElements({ jobs, globalVariables }, { type, selectable });
-
+    const jobElements = convertToChartElements(
+      { jobs: workflowConfig.job_definitions, globalVariables: workflowConfig.variables || [] },
+      { type: nodeType, selectable },
+    );
     setElements(jobElements);
-  }, [jobs, type, selectable, globalVariables]);
+    // eslint-disable-next-line
+  }, [nodeType, selectable, workflowIdentifyString]);
 
-  useSubscribe(
-    CHANNELS.update_node_status,
-    (_: string, arg: { id: string; status: JobNodeStatus }) => {
-      updateNodeStatus(arg);
-    },
-  );
+  useImperativeHandle(parentRef, () => {
+    return {
+      nodes: jobNodes,
+      updateNodeStatusById: updateNodeStatus,
+      setSelectedNodes: setSelectedElements,
+    };
+  });
 
   return (
     <Container>
@@ -124,15 +148,15 @@ const WorkflowJobsFlowChart: FC<Props> = ({
     }
   }
   function onLoad(_reactFlowInstance: OnLoadParams) {
-    _reactFlowInstance!.fitView({ padding: 2 });
+    _reactFlowInstance!.fitView({ padding: 1 });
   }
-  function updateNodeStatus(arg: { id: string; status: JobNodeStatus }) {
+  function updateNodeStatus(args: { id: string; status: JobNodeStatus }) {
     setElements((els) => {
       return els.map((el) => {
-        if (el.id === arg.id) {
+        if (el.id === args.id) {
           el.data = {
             ...el.data,
-            status: arg.status,
+            status: args.status,
           };
         }
         return el;
@@ -141,8 +165,4 @@ const WorkflowJobsFlowChart: FC<Props> = ({
   }
 };
 
-export function updateNodeStatusById(arg: { id: string; status: JobNodeStatus }) {
-  PubSub.publish(CHANNELS.update_node_status, arg);
-}
-
-export default WorkflowJobsFlowChart;
+export default forwardRef(WorkflowJobsFlowChart);

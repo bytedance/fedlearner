@@ -1,5 +1,7 @@
-import React, { FC } from 'react';
+import React, { FC, useState } from 'react';
 import { Handle, NodeComponentProps, Position } from 'react-flow-renderer';
+import { Dropdown, Menu, Modal } from 'antd';
+import { MenuInfo } from 'rc-menu/lib/interface';
 import styled from 'styled-components';
 import pendingIcon from 'assets/icons/workflow-pending.svg';
 import completetdIcon from 'assets/icons/workflow-completed.svg';
@@ -7,9 +9,9 @@ import warningIcon from 'assets/icons/workflow-warning.svg';
 import errorIcon from 'assets/icons/workflow-error.svg';
 import GridRow from 'components/_base/GridRow';
 import {
-  JobNodeData,
+  NodeData,
   JobNodeStatus,
-  JobNodeType,
+  ChartNodeType,
   NODE_HEIGHT,
   NODE_WIDTH,
   GLOBAL_CONFIG_NODE_SIZE,
@@ -17,6 +19,8 @@ import {
 import { convertToUnit } from 'shared/helpers';
 import i18n from 'i18n';
 import classNames from 'classnames';
+import { Down } from 'components/IconPark';
+import { Z_INDEX_GREATER_THAN_HEADER } from 'components/Header';
 
 const Container = styled.div`
   position: relative;
@@ -72,7 +76,21 @@ const GlobalConfigNodeContainer = styled.div`
   width: ${convertToUnit(GLOBAL_CONFIG_NODE_SIZE)};
   height: ${convertToUnit(GLOBAL_CONFIG_NODE_SIZE)};
   border-radius: 50%;
-  background-color: white;
+  background-color: var(--selected-background, white);
+  border: 1px solid var(--selected-border-color, transparent);
+`;
+const InheritButton = styled.div`
+  position: absolute;
+  bottom: 21px;
+  right: 14px;
+  display: flex;
+  align-items: center;
+  line-height: 1;
+  font-size: 12px;
+  color: var(--primaryColor);
+`;
+const ArrowDown = styled(Down)`
+  margin-left: 5px;
 `;
 
 const statusIcons: Record<JobNodeStatus, string> = {
@@ -100,7 +118,7 @@ export const jobExecutionStatusText: Record<JobNodeStatus, string> = {
 };
 
 interface Props extends NodeComponentProps {
-  data: JobNodeData;
+  data: NodeData;
 }
 
 const ConfigJobNode: FC<Props> = ({ data, id }) => {
@@ -115,9 +133,68 @@ const ConfigJobNode: FC<Props> = ({ data, id }) => {
         {icon && <StatusIcon src={icon} />}
         <JobStatusText>{text}</JobStatusText>
       </GridRow>
+
       {data.isSource && <Handle type="source" position={Position.Bottom} />}
     </Container>
   );
+};
+
+const ForkJobNode: FC<Props> = ({ data, id }) => {
+  const icon = statusIcons[data.status];
+  const text = jobConfigStatusText[data.status];
+
+  return (
+    <Container>
+      {data.isTarget && <Handle type="target" position={Position.Top} />}
+      <JobName>{id}</JobName>
+      <GridRow gap={5}>
+        {icon && <StatusIcon src={icon} />}
+        <JobStatusText>{text}</JobStatusText>
+      </GridRow>
+      <Dropdown
+        overlay={
+          <Menu>
+            <Menu.Item key="0" onClick={(e) => changeInheritance(e, true)}>
+              继承
+            </Menu.Item>
+            <Menu.Item key="1" onClick={(e) => changeInheritance(e, false)}>
+              不继承
+            </Menu.Item>
+          </Menu>
+        }
+      >
+        <InheritButton onClick={(e) => e.stopPropagation()}>
+          {data.inherit ? '继承' : '不继承'} <ArrowDown />
+        </InheritButton>
+      </Dropdown>
+      {data.isSource && <Handle type="source" position={Position.Bottom} />}
+    </Container>
+  );
+
+  function changeInheritance(event: MenuInfo, isInherit: boolean) {
+    event.domEvent.stopPropagation();
+
+    if (isInherit === data.inherit) {
+      return;
+    }
+
+    Modal.confirm({
+      title: `切换至${isInherit ? '继承' : '不继承'}状态`,
+      zIndex: Z_INDEX_GREATER_THAN_HEADER,
+      icon: null,
+      content: isInherit
+        ? `${id} 改为继承状态后，后续依赖 ${id} 的任务都将重置为“继承”状态`
+        : `${id} 改为不继承状态后，后续依赖 ${id} 的任务都将切换成为“不继承”状态`,
+
+      mask: false,
+      style: {
+        top: '35%',
+      },
+      onOk() {
+        // TODO: broadcast inheritance change
+      },
+    });
+  }
 };
 
 const ExecutionJobNode: FC<Props> = ({ data, id }) => {
@@ -137,7 +214,7 @@ const ExecutionJobNode: FC<Props> = ({ data, id }) => {
   );
 };
 
-const GlobalJobNode: FC<Props> = ({ data, id }) => {
+const GlobalConfigNode: FC<Props> = ({ data, id }) => {
   const icon = statusIcons[data.status];
   const text = jobConfigStatusText[data.status];
 
@@ -152,9 +229,10 @@ const GlobalJobNode: FC<Props> = ({ data, id }) => {
   );
 };
 
-const WorkflowJobNode: Record<JobNodeType, FC<Props>> = {
+const WorkflowJobNode: Record<ChartNodeType, FC<Props>> = {
+  fork: ForkJobNode,
   config: ConfigJobNode,
-  global: GlobalJobNode,
+  global: GlobalConfigNode,
   execution: ExecutionJobNode,
 };
 

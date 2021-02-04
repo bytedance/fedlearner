@@ -10,6 +10,7 @@ const workflow: I18nMessageModule = {
   ptcpt_permission: { zh: '合作伙伴编辑权限' },
   current_config: { zh: '当前配置' },
   create_workflow: { zh: '创建工作流', en: 'Create workflow' },
+  fork_workflow: { zh: '复制工作流', en: 'Fork workflow' },
 
   action_re_run: { zh: '重新运行' },
   action_run: { zh: '立即运行' },
@@ -33,6 +34,7 @@ const workflow: I18nMessageModule = {
   col_date: { zh: ' 创建时间' },
   col_actions: { zh: '操作' },
   col_pod: { zh: 'POD' },
+  col_forkable: { zh: '是否可复制' },
   col_worker_status: { zh: '运行状体' },
   col_worker_type: { zh: '类型' },
 
@@ -91,7 +93,9 @@ const workflow: I18nMessageModule = {
   msg_get_template_failed: { zh: '获取模板列表失败' },
   msg_only_1_tpl: { zh: '只允许上传一个模板文件！' },
   msg_config_unfinished: { zh: '未完成配置，请先完成配置后再次点击发送' },
+  msg_config_unconfirm_or_unfinished: { zh: '双侧配置未确认或未完成，请检查后进行发送' },
   msg_sure_2_cancel_create: { zh: '确认取消创建工作流？' },
+  msg_sure_2_cancel_fork: { zh: '确认取消复制工作流？' },
   msg_sure_2_exist_create: { zh: '确定要离开吗，当前表单内容将全部丢失！' },
   msg_effect_of_cancel_create: { zh: '取消后，已配置内容将不再保留' },
   msg_project_required: { zh: '请选择项目！' },
@@ -109,6 +113,8 @@ const workflow: I18nMessageModule = {
   msg_not_config: { zh: '工作流配置未完成' },
   msg_workflow_name_invalid: { zh: '工作流名字只能是小写英文字母和空格' },
   msg_sure_to_stop: { zh: '确认停止运行该工作流吗?' },
+  msg_unforkable: { zh: '根据对侧配置，该工作流不允许被复制，请与对侧沟通后再试' },
+  msg_get_peer_cfg_failed: { zh: '获取对侧配置失败: ' },
 
   var_auth_write: { zh: '可编辑' },
   var_auth_read: { zh: '可见' },
@@ -127,6 +133,7 @@ const workflow: I18nMessageModule = {
   job_node_running: { zh: '运行中' },
   job_node_stop_running: { zh: '手动停止运行' },
   job_node_stopped: { zh: '已停止' },
+  pod_unknown: { zh: '状态未知' },
 };
 
 export default separateLng(workflow);

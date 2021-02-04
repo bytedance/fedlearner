@@ -3,7 +3,8 @@ import {
   VariableAccessMode,
   VariableComponent,
   WorkflowAcceptPayload,
-  WorkflowConfig,
+  WorkflowExecutionDetails,
+  WorkflowForkPayload,
   WorkflowInitiatePayload,
   WorkflowTemplate,
   WorkflowTemplatePayload,
@@ -47,7 +48,7 @@ function _getUIs({
     'x-index': index,
     'x-component-props': {
       size,
-      placeholder,
+      placeholder: placeholder || `请输入 ${name}`,
     },
   };
 }
@@ -276,7 +277,7 @@ function mergeVariableSchemaWithPresets(variable: Variable, presets: VariablePre
 }
 
 /** Return a formily acceptable schema by server job definition */
-export function buildFormSchemaFromJob(job: Job): FormilySchema {
+export function buildFormSchemaFromJobDef(job: Job): FormilySchema {
   const { variables, name } = cloneDeep(job);
   const schema: FormilySchema = {
     type: 'object',
@@ -297,7 +298,11 @@ export function buildFormSchemaFromJob(job: Job): FormilySchema {
 }
 
 export function stringifyWidgetSchemas<
-  T extends WorkflowInitiatePayload | WorkflowTemplatePayload | WorkflowAcceptPayload
+  T extends
+    | WorkflowInitiatePayload
+    | WorkflowTemplatePayload
+    | WorkflowAcceptPayload
+    | WorkflowForkPayload
 >(input: T): T {
   const ret = cloneDeep(input);
 
@@ -306,6 +311,16 @@ export function stringifyWidgetSchemas<
   });
 
   ret.config.variables?.forEach(_stringify);
+
+  let ifIsForking = (ret as WorkflowForkPayload).fork_proposal_config;
+
+  if (ifIsForking) {
+    ifIsForking.job_definitions.forEach((job: any) => {
+      job.variables.forEach(_stringify);
+    });
+
+    ifIsForking.variables?.forEach(_stringify);
+  }
 
   return ret;
 
@@ -316,14 +331,26 @@ export function stringifyWidgetSchemas<
   }
 }
 
-export function parseWidgetSchemas(template: WorkflowTemplate) {
-  const ret = cloneDeep(template);
+export function parseWidgetSchemas<
+  T extends WorkflowExecutionDetails | WorkflowTemplate | WorkflowForkPayload
+>(input: T): T {
+  const ret = cloneDeep(input);
 
   ret.config?.job_definitions.forEach((job: any) => {
     job.variables.forEach(_parse);
   });
 
-  ret.config.variables?.forEach(_parse);
+  ret.config?.variables?.forEach(_parse);
+
+  let ifIsForking = (ret as WorkflowForkPayload).fork_proposal_config;
+
+  if (ifIsForking) {
+    ifIsForking.job_definitions.forEach((job: any) => {
+      job.variables.forEach(_parse);
+    });
+
+    ifIsForking.variables?.forEach(_parse);
+  }
 
   return ret;
 

@@ -3,10 +3,10 @@ import { useRecoilQuery } from 'hooks/recoil';
 import React, { FC } from 'react';
 import { projectListQuery } from 'stores/projects';
 
-const WhichProject: FC<{ id: number | number }> = ({ id }) => {
+const WhichProject: FC<{ id?: number | number; loading?: boolean }> = ({ id, loading }) => {
   const { isLoading, data } = useRecoilQuery(projectListQuery);
 
-  if (isLoading) {
+  if (loading || isLoading) {
     return <Spin size="small" />;
   }
 

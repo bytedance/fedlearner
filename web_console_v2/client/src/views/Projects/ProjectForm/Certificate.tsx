@@ -11,13 +11,14 @@ import { MixinCommonTransition } from 'styles/mixins';
 const { Upload, BackendConfig } = CertificateConfigType;
 
 const UploadContainer = styled.div`
-  ${MixinCommonTransition(['max-height', 'opacity'])};
+  ${MixinCommonTransition(['max-height', 'opacity', 'padding-top'])};
   padding-top: 15px;
   max-height: 400px;
   will-change: max-height;
   overflow: hidden;
 
   &.is-hidden {
+    padding-top: 0;
     max-height: 0;
     opacity: 0;
   }
@@ -25,11 +26,12 @@ const UploadContainer = styled.div`
 
 type Props = {
   value?: string | null;
+  disabled?: boolean;
   isEdit?: boolean;
   onChange?: (v: string) => void;
   onTypeChange?: (v: CertificateConfigType) => void;
 };
-const Certificate: FC<Props> = ({ value, isEdit, onChange, onTypeChange }) => {
+const Certificate: FC<Props> = ({ value, isEdit, onChange, onTypeChange, disabled }) => {
   const [type, setType] = useState<CertificateConfigType>(
     isEdit ? (value ? Upload : BackendConfig) : Upload,
   );
@@ -52,11 +54,11 @@ const Certificate: FC<Props> = ({ value, isEdit, onChange, onTypeChange }) => {
         ]}
         optionType="button"
         onChange={onTypeChangeInternal}
-        disabled={isEdit}
+        disabled={isEdit || disabled}
       />
       <UploadContainer className={classNames({ 'is-hidden': type !== Upload || isEdit })}>
         <ReadFile
-          disabled={isEdit}
+          disabled={isEdit || disabled}
           accept=".gz"
           reader={readAsBinaryStringFromFile}
           value={internalVal}

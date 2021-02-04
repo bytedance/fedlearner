@@ -16,5 +16,7 @@ describe('Common transition mixin', () => {
     cases.forEach(({ i, o }) => {
       expect(MixinCommonTransition(i).trim().replace(/\n/g, '')).toBe(o);
     });
+
+    expect(MixinCommonTransition('padding', 0.2).trim()).toBe(`transition: padding 0.2s ${t};`);
   });
 });
