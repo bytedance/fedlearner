@@ -24,7 +24,7 @@ class FakeFileManager(FileManagerBase):
 
     def ls(self, path: str, recursive=False) -> List[Dict]:
         return [{'path': 'fake://data/f1.txt',
-                'size': 0}]
+                 'size': 0}]
 
     def move(self, source: str, destination: str) -> bool:
         return source.startswith('fake://move')
