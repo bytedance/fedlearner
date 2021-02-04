@@ -134,37 +134,37 @@ class Job(db.Model):
 
     def get_pods_for_front(self):
         result = []
-        flapp = self.get_flapp()
-        if flapp is None:
-            return result
-        flapp = flapp['flapp']
-        if 'status' in flapp \
-                and 'flReplicaStatus' in flapp['status']:
-            replicas = flapp['status']['flReplicaStatus']
-            if replicas is None:
-                return result
-            for pod_type in replicas:
-                for state in replicas[pod_type]:
-                    for pod in replicas[pod_type][state]:
-                        result.append({'name': pod,
-                                       'state': state,
-                                       'pod_type': pod_type})
-
         # msg from pods
         pods = self.get_pods()
         if pods is None:
             return result
         pods = pods['pods']['items']
-        index = 0
-        assert len(pods) == len(result)
         for pod in pods:
             # TODO: make this more readable for frontend
-            result[index]['pod_name'] = pod['metadata']['name']
-            result[index]['status'] = pod['status']['phase']
-            result[index]['conditions'] = pod['status']['conditions']
-            result[index]['containers_status'] =\
-                pod['status']['containerStatuses']
-            index = index + 1
+            result.append({'name': pod['metadata']['name'],
+                           'pod_type':
+                               pod['metadata']['labels']['fl-replica-type'],
+                           'status': pod['status']['phase'],
+                           'conditions': pod['status']['conditions'],
+                           'containers_status':
+                               pod['status']['containerStatuses']})
+
+        flapp = self.get_flapp()
+        if flapp is None:
+            return result
+        flapp = flapp['flapp']
+        if 'status' in flapp \
+            and 'flReplicaStatus' in flapp['status']:
+            replicas = flapp['status']['flReplicaStatus']
+            if replicas is None:
+                return result
+            for pod_type in replicas:
+                for state in ['failed', 'succeeded']:
+                    for pod in replicas[pod_type][state]:
+                        result.append({'name': pod,
+                                       'status': 'Flapp_{}'.format(state),
+                                       'pod_type': pod_type})
+
         return result
 
     def get_state_for_front(self):

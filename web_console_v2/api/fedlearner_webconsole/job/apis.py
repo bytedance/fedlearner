@@ -30,18 +30,21 @@ class JobApi(Resource):
 
     # TODO: manual start jobs
 
-
 class PodLogApi(Resource):
     def get(self, pod_name):
         parser = reqparse.RequestParser()
         parser.add_argument('start_time', type=int, location='args',
                             required=True,
                             help='start_time is required and must be timestamp')
+        parser.add_argument('max_lines', type=int, location='args',
+                    required=True,
+                    help='max_lines is required')
         data = parser.parse_args()
         start_time = data['start_time']
+        max_lines = data['max_lines']
         return {'data': es.query_log('filebeat-*', '', pod_name,
                                      start_time,
-                                     int(time.time() * 1000))}
+                                     int(time.time() * 1000))[-max_lines:]}
 
 
 class JobLogApi(Resource):
@@ -50,12 +53,17 @@ class JobLogApi(Resource):
         parser.add_argument('start_time', type=int, location='args',
                             required=True,
                             help='project_id is required and must be timestamp')
+        parser.add_argument('max_lines', type=int, location='args',
+                            required=True,
+                            help='max_lines is required')
         data = parser.parse_args()
         start_time = data['start_time']
+        max_lines = data['max_lines']
         return {'data': es.query_log('filebeat-*', job_name,
                                      'fedlearner-operator',
                                      start_time,
-                                     int(time.time() * 1000))}
+                                     int(time.time() * 1000))[-max_lines:]}
+
 
 class PodContainerApi(Resource):
     def get(self, job_id, pod_name):

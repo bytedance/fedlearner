@@ -144,11 +144,17 @@ class WorkflowApi(Resource):
 
     def patch(self, workflow_id):
         parser = reqparse.RequestParser()
-        parser.add_argument('target_state', type=str, required=True,
+        parser.add_argument('target_state', type=str,
                             help='target_state is empty')
+        parser.add_argument('forkable', type=bool)
         target_state = parser.parse_args()['target_state']
-
+        forkable = parser.parse_args()['forkable']
         workflow = _get_workflow(workflow_id)
+        if forkable is not None:
+            workflow.forkable = forkable
+            db.session.commit()
+        if target_state is None:
+            return {'data': workflow.to_dict()}, HTTPStatus.OK
         try:
             workflow.update_target_state(WorkflowState[target_state])
             db.session.commit()
