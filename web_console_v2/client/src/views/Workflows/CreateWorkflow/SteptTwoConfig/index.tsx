@@ -3,7 +3,7 @@ import styled from 'styled-components';
 import { ReactFlowProvider, useStoreState, useStoreActions } from 'react-flow-renderer';
 import { useToggle } from 'react-use';
 import JobFormDrawer, { JobFormDrawerExposedRef } from '../../JobFormDrawer';
-import WorkflowJobsFlowChart, { updateNodeStatusById } from 'components/WorkflowJobsFlowChart';
+import WorkflowJobsFlowChart, { ChartExposedRef } from 'components/WorkflowJobsFlowChart';
 import { ChartNode, ChartNodes, JobNodeStatus } from 'components/WorkflowJobsFlowChart/helpers';
 import GridRow from 'components/_base/GridRow';
 import { Button, message, Modal, Spin } from 'antd';
@@ -41,7 +41,7 @@ const Header = styled.header`
 const Footer = styled.footer`
   position: sticky;
   bottom: 0;
-  z-index: 1000;
+  z-index: 5; // just above react-flow' z-index
   padding: 15px 36px;
   background-color: white;
 `;
@@ -50,10 +50,11 @@ const ChartTitle = styled.h3`
 `;
 
 const CanvasAndForm: FC<WorkflowCreateProps> = ({ isInitiate, isAccept }) => {
-  const drawerRef = useRef<JobFormDrawerExposedRef>();
   const history = useHistory();
   const params = useParams<{ id: string }>();
   const { t } = useTranslation();
+  const drawerRef = useRef<JobFormDrawerExposedRef>();
+  const chartRef = useRef<ChartExposedRef>();
   const [submitting, setSubmitting] = useToggle(false);
   const [drawerVisible, toggleDrawerVisible] = useToggle(false);
   const [peerCfgVisible, togglePeerCfgVisible] = useToggle(false);
@@ -90,8 +91,9 @@ const CanvasAndForm: FC<WorkflowCreateProps> = ({ isInitiate, isAccept }) => {
         </Spin>
 
         <WorkflowJobsFlowChart
+          ref={chartRef as any}
           nodeType="config"
-          workflowConfig={template.config}
+          workflowConfig={configValue}
           onJobClick={selectNode}
           onCanvasClick={onCanvasClick}
         />
@@ -141,10 +143,7 @@ const CanvasAndForm: FC<WorkflowCreateProps> = ({ isInitiate, isAccept }) => {
 
     return isAllCompleted;
   }
-  function onCloseDrawer() {
-    saveCurrentValues();
-    setSelectedElements([]);
-  }
+
   async function saveCurrentValues() {
     const values = await drawerRef.current?.getFormValues();
 
@@ -165,6 +164,7 @@ const CanvasAndForm: FC<WorkflowCreateProps> = ({ isInitiate, isAccept }) => {
 
     setConfigValue(nextValue);
   }
+  /** 🚀 Initiate create request */
   async function submitToCreate() {
     if (!checkIfAllJobConfigCompleted()) {
       return message.warn(i18n.t('workflow.msg_config_unfinished'));
@@ -204,29 +204,21 @@ const CanvasAndForm: FC<WorkflowCreateProps> = ({ isInitiate, isAccept }) => {
       history.push('/workflows');
     }
   }
-
-  // ---------- Handlers ----------------
-  function onCanvasClick() {
-    drawerRef.current?.validateCurrentForm();
-    saveCurrentValues();
-    toggleDrawerVisible(false);
-  }
-  function onGoNextJob() {
-    if (!currNode) return;
-
-    const nextNodeToSelect = jobNodes.find((node) => node.data.index === currNode.data.index + 1);
-    nextNodeToSelect && selectNode(nextNodeToSelect);
-  }
   async function selectNode(nextNode: ChartNode) {
     const prevNode = currNode;
-    if (prevNode) {
+    if (currNode && prevNode) {
       // Validate & Save current form before go another job
       await saveCurrentValues();
-      await drawerRef.current?.validateCurrentForm();
+
+      const isValid = await drawerRef.current?.validateCurrentForm();
+      chartRef.current?.updateNodeStatusById({
+        id: currNode.id,
+        status: isValid ? JobNodeStatus.Success : JobNodeStatus.Warning,
+      });
     }
 
     // Turn target node status to configuring
-    updateNodeStatusById({ id: nextNode.id, status: JobNodeStatus.Processing });
+    chartRef.current?.updateNodeStatusById({ id: nextNode.id, status: JobNodeStatus.Processing });
 
     setCurrNode(nextNode);
     setSelectedElements([nextNode]);
@@ -234,6 +226,28 @@ const CanvasAndForm: FC<WorkflowCreateProps> = ({ isInitiate, isAccept }) => {
     toggleDrawerVisible(true);
   }
 
+  // ---------- Handlers ----------------
+  async function onCanvasClick() {
+    saveCurrentValues();
+    toggleDrawerVisible(false);
+    if (currNode) {
+      const isValid = await drawerRef.current?.validateCurrentForm();
+      chartRef.current?.updateNodeStatusById({
+        id: currNode.id,
+        status: isValid ? JobNodeStatus.Success : JobNodeStatus.Warning,
+      });
+    }
+  }
+  function onCloseDrawer() {
+    saveCurrentValues();
+    setSelectedElements([]);
+  }
+  function onGoNextJob() {
+    if (!currNode) return;
+
+    const nextNodeToSelect = jobNodes.find((node) => node.data.index === currNode.data.index + 1);
+    nextNodeToSelect && selectNode(nextNodeToSelect);
+  }
   function onPrevStepClick() {
     history.goBack();
   }
@@ -256,6 +270,10 @@ const CanvasAndForm: FC<WorkflowCreateProps> = ({ isInitiate, isAccept }) => {
   }
 };
 
+/**
+ * @param variableShells Variable defintions without any user input value
+ * @param formValues User inputs
+ */
 function _hydrate(variableShells: Variable[], formValues?: Dictionary<any>): Variable[] {
   if (!formValues) return [];
 

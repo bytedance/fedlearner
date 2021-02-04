@@ -37,6 +37,9 @@ const StyledForm = styled.div`
   width: 500px;
   margin: 0 auto;
 `;
+const NoAvailableTpl = styled.span`
+  line-height: 32px;
+`;
 
 const WorkflowsCreateStepOne: FC<WorkflowCreateProps & { onSuccess?: any }> = ({
   isInitiate,
@@ -179,7 +182,9 @@ const WorkflowsCreateStepOne: FC<WorkflowCreateProps & { onSuccess?: any }> = ({
                 rules={[{ required: true, message: t('workflow.msg_template_required') }]}
               >
                 {noAvailableTpl && !tplListQuery.isLoading && !tplListQuery.isIdle ? (
-                  <span>{t(`workflow.msg_${pairingPrefix}no_abailable_tpl`)}</span>
+                  <NoAvailableTpl>
+                    {t(`workflow.msg_${pairingPrefix}no_abailable_tpl`)}
+                  </NoAvailableTpl>
                 ) : (
                   <Select
                     loading={tplListQuery.isLoading}

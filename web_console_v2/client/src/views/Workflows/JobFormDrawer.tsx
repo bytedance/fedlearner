@@ -16,22 +16,17 @@ import VariablePermission from 'components/VariblePermission';
 import { DrawerProps } from 'antd/lib/drawer';
 import {
   getNodeIdByJob,
-  ChartNode,
-  JobNode,
   JobNodeStatus,
   NodeDataRaw,
 } from 'components/WorkflowJobsFlowChart/helpers';
-import { updateNodeStatusById } from 'components/WorkflowJobsFlowChart';
 import { cloneDeep, Dictionary, noop } from 'lodash';
-import { useRecoilState } from 'recoil';
-import { workflowConfigForm } from 'stores/workflow';
 import { IFormState } from '@formily/antd';
 import { giveWeakRandomKey, to } from 'shared/helpers';
 import { useTranslation } from 'react-i18next';
 import { removeUndefined } from 'shared/object';
 import ErrorBoundary from 'antd/lib/alert/ErrorBoundary';
 import { Eye } from 'components/IconPark';
-import { Variable, WorkflowConfig } from 'typings/workflow';
+import { Variable } from 'typings/workflow';
 import { Job } from 'typings/job';
 
 const Container = styled(Drawer)`
@@ -182,15 +177,7 @@ const JobFormDrawer: ForwardRefRenderFunction<JobFormDrawerExposedRef, Props> = 
     // When no Node opened yet
     if (!jobDefinition) return true;
 
-    const nodeId = getNodeIdByJob(jobDefinition);
-    const { Warning, Success } = JobNodeStatus;
     const [, error] = await to(formActions.validate());
-
-    // Update job node status to validation result
-    updateNodeStatusById({
-      id: nodeId,
-      status: error ? Warning : Success,
-    });
 
     return !error;
   }

@@ -25,9 +25,7 @@ import ReactFlow, {
   useStoreState,
 } from 'react-flow-renderer';
 
-import PubSub from 'pubsub-js';
-import { useSubscribe } from 'hooks';
-import { Variable, WorkflowConfig } from 'typings/workflow';
+import { WorkflowConfig } from 'typings/workflow';
 
 const Container = styled.div`
   position: relative;
@@ -72,10 +70,6 @@ const Container = styled.div`
     }
   }
 `;
-// Internal pub-sub channels, needless to put in any shared file
-const CHANNELS = {
-  update_node_status: 'workflow_job_flow_chart.update_node_status',
-};
 
 type Props = {
   workflowConfig: WorkflowConfig<NodeDataRaw>;
@@ -86,6 +80,7 @@ type Props = {
 };
 export type ChartExposedRef = {
   nodes: ChartNodes;
+  updateNodeStatusById: (args: { id: string; status: JobNodeStatus }) => void;
   setSelectedNodes: (nodes: ChartNodes) => void;
 };
 
@@ -99,27 +94,34 @@ const WorkflowJobsFlowChart: ForwardRefRenderFunction<ChartExposedRef | undefine
   const jobNodes = useStoreState((store) => store.nodes) as ChartNodes;
   const setSelectedElements = useStoreActions((actions) => actions.setSelectedElements);
 
+  // To decide if need to re-generate jobElements, note that re-gen
+  // will lead all nodes loose it's status!
+  //
+  // Q: why not put workflowConfig directly as the dependent?
+  // A: At workflowConfig's inner may contains variables' value
+  // and will change during user configuring, but we do not want
+  // re-generate chart elements for that
+  const workflowIdentifyString = workflowConfig.job_definitions
+    .map((item) => item.name)
+    .concat(workflowConfig.variables.map((item) => item.name))
+    .join('|');
+
   useEffect(() => {
     const jobElements = convertToChartElements(
       { jobs: workflowConfig.job_definitions, globalVariables: workflowConfig.variables || [] },
       { type: nodeType, selectable },
     );
     setElements(jobElements);
-  }, [nodeType, selectable, workflowConfig]);
+    // eslint-disable-next-line
+  }, [nodeType, selectable, workflowIdentifyString]);
 
   useImperativeHandle(parentRef, () => {
     return {
       nodes: jobNodes,
+      updateNodeStatusById: updateNodeStatus,
       setSelectedNodes: setSelectedElements,
     };
   });
-
-  useSubscribe(
-    CHANNELS.update_node_status,
-    (_: string, arg: { id: string; status: JobNodeStatus }) => {
-      updateNodeStatus(arg);
-    },
-  );
 
   return (
     <Container>
@@ -148,13 +150,13 @@ const WorkflowJobsFlowChart: ForwardRefRenderFunction<ChartExposedRef | undefine
   function onLoad(_reactFlowInstance: OnLoadParams) {
     _reactFlowInstance!.fitView({ padding: 2 });
   }
-  function updateNodeStatus(arg: { id: string; status: JobNodeStatus }) {
+  function updateNodeStatus(args: { id: string; status: JobNodeStatus }) {
     setElements((els) => {
       return els.map((el) => {
-        if (el.id === arg.id) {
+        if (el.id === args.id) {
           el.data = {
             ...el.data,
-            status: arg.status,
+            status: args.status,
           };
         }
         return el;
@@ -162,9 +164,5 @@ const WorkflowJobsFlowChart: ForwardRefRenderFunction<ChartExposedRef | undefine
     });
   }
 };
-
-export function updateNodeStatusById(arg: { id: string; status: JobNodeStatus }) {
-  PubSub.publish(CHANNELS.update_node_status, arg);
-}
 
 export default forwardRef(WorkflowJobsFlowChart);

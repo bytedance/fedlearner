@@ -56,7 +56,7 @@ export const newlyCreated = {
             name: 'job_name2',
             value: '2',
             access_mode: 'PEER_WRITABLE' as VariableAccessMode,
-            widget_schema: '{"component":"Input","type":"string"}' as any,
+            widget_schema: '{"component":"Input","type":"string","required":true}' as any,
           },
           {
             name: 'comment2',
@@ -158,4 +158,5 @@ export const completed = {
   state: WorkflowState.COMPLETED,
   target_state: WorkflowState.INVALID,
   transaction_state: TransactionState.ABORTED,
+  jobs: [],
 };
