@@ -38,7 +38,6 @@ class RpcClient(object):
         self._receiver = receiver_config
         self._auth_info = service_pb2.ProjAuthInfo(
             project_name=self._project.name,
-            source_domain=self._project.domain_name,
             target_domain=self._receiver.domain_name,
             auth_token=self._project.token)
 
@@ -55,13 +54,13 @@ class RpcClient(object):
 
     def _get_metadata(self):
         metadata = []
-        x_host = 'v2.fedlearner.webconsole'
+        x_host_prefix = 'fedlearner-webconsole-v2'
         for variable in self._project.variables:
             if variable.name == 'X_HOST':
-                x_host = variable.value
+                x_host_prefix = variable.value
                 break
-        metadata.append(('x-host', x_host))
-
+        metadata.append(('x-host', '{}.{}'.format(x_host_prefix,
+                                                  self._receiver.domain_name)))
         for key, value in self._receiver.grpc_spec.extra_headers.items():
             metadata.append((key, value))
         # metadata is a tuple of tuples

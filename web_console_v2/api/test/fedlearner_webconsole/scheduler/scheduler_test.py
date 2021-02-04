@@ -103,7 +103,6 @@ class WorkflowTest(BaseTestCase):
 
         name = 'test-project'
         config = {
-            'domain_name': f'fl-{role}.com',
             'participants': [
                 {
                     'name': f'party_{peer_role}',
