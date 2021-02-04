@@ -14,6 +14,7 @@ import JobExecutionMetrics from './JobExecutionMetrics';
 import JobExecutionPODs from './JobExecutionPODs';
 import { jobExecutionStatusText } from 'components/WorkflowJobsFlowChart/WorkflowJobNode';
 import { convertExecutionStateToStatus } from 'components/WorkflowJobsFlowChart/helpers';
+import { WorkflowExecutionDetails } from 'typings/workflow';
 
 const Container = styled(Drawer)`
   top: 60px;
@@ -38,7 +39,8 @@ const DrawerTitle = styled.h3`
 
 interface Props extends DrawerProps {
   isPeerSide: boolean;
-  data?: NodeData;
+  jobData?: NodeData;
+  workflow?: WorkflowExecutionDetails;
   toggleVisible?: Function;
 }
 export type JobExecutionDetailsExposedRef = {};
@@ -52,18 +54,19 @@ const tagColors = {
 };
 
 const JobExecutionDetailsDrawer: ForwardRefRenderFunction<JobExecutionDetailsExposedRef, Props> = ({
-  data,
+  jobData,
+  workflow,
   isPeerSide,
   toggleVisible,
   ...props
 }) => {
   const { t } = useTranslation();
 
-  if (!data || !data.raw) {
+  if (!jobData || !jobData.raw) {
     return null;
   }
 
-  const job = data.raw;
+  const job = jobData.raw;
 
   const displayedProps = [
     {
@@ -101,7 +104,7 @@ const JobExecutionDetailsDrawer: ForwardRefRenderFunction<JobExecutionDetailsExp
       >
         <DrawerHeader align="middle" justify="space-between">
           <Row align="middle">
-            <DrawerTitle>{data.raw.name}</DrawerTitle>
+            <DrawerTitle>{jobData.raw.name}</DrawerTitle>
 
             {isPeerSide ? (
               <Tag color="orange">{t('workflow.peer_config')}</Tag>
@@ -119,7 +122,7 @@ const JobExecutionDetailsDrawer: ForwardRefRenderFunction<JobExecutionDetailsExp
         <PropertyList initialVisibleRows={3} cols={2} properties={displayedProps} labelWidth={90} />
 
         <JobExecutionMetrics />
-        <JobExecutionLogs />
+        <JobExecutionLogs job={job} workflow={workflow} />
         <JobExecutionPODs job={job} />
       </Container>
     </ErrorBoundary>

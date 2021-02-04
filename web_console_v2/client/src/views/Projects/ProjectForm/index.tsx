@@ -112,17 +112,22 @@ const ProjectForm: FC<Props> = ({ onSubmit, isEdit, initialValues }) => {
             label={t('project.name')}
             rules={[{ required: true, message: t('project.name_message') }]}
           >
-            <Input name="name" placeholder={t('project.name_placeholder')} disabled={isEdit} />
-          </Form.Item>
-          <Form.Item name="domainName" label={t('project.selft_domain')} rules={domainRules}>
             <Input
-              name="domainName"
-              addonBefore={DOMAIN_PREFIX}
-              addonAfter={DOMAIN_SUFFIX}
-              placeholder={t('project.placeholder_domain_name')}
-              disabled={isEdit}
+              name="name"
+              placeholder={t('project.name_placeholder')}
+              disabled={isEdit || loading}
             />
           </Form.Item>
+          {/* <Form.Item
+            name="token"
+            label={t('project.label_token')}
+            rules={[
+              { required: true, message: t('project.msg_token_required') },
+              { pattern: /^[a-zA-Z0-9]{0,64}$/g, message: t('project.msg_token_invalid') },
+            ]}
+          >
+            <Input placeholder={t('project.placeholder_token')} disabled={isEdit || loading} />
+          </Form.Item> */}
         </SecondaryForm>
 
         {/* Participant config */}
@@ -136,7 +141,7 @@ const ProjectForm: FC<Props> = ({ onSubmit, isEdit, initialValues }) => {
             <Input
               name="participantName"
               placeholder={t('project.participant_name_placeholder')}
-              disabled={isEdit}
+              disabled={loading}
             />
           </Form.Item>
 
@@ -150,7 +155,7 @@ const ProjectForm: FC<Props> = ({ onSubmit, isEdit, initialValues }) => {
               addonBefore={DOMAIN_PREFIX}
               addonAfter={DOMAIN_SUFFIX}
               placeholder={t('project.placeholder_domain_name')}
-              disabled={isEdit}
+              disabled={isEdit || loading}
             />
           </Form.Item>
 
@@ -174,7 +179,7 @@ const ProjectForm: FC<Props> = ({ onSubmit, isEdit, initialValues }) => {
             <Input
               name="participantUrl"
               placeholder={t('project.placeholder_participant_url')}
-              disabled={isEdit}
+              disabled={isEdit || loading}
             />
           </Form.Item>
           <Form.Item
@@ -187,6 +192,7 @@ const ProjectForm: FC<Props> = ({ onSubmit, isEdit, initialValues }) => {
               onTypeChange={(val) => {
                 setCertRequired(val === CertificateConfigType.Upload);
               }}
+              disabled={loading}
             />
           </Form.Item>
 
@@ -195,11 +201,12 @@ const ProjectForm: FC<Props> = ({ onSubmit, isEdit, initialValues }) => {
               rows={4}
               style={{ resize: 'none' }}
               name="comment"
+              disabled={loading}
               placeholder={t('project.remarks_placeholder')}
             />
           </Form.Item>
 
-          <EnvVariablesForm layout={layout} formInstance={form} />
+          <EnvVariablesForm layout={layout} formInstance={form} disabled={loading} />
         </SecondaryForm>
 
         <SubmitContainer>
@@ -272,7 +279,7 @@ const ProjectForm: FC<Props> = ({ onSubmit, isEdit, initialValues }) => {
         params = {
           name: data.name,
           config: {
-            domain_name: wrapWithDomainName(data.domainName),
+            token: data.token || '',
             participants,
             variables: data.variables ?? [],
           },

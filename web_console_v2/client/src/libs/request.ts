@@ -111,8 +111,11 @@ request.interceptors.response.use(
     }
     // Common errors handle
     if (response && typeof response === 'object') {
+      const { data } = error.response;
+      const { details } = data;
+
       const serverError = new ServerError(
-        error.response.data.details || error.response.data.message || error.response.data.msg,
+        typeof details === 'object' ? JSON.stringify(details) : details || data.message || data.msg,
         error.satus,
       );
 

@@ -1,31 +1,45 @@
 import { Refresh } from 'components/IconPark';
-import React, { FC } from 'react';
+import React, { FC, useRef, useEffect } from 'react';
 import { useQuery } from 'react-query';
 import { useParams } from 'react-router-dom';
 import { fetchPodLogs } from 'services/workflow';
-import styled from 'styled-components';
-
-const Container = styled.div``;
 
 const PodLogs: FC = () => {
+  const panelRef = useRef<HTMLPreElement>();
   const params = useParams<{ jobid: string; podname: string }>();
 
   const logsQuery = useQuery('getPodLogs', getLogs, {
     refetchOnWindowFocus: false,
   });
 
+  useEffect(() => {
+    if (panelRef.current) {
+      panelRef.current.parentElement?.parentElement?.scrollTo({
+        top: panelRef.current.scrollHeight,
+      });
+    }
+  }, [logsQuery.data]);
+
   if (logsQuery.isFetching) {
-    return <Refresh className="anticon-spin" style={{ fontSize: '20px' }} />;
+    return <Refresh spin style={{ fontSize: '20px' }} />;
   }
 
-  return <Container>{logsQuery.data?.data}</Container>;
+  const isEmpty = logsQuery.data?.data.length === 0;
+
+  return (
+    <div ref={panelRef as any}>
+      {isEmpty ? 'Ooops! No logs at the moment' : logsQuery.data?.data.join('\n')}
+    </div>
+  );
 
   async function getLogs() {
-    if (!params.jobid || !params.podname) {
-      return { data: 'Job ID or Pod name invalid!' };
+    if (!params.podname) {
+      return { data: 'Pod name invalid!' };
     }
 
-    return fetchPodLogs(params.jobid, params.podname).catch((error) => ({ data: error.message }));
+    return fetchPodLogs(params.podname, { startTime: 0, maxLines: 500 }).catch((error) => ({
+      data: error.message,
+    }));
   }
 };
 

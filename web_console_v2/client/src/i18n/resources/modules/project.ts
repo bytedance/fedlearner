@@ -32,7 +32,7 @@ const project = {
   participant_domain: { zh: '合作伙伴泛域名', en: "Participant participant's domain" },
   selft_domain: { zh: '本侧泛域名', en: 'Self domain name' },
   remarks: { zh: '说明备注', en: 'Remarks' },
-  name_placeholder: { zh: '请填写项目名称（两侧必须相同）', en: 'Please enter name' },
+  name_placeholder: { zh: '请填写项目名称', en: 'Please enter name' },
   participant_name_placeholder: { zh: '请输入合作伙伴名称', en: 'Please enter participant name' },
 
   participant_domain_placeholder: { zh: '请填写泛域名', en: 'Please enter domain' },
@@ -67,6 +67,8 @@ const project = {
   upload_certificate_message: { zh: '请上传证书', en: 'Please upload the certificate' },
   drag_to_upload: { zh: '拖拽到这里进行上传', en: 'Drag and drop here to upload' },
   create_success: { zh: '创建项目成功', en: 'Create project succeed!' },
+  label_token: { zh: '联邦密码' },
+
   edit_success: { zh: '编辑项目成功', en: 'Edit project succeed!' },
   msg_var_name: { zh: '请输入变量名' },
   msg_var_value: { zh: '请输入变量值' },
@@ -76,8 +78,11 @@ const project = {
   msg_domian_invalid: { zh: '只允许小写英文字母/中划线/数字，请检查' },
   msg_ip_addr_invalid: { zh: 'IP 地址不合法，请检查' },
   msg_no_var_yet: { zh: '当前没有环境变量参数，请添加' },
+  msg_token_required: { zh: '联邦密码为必填项' },
+  msg_token_invalid: { zh: '只允许英文、数字的组合' },
 
   placeholder_domain_name: { zh: '泛域名间值' },
+  placeholder_token: { zh: '请输入联邦密码' },
   placeholder_participant_url: {
     zh: 'IPv4/v6 地址（包含端口）',
     en: 'IP(v4 or v6) address with Port',

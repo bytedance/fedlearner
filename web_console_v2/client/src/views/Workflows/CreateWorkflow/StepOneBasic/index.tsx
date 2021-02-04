@@ -101,7 +101,7 @@ const WorkflowsCreateStepOne: FC<WorkflowCreateProps & { onSuccess?: any }> = ({
     if (peerErrorMsg) {
       notification.error({
         message: t('workflow.msg_peer_config_failed'),
-        description: peerErrorMsg + ' 请稍后重试',
+        description: `${peerErrorMsg} ${t('pls_try_again_later')}`,
         duration: 0,
       });
     }

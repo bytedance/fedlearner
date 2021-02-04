@@ -16,13 +16,19 @@ const stateType: { [key: string]: StateTypes } = {
   [PodState.COMPLETE]: 'success',
   [PodState.RUNNING]: 'processing',
   [PodState.FAILED]: 'error',
-  [PodState.LOCAL]: 'default',
+  [PodState.PENDING]: 'warning',
+  [PodState.UNKNOWN]: 'default',
+  [PodState.FL_FAILED]: 'error',
+  [PodState.FL_SUCCEED]: 'success',
 };
 const stateText: { [key: string]: string } = {
   [PodState.COMPLETE]: i18n.t('workflow.job_node_success'),
   [PodState.RUNNING]: i18n.t('workflow.job_node_running'),
   [PodState.FAILED]: i18n.t('workflow.job_node_failed'),
-  [PodState.LOCAL]: i18n.t('workflow.job_node_stopped'),
+  [PodState.PENDING]: i18n.t('workflow.job_node_waiting'),
+  [PodState.UNKNOWN]: i18n.t('workflow.pod_unknown'),
+  [PodState.FL_FAILED]: '清理资源失败',
+  [PodState.FL_SUCCEED]: '清理资源完成',
 };
 
 type Props = {
@@ -43,12 +49,13 @@ const JobExecutionPODs: FC<Props> = ({ job }) => {
       title: i18n.t('workflow.name'),
       dataIndex: 'name',
       key: 'name',
-      width: 400,
+      ellipsis: true,
+      width: 380,
     },
     {
       title: i18n.t('workflow.col_worker_status'),
-      dataIndex: 'state',
-      key: 'state',
+      dataIndex: 'status',
+      key: 'status',
       render: (val: PodState) => <StateIndicator type={stateType[val]} text={stateText[val]} />,
     },
     {
@@ -61,16 +68,17 @@ const JobExecutionPODs: FC<Props> = ({ job }) => {
       title: i18n.t('workflow.col_actions'),
       dataIndex: 'actions',
       key: 'actions',
+      width: 160,
       render: (_: any, record: Pod) => {
         return (
-          <>
-            <Button type="link" size="small" disabled={record.state !== PodState.RUNNING}>
+          <div style={{ marginLeft: '-13px' }}>
+            <Button type="link" size="small" disabled={record.status !== PodState.RUNNING}>
               Shell
             </Button>
             <Button type="link" size="small" onClick={() => goInspectLogs(record)}>
               {i18n.t('workflow.btn_inspect_logs')}
             </Button>
-          </>
+          </div>
         );
       },
     },

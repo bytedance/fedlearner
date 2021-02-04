@@ -1,6 +1,6 @@
 import React, { FC } from 'react';
 import styled from 'styled-components';
-import { Form, Button, Input, Spin, Card } from 'antd';
+import { Form, Button, Input, Card } from 'antd';
 import { useTranslation } from 'react-i18next';
 import { forkWorkflowForm } from 'stores/workflow';
 import { useHistory, useParams } from 'react-router-dom';
@@ -35,7 +35,20 @@ const WorkflowForkStepOneBaic: FC<Props> = ({ onSuccess }) => {
   const workflowQuery = useQuery(['getWorkflow', params.id], getWorkflowDetail, {
     enabled: params.id,
     refetchOnWindowFocus: false,
+    onSuccess(workflow) {
+      const newName = workflow.name + ' - duplicated';
+
+      formInstance.setFieldsValue({ name: newName });
+
+      setFormData({
+        ...formData,
+        ...(workflow as any),
+        name: newName,
+        forked_from: workflow.id,
+      });
+    },
   });
+  // TODO: if peer workflow unforable, redirect user back !
 
   return (
     <Container bordered={false}>
@@ -95,12 +108,6 @@ const WorkflowForkStepOneBaic: FC<Props> = ({ onSuccess }) => {
   }
   async function getWorkflowDetail() {
     const { data } = await getWorkflowDetailById(params.id);
-    const newName = data.name + ' - duplicated';
-    setFormData({
-      ...formData,
-      name: newName,
-    });
-    formInstance.setFieldsValue({ name: newName });
 
     return data;
   }

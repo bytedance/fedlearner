@@ -127,7 +127,7 @@ export const withExecutionDetail: WorkflowExecutionDetails = {
         {
           name: '0-79f60e7a-520e-4cd7-a679-95b12df2c4fd',
           pod_type: 'Master',
-          state: PodState.COMPLETE,
+          status: PodState.COMPLETE,
         },
       ],
       created_at: 1611006571,

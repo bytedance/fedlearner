@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { useRecoilState } from 'recoil';
 import { workflowTemplateForm, CreateTemplateForm } from 'stores/workflow';
 import WORKFLOW_CHANNELS from '../pubsub';
-import { initiateAWorkflowTemplate } from 'services/workflow';
+import { createWorkflowTemplate } from 'services/workflow';
 import { useSubscribe } from 'hooks';
 import { to } from 'shared/helpers';
 import { removePrivate } from 'shared/object';
@@ -36,7 +36,7 @@ const CreateTemplate: FC<Props> = ({ onSuccess, onError, groupAlias, allowedIsLe
 
     const payload = stringifyWidgetSchemas(removePrivate(values) as WorkflowTemplatePayload);
 
-    const [res, error] = await to(initiateAWorkflowTemplate(payload));
+    const [res, error] = await to(createWorkflowTemplate(payload));
 
     if (error) {
       onError && onError(error);

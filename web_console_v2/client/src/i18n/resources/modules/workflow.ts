@@ -34,6 +34,7 @@ const workflow: I18nMessageModule = {
   col_date: { zh: ' 创建时间' },
   col_actions: { zh: '操作' },
   col_pod: { zh: 'POD' },
+  col_forkable: { zh: '是否可复制' },
   col_worker_status: { zh: '运行状体' },
   col_worker_type: { zh: '类型' },
 
@@ -112,6 +113,8 @@ const workflow: I18nMessageModule = {
   msg_not_config: { zh: '工作流配置未完成' },
   msg_workflow_name_invalid: { zh: '工作流名字只能是小写英文字母和空格' },
   msg_sure_to_stop: { zh: '确认停止运行该工作流吗?' },
+  msg_unforkable: { zh: '根据对侧配置，该工作流不允许被复制，请与对侧沟通后再试' },
+  msg_get_peer_cfg_failed: { zh: '获取对侧配置失败: ' },
 
   var_auth_write: { zh: '可编辑' },
   var_auth_read: { zh: '可见' },
@@ -130,6 +133,7 @@ const workflow: I18nMessageModule = {
   job_node_running: { zh: '运行中' },
   job_node_stop_running: { zh: '手动停止运行' },
   job_node_stopped: { zh: '已停止' },
+  pod_unknown: { zh: '状态未知' },
 };
 
 export default separateLng(workflow);

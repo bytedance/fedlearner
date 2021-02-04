@@ -77,7 +77,8 @@ const EnvVariablesForm: FC<{
     wrapperCol: { span: number };
   };
   formInstance?: FormInstance;
-}> = ({ layout }) => {
+  disabled?: boolean;
+}> = ({ layout, disabled }) => {
   const { t } = useTranslation();
   const [isFolded, toggleFolded] = useToggle(true);
   const listInnerRef = useRef<HTMLDivElement>();
@@ -147,7 +148,7 @@ const EnvVariablesForm: FC<{
                     fieldKey={[field.fieldKey, 'name']}
                     rules={[{ required: true, message: t('project.msg_var_name') }]}
                   >
-                    <Input placeholder="name" />
+                    <Input placeholder="name" disabled={disabled} />
                   </Form.Item>
 
                   <Form.Item
@@ -160,7 +161,7 @@ const EnvVariablesForm: FC<{
                     fieldKey={[field.fieldKey, 'value']}
                     rules={[{ required: true, message: t('project.msg_var_value') }]}
                   >
-                    <Input.TextArea placeholder="value" />
+                    <Input.TextArea placeholder="value" disabled={disabled} />
                   </Form.Item>
 
                   <RemoveButton

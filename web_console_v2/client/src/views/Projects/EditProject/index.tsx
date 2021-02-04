@@ -9,6 +9,7 @@ import { useQuery } from 'react-query';
 import BreadcrumbLink from 'components/BreadcrumbLink';
 import styled from 'styled-components';
 import { unwrapDomainName } from 'shared/project';
+import { Down } from 'components/IconPark';
 
 const SpinContainer = styled(Spin)`
   min-height: 500px;
@@ -37,7 +38,7 @@ function EditProject(): ReactElement {
       participantUrl: participant.url,
       participantDomainName: unwrapDomainName(participant.domain_name),
       comment: project.comment,
-      domainName: unwrapDomainName(project.config.domain_name),
+      token: project.config.token,
       variables: project.config.variables || [],
     });
   }

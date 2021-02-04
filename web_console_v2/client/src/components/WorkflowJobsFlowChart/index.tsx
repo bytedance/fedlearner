@@ -94,8 +94,8 @@ const WorkflowJobsFlowChart: ForwardRefRenderFunction<ChartExposedRef | undefine
   const jobNodes = useStoreState((store) => store.nodes) as ChartNodes;
   const setSelectedElements = useStoreActions((actions) => actions.setSelectedElements);
 
-  // To decide if need to re-generate jobElements, note that re-gen
-  // will lead all nodes loose it's status!
+  // To decide if need to re-generate jobElements, look out that re-gen elements
+  // will lead all nodes loose it's status!!💣
   //
   // Q: why not put workflowConfig directly as the dependent?
   // A: At workflowConfig's inner may contains variables' value
@@ -148,7 +148,7 @@ const WorkflowJobsFlowChart: ForwardRefRenderFunction<ChartExposedRef | undefine
     }
   }
   function onLoad(_reactFlowInstance: OnLoadParams) {
-    _reactFlowInstance!.fitView({ padding: 2 });
+    _reactFlowInstance!.fitView({ padding: 1 });
   }
   function updateNodeStatus(args: { id: string; status: JobNodeStatus }) {
     setElements((els) => {

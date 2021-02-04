@@ -21,7 +21,7 @@ export enum JobNodeStatus {
   Error,
 }
 
-export type ChartNodeType = 'config' | 'execution' | 'global';
+export type ChartNodeType = 'config' | 'execution' | 'global' | 'fork';
 export type JobColorsMark = 'blue' | 'green' | 'yellow' | 'magenta' | 'cyan';
 /**
  * 1. At Workflow create stage, NodeDataRaw === Job or GlobalVariables
@@ -36,6 +36,7 @@ export type NodeData = {
   isTarget?: boolean;
   status: JobNodeStatus;
   mark?: JobColorsMark;
+  inherit?: boolean; // When forking workflow, some node's result can be inherit
 };
 export interface JobNode extends Node {
   data: NodeData;
@@ -58,6 +59,7 @@ export function convertToChartElements(
   options: { type: ChartNodeType; selectable: boolean },
 ): ChartElements {
   const hasGlobalVars = !isNil(globalVariables) && !isEmpty(globalVariables);
+
   // 1. Group Jobs to rows by dependiences
   // e.g. Say we have jobs like [1, 2, 3, 4, 5] in which 2,3,4 is depend on 1, 5 depend on 2,3,4
   // we need to render jobs like charts below,
@@ -74,7 +76,7 @@ export function convertToChartElements(
 
   // If global variables existing, always put it into first row
   if (hasGlobalVars) {
-    const globalNode = _createGlobalConfigNode(globalVariables!);
+    const globalNode = _createGlobalConfigNode({ variables: globalVariables!, options });
     rows.push([globalNode]);
     rowIdx++;
   }
@@ -177,8 +179,15 @@ export function getNodeIdByJob(job: Job) {
 
 // --------------- Private helpers  ---------------
 
-function _createGlobalConfigNode(variables: Variable[]): GlobalConfigNode {
+function _createGlobalConfigNode({
+  variables,
+  options,
+}: {
+  variables: Variable[];
+  options?: any;
+}): GlobalConfigNode {
   const name = i18n.t('workflow.label_global_config');
+  const isFork = options?.type === 'fork';
 
   return {
     id: name,
@@ -190,7 +199,9 @@ function _createGlobalConfigNode(variables: Variable[]): GlobalConfigNode {
         dependencies: [],
       } as unknown) as NodeDataRaw,
       index: 0,
-      status: JobNodeStatus.Pending,
+      // When fork type, inherit initially set to true, status to Success
+      status: isFork ? JobNodeStatus.Success : JobNodeStatus.Pending,
+      inherit: isFork,
     },
     position: { x: 0, y: 0 },
   };
@@ -203,7 +214,12 @@ function _createJobNode(params: {
   hasGlobalVars?: boolean;
 }): JobNode {
   const { job, index, options, hasGlobalVars } = params;
-  const status = job.state ? convertExecutionStateToStatus(job.state) : JobNodeStatus.Pending;
+  const isFork = options?.type === 'fork';
+  const status = job.state
+    ? convertExecutionStateToStatus(job.state)
+    : isFork
+    ? JobNodeStatus.Success
+    : JobNodeStatus.Pending;
 
   return {
     id: getNodeIdByJob(job),
@@ -212,6 +228,7 @@ function _createJobNode(params: {
       index: hasGlobalVars ? index + 1 : index, // if have global variables, all nodes should put after it
       mark: job.mark || undefined,
       status,
+      inherit: isFork,
     },
     position: { x: 0, y: 0 }, // position will be calculated in later step
     ...options,
@@ -248,10 +265,11 @@ function _getNodePosition({
   const isGlobalNode = type === 'global';
   const _1stNodeX = midlineX - (NODE_WIDTH * nodesCount) / 2 - ((nodesCount - 1) * NODE_GAP) / 2;
   let x = _1stNodeX + nodeIdx * (NODE_WIDTH + NODE_GAP);
+
   const y =
     TOP_OFFSET +
     (isGlobalNode
-      ? (NODE_HEIGHT - GLOBAL_CONFIG_NODE_SIZE) / 2
+      ? (NODE_HEIGHT - GLOBAL_CONFIG_NODE_SIZE) / 1.5
       : rowIdx * (NODE_HEIGHT + NODE_GAP));
 
   if (type === 'global') {

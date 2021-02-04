@@ -32,10 +32,8 @@ export interface UpdateProjectPayload {
 
 export interface CreateProjectPayload {
   name: string;
-  domain_name: string;
   config: {
-    domain_name: string;
-    token?: string;
+    token: string;
     participants: Participant[];
     variables: ProjectVariable[];
   };

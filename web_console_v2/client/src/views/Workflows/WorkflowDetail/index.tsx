@@ -250,7 +250,8 @@ const WorkflowDetail: FC = () => {
         <JobExecutionDetailsDrawer
           visible={drawerVisible}
           toggleVisible={toggleDrawerVisible}
-          data={data}
+          jobData={data}
+          workflow={detailQuery.data?.data}
           isPeerSide={isPeerSide}
         />
       </Container>

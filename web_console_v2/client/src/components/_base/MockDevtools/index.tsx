@@ -13,6 +13,7 @@ const FloatButton = styled.button`
   ${MixinCircle(50)}
 
   position: fixed;
+  z-index: 10;
   right: 10px;
   bottom: 64px;
   background-color: var(--blue1);

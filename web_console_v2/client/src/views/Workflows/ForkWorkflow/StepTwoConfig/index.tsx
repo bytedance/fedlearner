@@ -113,6 +113,8 @@ const WorkflowForkStepTwoConfig: FC = () => {
 
   const isDisabled = { disabled: submitting };
 
+  // TODO: if peer workflow unforable, redirect user back !
+
   return (
     <>
       <ChartSection>
@@ -123,7 +125,7 @@ const WorkflowForkStepTwoConfig: FC = () => {
           <ReactFlowProvider>
             <WorkflowJobsFlowChart
               ref={selfConfigChartRef}
-              nodeType="config"
+              nodeType="fork"
               workflowConfig={formData.config}
               onCanvasClick={onCanvasClick}
               onJobClick={(node) => selectNode(node, 'self')}
@@ -138,7 +140,7 @@ const WorkflowForkStepTwoConfig: FC = () => {
 
           <ReactFlowProvider>
             <WorkflowJobsFlowChart
-              nodeType="config"
+              nodeType="fork"
               ref={peerConfigChartRef}
               workflowConfig={formData.fork_proposal_config}
               onCanvasClick={onCanvasClick}
@@ -268,7 +270,6 @@ const WorkflowForkStepTwoConfig: FC = () => {
     setSubmitting(true);
 
     const payload = stringifyWidgetSchemas(formData);
-    console.log('🚀 ~ payload', payload);
     const [, error] = await to(forkTheWorkflow(payload));
 
     setSubmitting(false);
