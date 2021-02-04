@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+service Greeder {
+    rpc HelloUnaryUnary(Request) returns (Response) {}
+    rpc HelloUnaryStream(Request) returns (stream Response) {}
+    rpc HelloStreamUnary(stream Request) returns (Response) {}
+    rpc HelloStreamStream(stream Request) returns (stream Response) {}
+}
+
+message Request {
+    string name = 1;
+}
+
+message Response {
+    string message = 1;
+}

@@ -4,8 +4,8 @@ import logging
 import time
 import grpc
 
-from proto import bridge_pb2, bridge_pb2_grpc
-from bridge.util import _method_encode, _method_decode
+from fedlearner.bridge.proto import bridge_pb2, bridge_pb2_grpc
+from fedlearner.bridge.util import _method_encode, _method_decode
 
 class _UnaryUnaryMultiCallable(grpc.UnaryUnaryMultiCallable):
     def __init__(self, bridge, method, request_serializer,

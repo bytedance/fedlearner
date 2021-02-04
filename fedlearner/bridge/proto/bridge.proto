@@ -1,0 +1,43 @@
+syntax = "proto3";
+
+enum Code {
+    OK = 0;
+    UNAUTHORIZED = 1; // peer unauthorized
+    UNCONNECTED = 2;  // peer unconnected
+    CLOSED = 3;       // peer closed
+
+    UNKNOW_TYPE = 1001;
+}
+
+enum CallType {
+    UNSET = 0;
+    CONNECT = 1;
+    HEARTBEAT = 2;
+    CLOSE = 3;
+}
+
+message CallRequest {
+    CallType type = 1;
+}
+
+message CallResponse {
+    Code code = 1;
+}
+
+message SendRequest {
+    uint64 seq = 1;
+    bytes payload = 2;
+}
+
+message SendResponse {
+    uint64 ack = 1;
+    bytes payload = 2;
+}
+
+service Bridge {
+    rpc Call(CallRequest) returns (CallResponse) {}
+    rpc SendUnaryUnary(SendRequest) returns (SendResponse) {}
+    rpc SendUnaryStream(SendRequest) returns (stream SendResponse) {}
+    rpc SendStreamUnary(stream SendRequest) returns (SendResponse) {}
+    rpc SendStreamStream(stream SendRequest) returns (stream SendResponse) {}
+}

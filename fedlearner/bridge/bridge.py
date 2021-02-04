@@ -11,12 +11,10 @@ import grpc
 
 from concurrent import futures
 
-from typing_extensions import runtime
-
-from proto import bridge_pb2, bridge_pb2_grpc
-from bridge.channel import _UnaryUnaryMultiCallable, _UnaryStreamMultiCallable, \
+from fedlearner.bridge.proto import bridge_pb2, bridge_pb2_grpc
+from fedlearner.bridge.channel import _UnaryUnaryMultiCallable, _UnaryStreamMultiCallable, \
     _StreamUnaryMultiCallable, _StreamStreamMultiCallable
-from bridge.util import _method_encode, _method_decode
+from fedlearner.bridge.util import _method_encode, _method_decode
 
 _const_grpc_metadata_method = "fl-bridge-method"
 _const_grpc_metadata_auth_token = "fl-bridge-auth-token"
