@@ -141,6 +141,8 @@ class Job(db.Model):
         if 'status' in flapp \
                 and 'flReplicaStatus' in flapp['status']:
             replicas = flapp['status']['flReplicaStatus']
+            if replicas is None:
+                return result
             for pod_type in replicas:
                 for state in replicas[pod_type]:
                     for pod in replicas[pod_type][state]:

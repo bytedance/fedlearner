@@ -175,7 +175,8 @@ class PeerWorkflowsApi(Resource):
                 preserving_proto_field_name=True,
                 including_default_value_fields=True)
             for job in peer_workflow['jobs']:
-                job['pods'] = json.loads(job['pods'])
+                if 'pods' in job:
+                    job['pods'] = json.loads(job['pods'])
             peer_workflows[party.name] = peer_workflow
         return {'data': peer_workflows}, HTTPStatus.OK
 
