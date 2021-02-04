@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 
+import fedlearner.bridge.const
+
 def _method_encode(s):
     if isinstance(s, bytes):
         return s

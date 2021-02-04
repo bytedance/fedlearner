@@ -34,7 +34,7 @@ class GreesterrHandler(greester_pb2_grpc.GreesterServicer):
 
 def client_run_fn(bridge):
     client = greester_pb2_grpc.GreesterStub(bridge)
-    while not bridge.is_closed():
+    while not bridge.is_closed:
         res = client.HelloUnaryUnary(greester_pb2.Request(name='UnaryUnary'))
         print("Greeter HelloUnaryUnary return: " + res.message)
 
@@ -73,8 +73,9 @@ if __name__ == "__main__":
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGHUP, signal_handler)
 
-    thread = threading.Thread(target=client_run_fn, args=(bridge,))
+    thread = threading.Thread(target=client_run_fn,
+        args=(bridge,), daemon=True)
     thread.start()
+
     bridge.start()
     bridge.wait_for_stopped()
-    thread.join()

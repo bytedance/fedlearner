@@ -4,9 +4,10 @@ package fedlearner.bridge.proto;
 
 enum Code {
     OK = 0;
-    UNAUTHORIZED = 1; // peer unauthorized
-    UNCONNECTED = 2;  // peer unconnected
-    CLOSED = 3;       // peer closed
+    UNAUTHORIZED = 1;
+    UNIDENTIFIED = 2;      
+    UNCONNECTED = 3;
+    CLOSED = 4;
 
     UNKNOW_TYPE = 1001;
 }
@@ -42,4 +43,4 @@ service Bridge {
     rpc SendUnaryStream(SendRequest) returns (stream SendResponse) {}
     rpc SendStreamUnary(stream SendRequest) returns (SendResponse) {}
     rpc SendStreamStream(stream SendRequest) returns (stream SendResponse) {}
-}
+} 
