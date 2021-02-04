@@ -6,6 +6,7 @@ passlib
 flask-jwt-extended
 Flask-Testing
 gunicorn
+# grpc-related stuff has be 1.32.0 to be compatible with tensorflow
 grpcio==1.32.0
 # grpcio-tools==1.34.0 will not work on Mac
 # see details in https://github.com/grpc/grpc/issues/24897
@@ -16,4 +17,5 @@ snakebite-py3
 elasticsearch
 flatten-dict
 pymysql
-tensorflow==2.4.0
+setuptools==41.0.0
+tensorflow==1.15.2
