@@ -64,7 +64,6 @@ class RpcClientTest(unittest.TestCase):
         )
         project_config = Project(
             name=cls._TEST_PROJECT_NAME,
-            domain_name=cls._TEST_SELF_DOMAIN_NAME,
             token='test-auth-token',
             participants=[
                 participant
@@ -126,7 +125,6 @@ class RpcClientTest(unittest.TestCase):
         self.assertEqual(request, CheckConnectionRequest(
             auth_info=ProjAuthInfo(
                 project_name=self._project_config.name,
-                source_domain=self._TEST_SELF_DOMAIN_NAME,
                 target_domain=self._participant.domain_name,
                 auth_token=self._project_config.token)
         ))

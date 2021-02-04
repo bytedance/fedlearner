@@ -46,7 +46,6 @@ class WorkflowsCommitTest(BaseTestCase):
         super().setUp()
         # Inserts project
         config = {
-            'domain_name': 'fl-follower.com',
             'participants': [
                 {
                     'name': 'party_leader',
