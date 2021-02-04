@@ -220,7 +220,7 @@ func (handler *appEventHandler) Finish(ctx context.Context, app *v1alpha1.FLApp)
 }
 
 func (handler *appEventHandler) RegisterHandler(ctx context.Context, name string, role string, followerReplicas map[string][]string) (*pb.Status, error) {
-	app, err := handler.crdClient.FedlearnerV1alpha1().FLApps(handler.namespace).Get(name, metav1.GetOptions{})
+	app, err := handler.crdClient.FedlearnerV1alpha1().FLApps(handler.namespace).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
 		klog.Errorf("RegisterHandler name = %v, role = %v, err = %v", name, role, err)
 		return &pb.Status{
@@ -257,7 +257,7 @@ func (handler *appEventHandler) RegisterHandler(ctx context.Context, name string
 			}
 		}
 	}
-	_, err = handler.crdClient.FedlearnerV1alpha1().FLApps(handler.namespace).UpdateStatus(appCopy)
+	_, err = handler.crdClient.FedlearnerV1alpha1().FLApps(handler.namespace).UpdateStatus(ctx, appCopy, metav1.UpdateOptions{})
 	if err != nil {
 		err = fmt.Errorf("RegisterHandler name = %v, role = %v, err = %v", name, role, err)
 		klog.Error(err)
@@ -273,7 +273,7 @@ func (handler *appEventHandler) RegisterHandler(ctx context.Context, name string
 }
 
 func (handler *appEventHandler) PairHandler(ctx context.Context, name string, leaderReplicas map[string][]string, followerReplicas map[string][]string) (*pb.Status, error) {
-	app, err := handler.crdClient.FedlearnerV1alpha1().FLApps(handler.namespace).Get(name, metav1.GetOptions{})
+	app, err := handler.crdClient.FedlearnerV1alpha1().FLApps(handler.namespace).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
 		err = fmt.Errorf("PairHandler name = %v, err = %v", name, err)
 		klog.Error(err)
@@ -316,7 +316,7 @@ func (handler *appEventHandler) PairHandler(ctx context.Context, name string, le
 			}
 		}
 	}
-	_, err = handler.crdClient.FedlearnerV1alpha1().FLApps(handler.namespace).UpdateStatus(appCopy)
+	_, err = handler.crdClient.FedlearnerV1alpha1().FLApps(handler.namespace).UpdateStatus(ctx, appCopy, metav1.UpdateOptions{})
 	if err != nil {
 		err = fmt.Errorf("PairHandler name = %v, err = %v", name, err)
 		klog.Error(err)
@@ -332,7 +332,7 @@ func (handler *appEventHandler) PairHandler(ctx context.Context, name string, le
 }
 
 func (handler *appEventHandler) ShutdownHandler(ctx context.Context, appID string) (*pb.Status, error) {
-	app, err := handler.crdClient.FedlearnerV1alpha1().FLApps(handler.namespace).Get(appID, metav1.GetOptions{})
+	app, err := handler.crdClient.FedlearnerV1alpha1().FLApps(handler.namespace).Get(ctx, appID, metav1.GetOptions{})
 	if err != nil {
 		err = fmt.Errorf("ShutdownHandler appID = %v, err = %v", appID, err)
 		klog.Error(err)
@@ -349,7 +349,7 @@ func (handler *appEventHandler) ShutdownHandler(ctx context.Context, appID strin
 	default:
 		appCopy := app.DeepCopy()
 		appCopy.Status.AppState = v1alpha1.FLStateShutDown
-		_, err = handler.crdClient.FedlearnerV1alpha1().FLApps(handler.namespace).UpdateStatus(appCopy)
+		_, err = handler.crdClient.FedlearnerV1alpha1().FLApps(handler.namespace).UpdateStatus(ctx, appCopy, metav1.UpdateOptions{})
 		if err != nil {
 			err = fmt.Errorf("ShutdownHandler appID = %v, err = %v", appID, err)
 			klog.Error(err)

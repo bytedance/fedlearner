@@ -122,6 +122,21 @@ type ReplicaStatus struct {
 	Failed sets.String `json:"failed"`
 }
 
+// IngressSpec is the description for a FLApp ingress
+type IngressSpec struct {
+	// ExtraHostSuffix is the suffix appended to FLApp hostname
+	ExtraHostSuffix string `json:"extraHostSuffix"`
+
+	// ClientAuthSecretName is the name for Ingress client-auth
+	ClientAuthSecretName string `json:"clientAuthSecretName"`
+
+	// secretName is the name for Ingress TLS secrets
+	SecretName string `json:"secretName"`
+
+	// IngressClassName is the Ingress-class name
+	IngressClassName string `json:"ingressClassName"`
+}
+
 // FLReplicaStatus describe FLReplicaStatus for each FLReplicaType
 type FLReplicaStatus map[FLReplicaType]ReplicaStatus
 
@@ -154,7 +169,8 @@ const (
 // +resource:path=flapp
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="STATUS",type=string,JSONPath=`.status.appState`
-// +kubebuilder:printcolumn:name="AGE",type=date,JSONPath=`.metadata.creationTimestamp`
+// +kubebuilder:printcolumn:name="START",type=date,JSONPath=`.metadata.creationTimestamp`
+// +kubebuilder:printcolumn:name="END",type=date,JSONPath=`.status.completionTime`
 
 // FLApp is a specification for a FLApp resource
 type FLApp struct {
@@ -206,6 +222,10 @@ type FLAppSpec struct {
 
 	// Defines all the controllers involved in the app
 	PeerSpecs PeerSpecs `json:"peerSpecs"`
+
+	// IngressSpec defines the ingress created by controller
+	// +optional
+	IngressSpec *IngressSpec `json:"ingressSpec,omitempty"`
 }
 
 // FLAppStatus is the status for a FLApp resource
@@ -215,6 +235,11 @@ type FLAppStatus struct {
 	AppState FLState `json:"appState"`
 	// A map of FLReplicaType to FLReplicaStatus
 	FLReplicaStatus FLReplicaStatus `json:"flReplicaStatus"`
+	// Represents time when the job was completed. It is not guaranteed to
+	// be set in happens-before order across separate operations.
+	// It is represented in RFC3339 form and is in UTC.
+	// +nullable
+	CompletionTime *metav1.Time `json:"completionTime"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
