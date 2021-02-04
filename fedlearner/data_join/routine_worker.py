@@ -120,8 +120,7 @@ class RoutineWorker(object):
                     if new_err_code is not None:
                         err_code = new_err_code
                     logging.error("worker: %s run %d rounds with exception: %s",
-                                  self._name, exec_round, new_err)
-                    traceback.print_exc()
+                                  self._name, exec_round, repr(e))
             else:
                 logging.debug("worker: %s exec %d round",
                               self._name, exec_round)
