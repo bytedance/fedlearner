@@ -1,5 +1,7 @@
 syntax = "proto3";
 
+package fedlearner.bridge.proto;
+
 enum Code {
     OK = 0;
     UNAUTHORIZED = 1; // peer unauthorized
