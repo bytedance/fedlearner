@@ -18,6 +18,7 @@
 package v1alpha1
 
 import (
+	"context"
 	time "time"
 
 	fedlearnerk8siov1alpha1 "github.com/bytedance/fedlearner/deploy/kubernetes_operator/pkg/apis/fedlearner.k8s.io/v1alpha1"
@@ -60,13 +61,13 @@ func NewFilteredFLAppInformer(client versioned.Interface, namespace string, resy
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.FedlearnerV1alpha1().FLApps(namespace).List(options)
+				return client.FedlearnerV1alpha1().FLApps(namespace).List(context.TODO(), options)
 			},
 			WatchFunc: func(options v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.FedlearnerV1alpha1().FLApps(namespace).Watch(options)
+				return client.FedlearnerV1alpha1().FLApps(namespace).Watch(context.TODO(), options)
 			},
 		},
 		&fedlearnerk8siov1alpha1.FLApp{},

@@ -70,3 +70,31 @@ func GetPortFromApp(app *v1alpha1.FLApp, rtype v1alpha1.FLReplicaType) (int32, e
 func IsLeader(role string) bool {
 	return role == RoleLeader
 }
+
+func GetIngressExtraHostSuffix(app *v1alpha1.FLApp, defaultSuffix string) string {
+	if app.Spec.IngressSpec != nil && len(app.Spec.IngressSpec.ExtraHostSuffix) > 0 {
+		return app.Spec.IngressSpec.ExtraHostSuffix
+	}
+	return defaultSuffix
+}
+
+func GetIngressSecretNameOrDefault(app *v1alpha1.FLApp, defaultName string) string {
+	if app.Spec.IngressSpec != nil && len(app.Spec.IngressSpec.SecretName) > 0 {
+		return app.Spec.IngressSpec.SecretName
+	}
+	return defaultName
+}
+
+func GetIngressClientAuthSecretNameOrDefault(app *v1alpha1.FLApp, defaultName string) string {
+	if app.Spec.IngressSpec != nil && len(app.Spec.IngressSpec.ClientAuthSecretName) > 0 {
+		return app.Spec.IngressSpec.ClientAuthSecretName
+	}
+	return defaultName
+}
+
+func GetIngressClassName(app *v1alpha1.FLApp) string {
+	if app.Spec.IngressSpec != nil && len(app.Spec.IngressSpec.IngressClassName) > 0 {
+		return app.Spec.IngressSpec.IngressClassName
+	}
+	return "nginx"
+}

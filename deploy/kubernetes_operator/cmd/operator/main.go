@@ -57,7 +57,7 @@ var (
 	namespace                   = flag.String("namespace", "default", "The namespace to which controller listen FLApps.")
 	ingressExtraHostSuffix      = flag.String("ingress-extra-host-suffix", "", "The extra suffix of hosts when creating ingress.")
 	ingressSecretName           = flag.String("ingress-secret-name", "", "The secret name used for tls, only one secret supported now.")
-	ingressEnableClientAuth     = flag.Bool("ingress-enabled-client-auth", false, "Whether enable client auth for created ingress.")
+	ingressEnableClientAuth     = flag.Bool("ingress-enabled-client-auth", true, "Whether enable client auth for created ingress.")
 	ingressClientAuthSecretName = flag.String("ingress-client-auth-secret-name", "", "The secret name used for client auth, only one secret supported now.")
 	enableLeaderElection        = flag.Bool("leader-election", false, "Enable fedlearner controller leader election.")
 	leaderElectionLockNamespace = flag.String("leader-election-lock-namespace", "fedlearner-system", "Namespace in which to create the Endpoints for leader election.")
@@ -151,10 +151,6 @@ func startLeaderElection(
 
 func main() {
 	flag.Parse()
-
-	if *ingressEnableClientAuth && *ingressClientAuthSecretName == "" {
-		klog.Fatalf("client auth secret name can not be empty if client auth is enabled")
-	}
 
 	kubeClient, crdClient, err := buildClientset(*master, *kubeConfig)
 	if err != nil {

@@ -18,6 +18,8 @@
 package fake
 
 import (
+	"context"
+
 	v1alpha1 "github.com/bytedance/fedlearner/deploy/kubernetes_operator/pkg/apis/fedlearner.k8s.io/v1alpha1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
@@ -38,7 +40,7 @@ var flappsResource = schema.GroupVersionResource{Group: "fedlearner.k8s.io", Ver
 var flappsKind = schema.GroupVersionKind{Group: "fedlearner.k8s.io", Version: "v1alpha1", Kind: "FLApp"}
 
 // Get takes name of the fLApp, and returns the corresponding fLApp object, and an error if there is any.
-func (c *FakeFLApps) Get(name string, options v1.GetOptions) (result *v1alpha1.FLApp, err error) {
+func (c *FakeFLApps) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.FLApp, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewGetAction(flappsResource, c.ns, name), &v1alpha1.FLApp{})
 
@@ -49,7 +51,7 @@ func (c *FakeFLApps) Get(name string, options v1.GetOptions) (result *v1alpha1.F
 }
 
 // List takes label and field selectors, and returns the list of FLApps that match those selectors.
-func (c *FakeFLApps) List(opts v1.ListOptions) (result *v1alpha1.FLAppList, err error) {
+func (c *FakeFLApps) List(ctx context.Context, opts v1.ListOptions) (result *v1alpha1.FLAppList, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewListAction(flappsResource, flappsKind, c.ns, opts), &v1alpha1.FLAppList{})
 
@@ -71,14 +73,14 @@ func (c *FakeFLApps) List(opts v1.ListOptions) (result *v1alpha1.FLAppList, err 
 }
 
 // Watch returns a watch.Interface that watches the requested fLApps.
-func (c *FakeFLApps) Watch(opts v1.ListOptions) (watch.Interface, error) {
+func (c *FakeFLApps) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
 	return c.Fake.
 		InvokesWatch(testing.NewWatchAction(flappsResource, c.ns, opts))
 
 }
 
 // Create takes the representation of a fLApp and creates it.  Returns the server's representation of the fLApp, and an error, if there is any.
-func (c *FakeFLApps) Create(fLApp *v1alpha1.FLApp) (result *v1alpha1.FLApp, err error) {
+func (c *FakeFLApps) Create(ctx context.Context, fLApp *v1alpha1.FLApp, opts v1.CreateOptions) (result *v1alpha1.FLApp, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewCreateAction(flappsResource, c.ns, fLApp), &v1alpha1.FLApp{})
 
@@ -89,7 +91,7 @@ func (c *FakeFLApps) Create(fLApp *v1alpha1.FLApp) (result *v1alpha1.FLApp, err 
 }
 
 // Update takes the representation of a fLApp and updates it. Returns the server's representation of the fLApp, and an error, if there is any.
-func (c *FakeFLApps) Update(fLApp *v1alpha1.FLApp) (result *v1alpha1.FLApp, err error) {
+func (c *FakeFLApps) Update(ctx context.Context, fLApp *v1alpha1.FLApp, opts v1.UpdateOptions) (result *v1alpha1.FLApp, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewUpdateAction(flappsResource, c.ns, fLApp), &v1alpha1.FLApp{})
 
@@ -101,7 +103,7 @@ func (c *FakeFLApps) Update(fLApp *v1alpha1.FLApp) (result *v1alpha1.FLApp, err 
 
 // UpdateStatus was generated because the type contains a Status member.
 // Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-func (c *FakeFLApps) UpdateStatus(fLApp *v1alpha1.FLApp) (*v1alpha1.FLApp, error) {
+func (c *FakeFLApps) UpdateStatus(ctx context.Context, fLApp *v1alpha1.FLApp, opts v1.UpdateOptions) (*v1alpha1.FLApp, error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewUpdateSubresourceAction(flappsResource, "status", c.ns, fLApp), &v1alpha1.FLApp{})
 
@@ -112,7 +114,7 @@ func (c *FakeFLApps) UpdateStatus(fLApp *v1alpha1.FLApp) (*v1alpha1.FLApp, error
 }
 
 // Delete takes name of the fLApp and deletes it. Returns an error if one occurs.
-func (c *FakeFLApps) Delete(name string, options *v1.DeleteOptions) error {
+func (c *FakeFLApps) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	_, err := c.Fake.
 		Invokes(testing.NewDeleteAction(flappsResource, c.ns, name), &v1alpha1.FLApp{})
 
@@ -120,15 +122,15 @@ func (c *FakeFLApps) Delete(name string, options *v1.DeleteOptions) error {
 }
 
 // DeleteCollection deletes a collection of objects.
-func (c *FakeFLApps) DeleteCollection(options *v1.DeleteOptions, listOptions v1.ListOptions) error {
-	action := testing.NewDeleteCollectionAction(flappsResource, c.ns, listOptions)
+func (c *FakeFLApps) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
+	action := testing.NewDeleteCollectionAction(flappsResource, c.ns, listOpts)
 
 	_, err := c.Fake.Invokes(action, &v1alpha1.FLAppList{})
 	return err
 }
 
 // Patch applies the patch and returns the patched fLApp.
-func (c *FakeFLApps) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *v1alpha1.FLApp, err error) {
+func (c *FakeFLApps) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha1.FLApp, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewPatchSubresourceAction(flappsResource, c.ns, name, pt, data, subresources...), &v1alpha1.FLApp{})
 

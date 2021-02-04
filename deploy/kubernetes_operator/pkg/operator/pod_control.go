@@ -115,7 +115,7 @@ func (r RealPodControl) CreatePodsOnNode(ctx context.Context, nodeName, namespac
 }
 
 func (r RealPodControl) PatchPod(ctx context.Context, namespace, name string, data []byte) error {
-	_, err := r.KubeClient.CoreV1().Pods(namespace).Patch(name, types.StrategicMergePatchType, data)
+	_, err := r.KubeClient.CoreV1().Pods(namespace).Patch(ctx, name, types.StrategicMergePatchType, data, metav1.PatchOptions{})
 	return err
 }
 
@@ -153,7 +153,7 @@ func (r RealPodControl) createPods(ctx context.Context, nodeName, namespace stri
 		return fmt.Errorf("unable to create pods, no labels")
 	}
 
-	newPod, err := r.KubeClient.CoreV1().Pods(namespace).Create(pod)
+	newPod, err := r.KubeClient.CoreV1().Pods(namespace).Create(ctx, pod, metav1.CreateOptions{})
 	if err != nil {
 		r.Recorder.Eventf(object, v1.EventTypeWarning, FailedCreatePodReason, "Error creating: %v", err)
 		return err
@@ -176,7 +176,7 @@ func (r RealPodControl) DeletePod(ctx context.Context, namespace string, podID s
 	if err != nil {
 		return fmt.Errorf("object does not have ObjectMeta, %v", err)
 	}
-	pod, err := r.KubeClient.CoreV1().Pods(namespace).Get(podID, metav1.GetOptions{})
+	pod, err := r.KubeClient.CoreV1().Pods(namespace).Get(ctx, podID, metav1.GetOptions{})
 	if err != nil {
 		if errors.IsNotFound(err) {
 			return nil
@@ -188,7 +188,7 @@ func (r RealPodControl) DeletePod(ctx context.Context, namespace string, podID s
 		return nil
 	}
 	klog.V(2).Infof("Controller %v deleting pod %v/%v", accessor.GetName(), namespace, podID)
-	if err := r.KubeClient.CoreV1().Pods(namespace).Delete(podID, &metav1.DeleteOptions{}); err != nil {
+	if err := r.KubeClient.CoreV1().Pods(namespace).Delete(ctx, podID, metav1.DeleteOptions{}); err != nil {
 		r.Recorder.Eventf(object, v1.EventTypeWarning, FailedDeletePodReason, "Error deleting: %v", err)
 		return fmt.Errorf("unable to delete pods: %v", err)
 	}

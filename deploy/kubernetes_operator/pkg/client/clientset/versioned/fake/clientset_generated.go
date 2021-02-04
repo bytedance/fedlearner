@@ -21,8 +21,6 @@ import (
 	clientset "github.com/bytedance/fedlearner/deploy/kubernetes_operator/pkg/client/clientset/versioned"
 	fedlearnerv1alpha1 "github.com/bytedance/fedlearner/deploy/kubernetes_operator/pkg/client/clientset/versioned/typed/fedlearner.k8s.io/v1alpha1"
 	fakefedlearnerv1alpha1 "github.com/bytedance/fedlearner/deploy/kubernetes_operator/pkg/client/clientset/versioned/typed/fedlearner.k8s.io/v1alpha1/fake"
-	fedlearnerv1alpha2 "github.com/bytedance/fedlearner/deploy/kubernetes_operator/pkg/client/clientset/versioned/typed/fedlearner.k8s.io/v1alpha2"
-	fakefedlearnerv1alpha2 "github.com/bytedance/fedlearner/deploy/kubernetes_operator/pkg/client/clientset/versioned/typed/fedlearner.k8s.io/v1alpha2/fake"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/discovery"
@@ -80,9 +78,4 @@ var _ clientset.Interface = &Clientset{}
 // FedlearnerV1alpha1 retrieves the FedlearnerV1alpha1Client
 func (c *Clientset) FedlearnerV1alpha1() fedlearnerv1alpha1.FedlearnerV1alpha1Interface {
 	return &fakefedlearnerv1alpha1.FakeFedlearnerV1alpha1{Fake: &c.Fake}
-}
-
-// FedlearnerV1alpha2 retrieves the FedlearnerV1alpha2Client
-func (c *Clientset) FedlearnerV1alpha2() fedlearnerv1alpha2.FedlearnerV1alpha2Interface {
-	return &fakefedlearnerv1alpha2.FakeFedlearnerV1alpha2{Fake: &c.Fake}
 }
