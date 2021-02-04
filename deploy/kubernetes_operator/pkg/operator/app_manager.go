@@ -346,7 +346,7 @@ func (am *appManager) createIngress(ctx context.Context, app *v1alpha1.FLApp) er
 		return err
 	}
 	if ingress == nil {
-		tlsSecretName := GetIngressTLSSecretNameOrDefault(app, am.ingressSecretName)
+		tlsSecretName := GetIngressSecretNameOrDefault(app, am.ingressSecretName)
 		if _, err := am.secretLister.Secrets(am.namespace).Get(tlsSecretName); err != nil {
 			return err
 		}
@@ -373,7 +373,7 @@ func (am *appManager) createIngress(ctx context.Context, app *v1alpha1.FLApp) er
 							ServicePort: intstr.FromString(v1alpha1.DefaultPortName),
 						},
 					}
-					host := GenIndexName(app.Name, strings.ToLower(app.Spec.Role), rt, strconv.Itoa(index)) + GetIngressHostSuffix(app, am.ingressExtraHostSuffix)
+					host := GenIndexName(app.Name, strings.ToLower(app.Spec.Role), rt, strconv.Itoa(index)) + GetIngressExtraHostSuffix(app, am.ingressExtraHostSuffix)
 					rule := networking.IngressRule{
 						Host: host,
 						IngressRuleValue: networking.IngressRuleValue{

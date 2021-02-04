@@ -71,16 +71,16 @@ func IsLeader(role string) bool {
 	return role == RoleLeader
 }
 
-func GetIngressHostSuffix(app *v1alpha1.FLApp, defaultSuffix string) string {
-	if app.Spec.IngressSpec != nil && len(app.Spec.IngressSpec.HostSuffix) > 0 {
-		return app.Spec.IngressSpec.HostSuffix
+func GetIngressExtraHostSuffix(app *v1alpha1.FLApp, defaultSuffix string) string {
+	if app.Spec.IngressSpec != nil && len(app.Spec.IngressSpec.ExtraHostSuffix) > 0 {
+		return app.Spec.IngressSpec.ExtraHostSuffix
 	}
 	return defaultSuffix
 }
 
-func GetIngressTLSSecretNameOrDefault(app *v1alpha1.FLApp, defaultName string) string {
-	if app.Spec.IngressSpec != nil && len(app.Spec.IngressSpec.TLSSecretName) > 0 {
-		return app.Spec.IngressSpec.TLSSecretName
+func GetIngressSecretNameOrDefault(app *v1alpha1.FLApp, defaultName string) string {
+	if app.Spec.IngressSpec != nil && len(app.Spec.IngressSpec.SecretName) > 0 {
+		return app.Spec.IngressSpec.SecretName
 	}
 	return defaultName
 }

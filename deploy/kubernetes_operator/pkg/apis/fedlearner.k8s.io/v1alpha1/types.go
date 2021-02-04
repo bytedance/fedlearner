@@ -124,14 +124,14 @@ type ReplicaStatus struct {
 
 // IngressSpec is the description for a FLApp ingress
 type IngressSpec struct {
-	// HostSuffix is the suffix appended to FLApp hostname
-	HostSuffix string `json:"hostSuffix"`
+	// ExtraHostSuffix is the suffix appended to FLApp hostname
+	ExtraHostSuffix string `json:"extraHostSuffix"`
 
 	// ClientAuthSecretName is the name for Ingress client-auth
 	ClientAuthSecretName string `json:"clientAuthSecretName"`
 
-	// TLSSecretName is the name for Ingress TLS secrets
-	TLSSecretName string `json:"tlsSecretName"`
+	// secretName is the name for Ingress TLS secrets
+	SecretName string `json:"secretName"`
 
 	// IngressClassName is the Ingress-class name
 	IngressClassName string `json:"ingressClassName"`

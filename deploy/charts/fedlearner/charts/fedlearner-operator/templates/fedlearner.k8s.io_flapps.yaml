@@ -6287,20 +6287,20 @@ spec:
                 clientAuthSecretName:
                   description: ClientAuthSecretName is the name for Ingress client-auth
                   type: string
-                hostSuffix:
-                  description: HostSuffix is the suffix appended to FLApp hostname
+                extraHostSuffix:
+                  description: ExtraHostSuffix is the suffix appended to FLApp hostname
                   type: string
                 ingressClassName:
                   description: IngressClassName is the Ingress-class name
                   type: string
-                tlsSecretName:
-                  description: TLSSecretName is the name for Ingress TLS secrets
+                secretName:
+                  description: secretName is the name for Ingress TLS secrets
                   type: string
               required:
               - clientAuthSecretName
-              - hostSuffix
+              - extraHostSuffix
               - ingressClassName
-              - tlsSecretName
+              - secretName
               type: object
             peerSpecs:
               additionalProperties:
