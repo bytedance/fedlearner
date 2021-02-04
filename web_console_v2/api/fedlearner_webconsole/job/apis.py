@@ -14,11 +14,10 @@
 
 # coding: utf-8
 import time
-from flask_restful import Resource, request, reqparse
+from flask_restful import Resource, reqparse
 from fedlearner_webconsole.job.models import Job
 from fedlearner_webconsole.job.es import es
-from fedlearner_webconsole.exceptions import NotFoundException, \
-    InvalidArgumentException
+from fedlearner_webconsole.exceptions import NotFoundException
 from fedlearner_webconsole.k8s_client import get_client
 
 
