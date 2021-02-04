@@ -14,7 +14,7 @@
 
 # coding: utf-8
 import time
-from flask_restful import Resource, request
+from flask_restful import Resource, request, reqparse
 from fedlearner_webconsole.job.models import Job
 from fedlearner_webconsole.job.es import es
 from fedlearner_webconsole.exceptions import NotFoundException, \
@@ -34,20 +34,28 @@ class JobApi(Resource):
 
 class PodLogApi(Resource):
     def get(self, pod_name):
-        if 'start_time' not in request.args:
-            raise InvalidArgumentException('start_time is required')
+        parser = reqparse.RequestParser()
+        parser.add_argument('start_time', type=int, location='args',
+                            required=True,
+                            help='start_time is required and must be timestamp')
+        data = parser.parse_args()
+        start_time = data['start_time']
         return {'data': es.query_log('filebeat-*', '', pod_name,
-                                     request.args['start_time'],
+                                     start_time,
                                      int(time.time() * 1000))}
 
 
 class JobLogApi(Resource):
     def get(self, job_name):
-        if 'start_time' not in request.args:
-            raise InvalidArgumentException('start_time is required')
+        parser = reqparse.RequestParser()
+        parser.add_argument('start_time', type=int, location='args',
+                            required=True,
+                            help='project_id is required and must be timestamp')
+        data = parser.parse_args()
+        start_time = data['start_time']
         return {'data': es.query_log('filebeat-*', job_name,
                                      'fedlearner-operator',
-                                     request.args['start_time'],
+                                     start_time,
                                      int(time.time() * 1000))}
 
 class PodContainerApi(Resource):

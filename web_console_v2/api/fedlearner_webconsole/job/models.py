@@ -126,7 +126,7 @@ class Job(db.Model):
             except RuntimeError as e:
                 logging.error('Get %d flapp error msg: %s',
                               self.id,
-                              e.args)
+                              str(e))
                 return None
         if self.flapp_snapshot is not None:
             return json.loads(self.flapp_snapshot)
@@ -135,7 +135,6 @@ class Job(db.Model):
     def get_pods_for_front(self):
         result = []
         flapp = self.get_flapp()
-        pods = self.get_pods()
         if flapp is None:
             return result
         flapp = flapp['flapp']
@@ -148,11 +147,14 @@ class Job(db.Model):
                         result.append({'name': pod,
                                        'state': state,
                                        'pod_type': pod_type})
+
         # msg from pods
+        pods = self.get_pods()
         if pods is None:
             return result
         pods = pods['pods']['items']
         index = 0
+        assert len(pods) == len(result)
         for pod in pods:
             # TODO: make this more readable for frontend
             result[index]['pod_name'] = pod['metadata']['name']
