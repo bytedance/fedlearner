@@ -230,16 +230,19 @@ const CanvasAndForm: FC<WorkflowCreateProps> = ({ isInitiate, isAccept }) => {
   async function onCanvasClick() {
     saveCurrentValues();
     toggleDrawerVisible(false);
-    if (currNode) {
-      const isValid = await drawerRef.current?.validateCurrentForm();
-      chartRef.current?.updateNodeStatusById({
-        id: currNode.id,
-        status: isValid ? JobNodeStatus.Success : JobNodeStatus.Warning,
-      });
-    }
+    const isValid = await drawerRef.current?.validateCurrentForm();
+    chartRef.current?.updateNodeStatusById({
+      id: currNode?.id!,
+      status: isValid ? JobNodeStatus.Success : JobNodeStatus.Warning,
+    });
   }
-  function onCloseDrawer() {
+  async function onCloseDrawer() {
     saveCurrentValues();
+    const isValid = await drawerRef.current?.validateCurrentForm();
+    chartRef.current?.updateNodeStatusById({
+      id: currNode?.id!,
+      status: isValid ? JobNodeStatus.Success : JobNodeStatus.Warning,
+    });
     setSelectedElements([]);
   }
   function onGoNextJob() {

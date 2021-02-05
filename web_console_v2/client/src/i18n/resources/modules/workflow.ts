@@ -80,6 +80,8 @@ const workflow: I18nMessageModule = {
   label_job_metrics: { zh: '任务运行结果指标' },
   label_job_logs: { zh: '任务运行日志' },
   label_pod_list: { zh: '各 worker 运行日志及状态' },
+  label_job_reuseable: { zh: '继承' },
+  label_job_nonreusable: { zh: '不继承' },
 
   placeholder_name_searchbox: { zh: '根据工作流名称搜索' },
   placeholder_name: { zh: '请输入工作流名称' },
@@ -115,6 +117,12 @@ const workflow: I18nMessageModule = {
   msg_sure_to_stop: { zh: '确认停止运行该工作流吗?' },
   msg_unforkable: { zh: '根据对侧配置，该工作流不允许被复制，请与对侧沟通后再试' },
   msg_get_peer_cfg_failed: { zh: '获取对侧配置失败: ' },
+  msg_reuse_noti: { zh: '{{name}} 改为继承状态后，后续依赖 {{name}} 的任务都将重置为“继承”状态' },
+  msg_non_reuse_noti: {
+    zh: '{{name}} 改为不继承状态后，后续依赖  {{name}} 的任务都将切换成为“不继承”状态',
+  },
+
+  title_toggle_reusable: { zh: '切换至{{state}}状态' },
 
   var_auth_write: { zh: '可编辑' },
   var_auth_read: { zh: '可见' },

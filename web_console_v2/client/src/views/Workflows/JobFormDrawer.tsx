@@ -14,11 +14,7 @@ import { FormilySchema } from 'typings/formily';
 import GridRow from 'components/_base/GridRow';
 import VariablePermission from 'components/VariblePermission';
 import { DrawerProps } from 'antd/lib/drawer';
-import {
-  getNodeIdByJob,
-  JobNodeStatus,
-  NodeDataRaw,
-} from 'components/WorkflowJobsFlowChart/helpers';
+import { NodeDataRaw } from 'components/WorkflowJobsFlowChart/helpers';
 import { cloneDeep, Dictionary, noop } from 'lodash';
 import { IFormState } from '@formily/antd';
 import { giveWeakRandomKey, to } from 'shared/helpers';

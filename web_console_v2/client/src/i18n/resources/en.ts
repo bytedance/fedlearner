@@ -24,6 +24,7 @@ const messages = {
     terms: 'Terms of Services',
     privacy: 'Privacy Protocol',
     more: 'More',
+    confirm: 'OK',
     submit: 'OK',
     cancel: 'Cancel',
     close: 'Close',

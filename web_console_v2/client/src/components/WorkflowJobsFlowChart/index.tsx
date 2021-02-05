@@ -13,6 +13,7 @@ import {
   JobNode,
   JobNodeStatus,
   ChartNodes,
+  ChartElements,
 } from './helpers';
 import styled from 'styled-components';
 import ReactFlow, {
@@ -26,6 +27,7 @@ import ReactFlow, {
 } from 'react-flow-renderer';
 
 import { WorkflowConfig } from 'typings/workflow';
+import { cloneDeep } from 'lodash';
 
 const Container = styled.div`
   position: relative;
@@ -74,20 +76,35 @@ const Container = styled.div`
 type Props = {
   workflowConfig: WorkflowConfig<NodeDataRaw>;
   nodeType: ChartNodeType;
+  side?: string; // NOTE: When the nodeType is 'fork', side is required
   selectable?: boolean;
   onJobClick?: (node: JobNode) => void;
   onCanvasClick?: () => void;
 };
+type updateInheritanceParams = {
+  id: string;
+  whetherInherit: boolean;
+};
+type updateStatusParams = {
+  id: string;
+  status: JobNodeStatus;
+};
 export type ChartExposedRef = {
   nodes: ChartNodes;
-  updateNodeStatusById: (args: { id: string; status: JobNodeStatus }) => void;
+  updateNodeStatusById: (args: updateStatusParams) => void;
+  updateNodeInheritanceById: (args: updateInheritanceParams) => void;
   setSelectedNodes: (nodes: ChartNodes) => void;
 };
 
 const WorkflowJobsFlowChart: ForwardRefRenderFunction<ChartExposedRef | undefined, Props> = (
-  { workflowConfig, nodeType, selectable = true, onJobClick, onCanvasClick },
+  { workflowConfig, nodeType, side, selectable = true, onJobClick, onCanvasClick },
   parentRef,
 ) => {
+  if (nodeType === 'fork' && !side) {
+    console.error(
+      "[WorkflowJobsFlowChart]: Detect that current type is FORK but side has't been assigned",
+    );
+  }
   const [elements, setElements] = useState<FlowElement[]>([]);
   // WARNING: since we using react-flow hooks here,
   // an ReactFlowProvider is REQUIRED to wrap this component inside
@@ -108,7 +125,11 @@ const WorkflowJobsFlowChart: ForwardRefRenderFunction<ChartExposedRef | undefine
 
   useEffect(() => {
     const jobElements = convertToChartElements(
-      { jobs: workflowConfig.job_definitions, globalVariables: workflowConfig.variables || [] },
+      {
+        jobs: workflowConfig.job_definitions,
+        globalVariables: workflowConfig.variables || [],
+        side,
+      },
       { type: nodeType, selectable },
     );
     setElements(jobElements);
@@ -119,6 +140,7 @@ const WorkflowJobsFlowChart: ForwardRefRenderFunction<ChartExposedRef | undefine
     return {
       nodes: jobNodes,
       updateNodeStatusById: updateNodeStatus,
+      updateNodeInheritanceById: updateNodeInheritance,
       setSelectedNodes: setSelectedElements,
     };
   });
@@ -150,9 +172,11 @@ const WorkflowJobsFlowChart: ForwardRefRenderFunction<ChartExposedRef | undefine
   function onLoad(_reactFlowInstance: OnLoadParams) {
     _reactFlowInstance!.fitView({ padding: 1 });
   }
-  function updateNodeStatus(args: { id: string; status: JobNodeStatus }) {
+  function updateNodeStatus(args: updateStatusParams) {
+    if (!args.id) return;
+
     setElements((els) => {
-      return els.map((el) => {
+      return (els as ChartElements).map((el) => {
         if (el.id === args.id) {
           el.data = {
             ...el.data,
@@ -162,6 +186,37 @@ const WorkflowJobsFlowChart: ForwardRefRenderFunction<ChartExposedRef | undefine
         return el;
       });
     });
+  }
+  function updateNodeInheritance({ id, whetherInherit }: updateInheritanceParams) {
+    if (nodeType !== 'fork' || !id) {
+      return;
+    }
+
+    const nextElements = cloneDeep(elements as ChartNodes);
+
+    const target = nextElements.find((item) => item.id === id);
+    target!.data!.inherit = whetherInherit;
+
+    // Collect dependent chain
+    const depsChainCollected: string[] = [];
+
+    depsChainCollected.push(target?.id!);
+
+    nextElements.forEach((item) => {
+      if (!isNode(item)) return;
+
+      const hasAnyDependentOnPrevs = item.data.raw.dependencies.find((dep) => {
+        return depsChainCollected.includes(dep.source);
+      });
+
+      if (hasAnyDependentOnPrevs) {
+        item.data.inherit = whetherInherit;
+
+        depsChainCollected.push(item.id);
+      }
+    });
+
+    setElements(nextElements);
   }
 };
 

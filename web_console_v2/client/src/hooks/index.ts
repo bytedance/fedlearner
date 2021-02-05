@@ -69,10 +69,10 @@ export function useListenKeyboard(
   return [isPressed];
 }
 
-export function useSubscribe(channel: string, cb: any) {
+export function useSubscribe(channel: string, cb: any, deps: any[] = []) {
   useEffect(() => {
     PubSub.subscribe(channel, cb);
 
     return () => PubSub.unsubscribe(channel);
-  }, [cb, channel]);
+  }, [cb, channel, deps]);
 }
