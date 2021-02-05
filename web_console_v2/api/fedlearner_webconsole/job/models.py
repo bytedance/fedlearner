@@ -141,13 +141,14 @@ class Job(db.Model):
         pods = pods['pods']['items']
         for pod in pods:
             # TODO: make this more readable for frontend
-            result.append({'name': pod['metadata']['name'],
+            pod_front = {'name': pod['metadata']['name'],
                            'pod_type':
                                pod['metadata']['labels']['fl-replica-type'],
                            'status': pod['status']['phase'],
-                           'conditions': pod['status']['conditions'],
-                           'containers_status':
-                               pod['status']['containerStatuses']})
+                           'conditions': pod['status']['conditions']}
+            if 'containerStatuses' in pod['status']:
+                pod_front['containers_status'] = pod['status']['containerStatuses']
+            result.append(pod_front)
 
         flapp = self.get_flapp()
         if flapp is None:
@@ -181,6 +182,9 @@ class Job(db.Model):
 
     def is_failed(self):
         flapp = self.get_flapp()
+        if flapp is None:
+            return False
+        flapp = flapp['flapp']
         if flapp is None \
                 or 'status' not in flapp \
                 or 'appState' not in flapp['status']:
@@ -190,6 +194,9 @@ class Job(db.Model):
 
     def is_complete(self):
         flapp = self.get_flapp()
+        if flapp is None:
+            return False
+        flapp = flapp['flapp']
         if flapp is None \
                 or 'status' not in flapp \
                 or 'appState' not in flapp['status']:
