@@ -21,10 +21,18 @@ try {
 } catch (err) { /* */ }
 
 router.get('/api/v1/jobs', SessionMiddleware, FindOptionsMiddleware, async (ctx) => {
+  const query  = ctx.query
   const jobs = await Job.findAll({
     ...ctx.findOptions,
+    offset: query.offset ? +query.offset : 0,
+    limit: query.limit ? +query.limit : 200,
     order: [['created_at', 'DESC']],
   });
+
+  const { count } = await Job.findAndCountAll({
+    ...ctx.findOptions,
+  });
+
   const { flapps } = await k8s.getFLAppsByNamespace(namespace);
   let data = [];
   for (job of jobs) {
@@ -40,18 +48,31 @@ router.get('/api/v1/jobs', SessionMiddleware, FindOptionsMiddleware, async (ctx)
       }
     }
     if (job.status === 'stopped') {
-      data.push({
-        ...JSON.parse(job.k8s_meta_snapshot).flapp,
+      const flapp = JSON.parse(job.k8s_meta_snapshot);
+      job.k8s_meta_snapshot = null;
+      const jobAssembled = {
+        ...flapp,
         localdata: job,
-      });
+      }
+      if (jobAssembled.spec) {
+        jobAssembled.spec.peerSpecs = null;
+        jobAssembled.spec.flReplicaSpecs = null;
+      }
+      data.push(jobAssembled);
     } else {
-      data.push({
+      job.k8s_meta_snapshot = null;
+      const jobAssembled = {
         ...(flapps.items.find((item) => item.metadata.name === job.name)),
         localdata: job,
-      });
+      }
+      if (jobAssembled.spec) {
+        jobAssembled.spec.peerSpecs = null;
+        jobAssembled.spec.flReplicaSpecs = null;
+      }
+      data.push(jobAssembled);
     }
   }
-  ctx.body = { data };
+  ctx.body = { data, count: { total: count } };
 });
 
 router.get('/api/v1/job/:id', SessionMiddleware, async (ctx) => {

@@ -1,6 +1,13 @@
 import React, { useMemo, useState, useCallback } from 'react';
 import css from 'styled-jsx/css';
-import { Link, Text, Input, Fieldset, Button, Card, Description, useTheme, useInput, Tooltip } from '@zeit-ui/react';
+import {
+  Link,
+  Text, Input,
+  Fieldset, Button,
+  Card, Description, useTheme,
+  useInput, Tooltip, Pagination, Spinner,
+  Row,
+} from '@zeit-ui/react';
 import AlertCircle from '@geist-ui/react-icons/alertCircle'
 import Search from '@zeit-ui/react-icons/search';
 import NextLink from 'next/link';
@@ -28,6 +35,7 @@ import {
 import { getParsedValueFromData, fillJSON, getValueFromJson, getValueFromEnv, filterArrayValue } from '../utils/form_utils';
 import { getJobStatus } from '../utils/job'
 import { JOB_TYPE_CLASS, JOB_TYPE } from '../constants/job'
+import { useEffect } from 'react';
 
 // import {mockJobList} from '../constants/mock_data'
 
@@ -96,6 +104,7 @@ function useStyles(theme) {
 const RESOURCE_PATH_PREFIX = 'spec.flReplicaSpecs.[replicaType].template.spec.containers[].resources'
 const ENV_PATH = 'spec.flReplicaSpecs.[replicaType].template.spec.containers[].env'
 const PARAMS_GROUP = ['client_params', 'server_params']
+const PAGE_LIMIT = 500
 
 function handleParamData(container, data, field) {
   if (field.type === 'label') { return }
@@ -276,9 +285,21 @@ export default function JobList({
     return total
   }, []), [RESOURCE_PATH_PREFIX, JOB_REPLICA_TYPE])
 
-  const { data, mutate } = useSWR('jobs', fetcher);
+
+  const [page, setPage] = useState(1)
+  const [pageCount, setPageCount] = useState(1)
+
+  const { data, mutate, isValidating, error } = useSWR(
+    ['jobs', page],
+    () => fetcher('jobs', { searchParams: { limit: PAGE_LIMIT, offset: (page - 1) * PAGE_LIMIT } }),
+  );
   const jobs = data && data.data ? data.data.filter(el => el.metadata).filter(filter) : null
-  // const jobs = mockJobList.data
+
+  useEffect(() => {
+    if (data && !error) {
+      setPageCount(Math.ceil(data.count.total / PAGE_LIMIT))
+    }
+  }, [jobs, data])
 
   // form meta convert functions
   const rewriteFields = useCallback((draft, data) => {
@@ -515,7 +536,7 @@ export default function JobList({
   let [fields, setFields] = useState(getDefaultFields())
 
   const labeledList = useMemo(() => {
-    const allList = { name: 'All', list: jobs || [] };
+    const allList = { name: 'Total in this page', list: jobs || [] };
     return Object.entries(FLAppStatus).reduce((prev, [key, status]) => {
       return prev.concat({
         name: key,
@@ -524,7 +545,7 @@ export default function JobList({
     }, [allList]);
   }, [jobs]);
 
-  const [label, setLabel] = useState('All');
+  const [label, setLabel] = useState('Total in this page');
   const switchLabel = useCallback((l) => setLabel(l), []);
 
   const searchIcon = useMemo(() => <Search />, []);
@@ -667,7 +688,7 @@ export default function JobList({
                     </form>
                     <Button auto size="small" type="secondary" onClick={onClickCreate}>Create Job</Button>
                   </div>
-                  <Fieldset.Group value={label} onChange={switchLabel}>
+                  <Fieldset.Group style={{ marginBottom: '20px' }} value={label} onChange={switchLabel}>
                     {
                       labeledList.map(({ name }) => (
                         <Fieldset label={name} key={name}>
@@ -713,13 +734,15 @@ export default function JobList({
                                     }
                                   </ul>
                                 )
-                                : <Empty />
+                                : isValidating ? <Row style={{ minHeight: '500px' }} justify="center" align="middle"><Spinner size="large" /></Row>  :  <Empty />
                               : null
                           }
                         </Fieldset>
                       ))
                     }
                   </Fieldset.Group>
+
+                  <Pagination page={page} onChange={setPage} count={pageCount}></Pagination>
                 </div>
               </Card>
             </>
