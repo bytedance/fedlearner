@@ -39,7 +39,7 @@ export const newlyCreated = {
           {
             name: 'job_name',
             value: '1',
-            access_mode: 'PEER_WRITABLE' as VariableAccessMode,
+            access_mode: 'PEER_READABLE' as VariableAccessMode,
             widget_schema: '{"component":"Input","type":"string","required":true}' as any,
           },
         ],

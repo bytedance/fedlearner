@@ -126,7 +126,6 @@ const WorkflowForkStepTwoConfig: FC = () => {
         });
       });
     },
-    [currMouseSide],
   );
 
   if (peerQuery.data?.forkable === false) {
@@ -158,7 +157,7 @@ const WorkflowForkStepTwoConfig: FC = () => {
   return (
     <>
       <ChartSection>
-        <ChartContainer onMouseEnter={() => setMouseSide('self')}>
+        <ChartContainer>
           <ChartHeader justify="space-between" align="middle">
             <ChartTitle>{t('workflow.our_config')}</ChartTitle>
           </ChartHeader>
@@ -174,7 +173,7 @@ const WorkflowForkStepTwoConfig: FC = () => {
           </ReactFlowProvider>
         </ChartContainer>
 
-        <ChartContainer onMouseEnter={() => setMouseSide('peer')}>
+        <ChartContainer>
           <ChartHeader justify="space-between" align="middle">
             <ChartTitle>{t('workflow.peer_config')}</ChartTitle>
           </ChartHeader>
@@ -193,6 +192,7 @@ const WorkflowForkStepTwoConfig: FC = () => {
 
         <JobFormDrawer
           ref={drawerRef as any}
+          isPeerSide={side !== 'self'}
           visible={drawerVisible}
           currentIdx={currNode?.data.index}
           nodesCount={targetChartRef?.nodes.length || 0}
