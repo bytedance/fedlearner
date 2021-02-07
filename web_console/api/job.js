@@ -22,18 +22,28 @@ try {
 
 router.get('/api/v1/jobs', SessionMiddleware, FindOptionsMiddleware, async (ctx) => {
   const query  = ctx.query
-  const jobs = await Job.findAll({
-    ...ctx.findOptions,
-    offset: query.offset ? +query.offset : 0,
-    limit: query.limit ? +query.limit : 200,
-    order: [['created_at', 'DESC']],
-  });
 
-  const { count } = await Job.findAndCountAll({
-    ...ctx.findOptions,
-  });
+  const where = Object.assign({ ...ctx.findOptions.where }, // federation_id inside findOptions.where
+    query.keyword ? { name: { [Op.substring]: query.keyword } } : {},
+    query.type ? { job_type: { [Op.in]: query.type.split(',') } } : {},
+  )
+  const jobQuery = Object.assign(
+    { ...ctx.findOptions, order: [['created_at', 'DESC']] },
+    { where }
+  )
+
+  const jobQueryWithPagination = Object.assign(
+    { ...jobQuery },
+    query.offset ? { offset: +query.offset } : {},
+    query.limit ? { limit: +query.limit } : {},
+  )
+
+  const count = await Job.count(jobQuery);
+
+  const jobs = await Job.findAll(jobQueryWithPagination);
 
   const { flapps } = await k8s.getFLAppsByNamespace(namespace);
+
   let data = [];
   for (job of jobs) {
     if (job.status == null) job.status = 'started';
@@ -48,15 +58,11 @@ router.get('/api/v1/jobs', SessionMiddleware, FindOptionsMiddleware, async (ctx)
       }
     }
     if (job.status === 'stopped') {
-      const flapp = JSON.parse(job.k8s_meta_snapshot);
+      const flapp = JSON.parse(job.k8s_meta_snapshot).flapp;
       job.k8s_meta_snapshot = null;
       const jobAssembled = {
         ...flapp,
         localdata: job,
-      }
-      if (jobAssembled.spec) {
-        jobAssembled.spec.peerSpecs = null;
-        jobAssembled.spec.flReplicaSpecs = null;
       }
       data.push(jobAssembled);
     } else {
@@ -64,10 +70,6 @@ router.get('/api/v1/jobs', SessionMiddleware, FindOptionsMiddleware, async (ctx)
       const jobAssembled = {
         ...(flapps.items.find((item) => item.metadata.name === job.name)),
         localdata: job,
-      }
-      if (jobAssembled.spec) {
-        jobAssembled.spec.peerSpecs = null;
-        jobAssembled.spec.flReplicaSpecs = null;
       }
       data.push(jobAssembled);
     }
