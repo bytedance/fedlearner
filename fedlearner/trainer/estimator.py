@@ -97,9 +97,17 @@ class FLModel(object):
             return self.recv(name + '_grad', tensor.dtype)
         return None
 
-    def recv(self, name, dtype=tf.float32, require_grad=False):
+    def recv(self, name, dtype=tf.float32, require_grad=False, shape=None):
         with tf.control_dependencies([self._example_ids]):
             tensor = self._bridge.receive_op(name, dtype)
+            if shape:
+                tensor = tf.ensure_shape(tensor, shape)
+            else:
+                logging.warning(
+                    'Receiving tensor %s without checking shape. '
+                    'Consider setting shape at model.recv(shape=(...)). '
+                    'shape can have None dimensions '
+                    'which matches to any length.', name)
         self._train_ops.append(tensor)
         self._recvs.append((name, tensor, require_grad))
         return tensor
