@@ -1,6 +1,13 @@
 import React, { useMemo, useState, useCallback } from 'react';
 import css from 'styled-jsx/css';
-import { Link, Text, Input, Fieldset, Button, Card, Description, useTheme, useInput, Tooltip } from '@zeit-ui/react';
+import {
+  Link,
+  Text, Input,
+  Fieldset, Button,
+  Card, Description, useTheme,
+  useInput, Tooltip, Pagination, Spinner,
+  Row,
+} from '@zeit-ui/react';
 import AlertCircle from '@geist-ui/react-icons/alertCircle'
 import Search from '@zeit-ui/react-icons/search';
 import NextLink from 'next/link';
@@ -8,7 +15,7 @@ import useSWR from 'swr';
 import produce from 'immer'
 
 import { fetcher } from '../libs/http';
-import { FLAppStatus, handleStatus, getStatusColor, JobStatus } from '../utils/job';
+import { FLAppStatus, getStatusColor } from '../utils/job';
 import Layout from '../components/Layout';
 import PopConfirm from '../components/PopConfirm';
 import Dot from '../components/Dot';
@@ -25,11 +32,10 @@ import {
   JOB_PSI_DATA_JOIN_REPLICA_TYPE,
   JOB_TREE_REPLICA_TYPE,
 } from '../constants/form-default'
-import { getParsedValueFromData, fillJSON, getValueFromJson, getValueFromEnv, filterArrayValue } from '../utils/form_utils';
+import { getParsedValueFromData, fillJSON, getValueFromJson, filterArrayValue } from '../utils/form_utils';
 import { getJobStatus } from '../utils/job'
 import { JOB_TYPE_CLASS, JOB_TYPE } from '../constants/job'
-
-// import {mockJobList} from '../constants/mock_data'
+import { useEffect } from 'react';
 
 function useStyles(theme) {
   return css`
@@ -96,6 +102,7 @@ function useStyles(theme) {
 const RESOURCE_PATH_PREFIX = 'spec.flReplicaSpecs.[replicaType].template.spec.containers[].resources'
 const ENV_PATH = 'spec.flReplicaSpecs.[replicaType].template.spec.containers[].env'
 const PARAMS_GROUP = ['client_params', 'server_params']
+const PAGE_LIMIT = 100
 
 function handleParamData(container, data, field) {
   if (field.type === 'label') { return }
@@ -228,9 +235,6 @@ export default function JobList({
 
   }
 
-  filter = filter
-      || useCallback(job => FILTER_TYPES.some(type => type === job.localdata.job_type), [])
-
   const getParamsFormFields = useCallback(() => JOB_REPLICA_TYPE.reduce((total, currType) => {
     total.push(...[
       { key: currType, type: 'label' },
@@ -276,9 +280,49 @@ export default function JobList({
     return total
   }, []), [RESOURCE_PATH_PREFIX, JOB_REPLICA_TYPE])
 
-  const { data, mutate } = useSWR('jobs', fetcher);
-  const jobs = data && data.data ? data.data.filter(el => el.metadata).filter(filter) : null
-  // const jobs = mockJobList.data
+  // ------------- START: List Fetch Section --------------
+  const [page, setPage] = useState(1)
+  const [pageCount, setPageCount] = useState(1)
+  const [randomKey, setRandomKey] = useState(Math.random())
+  const { reset, bindings, state: keyword } = useInput('');
+
+  const { data, mutate, isValidating, error } = useSWR(
+    ['jobs', page, randomKey],
+    () => fetcher('jobs', {
+      searchParams: {
+        limit: PAGE_LIMIT,
+        offset: (page - 1) * PAGE_LIMIT,
+        keyword: keyword,
+        type: FILTER_TYPES,
+      }
+    }),
+    {
+      revalidateOnFocus: false,
+    }
+  );
+  // Using a random key as a dependent of job-list fetch
+  // reset the random to achieve refetch
+  const triggerGetList = () => setRandomKey(Math.random())
+  const onSearchSubmit = (event) => {
+    event.preventDefault()
+    triggerGetList()
+  }
+  const onClearKeyword = () => {
+    reset();
+    triggerGetList()
+  }
+  // ------------- END: List Fetch Section --------------
+
+  // Filter for job type
+  const jobTypeFilter = filter
+      || useCallback(job => FILTER_TYPES.includes(job.localdata.job_type), [])
+  const jobs = data && data.data ? data.data.filter(el => el.metadata).filter(jobTypeFilter) : null
+
+  useEffect(() => {
+    if (data && !error) {
+      setPageCount(Math.ceil(data.count.total / PAGE_LIMIT))
+    }
+  }, [jobs, data])
 
   // form meta convert functions
   const rewriteFields = useCallback((draft, data) => {
@@ -515,7 +559,7 @@ export default function JobList({
   let [fields, setFields] = useState(getDefaultFields())
 
   const labeledList = useMemo(() => {
-    const allList = { name: 'All', list: jobs || [] };
+    const allList = { name: 'Total in this page', list: jobs || [] };
     return Object.entries(FLAppStatus).reduce((prev, [key, status]) => {
       return prev.concat({
         name: key,
@@ -524,27 +568,15 @@ export default function JobList({
     }, [allList]);
   }, [jobs]);
 
-  const [label, setLabel] = useState('All');
+  const [label, setLabel] = useState('Total in this page');
   const switchLabel = useCallback((l) => setLabel(l), []);
 
   const searchIcon = useMemo(() => <Search />, []);
-  const [filterText, setFilterText] = useState('');
-  const { state: inputText, reset, bindings } = useInput('');
-  const search = useCallback((e) => {
-    e.preventDefault();
-    setFilterText(inputText);
-  }, [inputText]);
-  const resetSearch = useCallback(() => {
-    reset();
-    setFilterText('');
-  }, [reset, setFilterText]);
 
   const showingList = useMemo(() => {
     const target = labeledList.find(({ name }) => name === label);
-    return ((target && target.list) || []).filter((item) => {
-      return !filterText || item.localdata.name.indexOf(filterText) > -1;
-    });
-  }, [label, labeledList, filterText]);
+    return ((target && target.list) || [])
+  }, [label, labeledList]);
 
   const [formVisible, setFormVisible] = useState(false);
 
@@ -653,21 +685,22 @@ export default function JobList({
               <Card style={{ margin: `${theme.layout.pageMargin} 0` }}>
                 <div className="list-wrap">
                   <div className="filter-bar">
-                    <form onSubmit={search} className="filter-form">
+                    <form className="filter-form" disabled={isValidating} onSubmit={onSearchSubmit}>
                       <Input
                         {...bindings}
+                        disabled={isValidating}
                         placeholder="Search by name"
                         size="small"
                         clearable
-                        onClearClick={resetSearch}
+                        onClearClick={onClearKeyword}
                         iconRight={searchIcon}
                         iconClickable
-                        onIconClick={search}
+                        onIconClick={triggerGetList}
                       />
                     </form>
                     <Button auto size="small" type="secondary" onClick={onClickCreate}>Create Job</Button>
                   </div>
-                  <Fieldset.Group value={label} onChange={switchLabel}>
+                  <Fieldset.Group style={{ marginBottom: '20px' }} value={label} onChange={switchLabel}>
                     {
                       labeledList.map(({ name }) => (
                         <Fieldset label={name} key={name}>
@@ -713,13 +746,15 @@ export default function JobList({
                                     }
                                   </ul>
                                 )
-                                : <Empty />
+                                : isValidating ? <Row style={{ minHeight: '500px' }} justify="center" align="middle"><Spinner size="large" /></Row>  :  <Empty />
                               : null
                           }
                         </Fieldset>
                       ))
                     }
                   </Fieldset.Group>
+
+                  <Pagination page={page} onChange={setPage} count={pageCount}></Pagination>
                 </div>
               </Card>
             </>
