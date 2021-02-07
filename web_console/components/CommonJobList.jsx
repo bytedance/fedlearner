@@ -582,7 +582,7 @@ export default function JobList({
 
   const onClickCreate = () => {
     setFormMeta({...INIT_PARAMS})
-    setFields(mapValueToFields({data: mapFormMeta2FullData(fields), fields, init: true}))
+    setFields(mapValueToFields({ data: mapFormMeta2FullData(fields), fields, init: true }))
     toggleForm()
   }
   const toggleForm = useCallback(() => {
@@ -593,7 +593,7 @@ export default function JobList({
     setFormVisible(visible => !visible)
   }, [formVisible]);
   const onOk = () => {
-    mutate();
+    triggerGetList();
     toggleForm();
   };
 
@@ -648,7 +648,7 @@ export default function JobList({
       </Text>
       <PopConfirm
         onConfirm={() => deleteJob(item.localdata.id)}
-        onOk={() => mutate({ data: jobs.filter((i) => i !== item) })}
+        onOk={() => mutate({ data: jobs.filter((i) => i !== item), count: data.count })}
       >
         <Text className="actionText" type="error">Delete</Text>
       </PopConfirm>
