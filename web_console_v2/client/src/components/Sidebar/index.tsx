@@ -76,9 +76,12 @@ function Sidebar({ className }: StyledComponetProps) {
   const [isFolded, toggleFold] = useToggle(store.get(LOCAL_STORAGE_KEYS.sidebar_folded));
   const location = useLocation();
 
+  const activeMenuItemKey =
+    SIDEBAR_MENU_ITEMS.find((item) => location.pathname.startsWith(item.to))?.to || '';
+
   return (
     <Container className={classNames(className, { isFolded })}>
-      <Menu mode="inline" defaultSelectedKeys={[location.pathname]}>
+      <Menu mode="inline" selectedKeys={[activeMenuItemKey]}>
         {SIDEBAR_MENU_ITEMS.map((menu) => (
           <Menu.Item key={menu.to}>
             {isFolded ? (

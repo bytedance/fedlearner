@@ -124,6 +124,10 @@ export const jobExecutionStatusText: Record<JobNodeStatus, string> = {
   [JobNodeStatus.Error]: i18n.t('workflow.job_node_stop_running'),
 };
 
+export const WORKFLOW_JOB_NODE_CHANNELS = {
+  change_inheritance: 'job_node.change_inheritance',
+};
+
 interface Props extends NodeComponentProps {
   data: NodeData;
 }
@@ -155,7 +159,10 @@ const ForkJobNode: FC<Props> = ({ data, id }) => {
   const labelNonreusable = t('workflow.label_job_nonreusable');
 
   return (
-    <Container data-inherit={data.inherit!.toString()}>
+    <Container
+      data-inherit={data.inherit!.toString()}
+      className={classNames([data.raw.is_federated && 'federated-mark', data.mark])}
+    >
       {data.isTarget && <Handle type="target" position={Position.Top} />}
       <JobName>{id}</JobName>
       <GridRow gap={5}>
@@ -210,7 +217,7 @@ const ForkJobNode: FC<Props> = ({ data, id }) => {
         top: '35%',
       },
       onOk() {
-        PubSub.publish('workflow.node_change_inheritance', { id, data, whetherInherit });
+        PubSub.publish(WORKFLOW_JOB_NODE_CHANNELS.change_inheritance, { id, data, whetherInherit });
       },
     });
   }

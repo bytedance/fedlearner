@@ -4,6 +4,7 @@ import { isHead, isLast } from 'shared/array';
 import { head, isEmpty, isNil, last } from 'lodash';
 import { Variable } from 'typings/workflow';
 import i18n from 'i18n';
+import { JobColorsMark } from './hooks';
 
 const TOP_OFFSET = 100;
 const LEFT_OFFSET = 100;
@@ -22,7 +23,7 @@ export enum JobNodeStatus {
 }
 
 export type ChartNodeType = 'config' | 'execution' | 'global' | 'fork';
-export type JobColorsMark = 'blue' | 'green' | 'yellow' | 'magenta' | 'cyan';
+
 /**
  * 1. At Workflow create stage, NodeDataRaw === Job or GlobalVariables
  * 2. At Workflow detail page, NodeDataRaw would contain JobExecutionDetalis and JobColorsMark additionally

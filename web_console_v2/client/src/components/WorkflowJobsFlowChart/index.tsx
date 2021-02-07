@@ -28,6 +28,7 @@ import ReactFlow, {
 
 import { WorkflowConfig } from 'typings/workflow';
 import { cloneDeep } from 'lodash';
+import { message } from 'antd';
 
 const Container = styled.div`
   position: relative;
@@ -89,6 +90,7 @@ type updateStatusParams = {
   id: string;
   status: JobNodeStatus;
 };
+
 export type ChartExposedRef = {
   nodes: ChartNodes;
   updateNodeStatusById: (args: updateStatusParams) => void;
@@ -106,7 +108,7 @@ const WorkflowJobsFlowChart: ForwardRefRenderFunction<ChartExposedRef | undefine
     );
   }
   const [elements, setElements] = useState<FlowElement[]>([]);
-  // WARNING: since we using react-flow hooks here,
+  // ☢️ WARNING: since we using react-flow hooks here,
   // an ReactFlowProvider is REQUIRED to wrap this component inside
   const jobNodes = useStoreState((store) => store.nodes) as ChartNodes;
   const setSelectedElements = useStoreActions((actions) => actions.setSelectedElements);
@@ -172,6 +174,9 @@ const WorkflowJobsFlowChart: ForwardRefRenderFunction<ChartExposedRef | undefine
   function onLoad(_reactFlowInstance: OnLoadParams) {
     _reactFlowInstance!.fitView({ padding: 1 });
   }
+  function areTheySomeUninheritable(nodeIds: string[]) {
+    return nodeIds.some((id) => elements.find((item) => item.id === id)?.data?.inherit === false);
+  }
   function updateNodeStatus(args: updateStatusParams) {
     if (!args.id) return;
 
@@ -191,11 +196,23 @@ const WorkflowJobsFlowChart: ForwardRefRenderFunction<ChartExposedRef | undefine
     if (nodeType !== 'fork' || !id) {
       return;
     }
-
     const nextElements = cloneDeep(elements as ChartNodes);
-
     const target = nextElements.find((item) => item.id === id);
-    target!.data!.inherit = whetherInherit;
+
+    if (!target) return;
+
+    const itDependsOn = target?.data.raw.dependencies.map((item) => item.source);
+
+    if (itDependsOn.length && areTheySomeUninheritable(itDependsOn)) {
+      message.warning({
+        // the key is used for making sure only one toast is allowed to show on the screen
+        key: 'NOP_due_to_upstreaming_uninheritable',
+        content: '因存在上游依赖不可继承，无法修改此任务继承与否',
+      });
+      return;
+    }
+
+    target.data.inherit = whetherInherit;
 
     // Collect dependent chain
     const depsChainCollected: string[] = [];

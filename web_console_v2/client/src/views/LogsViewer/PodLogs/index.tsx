@@ -10,6 +10,8 @@ const PodLogs: FC = () => {
 
   const logsQuery = useQuery('getPodLogs', getLogs, {
     refetchOnWindowFocus: false,
+    retry: 3,
+    refetchInterval: 4000,
   });
 
   useEffect(() => {
@@ -20,7 +22,7 @@ const PodLogs: FC = () => {
     }
   }, [logsQuery.data]);
 
-  if (logsQuery.isFetching) {
+  if (logsQuery.isLoading) {
     return <Refresh spin style={{ fontSize: '20px' }} />;
   }
 
@@ -34,10 +36,10 @@ const PodLogs: FC = () => {
 
   async function getLogs() {
     if (!params.podname) {
-      return { data: 'Pod name invalid!' };
+      return { data: ['Pod name invalid!'] };
     }
 
-    return fetchPodLogs(params.podname, { startTime: 0, maxLines: 500 }).catch((error) => ({
+    return fetchPodLogs(params.podname, { startTime: 0, maxLines: 900 }).catch((error) => ({
       data: error.message,
     }));
   }

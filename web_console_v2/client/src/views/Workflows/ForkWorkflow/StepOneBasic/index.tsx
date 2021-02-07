@@ -36,7 +36,7 @@ const WorkflowForkStepOneBaic: FC<Props> = ({ onSuccess }) => {
     enabled: params.id,
     refetchOnWindowFocus: false,
     onSuccess(workflow) {
-      const newName = workflow.name + ' - duplicated';
+      const newName = workflow.name + '-duplicated';
 
       formInstance.setFieldsValue({ name: newName });
 
@@ -66,7 +66,15 @@ const WorkflowForkStepOneBaic: FC<Props> = ({ onSuccess }) => {
           rules={[
             { required: true, message: t('workflow.msg_name_required') },
             // TODO: remove workflow name restriction by using hashed job name
-            { pattern: /[0-9a-z.\-\s]+/g, message: t('workflow.msg_workflow_name_invalid') },
+            {
+              validator(_, value) {
+                if (/^[a-z0-9-]+$/i.test(value)) {
+                  return Promise.resolve();
+                } else {
+                  return Promise.reject(t('workflow.msg_workflow_name_invalid'));
+                }
+              },
+            },
           ]}
         >
           <Input placeholder={t('workflow.placeholder_name')} disabled={workflowQuery.isFetching} />

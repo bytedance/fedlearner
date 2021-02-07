@@ -12,6 +12,7 @@ const error = {
   btn_import: { zh: '开始导入', en: 'Start importing' },
 
   col_name: { zh: '数据集名称' },
+  col_file_name: { zh: '文件名' },
   col_type: { zh: '类型' },
   col_files_size: { zh: '数据总大小' },
   col_creator: { zh: '创建者' },
@@ -36,6 +37,7 @@ const error = {
   placeholder_name_searchbox: { zh: '输入数据名称搜索', en: 'Search by name' },
   placeholder_name: { zh: '请输入数据集名称' },
   placeholder_comment: { zh: '请输入数据集说明' },
+  placeholder_event_time: { zh: '请选择时间' },
   placeholder_filename_filter: { zh: '输入文件名进行筛选' },
 
   title_create: { zh: '创建数据集' },

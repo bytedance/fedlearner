@@ -43,8 +43,8 @@ export enum PodState {
   FAILED = 'Failed',
   PENDING = 'Pending',
   UNKNOWN = 'Unknown',
-  FL_SUCCEED = 'Flapp_succeed',
-  FL_FAILED = 'Flapp_failed',
+  FL_SUCCEED = 'Flapp_succeed', // completed
+  FL_FAILED = 'Flapp_failed', // failed
 }
 
 export interface Pod {

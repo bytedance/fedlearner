@@ -286,7 +286,8 @@ export function buildFormSchemaFromJobDef(job: Job): FormilySchema {
   };
 
   return variables.reduce((schema, current, index) => {
-    const worker = componentToWorkersMap[current.widget_schema?.component] || createInput;
+    const worker =
+      componentToWorkersMap[current.widget_schema?.component || VariableComponent.Input];
 
     current.widget_schema = mergeVariableSchemaWithPresets(current, variablePresets);
     current.widget_schema.index = index;

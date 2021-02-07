@@ -1,7 +1,7 @@
 import React, { FC, useState, useRef } from 'react';
 import { Row, Modal, Button, message, Spin } from 'antd';
 import { useQuery } from 'react-query';
-import { useHistory, useParams } from 'react-router-dom';
+import { Redirect, useHistory, useParams } from 'react-router-dom';
 import { useRecoilState } from 'recoil';
 import { forkTheWorkflow, getPeerWorkflowsConfig, getWorkflowDetailById } from 'services/workflow';
 import { forkWorkflowForm } from 'stores/workflow';
@@ -10,10 +10,11 @@ import { useTranslation } from 'react-i18next';
 import { ReactFlowProvider } from 'react-flow-renderer';
 import WorkflowJobsFlowChart, { ChartExposedRef } from 'components/WorkflowJobsFlowChart';
 import { ChartNode, JobNodeStatus, NodeData } from 'components/WorkflowJobsFlowChart/helpers';
-import { cloneDeep, Dictionary } from 'lodash';
+import { useMarkFederatedJobs } from 'components/WorkflowJobsFlowChart/hooks';
+import { cloneDeep, Dictionary, remove } from 'lodash';
 import JobFormDrawer, { JobFormDrawerExposedRef } from '../../JobFormDrawer';
 import { useToggle } from 'react-use';
-import { Variable } from 'typings/workflow';
+import { Variable, WorkflowExecutionDetails } from 'typings/workflow';
 import { parseWidgetSchemas, stringifyWidgetSchemas } from 'shared/formSchema';
 import i18n from 'i18n';
 import { ExclamationCircle } from 'components/IconPark';
@@ -22,6 +23,7 @@ import GridRow from 'components/_base/GridRow';
 import { to } from 'shared/helpers';
 import { MixinFlexAlignCenter } from 'styles/mixins';
 import { useSubscribe } from 'hooks';
+import { WORKFLOW_JOB_NODE_CHANNELS } from 'components/WorkflowJobsFlowChart/WorkflowJobNode';
 
 const LoadingContainer = styled.div`
   ${MixinFlexAlignCenter()}
@@ -61,7 +63,9 @@ const Footer = styled.footer`
   background-color: white;
 `;
 
+// We only have two side so far
 type Side = 'self' | 'peer';
+const ALL_SIDES: Side[] = ['self', 'peer'];
 
 const WorkflowForkStepTwoConfig: FC = () => {
   const { t } = useTranslation();
@@ -77,46 +81,66 @@ const WorkflowForkStepTwoConfig: FC = () => {
   const [drawerVisible, toggleDrawerVisible] = useToggle(false);
 
   const [formData, setFormData] = useRecoilState(forkWorkflowForm);
-  useQuery(['getPeerWorkflow', params.id], getPeerWorkflow, {
-    refetchOnWindowFocus: false,
-    onSuccess(data) {
-      setFormData({
-        ...formData,
-        fork_proposal_config: parseWidgetSchemas(data).config!,
-      });
-    },
-  });
+
+  const { markThem } = useMarkFederatedJobs();
+
   useQuery(['getWorkflow', params.id], () => getWorkflowDetailById(params.id), {
     refetchOnWindowFocus: false,
     onSuccess(data) {
+      const config = parseWidgetSchemas(data.data).config!;
+      markThem(config.job_definitions);
+
       setFormData({
         ...formData,
-        config: parseWidgetSchemas(data.data).config!,
+        config,
+      });
+    },
+  });
+  const peerQuery = useQuery(['getPeerWorkflow', params.id], getPeerWorkflow, {
+    refetchOnWindowFocus: false,
+    onSuccess(data) {
+      const fork_proposal_config = parseWidgetSchemas(data).config!;
+      markThem(fork_proposal_config.job_definitions);
+
+      setFormData({
+        ...formData,
+        fork_proposal_config,
       });
     },
   });
 
   useSubscribe(
-    'workflow.node_change_inheritance',
-    (_: string, payload: { id: string; data: NodeData; whetherInherit: boolean }) => {
-      if (!payload.data.side) {
+    WORKFLOW_JOB_NODE_CHANNELS.change_inheritance,
+    (_: any, payload: { id: string; data: NodeData; whetherInherit: boolean }) => {
+      const sideOfNode = payload.data.side as Side;
+      if (!sideOfNode) {
         console.error('[WorkflowForkStepTwoConfig]: assign a `side` prop to chart under forking');
         return;
       }
-      getChartRef(payload.data.side as Side)?.updateNodeInheritanceById({
-        id: payload.id,
-        whetherInherit: payload.whetherInherit,
+      const targetSides = payload.data.raw.is_federated ? ALL_SIDES : [sideOfNode];
+
+      targetSides.forEach((side) => {
+        getChartRef(side)?.updateNodeInheritanceById({
+          id: payload.id, // federated jobs share the same name
+          whetherInherit: payload.whetherInherit,
+        });
       });
     },
     [currMouseSide],
   );
 
-  if (!formData.config || !formData.fork_proposal_config)
+  if (peerQuery.data?.forkable === false) {
+    message.warning(t('workflow.msg_unforkable'));
+    return <Redirect to={'/workflows'} />;
+  }
+
+  if (!formData.config || !formData.fork_proposal_config) {
     return (
       <LoadingContainer>
         <Spin />
       </LoadingContainer>
     );
+  }
 
   const targetConfigKey = getConfigKey(side);
   const targetChartRef = getChartRef(side);
@@ -210,7 +234,7 @@ const WorkflowForkStepTwoConfig: FC = () => {
     } as const)[side];
   }
 
-  async function getPeerWorkflow() {
+  async function getPeerWorkflow(): Promise<WorkflowExecutionDetails> {
     const res = await getPeerWorkflowsConfig(params.id);
     const anyPeerWorkflow = Object.values(res.data).find((item) => !!item.config)!;
 
@@ -226,12 +250,8 @@ const WorkflowForkStepTwoConfig: FC = () => {
     const prevData = currNode?.data;
     if (currNode && prevData) {
       // Validate & Save current form before go another job
+      await validateCurrentValues();
       await saveCurrentValues();
-      const isValid = await drawerRef.current?.validateCurrentForm();
-      targetChartRef?.updateNodeStatusById({
-        id: currNode.id,
-        status: isValid ? JobNodeStatus.Success : JobNodeStatus.Warning,
-      });
     }
 
     // Turn target node status to configuring
@@ -245,6 +265,14 @@ const WorkflowForkStepTwoConfig: FC = () => {
 
     // Put setSide at the end to prevent previous codes from being confused by side-state
     setSide(nextSide);
+  }
+  async function validateCurrentValues() {
+    if (!currNode) return;
+    const isValid = await drawerRef.current?.validateCurrentForm();
+    targetChartRef?.updateNodeStatusById({
+      id: currNode.id,
+      status: isValid ? JobNodeStatus.Success : JobNodeStatus.Warning,
+    });
   }
   async function saveCurrentValues() {
     const values = await drawerRef.current?.getFormValues();
@@ -289,7 +317,7 @@ const WorkflowForkStepTwoConfig: FC = () => {
 
     const payload = stringifyWidgetSchemas(formData);
 
-    // Find reusable job names for both peer and self sides
+    // Find reusable job names for both peer and self side
     payload.reuse_job_names = selfConfigChartRef.current?.nodes
       .filter((node) => node.data.inherit)
       .map((item) => item.id)!;
@@ -297,6 +325,9 @@ const WorkflowForkStepTwoConfig: FC = () => {
     payload.peer_reuse_job_names = peerConfigChartRef.current?.nodes
       .filter((node) => node.data.inherit)
       .map((item) => item.id)!;
+
+    // FIXME: remove after using hashed job name
+    payload.name = payload.name.replace(/[\s]/g, '');
 
     const [, error] = await to(forkTheWorkflow(payload));
 
@@ -325,12 +356,9 @@ const WorkflowForkStepTwoConfig: FC = () => {
   }
   async function onCanvasClick() {
     toggleDrawerVisible(false);
-    const isValid = await drawerRef.current?.validateCurrentForm();
-    targetChartRef?.updateNodeStatusById({
-      id: currNode?.id!,
-      status: isValid ? JobNodeStatus.Success : JobNodeStatus.Warning,
-    });
+    await validateCurrentValues();
     saveCurrentValues();
+    targetChartRef?.setSelectedNodes([]);
   }
   function onPrevStepClick() {
     history.goBack();
@@ -345,12 +373,8 @@ const WorkflowForkStepTwoConfig: FC = () => {
     nextNodeToSelect && selectNode(nextNodeToSelect, side);
   }
   async function onCloseDrawer() {
+    await validateCurrentValues();
     saveCurrentValues();
-    const isValid = await drawerRef.current?.validateCurrentForm();
-    targetChartRef?.updateNodeStatusById({
-      id: currNode?.id!,
-      status: isValid ? JobNodeStatus.Success : JobNodeStatus.Warning,
-    });
     targetChartRef?.setSelectedNodes([]);
   }
 };

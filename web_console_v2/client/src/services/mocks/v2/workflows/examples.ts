@@ -86,7 +86,16 @@ export const newlyCreated = {
         yaml_template: '',
       },
     ],
-    variables: [],
+    variables: [
+      {
+        name: 'image_version',
+        value: 'v1.5-rc3',
+        access_mode: VariableAccessMode.PEER_READABLE,
+        widget_schema: {
+          required: true,
+        },
+      },
+    ],
   },
   forkable: true,
   comment: null,

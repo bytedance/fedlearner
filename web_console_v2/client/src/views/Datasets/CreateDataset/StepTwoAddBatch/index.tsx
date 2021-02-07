@@ -83,7 +83,7 @@ const StepTwoAddBatches: FC<Props> = ({ onSuccess, onPrevious, onCancel }) => {
     }
 
     // Trigger submit add-batch form
-    const [_, addBatchError] = await to(submitAddBatchForm(datasetId));
+    const [, addBatchError] = await to(submitAddBatchForm(datasetId));
 
     if (addBatchError) {
       message.error(addBatchError.message);

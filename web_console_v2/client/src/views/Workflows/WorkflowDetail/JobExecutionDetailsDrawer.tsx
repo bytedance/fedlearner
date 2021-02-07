@@ -122,7 +122,7 @@ const JobExecutionDetailsDrawer: ForwardRefRenderFunction<JobExecutionDetailsExp
         <PropertyList initialVisibleRows={3} cols={2} properties={displayedProps} labelWidth={90} />
 
         <JobExecutionMetrics />
-        <JobExecutionLogs job={job} workflow={workflow} />
+        <JobExecutionLogs job={job} workflow={workflow} enabled={Boolean(props.visible)} />
         <JobExecutionPODs job={job} />
       </Container>
     </ErrorBoundary>
