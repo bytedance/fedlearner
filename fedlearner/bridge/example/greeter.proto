@@ -9,7 +9,7 @@ message Response {
     string message = 1;
 }
 
-service Greester {
+service Greeter {
     rpc HelloUnaryUnary(Request) returns (Response) {}
     rpc HelloUnaryStream(Request) returns (stream Response) {}
     rpc HelloStreamUnary(stream Request) returns (Response) {}

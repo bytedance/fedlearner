@@ -4,6 +4,7 @@ import time
 import uuid
 import logging
 import threading
+import enum
 
 import grpc
 
@@ -12,7 +13,7 @@ from concurrent import futures
 from fedlearner.bridge.proto import bridge_pb2, bridge_pb2_grpc
 from fedlearner.bridge.client import _Client
 from fedlearner.bridge.server import _Server
-from fedlearner.bridge.util import _method_encode, _method_decode
+from fedlearner.bridge.util import _method_encode, _method_decode, maxint
 
 def _default_peer_stop_callback(bridge):
     logging.info("[Bridge] peer stop callback, default stop bridge")
@@ -28,6 +29,103 @@ def _default_unidentified_callback(bridge):
 
 
 class Bridge():
+    class State(enum.Enum):
+        IDLE                   = 0
+        CONNECTING_UNCONNECTED = 1
+        CONNECTED_UNCONNECTED  = 2
+        CONNECTING_CONNECTED   = 3
+        READY                  = 4
+        CONNECTING_CLOSED      = 5
+        CONNECTED_CLOSED       = 7
+        CLOSING_UNCONNECTED    = 8
+        CLOSING_CONNECTED      = 9
+        CLOSING_CLOSED         = 10
+        CLOSED_CONNECTED       = 11
+        DONE                   = 12
+
+    class _Event(enum.Enum):
+        CONNECTED = 0
+        DISCONNECTED = 1
+        CLOSING = 2
+        CLOSED = 3
+        PEER_CONNECTED = 4
+        PEER_DISCONNECTED = 5
+        PEER_CLOSED = 6
+
+    _next_table = {
+        State.IDLE: (None, None, None, None, None, None, None),
+        State.CONNECTING_UNCONNECTED: (State.CONNECTED_UNCONNECTED,
+            None, State.DONE, None,
+            State.CONNECTING_CONNECTED, None, State.CONNECTING_CLOSED),
+        State.CONNECTED_UNCONNECTED: (None,
+            None, State.CLOSING_UNCONNECTED, None,
+            State.READY, None, State.CONNECTED_CLOSED),
+        State.CONNECTING_CONNECTED: (State.READY,
+            None, State.CLOSED_CONNECTED, None,
+            None, State.CONNECTING_UNCONNECTED, State.CONNECTING_CLOSED),
+        State.READY: (None,
+            State.CONNECTING_CONNECTED, State.CLOSING_CONNECTED, None,
+            None, State.CONNECTED_UNCONNECTED, State.CONNECTED_CLOSED),
+        State.CONNECTING_CLOSED: (State.CONNECTED_CLOSED,
+            None, State.DONE, None,
+            None, None, None),
+        State.CONNECTED_CLOSED: (None,
+            State.CONNECTING_CLOSED, State.CLOSING_CLOSED, State.DONE,
+            None, None, None),
+        State.CLOSING_UNCONNECTED: (None,
+            State.DONE, None, State.DONE,
+            State.CLOSING_UNCONNECTED, None, State.CLOSING_CLOSED),
+        State.CLOSING_CONNECTED: (None,
+            State.DONE, None, State.CLOSED_CONNECTED,
+            None, State.CLOSING_UNCONNECTED, State.CLOSING_CLOSED),
+        State.CLOSING_CLOSED: (None,
+            State.DONE, None, State.DONE,
+            None, None, None),
+        State.CLOSED_CONNECTED: (None,
+            None, None, None,
+            None, State.DONE, State.DONE),
+        State.DONE: (None, None, None, None, None, None, None),
+    }
+    def _next_state(state, event):
+        next = Bridge._next_table[state][event.value]
+        if next:
+            return next
+        return state
+
+
+
+    _CALL_CONNECT_STATES = set([
+        State.CONNECTING_UNCONNECTED,   
+        State.CONNECTING_CONNECTED,
+        State.CONNECTING_CLOSED,
+    ])
+
+    _CALL_HEARTBEAT_STATES = set([
+        State.CONNECTED_UNCONNECTED,
+        State.READY,
+        State.CONNECTED_CLOSED, 
+    ])
+
+    _CALL_CLOSE_STATES = set([
+        State.CLOSING_UNCONNECTED,
+        State.CLOSING_CONNECTED,
+        State.CLOSING_CLOSED,
+    ])
+
+    _PEER_CLOSED_STATUS = set([
+        State.CONNECTING_CLOSED, 
+        State.CONNECTED_CLOSED,
+        State.CLOSING_CLOSED,
+        State.DONE,
+    ])
+
+    _PEER_CONNECTED_STATES = set([
+        State.CONNECTING_CONNECTED, 
+        State.READY,
+        State.CLOSING_CONNECTED,
+        State.CLOSED_CONNECTED
+    ])
+
     def __init__(self,
                  listen_addr,
                  remote_addr,
@@ -74,21 +172,22 @@ class Bridge():
         if retry_interval <= 0:
             raise ValueError("retry_interval must be positive")
         self._retry_interval = retry_interval
+        self._next_retry_at = 0
 
-        # lock
-        self._lock = threading.RLock()
-
-        self._control_cv = threading.Condition(self._lock)
         self._start = False
         self._stop = False
-        self._connected = False
-        self._peer_connected = False
-        self._closed = False
-        self._peer_closed = False
-        self._stopped = False
 
-        # notify_all if _connected and _peer_connected
-        self._ready_cv = threading.Condition(self._lock)
+        # peer 
+        self._peer_connected = False
+        self._peer_closed = False
+
+        # bridge state
+        self._state_condition = threading.Condition(threading.RLock())
+        self._state = Bridge.State.IDLE
+        self._state_thread = None
+
+        # notify_all if ready
+        # self._ready_cv = threading.Condition(self._lock)
 
         # grpc channel methods
         self.unary_unary = self._client.unary_unary
@@ -101,290 +200,213 @@ class Bridge():
             self._server.add_generic_rpc_handlers
         
     def _client_ready_callback(self, ready):
-        with self._control_cv:
-            if self._client_ready == ready:
-                return
-            self._client_ready = ready
-            if not self._client_ready \
-                and self._connected:
-                self._connected = False
-            self._control_cv.notify_all()
-
-    @property
-    def is_ready(self):
-        with self._lock:
-            return self._ready
-
-    @property
-    def is_closed(self):
-        with self._lock:
-            return self._closed
-
-    @property
-    def is_stopped(self):
-        with self._lock:
-            return self._stopped
-
-    @property
-    def _ready(self):
-        return self._connected and self._peer_connected
-
-    def _ready_notify_if_need(self):
-        if self._ready:
-            self._ready_cv.notify_all()
+        with self._state_condition:
+            if not ready:
+                self._state = Bridge._next_state(self._state,
+                    Bridge._Event.DISCONNECTED)
+                self._state_condition.notify_all()
 
     def wait_for_ready(self, timeout=None):
-        if self._ready: # lock free
-            return True
-        with self._ready_cv:
-            if self._ready:
-                return True
-            elif self._closed:
-                return False
-            self._ready_cv.wait(timeout)
-            return self._ready
+        with self._state_condition:
+            while self._state != Bridge.State.READY:
+                self._state_condition.wait()
 
     def wait_for_stopped(self):
-        with self._control_cv:
-            while not self._stopped:
-                self._control_cv.wait()
+        with self._state_condition:
+            while self._state != Bridge.State.DONE:
+                self._state_condition.wait()
 
     def start(self, wait=False):
-        with self._control_cv:
+        with self._state_condition:
             if self._start:
-                raise RuntimeError(
-                    "Attempting to start bridge repeatedly")
+                raise RuntimeError("Attempting to restart bridge")
             self._start = True
+            self._state = Bridge.State.CONNECTING_UNCONNECTED
 
-        control_thread = threading.Thread(target=self._control_fn, daemon=True)
-        control_thread.start()
+        self._state_thread = threading.Thread(
+            target=self._state_fn, daemon=True)
+        self._state_thread.start()
 
         if wait:
             self.wait_for_ready()
 
     def stop(self, wait=False):
-        with self._control_cv:
+        with self._state_condition:
             if not self._start:
                 raise RuntimeError("Attempting to start bridge before start")
-            if self._stop: 
-                raise RuntimeError("Attempting to stop bridge repeatedly")
-            self._stop = True
-            self._control_cv.notify_all()
+            if not self._stop: 
+                self._stop = True
+                self._state = Bridge._next_state(self._state,
+                    Bridge._Event.CLOSING)
+                self._state_condition.notify_all()
 
         if wait:
             self.wait_for_stopped()
 
-    def _control_fn(self):
-        logging.debug("[Bridge] thread _control_fn start")
+    def _call(self, req):
+        try:
+            return self._client.call(req)
+        except grpc.RpcError as e:
+            logging.info("[Bridge] grpc channel return code: %s"
+                ", details: %s", e.code(), e.details())
+            return None
+        except Exception as e:
+            logging.error("[Bridge] grpc channel return error: %s", repr(e))
+            return None
+
+    def _call_connect_locked(self):
+        self._state_condition.release()
+        res = self._call(bridge_pb2.CallRequest(
+            type=bridge_pb2.CallType.CONNECT))
+        self._state_condition.acquire()
+        if res == None:
+            return False
+        elif res.code == bridge_pb2.Code.OK:
+            self._state = Bridge._next_state(self._state,
+                Bridge._Event.CONNECTED)
+            return True
+        elif res.code == bridge_pb2.Code.CLOSED:
+            logging.error("[Bridge] try to connect to a closed bridge")
+        elif res.code == bridge_pb2.Code.UNAUTHORIZED:
+            logging.warn("[Bridge] authentication failed")
+            self._unauthroized_callback(self)
+        elif res.code == bridge_pb2.Code.UNIDENTIFIED:
+            logging.warn("[Bridge] unidentified bridge")
+            self._unidentified_callback(self)
+        else:
+            logging.error("[Bridge] call connect got unexcepted code: %s",
+                bridge_pb2.Code.Name(res.code))
+
+        return False
+
+    def _call_heartbeat_locked(self):
+        self._state_condition.release()
+        res = self._call(bridge_pb2.CallRequest(
+            type=bridge_pb2.CallType.HEARTBEAT))
+        self._state_condition.acquire()
+        if res == None:
+            return False
+        elif res.code == bridge_pb2.Code.OK:
+            return True
+        elif res.code == bridge_pb2.Code.CLOSED:
+            self._state = Bridge._next_state(self._state,
+                Bridge._Event.DISCONNECTED)
+            return True
+        else:
+            logging.error("[Bridge] call heartbeat got unexcepted code: %s",
+                bridge_pb2.CallType.Name(res.code))
+
+        return False
+
+    def _call_close_locked(self):
+        self._state_condition.release()
+        res = self._call(bridge_pb2.CallRequest(
+            type=bridge_pb2.CallType.CLOSE))
+        self._state_condition.acquire()
+        if res == None:
+            return False
+        elif res.code == bridge_pb2.Code.OK:
+            self._state = Bridge._next_state(self._state,
+                Bridge._Event.CLOSED)
+            return True
+        elif res.code == bridge_pb2.Code.CLOSED:
+            self._state = Bridge._next_state(self._state,
+                Bridge._Event.CLOSED)
+            return True
+        else:
+            logging.error("[Bridge] call close got unexcepted code: %s",
+                bridge_pb2.CallType.Name(res.code))
+        return False
+
+    def _state_fn(self):
+        logging.debug("[Bridge] thread _state_fn start")
 
         self._server.start()
         self._client.subscribe(self._client_ready_callback)
 
-        self._lock.acquire()
+        self._state_condition.acquire()
         while True:
-            logging.debug("[Bridge] _start: %s, _connected: %s,"
-                " _peer_connected: %s, _stop: %s, _closed: %s,"
-                " _peer_closed: %s, _stopped: %s",
-                self._start, self._connected,
-                self._peer_connected, self._stop, self._closed,
-                self._peer_closed, self._stopped)
+            logging.debug("[Bridge] state: %s", self._state.name)
 
             now = time.time()
-            type = bridge_pb2.CallType.UNSET
-            wait_timeout = 2**32-1
+            wait_timeout = maxint
 
-            if self._closed and self._peer_closed:
-                self._stopped = True
-                self._ready_cv.notify_all()
-                self._control_cv.notify_all()
+            if self._state == Bridge.State.DONE:
                 break
-                
-            if self._stop \
-                and not self._closed and not self._connected:
-                self._closed = True
-                continue
 
-            if self._stop \
-                and not self._peer_closed and not self._peer_connected:
-                self._peer_closed = True
-                continue
-
-            if not self._stop and self._peer_closed:
-                if self._peer_stop_callback:
-                    self._peer_stop_callback(self)
-                    self._peer_stop_callback = None
-
-            if self._peer_connected:
-                if self._peer_heartbeat_timeout_at < now:
+            if self._state in Bridge._PEER_CONNECTED_STATES:
+                if now >= self._peer_heartbeat_timeout_at:
                     logging.debug("[Bridge] peer disconnect"
                         " by heartbeat timeout")
-                    self._peer_connected = False
+                    self._state = Bridge._next_state(self._state,
+                        Bridge._Event.PEER_DISCONNECTED)
                     continue
-                else:
-                    wait_timeout = min(wait_timeout,
-                        self._peer_heartbeat_timeout_at - now)
-
-            if self._connected:
-                if self._stop:
-                    type = bridge_pb2.CallType.CLOSE
-                elif self._heartbeat_timeout_at < now:
-                    type = bridge_pb2.CallType.HEARTBEAT
-                else:
-                    wait_timeout = min(wait_timeout,
-                        self._heartbeat_timeout_at - now)
-            elif not self._closed:
-                type = bridge_pb2.CallType.CONNECT
-
-            elif self._peer_connected:
-                logging.info("[Bridge] wait peer closed")
-                self._control_cv.wait(min(wait_timeout, 3))
-                continue
-
-            res = None
-            if type != bridge_pb2.CallType.UNSET:
-                # wait client ready
-                if not self._client_ready:
-                    logging.info("[Bridge] wait for client ready...")
-                    self._control_cv.wait(min(wait_timeout, 3))
-                    continue
-                self._lock.release()
-                # unlock
-                res = self._call(bridge_pb2.CallRequest(type=type))
-                # lock again
-                self._lock.acquire()
-                if res == None:
-                    wait_timeout = min(wait_timeout, self._retry_interval)
-
-            if res != None:
-                if res.code == bridge_pb2.Code.OK:
-                    if type == bridge_pb2.CallType.CONNECT:
-                        self._heartbeat_timeout_at = \
-                            time.time() + self._heartbeat_interval
-                        self._connected = True
-                        self._ready_notify_if_need()
+                wait_timeout = min(wait_timeout,
+                    self._peer_heartbeat_timeout_at - now)
+                
+            if now >= self._next_retry_at:
+                if self._state in Bridge._CALL_CONNECT_STATES:
+                    if self._call_connect_locked():
                         continue
-                    elif type == bridge_pb2.CallType.HEARTBEAT:
-                        self._heartbeat_timeout_at = \
-                            time.time() + self._heartbeat_interval
-                        wait_timeout = min(wait_timeout, \
-                            self._heartbeat_interval)
-                    elif type == bridge_pb2.CallType.CLOSE:
-                        self._connected = False
-                        self._closed = True
+                    self._next_retry_at = time.time() + self._next_retry_at
+                elif self._state in Bridge._CALL_HEARTBEAT_STATES:
+                    if now >= self._heartbeat_timeout_at:
+                        if self._call_heartbeat_locked():
+                            self._heartbeat_timeout_at = \
+                                time.time() + self._heartbeat_interval
+                            continue
+                        self._next_retry_at = time.time() + self._next_retry_at 
+                    else:
+                        wait_timeout = min(wait_timeout,
+                            self._heartbeat_timeout_at - now) 
+                elif self._state in Bridge._CALL_CLOSE_STATES:
+                    if self._call_connect_locked():
                         continue
-                    else:
-                        raise RuntimeError("unexcepted type:" \
-                            " {}".format(bridge_pb2.CallType.Name(type)))
-                elif res.code == bridge_pb2.Code.UNCONNECTED:
-                    if type == bridge_pb2.CallType.HEARTBEAT:
-                        self._connected = False
-                        continue
-                    elif type == bridge_pb2.CallType.CLOSE:
-                        self._connected = False
-                        self._closed = True
-                        continue
-                    else:
-                        raise RuntimeError("unexcepted response code:" \
-                            " {}, for calltype: {}".format( \
-                                bridge_pb2.Code.Name(res.code),
-                                bridge_pb2.CallType.Name(type)
-                            ))
-                elif res.code == bridge_pb2.Code.CLOSED:
-                    if type == bridge_pb2.CallType.CONNECT:
-                        logging.error("[Bridge] try to connect to"
-                            " a closed bridge")
-                        wait_timeout = min(wait_timeout, self._retry_interval)
-                    elif type == bridge_pb2.CallType.CLOSE:
-                        self._connected = False
-                        self._closed = True
-                    elif type == bridge_pb2.CallType.HEARTBEAT:
-                        self._connected = False
-                    else:
-                        raise RuntimeError("unexcepted response code:" \
-                            " {}, for calltype: {}".format( \
-                                bridge_pb2.Code.Name(res.code),
-                                bridge_pb2.CallType.Name(type)
-                            ))
-                elif res.code == bridge_pb2.Code.UNAUTHORIZED:
-                    if type == bridge_pb2.CallType.CONNECT \
-                        or type == bridge_pb2.CallType.HEARTBEAT:
-                        logging.warn("[Bridge] authentication failed")
-                        wait_timeout = min(wait_timeout, self._retry_interval)
-                        self._unauthroized_callback(self)
-                    else:
-                        raise RuntimeError("unexcepted response code:" \
-                            " {}, for calltype: {}".format( \
-                                bridge_pb2.Code.Name(res.code),
-                                bridge_pb2.CallType.Name(type)
-                            ))
-                elif res.code == bridge_pb2.Code.UNIDENTIFIED:
-                    if type == bridge_pb2.CallType.CONNECT \
-                        or type == bridge_pb2.CallType.HEARTBEAT:
-                        logging.warn("[Bridge] unidentified bridge")
-                        wait_timeout = min(wait_timeout, self._retry_interval)
-                        self._unidentified_callback(self)
-                    else:
-                        raise RuntimeError("unexcepted response code:" \
-                            " {}, for calltype: {}".format( \
-                                bridge_pb2.Code.Name(res.code),
-                                bridge_pb2.CallType.Name(type)
-                            ))
-                else:
-                    logging.error("[Bridge] call return unknow code: %s", res.code.name)
+                    self._next_retry_at = time.time() + self._next_retry_at
+            else:
+               wait_timeout = min(wait_timeout,
+                        self._next_retry_at - now) 
 
-            if wait_timeout == 2**31:
-                wait_timeout = None
-            self._control_cv.notify_all()
-            self._control_cv.wait(wait_timeout)
+
+            if wait_timeout == 0:
+                continue 
+            elif wait_timeout == maxint:
+                wait_timeout == None
+            self._state_condition.notify_all()
+            self._state_condition.wait(wait_timeout)
 
         # done
-        self._lock.release()
+        self._state_condition.release()
         self._client.close()
         self._server.stop(None)
 
-        logging.debug("[Bridge] thread _control_fn stop")
-
-    def _call(self, req):
-        try:
-            logging.debug("[Bridge] call request type: %s", bridge_pb2.CallType.Name(req.type))
-            res = self._client.call(req)
-            logging.debug("[Bridge] call response code: %s", bridge_pb2.Code.Name(res.code))
-        except grpc.RpcError as e:
-            res = None
-            logging.warn("[Bridge] call error: %s", str(e))
-        except:
-            raise
-
-        return res
+        logging.debug("[Bridge] thread _state_fn stop")
 
     def _call_handler(self, request, context):
-        with self._control_cv:
-            if request.type == bridge_pb2.CallType.CONNECT:
-                if self._peer_closed:
-                    return bridge_pb2.CallResponse(
-                        code=bridge_pb2.Code.CLOSED)
+        with self._state_condition:
+            if self._state in Bridge._PEER_CLOSED_STATUS:
+                return bridge_pb2.CallResponse(
+                    code=bridge_pb2.Code.CLOSED)
 
+            if request.type == bridge_pb2.CallType.CONNECT:
                 self._peer_heartbeat_timeout_at = \
                     time.time() + self._heartbeat_timeout
-                if not self._peer_connected:
-                    self._peer_connected = True
-                    self._ready_notify_if_need()
-                    self._control_cv.notify_all()
+                self._state = Bridge._next_state(self._state,
+                    Bridge._Event.PEER_CONNECTED)
+                self._state_condition.notify_all()
             elif request.type == bridge_pb2.CallType.HEARTBEAT:
-                if self._peer_closed:
-                    return bridge_pb2.CallResponse(
-                        code=bridge_pb2.Code.CLOSED)
                 if not self._peer_connected:
                     return bridge_pb2.CallResponse(
                         code=bridge_pb2.Code.UNCONNECTED)
-
                 self._peer_heartbeat_timeout_at = \
                     time.time() + self._heartbeat_timeout
-                # no notify
             elif request.type == bridge_pb2.CallType.CLOSE:
                 self._peer_connected = False
                 self._peer_closed = True
-                self._control_cv.notify_all()
+                self._state_condition.notify_all()
+                self._state = Bridge._next_state(self._state,
+                    Bridge._Event.PEER_CLOSED)
+                self._state_condition.notify_all()
             else:
                 return bridge_pb2.CallResponse(code=bridge_pb2.Code.UNKNOW_TYPE)
 

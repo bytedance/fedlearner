@@ -6,18 +6,19 @@ import logging
 import threading
 import signal
 
-import greester_pb2, greester_pb2_grpc
+
+import greeter_pb2, greeter_pb2_grpc
 from fedlearner.bridge import bridge
 
-class GreesterrHandler(greester_pb2_grpc.GreesterServicer):
+class GreeterrHandler(greeter_pb2_grpc.GreeterServicer):
     def HelloUnaryUnary(self, request, context):
         #print(f'HelloUnaryUnary receive: {request.name}')
-        return greester_pb2.Response(message=f"Hello {request.name}")
+        return greeter_pb2.Response(message=f"Hello {request.name}")
 
     def HelloUnaryStream(self, request, context):
         #print(f'HelloUnaryStream receive: {request.name}')
         for i in range(2):
-            yield greester_pb2.Response(message=f"Hello {request.name}")
+            yield greeter_pb2.Response(message=f"Hello {request.name}")
 
     def HelloStreamUnary(self, request_iterator, context):
         names = []
@@ -25,35 +26,35 @@ class GreesterrHandler(greester_pb2_grpc.GreesterServicer):
             #print(f'HelloStreamUnary receive:{req.name}')
             names.append(req.name)
 
-        return greester_pb2.Response(message="Hello {}".format(",".join(names)))
+        return greeter_pb2.Response(message="Hello {}".format(",".join(names)))
 
     def HelloStreamStream(self, request_iterator, context):
         for req in request_iterator:
             #print(f'HelloStreamStream receive:{req.name}')
-            yield greester_pb2.Response(message=f"Hello {req.name}")
+            yield greeter_pb2.Response(message=f"Hello {req.name}")
+            time.sleep(1)
 
 def client_run_fn(bridge):
-    client = greester_pb2_grpc.GreesterStub(bridge)
-    while not bridge.is_closed:
-        res = client.HelloUnaryUnary(greester_pb2.Request(name='UnaryUnary'))
-        print("Greeter HelloUnaryUnary return: " + res.message)
-
-        res_iter = client.HelloUnaryStream(greester_pb2.Request(name='UnaryStream'))
-        for res in res_iter:
-            print("Greeter HelloUnaryStream return: " + res.message)
-
-        def req_iter(name):
-            for _ in range(2):
-                yield greester_pb2.Request(name=name)
-
-        res = client.HelloStreamUnary(req_iter('StreamUnary'))
-        print("Greeter HelloStreamUnary return: " + res.message)
-
-        res_iter = client.HelloStreamStream(req_iter('StreamStream'))
-        for res in res_iter:
-            print("Greeter HelloStreamStream return: " + res.message)
-
-        time.sleep(5)
+    client = greeter_pb2_grpc.GreeterStub(bridge)
+    #while not bridge.is_closed:
+#        res = client.HelloUnaryUnary(greeter_pb2.Request(name='UnaryUnary'))
+#        print("Greeter HelloUnaryUnary return: " + res.message)
+#
+#        res_iter = client.HelloUnaryStream(greeter_pb2.Request(name='UnaryStream'))
+#        for res in res_iter:
+#            print("Greeter HelloUnaryStream return: " + res.message)
+#
+    def req_iter(name):
+        for i in range(10000000):
+            yield greeter_pb2.Request(name=str(i))
+            time.sleep(0.5)
+#
+#    res = client.HelloStreamUnary(req_iter('StreamUnary'))
+#    print("Greeter HelloStreamUnary return: " + res.message)
+#
+    res_iter = client.HelloStreamStream(req_iter('StreamStream'))
+    for res in res_iter:
+        print("Greeter HelloStreamStream return: " + res.message)
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG, format="[%(levelname)s] %(asctime)s: %(message)s in %(pathname)s:%(lineno)d")
@@ -61,10 +62,11 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--listen_addr', type=str, default='[::]:50050')
     parser.add_argument('--remote_addr', type=str, default='[::]:50051')
+    parser.add_argument('--client', action='store_true')
     args = parser.parse_args()
 
     bridge = bridge.Bridge(args.listen_addr, args.remote_addr)
-    greester_pb2_grpc.add_GreesterServicer_to_server(GreesterrHandler(), bridge) 
+    greeter_pb2_grpc.add_GreeterServicer_to_server(GreeterrHandler(), bridge) 
 
     def signal_handler(signum, _):
         logging.warn("receiver signal: %d, will close bridge", signum)
@@ -73,9 +75,10 @@ if __name__ == "__main__":
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGHUP, signal_handler)
 
-    thread = threading.Thread(target=client_run_fn,
-        args=(bridge,), daemon=True)
-    thread.start()
+    if args.client:
+        thread = threading.Thread(target=client_run_fn,
+            args=(bridge,), daemon=True)
+        thread.start()
 
     bridge.start()
     bridge.wait_for_stopped()

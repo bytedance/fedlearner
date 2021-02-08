@@ -98,9 +98,9 @@ class _Server(grpc.Server):
         if not self._check_token(token):
             return bridge_pb2.CallResponse(
                 code=bridge_pb2.Code.UNAUTHROIZE)
-        if not self._check_identifier(identifier, peer_identifier):
-            return bridge_pb2.CallResponse(
-                code=bridge_pb2.Code.UNIDENTIFIED)
+        #if not self._check_identifier(identifier, peer_identifier):
+        #    return bridge_pb2.CallResponse(
+        #        code=bridge_pb2.Code.UNIDENTIFIED)
 
         return None
 
@@ -172,18 +172,23 @@ class _Server(grpc.Server):
             context.invocation_metadata,
         ))
 
-        def r_req_iterator():
-            for request in request_iterator:
-                yield handler.request_deserializer(request.payload)
+        ack = None
 
-        r_res_iter = handler.stream_stream(r_req_iterator(), context)
-        def res_iter():
-            for r_res in r_res_iter:
+        def req_iterator():
+            nonlocal ack
+            for req in request_iterator:
+                ack = req.seq
+                yield handler.request_deserializer(req.payload)
+
+        res_iterator = handler.stream_stream(req_iterator(), context)
+        def response_iterator():
+            for res in res_iterator:
                 yield bridge_pb2.SendResponse(
-                    payload=handler.response_serializer(r_res)
+                    ack=ack,
+                    payload=handler.response_serializer(res)
                 )
 
-        return res_iter()
+        return response_iterator()
 
     class BridgeServicer(bridge_pb2_grpc.BridgeServicer):
         def __init__(self, server):

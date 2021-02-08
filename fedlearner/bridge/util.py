@@ -2,6 +2,8 @@
 
 import fedlearner.bridge.const
 
+maxint = 2**32-1
+
 def _method_encode(s):
     if isinstance(s, bytes):
         return s

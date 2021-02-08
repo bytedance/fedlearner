@@ -1,9 +1,12 @@
 # -*- coding: utf-8 -*-
 
+import collections
+from fedlearner import bridge
 import logging
 import time
 import grpc
 import threading
+import uuid
 
 import fedlearner.bridge.const as const
 import fedlearner.bridge.util as util
@@ -386,23 +389,105 @@ class _StreamStreamMultiCallable(grpc.StreamStreamMultiCallable):
                  credentials=None,
                  wait_for_ready=None,
                  compression=None):
-        def r_req_iter():
+
+        srq = _SendRequestQueue()
+
+        def req_process():
             for req in request_iterator:
-                yield bridge_pb2.SendRequest(
-                    payload=self._request_serializer(req),
+                srq.wait_for_available()
+                srq.append(
+                    bridge_pb2.SendRequest(
+                        payload=self._request_serializer(req))
                 )
-        res_iter = self._channel._send_stream_stream(
-            self._method,
-            r_req_iter(),
-            timeout,
-            metadata,
-            credentials,
-            wait_for_ready,
-            compression,
-        )
+            srq.close()
 
-        def r_res_iter():
-            for res in res_iter:
-                yield self._response_deserializer(res.payload)
+        threading.Thread(target=req_process, daemon=True).start()
 
-        return r_res_iter()
+        def response_iterator():
+            while True:
+                srq.reset()
+                resonse_iterator = self._channel._send_stream_stream(
+                    self._method,
+                    srq,
+                    timeout,
+                    metadata,
+                    credentials,
+                    wait_for_ready,
+                    compression,
+                )
+                try:
+                    for res in resonse_iterator:
+                        srq.ack(res.ack)
+                        yield self._response_deserializer(res.payload)
+                except grpc.RpcError as e:
+                    if e.code() == grpc.StatusCode.UNAVAILABLE:
+                        continue
+                    raise e
+
+        return response_iterator()
+
+class _SendRequestQueue():
+    def __init__(self):
+        self._seq = 0
+        self._next = 0
+        self._deque = collections.deque()
+        self._condition = threading.Condition()
+        self._err = None
+        self._closed = False
+
+    def append(self, req):
+        with self._condition:
+            self._seq += 1
+            req.seq = self._seq
+            self._deque.append(req)
+            self._condition.notify_all()
+
+    def wait_for_available(self):
+        with self._condition:
+            if self._next < len(self._deque):
+                self._condition.wait()
+
+    def ack(self, ack):
+        with self._condition:
+            if ack > self._seq:
+                return
+            n = len(self._deque) - (self._seq - ack)
+            if n < 0:
+                return
+            for i in range(n):
+                self._deque.popleft()
+            self._next -= n 
+            assert self._next >= 0
+
+    def close(self, err=None):
+        with self._condition:
+            self._closed = True
+            self._err = err
+            self._condition.notify_all()
+
+    def reset(self):
+        with self._condition:
+            self._next = 0
+
+    def __len__(self):
+        with self._condition:
+            return len(self._deque)
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        with self._condition:
+            while self._next >= len(self._deque):
+                if self._closed:
+                    if self._err:
+                        raise self._err
+                    raise StopIteration()
+                self._condition.wait()
+            req = self._deque[self._next]
+            self._next += 1
+            if self._next == len(self._deque):
+                self._condition.notify_all()
+            return req
+
+
