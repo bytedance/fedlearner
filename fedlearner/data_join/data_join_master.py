@@ -14,47 +14,50 @@
 
 # coding: utf-8
 
-import threading
 import logging
+import os
+import threading
+import time
 from concurrent import futures
 
 import grpc
+import tensorflow as tf
 from google.protobuf import empty_pb2, timestamp_pb2
+from elasticsearch import Elasticsearch
 
 from fedlearner.common import common_pb2 as common_pb
 from fedlearner.common import data_join_service_pb2 as dj_pb
 from fedlearner.common import data_join_service_pb2_grpc as dj_grpc
-
 from fedlearner.common.mysql_client import DBClient
-from fedlearner.proxy.channel import make_insecure_channel, ChannelType
-
-from fedlearner.data_join.routine_worker import RoutineWorker
+from fedlearner.data_join.common import retrieve_data_source, commit_data_source
 from fedlearner.data_join.raw_data_manifest_manager import (
     RawDataManifestManager
 )
-from fedlearner.data_join.common import (retrieve_data_source,
-                                         commit_data_source)
+from fedlearner.data_join.routine_worker import RoutineWorker
+from fedlearner.proxy.channel import make_insecure_channel, ChannelType
+
 
 class MasterFSM(object):
-    INVALID_PEER_FSM_STATE = {}
-    INVALID_PEER_FSM_STATE[common_pb.DataSourceState.Init] = set(
-            [common_pb.DataSourceState.Failed,
-             common_pb.DataSourceState.Ready,
-             common_pb.DataSourceState.Finished]
-        )
-    INVALID_PEER_FSM_STATE[common_pb.DataSourceState.Processing] = set(
-            [common_pb.DataSourceState.Failed,
-             common_pb.DataSourceState.Finished]
-        )
-    INVALID_PEER_FSM_STATE[common_pb.DataSourceState.Ready] = set(
-            [common_pb.DataSourceState.Failed,
-             common_pb.DataSourceState.Init]
-        )
-    INVALID_PEER_FSM_STATE[common_pb.DataSourceState.Finished] = set(
-            [common_pb.DataSourceState.Failed,
-             common_pb.DataSourceState.Init,
-             common_pb.DataSourceState.Processing]
-        )
+    INVALID_PEER_FSM_STATE = {  # dict of sets
+        common_pb.DataSourceState.Init: {
+            common_pb.DataSourceState.Failed,
+            common_pb.DataSourceState.Ready,
+            common_pb.DataSourceState.Finished
+        },
+        common_pb.DataSourceState.Processing: {
+            common_pb.DataSourceState.Failed,
+            common_pb.DataSourceState.Finished
+        },
+        common_pb.DataSourceState.Ready: {
+            common_pb.DataSourceState.Failed,
+            common_pb.DataSourceState.Init
+        },
+        common_pb.DataSourceState.Finished: {
+            common_pb.DataSourceState.Failed,
+            common_pb.DataSourceState.Init,
+            common_pb.DataSourceState.Processing
+        }
+    }
 
     def __init__(self, peer_client, data_source_name, kvstore, batch_mode):
         self._lock = threading.Lock()
@@ -107,7 +110,6 @@ class MasterFSM(object):
                 logging.warning("Faile to set state to %d with exception %s",
                                 new_state, e)
                 return False
-            return True
 
     def start_fsm_worker(self):
         with self._lock:
@@ -137,13 +139,13 @@ class MasterFSM(object):
             data_source = self._sync_data_source()
             state = data_source.state
             if self._fallback_failed_state(peer_info):
-                logging.warning("%s at state %d, Peer at state %d "\
+                logging.warning("%s at state %d, Peer at state %d "
                                 "state invalid! abort data source %s",
                                 self._role_repr, state,
                                 peer_info.state, self._data_source_name)
             elif state not in self._fsm_driven_handle:
                 logging.error("%s at error state %d for data_source %s",
-                               self._role_repr, state, self._data_source_name)
+                              self._role_repr, state, self._data_source_name)
             else:
                 state_changed = self._fsm_driven_handle[state](peer_info)
                 if state_changed:
@@ -191,18 +193,18 @@ class MasterFSM(object):
 
     def _init_fsm_action(self):
         self._fsm_driven_handle = {
-             common_pb.DataSourceState.UnKnown:
-                 self._get_fsm_action('unknown'),
-             common_pb.DataSourceState.Init:
-                 self._get_fsm_action('init'),
-             common_pb.DataSourceState.Processing:
-                 self._get_fsm_action('processing'),
-             common_pb.DataSourceState.Ready:
-                 self._get_fsm_action('ready'),
-             common_pb.DataSourceState.Finished:
-                 self._get_fsm_action('finished'),
-             common_pb.DataSourceState.Failed:
-                 self._get_fsm_action('failed')
+            common_pb.DataSourceState.UnKnown:
+                self._get_fsm_action('unknown'),
+            common_pb.DataSourceState.Init:
+                self._get_fsm_action('init'),
+            common_pb.DataSourceState.Processing:
+                self._get_fsm_action('processing'),
+            common_pb.DataSourceState.Ready:
+                self._get_fsm_action('ready'),
+            common_pb.DataSourceState.Finished:
+                self._get_fsm_action('finished'),
+            common_pb.DataSourceState.Failed:
+                self._get_fsm_action('failed')
         }
 
     def _get_fsm_action(self, action):
@@ -306,6 +308,7 @@ class MasterFSM(object):
                 return False
         return True
 
+
 class DataJoinMaster(dj_grpc.DataJoinMasterServiceServicer):
     def __init__(self, peer_client, data_source_name,
                  db_database, db_base_dir, db_addr,
@@ -313,13 +316,106 @@ class DataJoinMaster(dj_grpc.DataJoinMasterServiceServicer):
         super(DataJoinMaster, self).__init__()
         self._data_source_name = data_source_name
         kvstore = DBClient(db_database, db_addr, db_username,
-                            db_password, db_base_dir,
-                            options.use_mock_etcd)
+                           db_password, db_base_dir, options.use_mock_etcd)
         self._options = options
         self._fsm = MasterFSM(peer_client, data_source_name,
                               kvstore, self._options.batch_mode)
-        self._data_source_meta = \
-                self._fsm.get_data_source().data_source_meta
+        self._peer_client = peer_client
+        self._data_source_meta = self._fsm.get_data_source().data_source_meta
+        self._peer_rollback = -1
+        self._peer_written = False
+        self._local_rollback = -1
+        self._local_written = False
+        self._rollback = 0
+        self._rollback_checked = False
+        self._allow_rollback = options.allow_rollback
+
+    def check_rollback(self):
+        # allow rollback should be set for both local and peer, otherwise the
+        # result is undefined; or we could default to check rollback.
+        if not self._allow_rollback:
+            self._rollback_checked = True
+            return False
+        datasource = self._fsm.get_data_source()
+        flag_file = os.path.join(datasource.output_base_dir, 'rollback.flag')
+        if not tf.gfile.Exists(flag_file):
+            logging.info('No local rollback flag found. Syncing with peer.')
+            self._local_rollback = 0
+        else:
+            with tf.gfile.GFile(flag_file, 'rb') as f:
+                rollback = timestamp_pb2.Timestamp()
+                rollback.ParseFromString(f.read())
+            self._local_rollback = max(rollback.seconds, 0)
+            logging.info('Local rollback flag found, timestamp %d.',
+                         self._local_rollback)
+        # both call from peer or response from peer can stop the iteration
+        while self._peer_rollback == -1:
+            self._rollback_sync_retry()
+            # mark as not responding if peer returns -1 or grpc error.
+            logging.info('Peer master not responding. Sleep 3s and retry.')
+            time.sleep(3)
+        logging.info('Peer rollback timestamp: %d.', self._peer_rollback)
+
+        # convert to opposite number to get the smallest positive timestamp
+        # in case one of the timestamps is 0
+        self._rollback = -max(-self._local_rollback, -self._peer_rollback)
+        if self._rollback <= 0:
+            logging.info('Not rolling back.')
+            self._rollback_checked = True
+            return False
+        # set flag file to every partition on HDFS
+        data_dir = os.path.join(datasource.output_base_dir, 'data_block')
+        id_dir = os.path.join(datasource.output_base_dir, 'example_dump')
+        serialized_timestamp = timestamp_pb2.Timestamp(seconds=self._rollback)\
+            .SerializeToString()
+        for partition in tf.gfile.ListDirectory(data_dir):
+            with tf.gfile.GFile(os.path.join(data_dir, partition,
+                                             'rollback.flag'), 'wb') as f:
+                f.write(serialized_timestamp)
+        for partition in tf.gfile.ListDirectory(id_dir):
+            with tf.gfile.GFile(os.path.join(id_dir, partition,
+                                             'rollback.flag'), 'wb') as f:
+                f.write(serialized_timestamp)
+        self._local_written = True
+        logging.info('Done setting rollback flag to partitions.')
+        # wait for peer to write
+        while not self._peer_written:
+            self._rollback_sync_retry()
+            logging.info('Peer master not yet writes flag. Sleep 3s and retry.')
+            time.sleep(3)
+
+        # roll back datasource manifest
+        self._fsm.get_mainifest_manager().rollback_manifest()
+        logging.info('Done rollback manifests.')
+        # remove original flag file
+        tf.gfile.Remove(flag_file)
+        logging.info('Done removing original flag file.')
+        self._rollback_checked = True
+        return True
+
+    def _rollback_sync_retry(self):
+        try:
+            resp = self._peer_client.RollbackSync(
+                dj_pb.RollbackSyncRequest(
+                    timestamp=timestamp_pb2.Timestamp(
+                        seconds=self._local_rollback),
+                    written=self._local_written
+                )
+            )
+            self._peer_rollback = max(self._peer_rollback, resp.timestamp)
+            self._peer_written = resp.written
+        except grpc.RpcError:
+            pass
+
+    def RollbackSync(self, request, context):
+        self._peer_rollback = max(self._peer_rollback,
+                                  request.timestamp.seconds)
+        self._peer_written = request.written
+        # will send -1 and False to peer if self not yet parse from flag file
+        return dj_pb.RollbackSyncResponse(
+            timestamp=timestamp_pb2.Timestamp(seconds=self._local_rollback),
+            written=self._local_written
+        )
 
     def GetDataSource(self, request, context):
         return self._fsm.get_data_source()
@@ -342,6 +438,11 @@ class DataJoinMaster(dj_grpc.DataJoinMasterServiceServicer):
 
     def RequestJoinPartition(self, request, context):
         response = dj_pb.RawDataResponse()
+        if not self._rollback_checked:
+            response.status.code = -3
+            response.status.error_message = \
+                "Master rollback sync not yet finish."
+            return response
         meta_status = self._check_data_source_meta(request.data_source_meta)
         if meta_status.code != 0:
             response.status.MergeFrom(meta_status)
@@ -354,13 +455,13 @@ class DataJoinMaster(dj_grpc.DataJoinMasterServiceServicer):
         if data_source.state != common_pb.DataSourceState.Processing:
             response.status.code = -3
             response.status.error_message = \
-                    "data source is not at processing state"
+                "data source is not at processing state"
         else:
             manifest_manager = self._fsm.get_mainifest_manager()
             rank_id = request.rank_id
             manifest = None
             partition_id = None if request.partition_id < 0 \
-                    else request.partition_id
+                else request.partition_id
             if request.HasField('sync_example_id'):
                 manifest = manifest_manager.alloc_sync_exampld_id(
                         rank_id, partition_id
@@ -373,12 +474,13 @@ class DataJoinMaster(dj_grpc.DataJoinMasterServiceServicer):
                 response.status.code = -4
                 response.status.error_message = "request not support"
             if response.status.code == 0:
+                response.rollback = timestamp_pb2\
+                    .Timestamp(seconds=self._rollback)
                 if manifest is not None:
                     response.manifest.MergeFrom(manifest)
                 else:
                     assert partition_id is None, \
-                        "only the request without appoint partition "\
-                        "support response no manifest"
+                        "manifest should not be None if partition id is given."
                     response.finished.MergeFrom(empty_pb2.Empty())
         return response
 
@@ -520,6 +622,7 @@ class DataJoinMaster(dj_grpc.DataJoinMasterServiceServicer):
 
     def start_fsm(self):
         self._fsm.start_fsm_worker()
+        self.check_rollback()
 
     def stop_fsm(self):
         self._fsm.stop_fsm_worker()

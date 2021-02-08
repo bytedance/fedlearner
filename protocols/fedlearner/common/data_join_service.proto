@@ -103,6 +103,21 @@ message RawDataResponse {
     google.protobuf.Empty finished = 3;
     google.protobuf.Timestamp timestamp = 4;
   }
+  google.protobuf.Timestamp rollback = 5;
+}
+
+message RollbackSyncRequest {
+  oneof msg {
+    google.protobuf.Timestamp timestamp = 1;
+    bool written = 2;
+  }
+}
+
+message RollbackSyncResponse {
+  oneof msg {
+    google.protobuf.Timestamp timestamp = 1;
+    bool written = 2;
+  }
 }
 
 service DataJoinMasterService {
@@ -116,6 +131,7 @@ service DataJoinMasterService {
   rpc AddRawData(RawDataRequest) returns (Status) {}
   rpc ForwardPeerDumpedIndex(RawDataRequest) returns (Status) {}
   rpc GetRawDataLatestTimeStamp(RawDataRequest) returns (RawDataResponse) {}
+  rpc RollbackSync(RollbackSyncRequest) returns (RollbackSyncResponse) {}
 }
 
 enum DataBlockType {
@@ -278,6 +294,7 @@ message DataJoinWorkerOptions {
 message DataJoinMasterOptions {
   bool use_mock_etcd = 1;
   bool batch_mode = 2;
+  bool allow_rollback = 3;
 }
 
 message ExampleValidatorOptions {

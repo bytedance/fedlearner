@@ -76,6 +76,19 @@ class RawDataManifestManager(object):
             manifest.finished = True
             self._update_manifest(manifest)
 
+    def rollback_manifest(self):
+        sync = dj_pb.SyncExampleIdState
+        join = dj_pb.JoinExampleState
+        for partition_id in range(self._partition_num):
+            manifest = self._sync_manifest(partition_id)
+            if manifest.sync_example_id_rep.state == sync.Synced:
+                manifest.sync_example_id_rep.state = sync.Syncing
+            if manifest.join_example_rep.state == join.Joined:
+                manifest.join_example_rep.state = join.Joining
+            manifest.peer_dumped_index = 0
+            # TODO determine whether need to set manifest.finished to False
+            self._update_manifest(manifest)
+
     def alloc_sync_exampld_id(self, rank_id, partition_id=None):
         if partition_id is not None:
             self._check_partition_id(partition_id)
