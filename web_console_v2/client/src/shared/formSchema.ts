@@ -15,13 +15,60 @@ import VariableLabel from 'components/VariableLabel/index';
 import { cloneDeep, merge } from 'lodash';
 import variablePresets, { VariablePresets } from './variablePresets';
 
+// ------- Build form Formily schema --------
+type BuildOptions = {
+  withPermissions?: boolean;
+};
+
+// Make option variables name end with __OPTION
+// for better recognition
+let withPermissions__OPTION = false;
+
+function _enableOptions(options?: BuildOptions) {
+  if (!options) return;
+
+  withPermissions__OPTION = !!options.withPermissions;
+}
+function _resetOptions() {
+  withPermissions__OPTION = false;
+}
+
+/**
+ * Give a job definition with varables inside, return a formily form-schema,
+ * during progress we will merge client side variable presets with inputs
+ * learn more at ./variablePresets.ts
+ */
+export default function buildFormSchemaFromJobDef(job: Job, options?: BuildOptions): FormilySchema {
+  const { variables, name } = cloneDeep(job);
+  const schema: FormilySchema = {
+    type: 'object',
+    title: name,
+    properties: {},
+  };
+
+  return variables.reduce((schema, current, index) => {
+    const worker =
+      componentToWorkersMap[current.widget_schema?.component || VariableComponent.Input];
+
+    current.widget_schema = _mergeVariableSchemaWithPresets(current, variablePresets);
+    current.widget_schema.index = index;
+
+    _enableOptions(options);
+
+    Object.assign(schema.properties, worker(current));
+
+    _resetOptions();
+
+    return schema;
+  }, schema);
+}
+
 //---- Variable to Schema private helpers --------
 
 function _getPermissions({ access_mode }: Variable) {
   return {
-    // FIXME: only control participant side's permissions
-    readOnly: false && access_mode === VariableAccessMode.PEER_READABLE,
-    display: true || access_mode !== VariableAccessMode.PRIVATE,
+    readOnly: withPermissions__OPTION && access_mode === VariableAccessMode.PEER_READABLE,
+    display: withPermissions__OPTION === false ? true : access_mode !== VariableAccessMode.PRIVATE,
   };
 }
 
@@ -256,7 +303,7 @@ export function createUpload(variable: Variable): FormilySchema {
   };
 }
 
-// ---- Component to Workers map --------
+// ---- Component to Worker map --------
 const componentToWorkersMap: { [key: string]: (v: Variable) => FormilySchema } = {
   [VariableComponent.Input]: createInput,
   [VariableComponent.Checkbox]: createCheckbox,
@@ -267,35 +314,6 @@ const componentToWorkersMap: { [key: string]: (v: Variable) => FormilySchema } =
   [VariableComponent.NumberPicker]: createNumberPicker,
   [VariableComponent.Upload]: createUpload,
 };
-
-/**
- * Merge server side variable.widget_schema with client side's preset
- * NOTE: server side's config should always priority to client side!
- */
-function mergeVariableSchemaWithPresets(variable: Variable, presets: VariablePresets) {
-  return Object.assign(presets[variable.name] || {}, variable.widget_schema);
-}
-
-/** Return a formily acceptable schema by server job definition */
-export function buildFormSchemaFromJobDef(job: Job): FormilySchema {
-  const { variables, name } = cloneDeep(job);
-  const schema: FormilySchema = {
-    type: 'object',
-    title: name,
-    properties: {},
-  };
-
-  return variables.reduce((schema, current, index) => {
-    const worker = componentToWorkersMap[current.widget_schema?.component] || createInput;
-
-    current.widget_schema = mergeVariableSchemaWithPresets(current, variablePresets);
-    current.widget_schema.index = index;
-
-    Object.assign(schema.properties, worker(current));
-
-    return schema;
-  }, schema);
-}
 
 export function stringifyWidgetSchemas<
   T extends
@@ -359,4 +377,14 @@ export function parseWidgetSchemas<
       variable.widget_schema = variable.widget_schema ? JSON.parse(variable.widget_schema) : {};
     }
   }
+}
+
+// -------------- Private helpers ---------------
+
+/**
+ * Merge server side variable.widget_schema with client side's preset
+ * NOTE: server side's config should always priority to client side!
+ */
+function _mergeVariableSchemaWithPresets(variable: Variable, presets: VariablePresets) {
+  return Object.assign(presets[variable.name] || {}, variable.widget_schema);
 }

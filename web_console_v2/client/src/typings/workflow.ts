@@ -34,18 +34,18 @@ export interface VariableWidgetSchema
     WidgetWithOptionsSchema {
   /** ------ Metas ------ */
   // which component to use
-  component: VariableComponent;
+  component?: VariableComponent;
 
   /** ------ Datas ------ */
   // NOTE: for array type value, it clould be either a Multiple-select/Checkbox
   // or a Group-items which allow user add | delete. eg. ENV field
-  type: 'string' | 'number' | 'boolean' | 'array' | 'object';
+  type?: 'string' | 'number' | 'boolean' | 'array' | 'object';
 
   /** ------ UIs ------ */
   // i18n key for job name form-item label
-  label: string;
+  label?: string;
   // display order
-  index: number;
+  index?: number;
   // will render a question icon beside the label, hover it to show the tooltip
   tooltip?: string;
   // will render some text below the form item

@@ -8,17 +8,13 @@ import React, {
 import styled from 'styled-components';
 import { CloseOutlined } from '@ant-design/icons';
 import { Drawer, Row, Button } from 'antd';
-import { buildFormSchemaFromJobDef } from 'shared/formSchema';
+import buildFormSchemaFromJobDef from 'shared/formSchema';
 import VariableSchemaForm, { formActions } from 'components/VariableSchemaForm';
 import { FormilySchema } from 'typings/formily';
 import GridRow from 'components/_base/GridRow';
 import VariablePermission from 'components/VariblePermission';
 import { DrawerProps } from 'antd/lib/drawer';
-import {
-  getNodeIdByJob,
-  JobNodeStatus,
-  NodeDataRaw,
-} from 'components/WorkflowJobsFlowChart/helpers';
+import { NodeDataRaw } from 'components/WorkflowJobsFlowChart/types';
 import { cloneDeep, Dictionary, noop } from 'lodash';
 import { IFormState } from '@formily/antd';
 import { giveWeakRandomKey, to } from 'shared/helpers';
@@ -58,6 +54,7 @@ const FormContainer = styled.div`
 `;
 
 interface Props extends DrawerProps {
+  isPeerSide?: boolean;
   currentIdx?: number;
   nodesCount: number;
   jobDefinition?: NodeDataRaw;
@@ -75,6 +72,7 @@ export type JobFormDrawerExposedRef = {
 
 const JobFormDrawer: ForwardRefRenderFunction<JobFormDrawerExposedRef, Props> = (
   {
+    isPeerSide,
     currentIdx,
     nodesCount,
     jobDefinition,
@@ -100,10 +98,10 @@ const JobFormDrawer: ForwardRefRenderFunction<JobFormDrawerExposedRef, Props> = 
       // in order to hydrate the Form, we need get user-inputs (whick stored on `workflowConfigForm`)
       // and merge the user-inputs to definition
       const jobDefWithValues = _hydrate(jobDefinition, initialValues);
-      const schema = buildFormSchemaFromJobDef(jobDefWithValues);
+      const schema = buildFormSchemaFromJobDef(jobDefWithValues, { withPermissions: isPeerSide });
       setFormSchema(schema);
     }
-  }, [jobDefinition, initialValues]);
+  }, [jobDefinition, initialValues, isPeerSide]);
 
   useImperativeHandle(parentRef, () => {
     return {

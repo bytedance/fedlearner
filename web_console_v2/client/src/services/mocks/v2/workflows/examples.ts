@@ -39,7 +39,7 @@ export const newlyCreated = {
           {
             name: 'job_name',
             value: '1',
-            access_mode: 'PEER_WRITABLE' as VariableAccessMode,
+            access_mode: 'PEER_READABLE' as VariableAccessMode,
             widget_schema: '{"component":"Input","type":"string","required":true}' as any,
           },
         ],
@@ -86,7 +86,16 @@ export const newlyCreated = {
         yaml_template: '',
       },
     ],
-    variables: [],
+    variables: [
+      {
+        name: 'image_version',
+        value: 'v1.5-rc3',
+        access_mode: VariableAccessMode.PEER_READABLE,
+        widget_schema: {
+          required: true,
+        },
+      },
+    ],
   },
   forkable: true,
   comment: null,

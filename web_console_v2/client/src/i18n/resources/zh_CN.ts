@@ -24,6 +24,7 @@ const messages = {
     terms: '服务协议',
     privacy: '隐私条款',
     more: '更多',
+    confirm: '确认',
     submit: '确认',
     cancel: '取消',
     close: '关闭',

@@ -14,7 +14,7 @@ const Container = styled.div`
     content: '●';
     margin-right: 6px;
     font-size: 20px;
-    color: var(--color, #e0e0e0);
+    color: var(--color, var(--custom-color, #e0e0e0));
   }
 
   &[color='unknown'] {
@@ -32,6 +32,12 @@ const Container = styled.div`
   &[color='processing'] {
     --color: var(--primaryColor);
   }
+  &[color='gold'] {
+    --color: var(--darkGold6);
+  }
+  &[color='lime'] {
+    --color: var(--darkLime6);
+  }
 `;
 const Text = styled.span`
   margin-right: 5px;
@@ -45,10 +51,18 @@ const QuestionMark = styled(QuestionCircleOutlined)`
   color: var(--gray6);
 `;
 
-export type StateTypes = 'processing' | 'success' | 'warning' | 'error' | 'default';
+export type StateTypes =
+  | 'processing'
+  | 'success'
+  | 'warning'
+  | 'error'
+  | 'default'
+  | 'gold'
+  | 'lime';
+
 type Props = {
   tip?: string;
-  type: StateTypes | string;
+  type: StateTypes;
   text: string;
   tag?: boolean;
 };

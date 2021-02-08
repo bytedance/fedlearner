@@ -22,7 +22,7 @@ const TableContainer = styled.div`
 
 const columns = [
   {
-    title: i18n.t('workflow.name'),
+    title: i18n.t('dataset.col_file_name'),
     dataIndex: 'path',
     key: 'path',
     ellipsis: true,

@@ -118,6 +118,7 @@ const ProjectForm: FC<Props> = ({ onSubmit, isEdit, initialValues }) => {
               disabled={isEdit || loading}
             />
           </Form.Item>
+          {/* FIXME:  Enable Token input after API support */}
           {/* <Form.Item
             name="token"
             label={t('project.label_token')}

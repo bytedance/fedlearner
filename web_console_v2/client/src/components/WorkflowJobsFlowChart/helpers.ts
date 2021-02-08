@@ -1,9 +1,18 @@
-import { Node, XYPosition, Edge } from 'react-flow-renderer';
-import { Job, JobExecutionDetalis, JobState } from 'typings/job';
+import { XYPosition, Edge } from 'react-flow-renderer';
+import { Job, JobState } from 'typings/job';
 import { isHead, isLast } from 'shared/array';
 import { head, isEmpty, isNil, last } from 'lodash';
 import { Variable } from 'typings/workflow';
 import i18n from 'i18n';
+import {
+  NodeDataRaw,
+  ChartNodeType,
+  ChartNode,
+  ChartElements,
+  JobNodeStatus,
+  JobNode,
+  GlobalConfigNode,
+} from './types';
 
 const TOP_OFFSET = 100;
 const LEFT_OFFSET = 100;
@@ -13,49 +22,16 @@ export const NODE_HEIGHT = 80;
 export const GLOBAL_CONFIG_NODE_SIZE = 120;
 export const NODE_GAP = 30;
 
-export enum JobNodeStatus {
-  Pending,
-  Processing,
-  Warning,
-  Success,
-  Error,
-}
-
-export type ChartNodeType = 'config' | 'execution' | 'global' | 'fork';
-export type JobColorsMark = 'blue' | 'green' | 'yellow' | 'magenta' | 'cyan';
-/**
- * 1. At Workflow create stage, NodeDataRaw === Job or GlobalVariables
- * 2. At Workflow detail page, NodeDataRaw would contain JobExecutionDetalis and JobColorsMark additionally
- */
-export type NodeDataRaw = Job & Partial<JobExecutionDetalis> & { mark?: JobColorsMark };
-
-export type NodeData = {
-  raw: NodeDataRaw;
-  index: number;
-  isSource?: boolean;
-  isTarget?: boolean;
-  status: JobNodeStatus;
-  mark?: JobColorsMark;
-  inherit?: boolean; // When forking workflow, some node's result can be inherit
-};
-export interface JobNode extends Node {
-  data: NodeData;
-  type: ChartNodeType;
-}
-export interface GlobalConfigNode extends Node {
-  data: NodeData;
-  type: ChartNodeType;
-}
-export type ChartNode = JobNode | GlobalConfigNode;
-export type ChartNodes = ChartNode[];
-export type ChartElements = (GlobalConfigNode | JobNode | Edge)[];
-
 /**
  * Turn job defintitions to flow elements (include edges),
  * NOTE: globalVariables is considered as a Node as well
  */
 export function convertToChartElements(
-  { jobs, globalVariables }: { jobs: NodeDataRaw[]; globalVariables?: Variable[] },
+  {
+    jobs,
+    globalVariables,
+    side,
+  }: { jobs: NodeDataRaw[]; globalVariables?: Variable[]; side?: string },
   options: { type: ChartNodeType; selectable: boolean },
 ): ChartElements {
   const hasGlobalVars = !isNil(globalVariables) && !isEmpty(globalVariables);
@@ -76,7 +52,7 @@ export function convertToChartElements(
 
   // If global variables existing, always put it into first row
   if (hasGlobalVars) {
-    const globalNode = _createGlobalConfigNode({ variables: globalVariables!, options });
+    const globalNode = _createGlobalConfigNode({ variables: globalVariables!, options, side });
     rows.push([globalNode]);
     rowIdx++;
   }
@@ -87,7 +63,7 @@ export function convertToChartElements(
     }
     addANewRowIfNotExist();
 
-    const node = _createJobNode({ job, index: jobIdx, options, hasGlobalVars });
+    const node = _createJobNode({ job, index: jobIdx, options, hasGlobalVars, side });
 
     pushToCurrentRow(node);
 
@@ -182,9 +158,11 @@ export function getNodeIdByJob(job: Job) {
 function _createGlobalConfigNode({
   variables,
   options,
+  side,
 }: {
   variables: Variable[];
   options?: any;
+  side?: string;
 }): GlobalConfigNode {
   const name = i18n.t('workflow.label_global_config');
   const isFork = options?.type === 'fork';
@@ -202,6 +180,7 @@ function _createGlobalConfigNode({
       // When fork type, inherit initially set to true, status to Success
       status: isFork ? JobNodeStatus.Success : JobNodeStatus.Pending,
       inherit: isFork,
+      side,
     },
     position: { x: 0, y: 0 },
   };
@@ -212,8 +191,9 @@ function _createJobNode(params: {
   index: number;
   options: any;
   hasGlobalVars?: boolean;
+  side?: string;
 }): JobNode {
-  const { job, index, options, hasGlobalVars } = params;
+  const { job, index, options, hasGlobalVars, side } = params;
   const isFork = options?.type === 'fork';
   const status = job.state
     ? convertExecutionStateToStatus(job.state)
@@ -229,6 +209,7 @@ function _createJobNode(params: {
       mark: job.mark || undefined,
       status,
       inherit: isFork,
+      side,
     },
     position: { x: 0, y: 0 }, // position will be calculated in later step
     ...options,

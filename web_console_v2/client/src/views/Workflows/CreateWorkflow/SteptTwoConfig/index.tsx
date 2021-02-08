@@ -4,7 +4,7 @@ import { ReactFlowProvider, useStoreState, useStoreActions } from 'react-flow-re
 import { useToggle } from 'react-use';
 import JobFormDrawer, { JobFormDrawerExposedRef } from '../../JobFormDrawer';
 import WorkflowJobsFlowChart, { ChartExposedRef } from 'components/WorkflowJobsFlowChart';
-import { ChartNode, ChartNodes, JobNodeStatus } from 'components/WorkflowJobsFlowChart/helpers';
+import { ChartNode, ChartNodes, JobNodeStatus } from 'components/WorkflowJobsFlowChart/types';
 import GridRow from 'components/_base/GridRow';
 import { Button, message, Modal, Spin } from 'antd';
 import { Redirect, useHistory, useParams } from 'react-router-dom';
@@ -164,6 +164,14 @@ const CanvasAndForm: FC<WorkflowCreateProps> = ({ isInitiate, isAccept }) => {
 
     setConfigValue(nextValue);
   }
+  async function validateCurrentValues() {
+    if (!currNode) return;
+    const isValid = await drawerRef.current?.validateCurrentForm();
+    chartRef.current?.updateNodeStatusById({
+      id: currNode.id,
+      status: isValid ? JobNodeStatus.Success : JobNodeStatus.Warning,
+    });
+  }
   /** 🚀 Initiate create request */
   async function submitToCreate() {
     if (!checkIfAllJobConfigCompleted()) {
@@ -182,6 +190,10 @@ const CanvasAndForm: FC<WorkflowCreateProps> = ({ isInitiate, isAccept }) => {
           ...basicPayload,
         }) as WorkflowInitiatePayload,
       );
+
+      // FIXMEL: remove after using hashed job name
+      payload.name = payload.name.replace(/[\s]/g, '');
+
       const [, error] = await to(initiateAWorkflow(payload));
       finalError = error;
     }
@@ -208,13 +220,8 @@ const CanvasAndForm: FC<WorkflowCreateProps> = ({ isInitiate, isAccept }) => {
     const prevNode = currNode;
     if (currNode && prevNode) {
       // Validate & Save current form before go another job
+      await validateCurrentValues();
       await saveCurrentValues();
-
-      const isValid = await drawerRef.current?.validateCurrentForm();
-      chartRef.current?.updateNodeStatusById({
-        id: currNode.id,
-        status: isValid ? JobNodeStatus.Success : JobNodeStatus.Warning,
-      });
     }
 
     // Turn target node status to configuring
@@ -228,17 +235,12 @@ const CanvasAndForm: FC<WorkflowCreateProps> = ({ isInitiate, isAccept }) => {
 
   // ---------- Handlers ----------------
   async function onCanvasClick() {
+    await validateCurrentValues();
     saveCurrentValues();
     toggleDrawerVisible(false);
-    if (currNode) {
-      const isValid = await drawerRef.current?.validateCurrentForm();
-      chartRef.current?.updateNodeStatusById({
-        id: currNode.id,
-        status: isValid ? JobNodeStatus.Success : JobNodeStatus.Warning,
-      });
-    }
   }
-  function onCloseDrawer() {
+  async function onCloseDrawer() {
+    await validateCurrentValues();
     saveCurrentValues();
     setSelectedElements([]);
   }
