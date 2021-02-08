@@ -3,7 +3,7 @@ import React, { ForwardRefRenderFunction } from 'react';
 import styled from 'styled-components';
 import { Drawer, Row, Button, Tag } from 'antd';
 import { DrawerProps } from 'antd/lib/drawer';
-import { NodeData, JobNodeStatus } from 'components/WorkflowJobsFlowChart/helpers';
+import { NodeData, JobNodeStatus } from 'components/WorkflowJobsFlowChart/types';
 import { useTranslation } from 'react-i18next';
 import { Close } from 'components/IconPark';
 import GridRow from 'components/_base/GridRow';

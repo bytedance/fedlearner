@@ -121,6 +121,7 @@ const workflow: I18nMessageModule = {
   msg_non_reuse_noti: {
     zh: '{{name}} 改为不继承状态后，后续依赖  {{name}} 的任务都将切换成为“不继承”状态',
   },
+  msg_upstreaming_nonreusable: { zh: '因存在上游依赖不可继承，无法修改此任务继承与否' },
 
   title_toggle_reusable: { zh: '切换至{{state}}状态' },
 

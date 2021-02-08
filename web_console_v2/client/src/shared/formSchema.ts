@@ -14,12 +14,13 @@ import { FormilySchema } from 'typings/formily';
 import VariableLabel from 'components/VariableLabel/index';
 import { cloneDeep, merge } from 'lodash';
 import variablePresets, { VariablePresets } from './variablePresets';
+
 // ------- Build form Formily schema --------
 type BuildOptions = {
   withPermissions?: boolean;
 };
 
-// Make option variablke name ends with __OPTION
+// Make option variables name end with __OPTION
 // for better recognition
 let withPermissions__OPTION = false;
 
@@ -32,6 +33,11 @@ function _resetOptions() {
   withPermissions__OPTION = false;
 }
 
+/**
+ * Give a job definition with varables inside, return a formily form-schema,
+ * during progress we will merge client side variable presets with inputs
+ * learn more at ./variablePresets.ts
+ */
 export default function buildFormSchemaFromJobDef(job: Job, options?: BuildOptions): FormilySchema {
   const { variables, name } = cloneDeep(job);
   const schema: FormilySchema = {

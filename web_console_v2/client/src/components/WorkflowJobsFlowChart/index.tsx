@@ -9,12 +9,12 @@ import WorkflowJobNode from './WorkflowJobNode';
 import {
   ChartNodeType,
   NodeDataRaw,
-  convertToChartElements,
   JobNode,
   JobNodeStatus,
   ChartNodes,
   ChartElements,
-} from './helpers';
+} from './types';
+import { convertToChartElements } from './helpers';
 import styled from 'styled-components';
 import ReactFlow, {
   Background,
@@ -29,6 +29,7 @@ import ReactFlow, {
 import { WorkflowConfig } from 'typings/workflow';
 import { cloneDeep } from 'lodash';
 import { message } from 'antd';
+import i18n from 'i18n';
 
 const Container = styled.div`
   position: relative;
@@ -107,10 +108,10 @@ const WorkflowJobsFlowChart: ForwardRefRenderFunction<ChartExposedRef | undefine
       "[WorkflowJobsFlowChart]: Detect that current type is FORK but side has't been assigned",
     );
   }
-  const [elements, setElements] = useState<FlowElement[]>([]);
+  const [elements, setElements] = useState<ChartElements>([]);
   // ☢️ WARNING: since we using react-flow hooks here,
   // an ReactFlowProvider is REQUIRED to wrap this component inside
-  const jobNodes = useStoreState((store) => store.nodes) as ChartNodes;
+  const jobNodes = (useStoreState((store) => store.nodes) as unknown) as ChartNodes;
   const setSelectedElements = useStoreActions((actions) => actions.setSelectedElements);
 
   // To decide if need to re-generate jobElements, look out that re-gen elements
@@ -207,7 +208,8 @@ const WorkflowJobsFlowChart: ForwardRefRenderFunction<ChartExposedRef | undefine
       message.warning({
         // the key is used for making sure only one toast is allowed to show on the screen
         key: 'NOP_due_to_upstreaming_uninheritable',
-        content: '因存在上游依赖不可继承，无法修改此任务继承与否',
+        content: i18n.t('workflow.msg_upstreaming_nonreusable'),
+        duration: 2000,
       });
       return;
     }

@@ -1,9 +1,7 @@
 import { isEmpty, clone } from 'lodash';
 import { useMemo } from 'react';
 import { Job } from 'typings/job';
-import { NodeDataRaw } from './helpers';
-
-export type JobColorsMark = 'blue' | 'green' | 'yellow' | 'magenta' | 'cyan';
+import { JobColorsMark, NodeDataRaw } from './types';
 
 const COLORS_POOL: JobColorsMark[] = ['blue', 'green', 'yellow', 'magenta', 'cyan'];
 

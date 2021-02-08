@@ -9,9 +9,9 @@ import styled from 'styled-components';
 import { useTranslation } from 'react-i18next';
 import { ReactFlowProvider } from 'react-flow-renderer';
 import WorkflowJobsFlowChart, { ChartExposedRef } from 'components/WorkflowJobsFlowChart';
-import { ChartNode, JobNodeStatus, NodeData } from 'components/WorkflowJobsFlowChart/helpers';
+import { ChartNode, JobNodeStatus, NodeData } from 'components/WorkflowJobsFlowChart/types';
 import { useMarkFederatedJobs } from 'components/WorkflowJobsFlowChart/hooks';
-import { cloneDeep, Dictionary, remove } from 'lodash';
+import { cloneDeep, Dictionary } from 'lodash';
 import JobFormDrawer, { JobFormDrawerExposedRef } from '../../JobFormDrawer';
 import { useToggle } from 'react-use';
 import { Variable, WorkflowExecutionDetails } from 'typings/workflow';
@@ -72,7 +72,6 @@ const WorkflowForkStepTwoConfig: FC = () => {
   const history = useHistory();
   const params = useParams<{ id: string }>();
   const [currNode, setCurrNode] = useState<ChartNode>();
-  const [currMouseSide, setMouseSide] = useState<Side>('self');
   const [submitting, setSubmitting] = useToggle(false);
   const [side, setSide] = useState<Side>('self');
   const drawerRef = useRef<JobFormDrawerExposedRef>();
@@ -109,24 +108,7 @@ const WorkflowForkStepTwoConfig: FC = () => {
     },
   });
 
-  useSubscribe(
-    WORKFLOW_JOB_NODE_CHANNELS.change_inheritance,
-    (_: any, payload: { id: string; data: NodeData; whetherInherit: boolean }) => {
-      const sideOfNode = payload.data.side as Side;
-      if (!sideOfNode) {
-        console.error('[WorkflowForkStepTwoConfig]: assign a `side` prop to chart under forking');
-        return;
-      }
-      const targetSides = payload.data.raw.is_federated ? ALL_SIDES : [sideOfNode];
-
-      targetSides.forEach((side) => {
-        getChartRef(side)?.updateNodeInheritanceById({
-          id: payload.id, // federated jobs share the same name
-          whetherInherit: payload.whetherInherit,
-        });
-      });
-    },
-  );
+  useSubscribe(WORKFLOW_JOB_NODE_CHANNELS.change_inheritance, onNodeInheritanceChange);
 
   if (peerQuery.data?.forkable === false) {
     message.warning(t('workflow.msg_unforkable'));
@@ -376,6 +358,24 @@ const WorkflowForkStepTwoConfig: FC = () => {
     await validateCurrentValues();
     saveCurrentValues();
     targetChartRef?.setSelectedNodes([]);
+  }
+  function onNodeInheritanceChange(
+    _: any,
+    payload: { id: string; data: NodeData; whetherInherit: boolean },
+  ) {
+    const sideOfNode = payload.data.side as Side;
+    if (!sideOfNode) {
+      console.error('[WorkflowForkStepTwoConfig]: assign a `side` prop to chart under forking');
+      return;
+    }
+    const targetSides = payload.data.raw.is_federated ? ALL_SIDES : [sideOfNode];
+
+    targetSides.forEach((side) => {
+      getChartRef(side)?.updateNodeInheritanceById({
+        id: payload.id, // federated jobs share the same name
+        whetherInherit: payload.whetherInherit,
+      });
+    });
   }
 };
 

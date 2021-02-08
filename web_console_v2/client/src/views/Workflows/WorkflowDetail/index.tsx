@@ -14,8 +14,13 @@ import BreadcrumbLink from 'components/BreadcrumbLink';
 import CountTime from 'components/CountTime';
 import JobExecutionDetailsDrawer from './JobExecutionDetailsDrawer';
 import { useToggle } from 'react-use';
-import { JobNode, NodeData, NodeDataRaw } from 'components/WorkflowJobsFlowChart/helpers';
-import { JobColorsMark, useMarkFederatedJobs } from 'components/WorkflowJobsFlowChart/hooks';
+import {
+  JobNode,
+  NodeData,
+  NodeDataRaw,
+  JobColorsMark,
+} from 'components/WorkflowJobsFlowChart/types';
+import { useMarkFederatedJobs } from 'components/WorkflowJobsFlowChart/hooks';
 import PropertyList from 'components/PropertyList';
 import { Eye, EyeInvisible } from 'components/IconPark';
 import { WorkflowExecutionDetails } from 'typings/workflow';

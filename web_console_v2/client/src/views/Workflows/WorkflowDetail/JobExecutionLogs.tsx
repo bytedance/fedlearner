@@ -1,5 +1,5 @@
 import { Refresh } from 'components/IconPark';
-import { NodeDataRaw } from 'components/WorkflowJobsFlowChart/helpers';
+import { NodeDataRaw } from 'components/WorkflowJobsFlowChart/types';
 import React, { FC, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from 'react-query';

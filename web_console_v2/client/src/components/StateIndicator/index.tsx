@@ -62,8 +62,7 @@ export type StateTypes =
 
 type Props = {
   tip?: string;
-  // type can also be a color value, e.g. #e0e0e0
-  type: StateTypes | string;
+  type: StateTypes;
   text: string;
   tag?: boolean;
 };

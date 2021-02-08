@@ -47,7 +47,7 @@ export const DataBatchImportProgress: FC<{ batch: DataBatch }> = ({ batch }) => 
 
   const isImporting = state === BatchState.IMPORTING;
 
-  const indicatorPorps: React.ComponentProps<typeof StateIndicator> = {
+  const indicatorPorps: React.ComponentProps<typeof StateIndicator> = ({
     [BatchState.IMPORTING]: {
       type: 'processing',
       text: t('dataset.state_importing', { total: num_file, imported: imported_file_num }),
@@ -55,7 +55,7 @@ export const DataBatchImportProgress: FC<{ batch: DataBatch }> = ({ batch }) => 
     [BatchState.FAILED]: { type: 'error', text: t('dataset.state_error') },
     [BatchState.SUCCESS]: { type: 'success', text: t('dataset.state_available') },
     [BatchState.NEW]: { type: 'success', text: t('dataset.state_available') },
-  }[state];
+  } as const)[state];
 
   return (
     <div data-name="data-batch-import-progress">

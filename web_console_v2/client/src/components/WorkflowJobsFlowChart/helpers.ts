@@ -1,10 +1,18 @@
-import { Node, XYPosition, Edge } from 'react-flow-renderer';
-import { Job, JobExecutionDetalis, JobState } from 'typings/job';
+import { XYPosition, Edge } from 'react-flow-renderer';
+import { Job, JobState } from 'typings/job';
 import { isHead, isLast } from 'shared/array';
 import { head, isEmpty, isNil, last } from 'lodash';
 import { Variable } from 'typings/workflow';
 import i18n from 'i18n';
-import { JobColorsMark } from './hooks';
+import {
+  NodeDataRaw,
+  ChartNodeType,
+  ChartNode,
+  ChartElements,
+  JobNodeStatus,
+  JobNode,
+  GlobalConfigNode,
+} from './types';
 
 const TOP_OFFSET = 100;
 const LEFT_OFFSET = 100;
@@ -13,44 +21,6 @@ export const NODE_WIDTH = 200;
 export const NODE_HEIGHT = 80;
 export const GLOBAL_CONFIG_NODE_SIZE = 120;
 export const NODE_GAP = 30;
-
-export enum JobNodeStatus {
-  Pending,
-  Processing,
-  Warning,
-  Success,
-  Error,
-}
-
-export type ChartNodeType = 'config' | 'execution' | 'global' | 'fork';
-
-/**
- * 1. At Workflow create stage, NodeDataRaw === Job or GlobalVariables
- * 2. At Workflow detail page, NodeDataRaw would contain JobExecutionDetalis and JobColorsMark additionally
- */
-export type NodeDataRaw = Job & Partial<JobExecutionDetalis> & { mark?: JobColorsMark };
-
-export type NodeData = {
-  raw: NodeDataRaw;
-  index: number;
-  isSource?: boolean;
-  isTarget?: boolean;
-  status: JobNodeStatus;
-  mark?: JobColorsMark;
-  inherit?: boolean; // When forking workflow, some node's result can be inherit
-  side?: string; // Assign it while forking workflow, let node tell which side it belongs
-};
-export interface JobNode extends Node {
-  data: NodeData;
-  type: ChartNodeType;
-}
-export interface GlobalConfigNode extends Node {
-  data: NodeData;
-  type: ChartNodeType;
-}
-export type ChartNode = JobNode | GlobalConfigNode;
-export type ChartNodes = ChartNode[];
-export type ChartElements = (GlobalConfigNode | JobNode | Edge)[];
 
 /**
  * Turn job defintitions to flow elements (include edges),

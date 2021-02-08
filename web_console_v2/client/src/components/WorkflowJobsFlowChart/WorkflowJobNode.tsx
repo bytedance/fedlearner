@@ -8,14 +8,8 @@ import completetdIcon from 'assets/icons/workflow-completed.svg';
 import warningIcon from 'assets/icons/workflow-warning.svg';
 import errorIcon from 'assets/icons/workflow-error.svg';
 import GridRow from 'components/_base/GridRow';
-import {
-  NodeData,
-  JobNodeStatus,
-  ChartNodeType,
-  NODE_HEIGHT,
-  NODE_WIDTH,
-  GLOBAL_CONFIG_NODE_SIZE,
-} from './helpers';
+import { NODE_HEIGHT, NODE_WIDTH, GLOBAL_CONFIG_NODE_SIZE } from './helpers';
+import { NodeData, JobNodeStatus, ChartNodeType } from './types';
 import { convertToUnit } from 'shared/helpers';
 import i18n from 'i18n';
 import classNames from 'classnames';
