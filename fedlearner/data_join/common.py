@@ -368,9 +368,14 @@ def get_kvstore_config(kvstore_type):
         password = os.environ.get('DB_PASSWORD', 'fedlearner')
         base_dir = os.environ.get('DB_BASE_DIR', 'fedlearner')
         return database, addr, username, password, base_dir
-    name = os.environ.get('ETCD_NAME', 'fedlearner')
-    addr = os.environ.get('ETCD_ADDR', 'localhost:2379')
-    base_dir = os.environ.get('ETCD_BASE_DIR', 'fedlearner')
+    elif kvstore_type == 'etcd':
+        name = os.environ.get('ETCD_NAME', 'fedlearner')
+        addr = os.environ.get('ETCD_ADDR', 'localhost:2379')
+        base_dir = os.environ.get('ETCD_BASE_DIR', 'fedlearner')
+    else:
+        name = ""
+        addr = ""
+        base_dir = os.environ.get('DFS_BASE_DIR', '/fedlearner')
     return name, addr, None, None, base_dir
 
 def interval_to_timestamp(itv):
