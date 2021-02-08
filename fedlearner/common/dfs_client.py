@@ -46,8 +46,8 @@ class DFSClient(object):
             try:
                 gfile.MakeDirs(base_dir)
             except tf.errors.OpError as e:  # pylint: disable=broad-except
-                logging.warning("create directory {} failed,"
-                                " reason: {}".format(base_dir, e))
+                logging.warning("create directory %s failed,"
+                                " reason: %s", base_dir, str(e))
                 return False
         with gfile.Open(key_path, 'wb') as file:
             file.write(data)
@@ -58,8 +58,8 @@ class DFSClient(object):
             gfile.Remove(self._generate_path(key))
             return True
         except tf.errors.OpError as e:
-            logging.warning("delete key {} failed, reason: {}"
-                            .format(key, e))
+            logging.warning("delete key %s failed, reason: %s",
+                            key, str(e))
             return False
 
     def delete_prefix(self, key):
@@ -67,8 +67,8 @@ class DFSClient(object):
             gfile.DeleteRecursively(self._generate_path(key))
             return True
         except Exception as e:   # pylint: disable=broad-except
-            logging.warning("Delete prefix with key {} failed,"
-                            " reason: {}".format(key, e))
+            logging.warning("Delete prefix with key %s failed,"
+                            " reason: %s", key, str(e))
             return False
 
     def cas(self, key, old_data, new_data):
@@ -89,8 +89,8 @@ class DFSClient(object):
                     if gfile.IsDirectory(path):
                         filenames = gfile.ListDirectory(path)
                 except Exception as e:  # pylint: disable=broad-except
-                    logging.warning("get prefix kvs {} failed, "
-                                    " reason: {}".format(path, e))
+                    logging.warning("get prefix kvs %s failed, "
+                                    " reason: %s", path, str(e))
                     break
                 for filename in sorted(filenames):
                     file_path = "/".join([path, filename])
@@ -99,7 +99,8 @@ class DFSClient(object):
                     else:
                         if ignore_prefix and path == target_path:
                             continue
-                        nkey = self.normalize_output_key(path, self._base_dir).encode()
+                        nkey = self.normalize_output_key(
+                            path, self._base_dir).encode()
                         with gfile.Open(file_path, 'rb') as file:
                             kvs.append((nkey, file.read()))
             cur_paths = children_paths
@@ -110,8 +111,7 @@ class DFSClient(object):
         if with_meta:
             return '/'.join([self._base_dir, self._normalize_input_key(key),
                              self._meta_filename])
-        else:
-            return '/'.join([self._base_dir, self._normalize_input_key(key)])
+        return '/'.join([self._base_dir, self._normalize_input_key(key)])
 
     @staticmethod
     def _normalize_input_key(key):
