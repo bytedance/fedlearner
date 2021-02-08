@@ -14,12 +14,7 @@ import BreadcrumbLink from 'components/BreadcrumbLink';
 import CountTime from 'components/CountTime';
 import JobExecutionDetailsDrawer from './JobExecutionDetailsDrawer';
 import { useToggle } from 'react-use';
-import {
-  JobNode,
-  NodeData,
-  NodeDataRaw,
-  JobColorsMark,
-} from 'components/WorkflowJobsFlowChart/types';
+import { JobNode, NodeData, NodeDataRaw } from 'components/WorkflowJobsFlowChart/types';
 import { useMarkFederatedJobs } from 'components/WorkflowJobsFlowChart/hooks';
 import PropertyList from 'components/PropertyList';
 import { Eye, EyeInvisible } from 'components/IconPark';
@@ -91,9 +86,7 @@ const WorkflowDetail: FC = () => {
   const detailQuery = useQuery(
     ['getWorkflowDetailById', params.id],
     () => getWorkflowDetailById(params.id),
-    {
-      cacheTime: 1,
-    },
+    { cacheTime: 1 },
   );
   const peerWorkflowQuery = useQuery(['getPeerWorkflow', params.id], getPeerWorkflow, {
     retry: false,
@@ -244,7 +237,7 @@ const WorkflowDetail: FC = () => {
                       job_definitions: peerJobsWithExeDetails,
                       variables: [],
                     }}
-                    onJobClick={viewJobDetail}
+                    onJobClick={viewPeerJobDetail}
                     onCanvasClick={() => toggleDrawerVisible(false)}
                   />
                 </ReactFlowProvider>
@@ -303,26 +296,6 @@ function mergeJobDefsWithExecutionDetails(
       return job.name === `${workflow.name}-${jobDef.name}` || job.name.endsWith(jobDef.name);
     };
   }
-}
-
-/** NOTE: Has Side effect to inputs! */
-function _markFederatedJobs(aJobs: NodeDataRaw[], bJobs: NodeDataRaw[]) {
-  const colorPools: JobColorsMark[] = ['blue', 'green', 'yellow', 'magenta', 'cyan'];
-  const markedJobs: Record<string, JobColorsMark> = {};
-
-  aJobs.forEach((job) => {
-    if (job.is_federated) {
-      const color = colorPools.shift() || 'blue';
-      markedJobs[job.name!] = color;
-      job.mark = color;
-    }
-  });
-
-  bJobs.forEach((job) => {
-    if (job.is_federated) {
-      job.mark = markedJobs[job.name];
-    }
-  });
 }
 
 export default WorkflowDetail;

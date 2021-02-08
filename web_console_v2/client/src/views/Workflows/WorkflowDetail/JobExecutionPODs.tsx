@@ -92,7 +92,7 @@ const JobExecutionPODs: FC<Props> = ({ job }) => {
   );
 
   function goInspectLogs(pod: Pod) {
-    window.open(`/v2/logs/pod/${job.id}/${pod.name}`, 'noopener');
+    window.open(`/v2/logs/pod/${job.id}/${pod.name}`, '_blank noopener');
   }
 };
 
