@@ -13,9 +13,14 @@
 # limitations under the License.
 
 # coding: utf-8
-
+import os
+import bisect
+from dateutil import parser as date_parser
+import tensorflow.compat.v1 as tf
+from collections import OrderedDict
 from fedlearner.common import metrics
-
+from fedlearner.common import data_join_service_pb2 as dj_pb
+from fedlearner.data_join.common import partition_repr, make_tf_record_iter, convert_to_iso_format
 from fedlearner.data_join.example_id_dumper import ExampleIdDumperManager
 from fedlearner.data_join.transmit_follower import TransmitFollower
 
@@ -72,3 +77,34 @@ class ExampleIdSyncFollower(TransmitFollower):
             "sync content should has packed_lite_example_ids "\
             "for ExampleIdSyncFollower"
         return sync_ctnt.packed_lite_example_ids.partition_id
+
+    def _rollback_partition(self, partition_id, rollback):
+        if rollback <= 0:
+            return
+        partition_dir = os.path.join(self._data_source.output_base_dir,
+                                     'example_dump',
+                                     partition_repr(partition_id))
+        partition_files = tf.io.gfile.ListDirectory(partition_dir)
+        file_time = OrderedDict()
+        last_file_timestamp = 0
+        for file in partition_files:
+            with make_tf_record_iter(file) as tfr_iter:
+                oldest = next(tfr_iter)
+                lite_example_ids = dj_pb.LiteExampleIds()
+                lite_example_ids.ParseFromString(oldest)
+                if len(lite_example_ids.event_time) > 0:
+                    file_time[file] = date_parser.parse(
+                        convert_to_iso_format(lite_example_ids.event_time[0])
+                    ).timestamp()
+                    last_file_timestamp = file_time[file]
+                else:
+                    file_time[file] = last_file_timestamp
+        file_list = list(file_time.keys())
+        time_list = list(file_time.values())
+        rollback_point = bisect.bisect_left(time_list, rollback)
+        if time_list[rollback_point] > rollback and rollback_point > 0:
+            rollback_point -= 1
+        retain = set(file_list[:rollback_point])
+        for file in partition_files:
+            if file not in retain:
+                tf.io.gfile.Remove(file)

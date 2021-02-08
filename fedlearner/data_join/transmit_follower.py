@@ -64,7 +64,7 @@ class TransmitFollower(object):
 
     @metrics.timer(func_name='start_sync_partition',
                    tags={'role': 'transmit_follower'})
-    def start_sync_partition(self, partition_id):
+    def start_sync_partition(self, partition_id, rollback=0):
         with self._lock:
             if self._impl_ctx is not None and \
                     self._impl_ctx.partition_id != partition_id:
@@ -75,8 +75,13 @@ class TransmitFollower(object):
                     )
             if self._impl_ctx is None:
                 self._impl_ctx = self._make_new_impl_ctx(partition_id)
+                self._rollback_partition(partition_id, rollback)
             return self._impl_ctx.get_next_index(), \
-                    self._impl_ctx.get_dumped_index()
+                self._impl_ctx.get_dumped_index()
+
+    def _rollback_partition(self, partition_id, rollback):
+        raise NotImplementedError('Rollback partition is not implemented in '
+                                  'base TransmitFollower.')
 
     @metrics.timer(func_name='add_synced_item',
                    tags={'role': 'transmit_follower'})
