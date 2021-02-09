@@ -1,38 +1,12 @@
-import { Refresh } from 'components/IconPark';
-import React, { FC, useRef, useEffect } from 'react';
-import { useQuery } from 'react-query';
+import React, { FC } from 'react';
 import { useParams } from 'react-router-dom';
 import { fetchPodLogs } from 'services/workflow';
+import PrintLogs from 'components/PrintLogs';
 
 const PodLogs: FC = () => {
-  const panelRef = useRef<HTMLPreElement>();
   const params = useParams<{ jobid: string; podname: string }>();
 
-  const logsQuery = useQuery('getPodLogs', getLogs, {
-    refetchOnWindowFocus: false,
-    retry: 3,
-    refetchInterval: 4000,
-  });
-
-  useEffect(() => {
-    if (panelRef.current) {
-      panelRef.current.parentElement?.parentElement?.scrollTo({
-        top: panelRef.current.scrollHeight,
-      });
-    }
-  }, [logsQuery.data]);
-
-  if (logsQuery.isLoading) {
-    return <Refresh spin style={{ fontSize: '20px' }} />;
-  }
-
-  const isEmpty = logsQuery.data?.data.length === 0;
-
-  return (
-    <div ref={panelRef as any}>
-      {isEmpty ? 'Ooops! No logs at the moment' : logsQuery.data?.data.join('\n')}
-    </div>
-  );
+  return <PrintLogs logsFetcher={getLogs} queryKey={['getPodLogs', params.podname]} />;
 
   async function getLogs() {
     if (!params.podname) {
