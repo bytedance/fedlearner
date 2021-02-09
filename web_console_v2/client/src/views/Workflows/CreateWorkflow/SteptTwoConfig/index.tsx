@@ -1,4 +1,4 @@
-import React, { FC, useRef, useState } from 'react';
+import React, { FC, useEffect, useRef, useState } from 'react';
 import styled from 'styled-components';
 import { ReactFlowProvider, useStoreState, useStoreActions } from 'react-flow-renderer';
 import { useToggle } from 'react-use';
@@ -59,6 +59,10 @@ const CanvasAndForm: FC<WorkflowCreateProps> = ({ isInitiate, isAccept }) => {
   const [drawerVisible, toggleDrawerVisible] = useToggle(false);
   const [peerCfgVisible, togglePeerCfgVisible] = useToggle(false);
   const [currNode, setCurrNode] = useState<ChartNode>();
+  /**
+   * Here we could use react-flow hooks is because we
+   * wrap CanvasAndForm with ReactFlowProvider in lines at the bottom
+   */
   const jobNodes = useStoreState((store) => store.nodes as ChartNodes);
   const setSelectedElements = useStoreActions((actions) => actions.setSelectedElements);
 
@@ -66,6 +70,18 @@ const CanvasAndForm: FC<WorkflowCreateProps> = ({ isInitiate, isAccept }) => {
   const [configValue, setConfigValue] = useRecoilState(workflowConfigForm);
   const basicPayload = useRecoilValue(workflowBasicForm);
   const peerConfig = useRecoilValue(peerConfigInPairing);
+
+  /**
+   * Open drawer if have global config node
+   */
+  useEffect(() => {
+    if (jobNodes[0] && jobNodes[0].type === 'global') {
+      selectNode(jobNodes[0]);
+    }
+    // 1. DO NOT INCLUDE selectNode as deps here, every render selectNode is freshly new
+    // 2. DO NOT INCLUDE jobNodes as direct dep too, since selectNode has side-effect to node's data (modify status underneath)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [jobNodes[0]?.type]);
 
   const isDisabled = { disabled: submitting };
 
