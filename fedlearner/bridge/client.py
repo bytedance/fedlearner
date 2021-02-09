@@ -371,27 +371,14 @@ class _StreamStreamMultiCallable(grpc.StreamStreamMultiCallable):
                  wait_for_ready=None,
                  compression=None):
 
-        srq = _SendRequestQueue()
-
-        def req_process():
-            try:
-                for req in request_iterator:
-                    if not srq.append(bridge_pb2.SendRequest(
-                        payload=self._request_serializer(req))):
-                        # srq closed
-                        return
-                srq.close()
-            except Exception as e:
-                srq.close(e)
-
-        threading.Thread(target=req_process, daemon=True).start()
+        srq = _SendRequestQueue(self._request_serializer, request_iterator)
 
         def response_iterator():
             while True:
                 srq.reset()
-                resonse_iterator = self._channel._send_stream_stream(
+                bridge_response_iterator = self._channel._send_stream_stream(
                     self._method,
-                    srq,
+                    iter(srq),
                     timeout,
                     metadata,
                     credentials,
@@ -399,84 +386,57 @@ class _StreamStreamMultiCallable(grpc.StreamStreamMultiCallable):
                     compression,
                 )
                 try:
-                    for res in resonse_iterator:
+                    for res in bridge_response_iterator:
                         srq.ack(res.ack)
                         yield self._response_deserializer(res.payload)
                 except grpc.RpcError as e:
                     if e.code() == grpc.StatusCode.UNAVAILABLE:
                         continue
-                    srq.close()
                     raise e
-                except Exception as e:
-                    srq.close()
-                    raise e
-
 
         return response_iterator()
 
 class _SendRequestQueue():
-    def __init__(self):
+    def __init__(self, _request_serializer, request_iterator):
         self._seq = 0
         self._next = 0
+        self._lock = threading.Lock()
         self._deque = collections.deque()
-        self._condition = threading.Condition()
-        self._err = None
-        self._closed = False
-
-    def append(self, req):
-        with self._condition:
-            while not self._closed and self._next < len(self._deque):
-                self._condition.wait()
-            if self._closed:
-                return False
-            self._seq += 1
-            req.seq = self._seq
-            self._deque.append(req)
-            self._condition.notify_all()
-            return True
+        self._request_serializer = _request_serializer
+        self._request_iterator = request_iterator
 
     def ack(self, ack):
-        with self._condition:
-            if ack > self._seq:
+        with self._lock:
+            if ack >= self._seq:
                 return
-            n = len(self._deque) - (self._seq - ack)
-            if n < 0:
-                return
-            for _ in range(n):
+            n = self._seq - ack
+            while len(self._deque) >= n:
                 self._deque.popleft()
-            self._next -= n 
-
-    def close(self, err=None):
-        with self._condition:
-            if self._closed:
-                return
-            self._closed = True
-            self._err = err
-            self._condition.notify_all()
+                self._next -= 1
 
     def reset(self):
-        with self._condition:
+        with self._lock:
             self._next = 0
 
-    def __len__(self):
-        with self._condition:
-            return len(self._deque)
-
     def __iter__(self):
-        return self
+        return self.__next__()
 
     def __next__(self):
-        with self._condition:
-            while not self._closed and self._next >= len(self._deque):
-                self._condition.wait()
-            if self._closed:
-                if self._err:
-                    raise self._err
-                raise StopIteration()
-            req = self._deque[self._next]
-            self._next += 1
-            if self._next == len(self._deque):
-                self._condition.notify_all()
-            return req
+        with self._lock:
+            while True:
+                while self._next < len(self._deque):
+                    req = self._deque[self._next]
+                    self._next += 1
+                    self._lock.release()
+                    try:
+                        yield req
+                    finally:
+                        self._lock.acquire()
 
-
+                req = bridge_pb2.SendRequest(
+                    seq = self._seq,
+                    payload=self._request_serializer(
+                        next(self._request_iterator))
+                )
+                self._seq += 1
+                self._deque.append(req)

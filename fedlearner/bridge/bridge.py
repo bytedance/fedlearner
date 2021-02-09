@@ -45,50 +45,55 @@ class Bridge():
         PEER_UNIDENTIFIED = 10
 
     _next_table = {
-        State.IDLE: (None, None, None, None, None, None, None,
-            None, None, None, None),
-        State.CONNECTING_UNCONNECTED: (State.CONNECTED_UNCONNECTED,
-            None, State.DONE, None,
-            State.CONNECTING_CONNECTED, None, None,
-            None, None, None, None),
-        State.CONNECTED_UNCONNECTED: (None,
-            None, State.CLOSING_UNCONNECTED, None,
-            State.READY, None, None,
-            None, None, None, None),
-        State.CONNECTING_CONNECTED: (State.READY,
-            None, State.CLOSED_CONNECTED, None,
-            None, State.CONNECTING_UNCONNECTED, State.CONNECTING_CLOSED,
-            None, None, None, None),
-        State.READY: (None,
-            State.CONNECTING_CONNECTED, State.CLOSING_CONNECTED, None,
-            None, State.CONNECTED_UNCONNECTED, State.CONNECTED_CLOSED,
-            None, None, None, None),
-        State.CONNECTING_CLOSED: (State.CONNECTED_CLOSED,
-            None, State.DONE, None,
-            None, None, None,
-            None, None, None, None),
-        State.CONNECTED_CLOSED: (None,
-            State.CONNECTING_CLOSED, State.CLOSING_CLOSED, State.DONE,
-            None, None, None,
-            None, None, None, None),
-        State.CLOSING_UNCONNECTED: (None,
-            None, None, State.DONE,
-            State.CLOSING_UNCONNECTED, None, None,
-            None, None, None, None),
-        State.CLOSING_CONNECTED: (None,
-            None, None, State.CLOSED_CONNECTED,
-            None, State.CLOSING_UNCONNECTED, State.CLOSING_CLOSED,
-            None, None, None, None),
-        State.CLOSING_CLOSED: (None,
-            State.DONE, None, State.DONE,
-            None, None, None,
-            None, None, None, None),
-        State.CLOSED_CONNECTED: (None,
-            None, None, None,
-            None, State.DONE, State.DONE,
-            None, None, None, None),
-        State.DONE: (None, None, None, None, None, None, None,
-            None, None, None, None),
+        State.IDLE: {},
+        State.CONNECTING_UNCONNECTED: {
+            Event.CONNECTED: State.CONNECTED_UNCONNECTED,
+            Event.CLOSING: State.DONE,
+            Event.PEER_CONNECTED: State.CONNECTING_CONNECTED,
+        },
+        State.CONNECTED_UNCONNECTED: {
+            Event.CLOSING: State.CLOSING_UNCONNECTED,
+            Event.PEER_CONNECTED: State.READY,
+        },
+        State.CONNECTING_CONNECTED: {
+            Event.CONNECTED: State.READY,
+            Event.CLOSED: State.CLOSED_CONNECTED,
+            Event.PEER_DISCONNECTED: State.CONNECTING_UNCONNECTED,
+            Event.PEER_CLOSED: State.CONNECTING_CLOSED,
+        },
+        State.READY: {
+            Event.DISCONNECTED: State.CONNECTING_CONNECTED,
+            Event.CLOSING: State.CLOSING_CONNECTED,
+            Event.PEER_DISCONNECTED: State.CONNECTED_UNCONNECTED,
+            Event.PEER_CLOSED: State.CONNECTED_CLOSED,
+        },
+        State.CONNECTING_CLOSED: {
+            Event.CONNECTED: State.CONNECTED_CLOSED,
+            Event.CLOSING: State.DONE,
+        },
+        State.CONNECTED_CLOSED: {
+            Event.DISCONNECTED: State.CONNECTING_CLOSED,
+            Event.CLOSING: State.CLOSING_CLOSED,
+            Event.CLOSED: State.DONE,
+        },
+        State.CLOSING_UNCONNECTED: {
+            Event.CLOSED: State.DONE,
+            Event.PEER_CONNECTED: State.CLOSING_CONNECTED
+        },
+        State.CLOSING_CONNECTED: {
+            Event.CLOSED: State.CLOSED_CONNECTED,
+            Event.PEER_DISCONNECTED: State.CLOSING_UNCONNECTED,
+            Event.PEER_CLOSED: State.CLOSING_CLOSED,
+        },
+        State.CLOSING_CLOSED: {
+            Event.DISCONNECTED: State.DONE,
+            Event.CLOSED: State.DONE,
+        },
+        State.CLOSED_CONNECTED: {
+            Event.PEER_DISCONNECTED :State.DONE,
+            Event.PEER_CLOSED :State.DONE,
+        },
+        State.DONE: {},
     }
 
     _UNCONNECTED_STATES = set([
@@ -187,7 +192,7 @@ class Bridge():
                 self._emit_event(Bridge.Event.DISCONNECTED)
 
     def _next_state(state, event):
-        next = Bridge._next_table[state][event.value]
+        next = Bridge._next_table[state].get(event)
         if next:
             return next
         return state

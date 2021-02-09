@@ -80,9 +80,9 @@ class _Server(grpc.Server):
             self._bridge._emit_
             return bridge_pb2.CallResponse(
                 code=bridge_pb2.Code.UNAUTHROIZE)
-        if not self._bridge._check_identifier(identifier, peer_identifier):
-            return bridge_pb2.CallResponse(
-                code=bridge_pb2.Code.UNIDENTIFIED)
+        #if not self._bridge._check_identifier(identifier, peer_identifier):
+        #    return bridge_pb2.CallResponse(
+        #        code=bridge_pb2.Code.UNIDENTIFIED)
 
         return None
 
