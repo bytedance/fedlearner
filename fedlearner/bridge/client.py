@@ -422,21 +422,17 @@ class _SendRequestQueue():
         return self.__next__()
 
     def __next__(self):
-        with self._lock:
-            while True:
-                while self._next < len(self._deque):
-                    req = self._deque[self._next]
-                    self._next += 1
-                    self._lock.release()
-                    try:
-                        yield req
-                    finally:
-                        self._lock.acquire()
+        while True:
+            with self._lock:
+                if self._next == len(self._deque):
+                    req = bridge_pb2.SendRequest(
+                        seq = self._seq,
+                        payload=self._request_serializer(
+                            next(self._request_iterator))
+                    )
+                    self._seq += 1
+                    self._deque.append(req)
+                req = self._deque[self._next]
+                self._next += 1
 
-                req = bridge_pb2.SendRequest(
-                    seq = self._seq,
-                    payload=self._request_serializer(
-                        next(self._request_iterator))
-                )
-                self._seq += 1
-                self._deque.append(req)
+            yield req

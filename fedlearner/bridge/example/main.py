@@ -45,7 +45,7 @@ def client_run_fn(bridge):
 #            print("Greeter HelloUnaryStream return: " + res.message)
 #
     def req_iter(name):
-        for i in range(10000000):
+        for i in range(100):
             yield greeter_pb2.Request(name=str(i))
             time.sleep(0.5)
 #
