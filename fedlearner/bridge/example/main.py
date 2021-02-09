@@ -65,7 +65,15 @@ if __name__ == "__main__":
     parser.add_argument('--client', action='store_true')
     args = parser.parse_args()
 
+    def callback(bridge, event):
+        print("callback event: ", event.name)
+
+    def closed_callback(bridge, event):
+        bridge.stop()
+
     bridge = bridge.Bridge(args.listen_addr, args.remote_addr)
+    bridge.subscribe(callback)
+    bridge.subscribe_event(bridge.Event.PEER_CLOSED, closed_callback)
     greeter_pb2_grpc.add_GreeterServicer_to_server(GreeterrHandler(), bridge) 
 
     def signal_handler(signum, _):

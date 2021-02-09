@@ -17,7 +17,6 @@ class _Server(grpc.Server):
 
         self._bridge = bridge
         self._listen_addr = listen_addr
-        self._peer_identifier = None
 
         self._thread_pool = futures.ThreadPoolExecutor(
             max_workers=max_workers,
@@ -63,7 +62,6 @@ class _Server(grpc.Server):
         peer_identifier = None
         token = None
         method = None
-        #abridged_metadata = list()
         for pair in metadata:
             if pair[0] == const._grpc_metadata_bridge_id:
                 identifier = pair[1]
@@ -73,34 +71,18 @@ class _Server(grpc.Server):
                 token = pair[1]
             elif pair[0] == const._grpc_metadata_bridge_method:
                 method = util._method_decode(pair[1])
-            #else:
-                #abridged_metadata.append(pair)
 
         return identifier, peer_identifier, token, method
 
-    def _check_token(self, token):
-        return not self._bridge._token or self._bridge._token == token
-
-    def _check_identifier(self, identifier, peer_identifier):
-        if peer_identifier and self._bridge._identifier != peer_identifier:
-            return False
-
-        if self._bridge._peer_identifier:
-            return self._bridge._peer_identifier == identifier
-
-        with self._lock:
-            if not self._peer_identifier:
-                self._bridge._peer_identifier = identifier
-
-        return self._bridge._peer_identifier == identifier
     
     def _check_or_response(self, identifier, peer_identifier, token):
-        if not self._check_token(token):
+        if not self._bridge._check_token(token):
+            self._bridge._emit_
             return bridge_pb2.CallResponse(
                 code=bridge_pb2.Code.UNAUTHROIZE)
-        #if not self._check_identifier(identifier, peer_identifier):
-        #    return bridge_pb2.CallResponse(
-        #        code=bridge_pb2.Code.UNIDENTIFIED)
+        if not self._bridge._check_identifier(identifier, peer_identifier):
+            return bridge_pb2.CallResponse(
+                code=bridge_pb2.Code.UNIDENTIFIED)
 
         return None
 

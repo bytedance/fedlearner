@@ -38,7 +38,6 @@ class _Client(grpc.Channel):
         self._client = bridge_pb2_grpc.BridgeStub(self._channel)
 
     def _subscribe_callback(self, state):
-        logging.debug("[Bridge] grpc channel state: %s", state.name)
         with self._lock:
             self._channel_state = state
             next_ready = self._ready
@@ -150,16 +149,11 @@ class _Client(grpc.Channel):
              compression=None):
         augmented_metadata = self._augment_metadata(metadata)
         return self._client.Call(request,
-            timeout,
-            augmented_metadata,
-            credentials,
-            wait_for_ready,
-            compression)
+            metadata = augmented_metadata)
 
     def _grpc_with_retry(self, sender, timeout=None):
         while True:
             self._bridge.wait_for_ready(timeout)
-            # todo: more control
             try:
                 return sender()
             except grpc.RpcError as e:
@@ -181,10 +175,7 @@ class _Client(grpc.Channel):
                 request,
                 timeout,
                 augmented_metadata,
-                credentials,
-                wait_for_ready,
-                compression,
-            ))
+            ), timeout)
 
     def _send_unary_stream(self, method,
         request,
@@ -199,10 +190,7 @@ class _Client(grpc.Channel):
                 request,
                 timeout,
                 augmented_metadata,
-                credentials,
-                wait_for_ready,
-                compression,
-            ))
+            ), timeout)
 
     def _send_stream_unary(self, method,
         request,
@@ -217,10 +205,7 @@ class _Client(grpc.Channel):
                 request,
                 timeout,
                 augmented_metadata,
-                credentials,
-                wait_for_ready,
-                compression,
-            ))
+            ), timeout)
 
     def _send_stream_stream(self, method,
         request,
@@ -235,10 +220,7 @@ class _Client(grpc.Channel):
                 request,
                 timeout,
                 augmented_metadata,
-                credentials,
-                wait_for_ready,
-                compression,
-            ))
+            ), timeout)
 
 class _UnaryUnaryMultiCallable(grpc.UnaryUnaryMultiCallable):
     def __init__(self, channel, method, request_serializer,
@@ -324,7 +306,6 @@ class _UnaryStreamMultiCallable(grpc.UnaryStreamMultiCallable):
         return r_res_iter()
 
 class _StreamUnaryMultiCallable(grpc.StreamUnaryMultiCallable):
-    # pylint: disable=too-many-arguments
     def __init__(self, channel, method, request_serializer,
                  response_deserializer):
         self._channel = channel
@@ -393,13 +374,15 @@ class _StreamStreamMultiCallable(grpc.StreamStreamMultiCallable):
         srq = _SendRequestQueue()
 
         def req_process():
-            for req in request_iterator:
-                srq.wait_for_available()
-                srq.append(
-                    bridge_pb2.SendRequest(
-                        payload=self._request_serializer(req))
-                )
-            srq.close()
+            try:
+                for req in request_iterator:
+                    if not srq.append(bridge_pb2.SendRequest(
+                        payload=self._request_serializer(req))):
+                        # srq closed
+                        return
+                srq.close()
+            except Exception as e:
+                srq.close(e)
 
         threading.Thread(target=req_process, daemon=True).start()
 
@@ -422,7 +405,12 @@ class _StreamStreamMultiCallable(grpc.StreamStreamMultiCallable):
                 except grpc.RpcError as e:
                     if e.code() == grpc.StatusCode.UNAVAILABLE:
                         continue
+                    srq.close()
                     raise e
+                except Exception as e:
+                    srq.close()
+                    raise e
+
 
         return response_iterator()
 
@@ -437,15 +425,15 @@ class _SendRequestQueue():
 
     def append(self, req):
         with self._condition:
+            while not self._closed and self._next < len(self._deque):
+                self._condition.wait()
+            if self._closed:
+                return False
             self._seq += 1
             req.seq = self._seq
             self._deque.append(req)
             self._condition.notify_all()
-
-    def wait_for_available(self):
-        with self._condition:
-            if self._next < len(self._deque):
-                self._condition.wait()
+            return True
 
     def ack(self, ack):
         with self._condition:
@@ -454,13 +442,14 @@ class _SendRequestQueue():
             n = len(self._deque) - (self._seq - ack)
             if n < 0:
                 return
-            for i in range(n):
+            for _ in range(n):
                 self._deque.popleft()
             self._next -= n 
-            assert self._next >= 0
 
     def close(self, err=None):
         with self._condition:
+            if self._closed:
+                return
             self._closed = True
             self._err = err
             self._condition.notify_all()
@@ -478,12 +467,12 @@ class _SendRequestQueue():
 
     def __next__(self):
         with self._condition:
-            while self._next >= len(self._deque):
-                if self._closed:
-                    if self._err:
-                        raise self._err
-                    raise StopIteration()
+            while not self._closed and self._next >= len(self._deque):
                 self._condition.wait()
+            if self._closed:
+                if self._err:
+                    raise self._err
+                raise StopIteration()
             req = self._deque[self._next]
             self._next += 1
             if self._next == len(self._deque):
