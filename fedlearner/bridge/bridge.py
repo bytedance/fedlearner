@@ -203,6 +203,8 @@ class Bridge():
             if self._state != next_state:
                 self._state = next_state
                 self._state_condition.notify_all()
+                if self._state == Bridge.State.READY:
+                    self._ready_condition.notify_all()
             callbacks = self._event_callbacks.get(event, [])
             for callback in callbacks:
                 callback(self, event)
@@ -355,7 +357,6 @@ class Bridge():
                     logging.debug("[Bridge] peer disconnect"
                         " by heartbeat timeout")
                     self._emit_event(Bridge.Event.PEER_DISCONNECTED)
-                    continue
 
             if now >= self._next_retry_at:
                 self._next_retry_at = 0
@@ -385,11 +386,8 @@ class Bridge():
                 wait_timeout = min(wait_timeout, self._next_retry_at - now)
 
             if saved_state != self._state:
-                if self._state == Bridge.State.READY:
-                    self._ready_condition.notify_all()
                 continue
 
-            self._state_condition.notify_all()
             if wait_timeout != maxint:
                 self._state_condition.wait(wait_timeout)
             else:

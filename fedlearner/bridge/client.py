@@ -157,8 +157,10 @@ class _Client(grpc.Channel):
             try:
                 return sender()
             except grpc.RpcError as e:
-                logging.warn("[Bridge] grpc error, status: %s, details: %s", e.code(), e.details())
-                time.sleep(1)
+                if e.code() == grpc.StatusCode.UNAVAILABLE:
+                    logging.warn("[Bridge] grpc error, status: %s, details: %s", e.code(), e.details())
+                    continue
+                raise e
             except:
                 raise
 
@@ -389,6 +391,7 @@ class _StreamStreamMultiCallable(grpc.StreamStreamMultiCallable):
                     for res in bridge_response_iterator:
                         srq.ack(res.ack)
                         yield self._response_deserializer(res.payload)
+                    return
                 except grpc.RpcError as e:
                     if e.code() == grpc.StatusCode.UNAVAILABLE:
                         continue
@@ -419,20 +422,19 @@ class _SendRequestQueue():
             self._next = 0
 
     def __iter__(self):
-        return self.__next__()
+        return self
 
     def __next__(self):
-        while True:
-            with self._lock:
-                if self._next == len(self._deque):
-                    req = bridge_pb2.SendRequest(
-                        seq = self._seq,
-                        payload=self._request_serializer(
-                            next(self._request_iterator))
-                    )
-                    self._seq += 1
-                    self._deque.append(req)
-                req = self._deque[self._next]
-                self._next += 1
+        with self._lock:
+            if self._next == len(self._deque):
+                req = bridge_pb2.SendRequest(
+                    seq = self._seq,
+                    payload=self._request_serializer(
+                        next(self._request_iterator))
+                )
+                self._seq += 1
+                self._deque.append(req)
+            req = self._deque[self._next]
+            self._next += 1
 
-            yield req
+            return req
