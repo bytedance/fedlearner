@@ -89,4 +89,4 @@ if __name__ == "__main__":
         thread.start()
 
     bridge.start()
-    bridge.wait_for_stopped()
+    bridge.wait_for_termination()

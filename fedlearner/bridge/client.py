@@ -159,8 +159,7 @@ class _Client(grpc.Channel):
             except grpc.RpcError as e:
                 if e.code() == grpc.StatusCode.UNAVAILABLE:
                     logging.warn("[Bridge] grpc error, status: %s, details: %s", e.code(), e.details())
-                    continue
-                raise e
+                time.sleep(0.1)
             except:
                 raise
 

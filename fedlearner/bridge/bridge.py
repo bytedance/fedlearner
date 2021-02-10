@@ -82,7 +82,7 @@ class Bridge():
         },
         State.CLOSING_CONNECTED: {
             Event.CLOSED: State.CLOSED_CONNECTED,
-            Event.PEER_DISCONNECTED: State.CLOSING_UNCONNECTED,
+            Event.PEER_DISCONNECTED: State.DONE,
             Event.PEER_CLOSED: State.CLOSING_CLOSED,
         },
         State.CLOSING_CLOSED: {
@@ -114,6 +114,11 @@ class Bridge():
         State.CLOSING_CLOSED,
     ])
 
+    _READY_STATUS = set([
+        State.READY,
+        State.CONNECTED_CLOSED,
+    ])
+
     _PEER_CONNECTED_STATES = set([
         State.CONNECTING_CONNECTED, 
         State.READY,
@@ -134,7 +139,7 @@ class Bridge():
                  token=None,
                  max_works=None,
                  compression=grpc.Compression.Gzip,
-                 heartbeat_timeout=20,
+                 heartbeat_timeout=30,
                  retry_interval = 2,
                  ):
 
@@ -143,8 +148,10 @@ class Bridge():
         self._peer_identifier = None
         self._token = token
 
+        # lock
+        self._lock = threading.RLock()
+
         # client
-        self._client_ready = False
         self._client = _Client(self, remote_addr,
             compression)
 
@@ -155,20 +162,17 @@ class Bridge():
         if heartbeat_timeout <= 0:
             raise ValueError("heartbeat_timeout must be positive")
         self._heartbeat_timeout = heartbeat_timeout
-        self._heartbeat_interval = self._heartbeat_timeout / 5
-        if self._heartbeat_interval < 1:
-            self._heartbeat_interval = self._heartbeat_timeout  / 3
+        self._heartbeat_interval = self._heartbeat_timeout / 4
         self._heartbeat_timeout_at = 0
         self._peer_heartbeat_timeout_at = 0
+
         if retry_interval <= 0:
             raise ValueError("retry_interval must be positive")
         self._retry_interval = retry_interval
         self._next_retry_at = 0
 
-        self._lock = threading.RLock()
-
-        self._ready_condition = threading.Condition(self._lock)
-        self._stopped_condition = threading.Condition(self._lock)
+        self._ready_event = threading.Event()
+        self._termination_event = threading.Event()
 
         # bridge state
         self._state_condition = threading.Condition(self._lock)
@@ -203,11 +207,12 @@ class Bridge():
             if self._state != next_state:
                 self._state = next_state
                 self._state_condition.notify_all()
-                if self._state == Bridge.State.READY:
-                    self._ready_condition.notify_all()
-            callbacks = self._event_callbacks.get(event, [])
-            for callback in callbacks:
-                callback(self, event)
+            self._event_callback(event)
+
+    def _event_callback(self, event):
+        callbacks = self._event_callbacks.get(event, [])
+        for callback in callbacks:
+            callback(self, event)
 
     def subscribe(self, callback):
         for event in Bridge.Event:
@@ -222,26 +227,10 @@ class Bridge():
             self._event_callbacks[event].append(callback)
 
     def wait_for_ready(self, timeout=None):
-        if self._state == Bridge.State.READY:
-            return True
-        if self._state == Bridge.State.DONE:
-            return False
-        with self._ready_condition:
-            if self._state == Bridge.State.READY:
-                return True
-            if self._state == Bridge.State.DONE:
-                return False
-            self._ready_condition.wait(timeout)
-            return self._state == Bridge.State.READY
+        return self._ready_event.wait(timeout)
 
-
-    def wait_for_stopped(self, timeout=None):
-        if self._state == Bridge.State.DONE:
-            return True
-        with self._stopped_condition:
-            if self._state == Bridge.State.DONE:
-                return True
-            self._stopped_condition.wait(timeout)
+    def wait_for_termination(self, timeout=None):
+        return self._termination_event.wait(timeout)
 
     def start(self, wait=False):
         with self._state_condition:
@@ -352,11 +341,17 @@ class Bridge():
             if self._state == Bridge.State.DONE:
                 break
 
+            if self._state in Bridge._READY_STATUS:
+                self._ready_event.set()
+            else:
+                self._ready_event.clear()
+
             if self._state in Bridge._PEER_CONNECTED_STATES:
                 if now >= self._peer_heartbeat_timeout_at:
                     logging.debug("[Bridge] peer disconnect"
                         " by heartbeat timeout")
                     self._emit_event(Bridge.Event.PEER_DISCONNECTED)
+                    continue
 
             if now >= self._next_retry_at:
                 self._next_retry_at = 0
@@ -397,12 +392,10 @@ class Bridge():
         self._lock.release()
         self._client.close()
         self._server.stop(None)
+        self._server.wait_for_termination()
 
-        with self._stopped_condition:
-            self._stopped_condition.notify_all()
-
-        with self._ready_condition:
-            self._ready_condition.notify_all()
+        self._ready_event.set()
+        self._termination_event.set()
 
         logging.debug("[Bridge] thread _state_fn stop")
 
@@ -414,14 +407,14 @@ class Bridge():
 
             if request.type == bridge_pb2.CallType.CONNECT:
                 self._peer_heartbeat_timeout_at = \
-                    time.time() + self._heartbeat_interval
+                    time.time() + self._heartbeat_timeout
                 self._emit_event(Bridge.Event.PEER_CONNECTED)
             elif request.type == bridge_pb2.CallType.HEARTBEAT:
                 if self._state not in Bridge._PEER_CONNECTED_STATES:
                     return bridge_pb2.CallResponse(
                         code=bridge_pb2.Code.UNCONNECTED)
                 self._peer_heartbeat_timeout_at = \
-                    time.time() + self._heartbeat_interval
+                    time.time() + self._heartbeat_timeout
             elif request.type == bridge_pb2.CallType.CLOSE:
                 self._emit_event(Bridge.Event.PEER_CLOSED)
             else:
