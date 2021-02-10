@@ -4,6 +4,7 @@ import React, {
   forwardRef,
   useImperativeHandle,
   ForwardRefRenderFunction,
+  useCallback,
 } from 'react';
 import WorkflowJobNode from './WorkflowJobNode';
 import {
@@ -24,12 +25,16 @@ import ReactFlow, {
   FlowElement,
   useStoreActions,
   useStoreState,
+  Controls,
 } from 'react-flow-renderer';
 
 import { WorkflowConfig } from 'typings/workflow';
 import { cloneDeep } from 'lodash';
 import { message } from 'antd';
 import i18n from 'i18n';
+import { MixinSquare } from 'styles/mixins';
+import { useUnmount } from 'react-use';
+import { useResizeObserver } from 'hooks';
 
 const Container = styled.div`
   position: relative;
@@ -73,6 +78,20 @@ const Container = styled.div`
       stroke: var(--gray4);
     }
   }
+  .react-flow__controls {
+    top: 20px;
+    right: 20px;
+    left: auto;
+    bottom: auto;
+    box-shadow: none;
+
+    &-button {
+      ${MixinSquare(27)}
+      border-radius: 4px;
+      border-bottom: none;
+      box-shadow: 0 2px 10px -2px rgba(0, 0, 0, 0.2);
+    }
+  }
 `;
 
 type Props = {
@@ -108,6 +127,7 @@ const WorkflowJobsFlowChart: ForwardRefRenderFunction<ChartExposedRef | undefine
       "[WorkflowJobsFlowChart]: Detect that current type is FORK but side has't been assigned",
     );
   }
+  const [chartInstance, setChartInstance] = useState<OnLoadParams>();
   const [elements, setElements] = useState<ChartElements>([]);
   // ☢️ WARNING: since we using react-flow hooks here,
   // an ReactFlowProvider is REQUIRED to wrap this component inside
@@ -139,6 +159,12 @@ const WorkflowJobsFlowChart: ForwardRefRenderFunction<ChartExposedRef | undefine
     // eslint-disable-next-line
   }, [nodeType, selectable, workflowIdentifyString]);
 
+  const resizeHandler = useCallback(() => {
+    chartInstance?.fitView();
+  }, [chartInstance]);
+
+  const resizeTargetRef = useResizeObserver(resizeHandler);
+
   useImperativeHandle(parentRef, () => {
     return {
       nodes: jobNodes,
@@ -149,7 +175,7 @@ const WorkflowJobsFlowChart: ForwardRefRenderFunction<ChartExposedRef | undefine
   });
 
   return (
-    <Container>
+    <Container ref={resizeTargetRef as any}>
       <ReactFlow
         elements={elements}
         onLoad={onLoad}
@@ -163,6 +189,7 @@ const WorkflowJobsFlowChart: ForwardRefRenderFunction<ChartExposedRef | undefine
         nodeTypes={WorkflowJobNode}
       >
         <Background variant={BackgroundVariant.Dots} gap={12} size={1} color="#E1E6ED" />
+        <Controls showZoom={false} showInteractive={false} />
       </ReactFlow>
     </Container>
   );
@@ -173,7 +200,11 @@ const WorkflowJobsFlowChart: ForwardRefRenderFunction<ChartExposedRef | undefine
     }
   }
   function onLoad(_reactFlowInstance: OnLoadParams) {
-    _reactFlowInstance!.fitView({ padding: 1 });
+    setChartInstance(_reactFlowInstance!);
+    // Fit view at next tick
+    setImmediate(() => {
+      _reactFlowInstance!.fitView();
+    });
   }
   function areTheySomeUninheritable(nodeIds: string[]) {
     return nodeIds.some((id) => elements.find((item) => item.id === id)?.data?.inherit === false);
