@@ -147,7 +147,8 @@ class Job(db.Model):
                            'status': pod['status']['phase'],
                            'conditions': pod['status']['conditions']}
             if 'containerStatuses' in pod['status']:
-                pod_front['containers_status'] = pod['status']['containerStatuses']
+                pod_front['containers_status'] = \
+                    pod['status']['containerStatuses']
             result.append(pod_front)
 
         flapp = self.get_flapp()
