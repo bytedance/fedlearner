@@ -536,7 +536,7 @@ def make_workflow_template():
                                     },
                                     {
                                         "name": "PARTITION_NUM",
-                                        "value": "${workflow.num_partitions}"
+                                        "value": "${workflow.variables.num_partitions}"
                                     },
                                     {
                                         "name": "START_TIME",
@@ -709,7 +709,7 @@ def make_workflow_template():
                                     },
                                     {
                                         "name": "PARTITION_NUM",
-                                        "value": "${workflow.num_partitions}"
+                                        "value": "${workflow.variables.num_partitions}"
                                     },
                                     {
                                         "name": "RAW_DATA_SUB_DIR",
