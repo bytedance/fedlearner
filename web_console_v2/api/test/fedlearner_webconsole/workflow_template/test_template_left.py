@@ -180,7 +180,7 @@ def make_workflow_template():
                                     },
                                     {
                                         "name": "OUTPUT_PARTITION_NUM",
-                                        "value": "${workflow.variables.num_partitions}""
+                                        "value": "${workflow.variables.num_partitions}"
                                     },
                                     {
                                         "name": "INPUT_BASE_DIR",
@@ -188,7 +188,7 @@ def make_workflow_template():
                                     },
                                     {
                                         "name": "OUTPUT_BASE_DIR",
-                                        "value": "${project.variables.storage_root_dir}/raw_data/${workflow.jobs.raw-data-job.name}
+                                        "value": "${project.variables.storage_root_dir}/raw_data/${workflow.jobs.raw-data-job.name}"
                                     },
                                     {
                                         "name": "RAW_DATA_PUBLISH_DIR",

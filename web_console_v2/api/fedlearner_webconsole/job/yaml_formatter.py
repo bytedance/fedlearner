@@ -19,7 +19,7 @@ from flatten_dict import flatten
 class _YamlTemplate(Template):
     delimiter = '$'
     # Which placeholders in the template should be interpreted
-    idpattern = r'[a-zA-Z_]+(\.[a-zA-Z_]+)*'
+    idpattern = r'[a-zA-Z_-]+(\.[a-zA-Z_-]+)*'
 
 
 def format_yaml(yaml, **kwargs):
