@@ -536,7 +536,7 @@ def make_workflow_template():
                                     },
                                     {
                                         "name": "PARTITION_NUM",
-                                        "value": "${workflow.jobs.raw-data-job.variables.num_partitions}"
+                                        "value": "${workflow.variables.num_partitions}"
                                     },
                                     {
                                         "name": "START_TIME",
@@ -705,7 +705,7 @@ def make_workflow_template():
                                     },
                                     {
                                         "name": "PARTITION_NUM",
-                                        "value": "${workflow.jobs.raw-data-job.variables.num_partitions}"
+                                        "value": "${workflow.variables.num_partitions}"
                                     },
                                     {
                                         "name": "RAW_DATA_SUB_DIR",
@@ -753,7 +753,7 @@ def make_workflow_template():
                                     },
                                     {
                                         "name": "PARTITION_NUM",
-                                        "value": "${workflow.jobs.raw-data-job.variables.num_partitions}"
+                                        "value": "${workflow.variables.num_partitions}"
                                     }
                                 ],
                                 "imagePullPolicy": "IfNotPresent",
@@ -805,7 +805,7 @@ def make_workflow_template():
                     }
                 },
                 "pair": true,
-                "replicas": ${workflow.jobs.raw-data-job.variables.num_partitions}
+                "replicas": ${workflow.variables.num_partitions}
             }
         }
     }
@@ -1321,7 +1321,7 @@ def make_workflow_template():
                     }
                 },
                 "pair": true,
-                "replicas": ${workflow.jobs.raw-data-job.variables.num_partitions}
+                "replicas": ${workflow.variables.num_partitions}
             }
         }
     }
