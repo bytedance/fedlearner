@@ -1253,7 +1253,7 @@ def make_workflow_template():
                                     },
                                     {
                                         "name": "CODE_KEY",
-                                        "value": "${workflow.jobs.train-job.code_key}"
+                                        "value": "${workflow.jobs.train-job.variables.code_key}"
                                     },
                                     {
                                         "name": "SAVE_CHECKPOINT_STEPS",
