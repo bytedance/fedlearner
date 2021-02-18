@@ -10,7 +10,7 @@ const dataFile: DataFile = {
   size: 1024,
   source_path: '/path/to/file.data',
   destination_path: '/path/to/dest/file.data',
-  error_message: '',
+  error_message: 'Failed due to disk space is full',
 };
 
 const dataBatchImporting: DataBatch = {
@@ -50,7 +50,7 @@ const dataBatchFailed: DataBatch = {
   ...sharedTimes,
 };
 
-export const unfinishImporting: Dataset = {
+export const unfinishedImporting: Dataset = {
   id: 1,
   name: 'Mocked Dataset with a looooooooooog name',
   dataset_type: DatasetType.STREAMING,
@@ -65,4 +65,12 @@ export const importFailed: Dataset = {
   dataset_type: DatasetType.PSI,
   ...sharedTimes,
   data_batches: [dataBatchImported, dataBatchFailed],
+};
+
+export const successfullyImport: Dataset = {
+  id: 3,
+  name: 'Import succeeded',
+  dataset_type: DatasetType.PSI,
+  ...sharedTimes,
+  data_batches: [dataBatchImported],
 };

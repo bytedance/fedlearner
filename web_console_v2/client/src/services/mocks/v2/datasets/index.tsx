@@ -1,15 +1,15 @@
-import { unfinishImporting, importFailed } from './examples';
+import { unfinishedImporting, importFailed, successfullyImport } from './examples';
 
 const get = {
   data: {
-    data: [unfinishImporting, importFailed],
+    data: [unfinishedImporting, importFailed, successfullyImport],
   },
   status: 200,
 };
 
 export const post = {
   data: {
-    data: unfinishImporting,
+    data: unfinishedImporting,
   },
   status: 200,
 };
