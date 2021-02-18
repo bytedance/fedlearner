@@ -56,7 +56,7 @@ class Handler(object):
     def __init__(self, name):
         self._name = name
 
-    def emit(self, name, value, tags=None, metrics_type=None):
+    def emit(self, name, value, tags=None, metrics_type=None, index='metrics'):
         """
         Do whatever it takes to actually log the specified logging record.
 
@@ -73,7 +73,7 @@ class LoggingHandler(Handler):
     def __init__(self):
         super(LoggingHandler, self).__init__('logging')
 
-    def emit(self, name, value, tags=None, metrics_type=None):
+    def emit(self, name, value, tags=None, metrics_type=None, index='metrics'):
         logging.debug('[metrics] name[%s] value[%s] tags[%s]',
                       name, value, str(tags))
 
@@ -86,13 +86,12 @@ class ElasticSearchHandler(Handler):
         self._tz = pytz.timezone('Asia/Shanghai')
         es_logger = logging.getLogger('elasticsearch')
         es_logger.setLevel(logging.WARNING)
-        # initialize index for elastic search
-        if self._es.indices.exists(index='metrics') is not True:
-            self._es.indices.create(index='metrics')
 
-    def emit(self, name, value, tags=None, metrics_type=None):
+    def emit(self, name, value, tags=None, metrics_type=None, index='metrics'):
         if tags is None:
             tags = {}
+        if not self._es.indices.exists(index=index):
+            self._es.indices.create(index=index)
         application_id = os.environ.get('APPLICATION_ID', '')
         if application_id:
             tags['application_id'] = str(application_id)
@@ -102,7 +101,7 @@ class ElasticSearchHandler(Handler):
             "tags": tags,
             "date_time": datetime.datetime.now(tz=self._tz)
         }
-        self._es.index(index="metrics", body=action)
+        self._es.index(index=index, body=action)
 
 
 class Metrics(object):
@@ -131,14 +130,14 @@ class Metrics(object):
         finally:
             _releaseLock()
 
-    def emit(self, name, value, tags=None, metrics_type=None):
+    def emit(self, name, value, tags=None, metrics_type=None, index='metrics'):
         if not self.handlers or len(self.handlers) == 0:
             print('no handlers. do nothing.')
             return
 
         for hdlr in self.handlers:
             try:
-                hdlr.emit(name, value, tags, metrics_type)
+                hdlr.emit(name, value, tags, metrics_type, index)
             except Exception as e:  # pylint: disable=broad-except
                 print('hdlr [%s] emit failed. [%s]' %
                       (hdlr.get_name(), repr(e)))
@@ -165,22 +164,22 @@ def metrics_config(handler):
         _releaseLock()
 
 
-def emit_counter(name, value, tags=None):
+def emit_counter(name, value, tags=None, index='metrics'):
     if not _metrics_client:
         initialize_metrics()
-    _metrics_client.emit(name, value, tags, 'counter')
+    _metrics_client.emit(name, value, tags, 'counter', index)
 
 
-def emit_store(name, value, tags=None):
+def emit_store(name, value, tags=None, index='metrics'):
     if not _metrics_client:
         initialize_metrics()
-    _metrics_client.emit(name, value, tags, 'store')
+    _metrics_client.emit(name, value, tags, 'store', index)
 
 
-def emit_timer(name, value, tags=None):
+def emit_timer(name, value, tags=None, index='metrics'):
     if not _metrics_client:
         initialize_metrics()
-    _metrics_client.emit(name, value, tags, 'timer')
+    _metrics_client.emit(name, value, tags, 'timer', index)
 
 
 def timer(func_name, tags=None):
