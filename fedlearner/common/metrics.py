@@ -91,7 +91,15 @@ class ElasticSearchHandler(Handler):
         if tags is None:
             tags = {}
         if not self._es.indices.exists(index=index):
-            self._es.indices.create(index=index)
+            body = {
+                'mappings': {
+                    'properties': {
+                        'tags': {'type': 'keyword'},
+                        'date_time': {'type': 'date'}
+                    }
+                }
+            }
+            self._es.indices.create(index=index, body=body)
         application_id = os.environ.get('APPLICATION_ID', '')
         if application_id:
             tags['application_id'] = str(application_id)
