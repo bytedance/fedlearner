@@ -356,9 +356,11 @@ class DataJoinMaster(dj_grpc.DataJoinMasterServiceServicer):
             time.sleep(3)
         logging.info('Peer rollback timestamp: %d.', self._peer_rollback)
 
-        # convert to opposite number to get the smallest positive timestamp
         # in case one of the timestamps is 0
-        self._rollback = -max(-self._local_rollback, -self._peer_rollback)
+        if min(self._local_rollback, self._peer_rollback) == 0:
+            self._rollback = max(self._local_rollback, self._peer_rollback)
+        else:
+            self._rollback = min(self._local_rollback, self._peer_rollback)
         if self._rollback <= 0:
             logging.info('Not rolling back.')
             self._rollback_checked = True
