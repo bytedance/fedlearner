@@ -69,6 +69,9 @@ def _handle_uncaught_exception(error):
 
 @jwt.unauthorized_loader
 def _handle_unauthorized_request(reason):
+    print('============================')
+    print(reason)
+    print(type(reason).__name__)
     response = jsonify(
         code=HTTPStatus.UNAUTHORIZED,
         msg=reason
