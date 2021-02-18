@@ -1341,7 +1341,7 @@ def make_workflow_template():
                     }
                 },
                 "pair": true,
-                "replicas": ${workflow.jobs.variables.num_partitions}
+                "replicas": ${workflow.variables.num_partitions}
             }
         }
     }
