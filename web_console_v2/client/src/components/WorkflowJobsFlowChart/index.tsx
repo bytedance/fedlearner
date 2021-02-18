@@ -33,7 +33,6 @@ import { cloneDeep } from 'lodash';
 import { message } from 'antd';
 import i18n from 'i18n';
 import { MixinSquare } from 'styles/mixins';
-import { useUnmount } from 'react-use';
 import { useResizeObserver } from 'hooks';
 
 const Container = styled.div`
@@ -139,11 +138,11 @@ const WorkflowJobsFlowChart: ForwardRefRenderFunction<ChartExposedRef | undefine
   //
   // Q: why not put workflowConfig directly as the dependent?
   // A: At workflowConfig's inner may contains variables' value
-  // and will change during user configuring, but we do not want
-  // re-generate chart elements for that
+  // and will change during user configuring, but we do not want that lead
+  // re-generate chart elements
   const workflowIdentifyString = workflowConfig.job_definitions
     .map((item) => item.name)
-    .concat(workflowConfig.variables.map((item) => item.name))
+    .concat(workflowConfig.variables?.map((item) => item.name) || [])
     .join('|');
 
   useEffect(() => {
@@ -202,6 +201,7 @@ const WorkflowJobsFlowChart: ForwardRefRenderFunction<ChartExposedRef | undefine
   function onLoad(_reactFlowInstance: OnLoadParams) {
     setChartInstance(_reactFlowInstance!);
     // Fit view at next tick
+    // TODO: implement nextTick
     setImmediate(() => {
       _reactFlowInstance!.fitView();
     });

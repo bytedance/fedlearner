@@ -27,6 +27,9 @@ const workflow: I18nMessageModule = {
   btn_see_peer_config: { zh: '查看对方配置' },
   btn_hide_peer_config: { zh: '隐藏对方配置' },
   btn_send_2_ptcpt: { zh: '发送给合作伙伴' },
+  btn_auto_refresh_logs: { zh: '自动刷新日志' },
+  btn_pause_auto_refresh: { zh: '停止自动刷新' },
+  btn_has_new_logs: { zh: '有新的日志' },
 
   col_status: { zh: '任务状态' },
   col_project: { zh: ' 隶属项目' },

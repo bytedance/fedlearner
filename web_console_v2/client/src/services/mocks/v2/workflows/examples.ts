@@ -1,5 +1,5 @@
 import { cloneDeep } from 'lodash';
-import { JobState, JobType, PodState } from 'typings/job';
+import { JobExecutionDetalis, JobState, JobType, PodState } from 'typings/job';
 import {
   WorkflowState,
   TransactionState,
@@ -10,7 +10,7 @@ import { normalTemplate } from '../workflow_templates/examples';
 
 export const awaitParticipantConfig = {
   id: 1,
-  name: 'Await configure',
+  name: 'Await-configure',
   project_id: 1,
   config: null,
   forkable: true,
@@ -25,7 +25,7 @@ export const awaitParticipantConfig = {
 
 export const newlyCreated = {
   id: 2,
-  name: 'Newly created',
+  name: 'Newly-created',
   project_id: 1,
   config: {
     group_alias: 'test-2',
@@ -110,10 +110,25 @@ export const newlyCreated = {
 export const withExecutionDetail: WorkflowExecutionDetails = {
   ...cloneDeep(newlyCreated),
   run_time: 100000, // second level
-  jobs: [
+  jobs: _generateJobExecutionDetails('With-execution-details'),
+};
+
+export const completed = {
+  ...cloneDeep(withExecutionDetail),
+  id: 3,
+  name: 'All-completed',
+  config: normalTemplate.data.config as any,
+  state: WorkflowState.COMPLETED,
+  target_state: WorkflowState.INVALID,
+  transaction_state: TransactionState.ABORTED,
+  jobs: _generateJobExecutionDetails('All-completed'),
+};
+
+function _generateJobExecutionDetails(workflowName: string): JobExecutionDetalis[] {
+  return [
     {
       id: 1,
-      name: 'Newly created-Initiative',
+      name: `${workflowName}-Initiative`,
       job_type: JobType.RAW_DATA,
       state: JobState.COMPLETE,
       yaml_template: '',
@@ -126,7 +141,7 @@ export const withExecutionDetail: WorkflowExecutionDetails = {
     },
     {
       id: 2,
-      name: 'Newly created-Raw data upload',
+      name: `${workflowName}-Raw data upload`,
       job_type: JobType.DATA_JOIN,
       state: JobState.RUNNING,
       yaml_template: '',
@@ -145,7 +160,7 @@ export const withExecutionDetail: WorkflowExecutionDetails = {
     },
     {
       id: 3,
-      name: 'Newly created-Training',
+      name: `${workflowName}-Training`,
       job_type: JobType.DATA_JOIN,
       state: JobState.STOPPED,
       yaml_template: '',
@@ -156,16 +171,5 @@ export const withExecutionDetail: WorkflowExecutionDetails = {
       updated_at: 1611006571,
       deleted_at: 0,
     },
-  ],
-};
-
-export const completed = {
-  ...cloneDeep(newlyCreated),
-  id: 3,
-  name: 'All completed',
-  config: normalTemplate.data.config as any,
-  state: WorkflowState.COMPLETED,
-  target_state: WorkflowState.INVALID,
-  transaction_state: TransactionState.ABORTED,
-  jobs: [],
-};
+  ];
+}
