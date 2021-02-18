@@ -6,7 +6,9 @@ import PrintLogs from 'components/PrintLogs';
 const PodLogs: FC = () => {
   const params = useParams<{ jobname: string }>();
 
-  return <PrintLogs logsFetcher={getLogs} queryKey={['getJob', params.jobname]} />;
+  return (
+    <PrintLogs logsFetcher={getLogs} refetchInterval={4000} queryKey={['getJob', params.jobname]} />
+  );
 
   async function getLogs() {
     if (!params.jobname) {
