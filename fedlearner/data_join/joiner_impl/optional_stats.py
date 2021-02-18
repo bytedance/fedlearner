@@ -83,7 +83,7 @@ class OptionalStats:
         tags['example_id'] = self._convert_to_str(item.example_id)
         tags['event_time'] = self._convert_to_str(item.event_time)
         tags['event_time_iso'] = convert_to_iso_format(item.event_time)
-        index = 'metrics-{}'.format(datetime.now().strftime('%Y%m%d'))
+        index = 'metrics-datajoin-{}'.format(datetime.now().strftime('%Y%m%d'))
         metrics.emit_store(name='datajoin', value=0, tags=tags, index=index)
 
     def emit_optional_stats(self):
