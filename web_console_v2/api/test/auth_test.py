@@ -27,6 +27,8 @@ class AuthApiTest(BaseTestCase):
 
         resp = self.get_helper('/api/v2/auth/users')
         self.assertEqual(resp.status_code, HTTPStatus.UNAUTHORIZED)
+        print('------------')
+        print(resp.json)
 
         resp = self.client.post(
             '/api/v2/auth/signin',
