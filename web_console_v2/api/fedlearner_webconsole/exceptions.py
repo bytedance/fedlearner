@@ -77,9 +77,6 @@ class InternalException(WebConsoleApiException):
 
 def make_response(exception: WebConsoleApiException):
     """Makes flask response for the exception."""
-    print('+++++++++++++___________')
-    print(type(exception).__name__)
-    print(repr(exception))
     response = jsonify(exception.to_dict())
     response.status_code = exception.status_code
     return response

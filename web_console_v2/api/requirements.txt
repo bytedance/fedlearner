@@ -3,7 +3,7 @@ Flask-Migrate
 Flask-HTTPAuth
 flask-restful
 passlib
-flask-jwt-extended
+flask-jwt-extended>=4.0.0
 Flask-Testing
 gunicorn
 # grpc-related stuff has be 1.32.0 to be compatible with tensorflow
