@@ -44,7 +44,7 @@ optional_fields=$(normalize_env_to_args '--optional_fields' $OPTIONAL_FIELDS)
 join_expr=$(normalize_env_to_args '--join_expr' $JOIN_EXPR)
 join_key_mapper=$(normalize_env_to_args '--join_key_mapper' $JOIN_KEY_MAPPER)
 
-if [ -z "$join_key_mapper" ]; then
+if [ -n "$join_key_mapper" ]; then
     IFS='=' mapper=$("$string")
     pull_code ${mapper[1]} /app/fedlearner/data_join/key_mapper/
     join_key_mapper=${mapper[0]}

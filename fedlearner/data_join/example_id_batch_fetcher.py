@@ -59,9 +59,9 @@ class ExampleIdBatch(ItemBatch):
         assert len(self._id_types) == len(self._event_time_deeps), \
                 "Rawrata invalid new version"
         if len(self._id_types) > 0:
-            serde_lite_examples.id_type = self._id_types
-            serde_lite_examples.event_time_deep = self._event_time_deeps
-            serde_lite_examples.click_id = self._click_ids
+            serde_lite_examples.id_type.extend(self._id_types)
+            serde_lite_examples.event_time_deep.extend(self._event_time_deeps)
+            serde_lite_examples.click_id.extend(self._click_ids)
         return dj_pb.PackedLiteExampleIds(
                 partition_id=self._partition_id,
                 begin_index=self._begin_index,

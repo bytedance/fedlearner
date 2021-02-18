@@ -101,9 +101,10 @@ class _Trigger(object):
     def shrink(self, follower_window):
         ed = follower_window[follower_window.size() - 1]
         idx = 0
-        while idx < follower_window.size()                                     \
-                and ed.item.event_time >                                       \
-              follower_window[idx].item.event_time + self._max_conversion_delay:
+        while idx < follower_window.size() and common.time_diff(              \
+                    ed.item.event_time,                                       \
+                    follower_window[idx].item.event_time)                     \
+                > self._max_conversion_delay:
             self._watermark = follower_window[idx].item.event_time
             idx += 1
         return idx
@@ -116,9 +117,10 @@ class _Trigger(object):
         while leader_stride <= leader_win_size and                             \
                 sid <= leader_win_size and                                     \
                 follower_win_size >= 0 and                                     \
-                follower_window[follower_win_size].item.event_time >           \
-                leader_window[sid].item.event_time +                           \
-                    self._max_conversion_delay:
+                common.time_diff(                                              \
+                    follower_window[follower_win_size].item.event_time,        \
+                    leader_window[sid].item.event_time) >                      \
+                self._max_conversion_delay:
             leader_stride += step
             sid += 1
 
@@ -126,9 +128,10 @@ class _Trigger(object):
         while follower_stride <= follower_win_size and                         \
                 leader_win_size >= 0 and                                       \
                 0 <= cid <= follower_win_size and                              \
-                leader_window[leader_win_size].item.event_time >               \
-                follower_window[cid].item.event_time +                         \
-                    self._max_conversion_delay:
+                common.time_diff(                                              \
+                  leader_window[leader_win_size].item.event_time,              \
+                  follower_window[cid].item.event_time) >                      \
+                self._max_conversion_delay:
             #FIXME current et is not always the watermark
             self._watermark = max(follower_window[cid].item.event_time,        \
                                   self._watermark)
@@ -201,7 +204,7 @@ class _SlidingWindow(object):
             return 0
         st = self._ring_buffer[self._start].item.event_time
         ed = self._ring_buffer[self._index(self._size - 1)].item.event_time
-        return ed - st
+        return common.time_diff(ed, st)
 
     def reserved_size(self):
         return self._max_window_size - self._size
