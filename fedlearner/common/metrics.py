@@ -177,7 +177,8 @@ class ElasticSearchHandler(Handler):
             action['_type'] = '_doc'
         self._emit_batch[index].append(action)
         logging.info('METRICS: new log in batch. size: %d', len(self._emit_batch))
-        if len(self._emit_batch[index]) == 1000:
+        if len(self._emit_batch[index]) == 10:
+            logging.info('emit batch: %s', str(self._emit_batch[index]))
             logging.info('METRICS: Logging 1000 entries to ES.')
             helpers.bulk(self._es, self._emit_batch)
             self._emit_batch.pop(index)
