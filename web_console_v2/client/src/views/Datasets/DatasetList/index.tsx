@@ -103,6 +103,8 @@ export const getDatasetTableColumns = (options: ColumnsGetterOptions) => {
   return cols;
 };
 
+export const DATASET_LIST_QUERY_KEY = 'datasetList';
+
 const DatasetList: FC = () => {
   const { t } = useTranslation();
   const [form] = Form.useForm();
@@ -112,10 +114,14 @@ const DatasetList: FC = () => {
   const [addBatchVisible, toggleAddBatchVisible] = useToggle(false);
   const [curDataset, setCurDataset] = useState<Dataset>();
 
-  const listQuery = useQuery(['datasetList', params.keyword], () => fetchDatasetList(params), {
-    retry: 2,
-    refetchOnWindowFocus: false,
-  });
+  const listQuery = useQuery(
+    [DATASET_LIST_QUERY_KEY, params.keyword],
+    () => fetchDatasetList(params),
+    {
+      retry: 2,
+      refetchOnWindowFocus: false,
+    },
+  );
 
   const isEmpty = !listQuery.isFetching && listQuery.data?.data.length === 0;
 
