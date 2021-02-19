@@ -16,6 +16,7 @@
 
 import logging
 import time
+import traceback
 
 from fedlearner.common import metrics
 
@@ -27,13 +28,13 @@ from fedlearner.data_join.negative_example_generator \
 from fedlearner.data_join.join_expr import expression as expr
 from fedlearner.data_join.key_mapper import create_key_mapper
 
-def get_key_instance_by_attr(keys, item, mapped_item, tuple_idx=None):
+def get_key_instance_by_attr(keys, item, tuple_idx=None):
     key_str_arr = []
     for idx, key in enumerate(keys):
         key_arr = key
         if isinstance(key, str):
             key_arr = [key]
-        if all([hasattr(item, att) or (att in mapped_item) for att in key_arr]):
+        if all([hasattr(item, att) for att in key_arr]):
             if tuple_idx is not None:
                 tuple_idx.append(idx)
             key_str_arr.append("_".join(
@@ -65,9 +66,11 @@ class _JoinerImpl(object):
             leader = leader_window[idx].item
             #1. find the first matching key
             tuple_idx = []
-            mapped_item = leader_window.key_map_fn(leader)
+            if not leader_window.key_map_fn(leader):
+                idx += 1
+                continue
             key_str_arr = get_key_instance_by_attr(
-                keys, leader, mapped_item, tuple_idx)
+                keys, leader, tuple_idx)
             found = False
             for ki, k in enumerate(key_str_arr):
                 if k not in follower_dict:
@@ -91,8 +94,8 @@ class _JoinerImpl(object):
 
 class _Trigger(object):
     """Update watermark. We assume the item contains field event_time"""
-    def __init__(self, max_conversion_delay):
-        self._max_conversion_delay = max_conversion_delay
+    def __init__(self, max_watermark_delay):
+        self._max_watermark_delay = max_watermark_delay
         self._watermark = 0
 
     def watermark(self):
@@ -104,7 +107,7 @@ class _Trigger(object):
         while idx < follower_window.size() and common.time_diff(              \
                     ed.item.event_time,                                       \
                     follower_window[idx].item.event_time)                     \
-                > self._max_conversion_delay:
+                >= self._max_watermark_delay:
             self._watermark = follower_window[idx].item.event_time
             idx += 1
         return idx
@@ -119,8 +122,8 @@ class _Trigger(object):
                 follower_win_size >= 0 and                                     \
                 common.time_diff(                                              \
                     follower_window[follower_win_size].item.event_time,        \
-                    leader_window[sid].item.event_time) >                      \
-                self._max_conversion_delay:
+                    leader_window[sid].item.event_time) >=                     \
+                self._max_watermark_delay:
             leader_stride += step
             sid += 1
 
@@ -130,8 +133,8 @@ class _Trigger(object):
                 0 <= cid <= follower_win_size and                              \
                 common.time_diff(                                              \
                   leader_window[leader_win_size].item.event_time,              \
-                  follower_window[cid].item.event_time) >                      \
-                self._max_conversion_delay:
+                  follower_window[cid].item.event_time) >=                     \
+                self._max_watermark_delay:
             #FIXME current et is not always the watermark
             self._watermark = max(follower_window[cid].item.event_time,        \
                                   self._watermark)
@@ -149,6 +152,7 @@ class _SlidingWindow(object):
         def __init__(self, idx, item):
             self.index = idx
             self.item = item
+            self.is_mapped = False
     def __init__(self, init_window_size, max_window_size, mapper):
         self._init_window_size = max(init_window_size, 1)
         self._max_window_size = max_window_size
@@ -161,7 +165,20 @@ class _SlidingWindow(object):
         self._key_map_fn = mapper
 
     def key_map_fn(self, item):
-        return self._key_map_fn(item)
+        assert isinstance(item, _SlidingWindow.Element), \
+                "item %s is not Element"%item
+        if item.is_mapped:
+            return True
+        try:
+            mapped_item = self._key_map_fn(item)
+            for (k, v) in mapped_item.items():
+                setattr(item, k, v)
+            item.is_mapped = True
+            return True
+        except Exception as e: #pylint: disable=broad-except
+            logging.warning("key mapping failed for %s", item.__dict__)
+            traceback.print_exc()
+            return False
 
     def __str__(self):
         return "start: %d, end: %d, size: %d, alloc_size: %d, buffer: %s"% \
@@ -178,8 +195,10 @@ class _SlidingWindow(object):
         idx = 0
         while idx < self.size():
             item = self.__getitem__(idx).item
-            mapped_item = self._key_map_fn(item)
-            for key in get_key_instance_by_attr(keys, item, mapped_item):
+            if not self.key_map_fn(item):
+                idx += 1
+                continue
+            for key in get_key_instance_by_attr(keys, item):
                 if key not in buf:
                     buf[key] = [idx]
                 else:
@@ -289,10 +308,15 @@ class UniversalJoiner(ExampleJoiner):
                                                   kvstore, data_source,
                                                   partition_id)
         self._min_window_size = example_joiner_options.min_matching_window
-        # max_window_size must be lesser than max_followerersion_delay
         self._max_window_size = example_joiner_options.max_matching_window
-        self._max_conversion_delay = \
+
+        # max_watermark_delay can be:
+        #  0 : at most once matching
+        #  >0 : at least once matching, and ensure delay is bigger than the
+        #    maximum substraction of event_time of all items in window
+        self._max_watermark_delay = \
                 example_joiner_options.max_conversion_delay
+
         self._key_mapper = create_key_mapper(
             example_joiner_options.join_key_mapper)
         self._leader_join_window = _SlidingWindow(
@@ -304,9 +328,7 @@ class UniversalJoiner(ExampleJoiner):
         self._leader_restart_index = -1
         self._sorted_buf_by_leader_index = []
         self._dedup_by_follower_index = {}
-
-        self._trigger = _Trigger(self._max_conversion_delay)
-
+        self._trigger = _Trigger(self._max_watermark_delay)
         self._expr = expr.JoinExpr(example_joiner_options.join_expr)
         self._joiner = _JoinerImpl(self._expr)
 
@@ -329,9 +351,9 @@ class UniversalJoiner(ExampleJoiner):
 
         while True:
             leader_filled = self._fill_leader_join_window()
-            leader_exhausted = sync_example_id_finished and \
-                    self._leader_join_window.et_span() <    \
-                    self._max_conversion_delay
+            leader_exhausted = sync_example_id_finished and                   \
+                    self._leader_join_window.et_span() <=                     \
+                    self._max_watermark_delay
             follower_filled = self._fill_follower_join_window()
 
             logging.info("Fill: leader_filled=%s, leader_exhausted=%s,"        \

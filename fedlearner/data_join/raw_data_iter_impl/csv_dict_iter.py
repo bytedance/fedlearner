@@ -61,7 +61,7 @@ class CsvItem(RawDataIter.Item):
             logging.error("Failed parse click id since no join "\
                           "id in csv dict raw %s", self._features)
             return common.InvalidExampleId
-        return str(self._features['click_id']).encode()
+        return self._features['click_id']
 
     @property
     def event_time(self):

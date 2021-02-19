@@ -31,12 +31,16 @@ class RawDataIter(object):
 
         @property
         def example_id(self):
+            if 'example_id' in self._features:
+                return self._features['example_id']
             raise NotImplementedError(
                     "example_id not implement for basic Item"
                 )
 
         @property
         def event_time(self):
+            if 'event_time' in self._features:
+                return self._features['event_time']
             raise NotImplementedError(
                     "event_time not implement for basic Item"
                 )
@@ -66,7 +70,7 @@ class RawDataIter(object):
         def __getattr__(self, item):
             if item in self._features:
                 return self._features[item]
-            raise AttributeError
+            raise AttributeError(item)
 
         def __getitem__(self, item):
             return self._features[item]

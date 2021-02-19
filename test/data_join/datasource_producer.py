@@ -17,7 +17,6 @@
 import unittest
 import os
 import random
-import pdb
 import enum
 
 import tensorflow.compat.v1 as tf
@@ -230,7 +229,6 @@ class DataSourceProducer(unittest.TestCase):
             eid()
 
     def tearDown(self):
-        #pdb.set_trace()
         if gfile.Exists(self.data_source.output_base_dir):
             gfile.DeleteRecursively(self.data_source.output_base_dir)
         if gfile.Exists(self.raw_data_dir):

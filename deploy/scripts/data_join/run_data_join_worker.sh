@@ -41,13 +41,14 @@ enable_negative_example_generator=$(normalize_env_to_args '--enable_negative_exa
 negative_sampling_rate=$(normalize_env_to_args '--negative_sampling_rate' $NEGATIVE_SAMPLING_RATE)
 optional_fields=$(normalize_env_to_args '--optional_fields' $OPTIONAL_FIELDS)
 
-join_expr=$(normalize_env_to_args '--join_expr' $JOIN_EXPR)
-join_key_mapper=$(normalize_env_to_args '--join_key_mapper' $JOIN_KEY_MAPPER)
+join_expr=$(normalize_env_to_args '--join_expr' ${JOIN_EXPR})
+join_key_mapper=$(normalize_env_to_args '--join_key_mapper' ${JOIN_KEY_MAPPER})
 
-if [ -n "$join_key_mapper" ]; then
-    IFS='=' mapper=$("$string")
-    pull_code ${mapper[1]} /app/fedlearner/data_join/key_mapper/
-    join_key_mapper=${mapper[0]}
+if [ -n "$JOIN_KEY_MAPPER" ]; then
+    IFS='=' read -r -a mapper <<< "$JOIN_KEY_MAPPER"
+    echo "${mapper[0]}"
+    pull_code "${mapper[1]}" /app/fedlearner/data_join/key_mapper/impl
+    join_key_mapper=$(normalize_env_to_args '--join_key_mapper' "${mapper[0]}")
 fi
 
 python -m fedlearner.data_join.cmd.data_join_worker_service \

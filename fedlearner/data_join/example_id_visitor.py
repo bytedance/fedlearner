@@ -239,20 +239,10 @@ class ExampleIdManager(visitor.IndexMetaManager):
 
 class ExampleIdVisitor(visitor.Visitor):
     class ExampleIdItem(raw_data_iter.RawDataIter.Item):
-        def __init__(self, example_id, event_time, index):
+        def __init__(self, index, row):
             super().__init__()
             self._index = index
-            self._example_id = example_id
-            self._event_time = event_time
-            self._index = index
-
-        @property
-        def example_id(self):
-            return self._example_id
-
-        @property
-        def event_time(self):
-            return self._event_time
+            self._features.update(row)
 
         @property
         def index(self):
@@ -279,19 +269,18 @@ class ExampleIdVisitor(visitor.Visitor):
                                                 event_time_num)
                     index = 0
                     while index < len(lite_example_ids.example_id):
-
-                        example_id_item = ExampleIdVisitor.ExampleIdItem(
-                                lite_example_ids.example_id[index],
-                                lite_example_ids.event_time[index],
-                                index + lite_example_ids.begin_index
-                            )
+                        row = dict()
+                        row['example_id'] = lite_example_ids.example_id[index]
+                        row['event_time'] = lite_example_ids.event_time[index]
                         if len(lite_example_ids.id_type) > 0:
-                            example_id_item.click_id = \
-                                    lite_example_ids.click_id[index]
-                            example_id_item.id_type = \
-                                    lite_example_ids.id_type[index]
-                            example_id_item.event_time_deep = \
+                            row['click_id'] = lite_example_ids.click_id[index]
+                            row['id_type'] = lite_example_ids.id_type[index]
+                            row['event_time_deep'] = \
                                     lite_example_ids.event_time_deep[index]
+                        example_id_item = ExampleIdVisitor.ExampleIdItem(
+                                index + lite_example_ids.begin_index,
+                                row
+                            )
                         yield example_id_item
                         index += 1
 

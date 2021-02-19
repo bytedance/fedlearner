@@ -20,7 +20,6 @@ import re
 import threading
 import time
 
-
 class RoutineWorker(object):
     def __init__(self, name, routine_fn, cond_fn, exec_interval=None):
         self._name = name
