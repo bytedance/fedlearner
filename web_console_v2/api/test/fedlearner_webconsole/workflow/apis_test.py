@@ -53,14 +53,14 @@ class WorkflowsApiTest(BaseTestCase):
     def test_get_with_project(self):
         response = self.get_helper('/api/v2/workflows?project=1')
         self.assertEqual(response.status_code, HTTPStatus.OK)
-        data = json.loads(response.data).get('data')
+        data = json.loads(response.data).get('data')[::-1]
         self.assertEqual(len(data), 1)
         self.assertEqual(data[0]['name'], 'workflow_key_get1')
 
     def test_get_with_keyword(self):
         response = self.get_helper('/api/v2/workflows?keyword=key')
         self.assertEqual(response.status_code, HTTPStatus.OK)
-        data = json.loads(response.data).get('data')
+        data = json.loads(response.data).get('data')[::-1]
         self.assertEqual(len(data), 2)
         self.assertEqual(data[0]['name'], 'workflow_key_get1')
 
