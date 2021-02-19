@@ -1,6 +1,16 @@
 module.exports = {
   roots: ['<rootDir>', '<rootDir>/src'],
-  collectCoverageFrom: ['src/**/*.{ts,tsx}', '!src/**/*.d.ts', '!src/i18n/index.ts'],
+  collectCoverageFrom: [
+    'src/**/*.{ts,tsx}',
+    '!src/**/*.d.ts',
+    '!src/i18n/index.ts',
+    '!src/components/**/*.tsx',
+    '!src/stores/**/*.ts',
+    '!src/typings/*.ts',
+    '!src/views/**/*.tsx',
+    '!src/App.ts',
+    '!src/index.ts',
+  ],
   setupFiles: ['react-app-polyfill/jsdom'],
   setupFilesAfterEnv: ['<rootDir>/tests/setup.ts'],
   testMatch: [
@@ -18,6 +28,7 @@ module.exports = {
   transformIgnorePatterns: [
     '[/\\\\]node_modules[/\\\\].+\\.(js|jsx|mjs|cjs|ts|tsx)$',
     '^.+\\.module\\.(css|sass|scss|less)$',
+    '/node_modules/(?!antd|@ant-design|rc-.+?|@babel/runtime).+(js|jsx)$',
   ],
   modulePaths: [],
   moduleNameMapper: {
@@ -29,6 +40,7 @@ module.exports = {
     'services/(.*)': '<rootDir>/src/services/$1',
     'typings/(.*)': '<rootDir>/src/typings/$1',
     'views/(.*)': '<rootDir>/src/views/$1',
+    'components/(.*)': ['<rootDir>/src/components/$1', '@ant-design/icons'],
     'i18n/(.*)': '<rootDir>/src/i18n/$1',
     i18n: '<rootDir>/src/i18n/index.ts',
   },

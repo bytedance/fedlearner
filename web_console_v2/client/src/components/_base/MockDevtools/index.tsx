@@ -7,14 +7,15 @@ import LOCAL_STORAGE_KEYS from 'shared/localStorageKeys';
 import { removeRequestMock, toggleRequestMockState } from './utils';
 import { useListenKeyboard, useReactiveLocalStorage } from 'hooks';
 import store from 'store2';
-import { ApiTwoTone } from '@ant-design/icons';
+import { Storage } from 'components/IconPark';
+import defaultTheme from 'styles/_theme';
 
 const FloatButton = styled.button`
   ${MixinCircle(50)}
 
   position: fixed;
   z-index: 10;
-  right: 10px;
+  right: 5px;
   bottom: 64px;
   background-color: var(--blue1);
   color: white;
@@ -117,7 +118,7 @@ function MockDevtools() {
             )}
           >
             <FloatButton onClick={toggleModal}>
-              <ApiTwoTone style={{ fontSize: '18px' }} />
+              <Storage style={{ fontSize: '24px', color: defaultTheme.primaryColor }} />
             </FloatButton>
           </Tooltip>
         )}

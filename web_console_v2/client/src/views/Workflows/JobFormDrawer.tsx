@@ -22,7 +22,7 @@ import { useTranslation } from 'react-i18next';
 import { removeUndefined } from 'shared/object';
 import ErrorBoundary from 'antd/lib/alert/ErrorBoundary';
 import { Eye } from 'components/IconPark';
-import { Variable } from 'typings/workflow';
+import { Variable } from 'typings/variable';
 import { Job } from 'typings/job';
 
 const Container = styled(Drawer)`

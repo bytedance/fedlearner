@@ -1,7 +1,4 @@
 import {
-  Variable,
-  VariableAccessMode,
-  VariableComponent,
   WorkflowAcceptPayload,
   WorkflowExecutionDetails,
   WorkflowForkPayload,
@@ -9,6 +6,7 @@ import {
   WorkflowTemplate,
   WorkflowTemplatePayload,
 } from 'typings/workflow';
+import { Variable, VariableAccessMode, VariableComponent } from 'typings/variable';
 import { Job } from 'typings/job';
 import { FormilySchema } from 'typings/formily';
 import VariableLabel from 'components/VariableLabel/index';
@@ -89,8 +87,8 @@ function _getUIs({
 }: Variable) {
   return {
     title: label
-      ? VariableLabel({ label, tooltip, access_mode })
-      : VariableLabel({ label: name, access_mode }),
+      ? VariableLabel({ label, tooltip, accessMode: access_mode })
+      : VariableLabel({ label: name, tooltip, accessMode: access_mode }),
     description,
     'x-index': index,
     'x-component-props': {
@@ -173,14 +171,14 @@ export function createSelect(variable: Variable): FormilySchema {
       _getPermissions(variable),
       _getValidations(variable),
       {
-        enum: options?.source || [],
+        enum: options?.source || /* istanbul ignore next: no need to test empty array */ [],
         'x-component': 'Select',
         'x-component-props': {
           // check here for more Select props:
           // https://ant.design/components/select
           allowClear: true,
           filterOption: filterOption,
-          mode: multiple ? 'multiple' : null,
+          mode: multiple ? /* istanbul ignore next */ 'multiple' : null,
         },
       },
     ),
@@ -210,6 +208,7 @@ export function createSwitch(variable: Variable): FormilySchema {
   };
 }
 
+/* istanbul ignore next: almost same as select */
 export function createCheckbox(variable: Variable): FormilySchema {
   const {
     name,
@@ -230,6 +229,7 @@ export function createCheckbox(variable: Variable): FormilySchema {
   };
 }
 
+/* istanbul ignore next: almost same as select */
 export function createRadio(variable: Variable): FormilySchema {
   const {
     name,
@@ -277,32 +277,6 @@ export function createNumberPicker(variable: Variable): FormilySchema {
   };
 }
 
-export function createUpload(variable: Variable): FormilySchema {
-  const {
-    name,
-    widget_schema: { accept, action, multiple },
-  } = variable;
-
-  return {
-    [name]: merge(
-      _getUIs(variable),
-      _getDatas(variable),
-      _getPermissions(variable),
-      _getValidations(variable),
-      {
-        'x-component': 'Upload',
-        'x-component-props': {
-          // force to use dragger-upload
-          listType: 'dragger',
-          accept,
-          action,
-          multiple,
-        },
-      },
-    ),
-  };
-}
-
 // ---- Component to Worker map --------
 const componentToWorkersMap: { [key: string]: (v: Variable) => FormilySchema } = {
   [VariableComponent.Input]: createInput,
@@ -312,9 +286,9 @@ const componentToWorkersMap: { [key: string]: (v: Variable) => FormilySchema } =
   [VariableComponent.Select]: createSelect,
   [VariableComponent.Radio]: createRadio,
   [VariableComponent.NumberPicker]: createNumberPicker,
-  [VariableComponent.Upload]: createUpload,
 };
 
+// ---------- Widget schemas stringify, parse -----------
 export function stringifyWidgetSchemas<
   T extends
     | WorkflowInitiatePayload
@@ -332,6 +306,7 @@ export function stringifyWidgetSchemas<
 
   let ifIsForking = (ret as WorkflowForkPayload).fork_proposal_config;
 
+  /* istanbul ignore if */
   if (ifIsForking) {
     ifIsForking.job_definitions.forEach((job: any) => {
       job.variables.forEach(_stringify);
@@ -343,6 +318,7 @@ export function stringifyWidgetSchemas<
   return ret;
 
   function _stringify(variable: any) {
+    /* istanbul ignore if: needless to test */
     if (typeof variable.widget_schema === 'object') {
       variable.widget_schema = JSON.stringify(variable.widget_schema);
     }
@@ -362,6 +338,7 @@ export function parseWidgetSchemas<
 
   let ifIsForking = (ret as WorkflowForkPayload).fork_proposal_config;
 
+  /* istanbul ignore if: logic is same as above */
   if (ifIsForking) {
     ifIsForking.job_definitions.forEach((job: any) => {
       job.variables.forEach(_parse);
@@ -373,8 +350,11 @@ export function parseWidgetSchemas<
   return ret;
 
   function _parse(variable: Variable): any {
+    /* istanbul ignore next: needless to test */
     if (typeof variable.widget_schema === 'string') {
-      variable.widget_schema = variable.widget_schema ? JSON.parse(variable.widget_schema) : {};
+      variable.widget_schema = variable.widget_schema
+        ? JSON.parse(variable.widget_schema)
+        : /* istanbul ignore next */ {};
     }
   }
 }

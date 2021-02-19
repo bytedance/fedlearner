@@ -2,7 +2,7 @@ import { XYPosition, Edge } from 'react-flow-renderer';
 import { Job, JobState } from 'typings/job';
 import { isHead, isLast } from 'shared/array';
 import { head, isEmpty, isNil, last } from 'lodash';
-import { Variable } from 'typings/workflow';
+import { Variable } from 'typings/variable';
 import i18n from 'i18n';
 import {
   NodeDataRaw,
