@@ -10,7 +10,7 @@ from fedlearner.common import metrics
 from fedlearner.data_join.common import convert_to_iso_format
 
 
-class OptionalStats:
+class OptionalStats(object):
     """
     Cumulative stats for optional fields in data join, will count total joined
         num and total num of different values of every optional stats field.
@@ -73,18 +73,16 @@ class OptionalStats:
             self.sample_unjoined(item.example_id)
         item_stat = {'joined': int(kind == 'joined'),
                      'original': int(kind != 'negative'),
-                     'negative': int(kind == 'negative')}
+                     'fake': int(kind == 'negative')}
         tags = copy.deepcopy(self._tags)
         for field in self._stat_fields:
             value = self._convert_to_str(getattr(item, field, '#None#'))
             item_stat[field] = value
             self._stats[kind]['{}={}'.format(field, value)] += 1
         tags.update(item_stat)
-        tags['example_id'] = self._convert_to_str(item.example_id)
-        tags['event_time'] = self._convert_to_str(item.event_time)
-        tags['event_time_iso'] = convert_to_iso_format(item.event_time)
-        index = 'metrics-datajoin-{}'.format(datetime.now().strftime('%Y%m%d'))
-        metrics.emit_store(name='datajoin', value=0, tags=tags, index=index)
+        tags['event_time'] = convert_to_iso_format(item.event_time)
+        tags['process_time'] = datetime.now().isoformat()
+        metrics.emit_store(name='datajoin', value=0, tags=tags)
 
     def emit_optional_stats(self):
         """
