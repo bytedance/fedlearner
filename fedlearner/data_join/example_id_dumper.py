@@ -116,7 +116,7 @@ class ExampleIdDumperManager(object):
         self._state_stale = False
         ds_name = data_source.data_source_meta.name
         self._metrics_tags = {'data_source_name': ds_name,
-                              'partiton': self._partition_id}
+                              'partition': self._partition_id}
 
     def get_next_index(self):
         with self._lock:

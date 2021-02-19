@@ -28,7 +28,7 @@ from elasticsearch import Elasticsearch, helpers
 # use to constrain ES document size, please modify with precaution to minimize
 # disk space
 ES_MAPPING = {
-    "dynamic": False,
+    "dynamic": True,
     "properties": {
         "name": {
             "type": "keyword"
@@ -64,6 +64,18 @@ ES_MAPPING = {
                 },
                 "application_id": {
                     "ignore_above": 128,
+                    "type": "keyword"
+                },
+                "data_source_name": {
+                    "ignore_above": 128,
+                    "type": "keyword"
+                },
+                "joiner_name": {
+                    "ignore_above": 32,
+                    "type": "keyword"
+                },
+                "role": {
+                    "ignore_above": 32,
                     "type": "keyword"
                 },
                 "process_time": {
