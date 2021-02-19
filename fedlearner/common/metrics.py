@@ -207,7 +207,7 @@ class Metrics(object):
             if hdlr in self.handlers:
                 self.handlers.remove(hdlr)
 
-    def emit(self, name, value, tags=None, metrics_type=None):
+    def emit(self, name, value, tags=None):
         self.init_handlers()
         if not self.handlers or len(self.handlers) == 0:
             print('no handlers. do nothing.')
@@ -215,7 +215,7 @@ class Metrics(object):
 
         for hdlr in self.handlers:
             try:
-                hdlr.emit(name, value, tags, metrics_type)
+                hdlr.emit(name, value, tags)
             except Exception as e:  # pylint: disable=broad-except
                 print('handler [%s] emit failed. [%s]' %
                       (hdlr.get_name(), repr(e)))
