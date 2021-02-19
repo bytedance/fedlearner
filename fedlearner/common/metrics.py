@@ -133,11 +133,13 @@ class ElasticSearchHandler(Handler):
         self._version = int(self._es.info()['version']['number'].split('.')[0])
         if self._version == 6:
             self._es = es6.Elasticsearch([ip], port=port)
+        # suppress ES logger
         tracer = logging.getLogger('elasticsearch')
         tracer.setLevel(logging.CRITICAL)
         tracer.addHandler(logging.FileHandler('indexer.log'))
         self._tz = pytz.timezone('Asia/Shanghai')
         self._emit_batch = defaultdict(list)
+        self._lock = threading.RLock()
         index = ES_INDEX.format(
             datetime.datetime.now(tz=self._tz).strftime('%Y.%m.%d')
         )
@@ -156,12 +158,13 @@ class ElasticSearchHandler(Handler):
             tags = {}
         date = datetime.datetime.now(tz=self._tz).strftime('%Y.%m.%d')
         index = ES_INDEX.format(date)
+        # if not exists, create, and check if current indices are out-dated
+        # if out-dated, emit them and pop
         if not self._es.indices.exists(index=index):
             self._create_mappings(index)
-            for idx, actions in self._emit_batch.items():
+            for idx in self._emit_batch.keys():
                 if not idx.endswith(date):
-                    helpers.bulk(self._es, actions)
-                    self._emit_batch.pop(idx)
+                    self._emit_and_pop(idx)
         application_id = os.environ.get('APPLICATION_ID', '')
         if application_id:
             tags['application_id'] = str(application_id)
@@ -176,24 +179,29 @@ class ElasticSearchHandler(Handler):
         if self._version == 6:
             action['_type'] = '_doc'
         self._emit_batch[index].append(action)
-        logging.info('METRICS: new log in batch. size: %d', len(self._emit_batch))
-        if len(self._emit_batch[index]) == 10:
-            logging.info('emit batch: %s', str(self._emit_batch[index]))
-            logging.info('METRICS: Logging 1000 entries to ES.')
-            helpers.bulk(self._es, self._emit_batch)
-            self._emit_batch.pop(index)
+        # emit and pop when there are 1000 documents to emit
+        with self._lock:
+            if len(self._emit_batch[index]) == 1000:
+                logging.info('METRICS: Emitting 1000 documents to ES.')
+                self._emit_and_pop(index)
 
     def flush(self):
-        for index, actions in self._emit_batch.items():
-            helpers.bulk(self._es, actions)
-            self._emit_batch.pop(index)
+        with self._lock:
+            for index in self._emit_batch.keys():
+                self._emit_and_pop(index)
 
     def _create_mappings(self, index):
-        if self._version == 6:
-            body = {'mappings': {'_doc': ES_MAPPING}}
-        else:
-            body = {'mappings': ES_MAPPING}
-        self._es.indices.create(index=index, body=body)
+        with self._lock:
+            if self._version == 6:
+                body = {'mappings': {'_doc': ES_MAPPING}}
+            else:
+                body = {'mappings': ES_MAPPING}
+            self._es.indices.create(index=index, body=body)
+
+    def _emit_and_pop(self, index):
+        with self._lock:
+            helpers.bulk(self._es, self._emit_batch[index])
+            self._emit_batch.pop(index)
 
 
 class Metrics(object):
