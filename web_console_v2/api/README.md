@@ -14,13 +14,11 @@ pip3 install -r requirements.txt
 # Generates python code for proto
 make protobuf
 
-export FLASK_APP=manage:app
-
 # Creates schemas for DB
-flask db upgrade
+FLASK_APP=command:app flask db upgrade
 
 # Creates initial user
-flask create-initial-data
+FLASK_APP=command:app flask create-initial-data
 
 # Starts the server
 export FLASK_ENV=development
@@ -37,12 +35,10 @@ make unit-test
 ## Helpers
 ### Gets all routes
 ```
-export FLASK_APP=manage:app
-flask routes
+FLASK_APP=command:app flask routes
 ```
 
 ## References
 
 ### Default date time in sqlalchemy
 https://stackoverflow.com/questions/13370317/sqlalchemy-default-datetime/33532154#33532154
-
