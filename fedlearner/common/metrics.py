@@ -133,6 +133,9 @@ class ElasticSearchHandler(Handler):
         self._version = int(self._es.info()['version']['number'].split('.')[0])
         if self._version == 6:
             self._es = es6.Elasticsearch([ip], port=port)
+        tracer = logging.getLogger('elasticsearch')
+        tracer.setLevel(logging.CRITICAL)
+        tracer.addHandler(logging.FileHandler('indexer.log'))
         self._tz = pytz.timezone('Asia/Shanghai')
         self._emit_batch = defaultdict(list)
         index = ES_INDEX.format(
@@ -173,6 +176,7 @@ class ElasticSearchHandler(Handler):
         if self._version == 6:
             action['_type'] = '_doc'
         self._emit_batch[index].append(action)
+        logging.info('METRICS: new log in batch. size: %d', len(self._emit_batch))
         if len(self._emit_batch[index]) == 1000:
             logging.info('METRICS: Logging 1000 entries to ES.')
             helpers.bulk(self._es, self._emit_batch)
