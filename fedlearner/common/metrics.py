@@ -14,6 +14,7 @@
 
 # coding: utf-8
 
+import atexit
 import datetime
 import logging
 import os
@@ -110,6 +111,9 @@ class Handler(object):
     def get_name(self):
         return self._name
 
+    def flush(self):
+        pass
+
 
 class LoggingHandler(Handler):
     def __init__(self):
@@ -162,6 +166,10 @@ class ElasticSearchHandler(Handler):
             helpers.bulk(self._es, self._emit_batch)
             self._emit_batch.pop(index)
 
+    def flush(self):
+        for actions in self._emit_batch.values():
+            helpers.bulk(self._es, actions)
+
 
 class Metrics(object):
     def __init__(self):
@@ -211,8 +219,16 @@ class Metrics(object):
                 print('handler [%s] emit failed. [%s]' %
                       (hdlr.get_name(), repr(e)))
 
+    def flush_handler(self):
+        for hdlr in self.handlers:
+            try:
+                hdlr.flush()
+            except Exception:  # pylint: disable=broad-except
+                pass
+
 
 _metrics_client = Metrics()
+atexit.register(_metrics_client.flush_handler)
 
 
 def emit(name, value, tags=None):
