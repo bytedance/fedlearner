@@ -1,7 +1,7 @@
 import React, { FunctionComponent } from 'react';
 import { Tooltip } from 'antd';
-import { QuestionCircleOutlined } from '@ant-design/icons';
-import { VariableAccessMode } from 'typings/workflow';
+import { QuestionCircle } from 'components/IconPark';
+import { VariableAccessMode } from 'typings/variable';
 import VariablePermission from 'components/VariblePermission';
 import GridRow from 'components/_base/GridRow';
 import styled from 'styled-components';
@@ -14,7 +14,7 @@ const LabelText = styled.span`
 type Props = {
   label: string;
   tooltip?: string;
-  access_mode: VariableAccessMode;
+  accessMode: VariableAccessMode;
 };
 
 const indicators: Record<VariableAccessMode, FunctionComponent> = {
@@ -24,12 +24,12 @@ const indicators: Record<VariableAccessMode, FunctionComponent> = {
   [VariableAccessMode.UNSPECIFIED]: VariablePermission.Private,
 };
 
-function VariableLabel({ label, tooltip, access_mode }: Props) {
-  const PermissionIndicator = indicators[access_mode];
+function VariableLabel({ label, tooltip, accessMode }: Props) {
+  const PermissionIndicator = indicators[accessMode];
 
   if (!tooltip) {
     return (
-      <GridRow gap="8">
+      <GridRow gap="8" role="label">
         <PermissionIndicator />
 
         <LabelText>{label}</LabelText>
@@ -38,13 +38,13 @@ function VariableLabel({ label, tooltip, access_mode }: Props) {
   }
 
   return (
-    <GridRow gap="8">
+    <GridRow gap="8" role="label">
       <PermissionIndicator />
 
       <Tooltip title={tooltip}>
         <LabelText>
           {label}
-          <QuestionCircleOutlined style={{ marginLeft: '5px' }} />
+          <QuestionCircle style={{ marginLeft: '5px' }} />
         </LabelText>
       </Tooltip>
     </GridRow>

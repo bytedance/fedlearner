@@ -66,14 +66,15 @@ def _handle_uncaught_exception(error):
     response.status_code = HTTPStatus.INTERNAL_SERVER_ERROR
     return response
 
+
 @jwt.unauthorized_loader
 def _handle_unauthorized_request(reason):
     response = jsonify(
         code=HTTPStatus.UNAUTHORIZED,
         msg=reason
     )
-    response.status_code = HTTPStatus.UNAUTHORIZED
-    return response
+    return response, HTTPStatus.UNAUTHORIZED
+
 
 @jwt.invalid_token_loader
 def _handle_invalid_jwt_request(reason):
@@ -81,8 +82,8 @@ def _handle_invalid_jwt_request(reason):
         code=HTTPStatus.UNPROCESSABLE_ENTITY,
         msg=reason
     )
-    response.status_code = HTTPStatus.UNPROCESSABLE_ENTITY
-    return response
+    return response, HTTPStatus.UNPROCESSABLE_ENTITY
+
 
 @jwt.expired_token_loader
 def _handle_token_expired_request(expired_token):
@@ -90,8 +91,7 @@ def _handle_token_expired_request(expired_token):
         code=HTTPStatus.UNAUTHORIZED,
         msg='Token has expired'
     )
-    response.status_code = HTTPStatus.UNAUTHORIZED
-    return response
+    return response, HTTPStatus.UNAUTHORIZED
 
 
 def create_app(config):

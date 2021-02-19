@@ -1,10 +1,5 @@
-import {
-  JobType,
-  VariableAccessMode,
-  VariableComponent,
-  WorkflowTemplate,
-  Variable,
-} from 'typings/workflow';
+import { JobType, WorkflowTemplate } from 'typings/workflow';
+import { Variable, VariableAccessMode, VariableComponent } from 'typings/variable';
 import { DeepPartial } from 'utility-types';
 
 export const gloabalVariables: Variable[] = [
@@ -21,6 +16,23 @@ export const gloabalVariables: Variable[] = [
     value: '4',
     access_mode: VariableAccessMode.PEER_READABLE,
     widget_schema: '' as any,
+  },
+  {
+    name: 'worker_cpu',
+    value: 1,
+    access_mode: VariableAccessMode.PRIVATE,
+    widget_schema: {
+      component: VariableComponent.Select,
+      type: 'number',
+      required: true,
+      options: {
+        type: 'static',
+        source: [
+          { value: 1, label: '1Gi' },
+          { value: 2, label: '2Gi' },
+        ],
+      },
+    },
   },
 ];
 

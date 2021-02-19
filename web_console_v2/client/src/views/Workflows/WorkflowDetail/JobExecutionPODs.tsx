@@ -72,9 +72,10 @@ const JobExecutionPODs: FC<Props> = ({ job }) => {
       render: (_: any, record: Pod) => {
         return (
           <div style={{ marginLeft: '-13px' }}>
-            <Button type="link" size="small" disabled={record.status !== PodState.RUNNING}>
+            {/* TODO: Enable Shell */}
+            {/* <Button type="link" size="small" disabled={record.status !== PodState.RUNNING}>
               Shell
-            </Button>
+            </Button> */}
             <Button type="link" size="small" onClick={() => goInspectLogs(record)}>
               {i18n.t('workflow.btn_inspect_logs')}
             </Button>
