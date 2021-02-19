@@ -19,4 +19,9 @@ export const put = {
   status: 200,
 };
 
+export const patch = {
+  data: { data: { success: true } },
+  status: 200,
+};
+
 export default get;

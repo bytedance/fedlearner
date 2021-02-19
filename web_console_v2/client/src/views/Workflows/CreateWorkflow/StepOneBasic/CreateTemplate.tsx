@@ -4,7 +4,7 @@ import ReadFile from 'components/ReadFile';
 import { useTranslation } from 'react-i18next';
 import { useRecoilState } from 'recoil';
 import { workflowTemplateForm, CreateTemplateForm } from 'stores/workflow';
-import WORKFLOW_CHANNELS from '../pubsub';
+import WORKFLOW_CHANNELS from '../../pubsub';
 import { createWorkflowTemplate } from 'services/workflow';
 import { useSubscribe } from 'hooks';
 import { to } from 'shared/helpers';

@@ -87,9 +87,9 @@ const PropertyList: FC<Props> = ({ properties, cols = 2, labelWidth, initialVisi
 
   return (
     <Container>
-      {propsToDisplay.map((item) => {
+      {propsToDisplay.map((item, index) => {
         return (
-          <Col span={24 / cols}>
+          <Col span={24 / cols} key={item.label + index}>
             <Prop
               data-label={item.label}
               style={{ '--labelWidth': convertToUnit(labelWidth || 'auto') } as any}

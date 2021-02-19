@@ -1,7 +1,7 @@
-import { ChangeEvent, useEffect, useState } from 'react';
+import { ChangeEvent, useEffect, useState, useMemo, useRef } from 'react';
 import store from 'store2';
 import keyboardjs, { KeyEvent } from 'keyboardjs';
-import { useToggle } from 'react-use';
+import { useToggle, useUnmount } from 'react-use';
 import PubSub from 'pubsub-js';
 
 export function useInputChange<T>(defaultValue: T) {
@@ -69,10 +69,39 @@ export function useListenKeyboard(
   return [isPressed];
 }
 
-export function useSubscribe(channel: string, cb: any) {
+export function useSubscribe(channel: string, cb: any, deps: any[] = []) {
   useEffect(() => {
     PubSub.subscribe(channel, cb);
 
     return () => PubSub.unsubscribe(channel);
-  }, [cb, channel]);
+  }, [cb, channel, deps]);
+}
+
+/**
+ * Listen any element's size change
+ */
+export function useResizeObserver(callback: any) {
+  const ref = useRef();
+
+  const resizeObserver = useMemo(() => {
+    return new ResizeObserver((entries) => {
+      for (let entry of entries) {
+        if (entry.target === ref.current) {
+          callback && callback();
+        }
+      }
+    });
+  }, [callback]);
+
+  useEffect(() => {
+    if (ref.current) {
+      resizeObserver.observe((ref.current as unknown) as Element);
+    }
+  }, [ref, resizeObserver]);
+
+  useUnmount(() => {
+    resizeObserver.disconnect();
+  });
+
+  return ref;
 }

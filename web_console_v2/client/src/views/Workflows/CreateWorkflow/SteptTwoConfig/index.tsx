@@ -1,10 +1,10 @@
-import React, { FC, useRef, useState } from 'react';
+import React, { FC, useEffect, useRef, useState } from 'react';
 import styled from 'styled-components';
 import { ReactFlowProvider, useStoreState, useStoreActions } from 'react-flow-renderer';
 import { useToggle } from 'react-use';
 import JobFormDrawer, { JobFormDrawerExposedRef } from '../../JobFormDrawer';
 import WorkflowJobsFlowChart, { ChartExposedRef } from 'components/WorkflowJobsFlowChart';
-import { ChartNode, ChartNodes, JobNodeStatus } from 'components/WorkflowJobsFlowChart/helpers';
+import { ChartNode, ChartNodes, JobNodeStatus } from 'components/WorkflowJobsFlowChart/types';
 import GridRow from 'components/_base/GridRow';
 import { Button, message, Modal, Spin } from 'antd';
 import { Redirect, useHistory, useParams } from 'react-router-dom';
@@ -21,7 +21,8 @@ import ErrorBoundary from 'antd/lib/alert/ErrorBoundary';
 import { acceptNFillTheWorkflowConfig, initiateAWorkflow } from 'services/workflow';
 import { to } from 'shared/helpers';
 import { WorkflowCreateProps } from '..';
-import { Variable, WorkflowAcceptPayload, WorkflowInitiatePayload } from 'typings/workflow';
+import { WorkflowAcceptPayload, WorkflowInitiatePayload } from 'typings/workflow';
+import { Variable } from 'typings/variable';
 import InspectPeerConfigs from './InspectPeerConfig';
 import { ExclamationCircle } from 'components/IconPark';
 import { Z_INDEX_GREATER_THAN_HEADER } from 'components/Header';
@@ -59,6 +60,10 @@ const CanvasAndForm: FC<WorkflowCreateProps> = ({ isInitiate, isAccept }) => {
   const [drawerVisible, toggleDrawerVisible] = useToggle(false);
   const [peerCfgVisible, togglePeerCfgVisible] = useToggle(false);
   const [currNode, setCurrNode] = useState<ChartNode>();
+  /**
+   * Here we could use react-flow hooks is because we
+   * wrap CanvasAndForm with ReactFlowProvider in lines at the bottom
+   */
   const jobNodes = useStoreState((store) => store.nodes as ChartNodes);
   const setSelectedElements = useStoreActions((actions) => actions.setSelectedElements);
 
@@ -66,6 +71,18 @@ const CanvasAndForm: FC<WorkflowCreateProps> = ({ isInitiate, isAccept }) => {
   const [configValue, setConfigValue] = useRecoilState(workflowConfigForm);
   const basicPayload = useRecoilValue(workflowBasicForm);
   const peerConfig = useRecoilValue(peerConfigInPairing);
+
+  /**
+   * Open drawer if have global config node
+   */
+  useEffect(() => {
+    if (jobNodes[0] && jobNodes[0].type === 'global') {
+      selectNode(jobNodes[0]);
+    }
+    // 1. DO NOT INCLUDE selectNode as deps here, every render selectNode is freshly new
+    // 2. DO NOT INCLUDE jobNodes as direct dep too, since selectNode has side-effect to node's data (modify status underneath)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [jobNodes[0]?.type]);
 
   const isDisabled = { disabled: submitting };
 
@@ -164,6 +181,14 @@ const CanvasAndForm: FC<WorkflowCreateProps> = ({ isInitiate, isAccept }) => {
 
     setConfigValue(nextValue);
   }
+  async function validateCurrentValues() {
+    if (!currNode) return;
+    const isValid = await drawerRef.current?.validateCurrentForm();
+    chartRef.current?.updateNodeStatusById({
+      id: currNode.id,
+      status: isValid ? JobNodeStatus.Success : JobNodeStatus.Warning,
+    });
+  }
   /** 🚀 Initiate create request */
   async function submitToCreate() {
     if (!checkIfAllJobConfigCompleted()) {
@@ -182,6 +207,10 @@ const CanvasAndForm: FC<WorkflowCreateProps> = ({ isInitiate, isAccept }) => {
           ...basicPayload,
         }) as WorkflowInitiatePayload,
       );
+
+      // FIXMEL: remove after using hashed job name
+      payload.name = payload.name.replace(/[\s]/g, '');
+
       const [, error] = await to(initiateAWorkflow(payload));
       finalError = error;
     }
@@ -208,13 +237,8 @@ const CanvasAndForm: FC<WorkflowCreateProps> = ({ isInitiate, isAccept }) => {
     const prevNode = currNode;
     if (currNode && prevNode) {
       // Validate & Save current form before go another job
+      await validateCurrentValues();
       await saveCurrentValues();
-
-      const isValid = await drawerRef.current?.validateCurrentForm();
-      chartRef.current?.updateNodeStatusById({
-        id: currNode.id,
-        status: isValid ? JobNodeStatus.Success : JobNodeStatus.Warning,
-      });
     }
 
     // Turn target node status to configuring
@@ -228,17 +252,12 @@ const CanvasAndForm: FC<WorkflowCreateProps> = ({ isInitiate, isAccept }) => {
 
   // ---------- Handlers ----------------
   async function onCanvasClick() {
+    await validateCurrentValues();
     saveCurrentValues();
     toggleDrawerVisible(false);
-    if (currNode) {
-      const isValid = await drawerRef.current?.validateCurrentForm();
-      chartRef.current?.updateNodeStatusById({
-        id: currNode.id,
-        status: isValid ? JobNodeStatus.Success : JobNodeStatus.Warning,
-      });
-    }
   }
-  function onCloseDrawer() {
+  async function onCloseDrawer() {
+    await validateCurrentValues();
     saveCurrentValues();
     setSelectedElements([]);
   }

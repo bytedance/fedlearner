@@ -27,6 +27,9 @@ const workflow: I18nMessageModule = {
   btn_see_peer_config: { zh: '查看对方配置' },
   btn_hide_peer_config: { zh: '隐藏对方配置' },
   btn_send_2_ptcpt: { zh: '发送给合作伙伴' },
+  btn_auto_refresh_logs: { zh: '自动刷新日志' },
+  btn_pause_auto_refresh: { zh: '停止自动刷新' },
+  btn_has_new_logs: { zh: '有新的日志' },
 
   col_status: { zh: '任务状态' },
   col_project: { zh: ' 隶属项目' },
@@ -80,6 +83,8 @@ const workflow: I18nMessageModule = {
   label_job_metrics: { zh: '任务运行结果指标' },
   label_job_logs: { zh: '任务运行日志' },
   label_pod_list: { zh: '各 worker 运行日志及状态' },
+  label_job_reuseable: { zh: '继承' },
+  label_job_nonreusable: { zh: '不继承' },
 
   placeholder_name_searchbox: { zh: '根据工作流名称搜索' },
   placeholder_name: { zh: '请输入工作流名称' },
@@ -111,10 +116,17 @@ const workflow: I18nMessageModule = {
   msg_peer_config_failed: { zh: '获取对侧工作流配置失败' },
   msg_peer_not_ready: { zh: '对侧配置未完成' },
   msg_not_config: { zh: '工作流配置未完成' },
-  msg_workflow_name_invalid: { zh: '工作流名字只能是小写英文字母和空格' },
+  msg_workflow_name_invalid: { zh: '工作流名字只能由小写英文/数字/中划线组成，且不允许空格' },
   msg_sure_to_stop: { zh: '确认停止运行该工作流吗?' },
   msg_unforkable: { zh: '根据对侧配置，该工作流不允许被复制，请与对侧沟通后再试' },
   msg_get_peer_cfg_failed: { zh: '获取对侧配置失败: ' },
+  msg_reuse_noti: { zh: '{{name}} 改为继承状态后，后续依赖 {{name}} 的任务都将重置为“继承”状态' },
+  msg_non_reuse_noti: {
+    zh: '{{name}} 改为不继承状态后，后续依赖  {{name}} 的任务都将切换成为“不继承”状态',
+  },
+  msg_upstreaming_nonreusable: { zh: '因存在上游依赖不可继承，无法修改此任务继承与否' },
+
+  title_toggle_reusable: { zh: '切换至{{state}}状态' },
 
   var_auth_write: { zh: '可编辑' },
   var_auth_read: { zh: '可见' },

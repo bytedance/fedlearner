@@ -1,7 +1,4 @@
 import {
-  Variable,
-  VariableAccessMode,
-  VariableComponent,
   WorkflowAcceptPayload,
   WorkflowExecutionDetails,
   WorkflowForkPayload,
@@ -9,19 +6,67 @@ import {
   WorkflowTemplate,
   WorkflowTemplatePayload,
 } from 'typings/workflow';
+import { Variable, VariableAccessMode, VariableComponent } from 'typings/variable';
 import { Job } from 'typings/job';
 import { FormilySchema } from 'typings/formily';
 import VariableLabel from 'components/VariableLabel/index';
 import { cloneDeep, merge } from 'lodash';
 import variablePresets, { VariablePresets } from './variablePresets';
 
+// ------- Build form Formily schema --------
+type BuildOptions = {
+  withPermissions?: boolean;
+};
+
+// Make option variables name end with __OPTION
+// for better recognition
+let withPermissions__OPTION = false;
+
+function _enableOptions(options?: BuildOptions) {
+  if (!options) return;
+
+  withPermissions__OPTION = !!options.withPermissions;
+}
+function _resetOptions() {
+  withPermissions__OPTION = false;
+}
+
+/**
+ * Give a job definition with varables inside, return a formily form-schema,
+ * during progress we will merge client side variable presets with inputs
+ * learn more at ./variablePresets.ts
+ */
+export default function buildFormSchemaFromJobDef(job: Job, options?: BuildOptions): FormilySchema {
+  const { variables, name } = cloneDeep(job);
+  const schema: FormilySchema = {
+    type: 'object',
+    title: name,
+    properties: {},
+  };
+
+  return variables.reduce((schema, current, index) => {
+    const worker =
+      componentToWorkersMap[current.widget_schema?.component || VariableComponent.Input];
+
+    current.widget_schema = _mergeVariableSchemaWithPresets(current, variablePresets);
+    current.widget_schema.index = index;
+
+    _enableOptions(options);
+
+    Object.assign(schema.properties, worker(current));
+
+    _resetOptions();
+
+    return schema;
+  }, schema);
+}
+
 //---- Variable to Schema private helpers --------
 
 function _getPermissions({ access_mode }: Variable) {
   return {
-    // FIXME: only control participant side's permissions
-    readOnly: false && access_mode === VariableAccessMode.PEER_READABLE,
-    display: true || access_mode !== VariableAccessMode.PRIVATE,
+    readOnly: withPermissions__OPTION && access_mode === VariableAccessMode.PEER_READABLE,
+    display: withPermissions__OPTION === false ? true : access_mode !== VariableAccessMode.PRIVATE,
   };
 }
 
@@ -42,8 +87,8 @@ function _getUIs({
 }: Variable) {
   return {
     title: label
-      ? VariableLabel({ label, tooltip, access_mode })
-      : VariableLabel({ label: name, access_mode }),
+      ? VariableLabel({ label, tooltip, accessMode: access_mode })
+      : VariableLabel({ label: name, tooltip, accessMode: access_mode }),
     description,
     'x-index': index,
     'x-component-props': {
@@ -126,14 +171,14 @@ export function createSelect(variable: Variable): FormilySchema {
       _getPermissions(variable),
       _getValidations(variable),
       {
-        enum: options?.source || [],
+        enum: options?.source || /* istanbul ignore next: no need to test empty array */ [],
         'x-component': 'Select',
         'x-component-props': {
           // check here for more Select props:
           // https://ant.design/components/select
           allowClear: true,
           filterOption: filterOption,
-          mode: multiple ? 'multiple' : null,
+          mode: multiple ? /* istanbul ignore next */ 'multiple' : null,
         },
       },
     ),
@@ -163,6 +208,7 @@ export function createSwitch(variable: Variable): FormilySchema {
   };
 }
 
+/* istanbul ignore next: almost same as select */
 export function createCheckbox(variable: Variable): FormilySchema {
   const {
     name,
@@ -183,6 +229,7 @@ export function createCheckbox(variable: Variable): FormilySchema {
   };
 }
 
+/* istanbul ignore next: almost same as select */
 export function createRadio(variable: Variable): FormilySchema {
   const {
     name,
@@ -230,33 +277,7 @@ export function createNumberPicker(variable: Variable): FormilySchema {
   };
 }
 
-export function createUpload(variable: Variable): FormilySchema {
-  const {
-    name,
-    widget_schema: { accept, action, multiple },
-  } = variable;
-
-  return {
-    [name]: merge(
-      _getUIs(variable),
-      _getDatas(variable),
-      _getPermissions(variable),
-      _getValidations(variable),
-      {
-        'x-component': 'Upload',
-        'x-component-props': {
-          // force to use dragger-upload
-          listType: 'dragger',
-          accept,
-          action,
-          multiple,
-        },
-      },
-    ),
-  };
-}
-
-// ---- Component to Workers map --------
+// ---- Component to Worker map --------
 const componentToWorkersMap: { [key: string]: (v: Variable) => FormilySchema } = {
   [VariableComponent.Input]: createInput,
   [VariableComponent.Checkbox]: createCheckbox,
@@ -265,38 +286,9 @@ const componentToWorkersMap: { [key: string]: (v: Variable) => FormilySchema } =
   [VariableComponent.Select]: createSelect,
   [VariableComponent.Radio]: createRadio,
   [VariableComponent.NumberPicker]: createNumberPicker,
-  [VariableComponent.Upload]: createUpload,
 };
 
-/**
- * Merge server side variable.widget_schema with client side's preset
- * NOTE: server side's config should always priority to client side!
- */
-function mergeVariableSchemaWithPresets(variable: Variable, presets: VariablePresets) {
-  return Object.assign(presets[variable.name] || {}, variable.widget_schema);
-}
-
-/** Return a formily acceptable schema by server job definition */
-export function buildFormSchemaFromJobDef(job: Job): FormilySchema {
-  const { variables, name } = cloneDeep(job);
-  const schema: FormilySchema = {
-    type: 'object',
-    title: name,
-    properties: {},
-  };
-
-  return variables.reduce((schema, current, index) => {
-    const worker = componentToWorkersMap[current.widget_schema?.component] || createInput;
-
-    current.widget_schema = mergeVariableSchemaWithPresets(current, variablePresets);
-    current.widget_schema.index = index;
-
-    Object.assign(schema.properties, worker(current));
-
-    return schema;
-  }, schema);
-}
-
+// ---------- Widget schemas stringify, parse -----------
 export function stringifyWidgetSchemas<
   T extends
     | WorkflowInitiatePayload
@@ -314,6 +306,7 @@ export function stringifyWidgetSchemas<
 
   let ifIsForking = (ret as WorkflowForkPayload).fork_proposal_config;
 
+  /* istanbul ignore if */
   if (ifIsForking) {
     ifIsForking.job_definitions.forEach((job: any) => {
       job.variables.forEach(_stringify);
@@ -325,6 +318,7 @@ export function stringifyWidgetSchemas<
   return ret;
 
   function _stringify(variable: any) {
+    /* istanbul ignore if: needless to test */
     if (typeof variable.widget_schema === 'object') {
       variable.widget_schema = JSON.stringify(variable.widget_schema);
     }
@@ -344,6 +338,7 @@ export function parseWidgetSchemas<
 
   let ifIsForking = (ret as WorkflowForkPayload).fork_proposal_config;
 
+  /* istanbul ignore if: logic is same as above */
   if (ifIsForking) {
     ifIsForking.job_definitions.forEach((job: any) => {
       job.variables.forEach(_parse);
@@ -355,8 +350,21 @@ export function parseWidgetSchemas<
   return ret;
 
   function _parse(variable: Variable): any {
+    /* istanbul ignore next: needless to test */
     if (typeof variable.widget_schema === 'string') {
-      variable.widget_schema = variable.widget_schema ? JSON.parse(variable.widget_schema) : {};
+      variable.widget_schema = variable.widget_schema
+        ? JSON.parse(variable.widget_schema)
+        : /* istanbul ignore next */ {};
     }
   }
+}
+
+// -------------- Private helpers ---------------
+
+/**
+ * Merge server side variable.widget_schema with client side's preset
+ * NOTE: server side's config should always priority to client side!
+ */
+function _mergeVariableSchemaWithPresets(variable: Variable, presets: VariablePresets) {
+  return Object.assign(presets[variable.name] || {}, variable.widget_schema);
 }

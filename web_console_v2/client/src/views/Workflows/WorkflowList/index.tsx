@@ -1,9 +1,9 @@
 import React, { FC, useEffect, useState } from 'react';
 import styled from 'styled-components';
-import { Row, Col, Button, Form, Input, Select, Table, message, Spin, Switch } from 'antd';
+import { Row, Col, Button, Form, Input, Select, Table, message, Spin } from 'antd';
 import { Link, useHistory } from 'react-router-dom';
 import { useQuery } from 'react-query';
-import { fetchWorkflowList, toggleWofklowForkable } from 'services/workflow';
+import { fetchWorkflowList } from 'services/workflow';
 import i18n from 'i18n';
 import { formatTimestamp } from 'shared/date';
 import { useTranslation } from 'react-i18next';
@@ -15,7 +15,6 @@ import WhichProject from 'components/WhichProject';
 import NoResult from 'components/NoResult';
 import { useRecoilQuery } from 'hooks/recoil';
 import { projectListQuery } from 'stores/projects';
-import { giveWeakRandomKey } from 'shared/helpers';
 import ForkableSwitch from './ForkableSwitch';
 
 const FilterItem = styled(Form.Item)`

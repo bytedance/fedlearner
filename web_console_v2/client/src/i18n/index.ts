@@ -1,4 +1,4 @@
-import i18n from 'i18next';
+import i18next from 'i18next';
 import { initReactI18next } from 'react-i18next';
 import zh from './resources/zh_CN';
 import en from './resources/en';
@@ -17,7 +17,7 @@ store.set(LOCAL_STORAGE_KEYS.language, preferredLng);
 
 dayjs.locale(preferredLng);
 
-i18n.use(initReactI18next).init({
+i18next.use(initReactI18next).init({
   resources: {
     zh,
     en,
@@ -30,10 +30,10 @@ i18n.use(initReactI18next).init({
   },
 });
 
-export default i18n;
+export default i18next;
 
 export function setLocale(lng: FedLanguages) {
-  i18n.changeLanguage(lng);
+  i18next.changeLanguage(lng);
   dayjs.locale(lng);
   store.set(LOCAL_STORAGE_KEYS.language, lng);
 }

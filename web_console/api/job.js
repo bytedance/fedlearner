@@ -21,11 +21,29 @@ try {
 } catch (err) { /* */ }
 
 router.get('/api/v1/jobs', SessionMiddleware, FindOptionsMiddleware, async (ctx) => {
-  const jobs = await Job.findAll({
-    ...ctx.findOptions,
-    order: [['created_at', 'DESC']],
-  });
+  const query  = ctx.query
+
+  const where = Object.assign({ ...ctx.findOptions.where }, // federation_id inside findOptions.where
+    query.keyword ? { name: { [Op.substring]: query.keyword } } : {},
+    query.type ? { job_type: { [Op.in]: query.type.split(',') } } : {},
+  )
+  const jobQuery = Object.assign(
+    { ...ctx.findOptions, order: [['created_at', 'DESC']] },
+    { where }
+  )
+
+  const jobQueryWithPagination = Object.assign(
+    { ...jobQuery },
+    query.offset ? { offset: +query.offset } : {},
+    query.limit ? { limit: +query.limit } : {},
+  )
+
+  const count = await Job.count(jobQuery);
+
+  const jobs = await Job.findAll(jobQueryWithPagination);
+
   const { flapps } = await k8s.getFLAppsByNamespace(namespace);
+
   let data = [];
   for (job of jobs) {
     if (job.status == null) job.status = 'started';
@@ -40,18 +58,23 @@ router.get('/api/v1/jobs', SessionMiddleware, FindOptionsMiddleware, async (ctx)
       }
     }
     if (job.status === 'stopped') {
-      data.push({
-        ...JSON.parse(job.k8s_meta_snapshot).flapp,
+      const flapp = JSON.parse(job.k8s_meta_snapshot).flapp;
+      job.k8s_meta_snapshot = null;
+      const jobAssembled = {
+        ...flapp,
         localdata: job,
-      });
+      }
+      data.push(jobAssembled);
     } else {
-      data.push({
+      job.k8s_meta_snapshot = null;
+      const jobAssembled = {
         ...(flapps.items.find((item) => item.metadata.name === job.name)),
         localdata: job,
-      });
+      }
+      data.push(jobAssembled);
     }
   }
-  ctx.body = { data };
+  ctx.body = { data, count: { total: count } };
 });
 
 router.get('/api/v1/job/:id', SessionMiddleware, async (ctx) => {

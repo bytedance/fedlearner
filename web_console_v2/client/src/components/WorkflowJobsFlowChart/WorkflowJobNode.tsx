@@ -1,4 +1,4 @@
-import React, { FC, useState } from 'react';
+import React, { FC } from 'react';
 import { Handle, NodeComponentProps, Position } from 'react-flow-renderer';
 import { Dropdown, Menu, Modal } from 'antd';
 import { MenuInfo } from 'rc-menu/lib/interface';
@@ -8,19 +8,15 @@ import completetdIcon from 'assets/icons/workflow-completed.svg';
 import warningIcon from 'assets/icons/workflow-warning.svg';
 import errorIcon from 'assets/icons/workflow-error.svg';
 import GridRow from 'components/_base/GridRow';
-import {
-  NodeData,
-  JobNodeStatus,
-  ChartNodeType,
-  NODE_HEIGHT,
-  NODE_WIDTH,
-  GLOBAL_CONFIG_NODE_SIZE,
-} from './helpers';
+import { NODE_HEIGHT, NODE_WIDTH, GLOBAL_CONFIG_NODE_SIZE } from './helpers';
+import { NodeData, JobNodeStatus, ChartNodeType } from './types';
 import { convertToUnit } from 'shared/helpers';
 import i18n from 'i18n';
 import classNames from 'classnames';
 import { Down } from 'components/IconPark';
 import { Z_INDEX_GREATER_THAN_HEADER } from 'components/Header';
+import PubSub from 'pubsub-js';
+import { useTranslation } from 'react-i18next';
 
 const Container = styled.div`
   position: relative;
@@ -81,13 +77,18 @@ const GlobalConfigNodeContainer = styled.div`
 `;
 const InheritButton = styled.div`
   position: absolute;
-  bottom: 21px;
+  bottom: 11px;
   right: 14px;
   display: flex;
   align-items: center;
-  line-height: 1;
+  padding-bottom: 5px;
+  line-height: 1.8;
   font-size: 12px;
   color: var(--primaryColor);
+
+  &[data-inherit='false'] {
+    color: var(--warningColor);
+  }
 `;
 const ArrowDown = styled(Down)`
   margin-left: 5px;
@@ -117,6 +118,10 @@ export const jobExecutionStatusText: Record<JobNodeStatus, string> = {
   [JobNodeStatus.Error]: i18n.t('workflow.job_node_stop_running'),
 };
 
+export const WORKFLOW_JOB_NODE_CHANNELS = {
+  change_inheritance: 'job_node.change_inheritance',
+};
+
 interface Props extends NodeComponentProps {
   data: NodeData;
 }
@@ -140,11 +145,18 @@ const ConfigJobNode: FC<Props> = ({ data, id }) => {
 };
 
 const ForkJobNode: FC<Props> = ({ data, id }) => {
+  const { t } = useTranslation();
   const icon = statusIcons[data.status];
   const text = jobConfigStatusText[data.status];
 
+  const labelReusable = t('workflow.label_job_reuseable');
+  const labelNonreusable = t('workflow.label_job_nonreusable');
+
   return (
-    <Container>
+    <Container
+      data-inherit={data.inherit!.toString()}
+      className={classNames([data.raw.is_federated && 'federated-mark', data.mark])}
+    >
       {data.isTarget && <Handle type="target" position={Position.Top} />}
       <JobName>{id}</JobName>
       <GridRow gap={5}>
@@ -155,43 +167,51 @@ const ForkJobNode: FC<Props> = ({ data, id }) => {
         overlay={
           <Menu>
             <Menu.Item key="0" onClick={(e) => changeInheritance(e, true)}>
-              继承
+              {labelReusable}
             </Menu.Item>
             <Menu.Item key="1" onClick={(e) => changeInheritance(e, false)}>
-              不继承
+              {labelNonreusable}
             </Menu.Item>
           </Menu>
         }
       >
-        <InheritButton onClick={(e) => e.stopPropagation()}>
-          {data.inherit ? '继承' : '不继承'} <ArrowDown />
+        <InheritButton data-inherit={data.inherit!.toString()} onClick={(e) => e.stopPropagation()}>
+          {data.inherit ? labelReusable : labelNonreusable} <ArrowDown />
         </InheritButton>
       </Dropdown>
       {data.isSource && <Handle type="source" position={Position.Bottom} />}
     </Container>
   );
 
-  function changeInheritance(event: MenuInfo, isInherit: boolean) {
+  function changeInheritance(event: MenuInfo, whetherInherit: boolean) {
     event.domEvent.stopPropagation();
 
-    if (isInherit === data.inherit) {
+    if (whetherInherit === data.inherit) {
       return;
     }
 
     Modal.confirm({
-      title: `切换至${isInherit ? '继承' : '不继承'}状态`,
+      title: t('workflow.title_toggle_reusable', {
+        state: whetherInherit ? labelReusable : labelNonreusable,
+      }),
       zIndex: Z_INDEX_GREATER_THAN_HEADER,
       icon: null,
-      content: isInherit
-        ? `${id} 改为继承状态后，后续依赖 ${id} 的任务都将重置为“继承”状态`
-        : `${id} 改为不继承状态后，后续依赖 ${id} 的任务都将切换成为“不继承”状态`,
+      content: whetherInherit
+        ? t('workflow.msg_reuse_noti', {
+            name: id,
+          })
+        : t('workflow.msg_non_reuse_noti', {
+            name: id,
+          }),
 
       mask: false,
+      okText: t('confirm'),
+      cancelText: t('cancel'),
       style: {
         top: '35%',
       },
       onOk() {
-        // TODO: broadcast inheritance change
+        PubSub.publish(WORKFLOW_JOB_NODE_CHANNELS.change_inheritance, { id, data, whetherInherit });
       },
     });
   }

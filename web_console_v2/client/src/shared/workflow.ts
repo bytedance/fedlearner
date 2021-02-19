@@ -111,7 +111,7 @@ export function getWorkflowStage(workflow: Workflow): { type: StateTypes; text: 
   if (isAwaitParticipantConfig(workflow)) {
     return {
       text: i18n.t('workflow.state_configuring'),
-      type: 'processing',
+      type: 'gold',
     };
   }
 
@@ -139,7 +139,7 @@ export function getWorkflowStage(workflow: Workflow): { type: StateTypes; text: 
   if (isReadyToRun(workflow)) {
     return {
       text: i18n.t('workflow.state_ready_to_run'),
-      type: 'processing',
+      type: 'lime',
     };
   }
 

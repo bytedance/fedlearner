@@ -1,4 +1,4 @@
-import { Variable } from './workflow';
+import { Variable } from './variable';
 
 export enum JobState {
   INVALID = 'INVALID',
@@ -43,8 +43,8 @@ export enum PodState {
   FAILED = 'Failed',
   PENDING = 'Pending',
   UNKNOWN = 'Unknown',
-  FL_SUCCEED = 'Flapp_succeed',
-  FL_FAILED = 'Flapp_failed',
+  FL_SUCCEED = 'Flapp_succeeded', // completed and free resources
+  FL_FAILED = 'Flapp_failed', // failed and free resources
 }
 
 export interface Pod {
