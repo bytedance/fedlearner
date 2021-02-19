@@ -56,6 +56,14 @@ class CsvItem(RawDataIter.Item):
         return str(self._features['example_id']).encode()
 
     @property
+    def click_id(self):
+        if 'click_id' not in self._features:
+            logging.error("Failed parse click id since no join "\
+                          "id in csv dict raw %s", self._features)
+            return common.InvalidExampleId
+        return str(self._features['click_id']).encode()
+
+    @property
     def event_time(self):
         if 'event_time' in self._features:
             try:
@@ -63,6 +71,16 @@ class CsvItem(RawDataIter.Item):
             except Exception as e: # pylint: disable=broad-except
                 logging.error("Failed to parse event time as int type from "\
                               "%s, reason: %s", self._features['event_time'], e)
+        return common.InvalidEventTime
+
+    @property
+    def event_time_deep(self):
+        if 'event_time_deep' in self._features:
+            try:
+                return int(self._features['event_time_deep'])
+            except Exception as e: # pylint: disable=broad-except
+                logging.error("Failed to parse deep event time as int type from "\
+                              "%s, reason: %s", self._features['event_time_deep'], e)
         return common.InvalidEventTime
 
     @property
@@ -84,6 +102,7 @@ class CsvItem(RawDataIter.Item):
                 example = common.convert_dict_to_tf_example(self._features)
                 self._tf_record = example.SerializeToString()
             except Exception as e: # pylint: disable=broad-except
+                traceback.print_exc()
                 logging.error("Failed convert csv dict to tf example, "\
                               "reason %s", e)
                 self._tf_record = tf.train.Example().SerializeToString()

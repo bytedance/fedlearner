@@ -154,7 +154,9 @@ def convert_dict_to_tf_example(src_dict):
             raise RuntimeError('the key {}({}) of dict must a '\
                                'string'.format(key, type(key)))
         basic_type = type(feature)
-        if basic_type == str and key not in ('example_id', 'raw_id'):
+        # TODO: support complete field definition, which likes `id:type:range`
+        if basic_type == str and key not in ('example_id', 'raw_id', \
+                                             'req_id', 'cid'):
             if feature.lstrip('-').isdigit():
                 feature = int(feature)
                 basic_type = int
