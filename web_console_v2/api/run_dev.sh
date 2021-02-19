@@ -15,13 +15,11 @@
 # limitations under the License.
 
 set -e
-
-export FLASK_APP=manage:app
 export FLASK_ENV=development
 
 # Migrates DB schemas
-flask db upgrade
+FLASK_APP=command:app flask db upgrade
 # Loads initial data
-flask create-db
+FLASK_APP=command:app flask create-initial-data
 # Runs flask
-flask run --port=1991 --host=0.0.0.0
+FLASK_APP=server:app flask run --eager-loading --port=1991 --host=0.0.0.0

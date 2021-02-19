@@ -20,6 +20,7 @@ import secrets
 
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 
+
 class Config(object):
     SQLALCHEMY_DATABASE_URI = os.getenv(
         'SQLALCHEMY_DATABASE_URI',
@@ -39,3 +40,6 @@ class Config(object):
     ES_HOST = 'fedlearner-stack-elasticsearch-client'
     ES_PORT = 9200
     STORAGE_ROOT = os.getenv('STORAGE_ROOT', '/tmp/data')
+
+    START_GRPC_SERVER = True
+    START_SCHEDULER = True

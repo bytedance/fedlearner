@@ -1,5 +1,3 @@
-#!/bin/bash
-#
 # Copyright 2020 The FedLearner Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,27 +12,26 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-set -e
+# coding: utf-8
+from config import Config
+from fedlearner_webconsole.app import create_app
+from fedlearner_webconsole.db import db
+from fedlearner_webconsole.auth.models import User
 
-# Adds root directory to python path to make the modules findable.
-ROOT_DIRECTORY=$(dirname "$0")
-export PYTHONPATH=$PYTHONPATH:"$ROOT_DIRECTORY"
 
-# Iterates arguments
-while test $# -gt 0
-do
-    case "$1" in
-        --migrate)
-            echo "Migrating DB"
-            # Migrates DB schemas
-            FLASK_APP=command:app flask db upgrade
-            ;;
-    esac
-    shift
-done
+class CliConfig(Config):
+    START_GRPC_SERVER = False
+    START_SCHEDULER = False
 
-# Loads initial data
-FLASK_APP=command:app flask create-initial-data
 
-gunicorn server:app \
-    --config="$ROOT_DIRECTORY/gunicorn_config.py"
+app = create_app(CliConfig())
+
+
+@app.cli.command('create-initial-data')
+def create_initial_data():
+    # Creates ada if it not exists
+    if User.query.filter_by(username='ada').first() is None:
+        user = User(username='ada')
+        user.set_password('ada')
+        db.session.add(user)
+        db.session.commit()
