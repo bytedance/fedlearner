@@ -6,9 +6,7 @@ import threading
 from concurrent import futures
 
 import fedlearner.bridge.const as const
-import fedlearner.bridge.util as util
 from fedlearner.bridge.proto import bridge_pb2, bridge_pb2_grpc
-from fedlearner.bridge.util import _method_encode, _method_decode
 
 class _Server(grpc.Server):
     def __init__(self, bridge, listen_addr,
@@ -70,7 +68,7 @@ class _Server(grpc.Server):
             elif pair[0] == const._grpc_metadata_bridge_token:
                 token = pair[1]
             elif pair[0] == const._grpc_metadata_bridge_method:
-                method = util._method_decode(pair[1])
+                method = pair[1]
 
         return identifier, peer_identifier, token, method
 
@@ -80,9 +78,9 @@ class _Server(grpc.Server):
             self._bridge._emit_
             return bridge_pb2.CallResponse(
                 code=bridge_pb2.Code.UNAUTHROIZE)
-        #if not self._bridge._check_identifier(identifier, peer_identifier):
-        #    return bridge_pb2.CallResponse(
-        #        code=bridge_pb2.Code.UNIDENTIFIED)
+        if not self._bridge._check_identifier(identifier, peer_identifier):
+            return bridge_pb2.CallResponse(
+                code=bridge_pb2.Code.UNIDENTIFIED)
 
         return None
 
@@ -99,9 +97,8 @@ class _Server(grpc.Server):
         _, _, _, method =\
             self._abridge_metadata(context.invocation_metadata())
         handler = self._query_handlers(_HandlerCallDetails(
-            _method_decode(method),
-            context.invocation_metadata,
-        ))
+            method,
+            context.invocation_metadata))
 
         r_req = handler.request_deserializer(request.payload)
         r_res = handler.unary_unary(r_req, context)
@@ -114,9 +111,8 @@ class _Server(grpc.Server):
         _, _, _, method =\
             self._abridge_metadata(context.invocation_metadata())
         handler = self._query_handlers(_HandlerCallDetails(
-            _method_decode(method),
-            context.invocation_metadata,
-        ))
+            method,
+            context.invocation_metadata))
 
         r_req = handler.request_deserializer(request.payload)
         r_res_iter = handler.unary_stream(r_req, context)
@@ -132,9 +128,8 @@ class _Server(grpc.Server):
         _, _, _, method =\
             self._abridge_metadata(context.invocation_metadata())
         handler = self._query_handlers(_HandlerCallDetails(
-            _method_decode(method),
-            context.invocation_metadata,
-        ))
+            method,
+            context.invocation_metadata))
 
         def r_req_iterator():
             for request in request_iterator:
@@ -150,12 +145,10 @@ class _Server(grpc.Server):
         _, _, _, method =\
             self._abridge_metadata(context.invocation_metadata())
         handler = self._query_handlers(_HandlerCallDetails(
-            _method_decode(method),
-            context.invocation_metadata,
-        ))
+            method,
+            context.invocation_metadata))
 
         ack = None
-
         def req_iterator():
             nonlocal ack
             for req in request_iterator:

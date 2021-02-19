@@ -8,13 +8,11 @@ import enum
 
 import grpc
 
-from concurrent import futures
-
-import fedlearner.bridge.const as const
-from fedlearner.bridge.proto import bridge_pb2, bridge_pb2_grpc
+from fedlearner.bridge.proto import bridge_pb2
 from fedlearner.bridge.client import _Client
 from fedlearner.bridge.server import _Server
-from fedlearner.bridge.util import _method_encode, _method_decode, maxint
+
+maxint = 2**32-1
 
 class Bridge():
     class State(enum.Enum):
@@ -57,7 +55,7 @@ class Bridge():
         },
         State.CONNECTING_CONNECTED: {
             Event.CONNECTED: State.READY,
-            Event.CLOSED: State.CLOSED_CONNECTED,
+            Event.CLOSING: State.DONE,
             Event.PEER_DISCONNECTED: State.CONNECTING_UNCONNECTED,
             Event.PEER_CLOSED: State.CONNECTING_CLOSED,
         },
@@ -148,8 +146,9 @@ class Bridge():
         self._peer_identifier = None
         self._token = token
 
-        # lock
+        # lock & condition
         self._lock = threading.RLock()
+        self._condition = threading.Condition(self._lock)
 
         # client
         self._client = _Client(self, remote_addr,
@@ -175,7 +174,6 @@ class Bridge():
         self._termination_event = threading.Event()
 
         # bridge state
-        self._state_condition = threading.Condition(self._lock)
         self._state = Bridge.State.IDLE
         self._state_thread = None
         self._event_callbacks = {}
@@ -190,9 +188,23 @@ class Bridge():
         self.add_generic_rpc_handlers = \
             self._server.add_generic_rpc_handlers
 
-    def _client_ready_callback(self, ready):
-        with self._state_condition:
-            if not ready:
+    def _channel_callback(self, state):
+        if state == grpc.ChannelConnectivity.IDLE \
+            or state == grpc.ChannelConnectivity.CONNECTING \
+            or state == grpc.ChannelConnectivity.READY:
+            ready = True
+        elif state == grpc.ChannelConnectivity.TRANSIENT_FAILURE:
+            ready = False
+        elif state == grpc.ChannelConnectivity.SHUTDOWN:
+            raise RuntimeError("[Bridge] grpc channel state: {},"
+                " which it cannot recover.".format(state.name))
+
+        if ready:
+            # nothing to do
+            return
+
+        with self._lock:
+            if self._state in Bridge._CONNECTED_STATES:
                 self._emit_event(Bridge.Event.DISCONNECTED)
 
     def _next_state(state, event):
@@ -202,11 +214,14 @@ class Bridge():
         return state
 
     def _emit_event(self, event):
-        with self._state_condition:
+        with self._condition:
             next_state = Bridge._next_state(self._state, event)
             if self._state != next_state:
+                logging.debug("[Bridge] receive effective event: %s,"
+                    " current state: %s, next state: %s",
+                    event.name, self._state.name, next_state.name)
                 self._state = next_state
-                self._state_condition.notify_all()
+                self._condition.notify_all()
             self._event_callback(event)
 
     def _event_callback(self, event):
@@ -233,7 +248,7 @@ class Bridge():
         return self._termination_event.wait(timeout)
 
     def start(self, wait=False):
-        with self._state_condition:
+        with self._lock:
             if self._state != Bridge.State.IDLE:
                 raise RuntimeError("Attempting to restart bridge")
             self._state = Bridge.State.CONNECTING_UNCONNECTED
@@ -246,9 +261,9 @@ class Bridge():
             self.wait_for_ready()
 
     def stop(self, wait=False):
-        with self._state_condition:
+        with self._lock:
             if self._state == Bridge.State.IDLE:
-                raise RuntimeError("Attempting to start bridge before start")
+                raise RuntimeError("Attempting to stop bridge before start")
             self._emit_event(Bridge.Event.CLOSING)
 
         if wait:
@@ -328,12 +343,10 @@ class Bridge():
         logging.debug("[Bridge] thread _state_fn start")
 
         self._server.start()
-        self._client.subscribe(self._client_ready_callback)
+        self._client.subscribe(self._channel_callback)
 
         self._lock.acquire()
         while True:
-            logging.debug("[Bridge] state: %s", self._state.name)
-
             now = time.time()
             saved_state = self._state
             wait_timeout = maxint
@@ -384,9 +397,9 @@ class Bridge():
                 continue
 
             if wait_timeout != maxint:
-                self._state_condition.wait(wait_timeout)
+                self._condition.wait(wait_timeout)
             else:
-                self._state_condition.wait()
+                self._condition.wait()
 
         # done
         self._lock.release()
@@ -432,11 +445,11 @@ class Bridge():
 
     def _check_identifier(self, identifier, peer_identifier):
         if peer_identifier and self._identifier != peer_identifier:
-            self._emit_event(Bridge.Event.UNAUTHORIZED)
+            self._emit_event(Bridge.Event.UNIDENTIFIED)
             return False
 
         if not identifier:
-            self._emit_event(Bridge.Event.UNAUTHORIZED)
+            self._emit_event(Bridge.Event.UNIDENTIFIED)
             return False
 
         if not self._peer_identifier:
@@ -445,7 +458,7 @@ class Bridge():
                     self._peer_identifier = identifier
 
         if self._peer_identifier != identifier:
-            self._emit_event(Bridge.Event.UNAUTHORIZED)
+            self._emit_event(Bridge.Event.UNIDENTIFIED)
             return False
 
         return True

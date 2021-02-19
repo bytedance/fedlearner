@@ -6,7 +6,6 @@ import logging
 import threading
 import signal
 
-
 import greeter_pb2, greeter_pb2_grpc
 from fedlearner.bridge import bridge
 
@@ -32,29 +31,29 @@ class GreeterrHandler(greeter_pb2_grpc.GreeterServicer):
         for req in request_iterator:
             #print(f'HelloStreamStream receive:{req.name}')
             yield greeter_pb2.Response(message=f"Hello {req.name}")
-            time.sleep(1)
+            time.sleep(0.2)
 
 def client_run_fn(bridge):
     client = greeter_pb2_grpc.GreeterStub(bridge)
-    #while not bridge.is_closed:
-#        res = client.HelloUnaryUnary(greeter_pb2.Request(name='UnaryUnary'))
-#        print("Greeter HelloUnaryUnary return: " + res.message)
-#
-#        res_iter = client.HelloUnaryStream(greeter_pb2.Request(name='UnaryStream'))
-#        for res in res_iter:
-#            print("Greeter HelloUnaryStream return: " + res.message)
-#
-    def req_iter(name):
-        for i in range(100):
-            yield greeter_pb2.Request(name=str(i))
-            time.sleep(0.5)
-#
-#    res = client.HelloStreamUnary(req_iter('StreamUnary'))
-#    print("Greeter HelloStreamUnary return: " + res.message)
-#
-    res_iter = client.HelloStreamStream(req_iter('StreamStream'))
-    for res in res_iter:
-        print("Greeter HelloStreamStream return: " + res.message)
+    while True:
+        res = client.HelloUnaryUnary(greeter_pb2.Request(name='UnaryUnary'))
+        print("Greeter HelloUnaryUnary return: " + res.message)
+
+        res_iter = client.HelloUnaryStream(greeter_pb2.Request(name='UnaryStream'))
+        for res in res_iter:
+            print("Greeter HelloUnaryStream return: " + res.message)
+
+        def req_iter(name):
+            for i in range(10):
+                yield greeter_pb2.Request(name=str(i))
+                time.sleep(0.1)
+
+        res = client.HelloStreamUnary(req_iter('StreamUnary'))
+        print("Greeter HelloStreamUnary return: " + res.message)
+
+        res_iter = client.HelloStreamStream(req_iter('StreamStream'))
+        for res in res_iter:
+            print("Greeter HelloStreamStream return: " + res.message)
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG, format="[%(levelname)s] %(asctime)s: %(message)s in %(pathname)s:%(lineno)d")
