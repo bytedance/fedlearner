@@ -79,8 +79,9 @@ class CsvItem(RawDataIter.Item):
             try:
                 return int(self._features['event_time_deep'])
             except Exception as e: # pylint: disable=broad-except
-                logging.error("Failed to parse deep event time as int type from "\
-                              "%s, reason: %s", self._features['event_time_deep'], e)
+                logging.error("Failed to parse deep event time as int type "\
+                              "from %s, reason: %s",
+                              self._features['event_time_deep'], e)
         return common.InvalidEventTime
 
     @property
