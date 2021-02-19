@@ -552,7 +552,7 @@ def make_workflow_template():
                                     },
                                     {
                                         "name": "RAW_DATA_SUB_DIR",
-                                        "value": "portal_publish_dir/${workflow.jobs.data-join-job.name}"
+                                        "value": "portal_publish_dir/${workflow.jobs.raw-data-job.name}"
                                     },
                                     {
                                         "name": "DATA_SOURCE_NAME",
@@ -713,7 +713,7 @@ def make_workflow_template():
                                     },
                                     {
                                         "name": "RAW_DATA_SUB_DIR",
-                                        "value": "portal_publish_dir/${workflow.jobs.data-join-job.name}"
+                                        "value": "portal_publish_dir/${workflow.jobs.raw-data-job.name}"
                                     },
                                     {
                                         "name": "DATA_BLOCK_DUMP_INTERVAL",
