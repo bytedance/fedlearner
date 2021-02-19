@@ -86,7 +86,7 @@ ES_MAPPING = {
                     "type": "date"
                 },
                 "event_time": {
-                    "format": "yyyy-MM-dd'T'HH:mm:ss.SSSSSSZ",
+                    "format": "yyyy-MM-dd'T'HH:mm:ss",
                     "type": "date"
                 }
             }
@@ -127,26 +127,31 @@ class LoggingHandler(Handler):
 
 
 class ElasticSearchHandler(Handler):
+    """
+    Emit documents to ElasticSearch
+    """
     def __init__(self, ip, port):
         super(ElasticSearchHandler, self).__init__('elasticsearch')
         self._es = es7.Elasticsearch([ip], port=port)
         self._version = int(self._es.info()['version']['number'].split('.')[0])
+        # ES 6.8 has differences in mapping initialization compared to ES 7.6
         if self._version == 6:
             self._es = es6.Elasticsearch([ip], port=port)
         # suppress ES logger
-        tracer = logging.getLogger('elasticsearch')
-        tracer.setLevel(logging.CRITICAL)
-        tracer.addHandler(logging.FileHandler('indexer.log'))
+        logger = logging.getLogger('elasticsearch')
+        logger.setLevel(logging.CRITICAL)
+        logger.addHandler(logging.FileHandler('indexer.log'))
         self._tz = pytz.timezone('Asia/Shanghai')
         self._emit_batch = defaultdict(list)
         self._lock = threading.RLock()
         index = ES_INDEX.format(
             datetime.datetime.now(tz=self._tz).strftime('%Y.%m.%d')
         )
-        # ES 6.8 has differences in mapping initialization compared to ES 7.6
         if not self._es.indices.exists(index=index):
-            self._create_mappings(index)
+            self._create_index(index)
         else:
+            # if index exists, put mapping in case mapping is modified.
+            # compatibility measures for mapping changes
             if self._version == 7:
                 self._es.indices.put_mapping(index=index, body=ES_MAPPING)
             else:
@@ -158,17 +163,19 @@ class ElasticSearchHandler(Handler):
             tags = {}
         date = datetime.datetime.now(tz=self._tz).strftime('%Y.%m.%d')
         index = ES_INDEX.format(date)
-        # if not exists, create, and check if current indices are out-dated
-        # if out-dated, emit them and pop
-        if not self._es.indices.exists(index=index):
-            self._create_mappings(index)
-            for idx in self._emit_batch.keys():
-                if not idx.endswith(date):
-                    self._emit_and_pop(idx)
+        # if not exists, create one, and check if existing documents are
+        # out-dated. if so, emit them and pop
+        with self._lock:
+            if not self._es.indices.exists(index=index):
+                self._create_index(index)
+                for idx in self._emit_batch.keys():
+                    if not idx.endswith(date):
+                        self._emit_and_pop(idx)
         application_id = os.environ.get('APPLICATION_ID', '')
         if application_id:
             tags['application_id'] = str(application_id)
         action = {
+            # _index = which index to emit to, _source = document
             '_index': index,
             '_source': {
                 "name": name,
@@ -181,16 +188,24 @@ class ElasticSearchHandler(Handler):
         self._emit_batch[index].append(action)
         # emit and pop when there are 1000 documents to emit
         with self._lock:
-            if len(self._emit_batch[index]) == 1000:
+            if len(self._emit_batch[index]) >= 1000:
                 logging.info('METRICS: Emitting 1000 documents to ES.')
                 self._emit_and_pop(index)
 
     def flush(self):
+        # emit and pop all existing documents
         with self._lock:
             for index in self._emit_batch.keys():
                 self._emit_and_pop(index)
 
-    def _create_mappings(self, index):
+    def _create_index(self, index):
+        """
+        Args:
+            index: ES index name.
+
+        Creates an index on ES, with compatibility with ES 6 and ES 7.
+
+        """
         with self._lock:
             if self._version == 6:
                 body = {'mappings': {'_doc': ES_MAPPING}}
@@ -242,22 +257,24 @@ class Metrics(object):
     def emit(self, name, value, tags=None):
         self.init_handlers()
         if not self.handlers or len(self.handlers) == 0:
-            print('no handlers. do nothing.')
+            logging.info('No handlers. Not emitting.')
             return
 
         for hdlr in self.handlers:
             try:
                 hdlr.emit(name, value, tags)
             except Exception as e:  # pylint: disable=broad-except
-                print('handler [%s] emit failed. [%s]' %
-                      (hdlr.get_name(), repr(e)))
+                logging.warning('Handler [%s] emit failed. Error repr: [%s]',
+                                hdlr.get_name(), repr(e))
 
     def flush_handler(self):
         for hdlr in self.handlers:
             try:
                 hdlr.flush()
-            except Exception:  # pylint: disable=broad-except
-                pass
+            except Exception as e:  # pylint: disable=broad-except
+                logging.warning('Handler [%s] flush failed. Some metrics might '
+                                'not be emitted. Error repr: %s',
+                                hdlr.get_name(), repr(e))
 
 
 _metrics_client = Metrics()
