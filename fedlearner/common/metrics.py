@@ -26,7 +26,7 @@ from functools import wraps
 import pytz
 from elasticsearch import Elasticsearch, helpers
 
-# use to constrain ES document size, please modify with precaution to minimize
+# use to constrain ES document size, please modify WITH PRECAUTION to minimize
 # disk space
 ES_MAPPING = {
     "dynamic": True,
@@ -167,8 +167,9 @@ class ElasticSearchHandler(Handler):
             self._emit_batch.pop(index)
 
     def flush(self):
-        for actions in self._emit_batch.values():
+        for index, actions in self._emit_batch.items():
             helpers.bulk(self._es, actions)
+            self._emit_batch.pop(index)
 
 
 class Metrics(object):
