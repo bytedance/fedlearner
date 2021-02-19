@@ -8,6 +8,7 @@
     "start": "node scripts/start.js",
     "build": "node scripts/build.js",
     "test": "node scripts/test.js",
+    "test:coverage": "npm test -- --coverage --watchAll=false",
     "lint": "eslint '*/**/*.{js,ts,tsx}' --fix",
     "pritter": "npx prettier --write ./src"
   },
