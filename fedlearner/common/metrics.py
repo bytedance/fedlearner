@@ -23,8 +23,10 @@ import time
 from collections import defaultdict
 from functools import wraps
 
+import elasticsearch as es7
+import elasticsearch6 as es6
 import pytz
-from elasticsearch import Elasticsearch, helpers
+from elasticsearch import helpers
 
 # use to constrain ES document size, please modify WITH PRECAUTION to minimize
 # disk space
@@ -127,16 +129,24 @@ class LoggingHandler(Handler):
 class ElasticSearchHandler(Handler):
     def __init__(self, ip, port):
         super(ElasticSearchHandler, self).__init__('elasticsearch')
-        self._es = Elasticsearch([ip], port=port)
+        self._es = es7.Elasticsearch([ip], port=port)
+        self._version = int(self._es.info()['version']['number'].split('.')[0])
+        if self._version == 6:
+            self._es = es6.Elasticsearch([ip], port=port)
         self._tz = pytz.timezone('Asia/Shanghai')
         self._emit_batch = defaultdict(list)
         index = ES_INDEX.format(
             datetime.datetime.now(tz=self._tz).strftime('%Y.%m.%d')
         )
+        # ES 6.8 has differences in mapping initialization compared to ES 7.6
         if not self._es.indices.exists(index=index):
-            self._es.indices.create(index=index, body={'mappings': ES_MAPPING})
+            self._create_mappings(index)
         else:
-            self._es.indices.put_mapping(index=index, body=ES_MAPPING)
+            if self._version == 7:
+                self._es.indices.put_mapping(index=index, body=ES_MAPPING)
+            else:
+                self._es.indices.put_mapping(index=index, body=ES_MAPPING,
+                                             doc_type='_doc')
 
     def emit(self, name, value, tags=None):
         if tags is None:
@@ -144,7 +154,7 @@ class ElasticSearchHandler(Handler):
         date = datetime.datetime.now(tz=self._tz).strftime('%Y.%m.%d')
         index = ES_INDEX.format(date)
         if not self._es.indices.exists(index=index):
-            self._es.indices.create(index=index, body={'mappings': ES_MAPPING})
+            self._create_mappings(index)
             for idx, actions in self._emit_batch.items():
                 if not idx.endswith(date):
                     helpers.bulk(self._es, actions)
@@ -160,6 +170,8 @@ class ElasticSearchHandler(Handler):
                 "tags": tags,
             }
         }
+        if self._version == 6:
+            action['_type'] = '_doc'
         self._emit_batch[index].append(action)
         if len(self._emit_batch[index]) == 1000:
             logging.info('METRICS: Logging 1000 entries to ES.')
@@ -170,6 +182,13 @@ class ElasticSearchHandler(Handler):
         for index, actions in self._emit_batch.items():
             helpers.bulk(self._es, actions)
             self._emit_batch.pop(index)
+
+    def _create_mappings(self, index):
+        if self._version == 6:
+            body = {'mappings': {'_doc': ES_MAPPING}}
+        else:
+            body = {'mappings': ES_MAPPING}
+        self._es.indices.create(index=index, body=body)
 
 
 class Metrics(object):
