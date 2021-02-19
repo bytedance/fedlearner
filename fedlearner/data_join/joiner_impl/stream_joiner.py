@@ -253,7 +253,7 @@ class StreamExampleJoiner(ExampleJoiner):
                     if builder.check_data_block_full():
                         yield self._finish_data_block()
                 neg_samples = {}
-            prev_leader_idx = li
+            prev_leader_idx = leader_idx
             builder = self._get_data_block_builder(True)
             assert builder is not None, "data block builder must not be "\
                                         "None before dumping"
