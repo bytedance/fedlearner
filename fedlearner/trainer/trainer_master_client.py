@@ -104,7 +104,6 @@ class LocalTrainerMasterClient(object):
                 ret = self._block_queue.pop(0)
                 logging.debug('Fetch data block %s, ckpt is %s', ret,
                               ",".join(self._allocated_data_blockids))
-                #if ret.block_id not in self._allocated_data_blockids:
                 self._allocated_data_blockids.add(ret.block_id)
                 logging.info('Fetch data block %s done', ret)
                 return ret
