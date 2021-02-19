@@ -44,7 +44,7 @@ class DatasetApi(Resource):
 class DatasetsApi(Resource):
     def get(self):
         datasets = Dataset.query.all()
-        return {'data': [d.to_dict() for d in datasets]}
+        return {'data': [d.to_dict() for d in datasets][::-1]}
 
     def post(self):
         parser = reqparse.RequestParser()
