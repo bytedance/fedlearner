@@ -1,4 +1,4 @@
-import { Variable } from './workflow';
+import { Variable } from './variable';
 
 export enum JobState {
   INVALID = 'INVALID',

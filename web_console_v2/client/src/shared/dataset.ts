@@ -67,6 +67,7 @@ export function getImportStage(data: Dataset): { type: StateTypes; text: string;
     };
   }
 
+  /* istanbul ignore next */
   return {
     text: i18n.t('dataset.state_unknown'),
     type: 'default',
