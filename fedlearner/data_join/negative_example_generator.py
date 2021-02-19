@@ -31,7 +31,7 @@ class NegativeExampleGenerator(object):
             return False
         return True
 
-    def generate(self, fe, prev_leader_idx, leader_idx):
+    def generate(self, follower_item, prev_leader_idx, leader_idx):
         for idx in range(prev_leader_idx, leader_idx):
             if self._skip():
                 continue
@@ -41,10 +41,10 @@ class NegativeExampleGenerator(object):
             if isinstance(example_id, bytes):
                 example_id = example_id.decode()
             event_time = self._buf[idx].event_time
-            example = type(fe).make(example_id, event_time,
-                                    example_id, self._field_name,
-                                    self._field_value)
-            yield (example, idx, 0)
+            example = type(follower_item).make(example_id, event_time,
+                                               example_id, self._field_name,
+                                               self._field_value)
+            yield example, idx, 0
             del self._buf[idx]
 
         del_keys = [k for k in self._buf if k < prev_leader_idx]

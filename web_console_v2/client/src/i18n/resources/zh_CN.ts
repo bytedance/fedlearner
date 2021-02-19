@@ -24,6 +24,7 @@ const messages = {
     terms: '服务协议',
     privacy: '隐私条款',
     more: '更多',
+    confirm: '确认',
     submit: '确认',
     cancel: '取消',
     close: '关闭',
@@ -36,6 +37,9 @@ const messages = {
     click_to_retry: '点此重试',
     creator: '创建者',
     created_at: '创建时间',
+    yes: '是',
+    no: '否',
+    pls_try_again_later: '请稍后重试',
   },
 };
 

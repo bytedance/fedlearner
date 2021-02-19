@@ -15,6 +15,7 @@
 # coding: utf-8
 # pylint: disable=raise-missing-from
 
+import re
 from enum import Enum
 from uuid import uuid4
 
@@ -42,6 +43,12 @@ _CERTIFICATE_FILE_NAMES = [
     'client/root.pem', 'server/server.pem', 'server/server.key',
     'server/intermediate.pem', 'server/root.pem'
 ]
+
+_URL_REGEX = r'(?:^((?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])(?:\.' \
+             r'(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])){3})(?::+' \
+             r'(\d+))?$)|(?:^\[((?:(?:[0-9a-fA-F:]){1,4}(?:(?::(?:[0-9a-fA-F]' \
+             r'){1,4}|:)){2,7})+)\](?::+(\d+))?|((?:(?:[0-9a-fA-F:]){1,4}(?:(' \
+             r'?::(?:[0-9a-fA-F]){1,4}|:)){2,7})+)$)'
 
 
 class ErrorMessage(Enum):
@@ -98,10 +105,12 @@ class ProjectsApi(Resource):
                     details=ErrorMessage.PARAM_FORMAT_ERROR.value.format(
                         'participants', 'Participant must have name, '
                         'domain_name and url.'))
+            if re.match(_URL_REGEX, participant.get('url')) is None:
+                raise InvalidArgumentException('URL pattern is wrong')
             domain_name = participant.get('domain_name')
             # Grpc spec
             participant['grpc_spec'] = {
-                'authority': domain_name
+                'authority': '{}-client-auth.com'.format(domain_name[:-4])
             }
             if participant.get('certificates') is not None:
                 current_cert = parse_certificates(
@@ -193,7 +202,7 @@ class ProjectApi(Resource):
                 custom_host = variable.value
 
         project.set_config(config)
-        if request.json.get('comment') is not None:
+        if request.json.get('comment'):
             project.comment = request.json.get('comment')
 
         for participant in project.get_config().participants:

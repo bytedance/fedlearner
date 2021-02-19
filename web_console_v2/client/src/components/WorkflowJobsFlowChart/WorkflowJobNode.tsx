@@ -1,22 +1,22 @@
 import React, { FC } from 'react';
 import { Handle, NodeComponentProps, Position } from 'react-flow-renderer';
+import { Dropdown, Menu, Modal } from 'antd';
+import { MenuInfo } from 'rc-menu/lib/interface';
 import styled from 'styled-components';
 import pendingIcon from 'assets/icons/workflow-pending.svg';
 import completetdIcon from 'assets/icons/workflow-completed.svg';
 import warningIcon from 'assets/icons/workflow-warning.svg';
 import errorIcon from 'assets/icons/workflow-error.svg';
 import GridRow from 'components/_base/GridRow';
-import {
-  JobNodeData,
-  JobNodeStatus,
-  JobNodeType,
-  NODE_HEIGHT,
-  NODE_WIDTH,
-  GLOBAL_CONFIG_NODE_SIZE,
-} from './helpers';
+import { NODE_HEIGHT, NODE_WIDTH, GLOBAL_CONFIG_NODE_SIZE } from './helpers';
+import { NodeData, JobNodeStatus, ChartNodeType } from './types';
 import { convertToUnit } from 'shared/helpers';
 import i18n from 'i18n';
 import classNames from 'classnames';
+import { Down } from 'components/IconPark';
+import { Z_INDEX_GREATER_THAN_HEADER } from 'components/Header';
+import PubSub from 'pubsub-js';
+import { useTranslation } from 'react-i18next';
 
 const Container = styled.div`
   position: relative;
@@ -72,7 +72,26 @@ const GlobalConfigNodeContainer = styled.div`
   width: ${convertToUnit(GLOBAL_CONFIG_NODE_SIZE)};
   height: ${convertToUnit(GLOBAL_CONFIG_NODE_SIZE)};
   border-radius: 50%;
-  background-color: white;
+  background-color: var(--selected-background, white);
+  border: 1px solid var(--selected-border-color, transparent);
+`;
+const InheritButton = styled.div`
+  position: absolute;
+  bottom: 11px;
+  right: 14px;
+  display: flex;
+  align-items: center;
+  padding-bottom: 5px;
+  line-height: 1.8;
+  font-size: 12px;
+  color: var(--primaryColor);
+
+  &[data-inherit='false'] {
+    color: var(--warningColor);
+  }
+`;
+const ArrowDown = styled(Down)`
+  margin-left: 5px;
 `;
 
 const statusIcons: Record<JobNodeStatus, string> = {
@@ -99,8 +118,12 @@ export const jobExecutionStatusText: Record<JobNodeStatus, string> = {
   [JobNodeStatus.Error]: i18n.t('workflow.job_node_stop_running'),
 };
 
+export const WORKFLOW_JOB_NODE_CHANNELS = {
+  change_inheritance: 'job_node.change_inheritance',
+};
+
 interface Props extends NodeComponentProps {
-  data: JobNodeData;
+  data: NodeData;
 }
 
 const ConfigJobNode: FC<Props> = ({ data, id }) => {
@@ -115,9 +138,83 @@ const ConfigJobNode: FC<Props> = ({ data, id }) => {
         {icon && <StatusIcon src={icon} />}
         <JobStatusText>{text}</JobStatusText>
       </GridRow>
+
       {data.isSource && <Handle type="source" position={Position.Bottom} />}
     </Container>
   );
+};
+
+const ForkJobNode: FC<Props> = ({ data, id }) => {
+  const { t } = useTranslation();
+  const icon = statusIcons[data.status];
+  const text = jobConfigStatusText[data.status];
+
+  const labelReusable = t('workflow.label_job_reuseable');
+  const labelNonreusable = t('workflow.label_job_nonreusable');
+
+  return (
+    <Container
+      data-inherit={data.inherit!.toString()}
+      className={classNames([data.raw.is_federated && 'federated-mark', data.mark])}
+    >
+      {data.isTarget && <Handle type="target" position={Position.Top} />}
+      <JobName>{id}</JobName>
+      <GridRow gap={5}>
+        {icon && <StatusIcon src={icon} />}
+        <JobStatusText>{text}</JobStatusText>
+      </GridRow>
+      <Dropdown
+        overlay={
+          <Menu>
+            <Menu.Item key="0" onClick={(e) => changeInheritance(e, true)}>
+              {labelReusable}
+            </Menu.Item>
+            <Menu.Item key="1" onClick={(e) => changeInheritance(e, false)}>
+              {labelNonreusable}
+            </Menu.Item>
+          </Menu>
+        }
+      >
+        <InheritButton data-inherit={data.inherit!.toString()} onClick={(e) => e.stopPropagation()}>
+          {data.inherit ? labelReusable : labelNonreusable} <ArrowDown />
+        </InheritButton>
+      </Dropdown>
+      {data.isSource && <Handle type="source" position={Position.Bottom} />}
+    </Container>
+  );
+
+  function changeInheritance(event: MenuInfo, whetherInherit: boolean) {
+    event.domEvent.stopPropagation();
+
+    if (whetherInherit === data.inherit) {
+      return;
+    }
+
+    Modal.confirm({
+      title: t('workflow.title_toggle_reusable', {
+        state: whetherInherit ? labelReusable : labelNonreusable,
+      }),
+      zIndex: Z_INDEX_GREATER_THAN_HEADER,
+      icon: null,
+      content: whetherInherit
+        ? t('workflow.msg_reuse_noti', {
+            name: id,
+          })
+        : t('workflow.msg_non_reuse_noti', {
+            name: id,
+          }),
+
+      mask: false,
+      okText: t('confirm'),
+      cancelText: t('cancel'),
+      style: {
+        top: '35%',
+      },
+      onOk() {
+        PubSub.publish(WORKFLOW_JOB_NODE_CHANNELS.change_inheritance, { id, data, whetherInherit });
+      },
+    });
+  }
 };
 
 const ExecutionJobNode: FC<Props> = ({ data, id }) => {
@@ -137,7 +234,7 @@ const ExecutionJobNode: FC<Props> = ({ data, id }) => {
   );
 };
 
-const GlobalJobNode: FC<Props> = ({ data, id }) => {
+const GlobalConfigNode: FC<Props> = ({ data, id }) => {
   const icon = statusIcons[data.status];
   const text = jobConfigStatusText[data.status];
 
@@ -152,9 +249,10 @@ const GlobalJobNode: FC<Props> = ({ data, id }) => {
   );
 };
 
-const WorkflowJobNode: Record<JobNodeType, FC<Props>> = {
+const WorkflowJobNode: Record<ChartNodeType, FC<Props>> = {
+  fork: ForkJobNode,
   config: ConfigJobNode,
-  global: GlobalJobNode,
+  global: GlobalConfigNode,
   execution: ExecutionJobNode,
 };
 

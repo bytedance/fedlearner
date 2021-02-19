@@ -40,8 +40,7 @@ message Participant {
 
 message Project {
     string name = 1;
-    string domain_name = 2;
-    string token = 3;
-    repeated Participant participants = 4;
-    repeated Variable variables = 5;
+    string token = 2;
+    repeated Participant participants = 3;
+    repeated Variable variables = 4;
 }

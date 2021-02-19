@@ -16,7 +16,8 @@
 # pylint: disable=broad-except, cyclic-import
 
 import logging
-
+import json
+import os
 import threading
 from concurrent import futures
 import grpc
@@ -39,7 +40,7 @@ class RPCServerServicer(service_pb2_grpc.WebConsoleV2ServiceServicer):
 
     def CheckConnection(self, request, context):
         try:
-            return self._server.check_connection(request)
+            return self._server.check_connection(request, context)
         except UnauthorizedException as e:
             return service_pb2.CheckConnectionResponse(
                 status=common_pb2.Status(
@@ -54,7 +55,7 @@ class RPCServerServicer(service_pb2_grpc.WebConsoleV2ServiceServicer):
 
     def UpdateWorkflowState(self, request, context):
         try:
-            return self._server.update_workflow_state(request)
+            return self._server.update_workflow_state(request, context)
         except UnauthorizedException as e:
             return service_pb2.UpdateWorkflowStateResponse(
                 status=common_pb2.Status(
@@ -69,7 +70,7 @@ class RPCServerServicer(service_pb2_grpc.WebConsoleV2ServiceServicer):
 
     def GetWorkflow(self, request, context):
         try:
-            return self._server.get_workflow(request)
+            return self._server.get_workflow(request, context)
         except UnauthorizedException as e:
             return service_pb2.GetWorkflowResponse(
                 status=common_pb2.Status(
@@ -112,7 +113,7 @@ class RpcServer(object):
             del self._server
             self._started = False
 
-    def check_auth_info(self, auth_info):
+    def check_auth_info(self, auth_info, context):
         logging.debug('auth_info: %s', auth_info)
         project = Project.query.filter_by(
             name=auth_info.project_name).first()
@@ -122,27 +123,34 @@ class RpcServer(object):
         # TODO: fix token verification
         # if project_config.token != auth_info.auth_token:
         #     raise UnauthorizedException('Invalid token')
-        if project_config.domain_name != auth_info.target_domain:
-            raise UnauthorizedException('Invalid domain')
-        source_party = None
-        for party in project_config.participants:
-            if party.domain_name == auth_info.source_domain:
-                source_party = party
-        if source_party is None:
-            raise UnauthorizedException('Invalid domain')
+
+        # Use first participant to mock for unit test
+        # TODO: Fix for multi-peer
+        source_party = project_config.participants[0]
+        if os.environ.get('FLASK_ENV') == 'production':
+            metadata = dict(context.invocation_metadata())
+            # ssl-client-subject-dn example:
+            # CN=*.fl-xxx.com,OU=security,O=security,L=beijing,ST=beijing,C=CN
+            cn = metadata.get('ssl-client-subject-dn').split(',')[0][5:]
+            for party in project_config.participants:
+                if party.domain_name == cn:
+                    source_party = party
+            if source_party is None:
+                raise UnauthorizedException('Invalid domain')
         return project, source_party
 
-    def check_connection(self, request):
+    def check_connection(self, request, context):
         with self._app.app_context():
-            _, party = self.check_auth_info(request.auth_info)
+            _, party = self.check_auth_info(request.auth_info, context)
             logging.debug(
                 'received check_connection from %s', party.domain_name)
             return service_pb2.CheckConnectionResponse(
                 status=common_pb2.Status(
                     code=common_pb2.STATUS_SUCCESS))
-    def update_workflow_state(self, request):
+
+    def update_workflow_state(self, request, context):
         with self._app.app_context():
-            project, party = self.check_auth_info(request.auth_info)
+            project, party = self.check_auth_info(request.auth_info, context)
             logging.debug(
                 'received update_workflow_state from %s: %s',
                 party.domain_name, request)
@@ -189,9 +197,9 @@ class RpcServer(object):
             for i in var_list:
                 job_def.variables.append(i)
 
-    def get_workflow(self, request):
+    def get_workflow(self, request, context):
         with self._app.app_context():
-            project, party = self.check_auth_info(request.auth_info)
+            project, party = self.check_auth_info(request.auth_info, context)
             workflow = Workflow.query.filter_by(
                 name=request.workflow_name,
                 project_id=project.id).first()
@@ -205,7 +213,9 @@ class RpcServer(object):
                 ])
             # job details
             jobs = [service_pb2.JobDetail(
-                name=job.name, state=job.get_state_for_front())
+                name=job.name,
+                state=job.get_state_for_front(),
+                pods=json.dumps(job.get_pods_for_front()))
                 for job in workflow.get_jobs()]
             # fork info
             forked_from = ''

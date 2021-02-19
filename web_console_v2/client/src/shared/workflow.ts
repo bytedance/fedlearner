@@ -99,8 +99,10 @@ export function isOperable(workflow: Workflow) {
 }
 
 export function isForkable(workflow: Workflow) {
-  const { state } = workflow;
-  return [RUNNING, STOPPED, W_READY].includes(state);
+  const { state, forkable, target_state } = workflow;
+  return (
+    [RUNNING, STOPPED, W_READY, COMPLETED].includes(state) && target_state === INVALID && forkable
+  );
 }
 
 // --------------- General stage getter ----------------
@@ -109,7 +111,7 @@ export function getWorkflowStage(workflow: Workflow): { type: StateTypes; text: 
   if (isAwaitParticipantConfig(workflow)) {
     return {
       text: i18n.t('workflow.state_configuring'),
-      type: 'processing',
+      type: 'gold',
     };
   }
 
@@ -137,7 +139,7 @@ export function getWorkflowStage(workflow: Workflow): { type: StateTypes; text: 
   if (isReadyToRun(workflow)) {
     return {
       text: i18n.t('workflow.state_ready_to_run'),
-      type: 'processing',
+      type: 'lime',
     };
   }
 

@@ -1,15 +1,16 @@
 import { cloneDeep } from 'lodash';
-import { JobState, JobType, PodState } from 'typings/job';
+import { JobExecutionDetalis, JobState, JobType, PodState } from 'typings/job';
 import {
   WorkflowState,
   TransactionState,
   VariableAccessMode,
   WorkflowExecutionDetails,
 } from 'typings/workflow';
+import { normalTemplate } from '../workflow_templates/examples';
 
 export const awaitParticipantConfig = {
   id: 1,
-  name: 'Await configure',
+  name: 'Await-configure',
   project_id: 1,
   config: null,
   forkable: true,
@@ -24,7 +25,7 @@ export const awaitParticipantConfig = {
 
 export const newlyCreated = {
   id: 2,
-  name: 'Newly created',
+  name: 'Newly-created',
   project_id: 1,
   config: {
     group_alias: 'test-2',
@@ -38,7 +39,7 @@ export const newlyCreated = {
           {
             name: 'job_name',
             value: '1',
-            access_mode: 'PEER_WRITABLE' as VariableAccessMode,
+            access_mode: 'PEER_READABLE' as VariableAccessMode,
             widget_schema: '{"component":"Input","type":"string","required":true}' as any,
           },
         ],
@@ -55,7 +56,7 @@ export const newlyCreated = {
             name: 'job_name2',
             value: '2',
             access_mode: 'PEER_WRITABLE' as VariableAccessMode,
-            widget_schema: '{"component":"Input","type":"string"}' as any,
+            widget_schema: '{"component":"Input","type":"string","required":true}' as any,
           },
           {
             name: 'comment2',
@@ -85,7 +86,16 @@ export const newlyCreated = {
         yaml_template: '',
       },
     ],
-    variables: [],
+    variables: [
+      {
+        name: 'image_version',
+        value: 'v1.5-rc3',
+        access_mode: VariableAccessMode.PEER_READABLE,
+        widget_schema: {
+          required: true,
+        },
+      },
+    ],
   },
   forkable: true,
   comment: null,
@@ -100,10 +110,25 @@ export const newlyCreated = {
 export const withExecutionDetail: WorkflowExecutionDetails = {
   ...cloneDeep(newlyCreated),
   run_time: 100000, // second level
-  jobs: [
+  jobs: _generateJobExecutionDetails('With-execution-details'),
+};
+
+export const completed = {
+  ...cloneDeep(withExecutionDetail),
+  id: 3,
+  name: 'All-completed',
+  config: normalTemplate.data.config as any,
+  state: WorkflowState.COMPLETED,
+  target_state: WorkflowState.INVALID,
+  transaction_state: TransactionState.ABORTED,
+  jobs: _generateJobExecutionDetails('All-completed'),
+};
+
+function _generateJobExecutionDetails(workflowName: string): JobExecutionDetalis[] {
+  return [
     {
       id: 1,
-      name: 'Newly created-Initiative',
+      name: `${workflowName}-Initiative`,
       job_type: JobType.RAW_DATA,
       state: JobState.COMPLETE,
       yaml_template: '',
@@ -116,7 +141,7 @@ export const withExecutionDetail: WorkflowExecutionDetails = {
     },
     {
       id: 2,
-      name: 'Newly created-Raw data upload',
+      name: `${workflowName}-Raw data upload`,
       job_type: JobType.DATA_JOIN,
       state: JobState.RUNNING,
       yaml_template: '',
@@ -126,7 +151,7 @@ export const withExecutionDetail: WorkflowExecutionDetails = {
         {
           name: '0-79f60e7a-520e-4cd7-a679-95b12df2c4fd',
           pod_type: 'Master',
-          state: PodState.COMPLETE,
+          status: PodState.COMPLETE,
         },
       ],
       created_at: 1611006571,
@@ -135,7 +160,7 @@ export const withExecutionDetail: WorkflowExecutionDetails = {
     },
     {
       id: 3,
-      name: 'Newly created-Training',
+      name: `${workflowName}-Training`,
       job_type: JobType.DATA_JOIN,
       state: JobState.STOPPED,
       yaml_template: '',
@@ -146,5 +171,5 @@ export const withExecutionDetail: WorkflowExecutionDetails = {
       updated_at: 1611006571,
       deleted_at: 0,
     },
-  ],
-};
+  ];
+}

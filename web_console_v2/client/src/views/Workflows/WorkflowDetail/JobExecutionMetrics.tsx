@@ -8,10 +8,12 @@ const Container = styled.div`
 const ResultPanel = styled.div`
   padding: 15px;
   height: 250px;
+  text-align: center;
+  line-height: 200px;
   margin-bottom: 20px;
   background-color: #17114f;
   border-radius: 4px;
-  color: #fefefe;
+  color: #7c70a5;
 `;
 
 const JobExecutionMetrics: FC = () => {
@@ -19,7 +21,7 @@ const JobExecutionMetrics: FC = () => {
   return (
     <Container>
       <h3>{t('workflow.label_job_metrics')}</h3>
-      <ResultPanel />
+      <ResultPanel>To be implemented</ResultPanel>
     </Container>
   );
 };

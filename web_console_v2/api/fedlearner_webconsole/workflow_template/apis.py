@@ -58,7 +58,7 @@ class WorkflowTemplatesApi(Resource):
         name = data['name']
         comment = data['comment']
         config = data['config']
-
+        # TODO: format check
         if 'group_alias' not in config:
             raise InvalidArgumentException(details={
                 'config.group_alias': 'config.group_alias is required'})

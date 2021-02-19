@@ -26,8 +26,6 @@ const ModalHeader = styled.h2`
   line-height: 24px;
 `;
 const JobTabs = styled(Tabs)`
-  padding: 10px;
-
   &.ant-tabs-top > .ant-tabs-nav {
     margin-bottom: 9px;
   }

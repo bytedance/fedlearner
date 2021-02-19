@@ -430,14 +430,12 @@ def convert_to_iso_format(value):
             raise ValueError
         return iso
     except ValueError:  # Not fitting any of above patterns
-        logging.debug('OPTIONAL_STATS: event time %s not converted '
-                     'correctly.', value)
         # then try to convert directly
         try:
             iso = datetime.fromtimestamp(float(value)).isoformat()
         except ValueError:  # might be a non-number str
-            logging.info('OPTIONAL_STATS: unable to parse event time %s, '
-                         'defaults to 0.', value)
+            logging.warning('OPTIONAL_STATS: unable to parse event time %s, '
+                            'defaults to 0.', value)
             iso = datetime.fromtimestamp(0).isoformat()
         return iso
 

@@ -14,12 +14,8 @@ import BreadcrumbLink from 'components/BreadcrumbLink';
 import CountTime from 'components/CountTime';
 import JobExecutionDetailsDrawer from './JobExecutionDetailsDrawer';
 import { useToggle } from 'react-use';
-import {
-  JobColorsMark,
-  JobNode,
-  JobNodeData,
-  JobNodeRawData,
-} from 'components/WorkflowJobsFlowChart/helpers';
+import { JobNode, NodeData, NodeDataRaw } from 'components/WorkflowJobsFlowChart/types';
+import { useMarkFederatedJobs } from 'components/WorkflowJobsFlowChart/hooks';
 import PropertyList from 'components/PropertyList';
 import { Eye, EyeInvisible } from 'components/IconPark';
 import { WorkflowExecutionDetails } from 'typings/workflow';
@@ -27,6 +23,7 @@ import { ReactFlowProvider } from 'react-flow-renderer';
 import { isRunning, isStopped } from 'shared/workflow';
 import dayjs from 'dayjs';
 import NoResult from 'components/NoResult';
+import { Job, JobExecutionDetalis } from 'typings/job';
 
 const Container = styled.div`
   display: flex;
@@ -35,13 +32,16 @@ const Container = styled.div`
 `;
 const ChartSection = styled.section`
   display: flex;
-  gap: 16px;
-  margin-top: 16px;
+  margin-top: 12px;
   flex: 1;
 `;
 const ChartContainer = styled.div`
   height: 100%;
   flex: 1;
+
+  & + & {
+    margin-left: 16px;
+  }
 `;
 const HeaderRow = styled(Row)`
   margin-bottom: 30px;
@@ -81,18 +81,18 @@ const WorkflowDetail: FC = () => {
   const [peerJobsVisible, togglePeerJobsVisible] = useToggle(false);
   const [drawerVisible, toggleDrawerVisible] = useToggle(false);
   const [isPeerSide, setIsPeerSide] = useState(false);
-  const [data, setData] = useState<JobNodeData>();
+  const [data, setData] = useState<NodeData>();
 
   const detailQuery = useQuery(
     ['getWorkflowDetailById', params.id],
     () => getWorkflowDetailById(params.id),
-    {
-      cacheTime: 1,
-    },
+    { cacheTime: 1 },
   );
   const peerWorkflowQuery = useQuery(['getPeerWorkflow', params.id], getPeerWorkflow, {
     retry: false,
   });
+
+  const { markThem } = useMarkFederatedJobs();
 
   const workflow = detailQuery.data?.data;
   const transactionErr = workflow?.transaction_err;
@@ -131,10 +131,11 @@ const WorkflowDetail: FC = () => {
     // Display workflow global variables
     ...(workflow?.config?.variables || []).map((item) => ({ label: item.name, value: item.value })),
   ];
+
   const jobsWithExeDetails = mergeJobDefsWithExecutionDetails(workflow);
   const peerJobsWithExeDetails = mergeJobDefsWithExecutionDetails(peerWorkflowQuery.data);
 
-  _markFederatedJobs(jobsWithExeDetails, peerJobsWithExeDetails);
+  markThem(jobsWithExeDetails, peerJobsWithExeDetails);
 
   return (
     <Spin spinning={detailQuery.isLoading}>
@@ -197,10 +198,14 @@ const WorkflowDetail: FC = () => {
             ) : (
               <ReactFlowProvider>
                 <WorkflowJobsFlowChart
-                  type="execution"
-                  onCanvasClick={() => toggleDrawerVisible(false)}
-                  jobs={jobsWithExeDetails}
+                  nodeType="execution"
+                  workflowConfig={{
+                    ...workflow?.config!,
+                    job_definitions: jobsWithExeDetails,
+                    variables: [],
+                  }}
                   onJobClick={viewJobDetail}
+                  onCanvasClick={() => toggleDrawerVisible(false)}
                 />
               </ReactFlowProvider>
             )}
@@ -226,9 +231,14 @@ const WorkflowDetail: FC = () => {
               ) : (
                 <ReactFlowProvider>
                   <WorkflowJobsFlowChart
-                    type="execution"
-                    selectable={false}
-                    jobs={peerJobsWithExeDetails}
+                    nodeType="execution"
+                    workflowConfig={{
+                      ...peerWorkflowQuery.data?.config!,
+                      job_definitions: peerJobsWithExeDetails,
+                      variables: [],
+                    }}
+                    onJobClick={viewPeerJobDetail}
+                    onCanvasClick={() => toggleDrawerVisible(false)}
                   />
                 </ReactFlowProvider>
               )}
@@ -239,7 +249,8 @@ const WorkflowDetail: FC = () => {
         <JobExecutionDetailsDrawer
           visible={drawerVisible}
           toggleVisible={toggleDrawerVisible}
-          data={data}
+          jobData={data}
+          workflow={detailQuery.data?.data}
           isPeerSide={isPeerSide}
         />
       </Container>
@@ -250,8 +261,8 @@ const WorkflowDetail: FC = () => {
     setIsPeerSide(false);
     showJobDetailesDrawer(jobNode);
   }
-  // TODO: Is it proper to show other-side my job execution details?
-  function __viewPeerJobDetail__(jobNode: JobNode) {
+
+  function viewPeerJobDetail(jobNode: JobNode) {
     setIsPeerSide(true);
     showJobDetailesDrawer(jobNode);
   }
@@ -269,38 +280,22 @@ const WorkflowDetail: FC = () => {
 
 function mergeJobDefsWithExecutionDetails(
   workflow: WorkflowExecutionDetails | undefined,
-): JobNodeRawData[] {
+): NodeDataRaw[] {
   if (!workflow) return [];
 
   return (
     workflow.config?.job_definitions.map((item) => {
-      return Object.assign(
-        item,
-        workflow?.jobs?.find((j) => j.name === `${workflow.name}-${item.name}`) || {},
-        { name: item.name },
-      );
+      return Object.assign(item, workflow?.jobs?.find(_matcher(workflow, item)) || {}, {
+        name: item.name,
+      });
     }) || []
   );
-}
-
-/** NOTE: Has Side effect to inputs! */
-function _markFederatedJobs(aJobs: JobNodeRawData[], bJobs: JobNodeRawData[]) {
-  const colorPools: JobColorsMark[] = ['blue', 'green', 'yellow', 'magenta', 'cyan'];
-  const markedJobs: Record<string, JobColorsMark> = {};
-
-  aJobs.forEach((job) => {
-    if (job.is_federated) {
-      const color = colorPools.shift() || 'blue';
-      markedJobs[job.name!] = color;
-      job.mark = color;
-    }
-  });
-
-  bJobs.forEach((job) => {
-    if (job.is_federated) {
-      job.mark = markedJobs[job.name];
-    }
-  });
+  // TODO: find a better way to distinguish job-def-name and job-execution-name
+  function _matcher(workflow: WorkflowExecutionDetails, jobDef: Job) {
+    return (job: JobExecutionDetalis) => {
+      return job.name === `${workflow.name}-${jobDef.name}` || job.name.endsWith(jobDef.name);
+    };
+  }
 }
 
 export default WorkflowDetail;

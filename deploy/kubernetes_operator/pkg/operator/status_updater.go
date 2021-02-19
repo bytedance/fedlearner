@@ -53,7 +53,7 @@ func (updater *appStatusUpdater) UpdateAppStateWithRetry(ctx context.Context, ap
 			replicaStatus := status.DeepCopy()
 
 			pods := make([]string, 0)
-			for pod, _ := range replicaStatus.Active {
+			for pod := range replicaStatus.Active {
 				pods = append(pods, pod)
 			}
 
@@ -68,6 +68,14 @@ func (updater *appStatusUpdater) UpdateAppStateWithRetry(ctx context.Context, ap
 				}
 			}
 			flapp.Status.FLReplicaStatus[rtype] = *replicaStatus
+		}
+
+
+		if state == v1alpha1.FLStateComplete || state == v1alpha1.FLStateFailed {
+			now := metav1.Now()
+			flapp.Status.CompletionTime = &now
+		} else {
+			flapp.Status.CompletionTime = nil
 		}
 
 		if flapp.Status.AppState == state {
@@ -91,7 +99,7 @@ func (updater *appStatusUpdater) UpdateStatusWithRetry(
 
 	for {
 		if refresh {
-			freshApp, err = updater.crdClient.FedlearnerV1alpha1().FLApps(updater.namespace).Get(app.Name, metav1.GetOptions{})
+			freshApp, err = updater.crdClient.FedlearnerV1alpha1().FLApps(updater.namespace).Get(ctx, app.Name, metav1.GetOptions{})
 			if err != nil || freshApp == nil {
 				return nil, fmt.Errorf("failed to get app %s: %v", freshApp.Name, err)
 			}
@@ -110,7 +118,7 @@ func (updater *appStatusUpdater) UpdateStatusWithRetry(
 			freshApp.Name,
 			updater.namespace,
 			freshApp.Status.AppState)
-		_, err = updater.crdClient.FedlearnerV1alpha1().FLApps(updater.namespace).UpdateStatus(freshApp)
+		_, err = updater.crdClient.FedlearnerV1alpha1().FLApps(updater.namespace).UpdateStatus(ctx, freshApp, metav1.UpdateOptions{})
 		if err != nil && errors.IsConflict(err) {
 			refresh = true
 			continue

@@ -28,6 +28,6 @@ CODEGEN_PKG=${CODEGEN_PKG:-$(cd "${SCRIPT_ROOT}"; ls -d -1 ./vendor/k8s.io/code-
 bash "${CODEGEN_PKG}"/generate-groups.sh "deepcopy,client,informer,lister" \
   github.com/bytedance/fedlearner/deploy/kubernetes_operator/pkg/client \
   github.com/bytedance/fedlearner/deploy/kubernetes_operator/pkg/apis \
-  fedlearner.k8s.io:v1alpha1,v1alpha2 \
+  fedlearner.k8s.io:v1alpha1 \
   --output-base "$(dirname "${BASH_SOURCE[0]}")/../../../../../.." \
   --go-header-file "${SCRIPT_ROOT}"/hack/boilerplate.go.txt

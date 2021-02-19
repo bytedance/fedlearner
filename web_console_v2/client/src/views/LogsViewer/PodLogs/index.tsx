@@ -1,31 +1,27 @@
-import { Refresh } from 'components/IconPark';
 import React, { FC } from 'react';
-import { useQuery } from 'react-query';
 import { useParams } from 'react-router-dom';
 import { fetchPodLogs } from 'services/workflow';
-import styled from 'styled-components';
-
-const Container = styled.div``;
+import PrintLogs from 'components/PrintLogs';
 
 const PodLogs: FC = () => {
   const params = useParams<{ jobid: string; podname: string }>();
 
-  const logsQuery = useQuery('getPodLogs', getLogs, {
-    refetchOnWindowFocus: false,
-  });
-
-  if (logsQuery.isFetching) {
-    return <Refresh className="anticon-spin" style={{ fontSize: '20px' }} />;
-  }
-
-  return <Container>{logsQuery.data?.data}</Container>;
+  return (
+    <PrintLogs
+      logsFetcher={getLogs}
+      refetchInterval={4000}
+      queryKey={['getPodLogs', params.podname]}
+    />
+  );
 
   async function getLogs() {
-    if (!params.jobid || !params.podname) {
-      return { data: 'Job ID or Pod name invalid!' };
+    if (!params.podname) {
+      return { data: ['Pod name invalid!'] };
     }
 
-    return fetchPodLogs(params.jobid, params.podname).catch((error) => ({ data: error.message }));
+    return fetchPodLogs(params.podname, { startTime: 0, maxLines: 900 }).catch((error) => ({
+      data: error.message,
+    }));
   }
 };
 

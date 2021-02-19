@@ -16,7 +16,7 @@ import { Button, message, Spin, Popconfirm } from 'antd';
 import { useHistory } from 'react-router-dom';
 import { useSetRecoilState } from 'recoil';
 import { workflowInEditing } from 'stores/workflow';
-import { runTheWorkflow, stopTheWorkflow } from 'services/workflow';
+import { getPeerWorkflowsConfig, runTheWorkflow, stopTheWorkflow } from 'services/workflow';
 import GridRow from 'components/_base/GridRow';
 import {
   Copy,
@@ -29,6 +29,7 @@ import {
 } from 'components/IconPark';
 import { Icon } from 'components/IconPark/runtime';
 import { useToggle } from 'react-use';
+import { to } from 'shared/helpers';
 
 const Container = styled(GridRow)`
   margin-left: ${(props: any) => (props.type === 'link' ? '-15px !important' : 0)};
@@ -163,8 +164,22 @@ const WorkflowActions: FC<Props> = ({ workflow, type = 'default', without = [], 
   function onViewDetailClick() {
     history.push(`/workflows/${workflow.id}`);
   }
-  function onForkClick() {
-    // TODO: fork workflow
+  async function onForkClick() {
+    toggleLoading(true);
+    const [res, error] = await to(getPeerWorkflowsConfig(workflow.id));
+    toggleLoading(false);
+
+    if (error) {
+      return message.error(t('workflow.msg_get_peer_cfg_failed') + error.message);
+    }
+
+    const anyPeerWorkflow = Object.values(res.data).find((item) => !!item.config)!;
+    if (!anyPeerWorkflow.forkable) {
+      message.warning(t('workflow.msg_unforkable'));
+      return;
+    }
+
+    history.push(`/workflows/fork/basic/${workflow.id}`);
   }
   async function onRunClick() {
     toggleLoading(true);

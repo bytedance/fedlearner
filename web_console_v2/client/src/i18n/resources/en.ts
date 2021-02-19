@@ -24,6 +24,7 @@ const messages = {
     terms: 'Terms of Services',
     privacy: 'Privacy Protocol',
     more: 'More',
+    confirm: 'OK',
     submit: 'OK',
     cancel: 'Cancel',
     close: 'Close',
@@ -34,6 +35,9 @@ const messages = {
     next_step: 'Next step',
     certificate: 'Certificate',
     click_to_retry: 'Click to retry',
+    yes: 'Yes',
+    no: 'No',
+    pls_try_again_later: 'Please try again later',
   },
 };
 

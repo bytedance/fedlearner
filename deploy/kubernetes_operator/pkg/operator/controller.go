@@ -74,6 +74,7 @@ func NewFLController(
 		kubeSharedInformerFactory.Core().V1().Pods().Lister(),
 		kubeSharedInformerFactory.Core().V1().Services().Lister(),
 		kubeSharedInformerFactory.Networking().V1beta1().Ingresses().Lister(),
+		kubeSharedInformerFactory.Core().V1().Secrets().Lister(),
 		appEventHandler,
 	)
 	controller := &FLController{
@@ -87,7 +88,8 @@ func NewFLController(
 				kubeSharedInformerFactory.Core().V1().ConfigMaps().Informer().HasSynced() &&
 				kubeSharedInformerFactory.Core().V1().Pods().Informer().HasSynced() &&
 				kubeSharedInformerFactory.Core().V1().Services().Informer().HasSynced() &&
-				kubeSharedInformerFactory.Networking().V1beta1().Ingresses().Informer().HasSynced()
+				kubeSharedInformerFactory.Networking().V1beta1().Ingresses().Informer().HasSynced() &&
+				kubeSharedInformerFactory.Core().V1().Secrets().Informer().HasSynced()
 		},
 		syncHandler: appManager.SyncApp,
 		stopCh:      stopCh,

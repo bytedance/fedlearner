@@ -11,13 +11,13 @@ import { useResetCreateForms } from 'hooks/workflow';
 
 const { Step } = Steps;
 
+const StepContainer = styled.div`
+  width: 350px;
+`;
 const FormArea = styled.section`
   flex: 1;
   margin-top: 12px;
   background-color: white;
-`;
-const StepContainer = styled.div`
-  width: 350px;
 `;
 
 enum CreateSteps {
@@ -37,7 +37,7 @@ export type WorkflowCreateProps = {
  * 1. Coordinator initiate a workflow
  * 2. Participant accept and fill config of the workflow Coordinator initiated
  */
-const WorkflowsCreate: FC<WorkflowCreateProps> = (parentProps) => {
+const WorkflowsCreate: FC<WorkflowCreateProps> = (workflowCreateProps) => {
   const { t } = useTranslation();
   const params = useParams<{ step: keyof typeof CreateSteps; id?: string }>();
   const [currentStep, setStep] = useState(CreateSteps[params.step || 'basic']);
@@ -72,25 +72,25 @@ const WorkflowsCreate: FC<WorkflowCreateProps> = (parentProps) => {
           path={`/workflows/initiate/basic`}
           exact
           render={(props) => (
-            <StepOneBasic onSuccess={setToConfigStep} {...props} {...parentProps} />
+            <StepOneBasic onSuccess={setToConfigStep} {...props} {...workflowCreateProps} />
           )}
         />
         <Route
           path={`/workflows/initiate/config`}
           exact
-          render={(props) => <SteptTwoConfig {...props} {...parentProps} />}
+          render={(props) => <SteptTwoConfig {...props} {...workflowCreateProps} />}
         />
         <Route
           path={`/workflows/accept/basic/:id`}
           exact
           render={(props) => (
-            <StepOneBasic onSuccess={setToConfigStep} {...props} {...parentProps} />
+            <StepOneBasic onSuccess={setToConfigStep} {...props} {...workflowCreateProps} />
           )}
         />
         <Route
           path={`/workflows/accept/config/:id`}
           exact
-          render={(props) => <SteptTwoConfig {...props} {...parentProps} />}
+          render={(props) => <SteptTwoConfig {...props} {...workflowCreateProps} />}
         />
       </FormArea>
     </>

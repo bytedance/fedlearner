@@ -53,7 +53,7 @@ func (h *Handler) Run(stopCh <-chan struct{}) error {
 
 // ListNamespaces .
 func (h *Handler) ListNamespaces(c *gin.Context) {
-	namespaces, err := h.kubeClient.CoreV1().Namespaces().List(metav1.ListOptions{})
+	namespaces, err := h.kubeClient.CoreV1().Namespaces().List(c, metav1.ListOptions{})
 	if err != nil {
 		h.handleError(c, err)
 		return
@@ -68,7 +68,7 @@ func (h *Handler) ListNamespaces(c *gin.Context) {
 func (h *Handler) ListPods(c *gin.Context) {
 	namespace := c.Param("namespace")
 
-	pods, err := h.kubeClient.CoreV1().Pods(namespace).List(metav1.ListOptions{})
+	pods, err := h.kubeClient.CoreV1().Pods(namespace).List(c, metav1.ListOptions{})
 	if err != nil {
 		h.handleError(c, err)
 		return
@@ -84,7 +84,7 @@ func (h *Handler) GetPod(c *gin.Context) {
 	namespace := c.Param("namespace")
 	name := c.Param("name")
 
-	pod, err := h.kubeClient.CoreV1().Pods(namespace).Get(name, metav1.GetOptions{})
+	pod, err := h.kubeClient.CoreV1().Pods(namespace).Get(c, name, metav1.GetOptions{})
 	if err != nil {
 		h.handleError(c, err)
 		return
@@ -100,7 +100,7 @@ func (h *Handler) ListPodEvents(c *gin.Context) {
 	namespace := c.Param("namespace")
 	name := c.Param("name")
 
-	events, err := h.kubeClient.CoreV1().Events(namespace).List(metav1.ListOptions{
+	events, err := h.kubeClient.CoreV1().Events(namespace).List(c, metav1.ListOptions{
 		FieldSelector: fields.OneTermEqualSelector("involvedObject.name", name).String(),
 	})
 	if err != nil {
@@ -117,7 +117,7 @@ func (h *Handler) ListPodEvents(c *gin.Context) {
 func (h *Handler) ListServices(c *gin.Context) {
 	namespace := c.Param("namespace")
 
-	services, err := h.kubeClient.CoreV1().Services(namespace).List(metav1.ListOptions{})
+	services, err := h.kubeClient.CoreV1().Services(namespace).List(c, metav1.ListOptions{})
 	if err != nil {
 		h.handleError(c, err)
 		return
@@ -133,7 +133,7 @@ func (h *Handler) GetService(c *gin.Context) {
 	namespace := c.Param("namespace")
 	name := c.Param("name")
 
-	service, err := h.kubeClient.CoreV1().Services(namespace).Get(name, metav1.GetOptions{})
+	service, err := h.kubeClient.CoreV1().Services(namespace).Get(c, name, metav1.GetOptions{})
 	if err != nil {
 		h.handleError(c, err)
 		return
@@ -154,7 +154,7 @@ func (h *Handler) CreateService(c *gin.Context) {
 		return
 	}
 
-	newService, err := h.kubeClient.CoreV1().Services(namespace).Create(service)
+	newService, err := h.kubeClient.CoreV1().Services(namespace).Create(c, service, metav1.CreateOptions{})
 	if err != nil {
 		h.handleError(c, err)
 		return
@@ -170,7 +170,7 @@ func (h *Handler) DeleteService(c *gin.Context) {
 	namespace := c.Param("namespace")
 	name := c.Param("name")
 
-	if err := h.kubeClient.CoreV1().Services(namespace).Delete(name, &metav1.DeleteOptions{}); err != nil {
+	if err := h.kubeClient.CoreV1().Services(namespace).Delete(c, name, metav1.DeleteOptions{}); err != nil {
 		h.handleError(c, err)
 		return
 	}
@@ -182,7 +182,7 @@ func (h *Handler) DeleteService(c *gin.Context) {
 func (h *Handler) ListSecrets(c *gin.Context) {
 	namespace := c.Param("namespace")
 
-	secrets, err := h.kubeClient.CoreV1().Secrets(namespace).List(metav1.ListOptions{})
+	secrets, err := h.kubeClient.CoreV1().Secrets(namespace).List(c, metav1.ListOptions{})
 	if err != nil {
 		h.handleError(c, err)
 		return
@@ -198,7 +198,7 @@ func (h *Handler) GetSecret(c *gin.Context) {
 	namespace := c.Param("namespace")
 	name := c.Param("name")
 
-	secret, err := h.kubeClient.CoreV1().Secrets(namespace).Get(name, metav1.GetOptions{})
+	secret, err := h.kubeClient.CoreV1().Secrets(namespace).Get(c, name, metav1.GetOptions{})
 	if err != nil {
 		h.handleError(c, err)
 		return
@@ -219,7 +219,7 @@ func (h *Handler) CreateSecret(c *gin.Context) {
 		return
 	}
 
-	newSecret, err := h.kubeClient.CoreV1().Secrets(namespace).Create(secret)
+	newSecret, err := h.kubeClient.CoreV1().Secrets(namespace).Create(c, secret, metav1.CreateOptions{})
 	if err != nil {
 		h.handleError(c, err)
 		return
@@ -235,7 +235,7 @@ func (h *Handler) DeleteSecret(c *gin.Context) {
 	namespace := c.Param("namespace")
 	name := c.Param("name")
 
-	if err := h.kubeClient.CoreV1().Secrets(namespace).Delete(name, &metav1.DeleteOptions{}); err != nil {
+	if err := h.kubeClient.CoreV1().Secrets(namespace).Delete(c, name, metav1.DeleteOptions{}); err != nil {
 		h.handleError(c, err)
 		return
 	}
@@ -247,7 +247,7 @@ func (h *Handler) DeleteSecret(c *gin.Context) {
 func (h *Handler) ListDeployments(c *gin.Context) {
 	namespace := c.Param("namespace")
 
-	deployments, err := h.kubeClient.AppsV1().Deployments(namespace).List(metav1.ListOptions{})
+	deployments, err := h.kubeClient.AppsV1().Deployments(namespace).List(c, metav1.ListOptions{})
 	if err != nil {
 		h.handleError(c, err)
 		return
@@ -263,7 +263,7 @@ func (h *Handler) GetDeployment(c *gin.Context) {
 	namespace := c.Param("namespace")
 	name := c.Param("name")
 
-	deployment, err := h.kubeClient.AppsV1().Deployments(namespace).Get(name, metav1.GetOptions{})
+	deployment, err := h.kubeClient.AppsV1().Deployments(namespace).Get(c, name, metav1.GetOptions{})
 	if err != nil {
 		h.handleError(c, err)
 		return
@@ -284,7 +284,7 @@ func (h *Handler) CreateDeployment(c *gin.Context) {
 		return
 	}
 
-	newDeployment, err := h.kubeClient.AppsV1().Deployments(namespace).Create(deployment)
+	newDeployment, err := h.kubeClient.AppsV1().Deployments(namespace).Create(c, deployment, metav1.CreateOptions{})
 	if err != nil {
 		h.handleError(c, err)
 		return
@@ -312,7 +312,7 @@ func (h *Handler) UpdateDeployment(c *gin.Context) {
 		return
 	}
 
-	newDeployment, err := h.kubeClient.AppsV1().Deployments(namespace).Update(deployment)
+	newDeployment, err := h.kubeClient.AppsV1().Deployments(namespace).Update(c, deployment, metav1.UpdateOptions{})
 	if err != nil {
 		h.handleError(c, err)
 		return
@@ -328,7 +328,7 @@ func (h *Handler) DeleteDeployment(c *gin.Context) {
 	namespace := c.Param("namespace")
 	name := c.Param("name")
 
-	if err := h.kubeClient.AppsV1().Deployments(namespace).Delete(name, &metav1.DeleteOptions{}); err != nil {
+	if err := h.kubeClient.AppsV1().Deployments(namespace).Delete(c, name, metav1.DeleteOptions{}); err != nil {
 		h.handleError(c, err)
 		return
 	}
@@ -340,7 +340,7 @@ func (h *Handler) DeleteDeployment(c *gin.Context) {
 func (h *Handler) ListIngresses(c *gin.Context) {
 	namespace := c.Param("namespace")
 
-	ingresses, err := h.kubeClient.NetworkingV1beta1().Ingresses(namespace).List(metav1.ListOptions{})
+	ingresses, err := h.kubeClient.NetworkingV1beta1().Ingresses(namespace).List(c, metav1.ListOptions{})
 	if err != nil {
 		h.handleError(c, err)
 		return
@@ -356,7 +356,7 @@ func (h *Handler) GetIngress(c *gin.Context) {
 	namespace := c.Param("namespace")
 	name := c.Param("name")
 
-	ingress, err := h.kubeClient.NetworkingV1beta1().Ingresses(namespace).Get(name, metav1.GetOptions{})
+	ingress, err := h.kubeClient.NetworkingV1beta1().Ingresses(namespace).Get(c, name, metav1.GetOptions{})
 	if err != nil {
 		h.handleError(c, err)
 		return
@@ -377,7 +377,7 @@ func (h *Handler) CreateIngress(c *gin.Context) {
 		return
 	}
 
-	newIngress, err := h.kubeClient.NetworkingV1beta1().Ingresses(namespace).Create(ingress)
+	newIngress, err := h.kubeClient.NetworkingV1beta1().Ingresses(namespace).Create(c, ingress, metav1.CreateOptions{})
 	if err != nil {
 		h.handleError(c, err)
 		return
@@ -393,7 +393,7 @@ func (h *Handler) DeleteIngress(c *gin.Context) {
 	namespace := c.Param("namespace")
 	name := c.Param("name")
 
-	if err := h.kubeClient.NetworkingV1beta1().Ingresses(namespace).Delete(name, &metav1.DeleteOptions{}); err != nil {
+	if err := h.kubeClient.NetworkingV1beta1().Ingresses(namespace).Delete(c, name, metav1.DeleteOptions{}); err != nil {
 		h.handleError(c, err)
 		return
 	}
@@ -406,7 +406,7 @@ func (h *Handler) GetFLApp(c *gin.Context) {
 	namespace := c.Param("namespace")
 	name := c.Param("name")
 
-	flapp, err := h.crdClient.FedlearnerV1alpha1().FLApps(namespace).Get(name, metav1.GetOptions{})
+	flapp, err := h.crdClient.FedlearnerV1alpha1().FLApps(namespace).Get(c, name, metav1.GetOptions{})
 	if err != nil {
 		h.handleError(c, err)
 		return
@@ -422,7 +422,7 @@ func (h *Handler) ListFLAppPods(c *gin.Context) {
 	namespace := c.Param("namespace")
 	name := c.Param("name")
 
-	pods, err := h.kubeClient.CoreV1().Pods(namespace).List(metav1.ListOptions{
+	pods, err := h.kubeClient.CoreV1().Pods(namespace).List(c, metav1.ListOptions{
 		LabelSelector: fmt.Sprintf("app-name=%s", name),
 	})
 	if err != nil {
@@ -439,7 +439,7 @@ func (h *Handler) ListFLAppPods(c *gin.Context) {
 func (h *Handler) ListFLApps(c *gin.Context) {
 	namespace := c.Param("namespace")
 
-	flapps, err := h.crdClient.FedlearnerV1alpha1().FLApps(namespace).List(metav1.ListOptions{})
+	flapps, err := h.crdClient.FedlearnerV1alpha1().FLApps(namespace).List(c, metav1.ListOptions{})
 	if err != nil {
 		h.handleError(c, err)
 		return
@@ -460,7 +460,7 @@ func (h *Handler) CreateFLApp(c *gin.Context) {
 		return
 	}
 
-	newFlapp, err := h.crdClient.FedlearnerV1alpha1().FLApps(namespace).Create(flapp)
+	newFlapp, err := h.crdClient.FedlearnerV1alpha1().FLApps(namespace).Create(c, flapp, metav1.CreateOptions{})
 	if err != nil {
 		h.handleError(c, err)
 		return
@@ -476,7 +476,7 @@ func (h *Handler) DeleteFLApp(c *gin.Context) {
 	namespace := c.Param("namespace")
 	name := c.Param("name")
 
-	if err := h.crdClient.FedlearnerV1alpha1().FLApps(namespace).Delete(name, &metav1.DeleteOptions{}); err != nil {
+	if err := h.crdClient.FedlearnerV1alpha1().FLApps(namespace).Delete(c, name, metav1.DeleteOptions{}); err != nil {
 		h.handleError(c, err)
 		return
 	}

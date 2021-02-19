@@ -16,6 +16,7 @@
 # coding: utf-8
 
 import logging
+import json
 from http import HTTPStatus
 from flask_restful import Resource, reqparse, request
 from google.protobuf.json_format import MessageToDict
@@ -143,11 +144,17 @@ class WorkflowApi(Resource):
 
     def patch(self, workflow_id):
         parser = reqparse.RequestParser()
-        parser.add_argument('target_state', type=str, required=True,
+        parser.add_argument('target_state', type=str,
                             help='target_state is empty')
+        parser.add_argument('forkable', type=bool)
         target_state = parser.parse_args()['target_state']
-
+        forkable = parser.parse_args()['forkable']
         workflow = _get_workflow(workflow_id)
+        if forkable is not None:
+            workflow.forkable = forkable
+            db.session.commit()
+        if target_state is None:
+            return {'data': workflow.to_dict()}, HTTPStatus.OK
         try:
             workflow.update_target_state(WorkflowState[target_state])
             db.session.commit()
@@ -169,10 +176,14 @@ class PeerWorkflowsApi(Resource):
             resp = client.get_workflow(workflow.name)
             if resp.status.code != common_pb2.STATUS_SUCCESS:
                 raise InternalException()
-            peer_workflows[party.name] = MessageToDict(
+            peer_workflow = MessageToDict(
                 resp,
                 preserving_proto_field_name=True,
                 including_default_value_fields=True)
+            for job in peer_workflow['jobs']:
+                if 'pods' in job:
+                    job['pods'] = json.loads(job['pods'])
+            peer_workflows[party.name] = peer_workflow
         return {'data': peer_workflows}, HTTPStatus.OK
 
 

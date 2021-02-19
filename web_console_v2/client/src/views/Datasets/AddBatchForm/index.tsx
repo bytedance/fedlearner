@@ -71,7 +71,7 @@ const AddBatchForm: ForwardRefRenderFunction<AddBatchExposedRef, Props> = (
             <DatePicker
               format="YYYY-MM-DD HH:mm"
               showTime={{ format: 'HH:mm' }}
-              placeholder={t('dataset.placeholder_name')}
+              placeholder={t('dataset.placeholder_event_time')}
             />
           </Form.Item>
         )}

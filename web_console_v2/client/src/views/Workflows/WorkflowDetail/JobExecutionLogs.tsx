@@ -1,26 +1,65 @@
+import { NodeDataRaw } from 'components/WorkflowJobsFlowChart/types';
 import React, { FC } from 'react';
 import { useTranslation } from 'react-i18next';
+import { fetchJobLogs } from 'services/workflow';
 import styled from 'styled-components';
+import { WorkflowExecutionDetails } from 'typings/workflow';
+import PrintLogs from 'components/PrintLogs';
 
-const ResultPanel = styled.pre`
-  padding: 15px;
-  height: 250px;
+const Container = styled.div`
+  position: relative;
   margin-bottom: 20px;
-  background-color: #111;
+`;
+const PrintJobLogs = styled(PrintLogs)`
   border-radius: 4px;
-  color: #fefefe;
-  text-shadow: 0 0 2px #001716, 0 0 3px #03edf975, 0 0 5px #03edf975, 0 0 8px #03edf975;
 `;
 
-const JobExecutionLogs: FC = () => {
+type Props = {
+  enabled: boolean;
+  job: NodeDataRaw;
+  workflow?: WorkflowExecutionDetails;
+};
+
+const JobExecutionLogs: FC<Props> = ({ job, workflow, enabled }) => {
   const { t } = useTranslation();
 
+  // TODO: find a better way to distinguish job-def-name and job-execution-name
+  const jobExecutionName = workflow?.jobs!.find((jobExeInfo) => {
+    return jobExeInfo.name.endsWith(job.name);
+  })?.name;
+
   return (
-    <>
+    <Container>
       <h3>{t('workflow.label_job_logs')}</h3>
-      <ResultPanel>Coming soon</ResultPanel>
-    </>
+
+      <PrintJobLogs
+        height="350"
+        queryKey={['getJobLogs', jobExecutionName]}
+        logsFetcher={getLogs}
+        refetchInterval={5000}
+        enabled={enabled}
+        fullscreenVisible
+        onFullscreenClick={goFullScreen}
+      />
+    </Container>
   );
+
+  async function getLogs() {
+    if (!job.name) {
+      return { data: ['Job name invalid!'] };
+    }
+
+    return fetchJobLogs(jobExecutionName || `${workflow?.name.trim()}-${job.name.trim()}`, {
+      startTime: 0,
+      maxLines: 500,
+    }).catch((error) => ({
+      data: [error.message],
+    }));
+  }
+
+  async function goFullScreen() {
+    window.open(`/v2/logs/job/${jobExecutionName}`, '_blank noopener');
+  }
 };
 
 export default JobExecutionLogs;

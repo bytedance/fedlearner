@@ -63,7 +63,7 @@ type RealServiceControl struct {
 }
 
 func (r RealServiceControl) PatchService(ctx context.Context, namespace, name string, data []byte) error {
-	_, err := r.KubeClient.CoreV1().Services(namespace).Patch(name, types.StrategicMergePatchType, data)
+	_, err := r.KubeClient.CoreV1().Services(namespace).Patch(ctx, name, types.StrategicMergePatchType, data, metav1.PatchOptions{})
 	return err
 }
 
@@ -88,7 +88,7 @@ func (r RealServiceControl) createServices(ctx context.Context, namespace string
 		return fmt.Errorf("unable to create services: %v", err)
 	}
 
-	newService, err := r.KubeClient.CoreV1().Services(namespace).Create(serviceWithOwner)
+	newService, err := r.KubeClient.CoreV1().Services(namespace).Create(ctx, serviceWithOwner, metav1.CreateOptions{})
 	if err != nil {
 		r.Recorder.Eventf(object, v1.EventTypeWarning, FailedCreateServiceReason, "Error creating: %v", err)
 		return fmt.Errorf("unable to create services: %v", err)
@@ -111,7 +111,7 @@ func (r RealServiceControl) DeleteService(ctx context.Context, namespace, servic
 	if err != nil {
 		return fmt.Errorf("object does not have ObjectMeta, %v", err)
 	}
-	service, err := r.KubeClient.CoreV1().Services(namespace).Get(serviceID, metav1.GetOptions{})
+	service, err := r.KubeClient.CoreV1().Services(namespace).Get(ctx, serviceID, metav1.GetOptions{})
 	if err != nil {
 		if errors.IsNotFound(err) {
 			return nil
@@ -123,7 +123,7 @@ func (r RealServiceControl) DeleteService(ctx context.Context, namespace, servic
 		return nil
 	}
 	log.Infof("Controller %v deleting service %v/%v", accessor.GetName(), namespace, serviceID)
-	if err := r.KubeClient.CoreV1().Services(namespace).Delete(serviceID, &metav1.DeleteOptions{}); err != nil {
+	if err := r.KubeClient.CoreV1().Services(namespace).Delete(ctx, serviceID, metav1.DeleteOptions{}); err != nil {
 		r.Recorder.Eventf(object, v1.EventTypeWarning, FailedDeleteServiceReason, "Error deleting: %v", err)
 		return fmt.Errorf("unable to delete service: %v", err)
 	}

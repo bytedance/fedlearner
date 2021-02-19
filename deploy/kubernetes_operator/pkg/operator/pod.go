@@ -155,7 +155,7 @@ func (am *appManager) getPodsForApp(ctx context.Context, app *v1alpha1.FLApp) ([
 	// If any adoptions are attempted, we should first recheck for deletion
 	// with an uncached quorum read sometime after listing Pods (see #42639).
 	canAdoptFunc := RecheckDeletionTimestamp(func() (metav1.Object, error) {
-		fresh, err := am.crdClient.FedlearnerV1alpha1().FLApps(app.GetNamespace()).Get(app.GetName(), metav1.GetOptions{})
+		fresh, err := am.crdClient.FedlearnerV1alpha1().FLApps(app.GetNamespace()).Get(ctx, app.GetName(), metav1.GetOptions{})
 		if err != nil {
 			return nil, err
 		}

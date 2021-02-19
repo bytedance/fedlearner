@@ -38,15 +38,18 @@ export interface Job {
 
 export enum PodState {
   // the value is from the very underside so lowercase should make sense
-  RUNNING = 'active',
-  COMPLETE = 'succeeded',
-  FAILED = 'failed',
-  LOCAL = 'local', // when a job is totally stopped
+  RUNNING = 'Running',
+  COMPLETE = 'Complete',
+  FAILED = 'Failed',
+  PENDING = 'Pending',
+  UNKNOWN = 'Unknown',
+  FL_SUCCEED = 'Flapp_succeeded', // completed and free resources
+  FL_FAILED = 'Flapp_failed', // failed and free resources
 }
 
 export interface Pod {
   name: string;
-  state: PodState;
+  status: PodState;
   pod_type: string;
 }
 

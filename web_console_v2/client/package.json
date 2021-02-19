@@ -26,7 +26,7 @@
     "react-app-polyfill": "^2.0.0",
     "react-dev-utils": "^11.0.0",
     "react-dom": "^17.0.1",
-    "react-flow-renderer": "^8.3.0",
+    "react-flow-renderer": "^8.8.0",
     "react-i18next": "^11.7.3",
     "react-query": "^2.26.1",
     "react-refresh": "^0.8.3",

@@ -14,11 +14,12 @@
 
 # coding: utf-8
 
-import threading
 import traceback
 import logging
-import time
 import re
+import threading
+import time
+
 
 class RoutineWorker(object):
     def __init__(self, name, routine_fn, cond_fn, exec_interval=None):
@@ -121,7 +122,7 @@ class RoutineWorker(object):
                     if new_err_code is not None:
                         err_code = new_err_code
                     logging.error("worker: %s run %d rounds with exception: %s",
-                                  self._name, exec_round, new_err)
+                                  self._name, exec_round, repr(e))
             else:
                 logging.debug("worker: %s exec %d round",
                               self._name, exec_round)

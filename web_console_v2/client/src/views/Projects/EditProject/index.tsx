@@ -37,7 +37,7 @@ function EditProject(): ReactElement {
       participantUrl: participant.url,
       participantDomainName: unwrapDomainName(participant.domain_name),
       comment: project.comment,
-      domainName: unwrapDomainName(project.config.domain_name),
+      token: project.config.token,
       variables: project.config.variables || [],
     });
   }

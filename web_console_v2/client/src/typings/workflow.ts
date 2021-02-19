@@ -34,18 +34,18 @@ export interface VariableWidgetSchema
     WidgetWithOptionsSchema {
   /** ------ Metas ------ */
   // which component to use
-  component: VariableComponent;
+  component?: VariableComponent;
 
   /** ------ Datas ------ */
   // NOTE: for array type value, it clould be either a Multiple-select/Checkbox
   // or a Group-items which allow user add | delete. eg. ENV field
-  type: 'string' | 'number' | 'boolean' | 'array' | 'object';
+  type?: 'string' | 'number' | 'boolean' | 'array' | 'object';
 
   /** ------ UIs ------ */
   // i18n key for job name form-item label
-  label: string;
+  label?: string;
   // display order
-  index: number;
+  index?: number;
   // will render a question icon beside the label, hover it to show the tooltip
   tooltip?: string;
   // will render some text below the form item
@@ -87,11 +87,11 @@ export enum JobType {
   TREE_MODEL_EVALUATION = 'TREE_MODEL_EVALUATION',
 }
 
-export type WorkflowConfig = {
+export type WorkflowConfig<J = Job> = {
   group_alias: string;
   is_left: boolean;
-  variables?: Variable[];
-  job_definitions: Job[];
+  variables: Variable[];
+  job_definitions: J[];
 };
 
 export interface WorkflowTemplate {
@@ -111,9 +111,8 @@ export type WorkflowTemplatePayload = {
 
 export type WorkflowInitiatePayload = {
   name: string;
-  project_id: string;
+  project_id: ID;
   forkable: boolean;
-  forked_from?: boolean;
   config: WorkflowConfig;
   comment?: string;
 };
@@ -122,6 +121,13 @@ export type WorkflowAcceptPayload = {
   forkable: boolean;
   config: WorkflowConfig;
   comment?: string;
+};
+
+export type WorkflowForkPayload = WorkflowInitiatePayload & {
+  forked_from: ID;
+  reuse_job_names: string[]; // e.g. [raw_data, training...]
+  peer_reuse_job_names: string[];
+  fork_proposal_config: WorkflowConfig;
 };
 
 export enum WorkflowState {
