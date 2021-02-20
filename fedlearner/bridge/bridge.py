@@ -8,6 +8,7 @@ import enum
 
 import grpc
 
+from fedlearner.bridge.const import *
 from fedlearner.bridge.proto import bridge_pb2
 from fedlearner.bridge.client import _Client
 from fedlearner.bridge.server import _Server
@@ -132,8 +133,8 @@ class Bridge():
     ])
 
     def __init__(self,
-                 listen_addr,
-                 remote_addr,
+                 listen_address,
+                 remote_address,
                  token=None,
                  max_works=None,
                  compression=grpc.Compression.Gzip,
@@ -151,12 +152,10 @@ class Bridge():
         self._condition = threading.Condition(self._lock)
 
         # client
-        self._client = _Client(self, remote_addr,
-            compression)
+        self._client = _Client(self, remote_address, compression)
 
         # server
-        self._server = _Server(self, listen_addr,
-            compression, max_works)
+        self._server = _Server(self, listen_address, compression, max_works)
 
         if heartbeat_timeout <= 0:
             raise ValueError("heartbeat_timeout must be positive")
@@ -189,15 +188,14 @@ class Bridge():
             self._server.add_generic_rpc_handlers
 
     def _channel_callback(self, state):
+        logging.debug("[Bridge] grpc channel callback state: %s", state.name)
         if state == grpc.ChannelConnectivity.IDLE \
             or state == grpc.ChannelConnectivity.CONNECTING \
             or state == grpc.ChannelConnectivity.READY:
             ready = True
-        elif state == grpc.ChannelConnectivity.TRANSIENT_FAILURE:
+        elif state == grpc.ChannelConnectivity.TRANSIENT_FAILURE \
+            or state == grpc.ChannelConnectivity.SHUTDOWN:
             ready = False
-        elif state == grpc.ChannelConnectivity.SHUTDOWN:
-            raise RuntimeError("[Bridge] grpc channel state: {},"
-                " which it cannot recover.".format(state.name))
 
         if ready:
             # nothing to do
@@ -217,7 +215,7 @@ class Bridge():
         with self._condition:
             next_state = Bridge._next_state(self._state, event)
             if self._state != next_state:
-                logging.debug("[Bridge] receive effective event: %s,"
+                logging.info("[Bridge] receive effective event: %s,"
                     " current state: %s, next state: %s",
                     event.name, self._state.name, next_state.name)
                 self._state = next_state
@@ -267,7 +265,7 @@ class Bridge():
             self._emit_event(Bridge.Event.CLOSING)
 
         if wait:
-            self.wait_for_stopped()
+            self.wait_for_termination()
 
     def _call_locked(self, req):
         self._lock.release()

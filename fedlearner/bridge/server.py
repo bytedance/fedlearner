@@ -5,16 +5,18 @@ import collections
 import threading
 from concurrent import futures
 
-import fedlearner.bridge.const as const
+from fedlearner.bridge.const import _grpc_metadata_bridge_id, \
+    _grpc_metadata_bridge_peer_id, _grpc_metadata_bridge_token, \
+    _grpc_metadata_bridge_method
 from fedlearner.bridge.proto import bridge_pb2, bridge_pb2_grpc
 
 class _Server(grpc.Server):
-    def __init__(self, bridge, listen_addr,
+    def __init__(self, bridge, listen_address,
         compression=None,
         max_workers=None):
 
         self._bridge = bridge
-        self._listen_addr = listen_addr
+        self._listen_address = listen_address
 
         self._thread_pool = futures.ThreadPoolExecutor(
             max_workers=max_workers,
@@ -22,7 +24,7 @@ class _Server(grpc.Server):
         self._server = grpc.server(
             self._thread_pool,
             compression=compression)
-        self._server.add_insecure_port(self._listen_addr)
+        self._server.add_insecure_port(self._listen_address)
         bridge_pb2_grpc.add_BridgeServicer_to_server(
             _Server.BridgeServicer(self), self._server)
 
@@ -61,13 +63,13 @@ class _Server(grpc.Server):
         token = None
         method = None
         for pair in metadata:
-            if pair[0] == const._grpc_metadata_bridge_id:
+            if pair[0] == _grpc_metadata_bridge_id:
                 identifier = pair[1]
-            elif pair[0] == const._grpc_metadata_bridge_peer_id:
+            elif pair[0] == _grpc_metadata_bridge_peer_id:
                 peer_identifier = pair[1]
-            elif pair[0] == const._grpc_metadata_bridge_token:
+            elif pair[0] == _grpc_metadata_bridge_token:
                 token = pair[1]
-            elif pair[0] == const._grpc_metadata_bridge_method:
+            elif pair[0] == _grpc_metadata_bridge_method:
                 method = pair[1]
 
         return identifier, peer_identifier, token, method

@@ -7,7 +7,7 @@ import threading
 import signal
 
 import greeter_pb2, greeter_pb2_grpc
-from fedlearner.bridge import bridge
+from fedlearner.bridge import Bridge
 
 class GreeterrHandler(greeter_pb2_grpc.GreeterServicer):
     def HelloUnaryUnary(self, request, context):
@@ -70,7 +70,7 @@ if __name__ == "__main__":
     def closed_callback(bridge, event):
         bridge.stop()
 
-    bridge = bridge.Bridge(args.listen_addr, args.remote_addr)
+    bridge = Bridge(args.listen_addr, args.remote_addr)
     bridge.subscribe(callback)
     bridge.subscribe_event(bridge.Event.PEER_CLOSED, closed_callback)
     greeter_pb2_grpc.add_GreeterServicer_to_server(GreeterrHandler(), bridge) 

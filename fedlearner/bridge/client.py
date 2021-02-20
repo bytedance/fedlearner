@@ -1,24 +1,27 @@
 # -*- coding: utf-8 -*-
 
-import collections
-from fedlearner import bridge
+
+import os
 import logging
 import time
 import grpc
 import threading
-import uuid
+import collections
 
-import fedlearner.bridge.const as const
+from fedlearner.bridge.const import _grpc_metadata_bridge_id, \
+    _grpc_metadata_bridge_peer_id, _grpc_metadata_bridge_token, \
+    _grpc_metadata_bridge_method
 from fedlearner.bridge.proto import bridge_pb2, bridge_pb2_grpc
+from fedlearner.proxy.channel import make_insecure_channel, ChannelType
 
 class _Client(grpc.Channel):
-    def __init__(self, bridge, remote_addr,
-        compression=None):
+    def __init__(self, bridge, remote_address, compression=None):
         super(_Client, self).__init__()
         self._bridge = bridge
-        self._remote_addr = remote_addr
-        self._channel = grpc.insecure_channel(
-            self._remote_addr,
+        self._remote_address = remote_address
+        self._channel = make_insecure_channel(
+            self._remote_address,
+            mode=ChannelType.REMOTE,
             options={
                 ('grpc.max_send_message_length', -1),
                 ('grpc.max_receive_message_length', -1),
@@ -38,6 +41,7 @@ class _Client(grpc.Channel):
              compression=None):
         augmented_metadata = self._augment_metadata(metadata)
         return self._client.Call(request,
+            timeout=timeout,
             metadata = augmented_metadata)
 
     def subscribe(self, callback, try_to_connect=None):
@@ -85,17 +89,17 @@ class _Client(grpc.Channel):
         metadata = list(metadata) if metadata else list()
         if self._bridge._identifier:
             metadata.append(
-                (const._grpc_metadata_bridge_id, self._bridge._identifier))
+                (_grpc_metadata_bridge_id, self._bridge._identifier))
         if self._bridge._peer_identifier:
             metadata.append(
-                (const._grpc_metadata_bridge_peer_id, \
+                (_grpc_metadata_bridge_peer_id, \
                     self._bridge._peer_identifier))
         if self._bridge._token:
             metadata.append(
-                (const._grpc_metadata_bridge_token, self._bridge._token))
+                (_grpc_metadata_bridge_token, self._bridge._token))
         if method:
             metadata.append(
-                (const._grpc_metadata_bridge_method, method))
+                (_grpc_metadata_bridge_method, method))
         return metadata
 
 
