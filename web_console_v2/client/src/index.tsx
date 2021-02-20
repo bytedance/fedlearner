@@ -1,6 +1,8 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
 import { ReactQueryDevtools } from 'react-query-devtools';
+import { QueryClientProvider } from 'react-query';
+import queryClient from 'shared/queryClient';
 import { BrowserRouter } from 'react-router-dom';
 import MockDevtools from 'components/_base/MockDevtools';
 import App from './App';
@@ -21,7 +23,9 @@ ReactDOM.render(
     <RecoilRoot>
       <ConfigProvider locale={i18n.language === 'zh' ? antdZhCN : antdEnUS}>
         <ThemeProvider theme={defaultTheme}>
-          <App />
+          <QueryClientProvider client={queryClient}>
+            <App />
+          </QueryClientProvider>
 
           <ReactQueryDevtools position="bottom-right" />
           <MockDevtools />

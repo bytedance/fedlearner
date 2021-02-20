@@ -2,7 +2,7 @@ import { atom, selector } from 'recoil';
 import { fetchProjectList } from 'services/project';
 
 export const forceReloadProjectList = atom({
-  key: 'ForceReloadTplList',
+  key: 'ForceReloadProjectList',
   default: 0,
 });
 export const projectListQuery = selector({

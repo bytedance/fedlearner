@@ -6,6 +6,7 @@ import {
   workflowInEditing,
   templateInUsing,
   peerConfigInPairing,
+  forkWorkflowForm,
 } from 'stores/workflow';
 
 export function useResetCreateForms() {
@@ -27,7 +28,9 @@ export function useResetCreateForms() {
 }
 
 export function useResetForkForms() {
+  const resetFormForm = useResetRecoilState(forkWorkflowForm);
+
   return function () {
-    // TODO: define fork form
+    resetFormForm();
   };
 }
