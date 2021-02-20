@@ -1,5 +1,6 @@
 import copy
 import random
+
 from fedlearner.common import metrics
 from fedlearner.data_join.common import convert_to_iso_format
 
@@ -17,8 +18,7 @@ class MetricStats:
                 value = self.convert_to_str(getattr(item, field, '#None#'))
                 tags[field] = value
             tags['example_id'] = self.convert_to_str(item.example_id)
-            tags['event_time'] = self.convert_to_str(item.event_time)
-            tags['event_time_iso'] = convert_to_iso_format(item.event_time)
+            tags['event_time'] = convert_to_iso_format(item.event_time)
             metrics.emit_store(name='input_data', value=0, tags=tags)
 
     @staticmethod

@@ -1,10 +1,12 @@
 import copy
 import logging
 import random
-from datetime import datetime
 from collections import defaultdict
+from datetime import datetime
 from itertools import chain
+
 import pytz
+
 import fedlearner.common.data_join_service_pb2 as dj_pb
 from fedlearner.common import metrics
 from fedlearner.data_join.common import convert_to_iso_format
@@ -51,7 +53,7 @@ class OptionalStats(object):
         self._stats = {
             'joined': defaultdict(int),
             'unjoined': defaultdict(int),
-            'negative': defaultdict(int)
+            'fake': defaultdict(int)
         }
         self._sample_reservoir = []
         self._sample_receive_num = 0
@@ -69,18 +71,19 @@ class OptionalStats(object):
         Returns: None
         Update stats dict. Emit join status and other fields of each item to ES.
         """
-        assert kind in ('joined', 'unjoined', 'negative')
+        assert kind in ('joined', 'unjoined', 'fake')
         if kind == 'unjoined':
             self.sample_unjoined(item.example_id)
         item_stat = {'joined': int(kind == 'joined'),
                      'original': int(kind != 'negative'),
-                     'fake': int(kind == 'negative')}
+                     'fake': int(kind == 'fake')}
         tags = copy.deepcopy(self._tags)
         for field in self._stat_fields:
             value = self._convert_to_str(getattr(item, field, '#None#'))
             item_stat[field] = value
             self._stats[kind]['{}={}'.format(field, value)] += 1
         tags.update(item_stat)
+        tags['example_id'] = self._convert_to_str(item.example_id)
         tags['event_time'] = convert_to_iso_format(item.event_time)
         tags['process_time'] = datetime.now(tz=self._tz).isoformat(
             timespec='seconds')[:-6]  # strip timezone info

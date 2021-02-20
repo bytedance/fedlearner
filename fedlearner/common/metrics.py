@@ -20,7 +20,6 @@ import logging
 import os
 import threading
 import time
-from collections import defaultdict
 from functools import wraps
 
 import elasticsearch as es7
@@ -82,6 +81,10 @@ ES_MAPPING = {
                     "ignore_above": 32,
                     "type": "keyword"
                 },
+                "example_id": {
+                    "ignore_above": 32,
+                    "type": "keyword"
+                },
                 "process_time": {
                     "format": "strict_date_hour_minute_second",
                     "type": "date"
@@ -131,6 +134,7 @@ class ElasticSearchHandler(Handler):
     """
     Emit documents to ElasticSearch
     """
+
     def __init__(self, ip, port):
         super(ElasticSearchHandler, self).__init__('elasticsearch')
         self._es = es7.Elasticsearch([ip], port=port)
@@ -224,9 +228,8 @@ class ElasticSearchHandler(Handler):
             # index might have been created by other jobs
             except already_exists_exception as e:
                 if (e.info['error']['type'] !=
-                        'resource_already_exists_exception'):
+                   'resource_already_exists_exception'):
                     raise e
-                pass
 
 
 class Metrics(object):
