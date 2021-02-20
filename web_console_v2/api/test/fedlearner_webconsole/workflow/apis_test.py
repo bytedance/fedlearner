@@ -13,6 +13,7 @@
 # limitations under the License.
 
 # coding: utf-8
+import time
 import json
 import unittest
 from http import HTTPStatus
@@ -53,16 +54,27 @@ class WorkflowsApiTest(BaseTestCase):
     def test_get_with_project(self):
         response = self.get_helper('/api/v2/workflows?project=1')
         self.assertEqual(response.status_code, HTTPStatus.OK)
-        data = json.loads(response.data).get('data')[::-1]
+        data = json.loads(response.data).get('data')
         self.assertEqual(len(data), 1)
         self.assertEqual(data[0]['name'], 'workflow_key_get1')
 
     def test_get_with_keyword(self):
         response = self.get_helper('/api/v2/workflows?keyword=key')
         self.assertEqual(response.status_code, HTTPStatus.OK)
-        data = json.loads(response.data).get('data')[::-1]
+        data = json.loads(response.data).get('data')
         self.assertEqual(len(data), 2)
         self.assertEqual(data[0]['name'], 'workflow_key_get1')
+
+    def test_get_workflows(self):
+        time.sleep(1)
+        workflow = Workflow(name='last',
+                            project_id=1
+                            )
+        db.session.add(workflow)
+        db.session.flush()
+        response = self.get_helper('/api/v2/workflows')
+        data = json.loads(response.data).get('data')
+        self.assertEqual(data[0]['name'], 'last')
 
     @patch('fedlearner_webconsole.workflow.apis.scheduler.wakeup')
     def test_create_new_workflow(self, mock_wakeup):

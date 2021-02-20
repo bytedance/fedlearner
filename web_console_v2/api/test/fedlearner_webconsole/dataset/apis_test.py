@@ -14,6 +14,7 @@
 
 # coding: utf-8
 
+import time
 import json
 import datetime
 import os
@@ -40,6 +41,13 @@ class DatasetApiTest(BaseTestCase):
         self.default_dataset.comment = 'test comment'
         db.session.add(self.default_dataset)
         db.session.commit()
+        time.sleep(1)
+        self.default_dataset1 = Dataset()
+        self.default_dataset1.name = 'default_dataset1'
+        self.default_dataset1.dataset_type = DatasetType.STREAMING
+        self.default_dataset1.comment = 'test comment'
+        db.session.add(self.default_dataset1)
+        db.session.commit()
 
     def test_get_dataset(self):
         get_response = self.get_helper(
@@ -58,7 +66,8 @@ class DatasetApiTest(BaseTestCase):
         get_response = self.get_helper('/api/v2/datasets')
         self.assertEqual(get_response.status_code, HTTPStatus.OK)
         datasets = self.get_response_data(get_response)
-        self.assertEqual(len(datasets), 1)
+        self.assertEqual(len(datasets), 2)
+        self.assertEqual(datasets[0]['name'], 'default_dataset1')
 
     def test_post_datasets(self):
         name = 'test_post_dataset'

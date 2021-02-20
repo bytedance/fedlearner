@@ -52,7 +52,8 @@ class WorkflowsApi(Resource):
             result = result.filter(Workflow.name.like(
                 '%{}%'.format(keyword)))
         return {'data': [row.to_dict() for row in
-                         result.all()][::-1]}, HTTPStatus.OK
+                         result.order_by(
+                             Workflow.created_at.desc()).all()]}, HTTPStatus.OK
 
     def post(self):
         parser = reqparse.RequestParser()
