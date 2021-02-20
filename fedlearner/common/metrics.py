@@ -40,7 +40,7 @@ ES_MAPPING = {
             "type": "float"
         },
         "date_time": {
-            "format": "yyyy-MM-dd'T'HH:mm:ss.SSSSSSZ",
+            "format": "strict_date_hour_minute_second",
             "type": "date"
         },
         "tags": {
@@ -82,11 +82,11 @@ ES_MAPPING = {
                     "type": "keyword"
                 },
                 "process_time": {
-                    "format": "yyyy-MM-dd'T'HH:mm:ss.SSSSSSZ",
+                    "format": "strict_date_hour_minute_second",
                     "type": "date"
                 },
                 "event_time": {
-                    "format": "yyyy-MM-dd'T'HH:mm:ss",
+                    "format": "strict_date_hour_minute_second",
                     "type": "date"
                 }
             }
@@ -181,6 +181,8 @@ class ElasticSearchHandler(Handler):
                 "name": name,
                 "value": value,
                 "tags": tags,
+                "date_time": datetime.datetime.now(
+                    tz=self._tz).isoformat(timespec='seconds')
             }
         }
         if self._version == 6:

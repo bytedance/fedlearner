@@ -407,9 +407,11 @@ def convert_to_iso_format(value):
     # first try to parse datetime from value
     try:
         if len(value) == 8:
-            iso = datetime.strptime(value, '%Y%m%d').isoformat()
+            iso = datetime.strptime(
+                value, '%Y%m%d').isoformat(timespec='seconds')
         elif len(value) == 14:
-            iso = datetime.strptime(value, '%Y%m%d%H%M%S').isoformat()
+            iso = datetime.strptime(
+                value, '%Y%m%d%H%M%S').isoformat(timespec='seconds')
         else:
             raise ValueError
         return iso
@@ -420,5 +422,5 @@ def convert_to_iso_format(value):
         except ValueError:  # might be a non-number str
             logging.warning('OPTIONAL_STATS: unable to parse event time %s, '
                             'defaults to 0.', value)
-            iso = datetime.fromtimestamp(0).isoformat()
+            iso = datetime.fromtimestamp(0).isoformat(timespec='seconds')
         return iso

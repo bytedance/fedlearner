@@ -4,7 +4,7 @@ import random
 from datetime import datetime
 from collections import defaultdict
 from itertools import chain
-
+import pytz
 import fedlearner.common.data_join_service_pb2 as dj_pb
 from fedlearner.common import metrics
 from fedlearner.data_join.common import convert_to_iso_format
@@ -56,6 +56,7 @@ class OptionalStats(object):
         self._sample_reservoir = []
         self._sample_receive_num = 0
         self._reservoir_length = 10
+        self._tz = pytz.timezone('Asia/Shanghai')
         self._tags = copy.deepcopy(metric_tags)
 
     def update_stats(self, item, kind='joined'):
@@ -81,7 +82,8 @@ class OptionalStats(object):
             self._stats[kind]['{}={}'.format(field, value)] += 1
         tags.update(item_stat)
         tags['event_time'] = convert_to_iso_format(item.event_time)
-        tags['process_time'] = datetime.now().isoformat()
+        tags['process_time'] = datetime.now(
+            tz=self._tz).isoformat(timespec='seconds')
         metrics.emit_store(name='datajoin', value=0, tags=tags)
 
     def emit_optional_stats(self):
