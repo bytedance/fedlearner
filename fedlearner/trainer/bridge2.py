@@ -1,5 +1,5 @@
 # Copyright 2020 The FedLearner Authors. All Rights Reserved.
-#
+
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -15,6 +15,7 @@
 # coding: utf-8
 # pylint: disable=protected-access
 
+import os
 import collections
 import logging
 import threading
@@ -25,7 +26,7 @@ import grpc
 import tensorflow.compat.v1 as tf
 from google.protobuf import any_pb2, empty_pb2
 # TODO Wait for PChannel to finish
-from pathtonewChannel import PChannel
+import fedlearner.bridge as bridge_core
 
 from fedlearner.common import common_pb2 as common_pb
 from fedlearner.common import metrics
@@ -55,25 +56,15 @@ class Bridge(object):
                  listen_port,
                  remote_address,
                  app_id=None,
-                 rank=0,
-                 streaming_mode=True,
-                 compression=grpc.Compression.NoCompression):
+                 rank=0):
         self._role = role
-        self._listen_port = listen_port
+        self._listen_address = "[::]:"+str(listen_port)
         self._remote_address = remote_address
         if app_id is None:
             app_id = 'test_trainer'
-        self._app_id = app_id
-        self._rank = rank
-        self._streaming_mode = streaming_mode
-        self._compression = compression
+        self._auth = "{}-{}".format(app_id, rank)
 
         self._data_block_handler_fn = None
-
-        # Connection related
-        self._identifier = '%s-%s-%d-%d' % (
-            app_id, role, rank, int(time.time()))  # Ensure unique per run
-        self._connected = False
 
         # data transmit
         self._condition = threading.Condition()
@@ -83,33 +74,28 @@ class Bridge(object):
         self._stream_queue = collections.deque()
         self._transmitting = True
 
-        # grpc client
-        self._grpc_options = [
-            ('grpc.max_send_message_length', 2 ** 31 - 1),
-            ('grpc.max_receive_message_length', 2 ** 31 - 1)
-        ]
-        self._persistence_channel = PChannel(
-            remote_address, ChannelType.REMOTE,
-            options=self._grpc_options, compression=self._compression
-        )
-        self._client = tws2_grpc \
-            .TrainerWorkerServiceStub(self._persistence_channel)
-        self._stream_thread = threading.Thread(
-            target=self._client.StreamTransmit,
-            kwargs={'request_iterator': self._stream_generator()}
-        )
+        # bridge
+        self._bridge = bridge_core.Bridge(
+            self._listen_address, self._remote_address,
+            auth=self._auth)
+        self._bridge.subscribe(self._bridge_callback)
 
-        # server
-        self._transmit_receive_lock = threading.Lock()
-        self._server = PChannel(
-            futures.ThreadPoolExecutor(max_workers=10),
-            options=self._grpc_options,
-            compression=self._compression
-        )
+        # client & server
+        self._client = tws2_grpc \
+            .TrainerWorkerServiceStub(self._bridge)
         tws2_grpc.add_TrainerWorkerServiceServicer_to_server(
-            Bridge.TrainerWorkerServicer(self), self._server
-        )
-        self._server.add_insecure_port('[::]:%d' % listen_port)
+            Bridge.TrainerWorkerServicer(self), self._bridge)
+
+        self._transmit_receive_lock = threading.Lock()
+
+    def _bridge_callback(bridge, event):
+        if event == bridge_core.Bridge.Event.UNAUTHORIZED:
+            logging.error("Suicide as unauthorized")
+            os._exit(138)
+        if bridge_core.Bridge.Event.UNIDENTIFIED \
+            or event == bridge_core.Bridge.Event.PEER_UNIDENTIFIED:
+            logging.error('Suicide as peer %s has restarted!')
+            os._exit(138)  # Tell Scheduler to restart myself
 
     def __del__(self):
         self.terminate()
@@ -118,19 +104,16 @@ class Bridge(object):
     def role(self):
         return self._role
 
-    # TODO Refactor after PChannel finished.
-    @property
-    def connected_at(self):
-        if self._connected:
-            return self._connected_at
-        return None
+    def connect(self):
+        with self._condition:
+            self._bridge.start(wait=True)
+            self._client.StreamTransmit(self._stream_generator())
 
-    # TODO Refactor after PChannel finished.
-    @property
-    def terminated_at(self):
-        if self._terminated:
-            return self._terminated_at
-        return None
+    def terminate(self):
+        with self._condition:
+            self._transmitting = False
+            self._condition.notify_all()
+            self._bridge.stop(wait=True)
 
     # TODO Refactor after PChannel finished. Might be implemented by PChannel.
     def _stream_generator(self):
@@ -142,17 +125,12 @@ class Bridge(object):
             yield self._stream_queue.popleft()
 
     def _transmit(self, msg):
-        assert self._connected, "Cannot transmit before connect"
         metrics.emit_counter('send_counter', 1)
-        if not self._streaming_mode:
-            self._client.Transmit(msg)
-        else:
-            with self._condition:
-                self._stream_queue.append(msg)
-                self._condition.notifyAll()
+        with self._condition:
+            self._stream_queue.append(msg)
+            self._condition.notifyAll()
 
     def _transmit_handler(self, request):
-        assert self._connected, "Cannot transmit before connect"
         metrics.emit_counter('receive_counter', 1)
         with self._condition:
             assert request.iter_id in self._received_data
@@ -162,7 +140,6 @@ class Bridge(object):
         return empty_pb2.Empty()
 
     def _data_block_handler(self, request):
-        assert self._connected, "Cannot load data before connect"
         assert self._data_block_handler_fn is not None, \
             "Received DataBlockMessage but no handler registered."
         metrics.emit_counter('load_data_block_counter', 1)
@@ -177,23 +154,6 @@ class Bridge(object):
         return tws2_pb.TrainerWorkerResponse(
             status=common_pb.Status(code=common_pb.STATUS_INVALID_DATA_BLOCK)
         )
-
-    def connect(self):
-        with self._condition:
-            if not self._connected:
-                self._server.start()
-                self._persistence_channel.Connect()
-                self._stream_thread.start()
-                self._connected = True
-
-    def terminate(self):
-        with self._condition:
-            if self._connected:
-                self._transmitting = False
-                self._stream_thread.join()
-                self._persistence_channel.Close()
-                self._server.close()
-                self._connected = False
 
     @property
     def current_iter_id(self):

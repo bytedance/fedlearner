@@ -122,10 +122,12 @@ class TestBridge(unittest.TestCase):
     def setUp(self):
         super(TestBridge, self).__init__()
         self._token = "test_token"
-        self._bridge1 = Bridge("localhost:50001", "localhost:50002",
+        self._bridge1 = Bridge("[::]:50001", "localhost:50002",
             token=self._token)
-        self._bridge2 = Bridge("localhost:50002", "localhost:50001",
+        self._bridge2 = Bridge("[::]:50002", "localhost:50001",
             token=self._token)
+        self._bridge1.subscribe(self._bridge_callback("[bridge 1]"))
+        self._bridge2.subscribe(self._bridge_callback("[bridge 2]"))
 
         self._client1 = _fake_client(self._bridge1)
         self._client2 = _fake_client(self._bridge2)
@@ -152,6 +154,10 @@ class TestBridge(unittest.TestCase):
         for response in client.stream_stream(request_iteartor(5)):
             print(response)
 
+    def _bridge_callback(bridge, tag):
+        def callback(bridge, event):
+            print(tag, ": callback event: ", event.name)
+        return callback
 
     def test_send(self):
         thread1 = threading.Thread(

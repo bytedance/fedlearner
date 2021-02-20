@@ -138,9 +138,8 @@ class Bridge():
                  token=None,
                  max_works=None,
                  compression=grpc.Compression.Gzip,
-                 heartbeat_timeout=30,
-                 retry_interval = 2,
-                 ):
+                 heartbeat_timeout=60,
+                 retry_interval=2):
 
         # identifier
         self._identifier = uuid.uuid4().hex[:16]
@@ -164,6 +163,9 @@ class Bridge():
         self._heartbeat_timeout_at = 0
         self._peer_heartbeat_timeout_at = 0
 
+        self._connected_at = 0
+        self._peer_connected_at = 0
+
         if retry_interval <= 0:
             raise ValueError("retry_interval must be positive")
         self._retry_interval = retry_interval
@@ -175,6 +177,8 @@ class Bridge():
         # bridge state
         self._state = Bridge.State.IDLE
         self._state_thread = None
+        self._event_condition = threading.Condition(self._lock)
+        self._event_set = set()
         self._event_callbacks = {}
 
         # grpc channel methods
@@ -212,7 +216,7 @@ class Bridge():
         return state
 
     def _emit_event(self, event):
-        with self._condition:
+        with self._lock:
             next_state = Bridge._next_state(self._state, event)
             if self._state != next_state:
                 logging.info("[Bridge] receive effective event: %s,"
@@ -220,12 +224,21 @@ class Bridge():
                     event.name, self._state.name, next_state.name)
                 self._state = next_state
                 self._condition.notify_all()
-            self._event_callback(event)
+            self._event_set.add(event)
+            self._event_condition.notify_all()
 
-    def _event_callback(self, event):
-        callbacks = self._event_callbacks.get(event, [])
-        for callback in callbacks:
-            callback(self, event)
+    def _event_callback_fn(self):
+        while True:
+            with self._lock:
+                while len(self._event_set) == 0:
+                    if self._state == Bridge.State.DONE:
+                        return
+                    self._event_condition.wait()
+                event = self._event_set.pop()
+                callbacks = self._event_callbacks.get(event, [])
+            # run callback unlock
+            for callback in callbacks:
+                callback(self, event)
 
     def subscribe(self, callback):
         for event in Bridge.Event:
@@ -233,6 +246,9 @@ class Bridge():
 
     def subscribe_event(self, event, callback):
         with self._lock:
+            if self._state != Bridge.State.IDLE:
+                raise RuntimeError("Attempting to subscribe"
+                    " a started bridge event")
             if type(event) != Bridge.Event:
                 raise ValueError("error event type")
             if event not in self._event_callbacks:
@@ -342,6 +358,9 @@ class Bridge():
 
         self._server.start()
         self._client.subscribe(self._channel_callback)
+        event_thread = threading.Thread(
+            target=self._event_callback_fn, daemon=True)
+        event_thread.start()
 
         self._lock.acquire()
         while True:
@@ -350,6 +369,7 @@ class Bridge():
             wait_timeout = maxint
 
             if self._state == Bridge.State.DONE:
+                self._event_condition.notify_all()
                 break
 
             if self._state in Bridge._READY_STATUS:
