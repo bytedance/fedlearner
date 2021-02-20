@@ -330,8 +330,8 @@ class UniversalJoiner(ExampleJoiner):
         self._key_mapper = create_key_mapper(
             example_joiner_options.join_key_mapper)
         self._leader_join_window = _SlidingWindow(
-            self._min_window_size,
-            2**20, self._key_mapper.leader_mapping)
+            self._min_window_size, self._max_window_size,
+            self._key_mapper.leader_mapping)
         self._follower_join_window = _SlidingWindow(
             self._min_window_size, self._max_window_size,
             self._key_mapper.follower_mapping)
