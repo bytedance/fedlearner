@@ -569,8 +569,7 @@ def datetime_from_isformat(date_string):
     return datetime(*(date_components + time_components))
 
 def time_diff(minuend, sub):
-    """minuend and sub should be same time format which had been verified
-    as legal numeric.
+    """minuend and sub should be same time format and must be legal numeric.
     """
     ts_minuend = datetime_from_isformat(
         convert_to_iso_format(minuend)).timestamp()

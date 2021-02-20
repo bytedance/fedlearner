@@ -114,10 +114,10 @@ class RoutineWorker(object):
                 args, kwargs = self.obtain_args()
                 self._routine_fn(*args, **kwargs)
             except Exception as e: # pylint: disable=broad-except
-                traceback.print_exc()
                 new_err_code, new_err = self._parse_http_code(e)
                 if err_code != new_err_code:
                     # only dedup network error
+                    traceback.print_exc()
                     if new_err_code is not None:
                         err_code = new_err_code
                     logging.error("worker: %s run %d rounds with exception: %s",

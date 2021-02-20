@@ -28,15 +28,24 @@ from fedlearner.data_join.negative_example_generator \
 from fedlearner.data_join.join_expr import expression as expr
 from fedlearner.data_join.key_mapper import create_key_mapper
 
-def get_key_instance_by_attr(keys, item, tuple_idx=None):
+def make_index_by_attr(keys, item, key_idx=None):
+    """ Make multiple index from the keys by best-effort
+        Args:
+            keys: i.e. [[cid, req_id]]
+            item: derived class from RawDataIter.Item
+            key_idx: output indeies of the key in keys that indexed
+                successfully
+        Returns:
+            index array
+    """
     key_str_arr = []
     for idx, key in enumerate(keys):
         key_arr = key
         if isinstance(key, str):
             key_arr = [key]
         if all([hasattr(item, att) for att in key_arr]):
-            if tuple_idx is not None:
-                tuple_idx.append(idx)
+            if key_idx is not None:
+                key_idx.append(idx)
             key_str_arr.append("_".join(
                 ["%s:%s"%(name, common.convert_to_str(getattr(item, name))) \
                  for name in key_arr]))
@@ -63,27 +72,28 @@ class _JoinerImpl(object):
         follower_dict = follower_window.as_dict(keys)
         idx = 0
         while idx < leader_window.size():
-            leader = leader_window[idx].item
+            elem = leader_window[idx]
             #1. find the first matching key
-            tuple_idx = []
-            if not leader_window.key_map_fn(leader):
+            key_idx = []
+            if not leader_window.key_map_fn(elem):
                 idx += 1
                 continue
-            key_str_arr = get_key_instance_by_attr(
-                keys, leader, tuple_idx)
+            leader = elem.item
+            key_str_arr = make_index_by_attr(
+                keys, leader, key_idx)
             found = False
             for ki, k in enumerate(key_str_arr):
                 if k not in follower_dict:
                     continue
                 cd = follower_dict[k]
-                tuple_idx = tuple_idx[ki]
+                key_idx = key_idx[ki]
                 for i in reversed(range(len(cd))):
                     #A leader can match multiple conversion event, add
                     # all the matched conversion-leader pair to result
                     follower = follower_window[cd[i]].item
                     #2. select all the matching items from the specific key
                     # in follower side.
-                    if self._expr.run_func(tuple_idx)(leader, follower):
+                    if self._expr.run_func(key_idx)(leader, follower):
                         leader_matches.append((cd[i], idx))
                 found = True
                 break
@@ -164,19 +174,19 @@ class _SlidingWindow(object):
         self._debug_extend_cnt = 0
         self._key_map_fn = mapper
 
-    def key_map_fn(self, item):
-        assert isinstance(item, _SlidingWindow.Element), \
-                "item %s is not Element"%item
-        if item.is_mapped:
+    def key_map_fn(self, elem):
+        assert isinstance(elem, _SlidingWindow.Element), \
+                "elem instance %s is not Element"%elem
+        if elem.is_mapped:
             return True
         try:
-            mapped_item = self._key_map_fn(item)
+            mapped_item = self._key_map_fn(elem.item)
             for (k, v) in mapped_item.items():
-                setattr(item, k, v)
-            item.is_mapped = True
+                setattr(elem.item, k, v)
+            elem.is_mapped = True
             return True
         except Exception as e: #pylint: disable=broad-except
-            logging.warning("key mapping failed for %s", item.__dict__)
+            logging.warning("key mapping failed for %s", elem.item.__dict__)
             traceback.print_exc()
             return False
 
@@ -194,11 +204,11 @@ class _SlidingWindow(object):
         buf = {}
         idx = 0
         while idx < self.size():
-            item = self.__getitem__(idx).item
-            if not self.key_map_fn(item):
+            elem = self.__getitem__(idx)
+            if not self.key_map_fn(elem):
                 idx += 1
                 continue
-            for key in get_key_instance_by_attr(keys, item):
+            for key in make_index_by_attr(keys, elem.item):
                 if key not in buf:
                     buf[key] = [idx]
                 else:
