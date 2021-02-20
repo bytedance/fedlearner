@@ -28,6 +28,7 @@ class ElasticSearchClient(object):
             'version': True,
             'size': 8000,
             'sort': [
+                {'@timestamp': 'asc'},
                 {
                     'log.offset': {
                         'order': 'desc',
@@ -40,8 +41,7 @@ class ElasticSearchClient(object):
                 'bool': {
                     'must': []
                 }
-            },
-            'sort': [{'@timestamp': 'asc'}]
+            }
         }
 
         keyword_list = [{
