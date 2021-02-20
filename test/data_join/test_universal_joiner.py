@@ -37,6 +37,7 @@ from fedlearner.data_join import (
 )
 from fedlearner.data_join.data_block_manager import DataBlockBuilder
 from fedlearner.data_join.raw_data_iter_impl.tf_record_iter import TfExampleItem
+from fedlearner.data_join import key_mapper
 
 import datasource_producer as dsp
 
@@ -116,7 +117,7 @@ class TestUniversalJoin(dsp.DataSourceProducer):
     def test_universal_join_key_mapper(self):
         mapper_code = """
 from fedlearner.data_join.key_mapper.key_mapping import BaseKeyMapper
-class TestKeyMapper(BaseKeyMapper):
+class KeyMapperMock(BaseKeyMapper):
     def leader_mapping(self, item) -> dict:
         res = item.click_id.split("_")
         return dict({"req_id":res[0], "cid":res[1]})
@@ -129,9 +130,11 @@ class TestKeyMapper(BaseKeyMapper):
         return "TEST_MAPPER"
 """
         abspath = os.path.dirname(os.path.abspath(__file__))
-        fname = "%s/../../fedlearner/data_join/key_mapper/impl/keymapper_mock.py"%abspath
+        fname = os.path.realpath(os.path.join(
+                abspath, "../../fedlearner/data_join/key_mapper/impl/keymapper_mock.py"))
         with open(fname, "w") as f:
             f.write(mapper_code)
+        reload(key_mapper)
 
         self.example_joiner_options = dj_pb.ExampleJoinerOptions(
                   example_joiner='UNIVERSAL_JOINER',
