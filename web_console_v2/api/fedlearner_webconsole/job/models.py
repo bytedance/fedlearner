@@ -107,14 +107,14 @@ class Job(db.Model):
             try:
                 pods = self._k8s_client.list_resource_of_custom_object(
             CrdKind.FLAPP, self.name, 'pods', self.project.get_namespace())
-                return pods
+                return pods['pods']
             except RuntimeError as e:
                 logging.error('Get %d pods error msg: %s',
                               self.id,
                               e.args)
                 return None
         if self.pods_snapshot is not None:
-            return json.loads(self.pods_snapshot)
+            return json.loads(self.pods_snapshot)['pods']
         return None
 
     def get_flapp(self):
@@ -122,39 +122,21 @@ class Job(db.Model):
             try:
                 flapp = self._k8s_client.get_custom_object(
                     CrdKind.FLAPP, self.name, self.project.get_namespace())
-                return flapp
+                return flapp['flapp']
             except RuntimeError as e:
                 logging.error('Get %d flapp error msg: %s',
                               self.id,
                               str(e))
                 return None
         if self.flapp_snapshot is not None:
-            return json.loads(self.flapp_snapshot)
+            return json.loads(self.flapp_snapshot)['flapp']
         return None
 
     def get_pods_for_front(self):
         result = []
-        # msg from pods
-        pods = self.get_pods()
-        if pods is None:
-            return result
-        pods = pods['pods']['items']
-        for pod in pods:
-            # TODO: make this more readable for frontend
-            pod_for_front = {'name': pod['metadata']['name'],
-                           'pod_type':
-                               pod['metadata']['labels']['fl-replica-type'],
-                           'status': pod['status']['phase'],
-                           'conditions': pod['status']['conditions']}
-            if 'containerStatuses' in pod['status']:
-                pod_for_front['containers_status'] = \
-                    pod['status']['containerStatuses']
-            result.append(pod_for_front)
-
         flapp = self.get_flapp()
         if flapp is None:
             return result
-        flapp = flapp['flapp']
         if 'status' in flapp \
             and 'flReplicaStatus' in flapp['status']:
             replicas = flapp['status']['flReplicaStatus']
@@ -166,6 +148,23 @@ class Job(db.Model):
                         result.append({'name': pod,
                                        'status': 'Flapp_{}'.format(state),
                                        'pod_type': pod_type})
+        # msg from pods
+        pods = self.get_pods()
+        if pods is None:
+            return result
+        pods = pods['items']
+        for pod in pods:
+            # TODO: make this more readable for frontend
+            pod_for_front = {'name': pod['metadata']['name'],
+                           'pod_type':
+                               pod['metadata']['labels']['fl-replica-type'],
+                           'status': pod['status']['phase'],
+                           'conditions': pod['status']['conditions']}
+            if 'containerStatuses' in pod['status']:
+                pod_for_front['containers_status'] = \
+                    pod['status']['containerStatuses']
+            result.append(pod_for_front)
+        # deduplication pods both in pods and flapp
         result = list({pod['name']: pod for pod in result}.values())
         return result
 
@@ -183,9 +182,6 @@ class Job(db.Model):
 
     def is_failed(self):
         flapp = self.get_flapp()
-        if flapp is None:
-            return False
-        flapp = flapp['flapp']
         if flapp is None \
                 or 'status' not in flapp \
                 or 'appState' not in flapp['status']:
@@ -195,9 +191,6 @@ class Job(db.Model):
 
     def is_complete(self):
         flapp = self.get_flapp()
-        if flapp is None:
-            return False
-        flapp = flapp['flapp']
         if flapp is None \
                 or 'status' not in flapp \
                 or 'appState' not in flapp['status']:
