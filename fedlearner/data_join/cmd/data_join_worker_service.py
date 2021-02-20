@@ -91,7 +91,7 @@ if __name__ == "__main__":
                         "negative example, in [0.0, 1.0)")
     parser.add_argument('--join_expr', type=str, default="example_id",
                         help="join expression for universal joiner")
-    parser.add_argument('--join_key_mapper', type=str,
+    parser.add_argument('--join_key_mapper', type=str, default="DEFAULT",
                         help="key mapper, format: name="\
                         "schema:///path/to/mapper.tar.gz")
     parser.add_argument('--optional_fields', type=str, default='',
