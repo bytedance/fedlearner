@@ -113,6 +113,51 @@ class TestUniversalJoin(dsp.DataSourceProducer):
             )
         self.run_join(sei)
 
+    def test_universal_join_key_mapper(self):
+        mapper_code = """
+from fedlearner.data_join.key_mapper.key_mapping import BaseKeyMapper
+class TestKeyMapper(BaseKeyMapper):
+    def leader_mapping(self, item) -> dict:
+        res = item.click_id.split("_")
+        return dict({"req_id":res[0], "cid":res[1]})
+
+    def follower_mapping(self, item) -> dict:
+        return dict()
+
+    @classmethod
+    def name(cls):
+        return "TEST_MAPPER"
+"""
+        abspath = os.path.dirname(os.path.abspath(__file__))
+        fname = "%s/../../fedlearner/data_join/key_mapper/impl/keymapper_mock.py"%abspath
+        with open(fname, "w") as f:
+            f.write(mapper_code)
+
+        self.example_joiner_options = dj_pb.ExampleJoinerOptions(
+                  example_joiner='UNIVERSAL_JOINER',
+                  min_matching_window=32,
+                  max_matching_window=51200,
+                  max_conversion_delay=interval_to_timestamp("0"),
+                  enable_negative_example_generator=True,
+                  data_block_dump_interval=32,
+                  data_block_dump_threshold=128,
+                  negative_sampling_rate=0.8,
+                  join_expr="(cid,req_id)",
+                  join_key_mapper="TEST_MAPPER"
+              )
+        self.version = dsp.Version.V2
+
+        sei = joiner_impl.create_example_joiner(
+                self.example_joiner_options,
+                self.raw_data_options,
+                dj_pb.WriterOptions(output_writer='TF_RECORD'),
+                self.kvstore, self.data_source, 0
+            )
+        self.run_join(sei)
+
+        os.remove(fname)
+
+
     def run_join(self, sei):
         metas = []
         with sei.make_example_joiner() as joiner:

@@ -210,10 +210,11 @@ class DataSourceProducer(unittest.TestCase):
                         abs(cands[b]-i-start_index) <= 64):
                     cands[a], cands[b] = cands[b], cands[a]
             for example_idx in cands:
-                example_id_batch.example_id.append('{}'.format(example_idx).encode())
+                example_id = '{}'.format(example_idx).encode()
+                example_id_batch.example_id.append(example_id)
                 example_id_batch.event_time.append(150000000 + example_idx)
                 if self.version == Version.V2:
-                    example_id_batch.click_id.append('{}'.format(example_idx).encode())
+                    example_id_batch.click_id.append('%s_%s'%(example_id.decode(), example_id.decode()))
                     example_id_batch.id_type.append('IMEI'.encode())
                     example_id_batch.event_time_deep.append(150000000 + example_idx + 1)
             packed_example_id_batch = dj_pb.PackedLiteExampleIds(
