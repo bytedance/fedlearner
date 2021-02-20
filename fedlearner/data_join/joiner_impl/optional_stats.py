@@ -82,8 +82,8 @@ class OptionalStats(object):
             self._stats[kind]['{}={}'.format(field, value)] += 1
         tags.update(item_stat)
         tags['event_time'] = convert_to_iso_format(item.event_time)
-        tags['process_time'] = datetime.now(
-            tz=self._tz).isoformat(timespec='seconds')
+        tags['process_time'] = datetime.now(tz=self._tz).isoformat(
+            timespec='seconds')[:-6]  # strip timezone info
         metrics.emit_store(name='datajoin', value=0, tags=tags)
 
     def emit_optional_stats(self):

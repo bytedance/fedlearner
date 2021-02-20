@@ -29,7 +29,8 @@ import pytz
 from elasticsearch import helpers
 
 # use to constrain ES document size, please modify WITH PRECAUTION to minimize
-# disk space
+# disk space. DO NOT MODIFY EXISTING FIELDS BEFORE PERMISSION FROM DataPalace,
+# otherwise errors may occur.
 ES_MAPPING = {
     "dynamic": True,
     "properties": {
@@ -138,24 +139,24 @@ class ElasticSearchHandler(Handler):
         if self._version == 6:
             self._es = es6.Elasticsearch([ip], port=port)
         # suppress ES logger
-        logger = logging.getLogger('elasticsearch')
-        logger.setLevel(logging.CRITICAL)
-        logger.addHandler(logging.FileHandler('indexer.log'))
+        logging.getLogger('elasticsearch').setLevel(logging.CRITICAL)
         self._tz = pytz.timezone('Asia/Shanghai')
-        self._emit_batch = defaultdict(list)
+        self._emit_batch = []
+        self._emit_index = ES_INDEX.format(
+            datetime.datetime.now(tz=self._tz).strftime('%Y.%m.%d'))
+        self._batch_size = int(os.environ.get('ES_BATCH_SIZE', 1000))
         self._lock = threading.RLock()
-        index = ES_INDEX.format(
-            datetime.datetime.now(tz=self._tz).strftime('%Y.%m.%d')
-        )
-        if not self._es.indices.exists(index=index):
-            self._create_index(index)
+        if not self._es.indices.exists(index=self._emit_index):
+            self._create_index(self._emit_index)
         else:
             # if index exists, put mapping in case mapping is modified.
             # compatibility measures for mapping changes
             if self._version == 7:
-                self._es.indices.put_mapping(index=index, body=ES_MAPPING)
+                self._es.indices.put_mapping(index=self._emit_index,
+                                             body=ES_MAPPING)
             else:
-                self._es.indices.put_mapping(index=index, body=ES_MAPPING,
+                self._es.indices.put_mapping(index=self._emit_index,
+                                             body=ES_MAPPING,
                                              doc_type='_doc')
 
     def emit(self, name, value, tags=None):
@@ -163,42 +164,45 @@ class ElasticSearchHandler(Handler):
             tags = {}
         date = datetime.datetime.now(tz=self._tz).strftime('%Y.%m.%d')
         index = ES_INDEX.format(date)
-        # if not exists, create one, and check if existing documents are
-        # out-dated. if so, emit them and pop
+        # if indices not match, flush and create a new one
         with self._lock:
-            if not self._es.indices.exists(index=index):
+            if self._emit_index != index:
+                logging.info('METRICS: Date changed. '
+                             'Flush and move to new index %s.', index)
+                self.flush()
                 self._create_index(index)
-                for idx in self._emit_batch.keys():
-                    if not idx.endswith(date):
-                        self._emit_and_pop(idx)
+                self._emit_index = index
         application_id = os.environ.get('APPLICATION_ID', '')
         if application_id:
             tags['application_id'] = str(application_id)
         action = {
             # _index = which index to emit to, _source = document
-            '_index': index,
+            '_index': self._emit_index,
             '_source': {
                 "name": name,
                 "value": value,
                 "tags": tags,
-                "date_time": datetime.datetime.now(
-                    tz=self._tz).isoformat(timespec='seconds')
+                # convert to UTC+8 and strip down the timezone info
+                "date_time": datetime.datetime.now(tz=self._tz).isoformat(
+                    timespec='seconds')[:-6]
             }
         }
         if self._version == 6:
             action['_type'] = '_doc'
-        self._emit_batch[index].append(action)
-        # emit and pop when there are 1000 documents to emit
         with self._lock:
-            if len(self._emit_batch[index]) >= 1000:
-                logging.info('METRICS: Emitting 1000 documents to ES.')
-                self._emit_and_pop(index)
+            self._emit_batch.append(action)
+            # emit and pop when there are 1000 documents to emit
+            if len(self._emit_batch) >= self._batch_size:
+                logging.info('METRICS: Emitting %d documents to ES.',
+                             self._batch_size)
+                self.flush()
 
     def flush(self):
-        # emit and pop all existing documents
+        # emit all existing documents
         with self._lock:
-            for index in self._emit_batch.keys():
-                self._emit_and_pop(index)
+            if len(self._emit_batch) > 0:
+                helpers.bulk(self._es, self._emit_batch)
+                self._emit_batch = []
 
     def _create_index(self, index):
         """
@@ -211,14 +215,18 @@ class ElasticSearchHandler(Handler):
         with self._lock:
             if self._version == 6:
                 body = {'mappings': {'_doc': ES_MAPPING}}
+                already_exists_exception = es6.exceptions.RequestError
             else:
                 body = {'mappings': ES_MAPPING}
-            self._es.indices.create(index=index, body=body)
-
-    def _emit_and_pop(self, index):
-        with self._lock:
-            helpers.bulk(self._es, self._emit_batch[index])
-            self._emit_batch.pop(index)
+                already_exists_exception = es7.exceptions.RequestError
+            try:
+                self._es.indices.create(index=index, body=body)
+            # index might have been created by other jobs
+            except already_exists_exception as e:
+                if (e.info['error']['type'] !=
+                        'resource_already_exists_exception'):
+                    raise e
+                pass
 
 
 class Metrics(object):
