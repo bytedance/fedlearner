@@ -299,6 +299,10 @@ class DataPortalJobManager(object):
         while len(dirs) > 0:
             fdir = dirs[0]
             dirs = dirs[1:]
+            # filter directories start with '_'(e.g. _tmp)
+            # TODO: format the inputs' directory name
+            if fdir.startswith('_'):
+                continue
             fnames = gfile.ListDirectory(fdir)
             for fname in fnames:
                 fpath = path.join(fdir, fname)
@@ -306,7 +310,9 @@ class DataPortalJobManager(object):
                 # For example, if we have file oss://test/1001/a.txt
                 # list(oss://test) returns 1001/a.txt instead of 1001
                 basename = path.basename(fpath)
-                if basename == '_SUCCESS':
+                # filter directories start with '_'(e.g. _tmp/_SUCCESS)
+                # TODO: format the inputs' directory name
+                if basename.startswith('_'):
                     continue
                 if gfile.IsDirectory(fpath):
                     dirs.append(fpath)
