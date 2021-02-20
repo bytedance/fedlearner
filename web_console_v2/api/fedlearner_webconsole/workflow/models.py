@@ -114,9 +114,9 @@ def _merge_workflow_config(base, new, access_mode):
 
 
 @to_dict_mixin(ignores=['forked_from',
-                        'fork_proposal_config'],
+                        'fork_proposal_config',
+                        'config'],
                extras={
-                   'config': (lambda wf: wf.get_config()),
                    'job_ids': (lambda wf: wf.get_job_ids()),
                    'reuse_job_names': (lambda wf: wf.get_reuse_job_names()),
                    'peer_reuse_job_names':

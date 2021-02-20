@@ -97,7 +97,6 @@ class WorkflowsApiTest(BaseTestCase):
             'project_id': 1234567,
             'forkable': True,
             'comment': 'test-comment',
-            'config': config,
             'state': 'NEW',
             'target_state': 'READY',
             'transaction_state': 'READY',
