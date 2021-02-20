@@ -118,10 +118,12 @@ class WorkflowApi(Resource):
         result = workflow.to_dict()
         result['jobs'] = [job.to_dict() for job in workflow.get_jobs()]
         result['owned_jobs'] = [job.to_dict() for job in workflow.owned_jobs]
-        result['config'] = MessageToDict(
-                        workflow.get_config(),
-                        preserving_proto_field_name=True,
-                        including_default_value_fields=True)
+        result['config'] = None
+        if workflow.get_config() is not None:
+            result['config'] = MessageToDict(
+                            workflow.get_config(),
+                            preserving_proto_field_name=True,
+                            including_default_value_fields=True)
         return {'data': result}, HTTPStatus.OK
 
     def put(self, workflow_id):

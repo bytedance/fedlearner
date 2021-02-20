@@ -45,11 +45,11 @@ class SigninApi(Resource):
 
 
 class UsersApi(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self):
         return {'data': [row.to_dict() for row in User.query.all()]}
 
-    @jwt_required()
+    @jwt_required
     def post(self):
         parser = reqparse.RequestParser()
         parser.add_argument('username', required=True, help='username is empty')
@@ -76,12 +76,12 @@ class UserApi(Resource):
             raise NotFoundException()
         return user
 
-    @jwt_required()
+    @jwt_required
     def get(self, user_id):
         user = self._find_user(user_id)
         return user.to_dict(), HTTPStatus.OK
 
-    @jwt_required()
+    @jwt_required
     def put(self, user_id):
         user = self._find_user(user_id)
         data = request.get_json()
@@ -103,7 +103,7 @@ class UserApi(Resource):
         db.session.commit()
         return {'username': user.username}, HTTPStatus.OK
 
-    @jwt_required()
+    @jwt_required
     def delete(self, user_id):
         user = self._find_user(user_id)
         db.session.delete(user)

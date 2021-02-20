@@ -153,7 +153,7 @@ class FakeK8sClient(K8sClient):
 
     def get_custom_object(self, crd_kind, custom_object_name: str,
                           namespace='default'):
-        return {
+        result = {
             'kind': crd_kind.value,
             'metadata': {
                 'name': custom_object_name,
@@ -185,6 +185,7 @@ class FakeK8sClient(K8sClient):
                 }
             }
         }
+        return {'flapp': result}
 
     def delete_custom_object(self, crd_kind, custom_object_name: str,
                              namespace='default'):
@@ -198,7 +199,7 @@ class FakeK8sClient(K8sClient):
 
     def list_resource_of_custom_object(self, crd_kind, custom_object_name: str,
                                        resource_type: str, namespace='default'):
-        return {
+        result = {
             'pods': {
                 'metadata': {
                     'selfLink': '/api/v1/namespaces/default/pods',
@@ -218,6 +219,7 @@ class FakeK8sClient(K8sClient):
                 }
             ]
         }
+        return {'pods': result}
 
     def create_or_replace_custom_object(self, crd_kind, json_object,
                                         namespace='default'):
