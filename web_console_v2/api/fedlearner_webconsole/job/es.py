@@ -40,7 +40,8 @@ class ElasticSearchClient(object):
                 'bool': {
                     'must': []
                 }
-            }
+            },
+            'sort': [{'@timestamp': 'asc'}]
         }
 
         keyword_list = [{
