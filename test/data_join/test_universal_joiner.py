@@ -18,7 +18,7 @@ import unittest
 import os
 import random
 import logging
-
+from importlib import reload
 import tensorflow.compat.v1 as tf
 tf.enable_eager_execution()
 import tensorflow_io
