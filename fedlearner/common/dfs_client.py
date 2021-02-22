@@ -77,8 +77,8 @@ class DFSClient(object):
         if isinstance(old_data, bytes):
             old_data = old_data.decode('utf-8')
         if org_data != old_data:
-            logging.warning("CAS failed. \norg data: {}old data: {}"
-                            "new data: {}".format(org_data, old_data, new_data))
+            logging.warning("CAS failed. \norg data: %s old data: %s"
+                            " new data: %s", org_data, old_data, new_data)
             return False
         return self.set_data(key, new_data)
 
