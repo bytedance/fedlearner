@@ -1,6 +1,5 @@
 import copy
 import logging
-import os
 import random
 from collections import defaultdict
 from datetime import datetime
