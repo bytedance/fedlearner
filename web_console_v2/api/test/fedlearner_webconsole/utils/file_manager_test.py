@@ -57,7 +57,7 @@ class DefaultFileManagerTest(unittest.TestCase):
         # Create a temporary directory
         self._test_dir = tempfile.mkdtemp()
         subdir = Path(self._test_dir).joinpath('subdir')
-        subdir.mkdir()
+        subdir.mkdir(exist_ok=True)
         Path(self._test_dir).joinpath('f1.txt').write_text('xxx')
         Path(self._test_dir).joinpath('f2.txt').write_text('xxx')
         subdir.joinpath('s1.txt').write_text('xxx')

@@ -114,7 +114,7 @@ class DefaultFileManager(FileManagerBase):
                 shutil.rmtree(path)
                 return True
         except Exception as e:  # pylint: disable=broad-except
-            logging.error('Error during remove %s', e)
+            logging.error('Error during remove %s', str(e))
         return False
 
     def copy(self, source: str, destination: str) -> bool:
