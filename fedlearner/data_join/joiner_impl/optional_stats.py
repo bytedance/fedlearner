@@ -7,7 +7,7 @@ from datetime import datetime
 from itertools import chain
 
 import fedlearner.common.data_join_service_pb2 as dj_pb
-from fedlearner.common import metrics
+from fedlearner.common.metrics import emit, CONFIGS
 from fedlearner.data_join.common import convert_to_iso_format
 
 
@@ -61,7 +61,7 @@ class OptionalStats(object):
         optional_fields = set(raw_data_options.optional_fields)
         # prevent from adding too many fields to ES index
         self._stat_fields = optional_fields & allowed_fields
-        self._sample_rate = os.environ.get('JOIN_STAT_SAMPLE_RATE', 0.3)
+        self._sample_rate = CONFIGS['join_sample_rate']
 
     def update_stats(self, item, kind='joined'):
         """
@@ -86,9 +86,10 @@ class OptionalStats(object):
             tags = copy.deepcopy(self._tags)
             tags.update(item_stat)
             tags['event_time'] = convert_to_iso_format(item.event_time)
-            tags['process_time'] = datetime.now(tz=metrics.TIMEZONE).isoformat(
-                timespec='seconds')[:-6]  # strip timezone info
-            metrics.emit(name='', value=0, tags=tags, kind='data_join')
+            # `[:-6]`: strip timezone info
+            tags['process_time'] = datetime.now(
+                tz=CONFIGS['timezone']).isoformat(timespec='seconds')[:-6]
+            emit(name='', value=0, tags=tags, kind='data_join')
 
     def emit_optional_stats(self):
         """
