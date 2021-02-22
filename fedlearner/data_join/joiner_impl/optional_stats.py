@@ -6,8 +6,6 @@ from collections import defaultdict
 from datetime import datetime
 from itertools import chain
 
-import pytz
-
 import fedlearner.common.data_join_service_pb2 as dj_pb
 from fedlearner.common import metrics
 from fedlearner.data_join.common import convert_to_iso_format
@@ -58,7 +56,6 @@ class OptionalStats(object):
         self._sample_reservoir = []
         self._sample_receive_num = 0
         self._reservoir_length = 10
-        self._tz = pytz.timezone('Asia/Shanghai')
         self._tags = copy.deepcopy(metric_tags)
         allowed_fields = {'label', 'type'}
         optional_fields = set(raw_data_options.optional_fields)
@@ -89,7 +86,7 @@ class OptionalStats(object):
             tags = copy.deepcopy(self._tags)
             tags.update(item_stat)
             tags['event_time'] = convert_to_iso_format(item.event_time)
-            tags['process_time'] = datetime.now(tz=self._tz).isoformat(
+            tags['process_time'] = datetime.now(tz=metrics.TIMEZONE).isoformat(
                 timespec='seconds')[:-6]  # strip timezone info
             metrics.emit(name='', value=0, tags=tags, kind='data_join')
 

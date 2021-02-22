@@ -30,6 +30,8 @@ import pytz
 from elasticsearch import helpers as helpers7
 from elasticsearch6 import helpers as helpers6
 
+TIMEZONE = pytz.timezone('Asia/Shanghai')
+
 # WARNING: ARBITRARY MODIFICATIONS OF INDICES BELOW WILL RESULT IN HUGE USAGE OF
 # ES DISK SPACE, PLEASE MODIFY WITH CAUTION. DO NOT MODIFY EXISTING FIELDS
 # WITHOUT PERMISSION AND TEST, OTHERWISE ERRORS MIGHT OCCUR.
@@ -178,7 +180,6 @@ class ElasticSearchHandler(Handler):
             self._helpers = helpers6
         # suppress ES logger
         logging.getLogger('elasticsearch').setLevel(logging.CRITICAL)
-        self._tz = pytz.timezone('Asia/Shanghai')
         self._emit_batch = defaultdict(list)
         self._current_index = defaultdict(str)
         self._batch_size = int(os.environ.get('ES_BATCH_SIZE', 1000))
@@ -188,7 +189,7 @@ class ElasticSearchHandler(Handler):
         assert kind in ('metrics', 'data_join')
         if tags is None:
             tags = {}
-        date = datetime.datetime.now(tz=self._tz).strftime('%Y.%m.%d')
+        date = datetime.datetime.now(tz=TIMEZONE).strftime('%Y.%m.%d')
         index = INDEX_NAME[kind].format(date)
         # if indices not match, flush and create a new one
         with self._lock:
@@ -210,7 +211,7 @@ class ElasticSearchHandler(Handler):
                 "value": value,
                 "tags": tags,
                 # convert to UTC+8 and strip down the timezone info
-                "date_time": datetime.datetime.now(tz=self._tz).isoformat(
+                "date_time": datetime.datetime.now(tz=TIMEZONE).isoformat(
                     timespec='seconds')[:-6]
             }
         else:
