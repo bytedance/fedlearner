@@ -27,7 +27,10 @@ from tensorflow.io import gfile
 
 from fedlearner_webconsole import envs
 
-File = namedtuple('File', ['path', 'size'])
+# path: absolute path of the file
+# size: file size in bytes
+# mtime: time of last modification, unix timestamp in seconds.
+File = namedtuple('File', ['path', 'size', 'mtime'])
 
 
 class FileManagerBase(object):
@@ -68,8 +71,10 @@ class DefaultFileManager(FileManagerBase):
 
     def ls(self, path: str, recursive=False) -> List[File]:
         def _get_file_stats(path: str):
+            stat = os.stat(path)
             return File(path=path,
-                        size=os.path.getsize(path))
+                        size=stat.st_size,
+                        mtime=int(stat.st_mtime))
 
         if not Path(path).exists():
             return []
@@ -170,7 +175,9 @@ class HdfsFileManager(FileManagerBase):
                 if file['file_type'] == 'f':
                     files.append(File(
                         path=self._wrap_path(file['path']),
-                        size=file['length']))
+                        size=file['length'],
+                        # ms to second
+                        mtime=int(file['modification_time'] / 1000)))
         except RuntimeError as error:
             # This is a hack that snakebite can not handle generator
             if str(error) == 'generator raised StopIteration':

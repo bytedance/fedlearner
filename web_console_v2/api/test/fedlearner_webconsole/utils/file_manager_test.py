@@ -15,6 +15,7 @@
 # coding: utf-8
 import os
 import shutil
+import stat
 import tempfile
 import unittest
 
@@ -26,6 +27,32 @@ from fedlearner_webconsole.utils.file_manager import (
 
 
 class DefaultFileManagerTest(unittest.TestCase):
+    _F1_SIZE = 3
+    _F2_SIZE = 4
+    _S1_SIZE = 55
+    _F1_MTIME = 1613982390
+    _F2_MTIME = 1613982391
+    _S1_MTIME = 1613982392
+
+    def _get_file_stat(self, orig_os_stat, path):
+        faked = list(orig_os_stat(path))
+        if path == self._get_temp_path('f1.txt') or \
+                path == self._get_temp_path('subdir/f1.txt'):
+            faked[stat.ST_SIZE] = self._F1_SIZE
+            faked[stat.ST_MTIME] = self._F1_MTIME
+            return os.stat_result(faked)
+        elif path == self._get_temp_path('f2.txt') or \
+                path == self._get_temp_path('f3.txt'):
+            faked[stat.ST_SIZE] = self._F2_SIZE
+            faked[stat.ST_MTIME] = self._F2_MTIME
+            return os.stat_result(faked)
+        elif path == self._get_temp_path('subdir/s1.txt'):
+            faked[stat.ST_SIZE] = self._S1_SIZE
+            faked[stat.ST_MTIME] = self._S1_MTIME
+            return os.stat_result(faked)
+        else:
+            return orig_os_stat(path)
+
     def setUp(self):
         # Create a temporary directory
         self._test_dir = tempfile.mkdtemp()
@@ -34,7 +61,10 @@ class DefaultFileManagerTest(unittest.TestCase):
         Path(self._test_dir).joinpath('f1.txt').write_text('xxx')
         Path(self._test_dir).joinpath('f2.txt').write_text('xxx')
         subdir.joinpath('s1.txt').write_text('xxx')
-        self.FILE_SIZE = 3
+
+        # Mocks os.stat
+        orig_os_stat = os.stat
+        os.stat = lambda path: self._get_file_stat(orig_os_stat, path)
 
         self._fm = DefaultFileManager()
 
@@ -53,16 +83,19 @@ class DefaultFileManagerTest(unittest.TestCase):
         # List file
         self.assertEqual(self._fm.ls(self._get_temp_path('f1.txt')),
                          [File(path=self._get_temp_path('f1.txt'),
-                               size=self.FILE_SIZE)])
+                               size=self._F1_SIZE,
+                               mtime=self._F1_MTIME)])
         # List folder
         self.assertEqual(
             sorted(self._fm.ls(self._get_temp_path()),
                    key=lambda file: file.path),
             sorted([
                 File(path=self._get_temp_path('f1.txt'),
-                     size=self.FILE_SIZE),
+                     size=self._F1_SIZE,
+                     mtime=self._F1_MTIME),
                 File(path=self._get_temp_path('f2.txt'),
-                     size=self.FILE_SIZE)
+                     size=self._F2_SIZE,
+                     mtime=self._F2_MTIME)
             ], key=lambda file: file.path))
         # List folder recursively
         self.assertEqual(
@@ -70,11 +103,14 @@ class DefaultFileManagerTest(unittest.TestCase):
                    key=lambda file: file.path),
             sorted([
                 File(path=self._get_temp_path('f1.txt'),
-                     size=self.FILE_SIZE),
+                     size=self._F1_SIZE,
+                     mtime=self._F1_MTIME),
                 File(path=self._get_temp_path('f2.txt'),
-                     size=self.FILE_SIZE),
+                     size=self._F2_SIZE,
+                     mtime=self._F2_MTIME),
                 File(path=self._get_temp_path('subdir/s1.txt'),
-                     size=self.FILE_SIZE),
+                     size=self._S1_SIZE,
+                     mtime=self._S1_MTIME),
             ], key=lambda file: file.path))
 
     def test_move(self):
@@ -86,9 +122,11 @@ class DefaultFileManagerTest(unittest.TestCase):
                    key=lambda file: file.path),
             sorted([
                 File(path=self._get_temp_path('subdir/s1.txt'),
-                     size=self.FILE_SIZE),
+                     size=self._S1_SIZE,
+                     mtime=self._S1_MTIME),
                 File(path=self._get_temp_path('subdir/f1.txt'),
-                     size=self.FILE_SIZE),
+                     size=self._F1_SIZE,
+                     mtime=self._F1_MTIME),
             ], key=lambda file: file.path))
         # Renames
         self._fm.move(self._get_temp_path('f2.txt'),
@@ -98,7 +136,8 @@ class DefaultFileManagerTest(unittest.TestCase):
         self.assertEqual(
             self._fm.ls(self._get_temp_path('f3.txt')),
             [File(path=self._get_temp_path('f3.txt'),
-                  size=self.FILE_SIZE)])
+                  size=self._F2_SIZE,
+                  mtime=self._F2_MTIME)])
 
     def test_remove(self):
         self._fm.remove(self._get_temp_path('f1.txt'))
@@ -106,7 +145,8 @@ class DefaultFileManagerTest(unittest.TestCase):
         self.assertEqual(
             self._fm.ls(self._get_temp_path(), recursive=True),
             [File(path=self._get_temp_path('f2.txt'),
-                  size=self.FILE_SIZE)])
+                  size=self._F2_SIZE,
+                  mtime=self._F2_MTIME)])
 
     def test_copy(self):
         self._fm.copy(self._get_temp_path('f1.txt'),
@@ -114,11 +154,13 @@ class DefaultFileManagerTest(unittest.TestCase):
         self.assertEqual(
             self._fm.ls(self._get_temp_path('f1.txt')),
             [File(path=self._get_temp_path('f1.txt'),
-                  size=self.FILE_SIZE)])
+                  size=self._F1_SIZE,
+                  mtime=self._F1_MTIME)])
         self.assertEqual(
             self._fm.ls(self._get_temp_path('subdir/f1.txt')),
             [File(path=self._get_temp_path('subdir/f1.txt'),
-                  size=self.FILE_SIZE)])
+                  size=self._F1_SIZE,
+                  mtime=self._F1_MTIME)])
 
     def test_mkdir(self):
         self._fm.mkdir(os.path.join(self._get_temp_path(), 'subdir2'))
@@ -145,12 +187,22 @@ class HdfsFileManagerTest(unittest.TestCase):
         mock_ls = MagicMock()
         self._mock_client.ls = mock_ls
         mock_ls.return_value = [
-            {'file_type': 'f', 'path': '/data/abc', 'length': 1024},
-            {'file_type': 'd', 'path': '/data', 'length': 1024}
+            {
+                'file_type': 'f',
+                'path': '/data/abc',
+                'length': 1024,
+                'modification_time': 1367317325346
+            },
+            {
+                'file_type': 'd',
+                'path': '/data',
+                'length': 1024,
+                'modification_time': 1367317325346
+            }
         ]
         self.assertEqual(
             self._fm.ls('hdfs:///data', recursive=True),
-            [File(path='hdfs:///data/abc', size=1024)]
+            [File(path='hdfs:///data/abc', size=1024, mtime=1367317325)]
         )
         mock_ls.assert_called_once_with(['/data'], recurse=True)
 
