@@ -39,7 +39,7 @@ class Config(object):
     JWT_ACCESS_TOKEN_EXPIRES = 86400
     ES_HOST = 'fedlearner-stack-elasticsearch-client'
     ES_PORT = 9200
-    STORAGE_ROOT = os.getenv('STORAGE_ROOT', '/tmp/data')
+    STORAGE_ROOT = os.getenv('STORAGE_ROOT', '/data')
 
     START_GRPC_SERVER = True
     START_SCHEDULER = True
