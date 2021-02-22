@@ -229,7 +229,8 @@ class ElasticSearchHandler(Handler):
                 self._flush_index(index)
 
     def flush(self):
-        for index in self._emit_batch.keys():
+        # wrap in list as _flush_index will pop keys
+        for index in list(self._emit_batch.keys()):
             self._flush_index(index)
 
     def _flush_index(self, index):
