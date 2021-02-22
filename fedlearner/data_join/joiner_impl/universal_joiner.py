@@ -117,7 +117,7 @@ class _Trigger(object):
         while idx < follower_window.size() and common.time_diff(              \
                     ed.item.event_time,                                       \
                     follower_window[idx].item.event_time)                     \
-                >= self._max_watermark_delay:
+                > self._max_watermark_delay:
             self._watermark = follower_window[idx].item.event_time
             idx += 1
         return idx
@@ -132,7 +132,7 @@ class _Trigger(object):
                 follower_win_size >= 0 and                                     \
                 common.time_diff(                                              \
                     follower_window[follower_win_size].item.event_time,        \
-                    leader_window[sid].item.event_time) >=                     \
+                    leader_window[sid].item.event_time) >                      \
                 self._max_watermark_delay:
             leader_stride += step
             sid += 1
@@ -143,7 +143,7 @@ class _Trigger(object):
                 0 <= cid <= follower_win_size and                              \
                 common.time_diff(                                              \
                   leader_window[leader_win_size].item.event_time,              \
-                  follower_window[cid].item.event_time) >=                     \
+                  follower_window[cid].item.event_time) >                      \
                 self._max_watermark_delay:
             #FIXME current et is not always the watermark
             self._watermark = max(follower_window[cid].item.event_time,        \
@@ -361,8 +361,8 @@ class UniversalJoiner(ExampleJoiner):
 
         while True:
             leader_filled = self._fill_leader_join_window()
-            leader_exhausted = sync_example_id_finished and                   \
-                    self._leader_join_window.et_span() <=                     \
+            leader_exhausted = sync_example_id_finished and                    \
+                    self._leader_join_window.et_span() <=                      \
                     self._max_watermark_delay
             follower_filled = self._fill_follower_join_window()
 
@@ -487,7 +487,8 @@ class UniversalJoiner(ExampleJoiner):
         idx = 0
         for (fe, li, fi) in self._sorted_buf_by_leader_index:
             if fe.event_time <= watermark:
-                assert fi in self._dedup_by_follower_index, "Invalid f index"
+                assert fi in self._dedup_by_follower_index, \
+                        "Invalid index[%d]"%fi
                 (leader_index, _) = self._dedup_by_follower_index[fi]
                 if leader_index == li:
                     matches.append((fe, li, fi))
@@ -498,7 +499,7 @@ class UniversalJoiner(ExampleJoiner):
                                  leader_index)
             else:
                 # FIXME: Assume the unordered range is limited,
-                #  or this will bring an out-of-memory crash
+                #  or this will raise out-of-memory
                 break
             idx += 1
         self._sorted_buf_by_leader_index \
