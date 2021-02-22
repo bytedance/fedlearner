@@ -60,7 +60,7 @@ class OptionalStats(object):
         optional_fields = set(raw_data_options.optional_fields)
         # prevent from adding too many fields to ES index
         self._stat_fields = optional_fields & allowed_fields
-        self._sample_rate = CONFIGS['join_sample_rate']
+        self._sample_rate = CONFIGS['data_join_metrics_sample_rate']
 
     def update_stats(self, item, kind='joined'):
         """
@@ -88,7 +88,7 @@ class OptionalStats(object):
             # `[:-6]`: strip timezone info
             tags['process_time'] = datetime.now(
                 tz=CONFIGS['timezone']).isoformat(timespec='seconds')[:-6]
-            emit(name='', value=0, tags=tags, kind='data_join')
+            emit(name='', value=0, tags=tags, index_type='data_join')
 
     def emit_optional_stats(self):
         """

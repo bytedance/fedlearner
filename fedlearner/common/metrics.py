@@ -21,7 +21,6 @@ import logging
 import os
 import threading
 import time
-from collections import defaultdict
 from functools import wraps
 
 import elasticsearch as es7
@@ -131,7 +130,8 @@ INDEX_NAME = {'metrics': 'metrics_v2-{}',
 INDEX_MAP = {'metrics': METRICS_INDEX,
              'data_join': DATA_JOIN_INDEX}
 CONFIGS = {
-    'join_sample_rate': os.environ.get('JOIN_SAMPLE_RATE', 0.3),
+    'data_join_metrics_sample_rate':
+        os.environ.get('DATA_JOIN_METRICS_SAMPLE_RATE', 0.3),
     'es_batch_size': os.environ.get('ES_BATCH_SIZE', 1000),
     'timezone': pytz.timezone('Asia/Shanghai')
 }
@@ -141,7 +141,7 @@ class Handler(object):
     def __init__(self, name):
         self._name = name
 
-    def emit(self, name, value, tags=None, kind='metrics'):
+    def emit(self, name, value, tags=None, index_type='metrics'):
         """
         Do whatever it takes to actually log the specified logging record.
 
@@ -162,7 +162,7 @@ class LoggingHandler(Handler):
     def __init__(self):
         super(LoggingHandler, self).__init__('logging')
 
-    def emit(self, name, value, tags=None, kind='metrics'):
+    def emit(self, name, value, tags=None, index_type='metrics'):
         logging.debug('[metrics] name[%s] value[%s] tags[%s]',
                       name, value, str(tags))
 
@@ -183,33 +183,29 @@ class ElasticSearchHandler(Handler):
             self._helpers = helpers6
         # suppress ES logger
         logging.getLogger('elasticsearch').setLevel(logging.CRITICAL)
-        self._emit_batch = defaultdict(list)
-        self._current_index = defaultdict(str)
-        self._batch_size = int(os.environ.get('ES_BATCH_SIZE', 1000))
+        self._emit_batch = []
+        self._current_date = ''
+        self._batch_size = CONFIGS['es_batch_size']
         self._lock = threading.RLock()
 
-    def emit(self, name, value, tags=None, kind='metrics'):
-        assert kind in ('metrics', 'data_join')
+    def emit(self, name, value, tags=None, index_type='metrics'):
+        assert index_type in ('metrics', 'data_join')
         if tags is None:
             tags = {}
         date = datetime.datetime.now(
             tz=CONFIGS['timezone']).strftime('%Y.%m.%d')
-        index = INDEX_NAME[kind].format(date)
+        index = INDEX_NAME[index_type].format(date)
         # if indices not match, flush and create a new one
         with self._lock:
-            if kind not in self._current_index:
-                # First run, index might not exist on ES
-                self._create_or_modify_index(index, INDEX_MAP[kind])
-            elif self._current_index[kind] != index:
+            if self._get_current_date() != date:
                 # Date changed, should create new index and flush old ones
                 logging.info('METRICS: Creating new index %s.', index)
-                self._create_or_modify_index(index, INDEX_MAP[kind])
-                self._flush_index(index)
-            self._current_index[kind] = index
+                self._create_or_modify_index(index, INDEX_MAP[index_type])
+                self._set_current_date(date)
         application_id = os.environ.get('APPLICATION_ID', '')
         if application_id:
             tags['application_id'] = str(application_id)
-        if kind == 'metrics':
+        if index_type == 'metrics':
             document = {
                 "name": name,
                 "value": value,
@@ -228,25 +224,25 @@ class ElasticSearchHandler(Handler):
         if self._version == 6:
             action['_type'] = '_doc'
         with self._lock:
-            self._emit_batch[index].append(action)
+            self._emit_batch.append(action)
             # emit and pop when there are enough documents to emit
-            if len(self._emit_batch[index]) >= self._batch_size:
-                self._flush_index(index)
+            if len(self._emit_batch) >= self._batch_size:
+                self.flush()
 
     def flush(self):
-        # wrap in list as _flush_index will pop keys
-        for index in list(self._emit_batch.keys()):
-            self._flush_index(index)
+        if len(self._emit_batch) > 0:
+            logging.info('METRICS: Emitting %d documents to ES',
+                         len(self._emit_batch))
+            self._helpers.bulk(self._es, self._emit_batch)
+            self._emit_batch = []
 
-    def _flush_index(self, index):
-        # emit all existing documents of one index
+    def _get_current_date(self):
         with self._lock:
-            actions = self._emit_batch[index]
-            if len(actions) > 0:
-                logging.info('METRICS: Emitting %d documents to %s',
-                             len(actions), index)
-                self._helpers.bulk(self._es, actions)
-            self._emit_batch.pop(index)
+            return self._current_date
+
+    def _set_current_date(self, date):
+        with self._lock:
+            self._current_date = date
 
     def _create_or_modify_index(self, index, index_setting):
         """
@@ -293,6 +289,7 @@ class Metrics(object):
         self.handlers = []
         self._lock = threading.RLock()
         self.handler_initialized = False
+        atexit.register(self.flush_handler)
 
     def init_handlers(self):
         with self._lock:
@@ -323,7 +320,7 @@ class Metrics(object):
             if hdlr in self.handlers:
                 self.handlers.remove(hdlr)
 
-    def emit(self, name, value, tags=None, kind='metrics'):
+    def emit(self, name, value, tags=None, index_type='metrics'):
         self.init_handlers()
         if not self.handlers or len(self.handlers) == 0:
             logging.info('No handlers. Not emitting.')
@@ -331,7 +328,7 @@ class Metrics(object):
 
         for hdlr in self.handlers:
             try:
-                hdlr.emit(name, value, tags, kind)
+                hdlr.emit(name, value, tags, index_type)
             except Exception as e:  # pylint: disable=broad-except
                 logging.warning('Handler [%s] emit failed. Error repr: [%s]',
                                 hdlr.get_name(), repr(e))
@@ -347,11 +344,10 @@ class Metrics(object):
 
 
 _metrics_client = Metrics()
-atexit.register(_metrics_client.flush_handler)
 
 
-def emit(name, value, tags=None, kind='metrics'):
-    _metrics_client.emit(name, value, tags, kind)
+def emit(name, value, tags=None, index_type='metrics'):
+    _metrics_client.emit(name, value, tags, index_type)
 
 
 # Currently no actual differences among the methods below
