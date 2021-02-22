@@ -64,8 +64,11 @@ class DefaultFileManagerTest(unittest.TestCase):
 
         # Mocks os.stat
         self._orig_os_stat = os.stat
-        os.stat = lambda path: self._get_file_stat(
-            self._orig_os_stat, path)
+
+        def fake_stat(path, *arg, **kwargs):
+            return self._get_file_stat(self._orig_os_stat, path)
+
+        os.stat = fake_stat
 
         self._fm = DefaultFileManager()
 

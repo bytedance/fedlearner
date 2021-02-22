@@ -134,8 +134,11 @@ class FilesApiTest(BaseTestCase):
 
         # Mocks os.stat
         self._orig_os_stat = os.stat
-        os.stat = lambda path: self._get_file_stat(
-            self._orig_os_stat, path)
+
+        def fake_stat(path, *arg, **kwargs):
+            return self._get_file_stat(self._orig_os_stat, path)
+
+        os.stat = fake_stat
 
     def tearDown(self):
         os.stat = self._orig_os_stat
@@ -148,8 +151,8 @@ class FilesApiTest(BaseTestCase):
 
     def _get_file_stat(self, orig_os_stat, path):
         if path == self._get_temp_path('f1.txt') or \
-                path == self._get_temp_path('f2.txt') or \
-                path == self._get_temp_path('s/s3.txt'):
+            path == self._get_temp_path('f2.txt') or \
+            path == self._get_temp_path('s/s3.txt'):
             faked = list(orig_os_stat(path))
             faked[stat.ST_MTIME] = 1613982390
             return os.stat_result(faked)
