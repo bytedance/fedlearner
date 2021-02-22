@@ -15,11 +15,13 @@
 # coding: utf-8
 
 import atexit
+import copy
 import datetime
 import logging
 import os
 import threading
 import time
+from collections import defaultdict
 from functools import wraps
 
 import elasticsearch as es7
@@ -27,84 +29,113 @@ import elasticsearch6 as es6
 import pytz
 from elasticsearch import helpers
 
-# use to constrain ES document size, please modify WITH PRECAUTION to minimize
-# disk space. DO NOT MODIFY EXISTING FIELDS BEFORE PERMISSION FROM DataPalace,
-# otherwise errors may occur.
-ES_MAPPING = {
-    "dynamic": True,
-    "properties": {
-        "name": {
-            "type": "keyword"
-        },
-        "value": {
-            "type": "float"
-        },
-        "date_time": {
-            "format": "strict_date_hour_minute_second",
-            "type": "date"
-        },
-        "tags": {
-            "properties": {
-                "partition": {
-                    "type": "byte"
-                },
-                "original": {
-                    "type": "byte"
-                },
-                "joined": {
-                    "type": "byte"
-                },
-                "fake": {
-                    "type": "byte"
-                },
-                "label": {
-                    "ignore_above": 32,
-                    "type": "keyword"
-                },
-                "type": {
-                    "ignore_above": 256,
-                    "type": "keyword"
-                },
-                "application_id": {
-                    "ignore_above": 128,
-                    "type": "keyword"
-                },
-                "data_source_name": {
-                    "ignore_above": 128,
-                    "type": "keyword"
-                },
-                "joiner_name": {
-                    "ignore_above": 32,
-                    "type": "keyword"
-                },
-                "role": {
-                    "ignore_above": 32,
-                    "type": "keyword"
-                },
-                "example_id": {
-                    "ignore_above": 32,
-                    "type": "keyword"
-                },
-                "process_time": {
-                    "format": "strict_date_hour_minute_second",
-                    "type": "date"
-                },
-                "event_time": {
-                    "format": "strict_date_hour_minute_second",
-                    "type": "date"
+# WARNING: ARBITRARY MODIFICATIONS OF INDICES BELOW WILL RESULT IN HUGE USAGE OF
+# ES DISK SPACE, PLEASE MODIFY WITH PRECAUTION. DO NOT MODIFY EXISTING FIELDS
+# WITHOUT PERMISSION AND TEST, OTHERWISE ERRORS MIGHT OCCUR.
+DATA_JOIN_INDEX = {
+    "settings": {
+        "index": {
+            "codec": "best_compression"
+        }
+    },
+    "mappings": {
+        "dynamic": True,
+        # for dynamically adding string fields, use keyword to reduce space
+        "dynamic_templates": [
+            {
+                "strings": {
+                    "match_mapping_type": "string",
+                    "mapping": {
+                        "type": "keyword"
+                    }
+                }
+            }
+        ],
+        "properties": {
+            "partition": {
+                "type": "byte"
+            },
+            "joined": {
+                "type": "boolean"
+            },
+            "fake": {
+                "type": "boolean"
+            },
+            "label": {
+                "ignore_above": 8,
+                "type": "keyword"
+            },
+            "type": {
+                "ignore_above": 32,
+                "type": "keyword"
+            },
+            "application_id": {
+                "ignore_above": 128,
+                "type": "keyword"
+            },
+            "process_time": {
+                "format": "strict_date_hour_minute_second",
+                "type": "date"
+            },
+            "event_time": {
+                "format": "strict_date_hour_minute_second",
+                "type": "date"
+            }
+        }
+    }
+}
+METRICS_INDEX = {
+    "mappings": {
+        "dynamic": True,
+        "properties": {
+            "name": {
+                # for compatibility, use text here
+                "type": "text"
+            },
+            "value": {
+                "type": "float"
+            },
+            "date_time": {
+                "format": "strict_date_hour_minute_second",
+                "type": "date"
+            },
+            "tags": {
+                "properties": {
+                    "partition": {
+                        "type": "byte"
+                    },
+                    "application_id": {
+                        "ignore_above": 128,
+                        "type": "keyword"
+                    },
+                    "data_source_name": {
+                        "ignore_above": 128,
+                        "type": "keyword"
+                    },
+                    "joiner_name": {
+                        "ignore_above": 32,
+                        "type": "keyword"
+                    },
+                    "role": {
+                        "ignore_above": 16,
+                        "type": "keyword"
+                    }
                 }
             }
         }
     }
 }
-ES_INDEX = 'metrics_v2-{}'
+INDEX_NAME = {'metrics': 'metrics_v2-{}',
+              'data_join': 'data_join-{}'}
+INDEX_MAP = {'metrics': METRICS_INDEX,
+             'data_join': DATA_JOIN_INDEX}
 
 
 class Handler(object):
     def __init__(self, name):
         self._name = name
 
-    def emit(self, name, value, tags=None):
+    def emit(self, name, value, tags=None, kind='metrics'):
         """
         Do whatever it takes to actually log the specified logging record.
 
@@ -125,7 +156,7 @@ class LoggingHandler(Handler):
     def __init__(self):
         super(LoggingHandler, self).__init__('logging')
 
-    def emit(self, name, value, tags=None):
+    def emit(self, name, value, tags=None, kind='metrics'):
         logging.debug('[metrics] name[%s] value[%s] tags[%s]',
                       name, value, str(tags))
 
@@ -145,44 +176,33 @@ class ElasticSearchHandler(Handler):
         # suppress ES logger
         logging.getLogger('elasticsearch').setLevel(logging.CRITICAL)
         self._tz = pytz.timezone('Asia/Shanghai')
-        self._emit_batch = []
-        self._emit_index = ES_INDEX.format(
-            datetime.datetime.now(tz=self._tz).strftime('%Y.%m.%d'))
+        self._emit_batch = defaultdict(list)
+        self._current_index = defaultdict(str)
         self._batch_size = int(os.environ.get('ES_BATCH_SIZE', 1000))
         self._lock = threading.RLock()
-        if not self._es.indices.exists(index=self._emit_index):
-            self._create_index(self._emit_index)
-        else:
-            # if index exists, put mapping in case mapping is modified.
-            # compatibility measures for mapping changes
-            if self._version == 7:
-                self._es.indices.put_mapping(index=self._emit_index,
-                                             body=ES_MAPPING)
-            else:
-                self._es.indices.put_mapping(index=self._emit_index,
-                                             body=ES_MAPPING,
-                                             doc_type='_doc')
 
-    def emit(self, name, value, tags=None):
+    def emit(self, name, value, tags=None, kind='metrics'):
+        assert kind in ('metrics', 'data_join')
         if tags is None:
             tags = {}
         date = datetime.datetime.now(tz=self._tz).strftime('%Y.%m.%d')
-        index = ES_INDEX.format(date)
+        index = INDEX_NAME[kind].format(date)
         # if indices not match, flush and create a new one
         with self._lock:
-            if self._emit_index != index:
-                logging.info('METRICS: Date changed. '
-                             'Flush and move to new index %s.', index)
-                self.flush()
-                self._create_index(index)
-                self._emit_index = index
+            if kind not in self._current_index:
+                # First run, index might not exist on ES
+                self._create_or_modify_index(index, INDEX_MAP[kind])
+            elif self._current_index[kind] != index:
+                # Date changed, should create new index and flush old ones
+                logging.info('METRICS: Creating new index %s.', index)
+                self._create_or_modify_index(index, INDEX_MAP[kind])
+                self._flush_index(index)
+            self._current_index[kind] = index
         application_id = os.environ.get('APPLICATION_ID', '')
         if application_id:
             tags['application_id'] = str(application_id)
-        action = {
-            # _index = which index to emit to, _source = document
-            '_index': self._emit_index,
-            '_source': {
+        if kind == 'metrics':
+            document = {
                 "name": name,
                 "value": value,
                 "tags": tags,
@@ -190,46 +210,73 @@ class ElasticSearchHandler(Handler):
                 "date_time": datetime.datetime.now(tz=self._tz).isoformat(
                     timespec='seconds')[:-6]
             }
+        else:
+            document = tags
+        action = {
+            # _index = which index to emit to
+            '_index': index,
+            '_source': document
         }
         if self._version == 6:
             action['_type'] = '_doc'
         with self._lock:
-            self._emit_batch.append(action)
-            # emit and pop when there are 1000 documents to emit
-            if len(self._emit_batch) >= self._batch_size:
-                logging.info('METRICS: Emitting %d documents to ES.',
-                             self._batch_size)
-                self.flush()
+            self._emit_batch[index].append(action)
+            # emit and pop when there are enough documents to emit
+            if len(self._emit_batch[index]) >= self._batch_size:
+                self._flush_index(index)
 
     def flush(self):
-        # emit all existing documents
-        with self._lock:
-            if len(self._emit_batch) > 0:
-                helpers.bulk(self._es, self._emit_batch)
-                self._emit_batch = []
+        for index in self._emit_batch.keys():
+            self._flush_index(index)
 
-    def _create_index(self, index):
+    def _flush_index(self, index):
+        # emit all existing documents of one index
+        with self._lock:
+            actions = self._emit_batch[index]
+            if len(actions) > 0:
+                logging.info('METRICS: Emitting %d documents to %s',
+                             len(actions), index)
+                helpers.bulk(self._es, actions)
+            self._emit_batch.pop(index)
+
+    def _create_or_modify_index(self, index, index_setting):
         """
         Args:
             index: ES index name.
 
         Creates an index on ES, with compatibility with ES 6 and ES 7.
+        If Index already exists, will put mappings onto it in case mappings
+        have been changed.
 
         """
         with self._lock:
-            if self._version == 6:
-                body = {'mappings': {'_doc': ES_MAPPING}}
-                already_exists_exception = es6.exceptions.RequestError
+            if not self._es.indices.exists(index=index):
+                if self._version == 7:
+                    body = index_setting
+                    already_exists_exception = es7.exceptions.RequestError
+                else:
+                    body = copy.deepcopy(index_setting)
+                    body['mappings'] = {'_doc': body['mappings']}
+                    already_exists_exception = es6.exceptions.RequestError
+                try:
+                    self._es.indices.create(index=index, body=body)
+                    return
+                # index may have been created by other jobs
+                except already_exists_exception as e:
+                    # if due to other reasons, re-raise exception
+                    if e.info['error']['type'] != \
+                       'resource_already_exists_exception':
+                        raise e
+                    logging.info('METRICS: Index %s already exists.', index)
+
+            # if index exists, put mapping in case mapping is modified.
+            if self._version == 7:
+                self._es.indices.put_mapping(index=index,
+                                             body=index_setting['mappings'])
             else:
-                body = {'mappings': ES_MAPPING}
-                already_exists_exception = es7.exceptions.RequestError
-            try:
-                self._es.indices.create(index=index, body=body)
-            # index might have been created by other jobs
-            except already_exists_exception as e:
-                if (e.info['error']['type'] !=
-                   'resource_already_exists_exception'):
-                    raise e
+                self._es.indices.put_mapping(index=index,
+                                             body=index_setting['mappings'],
+                                             doc_type='_doc')
 
 
 class Metrics(object):
@@ -267,7 +314,7 @@ class Metrics(object):
             if hdlr in self.handlers:
                 self.handlers.remove(hdlr)
 
-    def emit(self, name, value, tags=None):
+    def emit(self, name, value, tags=None, kind='metrics'):
         self.init_handlers()
         if not self.handlers or len(self.handlers) == 0:
             logging.info('No handlers. Not emitting.')
@@ -275,7 +322,7 @@ class Metrics(object):
 
         for hdlr in self.handlers:
             try:
-                hdlr.emit(name, value, tags)
+                hdlr.emit(name, value, tags, kind)
             except Exception as e:  # pylint: disable=broad-except
                 logging.warning('Handler [%s] emit failed. Error repr: [%s]',
                                 hdlr.get_name(), repr(e))
@@ -294,8 +341,8 @@ _metrics_client = Metrics()
 atexit.register(_metrics_client.flush_handler)
 
 
-def emit(name, value, tags=None):
-    _metrics_client.emit(name, value, tags)
+def emit(name, value, tags=None, kind='metrics'):
+    _metrics_client.emit(name, value, tags, kind)
 
 
 # Should use emit in new codes. Below are compatibility measures

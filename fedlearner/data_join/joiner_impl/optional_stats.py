@@ -1,5 +1,6 @@
 import copy
 import logging
+import os
 import random
 from collections import defaultdict
 from datetime import datetime
@@ -49,7 +50,6 @@ class OptionalStats(object):
                 optional stats options and arguments.
         """
         assert isinstance(raw_data_options, dj_pb.RawDataOptions)
-        self._stat_fields = raw_data_options.optional_fields
         self._stats = {
             'joined': defaultdict(int),
             'unjoined': defaultdict(int),
@@ -60,6 +60,11 @@ class OptionalStats(object):
         self._reservoir_length = 10
         self._tz = pytz.timezone('Asia/Shanghai')
         self._tags = copy.deepcopy(metric_tags)
+        allowed_fields = {'label', 'type'}
+        optional_fields = set(raw_data_options.optional_fields)
+        # prevent from adding too many fields to ES index
+        self._stat_fields = optional_fields & allowed_fields
+        self._sample_rate = os.environ.get('JOIN_STAT_SAMPLE_RATE', 0.3)
 
     def update_stats(self, item, kind='joined'):
         """
@@ -74,20 +79,19 @@ class OptionalStats(object):
         assert kind in ('joined', 'unjoined', 'fake')
         if kind == 'unjoined':
             self.sample_unjoined(item.example_id)
-        item_stat = {'joined': int(kind == 'joined'),
-                     'original': int(kind != 'negative'),
-                     'fake': int(kind == 'fake')}
-        tags = copy.deepcopy(self._tags)
+        item_stat = {'joined': kind == 'joined',
+                     'fake': kind == 'fake'}
         for field in self._stat_fields:
             value = self._convert_to_str(getattr(item, field, '#None#'))
             item_stat[field] = value
             self._stats[kind]['{}={}'.format(field, value)] += 1
-        tags.update(item_stat)
-        tags['example_id'] = self._convert_to_str(item.example_id)
-        tags['event_time'] = convert_to_iso_format(item.event_time)
-        tags['process_time'] = datetime.now(tz=self._tz).isoformat(
-            timespec='seconds')[:-6]  # strip timezone info
-        # metrics.emit(name='datajoin', value=0, tags=tags)
+        if random.random() < self._sample_rate:
+            tags = copy.deepcopy(self._tags)
+            tags.update(item_stat)
+            tags['event_time'] = convert_to_iso_format(item.event_time)
+            tags['process_time'] = datetime.now(tz=self._tz).isoformat(
+                timespec='seconds')[:-6]  # strip timezone info
+            metrics.emit(name='', value=0, tags=tags, kind='data_join')
 
     def emit_optional_stats(self):
         """
