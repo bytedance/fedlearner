@@ -133,10 +133,12 @@ class FilesApiTest(BaseTestCase):
         subdir.joinpath('s3.txt').write_text('s3s3s3')
 
         # Mocks os.stat
-        orig_os_stat = os.stat
-        os.stat = lambda path: self._get_file_stat(orig_os_stat, path)
+        self._orig_os_stat = os.stat
+        os.stat = lambda path: self._get_file_stat(
+            self._orig_os_stat, path)
 
     def tearDown(self):
+        os.stat = self._orig_os_stat
         # Remove the directory after the test
         shutil.rmtree(self._tempdir)
         super().tearDown()

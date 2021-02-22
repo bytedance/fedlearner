@@ -63,12 +63,14 @@ class DefaultFileManagerTest(unittest.TestCase):
         subdir.joinpath('s1.txt').write_text('xxx')
 
         # Mocks os.stat
-        orig_os_stat = os.stat
-        os.stat = lambda path: self._get_file_stat(orig_os_stat, path)
+        self._orig_os_stat = os.stat
+        os.stat = lambda path: self._get_file_stat(
+            self._orig_os_stat, path)
 
         self._fm = DefaultFileManager()
 
     def tearDown(self):
+        os.stat = self._orig_os_stat
         # Remove the directory after the test
         shutil.rmtree(self._test_dir)
 
