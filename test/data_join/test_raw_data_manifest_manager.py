@@ -14,8 +14,10 @@
 
 # coding: utf-8
 
+import os
 import unittest
 
+from tensorflow.compat.v1 import gfile
 from google.protobuf import text_format, timestamp_pb2
 
 from fedlearner.common import mysql_client
@@ -279,8 +281,15 @@ class TestRawDataManifestManager(unittest.TestCase):
         self._raw_data_manifest_manager(cli)
 
     def test_raw_data_manifest_manager_with_nfs(self):
-        cli = mysql_client.DBClient(None, None, None, None, 'test_fedlearner', True)
+        root_dir = "test_fedlearner"
+        os.environ["STORAGE_ROOT_PATH"] = root_dir
+        db_database, db_addr, db_username, db_password, db_base_dir = \
+            common.get_kvstore_config("nfs")
+        cli = mysql_client.DBClient(db_database, db_addr, db_username, db_password,
+                                    db_base_dir, True)
         self._raw_data_manifest_manager(cli)
+        if gfile.Exists(root_dir):
+            gfile.DeleteRecursively(root_dir)
 
 
 if __name__ == '__main__':

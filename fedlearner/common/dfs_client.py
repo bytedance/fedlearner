@@ -40,7 +40,6 @@ class DFSClient(object):
 
     def set_data(self, key, data):
         key_path = self._generate_path(key)
-        print(key_path)
         base_dir = os.path.dirname(key_path)
         if not gfile.Exists(base_dir):
             try:
@@ -64,16 +63,22 @@ class DFSClient(object):
 
     def delete_prefix(self, key):
         try:
-            gfile.DeleteRecursively(self._generate_path(key))
+            gfile.DeleteRecursively(self._generate_path(key, with_meta=False))
             return True
         except Exception as e:   # pylint: disable=broad-except
-            logging.warning("Delete prefix with key %s failed,"
+            logging.warning("delete prefix with key %s failed,"
                             " reason: %s", key, str(e))
             return False
 
     def cas(self, key, old_data, new_data):
         org_data = self.get_data(key)
+        if isinstance(org_data, bytes):
+            org_data = org_data.decode('utf-8')
+        if isinstance(old_data, bytes):
+            old_data = old_data.decode('utf-8')
         if org_data != old_data:
+            logging.warning("CAS failed. \norg data: {}old data: {}"
+                            "new data: {}".format(org_data, old_data, new_data))
             return False
         return self.set_data(key, new_data)
 
