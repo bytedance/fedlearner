@@ -87,3 +87,4 @@ cluster:
     FLASK_ENV: production
     AUTHORIZATION_MODE: EXTERNAL
     WEBCONSOLE_INGRESS_NAME: v2.fedlearner.webconsole
+    STORAGE_ROOT: "/data"
