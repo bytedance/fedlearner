@@ -172,7 +172,11 @@ const WorkflowList: FC = () => {
           {isEmpty ? (
             <NoResult text={t('workflow.no_result')} to="/workflows/initiate/basic" />
           ) : (
-            <Table dataSource={listData} columns={getWorkflowTableColumns({ onSuccess })} />
+            <Table
+              dataSource={listData}
+              columns={getWorkflowTableColumns({ onSuccess })}
+              scroll={{ x: '100%' }}
+            />
           )}
         </ListContainer>
       </ListPageLayout>

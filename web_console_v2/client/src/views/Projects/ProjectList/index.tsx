@@ -66,7 +66,7 @@ function ProjectList(): ReactElement {
 
   useMount(() => {
     if (!isLoading || projectList) {
-      // If the projectListQuery not fetching when enter the page
+      // If the projectListQuery is not fetching when enter the page
       // means project list data on store may has a chance tobe stale
       // so what we do is force to reload the list once entering
       reloadList();
@@ -117,14 +117,15 @@ function ProjectList(): ReactElement {
               total={total}
               current={currentPage}
               showSizeChanger
-              onChange={handleChange}
+              onChange={onPageChange}
             />
           )}
         </Row>
       </ListPageLayout>
     </Spin>
   );
-  function handleChange(currentPage: number, page_size: number | undefined) {
+
+  function onPageChange(currentPage: number, page_size: number | undefined) {
     setCurrentPage(currentPage);
     setPageSize(Number(page_size));
   }

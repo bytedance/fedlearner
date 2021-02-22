@@ -33,9 +33,10 @@ const stateText: { [key: string]: string } = {
 
 type Props = {
   job: NodeDataRaw;
+  isPeerSide: boolean;
 };
 
-const JobExecutionPODs: FC<Props> = ({ job }) => {
+const JobExecutionPODs: FC<Props> = ({ job, isPeerSide }) => {
   const { t } = useTranslation();
 
   let data = job.pods;
@@ -63,8 +64,10 @@ const JobExecutionPODs: FC<Props> = ({ job }) => {
       dataIndex: 'pod_type',
       key: 'pod_type',
     },
+  ];
 
-    {
+  if (!isPeerSide) {
+    tablecolumns.push({
       title: i18n.t('workflow.col_actions'),
       dataIndex: 'actions',
       key: 'actions',
@@ -82,8 +85,8 @@ const JobExecutionPODs: FC<Props> = ({ job }) => {
           </div>
         );
       },
-    },
-  ];
+    } as any);
+  }
 
   return (
     <Container>

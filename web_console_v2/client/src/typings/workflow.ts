@@ -1,17 +1,6 @@
 import { Job, JobExecutionDetalis } from './job';
 import { Variable } from './variable';
 
-export enum JobType {
-  UNSPECIFIED = 'UNSPECIFIED',
-  RAW_DATA = 'RAW_DATA',
-  DATA_JOIN = 'DATA_JOIN',
-  PSI_DATA_JOIN = 'PSI_DATA_JOIN',
-  NN_MODEL_TRANINING = 'NN_MODEL_TRANINING',
-  TREE_MODEL_TRAINING = 'TREE_MODEL_TRAINING',
-  NN_MODEL_EVALUATION = 'NN_MODEL_EVALUATION',
-  TREE_MODEL_EVALUATION = 'TREE_MODEL_EVALUATION',
-}
-
 export type WorkflowConfig<J = Job> = {
   group_alias: string;
   is_left: boolean;
