@@ -72,11 +72,11 @@ const WorkflowsCreateStepOne: FC<WorkflowCreateProps & { onSuccess?: any }> = ({
     // 1. id existed in url
     // 2. in Acceptance mode
     // 3. workflow on store is null (i.e. user landing here not from workflow list)
-    enabled: params.id && isAccept && !Boolean(workflow),
+    enabled: Boolean(params.id) && !!isAccept && !Boolean(workflow),
     refetchOnWindowFocus: false,
   });
   const peerWorkflowQuery = useQuery(['getPeerWorkflow', params.id], getPeerWorkflow, {
-    enabled: params.id && isAccept,
+    enabled: Boolean(params.id) && !!isAccept,
     refetchOnWindowFocus: false,
     retry: false,
   });
@@ -91,7 +91,7 @@ const WorkflowsCreateStepOne: FC<WorkflowCreateProps & { onSuccess?: any }> = ({
         groupAlias,
       }),
     {
-      enabled: isInitiate || (!!peerWorkflowQuery.data && groupAlias),
+      enabled: isInitiate || Boolean(!!peerWorkflowQuery.data && groupAlias),
       refetchOnWindowFocus: false,
     },
   );

@@ -33,7 +33,7 @@ const WorkflowForkStepOneBaic: FC<Props> = ({ onSuccess }) => {
   const [formData, setFormData] = useRecoilState(forkWorkflowForm);
 
   const workflowQuery = useQuery(['getWorkflow', params.id], getWorkflowDetail, {
-    enabled: params.id,
+    enabled: Boolean(params.id),
     refetchOnWindowFocus: false,
     onSuccess(workflow) {
       const newName = workflow.name + '-duplicated';

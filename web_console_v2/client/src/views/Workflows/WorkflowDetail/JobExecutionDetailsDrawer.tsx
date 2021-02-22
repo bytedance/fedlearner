@@ -125,7 +125,7 @@ const JobExecutionDetailsDrawer: ForwardRefRenderFunction<JobExecutionDetailsExp
 
         <JobExecutionLogs job={job} workflow={workflow} enabled={Boolean(props.visible)} />
 
-        <JobExecutionPODs job={job} />
+        <JobExecutionPODs job={job} isPeerSide={isPeerSide} />
       </Container>
     </ErrorBoundary>
   );

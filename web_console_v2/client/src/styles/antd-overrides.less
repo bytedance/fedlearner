@@ -300,3 +300,16 @@
 .ant-picker-footer {
   padding: 5px 15px;
 }
+
+// Switch
+// ---
+@keyframes spinWith50Translate {
+  100% {
+    transform: translate(-50%, -50%) rotate(360deg);
+  }
+}
+.ant-switch {
+  &-loading-icon {
+    animation-name: spinWith50Translate;
+  }
+}

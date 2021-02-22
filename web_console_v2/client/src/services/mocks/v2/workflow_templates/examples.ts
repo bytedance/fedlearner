@@ -1,4 +1,5 @@
-import { JobType, WorkflowTemplate } from 'typings/workflow';
+import { WorkflowTemplate } from 'typings/workflow';
+import { JobType } from 'typings/job';
 import { Variable, VariableAccessMode, VariableComponent } from 'typings/variable';
 import { DeepPartial } from 'utility-types';
 

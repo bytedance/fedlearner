@@ -36,8 +36,8 @@ const Kbd = styled.kbd`
   background-color: #fff;
   color: var(--darkGray1);
   border-radius: 2px;
-}
 `;
+
 const methodColor: { [key: string]: string } = {
   get: 'blue',
   post: 'green',
@@ -80,7 +80,7 @@ const tableCols = [
 const MOCK_BUTTON_VISIBLE_KEY = 'mock_button_visible';
 
 /* i18n ignore */
-function MockDevtools() {
+function MockControlPanel() {
   const [keyword, setKeyword] = useState('');
   const [visible] = useReactiveLocalStorage<any>(MOCK_BUTTON_VISIBLE_KEY, false);
   const [modalVisible, toggleModal] = useToggle(false);
@@ -148,4 +148,4 @@ function MockDevtools() {
   return null;
 }
 
-export default MockDevtools;
+export default MockControlPanel;

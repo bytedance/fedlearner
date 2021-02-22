@@ -39,11 +39,11 @@ const columns = [
     },
   },
   {
-    title: i18n.t('created_at'),
-    dataIndex: 'created_at',
-    name: 'created_at',
+    title: i18n.t('modification_time'),
+    dataIndex: 'modification_time',
+    name: 'modification_time',
     width: 190,
-    render: (date: number) => <div>{formatTimestamp(date || Date.now())}</div>,
+    render: (time: number) => <div>{time ? formatTimestamp(time) : '-'}</div>,
   },
 ];
 

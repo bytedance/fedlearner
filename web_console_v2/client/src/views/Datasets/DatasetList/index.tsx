@@ -94,6 +94,8 @@ export const getDatasetTableColumns = (options: ColumnsGetterOptions) => {
       title: i18n.t('operation'),
       dataIndex: 'operation',
       name: 'operation',
+      fixed: 'right',
+      width: 240,
       render: (_: number, record: Dataset) => (
         <DatasetActions onPerformAction={onPerformAction} dataset={record} type="link" />
       ),
@@ -144,6 +146,7 @@ const DatasetList: FC = () => {
           </Form>
         </Col>
       </Row>
+
       <ListContainer>
         {isEmpty ? (
           <NoResult text={t('dataset.no_result')} to="/datasets/create" />
@@ -151,6 +154,7 @@ const DatasetList: FC = () => {
           <Table
             loading={listQuery.isFetching}
             dataSource={listQuery.data?.data || []}
+            scroll={{ x: '100%' }}
             columns={getDatasetTableColumns({
               onSuccess: noop,
               onViewReordsClick,

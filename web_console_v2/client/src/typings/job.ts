@@ -24,7 +24,6 @@ export enum JobType {
 export interface JobDependency {
   source: string;
 }
-
 export interface Job {
   name: string;
   job_type: JobType;
@@ -37,14 +36,13 @@ export interface Job {
 }
 
 export enum PodState {
-  // the value is from the very underside so lowercase should make sense
   RUNNING = 'Running',
-  COMPLETE = 'Complete',
+  COMPLETE = 'Succeeded',
   FAILED = 'Failed',
   PENDING = 'Pending',
   UNKNOWN = 'Unknown',
-  FL_SUCCEED = 'Flapp_succeeded', // completed and free resources
-  FL_FAILED = 'Flapp_failed', // failed and free resources
+  FL_SUCCEED = 'Flapp_succeeded', // completed and has freed resources
+  FL_FAILED = 'Flapp_failed', // failed and freed has free resources
 }
 
 export interface Pod {
