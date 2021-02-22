@@ -30,6 +30,7 @@ class JobApi(Resource):
 
     # TODO: manual start jobs
 
+
 class PodLogApi(Resource):
     def get(self, pod_name):
         parser = reqparse.RequestParser()
@@ -44,7 +45,7 @@ class PodLogApi(Resource):
         max_lines = data['max_lines']
         return {'data': es.query_log('filebeat-*', '', pod_name,
                                      start_time,
-                                     int(time.time() * 1000))[-max_lines:]}
+                                     int(time.time() * 1000))[:max_lines]}
 
 
 class JobLogApi(Resource):
@@ -62,7 +63,7 @@ class JobLogApi(Resource):
         return {'data': es.query_log('filebeat-*', job_name,
                                      'fedlearner-operator',
                                      start_time,
-                                     int(time.time() * 1000))[-max_lines:]}
+                                     int(time.time() * 1000))[:max_lines]}
 
 
 class PodContainerApi(Resource):
