@@ -31,7 +31,7 @@ from elasticsearch import helpers as helpers7
 from elasticsearch6 import helpers as helpers6
 
 # WARNING: ARBITRARY MODIFICATIONS OF INDICES BELOW WILL RESULT IN HUGE USAGE OF
-# ES DISK SPACE, PLEASE MODIFY WITH PRECAUTION. DO NOT MODIFY EXISTING FIELDS
+# ES DISK SPACE, PLEASE MODIFY WITH CAUTION. DO NOT MODIFY EXISTING FIELDS
 # WITHOUT PERMISSION AND TEST, OTHERWISE ERRORS MIGHT OCCUR.
 DATA_JOIN_INDEX = {
     "settings": {
@@ -172,7 +172,7 @@ class ElasticSearchHandler(Handler):
         self._es = es7.Elasticsearch([ip], port=port)
         self._helpers = helpers7
         self._version = int(self._es.info()['version']['number'].split('.')[0])
-        # ES 6.8 has differences in mapping initialization compared to ES 7.6
+        # ES 6.8 has differences in APIs compared to ES 7.6
         if self._version == 6:
             self._es = es6.Elasticsearch([ip], port=port)
             self._helpers = helpers6
@@ -349,7 +349,7 @@ def emit(name, value, tags=None, kind='metrics'):
     _metrics_client.emit(name, value, tags, kind)
 
 
-# Should use emit in new codes. Below are compatibility measures
+# Currently no actual differences among the methods below
 emit_counter = emit
 emit_store = emit
 emit_timer = emit
