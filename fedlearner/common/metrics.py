@@ -27,7 +27,8 @@ from functools import wraps
 import elasticsearch as es7
 import elasticsearch6 as es6
 import pytz
-from elasticsearch import helpers
+from elasticsearch import helpers as helpers7
+from elasticsearch6 import helpers as helpers6
 
 # WARNING: ARBITRARY MODIFICATIONS OF INDICES BELOW WILL RESULT IN HUGE USAGE OF
 # ES DISK SPACE, PLEASE MODIFY WITH PRECAUTION. DO NOT MODIFY EXISTING FIELDS
@@ -169,10 +170,12 @@ class ElasticSearchHandler(Handler):
     def __init__(self, ip, port):
         super(ElasticSearchHandler, self).__init__('elasticsearch')
         self._es = es7.Elasticsearch([ip], port=port)
+        self._helpers = helpers7
         self._version = int(self._es.info()['version']['number'].split('.')[0])
         # ES 6.8 has differences in mapping initialization compared to ES 7.6
         if self._version == 6:
             self._es = es6.Elasticsearch([ip], port=port)
+            self._helpers = helpers6
         # suppress ES logger
         logging.getLogger('elasticsearch').setLevel(logging.CRITICAL)
         self._tz = pytz.timezone('Asia/Shanghai')
@@ -236,7 +239,7 @@ class ElasticSearchHandler(Handler):
             if len(actions) > 0:
                 logging.info('METRICS: Emitting %d documents to %s',
                              len(actions), index)
-                helpers.bulk(self._es, actions)
+                self._helpers.bulk(self._es, actions)
             self._emit_batch.pop(index)
 
     def _create_or_modify_index(self, index, index_setting):
