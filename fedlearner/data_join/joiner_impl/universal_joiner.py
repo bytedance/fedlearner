@@ -111,14 +111,14 @@ class _Trigger(object):
     def watermark(self):
         return self._watermark
 
-    def shrink(self, follower_window):
-        ed = follower_window[follower_window.size() - 1]
+    def shrink(self, window):
+        ed = window[window.size() - 1]
         idx = 0
-        while idx < follower_window.size() and common.time_diff(              \
+        while idx < window.size() and common.time_diff(                       \
                     ed.item.event_time,                                       \
-                    follower_window[idx].item.event_time)                     \
+                    window[idx].item.event_time)                              \
                 > self._max_watermark_delay:
-            self._watermark = follower_window[idx].item.event_time
+            self._watermark = window[idx].item.event_time
             idx += 1
         return idx
 
@@ -320,10 +320,6 @@ class UniversalJoiner(ExampleJoiner):
         self._min_window_size = example_joiner_options.min_matching_window
         self._max_window_size = example_joiner_options.max_matching_window
 
-        # max_watermark_delay can be:
-        #  0 : at most once matching
-        #  >0 : at least once matching, and ensure delay is bigger than the
-        #    maximum substraction of event_time of all items in window
         self._max_watermark_delay = \
                 example_joiner_options.max_conversion_delay
 
@@ -359,19 +355,24 @@ class UniversalJoiner(ExampleJoiner):
                 self._prepare_join(state_stale)
         join_data_finished = False
 
-        while True:
-            leader_filled = self._fill_leader_join_window()
+        # leader: no enough elems filled but syncing is going on, will break
+        #  and wait.
+        while self._fill_leader_join_window(sync_example_id_finished):
             leader_exhausted = sync_example_id_finished and                    \
                     self._leader_join_window.et_span() <=                      \
                     self._max_watermark_delay
-            follower_filled = self._fill_follower_join_window()
+            # follower:  no syncing cost, so it always can be filled enough
+            #  unless buffer overflow
+            follower_enough = self._fill_follower_join_window(raw_data_finished)
+            follower_exhausted = raw_data_finished and \
+                    self._follower_join_window.size() <= \
+                    self._min_window_size / 2
 
-            logging.info("Fill: leader_filled=%s, leader_exhausted=%s,"        \
-                         " follower_filled=%s,"                                \
+            logging.info("Fill: leader_exhausted=%s, follower_enough=%s"       \
                          " sync_example_id_finished=%s, raw_data_finished=%s"  \
                          " leader_win_size=%d, follower_win_size=%d",          \
-                        leader_filled, leader_exhausted,                       \
-                        follower_filled, sync_example_id_finished,             \
+                         leader_exhausted, follower_enough,                    \
+                         sync_example_id_finished,                             \
                         raw_data_finished, self._leader_join_window.size(),    \
                         self._follower_join_window.size())
 
@@ -402,25 +403,14 @@ class UniversalJoiner(ExampleJoiner):
             self._follower_join_window.forward(stride[0])
             self._leader_join_window.forward(stride[1])
 
-            if not leader_filled and                                    \
-               not sync_example_id_finished and                         \
-               self._leader_join_window.reserved_size() > 0:
-                logging.info("Wait for Leader syncing example id...")
-                break
-
-            if leader_exhausted:
+            if leader_exhausted or follower_exhausted:
                 join_data_finished = True
                 break
 
-            if stride == (0, 0):
-                if raw_data_finished:
-                    self._leader_join_window.forward(
-                        self._leader_join_window.size())
-
-                if sync_example_id_finished:
-                    force_stride = \
-                            self._trigger.shrink(self._follower_join_window)
-                    self._follower_join_window.forward(force_stride)
+            force_stride = self._trigger.shrink(self._follower_join_window)
+            self._follower_join_window.forward(force_stride)
+            force_stride = self._trigger.shrink(self._leader_join_window)
+            self._leader_join_window.forward(force_stride)
 
         if self._get_data_block_builder(False) is not None and \
                 (self._need_finish_data_block_since_interval() or
@@ -547,11 +537,13 @@ class UniversalJoiner(ExampleJoiner):
                            value=int(time.time()-start_tm),
                            tags=self._metrics_tags)
 
-    def _fill_leader_join_window(self):
+    def _fill_leader_join_window(self, sync_example_id_finished):
         start_tm = time.time()
         idx = self._leader_join_window.size()
-        filled_new_example = self._fill_join_windows(self._leader_visitor,
+        filled_enough = self._fill_join_windows(self._leader_visitor,
                                        self._leader_join_window)
+        if not filled_enough:
+            filled_enough = sync_example_id_finished
         eids = []
         while idx < self._leader_join_window.size():
             eids.append((self._leader_join_window[idx].index,
@@ -563,12 +555,12 @@ class UniversalJoiner(ExampleJoiner):
                            'universal_joiner_fill_leader_join_window',
                            value=int(time.time()-start_tm),
                            tags=self._metrics_tags)
-        return filled_new_example
+        return filled_enough
 
-    def _fill_follower_join_window(self):
+    def _fill_follower_join_window(self, raw_data_finished):
         start_tm = time.time()
         idx = self._follower_join_window.size()
-        filled_new_example = self._fill_join_windows(self._follower_visitor,
+        filled_enough = self._fill_join_windows(self._follower_visitor,
                                       self._follower_join_window)
         eids = []
         while idx < self._follower_join_window.size():
@@ -581,7 +573,7 @@ class UniversalJoiner(ExampleJoiner):
                            'universal_joiner_fill_follower_join_window',
                            value=int(time.time()-start_tm),
                            tags=self._metrics_tags)
-        return filled_new_example
+        return filled_enough or raw_data_finished
 
     def _fill_join_windows(self, visitor, join_window):
         size = join_window.size()
@@ -591,7 +583,8 @@ class UniversalJoiner(ExampleJoiner):
                     visitor, join_window,
                     required_item_count
                 )
-        return join_window.size() > size
+        # return True if new elem added or window reaches its capacity
+        return join_window.size() > size or size >= self._max_window_size
 
     def _consume_item_until_count(self, visitor, windows,
                                   required_item_count):

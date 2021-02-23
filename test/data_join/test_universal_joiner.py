@@ -114,6 +114,7 @@ class TestUniversalJoin(dsp.DataSourceProducer):
             )
         self.run_join(sei)
 
+    #@unittest.skip("test4")
     def test_universal_join_key_mapper(self):
         mapper_code = """
 from fedlearner.data_join.key_mapper.key_mapping import BaseKeyMapper
