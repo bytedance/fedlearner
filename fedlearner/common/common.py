@@ -12,86 +12,90 @@ DATA_JOIN_INDEX = {
         }
     },
     "mappings": {
-        "dynamic": True,
-        # for dynamically adding string fields, use keyword to reduce space
-        "dynamic_templates": [
-            {
-                "strings": {
-                    "match_mapping_type": "string",
-                    "mapping": {
-                        "type": "keyword"
+        "_doc": {
+            "dynamic": True,
+            # for dynamically adding string fields, use keyword to reduce space
+            "dynamic_templates": [
+                {
+                    "strings": {
+                        "match_mapping_type": "string",
+                        "mapping": {
+                            "type": "keyword"
+                        }
                     }
                 }
-            }
-        ],
-        "properties": {
-            "partition": {
-                "type": "byte"
-            },
-            "joined": {
-                "type": "boolean"
-            },
-            "fake": {
-                "type": "boolean"
-            },
-            "label": {
-                "ignore_above": 8,
-                "type": "keyword"
-            },
-            "type": {
-                "ignore_above": 32,
-                "type": "keyword"
-            },
-            "application_id": {
-                "ignore_above": 128,
-                "type": "keyword"
-            },
-            "process_time": {
-                "format": "strict_date_hour_minute_second",
-                "type": "date"
-            },
-            "event_time": {
-                "format": "strict_date_hour_minute_second",
-                "type": "date"
+            ],
+            "properties": {
+                "partition": {
+                    "type": "byte"
+                },
+                "joined": {
+                    "type": "boolean"
+                },
+                "fake": {
+                    "type": "boolean"
+                },
+                "label": {
+                    "ignore_above": 8,
+                    "type": "keyword"
+                },
+                "type": {
+                    "ignore_above": 32,
+                    "type": "keyword"
+                },
+                "application_id": {
+                    "ignore_above": 128,
+                    "type": "keyword"
+                },
+                "process_time": {
+                    "format": "strict_date_hour_minute_second",
+                    "type": "date"
+                },
+                "event_time": {
+                    "format": "strict_date_hour_minute_second",
+                    "type": "date"
+                }
             }
         }
     }
 }
 METRICS_INDEX = {
     "mappings": {
-        "dynamic": True,
-        "properties": {
-            "name": {
-                # for compatibility, use text here
-                "type": "text"
-            },
-            "value": {
-                "type": "float"
-            },
-            "date_time": {
-                "format": "strict_date_hour_minute_second",
-                "type": "date"
-            },
-            "tags": {
-                "properties": {
-                    "partition": {
-                        "type": "byte"
-                    },
-                    "application_id": {
-                        "ignore_above": 128,
-                        "type": "keyword"
-                    },
-                    "data_source_name": {
-                        "ignore_above": 128,
-                        "type": "keyword"
-                    },
-                    "joiner_name": {
-                        "ignore_above": 32,
-                        "type": "keyword"
-                    },
-                    "role": {
-                        "ignore_above": 16,
-                        "type": "keyword"
+        "_doc": {
+            "dynamic": True,
+            "properties": {
+                "name": {
+                    # for compatibility, use text here
+                    "type": "text"
+                },
+                "value": {
+                    "type": "float"
+                },
+                "date_time": {
+                    "format": "strict_date_hour_minute_second",
+                    "type": "date"
+                },
+                "tags": {
+                    "properties": {
+                        "partition": {
+                            "type": "byte"
+                        },
+                        "application_id": {
+                            "ignore_above": 128,
+                            "type": "keyword"
+                        },
+                        "data_source_name": {
+                            "ignore_above": 128,
+                            "type": "keyword"
+                        },
+                        "joiner_name": {
+                            "ignore_above": 32,
+                            "type": "keyword"
+                        },
+                        "role": {
+                            "ignore_above": 16,
+                            "type": "keyword"
+                        }
                     }
                 }
             }
