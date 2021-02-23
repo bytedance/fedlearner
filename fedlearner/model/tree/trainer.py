@@ -505,8 +505,7 @@ def run(args):
 
     if args.role != 'local':
         bridge = Bridge(args.role, int(args.local_addr.split(':')[1]),
-                        args.peer_addr, args.application_id, 0,
-                        streaming_mode=args.use_streaming)
+                        args.peer_addr, args.application_id, 0)
     else:
         bridge = None
 

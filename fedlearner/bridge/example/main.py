@@ -15,7 +15,6 @@ class GreeterrHandler(greeter_pb2_grpc.GreeterServicer):
         return greeter_pb2.Response(message=f"Hello {request.name}")
 
     def HelloUnaryStream(self, request, context):
-        #print(f'HelloUnaryStream receive: {request.name}')
         for i in range(2):
             yield greeter_pb2.Response(message=f"Hello {request.name}")
 
@@ -39,19 +38,19 @@ def client_run_fn(bridge):
         res = client.HelloUnaryUnary(greeter_pb2.Request(name='UnaryUnary'))
         print("Greeter HelloUnaryUnary return: " + res.message)
 
-        res_iter = client.HelloUnaryStream(greeter_pb2.Request(name='UnaryStream'))
-        for res in res_iter:
-            print("Greeter HelloUnaryStream return: " + res.message)
+        #res_iter = client.HelloUnaryStream(greeter_pb2.Request(name='UnaryStream'))
+        #for res in res_iter:
+        #    print("Greeter HelloUnaryStream return: " + res.message)
 
-        def req_iter(name):
+        def req_iter():
             for i in range(10):
                 yield greeter_pb2.Request(name=str(i))
                 time.sleep(0.1)
 
-        res = client.HelloStreamUnary(req_iter('StreamUnary'))
-        print("Greeter HelloStreamUnary return: " + res.message)
+        #res = client.HelloStreamUnary(req_iter())
+        #print("Greeter HelloStreamUnary return: " + res.message)
 
-        res_iter = client.HelloStreamStream(req_iter('StreamStream'))
+        res_iter = client.HelloStreamStream(req_iter())
         for res in res_iter:
             print("Greeter HelloStreamStream return: " + res.message)
 
@@ -70,7 +69,7 @@ if __name__ == "__main__":
     def closed_callback(bridge, event):
         bridge.stop()
 
-    bridge = Bridge(args.listen_addr, args.remote_addr)
+    bridge = Bridge(args.listen_addr, args.remote_addr, token="test_token")
     bridge.subscribe(callback)
     bridge.subscribe_event(bridge.Event.PEER_CLOSED, closed_callback)
     greeter_pb2_grpc.add_GreeterServicer_to_server(GreeterrHandler(), bridge) 

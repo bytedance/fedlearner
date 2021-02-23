@@ -5,13 +5,15 @@ import uuid
 import logging
 import threading
 import enum
-
 import grpc
+from concurrent import futures
 
-from fedlearner.bridge.const import *
-from fedlearner.bridge.proto import bridge_pb2
-from fedlearner.bridge.client import _Client
-from fedlearner.bridge.server import _Server
+
+from fedlearner.bridge import bridge_pb2, bridge_pb2_grpc
+from fedlearner.proxy.channel import make_insecure_channel, ChannelType
+from fedlearner.bridge.client_interceptor import RetryInterceptor, \
+    WaitInterceptor
+from fedlearner.bridge.server_interceptor import AckInterceptor
 
 maxint = 2**32-1
 
@@ -136,25 +138,18 @@ class Bridge():
                  listen_address,
                  remote_address,
                  token=None,
-                 max_works=None,
+                 max_workers=None,
                  compression=grpc.Compression.Gzip,
                  heartbeat_timeout=60,
                  retry_interval=2):
-
         # identifier
         self._identifier = uuid.uuid4().hex[:16]
-        self._peer_identifier = None
-        self._token = token
+        self._peer_identifier = ""
+        self._token = token if token else ""
 
         # lock & condition
         self._lock = threading.RLock()
         self._condition = threading.Condition(self._lock)
-
-        # client
-        self._client = _Client(self, remote_address, compression)
-
-        # server
-        self._server = _Server(self, listen_address, compression, max_works)
 
         if heartbeat_timeout <= 0:
             raise ValueError("heartbeat_timeout must be positive")
@@ -181,18 +176,96 @@ class Bridge():
         self._event_set = set()
         self._event_callbacks = {}
 
-        # grpc channel methods
-        self.unary_unary = self._client.unary_unary
-        self.unary_stream = self._client.unary_stream
-        self.stream_unary = self._client.stream_unary
-        self.stream_stream = self._client.stream_stream
+        # channel
+        self._remote_address = remote_address
+        self._channel = make_insecure_channel(
+            self._remote_address,
+            mode=ChannelType.REMOTE,
+            options={
+                ('grpc.max_send_message_length', -1),
+                ('grpc.max_receive_message_length', -1),
+                ('grpc.max_reconnect_backoff_ms', 2000)
+            },
+            compression=compression
+        )
+        self._channel_retry_interceptor = RetryInterceptor(self._retry_interval)
+        self._channel_wait_interceptor = WaitInterceptor(self.wait_for_ready)
+        self._channel = grpc.intercept_channel(self._channel, 
+            self._channel_retry_interceptor,
+            self._channel_wait_interceptor)
+
+        # server
+        self._listen_address = listen_address
+        self._server_thread_pool = futures.ThreadPoolExecutor(
+            max_workers=max_workers,
+            thread_name_prefix="BridgeServerThread")
+        self._server = grpc.server(
+            self._server_thread_pool,
+            interceptors=(AckInterceptor(),),
+            compression=compression)
+        self._server.add_insecure_port(self._listen_address)
+
+        # bridge client & server
+        self._bridge_call = bridge_pb2_grpc.BridgeStub(self._channel)
+        bridge_pb2_grpc.add_BridgeServicer_to_server(
+            Bridge._Servicer(self), self._server)
 
         # grpc server methods
         self.add_generic_rpc_handlers = \
             self._server.add_generic_rpc_handlers
 
+    def _regiser_channel_interceptor_method(self, method,
+                                            request_serializer,
+                                            response_deserializer):
+        self._channel_wait_interceptor.register_method(method)
+        self._channel_retry_interceptor.register_method(
+            method, request_serializer, response_deserializer)
+
+
+    # grpc channel methods
+    def unary_unary(self,
+                    method,
+                    request_serializer=None,
+                    response_deserializer=None):
+        self._regiser_channel_interceptor_method(method,
+            request_serializer, response_deserializer)
+        return self._channel.unary_unary(
+            method, request_serializer, response_deserializer)
+
+    def unary_stream(self,
+                     method,
+                     request_serializer=None,
+                     response_deserializer=None):
+        self._regiser_channel_interceptor_method(method,
+            request_serializer, response_deserializer)
+        return self._channel.unary_stream(
+            method, request_serializer, response_deserializer)
+
+    def stream_unary(self,
+                     method,
+                     request_serializer=None,
+                     response_deserializer=None):
+        self._regiser_channel_interceptor_method(method,
+            request_serializer, response_deserializer)
+        return self._channel.stream_unary(
+            method, request_serializer, response_deserializer)
+
+    def stream_stream(self,
+                      method,
+                      request_serializer=None,
+                      response_deserializer=None):
+        self._regiser_channel_interceptor_method(method,
+            request_serializer, response_deserializer)
+        return self._channel.stream_stream(
+            method, RetryInterceptor.stream_stream_request_serializer,
+            RetryInterceptor.stream_stream_response_deserializer)
+
+    # grpc server method
+    def add_generic_rpc_handlers(self, generic_rpc_handlers):
+        return self._server.add_generic_rpc_handlers(generic_rpc_handlers)
+
     def _channel_callback(self, state):
-        logging.debug("[Bridge] grpc channel callback state: %s", state.name)
+        #logging.debug("[Bridge] grpc channel callback state: %s", state.name)
         if state == grpc.ChannelConnectivity.IDLE \
             or state == grpc.ChannelConnectivity.CONNECTING \
             or state == grpc.ChannelConnectivity.READY:
@@ -286,7 +359,7 @@ class Bridge():
     def _call_locked(self, req):
         self._lock.release()
         try:
-            res = self._client.call(req)
+            res = self._bridge_call.Call(req)
         except grpc.RpcError as e:
             logging.info("[Bridge] grpc channel return code: %s"
                 ", details: %s", e.code(), e.details())
@@ -299,7 +372,10 @@ class Bridge():
 
     def _call_connect_locked(self):
         res = self._call_locked(bridge_pb2.CallRequest(
-            type=bridge_pb2.CallType.CONNECT))
+            type=bridge_pb2.CallType.CONNECT,
+            token=self._token,
+            identifier=self._identifier,
+            peer_identifier=self._peer_identifier))
         if res == None:
             return False
 
@@ -321,7 +397,10 @@ class Bridge():
 
     def _call_heartbeat_locked(self):
         res = self._call_locked(bridge_pb2.CallRequest(
-            type=bridge_pb2.CallType.HEARTBEAT))
+            type=bridge_pb2.CallType.HEARTBEAT,
+            token=self._token,
+            identifier=self._identifier,
+            peer_identifier=self._peer_identifier))
         if res == None:
             return False
 
@@ -331,33 +410,54 @@ class Bridge():
             logging.warn("[Bridge] disconnected by peer response")
             self._emit_event(Bridge.Event.DISCONNECTED)
             return False
+        elif res.code == bridge_pb2.Code.UNAUTHORIZED:
+            logging.warn("[Bridge] authentication failed")
+            self._emit_event(Bridge.Event.UNAUTHORIZED)
+            return False
+        elif res.code == bridge_pb2.Code.UNIDENTIFIED:
+            logging.warn("[Bridge] unidentified bridge")
+            self._emit_event(Bridge.Event.UNIDENTIFIED)
+            return False
         else:
             logging.error("[Bridge] call heartbeat got unexcepted code: %s",
-                bridge_pb2.CallType.Name(res.code))
+                bridge_pb2.Code.Name(res.code))
             return False
         return True
 
     def _call_close_locked(self):
         res = self._call_locked(bridge_pb2.CallRequest(
-            type=bridge_pb2.CallType.CLOSE))
+            type=bridge_pb2.CallType.CLOSE,
+            token=self._token,
+            identifier=self._identifier,
+            peer_identifier=self._peer_identifier))
         if res == None:
             return False
 
         if res.code == bridge_pb2.Code.OK:
             self._emit_event(Bridge.Event.CLOSED)
+        elif res.code == bridge_pb2.Code.UNAUTHORIZED:
+            logging.warn("[Bridge] authentication failed")
+            self._emit_event(Bridge.Event.UNAUTHORIZED)
+            return False
+        elif res.code == bridge_pb2.Code.UNIDENTIFIED:
+            logging.warn("[Bridge] unidentified bridge")
+            self._emit_event(Bridge.Event.UNIDENTIFIED)
+            return False
         elif res.code == bridge_pb2.Code.CLOSED:
             self._emit_event(Bridge.Event.CLOSED)
         else:
             logging.error("[Bridge] call close got unexcepted code: %s",
-                bridge_pb2.CallType.Name(res.code))
+                bridge_pb2.Code.Name(res.code))
             return False
         return True
 
     def _state_fn(self):
         logging.debug("[Bridge] thread _state_fn start")
 
+        logging.info("[Bridge] remote_address: %s, listen_address: %s",
+            self._remote_address, self._listen_address)
         self._server.start()
-        self._client.subscribe(self._channel_callback)
+        self._channel.subscribe(self._channel_callback)
         event_thread = threading.Thread(
             target=self._event_callback_fn, daemon=True)
         event_thread.start()
@@ -373,7 +473,9 @@ class Bridge():
                 break
 
             if self._state in Bridge._READY_STATUS:
-                self._ready_event.set()
+                if not self._ready_event.is_set():
+                    logging.info("[Bridge] bridge is ready")
+                    self._ready_event.set()
             else:
                 self._ready_event.clear()
 
@@ -421,7 +523,7 @@ class Bridge():
 
         # done
         self._lock.release()
-        self._client.close()
+        self._channel.close()
         self._server.stop(None)
         self._server.wait_for_termination()
 
@@ -430,7 +532,44 @@ class Bridge():
 
         logging.debug("[Bridge] thread _state_fn stop")
 
+    def _check_token(self, token):
+        if self._token != token:
+            logging.debug("[Bridge] peer unauthorized, got token: '%s'"
+                ", want: '%s'", token, self._token)
+            self._emit_event(Bridge.Event.PEER_UNAUTHORIZED)
+            return False
+        return True
+
+    def _check_identifier(self, identifier, peer_identifier):
+        if peer_identifier and self._identifier != peer_identifier:
+            self._emit_event(Bridge.Event.PEER_UNIDENTIFIED)
+            return False
+
+        if not identifier:
+            self._emit_event(Bridge.Event.PEER_UNIDENTIFIED)
+            return False
+
+        if not self._peer_identifier:
+            with self._lock:
+                if not self._peer_identifier:
+                    self._peer_identifier = identifier
+
+        if self._peer_identifier != identifier:
+            self._emit_event(Bridge.Event.PEER_UNIDENTIFIED)
+            return False
+
+        return True
+
     def _call_handler(self, request, context):
+        if not self._check_token(request.token):
+            return bridge_pb2.CallResponse(
+                code=bridge_pb2.Code.UNAUTHORIZED)
+        
+        if not self._check_identifier(
+            request.identifier, request.peer_identifier):
+            return bridge_pb2.CallResponse(
+                code=bridge_pb2.Code.UNIDENTIFIED)
+
         with self._lock:
             if self._state in Bridge._PEER_CLOSED_STATUS:
                 return bridge_pb2.CallResponse(
@@ -455,28 +594,11 @@ class Bridge():
                 code=bridge_pb2.Code.OK)
 
 
-    def _check_token(self, token):
-        if self._token != token:
-            self._emit_event(Bridge.Event.UNAUTHORIZED)
-            return False
-        return True
 
-    def _check_identifier(self, identifier, peer_identifier):
-        if peer_identifier and self._identifier != peer_identifier:
-            self._emit_event(Bridge.Event.UNIDENTIFIED)
-            return False
+    class _Servicer(bridge_pb2_grpc.BridgeServicer):
+        def __init__(self, bridge):
+            super(Bridge._Servicer, self).__init__()
+            self._bridge = bridge
 
-        if not identifier:
-            self._emit_event(Bridge.Event.UNIDENTIFIED)
-            return False
-
-        if not self._peer_identifier:
-            with self._lock:
-                if not self._peer_identifier:
-                    self._peer_identifier = identifier
-
-        if self._peer_identifier != identifier:
-            self._emit_event(Bridge.Event.UNIDENTIFIED)
-            return False
-
-        return True
+        def Call(self, request, context):
+            return self._bridge._call_handler(request, context)

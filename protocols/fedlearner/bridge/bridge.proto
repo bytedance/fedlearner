@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package fedlearner.bridge.proto;
+package fedlearner.bridge;
 
 enum Code {
     OK = 0;
@@ -21,6 +21,9 @@ enum CallType {
 
 message CallRequest {
     CallType type = 1;
+    string token = 2;
+    string identifier = 3;
+    string peer_identifier = 4;
 }
 
 message CallResponse {
@@ -39,8 +42,4 @@ message SendResponse {
 
 service Bridge {
     rpc Call(CallRequest) returns (CallResponse) {}
-    rpc SendUnaryUnary(SendRequest) returns (SendResponse) {}
-    rpc SendUnaryStream(SendRequest) returns (stream SendResponse) {}
-    rpc SendStreamUnary(stream SendRequest) returns (SendResponse) {}
-    rpc SendStreamStream(stream SendRequest) returns (stream SendResponse) {}
 } 

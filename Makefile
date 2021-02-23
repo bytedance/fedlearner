@@ -19,6 +19,11 @@ protobuf:
 		protocols/fedlearner/common/*.proto
 	cd web_console_v2/api; make protobuf
 
+	python -m grpc_tools.protoc -I protocols -I$(TF_PATH) \
+		--python_out=. \
+		--grpc_python_out=. \
+		protocols/fedlearner/bridge/*.proto
+
 lint:
 	pylint --rcfile ci/pylintrc fedlearner example
 	cd web_console_v2/api; make lint
