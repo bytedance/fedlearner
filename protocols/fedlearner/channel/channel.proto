@@ -1,0 +1,45 @@
+syntax = "proto3";
+
+package fedlearner.bridge;
+
+enum Code {
+    OK = 0;
+    UNAUTHORIZED = 1;
+    UNIDENTIFIED = 2;      
+    UNCONNECTED = 3;
+    CLOSED = 4;
+
+    UNKNOW_TYPE = 1001;
+}
+
+enum CallType {
+    UNSET = 0;
+    CONNECT = 1;
+    HEARTBEAT = 2;
+    CLOSE = 3;
+}
+
+message CallRequest {
+    CallType type = 1;
+    string token = 2;
+    string identifier = 3;
+    string peer_identifier = 4;
+}
+
+message CallResponse {
+    Code code = 1;
+}
+
+message SendRequest {
+    uint64 seq = 1;
+    bytes payload = 2;
+}
+
+message SendResponse {
+    uint64 ack = 1;
+    bytes payload = 2;
+}
+
+service Channel {
+    rpc Call(CallRequest) returns (CallResponse) {}
+} 

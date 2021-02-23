@@ -81,32 +81,5 @@ class TestBridge(unittest.TestCase):
         bridge2.terminate()
         t.join()
 
-    def test_seq_and_ack(self):
-        bridge1 = fl.trainer.bridge.Bridge('leader', 49953, 'localhost:49954')
-        bridge2 = fl.trainer.bridge.Bridge('follower', 49954, 'localhost:49953')
-
-        t = threading.Thread(target=lambda _: bridge1.connect(), args=(None,))
-        t.start()
-        bridge2.connect()
-        t.join()
-
-        client1 = bridge1._client
-        msg = fake_start_message(0, 0)
-        rsp = client1.Transmit(msg)
-        self.assertEqual(rsp.status.code, common_pb.STATUS_SUCCESS)
-        rsp = client1.Transmit(msg)
-        self.assertEqual(rsp.status.code, common_pb.STATUS_MESSAGE_DUPLICATED)
-        msg = fake_start_message(3, 1)
-        rsp = client1.Transmit(msg)
-        self.assertEqual(rsp.status.code, common_pb.STATUS_MESSAGE_MISSING)
-
-        time.sleep(3)
-
-        t = threading.Thread(target=lambda _: bridge1.terminate(), args=(None,))
-        t.start()
-        bridge2.terminate()
-        t.join()
-
-
 if __name__ == '__main__':
         unittest.main()

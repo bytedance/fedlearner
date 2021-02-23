@@ -122,10 +122,7 @@ def make_insecure_channel(address,
                           "not found in environment variable.")
             return grpc.insecure_channel(address, options, compression)
 
-        if options is None:
-            options = []
-        if not isinstance(options, list):
-            raise Exception('grpc channel options must be list')
+        options = list(options) if options else list()
 
         logging.debug("EGRESS_URL is [%s]", EGRESS_URL)
         if EGRESS_HOST:
