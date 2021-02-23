@@ -79,6 +79,7 @@ func newConfig() *config {
 	config.namespace = "default"
 	config.qps = 20.0
 	config.burst = 30
+	config.ingressEnableClientAuth = true
 	config.leaderElectionLockNamespace = "fedlearner-system"
 	config.leaderElectionLockName = "fedlearner-kubernetes-operator-lock"
 	config.leaderElectionLeaseDuration = 15 * time.Second
