@@ -115,8 +115,8 @@ DATA_JOIN_TEMPLATE = {
             "refresh_interval": "60s",
             "number_of_shards": "2",
             "number_of_replicas": "1",
-            "lifecycle.name": "fedlearner_metrics_ilm",
-            "lifecycle.rollover_alias": "data_join"
+            # "lifecycle.name": "fedlearner_metrics_ilm",
+            # "lifecycle.rollover_alias": "data_join"
         }
     },
     "mappings": DATA_JOIN_INDEX['mappings']
@@ -134,8 +134,9 @@ METRICS_TEMPLATE = {
             "refresh_interval": "60s",
             "number_of_shards": "2",
             "number_of_replicas": "1",
-            "lifecycle.name": "fedlearner_metrics_ilm",
-            "lifecycle.rollover_alias": "metrics_v2"
+            # lifecycle is ES7 only and should be configured during deployment
+            # "lifecycle.name": "fedlearner_metrics_ilm",
+            # "lifecycle.rollover_alias": "metrics_v2"
         }
     },
     "mappings": METRICS_INDEX['mappings']

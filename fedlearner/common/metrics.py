@@ -76,15 +76,7 @@ class ElasticSearchHandler(Handler):
         if self._version == 6:
             self._es = es6.Elasticsearch([ip], port=port)
             self._helpers = helpers6
-            # first run, put template mappings to ES
-            TEMPLATE_MAP['metrics']['settings'].pop(
-                'lifecycle.rollover_alias')
-            TEMPLATE_MAP['metrics']['settings'].pop(
-                'lifecycle.name')
-            TEMPLATE_MAP['data_join']['settings'].pop(
-                'lifecycle.rollover_alias')
-            TEMPLATE_MAP['data_join']['settings'].pop(
-                'lifecycle.name')
+            # first run, put index templates to ES
             self._es.indices.put_template(name='metrics_v2',
                                           body=TEMPLATE_MAP['metrics'])
             self._es.indices.put_template(name='data_join',
