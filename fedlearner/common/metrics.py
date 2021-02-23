@@ -15,7 +15,6 @@
 # coding: utf-8
 
 import atexit
-import copy
 import datetime
 import logging
 import os
@@ -25,116 +24,10 @@ from functools import wraps
 
 import elasticsearch as es7
 import elasticsearch6 as es6
-import pytz
 from elasticsearch import helpers as helpers7
 from elasticsearch6 import helpers as helpers6
 
-# WARNING: ARBITRARY MODIFICATIONS OF INDICES BELOW WILL RESULT IN HUGE USAGE OF
-# ES DISK SPACE, PLEASE MODIFY WITH CAUTION. DO NOT MODIFY EXISTING FIELDS
-# WITHOUT PERMISSION AND TEST, OTHERWISE ERRORS MIGHT OCCUR.
-DATA_JOIN_INDEX = {
-    "settings": {
-        "index": {
-            "codec": "best_compression"
-        }
-    },
-    "mappings": {
-        "dynamic": True,
-        # for dynamically adding string fields, use keyword to reduce space
-        "dynamic_templates": [
-            {
-                "strings": {
-                    "match_mapping_type": "string",
-                    "mapping": {
-                        "type": "keyword"
-                    }
-                }
-            }
-        ],
-        "properties": {
-            "partition": {
-                "type": "byte"
-            },
-            "joined": {
-                "type": "boolean"
-            },
-            "fake": {
-                "type": "boolean"
-            },
-            "label": {
-                "ignore_above": 8,
-                "type": "keyword"
-            },
-            "type": {
-                "ignore_above": 32,
-                "type": "keyword"
-            },
-            "application_id": {
-                "ignore_above": 128,
-                "type": "keyword"
-            },
-            "process_time": {
-                "format": "strict_date_hour_minute_second",
-                "type": "date"
-            },
-            "event_time": {
-                "format": "strict_date_hour_minute_second",
-                "type": "date"
-            }
-        }
-    }
-}
-METRICS_INDEX = {
-    "mappings": {
-        "dynamic": True,
-        "properties": {
-            "name": {
-                # for compatibility, use text here
-                "type": "text"
-            },
-            "value": {
-                "type": "float"
-            },
-            "date_time": {
-                "format": "strict_date_hour_minute_second",
-                "type": "date"
-            },
-            "tags": {
-                "properties": {
-                    "partition": {
-                        "type": "byte"
-                    },
-                    "application_id": {
-                        "ignore_above": 128,
-                        "type": "keyword"
-                    },
-                    "data_source_name": {
-                        "ignore_above": 128,
-                        "type": "keyword"
-                    },
-                    "joiner_name": {
-                        "ignore_above": 32,
-                        "type": "keyword"
-                    },
-                    "role": {
-                        "ignore_above": 16,
-                        "type": "keyword"
-                    }
-                }
-            }
-        }
-    }
-}
-INDEX_NAME = {'metrics': 'metrics_v2-{}',
-              'data_join': 'data_join-{}'}
-INDEX_MAP = {'metrics': METRICS_INDEX,
-             'data_join': DATA_JOIN_INDEX}
-CONFIGS = {
-    'data_join_metrics_sample_rate':
-        os.environ.get('DATA_JOIN_METRICS_SAMPLE_RATE', 0.3),
-    'es_batch_size': os.environ.get('ES_BATCH_SIZE', 1000),
-    'timezone': pytz.timezone('Asia/Shanghai')
-}
+from fedlearner.common.common import TEMPLATE_MAP, INDEX_NAME, CONFIGS
 
 
 class Handler(object):
@@ -177,10 +70,25 @@ class ElasticSearchHandler(Handler):
         self._es = es7.Elasticsearch([ip], port=port)
         self._helpers = helpers7
         self._version = int(self._es.info()['version']['number'].split('.')[0])
-        # ES 6.8 has differences in APIs compared to ES 7.6
+        # ES 6.8 has differences in APIs compared to ES 7.6,
+        # These `put_template`s is supposed to be done during deployment, here
+        # is for old clients.
         if self._version == 6:
             self._es = es6.Elasticsearch([ip], port=port)
             self._helpers = helpers6
+            # first run, put template mappings to ES
+            TEMPLATE_MAP['metrics']['settings'].pop(
+                'lifecycle.rollover_alias')
+            TEMPLATE_MAP['metrics']['settings'].pop(
+                'lifecycle.name')
+            TEMPLATE_MAP['data_join']['settings'].pop(
+                'lifecycle.rollover_alias')
+            TEMPLATE_MAP['data_join']['settings'].pop(
+                'lifecycle.name')
+            self._es.indices.put_template(name='metrics_v2',
+                                          body=TEMPLATE_MAP['metrics'])
+            self._es.indices.put_template(name='data_join',
+                                          body=TEMPLATE_MAP['data_join'])
         # suppress ES logger
         logging.getLogger('elasticsearch').setLevel(logging.CRITICAL)
         self._emit_batch = []
@@ -188,44 +96,40 @@ class ElasticSearchHandler(Handler):
         self._batch_size = CONFIGS['es_batch_size']
         self._lock = threading.RLock()
 
+    def _produce_action7(self, name, value, tags, index_type='metrics'):
+        document = self._produce_document(name, value, tags, index_type)
+        action = {
+            # _index = which index to emit to
+            '_index': INDEX_NAME[index_type],
+            '_source': document
+        }
+        return action
+
+    def _produce_action6(self, name, value, tags, index_type='metrics'):
+        date = datetime.datetime.now(
+            tz=CONFIGS['timezone']).strftime('%Y.%m.%d')
+        index = INDEX_NAME[index_type] + '-{}'.format(date)
+        with self._lock:
+            if self._get_current_date() != date:
+                # Date changed, create new index
+                logging.info('METRICS: Creating new index %s.', index)
+                self._create_or_modify_index(index)
+                self._set_current_date(date)
+        document = self._produce_document(name, value, tags, index_type)
+        action = {'_index': index, '_source': document, '_type': '_doc'}
+        return action
+
     def emit(self, name, value, tags=None, index_type='metrics'):
         assert index_type in ('metrics', 'data_join')
         if tags is None:
             tags = {}
-        date = datetime.datetime.now(
-            tz=CONFIGS['timezone']).strftime('%Y.%m.%d')
-        index = INDEX_NAME[index_type].format(date)
-        # if indices not match, flush and create a new one
-        with self._lock:
-            if self._get_current_date() != date:
-                # Date changed, should create new index and flush old ones
-                logging.info('METRICS: Creating new index %s.', index)
-                self._create_or_modify_index(index, INDEX_MAP[index_type])
-                self._set_current_date(date)
-        application_id = os.environ.get('APPLICATION_ID', '')
-        if application_id:
-            tags['application_id'] = str(application_id)
-        if index_type == 'metrics':
-            document = {
-                "name": name,
-                "value": value,
-                "tags": tags,
-                # convert to UTC+8 and strip down the timezone info
-                "date_time": datetime.datetime.now(
-                    tz=CONFIGS['timezone']).isoformat(timespec='seconds')[:-6]
-            }
+        if self._version == 7:
+            action = self._produce_action7(name, value, tags, index_type)
         else:
-            document = tags
-        action = {
-            # _index = which index to emit to
-            '_index': index,
-            '_source': document
-        }
-        if self._version == 6:
-            action['_type'] = '_doc'
+            action = self._produce_action6(name, value, tags, index_type)
         with self._lock:
-            self._emit_batch.append(action)
             # emit and pop when there are enough documents to emit
+            self._emit_batch.append(action)
             if len(self._emit_batch) >= self._batch_size:
                 self.flush()
 
@@ -244,7 +148,25 @@ class ElasticSearchHandler(Handler):
         with self._lock:
             self._current_date = date
 
-    def _create_or_modify_index(self, index, index_setting):
+    @staticmethod
+    def _produce_document(name, value, tags, index_type):
+        application_id = os.environ.get('APPLICATION_ID', '')
+        if application_id:
+            tags['application_id'] = str(application_id)
+        if index_type == 'metrics':
+            document = {
+                "name": name,
+                "value": value,
+                "tags": tags,
+                # convert to UTC+8 and strip down the timezone info
+                "date_time": datetime.datetime.now(
+                    tz=CONFIGS['timezone']).isoformat(timespec='seconds')[:-6]
+            }
+        else:
+            document = tags
+        return document
+
+    def _create_or_modify_index(self, index):
         """
         Args:
             index: ES index name.
@@ -256,32 +178,16 @@ class ElasticSearchHandler(Handler):
         """
         with self._lock:
             if not self._es.indices.exists(index=index):
-                if self._version == 7:
-                    body = index_setting
-                    already_exists_exception = es7.exceptions.RequestError
-                else:
-                    body = copy.deepcopy(index_setting)
-                    body['mappings'] = {'_doc': body['mappings']}
-                    already_exists_exception = es6.exceptions.RequestError
                 try:
-                    self._es.indices.create(index=index, body=body)
+                    # mappings is defined in template
+                    self._es.indices.create(index=index)
                     return
                 # index may have been created by other jobs
-                except already_exists_exception as e:
+                except es6.exceptions.RequestError as e:
                     # if due to other reasons, re-raise exception
                     if e.info['error']['type'] != \
                        'resource_already_exists_exception':
                         raise e
-                    logging.info('METRICS: Index %s already exists.', index)
-
-            # if index exists, put mapping in case mapping is modified.
-            if self._version == 7:
-                self._es.indices.put_mapping(index=index,
-                                             body=index_setting['mappings'])
-            else:
-                self._es.indices.put_mapping(index=index,
-                                             body=index_setting['mappings'],
-                                             doc_type='_doc')
 
 
 class Metrics(object):
