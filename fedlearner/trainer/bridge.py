@@ -20,9 +20,7 @@ import collections
 import logging
 import threading
 import time
-from concurrent import futures
 
-import grpc
 import tensorflow.compat.v1 as tf
 from google.protobuf import any_pb2 as any_pb
 # TODO Wait for PChannel to finish
@@ -96,8 +94,8 @@ class Bridge(object):
         elif event == bridge_core.Bridge.Event.UNAUTHORIZED:
             logging.error("Suicide as unauthorized")
             os._exit(138)
-        elif event == bridge_core.Bridge.Event.UNIDENTIFIED \
-            or event == bridge_core.Bridge.Event.PEER_UNIDENTIFIED:
+        elif event in (bridge_core.Bridge.Event.UNIDENTIFIED,
+                       bridge_core.Bridge.Event.PEER_UNIDENTIFIED):
             logging.error('Suicide as peer has restarted!')
             os._exit(138)  # Tell Scheduler to restart myself
 
@@ -129,7 +127,7 @@ class Bridge(object):
                 while len(self._stream_queue) == 0:
                     if self._terminated:
                         self._stream_terminated.set()
-                        raise StopIteration
+                        return
                     self._condition.wait()
                 msg = self._stream_queue.popleft()
             yield msg

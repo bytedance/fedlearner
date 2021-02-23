@@ -31,6 +31,4 @@ class AckInterceptor(grpc.ServerInterceptor):
         if method_handler.request_streaming \
             and method_handler.response_streaming:
             return StreamStreamAckMethodHandler(method_handler)
-        else:
-            return method_handler
-
+        return method_handler

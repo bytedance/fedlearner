@@ -103,7 +103,9 @@ def model_fn(model, features, labels, mode):
 
 
 if __name__ == '__main__':
-    logging.basicConfig(level=logging.DEBUG, format="[%(levelname)s] %(asctime)s: %(message)s in %(pathname)s:%(lineno)d")
+    logging.basicConfig(level=logging.DEBUG,
+        format="[%(levelname)s] %(asctime)s: %(message)s "
+            "in %(pathname)s:%(lineno)d")
     flt.trainer_worker.train(
         ROLE, args, input_fn,
         model_fn, serving_input_receiver_fn)
