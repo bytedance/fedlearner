@@ -34,6 +34,5 @@ class TestChannel(unittest.TestCase):
         print(stub.RequestDataBlock(request))
         self.assertIsNotNone(stub.RequestDataBlock(request))
 
-
 if __name__ == '__main__':
     unittest.main()

@@ -61,6 +61,7 @@ class Bridge(object):
 
         self._data_block_handler_fn = None
 
+        self._peer_terminated = False
         self._terminated = False
 
         # data transmit
@@ -84,13 +85,18 @@ class Bridge(object):
             Bridge.TrainerWorkerServicer(self), self._bridge)
 
     def _bridge_callback(self, bridge, event):
-        if event == bridge_core.Bridge.Event.PEER_DISCONNECTED:
+        if event == bridge_core.Bridge.Event.PEER_CLOSED:
+            logging.error("peer terminated")
+            with self._condition:
+                self._peer_terminated = True
+                self._condition.notify_all()
+        elif event == bridge_core.Bridge.Event.PEER_DISCONNECTED:
             logging.error("Suicide as peer disconnected")
             os._exit(138)
-        if event == bridge_core.Bridge.Event.UNAUTHORIZED:
+        elif event == bridge_core.Bridge.Event.UNAUTHORIZED:
             logging.error("Suicide as unauthorized")
             os._exit(138)
-        if event == bridge_core.Bridge.Event.UNIDENTIFIED \
+        elif event == bridge_core.Bridge.Event.UNIDENTIFIED \
             or event == bridge_core.Bridge.Event.PEER_UNIDENTIFIED:
             logging.error('Suicide as peer has restarted!')
             os._exit(138)  # Tell Scheduler to restart myself
@@ -106,7 +112,7 @@ class Bridge(object):
         self._bridge.start(wait=True)
         stream_response = self._client.StreamTransmit(self._stream_generator())
         def fn():
-            for res in stream_response:
+            for _ in stream_response:
                 pass
         threading.Thread(target=fn).start()
 
@@ -235,6 +241,9 @@ class Bridge(object):
         with self._condition:
             while (iter_id not in self._received_data
                    or name not in self._received_data[iter_id]):
+                if self._peer_terminated:
+                    raise RuntimeError(
+                        "loss {} for iter {}".format(name, iter_id))
                 self._condition.wait()
             data = self._received_data[iter_id][name]
         duration = time.time() - start_time

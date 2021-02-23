@@ -97,3 +97,7 @@ server.config.js
 es.match_phrase.js
 es.match_phrase.json
 web_console/config
+example/**/data
+example/**/model
+example/**/exp
+output
