@@ -20,7 +20,7 @@ import unittest
 from tensorflow.compat.v1 import gfile
 from google.protobuf import text_format, timestamp_pb2
 
-from fedlearner.common import mysql_client
+from fedlearner.common import db_client
 from fedlearner.common import data_join_service_pb2 as dj_pb
 from fedlearner.common import common_pb2 as common_pb
 from fedlearner.data_join import raw_data_manifest_manager, common
@@ -275,18 +275,13 @@ class TestRawDataManifestManager(unittest.TestCase):
         cli.destroy_client_pool()
 
     def test_raw_data_manifest_manager_with_db(self):
-        cli = mysql_client.DBClient('test_cluster', 'localhost:2379',
-                                    'test_user', 'test_password',
-                                    'fedlearner', True)
+        cli = db_client.DBClient('etcd', True)
         self._raw_data_manifest_manager(cli)
 
     def test_raw_data_manifest_manager_with_nfs(self):
         root_dir = "test_fedlearner"
         os.environ["STORAGE_ROOT_PATH"] = root_dir
-        db_database, db_addr, db_username, db_password, db_base_dir = \
-            common.get_kvstore_config("nfs")
-        cli = mysql_client.DBClient(db_database, db_addr, db_username, db_password,
-                                    db_base_dir, True)
+        cli = db_client.DBClient('nfs', True)
         self._raw_data_manifest_manager(cli)
         if gfile.Exists(root_dir):
             gfile.DeleteRecursively(root_dir)

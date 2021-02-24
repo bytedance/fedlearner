@@ -25,7 +25,7 @@ from fedlearner.common import common_pb2 as common_pb
 from fedlearner.common import data_join_service_pb2 as dj_pb
 from fedlearner.common import data_join_service_pb2_grpc as dj_grpc
 
-from fedlearner.common.mysql_client import DBClient
+from fedlearner.common.db_client import DBClient
 from fedlearner.proxy.channel import make_insecure_channel, ChannelType
 
 from fedlearner.data_join.routine_worker import RoutineWorker
@@ -308,13 +308,10 @@ class MasterFSM(object):
 
 class DataJoinMaster(dj_grpc.DataJoinMasterServiceServicer):
     def __init__(self, peer_client, data_source_name,
-                 db_database, db_base_dir, db_addr,
-                 db_username, db_password, options):
+                 kvstore_type, options):
         super(DataJoinMaster, self).__init__()
         self._data_source_name = data_source_name
-        kvstore = DBClient(db_database, db_addr, db_username,
-                            db_password, db_base_dir,
-                            options.use_mock_etcd)
+        kvstore = DBClient(kvstore_type, options.use_mock_etcd)
         self._options = options
         self._fsm = MasterFSM(peer_client, data_source_name,
                               kvstore, self._options.batch_mode)
@@ -526,8 +523,7 @@ class DataJoinMaster(dj_grpc.DataJoinMasterServiceServicer):
 
 class DataJoinMasterService(object):
     def __init__(self, listen_port, peer_addr, data_source_name,
-                 db_database, db_base_dir, db_addr,
-                 db_username, db_password, options):
+                 kvstore_type, options):
         channel = make_insecure_channel(
                 peer_addr, ChannelType.REMOTE,
                 options=[('grpc.max_send_message_length', 2**31-1),
@@ -538,9 +534,7 @@ class DataJoinMasterService(object):
         self._listen_port = listen_port
         self._server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
         self._data_join_master = DataJoinMaster(
-                peer_client, data_source_name, db_database,
-                db_base_dir, db_addr, db_username,
-                db_password, options
+                peer_client, data_source_name, kvstore_type, options
             )
         dj_grpc.add_DataJoinMasterServiceServicer_to_server(
                 self._data_join_master, self._server

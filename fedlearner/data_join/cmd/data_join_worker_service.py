@@ -21,7 +21,6 @@ import tensorflow
 
 from fedlearner.common import data_join_service_pb2 as dj_pb
 from fedlearner.common.argparse_util import str_as_bool
-from fedlearner.data_join.common import get_kvstore_config
 from fedlearner.data_join.data_join_worker import DataJoinWorkerService
 from fedlearner.data_join.common import interval_to_timestamp
 tensorflow.compat.v1.enable_eager_execution()
@@ -133,11 +132,7 @@ if __name__ == "__main__":
                     compressed_type=args.data_block_compressed_type
                 )
         )
-    db_database, db_addr, db_username, db_password, db_base_dir = \
-        get_kvstore_config(args.kvstore_type)
     worker_srv = DataJoinWorkerService(args.listen_port, args.peer_addr,
                                        args.master_addr, args.rank_id,
-                                       db_database, db_base_dir,
-                                       db_addr, db_username,
-                                       db_password, worker_options)
+                                       args.kvstore_type, worker_options)
     worker_srv.run()

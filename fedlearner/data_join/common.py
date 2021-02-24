@@ -358,27 +358,6 @@ class _HeapMemStats(object, metaclass=Singleton):
 def get_heap_mem_stats(stats_expiration_time):
     return _HeapMemStats(stats_expiration_time)
 
-def get_kvstore_config(kvstore_type):
-    if kvstore_type == 'mysql':
-        database = os.environ.get('DB_DATABASE', 'fedlearner')
-        host = os.environ.get('DB_HOST', '127.0.0.1')
-        port = os.environ.get('DB_PORT', '3306')
-        addr = host + ':' + port
-        username = os.environ.get('DB_USERNAME', 'fedlearner')
-        password = os.environ.get('DB_PASSWORD', 'fedlearner')
-        base_dir = os.environ.get('DB_BASE_DIR', 'fedlearner')
-        return database, addr, username, password, base_dir
-    if kvstore_type == 'etcd':
-        name = os.environ.get('ETCD_NAME', 'fedlearner')
-        addr = os.environ.get('ETCD_ADDR', 'localhost:2379')
-        base_dir = os.environ.get('ETCD_BASE_DIR', 'fedlearner')
-    else:
-        name = ""
-        addr = ""
-        base_dir = os.path.join(
-            os.environ.get('STORAGE_ROOT_PATH', '/fedlearner'),
-            'metadata')
-    return name, addr, None, None, base_dir
 
 def interval_to_timestamp(itv):
     unit = ["Y", "M", "D", "H", "N", "S"]

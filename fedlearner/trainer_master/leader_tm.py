@@ -24,15 +24,12 @@ import grpc
 from fedlearner.common import trainer_master_service_pb2 as tm_pb
 from fedlearner.common import trainer_master_service_pb2_grpc as tm_grpc
 from fedlearner.common import common_pb2 as common_pb
-from fedlearner.data_join.common import get_kvstore_config
 from fedlearner.data_join.data_block_visitor import DataBlockVisitor
 from fedlearner.trainer_master.data.data_block_queue import DataBlockQueue
 
 from .trainer_master_service import TrainerMasterServer
 
 kvstore_type = os.environ.get('KVSTORE_TYPE', 'etcd')
-db_database, db_addr, db_username, db_password, db_base_dir = \
-        get_kvstore_config(kvstore_type)
 
 class LeaderTrainerMaster(object):
     def __init__(self, application_id, data_source,
@@ -48,8 +45,7 @@ class LeaderTrainerMaster(object):
         kvstore_use_mock = os.environ.get('KVSTORE_USE_MOCK', "off") == "on"
         self._data_block_queue = DataBlockQueue()
         self._data_block_visitor = DataBlockVisitor(
-            data_source, db_database, db_base_dir, db_addr,
-                db_username, db_password, kvstore_use_mock)
+            data_source, kvstore_type, kvstore_use_mock)
         self._start_time = start_time
         self._end_time = end_time
         self._epoch_num = epoch_num
