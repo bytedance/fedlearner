@@ -86,27 +86,6 @@ class ExampleIdBatch(ItemBatch):
         assert self.partition_id == other.partition_id
         return self.begin_index < other.begin_index
 
-    def __iter__(self):
-        assert len(self._example_ids) == len(self._event_times)
-        if len(self._id_types) > 0:
-            if len(self._click_ids) > 0:
-                return iter(zip(
-                    self._example_ids,
-                    self._event_times,
-                    self._id_types,
-                    self._event_time_deeps,
-                    self._click_ids,
-                    self._types,
-                ))
-            return iter(zip(
-                self._example_ids,
-                self._event_times,
-                self._id_types,
-                self._event_time_deeps,
-                self._types,
-            ))
-        return iter(zip(self._example_ids, self._event_times))
-
 class ExampleIdBatchFetcher(ItemBatchSeqProcessor):
     def __init__(self, kvstore, data_source, partition_id,
                  raw_data_options, batch_processor_options):
