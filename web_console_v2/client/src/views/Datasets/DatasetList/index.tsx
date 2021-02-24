@@ -161,6 +161,7 @@ const DatasetList: FC = () => {
               onAddDataBatchClick,
               onDeleteClick,
             })}
+            rowKey="name"
           />
         )}
       </ListContainer>
