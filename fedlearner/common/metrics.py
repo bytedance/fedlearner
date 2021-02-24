@@ -77,9 +77,11 @@ class ElasticSearchHandler(Handler):
             self._es = es6.Elasticsearch([ip], port=port)
             self._helpers = helpers6
             # first run, put index templates to ES
-            self._es.indices.put_template(name='metrics_v2',
+            self._es.indices.put_template(name='metrics_v2-template',
                                           body=TEMPLATE_MAP['metrics'])
-            self._es.indices.put_template(name='data_join',
+            self._es.indices.put_template(name='raw_data-template',
+                                          body=TEMPLATE_MAP['raw_data'])
+            self._es.indices.put_template(name='data_join-template',
                                           body=TEMPLATE_MAP['data_join'])
         # suppress ES logger
         logging.getLogger('elasticsearch').setLevel(logging.CRITICAL)
@@ -112,7 +114,7 @@ class ElasticSearchHandler(Handler):
         return action
 
     def emit(self, name, value, tags=None, index_type='metrics'):
-        assert index_type in ('metrics', 'data_join')
+        assert index_type in ('metrics', 'data_join', 'raw_data')
         if tags is None:
             tags = {}
         if self._version == 7:
