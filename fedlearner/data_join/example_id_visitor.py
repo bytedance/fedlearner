@@ -273,10 +273,12 @@ class ExampleIdVisitor(visitor.Visitor):
                         row['example_id'] = lite_example_ids.example_id[index]
                         row['event_time'] = lite_example_ids.event_time[index]
                         if len(lite_example_ids.id_type) > 0:
-                            row['click_id'] = lite_example_ids.click_id[index]
                             row['id_type'] = lite_example_ids.id_type[index]
+                            row['type'] = lite_example_ids.type[index]
                             row['event_time_deep'] = \
                                     lite_example_ids.event_time_deep[index]
+                        if len(lite_example_ids.click_id) > 0:
+                            row['click_id'] = lite_example_ids.click_id[index]
                         example_id_item = ExampleIdVisitor.ExampleIdItem(
                                 index + lite_example_ids.begin_index,
                                 row

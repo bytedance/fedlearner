@@ -29,19 +29,23 @@ class ExampleIdBatch(ItemBatch):
         self._begin_index = begin_index
         self._example_ids = []
         self._event_times = []
+
+        ### V2
         self._id_types = []
         self._event_time_deeps = []
         self._click_ids = []
+        self._types = []
 
     def append(self, item):
         self._example_ids.append(item.example_id)
         self._event_times.append(item.event_time)
         if hasattr(item, 'id_type'):
             assert hasattr(item, 'event_time_deep'), "Incomplete new example"
-            assert hasattr(item, 'click_id'), "Incomplete new example"
             self._id_types.append(item.id_type)
             self._event_time_deeps.append(item.event_time_deep)
-            self._click_ids.append(item.click_id)
+            self._types.append(item.type)
+            if hasattr(item, "click_id"):
+                self._click_ids.append(item.click_id)
 
     @property
     def begin_index(self):
@@ -54,13 +58,14 @@ class ExampleIdBatch(ItemBatch):
             example_id=self._example_ids,
             event_time=self._event_times,
         )
-        assert len(self._id_types) == len(self._click_ids), \
+        assert len(self._id_types) == len(self._types), \
                 "Rawrata invalid new version"
         assert len(self._id_types) == len(self._event_time_deeps), \
                 "Rawrata invalid new version"
         if len(self._id_types) > 0:
             serde_lite_examples.id_type.extend(self._id_types)
             serde_lite_examples.event_time_deep.extend(self._event_time_deeps)
+            serde_lite_examples.type.extend(self._types)
             serde_lite_examples.click_id.extend(self._click_ids)
         return dj_pb.PackedLiteExampleIds(
                 partition_id=self._partition_id,
@@ -84,12 +89,21 @@ class ExampleIdBatch(ItemBatch):
     def __iter__(self):
         assert len(self._example_ids) == len(self._event_times)
         if len(self._id_types) > 0:
+            if len(self._click_ids) > 0:
+                return iter(zip(
+                    self._example_ids,
+                    self._event_times,
+                    self._id_types,
+                    self._event_time_deeps,
+                    self._click_ids,
+                    self._types,
+                ))
             return iter(zip(
                 self._example_ids,
                 self._event_times,
                 self._id_types,
                 self._event_time_deeps,
-                self._click_ids
+                self._types,
             ))
         return iter(zip(self._example_ids, self._event_times))
 

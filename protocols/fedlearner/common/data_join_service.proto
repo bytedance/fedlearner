@@ -166,6 +166,7 @@ message LiteExampleIds {
   repeated string id_type = 5;
   repeated int64 event_time_deep = 6;
   repeated string click_id = 7; 
+  repeated int32 type=8;
 }
 
 message PackedLiteExampleIds {

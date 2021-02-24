@@ -135,6 +135,8 @@ class DataSourceProducer(unittest.TestCase):
                 if self.version == Version.V2:
                     feat['id_type'] = tf.train.Feature(
                         bytes_list=tf.train.BytesList(value=['IMEI'.encode()]))
+                    feat['type'] = tf.train.Feature(
+                        int64_list=tf.train.Int64List(value=[1]))
                     feat['event_time_deep'] = tf.train.Feature(
                         int64_list=tf.train.Int64List(value=[event_time + 1]))
                     feat['req_id'] = tf.train.Feature(
@@ -156,6 +158,8 @@ class DataSourceProducer(unittest.TestCase):
                 if self.version == Version.V2:
                     feat['id_type'] = tf.train.Feature(
                         bytes_list=tf.train.BytesList(value=['IMEI'.encode()]))
+                    feat['type'] = tf.train.Feature(
+                        int64_list=tf.train.Int64List(value=[1]))
                     feat['event_time_deep'] = tf.train.Feature(
                         int64_list=tf.train.Int64List(value=[event_time + 1]))
                     feat['req_id'] = tf.train.Feature(
@@ -217,6 +221,7 @@ class DataSourceProducer(unittest.TestCase):
                     example_id_batch.click_id.append('%s_%s'%(example_id.decode(), example_id.decode()))
                     example_id_batch.id_type.append('IMEI'.encode())
                     example_id_batch.event_time_deep.append(150000000 + example_idx + 1)
+                    example_id_batch.type.append(1)
             packed_example_id_batch = dj_pb.PackedLiteExampleIds(
                     partition_id=0,
                     begin_index=req_index*512,
