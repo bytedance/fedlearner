@@ -176,6 +176,7 @@ const WorkflowList: FC = () => {
               dataSource={listData}
               columns={getWorkflowTableColumns({ onSuccess })}
               scroll={{ x: '100%' }}
+              rowKey="name"
             />
           )}
         </ListContainer>

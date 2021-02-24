@@ -21,7 +21,7 @@ const dataBatchImporting: DataBatch = {
   state: BatchState.IMPORTING,
   file_size: 10000,
   details: { files: [dataFile] },
-  imported_file_num: 2,
+  num_imported_file: 2,
   num_file: 10,
   ...sharedTimes,
 };
@@ -33,7 +33,7 @@ const dataBatchImported: DataBatch = {
   file_size: 12345,
   details: { files: [dataFile] },
   move: false,
-  imported_file_num: 5,
+  num_imported_file: 5,
   num_file: 5,
   ...sharedTimes,
 };
@@ -45,7 +45,7 @@ const dataBatchFailed: DataBatch = {
   details: { files: [dataFile] },
   move: false,
   file_size: 54321,
-  imported_file_num: 1,
+  num_imported_file: 1,
   num_file: 19,
   ...sharedTimes,
 };

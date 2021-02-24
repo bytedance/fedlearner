@@ -40,7 +40,7 @@ export type DataBatch = {
     files: DataFile[];
   };
   file_size: number;
-  imported_file_num: number;
+  num_imported_file: number;
   num_file: number;
   comment?: string | null;
   created_at: DateTime;

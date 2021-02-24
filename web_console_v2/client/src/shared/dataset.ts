@@ -34,7 +34,7 @@ export function getTotalDataSize(data: Dataset) {
 
 export const getImportedProportion = memoize((data: Dataset) => {
   const total = _sumUp(data, 'num_file');
-  const imported = _sumUp(data, 'imported_file_num');
+  const imported = _sumUp(data, 'num_imported_file');
   return {
     total,
     imported,
@@ -76,7 +76,7 @@ export function getImportStage(data: Dataset): { type: StateTypes; text: string;
 
 // -------- Private helpers ------
 
-function _sumUp(data: Dataset, key: 'num_file' | 'imported_file_num' | 'file_size') {
+function _sumUp(data: Dataset, key: 'num_file' | 'num_imported_file' | 'file_size') {
   return data.data_batches.reduce((result, current) => {
     return result + current[key];
   }, 0);
