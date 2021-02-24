@@ -77,7 +77,7 @@ class TestUniversalJoin(dsp.DataSourceProducer):
                   data_block_dump_interval=32,
                   data_block_dump_threshold=128,
                   negative_sampling_rate=0.8,
-                  join_expr="(id_type, example_id)",
+                  join_expr="(id_type, example_id, trunc(event_time, 8))",
                   join_key_mapper="DEFAULT",
               )
         self.version = dsp.Version.V2

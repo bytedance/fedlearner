@@ -1,3 +1,18 @@
+# Copyright 2021 The FedLearner Authors. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# coding: utf-8
 import string
 #import pdb
 
@@ -26,7 +41,26 @@ class LTFuncDef(BaseFunction):
         conv_event_time = getattr(conv, args[0])
         return show_event_time < conv_event_time
 
-LINK_MAP = dict({"lt": LTFuncDef()})
+class DateTruncDef(BaseFunction):
+    """truncate event time"""
+    def __init__(self):
+        super(DateTruncDef, self).__init__(2)
+
+    def __call__(self, show, conv, args):
+        assert len(args) == 2, "Args not enough"
+        show_event_time = getattr(show, args[0])
+        conv_event_time = getattr(conv, args[0])
+        #pdb.set_trace()
+        if isinstance(show_event_time, int):
+            show_event_time = str(show_event_time)
+            conv_event_time = str(conv_event_time)
+        size = int(args[1])
+        if len(conv_event_time) > size:
+            show_event_time = int(show_event_time[0: size])
+            conv_event_time = int(conv_event_time[0: size])
+        return show_event_time == conv_event_time
+
+LINK_MAP = dict({"lt": LTFuncDef(), "trunc": DateTruncDef()})
 
 class Token(object):
     def __init__(self, tok):
