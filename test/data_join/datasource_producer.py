@@ -137,8 +137,6 @@ class DataSourceProducer(unittest.TestCase):
                         bytes_list=tf.train.BytesList(value=['IMEI'.encode()]))
                     feat['type'] = tf.train.Feature(
                         int64_list=tf.train.Int64List(value=[1]))
-                    feat['event_time_deep'] = tf.train.Feature(
-                        int64_list=tf.train.Int64List(value=[event_time + 1]))
                     feat['req_id'] = tf.train.Feature(
                         bytes_list=tf.train.BytesList(value=[example_id]))
                     feat['cid'] = tf.train.Feature(
@@ -160,8 +158,6 @@ class DataSourceProducer(unittest.TestCase):
                         bytes_list=tf.train.BytesList(value=['IMEI'.encode()]))
                     feat['type'] = tf.train.Feature(
                         int64_list=tf.train.Int64List(value=[1]))
-                    feat['event_time_deep'] = tf.train.Feature(
-                        int64_list=tf.train.Int64List(value=[event_time + 1]))
                     feat['req_id'] = tf.train.Feature(
                         bytes_list=tf.train.BytesList(value=[example_id]))
                     feat['cid'] = tf.train.Feature(

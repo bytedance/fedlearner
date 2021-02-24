@@ -431,6 +431,11 @@ class UniversalJoiner(ExampleJoiner):
                 lf = mid + 1
         return lf
 
+    def _sync_fields(self, le, fe):
+        #FIXME: sync event_time_deep from leader, trick
+        if hasattr(le, "event_time_deep"):
+            fe.event_time_deep = le.event_time_deep
+
     def _sort_and_evict_leader_buf(self, raw_matches, watermark):
         """
         Push the matched pairs to order-by-leader-index list,
@@ -471,6 +476,7 @@ class UniversalJoiner(ExampleJoiner):
                     self._sorted_buf_by_leader_index[latest_pos - 1]
                 if latest_item[1] == li and latest_item[2] == fi:
                     continue
+            self._sync_fields(le, fe)
             self._sorted_buf_by_leader_index.insert(latest_pos, \
                                           (fe, li, fi))
         matches = []
