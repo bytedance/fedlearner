@@ -19,3 +19,4 @@ flatten-dict
 pymysql
 setuptools==41.0.0
 tensorflow==1.15.2
+pyopenssl
