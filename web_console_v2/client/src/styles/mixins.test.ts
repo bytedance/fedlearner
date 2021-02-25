@@ -1,5 +1,17 @@
-import { MixinCommonTransition } from './mixins';
+import { MixinCommonTransition, MixinSquare, MixinCircle } from './mixins';
 import defaultTheme from './_theme';
+
+describe('Square and Circle', () => {
+  it('Should works fine', () => {
+    const square = MixinSquare(30);
+    expect(square.includes('width: 30px;')).toBeTruthy();
+    expect(square.includes('height: 30px;')).toBeTruthy();
+
+    const circle = MixinCircle(20);
+    expect(circle.includes('width: 20px;')).toBeTruthy();
+    expect(circle.includes('height: 20px;')).toBeTruthy();
+  });
+});
 
 describe('Common transition mixin', () => {
   it('Should works fine', () => {

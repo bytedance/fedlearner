@@ -4,6 +4,7 @@ module.exports = {
     'src/**/*.{ts,tsx}',
     '!src/**/*.d.ts',
     '!src/i18n/index.ts',
+    '!src/i18n/resources/modules/*.ts',
     '!src/components/**/*.tsx',
     '!src/stores/**/*.ts',
     '!src/typings/*.ts',
