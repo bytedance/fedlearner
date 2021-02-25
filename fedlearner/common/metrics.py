@@ -107,7 +107,7 @@ class ElasticSearchHandler(Handler):
             if self._get_current_date() != date:
                 # Date changed, create new index
                 logging.info('METRICS: Creating new index %s.', index)
-                self._create_or_modify_index(index)
+                self._create_index(index)
                 self._set_current_date(date)
         document = self._produce_document(name, value, tags, index_type)
         action = {'_index': index, '_source': document, '_type': '_doc'}
@@ -160,14 +160,12 @@ class ElasticSearchHandler(Handler):
             document = tags
         return document
 
-    def _create_or_modify_index(self, index):
+    def _create_index(self, index):
         """
         Args:
             index: ES index name.
 
-        Creates an index on ES, with compatibility with ES 6 and ES 7.
-        If Index already exists, will put mappings onto it in case mappings
-        have been changed.
+        Creates an index on ES, using templates.
 
         """
         with self._lock:

@@ -5,6 +5,7 @@ import pytz
 # WARNING: ARBITRARY MODIFICATIONS OF INDICES BELOW WILL RESULT IN HUGE USAGE OF
 # ES DISK SPACE, PLEASE MODIFY WITH CAUTION. DO NOT MODIFY EXISTING FIELDS
 # WITHOUT PERMISSION AND TEST, OTHERWISE ERRORS MIGHT OCCUR.
+# BELOW IS FOR ES 6.
 RAW_DATA_MAPPINGS = {
     "_doc": {
         "dynamic": True,
@@ -22,15 +23,13 @@ RAW_DATA_MAPPINGS = {
             "partition": {
                 "type": "byte"
             },
-            "has_click_id": {
-                "type": "boolean"
-            },
-            "has_example_id": {
-                "type": "boolean"
-            },
             "application_id": {
                 "ignore_above": 128,
                 "type": "keyword"
+            },
+            "event_time": {
+                "format": "strict_date_hour_minute_second",
+                "type": "date"
             }
         }
     }
@@ -67,6 +66,12 @@ DATA_JOIN_MAPPINGS = {
             "type": {
                 "ignore_above": 32,
                 "type": "keyword"
+            },
+            "has_click_id": {
+                "type": "boolean"
+            },
+            "has_example_id": {
+                "type": "boolean"
             },
             "application_id": {
                 "ignore_above": 128,
