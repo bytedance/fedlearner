@@ -31,13 +31,6 @@ from fedlearner.data_join.raw_data_iter_impl.raw_data_iter import RawDataIter
 class CsvItem(RawDataIter.Item):
     def __init__(self, raw):
         super().__init__()
-        # convert example_id, raw_id of type str into bytes
-        for fm, field in common.ALLOWED_FIELDS.items():
-            if fm in raw:
-                if field.type == bytes:
-                    raw[fm] = raw[fm].encode()
-                elif field.type == int:
-                    raw[fm] = int(raw[fm])
         self._features.update(raw)
         self._tf_record = None
 
@@ -53,6 +46,21 @@ class CsvItem(RawDataIter.Item):
             for i, v in enumerate(fname):
                 raw[v] = fvalue[i]
         return cls(raw)
+
+    def __getattr__(self, item):
+        if item not in self._features and common.ALLOWED_FIELDS[item].must:
+            logging.warning("%s misses field %s:%s",
+                            self.__class__.__name__,
+                            item, common.ALLOWED_FIELDS[item])
+        value = self._features.get(item,
+                                   common.ALLOWED_FIELDS[item].default_value)
+        # csv doesn't support bytes and int
+        field = common.ALLOWED_FIELDS[item]
+        if field.type == bytes:
+            return value.encode()
+        if field.type == int:
+            return int(value)
+        return value
 
     @property
     def tf_record(self):

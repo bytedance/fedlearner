@@ -46,13 +46,11 @@ TmpFileSuffix = '.tmp'
 DoneFileSuffix = '.done'
 RawDataFileSuffix = '.rd'
 InvalidEventTime = -9223372036854775808
-InvalidRawId = ''.encode()
-
+InvalidRawId = ''.encode()  # deprecated in V2
 InvalidBytes = ''.encode()
 InvalidInt = -1
-InvalidStr = ''
 
-# must: both old and new version of raw data should provide this field
+# must: both old and new version of raw data should have this field
 ALLOWED_FIELD = namedtuple('ALLOW_FIELD', ['default_value', 'type', 'must'])
 ALLOWED_FIELDS = dict({
     'example_id': ALLOWED_FIELD(InvalidExampleId, bytes, True),
@@ -61,12 +59,12 @@ ALLOWED_FIELDS = dict({
     'event_time_deep': ALLOWED_FIELD(InvalidEventTime, int, False),
     'raw_id': ALLOWED_FIELD(InvalidRawId, bytes, False),
     'type': ALLOWED_FIELD(InvalidInt, int, False),
-    'id_type': ALLOWED_FIELD(InvalidStr, str, False),
+    'id_type': ALLOWED_FIELD(InvalidBytes, bytes, False),
     'joined': ALLOWED_FIELD(InvalidInt, int, False),
-    'click_id': ALLOWED_FIELD(InvalidStr, str, False),
-    'req_id': ALLOWED_FIELD(InvalidStr, str, False),
+    'click_id': ALLOWED_FIELD(InvalidBytes, bytes, False),
+    'req_id': ALLOWED_FIELD(InvalidBytes, bytes, False),
     'label': ALLOWED_FIELD(InvalidInt, int, False),
-    'cid': ALLOWED_FIELD(InvalidStr, str, False)
+    'cid': ALLOWED_FIELD(InvalidBytes, bytes, False)
 })
 
 @contextmanager
