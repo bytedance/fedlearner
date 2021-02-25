@@ -116,10 +116,8 @@ class DatasetApiTest(BaseTestCase):
 
 
 class FilesApiTest(BaseTestCase):
-    def get_config(self):
-        config = super().get_config()
-        config.STORAGE_ROOT = tempfile.gettempdir()
-        return config
+    class Config(BaseTestCase.Config):
+        STORAGE_ROOT = tempfile.gettempdir()
 
     def setUp(self):
         super().setUp()

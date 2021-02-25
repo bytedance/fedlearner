@@ -15,8 +15,10 @@
 # coding: utf-8
 import json
 import logging
+import unittest
 import secrets
 from http import HTTPStatus
+import multiprocessing as mp
 
 from flask import Flask
 from flask_testing import TestCase
@@ -26,20 +28,18 @@ from fedlearner_webconsole.auth.models import User
 
 
 class BaseTestCase(TestCase):
-    def get_config(self):
-        class Config(object):
-            SQLALCHEMY_DATABASE_URI = 'sqlite://'
-            SQLALCHEMY_TRACK_MODIFICATIONS = False
-            JWT_SECRET_KEY = secrets.token_urlsafe(64)
-            PROPAGATE_EXCEPTIONS = True
-            LOGGING_LEVEL = logging.DEBUG
-            TESTING = True
-            ENV = 'development'
-            GRPC_LISTEN_PORT = 1990
-        return Config
+    class Config(object):
+        SQLALCHEMY_DATABASE_URI = 'sqlite://'
+        SQLALCHEMY_TRACK_MODIFICATIONS = False
+        JWT_SECRET_KEY = secrets.token_urlsafe(64)
+        PROPAGATE_EXCEPTIONS = True
+        LOGGING_LEVEL = logging.DEBUG
+        TESTING = True
+        ENV = 'development'
+        GRPC_LISTEN_PORT = 1990
 
     def create_app(self):
-        app = create_app(self.get_config())
+        app = create_app(self.__class__.Config)
         app.app_context().push()
         return app
 
@@ -112,6 +112,54 @@ class BaseTestCase(TestCase):
     def delete_helper(self, url, use_auth=True):
         return self.client.delete(url,
                                   headers=self._get_headers(use_auth))
+
+
+class TestAppProcess(mp.get_context('spawn').Process):
+    def __init__(self, test_class, method, config=None):
+        super(TestAppProcess, self).__init__()
+        self._test_class = test_class
+        self._method = method
+        self._app_config = config
+        self._queue = mp.get_context('spawn').Queue()
+
+    def run(self):
+        for h in logging.getLogger().handlers[:]:
+            logging.getLogger().removeHandler(h)
+            h.close()
+        logging.basicConfig(
+            level=logging.DEBUG,
+            format="SPAWN:%(filename)s %(lineno)s %(levelname)s - %(message)s")
+        if self._app_config:
+            self._test_class.Config = self._app_config
+        test = self._test_class(self._method)
+        old_tearDown = test.tearDown
+        def new_tearDown(*args, **kwargs):
+            self._queue.get()
+            old_tearDown(*args, **kwargs)
+        test.tearDown = new_tearDown
+        suite = unittest.TestSuite([test])
+        res = suite.run(unittest.TestResult())
+        if res.errors:
+            for method, err in res.errors:
+                print('======================================================================')
+                print('ERROR:', method)
+                print('----------------------------------------------------------------------')
+                print(err)
+                print('----------------------------------------------------------------------')
+        if res.failures:
+            for method, fail in res.failures:
+                print('======================================================================')
+                print('FAIL:', method)
+                print('----------------------------------------------------------------------')
+                print(fail)
+                print('----------------------------------------------------------------------')
+        assert res.wasSuccessful()
+
+    def join(self):
+        self._queue.put(None)
+        ret = super(TestAppProcess, self).join()
+        assert self.exitcode == 0, "Subprocess failed!"
+        return ret
 
 
 def create_test_db():

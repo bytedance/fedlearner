@@ -28,7 +28,8 @@ from fedlearner_webconsole.proto import (
 from fedlearner_webconsole.db import db
 from fedlearner_webconsole.project.models import Project
 from fedlearner_webconsole.workflow.models import (
-    Workflow, WorkflowState, TransactionState
+    Workflow, WorkflowState, TransactionState,
+    _merge_workflow_config
 )
 from fedlearner_webconsole.exceptions import (
     UnauthorizedException
@@ -79,6 +80,21 @@ class RPCServerServicer(service_pb2_grpc.WebConsoleV2ServiceServicer):
         except Exception as e:
             logging.error('GetWorkflow rpc server error: %s', repr(e))
             return service_pb2.GetWorkflowResponse(
+                status=common_pb2.Status(
+                    code=common_pb2.STATUS_UNKNOWN_ERROR,
+                    msg=repr(e)))
+
+    def UpdateWorkflow(self, request, context):
+        try:
+            return self._server.update_workflow(request, context)
+        except UnauthorizedException as e:
+            return service_pb2.UpdateWorkflowResponse(
+                status=common_pb2.Status(
+                    code=common_pb2.STATUS_UNAUTHORIZED,
+                    msg=repr(e)))
+        except Exception as e:
+            logging.error('UpdateWorkflow rpc server error: %s', repr(e))
+            return service_pb2.UpdateWorkflowResponse(
                 status=common_pb2.Status(
                     code=common_pb2.STATUS_UNKNOWN_ERROR,
                     msg=repr(e)))
@@ -203,7 +219,7 @@ class RpcServer(object):
             workflow = Workflow.query.filter_by(
                 name=request.workflow_name,
                 project_id=project.id).first()
-            assert workflow is not None
+            assert workflow is not None, "Workflow not found"
             config = workflow.get_config()
             self._filter_workflow(
                 config,
@@ -237,5 +253,30 @@ class RpcServer(object):
                 fork_proposal_config=workflow.get_fork_proposal_config()
             )
 
+    def update_workflow(self, request, context):
+        with self._app.app_context():
+            project, party = self.check_auth_info(request.auth_info, context)
+            workflow = Workflow.query.filter_by(
+                name=request.workflow_name,
+                project_id=project.id).first()
+            assert workflow is not None, "Workflow not found"
+            config = workflow.get_config()
+            _merge_workflow_config(
+                config, request.config,
+                [common_pb2.Variable.PEER_WRITABLE])
+            workflow.set_config(config)
+            db.session.commit()
+
+            self._filter_workflow(
+                config,
+                [
+                    common_pb2.Variable.PEER_READABLE,
+                    common_pb2.Variable.PEER_WRITABLE
+                ])
+            return service_pb2.UpdateWorkflowResponse(
+                status=common_pb2.Status(
+                    code=common_pb2.STATUS_SUCCESS),
+                workflow_name=request.workflow_name,
+                config=config)
 
 rpc_server = RpcServer()

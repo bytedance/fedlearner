@@ -73,9 +73,21 @@ message GetWorkflowResponse{
     WorkflowDefinition fork_proposal_config = 12;
 }
 
+message UpdateWorkflowRequest {
+    ProjAuthInfo auth_info = 1;
+    string workflow_name = 2;
+    WorkflowDefinition config = 3;
+}
+
+message UpdateWorkflowResponse {
+    Status status = 1;
+    string workflow_name = 2;
+    WorkflowDefinition config = 3;
+}
 
 service WebConsoleV2Service {
     rpc CheckConnection (CheckConnectionRequest) returns (CheckConnectionResponse) {}
     rpc UpdateWorkflowState (UpdateWorkflowStateRequest) returns (UpdateWorkflowStateResponse) {}
     rpc GetWorkflow (GetWorkflowRequest) returns (GetWorkflowResponse) {}
+    rpc UpdateWorkflow(UpdateWorkflowRequest) returns (UpdateWorkflowResponse) {}
 }

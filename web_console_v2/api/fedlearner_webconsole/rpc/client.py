@@ -128,3 +128,23 @@ class RpcClient(object):
                 status=common_pb2.Status(
                     code=common_pb2.STATUS_UNKNOWN_ERROR,
                     msg=repr(e)))
+
+    def update_workflow(self, name, config):
+        msg = service_pb2.UpdateWorkflowRequest(
+            auth_info=self._auth_info,
+            workflow_name=name,
+            config=config)
+        try:
+            response = self._client.UpdateWorkflow(
+                request=msg, metadata=self._get_metadata())
+            if response.status.code != common_pb2.STATUS_SUCCESS:
+                logging.error(
+                    'update_workflow request error: %s',
+                    response.status.msg)
+            return response
+        except Exception as e:
+            logging.error('update_workflow request error: %s', repr(e))
+            return service_pb2.UpdateWorkflowResponse(
+                status=common_pb2.Status(
+                    code=common_pb2.STATUS_UNKNOWN_ERROR,
+                    msg=repr(e)))

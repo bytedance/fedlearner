@@ -24,11 +24,9 @@ from testing.common import BaseTestCase
 
 
 class WorkflowTemplatesApiTest(BaseTestCase):
-    def get_config(self):
-        config = super().get_config()
-        config.START_GRPC_SERVER = False
-        config.START_SCHEDULER = False
-        return config
+    class Config(BaseTestCase.Config):
+        START_GRPC_SERVER = False
+        START_SCHEDULER = False
 
     def setUp(self):
         super().setUp()
