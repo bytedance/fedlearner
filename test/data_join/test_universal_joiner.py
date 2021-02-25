@@ -120,7 +120,7 @@ class TestUniversalJoin(dsp.DataSourceProducer):
 from fedlearner.data_join.key_mapper.key_mapping import BaseKeyMapper
 class KeyMapperMock(BaseKeyMapper):
     def leader_mapping(self, item) -> dict:
-        res = item.click_id.split("_")
+        res = item.click_id.decode().split("_")
         return dict({"req_id":res[0], "cid":res[1]})
 
     def follower_mapping(self, item) -> dict:

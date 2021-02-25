@@ -55,7 +55,7 @@ ALLOWED_FIELD = namedtuple('ALLOW_FIELD', ['default_value', 'type', 'must'])
 ALLOWED_FIELDS = dict({
     'example_id': ALLOWED_FIELD(InvalidExampleId, bytes, True),
     'event_time': ALLOWED_FIELD(InvalidEventTime, int, True),
-    'index': ALLOWED_FIELD(InvalidEventTime, int, False),
+    'index': ALLOWED_FIELD(InvalidInt, int, False),
     'event_time_deep': ALLOWED_FIELD(InvalidEventTime, int, False),
     'raw_id': ALLOWED_FIELD(InvalidRawId, bytes, False),
     'type': ALLOWED_FIELD(InvalidInt, int, False),

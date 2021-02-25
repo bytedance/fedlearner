@@ -214,7 +214,8 @@ class DataSourceProducer(unittest.TestCase):
                 example_id_batch.example_id.append(example_id)
                 example_id_batch.event_time.append(150000000 + example_idx)
                 if self.version == Version.V2:
-                    example_id_batch.click_id.append('%s_%s'%(example_id.decode(), example_id.decode()))
+                    click_id = '%s_%s'%(example_id.decode(), example_id.decode())
+                    example_id_batch.click_id.append(click_id.encode())
                     example_id_batch.id_type.append('IMEI'.encode())
                     example_id_batch.event_time_deep.append(150000000 + example_idx + 1)
                     example_id_batch.type.append(1)
