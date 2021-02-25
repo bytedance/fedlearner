@@ -81,8 +81,7 @@ if __name__ == '__main__':
             compressed_type=args.compressed_type,
             read_ahead_size=args.read_ahead_size,
             read_batch_size=args.read_batch_size,
-            optional_fields=optional_fields,
-            input_data_stat_sample_ratio=args.input_data_stat_sample_ratio
+            optional_fields=optional_fields
         ),
         writer_options=dj_pb.WriterOptions(
             output_writer=args.output_builder,
