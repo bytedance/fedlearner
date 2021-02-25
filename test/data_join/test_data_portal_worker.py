@@ -78,8 +78,7 @@ class TestDataPortalWorker(unittest.TestCase):
                 raw_data_iter="TF_RECORD",
                 read_ahead_size=1<<20,
                 read_batch_size=128,
-                optional_fields=['label'],
-                input_data_stat_sample_ratio=0.001
+                optional_fields=['label']
             ),
             writer_options=dj_pb.WriterOptions(
                 output_writer="TF_RECORD"
