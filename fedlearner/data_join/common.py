@@ -176,8 +176,7 @@ def convert_dict_to_tf_example(src_dict):
             raise RuntimeError('the key {}({}) of dict must a '\
                                'string'.format(key, type(key)))
         basic_type = type(feature)
-        # TODO: support complete field definition, which likes `id:type:range`
-        if basic_type == str and ALLOWED_FIELDS[key].type is str:
+        if basic_type == str and ALLOWED_FIELDS[key].type is not str:
             if feature.lstrip('-').isdigit():
                 feature = int(feature)
                 basic_type = int
