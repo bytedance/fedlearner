@@ -42,15 +42,15 @@ const ImportProgress: FC<{ dataset: Dataset }> = ({ dataset }) => {
 
 export const DataBatchImportProgress: FC<{ batch: DataBatch }> = ({ batch }) => {
   const { t } = useTranslation();
-  const { state, num_file, imported_file_num } = batch;
-  const proportion = Math.floor((imported_file_num / num_file) * 100);
+  const { state, num_file, num_imported_file } = batch;
+  const proportion = Math.floor((num_imported_file / num_file) * 100);
 
   const isImporting = state === BatchState.IMPORTING;
 
   const indicatorPorps: React.ComponentProps<typeof StateIndicator> = ({
     [BatchState.IMPORTING]: {
       type: 'processing',
-      text: t('dataset.state_importing', { total: num_file, imported: imported_file_num }),
+      text: t('dataset.state_importing', { total: num_file, imported: num_imported_file }),
     },
     [BatchState.FAILED]: { type: 'error', text: t('dataset.state_error') },
     [BatchState.SUCCESS]: { type: 'success', text: t('dataset.state_available') },

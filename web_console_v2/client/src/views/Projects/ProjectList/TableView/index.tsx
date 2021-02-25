@@ -126,7 +126,7 @@ function TableList({ list, onViewDetail }: TableListProps): ReactElement {
   ];
   return (
     <Container>
-      <Table dataSource={statefulList} columns={columns} scroll={{ x: '100%' }} />
+      <Table dataSource={statefulList} columns={columns} rowKey="name" scroll={{ x: '100%' }} />
     </Container>
   );
 
