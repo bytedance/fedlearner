@@ -27,7 +27,8 @@ import elasticsearch6 as es6
 from elasticsearch import helpers as helpers7
 from elasticsearch6 import helpers as helpers6
 
-from fedlearner.common.common import TEMPLATE_MAP, INDEX_NAME, CONFIGS
+from fedlearner.common.common import INDEX_NAME, CONFIGS, get_template, \
+    INDEX_TYPE
 
 
 class Handler(object):
@@ -76,71 +77,39 @@ class ElasticSearchHandler(Handler):
         if self._version == 6:
             self._es = es6.Elasticsearch([ip], port=port)
             self._helpers = helpers6
-            # first run, put index templates to ES
-            self._es.indices.put_template(name='metrics_v2-template',
-                                          body=TEMPLATE_MAP['metrics'])
-            self._es.indices.put_template(name='raw_data-template',
-                                          body=TEMPLATE_MAP['raw_data'])
-            self._es.indices.put_template(name='data_join-template',
-                                          body=TEMPLATE_MAP['data_join'])
+        # first run, put index templates to ES if not exist
+        # templates are supposed to be set during deployment
+        if not self._es.indices.exists_template('metrics_v2-template'):
+            for index_type in INDEX_TYPE:
+                self._create_template_and_index(index_type)
         # suppress ES logger
         logging.getLogger('elasticsearch').setLevel(logging.CRITICAL)
         self._emit_batch = []
-        self._current_date = ''
         self._batch_size = CONFIGS['es_batch_size']
         self._lock = threading.RLock()
 
-    def _produce_action7(self, name, value, tags, index_type='metrics'):
-        document = self._produce_document(name, value, tags, index_type)
-        action = {
-            # _index = which index to emit to
-            '_index': INDEX_NAME[index_type],
-            '_source': document
-        }
-        return action
-
-    def _produce_action6(self, name, value, tags, index_type='metrics'):
-        date = datetime.datetime.now(
-            tz=CONFIGS['timezone']).strftime('%Y.%m.%d')
-        index = INDEX_NAME[index_type] + '-{}'.format(date)
-        with self._lock:
-            if self._get_current_date() != date:
-                # Date changed, create new index
-                logging.info('METRICS: Creating new index %s.', index)
-                self._create_index(index)
-                self._set_current_date(date)
-        document = self._produce_document(name, value, tags, index_type)
-        action = {'_index': index, '_source': document, '_type': '_doc'}
-        return action
-
     def emit(self, name, value, tags=None, index_type='metrics'):
-        assert index_type in ('metrics', 'data_join', 'raw_data')
+        assert index_type in INDEX_TYPE
         if tags is None:
             tags = {}
-        if self._version == 7:
-            action = self._produce_action7(name, value, tags, index_type)
-        else:
-            action = self._produce_action6(name, value, tags, index_type)
+        document = self._produce_document(name, value, tags, index_type)
+        action = {'_index': INDEX_NAME[index_type],
+                  '_source': document}
+        if self._version == 6:
+            action['_type'] = '_doc'
         with self._lock:
-            # emit and pop when there are enough documents to emit
+            # emit when there are enough documents
             self._emit_batch.append(action)
             if len(self._emit_batch) >= self._batch_size:
                 self.flush()
 
     def flush(self):
-        if len(self._emit_batch) > 0:
-            logging.info('METRICS: Emitting %d documents to ES',
-                         len(self._emit_batch))
-            self._helpers.bulk(self._es, self._emit_batch)
-            self._emit_batch = []
-
-    def _get_current_date(self):
         with self._lock:
-            return self._current_date
-
-    def _set_current_date(self, date):
-        with self._lock:
-            self._current_date = date
+            if len(self._emit_batch) > 0:
+                logging.info('METRICS: Emitting %d documents to ES',
+                             len(self._emit_batch))
+                self._helpers.bulk(self._es, self._emit_batch)
+                self._emit_batch = []
 
     @staticmethod
     def _produce_document(name, value, tags, index_type):
@@ -160,26 +129,27 @@ class ElasticSearchHandler(Handler):
             document = tags
         return document
 
-    def _create_index(self, index):
+    def _create_template_and_index(self, index_type):
         """
         Args:
-            index: ES index name.
+            index_type: ES index type.
 
-        Creates an index on ES, using templates.
+        Creates a template and an index on ES.
 
         """
-        with self._lock:
-            if not self._es.indices.exists(index=index):
-                try:
-                    # mappings is defined in template
-                    self._es.indices.create(index=index)
-                    return
-                # index may have been created by other jobs
-                except es6.exceptions.RequestError as e:
-                    # if due to other reasons, re-raise exception
-                    if e.info['error']['type'] != \
-                       'resource_already_exists_exception':
-                        raise e
+        assert index_type in INDEX_TYPE
+        self._es.indices.put_template(
+            name='{}-template'.format(INDEX_NAME[index_type]),
+            body=get_template(index_type, self._version)
+        )
+        try:
+            self._es.indices.create(index=INDEX_NAME[index_type])
+            return
+        # index may have been created by other jobs
+        except (es6.exceptions.RequestError, es7.exceptions.RequestError) as e:
+            # if due to other reasons, re-raise exception
+            if e.info['error']['type'] != 'resource_already_exists_exception':
+                raise e
 
 
 class Metrics(object):
