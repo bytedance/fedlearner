@@ -14,13 +14,21 @@
 
 # coding: utf-8
 from elasticsearch import Elasticsearch
-from config import Config
 
 
 class ElasticSearchClient(object):
-    def __init__(self, host, port):
-        self._es_client = Elasticsearch([{'host': host,
-                                          'port': port}])
+    def __init__(self):
+        self._es_client = None
+
+    def init_app(self, app):
+        self._es_client = Elasticsearch([
+            {
+                'host': app.config.get('ES_HOST', None),
+                'port': app.config.get('ES_PORT', None)
+            }])
+
+    def search(self, *args, **kwargs):
+        return self._es_client.search(*args, **kwargs)
 
     def query_log(self, index, keyword, pod_name, start_time, end_time,
                   match_phrase=None):
@@ -72,6 +80,3 @@ class ElasticSearchClient(object):
         query_body['query']['bool']['must'] = keyword_list + match_phrase_list
         response = self._es_client.search(index=index, body=query_body)
         return [item['_source']['message'] for item in response['hits']['hits']]
-
-
-es = ElasticSearchClient(Config.ES_HOST, Config.ES_PORT)
