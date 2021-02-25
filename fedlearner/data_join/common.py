@@ -174,8 +174,9 @@ def convert_dict_to_tf_example(src_dict):
             raise RuntimeError('the key {}({}) of dict must a '\
                                'string'.format(key, type(key)))
         basic_type = type(feature)
-        ## FIXME support v2 and negative example generation
-        if basic_type == str and key not in ('example_id', 'raw_id'):
+        # all field value are type of str in csv format
+        # convert field value into int if it's not bytes
+        if basic_type == str and ALLOWED_FIELDS[key].type != bytes:
             if feature.lstrip('-').isdigit():
                 feature = int(feature)
                 basic_type = int
