@@ -241,12 +241,8 @@ class ExampleIdVisitor(visitor.Visitor):
     class ExampleIdItem(raw_data_iter.RawDataIter.Item):
         def __init__(self, index, row):
             super().__init__()
-            self._index = index
+            row['index'] = index
             self._features.update(row)
-
-        @property
-        def index(self):
-            return self._index
 
     class ExampleIdIter(tf_record_iter.TfRecordIter):
         @classmethod

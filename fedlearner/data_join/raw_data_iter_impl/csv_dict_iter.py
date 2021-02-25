@@ -48,55 +48,6 @@ class CsvItem(RawDataIter.Item):
         return cls(raw)
 
     @property
-    def example_id(self):
-        if 'example_id' not in self._features:
-            logging.error("Failed parse example id since no join "\
-                          "id in csv dict raw %s", self._features)
-            return common.InvalidExampleId
-        return str(self._features['example_id']).encode()
-
-    @property
-    def click_id(self):
-        if 'click_id' not in self._features:
-            logging.error("Failed parse click id since no join "\
-                          "id in csv dict raw %s", self._features)
-            return common.InvalidExampleId
-        return self._features['click_id']
-
-    @property
-    def event_time(self):
-        if 'event_time' in self._features:
-            try:
-                return int(self._features['event_time'])
-            except Exception as e: # pylint: disable=broad-except
-                logging.error("Failed to parse event time as int type from "\
-                              "%s, reason: %s", self._features['event_time'], e)
-        return common.InvalidEventTime
-
-    @property
-    def event_time_deep(self):
-        if 'event_time_deep' in self._features:
-            try:
-                return int(self._features['event_time_deep'])
-            except Exception as e: # pylint: disable=broad-except
-                logging.error("Failed to parse deep event time as int type "\
-                              "from %s, reason: %s",
-                              self._features['event_time_deep'], e)
-        return common.InvalidEventTime
-
-    @property
-    def raw_id(self):
-        if 'raw_id' not in self._features:
-            logging.error("Failed parse raw id since no join "\
-                          "id in csv dict raw %s", self._features)
-            return common.InvalidRawId
-        return str(self._features['raw_id']).encode()
-
-    @property
-    def record(self):
-        return self._features
-
-    @property
     def tf_record(self):
         if self._tf_record is None:
             try:
@@ -119,7 +70,6 @@ class CsvItem(RawDataIter.Item):
         self._features = new_features
         if self._tf_record is not None:
             self._tf_record = None
-
 
 class CsvDictIter(RawDataIter):
     def __init__(self, options):

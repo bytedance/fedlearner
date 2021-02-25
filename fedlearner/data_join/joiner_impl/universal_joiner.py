@@ -434,7 +434,7 @@ class UniversalJoiner(ExampleJoiner):
     def _sync_fields(self, le, fe):
         #FIXME: sync event_time_deep from leader, trick
         if hasattr(le, "event_time_deep"):
-            fe.event_time_deep = le.event_time_deep
+            fe['event_time_deep'] = le.event_time_deep
 
     def _sort_and_evict_leader_buf(self, raw_matches, watermark):
         """

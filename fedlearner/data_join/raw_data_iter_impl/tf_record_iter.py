@@ -32,7 +32,7 @@ class TfExampleItem(RawDataIter.Item):
         example = self._parse_example()
         dic = common.convert_tf_example_to_dict(example)
         self._features.update({key: dic[key] for key in dic
-                               if key in self._allowed_fields})
+                               if key in common.ALLOWED_FIELDS.keys()})
         self._csv_record = None
         self._gc_example(example)
 
@@ -49,31 +49,6 @@ class TfExampleItem(RawDataIter.Item):
                 fields[v] = fvalue[i]
         ex = common.convert_dict_to_tf_example(fields)
         return cls(ex.SerializeToString())
-
-    @property
-    def example_id(self):
-        res = self._features.get('example_id', common.InvalidExampleId)
-        if res == common.InvalidExampleId:
-            logging.warning('Note!!! return invalid example id')
-        return res
-
-    @property
-    def raw_id(self):
-        res = self._features.get('raw_id', common.InvalidRawId)
-        if res == common.InvalidRawId:
-            logging.warning('Note!!! return invalid raw id')
-        return res
-
-    @property
-    def event_time(self):
-        res = self._features.get('event_time', common.InvalidEventTime)
-        if res == common.InvalidEventTime and 'event_time' in self._features:
-            logging.warning('Note!!! return invalid event time')
-        return int(res)
-
-    @property
-    def record(self):
-        return self._record_str
 
     @property
     def tf_record(self):

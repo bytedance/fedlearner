@@ -16,40 +16,18 @@
 
 import logging
 from collections import OrderedDict
-
+import fedlearner.data_join.common as common
 
 class RawDataIter(object):
     class Item(object):
         def __init__(self):
             # please modify the set according to alphabetical order.
             # event_time is event_time_shallow
-            self._allowed_fields = {
-                'click_id', 'example_id', 'event_time', 'event_time_deep',
-                'id', 'id_type', 'label', 'raw_id', 'type', 'req_id', 'cid'
-            }
             self._features = OrderedDict()
 
         @property
-        def example_id(self):
-            if 'example_id' in self._features:
-                return self._features['example_id']
-            raise NotImplementedError(
-                    "example_id not implement for basic Item"
-                )
-
-        @property
-        def event_time(self):
-            if 'event_time' in self._features:
-                return self._features['event_time']
-            raise NotImplementedError(
-                    "event_time not implement for basic Item"
-                )
-
-        @property
         def record(self):
-            raise NotImplementedError(
-                    "record not implement for basic Item"
-                )
+            return self._features
 
         @property
         def tf_record(self):
@@ -65,15 +43,21 @@ class RawDataIter(object):
 
         @classmethod
         def make(cls, example_id, event_time, raw_id, fname=None, fvalue=None):
-            raise NotImplementedError("make not implement for basic Item")
+            raise NotImplementedError("make not implemented for basic Item")
 
         def __getattr__(self, item):
-            if item in self._features:
-                return self._features[item]
-            raise AttributeError("%s: %s"%(self.__class__.__name__, item))
+            if item not in self._features and common.ALLOWED_FIELDS[item].must:
+                logging.warning("%s misses field %s:%s",
+                                self.__class__.__name__,
+                                item, common.ALLOWED_FIELDS[item])
+            return self._features.get(item,
+                                      common.ALLOWED_FIELDS[item].default_value)
 
         def __getitem__(self, item):
             return self._features[item]
+
+        def __setitem__(self, item, value):
+            self._features[item] = value
 
         def __contains__(self, item):
             return item in self._features
@@ -124,7 +108,8 @@ class RawDataIter(object):
                         return
         except Exception as e: # pylint: disable=broad-except
             logging.warning(
-                    "Failed to seek file %s to index %d, reason %s",
+                    "%s failed to seek file %s to index %d, reason %s",
+                    self.__class__.__name__,
                     self._index_meta.fpath, target_index, e
                 )
             self._iter_failed = True
@@ -148,7 +133,8 @@ class RawDataIter(object):
             raise
         except Exception as e: # pylint: disable=broad-except
             logging.warning(
-                    "Failed to next iter %s to %d, reason %s",
+                    "%s failed to next iter %s to %d, reason %s",
+                    self.__class__.__name__,
                     self._index_meta.fpath, self._index + 1, e
                 )
             self._iter_failed = True

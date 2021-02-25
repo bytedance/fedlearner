@@ -21,6 +21,7 @@ import threading
 import time
 from contextlib import contextmanager
 from collections import OrderedDict
+from collections import namedtuple
 from datetime import datetime
 from datetime import timezone
 
@@ -46,6 +47,26 @@ DoneFileSuffix = '.done'
 RawDataFileSuffix = '.rd'
 InvalidEventTime = -9223372036854775808
 InvalidRawId = ''.encode()
+
+InvalidBytes = ''.encode()
+InvalidInt = -1
+InvalidStr = ''
+
+# must: both old and new version of raw data should provide this field
+ALLOWED_FIELD = namedtuple('ALLOW_FIELD', ['default_value', 'type', 'must'])
+ALLOWED_FIELDS = dict({
+    'example_id': ALLOWED_FIELD(InvalidExampleId, bytes, True),
+    'event_time': ALLOWED_FIELD(InvalidEventTime, int, True),
+    'event_time_deep': ALLOWED_FIELD(InvalidEventTime, int, False),
+    'raw_id': ALLOWED_FIELD(InvalidRawId, bytes, False),
+    'type': ALLOWED_FIELD(InvalidInt, int, False),
+    'id_type': ALLOWED_FIELD(InvalidStr, str, False),
+    'joined': ALLOWED_FIELD(InvalidInt, int, False),
+    'click_id': ALLOWED_FIELD(InvalidStr, str, False),
+    'req_id': ALLOWED_FIELD(InvalidStr, str, False),
+    'label': ALLOWED_FIELD(InvalidInt, int, False),
+    'cid': ALLOWED_FIELD(InvalidStr, str, False)
+})
 
 @contextmanager
 def make_tf_record_iter(fpath, options=None):
