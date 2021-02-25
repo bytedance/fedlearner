@@ -32,8 +32,6 @@ class _Attributor(object):
         self._max_conversion_delay = max_conversion_delay
 
     def match(self, conv, show):
-        assert hasattr(conv, "example_id"), "invalid item, no example id"
-        assert hasattr(show, "example_id"), "invalid item, no example id"
         return conv.example_id == show.example_id and \
                 conv.event_time > show.event_time and \
                 conv.event_time <= show.event_time +  \

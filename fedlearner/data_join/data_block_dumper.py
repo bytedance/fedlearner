@@ -165,12 +165,15 @@ class DataBlockDumperManager(object):
                 os._exit(-1) # pylint: disable=protected-access
             match_index = 0
             example_num = len(meta.example_ids)
+            is_v2 = len(meta.indices) > 0
             for (index, item) in self._raw_data_visitor:
                 example_id = item.example_id
                 joined = False
                 # Elements in meta.example_ids maybe duplicated
                 while match_index < example_num and \
                         example_id == meta.example_ids[match_index]:
+                    if is_v2 and meta.indices[match_index] != index:
+                        continue
                     data_block_builder.write_item(item)
                     self._optional_stats.update_stats(item, kind='joined')
                     match_index += 1

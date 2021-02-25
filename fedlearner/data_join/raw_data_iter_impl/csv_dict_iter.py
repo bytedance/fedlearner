@@ -32,8 +32,10 @@ class CsvItem(RawDataIter.Item):
     def __init__(self, raw):
         super().__init__()
         # convert example_id, raw_id of type str into bytes
-        raw['example_id'] = raw["example_id"].encode()
-        raw['raw_id'] = raw["raw_id"].encode()
+        if "example_id" in raw:
+            raw['example_id'] = raw["example_id"].encode()
+        if "raw_id" in raw:
+            raw['raw_id'] = raw["raw_id"].encode()
         self._features.update(raw)
         self._tf_record = None
 

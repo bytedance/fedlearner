@@ -68,6 +68,9 @@ class DataBlockBuilder(object):
         if event_time is None:
             event_time = item.event_time
         self._data_block_meta.example_ids.append(example_id)
+        if hasattr(item, 'id_type'):
+            # v2
+            self._data_block_meta.indices.append(leader_index)
         self._example_ids_size += len(example_id)
         if self._example_num == 0:
             self._data_block_meta.leader_start_index = leader_index

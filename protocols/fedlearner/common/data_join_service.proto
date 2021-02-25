@@ -143,6 +143,7 @@ message DataBlockMeta {
   int64 data_block_index = 10;
   DataBlockType data_block_type = 11;
   JoinerStatsInfo joiner_stats_info = 12;
+  repeated int64 indices = 13;
 }
 
 message StartPartitionRequest {
