@@ -9,9 +9,14 @@ import styled from 'styled-components';
 import { useTranslation } from 'react-i18next';
 import { ReactFlowProvider } from 'react-flow-renderer';
 import WorkflowJobsFlowChart, { ChartExposedRef } from 'components/WorkflowJobsFlowChart';
-import { ChartNode, JobNodeStatus, NodeData } from 'components/WorkflowJobsFlowChart/types';
+import {
+  ChartNode,
+  ChartNodes,
+  ChartNodeStatus,
+  NodeData,
+} from 'components/WorkflowJobsFlowChart/types';
 import { useMarkFederatedJobs } from 'components/WorkflowJobsFlowChart/hooks';
-import { cloneDeep, Dictionary } from 'lodash';
+import { cloneDeep, Dictionary, omit } from 'lodash';
 import JobFormDrawer, { JobFormDrawerExposedRef } from '../../JobFormDrawer';
 import { useToggle } from 'react-use';
 import { WorkflowExecutionDetails } from 'typings/workflow';
@@ -25,6 +30,7 @@ import { to } from 'shared/helpers';
 import { MixinFlexAlignCenter } from 'styles/mixins';
 import { useSubscribe } from 'hooks';
 import { WORKFLOW_JOB_NODE_CHANNELS } from 'components/WorkflowJobsFlowChart/WorkflowJobNode';
+import { Job } from 'typings/job';
 
 const LoadingContainer = styled.div`
   ${MixinFlexAlignCenter()}
@@ -135,8 +141,6 @@ const WorkflowForkStepTwoConfig: FC = () => {
 
   const isDisabled = { disabled: submitting };
 
-  // TODO: if peer workflow unforkable, redirect user back !
-
   return (
     <>
       <ChartSection>
@@ -238,7 +242,10 @@ const WorkflowForkStepTwoConfig: FC = () => {
     }
 
     // Turn target node status to configuring
-    nextTargetChartRef?.updateNodeStatusById({ id: nextNode.id, status: JobNodeStatus.Processing });
+    nextTargetChartRef?.updateNodeStatusById({
+      id: nextNode.id,
+      status: ChartNodeStatus.Processing,
+    });
 
     setCurrNode(nextNode);
 
@@ -254,7 +261,7 @@ const WorkflowForkStepTwoConfig: FC = () => {
     const isValid = await drawerRef.current?.validateCurrentForm();
     targetChartRef?.updateNodeStatusById({
       id: currNode.id,
-      status: isValid ? JobNodeStatus.Success : JobNodeStatus.Warning,
+      status: isValid ? ChartNodeStatus.Success : ChartNodeStatus.Warning,
     });
   }
   async function saveCurrentValues() {
@@ -284,7 +291,7 @@ const WorkflowForkStepTwoConfig: FC = () => {
       selfConfigChartRef.current?.nodes.concat(peerConfigChartRef.current?.nodes || []) || [];
 
     const isAllCompleted = allNodes.every((node) => {
-      return node.data.status === JobNodeStatus.Success;
+      return node.data.status === ChartNodeStatus.Success;
     });
 
     return isAllCompleted;
@@ -300,14 +307,14 @@ const WorkflowForkStepTwoConfig: FC = () => {
 
     const payload = stringifyWidgetSchemas(formData);
 
-    // Find reusable job names for both peer and self side
-    payload.reuse_job_names = selfConfigChartRef.current?.nodes
-      .filter((node) => node.data.inherit)
-      .map((item) => item.id)!;
+    payload.config.job_definitions = _omitJobsColorMark(payload.config.job_definitions);
+    payload.fork_proposal_config.job_definitions = _omitJobsColorMark(
+      payload.fork_proposal_config.job_definitions,
+    );
 
-    payload.peer_reuse_job_names = peerConfigChartRef.current?.nodes
-      .filter((node) => node.data.inherit)
-      .map((item) => item.id)!;
+    // Find reusable job names for both peer and self side
+    payload.reuse_job_names = _filterReusableJobs(selfConfigChartRef.current?.nodes!);
+    payload.peer_reuse_job_names = _filterReusableJobs(peerConfigChartRef.current?.nodes!);
 
     // FIXME: remove after using hashed job name
     payload.name = payload.name.replace(/[\s]/g, '');
@@ -389,6 +396,17 @@ function _hydrate(variableShells: Variable[], formValues?: Dictionary<any>): Var
       value: formValues[item.name],
     };
   });
+}
+
+function _filterReusableJobs(nodes: ChartNodes) {
+  return nodes
+    .filter((node) => node.data.inherit)
+    .filter((node) => node.type === 'global')
+    .map((item) => item.id)!;
+}
+
+function _omitJobsColorMark(jobs: Job[]) {
+  return jobs.map((job) => omit(job, 'mark'));
 }
 
 export default WorkflowForkStepTwoConfig;

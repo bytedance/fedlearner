@@ -3,86 +3,19 @@ import buildFormSchemaFromJobDef, {
   parseWidgetSchemas,
 } from './formSchema';
 import { Job, JobType } from 'typings/job';
-import { Variable, VariableAccessMode, VariableComponent } from 'typings/variable';
+import { VariableComponent } from 'typings/variable';
 import { render, cleanup, screen } from '@testing-library/react';
 import { normalTemplate } from 'services/mocks/v2/workflow_templates/examples';
 import { withExecutionDetail } from 'services/mocks/v2/workflows/examples';
+import {
+  unassignedComponent,
+  nameInput,
+  memSelect,
+  asyncSwitch,
+  cpuLimit,
+  commentTextArea,
+} from 'services/mocks/v2/variables/examples';
 import { WorkflowTemplatePayload } from 'typings/workflow';
-
-const unassignedComponent: Variable = {
-  name: 'component_unassigned',
-  value: '',
-  access_mode: VariableAccessMode.PEER_READABLE,
-  widget_schema: {},
-};
-
-const nameInput: Variable = {
-  name: 'some_name',
-  value: 'initial value',
-  access_mode: VariableAccessMode.PEER_READABLE,
-  widget_schema: {
-    component: VariableComponent.Input,
-    type: 'string',
-    tooltip: 'some hints',
-  },
-};
-
-const memSelect: Variable = {
-  name: 'worker_mem',
-  value: 2,
-  access_mode: VariableAccessMode.PRIVATE,
-  widget_schema: {
-    component: VariableComponent.Select,
-    type: 'number',
-    required: true,
-    options: {
-      type: 'static',
-      source: [
-        { value: 1, label: '1Gi' },
-        { value: 2, label: '2Gi' },
-      ],
-    },
-    placeholder: '请选择内存',
-  },
-};
-
-const asyncSwitch: Variable = {
-  name: 'is_async',
-  value: false,
-  access_mode: VariableAccessMode.PEER_WRITABLE,
-  widget_schema: {
-    component: VariableComponent.Switch,
-    label: '是否异步',
-    type: 'boolean',
-    checkedChildren: 'Async mode',
-    unCheckedChildren: 'Synchronous mode',
-  },
-};
-
-const cpuLimit: Variable = {
-  name: 'cpu_limit',
-  value: false,
-  access_mode: VariableAccessMode.PRIVATE,
-  widget_schema: {
-    component: VariableComponent.NumberPicker,
-    type: 'number',
-    min: 10,
-    max: 100,
-  },
-};
-
-const commentTextArea: Variable = {
-  name: 'comment',
-  value: '',
-  access_mode: VariableAccessMode.PEER_WRITABLE,
-  widget_schema: {
-    component: VariableComponent.TextArea,
-    type: 'string',
-    rows: 6,
-    showCount: true,
-    placeholder: '备注',
-  },
-};
 
 const testJobDef: Job = {
   name: 'Test job',
@@ -169,7 +102,7 @@ describe('Build a form schema with permissions', () => {
 
 describe('Stringify all Widget schemas inside a workflow config before send to server', () => {
   it('stringifyWidgetSchemas should works fine', () => {
-    const stringified = stringifyWidgetSchemas(normalTemplate.data as WorkflowTemplatePayload);
+    const stringified = stringifyWidgetSchemas(normalTemplate as WorkflowTemplatePayload);
 
     expect(
       stringified.config.variables.every((item) => typeof item.widget_schema === 'string'),

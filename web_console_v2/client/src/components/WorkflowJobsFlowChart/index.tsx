@@ -11,7 +11,7 @@ import {
   ChartNodeType,
   NodeDataRaw,
   JobNode,
-  JobNodeStatus,
+  ChartNodeStatus,
   ChartNodes,
   ChartElements,
 } from './types';
@@ -107,7 +107,7 @@ type updateInheritanceParams = {
 };
 type updateStatusParams = {
   id: string;
-  status: JobNodeStatus;
+  status: ChartNodeStatus;
 };
 
 export type ChartExposedRef = {
@@ -141,7 +141,7 @@ const WorkflowJobsFlowChart: ForwardRefRenderFunction<ChartExposedRef | undefine
   // and will change during user configuring, but we do not want that lead
   // re-generate chart elements
   const workflowIdentifyString = workflowConfig.job_definitions
-    .map((item) => item.name)
+    .map((item) => item.name + item.mark || '')
     .concat(workflowConfig.variables?.map((item) => item.name) || [])
     .join('|');
 

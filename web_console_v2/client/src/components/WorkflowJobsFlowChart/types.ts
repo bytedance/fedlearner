@@ -1,7 +1,7 @@
 import { Edge, Node } from 'react-flow-renderer';
 import { JobExecutionDetalis, Job } from 'typings/job';
 
-export enum JobNodeStatus {
+export enum ChartNodeStatus {
   Pending,
   Processing,
   Warning,
@@ -24,7 +24,7 @@ export type NodeData = {
   index: number;
   isSource?: boolean;
   isTarget?: boolean;
-  status: JobNodeStatus;
+  status: ChartNodeStatus;
   mark?: JobColorsMark;
   inherit?: boolean; // When forking workflow, some node's result can be inherit
   side?: string; // Assign it while forking workflow, let node tell which side it belongs

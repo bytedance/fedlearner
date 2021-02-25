@@ -116,7 +116,7 @@ export const completed = {
   ...cloneDeep(withExecutionDetail),
   id: 3,
   name: 'All-completed',
-  config: normalTemplate.data.config as any,
+  config: normalTemplate.config as any,
   state: WorkflowState.COMPLETED,
   target_state: WorkflowState.INVALID,
   transaction_state: TransactionState.ABORTED,
