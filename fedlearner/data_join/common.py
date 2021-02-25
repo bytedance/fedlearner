@@ -57,6 +57,7 @@ ALLOWED_FIELD = namedtuple('ALLOW_FIELD', ['default_value', 'type', 'must'])
 ALLOWED_FIELDS = dict({
     'example_id': ALLOWED_FIELD(InvalidExampleId, bytes, True),
     'event_time': ALLOWED_FIELD(InvalidEventTime, int, True),
+    'index': ALLOWED_FIELD(InvalidEventTime, int, False),
     'event_time_deep': ALLOWED_FIELD(InvalidEventTime, int, False),
     'raw_id': ALLOWED_FIELD(InvalidRawId, bytes, False),
     'type': ALLOWED_FIELD(InvalidInt, int, False),
@@ -176,8 +177,7 @@ def convert_dict_to_tf_example(src_dict):
                                'string'.format(key, type(key)))
         basic_type = type(feature)
         # TODO: support complete field definition, which likes `id:type:range`
-        if basic_type == str and key not in ('example_id', 'raw_id', \
-                                             'req_id', 'cid'):
+        if basic_type == str and ALLOWED_FIELDS[key].type is str:
             if feature.lstrip('-').isdigit():
                 feature = int(feature)
                 basic_type = int
