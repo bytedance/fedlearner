@@ -3,7 +3,7 @@ import logging
 import os
 
 INDEX_TYPE = ('metrics', 'data_join', 'raw_data')
-# YYYY-MM-DD'T'hh:MM:ss.SSSSSSZ
+# YYYY-MM-DD'T'hh:mm:ss.SSSSSSZ
 _es_datetime_format = 'strict_date_optional_time'
 # WARNING: MAPPINGS BELOW ARE COMPATIBILITY MEASURES AND SHOULD NOT BE MODIFIED.
 RAW_DATA_MAPPINGS = {
