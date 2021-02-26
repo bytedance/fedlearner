@@ -67,11 +67,13 @@ class DataJoinWorker(dj_grpc.DataJoinWorkerServiceServicer):
             transmit_follower = self._transmit_follower
             processing_partition_id = \
                     transmit_follower.get_processing_partition_id()
+            rollback = 0
             if processing_partition_id is None:
                 rsp = self._trigger_allocate_partition(partition_id)
                 if rsp.status.code == 0 and not rsp.HasField('manifest'):
                     response.status.code = -4
                     response.status.error_message = "no manifest response"
+                rollback = rsp.rollback
                 response.status.MergeFrom(rsp.status)
             elif partition_id != processing_partition_id:
                 response.status.code = -5
@@ -79,7 +81,8 @@ class DataJoinWorker(dj_grpc.DataJoinWorkerServiceServicer):
                         "partition %d is processing" % processing_partition_id
             if response.status.code == 0:
                 response.next_index, response.dumped_index = \
-                        transmit_follower.start_sync_partition(partition_id)
+                        transmit_follower.start_sync_partition(partition_id,
+                                                               rollback)
         return response
 
     def SyncPartition(self, request, context):

@@ -124,6 +124,9 @@ class ExampleJoiner(object):
                 return True
             return self._need_finish_data_block_since_interval()
 
+    def rollback(self, rollback):
+        pass
+
     def _prepare_join(self, state_stale):
         if state_stale:
             self._sync_state()

@@ -37,10 +37,13 @@ if __name__ == "__main__":
                         help='the name of data source')
     parser.add_argument('--batch_mode', action='store_true',
                         help='make the data join run in batch mode')
+    parser.add_argument('--allow_rollback', action='store_true',
+                        help='whether to allow rollback.')
     args = parser.parse_args()
     master_options = dj_pb.DataJoinMasterOptions(
             use_mock_etcd=(args.kvstore_type == 'mock'),
-            batch_mode=args.batch_mode
+            batch_mode=args.batch_mode,
+            allow_rollback=args.allow_rollback
         )
     db_database, db_addr, db_username, db_password, db_base_dir = \
         get_kvstore_config(args.kvstore_type)
