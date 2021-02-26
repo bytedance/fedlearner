@@ -43,7 +43,8 @@ class ExampleIdBatch(ItemBatch):
             assert hasattr(item, 'event_time_deep'), "Incomplete new example"
             self._id_types.append(item.id_type)
             self._event_time_deeps.append(item.event_time_deep)
-            self._types.append(item.type)
+            if hasattr(item, 'type'):
+                self._types.append(item.type)
             if hasattr(item, "click_id"):
                 self._click_ids.append(item.click_id)
 
@@ -58,10 +59,9 @@ class ExampleIdBatch(ItemBatch):
             example_id=self._example_ids,
             event_time=self._event_times,
         )
-        assert len(self._id_types) == len(self._types), \
-                "Rawrata invalid new version"
         assert len(self._id_types) == len(self._event_time_deeps), \
                 "Rawrata invalid new version"
+
         if len(self._id_types) > 0:
             serde_lite_examples.id_type.extend(self._id_types)
             serde_lite_examples.event_time_deep.extend(self._event_time_deeps)

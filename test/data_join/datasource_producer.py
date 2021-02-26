@@ -135,8 +135,8 @@ class DataSourceProducer(unittest.TestCase):
                 if self.version == Version.V2:
                     feat['id_type'] = tf.train.Feature(
                         bytes_list=tf.train.BytesList(value=['IMEI'.encode()]))
-                    feat['type'] = tf.train.Feature(
-                        bytes_list=tf.train.BytesList(value=[b'1']))
+                    #feat['type'] = tf.train.Feature(
+                    #    bytes_list=tf.train.BytesList(value=[b'1']))
                     feat['req_id'] = tf.train.Feature(
                         bytes_list=tf.train.BytesList(value=[example_id]))
                     feat['cid'] = tf.train.Feature(
@@ -156,8 +156,8 @@ class DataSourceProducer(unittest.TestCase):
                 if self.version == Version.V2:
                     feat['id_type'] = tf.train.Feature(
                         bytes_list=tf.train.BytesList(value=['IMEI'.encode()]))
-                    feat['type'] = tf.train.Feature(
-                        bytes_list=tf.train.BytesList(value=[b'1']))
+                    #feat['type'] = tf.train.Feature(
+                    #    bytes_list=tf.train.BytesList(value=[b'1']))
                     feat['req_id'] = tf.train.Feature(
                         bytes_list=tf.train.BytesList(value=[example_id]))
                     feat['cid'] = tf.train.Feature(
