@@ -136,7 +136,7 @@ class DataSourceProducer(unittest.TestCase):
                     feat['id_type'] = tf.train.Feature(
                         bytes_list=tf.train.BytesList(value=['IMEI'.encode()]))
                     feat['type'] = tf.train.Feature(
-                        int64_list=tf.train.Int64List(value=[1]))
+                        bytes_list=tf.train.BytesList(value=[b'1']))
                     feat['req_id'] = tf.train.Feature(
                         bytes_list=tf.train.BytesList(value=[example_id]))
                     feat['cid'] = tf.train.Feature(
@@ -157,7 +157,7 @@ class DataSourceProducer(unittest.TestCase):
                     feat['id_type'] = tf.train.Feature(
                         bytes_list=tf.train.BytesList(value=['IMEI'.encode()]))
                     feat['type'] = tf.train.Feature(
-                        int64_list=tf.train.Int64List(value=[1]))
+                        bytes_list=tf.train.BytesList(value=[b'1']))
                     feat['req_id'] = tf.train.Feature(
                         bytes_list=tf.train.BytesList(value=[example_id]))
                     feat['cid'] = tf.train.Feature(
@@ -218,7 +218,7 @@ class DataSourceProducer(unittest.TestCase):
                     example_id_batch.click_id.append(click_id.encode())
                     example_id_batch.id_type.append('IMEI'.encode())
                     example_id_batch.event_time_deep.append(150000000 + example_idx + 1)
-                    example_id_batch.type.append(1)
+                    example_id_batch.type.append(b'1')
             packed_example_id_batch = dj_pb.PackedLiteExampleIds(
                     partition_id=0,
                     begin_index=req_index*512,

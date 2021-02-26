@@ -58,7 +58,7 @@ ALLOWED_FIELDS = dict({
     'index': ALLOWED_FIELD(InvalidInt, int, False),
     'event_time_deep': ALLOWED_FIELD(InvalidEventTime, int, False),
     'raw_id': ALLOWED_FIELD(InvalidRawId, bytes, False),
-    'type': ALLOWED_FIELD(InvalidInt, int, False),
+    'type': ALLOWED_FIELD(InvalidBytes, bytes, False),
     'id_type': ALLOWED_FIELD(InvalidBytes, bytes, False),
     'joined': ALLOWED_FIELD(InvalidInt, int, False),
     'click_id': ALLOWED_FIELD(InvalidBytes, bytes, False),
