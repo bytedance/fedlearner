@@ -2,7 +2,7 @@ import copy
 import random
 
 from fedlearner.common import metrics, common
-from fedlearner.data_join.common import convert_to_iso_format
+from fedlearner.common.common import convert_to_iso_format
 
 
 class MetricStats:

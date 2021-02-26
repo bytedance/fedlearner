@@ -7,7 +7,7 @@ from itertools import chain
 
 import fedlearner.common.data_join_service_pb2 as dj_pb
 from fedlearner.common.metrics import emit, CONFIGS
-from fedlearner.data_join.common import convert_to_iso_format
+from fedlearner.common.common import convert_to_iso_format
 
 
 class OptionalStats(object):
@@ -85,9 +85,7 @@ class OptionalStats(object):
             tags = copy.deepcopy(self._tags)
             tags.update(item_stat)
             tags['event_time'] = convert_to_iso_format(item.event_time)
-            # `[:-6]`: strip timezone info
-            tags['process_time'] = datetime.now(
-                tz=CONFIGS['timezone']).isoformat(timespec='seconds')[:-6]
+            tags['process_time'] = convert_to_iso_format(datetime.now())
             emit(name='', value=0, tags=tags, index_type='data_join')
 
     def emit_optional_stats(self):

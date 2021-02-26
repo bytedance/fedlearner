@@ -27,8 +27,8 @@ import elasticsearch6 as es6
 from elasticsearch import helpers as helpers7
 from elasticsearch6 import helpers as helpers6
 
-from fedlearner.common.common import INDEX_NAME, CONFIGS, get_template, \
-    INDEX_TYPE
+from fedlearner.common.common import CONFIGS, INDEX_NAME, INDEX_TYPE, \
+    convert_to_iso_format, get_es_template
 
 
 class Handler(object):
@@ -121,9 +121,8 @@ class ElasticSearchHandler(Handler):
                 "name": name,
                 "value": value,
                 "tags": tags,
-                # convert to UTC+8 and strip down the timezone info
-                "date_time": datetime.datetime.now(
-                    tz=CONFIGS['timezone']).isoformat(timespec='seconds')[:-6]
+                # convert to UTC+8
+                "date_time": convert_to_iso_format(datetime.datetime.now())
             }
         else:
             document = tags
@@ -140,7 +139,7 @@ class ElasticSearchHandler(Handler):
         assert index_type in INDEX_TYPE
         self._es.indices.put_template(
             name='{}-template'.format(INDEX_NAME[index_type]),
-            body=get_template(index_type, self._version)
+            body=get_es_template(index_type, self._version)
         )
         try:
             self._es.indices.create(index=INDEX_NAME[index_type])
