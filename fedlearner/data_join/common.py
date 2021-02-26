@@ -21,7 +21,6 @@ import threading
 import time
 from contextlib import contextmanager
 from collections import OrderedDict
-from datetime import datetime
 
 from guppy import hpy
 
@@ -34,7 +33,6 @@ import psutil
 
 from fedlearner.common import common_pb2 as common_pb
 from fedlearner.common import data_join_service_pb2 as dj_pb
-from fedlearner.common.common import CONFIGS
 
 DataBlockSuffix = '.data'
 DataBlockMetaSuffix = '.meta'

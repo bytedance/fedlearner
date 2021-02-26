@@ -20,7 +20,7 @@ RAW_DATA_MAPPINGS = {
     ],
     "properties": {
         "partition": {
-            "type": "byte"
+            "type": "short"
         },
         "application_id": {
             "ignore_above": 128,
@@ -47,7 +47,7 @@ DATA_JOIN_MAPPINGS = {
     ],
     "properties": {
         "partition": {
-            "type": "byte"
+            "type": "short"
         },
         "joined": {
             "type": "boolean"
@@ -110,7 +110,7 @@ METRICS_MAPPINGS = {
         "tags": {
             "properties": {
                 "partition": {
-                    "type": "byte"
+                    "type": "short"
                 },
                 "application_id": {
                     "ignore_above": 128,
@@ -185,7 +185,7 @@ def convert_to_iso_format(value):
         1. Try to convert based on the length of str.
         2. Try to convert assuming it is a timestamp.
         3. If it does not match any pattern, return iso format of timestamp=0.
-        Timezone is set to UTC+8.
+        Timezone will be set to UTC+8 if unset.
     """
     assert isinstance(value, (datetime.datetime, bytes, str, int, float))
     if isinstance(value, datetime.datetime):
