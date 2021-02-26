@@ -4,7 +4,7 @@ import os
 
 INDEX_TYPE = ('metrics', 'data_join', 'raw_data')
 # YYYY-MM-DD'T'hh:MM:ss.SSSSSSZ
-_es_datetime_format = 'strict_date_optional_time_nanos'
+_es_datetime_format = 'strict_date_optional_time'
 # WARNING: MAPPINGS BELOW ARE COMPATIBILITY MEASURES AND SHOULD NOT BE MODIFIED.
 RAW_DATA_MAPPINGS = {
     "dynamic": True,
@@ -85,6 +85,16 @@ DATA_JOIN_MAPPINGS = {
 }
 METRICS_MAPPINGS = {
     "dynamic": True,
+    "dynamic_templates": [
+        {
+            "strings": {
+                "match_mapping_type": "string",
+                "mapping": {
+                    "type": "keyword"
+                }
+            }
+        }
+    ],
     "properties": {
         "name": {
             # for compatibility, use text here
