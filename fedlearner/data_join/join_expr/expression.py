@@ -14,7 +14,6 @@
 
 # coding: utf-8
 import string
-#import pdb
 
 ALL_CHARS = string.ascii_letters+string.digits+'_'
 
@@ -34,7 +33,6 @@ class LTFuncDef(BaseFunction):
         super(LTFuncDef, self).__init__(1)
 
     def __call__(self, show, conv, args):
-        #pdb.set_trace()
         assert all([hasattr(conv, att) for att in args]), "Arg missed"
         assert all([hasattr(show, att) for att in args]), "Arg missed"
         show_event_time = getattr(show, args[0])
@@ -50,7 +48,6 @@ class DateTruncDef(BaseFunction):
         assert len(args) == 2, "Args not enough"
         show_event_time = getattr(show, args[0])
         conv_event_time = getattr(conv, args[0])
-        #pdb.set_trace()
         if isinstance(show_event_time, int):
             show_event_time = str(show_event_time)
             conv_event_time = str(conv_event_time)
