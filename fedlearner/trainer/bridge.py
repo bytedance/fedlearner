@@ -165,6 +165,7 @@ class Bridge(object):
         self._condition = threading.Condition()
         self._current_iter_id = None
         self._next_iter_id = 0
+        self._peer_next_iter_id = 0
         self._received_data = {}
 
         # grpc client
@@ -336,7 +337,7 @@ class Bridge(object):
                 with self._condition:
                     self._received_data[request.start.iter_id] = {}
             elif request.HasField('commit'):
-                pass
+                self._peer_next_iter_id = request.commit.iter_id + 1
             elif request.HasField('data'):
                 with self._condition:
                     assert request.data.iter_id in self._received_data
@@ -561,32 +562,35 @@ class Bridge(object):
         out = tf.py_function(func=func, inp=[x], Tout=[], name='send_' + name)
         return out
 
-    def receive_proto(self, iter_id, name):
-        logging.debug('Data: Waiting to receive proto %s for iter %d.',
-                      name, iter_id)
-        with self._condition:
-            while (iter_id not in self._received_data) \
-                    or (name not in self._received_data[iter_id]):
-                self._condition.wait()
-            data = self._received_data[iter_id][name]
-        logging.debug('Data: received %s for iter %d.', name, iter_id)
-        return data.any_data
-
-    def receive(self, iter_id, name):
-        logging.debug('Data: Waiting to receive %s for iter %d.', name,
-                      iter_id)
+    def _receive(self, iter_id, name):
+        logging.debug(
+            'Data: Waiting to receive %s for iter %d.', name, iter_id)
         start_time = time.time()
         with self._condition:
             while (iter_id not in self._received_data) \
                     or (name not in self._received_data[iter_id]):
-                self._condition.wait()
+                if self._peer_next_iter_id > iter_id:
+                    msg = 'Peer committed without sending %s. ' \
+                        'Please check model code'%name
+                    logging.fatal(msg)
+                    raise RuntimeError(msg)
+                if not self._condition.wait(10):
+                    logging.warning(
+                        'Data: Still waiting to receive %s for iter %d...',
+                        name, iter_id)
             data = self._received_data[iter_id][name]
         duration = time.time() - start_time
         metrics.emit_timer('receive_timer', duration)
         logging.debug(
             'Data: received %s for iter %d after %f sec.',
             name, iter_id, duration)
-        return tf.make_ndarray(data.tensor)
+        return data
+
+    def receive_proto(self, iter_id, name):
+        return self._receive(iter_id, name).any_data
+
+    def receive(self, iter_id, name):
+        return tf.make_ndarray(self._receive(iter_id, name).tensor)
 
     def receive_op(self, name, dtype):
         def func():
