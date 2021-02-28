@@ -11,6 +11,7 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
+        # for comparing diff
         with:
           fetch-depth: 2
       - name: check files
@@ -45,12 +46,8 @@ jobs:
       - name: Install dependencies
         working-directory: web_console_v2/api
         run: |
-          sudo apt-get -y update
-          sudo apt-get -y install libgmp-dev libmpc-dev libmpfr-dev
           pip install --upgrade pip
           pip install -r requirements.txt
       - name: Run CI
-        run: |
-          make protobuf
-          make lint
-          make test
+        working-directory: web_console_v2
+        run: make api-test
