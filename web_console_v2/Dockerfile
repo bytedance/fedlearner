@@ -29,5 +29,16 @@ EXPOSE 1989
 # This should not be exposed in PROD
 EXPOSE 1990
 
+# Install vscode
+RUN curl -fOL https://github.com/cdr/code-server/releases/download/v3.8.0/code-server_3.8.0_amd64.deb
+RUN dpkg -i code-server_3.8.0_amd64.deb
+RUN mkdir -p ~/.config/code-server/
+RUN echo 'bind-addr: 0.0.0.0:1992\n\
+auth: password\n\
+password: fedlearner\n\
+cert: false\n' >> ~/.config/code-server/config.yaml
+
+EXPOSE 1992
+
 WORKDIR /app
 CMD sh run_prod.sh
