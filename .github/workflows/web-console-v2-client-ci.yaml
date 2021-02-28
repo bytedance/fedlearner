@@ -1,0 +1,29 @@
+name: WebConsoleV2 client CI
+
+on: [push,pull_request]
+  # pull_request:
+  #   paths:
+  #   - 'web_console_v2/client/**'
+
+jobs:
+ test:
+  name: Unit tests for client
+  runs-on: ubuntu-latest
+  steps:
+  - name: Check out Git repository
+    uses: actions/checkout@v2
+
+  - name: Setup Node.js
+    uses: actions/setup-node@v1
+      with:
+        node-version: 12
+
+  - run: cd ./web_console_v2/client && npm ci
+
+  - name: Jest Annotations & Coverage
+    uses: mattallty/jest-github-action@v1.0.3
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    with:
+      test-command: "npx test --coverage"
+      working-directory: "web_console_v2/client"
