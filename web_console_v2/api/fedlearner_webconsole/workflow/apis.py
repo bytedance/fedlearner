@@ -29,7 +29,7 @@ from fedlearner_webconsole.workflow_template.apis import \
 from fedlearner_webconsole.db import db
 from fedlearner_webconsole.exceptions import (
     NotFoundException, ResourceConflictException, InvalidArgumentException,
-    InternalException)
+    InternalException, NoAccessException)
 from fedlearner_webconsole.scheduler.scheduler import scheduler
 from fedlearner_webconsole.rpc.client import RpcClient
 
@@ -52,7 +52,8 @@ class WorkflowsApi(Resource):
             result = result.filter(Workflow.name.like(
                 '%{}%'.format(keyword)))
         return {'data': [row.to_dict() for row in
-                         result.all()]}, HTTPStatus.OK
+                         result.order_by(
+                             Workflow.created_at.desc()).all()]}, HTTPStatus.OK
 
     def post(self):
         parser = reqparse.RequestParser()
@@ -117,6 +118,13 @@ class WorkflowApi(Resource):
         workflow = _get_workflow(workflow_id)
         result = workflow.to_dict()
         result['jobs'] = [job.to_dict() for job in workflow.get_jobs()]
+        result['owned_jobs'] = [job.to_dict() for job in workflow.owned_jobs]
+        result['config'] = None
+        if workflow.get_config() is not None:
+            result['config'] = MessageToDict(
+                            workflow.get_config(),
+                            preserving_proto_field_name=True,
+                            including_default_value_fields=True)
         return {'data': result}, HTTPStatus.OK
 
     def put(self, workflow_id):
@@ -144,25 +152,46 @@ class WorkflowApi(Resource):
 
     def patch(self, workflow_id):
         parser = reqparse.RequestParser()
-        parser.add_argument('target_state', type=str,
-                            help='target_state is empty')
+        parser.add_argument('target_state', type=str, required=False,
+                            default=None, help='target_state is empty')
         parser.add_argument('forkable', type=bool)
-        target_state = parser.parse_args()['target_state']
-        forkable = parser.parse_args()['forkable']
+        parser.add_argument('config', type=dict, required=False,
+                            default=None, help='updated config')
+        data = parser.parse_args()
+
         workflow = _get_workflow(workflow_id)
+
+        forkable = data['forkable']
         if forkable is not None:
             workflow.forkable = forkable
             db.session.commit()
-        if target_state is None:
-            return {'data': workflow.to_dict()}, HTTPStatus.OK
-        try:
-            workflow.update_target_state(WorkflowState[target_state])
-            db.session.commit()
-            logging.info('updated workflow %d target_state to %s',
-                         workflow.id, workflow.target_state)
-            scheduler.wakeup(workflow.id)
-        except ValueError as e:
-            raise InvalidArgumentException(details=str(e)) from e
+
+        target_state = data['target_state']
+        if target_state:
+            try:
+                db.session.refresh(workflow)
+                workflow.update_target_state(WorkflowState[target_state])
+                db.session.commit()
+                logging.info('updated workflow %d target_state to %s',
+                            workflow.id, workflow.target_state)
+                scheduler.wakeup(workflow.id)
+            except ValueError as e:
+                raise InvalidArgumentException(details=str(e)) from e
+
+        config = data['config']
+        if config:
+            try:
+                db.session.refresh(workflow)
+                if workflow.target_state != WorkflowState.INVALID or \
+                        workflow.state not in \
+                        [WorkflowState.READY, WorkflowState.STOPPED]:
+                    raise NoAccessException('Cannot edit running workflow')
+                config_proto = dict_to_workflow_definition(data['config'])
+                workflow.set_config(config_proto)
+                db.session.commit()
+            except ValueError as e:
+                raise InvalidArgumentException(details=str(e)) from e
+
         return {'data': workflow.to_dict()}, HTTPStatus.OK
 
 
@@ -175,7 +204,7 @@ class PeerWorkflowsApi(Resource):
             client = RpcClient(project_config, party)
             resp = client.get_workflow(workflow.name)
             if resp.status.code != common_pb2.STATUS_SUCCESS:
-                raise InternalException()
+                raise InternalException(resp.status.msg)
             peer_workflow = MessageToDict(
                 resp,
                 preserving_proto_field_name=True,
@@ -185,6 +214,29 @@ class PeerWorkflowsApi(Resource):
                     job['pods'] = json.loads(job['pods'])
             peer_workflows[party.name] = peer_workflow
         return {'data': peer_workflows}, HTTPStatus.OK
+
+    def patch(self, workflow_id):
+        parser = reqparse.RequestParser()
+        parser.add_argument('config', type=dict, required=True,
+                            help='new config for peer')
+        data = parser.parse_args()
+        config_proto = dict_to_workflow_definition(data['config'])
+
+        workflow = _get_workflow(workflow_id)
+        project_config = workflow.project.get_config()
+        peer_workflows = {}
+        for party in project_config.participants:
+            client = RpcClient(project_config, party)
+            resp = client.update_workflow(
+                workflow.name, config_proto)
+            if resp.status.code != common_pb2.STATUS_SUCCESS:
+                raise InternalException(resp.status.msg)
+            peer_workflows[party.name] = MessageToDict(
+                resp,
+                preserving_proto_field_name=True,
+                including_default_value_fields=True)
+        return {'data': peer_workflows}, HTTPStatus.OK
+
 
 
 def initialize_workflow_apis(api):

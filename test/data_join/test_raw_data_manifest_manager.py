@@ -14,20 +14,20 @@
 
 # coding: utf-8
 
+import os
 import unittest
 
+from tensorflow.compat.v1 import gfile
 from google.protobuf import text_format, timestamp_pb2
 
-from fedlearner.common import mysql_client
+from fedlearner.common import db_client
 from fedlearner.common import data_join_service_pb2 as dj_pb
 from fedlearner.common import common_pb2 as common_pb
 from fedlearner.data_join import raw_data_manifest_manager, common
 
+
 class TestRawDataManifestManager(unittest.TestCase):
-    def test_raw_data_manifest_manager(self):
-        cli = mysql_client.DBClient('test_cluster', 'localhost:2379',
-                                              'test_user', 'test_password',
-                                              'fedlearner', True)
+    def _raw_data_manifest_manager(self, cli):
         partition_num = 4
         rank_id = 2
         data_source = common_pb.DataSource()
@@ -115,13 +115,13 @@ class TestRawDataManifestManager(unittest.TestCase):
             self.assertFalse(manifest_map[i].finished)
 
         self.assertRaises(Exception,  manifest_manager.finish_join_example,
-                rank_id, partition_id)
+                          rank_id, partition_id)
         self.assertRaises(Exception,  manifest_manager.finish_join_example,
-                rank_id2, partition_id2)
+                          rank_id2, partition_id2)
         self.assertRaises(Exception,  manifest_manager.finish_sync_example_id,
-                -rank_id, partition_id)
+                          -rank_id, partition_id)
         self.assertRaises(Exception,  manifest_manager.finish_sync_example_id,
-                rank_id2, partition_id2)
+                          rank_id2, partition_id2)
         rank_id3 = 0
         manifest = manifest_manager.alloc_join_example(rank_id3, partition_id)
         manifest_map = manifest_manager.list_all_manifest()
@@ -159,7 +159,7 @@ class TestRawDataManifestManager(unittest.TestCase):
                 self.assertEqual(manifest_map[i].join_example_rep.rank_id, -1)
             self.assertFalse(manifest_map[i].finished)
 
-        self.assertRaises(Exception, manifest_manager.finish_sync_example_id, 
+        self.assertRaises(Exception, manifest_manager.finish_sync_example_id,
                           rank_id, partition_id)
         raw_data_metas = [dj_pb.RawDataMeta(file_path='a',
                                             timestamp=timestamp_pb2.Timestamp(seconds=3)),
@@ -167,7 +167,7 @@ class TestRawDataManifestManager(unittest.TestCase):
                                             timestamp=timestamp_pb2.Timestamp(seconds=3)),
                           dj_pb.RawDataMeta(file_path='c',
                                             timestamp=timestamp_pb2.Timestamp(seconds=1))]
-        self.assertRaises(Exception, manifest_manager.add_raw_data, 
+        self.assertRaises(Exception, manifest_manager.add_raw_data,
                           partition_id, raw_data_metas, False)
         manifest_manager.add_raw_data(partition_id, raw_data_metas, True)
         latest_ts = manifest_manager.get_raw_date_latest_timestamp(partition_id)
@@ -273,6 +273,19 @@ class TestRawDataManifestManager(unittest.TestCase):
                 self.assertEqual(manifest_map[i].join_example_rep.rank_id, -1)
 
         cli.destroy_client_pool()
+
+    def test_raw_data_manifest_manager_with_db(self):
+        cli = db_client.DBClient('etcd', True)
+        self._raw_data_manifest_manager(cli)
+
+    def test_raw_data_manifest_manager_with_nfs(self):
+        root_dir = "test_fedlearner"
+        os.environ["STORAGE_ROOT_PATH"] = root_dir
+        cli = db_client.DBClient('nfs', True)
+        self._raw_data_manifest_manager(cli)
+        if gfile.Exists(root_dir):
+            gfile.DeleteRecursively(root_dir)
+
 
 if __name__ == '__main__':
     unittest.main()

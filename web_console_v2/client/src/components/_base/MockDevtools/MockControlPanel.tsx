@@ -7,14 +7,15 @@ import LOCAL_STORAGE_KEYS from 'shared/localStorageKeys';
 import { removeRequestMock, toggleRequestMockState } from './utils';
 import { useListenKeyboard, useReactiveLocalStorage } from 'hooks';
 import store from 'store2';
-import { ApiTwoTone } from '@ant-design/icons';
+import { Storage } from 'components/IconPark';
+import defaultTheme from 'styles/_theme';
 
 const FloatButton = styled.button`
   ${MixinCircle(50)}
 
   position: fixed;
   z-index: 10;
-  right: 10px;
+  right: 5px;
   bottom: 64px;
   background-color: var(--blue1);
   color: white;
@@ -35,8 +36,8 @@ const Kbd = styled.kbd`
   background-color: #fff;
   color: var(--darkGray1);
   border-radius: 2px;
-}
 `;
+
 const methodColor: { [key: string]: string } = {
   get: 'blue',
   post: 'green',
@@ -79,7 +80,7 @@ const tableCols = [
 const MOCK_BUTTON_VISIBLE_KEY = 'mock_button_visible';
 
 /* i18n ignore */
-function MockDevtools() {
+function MockControlPanel() {
   const [keyword, setKeyword] = useState('');
   const [visible] = useReactiveLocalStorage<any>(MOCK_BUTTON_VISIBLE_KEY, false);
   const [modalVisible, toggleModal] = useToggle(false);
@@ -117,7 +118,7 @@ function MockDevtools() {
             )}
           >
             <FloatButton onClick={toggleModal}>
-              <ApiTwoTone style={{ fontSize: '18px' }} />
+              <Storage style={{ fontSize: '24px', color: defaultTheme.primaryColor }} />
             </FloatButton>
           </Tooltip>
         )}
@@ -147,4 +148,4 @@ function MockDevtools() {
   return null;
 }
 
-export default MockDevtools;
+export default MockControlPanel;

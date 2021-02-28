@@ -4,7 +4,7 @@ import { ReactFlowProvider, useStoreState, useStoreActions } from 'react-flow-re
 import { useToggle } from 'react-use';
 import JobFormDrawer, { JobFormDrawerExposedRef } from '../../JobFormDrawer';
 import WorkflowJobsFlowChart, { ChartExposedRef } from 'components/WorkflowJobsFlowChart';
-import { ChartNode, ChartNodes, JobNodeStatus } from 'components/WorkflowJobsFlowChart/types';
+import { ChartNode, ChartNodes, ChartNodeStatus } from 'components/WorkflowJobsFlowChart/types';
 import GridRow from 'components/_base/GridRow';
 import { Button, message, Modal, Spin } from 'antd';
 import { Redirect, useHistory, useParams } from 'react-router-dom';
@@ -21,7 +21,8 @@ import ErrorBoundary from 'antd/lib/alert/ErrorBoundary';
 import { acceptNFillTheWorkflowConfig, initiateAWorkflow } from 'services/workflow';
 import { to } from 'shared/helpers';
 import { WorkflowCreateProps } from '..';
-import { Variable, WorkflowAcceptPayload, WorkflowInitiatePayload } from 'typings/workflow';
+import { WorkflowAcceptPayload, WorkflowInitiatePayload } from 'typings/workflow';
+import { Variable } from 'typings/variable';
 import InspectPeerConfigs from './InspectPeerConfig';
 import { ExclamationCircle } from 'components/IconPark';
 import { Z_INDEX_GREATER_THAN_HEADER } from 'components/Header';
@@ -154,7 +155,7 @@ const CanvasAndForm: FC<WorkflowCreateProps> = ({ isInitiate, isAccept }) => {
   // --------- Methods ---------------
   function checkIfAllJobConfigCompleted() {
     const isAllCompleted = jobNodes.every((node) => {
-      return node.data.status === JobNodeStatus.Success;
+      return node.data.status === ChartNodeStatus.Success;
     });
 
     return isAllCompleted;
@@ -185,7 +186,7 @@ const CanvasAndForm: FC<WorkflowCreateProps> = ({ isInitiate, isAccept }) => {
     const isValid = await drawerRef.current?.validateCurrentForm();
     chartRef.current?.updateNodeStatusById({
       id: currNode.id,
-      status: isValid ? JobNodeStatus.Success : JobNodeStatus.Warning,
+      status: isValid ? ChartNodeStatus.Success : ChartNodeStatus.Warning,
     });
   }
   /** 🚀 Initiate create request */
@@ -241,7 +242,7 @@ const CanvasAndForm: FC<WorkflowCreateProps> = ({ isInitiate, isAccept }) => {
     }
 
     // Turn target node status to configuring
-    chartRef.current?.updateNodeStatusById({ id: nextNode.id, status: JobNodeStatus.Processing });
+    chartRef.current?.updateNodeStatusById({ id: nextNode.id, status: ChartNodeStatus.Processing });
 
     setCurrNode(nextNode);
     setSelectedElements([nextNode]);

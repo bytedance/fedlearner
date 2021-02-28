@@ -38,7 +38,7 @@ from fedlearner.data_join import (
 )
 
 from fedlearner.common import (
-    mysql_client, common_pb2 as common_pb,
+    db_client, common_pb2 as common_pb,
     data_join_service_pb2 as dj_pb
 )
 
@@ -47,7 +47,6 @@ from fedlearner.data_join.raw_data_iter_impl.tf_record_iter import TfExampleItem
 
 from fedlearner.trainer_master.leader_tm import LeaderTrainerMaster
 from fedlearner.trainer_master.follower_tm import FollowerTrainerMaster
-from fedlearner.data_join.common import get_kvstore_config
 
 
 from graph_def.leader import main as lm
@@ -376,13 +375,11 @@ class TestNNTraining(unittest.TestCase):
         self.sche = _TaskScheduler(30)
         self.kv_store = [None, None]
         self.app_id = "test_trainer_v1"
-        db_database, db_addr, db_username, db_password, db_base_dir = \
-                get_kvstore_config("etcd")
         data_source = [self._gen_ds_meta(common_pb.FLRole.Leader),
-                            self._gen_ds_meta(common_pb.FLRole.Follower)]
+                       self._gen_ds_meta(common_pb.FLRole.Follower)]
         for role in range(2):
-           self.kv_store[role] = mysql_client.DBClient(data_source[role].data_source_meta.name,
-               db_addr, db_username, db_password, db_base_dir, True)
+            os.environ['ETCD_NAME'] = data_source[role].data_source_meta.name
+            self.kv_store[role] = db_client.DBClient("etcd", True)
         self.data_source = data_source
         (x, y) = (None, None)
         if debug_mode:

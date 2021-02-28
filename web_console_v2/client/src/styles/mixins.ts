@@ -1,6 +1,7 @@
 import { convertToUnit } from 'shared/helpers';
 import defaultTheme from './_theme';
 
+/* istanbul ignore next */
 export function MixinFontClarity() {
   return `
     font-family: 'ClarityMono', sans-serif;
@@ -22,6 +23,7 @@ export function MixinCircle(diameter: any) {
   `;
 }
 
+/* istanbul ignore next */
 export function MixinFlexAlignCenter() {
   return `
     justify-content: center;
@@ -29,6 +31,7 @@ export function MixinFlexAlignCenter() {
   `;
 }
 
+/* istanbul ignore next */
 export function MixinEllipsis() {
   return `
     overflow: hidden;

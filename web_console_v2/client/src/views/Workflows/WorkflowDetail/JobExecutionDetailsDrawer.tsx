@@ -3,7 +3,7 @@ import React, { ForwardRefRenderFunction } from 'react';
 import styled from 'styled-components';
 import { Drawer, Row, Button, Tag } from 'antd';
 import { DrawerProps } from 'antd/lib/drawer';
-import { NodeData, JobNodeStatus } from 'components/WorkflowJobsFlowChart/types';
+import { NodeData, ChartNodeStatus } from 'components/WorkflowJobsFlowChart/types';
 import { useTranslation } from 'react-i18next';
 import { Close } from 'components/IconPark';
 import GridRow from 'components/_base/GridRow';
@@ -46,11 +46,11 @@ interface Props extends DrawerProps {
 export type JobExecutionDetailsExposedRef = {};
 
 const tagColors = {
-  [JobNodeStatus.Pending]: 'default',
-  [JobNodeStatus.Processing]: 'processing',
-  [JobNodeStatus.Warning]: 'warning',
-  [JobNodeStatus.Success]: 'success',
-  [JobNodeStatus.Error]: 'error',
+  [ChartNodeStatus.Pending]: 'default',
+  [ChartNodeStatus.Processing]: 'processing',
+  [ChartNodeStatus.Warning]: 'warning',
+  [ChartNodeStatus.Success]: 'success',
+  [ChartNodeStatus.Error]: 'error',
 };
 
 const JobExecutionDetailsDrawer: ForwardRefRenderFunction<JobExecutionDetailsExposedRef, Props> = ({
@@ -125,7 +125,7 @@ const JobExecutionDetailsDrawer: ForwardRefRenderFunction<JobExecutionDetailsExp
 
         <JobExecutionLogs job={job} workflow={workflow} enabled={Boolean(props.visible)} />
 
-        <JobExecutionPODs job={job} />
+        <JobExecutionPODs job={job} isPeerSide={isPeerSide} />
       </Container>
     </ErrorBoundary>
   );

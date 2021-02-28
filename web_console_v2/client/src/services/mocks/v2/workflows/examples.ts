@@ -3,9 +3,10 @@ import { JobExecutionDetalis, JobState, JobType, PodState } from 'typings/job';
 import {
   WorkflowState,
   TransactionState,
-  VariableAccessMode,
   WorkflowExecutionDetails,
+  Workflow,
 } from 'typings/workflow';
+import { VariableAccessMode } from 'typings/variable';
 import { normalTemplate } from '../workflow_templates/examples';
 
 export const awaitParticipantConfig = {
@@ -23,7 +24,7 @@ export const awaitParticipantConfig = {
   updated_at: 1610238602,
 };
 
-export const newlyCreated = {
+export const newlyCreated: Workflow = {
   id: 2,
   name: 'Newly-created',
   project_id: 1,
@@ -91,9 +92,7 @@ export const newlyCreated = {
         name: 'image_version',
         value: 'v1.5-rc3',
         access_mode: VariableAccessMode.PEER_READABLE,
-        widget_schema: {
-          required: true,
-        },
+        widget_schema: '{"required": true}' as any,
       },
     ],
   },
@@ -117,7 +116,7 @@ export const completed = {
   ...cloneDeep(withExecutionDetail),
   id: 3,
   name: 'All-completed',
-  config: normalTemplate.data.config as any,
+  config: normalTemplate.config as any,
   state: WorkflowState.COMPLETED,
   target_state: WorkflowState.INVALID,
   transaction_state: TransactionState.ABORTED,

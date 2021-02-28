@@ -51,6 +51,7 @@ const DatasetActions: FC<Props> = ({ dataset, type = 'default', onPerformAction 
           <Button
             size="small"
             type={type}
+            key={action}
             onClick={() => onPerformAction({ action, dataset })}
             disabled={disabled[action]}
             className={!visible[action] ? 'hide-on-bush' : ''}

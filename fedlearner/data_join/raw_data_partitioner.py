@@ -26,7 +26,7 @@ from tensorflow.compat.v1 import gfile
 
 from cityhash import CityHash32 # pylint: disable=no-name-in-module
 
-from fedlearner.common.mysql_client import DBClient
+from fedlearner.common.db_client import DBClient
 
 from fedlearner.data_join.output_writer_impl import create_output_writer
 from fedlearner.data_join.item_batch_seq_processor import \
@@ -214,14 +214,11 @@ class RawDataPartitioner(object):
                     )
             return self._writer
 
-    def __init__(self, options, part_field, db_database,
-                 db_base_dir, db_addr, db_username,
-                 db_password, use_mock_etcd=False):
+    def __init__(self, options, part_field,
+                 kvstore_type, use_mock_etcd=False):
         self._options = options
         self._part_field = part_field
-        kvstore = DBClient(db_database, db_addr,
-                            db_username, db_password,
-                            db_base_dir, use_mock_etcd)
+        kvstore = DBClient(kvstore_type, use_mock_etcd)
         self._raw_data_batch_fetcher = RawDataBatchFetcher(kvstore, options)
         self._next_part_index = None
         self._dumped_process_index = None

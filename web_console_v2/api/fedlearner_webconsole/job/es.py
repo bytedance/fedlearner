@@ -28,6 +28,7 @@ class ElasticSearchClient(object):
             'version': True,
             'size': 8000,
             'sort': [
+                {'@timestamp': 'desc'},
                 {
                     'log.offset': {
                         'order': 'desc',

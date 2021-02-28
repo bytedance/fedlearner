@@ -18,7 +18,7 @@ import argparse
 import logging
 
 from fedlearner.common import common_pb2 as common_pb
-from fedlearner.common.mysql_client import DBClient
+from fedlearner.common.db_client import DBClient
 from fedlearner.data_join import common
 
 if __name__ == "__main__":
@@ -60,10 +60,7 @@ if __name__ == "__main__":
     data_source.output_base_dir = args.output_base_dir
     data_source.raw_data_sub_dir = args.raw_data_sub_dir
     data_source.state = common_pb.DataSourceState.Init
-    db_database, db_addr, db_username, db_password, db_base_dir = \
-        common.get_kvstore_config(args.kvstore_type)
-    kvstore = DBClient(db_database, db_addr, db_username,
-        db_password, db_base_dir)
+    kvstore = DBClient(args.kvstore_type)
     master_kvstore_key = common.data_source_kvstore_base_dir(
             data_source.data_source_meta.name
         )

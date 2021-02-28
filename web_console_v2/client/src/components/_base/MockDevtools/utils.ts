@@ -1,3 +1,5 @@
+/* istanbul ignore file */
+
 import { AxiosRequestConfig } from 'axios';
 import { omit } from 'lodash';
 import LOCAL_STORAGE_KEYS from 'shared/localStorageKeys';

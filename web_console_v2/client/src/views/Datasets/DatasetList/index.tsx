@@ -94,6 +94,8 @@ export const getDatasetTableColumns = (options: ColumnsGetterOptions) => {
       title: i18n.t('operation'),
       dataIndex: 'operation',
       name: 'operation',
+      fixed: 'right',
+      width: 240,
       render: (_: number, record: Dataset) => (
         <DatasetActions onPerformAction={onPerformAction} dataset={record} type="link" />
       ),
@@ -102,6 +104,8 @@ export const getDatasetTableColumns = (options: ColumnsGetterOptions) => {
 
   return cols;
 };
+
+export const DATASET_LIST_QUERY_KEY = 'datasetList';
 
 const DatasetList: FC = () => {
   const { t } = useTranslation();
@@ -112,10 +116,14 @@ const DatasetList: FC = () => {
   const [addBatchVisible, toggleAddBatchVisible] = useToggle(false);
   const [curDataset, setCurDataset] = useState<Dataset>();
 
-  const listQuery = useQuery(['datasetList', params.keyword], () => fetchDatasetList(params), {
-    retry: 2,
-    refetchOnWindowFocus: false,
-  });
+  const listQuery = useQuery(
+    [DATASET_LIST_QUERY_KEY, params.keyword],
+    () => fetchDatasetList(params),
+    {
+      retry: 2,
+      refetchOnWindowFocus: false,
+    },
+  );
 
   const isEmpty = !listQuery.isFetching && listQuery.data?.data.length === 0;
 
@@ -138,6 +146,7 @@ const DatasetList: FC = () => {
           </Form>
         </Col>
       </Row>
+
       <ListContainer>
         {isEmpty ? (
           <NoResult text={t('dataset.no_result')} to="/datasets/create" />
@@ -145,12 +154,14 @@ const DatasetList: FC = () => {
           <Table
             loading={listQuery.isFetching}
             dataSource={listQuery.data?.data || []}
+            scroll={{ x: '100%' }}
             columns={getDatasetTableColumns({
               onSuccess: noop,
               onViewReordsClick,
               onAddDataBatchClick,
               onDeleteClick,
             })}
+            rowKey="name"
           />
         )}
       </ListContainer>

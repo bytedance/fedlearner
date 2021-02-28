@@ -26,16 +26,15 @@ do
     case "$1" in
         --migrate)
             echo "Migrating DB"
-            export FLASK_APP=manage:app
             # Migrates DB schemas
-            flask db upgrade
+            FLASK_APP=command:app flask db upgrade
             ;;
     esac
     shift
 done
 
 # Loads initial data
-flask create-initial-data
+FLASK_APP=command:app flask create-initial-data
 
-gunicorn manage:app \
+gunicorn server:app \
     --config="$ROOT_DIRECTORY/gunicorn_config.py"

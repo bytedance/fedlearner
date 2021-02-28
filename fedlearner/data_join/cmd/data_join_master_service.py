@@ -19,7 +19,6 @@ import logging
 
 from fedlearner.common import data_join_service_pb2 as dj_pb
 from fedlearner.data_join.data_join_master import DataJoinMasterService
-from fedlearner.data_join.common import get_kvstore_config
 
 if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
@@ -42,12 +41,9 @@ if __name__ == "__main__":
             use_mock_etcd=(args.kvstore_type == 'mock'),
             batch_mode=args.batch_mode
         )
-    db_database, db_addr, db_username, db_password, db_base_dir = \
-        get_kvstore_config(args.kvstore_type)
     master_srv = DataJoinMasterService(
             args.listen_port, args.peer_addr,
-            args.data_source_name, db_database,
-            db_base_dir, db_addr, db_username,
-            db_password, master_options
+            args.data_source_name, args.kvstore_type,
+            master_options
         )
     master_srv.run()

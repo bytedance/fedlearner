@@ -98,6 +98,8 @@ function TableList({ list, onViewDetail }: TableListProps): ReactElement {
       title: t('operation'),
       dataIndex: 'created_at',
       name: 'created_at',
+      fixed: 'right' as any,
+      width: 240,
       render: (_: any, record: Project & { onCheckConnectionClick: any }) => (
         <GridRow left={-12}>
           <Button size="small" type="link" onClick={record.onCheckConnectionClick}>
@@ -124,7 +126,7 @@ function TableList({ list, onViewDetail }: TableListProps): ReactElement {
   ];
   return (
     <Container>
-      <Table dataSource={statefulList} columns={columns} />
+      <Table dataSource={statefulList} columns={columns} rowKey="name" scroll={{ x: '100%' }} />
     </Container>
   );
 

@@ -24,7 +24,7 @@ from google.protobuf import empty_pb2
 from fedlearner.common import common_pb2 as common_pb
 from fedlearner.common import data_join_service_pb2_grpc as dj_grpc
 from fedlearner.common import data_join_service_pb2 as dj_pb
-from fedlearner.common.mysql_client import DBClient
+from fedlearner.common.db_client import DBClient
 from fedlearner.proxy.channel import make_insecure_channel, ChannelType
 
 from fedlearner.data_join import (
@@ -220,8 +220,7 @@ class DataJoinWorker(dj_grpc.DataJoinWorkerServiceServicer):
 
 class DataJoinWorkerService(object):
     def __init__(self, listen_port, peer_addr, master_addr, rank_id,
-                 db_database, db_base_dir, db_addr, db_username,
-                 db_password, options):
+                 kvstore_type, options):
         master_channel = make_insecure_channel(
                 master_addr, ChannelType.INTERNAL,
                 options=[('grpc.max_send_message_length', 2**31-1),
@@ -229,9 +228,7 @@ class DataJoinWorkerService(object):
             )
         self._master_client = dj_grpc.DataJoinMasterServiceStub(master_channel)
         self._rank_id = rank_id
-        kvstore = DBClient(db_database, db_addr, db_username,
-                            db_password, db_base_dir,
-                            options.use_mock_etcd)
+        kvstore = DBClient(kvstore_type, options.use_mock_etcd)
         data_source = self._sync_data_source()
         self._data_source_name = data_source.data_source_meta.name
         self._listen_port = listen_port

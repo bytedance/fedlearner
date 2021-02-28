@@ -2,14 +2,14 @@ import { XYPosition, Edge } from 'react-flow-renderer';
 import { Job, JobState } from 'typings/job';
 import { isHead, isLast } from 'shared/array';
 import { head, isEmpty, isNil, last } from 'lodash';
-import { Variable } from 'typings/workflow';
+import { Variable } from 'typings/variable';
 import i18n from 'i18n';
 import {
   NodeDataRaw,
   ChartNodeType,
   ChartNode,
   ChartElements,
-  JobNodeStatus,
+  ChartNodeStatus,
   JobNode,
   GlobalConfigNode,
 } from './types';
@@ -22,74 +22,26 @@ export const NODE_HEIGHT = 80;
 export const GLOBAL_CONFIG_NODE_SIZE = 120;
 export const NODE_GAP = 30;
 
+type ConvertParams = {
+  jobs: NodeDataRaw[];
+  globalVariables?: Variable[];
+  side?: string;
+};
+
+type ConvertOptions = {
+  type: ChartNodeType;
+  selectable: boolean;
+};
+
 /**
  * Turn job defintitions to flow elements (include edges),
  * NOTE: globalVariables is considered as a Node as well
  */
 export function convertToChartElements(
-  {
-    jobs,
-    globalVariables,
-    side,
-  }: { jobs: NodeDataRaw[]; globalVariables?: Variable[]; side?: string },
-  options: { type: ChartNodeType; selectable: boolean },
+  { jobs, globalVariables, side }: ConvertParams,
+  options: ConvertOptions,
 ): ChartElements {
-  const hasGlobalVars = !isNil(globalVariables) && !isEmpty(globalVariables);
-
-  // 1. Group Jobs to rows by dependiences
-  // e.g. Say we have jobs like [1, 2, 3, 4, 5] in which 2,3,4 is depend on 1, 5 depend on 2,3,4
-  // we need to render jobs like charts below,
-  //
-  // row-1        █1█
-  //          ╭┈┈┈ ↓ ┈┈┈╮
-  // row-2   █2█  █3█  █4█
-  //          ╰┈┈┈ ↓ ┈┈┈╯
-  // row-3        █5█
-  //
-  // thus the processed rows will looks like [[1], [2, 3, 4], [5]]
-  const rows: Array<ChartNode[]> = [];
-  let rowIdx = 0;
-
-  // If global variables existing, always put it into first row
-  if (hasGlobalVars) {
-    const globalNode = _createGlobalConfigNode({ variables: globalVariables!, options, side });
-    rows.push([globalNode]);
-    rowIdx++;
-  }
-
-  const rowsComputed = jobs.reduce((rows, job, jobIdx) => {
-    if (shouldPutIntoNextRow()) {
-      rowIdx++;
-    }
-    addANewRowIfNotExist();
-
-    const node = _createJobNode({ job, index: jobIdx, options, hasGlobalVars, side });
-
-    pushToCurrentRow(node);
-
-    return rows;
-
-    /**
-     * When the Job depend on some Jobs before it (Pre-jobs),
-     * plus the Pre-job(s) ARE on the current row,
-     * then we should put it into next row
-     */
-    function shouldPutIntoNextRow() {
-      if (!job.dependencies) return false;
-
-      return job.dependencies.some((dep) => {
-        return rows[rowIdx].some((item) => item.id === dep.source);
-      });
-    }
-    function pushToCurrentRow(node: JobNode) {
-      rows[rowIdx].push(node);
-    }
-    function addANewRowIfNotExist() {
-      if (!rows[rowIdx]) {
-        rows[rowIdx] = [];
-      }
-    }
-  }, rows);
+  const rowsComputed = groupByDependencies({ jobs, globalVariables, side }, options);
 
   // 2. Calculate Node position & Generate Edges
   const jobsCountInMostBigRow = Math.max(...rowsComputed.map((r) => r.length));
@@ -136,15 +88,78 @@ export function convertToChartElements(
   }, [] as ChartElements);
 }
 
-export function convertExecutionStateToStatus(state: JobState): JobNodeStatus {
+export function groupByDependencies(
+  { jobs, globalVariables, side }: ConvertParams,
+  options: ConvertOptions,
+) {
+  const hasGlobalVars = !isNil(globalVariables) && !isEmpty(globalVariables);
+
+  // 1. Group Jobs to rows by dependiences
+  // e.g. Say we have jobs like [1, 2, 3, 4, 5] in which 2,3,4 is depend on 1, 5 depend on 2,3,4
+  // we need to render jobs like charts below,
+  //
+  // row-1        █1█
+  //          ╭┈┈┈ ↓ ┈┈┈╮
+  // row-2   █2█  █3█  █4█
+  //          ╰┈┈┈ ↓ ┈┈┈╯
+  // row-3        █5█
+  //
+  // thus the processed rows will looks like [[1], [2, 3, 4], [5]]
+  const rows: Array<ChartNode[]> = [];
+  let rowIdx = 0;
+
+  // If global variables existing, always put it into first row
+  if (hasGlobalVars) {
+    const globalNode = _createGlobalConfigNode({ variables: globalVariables!, options, side });
+    rows.push([globalNode]);
+    rowIdx++;
+  }
+
+  return jobs.reduce((rows, job, jobIdx) => {
+    if (shouldPutIntoNextRow()) {
+      rowIdx++;
+    }
+    addANewRowIfNotExist();
+
+    const node = _createJobNode({ job, index: jobIdx, options, hasGlobalVars, side });
+
+    pushToCurrentRow(node);
+
+    return rows;
+
+    /**
+     * When the Job depend on some Jobs before it (Pre-jobs),
+     * plus the Pre-job(s) ARE on the current row,
+     * then we should put it into next row
+     */
+    function shouldPutIntoNextRow() {
+      if (!job.dependencies) return false;
+
+      return job.dependencies.some((dep) => {
+        return rows[rowIdx].some((item) => item.id === dep.source);
+      });
+    }
+    function pushToCurrentRow(node: JobNode) {
+      rows[rowIdx].push(node);
+    }
+    function addANewRowIfNotExist() {
+      if (!rows[rowIdx]) {
+        rows[rowIdx] = [];
+      }
+    }
+  }, rows);
+}
+
+/* istanbul ignore next */
+export function convertExecutionStateToStatus(state: JobState): ChartNodeStatus {
   return {
-    [JobState.NEW]: JobNodeStatus.Pending,
-    [JobState.WAITING]: JobNodeStatus.Pending,
-    [JobState.RUNNING]: JobNodeStatus.Processing,
-    [JobState.COMPLETE]: JobNodeStatus.Success,
-    [JobState.STOPPED]: JobNodeStatus.Error,
-    [JobState.FAILED]: JobNodeStatus.Warning,
-    [JobState.INVALID]: JobNodeStatus.Warning,
+    [JobState.NEW]: ChartNodeStatus.Pending,
+    [JobState.WAITING]: ChartNodeStatus.Pending,
+    [JobState.RUNNING]: ChartNodeStatus.Processing,
+    [JobState.COMPLETE]: ChartNodeStatus.Success,
+    [JobState.STOPPED]: ChartNodeStatus.Error,
+    [JobState.FAILED]: ChartNodeStatus.Warning,
+    [JobState.INVALID]: ChartNodeStatus.Warning,
   }[state];
 }
 
@@ -178,7 +193,7 @@ function _createGlobalConfigNode({
       } as unknown) as NodeDataRaw,
       index: 0,
       // When fork type, inherit initially set to true, status to Success
-      status: isFork ? JobNodeStatus.Success : JobNodeStatus.Pending,
+      status: isFork ? ChartNodeStatus.Success : ChartNodeStatus.Pending,
       inherit: isFork,
       side,
     },
@@ -198,8 +213,8 @@ function _createJobNode(params: {
   const status = job.state
     ? convertExecutionStateToStatus(job.state)
     : isFork
-    ? JobNodeStatus.Success
-    : JobNodeStatus.Pending;
+    ? ChartNodeStatus.Success
+    : ChartNodeStatus.Pending;
 
   return {
     id: getNodeIdByJob(job),

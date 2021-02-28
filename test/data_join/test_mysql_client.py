@@ -20,13 +20,11 @@ import unittest
 import threading
 import time
 
-from fedlearner.common import mysql_client
+from fedlearner.common import db_client
 
 class TestMySQLClient(unittest.TestCase):
     def test_mysql_op(self):
-        cli = mysql_client.DBClient('test_cluster', 'localhost:2379',
-                                       'test_user', 'test_password',
-                                       'data_source_a', True)
+        cli = db_client.DBClient('mysql', True)
         cli.delete('fl_key')
         cli.set_data('fl_key', 'fl_value')
         self.assertEqual(cli.get_data('fl_key'), b'fl_value')

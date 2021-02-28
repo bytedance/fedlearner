@@ -69,10 +69,10 @@ class ResourceConflictException(WebConsoleApiException):
 
 
 class InternalException(WebConsoleApiException):
-    def __init__(self):
+    def __init__(self, details=None):
         WebConsoleApiException.__init__(
             self, HTTPStatus.INTERNAL_SERVER_ERROR, 500,
-            'Internal Error met when handling the request', None)
+            'Internal Error met when handling the request', details)
 
 
 def make_response(exception: WebConsoleApiException):

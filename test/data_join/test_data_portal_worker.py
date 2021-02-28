@@ -92,13 +92,10 @@ class TestDataPortalWorker(unittest.TestCase):
             merger_read_batch_size=128
         )
 
+        os.environ['ETCD_BASE_DIR'] = "portal_worker_0"
         self._portal_worker = DataPortalWorker(portal_worker_options,
                                                "localhost:5005", 0,
-                                               "test_portal_worker_0",
-                                               "portal_worker_0",
-                                               "localhost:2379",
-                                               "test_user",
-                                               "test_password", True)
+                                               "etcd", True)
 
     def _clean_up(self):
         if gfile.Exists(self._input_dir):

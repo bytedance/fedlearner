@@ -19,7 +19,7 @@ import logging
 from google.protobuf import text_format
 
 from fedlearner.common import data_portal_service_pb2 as dp_pb
-from fedlearner.common.mysql_client import DBClient
+from fedlearner.common.db_client import DBClient
 
 from fedlearner.data_join import common
 from fedlearner.data_join.data_portal_master import DataPortalMasterService
@@ -56,11 +56,8 @@ if __name__ == "__main__":
                              'processing files in a subfolder')
     args = parser.parse_args()
 
-    db_database, db_addr, db_username, db_password, db_base_dir = \
-        common.get_kvstore_config(args.kvstore_type)
     use_mock_etcd = (args.kvstore_type == 'mock')
-    kvstore = DBClient(db_database, db_addr, db_username,
-        db_password, db_base_dir, use_mock_etcd)
+    kvstore = DBClient(args.kvstore_type, use_mock_etcd)
     kvstore_key = common.portal_kvstore_base_dir(args.data_portal_name)
     if kvstore.get_data(kvstore_key) is None:
         portal_manifest = dp_pb.DataPortalManifest(
@@ -85,10 +82,6 @@ if __name__ == "__main__":
 
     portal_master_srv = DataPortalMasterService(args.listen_port,
                                                 args.data_portal_name,
-                                                db_database,
-                                                db_base_dir,
-                                                db_addr,
-                                                db_username,
-                                                db_password,
+                                                args.kvstore_type,
                                                 options)
     portal_master_srv.run()

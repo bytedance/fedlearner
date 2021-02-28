@@ -13,7 +13,8 @@
 # limitations under the License.
 
 # coding: utf-8
-
+import stat
+import time
 import json
 import datetime
 import os
@@ -40,6 +41,13 @@ class DatasetApiTest(BaseTestCase):
         self.default_dataset.comment = 'test comment'
         db.session.add(self.default_dataset)
         db.session.commit()
+        time.sleep(1)
+        self.default_dataset1 = Dataset()
+        self.default_dataset1.name = 'default_dataset1'
+        self.default_dataset1.dataset_type = DatasetType.STREAMING
+        self.default_dataset1.comment = 'test comment'
+        db.session.add(self.default_dataset1)
+        db.session.commit()
 
     def test_get_dataset(self):
         get_response = self.get_helper(
@@ -58,7 +66,8 @@ class DatasetApiTest(BaseTestCase):
         get_response = self.get_helper('/api/v2/datasets')
         self.assertEqual(get_response.status_code, HTTPStatus.OK)
         datasets = self.get_response_data(get_response)
-        self.assertEqual(len(datasets), 1)
+        self.assertEqual(len(datasets), 2)
+        self.assertEqual(datasets[0]['name'], 'default_dataset1')
 
     def test_post_datasets(self):
         name = 'test_post_dataset'
@@ -107,10 +116,8 @@ class DatasetApiTest(BaseTestCase):
 
 
 class FilesApiTest(BaseTestCase):
-    def get_config(self):
-        config = super().get_config()
-        config.STORAGE_ROOT = tempfile.gettempdir()
-        return config
+    class Config(BaseTestCase.Config):
+        STORAGE_ROOT = tempfile.gettempdir()
 
     def setUp(self):
         super().setUp()
@@ -123,13 +130,32 @@ class FilesApiTest(BaseTestCase):
         Path(self._tempdir).joinpath('f2.txt').write_text('f2f2')
         subdir.joinpath('s3.txt').write_text('s3s3s3')
 
+        # Mocks os.stat
+        self._orig_os_stat = os.stat
+
+        def fake_stat(path, *arg, **kwargs):
+            return self._get_file_stat(self._orig_os_stat, path)
+
+        os.stat = fake_stat
+
     def tearDown(self):
+        os.stat = self._orig_os_stat
         # Remove the directory after the test
         shutil.rmtree(self._tempdir)
         super().tearDown()
 
     def _get_temp_path(self, file_path: str = None) -> str:
         return str(Path(self._tempdir, file_path or '').absolute())
+
+    def _get_file_stat(self, orig_os_stat, path):
+        if path == self._get_temp_path('f1.txt') or \
+            path == self._get_temp_path('f2.txt') or \
+            path == self._get_temp_path('s/s3.txt'):
+            faked = list(orig_os_stat(path))
+            faked[stat.ST_MTIME] = 1613982390
+            return os.stat_result(faked)
+        else:
+            return orig_os_stat(path)
 
     def test_get_default_storage_root(self):
         get_response = self.get_helper(
@@ -138,11 +164,14 @@ class FilesApiTest(BaseTestCase):
         files = self.get_response_data(get_response)
         self.assertEqual(sorted(files, key=lambda f: f['size']), [
             {'path': self._get_temp_path('f1.txt'),
-             'size': 2},
+             'size': 2,
+             'mtime': 1613982390},
             {'path': self._get_temp_path('f2.txt'),
-             'size': 4},
+             'size': 4,
+             'mtime': 1613982390},
             {'path': self._get_temp_path('s/s3.txt'),
-             'size': 6},
+             'size': 6,
+             'mtime': 1613982390},
         ])
 
     def test_get_specified_directory(self):
@@ -153,8 +182,10 @@ class FilesApiTest(BaseTestCase):
         files = self.get_response_data(get_response)
         self.assertEqual(files, [
             {'path': self._get_temp_path('s/s3.txt'),
-             'size': 6},
+             'size': 6,
+             'mtime': 1613982390},
         ])
+
 
 if __name__ == '__main__':
     unittest.main()

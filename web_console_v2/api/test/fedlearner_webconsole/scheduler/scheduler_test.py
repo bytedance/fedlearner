@@ -16,6 +16,7 @@
 
 import os
 import time
+import copy
 import json
 import unittest
 import secrets
@@ -23,7 +24,7 @@ import logging
 import multiprocessing
 from http import HTTPStatus
 
-from testing.common import BaseTestCase
+from testing.common import BaseTestCase, TestAppProcess
 from fedlearner_webconsole.job.models import Job
 from fedlearner_webconsole.workflow.models import Workflow
 
@@ -35,7 +36,7 @@ class LeaderConfig(object):
     JWT_SECRET_KEY = secrets.token_urlsafe(64)
     PROPAGATE_EXCEPTIONS = True
     LOGGING_LEVEL = logging.DEBUG
-    GRPC_LISTEN_PORT = 1990
+    GRPC_LISTEN_PORT = 3990
 
 
 class FollowerConfig(object):
@@ -44,25 +45,19 @@ class FollowerConfig(object):
     JWT_SECRET_KEY = secrets.token_urlsafe(64)
     PROPAGATE_EXCEPTIONS = True
     LOGGING_LEVEL = logging.DEBUG
-    GRPC_LISTEN_PORT = 2990
+    GRPC_LISTEN_PORT = 4990
 
 
 class WorkflowTest(BaseTestCase):
+    class Config(LeaderConfig):
+        pass
+
     @classmethod
-    def setUpClass(cls):
+    def setUpClass(self):
         os.environ['FEDLEARNER_WEBCONSOLE_POLLING_INTERVAL'] = '1'
 
-    @classmethod
-    def tearDownClass(cls):
-        del os.environ['FEDLEARNER_WEBCONSOLE_POLLING_INTERVAL']
-
-    def get_config(self):
-        if ROLE == 'leader':
-            return LeaderConfig
-        else:
-            return FollowerConfig
-
-    def test_workflow(self):
+    def setUp(self):
+        super(WorkflowTest, self).setUp()
         self._wf_template = {
             'group_alias': 'test-template',
             'job_definitions': [
@@ -88,10 +83,15 @@ class WorkflowTest(BaseTestCase):
                 }
             ]
         }
-        if ROLE == 'leader':
-            self.leader_test_workflow()
-        else:
-            self.follower_test_workflow()
+
+    def test_workflow(self):
+        proc = TestAppProcess(
+            WorkflowTest,
+            'follower_test_workflow',
+            FollowerConfig)
+        proc.start()
+        self.leader_test_workflow()
+        proc.join()
     
     def setup_project(self, role):
         if role == 'leader':
@@ -141,6 +141,38 @@ class WorkflowTest(BaseTestCase):
 
         self._check_workflow_state(1, 'READY', 'INVALID', 'READY')
 
+        # test update
+        patch_config = copy.deepcopy(self._wf_template)
+        patch_config['job_definitions'][1]['variables'][0]['value'] = '4'
+        resp = self.patch_helper(
+            '/api/v2/workflows/1',
+            data={
+                'config': patch_config,
+            })
+        self.assertEqual(resp.status_code, HTTPStatus.OK)
+
+        resp = self.get_helper('/api/v2/workflows/1')
+        self.assertEqual(resp.status_code, HTTPStatus.OK)
+        ret_wf = resp.json['data']['config']
+        self.assertEqual(
+            ret_wf['job_definitions'][1]['variables'][0]['value'], '4')
+        
+        # test update remote
+        patch_config['job_definitions'][0]['variables'][0]['value'] = '5'
+        resp = self.patch_helper(
+            '/api/v2/workflows/1/peer_workflows',
+            data={
+                'config': patch_config,
+            })
+        self.assertEqual(resp.status_code, HTTPStatus.OK)
+
+        resp = self.get_helper('/api/v2/workflows/1/peer_workflows')
+        self.assertEqual(resp.status_code, HTTPStatus.OK)
+        ret_wf = list(resp.json['data'].values())[0]['config']
+        self.assertEqual(
+            ret_wf['job_definitions'][0]['variables'][0]['value'], '5')
+
+
         # test fork
         cwf_resp = self.post_helper(
             '/api/v2/workflows',
@@ -171,7 +203,7 @@ class WorkflowTest(BaseTestCase):
                     ]
                 }
             })
-        # import pdb;pdb.set_trace()
+
         self.assertEqual(cwf_resp.status_code, HTTPStatus.CREATED)
         self._check_workflow_state(2, 'READY', 'INVALID', 'READY')
 
@@ -187,7 +219,7 @@ class WorkflowTest(BaseTestCase):
                 'config': self._wf_template,
             })
         self._check_workflow_state(1, 'READY', 'INVALID', 'READY')
-        self.assertEqual(len(Job.query.all()), 2)
+        self.assertEqual(len(Job.query.filter(Job.workflow_id == 1).all()), 2)
 
         # test fork
         json = self._check_workflow_state(2, 'READY', 'INVALID', 'READY')
@@ -211,19 +243,7 @@ class WorkflowTest(BaseTestCase):
                     resp.json['data']['transaction_state'] == transaction_state:
                 return resp.json
  
- 
-def test_main(role):
-    global ROLE
-    ROLE = role
-    unittest.main()
-
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.DEBUG)
-
-    if ROLE == 'leader':
-        process = multiprocessing.Process(target=test_main, args=('follower',))
-        process.start()
-    test_main(ROLE)
-    if ROLE == 'leader':
-        assert process.join()
+    unittest.main()

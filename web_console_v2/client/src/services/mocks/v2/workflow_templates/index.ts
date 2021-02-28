@@ -1,7 +1,7 @@
 import { stringifyWidgetSchemas } from 'shared/formSchema';
 import { normalTemplate } from './examples';
 
-const normalTpl = stringifyWidgetSchemas(normalTemplate.data as any);
+const normalTpl = stringifyWidgetSchemas(normalTemplate as any);
 const simpleTpl = {
   id: 1,
   name: 'simple',

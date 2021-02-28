@@ -31,6 +31,7 @@ const ForkWorkflow: FC = () => {
   const reset = useResetForkForms();
 
   useUnmount(() => {
+    // Reset forms after leave
     reset();
   });
 

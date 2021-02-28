@@ -77,6 +77,9 @@ type Props = {
 };
 
 const PropertyList: FC<Props> = ({ properties, cols = 2, labelWidth, initialVisibleRows }) => {
+  // FIXME: remove next-line after basic_envs been remove
+  properties = properties.filter((prop) => prop.label !== 'basic_envs');
+
   const possibleToCollasped =
     initialVisibleRows && initialVisibleRows > 0 && initialVisibleRows * cols < properties.length;
   const [collapsed, toggleCollapsed] = useToggle(

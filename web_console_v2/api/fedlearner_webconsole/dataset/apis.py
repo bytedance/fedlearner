@@ -43,7 +43,7 @@ class DatasetApi(Resource):
 
 class DatasetsApi(Resource):
     def get(self):
-        datasets = Dataset.query.all()
+        datasets = Dataset.query.order_by(Dataset.created_at.desc()).all()
         return {'data': [d.to_dict() for d in datasets]}
 
     def post(self):

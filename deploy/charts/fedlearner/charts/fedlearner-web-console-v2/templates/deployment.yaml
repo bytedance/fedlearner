@@ -45,6 +45,9 @@ spec:
             - name: grpc
               containerPort: 1990
               protocol: TCP
+            - name: vscode
+              containerPort: 1992
+              protocol: TCP
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           {{- if .Values.extraVolumeMounts }}

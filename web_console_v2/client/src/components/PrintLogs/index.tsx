@@ -26,7 +26,7 @@ const Pre = styled.pre`
   overflow-y: auto;
   overscroll-behavior: contain;
   transform: translate3d(0, 0, 0);
-  text-shadow: 0 0 2px #001716, 0 0 3px #03edf975, 0 0 5px #03edf975, 0 0 8px #03edf975;
+  /* text-shadow: 0 0 2px #001716, 0 0 3px #03edf975, 0 0 5px #03edf975, 0 0 8px #03edf975; */
 `;
 const ControlsContainer = styled.div`
   position: absolute;

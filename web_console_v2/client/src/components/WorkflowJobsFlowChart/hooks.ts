@@ -14,7 +14,7 @@ export function useMarkFederatedJobs() {
 
     /**
      * Remember the Major premise for marking progress:
-     * No matter how many workflows in the pairing, number of the federated jobs of each is exactly same,
+     * No matter how many workflows in the pairing, number of the federated jobs of each are exactly same,
      * thus we can know how many colors we using after mark first group of jobs
      */
     if (isEmpty(markedJobs)) {
