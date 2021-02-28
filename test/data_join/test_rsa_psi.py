@@ -40,7 +40,7 @@ import grpc
 from fedlearner.common import common_pb2 as common_pb
 from fedlearner.common import data_join_service_pb2 as dj_pb
 from fedlearner.common import data_join_service_pb2_grpc as dj_grpc
-from fedlearner.common.mysql_client import DBClient
+from fedlearner.common.db_client import DBClient
 
 from fedlearner.proxy.channel import make_insecure_channel, ChannelType
 from fedlearner.data_join.rsa_psi import rsa_psi_signer, rsa_psi_preprocessor
@@ -49,20 +49,13 @@ from fedlearner.data_join import data_join_master, data_join_worker,\
 
 class RsaPsi(unittest.TestCase):
     def _setUpMySQL(self):
-        self._db_database = 'test_mysql'
-        self._db_addr = 'localhost:2379'
-        self._db_base_dir_l = 'byefl_l'
-        self._db_base_dir_f= 'byefl_f'
-        self._db_username_l = 'test_user_l'
-        self._db_username_f = 'test_user_f'
-        self._db_password_l = 'test_password_l'
-        self._db_password_f = 'test_password_f'
-        self._kvstore_l = DBClient(self._db_database, self._db_addr,
-                                    self._db_username_l, self._db_password_l,
-                                    self._db_base_dir_l, True)
-        self._kvstore_f = DBClient(self._db_database, self._db_addr,
-                                    self._db_username_f, self._db_password_f,
-                                    self._db_base_dir_f, True)
+        self.kvstore_type = 'etcd'
+        self.leader_base_dir = 'bytefl_l'
+        self.follower_base_dir = 'bytefl_f'
+        os.environ['ETCD_BASE_DIR'] = self.leader_base_dir
+        self._kvstore_l = DBClient(self.kvstore_type, True)
+        os.environ['ETCD_BASE_DIR'] = self.follower_base_dir
+        self._kvstore_f = DBClient(self.kvstore_type, True)
 
     def _setUpDataSource(self):
         self._data_source_name = 'test_data_source'
@@ -194,17 +187,15 @@ class RsaPsi(unittest.TestCase):
         self._master_addr_l = 'localhost:4061'
         self._master_addr_f = 'localhost:4062'
         master_options = dj_pb.DataJoinMasterOptions(use_mock_etcd=True)
+        os.environ['ETCD_BASE_DIR'] = self.leader_base_dir
         self._master_l = data_join_master.DataJoinMasterService(
                 int(self._master_addr_l.split(':')[1]), self._master_addr_f,
-                self._data_source_name, self._db_database, self._db_base_dir_l,
-                self._db_addr, self._db_username_l,
-                self._db_password_l, master_options 
+                self._data_source_name, self.kvstore_type, master_options
             )
+        os.environ['ETCD_BASE_DIR'] = self.follower_base_dir
         self._master_f = data_join_master.DataJoinMasterService(
                 int(self._master_addr_f.split(':')[1]), self._master_addr_l,
-                self._data_source_name, self._db_database, self._db_base_dir_f,
-                self._db_addr, self._db_username_f,
-                self._db_password_f, master_options 
+                self._data_source_name, self.kvstore_type, master_options
             )
         self._master_f.start()
         self._master_l.start()
@@ -294,18 +285,16 @@ class RsaPsi(unittest.TestCase):
         for rank_id in range(4):
             worker_addr_l = self._worker_addrs_l[rank_id]
             worker_addr_f = self._worker_addrs_f[rank_id]
+            os.environ['ETCD_BASE_DIR'] = self.leader_base_dir
             self._workers_l.append(data_join_worker.DataJoinWorkerService(
                 int(worker_addr_l.split(':')[1]),
                 worker_addr_f, self._master_addr_l, rank_id,
-                self._db_database, self._db_base_dir_l,
-                self._db_addr, self._db_username_l,
-                self._db_password_l, worker_options_l))
+                self.kvstore_type, worker_options_l))
+            os.environ['ETCD_BASE_DIR'] = self.follower_base_dir
             self._workers_f.append(data_join_worker.DataJoinWorkerService(
                 int(worker_addr_f.split(':')[1]),
                 worker_addr_l, self._master_addr_f, rank_id,
-                self._db_database, self._db_base_dir_f,
-                self._db_addr, self._db_username_f,
-                self._db_password_f, worker_options_f))
+                self.kvstore_type, worker_options_f))
         for w in self._workers_l:
             w.start()
         for w in self._workers_f:
@@ -375,10 +364,9 @@ class RsaPsi(unittest.TestCase):
                         output_writer='TF_RECORD'
                     )
                 )
+            os.environ['ETCD_BASE_DIR'] = self.leader_base_dir
             processor = rsa_psi_preprocessor.RsaPsiPreProcessor(
-                    options, self._db_database, self._db_base_dir_l,
-                    self._db_addr, self._db_username_l,
-                    self._db_password_l, True
+                    options, self.kvstore_type, True
                 )
             processor.start_process()
             processors.append(processor)
@@ -424,10 +412,9 @@ class RsaPsi(unittest.TestCase):
                         output_writer='CSV_DICT'
                     )
                 )
+            os.environ['ETCD_BASE_DIR'] = self.follower_base_dir
             processor = rsa_psi_preprocessor.RsaPsiPreProcessor(
-                        options, self._db_database, self._db_base_dir_f,
-                        self._db_addr, self._db_username_f,
-                        self._db_password_f, True
+                        options, self.kvstore_type, True
                     )
             processor.start_process()
             processors.append(processor)

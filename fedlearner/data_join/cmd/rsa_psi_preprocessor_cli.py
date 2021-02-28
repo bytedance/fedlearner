@@ -25,7 +25,6 @@ from tensorflow.compat.v1 import gfile
 from fedlearner.common import common_pb2 as common_pb
 from fedlearner.common import data_join_service_pb2 as dj_pb
 from fedlearner.data_join.rsa_psi.rsa_psi_preprocessor import RsaPsiPreProcessor
-from fedlearner.data_join.common import get_kvstore_config
 
 if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
@@ -162,12 +161,8 @@ if __name__ == "__main__":
     else:
         assert args.psi_role.upper() == 'FOLLOWER'
         preprocessor_options.role = common_pb.FLRole.Follower
-    db_database, db_addr, db_username, db_password, db_base_dir = \
-        get_kvstore_config(args.kvstore_type)
     preprocessor = RsaPsiPreProcessor(preprocessor_options,
-                                      db_database,
-                                      db_base_dir, db_addr,
-                                      db_username, db_password)
+                                      args.kvstore_type)
     preprocessor.start_process()
     logging.info("PreProcessor launched for %s of RSA PSI", args.psi_role)
     preprocessor.wait_for_finished()

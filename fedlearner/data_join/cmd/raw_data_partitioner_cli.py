@@ -26,7 +26,6 @@ from tensorflow.compat.v1 import gfile
 
 from fedlearner.common import data_join_service_pb2 as dj_pb
 from fedlearner.data_join.raw_data_partitioner import RawDataPartitioner
-from fedlearner.data_join.common import get_kvstore_config
 
 if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
@@ -127,12 +126,8 @@ if __name__ == "__main__":
             ),
             memory_limit_ratio=args.memory_limit_ratio/100
         )
-    db_database, db_addr, db_username, db_password, db_base_dir = \
-        get_kvstore_config(args.kvstore_type)
     partitioner = RawDataPartitioner(partitioner_options, args.part_field,
-                                     db_database, db_base_dir,
-                                     db_addr, db_username,
-                                     db_password)
+                                     args.kvstore_type)
     logging.info("RawDataPartitioner %s of rank %d launched",
                  partitioner_options.partitioner_name,
                  partitioner_options.partitioner_rank_id)

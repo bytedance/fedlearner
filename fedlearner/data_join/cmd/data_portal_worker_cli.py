@@ -20,7 +20,6 @@ import logging
 from fedlearner.common import data_join_service_pb2 as dj_pb
 from fedlearner.common import data_portal_service_pb2 as dp_pb
 from fedlearner.data_join.data_portal_worker import DataPortalWorker
-from fedlearner.data_join.common import get_kvstore_config
 
 if __name__ == '__main__':
     logging.getLogger().setLevel(logging.INFO)
@@ -101,12 +100,9 @@ if __name__ == '__main__':
         merger_read_batch_size=args.merger_read_batch_size,
         memory_limit_ratio=args.memory_limit_ratio/100
     )
-    db_database, db_addr, db_username, db_password, db_base_dir = \
-        get_kvstore_config(args.kvstore_type)
     data_portal_worker = DataPortalWorker(
             portal_worker_options, args.master_addr,
-            args.rank_id, db_database, db_base_dir,
-            db_addr, db_username, db_password,
+            args.rank_id, args.kvstore_type,
             (args.kvstore_type == 'mock')
         )
     data_portal_worker.start()

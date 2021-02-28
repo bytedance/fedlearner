@@ -25,7 +25,7 @@ import rsa
 
 from fedlearner.common import data_join_service_pb2 as dj_pb
 from fedlearner.common import common_pb2 as common_pb
-from fedlearner.common.mysql_client import DBClient
+from fedlearner.common.db_client import DBClient
 
 from fedlearner.data_join.routine_worker import RoutineWorker
 from fedlearner.data_join.raw_data_publisher import RawDataPublisher
@@ -36,13 +36,11 @@ from fedlearner.data_join.sort_run_merger import SortRunMerger
 from fedlearner.data_join.common import partition_repr, get_heap_mem_stats
 
 class RsaPsiPreProcessor(object):
-    def __init__(self, options, db_database, db_base_dir,
-                 db_addr, db_username, db_password,
+    def __init__(self, options, kvstore_type,
                  use_mock_etcd=False):
         self._lock = threading.Condition()
         self._options = options
-        kvstore = DBClient(db_database, db_addr, db_username,
-                            db_password, db_base_dir, use_mock_etcd)
+        kvstore = DBClient(kvstore_type, use_mock_etcd)
         pub_dir = self._options.raw_data_publish_dir
         self._publisher = RawDataPublisher(kvstore, pub_dir)
         self._process_pool_executor = \

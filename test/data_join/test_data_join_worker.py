@@ -36,7 +36,7 @@ import grpc
 from fedlearner.common import common_pb2 as common_pb
 from fedlearner.common import data_join_service_pb2 as dj_pb
 from fedlearner.common import data_join_service_pb2_grpc as dj_grpc
-from fedlearner.common.mysql_client import DBClient
+from fedlearner.common.db_client import DBClient
 
 from fedlearner.proxy.channel import make_insecure_channel, ChannelType
 from fedlearner.data_join import (
@@ -49,19 +49,14 @@ from fedlearner.data_join.raw_data_iter_impl.tf_record_iter import TfExampleItem
 
 class DataJoinWorker(unittest.TestCase):
     def setUp(self):
-        db_database = 'test_mysql'
-        db_addr = 'localhost:2379'
-        db_username_l = 'test_user_l'
-        db_username_f = 'test_user_f'
-        db_password_l = 'test_password_l'
-        db_password_f = 'test_password_f'
-        db_base_dir_l = 'byefl_l'
-        db_base_dir_f= 'byefl_f'
+        self.kvstore_type = 'etcd'
+        self.leader_base_dir = 'bytefl_l'
+        self.follower_base_dir = 'bytefl_f'
         data_source_name = 'test_data_source'
-        kvstore_l = DBClient(db_database, db_addr, db_username_l,
-                              db_password_l, db_base_dir_l, True)
-        kvstore_f = DBClient(db_database, db_addr, db_username_f,
-                              db_password_f, db_base_dir_f, True)
+        os.environ['ETCD_BASE_DIR'] = self.leader_base_dir
+        kvstore_l = DBClient(self.kvstore_type, True)
+        os.environ['ETCD_BASE_DIR'] = self.follower_base_dir
+        kvstore_f = DBClient(self.kvstore_type, True)
         kvstore_l.delete_prefix(common.data_source_kvstore_base_dir(data_source_name))
         kvstore_f.delete_prefix(common.data_source_kvstore_base_dir(data_source_name))
         data_source_l = common_pb.DataSource()
@@ -93,14 +88,6 @@ class DataJoinWorker(unittest.TestCase):
         self.data_source_l = data_source_l
         self.data_source_f = data_source_f
         self.data_source_name = data_source_name
-        self.db_database = db_database
-        self.db_addr = db_addr
-        self.db_username_l = db_username_l
-        self.db_username_f = db_username_f
-        self.db_password_l = db_password_l
-        self.db_password_f = db_password_f
-        self.db_base_dir_l = db_base_dir_l
-        self.db_base_dir_f = db_base_dir_f
         self.raw_data_publisher_l = raw_data_publisher.RawDataPublisher(
                 self.kvstore_l, self.raw_data_pub_dir_l
             )
@@ -236,17 +223,17 @@ class DataJoinWorker(unittest.TestCase):
         master_addr_f = 'localhost:4062'
         master_options = dj_pb.DataJoinMasterOptions(use_mock_etcd=True,
                                                      batch_mode=True)
+        os.environ['ETCD_BASE_DIR'] = self.leader_base_dir
         master_l = data_join_master.DataJoinMasterService(
                 int(master_addr_l.split(':')[1]), master_addr_f,
-                self.data_source_name, self.db_database, self.db_base_dir_l,
-                self.db_addr, self.db_username_l, self.db_password_l,
+                self.data_source_name, self.kvstore_type,
                 master_options,
             )
         master_l.start()
+        os.environ['ETCD_BASE_DIR'] = self.follower_base_dir
         master_f = data_join_master.DataJoinMasterService(
                 int(master_addr_f.split(':')[1]), master_addr_l,
-                self.data_source_name, self.db_database, self.db_base_dir_f,
-                self.db_addr, self.db_username_f, self.db_password_f,
+                self.data_source_name, self.kvstore_type,
                 master_options
             )
         master_f.start()
@@ -277,20 +264,18 @@ class DataJoinWorker(unittest.TestCase):
         worker_addr_l = 'localhost:4161'
         worker_addr_f = 'localhost:4162'
 
+        os.environ['ETCD_BASE_DIR'] = self.leader_base_dir
         worker_l = data_join_worker.DataJoinWorkerService(
                 int(worker_addr_l.split(':')[1]),
                 worker_addr_f, master_addr_l, 0,
-                self.db_database, self.db_base_dir_l,
-                self.db_addr, self.db_username_l,
-                self.db_password_l, self.worker_options
+                self.kvstore_type, self.worker_options
             )
 
+        os.environ['ETCD_BASE_DIR'] = self.follower_base_dir
         worker_f = data_join_worker.DataJoinWorkerService(
                 int(worker_addr_f.split(':')[1]),
                 worker_addr_l, master_addr_f, 0,
-                self.db_database, self.db_base_dir_f,
-                self.db_addr, self.db_username_f,
-                self.db_password_f, self.worker_options
+                self.kvstore_type, self.worker_options
             )
 
         th_l = threading.Thread(target=worker_l.run, name='worker_l')
@@ -332,8 +317,8 @@ class DataJoinWorker(unittest.TestCase):
             gfile.DeleteRecursively(self.data_source_f.output_base_dir)
         if gfile.Exists(self.raw_data_dir_f):
             gfile.DeleteRecursively(self.raw_data_dir_f)
-        self.kvstore_f.delete_prefix(common.data_source_kvstore_base_dir(self.db_base_dir_f))
-        self.kvstore_l.delete_prefix(common.data_source_kvstore_base_dir(self.db_base_dir_l))
+        self.kvstore_f.delete_prefix(common.data_source_kvstore_base_dir(self.leader_base_dir))
+        self.kvstore_l.delete_prefix(common.data_source_kvstore_base_dir(self.follower_base_dir))
 
 if __name__ == '__main__':
     unittest.main()

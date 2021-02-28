@@ -32,21 +32,18 @@ from fedlearner.data_join import data_join_master, common
 from fedlearner.common import common_pb2 as common_pb
 from fedlearner.common import data_portal_service_pb2 as dp_pb
 from fedlearner.common import data_portal_service_pb2_grpc as dp_grpc
-from fedlearner.common.mysql_client import DBClient
+from fedlearner.common.db_client import DBClient
 from fedlearner.proxy.channel import make_insecure_channel, ChannelType
 from fedlearner.data_join.data_portal_master import DataPortalMasterService
 
 class DataPortalMaster(unittest.TestCase):
     def test_api(self):
         logging.getLogger().setLevel(logging.DEBUG)
-        db_database = 'test_mysql'
-        db_addr = 'localhost:2379'
-        db_username = 'test_user'
-        db_password = 'test_password'
+        kvstore_type = 'etcd'
         db_base_dir = 'dp_test'
+        os.environ['ETCD_BASE_DIR'] = db_base_dir
         data_portal_name = 'test_data_source'
-        kvstore = DBClient(db_database, db_addr, db_username,
-            db_password, db_base_dir, True)
+        kvstore = DBClient(kvstore_type, True)
         kvstore.delete_prefix(db_base_dir)
         portal_input_base_dir='./portal_upload_dir'
         portal_output_base_dir='./portal_output_dir'
@@ -83,8 +80,7 @@ class DataPortalMaster(unittest.TestCase):
             )
         data_portal_master = DataPortalMasterService(
                 int(portal_master_addr.split(':')[1]),
-                data_portal_name, db_database, db_base_dir,
-                db_addr, db_username, db_password,
+                data_portal_name, kvstore_type,
                 portal_options
             )
         data_portal_master.start()

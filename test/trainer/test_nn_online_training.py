@@ -43,7 +43,7 @@ from fedlearner.data_join import (
 )
 
 from fedlearner.common import (
-    mysql_client, common_pb2 as common_pb,
+    db_client, common_pb2 as common_pb,
     data_join_service_pb2 as dj_pb,
     trainer_master_service_pb2 as tm_pb
 )
@@ -53,7 +53,6 @@ from fedlearner.data_join.raw_data_iter_impl.tf_record_iter import TfExampleItem
 
 from fedlearner.trainer_master.leader_tm import LeaderTrainerMaster
 from fedlearner.trainer_master.follower_tm import FollowerTrainerMaster
-from fedlearner.data_join.common import get_kvstore_config
 
 
 
@@ -79,10 +78,7 @@ class TestDataSource(object):
 
         self._data_source = data_source
 
-        db_database, db_addr, db_username, db_password, db_base_dir = \
-            get_kvstore_config("etcd")
-        self._kv_store = mysql_client.DBClient(
-            db_database, db_addr, db_username, db_password, db_base_dir, True)
+        self._kv_store = db_client.DBClient("etcd", True)
 
         common.commit_data_source(self._kv_store, self._data_source)
         self._dbms = []

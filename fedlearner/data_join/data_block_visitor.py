@@ -24,7 +24,7 @@ from google.protobuf import text_format
 from fedlearner.common import data_join_service_pb2 as dj_pb
 from fedlearner.common import common_pb2 as common_pb
 
-from fedlearner.common.mysql_client import DBClient
+from fedlearner.common.db_client import DBClient
 from fedlearner.data_join.common import (
     DataBlockSuffix, encode_data_block_meta_fname,
     load_data_block_meta, encode_data_block_fname,
@@ -104,12 +104,8 @@ class DataBlockRep(object):
         return self._data_block_index
 
 class DataBlockVisitor(object):
-    def __init__(self, data_source_name, db_database,
-                 db_base_dir, db_addr, db_username,
-                 db_password, use_mock_etcd=False):
-        self._kvstore = DBClient(db_database, db_addr, db_username,
-                                  db_password, db_base_dir,
-                                  use_mock_etcd)
+    def __init__(self, data_source_name, kvstore_type, use_mock_etcd=False):
+        self._kvstore = DBClient(kvstore_type, use_mock_etcd)
         self._data_source = retrieve_data_source(self._kvstore,
                                                  data_source_name)
 

@@ -21,7 +21,6 @@ from concurrent import futures
 import grpc
 
 from fedlearner.data_join.data_block_visitor import DataBlockVisitor
-from fedlearner.data_join.common import get_kvstore_config
 from fedlearner.common import trainer_master_service_pb2_grpc as tm_grpc
 from fedlearner.common import trainer_master_service_pb2 as tm_pb
 from fedlearner.common import common_pb2 as common_pb
@@ -29,8 +28,6 @@ from fedlearner.common import common_pb2 as common_pb
 from .trainer_master_service import TrainerMasterServer
 
 kvstore_type = os.environ.get('KVSTORE_TYPE', 'etcd')
-db_database, db_addr, db_username, db_password, db_base_dir = \
-    get_kvstore_config(kvstore_type)
 
 class FollowerTrainerMaster(object):
     def __init__(self, application_id, data_source, online_training):
@@ -38,8 +35,7 @@ class FollowerTrainerMaster(object):
         self._online_training = online_training
         kvstore_use_mock = os.environ.get('KVSTORE_USE_MOCK', "off") == "on"
         self._data_block_visitor = DataBlockVisitor(
-            data_source, db_database, db_base_dir, db_addr,
-                db_username, db_password, kvstore_use_mock)
+            data_source, kvstore_type, kvstore_use_mock)
 
     def run(self, listen_port):
         self._server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))

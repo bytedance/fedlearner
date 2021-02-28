@@ -23,7 +23,7 @@ from tensorflow.compat.v1 import gfile
 import tensorflow.compat.v1 as tf
 tf.enable_eager_execution()
 
-from fedlearner.common import mysql_client
+from fedlearner.common.db_client import DBClient
 from fedlearner.common import common_pb2 as common_pb
 from fedlearner.common import data_join_service_pb2 as dj_pb
 from fedlearner.data_join import raw_data_manifest_manager, raw_data_visitor, common
@@ -36,9 +36,7 @@ class TestRawDataVisitor(unittest.TestCase):
         self.raw_data_dir = path.join(
                 path.dirname(path.abspath(__file__)), "../compressed_raw_data"
             )
-        self.kvstore = mysql_client.DBClient('test_cluster', 'localhost:2379',
-                                              'test_user', 'test_password',
-                                              'fedlearner', True)
+        self.kvstore = DBClient('etcd', True)
         self.kvstore.delete_prefix(common.data_source_kvstore_base_dir(self.data_source.data_source_meta.name))
         self.assertEqual(self.data_source.data_source_meta.partition_num, 1)
         partition_dir = path.join(self.raw_data_dir, common.partition_repr(0))
@@ -74,9 +72,7 @@ class TestRawDataVisitor(unittest.TestCase):
         self.raw_data_dir = path.join(
                 path.dirname(path.abspath(__file__)), "../csv_raw_data"
             )
-        self.kvstore = mysql_client.DBClient('test_cluster', 'localhost:2379',
-                                              'test_user', 'test_password',
-                                              'fedlearner', True)
+        self.kvstore = DBClient("etcd", True)
         self.kvstore.delete_prefix(common.data_source_kvstore_base_dir(self.data_source.data_source_meta.name))
         self.assertEqual(self.data_source.data_source_meta.partition_num, 1)
         partition_dir = path.join(self.raw_data_dir, common.partition_repr(0))

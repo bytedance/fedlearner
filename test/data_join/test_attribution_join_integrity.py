@@ -25,7 +25,7 @@ import tensorflow_io
 from tensorflow.compat.v1 import gfile
 from google.protobuf import timestamp_pb2
 
-from fedlearner.common import mysql_client
+from fedlearner.common import db_client
 from fedlearner.common import common_pb2 as common_pb
 from fedlearner.common import data_join_service_pb2 as dj_pb
 from fedlearner.data_join.common import interval_to_timestamp
@@ -68,9 +68,7 @@ class TestAttributionJoin(unittest.TestCase):
             gfile.DeleteRecursively(self.data_source.output_base_dir)
         if gfile.Exists(self.raw_data_dir):
             gfile.DeleteRecursively(self.raw_data_dir)
-        self.kvstore = mysql_client.DBClient('test_cluster', 'localhost:2379',
-                                              'test_user', 'test_password',
-                                              'fedlearner', True)
+        self.kvstore = db_client.DBClient('etcd', True)
         self.kvstore.delete_prefix(common.data_source_kvstore_base_dir(self.data_source.data_source_meta.name))
         self.total_raw_data_count = 0
         self.total_example_id_count = 0

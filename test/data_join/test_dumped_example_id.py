@@ -22,7 +22,7 @@ tf.enable_eager_execution()
 import tensorflow_io
 from tensorflow.compat.v1 import gfile
 
-from fedlearner.common import mysql_client
+from fedlearner.common import db_client
 from fedlearner.common import common_pb2 as common_pb
 from fedlearner.common import data_join_service_pb2 as dj_pb
 from fedlearner.data_join import (
@@ -31,9 +31,7 @@ from fedlearner.data_join import (
 
 class TestDumpedExampleId(unittest.TestCase):
     def setUp(self):
-        self.kvstore = mysql_client.DBClient('test_cluster', 'localhost:2379',
-                                              'test_user', 'test_password',
-                                              'fedlearner', True)
+        self.kvstore = db_client.DBClient('etcd', True)
         data_source = common_pb.DataSource()
         data_source.data_source_meta.name = "milestone-x"
         data_source.data_source_meta.partition_num = 1

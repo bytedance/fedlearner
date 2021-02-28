@@ -29,25 +29,17 @@ from fedlearner.data_join import data_join_master, common
 from fedlearner.common import common_pb2 as common_pb
 from fedlearner.common import data_join_service_pb2 as dj_pb
 from fedlearner.common import data_join_service_pb2_grpc as dj_grpc
-from fedlearner.common.mysql_client import DBClient
+from fedlearner.common.db_client import DBClient
 from fedlearner.proxy.channel import make_insecure_channel, ChannelType
 
 class DataJoinMaster(unittest.TestCase):
     def test_api(self):
         logging.getLogger().setLevel(logging.DEBUG)
-        db_database = 'test_mysql'
-        db_addr = 'localhost:2379'
-        db_username_l = 'test_user_l'
-        db_username_f = 'test_user_f'
-        db_password_l = 'test_password_l'
-        db_password_f = 'test_password_f'
-        db_base_dir_l = 'byefl_l'
-        db_base_dir_f= 'byefl_f'
+        os.environ['ETCD_BASE_DIR'] = 'bytefl_l'
         data_source_name = 'test_data_source'
-        kvstore_l = DBClient(db_database, db_addr, db_username_l,
-                              db_password_l, db_base_dir_l, True)
-        kvstore_f = DBClient(db_database, db_addr, db_username_f,
-                              db_password_f, db_base_dir_f, True)
+        kvstore_l = DBClient('etcd', True)
+        os.environ['ETCD_BASE_DIR'] = 'bytefl_f'
+        kvstore_f = DBClient('etcd', True)
         kvstore_l.delete_prefix(common.data_source_kvstore_base_dir(data_source_name))
         kvstore_f.delete_prefix(common.data_source_kvstore_base_dir(data_source_name))
         data_source_l = common_pb.DataSource()
@@ -71,18 +63,16 @@ class DataJoinMaster(unittest.TestCase):
         master_addr_l = 'localhost:4061'
         master_addr_f = 'localhost:4062'
         options = dj_pb.DataJoinMasterOptions(use_mock_etcd=True)
+        os.environ['ETCD_BASE_DIR'] = 'bytefl_l'
         master_l = data_join_master.DataJoinMasterService(
                 int(master_addr_l.split(':')[1]),
-                master_addr_f, data_source_name, db_database,
-                db_base_dir_l, db_addr, db_username_l,
-                db_password_l, options
+                master_addr_f, data_source_name, 'etcd', options
             )
         master_l.start()
+        os.environ['ETCD_BASE_DIR'] = 'bytefl_f'
         master_f = data_join_master.DataJoinMasterService(
                 int(master_addr_f.split(':')[1]),
-                master_addr_l, data_source_name, db_database,
-                db_base_dir_f, db_addr, db_username_f,
-                db_password_f, options
+                master_addr_l, data_source_name, 'etcd', options
             )
         master_f.start()
         channel_l = make_insecure_channel(master_addr_l, ChannelType.INTERNAL)
