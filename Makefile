@@ -37,7 +37,7 @@ integration-test:
 webconsole2-test:
 	cd web_console_v2/api; make test
 
-test: integration-test unit-test webconsole2-test
+test: webconsole2-test unit-test integration-test
 
 docker-build:
 	docker build . -t ${IMG}
