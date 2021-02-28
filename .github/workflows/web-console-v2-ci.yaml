@@ -1,4 +1,4 @@
-name: CI
+name: WebConsolveV2 CI
 
 on: [push, pull_request]
 
@@ -25,19 +25,18 @@ jobs:
           while IFS= read -r file
           do
             echo $file
-            if [[ $file != "web_console_v2/"* ]]; then
+            if [[ $file == "web_console_v2/"* ]]; then
               echo "::set-output name=run_job::true"
               break
             else
               echo "::set-output name=run_job::false"
             fi
           done < files.txt
-
   test:
-    runs-on: ubuntu-latest
     name: CI tests
     needs: check
     if: needs.check.outputs.run_job == 'true'
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
       - name: Setup Python
@@ -45,10 +44,10 @@ jobs:
         with:
           python-version: '3.6'
       - name: Install dependencies
+        working-directory: web_console_v2/api
         run: |
-          sudo apt-get -y update
-          sudo apt-get -y install libgmp-dev libmpc-dev libmpfr-dev
           pip install --upgrade pip
           pip install -r requirements.txt
       - name: Run CI
-        run: bash ./ci/ci_test.sh
+        working-directory: web_console_v2
+        run: make api-test
