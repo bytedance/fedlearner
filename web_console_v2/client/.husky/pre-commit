@@ -1,0 +1,6 @@
+#!/bin/sh
+cd web_console_v2/client
+
+npx lint-staged
+# Only run tests for changed file
+npx jest --coverage --changedFilesWithAncestor
