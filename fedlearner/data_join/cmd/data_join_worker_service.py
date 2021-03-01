@@ -91,8 +91,10 @@ if __name__ == "__main__":
     parser.add_argument('--join_expr', type=str, default="example_id",
                         help="join expression for universal joiner")
     parser.add_argument('--join_key_mapper', type=str, default="DEFAULT",
-                        help="key mapper, format: name="\
-                        "schema:///path/to/mapper.tar.gz")
+                        help="key mapper name")
+    parser.add_argument('--raw_data_store_space', type=str, default="memory",
+                        choices=["memory", "disk"],
+                        help="the space to store the raw data")
     parser.add_argument('--optional_fields', type=str, default='',
                         help='optional stat fields used in joiner, separated '
                              'by comma between fields, e.g. "label,rit". '
@@ -109,7 +111,8 @@ if __name__ == "__main__":
                     compressed_type=args.compressed_type,
                     read_ahead_size=args.read_ahead_size,
                     read_batch_size=args.read_batch_size,
-                    optional_fields=optional_fields
+                    optional_fields=optional_fields,
+                    raw_data_store_space=args.raw_data_store_space
                 ),
             example_joiner_options=dj_pb.ExampleJoinerOptions(
                     example_joiner=args.example_joiner,

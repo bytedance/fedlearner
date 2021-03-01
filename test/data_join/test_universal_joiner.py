@@ -25,7 +25,6 @@ import tensorflow_io
 from tensorflow.compat.v1 import gfile
 from google.protobuf import timestamp_pb2
 
-from fedlearner.common import mysql_client
 from fedlearner.common import common_pb2 as common_pb
 from fedlearner.common import data_join_service_pb2 as dj_pb
 from fedlearner.data_join.common import interval_to_timestamp
@@ -33,7 +32,7 @@ from fedlearner.data_join.common import interval_to_timestamp
 from fedlearner.data_join import (
     data_block_manager, common, data_block_dumper,
     raw_data_manifest_manager, joiner_impl,
-    example_id_dumper, raw_data_visitor, visitor
+    example_id_dumper
 )
 from fedlearner.data_join.data_block_manager import DataBlockBuilder
 from fedlearner.data_join.raw_data_iter_impl.tf_record_iter import TfExampleItem
@@ -43,6 +42,7 @@ import datasource_producer as dsp
 
 class TestUniversalJoin(dsp.DataSourceProducer):
     def setUp(self):
+        #self.init("test_uni_joiner", "invalid joiner as placeholder", "disk")
         self.init("test_uni_joiner", "invalid joiner as placeholder")
 
     #@unittest.skip("test")

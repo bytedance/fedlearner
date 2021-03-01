@@ -19,15 +19,18 @@ from collections import OrderedDict
 from contextlib import contextmanager
 
 import tensorflow.compat.v1 as tf
-
 import fedlearner.data_join.common as common
 from fedlearner.data_join.raw_data_iter_impl.raw_data_iter import RawDataIter
 
-
 class TfExampleItem(RawDataIter.Item):
-    def __init__(self, record_str):
+    def __init__(self, record_str, store_space=None, index=None):
         super().__init__()
-        self._record_str = record_str
+        self._store_space = store_space
+        self._index = index
+        if self._store_space:
+            assert self._index is not None,\
+                    "store space is disk, index cann't be None"
+        self._set_tf_record(record_str)
         self._parse_example_error = False
         example = self._parse_example()
         dic = common.convert_tf_example_to_dict(example)
@@ -52,7 +55,17 @@ class TfExampleItem(RawDataIter.Item):
 
     @property
     def tf_record(self):
+        if self._store_space:
+            return self._store_space.get_data(self._index)
         return self._record_str
+
+    def _set_tf_record(self, record_str):
+        if self._store_space:
+            ## reuse this field to store the key of record str
+            self._record_str = None
+            self._store_space.set_data(self._index, record_str)
+        else:
+            self._record_str = record_str
 
     @property
     def csv_record(self):
@@ -79,21 +92,22 @@ class TfExampleItem(RawDataIter.Item):
                         bytes_list=tf.train.BytesList(value=[example_id])
                     )
                 )
-            self._record_str = example.SerializeToString()
+            self._set_tf_record(example.SerializeToString())
             self._example_id = example_id
             if self._csv_record is not None:
                 self._csv_record = None
         self._gc_example(example)
 
     def _parse_example(self):
+        record_str = self.tf_record
         try:
             if not self._parse_example_error:
                 example = tf.train.Example()
-                example.ParseFromString(self._record_str)
+                example.ParseFromString(record_str)
                 return example
         except Exception as e: # pylint: disable=broad-except
             logging.error("Failed parse tf.Example from record %s, reason %s",
-                           self._record_str, e)
+                          record_str, e)
             self._parse_example_error = True
         return None
 
@@ -104,6 +118,8 @@ class TfExampleItem(RawDataIter.Item):
             del example
 
     def clear(self):
+        if self._store_space:
+            self._store_space.delete(self._index)
         del self._record_str
         del self._csv_record
 
@@ -141,7 +157,11 @@ class TfRecordIter(RawDataIter):
         with self._data_set(fpath) as data_set:
             for batch in iter(data_set):
                 for raw_data in batch.numpy():
-                    yield TfExampleItem(raw_data)
+                    index = self._index
+                    if index is None:
+                        index = 0
+                    yield TfExampleItem(raw_data,
+                                        self._store_space, index)
 
     def _reset_iter(self, index_meta):
         if index_meta is not None:
