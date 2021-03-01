@@ -322,9 +322,9 @@ class FLEstimator(object):
     def evaluate(self,
                  input_fn,
                  checkpoint_path=None):
-        if not tf.train.latest_checkpoint(checkpoint_path):
-            raise ValueError(
-                "Could not find trained model at %s" % checkpoint_path)
+        #if not tf.train.latest_checkpoint(checkpoint_path):
+        #    raise ValueError(
+        #        "Could not find trained model at %s" % checkpoint_path)
 
         with tf.Graph().as_default():
             features, labels = self._get_features_and_labels_from_input_fn(
