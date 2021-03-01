@@ -3,7 +3,7 @@
   "version": "2.0.0",
   "private": true,
   "scripts": {
-    "preinstall": "npx only-allow npm && cd ../../ && husky install web_console_v2/client/.husky",
+    "preinstall": "npx only-allow npm && cd ../../ && npx husky install web_console_v2/client/.husky",
     "start": "node scripts/start.js",
     "build": "node scripts/build.js",
     "test": "node scripts/test.js",
@@ -87,6 +87,7 @@
     "html-webpack-plugin": "4.5.0",
     "husky": "^5.1.1",
     "identity-obj-proxy": "3.0.0",
+    "is-ci": "^3.0.0",
     "jest": "26.6.0",
     "jest-circus": "26.6.0",
     "jest-resolve": "26.6.0",
