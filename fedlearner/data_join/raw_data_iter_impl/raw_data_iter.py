@@ -13,10 +13,10 @@
 # limitations under the License.
 
 # coding: utf-8
-
 import logging
 from collections import OrderedDict
 import fedlearner.data_join.common as common
+from fedlearner.common.db_client import DBClient
 
 class RawDataIter(object):
     class Item(object):
@@ -77,6 +77,12 @@ class RawDataIter(object):
         self._index = None
         self._iter_failed = False
         self._options = options
+        #_options will be None for example id visitor
+        if self._options and self._options.raw_data_store_space == "disk":
+            #use leveldb to manager the disk storage by default
+            self._store_space = DBClient("leveldb", False)
+        else:
+            self._store_space = None
 
     def reset_iter(self, index_meta=None, force=False):
         if index_meta != self._index_meta or self._iter_failed or force:
