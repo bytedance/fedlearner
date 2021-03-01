@@ -2,7 +2,7 @@
 """Client and server classes corresponding to protobuf-defined services."""
 import grpc
 
-from test.bridge import greeter as test_dot_bridge_dot_greeter__pb2
+from test.channel import greeter_pb2 as test_dot_channel_dot_greeter__pb2
 
 
 class GreeterStub(object):
@@ -15,24 +15,24 @@ class GreeterStub(object):
             channel: A grpc.Channel.
         """
         self.HelloUnaryUnary = channel.unary_unary(
-                '/test.bridge.Greeter/HelloUnaryUnary',
-                request_serializer=test_dot_bridge_dot_greeter__pb2.Request.SerializeToString,
-                response_deserializer=test_dot_bridge_dot_greeter__pb2.Response.FromString,
+                '/test.channel.Greeter/HelloUnaryUnary',
+                request_serializer=test_dot_channel_dot_greeter__pb2.Request.SerializeToString,
+                response_deserializer=test_dot_channel_dot_greeter__pb2.Response.FromString,
                 )
         self.HelloUnaryStream = channel.unary_stream(
-                '/test.bridge.Greeter/HelloUnaryStream',
-                request_serializer=test_dot_bridge_dot_greeter__pb2.Request.SerializeToString,
-                response_deserializer=test_dot_bridge_dot_greeter__pb2.Response.FromString,
+                '/test.channel.Greeter/HelloUnaryStream',
+                request_serializer=test_dot_channel_dot_greeter__pb2.Request.SerializeToString,
+                response_deserializer=test_dot_channel_dot_greeter__pb2.Response.FromString,
                 )
         self.HelloStreamUnary = channel.stream_unary(
-                '/test.bridge.Greeter/HelloStreamUnary',
-                request_serializer=test_dot_bridge_dot_greeter__pb2.Request.SerializeToString,
-                response_deserializer=test_dot_bridge_dot_greeter__pb2.Response.FromString,
+                '/test.channel.Greeter/HelloStreamUnary',
+                request_serializer=test_dot_channel_dot_greeter__pb2.Request.SerializeToString,
+                response_deserializer=test_dot_channel_dot_greeter__pb2.Response.FromString,
                 )
         self.HelloStreamStream = channel.stream_stream(
-                '/test.bridge.Greeter/HelloStreamStream',
-                request_serializer=test_dot_bridge_dot_greeter__pb2.Request.SerializeToString,
-                response_deserializer=test_dot_bridge_dot_greeter__pb2.Response.FromString,
+                '/test.channel.Greeter/HelloStreamStream',
+                request_serializer=test_dot_channel_dot_greeter__pb2.Request.SerializeToString,
+                response_deserializer=test_dot_channel_dot_greeter__pb2.Response.FromString,
                 )
 
 
@@ -68,27 +68,27 @@ def add_GreeterServicer_to_server(servicer, server):
     rpc_method_handlers = {
             'HelloUnaryUnary': grpc.unary_unary_rpc_method_handler(
                     servicer.HelloUnaryUnary,
-                    request_deserializer=test_dot_bridge_dot_greeter__pb2.Request.FromString,
-                    response_serializer=test_dot_bridge_dot_greeter__pb2.Response.SerializeToString,
+                    request_deserializer=test_dot_channel_dot_greeter__pb2.Request.FromString,
+                    response_serializer=test_dot_channel_dot_greeter__pb2.Response.SerializeToString,
             ),
             'HelloUnaryStream': grpc.unary_stream_rpc_method_handler(
                     servicer.HelloUnaryStream,
-                    request_deserializer=test_dot_bridge_dot_greeter__pb2.Request.FromString,
-                    response_serializer=test_dot_bridge_dot_greeter__pb2.Response.SerializeToString,
+                    request_deserializer=test_dot_channel_dot_greeter__pb2.Request.FromString,
+                    response_serializer=test_dot_channel_dot_greeter__pb2.Response.SerializeToString,
             ),
             'HelloStreamUnary': grpc.stream_unary_rpc_method_handler(
                     servicer.HelloStreamUnary,
-                    request_deserializer=test_dot_bridge_dot_greeter__pb2.Request.FromString,
-                    response_serializer=test_dot_bridge_dot_greeter__pb2.Response.SerializeToString,
+                    request_deserializer=test_dot_channel_dot_greeter__pb2.Request.FromString,
+                    response_serializer=test_dot_channel_dot_greeter__pb2.Response.SerializeToString,
             ),
             'HelloStreamStream': grpc.stream_stream_rpc_method_handler(
                     servicer.HelloStreamStream,
-                    request_deserializer=test_dot_bridge_dot_greeter__pb2.Request.FromString,
-                    response_serializer=test_dot_bridge_dot_greeter__pb2.Response.SerializeToString,
+                    request_deserializer=test_dot_channel_dot_greeter__pb2.Request.FromString,
+                    response_serializer=test_dot_channel_dot_greeter__pb2.Response.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
-            'test.bridge.Greeter', rpc_method_handlers)
+            'test.channel.Greeter', rpc_method_handlers)
     server.add_generic_rpc_handlers((generic_handler,))
 
 
@@ -107,9 +107,9 @@ class Greeter(object):
             wait_for_ready=None,
             timeout=None,
             metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/test.bridge.Greeter/HelloUnaryUnary',
-            test_dot_bridge_dot_greeter__pb2.Request.SerializeToString,
-            test_dot_bridge_dot_greeter__pb2.Response.FromString,
+        return grpc.experimental.unary_unary(request, target, '/test.channel.Greeter/HelloUnaryUnary',
+            test_dot_channel_dot_greeter__pb2.Request.SerializeToString,
+            test_dot_channel_dot_greeter__pb2.Response.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 
@@ -124,9 +124,9 @@ class Greeter(object):
             wait_for_ready=None,
             timeout=None,
             metadata=None):
-        return grpc.experimental.unary_stream(request, target, '/test.bridge.Greeter/HelloUnaryStream',
-            test_dot_bridge_dot_greeter__pb2.Request.SerializeToString,
-            test_dot_bridge_dot_greeter__pb2.Response.FromString,
+        return grpc.experimental.unary_stream(request, target, '/test.channel.Greeter/HelloUnaryStream',
+            test_dot_channel_dot_greeter__pb2.Request.SerializeToString,
+            test_dot_channel_dot_greeter__pb2.Response.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 
@@ -141,9 +141,9 @@ class Greeter(object):
             wait_for_ready=None,
             timeout=None,
             metadata=None):
-        return grpc.experimental.stream_unary(request_iterator, target, '/test.bridge.Greeter/HelloStreamUnary',
-            test_dot_bridge_dot_greeter__pb2.Request.SerializeToString,
-            test_dot_bridge_dot_greeter__pb2.Response.FromString,
+        return grpc.experimental.stream_unary(request_iterator, target, '/test.channel.Greeter/HelloStreamUnary',
+            test_dot_channel_dot_greeter__pb2.Request.SerializeToString,
+            test_dot_channel_dot_greeter__pb2.Response.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 
@@ -158,8 +158,8 @@ class Greeter(object):
             wait_for_ready=None,
             timeout=None,
             metadata=None):
-        return grpc.experimental.stream_stream(request_iterator, target, '/test.bridge.Greeter/HelloStreamStream',
-            test_dot_bridge_dot_greeter__pb2.Request.SerializeToString,
-            test_dot_bridge_dot_greeter__pb2.Response.FromString,
+        return grpc.experimental.stream_stream(request_iterator, target, '/test.channel.Greeter/HelloStreamStream',
+            test_dot_channel_dot_greeter__pb2.Request.SerializeToString,
+            test_dot_channel_dot_greeter__pb2.Response.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)

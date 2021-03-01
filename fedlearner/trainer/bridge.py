@@ -15,7 +15,6 @@
 # coding: utf-8
 # pylint: disable=protected-access
 
-import os
 import collections
 import logging
 import threading
@@ -57,20 +56,20 @@ class Bridge(object):
             app_id = 'test_trainer'
         self._token = "{}-{}".format(app_id, rank)
 
-
         self._condition = threading.Condition()
         self._started = False
         self._terminated = False
+        self._peer_terminated = False
+
         self._current_iter_id = None
         self._next_iter_id = 0
         self._peer_start_iter_id = None
         self._peer_commit_iter_id = None
+
         self._received_data = collections.defaultdict(dict)
         self._data_block_handler_fn = None
 
         # transmit stream queue
-        self._stream_condition = threading.Condition()
-        self._stream_terminated = False
         self._stream_queue = collections.deque()
         self._stream_queue_size = stream_queue_size
         self._stream_thread = threading.Thread(
@@ -86,36 +85,45 @@ class Bridge(object):
         tws2_grpc.add_TrainerWorkerServiceServicer_to_server(
             Bridge.TrainerWorkerServicer(self), self._channel)
 
-    def _channel_callback(self, bridge, event):
+    def _channel_callback(self, channel, event):
         if event == Channel.Event.PEER_CLOSED:
-            logging.info("[Bridge] peer terminated")
             with self._condition:
                 self._peer_terminated = True
                 self._condition.notify_all()
-        elif event == Channel.Event.PEER_DISCONNECTED:
-            logging.error("[Bridge] suicide as peer disconnected")
-            os._exit(138)
-        elif event == Channel.Event.UNAUTHORIZED:
-            logging.error("[Bridge] suicide as unauthorized")
-            os._exit(138)
-        elif event in (Channel.Event.UNIDENTIFIED,
-                       Channel.Event.PEER_UNIDENTIFIED):
-            logging.error("[Bridge] suicide as peer has restarted!")
-            os._exit(138)  # Tell Scheduler to restart myself
+        if event == Channel.Event.ERROR:
+            err = channel.error()
+            logging.fatal("[Bridge] suicide as channel exception: %s"
+                "maybe caused by peer restart", repr(err))
 
     def __del__(self):
         self.terminate()
 
     @property
+    def current_iter_id(self):
+        return self._current_iter_id
+
+    @property
+    def next_iter_id(self):
+        return self._next_iter_id
+
+    @property
     def role(self):
         return self._role
+
+    @property
+    def connected_at(self):
+        return self._channel._connected_at
+
+    @property
+    def terminated_at(self):
+        return self._channel._closed_at
 
     def connect(self):
         with self._condition:
             if self._started:
                 return
             self._started = True
-            self._channel.start(wait=True)
+            self._channel.connect()
             self._stream_thread.start()
 
     def terminate(self):
@@ -125,12 +133,9 @@ class Bridge(object):
             if self._terminated:
                 return
             self._terminated = True
-            with self._stream_condition:
-                self._stream_terminated = True
-                self._stream_condition.notify_all()
-            self._stream_thread.join()
-            self._channel.stop(wait=True)
             self._condition.notify_all()
+        self._stream_thread.join()
+        self._channel.close()
 
     def _stream_fn(self):
         stream_response = self._client.StreamTransmit(self._stream_generator())
@@ -139,24 +144,25 @@ class Bridge(object):
 
     def _stream_generator(self):
         while True:
-            with self._stream_condition:
+            with self._condition:
                 while len(self._stream_queue) == 0:
-                    if self._stream_terminated:
+                    if self._terminated:
                         return
-                    self._stream_condition.wait()
+                    self._condition.wait()
                 msg = self._stream_queue.popleft()
+                self._condition.notify_all()
             yield msg
 
     def _transmit(self, msg):
-        with self._stream_condition:
-            if self._stream_terminated:
+        with self._condition:
+            if self._terminated:
                 raise RuntimeError("[Bridge] transmit stream was terminated")
             while len(self._stream_queue) == self._stream_queue_size:
                 logging.warning("[Bridge] transmit stream queue is full"
                                 ", size: %d", len(self._stream_queue))
-                self._stream_condition.wait()
+                self._condition.wait()
             self._stream_queue.append(msg)
-            self._stream_condition.notifyAll()
+            self._condition.notify_all()
 
     def _transmit_handler(self, request):
         with self._condition:
@@ -197,11 +203,11 @@ class Bridge(object):
                         if self._current_iter_id is not None \
                             else self._next_iter_id
                     if request.data.iter_id < iter_id:
-                        logging.debug("[Bridge] receive data iter_id: %d,"
-                            " ignored by our commit."
+                        logging.debug("[Bridge] receive data iter_id: %d, "
+                            "name: %s, ignored by our commit."
                             "(current_iter_id: %s, next_iter_id: %d)",
-                            request.data.iter_id, self._current_iter_id,
-                            self._next_iter_id)
+                            request.data.iter_id, request.data.name,
+                            self._current_iter_id, self._next_iter_id)
                     else:
                         logging.debug("[Bridge] receive data iter_id: %d,"
                             " name: %s",
@@ -254,14 +260,6 @@ class Bridge(object):
             status=common_pb.Status(code=common_pb.STATUS_INVALID_DATA_BLOCK)
         )
 
-    @property
-    def current_iter_id(self):
-        return self._current_iter_id
-
-    @property
-    def next_iter_id(self):
-        return self._next_iter_id
-
     def new_iter_id(self):
         with self._condition:
             iter_id = self._next_iter_id
@@ -307,29 +305,29 @@ class Bridge(object):
                      block_id, resp.status.code)
         return False
 
-    def send(self, iter_id, name, x):
+    def _send(self, iter_id, name, *, tensor=None, any_data=None):
         self._transmit(tws2_pb.TransmitRequest(
             data=tws2_pb.DataMessage(
-                iter_id=iter_id, name=name, tensor=tf.make_tensor_proto(x)
-            )
-        ))
-        logging.info("[Bridge] send data iter_id: %d, name: %s. (tensor)",
+                iter_id=iter_id,
+                name=name,
+                tensor=tensor,
+                any_data=any_data,
+            )))
+        logging.debug("[Bridge] send data iter_id: %d, name: %s",
             iter_id, name)
+
+    def send(self, iter_id, name, x):
+        self._send(iter_id, name, tensor=tf.make_tensor_proto(x))
 
     def send_proto(self, iter_id, name, proto):
         any_proto = any_pb.Any()
         any_proto.Pack(proto)
-        self._transmit(tws2_pb.TransmitRequest(
-            data=tws2_pb.DataMessage(
-                iter_id=iter_id, name=name, any_data=any_proto
-            )
-        ))
-        logging.info("[Bridge] send data iter_id: %d, name: %s. (any_data)",
-            iter_id, name)
+        self._send(iter_id, name, any_data=any_proto)
 
     def send_op(self, name, x):
         def func(x):
-            assert self._current_iter_id is not None, "[Bridge] not started"
+            logging.debug("[Bridge] tensorflow run send_op,"
+                " name: %s, iter_id: %s", name, self._current_iter_id)
             self.send(self._current_iter_id, name, x.numpy())
 
         out = tf.py_function(func=func, inp=[x], Tout=[], name='send_' + name)
@@ -344,8 +342,14 @@ class Bridge(object):
                    or name not in self._received_data[iter_id]):
                 if self._peer_commit_iter_id is not None \
                     and iter_id <= self._peer_commit_iter_id:
-                    msg = "[Bridge] peer committed without sending {}. " \
-                        "Please check model code".format(name)
+                    msg = "[Bridge] peer committed without sending {}" \
+                        " for iter_id {}" \
+                        " Please check model code".format(name, iter_id)
+                    logging.fatal(msg)
+                    raise RuntimeError(msg)
+                if self._peer_terminated:
+                    msg = "[Bridge] peer terminated without sending {}" \
+                        " for iter_id {}".format(name, iter_id)
                     logging.fatal(msg)
                     raise RuntimeError(msg)
                 self._condition.wait()
@@ -363,6 +367,8 @@ class Bridge(object):
 
     def receive_op(self, name, dtype):
         def func():
+            logging.debug("[Bridge] tensorflow run receive_op,"
+                " name: %s, iter_id: %s", name, self._current_iter_id)
             assert self._current_iter_id is not None, "[Bridge] not started"
             x = self.receive(self._current_iter_id, name)
             return tf.convert_to_tensor(x, dtype=dtype)

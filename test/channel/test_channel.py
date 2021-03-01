@@ -14,13 +14,13 @@
 
 # -*- coding: utf-8 -*-
 
+import time
 import logging
 import unittest
-import grpc
 import threading
 from test.channel import greeter_pb2, greeter_pb2_grpc 
 
-from fedlearner.channel import Bridge
+from fedlearner.channel import Channel
 
 class _Server(greeter_pb2_grpc.GreeterServicer):
     def HelloUnaryUnary(self, request, context):
@@ -50,26 +50,24 @@ class _Server(greeter_pb2_grpc.GreeterServicer):
 
         return response_iterator()
 
-
-class TestBridge(unittest.TestCase):
+class TestChannel(unittest.TestCase):
     def setUp(self):
-        super(TestBridge, self).__init__()
+        super(TestChannel, self).__init__()
         self._token = "test_token"
-        self._bridge1 = Bridge("[::]:50001", "localhost:50002",
+        self._channel1 = Channel("[::]:50001", "localhost:50002",
             token=self._token)
-        self._bridge2 = Bridge("[::]:50002", "localhost:50001",
+        self._channel2 = Channel("[::]:50002", "localhost:50001",
             token=self._token)
-        self._bridge1.subscribe(self._bridge_callback("[bridge 1]"))
-        self._bridge2.subscribe(self._bridge_callback("[bridge 2]"))
 
-        self._client1 = greeter_pb2_grpc.GreeterStub(self._bridge1)
-        self._client2 = greeter_pb2_grpc.GreeterStub(self._bridge2)
+        self._client1 = greeter_pb2_grpc.GreeterStub(self._channel1)
+        self._client2 = greeter_pb2_grpc.GreeterStub(self._channel2)
         greeter_pb2_grpc.add_GreeterServicer_to_server(
-            _Server(), self._bridge1)
+            _Server(), self._channel1)
         greeter_pb2_grpc.add_GreeterServicer_to_server(
-            _Server(), self._bridge2)
-        self._bridge1.start()
-        self._bridge2.start()
+            _Server(), self._channel2)
+        self._channel1.connect(wait=False)
+        time.sleep(1)
+        self._channel2.connect(wait=False)
 
     def _test_run_fn(self, client, name):
         request = greeter_pb2.Request(name=name)
@@ -97,18 +95,13 @@ class TestBridge(unittest.TestCase):
         for response in response_iterator:
             print(response.message)
 
-    def _bridge_callback(bridge, tag):
-        def callback(bridge, event):
-            print(tag, ": callback event: ", event.name)
-        return callback
-
     def test_send(self):
         thread1 = threading.Thread(target=self._test_run_fn,
                                    args=(self._client1, "[client 1]",),
                                    daemon=True)
         thread1.start()
         thread2 = threading.Thread(target=self._test_run_fn,
-                                   args=(self._client1, "[client 2]",),
+                                   args=(self._client2, "[client 2]",),
                                    daemon=True)
         thread2.start()
 
@@ -117,9 +110,15 @@ class TestBridge(unittest.TestCase):
         pass
 
     def tearDown(self):
-        self._bridge1.stop()
-        self._bridge2.stop(wait=True)
+        self._channel1.close(False)
+        time.sleep(2)
+        self._channel2.close(False)
+        self._channel1.wait_for_closed()
+        self._channel2.wait_for_closed()
+        assert self._channel1.connected_at == self._channel2.connected_at
+        assert self._channel1.closed_at == self._channel2.closed_at
 
 if __name__ == '__main__':
-    logging.basicConfig(level=logging.DEBUG, format="[%(levelname)s] %(asctime)s: %(message)s in %(pathname)s:%(lineno)d")
+    logging.basicConfig(level=logging.DEBUG, format="[%(levelname)s]"
+        " %(asctime)s: %(message)s in %(pathname)s:%(lineno)d")
     unittest.main()

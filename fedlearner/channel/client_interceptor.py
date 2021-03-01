@@ -13,16 +13,41 @@ class _MethodDetail(
                           'response_deserializer'))):
     pass
 
+class _ClientCallDetails(
+        collections.namedtuple('_ClientCallDetails',
+                               ('method', 'timeout', 'metadata', 'credentials',
+                                'wait_for_ready', 'compression')),
+        grpc.ClientCallDetails):
+    pass
+
 class ClientInterceptor(grpc.UnaryUnaryClientInterceptor,
                          grpc.UnaryStreamClientInterceptor,
                          grpc.StreamUnaryClientInterceptor,
                          grpc.StreamStreamClientInterceptor):
-    def __init__(self, retry_interval=1, wait_fn=None):
-        assert retry_interval > 0
+    def __init__(self,
+                 identifier,
+                 retry_interval,
+                 wait_fn,
+                 check_fn):
         self._retry_interval = retry_interval
+        self._identifer = identifier
         self._wait_fn = wait_fn
+        self._check_fn = check_fn
 
         self._method_details = dict()
+
+        self._fl_metadata = ("fl-channel-id", self._identifer)
+
+    def _wait(self):
+        if self._wait_fn:
+            self._wait_fn()
+
+    def _check(self):
+        if self._check_fn:
+            self._check_fn()
+
+    def _error(self, error):
+        self._error_fn(error)
 
     def register_method(self, method,
                         request_serializer,
@@ -30,20 +55,37 @@ class ClientInterceptor(grpc.UnaryUnaryClientInterceptor,
         self._method_details[method] = _MethodDetail(
             method, request_serializer, response_deserializer)
 
+    def _augment_metadata(self, metadata):
+        base_metadata = tuple(metadata) if metadata else ()
+        return (base_metadata + self._fl_metadata,)
+
+    def _merge_client_call_details(self, client_call_details):
+        augmented_metadata = self._augment_metadata(
+            client_call_details.metadata)
+        return _ClientCallDetails(
+            client_call_details.method, client_call_details.timeout,
+            augmented_metadata, None, None, None)
+
     def intercept_unary_unary(self, continuation, client_call_details,
                               request):
         method_details = self._method_details.get(client_call_details.method)
         if not method_details:
             return continuation(client_call_details, request)
 
+        client_call_details = self._merge_client_call_details(
+            client_call_details)
+
         request = channel_pb2.SendRequest(
             payload=method_details.request_serializer(request))
 
-        call = _grpc_with_retry(
-            lambda: continuation(client_call_details, request),
-            self._retry_interval, self._wait_fn)
+        def call():
+            self._wait()
+            return continuation(client_call_details, request)
 
-        return _UnaryOutcome(method_details.response_deserializer, call)
+        _call = _grpc_with_retry(call, self._retry_interval)
+
+        return _UnaryOutcome(
+            method_details.response_deserializer, _call, self._check_fn)
 
     def intercept_unary_stream(self, continuation, client_call_details,
                                request):
@@ -51,15 +93,21 @@ class ClientInterceptor(grpc.UnaryUnaryClientInterceptor,
         if not method_details:
             return continuation(client_call_details, request)
 
+        client_call_details = self._merge_client_call_details(
+            client_call_details)
+
         request = channel_pb2.SendRequest(
             payload=method_details.request_serializer(request))
 
-        stream_response = _grpc_with_retry(
-            lambda: continuation(client_call_details, request),
-            self._retry_interval, self._wait_fn)
+        def call():
+            self._wait()
+            return continuation(client_call_details, request)
+
+        stream_response = _grpc_with_retry(call, self._retry_interval)
 
         def response_iterator():
             for response in stream_response:
+                self._check_fn(response)
                 yield method_details.response_deserializer(response.payload)
 
         return response_iterator()
@@ -70,15 +118,21 @@ class ClientInterceptor(grpc.UnaryUnaryClientInterceptor,
         if not method_details:
             return continuation(client_call_details, request_iterator)
 
+        client_call_details = self._merge_client_call_details(
+            client_call_details)
+
         srq = _SingleConsumerSendRequestQueue(
             request_iterator, method_details.request_serializer)
         consumer = srq.consumer()
 
-        call = _grpc_with_retry(
-            lambda: continuation(client_call_details, iter(consumer)),
-            self._retry_interval, self._wait_fn)
+        def call():
+            self._wait()
+            return continuation(client_call_details, iter(consumer))
 
-        return _UnaryOutcome(method_details.response_deserializer, call)
+        _call = _grpc_with_retry(call, self._retry_interval)
+
+        return _UnaryOutcome(method_details.response_deserializer,
+            _call, self._check_fn)
 
     def intercept_stream_stream(self, continuation, client_call_details,
                                 request_iterator):
@@ -86,11 +140,15 @@ class ClientInterceptor(grpc.UnaryUnaryClientInterceptor,
         if not method_details:
             return continuation(client_call_details, request_iterator)
 
+        client_call_details = self._merge_client_call_details(
+            client_call_details)
+
         srq = _SingleConsumerSendRequestQueue(
             request_iterator, method_details.request_serializer)
         acker = _AckHelper()
 
         def call():
+            self._wait()
             consumer = srq.consumer()
             acker.set_consumer(consumer)
             return continuation(client_call_details, iter(consumer))
@@ -100,6 +158,7 @@ class ClientInterceptor(grpc.UnaryUnaryClientInterceptor,
             while True:
                 try:
                     for response in stream_response:
+                        self._check_fn(response)
                         if acker.ack(response.ack):
                             yield method_details.response_deserializer(
                                 response.payload)
@@ -111,12 +170,11 @@ class ClientInterceptor(grpc.UnaryUnaryClientInterceptor,
                             e.code(), e.details(), self._retry_interval)
                         time.sleep(self._retry_interval)
                         stream_response = _grpc_with_retry(call,
-                            self._retry_interval, self._wait_fn)
+                            self._retry_interval)
                         continue
                     raise e
 
-        init_stream_response = _grpc_with_retry(call,
-            self._retry_interval, self._wait_fn)
+        init_stream_response = _grpc_with_retry(call, self._retry_interval)
 
         return response_iterator(init_stream_response)
 
@@ -128,7 +186,7 @@ class _AckHelper():
         self._consumer = consumer
 
     def ack(self, ack):
-        self._consumer.ack(ack)
+        return self._consumer.ack(ack)
 
 class _SingleConsumerSendRequestQueue():
     class Consumer():
@@ -157,10 +215,10 @@ class _SingleConsumerSendRequestQueue():
 
 
     def _reset(self):
-        #logging.debug("[channel] _SingleConsumerSendRequestQueue reset"
-        #    ",self._offset: %d, self._seq: %d, len(self._deque): %d",
-        #    self._offset, self._seq, len(self._deque))
         self._offset = 0
+        #logging.debug("[channel] _SingleConsumerSendRequestQueue reset,"
+        #    " self._offset: %d, self._seq: %d, len(self._deque): %d",
+        #    self._offset, self._seq, len(self._deque))
 
     def _empty(self):
         return self._offset == len(self._deque)
@@ -169,8 +227,8 @@ class _SingleConsumerSendRequestQueue():
         assert not self._empty()
         req = self._deque[self._offset]
         self._offset += 1
-        #logging.debug("[channel] _SingleConsumerSendRequestQueue get: %d"
-        #    ", self._offset: %d, len(self._deque): %d, self._seq: %d",
+        #logging.debug("[channel] _SingleConsumerSendRequestQueue get: %d,"
+        #    " self._offset: %d, self._seq: %d, len(self._deque): %d",
         #    req.seq, self._offset, len(self._deque), self._seq)
         return req
 
@@ -180,6 +238,9 @@ class _SingleConsumerSendRequestQueue():
             payload=self._request_serializer(raw_req))
         self._seq += 1
         self._deque.append(req)
+        #logging.debug("[channel] _SingleConsumerSendRequestQueue add: %d,"
+        #    " self._offset: %d, self._seq: %d, len(self._deque): %d",
+        #    req.seq, self._offset, len(self._deque), self._seq)
 
     def _consumer_check(self, consumer):
         return self._consumer == consumer
@@ -211,20 +272,21 @@ class _SingleConsumerSendRequestQueue():
 
             # get from request_iterator
             if self._request_lock.acquire(timeout=1):
-                with self._lock:
-                    # check again
-                    self._consumer_check_or_call(consumer, stop_iteration_fn)
-                    if not self._empty():
-                        self._request_lock.release()
-                        return self._get()
-                # call next maybe block by user code
-                # then return data or raise StopIteration()
-                # so use self._request_lock instead of self._lock
-                raw_req = next(self._request_iterator)
-                with self._lock:
-                    self._add(raw_req)
-
-                self._request_lock.release()
+                try:
+                    with self._lock:
+                        # check again
+                        self._consumer_check_or_call(
+                            consumer, stop_iteration_fn)
+                        if not self._empty():
+                            return self._get()
+                    # call next maybe block in user code
+                    # then return data or raise StopIteration()
+                    # so use self._request_lock instead of self._lock
+                    raw_req = next(self._request_iterator)
+                    with self._lock:
+                        self._add(raw_req)
+                finally:
+                    self._request_lock.release()
 
     def consumer(self):
         with self._lock:
@@ -232,11 +294,9 @@ class _SingleConsumerSendRequestQueue():
             self._consumer = _SingleConsumerSendRequestQueue.Consumer(self)
             return self._consumer
 
-def _grpc_with_retry(call, interval=1, wait_fn=None):
+def _grpc_with_retry(call, interval=1):
     while True:
         try:
-            if wait_fn:
-                wait_fn()
             result = call()
             if not result.running() and result.exception() is not None:
                 raise result.exception()
@@ -277,11 +337,12 @@ def _grpc_error_get_http_status(details):
 
 class _UnaryOutcome(grpc.Call, grpc.Future):
 
-    def __init__(self, response_deserializer, call):
+    def __init__(self, response_deserializer, call, check_fn):
         super(_UnaryOutcome, self).__init__()
         self._response_deserializer = response_deserializer
         self._response = None
         self._call = call
+        self._check_fn = check_fn
 
     def initial_metadata(self):
         return self._call.initial_metadata()
@@ -320,6 +381,7 @@ class _UnaryOutcome(grpc.Call, grpc.Future):
         if self._response:
             return self._response
         response = self._call.result(ignored_timeout)
+        self._check_fn(response)
         self._response = self._response_deserializer(response.payload)
         return self._response
 

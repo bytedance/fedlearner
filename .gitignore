@@ -101,3 +101,4 @@ example/**/data
 example/**/model
 example/**/exp
 output
+!test/channel/greeter_pb2*.py

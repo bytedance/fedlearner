@@ -5,11 +5,12 @@ package fedlearner.bridge;
 enum Code {
     OK = 0;
     UNAUTHORIZED = 1;
-    UNIDENTIFIED = 2;      
+    UNIDENTIFIED = 2;
     UNCONNECTED = 3;
     CLOSED = 4;
 
-    UNKNOW_TYPE = 1001;
+    UNKNOW_TYPE = 101;
+    EXCEPTION = 102;
 }
 
 enum CallType {
@@ -28,6 +29,7 @@ message CallRequest {
 
 message CallResponse {
     Code code = 1;
+    uint64 timestamp = 2;
 }
 
 message SendRequest {
@@ -36,8 +38,9 @@ message SendRequest {
 }
 
 message SendResponse {
-    uint64 ack = 1;
-    bytes payload = 2;
+    Code code = 1;
+    uint64 ack = 2;
+    bytes payload = 3;
 }
 
 service Channel {

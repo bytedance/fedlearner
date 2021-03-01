@@ -305,17 +305,20 @@ class FLEstimator(object):
                         self._bridge.start(self._bridge.new_iter_id())
                         logging.debug('after bridge start.')
                         start_time = time.time()
-                        sess.run(spec.train_op, feed_dict={})
-                        end_time = time.time()
-                        metrics.emit_timer(
-                            name="iter_timer",
-                            value=end_time-start_time,
-                            tags={})
-                        logging.debug('after session run.')
-                        self._bridge.commit()
-                        logging.debug('after bridge commit.')
-            except Exception as e: #pylint: disable=broad-except
-                logging.fatal("tf session run raise exception: %s", repr(e))
+                        try:
+                            sess.run(spec.train_op, feed_dict={})
+                        finally:
+                            end_time = time.time()
+                            metrics.emit_timer(
+                                name="iter_timer",
+                                value=end_time-start_time,
+                                tags={})
+                            logging.debug('after session run.')
+                            self._bridge.commit()
+                            logging.debug('after bridge commit.')
+            except Exception as e:
+                logging.fatal("Occor error when session run: %s", repr(e))
+                raise e
             finally:
                 self._bridge.terminate()
 
@@ -375,15 +378,20 @@ class FLEstimator(object):
                         self._bridge.start(self._bridge.new_iter_id())
                         logging.debug('after bridge start.')
                         start_time = time.time()
-                        sess.run(eval_op)
-                        end_time = time.time()
-                        metrics.emit_timer(
-                            name="iter_timer",
-                            value=end_time-start_time,
-                            tags={})
-                        logging.debug('after session run.')
-                        self._bridge.commit()
-                        logging.debug('after bridge commit.')
+                        try:
+                            sess.run(eval_op)
+                        finally:
+                            end_time = time.time()
+                            metrics.emit_timer(
+                                name="iter_timer",
+                                value=end_time-start_time,
+                                tags={})
+                            logging.debug('after session run.')
+                            self._bridge.commit()
+                            logging.debug('after bridge commit.')
+            except Exception as e:
+                logging.fatal("Occor error when session run: %s", repr(e))
+                raise e
             finally:
                 self._bridge.terminate()
 

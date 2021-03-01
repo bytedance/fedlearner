@@ -264,12 +264,12 @@ def train(role, args, input_fn, model_fn, serving_input_receiver_fn):
                         save_checkpoint_secs=args.save_checkpoint_secs)
         if args.export_path and args.worker_rank == 0:
             now = time.time()
-            export_path = '%s/%d'%(args.export_path, now)
+            export_path = '%s/%d' % (args.export_path, bridge.terminated_at)
             estimator.export_saved_model(export_path,
                                          serving_input_receiver_fn,
                                          checkpoint_path=args.checkpoint_path)
-            fsuccess = tf.io.gfile.GFile('%s/_SUCCESS'%export_path, 'w')
-            fsuccess.write('%d'%now)
+            fsuccess = tf.io.gfile.GFile('%s/_SUCCESS' % export_path, 'w')
+            fsuccess.write('%d' % bridge.terminated_at)
             fsuccess.close()
 
     elif run_mode == 'eval':
