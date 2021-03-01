@@ -1,4 +1,4 @@
-name: Web Consolve V2 CI
+name: Web Consolve V2 API CI
 
 on:
   pull_request:
