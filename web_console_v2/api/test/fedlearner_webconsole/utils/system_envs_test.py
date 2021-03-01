@@ -29,7 +29,10 @@ class SystemEnvsTest(unittest.TestCase):
         'DB_DATABASE': 'fedlearner',
         'DB_USERNAME': 'username',
         'DB_PASSWORD': 'password',
-        'KVSTORE_TYPE': 'mysql'
+        'KVSTORE_TYPE': 'mysql',
+        'ETCD_NAME': 'fedlearner',
+        'ETCD_ADDR': 'fedlearner-stack-etcd.default.svc.cluster.local:2379',
+        'ETCD_BASE_DIR': 'fedlearner'
     })
     def test_get_system_envs(self):
         self.assertEqual(
@@ -47,7 +50,10 @@ class SystemEnvsTest(unittest.TestCase):
             '{"name": "DB_DATABASE", "value": "fedlearner"},'
             '{"name": "DB_USERNAME", "value": "username"},'
             '{"name": "DB_PASSWORD", "value": "password"},'
-            '{"name": "KVSTORE_TYPE", "value": "mysql"}')
+            '{"name": "KVSTORE_TYPE", "value": "mysql"},'
+            '{"name": "ETCD_NAME", "value": "fedlearner"},'
+            '{"name": "ETCD_ADDR", "value": "fedlearner-stack-etcd.default.svc.cluster.local:2379"},'
+            '{"name": "ETCD_BASE_DIR", "value": "fedlearner"}')
 
 
 if __name__ == '__main__':
