@@ -1,0 +1,27 @@
+name: Web Consolve V2 Client CI
+
+on:
+  pull_request:
+    paths:
+      - 'web_console_v2/client/**'
+      - '.github/**'
+  push:
+    paths:
+      - 'web_console_v2/client/**'
+      - '.github/**'
+
+defaults:
+  run:
+    working-directory: web_console_v2/client
+
+jobs:
+  test-client:
+    name: Client tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Use Node.js 12
+        uses: actions/setup-node@v2.1.5
+        with:
+          node-version: '12.x'
+      - run: pwd && npm ci && npx jest --coverage
