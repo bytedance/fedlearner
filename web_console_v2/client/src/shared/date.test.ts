@@ -1,5 +1,6 @@
 import { formatTimestamp, fomatTimeCount } from './date';
 
+// Beijing time
 const DATE_20201_01_21_12_58_23 = 1611205103;
 
 describe('Date formatters', () => {

@@ -1,16 +1,18 @@
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import UTC from 'dayjs/plugin/utc';
+import timezone from 'dayjs/plugin/timezone';
 
 dayjs.extend(relativeTime);
 dayjs.extend(UTC);
+dayjs.extend(timezone);
 
 export function formatTimestamp(input: number, format = 'YYYY-MM-DD HH:mm:ss') {
   if (input.toString().length === 10) {
-    return dayjs.unix(input).format(format);
+    return dayjs.unix(input).tz('Asia/Shanghai').format(format);
   }
 
-  return dayjs(input).format(format);
+  return dayjs(input).tz('Asia/Shanghai').format(format);
 }
 
 /**

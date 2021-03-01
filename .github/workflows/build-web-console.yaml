@@ -1,9 +1,11 @@
-name: Build Web Console
+name: Build Web Console V1
 
 on:
   pull_request:
     branches:
-      - master
+    - master
+    paths:
+    - 'web_console/**'
 
 defaults:
   run:
