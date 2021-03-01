@@ -1,41 +1,18 @@
-name: WebConsolveV2 CI
+name: Web Consolve V2 CI
 
-on: [push, pull_request]
+on:
+  pull_request:
+    paths:
+      - 'web_console_v2/**'
+      - '.github/**'
+  push:
+    paths:
+      - 'web_console_v2/**'
+      - '.github/**'
 
 jobs:
-  check:
-    name: Check changed files
-    outputs:
-      run_job: ${{ steps.check_files.outputs.run_job }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
-        # for comparing diff
-        with:
-          fetch-depth: 2
-      - name: check files
-        id: check_files
-        run: |
-          echo "=============== list changed files ==============="
-          git diff --name-only HEAD^ HEAD
-          
-          echo "========== check paths of changed files =========="
-          git diff --name-only HEAD^ HEAD > files.txt
-          while IFS= read -r file
-          do
-            echo $file
-            if [[ $file == "web_console_v2/"* ]]; then
-              echo "::set-output name=run_job::true"
-              break
-            else
-              echo "::set-output name=run_job::false"
-            fi
-          done < files.txt
-  test:
-    name: CI tests
-    needs: check
-    if: needs.check.outputs.run_job == 'true'
+  test-api:
+    name: API tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -48,6 +25,21 @@ jobs:
         run: |
           pip install --upgrade pip
           pip install -r requirements.txt
-      - name: Run CI
+      - name: Run test
         working-directory: web_console_v2
         run: make api-test
+  test-client:
+    name: Client tests
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v1
+        with:
+          node-version: 14
+
+      - name: Run test
+        working-directory: web_console_v2/client
+      - run: npm ci && npx jest --coverage

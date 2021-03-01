@@ -28,7 +28,7 @@ describe('Convert job definitions to chart elements', () => {
     expect(rows[1][1].id).toBe(convertParams.jobs[2].name);
   });
 
-  it('Group jobs into rows with global vars', () => {
+  it('Group jobs into rows with global variables', () => {
     // The normalTemplate should convert to:
     //               ⦿ → Global config node
     // row-1        █1█

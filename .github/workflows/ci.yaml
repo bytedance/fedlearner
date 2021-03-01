@@ -1,43 +1,17 @@
 name: CI
 
-on: [push, pull_request]
+on:
+  pull_request:
+    paths-ignore:
+    - 'web_console_v2/**'
+  push:
+    paths-ignore:
+    - 'web_console_v2/**'
 
 jobs:
-  check:
-    name: Check changed files
-    outputs:
-      run_job: ${{ steps.check_files.outputs.run_job }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
-        # for comparing diff
-        with:
-          fetch-depth: 2
-      - name: check files
-        id: check_files
-        run: |
-          echo "=============== list changed files ==============="
-          git diff --name-only HEAD^ HEAD
-          
-          echo "========== check paths of changed files =========="
-          git diff --name-only HEAD^ HEAD > files.txt
-          while IFS= read -r file
-          do
-            echo $file
-            if [[ $file != "web_console_v2/"* ]]; then
-              echo "::set-output name=run_job::true"
-              break
-            else
-              echo "::set-output name=run_job::false"
-            fi
-          done < files.txt
-
   test:
     runs-on: ubuntu-latest
     name: CI tests
-    needs: check
-    if: needs.check.outputs.run_job == 'true'
     steps:
       - uses: actions/checkout@v2
       - name: Setup Python
