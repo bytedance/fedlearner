@@ -168,6 +168,119 @@ class PeerJobEventsApi(Resource):
         return {'data': peer_events}
 
 
+class KibanaMetricsApi(Resource):
+    def get(self, job_id):
+        job = Job.query.filter_by(id=job_id).first()
+        parser = reqparse.RequestParser()
+        parser.add_argument('type', type=str, location='args',
+                            required=True,
+                            choices=('Rate', 'Ratio', 'Numeric'),
+                            help='Visualization type is required.')
+        parser.add_argument('interval', type=str, location='args',
+                            default='',
+                            help='Time bucket interval length, '
+                                 'defaults to automated by Kibana.')
+        parser.add_argument('time_field', type=str, location='args',
+                            required=True,
+                            help='Time field (X axis) is required.')
+        parser.add_argument('earliest_time', type=str, location='args',
+                            default='5y',
+                            help='Earliest <time_field> time relative to now '
+                                 'of all ES logs.')
+        parser.add_argument('latest_time', type=str, location='args',
+                            default='',
+                            help='Latest <time_field> time relative to now of '
+                                 'all ES logs.')
+        # (Joined) Rate visualization is fixed and only interval and time_field
+        # can be modified
+        # Ratio visualization
+        parser.add_argument('numerator', type=str, location='args',
+                            help='Numerator is required in Ratio '
+                                 'visualizations.')
+        parser.add_argument('denominator', type=str, location='args',
+                            help='Denominator is required in Ratio '
+                                 'visualizations.')
+        # Numeric visualization
+        parser.add_argument('aggregation', type=str, location='args',
+                            default='Average',
+                            choices=('Average', 'Sum', 'Max', 'Min', 'Variance',
+                                     'Std. Deviation', 'Sum of Squares'),
+                            help='Aggregation type is required in Numeric '
+                                 'visualizations.')
+        parser.add_argument('field', type=str, location='args',
+                            default='value',
+                            help='The field to be aggregated is required '
+                                 'in Numeric visualizations.')
+        parser.add_argument('metrics', type=str, locations='args',
+                            default='auc',
+                            help='Name of the metrics should be provided, '
+                                 'e.g., auc.')
+        args = parser.parse_args()
+
+        auth = (Config.ES_USERNAME, Config.ES_PASSWORD) \
+            if Config.ES_USERNAME is not None else None
+        objects_found = requests.get(
+            '{kbn_addr}/api/saved_objects/_find?type=visualization'
+            '&search_fields=title&search={type}-template-DO-NOT-MODIFY'
+            .format(kbn_addr=Config.KIBANA_ADDRESS, type=args['type']),
+            auth=auth
+        ).json()
+        assert objects_found['total'] > 0, \
+            'Visualization type {} not set yet.'.format(args['type'])
+        object_id = objects_found['saved_objects'][0]['id']
+        object_vis_state = json.loads(
+            objects_found['saved_objects'][0]['attributes']['visState']
+        )
+        params = object_vis_state['params']
+        params['interval'] = args['interval']
+        params['time_field'] = args['time_field']
+        if job.job_type == JobType.DATA_JOIN \
+                or job.job_type == JobType.RAW_DATA:
+            params['filter']['query'] = 'application_id:"{}"'.format(job.name)
+        else:
+            params['filter']['query'] = 'tags.application_id.keyword:' \
+                                        '"{}"'.format(job.name)
+        # (Join) Rate visualization is fixed and no need to process
+        if args['type'] == 'Ratio':
+            for series in params['series']:
+                series_type = series['label'].lower()
+                if series_type == 'ratio':
+                    series['metrics'][0]['numerator'] = args['numerator']
+                    series['metrics'][0]['denominator'] = args['denominator']
+                else:
+                    assert series_type in ('denominator', 'numerator')
+                    series['filter']['query'] = args[series_type]
+        elif args['type'] == 'Numeric':
+            params['filter']['query'] += ' and name.keyword: "{name}"' \
+                .format(name=args['metrics'])
+            series = params['series'][0]
+            series['metrics'][0]['type'] = AGG_TYPE_MAP[args['aggregation']]
+            series['metrics'][0]['field'] = args['field']
+        rison_str = prison.dumps(object_vis_state)
+        suffix = self._rison_postprocess(rison_str)
+
+        iframe_src = "{kbn_addr}/app/kibana#/visualize/edit/" \
+                     "{object_id}?embed=true&" \
+                     "_g=(refreshInterval:(pause:!t,value:0)," \
+                     "time:(from:now-{earliest},to:now-{latest}))&" \
+                     "_a=(filters:!(),linked:!f," \
+                     "query:(language:kuery,query:''),uiState:()," \
+                     "vis:{vis_state})" \
+            .format(kbn_addr=Config.KIBANA_ADDRESS,
+                    earliest=args['earliest_time'],
+                    latest=args['latest_time'],
+                    object_id=object_id, vis_state=suffix)
+        return iframe_src
+
+    @staticmethod
+    def _rison_postprocess(rison_str):
+        re_mode = re.IGNORECASE
+        escaped_keys = map(re.escape, RISON_REPLACEMENT)
+        pattern = re.compile("|".join(escaped_keys), re_mode)
+        return pattern.sub(
+            lambda match: RISON_REPLACEMENT[match.group(0)], rison_str)
+
+
 def initialize_job_apis(api):
     api.add_resource(JobApi, '/jobs/<int:job_id>')
     api.add_resource(PodLogApi,
@@ -187,3 +300,5 @@ def initialize_job_apis(api):
     api.add_resource(PeerJobEventsApi,
                      '/workflows/<string:workflow_uuid>/peer_workflows'
                      '/<int:participant_id>/jobs/<string:job_name>/events')
+    api.add_resource(KibanaMetricsApi,
+                     '/jobs/<int:job_id>/kibana')
