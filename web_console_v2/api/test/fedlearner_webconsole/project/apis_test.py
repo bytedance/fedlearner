@@ -13,15 +13,21 @@
 # limitations under the License.
 
 # coding: utf-8
+import os
 import json
 import unittest
 
+from base64 import b64encode
 from http import HTTPStatus
 from google.protobuf.json_format import ParseDict
+from unittest.mock import patch, MagicMock
+
 from testing.common import BaseTestCase
 from fedlearner_webconsole.db import db
 from fedlearner_webconsole.project.models import Project
-from fedlearner_webconsole.proto.project_pb2 import Project as ProjectProto, CertificateStorage
+from fedlearner_webconsole.project.add_on import parse_certificates, verify_certificates
+from fedlearner_webconsole.proto.project_pb2 import Project as ProjectProto, \
+    CertificateStorage
 from fedlearner_webconsole.workflow.models import Workflow
 
 
@@ -29,6 +35,9 @@ class ProjectApiTest(BaseTestCase):
 
     def setUp(self):
         super().setUp()
+        with open(os.path.join(os.path.dirname(os.path.realpath(__file__)),
+                               'test.tar.gz'), 'rb') as file:
+            self.TEST_CERTIFICATES = str(b64encode(file.read()), encoding='utf-8')
         self.default_project = Project()
         self.default_project.name = 'test-self.default_project'
         self.default_project.set_config(ParseDict({
@@ -46,7 +55,11 @@ class ProjectApiTest(BaseTestCase):
                 }
             ]
         }, ProjectProto()))
-        self.default_project.set_certificate(ParseDict({}, CertificateStorage()))
+        self.default_project.set_certificate(ParseDict({
+            'domain_name_to_cert': {'fl-test.com':
+                                        {'certs':
+                                             parse_certificates(self.TEST_CERTIFICATES)}}
+        }, CertificateStorage()))
         self.default_project.comment = 'test comment'
         db.session.add(self.default_project)
         workflow = Workflow(name='workflow_key_get1',
@@ -68,14 +81,17 @@ class ProjectApiTest(BaseTestCase):
         )
         self.assertEqual(get_response.status_code, HTTPStatus.NOT_FOUND)
 
-    def test_post_project(self):
+    @patch('fedlearner_webconsole.project.apis.verify_certificates')
+    def test_post_project(self, mock_verify_certificates):
+        mock_verify_certificates.return_value = (True, '')
         name = 'test-post-project'
         config = {
             'participants': [
                 {
                     'name': 'test-post-participant',
                     'domain_name': 'fl-test-post.com',
-                    'url': '127.0.0.1:32443'
+                    'url': '127.0.0.1:32443',
+                    'certificates': self.TEST_CERTIFICATES
                 }
             ],
             'variables': [
@@ -100,12 +116,16 @@ class ProjectApiTest(BaseTestCase):
         queried_project = Project.query.filter_by(name=name).first()
         self.assertEqual(created_project, queried_project.to_dict())
 
+        mock_verify_certificates.assert_called_once_with(
+            parse_certificates(self.TEST_CERTIFICATES))
+
     def test_post_conflict_name_project(self):
         config = {
             'participants': {
                 'fl-test-post.com': {
                     'name': 'test-post-participant',
-                    'url': '127.0.0.1:32443'
+                    'url': '127.0.0.1:32443',
+                    'certificates': self.TEST_CERTIFICATES
                 }
             },
             'variables': [
@@ -130,7 +150,8 @@ class ProjectApiTest(BaseTestCase):
         project_list = json.loads(list_response.data).get('data')
         self.assertEqual(len(project_list), 1)
         for project in project_list:
-            queried_project = Project.query.filter_by(name=project['name']).first()
+            queried_project = Project.query.filter_by(
+                name=project['name']).first()
             result = queried_project.to_dict()
             result['num_workflow'] = 1
             self.assertEqual(project, result)
