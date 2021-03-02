@@ -17,6 +17,7 @@
 
 import logging
 import json
+from uuid import uuid4
 from http import HTTPStatus
 from flask_restful import Resource, reqparse, request
 from google.protobuf.json_format import MessageToDict
@@ -85,7 +86,10 @@ class WorkflowsApi(Resource):
 
         # form to proto buffer
         template_proto = dict_to_workflow_definition(data['config'])
-        workflow = Workflow(name=name, comment=data['comment'],
+        workflow = Workflow(name=name,
+                            # 36 bytes
+                            uuid=uuid4().hex,
+                            comment=data['comment'],
                             project_id=data['project_id'],
                             forkable=data['forkable'],
                             forked_from=data['forked_from'],

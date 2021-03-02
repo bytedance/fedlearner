@@ -126,6 +126,7 @@ def _merge_workflow_config(base, new, access_mode):
 class Workflow(db.Model):
     __tablename__ = 'workflow_v2'
     id = db.Column(db.Integer, primary_key=True)
+    uuid = db.Column(db.String(64), unique=True, index=True)
     name = db.Column(db.String(255), unique=True, index=True)
     project_id = db.Column(db.Integer, db.ForeignKey(Project.id))
     config = db.Column(db.LargeBinary())
