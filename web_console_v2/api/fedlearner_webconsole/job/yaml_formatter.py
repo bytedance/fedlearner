@@ -13,8 +13,10 @@
 # limitations under the License.
 
 # coding: utf-8
+import json
 from string import Template
 from flatten_dict import flatten
+from fedlearner_webconsole.utils.system_envs import get_system_envs
 
 class _YamlTemplate(Template):
     delimiter = '$'
@@ -36,3 +38,41 @@ def format_yaml(yaml, **kwargs):
     except KeyError as e:
         raise RuntimeError(
             'Unknown placeholder: {}'.format(e.args[0])) from e
+
+def job_run_yaml(self, job):
+    system_dict = {'basic_envs': get_system_envs()}
+    workflow = job.workflow.to_dict()
+    workflow['variables'] = self._make_variables_dict(
+        job.workflow.get_config().variables)
+
+    workflow['jobs'] = {}
+    for j in job.workflow.get_jobs():
+        variables = self._make_variables_dict(j.get_config().variables)
+        j_dic = j.to_dict()
+        j_dic['variables'] = variables
+        workflow['jobs'][j.get_config().name] = j_dic
+    project = job.project.to_dict()
+    project['variables'] = self._make_variables_dict(
+        job.project.get_config().variables)
+    # set default values in project.variables
+    if 'basic_envs' not in project['variables']:
+        project['variables']['basic_envs'] = \
+            '{"name":"DEFAULT_BASIC_ENVS", "value":""}'
+    if 'storage_root_dir' not in project['variables']:
+        project['variables']['storage_root_dir'] = os.environ.get(
+            'STORAGE_ROOT', '/data')
+    if 'egress_domain' not in project['variables']:
+        # TODO: should adapt to multi_participants
+        project['variables']['egress_domain'] = project[
+            'config']['participants'][0]['domain_name']
+    if 'egress_host' not in project['variables']:
+        string_list = project['variables']['egress_domain'].split('.')
+        # Splicing rule may be changed
+        project['variables']['egress_host'] = '{}-client-auth{}'. \
+            format(string_list[0], string_list[1])
+    yaml = format_yaml(job.yaml_template,
+                       workflow=workflow,
+                       project=project,
+                       system=system_dict)
+    yaml = json.loads(yaml)
+    return yaml
