@@ -42,7 +42,7 @@ class Version:
     V2 = 2
 
 class DataSourceProducer(unittest.TestCase):
-    def init(self, dsname, joiner_name, version=Version.V1, use_disk="memory"):
+    def init(self, dsname, joiner_name, version=Version.V1, store_space="memory"):
         data_source = common_pb.DataSource()
         data_source.data_source_meta.name = dsname
         data_source.data_source_meta.partition_num = 1
@@ -52,7 +52,7 @@ class DataSourceProducer(unittest.TestCase):
         self.raw_data_options = dj_pb.RawDataOptions(
                 raw_data_iter='TF_RECORD',
                 compressed_type='',
-                raw_data_store_space=use_disk,
+                raw_data_store_space=store_space,
             )
         self.example_id_dump_options = dj_pb.ExampleIdDumpOptions(
                 example_id_dump_interval=1,
@@ -140,12 +140,11 @@ class DataSourceProducer(unittest.TestCase):
                         bytes_list=tf.train.BytesList(value=[example_id]))
                     feat['cid'] = tf.train.Feature(
                         bytes_list=tf.train.BytesList(value=[example_id]))
-                    """
-                    #mimic the feature
-                    for fid in range(200):
-                        feat["fid_%d"%fid] = tf.train.Feature(
-                            bytes_list=tf.train.BytesList(value=[feature_content.encode()]))
-                    """
+                    if self.raw_data_options.raw_data_store_space == 'disk':
+                        #mimic the feature
+                        for fid in range(200):
+                            feat["fid_%d"%fid] = tf.train.Feature(
+                                bytes_list=tf.train.BytesList(value=[feature_content.encode()]))
                 example = tf.train.Example(features=tf.train.Features(feature=feat))
                 builder.append_item(TfExampleItem(example.SerializeToString()),
                                     useless_index, useless_index)
@@ -166,12 +165,11 @@ class DataSourceProducer(unittest.TestCase):
                         bytes_list=tf.train.BytesList(value=[example_id]))
                     feat['cid'] = tf.train.Feature(
                         bytes_list=tf.train.BytesList(value=[example_id]))
-                    """
-                    #mimic the feature
-                    for fid in range(200):
-                        feat["fid_%d"%fid] = tf.train.Feature(
-                            bytes_list=tf.train.BytesList(value=[feature_content.encode()]))
-                    """
+                    if self.raw_data_options.raw_data_store_space == 'disk':
+                        #mimic the feature
+                        for fid in range(200):
+                            feat["fid_%d"%fid] = tf.train.Feature(
+                                bytes_list=tf.train.BytesList(value=[feature_content.encode()]))
                 example = tf.train.Example(features=tf.train.Features(feature=feat))
                 builder.append_item(TfExampleItem(example.SerializeToString()),
                                     useless_index, useless_index)

@@ -30,12 +30,12 @@ class TfExampleItem(RawDataIter.Item):
         if self._store_space:
             assert self._index is not None,\
                     "store space is disk, index cann't be None"
-        self._set_tf_record(record_str)
         self._parse_example_error = False
-        example = self._parse_example()
+        example = self._parse_example(record_str)
         dic = common.convert_tf_example_to_dict(example)
         self._features.update({key: dic[key] for key in dic
                                if key in common.ALLOWED_FIELDS.keys()})
+        self._set_tf_record(record_str)
         self._csv_record = None
         self._gc_example(example)
 
@@ -61,7 +61,6 @@ class TfExampleItem(RawDataIter.Item):
 
     def _set_tf_record(self, record_str):
         if self._store_space:
-            ## reuse this field to store the key of record str
             self._record_str = None
             self._store_space.set_data(self._index, record_str)
         else:
@@ -71,7 +70,7 @@ class TfExampleItem(RawDataIter.Item):
     def csv_record(self):
         if self._csv_record is None:
             self._csv_record = {}
-            example = self._parse_example()
+            example = self._parse_example(self.tf_record)
             if not self._parse_example_error:
                 try:
                     self._csv_record = \
@@ -83,7 +82,7 @@ class TfExampleItem(RawDataIter.Item):
         return self._csv_record
 
     def set_example_id(self, example_id):
-        example = self._parse_example()
+        example = self._parse_example(self.tf_record)
         if example is not None:
             feat = example.features.feature
             if isinstance(example_id, str):
@@ -98,8 +97,7 @@ class TfExampleItem(RawDataIter.Item):
                 self._csv_record = None
         self._gc_example(example)
 
-    def _parse_example(self):
-        record_str = self.tf_record
+    def _parse_example(self, record_str):
         try:
             if not self._parse_example_error:
                 example = tf.train.Example()

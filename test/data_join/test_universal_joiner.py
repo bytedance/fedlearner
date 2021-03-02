@@ -42,7 +42,7 @@ import datasource_producer as dsp
 
 class TestUniversalJoin(dsp.DataSourceProducer):
     def setUp(self):
-        #self.init("test_uni_joiner", "invalid joiner as placeholder", "disk")
+        #self.init("test_uni_joiner", "invalid joiner as placeholder", store_space="disk")
         self.init("test_uni_joiner", "invalid joiner as placeholder")
 
     #@unittest.skip("test")
