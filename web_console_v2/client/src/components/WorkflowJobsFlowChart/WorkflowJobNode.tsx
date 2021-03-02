@@ -9,7 +9,7 @@ import warningIcon from 'assets/icons/workflow-warning.svg';
 import errorIcon from 'assets/icons/workflow-error.svg';
 import GridRow from 'components/_base/GridRow';
 import { NODE_HEIGHT, NODE_WIDTH, GLOBAL_CONFIG_NODE_SIZE } from './helpers';
-import { NodeData, JobNodeStatus, ChartNodeType } from './types';
+import { NodeData, ChartNodeStatus, ChartNodeType } from './types';
 import { convertToUnit } from 'shared/helpers';
 import i18n from 'i18n';
 import classNames from 'classnames';
@@ -94,28 +94,28 @@ const ArrowDown = styled(Down)`
   margin-left: 5px;
 `;
 
-const statusIcons: Record<JobNodeStatus, string> = {
-  [JobNodeStatus.Pending]: '',
-  [JobNodeStatus.Processing]: pendingIcon,
-  [JobNodeStatus.Success]: completetdIcon,
-  [JobNodeStatus.Warning]: warningIcon,
-  [JobNodeStatus.Error]: errorIcon,
+const statusIcons: Record<ChartNodeStatus, string> = {
+  [ChartNodeStatus.Pending]: '',
+  [ChartNodeStatus.Processing]: pendingIcon,
+  [ChartNodeStatus.Success]: completetdIcon,
+  [ChartNodeStatus.Warning]: warningIcon,
+  [ChartNodeStatus.Error]: errorIcon,
 };
 
-const jobConfigStatusText: Record<JobNodeStatus, string> = {
-  [JobNodeStatus.Pending]: i18n.t('workflow.job_node_pending'),
-  [JobNodeStatus.Processing]: i18n.t('workflow.job_node_configuring'),
-  [JobNodeStatus.Success]: i18n.t('workflow.job_node_config_completed'),
-  [JobNodeStatus.Warning]: i18n.t('workflow.job_node_unfinished'),
-  [JobNodeStatus.Error]: '',
+const jobConfigStatusText: Record<ChartNodeStatus, string> = {
+  [ChartNodeStatus.Pending]: i18n.t('workflow.job_node_pending'),
+  [ChartNodeStatus.Processing]: i18n.t('workflow.job_node_configuring'),
+  [ChartNodeStatus.Success]: i18n.t('workflow.job_node_config_completed'),
+  [ChartNodeStatus.Warning]: i18n.t('workflow.job_node_unfinished'),
+  [ChartNodeStatus.Error]: '',
 };
 
-export const jobExecutionStatusText: Record<JobNodeStatus, string> = {
-  [JobNodeStatus.Pending]: i18n.t('workflow.job_node_waiting'),
-  [JobNodeStatus.Processing]: i18n.t('workflow.job_node_running'),
-  [JobNodeStatus.Success]: i18n.t('workflow.job_node_success'),
-  [JobNodeStatus.Warning]: i18n.t('workflow.job_node_failed'),
-  [JobNodeStatus.Error]: i18n.t('workflow.job_node_stop_running'),
+export const jobExecutionStatusText: Record<ChartNodeStatus, string> = {
+  [ChartNodeStatus.Pending]: i18n.t('workflow.job_node_waiting'),
+  [ChartNodeStatus.Processing]: i18n.t('workflow.job_node_running'),
+  [ChartNodeStatus.Success]: i18n.t('workflow.job_node_success'),
+  [ChartNodeStatus.Warning]: i18n.t('workflow.job_node_failed'),
+  [ChartNodeStatus.Error]: i18n.t('workflow.job_node_stop_running'),
 };
 
 export const WORKFLOW_JOB_NODE_CHANNELS = {

@@ -24,7 +24,7 @@ from google.protobuf import text_format
 import tensorflow_io
 from tensorflow.compat.v1 import gfile
 
-from fedlearner.common import mysql_client
+from fedlearner.common import db_client
 from fedlearner.common import common_pb2 as common_pb
 from fedlearner.common import data_join_service_pb2 as dj_pb
 from fedlearner.data_join import (
@@ -44,14 +44,7 @@ class TestDataBlockVisitor(unittest.TestCase):
         data_source.output_base_dir = "./ds_output"
         data_source.role = common_pb.FLRole.Follower
         self.data_source = data_source
-        self.db_database = 'test_cluster'
-        self.db_addr = 'localhost:2379'
-        self.db_base_dir = 'fedlearner'
-        self.db_username = 'test_user'
-        self.db_password = 'test_password'
-        self.kvstore = mysql_client.DBClient(self.db_database, self.db_addr,
-                                              self.db_username, self.db_password,
-                                              self.db_base_dir, True)
+        self.kvstore = db_client.DBClient('etcd', True)
         common.commit_data_source(self.kvstore, self.data_source)
         if gfile.Exists(data_source.output_base_dir):
             gfile.DeleteRecursively(data_source.output_base_dir)
@@ -105,9 +98,7 @@ class TestDataBlockVisitor(unittest.TestCase):
         for i in range(partition_num):
             self.manifest_manager.forward_peer_dumped_index(i, dumped_index)
         visitor = data_block_visitor.DataBlockVisitor(
-                self.data_source.data_source_meta.name, self.db_database,
-                self.db_base_dir, self.db_addr, self.db_username,
-                self.db_password, True
+                self.data_source.data_source_meta.name, 'etcd', True
             )
         reps = visitor.LoadDataBlockRepByTimeFrame(start_time, end_time)
         metas = [meta for meta in self.data_block_matas if

@@ -24,7 +24,7 @@ from fedlearner.common import common_pb2 as common_pb
 from fedlearner.common import data_portal_service_pb2 as dp_pb
 from fedlearner.common import data_portal_service_pb2_grpc as dp_grpc
 
-from fedlearner.common.mysql_client import DBClient
+from fedlearner.common.db_client import DBClient
 
 from fedlearner.data_join.data_portal_job_manager import DataPortalJobManager
 from fedlearner.data_join.routine_worker import RoutineWorker
@@ -82,15 +82,11 @@ class DataPortalMaster(dp_grpc.DataPortalMasterServiceServicer):
 
 class DataPortalMasterService(object):
     def __init__(self, listen_port, portal_name,
-                 db_database, db_base_dir,
-                 db_addr, db_username,
-                 db_password, portal_options):
+                 kvstore_type, portal_options):
         self._portal_name = portal_name
         self._listen_port = listen_port
         self._server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
-        kvstore = DBClient(db_database, db_addr, db_username,
-                            db_password, db_base_dir,
-                            portal_options.use_mock_etcd)
+        kvstore = DBClient(kvstore_type, portal_options.use_mock_etcd)
         self._data_portal_master = DataPortalMaster(portal_name, kvstore,
                                                     portal_options)
         dp_grpc.add_DataPortalMasterServiceServicer_to_server(

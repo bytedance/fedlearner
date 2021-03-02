@@ -4,11 +4,10 @@
   "private": true,
   "scripts": {
     "preinstall": "npx only-allow npm",
-    "precommit": "lint-staged",
     "start": "node scripts/start.js",
     "build": "node scripts/build.js",
     "test": "node scripts/test.js",
-    "test:coverage": "npm test -- --coverage --watchAll=false",
+    "test:coverage": "npx jest --coverage",
     "lint": "eslint '*/**/*.{js,ts,tsx}' --fix",
     "pritter": "npx prettier --write ./src"
   },

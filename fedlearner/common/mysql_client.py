@@ -22,19 +22,6 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, scoped_session
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.ext.automap import automap_base
-from fedlearner.common.etcd_client import EtcdClient
-
-class DBClient(object):
-    def __init__(self, database, addr, username, password,
-        base_dir, use_mock_etcd=False):
-        self._client = EtcdClient(database, addr, base_dir,
-                                  use_mock_etcd)
-        if username is not None and not use_mock_etcd:
-            self._client = MySQLClient(database, addr, username,
-                                       password, base_dir)
-
-    def __getattr__(self, attr):
-        return getattr(self._client, attr)
 
 
 class MySQLClient(object):
