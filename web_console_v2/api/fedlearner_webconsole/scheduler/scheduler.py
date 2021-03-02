@@ -16,7 +16,6 @@
 # pylint: disable=broad-except
 
 import os
-import json
 import threading
 import logging
 import traceback
@@ -146,13 +145,6 @@ class Scheduler(object):
         logging.debug('Scheduling workflow %d', workflow_id)
         tm = TransactionManager(workflow_id)
         return tm.process()
-
-    def _make_variables_dict(self, variables):
-        var_dict = {
-            var.name: var.value
-            for var in variables
-        }
-        return var_dict
 
     def _schedule_job(self, job_id):
         job = Job.query.get(job_id)
