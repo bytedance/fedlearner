@@ -239,6 +239,7 @@ class Workflow(db.Model):
             for job in self.owned_jobs:
                 try:
                     job_run_yaml(job)
+                # TODO: check if peer variables is valid
                 except RuntimeError as e:
                     raise ValueError(
                         f'Invalid Variable when try '
