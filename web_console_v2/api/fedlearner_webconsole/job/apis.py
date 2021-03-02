@@ -11,15 +11,15 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+# coding: utf-8
 import copy
 import hashlib
-import json
 import re
-# coding: utf-8
 import time
 import json
 from google.protobuf.json_format import MessageToDict
+
+import prison
 from flask_restful import Resource, reqparse
 from fedlearner_webconsole.proto import common_pb2
 from fedlearner_webconsole.workflow.models import Workflow
@@ -173,16 +173,14 @@ class PeerJobEventsApi(Resource):
 
 
 class KibanaMetricsApi(Resource):
-    RISON_REPLACEMENT = {
-        # some URL rules in Kibana's URL encoding
-        ' ': '%20',
-        '"': '%22',
-        '#': '%23',
-        '%': '%25',
-        '&': '%26',
-        '+': '%2B',
-        '/': '%2F'
-    }
+    # some URL rules in Kibana's URL encoding
+    RISON_REPLACEMENT = {' ': '%20',
+                         '"': '%22',
+                         '#': '%23',
+                         '%': '%25',
+                         '&': '%26',
+                         '+': '%2B',
+                         '/': '%2F'}
     AGG_TYPE_MAP = {'Average': 'avg',
                     'Sum': 'sum',
                     'Max': 'max',
@@ -192,24 +190,20 @@ class KibanaMetricsApi(Resource):
                     'Sum of Squares': 'sum_of_squares'}
     COLORS = ['#DA6E6E', '#FA8080', '#789DFF',
               '#66D4FF', '#6EB518', '#9AF02E']
-    VIS_STATE = {
-        "aggs": [],
-        "params": {
-            "axis_formatter": "number",
-            "axis_min": "",
-            "axis_position": "left",
-            "axis_scale": "normal",
-            "default_index_pattern": "metrics*",
-            "filter": {},
-            "index_pattern": "",
-            "interval": "",
-            "isModelInvalid": False,
-            "show_grid": 1,
-            "show_legend": 1,
-            "time_field": "",
-            "type": "timeseries"
-        }
-    }
+    VIS_STATE = {"aggs": [],
+                 "params": {"axis_formatter": "number",
+                            "axis_min": "",
+                            "axis_position": "left",  # default axis position
+                            "axis_scale": "normal",
+                            "default_index_pattern": "metrics*",
+                            "filter": {},
+                            "index_pattern": "",
+                            "interval": "",
+                            "isModelInvalid": False,
+                            "show_grid": 1,
+                            "show_legend": 1,
+                            "time_field": "",
+                            "type": "timeseries"}}
 
     def get(self, job_id):
         job = Job.query.filter_by(id=job_id).first()
@@ -225,95 +219,69 @@ class KibanaMetricsApi(Resource):
         parser.add_argument('x_axis_field', type=str, location='args',
                             required=True,
                             help='Time field (X axis) is required.')
-        parser.add_argument('earliest_time', type=str, location='args',
-                            default='5y',
+        parser.add_argument('query', type=str, location='args',
+                            help='Additional query string to the graph.')
+        parser.add_argument('start_time', type=str, location='args',
+                            default='3y',
                             help='Earliest <x_axis_field> time relative to now '
                                  'of all ES logs.')
-        parser.add_argument('latest_time', type=str, location='args',
-                            default='',
+        parser.add_argument('end_time', type=str, location='args',
+                            default='0d',
                             help='Latest <x_axis_field> time relative to now '
                                  'of all ES logs.')
-        # (Joined) Rate visualization is fixed and only interval and
+        # (Joined) Rate visualization is fixed and only interval, query and
         # x_axis_field can be modified
         # Ratio visualization
         parser.add_argument('numerator', type=str, location='args',
                             help='Numerator is required in Ratio '
-                                 'visualizations.')
+                                 'visualization.')
         parser.add_argument('denominator', type=str, location='args',
                             help='Denominator is required in Ratio '
-                                 'visualizations.')
+                                 'visualization.')
         # Numeric visualization
         parser.add_argument('aggregator', type=str, location='args',
                             default='Average',
                             choices=('Average', 'Sum', 'Max', 'Min', 'Variance',
                                      'Std. Deviation', 'Sum of Squares'),
                             help='Aggregator type is required in Numeric '
-                                 'visualizations.')
+                                 'visualization.')
         parser.add_argument('value_field', type=str, location='args',
                             help='The field to be aggregated on is required '
-                                 'in Numeric visualizations.')
+                                 'in Numeric visualization.')
         parser.add_argument('metric_name', type=str, locations='args',
                             help='Name of metric should be provided.')
         args = parser.parse_args()
+        assert args['type'] in ('Rate', 'Ratio', 'Numeric')
+        # get corresponding create method and call it with (job, args)
+        vis_state = getattr(KibanaMetricsApi,
+                            '_create_{}_visualization'
+                            .format(args['type'].lower()))(job, args)
+        # addition global filter on data if provided.
+        if args['query'] is not None and args['query'] != '':
+            vis_state['params']['filter']['query'] += \
+                ' and ({})'.format(args['query'])
+        rison_str = prison.dumps(vis_state)
+        suffix = KibanaMetricsApi._rison_postprocess(rison_str)
 
-        auth = (Config.ES_USERNAME, Config.ES_PASSWORD) \
-            if Config.ES_USERNAME is not None else None
-        objects_found = requests.get(
-            '{kbn_addr}/api/saved_objects/_find?type=visualization'
-            '&search_fields=title&search={type}-template-DO-NOT-MODIFY'
-            .format(kbn_addr=Config.KIBANA_ADDRESS, type=args['type']),
-            auth=auth
-        ).json()
-        assert objects_found['total'] > 0, \
-            'Visualization type {} not set yet.'.format(args['type'])
-        object_id = objects_found['saved_objects'][0]['id']
-        object_vis_state = json.loads(
-            objects_found['saved_objects'][0]['attributes']['visState']
-        )
-        params = object_vis_state['params']
-        params['interval'] = args['interval']
-        params['time_field'] = args['x_axis_field']
-        if job.job_type == JobType.DATA_JOIN \
-                or job.job_type == JobType.RAW_DATA:
-            params['filter']['query'] = 'application_id:"{}"'.format(job.name)
-        else:
-            params['filter']['query'] = 'tags.application_id.keyword:' \
-                                        '"{}"'.format(job.name)
-        # (Join) Rate visualization is fixed and no need to process
-        if args['type'] == 'Ratio':
-            for series in params['series']:
-                series_type = series['label'].lower()
-                if series_type == 'ratio':
-                    series['metrics'][0]['numerator'] = args['numerator']
-                    series['metrics'][0]['denominator'] = args['denominator']
-                else:
-                    assert series_type in ('denominator', 'numerator')
-                    series['filter']['query'] = args[series_type]
-        elif args['type'] == 'Numeric':
-            params['filter']['query'] += ' and name.keyword: "{name}"' \
-                .format(name=args['metric_name'])
-            series = params['series'][0]
-            series['metrics'][0]['type'] = \
-                KibanaMetricsApi.AGG_TYPE_MAP[args['aggregator']]
-            series['metrics'][0]['field'] = args['value_field']
-        rison_str = prison.dumps(object_vis_state)
-        suffix = self._rison_postprocess(rison_str)
-
-        iframe_src = "{kbn_addr}/app/kibana#/visualize/edit/" \
-                     "{object_id}?embed=true&" \
+        iframe_src = "{kbn_addr}/app/kibana#/visualize/create" \
+                     "?type=metrics&embed=true&" \
                      "_g=(refreshInterval:(pause:!t,value:0)," \
-                     "time:(from:now-{earliest},to:now-{latest}))&" \
+                     "time:(from:now-{start_time},to:now-{end_time}))&" \
                      "_a=(filters:!(),linked:!f," \
                      "query:(language:kuery,query:''),uiState:()," \
                      "vis:{vis_state})" \
             .format(kbn_addr=Config.KIBANA_ADDRESS,
-                    earliest=args['earliest_time'],
-                    latest=args['latest_time'],
-                    object_id=object_id, vis_state=suffix)
+                    start_time=args['start_time'],
+                    end_time=args['end_time'],
+                    vis_state=suffix)
         return iframe_src
 
     @staticmethod
     def _rison_postprocess(rison_str):
+        """
+        After `prison.dumps`, some characters are still left to be encoded.
+
+        """
         re_mode = re.IGNORECASE
         escaped_keys = map(re.escape, KibanaMetricsApi.RISON_REPLACEMENT)
         pattern = re.compile("|".join(escaped_keys), re_mode)
@@ -324,46 +292,58 @@ class KibanaMetricsApi(Resource):
 
     @staticmethod
     def _create_rate_visualization(job, args):
+        """
+        Args:
+            job: fedlearner_webconsole.job.models.Job. Current job to plot
+            args: dict. reqparse args, only used in vis state preprocess
+
+        Returns:
+            dict. A Kibana vis state dict
+
+            This method will create 6 time series and stack them in vis state.
+        """
         vis_state = KibanaMetricsApi._vis_state_preprocess(job, args)
         params = vis_state['params']
         # Total w/ Fake series
         twf = KibanaMetricsApi._create_series(
-            'count',
-            **{'label': 'Total w/ Fake'}
+            **{'label': 'Total w/ Fake',
+               'metrics': {'type': 'count'}}
         )
         # Total w/o Fake series
         twof = KibanaMetricsApi._create_series(
-            'count',
             **{'label': 'Total w/o Fake',
+               'metrics': {'type': 'count'},
                'series_filter': {'query': 'fake:false'}}
         )
         # Joined w/ Fake series
         jwf = KibanaMetricsApi._create_series(
-            'count',
             **{'label': 'Joined w/ Fake',
+               'metrics': {'type': 'count'},
                'series_filter': {'query': 'fake:true or joined:true'}}
         )
         # Joined w/o Fake series
         jwof = KibanaMetricsApi._create_series(
-            'count',
             **{'label': 'Joined w/o Fake',
+               'metrics': {'type': 'count'},
                'series_filter': {'query': 'joined:true'}}
         )
         # Join Rate w/ Fake series
         jrwf = KibanaMetricsApi._create_series(
-            'filter_ratio', 'ratio',
+            series_type='ratio',
             **{'label': 'Join Rate w/ Fake',
                'metrics': {'numerator': 'fake:true or joined:true',
-                           'denominator': '*'},
+                           'denominator': '*',
+                           'type': 'filter_ratio'},
                'line_width': '2',
                'fill': '0'}
         )
         # Join Rate w/o Fake series
         jrwof = KibanaMetricsApi._create_series(
-            'filter_ratio', 'ratio',
+            series_type='ratio',
             **{'label': 'Join Rate w/o Fake',
                'metrics': {'numerator': 'joined:true',
-                           'denominator': 'fake:false'},
+                           'denominator': 'fake:false',
+                           'type': 'filter_ratio'},
                'line_width': '2',
                'fill': '0'}
         )
@@ -375,26 +355,45 @@ class KibanaMetricsApi(Resource):
 
     @staticmethod
     def _create_ratio_visualization(job, args):
+        """
+        Args:
+            job: fedlearner_webconsole.job.models.Job. Current job to plot.
+            args: dict. reqparse args, must contain 'numerator' and
+                'denominator' entries, and the values must not be None.
+                args['numerator'] and args['denominator'] should respectively be
+                a valid Lucene query string.
+
+        Returns:
+            dict. A Kibana vis state dict
+
+        This method will create 3 time series and stack them in vis state.
+        """
+        for k in ('numerator', 'denominator'):
+            if not (k in args and args[k] is not None):
+                raise ValueError(
+                    '[%s] should be provided in Ratio visualization', k
+                )
         vis_state = KibanaMetricsApi._vis_state_preprocess(job, args)
         params = vis_state['params']
         # Denominator series
         denominator = KibanaMetricsApi._create_series(
-            'count',
             **{'label': args['denominator'],
+               'metrics': {'type': 'count'},
                'series_filter': {'query': args['denominator']}}
         )
         # Numerator series
         numerator = KibanaMetricsApi._create_series(
-            'count',
             **{'label': args['numerator'],
+               'metrics': {'type': 'count'},
                'series_filter': {'query': args['numerator']}}
         )
         # Ratio series
         ratio = KibanaMetricsApi._create_series(
-            'filter_ratio', 'ratio',
+            series_type='ratio',
             **{'label': 'Ratio',
                'metrics': {'numerator': args['numerator'],
-                           'denominator': args['denominator']},
+                           'denominator': args['denominator'],
+                           'type': 'filter_ratio'},
                'line_width': '2',
                'fill': '0'}
         )
@@ -406,14 +405,40 @@ class KibanaMetricsApi(Resource):
 
     @staticmethod
     def _create_numeric_visualization(job, args):
+        """
+        Args:
+            job: fedlearner_webconsole.job.models.Job. Current job to plot.
+            args: dict. reqparse args, must contain 'aggregator', 'value_field'
+                and 'metric_name' entries, and the values must not be None.
+
+        Returns:
+            dict. A Kibana vis state dict
+
+        This method will create 1 time series. The series will filter data
+            further by `name.keyword: args['metric_name']`. Aggregation will be
+            applied on data's `args['value_field']` field. Aggregation types
+            in `KibanaMetricsApi.AGG_TYPE_MAP.keys()` are supported.
+        """
+        for k in ('aggregator', 'value_field', 'metric_name'):
+            if not (k in args and args[k] is not None):
+                raise ValueError(
+                    '[%s] should be provided in Numeric visualization.', k
+                )
+        if args['aggregator'] not in KibanaMetricsApi.AGG_TYPE_MAP:
+            raise ValueError(
+                'Aggregator type [%s] is not supported. Supported types: %s.',
+                args['aggregator'], list(KibanaMetricsApi.AGG_TYPE_MAP.keys())
+            )
         vis_state = KibanaMetricsApi._vis_state_preprocess(job, args)
         params = vis_state['params']
         params['filter']['query'] += ' and name.keyword:"{name}"' \
             .format(name=args['metric_name'])
         series = KibanaMetricsApi._create_series(
-            KibanaMetricsApi.AGG_TYPE_MAP[args['aggregator']],
-            **{'label': args['metric_name'],
-               'metrics': {'field': args['value_field']},
+            **{'label': '{} of {}'.format(args['aggregator'],
+                                          args['metric_name']),
+               'metrics': {'type': KibanaMetricsApi
+                                  .AGG_TYPE_MAP[args['aggregator']],
+                           'field': args['value_field']},
                'line_width': 2,
                'fill': '0.5'}
         )
@@ -423,45 +448,80 @@ class KibanaMetricsApi(Resource):
 
     @staticmethod
     def _vis_state_preprocess(job, args):
+        """
+        Args:
+            job: fedlearner_webconsole.job.models.Job. Current job to plot.
+            args: dict. reqparse args, must contain 'x_axis_field' entry,
+                and the value must not be None. vis_state['interval'] will
+                default to ''(automated by Kibana in TSVB visualization) if
+                'interval' is not provided in args.
+
+        Returns:
+            dict. A Kibana vis state dict without any time series.
+
+        This method will create basic vis state withou any time series
+
+        """
+        assert 'x_axis_field' in args and args['x_axis_field'] is not None
         vis_state = copy.deepcopy(KibanaMetricsApi.VIS_STATE)
         params = vis_state['params']
-        if job.job_type == JobType.DATA_JOIN or \
-            job.job_type == JobType.RAW_DATA:
+        params['interval'] = args.get('interval', '')
+        if job.job_type == JobType.DATA_JOIN:
+            params['index_pattern'] = 'data_join*'
+            params['filter'] = KibanaMetricsApi._create_filter(
+                'application_id:"{}"'.format(job.name))
+        elif job.job_type == JobType.RAW_DATA:
+            params['index_pattern'] = 'raw_data*'
             params['filter'] = KibanaMetricsApi._create_filter(
                 'application_id:"{}"'.format(job.name))
         else:
+            params['index_pattern'] = 'metrics*'
+            # metrics* index has a different mapping which is not optimized due
+            # to compatibility issues, thus 'filter' is different from above.
             params['filter'] = KibanaMetricsApi._create_filter(
                 'tags.application_id.keyword:"{}"'.format(job.name)
             )
-        params['interval'] = args['interval']
-        if job.job_type == JobType.DATA_JOIN:
-            params['index_pattern'] = 'data_join*'
-        elif job.job_type == JobType.RAW_DATA:
-            params['index_pattern'] = 'raw_data*'
-        else:
-            params['index_pattern'] = 'metrics*'
         params['time_field'] = args['x_axis_field']
         return vis_state
 
     @staticmethod
-    def _create_series(agg_type, series_type='normal', **kwargs):
+    def _create_series(series_type='normal', **kwargs):
+        """
+        Args:
+            series_type: str, 'normal' or 'ratio', will only change the
+                appearance of the time series.
+            **kwargs: keywords that will be used if provided:
+                'metrics': dict, metrics of time series.
+                'line_width': str, time series line appearance.
+                'point_size': str, time series line appearance.
+                'fill': str, time series line appearance.
+                'label': str, the name of the time series.
+                'series_filter': dict, additional filter on data,
+                                 only applied on this series.
+
+        Returns: dict, a time series definition
+
+        """
         series_id = hashlib.md5(str(datetime.now()).encode()).hexdigest()
+        series_metrics = kwargs.get('metrics', {})
+        assert isinstance(series_metrics, dict)
+        if 'type' in series_metrics and series_metrics['type'] == 'count':
+            series_metrics['field'] = None
         series = {
             'id': series_id,
-            # "color": "rgba(102,212,255,1)",
             'split_mode': 'everything',
-            'metrics': [KibanaMetricsApi._create_metrics(
-                agg_type, **(kwargs.get('metrics', {}))
-            )],
+            # metrics field is a list of metrics,
+            # but a single metrics is enough currently
+            'metrics': [series_metrics],
             'separate_axis': 0,
-            'axis_position': 'right',
+            'axis_position': 'right',  # axis position if split axis
             'formatter': 'number',
             'chart_type': 'line',
-            'line_width': kwargs.get('line_width', '0'),
-            'point_size': kwargs.get('point_size', '0'),
-            'fill': kwargs.get('fill', '1'),
+            'line_width': str(kwargs.get('line_width', '0')),
+            'point_size': str(kwargs.get('point_size', '1')),
+            'fill': str(kwargs.get('fill', '1')),
             'stacked': 'none',
-            'label': kwargs['label'],
+            'label': kwargs.get('label', ''),
             "type": "timeseries"
         }
         if 'series_filter' in kwargs and 'query' in kwargs['series_filter']:
@@ -470,6 +530,7 @@ class KibanaMetricsApi(Resource):
                 kwargs['series_filter']['query']
             )
         if series_type == 'ratio':
+            # if this is a ratio series, split axis and set axis range
             series['separate_axis'] = 1
             series['axis_min'] = '0'
             series['axis_max'] = '1'
@@ -479,20 +540,6 @@ class KibanaMetricsApi(Resource):
     def _create_filter(query):
         return {'language': 'kuery',  # Kibana query
                 'query': query}
-
-    @staticmethod
-    def _create_metrics(agg_type, **kwargs):
-        if agg_type == 'filter_ratio':
-            return {'numerator': kwargs['numerator'],
-                    'denominator': kwargs['denominator'],
-                    'type': agg_type}
-        elif agg_type in KibanaMetricsApi.AGG_TYPE_MAP.values():
-            return {'field': kwargs['field'],
-                    'type': agg_type}
-        else:
-            assert agg_type == 'count'
-            return {'field': None,
-                    'type': agg_type}
 
 
 def initialize_job_apis(api):
