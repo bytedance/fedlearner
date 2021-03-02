@@ -21,11 +21,12 @@ class ElasticSearchClient(object):
         self._es_client = None
 
     def init_app(self, app):
-        self._es_client = Elasticsearch([
-            {
-                'host': app.config.get('ES_HOST', None),
-                'port': app.config.get('ES_PORT', None)
-            }])
+        if 'ES_HOST' in app.config and 'ES_PORT' in app.config:
+            self._es_client = Elasticsearch([
+                {
+                    'host': app.config['ES_HOST'],
+                    'port': app.config['ES_PORT']
+                }])
 
     def search(self, *args, **kwargs):
         return self._es_client.search(*args, **kwargs)
