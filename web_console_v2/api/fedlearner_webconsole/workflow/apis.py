@@ -52,6 +52,9 @@ class WorkflowsApi(Resource):
             keyword = request.args['keyword']
             result = result.filter(Workflow.name.like(
                 '%{}%'.format(keyword)))
+        if 'uuid' in request.args and request.args['uuid'] is not None:
+            uuid = request.args['uuid']
+            result = result.filter_by(uuid=uuid)
         return {'data': [row.to_dict() for row in
                          result.order_by(
                              Workflow.created_at.desc()).all()]}, HTTPStatus.OK
