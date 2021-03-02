@@ -171,6 +171,7 @@ class RpcServer(object):
                 'received update_workflow_state from %s: %s',
                 party.domain_name, request)
             name = request.workflow_name
+            uuid = request.uuid
             state = WorkflowState(request.state)
             target_state = WorkflowState(request.target_state)
             transaction_state = TransactionState(request.transaction_state)
@@ -184,7 +185,8 @@ class RpcServer(object):
                     name=name,
                     project_id=project.id,
                     state=state, target_state=target_state,
-                    transaction_state=transaction_state)
+                    transaction_state=transaction_state,
+                    uuid=uuid)
                 db.session.add(workflow)
                 db.session.commit()
                 db.session.refresh(workflow)

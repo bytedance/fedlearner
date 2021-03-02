@@ -359,7 +359,7 @@ class Workflow(db.Model):
                     'Job %d not found'%j
                 # TODO: check forked jobs does not depend on non-forked jobs
             else:
-                job = Job(name=f'{self.name}-{job_def.name}',
+                job = Job(name=f'{self.uuid}-{job_def.name}',
                           job_type=JobType(job_def.type),
                           config=job_def.SerializeToString(),
                           workflow_id=self.id,

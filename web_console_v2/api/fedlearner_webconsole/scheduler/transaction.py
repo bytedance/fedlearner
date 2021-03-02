@@ -112,7 +112,8 @@ class TransactionManager(object):
         for party in project_config.participants:
             client = RpcClient(project_config, party)
             resp = client.update_workflow_state(
-                self._workflow.name, state, target_state, transaction_state)
+                self._workflow.name, state, target_state, transaction_state,
+                self._workflow.uuid)
             if resp.status.code == common_pb2.STATUS_SUCCESS:
                 states.append(TransactionState(resp.transaction_state))
             else:
