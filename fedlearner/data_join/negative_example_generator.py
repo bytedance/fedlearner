@@ -13,7 +13,6 @@
 # limitations under the License.
 
 # coding: utf-8
-
 import random
 
 class NegativeExampleGenerator(object):
@@ -47,6 +46,6 @@ class NegativeExampleGenerator(object):
             yield example, idx, 0
             del self._buf[idx]
 
-        del_keys = [k for k in self._buf if k < prev_leader_idx]
-        for k in del_keys:
-            del self._buf[k]
+        for k, v in list(self._buf.items()):
+            if k < prev_leader_idx:
+                del self._buf[k]
