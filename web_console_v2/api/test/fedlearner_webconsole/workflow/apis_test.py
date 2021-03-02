@@ -102,6 +102,7 @@ class WorkflowsApiTest(BaseTestCase):
         del created_workflow['updated_at']
         del created_workflow['start_at']
         del created_workflow['stop_at']
+        del created_workflow['uuid']
         self.assertEqual(created_workflow, {
             'name': 'test-workflow',
             'project_id': 1234567,
