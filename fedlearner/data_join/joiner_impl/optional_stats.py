@@ -14,30 +14,9 @@ class OptionalStats(object):
     """
     Cumulative stats for optional fields in data join, will count total joined
         num and total num of different values of every optional stats field.
-        E.g., for optional field=`label`, the values of field `label` will be
-        0(positive example) and 1(negative_example):
-        {
-            'joined': {
-                # '#None#' for examples without label field
-                'label_1': 123,
-                'label_0': 345,
-                'label_#None#': 45
-                ...
-            },
-            'unjoined': {
-                'label_1': 234,
-                'label_0': 456,
-                'label_#None#': 56
-                ...
-            }
-        }
-        then there are 123 positives joined, with a total of 234 positives;
-        345 negatives joined, with a total of 456 negatives;
-        45 examples without `label` field joined, with a total of 56 examples
-        without `label` field.
     This will only stat local examples as optional fields are not transmitted
-        from peer. This will emit each Item's status to ES and sample unjoined
-        Items.
+        from peer. Each Item has a possibility of `self._sample_rate` to be
+        emitted to ES.
     """
 
     def __init__(self, raw_data_options, metric_tags):
@@ -66,7 +45,7 @@ class OptionalStats(object):
         """
         Args:
             item: RawDataIter.Item. Item from iterating RawDataVisitor
-            kind: str. 'joined', 'unjoined', 'negative'. Indicate where the item
+            kind: str. 'joined', 'unjoined', 'fake'. Indicate where the item
                 should be counted towards.
 
         Returns: None
