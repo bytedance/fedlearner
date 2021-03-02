@@ -80,3 +80,140 @@ class ElasticSearchClient(object):
         query_body['query']['bool']['must'] = keyword_list + match_phrase_list
         response = self._es_client.search(index=index, body=query_body)
         return [item['_source']['message'] for item in response['hits']['hits']]
+
+    def query_data_join_metrics(self, job_name, num_buckets):
+        STAT_AGG = {
+            "JOINED": {
+                "filter": {
+                    "term": {
+                        "joined": True
+                    }
+                }
+            },
+            "FAKE": {
+                "filter": {
+                    "term": {
+                        "fake": True
+                    }
+                }
+            },
+            "TOTAL": {
+                "filter": {
+                    "term": {
+                        "fake": False
+                    }
+                }
+            },
+            "UNJOINED": {
+                "bucket_script": {
+                    "buckets_path": {
+                        "JOINED": "JOINED[_count]",
+                        "TOTAL": "TOTAL[_count]"
+                    },
+                    "script": "params.TOTAL - params.JOINED"
+                }
+            },
+            "JOIN_RATE": {
+                "bucket_script": {
+                    "buckets_path": {
+                        "JOINED": "JOINED[_count]",
+                        "TOTAL": "TOTAL[_count]",
+                        "FAKE": "FAKE[_count]"
+                    },
+                    "script": "params.JOINED / (params.TOTAL + params.FAKE)"
+                }
+            }
+        }
+
+        query = {
+            "size": 0,
+            "query": {
+                "bool": {
+                    "must": [
+                        {"term": {"application_id": job_name}}
+                    ]
+                }
+            },
+            "aggs": {
+                "OVERALL": {
+                    "terms": {
+                        "field": "application_id"
+                    },
+                    "aggs": STAT_AGG
+                },
+                "EVENT_TIME": {
+                    "auto_date_histogram": {
+                        "field": "event_time",
+                        "format": "strict_date_optional_time",
+                        "buckets": num_buckets
+                    },
+                    "aggs": STAT_AGG
+                },
+                "PROCESS_TIME": {
+                    "auto_date_histogram": {
+                        "field": "process_time",
+                        "format": "strict_date_optional_time",
+                        "buckets": num_buckets
+                    },
+                    "aggs": {
+                        "MAX_EVENT_TIME": {
+                            "max": {
+                                "field": "event_time",
+                                "format": "strict_date_optional_time"
+                            }
+                        },
+                        "MIN_EVENT_TIME": {
+                            "min": {
+                                "field": "event_time",
+                                "format": "strict_date_optional_time"
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        return es.search(index='data_join*', body=query)
+
+    def query_nn_metrics(self, job_name, num_buckets):
+        query = {
+            "size": 0,
+            "query": {
+                "bool": {
+                    "must": [
+                        {
+                            "term": {
+                                "tags.application_id.keyword": job_name
+                            }
+                        }
+                    ]
+                }
+            },
+            "aggs": {
+                "PROCESS_TIME": {
+                    "auto_date_histogram": {
+                        "field": "date_time",
+                        "format": "strict_date_optional_time",
+                        "buckets": num_buckets
+                    },
+                    "aggs": {
+                        "AUC": {
+                            "filter": {
+                                "term": {"name": "auc"}
+                            },
+                            "aggs": {
+                                "AUC": {
+                                    "avg": {
+                                        "field": "value"
+                                    }
+                                }
+                            }
+                        },
+                    }
+                }
+            }
+        }
+
+        return es.search(index='metrics*', body=query)
+
+es = ElasticSearchClient()

@@ -67,12 +67,14 @@ class Job(db.Model):
                       default=JobState.INVALID)
     yaml_template = db.Column(db.Text())
     config = db.Column(db.LargeBinary())
+
     workflow_id = db.Column(db.Integer, db.ForeignKey('workflow_v2.id'),
                             nullable=False, index=True)
     project_id = db.Column(db.Integer, db.ForeignKey(Project.id),
                            nullable=False)
     flapp_snapshot = db.Column(db.Text())
     pods_snapshot = db.Column(db.Text())
+
     created_at = db.Column(db.DateTime(timezone=True),
                            server_default=func.now())
     updated_at = db.Column(db.DateTime(timezone=True),
@@ -100,7 +102,6 @@ class Job(db.Model):
         pods = self._k8s_client.list_resource_of_custom_object(
             CrdKind.FLAPP, self.name, 'pods', self.project.get_namespace())
         self.pods_snapshot = json.dumps(pods)
-
 
     def get_pods(self):
         if self.state == JobState.STARTED:

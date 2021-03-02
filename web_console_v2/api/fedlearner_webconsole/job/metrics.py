@@ -18,7 +18,7 @@ from datetime import datetime
 import mpld3
 from matplotlib.figure import Figure
 
-from fedlearner_webconsole.app import es
+from fedlearner_webconsole.utils.es import es
 from fedlearner_webconsole.job.models import JobType
 
 from fedlearner_webconsole.exceptions import NotFoundException
@@ -33,104 +33,15 @@ class JobMetricsBuilder(object):
     def plot_metrics(self, num_buckets=30):
         if self._job.job_type == JobType.DATA_JOIN:
             metrics = self.plot_data_join_metrics(num_buckets)
+        elif self._job.job_type in [
+                JobType.NN_MODEL_TRANINING, JobType.NN_MODEL_EVALUATION]:
+            metrics = self.plot_nn_metrics(num_buckets)
         else:
             metrics = []
         return metrics
 
     def plot_data_join_metrics(self, num_buckets=30):
-        STAT_AGG = {
-            "JOINED": {
-                "filter": {
-                    "term": {
-                        "joined": True
-                    }
-                }
-            },
-            "FAKE": {
-                "filter": {
-                    "term": {
-                        "fake": True
-                    }
-                }
-            },
-            "TOTAL": {
-                "filter": {
-                    "term": {
-                        "fake": False
-                    }
-                }
-            },
-            "UNJOINED": {
-                "bucket_script": {
-                    "buckets_path": {
-                        "JOINED": "JOINED[_count]",
-                        "TOTAL": "TOTAL[_count]"
-                    },
-                    "script": "params.TOTAL - params.JOINED"
-                }
-            },
-            "JOIN_RATE": {
-                "bucket_script": {
-                    "buckets_path": {
-                        "JOINED": "JOINED[_count]",
-                        "TOTAL": "TOTAL[_count]",
-                        "FAKE": "FAKE[_count]"
-                    },
-                    "script": "params.JOINED / (params.TOTAL + params.FAKE)"
-                }
-            }
-        }
-
-        query = {
-            "size": 0,
-            "query": {
-                "bool": {
-                    "must": [
-                        {"term": {"application_id": self._job.name}}
-                    ]
-                }
-            },
-            "aggs": {
-                "OVERALL": {
-                    # dummy `terms` here s.t. `bucket_script` is not on root level
-                    "terms": {
-                        "field": "application_id"
-                    },
-                    "aggs": STAT_AGG
-                },
-                "EVENT_TIME": {
-                    "auto_date_histogram": {
-                        "field": "event_time",
-                        "format": "strict_date_hour_minute_second",
-                        "buckets": num_buckets
-                    },
-                    "aggs": STAT_AGG
-                },
-                "PROCESS_TIME": {
-                    "auto_date_histogram": {
-                        "field": "process_time",
-                        "format": "strict_date_hour_minute_second",
-                        "buckets": num_buckets
-                    },
-                    "aggs": {
-                        "MAX_EVENT_TIME": {
-                            "max": {
-                                "field": "event_time",
-                                "format": "strict_date_hour_minute_second"
-                            }
-                        },
-                        "MIN_EVENT_TIME": {
-                            "min": {
-                                "field": "event_time",
-                                "format": "strict_date_hour_minute_second"
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        res = es.search(index='data_join-*', body=query)
+        res = es.query_data_join_metrics(self._job.name, num_buckets)
         if not res['aggregations']['OVERALL']['buckets']:
             raise NotFoundException()
 
@@ -172,9 +83,11 @@ class JobMetricsBuilder(object):
         by_pt = res['aggregations']['PROCESS_TIME']['buckets']
         pt_index = [self._to_datetime(buck['key']) for buck in by_pt]
         pt_min = [
-            self._to_datetime(buck['MIN_EVENT_TIME']['value']) for buck in by_pt]
+            self._to_datetime(buck['MIN_EVENT_TIME']['value']) \
+                for buck in by_pt]
         pt_max = [
-            self._to_datetime(buck['MAX_EVENT_TIME']['value']) for buck in by_pt]
+            self._to_datetime(buck['MAX_EVENT_TIME']['value']) \
+                for buck in by_pt]
         fig = Figure()
         ax = fig.add_subplot(111)
         ax.plot(pt_index, pt_min, label='min event time')
@@ -182,6 +95,25 @@ class JobMetricsBuilder(object):
 
         ax.xaxis_date()
         ax.yaxis_date()
+        ax.legend()
+        metrics.append(mpld3.fig_to_dict(fig))
+
+        return metrics
+
+    def plot_nn_metrics(self, num_buckets=30):
+        res = es.query_nn_metrics(self._job.name, num_buckets)
+        if not res['aggregations']['PROCESS_TIME']['buckets']:
+            raise NotFoundException()
+
+        buckets = res['aggregations']['PROCESS_TIME']['buckets']
+        time = [self._to_datetime(buck['key']) for buck in buckets]
+        metrics = []
+
+        # plot auc curve
+        auc = [buck['AUC']['AUC']['value'] for buck in buckets]
+        fig = Figure()
+        ax = fig.add_subplot(111)
+        ax.plot(time, auc, label='auc')
         ax.legend()
         metrics.append(mpld3.fig_to_dict(fig))
 

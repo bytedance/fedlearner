@@ -155,6 +155,7 @@ class WorkflowApi(Resource):
         parser.add_argument('target_state', type=str, required=False,
                             default=None, help='target_state is empty')
         parser.add_argument('forkable', type=bool)
+        parser.add_argument('metric_is_public', type=bool)
         parser.add_argument('config', type=dict, required=False,
                             default=None, help='updated config')
         data = parser.parse_args()
@@ -164,14 +165,18 @@ class WorkflowApi(Resource):
         forkable = data['forkable']
         if forkable is not None:
             workflow.forkable = forkable
-            db.session.commit()
+            db.session.flush()
+
+        metric_is_public = data['metric_is_public']
+        if metric_is_public is not None:
+            workflow.metric_is_public = metric_is_public
+            db.session.flush()
 
         target_state = data['target_state']
         if target_state:
             try:
-                db.session.refresh(workflow)
                 workflow.update_target_state(WorkflowState[target_state])
-                db.session.commit()
+                db.session.flush()
                 logging.info('updated workflow %d target_state to %s',
                             workflow.id, workflow.target_state)
                 scheduler.wakeup(workflow.id)
@@ -181,17 +186,17 @@ class WorkflowApi(Resource):
         config = data['config']
         if config:
             try:
-                db.session.refresh(workflow)
                 if workflow.target_state != WorkflowState.INVALID or \
                         workflow.state not in \
                         [WorkflowState.READY, WorkflowState.STOPPED]:
                     raise NoAccessException('Cannot edit running workflow')
                 config_proto = dict_to_workflow_definition(data['config'])
                 workflow.set_config(config_proto)
-                db.session.commit()
+                db.session.flush()
             except ValueError as e:
                 raise InvalidArgumentException(details=str(e)) from e
 
+        db.session.commit()
         return {'data': workflow.to_dict()}, HTTPStatus.OK
 
 
@@ -236,7 +241,6 @@ class PeerWorkflowsApi(Resource):
                 preserving_proto_field_name=True,
                 including_default_value_fields=True)
         return {'data': peer_workflows}, HTTPStatus.OK
-
 
 
 def initialize_workflow_apis(api):

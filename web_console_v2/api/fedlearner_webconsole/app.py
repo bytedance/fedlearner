@@ -27,11 +27,10 @@ from flask_jwt_extended import JWTManager
 
 from fedlearner_webconsole import envs
 from fedlearner_webconsole.utils.file_manager import build_hdfs_client
-from fedlearner_webconsole.utils.es import ElasticSearchClient
+from fedlearner_webconsole.utils.es import es
 
 migrate = Migrate()
 jwt = JWTManager()
-es = ElasticSearchClient()
 
 from fedlearner_webconsole.auth.apis import initialize_auth_apis
 from fedlearner_webconsole.project.apis import initialize_project_apis
