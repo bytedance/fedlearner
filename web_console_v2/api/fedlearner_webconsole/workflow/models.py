@@ -404,10 +404,9 @@ class Workflow(db.Model):
         if self.transaction_state == TransactionState.COORDINATOR_PREPARE:
             # TODO(tjulinfan): validate if the config is legal or not
             return bool(self.config)
-        peer_workflow = self._get_peer_workflow()
-        if peer_workflow.forked_from:
-            base_workflow = Workflow.query.filter(
-                Workflow.name == peer_workflow.forked_from).first()
+        if self.forked_from:
+            peer_workflow = self._get_peer_workflow()
+            base_workflow = Workflow.get(self.forked_from)
             if base_workflow is None or not base_workflow.forkable:
                 return False
             self.forked_from = base_workflow.id
