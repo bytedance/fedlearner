@@ -209,6 +209,7 @@ class PeerWorkflowsApi(Resource):
         peer_workflows = {}
         for party in project_config.participants:
             client = RpcClient(project_config, party)
+            # TODO(xiangyxuan): use uuid to identify the workflow
             resp = client.get_workflow(workflow.name)
             if resp.status.code != common_pb2.STATUS_SUCCESS:
                 raise InternalException(resp.status.msg)
