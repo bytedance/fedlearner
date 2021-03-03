@@ -148,6 +148,11 @@ const WorkflowJobsFlowChart: ForwardRefRenderFunction<ChartExposedRef | undefine
   useEffect(() => {
     const jobElements = convertToChartElements(
       {
+        /**
+         * In workflow detail page
+         * workflowConfig.job_definitions isn't only job_definitions
+         * execution details would include in as well
+         */
         jobs: workflowConfig.job_definitions,
         globalVariables: workflowConfig.variables || [],
         side,

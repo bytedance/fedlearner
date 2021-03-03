@@ -11,6 +11,7 @@ const workflow: I18nMessageModule = {
   current_config: { zh: '当前配置' },
   create_workflow: { zh: '创建工作流', en: 'Create workflow' },
   fork_workflow: { zh: '复制工作流', en: 'Fork workflow' },
+  forked_from: { zh: '复制于', en: 'Forked from' },
 
   action_re_run: { zh: '重新运行' },
   action_run: { zh: '立即运行' },

@@ -28,17 +28,13 @@ export function isAwaitParticipantConfig(workflow: Workflow) {
 export function isPendingAccpet(workflow: Workflow) {
   const { state, target_state, transaction_state, config } = workflow;
 
-  return (
-    state === NEW &&
-    target_state === W_READY &&
-    transaction_state === PARTICIPANT_PREPARE &&
-    config === null
-  );
+  return state === NEW && target_state === W_READY && transaction_state === PARTICIPANT_PREPARE;
 }
 
 export function isWarmUpUnderTheHood(workflow: Workflow) {
-  const { state, target_state, transaction_state } = workflow;
+  const { state, target_state, transaction_state, config } = workflow;
   return (
+    Boolean(config) &&
     state === NEW &&
     target_state === W_READY &&
     [
