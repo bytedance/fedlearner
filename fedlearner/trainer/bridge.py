@@ -409,6 +409,7 @@ class Bridge(object):
             self._peer_terminated = True
             self._terminated_at = max(self._terminated_at, int(time.time()))
             self._condition.notifyAll()
+        logging.info("Peer terminated at %s", self._terminated_at)
         return tws_pb.TerminateResponse(
             timestamp=self._terminated_at)
 
