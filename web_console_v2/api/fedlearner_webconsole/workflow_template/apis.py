@@ -74,9 +74,9 @@ class WorkflowTemplatesApi(Resource):
         template_proto = dict_to_workflow_definition(config)
         for index, job_def in template_proto.job_definitions:
             # pod label name must be no more than 63 characters.
-            #  workflow.uuid is 36 characters, so the job name
-            #  must be no more than 27.
-            if len(job_def.name) > 27:
+            #  workflow.uuid is 32 characters, so the job name
+            #  must be no more than 31.
+            if len(job_def.name) > 31:
                 raise InvalidArgumentException(
                     details=
                     {'config.job_definitions'

@@ -90,7 +90,7 @@ class WorkflowsApi(Resource):
         # form to proto buffer
         template_proto = dict_to_workflow_definition(data['config'])
         workflow = Workflow(name=name,
-                            # 36 bytes
+                            # 32 bytes
                             uuid=uuid4().hex,
                             comment=data['comment'],
                             project_id=data['project_id'],

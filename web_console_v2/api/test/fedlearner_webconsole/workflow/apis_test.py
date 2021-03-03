@@ -15,6 +15,7 @@
 # coding: utf-8
 import time
 import json
+import sys
 import unittest
 from http import HTTPStatus
 from pathlib import Path
@@ -75,7 +76,9 @@ class WorkflowsApiTest(BaseTestCase):
         self.assertEqual(data[0]['name'], 'last')
 
     @patch('fedlearner_webconsole.workflow.apis.scheduler.wakeup')
-    def test_create_new_workflow(self, mock_wakeup):
+    @patch.object(sys.modules['fedlearner_webconsole.workflow.apis'], 'uuid4')
+    def test_create_new_workflow(self, mock_uuid, mock_wakeup):
+        mock_uuid().hex = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
         with open(
             Path(__file__, '../../test_data/workflow_config.json').resolve()
         ) as workflow_config:
@@ -102,7 +105,6 @@ class WorkflowsApiTest(BaseTestCase):
         del created_workflow['updated_at']
         del created_workflow['start_at']
         del created_workflow['stop_at']
-        del created_workflow['uuid']
         self.assertEqual(created_workflow, {
             'name': 'test-workflow',
             'project_id': 1234567,
@@ -119,7 +121,8 @@ class WorkflowsApiTest(BaseTestCase):
             'recur_at': None,
             'recur_type': 'NONE',
             'transaction_state': 'READY',
-            'trigger_dataset': None
+            'trigger_dataset': None,
+            'uuid': mock_uuid().hex
         })
         # Check DB
         self.assertEqual(len(Workflow.query.all()), 4)
