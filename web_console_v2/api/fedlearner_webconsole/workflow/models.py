@@ -406,7 +406,7 @@ class Workflow(db.Model):
             return bool(self.config)
         if self.forked_from:
             peer_workflow = self._get_peer_workflow()
-            base_workflow = Workflow.get(self.forked_from)
+            base_workflow = Workflow.query.get(self.forked_from)
             if base_workflow is None or not base_workflow.forkable:
                 return False
             self.forked_from = base_workflow.id
