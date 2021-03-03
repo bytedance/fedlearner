@@ -230,8 +230,8 @@ class RpcServer(object):
             # job details
             jobs = [service_pb2.JobDetail(
                 name=job.name,
-                state=job.get_state_for_front(),
-                pods=json.dumps(job.get_pods_for_front()))
+                state=job.get_state_for_frontend(),
+                pods=json.dumps(job.get_pods_for_frontend()))
                 for job in workflow.get_jobs()]
             # fork info
             forked_from = ''
