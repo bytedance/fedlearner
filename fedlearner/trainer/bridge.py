@@ -91,7 +91,7 @@ class _MessageQueue(object):
             self._queue.append(msg)
             self._condition.notifyAll()
 
-    def get(self):
+    def get(self, event):
         with self._condition:
             while self._next == len(self._queue):
                 if not self._condition.wait(10.0) and self._queue:
@@ -99,6 +99,11 @@ class _MessageQueue(object):
                         'Timeout waiting for confirmation. Resending from %d',
                         self._queue[0].seq_num)
                     self._next = 0
+                if event.is_set():
+                    raise StopIteration
+            if event.is_set():
+                raise StopIteration
+
             assert self._next < len(self._queue)
             msg = self._queue[self._next]
             self._next += 1
@@ -255,9 +260,10 @@ class Bridge(object):
 
         while not stop_event.is_set():
             try:
+                event = threading.Event()
                 def iterator():
                     while True:
-                        item = self._transmit_queue.get()
+                        item = self._transmit_queue.get(event)
                         logging.debug("Streaming send message seq_num=%d",
                                       item.seq_num)
                         yield item
@@ -286,6 +292,7 @@ class Bridge(object):
             finally:
                 generator.cancel()
                 channel.close()
+                event.set()
                 time.sleep(1)
                 self._transmit_queue.resend(-1)
                 channel = make_insecure_channel(
@@ -409,7 +416,6 @@ class Bridge(object):
             self._peer_terminated = True
             self._terminated_at = max(self._terminated_at, int(time.time()))
             self._condition.notifyAll()
-        logging.info("Peer terminated at %s", self._terminated_at)
         return tws_pb.TerminateResponse(
             timestamp=self._terminated_at)
 
