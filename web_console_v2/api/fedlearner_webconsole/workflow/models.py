@@ -121,6 +121,7 @@ def _merge_workflow_config(base, new, access_mode):
                    'reuse_job_names': (lambda wf: wf.get_reuse_job_names()),
                    'peer_reuse_job_names':
                        (lambda wf: wf.get_peer_reuse_job_names()),
+                   'state': (lambda wf: wf.get_state_for_front())
 
                })
 class Workflow(db.Model):
@@ -168,6 +169,17 @@ class Workflow(db.Model):
 
     owned_jobs = db.relationship('Job', back_populates='workflow')
     project = db.relationship(Project)
+
+    def get_state_for_front(self):
+        if self.state == WorkflowState.RUNNING:
+            is_complete = True
+            for job in self.owned_jobs:
+                if not job.is_complete():
+                    is_complete = False
+                    break
+            if is_complete:
+                return 'COMPLETE'
+        return self.state.name
 
     def set_config(self, proto):
         if proto is not None:
