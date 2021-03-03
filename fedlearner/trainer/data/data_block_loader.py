@@ -83,3 +83,32 @@ class DataBlockLoader(object):
 
     def make_batch_iterator(self):
         return self.make_dataset().make_one_shot_iterator()
+
+
+class LocalDataBlockLoader(object):
+    def __init__(self, batch_size, trainer_master):
+        self._batch_size = batch_size
+        self._trainer_master = trainer_master
+        assert self._trainer_master is not None
+
+    def get_next_block(self):
+        block = self._trainer_master.request_data_block()
+        return block
+
+    def make_dataset(self):
+        def gen():
+            while True:
+                block = self.get_next_block()
+                if not block:
+                    break
+                yield block.data_path
+
+        dataset = tf.data.Dataset.from_generator(gen, tf.string)
+        dataset = dataset.prefetch(2)
+        dataset = tf.data.TFRecordDataset(dataset)
+        dataset = dataset.batch(self._batch_size, drop_remainder=True)
+        dataset = dataset.prefetch(2)
+        return dataset
+
+    def make_batch_iterator(self):
+        return self.make_dataset().make_one_shot_iterator()

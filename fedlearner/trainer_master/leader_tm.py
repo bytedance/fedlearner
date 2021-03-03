@@ -24,6 +24,7 @@ import grpc
 from fedlearner.common import trainer_master_service_pb2 as tm_pb
 from fedlearner.common import trainer_master_service_pb2_grpc as tm_grpc
 from fedlearner.common import common_pb2 as common_pb
+from fedlearner.common.utils import random_shuffle
 from fedlearner.data_join.data_block_visitor import DataBlockVisitor
 from fedlearner.trainer_master.data.data_block_queue import DataBlockQueue
 
@@ -34,7 +35,7 @@ kvstore_type = os.environ.get('KVSTORE_TYPE', 'etcd')
 class LeaderTrainerMaster(object):
     def __init__(self, application_id, data_source,
                  start_time, end_time, online_training,
-                 shuffle_data_block, epoch_num):
+                 shuffle_data_block, shuffle_range, epoch_num):
         self._application_id = application_id
         self._online_training = online_training
         self._checkpoint_mutex = threading.Lock()
@@ -50,6 +51,7 @@ class LeaderTrainerMaster(object):
         self._end_time = end_time
         self._epoch_num = epoch_num
         self._shuffle_data_block = shuffle_data_block
+        self._shuffle_range = shuffle_range
         self._visited_data_blocks = set()
         self._lock = threading.Lock()
         if online_training:
@@ -208,7 +210,7 @@ class LeaderTrainerMaster(object):
             data_block_reps.sort(key=lambda x: x.start_time)
         for rnd in range(self._epoch_num):
             if self._shuffle_data_block:
-                random.shuffle(data_block_reps)
+                random_shuffle(data_block_reps, self._shuffle_range)
             for dbr in data_block_reps:
                 logging.debug('epoch round-%d: add data block id %s path %s',
                               rnd, dbr.block_id, dbr.data_block_fpath)
@@ -248,6 +250,8 @@ if __name__ == '__main__':
                         help='the train master run for online training')
     parser.add_argument('--shuffle_data_block', action='store_true',
                         help='shuffle the data block or not')
+    parser.add_argument('--shuffle_range', type=int, default=0,
+                        help='number of data blocks to shuffle')
     parser.add_argument('--epoch_num', type=int, default=1,
                         help='number of epoch for training, not '\
                              'support in online training')
@@ -259,5 +263,6 @@ if __name__ == '__main__':
                                     start_date, end_date,
                                     FLAGS.online_training,
                                     FLAGS.shuffle_data_block,
+                                    FLAGS.shuffle_range,
                                     FLAGS.epoch_num)
     leader_tm.run(listen_port=FLAGS.port)

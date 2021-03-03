@@ -49,14 +49,16 @@ from fedlearner.trainer_master.leader_tm import LeaderTrainerMaster
 from fedlearner.trainer_master.follower_tm import FollowerTrainerMaster
 
 
-from graph_def.leader import main as lm
-from graph_def.follower import main as fm
+from graph_def.horizontal_fl_leader import main as lm
+from graph_def.horizontal_fl_follower import main as fm
 
 debug_mode = False
 local_mnist_path = "./mnist.npz"
 output_path = "./output"
 logging.getLogger().setLevel(logging.INFO)
 total_worker_num = 1
+leader_file_path = "data/leader"
+follower_file_path = "data/follower_{}"
 
 child_env = os.environ.copy()
 child_env["KVSTORE_USE_MOCK"] = "on"
@@ -249,24 +251,24 @@ def run_fm(args, env=None):
 
 class Args(object):
     def __init__(self, local_addr=None, peer_addr=None, app_id=None, master_addr=None,
-                 data_source=None, data_path=None, ckpt_path=None, export_path=None,
-                 start_time=None, end_time=None, tf_addr=None, cluster_spec=None, ps_addrs=None,
-                 worker_rank=0):
+            data_source=None, data_source_dict=None, data_path=None, data_path_dict=None, ckpt_path=None,
+            export_path=None, start_time=None, end_time=None, tf_addr=None, cluster_spec=None,
+            ps_addrs=None, worker_rank=0):
         self.local_addr = local_addr
         self.peer_addr = peer_addr
         self.worker_rank = worker_rank
         self.cluster_spec = cluster_spec
         self.ps_addrs = ps_addrs
         self.data_source = data_source
+        self.data_source_dict = data_source_dict
         self.data_path = data_path
+        self.data_path_dict = data_path_dict
         self.application_id = app_id
         self.start_time = start_time
         self.end_time = end_time
         self.master_addr = master_addr
         self.tf_addr = tf_addr
         self.checkpoint_path = ckpt_path
-        self.checkpoint_filename = None
-        self.load_checkpoint_filename_with_path = None
         self.save_checkpoint_steps = 100
         self.save_checkpoint_secs = None
         self.export_path = export_path
@@ -277,29 +279,37 @@ class Args(object):
         self.verbosity = 1
         self.batch_size = 100
         self.learning_rate = 0.01
-        self.epoch_num = 1
+        self.epoch_num = 10
 
 
 class TestNNTraining(unittest.TestCase):
-    def _create_local_data(self, xl, xf, y):
+    def _create_local_data(self, xl, xfs, y):
         N = 10
-        chunk_size = xl.shape[0]//N
-        leader_worker_path = os.path.join(output_path, "data/leader")
-        follower_worker_path = os.path.join(output_path, "data/follower")
+        chunk_size = xl.shape[0] // N
+        leader_worker_path = os.path.join(output_path, leader_file_path)
 
         data_path = os.path.join(output_path, "data")
         if gfile.Exists(data_path):
             gfile.DeleteRecursively(data_path)
         os.makedirs(leader_worker_path)
-        os.makedirs(follower_worker_path)
+
+        follower_paths = []
+        num_followers = len(xfs)
+        for i in range(num_followers):
+            follower_worker_path = os.path.join(output_path, follower_file_path.format(i))
+            follower_paths.append(follower_worker_path)
+            os.makedirs(follower_worker_path)
 
         for i in range(N):
-            filename_l = os.path.join(leader_worker_path, '%02d.tfrecord'%i)
-            filename_f = os.path.join(follower_worker_path, '%02d.tfrecord'%i)
+            filename_l = os.path.join(leader_worker_path, '%02d.tfrecord' % i)
             fl = tf.io.TFRecordWriter(filename_l)
-            ff = tf.io.TFRecordWriter(filename_f)
+            ffs = []
+            for k in range(num_followers):
+                filename_f = os.path.join(follower_paths[k], '%02d.tfrecord' % i)
+                ffs.append(tf.io.TFRecordWriter(filename_f))
+
             for j in range(chunk_size):
-                idx = i*chunk_size + j
+                idx = i * chunk_size + j
                 features_l = {}
                 features_l['example_id'] = Feature(
                     bytes_list=BytesList(value=[str(idx).encode('utf-8')]))
@@ -310,11 +320,17 @@ class TestNNTraining(unittest.TestCase):
                 features_f = {}
                 features_f['example_id'] = Feature(
                     bytes_list=BytesList(value=[str(idx).encode('utf-8')]))
-                features_f['x'] = Feature(float_list=FloatList(value=list(xf[idx])))
-                ff.write(
+                features_f['x'] = Feature(float_list=FloatList(value=list(xfs[0][idx])))
+                ffs[0].write(
                     Example(features=Features(feature=features_f)).SerializeToString())
+                for k in range(1, num_followers):
+                    features_f = {}
+                    features_f['x'] = Feature(float_list=FloatList(value=list(xfs[k][idx])))
+                    ffs[k].write(
+                        Example(features=Features(feature=features_f)).SerializeToString())
             fl.close()
-            ff.close()
+            for k in range(num_followers):
+                ffs[k].close()
 
     def _create_data_block(self, data_source, partition_id, x, y):
         data_block_metas = []
@@ -336,7 +352,7 @@ class TestNNTraining(unittest.TestCase):
             builder.set_data_block_manager(dbm)
             for j in range(chunk_size):
                 feat = {}
-                idx =  i * chunk_size + j
+                idx = i * chunk_size + j
                 exam_id = '{}'.format(idx).encode()
                 feat['example_id'] = Feature(
                     bytes_list=BytesList(value=[exam_id]))
@@ -356,34 +372,27 @@ class TestNNTraining(unittest.TestCase):
                 )
                 example = Example(features=Features(feature=feat))
                 builder.append_item(TfExampleItem(example.SerializeToString()),
-                                   leader_index, follower_index)
+                                    leader_index, follower_index)
                 leader_index += 1
                 follower_index += 1
             data_block_metas.append(builder.finish_data_block())
         self.max_index = follower_index
         return data_block_metas
 
-    def _gen_ds_meta(self, role):
+    def _gen_ds_meta(self, role, index):
         data_source = common_pb.DataSource()
         data_source.data_source_meta.name = self.app_id
         data_source.data_source_meta.partition_num = 1
         data_source.data_source_meta.start_time = 0
         data_source.data_source_meta.end_time = 100000
-        data_source.output_base_dir = "{}/{}_{}/data_source/".format(output_path,
-                                                data_source.data_source_meta.name, role)
+        data_source.output_base_dir = "{}/{}_{}_{}/data_source/".format(
+            output_path, data_source.data_source_meta.name, role, index)
         data_source.role = role
         return data_source
 
     def setUp(self):
         self.sche = _TaskScheduler(30)
-        self.kv_store = [None, None]
         self.app_id = "test_trainer_v1"
-        data_source = [self._gen_ds_meta(common_pb.FLRole.Leader),
-                       self._gen_ds_meta(common_pb.FLRole.Follower)]
-        for role in range(2):
-            os.environ['ETCD_NAME'] = data_source[role].data_source_meta.name
-            self.kv_store[role] = db_client.DBClient("etcd", True)
-        self.data_source = data_source
         (x, y) = (None, None)
         if debug_mode:
             (x, y), _ = tf.keras.datasets.mnist.load_data(local_mnist_path)
@@ -394,13 +403,29 @@ class TestNNTraining(unittest.TestCase):
         x = x.reshape(x.shape[0], -1).astype(np.float32) / 255.0
         y = y.astype(np.int64)
 
-        xl = x[:, :x.shape[1]//2]
-        xf = x[:, x.shape[1]//2:]
+        num_followers = 3
+        feat_len = x.shape[1]
+        chunk_size = feat_len // (num_followers + 1)
+        xl = x[:, :chunk_size]
+        xfs = []
+        for i in range(1, num_followers + 1):
+            start_idx = chunk_size * i
+            end_idx = chunk_size * (i + 1)
+            xfs.append(x[:, start_idx:end_idx])
 
-        self._create_local_data(xl, xf, y)
+        self._create_local_data(xl, xfs, y)
 
-        x = [xl, xf]
-        for role in range(2):
+        self.kv_store = [None, None, None, None]
+        data_source = [self._gen_ds_meta(common_pb.FLRole.Leader, 0),
+                       self._gen_ds_meta(common_pb.FLRole.Follower, 0),
+                       self._gen_ds_meta(common_pb.FLRole.Follower, 1),
+                       self._gen_ds_meta(common_pb.FLRole.Follower, 2)]
+        for role in range(4):
+            os.environ['ETCD_NAME'] = data_source[role].data_source_meta.name
+            self.kv_store[role] = db_client.DBClient("etcd", True)
+        self.data_source = data_source
+        x = [xl] + xfs
+        for role in range(4):
             common.commit_data_source(self.kv_store[role], data_source[role])
             if gfile.Exists(data_source[role].output_base_dir):
                 gfile.DeleteRecursively(data_source[role].output_base_dir)
@@ -418,7 +443,7 @@ class TestNNTraining(unittest.TestCase):
                         -1, i)
 
     #@unittest.skip("demonstrating skipping")
-    def test_local_cluster(self):
+    def local_cluster(self):
         workers = []
         addr = ["localhost:20050", "localhost:20051"]
 
@@ -431,7 +456,7 @@ class TestNNTraining(unittest.TestCase):
                     ckpt_path=ckpt_path,
                     export_path=exp_path)
         ftm = Process(name="RunLeaderTW", target=run_lm, args=(args, ),
-                kwargs={'env' : child_env}, daemon=True)
+                kwargs={'env': child_env}, daemon=True)
         ftm.start()
         workers.append(ftm)
 
@@ -440,7 +465,11 @@ class TestNNTraining(unittest.TestCase):
         args = Args(local_addr=addr[role],
                     peer_addr=addr[(role+1)%2],
                     app_id=self.app_id,
-                    data_path=os.path.join(output_path, "data/follower"),
+                    data_path=os.path.join(output_path, follower_file_path.format(0)),
+                    data_path_dict={
+                        "ds1": os.path.join(output_path, follower_file_path.format(1)),
+                        "ds2": os.path.join(output_path, follower_file_path.format(2))
+                    },
                     ckpt_path=ckpt_path,
                     export_path=exp_path)
         ftm = Process(name="RunFollowerTW", target=run_fm, args=(args, ),
@@ -496,7 +525,7 @@ class TestNNTraining(unittest.TestCase):
                         tf_addr=tf_addr[role],
                         ps_addrs=ps_addr[role],
                         app_id=self.app_id,
-                        worker_rank = rank,
+                        worker_rank=rank,
                         master_addr=master_addr[role],
                         ckpt_path=ckpt_path,
                         export_path=exp_path)
@@ -513,6 +542,10 @@ class TestNNTraining(unittest.TestCase):
                         app_id=self.app_id,
                         worker_rank = rank,
                         master_addr=master_addr[role],
+                        data_source_dict={
+                            "ds1": self.data_source[2].data_source_meta.name,
+                            "ds2": self.data_source[3].data_source_meta.name
+                        },
                         ckpt_path=ckpt_path,
                         export_path=exp_path)
             ftm = _Task(name="RunFollowerTW" + str(rank), target=run_fm, args=(args, ),

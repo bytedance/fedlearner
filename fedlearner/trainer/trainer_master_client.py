@@ -58,8 +58,10 @@ class LocalTrainerMasterClient(object):
             # pylint: disable=line-too-long
             for block_id, block_item in data_block_visitor.LoadDataBlockRepByTimeFrame(
                     start_time, end_time).items():
-                self._block_queue.append(block_item)
-                self._block_map[block_id] = block_item
+                block_info = DataBlockInfo(block_item.block_id, block_item.data_block_fpath)
+                logging.info("====== %s", block_info.data_path)
+                self._block_queue.append(block_info)
+                self._block_map[block_id] = block_info
         else:
             if files is None:
                 files = []
