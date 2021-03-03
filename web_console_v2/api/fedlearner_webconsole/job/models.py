@@ -51,8 +51,8 @@ def merge(x, y):
 
 
 @to_dict_mixin(extras={
-    'state': (lambda job: job.get_state_for_front()),
-    'pods': (lambda job: job.get_pods_for_front()),
+    'state': (lambda job: job.get_state_for_frontend()),
+    'pods': (lambda job: job.get_pods_for_frontend()),
     'config': (lambda job: job.get_config()),
     'complete_at': (lambda job: job.get_complete_at())
 })
@@ -132,7 +132,7 @@ class Job(db.Model):
             return json.loads(self.flapp_snapshot)['flapp']
         return None
 
-    def get_pods_for_front(self):
+    def get_pods_for_frontend(self):
         result = []
         flapp = self.get_flapp()
         if flapp is None:
@@ -168,7 +168,7 @@ class Job(db.Model):
         result = list({pod['name']: pod for pod in result}.values())
         return result
 
-    def get_state_for_front(self):
+    def get_state_for_frontend(self):
         if self.state == JobState.STARTED:
             if self.is_complete():
                 return 'COMPLETE'
