@@ -106,6 +106,7 @@ class WorkflowsApiTest(BaseTestCase):
             'name': 'test-workflow',
             'project_id': 1234567,
             'forkable': True,
+            'metric_is_public': False,
             'comment': 'test-comment',
             'state': 'NEW',
             'target_state': 'READY',

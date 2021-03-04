@@ -31,6 +31,7 @@ from fedlearner_webconsole.workflow.models import (
     Workflow, WorkflowState, TransactionState,
     _merge_workflow_config
 )
+from fedlearner_webconsole.job.metrics import JobMetricsBuilder
 from fedlearner_webconsole.exceptions import (
     UnauthorizedException
 )
@@ -95,6 +96,21 @@ class RPCServerServicer(service_pb2_grpc.WebConsoleV2ServiceServicer):
         except Exception as e:
             logging.error('UpdateWorkflow rpc server error: %s', repr(e))
             return service_pb2.UpdateWorkflowResponse(
+                status=common_pb2.Status(
+                    code=common_pb2.STATUS_UNKNOWN_ERROR,
+                    msg=repr(e)))
+
+    def GetJobMetrics(self, request, context):
+        try:
+            return self._server.get_job_metrics(request, context)
+        except UnauthorizedException as e:
+            return service_pb2.GetJobMetricsResponse(
+                status=common_pb2.Status(
+                    code=common_pb2.STATUS_UNAUTHORIZED,
+                    msg=repr(e)))
+        except Exception as e:
+            logging.error('GetJobMetrics rpc server error: %s', repr(e))
+            return service_pb2.GetJobMetricsResponse(
                 status=common_pb2.Status(
                     code=common_pb2.STATUS_UNKNOWN_ERROR,
                     msg=repr(e)))
@@ -278,5 +294,31 @@ class RpcServer(object):
                     code=common_pb2.STATUS_SUCCESS),
                 workflow_name=request.workflow_name,
                 config=config)
+
+    def get_job_metrics(self, request, context):
+        with self._app.app_context():
+            project, party = self.check_auth_info(request.auth_info, context)
+            workflow = Workflow.query.filter_by(
+                name=request.workflow_name).first()
+            assert workflow is not None, \
+                f'Workflow {request.workflow_name} not found'
+            if not workflow.metric_is_public:
+                raise UnauthorizedException('Metric is private!')
+
+            job = None
+            for i in workflow.get_jobs():
+                if i.get_config().name == request.job_name:
+                    job = i
+                    break
+
+            assert job is not None, f'Job {request.job_name} not found'
+
+            metrics = JobMetricsBuilder(job).plot_metrics()
+
+            return service_pb2.GetJobMetricsResponse(
+                status=common_pb2.Status(
+                    code=common_pb2.STATUS_SUCCESS),
+                metrics=json.dumps(metrics))
+
 
 rpc_server = RpcServer()

@@ -132,6 +132,8 @@ class Workflow(db.Model):
     config = db.Column(db.LargeBinary())
     comment = db.Column('cmt', db.String(255), key='comment')
 
+    metric_is_public = db.Column(db.Boolean(), default=False, nullable=False)
+
     forkable = db.Column(db.Boolean, default=False)
     forked_from = db.Column(db.Integer, default=None)
     # index in config.job_defs instead of job's id
@@ -390,8 +392,6 @@ class Workflow(db.Model):
                 db.session.add(dep)
 
         self.set_job_ids([job.id for job in jobs])
-
-
 
     def log_states(self):
         logging.debug(

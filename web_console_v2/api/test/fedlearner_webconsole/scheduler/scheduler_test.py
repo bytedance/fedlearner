@@ -92,7 +92,7 @@ class WorkflowTest(BaseTestCase):
         proc.start()
         self.leader_test_workflow()
         proc.join()
-    
+
     def setup_project(self, role):
         if role == 'leader':
             peer_role = 'follower'

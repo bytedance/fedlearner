@@ -14,11 +14,19 @@
 
 # coding: utf-8
 import time
+import json
+
 from flask_restful import Resource, reqparse
+from fedlearner_webconsole.proto import common_pb2
 from fedlearner_webconsole.job.models import Job
-from fedlearner_webconsole.job.es import es
-from fedlearner_webconsole.exceptions import NotFoundException
+from fedlearner_webconsole.job.metrics import JobMetricsBuilder
+from fedlearner_webconsole.workflow.models import Workflow
+from fedlearner_webconsole.utils.es import es
+from fedlearner_webconsole.exceptions import (
+    NotFoundException, InternalException
+)
 from fedlearner_webconsole.k8s_client import get_client
+from fedlearner_webconsole.rpc.client import RpcClient
 
 
 class JobApi(Resource):
@@ -78,6 +86,37 @@ class PodContainerApi(Resource):
                                                 'tensorflow')
         return {'data': {'id': container_id, 'base': base}}
 
+class JobMetricsApi(Resource):
+    def get(self, job_id):
+        job = Job.query.filter_by(id=job_id).first()
+        if job is None:
+            raise NotFoundException()
+
+        metrics = JobMetricsBuilder(job).plot_metrics()
+
+        # Metrics is a list of dict. Each dict can be rendered by frontend with
+        #   mpld3.draw_figure('figure1', json)
+        return {'data': metrics}
+
+
+class PeerJobMetricsApi(Resource):
+    def get(self, workflow_id, participant_id, job_name):
+        workflow = Workflow.query.filter_by(id=workflow_id).first()
+        if workflow is None:
+            raise NotFoundException()
+        project_config = workflow.project.get_config()
+        party = project_config.participants[participant_id]
+        client = RpcClient(project_config, party)
+        resp = client.get_job_metrics(workflow.name, job_name)
+        if resp.status.code != common_pb2.STATUS_SUCCESS:
+            raise InternalException(resp.status.msg)
+
+        metrics = json.loads(resp.metrics)
+
+        # Metrics is a list of dict. Each dict can be rendered by frontend with
+        #   mpld3.draw_figure('figure1', json)
+        return {'data': metrics}
+
 
 def initialize_job_apis(api):
     api.add_resource(JobApi, '/jobs/<int:job_id>')
@@ -87,3 +126,8 @@ def initialize_job_apis(api):
                      '/jobs/<string:job_name>/log')
     api.add_resource(PodContainerApi,
                      '/jobs/<int:job_id>/pods/<string:pod_name>/container')
+    api.add_resource(JobMetricsApi,
+                     '/jobs/<int:job_id>/metrics')
+    api.add_resource(PeerJobMetricsApi,
+                     '/workflows/<int:workflow_id>/peer_workflows'
+                     '/<int:participant_id>/jobs/<string:job_name>/metrics')
