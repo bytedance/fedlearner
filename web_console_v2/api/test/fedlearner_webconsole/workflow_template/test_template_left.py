@@ -125,7 +125,6 @@ def make_workflow_template():
                                 "args": [],
                                 "env": [
                                     ${system.basic_envs},
-                                    ${project.variables.basic_envs},
                                     {
                                         "name": "ETCD_NAME",
                                         "value": "fedlearner"
@@ -299,7 +298,6 @@ def make_workflow_template():
                                         }
                                     },
                                     ${system.basic_envs},
-                                    ${project.variables.basic_envs},
                                     {
                                         "name": "CPU_REQUEST",
                                         "valueFrom": {
@@ -441,7 +439,6 @@ def make_workflow_template():
                             {
                                 "env": [
                                     ${system.basic_envs},
-                                    ${project.variables.basic_envs},
                                     {
                                         "name": "STORAGE_ROOT_PATH",
                                         "value": "${project.variables.storage_root_dir}"
@@ -614,7 +611,6 @@ def make_workflow_template():
                             {
                                 "env": [
                                     ${system.basic_envs},
-                                    ${project.variables.basic_envs},
                                     {
                                         "name": "STORAGE_ROOT_PATH",
                                         "value": "${project.variables.storage_root_dir}"
@@ -856,7 +852,6 @@ def make_workflow_template():
                             {
                                 "env": [
                                     ${system.basic_envs},
-                                    ${project.variables.basic_envs},
                                     {
                                         "name": "STORAGE_ROOT_PATH",
                                         "value":  "${project.variables.storage_root_dir}"
@@ -1007,7 +1002,6 @@ def make_workflow_template():
                             {
                                 "env": [
                                     ${system.basic_envs},
-                                    ${project.variables.basic_envs},
                                     {
                                         "name": "STORAGE_ROOT_PATH",
                                         "value": "${project.variables.storage_root_dir}"
@@ -1162,7 +1156,6 @@ def make_workflow_template():
                             {
                                 "env": [
                                     ${system.basic_envs},
-                                    ${project.variables.basic_envs},
                                     {
                                         "name": "STORAGE_ROOT_PATH",
                                         "value": "${project.variables.storage_root_dir}"
