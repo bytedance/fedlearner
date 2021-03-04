@@ -14,7 +14,6 @@
 
 # coding: utf-8
 import json
-import os
 from string import Template
 from flatten_dict import flatten
 from fedlearner_webconsole.utils.system_envs import get_system_envs
