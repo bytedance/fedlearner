@@ -32,7 +32,7 @@ from fedlearner_webconsole.proto.project_pb2 \
     import Project as ProjectProto, CertificateStorage, \
     Participant as ParticipantProto
 from fedlearner_webconsole.project.add_on \
-    import parse_certificates, create_add_on
+    import parse_certificates, verify_certificates, create_add_on
 from fedlearner_webconsole.exceptions \
     import InvalidArgumentException, NotFoundException
 from fedlearner_webconsole.rpc.client import RpcClient
@@ -115,6 +115,9 @@ class ProjectsApi(Resource):
             if participant.get('certificates') is not None:
                 current_cert = parse_certificates(
                     participant.get('certificates'))
+                success, err = verify_certificates(current_cert)
+                if not success:
+                    raise InvalidArgumentException(err)
                 certificates[domain_name] = {'certs': current_cert}
             if 'certificates' in participant.keys():
                 participant.pop('certificates')

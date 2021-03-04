@@ -15,6 +15,7 @@ import JobExecutionPODs from './JobExecutionPODs';
 import { jobExecutionStatusText } from 'components/WorkflowJobsFlowChart/WorkflowJobNode';
 import { convertExecutionStateToStatus } from 'components/WorkflowJobsFlowChart/helpers';
 import { WorkflowExecutionDetails } from 'typings/workflow';
+import defaultTheme from 'styles/_theme';
 
 const Container = styled(Drawer)`
   top: 60px;
@@ -31,10 +32,25 @@ const DrawerHeader = styled(Row)`
   margin: 0 -24px 0;
   padding: 20px 16px 20px 24px;
   background-color: white;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.12);
+`;
+const CoverHeaderShadowIfNotSticky = styled.div`
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  top: 50px;
+  margin: 0 -24px 0;
+  height: 12px;
+  background-color: #fff;
 `;
 const DrawerTitle = styled.h3`
+  position: relative;
   margin-bottom: 0;
   margin-right: 10px;
+`;
+const ID = styled.small`
+  margin-left: 10px;
+  color: var(--textColorSecondary);
 `;
 
 interface Props extends DrawerProps {
@@ -70,8 +86,8 @@ const JobExecutionDetailsDrawer: ForwardRefRenderFunction<JobExecutionDetailsExp
 
   const displayedProps = [
     {
-      label: 'Job ID',
-      value: job.id,
+      label: 'K8s Job name',
+      value: job.k8sName,
     },
     {
       label: t('workflow.label_job_type'),
@@ -86,7 +102,7 @@ const JobExecutionDetailsDrawer: ForwardRefRenderFunction<JobExecutionDetailsExp
   job.variables.forEach((item) => {
     displayedProps.push({
       label: item.name,
-      value: item.value,
+      value: item.value || <span style={{ color: defaultTheme.textColorDisabled }}>N/A</span>,
     });
   });
 
@@ -104,7 +120,10 @@ const JobExecutionDetailsDrawer: ForwardRefRenderFunction<JobExecutionDetailsExp
       >
         <DrawerHeader align="middle" justify="space-between">
           <Row align="middle">
-            <DrawerTitle>{jobData.raw.name}</DrawerTitle>
+            <DrawerTitle>
+              {job.name}
+              <ID>ID: {job.id}</ID>
+            </DrawerTitle>
 
             {isPeerSide ? (
               <Tag color="orange">{t('workflow.peer_config')}</Tag>
@@ -118,6 +137,8 @@ const JobExecutionDetailsDrawer: ForwardRefRenderFunction<JobExecutionDetailsExp
             <Button size="small" icon={<Close />} onClick={closeDrawer} />
           </GridRow>
         </DrawerHeader>
+
+        <CoverHeaderShadowIfNotSticky />
 
         <PropertyList initialVisibleRows={3} cols={2} properties={displayedProps} labelWidth={90} />
 

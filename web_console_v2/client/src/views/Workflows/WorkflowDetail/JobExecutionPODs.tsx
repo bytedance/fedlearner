@@ -57,7 +57,13 @@ const JobExecutionPODs: FC<Props> = ({ job, isPeerSide }) => {
       title: i18n.t('workflow.col_worker_status'),
       dataIndex: 'status',
       key: 'status',
-      render: (val: PodState) => <StateIndicator type={stateType[val]} text={stateText[val]} />,
+      render: (val: PodState, record: Pod) => {
+        let tip: string = '';
+        if ([PodState.FAILED, PodState.PENDING].includes(record.status)) {
+          tip = record.conditions?.map((item) => item.message).join(', ') || '';
+        }
+        return <StateIndicator type={stateType[val]} text={stateText[val]} tip={tip} />;
+      },
     },
     {
       title: i18n.t('workflow.col_worker_type'),

@@ -1,8 +1,8 @@
 import { AxiosRequestConfig } from 'axios';
 import { Workflow } from 'typings/workflow';
-import { newlyCreated, awaitParticipantConfig, completed } from './examples';
+import { newlyCreated, pendingAcceptAndConfig, completed } from './examples';
 
-const list: Workflow[] = [awaitParticipantConfig, newlyCreated, completed];
+const list: Workflow[] = [pendingAcceptAndConfig, newlyCreated, completed];
 
 export const get = {
   data: {

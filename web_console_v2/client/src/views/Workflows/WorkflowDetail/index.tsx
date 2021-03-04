@@ -17,13 +17,12 @@ import { useToggle } from 'react-use';
 import { JobNode, NodeData, NodeDataRaw } from 'components/WorkflowJobsFlowChart/types';
 import { useMarkFederatedJobs } from 'components/WorkflowJobsFlowChart/hooks';
 import PropertyList from 'components/PropertyList';
-import { Eye, EyeInvisible } from 'components/IconPark';
+import { Eye, EyeInvisible, Branch } from 'components/IconPark';
 import { WorkflowExecutionDetails } from 'typings/workflow';
 import { ReactFlowProvider } from 'react-flow-renderer';
-import { isRunning, isStopped } from 'shared/workflow';
+import { findJobExeInfoByJobDef, isRunning, isStopped } from 'shared/workflow';
 import dayjs from 'dayjs';
 import NoResult from 'components/NoResult';
-import { Job, JobExecutionDetalis } from 'typings/job';
 
 const Container = styled.div`
   display: flex;
@@ -44,12 +43,23 @@ const ChartContainer = styled.div`
   }
 `;
 const HeaderRow = styled(Row)`
-  margin-bottom: 30px;
+  margin-bottom: 15px;
+
+  &[data-forked='true'] {
+    margin-bottom: 25px;
+  }
 `;
 const Name = styled.h3`
   margin-bottom: 0;
   font-size: 20px;
-  line-height: 28px;
+  line-height: 1;
+`;
+const ForkedFrom = styled.div`
+  margin-top: -20px;
+  font-size: 12px;
+`;
+const OriginWorkflowLink = styled(Link)`
+  margin-left: 5px;
 `;
 // TODO: find a better way to define no-result's container
 const NoJobs = styled.div`
@@ -92,10 +102,17 @@ const WorkflowDetail: FC = () => {
     retry: false,
   });
 
-  const { markThem } = useMarkFederatedJobs();
-
   const workflow = detailQuery.data?.data;
+  const peerWorkflow = peerWorkflowQuery.data;
   const transactionErr = workflow?.transaction_err;
+
+  const isForked = Boolean(workflow?.forked_from);
+
+  const originWorkflowQuery = useQuery(
+    ['getPeerWorkflow', workflow?.forked_from],
+    () => getWorkflowDetailById(workflow?.forked_from!),
+    { enabled: isForked },
+  );
 
   let isRunning_ = false;
   let isStopped_ = false;
@@ -132,10 +149,17 @@ const WorkflowDetail: FC = () => {
     ...(workflow?.config?.variables || []).map((item) => ({ label: item.name, value: item.value })),
   ];
 
-  const jobsWithExeDetails = mergeJobDefsWithExecutionDetails(workflow);
-  const peerJobsWithExeDetails = mergeJobDefsWithExecutionDetails(peerWorkflowQuery.data);
+  const { markThem } = useMarkFederatedJobs();
+
+  const jobsWithExeDetails = _mergeWithExecutionDetails(workflow);
+  const peerJobsWithExeDetails = _mergeWithExecutionDetails(peerWorkflowQuery.data);
 
   markThem(jobsWithExeDetails, peerJobsWithExeDetails);
+
+  if (isForked) {
+    _markInheritedJobs(jobsWithExeDetails, workflow?.reuse_job_names!);
+    _markInheritedJobs(peerJobsWithExeDetails, workflow?.peer_reuse_job_names!);
+  }
 
   return (
     <Spin spinning={detailQuery.isLoading}>
@@ -147,9 +171,10 @@ const WorkflowDetail: FC = () => {
           ]}
         />
         <Card>
-          <HeaderRow justify="space-between" align="middle">
+          <HeaderRow justify="space-between" align="middle" data-forked={isForked}>
             <GridRow gap="8">
               <Name>{workflow?.name}</Name>
+
               {workflow && <WorkflowStage workflow={workflow} tag />}
             </GridRow>
             {workflow && (
@@ -161,6 +186,16 @@ const WorkflowDetail: FC = () => {
             )}
           </HeaderRow>
 
+          {isForked && originWorkflowQuery.isSuccess && (
+            <ForkedFrom>
+              <Branch />
+              {t('workflow.forked_from')}
+              <OriginWorkflowLink to={`/workflows/${originWorkflowQuery.data?.data.id}`}>
+                {originWorkflowQuery.data?.data.name}
+              </OriginWorkflowLink>
+            </ForkedFrom>
+          )}
+
           {/* i.e. Workflow execution error  */}
           {transactionErr && <p>{transactionErr}</p>}
 
@@ -169,6 +204,7 @@ const WorkflowDetail: FC = () => {
             initialVisibleRows={3}
             cols={3}
             properties={workflowProps}
+            style={{ marginTop: '15px' }}
           />
         </Card>
 
@@ -226,7 +262,11 @@ const WorkflowDetail: FC = () => {
 
               {peerJobsWithExeDetails.length === 0 ? (
                 <NoJobs>
-                  <NoResult text={t('workflow.msg_peer_not_ready')} />
+                  {peerWorkflowQuery.isFetching ? (
+                    <Spin style={{ margin: 'auto' }} />
+                  ) : (
+                    <NoResult text={t('workflow.msg_peer_not_ready')} />
+                  )}
                 </NoJobs>
               ) : (
                 <ReactFlowProvider>
@@ -250,7 +290,7 @@ const WorkflowDetail: FC = () => {
           visible={drawerVisible}
           toggleVisible={toggleDrawerVisible}
           jobData={data}
-          workflow={detailQuery.data?.data}
+          workflow={isPeerSide ? peerWorkflow : workflow}
           isPeerSide={isPeerSide}
         />
       </Container>
@@ -261,7 +301,6 @@ const WorkflowDetail: FC = () => {
     setIsPeerSide(false);
     showJobDetailesDrawer(jobNode);
   }
-
   function viewPeerJobDetail(jobNode: JobNode) {
     setIsPeerSide(true);
     showJobDetailesDrawer(jobNode);
@@ -278,24 +317,31 @@ const WorkflowDetail: FC = () => {
   }
 };
 
-function mergeJobDefsWithExecutionDetails(
-  workflow: WorkflowExecutionDetails | undefined,
-): NodeDataRaw[] {
+function _mergeWithExecutionDetails(workflow?: WorkflowExecutionDetails): NodeDataRaw[] {
   if (!workflow) return [];
 
   return (
     workflow.config?.job_definitions.map((item) => {
-      return Object.assign(item, workflow?.jobs?.find(_matcher(workflow, item)) || {}, {
+      const exeInfo = findJobExeInfoByJobDef(item, workflow);
+
+      return {
+        ...item,
+        ...exeInfo,
         name: item.name,
-      });
+        k8sName: exeInfo?.name,
+      } as NodeDataRaw;
     }) || []
   );
-  // TODO: find a better way to distinguish job-def-name and job-execution-name
-  function _matcher(workflow: WorkflowExecutionDetails, jobDef: Job) {
-    return (job: JobExecutionDetalis) => {
-      return job.name === `${workflow.name}-${jobDef.name}` || job.name.endsWith(jobDef.name);
-    };
-  }
+}
+
+function _markInheritedJobs(jobs: NodeDataRaw[], reusableJobNames: string[]) {
+  return jobs.map((item) => {
+    if (reusableJobNames.includes(item.name)) {
+      item.inherited = true;
+    }
+
+    return item;
+  });
 }
 
 export default WorkflowDetail;

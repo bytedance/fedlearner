@@ -208,8 +208,7 @@ const CanvasAndForm: FC<WorkflowCreateProps> = ({ isInitiate, isAccept }) => {
         }) as WorkflowInitiatePayload,
       );
 
-      // FIXMEL: remove after using hashed job name
-      payload.name = payload.name.replace(/[\s]/g, '');
+      payload.name = payload.name.trim();
 
       const [, error] = await to(initiateAWorkflow(payload));
       finalError = error;

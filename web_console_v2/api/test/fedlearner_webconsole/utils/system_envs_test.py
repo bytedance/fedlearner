@@ -13,40 +13,47 @@
 # limitations under the License.
 
 # coding: utf-8
+import os
 import unittest
-from test.support import EnvironmentVarGuard
+from unittest.mock import patch
 
 from fedlearner_webconsole.utils.system_envs import get_system_envs
 
 
 class SystemEnvsTest(unittest.TestCase):
+    @patch.dict(os.environ, {
+        'ES_HOST': 'test es host',
+        'ES_PORT': '9200',
+        'DB_HOST': 'test db host',
+        'DB_PORT': '3306',
+        'DB_DATABASE': 'fedlearner',
+        'DB_USERNAME': 'username',
+        'DB_PASSWORD': 'password',
+        'KVSTORE_TYPE': 'mysql',
+        'ETCD_NAME': 'fedlearner',
+        'ETCD_ADDR': 'fedlearner-stack-etcd.default.svc.cluster.local:2379',
+        'ETCD_BASE_DIR': 'fedlearner'
+    })
     def test_get_system_envs(self):
-        env = EnvironmentVarGuard()
-        env.set('ES_HOST', 'test es host')
-        env.set('ES_PORT', '9200')
-        env.set('DB_HOST', 'test db host')
-        env.set('DB_PORT', '3306')
-        env.set('DB_DATABASE', 'fedlearner')
-        env.set('DB_USERNAME', 'username')
-        env.set('DB_PASSWORD', 'password')
-        env.set('KVSTORE_TYPE', 'mysql')
-        with env:
-            self.assertEqual(
-                get_system_envs(),
-                '{"name": "POD_IP", "valueFrom": {"fieldRef": {"fieldPath": "status.podIP"}}},'
-                '{"name": "POD_NAME", "valueFrom": {"fieldRef": {"fieldPath": "metadata.name"}}},'
-                '{"name": "CPU_REQUEST", "valueFrom": {"resourceFieldRef": {"resource": "requests.cpu"}}},'
-                '{"name": "MEM_REQUEST", "valueFrom": {"resourceFieldRef": {"resource": "requests.memory"}}},'
-                '{"name": "CPU_LIMIT", "valueFrom": {"resourceFieldRef": {"resource": "limits.cpu"}}},'
-                '{"name": "MEM_LIMIT", "valueFrom": {"resourceFieldRef": {"resource": "limits.memory"}}},'
-                '{"name": "ES_HOST", "value": "test es host"},'
-                '{"name": "ES_PORT", "value": "9200"},'
-                '{"name": "DB_HOST", "value": "test db host"},'
-                '{"name": "DB_PORT", "value": "3306"},'
-                '{"name": "DB_DATABASE", "value": "fedlearner"},'
-                '{"name": "DB_USERNAME", "value": "username"},'
-                '{"name": "DB_PASSWORD", "value": "password"},'
-                '{"name": "KVSTORE_TYPE", "value": "mysql"}')
+        self.assertEqual(
+            get_system_envs(),
+            '{"name": "POD_IP", "valueFrom": {"fieldRef": {"fieldPath": "status.podIP"}}},'
+            '{"name": "POD_NAME", "valueFrom": {"fieldRef": {"fieldPath": "metadata.name"}}},'
+            '{"name": "CPU_REQUEST", "valueFrom": {"resourceFieldRef": {"resource": "requests.cpu"}}},'
+            '{"name": "MEM_REQUEST", "valueFrom": {"resourceFieldRef": {"resource": "requests.memory"}}},'
+            '{"name": "CPU_LIMIT", "valueFrom": {"resourceFieldRef": {"resource": "limits.cpu"}}},'
+            '{"name": "MEM_LIMIT", "valueFrom": {"resourceFieldRef": {"resource": "limits.memory"}}},'
+            '{"name": "ES_HOST", "value": "test es host"},'
+            '{"name": "ES_PORT", "value": "9200"},'
+            '{"name": "DB_HOST", "value": "test db host"},'
+            '{"name": "DB_PORT", "value": "3306"},'
+            '{"name": "DB_DATABASE", "value": "fedlearner"},'
+            '{"name": "DB_USERNAME", "value": "username"},'
+            '{"name": "DB_PASSWORD", "value": "password"},'
+            '{"name": "KVSTORE_TYPE", "value": "mysql"},'
+            '{"name": "ETCD_NAME", "value": "fedlearner"},'
+            '{"name": "ETCD_ADDR", "value": "fedlearner-stack-etcd.default.svc.cluster.local:2379"},'
+            '{"name": "ETCD_BASE_DIR", "value": "fedlearner"}')
 
 
 if __name__ == '__main__':

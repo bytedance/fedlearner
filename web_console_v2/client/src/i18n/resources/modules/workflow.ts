@@ -11,6 +11,7 @@ const workflow: I18nMessageModule = {
   current_config: { zh: '当前配置' },
   create_workflow: { zh: '创建工作流', en: 'Create workflow' },
   fork_workflow: { zh: '复制工作流', en: 'Fork workflow' },
+  forked_from: { zh: '复制于', en: 'Forked from' },
 
   action_re_run: { zh: '重新运行' },
   action_run: { zh: '立即运行' },
@@ -87,6 +88,7 @@ const workflow: I18nMessageModule = {
   label_job_nonreusable: { zh: '不继承' },
 
   placeholder_name_searchbox: { zh: '根据工作流名称搜索' },
+  placeholder_uuid_searchbox: { zh: '根据 UUID 搜索' },
   placeholder_name: { zh: '请输入工作流名称' },
   placeholder_template: { zh: '请选择模板' },
   placeholder_project: { zh: '请关联一个项目' },
@@ -116,7 +118,7 @@ const workflow: I18nMessageModule = {
   msg_peer_config_failed: { zh: '获取对侧工作流配置失败' },
   msg_peer_not_ready: { zh: '对侧配置未完成' },
   msg_not_config: { zh: '工作流配置未完成' },
-  msg_workflow_name_invalid: { zh: '工作流名字只能由小写英文/数字/中划线组成，且不允许空格' },
+  msg_workflow_name_invalid: { zh: '最长允许60个字符' },
   msg_sure_to_stop: { zh: '确认停止运行该工作流吗?' },
   msg_unforkable: { zh: '根据对侧配置，该工作流不允许被复制，请与对侧沟通后再试' },
   msg_get_peer_cfg_failed: { zh: '获取对侧配置失败: ' },

@@ -86,7 +86,9 @@ cluster:
     KIBANA_PORT: 443
     ES_HOST: fedlearner-stack-elasticsearch-client
     ES_PORT: 9200
+    ETCD_NAME: "fedlearner"
     ETCD_ADDR: "fedlearner-stack-etcd.default.svc.cluster.local:2379"
+    ETCD_BASE_DIR: "fedlearner"
     KVSTORE_TYPE: "mysql"
     FLASK_ENV: production
     AUTHORIZATION_MODE: EXTERNAL
