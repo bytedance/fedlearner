@@ -90,6 +90,8 @@ def upgrade():
     )
     op.create_table('workflow_v2',
     sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('metric_is_public', sa.Boolean(), nullable=False),
+    sa.Column('uuid', sa.String(length=64), nullable=True, index=True),
     sa.Column('name', sa.String(length=255), nullable=True),
     sa.Column('project_id', sa.Integer(), nullable=True),
     sa.Column('config', sa.LargeBinary(), nullable=True),
