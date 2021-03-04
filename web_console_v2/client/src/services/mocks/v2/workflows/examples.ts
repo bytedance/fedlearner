@@ -1,5 +1,5 @@
-import { cloneDeep } from 'lodash';
-import { JobExecutionDetalis, JobState, JobType, PodState } from 'typings/job';
+import { cloneDeep, sample } from 'lodash';
+import { JobExecutionDetalis, JobState, JobType, Pod, PodState } from 'typings/job';
 import {
   WorkflowState,
   TransactionState,
@@ -8,9 +8,12 @@ import {
 } from 'typings/workflow';
 import { VariableAccessMode } from 'typings/variable';
 import { normalTemplate } from '../workflow_templates/examples';
+import { giveWeakRandomKey } from 'shared/helpers';
 
-export const awaitParticipantConfig = {
+const uuid_1 = giveWeakRandomKey();
+export const pendingAcceptAndConfig = {
   id: 1,
+  uuid: uuid_1,
   name: 'Await-configure',
   project_id: 1,
   config: null,
@@ -24,8 +27,10 @@ export const awaitParticipantConfig = {
   updated_at: 1610238602,
 };
 
+const uuid_2 = giveWeakRandomKey();
 export const newlyCreated: Workflow = {
   id: 2,
+  uuid: uuid_2,
   name: 'Newly-created',
   project_id: 1,
   config: {
@@ -106,69 +111,82 @@ export const newlyCreated: Workflow = {
   updated_at: 1610239831,
 };
 
+const uuid_3 = giveWeakRandomKey();
+
 export const withExecutionDetail: WorkflowExecutionDetails = {
   ...cloneDeep(newlyCreated),
+  uuid: uuid_3,
   run_time: 100000, // second level
-  jobs: _generateJobExecutionDetails('With-execution-details'),
+  jobs: _generateJobExecutionDetails(uuid_3),
 };
+
+const uuid_4 = giveWeakRandomKey();
 
 export const completed = {
   ...cloneDeep(withExecutionDetail),
   id: 3,
+  uuid: uuid_4,
   name: 'All-completed',
   config: normalTemplate.config as any,
   state: WorkflowState.COMPLETED,
   target_state: WorkflowState.INVALID,
   transaction_state: TransactionState.ABORTED,
-  jobs: _generateJobExecutionDetails('All-completed'),
+  jobs: _generateJobExecutionDetails(uuid_4),
 };
 
-function _generateJobExecutionDetails(workflowName: string): JobExecutionDetalis[] {
+function _generateJobExecutionDetails(UUID: string): JobExecutionDetalis[] {
   return [
     {
       id: 1,
-      name: `${workflowName}-Initiative`,
+      name: `${UUID}-Initiative`,
       job_type: JobType.RAW_DATA,
       state: JobState.COMPLETE,
       yaml_template: '',
       workflow_id: 1,
       project_id: 1,
-      pods: [],
+      pods: [_genPod(), _genPod(), _genPod()],
       created_at: 1611006571,
       updated_at: 1611006571,
       deleted_at: 0,
     },
     {
       id: 2,
-      name: `${workflowName}-Raw data upload`,
+      name: `${UUID}-Raw data upload`,
       job_type: JobType.DATA_JOIN,
       state: JobState.RUNNING,
       yaml_template: '',
       workflow_id: 1,
       project_id: 1,
-      pods: [
-        {
-          name: '0-79f60e7a-520e-4cd7-a679-95b12df2c4fd',
-          pod_type: 'Master',
-          status: PodState.COMPLETE,
-        },
-      ],
+      pods: [_genPod(), _genPod()],
       created_at: 1611006571,
       updated_at: 1611006571,
       deleted_at: 0,
     },
     {
       id: 3,
-      name: `${workflowName}-Training`,
+      name: `${UUID}-Training`,
       job_type: JobType.DATA_JOIN,
       state: JobState.STOPPED,
       yaml_template: '',
       workflow_id: 1,
       project_id: 1,
-      pods: [],
+      pods: [_genPod(), _genPod(), _genPod(), _genPod()],
       created_at: 1611006571,
       updated_at: 1611006571,
       deleted_at: 0,
     },
   ];
+}
+
+function _genPod() {
+  return {
+    name: `0-79f60e7a-520e-4cd7-a679-${giveWeakRandomKey()}`,
+    pod_type: 'Master',
+    status: sample(PodState),
+    conditions: [
+      {
+        message: '0/3 ndoes are available: 3 Insufficient cpu.',
+      },
+    ],
+  } as Pod;
 }

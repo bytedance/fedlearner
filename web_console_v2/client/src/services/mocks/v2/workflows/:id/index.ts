@@ -1,9 +1,9 @@
 import { AxiosRequestConfig } from 'axios';
-import { awaitParticipantConfig, withExecutionDetail, completed } from '../examples';
+import { pendingAcceptAndConfig, withExecutionDetail, completed } from '../examples';
 
 const get = (config: AxiosRequestConfig) => {
   const rets: Record<ID, any> = {
-    1: awaitParticipantConfig,
+    1: pendingAcceptAndConfig,
     2: withExecutionDetail,
     3: completed,
   };

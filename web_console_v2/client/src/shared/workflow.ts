@@ -1,6 +1,12 @@
-import { Workflow, WorkflowState, TransactionState } from 'typings/workflow';
+import {
+  Workflow,
+  WorkflowState,
+  TransactionState,
+  WorkflowExecutionDetails,
+} from 'typings/workflow';
 import i18n from 'i18n';
 import { StateTypes } from 'components/StateIndicator';
+import { Job } from 'typings/job';
 
 const { NEW, READY: W_READY, RUNNING, STOPPED, INVALID, COMPLETED } = WorkflowState;
 const {
@@ -26,7 +32,7 @@ export function isAwaitParticipantConfig(workflow: Workflow) {
 }
 
 export function isPendingAccpet(workflow: Workflow) {
-  const { state, target_state, transaction_state, config } = workflow;
+  const { state, target_state, transaction_state } = workflow;
 
   return state === NEW && target_state === W_READY && transaction_state === PARTICIPANT_PREPARE;
 }
@@ -171,4 +177,15 @@ export function getWorkflowStage(workflow: Workflow): { type: StateTypes; text: 
     text: i18n.t('workflow.state_unknown'),
     type: 'default',
   };
+}
+
+// --------------- Misc ----------------
+export function findJobExeInfoByJobDef(jobDef: Job, workflow: WorkflowExecutionDetails) {
+  return workflow.jobs.find((exeInfo) => {
+    return (
+      exeInfo.name === `${workflow.uuid}-${jobDef.name}` ||
+      exeInfo.name === `${workflow.name}-${jobDef.name}` ||
+      exeInfo.name.endsWith(jobDef.name)
+    );
+  });
 }
