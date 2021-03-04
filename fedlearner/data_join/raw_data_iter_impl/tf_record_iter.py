@@ -14,6 +14,7 @@
 
 # coding: utf-8
 
+import pdb
 import logging
 from collections import OrderedDict
 from contextlib import contextmanager
@@ -41,16 +42,18 @@ class TfExampleItem(RawDataIter.Item):
 
     @classmethod
     def make(cls, example_id, event_time, raw_id, fname=None, fvalue=None):
-        fields = OrderedDict()
-        fields["example_id"] = example_id
-        fields["event_time"] = event_time
-        fields["raw_id"] = raw_id
+        row = OrderedDict()
+        row["example_id"] = example_id.decode()
+        row["event_time"] = event_time
+        if raw_id:
+            row["raw_id"] = raw_id
         if fname:
             assert len(fname) == len(fvalue), \
                     "Field name should match field value"
             for i, v in enumerate(fname):
-                fields[v] = fvalue[i]
-        ex = common.convert_dict_to_tf_example(fields)
+                row[v] = fvalue[i]
+        #pdb.set_trace()
+        ex = common.convert_dict_to_tf_example(row)
         return cls(ex.SerializeToString())
 
     @property
@@ -59,11 +62,14 @@ class TfExampleItem(RawDataIter.Item):
             return self._store_space.get_data(self._index)
         return self._record_str
 
-    def _set_tf_record(self, record_str):
-        if self._store_space:
+    def _set_tf_record(self, record_str, cache=False):
+        # if cache set, we switch the store space to memory
+        #  to speed up accessing later
+        if self._store_space and not cache:
             self._record_str = None
             self._store_space.set_data(self._index, record_str)
         else:
+            self._store_space = None
             self._record_str = record_str
 
     @property
@@ -81,18 +87,30 @@ class TfExampleItem(RawDataIter.Item):
             self._gc_example(example)
         return self._csv_record
 
-    def set_example_id(self, example_id):
+    def add_extra_fields(self, additional_records, cache=False):
         example = self._parse_example(self.tf_record)
         if example is not None:
             feat = example.features.feature
-            if isinstance(example_id, str):
-                example_id = example_id.encode()
-            feat['example_id'].CopyFrom(tf.train.Feature(
-                        bytes_list=tf.train.BytesList(value=[example_id])
+            for name, value in additional_records.items():
+                if name not in common.ALLOWED_FIELDS:
+                    continue
+                if common.ALLOWED_FIELDS[name].type is bytes:
+                    if isinstance(value, str):
+                        value = value.encode()
+                    feat[name].CopyFrom(tf.train.Feature(
+                                bytes_list=tf.train.BytesList(value=[value])
+                            )
+                        )
+                elif common.ALLOWED_FIELDS[name].type is float:
+                    feat[name].CopyFrom(tf.train.Feature(
+                        float_list=tf.train.FloatList(value=[value]))
                     )
-                )
-            self._set_tf_record(example.SerializeToString())
-            self._example_id = example_id
+                else:
+                    assert common.ALLOWED_FIELDS[name].type is int
+                    feat[name].CopyFrom(tf.train.Feature(
+                    int64_list=tf.train.Int64List(value=[value]))
+                    )
+            self._set_tf_record(example.SerializeToString(), cache)
             if self._csv_record is not None:
                 self._csv_record = None
         self._gc_example(example)

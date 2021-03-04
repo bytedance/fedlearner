@@ -45,27 +45,6 @@ class TestUniversalJoin(dsp.DataSourceProducer):
         #self.init("test_uni_joiner", "invalid joiner as placeholder", store_space="disk")
         self.init("test_uni_joiner", "invalid joiner as placeholder")
 
-    #@unittest.skip("test")
-    def test_attribution_join(self):
-        self.example_joiner_options = dj_pb.ExampleJoinerOptions(
-                  example_joiner='ATTRIBUTION_JOINER',
-                  min_matching_window=32,
-                  max_matching_window=51200,
-                  max_conversion_delay=interval_to_timestamp("124"),
-                  enable_negative_example_generator=True,
-                  data_block_dump_interval=32,
-                  data_block_dump_threshold=128,
-                  negative_sampling_rate=0.8,
-              )
-
-        sei = joiner_impl.create_example_joiner(
-                self.example_joiner_options,
-                self.raw_data_options,
-                dj_pb.WriterOptions(output_writer='TF_RECORD'),
-                self.kvstore, self.data_source, 0
-            )
-        self.run_join(sei)
-
     #@unittest.skip("test2")
     def test_universal_join(self):
         self.example_joiner_options = dj_pb.ExampleJoinerOptions(

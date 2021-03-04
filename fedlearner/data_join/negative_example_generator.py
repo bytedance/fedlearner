@@ -14,38 +14,54 @@
 
 # coding: utf-8
 import random
+from fedlearner.data_join.join_expr.expression import Expr
 
 class NegativeExampleGenerator(object):
-    def __init__(self, negative_sampling_rate):
+    def __init__(self, negative_sampling_rate, filter_expr=None):
+        """Args
+            filter_expr=et(label, 1), lable of follower is 1
+        """
         self._buf = {}
+        #FIXME  prev_index should be assigned to the leader restart
+        # index after restart.
+        self._prev_index = 0
         self._negative_sampling_rate = negative_sampling_rate
-        self._field_name = ["label", "type"]
+        self._field_name = ["label", "joined"]
         self._field_value = [0, 0]
+        if filter_expr and len(filter_expr.strip()) > 0:
+            self._filter_expr = Expr(filter_expr)
+        else:
+            self._filter_expr = None
 
     def update(self, mismatches):
         self._buf.update(mismatches)
 
-    def _skip(self):
+    def _skip(self, idx):
+        if self._filter_expr and \
+           self._filter_expr.run_func(0)(self._buf[idx]):
+            return False
         if random.random() <= self._negative_sampling_rate:
             return False
         return True
 
-    def generate(self, follower_item, prev_leader_idx, leader_idx):
-        for idx in range(prev_leader_idx, leader_idx):
-            if self._skip():
-                continue
+    def generate(self, item, leader_idx):
+        for idx in range(self._prev_index, leader_idx):
             if idx not in self._buf:
                 continue
+            if self._skip(idx):
+                continue
+
             example_id = self._buf[idx].example_id
-            if isinstance(example_id, bytes):
-                example_id = example_id.decode()
             event_time = self._buf[idx].event_time
-            example = type(follower_item).make(example_id, event_time,
-                                               example_id, self._field_name,
-                                               self._field_value)
+
+            example = type(item).make(example_id, event_time,
+                                      None, self._field_name,
+                                      self._field_value)
             yield example, idx, 0
             del self._buf[idx]
 
         for k, v in list(self._buf.items()):
-            if k < prev_leader_idx:
+            if k < self._prev_index:
                 del self._buf[k]
+        if leader_idx > self._prev_index:
+            self._prev_index = leader_idx

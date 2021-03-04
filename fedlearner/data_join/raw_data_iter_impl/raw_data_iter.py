@@ -41,6 +41,11 @@ class RawDataIter(object):
                     "csv_record not implement for basic Item"
                 )
 
+        def add_extra_fields(self, additional_records, cache=False):
+            raise NotImplementedError(
+                "add_extra_fields not implemented for basic Item"
+            )
+
         @classmethod
         def make(cls, example_id, event_time, raw_id, fname=None, fvalue=None):
             raise NotImplementedError("make not implemented for basic Item")

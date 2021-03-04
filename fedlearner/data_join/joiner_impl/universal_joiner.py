@@ -335,14 +335,15 @@ class UniversalJoiner(ExampleJoiner):
         self._sorted_buf_by_leader_index = []
         self._dedup_by_follower_index = {}
         self._trigger = _Trigger(self._max_watermark_delay)
-        self._expr = expr.JoinExpr(example_joiner_options.join_expr)
+        self._expr = expr.Expr(example_joiner_options.join_expr)
         self._joiner = _JoinerImpl(self._expr)
 
         self._enable_negative_example_generator = \
                 example_joiner_options.enable_negative_example_generator
         if self._enable_negative_example_generator:
             sf = example_joiner_options.negative_sampling_rate
-            self._negative_example_generator = NegativeExampleGenerator(sf)
+            fe = example_joiner_options.exampling_filter_expr
+            self._negative_example_generator = NegativeExampleGenerator(sf, fe)
 
     @classmethod
     def name(cls):
@@ -431,11 +432,6 @@ class UniversalJoiner(ExampleJoiner):
                 lf = mid + 1
         return lf
 
-    def _sync_fields(self, le, fe):
-        #FIXME: sync event_time_deep from leader, trick
-        if hasattr(le, "event_time_deep"):
-            fe['event_time_deep'] = le.event_time_deep
-
     def _sort_and_evict_leader_buf(self, raw_matches, watermark):
         """
         Push the matched pairs to order-by-leader-index list,
@@ -476,7 +472,6 @@ class UniversalJoiner(ExampleJoiner):
                     self._sorted_buf_by_leader_index[latest_pos - 1]
                 if latest_item[1] == li and latest_item[2] == fi:
                     continue
-            self._sync_fields(le, fe)
             self._sorted_buf_by_leader_index.insert(latest_pos, \
                                           (fe, li, fi))
         matches = []
@@ -515,14 +510,11 @@ class UniversalJoiner(ExampleJoiner):
 
     def _dump_joined_items(self, matching_list):
         start_tm = time.time()
-        prev_leader_idx = self._leader_restart_index + 1
         for item in matching_list:
             (fe, li, fi) = item
-            if self._enable_negative_example_generator and li > prev_leader_idx:
+            if self._enable_negative_example_generator:
                 for example in \
-                    self._negative_example_generator.generate(
-                        fe, prev_leader_idx, li):
-
+                    self._negative_example_generator.generate(fe, li):
                     builder = self._get_data_block_builder(True)
                     assert builder is not None, "data block builder must be "\
                                                 "not None if before dummping"
@@ -531,12 +523,11 @@ class UniversalJoiner(ExampleJoiner):
                                         example[2], None, True)
                     if builder.check_data_block_full():
                         yield self._finish_data_block()
-            prev_leader_idx = li + 1
 
             builder = self._get_data_block_builder(True)
             assert builder is not None, "data block builder must be "\
                                         "not None if before dummping"
-            builder.append_item(fe, li, fi, None, True)
+            builder.append_item(fe, li, fi, None, True, joined=1)
             if builder.check_data_block_full():
                 yield self._finish_data_block()
         metrics.emit_timer(name='universal_joiner_dump_joined_items',

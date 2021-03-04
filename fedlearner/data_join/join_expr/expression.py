@@ -57,7 +57,19 @@ class DateTruncDef(BaseFunction):
             conv_event_time = int(conv_event_time[0: size])
         return show_event_time == conv_event_time
 
-LINK_MAP = dict({"lt": LTFuncDef(), "trunc": DateTruncDef()})
+class EqualToDef(BaseFunction):
+    def __init__(self):
+        super(EqualToDef, self).__init__(2)
+
+    def __call__(self, show, args):
+        assert len(args) == self._arg_size, "Args not enough"
+        assert hasattr(show, args[0]), 'Args miss [%s]'%args[0]
+        return str(args[1]) == str(getattr(show, args[0]))
+
+LINK_MAP = dict({
+    "lt": LTFuncDef(),
+    "et": EqualToDef(),
+    "trunc": DateTruncDef()})
 
 class Token(object):
     def __init__(self, tok):
@@ -141,7 +153,7 @@ class FunctionDecl(object):
     def name(self):
         return self._func_name
 
-class JoinExpr(object):
+class Expr(object):
     def __init__(self, key):
         self._expr_str = key
         self._basic_block = []

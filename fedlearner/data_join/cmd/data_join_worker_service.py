@@ -90,6 +90,9 @@ if __name__ == "__main__":
                         "negative example, in [0.0, 1.0)")
     parser.add_argument('--join_expr', type=str, default="example_id",
                         help="join expression for universal joiner")
+    parser.add_argument('--sampling_filter_expr', type=str,
+                        help="sample filter expression, only be avaliable "\
+                        "for follower")
     parser.add_argument('--join_key_mapper', type=str, default="DEFAULT",
                         help="key mapper name")
     parser.add_argument('--raw_data_store_space', type=str, default="memory",
@@ -128,6 +131,7 @@ if __name__ == "__main__":
                         args.negative_sampling_rate,
                     join_expr=args.join_expr,
                     join_key_mapper=args.join_key_mapper,
+                    sampling_filter_expr=args.sampling_filter_expr,
                 ),
             example_id_dump_options=dj_pb.ExampleIdDumpOptions(
                     example_id_dump_interval=args.example_id_dump_interval,

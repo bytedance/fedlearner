@@ -22,8 +22,10 @@ import logging
 import sys
 
 from fedlearner.data_join.common import interval_to_timestamp
-from fedlearner.data_join.joiner_impl import attribution_joiner as aj
+from fedlearner.data_join.joiner_impl import universal_joiner as aj
 from fedlearner.data_join.raw_data_iter_impl.csv_dict_iter import CsvItem
+from fedlearner.data_join.key_mapper import create_key_mapper
+from fedlearner.data_join.join_expr.expression import Expr
 
 class _Item(object):
     def __init__(self, eid, et, idx):
@@ -37,13 +39,13 @@ class _Item(object):
         assert fname[0] == "label" and fvalue[0] == 0, "Invalid fvalue"
         return cls(example_id, event_time, 0)
 
-class TestAttributionJoiner(unittest.TestCase):
+class TestSlidingWindow(unittest.TestCase):
     def setUp(self):
-        pass
+        self._mapper = create_key_mapper('DEFAULT')
 
     #@unittest.skip("21")
     def test_sliding_window_append(self):
-        sliding_win = aj._SlidingWindow(0, 100000000)
+        sliding_win = aj._SlidingWindow(0, 100000000, self._mapper.leader_mapping)
         idx = 0
         skips = 0
         size, steps, forward, dt = 100, 20, 10, 1
@@ -53,7 +55,7 @@ class TestAttributionJoiner(unittest.TestCase):
                 skips += forward_step
             for i in range(it):
                 sliding_win.append(idx, _Item(idx, idx-dt, idx))
-                self.assertEqual(idx, sliding_win[idx - skips][0])
+                self.assertEqual(idx, sliding_win[idx - skips].index)
                 idx += 1
         self.assertEqual(skips + sliding_win.size(), idx)
         return sliding_win, skips
@@ -61,7 +63,7 @@ class TestAttributionJoiner(unittest.TestCase):
 
     def make_sliding_window(self, size, steps, forward, dt, repeated=False):
         st = time.time()
-        sliding_win = aj._SlidingWindow(0, 100000000)
+        sliding_win = aj._SlidingWindow(0, 100000000, self._mapper.leader_mapping)
         idx = 0
         skips = 0
         repeated_ev  = []
@@ -76,7 +78,7 @@ class TestAttributionJoiner(unittest.TestCase):
                     luckydog.append((idx, _Item(idx, idx-dt, idx)))
                 else:
                     sliding_win.append(idx, _Item(idx, idx-dt, idx))
-                    self.assertEqual(idx, sliding_win[idx - skips - len(luckydog)][0])
+                    self.assertEqual(idx, sliding_win[idx - skips - len(luckydog)].index)
                 idx += 1
             for ld in luckydog:
                 sliding_win.append(ld[0], ld[1])
@@ -98,8 +100,7 @@ class TestAttributionJoiner(unittest.TestCase):
         watermark = 100000000
         follower_start_index = 0
         conv_size, conv_steps = 1000, 1000
-        attri = aj._Attributor(watermark)
-        acc = aj._Accumulator(attri)
+        acc = aj._JoinerImpl(Expr("(example_id, lt(event_time))"))
         conv_window, conv_skips, _ = self.make_sliding_window(conv_size, conv_steps, 10, 1)
         show_window, show_skips, _ = self.make_sliding_window(conv_size, conv_steps, 1, 2)
         res, _ = acc.join(conv_window, show_window)
@@ -110,8 +111,7 @@ class TestAttributionJoiner(unittest.TestCase):
         watermark = 100000000
         follower_start_index = 0
         conv_size, conv_steps = 1000, 1
-        attri = aj._Attributor(watermark)
-        acc = aj._Accumulator(attri)
+        acc = aj._JoinerImpl(Expr("(example_id, lt(event_time))"))
         conv_window, conv_skips, repeated = self.make_sliding_window(conv_size, conv_steps, 10, 1, True)
         show_window, show_skips, _ = self.make_sliding_window(conv_size, conv_steps, 1, 2)
         res, _ = acc.join(conv_window, show_window)
@@ -130,7 +130,7 @@ class TestAttributionJoiner(unittest.TestCase):
             gen.update({i: _Item("example_id_%d"%i, i, i)})
         item_tpl = _Item("example_id", 100, 0)
 
-        for item in gen.generate(item_tpl, 1, 128):
+        for item in gen.generate(item_tpl, 128):
             pass
 
     def tearDown(self):

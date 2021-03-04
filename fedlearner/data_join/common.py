@@ -54,7 +54,7 @@ InvalidInt = -1
 ALLOWED_FIELD = namedtuple('ALLOW_FIELD', ['default_value', 'type', 'must'])
 ALLOWED_FIELDS = dict({
     'example_id': ALLOWED_FIELD(InvalidExampleId, bytes, True),
-    'event_time': ALLOWED_FIELD(InvalidEventTime, int, True),
+    'event_time': ALLOWED_FIELD(InvalidEventTime, int, False),
     'index': ALLOWED_FIELD(InvalidInt, int, False),
     'event_time_deep': ALLOWED_FIELD(InvalidEventTime, int, False),
     'raw_id': ALLOWED_FIELD(InvalidRawId, bytes, False),
@@ -176,7 +176,8 @@ def convert_dict_to_tf_example(src_dict):
         basic_type = type(feature)
         # all field value are type of str in csv format
         # convert field value into int if it's not bytes
-        if basic_type == str and ALLOWED_FIELDS[key].type != bytes:
+        if basic_type == str and key in ALLOWED_FIELDS and \
+           ALLOWED_FIELDS[key].type != bytes:
             if feature.lstrip('-').isdigit():
                 feature = int(feature)
                 basic_type = int
@@ -449,7 +450,6 @@ def convert_to_str(value):
     if isinstance(value, bytes):
         value = value.decode()
     return str(value)
-
 
 def _parse_hh_mm_ss_ff(tstr):
     # Parses things of the form HH[:MM[:SS[.fff[fff]]]]

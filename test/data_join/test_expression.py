@@ -35,7 +35,7 @@ class TestExpression(unittest.TestCase):
             "click_id or (req_id, cid, lt(event_time)) or callback": ["click_id", ["req_id", "cid"], "callback"],
         }
         for key, value in expr_dict.items():
-            expr = expression.JoinExpr(key)
+            expr = expression.Expr(key)
             print(expr)
             self.assertEqual(value, expr.keys())
 

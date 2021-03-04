@@ -29,23 +29,24 @@ from fedlearner.data_join.raw_data_iter_impl.raw_data_iter import RawDataIter
 
 
 class CsvItem(RawDataIter.Item):
-    def __init__(self, raw):
+    def __init__(self, row):
         super().__init__()
-        self._features.update(raw)
+        self._features.update(row)
         self._tf_record = None
 
     @classmethod
     def make(cls, example_id, event_time, raw_id, fname=None, fvalue=None):
-        raw = OrderedDict()
-        raw["example_id"] = example_id
-        raw["event_time"] = event_time
-        raw["raw_id"] = raw_id
+        row = OrderedDict()
+        row["example_id"] = example_id
+        row["event_time"] = event_time
+        if raw_id:
+            row["raw_id"] = raw_id
         if fname:
             assert len(fname) == len(fvalue), \
                     "Field name should match field value"
             for i, v in enumerate(fname):
-                raw[v] = fvalue[i]
-        return cls(raw)
+                row[v] = fvalue[i]
+        return cls(row)
 
     def __getattr__(self, item):
         if item not in self._features and common.ALLOWED_FIELDS[item].must:
@@ -79,10 +80,13 @@ class CsvItem(RawDataIter.Item):
     def csv_record(self):
         return self._features
 
-    def set_example_id(self, example_id):
-        new_features = OrderedDict({'example_id': example_id})
-        new_features.update(self._features)
-        self._features = new_features
+    def add_extra_fields(self, additional_records, cache=False):
+        new_features = {}
+        for name, value in additional_records.items():
+            if name not in common.ALLOWED_FIELDS:
+                continue
+            new_features[name] = value
+        self._features.update(new_features)
         if self._tf_record is not None:
             self._tf_record = None
 
@@ -113,8 +117,8 @@ class CsvDictIter(RawDataIter):
                                   self._headers, dict_reader.fieldnames)
                     traceback.print_stack()
                     os._exit(-1) # pylint: disable=protected-access
-                for raw in dict_reader:
-                    yield CsvItem(raw)
+                for row in dict_reader:
+                    yield CsvItem(row)
 
     def _make_csv_dict_reader(self, fh, rest_buffer, aware_headers):
         if self._options.read_ahead_size <= 0:
