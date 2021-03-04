@@ -281,7 +281,7 @@ def make_workflow_template():
             ),
             JobDefinition(
                 name='data-join-job',
-                type=JobDefinition.DATA_JOIN,
+                type=JobDefinition.PSI_DATA_JOIN,
                 is_federated=True,
                 is_manual=False,
                 variables=[
@@ -573,7 +573,7 @@ def make_workflow_template():
             ),
             JobDefinition(
                 name='train-job',
-                type=JobDefinition.NN_MODEL_TRANINING,
+                type=JobDefinition.TREE_MODEL_TRAINING,
                 is_federated=True,
                 is_manual=False,
                 variables=[
