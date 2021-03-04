@@ -64,6 +64,7 @@ def job_run_yaml(job):
     project['variables'] = make_variables_dict(
         job.project.get_config().variables)
     # TODO: should adapt to multi_participants
+    project['participants'] = {}
     project['participants']['egress_domain'] = project[
             'config']['participants'][0]['domain_name']
     project['participants']['egress_host'] = project[
