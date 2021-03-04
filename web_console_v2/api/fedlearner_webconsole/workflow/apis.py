@@ -17,6 +17,7 @@
 
 import logging
 import json
+from uuid import uuid4
 from http import HTTPStatus
 from flask_restful import Resource, reqparse, request
 from google.protobuf.json_format import MessageToDict
@@ -51,6 +52,9 @@ class WorkflowsApi(Resource):
             keyword = request.args['keyword']
             result = result.filter(Workflow.name.like(
                 '%{}%'.format(keyword)))
+        if 'uuid' in request.args and request.args['uuid'] is not None:
+            uuid = request.args['uuid']
+            result = result.filter_by(uuid=uuid)
         return {'data': [row.to_dict() for row in
                          result.order_by(
                              Workflow.created_at.desc()).all()]}, HTTPStatus.OK
@@ -85,7 +89,10 @@ class WorkflowsApi(Resource):
 
         # form to proto buffer
         template_proto = dict_to_workflow_definition(data['config'])
-        workflow = Workflow(name=name, comment=data['comment'],
+        workflow = Workflow(name=name,
+                            # 32 bytes
+                            uuid=uuid4().hex,
+                            comment=data['comment'],
                             project_id=data['project_id'],
                             forkable=data['forkable'],
                             forked_from=data['forked_from'],
@@ -207,6 +214,7 @@ class PeerWorkflowsApi(Resource):
         peer_workflows = {}
         for party in project_config.participants:
             client = RpcClient(project_config, party)
+            # TODO(xiangyxuan): use uuid to identify the workflow
             resp = client.get_workflow(workflow.name)
             if resp.status.code != common_pb2.STATUS_SUCCESS:
                 raise InternalException(resp.status.msg)

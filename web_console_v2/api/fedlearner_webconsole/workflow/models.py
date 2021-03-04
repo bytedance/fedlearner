@@ -127,6 +127,7 @@ def _merge_workflow_config(base, new, access_mode):
 class Workflow(db.Model):
     __tablename__ = 'workflow_v2'
     id = db.Column(db.Integer, primary_key=True)
+    uuid = db.Column(db.String(64), unique=True, index=True)
     name = db.Column(db.String(255), unique=True, index=True)
     project_id = db.Column(db.Integer, db.ForeignKey(Project.id))
     config = db.Column(db.LargeBinary())
@@ -368,7 +369,7 @@ class Workflow(db.Model):
                     'Job %d not found'%j
                 # TODO: check forked jobs does not depend on non-forked jobs
             else:
-                job = Job(name=f'{self.name}-{job_def.name}',
+                job = Job(name=f'{self.uuid}-{job_def.name}',
                           job_type=JobType(job_def.type),
                           config=job_def.SerializeToString(),
                           workflow_id=self.id,
