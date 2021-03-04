@@ -72,7 +72,8 @@ class WorkflowTemplatesApi(Resource):
                 'Workflow template {} already exists'.format(name))
         # form to proto buffer
         template_proto = dict_to_workflow_definition(config)
-        for index, job_def in template_proto.job_definitions:
+        index = 0
+        for job_def in template_proto.job_definitions:
             # pod label name must be no more than 63 characters.
             #  workflow.uuid is 32 characters, so the job name
             #  must be no more than 31.
@@ -88,6 +89,7 @@ class WorkflowTemplatesApi(Resource):
                     {f'config.job_definitions[{index}].job_name'
                      : 'Only letters(a-z), numbers(0-9) '
                        'and dashes(-) are supported.'})
+            index = index + 1
         template = WorkflowTemplate(name=name,
                                     comment=comment,
                                     group_alias=template_proto.group_alias,
