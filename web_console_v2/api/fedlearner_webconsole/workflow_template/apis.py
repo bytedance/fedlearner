@@ -86,7 +86,8 @@ class WorkflowTemplatesApi(Resource):
                 raise InvalidArgumentException(
                     details=
                     {f'config.job_definitions[{index}].job_name'
-                     : 'Only letters(a-z), numbers(0-9) and dashes(-) are supported.'})
+                     : 'Only letters(a-z), numbers(0-9) '
+                       'and dashes(-) are supported.'})
         template = WorkflowTemplate(name=name,
                                     comment=comment,
                                     group_alias=template_proto.group_alias,
