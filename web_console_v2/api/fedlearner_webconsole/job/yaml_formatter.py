@@ -64,22 +64,11 @@ def job_run_yaml(job):
     project = job.project.to_dict()
     project['variables'] = make_variables_dict(
         job.project.get_config().variables)
-    # set default values in project.variables
-    if 'basic_envs' not in project['variables']:
-        project['variables']['basic_envs'] = \
-            '{"name":"DEFAULT_BASIC_ENVS", "value":""}'
-    if 'storage_root_dir' not in project['variables']:
-        project['variables']['storage_root_dir'] = os.environ.get(
-            'STORAGE_ROOT', '/data')
-    if 'egress_domain' not in project['variables']:
-        # TODO: should adapt to multi_participants
-        project['variables']['egress_domain'] = project[
+    # TODO: should adapt to multi_participants
+    project['participants']['egress_domain'] = project[
             'config']['participants'][0]['domain_name']
-    if 'egress_host' not in project['variables']:
-        string_list = project['variables']['egress_domain'].split('.')
-        # Splicing rule may be changed
-        project['variables']['egress_host'] = '{}-client-auth{}'. \
-            format(string_list[0], string_list[1])
+    project['participants']['egress_host'] = project[
+            'config']['participants'][0]['grpc_spec']['authority']
     yaml = format_yaml(job.yaml_template,
                        workflow=workflow,
                        project=project,
