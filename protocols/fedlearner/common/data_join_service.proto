@@ -246,6 +246,7 @@ message RawDataOptions {
   float input_data_stat_sample_ratio = 6;
   // storage to cache the raw data record, memory or disk
   string raw_data_store_space = 7;
+  string exampling_filter_expr = 8;
 }
 
 message WriterOptions {

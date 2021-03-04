@@ -14,7 +14,6 @@
 
 # coding: utf-8
 
-import pdb
 import logging
 from collections import OrderedDict
 from contextlib import contextmanager
@@ -52,7 +51,6 @@ class TfExampleItem(RawDataIter.Item):
                     "Field name should match field value"
             for i, v in enumerate(fname):
                 row[v] = fvalue[i]
-        #pdb.set_trace()
         ex = common.convert_dict_to_tf_example(row)
         return cls(ex.SerializeToString())
 

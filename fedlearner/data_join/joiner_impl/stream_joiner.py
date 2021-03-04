@@ -171,11 +171,11 @@ class StreamExampleJoiner(ExampleJoiner):
                 join_data_finished = not delay_dump
             elif follower_exhausted:
                 join_data_finished = True
-            logging.debug("delay_dump %s, join_data_finished %s, "
+            logging.info("delay_dump %s, join_data_finished %s, "
                            "leader_exhausted %s, follower_exhausted %s",
                            delay_dump, join_data_finished, leader_exhausted,
                            follower_exhausted)
-            logging.debug("leader window size %d, follwer %d, "
+            logging.info("leader window size %d, follwer %d, "
                            "follower cache %d, leader unjoined example %d",
                            self._leader_join_window.size(),
                            self._follower_join_window.size(),
@@ -202,7 +202,7 @@ class StreamExampleJoiner(ExampleJoiner):
             return False
         leader_qt = self._leader_join_window.qt()
         follower_qt = self._follower_join_window.qt()
-        logging.debug("delay dump leader %s, follower %s",
+        logging.info("delay dump leader %s, follower %s",
                      leader_qt, follower_qt)
         if leader_qt is not None and follower_qt is not None and \
                 not follower_qt < leader_qt:
@@ -226,6 +226,9 @@ class StreamExampleJoiner(ExampleJoiner):
     def _dump_joined_items(self):
         start_tm = time.time()
         self._neg_samples = {}
+        write_joined = -1
+        if self._enable_negative_example_generator:
+            write_joined = 1
         for (leader_idx, leader_item) in self._leader_join_window:
             eid = leader_item.example_id
             if (eid not in self._follower_example_cache
@@ -244,7 +247,8 @@ class StreamExampleJoiner(ExampleJoiner):
                     builder = self._get_data_block_builder(True)
                     assert builder is not None, "data block builder must not " \
                                                 "be None before dumping"
-                    builder.append_item(example[0], example[1], example[2])
+                    builder.append_item(example[0], example[1], example[2],
+                                        joined=0)
                     self._optional_stats.update_stats(example[0],
                                                       kind='negative')
                     if builder.check_data_block_full():
@@ -254,7 +258,8 @@ class StreamExampleJoiner(ExampleJoiner):
             assert builder is not None, "data block builder must not be "\
                                         "None before dumping"
             follower_idx, item = self._joined_cache[eid]
-            builder.append_item(item, leader_idx, follower_idx, joined=1)
+            builder.append_item(item, leader_idx, follower_idx,
+                                joined=write_joined)
             self._optional_stats.update_stats(item, kind='joined')
             if builder.check_data_block_full():
                 yield self._finish_data_block()
@@ -355,14 +360,14 @@ class StreamExampleJoiner(ExampleJoiner):
         tmp_sz = self._follower_join_window.size()
         reserved_items = self._evict_impl(self._follower_join_window,
                                           self._evict_if_useless)
-        logging.debug("evict_if_useless %d to %d", tmp_sz, len(reserved_items))
+        logging.info("evict_if_useless %d to %d", tmp_sz, len(reserved_items))
         if len(reserved_items) < self._max_window_size:
             self._follower_join_window.reset(reserved_items, False)
             return
         tmp_sz = len(reserved_items)
         reserved_items = self._evict_impl(reserved_items,
                                           self._evict_if_force)
-        logging.debug("evict_if_force %d to %d", tmp_sz, len(reserved_items))
+        logging.info("evict_if_force %d to %d", tmp_sz, len(reserved_items))
         self._follower_join_window.reset(reserved_items, False)
         metrics.emit_timer(name='stream_joiner_evit_stale_follower_cache',
                            value=int(time.time()-start_tm),

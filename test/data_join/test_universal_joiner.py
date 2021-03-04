@@ -58,6 +58,7 @@ class TestUniversalJoin(dsp.DataSourceProducer):
                   negative_sampling_rate=0.8,
                   join_expr="(id_type, example_id, trunc(event_time, 8))",
                   join_key_mapper="DEFAULT",
+                  sampling_filter_expr='',
               )
         self.version = dsp.Version.V2
 
@@ -82,6 +83,7 @@ class TestUniversalJoin(dsp.DataSourceProducer):
                   negative_sampling_rate=0.8,
                   join_expr="(example_id, trunc(event_time, 8), lt(event_time))",
                   join_key_mapper="DEFAULT",
+                  sampling_filter_expr='',
               )
         self.version = dsp.Version.V2
 
@@ -126,14 +128,16 @@ class KeyMapperMock(BaseKeyMapper):
                   data_block_dump_threshold=128,
                   negative_sampling_rate=0.8,
                   join_expr="(cid,req_id)",
-                  join_key_mapper="TEST_MAPPER"
+                  join_key_mapper="TEST_MAPPER",
+                  sampling_filter_expr='',
               )
         self.version = dsp.Version.V2
 
         sei = joiner_impl.create_example_joiner(
                 self.example_joiner_options,
                 self.raw_data_options,
-                dj_pb.WriterOptions(output_writer='TF_RECORD'),
+                #dj_pb.WriterOptions(output_writer='TF_RECORD'),
+                dj_pb.WriterOptions(output_writer='CSV_DICT'),
                 self.kvstore, self.data_source, 0
             )
         self.run_join(sei)

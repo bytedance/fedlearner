@@ -69,6 +69,7 @@ class DataSourceProducer(unittest.TestCase):
                 negative_sampling_rate=0.8,
                 join_expr="example_id",
                 join_key_mapper="DEFAULT",
+                sampling_filter_expr='',
             )
         if gfile.Exists(self.data_source.output_base_dir):
             gfile.DeleteRecursively(self.data_source.output_base_dir)

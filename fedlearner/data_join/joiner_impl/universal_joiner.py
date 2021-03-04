@@ -342,7 +342,7 @@ class UniversalJoiner(ExampleJoiner):
                 example_joiner_options.enable_negative_example_generator
         if self._enable_negative_example_generator:
             sf = example_joiner_options.negative_sampling_rate
-            fe = example_joiner_options.exampling_filter_expr
+            fe = example_joiner_options.sampling_filter_expr
             self._negative_example_generator = NegativeExampleGenerator(sf, fe)
 
     @classmethod
@@ -510,6 +510,9 @@ class UniversalJoiner(ExampleJoiner):
 
     def _dump_joined_items(self, matching_list):
         start_tm = time.time()
+        write_joined = -1
+        if self._enable_negative_example_generator:
+            write_joined = 1
         for item in matching_list:
             (fe, li, fi) = item
             if self._enable_negative_example_generator:
@@ -520,14 +523,14 @@ class UniversalJoiner(ExampleJoiner):
                                                 "not None if before dummping"
                     # example:  (li, fi, item)
                     builder.append_item(example[0], example[1],
-                                        example[2], None, True)
+                                        example[2], None, True, 0)
                     if builder.check_data_block_full():
                         yield self._finish_data_block()
 
             builder = self._get_data_block_builder(True)
             assert builder is not None, "data block builder must be "\
                                         "not None if before dummping"
-            builder.append_item(fe, li, fi, None, True, joined=1)
+            builder.append_item(fe, li, fi, None, True, joined=write_joined)
             if builder.check_data_block_full():
                 yield self._finish_data_block()
         metrics.emit_timer(name='universal_joiner_dump_joined_items',

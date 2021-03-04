@@ -25,46 +25,46 @@ class BaseFunction(object):
     def args_size(self):
         return self._arg_size
 
-    def __call__(self, show, conv, args):
+    def __call__(self, leader, follower, args):
         raise NotImplementedError
 
 class LTFuncDef(BaseFunction):
     def __init__(self):
         super(LTFuncDef, self).__init__(1)
 
-    def __call__(self, show, conv, args):
-        assert all([hasattr(conv, att) for att in args]), "Arg missed"
-        assert all([hasattr(show, att) for att in args]), "Arg missed"
-        show_event_time = getattr(show, args[0])
-        conv_event_time = getattr(conv, args[0])
-        return show_event_time < conv_event_time
+    def __call__(self, leader, follower, args):
+        assert all([hasattr(follower, att) for att in args]), "Arg missed"
+        assert all([hasattr(leader, att) for att in args]), "Arg missed"
+        leader_event_time = getattr(leader, args[0])
+        follower_event_time = getattr(follower, args[0])
+        return leader_event_time < follower_event_time
 
 class DateTruncDef(BaseFunction):
     """truncate event time"""
     def __init__(self):
         super(DateTruncDef, self).__init__(2)
 
-    def __call__(self, show, conv, args):
+    def __call__(self, leader, follower, args):
         assert len(args) == 2, "Args not enough"
-        show_event_time = getattr(show, args[0])
-        conv_event_time = getattr(conv, args[0])
-        if isinstance(show_event_time, int):
-            show_event_time = str(show_event_time)
-            conv_event_time = str(conv_event_time)
+        leader_event_time = getattr(leader, args[0])
+        follower_event_time = getattr(follower, args[0])
+        if isinstance(leader_event_time, int):
+            leader_event_time = str(leader_event_time)
+            follower_event_time = str(follower_event_time)
         size = int(args[1])
-        if len(conv_event_time) > size:
-            show_event_time = int(show_event_time[0: size])
-            conv_event_time = int(conv_event_time[0: size])
-        return show_event_time == conv_event_time
+        if len(follower_event_time) > size:
+            leader_event_time = int(leader_event_time[0: size])
+            follower_event_time = int(follower_event_time[0: size])
+        return leader_event_time == follower_event_time
 
 class EqualToDef(BaseFunction):
     def __init__(self):
         super(EqualToDef, self).__init__(2)
 
-    def __call__(self, show, args):
+    def __call__(self, leader, follower, args):
         assert len(args) == self._arg_size, "Args not enough"
-        assert hasattr(show, args[0]), 'Args miss [%s]'%args[0]
-        return str(args[1]) == str(getattr(show, args[0]))
+        assert hasattr(leader, args[0]), 'Args miss [%s]'%args[0]
+        return str(args[1]) == str(getattr(leader, args[0]))
 
 LINK_MAP = dict({
     "lt": LTFuncDef(),
@@ -118,8 +118,8 @@ class Tuple(object):
 
     def run_func(self):
         """ return all the function we have."""
-        def run(show, conv):
-            return all([LINK_MAP[f.name](show, conv, f.args(True)) \
+        def run(leader, follower):
+            return all([LINK_MAP[f.name](leader, follower, f.args(True)) \
                         for f in self._tokens if isinstance(f, FunctionDecl)])
         return run
 

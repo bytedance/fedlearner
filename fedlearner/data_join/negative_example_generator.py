@@ -19,7 +19,8 @@ from fedlearner.data_join.join_expr.expression import Expr
 class NegativeExampleGenerator(object):
     def __init__(self, negative_sampling_rate, filter_expr=None):
         """Args
-            filter_expr=et(label, 1), lable of follower is 1
+            filter_expr: i.e. et(label, 1), select the sample from leader
+            meeting label=1
         """
         self._buf = {}
         #FIXME  prev_index should be assigned to the leader restart
@@ -37,10 +38,11 @@ class NegativeExampleGenerator(object):
         self._buf.update(mismatches)
 
     def _skip(self, idx):
+        filtered = True
         if self._filter_expr and \
-           self._filter_expr.run_func(0)(self._buf[idx]):
-            return False
-        if random.random() <= self._negative_sampling_rate:
+           not self._filter_expr.run_func(0)(self._buf[idx], None):
+            filtered = False
+        if filtered and random.random() <= self._negative_sampling_rate:
             return False
         return True
 
@@ -50,10 +52,8 @@ class NegativeExampleGenerator(object):
                 continue
             if self._skip(idx):
                 continue
-
             example_id = self._buf[idx].example_id
             event_time = self._buf[idx].event_time
-
             example = type(item).make(example_id, event_time,
                                       None, self._field_name,
                                       self._field_value)

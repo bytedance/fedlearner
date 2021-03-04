@@ -13,7 +13,6 @@
 # limitations under the License.
 
 # coding: utf-8
-
 import logging
 import os
 import threading
@@ -174,8 +173,9 @@ class DataBlockDumperManager(object):
                         example_id == meta.example_ids[match_index]:
                     if is_v2 and meta.indices[match_index] != index:
                         continue
-                    item.add_extra_fields({'joined': meta.joined[match_index]},
-                                          True)
+                    if len(meta.joined) > 0:
+                        item.add_extra_fields({
+                            'joined': meta.joined[match_index]}, True)
                     data_block_builder.write_item(item)
                     self._optional_stats.update_stats(item, kind='joined')
                     match_index += 1

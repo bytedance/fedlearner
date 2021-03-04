@@ -63,7 +63,7 @@ class DataBlockBuilder(object):
         self._data_block_manager = data_block_manager
 
     def append_item(self, item, leader_index, follower_index, event_time=None,\
-                    allow_dup=False, joined=0):
+                    allow_dup=False, joined=-1):
         example_id = item.example_id
         if event_time is None:
             event_time = item.event_time
@@ -71,11 +71,9 @@ class DataBlockBuilder(object):
         if hasattr(item, 'id_type'):
             # v2
             self._data_block_meta.indices.append(leader_index)
-        #write back joined status to
-        # leader and
-        self._data_block_meta.joined.append(joined)
-        # follower
-        item['joined'] = joined
+        #write joined to leader
+        if joined != -1:
+            self._data_block_meta.joined.append(joined)
         self._example_ids_size += len(example_id)
         if self._example_num == 0:
             self._data_block_meta.leader_start_index = leader_index
@@ -100,6 +98,9 @@ class DataBlockBuilder(object):
                 self._data_block_meta.start_time = event_time
             if event_time > self._data_block_meta.end_time:
                 self._data_block_meta.end_time = event_time
+        # write joined to follower
+        if joined != -1:
+            item.add_extra_fields({'joined': joined})
         self.write_item(item)
 
     def set_follower_restart_index(self, follower_restart_index):
