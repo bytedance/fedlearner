@@ -75,13 +75,14 @@ class WorkflowTemplatesApi(Resource):
         index = 0
         for job_def in template_proto.job_definitions:
             # pod label name must be no more than 63 characters.
-            #  workflow.uuid is 32 characters, so the job name
-            #  must be no more than 31.
-            if len(job_def.name) > 31:
+            #  workflow.uuid is 20 characters, pod name suffix such as
+            #  '-follower-master-0' is less than 19 characters, so the
+            #  job name must be no more than 24
+            if len(job_def.name) > 24:
                 raise InvalidArgumentException(
                     details=
                     {'config.job_definitions'
-                     : 'job_name:{} must be no more than 31 characters'})
+                     : 'job_name:{} must be no more than 24 characters'})
             # limit from k8s
             if not re.match('[a-z0-9-]*', job_def.name):
                 raise InvalidArgumentException(

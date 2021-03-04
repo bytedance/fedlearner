@@ -27,7 +27,6 @@ from fedlearner_webconsole.project.models import Project
 from fedlearner_webconsole.job.models import (
     Job, JobState, JobType, JobDependency
 )
-from fedlearner_webconsole.job.yaml_formatter import job_run_yaml
 from fedlearner_webconsole.rpc.client import RpcClient
 
 
@@ -246,15 +245,6 @@ class Workflow(db.Model):
         if (self.state, target_state) not in VALID_TRANSITIONS:
             raise ValueError(
                 f'Invalid transition from {self.state} to {target_state}')
-        if target_state == WorkflowState.RUNNING:
-            for job in self.owned_jobs:
-                try:
-                    job_run_yaml(job)
-                # TODO: check if peer variables is valid
-                except RuntimeError as e:
-                    raise ValueError(
-                        f'Invalid Variable when try '
-                        f'to format the job {job.name}:{str(e)}')
 
         self.target_state = target_state
 
