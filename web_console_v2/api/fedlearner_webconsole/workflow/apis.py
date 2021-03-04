@@ -152,6 +152,7 @@ class WorkflowApi(Resource):
         workflow.forkable = data['forkable']
         workflow.set_config(dict_to_workflow_definition(data['config']))
         workflow.update_target_state(WorkflowState.READY)
+        scheduler.wakeup(workflow_id)
         db.session.commit()
         logging.info('update workflow %d target_state to %s',
                      workflow.id, workflow.target_state)

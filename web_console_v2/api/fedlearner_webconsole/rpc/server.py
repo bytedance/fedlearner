@@ -188,6 +188,9 @@ class RpcServer(object):
                 party.domain_name, request)
             name = request.workflow_name
             uuid = request.uuid
+            forked_from_uuid = request.forked_from_uuid
+            forked_from = Workflow.query.filter_by(
+                uuid=forked_from_uuid).first().id if forked_from_uuid else None
             state = WorkflowState(request.state)
             target_state = WorkflowState(request.target_state)
             transaction_state = TransactionState(request.transaction_state)
@@ -202,7 +205,9 @@ class RpcServer(object):
                     project_id=project.id,
                     state=state, target_state=target_state,
                     transaction_state=transaction_state,
-                    uuid=uuid)
+                    uuid=uuid,
+                    forked_from=forked_from
+                )
                 db.session.add(workflow)
                 db.session.commit()
                 db.session.refresh(workflow)

@@ -45,7 +45,8 @@ message UpdateWorkflowStateRequest {
     int64 state = 3;
     int64 target_state = 4;
     int64 transaction_state = 5;
-    string uuid = 6;
+    string forked_from_uuid = 6;
+    string uuid = 7;
 }
 
 message UpdateWorkflowStateResponse {
