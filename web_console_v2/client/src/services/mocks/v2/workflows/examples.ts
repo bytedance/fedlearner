@@ -185,7 +185,7 @@ function _genPod() {
     status: sample(PodState),
     conditions: [
       {
-        message: '0/3 ndoes are available: 3 Insufficient cpu.',
+        message: '0/3 nodes are available: 3 Insufficient cpu.',
       },
     ],
   } as Pod;
