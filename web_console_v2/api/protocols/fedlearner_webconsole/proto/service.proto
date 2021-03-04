@@ -46,6 +46,7 @@ message UpdateWorkflowStateRequest {
     int64 target_state = 4;
     int64 transaction_state = 5;
     string forked_from_name = 6;
+    string uuid = 7;
 }
 
 message UpdateWorkflowStateResponse {
@@ -57,6 +58,7 @@ message GetWorkflowRequest {
     ProjAuthInfo auth_info = 1;
     string workflow_name = 2;
 }
+
 message GetWorkflowResponse{
     Status status = 1;
     string name = 2;
@@ -86,9 +88,21 @@ message UpdateWorkflowResponse {
     WorkflowDefinition config = 3;
 }
 
+message GetJobMetricsRequest {
+    ProjAuthInfo auth_info = 1;
+    string workflow_name = 2;
+    string job_name = 3;
+}
+
+message GetJobMetricsResponse {
+    Status status = 1;
+    string metrics = 2;
+}
+
 service WebConsoleV2Service {
     rpc CheckConnection (CheckConnectionRequest) returns (CheckConnectionResponse) {}
     rpc UpdateWorkflowState (UpdateWorkflowStateRequest) returns (UpdateWorkflowStateResponse) {}
     rpc GetWorkflow (GetWorkflowRequest) returns (GetWorkflowResponse) {}
     rpc UpdateWorkflow(UpdateWorkflowRequest) returns (UpdateWorkflowResponse) {}
+    rpc GetJobMetrics (GetJobMetricsRequest) returns (GetJobMetricsResponse) {}
 }

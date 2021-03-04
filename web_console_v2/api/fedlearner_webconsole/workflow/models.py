@@ -121,15 +121,19 @@ def _merge_workflow_config(base, new, access_mode):
                    'reuse_job_names': (lambda wf: wf.get_reuse_job_names()),
                    'peer_reuse_job_names':
                        (lambda wf: wf.get_peer_reuse_job_names()),
+                   'state': (lambda wf: wf.get_state_for_frontend())
 
                })
 class Workflow(db.Model):
     __tablename__ = 'workflow_v2'
     id = db.Column(db.Integer, primary_key=True)
+    uuid = db.Column(db.String(64), unique=True, index=True)
     name = db.Column(db.String(255), unique=True, index=True)
     project_id = db.Column(db.Integer, db.ForeignKey(Project.id))
     config = db.Column(db.LargeBinary())
     comment = db.Column('cmt', db.String(255), key='comment')
+
+    metric_is_public = db.Column(db.Boolean(), default=False, nullable=False)
 
     forkable = db.Column(db.Boolean, default=False)
     forked_from = db.Column(db.Integer, default=None)
@@ -168,6 +172,13 @@ class Workflow(db.Model):
 
     owned_jobs = db.relationship('Job', back_populates='workflow')
     project = db.relationship(Project)
+
+    def get_state_for_frontend(self):
+        if self.state == WorkflowState.RUNNING:
+            is_complete = all([job.is_complete() for job in self.owned_jobs])
+            if is_complete:
+                return 'COMPLETE'
+        return self.state.name
 
     def set_config(self, proto):
         if proto is not None:
@@ -358,7 +369,7 @@ class Workflow(db.Model):
                     'Job %d not found'%j
                 # TODO: check forked jobs does not depend on non-forked jobs
             else:
-                job = Job(name=f'{self.name}-{job_def.name}',
+                job = Job(name=f'{self.uuid}-{job_def.name}',
                           job_type=JobType(job_def.type),
                           config=job_def.SerializeToString(),
                           workflow_id=self.id,
@@ -382,8 +393,6 @@ class Workflow(db.Model):
                 db.session.add(dep)
 
         self.set_job_ids([job.id for job in jobs])
-
-
 
     def log_states(self):
         logging.debug(

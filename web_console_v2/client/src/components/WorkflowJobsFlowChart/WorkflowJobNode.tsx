@@ -1,6 +1,6 @@
 import React, { FC } from 'react';
 import { Handle, NodeComponentProps, Position } from 'react-flow-renderer';
-import { Dropdown, Menu, Modal } from 'antd';
+import { Dropdown, Menu, Modal, Tag } from 'antd';
 import { MenuInfo } from 'rc-menu/lib/interface';
 import styled from 'styled-components';
 import pendingIcon from 'assets/icons/workflow-pending.svg';
@@ -89,6 +89,9 @@ const InheritButton = styled.div`
   &[data-inherit='false'] {
     color: var(--warningColor);
   }
+`;
+const InheritedTag = styled(Tag)`
+  transform: scale(0.8);
 `;
 const ArrowDown = styled(Down)`
   margin-left: 5px;
@@ -228,6 +231,8 @@ const ExecutionJobNode: FC<Props> = ({ data, id }) => {
       <GridRow gap={5}>
         {icon && <StatusIcon src={icon} />}
         <JobStatusText>{text}</JobStatusText>
+
+        {data.raw.inherited && <InheritedTag color="orange">已继承</InheritedTag>}
       </GridRow>
       {data.isSource && <Handle type="source" position={Position.Bottom} />}
     </Container>

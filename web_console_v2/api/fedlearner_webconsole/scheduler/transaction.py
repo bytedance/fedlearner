@@ -116,6 +116,7 @@ class TransactionManager(object):
             ).first().name if self._workflow.forked_from else None
             resp = client.update_workflow_state(
                 self._workflow.name, state, target_state, transaction_state,
+                self._workflow.uuid,
                 forked_from_name)
             if resp.status.code == common_pb2.STATUS_SUCCESS:
                 states.append(TransactionState(resp.transaction_state))

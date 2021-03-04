@@ -17,7 +17,8 @@ export type ChartNodeType = 'config' | 'execution' | 'global' | 'fork';
  * 1. At Workflow create stage, NodeDataRaw === Job or GlobalVariables
  * 2. At Workflow detail page, NodeDataRaw would contain JobExecutionDetalis and JobColorsMark additionally
  */
-export type NodeDataRaw = Job & Partial<JobExecutionDetalis> & { mark?: JobColorsMark };
+export type NodeDataRaw = Job &
+  Partial<JobExecutionDetalis> & { mark?: JobColorsMark; inherited?: boolean };
 
 export type NodeData = {
   raw: NodeDataRaw;

@@ -76,7 +76,13 @@ type Props = {
   labelWidth?: number;
 };
 
-const PropertyList: FC<Props> = ({ properties, cols = 2, labelWidth, initialVisibleRows }) => {
+const PropertyList: FC<Props> = ({
+  properties,
+  cols = 2,
+  labelWidth,
+  initialVisibleRows,
+  ...props
+}) => {
   // FIXME: remove next-line after basic_envs been remove
   properties = properties.filter((prop) => prop.label !== 'basic_envs');
 
@@ -89,7 +95,7 @@ const PropertyList: FC<Props> = ({ properties, cols = 2, labelWidth, initialVisi
   const propsToDisplay = collapsed ? properties.slice(0, cols * initialVisibleRows!) : properties;
 
   return (
-    <Container>
+    <Container {...props}>
       {propsToDisplay.map((item, index) => {
         return (
           <Col span={24 / cols} key={item.label + index}>

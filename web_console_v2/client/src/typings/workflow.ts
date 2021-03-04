@@ -74,7 +74,7 @@ export type Workflow = {
   project_id: number;
   config: WorkflowConfig | null;
   forkable: boolean;
-  forked_from?: boolean | null;
+  forked_from?: number;
   comment: string | null;
   state: WorkflowState;
   target_state: WorkflowState;
@@ -89,4 +89,6 @@ export type Workflow = {
 export type WorkflowExecutionDetails = {
   jobs: JobExecutionDetalis[];
   run_time: number;
+  reuse_job_names?: string[];
+  peer_reuse_job_names?: string[];
 } & Workflow;
