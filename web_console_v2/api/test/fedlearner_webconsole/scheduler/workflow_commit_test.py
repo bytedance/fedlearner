@@ -80,6 +80,7 @@ class WorkflowsCommitTest(BaseTestCase):
             if cond():
                 return
 
+
     @patch('fedlearner_webconsole.workflow.models.Job.is_failed')
     @patch('fedlearner_webconsole.workflow.models.Job.is_complete')
     def test_workflow_commit(self, mock_is_complete, mock_is_failed):
