@@ -84,7 +84,7 @@ class RpcClient(object):
                 msg=repr(e))
 
     def update_workflow_state(self, name, state, target_state,
-                              transaction_state, uuid, forked_from_name):
+                              transaction_state, uuid, forked_from_uuid):
         msg = service_pb2.UpdateWorkflowStateRequest(
             auth_info=self._auth_info,
             workflow_name=name,
@@ -92,7 +92,7 @@ class RpcClient(object):
             target_state=target_state.value,
             transaction_state=transaction_state.value,
             uuid=uuid,
-            forked_from_name=forked_from_name
+            forked_from_uuid=forked_from_uuid
         )
         try:
             response = self._client.UpdateWorkflowState(

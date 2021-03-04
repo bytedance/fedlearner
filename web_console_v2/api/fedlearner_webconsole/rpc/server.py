@@ -188,9 +188,9 @@ class RpcServer(object):
                 party.domain_name, request)
             name = request.workflow_name
             uuid = request.uuid
-            forked_from_name = request.forked_from_name
+            forked_from_uuid = request.forked_from_uuid
             forked_from = Workflow.query.filter_by(
-                name=forked_from_name).first().id if forked_from_name else None
+                uuid=forked_from_uuid).first().id if forked_from_uuid else None
             state = WorkflowState(request.state)
             target_state = WorkflowState(request.target_state)
             transaction_state = TransactionState(request.transaction_state)
