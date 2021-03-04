@@ -80,12 +80,13 @@ class WorkflowTemplatesApi(Resource):
                 raise InvalidArgumentException(
                     details=
                     {'config.job_definitions'
-                     : 'job_name:{} must be no more than 27 characters'})
+                     : 'job_name:{} must be no more than 31 characters'})
+            # limit from k8s
             if not re.match('[a-z0-9-]*', job_def.name):
                 raise InvalidArgumentException(
                     details=
                     {f'config.job_definitions[{index}].job_name'
-                     : f'job_name {job_def.name} only supports a-z 0-9 - '})
+                     : 'Only letters(a-z), numbers(0-9) and dashes(-) are supported.'})
         template = WorkflowTemplate(name=name,
                                     comment=comment,
                                     group_alias=template_proto.group_alias,
