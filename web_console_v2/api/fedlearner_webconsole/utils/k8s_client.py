@@ -217,6 +217,8 @@ class K8sClient(object):
                 namespace=namespace,
                 crd_kind=crd_kind.value,
                 name=custom_object_name))
+        if response.status_code == HTTPStatus.NOT_FOUND:
+            return None
         if response.status_code != HTTPStatus.OK:
             raise RuntimeError('{}:{}'.format(response.status_code,
                                               response.content))
@@ -275,6 +277,8 @@ class K8sClient(object):
                 plural=crd_kind.value,
                 name=custom_object_name,
                 resource_type=resource_type))
+        if response.status_code == HTTPStatus.NOT_FOUND:
+            return None
         if response.status_code != HTTPStatus.OK:
             raise RuntimeError('{}:{}'.format(response.status_code,
                                               response.content))
