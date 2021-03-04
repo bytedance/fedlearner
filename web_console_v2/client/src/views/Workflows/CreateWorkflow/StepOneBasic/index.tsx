@@ -132,16 +132,7 @@ const WorkflowsCreateStepOne: FC<WorkflowCreateProps & { onSuccess?: any }> = ({
               label={t('workflow.label_name')}
               rules={[
                 { required: true, message: t('workflow.msg_name_required') },
-                // TODO: remove workflow name restriction by using hashed job name
-                {
-                  validator(_, value) {
-                    if (/^[a-z0-9-]+$/i.test(value)) {
-                      return Promise.resolve();
-                    } else {
-                      return Promise.reject(t('workflow.msg_workflow_name_invalid'));
-                    }
-                  },
-                },
+                { max: 60, message: t('workflow.msg_workflow_name_invalid') },
               ]}
             >
               <Input disabled={isAccept} placeholder={t('workflow.placeholder_name')} />
@@ -283,7 +274,6 @@ const WorkflowsCreateStepOne: FC<WorkflowCreateProps & { onSuccess?: any }> = ({
     setFormData(values);
   }
   function onTemplateSelectChange(id: number) {
-    // TODO: need to validate if two side's federated jobs share the same names !
     const target = tplList?.find((item) => item.id === id);
     if (!target) return;
     setCurrentUsingTemplate(cloneDeep(target));

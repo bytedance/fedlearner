@@ -1,6 +1,6 @@
 import React, { FC, useState } from 'react';
 import styled from 'styled-components';
-import { Card, Spin, Row, Button, Tag } from 'antd';
+import { Card, Spin, Row, Button } from 'antd';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery } from 'react-query';
 import { getPeerWorkflowsConfig, getWorkflowDetailById } from 'services/workflow';
@@ -20,10 +20,9 @@ import PropertyList from 'components/PropertyList';
 import { Eye, EyeInvisible, Branch } from 'components/IconPark';
 import { WorkflowExecutionDetails } from 'typings/workflow';
 import { ReactFlowProvider } from 'react-flow-renderer';
-import { isRunning, isStopped } from 'shared/workflow';
+import { findJobExeInfoByJobDef, isRunning, isStopped } from 'shared/workflow';
 import dayjs from 'dayjs';
 import NoResult from 'components/NoResult';
-import { Job, JobExecutionDetalis } from 'typings/job';
 
 const Container = styled.div`
   display: flex;
@@ -104,6 +103,7 @@ const WorkflowDetail: FC = () => {
   });
 
   const workflow = detailQuery.data?.data;
+  const peerWorkflow = peerWorkflowQuery.data;
   const transactionErr = workflow?.transaction_err;
 
   const isForked = Boolean(workflow?.forked_from);
@@ -262,7 +262,11 @@ const WorkflowDetail: FC = () => {
 
               {peerJobsWithExeDetails.length === 0 ? (
                 <NoJobs>
-                  <NoResult text={t('workflow.msg_peer_not_ready')} />
+                  {peerWorkflowQuery.isFetching ? (
+                    <Spin style={{ margin: 'auto' }} />
+                  ) : (
+                    <NoResult text={t('workflow.msg_peer_not_ready')} />
+                  )}
                 </NoJobs>
               ) : (
                 <ReactFlowProvider>
@@ -286,7 +290,7 @@ const WorkflowDetail: FC = () => {
           visible={drawerVisible}
           toggleVisible={toggleDrawerVisible}
           jobData={data}
-          workflow={detailQuery.data?.data}
+          workflow={isPeerSide ? peerWorkflow : workflow}
           isPeerSide={isPeerSide}
         />
       </Container>
@@ -313,22 +317,21 @@ const WorkflowDetail: FC = () => {
   }
 };
 
-function _mergeWithExecutionDetails(workflow: WorkflowExecutionDetails | undefined): NodeDataRaw[] {
+function _mergeWithExecutionDetails(workflow?: WorkflowExecutionDetails): NodeDataRaw[] {
   if (!workflow) return [];
 
   return (
     workflow.config?.job_definitions.map((item) => {
-      return Object.assign(item, workflow?.jobs?.find(_matcher(workflow, item)) || {}, {
+      const exeInfo = findJobExeInfoByJobDef(item, workflow);
+
+      return {
+        ...item,
+        ...exeInfo,
         name: item.name,
-      });
+        k8sName: exeInfo?.name,
+      } as NodeDataRaw;
     }) || []
   );
-  // TODO: find a better way to distinguish job-def-name and job-execution-name
-  function _matcher(workflow: WorkflowExecutionDetails, jobDef: Job) {
-    return (job: JobExecutionDetalis) => {
-      return job.name === `${workflow.name}-${jobDef.name}` || job.name.endsWith(jobDef.name);
-    };
-  }
 }
 
 function _markInheritedJobs(jobs: NodeDataRaw[], reusableJobNames: string[]) {

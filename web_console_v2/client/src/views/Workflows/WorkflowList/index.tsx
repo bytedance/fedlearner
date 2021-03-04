@@ -27,6 +27,15 @@ const ListContainer = styled.div`
   flex: 1;
   width: 100%;
 `;
+const NameLink = styled(Link)`
+  display: block;
+  margin-bottom: 3px;
+  font-size: 16px;
+`;
+const UUID = styled.small`
+  display: block;
+  color: var(--textColorSecondary);
+`;
 
 export const getWorkflowTableColumns = (
   options: {
@@ -42,9 +51,12 @@ export const getWorkflowTableColumns = (
       key: 'name',
       render: (name: string, record: Workflow) => {
         return (
-          <Link to={`/workflows/${record.id}`} rel="nopener">
-            {name}
-          </Link>
+          <>
+            <NameLink to={`/workflows/${record.id}`} rel="nopener">
+              {name}
+            </NameLink>
+            <UUID>UUID: {record.uuid}</UUID>
+          </>
         );
       },
     },
@@ -157,6 +169,12 @@ const WorkflowList: FC = () => {
                     </Select.Option>
                   ))}
                 </Select>
+              </FilterItem>
+              <FilterItem name="uuid">
+                <Input.Search
+                  placeholder={t('workflow.placeholder_uuid_searchbox')}
+                  onPressEnter={form.submit}
+                />
               </FilterItem>
               <FilterItem name="keyword">
                 <Input.Search

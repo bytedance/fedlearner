@@ -7,7 +7,7 @@ import { useTranslation } from 'react-i18next';
 
 const Container = styled(Breadcrumb)`
   padding-left: 3px;
-  margin-bottom: 16px;
+  margin-bottom: 12px;
 `;
 
 type Props = {

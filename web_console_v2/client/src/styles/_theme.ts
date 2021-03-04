@@ -296,6 +296,7 @@ const defaultTheme = {
   textColor: '#4e5969',
   textColorStrong: '#1d2129',
   textColorSecondary: '#86909c',
+  textColorDisabled: '#c9cdd4',
   textColorInverse: 'white',
   componentBackgroundColorGray: '#f2f3f5',
   backgroundColorGray: '#e5e6eb',

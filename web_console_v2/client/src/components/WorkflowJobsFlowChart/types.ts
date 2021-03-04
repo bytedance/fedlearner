@@ -18,7 +18,7 @@ export type ChartNodeType = 'config' | 'execution' | 'global' | 'fork';
  * 2. At Workflow detail page, NodeDataRaw would contain JobExecutionDetalis and JobColorsMark additionally
  */
 export type NodeDataRaw = Job &
-  Partial<JobExecutionDetalis> & { mark?: JobColorsMark; inherited?: boolean };
+  JobExecutionDetalis & { mark?: JobColorsMark; inherited?: boolean; k8sName?: string };
 
 export type NodeData = {
   raw: NodeDataRaw;

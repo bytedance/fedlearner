@@ -70,6 +70,7 @@ export enum TransactionState {
 
 export type Workflow = {
   id: number;
+  uuid?: string;
   name: string;
   project_id: number;
   config: WorkflowConfig | null;
@@ -87,6 +88,7 @@ export type Workflow = {
 };
 
 export type WorkflowExecutionDetails = {
+  uuid: string;
   jobs: JobExecutionDetalis[];
   run_time: number;
   reuse_job_names?: string[];
