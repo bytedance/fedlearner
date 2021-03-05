@@ -8,9 +8,8 @@ import {
 } from 'typings/workflow';
 import { VariableAccessMode } from 'typings/variable';
 import { normalTemplate } from '../workflow_templates/examples';
-import { giveWeakRandomKey } from 'shared/helpers';
 
-const uuid_1 = giveWeakRandomKey();
+const uuid_1 = '9d73398659927';
 export const pendingAcceptAndConfig = {
   id: 1,
   uuid: uuid_1,
@@ -27,7 +26,7 @@ export const pendingAcceptAndConfig = {
   updated_at: 1610238602,
 };
 
-const uuid_2 = giveWeakRandomKey();
+const uuid_2 = '8d733986594343';
 export const newlyCreated: Workflow = {
   id: 2,
   uuid: uuid_2,
@@ -111,7 +110,7 @@ export const newlyCreated: Workflow = {
   updated_at: 1610239831,
 };
 
-const uuid_3 = giveWeakRandomKey();
+const uuid_3 = '7d73398659927';
 
 export const withExecutionDetail: WorkflowExecutionDetails = {
   ...cloneDeep(newlyCreated),
@@ -120,7 +119,7 @@ export const withExecutionDetail: WorkflowExecutionDetails = {
   jobs: _generateJobExecutionDetails(uuid_3),
 };
 
-const uuid_4 = giveWeakRandomKey();
+const uuid_4 = '67d7339865992';
 
 export const completed = {
   ...cloneDeep(withExecutionDetail),
@@ -140,7 +139,7 @@ function _generateJobExecutionDetails(UUID: string): JobExecutionDetalis[] {
       id: 1,
       name: `${UUID}-Initiative`,
       job_type: JobType.RAW_DATA,
-      state: JobState.COMPLETE,
+      state: JobState.COMPLETED,
       yaml_template: '',
       workflow_id: 1,
       project_id: 1,
@@ -164,7 +163,7 @@ function _generateJobExecutionDetails(UUID: string): JobExecutionDetalis[] {
     },
     {
       id: 3,
-      name: `${UUID}-Training`,
+      name: `${UUID}-Raw data process`,
       job_type: JobType.DATA_JOIN,
       state: JobState.STOPPED,
       yaml_template: '',
@@ -180,7 +179,7 @@ function _generateJobExecutionDetails(UUID: string): JobExecutionDetalis[] {
 
 function _genPod() {
   return {
-    name: `0-79f60e7a-520e-4cd7-a679-${giveWeakRandomKey()}`,
+    name: `0-79f60e7a-520e-4cd7-a679-sada2e21hjklhds8s`,
     pod_type: 'Master',
     status: sample(PodState),
     conditions: [

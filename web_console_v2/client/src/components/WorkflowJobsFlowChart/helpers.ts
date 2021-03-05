@@ -156,7 +156,7 @@ export function convertExecutionStateToStatus(state: JobState): ChartNodeStatus 
     [JobState.NEW]: ChartNodeStatus.Pending,
     [JobState.WAITING]: ChartNodeStatus.Pending,
     [JobState.RUNNING]: ChartNodeStatus.Processing,
-    [JobState.COMPLETE]: ChartNodeStatus.Success,
+    [JobState.COMPLETED]: ChartNodeStatus.Success,
     [JobState.STOPPED]: ChartNodeStatus.Error,
     [JobState.FAILED]: ChartNodeStatus.Warning,
     [JobState.INVALID]: ChartNodeStatus.Warning,
