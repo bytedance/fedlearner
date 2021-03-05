@@ -113,6 +113,37 @@ class BaseTestCase(TestCase):
         return self.client.delete(url,
                                   headers=self._get_headers(use_auth))
 
+    def setup_project(self, role, peer_port):
+        if role == 'leader':
+            peer_role = 'follower'
+        else:
+            peer_role = 'leader'
+
+        name = 'test-project'
+        config = {
+            'participants': [
+                {
+                    'name': f'party_{peer_role}',
+                    'url': f'127.0.0.1:{peer_port}',
+                    'domain_name': f'fl-{peer_role}.com'
+                }
+            ],
+            'variables': [
+                {
+                    'name': 'EGRESS_URL',
+                    'value': f'127.0.0.1:{peer_port}'
+                }
+            ]
+        }
+        create_response = self.post_helper(
+            '/api/v2/projects',
+            data={
+                'name': name,
+                'config': config,
+            })
+        self.assertEqual(create_response.status_code, HTTPStatus.OK)
+        return json.loads(create_response.data).get('data')
+
 
 class TestAppProcess(mp.get_context('spawn').Process):
     def __init__(self, test_class, method, config=None):

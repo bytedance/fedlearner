@@ -51,8 +51,8 @@ def merge(x, y):
 
 
 @to_dict_mixin(extras={
-    'state': (lambda job: job.get_state_for_front()),
-    'pods': (lambda job: job.get_pods_for_front()),
+    'state': (lambda job: job.get_state_for_frontend()),
+    'pods': (lambda job: job.get_pods_for_frontend()),
     'config': (lambda job: job.get_config()),
     'complete_at': (lambda job: job.get_complete_at())
 })
@@ -67,12 +67,14 @@ class Job(db.Model):
                       default=JobState.INVALID)
     yaml_template = db.Column(db.Text())
     config = db.Column(db.LargeBinary())
+
     workflow_id = db.Column(db.Integer, db.ForeignKey('workflow_v2.id'),
                             nullable=False, index=True)
     project_id = db.Column(db.Integer, db.ForeignKey(Project.id),
                            nullable=False)
     flapp_snapshot = db.Column(db.Text())
     pods_snapshot = db.Column(db.Text())
+
     created_at = db.Column(db.DateTime(timezone=True),
                            server_default=func.now())
     updated_at = db.Column(db.DateTime(timezone=True),
@@ -100,7 +102,6 @@ class Job(db.Model):
         pods = self._k8s_client.list_resource_of_custom_object(
             CrdKind.FLAPP, self.name, 'pods', self.project.get_namespace())
         self.pods_snapshot = json.dumps(pods)
-
 
     def get_pods(self):
         if self.state == JobState.STARTED:
@@ -132,7 +133,7 @@ class Job(db.Model):
             return json.loads(self.flapp_snapshot)['flapp']
         return None
 
-    def get_pods_for_front(self):
+    def get_pods_for_frontend(self):
         result = []
         flapp = self.get_flapp()
         if flapp is None:
@@ -168,7 +169,7 @@ class Job(db.Model):
         result = list({pod['name']: pod for pod in result}.values())
         return result
 
-    def get_state_for_front(self):
+    def get_state_for_frontend(self):
         if self.state == JobState.STARTED:
             if self.is_complete():
                 return 'COMPLETE'

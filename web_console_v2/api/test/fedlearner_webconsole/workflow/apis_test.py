@@ -16,13 +16,17 @@
 import time
 import json
 import unittest
+from uuid import UUID
 from http import HTTPStatus
 from pathlib import Path
 from unittest.mock import patch
-
+from google.protobuf.json_format import ParseDict
 from fedlearner_webconsole.db import db
 from fedlearner_webconsole.proto.workflow_definition_pb2 import WorkflowDefinition
+from fedlearner_webconsole.project.models import Project
 from fedlearner_webconsole.workflow.models import Workflow, WorkflowState
+from fedlearner_webconsole.scheduler.transaction import TransactionState
+from fedlearner_webconsole.proto import project_pb2
 from testing.common import BaseTestCase
 
 
@@ -75,7 +79,9 @@ class WorkflowsApiTest(BaseTestCase):
         self.assertEqual(data[0]['name'], 'last')
 
     @patch('fedlearner_webconsole.workflow.apis.scheduler.wakeup')
-    def test_create_new_workflow(self, mock_wakeup):
+    @patch('fedlearner_webconsole.workflow.apis.uuid4')
+    def test_create_new_workflow(self, mock_uuid, mock_wakeup):
+        mock_uuid.return_value = UUID('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa')
         with open(
             Path(__file__, '../../test_data/workflow_config.json').resolve()
         ) as workflow_config:
@@ -106,6 +112,7 @@ class WorkflowsApiTest(BaseTestCase):
             'name': 'test-workflow',
             'project_id': 1234567,
             'forkable': True,
+            'metric_is_public': False,
             'comment': 'test-comment',
             'state': 'NEW',
             'target_state': 'READY',
@@ -118,7 +125,8 @@ class WorkflowsApiTest(BaseTestCase):
             'recur_at': None,
             'recur_type': 'NONE',
             'transaction_state': 'READY',
-            'trigger_dataset': None
+            'trigger_dataset': None,
+            'uuid': mock_uuid().hex
         })
         # Check DB
         self.assertEqual(len(Workflow.query.all()), 4)
@@ -141,10 +149,42 @@ class WorkflowsApiTest(BaseTestCase):
 
 class WorkflowApiTest(BaseTestCase):
     def test_put_successfully(self):
+        config = {
+            'participants': [
+                {
+                    'name': 'party_leader',
+                    'url': '127.0.0.1:5000',
+                    'domain_name': 'fl-leader.com'
+                }
+            ],
+            'variables': [
+                {
+                    'name': 'namespace',
+                    'value': 'leader'
+                },
+                {
+                    'name': 'basic_envs',
+                    'value': '{}'
+                },
+                {
+                    'name': 'storage_root_dir',
+                    'value': '/'
+                },
+                {
+                    'name': 'EGRESS_URL',
+                    'value': '127.0.0.1:1991'
+                }
+            ]
+        }
+        project = Project(name='test',
+                          config=ParseDict(config,
+                                           project_pb2.Project()).SerializeToString())
+        db.session.add(project)
         workflow = Workflow(
             name='test-workflow',
-            project_id=123,
+            project_id=1,
             state=WorkflowState.NEW,
+            transaction_state=TransactionState.PARTICIPANT_PREPARE
         )
         db.session.add(workflow)
         db.session.commit()

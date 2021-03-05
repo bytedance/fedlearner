@@ -13,6 +13,7 @@
 # limitations under the License.
 
 # coding: utf-8
+import re
 from http import HTTPStatus
 import logging
 from flask_restful import Resource, reqparse, request
@@ -71,6 +72,22 @@ class WorkflowTemplatesApi(Resource):
                 'Workflow template {} already exists'.format(name))
         # form to proto buffer
         template_proto = dict_to_workflow_definition(config)
+        for index, job_def in template_proto.job_definitions:
+            # pod label name must be no more than 63 characters.
+            #  workflow.uuid is 32 characters, so the job name
+            #  must be no more than 31.
+            if len(job_def.name) > 31:
+                raise InvalidArgumentException(
+                    details=
+                    {'config.job_definitions'
+                     : 'job_name:{} must be no more than 31 characters'})
+            # limit from k8s
+            if not re.match('[a-z0-9-]*', job_def.name):
+                raise InvalidArgumentException(
+                    details=
+                    {f'config.job_definitions[{index}].job_name'
+                     : 'Only letters(a-z), numbers(0-9) '
+                       'and dashes(-) are supported.'})
         template = WorkflowTemplate(name=name,
                                     comment=comment,
                                     group_alias=template_proto.group_alias,

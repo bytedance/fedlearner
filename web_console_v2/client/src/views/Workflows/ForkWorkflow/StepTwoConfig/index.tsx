@@ -401,7 +401,7 @@ function _hydrate(variableShells: Variable[], formValues?: Dictionary<any>): Var
 function _filterReusableJobs(nodes: ChartNodes) {
   return nodes
     .filter((node) => node.data.inherit)
-    .filter((node) => node.type === 'global')
+    .filter((node) => node.type !== 'global')
     .map((item) => item.id)!;
 }
 
