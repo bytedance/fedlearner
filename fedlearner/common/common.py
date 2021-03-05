@@ -200,7 +200,7 @@ def convert_to_iso_format(value):
             date_time = datetime.datetime.strptime(value, '%Y%m%d')
             return date_time.replace(tzinfo=CONFIGS['timezone']) \
                 .isoformat(timespec='microseconds')
-        elif len(value) == 14:
+        if len(value) == 14:
             date_time = datetime.datetime.strptime(value, '%Y%m%d%H%M%S')
             return date_time.replace(tzinfo=CONFIGS['timezone']) \
                 .isoformat(timespec='microseconds')
