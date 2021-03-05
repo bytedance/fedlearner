@@ -165,7 +165,7 @@ class ClientInterceptor(grpc.UnaryUnaryClientInterceptor,
                     return
                 except grpc.RpcError as e:
                     if _grpc_error_need_recover(e):
-                        logging.warning("[channel] grpc error, status: %s"
+                        logging.warning("[Channel] grpc error, status: %s"
                             ", details: %s, wait %ds for retry",
                             e.code(), e.details(), self._retry_interval)
                         time.sleep(self._retry_interval)
@@ -216,7 +216,7 @@ class _SingleConsumerSendRequestQueue():
 
     def _reset(self):
         self._offset = 0
-        #logging.debug("[channel] _SingleConsumerSendRequestQueue reset,"
+        #logging.debug("[Channel] _SingleConsumerSendRequestQueue reset,"
         #    " self._offset: %d, self._seq: %d, len(self._deque): %d",
         #    self._offset, self._seq, len(self._deque))
 
@@ -227,7 +227,7 @@ class _SingleConsumerSendRequestQueue():
         assert not self._empty()
         req = self._deque[self._offset]
         self._offset += 1
-        #logging.debug("[channel] _SingleConsumerSendRequestQueue get: %d,"
+        #logging.debug("[Channel] _SingleConsumerSendRequestQueue get: %d,"
         #    " self._offset: %d, self._seq: %d, len(self._deque): %d",
         #    req.seq, self._offset, len(self._deque), self._seq)
         return req
@@ -238,7 +238,7 @@ class _SingleConsumerSendRequestQueue():
             payload=self._request_serializer(raw_req))
         self._seq += 1
         self._deque.append(req)
-        #logging.debug("[channel] _SingleConsumerSendRequestQueue add: %d,"
+        #logging.debug("[Channel] _SingleConsumerSendRequestQueue add: %d,"
         #    " self._offset: %d, self._seq: %d, len(self._deque): %d",
         #    req.seq, self._offset, len(self._deque), self._seq)
 
@@ -303,7 +303,7 @@ def _grpc_with_retry(call, interval=1):
             return result
         except grpc.RpcError as e:
             if _grpc_error_need_recover(e):
-                logging.warning("[channel] grpc error, status: %s"
+                logging.warning("[Channel] grpc error, status: %s"
                     ", details: %s, wait %ds for retry",
                     e.code(), e.details(), interval)
                 time.sleep(interval)
@@ -331,7 +331,7 @@ def _grpc_error_get_http_status(details):
                 return int(details.split(":")[1])
     except Exception as e: #pylint: disable=broad-except
         logging.warning(
-            "[channel] grpc_error_get_http_status except: %s, details: %s",
+            "[Channel] grpc_error_get_http_status except: %s, details: %s",
             repr(e), details)
     return None
 
