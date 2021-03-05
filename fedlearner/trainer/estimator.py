@@ -17,6 +17,7 @@
 
 import logging
 import time
+import traceback
 import tensorflow.compat.v1 as tf
 
 from tensorflow.compat import as_str_any
@@ -314,8 +315,8 @@ class FLEstimator(object):
                         self._bridge.commit()
                         logging.debug('after bridge commit.')
                         iter_id += 1
-            finally:
-                self._bridge.terminate()
+            except Exception as e:
+                traceback.print_exc()
 
         return self
 
