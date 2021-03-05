@@ -17,13 +17,13 @@ from google.protobuf.json_format import MessageToDict
 import time
 from datetime import datetime
 
-import prison
 from flask_restful import Resource, reqparse
 from fedlearner_webconsole.proto import common_pb2
 from fedlearner_webconsole.workflow.models import Workflow
 from fedlearner_webconsole.job.models import Job
 from fedlearner_webconsole.job.metrics import JobMetricsBuilder
 from fedlearner_webconsole.utils.es import es
+import prison
 
 from config import Config
 from fedlearner_webconsole.exceptions import (
@@ -197,10 +197,12 @@ class KibanaMetricsApi(Resource):
                             help='Additional query string to the graph.')
         parser.add_argument('start_time', type=int, location='args',
                             default=-1,
-                            help='Earliest <x_axis_field> time of data.')
+                            help='Earliest <x_axis_field> time of data.'
+                                 'Unix timestamp in UTC timezone.')
         parser.add_argument('end_time', type=int, location='args',
                             default=-1,
-                            help='Latest <x_axis_field> time of data.')
+                            help='Latest <x_axis_field> time of data.'
+                                 'Unix timestamp in UTC timezone.')
         # (Joined) Rate visualization is fixed and only interval, query and
         # x_axis_field can be modified
         # Ratio visualization
@@ -236,16 +238,19 @@ class KibanaMetricsApi(Resource):
         if args['start_time'] < 0:
             start_time = 'now-5y'
         else:
-            start_time = datetime.fromtimestamp(args['start_time'])
+            start_time = datetime.fromtimestamp(
+                args['start_time']).isoformat(timespec='seconds') + 'Z'
+
         if args['end_time'] < 0:
             end_time = 'now'
         else:
-            end_time = datetime.fromtimestamp(args['end_time'])
+            end_time = datetime.fromtimestamp(
+                args['end_time']).isoformat(timespec='seconds') + 'Z'
 
         iframe_src = "{kbn_addr}/app/kibana#/visualize/create" \
                      "?type=metrics&embed=true&" \
                      "_g=(refreshInterval:(pause:!t,value:0)," \
-                     "time:(from:{start_time},to:{end_time}))&" \
+                     "time:(from:'{start_time}',to:'{end_time}'))&" \
                      "_a=(filters:!(),linked:!f," \
                      "query:(language:kuery,query:''),uiState:()," \
                      "vis:{vis_state})" \

@@ -118,31 +118,41 @@ class ElasticSearchClient(object):
             "JOINED": {
                 "filter": {
                     "term": {
-                        "joined": True
+                        "joined": 1
                     }
                 }
             },
             "FAKE": {
                 "filter": {
                     "term": {
-                        "fake": True
-                    }
-                }
-            },
-            "TOTAL": {
-                "filter": {
-                    "term": {
-                        "fake": False
+                        "joined": 0
                     }
                 }
             },
             "UNJOINED": {
+                "filter": {
+                    "term": {
+                        "joined": -1
+                    }
+                }
+            },
+            "TOTAL": {
                 "bucket_script": {
                     "buckets_path": {
                         "JOINED": "JOINED[_count]",
-                        "TOTAL": "TOTAL[_count]"
+                        "UNJOINED": "UNJOINED[_count]"
                     },
-                    "script": "params.TOTAL - params.JOINED"
+                    "script": "params.JOINED + params.UNJOINED"
+                }
+            },
+            "TOTAL_WITH_FAKE": {
+                "bucket_script": {
+                    "buckets_path": {
+                        "JOINED": "JOINED[_count]",
+                        "FAKE": "FAKE[_count]",
+                        "UNJOINED": "UNJOINED[_count]"
+                    },
+                    "script": "params.JOINED + params.UNJOINED + params.FAKE"
                 }
             },
             "JOIN_RATE": {
@@ -152,7 +162,18 @@ class ElasticSearchClient(object):
                         "TOTAL": "TOTAL[_count]",
                         "FAKE": "FAKE[_count]"
                     },
-                    "script": "params.JOINED / (params.TOTAL + params.FAKE)"
+                    "script": "params.JOINED / params.TOTAL"
+                }
+            },
+            "JOIN_RATE_WITH_FAKE": {
+                "bucket_script": {
+                    "buckets_path": {
+                        "JOINED": "JOINED[_count]",
+                        "TOTAL_WITH_FAKE": "TOTAL_WITH_FAKE[_count]",
+                        "FAKE": "FAKE[_count]"
+                    },
+                    "script": "(params.JOINED + params.FAKE) / "
+                              "params.TOTAL_WITH_FAKE"
                 }
             }
         }

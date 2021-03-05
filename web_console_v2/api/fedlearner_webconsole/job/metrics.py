@@ -57,7 +57,7 @@ class JobMetricsBuilder(object):
         labels = ['joined', 'fake', 'unjoined']
         sizes = [
             overall['JOINED']['doc_count'], overall['FAKE']['doc_count'],
-            overall['UNJOINED']['value']]
+            overall['UNJOINED']['doc_count']]
         fig = Figure()
         ax = fig.add_subplot(111)
         ax.pie(sizes, labels=labels, autopct='%1.1f%%')
@@ -77,7 +77,10 @@ class JobMetricsBuilder(object):
         twin_ax = ax.twinx()
         twin_ax.patch.set_alpha(0.0)
         et_rate = [buck['JOIN_RATE']['value'] for buck in by_et]
+        et_rate_fake = [buck['JOIN_RATE_WITH_FAKE']['value'] for buck in by_et]
         twin_ax.plot(et_index, et_rate, label='join rate', color='black')
+        twin_ax.plot(et_index, et_rate_fake,
+                     label='join rate w/ fake', color='#8f8f8f')  # grey color
 
         ax.xaxis_date()
         ax.legend()
@@ -193,26 +196,29 @@ class KibanaUtils(object):
         twof = KibanaUtils._create_series(
             **{'label': 'Total w/o Fake',
                'metrics': {'type': 'count'},
-               'series_filter': {'query': 'fake:false'}}
+               # unjoined and normally joined
+               'series_filter': {'query': 'joined: "-1" or joined: 1'}}
         )
         # Joined w/ Fake series
         jwf = KibanaUtils._create_series(
             **{'label': 'Joined w/ Fake',
                'metrics': {'type': 'count'},
-               'series_filter': {'query': 'fake:true or joined:true'}}
+               # faked joined and normally joined
+               'series_filter': {'query': 'joined: 0 or joined: 1'}}
         )
         # Joined w/o Fake series
         jwof = KibanaUtils._create_series(
             **{'label': 'Joined w/o Fake',
                'metrics': {'type': 'count'},
-               'series_filter': {'query': 'joined:true'}}
+               # normally joined
+               'series_filter': {'query': 'joined: 1'}}
         )
         # Join Rate w/ Fake series
         jrwf = KibanaUtils._create_series(
             series_type='ratio',
             **{'label': 'Join Rate w/ Fake',
-               'metrics': {'numerator': 'fake:true or joined:true',
-                           'denominator': '*',
+               'metrics': {'numerator': 'joined: 1 or joined: 0',
+                           'denominator': '*',  # joined -1 or 0 or 1
                            'type': 'filter_ratio'},
                'line_width': '2',
                'fill': '0'}
@@ -221,8 +227,8 @@ class KibanaUtils(object):
         jrwof = KibanaUtils._create_series(
             series_type='ratio',
             **{'label': 'Join Rate w/o Fake',
-               'metrics': {'numerator': 'joined:true',
-                           'denominator': 'fake:false',
+               'metrics': {'numerator': 'joined: 1',
+                           'denominator': 'joined: 1 or joined: "-1"',
                            'type': 'filter_ratio'},
                'line_width': '2',
                'fill': '0'}
