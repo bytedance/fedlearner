@@ -177,7 +177,7 @@ class Workflow(db.Model):
         if self.state == WorkflowState.RUNNING:
             is_complete = all([job.is_complete() for job in self.owned_jobs])
             if is_complete:
-                return 'COMPLETE'
+                return 'COMPLETED'
             is_failed = any([job.is_failed() for job in self.owned_jobs])
             if is_failed:
                 return 'FAILED'
