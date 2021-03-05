@@ -78,8 +78,8 @@ class OptionalStats(object):
             field_and_value may be `label_1`, `label_0` and `label_#None#`
         """
         # set union and deduplicate
-        field_and_values = list(set(chain(
-            self._stats[joined].keys() for joined in self._kind_map.values()
+        field_and_values = list(set(chain.from_iterable(
+            iter(self._stats[v].keys()) for v in self._kind_map.values()
         )))
         field_and_values.sort()  # for better order in logging
         for field_and_value in field_and_values:
