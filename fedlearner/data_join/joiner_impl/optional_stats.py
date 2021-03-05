@@ -30,6 +30,9 @@ class OptionalStats(object):
         self._sample_receive_num = 0
         self._reservoir_length = 10
         self._tags = copy.deepcopy(metric_tags)
+        for k in list(self._tags.keys()):
+            if k not in ('application_id', 'partition'):
+                self._tags.pop(k)
         allowed_fields = {'label', 'type', 'joined'}
         optional_fields = set(raw_data_options.optional_fields)
         # prevent from adding too many fields to ES index
