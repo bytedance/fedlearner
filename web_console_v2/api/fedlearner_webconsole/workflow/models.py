@@ -354,7 +354,7 @@ class Workflow(db.Model):
         for job in self.owned_jobs:
             try:
                 job.stop()
-            except:
+            except Exception:  # pylint: disable=broad-except
                 pass
 
     def _setup_jobs(self):
