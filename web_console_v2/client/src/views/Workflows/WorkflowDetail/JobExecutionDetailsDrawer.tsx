@@ -11,7 +11,7 @@ import { formatTimestamp } from 'shared/date';
 import PropertyList from 'components/PropertyList';
 import JobExecutionLogs from './JobExecutionLogs';
 import JobExecutionMetrics from './JobExecutionMetrics';
-import JobExecutionPods from './JobExecutionPods';
+import JobExecutionPods from './JobExecutionPODs';
 import { jobExecutionStatusText } from 'components/WorkflowJobsFlowChart/WorkflowJobNode';
 import { convertExecutionStateToStatus } from 'components/WorkflowJobsFlowChart/helpers';
 import { WorkflowExecutionDetails } from 'typings/workflow';
