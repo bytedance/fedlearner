@@ -5,7 +5,7 @@ import { newlyCreated, withExecutionDetail } from '../examples';
 const get = () => {
   const modified = cloneDeep(withExecutionDetail);
 
-  modified.jobs[1].state = JobState.COMPLETE;
+  modified.jobs[1].state = JobState.COMPLETED;
   modified.jobs[2].state = JobState.RUNNING;
 
   return {

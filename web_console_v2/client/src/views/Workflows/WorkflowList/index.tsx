@@ -111,6 +111,7 @@ export const getWorkflowTableColumns = (
 type QueryParams = {
   project?: string;
   keyword?: string;
+  uuid?: string;
 };
 
 const WorkflowList: FC = () => {
@@ -119,12 +120,12 @@ const WorkflowList: FC = () => {
   const history = useHistory();
 
   const [listData, setList] = useState<Workflow[]>([]);
-  const [params, setParams] = useState<QueryParams>({ keyword: '' });
+  const [params, setParams] = useState<QueryParams>({ keyword: '', uuid: '' });
 
   const projectsQuery = useRecoilQuery(projectListQuery);
 
   const { isLoading, isError, data: res, error, refetch } = useQuery(
-    ['fetchWorkflowList', params.project, params.keyword],
+    ['fetchWorkflowList', params.project, params.keyword, params.uuid],
     () => fetchWorkflowList(params),
   );
 

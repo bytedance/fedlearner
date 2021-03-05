@@ -11,7 +11,7 @@ import { formatTimestamp } from 'shared/date';
 import PropertyList from 'components/PropertyList';
 import JobExecutionLogs from './JobExecutionLogs';
 import JobExecutionMetrics from './JobExecutionMetrics';
-import JobExecutionPODs from './JobExecutionPODs';
+import JobExecutionPods from './JobExecutionPods';
 import { jobExecutionStatusText } from 'components/WorkflowJobsFlowChart/WorkflowJobNode';
 import { convertExecutionStateToStatus } from 'components/WorkflowJobsFlowChart/helpers';
 import { WorkflowExecutionDetails } from 'typings/workflow';
@@ -37,7 +37,7 @@ const DrawerHeader = styled(Row)`
 const CoverHeaderShadowIfNotSticky = styled.div`
   position: sticky;
   bottom: 0;
-  z-index: 2;
+  z-index: 5;
   top: 50px;
   margin: 0 -24px 0;
   height: 12px;
@@ -142,11 +142,11 @@ const JobExecutionDetailsDrawer: ForwardRefRenderFunction<JobExecutionDetailsExp
 
         <PropertyList initialVisibleRows={3} cols={2} properties={displayedProps} labelWidth={90} />
 
-        {!isPeerSide && <JobExecutionMetrics />}
+        {!isPeerSide && <JobExecutionMetrics job={job} visible={props.visible} />}
 
         <JobExecutionLogs job={job} workflow={workflow} enabled={Boolean(props.visible)} />
 
-        <JobExecutionPODs job={job} isPeerSide={isPeerSide} />
+        <JobExecutionPods job={job} isPeerSide={isPeerSide} />
       </Container>
     </ErrorBoundary>
   );

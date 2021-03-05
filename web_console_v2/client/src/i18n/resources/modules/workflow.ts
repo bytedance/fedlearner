@@ -31,6 +31,8 @@ const workflow: I18nMessageModule = {
   btn_auto_refresh_logs: { zh: '自动刷新日志' },
   btn_pause_auto_refresh: { zh: '停止自动刷新' },
   btn_has_new_logs: { zh: '有新的日志' },
+  btn_fetch_metrics: { zh: '点击加载数据' },
+  btn_retry: { zh: ' 重试' },
 
   col_status: { zh: '任务状态' },
   col_project: { zh: ' 隶属项目' },
@@ -94,6 +96,8 @@ const workflow: I18nMessageModule = {
   placeholder_project: { zh: '请关联一个项目' },
   placeholder_comment: { zh: '请输入工作流模板说明' },
   placeholder_template_name: { zh: '请输入模板名称' },
+  placeholder_fetch_metrics: { zh: '查询 Metrics 性能消耗较大，故需手动确认执行' },
+  placeholder_no_metrics: { zh: '当前未查询到相关指标' },
 
   msg_sent_success: { zh: '工作流发送成功' },
   msg_template_required: { zh: '请选择一个模板！' },
@@ -118,7 +122,7 @@ const workflow: I18nMessageModule = {
   msg_peer_config_failed: { zh: '获取对侧工作流配置失败' },
   msg_peer_not_ready: { zh: '对侧配置未完成' },
   msg_not_config: { zh: '工作流配置未完成' },
-  msg_workflow_name_invalid: { zh: '最长允许60个字符' },
+  msg_workflow_name_invalid: { zh: '最长允许255个字符' },
   msg_sure_to_stop: { zh: '确认停止运行该工作流吗?' },
   msg_unforkable: { zh: '根据对侧配置，该工作流不允许被复制，请与对侧沟通后再试' },
   msg_get_peer_cfg_failed: { zh: '获取对侧配置失败: ' },
@@ -127,6 +131,7 @@ const workflow: I18nMessageModule = {
     zh: '{{name}} 改为不继承状态后，后续依赖  {{name}} 的任务都将切换成为“不继承”状态',
   },
   msg_upstreaming_nonreusable: { zh: '因存在上游依赖不可继承，无法修改此任务继承与否' },
+  msg_chart_deps_loading: { zh: '图表依赖正在加载，请稍等' },
 
   title_toggle_reusable: { zh: '切换至{{state}}状态' },
 
@@ -148,6 +153,8 @@ const workflow: I18nMessageModule = {
   job_node_stop_running: { zh: '手动停止运行' },
   job_node_stopped: { zh: '已停止' },
   pod_unknown: { zh: '状态未知' },
+  pod_failed_cleared: { zh: '失败&已清理资源' },
+  pod_success_cleared: { zh: '成功&已释放资源' },
 };
 
 export default separateLng(workflow);

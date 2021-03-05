@@ -65,7 +65,7 @@ const WorkflowActions: FC<Props> = ({ workflow, type = 'default', without = [], 
     configure: isPendingAccpet(workflow) && !without?.includes('configure'),
     run:
       (isReadyToRun(workflow) || isAwaitParticipantConfig(workflow)) && !without?.includes('run'),
-    stop: isRunning(workflow) && !without?.includes('stop'),
+    stop: (isRunning(workflow) || isCompleted(workflow)) && !without?.includes('stop'),
     rerun: isStopped(workflow) && !without?.includes('rerun'),
     report: isCompleted(workflow) && !without?.includes('report'),
     detail: !without?.includes('detail'),
@@ -78,6 +78,7 @@ const WorkflowActions: FC<Props> = ({ workflow, type = 'default', without = [], 
     stop: isDisabled,
     rerun: isDisabled,
     fork: !isForkable(workflow),
+    report: true,
   };
   const isDefaultType = type === 'default';
 
@@ -85,13 +86,8 @@ const WorkflowActions: FC<Props> = ({ workflow, type = 'default', without = [], 
     <Spin spinning={loading} size="small">
       <Container {...{ type }} gap={isDefaultType ? 8 : 0}>
         {visible.report && (
-          <Button
-            size="small"
-            type={type}
-            {...withIcon('report')}
-            onClick={onAcceptClick}
-            disabled={disabled.configure}
-          >
+          // TODO: workflow model report
+          <Button size="small" type={type} {...withIcon('report')} disabled={disabled.report}>
             {t('workflow.action_show_report')}
           </Button>
         )}

@@ -50,6 +50,7 @@ export enum WorkflowState {
   READY = 'READY',
   RUNNING = 'RUNNING',
   STOPPED = 'STOPPED',
+  FAILED = 'FAILED',
   COMPLETED = 'COMPLETED',
 }
 
