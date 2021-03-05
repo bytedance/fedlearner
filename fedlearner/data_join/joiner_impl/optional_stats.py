@@ -26,20 +26,22 @@ class OptionalStats(object):
                 optional stats options and arguments.
         """
         assert isinstance(raw_data_options, dj_pb.RawDataOptions)
-        self._stats = {
-            'joined': defaultdict(int),
-            'unjoined': defaultdict(int),
-            'fake': defaultdict(int)
-        }
         self._sample_reservoir = []
         self._sample_receive_num = 0
         self._reservoir_length = 10
         self._tags = copy.deepcopy(metric_tags)
-        allowed_fields = {'label', 'type'}
+        allowed_fields = {'label', 'type', 'joined'}
         optional_fields = set(raw_data_options.optional_fields)
         # prevent from adding too many fields to ES index
         self._stat_fields = optional_fields & allowed_fields
         self._sample_rate = CONFIGS['data_join_metrics_sample_rate']
+        self._kind_map = {'unjoined': -1,
+                          'fake': 0,
+                          'joined': 1}
+        self._map_kind = {v: k for k, v in self._kind_map}  # reversed map
+        self._stats = {
+            joined: defaultdict(int) for joined in self._kind_map.values()
+        }
 
     def update_stats(self, item, kind='joined'):
         """
@@ -52,14 +54,15 @@ class OptionalStats(object):
         Update stats dict. Emit join status and other fields of each item to ES.
         """
         assert kind in ('joined', 'unjoined', 'fake')
-        if kind == 'unjoined':
+        joined = getattr(item, 'joined', self._kind_map[kind])
+        assert isinstance(joined, int)
+        if joined == -1:
             self.sample_unjoined(item.example_id)
-        item_stat = {'joined': kind == 'joined',
-                     'fake': kind == 'fake'}
+        item_stat = {'joined': joined}
         for field in self._stat_fields:
             value = self._convert_to_str(getattr(item, field, '#None#'))
             item_stat[field] = value
-            self._stats[kind]['{}={}'.format(field, value)] += 1
+            self._stats[joined]['{}={}'.format(field, value)] += 1
         if random.random() < self._sample_rate:
             tags = copy.deepcopy(self._tags)
             tags.update(item_stat)
@@ -73,20 +76,27 @@ class OptionalStats(object):
         field_and_value: a `field`_`value` pair, e.g., for field = `label`,
             field_and_value may be `label_1`, `label_0` and `label_#None#`
         """
+        # set union and deduplicate
         field_and_values = list(set(chain(
-            self._stats['joined'].keys(), self._stats['unjoined'].keys()
+            self._stats[joined].keys() for joined in self._kind_map.values()
         )))
         field_and_values.sort()  # for better order in logging
         for field_and_value in field_and_values:
-            joined_count = self._stats['joined'][field_and_value]
-            unjoined_count = self._stats['unjoined'][field_and_value]
+            joined_count = self._stats[1][field_and_value]
+            fake_count = self._stats[0][field_and_value]
+            unjoined_count = self._stats[-1][field_and_value]
             total_count = joined_count + unjoined_count
+            fake_total_count = total_count + fake_count
             join_rate = joined_count / max(total_count, 1) * 100
+            fake_join_rate = (joined_count + fake_count) / \
+                             max(fake_total_count, 1) * 100
             logging.info(
                 'Cumulative stats of `%s`:\n '
-                'total: %d, joined: %d, unjoined: %d, join_rate: %f',
-                field_and_value, total_count, joined_count, unjoined_count,
-                join_rate
+                'total: %d, joined: %d, unjoined: %d, join rate: %f, '
+                'total w/ fake: %d, joined w/ fake: %d, join rate w/ fake: %d',
+                field_and_value,
+                total_count, joined_count, unjoined_count, join_rate,
+                fake_total_count, joined_count + fake_count, fake_join_rate
             )
         logging.info('Unjoined example ids: %s', self._sample_reservoir)
         self._sample_reservoir = []

@@ -79,8 +79,10 @@ class ElasticSearchHandler(Handler):
             self._helpers = helpers6
         # first run, put index templates to ES if not exist
         # templates are supposed to be set during deployment
-        if not self._es.indices.exists_template('metrics_v2-template'):
-            for index_type in INDEX_TYPE:
+        for index_type, index_name in INDEX_NAME.items():
+            if not self._es.indices.exists_template(
+                '{}-template'.format(index_name)
+            ):
                 self._create_template_and_index(index_type)
         # suppress ES logger
         logging.getLogger('elasticsearch').setLevel(logging.CRITICAL)

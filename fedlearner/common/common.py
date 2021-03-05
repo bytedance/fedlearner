@@ -201,20 +201,24 @@ def convert_to_iso_format(value):
     try:
         if len(value) == 8:
             date_time = datetime.datetime.strptime(value, '%Y%m%d')
+            return date_time.replace(tzinfo=CONFIGS['timezone']) \
+                .isoformat(timespec='microseconds')
         elif len(value) == 14:
             date_time = datetime.datetime.strptime(value, '%Y%m%d%H%M%S')
-        else:
-            raise ValueError
-        return date_time.replace(tzinfo=CONFIGS['timezone']) \
-            .isoformat(timespec='microseconds')
+            return date_time.replace(tzinfo=CONFIGS['timezone']) \
+                .isoformat(timespec='microseconds')
     except ValueError:  # Not fitting any of above patterns
-        # then try to convert assuming it is a timestamp
-        try:
-            date_time = datetime.datetime.fromtimestamp(float(value),
-                                                        tz=CONFIGS['timezone'])
-        except ValueError:  # might be a non-number str
-            logging.warning('Unable to parse time %s to iso format, '
-                            'defaults to 0.', value)
-            date_time = datetime.datetime.fromtimestamp(0,
-                                                        tz=CONFIGS['timezone'])
-        return date_time.isoformat(timespec='microseconds')
+        pass
+
+    # then try to convert assuming it is a timestamp
+    # not in the same `try` block b/c the length of some strings might be equal
+    # to 14 but it is not a datetime format string
+    try:
+        date_time = datetime.datetime.fromtimestamp(float(value),
+                                                    tz=CONFIGS['timezone'])
+    except ValueError:  # might be a non-number str
+        logging.warning('Unable to parse time %s to iso format, '
+                        'defaults to 0.', value)
+        date_time = datetime.datetime.fromtimestamp(0,
+                                                    tz=CONFIGS['timezone'])
+    return date_time.isoformat(timespec='microseconds')
