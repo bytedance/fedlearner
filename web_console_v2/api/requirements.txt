@@ -22,3 +22,4 @@ tensorflow==1.15.2
 pyopenssl
 pylint==2.4.4
 mpld3
+python-slugify==4.0.1

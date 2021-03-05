@@ -45,6 +45,7 @@ class Dataset(db.Model):
     name = db.Column(db.String(255), unique=True, nullable=False)
     dataset_type = db.Column(db.Enum(DatasetType, native_enum=False),
                              nullable=False)
+    path = db.Column(db.String(512))
     comment = db.Column('cmt', db.Text(), key='comment')
     created_at = db.Column(db.DateTime(timezone=True),
                            server_default=func.now())
@@ -67,6 +68,7 @@ class DataBatch(db.Model):
     event_time = db.Column(db.TIMESTAMP(timezone=True),
                            nullable=False)
     dataset_id = db.Column(db.Integer, db.ForeignKey(Dataset.id))
+    path = db.Column(db.String(512))
     state = db.Column(db.Enum(BatchState, native_enum=False),
                       default=BatchState.NEW)
     move = db.Column(db.Boolean, default=False)
