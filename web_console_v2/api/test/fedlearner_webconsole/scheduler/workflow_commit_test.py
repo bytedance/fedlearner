@@ -116,7 +116,7 @@ class WorkflowsCommitTest(BaseTestCase):
         self.assertEqual(workflow.get_jobs()[1].state, JobState.WAITING)
         mock_is_complete.return_value = True
         workflow = Workflow.query.get(20)
-        self.assertEqual(workflow.to_dict()['state'], 'COMPLETE')
+        self.assertEqual(workflow.to_dict()['state'], 'COMPLETED')
         mock_is_complete.return_value = False
         mock_is_failed.return_value = True
         self.assertEqual(workflow.to_dict()['state'], 'FAILED')
