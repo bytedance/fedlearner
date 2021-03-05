@@ -50,10 +50,7 @@ DATA_JOIN_MAPPINGS = {
             "type": "short"
         },
         "joined": {
-            "type": "boolean"
-        },
-        "fake": {
-            "type": "boolean"
+            "type": "byte"
         },
         "label": {
             "ignore_above": 8,
