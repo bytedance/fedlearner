@@ -178,6 +178,9 @@ class Workflow(db.Model):
             is_complete = all([job.is_complete() for job in self.owned_jobs])
             if is_complete:
                 return 'COMPLETE'
+            is_failed = any([job.is_failed() for job in self.owned_jobs])
+            if is_failed:
+                return 'FAILED'
         return self.state.name
 
     def set_config(self, proto):
