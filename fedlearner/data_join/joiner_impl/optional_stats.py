@@ -38,7 +38,8 @@ class OptionalStats(object):
         self._kind_map = {'unjoined': -1,
                           'fake': 0,
                           'joined': 1}
-        self._map_kind = {v: k for k, v in self._kind_map}  # reversed map
+        # reversed map
+        self._map_kind = {v: k for k, v in self._kind_map.items()}
         self._stats = {
             joined: defaultdict(int) for joined in self._kind_map.values()
         }
@@ -93,7 +94,7 @@ class OptionalStats(object):
             logging.info(
                 'Cumulative stats of `%s`:\n '
                 'total: %d, joined: %d, unjoined: %d, join rate: %f, '
-                'total w/ fake: %d, joined w/ fake: %d, join rate w/ fake: %d',
+                'total w/ fake: %d, joined w/ fake: %d, join rate w/ fake: %f',
                 field_and_value,
                 total_count, joined_count, unjoined_count, join_rate,
                 fake_total_count, joined_count + fake_count, fake_join_rate
