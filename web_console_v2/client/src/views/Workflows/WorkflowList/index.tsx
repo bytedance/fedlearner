@@ -14,7 +14,7 @@ import WorkflowActions from '../WorkflowActions';
 import WhichProject from 'components/WhichProject';
 import NoResult from 'components/NoResult';
 import { useRecoilQuery } from 'hooks/recoil';
-import { projectListQuery } from 'stores/projects';
+import { projectListQuery } from 'stores/project';
 import ForkableSwitch from './ForkableSwitch';
 
 const FilterItem = styled(Form.Item)`
@@ -92,8 +92,8 @@ export const getWorkflowTableColumns = (
   if (!options.withoutActions) {
     ret.push({
       title: i18n.t('workflow.col_actions'),
-      dataIndex: 'created_at',
-      name: 'created_at',
+      dataIndex: 'operation',
+      name: 'operation',
       render: (_: any, record: Workflow) => (
         <WorkflowActions
           onSuccess={options.onSuccess}

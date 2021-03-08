@@ -4,19 +4,18 @@ import { fetchJobLogs } from 'services/workflow';
 import PrintLogs from 'components/PrintLogs';
 
 const PodLogs: FC = () => {
-  const params = useParams<{ jobname: string }>();
+  const params = useParams<{ jobId: string }>();
 
   return (
-    <PrintLogs logsFetcher={getLogs} refetchInterval={4000} queryKey={['getJob', params.jobname]} />
+    <PrintLogs logsFetcher={getLogs} refetchInterval={4000} queryKey={['getJob', params.jobId]} />
   );
 
   async function getLogs() {
-    if (!params.jobname) {
-      return { data: ['Job name invalid!'] };
+    if (!params.jobId) {
+      return { data: ['Job ID invalid!'] };
     }
 
-    return fetchJobLogs(params.jobname, {
-      startTime: 0,
+    return fetchJobLogs(params.jobId, {
       maxLines: 500,
     }).catch((error) => ({
       data: [error.message],

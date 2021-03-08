@@ -20,7 +20,7 @@ import WORKFLOW_CHANNELS, { workflowPubsub } from '../../pubsub';
 import { useRecoilQuery } from 'hooks/recoil';
 import { Workflow, WorkflowTemplate } from 'typings/workflow';
 import { useToggle } from 'react-use';
-import { projectListQuery } from 'stores/projects';
+import { projectListQuery } from 'stores/project';
 import { useQuery } from 'react-query';
 import {
   fetchWorkflowTemplateList,
@@ -191,12 +191,11 @@ const WorkflowsCreateStepOne: FC<WorkflowCreateProps & { onSuccess?: any }> = ({
                     onChange={onTemplateSelectChange}
                     placeholder={t('workflow.placeholder_template')}
                   >
-                    {tplList &&
-                      tplList.map((tpl) => (
-                        <Select.Option key={tpl.id} value={tpl.id}>
-                          {tpl.name}
-                        </Select.Option>
-                      ))}
+                    {tplList?.map((tpl) => (
+                      <Select.Option key={tpl.id} value={tpl.id}>
+                        {tpl.name}
+                      </Select.Option>
+                    ))}
                   </Select>
                 )}
               </Form.Item>

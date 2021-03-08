@@ -12,8 +12,8 @@ const Container = styled.main`
 const LogsViewer: FC = () => {
   return (
     <Container>
-      <Route path="/logs/pod/:jobid/:podname" exact component={PodLogs} />
-      <Route path="/logs/job/:jobname" exact component={JobLogs} />
+      <Route path="/logs/pod/:jobId/:podname" exact component={PodLogs} />
+      <Route path="/logs/job/:jobId" exact component={JobLogs} />
     </Container>
   );
 };

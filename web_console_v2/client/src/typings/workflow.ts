@@ -1,3 +1,4 @@
+import { NodeDataRaw } from 'components/WorkflowJobsFlowChart/types';
 import { Job, JobExecutionDetalis } from './job';
 import { Variable } from './variable';
 
@@ -7,6 +8,8 @@ export type WorkflowConfig<J = Job> = {
   variables: Variable[];
   job_definitions: J[];
 };
+
+export type ChartWorkflowConfig = WorkflowConfig<NodeDataRaw>;
 
 export interface WorkflowTemplate {
   id: number;
@@ -19,6 +22,8 @@ export interface WorkflowTemplate {
 
 export type WorkflowTemplatePayload = {
   name: string;
+  is_left?: boolean;
+  group_alias?: string;
   comment?: string;
   config: WorkflowConfig;
 };
@@ -27,13 +32,13 @@ export type WorkflowInitiatePayload = {
   name: string;
   project_id: ID;
   forkable: boolean;
-  config: WorkflowConfig;
+  config: ChartWorkflowConfig;
   comment?: string;
 };
 
 export type WorkflowAcceptPayload = {
   forkable: boolean;
-  config: WorkflowConfig;
+  config: ChartWorkflowConfig;
   comment?: string;
 };
 
@@ -41,7 +46,7 @@ export type WorkflowForkPayload = WorkflowInitiatePayload & {
   forked_from: ID;
   reuse_job_names: string[]; // e.g. [raw_data, training...]
   peer_reuse_job_names: string[];
-  fork_proposal_config: WorkflowConfig;
+  fork_proposal_config: ChartWorkflowConfig;
 };
 
 export enum WorkflowState {

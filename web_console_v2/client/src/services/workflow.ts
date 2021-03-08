@@ -21,7 +21,7 @@ export function fetchWorkflowTemplateList(params?: {
   });
 }
 
-export function getWorkflowTemplateById(id: ID) {
+export function fetchTemplateById(id: ID) {
   return request(`/v2/workflow_templates/${id}`);
 }
 
@@ -77,23 +77,24 @@ export function forkTheWorkflow(payload: WorkflowForkPayload) {
 }
 
 export function fetchJobLogs(
-  jobName: string,
-  params?: { startTime: DateTime; maxLines: number },
+  jobId: ID,
+  params?: { startTime?: DateTime; maxLines: number },
 ): Promise<{ data: string[] }> {
-  return request(`/v2/jobs/${jobName}/log`, { params, snake_case: true });
+  return request(`/v2/jobs/${jobId}/log`, { params, snake_case: true });
+}
+
+export function fetchPodLogs(
+  podName: string,
+  jobId: ID,
+  params?: { startTime?: DateTime; maxLines: number },
+): Promise<{ data: string[] }> {
+  return request(`/v2/${jobId}/pods/${podName}/log`, { params, snake_case: true });
 }
 
 export function toggleWofklowForkable(id: ID, val: boolean) {
   return request.patch(`/v2/workflows/${id}`, {
     forkable: val,
   });
-}
-
-export function fetchPodLogs(
-  podName: string,
-  params?: { startTime: DateTime; maxLines: number },
-): Promise<{ data: string[] }> {
-  return request(`/v2/pods/${podName}/log`, { params, snake_case: true });
 }
 
 export function fetchJobMpld3Metrics(id: ID): Promise<{ data: any[] }> {

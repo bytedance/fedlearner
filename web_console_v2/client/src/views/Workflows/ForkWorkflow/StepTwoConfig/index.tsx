@@ -14,12 +14,13 @@ import {
   ChartNodes,
   ChartNodeStatus,
   NodeData,
+  NodeDataRaw,
 } from 'components/WorkflowJobsFlowChart/types';
 import { useMarkFederatedJobs } from 'components/WorkflowJobsFlowChart/hooks';
 import { cloneDeep, Dictionary, omit } from 'lodash';
 import JobFormDrawer, { JobFormDrawerExposedRef } from '../../JobFormDrawer';
 import { useToggle } from 'react-use';
-import { WorkflowExecutionDetails } from 'typings/workflow';
+import { WorkflowExecutionDetails, ChartWorkflowConfig } from 'typings/workflow';
 import { Variable } from 'typings/variable';
 import { parseWidgetSchemas, stringifyWidgetSchemas } from 'shared/formSchema';
 import i18n from 'i18n';
@@ -30,7 +31,6 @@ import { to } from 'shared/helpers';
 import { MixinFlexAlignCenter } from 'styles/mixins';
 import { useSubscribe } from 'hooks';
 import { WORKFLOW_JOB_NODE_CHANNELS } from 'components/WorkflowJobsFlowChart/WorkflowJobNode';
-import { Job } from 'typings/job';
 
 const LoadingContainer = styled.div`
   ${MixinFlexAlignCenter()}
@@ -93,8 +93,7 @@ const WorkflowForkStepTwoConfig: FC = () => {
   useQuery(['getWorkflow', params.id], () => getWorkflowDetailById(params.id), {
     refetchOnWindowFocus: false,
     onSuccess(data) {
-      const config = parseWidgetSchemas(data.data).config!;
-      markThem(config.job_definitions);
+      const config = parseWidgetSchemas(data.data).config! as ChartWorkflowConfig;
 
       setFormData({
         ...formData,
@@ -105,7 +104,7 @@ const WorkflowForkStepTwoConfig: FC = () => {
   const peerQuery = useQuery(['getPeerWorkflow', params.id], getPeerWorkflow, {
     refetchOnWindowFocus: false,
     onSuccess(data) {
-      const fork_proposal_config = parseWidgetSchemas(data).config!;
+      const fork_proposal_config = parseWidgetSchemas(data).config! as ChartWorkflowConfig;
       markThem(fork_proposal_config.job_definitions);
 
       setFormData({
@@ -308,6 +307,7 @@ const WorkflowForkStepTwoConfig: FC = () => {
     const payload = stringifyWidgetSchemas(formData);
 
     payload.config.job_definitions = _omitJobsColorMark(payload.config.job_definitions);
+
     payload.fork_proposal_config.job_definitions = _omitJobsColorMark(
       payload.fork_proposal_config.job_definitions,
     );
@@ -405,7 +405,7 @@ function _filterReusableJobs(nodes: ChartNodes) {
     .map((item) => item.id)!;
 }
 
-function _omitJobsColorMark(jobs: Job[]) {
+function _omitJobsColorMark(jobs: NodeDataRaw[]): NodeDataRaw[] {
   return jobs.map((job) => omit(job, 'mark'));
 }
 

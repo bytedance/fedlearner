@@ -5,7 +5,6 @@ import { fetchJobLogs } from 'services/workflow';
 import styled from 'styled-components';
 import { WorkflowExecutionDetails } from 'typings/workflow';
 import PrintLogs from 'components/PrintLogs';
-import { findJobExeInfoByJobDef } from 'shared/workflow';
 
 const Container = styled.div`
   position: relative;
@@ -24,15 +23,13 @@ type Props = {
 const JobExecutionLogs: FC<Props> = ({ job, workflow, enabled }) => {
   const { t } = useTranslation();
 
-  const k8sJobName = job.k8sName || (workflow && findJobExeInfoByJobDef(job, workflow)?.name);
-
   return (
     <Container>
       <h3>{t('workflow.label_job_logs')}</h3>
 
       <PrintJobLogs
         height="350"
-        queryKey={['getJobLogs', k8sJobName]}
+        queryKey={['getJobLogs', job.id]}
         logsFetcher={getLogs}
         refetchInterval={5000}
         enabled={enabled}
@@ -43,12 +40,11 @@ const JobExecutionLogs: FC<Props> = ({ job, workflow, enabled }) => {
   );
 
   async function getLogs() {
-    if (!k8sJobName) {
-      return { data: ['K8s Job name invalid!'] };
+    if (!job.id) {
+      return { data: ['Job ID invalid!'] };
     }
 
-    return fetchJobLogs(k8sJobName || `${workflow?.uuid}-${job.name.trim()}`, {
-      startTime: 0,
+    return fetchJobLogs(job.id, {
       maxLines: 500,
     }).catch((error) => ({
       data: [error.message],
@@ -56,7 +52,7 @@ const JobExecutionLogs: FC<Props> = ({ job, workflow, enabled }) => {
   }
 
   async function goFullScreen() {
-    window.open(`/v2/logs/job/${k8sJobName}`, '_blank noopener');
+    window.open(`/v2/logs/job/${job.id}`, '_blank noopener');
   }
 };
 
