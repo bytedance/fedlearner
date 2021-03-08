@@ -94,8 +94,7 @@ METRICS_MAPPINGS = {
     ],
     "properties": {
         "name": {
-            # for compatibility, use text here
-            "type": "text"
+            "type": "keyword"
         },
         "value": {
             "type": "float"
