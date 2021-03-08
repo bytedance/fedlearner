@@ -40,6 +40,7 @@ def _dic_without_key(d, key):
     del result[key]
     return result
 
+
 class WorkflowTemplatesApi(Resource):
     def get(self):
         templates = WorkflowTemplate.query
@@ -51,6 +52,7 @@ class WorkflowTemplatesApi(Resource):
             if is_left is None:
                 raise InvalidArgumentException('is_left must be 0 or 1')
             templates = templates.filter_by(is_left=is_left)
+        # remove config from dicts to reduce the size of the list
         return {'data': [_dic_without_key(t.to_dict(),
                                           'config') for t in templates.all()
                          ]}, HTTPStatus.OK
