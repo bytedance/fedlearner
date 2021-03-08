@@ -19,7 +19,7 @@ import WORKFLOW_CHANNELS, { workflowPubsub } from '../../pubsub';
 import { useRecoilQuery } from 'hooks/recoil';
 import { Workflow, WorkflowTemplate } from 'typings/workflow';
 import { useToggle } from 'react-use';
-import { projectListQuery } from 'stores/projects';
+import { projectListQuery } from 'stores/project';
 import { useQuery } from 'react-query';
 import {
   fetchWorkflowTemplateList,

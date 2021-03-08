@@ -142,7 +142,7 @@ const JobExecutionDetailsDrawer: ForwardRefRenderFunction<JobExecutionDetailsExp
 
         <PropertyList initialVisibleRows={3} cols={2} properties={displayedProps} labelWidth={90} />
 
-        {!isPeerSide && <JobExecutionMetrics job={job} visible={props.visible} />}
+        <JobExecutionMetrics job={job} visible={props.visible} />
 
         <JobExecutionLogs
           isPeerSide
