@@ -30,15 +30,19 @@ args = parser.parse_args()
 
 def input_fn(bridge, trainer_master=None):
     dataset = flt.data.DataBlockLoader(
-        args.batch_size, ROLE, bridge, trainer_master)
-    feature_map = {"x_{0}".format(i): tf.VarLenFeature(
-        tf.int64) for i in range(512)}
-    feature_map["example_id"] = tf.FixedLenFeature([], tf.string)
+        args.batch_size, ROLE, bridge, trainer_master).make_dataset()
 
-    record_batch = dataset.make_batch_iterator().get_next()
-    features = tf.parse_example(record_batch, features=feature_map)
-    return features, None
+    def parse_fn(example):
+        feature_map = {"x_{0}".format(i): tf.VarLenFeature(
+            tf.int64) for i in range(512)}
+        feature_map["example_id"] = tf.FixedLenFeature([], tf.string)
+        features = tf.parse_example(example, features=feature_map)
+        labels = {}
+        return features, labels
 
+    dataset = dataset.map(map_func=parse_fn,
+                          num_parallel_calls=tf.data.experimental.AUTOTUNE)
+    return dataset
 
 def serving_input_receiver_fn():
     feature_map = {"x_{0}".format(i): tf.VarLenFeature(
@@ -99,7 +103,9 @@ def model_fn(model, features, labels, mode):
 
 
 if __name__ == '__main__':
-    logging.basicConfig(level=logging.DEBUG)
+    logging.basicConfig(level=logging.DEBUG,
+        format="[%(levelname)s] %(asctime)s: %(message)s "
+            "in %(pathname)s:%(lineno)d")
     flt.trainer_worker.train(
         ROLE, args, input_fn,
         model_fn, serving_input_receiver_fn)
