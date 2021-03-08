@@ -217,4 +217,57 @@ class ElasticSearchClient(object):
 
         return es.search(index='metrics*', body=query)
 
+    def query_events(self, index, keyword, pod_name,
+                     start_time, end_time):
+        query_body = {
+            'version': True,
+            'size': 8000,
+            'sort': [
+                {'@timestamp': 'desc'},
+                {
+                    'log.offset': {
+                        'order': 'desc',
+                        'unmapped_type': 'long'
+                    }
+                }
+            ],
+            '_source': ['message'],
+            'query': {
+                'bool': {
+                    'must': []
+                }
+            }
+        }
+
+        keyword_list = [
+            {
+                'query_string': {
+                    'query': f'{keyword} AND Event',
+                    'analyze_wildcard': True,
+                    'default_operator': 'AND',
+                    'default_field': '*'
+                }
+            }
+        ] if keyword else []
+        match_phrase_list = [
+            {
+                'prefix': {
+                    'kubernetes.pod.name': pod_name
+                }
+            },
+            {
+                'range': {
+                    '@timestamp': {
+                        'gte': start_time,
+                        'lte': end_time,
+                        'format': 'epoch_millis'
+                    }
+                }
+            }
+        ]
+        query_body['query']['bool']['must'] = keyword_list + match_phrase_list
+        response = self._es_client.search(index=index, body=query_body)
+        return [item['_source']['message'] for item in response['hits']['hits']]
+
+
 es = ElasticSearchClient()

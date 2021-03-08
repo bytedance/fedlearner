@@ -152,10 +152,9 @@ class RpcClient(object):
                     code=common_pb2.STATUS_UNKNOWN_ERROR,
                     msg=repr(e)))
 
-    def get_job_metrics(self, workflow_name, job_name):
+    def get_job_metrics(self, job_name):
         msg = service_pb2.GetJobMetricsRequest(
             auth_info=self._auth_info,
-            workflow_name=workflow_name,
             job_name=job_name)
         try:
             response = self._client.GetJobMetrics(
@@ -167,6 +166,27 @@ class RpcClient(object):
             return response
         except Exception as e:
             logging.error('get_job_metrics request error: %s', repr(e))
+            return service_pb2.GetJobMetricsResponse(
+                status=common_pb2.Status(
+                    code=common_pb2.STATUS_UNKNOWN_ERROR,
+                    msg=repr(e)))
+
+    def get_job_events(self, job_name, start_time, max_lines):
+        msg = service_pb2.GetJobMetricsRequest(
+            auth_info=self._auth_info,
+            job_name=job_name,
+            start_time=start_time,
+            max_lines=max_lines)
+        try:
+            response = self._client.GetJobMetrics(
+                request=msg, metadata=self._get_metadata())
+            if response.status.code != common_pb2.STATUS_SUCCESS:
+                logging.error(
+                    'get_job_events request error: %s',
+                    response.status.msg)
+            return response
+        except Exception as e:
+            logging.error('get_job_events request error: %s', repr(e))
             return service_pb2.GetJobMetricsResponse(
                 status=common_pb2.Status(
                     code=common_pb2.STATUS_UNKNOWN_ERROR,

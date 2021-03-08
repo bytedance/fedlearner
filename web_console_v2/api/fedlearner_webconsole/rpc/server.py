@@ -14,7 +14,7 @@
 
 # coding: utf-8
 # pylint: disable=broad-except, cyclic-import
-
+import time
 import logging
 import json
 import os
@@ -25,12 +25,15 @@ from fedlearner_webconsole.proto import (
     service_pb2, service_pb2_grpc,
     common_pb2
 )
+from fedlearner_webconsole.utils.es import es
 from fedlearner_webconsole.db import db
 from fedlearner_webconsole.project.models import Project
 from fedlearner_webconsole.workflow.models import (
     Workflow, WorkflowState, TransactionState,
     _merge_workflow_config
 )
+
+from fedlearner_webconsole.job.models import Job
 from fedlearner_webconsole.job.metrics import JobMetricsBuilder
 from fedlearner_webconsole.exceptions import (
     UnauthorizedException
@@ -111,6 +114,21 @@ class RPCServerServicer(service_pb2_grpc.WebConsoleV2ServiceServicer):
         except Exception as e:
             logging.error('GetJobMetrics rpc server error: %s', repr(e))
             return service_pb2.GetJobMetricsResponse(
+                status=common_pb2.Status(
+                    code=common_pb2.STATUS_UNKNOWN_ERROR,
+                    msg=repr(e)))
+
+    def GetJobEvents(self, request, context):
+        try:
+            return self._server.get_job_events(request, context)
+        except UnauthorizedException as e:
+            return service_pb2.GetJobEventsResponse(
+                status=common_pb2.Status(
+                    code=common_pb2.STATUS_UNAUTHORIZED,
+                    msg=repr(e)))
+        except Exception as e:
+            logging.error('GetJobMetrics rpc server error: %s', repr(e))
+            return service_pb2.GetJobEventsResponse(
                 status=common_pb2.Status(
                     code=common_pb2.STATUS_UNKNOWN_ERROR,
                     msg=repr(e)))
@@ -305,27 +323,34 @@ class RpcServer(object):
     def get_job_metrics(self, request, context):
         with self._app.app_context():
             project, party = self.check_auth_info(request.auth_info, context)
-            workflow = Workflow.query.filter_by(
-                name=request.workflow_name).first()
-            assert workflow is not None, \
-                f'Workflow {request.workflow_name} not found'
+            job = Job.query.filter_by(name=request.job_name).first()
+            assert job is not None, f'Job {request.job_name} not found'
+            workflow = job.workflow
             if not workflow.metric_is_public:
                 raise UnauthorizedException('Metric is private!')
-
-            job = None
-            for i in workflow.get_jobs():
-                if i.get_config().name == request.job_name:
-                    job = i
-                    break
-
-            assert job is not None, f'Job {request.job_name} not found'
-
             metrics = JobMetricsBuilder(job).plot_metrics()
-
             return service_pb2.GetJobMetricsResponse(
                 status=common_pb2.Status(
                     code=common_pb2.STATUS_SUCCESS),
                 metrics=json.dumps(metrics))
+
+    def get_job_events(self, request, context):
+        with self._app.app_context():
+            project, party = self.check_auth_info(request.auth_info, context)
+            job = Job.query.filter_by(name=request.job_name).first
+            assert job is not None, \
+                f'Job {request.job_name} not found'
+
+            result = es.query_events('filebeat-*', job.name,
+                                     'fedlearner-operator',
+                                     request.start_time,
+                                     int(time.time() * 1000)
+                                     )[:request.max_lines][::-1]
+
+            return service_pb2.GetJobMetricsResponse(
+                status=common_pb2.Status(
+                    code=common_pb2.STATUS_SUCCESS),
+                logs=result)
 
 
 rpc_server = RpcServer()
