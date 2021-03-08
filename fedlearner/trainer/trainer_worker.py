@@ -19,7 +19,7 @@ import argparse
 import json
 import tensorflow.compat.v1 as tf
 
-from fedlearner.common import metrics
+from fedlearner.common import metrics, common
 from fedlearner.common.summary_hook import SummaryHook
 from fedlearner.trainer.bridge import Bridge
 from fedlearner.trainer.estimator import FLEstimator
@@ -42,13 +42,22 @@ class StepMetricsHook(tf.estimator.SessionRunHook):
     def after_run(self, run_context, run_value):
         self._iter += 1
         if self._iter % self._every_n_iter == 0:
-            for name, value in run_value.results.items():
-                metrics.emit_store(name=name, value=value, tags={})
+            result = run_value.results
+            event_time = result.pop('event_time').decode()
+            if event_time == '':
+                tags = {}
+            else:
+                tags = {'event_time': common.convert_to_iso_format(event_time)}
+            for name, value in result.items():
+                metrics.emit_store(name=name, value=value, tags=tags)
 
 
 class StepLossAucMetricsHook(StepMetricsHook):
-    def __init__(self, loss_tensor, auc_tensor, every_n_iter=5):
-        tensor_dict = {"loss": loss_tensor, "auc": auc_tensor}
+    def __init__(self, loss_tensor, auc_tensor, every_n_iter=5,
+                 event_time_tensor=tf.constant([''])):
+        tensor_dict = {"loss": loss_tensor,
+                       "auc": auc_tensor,
+                       "event_time": event_time_tensor}
         super(StepLossAucMetricsHook, self).__init__(tensor_dict, every_n_iter)
 
 
