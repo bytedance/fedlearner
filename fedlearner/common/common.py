@@ -123,6 +123,10 @@ METRICS_MAPPINGS = {
                 "role": {
                     "ignore_above": 16,
                     "type": "keyword"
+                },
+                "event_time": {
+                    "type": "date",
+                    "format": _es_datetime_format
                 }
             }
         }
