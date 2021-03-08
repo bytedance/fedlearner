@@ -40,7 +40,7 @@ def format_yaml(yaml, **kwargs):
             'Unknown placeholder: {}'.format(e.args[0])) from e
 
 
-def make_variables_dict(variables):
+def _make_variables_dict(variables):
     var_dict = {
         var.name: var.value
         for var in variables
@@ -51,17 +51,17 @@ def make_variables_dict(variables):
 def job_run_yaml(job):
     system_dict = {'basic_envs': get_system_envs()}
     workflow = job.workflow.to_dict()
-    workflow['variables'] = make_variables_dict(
+    workflow['variables'] = _make_variables_dict(
         job.workflow.get_config().variables)
 
     workflow['jobs'] = {}
     for j in job.workflow.get_jobs():
-        variables = make_variables_dict(j.get_config().variables)
+        variables = _make_variables_dict(j.get_config().variables)
         j_dic = j.to_dict()
         j_dic['variables'] = variables
         workflow['jobs'][j.get_config().name] = j_dic
     project = job.project.to_dict()
-    project['variables'] = make_variables_dict(
+    project['variables'] = _make_variables_dict(
         job.project.get_config().variables)
     # TODO: should adapt to multi_participants
     project['participants'] = {}
