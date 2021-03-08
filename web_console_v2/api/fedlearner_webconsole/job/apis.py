@@ -26,16 +26,16 @@ from fedlearner_webconsole.job.metrics import JobMetricsBuilder
 from fedlearner_webconsole.utils.es import es
 import prison
 
-from config import Config
 from fedlearner_webconsole.exceptions import (
     NotFoundException, InternalException
 )
-from fedlearner_webconsole.job.metrics import JobMetricsBuilder, KibanaUtils
+from fedlearner_webconsole.job.metrics import JobMetricsBuilder
 from fedlearner_webconsole.job.models import Job
 from fedlearner_webconsole.k8s_client import get_client
 from fedlearner_webconsole.proto import common_pb2
 from fedlearner_webconsole.rpc.client import RpcClient
 from fedlearner_webconsole.utils.es import es
+from fedlearner_webconsole.utils.kibana import KibanaUtils
 from fedlearner_webconsole.workflow.models import Workflow
 
 
@@ -255,7 +255,7 @@ class KibanaMetricsApi(Resource):
                      "_a=(filters:!(),linked:!f," \
                      "query:(language:kuery,query:''),uiState:()," \
                      "vis:{vis_state})" \
-            .format(kbn_addr=Config.KIBANA_ADDRESS,
+            .format(kbn_addr=KibanaUtils.KIBANA_ADDRESS,
                     start_time=start_time,
                     end_time=end_time,
                     vis_state=suffix)
