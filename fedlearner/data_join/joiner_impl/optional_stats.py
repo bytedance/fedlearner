@@ -5,9 +5,11 @@ from collections import defaultdict
 from datetime import datetime
 from itertools import chain
 
+import pytz
+
 import fedlearner.common.data_join_service_pb2 as dj_pb
-from fedlearner.common.metrics import emit, CONFIGS
 from fedlearner.common.common import convert_to_iso_format
+from fedlearner.common.metrics import emit, CONFIGS
 
 
 class OptionalStats(object):
@@ -71,7 +73,9 @@ class OptionalStats(object):
             tags = copy.deepcopy(self._tags)
             tags.update(item_stat)
             tags['event_time'] = convert_to_iso_format(item.event_time)
-            tags['process_time'] = convert_to_iso_format(datetime.now())
+            tags['process_time'] = convert_to_iso_format(
+                datetime.now(tz=pytz.utc)
+            )
             emit(name='', value=0, tags=tags, index_type='data_join')
 
     def emit_optional_stats(self):

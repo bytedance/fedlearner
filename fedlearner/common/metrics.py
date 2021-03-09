@@ -126,7 +126,7 @@ class ElasticSearchHandler(Handler):
             document = {
                 "name": name,
                 "value": value,
-                "tags": tags,
+                "tags": tags
             }
         else:
             document = {

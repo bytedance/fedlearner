@@ -14,12 +14,14 @@
 
 # coding: utf-8
 
-import logging
 import argparse
 import json
+import logging
+
 import tensorflow.compat.v1 as tf
 
-from fedlearner.common import metrics, common
+from fedlearner.common import common as fcc
+from fedlearner.common import metrics
 from fedlearner.common.summary_hook import SummaryHook
 from fedlearner.trainer.bridge import Bridge
 from fedlearner.trainer.estimator import FLEstimator
@@ -47,7 +49,7 @@ class StepMetricsHook(tf.estimator.SessionRunHook):
             if event_time == '':
                 tags = {}
             else:
-                tags = {'event_time': common.convert_to_iso_format(event_time)}
+                tags = {'event_time': fcc.convert_to_iso_format(event_time)}
             for name, value in result.items():
                 metrics.emit_store(name=name, value=value, tags=tags)
 

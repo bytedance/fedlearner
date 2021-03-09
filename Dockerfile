@@ -17,5 +17,6 @@ RUN make protobuf \
     && make op
 
 ENV PYTHONPATH=/app:$PYTHONPATH
+ENV TZ="Asia/Shanghai"
 
 CMD []

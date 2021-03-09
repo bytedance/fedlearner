@@ -2,6 +2,8 @@ import copy
 import random
 from datetime import datetime
 
+import pytz
+
 from fedlearner.common import metrics, common
 from fedlearner.data_join.common import convert_to_str
 from fedlearner.data_join.common import convert_to_iso_format
@@ -21,6 +23,8 @@ class MetricStats:
                 tags[field] = value
             tags['example_id'] = convert_to_str(item.example_id)
             tags['event_time'] = convert_to_iso_format(item.event_time)
-            tags['process_time'] = convert_to_iso_format(datetime.now())
+            tags['process_time'] = convert_to_iso_format(
+                datetime.now(tz=pytz.utc)
+            )
             metrics.emit_store(name='input_data', value=0, tags=tags,
                                index_type='raw_data')
