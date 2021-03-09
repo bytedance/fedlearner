@@ -22,7 +22,7 @@ from fedlearner_webconsole.utils.system_envs import get_system_envs
 class _YamlTemplate(Template):
     delimiter = '$'
     # Which placeholders in the template should be interpreted
-    idpattern = r'[a-zA-Z_-]+(\.[a-zA-Z_-]+)*'
+    idpattern = r'[a-zA-Z_\-\[0-9\]]+(\.[a-zA-Z_\-\[0-9\]]+)*'
 
 
 def format_yaml(yaml, **kwargs):
@@ -64,14 +64,12 @@ def job_run_yaml(job):
     project = job.project.to_dict()
     project['variables'] = _make_variables_dict(
         job.project.get_config().variables)
-    # TODO: should adapt to multi_participants
-    participant_index = 0
-    project['participants'] = {}
-    project['participants'][f'{participant_index}'] = {}
-    project['participants'][f'{participant_index}']['egress_domain'] = \
-    project['config']['participants'][participant_index]['domain_name']
-    project['participants']['0']['egress_host'] = project[
-        'config']['participants'][participant_index]['grpc_spec']['authority']
+    for index, participant in project['config']['participants']:
+        project[f'participants[{index}]'] = {}
+        project[f'participants[{index}]']['egress_domain'] =\
+            participant['domain_name']
+        project[f'participants[{index}]']['egress_host'] = \
+            participant['grpc_spec']['authority']
     yaml = format_yaml(job.yaml_template,
                        workflow=workflow,
                        project=project,

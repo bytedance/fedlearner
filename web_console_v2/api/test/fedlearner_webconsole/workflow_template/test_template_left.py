@@ -143,11 +143,11 @@ def make_workflow_template():
                                     },
                                     {
                                         "name": "EGRESS_HOST",
-                                        "value": "${project.participants.0.egress_host}"
+                                        "value": "${project.participants[0].egress_host}"
                                     },
                                     {
                                         "name": "EGRESS_DOMAIN",
-                                        "value": "${project.participants.0.egress_domain}"
+                                        "value": "${project.participants[0].egress_domain}"
                                     },
                                     {
                                         "name": "STORAGE_ROOT_PATH",
@@ -271,11 +271,11 @@ def make_workflow_template():
                                     },
                                     {
                                         "name": "EGRESS_HOST",
-                                        "value": "${project.participants.0.egress_host}"
+                                        "value": "${project.participants[0].egress_host}"
                                     },
                                     {
                                         "name": "EGRESS_DOMAIN",
-                                        "value": "${project.participants.0.egress_domain}"
+                                        "value": "${project.participants[0].egress_domain}"
                                     },
                                     {
                                         "name": "STORAGE_ROOT_PATH",
@@ -424,7 +424,7 @@ def make_workflow_template():
         "peerSpecs": {
             "Follower": {
                 "peerURL": "fedlearner-stack-ingress-nginx-controller.default.svc.cluster.local:80",
-                "authority": "${project.participants.0.egress_domain}",
+                "authority": "${project.participants[0].egress_domain}",
                 "extraHeaders": {
                     "x-host": "default.fedlearner.operator"
                 }
@@ -521,11 +521,11 @@ def make_workflow_template():
                                     },
                                     {
                                         "name": "EGRESS_HOST",
-                                        "value": "${project.participants.0.egress_host}"
+                                        "value": "${project.participants[0].egress_host}"
                                     },
                                     {
                                         "name": "EGRESS_DOMAIN",
-                                        "value": "${project.participants.0.egress_domain}"
+                                        "value": "${project.participants[0].egress_domain}"
                                     },
                                     {
                                         "name": "BATCH_MODE",
@@ -693,11 +693,11 @@ def make_workflow_template():
                                     },
                                     {
                                         "name": "EGRESS_HOST",
-                                        "value": "${project.participants.0.egress_host}"
+                                        "value": "${project.participants[0].egress_host}"
                                     },
                                     {
                                         "name": "EGRESS_DOMAIN",
-                                        "value": "${project.participants.0.egress_domain}"
+                                        "value": "${project.participants[0].egress_domain}"
                                     },
                                     {
                                         "name": "PARTITION_NUM",
@@ -837,7 +837,7 @@ def make_workflow_template():
         "peerSpecs": {
             "Leader": {
                 "peerURL": "fedlearner-stack-ingress-nginx-controller.default.svc.cluster.local:80",
-                "authority": "${project.participants.0.egress_domain}",
+                "authority": "${project.participants[0].egress_domain}",
                 "extraHeaders": {
                     "x-host": "default.fedlearner.operator"
                 }
@@ -934,11 +934,11 @@ def make_workflow_template():
                                     },
                                     {
                                         "name": "EGRESS_HOST",
-                                        "value": "${project.participants.0.egress_host}"
+                                        "value": "${project.participants[0].egress_host}"
                                     },
                                     {
                                         "name": "EGRESS_DOMAIN",
-                                        "value": "${project.participants.0.egress_domain}"
+                                        "value": "${project.participants[0].egress_domain}"
                                     },
                                     {
                                         "name": "DATA_SOURCE",
@@ -1084,11 +1084,11 @@ def make_workflow_template():
                                     },
                                     {
                                         "name": "EGRESS_HOST",
-                                        "value": "${project.participants.0.egress_host}"
+                                        "value": "${project.participants[0].egress_host}"
                                     },
                                     {
                                         "name": "EGRESS_DOMAIN",
-                                        "value": "${project.participants.0.egress_domain}"
+                                        "value": "${project.participants[0].egress_domain}"
                                     },
                                     {
                                         "name": "DATA_SOURCE",
@@ -1238,11 +1238,11 @@ def make_workflow_template():
                                     },
                                     {
                                         "name": "EGRESS_HOST",
-                                        "value": "${project.participants.0.egress_host}"
+                                        "value": "${project.participants[0].egress_host}"
                                     },
                                     {
                                         "name": "EGRESS_DOMAIN",
-                                        "value": "${project.participants.0.egress_domain}"
+                                        "value": "${project.participants[0].egress_domain}"
                                     },
                                     {
                                         "name": "CODE_KEY",
