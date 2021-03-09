@@ -323,7 +323,8 @@ class RpcServer(object):
     def get_job_metrics(self, request, context):
         with self._app.app_context():
             project, party = self.check_auth_info(request.auth_info, context)
-            job = Job.query.filter_by(name=request.job_name).first()
+            job = Job.query.filter_by(name=request.job_name,
+                                      project_id=project.id).first()
             assert job is not None, f'Job {request.job_name} not found'
             workflow = job.workflow
             if not workflow.metric_is_public:
@@ -337,7 +338,8 @@ class RpcServer(object):
     def get_job_events(self, request, context):
         with self._app.app_context():
             project, party = self.check_auth_info(request.auth_info, context)
-            job = Job.query.filter_by(name=request.job_name).first
+            job = Job.query.filter_by(name=request.job_name,
+                                      project_id=project.id).first
             assert job is not None, \
                 f'Job {request.job_name} not found'
 
