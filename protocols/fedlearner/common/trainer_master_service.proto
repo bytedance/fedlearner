@@ -26,17 +26,27 @@ enum MasterStatus {
     ERROR = 4;
 }
 
+enum DataSourceType {
+    LOCAL = 0;
+    JOINED = 1;
+}
 
 message DataBlockRequest {
   uint32 worker_rank = 1;
   //If TM role is follower, trainer request for datablock by block_id from leader.
   string block_id = 2;
+  string data_source_name = 3;
 };
 
 message DataBlockInfo {
   string block_id = 1;
   string data_path = 2;
   string meta_path = 3; 
+}
+
+message DataSourceInfo {
+  string data_source_name = 1;
+  repeated string block_ids = 2;
 }
 
 message DataBlockResponse {
@@ -51,20 +61,31 @@ message GetDataBlockCheckpointRequest {
 
 message GetDataBlockCheckpointResponse {
   Status status = 1;
-  repeated string block_ids = 2;
+  repeated DataSourceInfo blocks = 2;
 }
 
 message RestoreDataBlockCheckpointRequest {
   string application_id = 1;
-  repeated string block_ids = 2;
+  repeated DataSourceInfo blocks = 3;
 }
 
 message RestoreDataBlockCheckpointResponse {
   Status status = 1;
 }
 
+message GetDataSourceInfoRequest {
+  string data_source_name = 2;
+}
+
+message GetDataSourceInfoResponse {
+  Status status = 1;
+  DataSourceType type = 2;
+  uint32 size = 3;
+}
+
 service TrainerMasterService {
   rpc RequestDataBlock (DataBlockRequest) returns (DataBlockResponse) {}
   rpc GetDataBlockCheckpoint (GetDataBlockCheckpointRequest) returns (GetDataBlockCheckpointResponse) {}
   rpc RestoreDataBlockCheckpoint (RestoreDataBlockCheckpointRequest) returns (RestoreDataBlockCheckpointResponse) {}
+  rpc GetDataSourceInfo (GetDataSourceInfoRequest) returns (GetDataSourceInfoResponse) {}
 }

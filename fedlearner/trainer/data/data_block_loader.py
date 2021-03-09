@@ -25,18 +25,31 @@ try:
 except ImportError:
     import tensorflow as tf
 
+from fedlearner.common import trainer_master_service_pb2 as tm_pb
+
 class DataBlockLoader(object):
-    def __init__(self, batch_size, role, bridge, trainer_master):
+    def __init__(self, batch_size, role, bridge, trainer_master, data_source_name=''):
         self._batch_size = batch_size
         self._role = role
         self._bridge = bridge
         self._trainer_master = trainer_master
         assert self._trainer_master is not None
+        self._data_source_name = data_source_name
+        self._data_source_info = None
+        ds_info = trainer_master.get_data_source_info(data_source_name)
+        if ds_info is None:
+            raise ValueError("Get data source info from master failed")
+        self._data_source_type = ds_info.type
+        self._block_count = ds_info.size
 
         self._count = 0
         if role == 'follower':
             self._block_queue = queue.Queue()
             self._bridge.register_data_block_handler(self._data_block_handler)
+
+    @property
+    def block_count(self):
+        return self._block_count
 
     def _data_block_handler(self, msg):
         logging.info('DataBlock: recv "%s" at %d', msg.block_id, msg.count)
@@ -44,7 +57,8 @@ class DataBlockLoader(object):
         if not msg.block_id:
             block = None
         else:
-            block = self._trainer_master.request_data_block(msg.block_id)
+            block = self._trainer_master.request_data_block(msg.block_id,
+                                                            self._data_source_name)
             if block is None:
                 return False
         self._count += 1
@@ -54,15 +68,18 @@ class DataBlockLoader(object):
     def get_next_block(self):
         if self._role == 'leader':
             while True:
-                block = self._trainer_master.request_data_block()
-                if block is not None:
-                    if not self._bridge.load_data_block(
-                            self._count, block.block_id):
-                        continue
-                else:
-                    self._bridge.load_data_block(self._count, '')
+                block = self._trainer_master.request_data_block(
+                    data_source_name=self._data_source_name)
+                if self._data_source_type == tm_pb.JOINED:
+                    if block is not None:
+                        if not self._bridge.load_data_block(
+                                self._count, block.block_id):
+                            continue
+                    else:
+                        self._bridge.load_data_block(self._count, '')
                 break
-            self._count += 1
+            if self._data_source_type == tm_pb.JOINED:  # joined data source
+                self._count += 1
         else:
             block = self._block_queue.get()
         return block
@@ -76,35 +93,6 @@ class DataBlockLoader(object):
                 yield block.data_path
 
         dataset = tf.data.Dataset.from_generator(gen, tf.string)
-        dataset = tf.data.TFRecordDataset(dataset)
-        dataset = dataset.batch(self._batch_size, drop_remainder=True)
-        dataset = dataset.prefetch(2)
-        return dataset
-
-    def make_batch_iterator(self):
-        return self.make_dataset().make_one_shot_iterator()
-
-
-class LocalDataBlockLoader(object):
-    def __init__(self, batch_size, trainer_master):
-        self._batch_size = batch_size
-        self._trainer_master = trainer_master
-        assert self._trainer_master is not None
-
-    def get_next_block(self):
-        block = self._trainer_master.request_data_block()
-        return block
-
-    def make_dataset(self):
-        def gen():
-            while True:
-                block = self.get_next_block()
-                if not block:
-                    break
-                yield block.data_path
-
-        dataset = tf.data.Dataset.from_generator(gen, tf.string)
-        dataset = dataset.prefetch(2)
         dataset = tf.data.TFRecordDataset(dataset)
         dataset = dataset.batch(self._batch_size, drop_remainder=True)
         dataset = dataset.prefetch(2)

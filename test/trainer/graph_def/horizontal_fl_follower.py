@@ -21,7 +21,7 @@ import fedlearner.trainer as flt
 
 
 
-def input_fn(bridge, trainer_master, local_trainers):
+def input_fn(bridge, trainer_master):
     def parse_fn(example):
         feature_map = {
             "example_id": tf.FixedLenFeature([], tf.string),
@@ -34,19 +34,6 @@ def input_fn(bridge, trainer_master, local_trainers):
     dataset = dataset.map(map_func=parse_fn,
         num_parallel_calls=tf.data.experimental.AUTOTUNE)
     features, label = dataset.make_one_shot_iterator().get_next()
-
-    def parse_fn1(example):
-        feature_map = {
-            "x": tf.FixedLenFeature([28 * 28 // 4], tf.float32),
-        }
-        features = tf.parse_example(example, features=feature_map)
-        return features, {}
-    for i in range(1, 3):
-        dataset = flt.data.LocalDataBlockLoader(2, local_trainers['ds{}'.format(i)]).make_dataset()
-        dataset = dataset.map(map_func=parse_fn1,
-                              num_parallel_calls=tf.data.experimental.AUTOTUNE)
-        features1, _ = dataset.make_one_shot_iterator().get_next()
-        features['x{}'.format(i)] = features1['x']
     return features, label
 
 
@@ -54,8 +41,6 @@ def serving_input_receiver_fn():
     feature_map = {
         "example_id": tf.FixedLenFeature([], tf.string),
         "x": tf.FixedLenFeature([28 * 28 // 4], tf.float32),
-        "x1": tf.FixedLenFeature([28 * 28 // 4], tf.float32),
-        "x2": tf.FixedLenFeature([28 * 28 // 4], tf.float32),
     }
     record_batch = tf.placeholder(dtype=tf.string, name='examples')
     features = tf.parse_example(record_batch, features=feature_map)
@@ -64,10 +49,10 @@ def serving_input_receiver_fn():
 
 
 def model_fn(model, features, labels, mode):
-    x = tf.concat([features['x'], features['x1'], features['x2']], axis=1)
+    x = features['x']
 
     w1f = tf.get_variable('w1f',
-                          shape=[28 * 28 / 4 * 3, 128],
+                          shape=[28 * 28 / 4, 128],
                           dtype=tf.float32,
                           initializer=tf.random_uniform_initializer(
                               -0.01, 0.01))

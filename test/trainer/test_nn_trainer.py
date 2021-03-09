@@ -219,7 +219,7 @@ def run_leader_tm(app_id, data_source, port, env=None):
     if env is not None:
         os.environ = env 
     leader_tm = LeaderTrainerMaster(app_id, data_source,
-                                    None, None,
+                                    None, None, None,
                                     False, False, 0, 1)
     leader_tm.run(listen_port=int(port))
 

@@ -26,6 +26,7 @@ except ImportError:
 
 from fedlearner.common import trainer_master_service_pb2 as tm_pb
 from fedlearner.common import trainer_master_service_pb2_grpc as tm_grpc
+from fedlearner.common.utils import random_shuffle
 from fedlearner.proxy.channel import make_insecure_channel, ChannelType
 from fedlearner.common import common_pb2 as common_pb
 from fedlearner.data_join.data_block_visitor import DataBlockVisitor
@@ -46,6 +47,8 @@ class LocalTrainerMasterClient(object):
                  end_time=None,
                  from_data_source=False,
                  skip_datablock_checkpoint=False,
+                 shuffle_data_block=False,
+                 shuffle_range=0,
                  epoch_num=1):
         self._role = role
         self._path = path
@@ -53,14 +56,16 @@ class LocalTrainerMasterClient(object):
         self._block_map = {}
         self._allocated_data_blockids = set()
         self._status = tm_pb.MasterStatus.CREATED
+        self._data_source_name = 'default'
+        blocks = []
         if from_data_source:
             data_block_visitor = DataBlockVisitor(path, kvstore_type)
             # pylint: disable=line-too-long
             for block_id, block_item in data_block_visitor.LoadDataBlockRepByTimeFrame(
                     start_time, end_time).items():
-                block_info = DataBlockInfo(block_item.block_id, block_item.data_block_fpath)
-                logging.info("====== %s", block_info.data_path)
-                self._block_queue.append(block_info)
+                block_info = DataBlockInfo(block_item.block_id,
+                                           block_item.data_block_fpath)
+                blocks.append(block_info)
                 self._block_map[block_id] = block_info
         else:
             if files is None:
@@ -75,22 +80,24 @@ class LocalTrainerMasterClient(object):
             files.sort()
 
             # Hack way for supporting multiple epochs
-            blocks = []
             for filename in files:
                 block_id, _ = os.path.splitext(os.path.basename(filename))
                 fullname = os.path.join(path, filename)
                 block = DataBlockInfo(block_id, fullname)
                 blocks.append(block)
             self._block_map = {block.block_id: block for block in blocks}
-            for rnd in range(epoch_num):
-                for block in blocks:
-                    self._block_queue.append(block)
+
+        for rnd in range(epoch_num):
+            if shuffle_data_block:
+                random_shuffle(blocks, shuffle_range)
+            for block in blocks:
+                self._block_queue.append(block)
 
         self._status = tm_pb.MasterStatus.INITIALING
         if skip_datablock_checkpoint:
             self._status = tm_pb.MasterStatus.RUNNING
 
-    def request_data_block(self, block_id=None):
+    def request_data_block(self, block_id=None, data_source_name=''):
         if self._status != tm_pb.MasterStatus.RUNNING:
             response = tm_pb.DataBlockResponse()
             response.status.code = \
@@ -120,15 +127,27 @@ class LocalTrainerMasterClient(object):
                 "invalid status when "
                 "getting data block ckpt %s", self._status)
             return []
-        return list(self._allocated_data_blockids)
+        ds_info = tm_pb.DataSourceInfo()
+        ds_info.data_source_name = self._data_source_name
+        ds_info.block_ids.extend(list(self._allocated_data_blockids))
+        return [ds_info]
 
-    def restore_data_block_checkpoint(self, appid, block_ids):
+    def restore_data_block_checkpoint(self, appid, blocks):
         if self._status != tm_pb.MasterStatus.INITIALING:
             logging.warning("invalid status when restoring data block ckpt")
             return False
-        self._allocated_data_blockids |= set(block_ids)
+        if blocks:
+            assert len(blocks) == 1, \
+                'Local trainer master only support 1 data source'
+            self._allocated_data_blockids |= set(blocks[0].block_ids)
         self._status = tm_pb.MasterStatus.RUNNING
         return True
+
+    def get_data_source_info(self, data_source_name):
+        response = tm_pb.GetDataSourceInfoResponse()
+        response.type = tm_pb.JOINED
+        response.size = 1
+        return response
 
 
 class TrainerMasterClient(object):
@@ -150,20 +169,23 @@ class TrainerMasterClient(object):
             result = self._stub.GetDataBlockCheckpoint(req)
         except Exception as e:  # pylint: disable=broad-except
             logging.warning("Get data blocks checkpoint failed: %s", \
-                           e.code().name)
+                            e.code().name)
             return []
         else:
             if result.status.code == common_pb.STATUS_SUCCESS:
-                return result.block_ids
+                return result.blocks
             logging.warning("Get data blocks checkpoint error, %d, %s", \
-                           result.status.code,
-                           result.status.error_message)
+                            result.status.code,
+                            result.status.error_message)
             return []
 
-    def restore_data_block_checkpoint(self, appid, block_ids):
+    def restore_data_block_checkpoint(self, appid, blocks):
         req = tm_pb.RestoreDataBlockCheckpointRequest()
         req.application_id = appid
-        req.block_ids.extend(block_ids)
+        for block in blocks:
+            new_blk = req.blocks.add()
+            new_blk.data_source_name = block.data_source_name
+            new_blk.block_ids.extend(block.block_ids)
         try:
             result = self._stub.RestoreDataBlockCheckpoint(req)
         except Exception as e:  # pylint: disable=broad-except
@@ -179,7 +201,8 @@ class TrainerMasterClient(object):
                            result.status.error_message)
             return False
 
-    def request_data_block(self, block_id=None):
+    def request_data_block(self, block_id=None, data_source_name=''):
+        self._request.data_source_name = data_source_name
         if self._role == 'follower':
             assert block_id, "Must set block_id for follower"
             self._request.block_id = block_id
@@ -212,3 +235,20 @@ class TrainerMasterClient(object):
                                 result.status.error_message)
             time.sleep(1)
         return None
+
+    def get_data_source_info(self, data_source_name):
+        req = tm_pb.GetDataSourceInfoRequest()
+        req.data_source_name = data_source_name
+        try:
+            result = self._stub.GetDataSourceInfo(req)
+        except Exception as e:  # pylint: disable=broad-except
+            logging.warning("Get data source info failed: %s", \
+                            e.code().name)
+            return None
+        else:
+            if result.status.code == common_pb.STATUS_SUCCESS:
+                return result
+            logging.warning("Get data blocks checkpoint error, %d, %s", \
+                            result.status.code,
+                            result.status.error_message)
+            return None

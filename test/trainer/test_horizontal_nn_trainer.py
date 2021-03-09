@@ -217,10 +217,11 @@ def make_ckpt_dir(role, remote="local", rank=None):
         gfile.DeleteRecursively(ckpt_path)
     return ckpt_path, exp_path
 
-def run_leader_tm(app_id, data_source, port, env=None):
+def run_leader_tm(app_id, data_source, local_data_sources, port, env=None):
     if env is not None:
         os.environ = env 
     leader_tm = LeaderTrainerMaster(app_id, data_source,
+                                    local_data_sources,
                                     None, None,
                                     False, False, 0, 1)
     leader_tm.run(listen_port=int(port))
@@ -283,55 +284,6 @@ class Args(object):
 
 
 class TestNNTraining(unittest.TestCase):
-    def _create_local_data(self, xl, xfs, y):
-        N = 10
-        chunk_size = xl.shape[0] // N
-        leader_worker_path = os.path.join(output_path, leader_file_path)
-
-        data_path = os.path.join(output_path, "data")
-        if gfile.Exists(data_path):
-            gfile.DeleteRecursively(data_path)
-        os.makedirs(leader_worker_path)
-
-        follower_paths = []
-        num_followers = len(xfs)
-        for i in range(num_followers):
-            follower_worker_path = os.path.join(output_path, follower_file_path.format(i))
-            follower_paths.append(follower_worker_path)
-            os.makedirs(follower_worker_path)
-
-        for i in range(N):
-            filename_l = os.path.join(leader_worker_path, '%02d.tfrecord' % i)
-            fl = tf.io.TFRecordWriter(filename_l)
-            ffs = []
-            for k in range(num_followers):
-                filename_f = os.path.join(follower_paths[k], '%02d.tfrecord' % i)
-                ffs.append(tf.io.TFRecordWriter(filename_f))
-
-            for j in range(chunk_size):
-                idx = i * chunk_size + j
-                features_l = {}
-                features_l['example_id'] = Feature(
-                    bytes_list=BytesList(value=[str(idx).encode('utf-8')]))
-                features_l['y'] = Feature(int64_list=Int64List(value=[y[idx]]))
-                features_l['x'] = Feature(float_list=FloatList(value=list(xl[idx])))
-                fl.write(
-                    Example(features=Features(feature=features_l)).SerializeToString())
-                features_f = {}
-                features_f['example_id'] = Feature(
-                    bytes_list=BytesList(value=[str(idx).encode('utf-8')]))
-                features_f['x'] = Feature(float_list=FloatList(value=list(xfs[0][idx])))
-                ffs[0].write(
-                    Example(features=Features(feature=features_f)).SerializeToString())
-                for k in range(1, num_followers):
-                    features_f = {}
-                    features_f['x'] = Feature(float_list=FloatList(value=list(xfs[k][idx])))
-                    ffs[k].write(
-                        Example(features=Features(feature=features_f)).SerializeToString())
-            fl.close()
-            for k in range(num_followers):
-                ffs[k].close()
-
     def _create_data_block(self, data_source, partition_id, x, y):
         data_block_metas = []
         dbm = data_block_manager.DataBlockManager(data_source, partition_id)
@@ -381,7 +333,7 @@ class TestNNTraining(unittest.TestCase):
 
     def _gen_ds_meta(self, role, index):
         data_source = common_pb.DataSource()
-        data_source.data_source_meta.name = self.app_id
+        data_source.data_source_meta.name = "{}_{}".format(self.app_id, index)
         data_source.data_source_meta.partition_num = 1
         data_source.data_source_meta.start_time = 0
         data_source.data_source_meta.end_time = 100000
@@ -413,13 +365,11 @@ class TestNNTraining(unittest.TestCase):
             end_idx = chunk_size * (i + 1)
             xfs.append(x[:, start_idx:end_idx])
 
-        self._create_local_data(xl, xfs, y)
-
         self.kv_store = [None, None, None, None]
         data_source = [self._gen_ds_meta(common_pb.FLRole.Leader, 0),
-                       self._gen_ds_meta(common_pb.FLRole.Follower, 0),
-                       self._gen_ds_meta(common_pb.FLRole.Follower, 1),
-                       self._gen_ds_meta(common_pb.FLRole.Follower, 2)]
+                       self._gen_ds_meta(common_pb.FLRole.Leader, 1),
+                       self._gen_ds_meta(common_pb.FLRole.Leader, 2),
+                       self._gen_ds_meta(common_pb.FLRole.Follower, 0)]
         for role in range(4):
             os.environ['ETCD_NAME'] = data_source[role].data_source_meta.name
             self.kv_store[role] = db_client.DBClient("etcd", True)
@@ -443,44 +393,6 @@ class TestNNTraining(unittest.TestCase):
                         -1, i)
 
     #@unittest.skip("demonstrating skipping")
-    def local_cluster(self):
-        workers = []
-        addr = ["localhost:20050", "localhost:20051"]
-
-        role = 0
-        ckpt_path, exp_path = make_ckpt_dir(role)
-        args = Args(local_addr=addr[role],
-                    peer_addr=addr[(role+1)%2],
-                    app_id=self.app_id,
-                    data_path=os.path.join(output_path, "data/leader"),
-                    ckpt_path=ckpt_path,
-                    export_path=exp_path)
-        ftm = Process(name="RunLeaderTW", target=run_lm, args=(args, ),
-                kwargs={'env': child_env}, daemon=True)
-        ftm.start()
-        workers.append(ftm)
-
-        role = 1
-        ckpt_path, exp_path = make_ckpt_dir(role)
-        args = Args(local_addr=addr[role],
-                    peer_addr=addr[(role+1)%2],
-                    app_id=self.app_id,
-                    data_path=os.path.join(output_path, follower_file_path.format(0)),
-                    data_path_dict={
-                        "ds1": os.path.join(output_path, follower_file_path.format(1)),
-                        "ds2": os.path.join(output_path, follower_file_path.format(2))
-                    },
-                    ckpt_path=ckpt_path,
-                    export_path=exp_path)
-        ftm = Process(name="RunFollowerTW", target=run_fm, args=(args, ),
-                kwargs={'env' : child_env}, daemon=True)
-        ftm.start()
-        workers.append(ftm)
-
-        for w in workers:
-            w.join()
-
-    #@unittest.skip("demonstrating skipping")
     def test_remote_cluster(self):
         self.sche.bye()
         master_addr = ["0.0.0.0:4050", "0.0.0.0:4051"]
@@ -489,13 +401,15 @@ class TestNNTraining(unittest.TestCase):
         role = 0
         tml = _Task(name="RunLeaderTM", target=run_leader_tm, args=(self.app_id,
                 self.data_source[role].data_source_meta.name,
+                [self.data_source[1].data_source_meta.name,
+                 self.data_source[2].data_source_meta.name],
                 master_addr[role].split(":")[1],), weight=1, force_quit=True,
                 kwargs={'env' : child_env}, daemon=True)
         self.sche.submit(tml)
 
         role = 1
         tml = _Task(name="RunFollowerTM", target=run_follower_tm, args=(self.app_id,
-                self.data_source[role].data_source_meta.name,
+                self.data_source[3].data_source_meta.name,
                 master_addr[role].split(":")[1], ),
                 kwargs={'env' : child_env}, daemon=True, weight=1, force_quit=True)
         self.sche.submit(tml)
@@ -542,10 +456,6 @@ class TestNNTraining(unittest.TestCase):
                         app_id=self.app_id,
                         worker_rank = rank,
                         master_addr=master_addr[role],
-                        data_source_dict={
-                            "ds1": self.data_source[2].data_source_meta.name,
-                            "ds2": self.data_source[3].data_source_meta.name
-                        },
                         ckpt_path=ckpt_path,
                         export_path=exp_path)
             ftm = _Task(name="RunFollowerTW" + str(rank), target=run_fm, args=(args, ),

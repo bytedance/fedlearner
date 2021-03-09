@@ -167,12 +167,22 @@ class DataBlockVisitor(object):
                     "check datasource!"%(block_id, dbr.block_id)
         return dbr
 
+    def CountDataBlock(self, start_time=None, end_time=None):
+        return len(self.LoadDataBlockRepByTimeFrame(start_time, end_time))
+
     def _list_data_block(self, partition_id):
         dirpath = self._partition_data_block_dir(partition_id)
         if gfile.Exists(dirpath) and gfile.IsDirectory(dirpath):
             return [f for f in gfile.ListDirectory(dirpath)
                     if f.endswith(DataBlockSuffix)]
         return []
+
+    def _count_data_block(self, partition_id):
+        dirpath = self._partition_data_block_dir(partition_id)
+        if gfile.Exists(dirpath) and gfile.IsDirectory(dirpath):
+            return len(gfile.Glob("{}/*.{}".format(
+                dirpath, DataBlockSuffix)))
+        return 0
 
     def _partition_data_block_dir(self, partition_id):
         return os.path.join(data_source_data_block_dir(self._data_source),
