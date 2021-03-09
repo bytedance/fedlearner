@@ -173,7 +173,9 @@ def initialize_job_apis(api):
     api.add_resource(JobMetricsApi,
                      '/jobs/<int:job_id>/metrics')
     api.add_resource(PeerJobMetricsApi,
-                     '/jobs/<int:job_id>/participants/<int:participant_id>/metrics')
+                     '/jobs/<int:job_id>'
+                     '/participants/<int:participant_id>/metrics')
     api.add_resource(JobEventApi, '/jobs/<int:job_id>/events')
     api.add_resource(PeerJobEventsApi,
-                     '/jobs/<int:job_id>/participants/<int:participant_id>/events')
+                     '/jobs/<int:job_id>'
+                     '/participants/<int:participant_id>/events')
