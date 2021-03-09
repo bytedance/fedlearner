@@ -54,7 +54,9 @@ class StepMetricsHook(tf.estimator.SessionRunHook):
 
 class StepLossAucMetricsHook(StepMetricsHook):
     def __init__(self, loss_tensor, auc_tensor, every_n_iter=5,
-                 event_time_tensor=tf.constant([''])):
+                 event_time_tensor=None):
+        if event_time_tensor is None:
+            event_time_tensor = tf.constant([''])
         tensor_dict = {"loss": loss_tensor,
                        "auc": auc_tensor,
                        "event_time": event_time_tensor}
