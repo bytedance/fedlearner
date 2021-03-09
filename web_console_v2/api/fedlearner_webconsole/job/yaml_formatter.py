@@ -64,7 +64,8 @@ def job_run_yaml(job):
     project = job.project.to_dict()
     project['variables'] = _make_variables_dict(
         job.project.get_config().variables)
-    for index, participant in project['config']['participants']:
+    participants = project['config']['participants']
+    for index, participant in enumerate(participants):
         project[f'participants[{index}]'] = {}
         project[f'participants[{index}]']['egress_domain'] =\
             participant['domain_name']
