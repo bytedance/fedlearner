@@ -370,12 +370,12 @@ class TestNNTraining(unittest.TestCase):
                        self._gen_ds_meta(common_pb.FLRole.Leader, 1),
                        self._gen_ds_meta(common_pb.FLRole.Leader, 2),
                        self._gen_ds_meta(common_pb.FLRole.Follower, 0)]
-        for role in range(4):
+        for role in range(num_followers + 1):
             os.environ['ETCD_NAME'] = data_source[role].data_source_meta.name
             self.kv_store[role] = db_client.DBClient("etcd", True)
         self.data_source = data_source
         x = [xl] + xfs
-        for role in range(4):
+        for role in range(num_followers + 1):
             common.commit_data_source(self.kv_store[role], data_source[role])
             if gfile.Exists(data_source[role].output_base_dir):
                 gfile.DeleteRecursively(data_source[role].output_base_dir)

@@ -20,9 +20,12 @@ import tensorflow.compat.v1 as tf
 import fedlearner.trainer as flt
 
 def input_fn(bridge, trainer_master):
-    loader0 = flt.data.DataBlockLoader(2, 'leader', bridge, trainer_master,
-                                       "test_trainer_v1_0")
-    dataset = loader0.make_dataset()
+    loader0 = flt.data.DataBlockLoaderV2('leader', bridge, trainer_master,
+                                         "test_trainer_v1_0")
+
+    block_count0 = loader0.block_count
+    batch_size1 = 2
+    dataset = loader0.make_dataset(batch_size1)
     def parse_fn(example):
         feature_map = {
             "example_id": tf.FixedLenFeature([], tf.string),
@@ -31,7 +34,7 @@ def input_fn(bridge, trainer_master):
         }
         features = tf.parse_example(example, features=feature_map)
         labels = {'y': features.pop('y')}
-        print("Leader worker input_fn    ", labels)
+        print("Leader worker input_fn ", labels)
         return features, labels
 
     dataset = dataset.map(map_func=parse_fn,
@@ -45,8 +48,11 @@ def input_fn(bridge, trainer_master):
         features = tf.parse_example(example, features=feature_map)
         return features, {}
     for i in range(1, 3):
-        dataset = flt.data.DataBlockLoader(2, 'leader', bridge, trainer_master,
-                                           "test_trainer_v1_{}".format(i)).make_dataset()
+        loader1 = flt.data.DataBlockLoaderV2('leader', bridge, trainer_master,
+                                             "test_trainer_v1_{}".format(i))
+        block_count = loader1.block_count
+        batch_size = batch_size1 * (block_count // block_count0)
+        dataset = loader1.make_dataset(batch_size)
         dataset = dataset.map(map_func=parse_fn1,
                               num_parallel_calls=tf.data.experimental.AUTOTUNE)
         features1, _ = dataset.make_one_shot_iterator().get_next()
