@@ -349,7 +349,7 @@ class RpcServer(object):
                                      int(time.time() * 1000)
                                      )[:request.max_lines][::-1]
 
-            return service_pb2.GetJobMetricsResponse(
+            return service_pb2.GetJobEventsResponse(
                 status=common_pb2.Status(
                     code=common_pb2.STATUS_SUCCESS),
                 logs=result)

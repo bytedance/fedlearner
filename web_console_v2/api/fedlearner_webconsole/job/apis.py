@@ -27,11 +27,15 @@ from fedlearner_webconsole.exceptions import (
 from fedlearner_webconsole.rpc.client import RpcClient
 
 
+def _get_job(job_id):
+    result = Job.query.filter_by(id=job_id).first()
+    if result is None:
+        raise NotFoundException()
+    return result
+
 class JobApi(Resource):
     def get(self, job_id):
-        job = Job.query.filter_by(id=job_id).first()
-        if job is None:
-            raise NotFoundException()
+        job = _get_job(job_id)
         return {'data': job.to_dict()}
 
     # TODO: manual start jobs
@@ -69,7 +73,7 @@ class JobLogApi(Resource):
         data = parser.parse_args()
         start_time = data['start_time']
         max_lines = data['max_lines']
-        job = Job.query.get(job_id)
+        job = _get_job(job_id)
         if start_time is None:
             start_time = job.workflow.start_at
         return {'data': es.query_log('filebeat-*', job.name,
@@ -80,9 +84,7 @@ class JobLogApi(Resource):
 
 class JobMetricsApi(Resource):
     def get(self, job_id):
-        job = Job.query.filter_by(id=job_id).first()
-        if job is None:
-            raise NotFoundException()
+        job = _get_job(job_id)
 
         metrics = JobMetricsBuilder(job).plot_metrics()
 
@@ -98,7 +100,7 @@ class PeerJobMetricsApi(Resource):
         project_config = workflow.project.get_config()
         party = project_config.participants[participant_id]
         client = RpcClient(project_config, party)
-        resp = client.get_job_metrics(workflow.name, job.name)
+        resp = client.get_job_metrics(job.name)
         if resp.status.code != common_pb2.STATUS_SUCCESS:
             raise InternalException(resp.status.msg)
 
@@ -114,14 +116,14 @@ class JobEventApi(Resource):
         parser = reqparse.RequestParser()
         parser.add_argument('start_time', type=int, location='args',
                             required=False,
-                            help='project_id must be timestamp')
+                            help='start_time must be timestamp')
         parser.add_argument('max_lines', type=int, location='args',
                             required=True,
                             help='max_lines is required')
         data = parser.parse_args()
         start_time = data['start_time']
         max_lines = data['max_lines']
-        job = Job.query.get(job_id)
+        job = _get_job(job_id)
         if start_time is None:
             start_time = job.workflow.start_at
         return {'data': es.query_events('filebeat-*', job.name,
@@ -143,7 +145,7 @@ class PeerJobEventsApi(Resource):
         data = parser.parse_args()
         start_time = data['start_time']
         max_lines = data['max_lines']
-        job = Job.query.get(job_id)
+        job = _get_job(job_id)
         if start_time is None:
             start_time = job.workflow.start_at
 
