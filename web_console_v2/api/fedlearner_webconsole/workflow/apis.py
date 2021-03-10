@@ -82,7 +82,6 @@ class WorkflowsApi(Resource):
                             help='fork and edit peer config')
         parser.add_argument('comment')
         data = parser.parse_args()
-
         name = data['name']
         if Workflow.query.filter_by(name=name).first() is not None:
             raise ResourceConflictException(
