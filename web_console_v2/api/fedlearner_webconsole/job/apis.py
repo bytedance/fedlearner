@@ -180,12 +180,14 @@ class PeerJobEventsApi(Resource):
 
 
 class KibanaMetricsApi(Resource):
+    TSVB = ('Rate', 'Ratio', 'Numeric')
+    TIMELION = ('Time',)
     def get(self, job_id):
         job = Job.query.filter_by(id=job_id).first()
         parser = reqparse.RequestParser()
         parser.add_argument('type', type=str, location='args',
                             required=True,
-                            choices=('Rate', 'Ratio', 'Numeric'),
+                            choices=('Rate', 'Ratio', 'Numeric', 'Time'),
                             help='Visualization type is required.')
         parser.add_argument('interval', type=str, location='args',
                             default='',
@@ -226,40 +228,12 @@ class KibanaMetricsApi(Resource):
         parser.add_argument('metric_name', type=str, locations='args',
                             help='Name of metric should be provided.')
         args = parser.parse_args()
-        # get corresponding create method and call it with (job, args)
-        vis_state = getattr(KibanaUtils,
-                            'create_{}_visualization'
-                            .format(args['type'].lower()))(job, args)
-        # addition global filter on data if provided.
-        if args['query'] is not None and args['query'] != '':
-            vis_state['params']['filter']['query'] += \
-                ' and ({})'.format(args['query'])
-        rison_str = prison.dumps(vis_state)
-        suffix = KibanaUtils.rison_postprocess(rison_str)
-        if args['start_time'] < 0:
-            start_time = 'now-5y'
-        else:
-            start_time = datetime.fromtimestamp(
-                args['start_time']).isoformat(timespec='seconds') + 'Z'
-
-        if args['end_time'] < 0:
-            end_time = 'now'
-        else:
-            end_time = datetime.fromtimestamp(
-                args['end_time']).isoformat(timespec='seconds') + 'Z'
-
-        iframe_src = "{kbn_addr}/app/kibana#/visualize/create" \
-                     "?type=metrics&embed=true&" \
-                     "_g=(refreshInterval:(pause:!t,value:0)," \
-                     "time:(from:'{start_time}',to:'{end_time}'))&" \
-                     "_a=(filters:!(),linked:!f," \
-                     "query:(language:kuery,query:''),uiState:()," \
-                     "vis:{vis_state})" \
-            .format(kbn_addr=KibanaUtils.KIBANA_ADDRESS,
-                    start_time=start_time,
-                    end_time=end_time,
-                    vis_state=suffix)
-        return iframe_src
+        if args['type'] in KibanaMetricsApi.TSVB:
+            iframe_src_list = KibanaUtils.create_tsvb(job, args)
+            return iframe_src_list
+        if args['type'] in KibanaMetricsApi.TIMELION:
+            iframe_src_list = KibanaUtils.create_timelion(job, args)
+            return iframe_src_list
 
 
 def initialize_job_apis(api):
