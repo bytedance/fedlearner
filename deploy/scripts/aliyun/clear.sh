@@ -175,11 +175,27 @@ function delete_slb {
     echo "Finish clearing slb."
 }
 
+function delete_elasticsearch {
+    echo "Start clearing elasticsearch."
+
+    ES_INSTANCE_ID=`aliyun elasticsearch ListInstance --description $GENERATER_NAME | grep instanceId | awk -F "\"" '{print $4}' | head -1`
+
+    if [ -n "$ES_INSTANCE_ID" ]
+    then
+         echo "Delete elasticsearch instance with id $ES_INSTANCE_ID."
+         aliyun elasticsearch DeleteInstance --InstanceId $ES_INSTANCE_ID
+         sleep 5
+    fi
+
+    echo "Finish clearing elasticsearch."
+}
+
 init_para
 delete_slb
 delete_eip
 delete_db
 delete_nas
+delete_elasticsearch
 delete_k8s
 delete_secret
 delete_vswitch
