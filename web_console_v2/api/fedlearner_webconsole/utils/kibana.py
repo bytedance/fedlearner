@@ -32,7 +32,7 @@ class KibanaUtils(object):
                     'Sum of Squares': 'sum_of_squares'}
     COLORS = ['#DA6E6E', '#FA8080', '#789DFF',
               '#66D4FF', '#6EB518', '#9AF02E']
-    # metrics_v2 for all other job types
+    # metrics_v2* for all other job types
     JOB_INDEX = {JobType.RAW_DATA: 'raw_data',
                  JobType.DATA_JOIN: 'data_join',
                  JobType.PSI_DATA_JOIN: 'data_join'}
@@ -47,7 +47,7 @@ class KibanaUtils(object):
         vis_state = getattr(KibanaUtils,
                             '_create_{}_visualization'
                             .format(args['type'].lower()))(job, args)
-        # addition global filter on data if provided.
+        # additional global filter on data if provided.
         if args['query'] is not None and args['query'] != '':
             vis_state['params']['filter']['query'] += \
                 ' and ({})'.format(args['query'])
@@ -108,10 +108,10 @@ class KibanaUtils(object):
 
     @staticmethod
     def _parse_start_end_time(args):
-        st = 'now' if args['start_time'] < 0 \
+        st = 'now-5y' if args['start_time'] < 0 \
             else datetime.fromtimestamp(
             args['start_time'], tz=envs.TZ).isoformat(timespec='seconds')
-        et = 'now-5y' if args['end_time'] < 0 \
+        et = 'now' if args['end_time'] < 0 \
             else datetime.fromtimestamp(
             args['end_time'], tz=envs.TZ).isoformat(timespec='seconds')
         return st, et
@@ -127,7 +127,7 @@ class KibanaUtils(object):
         escaped_keys = map(re.escape, replacement)
         pattern = re.compile("|".join(escaped_keys), re_mode)
         return pattern.sub(
-            lambda match: replacement[match.group(0)],
+            lambda match: replacement[match.group(0).lower()],
             string
         )
 
@@ -259,11 +259,11 @@ class KibanaUtils(object):
             dict. A Kibana vis state dict
 
         This method will create 1 time series. The series will filter data
-            further by `name.keyword: args['metric_name']`. Aggregation will be
+            further by `name: args['metric_name']`. Aggregation will be
             applied on data's `args['value_field']` field. Aggregation types
             in `AGG_TYPE_MAP.keys()` are supported.
         """
-        for k in ('aggregator', 'value_field', 'metric_name'):
+        for k in ('aggregator', 'value_field'):
             if k not in args or args[k] is None:
                 raise ValueError(
                     '[{}] should be provided in Numeric visualization.'
@@ -271,11 +271,9 @@ class KibanaUtils(object):
         assert args['aggregator'] in KibanaUtils.AGG_TYPE_MAP
         vis_state = KibanaUtils._basic_tsvb_vis_state(job, args)
         params = vis_state['params']
-        params['filter']['query'] += ' and name.keyword:"{name}"' \
-            .format(name=args['metric_name'])
         series = KibanaUtils._tsvb_series(
             label='{} of {}'.format(args['aggregator'],
-                                    args['metric_name']),
+                                    args['value_field']),
             metrics={'type': KibanaUtils.AGG_TYPE_MAP[args['aggregator']],
                      'field': args['value_field']},
             line_width=2,
@@ -297,8 +295,8 @@ class KibanaUtils(object):
             list of dict. A list of Timelion vis states.
 
         """
-        query = 'application_id:{} AND partition:{}'.format(
-            job.name, args['partition']
+        query = 'application_id:{} AND partition:{} AND ({})'.format(
+            job.name, args['partition'], args['query']
         )
         if job.job_type in KibanaUtils.JOB_INDEX:
             index = KibanaUtils.JOB_INDEX[job.job_type] + '*'
@@ -326,10 +324,11 @@ class KibanaUtils(object):
             )
             series.append(','.join((max_series, min_series, median_series)))
         vis_states = []
+        interval = args['interval'] if args['interval'] != '' else 'auto'
         for s in series:
             vis_states.append({"type": "timelion",
                                "params": {"expression": s,
-                                          "interval": "auto"},
+                                          "interval": interval},
                                "aggs": []})
         return vis_states
 
