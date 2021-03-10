@@ -93,7 +93,8 @@ class WorkflowsApi(Resource):
         workflow = Workflow(name=name,
                             # 20 bytes
                             # a DNS-1035 label must start with an
-                            # alphabetic character
+                            # alphabetic character. substring uuid[:19] has
+                            # no collision in 10 million draws
                             uuid=f'u{uuid4().hex[:19]}',
                             comment=data['comment'],
                             project_id=data['project_id'],
