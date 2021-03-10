@@ -24,7 +24,7 @@ from google.protobuf.json_format import MessageToDict
 from fedlearner_webconsole.workflow.models import (
     Workflow, WorkflowState, TransactionState
 )
-from fedlearner_webconsole.job.yaml_formatter import job_run_yaml
+from fedlearner_webconsole.job.yaml_formatter import generate_job_run_yaml
 from fedlearner_webconsole.proto import common_pb2
 from fedlearner_webconsole.workflow_template.apis import \
     dict_to_workflow_definition
@@ -189,7 +189,7 @@ class WorkflowApi(Resource):
                 if WorkflowState[target_state] == WorkflowState.RUNNING:
                     for job in workflow.owned_jobs:
                         try:
-                            job_run_yaml(job)
+                            generate_job_run_yaml(job)
                         # TODO: check if peer variables is valid
                         except RuntimeError as e:
                             raise ValueError(

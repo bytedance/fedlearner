@@ -19,7 +19,7 @@ import os
 import threading
 import logging
 import traceback
-from fedlearner_webconsole.job.yaml_formatter import job_run_yaml
+from fedlearner_webconsole.job.yaml_formatter import generate_job_run_yaml
 from fedlearner_webconsole.db import db
 from fedlearner_webconsole.dataset.import_handler import ImportHandler
 from fedlearner_webconsole.workflow.models import Workflow, WorkflowState
@@ -160,7 +160,7 @@ class Scheduler(object):
                 return job.state
 
         k8s_client = get_client()
-        yaml = job_run_yaml(job)
+        yaml = generate_job_run_yaml(job)
         try:
             k8s_client.create_or_replace_custom_object(CrdKind.FLAPP, yaml)
         except RuntimeError as e:

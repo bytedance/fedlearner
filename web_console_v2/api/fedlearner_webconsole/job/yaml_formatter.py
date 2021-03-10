@@ -49,7 +49,7 @@ def _make_variables_dict(variables):
     return var_dict
 
 
-def job_run_yaml(job):
+def generate_job_run_yaml(job):
     system_dict = {'basic_envs': get_system_envs()}
     workflow = job.workflow.to_dict()
     workflow['variables'] = _make_variables_dict(
