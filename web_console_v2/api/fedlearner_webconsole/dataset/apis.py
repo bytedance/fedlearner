@@ -15,11 +15,13 @@
 # coding: utf-8
 # pylint: disable=raise-missing-from
 
-import datetime
 import os
+
+from datetime import datetime
 
 from flask import current_app, request
 from flask_restful import Resource, Api, reqparse
+from slugify import slugify
 
 from fedlearner_webconsole.dataset.models import (Dataset, DatasetType,
                                                   BatchState, DataBatch)
@@ -31,6 +33,14 @@ from fedlearner_webconsole.scheduler.scheduler import scheduler
 from fedlearner_webconsole.utils.file_manager import FileManager
 
 _FORMAT_ERROR_MESSAGE = '{} is empty'
+
+
+def _get_dataset_path(dataset_name):
+    root_dir = current_app.config.get('STORAGE_ROOT')
+    prefix = datetime.now().strftime('%Y%m%d_%H%M%S')
+    # Builds a path for dataset according to the dataset name
+    # Example: '/data/dataset/20210305_173312_test-dataset
+    return f'{root_dir}/dataset/{prefix}_{slugify(dataset_name)[:32]}'
 
 
 class DatasetApi(Resource):
@@ -59,22 +69,20 @@ class DatasetsApi(Resource):
         dataset_type = body.get('dataset_type')
         comment = body.get('comment')
 
-        if Dataset.query.filter_by(name=name).first() is not None:
-            raise InvalidArgumentException(
-                details='Dataset {} already exists'.format(name))
         try:
             # Create dataset
             dataset = Dataset(
                 name=name,
                 dataset_type=dataset_type,
-                comment=comment)
+                comment=comment,
+                path=_get_dataset_path(name))
             db.session.add(dataset)
             # TODO: scan cronjob
             db.session.commit()
+            return {'data': dataset.to_dict()}
         except Exception as e:
             db.session.rollback()
             raise InvalidArgumentException(details=str(e))
-        return {'data': dataset.to_dict()}
 
 
 class BatchesApi(Resource):
@@ -100,31 +108,33 @@ class BatchesApi(Resource):
                 details='data_batch.event_time is empty')
         # TODO: PSI dataset should not allow multi batches
 
+        # Use current timestamp to fill when type is PSI
+        event_time = datetime.fromtimestamp(
+            event_time or datetime.now().timestamp())
+        batch_folder_name = event_time.strftime('%Y%m%d_%H%M%S')
+        batch_path = f'{dataset.path}/batch/{batch_folder_name}'
         # Create batch
         batch = DataBatch(
             dataset_id=dataset.id,
-            # Use current timestamp to fill when type is PSI
-            event_time=datetime.datetime.fromtimestamp(
-                event_time or datetime.datetime.now().timestamp()),
+            event_time=event_time,
             comment=comment,
             state=BatchState.NEW,
             move=move,
+            path=batch_path
         )
         batch_details = dataset_pb2.DataBatch()
-        root_dir = current_app.config.get('STORAGE_ROOT')
-        batch_folder_name = batch.event_time.strftime('%Y%m%d%H%M%S')
         for file_path in files:
             file = batch_details.files.add()
             file.source_path = file_path
             file_name = file_path.split('/')[-1]
-            file.destination_path = f'{root_dir}/dataset/{dataset.id}' \
-                                    f'/batch/{batch_folder_name}/{file_name}'
+            file.destination_path = f'{batch_path}/{file_name}'
         batch.set_details(batch_details)
         db.session.add(batch)
         db.session.commit()
         db.session.refresh(batch)
         scheduler.wakeup(data_batch_ids=[batch.id])
         return {'data': batch.to_dict()}
+
 
 class FilesApi(Resource):
     def __init__(self):

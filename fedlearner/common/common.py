@@ -94,8 +94,7 @@ METRICS_MAPPINGS = {
     ],
     "properties": {
         "name": {
-            # for compatibility, use text here
-            "type": "text"
+            "type": "keyword"
         },
         "value": {
             "type": "float"
@@ -124,6 +123,10 @@ METRICS_MAPPINGS = {
                 "role": {
                     "ignore_above": 16,
                     "type": "keyword"
+                },
+                "event_time": {
+                    "type": "date",
+                    "format": _es_datetime_format
                 }
             }
         }

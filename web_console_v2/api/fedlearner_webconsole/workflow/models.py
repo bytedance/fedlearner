@@ -351,6 +351,16 @@ class Workflow(db.Model):
         self.target_state = WorkflowState.INVALID
         self.transaction_state = TransactionState.READY
 
+    def invalidate(self):
+        self.state = WorkflowState.INVALID
+        self.target_state = WorkflowState.INVALID
+        self.transaction_state = TransactionState.READY
+        for job in self.owned_jobs:
+            try:
+                job.stop()
+            except Exception:  # pylint: disable=broad-except
+                pass
+
     def _setup_jobs(self):
         if self.forked_from is not None:
             trunk = Workflow.query.get(self.forked_from)

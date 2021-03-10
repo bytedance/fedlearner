@@ -218,6 +218,8 @@ class RpcServer(object):
             return service_pb2.UpdateWorkflowStateResponse(
                     status=common_pb2.Status(
                         code=common_pb2.STATUS_SUCCESS),
+                    state=workflow.state.value,
+                    target_state=workflow.target_state.value,
                     transaction_state=workflow.transaction_state.value)
 
     def _filter_workflow(self, workflow, modes):
