@@ -1,6 +1,6 @@
 import React, { FC, useState, useEffect } from 'react';
 import styled from 'styled-components';
-import { Form, Select, Radio, Button, Input, Spin, Card, notification } from 'antd';
+import { Form, Select, Radio, Button, Input, Spin, Card, notification, message } from 'antd';
 import { useTranslation } from 'react-i18next';
 import GridRow from 'components/_base/GridRow';
 import CreateTemplateForm from './CreateTemplate';
@@ -20,15 +20,17 @@ import WORKFLOW_CHANNELS, { workflowPubsub } from '../../pubsub';
 import { useRecoilQuery } from 'hooks/recoil';
 import { Workflow, WorkflowTemplate } from 'typings/workflow';
 import { useToggle } from 'react-use';
-import { projectListQuery } from 'stores/project';
+import { projectListQuery } from 'stores/projects';
 import { useQuery } from 'react-query';
 import {
   fetchWorkflowTemplateList,
   getPeerWorkflowsConfig,
   getWorkflowDetailById,
+  fetchTemplateById,
 } from 'services/workflow';
 import { WorkflowCreateProps } from '..';
 import { parseWidgetSchemas } from 'shared/formSchema';
+import { to } from 'shared/helpers';
 
 const Container = styled(Card)`
   padding-top: 20px;
@@ -190,6 +192,7 @@ const WorkflowsCreateStepOne: FC<WorkflowCreateProps & { onSuccess?: any }> = ({
                     disabled={Boolean(tplListQuery.error) || noAvailableTpl}
                     onChange={onTemplateSelectChange}
                     placeholder={t('workflow.placeholder_template')}
+                    allowClear
                   >
                     {tplList?.map((tpl) => (
                       <Select.Option key={tpl.id} value={tpl.id}>
@@ -272,10 +275,20 @@ const WorkflowsCreateStepOne: FC<WorkflowCreateProps & { onSuccess?: any }> = ({
   function onFormChange(_: any, values: CreateWorkflowBasicForm) {
     setFormData(values);
   }
-  function onTemplateSelectChange(id: number) {
-    const target = tplList?.find((item) => item.id === id);
-    if (!target) return;
-    setCurrentUsingTemplate(cloneDeep(target));
+  async function onTemplateSelectChange(id: number) {
+    if (!id) {
+      // If user clear select
+      return;
+    }
+
+    const [res, error] = await to(fetchTemplateById(id));
+
+    if (error) {
+      message.error('获取模板详情失败，请稍后再试');
+      return;
+    }
+    if (!res.data) return;
+    setCurrentUsingTemplate(res.data);
   }
   function onTplCreateSuccess(res: WorkflowTemplate) {
     setSubmitting(false);
