@@ -10,9 +10,16 @@ from fedlearner_webconsole.job.models import JobType
 
 
 class KibanaUtils(object):
+    """
+    WARNING:
+        This class is deeply coupled with
+        fedlearner_webconsole.job.apis.KibanaMetricsApi
+    """
     KIBANA_ADDRESS = Config.KIBANA_HOST
     if Config.KIBANA_PORT is not None:
         KIBANA_ADDRESS += ':{}'.format(Config.KIBANA_PORT)
+    TSVB = ('Rate', 'Ratio', 'Numeric')
+    TIMELION = ('Time', 'Timer')
     RISON_REPLACEMENT = {' ': '%20',
                          '"': '%22',
                          '#': '%23',
@@ -23,13 +30,17 @@ class KibanaUtils(object):
                          '=': '%3D'}
     TIMELION_QUERY_REPLACEMENT = {' and ': ' AND ',
                                   ' or ': ' OR '}
-    AGG_TYPE_MAP = {'Average': 'avg',
-                    'Sum': 'sum',
-                    'Max': 'max',
-                    'Min': 'min',
-                    'Variance': 'variance',
-                    'Std. Deviation': 'std_deviation',
-                    'Sum of Squares': 'sum_of_squares'}
+    TSVB_AGG_TYPE = {'Average': 'avg',
+                     'Sum': 'sum',
+                     'Max': 'max',
+                     'Min': 'min',
+                     'Variance': 'variance',
+                     'Std. Deviation': 'std_deviation',
+                     'Sum of Squares': 'sum_of_squares'}
+    TIMELION_AGG_TYPE = {'Average': 'avg:{}',
+                         'Sum': 'sum',
+                         'Max': 'max',
+                         'Min': 'min'}
     COLORS = ['#DA6E6E', '#FA8080', '#789DFF',
               '#66D4FF', '#6EB518', '#9AF02E']
     # metrics_v2* for all other job types
@@ -51,24 +62,24 @@ class KibanaUtils(object):
         if args['query'] is not None and args['query'] != '':
             vis_state['params']['filter']['query'] += \
                 ' and ({})'.format(args['query'])
-        rison_str = prison.dumps(vis_state)
-        suffix = KibanaUtils._regex_process(
-            rison_str, KibanaUtils.RISON_REPLACEMENT
+        # rison-ify and replace
+        vis_state = KibanaUtils._regex_process(
+            prison.dumps(vis_state), KibanaUtils.RISON_REPLACEMENT
         )
         start_time, end_time = KibanaUtils._parse_start_end_time(args)
 
-        iframe_src = "{kbn_addr}/app/kibana#/visualize/create" \
-                     "?type=metrics&embed=true&" \
-                     "_g=(refreshInterval:(pause:!t,value:0)," \
-                     "time:(from:'{start_time}',to:'{end_time}'))&" \
-                     "_a=(filters:!(),linked:!f," \
-                     "query:(language:kuery,query:''),uiState:()," \
-                     "vis:{vis_state})" \
-            .format(kbn_addr=KibanaUtils.KIBANA_ADDRESS,
-                    start_time=start_time,
-                    end_time=end_time,
-                    vis_state=suffix)
-        return [iframe_src]
+        return [
+            "{kbn_addr}/app/kibana#/visualize/create"
+            "?type=metrics&embed=true&"
+            "_g=(refreshInterval:(pause:!t,value:0),"
+            "time:(from:'{start_time}',to:'{end_time}'))&"
+            "_a=(filters:!(),linked:!f,"
+            "query:(language:kuery,query:''),uiState:(),"
+            "vis:{vis_state})".format(kbn_addr=KibanaUtils.KIBANA_ADDRESS,
+                                      start_time=start_time,
+                                      end_time=end_time,
+                                      vis_state=vis_state)
+        ]
 
     @staticmethod
     def create_timelion(job, args):
@@ -76,35 +87,30 @@ class KibanaUtils(object):
         Create a Kibana Timelion Visualization based on args from reqparse
 
         """
-        assert args['type'] in ('Time',)
-        # 2 vis states, first by process time then by event time
-        vis_states = getattr(KibanaUtils,
-                             '_create_{}_visualization'
-                             .format(args['type'].lower()))(job, args)
+        assert args['type'] in ('Time', 'Timer')
+        # (start time, end time, vis state)
+        vis_states, durations = getattr(
+            KibanaUtils,
+            '_create_{}_visualization'
+            .format(args['type'].lower()))(job, args)
         # rison-ify and replace
-        vis_states = [
-            KibanaUtils._regex_process(s, KibanaUtils.RISON_REPLACEMENT)
-            for s in map(prison.dumps, vis_states)
+        vis_states = list(
+            KibanaUtils._regex_process(vs, KibanaUtils.RISON_REPLACEMENT)
+            for vs in map(prison.dumps, vis_states)
+        )
+
+        return [
+            "{kbn_addr}/app/kibana/visualize/create"
+            "?embed=true&type=timelion&"
+            "_g=(refreshInterval:(pause:!t,value:0),"
+            "time:(from:'{start_time}',to:'{end_time}'))&"
+            "_a=(filters:!(),linked:!f,"
+            "query:(language:kuery,query:''),uiState:(),"
+            "vis:{vis_state})".format(kbn_addr=KibanaUtils.KIBANA_ADDRESS,
+                                      start_time=start, end_time=end,
+                                      vis_state=vis_state)
+            for (start, end), vis_state in zip(durations, vis_states)
         ]
-        pt_start_time = job.created_at.isoformat(timespec='seconds')
-        pt_end_time = 'now'
-        et_start_time, et_end_time = KibanaUtils._parse_start_end_time(args)
-        raw_iframe = "{kbn_addr}/app/kibana/visualize/create" \
-                     "?embed=true&type=timelion&" \
-                     "_g=(refreshInterval:(pause:!t,value:0)," \
-                     "time:(from:'{start_time}',to:'{end_time}'))&" \
-                     "_a=(filters:!(),linked:!f," \
-                     "query:(language:kuery,query:''),uiState:()," \
-                     "vis:{vis_state})"
-        by_pt = raw_iframe.format(kbn_addr=KibanaUtils.KIBANA_ADDRESS,
-                                  start_time=pt_start_time,
-                                  end_time=pt_end_time,
-                                  vis_state=vis_states[0])
-        by_et = raw_iframe.format(kbn_addr=KibanaUtils.KIBANA_ADDRESS,
-                                  start_time=et_start_time,
-                                  end_time=et_end_time,
-                                  vis_state=vis_states[1])
-        return [by_pt, by_et]
 
     @staticmethod
     def _parse_start_end_time(args):
@@ -268,13 +274,13 @@ class KibanaUtils(object):
                 raise ValueError(
                     '[{}] should be provided in Numeric visualization.'
                     .format(k))
-        assert args['aggregator'] in KibanaUtils.AGG_TYPE_MAP
+        assert args['aggregator'] in KibanaUtils.TSVB_AGG_TYPE
         vis_state = KibanaUtils._basic_tsvb_vis_state(job, args)
         params = vis_state['params']
         series = KibanaUtils._tsvb_series(
             label='{} of {}'.format(args['aggregator'],
                                     args['value_field']),
-            metrics={'type': KibanaUtils.AGG_TYPE_MAP[args['aggregator']],
+            metrics={'type': KibanaUtils.TSVB_AGG_TYPE[args['aggregator']],
                      'field': args['value_field']},
             line_width=2,
             fill='0.5'
@@ -292,12 +298,11 @@ class KibanaUtils(object):
                 and 'metric_name' entries, and the values must not be None.
 
         Returns:
-            list of dict. A list of Timelion vis states.
+            list of dict and tuple. A list of Timelion vis states and
+            (start time, end time) of visualization.
 
         """
-        query = 'application_id:{} AND partition:{} AND ({})'.format(
-            job.name, args['partition'], args['query']
-        )
+        query = 'application_id:{} AND ({})'.format(job.name, args['query'])
         if job.job_type in KibanaUtils.JOB_INDEX:
             index = KibanaUtils.JOB_INDEX[job.job_type] + '*'
             et = 'event_time'
@@ -306,10 +311,12 @@ class KibanaUtils(object):
             index = 'metrics_v2*'
             et = 'tags.event_time'
             pt = 'date_time'
-        series = []
+        interval = args['interval'] if args['interval'] != '' else 'auto'
+        vis_states = []
         # first by process time, then by event time
-        for t1, t2 in ((et, pt), (pt, et)):
+        for t1, t2, start, end in ((et, pt), (pt, et)):
             # process_time vs event_time, max/min/median of pt and et
+            # aggregate on t1 and histogram on t2
             max_series = KibanaUtils._timelion_series(
                 query=query, index=index,
                 metric='max:' + t1, timefield=t2
@@ -322,15 +329,47 @@ class KibanaUtils(object):
                 query=query, index=index,
                 metric='percentiles:' + t1 + ':50', timefield=t2
             )
-            series.append(','.join((max_series, min_series, median_series)))
-        vis_states = []
+            series = ','.join((max_series, min_series, median_series))
+            vis_state = {"type": "timelion",
+                         "params": {"expression": series,
+                                    "interval": interval},
+                         "aggs": []}
+            vis_states.append(vis_state)
+
+        by_pt_start = envs.TZ.localize(job.created_at) \
+            .isoformat(timespec='seconds')
+        by_pt_end = 'now'
+        by_et_start, by_et_end = KibanaUtils._parse_start_end_time(args)
+        return vis_states, [(by_pt_start, by_pt_end), (by_et_start, by_et_end)]
+
+    @staticmethod
+    def _create_timer_visualization(job, args):
+        if not args['timer_names']:
+            return [], []
+        if args['aggregator'] not in KibanaUtils.TIMELION_AGG_TYPE:
+            raise TypeError('{} is not supported in Timer visualization.'
+                            .format(args['aggregator']))
+        query = 'application_id:{} AND ({})'.format(job.name, args['query'])
+        index = 'metrics_v2*'
+        metric = '{}:value'.format(
+            KibanaUtils.TIMELION_AGG_TYPE[args['aggregator']]
+        )
         interval = args['interval'] if args['interval'] != '' else 'auto'
-        for s in series:
-            vis_states.append({"type": "timelion",
-                               "params": {"expression": s,
-                                          "interval": interval},
-                               "aggs": []})
-        return vis_states
+        series = []
+        for timer in args['timer_names']:
+            timer_query = query + ' AND name:{}'.format(timer)
+            s = KibanaUtils._timelion_series(
+                query=timer_query, index=index,
+                metric=metric, timefield='date_time'
+            )
+            series.append(s)
+        vis_state = {"type": "timelion",
+                     "params": {"expression": series,
+                                "interval": interval},
+                     "aggs": []}
+        start = envs.TZ.localize(job.created_at).isoformat(timespec='seconds')
+        end = 'now'
+        return [vis_state], [(start, end)]
 
     @staticmethod
     def _basic_tsvb_vis_state(job, args):
@@ -438,14 +477,11 @@ class KibanaUtils(object):
         assert 'timefield' in kwargs
         query = KibanaUtils._regex_process(
             kwargs.get('query', '*'), KibanaUtils.TIMELION_QUERY_REPLACEMENT)
-        series = ".es(q=\"{query}\", index={index}, " \
-                 "metric={metric}, timefield={timefield})" \
-                 ".legend(showTime=true)" \
-            .format(query=query,
-                    index=kwargs.get('index', '_all'),
-                    metric=kwargs['metric'],
-                    timefield=kwargs['timefield'])
-        return series
+        return ".es(q=\"{query}\", index={index}, " \
+               "metric={metric}, timefield={timefield})" \
+               ".legend(showTime=true)" \
+            .format(query=query, index=kwargs.get('index', '_all'),
+                    metric=kwargs['metric'], timefield=kwargs['timefield'])
 
     @staticmethod
     def _filter_query(query):

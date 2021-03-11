@@ -179,15 +179,13 @@ class PeerJobEventsApi(Resource):
 
 
 class KibanaMetricsApi(Resource):
-    TSVB = ('Rate', 'Ratio', 'Numeric')
-    TIMELION = ('Time',)
-
     def get(self, job_id):
         job = Job.query.filter_by(id=job_id).first()
         parser = reqparse.RequestParser()
         parser.add_argument('type', type=str, location='args',
                             required=True,
-                            choices=('Rate', 'Ratio', 'Numeric', 'Time'),
+                            choices=('Rate', 'Ratio', 'Numeric',
+                                     'Time', 'Timer'),
                             help='Visualization type is required.')
         parser.add_argument('interval', type=str, location='args',
                             default='',
@@ -220,18 +218,24 @@ class KibanaMetricsApi(Resource):
                             default='Average',
                             choices=('Average', 'Sum', 'Max', 'Min', 'Variance',
                                      'Std. Deviation', 'Sum of Squares'),
-                            help='Aggregator type is required in Numeric '
-                                 'visualization.')
+                            help='Aggregator type is required in Numeric and '
+                                 'Timer visualization.')
         parser.add_argument('value_field', type=str, location='args',
                             help='The field to be aggregated on is required '
                                  'in Numeric visualization.')
+        # No additional arguments in Time visualization
+        #
+        # Timer visualization
+        parser.add_argument('timer_names', type=str, location='args',
+                            action='append',
+                            help='Names of timers is required in '
+                                 'Timer visualization.')
         args = parser.parse_args()
-        if args['type'] in KibanaMetricsApi.TSVB:
-            iframe_src_list = KibanaUtils.create_tsvb(job, args)
-            return iframe_src_list
-        if args['type'] in KibanaMetricsApi.TIMELION:
-            iframe_src_list = KibanaUtils.create_timelion(job, args)
-            return iframe_src_list
+        if args['type'] in KibanaUtils.TSVB:
+            return KibanaUtils.create_tsvb(job, args)
+        if args['type'] in KibanaUtils.TIMELION:
+            return KibanaUtils.create_timelion(job, args)
+        return []
 
 
 def initialize_job_apis(api):
