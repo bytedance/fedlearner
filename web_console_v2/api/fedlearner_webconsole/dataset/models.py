@@ -41,7 +41,7 @@ class BatchState(enum.Enum):
     })
 class Dataset(db.Model):
     __tablename__ = 'datasets_v2'
-    __table_args__ = ((UniqueConstraint('name', name='uniq_name')), {
+    __table_args__ = ({
         'comment': 'This is webconsole dataset table',
         'mysql_engine': 'innodb',
         'mysql_charset': 'utf8mb4',
