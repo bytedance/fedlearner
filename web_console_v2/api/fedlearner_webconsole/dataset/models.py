@@ -41,14 +41,19 @@ class BatchState(enum.Enum):
     })
 class Dataset(db.Model):
     __tablename__ = 'datasets_v2'
-    __table_args__ = {'comment': 'This is webconsole dataset table'}
+    __table_args__ = (
+    (UniqueConstraint('name', name='uniq_name')),
+    {
+        'comment': 'This is webconsole dataset table',
+        'mysql_engine': 'innodb',
+        'mysql_charset': 'utf8mb4',
+    })
 
     id = db.Column(db.Integer,
                    primary_key=True,
                    autoincrement=True,
                    comment='id')
     name = db.Column(db.String(255),
-                     unique=True,
                      nullable=False,
                      comment='dataset name')
     dataset_type = db.Column(db.Enum(DatasetType, native_enum=False),
@@ -76,9 +81,13 @@ class Dataset(db.Model):
 class DataBatch(db.Model):
     __tablename__ = 'data_batches_v2'
     __table_args__ = (
-        UniqueConstraint('event_time', 'dataset_id'),
+        UniqueConstraint('event_time',
+                         'dataset_id',
+                         name='uniq_event_time_dataset_id'),
         {
-            'comment': 'This is webconsole dataset table'
+            'comment': 'This is webconsole dataset table',
+            'mysql_engine': 'innodb',
+            'mysql_charset': 'utf8mb4',
         },
     )
     id = db.Column(db.Integer,

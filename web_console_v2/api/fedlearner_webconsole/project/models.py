@@ -16,6 +16,7 @@
 
 from enum import unique
 from sqlalchemy.sql import func
+from sqlalchemy.sql.schema import Index, UniqueConstraint
 from fedlearner_webconsole.db import db, to_dict_mixin
 from fedlearner_webconsole.proto import project_pb2
 
@@ -27,9 +28,14 @@ from fedlearner_webconsole.proto import project_pb2
     })
 class Project(db.Model):
     __tablename__ = 'projects_v2'
-    __table_args__ = {
-        'comment': 'webconsole projects'
-    }
+    __table_args__ = (
+    UniqueConstraint('name', name='idx_name'),
+    Index('idx_token', 'token'),
+    {
+        'comment': 'webconsole projects',
+        'mysql_engine': 'innodb',
+        'mysql_charset': 'utf8mb4',
+    })
     id = db.Column(db.Integer, primary_key=True, autoincrement=True, comment='id')
     name = db.Column(db.String(255), comment='name')
     token = db.Column(db.String(64), comment='token')
@@ -72,5 +78,3 @@ class Project(db.Model):
                     return variable.value
         return 'default'
 
-db.Index('idx_name', Project.name, unique=True)
-db.Index('idx_token', Project.token)

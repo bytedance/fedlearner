@@ -19,6 +19,7 @@ import logging
 import enum
 from datetime import datetime
 from sqlalchemy.sql import func
+from sqlalchemy import UniqueConstraint
 from fedlearner_webconsole.db import db, to_dict_mixin
 from fedlearner_webconsole.proto import (common_pb2, workflow_definition_pb2)
 from fedlearner_webconsole.job.models import (Job, JobState, JobType,
@@ -122,7 +123,12 @@ def _merge_workflow_config(base, new, access_mode):
                })
 class Workflow(db.Model):
     __tablename__ = 'workflow_v2'
-    __table_args__ = {'comment': 'workflow_v2'}
+    __table_args__ = (UniqueConstraint('uuid', name='uniq_uuid'),
+                      UniqueConstraint('name', name='uniq_name'), {
+                          'comment': 'workflow_v2',
+                          'mysql_engine': 'innodb',
+                          'mysql_charset': 'utf8mb4',
+                      })
     id = db.Column(db.Integer, primary_key=True, comment='id')
     uuid = db.Column(db.String(64), comment='uuid')
     name = db.Column(db.String(255), comment='name')
@@ -454,7 +460,3 @@ class Workflow(db.Model):
             self.set_config(config)
             return True
         return bool(self.config)
-
-
-db.Index('idx_uuid', Workflow.uuid, unique=True)
-db.Index('idx_name', Workflow.name, unique=True)

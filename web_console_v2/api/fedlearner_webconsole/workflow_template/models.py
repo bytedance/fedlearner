@@ -13,6 +13,7 @@
 # limitations under the License.
 
 # coding: utf-8
+from sqlalchemy.sql.schema import Index, UniqueConstraint
 from fedlearner_webconsole.db import db, to_dict_mixin
 from fedlearner_webconsole.proto import workflow_definition_pb2
 
@@ -22,9 +23,14 @@ from fedlearner_webconsole.proto import workflow_definition_pb2
 })
 class WorkflowTemplate(db.Model):
     __tablename__ = 'template_v2'
-    __table_args__ = {
-        'comment': 'workflow template'
-    }
+    __table_args__ = (
+    UniqueConstraint('name', name='uniq_name'),
+    Index('idx_group_alias', 'group_alias'),
+    {
+        'comment': 'workflow template',
+        'mysql_engine': 'innodb',
+        'mysql_charset': 'utf8mb4',
+    })
     id = db.Column(db.Integer, primary_key=True, comment='id')
     name = db.Column(db.String(255), comment='name')
     comment = db.Column('cmt', db.String(255), key='comment', comment='comment')
@@ -38,6 +44,3 @@ class WorkflowTemplate(db.Model):
         proto = workflow_definition_pb2.WorkflowDefinition()
         proto.ParseFromString(self.config)
         return proto
-
-db.Index('idx_name', WorkflowTemplate.name, unique=True)
-db.Index('idx_group_alias', WorkflowTemplate.group_alias)

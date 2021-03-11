@@ -17,6 +17,7 @@ import logging
 import enum
 import json
 from sqlalchemy.sql import func
+from sqlalchemy.sql.schema import Index
 from fedlearner_webconsole.db import db, to_dict_mixin
 from fedlearner_webconsole.k8s_client import get_client
 from fedlearner_webconsole.utils.k8s_client import CrdKind
@@ -58,7 +59,11 @@ def merge(x, y):
     })
 class Job(db.Model):
     __tablename__ = 'job_v2'
-    __table_args__ = {'comment': 'webconsole job'}
+    __table_args__ = (Index('idx_workflow_id', 'workflow_id'), {
+        'comment': 'webconsole job',
+        'mysql_engine': 'innodb',
+        'mysql_charset': 'utf8mb4',
+    })
     id = db.Column(db.Integer,
                    primary_key=True,
                    autoincrement=True,
@@ -238,14 +243,14 @@ class Job(db.Model):
         self.yaml_template = yaml_template
 
 
-db.Index('idx_workflow_id', Job.workflow_id)
-
-
 class JobDependency(db.Model):
     __tablename__ = 'job_dependency_v2'
-    __table_args__ = {
-        'comment': 'record job dependencies',
-    }
+    __table_args__ = (Index('idx_src_job_id', 'src_job_id'),
+                      Index('idx_dst_job_id', 'dst_job_id'), {
+                          'comment': 'record job dependencies',
+                          'mysql_engine': 'innodb',
+                          'mysql_charset': 'utf8mb4',
+                      })
     id = db.Column(db.Integer,
                    primary_key=True,
                    autoincrement=True,
@@ -253,7 +258,3 @@ class JobDependency(db.Model):
     src_job_id = db.Column(db.Integer, comment='src job id')
     dst_job_id = db.Column(db.Integer, comment='dst job id')
     dep_index = db.Column(db.Integer, comment='dep index')
-
-
-db.Index('idx_src_job_id', JobDependency.src_job_id)
-db.Index('idx_dst_job_id', JobDependency.dst_job_id)
