@@ -63,10 +63,6 @@ if __name__ == '__main__':
                         help='optional stat fields used in joiner, separated '
                              'by comma between fields, e.g. "label,rit". '
                              'Each field will be stripped.')
-    parser.add_argument("--input_data_stat_sample_ratio",
-                        type=float,
-                        default=0.001,
-                        help="sample ratio for statistic and for input data")
 
     args = parser.parse_args()
     if args.input_data_file_iter == 'TF_RECORD' or \
@@ -85,8 +81,7 @@ if __name__ == '__main__':
             compressed_type=args.compressed_type,
             read_ahead_size=args.read_ahead_size,
             read_batch_size=args.read_batch_size,
-            optional_fields=optional_fields,
-            input_data_stat_sample_ratio=args.input_data_stat_sample_ratio
+            optional_fields=optional_fields
         ),
         writer_options=dj_pb.WriterOptions(
             output_writer=args.output_builder,

@@ -8,15 +8,13 @@ import i18n from 'i18n';
 import { StateTypes } from 'components/StateIndicator';
 import { Job } from 'typings/job';
 
-const { NEW, READY: W_READY, RUNNING, STOPPED, INVALID, COMPLETED } = WorkflowState;
+const { NEW, READY: W_READY, RUNNING, STOPPED, INVALID, COMPLETED, FAILED } = WorkflowState;
 const {
   READY: T_READY,
   COORDINATOR_PREPARE,
   COORDINATOR_COMMITTABLE,
-  COORDINATOR_COMMITTING,
   PARTICIPANT_PREPARE,
   PARTICIPANT_COMMITTABLE,
-  PARTICIPANT_COMMITTING,
 } = TransactionState;
 
 // --------------- State judgement ----------------
@@ -43,12 +41,7 @@ export function isWarmUpUnderTheHood(workflow: Workflow) {
     Boolean(config) &&
     state === NEW &&
     target_state === W_READY &&
-    [
-      PARTICIPANT_PREPARE,
-      COORDINATOR_COMMITTING,
-      PARTICIPANT_COMMITTABLE,
-      PARTICIPANT_COMMITTING,
-    ].includes(transaction_state)
+    [PARTICIPANT_COMMITTABLE].includes(transaction_state)
   );
 }
 
@@ -86,6 +79,11 @@ export function isCompleted(workflow: Workflow) {
   const { state } = workflow;
 
   return state === COMPLETED;
+}
+
+export function isFailed(workflow: Workflow) {
+  const { state } = workflow;
+  return state === FAILED;
 }
 
 // --------------- Xable judgement ----------------
@@ -170,6 +168,13 @@ export function getWorkflowStage(workflow: Workflow): { type: StateTypes; text: 
     return {
       text: i18n.t('workflow.state_success'),
       type: 'success',
+    };
+  }
+
+  if (isFailed(workflow)) {
+    return {
+      text: i18n.t('workflow.state_failed'),
+      type: 'error',
     };
   }
 

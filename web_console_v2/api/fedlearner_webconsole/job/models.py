@@ -172,7 +172,7 @@ class Job(db.Model):
     def get_state_for_frontend(self):
         if self.state == JobState.STARTED:
             if self.is_complete():
-                return 'COMPLETE'
+                return 'COMPLETED'
             if self.is_failed():
                 return 'FAILED'
             return 'RUNNING'

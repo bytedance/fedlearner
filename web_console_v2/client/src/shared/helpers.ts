@@ -42,3 +42,56 @@ export async function to<T, E = Error>(promise: Promise<T>): Promise<[T, E]> {
 export function giveWeakRandomKey() {
   return Math.random().toString(16).slice(2);
 }
+
+type ScriptStatus = 'loading' | 'idle' | 'ready' | 'error';
+export function loadScript(src: string): Promise<{ status: ScriptStatus; error?: Error }> {
+  return new Promise((resolve, reject) => {
+    if (!src) {
+      resolve({ status: 'idle' });
+      return;
+    }
+
+    // Fetch existing script element by src
+    // It may have been added by another intance of this util
+    let script = document.querySelector(`script[src="${src}"]`) as HTMLScriptElement;
+
+    if (!script) {
+      // Create script
+      script = document.createElement('script');
+      script.src = src;
+      script.async = true;
+      script.setAttribute('data-status', 'loading');
+      // Add script to document body
+      document.body.appendChild(script);
+
+      // Store status in attribute on script
+      // This can be read by other instances of this hook
+      const setAttributeFromEvent = (event: Event) => {
+        const status = event.type === 'load' ? 'ready' : 'error';
+        script.setAttribute('data-status', status);
+      };
+
+      script.addEventListener('load', setAttributeFromEvent);
+      script.addEventListener('error', setAttributeFromEvent);
+    } else {
+      // Grab existing script status from attribute and set to state.
+      resolve({ status: script.getAttribute('data-status') as any });
+    }
+
+    // Script event handler to update status in state
+    // Note: Even if the script already exists we still need to add
+    // event handlers to update the state for *this* hook instance.
+    const setStateFromEvent = (event: Event) => {
+      const status = event.type === 'load' ? 'ready' : 'error';
+      if (event.type === 'load') {
+        resolve({ status });
+      } else {
+        reject({ status, error: event });
+      }
+    };
+
+    // Add event listeners
+    script.addEventListener('load', setStateFromEvent);
+    script.addEventListener('error', setStateFromEvent);
+  });
+}

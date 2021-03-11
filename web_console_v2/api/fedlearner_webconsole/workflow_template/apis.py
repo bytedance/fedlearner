@@ -35,6 +35,12 @@ def dict_to_workflow_definition(config):
         raise InvalidArgumentException(details=str(e)) from e
 
 
+def _dic_without_key(d, key):
+    result = dict(d)
+    del result[key]
+    return result
+
+
 class WorkflowTemplatesApi(Resource):
     def get(self):
         templates = WorkflowTemplate.query
@@ -46,8 +52,10 @@ class WorkflowTemplatesApi(Resource):
             if is_left is None:
                 raise InvalidArgumentException('is_left must be 0 or 1')
             templates = templates.filter_by(is_left=is_left)
-        return {'data': [t.to_dict() for t in templates.all()]}\
-            , HTTPStatus.OK
+        # remove config from dicts to reduce the size of the list
+        return {'data': [_dic_without_key(t.to_dict(),
+                                          'config') for t in templates.all()
+                         ]}, HTTPStatus.OK
 
     def post(self):
         parser = reqparse.RequestParser()

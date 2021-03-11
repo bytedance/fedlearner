@@ -19,7 +19,8 @@ IMAGE_HUB_PASSWORD=$3
 EXTERNAL_NAME=$4
 GRPC_SSL_NAME=$5
 DB_PASSWORD=$6
-DOMAIN_URL=$7
+ES_PASSWORD=$7
+DOMAIN_URL=$8
 
 REGION="cn-beijing"
 ZONE_ID="cn-beijing-h"
@@ -56,10 +57,12 @@ function install {
     if [ -n "$FILE_SYSTEM_ID" ]
     then
         MOUNT_TARGET_DOMAIN=`aliyun nas DescribeMountTargets --FileSystemId $FILE_SYSTEM_ID | grep MountTargetDomain | awk -F "\"" '{print $4}'`
+        ES_INSTANCE_ID=`aliyun elasticsearch ListInstance --description $GENERATER_NAME | grep instanceId | awk -F "\"" '{print $4}' | head -1`
         helm upgrade fedlearner-stack ../../charts/fedlearner-stack --set nfs-server-provisioner.enabled=false \
             --set nfs-client-provisioner.enabled=true \
             --set nfs-client-provisioner.nfs.server=$MOUNT_TARGET_DOMAIN \
             --set mariadb.enabled=false \
+            --set 'elastic-stack.filebeat.indexTemplateLoad[0]'="$ES_INSTANCE_ID.elasticsearch.aliyuncs.com:9200" \
             --set 'ingress-nginx.controller.extraVolumeMounts[0].name=fedlearner-proxy-client' \
             --set 'ingress-nginx.controller.extraVolumeMounts[0].mountPath=/etc/ingress-nginx/client/' \
             --set 'ingress-nginx.controller.extraVolumes[0].name=fedlearner-proxy-client' \
@@ -80,16 +83,28 @@ function install {
                 --set fedlearner-web-console.cluster.env.DB_PASSWORD=$DB_PASSWORD \
                 --set fedlearner-web-console.cluster.env.DB_HOST=$DB_URL \
                 --set fedlearner-web-console.cluster.env.DB_PORT=3306 \
+                --set fedlearner-web-console.cluster.env.ES_HOST="$ES_INSTANCE_ID.elasticsearch.aliyuncs.com" \
+                --set fedlearner-web-console.cluster.env.ES_PASSWORD="$ES_PASSWORD" \
+                --set fedlearner-web-console.ingress.host="fedlearner-webconsole$DOMAIN_URL" \
                 --set fedlearner-operator.extraArgs.ingress-extra-host-suffix=$DOMAIN_URL \
                 --set fedlearner-operator.extraArgs.ingress-client-auth-secret-name="default/ca-secret" \
                 --set fedlearner-operator.extraArgs.ingress-enabled-client-auth=true \
-                --set fedlearner-operator.extraArgs.ingress-secret-name=fedlearner-proxy-server
+                --set fedlearner-operator.extraArgs.ingress-secret-name=fedlearner-proxy-server \
+                --set fedlearner-operator.ingress.host="fedlearner-operator$DOMAIN_URL"
         else
             echo_exit "Failed to update fedlearner-stack since missing DB_INSTANCE_ID."
         fi
     else
         echo_exit "Failed to update fedlearner-stack since missing VPC_ID."
     fi
+
+    if [ -f "filebeat.yml" ]; then
+        kubectl delete secret fedlearner-stack-filebeat
+        kubectl create secret generic fedlearner-stack-filebeat --from-file=./filebeat.yml
+    fi
+    rm -rf filebeat.yml
+
+    kubectl get pod | grep fedlearner-stack-filebeat | awk -F " " '{print $1}' | xargs kubectl delete pod
 }
 
 function usage {
@@ -104,10 +119,11 @@ function usage {
     echo "    external_name:      the ip address for external service, required"
     echo "    grpc_ssl_name:      the grpc ssl name, required"
     echo "    db_password:        the database password, required"
+    echo "    es_password:        the elasticsearch password, required"
     echo "    domain_url:         the domain url, required"
 }
 
-if [[ -z $IMAGE_HUB_URL ]] || [[ -z $IMAGE_HUB_USERNAME ]] || [[ -z $IMAGE_HUB_PASSWORD ]] || [[ -z $EXTERNAL_NAME  ]] || [[ -z $GRPC_SSL_NAME ]] || [[ -z $DOMAIN_URL ]]
+if [[ -z $IMAGE_HUB_URL ]] || [[ -z $IMAGE_HUB_USERNAME ]] || [[ -z $IMAGE_HUB_PASSWORD ]] || [[ -z $EXTERNAL_NAME  ]] || [[ -z $GRPC_SSL_NAME ]] || [[ -z $DOMAIN_URL ]] || [[ -z $DB_PASSWORD ]] || [[ -z $ES_PASSWORD ]]
 then
     usage
     exit 1

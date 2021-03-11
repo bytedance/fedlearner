@@ -165,6 +165,8 @@ class WorkflowApi(Resource):
         parser = reqparse.RequestParser()
         parser.add_argument('target_state', type=str, required=False,
                             default=None, help='target_state is empty')
+        parser.add_argument('state', type=str, required=False,
+                            default=None, help='state is empty')
         parser.add_argument('forkable', type=bool)
         parser.add_argument('metric_is_public', type=bool)
         parser.add_argument('config', type=dict, required=False,
@@ -200,6 +202,17 @@ class WorkflowApi(Resource):
                 logging.info('updated workflow %d target_state to %s',
                             workflow.id, workflow.target_state)
                 scheduler.wakeup(workflow.id)
+            except ValueError as e:
+                raise InvalidArgumentException(details=str(e)) from e
+
+        state = data['state']
+        if state:
+            try:
+                assert state == 'INVALID', \
+                    'Can only set state to INVALID for invalidation'
+                workflow.invalidate()
+                db.session.flush()
+                logging.info('invalidate workflow %d', workflow.id)
             except ValueError as e:
                 raise InvalidArgumentException(details=str(e)) from e
 

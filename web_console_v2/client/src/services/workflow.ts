@@ -95,3 +95,7 @@ export function fetchPodLogs(
 ): Promise<{ data: string[] }> {
   return request(`/v2/pods/${podName}/log`, { params, snake_case: true });
 }
+
+export function fetchJobMpld3Metrics(id: ID): Promise<{ data: any[] }> {
+  return request(`/v2/jobs/${id}/metrics`);
+}

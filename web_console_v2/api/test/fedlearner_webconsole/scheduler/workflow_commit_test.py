@@ -82,9 +82,13 @@ class WorkflowsCommitTest(BaseTestCase):
             time.sleep(1)
             if cond():
                 return
+
+
+    @patch('fedlearner_webconsole.workflow.models.Job.is_failed')
     @patch('fedlearner_webconsole.workflow.models.Job.is_complete')
-    def test_workflow_commit(self, mock_is_complete):
+    def test_workflow_commit(self, mock_is_complete, mock_is_failed):
         mock_is_complete.return_value = False
+        mock_is_failed.return_value = False
         # test the committing stage for workflow creating
         workflow_def = make_workflow_template()
         workflow = Workflow(id=20, name='job_test1', comment='这是一个测试工作流',
@@ -115,7 +119,10 @@ class WorkflowsCommitTest(BaseTestCase):
         self.assertEqual(workflow.get_jobs()[1].state, JobState.WAITING)
         mock_is_complete.return_value = True
         workflow = Workflow.query.get(20)
-        self.assertEqual(workflow.to_dict()['state'], 'COMPLETE')
+        self.assertEqual(workflow.to_dict()['state'], 'COMPLETED')
+        mock_is_complete.return_value = False
+        mock_is_failed.return_value = True
+        self.assertEqual(workflow.to_dict()['state'], 'FAILED')
         # test the committing stage for workflow stopping
         workflow.target_state = WorkflowState.STOPPED
         workflow.transaction_state = TransactionState.PARTICIPANT_COMMITTING

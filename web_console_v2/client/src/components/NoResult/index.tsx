@@ -1,6 +1,6 @@
 import React, { FC } from 'react';
 import styled from 'styled-components';
-import illustration from 'assets/images/no-result.svg';
+import illustration from 'assets/images/empty.svg';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 
@@ -8,7 +8,7 @@ const Container = styled.div`
   display: flex;
   flex-direction: column;
   align-items: center;
-  width: 10%;
+  width: 15%;
   min-width: 100px;
   margin: auto;
 `;

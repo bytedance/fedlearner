@@ -132,7 +132,7 @@ const WorkflowsCreateStepOne: FC<WorkflowCreateProps & { onSuccess?: any }> = ({
               label={t('workflow.label_name')}
               rules={[
                 { required: true, message: t('workflow.msg_name_required') },
-                { max: 60, message: t('workflow.msg_workflow_name_invalid') },
+                { max: 255, message: t('workflow.msg_workflow_name_invalid') },
               ]}
             >
               <Input disabled={isAccept} placeholder={t('workflow.placeholder_name')} />

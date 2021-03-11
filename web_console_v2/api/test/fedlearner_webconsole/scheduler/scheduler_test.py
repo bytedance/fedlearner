@@ -207,6 +207,13 @@ class WorkflowTest(BaseTestCase):
         self.assertEqual(cwf_resp.status_code, HTTPStatus.CREATED)
         self._check_workflow_state(2, 'READY', 'INVALID', 'READY')
 
+        resp = self.patch_helper(
+            '/api/v2/workflows/2',
+            data={
+                'state': 'INVALID',
+            })
+        self._check_workflow_state(2, 'INVALID', 'INVALID', 'READY')
+
 
     def follower_test_workflow(self):
         self.setup_project('follower')
@@ -230,6 +237,13 @@ class WorkflowTest(BaseTestCase):
         jobs = json['data']['config']['job_definitions']
         self.assertEqual(jobs[0]['variables'][0]['value'], '2')
         self.assertEqual(jobs[1]['variables'][0]['value'], '2')
+
+        resp = self.patch_helper(
+            '/api/v2/workflows/2',
+            data={
+                'state': 'INVALID',
+            })
+        self._check_workflow_state(2, 'INVALID', 'INVALID', 'READY')
 
 
     def _check_workflow_state(self, workflow_id, state, target_state,

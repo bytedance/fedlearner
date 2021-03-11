@@ -177,7 +177,10 @@ class Workflow(db.Model):
         if self.state == WorkflowState.RUNNING:
             is_complete = all([job.is_complete() for job in self.owned_jobs])
             if is_complete:
-                return 'COMPLETE'
+                return 'COMPLETED'
+            is_failed = any([job.is_failed() for job in self.owned_jobs])
+            if is_failed:
+                return 'FAILED'
         return self.state.name
 
     def set_config(self, proto):
@@ -344,6 +347,16 @@ class Workflow(db.Model):
         self.state = self.target_state
         self.target_state = WorkflowState.INVALID
         self.transaction_state = TransactionState.READY
+
+    def invalidate(self):
+        self.state = WorkflowState.INVALID
+        self.target_state = WorkflowState.INVALID
+        self.transaction_state = TransactionState.READY
+        for job in self.owned_jobs:
+            try:
+                job.stop()
+            except Exception:  # pylint: disable=broad-except
+                pass
 
     def _setup_jobs(self):
         if self.forked_from is not None:
