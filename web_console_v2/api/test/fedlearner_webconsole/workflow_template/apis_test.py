@@ -137,6 +137,12 @@ class WorkflowTemplatesApiTest(BaseTestCase):
         ).SerializeToString())
         self.assertEqual(data, expected_template.to_dict())
 
+    def test_delete_workflow_template(self):
+        response = self.delete_helper('/api/v2/workflow_templates/1')
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+        response = self.delete_helper('/api/v2/workflow_templates/1')
+        self.assertEqual(response.status_code, HTTPStatus.NOT_FOUND)
+
 
 if __name__ == '__main__':
     unittest.main()
