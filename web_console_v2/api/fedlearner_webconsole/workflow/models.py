@@ -23,7 +23,6 @@ from fedlearner_webconsole.db import db, to_dict_mixin
 from fedlearner_webconsole.proto import (
     common_pb2, workflow_definition_pb2
 )
-from fedlearner_webconsole.project.models import Project
 from fedlearner_webconsole.job.models import (
     Job, JobState, JobType, JobDependency
 )
@@ -129,7 +128,7 @@ class Workflow(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     uuid = db.Column(db.String(64), unique=True, index=True)
     name = db.Column(db.String(255), unique=True, index=True)
-    project_id = db.Column(db.Integer, db.ForeignKey(Project.id))
+    project_id = db.Column(db.Integer, nullable=False)
     config = db.Column(db.LargeBinary())
     comment = db.Column('cmt', db.String(255), key='comment')
 
@@ -170,8 +169,12 @@ class Workflow(db.Model):
                            onupdate=func.now(),
                            server_default=func.now())
 
-    owned_jobs = db.relationship('Job', back_populates='workflow')
-    project = db.relationship(Project)
+    owned_jobs = db.relationship(
+        'Job',
+        primaryjoin='foreign(Job.workflow_id) == Workflow.id')
+    project = db.relationship(
+        'Project',
+        primaryjoin='Project.id == foreign(Workflow.project_id)')
 
     def get_state_for_frontend(self):
         if self.state == WorkflowState.RUNNING:

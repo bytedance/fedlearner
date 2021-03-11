@@ -18,7 +18,6 @@ import enum
 import json
 from sqlalchemy.sql import func
 from fedlearner_webconsole.db import db, to_dict_mixin
-from fedlearner_webconsole.project.models import Project
 from fedlearner_webconsole.k8s_client import get_client
 from fedlearner_webconsole.utils.k8s_client import CrdKind
 from fedlearner_webconsole.proto.workflow_definition_pb2 import JobDefinition
@@ -68,9 +67,9 @@ class Job(db.Model):
     yaml_template = db.Column(db.Text())
     config = db.Column(db.LargeBinary())
 
-    workflow_id = db.Column(db.Integer, db.ForeignKey('workflow_v2.id'),
+    workflow_id = db.Column(db.Integer,
                             nullable=False, index=True)
-    project_id = db.Column(db.Integer, db.ForeignKey(Project.id),
+    project_id = db.Column(db.Integer,
                            nullable=False)
     flapp_snapshot = db.Column(db.Text())
     pods_snapshot = db.Column(db.Text())
@@ -82,8 +81,12 @@ class Job(db.Model):
                            onupdate=func.now())
     deleted_at = db.Column(db.DateTime(timezone=True))
 
-    project = db.relationship(Project)
-    workflow = db.relationship('Workflow')
+    project = db.relationship('Project',
+                              primaryjoin='Project.id == '
+                                          'foreign(Job.project_id)')
+    workflow = db.relationship('Workflow',
+                               primaryjoin='Workflow.id == '
+                                           'foreign(Job.workflow_id)')
     _k8s_client = get_client()
 
     def get_config(self):
