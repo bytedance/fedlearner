@@ -36,7 +36,11 @@ class ElasticSearchClient(object):
                 for index_type, alias_name in ALIAS_NAME.items():
                     self.put_ilm('fedlearner_{}_ilm'.format(index_type))
                     self._put_index_template(index_type, shards=1)
+                    # if alias already exists, no need to set write index
                     if not self._es_client.indices.exists_alias(alias_name):
+                        # if index with the same name as alias exists, delete it
+                        if self._es_client.indices.exists(alias_name):
+                            self._es_client.indices.delete(alias_name)
                         self._put_write_index(index_type)
                 self.put_ilm('filebeat-7.0.1', hot_age='1d')
 
@@ -311,12 +315,11 @@ class ElasticSearchClient(object):
     def _put_index_template(self, index_type, shards):
         if self._es_client is None:
             raise RuntimeError('ES client not yet initialized.')
-        template_name = index_type + '-template'
+        template_name = ALIAS_NAME[index_type] + '-template'
         template_body = get_es_template(index_type, shards=shards)
         self._es_client.indices.put_template(template_name, template_body)
 
     def _put_write_index(self, index_type):
-        self._es_client = Elasticsearch()
         alias_name = ALIAS_NAME[index_type]
         self._es_client.indices.create(
             # resolves to alias_name-yyyy.mm.dd-000001 in ES
