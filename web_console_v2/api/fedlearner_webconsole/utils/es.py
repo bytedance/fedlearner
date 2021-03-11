@@ -29,13 +29,16 @@ class ElasticSearchClient(object):
                     'host': app.config['ES_HOST'],
                     'port': app.config['ES_PORT']
                 }])
-            self._es_client.ilm.start()
-            for index_type, alias_name in ALIAS_NAME.items():
-                self.put_ilm('fedlearner_{}_ilm'.format(index_type))
-                self._put_index_template(index_type, shards=1)
-                if not self._es_client.indices.exists_alias(alias_name):
-                    self._put_write_index(index_type)
-            self.put_ilm('filebeat-7.0.1', hot_age='1d', delete_age='15d')
+            if int(
+                self._es_client.info()['version']['number'].split('.')[0]
+            ) == 7:
+                self._es_client.ilm.start()
+                for index_type, alias_name in ALIAS_NAME.items():
+                    self.put_ilm('fedlearner_{}_ilm'.format(index_type))
+                    self._put_index_template(index_type, shards=1)
+                    if not self._es_client.indices.exists_alias(alias_name):
+                        self._put_write_index(index_type)
+                self.put_ilm('filebeat-7.0.1', hot_age='1d', delete_age='15d')
 
     def search(self, *args, **kwargs):
         return self._es_client.search(*args, **kwargs)
