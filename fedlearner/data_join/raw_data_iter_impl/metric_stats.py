@@ -13,7 +13,7 @@ class MetricStats:
     def __init__(self, raw_data_options, metric_tags):
         self._tags = copy.deepcopy(metric_tags)
         self._stat_fields = raw_data_options.optional_fields
-        self._sample_ratio = common.CONFIGS['raw_data_metrics_sample_rate']
+        self._sample_ratio = common.Config.RAW_DATA_METRICS_SAMPLE_RATE
 
     def emit_metric(self, item):
         if random.random() < self._sample_ratio:

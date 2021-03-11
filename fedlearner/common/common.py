@@ -4,7 +4,16 @@ import os
 
 import pytz
 
-INDEX_TYPE = ('metrics', 'data_join', 'raw_data')
+
+class Config(object):
+    DATA_JOIN_METRICS_SAMPLE_RATE = \
+        os.environ.get('DATA_JOIN_METRICS_SAMPLE_RATE', 0.3),
+    RAW_DATA_METRICS_SAMPLE_RATE = \
+        os.environ.get('RAW_DATA_METRICS_SAMPLE_RATE', 0.01),
+    ES_BATCH_SIZE = os.environ.get('ES_BATCH_SIZE', 1000),
+    TIMEZONE = pytz.timezone(os.environ.get('TZ', 'UTC'))
+
+
 # YYYY-MM-DD'T'hh:mm:ss.SSSSSSZ
 _es_datetime_format = 'strict_date_optional_time'
 # WARNING: MAPPINGS BELOW ARE COMPATIBILITY MEASURES AND SHOULD NOT BE MODIFIED.
@@ -149,17 +158,10 @@ METRICS_MAPPINGS = {
 INDEX_NAME = {'metrics': 'metrics_v2',
               'raw_data': 'raw_data',
               'data_join': 'data_join'}
+INDEX_TYPE = INDEX_NAME.keys()
 INDEX_MAP = {'metrics': METRICS_MAPPINGS,
              'raw_data': RAW_DATA_MAPPINGS,
              'data_join': DATA_JOIN_MAPPINGS}
-CONFIGS = {
-    'data_join_metrics_sample_rate':
-        os.environ.get('DATA_JOIN_METRICS_SAMPLE_RATE', 0.3),
-    'raw_data_metrics_sample_rate':
-        os.environ.get('RAW_DATA_METRICS_SAMPLE_RATE', 0.01),
-    'es_batch_size': os.environ.get('ES_BATCH_SIZE', 1000),
-    'timezone': pytz.timezone(os.environ.get('TZ', 'UTC'))
-}
 
 
 def get_es_template(index_type, es_version):
@@ -205,7 +207,7 @@ def convert_to_iso_format(value):
     assert isinstance(value, (datetime.datetime, bytes, str, int, float))
     if isinstance(value, datetime.datetime):
         if value.tzinfo is None:
-            value = CONFIGS['timezone'].localize(value)
+            value = Config.TIMEZONE.localize(value)
         return pytz.utc.normalize(value).isoformat(timespec='microseconds')
 
     if isinstance(value, bytes):
@@ -215,18 +217,17 @@ def convert_to_iso_format(value):
     # first try to parse datetime from value
     try:
         if len(value) == 8:
-            date_time = CONFIGS['timezone'].localize(
+            date_time = Config.TIMEZONE.localize(
                 datetime.datetime.strptime(value, '%Y%m%d'))
             return pytz.utc.normalize(date_time) \
                 .isoformat(timespec='microseconds')
         if len(value) == 14:
-            date_time = CONFIGS['timezone'].localize(
+            date_time = Config.TIMEZONE.localize(
                 datetime.datetime.strptime(value, '%Y%m%d%H%M%S'))
             return pytz.utc.normalize(date_time) \
                 .isoformat(timespec='microseconds')
     except ValueError:  # Not fitting any of above patterns
         pass
-
     # then try to convert assuming it is a timestamp
     # not in the same `try` block b/c the length of some strings might be equal
     # to 14 but it is not a datetime format string

@@ -28,7 +28,7 @@ import pytz
 from elasticsearch import helpers as helpers7
 from elasticsearch6 import helpers as helpers6
 
-from fedlearner.common.common import CONFIGS, INDEX_NAME, INDEX_TYPE, \
+from fedlearner.common.common import Config, INDEX_NAME, INDEX_TYPE, \
     convert_to_iso_format, get_es_template
 
 
@@ -88,7 +88,7 @@ class ElasticSearchHandler(Handler):
         # suppress ES logger
         logging.getLogger('elasticsearch').setLevel(logging.CRITICAL)
         self._emit_batch = []
-        self._batch_size = CONFIGS['es_batch_size']
+        self._batch_size = Config.ES_BATCH_SIZE
         self._lock = threading.RLock()
 
     def emit(self, name, value, tags=None, index_type='metrics'):
@@ -109,10 +109,10 @@ class ElasticSearchHandler(Handler):
     def flush(self):
         with self._lock:
             if len(self._emit_batch) > 0:
-                logging.info('METRICS: Emitting %d documents to ES',
-                             len(self._emit_batch))
-                self._helpers.bulk(self._es, self._emit_batch)
+                emit_batch = self._emit_batch
                 self._emit_batch = []
+        logging.info('METRICS: Emitting %d documents to ES', len(emit_batch))
+        self._helpers.bulk(self._es, emit_batch)
 
     @staticmethod
     def _produce_document(name, value, tags, index_type):
