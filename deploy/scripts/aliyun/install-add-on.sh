@@ -80,10 +80,12 @@ function install {
                 --set fedlearner-web-console.cluster.env.DB_PASSWORD=$DB_PASSWORD \
                 --set fedlearner-web-console.cluster.env.DB_HOST=$DB_URL \
                 --set fedlearner-web-console.cluster.env.DB_PORT=3306 \
+                --set fedlearner-web-console.ingress.host="fedlearner-webconsole$DOMAIN_URL" \
                 --set fedlearner-operator.extraArgs.ingress-extra-host-suffix=$DOMAIN_URL \
                 --set fedlearner-operator.extraArgs.ingress-client-auth-secret-name="default/ca-secret" \
                 --set fedlearner-operator.extraArgs.ingress-enabled-client-auth=true \
-                --set fedlearner-operator.extraArgs.ingress-secret-name=fedlearner-proxy-server
+                --set fedlearner-operator.extraArgs.ingress-secret-name=fedlearner-proxy-server \
+                --set fedlearner-operator.ingress.host="fedlearner-operator$DOMAIN_URL"
         else
             echo_exit "Failed to update fedlearner-stack since missing DB_INSTANCE_ID."
         fi

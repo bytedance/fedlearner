@@ -119,6 +119,10 @@ class TransactionManager(object):
                 self._workflow.uuid,
                 forked_from_uuid)
             if resp.status.code == common_pb2.STATUS_SUCCESS:
+                if resp.state == WorkflowState.INVALID:
+                    self._workflow.invalidate()
+                    self._reload()
+                    raise RuntimeError("Peer workflow invalidated. Abort.")
                 states.append(TransactionState(resp.transaction_state))
             else:
                 states.append(None)
