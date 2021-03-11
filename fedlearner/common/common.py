@@ -7,10 +7,10 @@ import pytz
 
 class Config(object):
     DATA_JOIN_METRICS_SAMPLE_RATE = \
-        os.environ.get('DATA_JOIN_METRICS_SAMPLE_RATE', 0.3),
+        os.environ.get('DATA_JOIN_METRICS_SAMPLE_RATE', 0.3)
     RAW_DATA_METRICS_SAMPLE_RATE = \
-        os.environ.get('RAW_DATA_METRICS_SAMPLE_RATE', 0.01),
-    ES_BATCH_SIZE = os.environ.get('ES_BATCH_SIZE', 1000),
+        os.environ.get('RAW_DATA_METRICS_SAMPLE_RATE', 0.01)
+    ES_BATCH_SIZE = os.environ.get('ES_BATCH_SIZE', 1000)
     TIMEZONE = pytz.timezone(os.environ.get('TZ', 'UTC'))
 
 
