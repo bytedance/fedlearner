@@ -174,8 +174,7 @@ class Workflow(db.Model):
         primaryjoin='foreign(Job.workflow_id) == Workflow.id')
     project = db.relationship(
         'Project',
-        foreign_keys=[project_id],
-        primaryjoin='Project.id == Workflow.project_id')
+        primaryjoin='Project.id == foreign(Workflow.project_id)')
 
     def get_state_for_frontend(self):
         if self.state == WorkflowState.RUNNING:

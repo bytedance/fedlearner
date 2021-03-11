@@ -87,8 +87,9 @@ class DataBatch(db.Model):
                            server_onupdate=func.now())
     deleted_at = db.Column(db.DateTime(timezone=True))
 
-    dataset = db.relationship('Dataset', foreign_keys=[dataset_id],
-                              primaryjoin='Dataset.id == DataBatch.dataset_id',
+    dataset = db.relationship('Dataset',
+                              primaryjoin='Dataset.id == '
+                                          'foreign(DataBatch.dataset_id)',
                               back_populates='data_batches')
 
     def set_details(self, proto):

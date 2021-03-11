@@ -81,10 +81,12 @@ class Job(db.Model):
                            onupdate=func.now())
     deleted_at = db.Column(db.DateTime(timezone=True))
 
-    project = db.relationship('Project', foreign_keys=[project_id],
-                              primaryjoin='Project.id == Job.project_id')
-    workflow = db.relationship('Workflow', foreign_keys=[workflow_id],
-                               primaryjoin='Workflow.id == Job.workflow_id')
+    project = db.relationship('Project',
+                              primaryjoin='Project.id == '
+                                          'foreign(Job.project_id)')
+    workflow = db.relationship('Workflow',
+                               primaryjoin='Workflow.id == '
+                                           'foreign(Job.workflow_id)')
     _k8s_client = get_client()
 
     def get_config(self):
