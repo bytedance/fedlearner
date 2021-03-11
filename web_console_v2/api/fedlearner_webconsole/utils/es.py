@@ -15,6 +15,8 @@
 # coding: utf-8
 from elasticsearch import Elasticsearch
 
+from fedlearner_webconsole.utils.es_misc import get_es_template, ALIAS_NAME
+
 
 class ElasticSearchClient(object):
     def __init__(self):
@@ -27,6 +29,13 @@ class ElasticSearchClient(object):
                     'host': app.config['ES_HOST'],
                     'port': app.config['ES_PORT']
                 }])
+            self._es_client.ilm.start()
+            for index_type, alias_name in ALIAS_NAME.items():
+                self.put_ilm('fedlearner_{}_ilm'.format(index_type))
+                self._put_index_template(index_type, shards=1)
+                if not self._es_client.indices.exists_alias(alias_name):
+                    self._put_write_index(index_type)
+            self.put_ilm('filebeat-7.0.1', hot_age='1d', delete_age='15d')
 
     def search(self, *args, **kwargs):
         return self._es_client.search(*args, **kwargs)
@@ -268,6 +277,49 @@ class ElasticSearchClient(object):
         query_body['query']['bool']['must'] = keyword_list + match_phrase_list
         response = self._es_client.search(index=index, body=query_body)
         return [item['_source']['message'] for item in response['hits']['hits']]
+
+    def put_ilm(self, ilm_name,
+                hot_size='50gb', hot_age='10d', delete_age='30d'):
+        if self._es_client is None:
+            raise RuntimeError('ES client not yet initialized.')
+        ilm_body = {
+            "policy": {
+                "phases": {
+                    "hot": {
+                        "min_age": "0ms",
+                        "actions": {
+                            "rollover": {
+                                "max_size": hot_size,
+                                "max_age": hot_age
+                            }
+                        }
+                    },
+                    "delete": {
+                        "min_age": delete_age,
+                        "actions": {
+                            "delete": {}
+                        }
+                    }
+                }
+            }
+        }
+        self._es_client.ilm.put_lifecycle(ilm_name, body=ilm_body)
+
+    def _put_index_template(self, index_type, shards):
+        if self._es_client is None:
+            raise RuntimeError('ES client not yet initialized.')
+        template_name = index_type + '-template'
+        template_body = get_es_template(index_type, shards=shards)
+        self._es_client.indices.put_template(template_name, template_body)
+
+    def _put_write_index(self, index_type):
+        self._es_client = Elasticsearch()
+        alias_name = ALIAS_NAME[index_type]
+        self._es_client.indices.create(
+            # resolves to alias_name-yyyy.mm.dd-000001 in ES
+            f'<{alias_name}-{{now/d}}-000001>',
+            body={"aliases": {alias_name: {"is_write_index": True}}}
+        )
 
 
 es = ElasticSearchClient()
