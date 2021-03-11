@@ -38,7 +38,7 @@ class ElasticSearchClient(object):
                     self._put_index_template(index_type, shards=1)
                     if not self._es_client.indices.exists_alias(alias_name):
                         self._put_write_index(index_type)
-                self.put_ilm('filebeat-7.0.1', hot_age='1d', delete_age='15d')
+                self.put_ilm('filebeat-7.0.1', hot_age='1d')
 
     def search(self, *args, **kwargs):
         return self._es_client.search(*args, **kwargs)
