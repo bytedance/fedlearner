@@ -121,7 +121,7 @@ class WorkflowTemplateApi(Resource):
             raise NotFoundException()
         result.delete()
         db.session.commit()
-        return {'data': 'success'}, HTTPStatus.OK
+        return {'data': {}}, HTTPStatus.OK
 
 def initialize_workflow_template_apis(api):
     api.add_resource(WorkflowTemplatesApi, '/workflow_templates')
