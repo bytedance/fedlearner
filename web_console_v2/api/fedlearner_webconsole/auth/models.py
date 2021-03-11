@@ -14,7 +14,6 @@
 
 # coding: utf-8
 
-from enum import unique
 from passlib.apps import custom_app_context as pwd_context
 from sqlalchemy.sql.schema import UniqueConstraint
 
@@ -24,9 +23,7 @@ from fedlearner_webconsole.db import db, to_dict_mixin
 @to_dict_mixin(ignores=['password'])
 class User(db.Model):
     __tablename__ = 'users_v2'
-    __table_args__ = (
-    UniqueConstraint('username', name='uniq_username'),
-    {
+    __table_args__ = (UniqueConstraint('username', name='uniq_username'), {
         'comment': 'This is webconsole user table',
         'mysql_engine': 'innodb',
         'mysql_charset': 'utf8mb4',

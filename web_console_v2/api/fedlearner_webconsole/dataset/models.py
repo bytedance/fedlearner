@@ -41,9 +41,7 @@ class BatchState(enum.Enum):
     })
 class Dataset(db.Model):
     __tablename__ = 'datasets_v2'
-    __table_args__ = (
-    (UniqueConstraint('name', name='uniq_name')),
-    {
+    __table_args__ = ((UniqueConstraint('name', name='uniq_name')), {
         'comment': 'This is webconsole dataset table',
         'mysql_engine': 'innodb',
         'mysql_charset': 'utf8mb4',
@@ -53,9 +51,7 @@ class Dataset(db.Model):
                    primary_key=True,
                    autoincrement=True,
                    comment='id')
-    name = db.Column(db.String(255),
-                     nullable=False,
-                     comment='dataset name')
+    name = db.Column(db.String(255), nullable=False, comment='dataset name')
     dataset_type = db.Column(db.Enum(DatasetType, native_enum=False),
                              nullable=False,
                              comment='data type')
