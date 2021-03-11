@@ -1,4 +1,4 @@
-import { NodeDataRaw } from 'components/WorkflowJobsFlowChart/types';
+import { JobNodeRawData } from 'components/WorkflowJobsCanvas/types';
 import { Job, JobExecutionDetalis } from './job';
 import { Variable } from './variable';
 
@@ -9,23 +9,23 @@ export type WorkflowConfig<J = Job> = {
   job_definitions: J[];
 };
 
-export type ChartWorkflowConfig = WorkflowConfig<NodeDataRaw>;
+export type ChartWorkflowConfig = WorkflowConfig<JobNodeRawData>;
 
-export interface WorkflowTemplate {
+export interface WorkflowTemplate<J = Job> {
   id: number;
   name: string;
-  comment: string;
   is_left: boolean;
   group_alias: string;
-  config: WorkflowConfig;
+  comment?: string;
+  config: WorkflowConfig<J>;
 }
 
-export type WorkflowTemplatePayload = {
+export type WorkflowTemplatePayload<J = Job> = {
   name: string;
   is_left?: boolean;
   group_alias?: string;
   comment?: string;
-  config: WorkflowConfig;
+  config: WorkflowConfig<J>;
 };
 
 export type WorkflowInitiatePayload = {

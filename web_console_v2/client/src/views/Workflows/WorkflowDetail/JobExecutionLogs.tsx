@@ -1,4 +1,4 @@
-import { NodeDataRaw } from 'components/WorkflowJobsFlowChart/types';
+import { JobNodeRawData } from 'components/WorkflowJobsCanvas/types';
 import React, { FC } from 'react';
 import { useTranslation } from 'react-i18next';
 import { fetchJobLogs, fetchPeerJobEvents } from 'services/workflow';
@@ -16,7 +16,7 @@ const PrintJobLogs = styled(PrintLogs)`
 
 type Props = {
   enabled: boolean;
-  job: NodeDataRaw;
+  job: JobNodeRawData;
   isPeerSide: boolean;
   workflow?: WorkflowExecutionDetails;
 };

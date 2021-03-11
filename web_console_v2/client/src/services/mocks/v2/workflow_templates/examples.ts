@@ -114,7 +114,6 @@ export const normalTemplate: DeepPartial<WorkflowTemplate> = {
           },
         ],
       },
-
       {
         name: 'Raw data process',
         job_type: JobType.NN_MODEL_TRANINING,

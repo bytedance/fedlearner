@@ -3,7 +3,7 @@ import React, { ForwardRefRenderFunction } from 'react';
 import styled from 'styled-components';
 import { Drawer, Row, Button, Tag } from 'antd';
 import { DrawerProps } from 'antd/lib/drawer';
-import { NodeData, ChartNodeStatus } from 'components/WorkflowJobsFlowChart/types';
+import { NodeData, ChartNodeStatus } from 'components/WorkflowJobsCanvas/types';
 import { useTranslation } from 'react-i18next';
 import { Close } from 'components/IconPark';
 import GridRow from 'components/_base/GridRow';
@@ -11,9 +11,9 @@ import { formatTimestamp } from 'shared/date';
 import PropertyList from 'components/PropertyList';
 import JobExecutionLogs from './JobExecutionLogs';
 import JobExecutionMetrics from './JobExecutionMetrics';
-import JobExecutionPods from './JobExecutionPODs';
-import { jobExecutionStatusText } from 'components/WorkflowJobsFlowChart/WorkflowJobNode';
-import { convertExecutionStateToStatus } from 'components/WorkflowJobsFlowChart/helpers';
+import JobExecutionPods from './JobExecutionPods';
+import { executionStatusText } from 'components/WorkflowJobsCanvas/JobNodes/shared';
+import { convertExecutionStateToStatus } from 'components/WorkflowJobsCanvas/helpers';
 import { WorkflowExecutionDetails } from 'typings/workflow';
 import defaultTheme from 'styles/_theme';
 
@@ -59,6 +59,7 @@ interface Props extends DrawerProps {
   workflow?: WorkflowExecutionDetails;
   toggleVisible?: Function;
 }
+
 export type JobExecutionDetailsExposedRef = {};
 
 const tagColors = {
@@ -131,7 +132,7 @@ const JobExecutionDetailsDrawer: ForwardRefRenderFunction<JobExecutionDetailsExp
               <Tag color="cyan">{t('workflow.our_config')}</Tag>
             )}
 
-            <Tag color={tagColors[jobStatus]}>{jobExecutionStatusText[jobStatus]}</Tag>
+            <Tag color={tagColors[jobStatus]}>{executionStatusText[jobStatus]}</Tag>
           </Row>
           <GridRow gap="10">
             <Button size="small" icon={<Close />} onClick={closeDrawer} />

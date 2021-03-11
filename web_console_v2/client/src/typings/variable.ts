@@ -53,8 +53,10 @@ export enum VariableComponent {
   TextArea = 'TextArea',
   NumberPicker = 'NumberPicker',
   Switch = 'Switch',
-  TimePicker = 'TimePicker',
-  Upload = 'Upload',
+  Code = 'Code',
+  // Uncomment it after we have usecase
+  // TimePicker = 'TimePicker',
+  // Upload = 'Upload',
 }
 
 export type VariableRule = { validator: RegExp | string; message: string };

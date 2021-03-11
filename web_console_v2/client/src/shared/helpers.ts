@@ -39,8 +39,11 @@ export async function to<T, E = Error>(promise: Promise<T>): Promise<[T, E]> {
 /**
  * Give a random string base on Math.random
  */
+// FIXME: remove fake idx
+let idx = 10000;
 export function giveWeakRandomKey() {
-  return Math.random().toString(16).slice(2);
+  return (idx++).toString();
+  // return Math.random().toString(16).slice(2);
 }
 
 type ScriptStatus = 'loading' | 'idle' | 'ready' | 'error';

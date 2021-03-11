@@ -2,6 +2,7 @@ import React from 'react';
 import { Redirect } from 'react-router-dom';
 import Projects from 'views/Projects';
 import Workflows from 'views/Workflows';
+import WorkflowTemplates from 'views/WorkflowTemplates';
 import Datasets from 'views/Datasets';
 import Settings from 'views/Settings';
 import { FedRouteConfig } from 'typings/app';
@@ -15,6 +16,7 @@ const routes: FedRouteConfig[] = [
     component: () => <Redirect to="/projects" />,
     auth: true,
   },
+
   {
     path: '/projects',
     component: Projects,
@@ -23,6 +25,11 @@ const routes: FedRouteConfig[] = [
   {
     path: '/workflows',
     component: Workflows,
+    auth: true,
+  },
+  {
+    path: '/workflow-templates',
+    component: WorkflowTemplates,
     auth: true,
   },
   {

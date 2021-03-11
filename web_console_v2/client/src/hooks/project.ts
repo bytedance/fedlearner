@@ -1,7 +1,7 @@
 import { useQuery } from 'react-query';
 import { useSetRecoilState } from 'recoil';
 import { checkConnection } from 'services/project';
-import { forceReloadProjectList } from 'stores/projects';
+import { forceReloadProjectList } from 'stores/project';
 import { ConnectionStatus, Project } from 'typings/project';
 
 export function useCheckConnection(project: Project): [ConnectionStatus, Function] {

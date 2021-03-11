@@ -8,15 +8,15 @@ import { forkWorkflowForm } from 'stores/workflow';
 import styled from 'styled-components';
 import { useTranslation } from 'react-i18next';
 import { ReactFlowProvider } from 'react-flow-renderer';
-import WorkflowJobsFlowChart, { ChartExposedRef } from 'components/WorkflowJobsFlowChart';
+import WorkflowJobsCanvas, { ChartExposedRef } from 'components/WorkflowJobsCanvas';
 import {
   ChartNode,
   ChartNodes,
   ChartNodeStatus,
   NodeData,
-  NodeDataRaw,
-} from 'components/WorkflowJobsFlowChart/types';
-import { useMarkFederatedJobs } from 'components/WorkflowJobsFlowChart/hooks';
+  JobNodeRawData,
+} from 'components/WorkflowJobsCanvas/types';
+import { useMarkFederatedJobs } from 'components/WorkflowJobsCanvas/hooks';
 import { cloneDeep, Dictionary, omit } from 'lodash';
 import JobFormDrawer, { JobFormDrawerExposedRef } from '../../JobFormDrawer';
 import { useToggle } from 'react-use';
@@ -30,7 +30,8 @@ import GridRow from 'components/_base/GridRow';
 import { to } from 'shared/helpers';
 import { MixinFlexAlignCenter } from 'styles/mixins';
 import { useSubscribe } from 'hooks';
-import { WORKFLOW_JOB_NODE_CHANNELS } from 'components/WorkflowJobsFlowChart/WorkflowJobNode';
+import { WORKFLOW_JOB_NODE_CHANNELS } from 'components/WorkflowJobsCanvas/JobNodes/shared';
+import { Side } from 'typings/app';
 
 const LoadingContainer = styled.div`
   ${MixinFlexAlignCenter()}
@@ -71,7 +72,6 @@ const Footer = styled.footer`
 `;
 
 // We only have two side so far
-type Side = 'self' | 'peer';
 const ALL_SIDES: Side[] = ['self', 'peer'];
 
 const WorkflowForkStepTwoConfig: FC = () => {
@@ -148,7 +148,7 @@ const WorkflowForkStepTwoConfig: FC = () => {
             <ChartTitle>{t('workflow.our_config')}</ChartTitle>
           </ChartHeader>
           <ReactFlowProvider>
-            <WorkflowJobsFlowChart
+            <WorkflowJobsCanvas
               ref={selfConfigChartRef}
               side="self"
               nodeType="fork"
@@ -165,7 +165,7 @@ const WorkflowForkStepTwoConfig: FC = () => {
           </ChartHeader>
 
           <ReactFlowProvider>
-            <WorkflowJobsFlowChart
+            <WorkflowJobsCanvas
               ref={peerConfigChartRef}
               side="peer"
               nodeType="fork"
@@ -405,7 +405,7 @@ function _filterReusableJobs(nodes: ChartNodes) {
     .map((item) => item.id)!;
 }
 
-function _omitJobsColorMark(jobs: NodeDataRaw[]): NodeDataRaw[] {
+function _omitJobsColorMark(jobs: JobNodeRawData[]): JobNodeRawData[] {
   return jobs.map((job) => omit(job, 'mark'));
 }
 

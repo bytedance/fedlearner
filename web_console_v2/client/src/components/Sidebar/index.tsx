@@ -10,7 +10,15 @@ import classNames from 'classnames';
 import { StyledComponetProps } from 'typings/component';
 import store from 'store2';
 import LOCAL_STORAGE_KEYS from 'shared/localStorageKeys';
-import { Apps, DataServer, Workbench, MenuFold, MenuUnfold, Settings } from 'components/IconPark';
+import {
+  Apps,
+  DataServer,
+  Workbench,
+  MenuFold,
+  MenuUnfold,
+  Settings,
+  Interaction,
+} from 'components/IconPark';
 
 const Container = styled.aside`
   display: flex;
@@ -60,6 +68,11 @@ const SIDEBAR_MENU_ITEMS = [
     to: '/projects',
     label: 'menu.label_project',
     icon: Apps,
+  },
+  {
+    to: '/workflow-templates',
+    label: 'menu.label_workflow_tpl',
+    icon: Interaction,
   },
   {
     to: '/workflows',

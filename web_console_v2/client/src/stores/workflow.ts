@@ -1,4 +1,4 @@
-import { NodeDataRaw } from 'components/WorkflowJobsFlowChart/types';
+import { JobNodeRawData } from 'components/WorkflowJobsCanvas/types';
 import { atom, selector } from 'recoil';
 import {
   Workflow,
@@ -30,7 +30,7 @@ export const workflowBasicForm = atom<CreateWorkflowBasicForm>({
   },
 });
 
-export const workflowConfigForm = atom<WorkflowConfig<NodeDataRaw>>({
+export const workflowConfigForm = atom<WorkflowConfig<JobNodeRawData>>({
   key: 'WorkflowConfigForm',
   default: {
     group_alias: '',

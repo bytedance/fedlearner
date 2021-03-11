@@ -8,6 +8,8 @@ function WorkflowsPage() {
   return (
     <ErrorBoundary>
       <Route path="/workflows" exact component={TemplateCreate} />
+      <Route path="/workflow-templates" exact component={TemplateList} />
+      <Route path="/workflow-templates/create/:step" component={CreateTemplate} />
     </ErrorBoundary>
   );
 }

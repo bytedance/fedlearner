@@ -17,7 +17,7 @@ type Props = {
   accessMode: VariableAccessMode;
 };
 
-const indicators: Record<VariableAccessMode, FunctionComponent> = {
+export const indicators: Record<VariableAccessMode, FunctionComponent> = {
   [VariableAccessMode.PEER_READABLE]: VariablePermission.Readable,
   [VariableAccessMode.PEER_WRITABLE]: VariablePermission.Writable,
   [VariableAccessMode.PRIVATE]: VariablePermission.Private,

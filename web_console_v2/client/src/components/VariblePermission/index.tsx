@@ -20,10 +20,11 @@ const Container = styled.div`
 
 const WritableShape = styled(Container)`
   &::before {
-    width: 14px;
+    width: 13px;
     height: 11px;
     background-color: var(--primaryColor);
     clip-path: polygon(50% 0, 100% 100%, 0 100%, 50% 0);
+    transform: translateY(-0.5px);
   }
 `;
 const ReadableShape = styled(Container)`

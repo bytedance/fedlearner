@@ -36,7 +36,10 @@ function _resetOptions() {
  * during progress we will merge client side variable presets with inputs
  * learn more at ./variablePresets.ts
  */
-export default function buildFormSchemaFromJobDef(job: Job, options?: BuildOptions): FormilySchema {
+export default function buildFormSchemaFromJobDef(
+  job: { variables: Variable[]; name: string },
+  options?: BuildOptions,
+): FormilySchema {
   const { variables, name } = cloneDeep(job);
   const schema: FormilySchema = {
     type: 'object',

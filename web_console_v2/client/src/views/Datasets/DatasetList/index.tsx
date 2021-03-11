@@ -71,7 +71,7 @@ export const getDatasetTableColumns = (options: ColumnsGetterOptions) => {
       name: 'file_size',
       width: 130,
       render: (_: any, record: Dataset) => {
-        return <span>{getTotalDataSize(record).toLocaleString('en')}</span>;
+        return <span>{getTotalDataSize(record).toLocaleString('en')} KB</span>;
       },
     },
     {
@@ -121,7 +121,7 @@ const DatasetList: FC = () => {
     () => fetchDatasetList(params),
     {
       retry: 2,
-      refetchOnWindowFocus: false,
+      refetchInterval: 90 * 1000, // auto refresh every 1.5 min
     },
   );
 

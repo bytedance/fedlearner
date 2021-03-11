@@ -15,3 +15,5 @@ export enum FedLanguages {
 export enum ErrorCodes {
   TokenExpired = 422,
 }
+
+export type Side = 'self' | 'peer';
