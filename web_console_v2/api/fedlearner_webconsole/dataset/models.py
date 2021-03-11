@@ -68,7 +68,8 @@ class Dataset(db.Model):
                            comment='updated time')
     deleted_at = db.Column(db.DateTime(timezone=True), comment='deleted time')
 
-    data_batches = db.relationship('DataBatch', back_populates='dataset')
+    data_batches = db.relationship(
+        'DataBatch', primaryjoin='foreign(DataBatch.dataset_id) == Dataset.id')
 
 
 @to_dict_mixin(extras={'details': (lambda batch: batch.get_details())})
@@ -87,9 +88,7 @@ class DataBatch(db.Model):
     event_time = db.Column(db.TIMESTAMP(timezone=True),
                            nullable=False,
                            comment='event_time')
-    dataset_id = db.Column(db.Integer,
-                           db.ForeignKey(Dataset.id),
-                           comment='dataset_id')
+    dataset_id = db.Column(db.Integer, nullable=False, comment='dataset_id')
     path = db.Column(db.String(512), comment='path')
     state = db.Column(db.Enum(BatchState, native_enum=False),
                       default=BatchState.NEW,
@@ -112,7 +111,10 @@ class DataBatch(db.Model):
                            comment='updated_at')
     deleted_at = db.Column(db.DateTime(timezone=True), comment='deleted_at')
 
-    dataset = db.relationship('Dataset', back_populates='data_batches')
+    dataset = db.relationship('Dataset',
+                              primaryjoin='Dataset.id == '
+                              'foreign(DataBatch.dataset_id)',
+                              back_populates='data_batches')
 
     def set_details(self, proto):
         self.num_file = len(proto.files)

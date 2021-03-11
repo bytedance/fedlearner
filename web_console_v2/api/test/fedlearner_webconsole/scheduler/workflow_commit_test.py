@@ -45,7 +45,10 @@ class WorkflowsCommitTest(BaseTestCase):
                 {
                     'name': 'party_leader',
                     'url': '127.0.0.1:5000',
-                    'domain_name': 'fl-leader.com'
+                    'domain_name': 'fl-leader.com',
+                    'grpc_spec': {
+                        'authority': 'fl-leader.com'
+                    }
                 }
             ],
             'variables': [

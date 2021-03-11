@@ -202,10 +202,10 @@ def read_data(file_type, filename, require_example_ids,
 
     cont_columns = list(filter(
         lambda x: x not in ignore_fields and x not in cat_fields, field_names))
-    cont_columns.sort(key=lambda x: x[1])
+    cont_columns.sort()
     cat_columns = list(filter(
         lambda x: x in cat_fields and x not in ignore_fields, field_names))
-    cat_columns.sort(key=lambda x: x[1])
+    cat_columns.sort()
 
     features = []
     cat_features = []

@@ -24,6 +24,7 @@ from google.protobuf.json_format import MessageToDict
 from fedlearner_webconsole.workflow.models import (
     Workflow, WorkflowState, TransactionState
 )
+from fedlearner_webconsole.job.yaml_formatter import generate_job_run_yaml
 from fedlearner_webconsole.proto import common_pb2
 from fedlearner_webconsole.workflow_template.apis import \
     dict_to_workflow_definition
@@ -81,7 +82,6 @@ class WorkflowsApi(Resource):
                             help='fork and edit peer config')
         parser.add_argument('comment')
         data = parser.parse_args()
-
         name = data['name']
         if Workflow.query.filter_by(name=name).first() is not None:
             raise ResourceConflictException(
@@ -90,8 +90,11 @@ class WorkflowsApi(Resource):
         # form to proto buffer
         template_proto = dict_to_workflow_definition(data['config'])
         workflow = Workflow(name=name,
-                            # 32 bytes
-                            uuid=uuid4().hex,
+                            # 20 bytes
+                            # a DNS-1035 label must start with an
+                            # alphabetic character. substring uuid[:19] has
+                            # no collision in 10 million draws
+                            uuid=f'u{uuid4().hex[:19]}',
                             comment=data['comment'],
                             project_id=data['project_id'],
                             forkable=data['forkable'],
@@ -162,6 +165,8 @@ class WorkflowApi(Resource):
         parser = reqparse.RequestParser()
         parser.add_argument('target_state', type=str, required=False,
                             default=None, help='target_state is empty')
+        parser.add_argument('state', type=str, required=False,
+                            default=None, help='state is empty')
         parser.add_argument('forkable', type=bool)
         parser.add_argument('metric_is_public', type=bool)
         parser.add_argument('config', type=dict, required=False,
@@ -183,11 +188,31 @@ class WorkflowApi(Resource):
         target_state = data['target_state']
         if target_state:
             try:
+                if WorkflowState[target_state] == WorkflowState.RUNNING:
+                    for job in workflow.owned_jobs:
+                        try:
+                            generate_job_run_yaml(job)
+                        # TODO: check if peer variables is valid
+                        except RuntimeError as e:
+                            raise ValueError(
+                                f'Invalid Variable when try '
+                                f'to format the job {job.name}:{str(e)}')
                 workflow.update_target_state(WorkflowState[target_state])
                 db.session.flush()
                 logging.info('updated workflow %d target_state to %s',
                             workflow.id, workflow.target_state)
                 scheduler.wakeup(workflow.id)
+            except ValueError as e:
+                raise InvalidArgumentException(details=str(e)) from e
+
+        state = data['state']
+        if state:
+            try:
+                assert state == 'INVALID', \
+                    'Can only set state to INVALID for invalidation'
+                workflow.invalidate()
+                db.session.flush()
+                logging.info('invalidate workflow %d', workflow.id)
             except ValueError as e:
                 raise InvalidArgumentException(details=str(e)) from e
 

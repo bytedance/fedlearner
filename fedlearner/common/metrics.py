@@ -166,9 +166,9 @@ class Metrics(object):
                 return
             logging_handler = LoggingHandler()
             self.add_handler(logging_handler)
-            es_host = os.environ.get('ES_HOST', None)
-            es_port = os.environ.get('ES_PORT', None)
-            if es_host is not None and es_port is not None:
+            es_host = os.environ.get('ES_HOST', '')
+            es_port = os.environ.get('ES_PORT', '')
+            if es_host != '' and es_port != '':
                 es_handler = ElasticSearchHandler(es_host, es_port)
                 self.add_handler(es_handler)
             self.handler_initialized = True
