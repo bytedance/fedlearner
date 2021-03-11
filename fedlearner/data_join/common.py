@@ -408,6 +408,10 @@ def interval_to_timestamp(itv):
             tmstmp += int(unit_no[item]) * multiple[i]
     return tmstmp
 
+def timestamp_check_valid(iso_dt):
+    if iso_dt.year > 3000:
+        return False
+    return True
 
 def convert_to_iso_format(value):
     """
@@ -439,12 +443,14 @@ def convert_to_iso_format(value):
     except ValueError:  # Not fitting any of above patterns
         # then try to convert directly
         try:
-            iso = datetime.fromtimestamp(float(value)).isoformat()
-        except ValueError:  # might be a non-number str
+            iso = datetime.fromtimestamp(float(value))
+            if not timestamp_check_valid(iso):
+                raise ValueError
+        except ValueError as e:  # might be a non-number str
             logging.warning('OPTIONAL_STATS: unable to parse event time %s, '
-                            'defaults to 0.', value)
-            iso = datetime.fromtimestamp(0).isoformat()
-        return iso
+                            'defaults to 0. error: %s', value, repr(e))
+            iso = datetime.fromtimestamp(0)
+        return iso.isoformat()
 
 def convert_to_str(value):
     if isinstance(value, bytes):

@@ -111,17 +111,6 @@ class _Trigger(object):
     def watermark(self):
         return self._watermark
 
-    def shrink(self, window):
-        ed = window[window.size() - 1]
-        idx = 0
-        while idx < window.size() and common.time_diff(                       \
-                    ed.item.event_time,                                       \
-                    window[idx].item.event_time)                              \
-                > self._max_watermark_delay:
-            self._watermark = window[idx].item.event_time
-            idx += 1
-        return idx
-
     def trigger(self, follower_window, leader_window):
         follower_stride, leader_stride = 0, 0
         step, sid = 1, 0
@@ -407,11 +396,6 @@ class UniversalJoiner(ExampleJoiner):
             if leader_exhausted or follower_exhausted:
                 join_data_finished = True
                 break
-
-            force_stride = self._trigger.shrink(self._follower_join_window)
-            self._follower_join_window.forward(force_stride)
-            force_stride = self._trigger.shrink(self._leader_join_window)
-            self._leader_join_window.forward(force_stride)
 
         if self._get_data_block_builder(False) is not None and \
                 (self._need_finish_data_block_since_interval() or
