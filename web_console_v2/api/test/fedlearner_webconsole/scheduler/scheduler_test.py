@@ -142,6 +142,7 @@ class WorkflowTest(BaseTestCase):
         self._check_workflow_state(1, 'READY', 'INVALID', 'READY')
 
         # test update
+
         patch_config = copy.deepcopy(self._wf_template)
         patch_config['job_definitions'][1]['variables'][0]['value'] = '4'
         resp = self.patch_helper(
