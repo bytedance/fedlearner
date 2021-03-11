@@ -115,6 +115,13 @@ class WorkflowTemplateApi(Resource):
             raise NotFoundException()
         return {'data': result.to_dict()}, HTTPStatus.OK
 
+    def delete(self, template_id):
+        result = WorkflowTemplate.query.filter_by(id=template_id)
+        if result.first() is None:
+            raise NotFoundException()
+        result.delete()
+        db.session.commit()
+        return {'data': 'success'}, HTTPStatus.OK
 
 def initialize_workflow_template_apis(api):
     api.add_resource(WorkflowTemplatesApi, '/workflow_templates')
