@@ -15,11 +15,17 @@
 # coding: utf-8
 # pylint: disable=raise-missing-from
 
+from sqlalchemy import UniqueConstraint
 from fedlearner_webconsole.db import db
 
 
 class Setting(db.Model):
     __tablename__ = 'settings_v2'
-    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    key = db.Column(db.String(255), nullable=False, unique=True)
-    value = db.Column(db.Text)
+    __table_args__ = (UniqueConstraint('key', name='uniq_key'), {
+                        'comment': 'workflow_v2',
+                        'mysql_engine': 'innodb',
+                        'mysql_charset': 'utf8mb4',
+                      })
+    id = db.Column(db.Integer, primary_key=True, comment='id')
+    key = db.Column(db.String(255), nullable=False, comment='key')
+    value = db.Column(db.Text, comment='value')
