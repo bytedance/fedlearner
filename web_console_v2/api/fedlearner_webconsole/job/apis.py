@@ -53,7 +53,7 @@ class PodLogApi(Resource):
         data = parser.parse_args()
         start_time = data['start_time']
         max_lines = data['max_lines']
-        job = Job.query.get(job_id)
+        job = _get_job(job_id)
         if start_time is None:
             start_time = job.workflow.start_at
         return {'data': es.query_log('filebeat-*', '', pod_name,
@@ -95,7 +95,7 @@ class JobMetricsApi(Resource):
 
 class PeerJobMetricsApi(Resource):
     def get(self, participant_id, job_id):
-        job = Job.query.get(job_id)
+        job = _get_job(job_id)
         workflow = job.workflow
         project_config = workflow.project.get_config()
         party = project_config.participants[participant_id]
