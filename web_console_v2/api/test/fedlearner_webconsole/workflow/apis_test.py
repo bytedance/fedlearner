@@ -126,7 +126,7 @@ class WorkflowsApiTest(BaseTestCase):
             'recur_type': 'NONE',
             'transaction_state': 'READY',
             'trigger_dataset': None,
-            'uuid': mock_uuid().hex
+            'uuid': f'u{mock_uuid().hex[:19]}'
         })
         # Check DB
         self.assertEqual(len(Workflow.query.all()), 4)
@@ -184,7 +184,8 @@ class WorkflowApiTest(BaseTestCase):
             name='test-workflow',
             project_id=1,
             state=WorkflowState.NEW,
-            transaction_state=TransactionState.PARTICIPANT_PREPARE
+            transaction_state=TransactionState.PARTICIPANT_PREPARE,
+            target_state=WorkflowState.READY
         )
         db.session.add(workflow)
         db.session.commit()

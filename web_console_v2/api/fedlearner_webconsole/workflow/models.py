@@ -248,6 +248,7 @@ class Workflow(db.Model):
         if (self.state, target_state) not in VALID_TRANSITIONS:
             raise ValueError(
                 f'Invalid transition from {self.state} to {target_state}')
+
         self.target_state = target_state
 
     def update_state(self, asserted_state, target_state, transaction_state):

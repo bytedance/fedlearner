@@ -229,6 +229,7 @@ class WorkflowTest(BaseTestCase):
         self.assertEqual(len(Job.query.filter(Job.workflow_id == 1).all()), 2)
 
         # test fork
+
         json = self._check_workflow_state(2, 'READY', 'INVALID', 'READY')
         self.assertEqual(len(Job.query.all()), 3)
         self.assertEqual(json['data']['reuse_job_names'], ['job2'])
