@@ -2,6 +2,8 @@ import datetime
 import logging
 import os
 
+import pytz
+
 INDEX_TYPE = ('metrics', 'data_join', 'raw_data')
 # YYYY-MM-DD'T'hh:mm:ss.SSSSSSZ
 _es_datetime_format = 'strict_date_optional_time'
@@ -32,6 +34,10 @@ RAW_DATA_MAPPINGS = {
                     "format": _es_datetime_format,
                     "type": "date"
                 }
+            },
+            "process_time": {
+                "format": _es_datetime_format,
+                "type": "date"
             }
         }
     }
@@ -152,7 +158,7 @@ CONFIGS = {
     'raw_data_metrics_sample_rate':
         os.environ.get('RAW_DATA_METRICS_SAMPLE_RATE', 0.01),
     'es_batch_size': os.environ.get('ES_BATCH_SIZE', 1000),
-    'timezone': datetime.timezone(datetime.timedelta(hours=8))  # UTC+8
+    'timezone': pytz.timezone(os.environ.get('TZ', 'UTC'))
 }
 
 
@@ -189,17 +195,18 @@ def convert_to_iso_format(value):
             yyyymmdd or yyyymmddhhnnss, or a datetime object.
 
     Returns: str.
-    Try to convert a datetime str or numeric to iso format datetime str.
+    Try to convert a datetime str or numeric to a UTC iso format str.
         1. Try to convert based on the length of str.
         2. Try to convert assuming it is a timestamp.
         3. If it does not match any pattern, return iso format of timestamp=0.
-        Timezone will be set to UTC+8 if unset.
+        Timezone will be set according to system TZ env if unset and
+        then converted back to UTC.
     """
     assert isinstance(value, (datetime.datetime, bytes, str, int, float))
     if isinstance(value, datetime.datetime):
         if value.tzinfo is None:
-            value = value.replace(tzinfo=CONFIGS['timezone'])
-        return value.isoformat(timespec='microseconds')
+            value = CONFIGS['timezone'].localize(value)
+        return pytz.utc.normalize(value).isoformat(timespec='microseconds')
 
     if isinstance(value, bytes):
         value = value.decode()
@@ -208,12 +215,14 @@ def convert_to_iso_format(value):
     # first try to parse datetime from value
     try:
         if len(value) == 8:
-            date_time = datetime.datetime.strptime(value, '%Y%m%d')
-            return date_time.replace(tzinfo=CONFIGS['timezone']) \
+            date_time = CONFIGS['timezone'].localize(
+                datetime.datetime.strptime(value, '%Y%m%d'))
+            return pytz.utc.normalize(date_time) \
                 .isoformat(timespec='microseconds')
         if len(value) == 14:
-            date_time = datetime.datetime.strptime(value, '%Y%m%d%H%M%S')
-            return date_time.replace(tzinfo=CONFIGS['timezone']) \
+            date_time = CONFIGS['timezone'].localize(
+                datetime.datetime.strptime(value, '%Y%m%d%H%M%S'))
+            return pytz.utc.normalize(date_time) \
                 .isoformat(timespec='microseconds')
     except ValueError:  # Not fitting any of above patterns
         pass
@@ -222,11 +231,9 @@ def convert_to_iso_format(value):
     # not in the same `try` block b/c the length of some strings might be equal
     # to 14 but it is not a datetime format string
     try:
-        date_time = datetime.datetime.fromtimestamp(float(value),
-                                                    tz=CONFIGS['timezone'])
+        date_time = datetime.datetime.fromtimestamp(float(value), tz=pytz.utc)
     except ValueError:  # might be a non-number str
         logging.warning('Unable to parse time %s to iso format, '
                         'defaults to 0.', value)
-        date_time = datetime.datetime.fromtimestamp(0,
-                                                    tz=CONFIGS['timezone'])
+        date_time = datetime.datetime.fromtimestamp(0, tz=pytz.utc)
     return date_time.isoformat(timespec='microseconds')

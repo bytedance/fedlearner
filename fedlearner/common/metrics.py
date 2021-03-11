@@ -230,9 +230,9 @@ emit_timer = emit
 
 
 def timer(func_name, tags=None):
-    def func_wrapper(func):
+    def decorator(func):
         @wraps(func)
-        def return_wrapper(*args, **kwargs):
+        def wrapper(*args, **kwargs):
             time_start = time.time()
             result = func(*args, **kwargs)
             time_end = time.time()
@@ -240,6 +240,6 @@ def timer(func_name, tags=None):
             emit(func_name, time_spend, tags)
             return result
 
-        return return_wrapper
+        return wrapper
 
-    return func_wrapper
+    return decorator
