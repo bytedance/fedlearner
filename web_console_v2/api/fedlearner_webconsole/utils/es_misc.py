@@ -143,7 +143,7 @@ INDEX_MAP = {'metrics': METRICS_MAPPINGS,
 def get_es_template(index_type, shards):
     assert index_type in ALIAS_NAME
     alias_name = ALIAS_NAME[index_type]
-    template = {"index_patterns": ["{}-*".format(alias_name), alias_name],
+    template = {"index_patterns": ["{}-*".format(alias_name)],
                 "settings": {
                     "index": {
                         "lifecycle": {

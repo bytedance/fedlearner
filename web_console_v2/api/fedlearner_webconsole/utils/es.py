@@ -320,6 +320,8 @@ class ElasticSearchClient(object):
         self._es_client.indices.put_template(template_name, template_body)
 
     def _put_write_index(self, index_type):
+        if self._es_client is None:
+            raise RuntimeError('ES client not yet initialized.')
         alias_name = ALIAS_NAME[index_type]
         self._es_client.indices.create(
             # resolves to alias_name-yyyy.mm.dd-000001 in ES
