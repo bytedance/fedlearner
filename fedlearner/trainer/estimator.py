@@ -26,7 +26,6 @@ from tensorflow_estimator.python.estimator import model_fn as model_fn_lib
 
 from fedlearner.common.summary_hook import SummaryHook
 from fedlearner.trainer import patch  # pylint: disable=unused-import
-from fedlearner.common import metrics
 
 SYNC_PATH = '/sync/'
 DATA_CHECKPOINT_INIT_VALUE = "_init_value"
@@ -246,6 +245,8 @@ class FLEstimator(object):
                 worker_device="/job:worker/task:%d" % self._worker_rank,
                 merge_devices=True,
                 cluster=self._cluster_spec)
+            config.rpc_options.compression_algorithm = 'gzip'
+            config.rpc_options.cache_rpc_response = True
             local_address = self._cluster_spec.job_tasks('worker')[
                 self._worker_rank]
             config.rpc_options.compression_algorithm = 'gzip'
@@ -302,18 +303,15 @@ class FLEstimator(object):
                         raise ValueError("Restore data checkpoint error")
 
                     while not sess.should_stop():
-                        self._bridge.start(self._bridge.new_iter_id())
-                        logging.debug('after bridge start.')
-                        start_time = time.time()
                         try:
+                            self._bridge.start()
+                            logging.debug('after bridge start.')
+                            start_time = time.time()
                             sess.run(spec.train_op, feed_dict={})
                         finally:
-                            end_time = time.time()
-                            metrics.emit_timer(
-                                name="iter_timer",
-                                value=end_time-start_time,
-                                tags={})
-                            logging.debug('after session run.')
+                            use_time = time.time() - start_time
+                            logging.debug('after session run. time: %f sec',
+                                use_time)
                             self._bridge.commit()
                             logging.debug('after bridge commit.')
             except Exception as e:
@@ -375,18 +373,15 @@ class FLEstimator(object):
                     if not self._restore_datablock(DATA_CHECKPOINT_INIT_VALUE):
                         raise ValueError("Restore data checkpoint error")
                     while not sess.should_stop():
-                        self._bridge.start(self._bridge.new_iter_id())
-                        logging.debug('after bridge start.')
-                        start_time = time.time()
                         try:
+                            self._bridge.start()
+                            logging.debug('after bridge start.')
+                            start_time = time.time()
                             sess.run(eval_op)
                         finally:
-                            end_time = time.time()
-                            metrics.emit_timer(
-                                name="iter_timer",
-                                value=end_time-start_time,
-                                tags={})
-                            logging.debug('after session run.')
+                            use_time = time.time() - start_time
+                            logging.debug('after session run. time: %f sec',
+                                use_time)
                             self._bridge.commit()
                             logging.debug('after bridge commit.')
             except Exception as e:

@@ -20,22 +20,22 @@ import "google/protobuf/any.proto";
 
 package fedlearner.common;
 
-message StartMessage {
-  uint64 iter_id = 1;
-};
-
-message CommitMessage {
-  uint64 iter_id = 1;
-};
-
-message DataMessage {
-  uint64 iter_id = 1;
-  string name = 2;
-  tensorflow.TensorProto tensor = 3;
-  google.protobuf.Any any_data = 4;
-};
-
 message TransmitRequest {
+  message StartMessage {
+    uint64 iter_id = 1;
+  };
+
+  message DataMessage {
+    uint64 iter_id = 1;
+    string name = 2;
+    tensorflow.TensorProto tensor = 3;
+    google.protobuf.Any any_data = 4;
+  };
+
+  message CommitMessage {
+    uint64 iter_id = 1;
+  };
+
   oneof msg {
     StartMessage  start = 1;
     DataMessage   data = 2;
@@ -57,6 +57,6 @@ message LoadDataBlockResponse {
 };
 
 service TrainerWorkerService {
-  rpc StreamTransmit (stream TransmitRequest) returns (stream TransmitResponse) {}
+  rpc Transmit (stream TransmitRequest) returns (stream TransmitResponse) {}
   rpc LoadDataBlock (LoadDataBlockRequest) returns (LoadDataBlockResponse) {}
 }

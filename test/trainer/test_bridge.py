@@ -65,8 +65,8 @@ class TestBridge(unittest.TestCase):
             recv_y = bridge2.receive_op('y', dtype=tf.float32)
             out = recv_x - recv_y
 
-        bridge1.start(123)
-        bridge2.start(123)
+        bridge1.start()
+        bridge2.start()
         with tf.Session(graph=g1) as sess:
             sess.run([send_x, send_y])
         with tf.Session(graph=g2) as sess:
