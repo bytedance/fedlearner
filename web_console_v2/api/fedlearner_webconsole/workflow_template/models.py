@@ -22,12 +22,15 @@ from fedlearner_webconsole.proto import workflow_definition_pb2
 })
 class WorkflowTemplate(db.Model):
     __tablename__ = 'template_v2'
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(255), unique=True, index=True)
-    comment = db.Column('cmt', db.String(255), key='comment')
-    group_alias = db.Column(db.String(255), nullable=False, index=True)
-    config = db.Column(db.LargeBinary(), nullable=False)
-    is_left = db.Column(db.Boolean)
+    __table_args__ = {
+        'comment': 'workflow template'
+    }
+    id = db.Column(db.Integer, primary_key=True, comment='id')
+    name = db.Column(db.String(255), comment='name')
+    comment = db.Column('cmt', db.String(255), key='comment', comment='comment')
+    group_alias = db.Column(db.String(255), nullable=False, comment='group_alias')
+    config = db.Column(db.LargeBinary(), nullable=False, comment='config')
+    is_left = db.Column(db.Boolean, comment='is_left')
     def set_config(self, proto):
         self.config = proto.SerializeToString()
 
@@ -35,3 +38,6 @@ class WorkflowTemplate(db.Model):
         proto = workflow_definition_pb2.WorkflowDefinition()
         proto.ParseFromString(self.config)
         return proto
+
+db.Index('idx_name', WorkflowTemplate.name, unique=True)
+db.Index('idx_group_alias', WorkflowTemplate.group_alias)

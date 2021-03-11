@@ -126,49 +126,52 @@ def _merge_workflow_config(base, new, access_mode):
                })
 class Workflow(db.Model):
     __tablename__ = 'workflow_v2'
-    id = db.Column(db.Integer, primary_key=True)
-    uuid = db.Column(db.String(64), unique=True, index=True)
-    name = db.Column(db.String(255), unique=True, index=True)
-    project_id = db.Column(db.Integer, db.ForeignKey(Project.id))
-    config = db.Column(db.LargeBinary())
-    comment = db.Column('cmt', db.String(255), key='comment')
+    __table_args__ = {
+        'comment': 'workflow_v2'
+    }
+    id = db.Column(db.Integer, primary_key=True, comment='id')
+    uuid = db.Column(db.String(64), comment='uuid')
+    name = db.Column(db.String(255), comment='name')
+    project_id = db.Column(db.Integer, db.ForeignKey(Project.id), comment='project_id')
+    config = db.Column(db.LargeBinary(), comment='config')
+    comment = db.Column('cmt', db.String(255), key='comment', comment='comment')
 
-    metric_is_public = db.Column(db.Boolean(), default=False, nullable=False)
+    metric_is_public = db.Column(db.Boolean(), default=False, nullable=False, comment='metric_is_public')
 
-    forkable = db.Column(db.Boolean, default=False)
-    forked_from = db.Column(db.Integer, default=None)
+    forkable = db.Column(db.Boolean, default=False, comment='forkable')
+    forked_from = db.Column(db.Integer, default=None, comment='forked_from')
     # index in config.job_defs instead of job's id
-    reuse_job_names = db.Column(db.TEXT())
-    peer_reuse_job_names = db.Column(db.TEXT())
-    fork_proposal_config = db.Column(db.LargeBinary())
+    reuse_job_names = db.Column(db.TEXT(), comment='reuse_job_names')
+    peer_reuse_job_names = db.Column(db.TEXT(), comment='peer_reuse_job_names')
+    fork_proposal_config = db.Column(db.LargeBinary(), comment='fork_proposal_config')
 
     recur_type = db.Column(db.Enum(RecurType, native_enum=False),
-                           default=RecurType.NONE)
-    recur_at = db.Column(db.Interval)
-    trigger_dataset = db.Column(db.Integer)
-    last_triggered_batch = db.Column(db.Integer)
+                           default=RecurType.NONE, comment='recur_type')
+    recur_at = db.Column(db.Interval, comment='recur_at')
+    trigger_dataset = db.Column(db.Integer, comment='trigger_dataset')
+    last_triggered_batch = db.Column(db.Integer, comment='last_triggered_batch')
 
-    job_ids = db.Column(db.TEXT())
+    job_ids = db.Column(db.TEXT(), comment='job_ids')
 
     state = db.Column(db.Enum(WorkflowState, native_enum=False,
                               name='workflow_state'),
-                      default=WorkflowState.INVALID)
+                      default=WorkflowState.INVALID, comment='state')
     target_state = db.Column(db.Enum(WorkflowState, native_enum=False,
                                      name='workflow_target_state'),
-                             default=WorkflowState.INVALID)
+                             default=WorkflowState.INVALID, comment='target_state')
     transaction_state = db.Column(db.Enum(TransactionState,
                                           native_enum=False),
-                                  default=TransactionState.READY)
-    transaction_err = db.Column(db.Text())
+                                  default=TransactionState.READY, comment='transaction_state')
+    transaction_err = db.Column(db.Text(), comment='transaction_err')
 
-    start_at = db.Column(db.Integer)
-    stop_at = db.Column(db.Integer)
+    start_at = db.Column(db.Integer, comment='start_at')
+    stop_at = db.Column(db.Integer, comment='stop_at')
 
     created_at = db.Column(db.DateTime(timezone=True),
-                           server_default=func.now())
+                           server_default=func.now(), comment='created_at')
     updated_at = db.Column(db.DateTime(timezone=True),
                            onupdate=func.now(),
-                           server_default=func.now())
+                           server_default=func.now(), comment='update_at')
 
     owned_jobs = db.relationship('Job', back_populates='workflow')
     project = db.relationship(Project)
@@ -432,3 +435,6 @@ class Workflow(db.Model):
             self.set_config(config)
             return True
         return bool(self.config)
+
+db.Index('idx_uuid', Workflow.uuid, unique=True)
+db.Index('idx_name', Workflow.name, unique=True)

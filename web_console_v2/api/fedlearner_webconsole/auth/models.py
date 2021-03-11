@@ -15,6 +15,7 @@
 
 # coding: utf-8
 
+from enum import unique
 from passlib.apps import custom_app_context as pwd_context
 
 from fedlearner_webconsole.db import db, to_dict_mixin
@@ -23,12 +24,17 @@ from fedlearner_webconsole.db import db, to_dict_mixin
 @to_dict_mixin(ignores=['password'])
 class User(db.Model):
     __tablename__ = 'users_v2'
-    id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(255), index=True)
-    password = db.Column(db.String(255))
+    __table_args__ = {
+        'comment': 'This is webconsole user table'
+    }
+    id = db.Column(db.Integer, primary_key=True, comment='user id')
+    username = db.Column(db.String(255), comment='user name of user')
+    password = db.Column(db.String(255), comment='user password after encode')
 
     def set_password(self, password):
         self.password = pwd_context.hash(password)
 
     def verify_password(self, password):
         return pwd_context.verify(password, self.password)
+
+db.Index('idx_username', User.username, unique=True)

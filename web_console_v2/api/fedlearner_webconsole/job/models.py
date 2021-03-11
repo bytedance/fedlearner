@@ -58,29 +58,32 @@ def merge(x, y):
 })
 class Job(db.Model):
     __tablename__ = 'job_v2'
-    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    name = db.Column(db.String(255), unique=True)
+    __table_args__ = {
+        'comment': 'webconsole job'
+    }
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True, comment='id')
+    name = db.Column(db.String(255), unique=True, comment='name')
     job_type = db.Column(db.Enum(JobType, native_enum=False),
-                         nullable=False)
+                         nullable=False, comment='job type')
     state = db.Column(db.Enum(JobState, native_enum=False),
                       nullable=False,
-                      default=JobState.INVALID)
-    yaml_template = db.Column(db.Text())
-    config = db.Column(db.LargeBinary())
+                      default=JobState.INVALID, comment='state')
+    yaml_template = db.Column(db.Text(), comment='yaml_template')
+    config = db.Column(db.LargeBinary(), comment='config')
 
     workflow_id = db.Column(db.Integer, db.ForeignKey('workflow_v2.id'),
-                            nullable=False, index=True)
+                            nullable=False, comment='workflow id')
     project_id = db.Column(db.Integer, db.ForeignKey(Project.id),
-                           nullable=False)
-    flapp_snapshot = db.Column(db.Text())
-    pods_snapshot = db.Column(db.Text())
+                           nullable=False, comment='project id')
+    flapp_snapshot = db.Column(db.Text(), comment='flapp snapshot')
+    pods_snapshot = db.Column(db.Text(), comment='pods snapshot')
 
     created_at = db.Column(db.DateTime(timezone=True),
-                           server_default=func.now())
+                           server_default=func.now(), comment='created at')
     updated_at = db.Column(db.DateTime(timezone=True),
                            server_default=func.now(),
-                           onupdate=func.now())
-    deleted_at = db.Column(db.DateTime(timezone=True))
+                           onupdate=func.now(), comment='updated at')
+    deleted_at = db.Column(db.DateTime(timezone=True), comment='deleted at')
 
     project = db.relationship(Project)
     workflow = db.relationship('Workflow')
@@ -226,10 +229,17 @@ class Job(db.Model):
     def set_yaml_template(self, yaml_template):
         self.yaml_template = yaml_template
 
+db.Index('idx_workflow_id', Job.workflow_id)
 
 class JobDependency(db.Model):
     __tablename__ = 'job_dependency_v2'
-    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    src_job_id = db.Column(db.Integer, index=True)
-    dst_job_id = db.Column(db.Integer, index=True)
-    dep_index = db.Column(db.Integer)
+    __table_args__ = {
+        'comment': 'record job dependencies',
+    }
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True, comment='id')
+    src_job_id = db.Column(db.Integer, comment='src job id')
+    dst_job_id = db.Column(db.Integer, comment='dst job id')
+    dep_index = db.Column(db.Integer, comment='dep index')
+
+db.Index('idx_src_job_id', JobDependency.src_job_id)
+db.Index('idx_dst_job_id', JobDependency.dst_job_id)

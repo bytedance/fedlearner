@@ -14,6 +14,7 @@
 
 # coding: utf-8
 
+from enum import unique
 from sqlalchemy.sql import func
 from fedlearner_webconsole.db import db, to_dict_mixin
 from fedlearner_webconsole.proto import project_pb2
@@ -26,18 +27,21 @@ from fedlearner_webconsole.proto import project_pb2
     })
 class Project(db.Model):
     __tablename__ = 'projects_v2'
-    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    name = db.Column(db.String(255), index=True, unique=True)
-    token = db.Column(db.String(64), index=True)
-    config = db.Column(db.LargeBinary())
-    certificate = db.Column(db.LargeBinary())
-    comment = db.Column('cmt', db.Text(), key='comment')
+    __table_args__ = {
+        'comment': 'webconsole projects'
+    }
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True, comment='id')
+    name = db.Column(db.String(255), comment='name')
+    token = db.Column(db.String(64), comment='token')
+    config = db.Column(db.LargeBinary(), comment='config')
+    certificate = db.Column(db.LargeBinary(), comment='certificate')
+    comment = db.Column('cmt', db.Text(), key='comment', comment='comment')
     created_at = db.Column(db.DateTime(timezone=True),
-                           server_default=func.now())
+                           server_default=func.now(), comment='created at')
     updated_at = db.Column(db.DateTime(timezone=True),
                            onupdate=func.now(),
-                           server_default=func.now())
-    deleted_at = db.Column(db.DateTime(timezone=True))
+                           server_default=func.now(), comment='updated at')
+    deleted_at = db.Column(db.DateTime(timezone=True), comment='deleted at')
 
     def set_config(self, proto):
         self.config = proto.SerializeToString()
@@ -67,3 +71,6 @@ class Project(db.Model):
                 if variable.name == 'NAMESPACE':
                     return variable.value
         return 'default'
+
+db.Index('idx_name', Project.name, unique=True)
+db.Index('idx_token', Project.token)
