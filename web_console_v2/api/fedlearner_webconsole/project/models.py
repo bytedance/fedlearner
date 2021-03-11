@@ -15,29 +15,38 @@
 # coding: utf-8
 
 from sqlalchemy.sql import func
+from sqlalchemy.sql.schema import Index, UniqueConstraint
 from fedlearner_webconsole.db import db, to_dict_mixin
 from fedlearner_webconsole.proto import project_pb2
 
 
-@to_dict_mixin(
-    ignores=['certificate'],
-    extras={
-        'config': (lambda project: project.get_config())
-    })
+@to_dict_mixin(ignores=['certificate'],
+               extras={'config': (lambda project: project.get_config())})
 class Project(db.Model):
     __tablename__ = 'projects_v2'
-    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    name = db.Column(db.String(255), index=True, unique=True)
-    token = db.Column(db.String(64), index=True)
-    config = db.Column(db.LargeBinary())
-    certificate = db.Column(db.LargeBinary())
-    comment = db.Column('cmt', db.Text(), key='comment')
+    __table_args__ = (UniqueConstraint('name', name='idx_name'),
+                      Index('idx_token', 'token'), {
+                          'comment': 'webconsole projects',
+                          'mysql_engine': 'innodb',
+                          'mysql_charset': 'utf8mb4',
+                      })
+    id = db.Column(db.Integer,
+                   primary_key=True,
+                   autoincrement=True,
+                   comment='id')
+    name = db.Column(db.String(255), comment='name')
+    token = db.Column(db.String(64), comment='token')
+    config = db.Column(db.LargeBinary(), comment='config')
+    certificate = db.Column(db.LargeBinary(), comment='certificate')
+    comment = db.Column('cmt', db.Text(), key='comment', comment='comment')
     created_at = db.Column(db.DateTime(timezone=True),
-                           server_default=func.now())
+                           server_default=func.now(),
+                           comment='created at')
     updated_at = db.Column(db.DateTime(timezone=True),
                            onupdate=func.now(),
-                           server_default=func.now())
-    deleted_at = db.Column(db.DateTime(timezone=True))
+                           server_default=func.now(),
+                           comment='updated at')
+    deleted_at = db.Column(db.DateTime(timezone=True), comment='deleted at')
 
     def set_config(self, proto):
         self.config = proto.SerializeToString()

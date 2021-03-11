@@ -19,13 +19,11 @@ import logging
 import enum
 from datetime import datetime
 from sqlalchemy.sql import func
+from sqlalchemy import UniqueConstraint
 from fedlearner_webconsole.db import db, to_dict_mixin
-from fedlearner_webconsole.proto import (
-    common_pb2, workflow_definition_pb2
-)
-from fedlearner_webconsole.job.models import (
-    Job, JobState, JobType, JobDependency
-)
+from fedlearner_webconsole.proto import (common_pb2, workflow_definition_pb2)
+from fedlearner_webconsole.job.models import (Job, JobState, JobType,
+                                              JobDependency)
 from fedlearner_webconsole.rpc.client import RpcClient
 
 
@@ -36,12 +34,14 @@ class WorkflowState(enum.Enum):
     RUNNING = 3
     STOPPED = 4
 
+
 class RecurType(enum.Enum):
     NONE = 0
     ON_NEW_DATA = 1
     HOURLY = 2
     DAILY = 3
     WEEKLY = 4
+
 
 VALID_TRANSITIONS = [(WorkflowState.NEW, WorkflowState.READY),
                      (WorkflowState.READY, WorkflowState.RUNNING),
@@ -102,6 +102,7 @@ def _merge_variables(base, new, access_mode):
         if var.access_mode in access_mode and var.name in new_dict:
             var.value = new_dict[var.name]
 
+
 def _merge_workflow_config(base, new, access_mode):
     _merge_variables(base.variables, new.variables, access_mode)
     if not new.job_definitions:
@@ -112,69 +113,86 @@ def _merge_workflow_config(base, new, access_mode):
         _merge_variables(base_job.variables, new_job.variables, access_mode)
 
 
-@to_dict_mixin(ignores=['forked_from',
-                        'fork_proposal_config',
-                        'config'],
+@to_dict_mixin(ignores=['forked_from', 'fork_proposal_config', 'config'],
                extras={
                    'job_ids': (lambda wf: wf.get_job_ids()),
                    'reuse_job_names': (lambda wf: wf.get_reuse_job_names()),
                    'peer_reuse_job_names':
-                       (lambda wf: wf.get_peer_reuse_job_names()),
+                   (lambda wf: wf.get_peer_reuse_job_names()),
                    'state': (lambda wf: wf.get_state_for_frontend())
-
                })
 class Workflow(db.Model):
     __tablename__ = 'workflow_v2'
-    id = db.Column(db.Integer, primary_key=True)
-    uuid = db.Column(db.String(64), unique=True, index=True)
-    name = db.Column(db.String(255), unique=True, index=True)
-    project_id = db.Column(db.Integer, nullable=False)
-    config = db.Column(db.LargeBinary())
-    comment = db.Column('cmt', db.String(255), key='comment')
+    __table_args__ = (UniqueConstraint('uuid', name='uniq_uuid'),
+                      UniqueConstraint('name', name='uniq_name'), {
+                          'comment': 'workflow_v2',
+                          'mysql_engine': 'innodb',
+                          'mysql_charset': 'utf8mb4',
+                      })
+    id = db.Column(db.Integer, primary_key=True, comment='id')
+    uuid = db.Column(db.String(64), comment='uuid')
+    name = db.Column(db.String(255), comment='name')
+    project_id = db.Column(db.Integer, comment='project_id')
+    config = db.Column(db.LargeBinary(), comment='config')
+    comment = db.Column('cmt',
+                        db.String(255),
+                        key='comment',
+                        comment='comment')
 
-    metric_is_public = db.Column(db.Boolean(), default=False, nullable=False)
+    metric_is_public = db.Column(db.Boolean(),
+                                 default=False,
+                                 nullable=False,
+                                 comment='metric_is_public')
 
-    forkable = db.Column(db.Boolean, default=False)
-    forked_from = db.Column(db.Integer, default=None)
+    forkable = db.Column(db.Boolean, default=False, comment='forkable')
+    forked_from = db.Column(db.Integer, default=None, comment='forked_from')
+
     # index in config.job_defs instead of job's id
-    reuse_job_names = db.Column(db.TEXT())
-    peer_reuse_job_names = db.Column(db.TEXT())
-    fork_proposal_config = db.Column(db.LargeBinary())
+    reuse_job_names = db.Column(db.TEXT(), comment='reuse_job_names')
+    peer_reuse_job_names = db.Column(db.TEXT(), comment='peer_reuse_job_names')
+    fork_proposal_config = db.Column(db.LargeBinary(),
+                                     comment='fork_proposal_config')
 
     recur_type = db.Column(db.Enum(RecurType, native_enum=False),
-                           default=RecurType.NONE)
-    recur_at = db.Column(db.Interval)
-    trigger_dataset = db.Column(db.Integer)
-    last_triggered_batch = db.Column(db.Integer)
+                           default=RecurType.NONE,
+                           comment='recur_type')
+    recur_at = db.Column(db.Interval, comment='recur_at')
+    trigger_dataset = db.Column(db.Integer, comment='trigger_dataset')
+    last_triggered_batch = db.Column(db.Integer,
+                                     comment='last_triggered_batch')
 
-    job_ids = db.Column(db.TEXT())
+    job_ids = db.Column(db.TEXT(), comment='job_ids')
 
-    state = db.Column(db.Enum(WorkflowState, native_enum=False,
+    state = db.Column(db.Enum(WorkflowState,
+                              native_enum=False,
                               name='workflow_state'),
-                      default=WorkflowState.INVALID)
-    target_state = db.Column(db.Enum(WorkflowState, native_enum=False,
+                      default=WorkflowState.INVALID,
+                      comment='state')
+    target_state = db.Column(db.Enum(WorkflowState,
+                                     native_enum=False,
                                      name='workflow_target_state'),
-                             default=WorkflowState.INVALID)
-    transaction_state = db.Column(db.Enum(TransactionState,
-                                          native_enum=False),
-                                  default=TransactionState.READY)
-    transaction_err = db.Column(db.Text())
+                             default=WorkflowState.INVALID,
+                             comment='target_state')
+    transaction_state = db.Column(db.Enum(TransactionState, native_enum=False),
+                                  default=TransactionState.READY,
+                                  comment='transaction_state')
+    transaction_err = db.Column(db.Text(), comment='transaction_err')
 
-    start_at = db.Column(db.Integer)
-    stop_at = db.Column(db.Integer)
+    start_at = db.Column(db.Integer, comment='start_at')
+    stop_at = db.Column(db.Integer, comment='stop_at')
 
     created_at = db.Column(db.DateTime(timezone=True),
-                           server_default=func.now())
+                           server_default=func.now(),
+                           comment='created_at')
     updated_at = db.Column(db.DateTime(timezone=True),
                            onupdate=func.now(),
-                           server_default=func.now())
+                           server_default=func.now(),
+                           comment='update_at')
 
     owned_jobs = db.relationship(
-        'Job',
-        primaryjoin='foreign(Job.workflow_id) == Workflow.id')
+        'Job', primaryjoin='foreign(Job.workflow_id) == Workflow.id')
     project = db.relationship(
-        'Project',
-        primaryjoin='Project.id == foreign(Workflow.project_id)')
+        'Project', primaryjoin='Project.id == foreign(Workflow.project_id)')
 
     def get_state_for_frontend(self):
         if self.state == WorkflowState.RUNNING:
@@ -243,11 +261,11 @@ class Workflow(db.Model):
         if self.target_state != target_state \
                 and self.target_state != WorkflowState.INVALID:
             raise ValueError(f'Another transaction is in progress [{self.id}]')
-        if target_state not in [WorkflowState.READY,
-                                WorkflowState.RUNNING,
-                                WorkflowState.STOPPED]:
-            raise ValueError(
-                f'Invalid target_state {self.target_state}')
+        if target_state not in [
+                WorkflowState.READY, WorkflowState.RUNNING,
+                WorkflowState.STOPPED
+        ]:
+            raise ValueError(f'Invalid target_state {self.target_state}')
         if (self.state, target_state) not in VALID_TRANSITIONS:
             raise ValueError(
                 f'Invalid transition from {self.state} to {target_state}')
@@ -300,8 +318,8 @@ class Workflow(db.Model):
         try:
             self.update_target_state(target_state)
         except ValueError as e:
-            logging.warning(
-                'Error during update target state in prepare: %s', str(e))
+            logging.warning('Error during update target state in prepare: %s',
+                            str(e))
             self.transaction_state = TransactionState.ABORTED
             return
 
@@ -316,7 +334,6 @@ class Workflow(db.Model):
             else:
                 self.transaction_state = \
                     TransactionState.PARTICIPANT_COMMITTABLE
-
 
     def rollback(self):
         self.target_state = WorkflowState.INVALID
@@ -335,8 +352,8 @@ class Workflow(db.Model):
                     job.stop()
             except RuntimeError as e:
                 # errors from k8s
-                logging.error('Stop workflow %d has Runtime error msg: %s'
-                              , self.id, e.args)
+                logging.error('Stop workflow %d has Runtime error msg: %s',
+                              self.id, e.args)
                 return
         elif self.target_state == WorkflowState.READY:
             self._setup_jobs()
@@ -368,7 +385,8 @@ class Workflow(db.Model):
                 'Source workflow %d not found'%self.forked_from
             trunk_job_defs = trunk.get_config().job_definitions
             trunk_name2index = {
-                job.name: i for i, job in enumerate(trunk_job_defs)
+                job.name: i
+                for i, job in enumerate(trunk_job_defs)
             }
         else:
             assert not self.get_reuse_job_names()
@@ -396,9 +414,7 @@ class Workflow(db.Model):
                 db.session.add(job)
             jobs.append(job)
         db.session.flush()
-        name2index = {
-            job.name: i for i, job in enumerate(job_defs)
-        }
+        name2index = {job.name: i for i, job in enumerate(job_defs)}
         for i, job in enumerate(jobs):
             if job.get_config().name in reuse_jobs:
                 continue
@@ -414,9 +430,8 @@ class Workflow(db.Model):
     def log_states(self):
         logging.debug(
             'workflow %d updated to state=%s, target_state=%s, '
-            'transaction_state=%s', self.id,
-            self.state.name, self.target_state.name,
-            self.transaction_state.name)
+            'transaction_state=%s', self.id, self.state.name,
+            self.target_state.name, self.transaction_state.name)
 
     def _get_peer_workflow(self):
         project_config = self.project.get_config()
@@ -440,9 +455,8 @@ class Workflow(db.Model):
             self.set_reuse_job_names(peer_workflow.peer_reuse_job_names)
             self.set_peer_reuse_job_names(peer_workflow.reuse_job_names)
             config = base_workflow.get_config()
-            _merge_workflow_config(
-                config, peer_workflow.fork_proposal_config,
-                [common_pb2.Variable.PEER_WRITABLE])
+            _merge_workflow_config(config, peer_workflow.fork_proposal_config,
+                                   [common_pb2.Variable.PEER_WRITABLE])
             self.set_config(config)
             return True
         return bool(self.config)
