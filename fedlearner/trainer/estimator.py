@@ -257,8 +257,8 @@ class FLEstimator(object):
                 job_name='local',
                 task_index=0,
                 config=config)
-            target = server.target
             config.cluster_def.CopyFrom(self._cluster_spec.as_cluster_def())
+            target = "grpc://" + local_address
         else:
             device_fn = None
             target = None
