@@ -234,32 +234,34 @@ class FLEstimator(object):
               checkpoint_path=None,
               save_checkpoint_steps=None,
               save_checkpoint_secs=None):
+
+        config = tf.ConfigProto()
+        config.inter_op_parallelism_threads = 16
+        config.inter_op_parallelism_threads = 16
+        config.experimental.share_session_state_in_clusterspec_propagation \
+            = True
+
         if self._cluster_spec is not None:
             device_fn = tf.train.replica_device_setter(
                 worker_device="/job:worker/task:%d" % self._worker_rank,
                 merge_devices=True,
                 cluster=self._cluster_spec)
-            cluster_def = self._cluster_spec.as_cluster_def()
             local_address = self._cluster_spec.job_tasks('worker')[
                 self._worker_rank]
+            config.rpc_options.compression_algorithm = 'gzip'
+            config.rpc_options.cache_rpc_response = True
             server = tf.train.Server(tf.train.ClusterSpec(
                 {'local': {
                     0: local_address
                 }}),
                 job_name='local',
-                task_index=0)
-            target = 'grpc://' + local_address
+                task_index=0,
+                config=config)
+            target = server.target
+            config.cluster_def.CopyFrom(self._cluster_spec.as_cluster_def())
         else:
             device_fn = None
-            cluster_def = None
             target = None
-
-        config = tf.ConfigProto(cluster_def=cluster_def)
-        config.inter_op_parallelism_threads = 4
-        config.intra_op_parallelism_threads = 4
-        config.experimental.share_session_state_in_clusterspec_propagation \
-            = True
-        tf.config.set_soft_device_placement(False)
 
         with tf.Graph().as_default() as g:
             with tf.device(device_fn):
