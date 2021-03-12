@@ -157,10 +157,6 @@ class WorkflowApi(Resource):
         workflow.update_target_state(WorkflowState.READY)
         db.session.commit()
         scheduler.wakeup(workflow_id)
-        while workflow.transaction_state !=\
-            TransactionState.PARTICIPANT_COMMITTABLE:
-            db.session.refresh(workflow)
-            time.sleep(0.5)
         logging.info('update workflow %d target_state to %s',
                      workflow.id, workflow.target_state)
         return {'data': workflow.to_dict()}, HTTPStatus.OK
