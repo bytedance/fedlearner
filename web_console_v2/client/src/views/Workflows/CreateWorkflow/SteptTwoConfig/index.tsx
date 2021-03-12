@@ -33,7 +33,7 @@ import { cloneDeep, Dictionary } from 'lodash';
 const Container = styled.section`
   height: 100%;
 `;
-const Header = styled.header`
+const ChartHeader = styled.header`
   padding: 13px 20px;
   font-size: 14px;
   line-height: 22px;
@@ -102,9 +102,9 @@ const CanvasAndForm: FC<WorkflowCreateProps> = ({ isInitiate, isAccept }) => {
     <ErrorBoundary>
       <Container>
         <Spin spinning={submitting}>
-          <Header>
+          <ChartHeader>
             <ChartTitle>{t('workflow.our_config')}</ChartTitle>
-          </Header>
+          </ChartHeader>
         </Spin>
 
         <WorkflowJobsFlowChart

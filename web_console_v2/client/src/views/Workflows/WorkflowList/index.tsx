@@ -92,8 +92,8 @@ export const getWorkflowTableColumns = (
   if (!options.withoutActions) {
     ret.push({
       title: i18n.t('workflow.col_actions'),
-      dataIndex: 'created_at',
-      name: 'created_at',
+      dataIndex: 'operation',
+      name: 'operation',
       render: (_: any, record: Workflow) => (
         <WorkflowActions
           onSuccess={options.onSuccess}

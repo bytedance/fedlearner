@@ -144,7 +144,12 @@ const JobExecutionDetailsDrawer: ForwardRefRenderFunction<JobExecutionDetailsExp
 
         {!isPeerSide && <JobExecutionMetrics job={job} visible={props.visible} />}
 
-        <JobExecutionLogs job={job} workflow={workflow} enabled={Boolean(props.visible)} />
+        <JobExecutionLogs
+          isPeerSide
+          job={job}
+          workflow={workflow}
+          enabled={Boolean(props.visible)}
+        />
 
         <JobExecutionPods job={job} isPeerSide={isPeerSide} />
       </Container>

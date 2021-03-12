@@ -1,11 +1,10 @@
 import React, { FC, useState, useEffect } from 'react';
 import styled from 'styled-components';
-import { Form, Select, Radio, Button, Input, Spin, Card, notification } from 'antd';
+import { Form, Select, Radio, Button, Input, Spin, Card, notification, message } from 'antd';
 import { useTranslation } from 'react-i18next';
 import GridRow from 'components/_base/GridRow';
 import CreateTemplateForm from './CreateTemplate';
 import { useHistory, useLocation, useParams } from 'react-router-dom';
-import { cloneDeep } from 'lodash';
 import {
   CreateWorkflowBasicForm,
   workflowBasicForm,
@@ -26,9 +25,11 @@ import {
   fetchWorkflowTemplateList,
   getPeerWorkflowsConfig,
   getWorkflowDetailById,
+  fetchTemplateById,
 } from 'services/workflow';
 import { WorkflowCreateProps } from '..';
 import { parseWidgetSchemas } from 'shared/formSchema';
+import { to } from 'shared/helpers';
 
 const Container = styled(Card)`
   padding-top: 20px;
@@ -190,13 +191,13 @@ const WorkflowsCreateStepOne: FC<WorkflowCreateProps & { onSuccess?: any }> = ({
                     disabled={Boolean(tplListQuery.error) || noAvailableTpl}
                     onChange={onTemplateSelectChange}
                     placeholder={t('workflow.placeholder_template')}
+                    allowClear
                   >
-                    {tplList &&
-                      tplList.map((tpl) => (
-                        <Select.Option key={tpl.id} value={tpl.id}>
-                          {tpl.name}
-                        </Select.Option>
-                      ))}
+                    {tplList?.map((tpl) => (
+                      <Select.Option key={tpl.id} value={tpl.id}>
+                        {tpl.name}
+                      </Select.Option>
+                    ))}
                   </Select>
                 )}
               </Form.Item>
@@ -252,7 +253,7 @@ const WorkflowsCreateStepOne: FC<WorkflowCreateProps & { onSuccess?: any }> = ({
     // For flow chart render
     setTemplateInUsing(parsedTpl);
     // For initiate workflow config's data
-    setWorkflowConfigForm(parsedTpl.config);
+    setWorkflowConfigForm(parsedTpl.config as any);
   }
   async function getWorkflowDetail() {
     const { data } = await getWorkflowDetailById(params.id);
@@ -273,10 +274,20 @@ const WorkflowsCreateStepOne: FC<WorkflowCreateProps & { onSuccess?: any }> = ({
   function onFormChange(_: any, values: CreateWorkflowBasicForm) {
     setFormData(values);
   }
-  function onTemplateSelectChange(id: number) {
-    const target = tplList?.find((item) => item.id === id);
-    if (!target) return;
-    setCurrentUsingTemplate(cloneDeep(target));
+  async function onTemplateSelectChange(id: number) {
+    if (!id) {
+      // If user clear select
+      return;
+    }
+
+    const [res, error] = await to(fetchTemplateById(id));
+
+    if (error) {
+      message.error(t('workflow.msg_get_tpl_detail_failed'));
+      return;
+    }
+    if (!res.data) return;
+    setCurrentUsingTemplate(res.data);
   }
   function onTplCreateSuccess(res: WorkflowTemplate) {
     setSubmitting(false);

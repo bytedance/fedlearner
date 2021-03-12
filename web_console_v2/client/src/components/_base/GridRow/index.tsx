@@ -25,6 +25,8 @@ type Props = {
     | 'space-between'
     | 'space-around'
     | 'space-evenly';
+
+  onClick?: any;
 };
 
 /**

@@ -5,6 +5,7 @@ import GridRow from 'components/_base/GridRow';
 import { QuestionCircle } from 'components/IconPark';
 
 const Container = styled(Card)`
+  position: relative;
   display: grid;
   grid-auto-flow: row;
   min-height: var(--contentHeight);

@@ -6,7 +6,7 @@ import { useRecoilQuery } from 'hooks/recoil';
 import { MixinCircle, MixinCommonTransition, MixinSquare } from 'styles/mixins';
 import { message, Popover, Button, Row } from 'antd';
 import GridRow from 'components/_base/GridRow';
-import { Public } from 'components/IconPark';
+import { Public, Settings } from 'components/IconPark';
 import LanguageSwitch from './LanguageSwitch';
 import { Redirect, useHistory } from 'react-router-dom';
 import { logout } from 'services/user';
@@ -16,6 +16,7 @@ import LOCAL_STORAGE_KEYS from 'shared/localStorageKeys';
 import { useResetRecoilState } from 'recoil';
 import { ErrorCodes } from 'typings/app';
 import i18n from 'i18n';
+import PubSub from 'pubsub-js';
 
 const Container = styled.div`
   ${MixinCommonTransition()}
@@ -75,9 +76,24 @@ const LanguageRow = styled(Row)`
   height: 40px;
   margin-bottom: 10px;
 `;
+const ButtonRow = styled(GridRow)`
+  height: 40px;
+  margin-bottom: 10px;
+  padding: 0 20px;
+  cursor: pointer;
+
+  &:hover {
+    background-color: var(--gray1);
+  }
+`;
 const LogoutButton = styled(Button)`
   width: 100%;
+  margin-top: 5px;
 `;
+
+export const ACCOUNT_CHANNELS = {
+  click_settings: 'click_settings',
+};
 
 const AccountPopover: FC = () => {
   const history = useHistory();
@@ -86,13 +102,20 @@ const AccountPopover: FC = () => {
 
   return (
     <div>
-      <LanguageRow justify="space-between" align="middle">
-        <GridRow gap="5">
-          <Public />
-          {t('app.switch_lng')}
-        </GridRow>
-        <LanguageSwitch />
-      </LanguageRow>
+      {/*
+        <LanguageRow justify="space-between" align="middle">
+          <GridRow gap="5">
+            <Public />
+            {t('app.switch_lng')}
+          </GridRow>
+          <LanguageSwitch />
+        </LanguageRow>
+       */}
+
+      <ButtonRow gap="5" onClick={onSettingClick}>
+        <Settings />
+        系统配置
+      </ButtonRow>
       <LogoutButton size="large" onClick={onLogoutClick}>
         {t('app.logout')}
       </LogoutButton>
@@ -108,6 +131,10 @@ const AccountPopover: FC = () => {
     } catch (error) {
       message.error(error.message);
     }
+  }
+
+  function onSettingClick() {
+    history.push('/settings');
   }
 };
 

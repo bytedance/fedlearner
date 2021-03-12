@@ -3,6 +3,7 @@ import { Route } from 'react-router-dom';
 import styled from 'styled-components';
 import PodLogs from './PodLogs';
 import JobLogs from './JobLogs';
+import JobEvents from './JobEvents';
 
 const Container = styled.main`
   padding-left: 10px;
@@ -12,8 +13,9 @@ const Container = styled.main`
 const LogsViewer: FC = () => {
   return (
     <Container>
-      <Route path="/logs/pod/:jobid/:podname" exact component={PodLogs} />
-      <Route path="/logs/job/:jobname" exact component={JobLogs} />
+      <Route path="/logs/pod/:jobId/:podname" exact component={PodLogs} />
+      <Route path="/logs/job/:jobId" exact component={JobLogs} />
+      <Route path="/logs/job/events/:side/:jobIdOrName" exact component={JobEvents} />
     </Container>
   );
 };
