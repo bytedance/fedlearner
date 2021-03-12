@@ -405,7 +405,7 @@ class Workflow(db.Model):
                 # TODO: check forked jobs does not depend on non-forked jobs
             else:
                 job = Job(name=f'{self.uuid}-{job_def.name}',
-                          job_type=JobType(job_def.type),
+                          job_type=JobType(job_def.job_type),
                           config=job_def.SerializeToString(),
                           workflow_id=self.id,
                           project_id=self.project_id,

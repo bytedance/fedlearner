@@ -157,7 +157,6 @@ class WorkflowApi(Resource):
         workflow.update_target_state(WorkflowState.READY)
         db.session.commit()
         scheduler.wakeup(workflow_id)
-        scheduler.wakeup(workflow_id)
         while workflow.transaction_state != TransactionState.PARTICIPANT_COMMITTABLE:
             db.session.refresh(workflow)
             time.sleep(0.5)

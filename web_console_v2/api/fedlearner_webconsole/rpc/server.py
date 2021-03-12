@@ -293,7 +293,8 @@ class RpcServer(object):
                 forked_from=forked_from,
                 reuse_job_names=workflow.get_reuse_job_names(),
                 peer_reuse_job_names=workflow.get_peer_reuse_job_names(),
-                fork_proposal_config=workflow.get_fork_proposal_config()
+                fork_proposal_config=workflow.get_fork_proposal_config(),
+                uuid=workflow.uuid
             )
 
     def update_workflow(self, request, context):
