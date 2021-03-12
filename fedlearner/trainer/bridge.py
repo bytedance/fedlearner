@@ -143,7 +143,7 @@ class Bridge(object):
                  rank=0,
                  streaming_mode=True,
                  compression=grpc.Compression.NoCompression,
-                 iter_timeout=600):
+                 iter_timeout=1800):
         self._role = role
         self._listen_port = listen_port
         self._remote_address = remote_address
