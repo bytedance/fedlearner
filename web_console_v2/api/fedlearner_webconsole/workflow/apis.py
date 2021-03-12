@@ -34,7 +34,7 @@ from fedlearner_webconsole.exceptions import (
     InternalException, NoAccessException)
 from fedlearner_webconsole.scheduler.scheduler import scheduler
 from fedlearner_webconsole.rpc.client import RpcClient
-
+from fedlearner_webconsole.utils.code_key_parser import code_key_parser
 
 def _get_workflow(workflow_id):
     result = Workflow.query.filter_by(id=workflow_id).first()
@@ -83,12 +83,13 @@ class WorkflowsApi(Resource):
         parser.add_argument('comment')
         data = parser.parse_args()
         name = data['name']
+        config = code_key_parser.encode_code_key_in_config(data['config'])
         if Workflow.query.filter_by(name=name).first() is not None:
             raise ResourceConflictException(
                 'Workflow {} already exists.'.format(name))
 
         # form to proto buffer
-        template_proto = dict_to_workflow_definition(data['config'])
+        template_proto = dict_to_workflow_definition(config)
         workflow = Workflow(name=name,
                             # 20 bytes
                             # a DNS-1035 label must start with an
@@ -135,6 +136,8 @@ class WorkflowApi(Resource):
                             workflow.get_config(),
                             preserving_proto_field_name=True,
                             including_default_value_fields=True)
+            result['config'] = code_key_parser.\
+                decode_code_key_in_config(result['config'])
         return {'data': result}, HTTPStatus.OK
 
     def put(self, workflow_id):
@@ -153,7 +156,9 @@ class WorkflowApi(Resource):
 
         workflow.comment = data['comment']
         workflow.forkable = data['forkable']
-        workflow.set_config(dict_to_workflow_definition(data['config']))
+        config = data['config']
+        config = code_key_parser.encode_code_key_in_config(config)
+        workflow.set_config(dict_to_workflow_definition(config))
         workflow.update_target_state(WorkflowState.READY)
         scheduler.wakeup(workflow_id)
         db.session.commit()
@@ -223,7 +228,8 @@ class WorkflowApi(Resource):
                         workflow.state not in \
                         [WorkflowState.READY, WorkflowState.STOPPED]:
                     raise NoAccessException('Cannot edit running workflow')
-                config_proto = dict_to_workflow_definition(data['config'])
+                config = code_key_parser.encode_code_key_in_config(config)
+                config_proto = dict_to_workflow_definition(config)
                 workflow.set_config(config_proto)
                 db.session.flush()
             except ValueError as e:
@@ -248,6 +254,9 @@ class PeerWorkflowsApi(Resource):
                 resp,
                 preserving_proto_field_name=True,
                 including_default_value_fields=True)
+            peer_workflow['config'] = \
+                code_key_parser.encode_code_key_in_config(
+                    peer_workflow['config'])
             for job in peer_workflow['jobs']:
                 if 'pods' in job:
                     job['pods'] = json.loads(job['pods'])
@@ -259,7 +268,9 @@ class PeerWorkflowsApi(Resource):
         parser.add_argument('config', type=dict, required=True,
                             help='new config for peer')
         data = parser.parse_args()
-        config_proto = dict_to_workflow_definition(data['config'])
+        config = data['config']
+        config = code_key_parser.encode_code_key_in_config(config)
+        config_proto = dict_to_workflow_definition(config)
 
         workflow = _get_workflow(workflow_id)
         project_config = workflow.project.get_config()
@@ -270,10 +281,14 @@ class PeerWorkflowsApi(Resource):
                 workflow.name, config_proto)
             if resp.status.code != common_pb2.STATUS_SUCCESS:
                 raise InternalException(resp.status.msg)
-            peer_workflows[party.name] = MessageToDict(
+            peer_workflow = MessageToDict(
                 resp,
                 preserving_proto_field_name=True,
                 including_default_value_fields=True)
+            peer_workflow['config'] = \
+                code_key_parser.encode_code_key_in_config(
+                    peer_workflow['config'])
+            peer_workflows[party.name] = peer_workflow
         return {'data': peer_workflows}, HTTPStatus.OK
 
 
