@@ -14,7 +14,6 @@
 
 # pylint: disable=global-statement
 # coding: utf-8
-import time
 import logging
 import json
 from uuid import uuid4
