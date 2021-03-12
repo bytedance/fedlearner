@@ -39,7 +39,7 @@ def make_workflow_template():
         job_definitions=[
             JobDefinition(
                 name='raw-data-job',
-                type=JobDefinition.RAW_DATA,
+                job_type=JobDefinition.RAW_DATA,
                 is_federated=False,
                 is_manual=False,
                 variables=[
@@ -386,7 +386,7 @@ def make_workflow_template():
             ),
             JobDefinition(
                 name='data-join-job',
-                type=JobDefinition.DATA_JOIN,
+                job_type=JobDefinition.DATA_JOIN,
                 is_federated=True,
                 is_manual=False,
                 variables=[
@@ -818,7 +818,7 @@ def make_workflow_template():
             ),
             JobDefinition(
                 name='train-job',
-                type=JobDefinition.NN_MODEL_TRANINING,
+                job_type=JobDefinition.NN_MODEL_TRANINING,
                 is_federated=True,
                 is_manual=False,
                 variables=[

@@ -18,6 +18,7 @@ import json
 from google.protobuf.json_format import MessageToDict
 from flask_restful import Resource, reqparse
 from fedlearner_webconsole.proto import common_pb2
+from fedlearner_webconsole.workflow.models import Workflow
 from fedlearner_webconsole.job.models import Job
 from fedlearner_webconsole.job.metrics import JobMetricsBuilder
 from fedlearner_webconsole.utils.es import es
@@ -94,13 +95,14 @@ class JobMetricsApi(Resource):
 
 
 class PeerJobMetricsApi(Resource):
-    def get(self, participant_id, job_id):
-        job = _get_job(job_id)
-        workflow = job.workflow
+    def get(self, workflow_uuid, participant_id, job_name):
+        workflow = Workflow.query.filter_by(uuid=workflow_uuid).first()
+        if workflow is None:
+            raise NotFoundException()
         project_config = workflow.project.get_config()
         party = project_config.participants[participant_id]
         client = RpcClient(project_config, party)
-        resp = client.get_job_metrics(job.name)
+        resp = client.get_job_metrics(job_name)
         if resp.status.code != common_pb2.STATUS_SUCCESS:
             raise InternalException(resp.status.msg)
 
@@ -135,7 +137,7 @@ class JobEventApi(Resource):
 
 
 class PeerJobEventsApi(Resource):
-    def get(self, participant_id, job_id):
+    def get(self, workflow_uuid, participant_id, job_name):
         parser = reqparse.RequestParser()
         parser.add_argument('start_time', type=int, location='args',
                             required=False,
@@ -146,15 +148,15 @@ class PeerJobEventsApi(Resource):
         data = parser.parse_args()
         start_time = data['start_time']
         max_lines = data['max_lines']
-        job = _get_job(job_id)
+        workflow = Workflow.query.filter_by(uuid=workflow_uuid).first()
+        if workflow is None:
+            raise NotFoundException()
         if start_time is None:
-            start_time = job.workflow.start_at
-
-        workflow = job.workflow
+            start_time = workflow.start_at
         project_config = workflow.project.get_config()
         party = project_config.participants[participant_id]
         client = RpcClient(project_config, party)
-        resp = client.get_job_events(job_name=job.name,
+        resp = client.get_job_events(job_name=job_name,
                                      start_time=start_time,
                                      max_lines=max_lines)
         if resp.status.code != common_pb2.STATUS_SUCCESS:
@@ -176,9 +178,9 @@ def initialize_job_apis(api):
     api.add_resource(JobMetricsApi,
                      '/jobs/<int:job_id>/metrics')
     api.add_resource(PeerJobMetricsApi,
-                     '/jobs/<int:job_id>'
-                     '/participants/<int:participant_id>/metrics')
+                     '/workflows/<string:workflow_uuid>/peer_workflows'
+                     '/<int:participant_id>/jobs/<string:job_name>/metrics')
     api.add_resource(JobEventApi, '/jobs/<int:job_id>/events')
     api.add_resource(PeerJobEventsApi,
-                     '/jobs/<int:job_id>'
-                     '/participants/<int:participant_id>/events')
+                     '/workflows/<string:workflow_uuid>/peer_workflows'
+                     '/<int:participant_id>/jobs/<string:job_name>/events')

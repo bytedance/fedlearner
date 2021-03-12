@@ -39,7 +39,7 @@ message JobDefinition {
     }
 
     string name = 1;
-    JobType type = 2;
+    JobType job_type = 2;
     bool is_federated = 3;
     bool is_manual = 4;
     repeated Variable variables = 5;

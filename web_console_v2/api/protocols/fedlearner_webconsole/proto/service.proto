@@ -76,6 +76,7 @@ message GetWorkflowResponse{
     repeated string reuse_job_names = 10;
     repeated string peer_reuse_job_names = 11;
     WorkflowDefinition fork_proposal_config = 12;
+    string uuid = 13;
 }
 
 message UpdateWorkflowRequest {

@@ -14,7 +14,6 @@
 
 # pylint: disable=global-statement
 # coding: utf-8
-
 import logging
 import json
 from uuid import uuid4
@@ -155,8 +154,8 @@ class WorkflowApi(Resource):
         workflow.forkable = data['forkable']
         workflow.set_config(dict_to_workflow_definition(data['config']))
         workflow.update_target_state(WorkflowState.READY)
-        scheduler.wakeup(workflow_id)
         db.session.commit()
+        scheduler.wakeup(workflow_id)
         logging.info('update workflow %d target_state to %s',
                      workflow.id, workflow.target_state)
         return {'data': workflow.to_dict()}, HTTPStatus.OK

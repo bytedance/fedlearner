@@ -24,7 +24,7 @@
   "job_definitions": [
     {
       "name": "data-import",
-      "type": "RAW_DATA",
+      "job_type": "RAW_DATA",
       "is_federated": false,
       "is_manual": false,
       "yaml_template": "data-import-yaml",
@@ -33,7 +33,7 @@
     },
     {
       "name": "data-join",
-      "type": "PSI_DATA_JOIN",
+      "job_type": "PSI_DATA_JOIN",
       "is_federated": true,
       "is_manual": false,
       "yaml_template": "data-join-yaml",
@@ -46,7 +46,7 @@
     },
     {
       "name": "training",
-      "type": "TREE_MODEL_TRAINING",
+      "job_type": "TREE_MODEL_TRAINING",
       "is_federated": true,
       "is_manual": false,
       "yaml_template": "training-yaml",
