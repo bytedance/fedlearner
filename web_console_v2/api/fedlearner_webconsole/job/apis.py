@@ -232,10 +232,10 @@ class KibanaMetricsApi(Resource):
                                  'Timer visualization.')
         args = parser.parse_args()
         if args['type'] in KibanaUtils.TSVB:
-            return KibanaUtils.create_tsvb(job, args)
+            return {'data': KibanaUtils.create_tsvb(job, args)}
         if args['type'] in KibanaUtils.TIMELION:
-            return KibanaUtils.create_timelion(job, args)
-        return []
+            return {'data': KibanaUtils.create_timelion(job, args)}
+        return {'data': []}
 
 
 def initialize_job_apis(api):
