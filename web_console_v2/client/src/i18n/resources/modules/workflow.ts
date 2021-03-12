@@ -132,6 +132,7 @@ const workflow: I18nMessageModule = {
   },
   msg_upstreaming_nonreusable: { zh: '因存在上游依赖不可继承，无法修改此任务继承与否' },
   msg_chart_deps_loading: { zh: '图表依赖正在加载，请稍等' },
+  msg_get_tpl_detail_failed: { zh: '获取模板详情失败，请稍后再试' },
 
   title_toggle_reusable: { zh: '切换至{{state}}状态' },
 

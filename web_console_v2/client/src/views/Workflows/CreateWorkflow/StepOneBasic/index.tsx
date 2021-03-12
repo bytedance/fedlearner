@@ -283,7 +283,7 @@ const WorkflowsCreateStepOne: FC<WorkflowCreateProps & { onSuccess?: any }> = ({
     const [res, error] = await to(fetchTemplateById(id));
 
     if (error) {
-      message.error('获取模板详情失败，请稍后再试');
+      message.error(t('workflow.msg_get_tpl_detail_failed'));
       return;
     }
     if (!res.data) return;

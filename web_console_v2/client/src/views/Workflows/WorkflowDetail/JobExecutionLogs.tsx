@@ -1,7 +1,7 @@
 import { NodeDataRaw } from 'components/WorkflowJobsFlowChart/types';
 import React, { FC } from 'react';
 import { useTranslation } from 'react-i18next';
-import { fetchJobLogs } from 'services/workflow';
+import { fetchJobLogs, fetchPeerJobEvents } from 'services/workflow';
 import styled from 'styled-components';
 import { WorkflowExecutionDetails } from 'typings/workflow';
 import PrintLogs from 'components/PrintLogs';
@@ -17,10 +17,11 @@ const PrintJobLogs = styled(PrintLogs)`
 type Props = {
   enabled: boolean;
   job: NodeDataRaw;
+  isPeerSide: boolean;
   workflow?: WorkflowExecutionDetails;
 };
 
-const JobExecutionLogs: FC<Props> = ({ job, workflow, enabled }) => {
+const JobExecutionLogs: FC<Props> = ({ job, enabled, isPeerSide }) => {
   const { t } = useTranslation();
 
   return (
@@ -40,6 +41,18 @@ const JobExecutionLogs: FC<Props> = ({ job, workflow, enabled }) => {
   );
 
   async function getLogs() {
+    if (isPeerSide) {
+      if (!job.k8sName) {
+        return { data: ['Job name invalid!'] };
+      }
+
+      return fetchPeerJobEvents(job.k8sName!, {
+        maxLines: 500,
+      }).catch((error) => ({
+        data: [error.message],
+      }));
+    }
+
     if (!job.id) {
       return { data: ['Job ID invalid!'] };
     }
@@ -52,6 +65,9 @@ const JobExecutionLogs: FC<Props> = ({ job, workflow, enabled }) => {
   }
 
   async function goFullScreen() {
+    if (isPeerSide) {
+      return window.open(`/v2/logs/job/events/peer/${job.k8sName}`, '_blank noopener');
+    }
     window.open(`/v2/logs/job/${job.id}`, '_blank noopener');
   }
 };

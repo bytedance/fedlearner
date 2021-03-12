@@ -83,20 +83,51 @@ export function fetchJobLogs(
   return request(`/v2/jobs/${jobId}/log`, { params, snake_case: true });
 }
 
+/**
+ * Q: What's the diff between Logs and Events?
+ * A: Events is the summary version of Logs, i.e. Logs includes Events
+ */
+export function fetchJobEvents(
+  jobId: ID,
+  params?: { startTime?: DateTime; maxLines: number },
+): Promise<{ data: string[] }> {
+  return request(`/v2/jobs/${jobId}/events`, { params, snake_case: true });
+}
+
+export function fetchPeerJobEvents(
+  jobName: ID,
+  params?: { startTime?: DateTime; maxLines: number },
+): Promise<{ data: string[] }> {
+  return request(`/v2/jobs/${jobName}/participants/${0 /** peerId, fix to 0 so far */}/events`, {
+    params,
+    snake_case: true,
+  });
+}
+
 export function fetchPodLogs(
   podName: string,
   jobId: ID,
   params?: { startTime?: DateTime; maxLines: number },
 ): Promise<{ data: string[] }> {
-  return request(`/v2/${jobId}/pods/${podName}/log`, { params, snake_case: true });
+  return request(`/v2/jobs/${jobId}/pods/${podName}/log`, { params, snake_case: true });
 }
 
-export function toggleWofklowForkable(id: ID, val: boolean) {
+export function toggleWofklowForkable(id: ID, forkable: boolean) {
   return request.patch(`/v2/workflows/${id}`, {
-    forkable: val,
+    forkable,
+  });
+}
+
+export function toggleMetricsPublic(id: ID, metrics_is_public: boolean) {
+  return request.patch(`/v2/workflows/${id}`, {
+    metrics_is_public,
   });
 }
 
 export function fetchJobMpld3Metrics(id: ID): Promise<{ data: any[] }> {
   return request(`/v2/jobs/${id}/metrics`);
+}
+
+export function fetchPeerJobMpld3Metrics(id: ID, peerId: ID): Promise<{ data: any[] }> {
+  return request(`/v2/jobs/${id}/participants/${peerId}/metrics`);
 }
