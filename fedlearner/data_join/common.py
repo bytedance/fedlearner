@@ -174,10 +174,11 @@ def convert_dict_to_tf_example(src_dict):
             raise RuntimeError('the key {}({}) of dict must a '\
                                'string'.format(key, type(key)))
         basic_type = type(feature)
-        # all field value are type of str in csv format
-        # convert field value into int if it's not bytes
-        if basic_type == str and key in ALLOWED_FIELDS and \
-           ALLOWED_FIELDS[key].type != bytes:
+        # Due to all fields' value are type of str in csv format,
+        # we try best to convert the digital string into numerical value.
+        if basic_type == str and (
+            (key in ALLOWED_FIELDS and ALLOWED_FIELDS[key].type != bytes) or
+            key not in ALLOWED_FIELDS):
             if feature.lstrip('-').isdigit():
                 feature = int(feature)
                 basic_type = int
@@ -186,6 +187,9 @@ def convert_dict_to_tf_example(src_dict):
                     feature = float(feature)
                     basic_type = float
                 except ValueError as e:
+                    if key in ALLOWED_FIELDS:
+                        raise ValueError(
+                            '%s should be numerical instead of str'%key)
                     pass
         if isinstance(type(feature), list):
             if len(feature) == 0:
