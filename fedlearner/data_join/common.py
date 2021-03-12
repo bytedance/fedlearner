@@ -190,7 +190,6 @@ def convert_dict_to_tf_example(src_dict):
                     if key in ALLOWED_FIELDS:
                         raise ValueError(
                             '%s should be numerical instead of str'%key)
-                    pass
         if isinstance(type(feature), list):
             if len(feature) == 0:
                 logging.debug('skip %s since feature is empty list', key)
