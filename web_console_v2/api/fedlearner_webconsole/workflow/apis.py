@@ -83,7 +83,8 @@ class WorkflowsApi(Resource):
         parser.add_argument('comment')
         data = parser.parse_args()
         name = data['name']
-        config = code_key_parser.encode_code_key_in_config(data['config'])
+        config = data['config']
+        config = code_key_parser.encode_code_key_in_config(config)
         if Workflow.query.filter_by(name=name).first() is not None:
             raise ResourceConflictException(
                 'Workflow {} already exists.'.format(name))
