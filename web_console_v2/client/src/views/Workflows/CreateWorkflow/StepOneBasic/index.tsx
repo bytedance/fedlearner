@@ -5,7 +5,6 @@ import { useTranslation } from 'react-i18next';
 import GridRow from 'components/_base/GridRow';
 import CreateTemplateForm from './CreateTemplate';
 import { useHistory, useLocation, useParams } from 'react-router-dom';
-import { cloneDeep } from 'lodash';
 import {
   CreateWorkflowBasicForm,
   workflowBasicForm,
@@ -254,7 +253,7 @@ const WorkflowsCreateStepOne: FC<WorkflowCreateProps & { onSuccess?: any }> = ({
     // For flow chart render
     setTemplateInUsing(parsedTpl);
     // For initiate workflow config's data
-    setWorkflowConfigForm(parsedTpl.config);
+    setWorkflowConfigForm(parsedTpl.config as any);
   }
   async function getWorkflowDetail() {
     const { data } = await getWorkflowDetailById(params.id);

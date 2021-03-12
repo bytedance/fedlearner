@@ -7,6 +7,7 @@ import upload from './modules/upload';
 import term from './modules/term';
 import app from './modules/app';
 import dataset from './modules/dataset';
+import settings from './modules/settings';
 
 const messages = {
   translation: {
@@ -19,6 +20,7 @@ const messages = {
     workflow: workflow.en,
     app: app.en,
     dataset: dataset.en,
+    settings: settings.en,
 
     all: 'All',
     terms: 'Terms of Services',
