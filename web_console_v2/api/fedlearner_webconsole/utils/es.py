@@ -313,15 +313,13 @@ class ElasticSearchClient(object):
         self._es_client.ilm.put_lifecycle(ilm_name, body=ilm_body)
 
     def _put_index_template(self, index_type, shards):
-        if self._es_client is None:
-            raise RuntimeError('ES client not yet initialized.')
+        assert self._es_client is not None, 'ES client not yet initialized.'
         template_name = ALIAS_NAME[index_type] + '-template'
         template_body = get_es_template(index_type, shards=shards)
         self._es_client.indices.put_template(template_name, template_body)
 
     def _put_write_index(self, index_type):
-        if self._es_client is None:
-            raise RuntimeError('ES client not yet initialized.')
+        assert self._es_client is not None, 'ES client not yet initialized.'
         alias_name = ALIAS_NAME[index_type]
         self._es_client.indices.create(
             # resolves to alias_name-yyyy.mm.dd-000001 in ES
