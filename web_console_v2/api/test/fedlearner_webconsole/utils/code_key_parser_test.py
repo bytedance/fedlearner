@@ -25,7 +25,7 @@ class HdfsFileManagerTest(unittest.TestCase):
                      'c.py': '',
                      'test/d.py': 'asdf'}
         data = test_data
-        result = code_key_parser.decode(code_key_parser.encode(data))
+        result = code_key_parser._decode(code_key_parser._encode(data))
         self.assertEqual(result, test_data)
 
 

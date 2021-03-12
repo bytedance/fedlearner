@@ -21,7 +21,9 @@ import base64
 
 class CodeKeyParser(object):
 
-    def encode(self, data_dict):
+    def _encode(self, data_dict):
+        # if data_dict is a dict ,
+        # parse it to a tar file represented as base64 string
         if isinstance(data_dict, dict):
             out = BytesIO()
             with tarfile.open(fileobj=out, mode='w:gz') as tar:
@@ -33,14 +35,10 @@ class CodeKeyParser(object):
             return f'code://{result}'
         return data_dict
 
-    def decode(self, data_string):
-        if data_string.startswith('hdfs://'):
-            return data_string
-        elif data_string.startswith('http://'):
-            return data_string
-        elif data_string.startswith('oss://'):
-            return data_string
-        elif data_string.startswith('code://'):
+    def _decode(self, data_string):
+        # if data_string is a tarfile ,
+        # parse it to a dict that file path as keys
+        if data_string.startswith('code://'):
             tar_binary = BytesIO(base64.b64decode(data_string[7:]))
             code_dict = {}
             with tarfile.open(fileobj=tar_binary) as tar:
@@ -48,6 +46,39 @@ class CodeKeyParser(object):
                     code_dict[file.name] = str(tar.extractfile(file).read(),
                                                encoding='utf-8')
             return code_dict
+        return data_string
+
+    def decode_code_key_in_config(self, config):
+        if config is None:
+            return None
+        if 'variables' in config:
+            for variable in config['variables']:
+                # hard code only decode variable named code_key
+                if variable['name'] == 'code_key':
+                    variable['value'] = self._decode(variable['value'])
+        for job in config['job_definitions']:
+            if 'variables' in job:
+                for variable in job['variables']:
+                    # hard code only decode variable named code_key
+                    if variable['name'] == 'code_key':
+                        variable['value'] = self._decode(variable['value'])
+        return config
+
+    def encode_code_key_in_config(self, config):
+        if config is None:
+            return None
+        if 'variables' in config:
+            for variable in config['variables']:
+                # hard code only decode variable named code_key
+                if variable['name'] == 'code_key':
+                    variable['value'] = self._encode(variable['value'])
+        for job in config['job_definitions']:
+            if 'variables' in job:
+                for variable in job['variables']:
+                    # hard code only decode variable named code_key
+                    if variable['name'] == 'code_key':
+                        variable['value'] = self._encode(variable['value'])
+        return config
 
 
 code_key_parser = CodeKeyParser()
