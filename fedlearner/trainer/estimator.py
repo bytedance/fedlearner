@@ -289,8 +289,8 @@ class FLEstimator(object):
                     is_chief=(self._worker_rank == 0),
                     chief_only_hooks=[saver_hook],
                     checkpoint_dir=checkpoint_path,
-                    save_checkpoint_steps=save_checkpoint_steps,
-                    save_checkpoint_secs=save_checkpoint_secs,
+                    save_checkpoint_steps=None,
+                    save_checkpoint_secs=None,
                     hooks=spec.training_hooks) as sess:
                     iter_id = 0
 

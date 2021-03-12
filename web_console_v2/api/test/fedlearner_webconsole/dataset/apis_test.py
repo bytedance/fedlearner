@@ -16,14 +16,15 @@
 import stat
 import time
 import json
-import datetime
 import os
 import shutil
 import tempfile
 import unittest
+from datetime import datetime
 from http import HTTPStatus
 from pathlib import Path
-from unittest.mock import patch
+from unittest import mock
+from unittest.mock import patch, MagicMock
 
 from testing.common import BaseTestCase
 from fedlearner_webconsole.db import db
@@ -32,31 +33,45 @@ from fedlearner_webconsole.dataset.models import (Dataset, DatasetType,
 
 
 class DatasetApiTest(BaseTestCase):
+    class Config(BaseTestCase.Config):
+        STORAGE_ROOT = '/tmp'
 
     def setUp(self):
         super().setUp()
-        self.default_dataset = Dataset()
-        self.default_dataset.name = 'default_dataset'
-        self.default_dataset.dataset_type = DatasetType.STREAMING
-        self.default_dataset.comment = 'test comment'
-        db.session.add(self.default_dataset)
+        self.default_dataset1 = Dataset(
+            name='default dataset1',
+            dataset_type=DatasetType.STREAMING,
+            comment='test comment1',
+            path='/data/dataset/123'
+        )
+        db.session.add(self.default_dataset1)
         db.session.commit()
         time.sleep(1)
-        self.default_dataset1 = Dataset()
-        self.default_dataset1.name = 'default_dataset1'
-        self.default_dataset1.dataset_type = DatasetType.STREAMING
-        self.default_dataset1.comment = 'test comment'
-        db.session.add(self.default_dataset1)
+        self.default_dataset2 = Dataset(
+            name='default dataset2',
+            dataset_type=DatasetType.STREAMING,
+            comment='test comment2',
+            path='123'
+        )
+        db.session.add(self.default_dataset2)
         db.session.commit()
 
     def test_get_dataset(self):
         get_response = self.get_helper(
-            f'/api/v2/datasets/{self.default_dataset.id}')
+            f'/api/v2/datasets/{self.default_dataset1.id}')
         self.assertEqual(get_response.status_code, HTTPStatus.OK)
         dataset = self.get_response_data(get_response)
-        self.assertEqual(dataset['name'], 'default_dataset')
-        self.assertEqual(dataset['dataset_type'], 'STREAMING')
-        self.assertEqual(dataset['comment'], 'test comment')
+        self.assertEqual({
+            'id': 1,
+            'name': 'default dataset1',
+            'dataset_type': 'STREAMING',
+            'comment': 'test comment1',
+            'path': '/data/dataset/123',
+            'created_at': mock.ANY,
+            'updated_at': mock.ANY,
+            'deleted_at': None,
+            'data_batches': []
+        }, dataset)
 
     def test_get_dataset_not_found(self):
         get_response = self.get_helper('/api/v2/datasets/10086')
@@ -67,10 +82,13 @@ class DatasetApiTest(BaseTestCase):
         self.assertEqual(get_response.status_code, HTTPStatus.OK)
         datasets = self.get_response_data(get_response)
         self.assertEqual(len(datasets), 2)
-        self.assertEqual(datasets[0]['name'], 'default_dataset1')
+        self.assertEqual(datasets[0]['name'], 'default dataset2')
+        self.assertEqual(datasets[1]['name'], 'default dataset1')
 
-    def test_post_datasets(self):
-        name = 'test_post_dataset'
+    @patch('fedlearner_webconsole.dataset.apis.datetime')
+    def test_post_datasets(self, mock_datetime):
+        mock_datetime.now = MagicMock(return_value=datetime(2020, 6, 8, 6, 6, 6))
+        name = 'test post dataset'
         dataset_type = DatasetType.STREAMING.value
         comment = 'test comment'
         create_response = self.client.post(
@@ -84,14 +102,22 @@ class DatasetApiTest(BaseTestCase):
         self.assertEqual(create_response.status_code, HTTPStatus.OK)
         created_dataset = self.get_response_data(create_response)
 
-        queried_dataset = Dataset.query.filter_by(
-            id=created_dataset.get('id')).first()
-        self.assertEqual(created_dataset, queried_dataset.to_dict())
+        self.assertEqual({
+            'id': 3,
+            'name': 'test post dataset',
+            'dataset_type': dataset_type,
+            'comment': comment,
+            'path': '/tmp/dataset/20200608_060606_test-post-dataset',
+            'created_at': mock.ANY,
+            'updated_at': mock.ANY,
+            'deleted_at': None,
+            'data_batches': []
+        }, created_dataset)
 
     @patch('fedlearner_webconsole.dataset.apis.scheduler.wakeup')
     def test_post_batches(self, mock_wakeup):
-        dataset_id = self.default_dataset.id
-        event_time = int(datetime.datetime.now().timestamp())
+        dataset_id = self.default_dataset1.id
+        event_time = int(datetime(2020, 6, 8, 6, 8, 8).timestamp())
         files = ['/data/upload/1.csv', '/data/upload/2.csv']
         move = False
         comment = 'test post comment'
@@ -107,10 +133,40 @@ class DatasetApiTest(BaseTestCase):
         self.assertEqual(create_response.status_code, HTTPStatus.OK)
         created_data_batch = self.get_response_data(create_response)
 
-        queried_data_batch = DataBatch.query.filter_by(
-            event_time=datetime.datetime.fromtimestamp(event_time),
-            dataset_id=dataset_id).first()
-        self.assertEqual(created_data_batch, queried_data_batch.to_dict())
+        self.maxDiff = None
+        self.assertEqual({
+            'id': 1,
+            'dataset_id': 1,
+            'comment': comment,
+            'event_time': event_time,
+            'created_at': mock.ANY,
+            'updated_at': mock.ANY,
+            'deleted_at': None,
+            'file_size': 0,
+            'move': False,
+            'num_file': 2,
+            'num_imported_file': 0,
+            'path': '/data/dataset/123/batch/20200608_060808',
+            'state': 'NEW',
+            'details': {
+                'files': [
+                    {
+                        'destination_path': '/data/dataset/123/batch/20200608_060808/1.csv',
+                        'error_message': '',
+                        'size': '0',
+                        'source_path': '/data/upload/1.csv',
+                        'state': 'UNSPECIFIED'
+                    },
+                    {
+                        'destination_path': '/data/dataset/123/batch/20200608_060808/2.csv',
+                        'error_message': '',
+                        'size': '0',
+                        'source_path': '/data/upload/2.csv',
+                        'state': 'UNSPECIFIED'
+                    }
+                ]
+            }
+        }, created_data_batch)
         mock_wakeup.assert_called_once_with(
             data_batch_ids=[created_data_batch['id']])
 

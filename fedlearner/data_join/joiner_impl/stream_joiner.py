@@ -249,8 +249,7 @@ class StreamExampleJoiner(ExampleJoiner):
                                                 "be None before dumping"
                     builder.append_item(example[0], example[1], example[2],
                                         joined=0)
-                    self._optional_stats.update_stats(example[0],
-                                                      kind='negative')
+                    self._optional_stats.update_stats(example[0], kind='fake')
                     if builder.check_data_block_full():
                         yield self._finish_data_block()
             prev_leader_idx = leader_idx

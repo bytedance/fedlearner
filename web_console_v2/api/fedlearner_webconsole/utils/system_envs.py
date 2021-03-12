@@ -100,7 +100,19 @@ def get_system_envs():
         {
             'name': 'KVSTORE_TYPE',
             'value': os.getenv('KVSTORE_TYPE')
-        }
+        },
+        {
+            'name': 'ETCD_NAME',
+            'value': os.getenv('ETCD_NAME')
+        },
+        {
+            'name': 'ETCD_ADDR',
+            'value': os.getenv('ETCD_ADDR')
+        },
+        {
+            'name': 'ETCD_BASE_DIR',
+            'value': os.getenv('ETCD_BASE_DIR')
+        },
     ]
     return ','.join([json.dumps(env) for env in envs])
 

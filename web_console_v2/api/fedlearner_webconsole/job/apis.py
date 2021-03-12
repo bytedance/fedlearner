@@ -14,76 +14,171 @@
 
 # coding: utf-8
 import time
+import json
+from google.protobuf.json_format import MessageToDict
 from flask_restful import Resource, reqparse
+from fedlearner_webconsole.proto import common_pb2
 from fedlearner_webconsole.job.models import Job
-from fedlearner_webconsole.job.es import es
-from fedlearner_webconsole.exceptions import NotFoundException
-from fedlearner_webconsole.k8s_client import get_client
+from fedlearner_webconsole.job.metrics import JobMetricsBuilder
+from fedlearner_webconsole.utils.es import es
+from fedlearner_webconsole.exceptions import (
+    NotFoundException, InternalException
+)
+from fedlearner_webconsole.rpc.client import RpcClient
 
+
+def _get_job(job_id):
+    result = Job.query.filter_by(id=job_id).first()
+    if result is None:
+        raise NotFoundException()
+    return result
 
 class JobApi(Resource):
     def get(self, job_id):
-        job = Job.query.filter_by(id=job_id).first()
-        if job is None:
-            raise NotFoundException()
+        job = _get_job(job_id)
         return {'data': job.to_dict()}
 
     # TODO: manual start jobs
 
 
 class PodLogApi(Resource):
-    def get(self, pod_name):
+    def get(self, job_id, pod_name):
         parser = reqparse.RequestParser()
         parser.add_argument('start_time', type=int, location='args',
-                            required=True,
-                            help='start_time is required and must be timestamp')
+                            required=False,
+                            help='start_time must be timestamp')
         parser.add_argument('max_lines', type=int, location='args',
                     required=True,
                     help='max_lines is required')
         data = parser.parse_args()
         start_time = data['start_time']
         max_lines = data['max_lines']
+        job = _get_job(job_id)
+        if start_time is None:
+            start_time = job.workflow.start_at
         return {'data': es.query_log('filebeat-*', '', pod_name,
                                      start_time,
                                      int(time.time() * 1000))[:max_lines][::-1]}
 
 
 class JobLogApi(Resource):
-    def get(self, job_name):
+    def get(self, job_id):
         parser = reqparse.RequestParser()
         parser.add_argument('start_time', type=int, location='args',
-                            required=True,
-                            help='project_id is required and must be timestamp')
+                            required=False,
+                            help='project_id must be timestamp')
         parser.add_argument('max_lines', type=int, location='args',
                             required=True,
                             help='max_lines is required')
         data = parser.parse_args()
         start_time = data['start_time']
         max_lines = data['max_lines']
-        return {'data': es.query_log('filebeat-*', job_name,
+        job = _get_job(job_id)
+        if start_time is None:
+            start_time = job.workflow.start_at
+        return {'data': es.query_log('filebeat-*', job.name,
                                      'fedlearner-operator',
                                      start_time,
                                      int(time.time() * 1000))[:max_lines][::-1]}
 
 
-class PodContainerApi(Resource):
-    def get(self, job_id, pod_name):
-        job = Job.query.filter_by(id=job_id).first()
-        if job is None:
-            raise NotFoundException()
-        k8s = get_client()
-        base = k8s.get_base_url()
-        container_id = k8s.get_webshell_session(job.project.get_namespace(),
-                                                pod_name,
-                                                'tensorflow')
-        return {'data': {'id': container_id, 'base': base}}
+class JobMetricsApi(Resource):
+    def get(self, job_id):
+        job = _get_job(job_id)
+
+        metrics = JobMetricsBuilder(job).plot_metrics()
+
+        # Metrics is a list of dict. Each dict can be rendered by frontend with
+        #   mpld3.draw_figure('figure1', json)
+        return {'data': metrics}
+
+
+class PeerJobMetricsApi(Resource):
+    def get(self, participant_id, job_id):
+        job = _get_job(job_id)
+        workflow = job.workflow
+        project_config = workflow.project.get_config()
+        party = project_config.participants[participant_id]
+        client = RpcClient(project_config, party)
+        resp = client.get_job_metrics(job.name)
+        if resp.status.code != common_pb2.STATUS_SUCCESS:
+            raise InternalException(resp.status.msg)
+
+        metrics = json.loads(resp.metrics)
+
+        # Metrics is a list of dict. Each dict can be rendered by frontend with
+        #   mpld3.draw_figure('figure1', json)
+        return {'data': metrics}
+
+
+class JobEventApi(Resource):
+    # TODO(xiangyuxuan): need test
+    def get(self, job_id):
+        parser = reqparse.RequestParser()
+        parser.add_argument('start_time', type=int, location='args',
+                            required=False,
+                            help='start_time must be timestamp')
+        parser.add_argument('max_lines', type=int, location='args',
+                            required=True,
+                            help='max_lines is required')
+        data = parser.parse_args()
+        start_time = data['start_time']
+        max_lines = data['max_lines']
+        job = _get_job(job_id)
+        if start_time is None:
+            start_time = job.workflow.start_at
+        return {'data': es.query_events('filebeat-*', job.name,
+                                        'fedlearner-operator',
+                                        start_time,
+                                        int(time.time() * 1000
+                                            ))[:max_lines][::-1]}
+
+
+class PeerJobEventsApi(Resource):
+    def get(self, participant_id, job_id):
+        parser = reqparse.RequestParser()
+        parser.add_argument('start_time', type=int, location='args',
+                            required=False,
+                            help='project_id must be timestamp')
+        parser.add_argument('max_lines', type=int, location='args',
+                            required=True,
+                            help='max_lines is required')
+        data = parser.parse_args()
+        start_time = data['start_time']
+        max_lines = data['max_lines']
+        job = _get_job(job_id)
+        if start_time is None:
+            start_time = job.workflow.start_at
+
+        workflow = job.workflow
+        project_config = workflow.project.get_config()
+        party = project_config.participants[participant_id]
+        client = RpcClient(project_config, party)
+        resp = client.get_job_events(job_name=job.name,
+                                     start_time=start_time,
+                                     max_lines=max_lines)
+        if resp.status.code != common_pb2.STATUS_SUCCESS:
+            raise InternalException(resp.status.msg)
+        peer_events = MessageToDict(
+            resp.logs,
+            preserving_proto_field_name=True,
+            including_default_value_fields=True)
+        return {'data': peer_events}
+
 
 
 def initialize_job_apis(api):
     api.add_resource(JobApi, '/jobs/<int:job_id>')
     api.add_resource(PodLogApi,
-                     '/pods/<string:pod_name>/log')
+                     '/jobs/<int:job_id>/pods/<string:pod_name>/log')
     api.add_resource(JobLogApi,
-                     '/jobs/<string:job_name>/log')
-    api.add_resource(PodContainerApi,
-                     '/jobs/<int:job_id>/pods/<string:pod_name>/container')
+                     '/jobs/<int:job_id>/log')
+    api.add_resource(JobMetricsApi,
+                     '/jobs/<int:job_id>/metrics')
+    api.add_resource(PeerJobMetricsApi,
+                     '/jobs/<int:job_id>'
+                     '/participants/<int:participant_id>/metrics')
+    api.add_resource(JobEventApi, '/jobs/<int:job_id>/events')
+    api.add_resource(PeerJobEventsApi,
+                     '/jobs/<int:job_id>'
+                     '/participants/<int:participant_id>/events')

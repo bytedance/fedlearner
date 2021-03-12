@@ -1,15 +1,14 @@
 import copy
 import random
-from fedlearner.common import metrics
+from fedlearner.common import metrics, common
 from fedlearner.data_join.common import convert_to_str
 from fedlearner.data_join.common import convert_to_iso_format
-
 
 class MetricStats:
     def __init__(self, raw_data_options, metric_tags):
         self._tags = copy.deepcopy(metric_tags)
         self._stat_fields = raw_data_options.optional_fields
-        self._sample_ratio = raw_data_options.input_data_stat_sample_ratio
+        self._sample_ratio = common.CONFIGS['raw_data_metrics_sample_rate']
 
     def emit_metric(self, item):
         if random.random() < self._sample_ratio:

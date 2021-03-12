@@ -27,6 +27,15 @@ const ListContainer = styled.div`
   flex: 1;
   width: 100%;
 `;
+const NameLink = styled(Link)`
+  display: block;
+  margin-bottom: 3px;
+  font-size: 16px;
+`;
+const UUID = styled.small`
+  display: block;
+  color: var(--textColorSecondary);
+`;
 
 export const getWorkflowTableColumns = (
   options: {
@@ -42,9 +51,12 @@ export const getWorkflowTableColumns = (
       key: 'name',
       render: (name: string, record: Workflow) => {
         return (
-          <Link to={`/workflows/${record.id}`} rel="nopener">
-            {name}
-          </Link>
+          <>
+            <NameLink to={`/workflows/${record.id}`} rel="nopener">
+              {name}
+            </NameLink>
+            <UUID>UUID: {record.uuid}</UUID>
+          </>
         );
       },
     },
@@ -80,8 +92,8 @@ export const getWorkflowTableColumns = (
   if (!options.withoutActions) {
     ret.push({
       title: i18n.t('workflow.col_actions'),
-      dataIndex: 'created_at',
-      name: 'created_at',
+      dataIndex: 'operation',
+      name: 'operation',
       render: (_: any, record: Workflow) => (
         <WorkflowActions
           onSuccess={options.onSuccess}
@@ -99,6 +111,7 @@ export const getWorkflowTableColumns = (
 type QueryParams = {
   project?: string;
   keyword?: string;
+  uuid?: string;
 };
 
 const WorkflowList: FC = () => {
@@ -107,12 +120,12 @@ const WorkflowList: FC = () => {
   const history = useHistory();
 
   const [listData, setList] = useState<Workflow[]>([]);
-  const [params, setParams] = useState<QueryParams>({ keyword: '' });
+  const [params, setParams] = useState<QueryParams>({ keyword: '', uuid: '' });
 
   const projectsQuery = useRecoilQuery(projectListQuery);
 
   const { isLoading, isError, data: res, error, refetch } = useQuery(
-    ['fetchWorkflowList', params.project, params.keyword],
+    ['fetchWorkflowList', params.project, params.keyword, params.uuid],
     () => fetchWorkflowList(params),
   );
 
@@ -157,6 +170,12 @@ const WorkflowList: FC = () => {
                     </Select.Option>
                   ))}
                 </Select>
+              </FilterItem>
+              <FilterItem name="uuid">
+                <Input.Search
+                  placeholder={t('workflow.placeholder_uuid_searchbox')}
+                  onPressEnter={form.submit}
+                />
               </FilterItem>
               <FilterItem name="keyword">
                 <Input.Search

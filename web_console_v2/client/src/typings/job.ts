@@ -5,7 +5,7 @@ export enum JobState {
   NEW = 'NEW',
   WAITING = 'WAITING',
   RUNNING = 'RUNNING',
-  COMPLETE = 'COMPLETE',
+  COMPLETED = 'COMPLETED',
   FAILED = 'FAILED',
   STOPPED = 'STOPPED',
 }
@@ -37,7 +37,7 @@ export interface Job {
 
 export enum PodState {
   RUNNING = 'Running',
-  COMPLETE = 'Succeeded',
+  COMPLETED = 'Succeeded',
   FAILED = 'Failed',
   PENDING = 'Pending',
   UNKNOWN = 'Unknown',
@@ -49,6 +49,9 @@ export interface Pod {
   name: string;
   status: PodState;
   pod_type: string;
+  conditions?: {
+    message: string;
+  }[];
 }
 
 export interface JobExecutionDetalis {

@@ -14,7 +14,7 @@
 
 # coding: utf-8
 # pylint: disable=broad-except, cyclic-import
-
+import time
 import logging
 import json
 import os
@@ -25,12 +25,16 @@ from fedlearner_webconsole.proto import (
     service_pb2, service_pb2_grpc,
     common_pb2
 )
+from fedlearner_webconsole.utils.es import es
 from fedlearner_webconsole.db import db
 from fedlearner_webconsole.project.models import Project
 from fedlearner_webconsole.workflow.models import (
     Workflow, WorkflowState, TransactionState,
     _merge_workflow_config
 )
+
+from fedlearner_webconsole.job.models import Job
+from fedlearner_webconsole.job.metrics import JobMetricsBuilder
 from fedlearner_webconsole.exceptions import (
     UnauthorizedException
 )
@@ -95,6 +99,36 @@ class RPCServerServicer(service_pb2_grpc.WebConsoleV2ServiceServicer):
         except Exception as e:
             logging.error('UpdateWorkflow rpc server error: %s', repr(e))
             return service_pb2.UpdateWorkflowResponse(
+                status=common_pb2.Status(
+                    code=common_pb2.STATUS_UNKNOWN_ERROR,
+                    msg=repr(e)))
+
+    def GetJobMetrics(self, request, context):
+        try:
+            return self._server.get_job_metrics(request, context)
+        except UnauthorizedException as e:
+            return service_pb2.GetJobMetricsResponse(
+                status=common_pb2.Status(
+                    code=common_pb2.STATUS_UNAUTHORIZED,
+                    msg=repr(e)))
+        except Exception as e:
+            logging.error('GetJobMetrics rpc server error: %s', repr(e))
+            return service_pb2.GetJobMetricsResponse(
+                status=common_pb2.Status(
+                    code=common_pb2.STATUS_UNKNOWN_ERROR,
+                    msg=repr(e)))
+
+    def GetJobEvents(self, request, context):
+        try:
+            return self._server.get_job_events(request, context)
+        except UnauthorizedException as e:
+            return service_pb2.GetJobEventsResponse(
+                status=common_pb2.Status(
+                    code=common_pb2.STATUS_UNAUTHORIZED,
+                    msg=repr(e)))
+        except Exception as e:
+            logging.error('GetJobMetrics rpc server error: %s', repr(e))
+            return service_pb2.GetJobEventsResponse(
                 status=common_pb2.Status(
                     code=common_pb2.STATUS_UNKNOWN_ERROR,
                     msg=repr(e)))
@@ -171,6 +205,10 @@ class RpcServer(object):
                 'received update_workflow_state from %s: %s',
                 party.domain_name, request)
             name = request.workflow_name
+            uuid = request.uuid
+            forked_from_uuid = request.forked_from_uuid
+            forked_from = Workflow.query.filter_by(
+                uuid=forked_from_uuid).first().id if forked_from_uuid else None
             state = WorkflowState(request.state)
             target_state = WorkflowState(request.target_state)
             transaction_state = TransactionState(request.transaction_state)
@@ -184,7 +222,10 @@ class RpcServer(object):
                     name=name,
                     project_id=project.id,
                     state=state, target_state=target_state,
-                    transaction_state=transaction_state)
+                    transaction_state=transaction_state,
+                    uuid=uuid,
+                    forked_from=forked_from
+                )
                 db.session.add(workflow)
                 db.session.commit()
                 db.session.refresh(workflow)
@@ -195,6 +236,8 @@ class RpcServer(object):
             return service_pb2.UpdateWorkflowStateResponse(
                     status=common_pb2.Status(
                         code=common_pb2.STATUS_SUCCESS),
+                    state=workflow.state.value,
+                    target_state=workflow.target_state.value,
                     transaction_state=workflow.transaction_state.value)
 
     def _filter_workflow(self, workflow, modes):
@@ -230,8 +273,8 @@ class RpcServer(object):
             # job details
             jobs = [service_pb2.JobDetail(
                 name=job.name,
-                state=job.get_state_for_front(),
-                pods=json.dumps(job.get_pods_for_front()))
+                state=job.get_state_for_frontend(),
+                pods=json.dumps(job.get_pods_for_frontend()))
                 for job in workflow.get_jobs()]
             # fork info
             forked_from = ''
@@ -278,5 +321,40 @@ class RpcServer(object):
                     code=common_pb2.STATUS_SUCCESS),
                 workflow_name=request.workflow_name,
                 config=config)
+
+    def get_job_metrics(self, request, context):
+        with self._app.app_context():
+            project, party = self.check_auth_info(request.auth_info, context)
+            job = Job.query.filter_by(name=request.job_name,
+                                      project_id=project.id).first()
+            assert job is not None, f'Job {request.job_name} not found'
+            workflow = job.workflow
+            if not workflow.metric_is_public:
+                raise UnauthorizedException('Metric is private!')
+            metrics = JobMetricsBuilder(job).plot_metrics()
+            return service_pb2.GetJobMetricsResponse(
+                status=common_pb2.Status(
+                    code=common_pb2.STATUS_SUCCESS),
+                metrics=json.dumps(metrics))
+
+    def get_job_events(self, request, context):
+        with self._app.app_context():
+            project, party = self.check_auth_info(request.auth_info, context)
+            job = Job.query.filter_by(name=request.job_name,
+                                      project_id=project.id).first
+            assert job is not None, \
+                f'Job {request.job_name} not found'
+
+            result = es.query_events('filebeat-*', job.name,
+                                     'fedlearner-operator',
+                                     request.start_time,
+                                     int(time.time() * 1000)
+                                     )[:request.max_lines][::-1]
+
+            return service_pb2.GetJobEventsResponse(
+                status=common_pb2.Status(
+                    code=common_pb2.STATUS_SUCCESS),
+                logs=result)
+
 
 rpc_server = RpcServer()

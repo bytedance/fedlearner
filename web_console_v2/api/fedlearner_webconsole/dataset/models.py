@@ -35,55 +35,91 @@ class BatchState(enum.Enum):
 
 @to_dict_mixin(
     extras={
-        'data_batches': lambda dataset: [data_batch.to_dict()
-                                         for data_batch in dataset.data_batches]
-    }
-)
+        'data_batches':
+        lambda dataset:
+        [data_batch.to_dict() for data_batch in dataset.data_batches]
+    })
 class Dataset(db.Model):
     __tablename__ = 'datasets_v2'
-    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    name = db.Column(db.String(255), unique=True, nullable=False)
+    __table_args__ = ({
+        'comment': 'This is webconsole dataset table',
+        'mysql_engine': 'innodb',
+        'mysql_charset': 'utf8mb4',
+    })
+
+    id = db.Column(db.Integer,
+                   primary_key=True,
+                   autoincrement=True,
+                   comment='id')
+    name = db.Column(db.String(255), nullable=False, comment='dataset name')
     dataset_type = db.Column(db.Enum(DatasetType, native_enum=False),
-                             nullable=False)
-    comment = db.Column('cmt', db.Text(), key='comment')
+                             nullable=False,
+                             comment='data type')
+    path = db.Column(db.String(512), comment='dataset path')
+    comment = db.Column('cmt',
+                        db.Text(),
+                        key='comment',
+                        comment='comment of dataset')
     created_at = db.Column(db.DateTime(timezone=True),
-                           server_default=func.now())
+                           server_default=func.now(),
+                           comment='created time')
     updated_at = db.Column(db.DateTime(timezone=True),
                            server_default=func.now(),
-                           onupdate=func.now())
-    deleted_at = db.Column(db.DateTime(timezone=True))
+                           onupdate=func.now(),
+                           comment='updated time')
+    deleted_at = db.Column(db.DateTime(timezone=True), comment='deleted time')
 
-    data_batches = db.relationship('DataBatch', back_populates='dataset')
+    data_batches = db.relationship(
+        'DataBatch', primaryjoin='foreign(DataBatch.dataset_id) == Dataset.id')
 
 
-@to_dict_mixin(
-    extras={
-        'details': (lambda batch: batch.get_details())
-    })
+@to_dict_mixin(extras={'details': (lambda batch: batch.get_details())})
 class DataBatch(db.Model):
     __tablename__ = 'data_batches_v2'
-    __table_args__ = (UniqueConstraint('event_time', 'dataset_id'),)
-    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    __table_args__ = (
+        UniqueConstraint('event_time',
+                         'dataset_id',
+                         name='uniq_event_time_dataset_id'),
+        {
+            'comment': 'This is webconsole dataset table',
+            'mysql_engine': 'innodb',
+            'mysql_charset': 'utf8mb4',
+        },
+    )
+    id = db.Column(db.Integer,
+                   primary_key=True,
+                   autoincrement=True,
+                   comment='id')
     event_time = db.Column(db.TIMESTAMP(timezone=True),
-                           nullable=False)
-    dataset_id = db.Column(db.Integer, db.ForeignKey(Dataset.id))
+                           nullable=False,
+                           comment='event_time')
+    dataset_id = db.Column(db.Integer, nullable=False, comment='dataset_id')
+    path = db.Column(db.String(512), comment='path')
     state = db.Column(db.Enum(BatchState, native_enum=False),
-                      default=BatchState.NEW)
-    move = db.Column(db.Boolean, default=False)
+                      default=BatchState.NEW,
+                      comment='state')
+    move = db.Column(db.Boolean, default=False, comment='move')
     # Serialized proto of DatasetBatch
-    details = db.Column(db.LargeBinary())
-    file_size = db.Column(db.Integer, default=0)
-    num_imported_file = db.Column(db.Integer, default=0)
-    num_file = db.Column(db.Integer, default=0)
-    comment = db.Column('cmt', db.Text(), key='comment')
+    details = db.Column(db.LargeBinary(), comment='details')
+    file_size = db.Column(db.Integer, default=0, comment='file_size')
+    num_imported_file = db.Column(db.Integer,
+                                  default=0,
+                                  comment='num_imported_file')
+    num_file = db.Column(db.Integer, default=0, comment='num_file')
+    comment = db.Column('cmt', db.Text(), key='comment', comment='comment')
     created_at = db.Column(db.DateTime(timezone=True),
-                           server_default=func.now())
+                           server_default=func.now(),
+                           comment='created_at')
     updated_at = db.Column(db.DateTime(timezone=True),
                            server_default=func.now(),
-                           server_onupdate=func.now())
-    deleted_at = db.Column(db.DateTime(timezone=True))
+                           server_onupdate=func.now(),
+                           comment='updated_at')
+    deleted_at = db.Column(db.DateTime(timezone=True), comment='deleted_at')
 
-    dataset = db.relationship('Dataset', back_populates='data_batches')
+    dataset = db.relationship('Dataset',
+                              primaryjoin='Dataset.id == '
+                              'foreign(DataBatch.dataset_id)',
+                              back_populates='data_batches')
 
     def set_details(self, proto):
         self.num_file = len(proto.files)

@@ -13,21 +13,32 @@
 # limitations under the License.
 
 # coding: utf-8
+from sqlalchemy.sql.schema import Index, UniqueConstraint
 from fedlearner_webconsole.db import db, to_dict_mixin
 from fedlearner_webconsole.proto import workflow_definition_pb2
 
 
-@to_dict_mixin(extras={
-    'config': (lambda wft: wft.get_config())
-})
+@to_dict_mixin(extras={'config': (lambda wft: wft.get_config())})
 class WorkflowTemplate(db.Model):
     __tablename__ = 'template_v2'
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(255), unique=True, index=True)
-    comment = db.Column('cmt', db.String(255), key='comment')
-    group_alias = db.Column(db.String(255), nullable=False, index=True)
-    config = db.Column(db.LargeBinary(), nullable=False)
-    is_left = db.Column(db.Boolean)
+    __table_args__ = (UniqueConstraint('name', name='uniq_name'),
+                      Index('idx_group_alias', 'group_alias'), {
+                          'comment': 'workflow template',
+                          'mysql_engine': 'innodb',
+                          'mysql_charset': 'utf8mb4',
+                      })
+    id = db.Column(db.Integer, primary_key=True, comment='id')
+    name = db.Column(db.String(255), comment='name')
+    comment = db.Column('cmt',
+                        db.String(255),
+                        key='comment',
+                        comment='comment')
+    group_alias = db.Column(db.String(255),
+                            nullable=False,
+                            comment='group_alias')
+    config = db.Column(db.LargeBinary(), nullable=False, comment='config')
+    is_left = db.Column(db.Boolean, comment='is_left')
+
     def set_config(self, proto):
         self.config = proto.SerializeToString()
 

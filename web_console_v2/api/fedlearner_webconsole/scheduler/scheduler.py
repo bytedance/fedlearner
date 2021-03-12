@@ -16,14 +16,12 @@
 # pylint: disable=broad-except
 
 import os
-import json
 import threading
 import logging
 import traceback
-from fedlearner_webconsole.job.yaml_formatter import format_yaml
+from fedlearner_webconsole.job.yaml_formatter import generate_job_run_yaml
 from fedlearner_webconsole.db import db
 from fedlearner_webconsole.dataset.import_handler import ImportHandler
-from fedlearner_webconsole.utils.system_envs import get_system_envs
 from fedlearner_webconsole.workflow.models import Workflow, WorkflowState
 from fedlearner_webconsole.job.models import Job, JobState, JobDependency
 from fedlearner_webconsole.scheduler.transaction import TransactionManager
@@ -148,13 +146,6 @@ class Scheduler(object):
         tm = TransactionManager(workflow_id)
         return tm.process()
 
-    def _make_variables_dict(self, variables):
-        var_dict = {
-            var.name: var.value
-            for var in variables
-        }
-        return var_dict
-
     def _schedule_job(self, job_id):
         job = Job.query.get(job_id)
         assert job is not None, 'Job %d not found'%job_id
@@ -169,25 +160,7 @@ class Scheduler(object):
                 return job.state
 
         k8s_client = get_client()
-        system_dict = {'basic_envs': get_system_envs()}
-        workflow = job.workflow.to_dict()
-        workflow['variables'] = self._make_variables_dict(
-            job.workflow.get_config().variables)
-
-        workflow['jobs'] = {}
-        for j in job.workflow.get_jobs():
-            variables = self._make_variables_dict(j.get_config().variables)
-            j_dic = j.to_dict()
-            j_dic['variables'] = variables
-            workflow['jobs'][j.get_config().name] = j_dic
-        project = job.project.to_dict()
-        project['variables'] = self._make_variables_dict(
-            job.project.get_config().variables)
-        yaml = format_yaml(job.yaml_template,
-                           workflow=workflow,
-                           project=project,
-                           system=system_dict)
-        yaml = json.loads(yaml)
+        yaml = generate_job_run_yaml(job)
         try:
             k8s_client.create_or_replace_custom_object(CrdKind.FLAPP, yaml)
         except RuntimeError as e:

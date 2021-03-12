@@ -17,8 +17,9 @@
 ACCESS_KEY_ID=$1
 ACCESS_KEY_SECRET=$2
 DB_PASSWORD=$3
-BUCKET=$4
-PAY_TYPE=$5
+ES_PASSWORD=$4
+BUCKET=$5
+PAY_TYPE=$6
 
 REGION="cn-beijing"
 ZONE_ID="cn-beijing-h"
@@ -478,7 +479,7 @@ function config_security_group {
         echo_exit "Failed to get the wanted security group."
     fi
 
-    SECURITY_GROUP_ID=`aliyun ecs DescribeSecurityGroups --VpcId $VPC_ID | grep SecurityGroupId | awk -F "\"" '{print $4}'`
+    SECURITY_GROUP_ID=`aliyun ecs DescribeSecurityGroups --VpcId $VPC_ID | grep -A 5 "ACS Cluster" | grep SecurityGroupId | awk -F "\"" '{print $4}' | head -1`
 
     echo_log "Config secrity group with id $SECURITY_GROUP_ID"
     aliyun ecs AuthorizeSecurityGroup --RegionId $REGION --SecurityGroupId $SECURITY_GROUP_ID --IpProtocol tcp --PortRange=1/65535 --SourceCidrIp 0.0.0.0/0 --Priority 1
@@ -547,6 +548,167 @@ function config_slb {
     else
         echo_log "Vserver group https_ingress already exists."
     fi
+}
+
+function create_elasticsearch_config {
+    rm -rf es.json
+
+    echo_log "Generate the elasticsearch cluster config file for aliyun."
+
+    if [[ $PAY_TYPE == "postpaid" ]]
+    then
+        cat <<EOF >>es.json
+{
+	"description": "$GENERATER_NAME",
+	"nodeAmount": 3,
+	"paymentType": "postpaid",
+	"enablePublic": false,
+	"esAdminPassword": "$ES_PASSWORD",
+	"nodeSpec": {
+		"spec": "elasticsearch.sn1ne.large",
+		"disk": 200,
+		"diskType": "cloud_ssd",
+		"diskEncryption": false
+	},
+	"networkConfig": {
+		"vpcId": "$VPC_ID",
+		"vswitchId": "$VSWITCH_ID",
+		"vsArea": "$ZONE_ID",
+		"type": "vpc"
+	},
+	"extendConfigs": [
+		{
+			"configType": "usageScenario",
+			"value": "general"
+		}
+	],
+	"esVersion": "7.7_with_X-Pack",
+	"haveKibana": true,
+	"instanceCategory": "x-pack",
+	"kibanaConfiguration": {
+		"spec": "elasticsearch.n4.small",
+		"amount": 1,
+		"disk": 0
+	}
+}
+EOF
+    else
+        cat <<EOF >>es.json
+{
+	"description": "$GENERATER_NAME",
+	"nodeAmount": 3,
+	"paymentType": "prepaid",
+	"enablePublic": false,
+	"esAdminPassword": "$ES_PASSWORD",
+	"nodeSpec": {
+		"spec": "elasticsearch.sn1ne.large",
+		"disk": 200,
+		"diskType": "cloud_ssd",
+		"diskEncryption": false
+	},
+	"networkConfig": {
+		"vpcId": "$VPC_ID",
+		"vswitchId": "$VSWITCH_ID",
+		"vsArea": "$ZONE_ID",
+		"type": "vpc"
+	},
+	"extendConfigs": [
+		{
+			"configType": "usageScenario",
+			"value": "general"
+		}
+	],
+	"esVersion": "7.7_with_X-Pack",
+	"haveKibana": true,
+	"instanceCategory": "x-pack",
+	"kibanaConfiguration": {
+		"spec": "elasticsearch.n4.small",
+		"amount": 1,
+		"disk": 0
+	}
+}
+EOF
+    fi
+}
+
+function create_filebeat_config {
+
+    rm -rf filebeat.yml
+    cat <<EOF >>filebeat.yml
+filebeat.config:
+  modules:
+    path: \${path.config}/modules.d/*.yml
+    reload.enabled: false
+filebeat.inputs:
+- enabled: true
+  paths:
+  - /var/log/*.log
+  - /var/log/messages
+  - /var/log/syslog
+  type: log
+- containers.ids:
+  - '*'
+  processors:
+  - add_kubernetes_metadata:
+      in_cluster: true
+  - drop_event:
+      when:
+        equals:
+          kubernetes.container.name: filebeat
+  type: docker
+http.enabled: true
+http.port: 5066
+output.elasticsearch:
+  hosts:
+  - http://$ES_INSTANCE_ID.elasticsearch.aliyuncs.com:9200
+  username: elastic
+  password: $ES_PASSWORD
+processors:
+- add_cloud_metadata: null
+- include_fields:
+    fields:
+    - host.name
+    - input.type
+    - kubernetes.container.name
+    - kubernetes.namespace
+    - kubernetes.node.name
+    - kubernetes.pod.name
+    - kubernetes.pod.uid
+    - log.file.path
+    - log.offset
+    - message
+    - stream
+EOF
+}
+
+
+function create_elasticsearch {
+    create_elasticsearch_config
+
+    ES_INSTANCE_ID=`aliyun elasticsearch ListInstance --description $GENERATER_NAME | grep instanceId | awk -F "\"" '{print $4}' | head -1`
+
+    if [ -n "$ES_INSTANCE_ID" ]
+    then
+        echo_log "Elasticsearch instance $GENERATER_NAME already exists with id $ES_INSTANCE_ID."
+    else
+        ES_INSTANCE_ID=`aliyun elasticsearch createInstance --header "Content-Type=application/json" --body "$(cat ./es.json)" | grep instanceId | awk -F "\"" '{print $4}'`
+        if [ -n "$ES_INSTANCE_ID" ]
+        then
+            echo_log "Elasticsearch instance $GENERATER_NAME create success with id $ES_INSTANCE_ID."
+            STATUS=`aliyun elasticsearch DescribeInstance --InstanceId $ES_INSTANCE_ID | grep status | awk -F "\"" '{print $4}' | grep -v NORMAL | head -1`
+
+            while [ "$STATUS" != "active" ]
+            do
+                echo_log "Current elasticsearch instance status is $STATUS, loop wait until it's active."
+                sleep 30
+                STATUS=`aliyun elasticsearch DescribeInstance --InstanceId $ES_INSTANCE_ID | grep status | awk -F "\"" '{print $4}' | grep -v NORMAL | head -1`
+            done
+        else
+            echo_exit "Failed to create elasticsearch instance $GENERATER_NAME."
+        fi
+    fi
+
+    create_filebeat_config
 }
 
 function install_fedlearner {
@@ -626,11 +788,12 @@ function usage {
     echo "    access_key_id:     the access key id provided by aliyun, required"
     echo "    access_key_secret: the access key secret provided by aliyun, required"
     echo "    db_password:       the database password for fedlearner account, required"
+    echo "    es_password:       the elasticesearch password for fedlearner account, required"
     echo "    bucket:            the oss bucket to be created, required"
     echo "    pay_type:          the pay_type, default to Prepaid."
 }
 
-if [[ -z $ACCESS_KEY_ID ]] || [[ -z $ACCESS_KEY_SECRET ]] || [[ -z $DB_PASSWORD ]]
+if [[ -z $ACCESS_KEY_ID ]] || [[ -z $ACCESS_KEY_SECRET ]] || [[ -z $DB_PASSWORD ]] || [[ -z $ES_PASSWORD ]]
 then
     usage
     exit 1
@@ -642,6 +805,7 @@ else
     create_vswitch
     create_secret
     create_db
+    create_elasticsearch
     create_nas
     create_k8s
     list_k8s_nodes

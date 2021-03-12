@@ -13,6 +13,7 @@
 # limitations under the License.
 
 # coding: utf-8
+import re
 from http import HTTPStatus
 import logging
 from flask_restful import Resource, reqparse, request
@@ -34,6 +35,12 @@ def dict_to_workflow_definition(config):
         raise InvalidArgumentException(details=str(e)) from e
 
 
+def _dic_without_key(d, key):
+    result = dict(d)
+    del result[key]
+    return result
+
+
 class WorkflowTemplatesApi(Resource):
     def get(self):
         templates = WorkflowTemplate.query
@@ -45,8 +52,10 @@ class WorkflowTemplatesApi(Resource):
             if is_left is None:
                 raise InvalidArgumentException('is_left must be 0 or 1')
             templates = templates.filter_by(is_left=is_left)
-        return {'data': [t.to_dict() for t in templates.all()]}\
-            , HTTPStatus.OK
+        # remove config from dicts to reduce the size of the list
+        return {'data': [_dic_without_key(t.to_dict(),
+                                          'config') for t in templates.all()
+                         ]}, HTTPStatus.OK
 
     def post(self):
         parser = reqparse.RequestParser()
@@ -71,6 +80,23 @@ class WorkflowTemplatesApi(Resource):
                 'Workflow template {} already exists'.format(name))
         # form to proto buffer
         template_proto = dict_to_workflow_definition(config)
+        for index, job_def in enumerate(template_proto.job_definitions):
+            # pod label name must be no more than 63 characters.
+            #  workflow.uuid is 20 characters, pod name suffix such as
+            #  '-follower-master-0' is less than 19 characters, so the
+            #  job name must be no more than 24
+            if len(job_def.name) > 24:
+                raise InvalidArgumentException(
+                    details=
+                    {'config.job_definitions'
+                     : 'job_name:{} must be no more than 24 characters'})
+            # limit from k8s
+            if not re.match('[a-z0-9-]*', job_def.name):
+                raise InvalidArgumentException(
+                    details=
+                    {f'config.job_definitions[{index}].job_name'
+                     : 'Only letters(a-z), numbers(0-9) '
+                       'and dashes(-) are supported.'})
         template = WorkflowTemplate(name=name,
                                     comment=comment,
                                     group_alias=template_proto.group_alias,
@@ -89,6 +115,13 @@ class WorkflowTemplateApi(Resource):
             raise NotFoundException()
         return {'data': result.to_dict()}, HTTPStatus.OK
 
+    def delete(self, template_id):
+        result = WorkflowTemplate.query.filter_by(id=template_id)
+        if result.first() is None:
+            raise NotFoundException()
+        result.delete()
+        db.session.commit()
+        return {'data': {}}, HTTPStatus.OK
 
 def initialize_workflow_template_apis(api):
     api.add_resource(WorkflowTemplatesApi, '/workflow_templates')

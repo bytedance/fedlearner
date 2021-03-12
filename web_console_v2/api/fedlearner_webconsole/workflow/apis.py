@@ -17,12 +17,14 @@
 
 import logging
 import json
+from uuid import uuid4
 from http import HTTPStatus
 from flask_restful import Resource, reqparse, request
 from google.protobuf.json_format import MessageToDict
 from fedlearner_webconsole.workflow.models import (
     Workflow, WorkflowState, TransactionState
 )
+from fedlearner_webconsole.job.yaml_formatter import generate_job_run_yaml
 from fedlearner_webconsole.proto import common_pb2
 from fedlearner_webconsole.workflow_template.apis import \
     dict_to_workflow_definition
@@ -51,6 +53,9 @@ class WorkflowsApi(Resource):
             keyword = request.args['keyword']
             result = result.filter(Workflow.name.like(
                 '%{}%'.format(keyword)))
+        if 'uuid' in request.args and request.args['uuid'] is not None:
+            uuid = request.args['uuid']
+            result = result.filter_by(uuid=uuid)
         return {'data': [row.to_dict() for row in
                          result.order_by(
                              Workflow.created_at.desc()).all()]}, HTTPStatus.OK
@@ -77,7 +82,6 @@ class WorkflowsApi(Resource):
                             help='fork and edit peer config')
         parser.add_argument('comment')
         data = parser.parse_args()
-
         name = data['name']
         if Workflow.query.filter_by(name=name).first() is not None:
             raise ResourceConflictException(
@@ -85,7 +89,13 @@ class WorkflowsApi(Resource):
 
         # form to proto buffer
         template_proto = dict_to_workflow_definition(data['config'])
-        workflow = Workflow(name=name, comment=data['comment'],
+        workflow = Workflow(name=name,
+                            # 20 bytes
+                            # a DNS-1035 label must start with an
+                            # alphabetic character. substring uuid[:19] has
+                            # no collision in 10 million draws
+                            uuid=f'u{uuid4().hex[:19]}',
+                            comment=data['comment'],
                             project_id=data['project_id'],
                             forkable=data['forkable'],
                             forked_from=data['forked_from'],
@@ -145,6 +155,7 @@ class WorkflowApi(Resource):
         workflow.forkable = data['forkable']
         workflow.set_config(dict_to_workflow_definition(data['config']))
         workflow.update_target_state(WorkflowState.READY)
+        scheduler.wakeup(workflow_id)
         db.session.commit()
         logging.info('update workflow %d target_state to %s',
                      workflow.id, workflow.target_state)
@@ -154,7 +165,10 @@ class WorkflowApi(Resource):
         parser = reqparse.RequestParser()
         parser.add_argument('target_state', type=str, required=False,
                             default=None, help='target_state is empty')
+        parser.add_argument('state', type=str, required=False,
+                            default=None, help='state is empty')
         parser.add_argument('forkable', type=bool)
+        parser.add_argument('metric_is_public', type=bool)
         parser.add_argument('config', type=dict, required=False,
                             default=None, help='updated config')
         data = parser.parse_args()
@@ -164,34 +178,58 @@ class WorkflowApi(Resource):
         forkable = data['forkable']
         if forkable is not None:
             workflow.forkable = forkable
-            db.session.commit()
+            db.session.flush()
+
+        metric_is_public = data['metric_is_public']
+        if metric_is_public is not None:
+            workflow.metric_is_public = metric_is_public
+            db.session.flush()
 
         target_state = data['target_state']
         if target_state:
             try:
-                db.session.refresh(workflow)
+                if WorkflowState[target_state] == WorkflowState.RUNNING:
+                    for job in workflow.owned_jobs:
+                        try:
+                            generate_job_run_yaml(job)
+                        # TODO: check if peer variables is valid
+                        except RuntimeError as e:
+                            raise ValueError(
+                                f'Invalid Variable when try '
+                                f'to format the job {job.name}:{str(e)}')
                 workflow.update_target_state(WorkflowState[target_state])
-                db.session.commit()
+                db.session.flush()
                 logging.info('updated workflow %d target_state to %s',
                             workflow.id, workflow.target_state)
                 scheduler.wakeup(workflow.id)
             except ValueError as e:
                 raise InvalidArgumentException(details=str(e)) from e
 
+        state = data['state']
+        if state:
+            try:
+                assert state == 'INVALID', \
+                    'Can only set state to INVALID for invalidation'
+                workflow.invalidate()
+                db.session.flush()
+                logging.info('invalidate workflow %d', workflow.id)
+            except ValueError as e:
+                raise InvalidArgumentException(details=str(e)) from e
+
         config = data['config']
         if config:
             try:
-                db.session.refresh(workflow)
                 if workflow.target_state != WorkflowState.INVALID or \
                         workflow.state not in \
                         [WorkflowState.READY, WorkflowState.STOPPED]:
                     raise NoAccessException('Cannot edit running workflow')
                 config_proto = dict_to_workflow_definition(data['config'])
                 workflow.set_config(config_proto)
-                db.session.commit()
+                db.session.flush()
             except ValueError as e:
                 raise InvalidArgumentException(details=str(e)) from e
 
+        db.session.commit()
         return {'data': workflow.to_dict()}, HTTPStatus.OK
 
 
@@ -202,6 +240,7 @@ class PeerWorkflowsApi(Resource):
         peer_workflows = {}
         for party in project_config.participants:
             client = RpcClient(project_config, party)
+            # TODO(xiangyxuan): use uuid to identify the workflow
             resp = client.get_workflow(workflow.name)
             if resp.status.code != common_pb2.STATUS_SUCCESS:
                 raise InternalException(resp.status.msg)
@@ -236,7 +275,6 @@ class PeerWorkflowsApi(Resource):
                 preserving_proto_field_name=True,
                 including_default_value_fields=True)
         return {'data': peer_workflows}, HTTPStatus.OK
-
 
 
 def initialize_workflow_apis(api):

@@ -21,9 +21,9 @@ from fedlearner_webconsole.job.yaml_formatter import format_yaml
 class YamlFormatterTest(unittest.TestCase):
     def test_format_with_phs(self):
         project = {
-            'variables': {
-                'storage_root_dir': 'root_dir'
-            }
+            'variables[0]':
+                {'storage_root_dir': 'root_dir'}
+
         }
         workflow = {
             'jobs': {
@@ -33,7 +33,7 @@ class YamlFormatterTest(unittest.TestCase):
         yaml = format_yaml("""
           {
             "name": "OUTPUT_BASE_DIR",
-            "value": "${project.variables.storage_root_dir}/raw_data/${workflow.jobs.raw_data_job.name}"
+            "value": "${project.variables[0].storage_root_dir}/raw_data/${workflow.jobs.raw_data_job.name}"
           }
         """, project=project, workflow=workflow)
         self.assertEqual(yaml, """
@@ -43,9 +43,9 @@ class YamlFormatterTest(unittest.TestCase):
           }
         """)
 
-        self.assertEqual(format_yaml('$project.variables.storage_root_dir',
+        self.assertEqual(format_yaml('$project.variables[0].storage_root_dir',
                                      project=project),
-                         project['variables']['storage_root_dir'])
+                         project['variables[0]']['storage_root_dir'])
 
     def test_format_with_no_ph(self):
         self.assertEqual(format_yaml('{a: 123, b: 234}'),

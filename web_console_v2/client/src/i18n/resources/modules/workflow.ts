@@ -11,6 +11,7 @@ const workflow: I18nMessageModule = {
   current_config: { zh: '当前配置' },
   create_workflow: { zh: '创建工作流', en: 'Create workflow' },
   fork_workflow: { zh: '复制工作流', en: 'Fork workflow' },
+  forked_from: { zh: '复制于', en: 'Forked from' },
 
   action_re_run: { zh: '重新运行' },
   action_run: { zh: '立即运行' },
@@ -30,6 +31,8 @@ const workflow: I18nMessageModule = {
   btn_auto_refresh_logs: { zh: '自动刷新日志' },
   btn_pause_auto_refresh: { zh: '停止自动刷新' },
   btn_has_new_logs: { zh: '有新的日志' },
+  btn_fetch_metrics: { zh: '点击加载数据' },
+  btn_retry: { zh: ' 重试' },
 
   col_status: { zh: '任务状态' },
   col_project: { zh: ' 隶属项目' },
@@ -87,11 +90,14 @@ const workflow: I18nMessageModule = {
   label_job_nonreusable: { zh: '不继承' },
 
   placeholder_name_searchbox: { zh: '根据工作流名称搜索' },
+  placeholder_uuid_searchbox: { zh: '根据 UUID 搜索' },
   placeholder_name: { zh: '请输入工作流名称' },
   placeholder_template: { zh: '请选择模板' },
   placeholder_project: { zh: '请关联一个项目' },
   placeholder_comment: { zh: '请输入工作流模板说明' },
   placeholder_template_name: { zh: '请输入模板名称' },
+  placeholder_fetch_metrics: { zh: '查询 Metrics 性能消耗较大，故需手动确认执行' },
+  placeholder_no_metrics: { zh: '当前未查询到相关指标' },
 
   msg_sent_success: { zh: '工作流发送成功' },
   msg_template_required: { zh: '请选择一个模板！' },
@@ -116,7 +122,7 @@ const workflow: I18nMessageModule = {
   msg_peer_config_failed: { zh: '获取对侧工作流配置失败' },
   msg_peer_not_ready: { zh: '对侧配置未完成' },
   msg_not_config: { zh: '工作流配置未完成' },
-  msg_workflow_name_invalid: { zh: '工作流名字只能由小写英文/数字/中划线组成，且不允许空格' },
+  msg_workflow_name_invalid: { zh: '最长允许255个字符' },
   msg_sure_to_stop: { zh: '确认停止运行该工作流吗?' },
   msg_unforkable: { zh: '根据对侧配置，该工作流不允许被复制，请与对侧沟通后再试' },
   msg_get_peer_cfg_failed: { zh: '获取对侧配置失败: ' },
@@ -125,6 +131,8 @@ const workflow: I18nMessageModule = {
     zh: '{{name}} 改为不继承状态后，后续依赖  {{name}} 的任务都将切换成为“不继承”状态',
   },
   msg_upstreaming_nonreusable: { zh: '因存在上游依赖不可继承，无法修改此任务继承与否' },
+  msg_chart_deps_loading: { zh: '图表依赖正在加载，请稍等' },
+  msg_get_tpl_detail_failed: { zh: '获取模板详情失败，请稍后再试' },
 
   title_toggle_reusable: { zh: '切换至{{state}}状态' },
 
@@ -146,6 +154,8 @@ const workflow: I18nMessageModule = {
   job_node_stop_running: { zh: '手动停止运行' },
   job_node_stopped: { zh: '已停止' },
   pod_unknown: { zh: '状态未知' },
+  pod_failed_cleared: { zh: '失败&已清理资源' },
+  pod_success_cleared: { zh: '成功&已释放资源' },
 };
 
 export default separateLng(workflow);

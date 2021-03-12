@@ -13,7 +13,7 @@ const Container = styled.div`
 `;
 
 const stateType: { [key: string]: StateTypes } = {
-  [PodState.COMPLETE]: 'success',
+  [PodState.COMPLETED]: 'success',
   [PodState.RUNNING]: 'processing',
   [PodState.FAILED]: 'error',
   [PodState.PENDING]: 'warning',
@@ -22,13 +22,13 @@ const stateType: { [key: string]: StateTypes } = {
   [PodState.FL_SUCCEED]: 'success',
 };
 const stateText: { [key: string]: string } = {
-  [PodState.COMPLETE]: i18n.t('workflow.job_node_success'),
+  [PodState.COMPLETED]: i18n.t('workflow.job_node_success'),
   [PodState.RUNNING]: i18n.t('workflow.job_node_running'),
   [PodState.FAILED]: i18n.t('workflow.job_node_failed'),
   [PodState.PENDING]: i18n.t('workflow.job_node_waiting'),
   [PodState.UNKNOWN]: i18n.t('workflow.pod_unknown'),
-  [PodState.FL_FAILED]: '失败&已清理资源',
-  [PodState.FL_SUCCEED]: '成功&已释放资源',
+  [PodState.FL_FAILED]: i18n.t('workflow.pod_failed_cleared'),
+  [PodState.FL_SUCCEED]: i18n.t('workflow.pod_success_cleared'),
 };
 
 type Props = {
@@ -36,7 +36,7 @@ type Props = {
   isPeerSide: boolean;
 };
 
-const JobExecutionPODs: FC<Props> = ({ job, isPeerSide }) => {
+const JobExecutionPods: FC<Props> = ({ job, isPeerSide }) => {
   const { t } = useTranslation();
 
   let data = job.pods;
@@ -57,7 +57,13 @@ const JobExecutionPODs: FC<Props> = ({ job, isPeerSide }) => {
       title: i18n.t('workflow.col_worker_status'),
       dataIndex: 'status',
       key: 'status',
-      render: (val: PodState) => <StateIndicator type={stateType[val]} text={stateText[val]} />,
+      render: (val: PodState, record: Pod) => {
+        let tip: string = '';
+        if ([PodState.FAILED, PodState.PENDING].includes(record.status)) {
+          tip = record.conditions?.map((item) => item.message).join(', ') || '';
+        }
+        return <StateIndicator type={stateType[val]} text={stateText[val]} tip={tip} />;
+      },
     },
     {
       title: i18n.t('workflow.col_worker_type'),
@@ -100,4 +106,4 @@ const JobExecutionPODs: FC<Props> = ({ job, isPeerSide }) => {
   }
 };
 
-export default JobExecutionPODs;
+export default JobExecutionPods;

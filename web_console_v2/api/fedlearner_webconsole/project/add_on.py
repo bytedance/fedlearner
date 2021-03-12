@@ -19,6 +19,7 @@ import io
 import os
 from base64 import b64encode, b64decode
 from typing import Type, Dict
+from OpenSSL import crypto, SSL
 from fedlearner_webconsole.utils.k8s_client import K8sClient
 
 CA_SECRET_NAME = 'ca-secret'
@@ -45,6 +46,83 @@ def parse_certificates(encoded_gz):
                     str(b64encode(gz.extractfile(file).read()),
                         encoding='utf-8')
     return certificates
+
+
+def verify_certificates(certificates: Dict[str, str]) -> (bool, str):
+    """
+    Verify certificates from 4 aspects:
+    1. The CN of all public keys are equal.
+    2. All the CN are generic domain names.
+    3. Public key match private key.
+    4. Private key is signed by CA.
+    Args:
+        certificates:
+    Returns:
+    """
+    try:
+        client_public_key = crypto.load_certificate(
+            crypto.FILETYPE_PEM,
+            b64decode(certificates.get('client/client.pem')))
+        server_public_key = crypto.load_certificate(
+            crypto.FILETYPE_PEM,
+            b64decode(certificates.get('server/server.pem')))
+        client_private_key = crypto.load_privatekey(
+            crypto.FILETYPE_PEM,
+            b64decode(certificates.get('client/client.key')))
+        server_private_key = crypto.load_privatekey(
+            crypto.FILETYPE_PEM,
+            b64decode(certificates.get('server/server.key')))
+        client_intermediate_ca = crypto.load_certificate(
+            crypto.FILETYPE_PEM,
+            b64decode(certificates.get('client/intermediate.pem')))
+        server_intermediate_ca = crypto.load_certificate(
+            crypto.FILETYPE_PEM,
+            b64decode(certificates.get('server/intermediate.pem')))
+        client_root_ca = crypto.load_certificate(
+            crypto.FILETYPE_PEM,
+            b64decode(certificates.get('client/root.pem')))
+        server_root_ca = crypto.load_certificate(
+            crypto.FILETYPE_PEM,
+            b64decode(certificates.get('server/root.pem')))
+    except crypto.Error as err:
+        return False, 'Format of key or CA is invalid: {}'.format(err)
+
+    if client_public_key.get_subject().CN != server_public_key.get_subject().CN:
+        return False, 'Client and server public key CN mismatch'
+    if not client_public_key.get_subject().CN.startswith('*.'):
+        return False, 'CN of public key should be a generic domain name'
+
+    try:
+        client_context = SSL.Context(SSL.TLSv1_METHOD)
+        client_context.use_certificate(client_public_key)
+        client_context.use_privatekey(client_private_key)
+        client_context.check_privatekey()
+
+        server_context = SSL.Context(SSL.TLSv1_METHOD)
+        server_context.use_certificate(server_public_key)
+        server_context.use_privatekey(server_private_key)
+        server_context.check_privatekey()
+    except SSL.Error as err:
+        return False, 'Key pair mismatch: {}'.format(err)
+
+    try:
+        client_store = crypto.X509Store()
+        client_store.add_cert(client_root_ca)
+        client_store.add_cert(client_intermediate_ca)
+        crypto.X509StoreContext(client_store, client_public_key)\
+            .verify_certificate()
+    except crypto.X509StoreContextError as err:
+        return False, 'Client key and CA mismatch: {}'.format(err)
+    try:
+        server_store = crypto.X509Store()
+        server_store.add_cert(server_root_ca)
+        server_store.add_cert(server_intermediate_ca)
+        crypto.X509StoreContext(server_store, server_public_key)\
+            .verify_certificate()
+    except crypto.X509StoreContextError as err:
+        return False, 'Server key and CA mismatch: {}'.format(err)
+
+    return True, ''
 
 
 def create_add_on(client: Type[K8sClient], domain_name: str, url: str,

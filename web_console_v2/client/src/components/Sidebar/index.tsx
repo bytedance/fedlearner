@@ -10,12 +10,11 @@ import classNames from 'classnames';
 import { StyledComponetProps } from 'typings/component';
 import store from 'store2';
 import LOCAL_STORAGE_KEYS from 'shared/localStorageKeys';
-import { Apps, DataServer, Workbench, MenuFold, MenuUnfold } from 'components/IconPark';
+import { Apps, DataServer, Workbench, MenuFold, MenuUnfold, Settings } from 'components/IconPark';
 
 const Container = styled.aside`
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
   align-items: flex-end;
   width: 200px;
   padding: 16px 8px 8px;
@@ -36,6 +35,9 @@ const Container = styled.aside`
       }
     }
   }
+`;
+const StyledMenu = styled(Menu)`
+  flex: 1;
 `;
 
 const FoldButton = styled.div`
@@ -69,6 +71,11 @@ const SIDEBAR_MENU_ITEMS = [
     label: 'menu.label_datasets',
     icon: DataServer,
   },
+  {
+    to: '/settings',
+    label: 'menu.label_settings',
+    icon: Settings,
+  },
 ];
 
 function Sidebar({ className }: StyledComponetProps) {
@@ -81,7 +88,7 @@ function Sidebar({ className }: StyledComponetProps) {
 
   return (
     <Container className={classNames(className, { isFolded })}>
-      <Menu mode="inline" selectedKeys={[activeMenuItemKey]}>
+      <StyledMenu mode="inline" selectedKeys={[activeMenuItemKey]}>
         {SIDEBAR_MENU_ITEMS.map((menu) => (
           <Menu.Item key={menu.to}>
             {isFolded ? (
@@ -98,7 +105,7 @@ function Sidebar({ className }: StyledComponetProps) {
             )}
           </Menu.Item>
         ))}
-      </Menu>
+      </StyledMenu>
 
       <FoldButton onClick={onFoldClick}>{isFolded ? <MenuUnfold /> : <MenuFold />}</FoldButton>
     </Container>
