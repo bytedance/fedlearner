@@ -55,8 +55,11 @@ class RawDataIter(object):
                 logging.warning("%s misses field %s:%s",
                                 self.__class__.__name__,
                                 item, common.ALLOWED_FIELDS[item])
-            return self._features.get(item,
-                                      common.ALLOWED_FIELDS[item].default_value)
+            value = self._features.get(
+                item, common.ALLOWED_FIELDS[item].default_value)
+            if not isinstance(value, common.ALLOWED_FIELDS[item].type):
+                value = common.ALLOWED_FIELDS[item].type(value)
+            return value
 
         def __getitem__(self, item):
             return self._features[item]
