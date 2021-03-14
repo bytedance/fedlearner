@@ -123,7 +123,7 @@ class WorkflowTemplateApi(Resource):
         template.comment = comment
         template.group_alias = template_proto.group_alias
         template.is_left = template_proto.is_left
-
+        return {'data': template.to_dict()}, HTTPStatus.OK
 
 def _check_config(config):
     # TODO: format check

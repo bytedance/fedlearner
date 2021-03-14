@@ -143,6 +143,26 @@ class WorkflowTemplatesApiTest(BaseTestCase):
         response = self.delete_helper('/api/v2/workflow_templates/1')
         self.assertEqual(response.status_code, HTTPStatus.NOT_FOUND)
 
+    def test_put_workflow_template(self):
+        data = {
+            'name': 'test_put',
+            'comment': 'test-comment',
+            'config': {
+                'group_alias': 'g222',
+                'is_left': True
+            }
+        }
+        response = self.put_helper('/api/v2/workflow_templates/1',
+                                   data=data
+                                   )
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+        expected_template = WorkflowTemplate.query.filter_by(
+            id=1).first()
+        self.assertEqual(expected_template.name, data['name'])
+        self.assertEqual(expected_template.comment, data['comment'])
+        self.assertEqual(expected_template.group_alias, data['config']['group_alias'])
+        self.assertEqual(expected_template.is_left, data['config']['is_left'])
+
 
 if __name__ == '__main__':
     unittest.main()
