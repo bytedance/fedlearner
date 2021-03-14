@@ -107,12 +107,14 @@ class ElasticSearchHandler(Handler):
                 self.flush()
 
     def flush(self):
+        emit_batch = []
         with self._lock:
-            if len(self._emit_batch) > 0:
+            if self._emit_batch:
                 emit_batch = self._emit_batch
                 self._emit_batch = []
-        logging.info('METRICS: Emitting %d documents to ES', len(emit_batch))
-        self._helpers.bulk(self._es, emit_batch)
+        if emit_batch:
+            logging.info('Emitting %d documents to ES', len(emit_batch))
+            self._helpers.bulk(self._es, emit_batch)
 
     @staticmethod
     def _produce_document(name, value, tags, index_type):
