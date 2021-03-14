@@ -28,6 +28,13 @@ if __name__ == '__main__':
                              'with format [IP]:[PORT]')
     args = parser.parse_args()
 
+    config = tf.ConfigProto()
+    config.rpc_options.compression_algorithm = 'gzip'
+    config.rpc_options.cache_rpc_response = True
+
     cluster_spec = tf.train.ClusterSpec({'local': {0: args.address}})
-    server = tf.train.Server(cluster_spec, job_name='local', task_index=0)
+    server = tf.train.Server(cluster_spec,
+                             job_name='local',
+                             task_index=0,
+                             config=config)
     server.join()
