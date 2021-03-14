@@ -102,7 +102,7 @@ METRICS_MAPPINGS = {
             'strings': {
                 'match_mapping_type': 'string',
                 'mapping': {
-                    type: 'keyword'
+                    'type': 'keyword'
                 }
             }
         }
