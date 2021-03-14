@@ -113,12 +113,14 @@ def _merge_workflow_config(base, new, access_mode):
         _merge_variables(base_job.variables, new_job.variables, access_mode)
 
 
-@to_dict_mixin(ignores=['forked_from', 'fork_proposal_config', 'config'],
+@to_dict_mixin(ignores=['forked_from',
+                        'fork_proposal_config',
+                        'config'],
                extras={
                    'job_ids': (lambda wf: wf.get_job_ids()),
-                   'reuse_job_names': (lambda wf: wf.get_reuse_job_names()),
-                   'peer_reuse_job_names':
-                       (lambda wf: wf.get_peer_reuse_job_names()),
+                   'create_job_flags': (lambda wf: wf.get_create_job_flags()),
+                   'peer_create_job_flags':
+                       (lambda wf: wf.get_peer_create_job_flags()),
                    'state': (lambda wf: wf.get_state_for_frontend()),
                    'transaction_state':
                        (lambda wf: wf.get_transaction_state_for_frontend()),
@@ -145,13 +147,15 @@ class Workflow(db.Model):
                                  default=False,
                                  nullable=False,
                                  comment='metric_is_public')
+    create_job_flags = db.Column(db.TEXT(), comment='create_job_flags')
+
+    job_ids = db.Column(db.TEXT(), comment='job_ids')
 
     forkable = db.Column(db.Boolean, default=False, comment='forkable')
     forked_from = db.Column(db.Integer, default=None, comment='forked_from')
-
     # index in config.job_defs instead of job's id
-    reuse_job_names = db.Column(db.TEXT(), comment='reuse_job_names')
-    peer_reuse_job_names = db.Column(db.TEXT(), comment='peer_reuse_job_names')
+    peer_create_job_flags = db.Column(db.TEXT(),
+                                      comment='peer_create_job_flags')
     fork_proposal_config = db.Column(db.LargeBinary(),
                                      comment='fork_proposal_config')
 
@@ -162,8 +166,6 @@ class Workflow(db.Model):
     trigger_dataset = db.Column(db.Integer, comment='trigger_dataset')
     last_triggered_batch = db.Column(db.Integer,
                                      comment='last_triggered_batch')
-
-    job_ids = db.Column(db.TEXT(), comment='job_ids')
 
     state = db.Column(db.Enum(WorkflowState,
                               native_enum=False,
@@ -250,21 +252,33 @@ class Workflow(db.Model):
     def get_jobs(self):
         return [Job.query.get(i) for i in self.get_job_ids()]
 
-    def set_reuse_job_names(self, reuse_job_names):
-        self.reuse_job_names = ','.join(reuse_job_names)
+    def set_create_job_flags(self, create_job_flags):
+        if create_job_flags is None:
+            self.create_job_flags = None
+        else:
+            self.create_job_flags = ','.join(
+                [str(i) for i in create_job_flags])
 
-    def get_reuse_job_names(self):
-        if not self.reuse_job_names:
-            return []
-        return self.reuse_job_names.split(',')
+    def get_create_job_flags(self):
+        if self.create_job_flags is None:
+            config = self.get_config()
+            if config is None:
+                return None
+            num_jobs = len(config.job_definitions)
+            return [common_pb2.CreateJobFlag.NEW] * num_jobs
+        return [int(i) for i in self.create_job_flags.split(',')]
 
-    def set_peer_reuse_job_names(self, peer_reuse_job_names):
-        self.peer_reuse_job_names = ','.join(peer_reuse_job_names)
+    def set_peer_create_job_flags(self, peer_create_job_flags):
+        if not peer_create_job_flags:
+            self.peer_create_job_flags = None
+        else:
+            self.peer_create_job_flags = ','.join(
+                [str(i) for i in peer_create_job_flags])
 
-    def get_peer_reuse_job_names(self):
-        if not self.peer_reuse_job_names:
-            return []
-        return self.peer_reuse_job_names.split(',')
+    def get_peer_create_job_flags(self):
+        if self.peer_create_job_flags is None:
+            return None
+        return [int(i) for i in self.peer_create_job_flags.split(',')]
 
     def update_target_state(self, target_state):
         if self.target_state != target_state \
@@ -370,7 +384,7 @@ class Workflow(db.Model):
         elif self.target_state == WorkflowState.RUNNING:
             self.start_at = int(datetime.utcnow().timestamp())
             for job in self.owned_jobs:
-                if not job.get_config().is_manual:
+                if not job.is_disabled:
                     job.schedule()
 
         self.state = self.target_state
@@ -397,14 +411,15 @@ class Workflow(db.Model):
                 job.name: i
                 for i, job in enumerate(trunk_job_defs)
             }
-        else:
-            assert not self.get_reuse_job_names()
 
         job_defs = self.get_config().job_definitions
+        flags = self.get_create_job_flags()
+        assert len(job_defs) == len(flags), \
+            'Number of job defs does not match number of create_job_flags ' \
+            '%d vs %d'%(len(job_defs), len(flags))
         jobs = []
-        reuse_jobs = set(self.get_reuse_job_names())
-        for i, job_def in enumerate(job_defs):
-            if job_def.name in reuse_jobs:
+        for i, (job_def, flag) in enumerate(zip(job_defs, flags)):
+            if flag == common_pb2.CreateJobFlag.REUSE:
                 assert job_def.name in trunk_name2index, \
                     "Job %s not found in base workflow" % job_def.name
                 j = trunk.get_job_ids()[trunk_name2index[job_def.name]]
@@ -413,19 +428,21 @@ class Workflow(db.Model):
                     'Job %d not found' % j
                 # TODO: check forked jobs does not depend on non-forked jobs
             else:
-                job = Job(name=f'{self.uuid}-{job_def.name}',
-                          job_type=JobType(job_def.job_type),
-                          config=job_def.SerializeToString(),
-                          workflow_id=self.id,
-                          project_id=self.project_id,
-                          state=JobState.STOPPED)
+                job = Job(
+                    name=f'{self.uuid}-{job_def.name}',
+                    job_type=JobType(job_def.job_type),
+                    config=job_def.SerializeToString(),
+                    workflow_id=self.id,
+                    project_id=self.project_id,
+                    state=JobState.STOPPED,
+                    is_disabled=(flag == common_pb2.CreateJobFlag.DISABLED))
                 job.set_yaml_template(job_def.yaml_template)
                 db.session.add(job)
             jobs.append(job)
         db.session.flush()
         name2index = {job.name: i for i, job in enumerate(job_defs)}
-        for i, job in enumerate(jobs):
-            if job.get_config().name in reuse_jobs:
+        for i, (job, flag) in enumerate(zip(jobs, flags)):
+            if flag == common_pb2.CreateJobFlag.REUSE:
                 continue
             for j, dep_def in enumerate(job.get_config().dependencies):
                 dep = JobDependency(
@@ -461,8 +478,8 @@ class Workflow(db.Model):
                 return False
             self.forked_from = base_workflow.id
             self.forkable = base_workflow.forkable
-            self.set_reuse_job_names(peer_workflow.peer_reuse_job_names)
-            self.set_peer_reuse_job_names(peer_workflow.reuse_job_names)
+            self.set_create_job_flags(peer_workflow.peer_create_job_flags)
+            self.set_peer_create_job_flags(peer_workflow.create_job_flags)
             config = base_workflow.get_config()
             _merge_workflow_config(config, peer_workflow.fork_proposal_config,
                                    [common_pb2.Variable.PEER_WRITABLE])

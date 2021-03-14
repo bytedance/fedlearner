@@ -25,6 +25,7 @@ import multiprocessing
 from http import HTTPStatus
 
 from testing.common import BaseTestCase, TestAppProcess
+from fedlearner_webconsole.proto.common_pb2 import CreateJobFlag
 from fedlearner_webconsole.job.models import Job
 from fedlearner_webconsole.workflow.models import Workflow
 
@@ -172,8 +173,7 @@ class WorkflowTest(BaseTestCase):
         ret_wf = list(resp.json['data'].values())[0]['config']
         self.assertEqual(
             ret_wf['job_definitions'][0]['variables'][0]['value'], '5')
-
-
+        
         # test fork
         cwf_resp = self.post_helper(
             '/api/v2/workflows',
@@ -182,8 +182,14 @@ class WorkflowTest(BaseTestCase):
                 'project_id': 1,
                 'forkable': True,
                 'forked_from': 1,
-                'reuse_job_names': ['job1'],
-                'peer_reuse_job_names': ['job2'],
+                'create_job_flags': [
+                    CreateJobFlag.REUSE,
+                    CreateJobFlag.NEW,
+                ],
+                'peer_create_job_flags': [
+                    CreateJobFlag.NEW,
+                    CreateJobFlag.REUSE,
+                ],
                 'config': self._wf_template,
                 'fork_proposal_config': {
                     'job_definitions': [
@@ -233,8 +239,18 @@ class WorkflowTest(BaseTestCase):
 
         json = self._check_workflow_state(2, 'READY', 'INVALID', 'READY')
         self.assertEqual(len(Job.query.all()), 3)
-        self.assertEqual(json['data']['reuse_job_names'], ['job2'])
-        self.assertEqual(json['data']['peer_reuse_job_names'], ['job1'])
+        self.assertEqual(
+            json['data']['create_job_flags'],
+            [
+                CreateJobFlag.NEW,
+                CreateJobFlag.REUSE,
+            ])
+        self.assertEqual(
+            json['data']['peer_create_job_flags'],
+            [
+                CreateJobFlag.REUSE,
+                CreateJobFlag.NEW,
+            ])
         jobs = json['data']['config']['job_definitions']
         self.assertEqual(jobs[0]['variables'][0]['value'], '2')
         self.assertEqual(jobs[1]['variables'][0]['value'], '2')

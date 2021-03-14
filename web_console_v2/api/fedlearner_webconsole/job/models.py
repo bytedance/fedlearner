@@ -79,6 +79,8 @@ class Job(db.Model):
     yaml_template = db.Column(db.Text(), comment='yaml_template')
     config = db.Column(db.LargeBinary(), comment='config')
 
+    is_disabled = db.Column(db.Boolean(), default=False, comment='is_disabled')
+
     workflow_id = db.Column(db.Integer, nullable=False, comment='workflow id')
     project_id = db.Column(db.Integer, nullable=False, comment='project id')
     flapp_snapshot = db.Column(db.Text(), comment='flapp snapshot')

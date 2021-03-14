@@ -118,13 +118,13 @@ class WorkflowsApiTest(BaseTestCase):
             'target_state': 'READY',
             'transaction_state': 'READY',
             'transaction_err': None,
-            'reuse_job_names': [],
-            'peer_reuse_job_names': [],
+            'create_job_flags': [1, 1, 1],
+            'peer_create_job_flags': None,
             'job_ids': [],
+            'transaction_state': 'READY',
             'last_triggered_batch': None,
             'recur_at': None,
             'recur_type': 'NONE',
-            'transaction_state': 'READY',
             'trigger_dataset': None,
             'uuid': f'u{mock_uuid().hex[:19]}'
         })

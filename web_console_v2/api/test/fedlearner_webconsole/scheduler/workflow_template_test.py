@@ -41,7 +41,6 @@ def make_workflow_template():
                 name='raw_data_job',
                 job_type=JobDefinition.RAW_DATA,
                 is_federated=False,
-                is_manual=False,
                 variables=[
                     Variable(
                         name='input_dir',
@@ -337,7 +336,6 @@ def make_workflow_template():
                 name='data_join_job',
                 job_type=JobDefinition.DATA_JOIN,
                 is_federated=True,
-                is_manual=False,
                 variables=[
                     Variable(
                         name='master_cpu',
