@@ -33,19 +33,22 @@ class CodeKeyParser(object):
                         data_dict[path].encode('utf-8')))
             result = str(base64.b64encode(out.getvalue()), encoding='utf-8')
             return f'base64://{result}'
-        raise InvalidArgumentException('the values of code type'
-                                       ' Variable must be a dict')
+        raise InvalidArgumentException('The value of a code type Variable '
+                                       'should be a dict but not a string')
 
     def _decode(self, data_string):
         # if data_string is a tarfile ,
         # parse it to a dict that file path as keys
-        tar_binary = BytesIO(base64.b64decode(data_string[9:]))
         code_dict = {}
-        with tarfile.open(fileobj=tar_binary) as tar:
-            for file in tar.getmembers():
-                code_dict[file.name] = str(tar.extractfile(file).read(),
-                                           encoding='utf-8')
-        return code_dict
+        if data_string.startswith('base64://'):
+            tar_binary = BytesIO(base64.b64decode(data_string[9:]))
+            with tarfile.open(fileobj=tar_binary) as tar:
+                for file in tar.getmembers():
+                    code_dict[file.name] = str(tar.extractfile(file).read(),
+                                               encoding='utf-8')
+            return code_dict
+        raise InvalidArgumentException('The stored value of a code type Variable'
+                                       ' should be base64 but not string')
 
     def decode_code_key_in_config(self, config):
         if config is None:
