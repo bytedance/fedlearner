@@ -209,7 +209,7 @@ export const complexDepsTemplate: DeepPartial<WorkflowTemplate> = {
           {
             name: 'job_name',
             value: '',
-            type: VariableValueType.STRING,
+            variable_type: VariableValueType.STRING,
             access_mode: VariableAccessMode.PEER_WRITABLE,
             widget_schema: {
               component: VariableComponent.Input,
@@ -228,7 +228,7 @@ export const complexDepsTemplate: DeepPartial<WorkflowTemplate> = {
             name: 'job_name',
             value: '',
             access_mode: VariableAccessMode.PEER_WRITABLE,
-            type: VariableValueType.STRING,
+            variable_type: VariableValueType.STRING,
             widget_schema: {
               component: VariableComponent.Input,
             },
@@ -249,7 +249,7 @@ export const complexDepsTemplate: DeepPartial<WorkflowTemplate> = {
               'folder/bar.py': 'bool b = True',
             },
             access_mode: VariableAccessMode.PEER_WRITABLE,
-            type: VariableValueType.CODE,
+            variable_type: VariableValueType.CODE,
             widget_schema: {
               component: VariableComponent.Code,
               required: true,
@@ -274,7 +274,7 @@ export const complexDepsTemplate: DeepPartial<WorkflowTemplate> = {
             name: 'job_name',
             value: '',
             access_mode: VariableAccessMode.PEER_WRITABLE,
-            type: VariableValueType.STRING,
+            variable_type: VariableValueType.STRING,
             widget_schema: {
               component: VariableComponent.Input,
             },
@@ -290,7 +290,7 @@ export const complexDepsTemplate: DeepPartial<WorkflowTemplate> = {
           {
             name: 'job_name',
             value: '',
-            type: VariableValueType.STRING,
+            variable_type: VariableValueType.STRING,
             access_mode: VariableAccessMode.PEER_WRITABLE,
             widget_schema: {
               component: VariableComponent.Input,
