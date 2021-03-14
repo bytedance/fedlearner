@@ -7,7 +7,7 @@ import { isNode, ReactFlowProvider } from 'react-flow-renderer';
 import { ChartNode, ChartNodeStatus } from 'components/WorkflowJobsCanvas/types';
 import { useSubscribe } from 'hooks';
 import { cloneDeep, last } from 'lodash';
-import { useToggle, useUnmount } from 'react-use';
+import { useToggle } from 'react-use';
 import { useRecoilState } from 'recoil';
 import { giveWeakRandomKey, to } from 'shared/helpers';
 import { templateForm } from 'stores/template';
@@ -15,14 +15,14 @@ import { Modal, Button, message } from 'antd';
 import styled from 'styled-components';
 import { Job, JobDefinitionForm, JobDependency } from 'typings/job';
 import JobComposeDrawer, { ExposedRef as DrawerExposedRef } from './JobComposeDrawer';
-import { clearMap, getOrInsertValueByid, TPL_GLOBAL_NODE_UUID, upsertValue } from '../store';
-import { Redirect, useHistory } from 'react-router';
+import { getOrInsertValueById, TPL_GLOBAL_NODE_UUID, upsertValue } from '../store';
+import { Redirect, useHistory, useParams } from 'react-router';
 import { ExclamationCircle } from 'components/IconPark';
 import { Z_INDEX_GREATER_THAN_HEADER } from 'components/Header';
 import { useTranslation } from 'react-i18next';
 import GridRow from 'components/_base/GridRow';
 import { WorkflowTemplatePayload } from 'typings/workflow';
-import { createWorkflowTemplate } from 'services/workflow';
+import { createWorkflowTemplate, updateWorkflowTemplate } from 'services/workflow';
 import { stringifyWidgetSchemas } from 'shared/formSchema';
 
 const Container = styled.main`
@@ -60,9 +60,10 @@ function _createASlimJobRawData({
   };
 }
 
-const TemplateStepTowJobs: FC = () => {
+const TemplateStepTowJobs: FC<{ isEdit?: boolean }> = ({ isEdit }) => {
   const history = useHistory();
   const { t } = useTranslation();
+  const params = useParams<{ id?: string }>();
 
   const [drawerVisible, toggleDrawerVisible] = useToggle(false);
 
@@ -81,7 +82,6 @@ const TemplateStepTowJobs: FC = () => {
 
     const { position, data, id } = payload;
     const rows = data.rows!;
-    // const hasGlobalNode = rows?.[0]?.[0]?.isGlobal;
 
     const rowIdx = rows?.findIndex((row) => row.find((col) => col.raw.uuid === id));
     const hasRowFollowed = Boolean(rows[rowIdx + 1]);
@@ -123,9 +123,9 @@ const TemplateStepTowJobs: FC = () => {
 
     const newJob = _createASlimJobRawData({ uuid: newJobUuid, dependencies: newJobDeps });
 
-    // If insert to right or bottom, befoe should be empty
+    // If insert to right or bottom, before should be empty
     const before = [isInset2Left && newJob].filter(Boolean);
-    // If insert to left, befoe should be empty
+    // If insert to left, after should be empty
     const after = [!isInset2Left && newJob].filter(Boolean);
 
     nextVal.config.job_definitions = [...preJobs, ...before, ...midJobs, ...after, ...postJobs];
@@ -133,11 +133,10 @@ const TemplateStepTowJobs: FC = () => {
     setTemplate(nextVal);
   });
 
-  useUnmount(() => {
-    clearMap();
-  });
-
   if (!template?.name) {
+    if (isEdit) {
+      return <Redirect to={`/workflow-templates/edit/basic/${params.id}`} />;
+    }
     return <Redirect to={'/workflow-templates/create/basic'} />;
   }
 
@@ -151,6 +150,7 @@ const TemplateStepTowJobs: FC = () => {
         <ReactFlowProvider>
           <WorkflowTemplateCanvas
             ref={canvasRef as any}
+            isEdit={isEdit}
             template={template}
             onNodeClick={onNodeClick}
             onCanvasClick={onCanvasClick}
@@ -185,6 +185,7 @@ const TemplateStepTowJobs: FC = () => {
   );
 
   // ---------------- Methods --------------------
+
   function checkIfAllJobConfigCompleted() {
     const isAllCompleted = canvasRef.current?.chartInstance
       .getElements()
@@ -281,21 +282,25 @@ const TemplateStepTowJobs: FC = () => {
     const { config, ...basics } = cloneDeep(template);
     let payload: WorkflowTemplatePayload = { ...basics, config: {} as any };
 
-    payload.config.variables = getOrInsertValueByid(TPL_GLOBAL_NODE_UUID)?.variables!;
+    payload.config.variables = getOrInsertValueById(TPL_GLOBAL_NODE_UUID)?.variables!;
     payload.config.job_definitions = config.job_definitions.map((item) => {
-      return { ...getOrInsertValueByid(item.uuid), dependencies: item.dependencies } as Job;
+      return { ...getOrInsertValueById(item.uuid), dependencies: item.dependencies } as Job;
     });
     payload.config.group_alias = basics.group_alias;
-    payload.config.is_left = basics.is_left;
+    payload.config.is_left = basics.is_left || false;
 
     payload = stringifyWidgetSchemas(payload);
 
-    const [res, error] = await to(createWorkflowTemplate(payload));
+    const [, error] = await to(
+      isEdit ? updateWorkflowTemplate(params.id!, payload) : createWorkflowTemplate(payload),
+    );
 
     if (error) {
       setSubmitting(false);
       return message.error(error.message);
     }
+    message.success(isEdit ? '模板修改成功!' : '模板创建成功！');
+    history.push('/workflow-templates');
   }
 };
 

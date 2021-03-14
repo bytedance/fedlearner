@@ -39,8 +39,10 @@ export const workflowConfigForm = atom<WorkflowConfig<JobNodeRawData>>({
   } as any,
 });
 
+// NOTE: this atom only been used in Workflow Create/Accept,
+// DO NOT IMPORT it in template upsert flow
 export const workflowTemplateForm = atom<CreateTemplateForm>({
-  key: 'WorkflowTemplateForm',
+  key: 'WorkflowCreateTemplateForm',
   default: { name: '', config: '', comment: '' } as any,
 });
 
@@ -56,7 +58,7 @@ export const peerConfigInPairing = atom<WorkflowConfig>({
 
 // Template being used when creating workflow
 export const templateInUsing = atom<WorkflowTemplate>({
-  key: 'templateInUsing',
+  key: 'TemplateInUsing',
   default: null as any,
 });
 

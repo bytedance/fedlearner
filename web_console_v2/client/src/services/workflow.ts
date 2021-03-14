@@ -21,12 +21,20 @@ export function fetchWorkflowTemplateList(params?: {
   });
 }
 
-export function fetchTemplateById(id: ID) {
+export function fetchTemplateById(id: ID): Promise<{ data: WorkflowTemplate }> {
   return request(`/v2/workflow_templates/${id}`);
 }
 
 export function createWorkflowTemplate(payload: WorkflowTemplatePayload) {
   return request.post('/v2/workflow_templates', payload);
+}
+
+export function updateWorkflowTemplate(id: ID, payload: WorkflowTemplatePayload) {
+  return request.put(`/v2/workflow_templates/${id}`, payload);
+}
+
+export function deleteTemplate(id: ID) {
+  return request.delete(`/v2/workflow_templates/${id}`);
 }
 
 export function fetchWorkflowList(params?: {
@@ -95,13 +103,19 @@ export function fetchJobEvents(
 }
 
 export function fetchPeerJobEvents(
-  jobName: ID,
+  workflowUuid: string,
+  jobName: string,
   params?: { startTime?: DateTime; maxLines: number },
 ): Promise<{ data: string[] }> {
-  return request(`/v2/jobs/${jobName}/participants/${0 /** peerId, fix to 0 so far */}/events`, {
-    params,
-    snake_case: true,
-  });
+  return request(
+    `/v2/workflows/${workflowUuid}/peer_workflows/${
+      0 /** peerId, fix to 0 so far */
+    }/jobs/${jobName}/events`,
+    {
+      params,
+      snake_case: true,
+    },
+  );
 }
 
 export function fetchPodLogs(

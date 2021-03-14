@@ -3,11 +3,12 @@ import { useTranslation } from 'react-i18next';
 import { Steps, Row, Card } from 'antd';
 import styled from 'styled-components';
 import BreadcrumbLink from 'components/BreadcrumbLink';
-import { Route, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { useUnmount } from 'react-use';
 import { useResetCreateForm } from 'hooks/template';
 import StepOneBasic from './StepOneBasic';
 import StepTwoJobs from './StepTwoJobs';
+import { clearMap } from './store';
 
 const { Step } = Steps;
 
@@ -24,9 +25,12 @@ enum CreateSteps {
   jobs,
 }
 
-const CreateTemplate: FC = () => {
+const TemplateForm: FC<{ isEdit?: boolean; isHydrated?: React.MutableRefObject<boolean> }> = ({
+  isEdit,
+  isHydrated,
+}) => {
   const { t } = useTranslation();
-  const params = useParams<{ step: keyof typeof CreateSteps; id?: string }>();
+  const params = useParams<{ step: keyof typeof CreateSteps }>();
   const [currentStep, setStep] = useState(CreateSteps[params.step || 'basic']);
   const reset = useResetCreateForm();
 
@@ -36,6 +40,7 @@ const CreateTemplate: FC = () => {
 
   useUnmount(() => {
     reset();
+    clearMap();
   });
 
   return (
@@ -43,7 +48,7 @@ const CreateTemplate: FC = () => {
       <BreadcrumbLink
         paths={[
           { label: 'menu.label_workflow_tpl', to: '/workflow-templates' },
-          { label: 'workflow.create_tpl' },
+          { label: isEdit ? 'workflow.edit_tpl' : 'workflow.create_tpl' },
         ]}
       />
 
@@ -59,11 +64,11 @@ const CreateTemplate: FC = () => {
       </Card>
 
       <FormArea>
-        <Route path={`/workflow-templates/create/basic`} exact component={StepOneBasic} />
-        <Route path={`/workflow-templates/create/jobs`} exact component={StepTwoJobs} />
+        {params.step === 'basic' && <StepOneBasic isEdit={isEdit} isHydrated={isHydrated} />}
+        {params.step === 'jobs' && <StepTwoJobs isEdit={isEdit} />}
       </FormArea>
     </>
   );
 };
 
-export default TemplateCreate;
+export default TemplateForm;

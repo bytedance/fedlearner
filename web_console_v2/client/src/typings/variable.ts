@@ -73,11 +73,6 @@ export interface VariableWidgetSchema
   // which component to use
   component?: VariableComponent;
 
-  /** ------ Datas ------ */
-  // NOTE: for array type value, it clould be either a Multiple-select/Checkbox
-  // or a Group-items which allow user add | delete. eg. ENV field
-  type?: 'string' | 'number' | 'boolean' | 'array' | 'object';
-
   /** ------ UIs ------ */
   // i18n key for job name form-item label
   label?: string;
@@ -106,9 +101,17 @@ export enum VariableAccessMode {
   PEER_WRITABLE = 'PEER_WRITABLE',
 }
 
+export enum VariableValueType {
+  STRING = 'STRING',
+  CODE = 'CODE',
+}
+
 export interface Variable {
   name: string;
+  // Due to proto doesn't has more optional types, we fixed to use string as value type,
+  // for boolean/number value, should convert to 'true', '2' directly (but so far, we don't need values like boolean)
   value: any;
+  type?: VariableValueType;
   access_mode: VariableAccessMode;
   widget_schema: VariableWidgetSchema;
 }

@@ -3,6 +3,7 @@ import styled from 'styled-components';
 import { NODE_WIDTH, NODE_HEIGHT, GLOBAL_CONFIG_NODE_SIZE } from '../helpers';
 import { Down } from 'components/IconPark';
 import { Tag } from 'antd';
+import { MixinEllipsis } from 'styles/mixins';
 
 export const Container = styled.div`
   position: relative;
@@ -32,9 +33,17 @@ export const Container = styled.div`
   &.cyan {
     --fed-color: var(--cyan6);
   }
+  &.red {
+    --fed-color: var(--red6);
+  }
+  &.purple {
+    --fed-color: var(--purple6);
+  }
 `;
 
 export const JobName = styled.h5`
+  ${MixinEllipsis()}
+  max-width: calc(100% - 28px);
   font-size: 16px;
   line-height: 20px;
   white-space: nowrap;

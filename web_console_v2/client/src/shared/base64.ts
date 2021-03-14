@@ -1,4 +1,5 @@
-export function decodeBase64(str: string) {
+export function decodeBase64(str?: string) {
+  if (!str) return '';
   let temp = '';
   try {
     temp = decodeURIComponent(atob(str));

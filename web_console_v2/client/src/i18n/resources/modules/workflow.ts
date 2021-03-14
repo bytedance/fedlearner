@@ -2,6 +2,7 @@ import { I18nMessageModule, separateLng } from 'i18n/helpers';
 
 const workflow: I18nMessageModule = {
   no_result: { zh: '暂无工作流' },
+  no_tpl: { zh: '暂无工作流模板' },
   execution_detail: { zh: '工作流详情' },
   name: { zh: '工作流名称' },
   our_config: { zh: '我方配置' },
@@ -11,6 +12,7 @@ const workflow: I18nMessageModule = {
   current_config: { zh: '当前配置' },
   create_workflow: { zh: '创建工作流', en: 'Create workflow' },
   create_tpl: { zh: '新建模板', en: 'Create template' },
+  edit_tpl: { zh: '编辑模板', en: 'Edit template' },
   fork_workflow: { zh: '复制工作流', en: 'Fork workflow' },
   forked_from: { zh: '复制于', en: 'Forked from' },
 
@@ -143,6 +145,7 @@ const workflow: I18nMessageModule = {
   msg_not_config: { zh: '工作流配置未完成' },
   msg_workflow_name_invalid: { zh: '最长允许255个字符' },
   msg_sure_to_stop: { zh: '确认停止运行该工作流吗?' },
+  msg_sure_to_delete: { zh: '确认删除吗?' },
   msg_unforkable: { zh: '根据对侧配置，该工作流不允许被复制，请与对侧沟通后再试' },
   msg_get_peer_cfg_failed: { zh: '获取对侧配置失败: ' },
   msg_reuse_noti: { zh: '{{name}} 改为继承状态后，后续依赖 {{name}} 的任务都将重置为“继承”状态' },

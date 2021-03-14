@@ -13,6 +13,7 @@ import {
   JobNode,
   GlobalConfigNode,
 } from './types';
+import { JobNodeRawDataSlim } from 'stores/template';
 
 export const NODE_WIDTH = 200;
 export const NODE_HEIGHT = 80;
@@ -30,13 +31,18 @@ export type NodeOptions = {
   selectable: boolean;
 };
 
-export type RawDataRows = Array<{ raw: JobNodeRawData | Variable[]; isGlobal?: boolean }[]>;
+export type RawDataCol = { raw: JobNodeRawData | Variable[]; isGlobal?: boolean };
+export type RawDataRows = Array<RawDataCol[]>;
 
-type SharedNodeData = { index: number; status: ChartNodeStatus; [key: string]: any };
+type SharedNodeData = {
+  index: number;
+  status: ChartNodeStatus;
+  [key: string]: any;
+};
 
 type NodeProcessors = {
-  createJob(job: JobNodeRawData, data: SharedNodeData, options: NodeOptions): JobNode;
-  createGlobal(variables: Variable[], data: SharedNodeData, options: NodeOptions): GlobalConfigNode;
+  createJob(job: any, data: SharedNodeData, options: NodeOptions): JobNode;
+  createGlobal(variables: any, data: SharedNodeData, options: NodeOptions): GlobalConfigNode;
   groupRows(params: ConvertParams): RawDataRows;
 };
 
@@ -64,7 +70,16 @@ export function convertToChartElements(
   let selfIncreaseIndex = 0;
   const nodesRows = rows.map((row) => {
     return row.map((col) => {
-      const extraData = { ...params.data, index: selfIncreaseIndex++, rows } as any;
+      const extraData = { index: selfIncreaseIndex++, rows } as any;
+
+      // Process params.data
+      Object.entries(params.data || {}).forEach(([key, value]) => {
+        if (typeof value === 'function') {
+          return (extraData[key] = value(col));
+        }
+
+        extraData[key] = value;
+      });
 
       if (col.isGlobal) {
         return processors.createGlobal(col.raw as Variable[], extraData, options);

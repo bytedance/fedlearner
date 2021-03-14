@@ -96,7 +96,7 @@ function _getUIs({
     'x-index': index,
     'x-component-props': {
       size,
-      placeholder: placeholder || `请输入 ${name}`,
+      placeholder: placeholder || tooltip || `请输入 ${name}`,
     },
   };
 }

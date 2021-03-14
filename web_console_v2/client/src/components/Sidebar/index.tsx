@@ -119,7 +119,6 @@ function Sidebar({ className }: StyledComponetProps) {
           </Menu.Item>
         ))}
       </StyledMenu>
-
       <FoldButton onClick={onFoldClick}>{isFolded ? <MenuUnfold /> : <MenuFold />}</FoldButton>
     </Container>
   );

@@ -20,7 +20,7 @@ import styled from 'styled-components';
 import { MixinCircle, MixinCommonTransition, MixinFlexAlignCenter } from 'styles/mixins';
 import PubSub from 'pubsub-js';
 import { Tooltip } from 'antd';
-import { getOrInsertValueByid } from 'views/WorkflowTemplates/CreateTemplate/store';
+import { getOrInsertValueById } from '../store';
 
 const AddJobButton = styled.div`
   ${MixinCircle(20)}
@@ -111,7 +111,7 @@ const TemplateConfigNode: FC<JobNodeProps> = ({ data, id }) => {
   const icon = statusIcons[data.status];
   const text = configStatusText[data.status];
 
-  const values = getOrInsertValueByid(id);
+  const values = getOrInsertValueById(id);
 
   return (
     <StyledContainer className={classNames([data.raw.is_federated && 'federated-mark', data.mark])}>

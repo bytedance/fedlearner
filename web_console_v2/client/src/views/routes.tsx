@@ -7,7 +7,7 @@ import Datasets from 'views/Datasets';
 import Settings from 'views/Settings';
 import { FedRouteConfig } from 'typings/app';
 
-import Editor from 'components/Editor';
+import Editor from 'components/CodeEditor';
 
 const routes: FedRouteConfig[] = [
   {
@@ -38,8 +38,8 @@ const routes: FedRouteConfig[] = [
     auth: true,
   },
   {
-    path: '/editor-test',
-    component: Editor,
+    path: '/settings',
+    component: Settings,
     auth: true,
   },
 ];

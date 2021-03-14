@@ -1,10 +1,17 @@
 import { clone, isNil } from 'lodash';
 import { giveWeakRandomKey } from 'shared/helpers';
 import { JobType, JobDefinitionForm } from 'typings/job';
-import { Variable, VariableAccessMode, VariableComponent } from 'typings/variable';
+import {
+  Variable,
+  VariableAccessMode,
+  VariableComponent,
+  VariableValueType,
+} from 'typings/variable';
 
 export const TPL_GLOBAL_NODE_UUID = giveWeakRandomKey();
 
+// You can note that we don't have `dependencies` field here
+// since the job form doesn't decide the value, but the TemplateCanvas do
 export const DEFAULT_JOB: JobDefinitionForm = {
   name: '',
   job_type: JobType.DATA_JOIN,
@@ -20,38 +27,38 @@ export const DEFAULT_VARIABLE: Variable = {
   name: '',
   value: '',
   access_mode: VariableAccessMode.PEER_WRITABLE,
+  type: VariableValueType.STRING,
   widget_schema: {
     component: VariableComponent.Input,
-    type: 'string',
     required: true,
   },
 };
 
-const storedJobNGlbalForms: Map<string, JobDefinitionForm> = new Map();
+const storedJobNGlbalValues: Map<string, JobDefinitionForm> = new Map();
 
 /**
  * NOTE: will create a default job def or global vars if not exist
  */
-export function getOrInsertValueByid(id?: string) {
+export function getOrInsertValueById(id?: string) {
   if (isNil(id)) return null;
 
-  if (!storedJobNGlbalForms.has(id)) {
+  if (!storedJobNGlbalValues.has(id)) {
     upsertValue(id, id === TPL_GLOBAL_NODE_UUID ? clone(DEFAULT_GLOBAL_VARS) : clone(DEFAULT_JOB));
   }
 
-  return storedJobNGlbalForms.get(id)!;
+  return storedJobNGlbalValues.get(id)!;
 }
 
 export function removeValueId(id: string) {
-  return storedJobNGlbalForms.delete(id);
+  return storedJobNGlbalValues.delete(id);
 }
 
 export function upsertValue(id: string, val: any) {
-  return storedJobNGlbalForms.set(id, val);
+  return storedJobNGlbalValues.set(id, val);
 }
 
 export function clearMap() {
-  return storedJobNGlbalForms.clear();
+  return storedJobNGlbalValues.clear();
 }
 
-export default storedJobNGlbalForms;
+export default storedJobNGlbalValues;

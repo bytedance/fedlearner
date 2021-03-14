@@ -60,7 +60,7 @@ const JobExecutionPods: FC<Props> = ({ job, isPeerSide }) => {
       render: (val: PodState, record: Pod) => {
         let tip: string = '';
         if ([PodState.FAILED, PodState.PENDING].includes(record.status)) {
-          tip = record.conditions?.map((item) => item.message).join(', ') || '';
+          tip = record.message || '';
         }
         return <StateIndicator type={stateType[val]} text={stateText[val]} tip={tip} />;
       },

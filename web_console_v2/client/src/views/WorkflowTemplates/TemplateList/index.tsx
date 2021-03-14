@@ -2,14 +2,16 @@ import React, { FC, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from 'react-query';
 import { Link, useHistory } from 'react-router-dom';
-import { fetchWorkflowTemplateList } from 'services/workflow';
+import { deleteTemplate, fetchTemplateById, fetchWorkflowTemplateList } from 'services/workflow';
 import styled from 'styled-components';
 import ListPageLayout from 'components/ListPageLayout';
 import NoResult from 'components/NoResult';
-import { Col, Input, Row, Table, Form, Button, Tag } from 'antd';
+import { Col, Input, Row, Table, Form, Button, Tag, Popconfirm, message } from 'antd';
 import { WorkflowTemplate } from 'typings/workflow';
 import GridRow from 'components/_base/GridRow';
 import { Experiment } from 'components/IconPark';
+import { to } from 'shared/helpers';
+import { useToggle } from 'react-use';
 
 const ListContainer = styled.div`
   display: flex;
@@ -20,6 +22,35 @@ const TemplateName = styled(Link)`
   font-size: 16px;
 `;
 
+const DownloadTemplate: FC<{ template: WorkflowTemplate }> = ({ template: { id, name } }) => {
+  const { t } = useTranslation();
+
+  const [loading, setLoading] = useToggle(false);
+
+  return (
+    <Button type="link" loading={loading} onClick={onClick}>
+      {t('workflow.action_download')}
+    </Button>
+  );
+
+  async function onClick() {
+    setLoading(true);
+    const [res, err] = await to(fetchTemplateById(id));
+    setLoading(false);
+
+    if (err) {
+      return message.error(t('workflow.msg_get_tpl_detail_failed'));
+    }
+
+    const anchor = document.createElement('a');
+
+    anchor.download = res.data.name + '.json';
+    anchor.href = `data:text/json;charset=utf-8,${JSON.stringify(res.data)}`;
+
+    anchor.click();
+  }
+};
+
 const TemplateList: FC = () => {
   const { t } = useTranslation();
   const history = useHistory();
@@ -27,7 +58,6 @@ const TemplateList: FC = () => {
   const [params, setParams] = useState({ keyword: '' });
 
   const listQ = useQuery('fetchTemplateList', () => fetchWorkflowTemplateList(), {
-    staleTime: 60 * 60 * 1000,
     refetchOnWindowFocus: false,
   });
 
@@ -41,7 +71,7 @@ const TemplateList: FC = () => {
         dataIndex: 'name',
         name: 'name',
         render: (name: string, record: WorkflowTemplate) => (
-          <TemplateName to={`/workflow-template/edit/${record.id}`}>{name}</TemplateName>
+          <TemplateName to={`/workflow-templates/edit/basic/${record.id}`}>{name}</TemplateName>
         ),
       },
       {
@@ -63,15 +93,19 @@ const TemplateList: FC = () => {
         name: 'operation',
         render: (_: any, record: WorkflowTemplate) => {
           return (
-            <GridRow gap="15">
-              <a
-                role="button"
-                download={`${record.name}.json`}
-                href={`data:text/json;charset=utf-8,${JSON.stringify(record.config)}`}
+            <GridRow gap="8">
+              <DownloadTemplate template={record} />
+
+              <Link to={`/workflow-templates/edit/basic/${record.id}`}>{t('edit')}</Link>
+
+              <Popconfirm
+                title={t('workflow.msg_sure_to_delete')}
+                onConfirm={() => onDeleteConfirm(record)}
               >
-                {t('workflow.action_download')}
-              </a>
-              <Link to={`/workflow-template/edit/${record.id}`}>{t('workflow.action_detail')}</Link>
+                <Button size="small" type="link" danger>
+                  {t('delete')}
+                </Button>
+              </Popconfirm>
             </GridRow>
           );
         },
@@ -88,7 +122,7 @@ const TemplateList: FC = () => {
           {t('menu.label_workflow_tpl')}
         </GridRow>
       }
-      tip="This feature is under constructing"
+      tip="This feature is experimental"
     >
       <Row gutter={16} justify="space-between" align="middle">
         <Col>
@@ -110,7 +144,7 @@ const TemplateList: FC = () => {
 
       <ListContainer>
         {isEmpty ? (
-          <NoResult text={t('workflow.no_tpl')} to="/workflow-templates/create" />
+          <NoResult text={t('workflow.no_tpl')} to="/workflow-templates/create/basic" />
         ) : (
           <Table
             loading={listQ.isFetching}
@@ -129,6 +163,15 @@ const TemplateList: FC = () => {
   }
   function onSearch(values: any) {
     setParams(values);
+  }
+  async function onDeleteConfirm(record: WorkflowTemplate) {
+    const [, error] = await to(deleteTemplate(record.id));
+
+    if (error) {
+      return message.error(error.message);
+    }
+
+    listQ.refetch();
   }
 };
 

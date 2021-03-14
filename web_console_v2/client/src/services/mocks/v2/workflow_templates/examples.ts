@@ -1,6 +1,6 @@
 import { WorkflowTemplate } from 'typings/workflow';
 import { JobType } from 'typings/job';
-import { VariableAccessMode, VariableComponent } from 'typings/variable';
+import { VariableAccessMode, VariableComponent, VariableValueType } from 'typings/variable';
 import { DeepPartial } from 'utility-types';
 import { gloabalVariables } from '../variables/examples';
 
@@ -209,10 +209,10 @@ export const complexDepsTemplate: DeepPartial<WorkflowTemplate> = {
           {
             name: 'job_name',
             value: '',
+            type: VariableValueType.STRING,
             access_mode: VariableAccessMode.PEER_WRITABLE,
             widget_schema: {
               component: VariableComponent.Input,
-              type: 'string',
               required: true,
             },
           },
@@ -228,9 +228,9 @@ export const complexDepsTemplate: DeepPartial<WorkflowTemplate> = {
             name: 'job_name',
             value: '',
             access_mode: VariableAccessMode.PEER_WRITABLE,
+            type: VariableValueType.STRING,
             widget_schema: {
               component: VariableComponent.Input,
-              type: 'string',
             },
           },
         ],
@@ -243,12 +243,15 @@ export const complexDepsTemplate: DeepPartial<WorkflowTemplate> = {
         dependencies: [{ source: 'Initiative' }],
         variables: [
           {
-            name: 'job_name',
-            value: '',
+            name: 'codes',
+            value: {
+              'foo.py': 'int a = 1',
+              'folder/bar.py': 'bool b = True',
+            },
             access_mode: VariableAccessMode.PEER_WRITABLE,
+            type: VariableValueType.CODE,
             widget_schema: {
-              component: VariableComponent.Input,
-              type: 'string',
+              component: VariableComponent.Code,
               required: true,
             },
           },
@@ -268,12 +271,12 @@ export const complexDepsTemplate: DeepPartial<WorkflowTemplate> = {
         dependencies: [{ source: 'Raw data upload' }, { source: 'Raw data process' }],
         variables: [
           {
-            name: 'job_name2',
+            name: 'job_name',
             value: '',
             access_mode: VariableAccessMode.PEER_WRITABLE,
+            type: VariableValueType.STRING,
             widget_schema: {
               component: VariableComponent.Input,
-              type: 'string',
             },
           },
         ],
@@ -285,12 +288,12 @@ export const complexDepsTemplate: DeepPartial<WorkflowTemplate> = {
         dependencies: [{ source: 'Training' }, { source: 'Raw data save' }],
         variables: [
           {
-            name: 'job_name2',
+            name: 'job_name',
             value: '',
+            type: VariableValueType.STRING,
             access_mode: VariableAccessMode.PEER_WRITABLE,
             widget_schema: {
               component: VariableComponent.Input,
-              type: 'string',
             },
           },
         ],

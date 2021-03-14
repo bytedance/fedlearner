@@ -20,11 +20,14 @@ const VariableList: FC = () => {
               noStyle
               rules={[{ required: true, message: t('project.msg_var_name') }]}
             >
-              <VariableForm name={[field.name]} onRemove={() => remove(field.name)} />
+              <VariableForm path={[field.name]} onRemove={() => remove(field.name)} />
             </Form.Item>
           ))}
           {fields.length === 0 && (
-            <NoResult text="暂无变量，新建一个吧" style={{ margin: '20px auto', width: '30%' }} />
+            <NoResult
+              text="暂无变量，新建一个吧"
+              style={{ margin: '50px auto 20px', width: '30%' }}
+            />
           )}
           <Form.Item wrapperCol={{ offset: 9 }}>
             {/* DO NOT simplify `() => add()` to `add`, it will pollute form value with $event */}

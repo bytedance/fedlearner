@@ -21,7 +21,7 @@ type Props = {
   workflow?: WorkflowExecutionDetails;
 };
 
-const JobExecutionLogs: FC<Props> = ({ job, enabled, isPeerSide }) => {
+const JobExecutionLogs: FC<Props> = ({ job, enabled, isPeerSide, workflow }) => {
   const { t } = useTranslation();
 
   return (
@@ -46,7 +46,7 @@ const JobExecutionLogs: FC<Props> = ({ job, enabled, isPeerSide }) => {
         return { data: ['Job name invalid!'] };
       }
 
-      return fetchPeerJobEvents(job.k8sName!, {
+      return fetchPeerJobEvents(workflow?.uuid!, job.k8sName!, {
         maxLines: 500,
       }).catch((error) => ({
         data: [error.message],
@@ -66,7 +66,10 @@ const JobExecutionLogs: FC<Props> = ({ job, enabled, isPeerSide }) => {
 
   async function goFullScreen() {
     if (isPeerSide) {
-      return window.open(`/v2/logs/job/events/peer/${job.k8sName}`, '_blank noopener');
+      return window.open(
+        `/v2/logs/job/events/peer/${job.k8sName}/${workflow?.uuid}`,
+        '_blank noopener',
+      );
     }
     window.open(`/v2/logs/job/${job.id}`, '_blank noopener');
   }

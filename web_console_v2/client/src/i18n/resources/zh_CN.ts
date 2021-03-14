@@ -30,6 +30,7 @@ const messages = {
     submit: '确认',
     cancel: '取消',
     close: '关闭',
+    edit: '编辑',
     delete: '删除',
     reset: '重置',
     previous_step: '上一步',

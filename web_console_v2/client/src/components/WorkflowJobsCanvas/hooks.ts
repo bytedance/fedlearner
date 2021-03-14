@@ -2,7 +2,15 @@ import { isEmpty, clone } from 'lodash';
 import { useMemo } from 'react';
 import { JobColorsMark, JobNodeRawData } from './types';
 
-const COLORS_POOL: JobColorsMark[] = ['blue', 'green', 'yellow', 'magenta', 'cyan'];
+const COLORS_POOL: JobColorsMark[] = [
+  'blue',
+  'green',
+  'yellow',
+  'magenta',
+  'cyan',
+  'red',
+  'purple',
+];
 
 export function useMarkFederatedJobs() {
   const colorsPool = useMemo(() => clone(COLORS_POOL), []);

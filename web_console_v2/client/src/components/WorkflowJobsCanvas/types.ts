@@ -10,7 +10,7 @@ export enum ChartNodeStatus {
   Error,
 }
 
-export type JobColorsMark = 'blue' | 'green' | 'yellow' | 'magenta' | 'cyan';
+export type JobColorsMark = 'blue' | 'green' | 'yellow' | 'magenta' | 'cyan' | 'red' | 'purple';
 
 // Except for 'global', others all stand for a job node, i.e. 'config' is job config, 'fork' is job fork
 export type ChartNodeType = 'config' | 'execution' | 'global' | 'fork';

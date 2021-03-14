@@ -1,6 +1,6 @@
 import React, { FC } from 'react';
 import styled from 'styled-components';
-import { Form, Input, Button, Col, Radio } from 'antd';
+import { Form, Input, Button, Col, Radio, Popconfirm } from 'antd';
 import { useTranslation } from 'react-i18next';
 import { Variable, VariableAccessMode } from 'typings/variable';
 import { Delete, Down } from 'components/IconPark';
@@ -46,7 +46,7 @@ const Container = styled.div`
 `;
 
 type Props = {
-  name: (number | string)[];
+  path: (number | string)[];
   value?: Variable;
   onChange?: (val: Variable) => any;
   onRemove: any;
@@ -56,8 +56,12 @@ type Props = {
  * Dynamic Variable form list
  * MUST wrap with a antd.Form
  */
-const VariableForm: FC<Props> = ({ name, value, onRemove }) => {
+const VariableForm: FC<Props> = ({ path, value, onRemove }) => {
   const { t } = useTranslation();
+
+  if (!value) {
+    return null;
+  }
 
   const data = value!;
 
@@ -70,9 +74,11 @@ const VariableForm: FC<Props> = ({ name, value, onRemove }) => {
 
         <Name>{data.name || '点击编辑变量'}</Name>
         <Col>
-          <Button type="link" size="small" icon={<Delete />} onClick={onRemoveClick as any}>
-            删除
-          </Button>
+          <Popconfirm title={t('确认删除该变量吗')} onConfirm={onRemoveClick as any}>
+            <Button type="link" size="small" icon={<Delete />}>
+              删除
+            </Button>
+          </Popconfirm>
 
           <Down className="open-indicator" />
         </Col>
@@ -80,7 +86,7 @@ const VariableForm: FC<Props> = ({ name, value, onRemove }) => {
 
       <Container>
         <Form.Item
-          name={[...name, 'name']}
+          name={[...path, 'name']}
           label={t('workflow.label_var_name')}
           rules={[
             { required: true, message: t('workflow.msg_varname_required') },
@@ -94,7 +100,7 @@ const VariableForm: FC<Props> = ({ name, value, onRemove }) => {
         </Form.Item>
 
         <Form.Item
-          name={[...name, 'access_mode']}
+          name={[...path, 'access_mode']}
           label={t('workflow.label_peer_access')}
           rules={[{ required: true }]}
         >
@@ -112,8 +118,8 @@ const VariableForm: FC<Props> = ({ name, value, onRemove }) => {
           </Radio.Group>
         </Form.Item>
 
-        <Form.Item name={[...name, 'widget_schema']} noStyle>
-          <WidgetSchema name={[...name, 'widget_schema']} />
+        <Form.Item name={[...path, 'widget_schema']} noStyle>
+          <WidgetSchema path={[...path, 'widget_schema']} />
         </Form.Item>
       </Container>
     </Details>

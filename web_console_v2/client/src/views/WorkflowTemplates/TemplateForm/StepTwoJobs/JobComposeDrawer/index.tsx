@@ -2,7 +2,6 @@ import React, { forwardRef, ForwardRefRenderFunction, useEffect, useImperativeHa
 import styled from 'styled-components';
 import { Drawer, Row, Button, Form, Switch, Input, Select } from 'antd';
 import { DrawerProps } from 'antd/lib/drawer';
-import { CodeOutlined } from '@ant-design/icons';
 import ErrorBoundary from 'antd/lib/alert/ErrorBoundary';
 import GridRow from 'components/_base/GridRow';
 import { Close, Swap } from 'components/IconPark';
@@ -10,7 +9,8 @@ import { useTranslation } from 'react-i18next';
 import { JobType, JobDefinitionForm } from 'typings/job';
 import { omit } from 'lodash';
 import VariableList from './VariableList';
-import { DEFAULT_JOB, getOrInsertValueByid } from '../../store';
+import { DEFAULT_JOB, getOrInsertValueById } from '../../store';
+import YAMLTemplateEditorButton from 'components/YAMLTemplateEditorButton';
 
 const Container = styled(Drawer)`
   top: 60px;
@@ -43,6 +43,14 @@ const FormSection = styled.section`
     color: var(--textColorStrong);
   }
 `;
+const ButtonGridRow = styled(GridRow)`
+  position: fixed;
+  bottom: 60px;
+  width: 100%;
+  padding: 20px 0;
+  background-color: white;
+  border-top: 1px solid var(--lineColor);
+`;
 
 interface Props extends DrawerProps {
   isGlobal: boolean;
@@ -74,8 +82,8 @@ const JobComposerDrawer: ForwardRefRenderFunction<ExposedRef, Props> = (
   });
 
   useEffect(() => {
-    if (uuid) {
-      formInstance.setFieldsValue(getOrInsertValueByid(uuid)!);
+    if (uuid && formInstance) {
+      formInstance.setFieldsValue(getOrInsertValueById(uuid)!);
     }
   }, [uuid, formInstance]);
 
@@ -86,6 +94,7 @@ const JobComposerDrawer: ForwardRefRenderFunction<ExposedRef, Props> = (
         visible={visible}
         mask={false}
         width="640px"
+        push={{ distance: -240 }}
         onClose={closeDrawer}
         headerStyle={{ display: 'none' }}
         {...props}
@@ -145,9 +154,9 @@ const JobComposerDrawer: ForwardRefRenderFunction<ExposedRef, Props> = (
               <Form.Item
                 name="yaml_template"
                 label={t('workflow.label_job_yaml')}
-                rules={[{ required: false, message: t('workflow.msg_yaml_required') }]}
+                rules={[{ required: true, message: t('workflow.msg_yaml_required') }]}
               >
-                <Button icon={<CodeOutlined />}>打开编辑器</Button>
+                <YAMLTemplateEditorButton />
               </Form.Item>
             </FormSection>
           )}
@@ -159,13 +168,13 @@ const JobComposerDrawer: ForwardRefRenderFunction<ExposedRef, Props> = (
           </FormSection>
 
           <Form.Item wrapperCol={{ offset: 0 }}>
-            <GridRow gap={16} top="12" style={{ position: 'fixed', bottom: '80px' }}>
+            <ButtonGridRow gap={16} top="12">
               <Button type="primary" htmlType="submit">
                 {t('confirm')}
               </Button>
 
               <Button onClick={closeDrawer}>{t('cancel')}</Button>
-            </GridRow>
+            </ButtonGridRow>
           </Form.Item>
         </Form>
       </Container>

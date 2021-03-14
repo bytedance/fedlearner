@@ -4,6 +4,7 @@ import React, {
   ForwardRefRenderFunction,
   forwardRef,
   useImperativeHandle,
+  useRef,
 } from 'react';
 import ReactFlow, {
   Background,
@@ -21,19 +22,21 @@ import {
   JobNodeRawData,
 } from 'components/WorkflowJobsCanvas/types';
 import { Container } from 'components/WorkflowJobsCanvas/styles';
-import { WorkflowTemplateForm } from 'stores/template';
+import { JobNodeRawDataSlim, WorkflowTemplateForm } from 'stores/template';
 import i18n from 'i18n';
 import { Variable } from 'typings/variable';
 import {
   ConvertParams,
   convertToChartElements,
   RawDataRows,
+  RawDataCol,
 } from 'components/WorkflowJobsCanvas/helpers';
 import GlobalConfigNode from 'components/WorkflowJobsCanvas/JobNodes/GlobalConfigNode';
 import TemplateConfigNode from './TemplateConfigNode';
 import { TPL_GLOBAL_NODE_UUID } from '../store';
 
 type Props = {
+  isEdit?: boolean;
   template: WorkflowTemplateForm;
   onCanvasClick?: any;
   onNodeClick?: any;
@@ -50,9 +53,11 @@ export type ExposedRef = {
 };
 
 const TemplateCanvas: ForwardRefRenderFunction<ExposedRef, Props> = (
-  { template, onCanvasClick, onNodeClick },
+  { template, onCanvasClick, onNodeClick, isEdit },
   parentRef,
 ) => {
+  const isInitialConvert = useRef(true);
+
   const [chartInstance, setChartInstance] = useState<OnLoadParams>();
   const [elements, setElements] = useState<ChartElements>([]);
   // ☢️ WARNING: since we using react-flow hooks here,
@@ -61,7 +66,6 @@ const TemplateCanvas: ForwardRefRenderFunction<ExposedRef, Props> = (
 
   const templateIdentifyString = template.config.job_definitions
     .map((item, index) => index + item.uuid + (item.mark || ''))
-    .concat(template.config.variables?.map((item) => item.name) || [])
     .join('|');
 
   useEffect(() => {
@@ -69,7 +73,28 @@ const TemplateCanvas: ForwardRefRenderFunction<ExposedRef, Props> = (
       {
         jobs: template.config.job_definitions as any,
         variables: template.config.variables || [],
-        data: {},
+        data: {
+          /**
+           * Assign node status by current context
+           * 1. If the node has status before, just reuse it
+           * 2. If the node is new created, set to Pending
+           * 3. If is edit-mode plus first time convert, all node should be Success by default
+           */
+          status({ raw, isGlobal }: RawDataCol) {
+            const node = elements.find(
+              (node) =>
+                node.id === (isGlobal ? TPL_GLOBAL_NODE_UUID : (raw as JobNodeRawDataSlim).uuid),
+            );
+
+            if (node) {
+              return node.data.status;
+            }
+
+            return isEdit && isInitialConvert.current
+              ? ChartNodeStatus.Success
+              : ChartNodeStatus.Pending;
+          },
+        },
       },
       { type: 'tpl-config', selectable: true },
       {
@@ -79,6 +104,10 @@ const TemplateCanvas: ForwardRefRenderFunction<ExposedRef, Props> = (
       },
     );
     setElements(jobElements);
+    // Set isInitialConvert to false
+    if (isInitialConvert.current) {
+      isInitialConvert.current = false;
+    }
     // eslint-disable-next-line
   }, [templateIdentifyString]);
 
@@ -144,14 +173,14 @@ const TemplateCanvas: ForwardRefRenderFunction<ExposedRef, Props> = (
   }
 };
 
-function _createTPLGlobalNode(variables: Variable[], data: any, options: any) {
+function _createTPLGlobalNode(_: Variable[], data: any, options: any) {
   const name = i18n.t('workflow.label_global_config');
 
   return {
     id: TPL_GLOBAL_NODE_UUID,
     data: {
       raw: {
-        variables,
+        variables: [],
         name,
       },
       status: ChartNodeStatus.Pending,
@@ -165,7 +194,7 @@ function _createTPLGlobalNode(variables: Variable[], data: any, options: any) {
   };
 }
 
-function _createTPLJobNode(job: JobNodeRawData & { uuid: string }, data: any, options: any) {
+function _createTPLJobNode(job: JobNodeRawDataSlim, data: any, options: any) {
   return {
     id: job.uuid,
     data: {

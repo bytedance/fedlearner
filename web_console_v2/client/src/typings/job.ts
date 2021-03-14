@@ -52,9 +52,7 @@ export interface Pod {
   name: string;
   status: PodState;
   pod_type: string;
-  conditions?: {
-    message: string;
-  }[];
+  message?: string;
 }
 
 export interface JobExecutionDetalis {
