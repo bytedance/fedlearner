@@ -17,8 +17,8 @@
 import tarfile
 from io import BytesIO
 import base64
-
-CODE_KEYS = ['code_key', 'CODE_KEY']
+from fedlearner_webconsole.exceptions import InvalidArgumentException
+CODES = ['codes', 'CODES']
 class CodeKeyParser(object):
 
     def _encode(self, data_dict):
@@ -33,21 +33,21 @@ class CodeKeyParser(object):
                     tar.addfile(tarinfo, BytesIO(
                         data_dict[path].encode('utf-8')))
             result = str(base64.b64encode(out.getvalue()), encoding='utf-8')
-            return f'code://{result}'
-        return data_dict
+            return result
+        else:
+            raise InvalidArgumentException(f'the values of Variables'
+                                           f' {CODES} must be a dict')
 
     def _decode(self, data_string):
         # if data_string is a tarfile ,
         # parse it to a dict that file path as keys
-        if data_string.startswith('code://'):
-            tar_binary = BytesIO(base64.b64decode(data_string[7:]))
-            code_dict = {}
-            with tarfile.open(fileobj=tar_binary) as tar:
-                for file in tar.getmembers():
-                    code_dict[file.name] = str(tar.extractfile(file).read(),
-                                               encoding='utf-8')
-            return code_dict
-        return data_string
+        tar_binary = BytesIO(base64.b64decode(data_string))
+        code_dict = {}
+        with tarfile.open(fileobj=tar_binary) as tar:
+            for file in tar.getmembers():
+                code_dict[file.name] = str(tar.extractfile(file).read(),
+                                           encoding='utf-8')
+        return code_dict
 
     def decode_code_key_in_config(self, config):
         if config is None:
@@ -62,7 +62,7 @@ class CodeKeyParser(object):
                 if 'variables' in job:
                     for variable in job['variables']:
                         # hard code only decode variable named code_key
-                        if variable['name'] in CODE_KEYS:
+                        if variable['name'] in CODES:
                             variable['value'] = self._decode(
                                 variable['value'])
         return config
@@ -80,7 +80,7 @@ class CodeKeyParser(object):
                 if 'variables' in job:
                     for variable in job['variables']:
                         # hard code only decode variable named code_key
-                        if variable['name'] in CODE_KEYS:
+                        if variable['name'] in CODES:
                             variable['value'] = self._encode(
                                 variable['value'])
         return config
