@@ -32,14 +32,14 @@ class CodeKeyParser(object):
                     tar.addfile(tarinfo, BytesIO(
                         data_dict[path].encode('utf-8')))
             result = str(base64.b64encode(out.getvalue()), encoding='utf-8')
-            return result
+            return f'base64://{result}'
         raise InvalidArgumentException('the values of code type'
                                        ' Variable must be a dict')
 
     def _decode(self, data_string):
         # if data_string is a tarfile ,
         # parse it to a dict that file path as keys
-        tar_binary = BytesIO(base64.b64decode(data_string))
+        tar_binary = BytesIO(base64.b64decode(data_string[9:]))
         code_dict = {}
         with tarfile.open(fileobj=tar_binary) as tar:
             for file in tar.getmembers():
@@ -60,7 +60,8 @@ class CodeKeyParser(object):
                 if 'variables' in job:
                     for variable in job['variables']:
                         # hard code only decode variable named code_key
-                        if variable['value_type'] == 'CODE':
+                        if 'value_type' in variable \
+                             and variable['value_type'] == 'CODE':
                             variable['value'] = self._decode(
                                 variable['value'])
         return config
@@ -78,7 +79,8 @@ class CodeKeyParser(object):
                 if 'variables' in job:
                     for variable in job['variables']:
                         # hard code only decode variable named code_key
-                        if variable['value_type'] == 'CODE':
+                        if 'value_type' in variable \
+                             and variable['value_type'] == 'CODE':
                             variable['value'] = self._encode(
                                 variable['value'])
         return config
