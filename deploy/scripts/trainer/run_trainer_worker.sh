@@ -49,8 +49,10 @@ elif [[ ${CODE_KEY} == "http://"* || ${CODE_KEY} == "https://"* ]]; then
     wget ${CODE_KEY} -O code.tar.gz
 elif [[ ${CODE_KEY} == "oss://"* ]]; then
     python -c "import tensorflow as tf; import tensorflow_io; open('code.tar.gz', 'wb').write(tf.io.gfile.GFile('${CODE_KEY}', 'rb').read())"
-else
+elif [[ ${CODE_KEY} != ""]]; then
     cp ${CODE_KEY} code.tar.gz
+elif [[ ${CODE_TAR} == "base64://"*]]; then
+    python -c "import base64; open('code.tar.gz', 'wb').write(base64.b64decode('${CODE_TAR}'[9:]))"
 fi
 tar -zxvf code.tar.gz
 cd ${ROLE}
