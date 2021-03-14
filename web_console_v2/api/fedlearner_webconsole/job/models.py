@@ -171,22 +171,22 @@ class Job(db.Model):
         pods = pods['items']
         for pod in pods:
             status = pod['status']['phase'].lower()
-            message = ''
+            msgs = []
             if 'containerStatuses' in pod['status']:
                 state = pod['status']['containerStatuses'][0]['state']
-                for detail in state.values():
+                for key, detail in state.values():
                     if filter_private_info:
-                        message = detail.get('reason', message)
+                        msgs.append(key + ':' + detail.get('reason', ''))
                     else:
-                        message = detail.get('message', message)
+                        msgs.append(key + ':' + detail.get('message', ''))
+
+            if filter_private_info:
+                msgs.extend([
+                    cond.get('reason', '') for cond in pod['conditions']])
             else:
-                if filter_private_info:
-                    msgs = [
-                        cond.get('reason', '') for cond in pod['conditions']]
-                else:
-                    msgs = [
-                        cond.get('message', '') for cond in pod['conditions']]
-                message = ', '.join(msgs)
+                msgs.extend([
+                    cond.get('message', '') for cond in pod['conditions']])
+            message = ', '.join(msgs)
 
             pod_for_front = {
                 'name': pod['metadata']['name'],
