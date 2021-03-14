@@ -145,7 +145,7 @@ class Job(db.Model):
             return json.loads(self.flapp_snapshot)['flapp']
         return None
 
-    def get_pods_for_frontend(self):
+    def get_pods_for_frontend(self, filter_private_info=False):
         result = []
         flapp = self.get_flapp()
         if flapp is None:
@@ -153,32 +153,47 @@ class Job(db.Model):
         if 'status' in flapp \
             and 'flReplicaStatus' in flapp['status']:
             replicas = flapp['status']['flReplicaStatus']
-            if replicas is None:
-                return result
-            for pod_type in replicas:
-                for state in ['failed', 'succeeded']:
-                    for pod in replicas[pod_type][state]:
-                        result.append({
-                            'name': pod,
-                            'status': 'Flapp_{}'.format(state),
-                            'pod_type': pod_type
-                        })
+            if replicas:
+                for pod_type in replicas:
+                    for state in ['failed', 'succeeded']:
+                        for pod in replicas[pod_type][state]:
+                            result.append({
+                                'name': pod,
+                                'pod_type': pod_type,
+                                'status': state,
+                                'message': '',
+                            })
+
         # msg from pods
         pods = self.get_pods()
         if pods is None:
             return result
         pods = pods['items']
         for pod in pods:
-            # TODO: make this more readable for frontend
+            status = pod['status']['phase'].lower()
+            message = ''
+            if 'containerStatuses' in pod['status']:
+                state = pod['status']['containerStatuses'][0]['state']
+                for detail in state.values():
+                    if filter_private_info:
+                        message = detail.get('reason', message)
+                    else:
+                        message = detail.get('message', message)
+            else:
+                if filter_private_info:
+                    msgs = [
+                        cond.get('reason', '') for cond in pod['conditions']]
+                else:
+                    msgs = [
+                        cond.get('message', '') for cond in pod['conditions']]
+                message = ', '.join(msgs)
+
             pod_for_front = {
                 'name': pod['metadata']['name'],
                 'pod_type': pod['metadata']['labels']['fl-replica-type'],
-                'status': pod['status']['phase'],
-                'conditions': pod['status']['conditions']
+                'status': status,
+                'message': message
             }
-            if 'containerStatuses' in pod['status']:
-                pod_for_front['containers_status'] = \
-                    pod['status']['containerStatuses']
             result.append(pod_for_front)
         # deduplication pods both in pods and flapp
         result = list({pod['name']: pod for pod in result}.values())
