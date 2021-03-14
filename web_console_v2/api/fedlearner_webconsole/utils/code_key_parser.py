@@ -47,8 +47,9 @@ class CodeKeyParser(object):
                     code_dict[file.name] = str(tar.extractfile(file).read(),
                                                encoding='utf-8')
             return code_dict
-        raise InvalidArgumentException('The stored value of a code type Variable'
-                                       ' should be base64 but not string')
+        raise InvalidArgumentException('The stored value of a code type '
+                                       'Variable should be base64 but not '
+                                       'string')
 
     def decode_code_key_in_config(self, config):
         if config is None:
