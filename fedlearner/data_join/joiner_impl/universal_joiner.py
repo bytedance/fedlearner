@@ -17,10 +17,10 @@
 import logging
 import time
 import traceback
+import heapq
 from collections import namedtuple
 
 from fedlearner.common import metrics
-
 import fedlearner.data_join.common as common
 from fedlearner.data_join.joiner_impl.example_joiner import ExampleJoiner
 from fedlearner.data_join.negative_example_generator \
@@ -33,7 +33,49 @@ from fedlearner.data_join.key_mapper import create_key_mapper
 # fi: follower index
 # fe: follower example instance
 IndexedTime = namedtuple('IndexedTime', ['li', 'event_time'])
-IndexedPair = namedtuple('IndexedPair', ['fe', 'li', 'fi'])
+
+_BITS = 128
+_RING_SIZE = 1<<128
+
+class _IndexedPair(object):
+    def __init__(self, fe, li, fi):
+        self.fe = fe
+        self.li = li
+        self.fi = fi
+
+    def __lt__(self, other):
+        if self.li == other.li:
+            return self.fi < other.li
+        return self.li < other.li
+
+    def __hash__(self):
+        fi = self.fi % _RING_SIZE
+        li = self.li % _RING_SIZE
+        return fi << _BITS | li
+
+    def __eq__(self, other):
+        return self.li == other.li and self.fi == other.fi
+
+class PrioritySet(object):
+    def __init__(self):
+        self.heap = []
+        self.set = set()
+
+    def put(self, d):
+        if not d in self.set:
+            heapq.heappush(self.heap, d)
+            self.set.add(d)
+
+    def get(self):
+        d = heapq.heappop(self.heap)
+        self.set.remove(d)
+        return d
+
+    def empty(self):
+        return len(self.set) == 0
+
+    def size(self):
+        return len(self.set)
 
 def make_index_by_attr(keys, item, key_idx=None):
     """ Make multiple index from the keys by best-effort
@@ -328,7 +370,7 @@ class UniversalJoiner(ExampleJoiner):
             self._min_window_size, self._max_window_size,
             self._key_mapper.follower_mapping)
         self._leader_restart_index = -1
-        self._sorted_buf_by_leader_index = []
+        self._leader_index_ps = PrioritySet()
         self._dedup_by_follower_index = {}
         self._trigger = _Trigger(self._max_watermark_delay)
         self._expr = expr.Expr(example_joiner_options.join_expr)
@@ -392,7 +434,7 @@ class UniversalJoiner(ExampleJoiner):
             logging.info("Restart index of leader %d, follwer %d, pair_buf=%d,"\
                          " raw_pairs=%d, pairs=%d", self._leader_restart_index,\
                          self._follower_restart_index,
-                         len(self._sorted_buf_by_leader_index), len(raw_pairs),
+                         self._leader_index_ps.size(), len(raw_pairs),
                          len(pairs))
 
             #4. update the watermark
@@ -411,16 +453,6 @@ class UniversalJoiner(ExampleJoiner):
             self._set_join_finished()
             logging.info("finish join example for partition %d by %s",
                             self._partition_id, self.name())
-
-    def _latest_leader_index(self, index):
-        lf, rt = 0, len(self._sorted_buf_by_leader_index)
-        while lf < rt:
-            mid = (lf + rt) // 2
-            if index < self._sorted_buf_by_leader_index[mid].li:
-                rt = mid
-            else:
-                lf = mid + 1
-        return lf
 
     def _update_matching_pairs(self, raw_pairs, watermark):
         """
@@ -460,17 +492,12 @@ class UniversalJoiner(ExampleJoiner):
             # sort by leader index
             if not updated:
                 continue
-            latest_pos = self._latest_leader_index(li)
-            if latest_pos > 0:
-                # remove the dups
-                latest_item = \
-                    self._sorted_buf_by_leader_index[latest_pos - 1]
-                if latest_item.li == li and latest_item.fi == fi:
-                    continue
-            self._sorted_buf_by_leader_index.insert(latest_pos, \
-                                          IndexedPair(fe, li, fi))
-        matches, idx = [], 0
-        for ip in self._sorted_buf_by_leader_index:
+            self._leader_index_ps.put(_IndexedPair(fe, li, fi))
+
+        write_back_buf = []
+        matches = []
+        while not self._leader_index_ps.empty():
+            ip = self._leader_index_ps.get()
             if ip.fe.event_time <= watermark:
                 assert ip.fi in self._dedup_by_follower_index, \
                         "Invalid index[%d]"%ip.fi
@@ -483,12 +510,8 @@ class UniversalJoiner(ExampleJoiner):
                                  " older than %d", ip.fe.example_id,        \
                                  ip.li, indexed_time.li)
             else:
-                # FIXME: Assume the unordered range is limited,
-                #  or this will raise out-of-memory
+                self._leader_index_ps.put(ip)
                 break
-            idx += 1
-        self._sorted_buf_by_leader_index \
-                = self._sorted_buf_by_leader_index[idx:]
         return matches
 
     # useless
