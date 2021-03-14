@@ -36,11 +36,15 @@ message Variable {
     PEER_READABLE = 2;
     PEER_WRITABLE = 3;
   }
-
+  enum ValueType{
+    STRING = 0;
+    CODE = 1;
+  }
   string name = 1;
   string value = 2;
   AccessMode access_mode = 3;
   string widget_schema = 4;
+  ValueType value_type = 5;
 }
 
 message GrpcSpec {

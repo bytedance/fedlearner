@@ -18,7 +18,6 @@ import tarfile
 from io import BytesIO
 import base64
 from fedlearner_webconsole.exceptions import InvalidArgumentException
-CODES = ['codes', 'CODES']
 class CodeKeyParser(object):
 
     def _encode(self, data_dict):
@@ -34,9 +33,8 @@ class CodeKeyParser(object):
                         data_dict[path].encode('utf-8')))
             result = str(base64.b64encode(out.getvalue()), encoding='utf-8')
             return result
-        else:
-            raise InvalidArgumentException(f'the values of Variables'
-                                           f' {CODES} must be a dict')
+        raise InvalidArgumentException('the values of code type'
+                                       ' Variable must be a dict')
 
     def _decode(self, data_string):
         # if data_string is a tarfile ,
@@ -62,7 +60,7 @@ class CodeKeyParser(object):
                 if 'variables' in job:
                     for variable in job['variables']:
                         # hard code only decode variable named code_key
-                        if variable['name'] in CODES:
+                        if variable['value_type'] == 'CODE':
                             variable['value'] = self._decode(
                                 variable['value'])
         return config
@@ -80,7 +78,7 @@ class CodeKeyParser(object):
                 if 'variables' in job:
                     for variable in job['variables']:
                         # hard code only decode variable named code_key
-                        if variable['name'] in CODES:
+                        if variable['value_type'] == 'CODE':
                             variable['value'] = self._encode(
                                 variable['value'])
         return config
