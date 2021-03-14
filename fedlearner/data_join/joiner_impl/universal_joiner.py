@@ -17,6 +17,7 @@
 import logging
 import time
 import traceback
+from collections import namedtuple
 
 from fedlearner.common import metrics
 
@@ -27,6 +28,12 @@ from fedlearner.data_join.negative_example_generator \
 
 from fedlearner.data_join.join_expr import expression as expr
 from fedlearner.data_join.key_mapper import create_key_mapper
+
+# li: leader index
+# fi: follower index
+# fe: follower example instance
+IndexedTime = namedtuple('IndexedTime', ['li', 'event_time'])
+IndexedPair = namedtuple('IndexedPair', ['fe', 'li', 'fi'])
 
 def make_index_by_attr(keys, item, key_idx=None):
     """ Make multiple index from the keys by best-effort
@@ -365,22 +372,23 @@ class UniversalJoiner(ExampleJoiner):
                          sync_example_id_finished,                             \
                         raw_data_finished, self._leader_join_window.size(),    \
                         self._follower_join_window.size())
-
-            watermark = self._trigger.watermark()
             #1. find all the matched pairs in current window
             raw_pairs, mismatches = self._joiner.join(
                 self._follower_join_window, self._leader_join_window)
             if self._enable_negative_example_generator:
                 self._negative_example_generator.update(mismatches)
+            stride = self._trigger.trigger(self._follower_join_window,  \
+                                           self._leader_join_window)
             #2. cache the pairs, evict the leader events which are out of
             # watermark
-            pairs = self._sort_and_evict_leader_buf(raw_pairs, watermark)
+            watermark = self._trigger.watermark()
+            pairs = self._update_matching_pairs(raw_pairs, watermark)
             #3. push the result into builder
             if len(pairs) > 0:
                 for meta in self._dump_joined_items(pairs):
                     yield meta
-                self._leader_restart_index = pairs[len(pairs) - 1][1]
-                self._follower_restart_index = pairs[len(pairs) - 1][2]
+                self._leader_restart_index = pairs[len(pairs) - 1].li
+                self._follower_restart_index = pairs[len(pairs) - 1].fi
             logging.info("Restart index of leader %d, follwer %d, pair_buf=%d,"\
                          " raw_pairs=%d, pairs=%d", self._leader_restart_index,\
                          self._follower_restart_index,
@@ -388,8 +396,6 @@ class UniversalJoiner(ExampleJoiner):
                          len(pairs))
 
             #4. update the watermark
-            stride = self._trigger.trigger(self._follower_join_window,  \
-                                           self._leader_join_window)
             self._follower_join_window.forward(stride[0])
             self._leader_join_window.forward(stride[1])
 
@@ -406,25 +412,27 @@ class UniversalJoiner(ExampleJoiner):
             logging.info("finish join example for partition %d by %s",
                             self._partition_id, self.name())
 
-    def _latest_attri(self, index):
+    def _latest_leader_index(self, index):
         lf, rt = 0, len(self._sorted_buf_by_leader_index)
         while lf < rt:
             mid = (lf + rt) // 2
-            if index < self._sorted_buf_by_leader_index[mid][1]:
+            if index < self._sorted_buf_by_leader_index[mid].li:
                 rt = mid
             else:
                 lf = mid + 1
         return lf
 
-    def _sort_and_evict_leader_buf(self, raw_matches, watermark):
+    def _update_matching_pairs(self, raw_pairs, watermark):
         """
-        Push the matched pairs to order-by-leader-index list,
-        and evict the pairs which are out of watermark
+        Push the pairs into a order-by-leader-index list,
+        and evict the pairs which are out-of-watermark
         """
-        for (cid, sid) in raw_matches:
+        for (cid, sid) in raw_pairs:
             #fi: follower index, fe: follower example
-            assert cid < self._follower_join_window.size(), "Invalid l index"
-            assert sid < self._leader_join_window.size(), "Invalid f index"
+            assert cid < self._follower_join_window.size(), \
+                    "Invalid leader index[%d] out of range"%cid
+            assert sid < self._leader_join_window.size(), \
+                    "Invalid follower index[%d] out of range"%(sid)
 
             example_with_index = self._follower_join_window[cid]
             fi, fe = example_with_index.index, example_with_index.item
@@ -440,38 +448,40 @@ class UniversalJoiner(ExampleJoiner):
             # cache the latest leader event
             updated = False
             if fi in self._dedup_by_follower_index:
-                if self._dedup_by_follower_index[fi][1] > le.event_time:
-                    self._dedup_by_follower_index[fi] = (li, le.event_time)
+                if self._dedup_by_follower_index[fi].event_time <\
+                    le.event_time < fe.event_time:
+                    self._dedup_by_follower_index[fi] = \
+                            IndexedTime(li, le.event_time)
                     updated = True
             else:
-                self._dedup_by_follower_index[fi] = (li, le.event_time)
+                self._dedup_by_follower_index[fi] = \
+                        IndexedTime(li, le.event_time)
                 updated = True
             # sort by leader index
             if not updated:
                 continue
-            latest_pos = self._latest_attri(li)
+            latest_pos = self._latest_leader_index(li)
             if latest_pos > 0:
                 # remove the dups
                 latest_item = \
                     self._sorted_buf_by_leader_index[latest_pos - 1]
-                if latest_item[1] == li and latest_item[2] == fi:
+                if latest_item.li == li and latest_item.fi == fi:
                     continue
             self._sorted_buf_by_leader_index.insert(latest_pos, \
-                                          (fe, li, fi))
-        matches = []
-        idx = 0
-        for (fe, li, fi) in self._sorted_buf_by_leader_index:
-            if fe.event_time <= watermark:
-                assert fi in self._dedup_by_follower_index, \
-                        "Invalid index[%d]"%fi
-                (leader_index, _) = self._dedup_by_follower_index[fi]
-                if leader_index == li:
-                    matches.append((fe, li, fi))
-                    del self._dedup_by_follower_index[fi]
+                                          IndexedPair(fe, li, fi))
+        matches, idx = [], 0
+        for ip in self._sorted_buf_by_leader_index:
+            if ip.fe.event_time <= watermark:
+                assert ip.fi in self._dedup_by_follower_index, \
+                        "Invalid index[%d]"%ip.fi
+                indexed_time = self._dedup_by_follower_index[ip.fi]
+                if indexed_time.li == ip.li:
+                    matches.append(ip)
+                    del self._dedup_by_follower_index[ip.fi]
                 else:
                     logging.info("Example %s matching leader index %s is"   \
-                                 " older than %d", fe.example_id, li,       \
-                                 leader_index)
+                                 " older than %d", ip.fe.example_id,        \
+                                 ip.li, indexed_time.li)
             else:
                 # FIXME: Assume the unordered range is limited,
                 #  or this will raise out-of-memory
@@ -492,16 +502,15 @@ class UniversalJoiner(ExampleJoiner):
             self._reset_joiner_state(True)
         return super(UniversalJoiner, self)._prepare_join(state_stale)
 
-    def _dump_joined_items(self, matching_list):
+    def _dump_joined_items(self, indexed_pairs):
         start_tm = time.time()
         write_joined = -1
         if self._enable_negative_example_generator:
             write_joined = 1
-        for item in matching_list:
-            (fe, li, fi) = item
+        for ip in indexed_pairs:
             if self._enable_negative_example_generator:
                 for example in \
-                    self._negative_example_generator.generate(fe, li):
+                    self._negative_example_generator.generate(ip.fe, ip.li):
                     builder = self._get_data_block_builder(True)
                     assert builder is not None, "data block builder must be "\
                                                 "not None if before dummping"
@@ -514,7 +523,8 @@ class UniversalJoiner(ExampleJoiner):
             builder = self._get_data_block_builder(True)
             assert builder is not None, "data block builder must be "\
                                         "not None if before dummping"
-            builder.append_item(fe, li, fi, None, True, joined=write_joined)
+            builder.append_item(ip.fe, ip.li, ip.fi, None, True,
+                                joined=write_joined)
             if builder.check_data_block_full():
                 yield self._finish_data_block()
         metrics.emit_timer(name='universal_joiner_dump_joined_items',
