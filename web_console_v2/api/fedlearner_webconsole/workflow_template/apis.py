@@ -70,9 +70,7 @@ class WorkflowTemplatesApi(Resource):
         if WorkflowTemplate.query.filter_by(name=name).first() is not None:
             raise ResourceConflictException(
                 'Workflow template {} already exists'.format(name))
-        _check_config(config)
-        template_proto = dict_to_workflow_definition(config)
-
+        template_proto = _check_config(config)
         template = WorkflowTemplate(name=name,
                                     comment=comment,
                                     group_alias=template_proto.group_alias,
@@ -109,24 +107,24 @@ class WorkflowTemplateApi(Resource):
         name = data['name']
         comment = data['comment']
         config = data['config']
-        if WorkflowTemplate.query.filter_by(name=name).first() is not None:
+        tmp = WorkflowTemplate.query.filter_by(name=name).first()
+        if tmp is not None and tmp.id != template_id:
             raise ResourceConflictException(
                 'Workflow template {} already exists'.format(name))
         template = WorkflowTemplate.query.filter_by(id=template_id).first()
         if template is None:
             raise NotFoundException()
-        _check_config(config)
-        template_proto = dict_to_workflow_definition(config)
-
+        template_proto = _check_config(config)
         template.set_config(template_proto)
         template.name = name
         template.comment = comment
         template.group_alias = template_proto.group_alias
         template.is_left = template_proto.is_left
+        db.session.commit()
         return {'data': template.to_dict()}, HTTPStatus.OK
 
 def _check_config(config):
-    # TODO: format check
+    # TODO: needs tests
     if 'group_alias' not in config:
         raise InvalidArgumentException(details={
             'config.group_alias': 'config.group_alias is required'})
@@ -144,8 +142,8 @@ def _check_config(config):
         if len(job_def.name) > 24:
             raise InvalidArgumentException(
                 details=
-                {'config.job_definitions'
-                 : 'job_name:{} must be no more than 24 characters'})
+                {f'config.job_definitions[{index}].job_name'
+                 : 'job_name must be no more than 24 characters'})
         # limit from k8s
         if not re.match('[a-z0-9-]*', job_def.name):
             raise InvalidArgumentException(
@@ -153,7 +151,7 @@ def _check_config(config):
                 {f'config.job_definitions[{index}].job_name'
                  : 'Only letters(a-z), numbers(0-9) '
                    'and dashes(-) are supported.'})
-
+    return template_proto
 
 
 def initialize_workflow_template_apis(api):
