@@ -42,7 +42,7 @@ import datasource_producer as dsp
 
 class TestUniversalJoin(dsp.DataSourceProducer):
     def setUp(self):
-        #self.init("test_uni_joiner", "invalid joiner as placeholder", store_space="disk")
+        #self.init("test_uni_joiner", "invalid joiner as placeholder", cache_type="disk")
         self.init("test_uni_joiner", "invalid joiner as placeholder")
 
     #@unittest.skip("test2")
@@ -58,7 +58,7 @@ class TestUniversalJoin(dsp.DataSourceProducer):
                   negative_sampling_rate=0.8,
                   join_expr="(id_type, example_id, trunc(event_time,1))",
                   join_key_mapper="DEFAULT",
-                  sampling_filter_expr='',
+                  negative_sampling_filter_expr='',
               )
         self.version = dsp.Version.V2
 
@@ -83,7 +83,7 @@ class TestUniversalJoin(dsp.DataSourceProducer):
                   negative_sampling_rate=0.8,
                   join_expr="(example_id, trunc(event_time, 1), lt(event_time))",
                   join_key_mapper="DEFAULT",
-                  sampling_filter_expr='',
+                  negative_sampling_filter_expr='',
               )
         self.version = dsp.Version.V2
 
@@ -129,7 +129,7 @@ class KeyMapperMock(BaseKeyMapper):
                   negative_sampling_rate=0.8,
                   join_expr="(cid,req_id)",
                   join_key_mapper="TEST_MAPPER",
-                  sampling_filter_expr='',
+                  negative_sampling_filter_expr='',
               )
         self.version = dsp.Version.V2
 

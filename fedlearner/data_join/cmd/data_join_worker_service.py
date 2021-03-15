@@ -90,12 +90,12 @@ if __name__ == "__main__":
                         "negative example, in [0.0, 1.0)")
     parser.add_argument('--join_expr', type=str, default="example_id",
                         help="join expression for universal joiner")
-    parser.add_argument('--sampling_filter_expr', type=str,
-                        help="sample filter expression, only be avaliable "\
-                        "for follower")
+    parser.add_argument('--negative_sampling_filter_expr', type=str,
+                        help="negative sample filter expression, only be "
+                        " avaliable for follower")
     parser.add_argument('--join_key_mapper', type=str, default="DEFAULT",
                         help="key mapper name")
-    parser.add_argument('--raw_data_store_space', type=str, default="memory",
+    parser.add_argument('--raw_data_cache_type', type=str, default="memory",
                         choices=["memory", "disk"],
                         help="the space to store the raw data")
     parser.add_argument('--optional_fields', type=str, default='',
@@ -115,7 +115,7 @@ if __name__ == "__main__":
                     read_ahead_size=args.read_ahead_size,
                     read_batch_size=args.read_batch_size,
                     optional_fields=optional_fields,
-                    raw_data_store_space=args.raw_data_store_space
+                    raw_data_cache_type=args.raw_data_cache_type
                 ),
             example_joiner_options=dj_pb.ExampleJoinerOptions(
                     example_joiner=args.example_joiner,
@@ -131,7 +131,8 @@ if __name__ == "__main__":
                         args.negative_sampling_rate,
                     join_expr=args.join_expr,
                     join_key_mapper=args.join_key_mapper,
-                    sampling_filter_expr=args.sampling_filter_expr,
+                    negative_sampling_filter_expr=\
+                        args.negative_sampling_filter_expr,
                 ),
             example_id_dump_options=dj_pb.ExampleIdDumpOptions(
                     example_id_dump_interval=args.example_id_dump_interval,

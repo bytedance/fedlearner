@@ -86,11 +86,11 @@ class RawDataIter(object):
         self._iter_failed = False
         self._options = options
         #_options will be None for example id visitor
-        if self._options and self._options.raw_data_store_space == "disk":
+        if self._options and self._options.raw_data_cache_type == "disk":
             #use leveldb to manager the disk storage by default
-            self._store_space = DBClient("leveldb", False)
+            self._cache_type = DBClient("leveldb", False)
         else:
-            self._store_space = None
+            self._cache_type = None
 
     def reset_iter(self, index_meta=None, force=False):
         if index_meta != self._index_meta or self._iter_failed or force:

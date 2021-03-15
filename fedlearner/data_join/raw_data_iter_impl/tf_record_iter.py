@@ -23,11 +23,11 @@ import fedlearner.data_join.common as common
 from fedlearner.data_join.raw_data_iter_impl.raw_data_iter import RawDataIter
 
 class TfExampleItem(RawDataIter.Item):
-    def __init__(self, record_str, store_space=None, index=None):
+    def __init__(self, record_str, cache_type=None, index=None):
         super().__init__()
-        self._store_space = store_space
+        self._cache_type = cache_type
         self._index = index
-        if self._store_space:
+        if self._cache_type:
             assert self._index is not None,\
                     "store space is disk, index cann't be None"
         self._parse_example_error = False
@@ -56,18 +56,18 @@ class TfExampleItem(RawDataIter.Item):
 
     @property
     def tf_record(self):
-        if self._store_space:
-            return self._store_space.get_data(self._index)
+        if self._cache_type:
+            return self._cache_type.get_data(self._index)
         return self._record_str
 
     def _set_tf_record(self, record_str, cache=False):
         # if cache set, we switch the store space to memory
         #  to speed up accessing later
-        if self._store_space and not cache:
+        if self._cache_type and not cache:
             self._record_str = None
-            self._store_space.set_data(self._index, record_str)
+            self._cache_type.set_data(self._index, record_str)
         else:
-            self._store_space = None
+            self._cache_type = None
             self._record_str = record_str
 
     @property
@@ -132,8 +132,8 @@ class TfExampleItem(RawDataIter.Item):
             del example
 
     def clear(self):
-        if self._store_space:
-            self._store_space.delete(self._index)
+        if self._cache_type:
+            self._cache_type.delete(self._index)
         del self._record_str
         del self._csv_record
 
@@ -175,7 +175,7 @@ class TfRecordIter(RawDataIter):
                     if index is None:
                         index = 0
                     yield TfExampleItem(raw_data,
-                                        self._store_space, index)
+                                        self._cache_type, index)
 
     def _reset_iter(self, index_meta):
         if index_meta is not None:

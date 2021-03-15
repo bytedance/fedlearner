@@ -42,8 +42,8 @@ negative_sampling_rate=$(normalize_env_to_args '--negative_sampling_rate' $NEGAT
 optional_fields=$(normalize_env_to_args '--optional_fields' $OPTIONAL_FIELDS)
 
 join_expr=$(normalize_env_to_args '--join_expr' ${JOIN_EXPR})
-sampling_filter_expr=$(normalize_env_to_args '--sampling_filter_expr' ${SAMPLING_FILTER_EXPR})
-raw_data_store_space=$(normalize_env_to_args '--raw_data_store_space' ${RAW_DATA_STORE_SPACE})
+negative_sampling_filter_expr=$(normalize_env_to_args '--negative_sampling_filter_expr' ${NEGATIVE_SAMPLING_FILTER_EXPR})
+raw_data_cache_type=$(normalize_env_to_args '--raw_data_cache_type' ${RAW_DATA_CACHE_TYPE})
 join_key_mapper=$(normalize_env_to_args '--join_key_mapper' ${JOIN_KEY_MAPPER})
 
 if [ -n "$JOIN_KEY_MAPPER" ]; then
@@ -65,4 +65,4 @@ python -m fedlearner.data_join.cmd.data_join_worker_service \
     $data_block_builder $data_block_compressed_type \
     $kvstore_type $max_conversion_delay \
     $enable_negative_example_generator $negative_sampling_rate \
-    $join_expr $join_key_mapper $optional_fields $raw_data_store_space $sampling_filter_expr
+    $join_expr $join_key_mapper $optional_fields $raw_data_cache_type $negative_sampling_filter_expr

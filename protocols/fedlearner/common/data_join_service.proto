@@ -245,8 +245,7 @@ message RawDataOptions {
   // sample ratio for input data's statistic and validation
   float input_data_stat_sample_ratio = 6;
   // storage to cache the raw data record, memory or disk
-  string raw_data_store_space = 7;
-  string exampling_filter_expr = 8;
+  string raw_data_cache_type = 7;
 }
 
 message WriterOptions {
@@ -265,7 +264,7 @@ message ExampleJoinerOptions {
   float negative_sampling_rate = 8;
   string join_expr = 9;
   string join_key_mapper = 10;
-  string sampling_filter_expr=11;
+  string negative_sampling_filter_expr = 11;
 }
 
 message ExampleIdDumpOptions {

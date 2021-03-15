@@ -380,7 +380,7 @@ class UniversalJoiner(ExampleJoiner):
                 example_joiner_options.enable_negative_example_generator
         if self._enable_negative_example_generator:
             sf = example_joiner_options.negative_sampling_rate
-            fe = example_joiner_options.sampling_filter_expr
+            fe = example_joiner_options.negative_sampling_filter_expr
             self._negative_example_generator = NegativeExampleGenerator(sf, fe)
 
     @classmethod
@@ -494,7 +494,6 @@ class UniversalJoiner(ExampleJoiner):
                 continue
             self._leader_index_ps.put(_IndexedPair(fe, li, fi))
 
-        write_back_buf = []
         matches = []
         while not self._leader_index_ps.empty():
             ip = self._leader_index_ps.get()
