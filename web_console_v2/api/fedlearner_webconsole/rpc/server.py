@@ -23,7 +23,7 @@ from concurrent import futures
 import grpc
 from fedlearner_webconsole.proto import (
     service_pb2, service_pb2_grpc,
-    common_pb2
+    common_pb2, workflow_definition_pb2
 )
 from fedlearner_webconsole.utils.es import es
 from fedlearner_webconsole.db import db
@@ -243,18 +243,26 @@ class RpcServer(object):
     def _filter_workflow(self, workflow, modes):
         # filter peer-readable and peer-writable variables
         if workflow is None:
-            return
-        var_list = [
-            i for i in workflow.variables if i.access_mode in modes]
-        workflow.ClearField('variables')
-        for i in var_list:
-            workflow.variables.append(i)
+            return None
+
+        new_wf = workflow_definition_pb2.WorkflowDefinition(
+            group_alias=workflow.group_alias,
+            is_left=workflow.is_left)
+        for var in workflow.variables:
+            if var.access_mode in modes:
+                new_wf.variables.append(var)
         for job_def in workflow.job_definitions:
-            var_list = [
-                i for i in job_def.variables if i.access_mode in modes]
-            job_def.ClearField('variables')
-            for i in var_list:
-                job_def.variables.append(i)
+            # keep yaml template private
+            new_jd = workflow_definition_pb2.JobDefinition(
+                name=job_def.name,
+                job_type=job_def.job_type,
+                is_federated=job_def.is_federated,
+                dependencies=job_def.dependencies)
+            for var in job_def.variables:
+                if var.access_mode in modes:
+                    new_jd.variables.append(var)
+            new_wf.job_definitions.append(new_jd)
+        return new_wf
 
     def get_workflow(self, request, context):
         with self._app.app_context():
@@ -264,7 +272,7 @@ class RpcServer(object):
                 project_id=project.id).first()
             assert workflow is not None, "Workflow not found"
             config = workflow.get_config()
-            self._filter_workflow(
+            config = self._filter_workflow(
                 config,
                 [
                     common_pb2.Variable.PEER_READABLE,
@@ -274,7 +282,8 @@ class RpcServer(object):
             jobs = [service_pb2.JobDetail(
                 name=job.name,
                 state=job.get_state_for_frontend(),
-                pods=json.dumps(job.get_pods_for_frontend()))
+                pods=json.dumps(
+                    job.get_pods_for_frontend(filter_private_info=True)))
                 for job in workflow.get_jobs()]
             # fork info
             forked_from = ''
@@ -311,7 +320,7 @@ class RpcServer(object):
             workflow.set_config(config)
             db.session.commit()
 
-            self._filter_workflow(
+            config = self._filter_workflow(
                 config,
                 [
                     common_pb2.Variable.PEER_READABLE,
