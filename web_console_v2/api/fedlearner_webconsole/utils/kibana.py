@@ -3,7 +3,7 @@ import re
 from datetime import datetime
 
 import prison
-
+import pytz
 from config import Config
 from fedlearner_webconsole import envs
 from fedlearner_webconsole.job.models import JobType
@@ -37,7 +37,7 @@ class KibanaUtils(object):
                      'Variance': 'variance',
                      'Std. Deviation': 'std_deviation',
                      'Sum of Squares': 'sum_of_squares'}
-    TIMELION_AGG_TYPE = {'Average': 'avg:{}',
+    TIMELION_AGG_TYPE = {'Average': 'avg',
                          'Sum': 'sum',
                          'Max': 'max',
                          'Min': 'min'}
@@ -100,7 +100,7 @@ class KibanaUtils(object):
         )
 
         return [
-            "{kbn_addr}/app/kibana/visualize/create"
+            "{kbn_addr}/app/kibana#/visualize/create"
             "?embed=true&type=timelion&"
             "_g=(refreshInterval:(pause:!t,value:0),"
             "time:(from:'{start_time}',to:'{end_time}'))&"
@@ -116,10 +116,12 @@ class KibanaUtils(object):
     def _parse_start_end_time(args):
         st = 'now-5y' if args['start_time'] < 0 \
             else datetime.fromtimestamp(
-            args['start_time'], tz=envs.TZ).isoformat(timespec='seconds')
+            args['start_time'],
+            tz=pytz.utc).isoformat(timespec='seconds')[:-6] + 'Z'
         et = 'now' if args['end_time'] < 0 \
             else datetime.fromtimestamp(
-            args['end_time'], tz=envs.TZ).isoformat(timespec='seconds')
+            args['end_time'],
+            tz=pytz.utc).isoformat(timespec='seconds')[:-6] + 'Z'
         return st, et
 
     @staticmethod
@@ -314,7 +316,7 @@ class KibanaUtils(object):
         interval = args['interval'] if args['interval'] != '' else 'auto'
         vis_states = []
         # first by process time, then by event time
-        for t1, t2, start, end in ((et, pt), (pt, et)):
+        for t1, t2 in ((et, pt), (pt, et)):
             # process_time vs event_time, max/min/median of pt and et
             # aggregate on t1 and histogram on t2
             max_series = KibanaUtils._timelion_series(
@@ -336,8 +338,8 @@ class KibanaUtils(object):
                          "aggs": []}
             vis_states.append(vis_state)
 
-        by_pt_start = envs.TZ.localize(job.created_at) \
-            .isoformat(timespec='seconds')
+        by_pt_start = pytz.utc.normalize(envs.TZ.localize(job.created_at)) \
+            .isoformat(timespec='seconds')[:-6] + 'Z'
         by_pt_end = 'now'
         by_et_start, by_et_end = KibanaUtils._parse_start_end_time(args)
         return vis_states, [(by_pt_start, by_pt_end), (by_et_start, by_et_end)]
@@ -364,10 +366,11 @@ class KibanaUtils(object):
             )
             series.append(s)
         vis_state = {"type": "timelion",
-                     "params": {"expression": series,
+                     "params": {"expression": ','.join(series),
                                 "interval": interval},
                      "aggs": []}
-        start = envs.TZ.localize(job.created_at).isoformat(timespec='seconds')
+        start = pytz.utc.normalize(envs.TZ.localize(job.created_at)) \
+                    .isoformat(timespec='seconds')[:-6] + 'Z'
         end = 'now'
         return [vis_state], [(start, end)]
 

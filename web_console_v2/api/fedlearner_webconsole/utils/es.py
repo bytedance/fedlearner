@@ -159,7 +159,7 @@ class ElasticSearchClient(object):
                 "bucket_script": {
                     "buckets_path": {
                         "JOINED": "JOINED[_count]",
-                        "TOTAL": "TOTAL[_count]",
+                        "TOTAL": "TOTAL[value]",
                         "FAKE": "FAKE[_count]"
                     },
                     "script": "params.JOINED / params.TOTAL"
@@ -169,7 +169,7 @@ class ElasticSearchClient(object):
                 "bucket_script": {
                     "buckets_path": {
                         "JOINED": "JOINED[_count]",
-                        "TOTAL_WITH_FAKE": "TOTAL_WITH_FAKE[_count]",
+                        "TOTAL_WITH_FAKE": "TOTAL_WITH_FAKE[value]",
                         "FAKE": "FAKE[_count]"
                     },
                     "script": "(params.JOINED + params.FAKE) / "

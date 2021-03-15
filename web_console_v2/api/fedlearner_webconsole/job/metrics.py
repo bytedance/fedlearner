@@ -18,7 +18,6 @@ from datetime import datetime
 import mpld3
 from matplotlib.figure import Figure
 
-from fedlearner_webconsole.exceptions import NotFoundException
 from fedlearner_webconsole.job.models import JobType
 from fedlearner_webconsole.utils.es import es
 
@@ -28,6 +27,8 @@ class JobMetricsBuilder(object):
         self._job = job
 
     def _to_datetime(self, timestamp):
+        if timestamp is None:
+            return None
         return datetime.fromtimestamp(timestamp/1000.0)
 
     def plot_metrics(self, num_buckets=30):
@@ -42,13 +43,11 @@ class JobMetricsBuilder(object):
 
     def plot_data_join_metrics(self, num_buckets=30):
         res = es.query_data_join_metrics(self._job.name, num_buckets)
-        if not res['aggregations']['OVERALL']['buckets']:
-            raise NotFoundException()
-
         metrics = []
+        if not res['aggregations']['OVERALL']['buckets']:
+            return metrics
 
         # plot pie chart for overall join rate
-
         overall = res['aggregations']['OVERALL']['buckets'][0]
         labels = ['joined', 'fake', 'unjoined']
         sizes = [
@@ -90,12 +89,12 @@ class JobMetricsBuilder(object):
 
     def plot_nn_metrics(self, num_buckets=30):
         res = es.query_nn_metrics(self._job.name, num_buckets)
+        metrics = []
         if not res['aggregations']['PROCESS_TIME']['buckets']:
-            raise NotFoundException()
+            return metrics
 
         buckets = res['aggregations']['PROCESS_TIME']['buckets']
         time = [self._to_datetime(buck['key']) for buck in buckets]
-        metrics = []
 
         # plot auc curve
         auc = [buck['AUC']['value'] for buck in buckets]
@@ -123,8 +122,19 @@ class JobMetricsBuilder(object):
             for buck in by_pt]
         fig = Figure()
         ax = fig.add_subplot(111)
-        ax.plot(pt_index, pt_min, label='min event time')
-        ax.plot(pt_index, pt_max, label='max event time')
+        pt_index = [
+            idx for idx, time in zip(pt_index, pt_min) if time is not None
+        ]
+        ax.plot(
+            pt_index,
+            list(filter(lambda x: x is not None, pt_min)),
+            label='min event time'
+        )
+        ax.plot(
+            pt_index,
+            list(filter(lambda x: x is not None, pt_max)),
+            label='max event time'
+        )
 
         ax.xaxis_date()
         ax.yaxis_date()
