@@ -24,7 +24,7 @@ from fedlearner_webconsole.db import db
 from fedlearner_webconsole.exceptions import (
     NotFoundException, InvalidArgumentException,
     ResourceConflictException)
-from fedlearner_webconsole.utils.code_key_parser import code_key_parser
+
 
 def dict_to_workflow_definition(config):
     try:
@@ -74,10 +74,10 @@ class WorkflowTemplatesApi(Resource):
         if 'is_left' not in config:
             raise InvalidArgumentException(
                 details={'config.is_left': 'config.is_left is required'})
+
         if WorkflowTemplate.query.filter_by(name=name).first() is not None:
             raise ResourceConflictException(
                 'Workflow template {} already exists'.format(name))
-        config = code_key_parser.encode_code_key_in_config(config)
         # form to proto buffer
         template_proto = dict_to_workflow_definition(config)
         for index, job_def in enumerate(template_proto.job_definitions):
@@ -113,9 +113,6 @@ class WorkflowTemplateApi(Resource):
         result = WorkflowTemplate.query.filter_by(id=template_id).first()
         if result is None:
             raise NotFoundException()
-        result = result.to_dict()
-        result['config'] = code_key_parser.decode_code_key_in_config(
-            result['config'])
         return {'data': result.to_dict()}, HTTPStatus.OK
 
     def delete(self, template_id):
