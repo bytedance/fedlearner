@@ -20,6 +20,7 @@ from http import HTTPStatus
 from fedlearner_webconsole.db import db
 from fedlearner_webconsole.proto.workflow_definition_pb2 import WorkflowDefinition
 from fedlearner_webconsole.workflow_template.models import WorkflowTemplate
+from fedlearner_webconsole.workflow_template.apis import dict_to_workflow_definition
 from testing.common import BaseTestCase
 
 
@@ -162,6 +163,13 @@ class WorkflowTemplatesApiTest(BaseTestCase):
         self.assertEqual(expected_template.comment, data['comment'])
         self.assertEqual(expected_template.group_alias, data['config']['group_alias'])
         self.assertEqual(expected_template.is_left, data['config']['is_left'])
+
+    def test_dict_to_workflow_definition(self):
+        config = {'variables': [{'name': 'code',
+                                 'value': {'asdf.py': 'asdf'},
+                                 'value_type': 'CODE'}]}
+        proto = dict_to_workflow_definition(config)
+        self.assertTrue(isinstance(proto.variables[0].value, str))
 
 
 if __name__ == '__main__':

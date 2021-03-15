@@ -13,25 +13,25 @@
 # limitations under the License.
 
 # coding: utf-8
+import json
 import re
 from http import HTTPStatus
 import logging
 from flask_restful import Resource, reqparse, request
 from google.protobuf.json_format import ParseDict, ParseError
 from fedlearner_webconsole.workflow_template.models import WorkflowTemplate
-from fedlearner_webconsole.proto import workflow_definition_pb2, common_pb2
+from fedlearner_webconsole.proto import workflow_definition_pb2
 from fedlearner_webconsole.db import db
 from fedlearner_webconsole.exceptions import (
     NotFoundException, InvalidArgumentException,
     ResourceConflictException)
 
-def classify_variable(variable):
-    if variable['value_type'] == common_pb2.Variable.CODE:
-        variable['code'] = variable['value']
-        variable['value'] = ''
-        if not isinstance(variable['code'], dict):
+def _classify_variable(variable):
+    if variable['value_type'] == 'CODE':
+        if not isinstance(variable['value'], dict):
             raise ParseError('The value of a code '
                              'type Variable must be a dict')
+        variable['value'] = json.dumps(variable['value'])
     # TODO: introduce more type to strengthen the format check
     return variable
 
@@ -39,16 +39,18 @@ def classify_variable(variable):
 def dict_to_workflow_definition(config):
     try:
         if 'variables' in config:
-            for index, variable in config['variables']:
-                config['variables'][index] = classify_variable(variable)
+            for index, variable in enumerate(config['variables']):
+                config['variables'][index] = _classify_variable(variable)
         if 'job_definitions' in config:
             for job in config['job_definitions']:
                 if 'variables' in job:
-                    for index, variable in job['variables']:
-                        config['variables'][index] = classify_variable(variable)
+                    for index, variable in enumerate(job['variables']):
+                        config['variables'][index] = _classify_variable(
+                            variable)
         template_proto = ParseDict(config,
                                    workflow_definition_pb2.WorkflowDefinition())
     except ParseError as e:
+        print(str(e))
         raise InvalidArgumentException(details={'config': str(e)})
     return template_proto
 
