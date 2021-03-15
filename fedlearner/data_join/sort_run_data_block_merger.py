@@ -25,8 +25,10 @@ import os
 from tensorflow.compat.v1 import gfile
 
 from fedlearner.common import common_pb2 as common_pb
+from fedlearner.common import data_join_service_pb2 as dj_pb
 from fedlearner.common.db_client import DBClient
-from fedlearner.data_join import common, data_block_visitor
+from fedlearner.data_join import common, data_block_visitor, \
+    raw_data_manifest_manager
 from fedlearner.data_join.data_block_manager import \
     DataBlockManager, DataBlockBuilder
 from fedlearner.data_join.sort_run_merger import SortRunReader
@@ -57,9 +59,7 @@ class _DataBlockWriter(object):
                 self._partition_id,
                 data_block_index,
                 self._data_block_builder_options,
-                self._data_block_dump_threshold,
-                True
-            )
+                self._data_block_dump_threshold)
             self._data_block_builder.set_data_block_manager(
                 self._data_block_manager
             )
@@ -111,6 +111,7 @@ class SortRunDataBlockMerger(object):
         self._data_block_dump_threshold = data_block_dump_threshold
         self._kvstore_type = kvstore_type
         self._use_mock_etcd = use_mock_etcd
+        self._kvstore = DBClient(self._kvstore_type, self._use_mock_etcd)
         self._data_source = self._create_data_source()
         self._data_block_manager = \
             DataBlockManager(self._data_source, self._partition_id)
@@ -121,15 +122,15 @@ class SortRunDataBlockMerger(object):
         data_source.data_source_meta.partition_num = self._partition_num
         data_source.output_base_dir = self._output_base_dir
         data_source.state = common_pb.DataSourceState.Init
-        kvstore = DBClient(self._kvstore_type, self._use_mock_etcd)
+        data_source.role = common_pb.FLRole.Leader
         master_kvstore_key = common.data_source_kvstore_base_dir(
             data_source.data_source_meta.name
         )
-        raw_data = kvstore.get_data(master_kvstore_key)
+        raw_data = self._kvstore.get_data(master_kvstore_key)
         if raw_data is None:
             logging.info("data source %s is not existed",
                          self._data_source_name)
-            common.commit_data_source(kvstore, data_source)
+            common.commit_data_source(self._kvstore, data_source)
             logging.info("apply new data source %s", self._data_source_name)
         else:
             logging.info("data source %s has been existed",
@@ -157,6 +158,7 @@ class SortRunDataBlockMerger(object):
             assert item.reader_index < len(readers)
             self._replenish_item(readers[item.reader_index], pque)
         writer.finish()
+        self._mock_raw_data_manifest()
         return self._list_finished_fpath()
 
     @classmethod
@@ -209,6 +211,19 @@ class SortRunDataBlockMerger(object):
             assert last_item is not None
             return last_item
         return None
+
+    def _mock_raw_data_manifest(self):
+        manifest_manager = raw_data_manifest_manager.RawDataManifestManager(
+            self._kvstore, self._data_source
+        )
+        manifest_manager.finish_sync_example_id_partition(
+            dj_pb.SyncExampleIdState.UnSynced,
+            dj_pb.SyncExampleIdState.Synced,
+            -1, self._partition_id)
+        manifest_manager.finish_join_example_partition(
+            dj_pb.JoinExampleState.UnJoined,
+            dj_pb.JoinExampleState.Joined,
+            -1, self._partition_id)
 
     @property
     def _partition_id(self):

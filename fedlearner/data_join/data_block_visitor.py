@@ -149,20 +149,13 @@ class DataBlockVisitor(object):
                                                   data_block_index)
         meta_fpath = os.path.join(dirpath, meta_fname)
         meta = load_data_block_meta(meta_fpath)
-        rep = None
-        if meta is not None and meta.is_local:
+        manifest = self._sync_raw_data_manifest(partition_id)
+        if meta is not None and \
+                not self._filter_by_visible(meta.data_block_index, manifest):
             fname = encode_data_block_fname(self._data_source_name(), meta)
-            rep = DataBlockRep(self._data_source_name(),
-                               fname, partition_id, dirpath)
-        else:
-            manifest = self._sync_raw_data_manifest(partition_id)
-            if meta is not None and \
-                    not self._filter_by_visible(meta.data_block_index,
-                                                manifest):
-                fname = encode_data_block_fname(self._data_source_name(), meta)
-                rep = DataBlockRep(self._data_source_name(),
-                                   fname, partition_id, dirpath)
-        return rep
+            return DataBlockRep(self._data_source_name(),
+                                fname, partition_id, dirpath)
+        return None
 
     def LoadDataBlockRepByBlockId(self, block_id):
         block_info = decode_block_id(block_id)

@@ -37,8 +37,7 @@ from fedlearner.data_join.output_writer_impl import create_output_writer
 
 class DataBlockBuilder(object):
     def __init__(self, dirname, data_source_name, partition_id,
-                 data_block_index, write_options, max_example_num=None,
-                 is_local=False):
+                 data_block_index, write_options, max_example_num=None):
         self._data_source_name = data_source_name
         self._partition_id = partition_id
         self._max_example_num = max_example_num
@@ -49,7 +48,6 @@ class DataBlockBuilder(object):
         self._data_block_meta.partition_id = partition_id
         self._data_block_meta.data_block_index = data_block_index
         self._data_block_meta.follower_restart_index = 0
-        self._data_block_meta.is_local = is_local
         self._example_num = 0
         self._data_block_manager = None
         self._example_ids_size = 0
