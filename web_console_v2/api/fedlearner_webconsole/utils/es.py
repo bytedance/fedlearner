@@ -13,6 +13,7 @@
 # limitations under the License.
 
 # coding: utf-8
+import requests
 from elasticsearch import Elasticsearch
 
 from fedlearner_webconsole.utils.es_misc import get_es_template, ALIAS_NAME
@@ -42,6 +43,20 @@ class ElasticSearchClient(object):
                         if self._es_client.indices.exists(alias_name):
                             self._es_client.indices.delete(alias_name)
                         self._put_write_index(index_type)
+                    # Kibana index-patterns initialization
+                    requests.post(
+                        url='{}:{}/api/saved_objects/index-pattern/{}'
+                            .format(app.config['KIBANA_SERVICE_HOST'],
+                                    app.config['KIBANA_SERVICE_PORT'],
+                                    index_type),
+                        json={'attributes': {
+                            'title': index_type + '*',
+                            'timeFieldName': 'date_time'
+                            if index_type == 'metrics' else 'event_time'}},
+                        headers={'kbn-xsrf:': 'true',
+                                 'Content-Type': 'application/json'},
+                        params={'overwrite': True}
+                    )
                 self.put_ilm('filebeat-7.0.1', hot_age='1d')
 
     def search(self, *args, **kwargs):
