@@ -17,14 +17,17 @@ import json
 import re
 from http import HTTPStatus
 import logging
+import base64
 from flask_restful import Resource, reqparse, request
 from google.protobuf.json_format import ParseDict, ParseError
 from fedlearner_webconsole.workflow_template.models import WorkflowTemplate
 from fedlearner_webconsole.proto import workflow_definition_pb2
+from fedlearner_webconsole.utils.code_key_parser import code_key_parser
 from fedlearner_webconsole.db import db
 from fedlearner_webconsole.exceptions import (
     NotFoundException, InvalidArgumentException,
     ResourceConflictException)
+
 
 def _classify_variable(variable):
     if variable['value_type'] == 'CODE':
@@ -143,6 +146,7 @@ class WorkflowTemplateApi(Resource):
         db.session.commit()
         return {'data': template.to_dict()}, HTTPStatus.OK
 
+
 def _check_config(config):
     # TODO: needs tests
     if 'group_alias' not in config:
@@ -174,7 +178,26 @@ def _check_config(config):
     return template_proto
 
 
+class CodeApi(Resource):
+    def get(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument('code_path', type=str, location='args',
+                            required=True,
+                            help='code_path is required')
+        data = parser.parse_args()
+        code_path = data['code_path']
+        try:
+            with open(code_path, 'rb') as file:
+                data_string = str(base64.b64encode(file.read()),
+                                  'utf-8')
+                result = code_key_parser.decode(f'base64://{data_string}')
+                return {'data': result}, HTTPStatus.OK
+        except Exception:
+            raise InvalidArgumentException(details={'code_path': 'wrong path'})
+
+
 def initialize_workflow_template_apis(api):
     api.add_resource(WorkflowTemplatesApi, '/workflow_templates')
     api.add_resource(WorkflowTemplateApi,
                      '/workflow_templates/<int:template_id>')
+    api.add_resource(CodeApi, '/code_key')
