@@ -281,9 +281,8 @@ class FLEstimator(object):
         dataset = input_fn(self._bridge, self._trainer_master)
         if isinstance(dataset, tuple) and len(dataset) == 2:
             return dataset
-        else:
-            features, labels = dataset.make_one_shot_iterator().get_next()
-            return features, labels
+        features, labels = dataset.make_one_shot_iterator().get_next()
+        return features, labels
 
     def _get_model_spec(self, features, labels, mode):
         model = FLModel(self._role, self._bridge,

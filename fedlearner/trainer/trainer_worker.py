@@ -160,10 +160,6 @@ def create_argument_parser():
                         type=int,
                         default=1,
                         help='Logging level.')
-    parser.add_argument('--shuffle_data_block', action='store_true',
-                        help='shuffle local data blocks or not')
-    parser.add_argument('--shuffle_range', type=int, default=0,
-                        help='number of data blocks to shuffle')
 
     return parser
 

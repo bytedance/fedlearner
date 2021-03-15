@@ -19,7 +19,6 @@ from concurrent import futures
 import threading
 import argparse
 import os
-import random
 import grpc
 from fedlearner.common import trainer_master_service_pb2 as tm_pb
 from fedlearner.common import trainer_master_service_pb2_grpc as tm_grpc
@@ -59,7 +58,7 @@ class LeaderTrainerMaster(object):
         self._shuffle_data_block = shuffle_data_block
         self._shuffle_range = shuffle_range
         self._data_source_dict = dict()
-        self._default_data_source = None
+        self._default_data_source_name = None
         self._data_source_dict[data_source] = self._DataSourceInfo(
             data_source, tm_pb.JOINED,  kvstore_use_mock)
         if local_data_sources:
@@ -67,8 +66,9 @@ class LeaderTrainerMaster(object):
                 self._data_source_dict[ds] = self._DataSourceInfo(
                     ds, tm_pb.LOCAL, kvstore_use_mock)
         else:
-            self._default_data_source = data_source
-        logging.debug("Data sources {} loaded".format(self._data_source_dict.keys()))
+            self._default_data_source_name = data_source
+        logging.debug("Data sources %s loaded",
+                      ','.join(self._data_source_dict.keys()))
         if online_training:
             assert self._epoch_num == 1 and not self._shuffle_data_block, \
                 "epoch_num must be 1 and shuffle_data_block must be False " \
@@ -143,8 +143,8 @@ class LeaderTrainerMaster(object):
         if not request.blocks:  # init case
             logging.info("Init all data source")
             for _, ds_info in self._data_source_dict.items():
-                # In case of race, load data before state transfering to RUNNING, and
-                #   after filling data checkpoint
+                # In case of race, load data before state transfering to
+                # RUNNING, and after filling data checkpoint
                 with ds_info.checkpoint_mutex:
                     ds_info.allocated_data_block_ids = set()
                 self._load_data(ds_info)
@@ -152,18 +152,19 @@ class LeaderTrainerMaster(object):
             for ds_info in request.blocks:
                 data_source_name = ds_info.data_source_name
                 if data_source_name not in self._data_source_dict:
-                    if self._default_data_source is None:
-                        response.status.code = common_pb.STATUS_DATA_SOURCE_NOT_EXIST
+                    if self._default_data_source_name is None:
+                        response.status.code = \
+                            common_pb.STATUS_DATA_SOURCE_NOT_EXIST
                         response.status.error_message = \
                             "Data source {} not exist".format(data_source_name)
                         return response
-                    else:
-                        data_source_name = self._default_data_source
+                    data_source_name = self._default_data_source_name
                 data_source_info = self._data_source_dict[data_source_name]
-                # In case of race, load data before state transfering to RUNNING, and
-                #   after filling data checkpoint
+                # In case of race, load data before state transfering to
+                # RUNNING, and after filling data checkpoint
                 with data_source_info.checkpoint_mutex:
-                    data_source_info.allocated_data_block_ids = set(ds_info.block_ids)
+                    data_source_info.allocated_data_block_ids = set(
+                        ds_info.block_ids)
                 self._load_data(data_source_info)
 
         trans_ok = self._transfer_status(tm_pb.MasterStatus.INITIALING,
@@ -202,18 +203,19 @@ class LeaderTrainerMaster(object):
 
         data_source_name = request.data_source_name
         if data_source_name not in self._data_source_dict:
-            if self._default_data_source is None:
+            if self._default_data_source_name is None:
                 response.status.code = common_pb.STATUS_DATA_SOURCE_NOT_EXIST
                 response.status.error_message = \
                     "Data source {} not exist".format(data_source_name)
                 return response
-            else:
-                data_source_name = self._default_data_source
+            data_source_name = self._default_data_source_name
 
         data_source_info = self._data_source_dict[data_source_name]
-        data_block = self._alloc_data_block(data_source_info, block_id=request.block_id)
+        data_block = self._alloc_data_block(data_source_info,
+                                            block_id=request.block_id)
         if data_block:
-            logging.debug("%s allocated worker_%d with block id %s of source %s",
+            logging.debug("%s allocated worker_%d with block id %s of"
+                          " source %s",
                           self.__class__.__name__,
                           request.worker_rank,
                           data_block.block_id,
@@ -259,13 +261,12 @@ class LeaderTrainerMaster(object):
 
         data_source_name = request.data_source_name
         if data_source_name not in self._data_source_dict:
-            if self._default_data_source is None:
+            if self._default_data_source_name is None:
                 response.status.code = common_pb.STATUS_DATA_SOURCE_NOT_EXIST
                 response.status.error_message = \
                     "Data source {} not exist".format(data_source_name)
                 return response
-            else:
-                data_source_name = self._default_data_source
+            data_source_name = self._default_data_source_name
         data_source_info = self._data_source_dict[data_source_name]
         # block_id is unused in leader role
         with data_source_info.lock:
@@ -281,12 +282,14 @@ class LeaderTrainerMaster(object):
         # pylint: disable=line-too-long
         logging.info("load_data, checkpoint: %s", checkpoint)
         data_block_reps = [
-            dbr for dbr in data_source_info.data_block_visitor.LoadDataBlockRepByTimeFrame(
-                self._start_time, self._end_time).values()
+            dbr for dbr in data_source_info.data_block_visitor
+                .LoadDataBlockRepByTimeFrame(self._start_time,
+                                             self._end_time).values()
             if dbr.block_id not in checkpoint and
                dbr.block_id not in data_source_info.visited_data_blocks]
 
-        data_source_info.visited_data_blocks.update([i.block_id for i in data_block_reps])
+        data_source_info.visited_data_blocks.update([i.block_id for i
+                                                     in data_block_reps])
 
         if self._online_training:
             data_block_reps.sort(key=lambda x: x.data_block_index)
@@ -303,7 +306,8 @@ class LeaderTrainerMaster(object):
     def _alloc_data_block(self, data_source_info, block_id=None):
         # block_id is unused in leader role
         with data_source_info.lock:
-            if data_source_info.data_block_queue.empty() and self._online_training:
+            if data_source_info.data_block_queue.empty() and \
+                self._online_training:
                 logging.info("Load data when queue empty and online training")
                 self._load_data(data_source_info)
 
@@ -329,7 +333,8 @@ if __name__ == '__main__':
                         required=False, help='training example data source')
     parser.add_argument('-local_data_sources', '--local_data_sources',
                         required=False, default=None,
-                        help="local training example data sources, split by ','")
+                        help="local training example data sources,"
+                             " split by ','")
     parser.add_argument('-start_date', '--start_date',
                         default=None, help='training data start date')
     parser.add_argument('-end_date', '--end_date',
@@ -347,10 +352,10 @@ if __name__ == '__main__':
 
     start_date = int(FLAGS.start_date) if FLAGS.start_date else None
     end_date = int(FLAGS.end_date) if FLAGS.end_date else None
-    local_data_sources = FLAGS.local_data_sources.split(',') \
+    local_data_source_list = FLAGS.local_data_sources.split(',') \
         if FLAGS.local_data_sources else []
     leader_tm = LeaderTrainerMaster(FLAGS.application_id, FLAGS.data_source,
-                                    local_data_sources,
+                                    local_data_source_list,
                                     start_date, end_date,
                                     FLAGS.online_training,
                                     FLAGS.shuffle_data_block,

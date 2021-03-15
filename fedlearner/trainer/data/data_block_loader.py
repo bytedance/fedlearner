@@ -118,8 +118,8 @@ class DataBlockLoaderV2(object):
         if not msg.block_id:
             block = None
         else:
-            block = self._trainer_master.request_data_block(msg.block_id,
-                                                            self._data_source_name)
+            block = self._trainer_master.request_data_block(
+                msg.block_id, self._data_source_name)
             if block is None:
                 return False
         self._count += 1
