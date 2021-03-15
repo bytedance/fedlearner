@@ -19,9 +19,11 @@ const PodLogs: FC = () => {
       return { data: ['Pod name or Job ID invalid!'] };
     }
 
-    return fetchPodLogs(params.podname, params.jobId, { maxLines: 900 }).catch((error) => ({
-      data: error.message,
-    }));
+    return fetchPodLogs(params.podname, params.jobId, { startTime: 0, maxLines: 900 }).catch(
+      (error) => ({
+        data: error.message,
+      }),
+    );
   }
 };
 

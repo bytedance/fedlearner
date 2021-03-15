@@ -16,6 +16,7 @@ const PodLogs: FC = () => {
     }
 
     return fetchJobLogs(params.jobId, {
+      startTime: 0,
       maxLines: 500,
     }).catch((error) => ({
       data: [error.message],
