@@ -160,7 +160,7 @@ class Job(db.Model):
                             result.append({
                                 'name': pod,
                                 'pod_type': pod_type,
-                                'status': state,
+                                'status': 'Flapp_{}'.format(state),
                                 'message': '',
                             })
 
@@ -174,27 +174,27 @@ class Job(db.Model):
             msgs = []
             if 'containerStatuses' in pod['status']:
                 state = pod['status']['containerStatuses'][0]['state']
-                for key, detail in state.values():
+                for key, detail in state.items():
                     if filter_private_info:
-                        msgs.append(key + ':' + detail.get('reason', ''))
-                    else:
-                        msgs.append(key + ':' + detail.get('message', ''))
+                        if 'reason' in detail:
+                            msgs.append(key + ':' + detail['reason'])
+                    elif 'message' in detail:
+                        msgs.append(key + ':' + detail['message'])
 
-            if filter_private_info:
-                msgs.extend([
-                    cond.get('reason', '') for cond in pod['conditions']])
-            else:
-                msgs.extend([
-                    cond.get('message', '') for cond in pod['conditions']])
-            message = ', '.join(msgs)
+            for cond in pod['conditions']:
+                if filter_private_info:
+                    if 'reason' in cond:
+                        msgs.append(cond['type'] + ':' + cond['reason'])
+                elif 'message' in cond:
+                    msgs.append(cond['type'] + ':' + cond['message'])
 
-            pod_for_front = {
+            result.append({
                 'name': pod['metadata']['name'],
                 'pod_type': pod['metadata']['labels']['fl-replica-type'],
                 'status': status,
-                'message': message
-            }
-            result.append(pod_for_front)
+                'message': ', '.join(msgs)
+            })
+
         # deduplication pods both in pods and flapp
         result = list({pod['name']: pod for pod in result}.values())
         return result
