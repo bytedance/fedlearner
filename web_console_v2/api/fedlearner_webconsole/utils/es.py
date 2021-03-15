@@ -53,7 +53,7 @@ class ElasticSearchClient(object):
                             'title': index_type + '*',
                             'timeFieldName': 'date_time'
                             if index_type == 'metrics' else 'event_time'}},
-                        headers={'kbn-xsrf:': 'true',
+                        headers={'kbn-xsrf': 'true',
                                  'Content-Type': 'application/json'},
                         params={'overwrite': True}
                     )
