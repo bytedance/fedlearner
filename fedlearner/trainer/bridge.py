@@ -142,7 +142,8 @@ class Bridge(object):
                  app_id=None,
                  rank=0,
                  streaming_mode=True,
-                 compression=grpc.Compression.NoCompression):
+                 compression=grpc.Compression.NoCompression,
+                 iter_timeout=1800):
         self._role = role
         self._listen_port = listen_port
         self._remote_address = remote_address
@@ -152,6 +153,7 @@ class Bridge(object):
         self._rank = rank
         self._streaming_mode = streaming_mode
         self._compression = compression
+        self._iter_timeout = iter_timeout
 
         self._prefetch_handlers = []
         self._data_block_handler_fn = None
@@ -168,6 +170,7 @@ class Bridge(object):
 
         # data transmit
         self._condition = threading.Condition()
+        self._iter_started_at = 0
         self._current_iter_id = None
         self._next_iter_id = 0
         self._peer_next_iter_id = 0
@@ -429,6 +432,35 @@ class Bridge(object):
             logging.warning("Heartbeat request failed: %s", repr(e))
             return False
 
+    def _check_iter_timeout(self):
+        if self._iter_timeout <= 0:
+            return
+        with self._condition:
+            if not self._current_iter_id:
+                return
+            duration = time.time() - self._iter_started_at
+            if duration > self._iter_timeout:
+                msg = 'Suicide as iter run timeout, duration: {}.' \
+                    ' maybe blocked in some point.'.format(duration)
+                logging.fatal(msg)
+                os._exit(138)
+
+    def _supervise_fn(self):
+        check_handlers = []
+        if self._iter_timeout > 0:
+            logging.info('enable supervise iteartion timeout: %f',
+                self._iter_timeout)
+            check_handlers.append(self._check_iter_timeout)
+        if len(check_handlers) == 0:
+            return
+        while True:
+            with self._condition:
+                if self._terminated:
+                    return
+            for handler in check_handlers:
+                handler()
+            time.sleep(10)
+
     def connect(self):
         if self._connected:
             logging.warning("Bridge already connected!")
@@ -456,14 +488,20 @@ class Bridge(object):
         if self._streaming_mode:
             logging.debug('enter streaming_mode.')
             self._client_daemon = threading.Thread(
-                target=self._client_daemon_fn)
+                target=self._client_daemon_fn, daemon=True)
             self._client_daemon.start()
+
+        supervise_thread = threading.Thread(
+            target=self._supervise_fn, daemon=True)
+        supervise_thread.start()
+
         logging.debug('finish connect.')
 
     def terminate(self, forced=False):
-        if not self._connected or self._terminated:
-            return
-        self._terminated = True
+        with self._condition:
+            if not self._connected or self._terminated:
+                return
+            self._terminated = True
 
         try:
             if self._client_daemon is not None:
@@ -499,8 +537,9 @@ class Bridge(object):
 
     def start(self, iter_id):
         assert self._current_iter_id is None, "Last iter not finished"
-        self._current_iter_id = iter_id
-
+        with self._condition:
+            self._iter_started_at = time.time()
+            self._current_iter_id = iter_id
         msg = tws_pb.TrainerWorkerMessage(start=tws_pb.StartMessage(
             iter_id=iter_id))
         self._transmit(msg)

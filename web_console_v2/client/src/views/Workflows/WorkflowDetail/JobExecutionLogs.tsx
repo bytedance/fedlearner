@@ -1,11 +1,10 @@
 import { NodeDataRaw } from 'components/WorkflowJobsFlowChart/types';
 import React, { FC } from 'react';
 import { useTranslation } from 'react-i18next';
-import { fetchJobLogs } from 'services/workflow';
+import { fetchJobLogs, fetchPeerJobEvents } from 'services/workflow';
 import styled from 'styled-components';
 import { WorkflowExecutionDetails } from 'typings/workflow';
 import PrintLogs from 'components/PrintLogs';
-import { findJobExeInfoByJobDef } from 'shared/workflow';
 
 const Container = styled.div`
   position: relative;
@@ -18,13 +17,12 @@ const PrintJobLogs = styled(PrintLogs)`
 type Props = {
   enabled: boolean;
   job: NodeDataRaw;
+  isPeerSide: boolean;
   workflow?: WorkflowExecutionDetails;
 };
 
-const JobExecutionLogs: FC<Props> = ({ job, workflow, enabled }) => {
+const JobExecutionLogs: FC<Props> = ({ job, enabled, isPeerSide }) => {
   const { t } = useTranslation();
-
-  const k8sJobName = job.k8sName || (workflow && findJobExeInfoByJobDef(job, workflow)?.name);
 
   return (
     <Container>
@@ -32,7 +30,7 @@ const JobExecutionLogs: FC<Props> = ({ job, workflow, enabled }) => {
 
       <PrintJobLogs
         height="350"
-        queryKey={['getJobLogs', k8sJobName]}
+        queryKey={['getJobLogs', job.id]}
         logsFetcher={getLogs}
         refetchInterval={5000}
         enabled={enabled}
@@ -43,12 +41,23 @@ const JobExecutionLogs: FC<Props> = ({ job, workflow, enabled }) => {
   );
 
   async function getLogs() {
-    if (!k8sJobName) {
-      return { data: ['K8s Job name invalid!'] };
+    if (isPeerSide) {
+      if (!job.k8sName) {
+        return { data: ['Job name invalid!'] };
+      }
+
+      return fetchPeerJobEvents(job.k8sName!, {
+        maxLines: 500,
+      }).catch((error) => ({
+        data: [error.message],
+      }));
     }
 
-    return fetchJobLogs(k8sJobName || `${workflow?.uuid}-${job.name.trim()}`, {
-      startTime: 0,
+    if (!job.id) {
+      return { data: ['Job ID invalid!'] };
+    }
+
+    return fetchJobLogs(job.id, {
       maxLines: 500,
     }).catch((error) => ({
       data: [error.message],
@@ -56,7 +65,10 @@ const JobExecutionLogs: FC<Props> = ({ job, workflow, enabled }) => {
   }
 
   async function goFullScreen() {
-    window.open(`/v2/logs/job/${k8sJobName}`, '_blank noopener');
+    if (isPeerSide) {
+      return window.open(`/v2/logs/job/events/peer/${job.k8sName}`, '_blank noopener');
+    }
+    window.open(`/v2/logs/job/${job.id}`, '_blank noopener');
   }
 };
 

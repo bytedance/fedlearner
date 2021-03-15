@@ -109,7 +109,7 @@ def _merge_workflow_config(base, new, access_mode):
         return
     assert len(base.job_definitions) == len(new.job_definitions)
     for base_job, new_job in \
-            zip(base.job_definitions, new.job_definitions):
+        zip(base.job_definitions, new.job_definitions):
         _merge_variables(base_job.variables, new_job.variables, access_mode)
 
 
@@ -118,8 +118,10 @@ def _merge_workflow_config(base, new, access_mode):
                    'job_ids': (lambda wf: wf.get_job_ids()),
                    'reuse_job_names': (lambda wf: wf.get_reuse_job_names()),
                    'peer_reuse_job_names':
-                   (lambda wf: wf.get_peer_reuse_job_names()),
-                   'state': (lambda wf: wf.get_state_for_frontend())
+                       (lambda wf: wf.get_peer_reuse_job_names()),
+                   'state': (lambda wf: wf.get_state_for_frontend()),
+                   'transaction_state':
+                       (lambda wf: wf.get_transaction_state_for_frontend()),
                })
 class Workflow(db.Model):
     __tablename__ = 'workflow_v2'
@@ -204,6 +206,13 @@ class Workflow(db.Model):
                 return 'FAILED'
         return self.state.name
 
+    def get_transaction_state_for_frontend(self):
+        # TODO(xiangyuxuan): remove this hack by redesign 2pc
+        if (self.transaction_state == TransactionState.PARTICIPANT_PREPARE
+                and self.config is not None):
+            return 'PARTICIPANT_COMMITTABLE'
+        return self.transaction_state.name
+
     def set_config(self, proto):
         if proto is not None:
             self.config = proto.SerializeToString()
@@ -259,11 +268,11 @@ class Workflow(db.Model):
 
     def update_target_state(self, target_state):
         if self.target_state != target_state \
-                and self.target_state != WorkflowState.INVALID:
+            and self.target_state != WorkflowState.INVALID:
             raise ValueError(f'Another transaction is in progress [{self.id}]')
         if target_state not in [
-                WorkflowState.READY, WorkflowState.RUNNING,
-                WorkflowState.STOPPED
+            WorkflowState.READY, WorkflowState.RUNNING,
+            WorkflowState.STOPPED
         ]:
             raise ValueError(f'Invalid target_state {self.target_state}')
         if (self.state, target_state) not in VALID_TRANSITIONS:
@@ -278,7 +287,7 @@ class Workflow(db.Model):
 
         if transaction_state != self.transaction_state:
             if (self.transaction_state, transaction_state) in \
-                    IGNORED_TRANSACTION_TRANSITIONS:
+                IGNORED_TRANSACTION_TRANSITIONS:
                 return self.transaction_state
             assert (self.transaction_state, transaction_state) in \
                    VALID_TRANSACTION_TRANSITIONS, \
@@ -343,7 +352,7 @@ class Workflow(db.Model):
         assert self.transaction_state in [
             TransactionState.COORDINATOR_COMMITTING,
             TransactionState.PARTICIPANT_COMMITTING], \
-                'Workflow not in prepare state'
+            'Workflow not in prepare state'
 
         if self.target_state == WorkflowState.STOPPED:
             self.stop_at = int(datetime.utcnow().timestamp())
@@ -382,7 +391,7 @@ class Workflow(db.Model):
         if self.forked_from is not None:
             trunk = Workflow.query.get(self.forked_from)
             assert trunk is not None, \
-                'Source workflow %d not found'%self.forked_from
+                'Source workflow %d not found' % self.forked_from
             trunk_job_defs = trunk.get_config().job_definitions
             trunk_name2index = {
                 job.name: i
@@ -397,15 +406,15 @@ class Workflow(db.Model):
         for i, job_def in enumerate(job_defs):
             if job_def.name in reuse_jobs:
                 assert job_def.name in trunk_name2index, \
-                    "Job %s not found in base workflow"%job_def.name
+                    "Job %s not found in base workflow" % job_def.name
                 j = trunk.get_job_ids()[trunk_name2index[job_def.name]]
                 job = Job.query.get(j)
                 assert job is not None, \
-                    'Job %d not found'%j
+                    'Job %d not found' % j
                 # TODO: check forked jobs does not depend on non-forked jobs
             else:
                 job = Job(name=f'{self.uuid}-{job_def.name}',
-                          job_type=JobType(job_def.type),
+                          job_type=JobType(job_def.job_type),
                           config=job_def.SerializeToString(),
                           workflow_id=self.id,
                           project_id=self.project_id,

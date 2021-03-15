@@ -36,9 +36,8 @@ export function isPendingAccpet(workflow: Workflow) {
 }
 
 export function isWarmUpUnderTheHood(workflow: Workflow) {
-  const { state, target_state, transaction_state, config } = workflow;
+  const { state, target_state, transaction_state } = workflow;
   return (
-    Boolean(config) &&
     state === NEW &&
     target_state === W_READY &&
     [PARTICIPANT_COMMITTABLE].includes(transaction_state)
