@@ -115,13 +115,11 @@ class KibanaUtils(object):
     @staticmethod
     def _parse_start_end_time(args):
         st = 'now-5y' if args['start_time'] < 0 \
-            else datetime.fromtimestamp(
-            args['start_time'],
-            tz=pytz.utc).isoformat(timespec='seconds')[:-6] + 'Z'
+            else datetime.fromtimestamp(args['start_time'], tz=pytz.utc) \
+                     .isoformat(timespec='seconds')[:-6] + 'Z'
         et = 'now' if args['end_time'] < 0 \
-            else datetime.fromtimestamp(
-            args['end_time'],
-            tz=pytz.utc).isoformat(timespec='seconds')[:-6] + 'Z'
+            else datetime.fromtimestamp(args['end_time'], tz=pytz.utc) \
+                     .isoformat(timespec='seconds')[:-6] + 'Z'
         return st, et
 
     @staticmethod
@@ -304,12 +302,15 @@ class KibanaUtils(object):
             (start time, end time) of visualization.
 
         """
-        query = 'application_id:{} AND ({})'.format(job.name, args['query'])
         if job.job_type in KibanaUtils.JOB_INDEX:
+            query = 'application_id:{} AND ({})'.format(job.name, args['query'])
             index = KibanaUtils.JOB_INDEX[job.job_type] + '*'
             et = 'event_time'
             pt = 'process_time'
         else:
+            query = 'tags.application_id:{} AND ({})'.format(
+                job.name, args['query']
+            )
             index = 'metrics_v2*'
             et = 'tags.event_time'
             pt = 'date_time'
@@ -351,7 +352,9 @@ class KibanaUtils(object):
         if args['aggregator'] not in KibanaUtils.TIMELION_AGG_TYPE:
             raise TypeError('{} is not supported in Timer visualization.'
                             .format(args['aggregator']))
-        query = 'application_id:{} AND ({})'.format(job.name, args['query'])
+        query = 'tags.application_id:{} AND ({})'.format(
+            job.name, args['query']
+        )
         index = 'metrics_v2*'
         metric = '{}:value'.format(
             KibanaUtils.TIMELION_AGG_TYPE[args['aggregator']]
@@ -413,8 +416,6 @@ class KibanaUtils(object):
                 'application_id:"{}"'.format(job.name))
         else:
             params['index_pattern'] = 'metrics_v2*'
-            # metrics* index has a different mapping which is not optimized due
-            # to compatibility issues, thus 'filter' is different from above.
             params['filter'] = KibanaUtils._filter_query(
                 'tags.application_id:"{}"'.format(job.name)
             )

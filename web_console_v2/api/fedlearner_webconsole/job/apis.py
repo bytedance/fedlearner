@@ -16,7 +16,6 @@ import json
 from google.protobuf.json_format import MessageToDict
 import time
 
-
 from flask_restful import Resource, reqparse
 from fedlearner_webconsole.proto import common_pb2
 from fedlearner_webconsole.workflow.models import Workflow
@@ -24,6 +23,7 @@ from fedlearner_webconsole.job.models import Job
 from fedlearner_webconsole.job.metrics import JobMetricsBuilder
 from fedlearner_webconsole.utils.es import es
 import prison
+from flask_restful import Resource, reqparse, abort
 
 from fedlearner_webconsole.exceptions import (
     NotFoundException, InternalException
@@ -96,12 +96,13 @@ class JobLogApi(Resource):
 class JobMetricsApi(Resource):
     def get(self, job_id):
         job = _get_job(job_id)
-
-        metrics = JobMetricsBuilder(job).plot_metrics()
-
-        # Metrics is a list of dict. Each dict can be rendered by frontend with
-        #   mpld3.draw_figure('figure1', json)
-        return {'data': metrics}
+        try:
+            metrics = JobMetricsBuilder(job).plot_metrics()
+            # Metrics is a list of dict. Each dict can be rendered by frontend
+            # with mpld3.draw_figure('figure1', json)
+            return {'data': metrics}
+        except Exception as e:  # pylint: disable=broad-except
+            abort(400, message=repr(e))
 
 
 class PeerJobMetricsApi(Resource):
@@ -186,7 +187,8 @@ class KibanaMetricsApi(Resource):
                             required=True,
                             choices=('Rate', 'Ratio', 'Numeric',
                                      'Time', 'Timer'),
-                            help='Visualization type is required.')
+                            help='Visualization type is required. Choices: '
+                                 'Rate, Ratio, Numeric, Time, Timer')
         parser.add_argument('interval', type=str, location='args',
                             default='',
                             help='Time bucket interval length, '
@@ -231,11 +233,14 @@ class KibanaMetricsApi(Resource):
                             help='Names of timers is required in '
                                  'Timer visualization.')
         args = parser.parse_args()
-        if args['type'] in KibanaUtils.TSVB:
-            return {'data': KibanaUtils.create_tsvb(job, args)}
-        if args['type'] in KibanaUtils.TIMELION:
-            return {'data': KibanaUtils.create_timelion(job, args)}
-        return {'data': []}
+        try:
+            if args['type'] in KibanaUtils.TSVB:
+                return {'data': KibanaUtils.create_tsvb(job, args)}
+            if args['type'] in KibanaUtils.TIMELION:
+                return {'data': KibanaUtils.create_timelion(job, args)}
+            return {'data': []}
+        except Exception as e:  # pylint: disable=broad-except
+            abort(400, message=repr(e))
 
 
 def initialize_job_apis(api):
