@@ -7,6 +7,22 @@ metadata:
   labels:
   {{- include "fedlearner-add-on.labels" . | nindent 4 }}
 spec:
-  type: {{ .Values.service.type }}
-  externalName: {{ .Values.service.externalName }}
+  clusterIP: None
+  ports:
+    - name: grpc
+      port: {{ .Values.ingress.port }}
+      protocol: TCP
+---
+kind: Endpoints
+apiVersion: v1
+metadata:
+  name: fedlearner-proxy
+  namespace: {{ .Release.Namespace }}
+subsets:
+  - addresses:
+      - ip: {{ .Values.service.externalName }}
+    ports:
+      - port: {{ .Values.ingress.port }}
+        name: grpc
+        protocol: TCP
 {{- end }}
