@@ -127,6 +127,7 @@ const JobFormDrawer: ForwardRefRenderFunction<JobFormDrawerExposedRef, Props> = 
         getContainer="#app-content"
         mask={false}
         width="640px"
+        push={{ distance: -240 }}
         headerStyle={{ display: 'none' }}
         onClose={closeDrawer}
       >

@@ -10,7 +10,7 @@ import {
 import { Input, NumberPicker, Select, Radio, Checkbox, Switch } from '@formily/antd-components';
 import styled from 'styled-components';
 import { VariableComponent } from 'typings/variable';
-import CodeEditorButton from 'components/YAMLTemplateEditorButton';
+import ModelCodesEditorButton from 'components/ModelCodesEditorButton';
 
 const components: Record<VariableComponent, any> = {
   [VariableComponent.Input]: Input,
@@ -20,7 +20,7 @@ const components: Record<VariableComponent, any> = {
   [VariableComponent.Checkbox]: Checkbox,
   [VariableComponent.TextArea]: Input.TextArea,
   [VariableComponent.Switch]: Switch,
-  [VariableComponent.Code]: CodeEditorButton,
+  [VariableComponent.Code]: ModelCodesEditorButton,
 };
 
 const StyledSchemaForm = styled(SchemaForm)`

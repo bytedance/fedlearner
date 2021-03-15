@@ -1,4 +1,4 @@
-import React, { FunctionComponent } from 'react';
+import React, { FC } from 'react';
 import { Tooltip } from 'antd';
 import { QuestionCircle } from 'components/IconPark';
 import { VariableAccessMode } from 'typings/variable';
@@ -17,17 +17,17 @@ type Props = {
   accessMode: VariableAccessMode;
 };
 
-export const indicators: Record<VariableAccessMode, FunctionComponent> = {
+export const indicators: Record<VariableAccessMode, any> = {
   [VariableAccessMode.PEER_READABLE]: VariablePermission.Readable,
   [VariableAccessMode.PEER_WRITABLE]: VariablePermission.Writable,
   [VariableAccessMode.PRIVATE]: VariablePermission.Private,
   [VariableAccessMode.UNSPECIFIED]: VariablePermission.Private,
 };
 
-function VariableLabel({ label, tooltip, accessMode }: Props) {
+const VariableLabel: FC<Props> = ({ label, tooltip, accessMode }) => {
   const PermissionIndicator = indicators[accessMode];
 
-  if (!tooltip) {
+  if (!Boolean(tooltip)) {
     return (
       <GridRow gap="8" role="label">
         <PermissionIndicator />
@@ -49,6 +49,6 @@ function VariableLabel({ label, tooltip, accessMode }: Props) {
       </Tooltip>
     </GridRow>
   );
-}
+};
 
 export default VariableLabel;

@@ -30,14 +30,9 @@ export interface SelectWidgetSchema {
   filterable?: boolean;
 }
 
-export interface WidgetWithOptionsSchema {
+export interface WidgetWithEnumSchema {
   /** ------ Datas ------ */
-  options?: {
-    type: 'static' | 'dynamic';
-    // 1. static options for components like select | checkbox group | radio group...
-    // 2. dynamic options is an endpoint of source
-    source: Array<string | number | { value: any; label: string }> | string;
-  };
+  enum?: any[];
 }
 export interface SwitchWidgetSchema {
   /** ------ uIs ------ */
@@ -68,7 +63,7 @@ export interface VariableWidgetSchema
     SwitchWidgetSchema,
     SelectWidgetSchema,
     InputWidgetSchema,
-    WidgetWithOptionsSchema {
+    WidgetWithEnumSchema {
   /** ------ Metas ------ */
   // which component to use
   component?: VariableComponent;

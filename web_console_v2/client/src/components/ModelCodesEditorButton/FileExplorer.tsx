@@ -13,7 +13,7 @@ const Container = styled.aside`
   width: 240px;
   height: 100%;
   margin-top: -10px;
-  padding: 20px 10px;
+  padding: 10px 10px;
   background-color: #161616;
   color: var(--textColorSecondary);
 `;
@@ -56,7 +56,7 @@ const File = styled.li`
 `;
 const AddFileButton = styled(GridRow)`
   width: fit-content;
-  padding: 10px 20px 10px 13px;
+  padding: 7px 20px 7px 15px;
   margin-right: auto;
   color: var(--textColorSecondary);
   cursor: pointer;

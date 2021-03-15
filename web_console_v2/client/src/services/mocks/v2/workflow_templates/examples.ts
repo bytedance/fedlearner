@@ -262,7 +262,18 @@ export const complexDepsTemplate: DeepPartial<WorkflowTemplate> = {
         job_type: JobType.RAW_DATA,
         is_federated: true,
         dependencies: [{ source: 'Initiative' }],
-        variables: [],
+        variables: [
+          {
+            name: 'worker_number',
+            value: '',
+            access_mode: VariableAccessMode.PEER_WRITABLE,
+            variable_type: VariableValueType.STRING,
+            widget_schema: {
+              component: VariableComponent.Select,
+              enum: [1, 2, 3, 4, 5],
+            },
+          },
+        ],
       },
       {
         name: 'Training',

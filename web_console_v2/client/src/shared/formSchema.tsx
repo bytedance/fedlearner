@@ -1,3 +1,4 @@
+import React from 'react';
 import {
   WorkflowAcceptPayload,
   WorkflowExecutionDetails,
@@ -7,11 +8,23 @@ import {
   WorkflowTemplatePayload,
 } from 'typings/workflow';
 import { Variable, VariableAccessMode, VariableComponent } from 'typings/variable';
-import { Job } from 'typings/job';
 import { FormilySchema } from 'typings/formily';
-import VariableLabel from 'components/VariableLabel/index';
 import { cloneDeep, merge } from 'lodash';
 import variablePresets, { VariablePresets } from './variablePresets';
+import { FC } from 'react';
+
+const __IS_JEST__ = typeof jest !== 'undefined';
+
+const FakeVariableLabel: FC<any> = ({ label, tooltip }: any) => {
+  return (
+    <label role="label">
+      {label}
+      {tooltip && <small>{tooltip}</small>}
+    </label>
+  );
+};
+
+const VariableLabel = __IS_JEST__ ? FakeVariableLabel : require('components/VariableLabel').default;
 
 // ------- Build form Formily schema --------
 type BuildOptions = {
@@ -73,13 +86,11 @@ function _getPermissions({ access_mode }: Variable) {
   };
 }
 
-function _getDatas({ value, widget_schema: { type, options } }: Variable) {
-  if (options?.type === 'static') {
-  }
+function _getDatas({ value, widget_schema: { type, enum: enums } }: Variable) {
   return {
     type,
     default: value,
-    enum: options,
+    enum: enums,
   };
 }
 
@@ -280,6 +291,22 @@ export function createNumberPicker(variable: Variable): FormilySchema {
   };
 }
 
+export function createModelCodesEditor(variable: Variable): FormilySchema {
+  const { name } = variable;
+
+  return {
+    [name]: merge(
+      _getUIs(variable),
+      _getDatas(variable),
+      _getPermissions(variable),
+      _getValidations(variable),
+      {
+        'x-component': 'Code',
+      },
+    ),
+  };
+}
+
 // ---- Component to Worker map --------
 const componentToWorkersMap: { [key: string]: (v: Variable) => FormilySchema } = {
   [VariableComponent.Input]: createInput,
@@ -289,6 +316,7 @@ const componentToWorkersMap: { [key: string]: (v: Variable) => FormilySchema } =
   [VariableComponent.Select]: createSelect,
   [VariableComponent.Radio]: createRadio,
   [VariableComponent.NumberPicker]: createNumberPicker,
+  [VariableComponent.Code]: createModelCodesEditor,
 };
 
 // ---------- Widget schemas stringify, parse -----------

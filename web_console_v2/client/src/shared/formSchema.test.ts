@@ -36,8 +36,8 @@ describe('Build a form schema with various components (without permissions)', ()
 
     expect(some_name.required).toBeFalsy();
     expect(some_name.default).toBe('initial value');
-    // auto generate a simple placeholder
-    expect(some_name['x-component-props']?.placeholder).toBe('请输入 some_name');
+    // if has tooltip, use tooltip as placeholder
+    expect(some_name['x-component-props']?.placeholder).toBe('some hints');
 
     expect(worker_mem.required).toBeTruthy();
     expect(worker_mem.default).toBe(2);
@@ -81,7 +81,7 @@ describe('Build a form schema with various components (without permissions)', ()
   it('Give the label with tooltip', () => {
     render(fields.some_name.title as any);
     const label = screen.getByRole('label');
-    expect(label.innerHTML).toContain('anticon-question-circle');
+    expect(label.innerHTML).toContain('some hints');
   });
 });
 

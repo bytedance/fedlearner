@@ -51,7 +51,7 @@ const CodeEditorButton: FC<Props> = ({ value, onChange }) => {
         width={window.innerWidth - 250}
         visible={visible}
         contentWrapperStyle={{
-          boxShadow: 'none',
+          contain: 'paint',
         }}
         bodyStyle={{
           overflow: 'hidden',
