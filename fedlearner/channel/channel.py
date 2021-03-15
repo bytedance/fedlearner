@@ -132,7 +132,7 @@ class Channel():
         if heartbeat_timeout <= 0:
             raise ValueError("[Channel] heartbeat_timeout must be positive")
         self._heartbeat_timeout = heartbeat_timeout
-        self._heartbeat_interval = self._heartbeat_timeout / 4
+        self._heartbeat_interval = self._heartbeat_timeout / 6
         self._next_heartbeat_at = 0
         self._heartbeat_timeout_at = 0
         self._peer_heartbeat_timeout_at = 0
@@ -378,14 +378,14 @@ class Channel():
 
     def _call_locked(self, call_type):
         self._lock.release()
-        req = channel_pb2.CallRequest(
-            type=call_type,
-            token=self._token,
-            identifier=self._identifier,
-            peer_identifier=self._peer_identifier,
-        )
         try:
-            res = self._channel_call.Call(req)
+            req = channel_pb2.CallRequest(
+                type=call_type,
+                token=self._token,
+                identifier=self._identifier,
+                peer_identifier=self._peer_identifier)
+            res = self._channel_call.Call(
+                req, timeout=self._heartbeat_interval)
         except Exception as e: #pylint: disable=broad-except
             if isinstance(e, grpc.RpcError):
                 logging.warning("[Channel] grpc error, code: %s,"
