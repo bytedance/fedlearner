@@ -17,8 +17,8 @@ import json
 from string import Template
 from flatten_dict import flatten
 from fedlearner_webconsole.utils.system_envs import get_system_envs
-
-
+from fedlearner_webconsole.proto.common_pb2 import Variable
+from fedlearner_webconsole.utils.code_key_parser import code_key_parser
 class _YamlTemplate(Template):
     delimiter = '$'
     # Which placeholders in the template should be interpreted
@@ -43,7 +43,8 @@ def format_yaml(yaml, **kwargs):
 
 def _make_variables_dict(variables):
     var_dict = {
-        var.name: var.value
+        var.name: (code_key_parser.decode(var.code) if var.value_type == Variable.CODE
+                   else var.value)
         for var in variables
     }
     return var_dict

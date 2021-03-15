@@ -46,6 +46,7 @@ message Variable {
   AccessMode access_mode = 3;
   string widget_schema = 4;
   ValueType value_type = 5;
+  map<string, string> code = 6;
 }
 
 message GrpcSpec {

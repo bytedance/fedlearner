@@ -24,7 +24,7 @@ class CodeKeyParserTest(unittest.TestCase):
                      'test1/b.py': 'asdfasd',
                      'c.py': '',
                      'test/d.py': 'asdf'}
-        result = code_key_parser._decode(code_key_parser._encode(test_data))
+        result = code_key_parser.decode(code_key_parser.encode(test_data))
         self.assertEqual(result, test_data)
 
 
