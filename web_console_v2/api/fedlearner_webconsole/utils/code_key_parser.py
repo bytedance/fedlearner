@@ -23,33 +23,28 @@ class CodeKeyParser(object):
     def _encode(self, data_dict):
         # if data_dict is a dict ,
         # parse it to a tar file represented as base64 string
-        if isinstance(data_dict, dict):
-            out = BytesIO()
-            with tarfile.open(fileobj=out, mode='w:gz') as tar:
-                for path in data_dict:
-                    tarinfo = tarfile.TarInfo(path)
-                    tarinfo.size = len(data_dict[path])
-                    tar.addfile(tarinfo, BytesIO(
-                        data_dict[path].encode('utf-8')))
-            result = str(base64.b64encode(out.getvalue()), encoding='utf-8')
-            return f'base64://{result}'
-        raise InvalidArgumentException('The value of a code type Variable '
-                                       'should be a dict but not a string')
+        assert isinstance(data_dict, dict)
+        out = BytesIO()
+        with tarfile.open(fileobj=out, mode='w:gz') as tar:
+            for path in data_dict:
+                tarinfo = tarfile.TarInfo(path)
+                tarinfo.size = len(data_dict[path])
+                tar.addfile(tarinfo, BytesIO(
+                    data_dict[path].encode('utf-8')))
+        result = str(base64.b64encode(out.getvalue()), encoding='utf-8')
+        return f'base64://{result}'
 
     def _decode(self, data_string):
         # if data_string is a tarfile ,
         # parse it to a dict that file path as keys
         code_dict = {}
-        if data_string.startswith('base64://'):
-            tar_binary = BytesIO(base64.b64decode(data_string[9:]))
-            with tarfile.open(fileobj=tar_binary) as tar:
-                for file in tar.getmembers():
-                    code_dict[file.name] = str(tar.extractfile(file).read(),
-                                               encoding='utf-8')
-            return code_dict
-        raise InvalidArgumentException('The stored value of a code type '
-                                       'Variable should be base64 but not '
-                                       'string')
+        assert data_string.startswith('base64://')
+        tar_binary = BytesIO(base64.b64decode(data_string[9:]))
+        with tarfile.open(fileobj=tar_binary) as tar:
+            for file in tar.getmembers():
+                code_dict[file.name] = str(tar.extractfile(file).read(),
+                                           encoding='utf-8')
+        return code_dict
 
     def decode_code_key_in_config(self, config):
         if config is None:

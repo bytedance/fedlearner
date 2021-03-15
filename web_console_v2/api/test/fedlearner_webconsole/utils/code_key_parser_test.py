@@ -18,14 +18,13 @@ import unittest
 from fedlearner_webconsole.utils.code_key_parser import code_key_parser
 
 
-class HdfsFileManagerTest(unittest.TestCase):
+class CodeKeyParserTest(unittest.TestCase):
     def test_ls(self):
         test_data = {'test/a.py': 'awefawefawefawefwaef',
                      'test1/b.py': 'asdfasd',
                      'c.py': '',
                      'test/d.py': 'asdf'}
-        data = test_data
-        result = code_key_parser._decode(code_key_parser._encode(data))
+        result = code_key_parser._decode(code_key_parser._encode(test_data))
         self.assertEqual(result, test_data)
 
 
