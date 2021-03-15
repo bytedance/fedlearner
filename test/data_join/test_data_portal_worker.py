@@ -30,7 +30,7 @@ from fedlearner.common import data_join_service_pb2 as dj_pb
 from fedlearner.common import data_portal_service_pb2 as dp_pb
 from fedlearner.data_join.data_portal_worker import DataPortalWorker
 from fedlearner.data_join.raw_data_iter_impl.tf_record_iter import TfExampleItem
-from fedlearner.data_join import common
+from fedlearner.data_join import common, data_block_visitor
 
 class TestDataPortalWorker(unittest.TestCase):
 
@@ -59,7 +59,6 @@ class TestDataPortalWorker(unittest.TestCase):
                 writer.write(example.SerializeToString())
         return example_id
 
-
     def _generate_input_data(self):
         self._partition_item_num = 1 << 16
         self._clean_up()
@@ -72,7 +71,7 @@ class TestDataPortalWorker(unittest.TestCase):
         with gfile.GFile(success_flag_fpath, 'w') as fh:
             fh.write('')
 
-    def _make_portal_worker(self):
+    def _make_portal_worker(self, worker_index, output_type):
         portal_worker_options = dp_pb.DataPortalWorkerOptions(
             raw_data_options=dj_pb.RawDataOptions(
                 raw_data_iter="TF_RECORD",
@@ -91,27 +90,43 @@ class TestDataPortalWorker(unittest.TestCase):
             merger_read_batch_size=128
         )
 
-        os.environ['ETCD_BASE_DIR'] = "portal_worker_0"
+        os.environ['ETCD_BASE_DIR'] = "portal_worker_{}".format(worker_index)
         self._portal_worker = DataPortalWorker(portal_worker_options,
                                                "localhost:5005", 0,
-                                               "etcd", True)
+                                               self._kvstore_type,
+                                               self._use_mock_etcd,
+                                               output_type,
+                                               self._data_source_name,
+                                               self._data_block_dump_threshold)
 
     def _clean_up(self):
         if gfile.Exists(self._input_dir):
             gfile.DeleteRecursively(self._input_dir)
+        if gfile.Exists(self._output_base_dir):
+            gfile.DeleteRecursively(self._output_base_dir)
         if gfile.Exists(self._partition_output_dir):
             gfile.DeleteRecursively(self._partition_output_dir)
         if gfile.Exists(self._merge_output_dir):
             gfile.DeleteRecursively(self._merge_output_dir)
 
-    def _prepare_test(self):
-        self._input_dir = './portal_worker_input'
-        self._partition_output_dir = './portal_worker_partition_output'
-        self._merge_output_dir = './portal_worker_merge_output'
+    def _prepare_test(self,
+                      worker_index=0,
+                      output_type='raw_data'):
+        self._input_dir = './portal_worker_input_{}'.format(worker_index)
+        self._output_base_dir = \
+            './portal_worker_output_{}'.format(worker_index)
+        self._partition_output_dir = \
+            './portal_worker_partition_output_{}'.format(worker_index)
+        self._merge_output_dir = \
+            './portal_worker_merge_output_{}'.format(worker_index)
         self._input_partition_num = 4
         self._output_partition_num = 2
+        self._data_source_name = 'test_data_source'
+        self._data_block_dump_threshold = 1024
+        self._kvstore_type = 'etcd'
+        self._use_mock_etcd = True
         self._generate_input_data()
-        self._make_portal_worker()
+        self._make_portal_worker(worker_index, output_type)
 
     def _check_partitioner(self, map_task):
         output_partitions = gfile.ListDirectory(map_task.output_base_dir)
@@ -155,6 +170,25 @@ class TestDataPortalWorker(unittest.TestCase):
                 total_cnt += 1
         return total_cnt
 
+    def _check_data_block_merge(self, reduce_task):
+        visitor = data_block_visitor.DataBlockVisitor(
+            self._data_source_name, self._kvstore_type
+        )
+        fpaths = visitor._list_data_block(reduce_task.partition_id)
+        fpaths = sorted(fpaths, key = lambda fpath: fpath, reverse = False)
+        base_dir = os.path.join(self._output_base_dir, 'data_block',
+                                common.partition_repr(reduce_task.partition_id))
+        event_time = 0
+        total_cnt = 0
+        for fpath in fpaths:
+            fpath = os.path.join(base_dir, fpath)
+            logging.info("check data block merged path:{}".format(fpath))
+            for record in tf.python_io.tf_record_iterator(fpath):
+                tf_item = TfExampleItem(record)
+                self.assertTrue(tf_item.event_time >= event_time)
+                event_time = tf_item.event_time
+                total_cnt += 1
+        return total_cnt
 
     def test_portal_worker(self):
         self._prepare_test()
@@ -187,6 +221,43 @@ class TestDataPortalWorker(unittest.TestCase):
             total_cnt += self._check_merge(reduce_task)
 
         self.assertEqual(total_cnt, self._partition_item_num * self._input_partition_num)
+        self._clean_up()
+
+    def test_portal_data_block_worker(self):
+        self._prepare_test(1, 'data_block')
+        map_task = dp_pb.MapTask()
+        map_task.output_base_dir = self._partition_output_dir
+        map_task.output_partition_num = self._output_partition_num
+        map_task.partition_id = 0
+        map_task.task_name = 'map_part_{}'.format(map_task.partition_id)
+        map_task.part_field = 'example_id'
+        map_task.data_portal_type = dp_pb.DataPortalType.Streaming
+        for partition_id in range(self._input_partition_num):
+            map_task.fpaths.append(self._get_input_fpath(partition_id))
+
+        # partitioner
+        task = dp_pb.NewTaskResponse()
+        task.map_task.CopyFrom(map_task)
+        self._portal_worker._run_map_task(task.map_task)
+
+        self._check_partitioner(task.map_task)
+
+        # merge
+        for i in range(2):
+            # simulate the case of worker restarting
+            total_cnt = 0
+            for partition_id in range(self._output_partition_num):
+                reduce_task = dp_pb.ReduceTask()
+                reduce_task.map_base_dir = self._partition_output_dir
+                reduce_task.reduce_base_dir = self._merge_output_dir
+                reduce_task.partition_id = partition_id
+                reduce_task.output_base_dir = self._output_base_dir
+                reduce_task.output_partition_num = self._output_partition_num
+                reduce_task.task_name = 'reduce_part_{}'.format(partition_id)
+                self._portal_worker._run_reduce_task(reduce_task)
+                total_cnt += self._check_data_block_merge(reduce_task)
+
+            self.assertEqual(total_cnt, self._partition_item_num * self._input_partition_num)
         self._clean_up()
 
 if __name__ == '__main__':

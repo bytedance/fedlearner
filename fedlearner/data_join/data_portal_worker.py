@@ -31,6 +31,9 @@ from fedlearner.proxy.channel import make_insecure_channel, ChannelType
 from fedlearner.data_join.raw_data_partitioner import RawDataPartitioner
 from fedlearner.data_join import common
 from fedlearner.data_join.sort_run_merger import SortRunMerger
+from fedlearner.data_join.sort_run_data_block_merger import \
+    SortRunDataBlockMerger
+
 
 class RawDataSortPartitioner(RawDataPartitioner):
 
@@ -96,16 +99,21 @@ class RawDataSortPartitioner(RawDataPartitioner):
 
 class DataPortalWorker(object):
     def __init__(self, options, master_addr, rank_id,
-                 kvstore_type, use_mock_etcd=False):
+                 kvstore_type, use_mock_etcd=False,
+                 output_type='raw_data', data_source_name='',
+                 data_block_dump_threshold=0):
         master_channel = make_insecure_channel(
                 master_addr, ChannelType.INTERNAL,
                 options=[('grpc.max_send_message_length', 2**31-1),
                          ('grpc.max_receive_message_length', 2**31-1)]
             )
-        self._kvstore_type = kvstore_type
         self._rank_id = rank_id
         self._options = options
+        self._kvstore_type = kvstore_type
         self._use_mock_etcd = use_mock_etcd
+        self._output_type = output_type
+        self._data_block_dump_threshold = data_block_dump_threshold
+        self._data_source_name = data_source_name
         self._master_client = dp_grpc.DataPortalMasterServiceStub(
             master_channel)
 
@@ -170,8 +178,6 @@ class DataPortalWorker(object):
 
     def _run_map_task(self, task):
         partition_options = self._make_partitioner_options(task)
-        data_partitioner = None
-        type_repr = ''
         if task.data_portal_type == dp_pb.DataPortalType.Streaming:
             data_partitioner = RawDataSortPartitioner(
                 partition_options, task.part_field, self._kvstore_type,
@@ -201,7 +207,15 @@ class DataPortalWorker(object):
 
     def _run_reduce_task(self, task):
         merger_options = self._make_merger_options(task)
-        sort_run_merger = SortRunMerger(merger_options, self._merger_comparator)
+        if self._output_type == 'data_block':
+            sort_run_merger = SortRunDataBlockMerger(
+                merger_options, self._merger_comparator,
+                self._data_source_name, task.output_partition_num,
+                task.output_base_dir, self._data_block_dump_threshold,
+                self._kvstore_type, self._use_mock_etcd)
+        else:  # default is raw_data
+            sort_run_merger = SortRunMerger(merger_options,
+                                            self._merger_comparator)
         input_dir = os.path.join(task.map_base_dir,
                                  common.partition_repr(task.partition_id))
         input_fpaths = [os.path.join(input_dir, f) for f in
@@ -222,7 +236,7 @@ class DataPortalWorker(object):
     def _merger_comparator(a, b):
         if a.event_time != b.event_time:
             return a.event_time < b.event_time
-        return a.example_id < b.example_id
+        return a.example_id <= b.example_id
 
     def run(self):
         while True:

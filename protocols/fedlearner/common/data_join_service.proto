@@ -146,6 +146,7 @@ message DataBlockMeta {
   JoinerStatsInfo joiner_stats_info = 12;
   repeated int64 indices = 13;
   repeated int64 joined = 14;
+  bool is_local = 13;
 }
 
 message StartPartitionRequest {

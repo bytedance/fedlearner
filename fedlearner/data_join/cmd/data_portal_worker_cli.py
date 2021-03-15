@@ -60,6 +60,16 @@ if __name__ == '__main__':
                         help='optional stat fields used in joiner, separated '
                              'by comma between fields, e.g. "label,rit". '
                              'Each field will be stripped.')
+    parser.add_argument("--output_type",
+                        type=str,
+                        default='raw_data',
+                        help="output data type [raw_data|data_block]")
+    parser.add_argument('--data_source_name', type=str,
+                        default='',
+                        help='the target name of data source')
+    parser.add_argument('--data_block_dump_threshold', type=int, default=4096,
+                        help='dump a data block if join N example, <=0' \
+                             'means no size limit for dumping data block')
 
     args = parser.parse_args()
     set_logger()
@@ -96,6 +106,8 @@ if __name__ == '__main__':
     data_portal_worker = DataPortalWorker(
             portal_worker_options, args.master_addr,
             args.rank_id, args.kvstore_type,
-            (args.kvstore_type == 'mock')
+            (args.kvstore_type == 'mock'),
+            args.output_type, args.data_source_name,
+            args.data_block_dump_threshold
         )
     data_portal_worker.start()

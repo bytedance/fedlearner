@@ -77,6 +77,8 @@ message ReduceTask {
   string map_base_dir = 2;
   string reduce_base_dir = 3;
   int64 partition_id = 4;
+  string output_base_dir = 5;
+  int64 output_partition_num = 6;
 }
 
 message NewTaskResponse {
