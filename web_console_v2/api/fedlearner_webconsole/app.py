@@ -43,8 +43,10 @@ from fedlearner_webconsole.setting.apis import initialize_setting_apis
 from fedlearner_webconsole.rpc.server import rpc_server
 from fedlearner_webconsole.db import db
 from fedlearner_webconsole.exceptions import (
-    make_response, WebConsoleApiException, InvalidArgumentException)
+    make_response, WebConsoleApiException, InvalidArgumentException,
+    NotFoundException)
 from fedlearner_webconsole.scheduler.scheduler import scheduler
+
 
 def _handle_bad_request(error):
     """Handles the bad request raised by reqparse"""
@@ -54,6 +56,13 @@ def _handle_bad_request(error):
         if error.data is not None:
             details = error.data['message']
         return make_response(InvalidArgumentException(details))
+    return error
+
+
+def _handle_not_found(error):
+    """Handles the not found exception raised by framework"""
+    if not isinstance(error, WebConsoleApiException):
+        return make_response(NotFoundException())
     return error
 
 
@@ -115,6 +124,7 @@ def create_app(config):
 
     # Error handlers
     app.register_error_handler(400, _handle_bad_request)
+    app.register_error_handler(404, _handle_not_found)
     app.register_error_handler(WebConsoleApiException, make_response)
     app.register_error_handler(Exception, _handle_uncaught_exception)
 
