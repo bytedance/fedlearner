@@ -59,7 +59,7 @@ DATA_JOIN_MAPPINGS = {
                     "type": "byte"
                 },
                 "label": {
-                    "ignore_above": 8,
+                    "ignore_above": 32,
                     "type": "keyword"
                 },
                 "type": {
@@ -125,7 +125,7 @@ METRICS_MAPPINGS = {
                     "type": "keyword"
                 },
                 "role": {
-                    "ignore_above": 16,
+                    "ignore_above": 32,
                     "type": "keyword"
                 },
                 "event_time": {
