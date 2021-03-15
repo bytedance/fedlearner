@@ -30,7 +30,7 @@ from fedlearner_webconsole.exceptions import (
 
 
 def _classify_variable(variable):
-    if variable['value_type'] == 'CODE':
+    if 'value_type' in variable and variable['value_type'] == 'CODE':
         if not isinstance(variable['value'], dict):
             raise ParseError('The value of a code '
                              'type Variable must be a dict')
@@ -48,7 +48,7 @@ def dict_to_workflow_definition(config):
             for job in config['job_definitions']:
                 if 'variables' in job:
                     for index, variable in enumerate(job['variables']):
-                        config['variables'][index] = _classify_variable(
+                        job['variables'][index] = _classify_variable(
                             variable)
         template_proto = ParseDict(config,
                                    workflow_definition_pb2.WorkflowDefinition())
