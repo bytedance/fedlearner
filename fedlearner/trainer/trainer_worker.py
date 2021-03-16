@@ -45,12 +45,12 @@ class StepMetricsHook(tf.estimator.SessionRunHook):
         self._iter += 1
         if self._iter % self._every_n_iter == 0:
             result = run_value.results
-            event_time = result.pop('event_time').decode()
-            if event_time == '':
-                tags = {}
-            else:
-                tags = {'event_time': fcc.convert_to_datetime(event_time, True)
-                        .isoformat(timespec='microseconds')}
+            tags = {}
+            if 'event_time' in result:
+                event_time = result.pop('event_time').decode()
+                tags['event_time'] = fcc.convert_to_datetime(
+                        event_time.decode(), True
+                    ).isoformat(timespec='microseconds')
             for name, value in result.items():
                 metrics.emit_store(name=name, value=value, tags=tags)
 
@@ -58,11 +58,11 @@ class StepMetricsHook(tf.estimator.SessionRunHook):
 class StepLossAucMetricsHook(StepMetricsHook):
     def __init__(self, loss_tensor, auc_tensor, every_n_iter=5,
                  event_time_tensor=None):
-        if event_time_tensor is None:
-            event_time_tensor = tf.constant([''])
+
         tensor_dict = {"loss": loss_tensor,
-                       "auc": auc_tensor,
-                       "event_time": event_time_tensor}
+                       "auc": auc_tensor}
+        if event_time_tensor is not None:
+            tensor_dict["event_time"] = event_time_tensor
         super(StepLossAucMetricsHook, self).__init__(tensor_dict, every_n_iter)
 
 
