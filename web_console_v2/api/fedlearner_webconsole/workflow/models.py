@@ -398,8 +398,10 @@ class Workflow(db.Model):
         for job in self.owned_jobs:
             try:
                 job.stop()
-            except Exception:  # pylint: disable=broad-except
-                pass
+            except Exception as e:  # pylint: disable=broad-except
+                logging.warning(
+                    'Error while stopping job %s during invalidation: %s',
+                    job.name, repr(e))
 
     def _setup_jobs(self):
         if self.forked_from is not None:
