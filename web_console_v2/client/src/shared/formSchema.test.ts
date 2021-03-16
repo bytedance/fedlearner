@@ -1,6 +1,6 @@
 import buildFormSchemaFromJobDef, {
-  stringifyWidgetSchemas,
-  parseWidgetSchemas,
+  stringifyComplexDictField,
+  parseComplexDictField,
 } from './formSchema';
 import { Job, JobType } from 'typings/job';
 import { VariableComponent } from 'typings/variable';
@@ -101,8 +101,8 @@ describe('Build a form schema with permissions', () => {
 });
 
 describe('Stringify all Widget schemas inside a workflow config before send to server', () => {
-  it('stringifyWidgetSchemas should works fine', () => {
-    const stringified = stringifyWidgetSchemas(normalTemplate as WorkflowTemplatePayload);
+  it('stringifyComplexDictField should works fine', () => {
+    const stringified = stringifyComplexDictField(normalTemplate as WorkflowTemplatePayload);
 
     expect(
       stringified.config.variables.every((item) => typeof item.widget_schema === 'string'),
@@ -117,7 +117,7 @@ describe('Stringify all Widget schemas inside a workflow config before send to s
 });
 
 describe('Parse all Widget schemas inside a workflow config from server side', () => {
-  it('parseWidgetSchemas should works fine', () => {
+  it('parseComplexDictField should works fine', () => {
     // Before is string type
     expect(
       withExecutionDetail.config!.variables.every((item) => typeof item.widget_schema === 'string'),
@@ -128,7 +128,7 @@ describe('Parse all Widget schemas inside a workflow config from server side', (
       }),
     ).toBeTruthy();
 
-    const parsed = parseWidgetSchemas(withExecutionDetail);
+    const parsed = parseComplexDictField(withExecutionDetail);
 
     expect(
       parsed.config!.variables.every((item) => typeof item.widget_schema === 'object'),

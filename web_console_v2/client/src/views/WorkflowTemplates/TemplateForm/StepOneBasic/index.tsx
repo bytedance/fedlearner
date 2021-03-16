@@ -10,10 +10,10 @@ import { templateForm } from 'stores/template';
 import { WorkflowTemplatePayload } from 'typings/workflow';
 import { useQuery } from 'react-query';
 import { fetchTemplateById } from 'services/workflow';
-import { upsertValue, TPL_GLOBAL_NODE_UUID } from '../store';
+import { upsertValue, TPL_GLOBAL_NODE_UUID, fillEmptyWidgetSchema } from '../store';
 import { giveWeakRandomKey } from 'shared/helpers';
 import { omit } from 'lodash';
-import { parseWidgetSchemas } from 'shared/formSchema';
+import { parseComplexDictField } from 'shared/formSchema';
 
 const Container = styled(Card)`
   padding-top: 20px;
@@ -50,15 +50,23 @@ const TemplateStepOneBasic: FC<Props> = ({ isEdit, isHydrated }) => {
        *    and replace deps souce job name with corresponding uuid,
        *    then the {uuid, dependencies} will save to recoil and real job def values should go ../store.ts
        */
-      const { id, name, comment, is_left, group_alias, config } = parseWidgetSchemas(res.data);
+      const { id, name, comment, is_left, group_alias, config } = parseComplexDictField(res.data);
 
-      upsertValue(TPL_GLOBAL_NODE_UUID, { variables: config.variables });
+      upsertValue(TPL_GLOBAL_NODE_UUID, { variables: config.variables.map(fillEmptyWidgetSchema) });
 
+      /**
+       * 1. Genrate a Map<uuid, job-name>
+       * 2. upsert job definition values to store
+       *  - need deal variable codes
+       */
       const nameToUuidMap = config.job_definitions.reduce((map, job) => {
         const thisJobUuid = giveWeakRandomKey();
         map[job.name] = thisJobUuid;
 
-        upsertValue(thisJobUuid, omit(job, 'dependencies'));
+        const value = omit(job, 'dependencies');
+        value.variables = value.variables.map(fillEmptyWidgetSchema);
+
+        upsertValue(thisJobUuid, value);
 
         return map;
       }, {} as Record<string, string>);

@@ -1,5 +1,5 @@
 import React, { FC } from 'react';
-import { Form, Button } from 'antd';
+import { Form, Button, FormInstance } from 'antd';
 import { Plus } from 'components/IconPark';
 import { useTranslation } from 'react-i18next';
 import VariableForm from './VariableForm';
@@ -7,7 +7,7 @@ import NoResult from 'components/NoResult';
 import { cloneDeep } from 'lodash';
 import { DEFAULT_VARIABLE } from '../../store';
 
-const VariableList: FC = () => {
+const VariableList: FC<{ form: FormInstance }> = ({ form }) => {
   const { t } = useTranslation();
 
   return (
@@ -20,7 +20,7 @@ const VariableList: FC = () => {
               noStyle
               rules={[{ required: true, message: t('project.msg_var_name') }]}
             >
-              <VariableForm path={[field.name]} onRemove={() => remove(field.name)} />
+              <VariableForm form={form} path={[field.name]} onRemove={() => remove(field.name)} />
             </Form.Item>
           ))}
           {fields.length === 0 && (

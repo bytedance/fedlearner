@@ -118,6 +118,14 @@ export function fetchPeerJobEvents(
   );
 }
 
+export function fetchPodLogs__old(
+  podName: string,
+  jobId: ID,
+  params?: { startTime?: DateTime; maxLines: number },
+): Promise<{ data: string[] }> {
+  return request(`/v2/pods/${podName}/log`, { params, snake_case: true });
+}
+
 export function fetchPodLogs(
   podName: string,
   jobId: ID,

@@ -28,7 +28,7 @@ import {
   fetchTemplateById,
 } from 'services/workflow';
 import { WorkflowCreateProps } from '..';
-import { parseWidgetSchemas } from 'shared/formSchema';
+import { parseComplexDictField } from 'shared/formSchema';
 import { to } from 'shared/helpers';
 import { JobNodeRawData } from 'components/WorkflowJobsCanvas/types';
 
@@ -250,7 +250,7 @@ const WorkflowsCreateStepOne: FC<WorkflowCreateProps & { onSuccess?: any }> = ({
   function setCurrentUsingTemplate(tpl: WorkflowTemplate<any>) {
     // Widget schemas of the template from backend side are JSON-string type
     // parse it before using
-    const parsedTpl = parseWidgetSchemas(tpl);
+    const parsedTpl = parseComplexDictField(tpl);
     // For flow chart render
     setTemplateInUsing(parsedTpl);
     // For initiate workflow config's data

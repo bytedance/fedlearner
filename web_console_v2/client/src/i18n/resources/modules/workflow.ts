@@ -119,6 +119,7 @@ const workflow: I18nMessageModule = {
   placeholder_job_type: { zh: '请选择任务类型' },
   placeholder_var_name: { zh: '请输入变量名 （仅允许英语及下划线' },
   placeholder_default_val: { zh: '按需设置变量默认值' },
+  placeholder_dataset: { zh: '请选择数据集' },
 
   msg_sent_success: { zh: '工作流发送成功' },
   msg_template_required: { zh: '请选择一个模板！' },

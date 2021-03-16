@@ -11,6 +11,7 @@ import { Input, NumberPicker, Select, Radio, Checkbox, Switch } from '@formily/a
 import styled from 'styled-components';
 import { VariableComponent } from 'typings/variable';
 import ModelCodesEditorButton from 'components/ModelCodesEditorButton';
+import DatasetSelect from 'components/DatasetSelect';
 
 const components: Record<VariableComponent, any> = {
   [VariableComponent.Input]: Input,
@@ -21,6 +22,7 @@ const components: Record<VariableComponent, any> = {
   [VariableComponent.TextArea]: Input.TextArea,
   [VariableComponent.Switch]: Switch,
   [VariableComponent.Code]: ModelCodesEditorButton,
+  [VariableComponent.Dataset]: DatasetSelect,
 };
 
 const StyledSchemaForm = styled(SchemaForm)`

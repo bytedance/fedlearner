@@ -1,6 +1,6 @@
 import React, { FC } from 'react';
 import styled from 'styled-components';
-import { Form, Input, Button, Col, Radio, Popconfirm } from 'antd';
+import { Form, Input, Button, Col, Radio, Popconfirm, FormInstance } from 'antd';
 import { useTranslation } from 'react-i18next';
 import { Variable, VariableAccessMode } from 'typings/variable';
 import { Delete, Down } from 'components/IconPark';
@@ -48,6 +48,7 @@ const Container = styled.div`
 type Props = {
   path: (number | string)[];
   value?: Variable;
+  form: FormInstance;
   onChange?: (val: Variable) => any;
   onRemove: any;
 };
@@ -56,14 +57,14 @@ type Props = {
  * Dynamic Variable form list
  * MUST wrap with a antd.Form
  */
-const VariableForm: FC<Props> = ({ path, value, onRemove }) => {
+const VariableForm: FC<Props> = ({ form, path, value, onRemove }) => {
   const { t } = useTranslation();
 
   if (!value) {
     return null;
   }
 
-  const data = value!;
+  const data = value;
 
   const PermissionIndicator = indicators[data.access_mode];
 
@@ -91,7 +92,7 @@ const VariableForm: FC<Props> = ({ path, value, onRemove }) => {
           rules={[
             { required: true, message: t('workflow.msg_varname_required') },
             {
-              pattern: /^[a-zA-Z_]+$/g,
+              pattern: /^[a-zA-Z_-]+$/g,
               message: t('workflow.msg_varname_invalid'),
             },
           ]}
@@ -108,7 +109,6 @@ const VariableForm: FC<Props> = ({ path, value, onRemove }) => {
             <Radio.Button value={VariableAccessMode.PEER_WRITABLE}>
               <VariablePermission.Writable desc />
             </Radio.Button>
-
             <Radio.Button value={VariableAccessMode.PEER_READABLE}>
               <VariablePermission.Readable desc />
             </Radio.Button>
@@ -119,7 +119,7 @@ const VariableForm: FC<Props> = ({ path, value, onRemove }) => {
         </Form.Item>
 
         <Form.Item name={[...path, 'widget_schema']} noStyle>
-          <WidgetSchema path={[...path, 'widget_schema']} />
+          <WidgetSchema form={form} path={[...path, 'widget_schema']} />
         </Form.Item>
       </Container>
     </Details>

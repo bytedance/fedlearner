@@ -31,7 +31,7 @@ import { Variable } from 'typings/variable';
 import InspectPeerConfigs from './InspectPeerConfig';
 import { ExclamationCircle } from 'components/IconPark';
 import { Z_INDEX_GREATER_THAN_HEADER } from 'components/Header';
-import { stringifyWidgetSchemas } from 'shared/formSchema';
+import { stringifyComplexDictField } from 'shared/formSchema';
 import { removePrivate } from 'shared/object';
 import { cloneDeep, Dictionary } from 'lodash';
 
@@ -207,7 +207,7 @@ const CanvasAndForm: FC<WorkflowCreateProps> = ({ isInitiate, isAccept }) => {
     let finalError = (null as any) as Error;
 
     if (isInitiate) {
-      const payload = stringifyWidgetSchemas(
+      const payload = stringifyComplexDictField(
         removePrivate({
           config: configValue,
           ...basicPayload,
@@ -221,7 +221,7 @@ const CanvasAndForm: FC<WorkflowCreateProps> = ({ isInitiate, isAccept }) => {
     }
 
     if (isAccept) {
-      const payload = stringifyWidgetSchemas(
+      const payload = stringifyComplexDictField(
         removePrivate({
           config: configValue,
           forkable: basicPayload.forkable!,

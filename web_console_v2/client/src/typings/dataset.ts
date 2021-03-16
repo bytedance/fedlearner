@@ -19,7 +19,7 @@ export enum FileState {
 export type FileToImport = {
   path: string;
   size: number;
-  created_at: DateTime;
+  mtime: DateTime;
 };
 
 export type DataFile = {
@@ -58,6 +58,7 @@ export type Dataset = {
   updated_at: DateTime;
   deleted_at?: DateTime;
   data_batches: DataBatch[];
+  path: string;
 };
 
 export type DatasetCreatePayload = Pick<Dataset, 'name' | 'dataset_type' | 'comment'>;

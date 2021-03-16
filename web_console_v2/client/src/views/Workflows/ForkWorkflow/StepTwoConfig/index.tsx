@@ -22,7 +22,7 @@ import JobFormDrawer, { JobFormDrawerExposedRef } from '../../JobFormDrawer';
 import { useToggle } from 'react-use';
 import { WorkflowExecutionDetails, ChartWorkflowConfig } from 'typings/workflow';
 import { Variable } from 'typings/variable';
-import { parseWidgetSchemas, stringifyWidgetSchemas } from 'shared/formSchema';
+import { parseComplexDictField, stringifyComplexDictField } from 'shared/formSchema';
 import i18n from 'i18n';
 import { ExclamationCircle } from 'components/IconPark';
 import { Z_INDEX_GREATER_THAN_HEADER } from 'components/Header';
@@ -93,7 +93,7 @@ const WorkflowForkStepTwoConfig: FC = () => {
   useQuery(['getWorkflow', params.id], () => getWorkflowDetailById(params.id), {
     refetchOnWindowFocus: false,
     onSuccess(data) {
-      const config = parseWidgetSchemas(data.data).config! as ChartWorkflowConfig;
+      const config = parseComplexDictField(data.data).config! as ChartWorkflowConfig;
 
       setFormData({
         ...formData,
@@ -104,7 +104,7 @@ const WorkflowForkStepTwoConfig: FC = () => {
   const peerQuery = useQuery(['getPeerWorkflow', params.id], getPeerWorkflow, {
     refetchOnWindowFocus: false,
     onSuccess(data) {
-      const fork_proposal_config = parseWidgetSchemas(data).config! as ChartWorkflowConfig;
+      const fork_proposal_config = parseComplexDictField(data).config! as ChartWorkflowConfig;
       markThem(fork_proposal_config.job_definitions);
 
       setFormData({
@@ -304,7 +304,7 @@ const WorkflowForkStepTwoConfig: FC = () => {
 
     setSubmitting(true);
 
-    const payload = stringifyWidgetSchemas(formData);
+    const payload = stringifyComplexDictField(formData);
 
     payload.config.job_definitions = _omitJobsColorMark(payload.config.job_definitions);
 

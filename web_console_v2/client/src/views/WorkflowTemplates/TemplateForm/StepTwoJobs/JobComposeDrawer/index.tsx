@@ -164,7 +164,7 @@ const JobComposerDrawer: ForwardRefRenderFunction<ExposedRef, Props> = (
           <FormSection data-fill>
             <h4>自定义变量</h4>
             {/* Form.List inside VariableList */}
-            <VariableList />
+            <VariableList form={formInstance} />
           </FormSection>
 
           <Form.Item wrapperCol={{ offset: 0 }}>

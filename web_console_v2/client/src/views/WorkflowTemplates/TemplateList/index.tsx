@@ -2,16 +2,22 @@ import React, { FC, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from 'react-query';
 import { Link, useHistory } from 'react-router-dom';
-import { deleteTemplate, fetchTemplateById, fetchWorkflowTemplateList } from 'services/workflow';
+import {
+  createWorkflowTemplate,
+  deleteTemplate,
+  fetchTemplateById,
+  fetchWorkflowTemplateList,
+} from 'services/workflow';
 import styled from 'styled-components';
 import ListPageLayout from 'components/ListPageLayout';
 import NoResult from 'components/NoResult';
 import { Col, Input, Row, Table, Form, Button, Tag, Popconfirm, message } from 'antd';
-import { WorkflowTemplate } from 'typings/workflow';
+import { WorkflowTemplate, WorkflowTemplatePayload } from 'typings/workflow';
 import GridRow from 'components/_base/GridRow';
 import { Experiment } from 'components/IconPark';
 import { to } from 'shared/helpers';
 import { useToggle } from 'react-use';
+import queryClient from 'shared/queryClient';
 
 const ListContainer = styled.div`
   display: flex;
@@ -22,13 +28,15 @@ const TemplateName = styled(Link)`
   font-size: 16px;
 `;
 
+const TPL_LIST_QUERY_KEY = 'fetchTemplateList';
+
 const DownloadTemplate: FC<{ template: WorkflowTemplate }> = ({ template: { id, name } }) => {
   const { t } = useTranslation();
 
   const [loading, setLoading] = useToggle(false);
 
   return (
-    <Button type="link" loading={loading} onClick={onClick}>
+    <Button type="link" size="small" loading={loading} onClick={onClick}>
       {t('workflow.action_download')}
     </Button>
   );
@@ -51,13 +59,47 @@ const DownloadTemplate: FC<{ template: WorkflowTemplate }> = ({ template: { id, 
   }
 };
 
+const DuplicateTemplate: FC<{ template: WorkflowTemplate }> = ({ template: { id } }) => {
+  const { t } = useTranslation();
+
+  const [loading, setLoading] = useToggle(false);
+
+  return (
+    <Button type="link" size="small" loading={loading} onClick={onClick}>
+      {t('workflow.action_fork')}
+    </Button>
+  );
+
+  async function onClick() {
+    setLoading(true);
+    const [res, err] = await to(fetchTemplateById(id));
+    setLoading(false);
+
+    if (err) {
+      return message.error(t('workflow.msg_get_tpl_detail_failed'));
+    }
+
+    const newTplPayload: WorkflowTemplatePayload = res.data;
+    newTplPayload.name = res.data.name + '-copy';
+
+    const [, error] = await to(createWorkflowTemplate(newTplPayload));
+
+    if (error) {
+      return message.error(error.message);
+    }
+
+    // Make
+    queryClient.invalidateQueries(TPL_LIST_QUERY_KEY);
+  }
+};
+
 const TemplateList: FC = () => {
   const { t } = useTranslation();
   const history = useHistory();
   const [form] = Form.useForm();
   const [params, setParams] = useState({ keyword: '' });
 
-  const listQ = useQuery('fetchTemplateList', () => fetchWorkflowTemplateList(), {
+  const listQ = useQuery(TPL_LIST_QUERY_KEY, () => fetchWorkflowTemplateList(), {
     refetchOnWindowFocus: false,
   });
 
@@ -93,10 +135,14 @@ const TemplateList: FC = () => {
         name: 'operation',
         render: (_: any, record: WorkflowTemplate) => {
           return (
-            <GridRow gap="8">
+            <GridRow left="-15">
               <DownloadTemplate template={record} />
 
-              <Link to={`/workflow-templates/edit/basic/${record.id}`}>{t('edit')}</Link>
+              <DuplicateTemplate template={record} />
+
+              <Button size="small" type="link">
+                <Link to={`/workflow-templates/edit/basic/${record.id}`}>{t('edit')}</Link>
+              </Button>
 
               <Popconfirm
                 title={t('workflow.msg_sure_to_delete')}

@@ -1,6 +1,6 @@
-import { clone, isNil } from 'lodash';
+import { clone, isEmpty, isNil } from 'lodash';
 import { giveWeakRandomKey } from 'shared/helpers';
-import { JobType, JobDefinitionForm } from 'typings/job';
+import { JobType, JobDefinitionForm, JobDependency } from 'typings/job';
 import {
   Variable,
   VariableAccessMode,
@@ -33,6 +33,25 @@ export const DEFAULT_VARIABLE: Variable = {
     required: true,
   },
 };
+
+export function turnUuidDepToJobName(dep: JobDependency): JobDependency {
+  return {
+    source: getOrInsertValueById(dep.source)?.name!,
+  };
+}
+
+export function fillEmptyWidgetSchema(variable: Variable) {
+  if (!variable.widget_schema || isEmpty(variable.widget_schema)) {
+    const copy = clone(variable);
+    copy.widget_schema = clone(DEFAULT_VARIABLE.widget_schema);
+
+    return copy;
+  }
+
+  return variable;
+}
+
+// ------------------------------------- Store of job defintiions & variables ---------------------------------------------
 
 const storedJobNGlbalValues: Map<string, JobDefinitionForm> = new Map();
 

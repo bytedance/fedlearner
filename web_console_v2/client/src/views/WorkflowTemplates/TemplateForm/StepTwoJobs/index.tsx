@@ -15,7 +15,12 @@ import { Modal, Button, message } from 'antd';
 import styled from 'styled-components';
 import { Job, JobDefinitionForm, JobDependency } from 'typings/job';
 import JobComposeDrawer, { ExposedRef as DrawerExposedRef } from './JobComposeDrawer';
-import { getOrInsertValueById, TPL_GLOBAL_NODE_UUID, upsertValue } from '../store';
+import {
+  getOrInsertValueById,
+  TPL_GLOBAL_NODE_UUID,
+  turnUuidDepToJobName,
+  upsertValue,
+} from '../store';
 import { Redirect, useHistory, useParams } from 'react-router';
 import { ExclamationCircle } from 'components/IconPark';
 import { Z_INDEX_GREATER_THAN_HEADER } from 'components/Header';
@@ -23,7 +28,7 @@ import { useTranslation } from 'react-i18next';
 import GridRow from 'components/_base/GridRow';
 import { WorkflowTemplatePayload } from 'typings/workflow';
 import { createWorkflowTemplate, updateWorkflowTemplate } from 'services/workflow';
-import { stringifyWidgetSchemas } from 'shared/formSchema';
+import { stringifyComplexDictField } from 'shared/formSchema';
 
 const Container = styled.main`
   height: 100%;
@@ -283,13 +288,19 @@ const TemplateStepTowJobs: FC<{ isEdit?: boolean }> = ({ isEdit }) => {
     let payload: WorkflowTemplatePayload = { ...basics, config: {} as any };
 
     payload.config.variables = getOrInsertValueById(TPL_GLOBAL_NODE_UUID)?.variables!;
+
     payload.config.job_definitions = config.job_definitions.map((item) => {
-      return { ...getOrInsertValueById(item.uuid), dependencies: item.dependencies } as Job;
+      const values = getOrInsertValueById(item.uuid);
+      return {
+        ...values,
+        dependencies: item.dependencies.map(turnUuidDepToJobName),
+      } as Job;
     });
+
     payload.config.group_alias = basics.group_alias;
     payload.config.is_left = basics.is_left || false;
 
-    payload = stringifyWidgetSchemas(payload);
+    payload = stringifyComplexDictField(payload);
 
     const [, error] = await to(
       isEdit ? updateWorkflowTemplate(params.id!, payload) : createWorkflowTemplate(payload),

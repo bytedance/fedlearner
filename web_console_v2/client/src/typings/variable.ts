@@ -48,7 +48,10 @@ export enum VariableComponent {
   TextArea = 'TextArea',
   NumberPicker = 'NumberPicker',
   Switch = 'Switch',
+  // -------- Custom components ----------
   Code = 'Code',
+  Dataset = 'Dataset',
+  // ------- Custom components ----------
   // Uncomment it after we have usecase
   // TimePicker = 'TimePicker',
   // Upload = 'Upload',

@@ -7,7 +7,12 @@ import {
   WorkflowTemplate,
   WorkflowTemplatePayload,
 } from 'typings/workflow';
-import { Variable, VariableAccessMode, VariableComponent } from 'typings/variable';
+import {
+  Variable,
+  VariableAccessMode,
+  VariableComponent,
+  VariableValueType,
+} from 'typings/variable';
 import { FormilySchema } from 'typings/formily';
 import { cloneDeep, merge } from 'lodash';
 import variablePresets, { VariablePresets } from './variablePresets';
@@ -320,7 +325,23 @@ const componentToWorkersMap: { [key: string]: (v: Variable) => FormilySchema } =
 };
 
 // ---------- Widget schemas stringify, parse -----------
-export function stringifyWidgetSchemas<
+
+export function stringifyVariableCodes(variable: Variable) {
+  if (variable.variable_type === VariableValueType.CODE) {
+    variable.value = JSON.stringify(variable.value);
+  }
+}
+
+export function parseVariableCodes(variable: Variable) {
+  if (variable.variable_type === VariableValueType.CODE) {
+    variable.value = JSON.parse(variable.value);
+  }
+}
+
+/**
+ * Stringify each variable's widget schema & codes value
+ */
+export function stringifyComplexDictField<
   T extends
     | WorkflowInitiatePayload
     | WorkflowTemplatePayload
@@ -353,10 +374,15 @@ export function stringifyWidgetSchemas<
     if (typeof variable.widget_schema === 'object') {
       variable.widget_schema = JSON.stringify(variable.widget_schema);
     }
+
+    stringifyVariableCodes(variable);
   }
 }
 
-export function parseWidgetSchemas<
+/**
+ * Parse each variable's widget schema & codes value
+ */
+export function parseComplexDictField<
   T extends WorkflowExecutionDetails | WorkflowTemplate | WorkflowForkPayload
 >(input: T): T {
   const ret = cloneDeep(input);
@@ -387,6 +413,8 @@ export function parseWidgetSchemas<
         ? JSON.parse(variable.widget_schema)
         : /* istanbul ignore next */ {};
     }
+
+    parseVariableCodes(variable);
   }
 }
 

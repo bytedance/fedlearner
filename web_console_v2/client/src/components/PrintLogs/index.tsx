@@ -7,7 +7,7 @@ import { MixinFlexAlignCenter, MixinSquare } from 'styles/mixins';
 import { ScrollDown } from 'styles/animations';
 import { useToggle } from 'react-use';
 import { Tooltip } from 'antd';
-import { last, noop, debounce } from 'lodash';
+import { last, debounce } from 'lodash';
 import i18n from 'i18n';
 
 const Container = styled.div`
@@ -139,16 +139,22 @@ const PrintLogs: FC<Props> = (props) => {
 
   const debouncedScrollHandler = useCallback(debounce(onPreScroll, 200), [isAtButt, onPreScroll]);
 
+  let logsContent: string = '';
+
+  if (logsQuery.isError) {
+    logsContent = (logsQuery.error as any).message;
+  } else if (isEmpty) {
+    logsContent = 'No logs at the moment';
+  } else if (logsQuery.data) {
+    logsContent = Array.isArray(logsQuery.data.data)
+      ? logsQuery.data.data?.join('\n')
+      : logsQuery.data.toString();
+  }
+
   return (
     <Container {...props}>
       <Pre ref={areaRef as any} onScroll={debouncedScrollHandler}>
-        {logsQuery.isLoading ? (
-          <Refresh spin style={{ fontSize: '20px' }} />
-        ) : isEmpty ? (
-          'No logs at the moment'
-        ) : (
-          logsQuery.data?.data.join('\n')
-        )}
+        {logsQuery.isLoading ? <Refresh spin style={{ fontSize: '20px' }} /> : logsContent}
       </Pre>
       <ControlsContainer>
         {fullscreenVisible && onFullscreenClick && (

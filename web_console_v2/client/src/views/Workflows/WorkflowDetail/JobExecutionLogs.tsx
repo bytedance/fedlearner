@@ -47,7 +47,6 @@ const JobExecutionLogs: FC<Props> = ({ job, enabled, isPeerSide, workflow }) => 
       }
 
       return fetchPeerJobEvents(workflow?.uuid!, job.k8sName!, {
-        startTime: 0,
         maxLines: 500,
       }).catch((error) => ({
         data: [error.message],
@@ -59,7 +58,6 @@ const JobExecutionLogs: FC<Props> = ({ job, enabled, isPeerSide, workflow }) => 
     }
 
     return fetchJobLogs(job.id, {
-      startTime: 0,
       maxLines: 500,
     }).catch((error) => ({
       data: [error.message],

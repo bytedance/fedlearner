@@ -34,6 +34,7 @@ const CodeEditorButton: FC<Props> = ({ value, onChange }) => {
   if (typeof data === 'string' || isEmpty(data)) {
     data = { [DEFAULT_MAIN_FILE]: '' };
   }
+
   const files = Object.keys(data || {});
 
   const [visible, toggleVisible] = useToggle(false);

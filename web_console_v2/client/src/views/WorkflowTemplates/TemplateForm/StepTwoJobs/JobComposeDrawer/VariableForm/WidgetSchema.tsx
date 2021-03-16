@@ -1,6 +1,6 @@
 import React, { FC } from 'react';
 import styled from 'styled-components';
-import { Form, Input, Button, InputNumber, Switch, Select } from 'antd';
+import { Form, Input, Button, InputNumber, Switch, Select, FormInstance } from 'antd';
 import { useTranslation } from 'react-i18next';
 import {
   Variable,
@@ -11,6 +11,8 @@ import {
 import { PlusCircle, Delete } from 'components/IconPark';
 import IconButton from 'components/IconButton';
 import ModelCodesEditorButton from 'components/ModelCodesEditorButton';
+import { set } from 'lodash';
+import DatasetSelect from 'components/DatasetSelect';
 
 const WidgetFormItem = styled(Form.Item)`
   .ant-input-number {
@@ -47,6 +49,11 @@ const WIDGET_COMPONENTS__supported: Partial<Record<VariableComponent, any>> = {
     type: STRING,
   },
   [VariableComponent.Code]: { use: ModelCodesEditorButton, label: 'Code - 代码', type: CODE },
+  [VariableComponent.Dataset]: {
+    use: DatasetSelect,
+    label: 'Dataset - 数据集选择器',
+    type: STRING,
+  },
 };
 
 export const componentOptions = Object.entries(WIDGET_COMPONENTS__supported).map(([key, val]) => ({
@@ -55,17 +62,18 @@ export const componentOptions = Object.entries(WIDGET_COMPONENTS__supported).map
 }));
 
 type Props = {
+  form: FormInstance;
   path: (number | string)[];
   value?: VariableWidgetSchema;
   onChange?: (val: Variable) => any;
 };
 
-const WidgetSchema: FC<Props> = ({ path, value }) => {
+const WidgetSchema: FC<Props> = ({ form, path, value }) => {
   const { t } = useTranslation();
 
   if (!value) return null;
   const data = value;
-  const pathToVar = path.slice(0, -1);
+  const variableIdx = path.slice(0, -1);
 
   const Widget = WIDGET_COMPONENTS__supported[data.component!]?.use || Input;
   const type = WIDGET_COMPONENTS__supported[data.component!]?.type;
@@ -79,7 +87,7 @@ const WidgetSchema: FC<Props> = ({ path, value }) => {
         label={t('workflow.label_var_comp')}
         rules={[{ required: true, message: '请选择组件' }]}
       >
-        <Select placeholder="请选择组件">
+        <Select placeholder="请选择组件" onChange={onComponentChange}>
           {componentOptions.map((comp) => {
             return (
               <Select.Option key={comp.value} value={comp.value}>
@@ -90,8 +98,8 @@ const WidgetSchema: FC<Props> = ({ path, value }) => {
         </Select>
       </Form.Item>
 
-      <Form.Item hidden name={[...pathToVar, 'type']}>
-        <Input value={type} />
+      <Form.Item hidden name={[...variableIdx, 'variable_type']}>
+        <Input />
       </Form.Item>
 
       {widgetHasEnum && (
@@ -131,7 +139,7 @@ const WidgetSchema: FC<Props> = ({ path, value }) => {
 
       {/* The default value path is outside `widget_schema`, so the temp solution is name.slice(0, -1)  */}
       <WidgetFormItem
-        name={[...pathToVar, 'value']}
+        name={[...variableIdx, 'value']}
         label={t('workflow.label_default_val')}
         valuePropName={isCheckableCompnent ? 'checked' : 'value'}
         normalize={formatValue}
@@ -175,6 +183,16 @@ const WidgetSchema: FC<Props> = ({ path, value }) => {
     if (typeof value === 'number') {
       return value.toString();
     }
+  }
+
+  function onComponentChange(val: VariableComponent) {
+    const variables = form.getFieldValue('variables');
+    // TODO: it's not clean to setFieldsValue using lodash-set, find a better way!
+    set(variables, `[${variableIdx[0]}].variable_type`, WIDGET_COMPONENTS__supported[val].type);
+
+    form.setFieldsValue({
+      variables,
+    });
   }
 };
 

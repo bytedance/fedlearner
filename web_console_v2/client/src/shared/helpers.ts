@@ -39,11 +39,8 @@ export async function to<T, E = Error>(promise: Promise<T>): Promise<[T, E]> {
 /**
  * Give a random string base on Math.random
  */
-// FIXME: remove fake idx
-let idx = 10000;
 export function giveWeakRandomKey() {
-  return (idx++).toString();
-  // return Math.random().toString(16).slice(2);
+  return Math.random().toString(16).slice(2);
 }
 
 type ScriptStatus = 'loading' | 'idle' | 'ready' | 'error';
@@ -97,4 +94,32 @@ export function loadScript(src: string): Promise<{ status: ScriptStatus; error?:
     script.addEventListener('load', setStateFromEvent);
     script.addEventListener('error', setStateFromEvent);
   });
+}
+
+/**
+ * Copy to the clipboard (only for PC, no mobile adaptation processing has been done yet) \nstr \nThe string to be copied\nIs the copy successful?
+ *
+ * @param {String} str need copied
+ * @return {Boolean} is success?
+ */
+/* istanbul ignore next */
+export function copyToClipboard(str: string) {
+  str = str.toString();
+
+  const inputEl = document.createElement('textArea') as HTMLTextAreaElement;
+  let copyOk = false;
+
+  inputEl.value = str;
+  document.body.append(inputEl);
+  inputEl.select();
+
+  try {
+    copyOk = document.execCommand('Copy');
+  } catch (e) {
+    copyOk = false;
+  }
+
+  document.body.removeChild(inputEl);
+
+  return copyOk;
 }
