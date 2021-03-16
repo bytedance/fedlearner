@@ -243,8 +243,6 @@ def initialize_job_apis(api):
                      '/jobs/<int:job_id>/log')
     api.add_resource(JobMetricsApi,
                      '/jobs/<int:job_id>/metrics')
-    api.add_resource(JobMetricsApi,
-                     '/jobs/<int:job_id>/metrics')
     api.add_resource(PeerJobMetricsApi,
                      '/workflows/<string:workflow_uuid>/peer_workflows'
                      '/<int:participant_id>/jobs/<string:job_name>/metrics')
