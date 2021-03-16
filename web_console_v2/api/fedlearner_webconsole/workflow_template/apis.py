@@ -191,7 +191,7 @@ class CodeApi(Resource):
                 result = code_key_parser.decode(f'base64://{data_string}')
                 return {'data': result}, HTTPStatus.OK
         except Exception as e:
-            logging.error(f'Get code: {str(e)}')
+            logging.error('Get code: %s', repr(e))
             raise InvalidArgumentException(details={'code_path': 'wrong path'})
 
 
