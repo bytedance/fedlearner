@@ -49,7 +49,8 @@ class StepMetricsHook(tf.estimator.SessionRunHook):
             if event_time == '':
                 tags = {}
             else:
-                tags = {'event_time': fcc.convert_to_iso_format(event_time)}
+                tags = {'event_time': fcc.convert_to_datetime(event_time, True)
+                        .isoformat(timespec='microseconds')}
             for name, value in result.items():
                 metrics.emit_store(name=name, value=value, tags=tags)
 

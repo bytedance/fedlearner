@@ -29,7 +29,7 @@ from elasticsearch import helpers as helpers7
 from elasticsearch6 import helpers as helpers6
 
 from fedlearner.common.common import Config, INDEX_NAME, INDEX_TYPE, \
-    convert_to_iso_format, get_es_template
+    get_es_template
 
 
 class Handler(object):
@@ -122,9 +122,8 @@ class ElasticSearchHandler(Handler):
         if application_id:
             tags['application_id'] = str(application_id)
         if index_type == 'metrics':
-            tags['process_time'] = convert_to_iso_format(
-                datetime.datetime.now(tz=pytz.utc)
-            )
+            tags['process_time'] = datetime.datetime.now(tz=pytz.utc) \
+                .isoformat(timespec='microseconds')
             document = {
                 "name": name,
                 "value": value,
