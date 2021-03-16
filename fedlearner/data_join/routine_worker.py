@@ -14,11 +14,11 @@
 
 # coding: utf-8
 
+import traceback
 import logging
 import re
 import threading
 import time
-
 
 class RoutineWorker(object):
     def __init__(self, name, routine_fn, cond_fn, exec_interval=None):
@@ -117,6 +117,7 @@ class RoutineWorker(object):
                 new_err_code, new_err = self._parse_http_code(e)
                 if err_code != new_err_code:
                     # only dedup network error
+                    traceback.print_exc()
                     if new_err_code is not None:
                         err_code = new_err_code
                     logging.error("worker: %s run %d rounds with exception: %s",

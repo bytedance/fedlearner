@@ -21,6 +21,9 @@ import threading
 import time
 from contextlib import contextmanager
 from collections import OrderedDict
+from collections import namedtuple
+from datetime import datetime
+from datetime import timezone
 
 from guppy import hpy
 
@@ -43,8 +46,26 @@ TmpFileSuffix = '.tmp'
 DoneFileSuffix = '.done'
 RawDataFileSuffix = '.rd'
 InvalidEventTime = -9223372036854775808
-InvalidRawId = ''.encode()
+InvalidRawId = ''.encode()  # deprecated in V2
+InvalidBytes = ''.encode()
+InvalidInt = -1
 
+# must: both old and new version of raw data should have this field
+ALLOWED_FIELD = namedtuple('ALLOW_FIELD', ['default_value', 'type', 'must'])
+ALLOWED_FIELDS = dict({
+    'example_id': ALLOWED_FIELD(InvalidExampleId, bytes, True),
+    'event_time': ALLOWED_FIELD(InvalidEventTime, int, False),
+    'index': ALLOWED_FIELD(InvalidInt, int, False),
+    'event_time_deep': ALLOWED_FIELD(InvalidEventTime, int, False),
+    'raw_id': ALLOWED_FIELD(InvalidRawId, bytes, False),
+    'type': ALLOWED_FIELD(InvalidBytes, bytes, False),
+    'id_type': ALLOWED_FIELD(InvalidBytes, bytes, False),
+    'joined': ALLOWED_FIELD(InvalidInt, int, False),
+    'click_id': ALLOWED_FIELD(InvalidBytes, bytes, False),
+    'req_id': ALLOWED_FIELD(InvalidBytes, bytes, False),
+    'label': ALLOWED_FIELD(InvalidInt, int, False),
+    'cid': ALLOWED_FIELD(InvalidBytes, bytes, False)
+})
 
 @contextmanager
 def make_tf_record_iter(fpath, options=None):
@@ -153,7 +174,11 @@ def convert_dict_to_tf_example(src_dict):
             raise RuntimeError('the key {}({}) of dict must a '\
                                'string'.format(key, type(key)))
         basic_type = type(feature)
-        if basic_type == str and key not in ('example_id', 'raw_id'):
+        # Due to all fields' value are type of str in csv format,
+        # we try best to convert the digital string into numerical value.
+        if basic_type == str and (
+            (key in ALLOWED_FIELDS and ALLOWED_FIELDS[key].type != bytes) or
+            key not in ALLOWED_FIELDS):
             if feature.lstrip('-').isdigit():
                 feature = int(feature)
                 basic_type = int
@@ -162,7 +187,9 @@ def convert_dict_to_tf_example(src_dict):
                     feature = float(feature)
                     basic_type = float
                 except ValueError as e:
-                    pass
+                    if key in ALLOWED_FIELDS:
+                        raise ValueError(
+                            '%s should be numerical instead of str'%key)
         if isinstance(type(feature), list):
             if len(feature) == 0:
                 logging.debug('skip %s since feature is empty list', key)
@@ -383,3 +410,183 @@ def interval_to_timestamp(itv):
         if item in unit_no:
             tmstmp += int(unit_no[item]) * multiple[i]
     return tmstmp
+
+def timestamp_check_valid(iso_dt):
+    if iso_dt.year > 3000:
+        return False
+    return True
+
+def convert_to_iso_format(value):
+    """
+    Args:
+        value: bytes | str | int | float. Value to be converted. Expected to
+            be a numeric in the format of yyyymmdd or yyyymmddhhnnss.
+
+    Returns: str.
+    Try to convert a datetime str or numeric to iso format datetime str.
+        First try to convert based on the length of str. If it does not
+        match any datetime format supported, convert the value assuming it
+        is a timestamp. If the value is not a timestamp, return iso format
+        of timestamp=0.
+    """
+    assert isinstance(value, (bytes, str, int, float))
+    if isinstance(value, bytes):
+        value = value.decode()
+    elif isinstance(value, (int, float)):
+        value = str(value)
+    # first try to parse datetime from value
+    try:
+        if len(value) == 8:
+            iso = datetime.strptime(value, '%Y%m%d').isoformat()
+        elif len(value) == 14:
+            iso = datetime.strptime(value, '%Y%m%d%H%M%S').isoformat()
+        else:
+            raise ValueError
+        return iso
+    except ValueError:  # Not fitting any of above patterns
+        # then try to convert directly
+        try:
+            iso = datetime.fromtimestamp(float(value))
+            if not timestamp_check_valid(iso):
+                raise ValueError
+        except ValueError as e:  # might be a non-number str
+            logging.warning('OPTIONAL_STATS: unable to parse event time %s, '
+                            'defaults to 0. error: %s', value, repr(e))
+            iso = datetime.fromtimestamp(0)
+        return iso.isoformat()
+
+def convert_to_str(value):
+    if isinstance(value, bytes):
+        value = value.decode()
+    return str(value)
+
+def _parse_hh_mm_ss_ff(tstr):
+    # Parses things of the form HH[:MM[:SS[.fff[fff]]]]
+    len_str = len(tstr)
+
+    time_comps = [0, 0, 0, 0]
+    pos = 0
+    for comp in range(0, 3):
+        if (len_str - pos) < 2:
+            raise ValueError('Incomplete time component')
+
+        time_comps[comp] = int(tstr[pos:pos+2])
+
+        pos += 2
+        next_char = tstr[pos:pos+1]
+
+        if not next_char or comp >= 2:
+            break
+
+        if next_char != ':':
+            raise ValueError('Invalid time separator: %c' % next_char)
+
+        pos += 1
+
+    if pos < len_str:
+        #pylint: disable=no-else-raise
+        if tstr[pos] != '.':
+            raise ValueError('Invalid microsecond component')
+        else:
+            pos += 1
+
+            len_remainder = len_str - pos
+            if len_remainder not in (3, 6):
+                raise ValueError('Invalid microsecond component')
+
+            time_comps[3] = int(tstr[pos:])
+            if len_remainder == 3:
+                time_comps[3] *= 1000
+
+    return time_comps
+
+def _parse_isoformat_time(tstr):
+    # Format supported is HH[:MM[:SS[.fff[fff]]]][+HH:MM[:SS[.ffffff]]]
+    len_str = len(tstr)
+    if len_str < 2:
+        raise ValueError('Isoformat time too short')
+
+    # This is equivalent to re.search('[+-]', tstr), but faster
+    tz_pos = (tstr.find('-') + 1 or tstr.find('+') + 1)
+    timestr = tstr[:tz_pos-1] if tz_pos > 0 else tstr
+
+    time_comps = _parse_hh_mm_ss_ff(timestr)
+
+    tzi = None
+    if tz_pos > 0:
+        tzstr = tstr[tz_pos:]
+
+        # Valid time zone strings are:
+        # HH:MM               len: 5
+        # HH:MM:SS            len: 8
+        # HH:MM:SS.ffffff     len: 15
+
+        if len(tzstr) not in (5, 8, 15):
+            raise ValueError('Malformed time zone string')
+
+        tz_comps = _parse_hh_mm_ss_ff(tzstr)
+        if all(x == 0 for x in tz_comps):
+            tzi = timezone.utc
+        else:
+            tzsign = -1 if tstr[tz_pos - 1] == '-' else 1
+
+            td = datetime.timedelta(hours=tz_comps[0], minutes=tz_comps[1],
+                           seconds=tz_comps[2], microseconds=tz_comps[3])
+
+            tzi = timezone(tzsign * td)
+
+    time_comps.append(tzi)
+
+    return time_comps
+
+# Helpers for parsing the result of isoformat()
+def _parse_isoformat_date(dtstr):
+    # It is assumed that this function will only be called with a
+    # string of length exactly 10, and (though this is not used) ASCII-only
+    year = int(dtstr[0:4])
+    if dtstr[4] != '-':
+        raise ValueError('Invalid date separator: %s' % dtstr[4])
+
+    month = int(dtstr[5:7])
+
+    if dtstr[7] != '-':
+        raise ValueError('Invalid date separator')
+
+    day = int(dtstr[8:10])
+
+    return [year, month, day]
+
+
+def datetime_from_isformat(date_string):
+    """Construct a datetime from the output of datetime.isoformat().
+        backported from Python3.7
+    """
+    if not isinstance(date_string, str):
+        raise TypeError('fromisoformat: argument must be str')
+
+    # Split this at the separator
+    dstr = date_string[0:10]
+    tstr = date_string[11:]
+
+    try:
+        date_components = _parse_isoformat_date(dstr)
+    except ValueError:
+        raise ValueError(f'Invalid isoformat string: {date_string!r}')
+
+    if tstr:
+        try:
+            time_components = _parse_isoformat_time(tstr)
+        except ValueError:
+            raise ValueError(f'Invalid isoformat string: {date_string!r}')
+    else:
+        time_components = [0, 0, 0, 0, None]
+
+    return datetime(*(date_components + time_components))
+
+def time_diff(minuend, sub):
+    """minuend and sub should be same time format and must be legal numeric.
+    """
+    ts_minuend = datetime_from_isformat(
+        convert_to_iso_format(minuend)).timestamp()
+    ts_sub = datetime_from_isformat(convert_to_iso_format(sub)).timestamp()
+    return ts_minuend - ts_sub

@@ -16,11 +16,10 @@
 """DB client."""
 
 import os
-
 from fedlearner.common.etcd_client import EtcdClient
 from fedlearner.common.dfs_client import DFSClient
 from fedlearner.common.mysql_client import MySQLClient
-
+from fedlearner.common.leveldb import LevelDB
 
 def get_kvstore_config(kvstore_type):
     if kvstore_type == 'mysql':
@@ -45,6 +44,8 @@ class DBClient(object):
                 os.environ.get('STORAGE_ROOT_PATH', '/fedlearner'),
                 'metadata')
             self._client = DFSClient(base_dir)
+        elif kvstore_type == "leveldb":
+            self._client = LevelDB("/app/.fedlearner.db")
         else:
             database, addr, username, password, base_dir = \
                 get_kvstore_config(kvstore_type)

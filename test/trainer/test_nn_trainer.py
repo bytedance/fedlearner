@@ -275,6 +275,7 @@ class Args(object):
         self.verbosity = 1;
         self.batch_size = 100
         self.learning_rate = 0.01
+        self.epoch_num = 1
 
 
 class TestNNTraining(unittest.TestCase):

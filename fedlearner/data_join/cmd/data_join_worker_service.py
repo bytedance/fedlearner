@@ -88,6 +88,16 @@ if __name__ == "__main__":
     parser.add_argument('--negative_sampling_rate', type=float, default=0.1,
                         help="the rate of sampling when auto-generating "\
                         "negative example, in [0.0, 1.0)")
+    parser.add_argument('--join_expr', type=str, default="example_id",
+                        help="join expression for universal joiner")
+    parser.add_argument('--negative_sampling_filter_expr', type=str,
+                        help="negative sample filter expression, only be "
+                        " avaliable for follower")
+    parser.add_argument('--join_key_mapper', type=str, default="DEFAULT",
+                        help="key mapper name")
+    parser.add_argument('--raw_data_cache_type', type=str, default="memory",
+                        choices=["memory", "disk"],
+                        help="the space to store the raw data")
     parser.add_argument('--optional_fields', type=str, default='',
                         help='optional stat fields used in joiner, separated '
                              'by comma between fields, e.g. "label,rit". '
@@ -104,7 +114,8 @@ if __name__ == "__main__":
                     compressed_type=args.compressed_type,
                     read_ahead_size=args.read_ahead_size,
                     read_batch_size=args.read_batch_size,
-                    optional_fields=optional_fields
+                    optional_fields=optional_fields,
+                    raw_data_cache_type=args.raw_data_cache_type
                 ),
             example_joiner_options=dj_pb.ExampleJoinerOptions(
                     example_joiner=args.example_joiner,
@@ -118,6 +129,10 @@ if __name__ == "__main__":
                         args.enable_negative_example_generator,
                     negative_sampling_rate=\
                         args.negative_sampling_rate,
+                    join_expr=args.join_expr,
+                    join_key_mapper=args.join_key_mapper,
+                    negative_sampling_filter_expr=\
+                        args.negative_sampling_filter_expr,
                 ),
             example_id_dump_options=dj_pb.ExampleIdDumpOptions(
                     example_id_dump_interval=args.example_id_dump_interval,
