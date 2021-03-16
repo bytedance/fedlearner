@@ -23,7 +23,7 @@ type Props = {
   onPerformAction: (args: { action: DatasetAction; dataset: Dataset }) => void;
 };
 
-const actions: DatasetAction[] = ['add-batch', 'view-records', 'delete', 'copy-path'];
+const actions: DatasetAction[] = ['add-batch', 'view-records', 'copy-path', 'delete'];
 
 const DatasetActions: FC<Props> = ({ dataset, type = 'default', onPerformAction }) => {
   const { t } = useTranslation();
@@ -55,6 +55,7 @@ const DatasetActions: FC<Props> = ({ dataset, type = 'default', onPerformAction 
             size="small"
             type={type}
             key={action}
+            danger={action === 'delete'}
             onClick={() => onPerformAction({ action, dataset })}
             disabled={disabled[action]}
             className={!visible[action] ? 'hide-on-bush' : ''}
