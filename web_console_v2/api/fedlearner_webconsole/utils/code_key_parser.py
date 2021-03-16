@@ -41,8 +41,9 @@ class CodeKeyParser(object):
         tar_binary = BytesIO(base64.b64decode(data_string[9:]))
         with tarfile.open(fileobj=tar_binary) as tar:
             for file in tar.getmembers():
-                code_dict[file.name] = str(tar.extractfile(file).read(),
-                                           encoding='utf-8')
+                if not file.name.startswith('._') and file.isfile():
+                    code_dict[file.name] = str(tar.extractfile(file).read(),
+                                               encoding='utf-8')
         return code_dict
 
 

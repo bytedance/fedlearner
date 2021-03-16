@@ -31,11 +31,10 @@ from fedlearner_webconsole.exceptions import (
 
 def _classify_variable(variable):
     if 'value_type' in variable and variable['value_type'] == 'CODE':
-        if not isinstance(variable['value'], dict):
-            raise ParseError('The value of a code '
-                             'type Variable must be a dict')
-        variable['value'] = json.dumps(variable['value'])
-    # TODO: introduce more type to strengthen the format check
+        try:
+            json.loads(variable['value'])
+        except json.JSONDecodeError as e:
+            raise InvalidArgumentException(str(e))
     return variable
 
 
@@ -53,7 +52,6 @@ def dict_to_workflow_definition(config):
         template_proto = ParseDict(config,
                                    workflow_definition_pb2.WorkflowDefinition())
     except ParseError as e:
-        print(str(e))
         raise InvalidArgumentException(details={'config': str(e)})
     return template_proto
 
@@ -192,7 +190,8 @@ class CodeApi(Resource):
                                   'utf-8')
                 result = code_key_parser.decode(f'base64://{data_string}')
                 return {'data': result}, HTTPStatus.OK
-        except Exception:
+        except Exception as e:
+            logging.error(f'Get code: {str(e)}')
             raise InvalidArgumentException(details={'code_path': 'wrong path'})
 
 
