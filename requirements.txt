@@ -1,5 +1,5 @@
 setuptools==41.0.0
-tensorflow==1.15.2
+tensorflow==2.4.0
 cityhash
 pylint==2.4.4
 jinja2
