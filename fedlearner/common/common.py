@@ -19,16 +19,20 @@ RAW_DATA_MAPPINGS = {
         }
     ],
     "properties": {
-        "partition": {
-            "type": "short"
-        },
-        "application_id": {
-            "ignore_above": 128,
-            "type": "keyword"
-        },
-        "event_time": {
-            "format": _es_datetime_format,
-            "type": "date"
+        "tags": {
+            "properties": {
+                "partition": {
+                    "type": "short"
+                },
+                "application_id": {
+                    "ignore_above": 128,
+                    "type": "keyword"
+                },
+                "event_time": {
+                    "format": _es_datetime_format,
+                    "type": "date"
+                }
+            }
         }
     }
 }
@@ -46,37 +50,41 @@ DATA_JOIN_MAPPINGS = {
         }
     ],
     "properties": {
-        "partition": {
-            "type": "short"
-        },
-        "joined": {
-            "type": "byte"
-        },
-        "label": {
-            "ignore_above": 8,
-            "type": "keyword"
-        },
-        "type": {
-            "ignore_above": 32,
-            "type": "keyword"
-        },
-        "has_click_id": {
-            "type": "boolean"
-        },
-        "has_example_id": {
-            "type": "boolean"
-        },
-        "application_id": {
-            "ignore_above": 128,
-            "type": "keyword"
-        },
-        "process_time": {
-            "format": _es_datetime_format,
-            "type": "date"
-        },
-        "event_time": {
-            "format": _es_datetime_format,
-            "type": "date"
+        "tags": {
+            "properties": {
+                "partition": {
+                    "type": "short"
+                },
+                "joined": {
+                    "type": "byte"
+                },
+                "label": {
+                    "ignore_above": 32,
+                    "type": "keyword"
+                },
+                "type": {
+                    "ignore_above": 32,
+                    "type": "keyword"
+                },
+                "has_click_id": {
+                    "type": "boolean"
+                },
+                "has_example_id": {
+                    "type": "boolean"
+                },
+                "application_id": {
+                    "ignore_above": 128,
+                    "type": "keyword"
+                },
+                "process_time": {
+                    "format": _es_datetime_format,
+                    "type": "date"
+                },
+                "event_time": {
+                    "format": _es_datetime_format,
+                    "type": "date"
+                }
+            }
         }
     }
 }
@@ -99,10 +107,6 @@ METRICS_MAPPINGS = {
         "value": {
             "type": "float"
         },
-        "date_time": {
-            "format": _es_datetime_format,
-            "type": "date"
-        },
         "tags": {
             "properties": {
                 "partition": {
@@ -121,12 +125,16 @@ METRICS_MAPPINGS = {
                     "type": "keyword"
                 },
                 "role": {
-                    "ignore_above": 16,
+                    "ignore_above": 32,
                     "type": "keyword"
                 },
                 "event_time": {
                     "type": "date",
                     "format": _es_datetime_format
+                },
+                "process_time": {
+                    "format": _es_datetime_format,
+                    "type": "date"
                 }
             }
         }
@@ -161,7 +169,7 @@ def get_es_template(index_type, es_version):
                     }
                 },
                 "refresh_interval": "60s",
-                "number_of_shards": "2",
+                "number_of_shards": "1",
                 "number_of_replicas": "1",
             }
         }

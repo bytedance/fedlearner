@@ -24,6 +24,7 @@ from functools import wraps
 
 import elasticsearch as es7
 import elasticsearch6 as es6
+import pytz
 from elasticsearch import helpers as helpers7
 from elasticsearch6 import helpers as helpers6
 
@@ -119,15 +120,18 @@ class ElasticSearchHandler(Handler):
         if application_id:
             tags['application_id'] = str(application_id)
         if index_type == 'metrics':
+            tags['process_time'] = convert_to_iso_format(
+                datetime.datetime.now(tz=pytz.utc)
+            )
             document = {
                 "name": name,
                 "value": value,
                 "tags": tags,
-                # convert to UTC+8
-                "date_time": convert_to_iso_format(datetime.datetime.now())
             }
         else:
-            document = tags
+            document = {
+                "tags": tags
+            }
         return document
 
     def _create_template_and_index(self, index_type):
