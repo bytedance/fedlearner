@@ -28,7 +28,8 @@ from fedlearner.data_join import visitor
 from fedlearner.data_join.common import (
     DoneFileSuffix, make_tf_record_iter,
     partition_repr, example_id_anchor_kvstore_key,
-    data_source_example_dumped_dir
+    data_source_example_dumped_dir,
+    SYNC_ALLOWED_OPTIONAL_FIELDS
 )
 from fedlearner.data_join.raw_data_iter_impl import (
     tf_record_iter, raw_data_iter
@@ -270,19 +271,15 @@ class ExampleIdVisitor(visitor.Visitor):
                             )
                         yield example_id_item
                         index += 1
+
         def convert_lite_example_ids_to_row(self, lite_example_ids, index):
             row = dict()
             row['example_id'] = lite_example_ids.example_id[index]
             row['event_time'] = lite_example_ids.event_time[index]
-            if len(lite_example_ids.id_type) > 0:
-                row['id_type'] = lite_example_ids.id_type[index]
-            if len(lite_example_ids.event_time_deep) > 0:
-                row['event_time_deep'] = \
-                        lite_example_ids.event_time_deep[index]
-            if len(lite_example_ids.type) > 0:
-                row['type'] = lite_example_ids.type[index]
-            if len(lite_example_ids.click_id) > 0:
-                row['click_id'] = lite_example_ids.click_id[index]
+            for fn in SYNC_ALLOWED_OPTIONAL_FIELDS:
+                value_list = getattr(lite_example_ids, fn, [])
+                if len(value_list) > 0:
+                    row[fn] = value_list[index]
             return row
 
     def __init__(self, kvstore, data_source, partition_id):

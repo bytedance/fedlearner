@@ -22,6 +22,7 @@ from fedlearner.common import data_join_service_pb2 as dj_pb
 from fedlearner.data_join.item_batch_seq_processor import \
         ItemBatch, ItemBatchSeqProcessor
 from fedlearner.data_join.raw_data_visitor import RawDataVisitor
+from fedlearner.data_join import common as djc
 
 class ExampleIdBatch(ItemBatch):
     def __init__(self, partition_id, begin_index):
@@ -31,40 +32,35 @@ class ExampleIdBatch(ItemBatch):
         self._event_times = []
 
         ### V2
-        self._id_types = []
-        self._event_time_deeps = []
-        self._click_ids = []
-        self._types = []
+        self._field_buf = dict()
+        for fn in djc.SYNC_ALLOWED_OPTIONAL_FIELDS:
+            self._field_buf[fn] = []
 
     def append(self, item):
         self._example_ids.append(item.example_id)
         self._event_times.append(item.event_time)
-        if hasattr(item, 'id_type'):
-            self._id_types.append(item.id_type)
-        if hasattr(item, 'event_time_deep'):
-            self._event_time_deeps.append(item.event_time_deep)
-        if hasattr(item, 'type'):
-            self._types.append(item.type)
-        if hasattr(item, "click_id"):
-            self._click_ids.append(item.click_id)
+        for fn in djc.SYNC_ALLOWED_OPTIONAL_FIELDS:
+            value = getattr(item, fn, djc.ALLOWED_FIELDS[fn].default_value)
+            if value and value != djc.ALLOWED_FIELDS[fn].default_value:
+                self._field_buf[fn].append(value)
 
     @property
     def begin_index(self):
         return self._begin_index
 
     def make_packed_lite_example_ids(self):
+        # note: repeated fields don't support item assignment
         serde_lite_examples = dj_pb.LiteExampleIds(
             partition_id=self._partition_id,
             begin_index=self._begin_index,
             example_id=self._example_ids,
             event_time=self._event_times,
+            id_type=self._field_buf['id_type'],
+            event_time_deep=self._field_buf['event_time_deep'],
+            type=self._field_buf['type'],
+            click_id=self._field_buf['click_id']
         )
 
-        if len(self._id_types) > 0:
-            serde_lite_examples.id_type.extend(self._id_types)
-            serde_lite_examples.event_time_deep.extend(self._event_time_deeps)
-            serde_lite_examples.type.extend(self._types)
-            serde_lite_examples.click_id.extend(self._click_ids)
         return dj_pb.PackedLiteExampleIds(
                 partition_id=self._partition_id,
                 begin_index=self._begin_index,
