@@ -60,7 +60,7 @@ class LeaderTrainerMaster(object):
         self._data_source_dict = dict()
         self._default_data_source_name = None
         self._data_source_dict[data_source] = self._DataSourceInfo(
-            data_source, tm_pb.JOINED,  kvstore_use_mock)
+            data_source, tm_pb.JOINED, kvstore_use_mock)
         if local_data_sources:
             for ds in local_data_sources:
                 self._data_source_dict[ds] = self._DataSourceInfo(
@@ -343,7 +343,8 @@ if __name__ == '__main__':
                         help='the train master run for online training')
     parser.add_argument('--shuffle_data_block', action='store_true',
                         help='shuffle the data block or not')
-    parser.add_argument('--shuffle_range', type=int, default=0,
+    parser.add_argument('-shuffle_range', '--shuffle_range', type=int,
+                        default=0,
                         help='number of data blocks to shuffle')
     parser.add_argument('--epoch_num', type=int, default=1,
                         help='number of epoch for training, not '\
