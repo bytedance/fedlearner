@@ -15,6 +15,7 @@
 # coding: utf-8
 # pylint: disable=protected-access
 
+import os
 import logging
 import time
 import tensorflow.compat.v1 as tf
@@ -29,6 +30,45 @@ from fedlearner.trainer import patch  # pylint: disable=unused-import
 
 SYNC_PATH = '/sync/'
 DATA_CHECKPOINT_INIT_VALUE = "_init_value"
+
+class BridgeTrainerHook(tf.train.SessionRunHook):
+    def __init__(self,
+                 bridge,
+                 worker_rank,
+                 checkpoint_path):
+        self._bridge = bridge
+        self._worker_rank = worker_rank
+        self._checkpoint_path = checkpoint_path
+    def begin(self):
+        self._bridge.connect()
+    def before_run(self, run_context):
+        self._bridge.start()
+        logging.debug("after bridge start")
+    def after_run(self, run_context, run_values):
+        self._bridge.commit()
+        logging.debug("after bridge commit")
+    def end(self, session):
+        self._bridge.terminate()
+        self._complete_checkpoint(session)
+
+    def _complete_checkpoint(self, session):
+        if not self._checkpoint_path or self._worker_rank != 0:
+            return
+        saver_def = \
+            tf.get_collection(tf.GraphKeys.SAVERS)[0].as_saver_def()
+        saver = tf.train.Saver(
+            saver_def=saver_def,
+            max_to_keep=16)
+        dirname = os.path.join(
+            self._checkpoint_path, "complete_checkpoint")
+        filename = \
+            "fl-complete-model.ckpt-%d"%self._bridge.terminated_at
+        if not tf.io.gfile.isdir(dirname):
+            tf.io.gfile.mkdir(dirname)
+        save_path = os.path.join(dirname, filename)
+        logging.info("Save complete model checkpoint in %s",
+            save_path)
+        saver.save(session, save_path)
 
 class DataCheckpointSaverListener(tf.estimator.CheckpointSaverListener):
     def __init__(self, tm, appid):
@@ -231,6 +271,7 @@ class FLEstimator(object):
     def train(self,
               input_fn,
               checkpoint_path=None,
+              checkpoint_filename=None,
               save_checkpoint_steps=None,
               save_checkpoint_secs=None):
 
@@ -283,48 +324,43 @@ class FLEstimator(object):
             saver_hook = tf.estimator.CheckpointSaverHook(
                 checkpoint_path, save_secs=save_checkpoint_secs,
                 save_steps=save_checkpoint_steps, listeners=[listener])
-            self._bridge.connect()
 
-            try:
-                with tf.train.MonitoredTrainingSession(
-                    master=target,
-                    config=config,
-                    is_chief=(self._worker_rank == 0),
-                    chief_only_hooks=[saver_hook],
-                    checkpoint_dir=checkpoint_path,
-                    save_checkpoint_steps=None,
-                    save_checkpoint_secs=None,
-                    hooks=spec.training_hooks) as sess:
+            trainer_hook = BridgeTrainerHook(
+                self._bridge, self._worker_rank, checkpoint_path)
+            all_hooks = [trainer_hook]
+            if spec.training_hooks:
+                all_hooks.extend(spec.training_hooks)
 
-                    data_checkpoint_value = None
-                    if hasattr(saver_hook, "data_checkpoint"):
-                        data_checkpoint_value = saver_hook.data_checkpoint
-                    if not self._restore_datablock(data_checkpoint_value):
-                        raise ValueError("Restore data checkpoint error")
+            sess = tf.train.MonitoredTrainingSession(
+                master=target,
+                config=config,
+                is_chief=(self._worker_rank == 0),
+                hooks=all_hooks,
+                chief_only_hooks=[saver_hook],
+                checkpoint_dir=checkpoint_path,
+                save_checkpoint_steps=None,
+                save_checkpoint_secs=None)
 
-                    while not sess.should_stop():
-                        try:
-                            self._bridge.start()
-                            logging.debug('after bridge start.')
-                            start_time = time.time()
-                            sess.run(spec.train_op, feed_dict={})
-                        finally:
-                            use_time = time.time() - start_time
-                            logging.debug('after session run. time: %f sec',
-                                use_time)
-                            self._bridge.commit()
-                            logging.debug('after bridge commit.')
-            except Exception as e:
-                logging.fatal("Occor error when session run: %s", repr(e))
-                raise e
-            finally:
-                self._bridge.terminate()
+            with sess:
+                data_checkpoint_value = None
+                if hasattr(saver_hook, "data_checkpoint"):
+                    data_checkpoint_value = saver_hook.data_checkpoint
+                if not self._restore_datablock(data_checkpoint_value):
+                    raise ValueError("Restore data checkpoint error")
+
+                while not sess.should_stop():
+                    start_time = time.time()
+                    sess.run(spec.train_op, feed_dict={})
+                    use_time = time.time() - start_time
+                    logging.debug("after session run. time: %f sec",
+                        use_time)
 
         return self
 
     def evaluate(self,
                  input_fn,
-                 checkpoint_path=None):
+                 checkpoint_path=None,
+                 checkpoint_filename=None):
         if not tf.train.latest_checkpoint(checkpoint_path):
             raise ValueError(
                 "Could not find trained model at %s" % checkpoint_path)
@@ -375,15 +411,15 @@ class FLEstimator(object):
                     while not sess.should_stop():
                         try:
                             self._bridge.start()
-                            logging.debug('after bridge start.')
+                            logging.debug("after bridge start")
                             start_time = time.time()
                             sess.run(eval_op)
                         finally:
                             use_time = time.time() - start_time
-                            logging.debug('after session run. time: %f sec',
+                            logging.debug("after session run. time: %f sec",
                                 use_time)
                             self._bridge.commit()
-                            logging.debug('after bridge commit.')
+                            logging.debug("after bridge commit")
             except Exception as e:
                 logging.fatal("Occor error when session run: %s", repr(e))
                 raise e

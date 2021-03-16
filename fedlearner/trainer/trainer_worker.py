@@ -263,7 +263,6 @@ def train(role, args, input_fn, model_fn, serving_input_receiver_fn):
                         save_checkpoint_steps=args.save_checkpoint_steps,
                         save_checkpoint_secs=args.save_checkpoint_secs)
         if args.export_path and args.worker_rank == 0:
-            now = time.time()
             export_path = '%s/%d' % (args.export_path, bridge.terminated_at)
             estimator.export_saved_model(export_path,
                                          serving_input_receiver_fn,

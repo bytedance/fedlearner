@@ -140,7 +140,6 @@ class Bridge(object):
             if self._terminated:
                 return
 
-            self._assert_iter_committed()
             self._terminated = True
             self._condition.notify_all()
             with self._stream_condition:
