@@ -173,7 +173,7 @@ class PeerJobEventsApi(Resource):
 
 class KibanaMetricsApi(Resource):
     def get(self, job_id):
-        job = Job.query.filter_by(id=job_id).first()
+        job = _get_job(job_id)
         parser = reqparse.RequestParser()
         parser.add_argument('type', type=str, location='args',
                             required=True,
@@ -186,7 +186,7 @@ class KibanaMetricsApi(Resource):
                             help='Time bucket interval length, '
                                  'defaults to automated by Kibana.')
         parser.add_argument('x_axis_field', type=str, location='args',
-                            required=True,
+                            default='tags.event_time',
                             help='Time field (X axis) is required.')
         parser.add_argument('query', type=str, location='args',
                             help='Additional query string to the graph.')

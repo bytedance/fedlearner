@@ -61,7 +61,7 @@ class KibanaUtils(object):
                 .format(args['type'].lower()))(job, args
                                                )
         # additional global filter on data if provided.
-        if args['query'] is not None and args['query'] != '':
+        if args['query']:
             vis_state['params']['filter']['query'] += \
                 ' and ({})'.format(args['query'])
         # rison-ify and replace
@@ -304,9 +304,9 @@ class KibanaUtils(object):
             (start time, end time) of visualization.
 
         """
-        query = 'tags.application_id:{} AND ({})'.format(
-            job.name, args['query']
-        )
+        query = 'tags.application_id:{}'.format(job.name)
+        if args['query']:
+            query += ' AND ({})'.format(args['query'])
         index = KibanaUtils.JOB_INDEX.get(job.job_type, 'metrics_v2') + '*'
         et = 'tags.event_time'
         pt = 'tags.process_time'
@@ -348,9 +348,9 @@ class KibanaUtils(object):
         if args['aggregator'] not in KibanaUtils.TIMELION_AGG_TYPE:
             raise TypeError('Aggregator [{}] is not supported in Timer '
                             'visualization.'.format(args['aggregator']))
-        query = 'tags.application_id:{} AND ({})'.format(
-            job.name, args['query']
-        )
+        query = 'tags.application_id:{}'.format(job.name)
+        if args['query']:
+            query += ' AND ({})'.format(args['query'])
         index = 'metrics_v2*'
         metric = '{}:value'.format(
             KibanaUtils.TIMELION_AGG_TYPE[args['aggregator']]
@@ -471,6 +471,7 @@ class KibanaUtils(object):
     def _timelion_series(**kwargs):
         assert 'metric' in kwargs
         assert 'timefield' in kwargs
+        # convert all logical `and` and `or` to `AND` and `OR`
         query = KibanaUtils._regex_process(
             kwargs.get('query', '*'), KibanaUtils.TIMELION_QUERY_REPLACEMENT)
         return ".es(q=\"{query}\", index={index}, " \
