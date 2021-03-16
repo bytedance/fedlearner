@@ -29,6 +29,7 @@ except ImportError:
 from tensorflow.compat import as_str_any
 from tensorflow_estimator.python.estimator import model_fn as model_fn_lib
 
+from fedlearner.common import trainer_master_service_pb2 as tm_pb
 from fedlearner.common.summary_hook import SummaryHook
 from fedlearner.trainer import patch  # pylint: disable=unused-import
 

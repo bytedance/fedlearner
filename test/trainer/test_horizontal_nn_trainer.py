@@ -331,9 +331,9 @@ class TestNNTraining(unittest.TestCase):
         self.max_index = follower_index
         return data_block_metas
 
-    def _gen_ds_meta(self, role, index):
+    def _gen_ds_meta(self, role, index, data_source_name):
         data_source = common_pb.DataSource()
-        data_source.data_source_meta.name = "{}_{}".format(self.app_id, index)
+        data_source.data_source_meta.name = data_source_name
         data_source.data_source_meta.partition_num = 1
         data_source.data_source_meta.start_time = 0
         data_source.data_source_meta.end_time = 100000
@@ -355,27 +355,24 @@ class TestNNTraining(unittest.TestCase):
         x = x.reshape(x.shape[0], -1).astype(np.float32) / 255.0
         y = y.astype(np.int64)
 
-        num_followers = 3
+        num_parts = 3
         feat_len = x.shape[1]
-        chunk_size = feat_len // (num_followers + 1)
-        xl = x[:, :chunk_size]
-        xfs = []
-        for i in range(1, num_followers + 1):
+        chunk_size = feat_len // (num_parts)
+        xs = []
+        for i in range(0, num_parts):
             start_idx = chunk_size * i
             end_idx = chunk_size * (i + 1)
-            xfs.append(x[:, start_idx:end_idx])
+            xs.append(x[:, start_idx:end_idx])
 
-        self.kv_store = [None, None, None, None]
-        data_source = [self._gen_ds_meta(common_pb.FLRole.Leader, 0),
-                       self._gen_ds_meta(common_pb.FLRole.Leader, 1),
-                       self._gen_ds_meta(common_pb.FLRole.Leader, 2),
-                       self._gen_ds_meta(common_pb.FLRole.Follower, 0)]
-        for role in range(num_followers + 1):
+        self.kv_store = [None, None, None]
+        data_source = [self._gen_ds_meta(common_pb.FLRole.Leader, 0, "test-liuqi-mnist-leader-v1"),
+                       self._gen_ds_meta(common_pb.FLRole.Leader, 1, "test-liuqi-mnist-local"),
+                       self._gen_ds_meta(common_pb.FLRole.Follower, 0, "test-liuqi-mnist-v1")]
+        for role in range(num_parts):
             os.environ['ETCD_NAME'] = data_source[role].data_source_meta.name
             self.kv_store[role] = db_client.DBClient("etcd", True)
         self.data_source = data_source
-        x = [xl] + xfs
-        for role in range(num_followers + 1):
+        for role in range(num_parts):
             common.commit_data_source(self.kv_store[role], data_source[role])
             if gfile.Exists(data_source[role].output_base_dir):
                 gfile.DeleteRecursively(data_source[role].output_base_dir)
@@ -385,7 +382,7 @@ class TestNNTraining(unittest.TestCase):
             partition_num = data_source[role].data_source_meta.partition_num
             for i in range(partition_num):
                 self._create_data_block(data_source[role], i,
-                                        x[role], y)
+                                        xs[role], y)
                                         #x[role], y if role == 0 else None)
 
                 manifest_manager._finish_partition('join_example_rep',
@@ -401,15 +398,14 @@ class TestNNTraining(unittest.TestCase):
         role = 0
         tml = _Task(name="RunLeaderTM", target=run_leader_tm, args=(self.app_id,
                 self.data_source[role].data_source_meta.name,
-                [self.data_source[1].data_source_meta.name,
-                 self.data_source[2].data_source_meta.name],
+                [self.data_source[1].data_source_meta.name],
                 master_addr[role].split(":")[1],), weight=1, force_quit=True,
                 kwargs={'env' : child_env}, daemon=True)
         self.sche.submit(tml)
 
         role = 1
         tml = _Task(name="RunFollowerTM", target=run_follower_tm, args=(self.app_id,
-                self.data_source[3].data_source_meta.name,
+                self.data_source[2].data_source_meta.name,
                 master_addr[role].split(":")[1], ),
                 kwargs={'env' : child_env}, daemon=True, weight=1, force_quit=True)
         self.sche.submit(tml)
