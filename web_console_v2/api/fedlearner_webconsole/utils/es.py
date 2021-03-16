@@ -50,9 +50,9 @@ class ElasticSearchClient(object):
                                     app.config['KIBANA_SERVICE_PORT'],
                                     index_type),
                         json={'attributes': {
-                            'title': index_type + '*',
-                            'timeFieldName': 'date_time'
-                            if index_type == 'metrics' else 'event_time'}},
+                            'title': ALIAS_NAME[index_type] + '*',
+                            'timeFieldName': 'tags.process_time'
+                            if index_type == 'metrics' else 'tags.event_time'}},
                         headers={'kbn-xsrf': 'true',
                                  'Content-Type': 'application/json'},
                         params={'overwrite': True}
@@ -112,160 +112,6 @@ class ElasticSearchClient(object):
         query_body['query']['bool']['must'] = keyword_list + match_phrase_list
         response = self._es_client.search(index=index, body=query_body)
         return [item['_source']['message'] for item in response['hits']['hits']]
-
-    def query_data_join_metrics(self, job_name, num_buckets):
-        STAT_AGG = {
-            "JOINED": {
-                "filter": {
-                    "term": {
-                        "joined": 1
-                    }
-                }
-            },
-            "FAKE": {
-                "filter": {
-                    "term": {
-                        "joined": 0
-                    }
-                }
-            },
-            "UNJOINED": {
-                "filter": {
-                    "term": {
-                        "joined": -1
-                    }
-                }
-            },
-            "TOTAL": {
-                "bucket_script": {
-                    "buckets_path": {
-                        "JOINED": "JOINED[_count]",
-                        "UNJOINED": "UNJOINED[_count]"
-                    },
-                    "script": "params.JOINED + params.UNJOINED"
-                }
-            },
-            "TOTAL_WITH_FAKE": {
-                "bucket_script": {
-                    "buckets_path": {
-                        "JOINED": "JOINED[_count]",
-                        "FAKE": "FAKE[_count]",
-                        "UNJOINED": "UNJOINED[_count]"
-                    },
-                    "script": "params.JOINED + params.UNJOINED + params.FAKE"
-                }
-            },
-            "JOIN_RATE": {
-                "bucket_script": {
-                    "buckets_path": {
-                        "JOINED": "JOINED[_count]",
-                        "TOTAL": "TOTAL[value]",
-                        "FAKE": "FAKE[_count]"
-                    },
-                    "script": "params.JOINED / params.TOTAL"
-                }
-            },
-            "JOIN_RATE_WITH_FAKE": {
-                "bucket_script": {
-                    "buckets_path": {
-                        "JOINED": "JOINED[_count]",
-                        "TOTAL_WITH_FAKE": "TOTAL_WITH_FAKE[value]",
-                        "FAKE": "FAKE[_count]"
-                    },
-                    "script": "(params.JOINED + params.FAKE) / "
-                              "params.TOTAL_WITH_FAKE"
-                }
-            }
-        }
-
-        query = {
-            "size": 0,
-            "query": {
-                "bool": {
-                    "must": [
-                        {"term": {"application_id": job_name}}
-                    ]
-                }
-            },
-            "aggs": {
-                "OVERALL": {
-                    "terms": {
-                        "field": "application_id"
-                    },
-                    "aggs": STAT_AGG
-                },
-                "EVENT_TIME": {
-                    "auto_date_histogram": {
-                        "field": "event_time",
-                        "format": "strict_date_optional_time",
-                        "buckets": num_buckets
-                    },
-                    "aggs": STAT_AGG
-                },
-                "PROCESS_TIME": {
-                    "auto_date_histogram": {
-                        "field": "process_time",
-                        "format": "strict_date_optional_time",
-                        "buckets": num_buckets
-                    },
-                    "aggs": {
-                        "MAX_EVENT_TIME": {
-                            "max": {
-                                "field": "event_time",
-                                "format": "strict_date_optional_time"
-                            }
-                        },
-                        "MIN_EVENT_TIME": {
-                            "min": {
-                                "field": "event_time",
-                                "format": "strict_date_optional_time"
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        return es.search(index='data_join*', body=query)
-
-    def query_nn_metrics(self, job_name, num_buckets):
-        query = {
-            "size": 0,
-            "query": {
-                "bool": {
-                    "must": [
-                        {
-                            "term": {
-                                "tags.application_id": job_name
-                            }
-                        },
-                        {
-                            "term": {
-                                "name": "auc"
-                            }
-                        }
-                    ]
-                }
-            },
-            "aggs": {
-                "PROCESS_TIME": {
-                    "auto_date_histogram": {
-                        "field": "date_time",
-                        "format": "strict_date_optional_time",
-                        "buckets": num_buckets
-                    },
-                    "aggs": {
-                        "AUC": {
-                            "avg": {
-                                "field": "value"
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        return es.search(index='metrics*', body=query)
 
     def query_events(self, index, keyword, pod_name,
                      start_time, end_time):
@@ -346,7 +192,122 @@ class ElasticSearchClient(object):
         }
         self._es_client.ilm.put_lifecycle(ilm_name, body=ilm_body)
 
-    def query_raw_data_metrics(self, job_name, num_buckets):
+    def query_data_join_metrics(self, job_name, num_buckets):
+        STAT_AGG = {
+            "JOINED": {
+                "filter": {
+                    "term": {
+                        "tags.joined": 1
+                    }
+                }
+            },
+            "FAKE": {
+                "filter": {
+                    "term": {
+                        "tags.joined": 0
+                    }
+                }
+            },
+            "UNJOINED": {
+                "filter": {
+                    "term": {
+                        "tags.joined": -1
+                    }
+                }
+            },
+            "TOTAL": {
+                "bucket_script": {
+                    "buckets_path": {
+                        "JOINED": "JOINED[_count]",
+                        "UNJOINED": "UNJOINED[_count]"
+                    },
+                    "script": "params.JOINED + params.UNJOINED"
+                }
+            },
+            "TOTAL_WITH_FAKE": {
+                "bucket_script": {
+                    "buckets_path": {
+                        "JOINED": "JOINED[_count]",
+                        "FAKE": "FAKE[_count]",
+                        "UNJOINED": "UNJOINED[_count]"
+                    },
+                    "script": "params.JOINED + params.UNJOINED + params.FAKE"
+                }
+            },
+            "JOIN_RATE": {
+                "bucket_script": {
+                    "buckets_path": {
+                        "JOINED": "JOINED[_count]",
+                        "TOTAL": "TOTAL[value]",
+                        "FAKE": "FAKE[_count]"
+                    },
+                    "script": "params.JOINED / params.TOTAL"
+                }
+            },
+            "JOIN_RATE_WITH_FAKE": {
+                "bucket_script": {
+                    "buckets_path": {
+                        "JOINED": "JOINED[_count]",
+                        "TOTAL_WITH_FAKE": "TOTAL_WITH_FAKE[value]",
+                        "FAKE": "FAKE[_count]"
+                    },
+                    "script": "(params.JOINED + params.FAKE) / "
+                              "params.TOTAL_WITH_FAKE"
+                }
+            }
+        }
+
+        query = {
+            "size": 0,
+            "query": {
+                "bool": {
+                    "must": [
+                        {"term": {"tags.application_id": job_name}}
+                    ]
+                }
+            },
+            "aggs": {
+                "OVERALL": {
+                    "terms": {
+                        "field": "tags.application_id"
+                    },
+                    "aggs": STAT_AGG
+                },
+                "EVENT_TIME": {
+                    "auto_date_histogram": {
+                        "field": "tags.event_time",
+                        "format": "strict_date_optional_time",
+                        "buckets": num_buckets
+                    },
+                    "aggs": STAT_AGG
+                },
+                "PROCESS_TIME": {
+                    "auto_date_histogram": {
+                        "field": "tags.process_time",
+                        "format": "strict_date_optional_time",
+                        "buckets": num_buckets
+                    },
+                    "aggs": {
+                        "MAX_EVENT_TIME": {
+                            "max": {
+                                "field": "tags.event_time",
+                                "format": "strict_date_optional_time"
+                            }
+                        },
+                        "MIN_EVENT_TIME": {
+                            "min": {
+                                "field": "tags.event_time",
+                                "format": "strict_date_optional_time"
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        return es.search(index='data_join*', body=query)
+
+    def query_nn_metrics(self, job_name, num_buckets):
         query = {
             "size": 0,
             "query": {
@@ -354,12 +315,12 @@ class ElasticSearchClient(object):
                     "must": [
                         {
                             "term": {
-                                "application_id": job_name
+                                "tags.application_id": job_name
                             }
                         },
                         {
                             "term": {
-                                "partition": 1
+                                "name": "auc"
                             }
                         }
                     ]
@@ -368,19 +329,58 @@ class ElasticSearchClient(object):
             "aggs": {
                 "PROCESS_TIME": {
                     "auto_date_histogram": {
-                        "field": "process_time",
+                        "field": "tags.process_time",
+                        "format": "strict_date_optional_time",
+                        "buckets": num_buckets
+                    },
+                    "aggs": {
+                        "AUC": {
+                            "avg": {
+                                "field": "value"
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        return es.search(index='metrics*', body=query)
+
+    def query_raw_data_metrics(self, job_name, num_buckets):
+        query = {
+            "size": 0,
+            "query": {
+                "bool": {
+                    "must": [
+                        {
+                            "term": {
+                                "tags.application_id": job_name
+                            }
+                        },
+                        {
+                            "term": {
+                                "tags.partition": 1
+                            }
+                        }
+                    ]
+                }
+            },
+            "aggs": {
+                "PROCESS_TIME": {
+                    "auto_date_histogram": {
+                        "field": "tags.process_time",
                         "format": "strict_date_optional_time",
                         "buckets": num_buckets
                     },
                     "aggs": {
                         "MAX_EVENT_TIME": {
                             "max": {
-                                "field": "event_time"
+                                "field": "tags.event_time"
                             }
                         },
                         "MIN_EVENT_TIME": {
                             "min": {
-                                "field": "event_time"
+                                "field": "tags.event_time"
                             }
                         }
                     }

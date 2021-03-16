@@ -55,9 +55,11 @@ class KibanaUtils(object):
 
         """
         assert args['type'] in ('Rate', 'Ratio', 'Numeric')
-        vis_state = getattr(KibanaUtils,
-                            '_create_{}_visualization'
-                            .format(args['type'].lower()))(job, args)
+        vis_state = getattr(
+            KibanaUtils,
+            '_create_{}_visualization'
+                .format(args['type'].lower()))(job, args
+                                               )
         # additional global filter on data if provided.
         if args['query'] is not None and args['query'] != '':
             vis_state['params']['filter']['query'] += \
@@ -92,7 +94,7 @@ class KibanaUtils(object):
         vis_states, durations = getattr(
             KibanaUtils,
             '_create_{}_visualization'
-            .format(args['type'].lower()))(job, args)
+                .format(args['type'].lower()))(job, args)
         # rison-ify and replace
         vis_states = list(
             KibanaUtils._regex_process(vs, KibanaUtils.RISON_REPLACEMENT)
@@ -161,27 +163,27 @@ class KibanaUtils(object):
             labele='Total w/o Fake',
             metrics={'type': 'count'},
             # unjoined and normally joined
-            series_filter={'query': 'joined: "-1" or joined: 1'}
+            series_filter={'query': 'tags.joined: "-1" or tags.joined: 1'}
         )
         # Joined w/ Fake series
         jwf = KibanaUtils._tsvb_series(
             label='Joined w/ Fake',
             metrics={'type': 'count'},
             # faked joined and normally joined
-            series_filter={'query': 'joined: 0 or joined: 1'}
+            series_filter={'query': 'tags.joined: 0 or tags.joined: 1'}
         )
         # Joined w/o Fake series
         jwof = KibanaUtils._tsvb_series(
             label='Joined w/o Fake',
             metrics={'type': 'count'},
             # normally joined
-            series_filter={'query': 'joined: 1'}
+            series_filter={'query': 'tags.joined: 1'}
         )
         # Join Rate w/ Fake series
         jrwf = KibanaUtils._tsvb_series(
             series_type='ratio',
             label='Join Rate w/ Fake',
-            metrics={'numerator': 'joined: 1 or joined: 0',
+            metrics={'numerator': 'tags.joined: 1 or tags.joined: 0',
                      'denominator': '*',  # joined -1 or 0 or 1
                      'type': 'filter_ratio'},
             line_width='2',
@@ -191,8 +193,8 @@ class KibanaUtils(object):
         jrwof = KibanaUtils._tsvb_series(
             series_type='ratio',
             label='Join Rate w/o Fake',
-            metrics={'numerator': 'joined: 1',
-                     'denominator': 'joined: 1 or joined: "-1"',
+            metrics={'numerator': 'tags.joined: 1',
+                     'denominator': 'tags.joined: 1 or tags.joined: "-1"',
                      'type': 'filter_ratio'},
             line_width='2',
             fill='0'
@@ -273,7 +275,7 @@ class KibanaUtils(object):
             if k not in args or args[k] is None:
                 raise ValueError(
                     '[{}] should be provided in Numeric visualization.'
-                    .format(k))
+                        .format(k))
         assert args['aggregator'] in KibanaUtils.TSVB_AGG_TYPE
         vis_state = KibanaUtils._basic_tsvb_vis_state(job, args)
         params = vis_state['params']
@@ -302,18 +304,12 @@ class KibanaUtils(object):
             (start time, end time) of visualization.
 
         """
-        if job.job_type in KibanaUtils.JOB_INDEX:
-            query = 'application_id:{} AND ({})'.format(job.name, args['query'])
-            index = KibanaUtils.JOB_INDEX[job.job_type] + '*'
-            et = 'event_time'
-            pt = 'process_time'
-        else:
-            query = 'tags.application_id:{} AND ({})'.format(
-                job.name, args['query']
-            )
-            index = 'metrics_v2*'
-            et = 'tags.event_time'
-            pt = 'date_time'
+        query = 'tags.application_id:{} AND ({})'.format(
+            job.name, args['query']
+        )
+        index = KibanaUtils.JOB_INDEX.get(job.job_type, 'metrics_v2') + '*'
+        et = 'tags.event_time'
+        pt = 'tags.process_time'
         interval = args['interval'] if args['interval'] != '' else 'auto'
         vis_states = []
         # first by process time, then by event time
@@ -340,7 +336,7 @@ class KibanaUtils(object):
             vis_states.append(vis_state)
 
         by_pt_start = pytz.utc.normalize(envs.TZ.localize(job.created_at)) \
-            .isoformat(timespec='seconds')[:-6] + 'Z'
+                          .isoformat(timespec='seconds')[:-6] + 'Z'
         by_pt_end = 'now'
         by_et_start, by_et_end = KibanaUtils._parse_start_end_time(args)
         return vis_states, [(by_pt_start, by_pt_end), (by_et_start, by_et_end)]
@@ -350,8 +346,8 @@ class KibanaUtils(object):
         if not args['timer_names']:
             return [], []
         if args['aggregator'] not in KibanaUtils.TIMELION_AGG_TYPE:
-            raise TypeError('{} is not supported in Timer visualization.'
-                            .format(args['aggregator']))
+            raise TypeError('Aggregator [{}] is not supported in Timer '
+                            'visualization.'.format(args['aggregator']))
         query = 'tags.application_id:{} AND ({})'.format(
             job.name, args['query']
         )
@@ -365,7 +361,7 @@ class KibanaUtils(object):
             timer_query = query + ' AND name:{}'.format(timer)
             s = KibanaUtils._timelion_series(
                 query=timer_query, index=index,
-                metric=metric, timefield='date_time'
+                metric=metric, timefield='tags.process_time'
             )
             series.append(s)
         vis_state = {"type": "timelion",
@@ -410,15 +406,11 @@ class KibanaUtils(object):
                                 "type": "timeseries"}}
         params = vis_state['params']
         params['interval'] = args.get('interval', '')
-        if job.job_type in KibanaUtils.JOB_INDEX:
-            params['index_pattern'] = KibanaUtils.JOB_INDEX[job.job_type] + '*'
-            params['filter'] = KibanaUtils._filter_query(
-                'application_id:"{}"'.format(job.name))
-        else:
-            params['index_pattern'] = 'metrics_v2*'
-            params['filter'] = KibanaUtils._filter_query(
-                'tags.application_id:"{}"'.format(job.name)
-            )
+        params['index_pattern'] = KibanaUtils.JOB_INDEX \
+                                      .get(job.job_type, 'metrics_v2') + '*'
+        params['filter'] = KibanaUtils._filter_query(
+            'tags.application_id:"{}"'.format(job.name)
+        )
         params['time_field'] = args['x_axis_field']
         return vis_state
 
