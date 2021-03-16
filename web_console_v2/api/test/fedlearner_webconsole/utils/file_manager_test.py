@@ -189,7 +189,7 @@ class HdfsFileManagerTest(unittest.TestCase):
         self._mock_client_generator.from_uri.return_value = (self._mock_client,
                                                              '/')
         self._client_patcher = patch(
-            'fedlearner_webconsole.utils.file_manager.fs.FileSystem',
+            'fedlearner_webconsole.utils.file_manager.FileSystem',
             self._mock_client_generator)
         self._client_patcher.start()
 

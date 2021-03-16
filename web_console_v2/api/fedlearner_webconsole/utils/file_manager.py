@@ -82,8 +82,8 @@ class DefaultFileManager(FileManagerBase):
 
         files = []
         if recursive:
-            for root, dirs, fs in os.walk(path):
-                for file in fs:
+            for root, _, res in os.walk(path):
+                for file in res:
                     if Path(os.path.join(root, file)).is_file():
                         files.append(_get_file_stats(os.path.join(root, file)))
         else:
@@ -136,7 +136,7 @@ class HdfsFileManager(FileManagerBase):
         return path.startswith('hdfs://')
 
     def __init__(self):
-        self._client, _ = fs.FileSystem.from_uri(envs.HDFS_SERVER)
+        self._client, _ = FileSystem.from_uri(envs.HDFS_SERVER)
 
     def _unwrap_path(self, path):
         if path.startswith('hdfs://'):
