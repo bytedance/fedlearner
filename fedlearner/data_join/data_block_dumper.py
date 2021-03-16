@@ -13,7 +13,6 @@
 # limitations under the License.
 
 # coding: utf-8
-
 import logging
 import os
 import threading
@@ -165,12 +164,21 @@ class DataBlockDumperManager(object):
                 os._exit(-1) # pylint: disable=protected-access
             match_index = 0
             example_num = len(meta.example_ids)
+            is_v2 = len(meta.indices) > 0
+            def if_match(meta, match_index, index, example_id, is_v2):
+                if is_v2:
+                    return meta.indices[match_index] == index
+                return example_id == meta.example_ids[match_index]
+
             for (index, item) in self._raw_data_visitor:
                 example_id = item.example_id
                 joined = False
                 # Elements in meta.example_ids maybe duplicated
                 while match_index < example_num and \
-                        example_id == meta.example_ids[match_index]:
+                        if_match(meta, match_index, index, example_id, is_v2):
+                    if len(meta.joined) > 0:
+                        item.add_extra_fields({
+                            'joined': meta.joined[match_index]}, True)
                     data_block_builder.write_item(item)
                     self._optional_stats.update_stats(item, kind='joined')
                     match_index += 1

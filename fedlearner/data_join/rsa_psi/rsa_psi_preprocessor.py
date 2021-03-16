@@ -275,7 +275,7 @@ class RsaPsiPreProcessor(object):
         if len(items_buffer) > 0:
             def producer(items_buffer):
                 for signed_id, item, index in items_buffer:
-                    item.set_example_id(signed_id)
+                    item.add_extra_fields({'example_id':signed_id})
                     yield signed_id, index, item
             sort_run_dumper.dump_sort_runs(producer(items_buffer))
         if next_index is not None:

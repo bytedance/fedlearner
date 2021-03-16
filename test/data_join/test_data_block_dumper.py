@@ -140,7 +140,7 @@ class TestDataBlockDumper(unittest.TestCase):
             example_id = '{}'.format(pt).encode()
             feat['example_id'] = tf.train.Feature(
                     bytes_list=tf.train.BytesList(value=[example_id]))
-            event_time = 150000000 + pt
+            event_time = 150000000 + i
             feat['event_time'] = tf.train.Feature(
                     int64_list=tf.train.Int64List(value=[event_time]))
             example = tf.train.Example(features=tf.train.Features(feature=feat))

@@ -13,38 +13,21 @@
 # limitations under the License.
 
 # coding: utf-8
-
 import logging
 from collections import OrderedDict
-
+import fedlearner.data_join.common as common
+from fedlearner.common.db_client import DBClient
 
 class RawDataIter(object):
     class Item(object):
         def __init__(self):
             # please modify the set according to alphabetical order.
-            self._allowed_fields = {
-                'click_id', 'example_id', 'event_time', 'event_time_deep',
-                'event_time_shallow', 'id', 'id_type', 'label', 'raw_id', 'type'
-            }
+            # event_time is event_time_shallow
             self._features = OrderedDict()
 
         @property
-        def example_id(self):
-            raise NotImplementedError(
-                    "example_id not implement for basic Item"
-                )
-
-        @property
-        def event_time(self):
-            raise NotImplementedError(
-                    "event_time not implement for basic Item"
-                )
-
-        @property
         def record(self):
-            raise NotImplementedError(
-                    "record not implement for basic Item"
-                )
+            return self._features
 
         @property
         def tf_record(self):
@@ -58,17 +41,31 @@ class RawDataIter(object):
                     "csv_record not implement for basic Item"
                 )
 
+        def add_extra_fields(self, additional_records, cache=False):
+            raise NotImplementedError(
+                "add_extra_fields not implemented for basic Item"
+            )
+
         @classmethod
         def make(cls, example_id, event_time, raw_id, fname=None, fvalue=None):
-            raise NotImplementedError("make not implement for basic Item")
+            raise NotImplementedError("make not implemented for basic Item")
 
         def __getattr__(self, item):
-            if item in self._features:
-                return self._features[item]
-            raise AttributeError
+            if item not in self._features and common.ALLOWED_FIELDS[item].must:
+                logging.warning("%s misses field %s:%s",
+                                self.__class__.__name__,
+                                item, common.ALLOWED_FIELDS[item])
+            value = self._features.get(
+                item, common.ALLOWED_FIELDS[item].default_value)
+            if not isinstance(value, common.ALLOWED_FIELDS[item].type):
+                value = common.ALLOWED_FIELDS[item].type(value)
+            return value
 
         def __getitem__(self, item):
             return self._features[item]
+
+        def __setitem__(self, item, value):
+            self._features[item] = value
 
         def __contains__(self, item):
             return item in self._features
@@ -88,6 +85,12 @@ class RawDataIter(object):
         self._index = None
         self._iter_failed = False
         self._options = options
+        #_options will be None for example id visitor
+        if self._options and self._options.raw_data_cache_type == "disk":
+            #use leveldb to manager the disk storage by default
+            self._cache_type = DBClient("leveldb", False)
+        else:
+            self._cache_type = None
 
     def reset_iter(self, index_meta=None, force=False):
         if index_meta != self._index_meta or self._iter_failed or force:
@@ -119,7 +122,8 @@ class RawDataIter(object):
                         return
         except Exception as e: # pylint: disable=broad-except
             logging.warning(
-                    "Failed to seek file %s to index %d, reason %s",
+                    "%s failed to seek file %s to index %d, reason %s",
+                    self.__class__.__name__,
                     self._index_meta.fpath, target_index, e
                 )
             self._iter_failed = True
@@ -143,7 +147,8 @@ class RawDataIter(object):
             raise
         except Exception as e: # pylint: disable=broad-except
             logging.warning(
-                    "Failed to next iter %s to %d, reason %s",
+                    "%s failed to next iter %s to %d, reason %s",
+                    self.__class__.__name__,
                     self._index_meta.fpath, self._index + 1, e
                 )
             self._iter_failed = True

@@ -239,24 +239,10 @@ class ExampleIdManager(visitor.IndexMetaManager):
 
 class ExampleIdVisitor(visitor.Visitor):
     class ExampleIdItem(raw_data_iter.RawDataIter.Item):
-        def __init__(self, example_id, event_time, index):
+        def __init__(self, index, row):
             super().__init__()
-            self._index = index
-            self._example_id = example_id
-            self._event_time = event_time
-            self._index = index
-
-        @property
-        def example_id(self):
-            return self._example_id
-
-        @property
-        def event_time(self):
-            return self._event_time
-
-        @property
-        def index(self):
-            return self._index
+            row['index'] = index
+            self._features.update(row)
 
     class ExampleIdIter(tf_record_iter.TfRecordIter):
         @classmethod
@@ -276,12 +262,28 @@ class ExampleIdVisitor(visitor.Visitor):
                                                 event_time_num)
                     index = 0
                     while index < len(lite_example_ids.example_id):
-                        yield ExampleIdVisitor.ExampleIdItem(
-                                lite_example_ids.example_id[index],
-                                lite_example_ids.event_time[index],
-                                index + lite_example_ids.begin_index
+                        row = self.convert_lite_example_ids_to_row(
+                            lite_example_ids, index)
+                        example_id_item = ExampleIdVisitor.ExampleIdItem(
+                                index + lite_example_ids.begin_index,
+                                row
                             )
+                        yield example_id_item
                         index += 1
+        def convert_lite_example_ids_to_row(self, lite_example_ids, index):
+            row = dict()
+            row['example_id'] = lite_example_ids.example_id[index]
+            row['event_time'] = lite_example_ids.event_time[index]
+            if len(lite_example_ids.id_type) > 0:
+                row['id_type'] = lite_example_ids.id_type[index]
+            if len(lite_example_ids.event_time_deep) > 0:
+                row['event_time_deep'] = \
+                        lite_example_ids.event_time_deep[index]
+            if len(lite_example_ids.type) > 0:
+                row['type'] = lite_example_ids.type[index]
+            if len(lite_example_ids.click_id) > 0:
+                row['click_id'] = lite_example_ids.click_id[index]
+            return row
 
     def __init__(self, kvstore, data_source, partition_id):
         super(ExampleIdVisitor, self).__init__(

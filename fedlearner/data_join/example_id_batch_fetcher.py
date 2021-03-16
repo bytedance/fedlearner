@@ -30,24 +30,46 @@ class ExampleIdBatch(ItemBatch):
         self._example_ids = []
         self._event_times = []
 
+        ### V2
+        self._id_types = []
+        self._event_time_deeps = []
+        self._click_ids = []
+        self._types = []
+
     def append(self, item):
         self._example_ids.append(item.example_id)
         self._event_times.append(item.event_time)
+        if hasattr(item, 'id_type'):
+            self._id_types.append(item.id_type)
+        if hasattr(item, 'event_time_deep'):
+            self._event_time_deeps.append(item.event_time_deep)
+        if hasattr(item, 'type'):
+            self._types.append(item.type)
+        if hasattr(item, "click_id"):
+            self._click_ids.append(item.click_id)
 
     @property
     def begin_index(self):
         return self._begin_index
 
     def make_packed_lite_example_ids(self):
+        serde_lite_examples = dj_pb.LiteExampleIds(
+            partition_id=self._partition_id,
+            begin_index=self._begin_index,
+            example_id=self._example_ids,
+            event_time=self._event_times,
+        )
+
+        if len(self._id_types) > 0:
+            serde_lite_examples.id_type.extend(self._id_types)
+            serde_lite_examples.event_time_deep.extend(self._event_time_deeps)
+            serde_lite_examples.type.extend(self._types)
+            serde_lite_examples.click_id.extend(self._click_ids)
         return dj_pb.PackedLiteExampleIds(
                 partition_id=self._partition_id,
                 begin_index=self._begin_index,
                 example_id_num=len(self._example_ids),
-                sered_lite_example_ids=dj_pb.LiteExampleIds(
-                    partition_id=self._partition_id,
-                    begin_index=self._begin_index,
-                    example_id=self._example_ids,
-                    event_time=self._event_times).SerializeToString()
+                sered_lite_example_ids=serde_lite_examples.SerializeToString()
             )
 
     @property
@@ -61,10 +83,6 @@ class ExampleIdBatch(ItemBatch):
         assert isinstance(other, ExampleIdBatch)
         assert self.partition_id == other.partition_id
         return self.begin_index < other.begin_index
-
-    def __iter__(self):
-        assert len(self._example_ids) == len(self._event_times)
-        return iter(zip(self._example_ids, self._event_times))
 
 class ExampleIdBatchFetcher(ItemBatchSeqProcessor):
     def __init__(self, kvstore, data_source, partition_id,

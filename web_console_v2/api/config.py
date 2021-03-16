@@ -41,6 +41,9 @@ class Config(object):
     JWT_ACCESS_TOKEN_EXPIRES = 86400
     ES_HOST = os.getenv('ES_HOST', 'fedlearner-stack-elasticsearch-client')
     ES_PORT = os.getenv('ES_PORT', 9200)
+    KIBANA_SERVICE_HOST = os.getenv('KIBANA_SERVICE_HOST',
+                                    'fedlearner-stack-kibana')
+    KIBANA_SERVICE_PORT = os.getenv('KIBANA_SERVICE_PORT', 443)
     STORAGE_ROOT = os.getenv('STORAGE_ROOT', '/data')
 
     START_GRPC_SERVER = True

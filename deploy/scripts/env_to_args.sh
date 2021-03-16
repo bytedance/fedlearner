@@ -9,3 +9,20 @@ normalize_env_to_args() {
   fi
   return 0
 }
+
+
+pull_code() {
+  cwd=$PWD
+  cd $2
+  if [[ $1 == "hdfs://"* ]]; then
+      ${HADOOP_HOME}/bin/hadoop fs -copyToLocal $1 code.tar.gz
+  elif [[ $1 == "http://"* || $1 == "https://"* ]]; then
+      wget $1 -O code.tar.gz
+  elif [[ $1 == "oss://"* ]]; then
+      python -c "import tensorflow as tf; import tensorflow_io; open('code.tar.gz', 'wb').write(tf.io.gfile.GFile('$1', 'rb').read())"
+  else
+      cp $1 code.tar.gz
+  fi
+  tar -zxvf code.tar.gz
+  cd $cwd
+}
