@@ -39,6 +39,7 @@ password: fedlearner\n\
 cert: false\n' >> ~/.config/code-server/config.yaml
 
 EXPOSE 1992
+ENV TZ="Asia/Shanghai"
 
 WORKDIR /app
 CMD sh run_prod.sh

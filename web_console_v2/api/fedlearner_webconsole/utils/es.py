@@ -45,9 +45,8 @@ class ElasticSearchClient(object):
                         self._put_write_index(index_type)
                     # Kibana index-patterns initialization
                     requests.post(
-                        url='{}:{}/api/saved_objects/index-pattern/{}'
-                            .format(app.config['KIBANA_SERVICE_HOST'],
-                                    app.config['KIBANA_SERVICE_PORT'],
+                        url='{}/api/saved_objects/index-pattern/{}'
+                            .format(app.config['KIBANA_SERVICE_HOST_PORT'],
                                     index_type),
                         json={'attributes': {
                             'title': ALIAS_NAME[index_type] + '*',
@@ -280,27 +279,6 @@ class ElasticSearchClient(object):
                         "buckets": num_buckets
                     },
                     "aggs": STAT_AGG
-                },
-                "PROCESS_TIME": {
-                    "auto_date_histogram": {
-                        "field": "tags.process_time",
-                        "format": "strict_date_optional_time",
-                        "buckets": num_buckets
-                    },
-                    "aggs": {
-                        "MAX_EVENT_TIME": {
-                            "max": {
-                                "field": "tags.event_time",
-                                "format": "strict_date_optional_time"
-                            }
-                        },
-                        "MIN_EVENT_TIME": {
-                            "min": {
-                                "field": "tags.event_time",
-                                "format": "strict_date_optional_time"
-                            }
-                        }
-                    }
                 }
             }
         }
@@ -346,7 +324,7 @@ class ElasticSearchClient(object):
 
         return es.search(index='metrics*', body=query)
 
-    def query_raw_data_metrics(self, job_name, num_buckets):
+    def query_time_metrics(self, job_name, num_buckets, index='raw_data*'):
         query = {
             "size": 0,
             "query": {
@@ -387,7 +365,7 @@ class ElasticSearchClient(object):
                 }
             }
         }
-        return es.search(index='raw_data*', body=query)
+        return es.search(index=index, body=query)
 
     def _put_index_template(self, index_type, shards):
         assert self._es_client is not None, 'ES client not yet initialized.'

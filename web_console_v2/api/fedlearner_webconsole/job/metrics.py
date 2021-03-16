@@ -37,12 +37,16 @@ class JobMetricsBuilder(object):
         elif self._job.job_type in [
                 JobType.NN_MODEL_TRANINING, JobType.NN_MODEL_EVALUATION]:
             metrics = self.plot_nn_metrics(num_buckets)
+        elif self._job.job_type == JobType.RAW_DATA:
+            metrics = self.plot_raw_data_metrics(num_buckets)
         else:
             metrics = []
         return metrics
 
     def plot_data_join_metrics(self, num_buckets=30):
         res = es.query_data_join_metrics(self._job.name, num_buckets)
+        time_res = es.query_time_metrics(self._job.name, num_buckets,
+                                         index='data_join*')
         metrics = []
         if not res['aggregations']['OVERALL']['buckets']:
             return metrics
@@ -82,7 +86,7 @@ class JobMetricsBuilder(object):
         metrics.append(mpld3.fig_to_dict(fig))
 
         # plot processing time vs event time
-        fig_dict = self._plot_pt_vs_et(res)
+        fig_dict = self._plot_pt_vs_et(time_res)
         metrics.append(fig_dict)
 
         return metrics
@@ -107,7 +111,7 @@ class JobMetricsBuilder(object):
         return metrics
 
     def plot_raw_data_metrics(self, num_buckets=30):
-        res = es.query_raw_data_metrics(self._job.name, num_buckets)
+        res = es.query_time_metrics(self._job.name, num_buckets)
         return [self._plot_pt_vs_et(res)]
 
     def _plot_pt_vs_et(self, res):
