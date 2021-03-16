@@ -12,7 +12,9 @@ if [ "$ROLE" == "leader" ]; then
                      --checkpoint-path=model/leader/checkpoint \
                      --save-checkpoint-steps=100 \
                      --export-path=model/leader/saved_model \
-                     --verbosity=2
+                     --mode=eval \
+                     --verbosity=2 \
+                     --checkpoint-filename-with-path=model/leader/checkpoint/complete_checkpoint/fl-complete-model.ckpt-1615915510
 
 elif [ "$ROLE" == "follower" ]; then
     python follower.py --local-addr=localhost:50011 \
@@ -22,7 +24,10 @@ elif [ "$ROLE" == "follower" ]; then
                        --checkpoint-path=model/follower/checkpoint \
                        --save-checkpoint-steps=100 \
                        --export-path=model/follower/saved_model \
-                       --verbosity=2
+                       --mode=eval \
+                       --verbosity=2 \
+                       --checkpoint-filename-with-path=model/follower/checkpoint/complete_checkpoint/fl-complete-model.ckpt-1615915510
+
 else
     echo "usage: $0 [leader | follower]"    
 fi
