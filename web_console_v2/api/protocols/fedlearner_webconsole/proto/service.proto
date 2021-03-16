@@ -73,8 +73,8 @@ message GetWorkflowResponse{
 
     bool forkable = 8;
     string forked_from = 9;
-    repeated string reuse_job_names = 10;
-    repeated string peer_reuse_job_names = 11;
+    repeated CreateJobFlag create_job_flags = 10;
+    repeated CreateJobFlag peer_create_job_flags = 11;
     WorkflowDefinition fork_proposal_config = 12;
     string uuid = 13;
 }

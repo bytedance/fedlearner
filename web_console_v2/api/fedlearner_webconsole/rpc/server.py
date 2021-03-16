@@ -300,11 +300,10 @@ class RpcServer(object):
                 transaction_state=workflow.transaction_state.value,
                 forkable=workflow.forkable,
                 forked_from=forked_from,
-                reuse_job_names=workflow.get_reuse_job_names(),
-                peer_reuse_job_names=workflow.get_peer_reuse_job_names(),
+                create_job_flags=workflow.get_create_job_flags(),
+                peer_create_job_flags=workflow.get_peer_create_job_flags(),
                 fork_proposal_config=workflow.get_fork_proposal_config(),
-                uuid=workflow.uuid
-            )
+                uuid=workflow.uuid)
 
     def update_workflow(self, request, context):
         with self._app.app_context():

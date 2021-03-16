@@ -26,7 +26,6 @@
       "name": "data-import",
       "job_type": "RAW_DATA",
       "is_federated": false,
-      "is_manual": false,
       "yaml_template": "data-import-yaml",
       "variables": [],
       "dependencies": []
@@ -35,7 +34,6 @@
       "name": "data-join",
       "job_type": "PSI_DATA_JOIN",
       "is_federated": true,
-      "is_manual": false,
       "yaml_template": "data-join-yaml",
       "variables": [],
       "dependencies": [
@@ -48,7 +46,6 @@
       "name": "training",
       "job_type": "TREE_MODEL_TRAINING",
       "is_federated": true,
-      "is_manual": false,
       "yaml_template": "training-yaml",
       "variables": [],
       "dependencies": [
