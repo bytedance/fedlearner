@@ -166,7 +166,7 @@ class WorkflowTemplatesApiTest(BaseTestCase):
 
     def test_dict_to_workflow_definition(self):
         config = {'variables': [{'name': 'code',
-                                 'value': {'asdf.py': 'asdf'},
+                                 'value': '{"asdf.py": "asdf"}',
                                  'value_type': 'CODE'}]}
         proto = dict_to_workflow_definition(config)
         self.assertTrue(isinstance(proto.variables[0].value, str))
