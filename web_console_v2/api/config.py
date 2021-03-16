@@ -44,6 +44,8 @@ class Config(object):
     KIBANA_SERVICE_HOST = os.getenv('KIBANA_SERVICE_HOST',
                                     'fedlearner-stack-kibana')
     KIBANA_SERVICE_PORT = os.getenv('KIBANA_SERVICE_PORT', 443)
+    KIBANA_INGRESS_HOST = os.getenv('KIBANA_INGRESS_HOST', 'localhost')
+    KIBANA_INGRESS_PORT = os.getenv('KIBANA_INGRESS_PORT', '5601')
     STORAGE_ROOT = os.getenv('STORAGE_ROOT', '/data')
 
     START_GRPC_SERVER = True
