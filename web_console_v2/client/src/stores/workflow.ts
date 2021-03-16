@@ -1,5 +1,6 @@
 import { JobNodeRawData } from 'components/WorkflowJobsCanvas/types';
 import { atom, selector } from 'recoil';
+import { JobReuseFlag } from 'typings/job';
 import {
   Workflow,
   WorkflowConfig,
@@ -82,7 +83,7 @@ export const forkWorkflowForm = atom<WorkflowForkPayload>({
     fork_proposal_config: null as any,
     comment: '',
     forked_from: '',
-    reuse_job_names: [],
-    peer_reuse_job_names: [],
+    create_job_flags: [] as JobReuseFlag[],
+    peer_create_job_flags: [] as JobReuseFlag[],
   },
 });

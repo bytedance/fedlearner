@@ -1,5 +1,5 @@
 import { JobNodeRawData } from 'components/WorkflowJobsCanvas/types';
-import { Job, JobExecutionDetalis } from './job';
+import { Job, JobExecutionDetalis, JobReuseFlag } from './job';
 import { Variable } from './variable';
 
 export type WorkflowConfig<J = Job> = {
@@ -44,8 +44,8 @@ export type WorkflowAcceptPayload = {
 
 export type WorkflowForkPayload = WorkflowInitiatePayload & {
   forked_from: ID;
-  reuse_job_names: string[]; // e.g. [raw_data, training...]
-  peer_reuse_job_names: string[];
+  create_job_flags: string[]; // e.g. [raw_data, training...]
+  peer_create_job_flags: string[];
   fork_proposal_config: ChartWorkflowConfig;
 };
 
@@ -97,6 +97,6 @@ export type WorkflowExecutionDetails = {
   uuid: string;
   jobs: JobExecutionDetalis[];
   run_time: number;
-  reuse_job_names?: string[];
-  peer_reuse_job_names?: string[];
+  create_job_flags?: JobReuseFlag[];
+  peer_create_job_flags?: JobReuseFlag[];
 } & Workflow;

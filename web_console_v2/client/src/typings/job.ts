@@ -55,6 +55,11 @@ export interface Pod {
   message?: string;
 }
 
+export enum JobReuseFlag {
+  NEW = 'NEW',
+  REUSE = 'REUSE',
+}
+
 export interface JobExecutionDetalis {
   id: number;
   name: string;

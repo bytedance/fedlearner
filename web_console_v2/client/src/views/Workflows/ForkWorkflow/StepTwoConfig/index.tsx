@@ -32,6 +32,7 @@ import { MixinFlexAlignCenter } from 'styles/mixins';
 import { useSubscribe } from 'hooks';
 import { WORKFLOW_JOB_NODE_CHANNELS } from 'components/WorkflowJobsCanvas/JobNodes/shared';
 import { Side } from 'typings/app';
+import { JobReuseFlag } from 'typings/job';
 
 const LoadingContainer = styled.div`
   ${MixinFlexAlignCenter()}
@@ -313,8 +314,8 @@ const WorkflowForkStepTwoConfig: FC = () => {
     );
 
     // Find reusable job names for both peer and self side
-    payload.reuse_job_names = _filterReusableJobs(selfConfigChartRef.current?.nodes!);
-    payload.peer_reuse_job_names = _filterReusableJobs(peerConfigChartRef.current?.nodes!);
+    payload.create_job_flags = _mapJobReuseFlag(selfConfigChartRef.current?.nodes!);
+    payload.peer_create_job_flags = _mapJobReuseFlag(peerConfigChartRef.current?.nodes!);
 
     // FIXME: remove after using hashed job name
     payload.name = payload.name.replace(/[\s]/g, '');
@@ -398,11 +399,10 @@ function _hydrate(variableShells: Variable[], formValues?: Dictionary<any>): Var
   });
 }
 
-function _filterReusableJobs(nodes: ChartNodes) {
+function _mapJobReuseFlag(nodes: ChartNodes) {
   return nodes
-    .filter((node) => node.data.inherit)
     .filter((node) => node.type !== 'global')
-    .map((item) => item.id)!;
+    .map((node) => (node.data.inherit ? JobReuseFlag.REUSE : JobReuseFlag.NEW))!;
 }
 
 function _omitJobsColorMark(jobs: JobNodeRawData[]): JobNodeRawData[] {

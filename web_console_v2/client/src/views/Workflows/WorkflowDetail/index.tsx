@@ -23,6 +23,7 @@ import { ReactFlowProvider } from 'react-flow-renderer';
 import { findJobExeInfoByJobDef, isRunning, isStopped } from 'shared/workflow';
 import dayjs from 'dayjs';
 import NoResult from 'components/NoResult';
+import { JobReuseFlag } from 'typings/job';
 
 const Container = styled.div`
   display: flex;
@@ -157,8 +158,8 @@ const WorkflowDetail: FC = () => {
   markThem(jobsWithExeDetails, peerJobsWithExeDetails);
 
   if (isForked) {
-    _markInheritedJobs(jobsWithExeDetails, workflow?.reuse_job_names!);
-    _markInheritedJobs(peerJobsWithExeDetails, workflow?.peer_reuse_job_names!);
+    _markInheritedJobs(jobsWithExeDetails, workflow?.create_job_flags!);
+    _markInheritedJobs(peerJobsWithExeDetails, workflow?.peer_create_job_flags!);
   }
 
   return (
@@ -334,9 +335,9 @@ function _mergeWithExecutionDetails(workflow?: WorkflowExecutionDetails): JobNod
   );
 }
 
-function _markInheritedJobs(jobs: JobNodeRawData[], reusableJobNames: string[]) {
-  return jobs.map((item) => {
-    if (reusableJobNames.includes(item.name)) {
+function _markInheritedJobs(jobs: JobNodeRawData[], jobReuseFlags: JobReuseFlag[]) {
+  return jobs.forEach((item, index) => {
+    if (jobReuseFlags[index] === JobReuseFlag.REUSE) {
       item.inherited = true;
     }
 
