@@ -209,7 +209,7 @@ export const complexDepsTemplate: DeepPartial<WorkflowTemplate> = {
           {
             name: 'job_name',
             value: '',
-            variable_type: VariableValueType.STRING,
+            value_type: VariableValueType.STRING,
             access_mode: VariableAccessMode.PEER_WRITABLE,
             widget_schema: {
               component: VariableComponent.Input,
@@ -225,12 +225,12 @@ export const complexDepsTemplate: DeepPartial<WorkflowTemplate> = {
         dependencies: [{ source: 'Initiative' }],
         variables: [
           {
-            name: 'job_name',
+            name: 'input_dir',
             value: '',
             access_mode: VariableAccessMode.PEER_WRITABLE,
-            variable_type: VariableValueType.STRING,
+            value_type: VariableValueType.STRING,
             widget_schema: {
-              component: VariableComponent.Input,
+              component: VariableComponent.Dataset,
             },
           },
         ],
@@ -244,12 +244,12 @@ export const complexDepsTemplate: DeepPartial<WorkflowTemplate> = {
         variables: [
           {
             name: 'codes',
-            value: {
+            value: JSON.stringify({
               'foo.py': 'int a = 1',
               'folder/bar.py': 'bool b = True',
-            },
+            }),
             access_mode: VariableAccessMode.PEER_WRITABLE,
-            variable_type: VariableValueType.CODE,
+            value_type: VariableValueType.CODE,
             widget_schema: {
               component: VariableComponent.Code,
               required: true,
@@ -267,7 +267,7 @@ export const complexDepsTemplate: DeepPartial<WorkflowTemplate> = {
             name: 'worker_number',
             value: '',
             access_mode: VariableAccessMode.PEER_WRITABLE,
-            variable_type: VariableValueType.STRING,
+            value_type: VariableValueType.STRING,
             widget_schema: {
               component: VariableComponent.Select,
               enum: [1, 2, 3, 4, 5],
@@ -285,7 +285,7 @@ export const complexDepsTemplate: DeepPartial<WorkflowTemplate> = {
             name: 'job_name',
             value: '',
             access_mode: VariableAccessMode.PEER_WRITABLE,
-            variable_type: VariableValueType.STRING,
+            value_type: VariableValueType.STRING,
             widget_schema: {
               component: VariableComponent.Input,
             },
@@ -301,7 +301,7 @@ export const complexDepsTemplate: DeepPartial<WorkflowTemplate> = {
           {
             name: 'job_name',
             value: '',
-            variable_type: VariableValueType.STRING,
+            value_type: VariableValueType.STRING,
             access_mode: VariableAccessMode.PEER_WRITABLE,
             widget_schema: {
               component: VariableComponent.Input,

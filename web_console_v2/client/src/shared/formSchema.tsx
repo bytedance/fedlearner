@@ -67,7 +67,8 @@ export default function buildFormSchemaFromJobDef(
 
   return variables.reduce((schema, current, index) => {
     const worker =
-      componentToWorkersMap[current.widget_schema?.component || VariableComponent.Input];
+      componentToWorkersMap[current.widget_schema?.component || VariableComponent.Input] ||
+      createInput;
 
     current.widget_schema = _mergeVariableSchemaWithPresets(current, variablePresets);
     current.widget_schema.index = index;
@@ -312,6 +313,22 @@ export function createModelCodesEditor(variable: Variable): FormilySchema {
   };
 }
 
+export function createDatasetSelect(variable: Variable): FormilySchema {
+  const { name } = variable;
+
+  return {
+    [name]: merge(
+      _getUIs(variable),
+      _getDatas(variable),
+      _getPermissions(variable),
+      _getValidations(variable),
+      {
+        'x-component': 'Dataset',
+      },
+    ),
+  };
+}
+
 // ---- Component to Worker map --------
 const componentToWorkersMap: { [key: string]: (v: Variable) => FormilySchema } = {
   [VariableComponent.Input]: createInput,
@@ -322,18 +339,19 @@ const componentToWorkersMap: { [key: string]: (v: Variable) => FormilySchema } =
   [VariableComponent.Radio]: createRadio,
   [VariableComponent.NumberPicker]: createNumberPicker,
   [VariableComponent.Code]: createModelCodesEditor,
+  [VariableComponent.Dataset]: createDatasetSelect,
 };
 
 // ---------- Widget schemas stringify, parse -----------
 
 export function stringifyVariableCodes(variable: Variable) {
-  if (variable.variable_type === VariableValueType.CODE) {
+  if (variable.value_type === VariableValueType.CODE && typeof variable.value === 'object') {
     variable.value = JSON.stringify(variable.value);
   }
 }
 
 export function parseVariableCodes(variable: Variable) {
-  if (variable.variable_type === VariableValueType.CODE) {
+  if (variable.value_type === VariableValueType.CODE && typeof variable.value === 'string') {
     variable.value = JSON.parse(variable.value);
   }
 }

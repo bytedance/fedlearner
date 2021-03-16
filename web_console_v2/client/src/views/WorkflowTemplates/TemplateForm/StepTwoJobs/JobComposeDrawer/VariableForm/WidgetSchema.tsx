@@ -98,7 +98,7 @@ const WidgetSchema: FC<Props> = ({ form, path, value }) => {
         </Select>
       </Form.Item>
 
-      <Form.Item hidden name={[...variableIdx, 'variable_type']}>
+      <Form.Item hidden name={[...variableIdx, 'value_type']}>
         <Input />
       </Form.Item>
 
@@ -188,7 +188,7 @@ const WidgetSchema: FC<Props> = ({ form, path, value }) => {
   function onComponentChange(val: VariableComponent) {
     const variables = form.getFieldValue('variables');
     // TODO: it's not clean to setFieldsValue using lodash-set, find a better way!
-    set(variables, `[${variableIdx[0]}].variable_type`, WIDGET_COMPONENTS__supported[val].type);
+    set(variables, `[${variableIdx[0]}].value_type`, WIDGET_COMPONENTS__supported[val].type);
 
     form.setFieldsValue({
       variables,

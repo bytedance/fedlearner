@@ -32,7 +32,7 @@ const DatasetSelect: FC<Props> = ({ value, onChange, ...props }) => {
         </EmptyPlaceholder>
       ) : (
         <Select
-          value={value}
+          value={value || undefined}
           placeholder={t('workflow.placeholder_dataset')}
           onChange={onSelectChange}
           {...props}

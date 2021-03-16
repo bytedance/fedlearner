@@ -27,7 +27,7 @@ export const DEFAULT_VARIABLE: Variable = {
   name: '',
   value: '',
   access_mode: VariableAccessMode.PEER_WRITABLE,
-  variable_type: VariableValueType.STRING,
+  value_type: VariableValueType.STRING,
   widget_schema: {
     component: VariableComponent.Input,
     required: true,

@@ -15,7 +15,7 @@ export const unassignedComponent: Variable = {
 export const nameInput: Variable = {
   name: 'some_name',
   value: 'initial value',
-  variable_type: VariableValueType.STRING,
+  value_type: VariableValueType.STRING,
   access_mode: VariableAccessMode.PEER_READABLE,
   widget_schema: {
     component: VariableComponent.Input,

@@ -109,7 +109,7 @@ export interface Variable {
   // Due to proto doesn't has more optional types, we fixed to use string as value type,
   // for boolean/number value, should convert to 'true', '2' directly (but so far, we don't need values like boolean)
   value: any;
-  variable_type?: VariableValueType;
+  value_type?: VariableValueType;
   access_mode: VariableAccessMode;
   widget_schema: VariableWidgetSchema;
 }
