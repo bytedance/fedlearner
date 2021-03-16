@@ -47,7 +47,7 @@ class ElasticSearchClient(object):
                     requests.post(
                         url='{}/api/saved_objects/index-pattern/{}'
                             .format(app.config['KIBANA_SERVICE_HOST_PORT'],
-                                    index_type),
+                                    ALIAS_NAME[index_type]),
                         json={'attributes': {
                             'title': ALIAS_NAME[index_type] + '*',
                             'timeFieldName': 'tags.process_time'
