@@ -182,7 +182,6 @@ class CodeApi(Resource):
         try:
             with tarfile.open(code_path) as tar:
                 code_dict = {}
-                tar.format = tarfile.USTAR_FORMAT
                 for file in tar.getmembers():
                     if tar.extractfile(file) is not None:
                         if '._' not in file.name and file.isfile():
