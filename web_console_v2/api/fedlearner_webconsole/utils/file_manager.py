@@ -227,8 +227,8 @@ class GFileFileManager(FileManagerBase):
 
         files = []
         if recursive:
-            for root, dirs, fs in gfile.walk(path):
-                for file in fs:
+            for root, _, res in gfile.walk(path):
+                for file in res:
                     if not gfile.isdir(os.path.join(root, file)):
                         files.append(
                             _get_file_stats(os.path.join(root, file)))
