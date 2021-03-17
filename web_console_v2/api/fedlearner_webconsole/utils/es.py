@@ -35,28 +35,37 @@ class ElasticSearchClient(object):
             ) == 7:
                 self._es_client.ilm.start()
                 for index_type, alias_name in ALIAS_NAME.items():
-                    self.put_ilm('fedlearner_{}_ilm'.format(index_type))
-                    self._put_index_template(index_type, shards=1)
-                    # if alias already exists, no need to set write index
-                    if not self._es_client.indices.exists_alias(alias_name):
-                        # if index with the same name as alias exists, delete it
-                        if self._es_client.indices.exists(alias_name):
-                            self._es_client.indices.delete(alias_name)
-                        self._put_write_index(index_type)
+                    self._configure_es(index_type, alias_name)
                     # Kibana index-patterns initialization
-                    requests.post(
-                        url='{}/api/saved_objects/index-pattern/{}'
-                            .format(app.config['KIBANA_SERVICE_HOST_PORT'],
-                                    ALIAS_NAME[index_type]),
-                        json={'attributes': {
-                            'title': ALIAS_NAME[index_type] + '*',
-                            'timeFieldName': 'tags.process_time'
-                            if index_type == 'metrics' else 'tags.event_time'}},
-                        headers={'kbn-xsrf': 'true',
-                                 'Content-Type': 'application/json'},
-                        params={'overwrite': True}
+                    self._configure_kibana_index_patterns(
+                        app.config['KIBANA_SERVICE_HOST_PORT'], index_type
                     )
                 self.put_ilm('filebeat-7.0.1', hot_age='1d')
+
+    def _configure_es(self, index_type, alias_name):
+        self.put_ilm('fedlearner_{}_ilm'.format(index_type))
+        self._put_index_template(index_type, shards=1)
+        # if alias already exists, no need to set write index
+        if not self._es_client.indices.exists_alias(alias_name):
+            # if index with the same name as alias exists, delete it
+            if self._es_client.indices.exists(alias_name):
+                self._es_client.indices.delete(alias_name)
+            self._put_write_index(index_type)
+
+    @staticmethod
+    def _configure_kibana_index_patterns(kibana_addr, index_type):
+        if not kibana_addr:
+            requests.post(
+                url='{}/api/saved_objects/index-pattern/{}'
+                    .format(kibana_addr, ALIAS_NAME[index_type]),
+                json={'attributes': {
+                    'title': ALIAS_NAME[index_type] + '*',
+                    'timeFieldName': 'tags.process_time'
+                    if index_type == 'metrics' else 'tags.event_time'}},
+                headers={'kbn-xsrf': 'true',
+                         'Content-Type': 'application/json'},
+                params={'overwrite': True}
+            )
 
     def search(self, *args, **kwargs):
         return self._es_client.search(*args, **kwargs)
