@@ -25,6 +25,7 @@ from typing import List
 from pyarrow import fs
 from pyarrow.fs import FileSystem
 from tensorflow.io import gfile
+import tensorflow_io  # pylint: disable=unused-import
 
 from fedlearner_webconsole import envs
 
@@ -200,6 +201,83 @@ class HdfsFileManager(FileManagerBase):
         return True
 
 
+class GFileFileManager(FileManagerBase):
+    """Gfile file manager for all FS supported by TF."""
+
+    def can_handle(self, path):
+        # TODO: List tf support
+        if path.startswith('fake://'):
+            return False
+        if not envs.SUPPORT_HDFS and path.startswith('hdfs://'):
+            return False
+        return True
+
+    def ls(self, path: str, recursive=False) -> List[File]:
+        def _get_file_stats(path: str):
+            stat = gfile.stat(path)
+            return File(path=path,
+                        size=stat.length,
+                        mtime=int(stat.mtime_nsec/1e9))
+
+        if not gfile.exists(path):
+            return []
+        # If it is a file
+        if not gfile.isdir(path):
+            return [_get_file_stats(path)]
+
+        files = []
+        if recursive:
+            for root, _, res in gfile.walk(path):
+                for file in res:
+                    if not gfile.isdir(os.path.join(root, file)):
+                        files.append(
+                            _get_file_stats(os.path.join(root, file)))
+        else:
+            for file in gfile.listdir(path):
+                if not gfile.isdir(os.path.join(path, file)):
+                    files.append(
+                        _get_file_stats(os.path.join(path, file)))
+        # Files only
+        return files
+
+    def move(self, source: str, destination: str) -> bool:
+        try:
+            self.copy(source, destination)
+            self.remove(source)
+            return True
+        except Exception as e:  # pylint: disable=broad-except
+            logging.error('Error during move %s', e)
+            return False
+
+    def remove(self, path: str) -> bool:
+        try:
+            if not gfile.isdir(path):
+                os.remove(path)
+                return True
+            if gfile.isdir(path):
+                gfile.rmtree(path)
+                return True
+        except Exception as e:  # pylint: disable=broad-except
+            logging.error('Error during remove %s', str(e))
+        return False
+
+    def copy(self, source: str, destination: str) -> bool:
+        try:
+            gfile.copy(source, destination)
+            return True
+        except Exception as e:  # pylint: disable=broad-except
+            logging.error('Error during copy %s', e)
+        return False
+
+    def mkdir(self, path: str) -> bool:
+        try:
+            gfile.makedirs(path)
+            return True
+        except Exception as e:  # pylint: disable=broad-except
+            logging.error('Error during create %s', e)
+        return False
+
+
 class FileManager(FileManagerBase):
     """A centralized manager to handle files.
 
@@ -218,6 +296,7 @@ class FileManager(FileManagerBase):
         if envs.HDFS_SERVER:
             self._file_managers.append(HdfsFileManager())
         self._file_managers.append(DefaultFileManager())
+        self._file_managers.append(GFileFileManager())
 
     def can_handle(self, path):
         for fm in self._file_managers:
