@@ -1,3 +1,3 @@
 import os
 
-SUPPORT_HDFS = bool(os.getenv('SUPPORT_HDFS'))
+HDFS_SERVER = os.getenv('HDFS_SERVER', None)
