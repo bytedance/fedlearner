@@ -270,7 +270,7 @@ def train(role, args, input_fn, model_fn, serving_input_receiver_fn):
     if not load_checkpoint_filename_with_path:
         load_checkpoint_filename_with_path = \
             _get_load_checkpoint_filename_with_path(
-                args.checkpoint_path, args.checkpoint_filename)
+                args.checkpoint_path, args.load_checkpoint_filename)
     if load_checkpoint_filename_with_path:
         if not tf.train.checkpoint_exists(load_checkpoint_filename_with_path):
             raise RuntimeError("not a valid checkpoint file: %s"\

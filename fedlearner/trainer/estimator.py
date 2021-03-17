@@ -312,8 +312,6 @@ class FLEstimator(object):
             config.rpc_options.cache_rpc_response = True
             local_address = self._cluster_spec.job_tasks('worker')[
                 self._worker_rank]
-            config.rpc_options.compression_algorithm = 'gzip'
-            config.rpc_options.cache_rpc_response = True
             server = tf.train.Server(tf.train.ClusterSpec(
                 {'local': {
                     0: local_address

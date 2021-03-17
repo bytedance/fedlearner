@@ -1,4 +1,18 @@
-# -*- coding: utf-8 -*-
+# Copyright 2020 The FedLearner Authors. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# coding: utf-8
 
 import time
 import uuid
@@ -15,8 +29,6 @@ from fedlearner.channel.server_interceptor import ServerInterceptor
 
 class ChannelError(Exception):
     pass
-
-maxint = 2**32-1
 
 class Channel():
     class State(enum.Enum):
@@ -56,8 +68,8 @@ class Channel():
             Event.ERROR: State.ERROR,
         },
         State.READY: {
-            Event.PEER_CLOSED: State.CONNECTED_CLOSED,
             Event.CLOSING: State.CLOSING_CONNECTED,
+            Event.PEER_CLOSED: State.CONNECTED_CLOSED,
             Event.ERROR: State.ERROR,
         },
         State.CONNECTED_CLOSED: {
@@ -443,7 +455,7 @@ class Channel():
         while True:
             now = time.time()
             saved_state = self._state
-            wait_timeout = maxint
+            wait_timeout = 60
 
             if self._state in (Channel.State.DONE, Channel.State.ERROR):
                 break
@@ -455,6 +467,8 @@ class Channel():
                         "disconnected by heartbeat timeout: {}s".format(
                             self._heartbeat_timeout)))
                     continue
+                wait_timeout = min(wait_timeout,
+                                   self._heartbeat_timeout_at-now)
 
             # check peer disconnected
             if self._state not in Channel._PEER_UNCONNECTED_STATE:
@@ -463,6 +477,8 @@ class Channel():
                         "peer disconnected by heartbeat timeout: {}s".format(
                             self._heartbeat_timeout)))
                     continue
+                wait_timeout = min(wait_timeout,
+                                   self._peer_heartbeat_timeout_at-now)
 
             if now >= self._next_retry_at:
                 self._next_retry_at = 0
@@ -498,10 +514,7 @@ class Channel():
             if saved_state != self._state:
                 continue
 
-            if wait_timeout != maxint:
-                self._condition.wait(wait_timeout)
-            else:
-                self._condition.wait()
+            self._condition.wait(wait_timeout)
 
         # done
         self._lock.release()

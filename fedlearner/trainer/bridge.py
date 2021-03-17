@@ -429,6 +429,7 @@ class Bridge(object):
 
     def _receive(self, name):
         start_time = time.time()
+        alert_count = 0
         with self._condition:
             self._assert_iter_started()
             iter_id = self._current_iter_id
@@ -449,7 +450,8 @@ class Bridge(object):
                         "[Bridge] peer terminated without sending data"
                         " iter_id: {}, name: {}".format(iter_id, name))
                 duration = time.time() - start_time
-                if duration >= self._waiting_alert_timeout:
+                if duration >= (alert_count+1)*self._waiting_alert_timeout:
+                    alert_count += 1
                     logging.warning("[Bridge] Data: waiting to receive"
                         " iter_id: %d, name: %s timeout. duration: %f sec",
                         iter_id, name, duration)
