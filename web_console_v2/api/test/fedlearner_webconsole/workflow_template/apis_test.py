@@ -172,14 +172,14 @@ class WorkflowTemplatesApiTest(BaseTestCase):
         self.assertTrue(isinstance(proto.variables[0].value, str))
 
     def test_get_code(self):
-        response = self.get_helper('/api/v2/code_key?code_path=../test_data/code.tar.gz')
+        response = self.get_helper('/api/v2/codes?code_path=test/fedlearner_webconsole/test_data/code.tar.gz')
         self.assertEqual(response.status_code, HTTPStatus.OK)
         data = json.loads(response.data)
         self.assertEqual({'test/a.py': 'awefawefawefawefwaef',
                           'test1/b.py': 'asdfasd',
                           'c.py': '',
                           'test/d.py': 'asdf'}, data['data'])
-        response = self.get_helper('/api/v2/code_key?code_path=../test_data/code.tar.g1')
+        response = self.get_helper('/api/v2/codes?code_path=../test_data/code.tar.g1')
         self.assertEqual(response.status_code, HTTPStatus.BAD_REQUEST)
 
 

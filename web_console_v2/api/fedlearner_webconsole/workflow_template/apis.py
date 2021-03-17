@@ -17,12 +17,11 @@ import json
 import re
 from http import HTTPStatus
 import logging
-import base64
+import tarfile
 from flask_restful import Resource, reqparse, request
 from google.protobuf.json_format import ParseDict, ParseError
 from fedlearner_webconsole.workflow_template.models import WorkflowTemplate
 from fedlearner_webconsole.proto import workflow_definition_pb2
-from fedlearner_webconsole.utils.code_key_parser import code_key_parser
 from fedlearner_webconsole.db import db
 from fedlearner_webconsole.exceptions import (
     NotFoundException, InvalidArgumentException,
@@ -30,9 +29,9 @@ from fedlearner_webconsole.exceptions import (
 
 
 def _classify_variable(variable):
-    if 'value_type' in variable and variable['value_type'] == 'CODE':
+    if variable.value_type == 'CODE':
         try:
-            json.loads(variable['value'])
+            json.loads(variable.value)
         except json.JSONDecodeError as e:
             raise InvalidArgumentException(str(e))
     return variable
@@ -40,17 +39,13 @@ def _classify_variable(variable):
 
 def dict_to_workflow_definition(config):
     try:
-        if 'variables' in config:
-            for index, variable in enumerate(config['variables']):
-                config['variables'][index] = _classify_variable(variable)
-        if 'job_definitions' in config:
-            for job in config['job_definitions']:
-                if 'variables' in job:
-                    for index, variable in enumerate(job['variables']):
-                        job['variables'][index] = _classify_variable(
-                            variable)
         template_proto = ParseDict(config,
                                    workflow_definition_pb2.WorkflowDefinition())
+        for variable in template_proto.variables:
+            _classify_variable(variable)
+        for job in template_proto.job_definitions:
+            for variable in job.variables:
+                _classify_variable(variable)
     except ParseError as e:
         raise InvalidArgumentException(details={'config': str(e)})
     return template_proto
@@ -185,11 +180,16 @@ class CodeApi(Resource):
         data = parser.parse_args()
         code_path = data['code_path']
         try:
-            with open(code_path, 'rb') as file:
-                data_string = str(base64.b64encode(file.read()),
-                                  'utf-8')
-                result = code_key_parser.decode(f'base64://{data_string}')
-                return {'data': result}, HTTPStatus.OK
+            with tarfile.open(code_path) as tar:
+                code_dict = {}
+                tar.format = tarfile.USTAR_FORMAT
+                for file in tar.getmembers():
+                    if tar.extractfile(file) is not None:
+                        if '._' not in file.name and file.isfile():
+                            code_dict[file.name] = str(
+                                tar.extractfile(file).read(),
+                                encoding='utf-8')
+                return {'data': code_dict}, HTTPStatus.OK
         except Exception as e:
             logging.error('Get code: %s', repr(e))
             raise InvalidArgumentException(details={'code_path': 'wrong path'})
@@ -199,4 +199,4 @@ def initialize_workflow_template_apis(api):
     api.add_resource(WorkflowTemplatesApi, '/workflow_templates')
     api.add_resource(WorkflowTemplateApi,
                      '/workflow_templates/<int:template_id>')
-    api.add_resource(CodeApi, '/code_key')
+    api.add_resource(CodeApi, '/codes')

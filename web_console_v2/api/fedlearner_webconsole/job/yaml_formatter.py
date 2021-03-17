@@ -14,10 +14,12 @@
 
 # coding: utf-8
 import json
+import tarfile
+from io import BytesIO
+import base64
 from string import Template
 from flatten_dict import flatten
 from fedlearner_webconsole.utils.system_envs import get_system_envs
-from fedlearner_webconsole.utils.code_key_parser import code_key_parser
 class _YamlTemplate(Template):
     delimiter = '$'
     # Which placeholders in the template should be interpreted
@@ -42,7 +44,7 @@ def format_yaml(yaml, **kwargs):
 
 def _make_variables_dict(variables):
     var_dict = {
-        var.name: (code_key_parser.encode(json.loads(var.value))
+        var.name: (code_dict_encode(json.loads(var.value))
                    if var.value_type == 'CODE' else var.value)
         for var in variables
     }
@@ -77,3 +79,18 @@ def generate_job_run_yaml(job):
                        system=system_dict)
     yaml = json.loads(yaml)
     return yaml
+
+
+def code_dict_encode(data_dict):
+    # if data_dict is a dict ,
+    # parse it to a tar file represented as base64 string
+    assert isinstance(data_dict, dict)
+    out = BytesIO()
+    with tarfile.open(fileobj=out, mode='w:gz') as tar:
+        for path in data_dict:
+            tarinfo = tarfile.TarInfo(path)
+            tarinfo.size = len(data_dict[path])
+            tar.addfile(tarinfo, BytesIO(
+                data_dict[path].encode('utf-8')))
+    result = str(base64.b64encode(out.getvalue()), encoding='utf-8')
+    return f'base64://{result}'
