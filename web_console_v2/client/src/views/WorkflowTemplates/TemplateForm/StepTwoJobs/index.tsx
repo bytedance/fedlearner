@@ -302,13 +302,6 @@ const TemplateStepTowJobs: FC<{ isEdit?: boolean }> = ({ isEdit }) => {
 
     payload = stringifyComplexDictField(payload);
 
-    // FIXME: remove codes below when BE support value_type
-    payload.config.job_definitions.forEach((item) => {
-      item.variables.forEach((vari) => {
-        vari.value_type = undefined;
-      });
-    });
-
     const [, error] = await to(
       isEdit ? updateWorkflowTemplate(params.id!, payload) : createWorkflowTemplate(payload),
     );
