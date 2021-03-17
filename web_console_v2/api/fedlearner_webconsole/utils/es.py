@@ -29,7 +29,8 @@ class ElasticSearchClient(object):
                 {
                     'host': app.config['ES_HOST'],
                     'port': app.config['ES_PORT']
-                }])
+                }], http_auth=(app.config['ES_USERNAME'],
+                               app.config['ES_PASSWORD']))
             if int(
                 self._es_client.info()['version']['number'].split('.')[0]
             ) == 7:

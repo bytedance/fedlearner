@@ -69,7 +69,9 @@ class ElasticSearchHandler(Handler):
 
     def __init__(self, ip, port):
         super(ElasticSearchHandler, self).__init__('elasticsearch')
-        self._es = es7.Elasticsearch([ip], port=port)
+        self._es = es7.Elasticsearch([ip], port=port,
+                                     http_auth=(Config.ES_USERNAME,
+                                                Config.ES_PASSWORD))
         self._helpers = helpers7
         self._version = int(self._es.info()['version']['number'].split('.')[0])
         # ES 6.8 has differences in APIs compared to ES 7.6,
