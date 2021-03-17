@@ -19,7 +19,7 @@ set -e
 # Adds root directory to python path to make the modules findable.
 ROOT_DIRECTORY=$(dirname "$0")
 export PYTHONPATH=$PYTHONPATH:"$ROOT_DIRECTORY"
-python /app/api/es_configuration.py
+python3 es_configuration.py
 # Iterates arguments
 while test $# -gt 0
 do
