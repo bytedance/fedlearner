@@ -18,11 +18,16 @@
 import os
 import logging
 import time
-import tensorflow.compat.v1 as tf
-
+try:
+    import tensorflow.compat.v1 as tf
+    from tensorflow.compat.v1.train import Optimizer
+    from tensorflow.compat.v1.estimator import ModeKeys
+except ImportError:
+    import tensorflow as tf
+    from tensorflow.train import Optimizer
+    from tensorflow.estimator import ModeKeys
 from tensorflow.compat import as_str_any
-from tensorflow.compat.v1.train import Optimizer
-from tensorflow.compat.v1.estimator import ModeKeys
+
 from tensorflow_estimator.python.estimator import model_fn as model_fn_lib
 
 from fedlearner.common.summary_hook import SummaryHook
@@ -84,7 +89,7 @@ class BridgEvaluateHook(tf.train.SessionRunHook):
     def end(self, session):
         self._bridge.terminate()
 
-class DataCheckpointSaverListener(tf.estimator.CheckpointSaverListener):
+class DataCheckpointSaverListener(tf.train.CheckpointSaverListener):
     def __init__(self, tm, appid):
         self._trainer_master = tm
         self._application_id = appid
@@ -288,7 +293,7 @@ class FLEstimator(object):
     def train(self,
               input_fn,
               checkpoint_path=None,
-              checkpoint_filename_with_path=None,
+              load_checkpoint_filename_with_path=None,
               save_checkpoint_steps=None,
               save_checkpoint_secs=None):
 
@@ -336,11 +341,11 @@ class FLEstimator(object):
                     save_relative_paths=True)  # Must set for portability
                 tf.add_to_collection(tf.GraphKeys.SAVERS, saver)
 
-            trainer_hook = BridgeTrainHook(
-                self._bridge, self._worker_rank, checkpoint_path)
-            all_hooks = [trainer_hook]
+            all_hooks = []
             if spec.training_hooks:
                 all_hooks.extend(spec.training_hooks)
+            all_hooks.append(BridgeTrainHook(
+                self._bridge, self._worker_rank, checkpoint_path))
 
             if self._worker_rank == 0: # chief
                 listener = DataCheckpointSaverListener(
@@ -351,10 +356,15 @@ class FLEstimator(object):
                 session_creator = tf.train.ChiefSessionCreator(
                     master=target, config=config,
                     checkpoint_filename_with_path= \
-                        checkpoint_filename_with_path)
+                        load_checkpoint_filename_with_path)
                 sess = tf.train.MonitoredSession(
                     session_creator=session_creator,
                     hooks=all_hooks + [saver_hook])
+                data_checkpoint_value = None
+                if hasattr(saver_hook, "data_checkpoint"):
+                    data_checkpoint_value = saver_hook.data_checkpoint
+                if not self._restore_datablock(data_checkpoint_value):
+                    raise ValueError("Restore data checkpoint error")
             else: # no chief
                 session_creator = tf.train.WorkerSessionCreator(
                         master=target, config=config)
@@ -363,12 +373,6 @@ class FLEstimator(object):
                     hooks=all_hooks)
 
             with sess:
-                data_checkpoint_value = None
-                if hasattr(saver_hook, "data_checkpoint"):
-                    data_checkpoint_value = saver_hook.data_checkpoint
-                if not self._restore_datablock(data_checkpoint_value):
-                    raise ValueError("Restore data checkpoint error")
-
                 while not sess.should_stop():
                     start_time = time.time()
                     sess.run(spec.train_op, feed_dict={})
@@ -379,7 +383,7 @@ class FLEstimator(object):
 
     def evaluate(self,
                  input_fn,
-                 checkpoint_filename_with_path):
+                 load_checkpoint_filename_with_path):
         with tf.Graph().as_default():
             features, labels = self._get_features_and_labels_from_input_fn(
                 input_fn, ModeKeys.EVAL)
@@ -409,16 +413,18 @@ class FLEstimator(object):
             scaffold = tf.train.Scaffold()
             session_creator = tf.train.ChiefSessionCreator(
                 scaffold=scaffold,
-                checkpoint_filename_with_path=checkpoint_filename_with_path)
+                checkpoint_filename_with_path=\
+                    load_checkpoint_filename_with_path)
 
             # Prepare hooks
             all_hooks = []
-            all_hooks.append(BridgEvaluateHook(self._bridge))
             if spec.evaluation_hooks:
                 all_hooks.extend(spec.evaluation_hooks)
 
             final_ops_hook = tf.train.FinalOpsHook(eval_dict)
             all_hooks.append(final_ops_hook)
+
+            all_hooks.append(BridgEvaluateHook(self._bridge))
 
             # Evaluate over dataset
             with tf.train.MonitoredSession(

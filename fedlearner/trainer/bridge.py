@@ -21,9 +21,12 @@ import logging
 import threading
 import time
 
-import tensorflow.compat.v1 as tf
+try:
+    import tensorflow.compat.v1 as tf
+except ImportError:
+    import tensorflow as tf
+
 from google.protobuf import any_pb2 as any_pb
-# TODO Wait for PChannel to finish
 from fedlearner.channel import Channel
 
 from fedlearner.common import common_pb2 as common_pb
@@ -65,6 +68,7 @@ class Bridge(object):
 
         self._current_iter_id = None
         self._next_iter_id = 0
+        self._iter_started_at = 0
         self._peer_start_iter_id = None
         self._peer_commit_iter_id = None
 
@@ -91,6 +95,10 @@ class Bridge(object):
         self._client = tws2_grpc.TrainerWorkerServiceStub(self._channel)
         tws2_grpc.add_TrainerWorkerServiceServicer_to_server(
             Bridge.TrainerWorkerServicer(self), self._channel)
+
+        # supervise
+        self._supervise_interval = 5
+        self._supervise_iteration_timeout = 600
 
     def _channel_callback(self, channel, event):
         if event == Channel.Event.PEER_CLOSED:
@@ -123,6 +131,33 @@ class Bridge(object):
     def terminated_at(self):
         return self._channel._closed_at
 
+    def _check_iteration_timeout(self):
+        with self._condition:
+            if not self._current_iter_id:
+                return
+            duration = time.time() - self._iter_started_at
+            if duration >= self._supervise_iteration_timeout:
+                msg = "Suicide as iter run timeout, duration: {}, " \
+                      "maybe blocked in some point.".format(duration)
+                logging.fatal(msg)
+                os._exit(138)
+
+    def _supervise_fn(self):
+        check_handlers = []
+        if self._supervise_iteration_timeout > 0:
+            logging.info("enable supervise iteartion timeout: %f",
+                self._supervise_iteration_timeout)
+            check_handlers.append(self._check_iteration_timeout)
+        if len(check_handlers) == 0:
+            return
+        while True:
+            with self._condition:
+                if self._terminated:
+                    return
+            for handler in check_handlers:
+                handler()
+            time.sleep(self._supervise_interval)
+
     def connect(self):
         with self._condition:
             if self._connected:
@@ -130,8 +165,13 @@ class Bridge(object):
             self._connected = True
             self._channel.connect()
         self._stream_transmit_thread = threading.Thread(
-            target=self._stream_transmit_fn, daemon=True)
+            target=self._stream_transmit_fn)
+        self._stream_transmit_thread.daemon = True
         self._stream_transmit_thread.start()
+        self._supervise_thread = threading.Thread(
+            target=self._supervise_fn)
+        self._supervise_thread.daemon = True
+        self._supervise_thread.start()
 
     def terminate(self):
         with self._condition:
@@ -139,6 +179,9 @@ class Bridge(object):
                 return
             if self._terminated:
                 return
+
+            if self._is_iter_started():
+                self.commit()
 
             self._terminated = True
             self._condition.notify_all()
@@ -293,14 +336,20 @@ class Bridge(object):
         if self._terminated:
             raise RuntimeError("[Bridge] has been terminated")
 
+    def _is_iter_started(self):
+        return self._current_iter_id is not None
+
+    def _is_iter_committed(self):
+        return self._current_iter_id is None
+
     def _assert_iter_started(self):
         self._assert_ready()
-        if self._current_iter_id is None:
+        if not self._is_iter_started:
             raise RuntimeError("[Bridge] not started yet")
 
     def _assert_iter_committed(self):
         self._assert_ready()
-        if self._current_iter_id is not None:
+        if not self._is_iter_committed:
             raise RuntimeError("[Bridge] last started not commit yet")
 
     def start(self):
@@ -309,6 +358,7 @@ class Bridge(object):
 
             self._current_iter_id = self._next_iter_id
             self._next_iter_id += 1
+            self._iter_started_at = time.time()
             self._transmit(tws2_pb.TransmitRequest(
                 start=tws2_pb.TransmitRequest.StartMessage(
                     iter_id=self._current_iter_id)
@@ -348,7 +398,7 @@ class Bridge(object):
                      block_id, resp.status.code)
         return False
 
-    def _send(self, name, *, tensor=None, any_data=None):
+    def _send(self, name, tensor=None, any_data=None):
         with self._condition:
             self._assert_iter_started()
 

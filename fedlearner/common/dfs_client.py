@@ -18,8 +18,12 @@
 import logging
 import os
 
-import tensorflow.compat.v1 as tf
-from tensorflow.compat.v1 import gfile
+try:
+    import tensorflow.compat.v1 as tf
+    from tensorflow.compat.v1 import gfile
+except ImportError:
+    import tensorflow as tf
+    from tensorflow import gfile
 
 
 class DFSClient(object):

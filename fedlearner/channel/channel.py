@@ -181,8 +181,7 @@ class Channel():
         # server
         self._listen_address = listen_address
         self._server_thread_pool = futures.ThreadPoolExecutor(
-            max_workers=max_workers,
-            thread_name_prefix="ChannelServerThread")
+            max_workers=max_workers)
         self._server_interceptor = ServerInterceptor()
         self._server = grpc.server(
             self._server_thread_pool,
@@ -354,7 +353,8 @@ class Channel():
             self._state = Channel.State.CONNECTING_UNCONNECTED
 
         self._state_thread = threading.Thread(
-            target=self._state_fn, daemon=True)
+            target=self._state_fn)
+        self._state_thread.daemon = True
         self._state_thread.start()
 
         if wait:
