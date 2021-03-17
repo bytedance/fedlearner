@@ -95,3 +95,31 @@ export function loadScript(src: string): Promise<{ status: ScriptStatus; error?:
     script.addEventListener('error', setStateFromEvent);
   });
 }
+
+/**
+ * Copy to the clipboard (only for PC, no mobile adaptation processing has been done yet) \nstr \nThe string to be copied\nIs the copy successful?
+ *
+ * @param {String} str need copied
+ * @return {Boolean} is success?
+ */
+/* istanbul ignore next */
+export function copyToClipboard(str: string) {
+  str = str.toString();
+
+  const inputEl = document.createElement('textArea') as HTMLTextAreaElement;
+  let copyOk = false;
+
+  inputEl.value = str;
+  document.body.append(inputEl);
+  inputEl.select();
+
+  try {
+    copyOk = document.execCommand('Copy');
+  } catch (e) {
+    copyOk = false;
+  }
+
+  document.body.removeChild(inputEl);
+
+  return copyOk;
+}

@@ -1,4 +1,9 @@
-import { Variable, VariableAccessMode, VariableComponent } from 'typings/variable';
+import {
+  Variable,
+  VariableAccessMode,
+  VariableComponent,
+  VariableValueType,
+} from 'typings/variable';
 
 export const unassignedComponent: Variable = {
   name: 'component_unassigned',
@@ -10,10 +15,10 @@ export const unassignedComponent: Variable = {
 export const nameInput: Variable = {
   name: 'some_name',
   value: 'initial value',
+  value_type: VariableValueType.STRING,
   access_mode: VariableAccessMode.PEER_READABLE,
   widget_schema: {
     component: VariableComponent.Input,
-    type: 'string',
     tooltip: 'some hints',
   },
 };
@@ -26,13 +31,10 @@ export const memSelect: Variable = {
     component: VariableComponent.Select,
     type: 'number',
     required: true,
-    options: {
-      type: 'static',
-      source: [
-        { value: 1, label: '1Gi' },
-        { value: 2, label: '2Gi' },
-      ],
-    },
+    enum: [
+      { value: 1, label: '1Gi' },
+      { value: 2, label: '2Gi' },
+    ],
     placeholder: '请选择内存',
   },
 };
@@ -98,13 +100,10 @@ export const gloabalVariables: Variable[] = [
       component: VariableComponent.Select,
       type: 'number',
       required: true,
-      options: {
-        type: 'static',
-        source: [
-          { value: 1, label: '1Gi' },
-          { value: 2, label: '2Gi' },
-        ],
-      },
+      enum: [
+        { value: 1, label: '1Gi' },
+        { value: 2, label: '2Gi' },
+      ],
     },
   },
 ];

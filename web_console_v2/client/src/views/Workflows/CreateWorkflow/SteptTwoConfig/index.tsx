@@ -1,10 +1,15 @@
 import React, { FC, useEffect, useRef, useState } from 'react';
 import styled from 'styled-components';
-import { ReactFlowProvider, useStoreState, useStoreActions } from 'react-flow-renderer';
+import {
+  ReactFlowProvider,
+  useStoreState,
+  useStoreActions,
+  ReactFlowState,
+} from 'react-flow-renderer';
 import { useToggle } from 'react-use';
 import JobFormDrawer, { JobFormDrawerExposedRef } from '../../JobFormDrawer';
-import WorkflowJobsFlowChart, { ChartExposedRef } from 'components/WorkflowJobsFlowChart';
-import { ChartNode, ChartNodes, ChartNodeStatus } from 'components/WorkflowJobsFlowChart/types';
+import WorkflowJobsCanvas, { ChartExposedRef } from 'components/WorkflowJobsCanvas';
+import { ChartNode, ChartNodes, ChartNodeStatus } from 'components/WorkflowJobsCanvas/types';
 import GridRow from 'components/_base/GridRow';
 import { Button, message, Modal, Spin } from 'antd';
 import { Redirect, useHistory, useParams } from 'react-router-dom';
@@ -26,7 +31,7 @@ import { Variable } from 'typings/variable';
 import InspectPeerConfigs from './InspectPeerConfig';
 import { ExclamationCircle } from 'components/IconPark';
 import { Z_INDEX_GREATER_THAN_HEADER } from 'components/Header';
-import { stringifyWidgetSchemas } from 'shared/formSchema';
+import { stringifyComplexDictField } from 'shared/formSchema';
 import { removePrivate } from 'shared/object';
 import { cloneDeep, Dictionary } from 'lodash';
 
@@ -34,6 +39,7 @@ const Container = styled.section`
   height: 100%;
 `;
 const ChartHeader = styled.header`
+  height: 48px;
   padding: 13px 20px;
   font-size: 14px;
   line-height: 22px;
@@ -64,7 +70,7 @@ const CanvasAndForm: FC<WorkflowCreateProps> = ({ isInitiate, isAccept }) => {
    * Here we could use react-flow hooks is because we
    * wrap CanvasAndForm with ReactFlowProvider in lines at the bottom
    */
-  const jobNodes = useStoreState((store) => store.nodes as ChartNodes);
+  const jobNodes = useStoreState((store: ReactFlowState) => store.nodes as ChartNodes);
   const setSelectedElements = useStoreActions((actions) => actions.setSelectedElements);
 
   const template = useRecoilValue(templateInUsing);
@@ -107,7 +113,7 @@ const CanvasAndForm: FC<WorkflowCreateProps> = ({ isInitiate, isAccept }) => {
           </ChartHeader>
         </Spin>
 
-        <WorkflowJobsFlowChart
+        <WorkflowJobsCanvas
           ref={chartRef as any}
           nodeType="config"
           workflowConfig={configValue}
@@ -118,15 +124,15 @@ const CanvasAndForm: FC<WorkflowCreateProps> = ({ isInitiate, isAccept }) => {
         <JobFormDrawer
           ref={drawerRef as any}
           visible={drawerVisible}
+          toggleVisible={toggleDrawerVisible}
+          showPeerConfigButton={isAccept}
           currentIdx={currNode?.data.index}
           nodesCount={jobNodes.length}
           jobDefinition={currNode?.data.raw}
           initialValues={currNodeValues}
           onGoNextJob={onGoNextJob}
           onCloseDrawer={onCloseDrawer}
-          showPeerConfigButton={isAccept}
           onViewPeerConfigClick={onViewPeerConfigClick}
-          toggleVisible={toggleDrawerVisible}
         />
 
         <InspectPeerConfigs
@@ -154,7 +160,7 @@ const CanvasAndForm: FC<WorkflowCreateProps> = ({ isInitiate, isAccept }) => {
 
   // --------- Methods ---------------
   function checkIfAllJobConfigCompleted() {
-    const isAllCompleted = jobNodes.every((node) => {
+    const isAllCompleted = jobNodes.every((node: ChartNode) => {
       return node.data.status === ChartNodeStatus.Success;
     });
 
@@ -201,7 +207,7 @@ const CanvasAndForm: FC<WorkflowCreateProps> = ({ isInitiate, isAccept }) => {
     let finalError = (null as any) as Error;
 
     if (isInitiate) {
-      const payload = stringifyWidgetSchemas(
+      const payload = stringifyComplexDictField(
         removePrivate({
           config: configValue,
           ...basicPayload,
@@ -215,7 +221,7 @@ const CanvasAndForm: FC<WorkflowCreateProps> = ({ isInitiate, isAccept }) => {
     }
 
     if (isAccept) {
-      const payload = stringifyWidgetSchemas(
+      const payload = stringifyComplexDictField(
         removePrivate({
           config: configValue,
           forkable: basicPayload.forkable!,
@@ -263,7 +269,9 @@ const CanvasAndForm: FC<WorkflowCreateProps> = ({ isInitiate, isAccept }) => {
   function onGoNextJob() {
     if (!currNode) return;
 
-    const nextNodeToSelect = jobNodes.find((node) => node.data.index === currNode.data.index + 1);
+    const nextNodeToSelect = jobNodes.find(
+      (node: ChartNode) => node.data.index === currNode.data.index + 1,
+    );
     nextNodeToSelect && selectNode(nextNodeToSelect);
   }
   function onPrevStepClick() {

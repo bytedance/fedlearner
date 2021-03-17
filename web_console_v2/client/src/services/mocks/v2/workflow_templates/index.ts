@@ -1,7 +1,7 @@
-import { stringifyWidgetSchemas } from 'shared/formSchema';
+import { stringifyComplexDictField } from 'shared/formSchema';
 import { normalTemplate } from './examples';
 
-const normalTpl = stringifyWidgetSchemas(normalTemplate as any);
+const normalTpl = stringifyComplexDictField(normalTemplate as any);
 const simpleTpl = {
   id: 1,
   name: 'simple',

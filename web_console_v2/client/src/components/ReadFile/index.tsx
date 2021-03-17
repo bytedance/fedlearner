@@ -1,13 +1,13 @@
 import React, { useState, FC, useEffect } from 'react';
 import styled from 'styled-components';
 import { Upload } from 'antd';
-import { PlusOutlined, DeleteFilled } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import classNames from 'classnames';
 import { MixinCommonTransition } from 'styles/mixins';
 import { ReactComponent as FileIcon } from 'assets/images/file.svg';
 import { RcFile } from 'antd/lib/upload';
 import { isNil } from 'lodash';
+import { PlusCircle, Delete } from 'components/IconPark';
 
 const Container = styled.div`
   position: relative;
@@ -123,7 +123,7 @@ const ReadFile: FC<Props> = ({ maxSize, value, reader, onRemoveFile, onChange, .
         <FileIcon />
         <span className="filename">{file?.name}</span>
         <DeleteFileBtn onClick={onDeleteClick}>
-          <DeleteFilled />
+          <Delete />
         </DeleteFileBtn>
       </File>
 
@@ -131,7 +131,7 @@ const ReadFile: FC<Props> = ({ maxSize, value, reader, onRemoveFile, onChange, .
         <WithoutFile className={classNames({ hidden: hasValue })}>
           <ContentInner>
             <PlusIcon>
-              <PlusOutlined />
+              <PlusCircle />
             </PlusIcon>
 
             <UploadPlaceholder>{t('upload.placeholder')}</UploadPlaceholder>

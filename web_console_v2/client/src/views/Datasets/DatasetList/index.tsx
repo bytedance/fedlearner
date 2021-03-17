@@ -18,6 +18,7 @@ import { noop } from 'lodash';
 import BatchImportRecordsModal from './BatchImportRecordsModal';
 import { useToggle } from 'react-use';
 import AddBatchModal from './AddBatchModal';
+import { copyToClipboard } from 'shared/helpers';
 
 const ListContainer = styled.div`
   display: flex;
@@ -28,6 +29,7 @@ type ColumnsGetterOptions = {
   onViewReordsClick?: any;
   onDeleteClick?: any;
   onAddDataBatchClick?: any;
+  onCopyPathClick?: any;
   onSuccess?: any;
   withoutActions?: boolean;
 };
@@ -37,6 +39,7 @@ export const getDatasetTableColumns = (options: ColumnsGetterOptions) => {
       delete: options.onDeleteClick,
       'add-batch': options.onAddDataBatchClick,
       'view-records': options.onViewReordsClick,
+      'copy-path': options.onCopyPathClick,
     }[payload.action](payload.dataset);
   };
 
@@ -71,16 +74,17 @@ export const getDatasetTableColumns = (options: ColumnsGetterOptions) => {
       name: 'file_size',
       width: 130,
       render: (_: any, record: Dataset) => {
-        return <span>{getTotalDataSize(record).toLocaleString('en')}</span>;
+        return <span>{getTotalDataSize(record).toLocaleString('en')} KB</span>;
       },
     },
-    {
-      title: i18n.t('creator'),
-      dataIndex: 'creator',
-      name: 'creator',
-      width: 130,
-      render: (_: string) => <Username />,
-    },
+    // TODO:Uncomment after we support multiple user
+    // {
+    //   title: i18n.t('creator'),
+    //   dataIndex: 'creator',
+    //   name: 'creator',
+    //   width: 130,
+    //   render: (_: string) => <Username />,
+    // },
     {
       title: i18n.t('created_at'),
       dataIndex: 'created_at',
@@ -95,7 +99,6 @@ export const getDatasetTableColumns = (options: ColumnsGetterOptions) => {
       dataIndex: 'operation',
       name: 'operation',
       fixed: 'right',
-      width: 240,
       render: (_: number, record: Dataset) => (
         <DatasetActions onPerformAction={onPerformAction} dataset={record} type="link" />
       ),
@@ -121,7 +124,7 @@ const DatasetList: FC = () => {
     () => fetchDatasetList(params),
     {
       retry: 2,
-      refetchOnWindowFocus: false,
+      refetchInterval: 90 * 1000, // auto refresh every 1.5 min
     },
   );
 
@@ -160,6 +163,7 @@ const DatasetList: FC = () => {
               onViewReordsClick,
               onAddDataBatchClick,
               onDeleteClick,
+              onCopyPathClick,
             })}
             rowKey="name"
           />
@@ -190,6 +194,12 @@ const DatasetList: FC = () => {
     setCurDataset(dataset);
     toggleRecordsVisible(true);
   }
+  function onCopyPathClick(dataset: Dataset) {
+    const okay = copyToClipboard(dataset.path);
+    if (okay) {
+      message.success(t('app.copy_success'));
+    }
+  }
   function onAddDataBatchClick(dataset: Dataset) {
     if (!checkIfHasImportingBatches(dataset)) {
       return;
@@ -202,6 +212,7 @@ const DatasetList: FC = () => {
     toggleAddBatchVisible(false);
     listQuery.refetch();
   }
+
   function showAddBatchModal() {
     if (!curDataset) return;
 

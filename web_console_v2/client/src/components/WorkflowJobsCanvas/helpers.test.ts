@@ -1,11 +1,11 @@
 import { groupByDependencies, convertToChartElements, getNodeIdByJob } from './helpers';
 import { normalTemplate } from 'services/mocks/v2/workflow_templates/examples';
-import { NodeDataRaw } from './types';
+import { JobNodeRawData } from './types';
 import { Variable } from 'typings/variable';
 
 describe('Convert job definitions to chart elements', () => {
-  const jobs = normalTemplate.config?.job_definitions as NodeDataRaw[];
-  const convertParams = { jobs };
+  const jobs = normalTemplate.config?.job_definitions as JobNodeRawData[];
+  const convertParams = { jobs, variables: [], data: {} };
   const convertOptions = { type: 'config', selectable: false } as any;
 
   it('Group jobs into rows by deps should works fine(wiout global vars)', () => {
@@ -19,13 +19,13 @@ describe('Convert job definitions to chart elements', () => {
     //               ↓
     // row-4        █6█
     //
-    const rows = groupByDependencies(convertParams, convertOptions);
+    const rows = groupByDependencies(convertParams);
 
     expect(rows.length).toBe(4);
     expect(rows[0].length).toBe(1);
     expect(rows[1].length).toBe(3);
     expect(rows[3].length).toBe(1);
-    expect(rows[1][1].id).toBe(convertParams.jobs[2].name);
+    expect((rows[1][1].raw as JobNodeRawData).name).toBe(convertParams.jobs[2].name);
   });
 
   it('Group jobs into rows with global variables', () => {
@@ -39,13 +39,13 @@ describe('Convert job definitions to chart elements', () => {
     //               ↓
     // row-4        █6█
     //
-    const rows = groupByDependencies(
-      { ...convertParams, globalVariables: normalTemplate.config?.variables as Variable[] },
-      convertOptions,
-    );
+    const rows = groupByDependencies({
+      ...convertParams,
+      variables: normalTemplate.config?.variables as Variable[],
+    });
 
     expect(rows.length).toBe(5);
-    expect(rows[0][0].type === 'global').toBeTruthy();
+    expect(rows[0][0].isGlobal).toBeTruthy();
   });
 
   it('Should works without global variables', () => {

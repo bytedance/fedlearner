@@ -6,17 +6,9 @@ import React, {
   ForwardRefRenderFunction,
   useCallback,
 } from 'react';
-import WorkflowJobNode from './WorkflowJobNode';
-import {
-  ChartNodeType,
-  NodeDataRaw,
-  JobNode,
-  ChartNodeStatus,
-  ChartNodes,
-  ChartElements,
-} from './types';
+import * as WorkflowJobNodes from './JobNodes';
+import { ChartNodeType, JobNode, ChartNodeStatus, ChartNodes, ChartElements } from './types';
 import { convertToChartElements } from './helpers';
-import styled from 'styled-components';
 import ReactFlow, {
   Background,
   BackgroundVariant,
@@ -26,111 +18,55 @@ import ReactFlow, {
   useStoreActions,
   useStoreState,
   Controls,
+  ReactFlowState,
 } from 'react-flow-renderer';
-
-import { WorkflowConfig } from 'typings/workflow';
+import { Container } from './styles';
+import { ChartWorkflowConfig } from 'typings/workflow';
 import { cloneDeep } from 'lodash';
 import { message } from 'antd';
 import i18n from 'i18n';
-import { MixinSquare } from 'styles/mixins';
 import { useResizeObserver } from 'hooks';
-
-const Container = styled.div`
-  position: relative;
-  /* TODO: remove the hard-coded 48px of chart header */
-  height: ${(props: any) => `calc(100% - ${props.top || '0px'} - 48px)`};
-  background-color: var(--gray1);
-
-  /* react flow styles override */
-  .react-flow__node {
-    border-radius: 4px;
-    font-size: 1em;
-    text-align: initial;
-    background-color: transparent;
-    cursor: initial;
-
-    &-global,
-    &-execution,
-    &-fork,
-    &-config {
-      &.selected {
-        --selected-background: #f2f6ff;
-        --selected-border-color: var(--primaryColor);
-      }
-    }
-
-    &.selectable {
-      cursor: pointer;
-
-      &:hover {
-        filter: drop-shadow(0px 4px 10px #e0e0e0);
-      }
-    }
-  }
-  .react-flow__handle {
-    width: 6px;
-    height: 6px;
-    opacity: 0;
-  }
-  .react-flow__edge {
-    &-path {
-      stroke: var(--gray4);
-    }
-  }
-  .react-flow__controls {
-    top: 20px;
-    right: 20px;
-    left: auto;
-    bottom: auto;
-    box-shadow: none;
-
-    &-button {
-      ${MixinSquare(27)}
-      border-radius: 4px;
-      border-bottom: none;
-      box-shadow: 0 2px 10px -2px rgba(0, 0, 0, 0.2);
-    }
-  }
-`;
+import { Side } from 'typings/app';
 
 type Props = {
-  workflowConfig: WorkflowConfig<NodeDataRaw>;
+  workflowConfig: ChartWorkflowConfig;
   nodeType: ChartNodeType;
-  side?: string; // NOTE: When the nodeType is 'fork', side is required
+  side?: Side; // NOTE: When the nodeType is 'fork', side is required
   selectable?: boolean;
   onJobClick?: (node: JobNode) => void;
   onCanvasClick?: () => void;
 };
-type updateInheritanceParams = {
+type UpdateInheritanceParams = {
   id: string;
   whetherInherit: boolean;
 };
-type updateStatusParams = {
+type UpdateStatusParams = {
   id: string;
   status: ChartNodeStatus;
 };
 
 export type ChartExposedRef = {
   nodes: ChartNodes;
-  updateNodeStatusById: (args: updateStatusParams) => void;
-  updateNodeInheritanceById: (args: updateInheritanceParams) => void;
+  updateNodeStatusById: (params: UpdateStatusParams) => void;
+  updateNodeInheritanceById: (params: UpdateInheritanceParams) => void;
   setSelectedNodes: (nodes: ChartNodes) => void;
 };
 
-const WorkflowJobsFlowChart: ForwardRefRenderFunction<ChartExposedRef | undefined, Props> = (
+const WorkflowJobsCanvas: ForwardRefRenderFunction<ChartExposedRef | undefined, Props> = (
   { workflowConfig, nodeType, side, selectable = true, onJobClick, onCanvasClick },
   parentRef,
 ) => {
-  if (nodeType === 'fork' && !side) {
+  const isForkMode = nodeType === 'fork';
+  if (isForkMode && !side) {
     console.error(
-      "[WorkflowJobsFlowChart]: Detect that current type is FORK but side has't been assigned",
+      "[WorkflowJobsCanvas]: Detect that current type is FORK but the `side` prop has't been assigned",
     );
   }
   const [chartInstance, setChartInstance] = useState<OnLoadParams>();
   const [elements, setElements] = useState<ChartElements>([]);
   // ☢️ WARNING: since we using react-flow hooks here,
   // an ReactFlowProvider is REQUIRED to wrap this component inside
-  const jobNodes = (useStoreState((store) => store.nodes) as unknown) as ChartNodes;
+  const jobNodes = (useStoreState((store: ReactFlowState) => store.nodes) as unknown) as ChartNodes;
   const setSelectedElements = useStoreActions((actions) => actions.setSelectedElements);
 
   // To decide if need to re-generate jobElements, look out that re-gen elements
@@ -154,8 +90,12 @@ const WorkflowJobsFlowChart: ForwardRefRenderFunction<ChartExposedRef | undefine
          * execution details would include in as well
          */
         jobs: workflowConfig.job_definitions,
-        globalVariables: workflowConfig.variables || [],
-        side,
+        variables: workflowConfig.variables || [],
+        data: {
+          side,
+          // When fork type, inherit initially set to true, status to Success
+          status: isForkMode ? ChartNodeStatus.Success : ChartNodeStatus.Pending,
+        },
       },
       { type: nodeType, selectable },
     );
@@ -190,7 +130,7 @@ const WorkflowJobsFlowChart: ForwardRefRenderFunction<ChartExposedRef | undefine
         zoomOnDoubleClick={false}
         minZoom={1}
         maxZoom={1}
-        nodeTypes={WorkflowJobNode}
+        nodeTypes={WorkflowJobNodes}
       >
         <Background variant={BackgroundVariant.Dots} gap={12} size={1} color="#E1E6ED" />
         <Controls showZoom={false} showInteractive={false} />
@@ -214,26 +154,26 @@ const WorkflowJobsFlowChart: ForwardRefRenderFunction<ChartExposedRef | undefine
   function areTheySomeUninheritable(nodeIds: string[]) {
     return nodeIds.some((id) => elements.find((item) => item.id === id)?.data?.inherit === false);
   }
-  function updateNodeStatus(args: updateStatusParams) {
-    if (!args.id) return;
+  function updateNodeStatus(params: UpdateStatusParams) {
+    if (!params.id) return;
 
     setElements((els) => {
       return (els as ChartElements).map((el) => {
-        if (el.id === args.id) {
+        if (el.id === params.id) {
           el.data = {
             ...el.data,
-            status: args.status,
+            status: params.status,
           };
         }
         return el;
       });
     });
   }
-  function updateNodeInheritance({ id, whetherInherit }: updateInheritanceParams) {
+  function updateNodeInheritance({ id, whetherInherit }: UpdateInheritanceParams) {
     if (nodeType !== 'fork' || !id) {
       return;
     }
-    const nextElements = cloneDeep(elements as ChartNodes);
+    const nextElements = cloneDeep(elements as JobNode[]);
     const target = nextElements.find((item) => item.id === id);
 
     if (!target) return;
@@ -258,7 +198,7 @@ const WorkflowJobsFlowChart: ForwardRefRenderFunction<ChartExposedRef | undefine
     depsChainCollected.push(target?.id!);
 
     nextElements.forEach((item) => {
-      if (!isNode(item)) return;
+      if (!isNode(item) || item.data.isGlobal) return;
 
       const hasAnyDependentOnPrevs = item.data.raw.dependencies.find((dep) => {
         return depsChainCollected.includes(dep.source);
@@ -275,4 +215,4 @@ const WorkflowJobsFlowChart: ForwardRefRenderFunction<ChartExposedRef | undefine
   }
 };
 
-export default forwardRef(WorkflowJobsFlowChart);
+export default forwardRef(WorkflowJobsCanvas);

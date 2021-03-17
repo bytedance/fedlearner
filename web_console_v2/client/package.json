@@ -14,7 +14,8 @@
   "dependencies": {
     "@formily/antd": "^1.3.8",
     "@formily/antd-components": "^1.3.8",
-    "antd": "^4.8.2",
+    "@monaco-editor/react": "^4.0.11",
+    "antd": "^4.13.1",
     "axios": "^0.21.0",
     "classnames": "^2.2.6",
     "dayjs": "^1.9.7",
@@ -27,7 +28,7 @@
     "react-app-polyfill": "^2.0.0",
     "react-dev-utils": "^11.0.0",
     "react-dom": "^17.0.1",
-    "react-flow-renderer": "^8.8.0",
+    "react-flow-renderer": "^9.1.1",
     "react-i18next": "^11.7.3",
     "react-query": "^3.9.8",
     "react-refresh": "^0.8.3",

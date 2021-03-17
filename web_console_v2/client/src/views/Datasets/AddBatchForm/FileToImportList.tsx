@@ -13,11 +13,20 @@ import { isEmpty } from 'lodash';
 
 const Container = styled.div``;
 const FiltersRow = styled(Row)`
-  margin-bottom: 20px;
+  margin-bottom: 10px;
 `;
 const TableContainer = styled.div`
-  max-height: 50vh;
-  overflow: auto;
+  /* max-height: 400px; */
+  /* overflow: auto; */
+
+  .ant-table-thead {
+    position: sticky;
+    top: 0;
+    background-color: #fafafa;
+  }
+`;
+const FileName = styled.small`
+  font-size: 0.8em;
 `;
 
 const columns = [
@@ -27,23 +36,24 @@ const columns = [
     key: 'path',
     ellipsis: true,
     render: (path: string) => {
-      return <strong>{path}</strong>;
+      return <FileName>{path}</FileName>;
     },
   },
   {
     title: i18n.t('dataset.col_files_size'),
     dataIndex: 'size',
     key: 'size',
+    width: 140,
     render: (path: number) => {
-      return <>{path.toLocaleString('en')}</>;
+      return <>{path.toLocaleString('en')} KB</>;
     },
   },
   {
-    title: i18n.t('modification_time'),
-    dataIndex: 'modification_time',
+    title: i18n.t('dataset.col_modification_time'),
+    dataIndex: 'mtime',
     name: 'modification_time',
-    width: 190,
-    render: (time: number) => <div>{time ? formatTimestamp(time) : '-'}</div>,
+    width: 130,
+    render: (time: number) => <div>{time ? formatTimestamp(time, 'YYYY/MM/DD HH:mm') : '-'}</div>,
   },
 ];
 
@@ -55,12 +65,13 @@ type Props = {
 
 const FileToImportList: FC<Props> = ({ value, onChange }) => {
   const { t } = useTranslation();
-  const [query, setQuery] = useState({
+  const [query, setLocalQuery] = useState({
     dateRange: [] as Dayjs[],
     name: '',
   });
+  const [directory, setDirectory] = useState('');
 
-  const listQuery = useQuery('getFileList', fetchFileList, {
+  const listQuery = useQuery(['getFileList'], () => fetchFileList({ directory }), {
     refetchOnWindowFocus: false,
   });
 
@@ -75,29 +86,45 @@ const FileToImportList: FC<Props> = ({ value, onChange }) => {
           <small>{t('dataset.selected_items', { count: value?.length || 0 })}</small>
         </Col>
         <Col span={9}>
-          <DatePicker.RangePicker onChange={onDateChange as any} disabledDate={disableFuture} />
+          <DatePicker.RangePicker
+            value={query.dateRange as any}
+            onChange={onDateChange as any}
+            disabledDate={disableFuture}
+          />
         </Col>
         <Col span={9}>
           <Input
+            value={query.name}
             suffix={<Search />}
             placeholder={t('dataset.placeholder_filename_filter')}
             onChange={onKeywordChange}
           />
         </Col>
         <Col span={2}>
-          <Button type="link" size="small">
+          <Button type="link" size="small" onClick={onResetClick}>
             {t('reset')}
           </Button>
         </Col>
+      </FiltersRow>
+
+      <FiltersRow>
+        <Input.Search
+          value={directory}
+          placeholder={t('dataset.placeholder_directory_filter')}
+          onChange={(event) => setDirectory(event.target.value as string)}
+          onSearch={() => listQuery.refetch()}
+          allowClear
+        />
       </FiltersRow>
 
       <TableContainer>
         <Table
           loading={listQuery.isFetching}
           size="small"
+          scroll={{ y: 350 }}
           dataSource={listData}
-          columns={columns}
           pagination={false}
+          columns={columns}
           rowSelection={{
             onChange(_: any, selected) {
               onChange && onChange(selected.map((item) => item.path));
@@ -109,15 +136,21 @@ const FileToImportList: FC<Props> = ({ value, onChange }) => {
   );
 
   function onDateChange(val: Dayjs[]) {
-    setQuery({
+    setLocalQuery({
       ...query,
       dateRange: val,
     });
   }
   function onKeywordChange(event: any) {
-    setQuery({
+    setLocalQuery({
       ...query,
       name: event.target.value,
+    });
+  }
+  function onResetClick() {
+    setLocalQuery({
+      dateRange: [] as Dayjs[],
+      name: '',
     });
   }
   function disableFuture(date: any) {
@@ -127,8 +160,8 @@ const FileToImportList: FC<Props> = ({ value, onChange }) => {
     const nameMatched = item.path.includes(query.name.trim());
     const timeMatched =
       isEmpty(query.dateRange) ||
-      (query.dateRange[0].isBefore(dayjs.unix(item.created_at)) &&
-        query.dateRange[1].isAfter(dayjs.unix(item.created_at)));
+      (query.dateRange[0].isBefore(dayjs.unix(item.mtime)) &&
+        query.dateRange[1].isAfter(dayjs.unix(item.mtime)));
 
     return nameMatched && timeMatched;
   }

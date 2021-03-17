@@ -1,6 +1,6 @@
 import { WorkflowTemplate } from 'typings/workflow';
 import { JobType } from 'typings/job';
-import { VariableAccessMode, VariableComponent } from 'typings/variable';
+import { VariableAccessMode, VariableComponent, VariableValueType } from 'typings/variable';
 import { DeepPartial } from 'utility-types';
 import { gloabalVariables } from '../variables/examples';
 
@@ -114,7 +114,6 @@ export const normalTemplate: DeepPartial<WorkflowTemplate> = {
           },
         ],
       },
-
       {
         name: 'Raw data process',
         job_type: JobType.NN_MODEL_TRANINING,
@@ -210,10 +209,10 @@ export const complexDepsTemplate: DeepPartial<WorkflowTemplate> = {
           {
             name: 'job_name',
             value: '',
+            value_type: VariableValueType.STRING,
             access_mode: VariableAccessMode.PEER_WRITABLE,
             widget_schema: {
               component: VariableComponent.Input,
-              type: 'string',
               required: true,
             },
           },
@@ -226,12 +225,12 @@ export const complexDepsTemplate: DeepPartial<WorkflowTemplate> = {
         dependencies: [{ source: 'Initiative' }],
         variables: [
           {
-            name: 'job_name',
+            name: 'input_dir',
             value: '',
             access_mode: VariableAccessMode.PEER_WRITABLE,
+            value_type: VariableValueType.STRING,
             widget_schema: {
-              component: VariableComponent.Input,
-              type: 'string',
+              component: VariableComponent.Dataset,
             },
           },
         ],
@@ -244,12 +243,15 @@ export const complexDepsTemplate: DeepPartial<WorkflowTemplate> = {
         dependencies: [{ source: 'Initiative' }],
         variables: [
           {
-            name: 'job_name',
-            value: '',
+            name: 'codes',
+            value: JSON.stringify({
+              'foo.py': 'int a = 1',
+              'folder/bar.py': 'bool b = True',
+            }),
             access_mode: VariableAccessMode.PEER_WRITABLE,
+            value_type: VariableValueType.CODE,
             widget_schema: {
-              component: VariableComponent.Input,
-              type: 'string',
+              component: VariableComponent.Code,
               required: true,
             },
           },
@@ -260,7 +262,18 @@ export const complexDepsTemplate: DeepPartial<WorkflowTemplate> = {
         job_type: JobType.RAW_DATA,
         is_federated: true,
         dependencies: [{ source: 'Initiative' }],
-        variables: [],
+        variables: [
+          {
+            name: 'worker_number',
+            value: '',
+            access_mode: VariableAccessMode.PEER_WRITABLE,
+            value_type: VariableValueType.STRING,
+            widget_schema: {
+              component: VariableComponent.Select,
+              enum: [1, 2, 3, 4, 5],
+            },
+          },
+        ],
       },
       {
         name: 'Training',
@@ -269,12 +282,12 @@ export const complexDepsTemplate: DeepPartial<WorkflowTemplate> = {
         dependencies: [{ source: 'Raw data upload' }, { source: 'Raw data process' }],
         variables: [
           {
-            name: 'job_name2',
+            name: 'job_name',
             value: '',
             access_mode: VariableAccessMode.PEER_WRITABLE,
+            value_type: VariableValueType.STRING,
             widget_schema: {
               component: VariableComponent.Input,
-              type: 'string',
             },
           },
         ],
@@ -286,12 +299,12 @@ export const complexDepsTemplate: DeepPartial<WorkflowTemplate> = {
         dependencies: [{ source: 'Training' }, { source: 'Raw data save' }],
         variables: [
           {
-            name: 'job_name2',
+            name: 'job_name',
             value: '',
+            value_type: VariableValueType.STRING,
             access_mode: VariableAccessMode.PEER_WRITABLE,
             widget_schema: {
               component: VariableComponent.Input,
-              type: 'string',
             },
           },
         ],

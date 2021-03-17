@@ -1,15 +1,22 @@
 import { isEmpty, clone } from 'lodash';
 import { useMemo } from 'react';
-import { Job } from 'typings/job';
-import { JobColorsMark, NodeDataRaw } from './types';
+import { JobColorsMark, JobNodeRawData } from './types';
 
-const COLORS_POOL: JobColorsMark[] = ['blue', 'green', 'yellow', 'magenta', 'cyan'];
+const COLORS_POOL: JobColorsMark[] = [
+  'blue',
+  'green',
+  'yellow',
+  'magenta',
+  'cyan',
+  'red',
+  'purple',
+];
 
 export function useMarkFederatedJobs() {
   const colorsPool = useMemo(() => clone(COLORS_POOL), []);
   const markedJobs = useMemo<Record<string, JobColorsMark>>(() => ({}), []);
 
-  function markThem(jobs?: Array<NodeDataRaw | Job>, ...otherJobsArr: Array<NodeDataRaw | Job>[]) {
+  function markThem(jobs?: Array<JobNodeRawData>, ...otherJobsArr: Array<JobNodeRawData>[]) {
     if (!jobs) return;
 
     /**
@@ -18,7 +25,7 @@ export function useMarkFederatedJobs() {
      * thus we can know how many colors we using after mark first group of jobs
      */
     if (isEmpty(markedJobs)) {
-      jobs.forEach((job: NodeDataRaw) => {
+      jobs.forEach((job) => {
         if (job.is_federated) {
           const color = colorsPool.shift() || 'blue';
 
@@ -27,7 +34,7 @@ export function useMarkFederatedJobs() {
         }
       });
     } else {
-      jobs.forEach((job: NodeDataRaw) => {
+      jobs.forEach((job) => {
         if (job.is_federated) {
           job.mark = markedJobs[job.name];
         }

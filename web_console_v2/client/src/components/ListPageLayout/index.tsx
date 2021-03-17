@@ -13,7 +13,6 @@ const Container = styled(Card)`
   > .ant-card-body {
     display: flex;
     flex-direction: column;
-    gap: 18px;
     height: 100%;
     padding: 22px 24px;
 
@@ -41,7 +40,7 @@ const Tip = styled(Tooltip)`
 `;
 
 interface Props {
-  title: string;
+  title: React.ReactNode;
   children?: React.ReactNode;
   tip?: string;
 }
