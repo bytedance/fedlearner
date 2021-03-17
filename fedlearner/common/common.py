@@ -12,6 +12,8 @@ class Config(object):
         os.environ.get('RAW_DATA_METRICS_SAMPLE_RATE', 0.01)
     ES_BATCH_SIZE = os.environ.get('ES_BATCH_SIZE', 1000)
     TZ = pytz.timezone(os.environ.get('TZ', 'UTC'))
+    ES_USERNAME = os.environ.get('ES_USERNAME', 'elastic')
+    ES_PASSWORD = os.environ.get('ES_PASSWORD', 'Fedlearner123')
 
 
 # YYYY-MM-DD'T'hh:mm:ss.SSSSSSZ
