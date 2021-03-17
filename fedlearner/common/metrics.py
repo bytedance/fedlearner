@@ -28,8 +28,8 @@ import pytz
 from elasticsearch import helpers as helpers7
 from elasticsearch6 import helpers as helpers6
 
-from fedlearner.common.common import CONFIGS, INDEX_NAME, INDEX_TYPE, \
-    convert_to_iso_format, get_es_template
+from fedlearner.common.common import Config, INDEX_NAME, INDEX_TYPE, \
+    get_es_template
 
 
 class Handler(object):
@@ -78,17 +78,15 @@ class ElasticSearchHandler(Handler):
         if self._version == 6:
             self._es = es6.Elasticsearch([ip], port=port)
             self._helpers = helpers6
-        # first run, put index templates to ES if not exist
-        # templates are supposed to be set during deployment
-        for index_type, index_name in INDEX_NAME.items():
-            if not self._es.indices.exists_template(
-                '{}-template'.format(index_name)
-            ):
-                self._create_template_and_index(index_type)
+            for index_type, index_name in INDEX_NAME.items():
+                if not self._es.indices.exists_template(
+                    '{}-template'.format(index_name)
+                ):
+                    self._create_template_and_index(index_type)
         # suppress ES logger
         logging.getLogger('elasticsearch').setLevel(logging.CRITICAL)
         self._emit_batch = []
-        self._batch_size = CONFIGS['es_batch_size']
+        self._batch_size = Config.ES_BATCH_SIZE
         self._lock = threading.RLock()
 
     def emit(self, name, value, tags=None, index_type='metrics'):
@@ -107,12 +105,14 @@ class ElasticSearchHandler(Handler):
                 self.flush()
 
     def flush(self):
+        emit_batch = []
         with self._lock:
-            if len(self._emit_batch) > 0:
-                logging.info('METRICS: Emitting %d documents to ES',
-                             len(self._emit_batch))
-                self._helpers.bulk(self._es, self._emit_batch)
+            if self._emit_batch:
+                emit_batch = self._emit_batch
                 self._emit_batch = []
+        if emit_batch:
+            logging.info('Emitting %d documents to ES', len(emit_batch))
+            self._helpers.bulk(self._es, emit_batch)
 
     @staticmethod
     def _produce_document(name, value, tags, index_type):
@@ -120,13 +120,12 @@ class ElasticSearchHandler(Handler):
         if application_id:
             tags['application_id'] = str(application_id)
         if index_type == 'metrics':
-            tags['process_time'] = convert_to_iso_format(
-                datetime.datetime.now(tz=pytz.utc)
-            )
+            tags['process_time'] = datetime.datetime.now(tz=pytz.utc) \
+                .isoformat(timespec='microseconds')
             document = {
                 "name": name,
                 "value": value,
-                "tags": tags,
+                "tags": tags
             }
         else:
             document = {
@@ -230,9 +229,9 @@ emit_timer = emit
 
 
 def timer(func_name, tags=None):
-    def func_wrapper(func):
+    def decorator(func):
         @wraps(func)
-        def return_wrapper(*args, **kwargs):
+        def wrapper(*args, **kwargs):
             time_start = time.time()
             result = func(*args, **kwargs)
             time_end = time.time()
@@ -240,6 +239,6 @@ def timer(func_name, tags=None):
             emit(func_name, time_spend, tags)
             return result
 
-        return return_wrapper
+        return wrapper
 
-    return func_wrapper
+    return decorator
