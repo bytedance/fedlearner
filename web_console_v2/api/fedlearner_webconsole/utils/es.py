@@ -16,32 +16,26 @@
 import requests
 from elasticsearch import Elasticsearch
 
+from fedlearner_webconsole.envs import ES_HOST, ES_PORT, ES_USERNAME, \
+    ES_PASSWORD, KIBANA_SERVICE_HOST_PORT
 from fedlearner_webconsole.utils.es_misc import get_es_template, ALIAS_NAME
 
 
 class ElasticSearchClient(object):
     def __init__(self):
         self._es_client = None
-
-    def init_app(self, app):
-        if 'ES_HOST' in app.config and 'ES_PORT' in app.config:
-            self._es_client = Elasticsearch([
-                {
-                    'host': app.config['ES_HOST'],
-                    'port': app.config['ES_PORT']
-                }], http_auth=(app.config['ES_USERNAME'],
-                               app.config['ES_PASSWORD']))
-            if int(
-                self._es_client.info()['version']['number'].split('.')[0]
-            ) == 7:
-                self._es_client.ilm.start()
-                for index_type, alias_name in ALIAS_NAME.items():
-                    self._configure_es(index_type, alias_name)
-                    # Kibana index-patterns initialization
-                    self._configure_kibana_index_patterns(
-                        app.config['KIBANA_SERVICE_HOST_PORT'], index_type
-                    )
-                self.put_ilm('filebeat-7.0.1', hot_age='1d')
+        self._es_client = Elasticsearch([{'host': ES_HOST,
+                                          'port': ES_PORT}],
+                                        http_auth=(ES_USERNAME, ES_PASSWORD))
+        if int(self._es_client.info()['version']['number'].split('.')[0]) == 7:
+            self._es_client.ilm.start()
+            for index_type, alias_name in ALIAS_NAME.items():
+                self._configure_es(index_type, alias_name)
+                # Kibana index-patterns initialization
+                self._configure_kibana_index_patterns(
+                    KIBANA_SERVICE_HOST_PORT, index_type
+                )
+            self.put_ilm('filebeat-7.0.1', hot_age='1d')
 
     def _configure_es(self, index_type, alias_name):
         self.put_ilm('fedlearner_{}_ilm'.format(index_type))

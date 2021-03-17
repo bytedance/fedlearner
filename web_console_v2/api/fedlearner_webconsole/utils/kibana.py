@@ -4,7 +4,6 @@ from datetime import datetime
 
 import prison
 import pytz
-from config import Config
 from fedlearner_webconsole import envs
 from fedlearner_webconsole.job.models import JobType
 
@@ -15,9 +14,9 @@ class KibanaUtils(object):
         This class is deeply coupled with
         fedlearner_webconsole.job.apis.KibanaMetricsApi
     """
-    KIBANA_ADDRESS = Config.KIBANA_INGRESS_HOST
-    if Config.KIBANA_INGRESS_PORT is not None:
-        KIBANA_ADDRESS += ':{}'.format(Config.KIBANA_INGRESS_PORT)
+    KIBANA_ADDRESS = envs.KIBANA_INGRESS_HOST
+    if envs.KIBANA_INGRESS_PORT is not None:
+        KIBANA_ADDRESS += ':{}'.format(envs.KIBANA_INGRESS_PORT)
     TSVB = ('Rate', 'Ratio', 'Numeric')
     TIMELION = ('Time', 'Timer')
     RISON_REPLACEMENT = {' ': '%20',
