@@ -4,7 +4,7 @@ from datetime import datetime
 
 import prison
 import pytz
-from fedlearner_webconsole import envs
+from fedlearner_webconsole.envs import Envs
 from fedlearner_webconsole.job.models import JobType
 
 
@@ -14,9 +14,9 @@ class KibanaUtils(object):
         This class is deeply coupled with
         fedlearner_webconsole.job.apis.KibanaMetricsApi
     """
-    KIBANA_ADDRESS = envs.KIBANA_INGRESS_HOST
-    if envs.KIBANA_INGRESS_PORT is not None:
-        KIBANA_ADDRESS += ':{}'.format(envs.KIBANA_INGRESS_PORT)
+    KIBANA_ADDRESS = Envs.KIBANA_INGRESS_HOST
+    if Envs.KIBANA_INGRESS_PORT is not None:
+        KIBANA_ADDRESS += ':{}'.format(Envs.KIBANA_INGRESS_PORT)
     TSVB = ('Rate', 'Ratio', 'Numeric')
     TIMELION = ('Time', 'Timer')
     RISON_REPLACEMENT = {' ': '%20',
@@ -334,7 +334,7 @@ class KibanaUtils(object):
                          "aggs": []}
             vis_states.append(vis_state)
 
-        by_pt_start = pytz.utc.normalize(envs.TZ.localize(job.created_at)) \
+        by_pt_start = pytz.utc.normalize(Envs.TZ.localize(job.created_at)) \
                           .isoformat(timespec='seconds')[:-6] + 'Z'
         by_pt_end = 'now'
         by_et_start, by_et_end = KibanaUtils._parse_start_end_time(args)
@@ -367,7 +367,7 @@ class KibanaUtils(object):
                      "params": {"expression": ','.join(series),
                                 "interval": interval},
                      "aggs": []}
-        start = pytz.utc.normalize(envs.TZ.localize(job.created_at)) \
+        start = pytz.utc.normalize(Envs.TZ.localize(job.created_at)) \
                     .isoformat(timespec='seconds')[:-6] + 'Z'
         end = 'now'
         return [vis_state], [(start, end)]

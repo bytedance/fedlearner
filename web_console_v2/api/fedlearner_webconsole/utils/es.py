@@ -13,54 +13,18 @@
 # limitations under the License.
 
 # coding: utf-8
-import requests
 from elasticsearch import Elasticsearch
 
-from fedlearner_webconsole.envs import ES_HOST, ES_PORT, ES_USERNAME, \
-    ES_PASSWORD, KIBANA_SERVICE_HOST_PORT
-from fedlearner_webconsole.utils.es_misc import get_es_template, ALIAS_NAME
+from fedlearner_webconsole.envs import Envs
 
 
 class ElasticSearchClient(object):
     def __init__(self):
         self._es_client = None
-        self._es_client = Elasticsearch([{'host': ES_HOST,
-                                          'port': ES_PORT}],
-                                        http_auth=(ES_USERNAME, ES_PASSWORD))
-        if int(self._es_client.info()['version']['number'].split('.')[0]) == 7:
-            self._es_client.ilm.start()
-            for index_type, alias_name in ALIAS_NAME.items():
-                self._configure_es(index_type, alias_name)
-                # Kibana index-patterns initialization
-                self._configure_kibana_index_patterns(
-                    KIBANA_SERVICE_HOST_PORT, index_type
-                )
-            self.put_ilm('filebeat-7.0.1', hot_age='1d')
-
-    def _configure_es(self, index_type, alias_name):
-        self.put_ilm('fedlearner_{}_ilm'.format(index_type))
-        self._put_index_template(index_type, shards=1)
-        # if alias already exists, no need to set write index
-        if not self._es_client.indices.exists_alias(alias_name):
-            # if index with the same name as alias exists, delete it
-            if self._es_client.indices.exists(alias_name):
-                self._es_client.indices.delete(alias_name)
-            self._put_write_index(index_type)
-
-    @staticmethod
-    def _configure_kibana_index_patterns(kibana_addr, index_type):
-        if not kibana_addr:
-            requests.post(
-                url='{}/api/saved_objects/index-pattern/{}'
-                    .format(kibana_addr, ALIAS_NAME[index_type]),
-                json={'attributes': {
-                    'title': ALIAS_NAME[index_type] + '*',
-                    'timeFieldName': 'tags.process_time'
-                    if index_type == 'metrics' else 'tags.event_time'}},
-                headers={'kbn-xsrf': 'true',
-                         'Content-Type': 'application/json'},
-                params={'overwrite': True}
-            )
+        self._es_client = Elasticsearch([{'host': Envs.ES_HOST,
+                                          'port': Envs.ES_PORT}],
+                                        http_auth=(Envs.ES_USERNAME,
+                                                   Envs.ES_PASSWORD))
 
     def search(self, *args, **kwargs):
         return self._es_client.search(*args, **kwargs)
@@ -370,21 +334,6 @@ class ElasticSearchClient(object):
             }
         }
         return es.search(index=index, body=query)
-
-    def _put_index_template(self, index_type, shards):
-        assert self._es_client is not None, 'ES client not yet initialized.'
-        template_name = ALIAS_NAME[index_type] + '-template'
-        template_body = get_es_template(index_type, shards=shards)
-        self._es_client.indices.put_template(template_name, template_body)
-
-    def _put_write_index(self, index_type):
-        assert self._es_client is not None, 'ES client not yet initialized.'
-        alias_name = ALIAS_NAME[index_type]
-        self._es_client.indices.create(
-            # resolves to alias_name-yyyy.mm.dd-000001 in ES
-            f'<{alias_name}-{{now/d}}-000001>',
-            body={"aliases": {alias_name: {"is_write_index": True}}}
-        )
 
 
 es = ElasticSearchClient()
