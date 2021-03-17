@@ -1,8 +1,8 @@
-"""Initial Commitment
+"""Initial Comment
 
-Revision ID: bbf84656af2b
+Revision ID: b3512a6ce912
 Revises: 
-Create Date: 2021-03-11 15:24:42.562304
+Create Date: 2021-03-17 15:50:41.962065
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = 'bbf84656af2b'
+revision = 'b3512a6ce912'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -30,8 +30,8 @@ def upgrade():
     sa.Column('num_imported_file', sa.Integer(), nullable=True, comment='num_imported_file'),
     sa.Column('num_file', sa.Integer(), nullable=True, comment='num_file'),
     sa.Column('cmt', sa.Text(), nullable=True, comment='comment'),
-    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=True, comment='created_at'),
-    sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=True, comment='updated_at'),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=True, comment='created_at'),
+    sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=True, comment='updated_at'),
     sa.Column('deleted_at', sa.DateTime(timezone=True), nullable=True, comment='deleted_at'),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('event_time', 'dataset_id', name='uniq_event_time_dataset_id'),
@@ -45,11 +45,10 @@ def upgrade():
     sa.Column('dataset_type', sa.Enum('PSI', 'STREAMING', name='datasettype', native_enum=False), nullable=False, comment='data type'),
     sa.Column('path', sa.String(length=512), nullable=True, comment='dataset path'),
     sa.Column('cmt', sa.Text(), nullable=True, comment='comment of dataset'),
-    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=True, comment='created time'),
-    sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=True, comment='updated time'),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=True, comment='created time'),
+    sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=True, comment='updated time'),
     sa.Column('deleted_at', sa.DateTime(timezone=True), nullable=True, comment='deleted time'),
     sa.PrimaryKeyConstraint('id'),
-    sa.UniqueConstraint('name', name='uniq_name'),
     comment='This is webconsole dataset table',
     mysql_charset='utf8mb4',
     mysql_engine='innodb'
@@ -73,12 +72,13 @@ def upgrade():
     sa.Column('state', sa.Enum('INVALID', 'STOPPED', 'WAITING', 'STARTED', name='jobstate', native_enum=False), nullable=False, comment='state'),
     sa.Column('yaml_template', sa.Text(), nullable=True, comment='yaml_template'),
     sa.Column('config', sa.LargeBinary(), nullable=True, comment='config'),
+    sa.Column('is_disabled', sa.Boolean(), nullable=True, comment='is_disabled'),
     sa.Column('workflow_id', sa.Integer(), nullable=False, comment='workflow id'),
     sa.Column('project_id', sa.Integer(), nullable=False, comment='project id'),
     sa.Column('flapp_snapshot', sa.Text(), nullable=True, comment='flapp snapshot'),
     sa.Column('pods_snapshot', sa.Text(), nullable=True, comment='pods snapshot'),
-    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=True, comment='created at'),
-    sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=True, comment='updated at'),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=True, comment='created at'),
+    sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=True, comment='updated at'),
     sa.Column('deleted_at', sa.DateTime(timezone=True), nullable=True, comment='deleted at'),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('name'),
@@ -94,8 +94,8 @@ def upgrade():
     sa.Column('config', sa.LargeBinary(), nullable=True, comment='config'),
     sa.Column('certificate', sa.LargeBinary(), nullable=True, comment='certificate'),
     sa.Column('cmt', sa.Text(), nullable=True, comment='comment'),
-    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=True, comment='created at'),
-    sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=True, comment='updated at'),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=True, comment='created at'),
+    sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=True, comment='updated at'),
     sa.Column('deleted_at', sa.DateTime(timezone=True), nullable=True, comment='deleted at'),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('name', name='idx_name'),
@@ -136,24 +136,24 @@ def upgrade():
     sa.Column('config', sa.LargeBinary(), nullable=True, comment='config'),
     sa.Column('cmt', sa.String(length=255), nullable=True, comment='comment'),
     sa.Column('metric_is_public', sa.Boolean(), nullable=False, comment='metric_is_public'),
+    sa.Column('create_job_flags', sa.TEXT(), nullable=True, comment='create_job_flags'),
+    sa.Column('job_ids', sa.TEXT(), nullable=True, comment='job_ids'),
     sa.Column('forkable', sa.Boolean(), nullable=True, comment='forkable'),
     sa.Column('forked_from', sa.Integer(), nullable=True, comment='forked_from'),
-    sa.Column('reuse_job_names', sa.TEXT(), nullable=True, comment='reuse_job_names'),
-    sa.Column('peer_reuse_job_names', sa.TEXT(), nullable=True, comment='peer_reuse_job_names'),
+    sa.Column('peer_create_job_flags', sa.TEXT(), nullable=True, comment='peer_create_job_flags'),
     sa.Column('fork_proposal_config', sa.LargeBinary(), nullable=True, comment='fork_proposal_config'),
     sa.Column('recur_type', sa.Enum('NONE', 'ON_NEW_DATA', 'HOURLY', 'DAILY', 'WEEKLY', name='recurtype', native_enum=False), nullable=True, comment='recur_type'),
     sa.Column('recur_at', sa.Interval(), nullable=True, comment='recur_at'),
     sa.Column('trigger_dataset', sa.Integer(), nullable=True, comment='trigger_dataset'),
     sa.Column('last_triggered_batch', sa.Integer(), nullable=True, comment='last_triggered_batch'),
-    sa.Column('job_ids', sa.TEXT(), nullable=True, comment='job_ids'),
     sa.Column('state', sa.Enum('INVALID', 'NEW', 'READY', 'RUNNING', 'STOPPED', name='workflow_state', native_enum=False), nullable=True, comment='state'),
     sa.Column('target_state', sa.Enum('INVALID', 'NEW', 'READY', 'RUNNING', 'STOPPED', name='workflow_target_state', native_enum=False), nullable=True, comment='target_state'),
     sa.Column('transaction_state', sa.Enum('READY', 'ABORTED', 'COORDINATOR_PREPARE', 'COORDINATOR_COMMITTABLE', 'COORDINATOR_COMMITTING', 'COORDINATOR_ABORTING', 'PARTICIPANT_PREPARE', 'PARTICIPANT_COMMITTABLE', 'PARTICIPANT_COMMITTING', 'PARTICIPANT_ABORTING', name='transactionstate', native_enum=False), nullable=True, comment='transaction_state'),
     sa.Column('transaction_err', sa.Text(), nullable=True, comment='transaction_err'),
     sa.Column('start_at', sa.Integer(), nullable=True, comment='start_at'),
     sa.Column('stop_at', sa.Integer(), nullable=True, comment='stop_at'),
-    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=True, comment='created_at'),
-    sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=True, comment='update_at'),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=True, comment='created_at'),
+    sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=True, comment='update_at'),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('name', name='uniq_name'),
     sa.UniqueConstraint('uuid', name='uniq_uuid'),
