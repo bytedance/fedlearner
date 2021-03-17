@@ -10,6 +10,7 @@ export interface FedLoginFormData {
   passowrd: string;
 }
 
+// TODO: implement user role module
 export enum FedRoles {
   Admin,
   Operator,

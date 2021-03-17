@@ -10,12 +10,14 @@ const error = {
   btn_view_records: { zh: '查看记录', en: 'View records' },
   btn_finish_n_import: { zh: '完成创建并导入', en: 'Submit and start importing' },
   btn_import: { zh: '开始导入', en: 'Start importing' },
+  btn_copy_path: { zh: '复制路径', en: 'Start importing' },
 
   col_name: { zh: '数据集名称' },
   col_file_name: { zh: '文件名' },
   col_type: { zh: '类型' },
   col_files_size: { zh: '数据总大小' },
   col_creator: { zh: '创建者' },
+  col_modification_time: { zh: '最近修改时间' },
 
   msg_start_importing: { zh: '数据集创建成功，数据文件开始导入' },
   msg_name_required: { zh: '数据集名称为必填项' },
@@ -39,6 +41,7 @@ const error = {
   placeholder_comment: { zh: '请输入数据集说明' },
   placeholder_event_time: { zh: '请选择时间' },
   placeholder_filename_filter: { zh: '输入文件名进行筛选' },
+  placeholder_directory_filter: { zh: '切换其他文件夹' },
 
   title_create: { zh: '创建数据集' },
 

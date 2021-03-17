@@ -6,7 +6,7 @@ import i18n from 'i18n';
 import { Button } from 'antd';
 import StateIndicator, { StateTypes } from 'components/StateIndicator';
 import { useTranslation } from 'react-i18next';
-import { NodeDataRaw } from 'components/WorkflowJobsFlowChart/types';
+import { JobNodeRawData } from 'components/WorkflowJobsCanvas/types';
 
 const Container = styled.div`
   margin-top: 30px;
@@ -32,7 +32,7 @@ const stateText: { [key: string]: string } = {
 };
 
 type Props = {
-  job: NodeDataRaw;
+  job: JobNodeRawData;
   isPeerSide: boolean;
 };
 
@@ -60,7 +60,7 @@ const JobExecutionPods: FC<Props> = ({ job, isPeerSide }) => {
       render: (val: PodState, record: Pod) => {
         let tip: string = '';
         if ([PodState.FAILED, PodState.PENDING].includes(record.status)) {
-          tip = record.conditions?.map((item) => item.message).join(', ') || '';
+          tip = record.message || '';
         }
         return <StateIndicator type={stateType[val]} text={stateText[val]} tip={tip} />;
       },

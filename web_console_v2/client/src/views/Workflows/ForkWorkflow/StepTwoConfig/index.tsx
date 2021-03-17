@@ -8,21 +8,21 @@ import { forkWorkflowForm } from 'stores/workflow';
 import styled from 'styled-components';
 import { useTranslation } from 'react-i18next';
 import { ReactFlowProvider } from 'react-flow-renderer';
-import WorkflowJobsFlowChart, { ChartExposedRef } from 'components/WorkflowJobsFlowChart';
+import WorkflowJobsCanvas, { ChartExposedRef } from 'components/WorkflowJobsCanvas';
 import {
   ChartNode,
   ChartNodes,
   ChartNodeStatus,
   NodeData,
-  NodeDataRaw,
-} from 'components/WorkflowJobsFlowChart/types';
-import { useMarkFederatedJobs } from 'components/WorkflowJobsFlowChart/hooks';
+  JobNodeRawData,
+} from 'components/WorkflowJobsCanvas/types';
+import { useMarkFederatedJobs } from 'components/WorkflowJobsCanvas/hooks';
 import { cloneDeep, Dictionary, omit } from 'lodash';
 import JobFormDrawer, { JobFormDrawerExposedRef } from '../../JobFormDrawer';
 import { useToggle } from 'react-use';
 import { WorkflowExecutionDetails, ChartWorkflowConfig } from 'typings/workflow';
 import { Variable } from 'typings/variable';
-import { parseWidgetSchemas, stringifyWidgetSchemas } from 'shared/formSchema';
+import { parseComplexDictField, stringifyComplexDictField } from 'shared/formSchema';
 import i18n from 'i18n';
 import { ExclamationCircle } from 'components/IconPark';
 import { Z_INDEX_GREATER_THAN_HEADER } from 'components/Header';
@@ -30,7 +30,9 @@ import GridRow from 'components/_base/GridRow';
 import { to } from 'shared/helpers';
 import { MixinFlexAlignCenter } from 'styles/mixins';
 import { useSubscribe } from 'hooks';
-import { WORKFLOW_JOB_NODE_CHANNELS } from 'components/WorkflowJobsFlowChart/WorkflowJobNode';
+import { WORKFLOW_JOB_NODE_CHANNELS } from 'components/WorkflowJobsCanvas/JobNodes/shared';
+import { Side } from 'typings/app';
+import { JobReuseFlag } from 'typings/job';
 
 const LoadingContainer = styled.div`
   ${MixinFlexAlignCenter()}
@@ -71,7 +73,6 @@ const Footer = styled.footer`
 `;
 
 // We only have two side so far
-type Side = 'self' | 'peer';
 const ALL_SIDES: Side[] = ['self', 'peer'];
 
 const WorkflowForkStepTwoConfig: FC = () => {
@@ -93,7 +94,7 @@ const WorkflowForkStepTwoConfig: FC = () => {
   useQuery(['getWorkflow', params.id], () => getWorkflowDetailById(params.id), {
     refetchOnWindowFocus: false,
     onSuccess(data) {
-      const config = parseWidgetSchemas(data.data).config! as ChartWorkflowConfig;
+      const config = parseComplexDictField(data.data).config! as ChartWorkflowConfig;
 
       setFormData({
         ...formData,
@@ -104,7 +105,7 @@ const WorkflowForkStepTwoConfig: FC = () => {
   const peerQuery = useQuery(['getPeerWorkflow', params.id], getPeerWorkflow, {
     refetchOnWindowFocus: false,
     onSuccess(data) {
-      const fork_proposal_config = parseWidgetSchemas(data).config! as ChartWorkflowConfig;
+      const fork_proposal_config = parseComplexDictField(data).config! as ChartWorkflowConfig;
       markThem(fork_proposal_config.job_definitions);
 
       setFormData({
@@ -148,7 +149,7 @@ const WorkflowForkStepTwoConfig: FC = () => {
             <ChartTitle>{t('workflow.our_config')}</ChartTitle>
           </ChartHeader>
           <ReactFlowProvider>
-            <WorkflowJobsFlowChart
+            <WorkflowJobsCanvas
               ref={selfConfigChartRef}
               side="self"
               nodeType="fork"
@@ -165,7 +166,7 @@ const WorkflowForkStepTwoConfig: FC = () => {
           </ChartHeader>
 
           <ReactFlowProvider>
-            <WorkflowJobsFlowChart
+            <WorkflowJobsCanvas
               ref={peerConfigChartRef}
               side="peer"
               nodeType="fork"
@@ -304,7 +305,7 @@ const WorkflowForkStepTwoConfig: FC = () => {
 
     setSubmitting(true);
 
-    const payload = stringifyWidgetSchemas(formData);
+    const payload = stringifyComplexDictField(formData);
 
     payload.config.job_definitions = _omitJobsColorMark(payload.config.job_definitions);
 
@@ -313,8 +314,8 @@ const WorkflowForkStepTwoConfig: FC = () => {
     );
 
     // Find reusable job names for both peer and self side
-    payload.reuse_job_names = _filterReusableJobs(selfConfigChartRef.current?.nodes!);
-    payload.peer_reuse_job_names = _filterReusableJobs(peerConfigChartRef.current?.nodes!);
+    payload.create_job_flags = _mapJobReuseFlag(selfConfigChartRef.current?.nodes!);
+    payload.peer_create_job_flags = _mapJobReuseFlag(peerConfigChartRef.current?.nodes!);
 
     // FIXME: remove after using hashed job name
     payload.name = payload.name.replace(/[\s]/g, '');
@@ -398,14 +399,13 @@ function _hydrate(variableShells: Variable[], formValues?: Dictionary<any>): Var
   });
 }
 
-function _filterReusableJobs(nodes: ChartNodes) {
+function _mapJobReuseFlag(nodes: ChartNodes) {
   return nodes
-    .filter((node) => node.data.inherit)
     .filter((node) => node.type !== 'global')
-    .map((item) => item.id)!;
+    .map((node) => (node.data.inherit ? JobReuseFlag.REUSE : JobReuseFlag.NEW))!;
 }
 
-function _omitJobsColorMark(jobs: NodeDataRaw[]): NodeDataRaw[] {
+function _omitJobsColorMark(jobs: JobNodeRawData[]): JobNodeRawData[] {
   return jobs.map((job) => omit(job, 'mark'));
 }
 

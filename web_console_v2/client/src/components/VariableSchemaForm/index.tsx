@@ -7,26 +7,22 @@ import {
   IAntdSchemaFormProps,
   createFormActions,
 } from '@formily/antd';
-import {
-  Input,
-  NumberPicker,
-  Select,
-  Radio,
-  Checkbox,
-  Switch,
-  Upload,
-} from '@formily/antd-components';
+import { Input, NumberPicker, Select, Radio, Checkbox, Switch } from '@formily/antd-components';
 import styled from 'styled-components';
+import { VariableComponent } from 'typings/variable';
+import ModelCodesEditorButton from 'components/ModelCodesEditorButton';
+import DatasetSelect from 'components/DatasetSelect';
 
-const components = {
-  Input,
-  NumberPicker,
-  Select,
-  Radio,
-  Checkbox,
-  TextArea: Input.TextArea,
-  Switch,
-  Upload,
+const components: Record<VariableComponent, any> = {
+  [VariableComponent.Input]: Input,
+  [VariableComponent.NumberPicker]: NumberPicker,
+  [VariableComponent.Select]: Select,
+  [VariableComponent.Radio]: Radio,
+  [VariableComponent.Checkbox]: Checkbox,
+  [VariableComponent.TextArea]: Input.TextArea,
+  [VariableComponent.Switch]: Switch,
+  [VariableComponent.Code]: ModelCodesEditorButton,
+  [VariableComponent.Dataset]: DatasetSelect,
 };
 
 const StyledSchemaForm = styled(SchemaForm)`

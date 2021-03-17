@@ -34,10 +34,10 @@ type Props = {
  * Common no result placeholder
  * NOTE: make sure you put inside a grid or flex container!
  */
-const NoResult: FC<Props> = ({ text, CTAText, to }) => {
+const NoResult: FC<Props> = ({ text, CTAText, to, ...props }) => {
   const { t } = useTranslation();
   return (
-    <Container>
+    <Container {...props}>
       <Illustration src={illustration} />
       <Text>
         <span>{text}</span>

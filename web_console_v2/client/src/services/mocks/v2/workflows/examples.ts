@@ -182,10 +182,6 @@ function _genPod() {
     name: `0-79f60e7a-520e-4cd7-a679-sada2e21hjklhds8s`,
     pod_type: 'Master',
     status: sample(PodState),
-    conditions: [
-      {
-        message: '0/3 nodes are available: 3 Insufficient cpu.',
-      },
-    ],
+    message: '0/3 nodes are available: 3 Insufficient cpu.',
   } as Pod;
 }

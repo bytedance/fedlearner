@@ -1,5 +1,6 @@
-import { NodeDataRaw } from 'components/WorkflowJobsFlowChart/types';
+import { JobNodeRawData } from 'components/WorkflowJobsCanvas/types';
 import { atom, selector } from 'recoil';
+import { JobReuseFlag } from 'typings/job';
 import {
   Workflow,
   WorkflowConfig,
@@ -30,7 +31,7 @@ export const workflowBasicForm = atom<CreateWorkflowBasicForm>({
   },
 });
 
-export const workflowConfigForm = atom<WorkflowConfig<NodeDataRaw>>({
+export const workflowConfigForm = atom<WorkflowConfig<JobNodeRawData>>({
   key: 'WorkflowConfigForm',
   default: {
     group_alias: '',
@@ -39,8 +40,10 @@ export const workflowConfigForm = atom<WorkflowConfig<NodeDataRaw>>({
   } as any,
 });
 
+// NOTE: this atom only been used in Workflow Create/Accept,
+// DO NOT IMPORT it in template upsert flow
 export const workflowTemplateForm = atom<CreateTemplateForm>({
-  key: 'WorkflowTemplateForm',
+  key: 'WorkflowCreateTemplateForm',
   default: { name: '', config: '', comment: '' } as any,
 });
 
@@ -56,7 +59,7 @@ export const peerConfigInPairing = atom<WorkflowConfig>({
 
 // Template being used when creating workflow
 export const templateInUsing = atom<WorkflowTemplate>({
-  key: 'templateInUsing',
+  key: 'TemplateInUsing',
   default: null as any,
 });
 
@@ -80,7 +83,7 @@ export const forkWorkflowForm = atom<WorkflowForkPayload>({
     fork_proposal_config: null as any,
     comment: '',
     forked_from: '',
-    reuse_job_names: [],
-    peer_reuse_job_names: [],
+    create_job_flags: [] as JobReuseFlag[],
+    peer_create_job_flags: [] as JobReuseFlag[],
   },
 });

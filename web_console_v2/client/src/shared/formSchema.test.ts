@@ -1,6 +1,6 @@
 import buildFormSchemaFromJobDef, {
-  stringifyWidgetSchemas,
-  parseWidgetSchemas,
+  stringifyComplexDictField,
+  parseComplexDictField,
 } from './formSchema';
 import { Job, JobType } from 'typings/job';
 import { VariableComponent } from 'typings/variable';
@@ -36,8 +36,8 @@ describe('Build a form schema with various components (without permissions)', ()
 
     expect(some_name.required).toBeFalsy();
     expect(some_name.default).toBe('initial value');
-    // auto generate a simple placeholder
-    expect(some_name['x-component-props']?.placeholder).toBe('请输入 some_name');
+    // if has tooltip, use tooltip as placeholder
+    expect(some_name['x-component-props']?.placeholder).toBe('some hints');
 
     expect(worker_mem.required).toBeTruthy();
     expect(worker_mem.default).toBe(2);
@@ -81,7 +81,7 @@ describe('Build a form schema with various components (without permissions)', ()
   it('Give the label with tooltip', () => {
     render(fields.some_name.title as any);
     const label = screen.getByRole('label');
-    expect(label.innerHTML).toContain('anticon-question-circle');
+    expect(label.innerHTML).toContain('some hints');
   });
 });
 
@@ -101,8 +101,8 @@ describe('Build a form schema with permissions', () => {
 });
 
 describe('Stringify all Widget schemas inside a workflow config before send to server', () => {
-  it('stringifyWidgetSchemas should works fine', () => {
-    const stringified = stringifyWidgetSchemas(normalTemplate as WorkflowTemplatePayload);
+  it('stringifyComplexDictField should works fine', () => {
+    const stringified = stringifyComplexDictField(normalTemplate as WorkflowTemplatePayload);
 
     expect(
       stringified.config.variables.every((item) => typeof item.widget_schema === 'string'),
@@ -117,7 +117,7 @@ describe('Stringify all Widget schemas inside a workflow config before send to s
 });
 
 describe('Parse all Widget schemas inside a workflow config from server side', () => {
-  it('parseWidgetSchemas should works fine', () => {
+  it('parseComplexDictField should works fine', () => {
     // Before is string type
     expect(
       withExecutionDetail.config!.variables.every((item) => typeof item.widget_schema === 'string'),
@@ -128,7 +128,7 @@ describe('Parse all Widget schemas inside a workflow config from server side', (
       }),
     ).toBeTruthy();
 
-    const parsed = parseWidgetSchemas(withExecutionDetail);
+    const parsed = parseComplexDictField(withExecutionDetail);
 
     expect(
       parsed.config!.variables.every((item) => typeof item.widget_schema === 'object'),

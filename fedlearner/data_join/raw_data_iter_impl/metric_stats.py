@@ -1,14 +1,19 @@
 import copy
 import random
+from datetime import datetime
+
+import pytz
+
 from fedlearner.common import metrics, common
 from fedlearner.data_join.common import convert_to_str
-from fedlearner.data_join.common import convert_to_iso_format
+from fedlearner.common.common import convert_to_datetime
+
 
 class MetricStats:
     def __init__(self, raw_data_options, metric_tags):
         self._tags = copy.deepcopy(metric_tags)
         self._stat_fields = raw_data_options.optional_fields
-        self._sample_ratio = common.CONFIGS['raw_data_metrics_sample_rate']
+        self._sample_ratio = common.Config.RAW_DATA_METRICS_SAMPLE_RATE
 
     def emit_metric(self, item):
         if random.random() < self._sample_ratio:
@@ -17,6 +22,9 @@ class MetricStats:
                 value = convert_to_str(getattr(item, field, '#None#'))
                 tags[field] = value
             tags['example_id'] = convert_to_str(item.example_id)
-            tags['event_time'] = convert_to_str(item.event_time)
-            tags['event_time_iso'] = convert_to_iso_format(item.event_time)
-            metrics.emit_store(name='input_data', value=0, tags=tags)
+            tags['event_time'] = convert_to_datetime(item.event_time, True) \
+                .isoformat(timespec='microseconds')
+            tags['process_time'] = datetime.now(tz=pytz.utc) \
+                .isoformat(timespec='microseconds')
+            metrics.emit_store(name='input_data', value=0, tags=tags,
+                               index_type='raw_data')

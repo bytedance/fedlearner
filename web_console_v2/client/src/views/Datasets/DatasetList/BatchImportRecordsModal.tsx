@@ -41,7 +41,7 @@ const BatchImportRecords: FC<Props> = ({ visible, toggleVisible, records, ...pro
       dataIndex: 'file_size',
       name: 'file_size',
       render: (fileSize: number) => {
-        return <span>{fileSize.toLocaleString('en')}</span>;
+        return <span>{fileSize.toLocaleString('en')} KB</span>;
       },
     },
     {

@@ -27,6 +27,9 @@ const SettingsPage: FC = () => {
       setImage(res.data.webconsole_image);
       formInstance.setFieldsValue({ ...res.data });
     },
+    onError(error: any) {
+      message.error(error.message);
+    },
     refetchOnWindowFocus: false,
     retry: 2,
   });

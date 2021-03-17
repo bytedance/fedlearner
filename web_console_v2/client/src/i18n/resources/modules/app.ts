@@ -6,6 +6,7 @@ const error = {
   switch_lng: { zh: '切换语言', en: 'Language' },
   logout: { zh: '退出登录', en: 'Logout' },
   login_success: { zh: '登录成功', en: 'Login successfully' },
+  copy_success: { zh: '复制成功', en: 'Copied!' },
 };
 
 export default separateLng(error);

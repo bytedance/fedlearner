@@ -5,7 +5,7 @@ import CardView from './CardView';
 import TableView from './TableView';
 import { Pagination, Spin, Row } from 'antd';
 import styled, { createGlobalStyle } from 'styled-components';
-import { projectListQuery } from 'stores/projects';
+import { projectListQuery } from 'stores/project';
 import { useRecoilQuery } from 'hooks/recoil';
 import { DisplayType } from 'typings/component';
 import { Project } from 'typings/project';

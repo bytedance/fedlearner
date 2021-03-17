@@ -6,7 +6,7 @@ import emptySVG from 'assets/images/empty.svg';
 import styled from 'styled-components';
 import { Button, message, Spin } from 'antd';
 import { useQuery } from 'react-query';
-import { NodeDataRaw } from 'components/WorkflowJobsFlowChart/types';
+import { JobNodeRawData } from 'components/WorkflowJobsCanvas/types';
 import { fetchJobMpld3Metrics } from 'services/workflow';
 import queryClient from 'shared/queryClient';
 
@@ -53,7 +53,7 @@ declare global {
   }
 }
 type Props = {
-  job: NodeDataRaw;
+  job: JobNodeRawData;
   visible?: boolean;
 };
 

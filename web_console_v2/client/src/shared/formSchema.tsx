@@ -1,3 +1,4 @@
+import React from 'react';
 import {
   WorkflowAcceptPayload,
   WorkflowExecutionDetails,
@@ -6,12 +7,29 @@ import {
   WorkflowTemplate,
   WorkflowTemplatePayload,
 } from 'typings/workflow';
-import { Variable, VariableAccessMode, VariableComponent } from 'typings/variable';
-import { Job } from 'typings/job';
+import {
+  Variable,
+  VariableAccessMode,
+  VariableComponent,
+  VariableValueType,
+} from 'typings/variable';
 import { FormilySchema } from 'typings/formily';
-import VariableLabel from 'components/VariableLabel/index';
 import { cloneDeep, merge } from 'lodash';
 import variablePresets, { VariablePresets } from './variablePresets';
+import { FC } from 'react';
+
+const __IS_JEST__ = typeof jest !== 'undefined';
+
+const FakeVariableLabel: FC<any> = ({ label, tooltip }: any) => {
+  return (
+    <label role="label">
+      {label}
+      {tooltip && <small>{tooltip}</small>}
+    </label>
+  );
+};
+
+const VariableLabel = __IS_JEST__ ? FakeVariableLabel : require('components/VariableLabel').default;
 
 // ------- Build form Formily schema --------
 type BuildOptions = {
@@ -36,7 +54,10 @@ function _resetOptions() {
  * during progress we will merge client side variable presets with inputs
  * learn more at ./variablePresets.ts
  */
-export default function buildFormSchemaFromJobDef(job: Job, options?: BuildOptions): FormilySchema {
+export default function buildFormSchemaFromJobDef(
+  job: { variables: Variable[]; name: string },
+  options?: BuildOptions,
+): FormilySchema {
   const { variables, name } = cloneDeep(job);
   const schema: FormilySchema = {
     type: 'object',
@@ -46,7 +67,8 @@ export default function buildFormSchemaFromJobDef(job: Job, options?: BuildOptio
 
   return variables.reduce((schema, current, index) => {
     const worker =
-      componentToWorkersMap[current.widget_schema?.component || VariableComponent.Input];
+      componentToWorkersMap[current.widget_schema?.component || VariableComponent.Input] ||
+      createInput;
 
     current.widget_schema = _mergeVariableSchemaWithPresets(current, variablePresets);
     current.widget_schema.index = index;
@@ -70,13 +92,11 @@ function _getPermissions({ access_mode }: Variable) {
   };
 }
 
-function _getDatas({ value, widget_schema: { type, options } }: Variable) {
-  if (options?.type === 'static') {
-  }
+function _getDatas({ value, widget_schema: { type, enum: enums } }: Variable) {
   return {
     type,
     default: value,
-    enum: options,
+    enum: enums,
   };
 }
 
@@ -93,7 +113,7 @@ function _getUIs({
     'x-index': index,
     'x-component-props': {
       size,
-      placeholder: placeholder || `请输入 ${name}`,
+      placeholder: placeholder || tooltip || `请输入 ${name}`,
     },
   };
 }
@@ -277,6 +297,38 @@ export function createNumberPicker(variable: Variable): FormilySchema {
   };
 }
 
+export function createModelCodesEditor(variable: Variable): FormilySchema {
+  const { name } = variable;
+
+  return {
+    [name]: merge(
+      _getUIs(variable),
+      _getDatas(variable),
+      _getPermissions(variable),
+      _getValidations(variable),
+      {
+        'x-component': 'Code',
+      },
+    ),
+  };
+}
+
+export function createDatasetSelect(variable: Variable): FormilySchema {
+  const { name } = variable;
+
+  return {
+    [name]: merge(
+      _getUIs(variable),
+      _getDatas(variable),
+      _getPermissions(variable),
+      _getValidations(variable),
+      {
+        'x-component': 'Dataset',
+      },
+    ),
+  };
+}
+
 // ---- Component to Worker map --------
 const componentToWorkersMap: { [key: string]: (v: Variable) => FormilySchema } = {
   [VariableComponent.Input]: createInput,
@@ -286,10 +338,28 @@ const componentToWorkersMap: { [key: string]: (v: Variable) => FormilySchema } =
   [VariableComponent.Select]: createSelect,
   [VariableComponent.Radio]: createRadio,
   [VariableComponent.NumberPicker]: createNumberPicker,
+  [VariableComponent.Code]: createModelCodesEditor,
+  [VariableComponent.Dataset]: createDatasetSelect,
 };
 
 // ---------- Widget schemas stringify, parse -----------
-export function stringifyWidgetSchemas<
+
+export function stringifyVariableCodes(variable: Variable) {
+  if (variable.value_type === VariableValueType.CODE && typeof variable.value === 'object') {
+    variable.value = JSON.stringify(variable.value);
+  }
+}
+
+export function parseVariableCodes(variable: Variable) {
+  if (variable.value_type === VariableValueType.CODE && typeof variable.value === 'string') {
+    variable.value = JSON.parse(variable.value);
+  }
+}
+
+/**
+ * Stringify each variable's widget schema & codes value
+ */
+export function stringifyComplexDictField<
   T extends
     | WorkflowInitiatePayload
     | WorkflowTemplatePayload
@@ -322,10 +392,15 @@ export function stringifyWidgetSchemas<
     if (typeof variable.widget_schema === 'object') {
       variable.widget_schema = JSON.stringify(variable.widget_schema);
     }
+
+    stringifyVariableCodes(variable);
   }
 }
 
-export function parseWidgetSchemas<
+/**
+ * Parse each variable's widget schema & codes value
+ */
+export function parseComplexDictField<
   T extends WorkflowExecutionDetails | WorkflowTemplate | WorkflowForkPayload
 >(input: T): T {
   const ret = cloneDeep(input);
@@ -356,6 +431,8 @@ export function parseWidgetSchemas<
         ? JSON.parse(variable.widget_schema)
         : /* istanbul ignore next */ {};
     }
+
+    parseVariableCodes(variable);
   }
 }
 

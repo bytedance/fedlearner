@@ -14,11 +14,13 @@
 
 # coding: utf-8
 
-import logging
 import argparse
 import json
+import logging
+
 import tensorflow.compat.v1 as tf
 
+from fedlearner.common import common as fcc
 from fedlearner.common import metrics
 from fedlearner.common.summary_hook import SummaryHook
 from fedlearner.trainer.bridge import Bridge
@@ -42,13 +44,25 @@ class StepMetricsHook(tf.estimator.SessionRunHook):
     def after_run(self, run_context, run_value):
         self._iter += 1
         if self._iter % self._every_n_iter == 0:
-            for name, value in run_value.results.items():
-                metrics.emit_store(name=name, value=value, tags={})
+            result = run_value.results
+            tags = {}
+            if 'event_time' in result:
+                event_time = result.pop('event_time').decode()
+                tags['event_time'] = fcc.convert_to_datetime(
+                        event_time.decode(), True
+                    ).isoformat(timespec='microseconds')
+            for name, value in result.items():
+                metrics.emit_store(name=name, value=value, tags=tags)
 
 
 class StepLossAucMetricsHook(StepMetricsHook):
-    def __init__(self, loss_tensor, auc_tensor, every_n_iter=5):
-        tensor_dict = {"loss": loss_tensor, "auc": auc_tensor}
+    def __init__(self, loss_tensor, auc_tensor, every_n_iter=5,
+                 event_time_tensor=None):
+
+        tensor_dict = {"loss": loss_tensor,
+                       "auc": auc_tensor}
+        if event_time_tensor is not None:
+            tensor_dict["event_time"] = event_time_tensor
         super(StepLossAucMetricsHook, self).__init__(tensor_dict, every_n_iter)
 
 
