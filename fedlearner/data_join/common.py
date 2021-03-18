@@ -51,7 +51,8 @@ InvalidBytes = ''.encode()
 InvalidInt = -1
 
 SYNC_ALLOWED_OPTIONAL_FIELDS = [
-    'id_type', 'event_time_deep', 'type', 'click_id']
+    'example_id', 'event_time', 'id_type', 'event_time_deep', 'type',
+    'click_id']
 # must: both old and new version of raw data should have this field
 ALLOWED_FIELD = namedtuple('ALLOW_FIELD', ['default_value', 'type', 'must'])
 ALLOWED_FIELDS = dict({

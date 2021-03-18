@@ -18,6 +18,8 @@ import logging
 import os
 import traceback
 
+import tensorflow.compat.v1 as tf
+
 from fedlearner.common import data_join_service_pb2 as dj_pb
 from fedlearner.data_join.item_batch_seq_processor import \
         ItemBatch, ItemBatchSeqProcessor
@@ -28,43 +30,43 @@ class ExampleIdBatch(ItemBatch):
     def __init__(self, partition_id, begin_index):
         self._partition_id = partition_id
         self._begin_index = begin_index
-        self._example_ids = []
-        self._event_times = []
 
-        ### V2
-        self._field_buf = dict()
+        self._feature_buf = dict()
+        self._key_feature = 'example_id'
         for fn in djc.SYNC_ALLOWED_OPTIONAL_FIELDS:
-            self._field_buf[fn] = []
+            self._feature_buf[fn] = []
 
     def append(self, item):
-        self._example_ids.append(item.example_id)
-        self._event_times.append(item.event_time)
         for fn in djc.SYNC_ALLOWED_OPTIONAL_FIELDS:
             value = getattr(item, fn, djc.ALLOWED_FIELDS[fn].default_value)
             if value and value != djc.ALLOWED_FIELDS[fn].default_value:
-                self._field_buf[fn].append(value)
+                self._feature_buf[fn].append(value)
 
     @property
     def begin_index(self):
         return self._begin_index
 
     def make_packed_lite_example_ids(self):
-        # note: repeated fields don't support item assignment
+        features = {}
+        for name, value_list in self._feature_buf.items():
+            if len(value_list) > 0:
+                if isinstance(value_list[0], int):
+                    features[name] = tf.train.Feature(
+                        int64_list=tf.train.Int64List(value=value_list))
+                else:
+                    features[name] = tf.train.Feature(
+                        bytes_list=tf.train.BytesList(value=value_list))
+        tf_features = tf.train.Features(feature=features)
         serde_lite_examples = dj_pb.LiteExampleIds(
             partition_id=self._partition_id,
             begin_index=self._begin_index,
-            example_id=self._example_ids,
-            event_time=self._event_times,
-            id_type=self._field_buf['id_type'],
-            event_time_deep=self._field_buf['event_time_deep'],
-            type=self._field_buf['type'],
-            click_id=self._field_buf['click_id']
+            features=tf_features
         )
 
         return dj_pb.PackedLiteExampleIds(
                 partition_id=self._partition_id,
                 begin_index=self._begin_index,
-                example_id_num=len(self._example_ids),
+                example_id_num=self.__len__(),
                 sered_lite_example_ids=serde_lite_examples.SerializeToString()
             )
 
@@ -73,7 +75,7 @@ class ExampleIdBatch(ItemBatch):
         return self._partition_id
 
     def __len__(self):
-        return len(self._example_ids)
+        return len(self._feature_buf[self._key_feature])
 
     def __lt__(self, other):
         assert isinstance(other, ExampleIdBatch)

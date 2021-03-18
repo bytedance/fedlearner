@@ -22,6 +22,7 @@ from google.protobuf import text_format, empty_pb2
 
 import tensorflow_io # pylint: disable=unused-import
 from tensorflow.compat.v1 import gfile
+import tensorflow.compat.v1 as tf
 
 from fedlearner.common import data_join_service_pb2 as dj_pb
 from fedlearner.data_join import visitor
@@ -29,7 +30,8 @@ from fedlearner.data_join.common import (
     DoneFileSuffix, make_tf_record_iter,
     partition_repr, example_id_anchor_kvstore_key,
     data_source_example_dumped_dir,
-    SYNC_ALLOWED_OPTIONAL_FIELDS
+    SYNC_ALLOWED_OPTIONAL_FIELDS,
+    convert_tf_example_to_dict
 )
 from fedlearner.data_join.raw_data_iter_impl import (
     tf_record_iter, raw_data_iter
@@ -255,32 +257,31 @@ class ExampleIdVisitor(visitor.Visitor):
                 for record in record_iter:
                     lite_example_ids = dj_pb.LiteExampleIds()
                     lite_example_ids.ParseFromString(record)
-                    example_id_num = len(lite_example_ids.example_id)
-                    event_time_num = len(lite_example_ids.event_time)
+                    tf_example = tf.train.Example(
+                        features=lite_example_ids.features)
+                    rows = convert_tf_example_to_dict(tf_example)
+
+                    example_id_num = len(rows['example_id'])
+                    event_time_num = len(rows['event_time'])
                     assert example_id_num == event_time_num, \
                         "the size of example id and event time must the "\
                         "same. {} != {}".format(example_id_num,
                                                 event_time_num)
                     index = 0
-                    while index < len(lite_example_ids.example_id):
-                        row = self.convert_lite_example_ids_to_row(
-                            lite_example_ids, index)
+                    while index < example_id_num:
+                        row = dict()
+                        for fn in SYNC_ALLOWED_OPTIONAL_FIELDS:
+                            if fn not in rows:
+                                continue
+                            value_list = rows[fn]
+                            if len(value_list) > 0:
+                                row[fn] = value_list[index]
                         example_id_item = ExampleIdVisitor.ExampleIdItem(
                                 index + lite_example_ids.begin_index,
                                 row
                             )
                         yield example_id_item
                         index += 1
-
-        def convert_lite_example_ids_to_row(self, lite_example_ids, index):
-            row = dict()
-            row['example_id'] = lite_example_ids.example_id[index]
-            row['event_time'] = lite_example_ids.event_time[index]
-            for fn in SYNC_ALLOWED_OPTIONAL_FIELDS:
-                value_list = getattr(lite_example_ids, fn, [])
-                if len(value_list) > 0:
-                    row[fn] = value_list[index]
-            return row
 
     def __init__(self, kvstore, data_source, partition_id):
         super(ExampleIdVisitor, self).__init__(

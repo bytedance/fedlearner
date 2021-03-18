@@ -196,10 +196,6 @@ class DataSourceProducer(unittest.TestCase):
     def generate_example_id(self, dumper, start_index, item_count):
         self.total_example_id_count += item_count
         for req_index in range(start_index // 512, self.total_example_id_count // 512):
-            example_id_batch = dj_pb.LiteExampleIds(
-                    partition_id=0,
-                    begin_index=req_index * 512
-                )
             cands = list(range(req_index * 512, (req_index + 1) * 512))
             start_index = cands[0]
             for i in range(len(cands)):
@@ -218,16 +214,38 @@ class DataSourceProducer(unittest.TestCase):
                 if (abs(cands[a]-i-start_index) <= 64 and
                         abs(cands[b]-i-start_index) <= 64):
                     cands[a], cands[b] = cands[b], cands[a]
+            features = {
+                'example_id': [],
+                'event_time': [],
+                'click_id': [],
+                'id_type': [],
+                'event_time_deep': [],
+                'type': [],
+            }
             for example_idx in cands:
                 example_id = '{}'.format(example_idx).encode()
-                example_id_batch.example_id.append(example_id)
-                example_id_batch.event_time.append(150000000 + example_idx)
+                features['example_id'].append(example_id)
+                features['event_time'].append((150000000 + example_idx))
                 if self.version == Version.V2:
                     click_id = '%s_%s'%(example_id.decode(), example_id.decode())
-                    example_id_batch.click_id.append(click_id.encode())
-                    example_id_batch.id_type.append('IMEI'.encode())
-                    example_id_batch.event_time_deep.append(150000000 + example_idx + 1)
-                    example_id_batch.type.append(b'1')
+                    features['click_id'].append(click_id.encode())
+                    features['id_type'].append('IMEI'.encode())
+                    features['event_time_deep'].append(150000000 + example_idx + 1)
+                    features['type'].append(b'1')
+
+            feature_list = tf.train.Features(feature={
+                    'example_id': tf.train.Feature(bytes_list=tf.train.BytesList(value=features['example_id'])),
+                    'event_time': tf.train.Feature(int64_list=tf.train.Int64List(value=features['event_time'])),
+                    'click_id': tf.train.Feature(bytes_list=tf.train.BytesList(value=features['click_id'])),
+                    'id_type': tf.train.Feature(bytes_list=tf.train.BytesList(value=features['id_type'])),
+                    'type': tf.train.Feature(bytes_list=tf.train.BytesList(value=features['type'])),
+                    'event_time_deep': tf.train.Feature(int64_list=tf.train.Int64List(value=features['event_time_deep']))
+            })
+
+            example_id_batch = dj_pb.LiteExampleIds(
+                    partition_id=0,
+                    begin_index=req_index * 512,
+                    features=feature_list)
             packed_example_id_batch = dj_pb.PackedLiteExampleIds(
                     partition_id=0,
                     begin_index=req_index*512,
