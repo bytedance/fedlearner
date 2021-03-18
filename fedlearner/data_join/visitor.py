@@ -189,6 +189,8 @@ class Visitor(object):
             next_index = 0 if self._iter is None else \
                     self._iter.get_index() + 1
             if self._end_index is not None and next_index > self._end_index:
+                logging.info('Visitor finised, %s < %s',
+                             self._end_index, next_index)
                 self._finished = True
                 raise StopIteration()
             return self._forward_to_target(
