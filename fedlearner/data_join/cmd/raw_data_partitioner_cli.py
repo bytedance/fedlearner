@@ -71,6 +71,8 @@ if __name__ == "__main__":
     parser.add_argument('--memory_limit_ratio', type=int, default=70,
                         choices=range(40, 81),
                         help='the ratio(*100) of memory used for map&reduce')
+    parser.add_argument('--log_level', type=str, default='info',
+                        help='log level, [debug|info]')
 
     args = parser.parse_args()
     set_logger(args.log_level)

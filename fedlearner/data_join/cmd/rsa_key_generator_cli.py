@@ -42,6 +42,8 @@ if __name__ == "__main__":
                              'key, default is current work directory')
     parser.add_argument('--key_prefix', type=str, default='rsa_psi',
                         help='the file name prefix of the dumped ras key')
+    parser.add_argument('--log_level', type=str, default='info',
+                        help='log level, [debug|info]')
     args = parser.parse_args()
     set_logger(args.log_level)
 

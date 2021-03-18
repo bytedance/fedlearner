@@ -39,6 +39,8 @@ if __name__ == "__main__":
                         help='max worker number for grpc server')
     parser.add_argument('--signer_offload_processor_number', type=int,
                         default=-1, help='the offload processor for signer')
+    parser.add_argument('--log_level', type=str, default='info',
+                        help='log level, [debug|info]')
     args = parser.parse_args()
     set_logger(args.log_level)
     rsa_private_key_pem = args.rsa_privet_key_pem

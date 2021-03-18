@@ -92,6 +92,8 @@ if __name__ == "__main__":
     parser.add_argument('--preprocessor_offload_processor_number',
                         type=int, default=-1,
                         help='the offload processor for preprocessor')
+    parser.add_argument('--log_level', type=str, default='info',
+                        help='log level, [debug|info]')
 
     args = parser.parse_args()
     set_logger(args.log_level)

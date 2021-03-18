@@ -68,6 +68,8 @@ if __name__ == "__main__":
                         help='the start id of generated csv file')
     parser.add_argument('--end_id', type=int, required=True,
                         help='the end id of generated csv file')
+    parser.add_argument('--log_level', type=str, default='info',
+                        help='log level, [debug|info]')
     args = parser.parse_args()
     set_logger(args.log_level)
     generate_input_csv(args.base_dir, args.start_id,
