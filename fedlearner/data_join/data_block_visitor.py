@@ -162,7 +162,7 @@ class DataBlockVisitor(object):
         dbr = self.LoadDataBlockReqByIndex(
             block_info['partition_id'], block_info['data_block_index'])
         if dbr:
-            assert dbr and dbr.block_id == block_id, \
+            assert dbr.block_id == block_id, \
                     "Invalid datablock, expected %s, but got %s), please "\
                     "check datasource!"%(block_id, dbr.block_id)
         return dbr
