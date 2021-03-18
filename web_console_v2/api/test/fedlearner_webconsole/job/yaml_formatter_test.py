@@ -14,8 +14,7 @@
 
 # coding: utf-8
 import unittest
-
-from fedlearner_webconsole.job.yaml_formatter import format_yaml
+from fedlearner_webconsole.job.yaml_formatter import format_yaml, code_dict_encode
 
 
 class YamlFormatterTest(unittest.TestCase):
@@ -61,6 +60,13 @@ class YamlFormatterTest(unittest.TestCase):
         with self.assertRaises(RuntimeError) as cm:
             format_yaml('$x.y is ${i.j}', x=x)
         self.assertEqual(str(cm.exception), 'Unknown placeholder: i.j')
+
+    def test_encode_code(self):
+        code_base64 = code_dict_encode({'test/a.py': 'awefawefawefawefwaef',
+                                      'test1/b.py': 'asdfasd',
+                                      'c.py': '',
+                                      'test/d.py': 'asdf'})
+
 
 
 if __name__ == '__main__':
