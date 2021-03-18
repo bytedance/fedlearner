@@ -180,7 +180,6 @@ class TransmitLeader(object):
 
     def _data_producer_fn(self, impl_ctx):
         assert isinstance(impl_ctx, TransmitLeader.ImplContext)
-        self._process_producer_hook(impl_ctx)
         if not impl_ctx.is_produce_finished():
             for item in impl_ctx.make_producer():
                 if item is None:
@@ -197,6 +196,7 @@ class TransmitLeader(object):
         with self._lock:
             oom_risk = False
             if self._impl_ctx is not None:
+                self._process_producer_hook(self._impl_ctx)
                 self._worker_map[self._producer_name()].setup_args(
                         self._impl_ctx
                     )
