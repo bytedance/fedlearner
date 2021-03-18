@@ -45,6 +45,7 @@ join_expr=$(normalize_env_to_args '--join_expr' ${JOIN_EXPR})
 negative_sampling_filter_expr=$(normalize_env_to_args '--negative_sampling_filter_expr' ${NEGATIVE_SAMPLING_FILTER_EXPR})
 raw_data_cache_type=$(normalize_env_to_args '--raw_data_cache_type' ${RAW_DATA_CACHE_TYPE})
 join_key_mapper=$(normalize_env_to_args '--join_key_mapper' ${JOIN_KEY_MAPPER})
+log_level=$(normalize_env_to_args '--log_level' $LOG_LEVEL)
 
 if [ -n "$JOIN_KEY_MAPPER" ]; then
     IFS='=' read -r -a mapper <<< "$JOIN_KEY_MAPPER"
@@ -65,4 +66,5 @@ python -m fedlearner.data_join.cmd.data_join_worker_service \
     $data_block_builder $data_block_compressed_type \
     $kvstore_type $max_conversion_delay \
     $enable_negative_example_generator $negative_sampling_rate \
-    $join_expr $join_key_mapper $optional_fields $raw_data_cache_type $negative_sampling_filter_expr
+    $join_expr $join_key_mapper $optional_fields $raw_data_cache_type $negative_sampling_filter_expr \
+    $log_level

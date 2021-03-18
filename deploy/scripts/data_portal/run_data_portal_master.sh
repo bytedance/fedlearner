@@ -22,6 +22,7 @@ source /app/deploy/scripts/env_to_args.sh
 
 input_file_wildcard=$(normalize_env_to_args "--input_file_wildcard" $FILE_WILDCARD)
 kvstore_type=$(normalize_env_to_args '--kvstore_type' $KVSTORE_TYPE)
+log_level=$(normalize_env_to_args '--log_level' $LOG_LEVEL)
 
 python -m fedlearner.data_join.cmd.data_portal_master_service \
     --listen_port=50051 \
@@ -32,4 +33,4 @@ python -m fedlearner.data_join.cmd.data_portal_master_service \
     --output_base_dir=$OUTPUT_BASE_DIR \
     --raw_data_publish_dir=$RAW_DATA_PUBLISH_DIR \
     $input_file_wildcard $LONG_RUNNING $CHECK_SUCCESS_TAG \
-    $kvstore_type
+    $kvstore_type $log_level
