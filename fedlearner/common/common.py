@@ -246,3 +246,16 @@ def convert_time_string_to_datetime(value):
     else:
         raise ValueError
     return date_time
+
+
+def set_logger(log_level_str="info"):
+    log_level_str = log_level_str.lower()
+    if log_level_str == 'debug':
+        log_level = logging.DEBUG
+    elif log_level_str == 'info':
+        log_level = logging.INFO
+    else:
+        log_level = logging.INFO
+    logging.getLogger().setLevel(log_level)
+    logging.basicConfig(format="%(asctime)s %(filename)s " \
+                               "%(lineno)s %(levelname)s - %(message)s")

@@ -19,12 +19,10 @@ import logging
 
 from fedlearner.common import data_join_service_pb2 as dj_pb
 from fedlearner.common import data_portal_service_pb2 as dp_pb
+from fedlearner.common.common import set_logger
 from fedlearner.data_join.data_portal_worker import DataPortalWorker
 
 if __name__ == '__main__':
-    logging.getLogger().setLevel(logging.INFO)
-    logging.basicConfig(format="%(asctime)s %(filename)s "\
-                               "%(lineno)s %(levelname)s - %(message)s")
     parser = argparse.ArgumentParser(description='DataJointPortal cmd.')
     parser.add_argument("--rank_id", type=int,
                         help="the rank id of this worker")
@@ -63,8 +61,11 @@ if __name__ == '__main__':
                         help='optional stat fields used in joiner, separated '
                              'by comma between fields, e.g. "label,rit". '
                              'Each field will be stripped.')
+    parser.add_argument('--log_level', type=str, default='info',
+                        help='log level, [debug|info]')
 
     args = parser.parse_args()
+    set_logger(args.log_level)
     if args.input_data_file_iter == 'TF_RECORD' or \
             args.output_builder == 'TF_RECORD':
         import tensorflow

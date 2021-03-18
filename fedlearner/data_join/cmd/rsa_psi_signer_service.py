@@ -22,12 +22,10 @@ import rsa
 import tensorflow_io # pylint: disable=unused-import
 from tensorflow.compat.v1 import gfile
 
+from fedlearner.common.common import set_logger
 from fedlearner.data_join.rsa_psi.rsa_psi_signer import RsaPsiSigner
 
 if __name__ == "__main__":
-    logging.getLogger().setLevel(logging.INFO)
-    logging.basicConfig(format="%(asctime)s %(filename)s "\
-                               "%(lineno)s %(levelname)s - %(message)s")
     parser = argparse.ArgumentParser(description='RsaPsiSigner cmd.')
     parser.add_argument('-p', '--listen_port', type=int, default=40980,
                         help='Listen port of RSA PSI signer')
@@ -42,6 +40,7 @@ if __name__ == "__main__":
     parser.add_argument('--signer_offload_processor_number', type=int,
                         default=-1, help='the offload processor for signer')
     args = parser.parse_args()
+    set_logger(args.log_level)
     rsa_private_key_pem = args.rsa_privet_key_pem
     if rsa_private_key_pem is None or len(rsa_private_key_pem) == 0:
         assert args.rsa_private_key_path is not None

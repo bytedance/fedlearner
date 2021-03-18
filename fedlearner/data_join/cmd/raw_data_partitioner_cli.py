@@ -25,12 +25,10 @@ import tensorflow_io # pylint: disable=unused-import
 from tensorflow.compat.v1 import gfile
 
 from fedlearner.common import data_join_service_pb2 as dj_pb
+from fedlearner.common.common import set_logger
 from fedlearner.data_join.raw_data_partitioner import RawDataPartitioner
 
 if __name__ == "__main__":
-    logging.getLogger().setLevel(logging.INFO)
-    logging.basicConfig(format="%(asctime)s %(filename)s "\
-                               "%(lineno)s %(levelname)s - %(message)s")
     parser = argparse.ArgumentParser(description='Raw Data Partitioner')
     parser.add_argument('--partitioner_name', type=str, default='test',
                         help='the name of raw data partitioner')
@@ -75,6 +73,7 @@ if __name__ == "__main__":
                         help='the ratio(*100) of memory used for map&reduce')
 
     args = parser.parse_args()
+    set_logger(args.log_level)
     if args.raw_data_iter == 'TF_RECORD' or \
             args.output_builder == 'TF_RECORD':
         tf.enable_eager_execution()

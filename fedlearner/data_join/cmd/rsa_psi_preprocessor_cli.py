@@ -24,12 +24,10 @@ from tensorflow.compat.v1 import gfile
 
 from fedlearner.common import common_pb2 as common_pb
 from fedlearner.common import data_join_service_pb2 as dj_pb
+from fedlearner.common.common import set_logger
 from fedlearner.data_join.rsa_psi.rsa_psi_preprocessor import RsaPsiPreProcessor
 
 if __name__ == "__main__":
-    logging.getLogger().setLevel(logging.INFO)
-    logging.basicConfig(format="%(asctime)s %(filename)s "\
-                               "%(lineno)s %(levelname)s - %(message)s")
     parser = argparse.ArgumentParser(description='Rsa Psi Preprocessor!')
     parser.add_argument('--preprocessor_name', type=str, default='test',
                         help='the name of rsa psi preprocessor')
@@ -96,6 +94,7 @@ if __name__ == "__main__":
                         help='the offload processor for preprocessor')
 
     args = parser.parse_args()
+    set_logger(args.log_level)
     if args.raw_data_iter == 'TF_RECORD' or args.output_builder == 'TF_RECORD':
         import tensorflow
         tensorflow.compat.v1.enable_eager_execution()

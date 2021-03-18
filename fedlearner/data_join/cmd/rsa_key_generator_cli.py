@@ -22,6 +22,7 @@ import rsa
 import tensorflow_io # pylint: disable=unused-import
 from tensorflow.compat.v1 import gfile
 
+from fedlearner.common.common import set_logger
 from fedlearner.data_join import common
 
 def dump_rsa_key_as_pem(output_dir, key, fname):
@@ -32,9 +33,6 @@ def dump_rsa_key_as_pem(output_dir, key, fname):
     gfile.Rename(tmp_fpath, key_fpath)
 
 if __name__ == "__main__":
-    logging.getLogger().setLevel(logging.INFO)
-    logging.basicConfig(format="%(asctime)s %(filename)s "\
-                               "%(lineno)s %(levelname)s - %(message)s")
     parser = argparse.ArgumentParser(description='Rsa Key Generator')
     parser.add_argument('-l', '--rsa_lenght', type=int, required=True,
                         default=1024, help='the bit length for rsa key')
@@ -45,6 +43,7 @@ if __name__ == "__main__":
     parser.add_argument('--key_prefix', type=str, default='rsa_psi',
                         help='the file name prefix of the dumped ras key')
     args = parser.parse_args()
+    set_logger(args.log_level)
 
     pub_key, prv_key = rsa.newkeys(args.rsa_lenght)
     pub_fname = args.key_prefix + '.pub'

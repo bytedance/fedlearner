@@ -21,14 +21,12 @@ import tensorflow
 
 from fedlearner.common import data_join_service_pb2 as dj_pb
 from fedlearner.common.argparse_util import str_as_bool
+from fedlearner.common.common import set_logger
 from fedlearner.data_join.data_join_worker import DataJoinWorkerService
 from fedlearner.data_join.common import interval_to_timestamp
 tensorflow.compat.v1.enable_eager_execution()
 
 if __name__ == "__main__":
-    logging.getLogger().setLevel(logging.INFO)
-    logging.basicConfig(format="%(asctime)s %(filename)s "\
-                               "%(lineno)s %(levelname)s - %(message)s")
     parser = argparse.ArgumentParser(description='DataJoinWorkerService cmd.')
     parser.add_argument('peer_addr', type=str,
                         help='the addr(uuid) of peer data join worker')
@@ -102,7 +100,10 @@ if __name__ == "__main__":
                         help='optional stat fields used in joiner, separated '
                              'by comma between fields, e.g. "label,rit". '
                              'Each field will be stripped.')
+    parser.add_argument('--log_level', type=str, default='info',
+                        help='log level, [debug|info]')
     args = parser.parse_args()
+    set_logger(args.log_level)
     optional_fields = list(
         field for field in map(str.strip, args.optional_fields.split(','))
         if field != ''

@@ -24,6 +24,7 @@ import tensorflow_io # pylint: disable=unused-import
 from tensorflow.compat.v1 import gfile
 
 from fedlearner.common import data_join_service_pb2 as dj_pb
+from fedlearner.common.common import set_logger
 
 from fedlearner.data_join import common
 from fedlearner.data_join.sort_run_merger import SortRunMergerWriter
@@ -57,9 +58,6 @@ def generate_input_csv(base_dir, start_id, end_id, partition_num):
         logging.info("---------------")
 
 if __name__ == "__main__":
-    logging.getLogger().setLevel(logging.INFO)
-    logging.basicConfig(format="%(asctime)s %(filename)s "\
-                               "%(lineno)s %(levelname)s - %(message)s")
     parser = argparse.ArgumentParser(description='csv raw data generator cmd.')
     parser.add_argument('--base_dir', type=str, required=True,
                         help='the base dir of fs to store the ' \
@@ -71,5 +69,6 @@ if __name__ == "__main__":
     parser.add_argument('--end_id', type=int, required=True,
                         help='the end id of generated csv file')
     args = parser.parse_args()
+    set_logger(args.log_level)
     generate_input_csv(args.base_dir, args.start_id,
                        args.end_id, args.partition_num)
