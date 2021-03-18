@@ -21,7 +21,6 @@ source /app/deploy/scripts/hdfs_common.sh || true
 source /app/deploy/scripts/env_to_args.sh
 
 kvstore_type=$(normalize_env_to_args '--kvstore_type' $KVSTORE_TYPE)
-log_level=$(normalize_env_to_args '--log_level' $LOG_LEVEL)
 
 python -m fedlearner.data_join.cmd.prepare_launch_data_join_cli \
     --data_source_name=$APPLICATION_ID \
@@ -32,10 +31,10 @@ python -m fedlearner.data_join.cmd.prepare_launch_data_join_cli \
     --role=$ROLE \
     --output_base_dir=$OUTPUT_BASE_DIR \
     --raw_data_sub_dir=$RAW_DATA_SUB_DIR \
-    $kvstore_type $log_level
+    $kvstore_type
 
 python -m fedlearner.data_join.cmd.data_join_master_service \
     $PEER_ADDR \
     --listen_port=50051 \
     --data_source_name=$APPLICATION_ID $BATCH_MODE \
-    $kvstore_type $log_level
+    $kvstore_type

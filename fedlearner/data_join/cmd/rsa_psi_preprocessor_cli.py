@@ -92,11 +92,9 @@ if __name__ == "__main__":
     parser.add_argument('--preprocessor_offload_processor_number',
                         type=int, default=-1,
                         help='the offload processor for preprocessor')
-    parser.add_argument('--log_level', type=str, default='info',
-                        help='log level, [debug|info]')
 
     args = parser.parse_args()
-    set_logger(args.log_level)
+    set_logger()
     if args.raw_data_iter == 'TF_RECORD' or args.output_builder == 'TF_RECORD':
         import tensorflow
         tensorflow.compat.v1.enable_eager_execution()

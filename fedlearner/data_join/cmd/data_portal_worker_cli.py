@@ -60,11 +60,9 @@ if __name__ == '__main__':
                         help='optional stat fields used in joiner, separated '
                              'by comma between fields, e.g. "label,rit". '
                              'Each field will be stripped.')
-    parser.add_argument('--log_level', type=str, default='info',
-                        help='log level, [debug|info]')
 
     args = parser.parse_args()
-    set_logger(args.log_level)
+    set_logger()
     if args.input_data_file_iter == 'TF_RECORD' or \
             args.output_builder == 'TF_RECORD':
         import tensorflow

@@ -33,10 +33,8 @@ if __name__ == "__main__":
                         help='the name of data source')
     parser.add_argument('--batch_mode', action='store_true',
                         help='make the data join run in batch mode')
-    parser.add_argument('--log_level', type=str, default='info',
-                        help='log level, [debug|info]')
     args = parser.parse_args()
-    set_logger(args.log_level)
+    set_logger()
     master_options = dj_pb.DataJoinMasterOptions(
             use_mock_etcd=(args.kvstore_type == 'mock'),
             batch_mode=args.batch_mode

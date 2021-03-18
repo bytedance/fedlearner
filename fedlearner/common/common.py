@@ -248,14 +248,13 @@ def convert_time_string_to_datetime(value):
     return date_time
 
 
-def set_logger(log_level_str="info"):
-    log_level_str = log_level_str.lower()
-    if log_level_str == 'debug':
-        log_level = logging.DEBUG
-    elif log_level_str == 'info':
-        log_level = logging.INFO
-    else:
-        log_level = logging.INFO
-    logging.getLogger().setLevel(log_level)
+def set_logger():
+    verbosity = os.environ.get('VERBOSITY', 1)
+    if verbosity == 0:
+        logging.getLogger().setLevel(logging.WARNING)
+    elif verbosity == 1:
+        logging.getLogger().setLevel(logging.INFO)
+    elif verbosity > 1:
+        logging.getLogger().setLevel(logging.DEBUG)
     logging.basicConfig(format="%(asctime)s %(filename)s " \
                                "%(lineno)s %(levelname)s - %(message)s")

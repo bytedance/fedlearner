@@ -99,10 +99,8 @@ if __name__ == "__main__":
                         help='optional stat fields used in joiner, separated '
                              'by comma between fields, e.g. "label,rit". '
                              'Each field will be stripped.')
-    parser.add_argument('--log_level', type=str, default='info',
-                        help='log level, [debug|info]')
     args = parser.parse_args()
-    set_logger(args.log_level)
+    set_logger()
     optional_fields = list(
         field for field in map(str.strip, args.optional_fields.split(','))
         if field != ''

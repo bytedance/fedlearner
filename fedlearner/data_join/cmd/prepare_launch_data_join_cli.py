@@ -42,10 +42,8 @@ if __name__ == "__main__":
                         help='the type of kvstore')
     parser.add_argument('--raw_data_sub_dir', type=str, required=True,
                         help='the mysql base dir to subscribe new raw data')
-    parser.add_argument('--log_level', type=str, default='debug',
-                        help='log level, [debug|info]')
     args = parser.parse_args()
-    set_logger(args.log_level)
+    set_logger()
     data_source = common_pb.DataSource()
     data_source.data_source_meta.name = args.data_source_name
     data_source.data_source_meta.partition_num = args.partition_num

@@ -51,10 +51,8 @@ if __name__ == "__main__":
     parser.add_argument('--check_success_tag', action='store_true',
                         help='Check that a _SUCCESS file exists before '
                              'processing files in a subfolder')
-    parser.add_argument('--log_level', type=str, default='info',
-                        help='log level, [debug|info]')
     args = parser.parse_args()
-    set_logger(args.log_level)
+    set_logger()
 
     use_mock_etcd = (args.kvstore_type == 'mock')
     kvstore = DBClient(args.kvstore_type, use_mock_etcd)

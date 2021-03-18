@@ -23,7 +23,6 @@ source /app/deploy/scripts/env_to_args.sh
 slow_sign_threshold=$(normalize_env_to_args "--slow_sign_threshold" $SLOW_SIGN_THRESHOLD)
 worker_num=$(normalize_env_to_args "--worker_num" $WORKER_NUM)
 signer_offload_processor_number=$(normalize_env_to_args "--signer_offload_processor_number" $SIGNER_OFFLOAD_PROCESSOR_NUMBER)
-log_level=$(normalize_env_to_args '--log_level' $LOG_LEVEL)
 
 # Turn off display to avoid RSA_KEY_PEM showing in log
 set +x
@@ -32,4 +31,4 @@ python -m fedlearner.data_join.cmd.rsa_psi_signer_service \
     --listen_port=50051 \
     --rsa_private_key_path="$RSA_PRIVATE_KEY_PATH" \
     --rsa_privet_key_pem="$RSA_KEY_PEM" \
-    $slow_sign_threshold $worker_num $signer_offload_processor_number $log_level
+    $slow_sign_threshold $worker_num $signer_offload_processor_number
