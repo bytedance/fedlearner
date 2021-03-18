@@ -164,7 +164,8 @@ class Scheduler(object):
 
         try:
             k8s_client.create_or_replace_custom_object(CrdKind.FLAPP, yaml,
-                                                       job.project.get_namespace())
+                                                       job.project.
+                                                       get_namespace())
         except RuntimeError as e:
             logging.error('Start job %d has Runtime error msg: %s'
                           , job_id, e.args)
