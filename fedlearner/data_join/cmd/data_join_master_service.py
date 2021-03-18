@@ -15,7 +15,6 @@
 # coding: utf-8
 
 import argparse
-import logging
 
 from fedlearner.common import data_join_service_pb2 as dj_pb
 from fedlearner.common.common import set_logger

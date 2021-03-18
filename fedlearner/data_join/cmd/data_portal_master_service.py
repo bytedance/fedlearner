@@ -15,7 +15,6 @@
 # coding: utf-8
 
 import argparse
-import logging
 from google.protobuf import text_format
 
 from fedlearner.common import data_portal_service_pb2 as dp_pb
