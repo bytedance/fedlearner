@@ -13,51 +13,18 @@
 # limitations under the License.
 
 # coding: utf-8
-import requests
 from elasticsearch import Elasticsearch
 
-from fedlearner_webconsole.utils.es_misc import get_es_template, ALIAS_NAME
+from fedlearner_webconsole.envs import Envs
 
 
 class ElasticSearchClient(object):
     def __init__(self):
         self._es_client = None
-
-    def init_app(self, app):
-        if 'ES_HOST' in app.config and 'ES_PORT' in app.config:
-            self._es_client = Elasticsearch([
-                {
-                    'host': app.config['ES_HOST'],
-                    'port': app.config['ES_PORT']
-                }])
-            if int(
-                self._es_client.info()['version']['number'].split('.')[0]
-            ) == 7:
-                self._es_client.ilm.start()
-                for index_type, alias_name in ALIAS_NAME.items():
-                    self.put_ilm('fedlearner_{}_ilm'.format(index_type))
-                    self._put_index_template(index_type, shards=1)
-                    # if alias already exists, no need to set write index
-                    if not self._es_client.indices.exists_alias(alias_name):
-                        # if index with the same name as alias exists, delete it
-                        if self._es_client.indices.exists(alias_name):
-                            self._es_client.indices.delete(alias_name)
-                        self._put_write_index(index_type)
-                    # Kibana index-patterns initialization
-                    requests.post(
-                        url='{}:{}/api/saved_objects/index-pattern/{}'
-                            .format(app.config['KIBANA_SERVICE_HOST'],
-                                    app.config['KIBANA_SERVICE_PORT'],
-                                    index_type),
-                        json={'attributes': {
-                            'title': index_type + '*',
-                            'timeFieldName': 'date_time'
-                            if index_type == 'metrics' else 'event_time'}},
-                        headers={'kbn-xsrf': 'true',
-                                 'Content-Type': 'application/json'},
-                        params={'overwrite': True}
-                    )
-                self.put_ilm('filebeat-7.0.1', hot_age='1d')
+        self._es_client = Elasticsearch([{'host': Envs.ES_HOST,
+                                          'port': Envs.ES_PORT}],
+                                        http_auth=(Envs.ES_USERNAME,
+                                                   Envs.ES_PASSWORD))
 
     def search(self, *args, **kwargs):
         return self._es_client.search(*args, **kwargs)
@@ -112,141 +79,6 @@ class ElasticSearchClient(object):
         query_body['query']['bool']['must'] = keyword_list + match_phrase_list
         response = self._es_client.search(index=index, body=query_body)
         return [item['_source']['message'] for item in response['hits']['hits']]
-
-    def query_data_join_metrics(self, job_name, num_buckets):
-        STAT_AGG = {
-            "JOINED": {
-                "filter": {
-                    "term": {
-                        "joined": True
-                    }
-                }
-            },
-            "FAKE": {
-                "filter": {
-                    "term": {
-                        "fake": True
-                    }
-                }
-            },
-            "TOTAL": {
-                "filter": {
-                    "term": {
-                        "fake": False
-                    }
-                }
-            },
-            "UNJOINED": {
-                "bucket_script": {
-                    "buckets_path": {
-                        "JOINED": "JOINED[_count]",
-                        "TOTAL": "TOTAL[_count]"
-                    },
-                    "script": "params.TOTAL - params.JOINED"
-                }
-            },
-            "JOIN_RATE": {
-                "bucket_script": {
-                    "buckets_path": {
-                        "JOINED": "JOINED[_count]",
-                        "TOTAL": "TOTAL[_count]",
-                        "FAKE": "FAKE[_count]"
-                    },
-                    "script": "params.JOINED / (params.TOTAL + params.FAKE)"
-                }
-            }
-        }
-
-        query = {
-            "size": 0,
-            "query": {
-                "bool": {
-                    "must": [
-                        {"term": {"application_id": job_name}}
-                    ]
-                }
-            },
-            "aggs": {
-                "OVERALL": {
-                    "terms": {
-                        "field": "application_id"
-                    },
-                    "aggs": STAT_AGG
-                },
-                "EVENT_TIME": {
-                    "auto_date_histogram": {
-                        "field": "event_time",
-                        "format": "strict_date_optional_time",
-                        "buckets": num_buckets
-                    },
-                    "aggs": STAT_AGG
-                },
-                "PROCESS_TIME": {
-                    "auto_date_histogram": {
-                        "field": "process_time",
-                        "format": "strict_date_optional_time",
-                        "buckets": num_buckets
-                    },
-                    "aggs": {
-                        "MAX_EVENT_TIME": {
-                            "max": {
-                                "field": "event_time",
-                                "format": "strict_date_optional_time"
-                            }
-                        },
-                        "MIN_EVENT_TIME": {
-                            "min": {
-                                "field": "event_time",
-                                "format": "strict_date_optional_time"
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        return es.search(index='data_join*', body=query)
-
-    def query_nn_metrics(self, job_name, num_buckets):
-        query = {
-            "size": 0,
-            "query": {
-                "bool": {
-                    "must": [
-                        {
-                            "term": {
-                                "tags.application_id.keyword": job_name
-                            }
-                        }
-                    ]
-                }
-            },
-            "aggs": {
-                "PROCESS_TIME": {
-                    "auto_date_histogram": {
-                        "field": "date_time",
-                        "format": "strict_date_optional_time",
-                        "buckets": num_buckets
-                    },
-                    "aggs": {
-                        "AUC": {
-                            "filter": {
-                                "term": {"name": "auc"}
-                            },
-                            "aggs": {
-                                "AUC": {
-                                    "avg": {
-                                        "field": "value"
-                                    }
-                                }
-                            }
-                        },
-                    }
-                }
-            }
-        }
-
-        return es.search(index='metrics*', body=query)
 
     def query_events(self, index, keyword, pod_name,
                      start_time, end_time):
@@ -327,20 +159,181 @@ class ElasticSearchClient(object):
         }
         self._es_client.ilm.put_lifecycle(ilm_name, body=ilm_body)
 
-    def _put_index_template(self, index_type, shards):
-        assert self._es_client is not None, 'ES client not yet initialized.'
-        template_name = ALIAS_NAME[index_type] + '-template'
-        template_body = get_es_template(index_type, shards=shards)
-        self._es_client.indices.put_template(template_name, template_body)
+    def query_data_join_metrics(self, job_name, num_buckets):
+        STAT_AGG = {
+            "JOINED": {
+                "filter": {
+                    "term": {
+                        "tags.joined": 1
+                    }
+                }
+            },
+            "FAKE": {
+                "filter": {
+                    "term": {
+                        "tags.joined": 0
+                    }
+                }
+            },
+            "UNJOINED": {
+                "filter": {
+                    "term": {
+                        "tags.joined": -1
+                    }
+                }
+            },
+            "TOTAL": {
+                "bucket_script": {
+                    "buckets_path": {
+                        "JOINED": "JOINED[_count]",
+                        "UNJOINED": "UNJOINED[_count]"
+                    },
+                    "script": "params.JOINED + params.UNJOINED"
+                }
+            },
+            "TOTAL_WITH_FAKE": {
+                "bucket_script": {
+                    "buckets_path": {
+                        "JOINED": "JOINED[_count]",
+                        "FAKE": "FAKE[_count]",
+                        "UNJOINED": "UNJOINED[_count]"
+                    },
+                    "script": "params.JOINED + params.UNJOINED + params.FAKE"
+                }
+            },
+            "JOIN_RATE": {
+                "bucket_script": {
+                    "buckets_path": {
+                        "JOINED": "JOINED[_count]",
+                        "TOTAL": "TOTAL[value]",
+                        "FAKE": "FAKE[_count]"
+                    },
+                    "script": "params.JOINED / params.TOTAL"
+                }
+            },
+            "JOIN_RATE_WITH_FAKE": {
+                "bucket_script": {
+                    "buckets_path": {
+                        "JOINED": "JOINED[_count]",
+                        "TOTAL_WITH_FAKE": "TOTAL_WITH_FAKE[value]",
+                        "FAKE": "FAKE[_count]"
+                    },
+                    "script": "(params.JOINED + params.FAKE) / "
+                              "params.TOTAL_WITH_FAKE"
+                }
+            }
+        }
 
-    def _put_write_index(self, index_type):
-        assert self._es_client is not None, 'ES client not yet initialized.'
-        alias_name = ALIAS_NAME[index_type]
-        self._es_client.indices.create(
-            # resolves to alias_name-yyyy.mm.dd-000001 in ES
-            f'<{alias_name}-{{now/d}}-000001>',
-            body={"aliases": {alias_name: {"is_write_index": True}}}
-        )
+        query = {
+            "size": 0,
+            "query": {
+                "bool": {
+                    "must": [
+                        {"term": {"tags.application_id": job_name}}
+                    ]
+                }
+            },
+            "aggs": {
+                "OVERALL": {
+                    "terms": {
+                        "field": "tags.application_id"
+                    },
+                    "aggs": STAT_AGG
+                },
+                "EVENT_TIME": {
+                    "auto_date_histogram": {
+                        "field": "tags.event_time",
+                        "format": "strict_date_optional_time",
+                        "buckets": num_buckets
+                    },
+                    "aggs": STAT_AGG
+                }
+            }
+        }
+
+        return es.search(index='data_join*', body=query)
+
+    def query_nn_metrics(self, job_name, num_buckets):
+        query = {
+            "size": 0,
+            "query": {
+                "bool": {
+                    "must": [
+                        {
+                            "term": {
+                                "tags.application_id": job_name
+                            }
+                        },
+                        {
+                            "term": {
+                                "name": "auc"
+                            }
+                        }
+                    ]
+                }
+            },
+            "aggs": {
+                "PROCESS_TIME": {
+                    "auto_date_histogram": {
+                        "field": "tags.process_time",
+                        "format": "strict_date_optional_time",
+                        "buckets": num_buckets
+                    },
+                    "aggs": {
+                        "AUC": {
+                            "avg": {
+                                "field": "value"
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        return es.search(index='metrics*', body=query)
+
+    def query_time_metrics(self, job_name, num_buckets, index='raw_data*'):
+        query = {
+            "size": 0,
+            "query": {
+                "bool": {
+                    "must": [
+                        {
+                            "term": {
+                                "tags.application_id": job_name
+                            }
+                        },
+                        {
+                            "term": {
+                                "tags.partition": 1
+                            }
+                        }
+                    ]
+                }
+            },
+            "aggs": {
+                "PROCESS_TIME": {
+                    "auto_date_histogram": {
+                        "field": "tags.process_time",
+                        "format": "strict_date_optional_time",
+                        "buckets": num_buckets
+                    },
+                    "aggs": {
+                        "MAX_EVENT_TIME": {
+                            "max": {
+                                "field": "tags.event_time"
+                            }
+                        },
+                        "MIN_EVENT_TIME": {
+                            "min": {
+                                "field": "tags.event_time"
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return es.search(index=index, body=query)
 
 
 es = ElasticSearchClient()

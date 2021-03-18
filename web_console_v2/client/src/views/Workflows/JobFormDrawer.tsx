@@ -6,7 +6,6 @@ import React, {
   ForwardRefRenderFunction,
 } from 'react';
 import styled from 'styled-components';
-import { CloseOutlined } from '@ant-design/icons';
 import { Drawer, Row, Button } from 'antd';
 import buildFormSchemaFromJobDef from 'shared/formSchema';
 import VariableSchemaForm, { formActions } from 'components/VariableSchemaForm';
@@ -14,20 +13,18 @@ import { FormilySchema } from 'typings/formily';
 import GridRow from 'components/_base/GridRow';
 import VariablePermission from 'components/VariblePermission';
 import { DrawerProps } from 'antd/lib/drawer';
-import { NodeDataRaw } from 'components/WorkflowJobsFlowChart/types';
+import { JobNodeRawData, GlobalNodeRawData } from 'components/WorkflowJobsCanvas/types';
 import { cloneDeep, Dictionary, noop } from 'lodash';
 import { IFormState } from '@formily/antd';
 import { giveWeakRandomKey, to } from 'shared/helpers';
 import { useTranslation } from 'react-i18next';
 import { removeUndefined } from 'shared/object';
 import ErrorBoundary from 'antd/lib/alert/ErrorBoundary';
-import { Eye } from 'components/IconPark';
+import { Close, Eye } from 'components/IconPark';
 import { Variable } from 'typings/variable';
-import { Job } from 'typings/job';
 
 const Container = styled(Drawer)`
   top: 60px;
-
   .ant-drawer-body {
     padding-top: 0;
   }
@@ -37,7 +34,7 @@ const DrawerHeader = styled(Row)`
   margin: 0 -24px 0;
   padding-left: 24px;
   padding-right: 16px;
-  border-bottom: 1px solid var(--darkGray9);
+  border-bottom: 1px solid var(--lineColor);
 `;
 const DrawerTitle = styled.h3`
   margin-bottom: 0;
@@ -57,7 +54,7 @@ interface Props extends DrawerProps {
   isPeerSide?: boolean;
   currentIdx?: number;
   nodesCount: number;
-  jobDefinition?: NodeDataRaw;
+  jobDefinition?: JobNodeRawData | GlobalNodeRawData;
   initialValues?: Variable[];
   toggleVisible?: Function;
   onGoNextJob: Function;
@@ -106,7 +103,7 @@ const JobFormDrawer: ForwardRefRenderFunction<JobFormDrawerExposedRef, Props> = 
   useImperativeHandle(parentRef, () => {
     return {
       validateCurrentForm: validateCurrentForm,
-      getFormValues: getFormValues,
+      getFormValues,
     };
   });
 
@@ -130,6 +127,7 @@ const JobFormDrawer: ForwardRefRenderFunction<JobFormDrawerExposedRef, Props> = 
         getContainer="#app-content"
         mask={false}
         width="640px"
+        push={{ distance: -240 }}
         headerStyle={{ display: 'none' }}
         onClose={closeDrawer}
       >
@@ -141,7 +139,7 @@ const JobFormDrawer: ForwardRefRenderFunction<JobFormDrawerExposedRef, Props> = 
                 {t('workflow.btn_see_peer_config')}
               </Button>
             )}
-            <Button size="small" icon={<CloseOutlined />} onClick={closeDrawer} />
+            <Button size="small" icon={<Close />} onClick={closeDrawer} />
           </GridRow>
         </DrawerHeader>
 
@@ -209,7 +207,7 @@ const JobFormDrawer: ForwardRefRenderFunction<JobFormDrawerExposedRef, Props> = 
   }
 };
 
-function _hydrate(jobDefinition: NodeDataRaw, varsWithValue?: Variable[]): Job {
+function _hydrate(jobDefinition: JobNodeRawData | GlobalNodeRawData, varsWithValue?: Variable[]) {
   if (!varsWithValue) return jobDefinition;
 
   const jobDefCopy = cloneDeep(jobDefinition);

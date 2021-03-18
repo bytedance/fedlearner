@@ -19,4 +19,7 @@ test/%.phony: test/%.py
 
 unit-test: protobuf $(UNIT_TESTS)
 
-test: unit-test
+cli-test: 
+	FLASK_APP=command:app flask routes
+
+test: unit-test cli-test

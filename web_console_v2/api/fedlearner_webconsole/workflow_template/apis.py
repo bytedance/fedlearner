@@ -13,9 +13,11 @@
 # limitations under the License.
 
 # coding: utf-8
+import json
 import re
 from http import HTTPStatus
 import logging
+import tarfile
 from flask_restful import Resource, reqparse, request
 from google.protobuf.json_format import ParseDict, ParseError
 from fedlearner_webconsole.workflow_template.models import WorkflowTemplate
@@ -26,13 +28,27 @@ from fedlearner_webconsole.exceptions import (
     ResourceConflictException)
 
 
+def _classify_variable(variable):
+    if variable.value_type == 'CODE':
+        try:
+            json.loads(variable.value)
+        except json.JSONDecodeError as e:
+            raise InvalidArgumentException(str(e))
+    return variable
+
+
 def dict_to_workflow_definition(config):
     try:
         template_proto = ParseDict(config,
                                    workflow_definition_pb2.WorkflowDefinition())
-        return template_proto
+        for variable in template_proto.variables:
+            _classify_variable(variable)
+        for job in template_proto.job_definitions:
+            for variable in job.variables:
+                _classify_variable(variable)
     except ParseError as e:
-        raise InvalidArgumentException(details=str(e)) from e
+        raise InvalidArgumentException(details={'config': str(e)})
+    return template_proto
 
 
 def _dic_without_key(d, key):
@@ -123,6 +139,7 @@ class WorkflowTemplateApi(Resource):
         db.session.commit()
         return {'data': template.to_dict()}, HTTPStatus.OK
 
+
 def _check_config(config):
     # TODO: needs tests
     if 'group_alias' not in config:
@@ -154,7 +171,31 @@ def _check_config(config):
     return template_proto
 
 
+class CodeApi(Resource):
+    def get(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument('code_path', type=str, location='args',
+                            required=True,
+                            help='code_path is required')
+        data = parser.parse_args()
+        code_path = data['code_path']
+        try:
+            with tarfile.open(code_path) as tar:
+                code_dict = {}
+                for file in tar.getmembers():
+                    if tar.extractfile(file) is not None:
+                        if '._' not in file.name and file.isfile():
+                            code_dict[file.name] = str(
+                                tar.extractfile(file).read(),
+                                encoding='utf-8')
+                return {'data': code_dict}, HTTPStatus.OK
+        except Exception as e:
+            logging.error('Get code: %s', repr(e))
+            raise InvalidArgumentException(details={'code_path': 'wrong path'})
+
+
 def initialize_workflow_template_apis(api):
     api.add_resource(WorkflowTemplatesApi, '/workflow_templates')
     api.add_resource(WorkflowTemplateApi,
                      '/workflow_templates/<int:template_id>')
+    api.add_resource(CodeApi, '/codes')

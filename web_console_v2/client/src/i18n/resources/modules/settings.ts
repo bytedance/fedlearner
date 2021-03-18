@@ -8,7 +8,8 @@ const settings = {
   msg_image_required: { zh: '镜像版本为必填项' },
   msg_update_success: { zh: '系统配置更新成功' },
   msg_update_wc_image: {
-    zh: '已启动 Web Console 镜像更新程序，期间可能出现不可访问的情况，请等待几分钟后刷新本页面',
+    zh:
+      '已启动更新程序，Pod 开始进行替换，完成后可能需要手动 Port forward，并且该窗口将在几分钟后变得不可用。',
   },
 
   placeholder_image: { zh: '请选择镜像版本' },

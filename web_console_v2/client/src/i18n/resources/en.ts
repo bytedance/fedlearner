@@ -30,6 +30,7 @@ const messages = {
     submit: 'OK',
     cancel: 'Cancel',
     close: 'Close',
+    edit: 'Edit',
     delete: 'Delete',
     reset: 'Reset',
     operation: 'Operation',

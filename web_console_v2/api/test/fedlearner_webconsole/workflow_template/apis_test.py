@@ -20,6 +20,7 @@ from http import HTTPStatus
 from fedlearner_webconsole.db import db
 from fedlearner_webconsole.proto.workflow_definition_pb2 import WorkflowDefinition
 from fedlearner_webconsole.workflow_template.models import WorkflowTemplate
+from fedlearner_webconsole.workflow_template.apis import dict_to_workflow_definition
 from testing.common import BaseTestCase
 
 
@@ -162,6 +163,24 @@ class WorkflowTemplatesApiTest(BaseTestCase):
         self.assertEqual(expected_template.comment, data['comment'])
         self.assertEqual(expected_template.group_alias, data['config']['group_alias'])
         self.assertEqual(expected_template.is_left, data['config']['is_left'])
+
+    def test_dict_to_workflow_definition(self):
+        config = {'variables': [{'name': 'code',
+                                 'value': '{"asdf.py": "asdf"}',
+                                 'value_type': 'CODE'}]}
+        proto = dict_to_workflow_definition(config)
+        self.assertTrue(isinstance(proto.variables[0].value, str))
+
+    def test_get_code(self):
+        response = self.get_helper('/api/v2/codes?code_path=test/fedlearner_webconsole/test_data/code.tar.gz')
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+        data = json.loads(response.data)
+        self.assertEqual({'test/a.py': 'awefawefawefawefwaef',
+                          'test1/b.py': 'asdfasd',
+                          'c.py': '',
+                          'test/d.py': 'asdf'}, data['data'])
+        response = self.get_helper('/api/v2/codes?code_path=../test_data/code.tar.g1')
+        self.assertEqual(response.status_code, HTTPStatus.BAD_REQUEST)
 
 
 if __name__ == '__main__':

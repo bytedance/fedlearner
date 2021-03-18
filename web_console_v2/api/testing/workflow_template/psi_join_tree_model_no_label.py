@@ -43,7 +43,6 @@ def make_workflow_template():
                 name='raw-data-job',
                 job_type=JobDefinition.RAW_DATA,
                 is_federated=False,
-                is_manual=False,
                 variables=[
                     Variable(
                         name='input_dir',
@@ -283,7 +282,6 @@ def make_workflow_template():
                 name='data-join-job',
                 job_type=JobDefinition.PSI_DATA_JOIN,
                 is_federated=True,
-                is_manual=False,
                 variables=[
                     Variable(
                         name='worker_cpu',
@@ -575,7 +573,6 @@ def make_workflow_template():
                 name='train-job',
                 job_type=JobDefinition.TREE_MODEL_TRAINING,
                 is_federated=True,
-                is_manual=False,
                 variables=[
                     Variable(
                         name='worker_cpu',

@@ -9,11 +9,13 @@ const getConfig = require('../utils/get_confg');
 const config = getConfig({
   ES_HOST: process.env.ES_HOST,
   ES_PORT: process.env.ES_PORT,
+  ES_USERNAME: process.env.ES_USERNAME,
+  ES_PASSWORD: process.env.ES_PASSWORD
 });
 
 class ElasticSearchClient {
   constructor() {
-    const prefixUrl = `http://${config.ES_HOST}:${config.ES_PORT}`;
+    const prefixUrl = `http://${config.ES_USERNAME}:${config.ES_PASSWORD}@${config.ES_HOST}:${config.ES_PORT}`;
     this.client = ky.create({ prefixUrl });
   }
 

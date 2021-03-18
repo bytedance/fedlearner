@@ -72,11 +72,12 @@ class WorkflowsApi(Resource):
                             help='forkable is empty')
         parser.add_argument('forked_from', type=int, required=False,
                             help='fork from base workflow')
-        parser.add_argument('reuse_job_names', type=list, required=False,
-                            location='json', help='fork and inherit jobs')
-        parser.add_argument('peer_reuse_job_names', type=list,
+        parser.add_argument('create_job_flags', type=list, required=False,
+                            location='json',
+                            help='flags in common.CreateJobFlag')
+        parser.add_argument('peer_create_job_flags', type=list,
                             required=False, location='json',
-                            help='peer fork and inherit jobs')
+                            help='peer flags in common.CreateJobFlag')
         parser.add_argument('fork_proposal_config', type=dict, required=False,
                             help='fork and edit peer config')
         parser.add_argument('comment')
@@ -101,6 +102,7 @@ class WorkflowsApi(Resource):
                             state=WorkflowState.NEW,
                             target_state=WorkflowState.READY,
                             transaction_state=TransactionState.READY)
+        workflow.set_create_job_flags(data['create_job_flags'])
 
         if workflow.forked_from is not None:
             fork_config = dict_to_workflow_definition(
@@ -111,8 +113,9 @@ class WorkflowsApi(Resource):
                 raise InvalidArgumentException(
                     'Forked workflow\'s template does not match base workflow')
             workflow.set_fork_proposal_config(fork_config)
-            workflow.set_reuse_job_names(data['reuse_job_names'])
-            workflow.set_peer_reuse_job_names(data['peer_reuse_job_names'])
+            # TODO: check that federated jobs have
+            #       same reuse policy on both sides
+            workflow.set_peer_create_job_flags(data['peer_create_job_flags'])
 
         workflow.set_config(template_proto)
         db.session.add(workflow)
@@ -142,6 +145,9 @@ class WorkflowApi(Resource):
                             help='config is empty')
         parser.add_argument('forkable', type=bool, required=True,
                             help='forkable is empty')
+        parser.add_argument('create_job_flags', type=list, required=False,
+                            location='json',
+                            help='flags in common.CreateJobFlag')
         parser.add_argument('comment')
         data = parser.parse_args()
 
@@ -153,6 +159,7 @@ class WorkflowApi(Resource):
         workflow.comment = data['comment']
         workflow.forkable = data['forkable']
         workflow.set_config(dict_to_workflow_definition(data['config']))
+        workflow.set_create_job_flags(data['create_job_flags'])
         workflow.update_target_state(WorkflowState.READY)
         db.session.commit()
         scheduler.wakeup(workflow_id)

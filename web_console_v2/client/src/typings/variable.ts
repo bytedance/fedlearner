@@ -30,14 +30,9 @@ export interface SelectWidgetSchema {
   filterable?: boolean;
 }
 
-export interface WidgetWithOptionsSchema {
+export interface WidgetWithEnumSchema {
   /** ------ Datas ------ */
-  options?: {
-    type: 'static' | 'dynamic';
-    // 1. static options for components like select | checkbox group | radio group...
-    // 2. dynamic options is an endpoint of source
-    source: Array<string | number | { value: any; label: string }> | string;
-  };
+  enum?: any[];
 }
 export interface SwitchWidgetSchema {
   /** ------ uIs ------ */
@@ -53,8 +48,13 @@ export enum VariableComponent {
   TextArea = 'TextArea',
   NumberPicker = 'NumberPicker',
   Switch = 'Switch',
-  TimePicker = 'TimePicker',
-  Upload = 'Upload',
+  // -------- Custom components ----------
+  Code = 'Code',
+  Dataset = 'Dataset',
+  // ------- Custom components ----------
+  // Uncomment it after we have usecase
+  // TimePicker = 'TimePicker',
+  // Upload = 'Upload',
 }
 
 export type VariableRule = { validator: RegExp | string; message: string };
@@ -66,15 +66,10 @@ export interface VariableWidgetSchema
     SwitchWidgetSchema,
     SelectWidgetSchema,
     InputWidgetSchema,
-    WidgetWithOptionsSchema {
+    WidgetWithEnumSchema {
   /** ------ Metas ------ */
   // which component to use
   component?: VariableComponent;
-
-  /** ------ Datas ------ */
-  // NOTE: for array type value, it clould be either a Multiple-select/Checkbox
-  // or a Group-items which allow user add | delete. eg. ENV field
-  type?: 'string' | 'number' | 'boolean' | 'array' | 'object';
 
   /** ------ UIs ------ */
   // i18n key for job name form-item label
@@ -104,9 +99,17 @@ export enum VariableAccessMode {
   PEER_WRITABLE = 'PEER_WRITABLE',
 }
 
+export enum VariableValueType {
+  STRING = 'STRING',
+  CODE = 'CODE',
+}
+
 export interface Variable {
   name: string;
+  // Due to proto doesn't has more optional types, we fixed to use string as value type,
+  // for boolean/number value, should convert to 'true', '2' directly (but so far, we don't need values like boolean)
   value: any;
+  value_type?: VariableValueType;
   access_mode: VariableAccessMode;
   widget_schema: VariableWidgetSchema;
 }

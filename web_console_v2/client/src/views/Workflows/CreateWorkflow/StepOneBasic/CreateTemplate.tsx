@@ -11,7 +11,7 @@ import { to } from 'shared/helpers';
 import { removePrivate } from 'shared/object';
 import { readAsJSONFromFile } from 'shared/file';
 import { WorkflowTemplatePayload, WorkflowTemplate } from 'typings/workflow';
-import { stringifyWidgetSchemas } from 'shared/formSchema';
+import { stringifyComplexDictField } from 'shared/formSchema';
 import i18n from 'i18n';
 
 type Props = {
@@ -34,7 +34,7 @@ const CreateTemplate: FC<Props> = ({ onSuccess, onError, groupAlias, allowedIsLe
       return;
     }
 
-    const payload = stringifyWidgetSchemas(removePrivate(values) as WorkflowTemplatePayload);
+    const payload = stringifyComplexDictField(removePrivate(values) as WorkflowTemplatePayload);
 
     const [res, error] = await to(createWorkflowTemplate(payload));
 

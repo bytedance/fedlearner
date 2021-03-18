@@ -4,7 +4,7 @@ import { Card, Spin, Row, Button } from 'antd';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery } from 'react-query';
 import { getPeerWorkflowsConfig, getWorkflowDetailById } from 'services/workflow';
-import WorkflowJobsFlowChart from 'components/WorkflowJobsFlowChart';
+import WorkflowJobsCanvas from 'components/WorkflowJobsCanvas';
 import { useTranslation } from 'react-i18next';
 import WhichProject from 'components/WhichProject';
 import WorkflowActions from '../WorkflowActions';
@@ -14,8 +14,8 @@ import BreadcrumbLink from 'components/BreadcrumbLink';
 import CountTime from 'components/CountTime';
 import JobExecutionDetailsDrawer from './JobExecutionDetailsDrawer';
 import { useToggle } from 'react-use';
-import { JobNode, NodeData, NodeDataRaw } from 'components/WorkflowJobsFlowChart/types';
-import { useMarkFederatedJobs } from 'components/WorkflowJobsFlowChart/hooks';
+import { JobNode, NodeData, JobNodeRawData } from 'components/WorkflowJobsCanvas/types';
+import { useMarkFederatedJobs } from 'components/WorkflowJobsCanvas/hooks';
 import PropertyList from 'components/PropertyList';
 import { Eye, EyeInvisible, Branch } from 'components/IconPark';
 import { WorkflowExecutionDetails } from 'typings/workflow';
@@ -23,6 +23,7 @@ import { ReactFlowProvider } from 'react-flow-renderer';
 import { findJobExeInfoByJobDef, isRunning, isStopped } from 'shared/workflow';
 import dayjs from 'dayjs';
 import NoResult from 'components/NoResult';
+import { JobReuseFlag } from 'typings/job';
 
 const Container = styled.div`
   display: flex;
@@ -157,8 +158,8 @@ const WorkflowDetail: FC = () => {
   markThem(jobsWithExeDetails, peerJobsWithExeDetails);
 
   if (isForked) {
-    _markInheritedJobs(jobsWithExeDetails, workflow?.reuse_job_names!);
-    _markInheritedJobs(peerJobsWithExeDetails, workflow?.peer_reuse_job_names!);
+    _markInheritedJobs(jobsWithExeDetails, workflow?.create_job_flags!);
+    _markInheritedJobs(peerJobsWithExeDetails, workflow?.peer_create_job_flags!);
   }
 
   return (
@@ -233,7 +234,7 @@ const WorkflowDetail: FC = () => {
               </NoJobs>
             ) : (
               <ReactFlowProvider>
-                <WorkflowJobsFlowChart
+                <WorkflowJobsCanvas
                   nodeType="execution"
                   workflowConfig={{
                     ...workflow?.config!,
@@ -270,7 +271,7 @@ const WorkflowDetail: FC = () => {
                 </NoJobs>
               ) : (
                 <ReactFlowProvider>
-                  <WorkflowJobsFlowChart
+                  <WorkflowJobsCanvas
                     nodeType="execution"
                     workflowConfig={{
                       ...peerWorkflowQuery.data?.config!,
@@ -317,7 +318,7 @@ const WorkflowDetail: FC = () => {
   }
 };
 
-function _mergeWithExecutionDetails(workflow?: WorkflowExecutionDetails): NodeDataRaw[] {
+function _mergeWithExecutionDetails(workflow?: WorkflowExecutionDetails): JobNodeRawData[] {
   if (!workflow) return [];
 
   return (
@@ -329,14 +330,14 @@ function _mergeWithExecutionDetails(workflow?: WorkflowExecutionDetails): NodeDa
         ...exeInfo,
         name: item.name,
         k8sName: exeInfo?.name,
-      } as NodeDataRaw;
+      } as JobNodeRawData;
     }) || []
   );
 }
 
-function _markInheritedJobs(jobs: NodeDataRaw[], reusableJobNames: string[]) {
-  return jobs.map((item) => {
-    if (reusableJobNames.includes(item.name)) {
+function _markInheritedJobs(jobs: JobNodeRawData[], jobReuseFlags: JobReuseFlag[]) {
+  return jobs.forEach((item, index) => {
+    if (jobReuseFlags[index] === JobReuseFlag.REUSE) {
       item.inherited = true;
     }
 

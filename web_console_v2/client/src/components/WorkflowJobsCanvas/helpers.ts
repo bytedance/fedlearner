@@ -1,55 +1,102 @@
 import { XYPosition, Edge } from 'react-flow-renderer';
 import { Job, JobState } from 'typings/job';
 import { isHead, isLast } from 'shared/array';
-import { head, isEmpty, isNil, last } from 'lodash';
+import { Dictionary, head, isEmpty, isNil, last } from 'lodash';
 import { Variable } from 'typings/variable';
 import i18n from 'i18n';
 import {
-  NodeDataRaw,
-  ChartNodeType,
+  JobNodeRawData,
+  AllNodeTypes,
   ChartNode,
   ChartElements,
   ChartNodeStatus,
   JobNode,
   GlobalConfigNode,
 } from './types';
-
-const TOP_OFFSET = 100;
-const LEFT_OFFSET = 100;
+import { JobNodeRawDataSlim } from 'stores/template';
 
 export const NODE_WIDTH = 200;
 export const NODE_HEIGHT = 80;
 export const GLOBAL_CONFIG_NODE_SIZE = 120;
-export const NODE_GAP = 30;
+export const NODE_GAP = 40;
 
-type ConvertParams = {
-  jobs: NodeDataRaw[];
-  globalVariables?: Variable[];
-  side?: string;
+export type ConvertParams = {
+  jobs: JobNodeRawData[];
+  variables: Variable[]; // a.k.a. worlflow global settings
+  data: Dictionary<any>; // Extra data pass to react-flow node data
 };
 
-type ConvertOptions = {
-  type: ChartNodeType;
+export type NodeOptions = {
+  type: AllNodeTypes;
   selectable: boolean;
 };
 
+export type RawDataCol = { raw: JobNodeRawData | Variable[]; isGlobal?: boolean };
+export type RawDataRows = Array<RawDataCol[]>;
+
+type SharedNodeData = {
+  index: number;
+  status: ChartNodeStatus;
+  [key: string]: any;
+};
+
+type NodeProcessors = {
+  createJob(job: any, data: SharedNodeData, options: NodeOptions): JobNode;
+  createGlobal(variables: any, data: SharedNodeData, options: NodeOptions): GlobalConfigNode;
+  groupRows(params: ConvertParams): RawDataRows;
+};
+
 /**
- * Turn job defintitions to flow elements (include edges),
+ * Turn workflow config schema to react-flow elements (will include edges),
  * NOTE: globalVariables is considered as a Node as well
  */
 export function convertToChartElements(
-  { jobs, globalVariables, side }: ConvertParams,
-  options: ConvertOptions,
+  params: ConvertParams,
+  options: NodeOptions,
+  processors: NodeProcessors = {
+    createGlobal: _createGlobalNode,
+    createJob: _createJobNode,
+    groupRows: groupByDependencies,
+  },
 ): ChartElements {
-  const rowsComputed = groupByDependencies({ jobs, globalVariables, side }, options);
+  /**
+   * 1. Group jobs/global-vars into rows
+   */
+  const rows = processors.groupRows(params);
 
-  // 2. Calculate Node position & Generate Edges
-  const jobsCountInMostBigRow = Math.max(...rowsComputed.map((r) => r.length));
-  const maxWidth = _getRowWidth(jobsCountInMostBigRow);
-  const midlineX = maxWidth / 2 + LEFT_OFFSET;
+  /**
+   * 2. Turn each col-item in rows to chart node
+   */
+  let selfIncreaseIndex = 0;
+  const nodesRows = rows.map((row) => {
+    return row.map((col) => {
+      const extraData = { index: selfIncreaseIndex++, rows } as any;
 
-  return rowsComputed.reduce((result, curRow, rowIdx) => {
-    const isHeadRow = isHead(curRow, rowsComputed);
+      // Process params.data
+      Object.entries(params.data || {}).forEach(([key, value]) => {
+        if (typeof value === 'function') {
+          return (extraData[key] = value(col));
+        }
+
+        extraData[key] = value;
+      });
+
+      if (col.isGlobal) {
+        return processors.createGlobal(col.raw as Variable[], extraData, options);
+      }
+      return processors.createJob(col.raw as JobNodeRawData, extraData, options);
+    });
+  });
+
+  /**
+   * 3. Calculate Node position & Generate Edges
+   */
+  const jobsCountInBiggestRow = Math.max(...nodesRows.map((r) => r.length));
+  const maxWidth = _getRowWidth(jobsCountInBiggestRow);
+  const midlineX = maxWidth / 2;
+
+  return nodesRows.reduce((result, curRow, rowIdx) => {
+    const isHeadRow = isHead(curRow, nodesRows);
 
     curRow.forEach((node, nodeIdx) => {
       const position = _getNodePosition({
@@ -57,7 +104,7 @@ export function convertToChartElements(
         rowIdx,
         nodeIdx,
         midlineX,
-        type: node.type,
+        isGlobal: node.data.isGlobal,
       });
 
       Object.assign(node.position, position);
@@ -65,7 +112,7 @@ export function convertToChartElements(
       if (!isHeadRow) {
         // Create Edges
         // NOTE: only rows not at head can have edge
-        const prevRow = rowsComputed[rowIdx - 1];
+        const prevRow = nodesRows[rowIdx - 1];
 
         if (isHead(node, curRow)) {
           const source = head(prevRow)!;
@@ -88,11 +135,9 @@ export function convertToChartElements(
   }, [] as ChartElements);
 }
 
-export function groupByDependencies(
-  { jobs, globalVariables, side }: ConvertParams,
-  options: ConvertOptions,
-) {
-  const hasGlobalVars = !isNil(globalVariables) && !isEmpty(globalVariables);
+export function groupByDependencies(params: ConvertParams) {
+  const { jobs, variables } = params;
+  const hasGlobalVars = !isNil(variables) && !isEmpty(variables);
 
   // 1. Group Jobs to rows by dependiences
   // e.g. Say we have jobs like [1, 2, 3, 4, 5] in which 2,3,4 is depend on 1, 5 depend on 2,3,4
@@ -105,25 +150,23 @@ export function groupByDependencies(
   // row-3        █5█
   //
   // thus the processed rows will looks like [[1], [2, 3, 4], [5]]
-  const rows: Array<ChartNode[]> = [];
+  const rows: RawDataRows = [];
   let rowIdx = 0;
 
   // If global variables existing, always put it into first row
   if (hasGlobalVars) {
-    const globalNode = _createGlobalConfigNode({ variables: globalVariables!, options, side });
-    rows.push([globalNode]);
+    rows.push([{ raw: variables!, isGlobal: true }]);
     rowIdx++;
   }
 
-  return jobs.reduce((rows, job, jobIdx) => {
+  return jobs.reduce((rows, job) => {
     if (shouldPutIntoNextRow()) {
       rowIdx++;
     }
+
     addANewRowIfNotExist();
 
-    const node = _createJobNode({ job, index: jobIdx, options, hasGlobalVars, side });
-
-    pushToCurrentRow(node);
+    rows[rowIdx].push({ raw: job });
 
     return rows;
 
@@ -135,12 +178,17 @@ export function groupByDependencies(
     function shouldPutIntoNextRow() {
       if (!job.dependencies) return false;
 
-      return job.dependencies.some((dep) => {
-        return rows[rowIdx].some((item) => item.id === dep.source);
-      });
-    }
-    function pushToCurrentRow(node: JobNode) {
-      rows[rowIdx].push(node);
+      try {
+        return job.dependencies.some((dep) => {
+          return rows[rowIdx].some((item) => {
+            const raw = item.raw as JobNodeRawData;
+
+            return dep.source === raw.name;
+          });
+        });
+      } catch (error) {
+        return false;
+      }
     }
     function addANewRowIfNotExist() {
       if (!rows[rowIdx]) {
@@ -170,47 +218,34 @@ export function getNodeIdByJob(job: Job) {
 
 // --------------- Private helpers  ---------------
 
-function _createGlobalConfigNode({
-  variables,
-  options,
-  side,
-}: {
-  variables: Variable[];
-  options?: any;
-  side?: string;
-}): GlobalConfigNode {
+function _createGlobalNode(
+  variables: Variable[],
+  data: SharedNodeData,
+  options: NodeOptions,
+): GlobalConfigNode {
   const name = i18n.t('workflow.label_global_config');
-  const isFork = options?.type === 'fork';
+  const { type, ...restOptions } = options;
 
   return {
     id: name,
     type: 'global',
+    ...restOptions,
     data: {
-      raw: ({
+      raw: {
         variables,
         name,
-        dependencies: [],
-      } as unknown) as NodeDataRaw,
-      index: 0,
-      // When fork type, inherit initially set to true, status to Success
-      status: isFork ? ChartNodeStatus.Success : ChartNodeStatus.Pending,
-      inherit: isFork,
-      side,
+      },
+      isGlobal: true,
+      ...data,
     },
     position: { x: 0, y: 0 },
   };
 }
 
-function _createJobNode(params: {
-  job: NodeDataRaw;
-  index: number;
-  options: any;
-  hasGlobalVars?: boolean;
-  side?: string;
-}): JobNode {
-  const { job, index, options, hasGlobalVars, side } = params;
+function _createJobNode(job: JobNodeRawData, data: SharedNodeData, options: NodeOptions): JobNode {
   const isFork = options?.type === 'fork';
-  const status = job.state
+
+  const status = job.state // If job incoming has state value, means it's execution job node
     ? convertExecutionStateToStatus(job.state)
     : isFork
     ? ChartNodeStatus.Success
@@ -218,16 +253,15 @@ function _createJobNode(params: {
 
   return {
     id: getNodeIdByJob(job),
+    ...options,
     data: {
       raw: job,
-      index: hasGlobalVars ? index + 1 : index, // if have global variables, all nodes should put after it
+      ...data,
       mark: job.mark || undefined,
+      inherit: isFork, // in fork mode, inherit defaults to true
       status,
-      inherit: isFork,
-      side,
     },
     position: { x: 0, y: 0 }, // position will be calculated in later step
-    ...options,
   };
 }
 
@@ -249,26 +283,24 @@ type GetPositionParams = {
   rowIdx: number;
   nodeIdx: number;
   midlineX: number;
-  type: ChartNodeType;
+  isGlobal?: boolean;
 };
+
 function _getNodePosition({
   nodesCount,
   rowIdx,
   nodeIdx,
   midlineX,
-  type,
+  isGlobal,
 }: GetPositionParams): XYPosition {
-  const isGlobalNode = type === 'global';
   const _1stNodeX = midlineX - (NODE_WIDTH * nodesCount) / 2 - ((nodesCount - 1) * NODE_GAP) / 2;
   let x = _1stNodeX + nodeIdx * (NODE_WIDTH + NODE_GAP);
 
-  const y =
-    TOP_OFFSET +
-    (isGlobalNode
-      ? (NODE_HEIGHT - GLOBAL_CONFIG_NODE_SIZE) / 1.5
-      : rowIdx * (NODE_HEIGHT + NODE_GAP));
+  const y = isGlobal
+    ? (NODE_HEIGHT - GLOBAL_CONFIG_NODE_SIZE) / 1.5
+    : rowIdx * (NODE_HEIGHT + NODE_GAP);
 
-  if (type === 'global') {
+  if (isGlobal) {
     x += (NODE_WIDTH - GLOBAL_CONFIG_NODE_SIZE) / 2;
   }
 

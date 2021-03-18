@@ -67,7 +67,9 @@ if (process.env.NODE_ENV === 'development' || process.env.REACT_APP_ENABLE_FULLY
   });
 }
 
-/** Authorization interceptor */
+/**
+ * Authorization interceptor
+ */
 request.interceptors.request.use((config) => {
   const token = store.get(LOCAL_STORAGE_KEYS.current_user)?.access_token;
   if (token) {
@@ -95,7 +97,9 @@ request.interceptors.request.use((config) => {
   return config;
 });
 
-/** Extract data handler & Error prehandler */
+/**
+ * Extract data handler & Error prehandler
+ */
 request.interceptors.response.use(
   (response) => {
     return response.data;
@@ -128,7 +132,9 @@ request.interceptors.response.use(
 
 const SingletonCollection = new Map();
 
-/** Singleton control interceptor */
+/**
+ * Singleton control interceptor
+ */
 request.interceptors.request.use((config) => {
   if (config.singleton) {
     const oldSource = SingletonCollection.get(config.singleton);

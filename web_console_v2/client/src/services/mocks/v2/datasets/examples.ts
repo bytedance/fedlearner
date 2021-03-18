@@ -56,6 +56,7 @@ export const unfinishedImporting: Dataset = {
   dataset_type: DatasetType.STREAMING,
   comment: 'comment here',
   ...sharedTimes,
+  path: '/path/to/dataset',
   data_batches: [dataBatchImporting, dataBatchImported],
 };
 
@@ -64,6 +65,7 @@ export const importFailed: Dataset = {
   name: 'Failed one',
   dataset_type: DatasetType.PSI,
   ...sharedTimes,
+  path: '/path/to/dataset',
   data_batches: [dataBatchImported, dataBatchFailed],
 };
 
@@ -72,5 +74,6 @@ export const successfullyImport: Dataset = {
   name: 'Import succeeded',
   dataset_type: DatasetType.PSI,
   ...sharedTimes,
+  path: '/path/to/dataset',
   data_batches: [dataBatchImported],
 };

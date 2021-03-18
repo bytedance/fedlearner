@@ -1,7 +1,7 @@
 import { Spin } from 'antd';
 import { useRecoilQuery } from 'hooks/recoil';
 import React, { FC } from 'react';
-import { projectListQuery } from 'stores/projects';
+import { projectListQuery } from 'stores/project';
 
 const WhichProject: FC<{ id?: number | number; loading?: boolean }> = ({ id, loading }) => {
   const { isLoading, data } = useRecoilQuery(projectListQuery);

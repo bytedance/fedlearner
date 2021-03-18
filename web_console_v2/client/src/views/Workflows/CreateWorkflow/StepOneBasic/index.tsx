@@ -17,9 +17,9 @@ import {
 import { useRecoilState, useRecoilValue, useSetRecoilState } from 'recoil';
 import WORKFLOW_CHANNELS, { workflowPubsub } from '../../pubsub';
 import { useRecoilQuery } from 'hooks/recoil';
-import { Workflow, WorkflowTemplate } from 'typings/workflow';
+import { Workflow, WorkflowConfig, WorkflowTemplate } from 'typings/workflow';
 import { useToggle } from 'react-use';
-import { projectListQuery } from 'stores/projects';
+import { projectListQuery } from 'stores/project';
 import { useQuery } from 'react-query';
 import {
   fetchWorkflowTemplateList,
@@ -28,8 +28,9 @@ import {
   fetchTemplateById,
 } from 'services/workflow';
 import { WorkflowCreateProps } from '..';
-import { parseWidgetSchemas } from 'shared/formSchema';
+import { parseComplexDictField } from 'shared/formSchema';
 import { to } from 'shared/helpers';
+import { JobNodeRawData } from 'components/WorkflowJobsCanvas/types';
 
 const Container = styled(Card)`
   padding-top: 20px;
@@ -246,14 +247,14 @@ const WorkflowsCreateStepOne: FC<WorkflowCreateProps & { onSuccess?: any }> = ({
   function backToList() {
     history.push('/workflows');
   }
-  function setCurrentUsingTemplate(tpl: WorkflowTemplate) {
+  function setCurrentUsingTemplate(tpl: WorkflowTemplate<any>) {
     // Widget schemas of the template from backend side are JSON-string type
     // parse it before using
-    const parsedTpl = parseWidgetSchemas(tpl);
+    const parsedTpl = parseComplexDictField(tpl);
     // For flow chart render
     setTemplateInUsing(parsedTpl);
     // For initiate workflow config's data
-    setWorkflowConfigForm(parsedTpl.config as any);
+    setWorkflowConfigForm(parsedTpl.config as WorkflowConfig<JobNodeRawData>);
   }
   async function getWorkflowDetail() {
     const { data } = await getWorkflowDetailById(params.id);

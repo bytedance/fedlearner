@@ -42,8 +42,8 @@ const AddBatchBatch: FC<Props> = ({
     <ContainerModal
       title={t('dataset.title_create')}
       visible={visible}
-      width={748}
-      style={{ top: '20%' }}
+      width={900}
+      style={{ top: '10%' }}
       closeIcon={<IconButton icon={<Close />} onClick={closeModal} />}
       zIndex={Z_INDEX_GREATER_THAN_HEADER}
       onCancel={closeModal}

@@ -5,9 +5,11 @@ from collections import defaultdict
 from datetime import datetime
 from itertools import chain
 
+import pytz
+
 import fedlearner.common.data_join_service_pb2 as dj_pb
-from fedlearner.common.metrics import emit, CONFIGS
-from fedlearner.common.common import convert_to_iso_format
+from fedlearner.common.common import convert_to_datetime
+from fedlearner.common.metrics import emit, Config
 
 
 class OptionalStats(object):
@@ -37,7 +39,7 @@ class OptionalStats(object):
         optional_fields = set(raw_data_options.optional_fields)
         # prevent from adding too many fields to ES index
         self._stat_fields = optional_fields & allowed_fields
-        self._sample_rate = CONFIGS['data_join_metrics_sample_rate']
+        self._sample_rate = Config.DATA_JOIN_METRICS_SAMPLE_RATE
         self._kind_map = {'unjoined': -1,
                           'fake': 0,
                           'joined': 1}
@@ -70,8 +72,10 @@ class OptionalStats(object):
         if random.random() < self._sample_rate:
             tags = copy.deepcopy(self._tags)
             tags.update(item_stat)
-            tags['event_time'] = convert_to_iso_format(item.event_time)
-            tags['process_time'] = convert_to_iso_format(datetime.now())
+            tags['event_time'] = convert_to_datetime(item.event_time, True) \
+                .isoformat(timespec='microseconds')
+            tags['process_time'] = datetime.now(tz=pytz.utc) \
+                .isoformat(timespec='microseconds')
             emit(name='', value=0, tags=tags, index_type='data_join')
 
     def emit_optional_stats(self):

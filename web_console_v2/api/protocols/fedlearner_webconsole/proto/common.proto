@@ -36,17 +36,23 @@ message Variable {
     PEER_READABLE = 2;
     PEER_WRITABLE = 3;
   }
-
+  enum ValueType {
+    STRING = 0;
+    CODE = 1;
+  }
   string name = 1;
   string value = 2;
+
   AccessMode access_mode = 3;
   string widget_schema = 4;
+  ValueType value_type = 5;
 }
 
 message GrpcSpec {
   string authority = 1;
   map<string, string> extra_headers = 2;
 }
+
 enum MethodType{
     CREATE = 0;
     UPDATE = 1;
@@ -63,3 +69,9 @@ enum WorkflowStatus{
     FORK_SENDER = 6;
 }
 
+enum CreateJobFlag {
+    INVALID = 0;
+    NEW = 1;
+    REUSE = 2;
+    DISABLED = 3;
+}

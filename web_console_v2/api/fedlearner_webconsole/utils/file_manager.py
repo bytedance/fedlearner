@@ -22,10 +22,12 @@ from collections import namedtuple
 from pathlib import Path
 from typing import List
 
-from snakebite.client import AutoConfigClient
+from pyarrow import fs
+from pyarrow.fs import FileSystem
 from tensorflow.io import gfile
+import tensorflow_io  # pylint: disable=unused-import
 
-from fedlearner_webconsole import envs
+from fedlearner_webconsole.envs import Envs
 
 # path: absolute path of the file
 # size: file size in bytes
@@ -65,16 +67,13 @@ class FileManagerBase(object):
 
 class DefaultFileManager(FileManagerBase):
     """Default file manager for native file system or NFS."""
-
     def can_handle(self, path):
         return path.startswith('/')
 
     def ls(self, path: str, recursive=False) -> List[File]:
         def _get_file_stats(path: str):
             stat = os.stat(path)
-            return File(path=path,
-                        size=stat.st_size,
-                        mtime=int(stat.st_mtime))
+            return File(path=path, size=stat.st_size, mtime=int(stat.st_mtime))
 
         if not Path(path).exists():
             return []
@@ -84,16 +83,14 @@ class DefaultFileManager(FileManagerBase):
 
         files = []
         if recursive:
-            for root, dirs, fs in os.walk(path):
-                for file in fs:
+            for root, _, res in os.walk(path):
+                for file in res:
                     if Path(os.path.join(root, file)).is_file():
-                        files.append(
-                            _get_file_stats(os.path.join(root, file)))
+                        files.append(_get_file_stats(os.path.join(root, file)))
         else:
             for file in os.listdir(path):
                 if Path(os.path.join(path, file)).is_file():
-                    files.append(
-                        _get_file_stats(os.path.join(path, file)))
+                    files.append(_get_file_stats(os.path.join(path, file)))
         # Files only
         return files
 
@@ -134,28 +131,13 @@ class DefaultFileManager(FileManagerBase):
         return False
 
 
-_hdfs_client = None
-
-
-def build_hdfs_client():
-    # pylint: disable=global-statement
-    global _hdfs_client
-    _hdfs_client = AutoConfigClient()
-    # To warm up the connection to the namenode
-    # Otherwise it may take 3+ minutes at the first time
-    _hdfs_client.df()
-
-
 class HdfsFileManager(FileManagerBase):
     """A wrapper of snakebite client."""
-
     def can_handle(self, path):
         return path.startswith('hdfs://')
 
     def __init__(self):
-        assert _hdfs_client is not None, \
-            'HDFS client should be initialized'
-        self._client = _hdfs_client
+        self._client, _ = FileSystem.from_uri(Envs.HDFS_SERVER)
 
     def _unwrap_path(self, path):
         if path.startswith('hdfs://'):
@@ -171,13 +153,15 @@ class HdfsFileManager(FileManagerBase):
         path = self._unwrap_path(path)
         files = []
         try:
-            for file in self._client.ls([path], recurse=recursive):
-                if file['file_type'] == 'f':
-                    files.append(File(
-                        path=self._wrap_path(file['path']),
-                        size=file['length'],
-                        # ms to second
-                        mtime=int(file['modification_time'] / 1000)))
+            for file in self._client.get_file_info(
+                    fs.FileSelector(path, recursive=recursive)):
+                if file.type == fs.FileType.File:
+                    files.append(
+                        File(
+                            path=self._wrap_path(file.path),
+                            size=file.size,
+                            # ns to second
+                            mtime=int(file.mtime_ns / 1e9)))
         except RuntimeError as error:
             # This is a hack that snakebite can not handle generator
             if str(error) == 'generator raised StopIteration':
@@ -189,11 +173,19 @@ class HdfsFileManager(FileManagerBase):
     def move(self, source: str, destination: str) -> bool:
         source = self._unwrap_path(source)
         destination = self._unwrap_path(destination)
-        return len(list(self._client.rename([source], destination))) > 0
+        return len(list(self._client.move(source, destination))) > 0
 
     def remove(self, path: str) -> bool:
         path = self._unwrap_path(path)
-        return len(list(self._client.delete([path]))) > 0
+        try:
+            if self._client.get_file_info(path).is_file:
+                self._client.delete_file(path)
+            else:
+                self._client.delete_dir(path)
+            return True
+        except Exception as e:  # pylint: disable=broad-except
+            logging.error('Error during remove %s', str(e))
+        return False
 
     def copy(self, source: str, destination: str) -> bool:
         try:
@@ -205,8 +197,85 @@ class HdfsFileManager(FileManagerBase):
 
     def mkdir(self, path: str) -> bool:
         path = self._unwrap_path(path)
-        return next(self._client.mkdir([path], create_parent=True))\
-            .get('result')
+        self._client.create_dir(path)
+        return True
+
+
+class GFileFileManager(FileManagerBase):
+    """Gfile file manager for all FS supported by TF."""
+
+    def can_handle(self, path):
+        # TODO: List tf support
+        if path.startswith('fake://'):
+            return False
+        if not Envs.SUPPORT_HDFS and path.startswith('hdfs://'):
+            return False
+        return True
+
+    def ls(self, path: str, recursive=False) -> List[File]:
+        def _get_file_stats(path: str):
+            stat = gfile.stat(path)
+            return File(path=path,
+                        size=stat.length,
+                        mtime=int(stat.mtime_nsec/1e9))
+
+        if not gfile.exists(path):
+            return []
+        # If it is a file
+        if not gfile.isdir(path):
+            return [_get_file_stats(path)]
+
+        files = []
+        if recursive:
+            for root, _, res in gfile.walk(path):
+                for file in res:
+                    if not gfile.isdir(os.path.join(root, file)):
+                        files.append(
+                            _get_file_stats(os.path.join(root, file)))
+        else:
+            for file in gfile.listdir(path):
+                if not gfile.isdir(os.path.join(path, file)):
+                    files.append(
+                        _get_file_stats(os.path.join(path, file)))
+        # Files only
+        return files
+
+    def move(self, source: str, destination: str) -> bool:
+        try:
+            self.copy(source, destination)
+            self.remove(source)
+            return True
+        except Exception as e:  # pylint: disable=broad-except
+            logging.error('Error during move %s', e)
+            return False
+
+    def remove(self, path: str) -> bool:
+        try:
+            if not gfile.isdir(path):
+                os.remove(path)
+                return True
+            if gfile.isdir(path):
+                gfile.rmtree(path)
+                return True
+        except Exception as e:  # pylint: disable=broad-except
+            logging.error('Error during remove %s', str(e))
+        return False
+
+    def copy(self, source: str, destination: str) -> bool:
+        try:
+            gfile.copy(source, destination)
+            return True
+        except Exception as e:  # pylint: disable=broad-except
+            logging.error('Error during copy %s', e)
+        return False
+
+    def mkdir(self, path: str) -> bool:
+        try:
+            gfile.makedirs(path)
+            return True
+        except Exception as e:  # pylint: disable=broad-except
+            logging.error('Error during create %s', e)
+        return False
 
 
 class FileManager(FileManagerBase):
@@ -224,9 +293,10 @@ class FileManager(FileManagerBase):
             # Dynamically construct a file manager
             customized_file_manager = getattr(module, class_name)
             self._file_managers.append(customized_file_manager())
-        if envs.SUPPORT_HDFS:
+        if Envs.HDFS_SERVER:
             self._file_managers.append(HdfsFileManager())
         self._file_managers.append(DefaultFileManager())
+        self._file_managers.append(GFileFileManager())
 
     def can_handle(self, path):
         for fm in self._file_managers:
