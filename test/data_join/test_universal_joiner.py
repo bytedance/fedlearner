@@ -45,8 +45,7 @@ class TestUniversalJoin(dsp.DataSourceProducer):
         #self.init("test_uni_joiner", "invalid joiner as placeholder", cache_type="disk")
         self.init("test_uni_joiner", "invalid joiner as placeholder")
 
-    #@unittest.skip("test2")
-    def test_universal_join(self):
+    def test_universal_join_mismatch(self):
         self.example_joiner_options = dj_pb.ExampleJoinerOptions(
                   example_joiner='UNIVERSAL_JOINER',
                   min_matching_window=32,
@@ -56,7 +55,7 @@ class TestUniversalJoin(dsp.DataSourceProducer):
                   data_block_dump_interval=32,
                   data_block_dump_threshold=128,
                   negative_sampling_rate=0.8,
-                  join_expr="req_id or cid or (id_type, example_id, trunc(event_time,1))",
+                  join_expr="(index, cid)",
                   join_key_mapper="DEFAULT",
                   negative_sampling_filter_expr='',
               )
@@ -70,7 +69,30 @@ class TestUniversalJoin(dsp.DataSourceProducer):
             )
         self.run_join(sei)
 
-    #@unittest.skip("test3")
+    def test_universal_join_fallback(self):
+        self.example_joiner_options = dj_pb.ExampleJoinerOptions(
+                  example_joiner='UNIVERSAL_JOINER',
+                  min_matching_window=32,
+                  max_matching_window=51200,
+                  max_conversion_delay=interval_to_timestamp("258"),
+                  enable_negative_example_generator=False,
+                  data_block_dump_interval=32,
+                  data_block_dump_threshold=128,
+                  negative_sampling_rate=0.8,
+                  join_expr="index or cid or (id_type, example_id, trunc(event_time,1))",
+                  join_key_mapper="DEFAULT",
+                  negative_sampling_filter_expr='',
+              )
+        self.version = dsp.Version.V2
+
+        sei = joiner_impl.create_example_joiner(
+                self.example_joiner_options,
+                self.raw_data_options,
+                dj_pb.WriterOptions(output_writer='TF_RECORD'),
+                self.kvstore, self.data_source, 0
+            )
+        self.run_join(sei)
+
     def test_universal_join_attribution(self):
         self.example_joiner_options = dj_pb.ExampleJoinerOptions(
                   example_joiner='UNIVERSAL_JOINER',
@@ -95,7 +117,6 @@ class TestUniversalJoin(dsp.DataSourceProducer):
             )
         self.run_join(sei)
 
-    #@unittest.skip("test4")
     def test_universal_join_key_mapper(self):
         mapper_code = """
 from fedlearner.data_join.key_mapper.key_mapping import BaseKeyMapper
