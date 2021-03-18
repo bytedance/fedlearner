@@ -14,6 +14,9 @@
 
 # coding: utf-8
 import unittest
+import tarfile
+import base64
+from io import BytesIO
 from fedlearner_webconsole.job.yaml_formatter import format_yaml, code_dict_encode
 
 
@@ -62,10 +65,19 @@ class YamlFormatterTest(unittest.TestCase):
         self.assertEqual(str(cm.exception), 'Unknown placeholder: i.j')
 
     def test_encode_code(self):
-        code_base64 = code_dict_encode({'test/a.py': 'awefawefawefawefwaef',
+        test_data = {'test/a.py': 'awefawefawefawefwaef',
                                       'test1/b.py': 'asdfasd',
                                       'c.py': '',
-                                      'test/d.py': 'asdf'})
+                                      'test/d.py': 'asdf'}
+        code_base64 = code_dict_encode(test_data)
+        code_dict = {}
+        if code_base64.startswith('base64://'):
+            tar_binary = BytesIO(base64.b64decode(code_base64[9:]))
+            with tarfile.open(fileobj=tar_binary) as tar:
+                for file in tar.getmembers():
+                    code_dict[file.name] = str(tar.extractfile(file).read(),
+                                               encoding='utf-8')
+        self.assertEqual(code_dict, test_data)
 
 
 
