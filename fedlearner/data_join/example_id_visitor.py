@@ -262,11 +262,6 @@ class ExampleIdVisitor(visitor.Visitor):
                     rows = convert_tf_example_to_dict(tf_example)
 
                     example_id_num = len(rows['example_id'])
-                    event_time_num = len(rows['event_time'])
-                    assert example_id_num == event_time_num, \
-                        "the size of example id and event time must the "\
-                        "same. {} != {}".format(example_id_num,
-                                                event_time_num)
                     index = 0
                     while index < example_id_num:
                         row = dict()
