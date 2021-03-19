@@ -132,7 +132,7 @@ class StreamExampleJoiner(ExampleJoiner):
                 example_joiner_options.enable_negative_example_generator
         if self._enable_negative_example_generator:
             sf = example_joiner_options.negative_sampling_rate
-            fe = example_joiner_options.exampling_filter_expr
+            fe = example_joiner_options.negative_sampling_filter_expr
             self._negative_example_generator = NegativeExampleGenerator(sf, fe)
         self._reset_joiner_state(True)
 
