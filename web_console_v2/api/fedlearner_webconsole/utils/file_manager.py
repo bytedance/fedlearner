@@ -95,40 +95,18 @@ class DefaultFileManager(FileManagerBase):
         return files
 
     def move(self, source: str, destination: str) -> bool:
-        try:
-            shutil.move(source, destination)
-            return True
-        except Exception as e:  # pylint: disable=broad-except
-            logging.error('Error during move %s', e)
-            return False
+        return shutil.move(source, destination)
 
     def remove(self, path: str) -> bool:
-        try:
-            if os.path.isfile(path):
-                os.remove(path)
-                return True
-            if os.path.isdir(path):
-                shutil.rmtree(path)
-                return True
-        except Exception as e:  # pylint: disable=broad-except
-            logging.error('Error during remove %s', str(e))
-        return False
+        if os.path.isfile(path):
+            return os.remove(path)
+        return shutil.rmtree(path)
 
     def copy(self, source: str, destination: str) -> bool:
-        try:
-            shutil.copy(source, destination)
-            return True
-        except Exception as e:  # pylint: disable=broad-except
-            logging.error('Error during copy %s', e)
-        return False
+        return shutil.copy(source, destination)
 
     def mkdir(self, path: str) -> bool:
-        try:
-            os.makedirs(path, exist_ok=True)
-            return True
-        except Exception as e:  # pylint: disable=broad-except
-            logging.error('Error during create %s', e)
-        return False
+        return os.makedirs(path, exist_ok=True)
 
 
 class HdfsFileManager(FileManagerBase):
@@ -177,28 +155,16 @@ class HdfsFileManager(FileManagerBase):
 
     def remove(self, path: str) -> bool:
         path = self._unwrap_path(path)
-        try:
-            if self._client.get_file_info(path).is_file:
-                self._client.delete_file(path)
-            else:
-                self._client.delete_dir(path)
-            return True
-        except Exception as e:  # pylint: disable=broad-except
-            logging.error('Error during remove %s', str(e))
-        return False
+        if self._client.get_file_info(path).is_file:
+            return self._client.delete_file(path)
+        return self._client.delete_dir(path)
 
     def copy(self, source: str, destination: str) -> bool:
-        try:
-            gfile.copy(source, destination)
-            return True
-        except Exception as e:  # pylint: disable=broad-except
-            logging.error('Error during copy %s', e)
-        return False
+        return gfile.copy(source, destination)
 
     def mkdir(self, path: str) -> bool:
         path = self._unwrap_path(path)
-        self._client.create_dir(path)
-        return True
+        return self._client.create_dir(path)
 
 
 class GFileFileManager(FileManagerBase):
@@ -241,41 +207,20 @@ class GFileFileManager(FileManagerBase):
         return files
 
     def move(self, source: str, destination: str) -> bool:
-        try:
-            self.copy(source, destination)
-            self.remove(source)
-            return True
-        except Exception as e:  # pylint: disable=broad-except
-            logging.error('Error during move %s', e)
-            return False
+        self.copy(source, destination)
+        self.remove(source)
+        return destination
 
     def remove(self, path: str) -> bool:
-        try:
-            if not gfile.isdir(path):
-                os.remove(path)
-                return True
-            if gfile.isdir(path):
-                gfile.rmtree(path)
-                return True
-        except Exception as e:  # pylint: disable=broad-except
-            logging.error('Error during remove %s', str(e))
-        return False
+        if not gfile.isdir(path):
+            return os.remove(path)
+        return gfile.rmtree(path)
 
     def copy(self, source: str, destination: str) -> bool:
-        try:
-            gfile.copy(source, destination)
-            return True
-        except Exception as e:  # pylint: disable=broad-except
-            logging.error('Error during copy %s', e)
-        return False
+        return gfile.copy(source, destination)
 
     def mkdir(self, path: str) -> bool:
-        try:
-            gfile.makedirs(path)
-            return True
-        except Exception as e:  # pylint: disable=broad-except
-            logging.error('Error during create %s', e)
-        return False
+        return gfile.makedirs(path)
 
 
 class FileManager(FileManagerBase):
@@ -308,32 +253,34 @@ class FileManager(FileManagerBase):
         for fm in self._file_managers:
             if fm.can_handle(path):
                 return fm.ls(path, recursive=recursive)
-        raise RuntimeError('ls is not supported')
+        raise RuntimeError('ls is not supported for %s'%path)
 
     def move(self, source: str, destination: str) -> bool:
         logging.info('Moving files from [%s] to [%s]', source, destination)
         for fm in self._file_managers:
             if fm.can_handle(source) and fm.can_handle(destination):
                 return fm.move(source, destination)
-        raise RuntimeError('move is not supported')
+        raise RuntimeError(
+            'move is not supported for %s and %s'%(source, destination))
 
     def remove(self, path: str) -> bool:
         logging.info('Removing file [%s]', path)
         for fm in self._file_managers:
             if fm.can_handle(path):
                 return fm.remove(path)
-        raise RuntimeError('remove is not supported')
+        raise RuntimeError('remove is not supported for %s'%path)
 
     def copy(self, source: str, destination: str) -> bool:
         logging.info('Copying file from [%s] to [%s]', source, destination)
         for fm in self._file_managers:
             if fm.can_handle(source) and fm.can_handle(destination):
                 return fm.copy(source, destination)
-        raise RuntimeError('copy is not supported')
+        raise RuntimeError(
+            'copy is not supported for %s and %s'%(source, destination))
 
     def mkdir(self, path: str) -> bool:
         logging.info('Create directory [%s]', path)
         for fm in self._file_managers:
             if fm.can_handle(path):
                 return fm.mkdir(path)
-        raise RuntimeError('mkdir is not supported')
+        raise RuntimeError('mkdir is not supported for %s'%path)
