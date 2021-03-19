@@ -258,3 +258,11 @@ def set_logger():
         logging.getLogger().setLevel(logging.DEBUG)
     logging.basicConfig(format="%(asctime)s %(filename)s " \
                                "%(lineno)s %(levelname)s - %(message)s")
+
+
+def time_diff(minuend, sub):
+    """minuend and sub should be same time format and must be legal numeric.
+    """
+    ts_minuend = convert_to_datetime(minuend, enable_tz=False).timestamp()
+    ts_sub = convert_to_datetime(sub, enable_tz=False).timestamp()
+    return ts_minuend - ts_sub

@@ -22,8 +22,6 @@ import time
 from contextlib import contextmanager
 from collections import OrderedDict
 from collections import namedtuple
-from datetime import datetime
-from datetime import timezone
 
 from guppy import hpy
 
@@ -36,7 +34,6 @@ import psutil
 
 from fedlearner.common import common_pb2 as common_pb
 from fedlearner.common import data_join_service_pb2 as dj_pb
-from fedlearner.common import common as fcc
 
 DataBlockSuffix = '.data'
 DataBlockMetaSuffix = '.meta'
@@ -426,11 +423,3 @@ def convert_to_str(value):
     if isinstance(value, bytes):
         value = value.decode()
     return str(value)
-
-
-def time_diff(minuend, sub):
-    """minuend and sub should be same time format and must be legal numeric.
-    """
-    ts_minuend = fcc.convert_to_datetime(minuend, enable_tz=False).timestamp()
-    ts_sub = fcc.convert_to_datetime(sub, enable_tz=False).timestamp()
-    return ts_minuend - ts_sub
