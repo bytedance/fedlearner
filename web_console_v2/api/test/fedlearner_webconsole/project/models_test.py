@@ -40,7 +40,7 @@ class ProjectTest(BaseTestCase):
         project.set_config(project_pb2.Project(
             variables=[
                 common_pb2.Variable(
-                    name='NAMESPACE',
+                    name='namespace',
                     value='haha'
                 )
             ]
