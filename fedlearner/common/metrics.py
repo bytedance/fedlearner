@@ -97,18 +97,20 @@ class ElasticSearchHandler(Handler):
         if tags is None:
             tags = {}
         document = self._produce_document(name, value, tags, index_type)
-
-        if self._version == 6:
+        if not Config.METRICS_TO_STD:
+            # if filebeat not yet refurbished, directly emit to ES
             action = {'_index': INDEX_NAME[index_type],
-                      '_source': document,
-                      '_type': '_doc'}
+                      '_source': document}
+            if self._version == 6:
+                action['_type'] = '_doc'
             with self._lock:
                 # emit when there are enough documents
                 self._emit_batch.append(action)
                 if len(self._emit_batch) >= self._batch_size:
                     self.flush()
         else:
-            # if it is ES 7, print to std out and use filebeat to ship to ES
+            # if filebeat refurbished,
+            # print to std out and use filebeat to ship to ES
             logs = {'index_type__': index_type}
             logs.update(document)
             print(json.dumps(logs))
