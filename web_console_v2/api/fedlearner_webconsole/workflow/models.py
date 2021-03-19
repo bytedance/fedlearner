@@ -137,7 +137,8 @@ class Workflow(db.Model):
     uuid = db.Column(db.String(64), comment='uuid')
     name = db.Column(db.String(255), comment='name')
     project_id = db.Column(db.Integer, comment='project_id')
-    config = db.Column(db.LargeBinary(16777216), comment='config')
+    # max store 16777215 bytes (16 MB)
+    config = db.Column(db.LargeBinary(16777215), comment='config')
     comment = db.Column('cmt',
                         db.String(255),
                         key='comment',
@@ -156,7 +157,8 @@ class Workflow(db.Model):
     # index in config.job_defs instead of job's id
     peer_create_job_flags = db.Column(db.TEXT(),
                                       comment='peer_create_job_flags')
-    fork_proposal_config = db.Column(db.LargeBinary(16777216),
+    # max store 16777215 bytes (16 MB)
+    fork_proposal_config = db.Column(db.LargeBinary(16777215),
                                      comment='fork_proposal_config')
 
     recur_type = db.Column(db.Enum(RecurType, native_enum=False),
