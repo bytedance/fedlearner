@@ -88,11 +88,15 @@ def make_index_by_attr(keys, item, key_idx=None):
             index array
     """
     key_str_arr = []
+    def has_key(item, key_name):
+        value = getattr(item, key_name)
+        return value != common.ALLOWED_FIELDS[key_name].default_value
+
     for idx, key in enumerate(keys):
         key_arr = key
         if isinstance(key, str):
             key_arr = [key]
-        if all([hasattr(item, att) for att in key_arr]):
+        if all([has_key(item, att) for att in key_arr]):
             if key_idx is not None:
                 key_idx.append(idx)
             key_str_arr.append("_".join(
