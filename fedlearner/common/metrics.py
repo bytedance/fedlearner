@@ -109,7 +109,7 @@ class ElasticSearchHandler(Handler):
                     self.flush()
         else:
             # if it is ES 7, print to std out and use filebeat to ship to ES
-            logs = {'__index_type__': index_type}
+            logs = {'index_type__': index_type}
             logs.update(document)
             print(json.dumps(logs))
 
