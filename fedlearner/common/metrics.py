@@ -16,6 +16,7 @@
 
 import atexit
 import datetime
+import json
 import logging
 import os
 import threading
@@ -96,15 +97,21 @@ class ElasticSearchHandler(Handler):
         if tags is None:
             tags = {}
         document = self._produce_document(name, value, tags, index_type)
-        action = {'_index': INDEX_NAME[index_type],
-                  '_source': document}
+
         if self._version == 6:
-            action['_type'] = '_doc'
-        with self._lock:
-            # emit when there are enough documents
-            self._emit_batch.append(action)
-            if len(self._emit_batch) >= self._batch_size:
-                self.flush()
+            action = {'_index': INDEX_NAME[index_type],
+                      '_source': document,
+                      '_type': '_doc'}
+            with self._lock:
+                # emit when there are enough documents
+                self._emit_batch.append(action)
+                if len(self._emit_batch) >= self._batch_size:
+                    self.flush()
+        else:
+            # if it is ES 7, log to std out and use filebeat to ship to ES
+            logs = {'__index_type__': index_type}
+            logs.update(document)
+            logging.info(json.dumps(logs))
 
     def flush(self):
         emit_batch = []
@@ -173,7 +180,7 @@ class Metrics(object):
             self.add_handler(logging_handler)
             es_host = os.environ.get('ES_HOST', '')
             es_port = os.environ.get('ES_PORT', '')
-            if es_host != '' and es_port != '':
+            if es_host and es_port:
                 es_handler = ElasticSearchHandler(es_host, es_port)
                 self.add_handler(es_handler)
             self.handler_initialized = True
