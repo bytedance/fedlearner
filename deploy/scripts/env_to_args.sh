@@ -20,9 +20,11 @@ pull_code() {
       wget $1 -O code.tar.gz
   elif [[ $1 == "oss://"* ]]; then
       python -c "import tensorflow as tf; import tensorflow_io; open('code.tar.gz', 'wb').write(tf.io.gfile.GFile('$1', 'rb').read())"
+  elif [[ $1 == "base64://"* ]]; then
+      python -c "import base64; f = open('code.tar.gz', 'wb'); f.write(base64.b64decode('$1'[9:])); f.close()"
   else
       cp $1 code.tar.gz
-  fi
+fi
   tar -zxvf code.tar.gz
   cd $cwd
 }

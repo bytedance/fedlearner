@@ -43,7 +43,12 @@ for i in "${WORKER_GROUPS[@]}"; do
 done
 fi
 
-pull_code ${CODE_KEY} $PWD
+if [[ -n "${CODE_KEY}" ]]; then
+  pull_code ${CODE_KEY} $PWD
+else
+  pull_code ${CODE_TAR} $PWD
+fi
+
 cd ${ROLE}
 
 mode=$(normalize_env_to_args "--mode" "$MODE")
