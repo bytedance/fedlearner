@@ -108,10 +108,10 @@ class ElasticSearchHandler(Handler):
                 if len(self._emit_batch) >= self._batch_size:
                     self.flush()
         else:
-            # if it is ES 7, log to std out and use filebeat to ship to ES
+            # if it is ES 7, print to std out and use filebeat to ship to ES
             logs = {'__index_type__': index_type}
             logs.update(document)
-            logging.info(json.dumps(logs))
+            print(json.dumps(logs))
 
     def flush(self):
         emit_batch = []
