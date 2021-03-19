@@ -27,7 +27,7 @@ from pyarrow.fs import FileSystem
 from tensorflow.io import gfile
 import tensorflow_io  # pylint: disable=unused-import
 
-from fedlearner_webconsole import envs
+from fedlearner_webconsole.envs import Envs
 
 # path: absolute path of the file
 # size: file size in bytes
@@ -137,7 +137,7 @@ class HdfsFileManager(FileManagerBase):
         return path.startswith('hdfs://')
 
     def __init__(self):
-        self._client, _ = FileSystem.from_uri(envs.HDFS_SERVER)
+        self._client, _ = FileSystem.from_uri(Envs.HDFS_SERVER)
 
     def _unwrap_path(self, path):
         if path.startswith('hdfs://'):
@@ -208,7 +208,7 @@ class GFileFileManager(FileManagerBase):
         # TODO: List tf support
         if path.startswith('fake://'):
             return False
-        if not envs.SUPPORT_HDFS and path.startswith('hdfs://'):
+        if not Envs.SUPPORT_HDFS and path.startswith('hdfs://'):
             return False
         return True
 
@@ -293,7 +293,7 @@ class FileManager(FileManagerBase):
             # Dynamically construct a file manager
             customized_file_manager = getattr(module, class_name)
             self._file_managers.append(customized_file_manager())
-        if envs.HDFS_SERVER:
+        if Envs.HDFS_SERVER:
             self._file_managers.append(HdfsFileManager())
         self._file_managers.append(DefaultFileManager())
         self._file_managers.append(GFileFileManager())

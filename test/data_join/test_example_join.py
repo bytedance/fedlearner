@@ -140,10 +140,6 @@ class TestExampleJoin(unittest.TestCase):
     def generate_example_id(self, dumper, start_index, item_count):
         self.total_example_id_count += item_count
         for req_index in range(start_index // 512, self.total_example_id_count // 512):
-            example_id_batch = dj_pb.LiteExampleIds(
-                    partition_id=0,
-                    begin_index=req_index * 512
-                )
             cands = list(range(req_index * 512, (req_index + 1) * 512))
             start_index = cands[0]
             for i in range(len(cands)):
@@ -162,9 +158,19 @@ class TestExampleJoin(unittest.TestCase):
                 if (abs(cands[a]-i-start_index) <= 64 and
                         abs(cands[b]-i-start_index) <= 64):
                     cands[a], cands[b] = cands[b], cands[a]
+            example_id_list = []
+            event_time_list = []
             for example_idx in cands:
-                example_id_batch.example_id.append('{}'.format(example_idx).encode())
-                example_id_batch.event_time.append(150000000 + example_idx)
+                example_id_list.append('{}'.format(example_idx).encode())
+                event_time_list.append(150000000 + example_idx)
+            tf_example_id = tf.train.Feature(bytes_list=tf.train.BytesList(value=example_id_list))
+            tf_event_time = tf.train.Feature(int64_list=tf.train.Int64List(value=event_time_list))
+
+            example_id_batch = dj_pb.LiteExampleIds(
+                    partition_id=0,
+                    begin_index=req_index * 512,
+                    features=tf.train.Features(feature={'example_id': tf_example_id, 'event_time': tf_event_time})
+                )
             packed_example_id_batch = dj_pb.PackedLiteExampleIds(
                     partition_id=0,
                     begin_index=req_index*512,

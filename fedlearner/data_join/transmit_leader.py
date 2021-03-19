@@ -14,8 +14,8 @@
 
 # coding: utf-8
 
-import threading
 import logging
+import threading
 
 from fedlearner.common import data_join_service_pb2 as dj_pb
 from fedlearner.common import metrics
@@ -180,7 +180,6 @@ class TransmitLeader(object):
 
     def _data_producer_fn(self, impl_ctx):
         assert isinstance(impl_ctx, TransmitLeader.ImplContext)
-        self._process_producer_hook(impl_ctx)
         if not impl_ctx.is_produce_finished():
             for item in impl_ctx.make_producer():
                 if item is None:
@@ -197,6 +196,7 @@ class TransmitLeader(object):
         with self._lock:
             oom_risk = False
             if self._impl_ctx is not None:
+                self._process_producer_hook(self._impl_ctx)
                 self._worker_map[self._producer_name()].setup_args(
                         self._impl_ctx
                     )
@@ -204,8 +204,11 @@ class TransmitLeader(object):
                 oom_risk = common.get_heap_mem_stats(None).CheckOomRisk(
                         fly_item_cnt, 0.60
                     )
-            return self._impl_ctx is not None and not oom_risk and \
+            status = self._impl_ctx is not None and not oom_risk and \
                     not self._impl_ctx.is_produce_finished()
+            logging.debug("%s producer condition return %s",
+                          self.__class__.__name__, status)
+            return status
 
     def _wakeup_data_consumer(self):
         self._worker_map[self._consumer_name()].wakeup()

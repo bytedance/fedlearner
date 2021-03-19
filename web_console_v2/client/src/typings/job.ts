@@ -39,10 +39,10 @@ export interface Job {
 export type JobDefinitionForm = Omit<Job, 'dependencies'>;
 
 export enum PodState {
-  RUNNING = 'Running',
-  COMPLETED = 'Succeeded',
-  FAILED = 'Failed',
-  PENDING = 'Pending',
+  RUNNING = 'running',
+  COMPLETED = 'succeeded',
+  FAILED = 'failed',
+  PENDING = 'pending',
   UNKNOWN = 'Unknown',
   FL_SUCCEED = 'Flapp_succeeded', // completed and has freed resources
   FL_FAILED = 'Flapp_failed', // failed and freed has free resources

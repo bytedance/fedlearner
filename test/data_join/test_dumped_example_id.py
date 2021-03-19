@@ -52,15 +52,22 @@ class TestDumpedExampleId(unittest.TestCase):
         self.assertEqual(dumper.get_next_index(), start_index)
         index = start_index
         for i in range(batch_num):
-            example_id_batch = dj_pb.LiteExampleIds(
-                    partition_id=0,
-                    begin_index=index
-                )
+            example_id_list = []
+            event_time_list = []
+            prev_index = index
             for j in range(batch_size):
-                example_id_batch.example_id.append('{}'.format(index).encode())
-                example_id_batch.event_time.append(150000000+index)
+                example_id_list.append('{}'.format(index).encode())
+                event_time_list.append(150000000+index)
                 self.end_index = index
                 index += 1
+            tf_example_id = tf.train.Feature(bytes_list=tf.train.BytesList(value=example_id_list))
+            tf_event_time = tf.train.Feature(int64_list=tf.train.Int64List(value=event_time_list))
+            example_id_batch = dj_pb.LiteExampleIds(
+                    partition_id=0,
+                    begin_index=prev_index,
+                    features=tf.train.Features(feature={'example_id': tf_example_id, 'event_time': tf_event_time})
+                )
+
             packed_example_id_batch = dj_pb.PackedLiteExampleIds(
                     partition_id=0,
                     begin_index=index-batch_size,

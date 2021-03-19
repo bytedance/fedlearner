@@ -246,3 +246,15 @@ def convert_time_string_to_datetime(value):
     else:
         raise ValueError
     return date_time
+
+
+def set_logger():
+    verbosity = os.environ.get('VERBOSITY', 1)
+    if verbosity == 0:
+        logging.getLogger().setLevel(logging.WARNING)
+    elif verbosity == 1:
+        logging.getLogger().setLevel(logging.INFO)
+    elif verbosity > 1:
+        logging.getLogger().setLevel(logging.DEBUG)
+    logging.basicConfig(format="%(asctime)s %(filename)s " \
+                               "%(lineno)s %(levelname)s - %(message)s")

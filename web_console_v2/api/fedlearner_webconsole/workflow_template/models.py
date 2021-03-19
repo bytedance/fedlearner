@@ -36,7 +36,9 @@ class WorkflowTemplate(db.Model):
     group_alias = db.Column(db.String(255),
                             nullable=False,
                             comment='group_alias')
-    config = db.Column(db.LargeBinary(), nullable=False, comment='config')
+    # max store 16777215 bytes (16 MB)
+    config = db.Column(db.LargeBinary(16777215), nullable=False,
+                       comment='config')
     is_left = db.Column(db.Boolean, comment='is_left')
 
     def set_config(self, proto):

@@ -180,8 +180,10 @@ class DefaultFileManagerTest(unittest.TestCase):
 
 class HdfsFileManagerTest(unittest.TestCase):
     def setUp(self):
-        self._envs_patcher = patch('fedlearner_webconsole.envs.HDFS_SERVER',
-                                   'hdfs://haruna/')
+        self._envs_patcher = patch(
+            'fedlearner_webconsole.envs.Envs.HDFS_SERVER',
+            'hdfs://haruna/'
+        )
         self._envs_patcher.start()
 
         self._mock_client = MagicMock()

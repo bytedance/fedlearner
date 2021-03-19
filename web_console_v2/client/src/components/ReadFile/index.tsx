@@ -1,6 +1,6 @@
 import React, { useState, FC, useEffect } from 'react';
 import styled from 'styled-components';
-import { Upload } from 'antd';
+import { message, Upload } from 'antd';
 import { useTranslation } from 'react-i18next';
 import classNames from 'classnames';
 import { MixinCommonTransition } from 'styles/mixins';
@@ -145,11 +145,15 @@ const ReadFile: FC<Props> = ({ maxSize, value, reader, onRemoveFile, onChange, .
     </Container>
   );
 
-  function onFileChange({ file }: any) {
-    return reader(file).then((result) => {
-      onChange && onChange(result, file);
-      setFile(file);
-    });
+  function onFileChange({ file, event }: any) {
+    return reader(file)
+      .then((result) => {
+        onChange && onChange(result, file);
+        setFile(file);
+      })
+      .catch((error) => {
+        message.error(error.message);
+      });
   }
   function onFileInput(file: RcFile, fileList: RcFile[]) {
     beforeUpload && beforeUpload(file, fileList);

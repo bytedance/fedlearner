@@ -19,12 +19,10 @@ import logging
 
 from fedlearner.common import common_pb2 as common_pb
 from fedlearner.common.db_client import DBClient
+from fedlearner.common.common import set_logger
 from fedlearner.data_join import common
 
 if __name__ == "__main__":
-    logging.getLogger().setLevel(logging.DEBUG)
-    logging.basicConfig(format="%(asctime)s %(filename)s "\
-                               "%(lineno)s %(levelname)s - %(message)s")
     parser = argparse.ArgumentParser(description='DataJoinMaster cmd.')
     parser.add_argument('--data_source_name', type=str, required=True,
                          help='the data source name')
@@ -45,6 +43,7 @@ if __name__ == "__main__":
     parser.add_argument('--raw_data_sub_dir', type=str, required=True,
                         help='the mysql base dir to subscribe new raw data')
     args = parser.parse_args()
+    set_logger()
     data_source = common_pb.DataSource()
     data_source.data_source_meta.name = args.data_source_name
     data_source.data_source_meta.partition_num = args.partition_num
