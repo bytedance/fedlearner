@@ -36,3 +36,7 @@ class TestTimeDiff(unittest.TestCase):
                                      (lhs[1] - rhs[1]).total_seconds()),
                         True
                     )
+
+
+if __name__ == '__main__':
+    unittest.main()
