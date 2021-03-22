@@ -65,6 +65,7 @@ class ImportHandler(object):
                     self._file_manager.copy(
                         source_path,
                         destination_path)
+                success = True
                 break
             except Exception as e:  # pylint: disable=broad-except
                 logging.error(
