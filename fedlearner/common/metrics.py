@@ -97,7 +97,7 @@ class ElasticSearchHandler(Handler):
         if tags is None:
             tags = {}
         document = self._produce_document(name, value, tags, index_type)
-        if not Config.METRICS_TO_STD:
+        if not Config.METRICS_TO_STDOUT:
             # if filebeat not yet refurbished, directly emit to ES
             action = {'_index': INDEX_NAME[index_type],
                       '_source': document}
@@ -111,9 +111,8 @@ class ElasticSearchHandler(Handler):
         else:
             # if filebeat refurbished,
             # print to std out and use filebeat to ship to ES
-            logs = {'index_type__': index_type}
-            logs.update(document)
-            print(json.dumps(logs))
+            document['index_type__'] = index_type
+            print(json.dumps(document))
 
     def flush(self):
         emit_batch = []

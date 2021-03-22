@@ -11,8 +11,19 @@ config:
       reload.enabled: false
 
   processors:
-     - add_cloud_metadata: ~
-     - include_fields:
+    - drop_fields:
+        fields:
+          - "agent.ephemeral_id"
+          - "agent.hostname"
+          - "agent.id"
+          - "agent.type"
+          - "agent.version"
+          - "ecs.version"
+          - "agent"
+          - "ecs"
+    - include_fields:
+        when.not:
+          has_fields: [ "index_type__" ]
         fields:
           - "host.name"
           - "input.type"
@@ -35,18 +46,40 @@ config:
         - /var/log/syslog
     - type: docker
       containers.ids:
-      - "*"
+        - "*"
+      exclude_lines: [ '"index_type__":' ]
       processors:
         - add_kubernetes_metadata:
             in_cluster: true
         - drop_event:
             when:
               equals:
-                kubernetes.container.name: "filebeat"
+                kubernetes.container.name: filebeat
+    - type: docker
+      containers.ids:
+        - "*"
+      processors:
+        - include_fields:
+            fields: [ "index_type__", "name", "value", "tags" ]
+      json.keys_under_root: true
+      json.overwrite_keys: true
+      json.ignore_decoding_error: true
 
   output.elasticsearch:
-    # TODO: remove this hardcode when we can use tpl for part of secret
-    hosts: ["http://fedlearner-stack-elasticsearch-client:9200"]
+    hosts: [ "http://fedlearner-stack-elasticsearch-client:9200" ]
+    username: elastic
+    password: Fedlearner123
+    indices:
+      - index: "data_join"
+        when.equals:
+          index_type__: "data_join"
+      - index: "raw_data"
+        when.equals:
+          index_type__: "raw_data"
+      - index: "metrics_v2"
+        when.equals:
+          index_type__: "metrics"
+      - index: "filebeat-7.0.1"
 
   # When a key contains a period, use this format for setting values on the command line:
   # --set config."http\.enabled"=true

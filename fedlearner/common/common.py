@@ -14,7 +14,7 @@ class Config(object):
     TZ = pytz.timezone(os.environ.get('TZ', 'UTC'))
     ES_USERNAME = os.environ.get('ES_USERNAME', 'elastic')
     ES_PASSWORD = os.environ.get('ES_PASSWORD', 'Fedlearner123')
-    METRICS_TO_STD = os.environ.get('METRICS_TO_STD', None)
+    METRICS_TO_STDOUT = os.environ.get('METRICS_TO_STDOUT')
 
 
 # YYYY-MM-DD'T'hh:mm:ss.SSSSSSZ
@@ -257,5 +257,5 @@ def set_logger():
         logging.getLogger().setLevel(logging.INFO)
     elif verbosity > 1:
         logging.getLogger().setLevel(logging.DEBUG)
-    logging.basicConfig(format="%(asctime)s %(filename)s " \
+    logging.basicConfig(format="%(asctime)s %(filename)s "
                                "%(lineno)s %(levelname)s - %(message)s")
