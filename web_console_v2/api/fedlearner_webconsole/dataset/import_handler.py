@@ -58,17 +58,14 @@ class ImportHandler(object):
         for _ in range(num_retry):
             try:
                 if move:
-                    success = self._file_manager.move(
+                    self._file_manager.move(
                         source_path,
                         destination_path)
                 else:
-                    success = self._file_manager.copy(
+                    self._file_manager.copy(
                         source_path,
                         destination_path)
-                if not success:
-                    error_message = 'Unknown error'
-                else:
-                    break
+                break
             except Exception as e:  # pylint: disable=broad-except
                 logging.error(
                     'Error occurred when importing file from %s to %s',
