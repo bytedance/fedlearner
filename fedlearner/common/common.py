@@ -14,7 +14,7 @@ class Config(object):
     TZ = pytz.timezone(os.environ.get('TZ', 'UTC'))
     ES_USERNAME = os.environ.get('ES_USERNAME', 'elastic')
     ES_PASSWORD = os.environ.get('ES_PASSWORD', 'Fedlearner123')
-    METRICS_TO_STDOUT = os.environ.get('METRICS_TO_STDOUT')
+    METRICS_TO_STDOUT = os.environ.get('METRICS_TO_STDOUT', 0)
 
 
 # YYYY-MM-DD'T'hh:mm:ss.SSSSSSZ
