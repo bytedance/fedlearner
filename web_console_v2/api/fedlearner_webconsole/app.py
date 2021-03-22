@@ -42,6 +42,7 @@ from fedlearner_webconsole.exceptions import (
     make_response, WebConsoleApiException, InvalidArgumentException,
     NotFoundException)
 from fedlearner_webconsole.scheduler.scheduler import scheduler
+from fedlearner_webconsole.auth.models import User
 
 
 def _handle_bad_request(error):
@@ -99,6 +100,15 @@ def _handle_token_expired_request(expired_token):
         msg='Token has expired'
     )
     return response, HTTPStatus.UNAUTHORIZED
+
+
+@jwt.user_lookup_loader
+def user_lookup_callback(_jwt_header, jwt_data):
+    identity = jwt_data["sub"]
+    user = User.query.filter_by(username=identity).one_or_none()
+    if user is None:
+        raise NotFoundException()
+    return user
 
 
 def create_app(config):

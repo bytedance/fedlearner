@@ -14,7 +14,6 @@
 
 # coding: utf-8
 
-import json
 import unittest
 from http import HTTPStatus
 
@@ -22,80 +21,95 @@ from testing.common import BaseTestCase
 
 
 class AuthApiTest(BaseTestCase):
-    def test_auth(self):
-        self.signout_helper()
-
+    def test_get_all_users(self):
         resp = self.get_helper('/api/v2/auth/users')
         self.assertEqual(resp.status_code, HTTPStatus.UNAUTHORIZED)
-
-        resp = self.client.post(
-            '/api/v2/auth/signin',
-            data=json.dumps({
-                'username': 'ada',
-                'password': 'wrongpassword' 
-            }),
-            content_type='application/json')
-        self.assertEqual(resp.status_code, HTTPStatus.UNAUTHORIZED)
-
-        self.signin_helper()
-
-        resp = self.get_helper('/api/v2/auth/users')
-        self.assertEqual(resp.status_code, HTTPStatus.OK)
-        self.assertEqual(len(resp.json.get('data')), 1)
-        self.assertEqual(resp.json.get('data')[0]['username'], 'ada')
-
-        resp = self.post_helper(
-            '/api/v2/auth/users',
-            data={
-                'username': 'ada',
-                'password': 'ada'
-            })
-        self.assertEqual(resp.status_code, HTTPStatus.CONFLICT)
-
-        resp = self.post_helper(
-            '/api/v2/auth/users',
-            data={
-                'username': 'ada1',
-                'password': 'ada1'
-            })
-        self.assertEqual(resp.status_code, HTTPStatus.CREATED)
-
-        self.signin_helper('ada1', 'ada1')
+        
+        self.signin_as_admin()
 
         resp = self.get_helper('/api/v2/auth/users')
         self.assertEqual(resp.status_code, HTTPStatus.OK)
         self.assertEqual(len(resp.json.get('data')), 2)
-        self.assertEqual(resp.json.get('data')[1]['username'], 'ada1')
-        user_id = resp.json.get('data')[1]['id']
 
-        resp = self.put_helper(
-            '/api/v2/auth/users/10',
-            data={})
+    def test_partial_update_user_info(self):
+        self.signin_as_admin()
+        resp = self.get_helper('/api/v2/auth/users')
+        user_id = resp.json.get('data')[0]['id']
+        admin_id = resp.json.get('data')[1]['id']
+
+        self.signin_helper()
+        resp = self.patch_helper('/api/v2/auth/users/10', data={})
         self.assertEqual(resp.status_code, HTTPStatus.NOT_FOUND)
 
-        resp = self.put_helper(
-            '/api/v2/auth/users/%d'%user_id,
-            data={
-                'wrongfield': 'ada1',
-            })
+        resp = self.patch_helper(f'/api/v2/auth/users/{user_id}',
+                                 data={'company': 'bytedance'})
         self.assertEqual(resp.status_code, HTTPStatus.BAD_REQUEST)
 
-        resp = self.put_helper(
-            '/api/v2/auth/users/%d'%user_id,
-            data={
-                'old_password': 'ada1',
-                'new_password': 'ada2',
-            })
+        resp = self.patch_helper(f'/api/v2/auth/users/{user_id}',
+                                 data={
+                                     'email': 'a_new_email@bytedance.com',
+                                 })
         self.assertEqual(resp.status_code, HTTPStatus.OK)
+        self.assertEqual(
+            resp.json.get('data').get('email'), 'a_new_email@bytedance.com')
 
-        self.signin_helper('ada1', 'ada2')
+        resp = self.patch_helper(f'/api/v2/auth/users/{admin_id}',
+                                 data={
+                                     'name': 'cannot_modify',
+                                 })
+        self.assertEqual(resp.status_code, HTTPStatus.UNAUTHORIZED)
 
-        self.delete_helper('/api/v2/auth/users/%d'%user_id)
+        # now we are signing in as admin
+        self.signin_as_admin()
+        resp = self.patch_helper(f'/api/v2/auth/users/{user_id}',
+                                 data={
+                                     'role': 'ADMIN',
+                                 })
+        self.assertEqual(resp.status_code, HTTPStatus.OK)
+        self.assertEqual(resp.json.get('data').get('role'), 'ADMIN')
 
+    def test_create_new_user(self):
+        new_user = {
+            'username': 'fedlearner',
+            'password': 'fedlearner',
+            'email': 'hello@bytedance.com',
+            'role': 'USER',
+            'name': 'codemonkey',
+        }
+        resp = self.post_helper('/api/v2/auth/users', data=new_user)
+        self.assertEqual(resp.status_code, HTTPStatus.UNAUTHORIZED)
+
+        self.signin_as_admin()
+        resp = self.post_helper(f'/api/v2/auth/users', data=new_user)
+        self.assertEqual(resp.status_code, HTTPStatus.CREATED)
+        self.assertEqual(resp.json.get('data').get('username'), 'fedlearner')
+
+    def test_delete_user(self):
+        self.signin_as_admin()
         resp = self.get_helper('/api/v2/auth/users')
-        self.assertEqual(resp.status_code, HTTPStatus.OK)
-        self.assertEqual(len(resp.json.get('data')), 1)
+        user_id = resp.json.get('data')[0]['id']
+        admin_id = resp.json.get('data')[1]['id']
 
+        self.signin_helper()
+        resp = self.delete_helper(url=f'/api/v2/auth/users/{user_id}')
+        self.assertEqual(resp.status_code, HTTPStatus.UNAUTHORIZED)
+
+        self.signin_as_admin()
+
+        resp = self.delete_helper(url=f'/api/v2/auth/users/{admin_id}')
+        self.assertEqual(resp.status_code, HTTPStatus.BAD_REQUEST)
+
+        resp = self.delete_helper(url=f'/api/v2/auth/users/{user_id}')
+        self.assertEqual(resp.status_code, HTTPStatus.OK)
+        self.assertEqual(resp.json.get('data').get('username'), 'ada')
+
+    def test_get_specific_user(self):
+        resp = self.get_helper(url='/api/v2/auth/users/10086')
+        self.assertEqual(resp.status_code, HTTPStatus.NOT_FOUND)
+        
+        resp = self.get_helper(url='/api/v2/auth/users/1')
+        self.assertEqual(resp.status_code, HTTPStatus.OK)
+        self.assertEqual(resp.json.get('data').get('username'), 'ada')
 
 if __name__ == '__main__':
     unittest.main()

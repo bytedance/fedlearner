@@ -24,7 +24,7 @@ from flask import Flask
 from flask_testing import TestCase
 from fedlearner_webconsole.app import create_app
 from fedlearner_webconsole.db import db
-from fedlearner_webconsole.auth.models import User
+from fedlearner_webconsole.auth.models import Role, User, State
 
 
 class BaseTestCase(TestCase):
@@ -45,13 +45,15 @@ class BaseTestCase(TestCase):
 
     def setUp(self):
         db.create_all()
-        user = User(username='ada')
+        user = User(username='ada', role=Role.USER, state=State.ONLINE)
         user.set_password('ada')
-        db.session.add(user)
+        admin = User(username='admin', role=Role.ADMIN, state=State.ONLINE)
+        admin.set_password('admin')
+        db.session.add_all([user, admin])
         db.session.commit()
 
         self.signin_helper()
-    
+
     def tearDown(self):
         self.signout_helper()
 
@@ -60,7 +62,11 @@ class BaseTestCase(TestCase):
 
     def get_response_data(self, response):
         return json.loads(response.data).get('data')
-    
+
+    def signin_as_admin(self):
+        self.signout_helper()
+        self.signin_helper(username='admin', password='admin')
+
     def signin_helper(self, username='ada', password='ada'):
         resp = self.client.post(
             '/api/v2/auth/signin',
@@ -74,7 +80,7 @@ class BaseTestCase(TestCase):
         self.assertTrue(len(resp.json.get('access_token')) > 1)
         self._token = resp.json.get('access_token')
         return self._token
-    
+
     def signout_helper(self):
         self._token = None
 
