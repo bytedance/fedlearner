@@ -14,6 +14,8 @@
 
 # coding: utf-8
 
+import threading
+import time
 import unittest
 
 from tensorflow.compat.v1 import gfile
@@ -62,10 +64,67 @@ class TestDFSClient(unittest.TestCase):
         self.assertEqual(len(client.get_prefix_kvs('fl_key')), 0)
         self.assertFalse(client.delete_prefix('fl_key'))
 
+    def test_mt_read_write(self):
+        key = 'fl_key'
+        value_pattern = 'value_{}'
+        num_threads = 100
+        values = set([value_pattern.format(i) for i in range(num_threads)])
+
+        def read_func():
+            client = dfs_client.DFSClient(self.test_base_dir)
+            res = client.get_data(key)
+            if res:
+                res_value = res.decode()
+                self.assertTrue(res_value in values)
+
+        def write_func(idx):
+            client = dfs_client.DFSClient(self.test_base_dir)
+            self.assertTrue(client.set_data(key, value_pattern.format(idx)))
+
+        reader_threads = [threading.Thread(target=read_func)
+                          for _ in range(num_threads)]
+        writer_threads = [threading.Thread(target=write_func, args=(idx, ))
+                          for idx in range(num_threads)]
+        for i in range(num_threads):
+            reader_threads[i].start()
+            writer_threads[i].start()
+        for i in range(num_threads):
+            reader_threads[i].join()
+            writer_threads[i].join()
+
+    def test_mt_cas(self):
+        key = 'fl_key'
+        value = 'value'
+        value_pattern = 'value_{}'
+        num_threads = 100
+        lock = threading.Lock()
+        count = []
+
+        client = dfs_client.DFSClient(self.test_base_dir)
+        client.set_data(key, value)
+
+        def cas_func(idx):
+            client = dfs_client.DFSClient(self.test_base_dir)
+            time.sleep(0.01)
+            succeeded = client.cas(key, value, value_pattern.format(idx))
+            if succeeded:
+                with lock:
+                    count.append(idx)
+
+        threads = [threading.Thread(target=cas_func, args=(i, ))
+                   for i in range(num_threads)]
+        for i in range(num_threads):
+            threads[i].start()
+        for i in range(num_threads):
+            threads[i].join()
+        self.assertEqual(len(count), 1)
+        self.assertEqual(client.get_data(key).decode(),
+                         value_pattern.format(count[0]))
+
     def tearDown(self) -> None:
         if gfile.Exists(self.test_base_dir):
             gfile.DeleteRecursively(self.test_base_dir)
 
 
 if __name__ == '__main__':
-        unittest.main()
+    unittest.main()

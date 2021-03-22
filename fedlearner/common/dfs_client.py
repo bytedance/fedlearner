@@ -21,6 +21,8 @@ import os
 import tensorflow.compat.v1 as tf
 from tensorflow.compat.v1 import gfile
 
+from fedlearner.common.file_lock import FileLock
+
 
 class DFSClient(object):
     """
@@ -30,57 +32,110 @@ class DFSClient(object):
     def __init__(self, base_dir):
         self._meta_filename = "meta"
         self._base_dir = base_dir
+        if not gfile.Exists(base_dir):
+            try:
+                gfile.MakeDirs(base_dir)
+            except tf.OpError as e:  # pylint: disable=broad-except
+                logging.warning("create directory %s failed,"
+                                " reason: %s", base_dir, str(e))
+
+    def _lock_file(self, file_path):
+        lock_file = file_path.replace('/', '_')
+        return "{}/{}.lock".format(self._base_dir, lock_file)
 
     def get_data(self, key):
         key_path = self._generate_path(key)
-        if not gfile.Exists(key_path):
-            return None
-        with gfile.Open(self._generate_path(key), 'rb') as file:
-            return file.read()
+        with FileLock(self._lock_file(key_path)):
+            if not gfile.Exists(key_path):
+                return None
+            with gfile.Open(self._generate_path(key), 'rb') as file:
+                return file.read()
 
     def set_data(self, key, data):
         key_path = self._generate_path(key)
         base_dir = os.path.dirname(key_path)
-        if not gfile.Exists(base_dir):
-            try:
-                gfile.MakeDirs(base_dir)
-            except tf.errors.OpError as e:  # pylint: disable=broad-except
-                logging.warning("create directory %s failed,"
-                                " reason: %s", base_dir, str(e))
-                return False
-        with gfile.Open(key_path, 'wb') as file:
-            file.write(data)
+        with FileLock(self._lock_file(key_path)):
+            if not gfile.Exists(base_dir):
+                try:
+                    gfile.MakeDirs(base_dir)
+                except tf.OpError as e:  # pylint: disable=broad-except
+                    logging.warning("create directory %s failed,"
+                                    " reason: %s", base_dir, str(e))
+                    return False
+
+            with gfile.Open(key_path, 'wb') as file:
+                file.write(data)
         return True
 
     def delete(self, key):
-        try:
-            gfile.Remove(self._generate_path(key))
-            return True
-        except tf.errors.OpError as e:
-            logging.warning("delete key %s failed, reason: %s",
-                            key, str(e))
-            return False
+        with FileLock(self._lock_file(key)):
+            try:
+                gfile.Remove(self._generate_path(key))
+                return True
+            except tf.OpError as e:
+                logging.warning("delete key %s failed, reason: %s",
+                                key, str(e))
+                return False
 
     def delete_prefix(self, key):
-        try:
-            gfile.DeleteRecursively(self._generate_path(key, with_meta=False))
-            return True
-        except Exception as e:   # pylint: disable=broad-except
-            logging.warning("delete prefix with key %s failed,"
-                            " reason: %s", key, str(e))
-            return False
+        target_path = self._generate_path(key, with_meta=False)
+        cur_paths = [target_path]
+        children_paths = []
+        paths = [target_path]
+        while cur_paths:
+            for path in cur_paths:
+                filenames = []
+                try:
+                    if gfile.IsDirectory(path):
+                        filenames = gfile.ListDirectory(path)
+                except Exception as e:  # pylint: disable=broad-except
+                    logging.warning("get prefix kvs %s failed, "
+                                    " reason: %s", path, str(e))
+                    break
+                for filename in sorted(filenames):
+                    file_path = "/".join([path, filename])
+                    if gfile.IsDirectory(file_path):
+                        children_paths.append(file_path)
+            paths.extend(children_paths)
+            cur_paths = children_paths
+            children_paths = []
+
+        for path in reversed(paths):
+            with FileLock(self._lock_file(path)):
+                try:
+                    gfile.DeleteRecursively(path)
+                except tf.OpError as e:
+                    logging.warning("delete key %s failed, reason: %s",
+                                    path, str(e))
+                    return False
+        return True
 
     def cas(self, key, old_data, new_data):
-        org_data = self.get_data(key)
-        if isinstance(org_data, bytes):
-            org_data = org_data.decode('utf-8')
-        if isinstance(old_data, bytes):
-            old_data = old_data.decode('utf-8')
-        if org_data != old_data:
-            logging.warning("CAS failed. \norg data: %s old data: %s"
-                            " new data: %s", org_data, old_data, new_data)
-            return False
-        return self.set_data(key, new_data)
+        key_path = self._generate_path(key)
+        with FileLock(self._lock_file(key_path)):
+            if not gfile.Exists(key_path):
+                base_dir = os.path.dirname(key_path)
+                try:
+                    gfile.MakeDirs(base_dir)
+                except tf.OpError as e:  # pylint: disable=broad-except
+                    logging.warning("create directory %s failed,"
+                                    " reason: %s", base_dir, str(e))
+                    return False
+                org_data = None
+            else:
+                with gfile.Open(key_path, 'rb') as file:
+                    org_data = file.read()
+            if isinstance(org_data, bytes):
+                org_data = org_data.decode('utf-8')
+            if isinstance(old_data, bytes):
+                old_data = old_data.decode('utf-8')
+            if org_data != old_data:
+                logging.warning("CAS failed. \norg data: %s old data: %s"
+                                " new data: %s", org_data, old_data, new_data)
+                return False
+            with gfile.Open(key_path, 'wb') as file:
+                file.write(new_data)
+            return True
 
     def get_prefix_kvs(self, prefix, ignore_prefix=False):
         kvs = []
@@ -106,8 +161,9 @@ class DFSClient(object):
                             continue
                         nkey = self.normalize_output_key(
                             path, self._base_dir).encode()
-                        with gfile.Open(file_path, 'rb') as file:
-                            kvs.append((nkey, file.read()))
+                        with FileLock(self._lock_file(file_path)):
+                            with gfile.Open(file_path, 'rb') as file:
+                                kvs.append((nkey, file.read()))
             cur_paths = children_paths
             children_paths = []
         return kvs
