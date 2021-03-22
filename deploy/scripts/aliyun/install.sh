@@ -639,45 +639,77 @@ filebeat.config:
   modules:
     path: \${path.config}/modules.d/*.yml
     reload.enabled: false
+processors:
+  - drop_fields:
+      fields:
+        - "agent.ephemeral_id"
+        - "agent.hostname"
+        - "agent.id"
+        - "agent.type"
+        - "agent.version"
+        - "ecs.version"
+        - "agent"
+        - "ecs"
+  - include_fields:
+      when.not:
+        has_fields: [ "index_type__" ]
+      fields:
+        - "host.name"
+        - "input.type"
+        - "kubernetes.container.name"
+        - "kubernetes.namespace"
+        - "kubernetes.node.name"
+        - "kubernetes.pod.name"
+        - "kubernetes.pod.uid"
+        - "log.file.path"
+        - "log.offset"
+        - "message"
+        - "stream"
 filebeat.inputs:
-- enabled: true
-  paths:
-  - /var/log/*.log
-  - /var/log/messages
-  - /var/log/syslog
-  type: log
-- containers.ids:
-  - '*'
-  processors:
-  - add_kubernetes_metadata:
-      in_cluster: true
-  - drop_event:
-      when:
-        equals:
-          kubernetes.container.name: filebeat
-  type: docker
+  - type: log
+    enabled: true
+    paths:
+      - /var/log/*.log
+      - /var/log/messages
+      - /var/log/syslog
+  - type: docker
+    containers.ids:
+      - "*"
+    exclude_lines: [ '"index_type__":' ]
+    processors:
+      - add_kubernetes_metadata:
+          in_cluster: true
+      - drop_event:
+          when:
+            equals:
+              kubernetes.container.name: filebeat
+  - type: docker
+    containers.ids:
+      - "*"
+    processors:
+      - include_fields:
+          fields: [ "index_type__", "name", "value", "tags" ]
+    json.keys_under_root: true
+    json.overwrite_keys: true
+    json.ignore_decoding_error: true
 http.enabled: true
 http.port: 5066
 output.elasticsearch:
   hosts:
-  - http://$ES_INSTANCE_ID.elasticsearch.aliyuncs.com:9200
+    - http://$ES_INSTANCE_ID.elasticsearch.aliyuncs.com:9200
   username: elastic
   password: $ES_PASSWORD
-processors:
-- add_cloud_metadata: null
-- include_fields:
-    fields:
-    - host.name
-    - input.type
-    - kubernetes.container.name
-    - kubernetes.namespace
-    - kubernetes.node.name
-    - kubernetes.pod.name
-    - kubernetes.pod.uid
-    - log.file.path
-    - log.offset
-    - message
-    - stream
+  indices:
+    - index: "data_join"
+      when.equals:
+        index_type__: "data_join"
+    - index: "raw_data"
+      when.equals:
+        index_type__: "raw_data"
+    - index: "metrics_v2"
+      when.equals:
+        index_type__: "metrics"
+    - index: "filebeat-7.0.1"
 EOF
 }
 

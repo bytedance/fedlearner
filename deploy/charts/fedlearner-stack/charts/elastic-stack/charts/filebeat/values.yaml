@@ -68,7 +68,7 @@ config:
   output.elasticsearch:
     hosts: [ "http://fedlearner-stack-elasticsearch-client:9200" ]
     username: elastic
-    password: Fedlearner123
+    password: ""
     indices:
       - index: "data_join"
         when.equals:
