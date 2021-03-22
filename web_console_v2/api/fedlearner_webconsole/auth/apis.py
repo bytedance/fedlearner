@@ -18,8 +18,8 @@
 import functools
 from http import HTTPStatus
 from flask import request
-from flask_jwt_extended.utils import get_current_user
 from flask_restful import Resource, reqparse
+from flask_jwt_extended.utils import get_current_user
 from flask_jwt_extended import jwt_required, create_access_token
 
 from fedlearner_webconsole.db import db
@@ -67,7 +67,12 @@ class UsersApi(Resource):
     @jwt_required()
     @admin_required
     def get(self):
-        return {'data': [row.to_dict() for row in User.query.filter_by(state=State.ONLINE).all()]}
+        return {
+            'data': [
+                row.to_dict()
+                for row in User.query.filter_by(state=State.ONLINE).all()
+            ]
+        }
 
     @jwt_required()
     @admin_required
@@ -93,7 +98,11 @@ class UsersApi(Resource):
         if User.query.filter_by(username=username).first() is not None:
             raise ResourceConflictException(
                 'user {} already exists'.format(username))
-        user = User(username=username, role=role, name=name, email=email, state=State.ONLINE)
+        user = User(username=username,
+                    role=role,
+                    name=name,
+                    email=email,
+                    state=State.ONLINE)
         user.set_password(password)
         db.session.add(user)
         db.session.commit()
