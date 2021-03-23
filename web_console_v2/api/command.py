@@ -30,4 +30,10 @@ app = create_app(CliConfig())
 
 @app.cli.command('create-initial-data')
 def create_initial_data():
-    initial_db() 
+    initial_db()
+
+
+@app.cli.command('create-db')
+def create_db():
+    db.create_all()
+    db.session.commit()
