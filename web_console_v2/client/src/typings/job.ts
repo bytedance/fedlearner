@@ -30,7 +30,6 @@ export interface Job {
   name: string;
   job_type: JobType;
   is_federated: boolean;
-  is_manual?: boolean;
   variables: Variable[];
   dependencies: JobDependency[];
   yaml_template?: string;
