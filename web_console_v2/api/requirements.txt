@@ -13,7 +13,6 @@ grpcio==1.32.0
 grpcio-tools==1.32.0
 grpcio-testing==1.32.0
 kubernetes==12.0.1
-snakebite-py3==3.0.5
 elasticsearch==7.11.0
 flatten-dict==0.3.0
 pymysql==1.0.2
