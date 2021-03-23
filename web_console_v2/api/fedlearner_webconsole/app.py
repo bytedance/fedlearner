@@ -104,13 +104,10 @@ def _handle_token_expired_request(expired_token):
 
 @jwt.user_lookup_loader
 def user_lookup_callback(jwt_header, jwt_data):
-    del jwt_header
+    del jwt_header # Unused by user load.
 
     identity = jwt_data['sub']
-    user = User.query.filter_by(username=identity).one_or_none()
-    if user is None:
-        raise NotFoundException()
-    return user
+    return User.query.filter_by(username=identity).one_or_none()
 
 
 def create_app(config):
