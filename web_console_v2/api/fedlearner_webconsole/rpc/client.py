@@ -71,7 +71,7 @@ class RpcClient(object):
         for i in range(retry_times):
             try:
                 response = grpc_method(request=msg,
-                                    metadata=self._get_metadata())
+                                       metadata=self._get_metadata())
                 if response.status.code != common_pb2.STATUS_SUCCESS:
                     logging.error('%s error: %s', grpc_method_name,
                                 response.status.msg)
@@ -91,7 +91,7 @@ class RpcClient(object):
         msg = service_pb2.CheckConnectionRequest(
             auth_info=self._auth_info)
         return self._retry_template(msg=msg,
-                                    grpc_method_name='CheckConnection')
+                                    grpc_method_name='CheckConnection').status
 
     def update_workflow_state(self, name, state, target_state,
                               transaction_state, uuid, forked_from_uuid):
