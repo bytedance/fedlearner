@@ -66,22 +66,27 @@ class RpcClient(object):
         # metadata is a tuple of tuples
         return tuple(metadata)
 
+    def _retry_template(self, grpc_method_name, msg, retry_times=3):
+        try:
+            grpc_method = getattr(self._client, grpc_method_name)
+            for _ in range(retry_times):
+                response = grpc_method(request=msg, metadata=self._get_metadata())
+                if response.status.code != common_pb2.STATUS_SUCCESS:
+                    logging.info(f'{grpc_method_name} error: {response.status.msg}')
+                    continue
+                return response
+        except Exception as e:
+            logging.error(f'{grpc_method_name} request error: {repr(e)}')
+            responce_method = getattr(service_pb2, f'{grpc_method_name}Response')
+            return responce_method(status=common_pb2.Status(
+                code=common_pb2.STATUS_UNKNOWN_ERROR, msg=repr(e)))
+
+
     def check_connection(self):
         msg = service_pb2.CheckConnectionRequest(
             auth_info=self._auth_info)
-        try:
-            response = self._client.CheckConnection(
-                request=msg, metadata=self._get_metadata())
-            if response.status.code != common_pb2.STATUS_SUCCESS:
-                logging.debug('check_connection request error: %s',
-                              response.status.msg)
-            return response.status
-        except Exception as e:
-            logging.error('check_connection request error: %s',
-                          repr(e))
-            return common_pb2.Status(
-                code=common_pb2.STATUS_UNKNOWN_ERROR,
-                msg=repr(e))
+        return self._retry_template(msg=msg,
+                                    grpc_method_name='CheckConnection')
 
     def update_workflow_state(self, name, state, target_state,
                               transaction_state, uuid, forked_from_uuid):
@@ -94,82 +99,26 @@ class RpcClient(object):
             uuid=uuid,
             forked_from_uuid=forked_from_uuid
         )
-        try:
-            response = self._client.UpdateWorkflowState(
-                request=msg, metadata=self._get_metadata())
-            if response.status.code != common_pb2.STATUS_SUCCESS:
-                logging.error(
-                    'update_workflow_state request error: %s',
-                    response.status.msg)
-            return response
-        except Exception as e:
-            logging.error('workflow %s update_workflow_state request error: %s'
-                          , name, repr(e))
-            return service_pb2.UpdateWorkflowStateResponse(
-                status=common_pb2.Status(
-                    code=common_pb2.STATUS_UNKNOWN_ERROR,
-                    msg=repr(e)))
+        return self._retry_template(msg=msg, grpc_method_name='UpdateWorkflowState')
 
     def get_workflow(self, name):
         msg = service_pb2.GetWorkflowRequest(
             auth_info=self._auth_info,
             workflow_name=name)
-        try:
-            response = self._client.GetWorkflow(
-                request=msg, metadata=self._get_metadata())
-            if response.status.code != common_pb2.STATUS_SUCCESS:
-                logging.error(
-                    'workflow %s get_workflow request error: %s',
-                    name,
-                    response.status.msg)
-            return response
-        except Exception as e:
-            logging.error('workflow %s get_workflow request error: %s',
-                          name,
-                          repr(e))
-            return service_pb2.GetWorkflowResponse(
-                status=common_pb2.Status(
-                    code=common_pb2.STATUS_UNKNOWN_ERROR,
-                    msg=repr(e)))
+        return self._retry_template(msg=msg, grpc_method_name='GetWorkflow')
 
     def update_workflow(self, name, config):
         msg = service_pb2.UpdateWorkflowRequest(
             auth_info=self._auth_info,
             workflow_name=name,
             config=config)
-        try:
-            response = self._client.UpdateWorkflow(
-                request=msg, metadata=self._get_metadata())
-            if response.status.code != common_pb2.STATUS_SUCCESS:
-                logging.error(
-                    'update_workflow request error: %s',
-                    response.status.msg)
-            return response
-        except Exception as e:
-            logging.error('update_workflow request error: %s', repr(e))
-            return service_pb2.UpdateWorkflowResponse(
-                status=common_pb2.Status(
-                    code=common_pb2.STATUS_UNKNOWN_ERROR,
-                    msg=repr(e)))
+        return self._retry_template(msg=msg, grpc_method_name='UpdateWorkflow')
 
     def get_job_metrics(self, job_name):
         msg = service_pb2.GetJobMetricsRequest(
             auth_info=self._auth_info,
             job_name=job_name)
-        try:
-            response = self._client.GetJobMetrics(
-                request=msg, metadata=self._get_metadata())
-            if response.status.code != common_pb2.STATUS_SUCCESS:
-                logging.error(
-                    'get_job_metrics request error: %s',
-                    response.status.msg)
-            return response
-        except Exception as e:
-            logging.error('get_job_metrics request error: %s', repr(e))
-            return service_pb2.GetJobMetricsResponse(
-                status=common_pb2.Status(
-                    code=common_pb2.STATUS_UNKNOWN_ERROR,
-                    msg=repr(e)))
+        return self._retry_template(msg=msg, grpc_method_name='GetJobMetrics')
 
     def get_job_events(self, job_name, start_time, max_lines):
         msg = service_pb2.GetJobMetricsRequest(
@@ -177,17 +126,4 @@ class RpcClient(object):
             job_name=job_name,
             start_time=start_time,
             max_lines=max_lines)
-        try:
-            response = self._client.GetJobMetrics(
-                request=msg, metadata=self._get_metadata())
-            if response.status.code != common_pb2.STATUS_SUCCESS:
-                logging.error(
-                    'get_job_events request error: %s',
-                    response.status.msg)
-            return response
-        except Exception as e:
-            logging.error('get_job_events request error: %s', repr(e))
-            return service_pb2.GetJobMetricsResponse(
-                status=common_pb2.Status(
-                    code=common_pb2.STATUS_UNKNOWN_ERROR,
-                    msg=repr(e)))
+        return self._retry_template(msg=msg, grpc_method_name='GetJobEvents')
