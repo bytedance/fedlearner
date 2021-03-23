@@ -23,7 +23,6 @@ const simpleTpl = {
             value: '',
           },
         ],
-        is_manual: false,
         dependencies: [],
         yaml_template: '',
       },
@@ -51,7 +50,6 @@ const simpleTpl = {
             type: 3,
           },
         ],
-        is_manual: false,
         yaml_template: '',
       },
       {
@@ -72,7 +70,6 @@ const simpleTpl = {
             type: 'ON_COMPLETE',
           },
         ],
-        is_manual: false,
         yaml_template: '',
       },
     ],

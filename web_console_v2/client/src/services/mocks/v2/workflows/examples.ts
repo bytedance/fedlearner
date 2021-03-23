@@ -48,7 +48,6 @@ export const newlyCreated: Workflow = {
             widget_schema: '{"component":"Input","type":"string","required":true}' as any,
           },
         ],
-        is_manual: false,
         dependencies: [],
         yaml_template: '',
       },
@@ -71,7 +70,6 @@ export const newlyCreated: Workflow = {
           },
         ],
         dependencies: [{ source: 'Initiative' }],
-        is_manual: false,
         yaml_template: '',
       },
       {
@@ -87,7 +85,6 @@ export const newlyCreated: Workflow = {
           },
         ],
         dependencies: [{ source: 'Raw data upload' }],
-        is_manual: false,
         yaml_template: '',
       },
     ],
