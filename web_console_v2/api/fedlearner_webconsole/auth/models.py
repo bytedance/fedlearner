@@ -48,11 +48,13 @@ class User(db.Model):
     id = db.Column(db.Integer, primary_key=True, comment='user id')
     username = db.Column(db.String(255), comment='unique name of user')
     password = db.Column(db.String(255), comment='user password after encode')
-    role = db.Column(db.Enum(Role, native_num=False, default=Role.USER),
+    role = db.Column(db.Enum(Role, native_enum=False),
+                     default=Role.USER,
                      comment='role of user')
     name = db.Column(db.String(255), comment='name of user')
     email = db.Column(db.String(255), comment='email of user')
-    state = db.Column(db.Enum(State, native_num=False, default=State.ACTIVE),
+    state = db.Column(db.Enum(State, native_enum=False),
+                      default=State.ACTIVE,
                       comment='state of user')
 
     def set_password(self, password):
