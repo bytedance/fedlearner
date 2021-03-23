@@ -60,7 +60,12 @@ class SigninApi(Resource):
         if not user.verify_password(password):
             raise UnauthorizedException('Invalid password')
         token = create_access_token(identity=username)
-        return {'user': user.to_dict(), 'access_token': token}, HTTPStatus.OK
+        return {
+            'data': {
+                'user': user.to_dict(),
+                'access_token': token
+            }
+        }, HTTPStatus.OK
 
 
 class UsersApi(Resource):
