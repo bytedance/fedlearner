@@ -1,8 +1,8 @@
 """Initial Comment
 
-Revision ID: fc5e1252ffce
+Revision ID: b3512a6ce912
 Revises: 
-Create Date: 2021-03-22 17:34:50.606008
+Create Date: 2021-03-17 15:50:41.962065
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = 'fc5e1252ffce'
+revision = 'b3512a6ce912'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -120,12 +120,8 @@ def upgrade():
     op.create_index('idx_group_alias', 'template_v2', ['group_alias'], unique=False)
     op.create_table('users_v2',
     sa.Column('id', sa.Integer(), nullable=False, comment='user id'),
-    sa.Column('username', sa.String(length=255), nullable=True, comment='unique name of user'),
+    sa.Column('username', sa.String(length=255), nullable=True, comment='user name of user'),
     sa.Column('password', sa.String(length=255), nullable=True, comment='user password after encode'),
-    sa.Column('role', sa.Enum('USER', 'ADMIN', name='role'), nullable=True, comment='role of user'),
-    sa.Column('name', sa.String(length=255), nullable=True, comment='name of user'),
-    sa.Column('email', sa.String(length=255), nullable=True, comment='email of user'),
-    sa.Column('state', sa.Enum('ONLINE', 'DELETED', name='state'), nullable=True, comment='state of user'),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('username', name='uniq_username'),
     comment='This is webconsole user table',
