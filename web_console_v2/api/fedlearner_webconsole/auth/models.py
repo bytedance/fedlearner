@@ -26,7 +26,7 @@ class Role(enum.Enum):
     ADMIN = 'admin'
 
 class State(enum.Enum):
-    ONLINE = 'online'
+    ACTIVE = 'active'
     DELETED = 'deleted'
 
 @to_dict_mixin(ignores=['password'])
@@ -44,7 +44,7 @@ class User(db.Model):
                      comment='role of user')
     name = db.Column(db.String(255), comment='name of user')
     email = db.Column(db.String(255), comment='email of user')
-    state = db.Column(db.Enum(State, native_num=False, default=State.ONLINE),
+    state = db.Column(db.Enum(State, native_num=False, default=State.ACTIVE),
                      comment='state of user')
 
     def set_password(self, password):

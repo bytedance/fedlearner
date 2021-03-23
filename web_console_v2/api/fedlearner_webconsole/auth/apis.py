@@ -70,7 +70,7 @@ class UsersApi(Resource):
         return {
             'data': [
                 row.to_dict()
-                for row in User.query.filter_by(state=State.ONLINE).all()
+                for row in User.query.filter_by(state=State.ACTIVE).all()
             ]
         }
 
@@ -102,7 +102,7 @@ class UsersApi(Resource):
                     role=role,
                     name=name,
                     email=email,
-                    state=State.ONLINE)
+                    state=State.ACTIVE)
         user.set_password(password)
         db.session.add(user)
         db.session.commit()
