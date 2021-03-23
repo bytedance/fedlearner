@@ -35,13 +35,14 @@ class AuthApiTest(BaseTestCase):
 
         resp = self.get_helper('/api/v2/auth/users')
         self.assertEqual(resp.status_code, HTTPStatus.OK)
-        self.assertEqual(len(resp.json.get('data')), 2)
+        self.assertEqual(len(self.get_response_data(resp)), 2)
 
     def test_partial_update_user_info(self):
         self.signin_as_admin()
         resp = self.get_helper('/api/v2/auth/users')
-        user_id = resp.json.get('data')[0]['id']
-        admin_id = resp.json.get('data')[1]['id']
+        resp_data = self.get_response_data(resp)
+        user_id = resp_data[0]['id']
+        admin_id = resp_data[1]['id']
 
         self.signin_helper()
         resp = self.patch_helper('/api/v2/auth/users/10', data={})
@@ -57,7 +58,7 @@ class AuthApiTest(BaseTestCase):
                                  })
         self.assertEqual(resp.status_code, HTTPStatus.OK)
         self.assertEqual(
-            resp.json.get('data').get('email'), 'a_new_email@bytedance.com')
+            self.get_response_data(resp).get('email'), 'a_new_email@bytedance.com')
 
         resp = self.patch_helper(f'/api/v2/auth/users/{admin_id}',
                                  data={
@@ -72,7 +73,7 @@ class AuthApiTest(BaseTestCase):
                                      'role': 'ADMIN',
                                  })
         self.assertEqual(resp.status_code, HTTPStatus.OK)
-        self.assertEqual(resp.json.get('data').get('role'), 'ADMIN')
+        self.assertEqual(self.get_response_data(resp).get('role'), 'ADMIN')
 
     def test_create_new_user(self):
         new_user = {
@@ -88,13 +89,14 @@ class AuthApiTest(BaseTestCase):
         self.signin_as_admin()
         resp = self.post_helper(f'/api/v2/auth/users', data=new_user)
         self.assertEqual(resp.status_code, HTTPStatus.CREATED)
-        self.assertEqual(resp.json.get('data').get('username'), 'fedlearner')
+        self.assertEqual(self.get_response_data(resp).get('username'), 'fedlearner')
 
     def test_delete_user(self):
         self.signin_as_admin()
         resp = self.get_helper('/api/v2/auth/users')
-        user_id = resp.json.get('data')[0]['id']
-        admin_id = resp.json.get('data')[1]['id']
+        resp_data = self.get_response_data(resp)
+        user_id = resp_data[0]['id']
+        admin_id = resp_data[1]['id']
 
         self.signin_helper()
         resp = self.delete_helper(url=f'/api/v2/auth/users/{user_id}')
@@ -107,7 +109,7 @@ class AuthApiTest(BaseTestCase):
 
         resp = self.delete_helper(url=f'/api/v2/auth/users/{user_id}')
         self.assertEqual(resp.status_code, HTTPStatus.OK)
-        self.assertEqual(resp.json.get('data').get('username'), 'ada')
+        self.assertEqual(self.get_response_data(resp).get('username'), 'ada')
 
     def test_get_specific_user(self):
         resp = self.get_helper(url='/api/v2/auth/users/10086')
@@ -115,7 +117,7 @@ class AuthApiTest(BaseTestCase):
         
         resp = self.get_helper(url='/api/v2/auth/users/1')
         self.assertEqual(resp.status_code, HTTPStatus.OK)
-        self.assertEqual(resp.json.get('data').get('username'), 'ada')
+        self.assertEqual(self.get_response_data(resp).get('username'), 'ada')
 
 if __name__ == '__main__':
     unittest.main()

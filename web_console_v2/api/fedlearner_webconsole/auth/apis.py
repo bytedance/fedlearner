@@ -23,7 +23,7 @@ from flask_jwt_extended.utils import get_current_user
 from flask_jwt_extended import jwt_required, create_access_token
 
 from fedlearner_webconsole.db import db
-from fedlearner_webconsole.auth.models import State, User, Role
+from fedlearner_webconsole.auth.models import State, User, Role, MUTABLE_ATTRS_MAPPER
 from fedlearner_webconsole.exceptions import (NotFoundException,
                                               InvalidArgumentException,
                                               ResourceConflictException,
@@ -135,10 +135,6 @@ class UserApi(Resource):
         if current_user.role != Role.ADMIN and current_user.id != user_id:
             raise UnauthorizedException('user cannot modify others infomation')
 
-        MUTABLE_ATTRS_MAPPER = {
-            Role.USER: ('password', 'name', 'email'),
-            Role.ADMIN: ('password', 'role', 'name', 'email')
-        }
         mutable_attrs = MUTABLE_ATTRS_MAPPER.get(current_user.role)
 
         data = request.get_json()

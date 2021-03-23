@@ -13,6 +13,7 @@
 # limitations under the License.
 
 # coding: utf-8
+from fedlearner_webconsole.initial_db import initial_db
 import json
 import logging
 import unittest
@@ -45,13 +46,7 @@ class BaseTestCase(TestCase):
 
     def setUp(self):
         db.create_all()
-        user = User(username='ada', role=Role.USER, state=State.ACTIVE)
-        user.set_password('ada')
-        admin = User(username='admin', role=Role.ADMIN, state=State.ACTIVE)
-        admin.set_password('admin')
-        db.session.add_all([user, admin])
-        db.session.commit()
-
+        initial_db()
         self.signin_helper()
 
     def tearDown(self):
@@ -75,10 +70,11 @@ class BaseTestCase(TestCase):
                 'password': password
             }),
             content_type='application/json')
+        resp_data = self.get_response_data(resp)
         self.assertEqual(resp.status_code, HTTPStatus.OK)
-        self.assertTrue('access_token' in resp.json)
-        self.assertTrue(len(resp.json.get('access_token')) > 1)
-        self._token = resp.json.get('access_token')
+        self.assertTrue('access_token' in resp_data)
+        self.assertTrue(len(resp_data.get('access_token')) > 1)
+        self._token = resp_data.get('access_token')
         return self._token
 
     def signout_helper(self):

@@ -25,9 +25,17 @@ class Role(enum.Enum):
     USER = 'user'
     ADMIN = 'admin'
 
+
+MUTABLE_ATTRS_MAPPER = {
+    Role.USER: ('password', 'name', 'email'),
+    Role.ADMIN: ('password', 'role', 'name', 'email')
+}
+
+
 class State(enum.Enum):
     ACTIVE = 'active'
     DELETED = 'deleted'
+
 
 @to_dict_mixin(ignores=['password'])
 class User(db.Model):
@@ -45,7 +53,7 @@ class User(db.Model):
     name = db.Column(db.String(255), comment='name of user')
     email = db.Column(db.String(255), comment='email of user')
     state = db.Column(db.Enum(State, native_num=False, default=State.ACTIVE),
-                     comment='state of user')
+                      comment='state of user')
 
     def set_password(self, password):
         self.password = pwd_context.hash(password)
