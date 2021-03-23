@@ -243,6 +243,8 @@ def initialize_job_apis(api):
                      '/jobs/<int:job_id>/log')
     api.add_resource(JobMetricsApi,
                      '/jobs/<int:job_id>/metrics')
+    api.add_resource(KibanaMetricsApi,
+                     '/jobs/<int:job_id>/kibana_metrics')
     api.add_resource(PeerJobMetricsApi,
                      '/workflows/<string:workflow_uuid>/peer_workflows'
                      '/<int:participant_id>/jobs/<string:job_name>/metrics')
@@ -250,5 +252,4 @@ def initialize_job_apis(api):
     api.add_resource(PeerJobEventsApi,
                      '/workflows/<string:workflow_uuid>/peer_workflows'
                      '/<int:participant_id>/jobs/<string:job_name>/events')
-    api.add_resource(KibanaMetricsApi,
-                     '/jobs/<int:job_id>/kibana')
+
