@@ -123,7 +123,8 @@ class TestOnlineTraining(unittest.TestCase):
         leader_ds = TestDataSource('./output', 'test_ds', 'leader')
         leader_ds.add_data_block(0, np.zeros((100, 10)), np.zeros((100,), dtype=np.int32))
         leader_tm = fedlearner.trainer_master.leader_tm.LeaderTrainerMaster(
-            'leader_test', 'test_ds', None, None, True, False, 0, 1)
+            'leader_test', 'test_ds', None, None, None, None, None,
+            True, False, 0, 1)
         leader_thread = threading.Thread(target=leader_tm.run, args=(50051,))
         leader_thread.daemon = True
         leader_thread.start()

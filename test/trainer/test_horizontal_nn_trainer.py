@@ -222,7 +222,7 @@ def run_leader_tm(app_id, data_source, local_data_sources, port, env=None):
         os.environ = env 
     leader_tm = LeaderTrainerMaster(app_id, data_source,
                                     local_data_sources,
-                                    None, None,
+                                    None, None, None, None,
                                     False, False, 0, 1)
     leader_tm.run(listen_port=int(port))
 

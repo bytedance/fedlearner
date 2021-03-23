@@ -33,18 +33,23 @@ kvstore_type = os.environ.get('KVSTORE_TYPE', 'etcd')
 
 class LeaderTrainerMaster(object):
     class _DataSourceInfo:
-        def __init__(self, data_source, data_source_type, kvstore_use_mock):
+        def __init__(self, data_source, data_source_type,
+                     start_time, end_time,
+                     kvstore_use_mock):
             self.checkpoint_mutex = threading.Lock()
             self.allocated_data_block_ids = None
             self.data_block_queue = DataBlockQueue()
             self.data_block_visitor = DataBlockVisitor(
                 data_source, kvstore_type, kvstore_use_mock)
+            self.start_time = start_time
+            self.end_time = end_time
             self.visited_data_blocks = set()
             self.lock = threading.Lock()
             self.data_source_type = data_source_type
 
     def __init__(self, application_id, data_source,
-                 local_data_sources, start_time, end_time, online_training,
+                 local_data_sources, start_time, end_time,
+                 local_start_times, local_end_times, online_training,
                  shuffle_data_block, shuffle_range, epoch_num):
         self._application_id = application_id
         self._online_training = online_training
@@ -52,19 +57,23 @@ class LeaderTrainerMaster(object):
         self._status = tm_pb.MasterStatus.CREATED
 
         kvstore_use_mock = os.environ.get('KVSTORE_USE_MOCK', "off") == "on"
-        self._start_time = start_time
-        self._end_time = end_time
         self._epoch_num = epoch_num
         self._shuffle_data_block = shuffle_data_block
         self._shuffle_range = shuffle_range
         self._data_source_dict = dict()
         self._default_data_source_name = None
         self._data_source_dict[data_source] = self._DataSourceInfo(
-            data_source, tm_pb.JOINED, kvstore_use_mock)
+            data_source, tm_pb.JOINED, start_time, end_time, kvstore_use_mock)
         if local_data_sources:
-            for ds in local_data_sources:
-                self._data_source_dict[ds] = self._DataSourceInfo(
-                    ds, tm_pb.LOCAL, kvstore_use_mock)
+            for idx in range(len(local_data_sources)):
+                ds = local_data_sources[idx]
+                if local_start_times and local_end_times:
+                    self._data_source_dict[ds] = self._DataSourceInfo(
+                        ds, tm_pb.LOCAL, local_start_times[idx],
+                        local_end_times[idx], kvstore_use_mock)
+                else:
+                    self._data_source_dict[ds] = self._DataSourceInfo(
+                        ds, tm_pb.LOCAL, start_time, end_time, kvstore_use_mock)
         else:
             self._default_data_source_name = data_source
         logging.debug("Data sources %s loaded",
@@ -274,7 +283,7 @@ class LeaderTrainerMaster(object):
             response.status.error_message = 'success'
             response.type = data_source_info.data_source_type
             response.size = data_source_info.data_block_visitor.CountDataBlock(
-                self._start_time, self._end_time)
+                data_source_info.start_time, data_source_info.end_time)
             return response
 
     def _load_data(self, data_source_info):
@@ -283,8 +292,8 @@ class LeaderTrainerMaster(object):
         logging.info("load_data, checkpoint: %s", checkpoint)
         data_block_reps = [
             dbr for dbr in data_source_info.data_block_visitor
-                .LoadDataBlockRepByTimeFrame(self._start_time,
-                                             self._end_time).values()
+                .LoadDataBlockRepByTimeFrame(data_source_info.start_time,
+                                             data_source_info.end_time).values()
             if dbr.block_id not in checkpoint and
                dbr.block_id not in data_source_info.visited_data_blocks]
 
@@ -339,6 +348,10 @@ if __name__ == '__main__':
                         default=None, help='training data start date')
     parser.add_argument('-end_date', '--end_date',
                         default=None, help='training data end date')
+    parser.add_argument('-local_data_start_dates', '--local_data_start_date',
+                        default=None, help='local training data start date')
+    parser.add_argument('-local_data_end_dates', '--local_data_end_date',
+                        default=None, help='local training data end date')
     parser.add_argument('--online_training', action='store_true',
                         help='the train master run for online training')
     parser.add_argument('--shuffle_data_block', action='store_true',
@@ -355,9 +368,17 @@ if __name__ == '__main__':
     end_date = int(FLAGS.end_date) if FLAGS.end_date else None
     local_data_source_list = FLAGS.local_data_sources.split(',') \
         if FLAGS.local_data_sources else []
+    local_data_start_dates = FLAGS.local_data_start_dates.split(',') \
+        if FLAGS.local_data_start_dates else []
+    local_data_start_dates = [int(d) for d in local_data_start_dates]
+    local_data_end_dates = FLAGS.local_data_end_dates.split(',') \
+        if FLAGS.local_data_end_dates else []
+    local_data_end_dates = [int(d) for d in local_data_end_dates]
     leader_tm = LeaderTrainerMaster(FLAGS.application_id, FLAGS.data_source,
                                     local_data_source_list,
                                     start_date, end_date,
+                                    local_data_start_dates,
+                                    local_data_end_dates,
                                     FLAGS.online_training,
                                     FLAGS.shuffle_data_block,
                                     FLAGS.shuffle_range,
