@@ -45,9 +45,9 @@ class BaseTestCase(TestCase):
 
     def setUp(self):
         db.create_all()
-        user = User(username='ada', role=Role.USER, state=State.ONLINE)
+        user = User(username='ada', role=Role.USER, state=State.ACTIVE)
         user.set_password('ada')
-        admin = User(username='admin', role=Role.ADMIN, state=State.ONLINE)
+        admin = User(username='admin', role=Role.ADMIN, state=State.ACTIVE)
         admin.set_password('admin')
         db.session.add_all([user, admin])
         db.session.commit()

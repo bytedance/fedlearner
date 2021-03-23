@@ -18,10 +18,16 @@ import unittest
 from http import HTTPStatus
 
 from testing.common import BaseTestCase
+from fedlearner_webconsole.auth.models import State, User
+from fedlearner_webconsole.db import db
 
 
 class AuthApiTest(BaseTestCase):
     def test_get_all_users(self):
+        deleted_user = User(username='deleted_one', email='who.knows@hhh.com', state=State.DELETED)
+        db.session.add(deleted_user)
+        db.session.commit()
+
         resp = self.get_helper('/api/v2/auth/users')
         self.assertEqual(resp.status_code, HTTPStatus.UNAUTHORIZED)
         
