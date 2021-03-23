@@ -252,4 +252,3 @@ def initialize_job_apis(api):
     api.add_resource(PeerJobEventsApi,
                      '/workflows/<string:workflow_uuid>/peer_workflows'
                      '/<int:participant_id>/jobs/<string:job_name>/events')
-
