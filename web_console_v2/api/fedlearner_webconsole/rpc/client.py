@@ -67,20 +67,25 @@ class RpcClient(object):
         return tuple(metadata)
 
     def _retry_template(self, grpc_method_name, msg, retry_times=3):
-        try:
-            grpc_method = getattr(self._client, grpc_method_name)
-            for _ in range(retry_times):
-                response = grpc_method(request=msg, metadata=self._get_metadata())
+        grpc_method = getattr(self._client, grpc_method_name)
+        for i in range(retry_times):
+            try:
+                response = grpc_method(request=msg,
+                                    metadata=self._get_metadata())
                 if response.status.code != common_pb2.STATUS_SUCCESS:
-                    logging.info(f'{grpc_method_name} error: {response.status.msg}')
-                    continue
+                    logging.error('%s error: %s', grpc_method_name,
+                                response.status.msg)
                 return response
-        except Exception as e:
-            logging.error(f'{grpc_method_name} request error: {repr(e)}')
-            responce_method = getattr(service_pb2, f'{grpc_method_name}Response')
-            return responce_method(status=common_pb2.Status(
-                code=common_pb2.STATUS_UNKNOWN_ERROR, msg=repr(e)))
+            except Exception as e:
+                logging.error('%s request error: %s', grpc_method_name,
+                                repr(e))
+                if i == retry_times - 1:
+                    responce_method = getattr(service_pb2,
+                                              f'{grpc_method_name}Response')
+                    return responce_method(status=common_pb2.Status(
+                        code=common_pb2.STATUS_UNKNOWN_ERROR, msg=repr(e)))
 
+                continue
 
     def check_connection(self):
         msg = service_pb2.CheckConnectionRequest(
@@ -99,7 +104,8 @@ class RpcClient(object):
             uuid=uuid,
             forked_from_uuid=forked_from_uuid
         )
-        return self._retry_template(msg=msg, grpc_method_name='UpdateWorkflowState')
+        return self._retry_template(msg=msg,
+                                    grpc_method_name='UpdateWorkflowState')
 
     def get_workflow(self, name):
         msg = service_pb2.GetWorkflowRequest(
