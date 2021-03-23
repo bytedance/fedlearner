@@ -21,11 +21,10 @@ from fedlearner_webconsole.envs import Envs
 class ElasticSearchClient(object):
     def __init__(self):
         self._es_client = None
-        if Envs.ES_HOST is not None:
-            self._es_client = Elasticsearch([{'host': Envs.ES_HOST,
-                                              'port': Envs.ES_PORT}],
-                                            http_auth=(Envs.ES_USERNAME,
-                                                       Envs.ES_PASSWORD))
+        self._es_client = Elasticsearch([{'host': Envs.ES_HOST,
+                                          'port': Envs.ES_PORT}],
+                                        http_auth=(Envs.ES_USERNAME,
+                                                   Envs.ES_PASSWORD))
 
     def search(self, *args, **kwargs):
         return self._es_client.search(*args, **kwargs)
