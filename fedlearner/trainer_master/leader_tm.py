@@ -65,8 +65,7 @@ class LeaderTrainerMaster(object):
         self._data_source_dict[data_source] = self._DataSourceInfo(
             data_source, tm_pb.JOINED, start_time, end_time, kvstore_use_mock)
         if local_data_sources:
-            for idx in range(len(local_data_sources)):
-                ds = local_data_sources[idx]
+            for idx, ds in enumerate(local_data_sources):
                 if local_start_times and local_end_times:
                     self._data_source_dict[ds] = self._DataSourceInfo(
                         ds, tm_pb.LOCAL, local_start_times[idx],
