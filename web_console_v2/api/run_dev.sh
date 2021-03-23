@@ -18,7 +18,7 @@ set -e
 export FLASK_ENV=development
 
 # Migrates DB schemas
-FLASK_APP=command:app flask db upgrade
+FLASK_APP=command:app flask create-db
 # Loads initial data
 FLASK_APP=command:app flask create-initial-data
 # Runs flask
