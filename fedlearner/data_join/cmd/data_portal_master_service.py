@@ -15,19 +15,16 @@
 # coding: utf-8
 
 import argparse
-import logging
 from google.protobuf import text_format
 
 from fedlearner.common import data_portal_service_pb2 as dp_pb
 from fedlearner.common.db_client import DBClient
+from fedlearner.common.common import set_logger
 
 from fedlearner.data_join import common
 from fedlearner.data_join.data_portal_master import DataPortalMasterService
 
 if __name__ == "__main__":
-    logging.getLogger().setLevel(logging.INFO)
-    logging.basicConfig(format="%(asctime)s %(filename)s "\
-                               "%(lineno)s %(levelname)s - %(message)s")
     parser = argparse.ArgumentParser(description='DataPortalMasterService cmd.')
     parser.add_argument('--kvstore_type', type=str,
                         default='etcd', help='the type of kvstore')
@@ -55,6 +52,7 @@ if __name__ == "__main__":
                         help='Check that a _SUCCESS file exists before '
                              'processing files in a subfolder')
     args = parser.parse_args()
+    set_logger()
 
     use_mock_etcd = (args.kvstore_type == 'mock')
     kvstore = DBClient(args.kvstore_type, use_mock_etcd)

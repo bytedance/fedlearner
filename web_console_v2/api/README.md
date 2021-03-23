@@ -42,7 +42,7 @@ delete migrations folder first
 ```
 
 FLASK_APP=command:app flask db init
-FLASK_APP=command:app flask flask db migrate -m "Initial migration."
+FLASK_APP=command:app flask db migrate -m "Initial migration."
 ```
 
 ## References

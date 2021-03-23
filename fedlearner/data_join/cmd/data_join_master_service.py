@@ -15,15 +15,12 @@
 # coding: utf-8
 
 import argparse
-import logging
 
 from fedlearner.common import data_join_service_pb2 as dj_pb
+from fedlearner.common.common import set_logger
 from fedlearner.data_join.data_join_master import DataJoinMasterService
 
 if __name__ == "__main__":
-    logging.getLogger().setLevel(logging.INFO)
-    logging.basicConfig(format="%(asctime)s %(filename)s "\
-                               "%(lineno)s %(levelname)s - %(message)s")
     parser = argparse.ArgumentParser(description='DataJointMasterService cmd.')
     parser.add_argument('peer_addr', type=str,
                         help='the addr(uuid) of peer data join master')
@@ -37,6 +34,7 @@ if __name__ == "__main__":
     parser.add_argument('--batch_mode', action='store_true',
                         help='make the data join run in batch mode')
     args = parser.parse_args()
+    set_logger()
     master_options = dj_pb.DataJoinMasterOptions(
             use_mock_etcd=(args.kvstore_type == 'mock'),
             batch_mode=args.batch_mode

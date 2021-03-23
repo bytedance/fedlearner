@@ -17,6 +17,7 @@ from config import Config
 from fedlearner_webconsole.app import create_app
 from fedlearner_webconsole.db import db
 from fedlearner_webconsole.auth.models import User
+from fedlearner_webconsole.initial_db import initial_db
 
 
 class CliConfig(Config):
@@ -29,9 +30,4 @@ app = create_app(CliConfig())
 
 @app.cli.command('create-initial-data')
 def create_initial_data():
-    # Creates ada if it not exists
-    if User.query.filter_by(username='ada').first() is None:
-        user = User(username='ada')
-        user.set_password('ada')
-        db.session.add(user)
-        db.session.commit()
+    initial_db() 

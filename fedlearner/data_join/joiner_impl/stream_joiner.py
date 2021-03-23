@@ -132,7 +132,7 @@ class StreamExampleJoiner(ExampleJoiner):
                 example_joiner_options.enable_negative_example_generator
         if self._enable_negative_example_generator:
             sf = example_joiner_options.negative_sampling_rate
-            fe = example_joiner_options.exampling_filter_expr
+            fe = example_joiner_options.negative_sampling_filter_expr
             self._negative_example_generator = NegativeExampleGenerator(sf, fe)
         self._reset_joiner_state(True)
 
@@ -146,6 +146,9 @@ class StreamExampleJoiner(ExampleJoiner):
             return
         sync_example_id_finished, raw_data_finished = \
                 self._prepare_join(state_stale)
+        logging.info("streaming joiner: sync_example_id_finished: %s,"
+                     "raw_data_finished: %s", sync_example_id_finished,
+                     raw_data_finished)
         join_data_finished = False
         while self._fill_leader_join_window(sync_example_id_finished):
             leader_exhausted = sync_example_id_finished and \
@@ -153,6 +156,13 @@ class StreamExampleJoiner(ExampleJoiner):
                     self._min_window_size / 2
             follower_exhausted = False
             delay_dump = True
+
+            logging.info("before leader window size %d, follwer %d, "
+                           "follower cache %d, leader unjoined example %d",
+                           self._leader_join_window.size(),
+                           self._follower_join_window.size(),
+                          len(self._follower_example_cache),
+                          len(self._leader_unjoined_example_ids))
             while delay_dump and \
                     self._fill_follower_join_window(raw_data_finished):
                 follower_exhausted = raw_data_finished and \

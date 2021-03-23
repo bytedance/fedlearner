@@ -15,22 +15,42 @@
 # coding: utf-8
 # pylint: disable=cyclic-import
 
+import functools
 from http import HTTPStatus
 from flask import request
 from flask_restful import Resource, reqparse
+from flask_jwt_extended.utils import get_current_user
 from flask_jwt_extended import jwt_required, create_access_token
 
 from fedlearner_webconsole.db import db
-from fedlearner_webconsole.auth.models import User
-from fedlearner_webconsole.exceptions import (
-    NotFoundException, InvalidArgumentException,
-    ResourceConflictException, UnauthorizedException)
+from fedlearner_webconsole.auth.models import (State, User, Role,
+                                               MUTABLE_ATTRS_MAPPER)
+from fedlearner_webconsole.exceptions import (NotFoundException,
+                                              InvalidArgumentException,
+                                              ResourceConflictException,
+                                              UnauthorizedException)
+
+
+def admin_required(f):
+    @functools.wraps(f)
+    def wrapper_inside(*args, **kwargs):
+        current_user = get_current_user()
+        if current_user.role != Role.ADMIN:
+            raise UnauthorizedException('only admin can operate this')
+        return f(*args, **kwargs)
+
+    return wrapper_inside
+
 
 class SigninApi(Resource):
     def post(self):
         parser = reqparse.RequestParser()
-        parser.add_argument('username', required=True, help='username is empty')
-        parser.add_argument('password', required=True, help='password is empty')
+        parser.add_argument('username',
+                            required=True,
+                            help='username is empty')
+        parser.add_argument('password',
+                            required=True,
+                            help='password is empty')
         data = parser.parse_args()
         username = data['username']
         password = data['password']
@@ -41,74 +61,107 @@ class SigninApi(Resource):
         if not user.verify_password(password):
             raise UnauthorizedException('Invalid password')
         token = create_access_token(identity=username)
-        return {'id': user.id, 'access_token': token}, HTTPStatus.OK
+        return {
+            'data': {
+                'user': user.to_dict(),
+                'access_token': token
+            }
+        }, HTTPStatus.OK
 
 
 class UsersApi(Resource):
     @jwt_required()
+    @admin_required
     def get(self):
-        return {'data': [row.to_dict() for row in User.query.all()]}
+        return {
+            'data': [
+                row.to_dict()
+                for row in User.query.filter_by(state=State.ACTIVE).all()
+            ]
+        }
 
     @jwt_required()
+    @admin_required
     def post(self):
         parser = reqparse.RequestParser()
-        parser.add_argument('username', required=True, help='username is empty')
-        parser.add_argument('password', required=True, help='password is empty')
+        parser.add_argument('username',
+                            required=True,
+                            help='username is empty')
+        parser.add_argument('password',
+                            required=True,
+                            help='password is empty')
+        parser.add_argument('role', required=True, help='role is empty')
+        parser.add_argument('name', required=True, help='name is empty')
+        parser.add_argument('email', required=True, help='email is empty')
+
         data = parser.parse_args()
         username = data['username']
         password = data['password']
+        role = data['role']
+        name = data['name']
+        email = data['email']
 
         if User.query.filter_by(username=username).first() is not None:
             raise ResourceConflictException(
                 'user {} already exists'.format(username))
-        user = User(username=username)
+        user = User(username=username,
+                    role=role,
+                    name=name,
+                    email=email,
+                    state=State.ACTIVE)
         user.set_password(password)
         db.session.add(user)
         db.session.commit()
 
-        return {'id': user.id, 'username': user.username}, HTTPStatus.CREATED
+        return {'data': user.to_dict()}, HTTPStatus.CREATED
 
 
 class UserApi(Resource):
-    def _find_user(self, user_id):
+    def _find_user(self, user_id) -> User:
         user = User.query.filter_by(id=user_id).first()
-        if user is None:
+        if user is None or user.state == State.DELETED:
             raise NotFoundException()
         return user
 
     @jwt_required()
     def get(self, user_id):
         user = self._find_user(user_id)
-        return user.to_dict(), HTTPStatus.OK
+        return {'data': user.to_dict()}, HTTPStatus.OK
 
     @jwt_required()
-    def put(self, user_id):
+    def patch(self, user_id):
         user = self._find_user(user_id)
+
+        current_user = get_current_user()
+        if current_user.role != Role.ADMIN and current_user.id != user_id:
+            raise UnauthorizedException('user cannot modify others infomation')
+
+        mutable_attrs = MUTABLE_ATTRS_MAPPER.get(current_user.role)
+
         data = request.get_json()
-        new_password = data.pop('new_password', None)
-        if new_password:
-            old_password = data.pop('old_password', None)
-
-        if data:
-            details = {}
-            for key in data.keys():
-                details[key] = 'Invalid field'
-            raise InvalidArgumentException(details=details)
-
-        if new_password:
-            if not user.verify_password(old_password):
-                raise UnauthorizedException(message='Wrong old password')
-            user.set_password(new_password)
+        for k, v in data.items():
+            if k not in mutable_attrs:
+                raise InvalidArgumentException(f'cannot modify {k}')
+            if k == 'password':
+                user.set_password(v)
+            else:
+                setattr(user, k, v)
 
         db.session.commit()
-        return {'username': user.username}, HTTPStatus.OK
+        return {'data': user.to_dict()}, HTTPStatus.OK
 
     @jwt_required()
+    @admin_required
     def delete(self, user_id):
         user = self._find_user(user_id)
-        db.session.delete(user)
+
+        current_user = get_current_user()
+        if current_user.id == user_id:
+            raise InvalidArgumentException('cannot delete yourself')
+
+        user.state = State.DELETED
         db.session.commit()
-        return {'username': user.username}, HTTPStatus.OK
+        return {'data': user.to_dict()}, HTTPStatus.OK
 
 
 def initialize_auth_apis(api):
