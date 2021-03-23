@@ -15,24 +15,21 @@
 from fedlearner_webconsole.auth.models import User, Role, State
 from fedlearner_webconsole.db import db
 
-INITIAL_USER_INFO = [
-    {
-        'username': 'ada',
-        'password': 'ada',
-        'name': 'ada',
-        'email': 'ada@fedlearner.com',
-        'role': Role.USER,
-        'state': State.ACTIVE,
-    },
-    {
-        'username': 'admin',
-        'password': 'admin',
-        'name': 'admin',
-        'email': 'admin@fedlearner.com',
-        'role': Role.ADMIN,
-        'state': State.ACTIVE,
-    }
-]
+INITIAL_USER_INFO = [{
+    'username': 'ada',
+    'password': 'ada',
+    'name': 'ada',
+    'email': 'ada@fedlearner.com',
+    'role': Role.USER,
+    'state': State.ACTIVE,
+}, {
+    'username': 'admin',
+    'password': 'admin',
+    'name': 'admin',
+    'email': 'admin@fedlearner.com',
+    'role': Role.ADMIN,
+    'state': State.ACTIVE,
+}]
 
 def initial_db():
     # initial user info first
@@ -44,7 +41,11 @@ def initial_db():
         role = u_info['role']
         state = u_info['state']
         if User.query.filter_by(username=username).first() is None:
-            user = User(username=username, name=name, email=email, role=role, state=state)
+            user = User(username=username,
+                        name=name,
+                        email=email,
+                        role=role,
+                        state=state)
             user.set_password(password=password)
             db.session.add(user)
     db.session.commit()

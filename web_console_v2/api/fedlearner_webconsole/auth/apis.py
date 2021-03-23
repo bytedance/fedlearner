@@ -23,7 +23,8 @@ from flask_jwt_extended.utils import get_current_user
 from flask_jwt_extended import jwt_required, create_access_token
 
 from fedlearner_webconsole.db import db
-from fedlearner_webconsole.auth.models import State, User, Role, MUTABLE_ATTRS_MAPPER
+from fedlearner_webconsole.auth.models import (State, User, Role,
+                                               MUTABLE_ATTRS_MAPPER)
 from fedlearner_webconsole.exceptions import (NotFoundException,
                                               InvalidArgumentException,
                                               ResourceConflictException,
