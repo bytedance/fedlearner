@@ -25,3 +25,4 @@ jobs:
         with:
           node-version: '12.x'
       - run: pwd && npm ci && npx jest --coverage
+      - run: npm run build
