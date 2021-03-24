@@ -1,4 +1,4 @@
-import React, { FC, useRef } from 'react';
+import React, { FC } from 'react';
 import styled from 'styled-components';
 import { Form, Button, Input, Card, Switch, Spin } from 'antd';
 import { useTranslation } from 'react-i18next';

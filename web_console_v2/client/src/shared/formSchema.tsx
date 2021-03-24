@@ -22,6 +22,7 @@ const __IS_JEST__ = typeof jest !== 'undefined';
 
 const FakeVariableLabel: FC<any> = ({ label, tooltip }: any) => {
   return (
+    // eslint-disable-next-line jsx-a11y/aria-role
     <label role="label">
       {label}
       {tooltip && <small>{tooltip}</small>}

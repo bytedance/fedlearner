@@ -1,5 +1,5 @@
 import { Button, Drawer, Row, Col } from 'antd';
-import React, { FC, useMemo, useState } from 'react';
+import React, { FC, useState } from 'react';
 import styled from 'styled-components';
 import { CodeOutlined } from '@ant-design/icons';
 import { useToggle } from 'react-use';
