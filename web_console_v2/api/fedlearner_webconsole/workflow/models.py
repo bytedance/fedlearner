@@ -261,7 +261,7 @@ class Workflow(db.Model):
             flags = []
             for i in create_job_flags:
                 assert isinstance(i, int)
-                flags.append(i)
+                flags.append(str(i))
             self.create_job_flags = ','.join(flags)
 
     def get_create_job_flags(self):
@@ -280,7 +280,7 @@ class Workflow(db.Model):
             flags = []
             for i in peer_create_job_flags:
                 assert isinstance(i, int)
-                flags.append(i)
+                flags.append(str(i))
             self.peer_create_job_flags = ','.join(flags)
 
     def get_peer_create_job_flags(self):
