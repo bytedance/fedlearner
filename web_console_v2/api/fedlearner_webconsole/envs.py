@@ -15,3 +15,5 @@ class Envs(object):
         'KIBANA_SERVICE_HOST_PORT', 'http://fedlearner-stack-kibana:443'
     )
     KIBANA_ADDRESS = os.environ.get('KIBANA_ADDRESS', 'localhost:32099')
+    OPERATOR_LOG_MATCH_PHRASE = os.environ.get(
+        'OPERATOR_LOG_MATCH_PHRASE', None)

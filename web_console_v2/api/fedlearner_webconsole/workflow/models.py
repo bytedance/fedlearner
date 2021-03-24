@@ -255,11 +255,14 @@ class Workflow(db.Model):
         return [Job.query.get(i) for i in self.get_job_ids()]
 
     def set_create_job_flags(self, create_job_flags):
-        if create_job_flags is None:
+        if not create_job_flags:
             self.create_job_flags = None
         else:
-            self.create_job_flags = ','.join(
-                [str(i) for i in create_job_flags])
+            flags = []
+            for i in create_job_flags:
+                assert isinstance(i, int)
+                flags.append(str(i))
+            self.create_job_flags = ','.join(flags)
 
     def get_create_job_flags(self):
         if self.create_job_flags is None:
@@ -274,8 +277,11 @@ class Workflow(db.Model):
         if not peer_create_job_flags:
             self.peer_create_job_flags = None
         else:
-            self.peer_create_job_flags = ','.join(
-                [str(i) for i in peer_create_job_flags])
+            flags = []
+            for i in peer_create_job_flags:
+                assert isinstance(i, int)
+                flags.append(str(i))
+            self.peer_create_job_flags = ','.join(flags)
 
     def get_peer_create_job_flags(self):
         if self.peer_create_job_flags is None:
