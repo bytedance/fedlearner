@@ -265,6 +265,8 @@ class Args(object):
         self.master_addr = master_addr
         self.tf_addr = tf_addr
         self.checkpoint_path = ckpt_path
+        self.checkpoint_filename = None
+        self.load_checkpoint_filename_with_path = None
         self.save_checkpoint_steps = 100
         self.save_checkpoint_secs = None
         self.export_path = export_path
@@ -272,7 +274,7 @@ class Args(object):
         self.mode = "train"
         self.summary_path = None
         self.summary_save_steps = None
-        self.verbosity = 1;
+        self.verbosity = 1
         self.batch_size = 100
         self.learning_rate = 0.01
         self.epoch_num = 1

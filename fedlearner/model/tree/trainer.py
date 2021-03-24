@@ -369,8 +369,8 @@ def test_one_file(args, bridge, booster, data_file, output_file):
     logging.info("Test metrics: %s", metrics)
 
     if args.role == 'follower':
-        bridge.start(bridge.new_iter_id())
-        bridge.receive(bridge.current_iter_id, 'barrier')
+        bridge.start()
+        bridge.receive('barrier')
         bridge.commit()
 
     if output_file:
@@ -378,9 +378,8 @@ def test_one_file(args, bridge, booster, data_file, output_file):
         write_predictions(output_file, pred, example_ids, raw_ids)
 
     if args.role == 'leader':
-        bridge.start(bridge.new_iter_id())
-        bridge.send(
-            bridge.current_iter_id, 'barrier', np.asarray([1]))
+        bridge.start()
+        bridge.send('barrier', np.asarray([1]))
         bridge.commit()
 
 
@@ -410,13 +409,12 @@ class DataBlockLoader(object):
         if self._role == 'leader':
             self._block_queue = queue.Queue()
             self._bridge.register_data_block_handler(self._data_block_handler)
-            self._bridge.start(self._bridge.new_iter_id())
-            self._bridge.send(
-                self._bridge.current_iter_id, 'barrier', np.asarray([1]))
+            self._bridge.start()
+            self._bridge.send('barrier', np.asarray([1]))
             self._bridge.commit()
         elif self._role == 'follower':
-            self._bridge.start(self._bridge.new_iter_id())
-            self._bridge.receive(self._bridge.current_iter_id, 'barrier')
+            self._bridge.start()
+            self._bridge.receive('barrier')
             self._bridge.commit()
 
     def _data_block_handler(self, msg):
@@ -505,8 +503,7 @@ def run(args):
 
     if args.role != 'local':
         bridge = Bridge(args.role, int(args.local_addr.split(':')[1]),
-                        args.peer_addr, args.application_id, 0,
-                        streaming_mode=args.use_streaming)
+                        args.peer_addr, args.application_id, 0)
     else:
         bridge = None
 

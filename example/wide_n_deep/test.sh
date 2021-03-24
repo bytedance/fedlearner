@@ -23,6 +23,7 @@ elif [ "$ROLE" == "follower" ]; then
                        --save-checkpoint-steps=100 \
                        --export-path=model/follower/saved_model \
                        --verbosity=2
+
 else
     echo "usage: $0 [leader | follower]"    
 fi

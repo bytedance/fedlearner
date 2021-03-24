@@ -20,80 +20,43 @@ import "google/protobuf/any.proto";
 
 package fedlearner.common;
 
+message TransmitRequest {
+  message StartMessage {
+    uint64 iter_id = 1;
+  };
 
-message PrefetchMessage {
-  uint64 iter_id = 1;
-  repeated uint64 example_ids = 2;
-};
+  message DataMessage {
+    uint64 iter_id = 1;
+    string name = 2;
+    tensorflow.TensorProto tensor = 3;
+    google.protobuf.Any any_data = 4;
+  };
 
-message StartMessage {
-  uint64 iter_id = 1;
-};
+  message CommitMessage {
+    uint64 iter_id = 1;
+  };
 
-message CommitMessage {
-  uint64 iter_id = 1;
-};
-
-message DataMessage {
-  uint64 iter_id = 1;
-  string name = 2;
-  tensorflow.TensorProto tensor = 3;
-  google.protobuf.Any any_data = 4;
-};
-
-message TrainerWorkerMessage {
-  uint64 seq_num = 1;
   oneof msg {
-    PrefetchMessage prefetch = 2;
-    StartMessage start = 3;
-    CommitMessage commit = 4;
-    DataMessage data = 5;
+    StartMessage  start = 1;
+    DataMessage   data = 2;
+    CommitMessage commit = 3;
   };
 };
 
-message TrainerWorkerResponse {
+message TransmitResponse {
   Status status = 1;
-  uint64 next_seq_num = 2;
-}
+};
 
 message LoadDataBlockRequest {
   uint64 count = 1;
   string block_id = 2;
 };
 
-message ConnectRequest {
-  string app_id = 1;
-  uint32 worker_rank = 2;
-  string identifier = 3;
-}
-
-message ConnectResponse {
-  string app_id = 1;
-  uint32 worker_rank = 2;
-  int64 timestamp = 3;
-}
-
-message HeartbeatRequest {
-}
-
-message HeartbeatResponse {
-  string app_id = 1;
-  uint32 worker_rank = 2;
-  uint64 current_iter_id = 3;
-}
-
-message TerminateRequest {
-}
-
-message TerminateResponse {
-  int64 timestamp = 1;
-}
+message LoadDataBlockResponse {
+  Status status = 1;
+};
 
 service TrainerWorkerService {
-  rpc Transmit (TrainerWorkerMessage) returns (TrainerWorkerResponse) {}
-  rpc StreamTransmit (stream TrainerWorkerMessage) returns (stream TrainerWorkerResponse) {}
-  rpc LoadDataBlock (LoadDataBlockRequest) returns (Status) {}
-  rpc Connect (ConnectRequest) returns (ConnectResponse) {}
-  rpc Heartbeat (HeartbeatRequest) returns (HeartbeatResponse) {}
-  rpc Terminate (TerminateRequest) returns (TerminateResponse) {}
+  rpc Transmit (stream TransmitRequest) returns (stream TransmitResponse) {}
+  rpc LoadDataBlock (LoadDataBlockRequest) returns (LoadDataBlockResponse) {}
 }

@@ -60,7 +60,7 @@ class TestBoostingTree(unittest.TestCase):
 
     def leader_test_boosting_tree_helper(self, X, y, cat_X):
         bridge = fl.trainer.bridge.Bridge(
-            'leader', 50051, 'localhost:50052', streaming_mode=False)
+            'leader', 50051, 'localhost:50052')
         booster = BoostingTreeEnsamble(
             bridge,
             max_iters=3,
@@ -73,7 +73,7 @@ class TestBoostingTree(unittest.TestCase):
 
     def follower_test_boosting_tree_helper(self, X, cat_X):
         bridge = fl.trainer.bridge.Bridge(
-            'follower', 50052, 'localhost:50051', streaming_mode=True)
+            'follower', 50052, 'localhost:50051')
         booster = BoostingTreeEnsamble(
             bridge,
             max_iters=3,

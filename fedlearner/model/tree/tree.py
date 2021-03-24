@@ -44,11 +44,11 @@ MAX_PARTITION_SIZE = 4096
 def _send_public_key(bridge, public_key):
     msg = tree_pb2.EncryptedNumbers()
     msg.ciphertext.append(public_key.n.to_bytes(KEY_NBITS//8, 'little'))
-    bridge.send_proto(bridge.current_iter_id, 'public_key', msg)
+    bridge.send_proto('public_key', msg)
 
 def _receive_public_key(bridge):
     msg = tree_pb2.EncryptedNumbers()
-    bridge.receive_proto(bridge.current_iter_id, 'public_key').Unpack(msg)
+    bridge.receive_proto('public_key').Unpack(msg)
     return paillier.PaillierPublicKey(
         int.from_bytes(msg.ciphertext[0], 'little'))
 
@@ -73,25 +73,22 @@ def _from_ciphertext(public_key, ciphertext):
 def _encrypt_and_send_numbers(bridge, name, public_key, numbers):
     num_parts = (len(numbers) + MAX_PARTITION_SIZE - 1)//MAX_PARTITION_SIZE
     bridge.send_proto(
-        bridge.current_iter_id, '%s_partition_info'%name,
+        '%s_partition_info'%name,
         tree_pb2.PartitionInfo(num_partitions=num_parts)
     )
     for i in range(num_parts):
         part = numbers[i*MAX_PARTITION_SIZE:(i+1)*MAX_PARTITION_SIZE]
         msg = tree_pb2.EncryptedNumbers()
         msg.ciphertext.extend(_encrypt_numbers(public_key, part))
-        bridge.send_proto(
-            bridge.current_iter_id, '%s_part_%d'%(name, i), msg)
+        bridge.send_proto('%s_part_%d'%(name, i), msg)
 
 def _receive_encrypted_numbers(bridge, name, public_key):
     part_info = tree_pb2.PartitionInfo()
-    bridge.receive_proto(
-        bridge.current_iter_id, '%s_partition_info'%name).Unpack(part_info)
+    bridge.receive_proto('%s_partition_info'%name).Unpack(part_info)
     ret = []
     for i in range(part_info.num_partitions):
         msg = tree_pb2.EncryptedNumbers()
-        bridge.receive_proto(
-            bridge.current_iter_id, '%s_part_%d'%(name, i)).Unpack(msg)
+        bridge.receive_proto('%s_part_%d'%(name, i)).Unpack(msg)
         ret.extend(_from_ciphertext(public_key, msg.ciphertext))
     return ret
 
@@ -582,9 +579,9 @@ class LeaderGrower(BaseGrower):
         self._public_key = public_key
         self._private_key = private_key
 
-        bridge.start(bridge.new_iter_id())
+        bridge.start()
         follower_num_features, follower_num_cat_features = \
-            bridge.receive(bridge.current_iter_id, 'feature_dim')
+            bridge.receive('feature_dim')
         bridge.commit()
         self._is_cat_feature.extend(
             [False] * follower_num_features + \
@@ -595,8 +592,7 @@ class LeaderGrower(BaseGrower):
 
     def _receive_and_decrypt_histogram(self, name):
         msg = tree_pb2.Histograms()
-        self._bridge.receive_proto(
-            self._bridge.current_iter_id, name).Unpack(msg)
+        self._bridge.receive_proto(name).Unpack(msg)
         if not self._pool:
             return _decrypt_histogram_helper(
                 (0, self._public_key, self._private_key, msg.hists))
@@ -612,7 +608,7 @@ class LeaderGrower(BaseGrower):
         return sum(hists, [])
 
     def _compute_histogram(self, node):
-        self._bridge.start(self._bridge.new_iter_id())
+        self._bridge.start()
         grad_hists = self._hist_builder.compute_histogram(
             self._grad, node.sample_ids)
         hess_hists = self._hist_builder.compute_histogram(
@@ -624,7 +620,7 @@ class LeaderGrower(BaseGrower):
         self._bridge.commit()
 
     def _split_next(self):
-        self._bridge.start(self._bridge.new_iter_id())
+        self._bridge.start()
 
         _, split_info = self._split_candidates.get()
         node = self._nodes[split_info.node_id]
@@ -645,7 +641,7 @@ class LeaderGrower(BaseGrower):
                 left_child, right_child)
             self._feature_importance[split_info.feature_id] += node.NI
             self._bridge.send_proto(
-                self._bridge.current_iter_id, 'split_info',
+                'split_info',
                 tree_pb2.SplitInfo(
                     node_id=split_info.node_id, feature_id=-1,
                     left_samples=left_child.sample_ids,
@@ -654,15 +650,14 @@ class LeaderGrower(BaseGrower):
             node.is_owner = False
             fid = split_info.feature_id - self._binned.num_all_features
             self._bridge.send_proto(
-                self._bridge.current_iter_id, 'split_info',
+                'split_info',
                 tree_pb2.SplitInfo(
                     node_id=split_info.node_id, feature_id=fid,
                     split_point=split_info.split_point,
                     default_left=split_info.default_left))
 
             follower_split_info = tree_pb2.SplitInfo()
-            self._bridge.receive_proto(
-                self._bridge.current_iter_id, 'follower_split_info') \
+            self._bridge.receive_proto('follower_split_info') \
                 .Unpack(follower_split_info)
             left_child.sample_ids = list(follower_split_info.left_samples)
             right_child.sample_ids = list(follower_split_info.right_samples)
@@ -686,9 +681,9 @@ class FollowerGrower(BaseGrower):
         self._bridge = bridge
         self._public_key = public_key
 
-        bridge.start(bridge.new_iter_id())
+        bridge.start()
         bridge.send(
-            bridge.current_iter_id, 'feature_dim',
+            'feature_dim',
             [binned.num_features, binned.num_cat_features])
         bridge.commit()
 
@@ -707,10 +702,10 @@ class FollowerGrower(BaseGrower):
             ciphertext = _encode_encrypted_numbers(hist)
             msg.hists.append(
                 tree_pb2.EncryptedNumbers(ciphertext=ciphertext))
-        self._bridge.send_proto(self._bridge.current_iter_id, name, msg)
+        self._bridge.send_proto(name, msg)
 
     def _compute_histogram(self, node):
-        self._bridge.start(self._bridge.new_iter_id())
+        self._bridge.start()
         grad_hists = self._hist_builder.compute_histogram(
             self._grad, node.sample_ids)
         hess_hists = self._hist_builder.compute_histogram(
@@ -720,12 +715,10 @@ class FollowerGrower(BaseGrower):
         self._bridge.commit()
 
     def _split_next(self):
-        self._bridge.start(self._bridge.new_iter_id())
+        self._bridge.start()
 
         split_info = tree_pb2.SplitInfo()
-        self._bridge.receive_proto(
-            self._bridge.current_iter_id, 'split_info') \
-            .Unpack(split_info)
+        self._bridge.receive_proto('split_info').Unpack(split_info)
 
         node = self._nodes[split_info.node_id]
 
@@ -742,7 +735,7 @@ class FollowerGrower(BaseGrower):
         if split_info.feature_id >= 0:
             self._set_node_partition(node, split_info)
             self._bridge.send_proto(
-                self._bridge.current_iter_id, 'follower_split_info',
+                'follower_split_info',
                 tree_pb2.SplitInfo(
                     left_samples=left_child.sample_ids,
                     right_samples=right_child.sample_ids))
@@ -862,7 +855,7 @@ class BoostingTreeEnsamble(object):
         else:
             metrics = {}
 
-        self._bridge.start(self._bridge.new_iter_id())
+        self._bridge.start()
         if self._role == 'leader':
             if self._send_metrics_to_follower:
                 send_metrics = metrics
@@ -872,12 +865,10 @@ class BoostingTreeEnsamble(object):
             msg = tf.train.Features()
             for k, v in send_metrics.items():
                 msg.feature[k].float_list.value.append(v)
-            self._bridge.send_proto(
-                self._bridge.current_iter_id, 'metrics', msg)
+            self._bridge.send_proto('metrics', msg)
         else:
             msg = tf.train.Features()
-            self._bridge.receive_proto(
-                self._bridge.current_iter_id, 'metrics').Unpack(msg)
+            self._bridge.receive_proto('metrics').Unpack(msg)
             metrics = {}
             for key in msg.feature:
                 metrics[key] = msg.feature[key].float_list.value[0]
@@ -888,7 +879,7 @@ class BoostingTreeEnsamble(object):
 
     def _make_key_pair(self):
         # make key pair
-        self._bridge.start(self._bridge.new_iter_id())
+        self._bridge.start()
         if self._role == 'leader':
             self._public_key, self._private_key = \
                 paillier.PaillierKeypair.generate_keypair(KEY_NBITS)
@@ -902,7 +893,7 @@ class BoostingTreeEnsamble(object):
                        leader_no_data=False):
         assert self._bridge is not None
 
-        self._bridge.start(self._bridge.new_iter_id())
+        self._bridge.start()
         if self._role == 'leader':
             msg = tree_pb2.VerifyParams(
                 example_ids=example_ids,
@@ -916,18 +907,15 @@ class BoostingTreeEnsamble(object):
                 validation=validation,
                 num_trees=len(self._trees),
                 leader_no_data=leader_no_data)
-            self._bridge.send_proto(
-                self._bridge.current_iter_id, 'verify', msg)
+            self._bridge.send_proto('verify', msg)
             status = common_pb2.Status()
-            self._bridge.receive_proto(
-                self._bridge.current_iter_id, 'status').Unpack(status)
+            self._bridge.receive_proto('status').Unpack(status)
             assert status.code == common_pb2.STATUS_SUCCESS, \
                 "Parameters mismatch between leader and follower: \n%s" \
                 %status.error_message
         else:
             msg = tree_pb2.VerifyParams()
-            self._bridge.receive_proto(
-                self._bridge.current_iter_id, 'verify').Unpack(msg)
+            self._bridge.receive_proto('verify').Unpack(msg)
             def check(name, left, right):
                 if left == right or \
                         (isinstance(left, float) and np.isclose(left, right)):
@@ -974,14 +962,14 @@ class BoostingTreeEnsamble(object):
 
             if err_msg:
                 self._bridge.send_proto(
-                    self._bridge.current_iter_id, 'status',
+                    'status',
                     common_pb2.Status(
                         code=common_pb2.STATUS_UNKNOWN_ERROR,
                         error_message=err_msg))
                 self._bridge.commit()
                 raise RuntimeError(err_msg)
             self._bridge.send_proto(
-                self._bridge.current_iter_id, 'status',
+                'status',
                 common_pb2.Status(
                     code=common_pb2.STATUS_SUCCESS))
         self._bridge.commit()
@@ -1112,15 +1100,14 @@ class BoostingTreeEnsamble(object):
                 assignment = _vectorized_assignment(
                     vec_tree, assignment, direction)
 
-            self._bridge.start(self._bridge.new_iter_id())
+            self._bridge.start()
             self._bridge.send(
-                self._bridge.current_iter_id, 'follower_assignment_%d'%idx,
+                'follower_assignment_%d'%idx,
                 assignment)
             self._bridge.commit()
 
-        self._bridge.start(self._bridge.new_iter_id())
-        raw_prediction = self._bridge.receive(
-            self._bridge.current_iter_id, 'raw_prediction')
+        self._bridge.start()
+        raw_prediction = self._bridge.receive('raw_prediction')
         self._bridge.commit()
 
         if get_raw_score:
@@ -1135,18 +1122,17 @@ class BoostingTreeEnsamble(object):
             assert not vec_tree['is_owner'].sum(), \
                 "Model cannot predict with no data"
 
-            self._bridge.start(self._bridge.new_iter_id())
-            assignment = self._bridge.receive(
-                self._bridge.current_iter_id, 'follower_assignment_%d'%idx)
+            self._bridge.start()
+            assignment = self._bridge.receive('follower_assignment_%d'%idx)
             self._bridge.commit()
 
             if raw_prediction is None:
                 raw_prediction = np.zeros(assignment.shape[0], dtype=BST_TYPE)
             raw_prediction += vec_tree['weight'][assignment]
 
-        self._bridge.start(self._bridge.new_iter_id())
+        self._bridge.start()
         self._bridge.send(
-            self._bridge.current_iter_id, 'raw_prediction',
+            'raw_prediction',
             raw_prediction*self._send_scores_to_follower)
         self._bridge.commit()
 
@@ -1167,13 +1153,11 @@ class BoostingTreeEnsamble(object):
                 direction = _vectorized_direction(
                     vec_tree, features, cat_features, assignment)
 
-                self._bridge.start(self._bridge.new_iter_id())
+                self._bridge.start()
                 self._bridge.send(
-                    self._bridge.current_iter_id,
                     '%s_direction_%d'%(self._role, idx),
                     direction)
                 peer_direction = self._bridge.receive(
-                    self._bridge.current_iter_id,
                     '%s_direction_%d'%(peer_role, idx))
                 self._bridge.commit()
 
@@ -1182,14 +1166,13 @@ class BoostingTreeEnsamble(object):
 
             raw_prediction += vec_tree['weight'][assignment]
 
-        self._bridge.start(self._bridge.new_iter_id())
+        self._bridge.start()
         if self._role == 'leader':
             self._bridge.send(
-                self._bridge.current_iter_id, 'raw_prediction',
+                'raw_prediction',
                 raw_prediction*self._send_scores_to_follower)
         else:
-            raw_prediction = self._bridge.receive(
-                self._bridge.current_iter_id, 'raw_prediction')
+            raw_prediction = self._bridge.receive('raw_prediction')
         self._bridge.commit()
 
         if get_raw_score:
@@ -1352,7 +1335,7 @@ class BoostingTreeEnsamble(object):
             'Training metrics at start of iteration %d: %s',
             len(self._trees), self._compute_metrics(pred, labels))
 
-        self._bridge.start(self._bridge.new_iter_id())
+        self._bridge.start()
         _encrypt_and_send_numbers(
             self._bridge, 'grad', self._public_key, grad)
         _encrypt_and_send_numbers(
@@ -1379,7 +1362,7 @@ class BoostingTreeEnsamble(object):
             'Training metrics at start of iteration %d: %s',
             len(self._trees), self._compute_metrics(None, None))
         # compute grad and hess
-        self._bridge.start(self._bridge.new_iter_id())
+        self._bridge.start()
         grad = np.asarray(_receive_encrypted_numbers(
             self._bridge, 'grad', self._public_key))
         assert len(grad) == binned.features.shape[0]
