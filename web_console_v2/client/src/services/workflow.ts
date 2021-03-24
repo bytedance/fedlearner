@@ -21,8 +21,15 @@ export function fetchWorkflowTemplateList(params?: {
   });
 }
 
-export function fetchTemplateById(id: ID): Promise<{ data: WorkflowTemplate }> {
-  return request(`/v2/workflow_templates/${id}`);
+export function fetchTemplateById(
+  id: ID,
+  isDownload?: boolean,
+): Promise<{ data: WorkflowTemplate }> {
+  return request(`/v2/workflow_templates/${id}`, {
+    params: {
+      download: isDownload,
+    },
+  });
 }
 
 export function createWorkflowTemplate(payload: WorkflowTemplatePayload) {

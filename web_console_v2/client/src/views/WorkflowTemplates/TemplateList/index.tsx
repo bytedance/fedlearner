@@ -49,7 +49,7 @@ const DownloadTemplate: FC<{ template: WorkflowTemplate }> = ({ template: { id, 
     if (err) {
       return message.error(t('workflow.msg_get_tpl_detail_failed'));
     }
-
+    // * Remove codes below after fetchTemplateById support download
     const anchor = document.createElement('a');
 
     anchor.download = res.data.name + '.json';
