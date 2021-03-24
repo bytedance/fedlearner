@@ -259,7 +259,7 @@
   > .ant-radio-button {
     padding: 3px;
     border-radius: 6px;
-    background-color: white;
+    background-color: transparent;
     background-clip: content-box;
     transition: 0.3s ease-out var(--commonTiming);
   }
@@ -281,6 +281,15 @@
 
     &:focus-within {
       box-shadow: none;
+    }
+
+    > .ant-radio-button {
+      z-index: auto;
+      background-color: white;
+
+      & + * {
+        position: relative;
+      }
     }
   }
   &:not(:first-child)::before {

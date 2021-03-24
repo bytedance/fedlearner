@@ -67,7 +67,7 @@ export function getOrInsertValueById(id?: string) {
   return storedJobNGlbalValues.get(id)!;
 }
 
-export function removeValueId(id: string) {
+export function removeValueById(id: string) {
   return storedJobNGlbalValues.delete(id);
 }
 

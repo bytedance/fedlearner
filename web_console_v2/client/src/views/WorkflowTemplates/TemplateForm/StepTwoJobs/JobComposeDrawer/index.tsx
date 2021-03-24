@@ -1,10 +1,10 @@
 import React, { forwardRef, ForwardRefRenderFunction, useEffect, useImperativeHandle } from 'react';
 import styled from 'styled-components';
-import { Drawer, Row, Button, Form, Switch, Input, Select } from 'antd';
+import { Drawer, Row, Button, Form, Switch, Input, Select, Popconfirm } from 'antd';
 import { DrawerProps } from 'antd/lib/drawer';
 import ErrorBoundary from 'antd/lib/alert/ErrorBoundary';
 import GridRow from 'components/_base/GridRow';
-import { Close, Swap } from 'components/IconPark';
+import { Close, Swap, Delete } from 'components/IconPark';
 import { useTranslation } from 'react-i18next';
 import { JobType, JobDefinitionForm } from 'typings/job';
 import { omit } from 'lodash';
@@ -57,6 +57,7 @@ interface Props extends DrawerProps {
   uuid?: string;
   onClose?: any;
   onSubmit?: any;
+  onDelete?: any;
   toggleVisible?: any;
 }
 
@@ -67,7 +68,7 @@ export type ExposedRef = {
 };
 
 const JobComposerDrawer: ForwardRefRenderFunction<ExposedRef, Props> = (
-  { isGlobal, uuid, visible, toggleVisible, onClose, onSubmit, ...props },
+  { isGlobal, uuid, visible, toggleVisible, onClose, onSubmit, onDelete, ...props },
   parentRef,
 ) => {
   const { t } = useTranslation();
@@ -82,10 +83,11 @@ const JobComposerDrawer: ForwardRefRenderFunction<ExposedRef, Props> = (
   });
 
   useEffect(() => {
-    if (uuid && formInstance) {
-      formInstance.setFieldsValue(getOrInsertValueById(uuid)!);
+    if (uuid && formInstance && visible) {
+      const newValues = getOrInsertValueById(uuid)!;
+      formInstance.setFieldsValue(newValues);
     }
-  }, [uuid, formInstance]);
+  }, [uuid, formInstance, visible]);
 
   return (
     <ErrorBoundary>
@@ -107,6 +109,19 @@ const JobComposerDrawer: ForwardRefRenderFunction<ExposedRef, Props> = (
             <Button size="small" icon={<Swap />} disabled>
               切换至简易模式
             </Button>
+            {!isGlobal && (
+              <Popconfirm
+                title={t('workflow.msg_del_job_warning')}
+                cancelText={t('cancel')}
+                okText={t('submit')}
+                onConfirm={onDeleteClick}
+              >
+                <Button size="small" type="primary" icon={<Delete />} danger>
+                  删除
+                </Button>
+              </Popconfirm>
+            )}
+
             <Button size="small" icon={<Close />} onClick={closeDrawer} />
           </GridRow>
         </DrawerHeader>
@@ -188,6 +203,9 @@ const JobComposerDrawer: ForwardRefRenderFunction<ExposedRef, Props> = (
   function onFinish(values: JobDefinitionForm) {
     onSubmit && onSubmit(values);
     toggleVisible && toggleVisible(false);
+  }
+  function onDeleteClick() {
+    onDelete && onDelete();
   }
   async function validateFields() {
     try {

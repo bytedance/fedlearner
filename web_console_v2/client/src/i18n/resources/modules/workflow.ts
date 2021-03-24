@@ -161,6 +161,7 @@ const workflow: I18nMessageModule = {
   msg_yaml_required: { zh: '请加入 YAML 模版' },
   msg_varname_required: { zh: '请输入变量 Key' },
   msg_varname_invalid: { zh: '只允许大小写英文字母及下划线的组合' },
+  msg_del_job_warning: { zh: '删除后，该 Job 配置的内容都将丢失' },
 
   title_toggle_reusable: { zh: '切换至{{state}}状态' },
 
