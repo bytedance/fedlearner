@@ -14,9 +14,7 @@ class KibanaUtils(object):
         This class is deeply coupled with
         fedlearner_webconsole.job.apis.KibanaMetricsApi
     """
-    KIBANA_ADDRESS = Envs.KIBANA_INGRESS_HOST
-    if Envs.KIBANA_INGRESS_PORT is not None:
-        KIBANA_ADDRESS += ':{}'.format(Envs.KIBANA_INGRESS_PORT)
+    KIBANA_ADDRESS = Envs.KIBANA_ADDRESS
     TSVB = ('Rate', 'Ratio', 'Numeric')
     TIMELION = ('Time', 'Timer')
     RISON_REPLACEMENT = {' ': '%20',

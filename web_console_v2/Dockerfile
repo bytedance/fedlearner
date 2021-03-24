@@ -38,6 +38,7 @@ auth: password\n\
 password: fedlearner\n\
 cert: false\n' >> ~/.config/code-server/config.yaml
 
+# Port for VScode
 EXPOSE 1992
 ENV TZ="Asia/Shanghai"
 
