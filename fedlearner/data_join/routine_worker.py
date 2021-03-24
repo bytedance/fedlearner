@@ -13,7 +13,7 @@
 # limitations under the License.
 
 # coding: utf-8
-
+import os
 import traceback
 import logging
 import re
@@ -126,6 +126,9 @@ class RoutineWorker(object):
                 logging.debug("worker: %s exec %d round",
                               self._name, exec_round)
             exec_round += 1
+            max_times = int(os.getenv('MAX_RETRY_TIMES', '100'))
+            if exec_round > max_times:
+                os._exit(-1) # pylint: disable=protected-access
         logging.warning("worker %s will stop", self._name)
 
     def _wait_for_exec(self):
