@@ -13,11 +13,14 @@
 # limitations under the License.
 
 # coding: utf-8
+import io
 import json
 import re
 from http import HTTPStatus
 import logging
 import tarfile
+
+from flask import send_file
 from flask_restful import Resource, reqparse, request
 from google.protobuf.json_format import ParseDict, ParseError
 from fedlearner_webconsole.workflow_template.models import WorkflowTemplate
@@ -100,10 +103,21 @@ class WorkflowTemplatesApi(Resource):
 
 class WorkflowTemplateApi(Resource):
     def get(self, template_id):
-        result = WorkflowTemplate.query.filter_by(id=template_id).first()
-        if result is None:
+        download = request.args.get('download', 'false') == 'true'
+
+        template = WorkflowTemplate.query.filter_by(id=template_id).first()
+        if template is None:
             raise NotFoundException()
-        return {'data': result.to_dict()}, HTTPStatus.OK
+        if download:
+            in_memory_file = io.BytesIO()
+            in_memory_file.write(json.dumps(template.to_dict()).encode('utf-8'))
+            in_memory_file.seek(0)
+            return send_file(in_memory_file,
+                             as_attachment=True,
+                             attachment_filename=f'{template.name}.json',
+                             mimetype='application/json; charset=UTF-8',
+                             cache_timeout=0)
+        return {'data': template.to_dict()}, HTTPStatus.OK
 
     def delete(self, template_id):
         result = WorkflowTemplate.query.filter_by(id=template_id)
