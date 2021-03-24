@@ -47,8 +47,7 @@ function compile() {
             .map((varName) => `--${camelCase(varName.slice(1))}: ${varName};`)
             .join('\n');
 
-          const stringToRender = `
-          /**
+          const stringToRender = `/**
  * WARNING: This file is auto-generated
  * DO NOT modify it directly, ./variables.less is the file you should go
  */

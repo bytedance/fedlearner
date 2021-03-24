@@ -1,4 +1,4 @@
-import React, { FC, useState } from 'react';
+import React, { FC } from 'react';
 import styled from 'styled-components';
 import pythonSvg from 'assets/icons/python.svg';
 import { VS_DARK_COLOR } from 'components/CodeEditor';
