@@ -22,7 +22,6 @@ export const userInfoQuery = selector({
   get: async ({ get }) => {
     try {
       const currentUserId = get(userInfoState).id;
-      console.log('🚀 ~ currentUserId', currentUserId);
 
       if (isNil(currentUserId)) {
         throw new Error(i18n.t('error.please_sign_in'));
@@ -35,7 +34,6 @@ export const userInfoQuery = selector({
     }
   },
   set: ({ set }, newValue: any) => {
-    console.log('🚀 ~ newValue', newValue);
     set(userInfoState, { ...newValue });
   },
 });
