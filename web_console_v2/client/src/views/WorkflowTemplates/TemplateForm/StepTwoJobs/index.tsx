@@ -20,6 +20,7 @@ import {
   TPL_GLOBAL_NODE_UUID,
   turnUuidDepToJobName,
   upsertValue,
+  removeValueById,
 } from '../store';
 import { Redirect, useHistory, useParams } from 'react-router';
 import { ExclamationCircle } from 'components/IconPark';
@@ -47,7 +48,7 @@ const TemplateName = styled.h3`
 const Footer = styled.footer`
   position: sticky;
   bottom: 0;
-  z-index: 5; // just above react-flow' z-index
+  z-index: 5; // just > react-flow' z-index
   padding: 15px 36px;
   background-color: white;
 `;
@@ -170,6 +171,7 @@ const TemplateStepTowJobs: FC<{ isEdit?: boolean }> = ({ isEdit }) => {
           toggleVisible={toggleDrawerVisible}
           onSubmit={onDrawerFormSubmit}
           onClose={onCloseDrawer}
+          onDelete={onDeleteJob}
         />
 
         <Footer>
@@ -222,6 +224,36 @@ const TemplateStepTowJobs: FC<{ isEdit?: boolean }> = ({ isEdit }) => {
 
   function onPrevStepClick() {
     history.goBack();
+  }
+  function onDeleteJob() {
+    const uuid = currNode?.id;
+
+    if (uuid) {
+      const nextVal = cloneDeep(template);
+      const jobDefs = nextVal.config.job_definitions;
+      const idx = jobDefs.findIndex((def) => def.uuid === uuid);
+      const jobDefToRemove = jobDefs[idx];
+
+      for (let i = idx + 1; i < jobDefs.length; i++) {
+        const def = jobDefs[i];
+
+        if (def.dependencies.some((dep) => dep.source === uuid)) {
+          def.dependencies = def.dependencies
+            .filter((dep) => dep.source !== uuid)
+            .concat(jobDefToRemove.dependencies);
+        }
+      }
+
+      nextVal.config.job_definitions = [
+        ...jobDefs.slice(0, idx),
+        ...jobDefs.slice(idx + 1, jobDefs.length),
+      ];
+      setTemplate(nextVal);
+      // Remove job from store
+      removeValueById(uuid);
+      setCurrNode(null as any);
+      toggleDrawerVisible(false);
+    }
   }
   function onCancelForkClick() {
     Modal.confirm({
