@@ -36,6 +36,7 @@ from fedlearner_webconsole.workflow.apis import initialize_workflow_apis
 from fedlearner_webconsole.dataset.apis import initialize_dataset_apis
 from fedlearner_webconsole.job.apis import initialize_job_apis
 from fedlearner_webconsole.setting.apis import initialize_setting_apis
+from fedlearner_webconsole.mmgr.apis import initialize_mmgr_apis
 from fedlearner_webconsole.rpc.server import rpc_server
 from fedlearner_webconsole.db import db
 from fedlearner_webconsole.exceptions import (
@@ -140,6 +141,7 @@ def create_app(config):
     initialize_job_apis(api)
     initialize_dataset_apis(api)
     initialize_setting_apis(api)
+    initialize_mmgr_apis(api)
     # A hack that use our customized error handlers
     # Ref: https://github.com/flask-restful/flask-restful/issues/280
     handle_exception = app.handle_exception
