@@ -21,6 +21,7 @@ def retry_fn(retry_times: int = 3, needed_exceptions=None):
     def decorator_retry_fn(f):
         # to resolve pylint warning
         # Dangerous default value [] as argument (dangerous-default-value)
+        nonlocal needed_exceptions
         if needed_exceptions is None:
             needed_exceptions = [Exception]
 
