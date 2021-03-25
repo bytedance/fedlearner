@@ -16,8 +16,8 @@
 
 set -ex
 
-psi_data_join_leader_worker_cmd=/app/deploy/scripts/data_join/run_psi_data_join_leader_worker_v2.sh
-psi_data_join_follower_worker_cmd=/app/deploy/scripts/data_join/run_psi_data_join_follower_worker_v2.sh
+psi_data_join_leader_worker_cmd=/app/deploy/scripts/data_join/run_psi_data_join_leader_worker_v1.sh
+psi_data_join_follower_worker_cmd=/app/deploy/scripts/data_join/run_psi_data_join_follower_worker_v1.sh
 
 export INPUT_FILE_SUBSCRIBE_DIR=$RAW_DATA_SUB_DIR
 export RAW_DATA_PUBLISH_DIR="portal_publish_dir/${APPLICATION_ID}_psi_preprocess"
