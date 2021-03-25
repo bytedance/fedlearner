@@ -15,6 +15,8 @@
 # coding=utf-8
 
 from functools import wraps
+import logging
+from traceback import format_exc
 
 
 def retry_fn(retry_times: int = 3, needed_exceptions=None):
@@ -31,6 +33,9 @@ def retry_fn(retry_times: int = 3, needed_exceptions=None):
                 try:
                     return f(*args, **kwargs)
                 except tuple(needed_exceptions):
+                    logging.error(
+                        'Call function failed, retrying...\nExceptions %s',
+                        format_exc())
                     if i == retry_times - 1:
                         raise
                     continue

@@ -101,14 +101,18 @@ class RpcClient(object):
         return tuple(metadata)
 
     @catch_and_fallback(resp_class=service_pb2.CheckConnectionResponse)
-    @handle_request
+    @retry_fn(retry_times=3, needed_exceptions=[grpc.RpcError])
     def check_connection(self):
         msg = service_pb2.CheckConnectionRequest(auth_info=self._auth_info)
-        return self._client.CheckConnection(request=msg,
-                                            metadata=self._get_metadata())
+        response = self._client.CheckConnection(request=msg,
+                                                metadata=self._get_metadata())
+        if response.status.code != common_pb2.STATUS_SUCCESS:
+            logging.debug('check_connection request error: %s',
+                          response.status.msg)
+        return response
 
     @catch_and_fallback(resp_class=service_pb2.UpdateWorkflowStateResponse)
-    @handle_request
+    @retry_fn(retry_times=3, needed_exceptions=[grpc.RpcError])
     def update_workflow_state(self, name, state, target_state,
                               transaction_state, uuid, forked_from_uuid):
         msg = service_pb2.UpdateWorkflowStateRequest(
@@ -119,40 +123,64 @@ class RpcClient(object):
             transaction_state=transaction_state.value,
             uuid=uuid,
             forked_from_uuid=forked_from_uuid)
-        return self._client.UpdateWorkflowState(request=msg,
-                                                metadata=self._get_metadata())
+        response = self._client.UpdateWorkflowState(
+            request=msg, metadata=self._get_metadata())
+        if response.status.code != common_pb2.STATUS_SUCCESS:
+            logging.debug('update_workflow_state request error: %s',
+                          response.status.msg)
+        return response
 
     @catch_and_fallback(resp_class=service_pb2.GetWorkflowResponse)
-    @handle_request
+    @retry_fn(retry_times=3, needed_exceptions=[grpc.RpcError])
     def get_workflow(self, name):
         msg = service_pb2.GetWorkflowRequest(auth_info=self._auth_info,
                                              workflow_name=name)
-        return self._client.GetWorkflow(request=msg,
-                                        metadata=self._get_metadata())
+        response = self._client.GetWorkflow(request=msg,
+                                            metadata=self._get_metadata())
+
+        if response.status.code != common_pb2.STATUS_SUCCESS:
+            logging.debug('get_workflow request error: %s',
+                          response.status.msg)
+        return response
 
     @catch_and_fallback(resp_class=service_pb2.UpdateWorkflowResponse)
-    @handle_request
+    @retry_fn(retry_times=3, needed_exceptions=[grpc.RpcError])
     def update_workflow(self, name, config):
         msg = service_pb2.UpdateWorkflowRequest(auth_info=self._auth_info,
                                                 workflow_name=name,
                                                 config=config)
-        return self._client.UpdateWorkflow(request=msg,
-                                           metadata=self._get_metadata())
+        response = self._client.UpdateWorkflow(request=msg,
+                                               metadata=self._get_metadata())
+
+        if response.status.code != common_pb2.STATUS_SUCCESS:
+            logging.debug('update_workflow request error: %s',
+                          response.status.msg)
+        return response
 
     @catch_and_fallback(resp_class=service_pb2.GetJobMetricsResponse)
-    @handle_request
+    @retry_fn(retry_times=3, needed_exceptions=[grpc.RpcError])
     def get_job_metrics(self, job_name):
         msg = service_pb2.GetJobMetricsRequest(auth_info=self._auth_info,
                                                job_name=job_name)
-        return self._client.GetJobMetrics(request=msg,
-                                          metadata=self._get_metadata())
+        response = self._client.GetJobMetrics(request=msg,
+                                              metadata=self._get_metadata())
+
+        if response.status.code != common_pb2.STATUS_SUCCESS:
+            logging.debug('get_job_metrics request error: %s',
+                          response.status.msg)
+        return response
 
     @catch_and_fallback(resp_class=service_pb2.GetJobEventsResponse)
-    @handle_request
+    @retry_fn(retry_times=3, needed_exceptions=[grpc.RpcError])
     def get_job_events(self, job_name, start_time, max_lines):
         msg = service_pb2.GetJobEventsRequest(auth_info=self._auth_info,
                                               job_name=job_name,
                                               start_time=start_time,
                                               max_lines=max_lines)
-        return self._client.GetJobEvents(request=msg,
-                                         metadata=self._get_metadata())
+        response = self._client.GetJobEvents(request=msg,
+                                             metadata=self._get_metadata())
+
+        if response.status.code != common_pb2.STATUS_SUCCESS:
+            logging.debug('get_job_events request error: %s',
+                          response.status.msg)
+        return response
