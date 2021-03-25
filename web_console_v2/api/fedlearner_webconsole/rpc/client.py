@@ -91,13 +91,15 @@ class RpcClient(object):
     @retry_fn(retry_times=3)
     def _try_handle_request(self, func, request, resp_class):
         try:
+            func_name = func._method_full_rpc_name  # pylint: disable=protected-access
             response = func(request=request, metadata=self._get_metadata())
             if response.status.code != common_pb2.STATUS_SUCCESS:
-                logging.debug('%s request error: %s', func._method_full_rpc_name,
-                              response.status.msg)
+                logging.debug('%s request error: %s',
+                              func_name, response.status.msg)
             return response
         except grpc.RpcError as e:
-            logging.error('%s request error: %s', func._method_full_rpc_name, repr(e))
+            logging.error('%s request error: %s', func_name,
+                          repr(e))
             fallback_resp = resp_class(status=common_pb2.Status(
                 code=common_pb2.STATUS_UNKNOWN_ERROR, msg=repr(e)))
             if self._grpc_error_need_recover(e):
@@ -122,9 +124,9 @@ class RpcClient(object):
             uuid=uuid,
             forked_from_uuid=forked_from_uuid)
         return self._try_handle_request(
-            func=self._client.UpdateWorkflow,
+            func=self._client.UpdateWorkflowState,
             request=msg,
-            resp_class=service_pb2.UpdateWorkflowResponse)
+            resp_class=service_pb2.UpdateWorkflowStateResponse)
 
     def get_workflow(self, name):
         msg = service_pb2.GetWorkflowRequest(auth_info=self._auth_info,
