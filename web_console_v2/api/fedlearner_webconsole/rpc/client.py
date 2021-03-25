@@ -35,24 +35,6 @@ def _build_channel(url, authority):
         options=[('grpc.default_authority', authority)])
 
 
-def handle_request(f):
-    @wraps(f)
-    @retry_fn(retry_times=3, needed_exceptions=[grpc.RpcError])
-    def wrapper(*args, **kwargs):
-        try:
-            func_name = f.__name__
-            response = f(*args, **kwargs)
-            if response.status.code != common_pb2.STATUS_SUCCESS:
-                logging.debug('%s request error: %s', func_name,
-                              response.status.msg)
-            return response
-        except grpc.RpcError as e:
-            logging.error('%s request error: %s', func_name, repr(e))
-            raise
-
-    return wrapper
-
-
 def catch_and_fallback(resp_class):
     def decorator(f):
         @wraps(f)
