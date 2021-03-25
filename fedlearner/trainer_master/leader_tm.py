@@ -345,9 +345,9 @@ if __name__ == '__main__':
                         default=None, help='training data start date')
     parser.add_argument('-end_date', '--end_date',
                         default=None, help='training data end date')
-    parser.add_argument('-local_data_start_dates', '--local_data_start_date',
+    parser.add_argument('-local_data_start_dates', '--local_data_start_dates',
                         default=None, help='local training data start date')
-    parser.add_argument('-local_data_end_dates', '--local_data_end_date',
+    parser.add_argument('-local_data_end_dates', '--local_data_end_dates',
                         default=None, help='local training data end date')
     parser.add_argument('--online_training', action='store_true',
                         help='the train master run for online training')
