@@ -14,17 +14,18 @@
 
 # coding: utf-8
 
+import grpc
 import unittest
 from unittest.mock import MagicMock
 
 from fedlearner_webconsole.utils.decorators import retry_fn
-from fedlearner_webconsole.exceptions import NeedToRetryException
 
-@retry_fn(retry_times=2)
+
+@retry_fn(retry_times=2, needed_exceptions=[grpc.RpcError])
 def some_unstable_connect(client):
     res = client()
     if res['status'] != 0:
-        raise NeedToRetryException(ret_value='hello world')
+        raise grpc.RpcError()
     else:
         return res['data']
 
@@ -39,22 +40,17 @@ class DecoratorsTest(unittest.TestCase):
         res = [{
             'status': -1,
             'data': 'hhhhhh'
-        },{
+        }, {
             'status': -1,
             'data': 'hhhh'
         }]
 
         client = MagicMock()
         client.side_effect = res
-        self.assertTrue(some_unstable_connect(client=client) == 'hello world')
+        with self.assertRaises(grpc.RpcError):
+            some_unstable_connect(client=client)
 
-        res = [{
-            'status': -1,
-            'data': 'hhhhhh'
-        },{
-            'status': 0,
-            'data': 'hhhh'
-        }]
+        res = [{'status': -1, 'data': 'hhhhhh'}, {'status': 0, 'data': 'hhhh'}]
         client = MagicMock()
         client.side_effect = res
         self.assertTrue(some_unstable_connect(client=client) == 'hhhh')

@@ -16,19 +16,24 @@
 
 from functools import wraps
 
-from fedlearner_webconsole.exceptions import NeedToRetryException
 
-def retry_fn(retry_times: int = 3):
+def retry_fn(retry_times: int = 3, needed_exceptions=None):
     def decorator_retry_fn(f):
+        # to resolve pylint warning
+        # Dangerous default value [] as argument (dangerous-default-value)
+        if needed_exceptions is None:
+            needed_exceptions = [Exception]
+
         @wraps(f)
         def wrapper(*args, **kwargs):
-            fallback_ret_value = None
-            for _ in range(retry_times):
+            for i in range(retry_times):
                 try:
                     return f(*args, **kwargs)
-                except NeedToRetryException as err:
-                    fallback_ret_value = err.ret_value
+                except tuple(needed_exceptions):
+                    if i == retry_times - 1:
+                        raise
                     continue
-            return fallback_ret_value
+
         return wrapper
+
     return decorator_retry_fn
