@@ -65,7 +65,7 @@ export function isRunning(workflow: Workflow) {
 export function isPreparingStop(workflow: Workflow) {
   const { state, target_state } = workflow;
 
-  return target_state === STOPPED && state === RUNNING;
+  return target_state === STOPPED && [RUNNING, COMPLETED, FAILED].includes(state);
 }
 
 export function isStopped(workflow: Workflow) {

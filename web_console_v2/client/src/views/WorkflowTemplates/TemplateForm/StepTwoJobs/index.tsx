@@ -98,8 +98,8 @@ const TemplateStepTowJobs: FC<{ isEdit?: boolean }> = ({ isEdit }) => {
     const leftPivotJobIdx = jobDefs.findIndex((item) => item.uuid === uuidOfHeadJobInRow);
     const rightPivotJobIdx = jobDefs.findIndex((item) => item.uuid === uuidOfLastJobInRow);
 
-    const isInset2Left = position === 'left';
-    const isInset2Bottom = position === 'bottom';
+    const isInsert2Left = position === 'left';
+    const isInsert2Bottom = position === 'bottom';
 
     const preJobs = jobDefs.slice(0, leftPivotJobIdx);
     const midJobs = jobDefs.slice(leftPivotJobIdx, rightPivotJobIdx + 1);
@@ -108,7 +108,7 @@ const TemplateStepTowJobs: FC<{ isEdit?: boolean }> = ({ isEdit }) => {
     const newJobDeps: JobDependency[] = [];
     const newJobUuid = giveWeakRandomKey();
 
-    if (isInset2Bottom) {
+    if (isInsert2Bottom) {
       const depRow = rows[rowIdx];
       newJobDeps.push(...depRow.map((col: any) => ({ source: col.raw.uuid })));
 
@@ -124,15 +124,17 @@ const TemplateStepTowJobs: FC<{ isEdit?: boolean }> = ({ isEdit }) => {
       }
     } else {
       const depRow = rows[rowIdx - 1];
-      newJobDeps.push(...depRow.map((col: any) => ({ source: col.raw.uuid })));
+      if (depRow && depRow.every((item) => !item.isGlobal)) {
+        newJobDeps.push(...depRow.map((col: any) => ({ source: col.raw.uuid })));
+      }
     }
 
     const newJob = _createASlimJobRawData({ uuid: newJobUuid, dependencies: newJobDeps });
 
     // If insert to right or bottom, before should be empty
-    const before = [isInset2Left && newJob].filter(Boolean);
+    const before = [isInsert2Left && newJob].filter(Boolean);
     // If insert to left, after should be empty
-    const after = [!isInset2Left && newJob].filter(Boolean);
+    const after = [!isInsert2Left && newJob].filter(Boolean);
 
     nextVal.config.job_definitions = [...preJobs, ...before, ...midJobs, ...after, ...postJobs];
 
