@@ -16,7 +16,12 @@ import { Button, message, Spin, Popconfirm } from 'antd';
 import { useHistory } from 'react-router-dom';
 import { useSetRecoilState } from 'recoil';
 import { workflowInEditing } from 'stores/workflow';
-import { getPeerWorkflowsConfig, runTheWorkflow, stopTheWorkflow } from 'services/workflow';
+import {
+  getPeerWorkflowsConfig,
+  runTheWorkflow,
+  stopTheWorkflow,
+  invalidTheWorkflow,
+} from 'services/workflow';
 import GridRow from 'components/_base/GridRow';
 import {
   Copy,
@@ -26,6 +31,7 @@ import {
   PlayCircle,
   Pause,
   Eye,
+  Close,
 } from 'components/IconPark';
 import { Icon } from 'components/IconPark/runtime';
 import { useToggle } from 'react-use';
@@ -35,7 +41,7 @@ const Container = styled(GridRow)`
   margin-left: ${(props: any) => (props.type === 'link' ? '-15px !important' : 0)};
 `;
 
-type Action = 'report' | 'configure' | 'run' | 'rerun' | 'stop' | 'fork' | 'detail';
+type Action = 'report' | 'configure' | 'run' | 'rerun' | 'stop' | 'fork' | 'detail' | 'invalid';
 type Props = {
   workflow: Workflow;
   type?: 'link' | 'default';
@@ -52,6 +58,7 @@ const icons: Record<Action, Icon> = {
   stop: Pause,
   detail: Eye,
   fork: Copy,
+  invalid: Close,
 };
 
 const WorkflowActions: FC<Props> = ({ workflow, type = 'default', without = [], onSuccess }) => {
@@ -70,6 +77,7 @@ const WorkflowActions: FC<Props> = ({ workflow, type = 'default', without = [], 
     report: isCompleted(workflow) && !without?.includes('report'),
     detail: !without?.includes('detail'),
     fork: !without?.includes('fork'),
+    invalid: !without?.includes('fork'),
   };
   const isDisabled = !isOperable(workflow);
   const disabled = {
@@ -78,6 +86,7 @@ const WorkflowActions: FC<Props> = ({ workflow, type = 'default', without = [], 
     stop: isDisabled,
     rerun: isDisabled,
     fork: !isForkable(workflow),
+    invalid: isDisabled,
     report: true,
   };
   const isDefaultType = type === 'default';
@@ -141,6 +150,18 @@ const WorkflowActions: FC<Props> = ({ workflow, type = 'default', without = [], 
             {t('workflow.action_detail')}
           </Button>
         )}
+        {visible.invalid && (
+          <Button
+            size="small"
+            type={type}
+            {...withIcon('invalid')}
+            onClick={onInvalidClick}
+            danger
+            disabled={disabled.invalid}
+          >
+            {t('workflow.action_invalid')}
+          </Button>
+        )}
       </Container>
     </Spin>
   );
@@ -191,6 +212,16 @@ const WorkflowActions: FC<Props> = ({ workflow, type = 'default', without = [], 
     toggleLoading(true);
     try {
       await stopTheWorkflow(workflow.id);
+      onSuccess && onSuccess(workflow);
+    } catch (error) {
+      message.error(error.message);
+    }
+    toggleLoading(false);
+  }
+  async function onInvalidClick() {
+    toggleLoading(true);
+    try {
+      await invalidTheWorkflow(workflow.id);
       onSuccess && onSuccess(workflow);
     } catch (error) {
       message.error(error.message);

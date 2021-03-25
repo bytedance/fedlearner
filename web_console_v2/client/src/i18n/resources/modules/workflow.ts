@@ -24,6 +24,7 @@ const workflow: I18nMessageModule = {
   action_detail: { zh: '详情' },
   action_show_report: { zh: '查看模型报告' },
   action_download: { zh: '下载' },
+  action_invalid: { zh: '禁用' },
 
   btn_inspect_logs: { zh: '查看日志' },
   btn_close: { zh: '关闭' },
@@ -61,6 +62,7 @@ const workflow: I18nMessageModule = {
   state_pending_accept: { zh: '待配置' },
   state_ready_to_run: { zh: '配置成功' },
   state_configuring: { zh: '合作伙伴配置中' },
+  state_invalid: { zh: '已禁用' },
   state_unknown: { zh: '状态未知' },
 
   sent_failed: { zh: '发送失败' },

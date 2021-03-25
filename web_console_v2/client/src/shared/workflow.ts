@@ -85,6 +85,11 @@ export function isFailed(workflow: Workflow) {
   return state === FAILED;
 }
 
+export function isInvalid(workflow: Workflow) {
+  const { state } = workflow;
+  return state === INVALID;
+}
+
 // --------------- Xable judgement ----------------
 
 /**
@@ -174,6 +179,13 @@ export function getWorkflowStage(workflow: Workflow): { type: StateTypes; text: 
     return {
       text: i18n.t('workflow.state_failed'),
       type: 'error',
+    };
+  }
+
+  if (isInvalid(workflow)) {
+    return {
+      text: i18n.t('workflow.state_failed'),
+      type: 'default',
     };
   }
 
