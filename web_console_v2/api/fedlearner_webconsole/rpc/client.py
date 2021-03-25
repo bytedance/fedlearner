@@ -53,6 +53,21 @@ def handle_request(f):
     return wrapper
 
 
+def catch_and_fallback(resp_class):
+    def decorator(f):
+        @wraps(f)
+        def wrapper(*args, **kwargs):
+            try:
+                return f(*args, **kwargs)
+            except grpc.RpcError as e:
+                return resp_class(status=common_pb2.Status(
+                    code=common_pb2.STATUS_UNKNOWN_ERROR, msg=repr(e)))
+
+        return wrapper
+
+    return decorator
+
+
 class RpcClient(object):
     def __init__(self, project_config, receiver_config):
         self._project = project_config
@@ -85,103 +100,59 @@ class RpcClient(object):
         # metadata is a tuple of tuples
         return tuple(metadata)
 
+    @catch_and_fallback(resp_class=service_pb2.CheckConnectionResponse)
+    @handle_request
     def check_connection(self):
-        @handle_request
-        def check_connection():
-            msg = service_pb2.CheckConnectionRequest(auth_info=self._auth_info)
-            return self._client.CheckConnection(request=msg,
-                                                metadata=self._get_metadata())
-
-        try:
-            return check_connection()
-        except grpc.RpcError as e:
-            # fallback return
-            return service_pb2.CheckConnectionResponse(
-                status=common_pb2.Status(code=common_pb2.STATUS_UNKNOWN_ERROR,
-                                         msg=repr(e)))
-
-    def update_workflow_state(self, name, state, target_state,
-                              transaction_state, uuid, forked_from_uuid):
-        @handle_request
-        def update_workflow_state():
-            msg = service_pb2.UpdateWorkflowStateRequest(
-                auth_info=self._auth_info,
-                workflow_name=name,
-                state=state.value,
-                target_state=target_state.value,
-                transaction_state=transaction_state.value,
-                uuid=uuid,
-                forked_from_uuid=forked_from_uuid)
-            return self._client.UpdateWorkflowState(
-                request=msg, metadata=self._get_metadata())
-
-        try:
-            return update_workflow_state()
-        except grpc.RpcError as e:
-            # fallback return
-            return service_pb2.UpdateWorkflowStateResponse(
-                status=common_pb2.Status(code=common_pb2.STATUS_UNKNOWN_ERROR,
-                                         msg=repr(e)))
-
-    def get_workflow(self, name):
-        @handle_request
-        def get_workflow():
-            msg = service_pb2.GetWorkflowRequest(auth_info=self._auth_info,
-                                                 workflow_name=name)
-            return self._client.GetWorkflow(request=msg,
+        msg = service_pb2.CheckConnectionRequest(auth_info=self._auth_info)
+        return self._client.CheckConnection(request=msg,
                                             metadata=self._get_metadata())
 
-        try:
-            return get_workflow()
-        except grpc.RpcError as e:
-            # fallback return
-            return service_pb2.GetWorkflowResponse(status=common_pb2.Status(
-                code=common_pb2.STATUS_UNKNOWN_ERROR, msg=repr(e)))
+    @catch_and_fallback(resp_class=service_pb2.UpdateWorkflowStateResponse)
+    @handle_request
+    def update_workflow_state(self, name, state, target_state,
+                              transaction_state, uuid, forked_from_uuid):
+        msg = service_pb2.UpdateWorkflowStateRequest(
+            auth_info=self._auth_info,
+            workflow_name=name,
+            state=state.value,
+            target_state=target_state.value,
+            transaction_state=transaction_state.value,
+            uuid=uuid,
+            forked_from_uuid=forked_from_uuid)
+        return self._client.UpdateWorkflowState(request=msg,
+                                                metadata=self._get_metadata())
 
+    @catch_and_fallback(resp_class=service_pb2.GetWorkflowResponse)
+    @handle_request
+    def get_workflow(self, name):
+        msg = service_pb2.GetWorkflowRequest(auth_info=self._auth_info,
+                                             workflow_name=name)
+        return self._client.GetWorkflow(request=msg,
+                                        metadata=self._get_metadata())
+
+    @catch_and_fallback(resp_class=service_pb2.UpdateWorkflowResponse)
+    @handle_request
     def update_workflow(self, name, config):
-        @handle_request
-        def update_workflow():
-            msg = service_pb2.UpdateWorkflowRequest(auth_info=self._auth_info,
-                                                    workflow_name=name,
-                                                    config=config)
-            return self._client.UpdateWorkflow(request=msg,
-                                               metadata=self._get_metadata())
+        msg = service_pb2.UpdateWorkflowRequest(auth_info=self._auth_info,
+                                                workflow_name=name,
+                                                config=config)
+        return self._client.UpdateWorkflow(request=msg,
+                                           metadata=self._get_metadata())
 
-        try:
-            return update_workflow()
-        except grpc.RpcError as e:
-            # fallback return
-            return service_pb2.UpdateWorkflowResponse(status=common_pb2.Status(
-                code=common_pb2.STATUS_UNKNOWN_ERROR, msg=repr(e)))
-
+    @catch_and_fallback(resp_class=service_pb2.GetJobMetricsResponse)
+    @handle_request
     def get_job_metrics(self, job_name):
-        @handle_request
-        def get_job_metrics():
-            msg = service_pb2.GetJobMetricsRequest(auth_info=self._auth_info,
-                                                   job_name=job_name)
-            return self._client.GetJobMetrics(request=msg,
-                                              metadata=self._get_metadata())
+        msg = service_pb2.GetJobMetricsRequest(auth_info=self._auth_info,
+                                               job_name=job_name)
+        return self._client.GetJobMetrics(request=msg,
+                                          metadata=self._get_metadata())
 
-        try:
-            return get_job_metrics()
-        except grpc.RpcError as e:
-            # fallback return
-            return service_pb2.GetJobMetricsResponse(status=common_pb2.Status(
-                code=common_pb2.STATUS_UNKNOWN_ERROR, msg=repr(e)))
-
+    @catch_and_fallback(resp_class=service_pb2.GetJobEventsResponse)
+    @handle_request
     def get_job_events(self, job_name, start_time, max_lines):
-        @handle_request
-        def get_job_events():
-            msg = service_pb2.GetJobEventsRequest(auth_info=self._auth_info,
-                                                  job_name=job_name,
-                                                  start_time=start_time,
-                                                  max_lines=max_lines)
-            return self._client.GetJobEvents(request=msg,
-                                             metadata=self._get_metadata())
-
-        try:
-            return get_job_events()
-        except grpc.RpcError as e:
-            # fallback return
-            return service_pb2.GetJobEventsResponse(status=common_pb2.Status(
-                code=common_pb2.STATUS_UNKNOWN_ERROR, msg=repr(e)))
+        msg = service_pb2.GetJobEventsRequest(auth_info=self._auth_info,
+                                              job_name=job_name,
+                                              start_time=start_time,
+                                              max_lines=max_lines)
+        return self._client.GetJobEvents(request=msg,
+                                         metadata=self._get_metadata())
