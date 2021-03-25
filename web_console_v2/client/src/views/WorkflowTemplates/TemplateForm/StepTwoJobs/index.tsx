@@ -215,8 +215,6 @@ const TemplateStepTowJobs: FC<{ isEdit?: boolean }> = ({ isEdit }) => {
         id: currNode?.id,
         status: valid ? ChartNodeStatus.Success : ChartNodeStatus.Warning,
       });
-
-      // drawerRef.current?.reset();
     }
   }
 

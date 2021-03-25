@@ -1,4 +1,4 @@
-
+/* eslint-disable */
 /**
  * WARNING: This file is auto-generated
  * DO NOT modify it directly, ./variables.less is the file you should go
