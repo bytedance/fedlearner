@@ -32,7 +32,7 @@ import { MixinFlexAlignCenter } from 'styles/mixins';
 import { useSubscribe } from 'hooks';
 import { WORKFLOW_JOB_NODE_CHANNELS } from 'components/WorkflowJobsCanvas/JobNodes/shared';
 import { Side } from 'typings/app';
-import { JobReuseFlag } from 'typings/job';
+import { CreateJobFlag } from 'typings/job';
 
 const LoadingContainer = styled.div`
   ${MixinFlexAlignCenter()}
@@ -402,7 +402,7 @@ function _hydrate(variableShells: Variable[], formValues?: Dictionary<any>): Var
 function _mapJobReuseFlag(nodes: ChartNodes) {
   return nodes
     .filter((node) => node.type !== 'global')
-    .map((node) => (node.data.inherit ? JobReuseFlag.REUSE : JobReuseFlag.NEW))!;
+    .map((node) => (node.data.inherit ? CreateJobFlag.REUSE : CreateJobFlag.NEW))!;
 }
 
 function _omitJobsColorMark(jobs: JobNodeRawData[]): JobNodeRawData[] {

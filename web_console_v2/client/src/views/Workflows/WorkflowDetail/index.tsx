@@ -23,7 +23,7 @@ import { ReactFlowProvider } from 'react-flow-renderer';
 import { findJobExeInfoByJobDef, isRunning, isStopped } from 'shared/workflow';
 import dayjs from 'dayjs';
 import NoResult from 'components/NoResult';
-import { JobReuseFlag } from 'typings/job';
+import { CreateJobFlag } from 'typings/job';
 
 const Container = styled.div`
   display: flex;
@@ -335,9 +335,9 @@ function _mergeWithExecutionDetails(workflow?: WorkflowExecutionDetails): JobNod
   );
 }
 
-function _markInheritedJobs(jobs: JobNodeRawData[], jobReuseFlags: JobReuseFlag[]) {
+function _markInheritedJobs(jobs: JobNodeRawData[], jobReuseFlags: CreateJobFlag[]) {
   return jobs.forEach((item, index) => {
-    if (jobReuseFlags[index] === JobReuseFlag.REUSE) {
+    if (jobReuseFlags[index] === CreateJobFlag.REUSE) {
       item.inherited = true;
     }
 

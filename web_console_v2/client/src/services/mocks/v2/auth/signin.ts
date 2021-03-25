@@ -1,8 +1,12 @@
 export const post = {
   data: {
     access_token: 'token',
-    id: 1,
-    message: undefined,
+    user: {
+      id: 1,
+      name: '',
+      username: '',
+      role: '',
+    },
   },
   status: 204,
 };
