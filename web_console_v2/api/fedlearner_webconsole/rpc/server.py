@@ -74,7 +74,7 @@ class RPCServerServicer(service_pb2_grpc.WebConsoleV2ServiceServicer):
     def UpdateWorkflowState(self, request, context):
         return self._try_handle_request(
             self._server.update_workflow_state, request, context,
-            service_pb2.UpdateWorkflowResponse)
+            service_pb2.UpdateWorkflowStateResponse)
 
     def GetWorkflow(self, request, context):
         return self._try_handle_request(
