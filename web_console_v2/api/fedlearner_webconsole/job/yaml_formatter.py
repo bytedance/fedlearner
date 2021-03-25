@@ -77,8 +77,11 @@ def generate_job_run_yaml(job):
                        workflow=workflow,
                        project=project,
                        system=system_dict)
-    yaml = json.loads(yaml)
-    return yaml
+    try:
+        loaded = json.loads(yaml)
+    except Exception as e:  # pylint: disable=broad-except
+        raise ValueError("Invalid json %s: %s"%(repr(e), yaml))
+    return loaded
 
 
 def code_dict_encode(data_dict):
