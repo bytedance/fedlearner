@@ -17,22 +17,19 @@
 
 import logging
 import grpc
-from fedlearner_webconsole.proto import (
-    service_pb2, service_pb2_grpc, common_pb2
-)
+from fedlearner_webconsole.proto import (service_pb2, service_pb2_grpc,
+                                         common_pb2)
 from fedlearner_webconsole.exceptions import NeedToRetryException
 from fedlearner_webconsole.utils.decorators import retry_fn
-
 
 
 def _build_channel(url, authority):
     """A helper function to build gRPC channel for easy testing."""
     return grpc.insecure_channel(
-            target=url,
-            # options defined at
-            # https://github.com/grpc/grpc/blob/master/include/grpc/impl/codegen/grpc_types.h
-            options=[('grpc.default_authority', authority)]
-    )
+        target=url,
+        # options defined at
+        # https://github.com/grpc/grpc/blob/master/include/grpc/impl/codegen/grpc_types.h
+        options=[('grpc.default_authority', authority)])
 
 
 class RpcClient(object):
@@ -50,10 +47,8 @@ class RpcClient(object):
             if variable.name == 'EGRESS_URL':
                 egress_url = variable.value
                 break
-        self._client = service_pb2_grpc.WebConsoleV2ServiceStub(_build_channel(
-            egress_url,
-            self._receiver.grpc_spec.authority
-        ))
+        self._client = service_pb2_grpc.WebConsoleV2ServiceStub(
+            _build_channel(egress_url, self._receiver.grpc_spec.authority))
 
     def _get_metadata(self):
         metadata = []
@@ -69,27 +64,53 @@ class RpcClient(object):
         # metadata is a tuple of tuples
         return tuple(metadata)
 
-    @retry_fn(retry_times=3)
-    def check_connection(self):
-        msg = service_pb2.CheckConnectionRequest(
-            auth_info=self._auth_info)
+    @staticmethod
+    def _grpc_error_need_recover(e):
+        if e.code() in (grpc.StatusCode.UNAVAILABLE, grpc.StatusCode.INTERNAL):
+            return True
+        if e.code() == grpc.StatusCode.UNKNOWN:
+            httpstatus = RpcClient._grpc_error_get_http_status(e.details())
+            # catch all header with non-200 OK
+            if httpstatus:
+                return True
+        return False
+
+    @staticmethod
+    def _grpc_error_get_http_status(details):
         try:
-            response = self._client.CheckConnection(
-                request=msg, metadata=self._get_metadata())
-            if response.status.code == common_pb2.STATUS_UNKNOWN_ERROR:
-                raise Exception
-            if response.status.code != common_pb2.STATUS_SUCCESS:
-                logging.debug('check_connection request error: %s',
-                              response.status.msg)
-            return response.status
-        except Exception as e:
-            logging.error('check_connection request error: %s',
-                          repr(e))
-            fallback_resp = common_pb2.Status(
-                code=common_pb2.STATUS_UNKNOWN_ERROR, msg=repr(e))
-            raise NeedToRetryException(ret_value=fallback_resp)
+            if details.count("http2 header with status") > 0:
+                fields = details.split(":")
+                if len(fields) == 2:
+                    return int(details.split(":")[1])
+        except Exception as e:  #pylint: disable=broad-except
+            logging.warning(
+                "[Channel] grpc_error_get_http_status except: %s, details: %s",
+                repr(e), details)
+        return None
 
     @retry_fn(retry_times=3)
+    def _try_handle_request(self, func, request, resp_class):
+        try:
+            response = func(request=request, metadata=self._get_metadata())
+            if response.status.code != common_pb2.STATUS_SUCCESS:
+                logging.debug('%s request error: %s', func.__name__,
+                              response.status.msg)
+            return response
+        except grpc.RpcError as e:
+            logging.error('%s request error: %s', func.__name__, repr(e))
+            fallback_resp = resp_class(status=common_pb2.Status(
+                code=common_pb2.STATUS_UNKNOWN_ERROR, msg=repr(e)))
+            if self._grpc_error_need_recover(e):
+                raise NeedToRetryException(ret_value=fallback_resp) from e
+            return fallback_resp
+
+    def check_connection(self):
+        msg = service_pb2.CheckConnectionRequest(auth_info=self._auth_info)
+        return self._try_handle_request(
+            func=self._client.CheckConnection,
+            request=msg,
+            resp_class=service_pb2.CheckConnectionResponse).status
+
     def update_workflow_state(self, name, state, target_state,
                               transaction_state, uuid, forked_from_uuid):
         msg = service_pb2.UpdateWorkflowStateRequest(
@@ -99,116 +120,43 @@ class RpcClient(object):
             target_state=target_state.value,
             transaction_state=transaction_state.value,
             uuid=uuid,
-            forked_from_uuid=forked_from_uuid
-        )
-        try:
-            response = self._client.UpdateWorkflowState(
-                request=msg, metadata=self._get_metadata())
-            if response.status.code == common_pb2.STATUS_UNKNOWN_ERROR:
-                raise Exception
-            if response.status.code != common_pb2.STATUS_SUCCESS:
-                logging.error(
-                    'update_workflow_state request error: %s',
-                    response.status.msg)
-            return response
-        except Exception as e:
-            logging.error('workflow %s update_workflow_state request error: %s'
-                          , name, repr(e))
-            fallback_resp = service_pb2.UpdateWorkflowStateResponse(
-                status=common_pb2.Status(code=common_pb2.STATUS_UNKNOWN_ERROR,
-                                         msg=repr(e)))
-            raise NeedToRetryException(ret_value=fallback_resp)
+            forked_from_uuid=forked_from_uuid)
+        return self._try_handle_request(
+            func=self._client.UpdateWorkflow,
+            request=msg,
+            resp_class=service_pb2.UpdateWorkflowResponse)
 
-    @retry_fn(retry_times=3)
     def get_workflow(self, name):
-        msg = service_pb2.GetWorkflowRequest(
-            auth_info=self._auth_info,
-            workflow_name=name)
-        try:
-            response = self._client.GetWorkflow(
-                request=msg, metadata=self._get_metadata())
-            if response.status.code == common_pb2.STATUS_UNKNOWN_ERROR:
-                raise Exception
-            if response.status.code != common_pb2.STATUS_SUCCESS:
-                logging.error(
-                    'workflow %s get_workflow request error: %s',
-                    name,
-                    response.status.msg)
-            return response
-        except Exception as e:
-            logging.error('workflow %s get_workflow request error: %s',
-                          name,
-                          repr(e))
-            fallback_resp = service_pb2.GetWorkflowResponse(
-                status=common_pb2.Status(code=common_pb2.STATUS_UNKNOWN_ERROR,
-                                         msg=repr(e)))
-            raise NeedToRetryException(ret_value=fallback_resp)
+        msg = service_pb2.GetWorkflowRequest(auth_info=self._auth_info,
+                                             workflow_name=name)
+        return self._try_handle_request(
+            func=self._client.GetWorkflow,
+            request=msg,
+            resp_class=service_pb2.GetWorkflowResponse)
 
-    @retry_fn(retry_times=3)
     def update_workflow(self, name, config):
-        msg = service_pb2.UpdateWorkflowRequest(
-            auth_info=self._auth_info,
-            workflow_name=name,
-            config=config)
-        try:
-            response = self._client.UpdateWorkflow(
-                request=msg, metadata=self._get_metadata())
-            if response.status.code == common_pb2.STATUS_UNKNOWN_ERROR:
-                raise Exception
-            if response.status.code != common_pb2.STATUS_SUCCESS:
-                logging.error(
-                    'update_workflow request error: %s',
-                    response.status.msg)
-            return response
-        except Exception as e:
-            logging.error('update_workflow request error: %s', repr(e))
-            fallback_resp = service_pb2.UpdateWorkflowResponse(
-                status=common_pb2.Status(code=common_pb2.STATUS_UNKNOWN_ERROR,
-                                         msg=repr(e)))
-            raise NeedToRetryException(ret_value=fallback_resp)
+        msg = service_pb2.UpdateWorkflowRequest(auth_info=self._auth_info,
+                                                workflow_name=name,
+                                                config=config)
+        return self._try_handle_request(
+            func=self._client.UpdateWorkflow,
+            request=msg,
+            resp_class=service_pb2.UpdateWorkflowResponse)
 
-    @retry_fn(retry_times=3)
     def get_job_metrics(self, job_name):
-        msg = service_pb2.GetJobMetricsRequest(
-            auth_info=self._auth_info,
-            job_name=job_name)
-        try:
-            response = self._client.GetJobMetrics(
-                request=msg, metadata=self._get_metadata())
-            if response.status.code == common_pb2.STATUS_UNKNOWN_ERROR:
-                raise Exception
-            if response.status.code != common_pb2.STATUS_SUCCESS:
-                logging.error(
-                    'get_job_metrics request error: %s',
-                    response.status.msg)
-            return response
-        except Exception as e:
-            logging.error('get_job_metrics request error: %s', repr(e))
-            fallback_resp = service_pb2.GetJobMetricsResponse(
-                status=common_pb2.Status(code=common_pb2.STATUS_UNKNOWN_ERROR,
-                                         msg=repr(e)))
-            raise NeedToRetryException(ret_value=fallback_resp)
+        msg = service_pb2.GetJobMetricsRequest(auth_info=self._auth_info,
+                                               job_name=job_name)
+        return self._try_handle_request(
+            func=self._client.GetJobMetrics,
+            request=msg,
+            resp_class=service_pb2.GetJobMetricsResponse)
 
-    @retry_fn(retry_times=3)
     def get_job_events(self, job_name, start_time, max_lines):
-        msg = service_pb2.GetJobEventsRequest(
-            auth_info=self._auth_info,
-            job_name=job_name,
-            start_time=start_time,
-            max_lines=max_lines)
-        try:
-            response = self._client.GetJobEvents(
-                request=msg, metadata=self._get_metadata())
-            if response.status.code == common_pb2.STATUS_UNKNOWN_ERROR:
-                raise Exception
-            if response.status.code != common_pb2.STATUS_SUCCESS:
-                logging.error(
-                    'get_job_events request error: %s',
-                    response.status.msg)
-            return response
-        except Exception as e:
-            logging.error('get_job_events request error: %s', repr(e))
-            fallback_resp = service_pb2.GetJobEventsResponse(
-                status=common_pb2.Status(code=common_pb2.STATUS_UNKNOWN_ERROR,
-                                         msg=repr(e)))
-            raise NeedToRetryException(ret_value=fallback_resp)
+        msg = service_pb2.GetJobEventsRequest(auth_info=self._auth_info,
+                                              job_name=job_name,
+                                              start_time=start_time,
+                                              max_lines=max_lines)
+        return self._try_handle_request(
+            func=self._client.GetJobEvents,
+            request=msg,
+            resp_class=service_pb2.GetJobEventsResponse)
