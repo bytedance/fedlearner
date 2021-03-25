@@ -82,6 +82,34 @@ def _encrypt_and_send_numbers(bridge, name, public_key, numbers):
         msg.ciphertext.extend(_encrypt_numbers(public_key, part))
         bridge.send_proto('%s_part_%d'%(name, i), msg)
 
+def _encrypt_and_send_numbers_by_id(args):
+    public_key, part, i = args
+    ciphertext = _encrypt_numbers(public_key, part)
+    return i, ciphertext
+
+def _encrypt_and_send_numbers_mp(bridge, name, public_key, numbers, pool=None):
+    if not pool:
+        _encrypt_and_send_numbers(bridge, name, public_key, numbers)
+    else:
+        num_parts = (len(numbers) + MAX_PARTITION_SIZE -
+                     1) // MAX_PARTITION_SIZE
+        bridge.send_proto(bridge.current_iter_id, '%s_partition_info' % name,
+                          tree_pb2.PartitionInfo(num_partitions=num_parts))
+
+        def gen():
+            for i in range(num_parts):
+                part = numbers[i * MAX_PARTITION_SIZE:(i + 1) *
+                               MAX_PARTITION_SIZE]
+                yield public_key, part, i
+
+        results = pool.imap_unordered(_encrypt_and_send_numbers_by_id, gen())
+        for res in results:
+            i, ciphertext = res
+            msg = tree_pb2.EncryptedNumbers()
+            msg.ciphertext.extend(ciphertext)
+            bridge.send_proto(bridge.current_iter_id, '%s_part_%d' % (name, i),
+                              msg)
+
 def _receive_encrypted_numbers(bridge, name, public_key):
     part_info = tree_pb2.PartitionInfo()
     bridge.receive_proto('%s_partition_info'%name).Unpack(part_info)
