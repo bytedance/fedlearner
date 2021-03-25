@@ -76,6 +76,8 @@ class RpcClient(object):
         try:
             response = self._client.CheckConnection(
                 request=msg, metadata=self._get_metadata())
+            if response.status.code == common_pb2.STATUS_UNKNOWN_ERROR:
+                raise Exception
             if response.status.code != common_pb2.STATUS_SUCCESS:
                 logging.debug('check_connection request error: %s',
                               response.status.msg)
@@ -102,6 +104,8 @@ class RpcClient(object):
         try:
             response = self._client.UpdateWorkflowState(
                 request=msg, metadata=self._get_metadata())
+            if response.status.code == common_pb2.STATUS_UNKNOWN_ERROR:
+                raise Exception
             if response.status.code != common_pb2.STATUS_SUCCESS:
                 logging.error(
                     'update_workflow_state request error: %s',
@@ -123,6 +127,8 @@ class RpcClient(object):
         try:
             response = self._client.GetWorkflow(
                 request=msg, metadata=self._get_metadata())
+            if response.status.code == common_pb2.STATUS_UNKNOWN_ERROR:
+                raise Exception
             if response.status.code != common_pb2.STATUS_SUCCESS:
                 logging.error(
                     'workflow %s get_workflow request error: %s',
@@ -147,6 +153,8 @@ class RpcClient(object):
         try:
             response = self._client.UpdateWorkflow(
                 request=msg, metadata=self._get_metadata())
+            if response.status.code == common_pb2.STATUS_UNKNOWN_ERROR:
+                raise Exception
             if response.status.code != common_pb2.STATUS_SUCCESS:
                 logging.error(
                     'update_workflow request error: %s',
@@ -167,6 +175,8 @@ class RpcClient(object):
         try:
             response = self._client.GetJobMetrics(
                 request=msg, metadata=self._get_metadata())
+            if response.status.code == common_pb2.STATUS_UNKNOWN_ERROR:
+                raise Exception
             if response.status.code != common_pb2.STATUS_SUCCESS:
                 logging.error(
                     'get_job_metrics request error: %s',
@@ -189,6 +199,8 @@ class RpcClient(object):
         try:
             response = self._client.GetJobEvents(
                 request=msg, metadata=self._get_metadata())
+            if response.status.code == common_pb2.STATUS_UNKNOWN_ERROR:
+                raise Exception
             if response.status.code != common_pb2.STATUS_SUCCESS:
                 logging.error(
                     'get_job_events request error: %s',
