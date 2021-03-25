@@ -16,14 +16,18 @@
 from http import HTTPStatus
 from flask import jsonify
 
+
 class NeedToRetryException(Exception):
-    """ This Exception is raised for retry this function when something unexpected happened.
-    
-    Note: Please wrapper the function your want to retry with decorator 
+    """ This Exception is raised for retry this function
+        when something unexpected happened.
+
+    Note: Please wrapper the function your want to retry with decorator
         `fedlearner_webconsole.utils.decorators.retry_fn`.
     """
     def __init__(self, ret_value=None) -> None:
-       self.ret_value = ret_value 
+        super().__init__()
+        self.ret_value = ret_value
+
 
 class WebConsoleApiException(Exception):
     def __init__(self, status_code, error_code, message, details=None):

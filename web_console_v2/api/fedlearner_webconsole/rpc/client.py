@@ -15,14 +15,14 @@
 # coding: utf-8
 # pylint: disable=broad-except
 
-import re
-from fedlearner_webconsole.exceptions import NeedToRetryException
-from fedlearner_webconsole.utils.decorators import retry_fn
 import logging
 import grpc
 from fedlearner_webconsole.proto import (
     service_pb2, service_pb2_grpc, common_pb2
 )
+from fedlearner_webconsole.exceptions import NeedToRetryException
+from fedlearner_webconsole.utils.decorators import retry_fn
+
 
 
 def _build_channel(url, authority):
