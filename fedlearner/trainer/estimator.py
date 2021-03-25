@@ -155,7 +155,8 @@ class FLModel(object):
         self._train_ops.append(op)
         self._sends.append((name, tensor, require_grad))
         if require_grad:
-            return self.recv(name + '_grad', tensor.dtype)
+            with tf.control_dependencies([op]):
+                return self.recv(name + '_grad', tensor.dtype)
         return None
 
     def recv(self, name, dtype=tf.float32, require_grad=False, shape=None):
@@ -298,8 +299,8 @@ class FLEstimator(object):
               save_checkpoint_secs=None):
 
         config = tf.ConfigProto()
-        config.inter_op_parallelism_threads = 16
-        config.inter_op_parallelism_threads = 16
+        config.inter_op_parallelism_threads = 128
+        config.inter_op_parallelism_threads = 128
         config.experimental.share_session_state_in_clusterspec_propagation \
             = True
 
