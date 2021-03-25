@@ -93,11 +93,11 @@ class RpcClient(object):
         try:
             response = func(request=request, metadata=self._get_metadata())
             if response.status.code != common_pb2.STATUS_SUCCESS:
-                logging.debug('%s request error: %s', func.__name__,
+                logging.debug('%s request error: %s', func._method_full_rpc_name,
                               response.status.msg)
             return response
         except grpc.RpcError as e:
-            logging.error('%s request error: %s', func.__name__, repr(e))
+            logging.error('%s request error: %s', func._method_full_rpc_name, repr(e))
             fallback_resp = resp_class(status=common_pb2.Status(
                 code=common_pb2.STATUS_UNKNOWN_ERROR, msg=repr(e)))
             if self._grpc_error_need_recover(e):
