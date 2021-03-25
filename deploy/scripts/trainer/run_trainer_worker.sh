@@ -59,6 +59,7 @@ sparse_estimator=$(normalize_env_to_args "--sparse-estimator" "$SPARSE_ESTIMATOR
 summary_save_steps=$(normalize_env_to_args "--summary-save-steps" "$SUMMARY_SAVE_STEPS")
 batch_size=$(normalize_env_to_args "--batch-size" "$BATCH_SIZE")
 learning_rate=$(normalize_env_to_args "--learning-rate" "$LEARNING_RATE")
+local_data_sources=$(normalize_env_to_args "--local_data_sources" $LOCAL_DATA_SOURCES)
 
 if [ -n "$CHECKPOINT_PATH" ]; then
     checkpoint_path="$CHECKPOINT_PATH"
@@ -109,5 +110,6 @@ python main.py \
     $mode $verbosity \
     $save_checkpoint_steps $sparse_estimator $summary_save_steps \
     $save_checkpoint_secs $batch_size $learning_rate \
+    $local_data_sources \
     $load_checkpoint_filename \
     $load_checkpoint_filename_with_path

@@ -35,11 +35,21 @@ class DataBlockLoader(object):
         self._bridge = bridge
         self._trainer_master = trainer_master
         assert self._trainer_master is not None
+        self._data_source_info = None
+        ds_info = trainer_master.get_data_source_info()
+        if ds_info is None:
+            raise ValueError("Get data source info from master failed")
+        self._data_source_type = ds_info.type
+        self._block_count = ds_info.size
 
         self._count = 0
         if role == 'follower':
             self._block_queue = queue.Queue()
             self._bridge.register_data_block_handler(self._data_block_handler)
+
+    @property
+    def block_count(self):
+        return self._block_count
 
     def _data_block_handler(self, msg):
         logging.info('DataBlock: recv "%s" at %d', msg.block_id, msg.count)
@@ -79,7 +89,6 @@ class DataBlockLoader(object):
                 yield block.data_path
 
         dataset = tf.data.Dataset.from_generator(gen, tf.string)
-        dataset = dataset.prefetch(2)
         dataset = tf.data.TFRecordDataset(dataset)
         dataset = dataset.batch(self._batch_size, drop_remainder=True)
         dataset = dataset.prefetch(2)

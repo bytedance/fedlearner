@@ -61,7 +61,7 @@ class LeaderTrainerMaster(object):
         self._shuffle_data_block = shuffle_data_block
         self._shuffle_range = shuffle_range
         self._data_source_dict = dict()
-        self._default_data_source_name = None
+        self._default_data_source_name = data_source
         self._data_source_dict[data_source] = self._DataSourceInfo(
             data_source, tm_pb.JOINED, start_time, end_time, kvstore_use_mock)
         if local_data_sources:
@@ -73,8 +73,6 @@ class LeaderTrainerMaster(object):
                 else:
                     self._data_source_dict[ds] = self._DataSourceInfo(
                         ds, tm_pb.LOCAL, start_time, end_time, kvstore_use_mock)
-        else:
-            self._default_data_source_name = data_source
         logging.debug("Data sources %s loaded",
                       ','.join(self._data_source_dict.keys()))
         if online_training:

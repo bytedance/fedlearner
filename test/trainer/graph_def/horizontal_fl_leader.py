@@ -19,6 +19,7 @@ import logging
 import tensorflow.compat.v1 as tf
 import fedlearner.trainer as flt
 
+local_data_source_name = ''
 
 def input_fn(bridge, trainer_master):
     def parse_fn(example):
@@ -29,22 +30,19 @@ def input_fn(bridge, trainer_master):
         features = tf.parse_example(example, features=feature_map)
         return features, {}
     batch = 2
-    loader0 = flt.data.DataBlockLoaderV2('leader', bridge,
-                                         trainer_master,
-                                         'test-liuqi-mnist-leader-v1')
+    loader0 = flt.data.DataBlockLoader(batch, 'leader', bridge,
+                                       trainer_master)
+    dataset = loader0.make_dataset()
+    dataset = dataset.map(map_func=parse_fn,
+                          num_parallel_calls=tf.data.experimental.AUTOTUNE)
+    features, label = dataset.make_one_shot_iterator().get_next()
+
     loader1 = flt.data.DataBlockLoaderV2('leader', bridge, trainer_master,
-                                         "test-liuqi-mnist-local")
+                                         local_data_source_name)
     block_count0 = loader0.block_count
     block_count1 = loader1.block_count
     min_block_count = min(block_count0, block_count1)
-    batch_size0 = batch * (block_count0 // min_block_count)
     batch_size1 = batch * (block_count1 // min_block_count)
-
-    dataset = loader0.make_dataset(batch_size0)
-    dataset = dataset.map(map_func=parse_fn,
-        num_parallel_calls=tf.data.experimental.AUTOTUNE)
-    features, label = dataset.make_one_shot_iterator().get_next()
-
     def parse_fn1(example):
         feature_map = {
             "x": tf.FixedLenFeature([261], tf.float32),
@@ -112,6 +110,8 @@ def model_fn(model, features, labels, mode):
 
 def main(args):
     logging.basicConfig(level=logging.INFO)
+    global local_data_source_name
+    local_data_source_name = args.local_data_sources
     flt.trainer_worker.train(
         'leader', args, input_fn,
         model_fn, serving_input_receiver_fn)

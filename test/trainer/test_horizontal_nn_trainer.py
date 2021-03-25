@@ -254,7 +254,7 @@ class Args(object):
     def __init__(self, local_addr=None, peer_addr=None, app_id=None, master_addr=None,
             data_source=None, data_source_dict=None, data_path=None, data_path_dict=None, ckpt_path=None,
             export_path=None, start_time=None, end_time=None, tf_addr=None, cluster_spec=None,
-            ps_addrs=None, worker_rank=0):
+            ps_addrs=None, worker_rank=0, local_data_sources=''):
         self.local_addr = local_addr
         self.peer_addr = peer_addr
         self.worker_rank = worker_rank
@@ -281,6 +281,7 @@ class Args(object):
         self.batch_size = 100
         self.learning_rate = 0.01
         self.epoch_num = 10
+        self.local_data_sources = local_data_sources
 
 
 class TestNNTraining(unittest.TestCase):
@@ -365,8 +366,9 @@ class TestNNTraining(unittest.TestCase):
             xs.append(x[:, start_idx:end_idx])
 
         self.kv_store = [None, None, None]
+        self._local_data_source = "test-liuqi-mnist-local"
         data_source = [self._gen_ds_meta(common_pb.FLRole.Leader, 0, "test-liuqi-mnist-leader-v1"),
-                       self._gen_ds_meta(common_pb.FLRole.Leader, 1, "test-liuqi-mnist-local"),
+                       self._gen_ds_meta(common_pb.FLRole.Leader, 1, self._local_data_source),
                        self._gen_ds_meta(common_pb.FLRole.Follower, 0, "test-liuqi-mnist-v1")]
         for role in range(num_parts):
             os.environ['ETCD_NAME'] = data_source[role].data_source_meta.name
@@ -438,7 +440,8 @@ class TestNNTraining(unittest.TestCase):
                         worker_rank=rank,
                         master_addr=master_addr[role],
                         ckpt_path=ckpt_path,
-                        export_path=exp_path)
+                        export_path=exp_path,
+                        local_data_sources=self._local_data_source)
             ftm = _Task(name="RunLeaderTW" + str(rank), target=run_lm, args=(args, ),
                     kwargs={'env' : child_env}, daemon=True, weight=2)
             self.sche.submit(ftm)

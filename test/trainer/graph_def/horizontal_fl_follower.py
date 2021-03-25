@@ -20,10 +20,9 @@ import tensorflow.compat.v1 as tf
 import fedlearner.trainer as flt
 
 def input_fn(bridge, trainer_master):
-    loader = flt.data.DataBlockLoaderV2('follower', bridge, trainer_master,
-                                        "test-liuqi-mnist-v1")
+    loader = flt.data.DataBlockLoader(2, 'follower', bridge, trainer_master)
 
-    dataset = loader.make_dataset(2)
+    dataset = loader.make_dataset()
     def parse_fn(example):
         feature_map = {
             "example_id": tf.FixedLenFeature([], tf.string),

@@ -143,7 +143,7 @@ class LocalTrainerMasterClient(object):
         self._status = tm_pb.MasterStatus.RUNNING
         return True
 
-    def get_data_source_info(self, data_source_name):
+    def get_data_source_info(self, data_source_name=''):
         response = tm_pb.GetDataSourceInfoResponse()
         response.type = tm_pb.JOINED
         response.size = 1
@@ -236,7 +236,7 @@ class TrainerMasterClient(object):
             time.sleep(1)
         return None
 
-    def get_data_source_info(self, data_source_name):
+    def get_data_source_info(self, data_source_name=''):
         req = tm_pb.GetDataSourceInfoRequest()
         req.data_source_name = data_source_name
         try:
