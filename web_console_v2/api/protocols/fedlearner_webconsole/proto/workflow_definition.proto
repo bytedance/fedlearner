@@ -30,12 +30,13 @@ message JobDefinition {
     enum JobType {
         UNSPECIFIED = 0;
         RAW_DATA = 1;
-        DATA_JOIN = 2;
-        PSI_DATA_JOIN = 3;
-        NN_MODEL_TRANINING = 4;
-        TREE_MODEL_TRAINING = 5;
-        NN_MODEL_EVALUATION = 6;
-        TREE_MODEL_EVALUATION = 7;
+        PSI_LOCAL_SIGNATURE = 2;
+        PSI_REMOTE_SIGNATURE = 3;
+        DATA_JOIN = 4;
+        NN_MODEL_TRAINING = 5;
+        TREE_MODEL_TRAINING = 6;
+        NN_MODEL_EVALUATION = 7;
+        TREE_MODEL_EVALUATION = 8;
     }
 
     string name = 1;
