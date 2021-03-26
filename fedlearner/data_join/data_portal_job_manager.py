@@ -28,6 +28,7 @@ from fedlearner.common import data_portal_service_pb2 as dp_pb
 from fedlearner.data_join import common
 from fedlearner.data_join.raw_data_publisher import RawDataPublisher
 from fedlearner.data_join.sort_run_merger import MergedSortRunMeta
+from fedlearner.data_join.snapshot import CheckpointManager
 
 class DataPortalJobManager(object):
     def __init__(self, kvstore, portal_name, long_running, check_success_tag):
@@ -36,6 +37,10 @@ class DataPortalJobManager(object):
         self._portal_name = portal_name
         self._check_success_tag = check_success_tag
         self._portal_manifest = None
+
+        self._checkpoint = CheckpointManager(portal_name)
+        self._checkpoint_context = self._checkpoint.get_context()
+
         self._processing_job = None
         self._sync_portal_manifest()
         self._sync_processing_job()
@@ -107,7 +112,8 @@ class DataPortalJobManager(object):
                     logging.info("Data portal worker-%d finish reduce task "\
                                  "for partition %d of job %d",
                                  rank_id, partition_id, job_id)
-            self._check_processing_job_finished()
+            if self._check_processing_job_finished():
+                self._checkpoint.commit()
 
     def backgroup_task(self):
         with self._lock:
@@ -221,6 +227,9 @@ class DataPortalJobManager(object):
         return alloc_partition_id
 
     def _sync_portal_job(self, job_id):
+        if self._checkpoint.reset_mark:
+            self._checkpoint.reset_mark = False
+            return self._checkpoint_context['portal_job']
         kvstore_key = common.portal_job_kvstore_key(self._portal_name, job_id)
         data = self._kvstore.get_data(kvstore_key)
         if data is not None:
@@ -248,6 +257,10 @@ class DataPortalJobManager(object):
 
     def _sync_portal_manifest(self):
         if self._portal_manifest is None:
+            if self._checkpoint.reset_mark:
+                self._portal_manifest = self._checkpoint_context['manifest']
+                self._update_portal_manifest(self._portal_manifest)
+                return self._portal_manifest
             kvstore_key = common.portal_kvstore_base_dir(self._portal_name)
             data = self._kvstore.get_data(kvstore_key)
             if data is not None:
@@ -381,6 +394,7 @@ class DataPortalJobManager(object):
             finished_job.MergeFrom(self._processing_job)
             finished_job.finished = True
             self._update_processing_job(finished_job)
+            self._checkpoint.add_context(self._portal_name, 'portal_job', finished_job)
         for fpath in processing_job.fpaths:
             self._processed_fpath.add(fpath)
         self._processing_job = None
@@ -392,6 +406,8 @@ class DataPortalJobManager(object):
             new_portal_manifest.MergeFrom(self._sync_portal_manifest())
             new_portal_manifest.processing_job_id = -1
             self._update_portal_manifest(new_portal_manifest)
+            self._checkpoint.add_context(self._portal_name, 'manifest',
+                                         new_portal_manifest)
         if processing_job is not None:
             logging.info("Data Portal job %d has finished. Processed %d "\
                          "following fpaths\n------------\n",
