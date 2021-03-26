@@ -289,58 +289,66 @@ class DataPortalJobManager(object):
         logging.info("---------------------------------\n")
 
     def _list_input_dir(self):
-        all_inputs = []
+        logging.info("List input directory, it will take some time...")
+        rest_fpaths = []
         wildcard = self._portal_manifest.input_file_wildcard
-        dirs = [self._portal_manifest.input_base_dir]
+        dirs = []
+        new_dirs = []
+        if gfile.IsDirectory(self._portal_manifest.input_base_dir):
+            dirs = [self._portal_manifest.input_base_dir]
 
         num_dirs = 0
         num_files = 0
         num_target_files = 0
-        while len(dirs) > 0:
-            fdir = dirs[0]
-            dirs = dirs[1:]
-            # filter directories start with '_'(e.g. _tmp)
-            # TODO: format the inputs' directory name
-            if fdir.startswith('_'):
-                continue
-            fnames = gfile.ListDirectory(fdir)
-            for fname in fnames:
-                fpath = path.join(fdir, fname)
-                # OSS does not retain folder structure.
-                # For example, if we have file oss://test/1001/a.txt
-                # list(oss://test) returns 1001/a.txt instead of 1001
-                basename = path.basename(fpath)
-                # filter directories start with '_'(e.g. _tmp/_SUCCESS)
-                # TODO: format the inputs' directory name
-                if basename.startswith('_'):
+        while dirs:
+            for fdir in dirs:
+                logging.info("List directory %s", fdir)
+                if fdir.startswith('_'):
                     continue
-                if gfile.IsDirectory(fpath):
-                    dirs.append(fpath)
-                    num_dirs += 1
-                    continue
-                num_files += 1
-                if len(wildcard) == 0 or fnmatch(basename, wildcard):
-                    num_target_files += 1
-                    if self._check_success_tag:
-                        has_succ = gfile.Exists(
-                            path.join(path.dirname(fpath), '_SUCCESS'))
-                        if not has_succ:
-                            logging.warning(
-                                'File %s skipped because _SUCCESS file is '
-                                'missing under %s',
-                                fpath, fdir)
-                            continue
-                    all_inputs.append(fpath)
+                has_succ = False
+                if self._check_success_tag:
+                    has_succ = gfile.Exists(
+                        path.join(fdir, '_SUCCESS'))
+                    if has_succ:
+                        logging.info("Directory %s which has _SUCCESS"
+                                     " tag, all of things of this directory"
+                                     " are considered as file by default.",
+                                     fdir)
 
-        rest_fpaths = []
-        for fpath in all_inputs:
-            if fpath not in self._processed_fpath:
-                rest_fpaths.append(fpath)
+                fnames = gfile.ListDirectory(fdir)
+                for fname in fnames:
+                    # filter directories start with '_'(e.g. _tmp/_SUCCESS)
+                    # TODO: format the inputs' directory name
+                    if fname.startswith('_'):
+                        continue
+                    fpath = path.join(fdir, fname)
+                    if has_succ:
+                        num_files += 1
+                        if not wildcard or fnmatch(fname, wildcard):
+                            num_target_files += 1
+                            if fpath not in self._processed_fpath:
+                                rest_fpaths.append(fpath)
+                    else:
+                        if gfile.IsDirectory(fpath):
+                            new_dirs.append(fpath)
+                            num_dirs += 1
+                            continue
+                        elif self._check_success_tag:
+                            # if check success tag and not has _SUCCEEDED file
+                            continue
+                        num_files += 1
+                        if not wildcard or fnmatch(fname, wildcard):
+                            num_target_files += 1
+                            if fpath not in self._processed_fpath:
+                                rest_fpaths.append(fpath)
+            dirs = new_dirs
+            new_dirs = []
+
         logging.info(
             'Listing %s: found %d dirs, %d files, %d files matching wildcard, '
-            '%d files with success tag, %d new files to process',
+            '%d new files to process',
             self._portal_manifest.input_base_dir, num_dirs, num_files,
-            num_target_files, len(all_inputs), len(rest_fpaths))
+            num_target_files, len(rest_fpaths))
         return rest_fpaths
 
     def _sync_job_part(self, job_id, partition_id):
