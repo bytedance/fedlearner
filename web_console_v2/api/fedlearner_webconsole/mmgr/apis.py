@@ -30,12 +30,24 @@ from fedlearner_webconsole.exceptions import (NotFoundException,
                                               ResourceConflictException,
                                               UnauthorizedException)
 
+from fedlearner_webconsole.mmgr.models import ModelModel
+
+
 class ModelApi(Resource):
     def post(self, op):
+        obj = request.get_json(force=True)
+        if op == "new": return ModelMgr().new(obj)
+        return {"op": op, "obj": obj}, HTTPStatus.BAD_REQUEST
+
+
+class ModelMgr:
+    def new(self, obj):
+        modelID = obj["modelID"]
+        ModelModel().new(modelID)
         return {
-            "op": op
-        }, HTTPStatus.OK
+                   "modelID": modelID
+               }, HTTPStatus.OK
+
 
 def initialize_mmgr_apis(api):
     api.add_resource(ModelApi, '/model/<string:op>')
-
