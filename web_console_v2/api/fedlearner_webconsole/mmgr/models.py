@@ -25,15 +25,15 @@ from fedlearner_webconsole.proto.workflow_definition_pb2 import JobDefinition
 
 
 class ModelModel(db.Model):
-    __tablename__ = 'model'
-    __table_args__ = (Index('idx_modelID', 'modelID'), {
-        'mysql_engine': 'innodb',
-        'mysql_charset': 'utf8mb4',
+    __tablename__ = "model"
+    __table_args__ = (Index("idx_modelID", "modelID"), {
+        "mysql_engine": "innodb",
+        "mysql_charset": "utf8mb4",
     })
 
     modelID = db.Column(db.String(255), primary_key=True, unique=True)
+    state = db.Column(db.Text())
 
-    def new(self, modelID):
-        self.modelID = modelID
+    def commit(self):
         db.session.add(self)
         db.session.commit()

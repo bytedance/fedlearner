@@ -16,6 +16,7 @@
 # pylint: disable=cyclic-import
 
 import functools
+import json
 from http import HTTPStatus
 from flask import request
 from flask_restful import Resource, reqparse
@@ -36,18 +37,34 @@ from fedlearner_webconsole.mmgr.models import ModelModel
 class ModelApi(Resource):
     def post(self, op):
         obj = request.get_json(force=True)
-        if op == "new": return ModelMgr().new(obj)
-        return {"op": op, "obj": obj}, HTTPStatus.BAD_REQUEST
+        return self.__getattribute__(f"op_{op}")(obj)
+        # return {"op": op, "obj": obj}, HTTPStatus.BAD_REQUEST
 
-
-class ModelMgr:
-    def new(self, obj):
-        modelID = obj["modelID"]
-        ModelModel().new(modelID)
+    def op_new(self, obj):
+        modelID = str(obj["modelID"])
+        ModelMgr().new(modelID)
         return {
                    "modelID": modelID
                }, HTTPStatus.OK
 
 
+class ModelMgr:
+    def new(self, modelID):
+        model = ModelModel()
+
+        model.modelID = modelID
+        model.state = json.dumps({
+            "state": "PENDING"
+        })
+        model.commit()
+
+        # TODO start
+
+        model.state = json.dumps({
+            "state": "COMMITTED"
+        })
+        model.commit()
+
+
 def initialize_mmgr_apis(api):
-    api.add_resource(ModelApi, '/model/<string:op>')
+    api.add_resource(ModelApi, "/model/<string:op>")
