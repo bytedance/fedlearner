@@ -338,6 +338,10 @@ class DataPortalJobManager(object):
                         continue
                     if self._check_success_tag:
                         # if check success tag and not has _SUCCEEDED file
+                        logging.warning(
+                            'File %s skipped because _SUCCESS file is '
+                            'missing under %s',
+                            fpath, fdir)
                         continue
                     num_files += 1
                     if not wildcard or fnmatch(fname, wildcard):
