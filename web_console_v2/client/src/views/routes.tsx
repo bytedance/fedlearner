@@ -5,6 +5,7 @@ import Workflows from 'views/Workflows';
 import WorkflowTemplates from 'views/WorkflowTemplates';
 import Datasets from 'views/Datasets';
 import Settings from 'views/Settings';
+import Users from 'views/Users';
 import { FedRouteConfig } from 'typings/app';
 
 const routes: FedRouteConfig[] = [
@@ -38,6 +39,11 @@ const routes: FedRouteConfig[] = [
   {
     path: '/settings',
     component: Settings,
+    auth: true,
+  },
+  {
+    path: '/users',
+    component: Users,
     auth: true,
   },
 ];
