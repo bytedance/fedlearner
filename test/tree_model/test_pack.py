@@ -18,7 +18,7 @@ import random
 import logging
 import unittest
 import numpy as np
-from fedlearner.model.tree.packing import PackGradHess
+from fedlearner.model.tree.packing import GradHessPacker
 from fedlearner.model.tree.tree import EXPONENT, PRECISION
 from fedlearner.model.crypto.paillier import PaillierKeypair
 
@@ -28,57 +28,41 @@ class TestPackGradHess(unittest.TestCase):
     def __init__(self, *args, **kwargs):
         super(TestPackGradHess, self).__init__(*args, **kwargs)
         public_key, private_key = PaillierKeypair.generate_keypair()
-        self.pack = PackGradHess(public_key, private_key, PRECISION, EXPONENT)
+        self.pack = GradHessPacker(public_key, private_key, PRECISION, EXPONENT)
 
     def _test_pack(self, grad, hess):
-        """
+        """Test GradHessPacker
         compare
         1. the difference between result before and after pack
         2. the difference between sum_grad, sum_hess and the result using pack
-        :param grad: the grad for pack
-        :param hess: the hess for pack
-        :return:
+        Args:
+            grad: the grad for pack
+            hess: the hess for pack
         """
-        grad_hess_ciphertext = self.pack.pack_grad_hess(grad, hess)
-        g, h = self.pack.unpack_grad_hess(grad_hess_ciphertext)
+        grad_hess_encrypted = self.pack.pack_and_encrypt_grad_hess(grad, hess)
+        grad_hess_ciphertext = [i.ciphertext(False) for i in grad_hess_encrypted]
+        g, h = self.pack.decrypt_and_unpack_grad_hess(grad_hess_ciphertext)
         np.testing.assert_almost_equal(grad, g, decimal=32)
         np.testing.assert_almost_equal(hess, h, decimal=32)
 
         sum_g = sum(grad)
         sum_h = sum(hess)
 
-        sgh_ciphertext = self.pack.raw_add(grad_hess_ciphertext)
-        sg, sh = self.pack.unpack_grad_hess([sgh_ciphertext])
-        np.testing.assert_almost_equal(sum_g, sg)
-        np.testing.assert_almost_equal(sum_h, sh)
-
-        grad_hess_encrypt = self.pack.pack_grad_hess(grad,
-                                                     hess,
-                                                     output='encrypt')
-        sgh_encrypt = sum(grad_hess_encrypt)
+        sgh_encrypt = sum(grad_hess_encrypted)
         sgh_ciphertext = sgh_encrypt.ciphertext(False)
-        sg, sh = self.pack.unpack_grad_hess([sgh_ciphertext])
+        sg, sh = self.pack.decrypt_and_unpack_grad_hess([sgh_ciphertext])
         np.testing.assert_almost_equal(sum_g, sg)
         np.testing.assert_almost_equal(sum_h, sh)
 
     def test_pack(self):
 
-        grad = [random.randint(-1e50, 1e50) for i in range(1000)]
-        hess = [random.randint(-1e50, 1e50) for i in range(1000)]
+        grad = [random.randint(-1e100, 1e100) for i in range(1000)]
+        hess = [random.randint(-1e100, 1e100) for i in range(1000)]
         self._test_pack(grad, hess)
 
-        grad = (2 * np.random.random(size=1000) - 1) * 1e5
-        hess = (2 * np.random.random(size=1000) - 1) * 1e5
+        grad = (2 * np.random.random(size=1000) - 1) * 1e6
+        hess = (2 * np.random.random(size=1000) - 1) * 1e6
         self._test_pack(grad, hess)
-
-        grad = (2 * np.random.random(size=1000) - 1)
-        hess = (2 * np.random.random(size=1000) - 1)
-        self._test_pack(grad, hess)
-
-        grad = np.random.normal(size=1000) * 1e-6
-        hess = np.random.normal(size=1000) * 1e-6
-        self._test_pack(grad, hess)
-
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)

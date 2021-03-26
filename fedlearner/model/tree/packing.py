@@ -19,14 +19,14 @@ from fedlearner.model.crypto.fixed_point_number import FixedPointNumber
 from fedlearner.model.crypto.paillier import PaillierEncryptedNumber
 
 
-class PackGradHess:
+class GradHessPacker:
     def __init__(self, public_key, private_key, precision, exponent):
-        """
-        Grad Hess Pack
-        :param public_key: public_key
-        :param private_key: private_key
-        :param precision: precision for fixed_point_number
-        :param exponent: exponent for fixed_point_number
+        """Init GradHessPakcer
+        Args:
+            public_key: public_key
+            private_key: private_key
+            precision: precision for fixed_point_number
+            exponent: exponent for fixed_point_number
         """
         self.public_key = public_key
         self.private_key = private_key
@@ -34,17 +34,19 @@ class PackGradHess:
         self.exponent = exponent
         n_length = math.frexp(self.public_key.n)[1]
         self.offset = n_length // 2
-        bit_length = self.offset - 64
+        bit_length = self.offset - 48
         self._n = 1 << bit_length
         self.max_int = self._n // 2 - 1
 
-    def pack_grad_hess(self, grad, hess, output='ciphertext'):
-        """
-        Pack Grad and Hess
-        :param grad: list of grad value
-        :param hess: list of hess value
-        :param output: output ciphertext or encrypted number
-        :return: ciphertext or encrypted number of packed grad and hess
+    def pack_grad_hess(self, grad, hess):
+        """Pack Grad and Hess into Plaintext
+        Args:
+            grad: list of grad value
+            hess: list of hess value
+            output: output ciphertext or encrypted number
+
+        Returns:
+            Plaintext of packed number
         """
         grad_plaintext = [
             FixedPointNumber.encode(g, self._n, self.max_int, self.precision)
@@ -58,25 +60,33 @@ class PackGradHess:
             (g_text.encoding << self.offset) + h_text.encoding
             for g_text, h_text in zip(grad_plaintext, hess_plaintext)
         ]
+        return grad_hess_encoding
 
+    def pack_and_encrypt_grad_hess(self, grad, hess):
+        """Pack and Encrypt Grad and Hess
+        Args:
+            grad: list of grad
+            hess: list of hess
+        Returns:
+            encrypted number of packed grad and hess
+        """
+        grad_hess_encoding = self.pack_grad_hess(grad, hess)
         grad_hess_ciphertext = [
             self.public_key.raw_encrypt(encoding, random_value=None)
             for encoding in grad_hess_encoding
         ]
-        if output == 'ciphertext':
-            return grad_hess_ciphertext
-
         enc_numbers = [
             PaillierEncryptedNumber(self.public_key, i, self.exponent)
             for i in grad_hess_ciphertext
         ]
         return enc_numbers
 
-    def unpack_grad_hess(self, grad_hess_ciphertext):
-        """
-        Unpack Ciphertext
-        :param grad_hess_ciphertext: packed grad and hess ciphertext
-        :return: list of grad and hess
+    def decrypt_and_unpack_grad_hess(self, grad_hess_ciphertext):
+        """Decrypt and Unpack Ciphertext into grad and hess
+        Args:
+            grad_hess_ciphertext: packed grad and hess ciphertext
+        Returns:
+            list of grad and hess
         """
         grad_hess_plaintext = [
             self.private_key.raw_decrypt(ciphertext)
@@ -98,17 +108,3 @@ class PackGradHess:
             for encoding in hess_plaintext
         ]
         return grad, hess
-
-    def raw_add(self, ciphertexts, nsquare=None):
-        """
-        raw sum from ciphertexts multiplcation
-        :param ciphertexts: list of ciphertexts
-        :param nsquare: used in ciphertext multiplication
-        :return: ciphertext of the sum
-        """
-        nsquare = nsquare or self.public_key.nsquare
-        cipher_sum = ciphertexts[0] % nsquare
-        for i in range(1, len(ciphertexts)):
-            cipher_sum *= ciphertexts[i]
-            cipher_sum %= nsquare
-        return cipher_sum
