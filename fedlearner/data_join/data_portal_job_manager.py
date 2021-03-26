@@ -293,7 +293,6 @@ class DataPortalJobManager(object):
         rest_fpaths = []
         wildcard = self._portal_manifest.input_file_wildcard
         dirs = []
-        new_dirs = []
         if gfile.IsDirectory(self._portal_manifest.input_base_dir):
             dirs = [self._portal_manifest.input_base_dir]
 
@@ -301,48 +300,47 @@ class DataPortalJobManager(object):
         num_files = 0
         num_target_files = 0
         while dirs:
-            for fdir in dirs:
-                logging.info("List directory %s", fdir)
-                if fdir.startswith('_'):
-                    continue
-                has_succ = False
-                if self._check_success_tag:
-                    has_succ = gfile.Exists(
-                        path.join(fdir, '_SUCCESS'))
-                    if has_succ:
-                        logging.info("Directory %s which has _SUCCESS"
-                                     " tag, all of things of this directory"
-                                     " are considered as file by default.",
-                                     fdir)
+            fdir = dirs[0]
+            dirs = dirs[1:]
+            logging.info("List directory %s", fdir)
+            if fdir.startswith('_'):
+                continue
+            has_succ = False
+            if self._check_success_tag:
+                has_succ = gfile.Exists(
+                    path.join(fdir, '_SUCCESS'))
+                if has_succ:
+                    logging.info("Directory %s which has _SUCCESS"
+                                 " tag, all of things of this directory"
+                                 " are considered as file by default.",
+                                 fdir)
 
-                fnames = gfile.ListDirectory(fdir)
-                for fname in fnames:
-                    # filter directories start with '_'(e.g. _tmp/_SUCCESS)
-                    # TODO: format the inputs' directory name
-                    if fname.startswith('_'):
+            fnames = gfile.ListDirectory(fdir)
+            for fname in fnames:
+                # filter directories start with '_'(e.g. _tmp/_SUCCESS)
+                # TODO: format the inputs' directory name
+                if fname.startswith('_'):
+                    continue
+                fpath = path.join(fdir, fname)
+                if has_succ:
+                    num_files += 1
+                    if not wildcard or fnmatch(fname, wildcard):
+                        num_target_files += 1
+                        if fpath not in self._processed_fpath:
+                            rest_fpaths.append(fpath)
+                else:
+                    if gfile.IsDirectory(fpath):
+                        dirs.append(fpath)
+                        num_dirs += 1
                         continue
-                    fpath = path.join(fdir, fname)
-                    if has_succ:
-                        num_files += 1
-                        if not wildcard or fnmatch(fname, wildcard):
-                            num_target_files += 1
-                            if fpath not in self._processed_fpath:
-                                rest_fpaths.append(fpath)
-                    else:
-                        if gfile.IsDirectory(fpath):
-                            new_dirs.append(fpath)
-                            num_dirs += 1
-                            continue
-                        elif self._check_success_tag:
-                            # if check success tag and not has _SUCCEEDED file
-                            continue
-                        num_files += 1
-                        if not wildcard or fnmatch(fname, wildcard):
-                            num_target_files += 1
-                            if fpath not in self._processed_fpath:
-                                rest_fpaths.append(fpath)
-            dirs = new_dirs
-            new_dirs = []
+                    if self._check_success_tag:
+                        # if check success tag and not has _SUCCEEDED file
+                        continue
+                    num_files += 1
+                    if not wildcard or fnmatch(fname, wildcard):
+                        num_target_files += 1
+                        if fpath not in self._processed_fpath:
+                            rest_fpaths.append(fpath)
 
         logging.info(
             'Listing %s: found %d dirs, %d files, %d files matching wildcard, '
