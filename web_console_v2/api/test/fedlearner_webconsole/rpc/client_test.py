@@ -141,7 +141,7 @@ class RpcClientTest(unittest.TestCase):
             trailing_metadata=(),
             details=None
         )
-        self.assertEqual(call.result().status, expected_status)
+        self.assertEqual(call.result(), expected_status)
 
 
 if __name__ == '__main__':

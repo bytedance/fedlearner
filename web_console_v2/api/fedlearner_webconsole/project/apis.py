@@ -245,7 +245,7 @@ class CheckConnectionApi(Resource):
     def check_connection(self, project_config: ProjectProto,
                          participant_proto: ParticipantProto):
         client = RpcClient(project_config, participant_proto)
-        return client.check_connection().status
+        return client.check_connection()
 
 
 def initialize_project_apis(api: Api):

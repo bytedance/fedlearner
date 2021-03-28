@@ -5,17 +5,15 @@ from fedlearner_webconsole.envs import Envs
 from fedlearner_webconsole.utils.es_misc import get_es_template, ALIAS_NAME
 
 
-def _configure_index_alias(es, alias_name):
+def _configure_es(es, index_type, alias_name):
+    put_ilm(es, 'fedlearner_{}_ilm'.format(index_type))
+    _put_index_template(es, index_type, shards=1)
     # if alias already exists, no need to set write index
     if not es.indices.exists_alias(alias_name):
         # if index with the same name as alias exists, delete it
         if es.indices.exists(alias_name):
             es.indices.delete(alias_name)
-        es.indices.create(
-            # resolves to alias_name-yyyy.mm.dd-000001 in ES
-            f'<{alias_name}-{{now/d}}-000001>',
-            body={"aliases": {alias_name: {"is_write_index": True}}}
-        )
+        _put_write_index(es, index_type)
 
 
 def _configure_kibana_index_patterns(kibana_addr, index_type):
@@ -59,24 +57,30 @@ def put_ilm(es, ilm_name, hot_size='50gb', hot_age='10d', delete_age='30d'):
 
 
 def _put_index_template(es, index_type, shards):
+    assert es is not None, 'ES client not yet initialized.'
     template_name = ALIAS_NAME[index_type] + '-template'
     template_body = get_es_template(index_type, shards=shards)
     es.indices.put_template(template_name, template_body)
 
 
-if __name__ == '__main__':
-    es = Elasticsearch([{'host': Envs.ES_HOST, 'port': Envs.ES_PORT}],
-                       http_auth=(Envs.ES_USERNAME, Envs.ES_PASSWORD))
-    if int(es.info()['version']['number'].split('.')[0]) == 7:
-        es.ilm.start()
-        for index_type, alias_name in ALIAS_NAME.items():
-            put_ilm(es, 'fedlearner_{}_ilm'.format(index_type))
-            _put_index_template(es, index_type, shards=1)
-            _configure_index_alias(es, alias_name)
-            # Kibana index-patterns initialization
-            _configure_kibana_index_patterns(
-                Envs.KIBANA_SERVICE_HOST_PORT, index_type
-            )
-        put_ilm(es, 'filebeat-7.0.1', hot_age='1d')
-        # filebeat template should be set during filebeat deployment
-        _configure_index_alias(es, 'filebeat-7.0.1')
+def _put_write_index(es, index_type):
+    assert es is not None, 'ES client not yet initialized.'
+    alias_name = ALIAS_NAME[index_type]
+    es.indices.create(
+        # resolves to alias_name-yyyy.mm.dd-000001 in ES
+        f'<{alias_name}-{{now/d}}-000001>',
+        body={"aliases": {alias_name: {"is_write_index": True}}}
+    )
+
+
+es = Elasticsearch([{'host': Envs.ES_HOST, 'port': Envs.ES_PORT}],
+                   http_auth=(Envs.ES_USERNAME, Envs.ES_PASSWORD))
+if int(es.info()['version']['number'].split('.')[0]) == 7:
+    es.ilm.start()
+    for index_type, alias_name in ALIAS_NAME.items():
+        _configure_es(es, index_type, alias_name)
+        # Kibana index-patterns initialization
+        _configure_kibana_index_patterns(
+            Envs.KIBANA_SERVICE_HOST_PORT, index_type
+        )
+    put_ilm(es, 'filebeat-7.0.1', hot_age='1d')

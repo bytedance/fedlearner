@@ -4,10 +4,8 @@
 
 * GNU Make
 * Python3
-* MySQL 8.0
 
 ## Get started
-
 ```
 python3 -m venv <a folder for virtual env>
 source <a folder for virtual env>/bin/activate
@@ -15,10 +13,6 @@ pip3 install -r requirements.txt
 
 # Generates python code for proto
 make protobuf
-
-# Use MySQL, please create database in advance, then set 
-# SQLALCHEMY_DATABASE_URI, for example as follows
-export SQLALCHEMY_DATABASE_URI=mysql://root:@localhost/fedlearner_development
 
 # Creates schemas for DB
 FLASK_APP=command:app flask db upgrade
@@ -32,35 +26,21 @@ flask run
 ```
 
 ## Tests
-
 ### Unit tests
-
 ```
 cd <root folder of API>
 make unit-test
 ```
 
 ## Helpers
-
 ### Gets all routes
 ```
 FLASK_APP=command:app flask routes
 ```
-
-### Add migration files
-
-```
-FLASK_APP=command:app flask db migrate -m "Whats' changed"
-# like dry-run mode, preview auto-generated SQL
-FLASK_APP=command:app flask db upgrade --sql
-# update database actually
-FLASK_APP=command:app flask db upgrade
+### Update migration files
+delete migrations folder first
 ```
 
-### Reset migration files
-
-Delete migrations folder first.
-```
 FLASK_APP=command:app flask db init
 FLASK_APP=command:app flask db migrate -m "Initial migration."
 ```
