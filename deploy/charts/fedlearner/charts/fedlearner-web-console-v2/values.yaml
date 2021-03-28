@@ -98,4 +98,3 @@ cluster:
     DB_HOST: fedlearner-stack-mariadb
     DB_PORT: 3306
     DB_DATABASE: fedlearner
-    METRICS_TO_STDOUT: 1
