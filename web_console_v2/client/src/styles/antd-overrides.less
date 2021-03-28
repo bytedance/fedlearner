@@ -11,7 +11,7 @@
 @btn-default-bg: @gray-2;
 @btn-default-border: @gray-2;
 
-.ant-btn {
+.ant-btn.ant-btn {
   border: none;
 
   > .anticon {
@@ -36,6 +36,7 @@
   }
   &-sm {
     height: 28px;
+    line-height: 28px;
     padding: 0 16px;
   }
   &-lg {
@@ -259,7 +260,7 @@
   > .ant-radio-button {
     padding: 3px;
     border-radius: 6px;
-    background-color: white;
+    background-color: transparent;
     background-clip: content-box;
     transition: 0.3s ease-out var(--commonTiming);
   }
@@ -281,6 +282,15 @@
 
     &:focus-within {
       box-shadow: none;
+    }
+
+    > .ant-radio-button {
+      z-index: auto;
+      background-color: white;
+
+      & + * {
+        position: relative;
+      }
     }
   }
   &:not(:first-child)::before {

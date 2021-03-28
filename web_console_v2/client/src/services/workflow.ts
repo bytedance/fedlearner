@@ -1,4 +1,4 @@
-import request from 'libs/request';
+import request, { BASE_URL } from 'libs/request';
 import {
   WorkflowForkPayload,
   WorkflowInitiatePayload,
@@ -23,6 +23,10 @@ export function fetchWorkflowTemplateList(params?: {
 
 export function fetchTemplateById(id: ID): Promise<{ data: WorkflowTemplate }> {
   return request(`/v2/workflow_templates/${id}`);
+}
+
+export function getTemplateDownloadHref(id: ID): string {
+  return `${BASE_URL}/v2/workflow_templates/${id}?download=true`;
 }
 
 export function createWorkflowTemplate(payload: WorkflowTemplatePayload) {
@@ -80,6 +84,12 @@ export function stopTheWorkflow(id: ID) {
   });
 }
 
+export function invalidTheWorkflow(id: ID) {
+  return request.patch(`/v2/workflows/${id}`, {
+    state: WorkflowState.INVALID,
+  });
+}
+
 export function forkTheWorkflow(payload: WorkflowForkPayload) {
   return request.post(`/v2/workflows`, payload);
 }
@@ -116,14 +126,6 @@ export function fetchPeerJobEvents(
       snake_case: true,
     },
   );
-}
-
-export function fetchPodLogs__old(
-  podName: string,
-  jobId: ID,
-  params?: { startTime?: DateTime; maxLines: number },
-): Promise<{ data: string[] }> {
-  return request(`/v2/pods/${podName}/log`, { params, snake_case: true });
 }
 
 export function fetchPodLogs(

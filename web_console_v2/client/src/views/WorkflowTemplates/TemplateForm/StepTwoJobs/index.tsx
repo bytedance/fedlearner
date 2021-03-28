@@ -20,6 +20,7 @@ import {
   TPL_GLOBAL_NODE_UUID,
   turnUuidDepToJobName,
   upsertValue,
+  removeValueById,
 } from '../store';
 import { Redirect, useHistory, useParams } from 'react-router';
 import { ExclamationCircle } from 'components/IconPark';
@@ -47,7 +48,7 @@ const TemplateName = styled.h3`
 const Footer = styled.footer`
   position: sticky;
   bottom: 0;
-  z-index: 5; // just above react-flow' z-index
+  z-index: 5; // just > react-flow' z-index
   padding: 15px 36px;
   background-color: white;
 `;
@@ -97,8 +98,8 @@ const TemplateStepTowJobs: FC<{ isEdit?: boolean }> = ({ isEdit }) => {
     const leftPivotJobIdx = jobDefs.findIndex((item) => item.uuid === uuidOfHeadJobInRow);
     const rightPivotJobIdx = jobDefs.findIndex((item) => item.uuid === uuidOfLastJobInRow);
 
-    const isInset2Left = position === 'left';
-    const isInset2Bottom = position === 'bottom';
+    const isInsert2Left = position === 'left';
+    const isInsert2Bottom = position === 'bottom';
 
     const preJobs = jobDefs.slice(0, leftPivotJobIdx);
     const midJobs = jobDefs.slice(leftPivotJobIdx, rightPivotJobIdx + 1);
@@ -107,7 +108,7 @@ const TemplateStepTowJobs: FC<{ isEdit?: boolean }> = ({ isEdit }) => {
     const newJobDeps: JobDependency[] = [];
     const newJobUuid = giveWeakRandomKey();
 
-    if (isInset2Bottom) {
+    if (isInsert2Bottom) {
       const depRow = rows[rowIdx];
       newJobDeps.push(...depRow.map((col: any) => ({ source: col.raw.uuid })));
 
@@ -123,15 +124,17 @@ const TemplateStepTowJobs: FC<{ isEdit?: boolean }> = ({ isEdit }) => {
       }
     } else {
       const depRow = rows[rowIdx - 1];
-      newJobDeps.push(...depRow.map((col: any) => ({ source: col.raw.uuid })));
+      if (depRow && depRow.every((item) => !item.isGlobal)) {
+        newJobDeps.push(...depRow.map((col: any) => ({ source: col.raw.uuid })));
+      }
     }
 
     const newJob = _createASlimJobRawData({ uuid: newJobUuid, dependencies: newJobDeps });
 
     // If insert to right or bottom, before should be empty
-    const before = [isInset2Left && newJob].filter(Boolean);
+    const before = [isInsert2Left && newJob].filter(Boolean);
     // If insert to left, after should be empty
-    const after = [!isInset2Left && newJob].filter(Boolean);
+    const after = [!isInsert2Left && newJob].filter(Boolean);
 
     nextVal.config.job_definitions = [...preJobs, ...before, ...midJobs, ...after, ...postJobs];
 
@@ -170,6 +173,7 @@ const TemplateStepTowJobs: FC<{ isEdit?: boolean }> = ({ isEdit }) => {
           toggleVisible={toggleDrawerVisible}
           onSubmit={onDrawerFormSubmit}
           onClose={onCloseDrawer}
+          onDelete={onDeleteJob}
         />
 
         <Footer>
@@ -213,8 +217,6 @@ const TemplateStepTowJobs: FC<{ isEdit?: boolean }> = ({ isEdit }) => {
         id: currNode?.id,
         status: valid ? ChartNodeStatus.Success : ChartNodeStatus.Warning,
       });
-
-      drawerRef.current?.reset();
     }
   }
 
@@ -222,6 +224,36 @@ const TemplateStepTowJobs: FC<{ isEdit?: boolean }> = ({ isEdit }) => {
 
   function onPrevStepClick() {
     history.goBack();
+  }
+  function onDeleteJob() {
+    const uuid = currNode?.id;
+
+    if (uuid) {
+      const nextVal = cloneDeep(template);
+      const jobDefs = nextVal.config.job_definitions;
+      const idx = jobDefs.findIndex((def) => def.uuid === uuid);
+      const jobDefToRemove = jobDefs[idx];
+
+      for (let i = idx + 1; i < jobDefs.length; i++) {
+        const def = jobDefs[i];
+
+        if (def.dependencies.some((dep) => dep.source === uuid)) {
+          def.dependencies = def.dependencies
+            .filter((dep) => dep.source !== uuid)
+            .concat(jobDefToRemove.dependencies);
+        }
+      }
+
+      nextVal.config.job_definitions = [
+        ...jobDefs.slice(0, idx),
+        ...jobDefs.slice(idx + 1, jobDefs.length),
+      ];
+      setTemplate(nextVal);
+      // Remove job from store
+      removeValueById(uuid);
+      setCurrNode(null as any);
+      toggleDrawerVisible(false);
+    }
   }
   function onCancelForkClick() {
     Modal.confirm({

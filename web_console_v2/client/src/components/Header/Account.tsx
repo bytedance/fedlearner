@@ -4,10 +4,10 @@ import { userInfoQuery } from 'stores/user';
 import avatar from 'assets/images/avatar.svg';
 import { useRecoilQuery } from 'hooks/recoil';
 import { MixinCircle, MixinCommonTransition, MixinSquare } from 'styles/mixins';
-import { message, Popover, Button, Row } from 'antd';
+import { message, Popover, Button } from 'antd';
 import GridRow from 'components/_base/GridRow';
-import { Public, Settings } from 'components/IconPark';
-import LanguageSwitch from './LanguageSwitch';
+import { Settings } from 'components/IconPark';
+// import LanguageSwitch from './LanguageSwitch';
 import { Redirect, useHistory } from 'react-router-dom';
 import { logout } from 'services/user';
 import { useTranslation } from 'react-i18next';
@@ -16,7 +16,6 @@ import LOCAL_STORAGE_KEYS from 'shared/localStorageKeys';
 import { useResetRecoilState } from 'recoil';
 import { ErrorCodes } from 'typings/app';
 import i18n from 'i18n';
-import PubSub from 'pubsub-js';
 
 const Container = styled.div`
   ${MixinCommonTransition()}
@@ -72,10 +71,10 @@ const Role = styled.div`
     background-color: var(--darkGray8);
   }
 `;
-const LanguageRow = styled(Row)`
-  height: 40px;
-  margin-bottom: 10px;
-`;
+// const LanguageRow = styled(Row)`
+//   height: 40px;
+//   margin-bottom: 10px;
+// `;
 const ButtonRow = styled(GridRow)`
   height: 40px;
   margin-bottom: 10px;

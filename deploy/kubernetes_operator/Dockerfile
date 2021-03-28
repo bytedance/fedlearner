@@ -44,6 +44,9 @@ COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 # Import the compiled executable from the first stage.
 COPY --from=builder /app /app
 
+ENV TZ="Asia/Shanghai"
+
+RUN apk --update add tzdata && cp /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
 # Perform any further action as an unprivileged user.
 USER nobody:nobody

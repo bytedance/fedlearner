@@ -43,7 +43,12 @@ for i in "${WORKER_GROUPS[@]}"; do
 done
 fi
 
-pull_code ${CODE_KEY} $PWD
+if [[ -n "${CODE_KEY}" ]]; then
+  pull_code ${CODE_KEY} $PWD
+else
+  pull_code ${CODE_TAR} $PWD
+fi
+
 cd ${ROLE}
 
 mode=$(normalize_env_to_args "--mode" "$MODE")
@@ -60,10 +65,15 @@ if [ -n "$CHECKPOINT_PATH" ]; then
 else
     checkpoint_path="$OUTPUT_BASE_DIR/checkpoints"
 fi
+load_checkpoint_filename=$(normalize_env_to_args "--load-checkpoint-filename" "$LOAD_CHECKPOINT_FILENAME")
+load_checkpoint_filename_with_path=$(normalize_env_to_args "--load-checkpoint-filename-with-path" "$LOAD_CHECKPOINT_FILENAME_WITH_PATH")
 
 if [[ -n "$LOAD_CHECKPOINT_FROM" ]] && (( $WORKER_RANK == 0 )); then
     python -c "
-import tensorflow as tf
+try:
+    import tensorflow.compat.v1 as tf
+except ImportError:
+    import tensorflow as tf
 import tensorflow_io
 src = '${STORAGE_ROOT_PATH}/job_output/${LOAD_CHECKPOINT_FROM}/checkpoints'
 dst = '${checkpoint_path}'
@@ -98,4 +108,6 @@ python main.py \
     --export-path=$export_path \
     $mode $verbosity \
     $save_checkpoint_steps $sparse_estimator $summary_save_steps \
-    $save_checkpoint_secs $batch_size $learning_rate
+    $save_checkpoint_secs $batch_size $learning_rate \
+    $load_checkpoint_filename \
+    $load_checkpoint_filename_with_path

@@ -137,6 +137,7 @@ const PrintLogs: FC<Props> = (props) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [logs, isFirstTimeResult, lastestLog]);
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const debouncedScrollHandler = useCallback(debounce(onPreScroll, 200), [isAtButt, onPreScroll]);
 
   let logsContent: string = '';

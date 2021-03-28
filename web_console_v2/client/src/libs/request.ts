@@ -33,7 +33,7 @@ export class ServerError extends Error {
   }
 }
 
-export const HOSTNAME = '/api';
+export const BASE_URL = '/api';
 
 let request: AxiosInstance;
 
@@ -43,7 +43,7 @@ if (process.env.NODE_ENV === 'development' || process.env.REACT_APP_ENABLE_FULLY
 
   request = axios.create({
     adapter: require('./mockAdapter').default,
-    baseURL: HOSTNAME,
+    baseURL: BASE_URL,
   });
 
   // Mock controlling
@@ -63,7 +63,7 @@ if (process.env.NODE_ENV === 'development' || process.env.REACT_APP_ENABLE_FULLY
   });
 } else {
   request = axios.create({
-    baseURL: HOSTNAME,
+    baseURL: BASE_URL,
   });
 }
 

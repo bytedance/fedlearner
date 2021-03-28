@@ -14,11 +14,14 @@
 
 # coding: utf-8
 
+import os
+import logging
 import argparse
 import json
-import logging
-
-import tensorflow.compat.v1 as tf
+try:
+    import tensorflow.compat.v1 as tf
+except ImportError:
+    import tensorflow as tf
 
 from fedlearner.common import common as fcc
 from fedlearner.common import metrics
@@ -30,7 +33,7 @@ from fedlearner.trainer.trainer_master_client import LocalTrainerMasterClient
 from fedlearner.trainer.trainer_master_client import TrainerMasterClient
 
 
-class StepMetricsHook(tf.estimator.SessionRunHook):
+class StepMetricsHook(tf.train.SessionRunHook):
     def __init__(self, tensor_dict=None, every_n_iter=5):
         if tensor_dict is None:
             tensor_dict = {}
@@ -116,6 +119,15 @@ def create_argument_parser():
                         type=str,
                         default=None,
                         help='Path to save and load model checkpoints.')
+    parser.add_argument('--load-checkpoint-filename',
+                        type=str,
+                        default=None,
+                        help='filename to load model checkpoints, ' \
+                             'Relative path to checkpoint-path')
+    parser.add_argument('--load-checkpoint-filename-with-path',
+                        type=str,
+                        default=None,
+                        help='filename with path to load model checkpoints')
     parser.add_argument('--save-checkpoint-steps',
                         type=int,
                         default=None,
@@ -254,10 +266,22 @@ def train(role, args, input_fn, model_fn, serving_input_receiver_fn):
                                 application_id=args.application_id,
                                 cluster_spec=cluster_spec)
 
+    load_checkpoint_filename_with_path = args.load_checkpoint_filename_with_path
+    if not load_checkpoint_filename_with_path:
+        load_checkpoint_filename_with_path = \
+            _get_load_checkpoint_filename_with_path(
+                args.checkpoint_path, args.load_checkpoint_filename)
+    if load_checkpoint_filename_with_path:
+        if not tf.train.checkpoint_exists(load_checkpoint_filename_with_path):
+            raise RuntimeError("not a valid checkpoint file: %s"\
+                %load_checkpoint_filename_with_path)
+
     run_mode = args.mode.lower()
     if run_mode == 'train':
         estimator.train(input_fn,
                         checkpoint_path=args.checkpoint_path,
+                        load_checkpoint_filename_with_path= \
+                            load_checkpoint_filename_with_path,
                         save_checkpoint_steps=args.save_checkpoint_steps,
                         save_checkpoint_secs=args.save_checkpoint_secs)
         if args.export_path and args.worker_rank == 0:
@@ -270,6 +294,23 @@ def train(role, args, input_fn, model_fn, serving_input_receiver_fn):
             fsuccess.close()
 
     elif run_mode == 'eval':
-        estimator.evaluate(input_fn, checkpoint_path=args.checkpoint_path)
+        if not load_checkpoint_filename_with_path:
+            raise RuntimeError("can not find any checkpoint for eval")
+        estimator.evaluate(
+            input_fn,
+            load_checkpoint_filename_with_path= \
+                load_checkpoint_filename_with_path)
     else:
         raise ValueError('Allowed values are: --mode=train|eval')
+
+def _get_load_checkpoint_filename_with_path(
+    checkpoint_path, checkpoint_filename):
+    if not (checkpoint_path or checkpoint_filename):
+        return None
+    if checkpoint_filename:
+        if not checkpoint_path:
+            raise ValueError("checkpoint_path is required "
+                "when provide checkpoint_filename")
+        return os.path.join(checkpoint_path, checkpoint_filename)
+
+    return tf.train.latest_checkpoint(checkpoint_path)

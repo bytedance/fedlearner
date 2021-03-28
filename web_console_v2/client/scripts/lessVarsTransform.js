@@ -47,8 +47,7 @@ function compile() {
             .map((varName) => `--${camelCase(varName.slice(1))}: ${varName};`)
             .join('\n');
 
-          const stringToRender = `
-          /**
+          const stringToRender = `/**
  * WARNING: This file is auto-generated
  * DO NOT modify it directly, ./variables.less is the file you should go
  */
@@ -70,7 +69,7 @@ function compile() {
         try {
           const output = lessToJs(lessVarsString);
 
-          const themeString = `
+          const themeString = `/* eslint-disable */
 /**
  * WARNING: This file is auto-generated
  * DO NOT modify it directly, ./variables.less is the file you should go

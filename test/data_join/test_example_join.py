@@ -58,7 +58,9 @@ class TestExampleJoin(unittest.TestCase):
                 min_matching_window=32,
                 max_matching_window=128,
                 data_block_dump_interval=30,
-                data_block_dump_threshold=128
+                data_block_dump_threshold=128,
+                enable_negative_example_generator=True,
+                negative_sampling_rate=0.8
             )
         if gfile.Exists(self.data_source.output_base_dir):
             gfile.DeleteRecursively(self.data_source.output_base_dir)

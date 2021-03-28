@@ -199,7 +199,7 @@ class WorkflowApi(Resource):
                         try:
                             generate_job_run_yaml(job)
                         # TODO: check if peer variables is valid
-                        except RuntimeError as e:
+                        except Exception as e:  # pylint: disable=broad-except
                             raise ValueError(
                                 f'Invalid Variable when try '
                                 f'to format the job {job.name}:{str(e)}')

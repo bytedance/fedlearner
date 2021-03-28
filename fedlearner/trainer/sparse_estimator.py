@@ -14,8 +14,13 @@
 # coding: utf-8
 # pylint: disable=protected-access
 
-import tensorflow.compat.v1 as tf
-from tensorflow.compat.v1.estimator import ModeKeys
+try:
+    import tensorflow.compat.v1 as tf
+    from tensorflow.compat.v1.estimator import ModeKeys
+except ImportError:
+    import tensorflow as tf
+    from tensorflow.estimator import ModeKeys
+
 from tensorflow.contrib import graph_editor as ge
 
 from fedlearner.trainer import embedding

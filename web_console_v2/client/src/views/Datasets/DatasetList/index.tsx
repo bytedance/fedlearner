@@ -6,7 +6,6 @@ import { useHistory } from 'react-router-dom';
 import i18n from 'i18n';
 import { formatTimestamp } from 'shared/date';
 import { Dataset } from 'typings/dataset';
-import Username from 'components/Username';
 import { useQuery } from 'react-query';
 import { fetchDatasetList } from 'services/dataset';
 import styled from 'styled-components';

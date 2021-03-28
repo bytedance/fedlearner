@@ -11,6 +11,7 @@ export const userInfoState = atom<FedUserInfo>({
   default: {
     id: store.get(LOCAL_STORAGE_KEYS.current_user)?.id,
     username: '',
+    name: '',
     email: '',
     role: '',
   },
@@ -25,9 +26,9 @@ export const userInfoQuery = selector({
       if (isNil(currentUserId)) {
         throw new Error(i18n.t('error.please_sign_in'));
       }
-      const userinfo = await fetchUserInfo(currentUserId);
+      const { data } = await fetchUserInfo(currentUserId);
 
-      return userinfo;
+      return data;
     } catch (error) {
       throw error;
     }

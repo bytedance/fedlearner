@@ -15,7 +15,6 @@ export const TPL_GLOBAL_NODE_UUID = giveWeakRandomKey();
 export const DEFAULT_JOB: JobDefinitionForm = {
   name: '',
   job_type: JobType.DATA_JOIN,
-  is_manual: false,
   is_federated: false,
   variables: [],
   yaml_template: '{}',
@@ -68,7 +67,7 @@ export function getOrInsertValueById(id?: string) {
   return storedJobNGlbalValues.get(id)!;
 }
 
-export function removeValueId(id: string) {
+export function removeValueById(id: string) {
   return storedJobNGlbalValues.delete(id);
 }
 

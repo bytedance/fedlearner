@@ -7,8 +7,6 @@ import Datasets from 'views/Datasets';
 import Settings from 'views/Settings';
 import { FedRouteConfig } from 'typings/app';
 
-import Editor from 'components/CodeEditor';
-
 const routes: FedRouteConfig[] = [
   {
     path: '/',

@@ -13,6 +13,7 @@
 # limitations under the License.
 
 # coding: utf-8
+from fedlearner_webconsole.initial_db import initial_db
 import json
 import logging
 import unittest
@@ -24,7 +25,7 @@ from flask import Flask
 from flask_testing import TestCase
 from fedlearner_webconsole.app import create_app
 from fedlearner_webconsole.db import db
-from fedlearner_webconsole.auth.models import User
+from fedlearner_webconsole.auth.models import Role, User, State
 
 
 class BaseTestCase(TestCase):
@@ -45,13 +46,9 @@ class BaseTestCase(TestCase):
 
     def setUp(self):
         db.create_all()
-        user = User(username='ada')
-        user.set_password('ada')
-        db.session.add(user)
-        db.session.commit()
-
+        initial_db()
         self.signin_helper()
-    
+
     def tearDown(self):
         self.signout_helper()
 
@@ -60,7 +57,11 @@ class BaseTestCase(TestCase):
 
     def get_response_data(self, response):
         return json.loads(response.data).get('data')
-    
+
+    def signin_as_admin(self):
+        self.signout_helper()
+        self.signin_helper(username='admin', password='admin')
+
     def signin_helper(self, username='ada', password='ada'):
         resp = self.client.post(
             '/api/v2/auth/signin',
@@ -69,12 +70,13 @@ class BaseTestCase(TestCase):
                 'password': password
             }),
             content_type='application/json')
+        resp_data = self.get_response_data(resp)
         self.assertEqual(resp.status_code, HTTPStatus.OK)
-        self.assertTrue('access_token' in resp.json)
-        self.assertTrue(len(resp.json.get('access_token')) > 1)
-        self._token = resp.json.get('access_token')
+        self.assertTrue('access_token' in resp_data)
+        self.assertTrue(len(resp_data.get('access_token')) > 1)
+        self._token = resp_data.get('access_token')
         return self._token
-    
+
     def signout_helper(self):
         self._token = None
 

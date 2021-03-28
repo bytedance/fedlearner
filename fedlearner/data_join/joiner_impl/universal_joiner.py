@@ -21,6 +21,7 @@ import heapq
 from collections import namedtuple
 
 from fedlearner.common import metrics
+from fedlearner.common import common as fcc
 import fedlearner.data_join.common as common
 from fedlearner.data_join.joiner_impl.example_joiner import ExampleJoiner
 from fedlearner.data_join.negative_example_generator \
@@ -88,11 +89,15 @@ def make_index_by_attr(keys, item, key_idx=None):
             index array
     """
     key_str_arr = []
+    def has_key(item, key_name):
+        value = getattr(item, key_name)
+        return value != common.ALLOWED_FIELDS[key_name].default_value
+
     for idx, key in enumerate(keys):
         key_arr = key
         if isinstance(key, str):
             key_arr = [key]
-        if all([hasattr(item, att) for att in key_arr]):
+        if all([has_key(item, att) for att in key_arr]):
             if key_idx is not None:
                 key_idx.append(idx)
             key_str_arr.append("_".join(
@@ -168,7 +173,7 @@ class _Trigger(object):
         while leader_stride <= leader_win_size and                             \
                 sid <= leader_win_size and                                     \
                 follower_win_size >= 0 and                                     \
-                common.time_diff(                                              \
+                fcc.time_diff(                                              \
                     follower_window[follower_win_size].item.event_time,        \
                     leader_window[sid].item.event_time) >                      \
                 self._max_watermark_delay:
@@ -179,7 +184,7 @@ class _Trigger(object):
         while follower_stride <= follower_win_size and                         \
                 leader_win_size >= 0 and                                       \
                 0 <= cid <= follower_win_size and                              \
-                common.time_diff(                                              \
+                fcc.time_diff(                                              \
                   leader_window[leader_win_size].item.event_time,              \
                   follower_window[cid].item.event_time) >                      \
                 self._max_watermark_delay:
@@ -273,7 +278,7 @@ class _SlidingWindow(object):
         ed = time_anchor
         if ed is None:
             ed = self._ring_buffer[self._index(self._size - 1)].item.event_time
-        return common.time_diff(ed, st)
+        return fcc.time_diff(ed, st)
 
     def reserved_size(self):
         return self._max_window_size - self._size

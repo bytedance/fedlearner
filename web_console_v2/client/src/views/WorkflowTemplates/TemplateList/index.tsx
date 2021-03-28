@@ -7,6 +7,7 @@ import {
   deleteTemplate,
   fetchTemplateById,
   fetchWorkflowTemplateList,
+  getTemplateDownloadHref,
 } from 'services/workflow';
 import styled from 'styled-components';
 import ListPageLayout from 'components/ListPageLayout';
@@ -30,33 +31,20 @@ const TemplateName = styled(Link)`
 
 const TPL_LIST_QUERY_KEY = 'fetchTemplateList';
 
-const DownloadTemplate: FC<{ template: WorkflowTemplate }> = ({ template: { id, name } }) => {
+const DownloadTemplate: FC<{ template: WorkflowTemplate }> = ({ template: { id } }) => {
   const { t } = useTranslation();
 
-  const [loading, setLoading] = useToggle(false);
-
   return (
-    <Button type="link" size="small" loading={loading} onClick={onClick}>
+    <Button
+      type="link"
+      size="small"
+      target="_blank"
+      href={getTemplateDownloadHref(id)}
+      rel="noopen"
+    >
       {t('workflow.action_download')}
     </Button>
   );
-
-  async function onClick() {
-    setLoading(true);
-    const [res, err] = await to(fetchTemplateById(id));
-    setLoading(false);
-
-    if (err) {
-      return message.error(t('workflow.msg_get_tpl_detail_failed'));
-    }
-
-    const anchor = document.createElement('a');
-
-    anchor.download = res.data.name + '.json';
-    anchor.href = `data:text/json;charset=utf-8,${JSON.stringify(res.data)}`;
-
-    anchor.click();
-  }
 };
 
 const DuplicateTemplate: FC<{ template: WorkflowTemplate }> = ({ template: { id } }) => {
@@ -157,6 +145,7 @@ const TemplateList: FC = () => {
         },
       },
     ],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [t],
   );
 

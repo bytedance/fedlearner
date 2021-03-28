@@ -294,6 +294,12 @@ def create_add_on(client: Type[K8sClient], domain_name: str, url: str,
         },
         name=domain_name
     )
+    # In most case with external authorization mode,
+    # secrets are created by helm charts (deploy/charts/fedlearner-add-on).
+    # So use `ingress-nginx` as default.
+    # FIXME: change when supporting multi-peer
+    secret_path = name if os.environ.get('AUTHORIZATION_MODE') != 'EXTERNAL' \
+        else 'ingress-nginx'
     server_snippet_template = \
         'grpc_ssl_verify on;\n'\
         'grpc_ssl_server_name on;\n'\
@@ -302,7 +308,7 @@ def create_add_on(client: Type[K8sClient], domain_name: str, url: str,
         'grpc_ssl_certificate /etc/{1}/client/client.pem;\n'\
         'grpc_ssl_certificate_key /etc/{1}/client/client.key;'
     server_snippet = server_snippet_template.format(
-        custom_host or '$http_x_host', name)
+        custom_host or '$http_x_host', secret_path)
     client.create_or_update_ingress(
         metadata={
             'name': client_auth_ingress_name,

@@ -73,6 +73,6 @@ class Project(db.Model):
         if config is not None:
             variables = self.get_config().variables
             for variable in variables:
-                if variable.name == 'NAMESPACE':
+                if variable.name == 'namespace':
                     return variable.value
         return 'default'

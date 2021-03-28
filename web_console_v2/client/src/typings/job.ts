@@ -30,7 +30,6 @@ export interface Job {
   name: string;
   job_type: JobType;
   is_federated: boolean;
-  is_manual?: boolean;
   variables: Variable[];
   dependencies: JobDependency[];
   yaml_template?: string;
@@ -55,9 +54,11 @@ export interface Pod {
   message?: string;
 }
 
-export enum JobReuseFlag {
-  NEW = 'NEW',
-  REUSE = 'REUSE',
+export enum CreateJobFlag {
+  INVALID = 0,
+  NEW = 1,
+  REUSE = 2,
+  DISABLED = 3,
 }
 
 export interface JobExecutionDetalis {

@@ -65,7 +65,7 @@ export function isRunning(workflow: Workflow) {
 export function isPreparingStop(workflow: Workflow) {
   const { state, target_state } = workflow;
 
-  return target_state === STOPPED && state === RUNNING;
+  return target_state === STOPPED && [RUNNING, COMPLETED, FAILED].includes(state);
 }
 
 export function isStopped(workflow: Workflow) {
@@ -83,6 +83,11 @@ export function isCompleted(workflow: Workflow) {
 export function isFailed(workflow: Workflow) {
   const { state } = workflow;
   return state === FAILED;
+}
+
+export function isInvalid(workflow: Workflow) {
+  const { state } = workflow;
+  return state === INVALID;
 }
 
 // --------------- Xable judgement ----------------
@@ -174,6 +179,13 @@ export function getWorkflowStage(workflow: Workflow): { type: StateTypes; text: 
     return {
       text: i18n.t('workflow.state_failed'),
       type: 'error',
+    };
+  }
+
+  if (isInvalid(workflow)) {
+    return {
+      text: i18n.t('workflow.state_failed'),
+      type: 'default',
     };
   }
 

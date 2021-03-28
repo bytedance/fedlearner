@@ -15,23 +15,81 @@
 # coding: utf-8
 # pylint: disable=protected-access
 
+import os
 import logging
 import time
-import tensorflow.compat.v1 as tf
-
+try:
+    import tensorflow.compat.v1 as tf
+    from tensorflow.compat.v1.train import Optimizer
+    from tensorflow.compat.v1.estimator import ModeKeys
+except ImportError:
+    import tensorflow as tf
+    from tensorflow.train import Optimizer
+    from tensorflow.estimator import ModeKeys
 from tensorflow.compat import as_str_any
-from tensorflow.compat.v1.train import Optimizer
-from tensorflow.compat.v1.estimator import ModeKeys
+
 from tensorflow_estimator.python.estimator import model_fn as model_fn_lib
 
 from fedlearner.common.summary_hook import SummaryHook
 from fedlearner.trainer import patch  # pylint: disable=unused-import
-from fedlearner.common import metrics
 
 SYNC_PATH = '/sync/'
 DATA_CHECKPOINT_INIT_VALUE = "_init_value"
 
-class DataCheckpointSaverListener(tf.estimator.CheckpointSaverListener):
+class BridgeTrainHook(tf.train.SessionRunHook):
+    def __init__(self,
+                 bridge,
+                 worker_rank,
+                 checkpoint_path):
+        self._bridge = bridge
+        self._worker_rank = worker_rank
+        self._checkpoint_path = checkpoint_path
+    def begin(self):
+        self._bridge.connect()
+    def before_run(self, run_context):
+        self._bridge.start()
+        logging.debug("after bridge start")
+    def after_run(self, run_context, run_values):
+        self._bridge.commit()
+        logging.debug("after bridge commit")
+    def end(self, session):
+        self._bridge.terminate()
+        self._complete_checkpoint(session)
+
+    def _complete_checkpoint(self, session):
+        if not self._checkpoint_path or self._worker_rank != 0:
+            return
+        saver_def = \
+            tf.get_collection(tf.GraphKeys.SAVERS)[0].as_saver_def()
+        saver = tf.train.Saver(
+            saver_def=saver_def,
+            max_to_keep=16)
+        dirname = os.path.join(
+            self._checkpoint_path, "complete_checkpoint")
+        filename = \
+            "fl-complete-model.ckpt-%d"%self._bridge.terminated_at
+        if not tf.io.gfile.isdir(dirname):
+            tf.io.gfile.mkdir(dirname)
+        save_path = os.path.join(dirname, filename)
+        logging.info("Save complete model checkpoint in %s",
+            save_path)
+        saver.save(session, save_path)
+
+class BridgEvaluateHook(tf.train.SessionRunHook):
+    def __init__(self, bridge):
+        self._bridge = bridge
+    def begin(self):
+        self._bridge.connect()
+    def before_run(self, run_context):
+        self._bridge.start()
+        logging.debug("after bridge start")
+    def after_run(self, run_context, run_values):
+        self._bridge.commit()
+        logging.debug("after bridge commit")
+    def end(self, session):
+        self._bridge.terminate()
+
+class DataCheckpointSaverListener(tf.train.CheckpointSaverListener):
     def __init__(self, tm, appid):
         self._trainer_master = tm
         self._application_id = appid
@@ -54,6 +112,9 @@ class DataCheckpointSaverListener(tf.estimator.CheckpointSaverListener):
         res = session.run(self._ckpt_tensor, {"data_checkpoint_plhd:0":
                                         ",".join(data_checkpoint)})
         logging.info("data checkpoint saved result: %s", res)
+
+
+
 
 class FLModel(object):
     def __init__(self, role, bridge, example_ids, exporting=False):
@@ -94,7 +155,8 @@ class FLModel(object):
         self._train_ops.append(op)
         self._sends.append((name, tensor, require_grad))
         if require_grad:
-            return self.recv(name + '_grad', tensor.dtype)
+            with tf.control_dependencies([op]):
+                return self.recv(name + '_grad', tensor.dtype)
         return None
 
     def recv(self, name, dtype=tf.float32, require_grad=False, shape=None):
@@ -232,12 +294,13 @@ class FLEstimator(object):
     def train(self,
               input_fn,
               checkpoint_path=None,
+              load_checkpoint_filename_with_path=None,
               save_checkpoint_steps=None,
               save_checkpoint_secs=None):
 
         config = tf.ConfigProto()
-        config.inter_op_parallelism_threads = 16
-        config.inter_op_parallelism_threads = 16
+        config.inter_op_parallelism_threads = 128
+        config.inter_op_parallelism_threads = 128
         config.experimental.share_session_state_in_clusterspec_propagation \
             = True
 
@@ -246,10 +309,10 @@ class FLEstimator(object):
                 worker_device="/job:worker/task:%d" % self._worker_rank,
                 merge_devices=True,
                 cluster=self._cluster_spec)
-            local_address = self._cluster_spec.job_tasks('worker')[
-                self._worker_rank]
             config.rpc_options.compression_algorithm = 'gzip'
             config.rpc_options.cache_rpc_response = True
+            local_address = self._cluster_spec.job_tasks('worker')[
+                self._worker_rank]
             server = tf.train.Server(tf.train.ClusterSpec(
                 {'local': {
                     0: local_address
@@ -277,57 +340,49 @@ class FLEstimator(object):
                     save_relative_paths=True)  # Must set for portability
                 tf.add_to_collection(tf.GraphKeys.SAVERS, saver)
 
-            listener = DataCheckpointSaverListener(self._trainer_master,
-                                                   self._application_id)
-            saver_hook = tf.estimator.CheckpointSaverHook(
-                checkpoint_path, save_secs=save_checkpoint_secs,
-                save_steps=save_checkpoint_steps, listeners=[listener])
-            self._bridge.connect()
+            all_hooks = []
+            if spec.training_hooks:
+                all_hooks.extend(spec.training_hooks)
+            all_hooks.append(BridgeTrainHook(
+                self._bridge, self._worker_rank, checkpoint_path))
 
-            try:
-                with tf.train.MonitoredTrainingSession(
-                    master=target,
-                    config=config,
-                    is_chief=(self._worker_rank == 0),
-                    chief_only_hooks=[saver_hook],
-                    checkpoint_dir=checkpoint_path,
-                    save_checkpoint_steps=None,
-                    save_checkpoint_secs=None,
-                    hooks=spec.training_hooks) as sess:
-                    iter_id = 0
+            if self._worker_rank == 0: # chief
+                listener = DataCheckpointSaverListener(
+                    self._trainer_master, self._application_id)
+                saver_hook = tf.estimator.CheckpointSaverHook(
+                    checkpoint_path, save_secs=save_checkpoint_secs,
+                    save_steps=save_checkpoint_steps, listeners=[listener])
+                session_creator = tf.train.ChiefSessionCreator(
+                    master=target, config=config,
+                    checkpoint_filename_with_path= \
+                        load_checkpoint_filename_with_path)
+                sess = tf.train.MonitoredSession(
+                    session_creator=session_creator,
+                    hooks=all_hooks + [saver_hook])
+                data_checkpoint_value = None
+                if hasattr(saver_hook, "data_checkpoint"):
+                    data_checkpoint_value = saver_hook.data_checkpoint
+                if not self._restore_datablock(data_checkpoint_value):
+                    raise ValueError("Restore data checkpoint error")
+            else: # no chief
+                session_creator = tf.train.WorkerSessionCreator(
+                        master=target, config=config)
+                sess = tf.train.MonitoredSession(
+                    session_creator=session_creator,
+                    hooks=all_hooks)
 
-                    data_checkpoint_value = None
-                    if hasattr(saver_hook, "data_checkpoint"):
-                        data_checkpoint_value = saver_hook.data_checkpoint
-                    if not self._restore_datablock(data_checkpoint_value):
-                        raise ValueError("Restore data checkpoint error")
-
-                    while not sess.should_stop():
-                        self._bridge.start(iter_id)
-                        logging.debug('after bridge start.')
-                        start_time = time.time()
-                        sess.run(spec.train_op, feed_dict={})
-                        end_time = time.time()
-                        metrics.emit_timer(
-                            name="iter_timer",
-                            value=end_time-start_time,
-                            tags={})
-                        logging.debug('after session run.')
-                        self._bridge.commit()
-                        logging.debug('after bridge commit.')
-                        iter_id += 1
-            finally:
-                self._bridge.terminate()
+            with sess:
+                while not sess.should_stop():
+                    start_time = time.time()
+                    sess.run(spec.train_op, feed_dict={})
+                    use_time = time.time() - start_time
+                    logging.debug("after session run. time: %f sec", use_time)
 
         return self
 
     def evaluate(self,
                  input_fn,
-                 checkpoint_path=None):
-        if not tf.train.latest_checkpoint(checkpoint_path):
-            raise ValueError(
-                "Could not find trained model at %s" % checkpoint_path)
-
+                 load_checkpoint_filename_with_path):
         with tf.Graph().as_default():
             features, labels = self._get_features_and_labels_from_input_fn(
                 input_fn, ModeKeys.EVAL)
@@ -357,41 +412,34 @@ class FLEstimator(object):
             scaffold = tf.train.Scaffold()
             session_creator = tf.train.ChiefSessionCreator(
                 scaffold=scaffold,
-                checkpoint_dir=checkpoint_path)
+                checkpoint_filename_with_path=\
+                    load_checkpoint_filename_with_path)
 
             # Prepare hooks
-            all_hooks = list(spec.evaluation_hooks) or []
+            all_hooks = []
+            if spec.evaluation_hooks:
+                all_hooks.extend(spec.evaluation_hooks)
+
             final_ops_hook = tf.train.FinalOpsHook(eval_dict)
             all_hooks.append(final_ops_hook)
 
+            all_hooks.append(BridgEvaluateHook(self._bridge))
+
             # Evaluate over dataset
-            self._bridge.connect()
-            try:
-                with tf.train.MonitoredSession(
-                    session_creator=session_creator, hooks=all_hooks) as sess:
-                    if not self._restore_datablock(DATA_CHECKPOINT_INIT_VALUE):
-                        raise ValueError("Restore data checkpoint error")
-                    iter_id = 0
-                    while not sess.should_stop():
-                        self._bridge.start(iter_id)
-                        logging.debug('after bridge start.')
-                        start_time = time.time()
-                        sess.run(eval_op)
-                        end_time = time.time()
-                        metrics.emit_timer(
-                            name="iter_timer",
-                            value=end_time-start_time,
-                            tags={})
-                        logging.debug('after session run.')
-                        self._bridge.commit()
-                        logging.debug('after bridge commit.')
-                        iter_id += 1
-            finally:
-                self._bridge.terminate()
+            with tf.train.MonitoredSession(
+                session_creator=session_creator, hooks=all_hooks) as sess:
+                if not self._restore_datablock(DATA_CHECKPOINT_INIT_VALUE):
+                    raise ValueError("Restore data checkpoint error")
+                while not sess.should_stop():
+                    start_time = time.time()
+                    sess.run(eval_op)
+                    use_time = time.time() - start_time
+                    logging.debug("after session run. time: %f sec", use_time)
 
             # Print result
             logging.info('Metrics for iteration %d: %s',
-                iter_id, _dict_to_str(final_ops_hook.final_ops_values))
+                self._bridge.next_iter_id-1,
+                _dict_to_str(final_ops_hook.final_ops_values))
             return final_ops_hook.final_ops_values
 
     def export_saved_model(self,

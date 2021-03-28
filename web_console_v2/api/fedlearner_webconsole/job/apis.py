@@ -28,6 +28,7 @@ from fedlearner_webconsole.rpc.client import RpcClient
 from fedlearner_webconsole.utils.es import es
 from fedlearner_webconsole.utils.kibana import KibanaUtils
 from fedlearner_webconsole.workflow.models import Workflow
+from fedlearner_webconsole.envs import Envs
 
 
 def _get_job(job_id):
@@ -79,10 +80,14 @@ class JobLogApi(Resource):
         job = _get_job(job_id)
         if start_time is None:
             start_time = job.workflow.start_at
-        return {'data': es.query_log('filebeat-*', job.name,
-                                     'fedlearner-operator',
-                                     start_time,
-                                     int(time.time() * 1000))[:max_lines][::-1]}
+        return {
+            'data': es.query_log(
+                'filebeat-*', job.name,
+                'fedlearner-operator',
+                start_time,
+                int(time.time() * 1000),
+                Envs.OPERATOR_LOG_MATCH_PHRASE)[:max_lines][::-1]
+        }
 
 
 class JobMetricsApi(Resource):
@@ -243,6 +248,8 @@ def initialize_job_apis(api):
                      '/jobs/<int:job_id>/log')
     api.add_resource(JobMetricsApi,
                      '/jobs/<int:job_id>/metrics')
+    api.add_resource(KibanaMetricsApi,
+                     '/jobs/<int:job_id>/kibana_metrics')
     api.add_resource(PeerJobMetricsApi,
                      '/workflows/<string:workflow_uuid>/peer_workflows'
                      '/<int:participant_id>/jobs/<string:job_name>/metrics')
@@ -250,5 +257,3 @@ def initialize_job_apis(api):
     api.add_resource(PeerJobEventsApi,
                      '/workflows/<string:workflow_uuid>/peer_workflows'
                      '/<int:participant_id>/jobs/<string:job_name>/events')
-    api.add_resource(KibanaMetricsApi,
-                     '/jobs/<int:job_id>/kibana')

@@ -18,6 +18,7 @@ import time
 import logging
 import json
 import os
+import sys
 import threading
 from concurrent import futures
 import grpc
@@ -39,99 +40,61 @@ from fedlearner_webconsole.exceptions import (
     UnauthorizedException
 )
 
+
 class RPCServerServicer(service_pb2_grpc.WebConsoleV2ServiceServicer):
     def __init__(self, server):
         self._server = server
 
-    def CheckConnection(self, request, context):
+    def _secure_exc(self):
+        exc_type, exc_obj, exc_tb = sys.exc_info()
+        fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+        secure_exc = 'Error %s at %s:%s'%(
+            exc_type, fname, exc_tb.tb_lineno)
+
+    def _try_handle_request(self, func, request, context, resp_class):
         try:
-            return self._server.check_connection(request, context)
+            return func(request, context)
         except UnauthorizedException as e:
-            return service_pb2.CheckConnectionResponse(
+            return resp_class(
                 status=common_pb2.Status(
                     code=common_pb2.STATUS_UNAUTHORIZED,
-                    msg=repr(e)))
+                    msg='Invalid auth: %s'%repr(request.auth_info)))
         except Exception as e:
-            logging.error('CheckConnection rpc server error: %s', repr(e))
-            return service_pb2.CheckConnectionResponse(
+            logging.error('%s rpc server error: %s', func.__name__, repr(e))
+            return resp_class(
                 status=common_pb2.Status(
                     code=common_pb2.STATUS_UNKNOWN_ERROR,
-                    msg=repr(e)))
+                    msg=self._secure_exc()))
+
+    def CheckConnection(self, request, context):
+        return self._try_handle_request(
+            self._server.check_connection, request, context,
+            service_pb2.CheckConnectionResponse)
 
     def UpdateWorkflowState(self, request, context):
-        try:
-            return self._server.update_workflow_state(request, context)
-        except UnauthorizedException as e:
-            return service_pb2.UpdateWorkflowStateResponse(
-                status=common_pb2.Status(
-                    code=common_pb2.STATUS_UNAUTHORIZED,
-                    msg=repr(e)))
-        except Exception as e:
-            logging.error('UpdateWorkflowState rpc server error: %s', repr(e))
-            return service_pb2.UpdateWorkflowStateResponse(
-                status=common_pb2.Status(
-                    code=common_pb2.STATUS_UNKNOWN_ERROR,
-                    msg=repr(e)))
+        return self._try_handle_request(
+            self._server.update_workflow_state, request, context,
+            service_pb2.UpdateWorkflowStateResponse)
 
     def GetWorkflow(self, request, context):
-        try:
-            return self._server.get_workflow(request, context)
-        except UnauthorizedException as e:
-            return service_pb2.GetWorkflowResponse(
-                status=common_pb2.Status(
-                    code=common_pb2.STATUS_UNAUTHORIZED,
-                    msg=repr(e)))
-        except Exception as e:
-            logging.error('GetWorkflow rpc server error: %s', repr(e))
-            return service_pb2.GetWorkflowResponse(
-                status=common_pb2.Status(
-                    code=common_pb2.STATUS_UNKNOWN_ERROR,
-                    msg=repr(e)))
+        return self._try_handle_request(
+            self._server.get_workflow, request, context,
+            service_pb2.GetWorkflowResponse)
 
     def UpdateWorkflow(self, request, context):
-        try:
-            return self._server.update_workflow(request, context)
-        except UnauthorizedException as e:
-            return service_pb2.UpdateWorkflowResponse(
-                status=common_pb2.Status(
-                    code=common_pb2.STATUS_UNAUTHORIZED,
-                    msg=repr(e)))
-        except Exception as e:
-            logging.error('UpdateWorkflow rpc server error: %s', repr(e))
-            return service_pb2.UpdateWorkflowResponse(
-                status=common_pb2.Status(
-                    code=common_pb2.STATUS_UNKNOWN_ERROR,
-                    msg=repr(e)))
+        return self._try_handle_request(
+            self._server.update_workflow, request, context,
+            service_pb2.UpdateWorkflowResponse)
 
     def GetJobMetrics(self, request, context):
-        try:
-            return self._server.get_job_metrics(request, context)
-        except UnauthorizedException as e:
-            return service_pb2.GetJobMetricsResponse(
-                status=common_pb2.Status(
-                    code=common_pb2.STATUS_UNAUTHORIZED,
-                    msg=repr(e)))
-        except Exception as e:
-            logging.error('GetJobMetrics rpc server error: %s', repr(e))
-            return service_pb2.GetJobMetricsResponse(
-                status=common_pb2.Status(
-                    code=common_pb2.STATUS_UNKNOWN_ERROR,
-                    msg=repr(e)))
+        return self._try_handle_request(
+            self._server.get_job_metrics, request, context,
+            service_pb2.GetJobMetricsResponse)
 
     def GetJobEvents(self, request, context):
-        try:
-            return self._server.get_job_events(request, context)
-        except UnauthorizedException as e:
-            return service_pb2.GetJobEventsResponse(
-                status=common_pb2.Status(
-                    code=common_pb2.STATUS_UNAUTHORIZED,
-                    msg=repr(e)))
-        except Exception as e:
-            logging.error('GetJobMetrics rpc server error: %s', repr(e))
-            return service_pb2.GetJobEventsResponse(
-                status=common_pb2.Status(
-                    code=common_pb2.STATUS_UNKNOWN_ERROR,
-                    msg=repr(e)))
+        return self._try_handle_request(
+            self._server.get_job_events, request, context,
+            service_pb2.GetJobEventsResponse)
 
 
 class RpcServer(object):

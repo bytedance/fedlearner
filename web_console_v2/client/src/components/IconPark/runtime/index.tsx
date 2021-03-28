@@ -74,7 +74,7 @@ export function IconWrapper(name: string, rtl: boolean, render: IconRender, cssR
 
     const cls: string[] = ['anticon'];
 
-    cls.push('anticon' + '-' + name);
+    cls.push('anticon-' + name);
 
     if (rtl && config.rtl) {
       cls.push('anticon-rtl');

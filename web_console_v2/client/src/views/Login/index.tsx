@@ -115,13 +115,13 @@ const LoginFormCheckbox = styled(Checkbox)`
 
 const Login: FC = () => {
   const { t } = useTranslation();
-  const [submitting, toggleSubmit] = useToggle(false);
-  const setUserInfo = useSetRecoilState(userInfoQuery);
   const history = useHistory();
+  const [submitting, toggleSubmit] = useToggle(false);
 
-  const userQuery = useRecoilQuery(userInfoQuery);
+  const query = useRecoilQuery(userInfoQuery);
+  const setUserInfo = useSetRecoilState(userInfoQuery);
 
-  if (userQuery.data?.id) {
+  if (query.data?.id) {
     return <Redirect to="/projects" />;
   }
 
@@ -184,9 +184,15 @@ const Login: FC = () => {
   async function onSubmit(payload: unknown) {
     toggleSubmit(true);
     try {
-      const data = await login(payload as FedLoginFormData);
-      store.set(LOCAL_STORAGE_KEYS.current_user, { ...data, date: Date.now() });
-      setUserInfo(data);
+      const { data } = await login(payload as FedLoginFormData);
+      store.set(LOCAL_STORAGE_KEYS.current_user, {
+        ...data.user,
+        access_token: data.access_token,
+        date: Date.now(),
+      });
+
+      setUserInfo(data.user);
+
       message.success(i18n.t('app.login_success'));
 
       if (history.location.search) {

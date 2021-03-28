@@ -99,12 +99,11 @@ class ProjectsApi(Resource):
         certificates = {}
         for participant in config.get('participants'):
             if 'name' not in participant.keys() or \
-                'url' not in participant.keys() or \
                 'domain_name' not in participant.keys():
                 raise InvalidArgumentException(
                     details=ErrorMessage.PARAM_FORMAT_ERROR.value.format(
-                        'participants', 'Participant must have name, '
-                        'domain_name and url.'))
+                        'participants', 'Participant must have name and '
+                        'domain_name.'))
             if re.match(_URL_REGEX, participant.get('url')) is None:
                 raise InvalidArgumentException('URL pattern is wrong')
             domain_name = participant.get('domain_name')
@@ -112,7 +111,13 @@ class ProjectsApi(Resource):
             participant['grpc_spec'] = {
                 'authority': '{}-client-auth.com'.format(domain_name[:-4])
             }
-            if participant.get('certificates') is not None:
+            if participant.get('certificates'):
+                # If users use web console to create add-on,
+                # peer url must be given
+                if 'url' not in participant.keys():
+                    raise InvalidArgumentException(
+                        details=ErrorMessage.PARAM_FORMAT_ERROR.value.format(
+                            'participants', 'Participant must have url.'))
                 current_cert = parse_certificates(
                     participant.get('certificates'))
                 success, err = verify_certificates(current_cert)
@@ -240,7 +245,7 @@ class CheckConnectionApi(Resource):
     def check_connection(self, project_config: ProjectProto,
                          participant_proto: ParticipantProto):
         client = RpcClient(project_config, participant_proto)
-        return client.check_connection()
+        return client.check_connection().status
 
 
 def initialize_project_apis(api: Api):
