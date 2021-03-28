@@ -42,7 +42,8 @@ class KibanaUtils(object):
               '#66D4FF', '#6EB518', '#9AF02E']
     # metrics_v2* for all other job types
     JOB_INDEX = {JobType.RAW_DATA: 'raw_data',
-                 JobType.DATA_JOIN: 'data_join'}
+                 JobType.DATA_JOIN: 'data_join',
+                 JobType.PSI_DATA_JOIN: 'data_join'}
 
     @staticmethod
     def create_tsvb(job, args):
