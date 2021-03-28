@@ -394,17 +394,17 @@ class UniversalJoiner(ExampleJoiner):
     def name(cls):
         return 'UNIVERSAL_JOINER'
 
-    def case_2(self):
+    def is_leader_far_ahead_follower(self):
         leader_size = self._leader_join_window.size() - 1
         mark = False
         if leader_size > 0:
+            if self._follower_join_window.size() == 0:
+                # attempt another round
+                return True
             leader_et = self._leader_join_window[leader_size].item.event_time
             time_diff = self._follower_join_window.et_span(leader_et)
             mark = time_diff > self._max_watermark_delay
         return mark
-
-    def case_1(self, sync_finished):
-        return self._fill_leader_join_window(sync_finished)
 
     def _inner_joiner(self, state_stale):
         if self.is_join_finished():
@@ -413,7 +413,8 @@ class UniversalJoiner(ExampleJoiner):
                 self._prepare_join(state_stale)
         join_data_finished = False
 
-        while self.case_1(sync_example_id_finished) or self.case_2():
+        while self._fill_leader_join_window(sync_example_id_finished) or       \
+              self.is_leader_far_ahead_follower():
             # Case 1: the leader, if there is no enough elems filled while
             # syncing will break and wait.
             # Case 2:  leader dataset is much smaller than follower due to
