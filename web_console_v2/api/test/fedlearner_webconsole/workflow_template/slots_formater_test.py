@@ -24,9 +24,15 @@ class SlotFormatterTest(unittest.TestCase):
                  'Slot_prs1': 'prs1',
                  'dada': 'paopaotang'}
         yaml = '${Slot_prs} a${asdf} ${Slot_prs1}'
-        print(format_yaml(yaml=yaml, **slots))
+        self.assertEqual(format_yaml(yaml, **slots),
+                         'prs a${asdf} prs1')
 
-
+    def test_generate_yaml_template(self):
+        slots = {'Slot_prs': Slot(variable_type=Slot.VariableType.DEFAULT, default='prs'),
+                'Slot_prs1': Slot(variable_type=Slot.VariableType.DEFAULT, default='prs1')}
+        yaml = '${Slot_prs} a${asdf} ${Slot_prs1}'
+        self.assertEqual(generate_yaml_template(yaml, slots),
+                         'prs a${asdf} prs1')
 
 if __name__ == '__main__':
     unittest.main()

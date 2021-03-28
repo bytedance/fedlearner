@@ -17,11 +17,40 @@
 from string import Template
 from flatten_dict import flatten
 from fedlearner_webconsole.proto.workflow_definition_pb2 import Slot
+from collections import ChainMap as _ChainMap
 class _YamlTemplate(Template):
     delimiter = '$'
     # Which placeholders in the template should be interpreted
     idpattern = r'Slot_[a-z0-9_]*'
 
+
+    def substitute(*args, **kws):
+        if not args:
+            raise TypeError("descriptor 'substitute' of 'Template' object "
+                            "needs an argument")
+        self, *args = args  # allow the "self" keyword be passed
+        if len(args) > 1:
+            raise TypeError('Too many positional arguments')
+        if not args:
+            mapping = kws
+        elif kws:
+            mapping = _ChainMap(kws, args[0])
+        else:
+            mapping = args[0]
+        # Helper function for .sub()
+        def convert(mo):
+            # Check the most common path first.
+            named = mo.group('named') or mo.group('braced')
+            if named is not None:
+                return str(mapping[named])
+            if mo.group('escaped') is not None:
+                return self.delimiter
+            if mo.group('invalid') is not None:
+                # overwrite to escape invalid placeholder
+                return mo.group()
+            raise ValueError('Unrecognized named group in pattern',
+                             self.pattern)
+        return self.pattern.sub(convert, self.template)
 def format_yaml(yaml, **kwargs):
     """Formats a yaml template.
 
@@ -54,3 +83,6 @@ def generate_yaml_template(base_yaml, slots_proto):
         else:
             slots[key] = slots_proto[key].variable
     return format_yaml(base_yaml, **slots)
+
+
+
