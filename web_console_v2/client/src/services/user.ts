@@ -12,6 +12,10 @@ export function login(
   return request.post('/v2/auth/signin', payload);
 }
 
+export function addNewUser(payload: FedUserInfo): AxiosPromise<{ data: { user: FedUserInfo } }> {
+  return request.post('/v2/auth/users/', payload);
+}
+
 export function logout() {
   return request.post('/v2/auth/signout');
 }

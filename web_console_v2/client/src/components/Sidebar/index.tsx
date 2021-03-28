@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import styled from 'styled-components';
 import { Link, useLocation } from 'react-router-dom';
 import { Menu } from 'antd';
@@ -19,6 +19,10 @@ import {
   Settings,
   Interaction,
 } from 'components/IconPark';
+import { FedRoles } from 'typings/auth';
+import { userInfoQuery } from 'stores/user';
+import { useRecoilQuery } from 'hooks/recoil';
+import { cloneDeep } from 'lodash';
 
 const Container = styled.aside`
   display: flex;
@@ -63,7 +67,7 @@ const FoldButton = styled.div`
   }
 `;
 
-const SIDEBAR_MENU_ITEMS = [
+const SIDEBAR_MENU_ITEMS_INITIAL = [
   {
     to: '/projects',
     label: 'menu.label_project',
@@ -91,18 +95,26 @@ const SIDEBAR_MENU_ITEMS = [
   },
 ];
 
+const menuInsertingControl = {
+  userModule: false,
+};
+
 function Sidebar({ className }: StyledComponetProps) {
   const { t } = useTranslation();
   const [isFolded, toggleFold] = useToggle(store.get(LOCAL_STORAGE_KEYS.sidebar_folded));
   const location = useLocation();
+  const userQuery = useRecoilQuery(userInfoQuery);
+  const [sidebarMenuItems, setSidebarItems] = useState(SIDEBAR_MENU_ITEMS_INITIAL);;
 
   const activeMenuItemKey =
-    SIDEBAR_MENU_ITEMS.find((item) => location.pathname.startsWith(item.to))?.to || '';
+    sidebarMenuItems.find((item) => location.pathname.startsWith(item.to))?.to || '';
+
+  useEffect(() => roleSpecModuleVisibility(), [userQuery.data]);
 
   return (
     <Container className={classNames(className, { isFolded })}>
       <StyledMenu mode="inline" selectedKeys={[activeMenuItemKey]}>
-        {SIDEBAR_MENU_ITEMS.map((menu) => (
+        {sidebarMenuItems.map((menu) => (
           <Menu.Item key={menu.to}>
             {isFolded ? (
               <Tooltip title={t(menu.label)} placement="right">
@@ -126,6 +138,23 @@ function Sidebar({ className }: StyledComponetProps) {
   function onFoldClick() {
     toggleFold();
     store.set(LOCAL_STORAGE_KEYS.sidebar_folded, !isFolded);
+  }
+
+  function roleSpecModuleVisibility() {
+    if (menuInsertingControl.userModule) return;
+    const role = userQuery.data?.role;
+    if (role && role === FedRoles.Admin) {
+      // only admin can manage user
+      const userManagementModule = {
+        to: '/users',
+        label: 'menu.label_users',
+        icon: Settings,
+      };
+      const newMenuItems = cloneDeep(sidebarMenuItems);
+      newMenuItems.push(userManagementModule);
+      setSidebarItems(newMenuItems);
+      menuInsertingControl.userModule = true;
+    }
   }
 }
 
