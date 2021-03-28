@@ -58,7 +58,7 @@ class WorkflowTemplate(db.Model):
         proto.ParseFromString(self.config)
         return proto
 
-    def set_meta_workflow(self):
+    def get_meta_workflow(self):
         proto = workflow_definition_pb2.MetaWorkflow()
         proto.ParseFromString(self.meta_workflow)
         return proto
