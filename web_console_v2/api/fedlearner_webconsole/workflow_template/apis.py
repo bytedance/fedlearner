@@ -29,8 +29,9 @@ from fedlearner_webconsole.db import db
 from fedlearner_webconsole.exceptions import (
     NotFoundException, InvalidArgumentException,
     ResourceConflictException)
-from fedlearner_webconsole.workflow_template.slots_formatter import\
+from fedlearner_webconsole.workflow_template.slots_formatter import \
     generate_yaml_template
+
 
 def _classify_variable(variable):
     if variable.value_type == 'CODE':
@@ -55,9 +56,20 @@ def dict_to_workflow_definition(config):
     return template_proto
 
 
-def _dic_without_key(d, key):
+def dict_to_meta_workflow(meta_workflow):
+    try:
+        meta_workflow_proto = ParseDict(
+            meta_workflow,
+            workflow_definition_pb2.MetaWorkflow)
+    except ParseError as e:
+        raise InvalidArgumentException(details={'config': str(e)})
+    return meta_workflow_proto
+
+
+def _dic_without_key(d, keys):
     result = dict(d)
-    del result[key]
+    for key in keys:
+        del result[key]
     return result
 
 
@@ -74,8 +86,8 @@ class WorkflowTemplatesApi(Resource):
             templates = templates.filter_by(is_left=is_left)
         # remove config from dicts to reduce the size of the list
         return {'data': [_dic_without_key(t.to_dict(),
-                                          'config') for t in templates.all()
-                         ]}, HTTPStatus.OK
+                                          ['config', 'meta_workflow'])
+                         for t in templates.all()]}, HTTPStatus.OK
 
     def post(self):
         parser = reqparse.RequestParser()
@@ -83,19 +95,23 @@ class WorkflowTemplatesApi(Resource):
         parser.add_argument('comment')
         parser.add_argument('config', type=dict, required=True,
                             help='config is empty')
+        parser.add_argument('meta_workflow', type=dict, default={})
         data = parser.parse_args()
         name = data['name']
         comment = data['comment']
         config = data['config']
+        meta_workflow = data['meta_workflow']
         if WorkflowTemplate.query.filter_by(name=name).first() is not None:
             raise ResourceConflictException(
                 'Workflow template {} already exists'.format(name))
-        template_proto = _check_config(config)
+        template_proto, meta_workflow_proto = _check_config(config,
+                                                            meta_workflow)
         template = WorkflowTemplate(name=name,
                                     comment=comment,
                                     group_alias=template_proto.group_alias,
                                     is_left=template_proto.is_left)
         template.set_config(template_proto)
+        template.set_meta_workflow(meta_workflow_proto)
         db.session.add(template)
         db.session.commit()
         logging.info('Inserted a workflow_template to db')
@@ -134,10 +150,12 @@ class WorkflowTemplateApi(Resource):
         parser.add_argument('comment')
         parser.add_argument('config', type=dict, required=True,
                             help='config is empty')
+        parser.add_argument('meta_workflow', type=dict, default={})
         data = parser.parse_args()
         name = data['name']
         comment = data['comment']
         config = data['config']
+        meta_workflow = data['meta_workflow']
         tmp = WorkflowTemplate.query.filter_by(name=name).first()
         if tmp is not None and tmp.id != template_id:
             raise ResourceConflictException(
@@ -145,8 +163,10 @@ class WorkflowTemplateApi(Resource):
         template = WorkflowTemplate.query.filter_by(id=template_id).first()
         if template is None:
             raise NotFoundException()
-        template_proto = _check_config(config)
+        template_proto, meta_workflow_proto = _check_config(config,
+                                                            meta_workflow)
         template.set_config(template_proto)
+        template.set_meta_workflow(meta_workflow_proto)
         template.name = name
         template.comment = comment
         template.group_alias = template_proto.group_alias
@@ -155,7 +175,7 @@ class WorkflowTemplateApi(Resource):
         return {'data': template.to_dict()}, HTTPStatus.OK
 
 
-def _check_config(config):
+def _check_config(config, meta_workflow):
     # TODO: needs tests
     if 'group_alias' not in config:
         raise InvalidArgumentException(details={
@@ -165,6 +185,7 @@ def _check_config(config):
             details={'config.is_left': 'config.is_left is required'})
 
     # form to proto buffer
+    meta_workflow_proto = dict_to_meta_workflow(meta_workflow)
     template_proto = dict_to_workflow_definition(config)
     for index, job_def in enumerate(template_proto.job_definitions):
         # pod label name must be no more than 63 characters.
@@ -184,11 +205,15 @@ def _check_config(config):
                  : 'Only letters(a-z), numbers(0-9) '
                    'and dashes(-) are supported.'})
 
-        # if yaml_template is a meta yaml, format it with slots
-        job_def.yaml_template = generate_yaml_template(job_def.yaml_template,
-                                                       job_def.slots)
+        # if job is in meta_workflow, than use meta_yaml format with slots
+        # instead of yaml_template
+        meta_jobs = meta_workflow.meta_jobs
+        if job_def.name in meta_jobs:
+            job_def.yaml_template = generate_yaml_template(
+                meta_jobs[job_def.name].meta_yaml,
+                meta_jobs[job_def.name].slots)
 
-    return template_proto
+    return template_proto, meta_workflow
 
 
 class CodeApi(Resource):

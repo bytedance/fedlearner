@@ -61,6 +61,16 @@ message Slot {
     string help = 3;
     ReferenceType reference_type = 4;
     string label = 5;
+
+}
+
+message MetaJob{
+    map<string, Slot> slots = 1;
+    string meta_yaml = 2;
+}
+
+message MetaWorkflow{
+    map<string, MetaJob> meta_jobs =1;
 }
 
 message WorkflowDefinition {
