@@ -64,14 +64,14 @@ message Slot {
 
 }
 
-message MetaJob{
+message YamlEditorInfo {
     map<string, Slot> slots = 1;
     string meta_yaml = 2;
     bool is_used = 3;
 }
 
-message MetaWorkflow{
-    map<string, MetaJob> meta_jobs =1;
+message WorkflowTemplateEditorInfo {
+    map<string, YamlEditorInfo> yaml_editor_infos =1;
 }
 
 message WorkflowDefinition {

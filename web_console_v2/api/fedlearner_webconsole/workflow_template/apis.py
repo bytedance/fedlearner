@@ -56,15 +56,15 @@ def dict_to_workflow_definition(config):
     return template_proto
 
 
-def dict_to_meta_workflow(meta_workflow):
+def dict_to_editor_info(editor_info):
     try:
-        meta_workflow_proto = ParseDict(
-            meta_workflow,
-            workflow_definition_pb2.MetaWorkflow())
+        editor_info_proto = ParseDict(
+            editor_info,
+            workflow_definition_pb2.WorkflowTemplateEditorInfo())
     except ParseError as e:
         raise InvalidArgumentException(details={
-            'meta_workflow': str(e)})
-    return meta_workflow_proto
+            'editor_info': str(e)})
+    return editor_info_proto
 
 
 def _dic_without_key(d, keys):
@@ -87,7 +87,7 @@ class WorkflowTemplatesApi(Resource):
             templates = templates.filter_by(is_left=is_left)
         # remove config from dicts to reduce the size of the list
         return {'data': [_dic_without_key(t.to_dict(),
-                                          ['config', 'meta_workflow'])
+                                          ['config', 'editor_info'])
                          for t in templates.all()]}, HTTPStatus.OK
 
     def post(self):
@@ -96,23 +96,23 @@ class WorkflowTemplatesApi(Resource):
         parser.add_argument('comment')
         parser.add_argument('config', type=dict, required=True,
                             help='config is empty')
-        parser.add_argument('meta_workflow', type=dict, default={})
+        parser.add_argument('editor_info', type=dict, default={})
         data = parser.parse_args()
         name = data['name']
         comment = data['comment']
         config = data['config']
-        meta_workflow = data['meta_workflow']
+        editor_info = data['editor_info']
         if WorkflowTemplate.query.filter_by(name=name).first() is not None:
             raise ResourceConflictException(
                 'Workflow template {} already exists'.format(name))
-        template_proto, meta_workflow_proto = _check_config(config,
-                                                            meta_workflow)
+        template_proto, editor_info_proto = _check_config(config,
+                                                          editor_info)
         template = WorkflowTemplate(name=name,
                                     comment=comment,
                                     group_alias=template_proto.group_alias,
                                     is_left=template_proto.is_left)
         template.set_config(template_proto)
-        template.set_meta_workflow(meta_workflow_proto)
+        template.set_editor_info(editor_info_proto)
         db.session.add(template)
         db.session.commit()
         logging.info('Inserted a workflow_template to db')
@@ -151,12 +151,12 @@ class WorkflowTemplateApi(Resource):
         parser.add_argument('comment')
         parser.add_argument('config', type=dict, required=True,
                             help='config is empty')
-        parser.add_argument('meta_workflow', type=dict, default={})
+        parser.add_argument('editor_info', type=dict, default={})
         data = parser.parse_args()
         name = data['name']
         comment = data['comment']
         config = data['config']
-        meta_workflow = data['meta_workflow']
+        editor_info = data['editor_info']
         tmp = WorkflowTemplate.query.filter_by(name=name).first()
         if tmp is not None and tmp.id != template_id:
             raise ResourceConflictException(
@@ -164,10 +164,10 @@ class WorkflowTemplateApi(Resource):
         template = WorkflowTemplate.query.filter_by(id=template_id).first()
         if template is None:
             raise NotFoundException()
-        template_proto, meta_workflow_proto = _check_config(config,
-                                                            meta_workflow)
+        template_proto, editor_info_proto = _check_config(config,
+                                                          editor_info)
         template.set_config(template_proto)
-        template.set_meta_workflow(meta_workflow_proto)
+        template.set_editor_info(editor_info_proto)
         template.name = name
         template.comment = comment
         template.group_alias = template_proto.group_alias
@@ -176,7 +176,7 @@ class WorkflowTemplateApi(Resource):
         return {'data': template.to_dict()}, HTTPStatus.OK
 
 
-def _check_config(config, meta_workflow):
+def _check_config(config, editor_info):
     # TODO: needs tests
     if 'group_alias' not in config:
         raise InvalidArgumentException(details={
@@ -186,7 +186,7 @@ def _check_config(config, meta_workflow):
             details={'config.is_left': 'config.is_left is required'})
 
     # form to proto buffer
-    meta_workflow_proto = dict_to_meta_workflow(meta_workflow)
+    editor_info_proto = dict_to_editor_info(editor_info)
     template_proto = dict_to_workflow_definition(config)
     for index, job_def in enumerate(template_proto.job_definitions):
         # pod label name must be no more than 63 characters.
@@ -206,17 +206,17 @@ def _check_config(config, meta_workflow):
                  : 'Only letters(a-z), numbers(0-9) '
                    'and dashes(-) are supported.'})
 
-        # if job is in meta_workflow, than use meta_yaml format with slots
+        # if job is in editor_info, than use meta_yaml format with slots
         # instead of yaml_template
-        meta_jobs = meta_workflow_proto.meta_jobs
-        if job_def.name in meta_jobs:
-            meta_job = meta_jobs[job_def.name]
-            if meta_jobs.is_used:
+        yaml_editor_infos = editor_info_proto.yaml_editor_infos
+        if job_def.name in yaml_editor_infos:
+            yaml_editor_info = yaml_editor_infos[job_def.name]
+            if yaml_editor_info.is_used:
                 job_def.yaml_template = generate_yaml_template(
-                    meta_job.meta_yaml,
-                    meta_job.slots)
+                    yaml_editor_info.meta_yaml,
+                    yaml_editor_info.slots)
 
-    return template_proto, meta_workflow_proto
+    return template_proto, editor_info_proto
 
 
 class CodeApi(Resource):
