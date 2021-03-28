@@ -270,8 +270,8 @@ class _SlidingWindow(object):
         if self._size == 0:
             return 0
         st = self._ring_buffer[self._start].item.event_time
-        et = time_anchor
-        if et is None:
+        ed = time_anchor
+        if ed is None:
             ed = self._ring_buffer[self._index(self._size - 1)].item.event_time
         return common.time_diff(ed, st)
 
