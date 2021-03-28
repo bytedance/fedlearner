@@ -394,6 +394,18 @@ class UniversalJoiner(ExampleJoiner):
     def name(cls):
         return 'UNIVERSAL_JOINER'
 
+    def case_2(self):
+        leader_size = self._leader_join_window.size() - 1
+        mark = False
+        if leader_size > 0:
+            leader_et = self._leader_join_window[leader_size].item.event_time
+            time_diff = self._follower_join_window.et_span(leader_et)
+            mark = time_diff > self._max_watermark_delay
+        return mark
+
+    def case_1(self, sync_finished):
+        return self._fill_leader_join_window(sync_finished)
+
     def _inner_joiner(self, state_stale):
         if self.is_join_finished():
             return
@@ -401,29 +413,21 @@ class UniversalJoiner(ExampleJoiner):
                 self._prepare_join(state_stale)
         join_data_finished = False
 
-        """#Case 2:  leader dataset is much smaller than follower due to sparse
-        distribution in same time interval. |- and -| indicates the head and
-        tail element's event_time, | is the watermark, in this case,
-                  -|(leader) > |-(follower) + max_delay
-                    sync_example_id_finished is False
-        so we can push the watermark forward to:
-                  -|(leader) <= |-(follower) + max_delay
+        while self.case_1(sync_example_id_finished) or self.case_2():
+            # Case 1: the leader, if there is no enough elems filled while
+            # syncing will break and wait.
+            # Case 2:  leader dataset is much smaller than follower due to
+            # sparse distribution in same time interval. |- and -| indicates
+            # the head and tail element's event_time, | is the watermark, in
+            # this case,
+            #           -|(leader) > |-(follower) + max_delay
+            #             sync_example_id_finished is False
+            # so we can push the watermark forward to:
+            #           -|(leader) <= |-(follower) + max_delay
 
-            timeline: ----->
-            leader :                        [|-     ...    -|]
-            follow :  [|-     .|..    ]                -|
-                         watermark
-        """
-        leader_size = self._leader_join_window.size() - 1
-        case_2 = False
-        if leader_size > 0:
-            leader_tail = self._leader_join_window[leader_size].item.event_time
-            time_diff = self._follower_join_window.et_span(leader_tail)
-            case_2 = time_diff > self._max_watermark_delay
-
-        #Case 1: For leader,if there is no enough elems filled but syncing is
-        # going on, will break and wait.
-        while self._fill_leader_join_window(sync_example_id_finished) or case_2:
+            #     timeline: ----->
+            #     leader :                        [|-     ...    -|]
+            #     follow :  [|-     .|..    ]                -|
             leader_exhausted = sync_example_id_finished and                    \
                     self._leader_join_window.et_span() <=                      \
                     self._max_watermark_delay
