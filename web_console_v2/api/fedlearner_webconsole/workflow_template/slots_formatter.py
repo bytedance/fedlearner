@@ -14,17 +14,16 @@
 
 
 # coding: utf-8
+from collections import ChainMap as _ChainMap
 from string import Template
 from flatten_dict import flatten
 from fedlearner_webconsole.proto.workflow_definition_pb2 import Slot
-from collections import ChainMap as _ChainMap
 class _YamlTemplate(Template):
     delimiter = '$'
     # Which placeholders in the template should be interpreted
     idpattern = r'Slot_[a-z0-9_]*'
 
-
-    def substitute(*args, **kws):
+    def substitute(*args, **kws):# pylint: disable=no-method-argument
         if not args:
             raise TypeError("descriptor 'substitute' of 'Template' object "
                             "needs an argument")
@@ -71,8 +70,8 @@ def generate_yaml_template(base_yaml, slots_proto):
     Parse certificates from base64-encoded string to a dict
     Args:
         base_yaml: A string representation of one type job's base yaml.
-        slots_proto: A proto map object representation of modification template's
-        operable smallest units.
+        slots_proto: A proto map object representation of modification
+        template's operable smallest units.
     Returns:
         string: A yaml_template
     """
@@ -83,6 +82,3 @@ def generate_yaml_template(base_yaml, slots_proto):
         else:
             slots[key] = slots_proto[key].variable
     return format_yaml(base_yaml, **slots)
-
-
-
