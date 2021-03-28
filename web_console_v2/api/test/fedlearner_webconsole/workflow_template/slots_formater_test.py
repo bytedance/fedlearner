@@ -28,8 +28,8 @@ class SlotFormatterTest(unittest.TestCase):
                          'prs a${asdf} prs1')
 
     def test_generate_yaml_template(self):
-        slots = {'Slot_prs': Slot(variable_type=Slot.VariableType.DEFAULT, default='prs'),
-                'Slot_prs1': Slot(variable_type=Slot.VariableType.PROJECT, variable='project.variables.namespace')}
+        slots = {'Slot_prs': Slot(reference_type=Slot.ReferenceType.DEFAULT, default='prs'),
+                'Slot_prs1': Slot(reference_type=Slot.ReferenceType.PROJECT, reference='project.variables.namespace')}
         yaml = '${Slot_prs} a${asdf} ${Slot_prs1}'
         self.assertEqual(generate_yaml_template(yaml, slots),
                          'prs a${asdf} ${project.variables.namespace}')

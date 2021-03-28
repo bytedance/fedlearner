@@ -78,8 +78,8 @@ def generate_yaml_template(base_yaml, slots_proto):
     """
     slots = {}
     for key in slots_proto:
-        if slots_proto[key].variable_type == Slot.VariableType.DEFAULT:
+        if slots_proto[key].reference_type == Slot.ReferenceType.DEFAULT:
             slots[key] = slots_proto[key].default
         else:
-            slots[key] = f'${{{slots_proto[key].variable}}}'
+            slots[key] = f'${{{slots_proto[key].reference}}}'
     return format_yaml(base_yaml, **slots)
