@@ -116,7 +116,7 @@ export const normalTemplate: DeepPartial<WorkflowTemplate> = {
       },
       {
         name: 'Raw data process',
-        job_type: JobType.NN_MODEL_TRANINING,
+        job_type: JobType.NN_MODEL_TRAINING,
         is_federated: true,
         dependencies: [{ source: 'Initiative' }],
         variables: [
@@ -151,7 +151,7 @@ export const normalTemplate: DeepPartial<WorkflowTemplate> = {
       },
       {
         name: 'Training',
-        job_type: JobType.NN_MODEL_TRANINING,
+        job_type: JobType.NN_MODEL_TRAINING,
         is_federated: true,
         dependencies: [
           { source: 'Raw data upload' },
@@ -238,7 +238,7 @@ export const complexDepsTemplate: DeepPartial<WorkflowTemplate> = {
 
       {
         name: 'Raw data process',
-        job_type: JobType.NN_MODEL_TRANINING,
+        job_type: JobType.NN_MODEL_TRAINING,
         is_federated: true,
         dependencies: [{ source: 'Initiative' }],
         variables: [
@@ -277,7 +277,7 @@ export const complexDepsTemplate: DeepPartial<WorkflowTemplate> = {
       },
       {
         name: 'Training',
-        job_type: JobType.NN_MODEL_TRANINING,
+        job_type: JobType.NN_MODEL_TRAINING,
         is_federated: true,
         dependencies: [{ source: 'Raw data upload' }, { source: 'Raw data process' }],
         variables: [
