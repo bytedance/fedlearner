@@ -270,6 +270,9 @@ class Args(object):
         self.master_addr = master_addr
         self.tf_addr = tf_addr
         self.checkpoint_path = ckpt_path
+        self.checkpoint_filename = None
+        self.load_checkpoint_filename = None
+        self.load_checkpoint_filename_with_path = None
         self.save_checkpoint_steps = 100
         self.save_checkpoint_secs = None
         self.export_path = export_path
@@ -367,7 +370,7 @@ class TestNNTraining(unittest.TestCase):
 
         self.kv_store = [None, None, None]
         self._local_data_source = "test-liuqi-mnist-local"
-        data_source = [self._gen_ds_meta(common_pb.FLRole.Leader, 0, "test-liuqi-mnist-leader-v1"),
+        data_source = [self._gen_ds_meta(common_pb.FLRole.Leader, 0, "test-liuqi-mnist-v1"),
                        self._gen_ds_meta(common_pb.FLRole.Leader, 1, self._local_data_source),
                        self._gen_ds_meta(common_pb.FLRole.Follower, 0, "test-liuqi-mnist-v1")]
         for role in range(num_parts):
