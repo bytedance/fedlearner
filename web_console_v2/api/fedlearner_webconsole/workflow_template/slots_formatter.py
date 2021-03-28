@@ -67,7 +67,6 @@ def format_yaml(yaml, **kwargs):
 
 def generate_yaml_template(base_yaml, slots_proto):
     """
-    Parse certificates from base64-encoded string to a dict
     Args:
         base_yaml: A string representation of one type job's base yaml.
         slots_proto: A proto map object representation of modification
