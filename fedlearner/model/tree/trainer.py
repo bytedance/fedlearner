@@ -138,6 +138,10 @@ def create_argument_parser():
                         type=bool,
                         default=False,
                         help='Whether to send metrics to follower.')
+    parser.add_argument('--enable-packing',
+                        type=bool,
+                        default=False,
+                        help='Whether to enable packing grad and hess')
 
     return parser
 
@@ -518,7 +522,8 @@ def run(args):
             num_parallel=args.num_parallel,
             loss_type=args.loss_type,
             send_scores_to_follower=args.send_scores_to_follower,
-            send_metrics_to_follower=args.send_metrics_to_follower)
+            send_metrics_to_follower=args.send_metrics_to_follower,
+            enable_packing=args.enable_packing)
 
         if args.load_model_path:
             booster.load_saved_model(args.load_model_path)
