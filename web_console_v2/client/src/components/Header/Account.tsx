@@ -9,7 +9,6 @@ import GridRow from 'components/_base/GridRow';
 import { Settings } from 'components/IconPark';
 // import LanguageSwitch from './LanguageSwitch';
 import { Redirect, useHistory } from 'react-router-dom';
-import { logout } from 'services/user';
 import { useTranslation } from 'react-i18next';
 import store from 'store2';
 import LOCAL_STORAGE_KEYS from 'shared/localStorageKeys';

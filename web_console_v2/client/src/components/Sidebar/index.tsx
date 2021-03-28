@@ -104,11 +104,12 @@ function Sidebar({ className }: StyledComponetProps) {
   const [isFolded, toggleFold] = useToggle(store.get(LOCAL_STORAGE_KEYS.sidebar_folded));
   const location = useLocation();
   const userQuery = useRecoilQuery(userInfoQuery);
-  const [sidebarMenuItems, setSidebarItems] = useState(SIDEBAR_MENU_ITEMS_INITIAL);;
+  const [sidebarMenuItems, setSidebarItems] = useState(SIDEBAR_MENU_ITEMS_INITIAL);
 
   const activeMenuItemKey =
     sidebarMenuItems.find((item) => location.pathname.startsWith(item.to))?.to || '';
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => roleSpecModuleVisibility(), [userQuery.data]);
 
   return (
