@@ -266,11 +266,13 @@ class _SlidingWindow(object):
     def is_full(self):
         return self._size == self._alloc_size
 
-    def et_span(self):
+    def et_span(self, time_anchor=None):
         if self._size == 0:
             return 0
         st = self._ring_buffer[self._start].item.event_time
-        ed = self._ring_buffer[self._index(self._size - 1)].item.event_time
+        et = time_anchor
+        if et is None:
+            ed = self._ring_buffer[self._index(self._size - 1)].item.event_time
         return common.time_diff(ed, st)
 
     def reserved_size(self):
@@ -394,9 +396,29 @@ class UniversalJoiner(ExampleJoiner):
                 self._prepare_join(state_stale)
         join_data_finished = False
 
-        # leader: no enough elems filled but syncing is going on, will break
-        #  and wait.
-        while self._fill_leader_join_window(sync_example_id_finished):
+        """#Case 2:  leader dataset is much smaller than follower due to sparse
+        distribution in same time interval. |- and -| indicates the head and
+        tail element's event_time, | is the watermark, in this case,
+                  -|(leader) > |-(follower) + max_delay
+                    sync_example_id_finished is False
+        so we can push the watermark forward to:
+                  -|(leader) <= |-(follower) + max_delay
+
+            timeline: ----->
+            leader :                        [|-     ...    -|]
+            follow :  [|-     .|..    ]                -|
+                         watermark
+        """
+        leader_size = self._leader_join_window.size() - 1
+        case_2 = False
+        if leader_size > 0:
+            leader_tail = self._leader_join_window[leader_size].item.event_time
+            time_diff = self._follower_join_window.et_span(leader_tail)
+            case_2 = time_diff > self._max_watermark_delay
+
+        #Case 1: For leader,if there is no enough elems filled but syncing is
+        # going on, will break and wait.
+        while self._fill_leader_join_window(sync_example_id_finished) or case_2:
             leader_exhausted = sync_example_id_finished and                    \
                     self._leader_join_window.et_span() <=                      \
                     self._max_watermark_delay
