@@ -60,9 +60,10 @@ def dict_to_meta_workflow(meta_workflow):
     try:
         meta_workflow_proto = ParseDict(
             meta_workflow,
-            workflow_definition_pb2.MetaWorkflow)
+            workflow_definition_pb2.MetaWorkflow())
     except ParseError as e:
-        raise InvalidArgumentException(details={'config': str(e)})
+        raise InvalidArgumentException(details={
+            'meta_workflow': str(e)})
     return meta_workflow_proto
 
 
@@ -207,7 +208,7 @@ def _check_config(config, meta_workflow):
 
         # if job is in meta_workflow, than use meta_yaml format with slots
         # instead of yaml_template
-        meta_jobs = meta_workflow.meta_jobs
+        meta_jobs = meta_workflow_proto.meta_jobs
         if job_def.name in meta_jobs:
             meta_job = meta_jobs[job_def.name]
             if meta_jobs.is_used:
@@ -215,7 +216,7 @@ def _check_config(config, meta_workflow):
                     meta_job.meta_yaml,
                     meta_job.slots)
 
-    return template_proto, meta_workflow
+    return template_proto, meta_workflow_proto
 
 
 class CodeApi(Resource):
