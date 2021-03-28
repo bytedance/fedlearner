@@ -29,7 +29,8 @@ from fedlearner_webconsole.db import db
 from fedlearner_webconsole.exceptions import (
     NotFoundException, InvalidArgumentException,
     ResourceConflictException)
-
+from fedlearner_webconsole.workflow_template.slots_formatter import\
+    generate_yaml_template
 
 def _classify_variable(variable):
     if variable.value_type == 'CODE':
@@ -182,6 +183,11 @@ def _check_config(config):
                 {f'config.job_definitions[{index}].job_name'
                  : 'Only letters(a-z), numbers(0-9) '
                    'and dashes(-) are supported.'})
+
+        # if yaml_template is a meta yaml, format it with slots
+        job_def.yaml_template = generate_yaml_template(job_def.yaml_template,
+                                                       job_def.slots)
+
     return template_proto
 
 
