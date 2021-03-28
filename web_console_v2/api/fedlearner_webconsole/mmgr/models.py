@@ -37,3 +37,8 @@ class ModelModel(db.Model):
     def commit(self):
         db.session.add(self)
         db.session.commit()
+
+
+def queryModel(modelID):
+    objs = db.session.query(ModelModel).filter_by(modelID=modelID).all()
+    return objs[0] if len(objs) == 1 else None

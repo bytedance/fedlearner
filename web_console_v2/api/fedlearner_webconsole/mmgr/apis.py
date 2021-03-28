@@ -31,7 +31,7 @@ from fedlearner_webconsole.exceptions import (NotFoundException,
                                               ResourceConflictException,
                                               UnauthorizedException)
 
-from fedlearner_webconsole.mmgr.models import ModelModel
+from fedlearner_webconsole.mmgr.models import *
 
 
 class ModelApi(Resource):
@@ -46,6 +46,13 @@ class ModelApi(Resource):
         return {
                    "modelID": modelID
                }, HTTPStatus.OK
+
+    def op_query(self, obj):
+        modelID = str(obj["modelID"])
+        o = ModelMgr().query(modelID)
+        return {
+                   "modelID": o.modelID
+               } if o else None, HTTPStatus.OK
 
 
 class ModelMgr:
@@ -64,6 +71,9 @@ class ModelMgr:
             "state": "COMMITTED"
         })
         model.commit()
+
+    def query(self, modelID):
+        return queryModel(modelID)
 
 
 def initialize_mmgr_apis(api):
