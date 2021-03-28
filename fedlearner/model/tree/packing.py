@@ -13,28 +13,36 @@
 # limitations under the License.
 
 # coding: utf-8
-
 import math
 from fedlearner.model.crypto.fixed_point_number import FixedPointNumber
 from fedlearner.model.crypto.paillier import PaillierEncryptedNumber
 
+# reserve some bits to avoid the result of hess
+# addition overflow to the result of grad
+RESERVED_BIT = 48
+
 
 class GradHessPacker:
-    def __init__(self, public_key, private_key, precision, exponent):
+    """Pack the Plaintext of Grad and Hess
+    Attributes:
+        public_key: public_key
+        private_key: private_key
+        precision: precision for fixed_point_number
+        exponent: exponent for fixed_point_number
+        offset: the offset position to place grad plaintext
+        _n: the modulo when scalar is negative
+        max_int: the maximum of plaintext absolute value of scalar
+    """
+    def __init__(self, public_key, precision, exponent):
         """Init GradHessPakcer
-        Args:
-            public_key: public_key
-            private_key: private_key
-            precision: precision for fixed_point_number
-            exponent: exponent for fixed_point_number
         """
         self.public_key = public_key
-        self.private_key = private_key
         self.precision = precision
         self.exponent = exponent
+        # the bit length of n in public key
         n_length = math.frexp(self.public_key.n)[1]
         self.offset = n_length // 2
-        bit_length = self.offset - 48
+        bit_length = self.offset - RESERVED_BIT
         self._n = 1 << bit_length
         self.max_int = self._n // 2 - 1
 
@@ -48,6 +56,8 @@ class GradHessPacker:
         Returns:
             Plaintext of packed number
         """
+        assert len(grad) == len(
+            hess), 'the length of grad and hess list should be equal'
         grad_plaintext = [
             FixedPointNumber.encode(g, self._n, self.max_int, self.precision)
             for g in grad
@@ -81,15 +91,18 @@ class GradHessPacker:
         ]
         return enc_numbers
 
-    def decrypt_and_unpack_grad_hess(self, grad_hess_ciphertext):
+    def decrypt_and_unpack_grad_hess(self, grad_hess_ciphertext, private_key):
         """Decrypt and Unpack Ciphertext into grad and hess
         Args:
             grad_hess_ciphertext: packed grad and hess ciphertext
+            private_key: private_key for decryption
         Returns:
             list of grad and hess
         """
+        assert private_key.public_key == self.public_key, \
+            'private key is not paired with public key in GradHessPacker'
         grad_hess_plaintext = [
-            self.private_key.raw_decrypt(ciphertext)
+            private_key.raw_decrypt(ciphertext)
             for ciphertext in grad_hess_ciphertext
         ]
         grad_plaintext = [(plaintext >> self.offset) % self._n

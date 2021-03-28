@@ -28,7 +28,8 @@ class TestPackGradHess(unittest.TestCase):
     def __init__(self, *args, **kwargs):
         super(TestPackGradHess, self).__init__(*args, **kwargs)
         public_key, private_key = PaillierKeypair.generate_keypair()
-        self.pack = GradHessPacker(public_key, private_key, PRECISION, EXPONENT)
+        self.private_key = private_key
+        self.pack = GradHessPacker(public_key, PRECISION, EXPONENT)
 
     def _test_pack(self, grad, hess):
         """Test GradHessPacker
@@ -41,7 +42,7 @@ class TestPackGradHess(unittest.TestCase):
         """
         grad_hess_encrypted = self.pack.pack_and_encrypt_grad_hess(grad, hess)
         grad_hess_ciphertext = [i.ciphertext(False) for i in grad_hess_encrypted]
-        g, h = self.pack.decrypt_and_unpack_grad_hess(grad_hess_ciphertext)
+        g, h = self.pack.decrypt_and_unpack_grad_hess(grad_hess_ciphertext, self.private_key)
         np.testing.assert_almost_equal(grad, g, decimal=32)
         np.testing.assert_almost_equal(hess, h, decimal=32)
 
@@ -50,7 +51,7 @@ class TestPackGradHess(unittest.TestCase):
 
         sgh_encrypt = sum(grad_hess_encrypted)
         sgh_ciphertext = sgh_encrypt.ciphertext(False)
-        sg, sh = self.pack.decrypt_and_unpack_grad_hess([sgh_ciphertext])
+        sg, sh = self.pack.decrypt_and_unpack_grad_hess([sgh_ciphertext], self.private_key)
         np.testing.assert_almost_equal(sum_g, sg)
         np.testing.assert_almost_equal(sum_h, sh)
 
