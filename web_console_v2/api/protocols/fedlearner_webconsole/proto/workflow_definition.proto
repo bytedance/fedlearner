@@ -60,7 +60,7 @@ message Slot {
     string default = 2;
     string help = 3;
     ReferenceType reference_type = 4;
-
+    string label = 5;
 }
 
 message WorkflowDefinition {
