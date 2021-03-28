@@ -123,7 +123,8 @@ const AccountPopover: FC = () => {
 
   async function onLogoutClick() {
     try {
-      await logout();
+      // logout api is now unavailable, only fe remove the user storage.
+      // await logout();
       store.remove(LOCAL_STORAGE_KEYS.current_user);
       resetUserInfo();
       history.push('/login');
