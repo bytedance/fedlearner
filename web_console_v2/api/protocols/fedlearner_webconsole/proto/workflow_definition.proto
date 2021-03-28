@@ -46,8 +46,9 @@ message JobDefinition {
     string yaml_template = 6;
     map<string, Slot> slots = 7;
 }
+
 message Slot {
-    enum VariableType {
+    enum ReferenceType {
         DEFAULT = 0;
         SELF = 1;
         OTHER_JOB = 2;
@@ -58,7 +59,7 @@ message Slot {
     string variable = 1;
     string default = 2;
     string help = 3;
-    VariableType variable_type = 4;
+    ReferenceType reference_type = 4;
 
 }
 

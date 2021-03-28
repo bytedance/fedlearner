@@ -23,6 +23,8 @@ class _YamlTemplate(Template):
     # Which placeholders in the template should be interpreted
     idpattern = r'Slot_[a-z0-9_]*'
 
+    # overwrite this func to escape the invalid placeholder such as
+    # ${project.variables.namespace}
     def substitute(*args, **kws):# pylint: disable=no-method-argument
         if not args:
             raise TypeError("descriptor 'substitute' of 'Template' object "
@@ -79,5 +81,5 @@ def generate_yaml_template(base_yaml, slots_proto):
         if slots_proto[key].variable_type == Slot.VariableType.DEFAULT:
             slots[key] = slots_proto[key].default
         else:
-            slots[key] = slots_proto[key].variable
+            slots[key] = f'${{{slots_proto[key].variable}}}'
     return format_yaml(base_yaml, **slots)

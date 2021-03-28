@@ -29,10 +29,10 @@ class SlotFormatterTest(unittest.TestCase):
 
     def test_generate_yaml_template(self):
         slots = {'Slot_prs': Slot(variable_type=Slot.VariableType.DEFAULT, default='prs'),
-                'Slot_prs1': Slot(variable_type=Slot.VariableType.DEFAULT, default='prs1')}
+                'Slot_prs1': Slot(variable_type=Slot.VariableType.PROJECT, variable='project.variables.namespace')}
         yaml = '${Slot_prs} a${asdf} ${Slot_prs1}'
         self.assertEqual(generate_yaml_template(yaml, slots),
-                         'prs a${asdf} prs1')
+                         'prs a${asdf} ${project.variables.namespace}')
 
 if __name__ == '__main__':
     unittest.main()
