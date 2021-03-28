@@ -43,7 +43,8 @@ class WorkflowTemplate(db.Model):
                        comment='config')
     is_left = db.Column(db.Boolean, comment='is_left')
     meta_workflow = db.Column(db.LargeBinary(16777215),
-                              comment='meta_workflow')
+                              comment='meta_workflow',
+                              default=b'')
 
     def set_config(self, proto):
         self.config = proto.SerializeToString()

@@ -209,9 +209,11 @@ def _check_config(config, meta_workflow):
         # instead of yaml_template
         meta_jobs = meta_workflow.meta_jobs
         if job_def.name in meta_jobs:
-            job_def.yaml_template = generate_yaml_template(
-                meta_jobs[job_def.name].meta_yaml,
-                meta_jobs[job_def.name].slots)
+            meta_job = meta_jobs[job_def.name]
+            if meta_jobs.is_used:
+                job_def.yaml_template = generate_yaml_template(
+                    meta_job.meta_yaml,
+                    meta_job.slots)
 
     return template_proto, meta_workflow
 

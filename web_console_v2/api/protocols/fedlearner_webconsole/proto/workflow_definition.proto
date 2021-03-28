@@ -67,6 +67,7 @@ message Slot {
 message MetaJob{
     map<string, Slot> slots = 1;
     string meta_yaml = 2;
+    bool is_used = 3;
 }
 
 message MetaWorkflow{
