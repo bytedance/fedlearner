@@ -63,7 +63,6 @@ func NewFLController(
 	stopCh <-chan struct{},
 ) *FLController {
 	podCache := newPodCache(time.Duration(5)*time.Minute, stopCh)
-	go podCache.start(stopCh)
 
 	appManager := NewAppManager(
 		namespace,

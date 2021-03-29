@@ -97,7 +97,7 @@ func (p *podCache) getSucceededPod(app *v1alpha1.FLApp, rt, index string) (*v1.P
 	case 1:
 		return ret[0], nil
 	default:
-		err := fmt.Errorf("more than 1 pod matches")
+		err := fmt.Errorf("more than 1 pod matches selector for flapp %v", app.Name)
 		klog.Error(err)
 		return nil, err
 	}
