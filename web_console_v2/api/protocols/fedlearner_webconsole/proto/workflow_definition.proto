@@ -44,7 +44,6 @@ message JobDefinition {
     repeated Variable variables = 4;
     repeated JobDependency dependencies = 5;
     string yaml_template = 6;
-    map<string, Slot> slots = 7;
 }
 
 message Slot {
@@ -68,6 +67,7 @@ message YamlEditorInfo {
     map<string, Slot> slots = 1;
     string meta_yaml = 2;
     bool is_used = 3;
+    repeated Variable variables = 4;
 }
 
 message WorkflowTemplateEditorInfo {

@@ -43,8 +43,8 @@ class WorkflowTemplate(db.Model):
                        comment='config')
     is_left = db.Column(db.Boolean, comment='is_left')
     editor_info = db.Column(db.LargeBinary(16777215),
-                              comment='editor_info',
-                              default=b'')
+                            comment='editor_info',
+                            default=b'')
 
     def set_config(self, proto):
         self.config = proto.SerializeToString()

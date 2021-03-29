@@ -215,6 +215,7 @@ def _check_config(config, editor_info):
                 job_def.yaml_template = generate_yaml_template(
                     yaml_editor_info.meta_yaml,
                     yaml_editor_info.slots)
+                job_def.variables.CopyFrom(yaml_editor_info.variables)
 
     return template_proto, editor_info_proto
 
@@ -240,7 +241,6 @@ class CodeApi(Resource):
         except Exception as e:
             logging.error('Get code: %s', repr(e))
             raise InvalidArgumentException(details={'code_path': 'wrong path'})
-
 
 def initialize_workflow_template_apis(api):
     api.add_resource(WorkflowTemplatesApi, '/workflow_templates')
