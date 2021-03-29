@@ -75,6 +75,8 @@ type appManager struct {
 	podControl     PodControlInterface
 	serviceControl ServiceControlInterface
 
+	podCache *podCache
+
 	recorder record.EventRecorder
 }
 
@@ -98,6 +100,7 @@ func NewAppManager(
 	ingressLister listersnetworking.IngressLister,
 	secretLister listerscorev1.SecretLister,
 	appEventHandler AppEventHandler,
+	podCache *podCache,
 ) AppManager {
 	manager := &appManager{
 		namespace: namespace,
@@ -128,7 +131,7 @@ func NewAppManager(
 			KubeClient: kubeClient,
 			Recorder:   recorder,
 		},
-
+		podCache: podCache,
 		recorder: recorder,
 	}
 	return manager
