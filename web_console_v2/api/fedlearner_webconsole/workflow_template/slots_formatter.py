@@ -18,6 +18,8 @@ from collections import ChainMap as _ChainMap
 from string import Template
 from flatten_dict import flatten
 from fedlearner_webconsole.proto.workflow_definition_pb2 import Slot
+
+
 class _YamlTemplate(Template):
     delimiter = '$'
     # Which placeholders in the template should be interpreted
@@ -52,6 +54,8 @@ class _YamlTemplate(Template):
             raise ValueError('Unrecognized named group in pattern',
                              self.pattern)
         return self.pattern.sub(convert, self.template)
+
+
 def format_yaml(yaml, **kwargs):
     """Formats a yaml template.
 
@@ -66,6 +70,7 @@ def format_yaml(yaml, **kwargs):
     except KeyError as e:
         raise RuntimeError(
             'Unknown placeholder: {}'.format(e.args[0])) from e
+
 
 def generate_yaml_template(base_yaml, slots_proto):
     """
