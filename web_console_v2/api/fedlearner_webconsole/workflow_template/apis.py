@@ -22,6 +22,7 @@ import tarfile
 
 from flask import send_file
 from flask_restful import Resource, reqparse, request
+from google.protobuf.json_format import MessageToDict
 from google.protobuf.json_format import ParseDict, ParseError
 from fedlearner_webconsole.workflow_template.models import WorkflowTemplate
 from fedlearner_webconsole.proto import workflow_definition_pb2
@@ -67,13 +68,6 @@ def dict_to_editor_info(editor_info):
     return editor_info_proto
 
 
-def _dic_without_key(d, keys):
-    result = dict(d)
-    for key in keys:
-        del result[key]
-    return result
-
-
 class WorkflowTemplatesApi(Resource):
     def get(self):
         templates = WorkflowTemplate.query
@@ -86,8 +80,7 @@ class WorkflowTemplatesApi(Resource):
                 raise InvalidArgumentException('is_left must be 0 or 1')
             templates = templates.filter_by(is_left=is_left)
         # remove config from dicts to reduce the size of the list
-        return {'data': [_dic_without_key(t.to_dict(),
-                                          ['config', 'editor_info'])
+        return {'data': [t.to_dict()
                          for t in templates.all()]}, HTTPStatus.OK
 
     def post(self):
@@ -107,6 +100,8 @@ class WorkflowTemplatesApi(Resource):
                 'Workflow template {} already exists'.format(name))
         template_proto, editor_info_proto = _check_config(config,
                                                           editor_info)
+        template_proto = _check_yaml_editor(template_proto,
+                                            editor_info_proto)
         template = WorkflowTemplate(name=name,
                                     comment=comment,
                                     group_alias=template_proto.group_alias,
@@ -135,7 +130,16 @@ class WorkflowTemplateApi(Resource):
                              attachment_filename=f'{template.name}.json',
                              mimetype='application/json; charset=UTF-8',
                              cache_timeout=0)
-        return {'data': template.to_dict()}, HTTPStatus.OK
+        result = template.to_dict()
+        result['config'] = MessageToDict(
+            template.get_config(),
+            preserving_proto_field_name=True,
+            including_default_value_fields=True)
+        result['editor_info'] = MessageToDict(
+            template.get_editor_info(),
+            preserving_proto_field_name=True,
+            including_default_value_fields=True)
+        return {'data': result.to_dict()}, HTTPStatus.OK
 
     def delete(self, template_id):
         result = WorkflowTemplate.query.filter_by(id=template_id)
@@ -166,6 +170,8 @@ class WorkflowTemplateApi(Resource):
             raise NotFoundException()
         template_proto, editor_info_proto = _check_config(config,
                                                           editor_info)
+        template_proto = _check_yaml_editor(template_proto,
+                                            editor_info_proto)
         template.set_config(template_proto)
         template.set_editor_info(editor_info_proto)
         template.name = name
@@ -174,6 +180,21 @@ class WorkflowTemplateApi(Resource):
         template.is_left = template_proto.is_left
         db.session.commit()
         return {'data': template.to_dict()}, HTTPStatus.OK
+
+
+def _check_yaml_editor(template_proto, editor_info_proto):
+    for job_def in template_proto.job_definitions:
+        # if job is in editor_info, than use meta_yaml format with
+        # slots instead of yaml_template
+        yaml_editor_infos = editor_info_proto.yaml_editor_infos
+        if job_def.name in yaml_editor_infos:
+            yaml_editor_info = yaml_editor_infos[job_def.name]
+            if yaml_editor_info.is_used:
+                job_def.yaml_template = generate_yaml_template(
+                    yaml_editor_info.meta_yaml,
+                    yaml_editor_info.slots)
+                job_def.variables.CopyFrom(yaml_editor_info.variables)
+    return template_proto
 
 
 def _check_config(config, editor_info):
@@ -205,18 +226,6 @@ def _check_config(config, editor_info):
                 {f'config.job_definitions[{index}].job_name'
                  : 'Only letters(a-z), numbers(0-9) '
                    'and dashes(-) are supported.'})
-
-        # if job is in editor_info, than use meta_yaml format with slots
-        # instead of yaml_template
-        yaml_editor_infos = editor_info_proto.yaml_editor_infos
-        if job_def.name in yaml_editor_infos:
-            yaml_editor_info = yaml_editor_infos[job_def.name]
-            if yaml_editor_info.is_used:
-                job_def.yaml_template = generate_yaml_template(
-                    yaml_editor_info.meta_yaml,
-                    yaml_editor_info.slots)
-                job_def.variables.CopyFrom(yaml_editor_info.variables)
-
     return template_proto, editor_info_proto
 
 

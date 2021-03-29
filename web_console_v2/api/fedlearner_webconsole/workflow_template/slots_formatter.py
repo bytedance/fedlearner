@@ -27,19 +27,7 @@ class _YamlTemplate(Template):
 
     # overwrite this func to escape the invalid placeholder such as
     # ${project.variables.namespace}
-    def substitute(*args, **kws):# pylint: disable=no-method-argument
-        if not args:
-            raise TypeError("descriptor 'substitute' of 'Template' object "
-                            "needs an argument")
-        self, *args = args  # allow the "self" keyword be passed
-        if len(args) > 1:
-            raise TypeError('Too many positional arguments')
-        if not args:
-            mapping = kws
-        elif kws:
-            mapping = _ChainMap(kws, args[0])
-        else:
-            mapping = args[0]
+    def substitute(self, mapping):
         # Helper function for .sub()
         def convert(mo):
             # Check the most common path first.
