@@ -126,6 +126,7 @@ class Job(db.Model):
                 pods = self._k8s_client.list_resource_of_custom_object(
                     CrdKind.FLAPP, self.name, 'pods',
                     self.project.get_namespace())
+                # if k8s delete flapp but webconsole not, pods will be None
                 if pods is not None and 'pods' in pods:
                     return pods['pods']
             except RuntimeError as e:
@@ -133,8 +134,7 @@ class Job(db.Model):
                 return None
         if self.pods_snapshot is not None:
             pods = json.loads(self.pods_snapshot)
-            if 'pods' in pods:
-                return pods['pods']
+            return pods['pods']
         return None
 
     def get_flapp(self):
@@ -142,6 +142,7 @@ class Job(db.Model):
             try:
                 flapp = self._k8s_client.get_custom_object(
                     CrdKind.FLAPP, self.name, self.project.get_namespace())
+                # if k8s delete flapp but webconsole not, flapp will be None
                 if flapp is not None and 'flapp' in flapp:
                     return flapp['flapp']
             except RuntimeError as e:
@@ -149,8 +150,7 @@ class Job(db.Model):
                 return None
         if self.flapp_snapshot is not None:
             flapp = json.loads(self.flapp_snapshot)
-            if 'flapp' in flapp:
-                return flapp['flapp']
+            return flapp['flapp']
         return None
 
     def get_pods_for_frontend(self, filter_private_info=False):
