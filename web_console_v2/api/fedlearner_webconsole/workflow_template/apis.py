@@ -139,7 +139,7 @@ class WorkflowTemplateApi(Resource):
             template.get_editor_info(),
             preserving_proto_field_name=True,
             including_default_value_fields=True)
-        return {'data': result.to_dict()}, HTTPStatus.OK
+        return {'data': result}, HTTPStatus.OK
 
     def delete(self, template_id):
         result = WorkflowTemplate.query.filter_by(id=template_id)
@@ -250,6 +250,7 @@ class CodeApi(Resource):
         except Exception as e:
             logging.error('Get code: %s', repr(e))
             raise InvalidArgumentException(details={'code_path': 'wrong path'})
+
 
 def initialize_workflow_template_apis(api):
     api.add_resource(WorkflowTemplatesApi, '/workflow_templates')

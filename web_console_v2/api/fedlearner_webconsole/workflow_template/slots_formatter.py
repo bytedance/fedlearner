@@ -14,7 +14,6 @@
 
 
 # coding: utf-8
-from collections import ChainMap as _ChainMap
 from string import Template
 from flatten_dict import flatten
 from fedlearner_webconsole.proto.workflow_definition_pb2 import Slot
