@@ -141,7 +141,9 @@ class JobEventApi(Resource):
                                         'fedlearner-operator',
                                         start_time,
                                         int(time.time() * 1000
-                                            ))[:max_lines][::-1]}
+                                            ),
+                                        Envs.OPERATOR_LOG_MATCH_PHRASE
+                                        )[:max_lines][::-1]}
 
 
 class PeerJobEventsApi(Resource):
