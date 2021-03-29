@@ -398,13 +398,15 @@ class UniversalJoiner(ExampleJoiner):
     def name(cls):
         return 'UNIVERSAL_JOINER'
 
-    def is_leader_far_ahead_follower(self):
+    def is_leader_far_ahead_follower(self, raw_data_finished):
         leader_size = self._leader_join_window.size() - 1
         mark = False
+        # follower:  no syncing, no wait, alway fullfilled as much as possible
+        follower_enough = self._fill_follower_join_window(raw_data_finished)
         if leader_size > 0:
             if self._follower_join_window.size() == 0:
                 # attempt another round
-                return True
+                return follower_enough
             leader_et = self._leader_join_window[leader_size].item.event_time
             time_diff = self._follower_join_window.et_span(leader_et)
             mark = time_diff > self._max_watermark_delay
@@ -418,7 +420,7 @@ class UniversalJoiner(ExampleJoiner):
         join_data_finished = False
 
         while self._fill_leader_join_window(sync_example_id_finished) or       \
-              self.is_leader_far_ahead_follower():
+              self.is_leader_far_ahead_follower(raw_data_finished):
             # Case 1: the leader, if there is no enough elems filled while
             # syncing will break and wait.
             # Case 2:  leader dataset is much smaller than follower due to
@@ -436,17 +438,14 @@ class UniversalJoiner(ExampleJoiner):
             leader_exhausted = sync_example_id_finished and                    \
                     self._leader_join_window.et_span() <=                      \
                     self._max_watermark_delay
-            # follower:  no syncing cost, so it always can be filled enough
-            #  unless buffer overflow
-            follower_enough = self._fill_follower_join_window(raw_data_finished)
             follower_exhausted = raw_data_finished and \
                     self._follower_join_window.size() <= \
                     self._min_window_size / 2
 
-            logging.info("Fill: leader_exhausted=%s, follower_enough=%s"       \
+            logging.info("Fill: leader_exhausted=%s, follower_exhausted=%s"    \
                          " sync_example_id_finished=%s, raw_data_finished=%s"  \
                          " leader_win_size=%d, follower_win_size=%d",          \
-                         leader_exhausted, follower_enough,                    \
+                         leader_exhausted, follower_exhausted,                 \
                          sync_example_id_finished,                             \
                         raw_data_finished, self._leader_join_window.size(),    \
                         self._follower_join_window.size())
