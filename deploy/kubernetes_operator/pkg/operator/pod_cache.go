@@ -124,3 +124,16 @@ func (p *podCache) addPod(pod *v1.Pod) {
 		timestamp: time.Now(),
 	}
 }
+
+func (p *podCache) deletePods(appName string) {
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
+
+	for _, cacheData := range p.cache {
+		for podName, podItem := range cacheData {
+			if podAppName, ok := podItem.pod.Labels[AppNameLabel]; ok && podAppName == appName {
+				delete(cacheData, podName)
+			}
+		}
+	}
+}

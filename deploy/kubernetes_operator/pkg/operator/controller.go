@@ -178,6 +178,7 @@ func (c *FLController) onFLAppDeleted(obj interface{}) {
 		if err := c.syncHandler(app, true); err != nil {
 			klog.Errorf("failed to delete app, name = %v, err = %v", app.Name, err)
 		}
+		c.podCache.deletePods(app.Name)
 	}
 }
 
