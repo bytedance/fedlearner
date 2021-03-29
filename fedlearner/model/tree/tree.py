@@ -993,7 +993,8 @@ class BoostingTreeEnsamble(object):
                 grow_policy=self._grow_policy,
                 validation=validation,
                 num_trees=len(self._trees),
-                leader_no_data=leader_no_data)
+                leader_no_data=leader_no_data,
+                enable_packing=self._enable_packing)
             self._bridge.send_proto('verify', msg)
             status = common_pb2.Status()
             self._bridge.receive_proto('status').Unpack(status)
@@ -1046,6 +1047,8 @@ class BoostingTreeEnsamble(object):
                     'grow_policy', msg.grow_policy, self._grow_policy)
                 err_msg += check(
                     'validation', msg.validation, validation)
+                err_msg += check(
+                    'enable_packing', msg.enable_packing, self._enable_packing)
 
             if err_msg:
                 self._bridge.send_proto(
