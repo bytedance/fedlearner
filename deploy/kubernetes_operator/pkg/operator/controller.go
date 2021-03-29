@@ -141,6 +141,7 @@ func NewFLController(
 
 func (c *FLController) onPodAdded(obj interface{}) {
 	if pod, ok := obj.(*v1.Pod); ok {
+		klog.V(5).Infof("add new Pod %v", pod.Name)
 		c.podCache.addPod(pod)
 	}
 }
