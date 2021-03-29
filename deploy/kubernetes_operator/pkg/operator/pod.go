@@ -68,7 +68,7 @@ func (am *appManager) reconcilePodsWithType(
 		case 0:
 			// 1. Check whether pod has already been persisted in FLApp's status
 			// 2. Check whether pod exists in cache
-			if am.podSucceeded(app, rtype, index) {
+			if am.podSucceeded(app, rtype, strconv.Itoa(index)) {
 				klog.V(3).Infof("pod already succeeded in flapp status, flapp = %v, rtype = %v, index = %v", app.Name, rtype, index)
 				break
 			}
@@ -77,6 +77,7 @@ func (am *appManager) reconcilePodsWithType(
 				return false, err
 			}
 			if pod != nil {
+				klog.V(3).Infof("pod found in cache, flapp = %v, rtype = %v, index = %v", app.Name, rtype, index)
 				updateAppReplicaStatuses(app, rtype, pod)
 				break
 			}
@@ -327,8 +328,9 @@ func (am *appManager) makePodSlicesByIndex(pods []*v1.Pod, replicas int) [][]*v1
 	return podSlices
 }
 
-func (am *appManager) podSucceeded(app *v1alpha1.FLApp, rtype v1alpha1.FLReplicaType, index int) bool {
-	podNamePrefix := GenIndexName(app.Name, strings.ToLower(app.Spec.Role), string(rtype), strconv.Itoa(index))
+func (am *appManager) podSucceeded(app *v1alpha1.FLApp, rtype v1alpha1.FLReplicaType, index string) bool {
+	rt := strings.ToLower(string(rtype))
+	podNamePrefix := GenIndexName(app.Name, strings.ToLower(app.Spec.Role), rt, index)
 	for _, podName := range app.Status.FLReplicaStatus[rtype].Succeeded.List() {
 		if strings.HasPrefix(podName, podNamePrefix) {
 			return true
