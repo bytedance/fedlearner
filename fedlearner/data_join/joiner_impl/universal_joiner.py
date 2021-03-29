@@ -324,6 +324,8 @@ class _SlidingWindow(object):
         self._start = 0
         self._end = self._size
         self._alloc_size = new_alloc_size
+        assert self._end <= self._alloc_size, \
+                'The end index should be smaller than alloc size'
         self._ring_buffer = new_buf
         self._debug_extend_cnt += 1
         logging.info("%s extend end, begin=%d, end=%d, size=%d, "
