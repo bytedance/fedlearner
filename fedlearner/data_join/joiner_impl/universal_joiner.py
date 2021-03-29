@@ -288,7 +288,7 @@ class _SlidingWindow(object):
         # item: raw_data_iter.RawDataIter.Item
         if self._size >= self._alloc_size:
             self.extend()
-        assert self._size < self._alloc_size, "Window extend failed"
+        assert self._size < self._alloc_size, "Window failed to extend"
         self._ring_buffer[self._end] = self.Element(index, item)
         self._end = (self._end + 1) % self._alloc_size
         self._size += 1
@@ -327,6 +327,8 @@ class _SlidingWindow(object):
         assert self._end <= self._alloc_size, \
                 'The end index should be smaller than alloc size'
         self._ring_buffer = new_buf
+        assert self._alloc_size == len(self._ring_buffer), \
+                'Window failed to extend since alloc size not match'
         self._debug_extend_cnt += 1
         logging.info("%s extend end, begin=%d, end=%d, size=%d, "
                      "alloc_size=%d, len(ring_buffer)=%d, extend_cnt=%d",     \
@@ -438,6 +440,7 @@ class UniversalJoiner(ExampleJoiner):
             leader_exhausted = sync_example_id_finished and                    \
                     self._leader_join_window.et_span() <=                      \
                     self._max_watermark_delay
+            self._fill_follower_join_window(raw_data_finished)
             follower_exhausted = raw_data_finished and \
                     self._follower_join_window.size() <= \
                     self._min_window_size / 2
