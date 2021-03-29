@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"time"
 
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -42,6 +43,7 @@ type FLController struct {
 	flAppLister crdlisters.FLAppLister
 
 	syncHandler func(app *v1alpha1.FLApp, deleting bool) error
+	podCache    *podCache
 	stopCh      <-chan struct{}
 }
 
@@ -60,6 +62,8 @@ func NewFLController(
 	appEventHandler AppEventHandler,
 	stopCh <-chan struct{},
 ) *FLController {
+	podCache := newPodCache(time.Duration(5)*time.Minute, stopCh)
+
 	appManager := NewAppManager(
 		namespace,
 		recorder,
@@ -76,6 +80,7 @@ func NewFLController(
 		kubeSharedInformerFactory.Networking().V1beta1().Ingresses().Lister(),
 		kubeSharedInformerFactory.Core().V1().Secrets().Lister(),
 		appEventHandler,
+		podCache,
 	)
 	controller := &FLController{
 		jobQueue: workqueue.NewNamedRateLimitingQueue(
@@ -92,8 +97,38 @@ func NewFLController(
 				kubeSharedInformerFactory.Core().V1().Secrets().Informer().HasSynced()
 		},
 		syncHandler: appManager.SyncApp,
+		podCache:    podCache,
 		stopCh:      stopCh,
 	}
+
+	kubeSharedInformerFactory.Core().V1().Pods().Informer().AddEventHandler(cache.FilteringResourceEventHandler{
+		FilterFunc: func(obj interface{}) bool {
+			validPodFunc := func(pod *v1.Pod) bool {
+				if pod.Namespace != namespace {
+					return false
+				}
+				if _, ok := pod.Labels[AppNameLabel]; !ok {
+					// pod is not related to FLApp
+					return false
+				}
+				return true
+			}
+			if cast, ok := obj.(*v1.Pod); ok {
+				return validPodFunc(cast)
+			}
+			if tombstone, ok := obj.(cache.DeletedFinalStateUnknown); ok {
+				if cast, ok := tombstone.Obj.(*v1.Pod); ok {
+					return validPodFunc(cast)
+				}
+			}
+			return false
+		},
+		Handler: cache.ResourceEventHandlerFuncs{
+			AddFunc:    controller.onPodAdded,
+			UpdateFunc: nil,
+			DeleteFunc: nil,
+		},
+	})
 
 	crdSharedInformerFactory.Fedlearner().V1alpha1().FLApps().Informer().AddEventHandler(
 		cache.ResourceEventHandlerFuncs{
@@ -102,6 +137,12 @@ func NewFLController(
 			DeleteFunc: controller.onFLAppDeleted,
 		})
 	return controller
+}
+
+func (c *FLController) onPodAdded(obj interface{}) {
+	if pod, ok := obj.(*v1.Pod); ok {
+		c.podCache.addPod(pod)
+	}
 }
 
 func (c *FLController) onFLAppAdded(obj interface{}) {
@@ -137,6 +178,7 @@ func (c *FLController) onFLAppDeleted(obj interface{}) {
 		if err := c.syncHandler(app, true); err != nil {
 			klog.Errorf("failed to delete app, name = %v, err = %v", app.Name, err)
 		}
+		c.podCache.deletePods(app.Name)
 	}
 }
 

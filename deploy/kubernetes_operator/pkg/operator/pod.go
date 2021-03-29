@@ -66,6 +66,21 @@ func (am *appManager) reconcilePodsWithType(
 	for index, podSlice := range podSlices {
 		switch podCount := len(podSlice); podCount {
 		case 0:
+			// 1. Check whether pod has already been persisted in FLApp's status
+			// 2. Check whether pod exists in cache
+			if am.podSucceeded(app, rtype, index) {
+				klog.V(3).Infof("pod already succeeded in flapp status, flapp = %v, rtype = %v, index = %v", app.Name, rtype, index)
+				break
+			}
+			pod, err := am.podCache.getSucceededPod(app, rt, strconv.Itoa(index))
+			if err != nil {
+				return false, err
+			}
+			if pod != nil {
+				updateAppReplicaStatuses(app, rtype, pod)
+				break
+			}
+
 			// Need to create a new pod
 			klog.Infof("need to create new pod for %s %d", rtype, index)
 			if err = am.createNewPod(ctx, app, rtype, spec, strconv.Itoa(index)); err != nil {
@@ -310,6 +325,16 @@ func (am *appManager) makePodSlicesByIndex(pods []*v1.Pod, replicas int) [][]*v1
 		}
 	}
 	return podSlices
+}
+
+func (am *appManager) podSucceeded(app *v1alpha1.FLApp, rtype v1alpha1.FLReplicaType, index int) bool {
+	podNamePrefix := GenIndexName(app.Name, strings.ToLower(app.Spec.Role), string(rtype), strconv.Itoa(index))
+	for _, podName := range app.Status.FLReplicaStatus[rtype].Succeeded.List() {
+		if strings.HasPrefix(podName, podNamePrefix) {
+			return true
+		}
+	}
+	return false
 }
 
 func makeClusterSpec(namespace string, app *v1alpha1.FLApp) (string, error) {
