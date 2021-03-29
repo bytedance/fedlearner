@@ -15,6 +15,7 @@
 # coding: utf-8
 
 import logging
+import gc
 import time
 import traceback
 import heapq
@@ -330,6 +331,7 @@ class _SlidingWindow(object):
                      self.__class__.__name__, self._start, self._end,         \
                      self._size, self._alloc_size, len(self._ring_buffer),    \
                      self._debug_extend_cnt)
+        gc.collect()
 
     def reset(self, new_buffer, state_stale):
         self._start = 0
