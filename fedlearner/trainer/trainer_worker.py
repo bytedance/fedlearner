@@ -54,6 +54,9 @@ class StepMetricsHook(tf.train.SessionRunHook):
                 tags['event_time'] = fcc.convert_to_datetime(
                         event_time.decode(), True
                     ).isoformat(timespec='microseconds')
+            if 'step' in result:
+                step = int(result.pop('step'))
+                tags['step'] = step
             for name, value in result.items():
                 metrics.emit_store(name=name, value=value, tags=tags)
 
