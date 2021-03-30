@@ -99,6 +99,7 @@ class JobMetricsApi(Resource):
             # with mpld3.draw_figure('figure1', json)
             return {'data': metrics}
         except Exception as e:  # pylint: disable=broad-except
+            logging.warning('Error building metrics: %s', repr(e))
             abort(400, message=repr(e))
 
 

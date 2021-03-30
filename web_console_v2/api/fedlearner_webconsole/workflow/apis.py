@@ -55,9 +55,20 @@ class WorkflowsApi(Resource):
         if 'uuid' in request.args and request.args['uuid'] is not None:
             uuid = request.args['uuid']
             result = result.filter_by(uuid=uuid)
-        return {'data': [row.to_dict() for row in
-                         result.order_by(
-                             Workflow.created_at.desc()).all()]}, HTTPStatus.OK
+        res = []
+        for row in result.order_by(Workflow.created_at.desc()).all():
+            try:
+                wf_dict = row.to_dict()
+            except Exception as e:  # pylint: disable=broad-except
+                wf_dict = {
+                    'id': row.id,
+                    'name': row.name,
+                    'uuid': row.uuid,
+                    'error': 'Failed to get workflow state %s'%repr(e)
+                }
+            res.append(wf_dict)
+
+        return {'data': res}, HTTPStatus.OK
 
     def post(self):
         parser = reqparse.RequestParser()
