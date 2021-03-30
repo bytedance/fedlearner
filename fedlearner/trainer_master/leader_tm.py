@@ -253,12 +253,10 @@ class LeaderTrainerMaster(object):
         response = tm_pb.GetDataSourceInfoResponse()
         def status_check_fn(status):
             response = tm_pb.DataBlockResponse()
-            if status in (tm_pb.MasterStatus.FINISHED, \
-                          tm_pb.MasterStatus.ERROR):
+            if status == tm_pb.MasterStatus.ERROR:
                 response.status.code = common_pb.STATUS_DATA_FINISHED
-                response.status.error_message = 'datablock finished'
+                response.status.error_message = 'datablock error'
                 return response
-            #only if status is RUNNING
             return True
 
         ready = self._check_status(status_check_fn)

@@ -248,7 +248,7 @@ class TrainerMasterClient(object):
         else:
             if result.status.code == common_pb.STATUS_SUCCESS:
                 return result
-            logging.warning("Get data blocks checkpoint error, %d, %s", \
+            logging.warning("Get data source info error, %d, %s", \
                             result.status.code,
                             result.status.error_message)
             return None
