@@ -22,13 +22,13 @@ import logging
 import threading
 import os
 
+from google.protobuf import text_format
 from tensorflow.compat.v1 import gfile
 
 from fedlearner.common import common_pb2 as common_pb
 from fedlearner.common import data_join_service_pb2 as dj_pb
 from fedlearner.common.db_client import DBClient
-from fedlearner.data_join import common, data_block_visitor, \
-    raw_data_manifest_manager
+from fedlearner.data_join import common, data_block_visitor
 from fedlearner.data_join.data_block_manager import \
     DataBlockManager, DataBlockBuilder
 from fedlearner.data_join.sort_run_merger import SortRunReader
@@ -115,6 +115,7 @@ class SortRunDataBlockMerger(object):
         self._data_source = self._create_data_source()
         self._data_block_manager = \
             DataBlockManager(self._data_source, self._partition_id)
+        self._mock_raw_data_manifest()
 
     def _create_data_source(self):
         data_source = common_pb.DataSource()
@@ -212,18 +213,39 @@ class SortRunDataBlockMerger(object):
             return last_item
         return None
 
-    def _mock_raw_data_manifest(self):
-        manifest_manager = raw_data_manifest_manager.RawDataManifestManager(
-            self._kvstore, self._data_source
+    def _get_manifest(self, partition_id):
+        manifest_kvstore_key = common.partition_manifest_kvstore_key(
+            self._data_source.data_source_meta.name,
+            partition_id
         )
-        manifest_manager.finish_sync_example_id_partition(
-            dj_pb.SyncExampleIdState.UnSynced,
-            dj_pb.SyncExampleIdState.Synced,
-            -1, self._partition_id)
-        manifest_manager.finish_join_example_partition(
-            dj_pb.JoinExampleState.UnJoined,
-            dj_pb.JoinExampleState.Joined,
-            -1, self._partition_id)
+        manifest_data = self._kvstore.get_data(manifest_kvstore_key)
+        if manifest_data is not None:
+            return text_format.Parse(manifest_data, dj_pb.RawDataManifest())
+        return None
+
+    def _update_manifest(self, manifest):
+        partition_id = manifest.partition_id
+        manifest_kvstore_key = common.partition_manifest_kvstore_key(
+            self._data_source.data_source_meta.name,
+            partition_id
+        )
+        self._kvstore.set_data(manifest_kvstore_key,
+                               text_format.MessageToString(manifest))
+
+    def _mock_raw_data_manifest(self):
+        partition_id = self._partition_id
+        manifest = self._get_manifest(partition_id)
+        if manifest is None:
+            manifest = dj_pb.RawDataManifest()
+            manifest.sync_example_id_rep.rank_id = -1
+            manifest.join_example_rep.rank_id = -1
+            manifest.partition_id = partition_id
+        else:
+            manifest.sync_example_id_rep.state = \
+                dj_pb.SyncExampleIdState.Synced
+            manifest.join_example_rep.state = \
+                dj_pb.JoinExampleState.Joined
+        self._update_manifest(manifest)
 
     @property
     def _partition_id(self):

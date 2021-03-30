@@ -105,9 +105,10 @@ class RawDataManifestManager(object):
                             "partition {} since raw data is not " \
                             "finished".format(partition_id)
                         )
-            self.finish_sync_example_id_partition(
-                dj_pb.SyncExampleIdState.Syncing,
-                dj_pb.SyncExampleIdState.Synced, rank_id, partition_id)
+            self._finish_partition(
+                    'sync_example_id_rep', dj_pb.SyncExampleIdState.Syncing,
+                     dj_pb.SyncExampleIdState.Synced, rank_id, partition_id
+                )
 
     def finish_join_example(self, rank_id, partition_id):
         self._check_partition_id(partition_id)
@@ -127,21 +128,10 @@ class RawDataManifestManager(object):
                         "Failed to finish join example for partition {} "\
                         "since raw data is not finished".format(partition_id)
                     )
-            self.finish_join_example_partition(
-                dj_pb.JoinExampleState.Joining,
-                dj_pb.JoinExampleState.Joined, rank_id, partition_id)
-
-    def finish_join_example_partition(self, src_state, target_state,
-                                      rank_id, partition_id):
-        self._finish_partition(
-            'join_example_rep', src_state, target_state, rank_id, partition_id
-        )
-
-    def finish_sync_example_id_partition(self, src_state, target_state,
-                                         rank_id, partition_id):
-        self._finish_partition(
-            'sync_example_id_rep', src_state, target_state, rank_id,
-            partition_id)
+            self._finish_partition(
+                    'join_example_rep', dj_pb.JoinExampleState.Joining,
+                     dj_pb.JoinExampleState.Joined, rank_id, partition_id
+                )
 
     def finish_raw_data(self, partition_id):
         self._check_partition_id(partition_id)
