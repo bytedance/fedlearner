@@ -14,6 +14,7 @@
 # coding: utf-8
 import json
 import time
+import logging
 
 from flask_restful import Resource, reqparse, abort
 from google.protobuf.json_format import MessageToDict
