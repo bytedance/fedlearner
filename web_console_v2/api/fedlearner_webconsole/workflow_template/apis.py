@@ -98,10 +98,10 @@ class WorkflowTemplatesApi(Resource):
         if WorkflowTemplate.query.filter_by(name=name).first() is not None:
             raise ResourceConflictException(
                 'Workflow template {} already exists'.format(name))
-        template_proto, editor_info_proto = _check_config(config,
-                                                          editor_info)
-        template_proto = _check_yaml_editor(template_proto,
-                                            editor_info_proto)
+        template_proto, editor_info_proto = _check_config_and_editor_info(
+            config, editor_info)
+        template_proto = _format_template_with_yaml_editor(
+            template_proto, editor_info_proto)
         template = WorkflowTemplate(name=name,
                                     comment=comment,
                                     group_alias=template_proto.group_alias,
@@ -168,10 +168,10 @@ class WorkflowTemplateApi(Resource):
         template = WorkflowTemplate.query.filter_by(id=template_id).first()
         if template is None:
             raise NotFoundException()
-        template_proto, editor_info_proto = _check_config(config,
-                                                          editor_info)
-        template_proto = _check_yaml_editor(template_proto,
-                                            editor_info_proto)
+        template_proto, editor_info_proto = _check_config_and_editor_info(
+            config, editor_info)
+        template_proto = _format_template_with_yaml_editor(
+            template_proto, editor_info_proto)
         template.set_config(template_proto)
         template.set_editor_info(editor_info_proto)
         template.name = name
@@ -182,7 +182,7 @@ class WorkflowTemplateApi(Resource):
         return {'data': template.to_dict()}, HTTPStatus.OK
 
 
-def _check_yaml_editor(template_proto, editor_info_proto):
+def _format_template_with_yaml_editor(template_proto, editor_info_proto):
     for job_def in template_proto.job_definitions:
         # if job is in editor_info, than use meta_yaml format with
         # slots instead of yaml_template
@@ -197,7 +197,7 @@ def _check_yaml_editor(template_proto, editor_info_proto):
     return template_proto
 
 
-def _check_config(config, editor_info):
+def _check_config_and_editor_info(config, editor_info):
     # TODO: needs tests
     if 'group_alias' not in config:
         raise InvalidArgumentException(details={
