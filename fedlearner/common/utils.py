@@ -19,6 +19,8 @@ import random
 
 def random_shuffle(data, chunk_size=0):
     data_size = len(data)
+    if data_size == 0:
+        return
     if chunk_size <= 0 or chunk_size >= data_size:
         chunk_size = data_size
     for start_idx in range(0, data_size, chunk_size):
