@@ -104,31 +104,6 @@ class MySQLClient(object):
                 sess.rollback()
                 return False
 
-    def cas(self, key, old_data, new_data):
-        with self.closing(self._engine) as sess:
-            try:
-                table = self._datasource_meta
-                flag = True
-                if old_data is None:
-                    context = self._datasource_meta(
-                        kv_key=self._generate_key(key),
-                        kv_value=new_data)
-                    sess.add(context)
-                    sess.commit()
-                else:
-                    context = sess.query(table).filter(table.kv_key ==\
-                        self._generate_key(key)).one()
-                    if context.kv_value != old_data:
-                        flag = False
-                        return flag
-                    context.kv_value = new_data
-                    sess.commit()
-                return flag
-            except Exception as e: # pylint: disable=broad-except
-                logging.error('failed to cas. msg[%s]', e)
-                sess.rollback()
-                return False
-
     def get_prefix_kvs(self, prefix, ignor_prefix=False):
         kvs = []
         path = self._generate_key(prefix)

@@ -66,14 +66,14 @@ class RawDataPublisher(object):
                                                     self._raw_data_pub_dir,
                                                     partition_id,
                                                     next_pub_index)
-            if self._kvstore.cas(kvstore_key, None, data):
-                logging.info("Success publish %s at index %d for partition"\
-                             "%d", data, next_pub_index, partition_id)
-                next_pub_index += 1
-                item_index += 1
-                if item_index < len(new_raw_data_pubs):
-                    raw_data_pub = new_raw_data_pubs[item_index]
-                    data = text_format.MessageToString(raw_data_pub)
+            self._kvstore.set_data(kvstore_key, data)
+            logging.info("Success publish %s at index %d for partition"\
+                         "%d", data, next_pub_index, partition_id)
+            next_pub_index += 1
+            item_index += 1
+            if item_index < len(new_raw_data_pubs):
+                raw_data_pub = new_raw_data_pubs[item_index]
+                data = text_format.MessageToString(raw_data_pub)
         if item_index < len(new_raw_data_pubs) - 1:
             logging.warning("%d files are not published since meet finish "\
                             "tag for partition %d. list following",
@@ -85,23 +85,20 @@ class RawDataPublisher(object):
         data = text_format.MessageToString(
                 dj_pb.RawDatePub(raw_data_finished=empty_pb2.Empty())
             )
-        next_pub_index = None
-        while True:
-            next_pub_index = self._forward_pub_index(partition_id,
-                                                     next_pub_index)
-            if self._check_finish_tag(partition_id, next_pub_index-1):
-                logging.warning("partition %d has been published finish tag"\
-                                "at index %d", partition_id,
-                                next_pub_index-1)
-                break
-            kvstore_key = common.raw_data_pub_kvstore_key(
-                                                    self._raw_data_pub_dir,
-                                                    partition_id,
-                                                    next_pub_index)
-            if self._kvstore.cas(kvstore_key, None, data):
-                logging.info("Success finish raw data for partition"\
-                             "%d", partition_id)
-                break
+        next_pub_index = self._forward_pub_index(partition_id,
+                                                 next_pub_index)
+        if self._check_finish_tag(partition_id, next_pub_index-1):
+            logging.warning("partition %d has been published finish tag"\
+                            "at index %d", partition_id,
+                            next_pub_index-1)
+            return
+        kvstore_key = common.raw_data_pub_kvstore_key(
+                                                self._raw_data_pub_dir,
+                                                partition_id,
+                                                next_pub_index)
+        self._kvstore.put_data(kvstore_key, data)
+        logging.info("Success finish raw data for partition"\
+                     "%d", partition_id)
 
     def _forward_pub_index(self, partition_id, next_pub_index):
         if next_pub_index is None:

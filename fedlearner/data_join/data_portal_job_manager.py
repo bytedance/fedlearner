@@ -253,7 +253,20 @@ class DataPortalJobManager(object):
             if data is not None:
                 self._portal_manifest = \
                     text_format.Parse(data, dp_pb.DataPortalManifest())
+        self._check_disk()
         return self._portal_manifest
+
+    def _check_disk(self):
+        raw_data_output_path = path.join(
+            self._portal_manifest.output_base_dir, "reduce_*")
+        job_path_list = common.glob(raw_data_output_path).sort()
+        if job_path_list:
+            job_id = int(job_path_list[-1].split("_")[-1])
+            if self._portal_manifest.processing_job_id in [-1, None] and \
+               job_id + 1 != self._portal_manifest.next_job_id:
+                # No processing job and some files were deleted
+                logging.info("Rollback to job %s", job_id)
+                self._portal_manifest.next_job_id = job_id + 1
 
     def _update_portal_manifest(self, new_portal_manifest):
         self._portal_manifest = None

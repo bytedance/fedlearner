@@ -74,18 +74,6 @@ class DFSClient(object):
                             " reason: %s", key, str(e))
             return False
 
-    def cas(self, key, old_data, new_data):
-        org_data = self.get_data(key)
-        if isinstance(org_data, bytes):
-            org_data = org_data.decode('utf-8')
-        if isinstance(old_data, bytes):
-            old_data = old_data.decode('utf-8')
-        if org_data != old_data:
-            logging.warning("CAS failed. \norg data: %s old data: %s"
-                            " new data: %s", org_data, old_data, new_data)
-            return False
-        return self.set_data(key, new_data)
-
     def get_prefix_kvs(self, prefix, ignore_prefix=False):
         kvs = []
         target_path = self._generate_path(prefix, with_meta=False)

@@ -16,6 +16,8 @@
 
 import threading
 import logging
+import time
+from os import path
 
 from google.protobuf import text_format
 from fedlearner.common import data_join_service_pb2 as dj_pb
@@ -132,6 +134,12 @@ class RawDataManifestManager(object):
                     'join_example_rep', dj_pb.JoinExampleState.Joining,
                      dj_pb.JoinExampleState.Joined, rank_id, partition_id
                 )
+            str_data = text_format.MessageToString(
+                self._local_manifest[partition_id])
+            base_path = path.join(
+                common.data_source_data_block_dir(self._data_source),
+                'checkpoint', '{:08}'.format(partition_id))
+            common.write_checkpoint(base_path, int(time.time()), str_data)
 
     def finish_raw_data(self, partition_id):
         self._check_partition_id(partition_id)
@@ -352,7 +360,30 @@ class RawDataManifestManager(object):
                 manifest.partition_id = partition_id
                 self._update_manifest(manifest)
             self._process_next_process_index(partition_id, manifest)
+        self._check_disk(partition_id)
         return self._local_manifest[partition_id]
+
+    def _check_disk(self, partition_id):
+        data_block_path = common.data_source_data_block_dir(self._data_source)
+        base_path = path.join(data_block_path, 'checkpoint',
+                              "{:08}".format(partition_id))
+        ckpt = common.read_checkpoint(base_path)
+        if not ckpt:
+            return
+
+        ckpt_manifest = text_format.Parse(ckpt, dj_pb.RawDataManifest())
+        manifest = self._local_manifest[partition_id]
+
+        # sync disk info
+        # e.g. partition_0000/test-liuqi-mnist-v18.partition_0000.00000154.meta
+        data_block_path = common.data_source_data_block_dir(self._data_source)
+        last_meta_path = common.encode_data_block_meta_fname(
+            data_block_path, partition_id, manifest.next_process_index - 1)
+        if not common.glob(last_meta_path):
+            # rollback
+            logging.info("Rollback to %s", ckpt)
+            self._local_manifest[partition_id] = ckpt_manifest
+            self._update_manifest(ckpt_manifest)
 
     def _check_partition_id(self, partition_id):
         if partition_id < 0 or partition_id >= self._partition_num:

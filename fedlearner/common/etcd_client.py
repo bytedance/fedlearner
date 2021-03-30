@@ -68,14 +68,6 @@ class EtcdClient(object):
         with EtcdClient.closing(self._name, addr, self._use_mock_etcd) as clnt:
             return clnt.delete_prefix(self._generate_path(key))
 
-    def cas(self, key, old_data, new_data):
-        addr = self._get_next_addr()
-        with EtcdClient.closing(self._name, addr, self._use_mock_etcd) as clnt:
-            etcd_path = self._generate_path(key)
-            if old_data is None:
-                return clnt.put_if_not_exists(etcd_path, new_data)
-            return clnt.replace(etcd_path, old_data, new_data)
-
     def watch_key(self, key):
         addr = self._get_next_addr()
         with EtcdClient.closing(self._name, addr, self._use_mock_etcd) as clnt:

@@ -75,24 +75,12 @@ class RawDataManager(visitor.IndexMetaManager):
             new_meta = dj_pb.RawDataMeta()
             new_meta.MergeFrom(raw_data_meta)
             new_meta.start_index = start_index
-            odata = text_format.MessageToString(raw_data_meta)
             ndata = text_format.MessageToString(new_meta)
             kvstore_key = common.raw_data_meta_kvstore_key(
                     self._data_source.data_source_meta.name,
                     self._partition_id, process_index
                 )
-            if not self._kvstore.cas(kvstore_key, odata, ndata):
-                raw_data_meta = self._sync_raw_data_meta(process_index)
-                assert raw_data_meta is not None, \
-                    "the raw data meta of process index {} "\
-                    "must not None".format(process_index)
-                if raw_data_meta.start_index != start_index:
-                    logging.fatal("raw data of partition %d index with "\
-                                  "%d must start with %d",
-                                  self._partition_id, process_index,
-                                  start_index)
-                    traceback.print_stack()
-                    os._exit(-1) # pylint: disable=protected-access
+            self._kvstore.set_data(kvstore_key, ndata)
         return visitor.IndexMeta(process_index, start_index,
                                  raw_data_meta.file_path)
 
