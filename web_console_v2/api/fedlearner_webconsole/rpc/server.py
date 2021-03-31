@@ -48,9 +48,11 @@ class RPCServerServicer(service_pb2_grpc.WebConsoleV2ServiceServicer):
 
     def _secure_exc(self):
         exc_type, exc_obj, exc_tb = sys.exc_info()
-        fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-        secure_exc = 'Error %s at %s:%s'%(
-            exc_type, fname, exc_tb.tb_lineno)
+        secure_exc = 'Error %s at '%exc_type
+        while exc_tb is not None:
+            fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+            secure_exc += '>%s:%s'%(fname, exc_tb.tb_lineno)
+            exc_tb = exc_tb.tb_next
         return secure_exc
 
     def _try_handle_request(self, func, request, context, resp_class):
