@@ -15,7 +15,6 @@
 # coding: utf-8
 # pylint: disable=protected-access
 
-import os
 import logging
 import time
 try:
@@ -342,7 +341,8 @@ class FLEstimator(object):
                         start_time = time.time()
                         sess.run(spec.train_op, feed_dict={})
                         use_time = time.time() - start_time
-                        logging.debug("after session run. time: %f sec", use_time)
+                        logging.debug("after session run. time: %f sec",
+                            use_time)
 
         return self
 
@@ -428,7 +428,8 @@ class FLEstimator(object):
                 with tf.Session(target=self._tf_target,
                                 config=self._tf_config) as sess:
                     saver = tf.train.Saver(sharded=True)
-                    saver.restore(sess, tf.train.latest_checkpoint(checkpoint_path))
+                    saver.restore(sess,
+                        tf.train.latest_checkpoint(checkpoint_path))
                     builder = tf.saved_model.Builder(export_dir_base)
                     builder.add_meta_graph_and_variables(
                         sess=sess,
