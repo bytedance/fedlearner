@@ -47,7 +47,7 @@ class _IndexedPair(object):
 
     def __lt__(self, other):
         if self.li == other.li:
-            return self.fi < other.li
+            return self.fi < other.fi
         return self.li < other.li
 
     def __hash__(self):
@@ -171,6 +171,7 @@ class _Trigger(object):
         step, sid = 1, 0
         leader_win_size = leader_window.size() - 1
         follower_win_size = follower_window.size() - 1
+        leader_wm, follower_wm = 0, 0
         while leader_stride <= leader_win_size and                             \
                 sid <= leader_win_size and                                     \
                 follower_win_size >= 0 and                                     \
@@ -178,6 +179,8 @@ class _Trigger(object):
                     follower_window[follower_win_size].item.event_time,        \
                     leader_window[sid].item.event_time) >                      \
                 self._max_watermark_delay:
+            leader_wm = max(leader_window[sid].item.event_time,                \
+                                  leader_wm)
             leader_stride += step
             sid += 1
 
@@ -190,11 +193,12 @@ class _Trigger(object):
                   follower_window[cid].item.event_time) >                      \
                 self._max_watermark_delay:
             #FIXME current et is not always the watermark
-            self._watermark = max(follower_window[cid].item.event_time,        \
-                                  self._watermark)
+            follower_wm = max(follower_window[cid].item.event_time,            \
+                                  follower_wm)
             follower_stride += step
             cid += 1
 
+        self._watermark = min(follower_wm, leader_wm)
         logging.info("Watermark forward to %d by (follower: %d, leader: %d)",  \
                     self._watermark, follower_stride, leader_stride)
         return (follower_stride, leader_stride)
@@ -400,20 +404,6 @@ class UniversalJoiner(ExampleJoiner):
     def name(cls):
         return 'UNIVERSAL_JOINER'
 
-    def is_leader_far_ahead_follower(self, raw_data_finished):
-        leader_size = self._leader_join_window.size() - 1
-        mark = False
-        # follower:  no syncing, no wait, alway fullfilled as much as possible
-        follower_enough = self._fill_follower_join_window(raw_data_finished)
-        if leader_size > 0:
-            if self._follower_join_window.size() == 0:
-                # attempt another round
-                return follower_enough
-            leader_et = self._leader_join_window[leader_size].item.event_time
-            time_diff = self._follower_join_window.et_span(leader_et)
-            mark = time_diff > self._max_watermark_delay
-        return mark
-
     def _inner_joiner(self, state_stale):
         if self.is_join_finished():
             return
@@ -421,66 +411,63 @@ class UniversalJoiner(ExampleJoiner):
                 self._prepare_join(state_stale)
         join_data_finished = False
 
-        while self._fill_leader_join_window(sync_example_id_finished) or       \
-              self.is_leader_far_ahead_follower(raw_data_finished):
-            # Case 1: the leader, if there is no enough elems filled while
-            # syncing, will break and wait.
-            # Case 2:  leader dataset is much smaller than follower due to
-            # sparse distribution in same time interval. |- and -| indicates
-            # the head and tail element's event_time, | is the watermark, in
-            # this case,
-            #           -|(leader) > |-(follower) + max_delay
-            #             sync_example_id_finished is False
-            # so we can push the watermark forward to:
-            #           -|(leader) <= |-(follower) + max_delay
-
-            #     timeline: ----->
-            #     leader :                        [|-     ...    -|]
-            #     follow :  [|-     .|..    ]                -|
+        while self._fill_leader_join_window(sync_example_id_finished):
             leader_exhausted = sync_example_id_finished and                    \
-                    self._leader_join_window.et_span() <=                      \
-                    self._max_watermark_delay
-            self._fill_follower_join_window(raw_data_finished)
-            follower_exhausted = raw_data_finished and \
-                    self._follower_join_window.size() <= \
-                    self._min_window_size / 2
+                    not self._leader_join_window.is_full()
+            follower_exhausted = False
+            logging.info('Fill leader_exhausted: %s, sync_example_id_finished '
+                         '%s, raw_data_finished %s, leader_win_size %d, '
+                         'follower_win_size %d', leader_exhausted,
+                         sync_example_id_finished, raw_data_finished,
+                         self._leader_join_window.size(),
+                         self._follower_join_window.size())
+            while self._fill_follower_join_window(raw_data_finished):
+                follower_exhausted = raw_data_finished and \
+                        not self._follower_join_window.is_full()
 
-            logging.info("Fill: leader_exhausted=%s, follower_exhausted=%s"    \
-                         " sync_example_id_finished=%s, raw_data_finished=%s"  \
-                         " leader_win_size=%d, follower_win_size=%d",          \
-                         leader_exhausted, follower_exhausted,                 \
-                         sync_example_id_finished,                             \
-                        raw_data_finished, self._leader_join_window.size(),    \
-                        self._follower_join_window.size())
-            #1. find all the matched pairs in current window
-            raw_pairs, mismatches = self._joiner.join(
-                self._follower_join_window, self._leader_join_window)
-            if self._enable_negative_example_generator:
-                self._negative_example_generator.update(mismatches)
-            stride = self._trigger.trigger(self._follower_join_window,  \
-                                           self._leader_join_window)
-            #2. cache the pairs, evict the leader events which are out of
-            # watermark
-            watermark = self._trigger.watermark()
-            pairs = self._update_matching_pairs(raw_pairs, watermark)
-            #3. push the result into builder
-            if len(pairs) > 0:
-                for meta in self._dump_joined_items(pairs):
-                    yield meta
-                self._leader_restart_index = pairs[len(pairs) - 1].li
-                self._follower_restart_index = pairs[len(pairs) - 1].fi
-            logging.info("Restart index of leader %d, follwer %d, pair_buf=%d,"\
-                         " raw_pairs=%d, pairs=%d", self._leader_restart_index,\
-                         self._follower_restart_index,
-                         self._leader_index_ps.size(), len(raw_pairs),
-                         len(pairs))
+                logging.info("Fill: follower_exhausted=%s, "
+                             "raw_data_finished=%s, follower_win_size=%d",
+                             follower_exhausted, raw_data_finished,
+                             self._follower_join_window.size())
+                #1. find all the matched pairs in current window
+                raw_pairs, mismatches = self._joiner.join(
+                    self._follower_join_window, self._leader_join_window)
+                if self._enable_negative_example_generator:
+                    self._negative_example_generator.update(mismatches)
+                stride = self._trigger.trigger(self._follower_join_window,
+                                               self._leader_join_window)
+                #2. cache the pairs, evict the leader events which are out of
+                # watermark
+                watermark = self._trigger.watermark()
+                pairs = self._update_matching_pairs(raw_pairs, watermark)
+                #3. push the result into builder
+                if len(pairs) > 0:
+                    for meta in self._dump_joined_items(pairs):
+                        yield meta
+                    self._leader_restart_index = pairs[len(pairs) - 1].li
+                    self._follower_restart_index = pairs[len(pairs) - 1].fi
+                logging.info("Restart index of leader %d, follwer %d,"
+                             "pair_buf=%d, raw_pairs=%d, pairs=%d",
+                             self._leader_restart_index,
+                             self._follower_restart_index,
+                             self._leader_index_ps.size(), len(raw_pairs),
+                             len(pairs))
 
-            #4. update the watermark
-            self._follower_join_window.forward(stride[0])
-            self._leader_join_window.forward(stride[1])
+                #4. update the watermark
+                self._follower_join_window.forward(stride[0])
+                self._leader_join_window.forward(stride[1])
+                if self._follower_join_window.is_full():
+                    logging.info('Window size is too small, dead looping')
+                    raise RuntimeError('max_matching_size[%d] is too small'%
+                            self._follower_join_window.size())
+                if follower_exhausted:
+                    break
 
             if leader_exhausted or follower_exhausted:
                 join_data_finished = True
+                break
+
+            if self._leader_join_window.is_full():
                 break
 
         if self._get_data_block_builder(False) is not None and \
@@ -500,9 +487,9 @@ class UniversalJoiner(ExampleJoiner):
         for (cid, sid) in raw_pairs:
             #fi: follower index, fe: follower example
             assert cid < self._follower_join_window.size(), \
-                    "Invalid leader index[%d] out of range"%cid
+                    "Leader index[%d] out of range"%cid
             assert sid < self._leader_join_window.size(), \
-                    "Invalid follower index[%d] out of range"%(sid)
+                    "Follower index[%d] out of range"%(sid)
 
             example_with_index = self._follower_join_window[cid]
             fi, fe = example_with_index.index, example_with_index.item
@@ -510,9 +497,9 @@ class UniversalJoiner(ExampleJoiner):
             example_with_index = self._leader_join_window[sid]
             li, le = example_with_index.index, example_with_index.item
             if li <= self._leader_restart_index:
-                logging.warning("Unordered event ignored, leader index should"\
-                                " be greater %d > %d for follower idx %d is"  \
-                                " false", li, self._leader_restart_index, fi)
+                logging.warning("Leader index should be bigger than restart "
+                                "index, %d > %d for follower idx %d",
+                                li, self._leader_restart_index, fi)
                 continue
 
             # cache the latest leader event
