@@ -55,7 +55,8 @@ class SigninApi(Resource):
         username = data['username']
         password = data['password']
 
-        user = User.query.filter_by(username=username).first()
+        user = User.query.filter_by(username=username).filter_by(
+            state=State.ACTIVE).first()
         if user is None:
             raise NotFoundException()
         if not user.verify_password(password):
@@ -141,7 +142,7 @@ class UserApi(Resource):
         data = request.get_json()
         for k, v in data.items():
             if k not in mutable_attrs:
-                raise InvalidArgumentException(f'cannot modify {k}')
+                raise InvalidArgumentException(f'cannot edit {k} attribute!')
             if k == 'password':
                 user.set_password(v)
             else:

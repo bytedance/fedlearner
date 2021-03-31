@@ -6,6 +6,7 @@ const menu = {
   label_workflow_tpl: { zh: '模板管理', en: 'Workflow templates' },
   label_datasets: { zh: '数据管理', en: 'Datasets' },
   label_settings: { zh: '系统配置', en: 'Settings' },
+  label_users: { zh: '用户管理', en: 'User Management' },
 };
 
 export default separateLng(menu);
