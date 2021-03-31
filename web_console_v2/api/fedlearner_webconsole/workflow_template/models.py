@@ -58,5 +58,6 @@ class WorkflowTemplate(db.Model):
 
     def get_editor_info(self):
         proto = workflow_definition_pb2.WorkflowTemplateEditorInfo()
-        proto.ParseFromString(self.editor_info)
+        if self.editor_info is not None:
+            proto.ParseFromString(self.editor_info)
         return proto
