@@ -125,8 +125,6 @@ class DataCheckpointSaverListener(tf.estimator.CheckpointSaverListener):
         logging.info("data checkpoint saved result: %s", res)
 
 
-
-
 class FLModel(object):
     def __init__(self, role, bridge, example_ids, exporting=False):
         self._role = role

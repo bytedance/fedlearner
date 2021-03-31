@@ -92,25 +92,23 @@ class LeaderTrainerMaster(object):
         self._server.add_insecure_port('[::]:%d' % listen_port)
         self._server.start()
         logging.info('Trainer Master Server start on port[%d].', listen_port)
-        self._transfer_status(tm_pb.MasterStatus.CREATED,
-                              tm_pb.MasterStatus.INITIALING)
+        with self._status_mutex:
+            self._transfer_status(tm_pb.MasterStatus.CREATED,
+                                  tm_pb.MasterStatus.INITIALING)
         self._server.wait_for_termination()
 
     def _transfer_status(self, frm, to, callback_fn=lambda *args: True):
-        with self._status_mutex:
-            if self._status == frm:
-                self._status = to
-                return callback_fn()
-            logging.warning("%s invalid status transfer, from %d to %d, "
-                          "while status is %d", self.__class__.__name__,
-                          frm, to, self._status)
-            self._status = tm_pb.MasterStatus.ERROR
+        if self._status == frm:
+            self._status = to
+            return callback_fn()
+        logging.warning("%s invalid status transfer, from %d to %d, "
+                      "while status is %d", self.__class__.__name__,
+                      frm, to, self._status)
+        self._status = tm_pb.MasterStatus.ERROR
         return False
 
     def _check_status(self, callback_fn):
-        with self._status_mutex:
-            return callback_fn(self._status)
-        raise ValueError("unreachable")
+        return callback_fn(self._status)
 
     def _get_checkpoint_fn(self, request):
         assert request.application_id == self._application_id, \
@@ -118,11 +116,13 @@ class LeaderTrainerMaster(object):
         response = tm_pb.GetDataBlockCheckpointResponse()
         ckpt_not_ready_fn = lambda status: status not in \
                 (tm_pb.MasterStatus.RUNNING, tm_pb.MasterStatus.FINISHED)
-        if self._check_status(ckpt_not_ready_fn):
-            response.status.code = common_pb.STATUS_WAIT_FOR_SYNCING_CHECKPOINT
-            response.status.error_message = \
-                    "master is not ready for querying daya checkpoint"
-            return response
+        with self._status_mutex:
+            if self._check_status(ckpt_not_ready_fn):
+                response.status.code = \
+                    common_pb.STATUS_WAIT_FOR_SYNCING_CHECKPOINT
+                response.status.error_message = \
+                        "master is not ready for querying daya checkpoint"
+                return response
         response.status.code = common_pb.STATUS_SUCCESS
         response.status.error_message = 'success'
         for ds_name, ds in self._data_source_dict.items():
@@ -140,11 +140,12 @@ class LeaderTrainerMaster(object):
                                             tm_pb.MasterStatus.RUNNING,\
                                             tm_pb.MasterStatus.FINISHED,\
                                             tm_pb.MasterStatus.ERROR)
-        if self._check_status(no_need_restore_fn):
-            logging.info("No need to restore %s", self.__class__.__name__)
-            response.status.code = common_pb.STATUS_SUCCESS
-            response.status.error_message = "success"
-            return response
+        with self._status_mutex:
+            if self._check_status(no_need_restore_fn):
+                logging.info("No need to restore %s", self.__class__.__name__)
+                response.status.code = common_pb.STATUS_SUCCESS
+                response.status.error_message = "success"
+                return response
 
         if not request.blocks:  # init case
             logging.info("Init all data source")
@@ -173,8 +174,9 @@ class LeaderTrainerMaster(object):
                         ds_info.block_ids)
                 self._load_data(data_source_info)
 
-        trans_ok = self._transfer_status(tm_pb.MasterStatus.INITIALING,
-                             tm_pb.MasterStatus.RUNNING)
+        with self._status_mutex:
+            trans_ok = self._transfer_status(tm_pb.MasterStatus.INITIALING,
+                                             tm_pb.MasterStatus.RUNNING)
         if not trans_ok:
             response.status.code = common_pb.STATUS_WAIT_FOR_SYNCING_CHECKPOINT
             response.status.error_message = \
@@ -203,51 +205,54 @@ class LeaderTrainerMaster(object):
             #only if status is RUNNING
             return True
 
-        ready = self._check_status(status_check_fn)
-        if ready is not True:
-            return ready
+        with self._status_mutex:
+            ready = self._check_status(status_check_fn)
+            if ready is not True:
+                return ready
 
-        data_source_name = request.data_source_name
-        if data_source_name not in self._data_source_dict:
-            if self._default_data_source_name is None:
-                response.status.code = common_pb.STATUS_DATA_SOURCE_NOT_EXIST
+            data_source_name = request.data_source_name
+            if data_source_name not in self._data_source_dict:
+                if self._default_data_source_name is None:
+                    response.status.code = \
+                        common_pb.STATUS_DATA_SOURCE_NOT_EXIST
+                    response.status.error_message = \
+                        "Data source {} not exist".format(data_source_name)
+                    return response
+                data_source_name = self._default_data_source_name
+
+            data_source_info = self._data_source_dict[data_source_name]
+            data_block = self._alloc_data_block(data_source_info,
+                                                block_id=request.block_id)
+            if data_block:
+                logging.debug("%s allocated worker_%d with block id %s of"
+                              " source %s",
+                              self.__class__.__name__,
+                              request.worker_rank,
+                              data_block.block_id,
+                              data_source_name)
+                response.status.code = common_pb.STATUS_SUCCESS
+                response.status.error_message = 'success'
+                response.data_block_info.data_path = \
+                    str(data_block.data_block_fpath)
+                response.data_block_info.meta_path = ''
+                response.data_block_info.block_id = str(data_block.block_id)
+            elif self._online_training:
+                logging.debug("%s allocated worker_%d with empty data block. "\
+                              "wait for new data block since online traning",
+                              self.__class__.__name__, request.worker_rank)
+                response.status.code = common_pb.STATUS_NO_MORE_DATA
                 response.status.error_message = \
-                    "Data source {} not exist".format(data_source_name)
-                return response
-            data_source_name = self._default_data_source_name
-
-        data_source_info = self._data_source_dict[data_source_name]
-        data_block = self._alloc_data_block(data_source_info,
-                                            block_id=request.block_id)
-        if data_block:
-            logging.debug("%s allocated worker_%d with block id %s of"
-                          " source %s",
-                          self.__class__.__name__,
-                          request.worker_rank,
-                          data_block.block_id,
-                          data_source_name)
-            response.status.code = common_pb.STATUS_SUCCESS
-            response.status.error_message = 'success'
-            response.data_block_info.data_path = \
-                str(data_block.data_block_fpath)
-            response.data_block_info.meta_path = ''
-            response.data_block_info.block_id = str(data_block.block_id)
-        elif self._online_training:
-            logging.debug("%s allocated worker_%d with empty data block. "\
-                          "wait for new data block since online traning",
-                          self.__class__.__name__, request.worker_rank)
-            response.status.code = common_pb.STATUS_NO_MORE_DATA
-            response.status.error_message = 'please wait for datablock ready'
-        else:
-            logging.debug("%s allocated worker_%d with empty data block. "\
-                          "exit running since since batch traning",
-                          self.__class__.__name__, request.worker_rank)
-            response.status.code = common_pb.STATUS_DATA_FINISHED
-            response.status.error_message = 'datablock finished'
-        if response.status.code == common_pb.STATUS_DATA_FINISHED:
-            self._transfer_status(tm_pb.MasterStatus.RUNNING,
-                                  tm_pb.MasterStatus.FINISHED)
-        return response
+                    'please wait for datablock ready'
+            else:
+                logging.debug("%s allocated worker_%d with empty data block. "\
+                              "exit running since since batch traning",
+                              self.__class__.__name__, request.worker_rank)
+                response.status.code = common_pb.STATUS_DATA_FINISHED
+                response.status.error_message = 'datablock finished'
+            if response.status.code == common_pb.STATUS_DATA_FINISHED:
+                self._transfer_status(tm_pb.MasterStatus.RUNNING,
+                                      tm_pb.MasterStatus.FINISHED)
+            return response
 
     def _get_data_block_size(self, request):
         response = tm_pb.GetDataSourceInfoResponse()
@@ -258,10 +263,10 @@ class LeaderTrainerMaster(object):
                 response.status.error_message = 'datablock error'
                 return response
             return True
-
-        ready = self._check_status(status_check_fn)
-        if ready is not True:
-            return ready
+        with self._status_mutex:
+            ready = self._check_status(status_check_fn)
+            if ready is not True:
+                return ready
 
         data_source_name = request.data_source_name
         if data_source_name not in self._data_source_dict:
