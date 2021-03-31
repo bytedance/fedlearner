@@ -12,6 +12,8 @@ if [ "$ROLE" == "leader" ]; then
                      --checkpoint-path=model/leader/checkpoint \
                      --save-checkpoint-steps=100 \
                      --export-path=model/leader/saved_model \
+                     --tf-addr=0.0.0.0:50000 \
+                     --ps-addrs=0.0.0.0:51001,0.0.0.0:51002 \
                      --verbosity=2
 
 elif [ "$ROLE" == "follower" ]; then
