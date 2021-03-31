@@ -14,6 +14,7 @@
 # coding: utf-8
 import json
 import time
+import logging
 
 from flask_restful import Resource, reqparse, abort
 from google.protobuf.json_format import MessageToDict
@@ -99,6 +100,7 @@ class JobMetricsApi(Resource):
             # with mpld3.draw_figure('figure1', json)
             return {'data': metrics}
         except Exception as e:  # pylint: disable=broad-except
+            logging.warning('Error building metrics: %s', repr(e))
             abort(400, message=repr(e))
 
 
