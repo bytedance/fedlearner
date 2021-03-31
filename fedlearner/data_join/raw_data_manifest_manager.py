@@ -138,7 +138,7 @@ class RawDataManifestManager(object):
                 self._local_manifest[partition_id])
             base_path = path.join(
                 common.data_source_data_block_dir(self._data_source),
-                'checkpoint', '{:08}'.format(partition_id))
+                'checkpoint', 'partition_{:04}'.format(partition_id))
             common.write_checkpoint(base_path, int(time.time()), str_data)
 
     def finish_raw_data(self, partition_id):
@@ -366,7 +366,7 @@ class RawDataManifestManager(object):
     def _check_disk(self, partition_id):
         data_block_path = common.data_source_data_block_dir(self._data_source)
         base_path = path.join(data_block_path, 'checkpoint',
-                              "{:08}".format(partition_id))
+                              "partition_{:04}".format(partition_id))
         ckpt = common.read_checkpoint(base_path)
         if not ckpt:
             return
