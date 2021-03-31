@@ -49,6 +49,7 @@ class RPCServerServicer(service_pb2_grpc.WebConsoleV2ServiceServicer):
 
     def _secure_exc(self):
         exc_type, exc_obj, exc_tb = sys.exc_info()
+        # filter out exc_obj to protect sensitive info
         secure_exc = 'Error %s at '%exc_type
         secure_exc += ''.join(traceback.format_tb(exc_tb))
         return secure_exc
