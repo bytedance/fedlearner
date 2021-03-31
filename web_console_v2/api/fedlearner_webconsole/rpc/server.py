@@ -51,6 +51,7 @@ class RPCServerServicer(service_pb2_grpc.WebConsoleV2ServiceServicer):
         fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
         secure_exc = 'Error %s at %s:%s'%(
             exc_type, fname, exc_tb.tb_lineno)
+        return secure_exc
 
     def _try_handle_request(self, func, request, context, resp_class):
         try:
