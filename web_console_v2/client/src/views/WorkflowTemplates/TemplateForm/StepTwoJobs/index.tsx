@@ -284,6 +284,8 @@ const TemplateStepTowJobs: FC<{ isEdit?: boolean }> = ({ isEdit }) => {
     await validateCurrentForm();
   }
   async function onNodeClick(nextNode: ChartNode) {
+    if (nextNode.id === currNode?.id) return;
+
     saveCurrentValues();
     await validateCurrentForm();
 

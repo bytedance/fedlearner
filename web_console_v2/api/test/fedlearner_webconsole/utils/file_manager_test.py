@@ -208,18 +208,35 @@ class HdfsFileManagerTest(unittest.TestCase):
     def test_ls(self):
         mock_ls = MagicMock()
         self._mock_client.get_file_info = mock_ls
-        mock_ls.return_value = [
-            fs.FileInfo(type=fs.FileType.File,
-                        path='/data/abc',
-                        size=1024,
-                        mtime_ns=1367317325346000000),
+        mock_ls.side_effect = [
             fs.FileInfo(type=fs.FileType.Directory,
                         path='/data',
                         size=1024,
                         mtime_ns=1367317325346000000),
+            [
+                fs.FileInfo(type=fs.FileType.File,
+                            path='/data/abc',
+                            size=1024,
+                            mtime_ns=1367317325346000000),
+                fs.FileInfo(type=fs.FileType.Directory,
+                            path='/data',
+                            size=1024,
+                            mtime_ns=1367317325346000000),
+            ]
         ]
         self.assertEqual(
             self._fm.ls('hdfs:///data', recursive=True),
+            [File(path='hdfs:///data/abc', size=1024, mtime=1367317325)])
+        mock_ls.assert_called()
+
+        mock_ls = MagicMock()
+        self._mock_client.get_file_info = mock_ls
+        mock_ls.return_value = fs.FileInfo(type=fs.FileType.File,
+                                           path='/data/abc',
+                                           size=1024,
+                                           mtime_ns=1367317325346000000)
+        self.assertEqual(
+            self._fm.ls('hdfs:///data/abc', recursive=True),
             [File(path='hdfs:///data/abc', size=1024, mtime=1367317325)])
         mock_ls.assert_called_once()
 

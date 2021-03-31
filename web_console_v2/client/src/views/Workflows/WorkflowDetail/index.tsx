@@ -288,11 +288,19 @@ const WorkflowDetail: FC = () => {
         </ChartSection>
 
         <JobExecutionDetailsDrawer
-          visible={drawerVisible}
+          visible={drawerVisible && !isPeerSide}
           toggleVisible={toggleDrawerVisible}
           jobData={data}
           workflow={isPeerSide ? peerWorkflow : workflow}
-          isPeerSide={isPeerSide}
+        />
+
+        <JobExecutionDetailsDrawer
+          visible={drawerVisible && isPeerSide}
+          toggleVisible={toggleDrawerVisible}
+          jobData={data}
+          placement="left"
+          workflow={isPeerSide ? peerWorkflow : workflow}
+          isPeerSide
         />
       </Container>
     </Spin>

@@ -76,7 +76,6 @@ const DuplicateTemplate: FC<{ template: WorkflowTemplate }> = ({ template: { id 
       return message.error(error.message);
     }
 
-    // Make
     queryClient.invalidateQueries(TPL_LIST_QUERY_KEY);
   }
 };
@@ -123,7 +122,7 @@ const TemplateList: FC = () => {
         name: 'operation',
         render: (_: any, record: WorkflowTemplate) => {
           return (
-            <GridRow left="-15">
+            <GridRow left="-10" gap="8">
               <DownloadTemplate template={record} />
 
               <DuplicateTemplate template={record} />
