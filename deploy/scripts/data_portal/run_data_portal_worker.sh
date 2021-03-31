@@ -34,6 +34,9 @@ batch_size=$(normalize_env_to_args "--batch_size" $BATCH_SIZE)
 kvstore_type=$(normalize_env_to_args '--kvstore_type' $KVSTORE_TYPE)
 memory_limit_ratio=$(normalize_env_to_args '--memory_limit_ratio' $MEMORY_LIMIT_RATIO)
 optional_fields=$(normalize_env_to_args '--optional_fields' $OPTIONAL_FIELDS)
+output_type=$(normalize_env_to_args '--output_type' $OUTPUT_TYPE)
+data_source_name=$(normalize_env_to_args '--data_source_name' $DATA_SOURCE_NAME)
+data_block_dump_threshold=$(normalize_env_to_args '--data_block_dump_threshold' $DATA_BLOCK_DUMP_THRESHOLD)
 
 
 python -m fedlearner.data_join.cmd.data_portal_worker_cli \
@@ -42,5 +45,6 @@ python -m fedlearner.data_join.cmd.data_portal_worker_cli \
   $input_data_file_iter $compressed_type $read_ahead_size $read_batch_size \
   $output_builder $builder_compressed_type \
   $batch_size $kvstore_type $memory_limit_ratio \
-  $optional_fields
+  $optional_fields $output_type $data_source_name \
+  $data_block_dump_threshold
 

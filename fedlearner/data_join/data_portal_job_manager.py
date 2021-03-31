@@ -193,7 +193,10 @@ class DataPortalJobManager(object):
         return dp_pb.ReduceTask(task_name=task_name,
                                 map_base_dir=self._map_output_dir(job_id),
                                 reduce_base_dir=self._reduce_output_dir(job_id),
-                                partition_id=partition_id)
+                                partition_id=partition_id,
+                                output_base_dir=
+                                self._portal_manifest.output_base_dir,
+                                output_partition_num=self._output_partition_num)
 
     def _try_to_alloc_part(self, rank_id, src_state, target_state):
         alloc_partition_id = None
@@ -335,6 +338,10 @@ class DataPortalJobManager(object):
                         continue
                     if self._check_success_tag:
                         # if check success tag and not has _SUCCEEDED file
+                        logging.warning(
+                            'File %s skipped because _SUCCESS file is '
+                            'missing under %s',
+                            fpath, fdir)
                         continue
                     num_files += 1
                     if not wildcard or fnmatch(fname, wildcard):

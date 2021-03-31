@@ -128,9 +128,6 @@ class DataBlockBuilder(object):
             return self._data_block_meta
         return None
 
-    def get_leader_begin_index(self):
-        return self._leader_begin_index
-
     def example_count(self):
         return len(self._data_block_meta.example_ids)
 
@@ -143,7 +140,7 @@ class DataBlockBuilder(object):
         if len(self._data_block_meta.example_ids) > 0:
             self._data_block_meta.block_id = \
                     encode_block_id(self._data_source_name,
-                                         self._data_block_meta)
+                                    self._data_block_meta)
             data_block_path = os.path.join(
                     self._get_data_block_dir(),
                     encode_data_block_fname(
