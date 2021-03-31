@@ -50,7 +50,11 @@ else:
     raise ValueError("fid_version should be 1 or 2")
 
 N = 10
+<<<<<<< HEAD
 chunk_size = 1000
+=======
+chunk_size = 200
+>>>>>>> v1.2.0: master run tensorflow session for save checkpoint and export model
 
 def _make_fid(slot_id, hash_value):
     return int(np.int64(np.uint64((hash_value & ((1 << FEATURE_BITS) - 1)) | \

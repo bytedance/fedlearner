@@ -14,6 +14,7 @@
 
 # coding: utf-8
 
+import json
 import unittest
 import threading
 import random
@@ -32,22 +33,16 @@ from tensorflow.core.example.example_pb2 import Example
 
 import numpy as np
 
-from fedlearner.data_join import (
-    data_block_manager, common,
-    data_block_visitor, raw_data_manifest_manager
-)
+from fedlearner.data_join import \
+    data_block_manager, common, raw_data_manifest_manager
 
-from fedlearner.common import (
-    db_client, common_pb2 as common_pb,
+from fedlearner.common import \
+    db_client, common_pb2 as common_pb, \
     data_join_service_pb2 as dj_pb
-)
 
+import fedlearner.trainer as flt
 from fedlearner.data_join.data_block_manager import DataBlockBuilder
 from fedlearner.data_join.raw_data_iter_impl.tf_record_iter import TfExampleItem
-
-from fedlearner.trainer_master.leader_tm import LeaderTrainerMaster
-from fedlearner.trainer_master.follower_tm import FollowerTrainerMaster
-
 
 from graph_def.leader import main as lm
 from graph_def.follower import main as fm
@@ -55,7 +50,6 @@ from graph_def.follower import main as fm
 debug_mode = False
 local_mnist_path = "./mnist.npz"
 output_path = "./output"
-logging.getLogger().setLevel(logging.INFO)
 total_worker_num = 1
 
 child_env = os.environ.copy()
@@ -83,11 +77,6 @@ class _Task(object):
             return
         self._task = Process(target=self._target, name=self.name,
                              args=self._args, kwargs=self._kwargs, daemon=self._daemon)
-        if isinstance(self._args[0], Args):
-            logging.info("delete %s", self._args[0].export_path)
-            if gfile.Exists(self._args[0].export_path):
-                logging.info(" deleting")
-                gfile.DeleteRecursively(self._args[0].export_path)
         self._task.start()
         logging.info("Task starts %s" % self.name)
         time.sleep(10)
@@ -215,14 +204,6 @@ def make_ckpt_dir(role, remote="local", rank=None):
         gfile.DeleteRecursively(ckpt_path)
     return ckpt_path, exp_path
 
-def run_leader_tm(app_id, data_source, port, env=None):
-    if env is not None:
-        os.environ = env 
-    leader_tm = LeaderTrainerMaster(app_id, data_source,
-                                    None, None,
-                                    False,False, 1)
-    leader_tm.run(listen_port=int(port))
-
 def run_ps(port, env=None):
     if env is not None:
         os.environ = env
@@ -230,12 +211,6 @@ def run_ps(port, env=None):
     cluster_spec = tf.train.ClusterSpec({'local': {0: addr}})
     server = tf.train.Server(cluster_spec, job_name="local", task_index=0)
     server.join()
-
-def run_follower_tm(app_id, data_source, port, env=None):
-    if env is not None:
-        os.environ = env
-    follower_tm = FollowerTrainerMaster(app_id, data_source, False)
-    follower_tm.run(listen_port=int(port))
 
 def run_lm(args, env=None):
     if env is not None:
@@ -246,39 +221,6 @@ def run_fm(args, env=None):
     if env is not None:
         os.environ = env
     fm(args)
-
-class Args(object):
-    def __init__(self, local_addr=None, peer_addr=None, app_id=None, master_addr=None,
-            data_source=None, data_path=None, ckpt_path=None, export_path=None,
-            start_time=None, end_time=None, tf_addr=None, cluster_spec=None, ps_addrs=None,
-                 worker_rank=0):
-        self.local_addr = local_addr
-        self.peer_addr = peer_addr
-        self.worker_rank = worker_rank
-        self.cluster_spec = cluster_spec
-        self.ps_addrs = ps_addrs
-        self.data_source = data_source
-        self.data_path = data_path
-        self.application_id = app_id
-        self.start_time = start_time
-        self.end_time = end_time
-        self.master_addr = master_addr
-        self.tf_addr = tf_addr
-        self.checkpoint_path = ckpt_path
-        self.load_checkpoint_filename = None
-        self.load_checkpoint_filename_with_path = None
-        self.save_checkpoint_steps = 100
-        self.save_checkpoint_secs = None
-        self.export_path = export_path
-        self.sparse_estimator = False
-        self.mode = "train"
-        self.summary_path = None
-        self.summary_save_steps = None
-        self.verbosity = 1
-        self.batch_size = 100
-        self.learning_rate = 0.01
-        self.epoch_num = 1
-
 
 class TestNNTraining(unittest.TestCase):
     def _create_local_data(self, xl, xf, y):
@@ -419,30 +361,34 @@ class TestNNTraining(unittest.TestCase):
 
     #@unittest.skip("demonstrating skipping")
     def test_local_cluster(self):
-        workers = []
-        addr = ["localhost:20050", "localhost:20051"]
+        parser = flt.trainer_worker.create_argument_parser()
 
-        role = 0
-        ckpt_path, exp_path = make_ckpt_dir(role)
-        args = Args(local_addr=addr[role],
-                    peer_addr=addr[(role+1)%2],
-                    app_id=self.app_id,
-                    data_path=os.path.join(output_path, "data/leader"),
-                    ckpt_path=ckpt_path,
-                    export_path=exp_path)
+        workers = []
+
+        ckpt_path, exp_path = make_ckpt_dir("leader")
+        args = parser.parse_args((
+            "--local-addr", "localhost:20050",
+            "--peer-addr", "localhost:20051",
+            "--application-id", self.app_id,
+            "--data-path", os.path.join(output_path, "data/leader"),
+            "--checkpoint-path", ckpt_path,
+            "--export-path", exp_path
+            ))
         ftm = Process(name="RunLeaderTW", target=run_lm, args=(args, ),
                 kwargs={'env' : child_env}, daemon=True)
         ftm.start()
         workers.append(ftm)
 
-        role = 1
-        ckpt_path, exp_path = make_ckpt_dir(role)
-        args = Args(local_addr=addr[role],
-                    peer_addr=addr[(role+1)%2],
-                    app_id=self.app_id,
-                    data_path=os.path.join(output_path, "data/follower"),
-                    ckpt_path=ckpt_path,
-                    export_path=exp_path)
+        ckpt_path, exp_path = make_ckpt_dir("follower")
+        args = parser.parse_args((
+            "--local-addr", "localhost:20051",
+            "--peer-addr", "localhost:20050",
+            "--application-id", self.app_id,
+            "--data-path", os.path.join(output_path, "data/follower"),
+            "--checkpoint-path", ckpt_path,
+            "--export-path", exp_path
+            ))
+
         ftm = Process(name="RunFollowerTW", target=run_fm, args=(args, ),
                 kwargs={'env' : child_env}, daemon=True)
         ftm.start()
@@ -453,70 +399,110 @@ class TestNNTraining(unittest.TestCase):
 
     #@unittest.skip("demonstrating skipping")
     def test_remote_cluster(self):
+        parser = flt.trainer_worker.create_argument_parser()
+        leader_master_address = "0.0.0.0:4051"
+        leader_cluster_spec = {
+            "clusterSpec": {
+                "Master": ["0.0.0.0:4050"],
+                "PS": ["0.0.0.0:4060"],
+                "Worker": ["0.0.0.0:4070", "0.0.0.0:4071"]
+            }
+        }
+        leader_cluster_spec_str = json.dumps(leader_cluster_spec)
+        follower_master_address = "0.0.0.0:5051"
+        follower_cluster_spec = {
+            "clusterSpec": {
+                "Master": ["0.0.0.0:5050"],
+                "PS": ["0.0.0.0:5060"],
+                "Worker": ["0.0.0.0:5070", "0.0.0.0:5071"]
+            }
+        }
+        follower_cluster_spec_str = json.dumps(follower_cluster_spec)
+
         self.sche.bye()
-        master_addr = ["0.0.0.0:4050", "0.0.0.0:4051"]
-        ps_addr     = ["0.0.0.0:5050", "0.0.0.0:5051"]
-        ## launch master
-        role = 0
-        tml = _Task(name="RunLeaderTM", target=run_leader_tm, args=(self.app_id,
-                self.data_source[role].data_source_meta.name,
-                master_addr[role].split(":")[1],), weight=1, force_quit=True,
+        # launch leader/follower master
+        ckpt_path, exp_path = make_ckpt_dir("leader", "remote")
+        args = parser.parse_args((
+            "--master",
+            "--application-id", self.app_id,
+            "--master-addr", leader_master_address,
+            "--data-source", self.data_source[0].data_source_meta.name,
+            "--cluster-spec", leader_cluster_spec_str,
+            "--checkpoint-path", ckpt_path,
+            "--export-path", exp_path
+            ))
+        tml = _Task(name="RunLeaderMaster", target=run_lm, args=(args,),
+                weight=1, force_quit=True,
                 kwargs={'env' : child_env}, daemon=True)
         self.sche.submit(tml)
 
-        role = 1
-        tml = _Task(name="RunFollowerTM", target=run_follower_tm, args=(self.app_id,
-                self.data_source[role].data_source_meta.name,
-                master_addr[role].split(":")[1], ),
-                kwargs={'env' : child_env}, daemon=True, weight=1, force_quit=True)
+        ckpt_path, exp_path = make_ckpt_dir("follower", "remote")
+        args = parser.parse_args((
+            "--master",
+            "--application-id", self.app_id,
+            "--master-addr", follower_master_address,
+            "--data-source", self.data_source[1].data_source_meta.name,
+            "--cluster-spec", follower_cluster_spec_str,
+            "--checkpoint-path", ckpt_path,
+            "--export-path", exp_path
+            ))
+        tml = _Task(name="RunFollowerMaster", target=run_fm, args=(args,),
+                weight=1, force_quit=True,
+                kwargs={'env' : child_env}, daemon=True)
         self.sche.submit(tml)
 
-        ## launch PS
-        for role in range(2):
-            name = "PS_%d" % role
-            psl = _Task(name=name, target=run_ps, args=(ps_addr[role].split(":")[1], ),
-                          kwargs={'env' : child_env}, daemon=True, weight=1, force_quit=True)
+        # launch leader/follower PS
+        for i, addr in enumerate(leader_cluster_spec["clusterSpec"]["PS"]):
+            psl = _Task(name="RunLeaderPS_%d"%i, target=run_ps, args=(addr, ),
+                          weight=1, force_quit=True,
+                          kwargs={'env' : child_env}, daemon=True)
+            self.sche.submit(psl)
+        for i, addr in enumerate(follower_cluster_spec["clusterSpec"]["PS"]):
+            psl = _Task(name="RunFollowerPS_%d"%i, target=run_ps, args=(addr, ),
+                          weight=1, force_quit=True,
+                          kwargs={'env' : child_env}, daemon=True)
             self.sche.submit(psl)
 
-        ## launch worker
 
-        worker_port, tf_port = 3050, 3150
-        for rank in range(total_worker_num):
-            port_fn = lambda port : ["0.0.0.0:%d" % port, "0.0.0.0:%d" % (port + 1)]
-            worker_addr = port_fn(worker_port)
-            tf_addr = port_fn(tf_port)
+        # launch leader/follower worker
+        assert len(leader_cluster_spec["clusterSpec"]["Worker"]) == \
+            len(follower_cluster_spec["clusterSpec"]["Worker"])
+        for i in range(len(leader_cluster_spec["clusterSpec"]["Worker"])):
+            _, leader_worker_port = \
+                leader_cluster_spec["clusterSpec"]["Worker"][i].split(':')
+            leader_worker_port = int(leader_worker_port) + 10000
+            _, follower_worker_port = \
+                follower_cluster_spec["clusterSpec"]["Worker"][i].split(':')
+            follower_worker_port = int(follower_worker_port) + 10000
 
-            worker_port += 2
-            tf_port += 2
-
-            role = 0
-            ckpt_path, exp_path = make_ckpt_dir(role, "remote", rank)
-            args = Args(local_addr=worker_addr[role],
-                        peer_addr=worker_addr[(role+1)%2],
-                        tf_addr=tf_addr[role],
-                        ps_addrs=ps_addr[role],
-                        app_id=self.app_id,
-                        worker_rank = rank,
-                        master_addr=master_addr[role],
-                        ckpt_path=ckpt_path,
-                        export_path=exp_path)
-            ftm = _Task(name="RunLeaderTW" + str(rank), target=run_lm, args=(args, ),
-                    kwargs={'env' : child_env}, daemon=True, weight=2)
+            # leader worker
+            args = parser.parse_args((
+                "--worker",
+                "--application-id", self.app_id,
+                "--master-addr", leader_master_address,
+                "--local-addr", "0.0.0.0:%d"%leader_worker_port,
+                "--peer-addr", "0.0.0.0:%d"%follower_worker_port,
+                "--cluster-spec", leader_cluster_spec_str,
+                "--worker-rank", str(i),
+                ))
+            ftm = _Task(name="RunLeaderWorker_%d"%i, target=run_lm, args=(args, ),
+                    weight=1, force_quit=True,
+                    kwargs={'env' : child_env}, daemon=True)
             self.sche.submit(ftm)
 
-            role = 1
-            ckpt_path, exp_path = make_ckpt_dir(role, "remote", rank)
-            args = Args(local_addr=worker_addr[role],
-                        peer_addr=worker_addr[(role+1)%2],
-                        tf_addr=tf_addr[role],
-                        ps_addrs=ps_addr[role],
-                        app_id=self.app_id,
-                        worker_rank = rank,
-                        master_addr=master_addr[role],
-                        ckpt_path=ckpt_path,
-                        export_path=exp_path)
-            ftm = _Task(name="RunFollowerTW" + str(rank), target=run_fm, args=(args, ),
-                    kwargs={'env' : child_env}, daemon=True, weight=2)
+            # follower worker
+            args = parser.parse_args((
+                "--worker",
+                "--application-id", self.app_id,
+                "--master-addr", follower_master_address,
+                "--local-addr", "0.0.0.0:%d"%follower_worker_port,
+                "--peer-addr", "0.0.0.0:%d"%leader_worker_port,
+                "--cluster-spec", follower_cluster_spec_str,
+                "--worker-rank", str(i),
+                ))
+            ftm = _Task(name="RunLeaderWorker_%d"%i, target=run_fm, args=(args, ),
+                    weight=1, force_quit=True,
+                    kwargs={'env' : child_env}, daemon=True)
             self.sche.submit(ftm)
 
         # mimic the chaos monkey

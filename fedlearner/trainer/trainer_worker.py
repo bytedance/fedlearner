@@ -14,10 +14,11 @@
 
 # coding: utf-8
 
+import os
+import logging
 import argparse
 import json
-import logging
-import os
+import threading
 
 try:
     import tensorflow.compat.v1 as tf
@@ -25,12 +26,18 @@ except ImportError:
     import tensorflow as tf
 
 from fedlearner.common import metrics
-from fedlearner.common.summary_hook import SummaryHook
 from fedlearner.trainer.bridge import Bridge
 from fedlearner.trainer.estimator import FLEstimator
 from fedlearner.trainer.sparse_estimator import SparseFLEstimator
-from fedlearner.trainer.trainer_master_client import LocalTrainerMasterClient
-from fedlearner.trainer.trainer_master_client import TrainerMasterClient
+from fedlearner.trainer.trainer_master_client \
+    import LocalTrainerMaster, TrainerMasterClient
+from fedlearner.trainer.trainer_master \
+    import LeaderTrainerMaster, FollowerTrainerMaster, ExportModelHook
+from fedlearner.trainer.data_visitor import DataPathVisitor, DataSourceVisitor
+from fedlearner.trainer.cluster_server import ClusterServer
+
+LEADER = "leader"
+FOLLOER = "follower"
 
 
 class StepMetricsHook(tf.train.SessionRunHook):
@@ -78,91 +85,100 @@ class StepLossAucMetricsHook(StepMetricsHook):
 
 def create_argument_parser():
     parser = argparse.ArgumentParser(description='FedLearner Trainer.')
-    parser.add_argument('--local-addr', type=str,
+    parser.add_argument('--master',
+                        action='store_true',
+                        help='Run as trainer master only')
+    parser.add_argument('--worker',
+                        action='store_true',
+                        help='Run as trainer worker only')
+    parser.add_argument('--application-id',
+                        type=str,
+                        default="fl_trainer",
+                        help='application id on distributed training.')
+    parser.add_argument('--master-addr',
+                        type=str,
+                        help='Address of trainer master, ' \
+                             'in [IP]:[PORT] format. ' \
+                             'Use local master for testing if set to None.')
+    parser.add_argument('--local-addr',
+                        type=str,
                         help='Listen address of the local bridge, ' \
                              'in [IP]:[PORT] format')
-    parser.add_argument('--peer-addr', type=str,
+    parser.add_argument('--peer-addr',
+                        type=str,
                         help='Address of peer\'s bridge, ' \
                              'in [IP]:[PORT] format')
-    parser.add_argument('--cluster-spec', type=str,
+    parser.add_argument('--cluster-spec',
+                        type=str,
                         help='ClusterSpec description for master/ps/worker, '\
                             'in json format')
     parser.add_argument('--worker-rank',
                         type=int,
                         default=0,
                         help='the rank of this worker.')
-    parser.add_argument('--ps-addrs', type=str, default=None,
+    parser.add_argument('--ps-addrs',
+                        type=str,
                         help='Comma-separated list of parameter server ' \
                              'addresses in [IP]:[PORT] format. ' \
                              'value for this argument must be identical ' \
                              'for all workers.')
-    parser.add_argument('--data-source', type=str, default=None,
-                        help='path to data source for distributed file system' \
-                             'training. Ignored when --master-addr is set.')
-    parser.add_argument('--data-path', type=str, default=None,
-                        help='path to data block files for non-distributed ' \
-                             'training. Ignored when --master-addr is set.')
-    parser.add_argument('--application-id', type=str, default=None,
-                        help='application id on distributed ' \
-                             'training.')
-    parser.add_argument('--start-time', type=str, default=None,
-                        help='start-time on data source ' \
-                             'training. Ignored when --master-addr is set.')
-    parser.add_argument('--end-time', type=str, default=None,
-                        help='end-time on data source ' \
-                             'training. Ignored when --master-addr is set.')
-    parser.add_argument('--master-addr', type=str, default=None,
-                        help='Address of trainer master, ' \
-                             'in [IP]:[PORT] format. ' \
-                             'Use local master for testing if set to None.')
-    parser.add_argument('--tf-addr', type=str, default=None,
-                        help='Address of tensorflow server, ' \
-                             'in localhost:[PORT] format')
+    parser.add_argument('--data-source',
+                        type=str,
+                        help='path to data source for training')
+    parser.add_argument('--data-path',
+                        type=str,
+                        help='path to data block files for training.'
+                             'Ignore if data-source is set')
+    parser.add_argument('--start-date',
+                        type=int,
+                        help='training data start time')
+    parser.add_argument('--end-date',
+                        type=int,
+                        help='training data end time')
+    parser.add_argument('--epoch-num',
+                        type=int,
+                        default=1,
+                        help='number of epoch for training, not '\
+                             'support in online training')
+    parser.add_argument('--shuffle',
+                        type=bool,
+                        help='shuffle the data block or not')
     parser.add_argument('--export-path',
                         type=str,
-                        default=None,
                         help='Path to save exported models.')
     parser.add_argument('--checkpoint-path',
                         type=str,
-                        default=None,
                         help='Path to save and load model checkpoints.')
     parser.add_argument('--load-checkpoint-filename',
                         type=str,
-                        default=None,
                         help='filename to load model checkpoints, ' \
                              'Relative path to checkpoint-path')
     parser.add_argument('--load-checkpoint-filename-with-path',
                         type=str,
-                        default=None,
                         help='filename with path to load model checkpoints')
     parser.add_argument('--save-checkpoint-steps',
                         type=int,
-                        default=None,
+                        default=200,
                         help='Number of steps between checkpoints.')
+    parser.add_argument('--save-checkpoint-secs',
+                        type=int,
+                        help='Number of secs between checkpoints.')
+    parser.add_argument('--summary-path',
+                        type=str,
+                        help='Path to save summary files used by tensorboard.')
+    parser.add_argument('--summary-save-steps',
+                        type=int,
+                        help='Number of steps to save summary files.')
+    parser.add_argument('--summary-save-secs',
+                        type=int,
+                        help='Number of secs to save summary files.')
     parser.add_argument('--sparse-estimator',
                         type=bool,
-                        default=False,
                         help='Whether using sparse estimator.')
     parser.add_argument('--mode',
                         type=str,
                         default='train',
                         help='Train or eval.')
-    parser.add_argument('--epoch_num',
-                        type=int,
-                        default=1,
-                        help='number of epoch for training')
-    parser.add_argument('--save-checkpoint-secs',
-                        type=int,
-                        default=None,
-                        help='Number of secs between checkpoints.')
-    parser.add_argument('--summary-path',
-                        type=str,
-                        default=None,
-                        help='Path to save summary files used by tensorboard.')
-    parser.add_argument('--summary-save-steps',
-                        type=int,
-                        default=None,
-                        help='Number of steps to save summary files.')
     parser.add_argument('--verbosity',
                         type=int,
                         default=1,
@@ -170,154 +186,267 @@ def create_argument_parser():
 
     return parser
 
+def _run_master(role,
+                args,
+                input_fn,
+                model_fn,
+                serving_input_receiver_fn,
+                export_model_hook=None):
+    if not args.master_addr:
+        raise ValueError("master-addr is required")
 
-def train(role, args, input_fn, model_fn, serving_input_receiver_fn):
-    logging.basicConfig(
-        format="%(asctime)-15s [%(filename)s:%(lineno)d] " \
-               "%(levelname)s : %(message)s")
-    if args.verbosity == 0:
-        logging.getLogger().setLevel(logging.WARNING)
-    elif args.verbosity == 1:
-        logging.getLogger().setLevel(logging.INFO)
-    elif args.verbosity > 1:
-        logging.getLogger().setLevel(logging.DEBUG)
-
-    if args.application_id:
-        bridge = Bridge(role, int(args.local_addr.split(':')[1]),
-                        args.peer_addr, args.application_id, args.worker_rank)
-    else:
-        bridge = Bridge(role, int(args.local_addr.split(':')[1]),
-                        args.peer_addr)
-
-    if args.data_path:
-        trainer_master = LocalTrainerMasterClient(role,
-                                                  args.data_path,
-                                                  epoch_num=args.epoch_num)
-        if args.ps_addrs is not None:
-            ps_addrs = args.ps_addrs.split(",")
-            cluster_spec = tf.train.ClusterSpec({
-                'ps': ps_addrs,
-                'worker': {
-                    args.worker_rank: args.tf_addr
-                }
-            })
-        else:
-            cluster_spec = None
-    elif args.cluster_spec:
-        cluster_spec = json.loads(args.cluster_spec)
-        assert 'clusterSpec' in cluster_spec, \
-            "cluster_spec do not meet legal format"
-        assert 'Master' in cluster_spec['clusterSpec'],\
-            "cluster_spec must include Master"
-        assert isinstance(cluster_spec['clusterSpec']['Master'], list), \
-            "Master must be list"
-        assert 'Worker' in cluster_spec['clusterSpec'],\
-            "cluster_spec must include Worker"
-        assert isinstance(cluster_spec['clusterSpec']['Worker'], list), \
-            "Worker must be list"
-        trainer_master = TrainerMasterClient(
-            cluster_spec['clusterSpec']['Master'][0], role, args.worker_rank)
-        cluster_spec = tf.train.ClusterSpec({
-            'ps':
-            cluster_spec['clusterSpec']['PS'],
-            'worker': {
-                args.worker_rank: args.tf_addr
-            }
-        })
-    elif args.master_addr:
-        assert args.tf_addr is not None, \
-            "--tf-addr must be set when master_addr is set."
-        trainer_master = TrainerMasterClient(args.master_addr, role,
-                                             args.worker_rank)
-        ps_addrs = args.ps_addrs.split(",")
-        cluster_spec = tf.train.ClusterSpec({
-            'ps': ps_addrs,
-            'worker': {
-                args.worker_rank: args.tf_addr
-            }
-        })
-    elif args.data_source:
-        if args.start_time is None or args.end_time is None:
-            raise ValueError(
-                "data source must be set with start-date and end-date")
-        trainer_master = LocalTrainerMasterClient(role,
-                                                  args.data_source,
-                                                  start_time=args.start_time,
-                                                  end_time=args.end_time,
-                                                  epoch_num=args.epoch_num)
+    try:
+        cluster_spec = _create_cluster_spec(args, require_ps=True)
+    except ValueError:
         cluster_spec = None
-    else:
-        raise ValueError("Either --master-addr or --data-path must be set")
 
-    if args.summary_path:
-        SummaryHook.summary_path = args.summary_path
-        SummaryHook.worker_rank = args.worker_rank
-        SummaryHook.role = role
-    if args.summary_save_steps:
-        SummaryHook.save_steps = args.summary_save_steps
+    cluster_server = None
+    if cluster_spec:
+        cluster_server = ClusterServer(cluster_spec, "master")
 
-    if args.sparse_estimator:
-        estimator = SparseFLEstimator(model_fn,
-                                      bridge,
-                                      trainer_master,
-                                      role,
-                                      worker_rank=args.worker_rank,
-                                      application_id=args.application_id,
-                                      cluster_spec=cluster_spec)
-    else:
-        estimator = FLEstimator(model_fn,
-                                bridge,
-                                trainer_master,
-                                role,
-                                worker_rank=args.worker_rank,
-                                application_id=args.application_id,
-                                cluster_spec=cluster_spec)
+    checkpoint_filename_with_path = _get_checkpoint_filename_with_path(args)
+    data_visitor = _create_data_visitor(args)
+    master_factory = LeaderTrainerMaster \
+        if role == LEADER else FollowerTrainerMaster
 
-    load_checkpoint_filename_with_path = args.load_checkpoint_filename_with_path
-    if not load_checkpoint_filename_with_path:
-        load_checkpoint_filename_with_path = \
-            _get_load_checkpoint_filename_with_path(
-                args.checkpoint_path, args.load_checkpoint_filename)
-    if load_checkpoint_filename_with_path:
-        if not tf.train.checkpoint_exists(load_checkpoint_filename_with_path):
-            raise RuntimeError("not a valid checkpoint file: %s"\
-                %load_checkpoint_filename_with_path)
+    master = master_factory(
+             cluster_server,
+             data_visitor,
+             model_fn,
+             input_fn,
+             serving_input_receiver_fn,
+             checkpoint_filename_with_path,
+             checkpoint_path=args.checkpoint_path,
+             save_checkpoint_steps=args.save_checkpoint_steps,
+             save_checkpoint_secs=args.save_checkpoint_secs,
+             summary_path=args.summary_path,
+             summary_save_steps=args.summary_save_steps,
+             summary_save_secs=args.summary_save_secs,
+             export_path=args.export_path,
+             sparse_estimator=args.sparse_estimator,
+             export_model_hook=export_model_hook)
+    master.run_forever(args.master_addr)
 
-    run_mode = args.mode.lower()
-    if run_mode == 'train':
-        estimator.train(input_fn,
-                        checkpoint_path=args.checkpoint_path,
-                        load_checkpoint_filename_with_path= \
-                            load_checkpoint_filename_with_path,
-                        save_checkpoint_steps=args.save_checkpoint_steps,
-                        save_checkpoint_secs=args.save_checkpoint_secs)
-        if args.export_path and args.worker_rank == 0:
-            export_path = '%s/%d' % (args.export_path, bridge.terminated_at)
-            estimator.export_saved_model(export_path,
-                                         serving_input_receiver_fn,
-                                         checkpoint_path=args.checkpoint_path)
-            fsuccess = tf.io.gfile.GFile('%s/_SUCCESS' % export_path, 'w')
-            fsuccess.write('%d' % bridge.terminated_at)
-            fsuccess.close()
+def _run_worker(role, args, input_fn, model_fn):
+    if not args.local_addr:
+        raise ValueError("local-addr is required")
+    if not args.peer_addr:
+        raise ValueError("peer-addr is required")
+    if not args.master_addr:
+        raise ValueError("master-addr is required")
+    mode = args.mode.lower()
+    if mode not in ('train', 'eval'):
+        raise ValueError("--mode must set one of 'train' or 'eval'")
 
-    elif run_mode == 'eval':
-        if not load_checkpoint_filename_with_path:
-            raise RuntimeError("can not find any checkpoint for eval")
-        estimator.evaluate(
-            input_fn,
-            load_checkpoint_filename_with_path= \
-                load_checkpoint_filename_with_path)
-    else:
-        raise ValueError('Allowed values are: --mode=train|eval')
+    cluster_spec = _create_cluster_spec(args, require_ps=True)
+    cluster_server = ClusterServer(cluster_spec,
+                                   "worker",
+                                   task_index=args.worker_rank)
 
-def _get_load_checkpoint_filename_with_path(
-    checkpoint_path, checkpoint_filename):
-    if not (checkpoint_path or checkpoint_filename):
-        return None
-    if checkpoint_filename:
-        if not checkpoint_path:
+    trainer_master = TrainerMasterClient(args.master_addr,
+                                         args.worker_rank)
+    if not trainer_master.worker_register(cluster_spec.as_cluster_def()):
+        return
+
+    bridge = Bridge(role,
+                    int(args.local_addr.split(':')[1]),
+                    args.peer_addr,
+                    args.application_id,
+                    args.worker_rank)
+
+    estimator_factory = SparseFLEstimator \
+        if args.sparse_estimator else FLEstimator
+    estimator = estimator_factory(cluster_server,
+                                  trainer_master,
+                                  bridge,
+                                  role,
+                                  model_fn)
+
+    if mode == 'train':
+        estimator.train(input_fn)
+    elif mode == 'eval':
+        estimator.evaluate(input_fn)
+
+    trainer_master.worker_complete(bridge.terminated_at)
+    trainer_master.wait_master_complete()
+
+def _run_local(role,
+               args,
+               input_fn,
+               model_fn,
+               serving_input_receiver_fn,
+               export_model_hook=None):
+    if not args.local_addr:
+        raise ValueError("local-addr is required")
+    if not args.peer_addr:
+        raise ValueError("peer-addr is required")
+
+    mode = args.mode.lower()
+    if mode not in ('train', 'eval'):
+        raise ValueError("--mode must set one of 'train' or 'eval'")
+
+    cluster_spec = _create_cluster_spec(args)
+    cluster_server = ClusterServer(cluster_spec, "local")
+
+    # run master
+    checkpoint_filename_with_path = _get_checkpoint_filename_with_path(args)
+    data_visitor = _create_data_visitor(args)
+    master_factory = LeaderTrainerMaster \
+        if role == LEADER else FollowerTrainerMaster
+    local_master = master_factory(
+             cluster_server,
+             data_visitor,
+             model_fn,
+             input_fn,
+             serving_input_receiver_fn,
+             checkpoint_filename_with_path,
+             checkpoint_path=args.checkpoint_path,
+             save_checkpoint_steps=args.save_checkpoint_steps,
+             save_checkpoint_secs=args.save_checkpoint_secs,
+             summary_path=args.summary_path,
+             summary_save_steps=args.summary_save_steps,
+             summary_save_secs=args.summary_save_secs,
+             export_path=args.export_path,
+             sparse_estimator=args.sparse_estimator,
+             export_model_hook=export_model_hook)
+    master_thread = threading.Thread(target=local_master.run_forever)
+    master_thread.setDaemon(True)
+    master_thread.start()
+
+    # run worker
+    trainer_master = LocalTrainerMaster(local_master, 0)
+    if not trainer_master.worker_register():
+        return
+    bridge = Bridge(role,
+                    int(args.local_addr.split(':')[1]),
+                    args.peer_addr,
+                    args.application_id,
+                    0)
+
+    estimator_factory = \
+        SparseFLEstimator if args.sparse_estimator else FLEstimator
+    estimator = estimator_factory(cluster_server,
+                                  trainer_master,
+                                  bridge,
+                                  role,
+                                  model_fn)
+
+    if mode == 'train':
+        estimator.train(input_fn)
+    elif mode == 'eval':
+        estimator.evaluate(input_fn)
+
+    trainer_master.worker_complete(bridge.terminated_at)
+    trainer_master.wait_master_complete()
+
+def _get_checkpoint_filename_with_path(args):
+    checkpoint_filename_with_path = None
+    if args.load_checkpoint_filename_with_path:
+        checkpoint_filename_with_path = args.load_checkpoint_filename_with_path
+
+    elif args.load_checkpoint_filename:
+        if not args.checkpoint_path:
             raise ValueError("checkpoint_path is required "
                 "when provide checkpoint_filename")
-        return os.path.join(checkpoint_path, checkpoint_filename)
+        checkpoint_filename_with_path = \
+            os.path.join(args.checkpoint_path, args.checkpoint_filename)
+    elif args.checkpoint_path:
+        checkpoint_filename_with_path = \
+            tf.train.latest_checkpoint(args.checkpoint_path)
 
-    return tf.train.latest_checkpoint(checkpoint_path)
+    if not checkpoint_filename_with_path:
+        return None
+
+    if not tf.train.checkpoint_exists(checkpoint_filename_with_path):
+        raise RuntimeError("not a valid checkpoint file: %s" \
+                           %checkpoint_filename_with_path)
+
+    return checkpoint_filename_with_path
+
+def _create_cluster_spec(args, require_ps=False):
+    cluster_spec_dict = dict()
+    if args.cluster_spec:
+        cluster_spec = json.loads(args.cluster_spec)["clusterSpec"]
+        if "Master" in cluster_spec \
+            and isinstance(cluster_spec['Master'], list):
+            cluster_spec_dict["master"] = cluster_spec["Master"]
+        if "PS" in cluster_spec \
+            and isinstance(cluster_spec['PS'], list):
+            cluster_spec_dict["ps"] = cluster_spec["PS"]
+        if "Worker" in cluster_spec \
+            and isinstance(cluster_spec['Worker'], list):
+            cluster_spec_dict["worker"] = cluster_spec["Worker"]
+    elif args.ps_addrs:
+        cluster_spec_dict["ps"] = \
+            [addr.strip() for addr in args.ps_addrs.split(",")]
+    if require_ps:
+        if "ps" not in cluster_spec_dict or len(cluster_spec_dict["ps"]) == 0:
+            raise ValueError("ps is required")
+
+    return tf.train.ClusterSpec(cluster_spec_dict)
+
+def _create_data_visitor(args):
+    visitor = None
+    start_date = int(args.start_date) if args.start_date else None
+    end_date = int(args.end_date) if args.end_date else None
+    if args.data_source:
+        visitor = DataSourceVisitor(args.data_source,
+                                    start_date=start_date,
+                                    end_date=end_date,
+                                    epoch_num=args.epoch_num,
+                                    shuffle=args.shuffle)
+    elif args.data_path:
+        visitor = DataPathVisitor(args.data_path,
+                                  epoch_num=args.epoch_num,
+                                  shuffle=args.shuffle)
+    if not visitor:
+        raise ValueError("cannot found any data to train, "
+                   "please specify --data-source or --data-path")
+    return visitor
+
+def train(role,
+          args,
+          input_fn,
+          model_fn,
+          serving_input_receiver_fn,
+          export_model_hook=None):
+    if not isinstance(role, str):
+        raise ValueError("--role is not a string")
+    role = role.lower()
+    if role not in (LEADER, FOLLOER):
+        raise ValueError("--role must set one of %s or %s"%(LEADER, FOLLOER))
+    def _verbosity_to_loglevel(verbosity):
+        if verbosity == 0:
+            return logging.WARNING
+        if verbosity == 1:
+            return logging.INFO
+        # other
+        return logging.DEBUG
+    logging.basicConfig(
+        level=_verbosity_to_loglevel(args.verbosity),
+        format="%(asctime)-15s [%(levelname)s]: %(message)s "
+               "(%(filename)s:%(lineno)d)")
+    if export_model_hook is not None:
+        if not isinstance(export_model_hook, ExportModelHook):
+            raise ValueError("model_export_hook must be a "
+                             "ExportModelHook, but get %r"%export_model_hook)
+
+    if not (args.master or args.worker):
+        logging.info("************ Run as local mode ************")
+        _run_local(role, args,
+                   input_fn,
+                   model_fn,
+                   serving_input_receiver_fn,
+                   export_model_hook=export_model_hook)
+    elif args.master:
+        logging.info("************ Run as master mode ************")
+        _run_master(role, args,
+                    input_fn,
+                    model_fn,
+                    serving_input_receiver_fn,
+                    export_model_hook=export_model_hook)
+    elif args.worker: # args.worker
+        logging.info("************ Run as worker mode ************")
+        _run_worker(role, args, input_fn, model_fn)
+    else:
+        raise ValueError("duplication specify --master and --worker")
