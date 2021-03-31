@@ -174,7 +174,7 @@ class _Trigger(object):
         while leader_stride <= leader_win_size and                             \
                 sid <= leader_win_size and                                     \
                 follower_win_size >= 0 and                                     \
-                fcc.time_diff(                                              \
+                fcc.time_diff(                                                 \
                     follower_window[follower_win_size].item.event_time,        \
                     leader_window[sid].item.event_time) >                      \
                 self._max_watermark_delay:
@@ -185,7 +185,7 @@ class _Trigger(object):
         while follower_stride <= follower_win_size and                         \
                 leader_win_size >= 0 and                                       \
                 0 <= cid <= follower_win_size and                              \
-                fcc.time_diff(                                              \
+                fcc.time_diff(                                                 \
                   leader_window[leader_win_size].item.event_time,              \
                   follower_window[cid].item.event_time) >                      \
                 self._max_watermark_delay:
@@ -424,7 +424,7 @@ class UniversalJoiner(ExampleJoiner):
         while self._fill_leader_join_window(sync_example_id_finished) or       \
               self.is_leader_far_ahead_follower(raw_data_finished):
             # Case 1: the leader, if there is no enough elems filled while
-            # syncing will break and wait.
+            # syncing, will break and wait.
             # Case 2:  leader dataset is much smaller than follower due to
             # sparse distribution in same time interval. |- and -| indicates
             # the head and tail element's event_time, | is the watermark, in
@@ -518,8 +518,10 @@ class UniversalJoiner(ExampleJoiner):
             # cache the latest leader event
             updated = False
             if fi in self._dedup_by_follower_index:
-                if self._dedup_by_follower_index[fi].event_time <\
-                    le.event_time < fe.event_time:
+                old_conv_int = fcc.time_diff(fe.event_time, le.event_time)
+                new_conv_int = fcc.time_diff(
+                    self._dedup_by_follower_index[fi].event_time, le.event_time)
+                if abs(old_conv_int) > abs(new_conv_int):
                     self._dedup_by_follower_index[fi] = \
                             IndexedTime(li, le.event_time)
                     updated = True
