@@ -13,6 +13,7 @@ const ForkableSwitch: FC<{ workflow: Workflow; onSuccess: any }> = ({ workflow, 
     <Switch
       checked={useLocalState ? localForkable : workflow.forkable}
       loading={loading}
+      size="small"
       onChange={onForkableChange}
     />
   );

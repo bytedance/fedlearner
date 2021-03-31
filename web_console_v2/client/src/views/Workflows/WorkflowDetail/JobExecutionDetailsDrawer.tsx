@@ -54,7 +54,7 @@ const ID = styled.small`
 `;
 
 interface Props extends DrawerProps {
-  isPeerSide: boolean;
+  isPeerSide?: boolean;
   jobData?: NodeData;
   workflow?: WorkflowExecutionDetails;
   toggleVisible?: Function;
@@ -146,13 +146,13 @@ const JobExecutionDetailsDrawer: ForwardRefRenderFunction<JobExecutionDetailsExp
         {!isPeerSide && <JobExecutionMetrics job={job} visible={props.visible} />}
 
         <JobExecutionLogs
-          isPeerSide={isPeerSide}
+          isPeerSide={!!isPeerSide}
           job={job}
           workflow={workflow}
           enabled={Boolean(props.visible)}
         />
 
-        <JobExecutionPods job={job} isPeerSide={isPeerSide} />
+        <JobExecutionPods job={job} isPeerSide={!!isPeerSide} />
       </Container>
     </ErrorBoundary>
   );

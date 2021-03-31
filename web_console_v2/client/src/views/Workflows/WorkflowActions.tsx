@@ -9,6 +9,7 @@ import {
   isReadyToRun,
   isOperable,
   isForkable,
+  isInvalid,
 } from 'shared/workflow';
 import { Workflow } from 'typings/workflow';
 import { useTranslation } from 'react-i18next';
@@ -38,7 +39,7 @@ import { useToggle } from 'react-use';
 import { to } from 'shared/helpers';
 
 const Container = styled(GridRow)`
-  margin-left: ${(props: any) => (props.type === 'link' ? '-15px !important' : 0)};
+  margin-left: ${(props: any) => (props.type === 'link' ? '-10px !important' : 0)};
 `;
 
 type Action = 'report' | 'configure' | 'run' | 'rerun' | 'stop' | 'fork' | 'detail' | 'invalid';
@@ -77,8 +78,9 @@ const WorkflowActions: FC<Props> = ({ workflow, type = 'default', without = [], 
     report: isCompleted(workflow) && !without?.includes('report'),
     detail: !without?.includes('detail'),
     fork: !without?.includes('fork'),
-    invalid: !without?.includes('fork'),
+    invalid: !without?.includes('fork') && !isInvalid(workflow),
   };
+
   const isDisabled = !isOperable(workflow);
   const disabled = {
     configure: false,
@@ -89,6 +91,7 @@ const WorkflowActions: FC<Props> = ({ workflow, type = 'default', without = [], 
     invalid: isDisabled,
     report: true,
   };
+
   const isDefaultType = type === 'default';
 
   return (

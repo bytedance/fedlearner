@@ -131,8 +131,15 @@ class HdfsFileManager(FileManagerBase):
         path = self._unwrap_path(path)
         files = []
         try:
-            for file in self._client.get_file_info(
-                    fs.FileSelector(path, recursive=recursive)):
+            curr_path_info = self._client.get_file_info(path)
+            res_files = []
+            if curr_path_info.type == fs.FileType.File:
+                res_files = [curr_path_info]
+            elif curr_path_info.type == fs.FileType.Directory:
+                res_files = self._client.get_file_info(
+                    fs.FileSelector(path, recursive=recursive))
+
+            for file in res_files:
                 if file.type == fs.FileType.File:
                     files.append(
                         File(
