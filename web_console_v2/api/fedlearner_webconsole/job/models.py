@@ -128,36 +128,36 @@ class Job(db.Model):
 
 
     def get_pods(self):
-        if self.state == JobState.STARTED:
-            try:
+        try:
+            if self.state == JobState.STARTED:
                 pods = self._k8s_client.list_resource_of_custom_object(
                     CrdKind.FLAPP, self.name, 'pods',
                     self.project.get_namespace())
-                # if k8s delete flapp but webconsole not, pods will be None
-                if pods is not None and 'pods' in pods:
-                    return pods['pods']
-            except RuntimeError as e:
-                logging.error('Get %d pods error msg: %s', self.id, e.args)
-                return None
-        if self.pods_snapshot is not None:
-            pods = json.loads(self.pods_snapshot)
-            return pods['pods']
+            elif self.pods_snapshot is not None:
+                pods = json.loads(self.pods_snapshot)
+            else:
+                pods = None
+            # if k8s delete flapp but webconsole not, pods will be None
+            if pods is not None and 'pods' in pods:
+                return pods['pods']
+        except Exception as e:  # pylint: disable=broad-except
+            logging.error('Get %d pods error msg: %s', self.id, e.args)
         return None
 
     def get_flapp(self):
-        if self.state == JobState.STARTED:
-            try:
+        try:
+            if self.state == JobState.STARTED:
                 flapp = self._k8s_client.get_custom_object(
                     CrdKind.FLAPP, self.name, self.project.get_namespace())
-                # if k8s delete flapp but webconsole not, flapp will be None
-                if flapp is not None and 'flapp' in flapp:
-                    return flapp['flapp']
-            except RuntimeError as e:
-                logging.error('Get %d flapp error msg: %s', self.id, str(e))
-                return None
-        if self.flapp_snapshot is not None:
-            flapp = json.loads(self.flapp_snapshot)
-            return flapp['flapp']
+            elif self.flapp_snapshot is not None:
+                flapp = json.loads(self.flapp_snapshot)
+            else:
+                flapp = None
+            # if k8s delete flapp but webconsole not, flapp will be None
+            if flapp is not None and 'flapp' in flapp:
+                return flapp['flapp']
+        except Exception as e:  # pylint: disable=broad-except
+            logging.error('Get %d flapp error msg: %s', self.id, str(e))
         return None
 
     def get_pods_for_frontend(self, filter_private_info=False):
