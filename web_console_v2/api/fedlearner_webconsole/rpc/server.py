@@ -20,6 +20,7 @@ import json
 import os
 import sys
 import threading
+import traceback
 from concurrent import futures
 import grpc
 from fedlearner_webconsole.proto import (
@@ -48,11 +49,9 @@ class RPCServerServicer(service_pb2_grpc.WebConsoleV2ServiceServicer):
 
     def _secure_exc(self):
         exc_type, exc_obj, exc_tb = sys.exc_info()
-        secure_exc = 'Error %s at '%exc_type
-        while exc_tb is not None:
-            fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-            secure_exc += '>%s:%s'%(fname, exc_tb.tb_lineno)
-            exc_tb = exc_tb.tb_next
+        secure_exc = 'Error %s at'%exc_type
+        for frame in traceback.extract_tb(exc_tb):
+            secure_exc += ' >%s:%s %s'%(frame.filename, frame.lineno, frame.line)
         return secure_exc
 
     def _try_handle_request(self, func, request, context, resp_class):
