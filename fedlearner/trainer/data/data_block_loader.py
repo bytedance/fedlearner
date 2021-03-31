@@ -54,7 +54,7 @@ class DataBlockLoader(object):
     def get_next_block(self):
         if self._role == 'leader':
             while True:
-                block = self._trainer_master.request_data_block()
+                block = self._trainer_master.request_data_block(None)
                 if block is not None:
                     if not self._bridge.load_data_block(
                             self._count, block.block_id):
@@ -78,7 +78,7 @@ class DataBlockLoader(object):
         dataset = tf.data.Dataset.from_generator(gen, tf.string)
         dataset = tf.data.TFRecordDataset(dataset)
         dataset = dataset.batch(self._batch_size, drop_remainder=True)
-        dataset = dataset.prefetch(2)
+        dataset = dataset.prefetch(1)
         return dataset
 
     def make_batch_iterator(self):

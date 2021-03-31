@@ -21,14 +21,9 @@ import logging
 import threading
 import time
 
-try:
-    import tensorflow.compat.v1 as tf
-except ImportError:
-    import tensorflow as tf
-
+import tensorflow.compat.v1 as tf
 from google.protobuf import any_pb2 as any_pb
 from fedlearner.channel import Channel
-
 from fedlearner.common import common_pb2 as common_pb
 from fedlearner.common import trainer_worker_service_pb2 as tws2_pb
 from fedlearner.common import trainer_worker_service_pb2_grpc as tws2_grpc
@@ -51,7 +46,7 @@ class Bridge(object):
                  listen_port,
                  remote_address,
                  app_id=None,
-                 rank=0,
+                 worker_rank=0,
                  stream_queue_size=1024,
                  waiting_alert_timeout=10):
         self._role = role
@@ -59,7 +54,8 @@ class Bridge(object):
         self._remote_address = remote_address
         if app_id is None:
             app_id = 'test_trainer'
-        self._token = "{}-{}".format(app_id, rank)
+        self._worker_rank = worker_rank
+        self._token = "{}-{}".format(app_id, worker_rank)
 
         self._condition = threading.Condition()
         self._connected = False
@@ -107,8 +103,8 @@ class Bridge(object):
                 self._condition.notify_all()
         if event == Channel.Event.ERROR:
             err = channel.error()
-            logging.fatal("[Bridge] suicide as channel exception: %s,"
-                " maybe caused by peer restart", repr(err))
+            logging.fatal("[Bridge] suicide as channel exception: %s, "
+                "maybe caused by peer restart", repr(err))
             os._exit(138)  # Tell Scheduler to restart myself
 
     @property
@@ -122,6 +118,10 @@ class Bridge(object):
     @property
     def role(self):
         return self._role
+
+    @property
+    def worker_rank(self):
+        return self._worker_rank
 
     @property
     def connected_at(self):
@@ -206,8 +206,8 @@ class Bridge(object):
                             if self._stream_terminated:
                                 return
                             if duration >= IDLE_TIMEOUT:
-                                logging.debug("[Bridge] stream transmit idle"
-                                    " by idle timeout: %f sec", IDLE_TIMEOUT)
+                                logging.debug("[Bridge] stream transmit idle "
+                                    "by idle timeout: %f sec", IDLE_TIMEOUT)
                                 return
                             self._stream_condition.wait(IDLE_TIMEOUT-duration)
                     msg = self._stream_queue.popleft()
@@ -230,8 +230,8 @@ class Bridge(object):
         with self._stream_condition:
             assert not self._stream_terminated
             while len(self._stream_queue) == self._stream_queue_size:
-                logging.warning("[Bridge] transmit stream queue is full"
-                                ", size: %d", len(self._stream_queue))
+                logging.warning("[Bridge] transmit stream queue is full, "
+                                "size: %d", len(self._stream_queue))
                 self._stream_condition.wait()
             self._stream_queue.append(msg)
             self._stream_condition.notify_all()
@@ -242,14 +242,14 @@ class Bridge(object):
                 if self._peer_commit_iter_id is not None \
                     and request.start.iter_id <= self._peer_commit_iter_id:
                     logging.warning(
-                        "[Bridge] received peer start iter_id: %d"
-                        " which has been committed."
-                        " maybe caused by resend.(peer_commit_iter_id: %d)",
+                        "[Bridge] received peer start iter_id: %d "
+                        "which has been committed. "
+                        "maybe caused by resend.(peer_commit_iter_id: %d)",
                         request.start.iter_id, self._peer_commit_iter_id)
                 elif self._peer_start_iter_id is not None:
                     logging.warning(
-                        "[Bridge] received repeated peer start iter_id: %d."
-                        " maybe caused by resend.(peer_start_iter_id: %d)",
+                        "[Bridge] received repeated peer start iter_id: %d. "
+                        "maybe caused by resend.(peer_start_iter_id: %d)",
                         request.start.iter_id, self._peer_start_iter_id)
                 else:
                     logging.debug("[Bridge] received peer start iter_id: %d",
@@ -260,13 +260,13 @@ class Bridge(object):
             elif request.HasField("data"):
                 if self._peer_start_iter_id is None:
                     logging.warning(
-                        "[Bridge] received data iter_id: %d without start."
-                        " maybe caused by resend.",
+                        "[Bridge] received data iter_id: %d without start. "
+                        "maybe caused by resend.",
                         request.data.iter_id)
                 elif self._peer_start_iter_id != request.data.iter_id:
                     logging.warning(
-                        "[Bridge] received data iter_id: %d no match start."
-                        " maybe caused by resend.(peer_start_iter_id: %d)",
+                        "[Bridge] received data iter_id: %d no match start. "
+                        "maybe caused by resend.(peer_start_iter_id: %d)",
                         request.data.iter_id, self._peer_start_iter_id)
                 else:
                     iter_id = self._current_iter_id \
@@ -279,8 +279,8 @@ class Bridge(object):
                             request.data.iter_id, request.data.name,
                             self._current_iter_id, self._next_iter_id)
                     else:
-                        logging.debug("[Bridge] received data iter_id: %d,"
-                            " name: %s",
+                        logging.debug("[Bridge] received data iter_id: %d, "
+                            "name: %s",
                             request.data.iter_id, request.data.name)
                         self._received_data[ \
                             request.data.iter_id][ \
@@ -291,19 +291,19 @@ class Bridge(object):
                 if self._peer_commit_iter_id is not None \
                     and request.commit.iter_id <= self._peer_commit_iter_id:
                     logging.warning(
-                        "[Bridge] receive repeated peer commit iter_id: %d."
-                        " maybe caused by resend.(peer_commit_iter_id: %d)",
+                        "[Bridge] receive repeated peer commit iter_id: %d. "
+                        "maybe caused by resend.(peer_commit_iter_id: %d)",
                         request.commit.iter_id, self._peer_commit_iter_id)
                 elif self._peer_start_iter_id is None:
                     logging.error(
-                        "[Bridge] receive peer commit iter_id: %d"
-                        " without start",
+                        "[Bridge] receive peer commit iter_id: %d "
+                        "without start",
                         request.commit.iter_id)
                     # return error?
                 elif request.commit.iter_id != self._peer_start_iter_id:
                     logging.error(
-                        "[Bridge] receive peer commit iter_id: %s"
-                        " no match start.(peer_start_iter_id: %d)",
+                        "[Bridge] receive peer commit iter_id: %s "
+                        "no match start.(peer_start_iter_id: %d)",
                         request.commit.iter_id, self._peer_start_iter_id)
                     # return error?
                 else:
@@ -424,8 +424,7 @@ class Bridge(object):
         def func(x):
             self.send(name, x)
 
-        out = tf.py_function(func=func, inp=[x], Tout=[], name='send_' + name)
-        return out
+        return tf.py_function(func=func, inp=[x], Tout=[], name='send_'+name)
 
     def _receive(self, name):
         start_time = time.time()
@@ -438,22 +437,22 @@ class Bridge(object):
                 self._assert_iter_started()
                 if iter_id != self._current_iter_id:
                     raise RuntimeError(
-                        "[Bridge] iter change while waiting receive data"
-                        ", iter_id: {}, name: {}".format(iter_id, name))
+                        "[Bridge] iter change while waiting receive data, "
+                        "iter_id: {}, name: {}".format(iter_id, name))
                 if self._peer_commit_iter_id is not None \
                     and iter_id <= self._peer_commit_iter_id:
                     raise RuntimeError(
-                        "[Bridge] peer committed without sending data"
-                        " iter_id: {}, name: {}".format(iter_id, name))
+                        "[Bridge] peer committed without sending data "
+                        "iter_id: {}, name: {}".format(iter_id, name))
                 if self._peer_terminated:
                     raise RuntimeError(
-                        "[Bridge] peer terminated without sending data"
-                        " iter_id: {}, name: {}".format(iter_id, name))
+                        "[Bridge] peer terminated without sending data "
+                        "iter_id: {}, name: {}".format(iter_id, name))
                 duration = time.time() - start_time
                 if duration >= (alert_count+1)*self._waiting_alert_timeout:
                     alert_count += 1
-                    logging.warning("[Bridge] Data: waiting to receive"
-                        " iter_id: %d, name: %s timeout. duration: %f sec",
+                    logging.warning("[Bridge] Data: waiting to receive "
+                        "iter_id: %d, name: %s timeout. duration: %f sec",
                         iter_id, name, duration)
                 wait_timeout = self._waiting_alert_timeout - \
                     (duration % self._waiting_alert_timeout)
@@ -461,8 +460,8 @@ class Bridge(object):
             data = self._received_data[iter_id][name]
 
         duration = time.time() - start_time
-        logging.debug("[Bridge] Data: received iter_id: %d, name: %s"
-                      " after %f sec",
+        logging.debug("[Bridge] Data: received iter_id: %d, name: %s "
+                      "after %f sec",
                       iter_id, name, duration)
         return data
 
@@ -476,4 +475,4 @@ class Bridge(object):
         def func():
             return tf.convert_to_tensor(self.receive(name), dtype=dtype)
 
-        return tf.py_function(func=func, inp=[], Tout=[dtype])[0]
+        return tf.py_function(func=func, inp=[], Tout=dtype, name='recv_'+name)

@@ -13,6 +13,7 @@
 # limitations under the License.
 
 # coding: utf-8
+# pylint: disable=broad-except
 
 import time
 import uuid
@@ -20,15 +21,17 @@ import logging
 import threading
 import enum
 from concurrent import futures
-import grpc
 
+import grpc
 from fedlearner.channel import channel_pb2, channel_pb2_grpc
 from fedlearner.proxy.channel import make_insecure_channel, ChannelType
 from fedlearner.channel.client_interceptor import ClientInterceptor
 from fedlearner.channel.server_interceptor import ServerInterceptor
 
+
 class ChannelError(Exception):
     pass
+
 
 class Channel():
     class State(enum.Enum):
@@ -231,8 +234,8 @@ class Channel():
             with self._lock:
                 self._emit_error(ChannelError("unidentified"))
         else:
-            self._emit_error(ChannelError("unexcepted response code {}"
-                " for channel resonse".format(
+            self._emit_error(ChannelError("unexcepted response code {} "
+                "for channel resonse".format(
                     channel_pb2.Code.Name(response.code))))
         self._raise_if_error()
 
@@ -359,8 +362,8 @@ class Channel():
         with self._lock:
             self._raise_if_error()
             if self._state != Channel.State.IDLE:
-                raise RuntimeError("[Channel] Attempting to"
-                    " reconnect channel")
+                raise RuntimeError("[Channel] Attempting to "
+                    "reconnect channel")
             self._state = Channel.State.CONNECTING_UNCONNECTED
 
         self._state_thread = threading.Thread(
@@ -375,8 +378,8 @@ class Channel():
         with self._lock:
             self._raise_if_error()
             if self._state == Channel.State.IDLE:
-                raise RuntimeError("[Channel] Attempting to"
-                    " close channel before connect")
+                raise RuntimeError("[Channel] Attempting to "
+                    "close channel before connect")
             if self._state in (Channel.State.CONNECTING_UNCONNECTED,
                                Channel.State.CONNECTED_UNCONNECTED,
                                Channel.State.CONNECTING_CONNECTED):
@@ -398,10 +401,10 @@ class Channel():
             res = self._channel_call.Call(req,
                                           timeout=self._heartbeat_interval,
                                           wait_for_ready=True)
-        except Exception as e: #pylint: disable=broad-except
+        except Exception as e:
             if isinstance(e, grpc.RpcError):
-                logging.warning("[Channel] grpc error, code: %s,"
-                    " details: %s.(call type: %s)",
+                logging.warning("[Channel] grpc error, code: %s, "
+                    "details: %s.(call type: %s)",
                     e.code(), e.details(),
                     channel_pb2.CallType.Name(call_type))
             else:
@@ -425,8 +428,8 @@ class Channel():
             self._emit_event(Channel.Event.ERROR, ChannelError("unauthorized"))
         elif res.code == channel_pb2.Code.UNIDENTIFIED:
             if not self._peer_identifier:
-                logging.warning("[Channel] unidentified by peer,"
-                    " but channel is clean. wait next retry")
+                logging.warning("[Channel] unidentified by peer, "
+                    "but channel is clean. wait next retry")
             else:
                 self._emit_error(ChannelError("unidentified"))
         else:
@@ -536,8 +539,8 @@ class Channel():
 
     def _check_token(self, token):
         if self._token != token:
-            logging.debug("[Channel] peer unauthorized, got token: '%s'"
-                ", want: '%s'", token, self._token)
+            logging.debug("[Channel] peer unauthorized, got token: '%s', "
+                "want: '%s'", token, self._token)
             return False
         return True
 

@@ -24,7 +24,7 @@ pull_code() {
       python -c "import base64; f = open('code.tar.gz', 'wb'); f.write(base64.b64decode('$1'[9:])); f.close()"
   else
       cp $1 code.tar.gz
-fi
+  fi
   tar -zxvf code.tar.gz
   cd $cwd
 }

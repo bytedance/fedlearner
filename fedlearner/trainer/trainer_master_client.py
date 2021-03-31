@@ -17,196 +17,186 @@
 import os
 import time
 import logging
-import collections
-import traceback
-try:
-    import tensorflow.compat.v1 as tf
-except ImportError:
-    import tensorflow as tf
+import grpc
 
 from fedlearner.common import trainer_master_service_pb2 as tm_pb
 from fedlearner.common import trainer_master_service_pb2_grpc as tm_grpc
 from fedlearner.proxy.channel import make_insecure_channel, ChannelType
 from fedlearner.common import common_pb2 as common_pb
-from fedlearner.data_join.data_block_visitor import DataBlockVisitor
-
-DataBlockInfo = collections.namedtuple('DataBlockInfo',
-                                       ['block_id', 'data_path'])
-kvstore_type = os.environ.get('KVSTORE_TYPE', 'etcd')
 
 
-class LocalTrainerMasterClient(object):
-    """Non-thread safe"""
-    def __init__(self,
-                 role,
-                 path,
-                 files=None,
-                 ext='.tfrecord',
-                 start_time=None,
-                 end_time=None,
-                 from_data_source=False,
-                 skip_datablock_checkpoint=False,
-                 epoch_num=1):
-        self._role = role
-        self._path = path
-        self._block_queue = []
-        self._block_map = {}
-        self._allocated_data_blockids = set()
-        self._status = tm_pb.MasterStatus.CREATED
-        if from_data_source:
-            data_block_visitor = DataBlockVisitor(path, kvstore_type)
-            # pylint: disable=line-too-long
-            for block_id, block_item in data_block_visitor.LoadDataBlockRepByTimeFrame(
-                    start_time, end_time).items():
-                self._block_queue.append(block_item)
-                self._block_map[block_id] = block_item
-        else:
-            if files is None:
-                files = []
-                for dirname, _, filenames in tf.io.gfile.walk(path):
-                    for filename in filenames:
-                        _, fileext = os.path.splitext(filename)
-                        if ext and fileext != ext:
-                            continue
-                        subdirname = os.path.relpath(dirname, path)
-                        files.append(os.path.join(subdirname, filename))
-            files.sort()
+class _TrainerMasterClient(object):
+    def __init__(self, client, worker_rank):
+        self._worker_rank = worker_rank
+        self._client = client
 
-            # Hack way for supporting multiple epochs
-            blocks = []
-            for filename in files:
-                block_id, _ = os.path.splitext(os.path.basename(filename))
-                fullname = os.path.join(path, filename)
-                block = DataBlockInfo(block_id, fullname)
-                blocks.append(block)
-            self._block_map = {block.block_id: block for block in blocks}
-            for rnd in range(epoch_num):
-                for block in blocks:
-                    self._block_queue.append(block)
-
-        self._status = tm_pb.MasterStatus.INITIALING
-        if skip_datablock_checkpoint:
-            self._status = tm_pb.MasterStatus.RUNNING
-
-    def request_data_block(self, block_id=None):
-        if self._status != tm_pb.MasterStatus.RUNNING:
-            response = tm_pb.DataBlockResponse()
-            response.status.code = \
-                   common_pb.STATUS_WAIT_FOR_SYNCING_CHECKPOINT
-            response.status.error_message = \
-                    "must sync data checkpoint before alloc"
+    def request_data_block(self, block_id):
+        request = tm_pb.DataBlockRequest(
+            worker_rank=self._worker_rank,
+            block_id=block_id)
+        response = _grpc_with_retry(
+            lambda: self._client.RequestDataBlock(request))
+        if response.status.code == common_pb.StatusCode.STATUS_SUCCESS:
+            logging.debug("succeeded to get datablock, id:%s, data_path: %s",
+                          response.block_id, response.data_path)
             return response
-        if self._role == 'leader':
-            assert block_id is None, "Must not set block_id for leader"
-            while self._block_queue:
-                ret = self._block_queue.pop(0)
-                logging.debug('Fetch data block %s, ckpt is %s', ret,
-                              ",".join(self._allocated_data_blockids))
-                self._allocated_data_blockids.add(ret.block_id)
-                logging.info('Fetch data block %s done', ret)
-                return ret
+        if response.status.code == \
+            common_pb.StatusCode.STATUS_INVALID_DATA_BLOCK:
+            logging.error("invalid data block id: %s", request.block_id)
             return None
-
-        assert block_id, "Must set block_id for follower"
-        if block_id not in self._block_map:
+        if response.status.code == common_pb.StatusCode.STATUS_DATA_FINISHED:
+            logging.info("data block finished")
             return None
-        return self._block_map[block_id]
+        raise RuntimeError("RequestDataBlock error, code: %s, msg: %s"% \
+            (common_pb.StatusCode.Name(response.status.code),
+             response.status.error_message))
 
-    def get_data_block_checkpoint(self, appid):
-        if self._status != tm_pb.MasterStatus.RUNNING:
-            logging.warning(
-                "invalid status when "
-                "getting data block ckpt %s", self._status)
-            return []
-        return list(self._allocated_data_blockids)
+    def worker_register(self, cluster_def=None):
+        request = tm_pb.WorkerRegisterRequest(
+            worker_rank=self._worker_rank,
+            hostname=os.uname().nodename,
+            cluster_def=cluster_def)
+        while True:
+            response = _grpc_with_retry(
+                lambda: self._client.WorkerRegister(request))
+            if response.status.code == common_pb.StatusCode.STATUS_SUCCESS:
+                return True
+            if response.status.code == \
+                common_pb.StatusCode.STATUS_WAIT_FOR_SYNCING_CHECKPOINT:
+                logging.info("waiting master ready...")
+                time.sleep(1)
+                continue
+            if response.status.code == \
+                common_pb.StatusCode.STATUS_DATA_FINISHED:
+                logging.info("master completed, ignore worker register")
+                return False
+            raise RuntimeError("WorkerRegister error, code: %s, msg: %s"% \
+                (common_pb.StatusCode.Name(response.status.code),
+                response.status.error_message))
 
-    def restore_data_block_checkpoint(self, appid, block_ids):
-        if self._status != tm_pb.MasterStatus.INITIALING:
-            logging.warning("invalid status when restoring data block ckpt")
-            return False
-        self._allocated_data_blockids |= set(block_ids)
-        self._status = tm_pb.MasterStatus.RUNNING
+    def worker_complete(self, timestamp):
+        request = tm_pb.WorkerCompleteRequest(
+            worker_rank=self._worker_rank,
+            timestamp=timestamp)
+        response = _grpc_with_retry(
+            lambda: self._client.WorkerComplete(request))
+        if response.status.code != common_pb.STATUS_SUCCESS:
+            raise RuntimeError("WorkerComplete error, code: %s, msg: %s"% \
+                (common_pb.StatusCode.Name(response.status.code),
+                 response.status.error_message))
+
+    def wait_master_complete(self):
+        request = tm_pb.IsCompletedRequest()
+        while True:
+            response = _grpc_with_retry(
+                lambda: self._client.IsCompleted(request))
+            if response.completed:
+                logging.info("master completed")
+                return
+            logging.info("waiting master complete...")
+            time.sleep(2)
+
+
+class TrainerMasterClient(_TrainerMasterClient):
+    def __init__(self, address, worker_rank):
+        channel = make_insecure_channel(
+            address,
+            mode=ChannelType.INTERNAL,
+            options=(
+                ('grpc.max_send_message_length', -1),
+                ('grpc.max_receive_message_length', -1),
+                ('grpc.max_reconnect_backoff_ms', 1000),
+            )
+        )
+        client = tm_grpc.TrainerMasterServiceStub(channel)
+        super(TrainerMasterClient, self).__init__(client, worker_rank)
+
+
+class LocalTrainerMasterClient(_TrainerMasterClient):
+    def __init__(self, local_master, worker_rank):
+        super(LocalTrainerMasterClient, self).__init__(
+            LocalTrainerMasterClient._LocalGrpcWrapper(local_master),
+            worker_rank)
+
+    class _LocalGrpcWrapper(object):
+        def __init__(self, master):
+            self._master = master
+
+        def RequestDataBlock(self, request):
+            return self._master.RequestDataBlock(
+                request, _LocalServicerContext())
+
+        def WorkerRegister(self, request):
+            return self._master.WorkerRegister(
+                request, _LocalServicerContext())
+
+        def WorkerComplete(self, request):
+            return self._master.WorkerComplete(
+                request, _LocalServicerContext())
+
+        def IsCompleted(self, request):
+            return self._master.IsCompleted(
+                request, _LocalServicerContext())
+
+
+class _LocalServicerContext(grpc.ServicerContext):
+    def invocation_metadata(self):
+        return ()
+
+    def peer(self):
+        return "local"
+
+    def peer_identities(self):
+        return None
+
+    def peer_identity_key(self):
+        return None
+
+    def auth_context(self):
+        return dict()
+
+    def set_compression(self, compression):
+        return grpc.Compression.NoCompression
+
+    def send_initial_metadata(self, initial_metadata):
+        pass
+
+    def set_trailing_metadata(self, trailing_metadata):
+        pass
+
+    def abort(self, code, details):
+        pass
+
+    def abort_with_status(self, status):
+        pass
+
+    def set_code(self, code):
+        pass
+
+    def set_details(self, details):
+        pass
+
+    def disable_next_message_compression(self):
+        pass
+
+    def is_active(self):
         return True
 
-
-class TrainerMasterClient(object):
-    def __init__(self, addr, role, task_id):
-        self._addr = addr
-        self._role = role
-        self._task_id = task_id
-
-        channel = make_insecure_channel(self._addr, ChannelType.INTERNAL)
-        self._stub = tm_grpc.TrainerMasterServiceStub(channel)
-        self._request = tm_pb.DataBlockRequest()
-        if self._role == 'leader':
-            self._request.worker_rank = self._task_id
-
-    def get_data_block_checkpoint(self, appid):
-        req = tm_pb.GetDataBlockCheckpointRequest()
-        req.application_id = appid
-        try:
-            result = self._stub.GetDataBlockCheckpoint(req)
-        except Exception as e:  # pylint: disable=broad-except
-            logging.warning("Get data blocks checkpoint failed: %s", \
-                           e.code().name)
-            return []
-        else:
-            if result.status.code == common_pb.STATUS_SUCCESS:
-                return result.block_ids
-            logging.warning("Get data blocks checkpoint error, %d, %s", \
-                           result.status.code,
-                           result.status.error_message)
-            return []
-
-    def restore_data_block_checkpoint(self, appid, block_ids):
-        req = tm_pb.RestoreDataBlockCheckpointRequest()
-        req.application_id = appid
-        req.block_ids.extend(block_ids)
-        try:
-            result = self._stub.RestoreDataBlockCheckpoint(req)
-        except Exception as e:  # pylint: disable=broad-except
-            traceback.print_exc()
-            logging.warning("Restore data blocks checkpoint failed: %s", \
-                           e.code().name)
-            return False
-        else:
-            if result.status.code == common_pb.STATUS_SUCCESS:
-                return True
-            logging.warning("Restore data blocks checkpoint error, %d, %s", \
-                           result.status.code,
-                           result.status.error_message)
-            return False
-
-    def request_data_block(self, block_id=None):
-        if self._role == 'follower':
-            assert block_id, "Must set block_id for follower"
-            self._request.block_id = block_id
-
-        while True:
-            try:
-                result = self._stub.RequestDataBlock(self._request)
-            except Exception as e:  # pylint: disable=broad-except
-                logging.warning("Get data block failed: %s. " \
-                                    "Retry in 1 second...",
-                                e.code().name)
-            else:
-                if result.status.code == common_pb.STATUS_SUCCESS:
-                    logging.debug("%s:%d succeeded to get data block %s at %s",
-                                  self._role, self._task_id,
-                                  result.data_block_info.block_id,
-                                  result.data_block_info.data_path)
-                    return DataBlockInfo(result.data_block_info.block_id,
-                                         result.data_block_info.data_path)
-                if result.status.code == common_pb.STATUS_DATA_FINISHED:
-                    logging.warning("%s:%d gets block allocated finished.",
-                                    self._role, self._task_id)
-                    break
-                logging.warning("%s:%d failed to get data block %s at %s"\
-                                "code: %d, message: %s. Retry in 1 second...",
-                                self._role, self._task_id,
-                                result.data_block_info.block_id,
-                                result.data_block_info.data_path,
-                                result.status.code,
-                                result.status.error_message)
-            time.sleep(1)
+    def time_remaining(self):
         return None
+
+    def cancel(self):
+        pass
+
+    def add_callback(self, callback):
+        pass
+
+def _grpc_with_retry(call, interval=1):
+    while True:
+        try:
+            return call()
+        except grpc.RpcError as e:
+            logging.warning("TrainerMasterClient error, status: %s"
+                ", details: %s, wait %ds for retry",
+                e.code(), e.details(), interval)
+            time.sleep(interval)

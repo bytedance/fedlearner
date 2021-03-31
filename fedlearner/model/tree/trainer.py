@@ -27,8 +27,8 @@ import tensorflow.compat.v1 as tf
 
 from fedlearner.trainer.bridge import Bridge
 from fedlearner.model.tree.tree import BoostingTreeEnsamble
-from fedlearner.trainer.trainer_master_client import LocalTrainerMasterClient
-from fedlearner.trainer.trainer_master_client import DataBlockInfo
+from fedlearner.model.tree.trainer_master_client import LocalTrainerMasterClient
+from fedlearner.model.tree.trainer_master_client import DataBlockInfo
 
 
 def create_argument_parser():
