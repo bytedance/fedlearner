@@ -39,6 +39,7 @@ class DataPortalMaster(dp_grpc.DataPortalMasterServiceServicer):
                 self._kvstore, self._portal_name,
                 self._portal_options.long_running,
                 self._portal_options.check_success_tag,
+                self._portal_options.single_subfolder
             )
         self._bg_worker = None
 
