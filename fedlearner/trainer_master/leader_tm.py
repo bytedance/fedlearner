@@ -312,8 +312,7 @@ class LeaderTrainerMaster(object):
 
         if self._shuffle_data_block:
             random_shuffle(data_block_reps, self._shuffle_range)
-        data_source_info.data_block_queue.set_blocks(
-            data_block_reps)
+        data_source_info.data_block_queue.put(data_block_reps)
 
     def _alloc_data_block(self, data_source_info, block_id=None):
         # block_id is unused in leader role

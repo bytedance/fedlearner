@@ -14,6 +14,7 @@
 
 # coding: utf-8
 
+import logging
 import threading
 
 
@@ -26,10 +27,10 @@ class DataBlockQueue:
         self._num_outs = 0
         self._epoch_num = epoch_num  # <= 0 for endless
 
-    def set_blocks(self, data_blocks):
+    def put(self, data_blocks):
         with self._mutex:
             self._queue.extend(data_blocks)
-            self._size = len(data_blocks)
+            self._size += len(data_blocks)
 
     def _empty(self):
         return self._size == 0 or \
@@ -40,8 +41,9 @@ class DataBlockQueue:
         with self._mutex:
             if self._empty():
                 return None
+            self._next = self._next % self._size
             data = self._queue[self._next]
-            self._next = (self._next + 1) % self._size
+            self._next = self._next + 1
             self._num_outs += 1
             return data
 
