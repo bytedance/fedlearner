@@ -45,6 +45,7 @@ class DataPortalJobManager(object):
             RawDataPublisher(kvstore,
                 self._portal_manifest.raw_data_publish_dir)
         self._long_running = long_running
+        self._finished = False
         assert self._portal_manifest is not None
         self._processed_fpath = set()
         for job_id in range(0, self._portal_manifest.next_job_id):
@@ -82,9 +83,9 @@ class DataPortalJobManager(object):
                     if partition_id is not None:
                         return False, self._create_reduce_task(rank_id,
                                                                partition_id)
-                return (not self._long_running and
+                return (self._finished and
                             self._all_job_part_finished()), None
-            return not self._long_running, None
+            return self._finished, None
 
     def finish_task(self, rank_id, partition_id, part_state):
         with self._lock:
@@ -115,8 +116,10 @@ class DataPortalJobManager(object):
         with self._lock:
             if self._sync_processing_job() is not None:
                 self._check_processing_job_finished()
-            if self._sync_processing_job() is None and self._long_running:
-                self._launch_new_portal_job()
+            if self._sync_processing_job() is None:
+                finished = self._launch_new_portal_job()
+                if finished and not self._long_running:
+                    self._finished = True
 
     def _all_job_part_mapped(self):
         processing_job = self._sync_processing_job()
@@ -269,7 +272,7 @@ class DataPortalJobManager(object):
         rest_fpaths = self._list_input_dir()
         if len(rest_fpaths) == 0:
             logging.info("no file left for portal")
-            return
+            return True
         rest_fpaths.sort()
         portal_mainifest = self._sync_portal_manifest()
         new_job = dp_pb.DataPortalJob(job_id=portal_mainifest.next_job_id,
@@ -289,6 +292,8 @@ class DataPortalJobManager(object):
         for seq, fpath in enumerate(new_job.fpaths):
             logging.info("%d. %s", seq, fpath)
         logging.info("---------------------------------\n")
+
+        return False
 
     def _list_input_dir(self):
         logging.info("List input directory, it will take some time...")
