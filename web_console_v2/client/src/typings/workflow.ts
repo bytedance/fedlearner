@@ -32,12 +32,14 @@ export type WorkflowInitiatePayload = {
   name: string;
   project_id: ID;
   forkable: boolean;
+  create_job_flags?: CreateJobFlag[];
   config: ChartWorkflowConfig;
   comment?: string;
 };
 
 export type WorkflowAcceptPayload = {
   forkable: boolean;
+  create_job_flags?: CreateJobFlag[];
   config: ChartWorkflowConfig;
   comment?: string;
 };
@@ -81,6 +83,7 @@ export type Workflow = {
   project_id: number;
   config: WorkflowConfig | null;
   forkable: boolean;
+  metric_is_public?: boolean;
   forked_from?: number;
   comment: string | null;
   state: WorkflowState;

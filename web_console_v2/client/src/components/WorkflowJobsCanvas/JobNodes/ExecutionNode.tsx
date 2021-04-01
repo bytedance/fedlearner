@@ -1,11 +1,13 @@
 import React, { FC } from 'react';
 import { Handle, Position } from 'react-flow-renderer';
-import { Container, JobName, JobStatusText, StatusIcon, InheritedTag } from './styles';
+import { Container, JobName, JobStatusText, StatusIcon, InheritedTag } from './elements';
 import { executionStatusText, JobNodeProps, statusIcons } from './shared';
 import GridRow from 'components/_base/GridRow';
 import classNames from 'classnames';
+import { useTranslation } from 'react-i18next';
 
 const ExecutionJobNode: FC<JobNodeProps> = ({ data, id }) => {
+  const { t } = useTranslation();
   const icon = statusIcons[data.status];
   const text = executionStatusText[data.status];
 
@@ -17,7 +19,9 @@ const ExecutionJobNode: FC<JobNodeProps> = ({ data, id }) => {
         {icon && <StatusIcon src={icon} />}
         <JobStatusText>{text}</JobStatusText>
 
-        {data.raw.inherited && <InheritedTag color="orange">已继承</InheritedTag>}
+        {data.raw.reused && (
+          <InheritedTag color="orange">{t('workflow.job_node_reused')}</InheritedTag>
+        )}
       </GridRow>
       {data.isSource && <Handle type="source" position={Position.Bottom} />}
     </Container>

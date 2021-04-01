@@ -174,9 +174,9 @@ class PeerJobEventsApi(Resource):
         if resp.status.code != common_pb2.STATUS_SUCCESS:
             raise InternalException(resp.status.msg)
         peer_events = MessageToDict(
-            resp.logs,
+            resp,
             preserving_proto_field_name=True,
-            including_default_value_fields=True)
+            including_default_value_fields=True)['logs']
         return {'data': peer_events}
 
 
