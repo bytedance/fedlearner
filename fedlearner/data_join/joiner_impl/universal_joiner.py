@@ -456,10 +456,16 @@ class UniversalJoiner(ExampleJoiner):
                 #4. update the watermark
                 self._follower_join_window.forward(stride[0])
                 self._leader_join_window.forward(stride[1])
+
                 if self._follower_join_window.is_full():
-                    logging.info('Window size is too small, dead looping')
-                    raise RuntimeError('max_matching_size[%d] is too small'%
-                            self._follower_join_window.size())
+                    if self._leader_join_window.is_full():
+                        raise RuntimeError('max_matching_size[%d] is too '
+                                           'small, dead looping'%
+                                           self._follower_join_window.size())
+                    else:
+                        # leader is moving forward
+                        break
+
                 if follower_exhausted:
                     break
 
