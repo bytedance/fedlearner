@@ -14,7 +14,6 @@
 
 # coding: utf-8
 
-import logging
 import threading
 
 
