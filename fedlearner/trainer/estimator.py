@@ -430,15 +430,9 @@ class FLEstimator(object):
                     saver = tf.train.Saver(sharded=True)
                     saver.restore(sess,
                         tf.train.latest_checkpoint(checkpoint_path))
-                    builder = tf.saved_model.Builder(export_dir_base)
-                    builder.add_meta_graph_and_variables(
-                        sess=sess,
-                        tags=[tf.saved_model.tag_constants.SERVING],
-                        assets_collection=tf.get_collection(
-                            tf.GraphKeys.ASSET_FILEPATHS),
-                        saver=saver,
-                        clear_devices=True)
-                builder.save()
+                    tf.saved_model.simple_save(sess, export_dir_base,
+                                               receiver.receiver_tensors,
+                                               spec.predictions, None)
 
         return export_dir_base
 
