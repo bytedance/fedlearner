@@ -1,6 +1,6 @@
 import { separateLng } from 'i18n/helpers';
 
-const error = {
+const datasets = {
   status: { zh: '状态' },
   no_result: { zh: '暂无数据集' },
   selected_items: { zh: '已选择 {{count}} 项' },
@@ -54,4 +54,4 @@ const error = {
   step_add_batch: { zh: '选择数据文件' },
 };
 
-export default separateLng(error);
+export default separateLng(datasets);

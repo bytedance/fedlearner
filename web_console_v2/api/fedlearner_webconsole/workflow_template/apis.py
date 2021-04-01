@@ -111,7 +111,16 @@ class WorkflowTemplatesApi(Resource):
         db.session.add(template)
         db.session.commit()
         logging.info('Inserted a workflow_template to db')
-        return {'data': template.to_dict()}, HTTPStatus.CREATED
+        result = template.to_dict()
+        result['config'] = MessageToDict(
+            template.get_config(),
+            preserving_proto_field_name=True,
+            including_default_value_fields=True)
+        result['editor_info'] = MessageToDict(
+            template.get_editor_info(),
+            preserving_proto_field_name=True,
+            including_default_value_fields=True)
+        return {'data': result}, HTTPStatus.CREATED
 
 
 class WorkflowTemplateApi(Resource):
@@ -179,7 +188,16 @@ class WorkflowTemplateApi(Resource):
         template.group_alias = template_proto.group_alias
         template.is_left = template_proto.is_left
         db.session.commit()
-        return {'data': template.to_dict()}, HTTPStatus.OK
+        result = template.to_dict()
+        result['config'] = MessageToDict(
+            template.get_config(),
+            preserving_proto_field_name=True,
+            including_default_value_fields=True)
+        result['editor_info'] = MessageToDict(
+            template.get_editor_info(),
+            preserving_proto_field_name=True,
+            including_default_value_fields=True)
+        return {'data': result}, HTTPStatus.OK
 
 
 def _format_template_with_yaml_editor(template_proto, editor_info_proto):

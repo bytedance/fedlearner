@@ -39,6 +39,7 @@ const workflow: I18nMessageModule = {
   btn_fetch_metrics: { zh: '点击加载数据' },
   btn_retry: { zh: '重试' },
   btn_add_var: { zh: '新增自定义变量' },
+  btn_upload_tpl: { zh: '上传模板' },
 
   col_status: { zh: '任务状态' },
   col_project: { zh: ' 隶属项目' },

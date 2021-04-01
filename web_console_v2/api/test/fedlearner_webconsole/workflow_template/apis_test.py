@@ -136,7 +136,17 @@ class WorkflowTemplatesApiTest(BaseTestCase):
             group_alias='g222',
             is_left=True
         ).SerializeToString())
-        self.assertEqual(data, expected_template.to_dict())
+        expected_template_dict = {'comment': 'test-comment',
+                                  'config': {'group_alias': 'g222',
+                                             'is_left': True,
+                                             'job_definitions': [],
+                                             'variables': []},
+                                  'editor_info': {'yaml_editor_infos': {}},
+                                  'group_alias': 'g222',
+                                  'id': 3,
+                                  'is_left': True,
+                                  'name': 'test-nb-template'}
+        self.assertEqual(data, expected_template_dict)
 
     def test_get_workflow_template(self):
         response = self.get_response_data(
