@@ -47,6 +47,7 @@ const CreateTemplate: FC = () => {
       title={t('workflow.btn_upload_tpl')}
       visible={visible}
       style={{ top: '20%' }}
+      maskStyle={{ backdropFilter: 'blur(4px)' }}
       width="600px"
       closable={false}
       maskClosable={false}

@@ -94,8 +94,8 @@ export function isInvalid(workflow: Workflow) {
 
 /**
  * When target_state is not INVALID,
- * means underlying service of two sides are communicating
- * during which user can not perform any action to this workflow
+ * means underlying service of both sides are communicating
+ * during which user cannot perform any action to this workflow
  * server would response 'bad request'
  */
 export function isOperable(workflow: Workflow) {

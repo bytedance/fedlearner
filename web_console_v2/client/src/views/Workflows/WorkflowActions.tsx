@@ -1,10 +1,11 @@
 import React, { FC } from 'react';
-import styled from 'styled-components';
+import styled, { createGlobalStyle } from 'styled-components';
 import {
   isAwaitParticipantConfig,
   isCompleted,
   isStopped,
   isRunning,
+  isFailed,
   isPendingAccpet,
   isReadyToRun,
   isOperable,
@@ -23,26 +24,26 @@ import {
   stopTheWorkflow,
   invalidTheWorkflow,
 } from 'services/workflow';
+import WorkflowAccessControl from './WorkflowAccessControl';
 import GridRow from 'components/_base/GridRow';
-import {
-  Copy,
-  Sync,
-  TableReport,
-  SettingConfig,
-  PlayCircle,
-  Pause,
-  Eye,
-  Close,
-} from 'components/IconPark';
-import { Icon } from 'components/IconPark/runtime';
+import { Copy, Sync, TableReport, Tool, PlayCircle, Pause } from 'components/IconPark';
 import { useToggle } from 'react-use';
 import { to } from 'shared/helpers';
+import { ControlOutlined } from '@ant-design/icons';
+import ErrorBoundary from 'antd/lib/alert/ErrorBoundary';
 
 const Container = styled(GridRow)`
+  width: fit-content;
   margin-left: ${(props: any) => (props.type === 'link' ? '-10px !important' : 0)};
 `;
+const SpinnerWrapperStyle = createGlobalStyle`
+  .spinnerWrapper {
+    width: fit-content;
+  }
+`;
 
-type Action = 'report' | 'configure' | 'run' | 'rerun' | 'stop' | 'fork' | 'detail' | 'invalid';
+type Action = 'report' | 'configure' | 'run' | 'rerun' | 'stop' | 'fork' | 'invalid' | 'accessCtrl';
+
 type Props = {
   workflow: Workflow;
   type?: 'link' | 'default';
@@ -51,15 +52,14 @@ type Props = {
   onSuccess?: Function;
 };
 
-const icons: Record<Action, Icon> = {
+const icons: Partial<Record<Action, any>> = {
   report: TableReport,
-  configure: SettingConfig,
+  configure: Tool,
   run: PlayCircle,
   rerun: Sync,
   stop: Pause,
-  detail: Eye,
   fork: Copy,
-  invalid: Close,
+  accessCtrl: ControlOutlined,
 };
 
 const WorkflowActions: FC<Props> = ({ workflow, type = 'default', without = [], onSuccess }) => {
@@ -69,19 +69,22 @@ const WorkflowActions: FC<Props> = ({ workflow, type = 'default', without = [], 
 
   const setStoreWorkflow = useSetRecoilState(workflowInEditing);
 
-  const visible: Record<Action, boolean> = {
+  const visible: Partial<Record<Action, boolean>> = {
     configure: isPendingAccpet(workflow) && !without?.includes('configure'),
     run:
       (isReadyToRun(workflow) || isAwaitParticipantConfig(workflow)) && !without?.includes('run'),
-    stop: (isRunning(workflow) || isCompleted(workflow)) && !without?.includes('stop'),
+    stop:
+      (isFailed(workflow) || isRunning(workflow) || isCompleted(workflow)) &&
+      !without?.includes('stop'),
     rerun: isStopped(workflow) && !without?.includes('rerun'),
     report: isCompleted(workflow) && !without?.includes('report'),
-    detail: !without?.includes('detail'),
     fork: !without?.includes('fork'),
+    accessCtrl: !without?.includes('accessCtrl'),
     invalid: !without?.includes('fork') && !isInvalid(workflow),
   };
 
   const isDisabled = !isOperable(workflow);
+
   const disabled = {
     configure: false,
     run: isDisabled,
@@ -90,99 +93,104 @@ const WorkflowActions: FC<Props> = ({ workflow, type = 'default', without = [], 
     fork: !isForkable(workflow),
     invalid: isDisabled,
     report: true,
+    accessCtrl: false,
   };
 
   const isDefaultType = type === 'default';
 
   return (
-    <Spin spinning={loading} size="small">
-      <Container {...{ type }} gap={isDefaultType ? 8 : 0}>
-        {visible.report && (
-          // TODO: workflow model report
-          <Button size="small" type={type} {...withIcon('report')} disabled={disabled.report}>
-            {t('workflow.action_show_report')}
-          </Button>
-        )}
-        {visible.configure && (
-          <Button size="small" type={type} {...withIcon('configure')} onClick={onAcceptClick}>
-            {t('workflow.action_configure')}
-          </Button>
-        )}
-        {visible.run && (
-          <Button
-            size="small"
-            type={type}
-            {...withIcon('run')}
-            onClick={onRunClick}
-            disabled={disabled.run}
-          >
-            {t('workflow.action_run')}
-          </Button>
-        )}
-        {visible.stop && (
-          <Popconfirm title={t('workflow.msg_sure_to_stop')} onConfirm={onStopClick}>
-            <Button size="small" type={type} {...withIcon('stop')} disabled={disabled.stop}>
-              {t('workflow.action_stop_running')}
+    <ErrorBoundary>
+      <Spin spinning={loading} size="small" wrapperClassName="spinnerWrapper">
+        <SpinnerWrapperStyle />
+        <Container {...{ type }} gap={isDefaultType ? 8 : 0}>
+          {visible.report && (
+            // TODO: workflow model report
+            <Button size="small" type={type} icon={withIcon('report')} disabled={disabled.report}>
+              {t('workflow.action_show_report')}
             </Button>
-          </Popconfirm>
-        )}
-        {visible.rerun && (
-          <Button
-            size="small"
-            type={type}
-            {...withIcon('rerun')}
-            onClick={onRunClick}
-            disabled={disabled.rerun}
-          >
-            {t('workflow.action_re_run')}
-          </Button>
-        )}
-        {visible.fork && (
-          <Button
-            size="small"
-            type={type}
-            {...withIcon('fork')}
-            onClick={onForkClick}
-            disabled={disabled.fork}
-          >
-            {t('workflow.action_fork')}
-          </Button>
-        )}
-        {visible.detail && (
-          <Button size="small" type={type} {...withIcon('detail')} onClick={onViewDetailClick}>
-            {t('workflow.action_detail')}
-          </Button>
-        )}
-        {visible.invalid && (
-          <Button
-            size="small"
-            type={type}
-            {...withIcon('invalid')}
-            onClick={onInvalidClick}
-            danger
-            disabled={disabled.invalid}
-          >
-            {t('workflow.action_invalid')}
-          </Button>
-        )}
-      </Container>
-    </Spin>
+          )}
+          {visible.configure && (
+            <Button size="small" type={type} icon={withIcon('configure')} onClick={onAcceptClick}>
+              {t('workflow.action_configure')}
+            </Button>
+          )}
+          {visible.run && (
+            <Button
+              size="small"
+              type={type}
+              icon={withIcon('run')}
+              onClick={onRunClick}
+              disabled={disabled.run}
+            >
+              {t('workflow.action_run')}
+            </Button>
+          )}
+          {visible.stop && (
+            <Popconfirm title={t('workflow.msg_sure_to_stop')} onConfirm={onStopClick}>
+              <Button size="small" type={type} icon={withIcon('stop')} disabled={disabled.stop}>
+                {t('workflow.action_stop_running')}
+              </Button>
+            </Popconfirm>
+          )}
+          {visible.rerun && (
+            <Button
+              size="small"
+              type={type}
+              icon={withIcon('rerun')}
+              onClick={onRunClick}
+              disabled={disabled.rerun}
+            >
+              {t('workflow.action_re_run')}
+            </Button>
+          )}
+          {visible.fork && (
+            <Button
+              size="small"
+              type={type}
+              icon={withIcon('fork')}
+              onClick={onForkClick}
+              disabled={disabled.fork}
+            >
+              {t('workflow.action_fork')}
+            </Button>
+          )}
+          {visible.invalid && (
+            <Button
+              size="small"
+              type={type}
+              onClick={onInvalidClick}
+              danger
+              disabled={disabled.invalid}
+            >
+              {t('workflow.action_invalid')}
+            </Button>
+          )}
+          {visible.accessCtrl && (
+            <WorkflowAccessControl
+              icon={withIcon('accessCtrl')}
+              size="small"
+              type={type}
+              workflow={workflow}
+              disabled={disabled.accessCtrl}
+            />
+          )}
+        </Container>
+      </Spin>
+    </ErrorBoundary>
   );
 
   function withIcon(action: Action) {
-    if (!isDefaultType) return {};
+    if (!isDefaultType) return undefined;
 
     const Ico = icons[action];
-    return {
-      icon: <Ico />,
-    };
+
+    if (!Ico) return undefined;
+
+    return <Ico />;
   }
   function onAcceptClick() {
     setStoreWorkflow(workflow);
     history.push(`/workflows/accept/basic/${workflow.id}`);
-  }
-  function onViewDetailClick() {
-    history.push(`/workflows/${workflow.id}`);
   }
   async function onForkClick() {
     toggleLoading(true);

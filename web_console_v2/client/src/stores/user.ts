@@ -41,8 +41,10 @@ export const userInfoQuery = selector<FedUserInfo>({
 export const userInfoGetters = selector({
   key: 'UserInfoComputed',
   get({ get }) {
+    const userInfo = get(userInfoQuery);
+
     return {
-      isAuthenticated: Boolean(get(userInfoQuery).id) || process.env.REACT_APP_ENABLE_FULLY_MOCK,
+      isAuthenticated: Boolean(userInfo.id) || process.env.REACT_APP_ENABLE_FULLY_MOCK,
     };
   },
 });

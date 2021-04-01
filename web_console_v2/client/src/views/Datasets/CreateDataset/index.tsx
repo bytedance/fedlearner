@@ -25,8 +25,6 @@ const StepRow = styled(Row)`
   margin: 10px auto 35px;
 `;
 
-const zIndex = Z_INDEX_GREATER_THAN_HEADER;
-
 const CreateDataset: FC = () => {
   const history = useHistory();
   const { t } = useTranslation();
@@ -43,10 +41,11 @@ const CreateDataset: FC = () => {
       width="fit-content"
       closable={false}
       maskClosable={false}
+      maskStyle={{ backdropFilter: 'blur(4px)' }}
       keyboard={false}
       afterClose={afterClose}
       getContainer="body"
-      zIndex={zIndex}
+      zIndex={Z_INDEX_GREATER_THAN_HEADER}
       onCancel={() => toggleVisible(false)}
     >
       <StepRow justify="center">

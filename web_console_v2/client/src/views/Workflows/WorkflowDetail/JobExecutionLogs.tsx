@@ -43,7 +43,7 @@ const JobExecutionLogs: FC<Props> = ({ job, enabled, isPeerSide, workflow }) => 
   async function getLogs() {
     if (isPeerSide) {
       if (!job.k8sName) {
-        return { data: ['Job name invalid!'] };
+        return { data: ['K8s Job name invalid!'] };
       }
 
       return fetchPeerJobEvents(workflow?.uuid!, job.k8sName!, {

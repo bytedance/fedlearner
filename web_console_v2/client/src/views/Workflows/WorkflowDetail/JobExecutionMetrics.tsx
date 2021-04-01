@@ -7,8 +7,9 @@ import styled from 'styled-components';
 import { Button, message, Spin } from 'antd';
 import { useQuery } from 'react-query';
 import { JobNodeRawData } from 'components/WorkflowJobsCanvas/types';
-import { fetchJobMpld3Metrics } from 'services/workflow';
+import { fetchJobMpld3Metrics, fetchPeerJobMpld3Metrics } from 'services/workflow';
 import queryClient from 'shared/queryClient';
+import { Workflow } from 'typings/workflow';
 
 const Container = styled.div`
   margin-top: 30px;
@@ -53,11 +54,13 @@ declare global {
   }
 }
 type Props = {
+  workflow?: Workflow;
   job: JobNodeRawData;
+  isPeerSide: boolean;
   visible?: boolean;
 };
 
-const JobExecutionMetrics: FC<Props> = ({ job, visible }) => {
+const JobExecutionMetrics: FC<Props> = ({ job, workflow, visible, isPeerSide }) => {
   const { t } = useTranslation();
 
   const [mpld3, setMpld3Intance] = useState((null as any) as Window['mpld3']);
@@ -70,17 +73,13 @@ const JobExecutionMetrics: FC<Props> = ({ job, visible }) => {
     });
   }, []);
 
-  const metricsQ = useQuery(
-    ['fetchMetrics', job.id, chartsVisible],
-    () => fetchJobMpld3Metrics(job.id),
-    {
-      refetchOnWindowFocus: false,
-      staleTime: 60 * 60 * 1000, // 1 hours cache
-      cacheTime: 60 * 60 * 1000,
-      retry: 2,
-      enabled: chartsVisible && visible && Boolean(mpld3),
-    },
-  );
+  const metricsQ = useQuery(['fetchMetrics', job.id, chartsVisible, isPeerSide], fetcher, {
+    refetchOnWindowFocus: false,
+    staleTime: 60 * 60 * 1000, // 1 hours cache
+    cacheTime: 60 * 60 * 1000,
+    retry: 2,
+    enabled: chartsVisible && visible && Boolean(mpld3),
+  });
 
   const chartMetrics = metricsQ.data;
 
@@ -166,6 +165,17 @@ const JobExecutionMetrics: FC<Props> = ({ job, visible }) => {
         mpld3.remove_figure(_targetChartId(index));
       }, 20);
     });
+  }
+
+  function fetcher() {
+    if (isPeerSide) {
+      if (workflow && workflow.uuid) {
+        return fetchPeerJobMpld3Metrics(workflow.uuid, job.k8sName || job.name);
+      }
+
+      throw new Error('缺少 Workflow 信息');
+    }
+    return fetchJobMpld3Metrics(job.id);
   }
 };
 

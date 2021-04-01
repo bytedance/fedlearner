@@ -81,7 +81,7 @@ class ElasticSearchClient(object):
         return [item['_source']['message'] for item in response['hits']['hits']]
 
     def query_events(self, index, keyword, pod_name,
-                     start_time, end_time):
+                     start_time, end_time, match_phrase=None):
         query_body = {
             'version': True,
             'size': 8000,
@@ -113,6 +113,7 @@ class ElasticSearchClient(object):
             }
         ] if keyword else []
         match_phrase_list = [
+            match_phrase if match_phrase else
             {
                 'prefix': {
                     'kubernetes.pod.name': pod_name
