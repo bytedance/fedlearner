@@ -471,7 +471,6 @@ class UniversalJoiner(ExampleJoiner):
             if leader_exhausted or follower_exhausted:
                 join_data_finished = True
                 break
-
             if self._leader_join_window.is_full():
                 break
 
