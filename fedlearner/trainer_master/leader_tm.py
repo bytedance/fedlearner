@@ -34,11 +34,14 @@ kvstore_type = os.environ.get('KVSTORE_TYPE', 'etcd')
 class LeaderTrainerMaster(object):
     class _DataSourceInfo:
         def __init__(self, data_source, data_source_type,
-                     start_time, end_time,
+                     start_time, end_time, epoch_num,
                      kvstore_use_mock):
             self.checkpoint_mutex = threading.Lock()
             self.allocated_data_block_ids = None
-            self.data_block_queue = DataBlockQueue()
+            # set local data source endless
+            # because joined data source should finish firstly
+            epoch_num = -1 if data_source_type == tm_pb.LOCAL else epoch_num
+            self.data_block_queue = DataBlockQueue(epoch_num)
             self.data_block_visitor = DataBlockVisitor(
                 data_source, kvstore_type, kvstore_use_mock)
             self.start_time = start_time
@@ -63,16 +66,18 @@ class LeaderTrainerMaster(object):
         self._data_source_dict = dict()
         self._default_data_source_name = data_source
         self._data_source_dict[data_source] = self._DataSourceInfo(
-            data_source, tm_pb.JOINED, start_time, end_time, kvstore_use_mock)
+            data_source, tm_pb.JOINED, start_time, end_time,
+            epoch_num, kvstore_use_mock)
         if local_data_sources:
             for idx, ds in enumerate(local_data_sources):
                 if local_start_times and local_end_times:
                     self._data_source_dict[ds] = self._DataSourceInfo(
                         ds, tm_pb.LOCAL, local_start_times[idx],
-                        local_end_times[idx], kvstore_use_mock)
+                        local_end_times[idx], epoch_num, kvstore_use_mock)
                 else:
                     self._data_source_dict[ds] = self._DataSourceInfo(
-                        ds, tm_pb.LOCAL, start_time, end_time, kvstore_use_mock)
+                        ds, tm_pb.LOCAL, start_time, end_time,
+                        epoch_num, kvstore_use_mock)
         logging.debug("Data sources %s loaded",
                       ','.join(self._data_source_dict.keys()))
         if online_training:
@@ -304,13 +309,11 @@ class LeaderTrainerMaster(object):
             data_block_reps.sort(key=lambda x: x.data_block_index)
         else:
             data_block_reps.sort(key=lambda x: x.start_time)
-        for rnd in range(self._epoch_num):
-            if self._shuffle_data_block:
-                random_shuffle(data_block_reps, self._shuffle_range)
-            for dbr in data_block_reps:
-                logging.debug('epoch round-%d: add data block id %s path %s',
-                              rnd, dbr.block_id, dbr.data_block_fpath)
-                data_source_info.data_block_queue.put(dbr)
+
+        if self._shuffle_data_block:
+            random_shuffle(data_block_reps, self._shuffle_range)
+        data_source_info.data_block_queue.set_blocks(
+            data_block_reps)
 
     def _alloc_data_block(self, data_source_info, block_id=None):
         # block_id is unused in leader role

@@ -14,6 +14,7 @@
 
 # coding: utf-8
 
+import copy
 import unittest
 import threading
 import random
@@ -55,7 +56,7 @@ from graph_def.horizontal_fl_follower import main as fm
 debug_mode = False
 local_mnist_path = "./mnist.npz"
 output_path = "./output"
-logging.getLogger().setLevel(logging.INFO)
+logging.getLogger().setLevel(logging.DEBUG)
 total_worker_num = 1
 leader_file_path = "data/leader"
 follower_file_path = "data/follower_{}"
@@ -281,9 +282,9 @@ class Args(object):
         self.summary_path = None
         self.summary_save_steps = None
         self.verbosity = 1
-        self.batch_size = 100
+        self.batch_size = 10
         self.learning_rate = 0.01
-        self.epoch_num = 10
+        self.epoch_num = 2
         self.local_data_sources = local_data_sources
 
 
@@ -293,7 +294,7 @@ class TestNNTraining(unittest.TestCase):
         dbm = data_block_manager.DataBlockManager(data_source, partition_id)
         self.assertEqual(dbm.get_dumped_data_block_count(), 0)
         self.assertEqual(dbm.get_lastest_data_block_meta(), None)
-        N = 200
+        N = 1
         chunk_size = x.shape[0] // N
 
         leader_index = 0
@@ -366,7 +367,10 @@ class TestNNTraining(unittest.TestCase):
         for i in range(0, num_parts):
             start_idx = chunk_size * i
             end_idx = chunk_size * (i + 1)
-            xs.append(x[:, start_idx:end_idx])
+            if i == 1:
+                xs.append(copy.deepcopy(x[:100, start_idx:end_idx]))
+            else:
+                xs.append(x[:, start_idx:end_idx])
 
         self.kv_store = [None, None, None]
         self._local_data_source = "test-liuqi-mnist-local"
@@ -487,8 +491,8 @@ class TestNNTraining(unittest.TestCase):
 
     def tearDown(self):
         self.sche.bye()
-        #if not debug_mode and gfile.Exists(output_path):
-        #    gfile.DeleteRecursively(output_path)
+        if not debug_mode and gfile.Exists(output_path):
+           gfile.DeleteRecursively(output_path)
 
 if __name__ == '__main__':
     unittest.main()
