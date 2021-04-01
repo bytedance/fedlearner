@@ -30,11 +30,13 @@ from fedlearner.data_join.raw_data_publisher import RawDataPublisher
 from fedlearner.data_join.sort_run_merger import MergedSortRunMeta
 
 class DataPortalJobManager(object):
-    def __init__(self, kvstore, portal_name, long_running, check_success_tag):
+    def __init__(self, kvstore, portal_name, long_running, check_success_tag,
+                 single_subfolder):
         self._lock = threading.Lock()
         self._kvstore = kvstore
         self._portal_name = portal_name
         self._check_success_tag = check_success_tag
+        self._single_subfolder = single_subfolder
         self._portal_manifest = None
         self._processing_job = None
         self._sync_portal_manifest()
@@ -341,6 +343,18 @@ class DataPortalJobManager(object):
                         num_target_files += 1
                         if fpath not in self._processed_fpath:
                             rest_fpaths.append(fpath)
+
+        if rest_fpaths and self._single_subfolder:
+            by_folder = {}
+            for fname in rest_fpaths:
+                folder = path.basename(path.dirname(fname))
+                if folder not in by_folder:
+                    by_folder[folder] = []
+                by_folder[folder].append(fname)
+            rest_folder, rest_fpaths = sorted(by_folder.items())[0]
+            logging.info(
+                'single_subfolder is set. Only process folder %s '
+                'in this iteration', rest_folder)
 
         logging.info(
             'Listing %s: found %d dirs, %d files, %d files matching wildcard, '
