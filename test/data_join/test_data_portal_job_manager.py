@@ -98,6 +98,7 @@ class TestDataPortalJobManager(unittest.TestCase):
                 self._kvstore, self._data_portal_name,
                 portal_options.long_running,
                 portal_options.check_success_tag,
+                portal_options.single_subfolder, 
             )
         portal_job = data_portal_job_manager._sync_processing_job()
         target_fnames.sort()
@@ -112,14 +113,26 @@ class TestDataPortalJobManager(unittest.TestCase):
             use_mock_etcd=True,
             long_running=False,
             check_success_tag=True,
+            single_subfolder=False
         )
         self._list_input_dir(portal_options, "*.data", self._data_fnames)
+
+    def test_list_input_dir_single_folder(self):
+        portal_options = dp_pb.DataPotraMasterlOptions(
+            use_mock_etcd=True,
+            long_running=False,
+            check_success_tag=False,
+            single_subfolder=True
+        )
+        self._list_input_dir(
+            portal_options, "*.data", self._data_fnames)
 
     def test_list_input_dir_without_success_check(self):
         portal_options = dp_pb.DataPotraMasterlOptions(
             use_mock_etcd=True,
             long_running=False,
             check_success_tag=False,
+            single_subfolder=False
         )
         self._list_input_dir(
             portal_options, "*.data",
@@ -130,6 +143,7 @@ class TestDataPortalJobManager(unittest.TestCase):
             use_mock_etcd=True,
             long_running=False,
             check_success_tag=True,
+            single_subfolder=False
         )
         self._list_input_dir(
             portal_options, None,
@@ -140,6 +154,7 @@ class TestDataPortalJobManager(unittest.TestCase):
             use_mock_etcd=True,
             long_running=False,
             check_success_tag=False,
+            single_subfolder=False
         )
         self._list_input_dir(portal_options, None, self._all_fnames)
 

@@ -51,6 +51,8 @@ if __name__ == "__main__":
     parser.add_argument('--check_success_tag', action='store_true',
                         help='Check that a _SUCCESS file exists before '
                              'processing files in a subfolder')
+    parser.add_argument('--single_subfolder', action='store_true',
+                        help='Only process one subfolder at a time')
     args = parser.parse_args()
     set_logger()
 
@@ -76,7 +78,8 @@ if __name__ == "__main__":
     options = dp_pb.DataPotraMasterlOptions(
         use_mock_etcd=use_mock_etcd,
         long_running=args.long_running,
-        check_success_tag=args.check_success_tag)
+        check_success_tag=args.check_success_tag,
+        single_subfolder=args.single_subfolder)
 
     portal_master_srv = DataPortalMasterService(args.listen_port,
                                                 args.data_portal_name,
