@@ -117,8 +117,8 @@ class DataPortalJobManager(object):
             if self._sync_processing_job() is not None:
                 self._check_processing_job_finished()
             if self._sync_processing_job() is None:
-                finished = self._launch_new_portal_job()
-                if finished and not self._long_running:
+                success = self._launch_new_portal_job()
+                if not success and not self._long_running:
                     self._finished = True
 
     def _all_job_part_mapped(self):
@@ -272,7 +272,7 @@ class DataPortalJobManager(object):
         rest_fpaths = self._list_input_dir()
         if len(rest_fpaths) == 0:
             logging.info("no file left for portal")
-            return True
+            return False
         rest_fpaths.sort()
         portal_mainifest = self._sync_portal_manifest()
         new_job = dp_pb.DataPortalJob(job_id=portal_mainifest.next_job_id,
@@ -293,7 +293,7 @@ class DataPortalJobManager(object):
             logging.info("%d. %s", seq, fpath)
         logging.info("---------------------------------\n")
 
-        return False
+        return True
 
     def _list_input_dir(self):
         logging.info("List input directory, it will take some time...")
