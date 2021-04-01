@@ -9,7 +9,7 @@ import { Steps, Row } from 'antd';
 import StepOneBasic from './StepOneBasic';
 import StepTwoAddBatch from './StepTwoAddBatch';
 import { useResetCreateForm } from 'hooks/dataset';
-import queryClient from 'shared/queryClient';
+import { forceToRefreshQuery } from 'shared/queryClient';
 import { DATASET_LIST_QUERY_KEY } from '../DatasetList';
 
 const ContainerModal = styled(Modal)`
@@ -82,8 +82,7 @@ const CreateDataset: FC = () => {
     toggleVisible(false);
   }
   function onCreateNStartImportSuccess() {
-    // Set current dataset list data as invalid and trigger refetch
-    queryClient.invalidateQueries([DATASET_LIST_QUERY_KEY]);
+    forceToRefreshQuery([DATASET_LIST_QUERY_KEY]);
     closeModal();
   }
 };
