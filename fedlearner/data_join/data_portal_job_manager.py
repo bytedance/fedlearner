@@ -57,7 +57,8 @@ class DataPortalJobManager(object):
         if self._portal_manifest.processing_job_id >= 0:
             self._check_processing_job_finished()
         if self._portal_manifest.processing_job_id < 0:
-            self._launch_new_portal_job()
+            if not self._launch_new_portal_job():
+                self._finished = True
 
     def get_portal_manifest(self):
         with self._lock:
@@ -85,7 +86,7 @@ class DataPortalJobManager(object):
                                                                partition_id)
                 return (self._finished and
                             self._all_job_part_finished()), None
-            return self._finished, None
+            return not self._long_running, None
 
     def finish_task(self, rank_id, partition_id, part_state):
         with self._lock:
@@ -312,6 +313,7 @@ class DataPortalJobManager(object):
 
         num_ignored = 0
         num_target_files = 0
+        num_new_files = 0
         by_folder = {}
         for fname in all_files:
             splits = path.split(path.relpath(fname, root))
@@ -338,6 +340,10 @@ class DataPortalJobManager(object):
                 succ_fname = path.join(root, *dirnames, '_SUCCESS')
                 if succ_fname not in all_files:
                     continue
+            
+            if fname in self._processed_fpath:
+                continue
+            num_new_files += 1
 
             folder = path.join(*dirnames)
             if folder not in by_folder:
@@ -358,9 +364,9 @@ class DataPortalJobManager(object):
 
         logging.info(
             'Listing %s: found %d dirs, %d files, %d files matching wildcard, '
-            '%d new files to process',
+            '%d new files to process. Processing %d files in this iteration.',
             root, len(by_folder), len(all_files),
-            num_target_files, len(rest_fpaths))
+            num_target_files, num_new_files, len(rest_fpaths))
         return rest_fpaths
 
     def _sync_job_part(self, job_id, partition_id):
