@@ -340,7 +340,7 @@ class DataPortalJobManager(object):
                 succ_fname = path.join(root, *dirnames, '_SUCCESS')
                 if succ_fname not in all_files:
                     continue
-            
+
             if fname in self._processed_fpath:
                 continue
             num_new_files += 1
