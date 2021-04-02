@@ -296,20 +296,36 @@ class DataPortalJobManager(object):
 
         return True
 
+    def _list_dir_helper(self, root):
+        filenames = list(gfile.ListDirectory(root))
+        # If _SUCCESS is present, we assume there are no subdirs
+        if '_SUCCESS' in filenames:
+            return [path.join(root, i) for i in filenames]
+
+        res = []
+        for basename in filenames:
+            fname = path.join(root, basename)
+            if gfile.IsDirectory(fname):
+                # 'ignore tmp dirs starting with _
+                if basename.startswith('_'):
+                    continue
+                res += self._list_dir_helper(fname)
+            else:
+                res.append(fname)
+        return res
+
+
     def _list_input_dir(self):
         logging.info("List input directory, it will take some time...")
         root = self._portal_manifest.input_base_dir
         wildcard = self._portal_manifest.input_file_wildcard
 
-        # oss returns a file multiple times, e.g.:
-        #   'root', ['folder'], [file1.txt, 'folder/file2.txt']
-        # and then
-        #   'root/folder', [], ['file2.txt'].
+        # oss returns a file multiple times, e.g. listdir('root') returns
+        #   ['folder', 'file1.txt', 'folder/file2.txt']
+        # and then listdir('root/folder') returns
+        #   ['file2.txt']
         # so we use set to deduplicate
-        all_files = set()
-        for dirname, _, filenames in gfile.Walk(root):
-            for fname in filenames:
-                all_files.add(path.join(dirname, fname))
+        all_files = set(self._list_dir_helper(root))
 
         num_ignored = 0
         num_target_files = 0
@@ -363,9 +379,10 @@ class DataPortalJobManager(object):
                 rest_fpaths.extend(v)
 
         logging.info(
-            'Listing %s: found %d dirs, %d files, %d files matching wildcard, '
-            '%d new files to process. Processing %d files in this iteration.',
-            root, len(by_folder), len(all_files),
+            'Listing %s: found %d dirs, %d files, %d tmp files ignored '
+            '%d files matching wildcard, %d new files to process. '
+            'Processing %d files in this iteration.',
+            root, len(by_folder), len(all_files), num_ignored,
             num_target_files, num_new_files, len(rest_fpaths))
         return rest_fpaths
 
