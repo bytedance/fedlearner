@@ -40,5 +40,6 @@ export interface GlobalNodeProps extends NodeComponentProps {
 
 export const WORKFLOW_JOB_NODE_CHANNELS = {
   change_inheritance: 'job_node.change_inheritance',
+  disable_job: 'job_node.disable_job',
   click_add_job: 'job_node.click_add_job',
 };

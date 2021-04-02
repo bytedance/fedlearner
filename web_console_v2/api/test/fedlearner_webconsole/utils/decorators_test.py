@@ -14,12 +14,14 @@
 
 # coding: utf-8
 
+import os
 import grpc
 import unittest
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
-from fedlearner_webconsole.utils.decorators import retry_fn
-
+from fedlearner_webconsole.auth.models import User, Role
+from fedlearner_webconsole.utils.decorators import retry_fn, admin_required, jwt_required
+from fedlearner_webconsole.exceptions import UnauthorizedException
 
 @retry_fn(retry_times=2, needed_exceptions=[grpc.RpcError])
 def some_unstable_connect(client):
@@ -28,6 +30,10 @@ def some_unstable_connect(client):
         raise grpc.RpcError()
     else:
         return res['data']
+
+@admin_required
+def some_authorized_login():
+    return 1
 
 
 class DecoratorsTest(unittest.TestCase):
@@ -56,5 +62,16 @@ class DecoratorsTest(unittest.TestCase):
         self.assertTrue(some_unstable_connect(client=client) == 'hhhh')
 
 
+    @patch('fedlearner_webconsole.utils.decorators.get_current_user')
+    def test_admin_required(self, mock_get_current_user):
+        admin = User(id=0, username='adamin', password='admin', role=Role.ADMIN)
+        user = User(id=1, username='ada', password='ada', role=Role.USER)
+        mock_get_current_user.return_value = admin
+        self.assertTrue(some_authorized_login() == 1)
+
+        mock_get_current_user.return_value = user
+        self.assertRaises(UnauthorizedException, some_authorized_login)
+
 if __name__ == '__main__':
     unittest.main()
+

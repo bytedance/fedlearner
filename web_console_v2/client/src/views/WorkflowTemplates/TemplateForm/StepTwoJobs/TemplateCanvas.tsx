@@ -21,7 +21,7 @@ import {
   ChartNodeStatus,
   JobNodeRawData,
 } from 'components/WorkflowJobsCanvas/types';
-import { Container } from 'components/WorkflowJobsCanvas/styles';
+import { Container } from 'components/WorkflowJobsCanvas/elements';
 import { JobNodeRawDataSlim, WorkflowTemplateForm } from 'stores/template';
 import i18n from 'i18n';
 import { Variable } from 'typings/variable';

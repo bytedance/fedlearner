@@ -1,5 +1,5 @@
 import React, { FC } from 'react';
-import { GlobalConfigNodeContainer, JobName, JobStatusText, StatusIcon } from './styles';
+import { GlobalConfigNodeContainer, JobName, JobStatusText, StatusIcon } from './elements';
 import { configStatusText, GlobalNodeProps, statusIcons } from './shared';
 import GridRow from 'components/_base/GridRow';
 

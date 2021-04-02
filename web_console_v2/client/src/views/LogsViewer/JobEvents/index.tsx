@@ -4,7 +4,7 @@ import { fetchJobEvents, fetchPeerJobEvents } from 'services/workflow';
 import PrintLogs from 'components/PrintLogs';
 
 const PodLogs: FC = () => {
-  const params = useParams<{ side: string; jobIdOrName: string; uuid?: string }>();
+  const params = useParams<{ side: string; jobIdOrK8sName: string; uuid?: string }>();
 
   const isPeerSide = params.side === 'peer';
 
@@ -12,24 +12,24 @@ const PodLogs: FC = () => {
     <PrintLogs
       logsFetcher={getLogs}
       refetchInterval={4000}
-      queryKey={['getJobEvents', params.jobIdOrName]}
+      queryKey={['getJobEvents', params.jobIdOrK8sName]}
     />
   );
 
   async function getLogs() {
-    if (!params.jobIdOrName) {
+    if (!params.jobIdOrK8sName) {
       return { data: ['Job ID or Name invalid!'] };
     }
 
     if (isPeerSide) {
-      return fetchPeerJobEvents(params.uuid!, params.jobIdOrName, {
+      return fetchPeerJobEvents(params.uuid!, params.jobIdOrK8sName, {
         maxLines: 500,
       }).catch((error) => ({
         data: [error.message],
       }));
     }
 
-    return fetchJobEvents(params.jobIdOrName, {
+    return fetchJobEvents(params.jobIdOrK8sName, {
       maxLines: 500,
     }).catch((error) => ({
       data: [error.message],

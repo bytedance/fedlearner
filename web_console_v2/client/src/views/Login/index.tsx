@@ -185,6 +185,7 @@ const Login: FC = () => {
     toggleSubmit(true);
     try {
       const { data } = await login(payload as FedLoginFormData);
+
       store.set(LOCAL_STORAGE_KEYS.current_user, {
         ...data.user,
         access_token: data.access_token,

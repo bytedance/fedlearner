@@ -9,7 +9,12 @@ import {
 import { useToggle } from 'react-use';
 import JobFormDrawer, { JobFormDrawerExposedRef } from '../../JobFormDrawer';
 import WorkflowJobsCanvas, { ChartExposedRef } from 'components/WorkflowJobsCanvas';
-import { ChartNode, ChartNodes, ChartNodeStatus } from 'components/WorkflowJobsCanvas/types';
+import {
+  ChartNode,
+  ChartNodes,
+  ChartNodeStatus,
+  NodeData,
+} from 'components/WorkflowJobsCanvas/types';
 import GridRow from 'components/_base/GridRow';
 import { Button, message, Modal, Spin } from 'antd';
 import { Redirect, useHistory, useParams } from 'react-router-dom';
@@ -34,6 +39,9 @@ import { Z_INDEX_GREATER_THAN_HEADER } from 'components/Header';
 import { stringifyComplexDictField } from 'shared/formSchema';
 import { removePrivate } from 'shared/object';
 import { cloneDeep, Dictionary } from 'lodash';
+import { useSubscribe } from 'hooks';
+import { WORKFLOW_JOB_NODE_CHANNELS } from 'components/WorkflowJobsCanvas/JobNodes/shared';
+import { CreateJobFlag } from 'typings/job';
 
 const Container = styled.section`
   height: 100%;
@@ -89,6 +97,8 @@ const CanvasAndForm: FC<WorkflowCreateProps> = ({ isInitiate, isAccept }) => {
     // 2. DO NOT INCLUDE jobNodes as direct dep too, since selectNode has side-effect to node's data (modify status underneath)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [jobNodes[0]?.type]);
+
+  useSubscribe(WORKFLOW_JOB_NODE_CHANNELS.disable_job, onNodeDisabledChange);
 
   const isDisabled = { disabled: submitting };
 
@@ -161,7 +171,9 @@ const CanvasAndForm: FC<WorkflowCreateProps> = ({ isInitiate, isAccept }) => {
   // --------- Methods ---------------
   function checkIfAllJobConfigCompleted() {
     const isAllCompleted = jobNodes.every((node: ChartNode) => {
-      return node.data.status === ChartNodeStatus.Success;
+      // Whether a node has Success status or it's been disabled
+      // we recognize it as complete!
+      return node.data.status === ChartNodeStatus.Success || node.data.disabled;
     });
 
     return isAllCompleted;
@@ -204,7 +216,7 @@ const CanvasAndForm: FC<WorkflowCreateProps> = ({ isInitiate, isAccept }) => {
     toggleDrawerVisible(false);
     setSubmitting(true);
 
-    let finalError = (null as any) as Error;
+    let resError: Error | null = null;
 
     if (isInitiate) {
       const payload = stringifyComplexDictField(
@@ -216,8 +228,10 @@ const CanvasAndForm: FC<WorkflowCreateProps> = ({ isInitiate, isAccept }) => {
 
       payload.name = payload.name.trim();
 
+      payload.create_job_flags = _mapJobFlags(chartRef.current?.nodes);
+
       const [, error] = await to(initiateAWorkflow(payload));
-      finalError = error;
+      resError = error;
     }
 
     if (isAccept) {
@@ -228,13 +242,15 @@ const CanvasAndForm: FC<WorkflowCreateProps> = ({ isInitiate, isAccept }) => {
         }) as WorkflowAcceptPayload,
       );
 
+      payload.create_job_flags = _mapJobFlags(chartRef.current?.nodes);
+
       const [, error] = await to(acceptNFillTheWorkflowConfig(params.id, payload));
-      finalError = error;
+      resError = error;
     }
 
     setSubmitting(false);
 
-    if (!finalError) {
+    if (!resError) {
       history.push('/workflows');
     }
   }
@@ -277,6 +293,14 @@ const CanvasAndForm: FC<WorkflowCreateProps> = ({ isInitiate, isAccept }) => {
   function onPrevStepClick() {
     history.goBack();
   }
+
+  function onNodeDisabledChange(
+    _: string,
+    { data, ...payload }: { id: string; data: NodeData; disabled: boolean },
+  ) {
+    chartRef.current?.updateNodeDisabledById(payload);
+  }
+
   function onCancelCreationClick() {
     Modal.confirm({
       title: i18n.t('workflow.msg_sure_2_cancel_create'),
@@ -309,6 +333,20 @@ function _hydrate(variableShells: Variable[], formValues?: Dictionary<any>): Var
       value: formValues[item.name],
     };
   });
+}
+
+function _mapJobFlags(nodes?: ChartNodes) {
+  if (!nodes) return [];
+
+  return nodes
+    .filter((node) => node.type !== 'global')
+    .map((node) => {
+      if (node.data.disabled) {
+        return CreateJobFlag.DISABLED;
+      }
+
+      return CreateJobFlag.NEW;
+    });
 }
 
 const WorkflowsCreateStepTwo: FC<WorkflowCreateProps> = (props) => {

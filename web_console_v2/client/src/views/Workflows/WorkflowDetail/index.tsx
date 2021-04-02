@@ -1,6 +1,6 @@
 import React, { FC, useState } from 'react';
 import styled from 'styled-components';
-import { Card, Spin, Row, Button } from 'antd';
+import { Card, Spin, Row, Button, Col } from 'antd';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery } from 'react-query';
 import { getPeerWorkflowsConfig, getWorkflowDetailById } from 'services/workflow';
@@ -179,11 +179,9 @@ const WorkflowDetail: FC = () => {
               {workflow && <WorkflowStage workflow={workflow} tag />}
             </GridRow>
             {workflow && (
-              <WorkflowActions
-                workflow={workflow}
-                without={['detail']}
-                onSuccess={detailQuery.refetch}
-              />
+              <Col>
+                <WorkflowActions workflow={workflow} onSuccess={detailQuery.refetch} />
+              </Col>
             )}
           </HeaderRow>
 
@@ -205,7 +203,7 @@ const WorkflowDetail: FC = () => {
             initialVisibleRows={3}
             cols={3}
             properties={workflowProps}
-            style={{ marginTop: '15px' }}
+            style={{ marginBottom: '0' }}
           />
         </Card>
 
@@ -288,11 +286,19 @@ const WorkflowDetail: FC = () => {
         </ChartSection>
 
         <JobExecutionDetailsDrawer
-          visible={drawerVisible}
+          visible={drawerVisible && !isPeerSide}
           toggleVisible={toggleDrawerVisible}
           jobData={data}
-          workflow={isPeerSide ? peerWorkflow : workflow}
-          isPeerSide={isPeerSide}
+          workflow={workflow}
+        />
+
+        <JobExecutionDetailsDrawer
+          visible={drawerVisible && isPeerSide}
+          toggleVisible={toggleDrawerVisible}
+          jobData={data}
+          placement="left"
+          workflow={peerWorkflow}
+          isPeerSide
         />
       </Container>
     </Spin>
@@ -338,7 +344,7 @@ function _mergeWithExecutionDetails(workflow?: WorkflowExecutionDetails): JobNod
 function _markInheritedJobs(jobs: JobNodeRawData[], jobReuseFlags: CreateJobFlag[]) {
   return jobs.forEach((item, index) => {
     if (jobReuseFlags[index] === CreateJobFlag.REUSE) {
-      item.inherited = true;
+      item.reused = true;
     }
 
     return item;

@@ -20,6 +20,7 @@ import json
 import os
 import sys
 import threading
+import traceback
 from concurrent import futures
 import grpc
 from fedlearner_webconsole.proto import (
@@ -39,6 +40,7 @@ from fedlearner_webconsole.job.metrics import JobMetricsBuilder
 from fedlearner_webconsole.exceptions import (
     UnauthorizedException
 )
+from fedlearner_webconsole.envs import Envs
 
 
 class RPCServerServicer(service_pb2_grpc.WebConsoleV2ServiceServicer):
@@ -47,9 +49,10 @@ class RPCServerServicer(service_pb2_grpc.WebConsoleV2ServiceServicer):
 
     def _secure_exc(self):
         exc_type, exc_obj, exc_tb = sys.exc_info()
-        fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-        secure_exc = 'Error %s at %s:%s'%(
-            exc_type, fname, exc_tb.tb_lineno)
+        # filter out exc_obj to protect sensitive info
+        secure_exc = 'Error %s at '%exc_type
+        secure_exc += ''.join(traceback.format_tb(exc_tb))
+        return secure_exc
 
     def _try_handle_request(self, func, request, context, resp_class):
         try:
@@ -266,7 +269,8 @@ class RpcServer(object):
                 create_job_flags=workflow.get_create_job_flags(),
                 peer_create_job_flags=workflow.get_peer_create_job_flags(),
                 fork_proposal_config=workflow.get_fork_proposal_config(),
-                uuid=workflow.uuid)
+                uuid=workflow.uuid,
+                metric_is_public=workflow.metric_is_public)
 
     def update_workflow(self, request, context):
         with self._app.app_context():
@@ -313,14 +317,15 @@ class RpcServer(object):
         with self._app.app_context():
             project, party = self.check_auth_info(request.auth_info, context)
             job = Job.query.filter_by(name=request.job_name,
-                                      project_id=project.id).first
+                                      project_id=project.id).first()
             assert job is not None, \
                 f'Job {request.job_name} not found'
 
             result = es.query_events('filebeat-*', job.name,
                                      'fedlearner-operator',
                                      request.start_time,
-                                     int(time.time() * 1000)
+                                     int(time.time() * 1000),
+                                     Envs.OPERATOR_LOG_MATCH_PHRASE
                                      )[:request.max_lines][::-1]
 
             return service_pb2.GetJobEventsResponse(

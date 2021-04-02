@@ -95,9 +95,9 @@ def code_dict_encode(data_dict):
     out = BytesIO()
     with tarfile.open(fileobj=out, mode='w:gz') as tar:
         for path in data_dict:
+            data = data_dict[path].encode('utf-8')
             tarinfo = tarfile.TarInfo(path)
-            tarinfo.size = len(data_dict[path])
-            tar.addfile(tarinfo, BytesIO(
-                data_dict[path].encode('utf-8')))
+            tarinfo.size = len(data)
+            tar.addfile(tarinfo, BytesIO(data))
     result = str(base64.b64encode(out.getvalue()), encoding='utf-8')
     return f'base64://{result}'

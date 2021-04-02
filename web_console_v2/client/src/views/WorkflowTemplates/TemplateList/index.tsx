@@ -1,7 +1,7 @@
 import React, { FC, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from 'react-query';
-import { Link, useHistory } from 'react-router-dom';
+import { Link, Route, useHistory } from 'react-router-dom';
 import {
   createWorkflowTemplate,
   deleteTemplate,
@@ -12,24 +12,42 @@ import {
 import styled from 'styled-components';
 import ListPageLayout from 'components/ListPageLayout';
 import NoResult from 'components/NoResult';
-import { Col, Input, Row, Table, Form, Button, Tag, Popconfirm, message } from 'antd';
+import {
+  Col,
+  Input,
+  Row,
+  Table,
+  Form,
+  Button,
+  Tag,
+  Popconfirm,
+  message,
+  Dropdown,
+  Menu,
+} from 'antd';
 import { WorkflowTemplate, WorkflowTemplatePayload } from 'typings/workflow';
 import GridRow from 'components/_base/GridRow';
 import { Experiment } from 'components/IconPark';
 import { to } from 'shared/helpers';
 import { useToggle } from 'react-use';
-import queryClient from 'shared/queryClient';
+import { forceToRefreshQuery } from 'shared/queryClient';
+import { CloudUploadOutlined } from '@ant-design/icons';
+import TemplateUploadDialog from './TemplateUploadDialog';
 
 const ListContainer = styled.div`
   display: flex;
   flex: 1;
   width: 100%;
 `;
+const UploadMenuItem = styled(Menu.Item)`
+  width: 150;
+  padding: 10px 15px;
+`;
 const TemplateName = styled(Link)`
   font-size: 16px;
 `;
 
-const TPL_LIST_QUERY_KEY = 'fetchTemplateList';
+export const TPL_LIST_QUERY_KEY = 'fetchTemplateList';
 
 const DownloadTemplate: FC<{ template: WorkflowTemplate }> = ({ template: { id } }) => {
   const { t } = useTranslation();
@@ -76,8 +94,7 @@ const DuplicateTemplate: FC<{ template: WorkflowTemplate }> = ({ template: { id 
       return message.error(error.message);
     }
 
-    // Make
-    queryClient.invalidateQueries(TPL_LIST_QUERY_KEY);
+    forceToRefreshQuery(TPL_LIST_QUERY_KEY);
   }
 };
 
@@ -123,7 +140,7 @@ const TemplateList: FC = () => {
         name: 'operation',
         render: (_: any, record: WorkflowTemplate) => {
           return (
-            <GridRow left="-15">
+            <GridRow left="-10" gap="8">
               <DownloadTemplate template={record} />
 
               <DuplicateTemplate template={record} />
@@ -150,47 +167,63 @@ const TemplateList: FC = () => {
   );
 
   return (
-    <ListPageLayout
-      title={
-        <GridRow gap="4">
-          <Experiment />
-          {t('menu.label_workflow_tpl')}
-        </GridRow>
-      }
-      tip="This feature is experimental"
-    >
-      <Row gutter={16} justify="space-between" align="middle">
-        <Col>
-          <Button size="large" type="primary" onClick={goCreate}>
-            {t('workflow.create_tpl')}
-          </Button>
-        </Col>
-        <Col>
-          <Form initialValues={{ ...params }} layout="inline" form={form} onFinish={onSearch}>
-            <Form.Item name="keyword">
-              <Input.Search
-                placeholder={t('dataset.placeholder_name_searchbox')}
-                onPressEnter={form.submit}
-              />
-            </Form.Item>
-          </Form>
-        </Col>
-      </Row>
+    <>
+      <Route path="/workflow-templates/upload" exact component={TemplateUploadDialog} />
 
-      <ListContainer>
-        {isEmpty ? (
-          <NoResult text={t('workflow.no_tpl')} to="/workflow-templates/create/basic" />
-        ) : (
-          <Table
-            loading={listQ.isFetching}
-            dataSource={listData}
-            columns={columns}
-            scroll={{ x: '100%' }}
-            rowKey="name"
-          />
-        )}
-      </ListContainer>
-    </ListPageLayout>
+      <ListPageLayout
+        title={
+          <GridRow gap="4">
+            <Experiment />
+            {t('menu.label_workflow_tpl')}
+          </GridRow>
+        }
+        tip="This feature is experimental"
+      >
+        <Row gutter={16} justify="space-between" align="middle">
+          <Col>
+            <Dropdown.Button
+              placement="bottomCenter"
+              overlay={
+                <Menu>
+                  <UploadMenuItem key="1" icon={<CloudUploadOutlined />} onClick={onUploadClick}>
+                    {t('workflow.btn_upload_tpl')}
+                  </UploadMenuItem>
+                </Menu>
+              }
+              size="large"
+              type="primary"
+              onClick={goCreate}
+            >
+              {t('workflow.create_tpl')}
+            </Dropdown.Button>
+          </Col>
+          <Col>
+            <Form initialValues={{ ...params }} layout="inline" form={form} onFinish={onSearch}>
+              <Form.Item name="keyword">
+                <Input.Search
+                  placeholder={t('dataset.placeholder_name_searchbox')}
+                  onPressEnter={form.submit}
+                />
+              </Form.Item>
+            </Form>
+          </Col>
+        </Row>
+
+        <ListContainer>
+          {isEmpty ? (
+            <NoResult text={t('workflow.no_tpl')} to="/workflow-templates/create/basic" />
+          ) : (
+            <Table
+              loading={listQ.isFetching}
+              dataSource={listData}
+              columns={columns}
+              scroll={{ x: '100%' }}
+              rowKey="name"
+            />
+          )}
+        </ListContainer>
+      </ListPageLayout>
+    </>
   );
 
   function goCreate() {
@@ -207,6 +240,9 @@ const TemplateList: FC = () => {
     }
 
     listQ.refetch();
+  }
+  async function onUploadClick() {
+    history.push('/workflow-templates/upload');
   }
 };
 

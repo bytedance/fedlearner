@@ -39,6 +39,15 @@ export const Container = styled.div`
   &.purple {
     --fed-color: var(--purple6);
   }
+
+  &[data-disabled='true'] {
+    filter: grayscale(0.8);
+    opacity: 0.4;
+
+    > h5 {
+      text-decoration: line-through;
+    }
+  }
 `;
 
 export const JobName = styled.h5`
@@ -81,8 +90,8 @@ export const GlobalConfigNodeContainer = styled.div`
 
 export const InheritButton = styled.div`
   position: absolute;
-  bottom: 11px;
-  right: 14px;
+  bottom: 0px;
+  right: 10px;
   display: flex;
   align-items: center;
   padding-bottom: 5px;
@@ -90,7 +99,7 @@ export const InheritButton = styled.div`
   font-size: 12px;
   color: var(--primaryColor);
 
-  &[data-inherit='false'] {
+  &[data-inherited='false'] {
     color: var(--warningColor);
   }
 `;

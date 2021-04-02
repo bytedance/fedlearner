@@ -8,7 +8,7 @@ import { isImportFailed } from 'shared/dataset';
 import { ButtonType } from 'antd/lib/button';
 
 const Container = styled(GridRow)`
-  margin-left: ${(props: any) => (props.type === 'link' ? '-15px !important' : 0)};
+  margin-left: ${(props: any) => (props.type === 'link' ? '-10px !important' : 0)};
 
   > .hide-on-bush {
     visibility: hidden;

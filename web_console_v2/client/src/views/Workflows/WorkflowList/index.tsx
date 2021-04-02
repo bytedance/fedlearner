@@ -15,7 +15,7 @@ import WhichProject from 'components/WhichProject';
 import NoResult from 'components/NoResult';
 import { useRecoilQuery } from 'hooks/recoil';
 import { projectListQuery } from 'stores/project';
-import ForkableSwitch from './ForkableSwitch';
+import { isInvalid } from 'shared/workflow';
 
 const FilterItem = styled(Form.Item)`
   > .ant-form-item-control {
@@ -31,6 +31,14 @@ const NameLink = styled(Link)`
   display: block;
   margin-bottom: 3px;
   font-size: 16px;
+
+  &[data-invalid='true'] {
+    color: var(--textColorDisabled);
+
+    &:hover {
+      color: var(--primaryColor);
+    }
+  }
 `;
 const UUID = styled.small`
   display: block;
@@ -52,7 +60,7 @@ export const getWorkflowTableColumns = (
       render: (name: string, record: Workflow) => {
         return (
           <>
-            <NameLink to={`/workflows/${record.id}`} rel="nopener">
+            <NameLink to={`/workflows/${record.id}`} rel="nopener" data-invalid={isInvalid(record)}>
               {name}
             </NameLink>
             <UUID>UUID: {record.uuid}</UUID>
@@ -78,15 +86,6 @@ export const getWorkflowTableColumns = (
       dataIndex: 'created_at',
       name: 'created_at',
       render: (date: number) => <div>{formatTimestamp(date)}</div>,
-    },
-    {
-      title: i18n.t('workflow.col_forkable'),
-      dataIndex: 'forkable',
-      name: 'forkable',
-      width: 150,
-      render: (_: any, record: Workflow) => (
-        <ForkableSwitch workflow={record} onSuccess={options.onSuccess} />
-      ),
     },
   ];
   if (!options.withoutActions) {

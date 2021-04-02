@@ -22,6 +22,7 @@ import tarfile
 
 from flask import send_file
 from flask_restful import Resource, reqparse, request
+from google.protobuf.json_format import MessageToDict
 from google.protobuf.json_format import ParseDict, ParseError
 from fedlearner_webconsole.workflow_template.models import WorkflowTemplate
 from fedlearner_webconsole.proto import workflow_definition_pb2
@@ -29,6 +30,8 @@ from fedlearner_webconsole.db import db
 from fedlearner_webconsole.exceptions import (
     NotFoundException, InvalidArgumentException,
     ResourceConflictException)
+from fedlearner_webconsole.workflow_template.slots_formatter import \
+    generate_yaml_template
 
 
 def _classify_variable(variable):
@@ -54,10 +57,15 @@ def dict_to_workflow_definition(config):
     return template_proto
 
 
-def _dic_without_key(d, key):
-    result = dict(d)
-    del result[key]
-    return result
+def dict_to_editor_info(editor_info):
+    try:
+        editor_info_proto = ParseDict(
+            editor_info,
+            workflow_definition_pb2.WorkflowTemplateEditorInfo())
+    except ParseError as e:
+        raise InvalidArgumentException(details={
+            'editor_info': str(e)})
+    return editor_info_proto
 
 
 class WorkflowTemplatesApi(Resource):
@@ -72,9 +80,8 @@ class WorkflowTemplatesApi(Resource):
                 raise InvalidArgumentException('is_left must be 0 or 1')
             templates = templates.filter_by(is_left=is_left)
         # remove config from dicts to reduce the size of the list
-        return {'data': [_dic_without_key(t.to_dict(),
-                                          'config') for t in templates.all()
-                         ]}, HTTPStatus.OK
+        return {'data': [t.to_dict()
+                         for t in templates.all()]}, HTTPStatus.OK
 
     def post(self):
         parser = reqparse.RequestParser()
@@ -82,23 +89,38 @@ class WorkflowTemplatesApi(Resource):
         parser.add_argument('comment')
         parser.add_argument('config', type=dict, required=True,
                             help='config is empty')
+        parser.add_argument('editor_info', type=dict, default={})
         data = parser.parse_args()
         name = data['name']
         comment = data['comment']
         config = data['config']
+        editor_info = data['editor_info']
         if WorkflowTemplate.query.filter_by(name=name).first() is not None:
             raise ResourceConflictException(
                 'Workflow template {} already exists'.format(name))
-        template_proto = _check_config(config)
+        template_proto, editor_info_proto = _check_config_and_editor_info(
+            config, editor_info)
+        template_proto = _format_template_with_yaml_editor(
+            template_proto, editor_info_proto)
         template = WorkflowTemplate(name=name,
                                     comment=comment,
                                     group_alias=template_proto.group_alias,
                                     is_left=template_proto.is_left)
         template.set_config(template_proto)
+        template.set_editor_info(editor_info_proto)
         db.session.add(template)
         db.session.commit()
         logging.info('Inserted a workflow_template to db')
-        return {'data': template.to_dict()}, HTTPStatus.CREATED
+        result = template.to_dict()
+        result['config'] = MessageToDict(
+            template.get_config(),
+            preserving_proto_field_name=True,
+            including_default_value_fields=True)
+        result['editor_info'] = MessageToDict(
+            template.get_editor_info(),
+            preserving_proto_field_name=True,
+            including_default_value_fields=True)
+        return {'data': result}, HTTPStatus.CREATED
 
 
 class WorkflowTemplateApi(Resource):
@@ -117,7 +139,16 @@ class WorkflowTemplateApi(Resource):
                              attachment_filename=f'{template.name}.json',
                              mimetype='application/json; charset=UTF-8',
                              cache_timeout=0)
-        return {'data': template.to_dict()}, HTTPStatus.OK
+        result = template.to_dict()
+        result['config'] = MessageToDict(
+            template.get_config(),
+            preserving_proto_field_name=True,
+            including_default_value_fields=True)
+        result['editor_info'] = MessageToDict(
+            template.get_editor_info(),
+            preserving_proto_field_name=True,
+            including_default_value_fields=True)
+        return {'data': result}, HTTPStatus.OK
 
     def delete(self, template_id):
         result = WorkflowTemplate.query.filter_by(id=template_id)
@@ -133,10 +164,12 @@ class WorkflowTemplateApi(Resource):
         parser.add_argument('comment')
         parser.add_argument('config', type=dict, required=True,
                             help='config is empty')
+        parser.add_argument('editor_info', type=dict, default={})
         data = parser.parse_args()
         name = data['name']
         comment = data['comment']
         config = data['config']
+        editor_info = data['editor_info']
         tmp = WorkflowTemplate.query.filter_by(name=name).first()
         if tmp is not None and tmp.id != template_id:
             raise ResourceConflictException(
@@ -144,17 +177,45 @@ class WorkflowTemplateApi(Resource):
         template = WorkflowTemplate.query.filter_by(id=template_id).first()
         if template is None:
             raise NotFoundException()
-        template_proto = _check_config(config)
+        template_proto, editor_info_proto = _check_config_and_editor_info(
+            config, editor_info)
+        template_proto = _format_template_with_yaml_editor(
+            template_proto, editor_info_proto)
         template.set_config(template_proto)
+        template.set_editor_info(editor_info_proto)
         template.name = name
         template.comment = comment
         template.group_alias = template_proto.group_alias
         template.is_left = template_proto.is_left
         db.session.commit()
-        return {'data': template.to_dict()}, HTTPStatus.OK
+        result = template.to_dict()
+        result['config'] = MessageToDict(
+            template.get_config(),
+            preserving_proto_field_name=True,
+            including_default_value_fields=True)
+        result['editor_info'] = MessageToDict(
+            template.get_editor_info(),
+            preserving_proto_field_name=True,
+            including_default_value_fields=True)
+        return {'data': result}, HTTPStatus.OK
 
 
-def _check_config(config):
+def _format_template_with_yaml_editor(template_proto, editor_info_proto):
+    for job_def in template_proto.job_definitions:
+        # if job is in editor_info, than use meta_yaml format with
+        # slots instead of yaml_template
+        yaml_editor_infos = editor_info_proto.yaml_editor_infos
+        if job_def.name in yaml_editor_infos:
+            yaml_editor_info = yaml_editor_infos[job_def.name]
+            if yaml_editor_info.is_used:
+                job_def.yaml_template = generate_yaml_template(
+                    yaml_editor_info.meta_yaml,
+                    yaml_editor_info.slots)
+                job_def.variables.CopyFrom(yaml_editor_info.variables)
+    return template_proto
+
+
+def _check_config_and_editor_info(config, editor_info):
     # TODO: needs tests
     if 'group_alias' not in config:
         raise InvalidArgumentException(details={
@@ -164,6 +225,7 @@ def _check_config(config):
             details={'config.is_left': 'config.is_left is required'})
 
     # form to proto buffer
+    editor_info_proto = dict_to_editor_info(editor_info)
     template_proto = dict_to_workflow_definition(config)
     for index, job_def in enumerate(template_proto.job_definitions):
         # pod label name must be no more than 63 characters.
@@ -182,7 +244,7 @@ def _check_config(config):
                 {f'config.job_definitions[{index}].job_name'
                  : 'Only letters(a-z), numbers(0-9) '
                    'and dashes(-) are supported.'})
-    return template_proto
+    return template_proto, editor_info_proto
 
 
 class CodeApi(Resource):

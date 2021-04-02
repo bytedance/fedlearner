@@ -25,6 +25,7 @@ import numpy as np
 from google.protobuf import text_format
 import tensorflow.compat.v1 as tf
 
+from fedlearner.model.tree.packing import GradHessPacker
 from fedlearner.model.tree.loss import LogisticLoss, MSELoss
 from fedlearner.model.crypto import paillier, fixed_point_number
 from fedlearner.common import tree_model_pb2 as tree_pb2
@@ -81,6 +82,41 @@ def _encrypt_and_send_numbers(bridge, name, public_key, numbers):
         msg = tree_pb2.EncryptedNumbers()
         msg.ciphertext.extend(_encrypt_numbers(public_key, part))
         bridge.send_proto('%s_part_%d'%(name, i), msg)
+
+def _raw_encrypt_numbers(args):
+    public_key, numbers, part_id = args
+    ciphertext = [
+        public_key.raw_encrypt(num).to_bytes(CIPHER_NBYTES, 'little')
+        for num in numbers
+    ]
+    return part_id, ciphertext
+
+def _raw_encrypt_and_send_numbers(bridge, name, public_key, numbers, pool=None):
+    num_parts = (len(numbers) + MAX_PARTITION_SIZE - 1) // MAX_PARTITION_SIZE
+    bridge.send_proto('%s_partition_info' % name,
+                      tree_pb2.PartitionInfo(num_partitions=num_parts))
+    if not pool:
+        for part_id in range(num_parts):
+            part = numbers[part_id * MAX_PARTITION_SIZE:
+                           (part_id + 1) * MAX_PARTITION_SIZE]
+            msg = tree_pb2.EncryptedNumbers()
+            part_id, ciphertext = _raw_encrypt_numbers((public_key, part,
+                                                        part_id))
+            msg.ciphertext.extend(ciphertext)
+            bridge.send_proto('%s_part_%d' % (name, part_id), msg)
+    else:
+        def gen():
+            for part_id in range(num_parts):
+                part = numbers[part_id * MAX_PARTITION_SIZE:(part_id + 1) *
+                               MAX_PARTITION_SIZE]
+                yield public_key, part, part_id
+
+        results = pool.imap_unordered(_raw_encrypt_numbers, gen())
+        for res in results:
+            part_id, ciphertext = res
+            msg = tree_pb2.EncryptedNumbers()
+            msg.ciphertext.extend(ciphertext)
+            bridge.send_proto('%s_part_%d' % (name, part_id), msg)
 
 def _receive_encrypted_numbers(bridge, name, public_key):
     part_info = tree_pb2.PartitionInfo()
@@ -277,7 +313,6 @@ class BaseGrower(object):
         self._hess = hess
         self._grow_policy = grow_policy
 
-
         if grow_policy == 'depthwise':
             self._split_candidates = queue.Queue()
             assert max_depth is not None, \
@@ -366,6 +401,7 @@ class BaseGrower(object):
                                         self._feature_importance.sum()
             self._feature_importance = self._feature_importance/ \
                                         self._feature_importance.sum()
+
     def _compute_histogram(self, node):
         node.grad_hists = self._hist_builder.compute_histogram(
             self._grad, node.sample_ids)
@@ -501,7 +537,6 @@ class BaseGrower(object):
             left_child, right_child)
         self._feature_importance[split_info.feature_id] += node.NI
 
-
         return left_child, right_child, split_info
 
     def _log_split(self, left_child, right_child, split_info):
@@ -570,14 +605,33 @@ def _decrypt_histogram_helper(args):
         rets.append(np.asarray(_decrypt_number(private_key, hist)))
     return rets
 
+
+def _decrypt_packed_histogram_helper(args):
+    base, packer, private_key, hists = args
+    grad_hists = []
+    hess_hists = []
+    for i, hist in enumerate(hists):
+        logging.debug('Decrypting packed histogram for feature %d', base + i)
+        hist = [int.from_bytes(i, 'little') for i in hist.ciphertext]
+        grad_hist, hess_hist = \
+            packer.decrypt_and_unpack_grad_hess(hist, private_key)
+        grad_hists.append(np.asarray(grad_hist))
+        hess_hists.append(np.asarray(hess_hist))
+    return grad_hists, hess_hists
+
+
 class LeaderGrower(BaseGrower):
     def __init__(self, bridge, public_key, private_key,
-                 binned, labels, grad, hess, **kwargs):
+                 binned, labels, grad, hess, enable_packing=False,
+                 **kwargs):
         super(LeaderGrower, self).__init__(
             binned, labels, grad, hess, dtype=np.float32, **kwargs)
         self._bridge = bridge
         self._public_key = public_key
         self._private_key = private_key
+        self._enable_packing = enable_packing
+        if self._enable_packing:
+            self._packer = GradHessPacker(self._public_key, PRECISION, EXPONENT)
 
         bridge.start()
         follower_num_features, follower_num_cat_features = \
@@ -607,14 +661,38 @@ class LeaderGrower(BaseGrower):
         hists = self._pool.map(_decrypt_histogram_helper, args)
         return sum(hists, [])
 
+    def _receive_and_decrypt_packed_histogram(self, name):
+        msg = tree_pb2.Histograms()
+        self._bridge.receive_proto(name).Unpack(msg)
+        if not self._pool:
+            return _decrypt_packed_histogram_helper(
+                (0, self._packer, self._private_key, msg.hists))
+
+        job_size = (len(msg.hists) + self._num_parallel -
+                    1) // self._num_parallel
+        args = [(i * job_size, self._packer, self._private_key,
+                 msg.hists[i * job_size:(i + 1) * job_size])
+                for i in range(self._num_parallel)]
+        hists = self._pool.map(_decrypt_packed_histogram_helper, args)
+        grad_hists = [hist[0] for hist in hists]
+        hess_hists = [hist[1] for hist in hists]
+        return sum(grad_hists, []), sum(hess_hists, [])
+
     def _compute_histogram(self, node):
         self._bridge.start()
         grad_hists = self._hist_builder.compute_histogram(
             self._grad, node.sample_ids)
         hess_hists = self._hist_builder.compute_histogram(
             self._hess, node.sample_ids)
-        follower_grad_hists = self._receive_and_decrypt_histogram('grad_hists')
-        follower_hess_hists = self._receive_and_decrypt_histogram('hess_hists')
+        if not self._enable_packing:
+            follower_grad_hists = self._receive_and_decrypt_histogram(
+                'grad_hists')
+            follower_hess_hists = self._receive_and_decrypt_histogram(
+                'hess_hists')
+        else:
+            follower_grad_hists, follower_hess_hists = \
+                self._receive_and_decrypt_packed_histogram('gradhess_hists')
+
         node.grad_hists = grad_hists + follower_grad_hists
         node.hess_hists = hess_hists + follower_hess_hists
         self._bridge.commit()
@@ -674,17 +752,18 @@ class LeaderGrower(BaseGrower):
 
 class FollowerGrower(BaseGrower):
     def __init__(self, bridge, public_key, binned, labels,
-                grad, hess, **kwargs):
+                grad, hess, gradhess=None, enable_packing=False,
+                 **kwargs):
         dtype = lambda x: public_key.encrypt(x, PRECISION)
         super(FollowerGrower, self).__init__(
             binned, labels, grad, hess, dtype=dtype, **kwargs)
         self._bridge = bridge
         self._public_key = public_key
-
+        self._enable_packing = enable_packing
+        self._gradhess = gradhess
         bridge.start()
-        bridge.send(
-            'feature_dim',
-            [binned.num_features, binned.num_cat_features])
+        bridge.send('feature_dim',
+                    [binned.num_features, binned.num_cat_features])
         bridge.commit()
 
     def _compute_histogram_from_sibling(self, node, sibling):
@@ -706,12 +785,17 @@ class FollowerGrower(BaseGrower):
 
     def _compute_histogram(self, node):
         self._bridge.start()
-        grad_hists = self._hist_builder.compute_histogram(
-            self._grad, node.sample_ids)
-        hess_hists = self._hist_builder.compute_histogram(
-            self._hess, node.sample_ids)
-        self._send_histograms('grad_hists', grad_hists)
-        self._send_histograms('hess_hists', hess_hists)
+        if not self._enable_packing:
+            grad_hists = self._hist_builder.compute_histogram(
+                self._grad, node.sample_ids)
+            hess_hists = self._hist_builder.compute_histogram(
+                self._hess, node.sample_ids)
+            self._send_histograms('grad_hists', grad_hists)
+            self._send_histograms('hess_hists', hess_hists)
+        else:
+            gradhess_hists = self._hist_builder.compute_histogram(
+                self._gradhess, node.sample_ids)
+            self._send_histograms('gradhess_hists', gradhess_hists)
         self._bridge.commit()
 
     def _split_next(self):
@@ -806,7 +890,7 @@ class BoostingTreeEnsamble(object):
                  max_leaves=0, l2_regularization=1.0, max_bins=33,
                  grow_policy='depthwise', num_parallel=1,
                  loss_type='logistic', send_scores_to_follower=False,
-                 send_metrics_to_follower=False):
+                 send_metrics_to_follower=False, enable_packing=False):
         self._learning_rate = learning_rate
         self._max_iters = max_iters
         self._max_depth = max_depth
@@ -842,6 +926,10 @@ class BoostingTreeEnsamble(object):
         else:
             self._role = 'local'
 
+        self._enable_packing = enable_packing
+        if self._role == 'leader' and self._enable_packing:
+            self._packer = GradHessPacker(self._public_key, PRECISION, EXPONENT)
+
     @property
     def loss(self):
         return self._loss
@@ -875,7 +963,6 @@ class BoostingTreeEnsamble(object):
         self._bridge.commit()
 
         return metrics
-
 
     def _make_key_pair(self):
         # make key pair
@@ -1336,15 +1423,22 @@ class BoostingTreeEnsamble(object):
             len(self._trees), self._compute_metrics(pred, labels))
 
         self._bridge.start()
-        _encrypt_and_send_numbers(
-            self._bridge, 'grad', self._public_key, grad)
-        _encrypt_and_send_numbers(
-            self._bridge, 'hess', self._public_key, hess)
+        if not self._enable_packing:
+            _encrypt_and_send_numbers(self._bridge, 'grad', self._public_key,
+                                      grad)
+            _encrypt_and_send_numbers(self._bridge, 'hess', self._public_key,
+                                      hess)
+        else:
+            gradhess_plaintest = self._packer.pack_grad_hess(grad, hess)
+            _raw_encrypt_and_send_numbers(self._bridge, 'gradhess',
+                                          self._public_key, gradhess_plaintest,
+                                          self._pool)
         self._bridge.commit()
 
         grower = LeaderGrower(
             self._bridge, self._public_key, self._private_key,
             binned, labels, grad, hess,
+            enable_packing=self._enable_packing,
             learning_rate=self._learning_rate,
             max_depth=self._max_depth,
             max_leaves=self._max_leaves,
@@ -1363,12 +1457,22 @@ class BoostingTreeEnsamble(object):
             len(self._trees), self._compute_metrics(None, None))
         # compute grad and hess
         self._bridge.start()
-        grad = np.asarray(_receive_encrypted_numbers(
-            self._bridge, 'grad', self._public_key))
-        assert len(grad) == binned.features.shape[0]
-        hess = np.asarray(_receive_encrypted_numbers(
-            self._bridge, 'hess', self._public_key))
-        assert len(hess) == binned.features.shape[0]
+        if not self._enable_packing:
+            grad = np.asarray(
+                _receive_encrypted_numbers(self._bridge, 'grad',
+                                           self._public_key))
+            assert len(grad) == binned.features.shape[0]
+            hess = np.asarray(
+                _receive_encrypted_numbers(self._bridge, 'hess',
+                                           self._public_key))
+            assert len(hess) == binned.features.shape[0]
+            gradhess = None
+        else:
+            grad = None
+            hess = None
+            gradhess = np.asarray(
+                _receive_encrypted_numbers(self._bridge, 'gradhess',
+                                           self._public_key))
         self._bridge.commit()
         logging.info(
             'Follower starting iteration %d.',
@@ -1377,7 +1481,8 @@ class BoostingTreeEnsamble(object):
         # labels is None for follower
         grower = FollowerGrower(
             self._bridge, self._public_key,
-            binned, None, grad, hess,
+            binned, None, grad, hess, gradhess,
+            enable_packing=self._enable_packing,
             learning_rate=self._learning_rate,
             max_depth=self._max_depth,
             max_leaves=self._max_leaves,

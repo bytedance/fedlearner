@@ -8,6 +8,7 @@ import term from './modules/term';
 import app from './modules/app';
 import dataset from './modules/dataset';
 import settings from './modules/settings';
+import users from './modules/users';
 
 const messages = {
   translation: {
@@ -21,6 +22,7 @@ const messages = {
     app: app.en,
     dataset: dataset.en,
     settings: settings.en,
+    users: users.en,
 
     all: 'All',
     terms: 'Terms of Services',
