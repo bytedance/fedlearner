@@ -86,7 +86,7 @@ class DataPortalJobManager(object):
                                                                partition_id)
                 return (self._finished and
                             self._all_job_part_finished()), None
-            return self._finished, None
+            return not self._long_running, None
 
     def finish_task(self, rank_id, partition_id, part_state):
         with self._lock:
