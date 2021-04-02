@@ -57,7 +57,7 @@ class DataPortalJobManager(object):
         if self._portal_manifest.processing_job_id >= 0:
             self._check_processing_job_finished()
         if self._portal_manifest.processing_job_id < 0:
-            if not self._launch_new_portal_job():
+            if not self._launch_new_portal_job() and not self._long_running:
                 self._finished = True
 
     def get_portal_manifest(self):
