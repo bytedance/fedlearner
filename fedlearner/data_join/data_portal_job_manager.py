@@ -307,7 +307,7 @@ class DataPortalJobManager(object):
             fname = path.join(root, basename)
             if gfile.IsDirectory(fname):
                 # 'ignore tmp dirs starting with _
-                if fname.startswith('_'):
+                if basename.startswith('_'):
                     continue
                 res += self._list_dir_helper(fname)
             else:
