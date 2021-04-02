@@ -295,6 +295,25 @@ class DataPortalJobManager(object):
         logging.info("---------------------------------\n")
 
         return True
+    
+    def _list_dir_helper(self, root):
+        filenames = list(gfile.ListDirectory(root))
+        # If _SUCCESS is present, we assume there are no subdirs
+        if '_SUCCESS' in filenames:
+            return [path.join(root, i) for i in filenames]
+
+        res = []
+        for basename in filenames:
+            fname = path.join(root, basename)
+            if gfile.IsDirectory(fname):
+                # 'ignore tmp dirs starting with _
+                if fname.startswith('_'):
+                    continue
+                res += self._list_dir_helper(fname)
+            else:
+                res.append(fname)
+        return res
+
 
     def _list_input_dir(self):
         logging.info("List input directory, it will take some time...")
@@ -306,17 +325,7 @@ class DataPortalJobManager(object):
         # and then listdir('root/folder') returns
         #   ['file2.txt']
         # so we use set to deduplicate
-        all_files = set()
-        for basename in gfile.ListDirectory(root):
-            fname = path.join(root, basename)
-            if not gfile.IsDirectory(fname):
-                all_files.add(fname)
-                continue
-
-            # We allow 2 level nesting max
-            for sub_basename in gfile.ListDirectory(fname):
-                sub_fname = path.join(fname, sub_basename)
-                all_files.add(sub_fname)
+        all_files = set(self._list_dir_helper(root))
 
         num_ignored = 0
         num_target_files = 0
