@@ -289,12 +289,11 @@ class Args(object):
 
 
 class TestNNTraining(unittest.TestCase):
-    def _create_data_block(self, data_source, partition_id, x, y):
+    def _create_data_block(self, data_source, partition_id, x, y, N):
         data_block_metas = []
         dbm = data_block_manager.DataBlockManager(data_source, partition_id)
         self.assertEqual(dbm.get_dumped_data_block_count(), 0)
         self.assertEqual(dbm.get_lastest_data_block_meta(), None)
-        N = 1
         chunk_size = x.shape[0] // N
 
         leader_index = 0
@@ -355,7 +354,7 @@ class TestNNTraining(unittest.TestCase):
             (x, y), _ = tf.keras.datasets.mnist.load_data(local_mnist_path)
         else:
             (x, y), _ = tf.keras.datasets.mnist.load_data()
-        x = x[:200,]
+        x = x[:100,]
 
         x = x.reshape(x.shape[0], -1).astype(np.float32) / 255.0
         y = y.astype(np.int64)
@@ -367,10 +366,7 @@ class TestNNTraining(unittest.TestCase):
         for i in range(0, num_parts):
             start_idx = chunk_size * i
             end_idx = chunk_size * (i + 1)
-            if i == 1:
-                xs.append(copy.deepcopy(x[:100, start_idx:end_idx]))
-            else:
-                xs.append(x[:, start_idx:end_idx])
+            xs.append(x[:, start_idx:end_idx])
 
         self.kv_store = [None, None, None]
         self._local_data_source = "test-liuqi-mnist-local"
@@ -389,9 +385,10 @@ class TestNNTraining(unittest.TestCase):
                         self.kv_store[role], data_source[role]
                     )
             partition_num = data_source[role].data_source_meta.partition_num
+            num_data_blocks = 100 if role == 1 else 2
             for i in range(partition_num):
                 self._create_data_block(data_source[role], i,
-                                        xs[role], y)
+                                        xs[role], y, num_data_blocks)
                                         #x[role], y if role == 0 else None)
 
                 manifest_manager._finish_partition('join_example_rep',

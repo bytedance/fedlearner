@@ -29,7 +29,7 @@ def input_fn(bridge, trainer_master):
         }
         features = tf.parse_example(example, features=feature_map)
         return features, {}
-    batch = 2
+    batch = 20
     loader0 = flt.data.DataBlockLoader(batch, 'leader', bridge,
                                        trainer_master)
     dataset = loader0.make_dataset()
@@ -39,10 +39,10 @@ def input_fn(bridge, trainer_master):
 
     loader1 = flt.data.DataBlockLoaderV2('leader', bridge, trainer_master,
                                          local_data_source_name)
-    block_count0 = loader0.block_count
-    block_count1 = loader1.block_count
-    min_block_count = min(block_count0, block_count1)
-    batch_size1 = batch * (block_count1 // min_block_count)
+    # block_count0 = loader0.block_count
+    # block_count1 = loader1.block_count
+    # min_block_count = min(block_count0, block_count1)
+    batch_size1 = batch
     def parse_fn1(example):
         feature_map = {
             "x": tf.FixedLenFeature([261], tf.float32),
