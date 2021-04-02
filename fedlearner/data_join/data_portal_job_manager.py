@@ -297,74 +297,69 @@ class DataPortalJobManager(object):
 
     def _list_input_dir(self):
         logging.info("List input directory, it will take some time...")
-        rest_fpaths = []
+        root = self._portal_manifest.input_base_dir
         wildcard = self._portal_manifest.input_file_wildcard
-        dirs = []
-        if gfile.IsDirectory(self._portal_manifest.input_base_dir):
-            dirs = [self._portal_manifest.input_base_dir]
 
-        num_dirs = 0
-        num_files = 0
+        # oss returns a file multiple times, e.g.:
+        #   'root', ['folder'], [file1.txt, 'folder/file2.txt']
+        # and then
+        #   'root/folder', [], ['file2.txt'].
+        # so we use set to deduplicate
+        all_files = set()
+        for dirname, _, filenames in gfile.Walk(root):
+            for fname in filenames:
+                all_files.add(path.join(dirname, fname))
+
+        num_ignored = 0
         num_target_files = 0
-        while dirs:
-            fdir = dirs[0]
-            dirs = dirs[1:]
-            logging.info("List directory %s", fdir)
-            if fdir.startswith('_'):
+        by_folder = {}
+        for fname in all_files:
+            splits = path.split(path.relpath(fname, root))
+            basename = splits[-1]
+            dirnames = splits[:-1]
+
+            # ignore files and dirs starting with _
+            ignore = False
+            for name in splits:
+                if name.startswith('_'):
+                    ignore = True
+                    break
+            if ignore:
+                num_ignored += 1
                 continue
-            has_succ = False
+
+            # check wildcard
+            if wildcard and not fnmatch(fname, wildcard):
+                continue
+            num_target_files += 1
+
+            # check success tag
             if self._check_success_tag:
-                has_succ = gfile.Exists(
-                    path.join(fdir, '_SUCCESS'))
-                if has_succ:
-                    logging.info("Directory %s which has _SUCCESS"
-                                 " tag, all of things of this directory"
-                                 " are considered as file by default.",
-                                 fdir)
-
-            fnames = gfile.ListDirectory(fdir)
-            for fname in fnames:
-                # filter directories start with '_'(e.g. _tmp/_SUCCESS)
-                # TODO: format the inputs' directory name
-                if fname.startswith('_'):
+                succ_fname = path.join(root, *dirnames, '_SUCCESS')
+                if succ_fname not in all_files:
                     continue
-                fpath = path.join(fdir, fname)
-                if has_succ:
-                    num_files += 1
-                    if not wildcard or fnmatch(fname, wildcard):
-                        num_target_files += 1
-                        if fpath not in self._processed_fpath:
-                            rest_fpaths.append(fpath)
-                else:
-                    if gfile.IsDirectory(fpath):
-                        dirs.append(fpath)
-                        num_dirs += 1
-                        continue
-                    if self._check_success_tag:
-                        # if check success tag and not has _SUCCEEDED file
-                        continue
-                    num_files += 1
-                    if not wildcard or fnmatch(fname, wildcard):
-                        num_target_files += 1
-                        if fpath not in self._processed_fpath:
-                            rest_fpaths.append(fpath)
 
-        if rest_fpaths and self._single_subfolder:
-            by_folder = {}
-            for fname in rest_fpaths:
-                folder = path.basename(path.dirname(fname))
-                if folder not in by_folder:
-                    by_folder[folder] = []
-                by_folder[folder].append(fname)
+            folder = path.join(*dirnames)
+            if folder not in by_folder:
+                by_folder[folder] = []
+            by_folder[folder].append(fname)
+
+        if not by_folder:
+            rest_fpaths = []
+        elif self._single_subfolder:
             rest_folder, rest_fpaths = sorted(by_folder.items())[0]
             logging.info(
                 'single_subfolder is set. Only process folder %s '
                 'in this iteration', rest_folder)
+        else:
+            rest_fpaths = []
+            for _, v in by_folder.items():
+                rest_fpaths.extend(v)
 
         logging.info(
             'Listing %s: found %d dirs, %d files, %d files matching wildcard, '
             '%d new files to process',
-            self._portal_manifest.input_base_dir, num_dirs, num_files,
+            root, len(by_folder), len(all_files),
             num_target_files, len(rest_fpaths))
         return rest_fpaths
 
