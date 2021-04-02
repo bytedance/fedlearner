@@ -295,7 +295,7 @@ class DataPortalJobManager(object):
         logging.info("---------------------------------\n")
 
         return True
-    
+
     def _list_dir_helper(self, root):
         filenames = list(gfile.ListDirectory(root))
         # If _SUCCESS is present, we assume there are no subdirs
