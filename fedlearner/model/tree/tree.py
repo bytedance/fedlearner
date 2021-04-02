@@ -19,11 +19,12 @@ import math
 import queue
 import time
 import logging
-import multiprocessing as mp
 import collections
+from concurrent.futures import ProcessPoolExecutor
 import numpy as np
 from google.protobuf import text_format
 import tensorflow.compat.v1 as tf
+
 
 from fedlearner.model.tree.packing import GradHessPacker
 from fedlearner.model.tree.loss import LogisticLoss, MSELoss
@@ -111,7 +112,7 @@ def _raw_encrypt_and_send_numbers(bridge, name, public_key, numbers, pool=None):
                                MAX_PARTITION_SIZE]
                 yield public_key, part, part_id
 
-        results = pool.imap_unordered(_raw_encrypt_numbers, gen())
+        results = pool.map(_raw_encrypt_numbers, gen())
         for res in results:
             part_id, ciphertext = res
             msg = tree_pb2.EncryptedNumbers()
@@ -674,8 +675,11 @@ class LeaderGrower(BaseGrower):
                  msg.hists[i * job_size:(i + 1) * job_size])
                 for i in range(self._num_parallel)]
         hists = self._pool.map(_decrypt_packed_histogram_helper, args)
-        grad_hists = [hist[0] for hist in hists]
-        hess_hists = [hist[1] for hist in hists]
+        grad_hists = []
+        hess_hists = []
+        for hist in hists:
+            grad_hists.append(hist[0])
+            hess_hists.append(hist[1])
         return sum(grad_hists, []), sum(hess_hists, [])
 
     def _compute_histogram(self, node):
@@ -900,7 +904,7 @@ class BoostingTreeEnsamble(object):
         self._num_parallel = num_parallel
         self._pool = None
         if self._num_parallel > 1:
-            self._pool = mp.Pool(num_parallel)
+            self._pool = ProcessPoolExecutor(num_parallel)
 
         assert max_bins < 255, "Only support max_bins < 255"
         self._max_bins = max_bins
