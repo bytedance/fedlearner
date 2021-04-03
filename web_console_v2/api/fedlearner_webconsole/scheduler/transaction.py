@@ -91,7 +91,7 @@ class TransactionManager(object):
                 TransactionState.COORDINATOR_COMMITTING:
             # committing as coordinator. tell participants to commit
             if self._broadcast_state_and_check(
-                    self._workflow.state, self._workflow.target_state,
+                    None, self._workflow.target_state,
                     TransactionState.PARTICIPANT_COMMITTING,
                     TransactionState.READY):
                 # all participants committed. finish.
