@@ -18,8 +18,10 @@ from fedlearner_webconsole.db import db, to_dict_mixin
 from fedlearner_webconsole.proto import workflow_definition_pb2
 
 
-@to_dict_mixin(ignores=['editor_info',
-                        'config'])
+@to_dict_mixin(
+    extras={
+        'config': (lambda wt: wt.get_config()),
+        'editor_info': (lambda wt: wt.get_editor_info())})
 class WorkflowTemplate(db.Model):
     __tablename__ = 'template_v2'
     __table_args__ = (UniqueConstraint('name', name='uniq_name'),

@@ -59,7 +59,7 @@ const AddBatchForm: ForwardRefRenderFunction<AddBatchExposedRef, Props> = (
         labelCol={{ span: 4 }}
         wrapperCol={{ span: 20 }}
         form={formInstance}
-        style={{ width: '700px' }}
+        style={{ width: '1000px' }}
         labelAlign="left"
       >
         {datasetType === DatasetType.STREAMING && (

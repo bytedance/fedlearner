@@ -59,8 +59,7 @@ class RpcClient(object):
             target_domain=self._receiver.domain_name,
             auth_token=self._project.token)
 
-        egress_url = 'fedlearner-stack-ingress-nginx-controller.default'\
-                     '.svc.cluster.local:80'
+        egress_url = 'fedlearner-stack-ingress-nginx-controller.default.svc:80'
         for variable in self._project.variables:
             if variable.name == 'EGRESS_URL':
                 egress_url = variable.value

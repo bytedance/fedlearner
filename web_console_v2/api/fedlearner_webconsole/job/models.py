@@ -77,14 +77,14 @@ class Job(db.Model):
                       default=JobState.INVALID,
                       comment='state')
     yaml_template = db.Column(db.Text(), comment='yaml_template')
-    config = db.Column(db.LargeBinary(), comment='config')
+    config = db.Column(db.LargeBinary(16777215), comment='config')
 
     is_disabled = db.Column(db.Boolean(), default=False, comment='is_disabled')
 
     workflow_id = db.Column(db.Integer, nullable=False, comment='workflow id')
     project_id = db.Column(db.Integer, nullable=False, comment='project id')
-    flapp_snapshot = db.Column(db.Text(), comment='flapp snapshot')
-    pods_snapshot = db.Column(db.Text(), comment='pods snapshot')
+    flapp_snapshot = db.Column(db.Text(16777215), comment='flapp snapshot')
+    pods_snapshot = db.Column(db.Text(16777215), comment='pods snapshot')
 
     created_at = db.Column(db.DateTime(timezone=True),
                            server_default=func.now(),

@@ -379,9 +379,13 @@ const WorkflowForkStepTwoConfig: FC = () => {
       return;
     }
 
-    getChartRef(sideOfNode)?.updateNodeDisabledById({
-      id: payload.id,
-      disabled: payload.disabled,
+    const targetSides = payload.data.raw.is_federated ? ALL_SIDES : [sideOfNode];
+
+    targetSides.forEach((side) => {
+      getChartRef(side)?.updateNodeDisabledById({
+        id: payload.id, // federated jobs share the same name/id
+        disabled: payload.disabled,
+      });
     });
   }
   function onNodeInheritanceChange(
@@ -397,7 +401,7 @@ const WorkflowForkStepTwoConfig: FC = () => {
 
     targetSides.forEach((side) => {
       getChartRef(side)?.updateNodeInheritanceById({
-        id: payload.id, // federated jobs share the same name
+        id: payload.id, // federated jobs share the same name/id
         whetherInherit: payload.whetherInherit,
       });
     });

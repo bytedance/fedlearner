@@ -91,7 +91,7 @@ const WorkflowActions: FC<Props> = ({ workflow, type = 'default', without = [], 
     stop: isDisabled,
     rerun: isDisabled,
     fork: !isForkable(workflow),
-    invalid: isDisabled,
+    invalid: false,
     report: true,
     accessCtrl: false,
   };

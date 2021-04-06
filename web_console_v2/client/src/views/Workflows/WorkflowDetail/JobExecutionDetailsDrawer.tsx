@@ -108,7 +108,6 @@ const JobExecutionDetailsDrawer: ForwardRefRenderFunction<JobExecutionDetailsExp
   });
 
   const jobStatus = convertExecutionStateToStatus(job.state!);
-  const isPeerMetricsPublic = isPeerSide && workflow?.metric_is_public;
 
   return (
     <ErrorBoundary>
@@ -144,14 +143,12 @@ const JobExecutionDetailsDrawer: ForwardRefRenderFunction<JobExecutionDetailsExp
 
         <PropertyList initialVisibleRows={3} cols={2} properties={displayedProps} labelWidth={90} />
 
-        {(isPeerMetricsPublic || !isPeerSide) && (
-          <JobExecutionMetrics
-            job={job}
-            workflow={workflow}
-            isPeerSide={!!isPeerSide}
-            visible={props.visible}
-          />
-        )}
+        <JobExecutionMetrics
+          job={job}
+          workflow={workflow}
+          isPeerSide={!!isPeerSide}
+          visible={props.visible}
+        />
 
         <JobExecutionLogs
           isPeerSide={!!isPeerSide}

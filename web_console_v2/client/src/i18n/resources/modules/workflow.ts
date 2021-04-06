@@ -35,6 +35,7 @@ const workflow: I18nMessageModule = {
   btn_send_2_ptcpt: { zh: '发送给合作伙伴' },
   btn_auto_refresh_logs: { zh: '自动刷新日志' },
   btn_pause_auto_refresh: { zh: '停止自动刷新' },
+  btn_full_screen: { zh: '全屏查看日志' },
   btn_has_new_logs: { zh: '有新的日志' },
   btn_fetch_metrics: { zh: '点击加载数据' },
   btn_retry: { zh: '重试' },
@@ -125,6 +126,7 @@ const workflow: I18nMessageModule = {
   placeholder_var_name: { zh: '请输入变量名 （仅允许英语及下划线' },
   placeholder_default_val: { zh: '按需设置变量默认值' },
   placeholder_dataset: { zh: '请选择数据集' },
+  placeholder_metric_not_public: { zh: '对侧未公开指标可见性，如需查看请联系对侧' },
 
   msg_sent_success: { zh: '工作流发送成功' },
   msg_template_required: { zh: '请选择一个模板！' },
@@ -170,6 +172,7 @@ const workflow: I18nMessageModule = {
   msg_metric_public: { zh: '公开后，对侧将能查看你的「任务运行结果指标」' },
   msg_toggle_job_disabled: { zh: '是否启用该Job' },
   msg_diable_job_will_cause: { zh: '工作流执行时将直接跳过该Job' },
+  msg_lack_workflow_infos: { zh: '缺少Workflow信息' },
 
   title_toggle_reusable: { zh: '切换至{{state}}状态' },
 
