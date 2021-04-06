@@ -20,14 +20,15 @@ const Prop = styled.dd`
   align-items: flex-start;
   margin-bottom: 3px;
   font-size: 13px;
-  line-height: 36px;
-  word-break: break-word;
+  line-height: var(--lineHeight, 36px);
+  word-break: break-all;
 
   &::before {
     display: inline-block;
     min-width: var(--labelWidth, 'auto');
     margin-right: 5px;
     content: attr(data-label) ': ';
+    flex-shrink: 0;
     color: var(--textColorSecondary);
   }
 `;
@@ -74,6 +75,7 @@ type Props = {
   cols?: 1 | 2 | 3 | 4 | 6;
   initialVisibleRows?: number; // NOTE: should not <= 0
   labelWidth?: number;
+  lineHeight?: number;
 };
 
 const PropertyList: FC<Props> = ({
@@ -81,6 +83,7 @@ const PropertyList: FC<Props> = ({
   cols = 2,
   labelWidth,
   initialVisibleRows,
+  lineHeight = 36,
   ...props
 }) => {
   // FIXME: remove next-line after basic_envs been remove
@@ -101,9 +104,14 @@ const PropertyList: FC<Props> = ({
           <Col span={24 / cols} key={item.label + index}>
             <Prop
               data-label={item.label}
-              style={{ '--labelWidth': convertToUnit(labelWidth || 'auto') } as any}
+              style={
+                {
+                  '--labelWidth': convertToUnit(labelWidth || 'auto'),
+                  '--lineHeight': convertToUnit(lineHeight) || '',
+                } as any
+              }
             >
-              {item.value}
+              {item.value || '-'}
             </Prop>
           </Col>
         );

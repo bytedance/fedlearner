@@ -11,18 +11,29 @@ const ExecutionJobNode: FC<JobNodeProps> = ({ data, id }) => {
   const icon = statusIcons[data.status];
   const text = executionStatusText[data.status];
 
+  const isDisabled = Boolean(data.raw.disabled);
+
   return (
-    <Container className={classNames([data.raw.is_federated && 'federated-mark', data.mark])}>
+    <Container
+      data-disabled={isDisabled.toString()}
+      className={classNames([data.raw.is_federated && 'federated-mark', data.mark])}
+    >
       {data.isTarget && <Handle type="target" position={Position.Top} />}
       <JobName>{id}</JobName>
-      <GridRow gap={5}>
-        {icon && <StatusIcon src={icon} />}
-        <JobStatusText>{text}</JobStatusText>
+      {isDisabled ? (
+        <GridRow gap="4" style={{ fontSize: '11px' }}>
+          <JobStatusText>{t('workflow.job_node_disabled')}</JobStatusText>
+        </GridRow>
+      ) : (
+        <GridRow gap={5}>
+          {icon && <StatusIcon src={icon} />}
+          <JobStatusText>{text}</JobStatusText>
 
-        {data.raw.reused && (
-          <InheritedTag color="orange">{t('workflow.job_node_reused')}</InheritedTag>
-        )}
-      </GridRow>
+          {data.raw.reused && (
+            <InheritedTag color="orange">{t('workflow.job_node_reused')}</InheritedTag>
+          )}
+        </GridRow>
+      )}
       {data.isSource && <Handle type="source" position={Position.Bottom} />}
     </Container>
   );

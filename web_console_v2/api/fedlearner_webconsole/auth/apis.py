@@ -14,7 +14,6 @@
 
 # coding: utf-8
 # pylint: disable=cyclic-import
-
 from http import HTTPStatus
 from flask import request
 from flask_restful import Resource, reqparse
@@ -44,7 +43,6 @@ class SigninApi(Resource):
         data = parser.parse_args()
         username = data['username']
         password = data['password']
-
         user = User.query.filter_by(username=username).filter_by(
             state=State.ACTIVE).first()
         if user is None:

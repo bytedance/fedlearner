@@ -158,9 +158,11 @@ const PrintLogs: FC<Props> = (props) => {
         {logsQuery.isLoading ? <Refresh spin style={{ fontSize: '20px' }} /> : logsContent}
       </Pre>
       <ControlsContainer>
-        {fullscreenVisible && onFullscreenClick && (
+        {fullscreenVisible && Boolean(onFullscreenClick) && (
           <ControlButton onClick={onFullscreenClick}>
-            <Expand />
+            <Tooltip title={i18n.t('workflow.btn_full_screen')}>
+              <Expand />
+            </Tooltip>
           </ControlButton>
         )}
 
