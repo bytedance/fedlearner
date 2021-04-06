@@ -20,6 +20,8 @@ import base64
 from string import Template
 from flatten_dict import flatten
 from fedlearner_webconsole.utils.system_envs import get_system_envs
+from fedlearner_webconsole.proto import common_pb2
+
 class _YamlTemplate(Template):
     delimiter = '$'
     # Which placeholders in the template should be interpreted
@@ -44,8 +46,10 @@ def format_yaml(yaml, **kwargs):
 
 def _make_variables_dict(variables):
     var_dict = {
-        var.name: (code_dict_encode(json.loads(var.value))
-                   if var.value_type == 'CODE' else var.value)
+        var.name: (
+            code_dict_encode(json.loads(var.value))
+                if var.value_type == common_pb2.Variable.ValueType.CODE \
+                    else var.value)
         for var in variables
     }
     return var_dict
@@ -77,8 +81,11 @@ def generate_job_run_yaml(job):
                        workflow=workflow,
                        project=project,
                        system=system_dict)
-    yaml = json.loads(yaml)
-    return yaml
+    try:
+        loaded = json.loads(yaml)
+    except Exception as e:  # pylint: disable=broad-except
+        raise ValueError("Invalid json %s: %s"%(repr(e), yaml))
+    return loaded
 
 
 def code_dict_encode(data_dict):
@@ -88,9 +95,9 @@ def code_dict_encode(data_dict):
     out = BytesIO()
     with tarfile.open(fileobj=out, mode='w:gz') as tar:
         for path in data_dict:
+            data = data_dict[path].encode('utf-8')
             tarinfo = tarfile.TarInfo(path)
-            tarinfo.size = len(data_dict[path])
-            tar.addfile(tarinfo, BytesIO(
-                data_dict[path].encode('utf-8')))
+            tarinfo.size = len(data)
+            tar.addfile(tarinfo, BytesIO(data))
     result = str(base64.b64encode(out.getvalue()), encoding='utf-8')
     return f'base64://{result}'

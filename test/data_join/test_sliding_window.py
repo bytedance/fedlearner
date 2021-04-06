@@ -123,6 +123,20 @@ class TestSlidingWindow(unittest.TestCase):
             cnt += 1
         self.assertEqual(cnt, 1)
 
+    def test_ps(self):
+        ps = aj.PrioritySet()
+        ps.put(aj._IndexedPair(None, 1, 2))
+        ps.put(aj._IndexedPair(None, 1, 2))
+        assert ps.size() == 1
+        ps.put(aj._IndexedPair(None, 1, 3))
+        ps.put(aj._IndexedPair(None, 2, 3))
+        item = ps.get()
+        assert item.li == 1 and item.fi == 2
+        item = ps.get()
+        assert item.li == 1 and item.fi == 3
+
+        assert ps.size() == 1
+
     def tearDown(self):
         pass
 

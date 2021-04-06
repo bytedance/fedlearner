@@ -92,6 +92,7 @@ class TfExampleItem(RawDataIter.Item):
             for name, value in additional_records.items():
                 if name not in common.ALLOWED_FIELDS:
                     continue
+                self._features.update({name: value})
                 if common.ALLOWED_FIELDS[name].type is bytes:
                     if isinstance(value, str):
                         value = value.encode()

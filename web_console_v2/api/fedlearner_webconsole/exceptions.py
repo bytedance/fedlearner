@@ -38,12 +38,10 @@ class WebConsoleApiException(Exception):
             dic['details'] = self.details
         return dic
 
-
 class InvalidArgumentException(WebConsoleApiException):
     def __init__(self, details):
         WebConsoleApiException.__init__(self, HTTPStatus.BAD_REQUEST, 400,
                                         'Invalid argument or payload.', details)
-
 
 class NotFoundException(WebConsoleApiException):
     def __init__(self):

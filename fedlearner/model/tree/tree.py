@@ -24,8 +24,6 @@ from concurrent.futures import ProcessPoolExecutor
 import numpy as np
 from google.protobuf import text_format
 import tensorflow.compat.v1 as tf
-
-
 from fedlearner.model.tree.packing import GradHessPacker
 from fedlearner.model.tree.loss import LogisticLoss, MSELoss
 from fedlearner.model.crypto import paillier, fixed_point_number
@@ -111,7 +109,6 @@ def _raw_encrypt_and_send_numbers(bridge, name, public_key, numbers, pool=None):
                 part = numbers[part_id * MAX_PARTITION_SIZE:(part_id + 1) *
                                MAX_PARTITION_SIZE]
                 yield public_key, part, part_id
-
         results = pool.map(_raw_encrypt_numbers, gen())
         for res in results:
             part_id, ciphertext = res

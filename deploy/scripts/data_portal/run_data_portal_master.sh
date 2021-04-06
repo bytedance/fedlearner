@@ -32,4 +32,4 @@ python -m fedlearner.data_join.cmd.data_portal_master_service \
     --output_base_dir=$OUTPUT_BASE_DIR \
     --raw_data_publish_dir=$RAW_DATA_PUBLISH_DIR \
     $input_file_wildcard $LONG_RUNNING $CHECK_SUCCESS_TAG \
-    $kvstore_type
+    $kvstore_type $SINGLE_SUBFOLDER

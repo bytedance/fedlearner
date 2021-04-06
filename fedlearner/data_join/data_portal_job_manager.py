@@ -30,11 +30,13 @@ from fedlearner.data_join.raw_data_publisher import RawDataPublisher
 from fedlearner.data_join.sort_run_merger import MergedSortRunMeta
 
 class DataPortalJobManager(object):
-    def __init__(self, kvstore, portal_name, long_running, check_success_tag):
+    def __init__(self, kvstore, portal_name, long_running, check_success_tag,
+                 single_subfolder):
         self._lock = threading.Lock()
         self._kvstore = kvstore
         self._portal_name = portal_name
         self._check_success_tag = check_success_tag
+        self._single_subfolder = single_subfolder
         self._portal_manifest = None
         self._processing_job = None
         self._sync_portal_manifest()
@@ -43,6 +45,7 @@ class DataPortalJobManager(object):
             RawDataPublisher(kvstore,
                 self._portal_manifest.raw_data_publish_dir)
         self._long_running = long_running
+        self._finished = False
         assert self._portal_manifest is not None
         self._processed_fpath = set()
         for job_id in range(0, self._portal_manifest.next_job_id):
@@ -54,7 +57,8 @@ class DataPortalJobManager(object):
         if self._portal_manifest.processing_job_id >= 0:
             self._check_processing_job_finished()
         if self._portal_manifest.processing_job_id < 0:
-            self._launch_new_portal_job()
+            if not self._launch_new_portal_job() and not self._long_running:
+                self._finished = True
 
     def get_portal_manifest(self):
         with self._lock:
@@ -80,9 +84,9 @@ class DataPortalJobManager(object):
                     if partition_id is not None:
                         return False, self._create_reduce_task(rank_id,
                                                                partition_id)
-                return (not self._long_running and
+                return (self._finished and
                             self._all_job_part_finished()), None
-            return not self._long_running, None
+            return self._finished, None
 
     def finish_task(self, rank_id, partition_id, part_state):
         with self._lock:
@@ -113,8 +117,10 @@ class DataPortalJobManager(object):
         with self._lock:
             if self._sync_processing_job() is not None:
                 self._check_processing_job_finished()
-            if self._sync_processing_job() is None and self._long_running:
-                self._launch_new_portal_job()
+            if self._sync_processing_job() is None:
+                success = self._launch_new_portal_job()
+                if not success and not self._long_running:
+                    self._finished = True
 
     def _all_job_part_mapped(self):
         processing_job = self._sync_processing_job()
@@ -267,7 +273,7 @@ class DataPortalJobManager(object):
         rest_fpaths = self._list_input_dir()
         if len(rest_fpaths) == 0:
             logging.info("no file left for portal")
-            return
+            return False
         rest_fpaths.sort()
         portal_mainifest = self._sync_portal_manifest()
         new_job = dp_pb.DataPortalJob(job_id=portal_mainifest.next_job_id,
@@ -288,59 +294,96 @@ class DataPortalJobManager(object):
             logging.info("%d. %s", seq, fpath)
         logging.info("---------------------------------\n")
 
-    def _list_input_dir(self):
-        all_inputs = []
-        wildcard = self._portal_manifest.input_file_wildcard
-        dirs = [self._portal_manifest.input_base_dir]
+        return True
 
-        num_dirs = 0
-        num_files = 0
-        num_target_files = 0
-        while len(dirs) > 0:
-            fdir = dirs[0]
-            dirs = dirs[1:]
-            # filter directories start with '_'(e.g. _tmp)
-            # TODO: format the inputs' directory name
-            if fdir.startswith('_'):
-                continue
-            fnames = gfile.ListDirectory(fdir)
-            for fname in fnames:
-                fpath = path.join(fdir, fname)
-                # OSS does not retain folder structure.
-                # For example, if we have file oss://test/1001/a.txt
-                # list(oss://test) returns 1001/a.txt instead of 1001
-                basename = path.basename(fpath)
-                # filter directories start with '_'(e.g. _tmp/_SUCCESS)
-                # TODO: format the inputs' directory name
+    def _list_dir_helper(self, root):
+        filenames = list(gfile.ListDirectory(root))
+        # If _SUCCESS is present, we assume there are no subdirs
+        if '_SUCCESS' in filenames:
+            return [path.join(root, i) for i in filenames]
+
+        res = []
+        for basename in filenames:
+            fname = path.join(root, basename)
+            if gfile.IsDirectory(fname):
+                # 'ignore tmp dirs starting with _
                 if basename.startswith('_'):
                     continue
-                if gfile.IsDirectory(fpath):
-                    dirs.append(fpath)
-                    num_dirs += 1
-                    continue
-                num_files += 1
-                if len(wildcard) == 0 or fnmatch(basename, wildcard):
-                    num_target_files += 1
-                    if self._check_success_tag:
-                        has_succ = gfile.Exists(
-                            path.join(path.dirname(fpath), '_SUCCESS'))
-                        if not has_succ:
-                            logging.warning(
-                                'File %s skipped because _SUCCESS file is '
-                                'missing under %s',
-                                fpath, fdir)
-                            continue
-                    all_inputs.append(fpath)
+                res += self._list_dir_helper(fname)
+            else:
+                res.append(fname)
+        return res
 
-        rest_fpaths = []
-        for fpath in all_inputs:
-            if fpath not in self._processed_fpath:
-                rest_fpaths.append(fpath)
+
+    def _list_input_dir(self):
+        logging.info("List input directory, it will take some time...")
+        root = self._portal_manifest.input_base_dir
+        wildcard = self._portal_manifest.input_file_wildcard
+
+        # oss returns a file multiple times, e.g. listdir('root') returns
+        #   ['folder', 'file1.txt', 'folder/file2.txt']
+        # and then listdir('root/folder') returns
+        #   ['file2.txt']
+        # so we use set to deduplicate
+        all_files = set(self._list_dir_helper(root))
+
+        num_ignored = 0
+        num_target_files = 0
+        num_new_files = 0
+        by_folder = {}
+        for fname in all_files:
+            splits = path.split(path.relpath(fname, root))
+            basename = splits[-1]
+            dirnames = splits[:-1]
+
+            # ignore files and dirs starting with _
+            ignore = False
+            for name in splits:
+                if name.startswith('_'):
+                    ignore = True
+                    break
+            if ignore:
+                num_ignored += 1
+                continue
+
+            # check wildcard
+            if wildcard and not fnmatch(fname, wildcard):
+                continue
+            num_target_files += 1
+
+            # check success tag
+            if self._check_success_tag:
+                succ_fname = path.join(root, *dirnames, '_SUCCESS')
+                if succ_fname not in all_files:
+                    continue
+
+            if fname in self._processed_fpath:
+                continue
+            num_new_files += 1
+
+            folder = path.join(*dirnames)
+            if folder not in by_folder:
+                by_folder[folder] = []
+            by_folder[folder].append(fname)
+
+        if not by_folder:
+            rest_fpaths = []
+        elif self._single_subfolder:
+            rest_folder, rest_fpaths = sorted(by_folder.items())[0]
+            logging.info(
+                'single_subfolder is set. Only process folder %s '
+                'in this iteration', rest_folder)
+        else:
+            rest_fpaths = []
+            for _, v in by_folder.items():
+                rest_fpaths.extend(v)
+
         logging.info(
-            'Listing %s: found %d dirs, %d files, %d files matching wildcard, '
-            '%d files with success tag, %d new files to process',
-            self._portal_manifest.input_base_dir, num_dirs, num_files,
-            num_target_files, len(all_inputs), len(rest_fpaths))
+            'Listing %s: found %d dirs, %d files, %d tmp files ignored '
+            '%d files matching wildcard, %d new files to process. '
+            'Processing %d files in this iteration.',
+            root, len(by_folder), len(all_files), num_ignored,
+            num_target_files, num_new_files, len(rest_fpaths))
         return rest_fpaths
 
     def _sync_job_part(self, job_id, partition_id):

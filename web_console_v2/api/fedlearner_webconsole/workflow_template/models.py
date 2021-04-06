@@ -18,7 +18,8 @@ from fedlearner_webconsole.db import db, to_dict_mixin
 from fedlearner_webconsole.proto import workflow_definition_pb2
 
 
-@to_dict_mixin(extras={'config': (lambda wft: wft.get_config())})
+@to_dict_mixin(ignores=['editor_info',
+                        'config'])
 class WorkflowTemplate(db.Model):
     __tablename__ = 'template_v2'
     __table_args__ = (UniqueConstraint('name', name='uniq_name'),
@@ -40,11 +41,23 @@ class WorkflowTemplate(db.Model):
     config = db.Column(db.LargeBinary(16777215), nullable=False,
                        comment='config')
     is_left = db.Column(db.Boolean, comment='is_left')
+    editor_info = db.Column(db.LargeBinary(16777215),
+                            comment='editor_info',
+                            default=b'')
 
     def set_config(self, proto):
         self.config = proto.SerializeToString()
 
+    def set_editor_info(self, proto):
+        self.editor_info = proto.SerializeToString()
+
     def get_config(self):
         proto = workflow_definition_pb2.WorkflowDefinition()
         proto.ParseFromString(self.config)
+        return proto
+
+    def get_editor_info(self):
+        proto = workflow_definition_pb2.WorkflowTemplateEditorInfo()
+        if self.editor_info is not None:
+            proto.ParseFromString(self.editor_info)
         return proto

@@ -37,7 +37,7 @@ class State(enum.Enum):
     DELETED = 'deleted'
 
 
-@to_dict_mixin(ignores=['password'])
+@to_dict_mixin(ignores=['password', 'state'])
 class User(db.Model):
     __tablename__ = 'users_v2'
     __table_args__ = (UniqueConstraint('username', name='uniq_username'), {

@@ -54,7 +54,7 @@ const ID = styled.small`
 `;
 
 interface Props extends DrawerProps {
-  isPeerSide: boolean;
+  isPeerSide?: boolean;
   jobData?: NodeData;
   workflow?: WorkflowExecutionDetails;
   toggleVisible?: Function;
@@ -108,6 +108,7 @@ const JobExecutionDetailsDrawer: ForwardRefRenderFunction<JobExecutionDetailsExp
   });
 
   const jobStatus = convertExecutionStateToStatus(job.state!);
+  const isPeerMetricsPublic = isPeerSide && workflow?.metric_is_public;
 
   return (
     <ErrorBoundary>
@@ -143,16 +144,23 @@ const JobExecutionDetailsDrawer: ForwardRefRenderFunction<JobExecutionDetailsExp
 
         <PropertyList initialVisibleRows={3} cols={2} properties={displayedProps} labelWidth={90} />
 
-        {!isPeerSide && <JobExecutionMetrics job={job} visible={props.visible} />}
+        {(isPeerMetricsPublic || !isPeerSide) && (
+          <JobExecutionMetrics
+            job={job}
+            workflow={workflow}
+            isPeerSide={!!isPeerSide}
+            visible={props.visible}
+          />
+        )}
 
         <JobExecutionLogs
-          isPeerSide={isPeerSide}
+          isPeerSide={!!isPeerSide}
           job={job}
           workflow={workflow}
           enabled={Boolean(props.visible)}
         />
 
-        <JobExecutionPods job={job} isPeerSide={isPeerSide} />
+        <JobExecutionPods job={job} isPeerSide={!!isPeerSide} />
       </Container>
     </ErrorBoundary>
   );

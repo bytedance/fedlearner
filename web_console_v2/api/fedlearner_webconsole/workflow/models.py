@@ -481,6 +481,7 @@ class Workflow(db.Model):
         if self.transaction_state == TransactionState.COORDINATOR_PREPARE:
             # TODO(tjulinfan): validate if the config is legal or not
             return bool(self.config)
+
         if self.forked_from:
             peer_workflow = self._get_peer_workflow()
             base_workflow = Workflow.query.get(self.forked_from)
@@ -495,4 +496,5 @@ class Workflow(db.Model):
                                    [common_pb2.Variable.PEER_WRITABLE])
             self.set_config(config)
             return True
+
         return bool(self.config)

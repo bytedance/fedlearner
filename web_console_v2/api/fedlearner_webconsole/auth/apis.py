@@ -15,13 +15,14 @@
 # coding: utf-8
 # pylint: disable=cyclic-import
 
-import functools
 from http import HTTPStatus
 from flask import request
 from flask_restful import Resource, reqparse
 from flask_jwt_extended.utils import get_current_user
-from flask_jwt_extended import jwt_required, create_access_token
+from flask_jwt_extended import create_access_token
+from fedlearner_webconsole.utils.decorators import jwt_required
 
+from fedlearner_webconsole.utils.decorators import admin_required
 from fedlearner_webconsole.db import db
 from fedlearner_webconsole.auth.models import (State, User, Role,
                                                MUTABLE_ATTRS_MAPPER)
@@ -29,17 +30,6 @@ from fedlearner_webconsole.exceptions import (NotFoundException,
                                               InvalidArgumentException,
                                               ResourceConflictException,
                                               UnauthorizedException)
-
-
-def admin_required(f):
-    @functools.wraps(f)
-    def wrapper_inside(*args, **kwargs):
-        current_user = get_current_user()
-        if current_user.role != Role.ADMIN:
-            raise UnauthorizedException('only admin can operate this')
-        return f(*args, **kwargs)
-
-    return wrapper_inside
 
 
 class SigninApi(Resource):
@@ -55,7 +45,8 @@ class SigninApi(Resource):
         username = data['username']
         password = data['password']
 
-        user = User.query.filter_by(username=username).first()
+        user = User.query.filter_by(username=username).filter_by(
+            state=State.ACTIVE).first()
         if user is None:
             raise NotFoundException()
         if not user.verify_password(password):
@@ -141,7 +132,7 @@ class UserApi(Resource):
         data = request.get_json()
         for k, v in data.items():
             if k not in mutable_attrs:
-                raise InvalidArgumentException(f'cannot modify {k}')
+                raise InvalidArgumentException(f'cannot edit {k} attribute!')
             if k == 'password':
                 user.set_password(v)
             else:
