@@ -303,7 +303,7 @@ class DataPortalJobManager(object):
         # and then listdir('root/folder') returns
         #   ['file2.txt']
         filenames = set(
-            [path.join(root, i) for i in gfile.ListDirectory(root)])
+            path.join(root, i) for i in gfile.ListDirectory(root))
         res = []
         for fname in filenames:
             succ = path.join(path.dirname(fname), '_SUCCESS')
