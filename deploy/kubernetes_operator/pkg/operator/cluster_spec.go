@@ -26,7 +26,7 @@ import (
 )
 
 const (
-	ServiceFormat = "%s.%s.svc.cluster.local"
+	ServiceFormat = "%s.%s.svc"
 )
 
 type ClusterSpec struct {
