@@ -105,7 +105,6 @@ const WorkflowDetail: FC = () => {
 
   const workflow = detailQuery.data?.data;
   const peerWorkflow = peerWorkflowQuery.data;
-  const transactionErr = workflow?.transaction_err;
 
   const isForked = Boolean(workflow?.forked_from);
 
@@ -152,15 +151,12 @@ const WorkflowDetail: FC = () => {
 
   const { markThem } = useMarkFederatedJobs();
 
-  const jobsWithExeDetails = _mergeWithExecutionDetails(workflow);
-  const peerJobsWithExeDetails = _mergeWithExecutionDetails(peerWorkflowQuery.data);
+  let jobsWithExeDetails = _mergeWithExecutionDetails(workflow);
+  let peerJobsWithExeDetails = _mergeWithExecutionDetails(peerWorkflowQuery.data);
+  jobsWithExeDetails = _markJobFlags(jobsWithExeDetails, workflow?.create_job_flags!);
+  peerJobsWithExeDetails = _markJobFlags(peerJobsWithExeDetails, workflow?.peer_create_job_flags!);
 
   markThem(jobsWithExeDetails, peerJobsWithExeDetails);
-
-  if (isForked) {
-    _markInheritedJobs(jobsWithExeDetails, workflow?.create_job_flags!);
-    _markInheritedJobs(peerJobsWithExeDetails, workflow?.peer_create_job_flags!);
-  }
 
   return (
     <Spin spinning={detailQuery.isLoading}>
@@ -194,9 +190,6 @@ const WorkflowDetail: FC = () => {
               </OriginWorkflowLink>
             </ForkedFrom>
           )}
-
-          {/* i.e. Workflow execution error  */}
-          {transactionErr && <p>{transactionErr}</p>}
 
           <PropertyList
             labelWidth={100}
@@ -286,6 +279,7 @@ const WorkflowDetail: FC = () => {
         </ChartSection>
 
         <JobExecutionDetailsDrawer
+          key="self"
           visible={drawerVisible && !isPeerSide}
           toggleVisible={toggleDrawerVisible}
           jobData={data}
@@ -293,6 +287,7 @@ const WorkflowDetail: FC = () => {
         />
 
         <JobExecutionDetailsDrawer
+          key="peer"
           visible={drawerVisible && isPeerSide}
           toggleVisible={toggleDrawerVisible}
           jobData={data}
@@ -341,10 +336,15 @@ function _mergeWithExecutionDetails(workflow?: WorkflowExecutionDetails): JobNod
   );
 }
 
-function _markInheritedJobs(jobs: JobNodeRawData[], jobReuseFlags: CreateJobFlag[]) {
-  return jobs.forEach((item, index) => {
+function _markJobFlags(jobs: JobNodeRawData[], jobReuseFlags: CreateJobFlag[] = []) {
+  if (!jobReuseFlags) return jobs;
+
+  return jobs.map((item, index) => {
     if (jobReuseFlags[index] === CreateJobFlag.REUSE) {
       item.reused = true;
+    }
+    if (jobReuseFlags[index] === CreateJobFlag.DISABLED) {
+      item.disabled = true;
     }
 
     return item;

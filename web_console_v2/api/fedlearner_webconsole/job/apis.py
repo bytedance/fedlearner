@@ -61,7 +61,7 @@ class PodLogApi(Resource):
         job = _get_job(job_id)
         if start_time is None:
             start_time = job.workflow.start_at
-        return {'data': es.query_log('filebeat-*', '', pod_name,
+        return {'data': es.query_log(Envs.ES_INDEX, '', pod_name,
                                      start_time,
                                      int(time.time() * 1000))[:max_lines][::-1]}
 
@@ -83,7 +83,7 @@ class JobLogApi(Resource):
             start_time = job.workflow.start_at
         return {
             'data': es.query_log(
-                'filebeat-*', job.name,
+                Envs.ES_INDEX, job.name,
                 'fedlearner-operator',
                 start_time,
                 int(time.time() * 1000),

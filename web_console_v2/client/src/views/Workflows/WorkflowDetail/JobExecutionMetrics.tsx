@@ -10,6 +10,7 @@ import { JobNodeRawData } from 'components/WorkflowJobsCanvas/types';
 import { fetchJobMpld3Metrics, fetchPeerJobMpld3Metrics } from 'services/workflow';
 import queryClient from 'shared/queryClient';
 import { Workflow } from 'typings/workflow';
+import { MixinFlexAlignCenter } from 'styles/mixins';
 
 const Container = styled.div`
   margin-top: 30px;
@@ -33,6 +34,11 @@ const Placeholder = styled.div`
     width: 230px;
     margin-top: auto;
   }
+`;
+const MetricsNotPublic = styled.div`
+  ${MixinFlexAlignCenter()}
+  display: flex;
+  height: 160px;
 `;
 const Explaination = styled.p`
   margin-top: 10px;
@@ -120,12 +126,21 @@ const JobExecutionMetrics: FC<Props> = ({ job, workflow, visible, isPeerSide }) 
   }, [chartMetrics, mpld3]);
 
   const isEmpty = chartMetrics?.data.length === 0;
+  const isPeerMetricsPublic = isPeerSide && workflow?.metric_is_public;
+  const metricsVisible = isPeerMetricsPublic || !isPeerSide;
 
   // TODO: animate it up!
   return (
     <Container data-display-chart={chartsVisible}>
       <Header>{t('workflow.label_job_metrics')}</Header>
-      {!chartMetrics && (
+
+      {!metricsVisible && (
+        <MetricsNotPublic>
+          <Explaination>{t('workflow.placeholder_metric_not_public')}</Explaination>
+        </MetricsNotPublic>
+      )}
+
+      {!chartMetrics && metricsVisible && (
         <Spin spinning={metricsQ.isFetching}>
           <Placeholder>
             <img src={getMetricsSVG} alt="fetch-metrics" />
@@ -173,7 +188,7 @@ const JobExecutionMetrics: FC<Props> = ({ job, workflow, visible, isPeerSide }) 
         return fetchPeerJobMpld3Metrics(workflow.uuid, job.k8sName || job.name);
       }
 
-      throw new Error('缺少 Workflow 信息');
+      throw new Error(t('workflow.msg_lack_workflow_infos'));
     }
     return fetchJobMpld3Metrics(job.id);
   }

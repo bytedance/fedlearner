@@ -8,6 +8,9 @@ import { DataBatch } from 'typings/dataset';
 import i18n from 'i18n';
 import { formatTimestamp } from 'shared/date';
 import { DataBatchImportProgress } from './ImportProgress';
+import PropertyList from 'components/PropertyList';
+import { omit } from 'lodash';
+import GridRow from 'components/_base/GridRow';
 
 type Props = {
   visible: boolean;
@@ -61,7 +64,7 @@ const BatchImportRecords: FC<Props> = ({ visible, toggleVisible, records, ...pro
             size="small"
             disabled
             type="link"
-            style={{ marginLeft: '-15px' }}
+            style={{ marginLeft: '-10px' }}
             onClick={onDeleteClick}
           >
             {t('delete')}
@@ -75,7 +78,7 @@ const BatchImportRecords: FC<Props> = ({ visible, toggleVisible, records, ...pro
     <Modal
       title={t('dataset.title_create')}
       visible={visible}
-      width={860}
+      width={1000}
       style={{ top: '20%' }}
       closeIcon={<IconButton icon={<Close />} onClick={closeModal} />}
       zIndex={Z_INDEX_GREATER_THAN_HEADER}
@@ -83,7 +86,35 @@ const BatchImportRecords: FC<Props> = ({ visible, toggleVisible, records, ...pro
       okText={t('dataset.btn_add_batch')}
       {...props}
     >
-      <Table size="small" dataSource={records} columns={columns} />
+      <Table
+        expandable={{
+          expandedRowRender: (record: DataBatch) => (
+            <div>
+              {record.details.files.map((item) => {
+                const restProps = Object.entries(
+                  omit(item, ['source_path', 'state']),
+                ).map(([label, value]) => ({ label, value }));
+
+                return (
+                  <details>
+                    <summary>
+                      <GridRow gap="200" style={{ display: 'inline-grid' }} justify="space-between">
+                        <strong> {item.source_path}</strong>
+                        {item.state}
+                      </GridRow>
+                    </summary>
+                    <PropertyList lineHeight={16} properties={restProps} cols={1} />
+                  </details>
+                );
+              })}
+            </div>
+          ),
+          rowExpandable: (record: DataBatch) => record.details.files.length > 0,
+        }}
+        size="small"
+        dataSource={records}
+        columns={columns}
+      />
     </Modal>
   );
 

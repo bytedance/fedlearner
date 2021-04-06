@@ -24,8 +24,10 @@ export type AllNodeTypes = ChartNodeType | TPLChartNodeType;
 export type JobNodeRawData = Job &
   JobExecutionDetalis & {
     mark?: JobColorsMark;
-    /** whether the job ahs been reused, can be infered by workflow.create_job_flags */
+    /** whether the job has been reused, can be infered by workflow.create_job_flags */
     reused?: boolean;
+    /** whether the job has been disabled, can be infered by workflow.create_job_flags as well */
+    disabled?: boolean;
     /** the job name under k8s environment, consist with ${workflow-uuid}-${job-def-name}  */
     k8sName?: string;
     /** ! uuid will only exist in Template Canvas */

@@ -16,9 +16,6 @@ const FiltersRow = styled(Row)`
   margin-bottom: 10px;
 `;
 const TableContainer = styled.div`
-  /* max-height: 400px; */
-  /* overflow: auto; */
-
   .ant-table-thead {
     position: sticky;
     top: 0;
@@ -81,11 +78,21 @@ const FileToImportList: FC<Props> = ({ value, onChange }) => {
 
   return (
     <Container>
+      <FiltersRow>
+        <Input.Search
+          value={directory}
+          placeholder={t('dataset.placeholder_directory_filter')}
+          onChange={(event) => setDirectory(event.target.value as string)}
+          onSearch={() => listQuery.refetch()}
+          allowClear
+        />
+      </FiltersRow>
+
       <FiltersRow align="middle" gutter={5}>
-        <Col span={4}>
+        <Col span={3}>
           <small>{t('dataset.selected_items', { count: value?.length || 0 })}</small>
         </Col>
-        <Col span={9}>
+        <Col>
           <DatePicker.RangePicker
             value={query.dateRange as any}
             onChange={onDateChange as any}
@@ -105,16 +112,6 @@ const FileToImportList: FC<Props> = ({ value, onChange }) => {
             {t('reset')}
           </Button>
         </Col>
-      </FiltersRow>
-
-      <FiltersRow>
-        <Input.Search
-          value={directory}
-          placeholder={t('dataset.placeholder_directory_filter')}
-          onChange={(event) => setDirectory(event.target.value as string)}
-          onSearch={() => listQuery.refetch()}
-          allowClear
-        />
       </FiltersRow>
 
       <TableContainer>

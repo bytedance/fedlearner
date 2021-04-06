@@ -41,7 +41,7 @@ const datasets = {
   placeholder_comment: { zh: '请输入数据集说明' },
   placeholder_event_time: { zh: '请选择时间' },
   placeholder_filename_filter: { zh: '输入文件名进行筛选' },
-  placeholder_directory_filter: { zh: '切换其他文件夹' },
+  placeholder_directory_filter: { zh: '切换其他文件夹(按回车确认)' },
 
   title_create: { zh: '创建数据集' },
 
