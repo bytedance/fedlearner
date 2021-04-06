@@ -31,12 +31,13 @@ from fedlearner.data_join.sort_run_merger import MergedSortRunMeta
 
 class DataPortalJobManager(object):
     def __init__(self, kvstore, portal_name, long_running, check_success_tag,
-                 single_subfolder):
+                 single_subfolder, files_per_job_limit):
         self._lock = threading.Lock()
         self._kvstore = kvstore
         self._portal_name = portal_name
         self._check_success_tag = check_success_tag
         self._single_subfolder = single_subfolder
+        self._files_per_job_limit = files_per_job_limit
         self._portal_manifest = None
         self._processing_job = None
         self._sync_portal_manifest()
@@ -314,7 +315,6 @@ class DataPortalJobManager(object):
                 res.append(fname)
         return res
 
-
     def _list_input_dir(self):
         logging.info("List input directory, it will take some time...")
         root = self._portal_manifest.input_base_dir
@@ -369,13 +369,17 @@ class DataPortalJobManager(object):
         if not by_folder:
             rest_fpaths = []
         elif self._single_subfolder:
-            rest_folder, rest_fpaths = sorted(by_folder.items())[0]
+            rest_folder, rest_fpaths = sorted(
+                by_folder.items(), key=lambda x: x[0])[0]
             logging.info(
                 'single_subfolder is set. Only process folder %s '
                 'in this iteration', rest_folder)
         else:
             rest_fpaths = []
-            for _, v in by_folder.items():
+            for _, v in sorted(by_folder.items(), key=lambda x: x[0]):
+                if self._files_per_job_limit and rest_fpaths and \
+                        len(rest_fpaths) + len(v) > self._files_per_job_limit:
+                    break
                 rest_fpaths.extend(v)
 
         logging.info(

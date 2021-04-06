@@ -53,6 +53,8 @@ if __name__ == "__main__":
                              'processing files in a subfolder')
     parser.add_argument('--single_subfolder', action='store_true',
                         help='Only process one subfolder at a time')
+    parser.add_argument('--files_per_job_limit', type=int, default=None,
+                        help='Max number of files in a job')
     args = parser.parse_args()
     set_logger()
 
@@ -79,7 +81,8 @@ if __name__ == "__main__":
         use_mock_etcd=use_mock_etcd,
         long_running=args.long_running,
         check_success_tag=args.check_success_tag,
-        single_subfolder=args.single_subfolder)
+        single_subfolder=args.single_subfolder,
+        files_per_job_limit=args.files_per_job_limit)
 
     portal_master_srv = DataPortalMasterService(args.listen_port,
                                                 args.data_portal_name,
