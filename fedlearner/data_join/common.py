@@ -426,31 +426,3 @@ def convert_to_str(value):
     if isinstance(value, bytes):
         value = value.decode()
     return str(value)
-
-
-def encode_checkpoint_path(base_dir, timestamp):
-    return os.path.join(base_dir, "{}.ckpt".format(timestamp))
-
-def decode_checkpoint_path(path):
-    filename = os.path.basename(path)
-    return os.path.dirname(path), int(filename.split('.')[0])
-
-def read_checkpoint(base_path):
-    path_list = gfile.Glob(os.path.join(base_path, "*.ckpt")).sort()
-    if path_list:
-        latest_path = path_list[-1]
-        _, timestamp = os.path.basename(latest_path).split('.')[0]
-        with gfile.Open(latest_path, "r") as f:
-            return int(timestamp), f.read()
-    else:
-        logging.info("No checkpoint under %s"%base_path)
-        return None
-
-def write_checkpoint(path, timestamp, str_data):
-    ckpt_path = encode_checkpoint_path(path, timestamp)
-    if gfile.Exists(ckpt_path):
-        logging.warning('Redo the checkpoint %s', ckpt_path)
-        return False
-    with gfile.Open(ckpt_path, "w") as f:
-        f.write(str_data)
-    return True

@@ -137,9 +137,11 @@ class RawDataManifestManager(object):
             str_data = text_format.MessageToString(
                 self._local_manifest[partition_id])
             base_path = path.join(
-                common.data_source_data_block_dir(self._data_source),
-                'checkpoint', 'partition_{:04}'.format(partition_id))
-            common.write_checkpoint(base_path, int(time.time()), str_data)
+                common.data_source_kvstore_base_dir(
+                    self._data_source.data_source_name),
+                'checkpoints', 'partition_{:04}.{}.ckpt'.format(
+                    partition_id, time.time()))
+            self._kvstore.set_data(base_path, str_data)
 
     def finish_raw_data(self, partition_id):
         self._check_partition_id(partition_id)
@@ -364,12 +366,17 @@ class RawDataManifestManager(object):
         return self._local_manifest[partition_id]
 
     def _check_disk(self, partition_id):
-        data_block_path = common.data_source_data_block_dir(self._data_source)
-        base_path = path.join(data_block_path, 'checkpoint',
-                              "partition_{:04}".format(partition_id))
-        ckpt = common.read_checkpoint(base_path)
-        if not ckpt:
+        if self._kvstore.kvstore_type != 'dfs':
             return
+        data_block_path = common.data_source_kvstore_base_dir(
+            self._data_source.data_source_name)
+        base_path = path.join(data_block_path, 'checkpoints',
+                              "partition_{:04}".format(partition_id))
+        ckpt_items = self._kvstore.get_prefix_kvs(base_path)
+        if not ckpt_items:
+            return
+        ckpt_items_sorted = sorted(ckpt_items, key=lambda x: x[0])
+        ckpt = ckpt_items_sorted[-1]
 
         ckpt_manifest = text_format.Parse(ckpt, dj_pb.RawDataManifest())
         manifest = self._local_manifest[partition_id]

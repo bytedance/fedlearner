@@ -39,6 +39,7 @@ def get_kvstore_config(kvstore_type):
 
 class DBClient(object):
     def __init__(self, kvstore_type, use_mock_etcd=False):
+        self.kvstore_type = kvstore_type
         if kvstore_type == 'dfs':
             base_dir = os.path.join(
                 os.environ.get('STORAGE_ROOT_PATH', '/fedlearner'),
