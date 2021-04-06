@@ -297,6 +297,21 @@ class DataPortalJobManager(object):
 
         return True
 
+    def _list_dir_helper_oss(self, root):
+        # oss returns a file multiple times, e.g. listdir('root') returns
+        #   ['folder', 'file1.txt', 'folder/file2.txt']
+        # and then listdir('root/folder') returns
+        #   ['file2.txt']
+        filenames = set(
+            [path.join(root, i) for i in gfile.ListDirectory(root)])
+        res = []
+        for fname in filenames:
+            succ = path.join(path.dirname(fname), '_SUCCESS')
+            if succ in filenames or not gfile.IsDirectory(fname):
+                res.append(fname)
+
+        return res
+
     def _list_dir_helper(self, root):
         filenames = list(gfile.ListDirectory(root))
         # If _SUCCESS is present, we assume there are no subdirs
@@ -320,12 +335,10 @@ class DataPortalJobManager(object):
         root = self._portal_manifest.input_base_dir
         wildcard = self._portal_manifest.input_file_wildcard
 
-        # oss returns a file multiple times, e.g. listdir('root') returns
-        #   ['folder', 'file1.txt', 'folder/file2.txt']
-        # and then listdir('root/folder') returns
-        #   ['file2.txt']
-        # so we use set to deduplicate
-        all_files = set(self._list_dir_helper(root))
+        if root.startswith('oss://'):
+            all_files = set(self._list_dir_helper_oss(root))
+        else:
+            all_files = set(self._list_dir_helper(root))
 
         num_ignored = 0
         num_target_files = 0
