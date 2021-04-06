@@ -54,17 +54,9 @@ class RawDataCheckpoint(Checkpoint):
         map_files = walk(map_path, dt)
         reduce_path = os.path.join(self._storage_root, 'raw_data', self._task_name, 'reduce')
         map_files = walk(reduce_path, dt)
-        p2 = os.path.join(self._storage_root, 'raw_data', self._task_name, 'checkpoints')
-        jobs_files = walk(p2, dt)
-        do_batch_reset(jobs_files)
-        return p2
+        return None
 
     def find_ckpt(self, base_dir):
-        ckpt = os.path.join(base_dir, "*.ckpt")
-        ckpt_path_list = djc.glob(ckpt).sort()
-        if len(ckpt_path_list) > 0:
-            f = tf.gfile.Stat(ckpt_path_list[-1])
-            return f.mtime_nsec/1e9
         return None
 
 class DataSourceCheckpoint(Checkpoint):
