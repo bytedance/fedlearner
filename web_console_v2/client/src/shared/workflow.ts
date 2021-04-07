@@ -94,8 +94,8 @@ export function isInvalid(workflow: Workflow) {
 
 /**
  * When target_state is not INVALID,
- * means underlying service of two sides are communicating
- * during which user can not perform any action to this workflow
+ * means underlying service of both sides are communicating
+ * during which user cannot perform any action to this workflow
  * server would response 'bad request'
  */
 export function isOperable(workflow: Workflow) {
@@ -103,10 +103,8 @@ export function isOperable(workflow: Workflow) {
 }
 
 export function isForkable(workflow: Workflow) {
-  const { state, forkable, target_state } = workflow;
-  return (
-    [RUNNING, STOPPED, W_READY, COMPLETED].includes(state) && target_state === INVALID && forkable
-  );
+  const { forkable } = workflow;
+  return forkable;
 }
 
 // --------------- General stage getter ----------------
@@ -184,7 +182,7 @@ export function getWorkflowStage(workflow: Workflow): { type: StateTypes; text: 
 
   if (isInvalid(workflow)) {
     return {
-      text: i18n.t('workflow.state_failed'),
+      text: i18n.t('workflow.state_invalid'),
       type: 'default',
     };
   }

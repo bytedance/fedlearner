@@ -20,6 +20,7 @@ import json
 import os
 import sys
 import threading
+import traceback
 from concurrent import futures
 import grpc
 from fedlearner_webconsole.proto import (
@@ -48,9 +49,10 @@ class RPCServerServicer(service_pb2_grpc.WebConsoleV2ServiceServicer):
 
     def _secure_exc(self):
         exc_type, exc_obj, exc_tb = sys.exc_info()
-        fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-        secure_exc = 'Error %s at %s:%s'%(
-            exc_type, fname, exc_tb.tb_lineno)
+        # filter out exc_obj to protect sensitive info
+        secure_exc = 'Error %s at '%exc_type
+        secure_exc += ''.join(traceback.format_tb(exc_tb))
+        return secure_exc
 
     def _try_handle_request(self, func, request, context, resp_class):
         try:
@@ -267,7 +269,8 @@ class RpcServer(object):
                 create_job_flags=workflow.get_create_job_flags(),
                 peer_create_job_flags=workflow.get_peer_create_job_flags(),
                 fork_proposal_config=workflow.get_fork_proposal_config(),
-                uuid=workflow.uuid)
+                uuid=workflow.uuid,
+                metric_is_public=workflow.metric_is_public)
 
     def update_workflow(self, request, context):
         with self._app.app_context():

@@ -13,6 +13,9 @@
 # limitations under the License.
 
 # coding: utf-8
+import os
+import time
+import traceback
 from fedlearner_webconsole.initial_db import initial_db
 import json
 import logging
@@ -26,7 +29,6 @@ from flask_testing import TestCase
 from fedlearner_webconsole.app import create_app
 from fedlearner_webconsole.db import db
 from fedlearner_webconsole.auth.models import Role, User, State
-
 
 class BaseTestCase(TestCase):
     class Config(object):
@@ -154,46 +156,89 @@ class TestAppProcess(mp.get_context('spawn').Process):
         self._method = method
         self._app_config = config
         self._queue = mp.get_context('spawn').Queue()
-
+        self._parent_conn, self._child_conn = mp.Pipe()
+        self._exception = None
+        self._other_processes_queues = []
     def run(self):
-        for h in logging.getLogger().handlers[:]:
-            logging.getLogger().removeHandler(h)
-            h.close()
-        logging.basicConfig(
-            level=logging.DEBUG,
-            format="SPAWN:%(filename)s %(lineno)s %(levelname)s - %(message)s")
-        if self._app_config:
-            self._test_class.Config = self._app_config
-        test = self._test_class(self._method)
-        old_tearDown = test.tearDown
-        def new_tearDown(*args, **kwargs):
-            self._queue.get()
-            old_tearDown(*args, **kwargs)
-        test.tearDown = new_tearDown
-        suite = unittest.TestSuite([test])
-        res = suite.run(unittest.TestResult())
-        if res.errors:
-            for method, err in res.errors:
-                print('======================================================================')
-                print('ERROR:', method)
-                print('----------------------------------------------------------------------')
-                print(err)
-                print('----------------------------------------------------------------------')
-        if res.failures:
-            for method, fail in res.failures:
-                print('======================================================================')
-                print('FAIL:', method)
-                print('----------------------------------------------------------------------')
-                print(fail)
-                print('----------------------------------------------------------------------')
-        assert res.wasSuccessful()
+        try:
+            for h in logging.getLogger().handlers[:]:
+                logging.getLogger().removeHandler(h)
+                h.close()
+            logging.basicConfig(
+                level=logging.DEBUG,
+                format="SPAWN:%(filename)s %(lineno)s %(levelname)s - %(message)s")
+            if self._app_config:
+                self._test_class.Config = self._app_config
+            test = self._test_class(self._method)
+            result = unittest.TestResult()
+            old_tearDown = test.tearDown
+            # because that other tests will use your rpc server or shceduler, so you should wait for
+            # others after you finish your test
+            def new_tearDown(*args, **kwargs):
+                # tell others that you has finished
+                for other_q in self._other_processes_queues:
+                    other_q.put(None)
+                # check if the test success, than wait others to  finish
+                if not test._outcome.errors:
+                    # wait for others
+                    for i in range(len(self._other_queue)):
+                        self._queue.get()
+                old_tearDown(*args, **kwargs)
+            test.tearDown = new_tearDown
+
+            suite = unittest.TestSuite([test])
+            res = suite.run(result)
+            if res.errors:
+                for method, err in res.errors:
+                    print('======================================================================')
+                    print('ERROR:', method)
+                    print('----------------------------------------------------------------------')
+                    print(err)
+                    print('----------------------------------------------------------------------')
+            if res.failures:
+                for method, fail in res.failures:
+                    print('======================================================================')
+                    print('FAIL:', method)
+                    print('----------------------------------------------------------------------')
+                    print(fail)
+                    print('----------------------------------------------------------------------')
+            assert res.wasSuccessful()
+        except Exception as e:
+            tb = traceback.format_exc()
+            self._child_conn.send((e, tb))
 
     def join(self):
-        self._queue.put(None)
         ret = super(TestAppProcess, self).join()
         assert self.exitcode == 0, "Subprocess failed!"
         return ret
 
+    @property
+    def exception(self):
+        if self._parent_conn.poll():
+            self._exception = self._parent_conn.recv()
+        return self._exception
+
+
+def multi_process_test(test_list):
+    proc_list = [TestAppProcess(t['class'], t['method'], t['config']) for t in test_list]
+    for p in proc_list:
+        for other_p in proc_list:
+            if other_p != p:
+                p._other_processes_queues.append(other_p._queue)
+        p.start()
+    # if one test failed then tell others to stop
+    while any([p.is_alive() for p in proc_list]):
+        for i, p in enumerate(proc_list):
+            if p.exception:
+                error, tb = p.exception
+                for p_other in proc_list:
+                    p_other.terminate()
+                print('----------------------------------------------------------------------')
+                print('Subprocess failed: number ', i)
+                print('----------------------------------------------------------------------')
+        time.sleep(2)
+    for p in proc_list:
+        p.join()
 
 def create_test_db():
     """Creates test db for testing non flask-must units."""

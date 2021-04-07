@@ -16,7 +16,10 @@
 from pathlib import Path
 
 from flask_restful import Resource, reqparse
+from fedlearner_webconsole.utils.decorators import jwt_required
 from fedlearner_webconsole.k8s_client import get_client
+from fedlearner_webconsole.utils.decorators import admin_required
+
 
 _POD_NAMESPACE = 'default'
 # Ref: https://stackoverflow.com/questions/46046110/
@@ -28,6 +31,8 @@ if _k8s_namespace_file.is_file():
 
 
 class SettingsApi(Resource):
+    @jwt_required()
+    @admin_required
     def get(self):
         k8s_client = get_client()
         deployment = k8s_client.get_deployment(
@@ -41,6 +46,8 @@ class SettingsApi(Resource):
             }
         }
 
+    @jwt_required()
+    @admin_required
     def patch(self):
         parser = reqparse.RequestParser()
         parser.add_argument('webconsole_image', type=str, required=False,

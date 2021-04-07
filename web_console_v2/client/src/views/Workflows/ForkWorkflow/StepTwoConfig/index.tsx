@@ -96,6 +96,8 @@ const WorkflowForkStepTwoConfig: FC = () => {
     onSuccess(data) {
       const config = parseComplexDictField(data.data).config! as ChartWorkflowConfig;
 
+      markThem(config.job_definitions);
+
       setFormData({
         ...formData,
         config,
@@ -116,6 +118,7 @@ const WorkflowForkStepTwoConfig: FC = () => {
   });
 
   useSubscribe(WORKFLOW_JOB_NODE_CHANNELS.change_inheritance, onNodeInheritanceChange);
+  useSubscribe(WORKFLOW_JOB_NODE_CHANNELS.disable_job, onNodeDisabledChange);
 
   if (peerQuery.data?.forkable === false) {
     message.warning(t('workflow.msg_unforkable'));
@@ -291,7 +294,7 @@ const WorkflowForkStepTwoConfig: FC = () => {
       selfConfigChartRef.current?.nodes.concat(peerConfigChartRef.current?.nodes || []) || [];
 
     const isAllCompleted = allNodes.every((node) => {
-      return node.data.status === ChartNodeStatus.Success;
+      return node.data.status === ChartNodeStatus.Success || node.data.disabled;
     });
 
     return isAllCompleted;
@@ -307,18 +310,15 @@ const WorkflowForkStepTwoConfig: FC = () => {
 
     const payload = stringifyComplexDictField(formData);
 
+    // Omit unused props
     payload.config.job_definitions = _omitJobsColorMark(payload.config.job_definitions);
-
     payload.fork_proposal_config.job_definitions = _omitJobsColorMark(
       payload.fork_proposal_config.job_definitions,
     );
 
     // Find reusable job names for both peer and self side
-    payload.create_job_flags = _mapJobReuseFlag(selfConfigChartRef.current?.nodes!);
-    payload.peer_create_job_flags = _mapJobReuseFlag(peerConfigChartRef.current?.nodes!);
-
-    // FIXME: remove after using hashed job name
-    payload.name = payload.name.replace(/[\s]/g, '');
+    payload.create_job_flags = _mapJobFlags(selfConfigChartRef.current?.nodes!);
+    payload.peer_create_job_flags = _mapJobFlags(peerConfigChartRef.current?.nodes!);
 
     const [, error] = await to(forkTheWorkflow(payload));
 
@@ -368,6 +368,26 @@ const WorkflowForkStepTwoConfig: FC = () => {
     saveCurrentValues();
     targetChartRef?.setSelectedNodes([]);
   }
+
+  function onNodeDisabledChange(
+    _: string,
+    payload: { id: string; data: NodeData; disabled: boolean },
+  ) {
+    const sideOfNode = payload.data.side as Side;
+    if (!sideOfNode) {
+      console.error('[WorkflowForkStepTwoConfig]: assign a `side` prop to chart under forking');
+      return;
+    }
+
+    const targetSides = payload.data.raw.is_federated ? ALL_SIDES : [sideOfNode];
+
+    targetSides.forEach((side) => {
+      getChartRef(side)?.updateNodeDisabledById({
+        id: payload.id, // federated jobs share the same name/id
+        disabled: payload.disabled,
+      });
+    });
+  }
   function onNodeInheritanceChange(
     _: any,
     payload: { id: string; data: NodeData; whetherInherit: boolean },
@@ -381,7 +401,7 @@ const WorkflowForkStepTwoConfig: FC = () => {
 
     targetSides.forEach((side) => {
       getChartRef(side)?.updateNodeInheritanceById({
-        id: payload.id, // federated jobs share the same name
+        id: payload.id, // federated jobs share the same name/id
         whetherInherit: payload.whetherInherit,
       });
     });
@@ -399,10 +419,22 @@ function _hydrate(variableShells: Variable[], formValues?: Dictionary<any>): Var
   });
 }
 
-function _mapJobReuseFlag(nodes: ChartNodes) {
+function _mapJobFlags(nodes?: ChartNodes) {
+  if (!nodes) return [];
+
   return nodes
     .filter((node) => node.type !== 'global')
-    .map((node) => (node.data.inherit ? CreateJobFlag.REUSE : CreateJobFlag.NEW))!;
+    .map((node) => {
+      if (node.data.disabled) {
+        return CreateJobFlag.DISABLED;
+      }
+
+      if (node.data.inherited) {
+        return CreateJobFlag.REUSE;
+      }
+
+      return CreateJobFlag.NEW;
+    });
 }
 
 function _omitJobsColorMark(jobs: JobNodeRawData[]): JobNodeRawData[] {

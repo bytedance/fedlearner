@@ -20,7 +20,7 @@ import ReactFlow, {
   Controls,
   ReactFlowState,
 } from 'react-flow-renderer';
-import { Container } from './styles';
+import { Container } from './elements';
 import { ChartWorkflowConfig } from 'typings/workflow';
 import { cloneDeep } from 'lodash';
 import { message } from 'antd';
@@ -44,10 +44,15 @@ type UpdateStatusParams = {
   id: string;
   status: ChartNodeStatus;
 };
+type UpdateDisabledParams = {
+  id: string;
+  disabled: boolean;
+};
 
 export type ChartExposedRef = {
   nodes: ChartNodes;
   updateNodeStatusById: (params: UpdateStatusParams) => void;
+  updateNodeDisabledById: (params: UpdateDisabledParams) => void;
   updateNodeInheritanceById: (params: UpdateInheritanceParams) => void;
   setSelectedNodes: (nodes: ChartNodes) => void;
 };
@@ -85,9 +90,8 @@ const WorkflowJobsCanvas: ForwardRefRenderFunction<ChartExposedRef | undefined, 
     const jobElements = convertToChartElements(
       {
         /**
-         * In workflow detail page
-         * workflowConfig.job_definitions isn't only job_definitions
-         * execution details would include in as well
+         * In workflow detail page workflowConfig.job_definitions are not only job_definitions
+         * they will contain execution details as well
          */
         jobs: workflowConfig.job_definitions,
         variables: workflowConfig.variables || [],
@@ -113,6 +117,7 @@ const WorkflowJobsCanvas: ForwardRefRenderFunction<ChartExposedRef | undefined, 
     return {
       nodes: jobNodes,
       updateNodeStatusById: updateNodeStatus,
+      updateNodeDisabledById: updateNodeDisabled,
       updateNodeInheritanceById: updateNodeInheritance,
       setSelectedNodes: setSelectedElements,
     };
@@ -152,7 +157,7 @@ const WorkflowJobsCanvas: ForwardRefRenderFunction<ChartExposedRef | undefined, 
     });
   }
   function areTheySomeUninheritable(nodeIds: string[]) {
-    return nodeIds.some((id) => elements.find((item) => item.id === id)?.data?.inherit === false);
+    return nodeIds.some((id) => elements.find((item) => item.id === id)?.data?.inherited === false);
   }
   function updateNodeStatus(params: UpdateStatusParams) {
     if (!params.id) return;
@@ -163,6 +168,21 @@ const WorkflowJobsCanvas: ForwardRefRenderFunction<ChartExposedRef | undefined, 
           el.data = {
             ...el.data,
             status: params.status,
+          };
+        }
+        return el;
+      });
+    });
+  }
+  function updateNodeDisabled(params: UpdateDisabledParams) {
+    if (!params.id) return;
+
+    setElements((els) => {
+      return (els as ChartElements).map((el) => {
+        if (el.id === params.id) {
+          el.data = {
+            ...el.data,
+            disabled: params.disabled,
           };
         }
         return el;
@@ -190,7 +210,7 @@ const WorkflowJobsCanvas: ForwardRefRenderFunction<ChartExposedRef | undefined, 
       return;
     }
 
-    target.data.inherit = whetherInherit;
+    target.data.inherited = whetherInherit;
 
     // Collect dependent chain
     const depsChainCollected: string[] = [];
@@ -205,7 +225,7 @@ const WorkflowJobsCanvas: ForwardRefRenderFunction<ChartExposedRef | undefined, 
       });
 
       if (hasAnyDependentOnPrevs) {
-        item.data.inherit = whetherInherit;
+        item.data.inherited = whetherInherit;
 
         depsChainCollected.push(item.id);
       }

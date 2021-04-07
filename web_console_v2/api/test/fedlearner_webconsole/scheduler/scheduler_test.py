@@ -24,7 +24,7 @@ import logging
 import multiprocessing
 from http import HTTPStatus
 
-from testing.common import BaseTestCase, TestAppProcess
+from testing.common import BaseTestCase
 from fedlearner_webconsole.proto.common_pb2 import CreateJobFlag
 from fedlearner_webconsole.job.models import Job
 from fedlearner_webconsole.workflow.models import Workflow
@@ -58,7 +58,7 @@ class WorkflowTest(BaseTestCase):
         os.environ['FEDLEARNER_WEBCONSOLE_POLLING_INTERVAL'] = '1'
 
     def setUp(self):
-        super(WorkflowTest, self).setUp()
+        super().setUp()
         self._wf_template = {
             'group_alias': 'test-template',
             'job_definitions': [
@@ -85,51 +85,11 @@ class WorkflowTest(BaseTestCase):
             ]
         }
 
-    def test_workflow(self):
-        proc = TestAppProcess(
-            WorkflowTest,
-            'follower_test_workflow',
-            FollowerConfig)
-        proc.start()
-        self.leader_test_workflow()
-        proc.join()
 
-    def setup_project(self, role):
-        if role == 'leader':
-            peer_role = 'follower'
-            peer_port = FollowerConfig.GRPC_LISTEN_PORT
-        else:
-            peer_role = 'leader'
-            peer_port = LeaderConfig.GRPC_LISTEN_PORT
 
-        name = 'test-project'
-        config = {
-            'participants': [
-                {
-                    'name': f'party_{peer_role}',
-                    'url': f'127.0.0.1:{peer_port}',
-                    'domain_name': f'fl-{peer_role}.com'
-                }
-            ],
-            'variables': [
-                {
-                    'name': 'EGRESS_URL',
-                    'value': f'127.0.0.1:{peer_port}'
-                }
-            ]
-        }
-        create_response = self.post_helper(
-            '/api/v2/projects',
-            data={
-                'name': name,
-                'config': config,
-            })
-        self.assertEqual(create_response.status_code, HTTPStatus.OK)
-        return json.loads(create_response.data).get('data')
-    
+
     def leader_test_workflow(self):
-        self.setup_project('leader')
-
+        self.setup_project('leader', FollowerConfig.GRPC_LISTEN_PORT)
         cwf_resp = self.post_helper(
             '/api/v2/workflows',
             data={
@@ -221,9 +181,8 @@ class WorkflowTest(BaseTestCase):
             })
         self._check_workflow_state(2, 'INVALID', 'INVALID', 'READY')
 
-
     def follower_test_workflow(self):
-        self.setup_project('follower')
+        self.setup_project('follower', LeaderConfig.GRPC_LISTEN_PORT)
         self._check_workflow_state(1, 'NEW', 'READY', 'PARTICIPANT_PREPARE')
 
         self.put_helper(
@@ -262,19 +221,26 @@ class WorkflowTest(BaseTestCase):
             })
         self._check_workflow_state(2, 'INVALID', 'INVALID', 'READY')
 
-
     def _check_workflow_state(self, workflow_id, state, target_state,
-                              transaction_state):
+                              transaction_state, max_times=10):
+        cnt = 0
         while True:
             time.sleep(1)
+            cnt = cnt + 1
             resp = self.get_helper('/api/v2/workflows/%d'%workflow_id)
             if resp.status_code != HTTPStatus.OK:
                 continue
+            elif cnt > max_times:
+                self.assertEqual(resp.status_code, HTTPStatus.OK)
             if resp.json['data']['state'] == state and \
                     resp.json['data']['target_state'] == target_state and \
                     resp.json['data']['transaction_state'] == transaction_state:
                 return resp.json
- 
+            elif cnt > max_times:
+                self.assertEqual(resp.json['data']['state'], state)
+                self.assertEqual(resp.json['data']['target_state'], target_state)
+                self.assertEqual(resp.json['data']['transaction_state'], transaction_state)
+
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.DEBUG)

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import styled from 'styled-components';
 import { Link, useLocation } from 'react-router-dom';
 import { Menu } from 'antd';
@@ -18,7 +18,11 @@ import {
   MenuUnfold,
   Settings,
   Interaction,
+  UserGroup,
 } from 'components/IconPark';
+import { useRecoilQuery } from 'hooks/recoil';
+import { userInfoQuery } from 'stores/user';
+import { FedRoles, FedUserInfo } from 'typings/auth';
 
 const Container = styled.aside`
   display: flex;
@@ -85,9 +89,16 @@ const SIDEBAR_MENU_ITEMS = [
     icon: DataServer,
   },
   {
+    to: '/users',
+    label: 'menu.label_users',
+    icon: UserGroup,
+    only: [FedRoles.Admin],
+  },
+  {
     to: '/settings',
     label: 'menu.label_settings',
     icon: Settings,
+    only: [FedRoles.Admin],
   },
 ];
 
@@ -95,14 +106,21 @@ function Sidebar({ className }: StyledComponetProps) {
   const { t } = useTranslation();
   const [isFolded, toggleFold] = useToggle(store.get(LOCAL_STORAGE_KEYS.sidebar_folded));
   const location = useLocation();
+  const userQuery = useRecoilQuery<FedUserInfo>(userInfoQuery);
+  const [sidebarMenuItems, setSidebarItems] = useState(SIDEBAR_MENU_ITEMS);
 
   const activeMenuItemKey =
-    SIDEBAR_MENU_ITEMS.find((item) => location.pathname.startsWith(item.to))?.to || '';
+    sidebarMenuItems.find((item) => location.pathname.startsWith(item.to))?.to || '';
+
+  useEffect(() => {
+    setSidebarItems(getMenuItemsForThisUser());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userQuery.data]);
 
   return (
     <Container className={classNames(className, { isFolded })}>
       <StyledMenu mode="inline" selectedKeys={[activeMenuItemKey]}>
-        {SIDEBAR_MENU_ITEMS.map((menu) => (
+        {sidebarMenuItems.map((menu) => (
           <Menu.Item key={menu.to}>
             {isFolded ? (
               <Tooltip title={t(menu.label)} placement="right">
@@ -126,6 +144,16 @@ function Sidebar({ className }: StyledComponetProps) {
   function onFoldClick() {
     toggleFold();
     store.set(LOCAL_STORAGE_KEYS.sidebar_folded, !isFolded);
+  }
+
+  function getMenuItemsForThisUser() {
+    return SIDEBAR_MENU_ITEMS.filter((item) => {
+      if (!item.only) return true;
+
+      if (!userQuery.data) return false;
+
+      return item.only.includes(userQuery.data.role);
+    });
   }
 }
 

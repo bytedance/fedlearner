@@ -1,6 +1,6 @@
 import { separateLng } from 'i18n/helpers';
 
-const error = {
+const datasets = {
   status: { zh: '状态' },
   no_result: { zh: '暂无数据集' },
   selected_items: { zh: '已选择 {{count}} 项' },
@@ -41,7 +41,7 @@ const error = {
   placeholder_comment: { zh: '请输入数据集说明' },
   placeholder_event_time: { zh: '请选择时间' },
   placeholder_filename_filter: { zh: '输入文件名进行筛选' },
-  placeholder_directory_filter: { zh: '切换其他文件夹' },
+  placeholder_directory_filter: { zh: '切换其他文件夹(按回车确认)' },
 
   title_create: { zh: '创建数据集' },
 
@@ -54,4 +54,4 @@ const error = {
   step_add_batch: { zh: '选择数据文件' },
 };
 
-export default separateLng(error);
+export default separateLng(datasets);

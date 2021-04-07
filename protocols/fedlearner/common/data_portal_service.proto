@@ -107,6 +107,8 @@ message DataPotraMasterlOptions {
   bool use_mock_etcd = 1;
   bool long_running = 2;
   bool check_success_tag = 3;
+  bool single_subfolder = 4;
+  int64 files_per_job_limit = 5;
 }
 
 message DataPortalWorkerOptions {

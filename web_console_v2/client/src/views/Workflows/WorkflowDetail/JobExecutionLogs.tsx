@@ -43,13 +43,13 @@ const JobExecutionLogs: FC<Props> = ({ job, enabled, isPeerSide, workflow }) => 
   async function getLogs() {
     if (isPeerSide) {
       if (!job.k8sName) {
-        return { data: ['Job name invalid!'] };
+        return { data: ['K8s Job name invalid!'] };
       }
 
       return fetchPeerJobEvents(workflow?.uuid!, job.k8sName!, {
         maxLines: 500,
       }).catch((error) => ({
-        data: [error.message],
+        data: [`[Error occurred during fetchPeerJobEvents]: \n\n${error.message}`],
       }));
     }
 
@@ -60,7 +60,7 @@ const JobExecutionLogs: FC<Props> = ({ job, enabled, isPeerSide, workflow }) => 
     return fetchJobLogs(job.id, {
       maxLines: 500,
     }).catch((error) => ({
-      data: [error.message],
+      data: [`[Error occurred during fetchJobLogs]: \n\n${error.message}`],
     }));
   }
 

@@ -35,10 +35,13 @@ const workflow: I18nMessageModule = {
   btn_send_2_ptcpt: { zh: '发送给合作伙伴' },
   btn_auto_refresh_logs: { zh: '自动刷新日志' },
   btn_pause_auto_refresh: { zh: '停止自动刷新' },
+  btn_full_screen: { zh: '全屏查看日志' },
   btn_has_new_logs: { zh: '有新的日志' },
   btn_fetch_metrics: { zh: '点击加载数据' },
   btn_retry: { zh: '重试' },
+  btn_access_ctrl: { zh: '权限配置面板' },
   btn_add_var: { zh: '新增自定义变量' },
+  btn_upload_tpl: { zh: '上传模板' },
 
   col_status: { zh: '任务状态' },
   col_project: { zh: ' 隶属项目' },
@@ -46,7 +49,6 @@ const workflow: I18nMessageModule = {
   col_date: { zh: ' 创建时间' },
   col_actions: { zh: '操作' },
   col_pod: { zh: 'POD' },
-  col_forkable: { zh: '是否可复制' },
   col_worker_status: { zh: '运行状体' },
   col_worker_type: { zh: '类型' },
   col_tpl_name: { zh: '模版名' },
@@ -107,6 +109,8 @@ const workflow: I18nMessageModule = {
   label_default_val: { zh: '默认值' },
   label_var_comp: { zh: '请选择组件' },
   label_var_enum: { zh: '可选项' },
+  label_forkable: { zh: '是否可复制' },
+  label_metric_public: { zh: '公开Metric' },
 
   placeholder_name_searchbox: { zh: '根据工作流名称搜索' },
   placeholder_uuid_searchbox: { zh: '根据 UUID 搜索' },
@@ -122,6 +126,7 @@ const workflow: I18nMessageModule = {
   placeholder_var_name: { zh: '请输入变量名 （仅允许英语及下划线' },
   placeholder_default_val: { zh: '按需设置变量默认值' },
   placeholder_dataset: { zh: '请选择数据集' },
+  placeholder_metric_not_public: { zh: '对侧未公开指标可见性，如需查看请联系对侧' },
 
   msg_sent_success: { zh: '工作流发送成功' },
   msg_template_required: { zh: '请选择一个模板！' },
@@ -164,6 +169,10 @@ const workflow: I18nMessageModule = {
   msg_varname_required: { zh: '请输入变量 Key' },
   msg_varname_invalid: { zh: '只允许大小写英文字母及下划线的组合' },
   msg_del_job_warning: { zh: '删除后，该 Job 配置的内容都将丢失' },
+  msg_metric_public: { zh: '公开后，对侧将能查看你的「任务运行结果指标」' },
+  msg_toggle_job_disabled: { zh: '是否启用该Job' },
+  msg_diable_job_will_cause: { zh: '工作流执行时将直接跳过该Job' },
+  msg_lack_workflow_infos: { zh: '缺少Workflow信息' },
 
   title_toggle_reusable: { zh: '切换至{{state}}状态' },
 
@@ -187,6 +196,9 @@ const workflow: I18nMessageModule = {
   job_node_running: { zh: '运行中' },
   job_node_stop_running: { zh: '手动停止运行' },
   job_node_stopped: { zh: '已停止' },
+  job_node_reused: { zh: '已继承' },
+  job_node_disabled: { zh: '已禁用' },
+
   pod_unknown: { zh: '状态未知' },
   pod_failed_cleared: { zh: '失败&已清理资源' },
   pod_success_cleared: { zh: '成功&已释放资源' },

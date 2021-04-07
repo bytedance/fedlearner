@@ -7,8 +7,10 @@ import styled from 'styled-components';
 import { Button, message, Spin } from 'antd';
 import { useQuery } from 'react-query';
 import { JobNodeRawData } from 'components/WorkflowJobsCanvas/types';
-import { fetchJobMpld3Metrics } from 'services/workflow';
+import { fetchJobMpld3Metrics, fetchPeerJobMpld3Metrics } from 'services/workflow';
 import queryClient from 'shared/queryClient';
+import { Workflow } from 'typings/workflow';
+import { MixinFlexAlignCenter } from 'styles/mixins';
 
 const Container = styled.div`
   margin-top: 30px;
@@ -33,6 +35,11 @@ const Placeholder = styled.div`
     margin-top: auto;
   }
 `;
+const MetricsNotPublic = styled.div`
+  ${MixinFlexAlignCenter()}
+  display: flex;
+  height: 160px;
+`;
 const Explaination = styled.p`
   margin-top: 10px;
   font-size: 12px;
@@ -53,11 +60,13 @@ declare global {
   }
 }
 type Props = {
+  workflow?: Workflow;
   job: JobNodeRawData;
+  isPeerSide: boolean;
   visible?: boolean;
 };
 
-const JobExecutionMetrics: FC<Props> = ({ job, visible }) => {
+const JobExecutionMetrics: FC<Props> = ({ job, workflow, visible, isPeerSide }) => {
   const { t } = useTranslation();
 
   const [mpld3, setMpld3Intance] = useState((null as any) as Window['mpld3']);
@@ -70,17 +79,13 @@ const JobExecutionMetrics: FC<Props> = ({ job, visible }) => {
     });
   }, []);
 
-  const metricsQ = useQuery(
-    ['fetchMetrics', job.id, chartsVisible],
-    () => fetchJobMpld3Metrics(job.id),
-    {
-      refetchOnWindowFocus: false,
-      staleTime: 60 * 60 * 1000, // 1 hours cache
-      cacheTime: 60 * 60 * 1000,
-      retry: 2,
-      enabled: chartsVisible && visible && Boolean(mpld3),
-    },
-  );
+  const metricsQ = useQuery(['fetchMetrics', job.id, chartsVisible, isPeerSide], fetcher, {
+    refetchOnWindowFocus: false,
+    staleTime: 60 * 60 * 1000, // 1 hours cache
+    cacheTime: 60 * 60 * 1000,
+    retry: 2,
+    enabled: chartsVisible && visible && Boolean(mpld3),
+  });
 
   const chartMetrics = metricsQ.data;
 
@@ -121,12 +126,21 @@ const JobExecutionMetrics: FC<Props> = ({ job, visible }) => {
   }, [chartMetrics, mpld3]);
 
   const isEmpty = chartMetrics?.data.length === 0;
+  const isPeerMetricsPublic = isPeerSide && workflow?.metric_is_public;
+  const metricsVisible = isPeerMetricsPublic || !isPeerSide;
 
   // TODO: animate it up!
   return (
     <Container data-display-chart={chartsVisible}>
       <Header>{t('workflow.label_job_metrics')}</Header>
-      {!chartMetrics && (
+
+      {!metricsVisible && (
+        <MetricsNotPublic>
+          <Explaination>{t('workflow.placeholder_metric_not_public')}</Explaination>
+        </MetricsNotPublic>
+      )}
+
+      {!chartMetrics && metricsVisible && (
         <Spin spinning={metricsQ.isFetching}>
           <Placeholder>
             <img src={getMetricsSVG} alt="fetch-metrics" />
@@ -166,6 +180,17 @@ const JobExecutionMetrics: FC<Props> = ({ job, visible }) => {
         mpld3.remove_figure(_targetChartId(index));
       }, 20);
     });
+  }
+
+  function fetcher() {
+    if (isPeerSide) {
+      if (workflow && workflow.uuid) {
+        return fetchPeerJobMpld3Metrics(workflow.uuid, job.k8sName || job.name);
+      }
+
+      throw new Error(t('workflow.msg_lack_workflow_infos'));
+    }
+    return fetchJobMpld3Metrics(job.id);
   }
 };
 

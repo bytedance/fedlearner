@@ -3,7 +3,7 @@
   "version": "2.0.0",
   "private": true,
   "scripts": {
-    "preinstall": "npx only-allow npm",
+    "preinstall": "npx only-allow pnpm",
     "start": "node scripts/start.js",
     "build": "node scripts/build.js",
     "test": "node scripts/test.js",
@@ -12,6 +12,7 @@
     "pritter": "npx prettier --write ./src"
   },
   "dependencies": {
+    "@ant-design/icons": "^4.6.2",
     "@formily/antd": "^1.3.8",
     "@formily/antd-components": "^1.3.8",
     "@monaco-editor/react": "^4.0.11",
@@ -24,6 +25,7 @@
     "keyboardjs": "^2.6.4",
     "lodash-es": "^4.17.15",
     "pubsub-js": "^1.9.2",
+    "rc-menu": "^8.10.6",
     "react": "^17.0.1",
     "react-app-polyfill": "^2.0.0",
     "react-dev-utils": "^11.0.0",
@@ -32,6 +34,7 @@
     "react-i18next": "^11.7.3",
     "react-query": "^3.9.8",
     "react-refresh": "^0.8.3",
+    "react-router": "^5.2.0",
     "react-router-dom": "^5.2.0",
     "react-use": "^15.3.4",
     "recoil": "^0.1.2",
@@ -95,6 +98,7 @@
     "less-loader": "^7.0.2",
     "less-vars-to-js": "^1.3.0",
     "lint-staged": "^10.5.1",
+    "lodash": "^4.17.21",
     "mini-css-extract-plugin": "0.11.3",
     "optimize-css-assets-webpack-plugin": "5.0.4",
     "pnp-webpack-plugin": "1.6.4",
@@ -143,6 +147,9 @@
       "last 1 firefox version",
       "last 1 safari version"
     ]
+  },
+  "engines": {
+    "node": ">=14.0"
   },
   "babel": {
     "presets": [

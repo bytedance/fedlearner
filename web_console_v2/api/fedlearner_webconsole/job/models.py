@@ -77,14 +77,14 @@ class Job(db.Model):
                       default=JobState.INVALID,
                       comment='state')
     yaml_template = db.Column(db.Text(), comment='yaml_template')
-    config = db.Column(db.LargeBinary(), comment='config')
+    config = db.Column(db.LargeBinary(16777215), comment='config')
 
     is_disabled = db.Column(db.Boolean(), default=False, comment='is_disabled')
 
     workflow_id = db.Column(db.Integer, nullable=False, comment='workflow id')
     project_id = db.Column(db.Integer, nullable=False, comment='project id')
-    flapp_snapshot = db.Column(db.Text(), comment='flapp snapshot')
-    pods_snapshot = db.Column(db.Text(), comment='pods snapshot')
+    flapp_snapshot = db.Column(db.Text(16777215), comment='flapp snapshot')
+    pods_snapshot = db.Column(db.Text(16777215), comment='pods snapshot')
 
     created_at = db.Column(db.DateTime(timezone=True),
                            server_default=func.now(),
@@ -113,44 +113,51 @@ class Job(db.Model):
     def _set_snapshot_flapp(self):
         flapp = self._k8s_client.get_custom_object(
             CrdKind.FLAPP, self.name, self.project.get_namespace())
-        self.flapp_snapshot = json.dumps(flapp)
+        if flapp:
+            self.flapp_snapshot = json.dumps(flapp)
+        else:
+            self.flapp_snapshot = None
 
     def _set_snapshot_pods(self):
         pods = self._k8s_client.list_resource_of_custom_object(
             CrdKind.FLAPP, self.name, 'pods', self.project.get_namespace())
-        self.pods_snapshot = json.dumps(pods)
+        if pods:
+            self.pods_snapshot = json.dumps(pods)
+        else:
+            self.pods_snapshot = None
+
 
     def get_pods(self):
-        if self.state == JobState.STARTED:
-            try:
+        try:
+            if self.state == JobState.STARTED:
                 pods = self._k8s_client.list_resource_of_custom_object(
                     CrdKind.FLAPP, self.name, 'pods',
                     self.project.get_namespace())
-                # if k8s delete flapp but webconsole not, pods will be None
-                if pods is not None and 'pods' in pods:
-                    return pods['pods']
-            except RuntimeError as e:
-                logging.error('Get %d pods error msg: %s', self.id, e.args)
-                return None
-        if self.pods_snapshot is not None:
-            pods = json.loads(self.pods_snapshot)
-            return pods['pods']
+            elif self.pods_snapshot is not None:
+                pods = json.loads(self.pods_snapshot)
+            else:
+                pods = None
+            # if k8s delete flapp but webconsole not, pods will be None
+            if pods is not None and 'pods' in pods:
+                return pods['pods']
+        except Exception as e:  # pylint: disable=broad-except
+            logging.error('Get %d pods error msg: %s', self.id, e.args)
         return None
 
     def get_flapp(self):
-        if self.state == JobState.STARTED:
-            try:
+        try:
+            if self.state == JobState.STARTED:
                 flapp = self._k8s_client.get_custom_object(
                     CrdKind.FLAPP, self.name, self.project.get_namespace())
-                # if k8s delete flapp but webconsole not, flapp will be None
-                if flapp is not None and 'flapp' in flapp:
-                    return flapp['flapp']
-            except RuntimeError as e:
-                logging.error('Get %d flapp error msg: %s', self.id, str(e))
-                return None
-        if self.flapp_snapshot is not None:
-            flapp = json.loads(self.flapp_snapshot)
-            return flapp['flapp']
+            elif self.flapp_snapshot is not None:
+                flapp = json.loads(self.flapp_snapshot)
+            else:
+                flapp = None
+            # if k8s delete flapp but webconsole not, flapp will be None
+            if flapp is not None and 'flapp' in flapp:
+                return flapp['flapp']
+        except Exception as e:  # pylint: disable=broad-except
+            logging.error('Get %d flapp error msg: %s', self.id, str(e))
         return None
 
     def get_pods_for_frontend(self, filter_private_info=False):

@@ -203,6 +203,7 @@ class DataPortalMaster(unittest.TestCase):
             part_state=dp_pb.PartState.kEventTimeReduce)
         )
 
+        time.sleep(31)
         task_9= portal_master_cli.RequestNewTask(dp_pb.NewTaskRequest(rank_id=5))
         self.assertTrue(task_9.HasField('finished'))
 

@@ -160,3 +160,4 @@ export { default as ToLeft } from './icons/ToLeft';
 export { default as ToTop } from './icons/ToTop';
 export { default as UpCircle } from './icons/UpCircle';
 export { default as Up } from './icons/Up';
+export { default as Crown } from './icons/Crown';

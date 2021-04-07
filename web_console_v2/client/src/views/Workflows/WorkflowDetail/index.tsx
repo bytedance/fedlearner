@@ -1,6 +1,6 @@
 import React, { FC, useState } from 'react';
 import styled from 'styled-components';
-import { Card, Spin, Row, Button } from 'antd';
+import { Card, Spin, Row, Button, Col } from 'antd';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery } from 'react-query';
 import { getPeerWorkflowsConfig, getWorkflowDetailById } from 'services/workflow';
@@ -105,7 +105,6 @@ const WorkflowDetail: FC = () => {
 
   const workflow = detailQuery.data?.data;
   const peerWorkflow = peerWorkflowQuery.data;
-  const transactionErr = workflow?.transaction_err;
 
   const isForked = Boolean(workflow?.forked_from);
 
@@ -152,15 +151,12 @@ const WorkflowDetail: FC = () => {
 
   const { markThem } = useMarkFederatedJobs();
 
-  const jobsWithExeDetails = _mergeWithExecutionDetails(workflow);
-  const peerJobsWithExeDetails = _mergeWithExecutionDetails(peerWorkflowQuery.data);
+  let jobsWithExeDetails = _mergeWithExecutionDetails(workflow);
+  let peerJobsWithExeDetails = _mergeWithExecutionDetails(peerWorkflowQuery.data);
+  jobsWithExeDetails = _markJobFlags(jobsWithExeDetails, workflow?.create_job_flags!);
+  peerJobsWithExeDetails = _markJobFlags(peerJobsWithExeDetails, workflow?.peer_create_job_flags!);
 
   markThem(jobsWithExeDetails, peerJobsWithExeDetails);
-
-  if (isForked) {
-    _markInheritedJobs(jobsWithExeDetails, workflow?.create_job_flags!);
-    _markInheritedJobs(peerJobsWithExeDetails, workflow?.peer_create_job_flags!);
-  }
 
   return (
     <Spin spinning={detailQuery.isLoading}>
@@ -179,11 +175,9 @@ const WorkflowDetail: FC = () => {
               {workflow && <WorkflowStage workflow={workflow} tag />}
             </GridRow>
             {workflow && (
-              <WorkflowActions
-                workflow={workflow}
-                without={['detail']}
-                onSuccess={detailQuery.refetch}
-              />
+              <Col>
+                <WorkflowActions workflow={workflow} onSuccess={detailQuery.refetch} />
+              </Col>
             )}
           </HeaderRow>
 
@@ -197,15 +191,12 @@ const WorkflowDetail: FC = () => {
             </ForkedFrom>
           )}
 
-          {/* i.e. Workflow execution error  */}
-          {transactionErr && <p>{transactionErr}</p>}
-
           <PropertyList
             labelWidth={100}
             initialVisibleRows={3}
             cols={3}
             properties={workflowProps}
-            style={{ marginTop: '15px' }}
+            style={{ marginBottom: '0' }}
           />
         </Card>
 
@@ -288,11 +279,21 @@ const WorkflowDetail: FC = () => {
         </ChartSection>
 
         <JobExecutionDetailsDrawer
-          visible={drawerVisible}
+          key="self"
+          visible={drawerVisible && !isPeerSide}
           toggleVisible={toggleDrawerVisible}
           jobData={data}
-          workflow={isPeerSide ? peerWorkflow : workflow}
-          isPeerSide={isPeerSide}
+          workflow={workflow}
+        />
+
+        <JobExecutionDetailsDrawer
+          key="peer"
+          visible={drawerVisible && isPeerSide}
+          toggleVisible={toggleDrawerVisible}
+          jobData={data}
+          placement="left"
+          workflow={peerWorkflow}
+          isPeerSide
         />
       </Container>
     </Spin>
@@ -335,10 +336,15 @@ function _mergeWithExecutionDetails(workflow?: WorkflowExecutionDetails): JobNod
   );
 }
 
-function _markInheritedJobs(jobs: JobNodeRawData[], jobReuseFlags: CreateJobFlag[]) {
-  return jobs.forEach((item, index) => {
+function _markJobFlags(jobs: JobNodeRawData[], jobReuseFlags: CreateJobFlag[] = []) {
+  if (!jobReuseFlags) return jobs;
+
+  return jobs.map((item, index) => {
     if (jobReuseFlags[index] === CreateJobFlag.REUSE) {
-      item.inherited = true;
+      item.reused = true;
+    }
+    if (jobReuseFlags[index] === CreateJobFlag.DISABLED) {
+      item.disabled = true;
     }
 
     return item;

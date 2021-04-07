@@ -21,3 +21,4 @@ If you would like to use the Fedlearner trademark,
 please feel free to contact us for an express permission. 
  
 If you use a trademark in a way not set forth above, or for any illegal purpose with the program, the licensor reserves the right in its sole discretion to terminate or modify your permission to display or use a trademark and to take action against any use that does not conform to these terms and conditions, or violates applicable law.
+

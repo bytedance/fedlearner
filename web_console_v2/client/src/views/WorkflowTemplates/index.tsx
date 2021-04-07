@@ -10,6 +10,7 @@ function WorkflowsPage() {
   return (
     <ErrorBoundary>
       <Route path="/workflow-templates" exact component={TemplateList} />
+      <Route path="/workflow-templates/upload" exact component={TemplateList} />
       <Route path="/workflow-templates/create/:step" component={CreateTemplate} />
       <Route path="/workflow-templates/edit/:step/:id" component={EditTemplate} />
     </ErrorBoundary>

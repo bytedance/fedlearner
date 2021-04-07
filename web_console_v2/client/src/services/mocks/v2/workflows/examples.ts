@@ -112,6 +112,7 @@ const uuid_3 = '7d73398659927';
 export const withExecutionDetail: WorkflowExecutionDetails = {
   ...cloneDeep(newlyCreated),
   uuid: uuid_3,
+  metric_is_public: true,
   run_time: 100000, // second level
   jobs: _generateJobExecutionDetails(uuid_3),
 };

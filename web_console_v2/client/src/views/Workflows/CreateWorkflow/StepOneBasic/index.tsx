@@ -3,7 +3,6 @@ import styled from 'styled-components';
 import { Form, Select, Radio, Button, Input, Spin, Card, notification, message } from 'antd';
 import { useTranslation } from 'react-i18next';
 import GridRow from 'components/_base/GridRow';
-import CreateTemplateForm from './CreateTemplate';
 import { useHistory, useLocation, useParams } from 'react-router-dom';
 import {
   CreateWorkflowBasicForm,
@@ -158,27 +157,16 @@ const WorkflowsCreateStepOne: FC<WorkflowCreateProps & { onSuccess?: any }> = ({
 
             <Form.Item name="forkable" label={t('workflow.label_peer_forkable')}>
               <Radio.Group disabled={isAccept}>
-                <Radio value={true}>{t('workflow.label_allow')}</Radio>
-                <Radio value={false}>{t('workflow.label_not_allow')}</Radio>
-              </Radio.Group>
-            </Form.Item>
-
-            <Form.Item name="_templateType" label={t('workflow.label_template')}>
-              <Radio.Group>
-                <Radio.Button value={'existing'}>
-                  {t(`workflow.label_${pairingPrefix}exist_template`)}
-                </Radio.Button>
-                <Radio.Button value={'create'}>
-                  {t(`workflow.label_${pairingPrefix}new_template`)}
-                </Radio.Button>
+                <Radio.Button value={true}>{t('workflow.label_allow')}</Radio.Button>
+                <Radio.Button value={false}>{t('workflow.label_not_allow')}</Radio.Button>
               </Radio.Group>
             </Form.Item>
 
             {/* If choose to use an existing template */}
             {!whetherCreateNewTpl && (
               <Form.Item
+                label={t('workflow.label_template')}
                 name="_templateSelected"
-                wrapperCol={{ offset: 6 }}
                 hasFeedback
                 rules={[{ required: true, message: t('workflow.msg_template_required') }]}
               >
@@ -204,16 +192,6 @@ const WorkflowsCreateStepOne: FC<WorkflowCreateProps & { onSuccess?: any }> = ({
               </Form.Item>
             )}
           </Form>
-
-          {/* If choose to create a new template */}
-          {whetherCreateNewTpl && (
-            <CreateTemplateForm
-              onSuccess={onTplCreateSuccess}
-              onError={onTplCreateError}
-              groupAlias={groupAlias}
-              allowedIsLeftValue={allowedIsLeftValue}
-            />
-          )}
 
           <Form.Item wrapperCol={{ offset: 6 }}>
             <GridRow gap={16} top="12">
@@ -289,15 +267,6 @@ const WorkflowsCreateStepOne: FC<WorkflowCreateProps & { onSuccess?: any }> = ({
     }
     if (!res.data) return;
     setCurrentUsingTemplate(res.data);
-  }
-  function onTplCreateSuccess(res: WorkflowTemplate) {
-    setSubmitting(false);
-    // After click confirm, once tpl create succeed, go next step
-    setCurrentUsingTemplate(res);
-    goNextStep();
-  }
-  function onTplCreateError() {
-    setSubmitting(false);
   }
   async function onNextStepClick() {
     try {

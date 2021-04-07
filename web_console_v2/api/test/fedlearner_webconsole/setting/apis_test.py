@@ -47,6 +47,7 @@ class SettingsApiTest(BaseTestCase):
         self._mock_k8s_client = MagicMock()
         self._mock_k8s_client.get_deployment = MagicMock(
             return_value=self._deployment)
+        self.signin_as_admin()
 
     @patch('fedlearner_webconsole.setting.apis._POD_NAMESPACE', 'testns')
     def test_get_settings(self):

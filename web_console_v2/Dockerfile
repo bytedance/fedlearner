@@ -12,8 +12,8 @@ COPY . .
 
 # Builds frontend
 WORKDIR /app/client
-RUN npm ci
-RUN npm run build
+RUN npx pnpm install
+RUN npx pnpm build
 
 # Builds backend
 WORKDIR /app/api

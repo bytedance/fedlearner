@@ -1,6 +1,6 @@
 import React, { FC } from 'react';
 import styled from 'styled-components';
-import { Form, Button, Input, Card } from 'antd';
+import { Form, Button, Input, Card, Radio } from 'antd';
 import { useTranslation } from 'react-i18next';
 import { forkWorkflowForm } from 'stores/workflow';
 import { useHistory, useParams } from 'react-router-dom';
@@ -38,7 +38,7 @@ const WorkflowForkStepOneBaic: FC<Props> = ({ onSuccess }) => {
     onSuccess(workflow) {
       const newName = workflow.name + '-copy';
 
-      formInstance.setFieldsValue({ name: newName });
+      formInstance.setFieldsValue({ name: newName, forkable: workflow.forkable });
 
       setFormData({
         ...formData,
@@ -75,8 +75,11 @@ const WorkflowForkStepOneBaic: FC<Props> = ({ onSuccess }) => {
           <WhichProject id={workflowQuery.data?.project_id} loading={workflowQuery.isFetching} />
         </Form.Item>
 
-        <Form.Item label={t('workflow.label_peer_forkable')}>
-          {workflowQuery.data?.forkable ? '允许' : '不允许'}
+        <Form.Item name="forkable" label={t('workflow.label_peer_forkable')}>
+          <Radio.Group>
+            <Radio.Button value={true}>{t(`workflow.label_allow`)}</Radio.Button>
+            <Radio.Button value={false}>{t(`workflow.label_not_allow`)}</Radio.Button>
+          </Radio.Group>
         </Form.Item>
 
         <Form.Item label={t('workflow.label_template_name')}>
