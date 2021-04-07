@@ -530,7 +530,7 @@ class UniversalJoiner(ExampleJoiner):
             ip = self._leader_index_ps.get()
             if ip.fe.event_time <= watermark:
                 if ip.fi not in self._dedup_by_follower_index:
-                    logging.info("Ignore the deleted follower index %d"%ip.fi)
+                    logging.info("Ignore the deleted follower index %d", ip.fi)
                     continue
                 indexed_time = self._dedup_by_follower_index[ip.fi]
                 if indexed_time.li == ip.li:
