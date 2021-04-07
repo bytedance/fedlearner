@@ -57,6 +57,9 @@ class StepMetricsHook(tf.train.SessionRunHook):
             if 'step' in result:
                 step = int(result.pop('step'))
                 tags['step'] = step
+            if 'example_id' in result:
+                eid = result.pop('example_id').decode()
+                tags['example_id'] = eid
             for name, value in result.items():
                 metrics.emit_store(name=name, value=value, tags=tags)
 
