@@ -529,8 +529,9 @@ class UniversalJoiner(ExampleJoiner):
         while not self._leader_index_ps.empty():
             ip = self._leader_index_ps.get()
             if ip.fe.event_time <= watermark:
-                assert ip.fi in self._dedup_by_follower_index, \
-                        "Invalid index[%d]"%ip.fi
+                if ip.fi not in self._dedup_by_follower_index:
+                    logging.info("Ignore the deleted follower index %d"%ip.fi)
+                    continue
                 indexed_time = self._dedup_by_follower_index[ip.fi]
                 if indexed_time.li == ip.li:
                     matches.append(ip)

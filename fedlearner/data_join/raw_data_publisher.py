@@ -85,6 +85,7 @@ class RawDataPublisher(object):
         data = text_format.MessageToString(
                 dj_pb.RawDatePub(raw_data_finished=empty_pb2.Empty())
             )
+        next_pub_index = None
         next_pub_index = self._forward_pub_index(partition_id,
                                                  next_pub_index)
         if self._check_finish_tag(partition_id, next_pub_index-1):

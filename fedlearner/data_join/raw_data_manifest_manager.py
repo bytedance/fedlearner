@@ -136,11 +136,12 @@ class RawDataManifestManager(object):
                 )
             str_data = text_format.MessageToString(
                 self._local_manifest[partition_id])
+            cur_time = time.strftime('%Y%m%d%H%M%S', time.localtime())
             base_path = path.join(
                 common.data_source_kvstore_base_dir(
-                    self._data_source.data_source_name),
-                'checkpoints', 'partition_{:04}.{}.ckpt'.format(
-                    partition_id, time.time()))
+                    self._data_source.data_source_meta.name),
+                'checkpoints', 'partition_{:04}'.format(partition_id),
+                "{}.ckpt".format(cur_time))
             self._kvstore.set_data(base_path, str_data)
 
     def finish_raw_data(self, partition_id):
@@ -369,7 +370,7 @@ class RawDataManifestManager(object):
         if self._kvstore.kvstore_type != 'dfs':
             return
         data_block_path = common.data_source_kvstore_base_dir(
-            self._data_source.data_source_name)
+            self._data_source.data_source_meta.name)
         base_path = path.join(data_block_path, 'checkpoints',
                               "partition_{:04}".format(partition_id))
         ckpt_items = self._kvstore.get_prefix_kvs(base_path)
@@ -377,8 +378,7 @@ class RawDataManifestManager(object):
             return
         ckpt_items_sorted = sorted(ckpt_items, key=lambda x: x[0])
         ckpt = ckpt_items_sorted[-1]
-
-        ckpt_manifest = text_format.Parse(ckpt, dj_pb.RawDataManifest())
+        ckpt_manifest = text_format.Parse(ckpt[1], dj_pb.RawDataManifest())
         manifest = self._local_manifest[partition_id]
 
         # sync disk info
