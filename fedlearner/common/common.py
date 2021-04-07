@@ -9,7 +9,7 @@ class Config(object):
     DATA_JOIN_METRICS_SAMPLE_RATE = \
         float(os.environ.get('DATA_JOIN_METRICS_SAMPLE_RATE', 0.3))
     RAW_DATA_METRICS_SAMPLE_RATE = \
-        float(os.environ.get('RAW_DATA_METRICS_SAMPLE_RATE', 0.01))
+        float(os.environ.get('RAW_DATA_METRICS_SAMPLE_RATE', 0.02))
     ES_BATCH_SIZE = int(float(os.environ.get('ES_BATCH_SIZE', 1000)))
     TZ = pytz.timezone(os.environ.get('TZ', 'UTC'))
     ES_USERNAME = os.environ.get('ES_USERNAME', 'elastic')
