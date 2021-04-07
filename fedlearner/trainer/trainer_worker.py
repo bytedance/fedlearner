@@ -68,9 +68,12 @@ class StepLossAucMetricsHook(StepMetricsHook):
 
         tensor_dict = {"loss": loss_tensor,
                        "auc": auc_tensor}
+        tags_dict = {}
         if event_time_tensor is not None:
-            tensor_dict["event_time"] = event_time_tensor
-        super(StepLossAucMetricsHook, self).__init__(tensor_dict, every_n_iter)
+            tags_dict["event_time"] = event_time_tensor
+        super(StepLossAucMetricsHook, self).__init__(
+            tensor_dict, every_n_iter, tags_dict
+        )
 
 
 def create_argument_parser():
