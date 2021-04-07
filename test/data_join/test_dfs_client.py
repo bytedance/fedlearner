@@ -31,19 +31,14 @@ class TestDFSClient(unittest.TestCase):
         client.delete('fl_key')
         client.set_data('fl_key', b'fl_value')
         self.assertEqual(client.get_data('fl_key'), b'fl_value')
-        self.assertEqual(client.get_data('fl_key'), b'fl_value1')
 
         client.delete('fl_key1')
         client.set_data('fl_key1', 'fl_value')
         self.assertEqual(client.get_data('fl_key1'), b'fl_value')
-        self.assertEqual(client.get_data('fl_key1'), b'fl_value1')
-
-        self.assertEqual(client.get_data('fl_key2'), b'fl_value2')
-
         client.set_data('fl_key/a', '1')
         client.set_data('fl_key/b', '2')
         client.set_data('fl_key/c', '3')
-        expected_kvs = [(b'fl_key', b'fl_value1'), (b'fl_key/a', b'1'),
+        expected_kvs = [(b'fl_key', b'fl_value'), (b'fl_key/a', b'1'),
                         (b'fl_key/b', b'2'), (b'fl_key/c', b'3')]
         for idx, kv in enumerate(client.get_prefix_kvs('fl_key')):
             self.assertEqual(kv[0], expected_kvs[idx][0])

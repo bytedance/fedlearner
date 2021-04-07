@@ -97,7 +97,7 @@ class RawDataPublisher(object):
                                                 self._raw_data_pub_dir,
                                                 partition_id,
                                                 next_pub_index)
-        self._kvstore.put_data(kvstore_key, data)
+        self._kvstore.set_data(kvstore_key, data)
         logging.info("Success finish raw data for partition"\
                      "%d", partition_id)
 
