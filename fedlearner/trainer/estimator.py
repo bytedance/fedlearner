@@ -267,11 +267,7 @@ class FLEstimator(object):
             local_address = self._cluster_spec.job_tasks('worker')[
                 self._worker_rank]
             self._tf_server = tf.train.Server(tf.train.ClusterSpec(
-                {'local': {
-                    0: local_address
-                }}),
-                job_name='local',
-                task_index=0,
+                {'local': {self._worker_rank: local_address}}),
                 config=self._tf_config)
             self._tf_config.cluster_def.CopyFrom(
                 self._cluster_spec.as_cluster_def())
@@ -286,7 +282,6 @@ class FLEstimator(object):
               save_checkpoint_secs=None):
 
         self._init_tf_once()
-
 
         with tf.Graph().as_default() as g:
             device_fn = tf.train.replica_device_setter(
@@ -314,18 +309,24 @@ class FLEstimator(object):
                 if self._worker_rank == 0: # chief
                     listener = DataCheckpointSaverListener(
                         self._trainer_master, self._application_id)
-                    saver_hook = tf.estimator.CheckpointSaverHook(
-                        checkpoint_path, save_secs=save_checkpoint_secs,
-                        save_steps=save_checkpoint_steps, listeners=[listener])
+                    if checkpoint_path and \
+                        (save_checkpoint_secs or save_checkpoint_steps):
+                        saver_hook = tf.estimator.CheckpointSaverHook(
+                            checkpoint_path, save_secs=save_checkpoint_secs,
+                            save_steps=save_checkpoint_steps,
+                            listeners=[listener])
+                        all_hooks.append(saver_hook)
+                    else:
+                        saver_hook = None
                     session_creator = tf.train.ChiefSessionCreator(
                         master=self._tf_target, config=self._tf_config,
                         checkpoint_filename_with_path= \
                             load_checkpoint_filename_with_path)
                     sess = tf.train.MonitoredSession(
                         session_creator=session_creator,
-                        hooks=all_hooks + [saver_hook])
+                        hooks=all_hooks)
                     data_checkpoint_value = None
-                    if hasattr(saver_hook, "data_checkpoint"):
+                    if saver_hook and hasattr(saver_hook, "data_checkpoint"):
                         data_checkpoint_value = saver_hook.data_checkpoint
                     if not self._restore_datablock(data_checkpoint_value):
                         raise ValueError("Restore data checkpoint error")
