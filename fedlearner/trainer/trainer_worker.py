@@ -34,10 +34,15 @@ from fedlearner.trainer.trainer_master_client import TrainerMasterClient
 
 
 class StepMetricsHook(tf.train.SessionRunHook):
-    def __init__(self, tensor_dict=None, every_n_iter=5):
+    def __init__(self, tensor_dict=None, every_n_iter=5, tags_dict=None):
         if tensor_dict is None:
             tensor_dict = {}
-        self._tensor_dict = tensor_dict
+        if tags_dict is None:
+            tags_dict = {}
+        self._tensor_names = list(tensor_dict.keys())
+        self._tag_names = list(tags_dict.keys())
+        # merge
+        self._tensor_dict = {**tensor_dict, **tags_dict}
         self._every_n_iter = every_n_iter
         self._iter = 0
 
@@ -49,19 +54,12 @@ class StepMetricsHook(tf.train.SessionRunHook):
         if self._iter % self._every_n_iter == 0:
             result = run_value.results
             tags = {}
-            if 'event_time' in result:
-                event_time = result.pop('event_time').decode()
-                tags['event_time'] = fcc.convert_to_datetime(
-                        event_time.decode(), True
-                    ).isoformat(timespec='microseconds')
-            if 'step' in result:
-                step = int(result.pop('step'))
-                tags['step'] = step
-            if 'example_id' in result:
-                eid = result.pop('example_id').decode()
-                tags['example_id'] = eid
-            for name, value in result.items():
-                metrics.emit_store(name=name, value=value, tags=tags)
+            for tag in self._tag_names:
+                if tag in result:
+                    tags[tag] = result[tag]
+            for name in self._tensor_names:
+                if name in result:
+                    metrics.emit_store(name=name, value=result[name], tags=tags)
 
 
 class StepLossAucMetricsHook(StepMetricsHook):
