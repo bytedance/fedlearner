@@ -130,9 +130,7 @@ class _JoinerImpl(object):
             elem = leader_window[idx]
             #1. find the first matching key
             key_idx = []
-            if not leader_window.key_map_fn(elem):
-                idx += 1
-                continue
+            leader_window.key_map_fn(elem)
             leader = elem.item
             key_str_arr = make_index_by_attr(
                 keys, leader, key_idx)
@@ -253,9 +251,7 @@ class _SlidingWindow(object):
         idx = 0
         while idx < self.size():
             elem = self.__getitem__(idx)
-            if not self.key_map_fn(elem):
-                idx += 1
-                continue
+            self.key_map_fn(elem)
             for key in make_index_by_attr(keys, elem.item):
                 if key not in buf:
                     buf[key] = [idx]
