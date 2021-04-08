@@ -14,16 +14,16 @@
 
 # coding: utf-8
 
-import os
-import logging
 import argparse
 import json
+import logging
+import os
+
 try:
     import tensorflow.compat.v1 as tf
 except ImportError:
     import tensorflow as tf
 
-from fedlearner.common import common as fcc
 from fedlearner.common import metrics
 from fedlearner.common.summary_hook import SummaryHook
 from fedlearner.trainer.bridge import Bridge
