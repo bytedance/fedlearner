@@ -202,7 +202,9 @@ class Workflow(db.Model):
 
     def get_state_for_frontend(self):
         if self.state == WorkflowState.RUNNING:
-            is_complete = all([job.is_complete() for job in self.owned_jobs])
+            is_complete = all([
+                job.is_disabled or job.is_complete() for job in self.owned_jobs
+            ])
             if is_complete:
                 return 'COMPLETED'
             is_failed = any([job.is_failed() for job in self.owned_jobs])
@@ -220,6 +222,12 @@ class Workflow(db.Model):
     def set_config(self, proto):
         if proto is not None:
             self.config = proto.SerializeToString()
+            job_defs = {i.name: i for i in proto.job_definitions}
+            for job in self.owned_jobs:
+                name = job.get_config().name
+                assert name in job_defs, \
+                    "Invalid workflow template: job %s is missing"%name
+                job.set_config(job_defs[name])
         else:
             self.config = None
 
@@ -446,7 +454,6 @@ class Workflow(db.Model):
                     project_id=self.project_id,
                     state=JobState.STOPPED,
                     is_disabled=(flag == common_pb2.CreateJobFlag.DISABLED))
-                job.set_yaml_template(job_def.yaml_template)
                 db.session.add(job)
             jobs.append(job)
         db.session.flush()
