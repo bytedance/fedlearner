@@ -258,6 +258,7 @@ class FLEstimator(object):
         self._tf_config.intra_op_parallelism_threads = 128
         self._tf_config.experimental \
             .share_session_state_in_clusterspec_propagation = True
+        self._tf_config.rpc_options.disable_session_connection_sharing = True
         self._tf_config.rpc_options.compression_algorithm = 'gzip'
         self._tf_config.rpc_options.cache_rpc_response = True
         self._tf_server = None
