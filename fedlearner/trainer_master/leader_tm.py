@@ -19,11 +19,11 @@ from concurrent import futures
 import threading
 import argparse
 import os
-import random
 import grpc
 from fedlearner.common import trainer_master_service_pb2 as tm_pb
 from fedlearner.common import trainer_master_service_pb2_grpc as tm_grpc
 from fedlearner.common import common_pb2 as common_pb
+from fedlearner.common.utils import random_shuffle
 from fedlearner.data_join.data_block_visitor import DataBlockVisitor
 from fedlearner.trainer_master.data.data_block_queue import DataBlockQueue
 
@@ -32,26 +32,55 @@ from .trainer_master_service import TrainerMasterServer
 kvstore_type = os.environ.get('KVSTORE_TYPE', 'etcd')
 
 class LeaderTrainerMaster(object):
+    class _DataSourceInfo:
+        def __init__(self, data_source, data_source_type,
+                     start_time, end_time, epoch_num,
+                     kvstore_use_mock):
+            self.name = data_source
+            self.checkpoint_mutex = threading.Lock()
+            self.allocated_data_block_ids = None
+            # set local data source endless
+            # because joined data source should finish firstly
+            epoch_num = -1 if data_source_type == tm_pb.LOCAL else epoch_num
+            self.data_block_queue = DataBlockQueue(epoch_num)
+            self.data_block_visitor = DataBlockVisitor(
+                data_source, kvstore_type, kvstore_use_mock)
+            self.start_time = start_time
+            self.end_time = end_time
+            self.visited_data_blocks = set()
+            self.lock = threading.Lock()
+            self.data_source_type = data_source_type
+
     def __init__(self, application_id, data_source,
-                 start_time, end_time, online_training,
-                 shuffle_data_block, epoch_num):
+                 local_data_sources, start_time, end_time,
+                 local_start_times, local_end_times, online_training,
+                 shuffle_data_block, shuffle_range, epoch_num):
         self._application_id = application_id
         self._online_training = online_training
-        self._checkpoint_mutex = threading.Lock()
-        self._allocated_data_blockids = None
         self._status_mutex = threading.Lock()
         self._status = tm_pb.MasterStatus.CREATED
 
         kvstore_use_mock = os.environ.get('KVSTORE_USE_MOCK', "off") == "on"
-        self._data_block_queue = DataBlockQueue()
-        self._data_block_visitor = DataBlockVisitor(
-            data_source, kvstore_type, kvstore_use_mock)
-        self._start_time = start_time
-        self._end_time = end_time
         self._epoch_num = epoch_num
         self._shuffle_data_block = shuffle_data_block
-        self._visited_data_blocks = set()
-        self._lock = threading.Lock()
+        self._shuffle_range = shuffle_range
+        self._data_source_dict = dict()
+        self._default_data_source_name = data_source
+        self._data_source_dict[data_source] = self._DataSourceInfo(
+            data_source, tm_pb.JOINED, start_time, end_time,
+            epoch_num, kvstore_use_mock)
+        if local_data_sources:
+            for idx, ds in enumerate(local_data_sources):
+                if local_start_times and local_end_times:
+                    self._data_source_dict[ds] = self._DataSourceInfo(
+                        ds, tm_pb.LOCAL, local_start_times[idx],
+                        local_end_times[idx], epoch_num, kvstore_use_mock)
+                else:
+                    self._data_source_dict[ds] = self._DataSourceInfo(
+                        ds, tm_pb.LOCAL, start_time, end_time,
+                        epoch_num, kvstore_use_mock)
+        logging.debug("Data sources %s loaded",
+                      ','.join(self._data_source_dict.keys()))
         if online_training:
             assert self._epoch_num == 1 and not self._shuffle_data_block, \
                 "epoch_num must be 1 and shuffle_data_block must be False " \
@@ -64,7 +93,8 @@ class LeaderTrainerMaster(object):
         tm_grpc.add_TrainerMasterServiceServicer_to_server(
             TrainerMasterServer(self._data_block_response,
                                 self._get_checkpoint_fn,
-                                self._restore_checkpoint_fn), self._server)
+                                self._restore_checkpoint_fn,
+                                self._get_data_block_size), self._server)
         self._server.add_insecure_port('[::]:%d' % listen_port)
         self._server.start()
         logging.info('Trainer Master Server start on port[%d].', listen_port)
@@ -78,15 +108,14 @@ class LeaderTrainerMaster(object):
                 self._status = to
                 return callback_fn()
             logging.warning("%s invalid status transfer, from %d to %d, "
-                          "while status is %d", self.__class__.__name__,
-                          frm, to, self._status)
+                            "while status is %d", self.__class__.__name__,
+                            frm, to, self._status)
             self._status = tm_pb.MasterStatus.ERROR
         return False
 
     def _check_status(self, callback_fn):
         with self._status_mutex:
             return callback_fn(self._status)
-        raise ValueError("unreachable")
 
     def _get_checkpoint_fn(self, request):
         assert request.application_id == self._application_id, \
@@ -95,13 +124,18 @@ class LeaderTrainerMaster(object):
         ckpt_not_ready_fn = lambda status: status not in \
                 (tm_pb.MasterStatus.RUNNING, tm_pb.MasterStatus.FINISHED)
         if self._check_status(ckpt_not_ready_fn):
-            response.status.code = common_pb.STATUS_WAIT_FOR_SYNCING_CHECKPOINT
+            response.status.code = \
+                common_pb.STATUS_WAIT_FOR_SYNCING_CHECKPOINT
             response.status.error_message = \
-                    "master is not ready for querying daya checkpoint"
+                "master is not ready for querying data checkpoint"
             return response
+
         response.status.code = common_pb.STATUS_SUCCESS
         response.status.error_message = 'success'
-        response.block_ids.extend(list(self._allocated_data_blockids))
+        for ds_name, ds in self._data_source_dict.items():
+            block_info = response.blocks.add()
+            block_info.data_source_name = ds_name
+            block_info.block_ids.extend(list(ds.allocated_data_block_ids))
         return response
 
     def _restore_checkpoint_fn(self, request):
@@ -119,14 +153,35 @@ class LeaderTrainerMaster(object):
             response.status.error_message = "success"
             return response
 
-        # In case of race, load data before state transfering to RUNNING, and
-        #   after filling data checkpoint
-        with self._checkpoint_mutex:
-            self._allocated_data_blockids = set(request.block_ids)
-        self._load_data()
+        if not request.blocks:  # init case
+            logging.info("Init all data source")
+            for _, ds_info in self._data_source_dict.items():
+                # In case of race, load data before state transfering to
+                # RUNNING, and after filling data checkpoint
+                with ds_info.checkpoint_mutex:
+                    ds_info.allocated_data_block_ids = set()
+                self._load_data(ds_info)
+        else:
+            for ds_info in request.blocks:
+                data_source_name = ds_info.data_source_name
+                if data_source_name not in self._data_source_dict:
+                    if self._default_data_source_name is None:
+                        response.status.code = \
+                            common_pb.STATUS_DATA_SOURCE_NOT_EXIST
+                        response.status.error_message = \
+                            "Data source {} not exist".format(data_source_name)
+                        return response
+                    data_source_name = self._default_data_source_name
+                data_source_info = self._data_source_dict[data_source_name]
+                # In case of race, load data before state transfering to
+                # RUNNING, and after filling data checkpoint
+                with data_source_info.checkpoint_mutex:
+                    data_source_info.allocated_data_block_ids = set(
+                        ds_info.block_ids)
+                self._load_data(data_source_info)
 
         trans_ok = self._transfer_status(tm_pb.MasterStatus.INITIALING,
-                             tm_pb.MasterStatus.RUNNING)
+                                         tm_pb.MasterStatus.RUNNING)
         if not trans_ok:
             response.status.code = common_pb.STATUS_WAIT_FOR_SYNCING_CHECKPOINT
             response.status.error_message = \
@@ -137,19 +192,29 @@ class LeaderTrainerMaster(object):
         response.status.error_message = "success"
         return response
 
-    def _get_checkpoint(self):
-        return self._allocated_data_blockids
-
     def _data_block_response(self, request):
         response = tm_pb.DataBlockResponse()
+        data_source_name = request.data_source_name
+        if data_source_name not in self._data_source_dict:
+            if self._default_data_source_name is None:
+                response.status.code = \
+                    common_pb.STATUS_DATA_SOURCE_NOT_EXIST
+                response.status.error_message = \
+                    "Data source {} not exist".format(data_source_name)
+                return response
+            data_source_name = self._default_data_source_name
+        data_source_info = self._data_source_dict[data_source_name]
+
         def status_check_fn(status):
-            response = tm_pb.DataBlockResponse()
-            if status in (tm_pb.MasterStatus.FINISHED, \
-                    tm_pb.MasterStatus.ERROR):
+            not_wanted_status = {tm_pb.MasterStatus.ERROR}
+            if data_source_info.data_source_type == tm_pb.JOINED:
+                not_wanted_status.add(tm_pb.MasterStatus.FINISHED)
+            if status in not_wanted_status:
                 response.status.code = common_pb.STATUS_DATA_FINISHED
                 response.status.error_message = 'datablock finished'
                 return response
-            if status != tm_pb.MasterStatus.RUNNING:
+            if status in {tm_pb.MasterStatus.CREATED,
+                          tm_pb.MasterStatus.INITIALING}:
                 response.status.code = \
                        common_pb.STATUS_WAIT_FOR_SYNCING_CHECKPOINT
                 response.status.error_message = \
@@ -161,12 +226,15 @@ class LeaderTrainerMaster(object):
         ready = self._check_status(status_check_fn)
         if ready is not True:
             return ready
-        data_block = self._alloc_data_block(block_id=request.block_id)
+        data_block = self._alloc_data_block(data_source_info,
+                                            block_id=request.block_id)
         if data_block:
-            logging.debug("%s allocated worker_%d with block id %s",
+            logging.debug("%s allocated worker_%d with block id %s of"
+                          " source %s",
                           self.__class__.__name__,
                           request.worker_rank,
-                          data_block.block_id)
+                          data_block.block_id,
+                          data_source_name)
             response.status.code = common_pb.STATUS_SUCCESS
             response.status.error_message = 'success'
             response.data_block_info.data_path = \
@@ -178,11 +246,14 @@ class LeaderTrainerMaster(object):
                           "wait for new data block since online traning",
                           self.__class__.__name__, request.worker_rank)
             response.status.code = common_pb.STATUS_NO_MORE_DATA
-            response.status.error_message = 'please wait for datablock ready'
+            response.status.error_message = \
+                'please wait for datablock ready'
         else:
-            logging.debug("%s allocated worker_%d with empty data block. "\
+            logging.debug("%s allocated worker_%d with empty data block of "
+                          "data source %s. "
                           "exit running since since batch traning",
-                          self.__class__.__name__, request.worker_rank)
+                          self.__class__.__name__, request.worker_rank,
+                          data_source_name)
             response.status.code = common_pb.STATUS_DATA_FINISHED
             response.status.error_message = 'datablock finished'
         if response.status.code == common_pb.STATUS_DATA_FINISHED:
@@ -190,44 +261,78 @@ class LeaderTrainerMaster(object):
                                   tm_pb.MasterStatus.FINISHED)
         return response
 
-    def _load_data(self):
-        checkpoint = self._get_checkpoint()
+    def _get_data_block_size(self, request):
+        response = tm_pb.GetDataSourceInfoResponse()
+        def status_check_fn(status):
+            response = tm_pb.DataBlockResponse()
+            if status == tm_pb.MasterStatus.ERROR:
+                response.status.code = common_pb.STATUS_UNKNOWN_ERROR
+                response.status.error_message = 'datablock error'
+                return response
+            return True
+
+        ready = self._check_status(status_check_fn)
+        if ready is not True:
+            return ready
+
+        data_source_name = request.data_source_name
+        if data_source_name not in self._data_source_dict:
+            if self._default_data_source_name is None:
+                response.status.code = common_pb.STATUS_DATA_SOURCE_NOT_EXIST
+                response.status.error_message = \
+                    "Data source {} not exist".format(data_source_name)
+                return response
+            data_source_name = self._default_data_source_name
+        data_source_info = self._data_source_dict[data_source_name]
+        # block_id is unused in leader role
+        with data_source_info.lock:
+            response.status.code = common_pb.STATUS_SUCCESS
+            response.status.error_message = 'success'
+            response.type = data_source_info.data_source_type
+            response.size = data_source_info.data_block_visitor.CountDataBlock(
+                data_source_info.start_time, data_source_info.end_time)
+            return response
+
+    def _load_data(self, data_source_info):
+        checkpoint = data_source_info.allocated_data_block_ids
         # pylint: disable=line-too-long
         logging.info("load_data, checkpoint: %s", checkpoint)
         data_block_reps = [
-            dbr for dbr in self._data_block_visitor.LoadDataBlockRepByTimeFrame(
-                self._start_time, self._end_time).values()
+            dbr for dbr in data_source_info.data_block_visitor
+                .LoadDataBlockRepByTimeFrame(data_source_info.start_time,
+                                             data_source_info.end_time).values()
             if dbr.block_id not in checkpoint and
-               dbr.block_id not in self._visited_data_blocks]
+               dbr.block_id not in data_source_info.visited_data_blocks]
 
-        self._visited_data_blocks.update([i.block_id for i in data_block_reps])
+        data_source_info.visited_data_blocks.update([i.block_id for i
+                                                     in data_block_reps])
 
         if self._online_training:
             data_block_reps.sort(key=lambda x: x.data_block_index)
         else:
             data_block_reps.sort(key=lambda x: x.start_time)
-        for rnd in range(self._epoch_num):
-            if self._shuffle_data_block:
-                random.shuffle(data_block_reps)
-            for dbr in data_block_reps:
-                logging.debug('epoch round-%d: add data block id %s path %s',
-                              rnd, dbr.block_id, dbr.data_block_fpath)
-                self._data_block_queue.put(dbr)
 
-    def _alloc_data_block(self, block_id=None):
+        if self._shuffle_data_block:
+            random_shuffle(data_block_reps, self._shuffle_range)
+        data_source_info.data_block_queue.put(data_block_reps)
+
+    def _alloc_data_block(self, data_source_info, block_id=None):
         # block_id is unused in leader role
-        with self._lock:
-            if self._data_block_queue.empty() and self._online_training:
+        with data_source_info.lock:
+            if data_source_info.data_block_queue.empty() and \
+                self._online_training:
                 logging.info("Load data when queue empty and online training")
-                self._load_data()
+                self._load_data(data_source_info)
 
-            if self._data_block_queue.empty():
-                logging.info("Allocate when data_block_queue is empty")
+            if data_source_info.data_block_queue.empty():
+                logging.info("Allocate %s when data_block_queue is empty",
+                             data_source_info.name)
                 return None
 
-            data_blocks_resp = self._data_block_queue.get()
-            with self._checkpoint_mutex:
-                self._allocated_data_blockids.add(data_blocks_resp.block_id)
+            data_blocks_resp = data_source_info.data_block_queue.get()
+            with data_source_info.checkpoint_mutex:
+                data_source_info.allocated_data_block_ids.add(
+                    data_blocks_resp.block_id)
             return data_blocks_resp
 
 
@@ -240,14 +345,25 @@ if __name__ == '__main__':
                         required=True, help='application_id')
     parser.add_argument('-data_source', '--data_source',
                         required=False, help='training example data source')
+    parser.add_argument('-local_data_sources', '--local_data_sources',
+                        required=False, default=None,
+                        help="local training example data sources,"
+                             " split by ','")
     parser.add_argument('-start_date', '--start_date',
                         default=None, help='training data start date')
     parser.add_argument('-end_date', '--end_date',
                         default=None, help='training data end date')
+    parser.add_argument('-local_data_start_dates', '--local_data_start_dates',
+                        default=None, help='local training data start date')
+    parser.add_argument('-local_data_end_dates', '--local_data_end_dates',
+                        default=None, help='local training data end date')
     parser.add_argument('--online_training', action='store_true',
                         help='the train master run for online training')
     parser.add_argument('--shuffle_data_block', action='store_true',
                         help='shuffle the data block or not')
+    parser.add_argument('-shuffle_range', '--shuffle_range', type=int,
+                        default=0,
+                        help='number of data blocks to shuffle')
     parser.add_argument('--epoch_num', type=int, default=1,
                         help='number of epoch for training, not '\
                              'support in online training')
@@ -255,9 +371,21 @@ if __name__ == '__main__':
 
     start_date = int(FLAGS.start_date) if FLAGS.start_date else None
     end_date = int(FLAGS.end_date) if FLAGS.end_date else None
+    local_data_source_list = FLAGS.local_data_sources.split(',') \
+        if FLAGS.local_data_sources else []
+    local_data_start_dates = FLAGS.local_data_start_dates.split(',') \
+        if FLAGS.local_data_start_dates else []
+    local_data_start_dates = [int(d) for d in local_data_start_dates]
+    local_data_end_dates = FLAGS.local_data_end_dates.split(',') \
+        if FLAGS.local_data_end_dates else []
+    local_data_end_dates = [int(d) for d in local_data_end_dates]
     leader_tm = LeaderTrainerMaster(FLAGS.application_id, FLAGS.data_source,
+                                    local_data_source_list,
                                     start_date, end_date,
+                                    local_data_start_dates,
+                                    local_data_end_dates,
                                     FLAGS.online_training,
                                     FLAGS.shuffle_data_block,
+                                    FLAGS.shuffle_range,
                                     FLAGS.epoch_num)
     leader_tm.run(listen_port=FLAGS.port)

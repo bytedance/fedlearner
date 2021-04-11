@@ -238,12 +238,20 @@ class SparseFLEstimator(estimator.FLEstimator):
 
     def _get_features_and_labels_from_input_fn(self, input_fn, mode):
         slot_configs = self._set_model_configs(mode) # features, labels, mode)
+
         def input_fn_wrapper(*args, **kwargs):
             dataset = input_fn(self._bridge, self._trainer_master)
+            if isinstance(dataset, tuple) and len(dataset) == 2:
+                features = dataset[0]
+                features.update(self._preprocess_fids(features.pop('fids'),
+                                                      slot_configs))
+                return features, dataset[1]
+
             def mapper(features, *args):
                 features.update(self._preprocess_fids(features.pop('fids'),
                                                       slot_configs))
                 return (features,) + args if args else features
+
             dataset = dataset.map(
                 mapper, num_parallel_calls=tf.data.experimental.AUTOTUNE)
             dataset = dataset.prefetch(2)

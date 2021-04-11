@@ -190,9 +190,7 @@ def train(role, args, input_fn, model_fn, serving_input_receiver_fn):
                         args.peer_addr)
 
     if args.data_path:
-        trainer_master = LocalTrainerMasterClient(role,
-                                                  args.data_path,
-                                                  epoch_num=args.epoch_num)
+        trainer_master = LocalTrainerMasterClient(role, args.data_path)
         if args.ps_addrs is not None:
             ps_addrs = args.ps_addrs.split(",")
             cluster_spec = tf.train.ClusterSpec({
@@ -243,8 +241,7 @@ def train(role, args, input_fn, model_fn, serving_input_receiver_fn):
         trainer_master = LocalTrainerMasterClient(role,
                                                   args.data_source,
                                                   start_time=args.start_time,
-                                                  end_time=args.end_time,
-                                                  epoch_num=args.epoch_num)
+                                                  end_time=args.end_time)
         cluster_spec = None
     else:
         raise ValueError("Either --master-addr or --data-path must be set")

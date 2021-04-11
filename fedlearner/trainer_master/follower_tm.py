@@ -42,7 +42,8 @@ class FollowerTrainerMaster(object):
         tm_grpc.add_TrainerMasterServiceServicer_to_server(
             TrainerMasterServer(self._data_block_response,
                                 self._get_checkpoint_fn,
-                                self._restore_checkpoint_fn), self._server)
+                                self._restore_checkpoint_fn,
+                                self._get_data_block_size), self._server)
         self._server.add_insecure_port('[::]:%d' % listen_port)
         self._server.start()
         logging.info('Trainer Master Server start on port[%d].', listen_port)
@@ -59,6 +60,14 @@ class FollowerTrainerMaster(object):
         response = tm_pb.RestoreDataBlockCheckpointResponse()
         response.status.code = common_pb.STATUS_SUCCESS
         response.status.error_message = "success"
+        logging.info("Follower _restore_checkpoint_fn, do nothing")
+        return response
+
+    def _get_data_block_size(self, request):
+        response = tm_pb.GetDataSourceInfoResponse()
+        response.status.code = common_pb.STATUS_SUCCESS
+        response.status.error_message = 'success'
+        response.size = 1
         logging.info("Follower _restore_checkpoint_fn, do nothing")
         return response
 

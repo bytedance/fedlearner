@@ -27,14 +27,16 @@ except ImportError:
     from tensorflow.train import Optimizer
     from tensorflow.estimator import ModeKeys
 from tensorflow.compat import as_str_any
-
 from tensorflow_estimator.python.estimator import model_fn as model_fn_lib
 
+from fedlearner.common import trainer_master_service_pb2 as tm_pb
 from fedlearner.common.summary_hook import SummaryHook
 from fedlearner.trainer import patch  # pylint: disable=unused-import
 
 SYNC_PATH = '/sync/'
 DATA_CHECKPOINT_INIT_VALUE = "_init_value"
+CHECKPOINT_SOURCE_BLK_SPLITTER = ":"
+CHECKPOINT_SOURCES_SPLITTER = "|"
 
 class BridgeTrainHook(tf.train.SessionRunHook):
     def __init__(self,
@@ -89,7 +91,7 @@ class BridgEvaluateHook(tf.train.SessionRunHook):
     def end(self, session):
         self._bridge.terminate()
 
-class DataCheckpointSaverListener(tf.train.CheckpointSaverListener):
+class DataCheckpointSaverListener(tf.estimator.CheckpointSaverListener):
     def __init__(self, tm, appid):
         self._trainer_master = tm
         self._application_id = appid
@@ -102,18 +104,25 @@ class DataCheckpointSaverListener(tf.train.CheckpointSaverListener):
 
     def before_save(self, session, global_step_value):
         logging.info('About to write a checkpoint at step %d', \
-                global_step_value)
+                     global_step_value)
         data_checkpoint = self._trainer_master.get_data_block_checkpoint(
             self._application_id)
         #if empty block from checkpoint fetched due to exception or
         # master not ready, no need to save.
+        data_ckpts = []
+        for info in data_checkpoint:
+            data_ckpts.append("{}{}{}".format(
+                info.data_source_name,
+                CHECKPOINT_SOURCE_BLK_SPLITTER,
+                ','.join(info.block_ids)))
+        data_ckpt_str = CHECKPOINT_SOURCES_SPLITTER.join(data_ckpts)
+        logging.info('About to write a checkpoint at step %d, ckpt: %s',
+                     global_step_value, data_ckpt_str)
         if len(data_checkpoint) == 0:
             return
         res = session.run(self._ckpt_tensor, {"data_checkpoint_plhd:0":
-                                        ",".join(data_checkpoint)})
+                                              data_ckpt_str})
         logging.info("data checkpoint saved result: %s", res)
-
-
 
 
 class FLModel(object):
@@ -269,6 +278,8 @@ class FLEstimator(object):
 
     def _get_features_and_labels_from_input_fn(self, input_fn, mode):
         dataset = input_fn(self._bridge, self._trainer_master)
+        if isinstance(dataset, tuple) and len(dataset) == 2:
+            return dataset
         features, labels = dataset.make_one_shot_iterator().get_next()
         return features, labels
 
@@ -279,17 +290,23 @@ class FLEstimator(object):
         spec = self._model_fn(model, features, labels, mode)
         return spec, model
 
-    def _restore_datablock(self, blk_ids):
+    def _restore_datablock(self, blk_infos):
         # only chief worker restores from checkpoint.
-        if self._worker_rank != 0 or blk_ids is None:
+        if self._worker_rank != 0 or blk_infos is None:
             return True
-        block_id_str = as_str_any(blk_ids)
-        block_ids = []
-        if block_id_str != DATA_CHECKPOINT_INIT_VALUE:
-            block_ids = block_id_str.split(",")
-        logging.info("restore: %s", block_id_str)
+        blk_infos_str = as_str_any(blk_infos)
+        logging.info("restore: %s", blk_infos_str)
+        blocks = []
+        if blk_infos_str != DATA_CHECKPOINT_INIT_VALUE:
+            blk_strs = blk_infos_str.split(CHECKPOINT_SOURCES_SPLITTER)
+            for blk_str in blk_strs:
+                tokens = blk_str.split(CHECKPOINT_SOURCE_BLK_SPLITTER)
+                info = tm_pb.DataSourceInfo()
+                info.data_source_name = tokens[0]
+                info.block_ids.extend(tokens[1].split(','))
+                blocks.append(info)
         return self._trainer_master.restore_data_block_checkpoint(
-            self._application_id, block_ids)
+            self._application_id, blocks)
 
     def train(self,
               input_fn,
@@ -347,8 +364,8 @@ class FLEstimator(object):
                 self._bridge, self._worker_rank, checkpoint_path))
 
             if self._worker_rank == 0: # chief
-                listener = DataCheckpointSaverListener(
-                    self._trainer_master, self._application_id)
+                listener = DataCheckpointSaverListener(self._trainer_master,
+                                                       self._application_id)
                 saver_hook = tf.estimator.CheckpointSaverHook(
                     checkpoint_path, save_secs=save_checkpoint_secs,
                     save_steps=save_checkpoint_steps, listeners=[listener])
@@ -377,7 +394,6 @@ class FLEstimator(object):
                     sess.run(spec.train_op, feed_dict={})
                     use_time = time.time() - start_time
                     logging.debug("after session run. time: %f sec", use_time)
-
         return self
 
     def evaluate(self,
