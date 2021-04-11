@@ -54,22 +54,13 @@ def _make_variables_dict(variables):
     }
     return var_dict
 
+def generate_system_dict():
+    return {'basic_envs': get_system_envs()}
 
-def generate_job_run_yaml(job):
-    system_dict = {'basic_envs': get_system_envs()}
-    workflow = job.workflow.to_dict()
-    workflow['variables'] = _make_variables_dict(
-        job.workflow.get_config().variables)
-
-    workflow['jobs'] = {}
-    for j in job.workflow.get_jobs():
-        variables = _make_variables_dict(j.get_config().variables)
-        j_dic = j.to_dict()
-        j_dic['variables'] = variables
-        workflow['jobs'][j.get_config().name] = j_dic
-    project = job.project.to_dict()
+def generate_project_dict(proj):
+    project = proj.to_dict()
     project['variables'] = _make_variables_dict(
-        job.project.get_config().variables)
+        proj.get_config().variables)
     participants = project['config']['participants']
     for index, participant in enumerate(participants):
         project[f'participants[{index}]'] = {}
@@ -77,16 +68,30 @@ def generate_job_run_yaml(job):
             participant['domain_name']
         project[f'participants[{index}]']['egress_host'] = \
             participant['grpc_spec']['authority']
-    yaml = format_yaml(job.yaml_template,
-                       workflow=workflow,
-                       project=project,
-                       system=system_dict)
+    return project
+
+def generate_workflow_dict(wf):
+    workflow = wf.to_dict()
+    workflow['variables'] = _make_variables_dict(
+        wf.get_config().variables)
+    workflow['jobs'] = {}
+    for j in wf.get_jobs():
+        variables = _make_variables_dict(j.get_config().variables)
+        j_dic = j.to_dict()
+        j_dic['variables'] = variables
+        workflow['jobs'][j.get_config().name] = j_dic
+    return workflow
+
+def generate_job_run_yaml(job):
+    yaml = format_yaml(job.get_config().yaml_template,
+                       workflow=generate_workflow_dict(job.workflow),
+                       project=generate_project_dict(job.project),
+                       system=generate_system_dict())
     try:
         loaded = json.loads(yaml)
     except Exception as e:  # pylint: disable=broad-except
         raise ValueError("Invalid json %s: %s"%(repr(e), yaml))
     return loaded
-
 
 def code_dict_encode(data_dict):
     # if data_dict is a dict ,

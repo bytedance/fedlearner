@@ -76,7 +76,6 @@ class Job(db.Model):
                       nullable=False,
                       default=JobState.INVALID,
                       comment='state')
-    yaml_template = db.Column(db.Text(), comment='yaml_template')
     config = db.Column(db.LargeBinary(16777215), comment='config')
 
     is_disabled = db.Column(db.Boolean(), default=False, comment='is_disabled')
@@ -109,6 +108,12 @@ class Job(db.Model):
             proto.ParseFromString(self.config)
             return proto
         return None
+
+    def set_config(self, proto):
+        if proto is not None:
+            self.config = proto.SerializeToString()
+        else:
+            self.config = None
 
     def _set_snapshot_flapp(self):
         flapp = self._k8s_client.get_custom_object(
@@ -268,9 +273,6 @@ class Job(db.Model):
 
     def start(self):
         self.state = JobState.STARTED
-
-    def set_yaml_template(self, yaml_template):
-        self.yaml_template = yaml_template
 
 
 class JobDependency(db.Model):
