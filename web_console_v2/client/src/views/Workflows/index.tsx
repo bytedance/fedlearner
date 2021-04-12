@@ -5,6 +5,7 @@ import { Route, Redirect } from 'react-router-dom';
 import WorkflowsList from './WorkflowList';
 import CreateWorkflow from './CreateWorkflow';
 import ForkWorkflow from './ForkWorkflow';
+import EditWorkflow from './EditWorkflow';
 import WorkflowDetail from './WorkflowDetail';
 
 function WorkflowsPage() {
@@ -33,6 +34,12 @@ function WorkflowsPage() {
         path="/workflows/fork/:step/:id"
         exact
         render={(props: any) => <ForkWorkflow {...props} />}
+      />
+
+      <Route
+        path="/workflows/edit/:step/:id"
+        exact
+        render={(props: any) => <EditWorkflow {...props} />}
       />
 
       <Route path="/workflows/:id" exact component={WorkflowDetail} />

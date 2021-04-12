@@ -6,7 +6,7 @@
 
 ## Get started
 
-we using [pnpm](https://pnpm.js.org/) as package manager under DEV environment
+we using [pnpm](https://pnpm.js.org/) as package manager
 
 ```bash
 $ npm i -g pnpm

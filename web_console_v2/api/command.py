@@ -16,13 +16,13 @@
 from config import Config
 from fedlearner_webconsole.app import create_app
 from fedlearner_webconsole.db import db
-from fedlearner_webconsole.auth.models import User
 from fedlearner_webconsole.initial_db import initial_db
 
 
 class CliConfig(Config):
     START_GRPC_SERVER = False
     START_SCHEDULER = False
+    START_COMPOSER = False
 
 
 app = create_app(CliConfig())

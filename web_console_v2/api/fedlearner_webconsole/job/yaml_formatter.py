@@ -54,8 +54,10 @@ def _make_variables_dict(variables):
     }
     return var_dict
 
+
 def generate_system_dict():
     return {'basic_envs': get_system_envs()}
+
 
 def generate_project_dict(proj):
     project = proj.to_dict()
@@ -70,6 +72,7 @@ def generate_project_dict(proj):
             participant['grpc_spec']['authority']
     return project
 
+
 def generate_workflow_dict(wf):
     workflow = wf.to_dict()
     workflow['variables'] = _make_variables_dict(
@@ -82,16 +85,19 @@ def generate_workflow_dict(wf):
         workflow['jobs'][j.get_config().name] = j_dic
     return workflow
 
+
 def generate_job_run_yaml(job):
     yaml = format_yaml(job.get_config().yaml_template,
                        workflow=generate_workflow_dict(job.workflow),
                        project=generate_project_dict(job.project),
                        system=generate_system_dict())
+
     try:
         loaded = json.loads(yaml)
     except Exception as e:  # pylint: disable=broad-except
         raise ValueError("Invalid json %s: %s"%(repr(e), yaml))
     return loaded
+
 
 def code_dict_encode(data_dict):
     # if data_dict is a dict ,

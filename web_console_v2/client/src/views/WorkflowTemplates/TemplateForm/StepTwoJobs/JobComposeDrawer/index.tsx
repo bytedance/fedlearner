@@ -45,6 +45,7 @@ const FormSection = styled.section`
 `;
 const ButtonGridRow = styled(GridRow)`
   position: fixed;
+  z-index: 1;
   bottom: 60px;
   width: 100%;
   padding: 20px 0;

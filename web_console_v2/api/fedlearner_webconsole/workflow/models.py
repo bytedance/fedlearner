@@ -113,8 +113,7 @@ def _merge_workflow_config(base, new, access_mode):
         _merge_variables(base_job.variables, new_job.variables, access_mode)
 
 
-@to_dict_mixin(ignores=['forked_from',
-                        'fork_proposal_config',
+@to_dict_mixin(ignores=['fork_proposal_config',
                         'config'],
                extras={
                    'job_ids': (lambda wf: wf.get_job_ids()),
@@ -226,7 +225,7 @@ class Workflow(db.Model):
             for job in self.owned_jobs:
                 name = job.get_config().name
                 assert name in job_defs, \
-                    "Invalid workflow template: job %s is missing"%name
+                    "Invalid workflow template: job %s is missing" % name
                 job.set_config(job_defs[name])
         else:
             self.config = None

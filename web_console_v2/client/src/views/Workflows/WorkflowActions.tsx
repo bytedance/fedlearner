@@ -16,8 +16,6 @@ import { Workflow } from 'typings/workflow';
 import { useTranslation } from 'react-i18next';
 import { Button, message, Spin, Popconfirm } from 'antd';
 import { useHistory } from 'react-router-dom';
-import { useSetRecoilState } from 'recoil';
-import { workflowInEditing } from 'stores/workflow';
 import {
   getPeerWorkflowsConfig,
   runTheWorkflow,
@@ -26,7 +24,7 @@ import {
 } from 'services/workflow';
 import WorkflowAccessControl from './WorkflowAccessControl';
 import GridRow from 'components/_base/GridRow';
-import { Copy, Sync, TableReport, Tool, PlayCircle, Pause } from 'components/IconPark';
+import { Copy, Sync, TableReport, Tool, PlayCircle, Pause, Edit } from 'components/IconPark';
 import { useToggle } from 'react-use';
 import { to } from 'shared/helpers';
 import { ControlOutlined } from '@ant-design/icons';
@@ -42,7 +40,16 @@ const SpinnerWrapperStyle = createGlobalStyle`
   }
 `;
 
-type Action = 'report' | 'configure' | 'run' | 'rerun' | 'stop' | 'fork' | 'invalid' | 'accessCtrl';
+type Action =
+  | 'edit'
+  | 'report'
+  | 'configure'
+  | 'run'
+  | 'rerun'
+  | 'stop'
+  | 'fork'
+  | 'invalid'
+  | 'accessCtrl';
 
 type Props = {
   workflow: Workflow;
@@ -59,6 +66,7 @@ const icons: Partial<Record<Action, any>> = {
   rerun: Sync,
   stop: Pause,
   fork: Copy,
+  edit: Edit,
   accessCtrl: ControlOutlined,
 };
 
@@ -66,8 +74,6 @@ const WorkflowActions: FC<Props> = ({ workflow, type = 'default', without = [], 
   const { t } = useTranslation();
   const history = useHistory();
   const [loading, toggleLoading] = useToggle(false);
-
-  const setStoreWorkflow = useSetRecoilState(workflowInEditing);
 
   const visible: Partial<Record<Action, boolean>> = {
     configure: isPendingAccpet(workflow) && !without?.includes('configure'),
@@ -81,6 +87,7 @@ const WorkflowActions: FC<Props> = ({ workflow, type = 'default', without = [], 
     fork: !without?.includes('fork'),
     accessCtrl: !without?.includes('accessCtrl'),
     invalid: !without?.includes('fork') && !isInvalid(workflow),
+    edit: !without?.includes('edit'),
   };
 
   const isDisabled = !isOperable(workflow);
@@ -94,6 +101,7 @@ const WorkflowActions: FC<Props> = ({ workflow, type = 'default', without = [], 
     invalid: false,
     report: true,
     accessCtrl: false,
+    edit: isRunning(workflow),
   };
 
   const isDefaultType = type === 'default';
@@ -103,6 +111,17 @@ const WorkflowActions: FC<Props> = ({ workflow, type = 'default', without = [], 
       <Spin spinning={loading} size="small" wrapperClassName="spinnerWrapper">
         <SpinnerWrapperStyle />
         <Container {...{ type }} gap={isDefaultType ? 8 : 0}>
+          {visible.edit && (
+            <Button
+              size="small"
+              type={type}
+              icon={withIcon('edit')}
+              disabled={disabled.edit}
+              onClick={onEditClick}
+            >
+              {t('workflow.action_edit')}
+            </Button>
+          )}
           {visible.report && (
             // TODO: workflow model report
             <Button size="small" type={type} icon={withIcon('report')} disabled={disabled.report}>
@@ -188,8 +207,10 @@ const WorkflowActions: FC<Props> = ({ workflow, type = 'default', without = [], 
 
     return <Ico />;
   }
+  function onEditClick() {
+    history.push(`/workflows/edit/basic/${workflow.id}`);
+  }
   function onAcceptClick() {
-    setStoreWorkflow(workflow);
     history.push(`/workflows/accept/basic/${workflow.id}`);
   }
   async function onForkClick() {

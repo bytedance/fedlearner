@@ -11,8 +11,8 @@ import {
 } from 'typings/workflow';
 
 export type CreateWorkflowBasicForm = {
-  _templateType: 'existing' | 'create';
   _templateSelected?: string;
+  _keepUsingOriginalTempalte?: boolean;
 } & Partial<Pick<WorkflowInitiatePayload, 'name' | 'forkable' | 'project_id'>>;
 
 export type CreateTemplateForm = WorkflowTemplatePayload;
@@ -22,8 +22,8 @@ export const workflowBasicForm = atom<CreateWorkflowBasicForm>({
   default: {
     // Fields start with underscore are solely UI releated things,
     // will not pass to backend on submit
-    _templateType: 'existing' as const,
     _templateSelected: undefined,
+    _keepUsingOriginalTempalte: true,
 
     name: '',
     project_id: undefined,
@@ -34,7 +34,8 @@ export const workflowBasicForm = atom<CreateWorkflowBasicForm>({
 export const workflowConfigForm = atom<WorkflowConfig<JobNodeRawData>>({
   key: 'WorkflowConfigForm',
   default: {
-    group_alias: '',
+    /** initial value is undefined so we can tell the UI back to step one */
+    group_alias: undefined,
     variables: [],
     job_definitions: [],
   } as any,
@@ -67,7 +68,6 @@ export const workflowGetters = selector({
   key: 'WorkflowGetters',
   get: ({ get }) => {
     return {
-      whetherCreateNewTpl: get(workflowBasicForm)._templateType === 'create',
       hasTplSelected: Boolean(get(workflowTemplateForm).config),
     };
   },

@@ -17,69 +17,88 @@
 from http import HTTPStatus
 from flask import request
 from flask_restful import Resource
+import shutil
 
 from fedlearner_webconsole.mmgr.models import *
 
 
 class ModelManager:
-    def on_job_start(self):
-        pass
+    def on_job_start(self, job):
+        model = Model.query.filter_by(job_id=job.name).one()
+        if model.state != 'COMMITTED': raise Exception(f'model.state is {model.state}')
+        model.state = 'RUNNING'
+        model.commit()
 
-    def on_job_running(self):
-        # periodic
-        pass
+    def on_job_running(self, job):
+        model = Model.query.filter_by(job_id=job.name).one()
+        if model.state != 'RUNNING': raise Exception(f'model.state is {model.state}')
+        model.state = 'RUNNING'
+        model.commit()
 
-    def on_job_done(self):
-        pass
+    def on_job_done(self, job):
+        model = Model.query.filter_by(job_id=job.name).one()
+        if model.state != 'RUNNING': raise Exception(f'model.state is {model.state}')
+        model.state = 'FAILED/SUCCEEDED'
+        model.commit()
 
-    def new(self, model_id, parent_id, dataset, resource):
+    def train(self, model_id, parent_id, job_id, model_type, dataset, resource, func):
         model = Model()
         model.id = model_id
         model.parent_id = parent_id
-        model.type = "MODEL"
+        model.job_id = job_id
+        model.type = 'MODEL'
         model.state = 'COMMITTING'
+        model.params = json.dumps({
+            'model_type': model_type,  # NN/Tree
+            'dataset': dataset,
+            'resource': resource,
+        })
         model.commit()
 
-        # TODO start k8s
+        func()
 
         model.state = 'COMMITTED'
         model.commit()
 
     def query(self, detail_level, model_id):
-        model = query_model(model_id)
-        if not model: return model
+        model = Model.query.filter_by(id=model_id).one()
+        # job = Job.query.filter_by(name=model.job_id).one()
 
         model.detail_level = detail_level
         return model
 
-    def eval(self, evaluation_id, model_id, dataset, resource):
-        model = Model()
-        model.id = evaluation_id
-        model.parent_id = model_id
-        model.type = "EVALUATION"
-        model.state = 'COMMITTING'
-        model.commit()
+    def eval(self, evaluation_id, model_id, job_id, dataset, resource, func):
+        model = Model.query.filter_by(id=model_id).one()
 
-        # TODO start k8s
+        evaluation = Model()
+        evaluation.id = evaluation_id
+        evaluation.parent_id = model.id
+        evaluation.job_id = job_id
+        evaluation.type = 'EVALUATION'
+        evaluation.state = 'COMMITTING'
+        evaluation.params = json.dumps({
+            'dataset': dataset,
+            'resource': resource,
+        })
+        evaluation.commit()
 
-        model.state = 'COMMITTED'
-        model.commit()
+        func()
+
+        evaluation.state = 'COMMITTED'
+        evaluation.commit()
 
     def drop(self, model_id):
-        model = query_model(model_id)
-        if not model: return model
+        model = Model.query.filter_by(id=model_id).one()
+        # flapp should be stopped by workflow, asynchronously
+        if model.state not in ['FAILED', 'SUCCEEDED']: raise Exception(f'model.state is {model.state}')
 
         model.state = 'DROPPING'
         model.commit()
 
-        # TODO stop k8s flapp
-        # TODO remove NFS resources
+        shutil.rmtree(f'/data/output/{model.id}', True)
 
         model.state = 'DROPPED'
         model.commit()
-
-    def list(self):
-        return query_models()
 
 
 class ModelApi(Resource):
@@ -91,7 +110,7 @@ class ModelApi(Resource):
         return model_to_json(o), HTTPStatus.OK
 
     def delete(self, model_id):
-        ModelManager().drop(model_id)
+        self.model_manager.drop(model_id)
         return None, HTTPStatus.OK
 
 
@@ -100,7 +119,7 @@ class ModelListApi(Resource):
 
     def get(self):
         detail_level = request.args.get('detail_level')
-        return list(map(lambda o: self.query(detail_level, o.id), self.model_manager.list())), HTTPStatus.OK
+        return list(map(lambda o: self.query(detail_level, o.id), Model.query.all())), HTTPStatus.OK
 
     def query(self, detail_level, model_id):
         return model_to_json(self.model_manager.query(detail_level, model_id))
