@@ -160,16 +160,18 @@ class Scheduler(object):
                 return job.state
 
         k8s_client = get_client()
-        yaml = generate_job_run_yaml(job)
-
         try:
+            yaml = generate_job_run_yaml(job)
             k8s_client.create_or_replace_custom_object(CrdKind.FLAPP, yaml,
                                                        job.project.
                                                        get_namespace())
-        except RuntimeError as e:
-            logging.error('Start job %d has Runtime error msg: %s'
+        except Exception as e:
+            logging.error('Start job %d has error msg: %s'
                           , job_id, e.args)
+            self.error_message = str(e)
+            db.session.commit()
             return job.state
+        self.error_message = None
         job.start()
         db.session.commit()
 

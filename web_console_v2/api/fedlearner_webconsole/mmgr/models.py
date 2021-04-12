@@ -31,9 +31,11 @@ class Model(db.Model):
 
     id = db.Column(db.String(255), primary_key=True, unique=True, comment="id")
     parent_id = db.Column(db.String(255), comment="parent_id")
+    job_id = db.Column(db.String(255), comment="job_id")
     type = db.Column(db.String(16), comment="type")  # MODEL/EVALUATION
     state = db.Column(db.String(16), comment="state")
     c_time = db.Column(db.Float(), comment="c_time")
+    params = db.Column(db.Text(), comment="params")
 
     def __init__(self):
         self.c_time = datetime.now().timestamp()
@@ -43,19 +45,13 @@ class Model(db.Model):
         db.session.commit()
 
 
-def query_model(model_id):
-    return db.session.query(Model).filter_by(id=model_id).one_or_none()
-
-
-def query_models():
-    return db.session.query(Model).all()
-
-
-def model_to_json(o):
-    return {
-        'model_id': o.id,
-        'parent_id': o.parent_id,
-        'type': o.type,
-        'state': o.state,
-        'detail_level': o.detail_level,
-    } if o else None
+def model_to_json(o): return {
+    'model_id': o.id,
+    'job_id': o.job_id,
+    'parent_id': o.parent_id,
+    'type': o.type,
+    'state': o.state,
+    'c_time': o.c_time,
+    'params': json.loads(o.params),
+    'detail_level': o.detail_level,
+} if o else None

@@ -15,7 +15,6 @@ const UploadContainer = styled.div`
   padding-top: 15px;
   max-height: 400px;
   will-change: max-height;
-  overflow: hidden;
 
   &.is-hidden {
     padding-top: 0;

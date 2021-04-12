@@ -18,7 +18,7 @@ make protobuf
 
 # Use MySQL, please create database in advance, then set 
 # SQLALCHEMY_DATABASE_URI, for example as follows
-export SQLALCHEMY_DATABASE_URI=mysql://root:@localhost/fedlearner_development
+export SQLALCHEMY_DATABASE_URI=mysql+pymysql://root:root@localhost:33600/fedlearner
 
 # Creates schemas for DB
 FLASK_APP=command:app flask db upgrade
@@ -64,6 +64,9 @@ Delete migrations folder first.
 FLASK_APP=command:app flask db init
 FLASK_APP=command:app flask db migrate -m "Initial migration."
 ```
+
+## [Style guide](docs/style_guide.md)
+## [Best practices](docs/best_practices.md)
 
 ## References
 

@@ -72,6 +72,10 @@ export function acceptNFillTheWorkflowConfig(id: ID, payload: WorkflowAcceptPayl
   return request.put(`/v2/workflows/${id}`, payload);
 }
 
+export function patchWorkflow(id: ID, payload: Partial<Workflow>) {
+  return request.patch(`/v2/workflows/${id}`, payload);
+}
+
 export function runTheWorkflow(id: ID) {
   return request.patch(`/v2/workflows/${id}`, {
     target_state: WorkflowState.RUNNING,

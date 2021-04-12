@@ -7,17 +7,14 @@ import { useHistory, useLocation, useParams } from 'react-router-dom';
 import {
   CreateWorkflowBasicForm,
   workflowBasicForm,
-  workflowGetters,
   workflowInEditing,
   workflowConfigForm,
   peerConfigInPairing,
   templateInUsing,
 } from 'stores/workflow';
-import { useRecoilState, useRecoilValue, useSetRecoilState } from 'recoil';
-import WORKFLOW_CHANNELS, { workflowPubsub } from '../../pubsub';
+import { useRecoilState, useSetRecoilState } from 'recoil';
 import { useRecoilQuery } from 'hooks/recoil';
 import { Workflow, WorkflowConfig, WorkflowTemplate } from 'typings/workflow';
-import { useToggle } from 'react-use';
 import { projectListQuery } from 'stores/project';
 import { useQuery } from 'react-query';
 import {
@@ -55,13 +52,11 @@ const WorkflowsCreateStepOne: FC<WorkflowCreateProps & { onSuccess?: any }> = ({
   const [groupAlias, setGroupAlias] = useState('');
 
   const [formInstance] = Form.useForm<CreateWorkflowBasicForm>();
-  const [submitting, setSubmitting] = useToggle(false);
 
   const { data: projectList } = useRecoilQuery(projectListQuery);
   const [formData, setFormData] = useRecoilState(workflowBasicForm);
   const setTemplateInUsing = useSetRecoilState(templateInUsing);
   const setWorkflowConfigForm = useSetRecoilState(workflowConfigForm);
-  const { whetherCreateNewTpl } = useRecoilValue(workflowGetters);
   const setPeerConfig = useSetRecoilState(peerConfigInPairing);
 
   // Using when Participant accept the initiation
@@ -162,51 +157,41 @@ const WorkflowsCreateStepOne: FC<WorkflowCreateProps & { onSuccess?: any }> = ({
               </Radio.Group>
             </Form.Item>
 
-            {/* If choose to use an existing template */}
-            {!whetherCreateNewTpl && (
-              <Form.Item
-                label={t('workflow.label_template')}
-                name="_templateSelected"
-                hasFeedback
-                rules={[{ required: true, message: t('workflow.msg_template_required') }]}
-              >
-                {noAvailableTpl && !tplListQuery.isLoading && !tplListQuery.isIdle ? (
-                  <NoAvailableTpl>
-                    {t(`workflow.msg_${pairingPrefix}no_abailable_tpl`)}
-                  </NoAvailableTpl>
-                ) : (
-                  <Select
-                    loading={tplListQuery.isLoading}
-                    disabled={Boolean(tplListQuery.error) || noAvailableTpl}
-                    onChange={onTemplateSelectChange}
-                    placeholder={t('workflow.placeholder_template')}
-                    allowClear
-                  >
-                    {tplList?.map((tpl) => (
-                      <Select.Option key={tpl.id} value={tpl.id}>
-                        {tpl.name}
-                      </Select.Option>
-                    ))}
-                  </Select>
-                )}
-              </Form.Item>
-            )}
+            <Form.Item
+              label={t('workflow.label_template')}
+              name="_templateSelected"
+              hasFeedback
+              rules={[{ required: true, message: t('workflow.msg_template_required') }]}
+            >
+              {noAvailableTpl && !tplListQuery.isLoading && !tplListQuery.isIdle ? (
+                <NoAvailableTpl>
+                  {t(`workflow.msg_${pairingPrefix}no_abailable_tpl`)}
+                </NoAvailableTpl>
+              ) : (
+                <Select
+                  loading={tplListQuery.isLoading}
+                  disabled={Boolean(tplListQuery.error) || noAvailableTpl}
+                  onChange={onTemplateSelectChange}
+                  placeholder={t('workflow.placeholder_template')}
+                  allowClear
+                >
+                  {tplList?.map((tpl) => (
+                    <Select.Option key={tpl.id} value={tpl.id}>
+                      {tpl.name}
+                    </Select.Option>
+                  ))}
+                </Select>
+              )}
+            </Form.Item>
           </Form>
 
           <Form.Item wrapperCol={{ offset: 6 }}>
             <GridRow gap={16} top="12">
-              <Button
-                type="primary"
-                htmlType="submit"
-                loading={submitting}
-                onClick={onNextStepClick}
-              >
+              <Button type="primary" htmlType="submit" onClick={onNextStepClick}>
                 {t('next_step')}
               </Button>
 
-              <Button disabled={submitting} onClick={backToList}>
-                {t('cancel')}
-              </Button>
+              <Button onClick={backToList}>{t('cancel')}</Button>
             </GridRow>
           </Form.Item>
         </StyledForm>
@@ -272,19 +257,7 @@ const WorkflowsCreateStepOne: FC<WorkflowCreateProps & { onSuccess?: any }> = ({
     try {
       // Any form invalidation happens will throw error to stop the try block
       await formInstance.validateFields();
-
-      if (whetherCreateNewTpl) {
-        // If choose to create a new template, pause the flow and
-        // notify the CreateTemplate form to send a creation request
-        // then waiting for crearte succeed
-        // see the subscription of WORKFLOW_CHANNELS.tpl_create_succeed above
-        setSubmitting(true);
-        return workflowPubsub.publish(WORKFLOW_CHANNELS.create_new_tpl);
-      } else {
-        // And if not
-        // just go next step
-        goNextStep();
-      }
+      goNextStep();
     } catch {
       /** ignore validation error */
     }

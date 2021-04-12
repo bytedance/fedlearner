@@ -37,11 +37,13 @@ from fedlearner_webconsole.dataset.apis import initialize_dataset_apis
 from fedlearner_webconsole.job.apis import initialize_job_apis
 from fedlearner_webconsole.setting.apis import initialize_setting_apis
 from fedlearner_webconsole.mmgr.apis import initialize_mmgr_apis
+from fedlearner_webconsole.debug.apis import initialize_debug_apis
 from fedlearner_webconsole.rpc.server import rpc_server
 from fedlearner_webconsole.db import db
-from fedlearner_webconsole.exceptions import (
-    make_response, WebConsoleApiException, InvalidArgumentException,
-    NotFoundException)
+from fedlearner_webconsole.exceptions import (make_response,
+                                              WebConsoleApiException,
+                                              InvalidArgumentException,
+                                              NotFoundException)
 from fedlearner_webconsole.scheduler.scheduler import scheduler
 from fedlearner_webconsole.auth.models import User
 
@@ -78,42 +80,32 @@ def _handle_uncaught_exception(error):
 
 @jwt.unauthorized_loader
 def _handle_unauthorized_request(reason):
-    response = jsonify(
-        code=HTTPStatus.UNAUTHORIZED,
-        msg=reason
-    )
+    response = jsonify(code=HTTPStatus.UNAUTHORIZED, msg=reason)
     return response, HTTPStatus.UNAUTHORIZED
 
 
 @jwt.invalid_token_loader
 def _handle_invalid_jwt_request(reason):
-    response = jsonify(
-        code=HTTPStatus.UNPROCESSABLE_ENTITY,
-        msg=reason
-    )
+    response = jsonify(code=HTTPStatus.UNPROCESSABLE_ENTITY, msg=reason)
     return response, HTTPStatus.UNPROCESSABLE_ENTITY
 
 
 @jwt.expired_token_loader
 def _handle_token_expired_request(expired_token):
-    response = jsonify(
-        code=HTTPStatus.UNAUTHORIZED,
-        msg='Token has expired'
-    )
+    response = jsonify(code=HTTPStatus.UNAUTHORIZED, msg='Token has expired')
     return response, HTTPStatus.UNAUTHORIZED
 
 
 @jwt.user_lookup_loader
 def user_lookup_callback(jwt_header, jwt_data):
-    del jwt_header # Unused by user load.
+    del jwt_header  # Unused by user load.
 
     identity = jwt_data['sub']
     return User.query.filter_by(username=identity).one_or_none()
 
 
 def create_app(config):
-    before_hook_path = os.getenv(
-        'FEDLEARNER_WEBCONSOLE_BEFORE_APP_START')
+    before_hook_path = os.getenv('FEDLEARNER_WEBCONSOLE_BEFORE_APP_START')
     if before_hook_path:
         module_path, func_name = before_hook_path.split(':')
         module = importlib.import_module(module_path)
@@ -143,6 +135,8 @@ def create_app(config):
     initialize_dataset_apis(api)
     initialize_setting_apis(api)
     initialize_mmgr_apis(api)
+    if os.environ.get('FLASK_ENV') != 'production':
+        initialize_debug_apis(api)
     # A hack that use our customized error handlers
     # Ref: https://github.com/flask-restful/flask-restful/issues/280
     handle_exception = app.handle_exception
@@ -158,5 +152,11 @@ def create_app(config):
     if app.config.get('START_SCHEDULER', True):
         scheduler.stop()
         scheduler.start(app)
+
+    if app.config.get('START_COMPOSER', True):
+        pass
+        # TODO: disable before tables created in rds
+        # with app.app_context():
+        #    composer.run(db_engine=db.get_engine())
 
     return app

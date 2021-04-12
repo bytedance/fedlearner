@@ -31,6 +31,7 @@ INITIAL_USER_INFO = [{
     'state': State.ACTIVE,
 }]
 
+
 def initial_db():
     # initial user info first
     for u_info in INITIAL_USER_INFO:

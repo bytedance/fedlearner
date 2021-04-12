@@ -107,14 +107,13 @@ class ProjectsApi(Resource):
                     details=ErrorMessage.PARAM_FORMAT_ERROR.value.format(
                         'participants', 'Participant must have name and '
                         'domain_name.'))
-            if re.match(_URL_REGEX, participant.get('url')) is None:
-                raise InvalidArgumentException('URL pattern is wrong')
             domain_name = participant.get('domain_name')
             # Grpc spec
             participant['grpc_spec'] = {
                 'authority':
                 egress_host or '{}-client-auth.com'.format(domain_name[:-4])
             }
+
             if participant.get('certificates'):
                 # If users use web console to create add-on,
                 # peer url must be given
@@ -122,6 +121,9 @@ class ProjectsApi(Resource):
                     raise InvalidArgumentException(
                         details=ErrorMessage.PARAM_FORMAT_ERROR.value.format(
                             'participants', 'Participant must have url.'))
+                if re.match(_URL_REGEX, participant.get('url')) is None:
+                    raise InvalidArgumentException('URL pattern is wrong')
+
                 current_cert = parse_certificates(
                     participant.get('certificates'))
                 success, err = verify_certificates(current_cert)

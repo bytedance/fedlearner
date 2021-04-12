@@ -84,6 +84,7 @@ class Job(db.Model):
     project_id = db.Column(db.Integer, nullable=False, comment='project id')
     flapp_snapshot = db.Column(db.Text(16777215), comment='flapp snapshot')
     pods_snapshot = db.Column(db.Text(16777215), comment='pods snapshot')
+    error_message = db.Column(db.Text(), comment='error message')
 
     created_at = db.Column(db.DateTime(timezone=True),
                            server_default=func.now(),

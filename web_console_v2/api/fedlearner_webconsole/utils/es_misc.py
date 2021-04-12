@@ -179,7 +179,6 @@ def get_es_template(index_type, shards):
                                 'total_shards_per_node': '1'
                             }
                         },
-                        'refresh_interval': '60s',
                         'number_of_shards': str(shards),
                         'number_of_replicas': '1',
                     }

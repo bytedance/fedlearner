@@ -161,13 +161,16 @@ const ProjectForm: FC<Props> = ({ onSubmit, isEdit, initialValues }) => {
           </Form.Item>
 
           <Form.Item
+            hidden={isEdit && !isCertRequired && !Boolean(initialValues?.participantUrl)}
             hasFeedback
             name="participantUrl"
             label={t('project.participant_url')}
             rules={[
-              { required: true, message: t('project.participant_url_message') },
+              { required: isCertRequired, message: t('project.participant_url_message') },
               {
                 validator(_, value) {
+                  if (!isCertRequired) return Promise.resolve();
+
                   if (ip({ exact: true }).test(value)) {
                     return Promise.resolve();
                   } else {
@@ -183,6 +186,7 @@ const ProjectForm: FC<Props> = ({ onSubmit, isEdit, initialValues }) => {
               disabled={isEdit || loading}
             />
           </Form.Item>
+
           <Form.Item
             name="certificate"
             label={t('certificate')}

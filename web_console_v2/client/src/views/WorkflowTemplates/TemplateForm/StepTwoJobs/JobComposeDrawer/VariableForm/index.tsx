@@ -60,7 +60,7 @@ type Props = {
  */
 const VariableForm: FC<Props> = ({ form, path, value, onRemove }) => {
   const { t } = useTranslation();
-  const [isOpen, toggleOpen] = useToggle(!value?.name);
+  const [isOpen] = useToggle(!value?.name);
 
   if (!value) {
     return null;
@@ -71,7 +71,7 @@ const VariableForm: FC<Props> = ({ form, path, value, onRemove }) => {
   const PermissionIndicator = indicators[data.access_mode];
 
   return (
-    <Details open={isOpen} onToggle={() => toggleOpen()}>
+    <Details open={isOpen}>
       <Summary>
         <PermissionIndicator />
 
