@@ -15,7 +15,6 @@
 # coding: utf-8
 # pylint: disable=protected-access
 
-import os
 import logging
 import time
 try:
@@ -36,46 +35,8 @@ from fedlearner.trainer import patch  # pylint: disable=unused-import
 SYNC_PATH = '/sync/'
 DATA_CHECKPOINT_INIT_VALUE = "_init_value"
 
-class BridgeTrainHook(tf.train.SessionRunHook):
-    def __init__(self,
-                 bridge,
-                 worker_rank,
-                 checkpoint_path):
-        self._bridge = bridge
-        self._worker_rank = worker_rank
-        self._checkpoint_path = checkpoint_path
-    def begin(self):
-        self._bridge.connect()
-    def before_run(self, run_context):
-        self._bridge.start()
-        logging.debug("after bridge start")
-    def after_run(self, run_context, run_values):
-        self._bridge.commit()
-        logging.debug("after bridge commit")
-    def end(self, session):
-        self._bridge.terminate()
-        self._complete_checkpoint(session)
 
-    def _complete_checkpoint(self, session):
-        if not self._checkpoint_path or self._worker_rank != 0:
-            return
-        saver_def = \
-            tf.get_collection(tf.GraphKeys.SAVERS)[0].as_saver_def()
-        saver = tf.train.Saver(
-            saver_def=saver_def,
-            max_to_keep=16)
-        dirname = os.path.join(
-            self._checkpoint_path, "complete_checkpoint")
-        filename = \
-            "fl-complete-model.ckpt-%d"%self._bridge.terminated_at
-        if not tf.io.gfile.isdir(dirname):
-            tf.io.gfile.mkdir(dirname)
-        save_path = os.path.join(dirname, filename)
-        logging.info("Save complete model checkpoint in %s",
-            save_path)
-        saver.save(session, save_path)
-
-class BridgEvaluateHook(tf.train.SessionRunHook):
+class _BridgeRunHook(tf.train.SessionRunHook):
     def __init__(self, bridge):
         self._bridge = bridge
     def begin(self):
@@ -88,6 +49,7 @@ class BridgEvaluateHook(tf.train.SessionRunHook):
         logging.debug("after bridge commit")
     def end(self, session):
         self._bridge.terminate()
+
 
 class DataCheckpointSaverListener(tf.train.CheckpointSaverListener):
     def __init__(self, tm, appid):
@@ -112,8 +74,6 @@ class DataCheckpointSaverListener(tf.train.CheckpointSaverListener):
         res = session.run(self._ckpt_tensor, {"data_checkpoint_plhd:0":
                                         ",".join(data_checkpoint)})
         logging.info("data checkpoint saved result: %s", res)
-
-
 
 
 class FLModel(object):
@@ -343,8 +303,7 @@ class FLEstimator(object):
             all_hooks = []
             if spec.training_hooks:
                 all_hooks.extend(spec.training_hooks)
-            all_hooks.append(BridgeTrainHook(
-                self._bridge, self._worker_rank, checkpoint_path))
+            all_hooks.append(_BridgeRunHook(self._bridge))
 
             if self._worker_rank == 0: # chief
                 listener = DataCheckpointSaverListener(
@@ -423,7 +382,7 @@ class FLEstimator(object):
             final_ops_hook = tf.train.FinalOpsHook(eval_dict)
             all_hooks.append(final_ops_hook)
 
-            all_hooks.append(BridgEvaluateHook(self._bridge))
+            all_hooks.append(_BridgeRunHook(self._bridge))
 
             # Evaluate over dataset
             with tf.train.MonitoredSession(
