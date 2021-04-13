@@ -36,10 +36,7 @@ test/%.phony: test/%.py
 
 unit-test: $(UNIT_TESTS)
 
-integration-test:
-	bash integration_tests.sh
-
-test: unit-test integration-test
+test: unit-test
 
 docker-build:
 	docker build . -t ${IMG}

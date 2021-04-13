@@ -32,6 +32,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     config = tf.ConfigProto()
+    config.rpc_options.disable_session_connection_sharing = True
     config.rpc_options.compression_algorithm = 'gzip'
     config.rpc_options.cache_rpc_response = True
 
