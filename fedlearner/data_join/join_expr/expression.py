@@ -39,6 +39,17 @@ class LTFuncDef(BaseFunction):
         follower_event_time = getattr(follower, args[0])
         return leader_event_time < follower_event_time
 
+class GTFuncDef(BaseFunction):
+    def __init__(self):
+        super(GTFuncDef, self).__init__(1)
+
+    def __call__(self, leader, follower, args):
+        assert all([hasattr(follower, att) for att in args]), "Arg missed"
+        assert all([hasattr(leader, att) for att in args]), "Arg missed"
+        leader_event_time = getattr(leader, args[0])
+        follower_event_time = getattr(follower, args[0])
+        return leader_event_time > follower_event_time
+
 class DateTruncDef(BaseFunction):
     """truncate event time"""
     def __init__(self):
@@ -68,6 +79,7 @@ class EqualToDef(BaseFunction):
 
 LINK_MAP = dict({
     "lt": LTFuncDef(),
+    "gt": GTFuncDef(),
     "et": EqualToDef(),
     "trunc": DateTruncDef()})
 
