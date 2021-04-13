@@ -8,11 +8,15 @@ dayjs.extend(UTC);
 dayjs.extend(timezone);
 
 export function formatTimestamp(input: number, format = 'YYYY-MM-DD HH:mm:ss') {
-  if (input.toString().length === 10) {
-    return dayjs.unix(input).tz('Asia/Shanghai').format(format);
-  }
+  try {
+    if (input.toString().length === 10) {
+      return dayjs.unix(input).tz('Asia/Shanghai').format(format);
+    }
 
-  return dayjs(input).tz('Asia/Shanghai').format(format);
+    return dayjs(input).tz('Asia/Shanghai').format(format);
+  } catch (error) {
+    return '[formatTimestamp]: Input error';
+  }
 }
 
 /**

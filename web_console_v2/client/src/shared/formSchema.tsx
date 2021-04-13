@@ -274,7 +274,7 @@ export function createRadio(variable: Variable): FormilySchema {
 export function createNumberPicker(variable: Variable): FormilySchema {
   const {
     name,
-    widget_schema: { min, max, formatter, parser },
+    widget_schema: { min, max },
   } = variable;
 
   return {
@@ -290,8 +290,8 @@ export function createNumberPicker(variable: Variable): FormilySchema {
         'x-component-props': {
           min,
           max,
-          formatter,
-          parser,
+          parser: (v: string) => v,
+          formatter: (value: number) => `${value}`,
         },
       },
     ),
@@ -345,13 +345,17 @@ const componentToWorkersMap: { [key: string]: (v: Variable) => FormilySchema } =
 
 // ---------- Widget schemas stringify, parse -----------
 
-export function stringifyVariableCodes(variable: Variable) {
+export function stringifyVariableValue(variable: Variable) {
   if (variable.value_type === VariableValueType.CODE && typeof variable.value === 'object') {
     variable.value = JSON.stringify(variable.value);
   }
+
+  if (variable.value_type === VariableValueType.STRING && typeof variable.value !== 'object') {
+    variable.value = String(variable.value);
+  }
 }
 
-export function parseVariableCodes(variable: Variable) {
+export function parseVariableValue(variable: Variable) {
   if (variable.value_type === VariableValueType.CODE && typeof variable.value === 'string') {
     variable.value = JSON.parse(variable.value);
   }
@@ -394,7 +398,7 @@ export function stringifyComplexDictField<
       variable.widget_schema = JSON.stringify(variable.widget_schema);
     }
 
-    stringifyVariableCodes(variable);
+    stringifyVariableValue(variable);
   }
 }
 
@@ -433,7 +437,7 @@ export function parseComplexDictField<
         : /* istanbul ignore next */ {};
     }
 
-    parseVariableCodes(variable);
+    parseVariableValue(variable);
   }
 }
 
