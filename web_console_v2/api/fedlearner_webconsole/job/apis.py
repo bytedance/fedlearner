@@ -62,7 +62,7 @@ class PodLogApi(Resource):
         if start_time is None:
             start_time = job.workflow.start_at
         return {'data': es.query_log(Envs.ES_INDEX, '', pod_name,
-                                     start_time * 10000,
+                                     start_time * 1000,
                                      int(time.time() * 1000))[:max_lines][::-1]}
 
 
