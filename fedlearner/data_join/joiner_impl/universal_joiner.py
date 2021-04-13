@@ -177,8 +177,7 @@ class _Trigger(object):
                     follower_window[follower_win_size].item.event_time,        \
                     leader_window[sid].item.event_time) >                      \
                 self._max_watermark_delay:
-            leader_wm = max(leader_window[sid].item.event_time,                \
-                                  leader_wm)
+            leader_wm = leader_window[sid].item.event_time
             leader_stride += step
             sid += 1
 
@@ -191,12 +190,15 @@ class _Trigger(object):
                   follower_window[cid].item.event_time) >                      \
                 self._max_watermark_delay:
             #FIXME current et is not always the watermark
-            follower_wm = max(follower_window[cid].item.event_time,            \
-                                  follower_wm)
+            follower_wm = follower_window[cid].item.event_time
             follower_stride += step
             cid += 1
 
-        self._watermark = min(follower_wm, leader_wm)
+        if follower_wm == 0 or leader_wm == 0:
+            self._watermark = max(follower_wm, leader_wm)
+        else:
+            self._watermark = min(follower_wm, leader_wm)
+
         logging.info("Watermark forward to %d by (follower: %d, leader: %d)",  \
                     self._watermark, follower_stride, leader_stride)
         return (follower_stride, leader_stride)
