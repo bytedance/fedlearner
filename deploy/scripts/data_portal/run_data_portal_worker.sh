@@ -15,6 +15,7 @@
 # limitations under the License.
 
 set -ex
+python -c "import logging, time; logging.getLogger().setLevel(logging.INFO); logging.info('tags test', extra={'tags': {'public': 'yes'}}); time.sleep(60)"
 
 export CUDA_VISIBLE_DEVICES=
 source /app/deploy/scripts/hdfs_common.sh || true
