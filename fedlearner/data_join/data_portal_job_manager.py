@@ -231,7 +231,8 @@ class DataPortalJobManager(object):
         kvstore_key = common.portal_job_kvstore_key(self._portal_name, job_id)
         data = self._kvstore.get_data(kvstore_key)
         if data is not None:
-            return text_format.Parse(data, dp_pb.DataPortalJob())
+            return text_format.Parse(data, dp_pb.DataPortalJob(),
+                                     allow_unknown_field=True)
         return None
 
     def _sync_processing_job(self):
@@ -259,7 +260,8 @@ class DataPortalJobManager(object):
             data = self._kvstore.get_data(kvstore_key)
             if data is not None:
                 self._portal_manifest = \
-                    text_format.Parse(data, dp_pb.DataPortalManifest())
+                    text_format.Parse(data, dp_pb.DataPortalManifest(),
+                                      allow_unknown_field=True)
         return self._portal_manifest
 
     def _update_portal_manifest(self, new_portal_manifest):
@@ -417,7 +419,8 @@ class DataPortalJobManager(object):
                     )
             else:
                 self._job_part_map[partition_id] = \
-                    text_format.Parse(data, dp_pb.PortalJobPart())
+                    text_format.Parse(data, dp_pb.PortalJobPart(),
+                                      allow_unknown_field=True)
         return self._job_part_map[partition_id]
 
     def _update_job_part(self, job_part):

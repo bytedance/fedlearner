@@ -134,6 +134,7 @@ class RawDataPublisher(object):
                                                     last_index)
             data = self._kvstore.get_data(kvstore_key)
             if data is not None:
-                pub_item = text_format.Parse(data, dj_pb.RawDatePub())
+                pub_item = text_format.Parse(data, dj_pb.RawDatePub(),
+                                             allow_unknown_field=True)
                 return pub_item.HasField('raw_data_finished')
         return False

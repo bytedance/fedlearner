@@ -221,7 +221,8 @@ class RawDataManifestManager(object):
             pub_data = self._kvstore.get_data(kvstore_key)
             if pub_data is None:
                 break
-            raw_data_pub = text_format.Parse(pub_data, dj_pb.RawDatePub())
+            raw_data_pub = text_format.Parse(pub_data, dj_pb.RawDatePub(),
+                                             allow_unknown_field=True)
             if raw_data_pub.HasField('raw_data_meta'):
                 add_candidates.append(raw_data_pub.raw_data_meta)
                 next_sub_index += 1
@@ -326,7 +327,8 @@ class RawDataManifestManager(object):
             )
         manifest_data = self._kvstore.get_data(manifest_kvstore_key)
         if manifest_data is not None:
-            return text_format.Parse(manifest_data, dj_pb.RawDataManifest())
+            return text_format.Parse(manifest_data, dj_pb.RawDataManifest(),
+                                     allow_unknown_field=True)
         return None
 
     def _update_manifest(self, manifest):
@@ -372,7 +374,8 @@ class RawDataManifestManager(object):
             data = self._kvstore.get_data(meta_kvstore_key)
             if data is None:
                 break
-            meta = text_format.Parse(data, dj_pb.RawDataMeta())
+            meta = text_format.Parse(data, dj_pb.RawDataMeta(),
+                                     allow_unknown_field=True)
             self._existed_fpath[meta.file_path] = \
                     (partition_id, next_process_index)
             self._update_raw_data_latest_timestamp(partition_id,
