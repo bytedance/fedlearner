@@ -1081,7 +1081,8 @@ class BoostingTreeEnsamble(object):
     def load_saved_model(self, path):
         fin = tf.io.gfile.GFile(path, 'r')
         model = tree_pb2.BoostingTreeEnsambleProto()
-        text_format.Parse(fin.read(), model)
+        text_format.Parse(fin.read(), model,
+                          allow_unknown_field=True)
         self._trees = list(model.trees)
         self._feature_importance = np.asarray(model.feature_importance)
         self._feature_names = list(model.feature_names)

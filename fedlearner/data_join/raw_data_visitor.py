@@ -103,7 +103,8 @@ class RawDataManager(visitor.IndexMetaManager):
             )
         data = self._kvstore.get_data(kvstore_key)
         if data is not None:
-            return text_format.Parse(data, dj_pb.RawDataMeta())
+            return text_format.Parse(data, dj_pb.RawDataMeta(),
+                                     allow_unknown_field=True)
         return None
 
     def _sync_raw_data_manifest(self):
@@ -113,7 +114,8 @@ class RawDataManager(visitor.IndexMetaManager):
             )
         data = self._kvstore.get_data(kvstore_key)
         assert data is not None, "manifest must be existed"
-        return text_format.Parse(data, dj_pb.RawDataManifest())
+        return text_format.Parse(data, dj_pb.RawDataManifest(),
+                                 allow_unknown_field=True)
 
     def _preload_raw_data_meta(self):
         manifest_kvstore_key = common.partition_manifest_kvstore_key(
@@ -128,7 +130,8 @@ class RawDataManager(visitor.IndexMetaManager):
             if not bkey.decode().startswith(common.RawDataMetaPrefix):
                 continue
             index = int(bkey[len(common.RawDataMetaPrefix):])
-            meta = text_format.Parse(val, dj_pb.RawDataMeta())
+            meta = text_format.Parse(val, dj_pb.RawDataMeta(),
+                                     allow_unknown_field=True)
             all_metas.append((index, meta))
             if meta.start_index != -1:
                 index_meta = visitor.IndexMeta(index, meta.start_index,
