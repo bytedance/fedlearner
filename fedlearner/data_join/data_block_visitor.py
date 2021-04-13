@@ -201,7 +201,8 @@ class DataBlockVisitor(object):
         data = self._kvstore.get_data(kvstore_key)
         assert data is not None, "raw data manifest of partition "\
                                  "{} must be existed".format(partition_id)
-        return text_format.Parse(data, dj_pb.RawDataManifest())
+        return text_format.Parse(data, dj_pb.RawDataManifest(),
+                                 allow_unknown_field=True)
 
     def _filter_by_visible(self, index, manifest):
         join_state = manifest.join_example_rep.state
