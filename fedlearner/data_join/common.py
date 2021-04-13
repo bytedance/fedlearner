@@ -267,9 +267,6 @@ def data_source_data_block_dir(data_source):
 def data_source_example_dumped_dir(data_source):
     return os.path.join(data_source.output_base_dir, 'example_dump')
 
-def glob(patten):
-    return gfile.Glob(patten)
-
 class Singleton(type):
     _instances = {}
     _lck = threading.Lock()
@@ -415,6 +412,8 @@ def interval_to_timestamp(itv):
             tmstmp += int(unit_no[item]) * multiple[i]
     return tmstmp
 
+def glob(patten):
+    return gfile.Glob(patten)
 
 def timestamp_check_valid(iso_dt):
     if iso_dt.year > 3000:

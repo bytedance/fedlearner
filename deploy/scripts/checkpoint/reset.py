@@ -15,6 +15,7 @@ def do_reset(file_or_dir, backup=False):
         tf.gfile.Remove(file_or_dir)
 
 def do_batch_reset(file_list, backup=False):
+    logging.info('do_batch_reset: %s', file_list)
     for f in file_list:
         do_reset(f, backup)
 
@@ -26,7 +27,10 @@ def walk(file_or_dir, dt):
         fd = queue.pop()
         if tf.gfile.IsDirectory(fd):
             sub_files = tf.gfile.ListDirectory(fd)
-            queue.extend(sub_files)
+            queue.extend([os.path.join(fd, e) for e in sub_files])
+        elif not tf.gfile.Exists(fd):
+            logging.info("%s not exists", fd)
+            continue
         else:
             fstat = tf.gfile.Stat(fd)
             if fstat.mtime_nsec/1e9 > dt:
@@ -64,7 +68,7 @@ class DataSourceCheckpoint(Checkpoint):
         super(DataSourceCheckpoint, self).__init__(storage_root, task_name)
         self._data_source = djc.retrieve_data_source(self._kvstore, task_name)
 
-    def reset(self):
+    def reset(self, dt):
         p1 = os.path.join(self._storage_root, 'data_source', self._task_name, 'data_block')
         ckpt_files = walk(p1, dt)
         do_batch_reset(ckpt_files)
@@ -72,11 +76,14 @@ class DataSourceCheckpoint(Checkpoint):
         jobs_files = walk(p2, dt)
         do_batch_reset(jobs_files)
 
-        p2 = os.path.join(self._storage_root, 'data_source', self._task_name, 'raw_data_dir')
+        #meta
+        p2 = os.path.join(djc.data_source_kvstore_base_dir(self._task_name), 'raw_data_dir')
+        p2 = self._kvstore._generate_path(p2, with_meta=False)
         jobs_files = walk(p2, dt)
         do_batch_reset(jobs_files)
 
-        p2 = os.path.join(self._storage_root, 'data_source', self._task_name, 'dumped_example_id_anchor')
+        p2 = os.path.join(djc.data_source_kvstore_base_dir(self._task_name), 'dumped_example_id_anchor')
+        p2 = self._kvstore._generate_path(p2, with_meta=False)
         jobs_files = walk(p2, dt)
         do_batch_reset(jobs_files)
 
@@ -86,6 +93,8 @@ class DataSourceCheckpoint(Checkpoint):
         return p2
 
     def find_ckpt(self, base_dir):
+        if not tf.gfile.Exists(base_dir):
+            return None
         ckpt = os.path.join(base_dir, "*.ckpt")
         ckpt_path_list = djc.glob(ckpt).sort()
         if len(ckpt_path_list) > 0:
@@ -118,21 +127,23 @@ if __name__ == "__main__":
     data_source_name = os.environ.get("DATA_SOURCE_NAME", None)
     training_name = os.environ.get("TRAINING_NAME", None)
     str_dt = os.environ.get('CHECKPOINT_DT', None)
-    storage_root = os.environ.get('STORAGE_ROOT', None)
+    storage_root = os.environ.get('STORAGE_ROOT_PATH', None)
     assert storage_root is not None
-    dt = time.mktime(time.strptime(dt, "%Y%m%d%H%M%S"))
-    assert isinstance(dt, datetime), "Invalid datetime %s"%str_dt
+    dt = time.mktime(time.strptime(str_dt, "%Y%m%d%H%M%S"))
 
     if training_name:
-        task = TrainingCheckpoint()
+        task = TrainingCheckpoint(storage_root, training_name)
         base_dir = task.reset(dt)
-        dt = task.find_ckpt(base_dir)
+        tdt = task.find_ckpt(base_dir)
+        if tdt:
+            dt = tdt
     if data_source_name:
-        task = DataSourceCheckpoint()
+        task = DataSourceCheckpoint(storage_root, data_source_name)
         base_dir = task.reset(dt)
-        dt = task.find_ckpt(base_dir)
+        tdt = task.find_ckpt(base_dir)
+        if tdt:
+            dt = tdt
     if raw_data_name:
-        task = RawDataCheckpoint()
+        task = RawDataCheckpoint(storage_root, raw_data_name)
         base_dir = task.reset(dt)
-        #dt = task.find_ckpt(base_dir)
 
