@@ -236,9 +236,6 @@ class StreamExampleJoiner(ExampleJoiner):
     def _dump_joined_items(self):
         start_tm = time.time()
         self._neg_samples = {}
-        write_joined = -1
-        if self._enable_negative_example_generator:
-            write_joined = 1
         for (leader_idx, leader_item) in self._leader_join_window:
             eid = leader_item.example_id
             if (eid not in self._follower_example_cache
@@ -268,7 +265,7 @@ class StreamExampleJoiner(ExampleJoiner):
                                         "None before dumping"
             follower_idx, item = self._joined_cache[eid]
             builder.append_item(item, leader_idx, follower_idx,
-                                joined=write_joined)
+                                joined=1)
             self._optional_stats.update_stats(item, kind='joined')
             if builder.check_data_block_full():
                 yield self._finish_data_block()

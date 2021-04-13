@@ -554,9 +554,6 @@ class UniversalJoiner(ExampleJoiner):
 
     def _dump_joined_items(self, indexed_pairs):
         start_tm = time.time()
-        write_joined = -1
-        if self._enable_negative_example_generator:
-            write_joined = 1
         for ip in indexed_pairs:
             if self._enable_negative_example_generator:
                 for example in \
@@ -574,7 +571,7 @@ class UniversalJoiner(ExampleJoiner):
             assert builder is not None, "data block builder must be "\
                                         "not None if before dummping"
             builder.append_item(ip.fe, ip.li, ip.fi, None, True,
-                                joined=write_joined)
+                                joined=1)
             if builder.check_data_block_full():
                 yield self._finish_data_block()
         metrics.emit_timer(name='universal_joiner_dump_joined_items',
