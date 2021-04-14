@@ -274,14 +274,12 @@ class _SlidingWindow(object):
     def is_full(self):
         return self._size == self._alloc_size
 
-    def et_span(self, time_anchor=None):
+    def et_span(self, delay):
         if self._size == 0:
-            return 0
+            return True
         st = self._ring_buffer[self._start].item.event_time
-        ed = time_anchor
-        if ed is None:
-            ed = self._ring_buffer[self._index(self._size - 1)].item.event_time
-        return fcc.time_diff(ed, st)
+        ed = self._ring_buffer[self._index(self._size - 1)].item.event_time
+        return fcc.time_diff(ed, st) < delay
 
     def reserved_size(self):
         return self._max_window_size - self._size
@@ -450,7 +448,7 @@ class UniversalJoiner(ExampleJoiner):
                              self._leader_index_ps.size(), len(raw_pairs),
                              len(pairs))
 
-                #4. update the watermark
+                #4. update window
                 self._follower_join_window.forward(stride[0])
                 self._leader_join_window.forward(stride[1])
 
@@ -465,9 +463,15 @@ class UniversalJoiner(ExampleJoiner):
                 if follower_exhausted:
                     break
 
-            if leader_exhausted or follower_exhausted:
+            if leader_exhausted and self._leader_join_window.et_span(
+                self._max_watermark_delay):
                 join_data_finished = True
                 break
+            if follower_exhausted and self._follower_join_window.et_span(
+                self._max_watermark_delay):
+                join_data_finished = True
+                break
+
             if self._leader_join_window.is_full():
                 break
 

@@ -50,7 +50,7 @@ class TestUniversalJoin(dsp.DataSourceProducer):
         self.example_joiner_options = dj_pb.ExampleJoinerOptions(
                   example_joiner='UNIVERSAL_JOINER',
                   min_matching_window=32,
-                  max_matching_window=51200,
+                  max_matching_window=10240,
                   max_conversion_delay=interval_to_timestamp("258"),
                   enable_negative_example_generator=False,
                   data_block_dump_interval=32,
@@ -68,15 +68,15 @@ class TestUniversalJoin(dsp.DataSourceProducer):
                 dj_pb.WriterOptions(output_writer='TF_RECORD'),
                 self.kvstore, self.data_source, 0
             )
-        self.run_join(sei)
+        self.run_join(sei, 0)
 
     #@unittest.skip('2121')
     def test_universal_join_fallback(self):
         self.example_joiner_options = dj_pb.ExampleJoinerOptions(
                   example_joiner='UNIVERSAL_JOINER',
                   min_matching_window=32,
-                  max_matching_window=51200,
-                  max_conversion_delay=interval_to_timestamp("258"),
+                  max_matching_window=20240,
+                  max_conversion_delay=interval_to_timestamp("128"),
                   enable_negative_example_generator=False,
                   data_block_dump_interval=32,
                   data_block_dump_threshold=1024,
@@ -93,7 +93,32 @@ class TestUniversalJoin(dsp.DataSourceProducer):
                 dj_pb.WriterOptions(output_writer='TF_RECORD'),
                 self.kvstore, self.data_source, 0
             )
-        self.run_join(sei)
+        self.run_join(sei, 0.8)
+
+    #@unittest.skip('2121')
+    def test_universal_join_small_follower(self):
+        self.example_joiner_options = dj_pb.ExampleJoinerOptions(
+                  example_joiner='UNIVERSAL_JOINER',
+                  min_matching_window=32,
+                  max_matching_window=20240,
+                  max_conversion_delay=interval_to_timestamp("128"),
+                  enable_negative_example_generator=False,
+                  data_block_dump_interval=32,
+                  data_block_dump_threshold=1024,
+                  negative_sampling_rate=0.8,
+                  join_expr="(id_type, example_id, trunc(event_time,1))",
+                  join_key_mapper="DEFAULT",
+                  negative_sampling_filter_expr='',
+              )
+        self.version = dsp.Version.V2
+
+        sei = joiner_impl.create_example_joiner(
+                self.example_joiner_options,
+                self.raw_data_options,
+                dj_pb.WriterOptions(output_writer='TF_RECORD'),
+                self.kvstore, self.data_source, 0
+            )
+        self.run_join_small_follower(sei, 0.15)
 
     #@unittest.skip('2121')
     def test_universal_join_attribution(self):
@@ -118,8 +143,9 @@ class TestUniversalJoin(dsp.DataSourceProducer):
                 dj_pb.WriterOptions(output_writer='TF_RECORD'),
                 self.kvstore, self.data_source, 0
             )
-        self.run_join(sei)
+        self.run_join(sei, 0.8)
 
+    #@unittest.skip('2121')
     def test_universal_join_key_mapper(self):
         mapper_code = """
 from fedlearner.data_join.key_mapper.key_mapping import BaseKeyMapper
@@ -164,8 +190,7 @@ class KeyMapperMock(BaseKeyMapper):
                 dj_pb.WriterOptions(output_writer='CSV_DICT'),
                 self.kvstore, self.data_source, 0
             )
-        self.run_join(sei)
-
+        self.run_join(sei, 1)
         os.remove(fname)
 
 
@@ -215,12 +240,10 @@ class KeyMapperMock(BaseKeyMapper):
                 dj_pb.WriterOptions(output_writer='CSV_DICT'),
                 self.kvstore, self.data_source, 0
             )
-        self.run_join(sei)
-
+        self.run_join(sei, 0)
         os.remove(fname)
 
-
-    def run_join(self, sei):
+    def run_join(self, sei, rate):
         metas = []
         with sei.make_example_joiner() as joiner:
             for meta in joiner:
@@ -234,6 +257,7 @@ class KeyMapperMock(BaseKeyMapper):
         with sei.make_example_joiner() as joiner:
             for meta in joiner:
                 metas.append(meta)
+
         self.generate_raw_data(2 * 2048, 2048)
         self.generate_example_id(dumper, 3 * 2048, 3 * 2048)
         with sei.make_example_joiner() as joiner:
@@ -273,6 +297,49 @@ class KeyMapperMock(BaseKeyMapper):
               (join_count+.0)/(10 * 2048 * 2),
               self.example_joiner_options.min_matching_window,
               self.example_joiner_options.max_matching_window))
+        self.assertTrue((join_count+.0)/(10 * 2048 * 2) >= rate)
+
+    def run_join_small_follower(self, sei, rate):
+        metas = []
+        with sei.make_example_joiner() as joiner:
+            for meta in joiner:
+                metas.append(meta)
+        self.assertEqual(len(metas), 0)
+        self.generate_raw_data(8, 2 * 2048)
+        dumper = example_id_dumper.ExampleIdDumperManager(
+                self.kvstore, self.data_source, 0, self.example_id_dump_options
+            )
+        self.generate_example_id(dumper, 0, 3 * 2048)
+        with sei.make_example_joiner() as joiner:
+            for meta in joiner:
+                metas.append(meta)
+
+        sei.set_raw_data_finished()
+        self.generate_example_id(dumper, 3 * 2048, 7 * 2048)
+        with sei.make_example_joiner() as joiner:
+            for meta in joiner:
+                metas.append(meta)
+        sei.set_sync_example_id_finished()
+        with sei.make_example_joiner() as joiner:
+            for meta in joiner:
+                metas.append(meta)
+
+        dbm = data_block_manager.DataBlockManager(self.data_source, 0)
+        data_block_num = dbm.get_dumped_data_block_count()
+        self.assertEqual(len(metas), data_block_num)
+        join_count = 0
+        for data_block_index in range(data_block_num):
+            meta = dbm.get_data_block_meta_by_index(data_block_index)
+            self.assertEqual(meta, metas[data_block_index])
+            join_count += len(meta.example_ids)
+
+        print("join rate {}/{}({}), min_matching_window {}, "\
+              "max_matching_window {}".format(
+              join_count, 20480 * 2,
+              (join_count+.0)/(10 * 2048 * 2),
+              self.example_joiner_options.min_matching_window,
+              self.example_joiner_options.max_matching_window))
+        self.assertTrue((join_count+.0)/(10 * 2048 * 2) >= rate)
 
 
 if __name__ == '__main__':
