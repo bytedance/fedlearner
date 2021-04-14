@@ -415,17 +415,16 @@ class UniversalJoiner(ExampleJoiner):
             follower_exhausted = False
             logging.info('Fill leader_exhausted: %s, sync_example_id_finished '
                          '%s, raw_data_finished %s, leader_win_size %d, '
-                         'follower_win_size %d', leader_exhausted,
-                         sync_example_id_finished, raw_data_finished,
-                         self._leader_join_window.size(),
-                         self._follower_join_window.size())
+                         'follower_win_size %d, raw_data_finished %d',
+                         leader_exhausted, sync_example_id_finished,
+                         raw_data_finished, self._leader_join_window.size(),
+                         self._follower_join_window.size(), raw_data_finished)
             while self._fill_follower_join_window(raw_data_finished):
                 follower_exhausted = raw_data_finished and \
                         not self._follower_join_window.is_full()
 
                 logging.info("Fill: follower_exhausted=%s, "
-                             "raw_data_finished=%s, follower_win_size=%d",
-                             follower_exhausted, raw_data_finished,
+                             "follower_win_size=%d", follower_exhausted,
                              self._follower_join_window.size())
                 #1. find all the matched pairs in current window
                 raw_pairs, mismatches = self._joiner.join(
