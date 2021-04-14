@@ -357,7 +357,7 @@ class _SlidingWindow(object):
             return False
         if optional_stats:
             for i in range(step):
-                optional_stats.update_stats(self[i])
+                optional_stats.update_stats(self[i].item)
         self._start = self._index(step)
         self._size -= step
         return True
