@@ -259,6 +259,7 @@ def set_logger():
         logging.getLogger().setLevel(logging.DEBUG)
     logging.basicConfig(format="%(asctime)s %(filename)s "
                                "%(lineno)s %(levelname)s - %(message)s")
+    logging.info('tags test', extra={'tags': {'public': 1}})
 
 
 def time_diff(minuend, sub):
