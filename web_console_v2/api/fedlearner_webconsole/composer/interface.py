@@ -25,6 +25,7 @@ from fedlearner_webconsole.composer.models import Context, RunnerStatus
 class ItemType(enum.Enum):
     TASK = 'task'
     MEMORY = 'memory'
+    WORKFLOW_CRON_JOB = 'workflow_cron_job'
 
 
 # item interface

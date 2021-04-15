@@ -119,6 +119,15 @@ class AuthApiTest(BaseTestCase):
         self.assertEqual(resp.status_code, HTTPStatus.OK)
         self.assertEqual(self.get_response_data(resp).get('username'), 'ada')
 
+    def test_signout(self):
+        self.signin_helper()
+
+        resp = self.delete_helper(url='/api/v2/auth/signin')
+        self.assertEqual(resp.status_code, HTTPStatus.OK)
+
+        resp = self.get_helper(url='/api/v2/auth/users/1')
+        self.assertEqual(resp.status_code, HTTPStatus.UNAUTHORIZED)
+
 
 if __name__ == '__main__':
     unittest.main()

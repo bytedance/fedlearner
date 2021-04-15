@@ -13,6 +13,7 @@
 # limitations under the License.
 
 # coding: utf-8
+import json
 from elasticsearch import Elasticsearch
 
 from fedlearner_webconsole.envs import Envs
@@ -60,7 +61,7 @@ class ElasticSearchClient(object):
             }
         }] if keyword else []
         match_phrase_list = [
-            match_phrase if match_phrase else
+            json.loads(match_phrase) if match_phrase else
             {
                 'prefix': {
                     'kubernetes.pod.name': pod_name
@@ -113,7 +114,7 @@ class ElasticSearchClient(object):
             }
         ] if keyword else []
         match_phrase_list = [
-            match_phrase if match_phrase else
+            json.loads(match_phrase) if match_phrase else
             {
                 'prefix': {
                     'kubernetes.pod.name': pod_name

@@ -156,6 +156,7 @@ const WorkflowForkStepTwoConfig: FC = () => {
               ref={selfConfigChartRef}
               side="self"
               nodeType="fork"
+              nodeInitialStatus={ChartNodeStatus.Success}
               workflowConfig={formData.config}
               onCanvasClick={onCanvasClick}
               onJobClick={(node) => selectNode(node, 'self')}

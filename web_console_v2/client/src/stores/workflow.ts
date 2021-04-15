@@ -2,7 +2,7 @@ import { JobNodeRawData } from 'components/WorkflowJobsCanvas/types';
 import { atom, selector } from 'recoil';
 import { CreateJobFlag } from 'typings/job';
 import {
-  Workflow,
+  WorkflowExecutionDetails,
   WorkflowConfig,
   WorkflowForkPayload,
   WorkflowInitiatePayload,
@@ -12,8 +12,10 @@ import {
 
 export type CreateWorkflowBasicForm = {
   _templateSelected?: string;
-  _keepUsingOriginalTempalte?: boolean;
-} & Partial<Pick<WorkflowInitiatePayload, 'name' | 'forkable' | 'project_id'>>;
+  _keepUsingOriginalTemplate?: boolean;
+} & Partial<
+  Pick<WorkflowInitiatePayload, 'name' | 'forkable' | 'project_id' | 'batch_update_interval'>
+>;
 
 export type CreateTemplateForm = WorkflowTemplatePayload;
 
@@ -23,11 +25,12 @@ export const workflowBasicForm = atom<CreateWorkflowBasicForm>({
     // Fields start with underscore are solely UI releated things,
     // will not pass to backend on submit
     _templateSelected: undefined,
-    _keepUsingOriginalTempalte: true,
+    _keepUsingOriginalTemplate: true,
 
     name: '',
     project_id: undefined,
     forkable: true,
+    batch_update_interval: -1,
   },
 });
 
@@ -48,9 +51,9 @@ export const workflowTemplateForm = atom<CreateTemplateForm>({
   default: { name: '', config: '', comment: '' } as any,
 });
 
-export const workflowInEditing = atom<Workflow>({
+export const workflowInEditing = atom<WorkflowExecutionDetails>({
   key: 'WorkflowInEditing',
-  default: (null as unknown) as Workflow,
+  default: (null as unknown) as WorkflowExecutionDetails,
 });
 
 export const peerConfigInPairing = atom<WorkflowConfig>({

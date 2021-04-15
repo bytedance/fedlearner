@@ -252,6 +252,8 @@ const CanvasAndForm: FC<WorkflowCreateProps> = ({ isInitiate, isAccept }) => {
 
     if (!resError) {
       history.push('/workflows');
+    } else {
+      message.error(resError.message);
     }
   }
   async function selectNode(nextNode: ChartNode) {

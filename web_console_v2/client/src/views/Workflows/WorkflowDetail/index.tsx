@@ -143,7 +143,12 @@ const WorkflowDetail: FC = () => {
     {
       label: t('workflow.label_running_time'),
 
-      value: workflow && <CountTime time={runningTime} isStatic={!isRunning_} />,
+      value: Boolean(workflow) && <CountTime time={runningTime} isStatic={!isRunning_} />,
+    },
+    {
+      label: t('workflow.label_batch_update_interval'),
+      value: `${workflow?.batch_update_interval} min`,
+      hidden: !workflow?.batch_update_interval || workflow?.batch_update_interval === -1,
     },
     // Display workflow global variables
     ...(workflow?.config?.variables || []).map((item) => ({ label: item.name, value: item.value })),
@@ -336,14 +341,14 @@ function _mergeWithExecutionDetails(workflow?: WorkflowExecutionDetails): JobNod
   );
 }
 
-function _markJobFlags(jobs: JobNodeRawData[], jobReuseFlags: CreateJobFlag[] = []) {
-  if (!jobReuseFlags) return jobs;
+function _markJobFlags(jobs: JobNodeRawData[], flags: CreateJobFlag[] = []) {
+  if (!flags) return jobs;
 
   return jobs.map((item, index) => {
-    if (jobReuseFlags[index] === CreateJobFlag.REUSE) {
+    if (flags[index] === CreateJobFlag.REUSE) {
       item.reused = true;
     }
-    if (jobReuseFlags[index] === CreateJobFlag.DISABLED) {
+    if (flags[index] === CreateJobFlag.DISABLED) {
       item.disabled = true;
     }
 

@@ -75,15 +75,15 @@ const WorkflowForkStepOneBaic: FC<Props> = ({ onSuccess }) => {
           <WhichProject id={workflowQuery.data?.project_id} loading={workflowQuery.isFetching} />
         </Form.Item>
 
+        <Form.Item label={t('workflow.label_template_name')}>
+          {workflowQuery.data?.config?.group_alias}
+        </Form.Item>
+
         <Form.Item name="forkable" label={t('workflow.label_peer_forkable')}>
           <Radio.Group>
             <Radio.Button value={true}>{t(`workflow.label_allow`)}</Radio.Button>
             <Radio.Button value={false}>{t(`workflow.label_not_allow`)}</Radio.Button>
           </Radio.Group>
-        </Form.Item>
-
-        <Form.Item label={t('workflow.label_template_name')}>
-          {workflowQuery.data?.config?.group_alias}
         </Form.Item>
 
         <Form.Item wrapperCol={{ offset: 6 }}>

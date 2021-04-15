@@ -42,4 +42,5 @@ class Config(object):
 
     START_GRPC_SERVER = True
     START_SCHEDULER = True
-    START_COMPOSER = True
+    # TODO: disable before tables created in rds
+    START_COMPOSER = os.getenv('START_COMPOSER', False)

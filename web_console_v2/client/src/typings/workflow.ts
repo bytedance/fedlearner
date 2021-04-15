@@ -32,6 +32,7 @@ export type WorkflowInitiatePayload = {
   name: string;
   project_id: ID;
   forkable: boolean;
+  batch_update_interval?: number;
   create_job_flags?: CreateJobFlag[];
   config: ChartWorkflowConfig;
   comment?: string;
@@ -40,12 +41,14 @@ export type WorkflowInitiatePayload = {
 export type WorkflowAcceptPayload = {
   forkable: boolean;
   create_job_flags?: CreateJobFlag[];
+  batch_update_interval?: number;
   config: ChartWorkflowConfig;
   comment?: string;
 };
 
 export type WorkflowForkPayload = WorkflowInitiatePayload & {
   forked_from: ID;
+  batch_update_interval?: number;
   create_job_flags: CreateJobFlag[]; // e.g. [raw_data, training...]
   peer_create_job_flags: CreateJobFlag[];
   fork_proposal_config: ChartWorkflowConfig;
@@ -92,6 +95,7 @@ export type Workflow = {
   transaction_err: string | null;
   created_at: DateTime;
   updated_at: DateTime;
+  batch_update_interval?: number;
   start_at?: DateTime | null;
   stop_at?: DateTime | null;
 };

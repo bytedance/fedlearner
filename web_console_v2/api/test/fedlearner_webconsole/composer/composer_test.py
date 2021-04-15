@@ -15,123 +15,20 @@
 # coding: utf-8
 
 import logging
+import pprint
 import sys
 import threading
 import time
 import unittest
-from typing import Tuple
 
 from testing.common import BaseTestCase
+from test.fedlearner_webconsole.composer.common import TaskRunner, Task, InputDirTaskRunner
 
 from fedlearner_webconsole.db import db
 from fedlearner_webconsole.composer.composer import Composer, ComposerConfig
-from fedlearner_webconsole.composer.models import RunnerStatus, SchedulerItem, \
-    SchedulerRunner, Context
-from fedlearner_webconsole.composer.interface import IItem, IRunner, ItemType
-
-
-class Task(IItem):
-    def __init__(self, task_id: int):
-        self.id = task_id
-
-    def type(self) -> ItemType:
-        return ItemType.TASK
-
-    def get_id(self) -> int:
-        return self.id
-
-
-def raise_(ex):
-    raise ex
-
-
-def sleep_and_log(id: int, sec: int):
-    time.sleep(sec)
-    logging.info(f'id-{id}, sleep {sec}')
-
-
-RunnerCases = [
-    # normal: 1, 2, 3
-    {
-        'id': 1,
-        'start': (lambda _: True),
-        'result': (lambda _: sleep_and_log(1, 1) or (RunnerStatus.DONE, {})),
-        'stop': (lambda _: None),
-    },
-    {
-        'id': 2,
-        'start': (lambda _: True),
-        'result': (lambda _: sleep_and_log(2, 1) or (RunnerStatus.DONE, {})),
-        'stop': (lambda _: None),
-    },
-    {
-        'id': 3,
-        'start': (lambda _: True),
-        'result': (lambda _: sleep_and_log(3, 1) or (RunnerStatus.DONE, {})),
-        'stop': (lambda _: None),
-    },
-    # failed: 4, 5, 6
-    {
-        'id': 4,
-        'start': (lambda _: sleep_and_log(4, 5) and False),
-        'result': (lambda _: (RunnerStatus.FAILED, {})),
-        'stop': (lambda _: _),
-    },
-    {
-        'id': 5,
-        'start': (lambda _: raise_(TimeoutError)),
-        'result': (lambda _: (RunnerStatus.FAILED, {})),
-        'stop': (lambda _: _),
-    },
-    {
-        'id': 6,
-        'start': (lambda _: sleep_and_log(6, 10) and False),
-        'result': (lambda _: (RunnerStatus.FAILED, {})),
-        'stop': (lambda _: _),
-    },
-    # busy: 7, 8, 9
-    {
-        'id': 7,
-        'start': (lambda _: True),
-        'result': (lambda _: sleep_and_log(7, 15) or (RunnerStatus.DONE, {})),
-        'stop': (lambda _: _),
-    },
-    {
-        'id': 8,
-        'start': (lambda _: True),
-        'result': (lambda _: sleep_and_log(8, 15) or (RunnerStatus.DONE, {})),
-        'stop': (lambda _: _),
-    },
-    {
-        'id': 9,
-        'start': (lambda _: True),
-        'result': (lambda _: sleep_and_log(9, 15) or (RunnerStatus.DONE, {})),
-        'stop': (lambda _: _),
-    },
-]
-
-
-class TaskRunner(IRunner):
-    def __init__(self, task_id: int):
-        self.task_id = task_id
-
-    def start(self, context: Context):
-        logging.info(
-            f"[mock_task_runner] {self.task_id} started, ctx: {context}")
-        RunnerCases[self.task_id - 1]['start'](context)
-
-    def result(self, context: Context) -> Tuple[RunnerStatus, dict]:
-        result = RunnerCases[self.task_id - 1]['result'](context)
-        logging.info(f"[mock_task_runner] {self.task_id} done result {result}")
-        return result
-
-    def stop(self, context: Context):
-        logging.info(
-            f"[mock_task_runner] {self.task_id} stopped, ctx: {context}")
-        RunnerCases[self.task_id - 1]['stop'](context)
-
-    def timeout(self) -> int:
-        return 60
+from fedlearner_webconsole.composer.models import ItemStatus, RunnerStatus, SchedulerItem, \
+    SchedulerRunner
+from fedlearner_webconsole.composer.interface import ItemType
 
 
 class ComposerTest(BaseTestCase):
@@ -154,11 +51,12 @@ class ComposerTest(BaseTestCase):
         composer = Composer(config=cfg)
         composer.run(db_engine=db.engine)
         normal_items = [Task(1), Task(2), Task(3)]
-        composer.collect('normal items', normal_items, {})
+        name = 'normal items'
+        composer.collect(name, normal_items, {})
         self.assertEqual(1, len(db.session.query(SchedulerItem).all()),
                          'incorrect items')
         # test unique item name
-        composer.collect('normal items', normal_items, {})
+        composer.collect(name, normal_items, {})
         self.assertEqual(1, len(db.session.query(SchedulerItem).all()),
                          'incorrect items')
         time.sleep(20)
@@ -166,7 +64,12 @@ class ComposerTest(BaseTestCase):
                          'incorrect runners')
         self.assertEqual(RunnerStatus.DONE.value,
                          db.session.query(SchedulerRunner).first().status,
-                         'should finish it')
+                         'should finish runner')
+        # finish item
+        composer.finish(name)
+        self.assertEqual(ItemStatus.OFF.value,
+                         db.session.query(SchedulerItem).first().status,
+                         'should finish item')
         composer.stop()
 
     def test_failed_items(self):
@@ -207,6 +110,35 @@ class ComposerTest(BaseTestCase):
         composer.stop()
         time.sleep(5)
 
+    def test_interval_items(self):
+        logging.info(
+            '+++++++++++++++++++++++++++ test finishing interval items')
+        cfg = ComposerConfig(runner_fn=self.runner_fn,
+                             name='finish normal items')
+        composer = Composer(config=cfg)
+        composer.run(db_engine=db.engine)
+        name = 'cronjob'
+        # test invalid interval
+        self.assertRaises(ValueError,
+                          composer.collect,
+                          name, [Task(1)], {},
+                          interval=9)
+
+        composer.collect(name, [Task(1)], {}, interval=10)
+        self.assertEqual(1, len(db.session.query(SchedulerItem).all()),
+                         'incorrect items')
+        time.sleep(20)
+        self.assertEqual(2, len(db.session.query(SchedulerRunner).all()),
+                         'incorrect runners')
+        self.assertEqual(RunnerStatus.DONE.value,
+                         db.session.query(SchedulerRunner).first().status,
+                         'should finish runner')
+        composer.finish(name)
+        self.assertEqual(ItemStatus.OFF.value,
+                         db.session.query(SchedulerItem).first().status,
+                         'should finish item')
+        composer.stop()
+
     def test_multiple_composers(self):
         logging.info('+++++++++++++++++++++++++++ test multiple composers')
         cfg = ComposerConfig(runner_fn=self.runner_fn,
@@ -217,9 +149,56 @@ class ComposerTest(BaseTestCase):
         c1.start()
         c2 = threading.Thread(target=composer2.run, args=[db.engine])
         c2.start()
-        time.sleep(20)
+        time.sleep(15)
         composer1.stop()
         composer2.stop()
+
+    def test_runner_cache(self):
+        logging.info('+++++++++++++++++++++++++++ test runner cache')
+        composer = Composer(
+            config=ComposerConfig(runner_fn={
+                ItemType.TASK.value: InputDirTaskRunner,
+            },
+                                  name='runner cache'))
+        composer.run(db_engine=db.engine)
+        composer.collect('item1', [Task(1)], {
+            1: {
+                'input_dir': 'item1_input_dir',
+            },
+        })
+        composer.collect('item2', [Task(1)], {
+            1: {
+                'input_dir': 'item2_input_dir',
+            },
+        })
+        time.sleep(15)
+        self.assertEqual(2, len(db.session.query(SchedulerItem).all()),
+                         'incorrect items')
+        self.assertEqual(2, len(composer.runner_cache.data),
+                         'should be equal runner number')
+        pprint.pprint(composer.runner_cache)
+        self.assertEqual(
+            'item1_input_dir',
+            composer.runner_cache.find_runner(1, 'task_1').input_dir,
+            'should be item1_input_dir')
+        self.assertEqual(
+            'item2_input_dir',
+            composer.runner_cache.find_runner(2, 'task_1').input_dir,
+            'should be item2_input_dir')
+        # test delete cache item
+        composer.collect(
+            'item3', [Task(2), Task(3)], {
+                2: {
+                    'input_dir': 'item3_input_dir_2',
+                },
+                3: {
+                    'input_dir': 'item3_input_dir_3',
+                }
+            })
+        time.sleep(15)
+        self.assertEqual(2, len(composer.runner_cache.data),
+                         'should be equal runner number')
+        composer.stop()
 
 
 if __name__ == '__main__':

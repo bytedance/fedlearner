@@ -16,7 +16,7 @@
 
 import enum
 import json
-from datetime import timedelta
+import datetime
 
 from sqlalchemy import UniqueConstraint
 from sqlalchemy.engine import Engine
@@ -100,10 +100,10 @@ class SchedulerItem(db.Model):
                        comment='item status',
                        nullable=False,
                        default=ItemStatus.ON.value)
-    interval = db.Column(db.Integer,
-                         comment='item run interval in second',
-                         nullable=False,
-                         default=-1)
+    interval_time = db.Column(db.Integer,
+                              comment='item run interval in second',
+                              nullable=False,
+                              default=-1)
     last_run_at = db.Column(db.DateTime(timezone=True),
                             comment='last runner time')
     retry_cnt = db.Column(db.Integer,
@@ -122,14 +122,17 @@ class SchedulerItem(db.Model):
 
     def need_run(self) -> bool:
         # job runs one time
-        if self.interval == -1 and self.last_run_at is None:
+        if self.interval_time == -1 and self.last_run_at is None:
             return True
-        if self.interval > 0:  # cronjob
+        if self.interval_time > 0:  # cronjob
             if self.last_run_at is None:  # never run
                 return True
             # compare datetime in utc
-            if self.last_run_at + timedelta(
-                    seconds=self.interval) < func.now():
+            next_run_at = self.last_run_at.replace(
+                tzinfo=datetime.timezone.utc) + datetime.timedelta(
+                    seconds=self.interval_time)
+            utc_now = datetime.datetime.now(datetime.timezone.utc)
+            if next_run_at.timestamp() < utc_now.timestamp():
                 return True
         return False
 

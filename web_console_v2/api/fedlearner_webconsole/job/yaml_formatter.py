@@ -44,7 +44,7 @@ def format_yaml(yaml, **kwargs):
             'Unknown placeholder: {}'.format(e.args[0])) from e
 
 
-def _make_variables_dict(variables):
+def make_variables_dict(variables):
     var_dict = {
         var.name: (
             code_dict_encode(json.loads(var.value))
@@ -61,7 +61,7 @@ def generate_system_dict():
 
 def generate_project_dict(proj):
     project = proj.to_dict()
-    project['variables'] = _make_variables_dict(
+    project['variables'] = make_variables_dict(
         proj.get_config().variables)
     participants = project['config']['participants']
     for index, participant in enumerate(participants):
@@ -75,11 +75,11 @@ def generate_project_dict(proj):
 
 def generate_workflow_dict(wf):
     workflow = wf.to_dict()
-    workflow['variables'] = _make_variables_dict(
+    workflow['variables'] = make_variables_dict(
         wf.get_config().variables)
     workflow['jobs'] = {}
     for j in wf.get_jobs():
-        variables = _make_variables_dict(j.get_config().variables)
+        variables = make_variables_dict(j.get_config().variables)
         j_dic = j.to_dict()
         j_dic['variables'] = variables
         workflow['jobs'][j.get_config().name] = j_dic

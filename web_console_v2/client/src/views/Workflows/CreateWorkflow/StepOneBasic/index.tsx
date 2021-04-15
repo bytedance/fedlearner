@@ -27,6 +27,10 @@ import { WorkflowCreateProps } from '..';
 import { parseComplexDictField } from 'shared/formSchema';
 import { to } from 'shared/helpers';
 import { JobNodeRawData } from 'components/WorkflowJobsCanvas/types';
+import ScheduledWorkflowRunning, {
+  scheduleIntervalValidator,
+} from 'views/Workflows/ScheduledWorkflowRunning';
+import FormLabel from 'components/FormLabel';
 
 const Container = styled(Card)`
   padding-top: 20px;
@@ -56,7 +60,7 @@ const WorkflowsCreateStepOne: FC<WorkflowCreateProps & { onSuccess?: any }> = ({
   const { data: projectList } = useRecoilQuery(projectListQuery);
   const [formData, setFormData] = useRecoilState(workflowBasicForm);
   const setTemplateInUsing = useSetRecoilState(templateInUsing);
-  const setWorkflowConfigForm = useSetRecoilState(workflowConfigForm);
+  const [workflowConfig, setWorkflowConfigForm] = useRecoilState(workflowConfigForm);
   const setPeerConfig = useSetRecoilState(peerConfigInPairing);
 
   // Using when Participant accept the initiation
@@ -150,13 +154,6 @@ const WorkflowsCreateStepOne: FC<WorkflowCreateProps & { onSuccess?: any }> = ({
               </Select>
             </Form.Item>
 
-            <Form.Item name="forkable" label={t('workflow.label_peer_forkable')}>
-              <Radio.Group disabled={isAccept}>
-                <Radio.Button value={true}>{t('workflow.label_allow')}</Radio.Button>
-                <Radio.Button value={false}>{t('workflow.label_not_allow')}</Radio.Button>
-              </Radio.Group>
-            </Form.Item>
-
             <Form.Item
               label={t('workflow.label_template')}
               name="_templateSelected"
@@ -183,6 +180,33 @@ const WorkflowsCreateStepOne: FC<WorkflowCreateProps & { onSuccess?: any }> = ({
                 </Select>
               )}
             </Form.Item>
+
+            <Form.Item name="forkable" label={t('workflow.label_peer_forkable')}>
+              <Radio.Group disabled={isAccept}>
+                <Radio.Button value={true}>{t('workflow.label_allow')}</Radio.Button>
+                <Radio.Button value={false}>{t('workflow.label_not_allow')}</Radio.Button>
+              </Radio.Group>
+            </Form.Item>
+
+            {workflowConfig?.is_left && (
+              <Form.Item
+                name="batch_update_interval"
+                label={
+                  <FormLabel
+                    label={t('workflow.label_enable_batch_update_interval')}
+                    tooltip={t('workflow.msg_schduled_run')}
+                  />
+                }
+                rules={[
+                  {
+                    validator: scheduleIntervalValidator,
+                    message: t('workflow.msg_min_10_interval'),
+                  },
+                ]}
+              >
+                <ScheduledWorkflowRunning />
+              </Form.Item>
+            )}
           </Form>
 
           <Form.Item wrapperCol={{ offset: 6 }}>

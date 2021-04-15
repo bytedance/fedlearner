@@ -13,7 +13,7 @@ export enum ChartNodeStatus {
 export type JobColorsMark = 'blue' | 'green' | 'yellow' | 'magenta' | 'cyan' | 'red' | 'purple';
 
 // Except for 'global', others all stand for a job node, i.e. 'config' is job config, 'fork' is job fork
-export type ChartNodeType = 'config' | 'execution' | 'global' | 'fork';
+export type ChartNodeType = 'config' | 'execution' | 'global' | 'fork' | 'edit';
 export type TPLChartNodeType = 'tpl-config' | 'tpl-global';
 export type AllNodeTypes = ChartNodeType | TPLChartNodeType;
 
@@ -46,7 +46,7 @@ export type NodeData<R = JobNodeRawData> = {
   mark?: JobColorsMark;
   rows?: { raw: JobNodeRawData; isGlobal?: boolean }[][];
   disabled?: boolean; // whether DISABLE the job
-  /** When forking workflow, some node's result can be inherit/reuse */
+  /** When forking workflow, some node's result can be inherited, a.k.a: reused */
   inherited?: boolean;
   /** Assign it while forking workflow, let node tell which side it belongs */
   side?: string;

@@ -7,6 +7,7 @@ import {
   InheritButton,
   StatusIcon,
   ArrowDown,
+  InheritMentItem,
 } from './elements';
 import { configStatusText, JobNodeProps, statusIcons, WORKFLOW_JOB_NODE_CHANNELS } from './shared';
 import GridRow from 'components/_base/GridRow';
@@ -58,12 +59,12 @@ const ForkJobNode: FC<JobNodeProps> = ({ data, id }) => {
       <Dropdown
         overlay={
           <Menu>
-            <Menu.Item key="0" onClick={(e) => changeInheritance(e, true)}>
+            <InheritMentItem key="0" onClick={(e) => changeInheritance(e, true)}>
               {labelReusable}
-            </Menu.Item>
-            <Menu.Item key="1" onClick={(e) => changeInheritance(e, false)}>
+            </InheritMentItem>
+            <InheritMentItem key="1" onClick={(e) => changeInheritance(e, false)}>
               {labelNonreusable}
-            </Menu.Item>
+            </InheritMentItem>
           </Menu>
         }
       >

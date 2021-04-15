@@ -168,10 +168,10 @@ class Scheduler(object):
         except Exception as e:
             logging.error('Start job %d has error msg: %s'
                           , job_id, e.args)
-            self.error_message = str(e)
+            job.error_message = str(e)
             db.session.commit()
             return job.state
-        self.error_message = None
+        job.error_message = None
         job.start()
         db.session.commit()
 

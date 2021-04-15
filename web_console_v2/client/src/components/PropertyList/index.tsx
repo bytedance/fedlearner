@@ -71,6 +71,7 @@ type Props = {
   properties: {
     label: string;
     value: any;
+    hidden?: boolean;
   }[];
   cols?: 1 | 2 | 3 | 4 | 6;
   initialVisibleRows?: number; // NOTE: should not <= 0
@@ -99,23 +100,25 @@ const PropertyList: FC<Props> = ({
 
   return (
     <Container {...props}>
-      {propsToDisplay.map((item, index) => {
-        return (
-          <Col span={24 / cols} key={item.label + index}>
-            <Prop
-              data-label={item.label}
-              style={
-                {
-                  '--labelWidth': convertToUnit(labelWidth || 'auto'),
-                  '--lineHeight': convertToUnit(lineHeight) || '',
-                } as any
-              }
-            >
-              {item.value || '-'}
-            </Prop>
-          </Col>
-        );
-      })}
+      {propsToDisplay
+        .filter((item) => !item.hidden)
+        .map((item, index) => {
+          return (
+            <Col span={24 / cols} key={item.label + index}>
+              <Prop
+                data-label={item.label}
+                style={
+                  {
+                    '--labelWidth': convertToUnit(labelWidth || 'auto'),
+                    '--lineHeight': convertToUnit(lineHeight) || '',
+                  } as any
+                }
+              >
+                {item.value || '-'}
+              </Prop>
+            </Col>
+          );
+        })}
       {possibleToCollasped && (
         <CollapseButton onClick={toggleCollapsed} className={collapsed ? '' : 'is-reverse'}>
           <Down />

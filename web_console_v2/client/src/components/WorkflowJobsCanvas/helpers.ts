@@ -251,12 +251,6 @@ function _createJobNode(
 ): JobNode {
   const isFork = options?.type === 'fork';
 
-  const status = job.state // If job incoming has state value, means it's execution job node
-    ? convertExecutionStateToStatus(job.state)
-    : isFork
-    ? ChartNodeStatus.Success
-    : ChartNodeStatus.Pending;
-
   return {
     id: getNodeIdByJob(job),
     ...options,
@@ -264,8 +258,7 @@ function _createJobNode(
       raw: job,
       ...extraData,
       mark: job.mark || undefined,
-      inherited: isFork, // under fork mode defaults to true
-      status,
+      inherited: isFork ? false : undefined, // under fork mode defaults to false
     },
     position: { x: 0, y: 0 }, // position will be calculated in later step
   };

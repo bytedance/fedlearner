@@ -21,6 +21,7 @@ from fedlearner_webconsole.composer.interface import IItem, IRunner, ItemType
 from fedlearner_webconsole.composer.models import Context, RunnerStatus, \
     SchedulerRunner
 from fedlearner_webconsole.db import get_session
+from fedlearner_webconsole.workflow.cronjob import WorkflowCronJob
 
 
 class MemoryItem(IItem):
@@ -71,4 +72,5 @@ class MemoryRunner(IRunner):
 # register runner_fn
 global_runner_fn = {
     ItemType.MEMORY.value: MemoryRunner,
+    ItemType.WORKFLOW_CRON_JOB.value: WorkflowCronJob,
 }
