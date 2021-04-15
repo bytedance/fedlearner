@@ -194,10 +194,10 @@ class _Trigger(object):
             follower_stride += step
             cid += 1
 
-        if follower_wm == 0 or leader_wm == 0:
-            self._watermark = max(follower_wm, leader_wm)
-        else:
-            self._watermark = min(follower_wm, leader_wm)
+        new_watermark = max(follower_wm, leader_wm)
+        if follower_stride > 0 and leader_stride > 0:
+            new_watermark = min(follower_wm, leader_wm)
+        self._watermark = max(new_watermark, self._watermark)
 
         logging.info("Watermark forward to %d by (follower: %d, leader: %d)",  \
                     self._watermark, follower_stride, leader_stride)
