@@ -1,6 +1,6 @@
 import React, { FC, useState, useEffect } from 'react';
 import styled from 'styled-components';
-import { Form, Select, Radio, Button, Input, Spin, Card, notification, message } from 'antd';
+import { Form, Select, Radio, Button, Input, Spin, Card, notification, message, Modal } from 'antd';
 import { useTranslation } from 'react-i18next';
 import GridRow from 'components/_base/GridRow';
 import { useHistory, useLocation, useParams, Link } from 'react-router-dom';
@@ -26,6 +26,12 @@ import {
 import { parseComplexDictField } from 'shared/formSchema';
 import { to } from 'shared/helpers';
 import { JobNodeRawData } from 'components/WorkflowJobsCanvas/types';
+import ScheduledWorkflowRunning, {
+  scheduleIntervalValidator,
+} from 'views/Workflows/ScheduledWorkflowRunning';
+import FormLabel from 'components/FormLabel';
+import { ExclamationCircle } from 'components/IconPark';
+import { Z_INDEX_GREATER_THAN_HEADER } from 'components/Header';
 
 const Container = styled(Card)`
   padding-top: 20px;
@@ -51,7 +57,7 @@ const WorkflowsCreateStepOne: FC<{ onSuccess?: any }> = ({ onSuccess }) => {
   const { data: projectList } = useRecoilQuery(projectListQuery);
   const [formData, setFormData] = useRecoilState(workflowBasicForm);
   const setTemplateInUsing = useSetRecoilState(templateInUsing);
-  const setWorkflowConfigForm = useSetRecoilState(workflowConfigForm);
+  const [workflowConfig, setWorkflowConfigForm] = useRecoilState(workflowConfigForm);
   const setPeerConfig = useSetRecoilState(peerConfigInPairing);
 
   // Using when Participant accept the initiation
@@ -144,13 +150,6 @@ const WorkflowsCreateStepOne: FC<{ onSuccess?: any }> = ({ onSuccess }) => {
               </Select>
             </Form.Item>
 
-            <Form.Item name="forkable" label={t('workflow.label_peer_forkable')}>
-              <Radio.Group>
-                <Radio.Button value={true}>{t('workflow.label_allow')}</Radio.Button>
-                <Radio.Button value={false}>{t('workflow.label_not_allow')}</Radio.Button>
-              </Radio.Group>
-            </Form.Item>
-
             <Form.Item name="_keepUsingOriginalTempalte" label={t('workflow.label_template')}>
               <Radio.Group>
                 <Radio.Button value={true}>{t('workflow.label_use_original_tpl')}</Radio.Button>
@@ -158,7 +157,7 @@ const WorkflowsCreateStepOne: FC<{ onSuccess?: any }> = ({ onSuccess }) => {
               </Radio.Group>
             </Form.Item>
 
-            {!formData._keepUsingOriginalTempalte && (
+            {!formData._keepUsingOriginalTemplate && (
               <>
                 <Form.Item
                   wrapperCol={{ offset: 6 }}
@@ -189,13 +188,40 @@ const WorkflowsCreateStepOne: FC<{ onSuccess?: any }> = ({ onSuccess }) => {
 
                 <Form.Item
                   wrapperCol={{ offset: 6 }}
-                  style={{ marginBottom: 0, marginTop: '-20px' }}
+                  style={{ marginBottom: 0, marginTop: '-10px' }}
                 >
                   <Link to="/workflow-templates/create/basic" style={{ fontSize: '12px' }}>
                     {t('workflow.btn_go_create_new_tpl')}
                   </Link>
                 </Form.Item>
               </>
+            )}
+
+            <Form.Item name="forkable" label={t('workflow.label_peer_forkable')}>
+              <Radio.Group>
+                <Radio.Button value={true}>{t('workflow.label_allow')}</Radio.Button>
+                <Radio.Button value={false}>{t('workflow.label_not_allow')}</Radio.Button>
+              </Radio.Group>
+            </Form.Item>
+
+            {workflowConfig?.is_left && (
+              <Form.Item
+                name="batch_update_interval"
+                label={
+                  <FormLabel
+                    label={t('workflow.label_enable_batch_update_interval')}
+                    tooltip={t('workflow.msg_schduled_run')}
+                  />
+                }
+                rules={[
+                  {
+                    validator: scheduleIntervalValidator,
+                    message: t('workflow.msg_min_10_interval'),
+                  },
+                ]}
+              >
+                <ScheduledWorkflowRunning />
+              </Form.Item>
             )}
           </Form>
 
@@ -213,11 +239,9 @@ const WorkflowsCreateStepOne: FC<{ onSuccess?: any }> = ({ onSuccess }) => {
     </Spin>
   );
 
-  async function goNextStep() {
+  function goNextStep() {
     onSuccess && onSuccess();
-
-    const nextRoute = `/workflows/edit/config/${params.id}`;
-    history.push(nextRoute);
+    history.push(`/workflows/edit/config/${params.id}`);
   }
   function backToList() {
     history.push('/workflows');
@@ -271,7 +295,23 @@ const WorkflowsCreateStepOne: FC<{ onSuccess?: any }> = ({ onSuccess }) => {
       // Any form invalidation happens will throw error to stop the try block
       await formInstance.validateFields();
 
-      goNextStep();
+      if (formData._keepUsingOriginalTemplate) {
+        goNextStep();
+        return;
+      }
+
+      Modal.confirm({
+        title: t('workflow.msg_sure_2_replace_tpl'),
+        icon: <ExclamationCircle />,
+        zIndex: Z_INDEX_GREATER_THAN_HEADER,
+        content: t('workflow.msg_loose_origin_vars_vals'),
+        style: {
+          top: '30%',
+        },
+        onOk() {
+          goNextStep();
+        },
+      });
     } catch {
       /** ignore validation error */
     }

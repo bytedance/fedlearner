@@ -13,6 +13,7 @@
 # limitations under the License.
 
 # coding: utf-8
+import contextlib
 import json
 import os
 import logging
@@ -23,6 +24,7 @@ import multiprocessing as mp
 
 from flask import Flask
 from flask_testing import TestCase
+from fedlearner_webconsole.composer.composer import Composer, ComposerConfig
 from fedlearner_webconsole.db import db
 from fedlearner_webconsole.app import create_app
 from fedlearner_webconsole.initial_db import initial_db
@@ -147,6 +149,14 @@ class BaseTestCase(TestCase):
                                            })
         self.assertEqual(create_response.status_code, HTTPStatus.OK)
         return json.loads(create_response.data).get('data')
+
+    @contextlib.contextmanager
+    def composer_scope(self, config: ComposerConfig):
+        with self.app.app_context():
+            composer = Composer(config=config)
+            composer.run(db.engine)
+            yield composer
+            composer.stop()
 
 
 class TestAppProcess(mp.get_context('spawn').Process):

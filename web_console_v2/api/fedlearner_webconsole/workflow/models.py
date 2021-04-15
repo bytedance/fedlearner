@@ -20,6 +20,7 @@ import enum
 from datetime import datetime
 from sqlalchemy.sql import func
 from sqlalchemy import UniqueConstraint
+from fedlearner_webconsole.composer.models import SchedulerItem
 from fedlearner_webconsole.db import db, to_dict_mixin
 from fedlearner_webconsole.proto import (common_pb2, workflow_definition_pb2)
 from fedlearner_webconsole.job.models import (Job, JobState, JobType,
@@ -113,16 +114,17 @@ def _merge_workflow_config(base, new, access_mode):
         _merge_variables(base_job.variables, new_job.variables, access_mode)
 
 
-@to_dict_mixin(ignores=['fork_proposal_config',
-                        'config'],
+@to_dict_mixin(ignores=['fork_proposal_config', 'config'],
                extras={
                    'job_ids': (lambda wf: wf.get_job_ids()),
                    'create_job_flags': (lambda wf: wf.get_create_job_flags()),
                    'peer_create_job_flags':
-                       (lambda wf: wf.get_peer_create_job_flags()),
+                   (lambda wf: wf.get_peer_create_job_flags()),
                    'state': (lambda wf: wf.get_state_for_frontend()),
                    'transaction_state':
-                       (lambda wf: wf.get_transaction_state_for_frontend()),
+                   (lambda wf: wf.get_transaction_state_for_frontend()),
+                   'batch_update_interval':
+                   (lambda wf: wf.get_batch_update_interval()),
                })
 class Workflow(db.Model):
     __tablename__ = 'workflow_v2'
@@ -294,6 +296,13 @@ class Workflow(db.Model):
         if self.peer_create_job_flags is None:
             return None
         return [int(i) for i in self.peer_create_job_flags.split(',')]
+
+    def get_batch_update_interval(self):
+        item = SchedulerItem.query.filter_by(
+            name=f'workflow_cron_job_{self.id}').first()
+        if not item:
+            return -1
+        return int(item.interval_time) / 60
 
     def update_target_state(self, target_state):
         if self.target_state != target_state \

@@ -45,7 +45,8 @@ from fedlearner_webconsole.exceptions import (make_response,
                                               InvalidArgumentException,
                                               NotFoundException)
 from fedlearner_webconsole.scheduler.scheduler import scheduler
-from fedlearner_webconsole.auth.models import User
+from fedlearner_webconsole.auth.models import User, Session
+from fedlearner_webconsole.composer.composer import composer
 
 
 def _handle_bad_request(error):
@@ -104,6 +105,13 @@ def user_lookup_callback(jwt_header, jwt_data):
     return User.query.filter_by(username=identity).one_or_none()
 
 
+@jwt.token_in_blocklist_loader
+def check_if_token_invalid(jwt_header, jwt_data):
+    jti = jwt_data['jti']
+    session = Session.query.filter_by(jti=jti).first()
+    return session is None
+
+
 def create_app(config):
     before_hook_path = os.getenv('FEDLEARNER_WEBCONSOLE_BEFORE_APP_START')
     if before_hook_path:
@@ -153,10 +161,8 @@ def create_app(config):
         scheduler.stop()
         scheduler.start(app)
 
-    if app.config.get('START_COMPOSER', True):
-        pass
-        # TODO: disable before tables created in rds
-        # with app.app_context():
-        #    composer.run(db_engine=db.get_engine())
+    if app.config.get('START_COMPOSER', False):
+        with app.app_context():
+            composer.run(db_engine=db.get_engine())
 
     return app

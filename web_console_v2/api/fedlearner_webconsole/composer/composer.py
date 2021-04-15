@@ -19,13 +19,15 @@ import logging
 import time
 import threading
 import traceback
+from typing import List
 
 from sqlalchemy import func
 from sqlalchemy.engine import Engine
 
 from fedlearner_webconsole.db import get_session
 from fedlearner_webconsole.composer.runner import global_runner_fn
-from fedlearner_webconsole.composer.interface import IItem, IRunner
+from fedlearner_webconsole.composer.runner_cache import RunnerCache
+from fedlearner_webconsole.composer.interface import IItem
 from fedlearner_webconsole.composer.models import Context, decode_context, \
     ContextEncoder, SchedulerItem, ItemStatus, SchedulerRunner, RunnerStatus
 from fedlearner_webconsole.composer.op_locker import OpLocker
@@ -52,7 +54,7 @@ class ComposerConfig(object):
 
 
 class Pipeline(object):
-    def __init__(self, name: str, deps: [str], meta: dict):
+    def __init__(self, name: str, deps: List[str], meta: dict):
         """Define the deps of scheduler item
 
         Fields:
@@ -82,6 +84,7 @@ class Composer(object):
         self.runner_fn = config.runner_fn
         self.db_engine = None
         self.thread_reaper = ThreadReaper(worker_num=config.worker_num)
+        self.runner_cache = RunnerCache(runner_fn=config.runner_fn)
         self.lock = threading.Lock()
         self._stop = False
 
@@ -112,10 +115,25 @@ class Composer(object):
         with self.lock:
             self._stop = True
 
-    # collect items
-    def collect(self, name: str, items: [IItem], options: dict):
+    def collect(self,
+                name: str,
+                items: List[IItem],
+                metadata: dict,
+                interval: int = -1):
+        """Collect scheduler item
+
+        Args:
+             name: item name, should be unique
+             items: specify dependencies
+             metadata: pass metadata to share with item dependencies each other
+             interval: if value is -1, it's run-once job, or run
+                every interval time in seconds
+        """
         if len(name) == 0:
             return
+        valid_interval = interval == -1 or interval >= 10
+        if not valid_interval:  # seems non-sense if interval is less than 10
+            raise ValueError('interval should not less than 10 if not -1')
         with get_session(self.db_engine) as session:
             # check name if exists
             existed = session.query(SchedulerItem).filter_by(name=name).first()
@@ -124,13 +142,33 @@ class Composer(object):
             item = SchedulerItem(
                 name=name,
                 pipeline=PipelineEncoder().encode(
-                    self._build_pipeline(name, items, options)),
+                    self._build_pipeline(name, items, metadata)),
+                interval_time=interval,
             )
             session.add(item)
             try:
                 session.commit()
             except Exception as e:  # pylint: disable=broad-except
                 logging.error(f'[composer] failed to create scheduler_item, '
+                              f'name: {name}, exception: {e}')
+                session.rollback()
+
+    def finish(self, name: str):
+        """Finish item
+
+        Args:
+            name: item name
+        """
+        with get_session(self.db_engine) as session:
+            existed = session.query(SchedulerItem).filter_by(
+                name=name, status=ItemStatus.ON.value).first()
+            if not existed:
+                return
+            existed.status = ItemStatus.OFF.value
+            try:
+                session.commit()
+            except Exception as e:  # pylint: disable=broad-except
+                logging.error(f'[composer] failed to finish scheduler_item, '
                               f'name: {name}, exception: {e}')
                 session.rollback()
 
@@ -144,6 +182,9 @@ class Composer(object):
                 # NOTE: use `func.now()` to let sqlalchemy handles
                 # the timezone.
                 item.last_run_at = func.now()
+                if item.interval_time < 0:
+                    # finish run-once item automatically
+                    item.status = ItemStatus.OFF.value
                 pp = Pipeline(**(json.loads(item.pipeline)))
                 context = Context(data=pp.meta,
                                   internal={},
@@ -195,7 +236,7 @@ class Composer(object):
                 context.set_internal('current', first)
                 runner.context = ContextEncoder().encode(context)
                 # start runner
-                runner_fn = self._find_runner_fn(first)
+                runner_fn = self.runner_cache.find_runner(runner.id, first)
                 self.thread_reaper.enqueue(name=lock_name,
                                            timeout=-1,
                                            fn=runner_fn,
@@ -235,7 +276,7 @@ class Composer(object):
                 context = decode_context(val=runner.context,
                                          db_engine=self.db_engine)
                 current = context.internal['current']
-                runner_fn = self._find_runner_fn(current)
+                runner_fn = self.runner_cache.find_runner(runner.id, current)
                 # check status of current one
                 status, current_output = runner_fn.result(context)
                 if status == RunnerStatus.RUNNING:
@@ -253,7 +294,8 @@ class Composer(object):
                             'status': RunnerStatus.RUNNING.value
                         }
                         context.set_internal('current', next_one)
-                        next_runner_fn = self._find_runner_fn(next_one)
+                        next_runner_fn = self.runner_cache.find_runner(
+                            runner.id, next_one)
                         self.thread_reaper.enqueue(name=lock_name,
                                                    timeout=-1,
                                                    fn=next_runner_fn,
@@ -268,6 +310,8 @@ class Composer(object):
                 runner.pipeline = PipelineEncoder().encode(pipeline)
                 runner.output = json.dumps(output)
                 runner.context = ContextEncoder().encode(context)
+
+                updated_db = False
                 try:
                     logging.info(
                         f'[composer] update runner, status: {runner.status}, '
@@ -276,6 +320,7 @@ class Composer(object):
                     if check_lock.is_latest_version():
                         if check_lock.update_version():
                             session.commit()
+                            updated_db = True
                     else:
                         logging.error(f'[composer] {lock_name} is outdated, '
                                       f'ignore updates to database')
@@ -284,16 +329,18 @@ class Composer(object):
                                   f'runner status, exception: {e}')
                     session.rollback()
 
-    def _find_runner_fn(self, runner_id: str) -> IRunner:
-        item_type, item_id = runner_id.split('_')
-        return self.runner_fn[item_type](int(item_id))
+                # delete useless runner obj in runner cache
+                if status in (RunnerStatus.DONE,
+                              RunnerStatus.FAILED) and updated_db:
+                    self.runner_cache.del_runner(runner.id, current)
 
     @staticmethod
-    def _build_pipeline(name: str, items: [IItem], options: dict) -> Pipeline:
+    def _build_pipeline(name: str, items: List[IItem],
+                        metadata: dict) -> Pipeline:
         deps = []
         for item in items:
             deps.append(f'{item.type().value}_{item.get_id()}')
-        return Pipeline(name=name, deps=deps, meta=options)
+        return Pipeline(name=name, deps=deps, meta=metadata)
 
 
 composer = Composer(config=ComposerConfig(

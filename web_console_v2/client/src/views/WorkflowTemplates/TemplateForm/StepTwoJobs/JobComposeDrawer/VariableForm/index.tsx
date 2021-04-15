@@ -94,7 +94,7 @@ const VariableForm: FC<Props> = ({ form, path, value, onRemove }) => {
           rules={[
             { required: true, message: t('workflow.msg_varname_required') },
             {
-              pattern: /^[a-zA-Z_-]+$/g,
+              pattern: /^[a-zA-Z_0-9-]+$/g,
               message: t('workflow.msg_varname_invalid'),
             },
           ]}

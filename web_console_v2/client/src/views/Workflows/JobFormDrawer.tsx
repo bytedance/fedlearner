@@ -34,13 +34,19 @@ const DrawerHeader = styled(Row)`
   margin: 0 -24px 0;
   padding-left: 24px;
   padding-right: 16px;
-  border-bottom: 1px solid var(--lineColor);
 `;
 const DrawerTitle = styled.h3`
   margin-bottom: 0;
 `;
+const Message = styled.small`
+  display: block;
+  margin-top: -17px;
+  margin-bottom: 10px;
+  line-height: 1;
+  color: var(--textColorSecondary);
+`;
 const PermissionDisplay = styled.div`
-  margin: 0 -24px 42px;
+  margin: 0 -24px 38px;
   padding: 14px 24px;
   font-size: 12px;
   background-color: var(--gray1);
@@ -51,6 +57,8 @@ const FormContainer = styled.div`
 `;
 
 interface Props extends DrawerProps {
+  message?: string;
+  readonly?: boolean;
   isPeerSide?: boolean;
   currentIdx?: number;
   nodesCount: number;
@@ -75,6 +83,8 @@ const JobFormDrawer: ForwardRefRenderFunction<JobFormDrawerExposedRef, Props> = 
     jobDefinition,
     initialValues,
     toggleVisible,
+    readonly,
+    message,
     onGoNextJob,
     showPeerConfigButton,
     onViewPeerConfigClick,
@@ -90,15 +100,19 @@ const JobFormDrawer: ForwardRefRenderFunction<JobFormDrawerExposedRef, Props> = 
 
   useEffect(() => {
     if (jobDefinition) {
+      // Force to re-render schema form to prevent it remember previous values
       setRandomKey(giveWeakRandomKey());
       // prop 'node' is from `templateInUsing` which only has job definition
       // in order to hydrate the Form, we need get user-inputs (whick stored on `workflowConfigForm`)
       // and merge the user-inputs to definition
       const jobDefWithValues = _hydrate(jobDefinition, initialValues);
-      const schema = buildFormSchemaFromJobDef(jobDefWithValues, { withPermissions: isPeerSide });
+      const schema = buildFormSchemaFromJobDef(jobDefWithValues, {
+        withPermissions: isPeerSide,
+        readonly,
+      });
       setFormSchema(schema);
     }
-  }, [jobDefinition, initialValues, isPeerSide]);
+  }, [jobDefinition, initialValues, isPeerSide, readonly]);
 
   useImperativeHandle(parentRef, () => {
     return {
@@ -142,6 +156,8 @@ const JobFormDrawer: ForwardRefRenderFunction<JobFormDrawerExposedRef, Props> = 
             <Button size="small" icon={<Close />} onClick={closeDrawer} />
           </GridRow>
         </DrawerHeader>
+
+        {message && <Message>{message}</Message>}
 
         <PermissionDisplay>
           <GridRow gap="20">

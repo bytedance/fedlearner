@@ -87,7 +87,7 @@ class JobLogApi(Resource):
                 'fedlearner-operator',
                 start_time * 1000,
                 int(time.time() * 1000),
-                json.loads(Envs.OPERATOR_LOG_MATCH_PHRASE))[:max_lines][::-1]
+                Envs.OPERATOR_LOG_MATCH_PHRASE)[:max_lines][::-1]
         }
 
 

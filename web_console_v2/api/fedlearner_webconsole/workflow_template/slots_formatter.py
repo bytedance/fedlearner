@@ -14,33 +14,19 @@
 
 
 # coding: utf-8
-from string import Template
 from flatten_dict import flatten
 from fedlearner_webconsole.proto.workflow_definition_pb2 import Slot
+from fedlearner_webconsole.workflow_template.template_validaor \
+    import YamlTemplate
 
-
-class _YamlTemplate(Template):
-    delimiter = '$'
+class _YamlTemplate(YamlTemplate):
     # Which placeholders in the template should be interpreted
     idpattern = r'Slot_[a-z0-9_]*'
 
-    # overwrite this func to escape the invalid placeholder such as
-    # ${project.variables.namespace}
     def substitute(self, mapping):
-        # Helper function for .sub()
-        def convert(mo):
-            # Check the most common path first.
-            named = mo.group('named') or mo.group('braced')
-            if named is not None:
-                return str(mapping[named])
-            if mo.group('escaped') is not None:
-                return self.delimiter
-            if mo.group('invalid') is not None:
-                # overwrite to escape invalid placeholder
-                return mo.group()
-            raise ValueError('Unrecognized named group in pattern',
-                             self.pattern)
-        return self.pattern.sub(convert, self.template)
+        return super()._substitute(mapping,
+                                   fixed_placeholder=None,
+                                   ignore_invalid=True)
 
 
 def format_yaml(yaml, **kwargs):

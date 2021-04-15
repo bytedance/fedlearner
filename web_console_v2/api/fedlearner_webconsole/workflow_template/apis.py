@@ -31,6 +31,8 @@ from fedlearner_webconsole.exceptions import (
     ResourceConflictException)
 from fedlearner_webconsole.workflow_template.slots_formatter import \
     generate_yaml_template
+from fedlearner_webconsole.workflow_template.template_validaor\
+    import check_workflow_definition
 
 
 def _classify_variable(variable):
@@ -196,6 +198,11 @@ def _format_template_with_yaml_editor(template_proto, editor_info_proto):
                     yaml_editor_info.meta_yaml,
                     yaml_editor_info.slots)
                 job_def.variables.CopyFrom(yaml_editor_info.variables)
+    try:
+        check_workflow_definition(template_proto)
+    except ValueError as e:
+        raise InvalidArgumentException(details={
+            'config.yaml_template': str(e)})
     return template_proto
 
 

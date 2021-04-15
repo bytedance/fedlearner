@@ -202,12 +202,13 @@ class Job(db.Model):
                     elif 'message' in detail:
                         msgs.append(key + ':' + detail['message'])
 
-            for cond in pod['status']['conditions']:
-                if filter_private_info:
-                    if 'reason' in cond:
-                        msgs.append(cond['type'] + ':' + cond['reason'])
-                elif 'message' in cond:
-                    msgs.append(cond['type'] + ':' + cond['message'])
+            if 'conditions' in pod['status']:
+                for cond in pod['status']['conditions']:
+                    if filter_private_info:
+                        if 'reason' in cond:
+                            msgs.append(cond['type'] + ':' + cond['reason'])
+                    elif 'message' in cond:
+                        msgs.append(cond['type'] + ':' + cond['message'])
 
             result.append({
                 'name': pod['metadata']['name'],

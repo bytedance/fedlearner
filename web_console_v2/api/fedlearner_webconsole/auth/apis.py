@@ -14,17 +14,18 @@
 
 # coding: utf-8
 # pylint: disable=cyclic-import
+import datetime
 from http import HTTPStatus
 from flask import request
 from flask_restful import Resource, reqparse
 from flask_jwt_extended.utils import get_current_user
-from flask_jwt_extended import create_access_token
+from flask_jwt_extended import create_access_token, decode_token, get_jwt
 from fedlearner_webconsole.utils.decorators import jwt_required
 
 from fedlearner_webconsole.utils.decorators import admin_required
 from fedlearner_webconsole.db import db
 from fedlearner_webconsole.auth.models import (State, User, Role,
-                                               MUTABLE_ATTRS_MAPPER)
+                                               MUTABLE_ATTRS_MAPPER, Session)
 from fedlearner_webconsole.exceptions import (NotFoundException,
                                               InvalidArgumentException,
                                               ResourceConflictException,
@@ -50,12 +51,30 @@ class SigninApi(Resource):
         if not user.verify_password(password):
             raise UnauthorizedException('Invalid password')
         token = create_access_token(identity=username)
+        decoded_token = decode_token(token)
+
+        session = Session(jti=decoded_token.get('jti'),
+                          expired_at=datetime.datetime.fromtimestamp(
+                              decoded_token.get('exp')))
+        db.session.add(session)
+        db.session.commit()
+
         return {
             'data': {
                 'user': user.to_dict(),
                 'access_token': token
             }
         }, HTTPStatus.OK
+
+    @jwt_required()
+    def delete(self):
+        decoded_token = get_jwt()
+
+        jti = decoded_token.get('jti')
+        Session.query.filter_by(jti=jti).delete()
+        db.session.commit()
+
+        return {}, HTTPStatus.OK
 
 
 class UsersApi(Resource):

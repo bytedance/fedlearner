@@ -2,7 +2,7 @@ import { convertToUnit } from 'shared/helpers';
 import styled from 'styled-components';
 import { NODE_WIDTH, NODE_HEIGHT, GLOBAL_CONFIG_NODE_SIZE } from '../helpers';
 import { Down } from 'components/IconPark';
-import { Tag } from 'antd';
+import { Tag, Menu } from 'antd';
 import { MixinEllipsis } from 'styles/mixins';
 
 export const Container = styled.div`
@@ -67,11 +67,13 @@ export const StatusIcon = styled.img`
   display: block;
   width: 16px;
   height: 16px;
+  flex-shrink: 0;
 `;
 
 export const JobStatusText = styled.small`
-  font-size: 13px;
+  font-size: 12px;
   line-height: 1;
+  white-space: nowrap;
   color: var(--textColorSecondary);
 `;
 
@@ -97,17 +99,22 @@ export const InheritButton = styled.div`
   padding-bottom: 5px;
   line-height: 1.8;
   font-size: 12px;
-  color: var(--primaryColor);
+  color: var(--warningColor);
 
   &[data-inherited='false'] {
-    color: var(--warningColor);
+    color: var(--primaryColor);
   }
 `;
 
 export const InheritedTag = styled(Tag)`
   transform: scale(0.8);
+  cursor: help;
 `;
 
 export const ArrowDown = styled(Down)`
   margin-left: 5px;
+`;
+
+export const InheritMentItem = styled(Menu.Item)`
+  font-size: 11px;
 `;

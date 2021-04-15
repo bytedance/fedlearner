@@ -1,4 +1,4 @@
-import { Button, Card, Form, Input, Select } from 'antd';
+import { Button, Card, Form, Input, Radio } from 'antd';
 import BreadcrumbLink from 'components/BreadcrumbLink';
 import GridRow from 'components/_base/GridRow';
 import React, { FC } from 'react';
@@ -17,8 +17,6 @@ const StyledForm = styled(Form)`
   background-color: white;
   padding-top: 80px;
 `;
-
-const { Option } = Select;
 
 const UserForm: FC<{ isEdit?: boolean; onSubmit?: any; initialValues?: any }> = ({
   isEdit,
@@ -66,11 +64,12 @@ const UserForm: FC<{ isEdit?: boolean; onSubmit?: any; initialValues?: any }> = 
             <Input placeholder={t('users.placeholder_email')} />
           </Form.Item>
           <Form.Item name="role" label={t('users.col_role')} rules={[{ required: true }]}>
-            <Select>
-              <Option value="ADMIN">{t('users.role_admin')}</Option>
-              <Option value="USER">{t('users.role_user')}</Option>
-            </Select>
+            <Radio.Group>
+              <Radio.Button value="USER">{t('users.role_user')}</Radio.Button>
+              <Radio.Button value="ADMIN">{t('users.role_admin')}</Radio.Button>
+            </Radio.Group>
           </Form.Item>
+
           <Form.Item wrapperCol={{ offset: 6 }}>
             <GridRow gap={16} top="12">
               <Button loading={submitting} type="primary" htmlType="submit">
