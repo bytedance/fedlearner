@@ -506,6 +506,13 @@ class UniversalJoiner(ExampleJoiner):
                                 li, self._leader_restart_index, fi)
                 continue
 
+            if abs(fcc.time_diff(fe.event_time, le.event_time)) > \
+               self._max_watermark_delay:
+                logging.info('Pair %s:%s out-of-delay, leader et %d, "\
+                             "follower et %d', le.example_id, le.event_time,
+                             fe.example_id, fe.event_time)
+                continue
+
             # cache the latest leader event
             updated = False
             if fi in self._dedup_by_follower_index:
