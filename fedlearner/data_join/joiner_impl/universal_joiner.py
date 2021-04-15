@@ -166,33 +166,27 @@ class _Trigger(object):
 
     def trigger(self, follower_window, leader_window):
         follower_stride, leader_stride = 0, 0
-        step, sid = 1, 0
         leader_win_size = leader_window.size() - 1
         follower_win_size = follower_window.size() - 1
         leader_wm, follower_wm = 0, 0
         while leader_stride <= leader_win_size and                             \
-                sid <= leader_win_size and                                     \
                 follower_win_size >= 0 and                                     \
                 fcc.time_diff(                                                 \
                     follower_window[follower_win_size].item.event_time,        \
-                    leader_window[sid].item.event_time) >                      \
+                    leader_window[leader_stride].item.event_time) >            \
                 self._max_watermark_delay:
-            leader_wm = leader_window[sid].item.event_time
-            leader_stride += step
-            sid += 1
+            leader_wm = leader_window[leader_stride].item.event_time
+            leader_stride += 1
 
-        cid = 0
         while follower_stride <= follower_win_size and                         \
                 leader_win_size >= 0 and                                       \
-                0 <= cid <= follower_win_size and                              \
                 fcc.time_diff(                                                 \
                   leader_window[leader_win_size].item.event_time,              \
-                  follower_window[cid].item.event_time) >                      \
+                  follower_window[follower_stride].item.event_time) >          \
                 self._max_watermark_delay:
             #FIXME current et is not always the watermark
-            follower_wm = follower_window[cid].item.event_time
-            follower_stride += step
-            cid += 1
+            follower_wm = follower_window[follower_stride].item.event_time
+            follower_stride += 1
 
         new_watermark = max(follower_wm, leader_wm)
         if follower_stride > 0 and leader_stride > 0:
