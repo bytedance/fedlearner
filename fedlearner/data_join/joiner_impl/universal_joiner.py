@@ -346,12 +346,16 @@ class _SlidingWindow(object):
                          index, self._alloc_size)
         return self._ring_buffer[self._index(index)]
 
-    def forward(self, step):
+    def forward(self, step, optional_stats=None):
         if self._size < step:
             return False
+        if optional_stats:
+            for i in range(step):
+                optional_stats.update_stats(self[i].item)
         self._start = self._index(step)
         self._size -= step
         return True
+
 
 class UniversalJoiner(ExampleJoiner):
     def __init__(self, example_joiner_options, raw_data_options,
@@ -443,7 +447,8 @@ class UniversalJoiner(ExampleJoiner):
                              len(pairs))
 
                 #4. update window
-                self._follower_join_window.forward(stride[0])
+                self._follower_join_window.forward(stride[0],
+                                                   self._optional_stats)
                 self._leader_join_window.forward(stride[1])
 
                 if self._follower_join_window.is_full():
