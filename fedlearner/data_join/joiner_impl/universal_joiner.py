@@ -542,6 +542,8 @@ class UniversalJoiner(ExampleJoiner):
                                  ip.li, indexed_time.li)
             else:
                 self._leader_index_ps.put(ip)
+                logging.info('Break dumping, event time %s, watermark %s',
+                             ip.fe.event_time, watermark)
                 break
         return matches
 
