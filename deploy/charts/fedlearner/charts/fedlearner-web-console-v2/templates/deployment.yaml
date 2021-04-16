@@ -48,6 +48,9 @@ spec:
             - name: vscode
               containerPort: 1992
               protocol: TCP
+            - name: kibana
+              containerPort: 1993
+              protocol: TCP
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           {{- if .Values.extraVolumeMounts }}
