@@ -508,8 +508,8 @@ class UniversalJoiner(ExampleJoiner):
 
             if abs(fcc.time_diff(fe.event_time, le.event_time)) > \
                self._max_watermark_delay:
-                logging.info('Pair %s:%s out-of-delay, leader et %d, "\
-                             "follower et %d', le.example_id, fe.example_id,
+                logging.info('Pair %s:%s out-of-delay, leader et %d, '
+                             'follower et %d', le.example_id, fe.example_id,
                              le.event_time, fe.event_time)
                 continue
 
