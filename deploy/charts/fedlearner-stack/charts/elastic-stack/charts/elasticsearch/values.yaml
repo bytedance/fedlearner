@@ -42,7 +42,7 @@ securityContext:
 
 image:
   repository: "registry.cn-beijing.aliyuncs.com/fedlearner/elasticsearch-oss"
-  tag: "6.8.2"
+  tag: "7.6.2"
   pullPolicy: "IfNotPresent"
   # If specified, use these secrets to access the image
   # pullSecrets:
