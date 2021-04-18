@@ -43,6 +43,7 @@ from fedlearner_webconsole.exceptions import (
     NotFoundException)
 from fedlearner_webconsole.scheduler.scheduler import scheduler
 from fedlearner_webconsole.auth.models import User
+from fedlearner_webconsole.utils.k8s_watcher import k8s_watcher
 
 
 def _handle_bad_request(error):
@@ -155,5 +156,7 @@ def create_app(config):
     if app.config.get('START_SCHEDULER', True):
         scheduler.stop()
         scheduler.start(app)
+    if os.environ.get('FLASK_ENV') == 'production':
+        k8s_watcher.start()
 
     return app

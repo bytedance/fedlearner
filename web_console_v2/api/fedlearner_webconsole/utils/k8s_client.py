@@ -22,9 +22,8 @@ import requests
 
 from kubernetes import client, config
 from kubernetes.client.exceptions import ApiException
-
-FEDLEARNER_CUSTOM_GROUP = 'fedlearner.k8s.io'
-FEDLEARNER_CUSTOM_VERSION = 'v1alpha1'
+from fedlearner_webconsole.utils.k8s_watcher import k8s_watcher, FEDLEARNER_CUSTOM_GROUP, FEDLEARNER_CUSTOM_VERSION
+from fedlearner_webconsole.envs import Envs
 
 
 class CrdKind(enum.Enum):
@@ -41,6 +40,7 @@ class K8sClient(object):
         self._core = client.CoreV1Api()
         self._networking = client.NetworkingV1beta1Api()
         self._app = client.AppsV1Api()
+        self.crds = client.CustomObjectsApi()
         self._custom_object = client.CustomObjectsApi()
         self._client = client.ApiClient()
         self._api_server_url = 'http://{}:{}'.format(
@@ -208,81 +208,30 @@ class K8sClient(object):
         except ApiException as e:
             self._raise_runtime_error(e)
 
-    def get_custom_object(self, crd_kind: CrdKind,
-                          custom_object_name: str, namespace='default'):
-        response = requests.get(
-            '{api_server_url}/namespaces/{namespace}/fedlearner/'
-            'v1alpha1/{crd_kind}/{name}'.format(
-                api_server_url=self._api_server_url,
-                namespace=namespace,
-                crd_kind=crd_kind.value,
-                name=custom_object_name))
-        if response.status_code == HTTPStatus.NOT_FOUND:
-            return None
-        if response.status_code != HTTPStatus.OK:
-            raise RuntimeError('{}:{}'.format(response.status_code,
-                                              response.content))
-        return response.json()
+    def delete_flapp(self, flapp_name):
+        try:
+            self.crds.delete_namespaced_custom_object(group=FEDLEARNER_CUSTOM_GROUP,
+                                                      version=FEDLEARNER_CUSTOM_VERSION,
+                                                      namespace=Envs.NAMESPACE,
+                                                      plural='flapps',
+                                                      name=flapp_name)
+        except client.exceptions.ApiException as e:
+            if e.status != HTTPStatus.NOT_FOUND:
+                raise RuntimeError(str(e))
 
-    def delete_custom_object(self, crd_kind: CrdKind,
-                             custom_object_name: str, namespace='default'):
-        response = requests.delete(
-            '{api_server_url}/namespaces/{namespace}/fedlearner/'
-            'v1alpha1/{crd_kind}/{name}'.format(
-                api_server_url=self._api_server_url,
-                namespace=namespace,
-                crd_kind=crd_kind.value,
-                name=custom_object_name))
-        if response.status_code not in [HTTPStatus.OK, HTTPStatus.NOT_FOUND]:
-            raise RuntimeError('{}:{}'.format(response.status_code,
-                                              response.content))
-        return response.json()
+    def create_flapp(self, flapp_yaml):
+        try:
+            self.crds.create_namespaced_custom_object(group=FEDLEARNER_CUSTOM_GROUP,
+                                                      version=FEDLEARNER_CUSTOM_VERSION,
+                                                      namespace=Envs.NAMESPACE,
+                                                      plural='flapps',
+                                                      body=flapp_yaml)
+        except Exception as e:
+            raise RuntimeError(str(e))
 
-    def create_or_replace_custom_object(self, crd_kind: CrdKind, json_object,
-                                        namespace='default'):
-        custom_object_name = json_object['metadata']['name']
-        response = requests.get(
-            '{api_server_url}/namespaces/{namespace}/fedlearner/'
-            'v1alpha1/{crd_kind}/{name}'.format(
-                api_server_url=self._api_server_url,
-                namespace=namespace,
-                crd_kind=crd_kind.value,
-                name=custom_object_name))
-        if response.status_code == HTTPStatus.OK:
-            # If exist, replace
-            self.delete_custom_object(crd_kind, custom_object_name, namespace)
-        elif response.status_code != HTTPStatus.NOT_FOUND:
-            raise RuntimeError('{}:{}'.format(response.status_code,
-                                              response.content))
-        response = requests.post(
-            '{api_server_url}/namespaces/{namespace}/fedlearner/'
-            'v1alpha1/{crd_kind}'.format(
-                api_server_url=self._api_server_url,
-                namespace=namespace,
-                crd_kind=crd_kind.value),
-            json=json_object)
-        if response.status_code != HTTPStatus.CREATED:
-            raise RuntimeError('{}:{}'.format(response.status_code,
-                                              response.content))
-        return response.json()
+    def get_flapp(self, flapp_name):
+        k8s_watcher.get_cache(flapp_name)
 
-    def list_resource_of_custom_object(self, crd_kind: CrdKind,
-                                       custom_object_name: str,
-                                       resource_type: str, namespace='default'):
-        response = requests.get(
-            '{api_server_url}/namespaces/{namespace}/fedlearner/v1alpha1/'
-            '{plural}/{name}/{resource_type}'.format(
-                api_server_url=self._api_server_url,
-                namespace=namespace,
-                plural=crd_kind.value,
-                name=custom_object_name,
-                resource_type=resource_type))
-        if response.status_code == HTTPStatus.NOT_FOUND:
-            return None
-        if response.status_code != HTTPStatus.OK:
-            raise RuntimeError('{}:{}'.format(response.status_code,
-                                              response.content))
-        return response.json()
 
     def get_webshell_session(self, flapp_name: str,
                              container_name: str, namespace='default'):
