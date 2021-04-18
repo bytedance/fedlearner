@@ -8,6 +8,7 @@ import term from './modules/term';
 import app from './modules/app';
 import dataset from './modules/dataset';
 import settings from './modules/settings';
+import users from './modules/users';
 
 const messages = {
   translation: {
@@ -21,6 +22,7 @@ const messages = {
     workflow: workflow.zh,
     dataset: dataset.zh,
     settings: settings.zh,
+    users: users.zh,
 
     all: '全部',
     terms: '服务协议',

@@ -72,6 +72,10 @@ export function acceptNFillTheWorkflowConfig(id: ID, payload: WorkflowAcceptPayl
   return request.put(`/v2/workflows/${id}`, payload);
 }
 
+export function patchWorkflow(id: ID, payload: Partial<Workflow>) {
+  return request.patch(`/v2/workflows/${id}`, payload);
+}
+
 export function runTheWorkflow(id: ID) {
   return request.patch(`/v2/workflows/${id}`, {
     target_state: WorkflowState.RUNNING,
@@ -114,13 +118,13 @@ export function fetchJobEvents(
 
 export function fetchPeerJobEvents(
   workflowUuid: string,
-  jobName: string,
+  k8sJobName: string,
   params?: { startTime?: DateTime; maxLines: number },
 ): Promise<{ data: string[] }> {
   return request(
     `/v2/workflows/${workflowUuid}/peer_workflows/${
       0 /** peerId, fix to 0 so far */
-    }/jobs/${jobName}/events`,
+    }/jobs/${k8sJobName}/events`,
     {
       params,
       snake_case: true,
@@ -142,9 +146,9 @@ export function toggleWofklowForkable(id: ID, forkable: boolean) {
   });
 }
 
-export function toggleMetricsPublic(id: ID, metrics_is_public: boolean) {
+export function toggleMetricsPublic(id: ID, metric_is_public: boolean) {
   return request.patch(`/v2/workflows/${id}`, {
-    metrics_is_public,
+    metric_is_public,
   });
 }
 
@@ -152,6 +156,13 @@ export function fetchJobMpld3Metrics(id: ID): Promise<{ data: any[] }> {
   return request(`/v2/jobs/${id}/metrics`);
 }
 
-export function fetchPeerJobMpld3Metrics(id: ID, peerId: ID): Promise<{ data: any[] }> {
-  return request(`/v2/jobs/${id}/participants/${peerId}/metrics`);
+export function fetchPeerJobMpld3Metrics(
+  workflowUuid: string,
+  jobName: string,
+): Promise<{ data: any[] }> {
+  return request(
+    `/v2/workflows/${workflowUuid}/peer_workflows/${
+      0 /** peerId, fix to 0 so far */
+    }/jobs/${jobName}/metrics`,
+  );
 }

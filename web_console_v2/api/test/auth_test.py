@@ -24,13 +24,15 @@ from fedlearner_webconsole.db import db
 
 class AuthApiTest(BaseTestCase):
     def test_get_all_users(self):
-        deleted_user = User(username='deleted_one', email='who.knows@hhh.com', state=State.DELETED)
+        deleted_user = User(username='deleted_one',
+                            email='who.knows@hhh.com',
+                            state=State.DELETED)
         db.session.add(deleted_user)
         db.session.commit()
 
         resp = self.get_helper('/api/v2/auth/users')
         self.assertEqual(resp.status_code, HTTPStatus.UNAUTHORIZED)
-        
+
         self.signin_as_admin()
 
         resp = self.get_helper('/api/v2/auth/users')
@@ -49,16 +51,13 @@ class AuthApiTest(BaseTestCase):
         self.assertEqual(resp.status_code, HTTPStatus.NOT_FOUND)
 
         resp = self.patch_helper(f'/api/v2/auth/users/{user_id}',
-                                 data={'company': 'bytedance'})
-        self.assertEqual(resp.status_code, HTTPStatus.BAD_REQUEST)
-
-        resp = self.patch_helper(f'/api/v2/auth/users/{user_id}',
                                  data={
                                      'email': 'a_new_email@bytedance.com',
                                  })
         self.assertEqual(resp.status_code, HTTPStatus.OK)
         self.assertEqual(
-            self.get_response_data(resp).get('email'), 'a_new_email@bytedance.com')
+            self.get_response_data(resp).get('email'),
+            'a_new_email@bytedance.com')
 
         resp = self.patch_helper(f'/api/v2/auth/users/{admin_id}',
                                  data={
@@ -89,7 +88,8 @@ class AuthApiTest(BaseTestCase):
         self.signin_as_admin()
         resp = self.post_helper(f'/api/v2/auth/users', data=new_user)
         self.assertEqual(resp.status_code, HTTPStatus.CREATED)
-        self.assertEqual(self.get_response_data(resp).get('username'), 'fedlearner')
+        self.assertEqual(
+            self.get_response_data(resp).get('username'), 'fedlearner')
 
     def test_delete_user(self):
         self.signin_as_admin()
@@ -114,10 +114,20 @@ class AuthApiTest(BaseTestCase):
     def test_get_specific_user(self):
         resp = self.get_helper(url='/api/v2/auth/users/10086')
         self.assertEqual(resp.status_code, HTTPStatus.NOT_FOUND)
-        
+
         resp = self.get_helper(url='/api/v2/auth/users/1')
         self.assertEqual(resp.status_code, HTTPStatus.OK)
         self.assertEqual(self.get_response_data(resp).get('username'), 'ada')
+
+    def test_signout(self):
+        self.signin_helper()
+
+        resp = self.delete_helper(url='/api/v2/auth/signin')
+        self.assertEqual(resp.status_code, HTTPStatus.OK)
+
+        resp = self.get_helper(url='/api/v2/auth/users/1')
+        self.assertEqual(resp.status_code, HTTPStatus.UNAUTHORIZED)
+
 
 if __name__ == '__main__':
     unittest.main()

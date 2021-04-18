@@ -13,7 +13,7 @@
 # limitations under the License.
 
 # coding: utf-8
-
+from contextlib import contextmanager
 from enum import Enum
 from datetime import datetime
 from typing import List, Dict, Callable
@@ -21,6 +21,8 @@ from typing import List, Dict, Callable
 from flask_sqlalchemy import SQLAlchemy
 from google.protobuf.message import Message
 from google.protobuf.json_format import MessageToDict
+from sqlalchemy.engine import Engine
+from sqlalchemy.orm import sessionmaker
 
 db = SQLAlchemy()
 
@@ -63,3 +65,30 @@ def to_dict_mixin(ignores: List[str] = None,
         return cls
 
     return decorator
+
+
+def default_table_args(comment: str) -> dict:
+    return {
+        'comment': comment,
+        'mysql_engine': 'innodb',
+        'mysql_charset': 'utf8mb4',
+    }
+
+
+@contextmanager
+def get_session(db_engine: Engine):
+    """Get session from database engine.
+
+    Example:
+        with get_session(db_engine) as session:
+            # write your query, do not need to handle database connection
+            session.query(MODEL).filter_by(field=value).first()
+    """
+    try:
+        session = sessionmaker(bind=db_engine, autoflush=False)()
+    except Exception:
+        raise Exception('unknown db engine')
+    else:
+        yield session
+    finally:
+        session.close()

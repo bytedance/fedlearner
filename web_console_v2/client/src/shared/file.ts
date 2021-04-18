@@ -9,8 +9,12 @@ export function readAsJSONFromFile<T = object>(file: File): Promise<T> {
     }
     const reader = new FileReader();
     reader.onload = function () {
-      let result = JSON.parse(this.result?.toString()!);
-      resolve(result);
+      try {
+        let result = JSON.parse(this.result?.toString()!);
+        resolve(result);
+      } catch (error) {
+        reject(error);
+      }
     };
     reader.onerror = reject;
     reader.onabort = reject;

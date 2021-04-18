@@ -13,7 +13,7 @@ export enum ChartNodeStatus {
 export type JobColorsMark = 'blue' | 'green' | 'yellow' | 'magenta' | 'cyan' | 'red' | 'purple';
 
 // Except for 'global', others all stand for a job node, i.e. 'config' is job config, 'fork' is job fork
-export type ChartNodeType = 'config' | 'execution' | 'global' | 'fork';
+export type ChartNodeType = 'config' | 'execution' | 'global' | 'fork' | 'edit';
 export type TPLChartNodeType = 'tpl-config' | 'tpl-global';
 export type AllNodeTypes = ChartNodeType | TPLChartNodeType;
 
@@ -24,9 +24,14 @@ export type AllNodeTypes = ChartNodeType | TPLChartNodeType;
 export type JobNodeRawData = Job &
   JobExecutionDetalis & {
     mark?: JobColorsMark;
-    inherited?: boolean;
+    /** whether the job has been reused, can be infered by workflow.create_job_flags */
+    reused?: boolean;
+    /** whether the job has been disabled, can be infered by workflow.create_job_flags as well */
+    disabled?: boolean;
+    /** the job name under k8s environment, consist with ${workflow-uuid}-${job-def-name}  */
     k8sName?: string;
-    uuid?: string; // uuid should exist when node on template canvas
+    /** ! uuid will only exist in Template Canvas */
+    uuid?: string;
   };
 
 export type GlobalNodeRawData = { variables: Variable[]; name: string };
@@ -40,8 +45,11 @@ export type NodeData<R = JobNodeRawData> = {
   isTarget?: boolean;
   mark?: JobColorsMark;
   rows?: { raw: JobNodeRawData; isGlobal?: boolean }[][];
-  inherit?: boolean; // When forking workflow, some node's result can be inherit
-  side?: string; // Assign it while forking workflow, let node tell which side it belongs
+  disabled?: boolean; // whether DISABLE the job
+  /** When forking workflow, some node's result can be inherited, a.k.a: reused */
+  inherited?: boolean;
+  /** Assign it while forking workflow, let node tell which side it belongs */
+  side?: string;
 };
 export interface JobNode extends Node {
   data: NodeData;

@@ -96,6 +96,7 @@ const PrintLogs: FC<Props> = (props) => {
     fullscreenVisible,
   } = props;
   const areaRef = useRef<HTMLPreElement>();
+  const containerRef = useRef<HTMLDivElement>();
   const [paused, togglePaused] = useToggle(false);
   const [scroll2ButtVisible, setScroll2Butt] = useToggle(false);
   const [isFirstTimeResult, setFirstTime] = useState(true);
@@ -110,6 +111,10 @@ const PrintLogs: FC<Props> = (props) => {
 
   const logs = logsQuery.data?.data || [];
   const isEmpty = logs.length === 0;
+
+  useEffect(() => {
+    setFirstTime(true);
+  }, [logsFetcher]);
 
   useEffect(() => {
     const preElement = areaRef.current;
@@ -153,19 +158,22 @@ const PrintLogs: FC<Props> = (props) => {
   }
 
   return (
-    <Container {...props}>
+    <Container {...props} ref={containerRef as any}>
       <Pre ref={areaRef as any} onScroll={debouncedScrollHandler}>
         {logsQuery.isLoading ? <Refresh spin style={{ fontSize: '20px' }} /> : logsContent}
       </Pre>
       <ControlsContainer>
-        {fullscreenVisible && onFullscreenClick && (
+        {fullscreenVisible && Boolean(onFullscreenClick) && (
           <ControlButton onClick={onFullscreenClick}>
-            <Expand />
+            <Tooltip title={i18n.t('workflow.btn_full_screen')} placement="left">
+              <Expand />
+            </Tooltip>
           </ControlButton>
         )}
 
         <ControlButton onClick={() => togglePaused()}>
           <Tooltip
+            placement="left"
             title={
               paused
                 ? i18n.t('workflow.btn_auto_refresh_logs')
@@ -201,7 +209,9 @@ const PrintLogs: FC<Props> = (props) => {
     const preElement = pre || areaRef.current;
     if (!preElement) return true;
 
-    return preElement.scrollHeight - (preElement.scrollTop + window.innerHeight) < 16;
+    return (
+      preElement.scrollHeight - (preElement.scrollTop + containerRef.current!.offsetHeight) < 16
+    );
   }
 
   function onPreScroll(event: any) {

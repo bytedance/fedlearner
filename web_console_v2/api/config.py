@@ -33,8 +33,7 @@ class Config(object):
     # For unicode strings
     # Ref: https://stackoverflow.com/questions/14853694/python-jsonify-dictionary-in-utf-8
     JSON_AS_ASCII = False
-    JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY',
-                               secrets.token_urlsafe(64))
+    JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY', secrets.token_urlsafe(64))
     PROPAGATE_EXCEPTIONS = True
     LOGGING_LEVEL = logging.INFO
     GRPC_LISTEN_PORT = 1990
@@ -43,3 +42,5 @@ class Config(object):
 
     START_GRPC_SERVER = True
     START_SCHEDULER = True
+    # TODO: disable before tables created in rds
+    START_COMPOSER = os.getenv('START_COMPOSER', False)

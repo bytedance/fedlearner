@@ -62,14 +62,13 @@ func (updater *appStatusUpdater) UpdateAppStateWithRetry(ctx context.Context, ap
 				case v1alpha1.FLStateComplete:
 					replicaStatus.Active.Delete(pod)
 					replicaStatus.Succeeded.Insert(pod)
-				case v1alpha1.FLStateFailing:
+				case v1alpha1.FLStateFailing, v1alpha1.FLStateFailed:
 					replicaStatus.Active.Delete(pod)
 					replicaStatus.Failed.Insert(pod)
 				}
 			}
 			flapp.Status.FLReplicaStatus[rtype] = *replicaStatus
 		}
-
 
 		if state == v1alpha1.FLStateComplete || state == v1alpha1.FLStateFailed {
 			now := metav1.Now()

@@ -77,6 +77,7 @@ message GetWorkflowResponse{
     repeated CreateJobFlag peer_create_job_flags = 11;
     WorkflowDefinition fork_proposal_config = 12;
     string uuid = 13;
+    bool metric_is_public = 14;
 }
 
 message UpdateWorkflowRequest {

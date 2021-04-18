@@ -19,12 +19,11 @@ import math
 import queue
 import time
 import logging
-import multiprocessing as mp
 import collections
+from concurrent.futures import ProcessPoolExecutor
 import numpy as np
 from google.protobuf import text_format
 import tensorflow.compat.v1 as tf
-
 from fedlearner.model.tree.packing import GradHessPacker
 from fedlearner.model.tree.loss import LogisticLoss, MSELoss
 from fedlearner.model.crypto import paillier, fixed_point_number
@@ -110,8 +109,7 @@ def _raw_encrypt_and_send_numbers(bridge, name, public_key, numbers, pool=None):
                 part = numbers[part_id * MAX_PARTITION_SIZE:(part_id + 1) *
                                MAX_PARTITION_SIZE]
                 yield public_key, part, part_id
-
-        results = pool.imap_unordered(_raw_encrypt_numbers, gen())
+        results = pool.map(_raw_encrypt_numbers, gen())
         for res in results:
             part_id, ciphertext = res
             msg = tree_pb2.EncryptedNumbers()
@@ -674,8 +672,11 @@ class LeaderGrower(BaseGrower):
                  msg.hists[i * job_size:(i + 1) * job_size])
                 for i in range(self._num_parallel)]
         hists = self._pool.map(_decrypt_packed_histogram_helper, args)
-        grad_hists = [hist[0] for hist in hists]
-        hess_hists = [hist[1] for hist in hists]
+        grad_hists = []
+        hess_hists = []
+        for hist in hists:
+            grad_hists.append(hist[0])
+            hess_hists.append(hist[1])
         return sum(grad_hists, []), sum(hess_hists, [])
 
     def _compute_histogram(self, node):
@@ -900,7 +901,7 @@ class BoostingTreeEnsamble(object):
         self._num_parallel = num_parallel
         self._pool = None
         if self._num_parallel > 1:
-            self._pool = mp.Pool(num_parallel)
+            self._pool = ProcessPoolExecutor(num_parallel)
 
         assert max_bins < 255, "Only support max_bins < 255"
         self._max_bins = max_bins
@@ -993,7 +994,8 @@ class BoostingTreeEnsamble(object):
                 grow_policy=self._grow_policy,
                 validation=validation,
                 num_trees=len(self._trees),
-                leader_no_data=leader_no_data)
+                leader_no_data=leader_no_data,
+                enable_packing=self._enable_packing)
             self._bridge.send_proto('verify', msg)
             status = common_pb2.Status()
             self._bridge.receive_proto('status').Unpack(status)
@@ -1046,6 +1048,8 @@ class BoostingTreeEnsamble(object):
                     'grow_policy', msg.grow_policy, self._grow_policy)
                 err_msg += check(
                     'validation', msg.validation, validation)
+                err_msg += check(
+                    'enable_packing', msg.enable_packing, self._enable_packing)
 
             if err_msg:
                 self._bridge.send_proto(
@@ -1077,7 +1081,8 @@ class BoostingTreeEnsamble(object):
     def load_saved_model(self, path):
         fin = tf.io.gfile.GFile(path, 'r')
         model = tree_pb2.BoostingTreeEnsambleProto()
-        text_format.Parse(fin.read(), model)
+        text_format.Parse(fin.read(), model,
+                          allow_unknown_field=True)
         self._trees = list(model.trees)
         self._feature_importance = np.asarray(model.feature_importance)
         self._feature_names = list(model.feature_names)

@@ -47,7 +47,7 @@ const JobExecutionPods: FC<Props> = ({ job, isPeerSide }) => {
 
   const tablecolumns = [
     {
-      title: i18n.t('workflow.name'),
+      title: i18n.t('workflow.col_pod_name'),
       dataIndex: 'name',
       key: 'name',
       ellipsis: true,

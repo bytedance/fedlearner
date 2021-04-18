@@ -2,7 +2,7 @@ import { convertToUnit } from 'shared/helpers';
 import styled from 'styled-components';
 import { NODE_WIDTH, NODE_HEIGHT, GLOBAL_CONFIG_NODE_SIZE } from '../helpers';
 import { Down } from 'components/IconPark';
-import { Tag } from 'antd';
+import { Tag, Menu } from 'antd';
 import { MixinEllipsis } from 'styles/mixins';
 
 export const Container = styled.div`
@@ -39,6 +39,15 @@ export const Container = styled.div`
   &.purple {
     --fed-color: var(--purple6);
   }
+
+  &[data-disabled='true'] {
+    filter: grayscale(0.8);
+    opacity: 0.4;
+
+    > h5 {
+      text-decoration: line-through;
+    }
+  }
 `;
 
 export const JobName = styled.h5`
@@ -58,11 +67,13 @@ export const StatusIcon = styled.img`
   display: block;
   width: 16px;
   height: 16px;
+  flex-shrink: 0;
 `;
 
 export const JobStatusText = styled.small`
-  font-size: 13px;
+  font-size: 12px;
   line-height: 1;
+  white-space: nowrap;
   color: var(--textColorSecondary);
 `;
 
@@ -81,24 +92,29 @@ export const GlobalConfigNodeContainer = styled.div`
 
 export const InheritButton = styled.div`
   position: absolute;
-  bottom: 11px;
-  right: 14px;
+  bottom: 0px;
+  right: 10px;
   display: flex;
   align-items: center;
   padding-bottom: 5px;
   line-height: 1.8;
   font-size: 12px;
-  color: var(--primaryColor);
+  color: var(--warningColor);
 
-  &[data-inherit='false'] {
-    color: var(--warningColor);
+  &[data-inherited='false'] {
+    color: var(--primaryColor);
   }
 `;
 
 export const InheritedTag = styled(Tag)`
   transform: scale(0.8);
+  cursor: help;
 `;
 
 export const ArrowDown = styled(Down)`
   margin-left: 5px;
+`;
+
+export const InheritMentItem = styled(Menu.Item)`
+  font-size: 11px;
 `;

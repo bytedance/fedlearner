@@ -5,7 +5,7 @@ import {
   JobName,
   JobStatusText,
   StatusIcon,
-} from 'components/WorkflowJobsCanvas/JobNodes/styles';
+} from 'components/WorkflowJobsCanvas/JobNodes/elements';
 import {
   configStatusText,
   JobNodeProps,

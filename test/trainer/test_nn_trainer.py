@@ -265,7 +265,7 @@ class Args(object):
         self.master_addr = master_addr
         self.tf_addr = tf_addr
         self.checkpoint_path = ckpt_path
-        self.checkpoint_filename = None
+        self.load_checkpoint_filename = None
         self.load_checkpoint_filename_with_path = None
         self.save_checkpoint_steps = 100
         self.save_checkpoint_secs = None

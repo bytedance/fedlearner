@@ -9,7 +9,7 @@ import { Steps, Row } from 'antd';
 import StepOneBasic from './StepOneBasic';
 import StepTwoAddBatch from './StepTwoAddBatch';
 import { useResetCreateForm } from 'hooks/dataset';
-import queryClient from 'shared/queryClient';
+import { forceToRefreshQuery } from 'shared/queryClient';
 import { DATASET_LIST_QUERY_KEY } from '../DatasetList';
 
 const ContainerModal = styled(Modal)`
@@ -24,8 +24,6 @@ const StepRow = styled(Row)`
   width: 340px;
   margin: 10px auto 35px;
 `;
-
-const zIndex = Z_INDEX_GREATER_THAN_HEADER;
 
 const CreateDataset: FC = () => {
   const history = useHistory();
@@ -43,10 +41,11 @@ const CreateDataset: FC = () => {
       width="fit-content"
       closable={false}
       maskClosable={false}
+      maskStyle={{ backdropFilter: 'blur(4px)' }}
       keyboard={false}
       afterClose={afterClose}
       getContainer="body"
-      zIndex={zIndex}
+      zIndex={Z_INDEX_GREATER_THAN_HEADER}
       onCancel={() => toggleVisible(false)}
     >
       <StepRow justify="center">
@@ -82,8 +81,7 @@ const CreateDataset: FC = () => {
     toggleVisible(false);
   }
   function onCreateNStartImportSuccess() {
-    // Set current dataset list data as invalid and trigger refetch
-    queryClient.invalidateQueries([DATASET_LIST_QUERY_KEY]);
+    forceToRefreshQuery([DATASET_LIST_QUERY_KEY]);
     closeModal();
   }
 };

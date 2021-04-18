@@ -219,7 +219,8 @@ class ExampleIdManager(visitor.IndexMetaManager):
                     dj_pb.DumpedExampleIdAnchor(undumped=empty_pb2.Empty())
             else:
                 self._anchor = \
-                    text_format.Parse(data, dj_pb.DumpedExampleIdAnchor())
+                    text_format.Parse(data, dj_pb.DumpedExampleIdAnchor(),
+                                      allow_unknown_field=True)
         return self._anchor
 
     def _example_dumped_dir(self):

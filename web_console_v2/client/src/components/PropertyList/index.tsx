@@ -20,14 +20,15 @@ const Prop = styled.dd`
   align-items: flex-start;
   margin-bottom: 3px;
   font-size: 13px;
-  line-height: 36px;
-  word-break: break-word;
+  line-height: var(--lineHeight, 36px);
+  word-break: break-all;
 
   &::before {
     display: inline-block;
     min-width: var(--labelWidth, 'auto');
     margin-right: 5px;
     content: attr(data-label) ': ';
+    flex-shrink: 0;
     color: var(--textColorSecondary);
   }
 `;
@@ -70,10 +71,12 @@ type Props = {
   properties: {
     label: string;
     value: any;
+    hidden?: boolean;
   }[];
   cols?: 1 | 2 | 3 | 4 | 6;
   initialVisibleRows?: number; // NOTE: should not <= 0
   labelWidth?: number;
+  lineHeight?: number;
 };
 
 const PropertyList: FC<Props> = ({
@@ -81,6 +84,7 @@ const PropertyList: FC<Props> = ({
   cols = 2,
   labelWidth,
   initialVisibleRows,
+  lineHeight = 36,
   ...props
 }) => {
   // FIXME: remove next-line after basic_envs been remove
@@ -96,18 +100,25 @@ const PropertyList: FC<Props> = ({
 
   return (
     <Container {...props}>
-      {propsToDisplay.map((item, index) => {
-        return (
-          <Col span={24 / cols} key={item.label + index}>
-            <Prop
-              data-label={item.label}
-              style={{ '--labelWidth': convertToUnit(labelWidth || 'auto') } as any}
-            >
-              {item.value}
-            </Prop>
-          </Col>
-        );
-      })}
+      {propsToDisplay
+        .filter((item) => !item.hidden)
+        .map((item, index) => {
+          return (
+            <Col span={24 / cols} key={item.label + index}>
+              <Prop
+                data-label={item.label}
+                style={
+                  {
+                    '--labelWidth': convertToUnit(labelWidth || 'auto'),
+                    '--lineHeight': convertToUnit(lineHeight) || '',
+                  } as any
+                }
+              >
+                {item.value || '-'}
+              </Prop>
+            </Col>
+          );
+        })}
       {possibleToCollasped && (
         <CollapseButton onClick={toggleCollapsed} className={collapsed ? '' : 'is-reverse'}>
           <Down />

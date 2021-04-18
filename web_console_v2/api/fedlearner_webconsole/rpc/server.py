@@ -269,7 +269,8 @@ class RpcServer(object):
                 create_job_flags=workflow.get_create_job_flags(),
                 peer_create_job_flags=workflow.get_peer_create_job_flags(),
                 fork_proposal_config=workflow.get_fork_proposal_config(),
-                uuid=workflow.uuid)
+                uuid=workflow.uuid,
+                metric_is_public=workflow.metric_is_public)
 
     def update_workflow(self, request, context):
         with self._app.app_context():

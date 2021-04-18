@@ -20,9 +20,12 @@ export const GLOBAL_CONFIG_NODE_SIZE = 120;
 export const NODE_GAP = 40;
 
 export type ConvertParams = {
+  /** Job defintions & Job exe details & some meta-infos such as reused */
   jobs: JobNodeRawData[];
-  variables: Variable[]; // a.k.a. worlflow global settings
-  data: Dictionary<any>; // Extra data pass to react-flow node data
+  /** a.k.a. worlflow global settings */
+  variables: Variable[];
+  /** Extra data pass to react-flow node data */
+  data: Dictionary<any>;
 };
 
 export type NodeOptions = {
@@ -33,15 +36,15 @@ export type NodeOptions = {
 export type RawDataCol = { raw: JobNodeRawData | Variable[]; isGlobal?: boolean };
 export type RawDataRows = Array<RawDataCol[]>;
 
-type SharedNodeData = {
+type ExtraNodeData = {
   index: number;
   status: ChartNodeStatus;
   [key: string]: any;
 };
 
 type NodeProcessors = {
-  createJob(job: any, data: SharedNodeData, options: NodeOptions): JobNode;
-  createGlobal(variables: any, data: SharedNodeData, options: NodeOptions): GlobalConfigNode;
+  createJob(job: any, extraData: ExtraNodeData, options: NodeOptions): JobNode;
+  createGlobal(variables: any, extraData: ExtraNodeData, options: NodeOptions): GlobalConfigNode;
   groupRows(params: ConvertParams): RawDataRows;
 };
 
@@ -219,7 +222,7 @@ export function getNodeIdByJob(job: Job) {
 
 function _createGlobalNode(
   variables: Variable[],
-  data: SharedNodeData,
+  extraData: ExtraNodeData,
   options: NodeOptions,
 ): GlobalConfigNode {
   const name = i18n.t('workflow.label_global_config');
@@ -235,30 +238,27 @@ function _createGlobalNode(
         name,
       },
       isGlobal: true,
-      ...data,
+      ...extraData,
     },
     position: { x: 0, y: 0 },
   };
 }
 
-function _createJobNode(job: JobNodeRawData, data: SharedNodeData, options: NodeOptions): JobNode {
+function _createJobNode(
+  job: JobNodeRawData,
+  extraData: ExtraNodeData,
+  options: NodeOptions,
+): JobNode {
   const isFork = options?.type === 'fork';
-
-  const status = job.state // If job incoming has state value, means it's execution job node
-    ? convertExecutionStateToStatus(job.state)
-    : isFork
-    ? ChartNodeStatus.Success
-    : ChartNodeStatus.Pending;
 
   return {
     id: getNodeIdByJob(job),
     ...options,
     data: {
       raw: job,
-      ...data,
+      ...extraData,
       mark: job.mark || undefined,
-      inherit: isFork, // in fork mode, inherit defaults to true
-      status,
+      inherited: isFork ? false : undefined, // under fork mode defaults to false
     },
     position: { x: 0, y: 0 }, // position will be calculated in later step
   };

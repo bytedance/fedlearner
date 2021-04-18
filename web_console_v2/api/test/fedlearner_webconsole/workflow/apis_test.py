@@ -22,9 +22,11 @@ from pathlib import Path
 from unittest.mock import patch
 from google.protobuf.json_format import ParseDict
 from fedlearner_webconsole.db import db
-from fedlearner_webconsole.proto.workflow_definition_pb2 import WorkflowDefinition
+from fedlearner_webconsole.proto.workflow_definition_pb2 import WorkflowDefinition, JobDefinition
 from fedlearner_webconsole.project.models import Project
+from fedlearner_webconsole.workflow.cronjob import WorkflowCronJobItem
 from fedlearner_webconsole.workflow.models import Workflow, WorkflowState
+from fedlearner_webconsole.job.models import Job, JobType, JobState
 from fedlearner_webconsole.scheduler.transaction import TransactionState
 from fedlearner_webconsole.proto import project_pb2
 from testing.common import BaseTestCase
@@ -109,9 +111,11 @@ class WorkflowsApiTest(BaseTestCase):
         del created_workflow['start_at']
         del created_workflow['stop_at']
         self.assertEqual(created_workflow, {
+            'batch_update_interval': -1,
             'name': 'test-workflow',
             'project_id': 1234567,
             'forkable': True,
+            'forked_from': None,
             'metric_is_public': False,
             'comment': 'test-comment',
             'state': 'NEW',
@@ -141,6 +145,40 @@ class WorkflowsApiTest(BaseTestCase):
         mock_wakeup.assert_not_called()
         # Check DB
         self.assertEqual(len(Workflow.query.all()), 4)
+
+    @patch('fedlearner_webconsole.workflow.apis.composer.collect')
+    @patch('fedlearner_webconsole.workflow.apis.scheduler.wakeup')
+    def test_post_batch_update_interval_job(self, mock_collect, mock_wakeup):
+        with open(
+                Path(__file__, '../../test_data/workflow_config.json').resolve(
+                )) as workflow_config:
+            config = json.load(workflow_config)
+        workflow = {
+            'name': 'test-workflow-left',
+            'project_id': 1234567,
+            'forkable': True,
+            'config': config,
+            'batch_update_interval': 10,
+        }
+        responce = self.post_helper('/api/v2/workflows', data=workflow)
+        self.assertEqual(responce.status_code, HTTPStatus.CREATED)
+
+        with open(
+                Path(__file__, '../../test_data/workflow_config_right.json').
+                resolve()) as workflow_config:
+            config = json.load(workflow_config)
+        workflow = {
+            'name': 'test-workflow-right',
+            'project_id': 1234567,
+            'forkable': True,
+            'config': config,
+            'batch_update_interval': 10,
+        }
+        responce = self.post_helper('/api/v2/workflows', data=workflow)
+        self.assertEqual(responce.status_code, HTTPStatus.BAD_REQUEST)
+
+        mock_collect.assert_called()
+        mock_wakeup.assert_called()
 
     def test_fork_workflow(self):
         # TODO: insert into db first, and then copy it.
@@ -284,6 +322,47 @@ class WorkflowApiTest(BaseTestCase):
         # Checks scheduler
         mock_wakeup.assert_not_called()
 
+    @patch('fedlearner_webconsole.workflow.apis.composer.collect')
+    def test_patch_batch_update_interval(self, mock_collect):
+        workflow = Workflow(
+            name='test-workflow-left',
+            project_id=123,
+            config=WorkflowDefinition(is_left=True).SerializeToString(),
+            forkable=False,
+            state=WorkflowState.STOPPED,
+        )
+        batch_update_interval = 1
+        db.session.add(workflow)
+        db.session.commit()
+        db.session.refresh(workflow)
+
+        response = self.patch_helper(f'/api/v2/workflows/{workflow.id}',
+                                     data={'batch_update_interval': batch_update_interval})
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+
+        mock_collect.assert_called_with(
+            name=f'workflow_cron_job_{workflow.id}',
+            items=[WorkflowCronJobItem(workflow.id)],
+            metadata={},
+            interval=batch_update_interval * 60)
+
+        workflow = Workflow(
+            name='test-workflow-right',
+            project_id=456,
+            config=WorkflowDefinition(is_left=False).SerializeToString(),
+            forkable=False,
+            state=WorkflowState.STOPPED,
+        )
+        db.session.add(workflow)
+        db.session.commit()
+        db.session.refresh(workflow)
+
+        response = self.patch_helper(f'/api/v2/workflows/{workflow.id}',
+                                     data={'batch_update_interval': 1})
+        self.assertEqual(response.status_code, HTTPStatus.BAD_REQUEST)
+
+
+
     def test_patch_not_found(self):
         response = self.patch_helper(
             '/api/v2/workflows/1',
@@ -291,6 +370,47 @@ class WorkflowApiTest(BaseTestCase):
                 'target_state': 'RUNNING'
             })
         self.assertEqual(response.status_code, HTTPStatus.NOT_FOUND)
+
+    def test_patch_create_job_flags(self):
+        wd = WorkflowDefinition()
+        jd = wd.job_definitions.add()
+        workflow = Workflow(
+            name='test-workflow',
+            project_id=123,
+            config=wd.SerializeToString(),
+            forkable=False,
+            state=WorkflowState.READY,
+        )
+        db.session.add(workflow)
+        db.session.flush()
+        job = Job(
+            name='test_job',
+            job_type=JobType(1),
+            config=jd.SerializeToString(),
+            workflow_id=workflow.id,
+            project_id=123,
+            state=JobState.STOPPED,
+            is_disabled=False)
+        db.session.add(job)
+        db.session.flush()
+        workflow.job_ids = str(job.id)
+        db.session.commit()
+        response = self.patch_helper(
+            f'/api/v2/workflows/{workflow.id}',
+            data={
+                'create_job_flags': [3]
+            })
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+        patched_job = Job.query.get(job.id)
+        self.assertEqual(patched_job.is_disabled, True)
+        response = self.patch_helper(
+            f'/api/v2/workflows/{workflow.id}',
+            data={
+                'create_job_flags': [1]
+            })
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+        patched_job = Job.query.get(job.id)
+        self.assertEqual(patched_job.is_disabled, False)
 
 
 if __name__ == '__main__':

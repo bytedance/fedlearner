@@ -98,7 +98,7 @@ class Bridge(object):
 
         # supervise
         self._supervise_interval = 5
-        self._supervise_iteration_timeout = 600
+        self._supervise_iteration_timeout = 1200
 
     def _channel_callback(self, channel, event):
         if event == Channel.Event.PEER_CLOSED:

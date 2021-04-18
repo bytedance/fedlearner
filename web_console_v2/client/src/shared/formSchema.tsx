@@ -35,19 +35,23 @@ const VariableLabel = __IS_JEST__ ? FakeVariableLabel : require('components/Vari
 // ------- Build form Formily schema --------
 type BuildOptions = {
   withPermissions?: boolean;
+  readonly?: boolean;
 };
 
 // Make option variables name end with __OPTION
 // for better recognition
 let withPermissions__OPTION = false;
+let readonly__OPTION = false;
 
 function _enableOptions(options?: BuildOptions) {
   if (!options) return;
 
   withPermissions__OPTION = !!options.withPermissions;
+  readonly__OPTION = !!options.readonly;
 }
 function _resetOptions() {
   withPermissions__OPTION = false;
+  readonly__OPTION = false;
 }
 
 /**
@@ -88,7 +92,9 @@ export default function buildFormSchemaFromJobDef(
 
 function _getPermissions({ access_mode }: Variable) {
   return {
-    readOnly: withPermissions__OPTION && access_mode === VariableAccessMode.PEER_READABLE,
+    readOnly:
+      (withPermissions__OPTION && access_mode === VariableAccessMode.PEER_READABLE) ||
+      readonly__OPTION,
     display: withPermissions__OPTION === false ? true : access_mode !== VariableAccessMode.PRIVATE,
   };
 }
@@ -274,7 +280,7 @@ export function createRadio(variable: Variable): FormilySchema {
 export function createNumberPicker(variable: Variable): FormilySchema {
   const {
     name,
-    widget_schema: { min, max, formatter, parser },
+    widget_schema: { min, max },
   } = variable;
 
   return {
@@ -290,8 +296,8 @@ export function createNumberPicker(variable: Variable): FormilySchema {
         'x-component-props': {
           min,
           max,
-          formatter,
-          parser,
+          parser: (v: string) => v,
+          formatter: (value: number) => `${value}`,
         },
       },
     ),
@@ -345,13 +351,17 @@ const componentToWorkersMap: { [key: string]: (v: Variable) => FormilySchema } =
 
 // ---------- Widget schemas stringify, parse -----------
 
-export function stringifyVariableCodes(variable: Variable) {
+export function stringifyVariableValue(variable: Variable) {
   if (variable.value_type === VariableValueType.CODE && typeof variable.value === 'object') {
     variable.value = JSON.stringify(variable.value);
   }
+
+  if (variable.value_type === VariableValueType.STRING && typeof variable.value !== 'string') {
+    variable.value = String(variable.value);
+  }
 }
 
-export function parseVariableCodes(variable: Variable) {
+export function parseVariableValue(variable: Variable) {
   if (variable.value_type === VariableValueType.CODE && typeof variable.value === 'string') {
     variable.value = JSON.parse(variable.value);
   }
@@ -394,7 +404,7 @@ export function stringifyComplexDictField<
       variable.widget_schema = JSON.stringify(variable.widget_schema);
     }
 
-    stringifyVariableCodes(variable);
+    stringifyVariableValue(variable);
   }
 }
 
@@ -433,7 +443,7 @@ export function parseComplexDictField<
         : /* istanbul ignore next */ {};
     }
 
-    parseVariableCodes(variable);
+    parseVariableValue(variable);
   }
 }
 

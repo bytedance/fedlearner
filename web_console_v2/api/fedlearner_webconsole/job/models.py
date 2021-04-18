@@ -75,7 +75,6 @@ class Job(db.Model):
                       nullable=False,
                       default=JobState.INVALID,
                       comment='state')
-    yaml_template = db.Column(db.Text(), comment='yaml_template')
     config = db.Column(db.LargeBinary(16777215), comment='config')
 
     is_disabled = db.Column(db.Boolean(), default=False, comment='is_disabled')
@@ -84,6 +83,7 @@ class Job(db.Model):
     project_id = db.Column(db.Integer, nullable=False, comment='project id')
     flapp_snapshot = db.Column(db.Text(16777215), comment='flapp snapshot')
     pods_snapshot = db.Column(db.Text(16777215), comment='pods snapshot')
+    error_message = db.Column(db.Text(), comment='error message')
 
     created_at = db.Column(db.DateTime(timezone=True),
                            server_default=func.now(),
@@ -108,6 +108,12 @@ class Job(db.Model):
             proto.ParseFromString(self.config)
             return proto
         return None
+
+    def set_config(self, proto):
+        if proto is not None:
+            self.config = proto.SerializeToString()
+        else:
+            self.config = None
 
     def _set_snapshot_flapp(self):
         flapp = self._k8s_client.get_flapp(self.name)
@@ -159,12 +165,13 @@ class Job(db.Model):
                     elif 'message' in detail:
                         msgs.append(key + ':' + detail['message'])
 
-            for cond in pod['status']['conditions']:
-                if filter_private_info:
-                    if 'reason' in cond:
-                        msgs.append(cond['type'] + ':' + cond['reason'])
-                elif 'message' in cond:
-                    msgs.append(cond['type'] + ':' + cond['message'])
+            if 'conditions' in pod['status']:
+                for cond in pod['status']['conditions']:
+                    if filter_private_info:
+                        if 'reason' in cond:
+                            msgs.append(cond['type'] + ':' + cond['reason'])
+                    elif 'message' in cond:
+                        msgs.append(cond['type'] + ':' + cond['message'])
 
             result.append({
                 'name': pod['metadata']['name'],
@@ -230,9 +237,6 @@ class Job(db.Model):
 
     def start(self):
         self.state = JobState.STARTED
-
-    def set_yaml_template(self, yaml_template):
-        self.yaml_template = yaml_template
 
 
 class JobDependency(db.Model):

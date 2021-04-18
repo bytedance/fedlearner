@@ -1,9 +1,9 @@
 export interface FedUserInfo {
   id: string;
-  username?: string;
+  username: string;
   name?: string;
   email?: string;
-  role?: string;
+  role: FedRoles;
 }
 
 export interface FedLoginFormData {
@@ -11,8 +11,7 @@ export interface FedLoginFormData {
   passowrd: string;
 }
 
-// TODO: implement user role module
 export enum FedRoles {
-  Admin,
-  Operator,
+  Admin = 'ADMIN',
+  User = 'USER',
 }

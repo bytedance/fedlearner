@@ -8,6 +8,7 @@ import { MixinCommonTransition } from 'styles/mixins';
 import VariablePermission from 'components/VariblePermission';
 import { indicators } from 'components/VariableLabel';
 import WidgetSchema from './WidgetSchema';
+import { useToggle } from 'react-use';
 
 const Details = styled.details`
   margin-bottom: 20px;
@@ -59,6 +60,7 @@ type Props = {
  */
 const VariableForm: FC<Props> = ({ form, path, value, onRemove }) => {
   const { t } = useTranslation();
+  const [isOpen] = useToggle(!value?.name);
 
   if (!value) {
     return null;
@@ -69,7 +71,7 @@ const VariableForm: FC<Props> = ({ form, path, value, onRemove }) => {
   const PermissionIndicator = indicators[data.access_mode];
 
   return (
-    <Details open>
+    <Details open={isOpen}>
       <Summary>
         <PermissionIndicator />
 
@@ -92,7 +94,7 @@ const VariableForm: FC<Props> = ({ form, path, value, onRemove }) => {
           rules={[
             { required: true, message: t('workflow.msg_varname_required') },
             {
-              pattern: /^[a-zA-Z_-]+$/g,
+              pattern: /^[a-zA-Z_0-9-]+$/g,
               message: t('workflow.msg_varname_invalid'),
             },
           ]}

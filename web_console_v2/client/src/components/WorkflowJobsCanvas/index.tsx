@@ -20,17 +20,16 @@ import ReactFlow, {
   Controls,
   ReactFlowState,
 } from 'react-flow-renderer';
-import { Container } from './styles';
+import { Container } from './elements';
 import { ChartWorkflowConfig } from 'typings/workflow';
 import { cloneDeep } from 'lodash';
-import { message } from 'antd';
-import i18n from 'i18n';
 import { useResizeObserver } from 'hooks';
 import { Side } from 'typings/app';
 
 type Props = {
   workflowConfig: ChartWorkflowConfig;
   nodeType: ChartNodeType;
+  nodeInitialStatus?: ChartNodeStatus;
   side?: Side; // NOTE: When the nodeType is 'fork', side is required
   selectable?: boolean;
   onJobClick?: (node: JobNode) => void;
@@ -44,16 +43,29 @@ type UpdateStatusParams = {
   id: string;
   status: ChartNodeStatus;
 };
+type UpdateDisabledParams = {
+  id: string;
+  disabled: boolean;
+};
 
 export type ChartExposedRef = {
   nodes: ChartNodes;
   updateNodeStatusById: (params: UpdateStatusParams) => void;
+  updateNodeDisabledById: (params: UpdateDisabledParams) => void;
   updateNodeInheritanceById: (params: UpdateInheritanceParams) => void;
   setSelectedNodes: (nodes: ChartNodes) => void;
 };
 
 const WorkflowJobsCanvas: ForwardRefRenderFunction<ChartExposedRef | undefined, Props> = (
-  { workflowConfig, nodeType, side, selectable = true, onJobClick, onCanvasClick },
+  {
+    workflowConfig,
+    nodeType,
+    side,
+    selectable = true,
+    nodeInitialStatus = ChartNodeStatus.Pending,
+    onJobClick,
+    onCanvasClick,
+  },
   parentRef,
 ) => {
   const isForkMode = nodeType === 'fork';
@@ -85,16 +97,14 @@ const WorkflowJobsCanvas: ForwardRefRenderFunction<ChartExposedRef | undefined, 
     const jobElements = convertToChartElements(
       {
         /**
-         * In workflow detail page
-         * workflowConfig.job_definitions isn't only job_definitions
-         * execution details would include in as well
+         * In workflow detail page workflowConfig.job_definitions are not only job_definitions
+         * they will contain execution details as well
          */
         jobs: workflowConfig.job_definitions,
         variables: workflowConfig.variables || [],
         data: {
           side,
-          // When fork type, inherit initially set to true, status to Success
-          status: isForkMode ? ChartNodeStatus.Success : ChartNodeStatus.Pending,
+          status: nodeInitialStatus,
         },
       },
       { type: nodeType, selectable },
@@ -113,6 +123,7 @@ const WorkflowJobsCanvas: ForwardRefRenderFunction<ChartExposedRef | undefined, 
     return {
       nodes: jobNodes,
       updateNodeStatusById: updateNodeStatus,
+      updateNodeDisabledById: updateNodeDisabled,
       updateNodeInheritanceById: updateNodeInheritance,
       setSelectedNodes: setSelectedElements,
     };
@@ -151,9 +162,7 @@ const WorkflowJobsCanvas: ForwardRefRenderFunction<ChartExposedRef | undefined, 
       _reactFlowInstance!.fitView();
     });
   }
-  function areTheySomeUninheritable(nodeIds: string[]) {
-    return nodeIds.some((id) => elements.find((item) => item.id === id)?.data?.inherit === false);
-  }
+
   function updateNodeStatus(params: UpdateStatusParams) {
     if (!params.id) return;
 
@@ -169,6 +178,21 @@ const WorkflowJobsCanvas: ForwardRefRenderFunction<ChartExposedRef | undefined, 
       });
     });
   }
+  function updateNodeDisabled(params: UpdateDisabledParams) {
+    if (!params.id) return;
+
+    setElements((els) => {
+      return (els as ChartElements).map((el) => {
+        if (el.id === params.id) {
+          el.data = {
+            ...el.data,
+            disabled: params.disabled,
+          };
+        }
+        return el;
+      });
+    });
+  }
   function updateNodeInheritance({ id, whetherInherit }: UpdateInheritanceParams) {
     if (nodeType !== 'fork' || !id) {
       return;
@@ -178,38 +202,44 @@ const WorkflowJobsCanvas: ForwardRefRenderFunction<ChartExposedRef | undefined, 
 
     if (!target) return;
 
-    const itDependsOn = target?.data.raw.dependencies.map((item) => item.source);
+    if (whetherInherit === true) {
+      target.data.inherited = true;
 
-    if (itDependsOn.length && areTheySomeUninheritable(itDependsOn)) {
-      message.warning({
-        // the key is used for making sure only one toast is allowed to show on the screen
-        key: 'NOP_due_to_upstreaming_uninheritable',
-        content: i18n.t('workflow.msg_upstreaming_nonreusable'),
-        duration: 2000,
-      });
-      return;
+      const itDependsOn = target?.data.raw.dependencies.map((item) => item.source);
+
+      for (let i = nextElements.length - 1; i--; i >= 0) {
+        const item = nextElements[i];
+        if (!isNode(item) || item.data.isGlobal) continue;
+
+        if (itDependsOn.includes(item.id)) {
+          item.data.inherited = true;
+          itDependsOn.push(...item.data.raw.dependencies.map((item) => item.source));
+        }
+      }
     }
 
-    target.data.inherit = whetherInherit;
+    if (whetherInherit === false) {
+      target.data.inherited = false;
 
-    // Collect dependent chain
-    const depsChainCollected: string[] = [];
+      // Collect dependent chain
+      const depsChainCollected: string[] = [];
 
-    depsChainCollected.push(target?.id!);
+      depsChainCollected.push(target?.id);
 
-    nextElements.forEach((item) => {
-      if (!isNode(item) || item.data.isGlobal) return;
+      nextElements.forEach((item) => {
+        if (!isNode(item) || item.data.isGlobal) return;
 
-      const hasAnyDependentOnPrevs = item.data.raw.dependencies.find((dep) => {
-        return depsChainCollected.includes(dep.source);
+        const hasAnyDependentOnPrevs = item.data.raw.dependencies.find((dep) => {
+          return depsChainCollected.includes(dep.source);
+        });
+
+        if (hasAnyDependentOnPrevs) {
+          item.data.inherited = false;
+
+          depsChainCollected.push(item.id);
+        }
       });
-
-      if (hasAnyDependentOnPrevs) {
-        item.data.inherit = whetherInherit;
-
-        depsChainCollected.push(item.id);
-      }
-    });
+    }
 
     setElements(nextElements);
   }

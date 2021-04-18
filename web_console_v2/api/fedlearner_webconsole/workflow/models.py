@@ -20,6 +20,7 @@ import enum
 from datetime import datetime
 from sqlalchemy.sql import func
 from sqlalchemy import UniqueConstraint
+from fedlearner_webconsole.composer.models import SchedulerItem
 from fedlearner_webconsole.db import db, to_dict_mixin
 from fedlearner_webconsole.proto import (common_pb2, workflow_definition_pb2)
 from fedlearner_webconsole.job.models import (Job, JobState, JobType,
@@ -113,17 +114,17 @@ def _merge_workflow_config(base, new, access_mode):
         _merge_variables(base_job.variables, new_job.variables, access_mode)
 
 
-@to_dict_mixin(ignores=['forked_from',
-                        'fork_proposal_config',
-                        'config'],
+@to_dict_mixin(ignores=['fork_proposal_config', 'config'],
                extras={
                    'job_ids': (lambda wf: wf.get_job_ids()),
                    'create_job_flags': (lambda wf: wf.get_create_job_flags()),
                    'peer_create_job_flags':
-                       (lambda wf: wf.get_peer_create_job_flags()),
+                   (lambda wf: wf.get_peer_create_job_flags()),
                    'state': (lambda wf: wf.get_state_for_frontend()),
                    'transaction_state':
-                       (lambda wf: wf.get_transaction_state_for_frontend()),
+                   (lambda wf: wf.get_transaction_state_for_frontend()),
+                   'batch_update_interval':
+                   (lambda wf: wf.get_batch_update_interval()),
                })
 class Workflow(db.Model):
     __tablename__ = 'workflow_v2'
@@ -202,7 +203,9 @@ class Workflow(db.Model):
 
     def get_state_for_frontend(self):
         if self.state == WorkflowState.RUNNING:
-            is_complete = all([job.is_complete() for job in self.owned_jobs])
+            is_complete = all([
+                job.is_disabled or job.is_complete() for job in self.owned_jobs
+            ])
             if is_complete:
                 return 'COMPLETED'
             is_failed = any([job.is_failed() for job in self.owned_jobs])
@@ -220,6 +223,12 @@ class Workflow(db.Model):
     def set_config(self, proto):
         if proto is not None:
             self.config = proto.SerializeToString()
+            job_defs = {i.name: i for i in proto.job_definitions}
+            for job in self.owned_jobs:
+                name = job.get_config().name
+                assert name in job_defs, \
+                    "Invalid workflow template: job %s is missing" % name
+                job.set_config(job_defs[name])
         else:
             self.config = None
 
@@ -287,6 +296,13 @@ class Workflow(db.Model):
         if self.peer_create_job_flags is None:
             return None
         return [int(i) for i in self.peer_create_job_flags.split(',')]
+
+    def get_batch_update_interval(self):
+        item = SchedulerItem.query.filter_by(
+            name=f'workflow_cron_job_{self.id}').first()
+        if not item:
+            return -1
+        return int(item.interval_time) / 60
 
     def update_target_state(self, target_state):
         if self.target_state != target_state \
@@ -446,7 +462,6 @@ class Workflow(db.Model):
                     project_id=self.project_id,
                     state=JobState.STOPPED,
                     is_disabled=(flag == common_pb2.CreateJobFlag.DISABLED))
-                job.set_yaml_template(job_def.yaml_template)
                 db.session.add(job)
             jobs.append(job)
         db.session.flush()

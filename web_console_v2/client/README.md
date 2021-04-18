@@ -2,24 +2,26 @@
 
 ## Prerequisites
 
-- Node.js > 10
+- Node.js >= 14.0 && Node.js <= 15.0
 
 ## Get started
 
-we using npm as package manager
+we using [pnpm](https://pnpm.js.org/) as package manager
 
 ```bash
-$ npm install
+$ npm i -g pnpm
+
+$ pnpm install
 
 # start developing with hot reload
-$ npm start
+$ pnpm start
 
 # build for production
-$ npm run build
+$ pnpm build
 
 # build for fully mocked version
-$ REACT_APP_ENABLE_FULLY_MOCK=true npm run build
+$ REACT_APP_ENABLE_FULLY_MOCK=true pnpm build
 
 # run tests
-$ npm run test
+$ pnpm test
 ```

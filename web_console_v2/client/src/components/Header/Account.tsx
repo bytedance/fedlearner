@@ -3,19 +3,20 @@ import styled from 'styled-components';
 import { userInfoQuery } from 'stores/user';
 import avatar from 'assets/images/avatar.svg';
 import { useRecoilQuery } from 'hooks/recoil';
-import { MixinCircle, MixinCommonTransition, MixinSquare } from 'styles/mixins';
+import { MixinCommonTransition, MixinSquare } from 'styles/mixins';
 import { message, Popover, Button } from 'antd';
 import GridRow from 'components/_base/GridRow';
 import { Settings } from 'components/IconPark';
 // import LanguageSwitch from './LanguageSwitch';
 import { Redirect, useHistory } from 'react-router-dom';
-import { logout } from 'services/user';
 import { useTranslation } from 'react-i18next';
 import store from 'store2';
 import LOCAL_STORAGE_KEYS from 'shared/localStorageKeys';
 import { useResetRecoilState } from 'recoil';
 import { ErrorCodes } from 'typings/app';
 import i18n from 'i18n';
+import { FedUserInfo } from 'typings/auth';
+import UserRoleBadge from 'components/UserRoleBadge';
 
 const Container = styled.div`
   ${MixinCommonTransition()}
@@ -50,25 +51,6 @@ const UsernameRow = styled(GridRow)`
   > .username {
     font-size: 16px;
     margin-bottom: 0;
-  }
-`;
-const Role = styled.div`
-  display: flex;
-  align-items: center;
-  padding: 3px;
-  padding-right: 10px;
-  border-radius: 100px;
-  font-size: 12px;
-  line-height: 1;
-  font-weight: normal;
-  background-color: var(--backgroundColorGray);
-
-  &::before {
-    ${MixinCircle(14)}
-    content: '';
-    display: block;
-    margin-right: 4px;
-    background-color: var(--darkGray8);
   }
 `;
 // const LanguageRow = styled(Row)`
@@ -123,7 +105,8 @@ const AccountPopover: FC = () => {
 
   async function onLogoutClick() {
     try {
-      await logout();
+      // logout api is now unavailable, only fe remove the user storage.
+      // await logout();
       store.remove(LOCAL_STORAGE_KEYS.current_user);
       resetUserInfo();
       history.push('/login');
@@ -136,12 +119,11 @@ const AccountPopover: FC = () => {
     history.push('/settings');
   }
 };
-
-const Username: FC<{ name: string }> = ({ name }) => {
+const Username: FC<{ userInfo: FedUserInfo }> = ({ userInfo }) => {
   return (
     <UsernameRow gap="10">
-      <h3 className="username">{name}</h3>
-      <Role>管理员</Role>
+      <h3 className="username">{userInfo?.name}</h3>
+      <UserRoleBadge role={userInfo.role} />
     </UsernameRow>
   );
 };
@@ -165,7 +147,7 @@ function HeaderAccount() {
   return (
     <Popover
       content={<AccountPopover />}
-      title={<Username name={userInfo?.username || ''} />}
+      title={<Username userInfo={userInfo} />}
       placement="bottomLeft"
     >
       <Container>

@@ -128,7 +128,8 @@ def load_data_block_meta(meta_fpath):
     if not gfile.Exists(meta_fpath):
         return None
     with make_tf_record_iter(meta_fpath) as fitr:
-        return text_format.Parse(next(fitr).decode(), dj_pb.DataBlockMeta())
+        return text_format.Parse(next(fitr).decode(), dj_pb.DataBlockMeta(),
+                                 allow_unknown_field=True)
 
 def data_source_kvstore_base_dir(data_source_name):
     return os.path.join('data_source', data_source_name)
@@ -140,7 +141,8 @@ def retrieve_data_source(kvstore, data_source_name):
         raise ValueError("kvstore master key is None for {}".format(
             data_source_name)
         )
-    return text_format.Parse(raw_data, common_pb.DataSource())
+    return text_format.Parse(raw_data, common_pb.DataSource(),
+                             allow_unknown_field=True)
 
 def commit_data_source(kvstore, data_source):
     kvstore_key = \

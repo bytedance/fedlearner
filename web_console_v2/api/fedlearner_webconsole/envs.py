@@ -18,3 +18,6 @@ class Envs(object):
     OPERATOR_LOG_MATCH_PHRASE = os.environ.get(
         'OPERATOR_LOG_MATCH_PHRASE', None)
     NAMESPACE = os.environ.get('NAMESPACE', 'default')
+    # Whether to use the real jwt_required decorator or fake one
+    DEBUG = os.environ.get('DEBUG', False)
+    ES_INDEX = os.environ.get('ES_INDEX', 'filebeat-*')

@@ -277,6 +277,10 @@ func (am *appManager) createNewPod(
 				Name:  masterService,
 				Value: GenIndexName(app.Name, strings.ToLower(app.Spec.Role), rt, index),
 			})
+			container.Env = ensureEnv(container.Env, v1.EnvVar{
+				Name:  workerClusterSpec,
+				Value: clusterSpec,
+			})
 
 		case v1alpha1.FLReplicaTypeWorker:
 			container.Env = ensureEnv(container.Env, v1.EnvVar{

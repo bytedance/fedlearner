@@ -2,7 +2,7 @@ import { JobNodeRawData } from 'components/WorkflowJobsCanvas/types';
 import { atom, selector } from 'recoil';
 import { CreateJobFlag } from 'typings/job';
 import {
-  Workflow,
+  WorkflowExecutionDetails,
   WorkflowConfig,
   WorkflowForkPayload,
   WorkflowInitiatePayload,
@@ -11,9 +11,11 @@ import {
 } from 'typings/workflow';
 
 export type CreateWorkflowBasicForm = {
-  _templateType: 'existing' | 'create';
   _templateSelected?: string;
-} & Partial<Pick<WorkflowInitiatePayload, 'name' | 'forkable' | 'project_id'>>;
+  _keepUsingOriginalTemplate?: boolean;
+} & Partial<
+  Pick<WorkflowInitiatePayload, 'name' | 'forkable' | 'project_id' | 'batch_update_interval'>
+>;
 
 export type CreateTemplateForm = WorkflowTemplatePayload;
 
@@ -22,19 +24,21 @@ export const workflowBasicForm = atom<CreateWorkflowBasicForm>({
   default: {
     // Fields start with underscore are solely UI releated things,
     // will not pass to backend on submit
-    _templateType: 'existing' as const,
     _templateSelected: undefined,
+    _keepUsingOriginalTemplate: true,
 
     name: '',
     project_id: undefined,
     forkable: true,
+    batch_update_interval: -1,
   },
 });
 
 export const workflowConfigForm = atom<WorkflowConfig<JobNodeRawData>>({
   key: 'WorkflowConfigForm',
   default: {
-    group_alias: '',
+    /** initial value is undefined so we can tell the UI back to step one */
+    group_alias: undefined,
     variables: [],
     job_definitions: [],
   } as any,
@@ -47,9 +51,9 @@ export const workflowTemplateForm = atom<CreateTemplateForm>({
   default: { name: '', config: '', comment: '' } as any,
 });
 
-export const workflowInEditing = atom<Workflow>({
+export const workflowInEditing = atom<WorkflowExecutionDetails>({
   key: 'WorkflowInEditing',
-  default: (null as unknown) as Workflow,
+  default: (null as unknown) as WorkflowExecutionDetails,
 });
 
 export const peerConfigInPairing = atom<WorkflowConfig>({
@@ -67,7 +71,6 @@ export const workflowGetters = selector({
   key: 'WorkflowGetters',
   get: ({ get }) => {
     return {
-      whetherCreateNewTpl: get(workflowBasicForm)._templateType === 'create',
       hasTplSelected: Boolean(get(workflowTemplateForm).config),
     };
   },

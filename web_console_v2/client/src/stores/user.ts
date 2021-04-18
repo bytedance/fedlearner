@@ -4,7 +4,7 @@ import { atom, selector } from 'recoil';
 import { fetchUserInfo } from 'services/user';
 import LOCAL_STORAGE_KEYS from 'shared/localStorageKeys';
 import { isNil } from 'lodash';
-import { FedUserInfo } from 'typings/auth';
+import { FedRoles, FedUserInfo } from 'typings/auth';
 
 export const userInfoState = atom<FedUserInfo>({
   key: 'UserInfo',
@@ -13,11 +13,11 @@ export const userInfoState = atom<FedUserInfo>({
     username: '',
     name: '',
     email: '',
-    role: '',
+    role: FedRoles.User,
   },
 });
 
-export const userInfoQuery = selector({
+export const userInfoQuery = selector<FedUserInfo>({
   key: 'UserInfoQuery',
   get: async ({ get }) => {
     try {
@@ -41,8 +41,10 @@ export const userInfoQuery = selector({
 export const userInfoGetters = selector({
   key: 'UserInfoComputed',
   get({ get }) {
+    const userInfo = get(userInfoQuery);
+
     return {
-      isAuthenticated: Boolean(get(userInfoQuery).id) || process.env.REACT_APP_ENABLE_FULLY_MOCK,
+      isAuthenticated: Boolean(userInfo.id) || process.env.REACT_APP_ENABLE_FULLY_MOCK,
     };
   },
 });

@@ -22,7 +22,6 @@ import tarfile
 
 from flask import send_file
 from flask_restful import Resource, reqparse, request
-from google.protobuf.json_format import MessageToDict
 from google.protobuf.json_format import ParseDict, ParseError
 from fedlearner_webconsole.workflow_template.models import WorkflowTemplate
 from fedlearner_webconsole.proto import workflow_definition_pb2
@@ -32,6 +31,8 @@ from fedlearner_webconsole.exceptions import (
     ResourceConflictException)
 from fedlearner_webconsole.workflow_template.slots_formatter import \
     generate_yaml_template
+from fedlearner_webconsole.workflow_template.template_validaor\
+    import check_workflow_definition
 
 
 def _classify_variable(variable):
@@ -68,6 +69,13 @@ def dict_to_editor_info(editor_info):
     return editor_info_proto
 
 
+def _dic_without_key(d, keys):
+    result = dict(d)
+    for key in keys:
+        del result[key]
+    return result
+
+
 class WorkflowTemplatesApi(Resource):
     def get(self):
         templates = WorkflowTemplate.query
@@ -80,7 +88,8 @@ class WorkflowTemplatesApi(Resource):
                 raise InvalidArgumentException('is_left must be 0 or 1')
             templates = templates.filter_by(is_left=is_left)
         # remove config from dicts to reduce the size of the list
-        return {'data': [t.to_dict()
+        return {'data': [_dic_without_key(t.to_dict(), ['config',
+                                                        'editor_info'])
                          for t in templates.all()]}, HTTPStatus.OK
 
     def post(self):
@@ -111,7 +120,8 @@ class WorkflowTemplatesApi(Resource):
         db.session.add(template)
         db.session.commit()
         logging.info('Inserted a workflow_template to db')
-        return {'data': template.to_dict()}, HTTPStatus.CREATED
+        result = template.to_dict()
+        return {'data': result}, HTTPStatus.CREATED
 
 
 class WorkflowTemplateApi(Resource):
@@ -121,24 +131,17 @@ class WorkflowTemplateApi(Resource):
         template = WorkflowTemplate.query.filter_by(id=template_id).first()
         if template is None:
             raise NotFoundException()
+
+        result = template.to_dict()
         if download:
             in_memory_file = io.BytesIO()
-            in_memory_file.write(json.dumps(template.to_dict()).encode('utf-8'))
+            in_memory_file.write(json.dumps(result).encode('utf-8'))
             in_memory_file.seek(0)
             return send_file(in_memory_file,
                              as_attachment=True,
                              attachment_filename=f'{template.name}.json',
                              mimetype='application/json; charset=UTF-8',
                              cache_timeout=0)
-        result = template.to_dict()
-        result['config'] = MessageToDict(
-            template.get_config(),
-            preserving_proto_field_name=True,
-            including_default_value_fields=True)
-        result['editor_info'] = MessageToDict(
-            template.get_editor_info(),
-            preserving_proto_field_name=True,
-            including_default_value_fields=True)
         return {'data': result}, HTTPStatus.OK
 
     def delete(self, template_id):
@@ -179,7 +182,8 @@ class WorkflowTemplateApi(Resource):
         template.group_alias = template_proto.group_alias
         template.is_left = template_proto.is_left
         db.session.commit()
-        return {'data': template.to_dict()}, HTTPStatus.OK
+        result = template.to_dict()
+        return {'data': result}, HTTPStatus.OK
 
 
 def _format_template_with_yaml_editor(template_proto, editor_info_proto):
@@ -194,6 +198,11 @@ def _format_template_with_yaml_editor(template_proto, editor_info_proto):
                     yaml_editor_info.meta_yaml,
                     yaml_editor_info.slots)
                 job_def.variables.CopyFrom(yaml_editor_info.variables)
+    try:
+        check_workflow_definition(template_proto)
+    except ValueError as e:
+        raise InvalidArgumentException(details={
+            'config.yaml_template': str(e)})
     return template_proto
 
 

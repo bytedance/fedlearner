@@ -14,9 +14,37 @@
 
 # coding=utf-8
 
-from functools import wraps
 import logging
+from functools import wraps
 from traceback import format_exc
+import flask_jwt_extended
+from flask_jwt_extended.utils import get_current_user
+from fedlearner_webconsole.auth.models import Role
+from fedlearner_webconsole.exceptions import UnauthorizedException
+from fedlearner_webconsole.envs import Envs
+
+
+def admin_required(f):
+    @wraps(f)
+    def wrapper_inside(*args, **kwargs):
+        current_user = get_current_user()
+        if current_user.role != Role.ADMIN:
+            raise UnauthorizedException('only admin can operate this')
+        return f(*args, **kwargs)
+    return wrapper_inside
+
+
+def jwt_required(*jwt_args, **jwt_kwargs):
+    def decorator(f):
+        if Envs.DEBUG:
+            @wraps(f)
+            def wrapper(*args, **kwargs):
+                return f(*args, **kwargs)
+        else:
+            wrapper = flask_jwt_extended.jwt_required(
+                *jwt_args, **jwt_kwargs)(f)
+        return wrapper
+    return decorator
 
 
 def retry_fn(retry_times: int = 3, needed_exceptions=None):

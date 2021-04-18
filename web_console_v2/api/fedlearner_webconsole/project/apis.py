@@ -90,10 +90,13 @@ class ProjectsApi(Resource):
 
         # exact configuration from variables
         # TODO: one custom host for one participant
-        custom_host = None
+        grpc_ssl_server_host = None
+        egress_host = None
         for variable in config.get('variables', []):
-            if variable.get('name') == 'CUSTOM_HOST':
-                custom_host = variable.get('value')
+            if variable.get('name') == 'GRPC_SSL_SERVER_HOST':
+                grpc_ssl_server_host = variable.get('value')
+            if variable.get('name') == 'EGRESS_HOST':
+                egress_host = variable.get('value')
 
         # parse participant
         certificates = {}
@@ -104,13 +107,13 @@ class ProjectsApi(Resource):
                     details=ErrorMessage.PARAM_FORMAT_ERROR.value.format(
                         'participants', 'Participant must have name and '
                         'domain_name.'))
-            if re.match(_URL_REGEX, participant.get('url')) is None:
-                raise InvalidArgumentException('URL pattern is wrong')
             domain_name = participant.get('domain_name')
             # Grpc spec
             participant['grpc_spec'] = {
-                'authority': '{}-client-auth.com'.format(domain_name[:-4])
+                'authority':
+                egress_host or '{}-client-auth.com'.format(domain_name[:-4])
             }
+
             if participant.get('certificates'):
                 # If users use web console to create add-on,
                 # peer url must be given
@@ -118,6 +121,9 @@ class ProjectsApi(Resource):
                     raise InvalidArgumentException(
                         details=ErrorMessage.PARAM_FORMAT_ERROR.value.format(
                             'participants', 'Participant must have url.'))
+                if re.match(_URL_REGEX, participant.get('url')) is None:
+                    raise InvalidArgumentException('URL pattern is wrong')
+
                 current_cert = parse_certificates(
                     participant.get('certificates'))
                 success, err = verify_certificates(current_cert)
@@ -153,10 +159,10 @@ class ProjectsApi(Resource):
         for participant in new_project.get_config().participants:
             if participant.domain_name in\
                 new_project.get_certificate().domain_name_to_cert.keys():
-                _create_add_on(participant,
-                               new_project.get_certificate()
-                               .domain_name_to_cert[participant.domain_name],
-                               custom_host)
+                _create_add_on(
+                    participant,
+                    new_project.get_certificate().domain_name_to_cert[
+                        participant.domain_name], grpc_ssl_server_host)
         try:
             new_project = db.session.merge(new_project)
             db.session.commit()
@@ -204,22 +210,27 @@ class ProjectApi(Resource):
             ])
 
         # exact configuration from variables
-        custom_host = None
+        grpc_ssl_server_host = None
+        egress_host = None
         for variable in config.variables:
-            if variable.name == 'CUSTOM_HOST':
-                custom_host = variable.value
+            if variable.name == 'GRPC_SSL_SERVER_HOST':
+                grpc_ssl_server_host = variable.value
+            if variable.name == 'EGRESS_HOST':
+                egress_host = variable.value
 
-        project.set_config(config)
         if request.json.get('comment'):
             project.comment = request.json.get('comment')
 
-        for participant in project.get_config().participants:
+        for participant in config.participants:
             if participant.domain_name in\
                 project.get_certificate().domain_name_to_cert.keys():
-                _create_add_on(participant,
-                               project.get_certificate()
-                               .domain_name_to_cert[participant.domain_name],
-                               custom_host)
+                _create_add_on(
+                    participant,
+                    project.get_certificate().domain_name_to_cert[
+                        participant.domain_name], grpc_ssl_server_host)
+            if egress_host:
+                participant.grpc_spec.authority = egress_host
+        project.set_config(config)
         try:
             db.session.commit()
         except Exception as e:
@@ -255,18 +266,18 @@ def initialize_project_apis(api: Api):
                      '/projects/<int:project_id>/connection_checks')
 
 
-def _create_add_on(participant, certificate, custom_host=None):
+def _create_add_on(participant, certificate, grpc_ssl_server_host=None):
     if certificate is None:
         return
     # check validation
     for file_name in _CERTIFICATE_FILE_NAMES:
         if certificate.certs.get(file_name) is None:
             raise InvalidArgumentException(
-                details=ErrorMessage.PARAM_FORMAT_ERROR.value.
-                    format('certificates', '{} not existed'.format(file_name)))
+                details=ErrorMessage.PARAM_FORMAT_ERROR.value.format(
+                    'certificates', '{} not existed'.format(file_name)))
     try:
         k8s_client = get_client()
-        create_add_on(k8s_client, participant.domain_name,
-                      participant.url, certificate.certs, custom_host)
+        create_add_on(k8s_client, participant.domain_name, participant.url,
+                      certificate.certs, grpc_ssl_server_host)
     except RuntimeError as e:
         raise InvalidArgumentException(details=str(e))

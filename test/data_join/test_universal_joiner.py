@@ -45,6 +45,7 @@ class TestUniversalJoin(dsp.DataSourceProducer):
         #self.init("test_uni_joiner", "invalid joiner as placeholder", cache_type="disk")
         self.init("test_uni_joiner", "invalid joiner as placeholder")
 
+    #@unittest.skip('2121')
     def test_universal_join_mismatch(self):
         self.example_joiner_options = dj_pb.ExampleJoinerOptions(
                   example_joiner='UNIVERSAL_JOINER',
@@ -53,7 +54,7 @@ class TestUniversalJoin(dsp.DataSourceProducer):
                   max_conversion_delay=interval_to_timestamp("258"),
                   enable_negative_example_generator=False,
                   data_block_dump_interval=32,
-                  data_block_dump_threshold=128,
+                  data_block_dump_threshold=1024,
                   negative_sampling_rate=0.8,
                   join_expr="(index, cid)",
                   join_key_mapper="DEFAULT",
@@ -69,6 +70,7 @@ class TestUniversalJoin(dsp.DataSourceProducer):
             )
         self.run_join(sei)
 
+    #@unittest.skip('2121')
     def test_universal_join_fallback(self):
         self.example_joiner_options = dj_pb.ExampleJoinerOptions(
                   example_joiner='UNIVERSAL_JOINER',
@@ -77,7 +79,7 @@ class TestUniversalJoin(dsp.DataSourceProducer):
                   max_conversion_delay=interval_to_timestamp("258"),
                   enable_negative_example_generator=False,
                   data_block_dump_interval=32,
-                  data_block_dump_threshold=128,
+                  data_block_dump_threshold=1024,
                   negative_sampling_rate=0.8,
                   join_expr="index or cid or (id_type, example_id, trunc(event_time,1))",
                   join_key_mapper="DEFAULT",
@@ -93,6 +95,7 @@ class TestUniversalJoin(dsp.DataSourceProducer):
             )
         self.run_join(sei)
 
+    #@unittest.skip('2121')
     def test_universal_join_attribution(self):
         self.example_joiner_options = dj_pb.ExampleJoinerOptions(
                   example_joiner='UNIVERSAL_JOINER',
@@ -101,7 +104,7 @@ class TestUniversalJoin(dsp.DataSourceProducer):
                   max_conversion_delay=interval_to_timestamp("258"),
                   enable_negative_example_generator=False,
                   data_block_dump_interval=32,
-                  data_block_dump_threshold=128,
+                  data_block_dump_threshold=1024,
                   negative_sampling_rate=0.8,
                   join_expr="(example_id, trunc(event_time, 1), lt(event_time))",
                   join_key_mapper="DEFAULT",
@@ -146,9 +149,60 @@ class KeyMapperMock(BaseKeyMapper):
                   max_conversion_delay=interval_to_timestamp("258"),
                   enable_negative_example_generator=True,
                   data_block_dump_interval=32,
-                  data_block_dump_threshold=128,
+                  data_block_dump_threshold=1024,
                   negative_sampling_rate=0.8,
-                  join_expr="(cid,req_id)",
+                  join_expr="(cid,req_id) or (example_id)",
+                  join_key_mapper="TEST_MAPPER",
+                  negative_sampling_filter_expr='',
+              )
+        self.version = dsp.Version.V2
+
+        sei = joiner_impl.create_example_joiner(
+                self.example_joiner_options,
+                self.raw_data_options,
+                #dj_pb.WriterOptions(output_writer='TF_RECORD'),
+                dj_pb.WriterOptions(output_writer='CSV_DICT'),
+                self.kvstore, self.data_source, 0
+            )
+        self.run_join(sei)
+
+        os.remove(fname)
+
+
+    #@unittest.skip('21211')
+    def test_universal_join_key_mapper_error(self):
+        mapper_code = """
+from fedlearner.data_join.key_mapper.key_mapping import BaseKeyMapper
+class KeyMapperMock(BaseKeyMapper):
+    def leader_mapping(self, item) -> dict:
+        res = item.click_id.decode().split("_")
+        raise ValueError
+        return dict({"req_id":res[0], "cid":res[1]})
+
+    def follower_mapping(self, item) -> dict:
+        return dict()
+
+    @classmethod
+    def name(cls):
+        return "TEST_MAPPER"
+"""
+        abspath = os.path.dirname(os.path.abspath(__file__))
+        fname = os.path.realpath(os.path.join(
+                abspath, "../../fedlearner/data_join/key_mapper/impl/keymapper_mock.py"))
+        with open(fname, "w") as f:
+            f.write(mapper_code)
+        reload(key_mapper)
+
+        self.example_joiner_options = dj_pb.ExampleJoinerOptions(
+                  example_joiner='UNIVERSAL_JOINER',
+                  min_matching_window=32,
+                  max_matching_window=51200,
+                  max_conversion_delay=interval_to_timestamp("258"),
+                  enable_negative_example_generator=True,
+                  data_block_dump_interval=32,
+                  data_block_dump_threshold=1024,
+                  negative_sampling_rate=0.8,
+                  join_expr="(cid,req_id) or (example_id)",
                   join_key_mapper="TEST_MAPPER",
                   negative_sampling_filter_expr='',
               )

@@ -14,7 +14,6 @@
 
 # coding: utf-8
 # pylint: disable=raise-missing-from
-
 import os
 
 from datetime import datetime
@@ -58,9 +57,12 @@ class DatasetsApi(Resource):
 
     def post(self):
         parser = reqparse.RequestParser()
-        parser.add_argument('name', required=True,
-                            type=str, help=_FORMAT_ERROR_MESSAGE.format('name'))
-        parser.add_argument('dataset_type', required=True,
+        parser.add_argument('name',
+                            required=True,
+                            type=str,
+                            help=_FORMAT_ERROR_MESSAGE.format('name'))
+        parser.add_argument('dataset_type',
+                            required=True,
                             type=DatasetType,
                             help=_FORMAT_ERROR_MESSAGE.format('dataset_type'))
         parser.add_argument('comment', type=str)
@@ -71,11 +73,10 @@ class DatasetsApi(Resource):
 
         try:
             # Create dataset
-            dataset = Dataset(
-                name=name,
-                dataset_type=dataset_type,
-                comment=comment,
-                path=_get_dataset_path(name))
+            dataset = Dataset(name=name,
+                              dataset_type=dataset_type,
+                              comment=comment,
+                              path=_get_dataset_path(name))
             db.session.add(dataset)
             # TODO: scan cronjob
             db.session.commit()
@@ -89,7 +90,9 @@ class BatchesApi(Resource):
     def post(self, dataset_id: int):
         parser = reqparse.RequestParser()
         parser.add_argument('event_time', type=int)
-        parser.add_argument('files', required=True, type=list,
+        parser.add_argument('files',
+                            required=True,
+                            type=list,
                             location='json',
                             help=_FORMAT_ERROR_MESSAGE.format('files'))
         parser.add_argument('move', type=bool)
@@ -109,19 +112,17 @@ class BatchesApi(Resource):
         # TODO: PSI dataset should not allow multi batches
 
         # Use current timestamp to fill when type is PSI
-        event_time = datetime.fromtimestamp(
-            event_time or datetime.now().timestamp())
+        event_time = datetime.fromtimestamp(event_time
+                                            or datetime.now().timestamp())
         batch_folder_name = event_time.strftime('%Y%m%d_%H%M%S')
         batch_path = f'{dataset.path}/batch/{batch_folder_name}'
         # Create batch
-        batch = DataBatch(
-            dataset_id=dataset.id,
-            event_time=event_time,
-            comment=comment,
-            state=BatchState.NEW,
-            move=move,
-            path=batch_path
-        )
+        batch = DataBatch(dataset_id=dataset.id,
+                          event_time=event_time,
+                          comment=comment,
+                          state=BatchState.NEW,
+                          move=move,
+                          path=batch_path)
         batch_details = dataset_pb2.DataBatch()
         for file_path in files:
             file = batch_details.files.add()
@@ -145,9 +146,8 @@ class FilesApi(Resource):
         if 'directory' in request.args:
             directory = request.args['directory']
         else:
-            directory = os.path.join(
-                current_app.config.get('STORAGE_ROOT'),
-                'upload')
+            directory = os.path.join(current_app.config.get('STORAGE_ROOT'),
+                                     'upload')
         files = self._file_manager.ls(directory, recursive=True)
         return {'data': [dict(file._asdict()) for file in files]}
 
