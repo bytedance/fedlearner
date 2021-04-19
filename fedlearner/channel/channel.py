@@ -21,8 +21,8 @@ import logging
 import threading
 import enum
 from concurrent import futures
-import grpc
 
+import grpc
 from fedlearner.channel import channel_pb2, channel_pb2_grpc
 from fedlearner.proxy.channel import make_insecure_channel, ChannelType
 from fedlearner.channel.client_interceptor import ClientInterceptor

@@ -505,19 +505,6 @@ class TestNNTraining(unittest.TestCase):
                     kwargs={'env' : child_env}, daemon=True)
             self.sche.submit(ftm)
 
-        # mimic the chaos monkey
-        # case 1: worker restarts itself 
-        #e = _Event("RunFollowerTW", _Signal.KILL, 10)
-        #self.sche.recv(e)
-
-        # case 1: as above
-        #e = _Event("RunFollowerTM", _Signal.KILL, 10)
-        #self.sche.recv(e)
-
-        # case 2: master fails, but worker is running, master must not alloc data  
-        #e = _Event("RunLeaderTM", _Signal.KILL, 35)
-        #self.sche.recv(e)
-
         """case 3: master fails, then force worker to restart,  cluster get recovered 
            netstat  -apn | grep "0.0.0.0:40" | awk -F" " '{print $7}' | awk -F "\/" '{print $1}' | xargs kill
            netstat  -apn | grep "0.0.0.0:30" | awk -F" " '{print $7}' | awk -F "\/" '{print $1}' | xargs kill

@@ -29,12 +29,14 @@ class _MethodDetail(
                           'response_deserializer'))):
     pass
 
+
 class _ClientCallDetails(
         collections.namedtuple('_ClientCallDetails',
                                ('method', 'timeout', 'metadata', 'credentials',
                                 'wait_for_ready', 'compression')),
         grpc.ClientCallDetails):
     pass
+
 
 class ClientInterceptor(grpc.UnaryUnaryClientInterceptor,
                          grpc.UnaryStreamClientInterceptor,
@@ -194,6 +196,7 @@ class ClientInterceptor(grpc.UnaryUnaryClientInterceptor,
 
         return response_iterator(init_stream_response)
 
+
 class _AckHelper():
     def __init__(self):
         self._consumer = None
@@ -203,6 +206,7 @@ class _AckHelper():
 
     def ack(self, ack):
         return self._consumer.ack(ack)
+
 
 class _SingleConsumerSendRequestQueue():
     class Consumer():
@@ -218,6 +222,8 @@ class _SingleConsumerSendRequestQueue():
         def __next__(self):
             return self._queue.next(self)
 
+        next = __next__
+
     def __init__(self, request_iterator, request_serializer):
         self._lock = threading.Lock()
         self._seq = 0
@@ -228,7 +234,6 @@ class _SingleConsumerSendRequestQueue():
         self._request_lock = threading.Lock()
         self._request_iterator = request_iterator
         self._request_serializer = request_serializer
-
 
     def _reset(self):
         self._offset = 0
@@ -301,6 +306,7 @@ class _SingleConsumerSendRequestQueue():
             self._consumer = _SingleConsumerSendRequestQueue.Consumer(self)
             return self._consumer
 
+
 def _grpc_with_retry(call, interval=1):
     while True:
         try:
@@ -342,6 +348,7 @@ def _grpc_error_get_http_status(details):
             "[Channel] grpc_error_get_http_status except: %s, details: %s",
             repr(e), details)
     return None
+
 
 class _UnaryOutcome(grpc.Call, grpc.Future):
 
@@ -403,5 +410,6 @@ class _UnaryOutcome(grpc.Call, grpc.Future):
         def callback(_):
             fn(self)
         self._call.add_done_callback(callback)
+
 
 # TODO _StreamOutcome():

@@ -18,11 +18,8 @@
 import logging
 import argparse
 import signal
-try:
-    import tensorflow.compat.v1 as tf
-except ImportError:
-    import tensorflow as tf
 
+import tensorflow.compat.v1 as tf
 from fedlearner.trainer.cluster_server import ClusterServer
 
 if __name__ == '__main__':

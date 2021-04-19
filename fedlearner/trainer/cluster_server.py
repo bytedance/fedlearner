@@ -16,10 +16,7 @@
 
 import logging
 
-try:
-    import tensorflow.compat.v1 as tf
-except ImportError:
-    import tensorflow as tf
+import tensorflow.compat.v1 as tf
 
 class ClusterServer():
     def __init__(self,

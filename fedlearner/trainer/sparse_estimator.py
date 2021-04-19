@@ -14,12 +14,7 @@
 # coding: utf-8
 # pylint: disable=protected-access
 
-try:
-    import tensorflow.compat.v1 as tf
-    from tensorflow.compat.v1.estimator import ModeKeys
-except ImportError:
-    import tensorflow as tf
-    from tensorflow.estimator import ModeKeys
+import tensorflow.compat.v1 as tf
 
 from tensorflow.contrib import graph_editor as ge
 
@@ -259,7 +254,7 @@ class SparseFLEstimator(estimator.FLEstimator):
 
     def _get_model_spec(self, features, labels, mode):
         features = features.copy()
-        if mode == ModeKeys.PREDICT:
+        if mode == tf.estimator.ModeKeys.PREDICT:
             fids = tf.IndexedSlices(
                 indices=features.pop('fids_indices'),
                 values=features.pop('fids_values'),

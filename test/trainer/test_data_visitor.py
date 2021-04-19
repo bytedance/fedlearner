@@ -14,16 +14,13 @@
 
 # coding: utf-8
 
-import logging
 import unittest
-import tensorflow.compat.v1 as tf
-
-import fedlearner.trainer.data_visitor as data_visitor
+from fedlearner.trainer.data_visitor import _DataVisitor, _RowDataBlock
 
 class TestLeaderDataVisitor(unittest.TestCase):
     def setUp(self):
         self._datablocks = [
-            data_visitor._RowDataBlock(
+            _RowDataBlock(
                 "id_"+str(i), "path/to/"+str(i)
             )
             for i in range(10)
@@ -31,7 +28,7 @@ class TestLeaderDataVisitor(unittest.TestCase):
 
     def test_next(self):
         epoch_num = 5
-        visitor = data_visitor._DataVisitor(
+        visitor = _DataVisitor(
             self._datablocks, epoch_num)
         try:
             i = 0
@@ -47,7 +44,7 @@ class TestLeaderDataVisitor(unittest.TestCase):
         
     def test_shuffle_next(self):
         epoch_num = 5
-        visitor = data_visitor._DataVisitor(
+        visitor = _DataVisitor(
             self._datablocks, epoch_num, shuffle=True)
         try:
             i = 0
@@ -72,7 +69,7 @@ class TestLeaderDataVisitor(unittest.TestCase):
         output = {}
         for i in range(epoch_num):
             output[i+1] = set()
-        visitor = data_visitor._DataVisitor(
+        visitor = _DataVisitor(
             self._datablocks, epoch_num, shuffle=True)
         for i in range(len(self._datablocks)*3 + 2):
             b = next(visitor)
@@ -81,7 +78,7 @@ class TestLeaderDataVisitor(unittest.TestCase):
         data = visitor._try_parse_v2(buff)
         print(data)
 
-        visitor2 = data_visitor._DataVisitor(
+        visitor2 = _DataVisitor(
             self._datablocks, epoch_num)
         visitor2.restore(buff)
         try:
@@ -94,3 +91,6 @@ class TestLeaderDataVisitor(unittest.TestCase):
         for i in range(epoch_num):
             for j, id in enumerate(sorted(output[i+1])):
                 assert self._datablocks[j].id == id
+
+if __name__ == '__main__':
+        unittest.main()

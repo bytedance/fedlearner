@@ -20,17 +20,13 @@ import argparse
 import json
 import threading
 
-try:
-    import tensorflow.compat.v1 as tf
-except ImportError:
-    import tensorflow as tf
-
+import tensorflow.compat.v1 as tf
 from fedlearner.common import metrics
 from fedlearner.trainer.bridge import Bridge
 from fedlearner.trainer.estimator import FLEstimator
 from fedlearner.trainer.sparse_estimator import SparseFLEstimator
 from fedlearner.trainer.trainer_master_client \
-    import LocalTrainerMaster, TrainerMasterClient
+    import LocalTrainerMasterClient, TrainerMasterClient
 from fedlearner.trainer.trainer_master \
     import LeaderTrainerMaster, FollowerTrainerMaster, ExportModelHook
 from fedlearner.trainer.data_visitor import DataPathVisitor, DataSourceVisitor
@@ -315,7 +311,7 @@ def _run_local(role,
     master_thread.start()
 
     # run worker
-    trainer_master = LocalTrainerMaster(local_master, 0)
+    trainer_master = LocalTrainerMasterClient(local_master, 0)
     if not trainer_master.worker_register():
         return
     bridge = Bridge(role,

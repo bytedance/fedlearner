@@ -18,10 +18,7 @@
 import logging
 import time
 
-try:
-    import tensorflow.compat.v1 as tf
-except ImportError:
-    import tensorflow as tf
+import tensorflow.compat.v1 as tf
 from tensorflow_estimator.python.estimator import model_fn as model_fn_lib
 
 

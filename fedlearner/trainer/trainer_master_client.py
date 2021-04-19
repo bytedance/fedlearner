@@ -25,10 +25,9 @@ from fedlearner.proxy.channel import make_insecure_channel, ChannelType
 from fedlearner.common import common_pb2 as common_pb
 
 
-class _TrainerMasterClient():
+class _TrainerMasterClient(object):
     def __init__(self, client, worker_rank):
         self._worker_rank = worker_rank
-
         self._client = client
 
     def request_data_block(self, block_id):
@@ -113,26 +112,31 @@ class TrainerMasterClient(_TrainerMasterClient):
         super(TrainerMasterClient, self).__init__(client, worker_rank)
 
 
-class LocalTrainerMaster(_TrainerMasterClient):
+class LocalTrainerMasterClient(_TrainerMasterClient):
     def __init__(self, local_master, worker_rank):
-        self._local_master = local_master
-        super(LocalTrainerMaster, self).__init__(self, worker_rank)
+        super(LocalTrainerMasterClient, self).__init__(
+            LocalTrainerMasterClient._LocalGrpcWrapper(local_master),
+            worker_rank)
 
-    def RequestDataBlock(self, request):
-        return self._local_master.RequestDataBlock(
-            request, _LocalServicerContext())
+    class _LocalGrpcWrapper(object):
+        def __init__(self, master):
+            self._master = master
 
-    def WorkerRegister(self, request):
-        return self._local_master.WorkerRegister(
-            request, _LocalServicerContext())
+        def RequestDataBlock(self, request):
+            return self._master.RequestDataBlock(
+                request, _LocalServicerContext())
 
-    def WorkerComplete(self, request):
-        return self._local_master.WorkerComplete(
-            request, _LocalServicerContext())
+        def WorkerRegister(self, request):
+            return self._master.WorkerRegister(
+                request, _LocalServicerContext())
 
-    def IsCompleted(self, request):
-        return self._local_master.IsCompleted(
-            request, _LocalServicerContext())
+        def WorkerComplete(self, request):
+            return self._master.WorkerComplete(
+                request, _LocalServicerContext())
+
+        def IsCompleted(self, request):
+            return self._master.IsCompleted(
+                request, _LocalServicerContext())
 
 
 class _LocalServicerContext(grpc.ServicerContext):

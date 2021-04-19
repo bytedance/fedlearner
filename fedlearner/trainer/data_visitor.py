@@ -16,16 +16,14 @@
 # pylint: disable=broad-except
 
 import os
-import gzip
+import zlib
 import json
 import logging
 import threading
 import collections
 import random
-try:
-    import tensorflow.compat.v1 as tf
-except ImportError:
-    import tensorflow as tf
+
+import tensorflow.compat.v1 as tf
 from fedlearner.data_join.data_block_visitor import DataBlockVisitor
 
 kvstore_type = os.environ.get('KVSTORE_TYPE', 'etcd')
@@ -44,7 +42,7 @@ class DataBlock(
     pass
 
 
-class _DataVisitor():
+class _DataVisitor(object):
     def __init__(self, datablocks, epoch_num=1, shuffle=False):
         self._datablocks = list(datablocks)
         self._datablock_dict = {}
@@ -85,7 +83,7 @@ class _DataVisitor():
             for epoch in self._allocated:
                 key = "epoch-" + str(epoch)
                 data["checkpoints"][key] = sorted(self._allocated[epoch])
-        return gzip.compress(json.dumps(data).encode())
+        return zlib.compress(json.dumps(data).encode())
 
     def restore(self, buff):
         data = self._try_parse_v2(buff)
@@ -118,7 +116,7 @@ class _DataVisitor():
 
     def _try_parse_v2(self, buff):
         try:
-            data = json.loads(gzip.decompress(buff))
+            data = json.loads(zlib.decompress(buff))
             assert "checkpoints" in data
             return data
         except Exception:
