@@ -327,7 +327,8 @@ def _grpc_with_retry(call, interval=1):
 
 def _grpc_error_need_recover(e):
     if e.code() in (grpc.StatusCode.UNAVAILABLE,
-                    grpc.StatusCode.INTERNAL):
+                    grpc.StatusCode.INTERNAL,
+                    grpc.StatusCode.UNIMPLEMENTED):
         return True
     if e.code() == grpc.StatusCode.UNKNOWN:
         httpstatus = _grpc_error_get_http_status(e.details())
