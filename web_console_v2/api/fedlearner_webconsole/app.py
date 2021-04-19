@@ -161,7 +161,7 @@ def create_app(config):
         scheduler.stop()
         scheduler.start(app)
 
-    if app.config.get('START_COMPOSER', False):
+    if app.config.get('START_COMPOSER', True):
         with app.app_context():
             composer.run(db_engine=db.get_engine())
 

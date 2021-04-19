@@ -41,9 +41,6 @@ class ComposerTest(BaseTestCase):
         START_SCHEDULER = False
         START_GRPC_SERVER = False
 
-    def setUp(self):
-        super().setUp()
-
     def test_normal_items(self):
         logging.info('+++++++++++++++++++++++++++ test normal items')
         cfg = ComposerConfig(runner_fn=self.runner_fn,
@@ -63,12 +60,11 @@ class ComposerTest(BaseTestCase):
         self.assertEqual(1, len(db.session.query(SchedulerRunner).all()),
                          'incorrect runners')
         self.assertEqual(RunnerStatus.DONE.value,
-                         db.session.query(SchedulerRunner).first().status,
+                         composer.get_recent_runners(name)[-1].status,
                          'should finish runner')
         # finish item
         composer.finish(name)
-        self.assertEqual(ItemStatus.OFF.value,
-                         db.session.query(SchedulerItem).first().status,
+        self.assertEqual(ItemStatus.OFF, composer.get_item_status(name),
                          'should finish item')
         composer.stop()
 
@@ -79,14 +75,15 @@ class ComposerTest(BaseTestCase):
         composer = Composer(config=cfg)
         composer.run(db_engine=db.engine)
         failed_items = [Task(4), Task(5), Task(6)]
-        composer.collect('failed items', failed_items, {})
+        name = 'failed items'
+        composer.collect(name, failed_items, {})
         self.assertEqual(1, len(db.session.query(SchedulerItem).all()),
                          'incorrect failed items')
         time.sleep(30)
         self.assertEqual(1, len(db.session.query(SchedulerRunner).all()),
                          'incorrect runners')
         self.assertEqual(RunnerStatus.FAILED.value,
-                         db.session.query(SchedulerRunner).first().status,
+                         composer.get_recent_runners(name)[-1].status,
                          'should finish it')
         composer.stop()
 
@@ -98,14 +95,15 @@ class ComposerTest(BaseTestCase):
         composer = Composer(config=cfg)
         composer.run(db_engine=db.engine)
         busy_items = [Task(7), Task(8), Task(9)]
-        composer.collect('busy items', busy_items, {})
+        name = 'busy items'
+        composer.collect(name, busy_items, {})
         self.assertEqual(1, len(db.session.query(SchedulerItem).all()),
                          'incorrect busy items')
         time.sleep(20)
         self.assertEqual(1, len(db.session.query(SchedulerRunner).all()),
                          'incorrect runners')
         self.assertEqual(RunnerStatus.RUNNING.value,
-                         db.session.query(SchedulerRunner).first().status,
+                         composer.get_recent_runners(name)[-1].status,
                          'should finish it')
         composer.stop()
         time.sleep(5)
@@ -131,11 +129,10 @@ class ComposerTest(BaseTestCase):
         self.assertEqual(2, len(db.session.query(SchedulerRunner).all()),
                          'incorrect runners')
         self.assertEqual(RunnerStatus.DONE.value,
-                         db.session.query(SchedulerRunner).first().status,
+                         composer.get_recent_runners(name)[-1].status,
                          'should finish runner')
         composer.finish(name)
-        self.assertEqual(ItemStatus.OFF.value,
-                         db.session.query(SchedulerItem).first().status,
+        self.assertEqual(ItemStatus.OFF, composer.get_item_status(name),
                          'should finish item')
         composer.stop()
 
