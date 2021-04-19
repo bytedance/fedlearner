@@ -1,7 +1,7 @@
 # Default values for elasticsearch.
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
-appVersion: "6.8.2"
+appVersion: "7.7.1"
 
 ## Define serviceAccount names for components. Defaults to component's fully qualified name.
 ##
@@ -41,8 +41,8 @@ securityContext:
 # schedulerName: "default-scheduler"
 
 image:
-  repository: "registry.cn-beijing.aliyuncs.com/fedlearner/elasticsearch-oss"
-  tag: "6.8.2"
+  repository: "registry.cn-beijing.aliyuncs.com/fedlearner/elasticsearch"
+  tag: "7.7.1"
   pullPolicy: "IfNotPresent"
   # If specified, use these secrets to access the image
   # pullSecrets:

@@ -1,6 +1,6 @@
 image:
-  repository: "registry.cn-beijing.aliyuncs.com/fedlearner/kibana-oss"
-  tag: "6.7.0"
+  repository: "registry.cn-beijing.aliyuncs.com/fedlearner/kibana"
+  tag: "7.7.1"
   pullPolicy: "IfNotPresent"
 
 testFramework:
