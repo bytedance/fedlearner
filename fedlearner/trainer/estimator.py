@@ -35,7 +35,6 @@ from fedlearner.trainer import patch  # pylint: disable=unused-import
 SYNC_PATH = '/sync/'
 DATA_CHECKPOINT_INIT_VALUE = "_init_value"
 
-
 class _BridgeRunHook(tf.train.SessionRunHook):
     def __init__(self, bridge):
         self._bridge = bridge
@@ -251,6 +250,31 @@ class FLEstimator(object):
         return self._trainer_master.restore_data_block_checkpoint(
             self._application_id, block_ids)
 
+    def _init_tf_once(self):
+        if hasattr(self, '_tf_config'):
+            return
+        self._tf_config = tf.ConfigProto()
+        self._tf_config.inter_op_parallelism_threads = 128
+        self._tf_config.intra_op_parallelism_threads = 128
+        self._tf_config.experimental \
+            .share_session_state_in_clusterspec_propagation = True
+        self._tf_config.rpc_options.disable_session_connection_sharing = True
+        self._tf_config.rpc_options.compression_algorithm = 'gzip'
+        self._tf_config.rpc_options.cache_rpc_response = True
+        self._tf_server = None
+        self._tf_target = None
+
+        if self._cluster_spec is not None:
+            local_address = self._cluster_spec.job_tasks('worker')[
+                self._worker_rank]
+            self._tf_server = tf.train.Server(tf.train.ClusterSpec(
+                {'local': {self._worker_rank: local_address}}),
+                config=self._tf_config)
+            self._tf_config.cluster_def.CopyFrom(
+                self._cluster_spec.as_cluster_def())
+            self._tf_target = "grpc://" + local_address
+
+
     def train(self,
               input_fn,
               checkpoint_path=None,
@@ -258,84 +282,69 @@ class FLEstimator(object):
               save_checkpoint_steps=None,
               save_checkpoint_secs=None):
 
-        config = tf.ConfigProto()
-        config.inter_op_parallelism_threads = 128
-        config.inter_op_parallelism_threads = 128
-        config.experimental.share_session_state_in_clusterspec_propagation \
-            = True
+        self._init_tf_once()
 
-        if self._cluster_spec is not None:
+        with tf.Graph().as_default() as g:
             device_fn = tf.train.replica_device_setter(
                 worker_device="/job:worker/task:%d" % self._worker_rank,
                 merge_devices=True,
                 cluster=self._cluster_spec)
-            config.rpc_options.compression_algorithm = 'gzip'
-            config.rpc_options.cache_rpc_response = True
-            local_address = self._cluster_spec.job_tasks('worker')[
-                self._worker_rank]
-            server = tf.train.Server(tf.train.ClusterSpec(
-                {'local': {
-                    0: local_address
-                }}),
-                job_name='local',
-                task_index=0,
-                config=config)
-            config.cluster_def.CopyFrom(self._cluster_spec.as_cluster_def())
-            target = "grpc://" + local_address
-        else:
-            device_fn = None
-            target = None
-
-        with tf.Graph().as_default() as g:
             with tf.device(device_fn):
                 features, labels = self._get_features_and_labels_from_input_fn(
                     input_fn, ModeKeys.TRAIN)
                 spec, _ = self._get_model_spec(features, labels, ModeKeys.TRAIN)
 
-            # Explicitly add a Saver
-            if not tf.get_collection(tf.GraphKeys.SAVERS):
-                saver = tf.train.Saver(
-                    sharded=True,
-                    defer_build=True,
-                    save_relative_paths=True)  # Must set for portability
-                tf.add_to_collection(tf.GraphKeys.SAVERS, saver)
+                # Explicitly add a Saver
+                if not tf.get_collection(tf.GraphKeys.SAVERS):
+                    saver = tf.train.Saver(
+                        sharded=True,
+                        defer_build=True,
+                        save_relative_paths=True)  # Must set for portability
+                    tf.add_to_collection(tf.GraphKeys.SAVERS, saver)
 
-            all_hooks = []
-            if spec.training_hooks:
-                all_hooks.extend(spec.training_hooks)
-            all_hooks.append(_BridgeRunHook(self._bridge))
+                all_hooks = []
+                if spec.training_hooks:
+                    all_hooks.extend(spec.training_hooks)
+                all_hooks.append(_BridgeRunHook(self._bridge))
 
-            if self._worker_rank == 0: # chief
-                listener = DataCheckpointSaverListener(
-                    self._trainer_master, self._application_id)
-                saver_hook = tf.estimator.CheckpointSaverHook(
-                    checkpoint_path, save_secs=save_checkpoint_secs,
-                    save_steps=save_checkpoint_steps, listeners=[listener])
-                session_creator = tf.train.ChiefSessionCreator(
-                    master=target, config=config,
-                    checkpoint_filename_with_path= \
-                        load_checkpoint_filename_with_path)
-                sess = tf.train.MonitoredSession(
-                    session_creator=session_creator,
-                    hooks=all_hooks + [saver_hook])
-                data_checkpoint_value = None
-                if hasattr(saver_hook, "data_checkpoint"):
-                    data_checkpoint_value = saver_hook.data_checkpoint
-                if not self._restore_datablock(data_checkpoint_value):
-                    raise ValueError("Restore data checkpoint error")
-            else: # no chief
-                session_creator = tf.train.WorkerSessionCreator(
-                        master=target, config=config)
-                sess = tf.train.MonitoredSession(
-                    session_creator=session_creator,
-                    hooks=all_hooks)
+                if self._worker_rank == 0: # chief
+                    listener = DataCheckpointSaverListener(
+                        self._trainer_master, self._application_id)
+                    if checkpoint_path and \
+                        (save_checkpoint_secs or save_checkpoint_steps):
+                        saver_hook = tf.estimator.CheckpointSaverHook(
+                            checkpoint_path, save_secs=save_checkpoint_secs,
+                            save_steps=save_checkpoint_steps,
+                            listeners=[listener])
+                        all_hooks.append(saver_hook)
+                    else:
+                        saver_hook = None
+                    session_creator = tf.train.ChiefSessionCreator(
+                        master=self._tf_target, config=self._tf_config,
+                        checkpoint_filename_with_path= \
+                            load_checkpoint_filename_with_path)
+                    sess = tf.train.MonitoredSession(
+                        session_creator=session_creator,
+                        hooks=all_hooks)
+                    data_checkpoint_value = None
+                    if saver_hook and hasattr(saver_hook, "data_checkpoint"):
+                        data_checkpoint_value = saver_hook.data_checkpoint
+                    if not self._restore_datablock(data_checkpoint_value):
+                        raise ValueError("Restore data checkpoint error")
+                else: # no chief
+                    session_creator = tf.train.WorkerSessionCreator(
+                        master=self._tf_target, config=self._tf_config)
+                    sess = tf.train.MonitoredSession(
+                        session_creator=session_creator,
+                        hooks=all_hooks)
 
-            with sess:
-                while not sess.should_stop():
-                    start_time = time.time()
-                    sess.run(spec.train_op, feed_dict={})
-                    use_time = time.time() - start_time
-                    logging.debug("after session run. time: %f sec", use_time)
+                with sess:
+                    while not sess.should_stop():
+                        start_time = time.time()
+                        sess.run(spec.train_op, feed_dict={})
+                        use_time = time.time() - start_time
+                        logging.debug("after session run. time: %f sec",
+                            use_time)
 
         return self
 
@@ -405,20 +414,27 @@ class FLEstimator(object):
                            export_dir_base,
                            serving_input_receiver_fn,
                            checkpoint_path=None):
+        self._init_tf_once()
         with tf.Graph().as_default():
-            receiver = serving_input_receiver_fn()
-            spec, model = self._get_model_spec(receiver.features, None,
-                                               ModeKeys.PREDICT)
-            assert not model.sends, "Exported model cannot send"
-            assert not model.recvs, "Exported model cannot receive"
+            device_fn = tf.train.replica_device_setter(
+                worker_device="/job:worker/task:%d" % self._worker_rank,
+                merge_devices=True,
+                cluster=self._cluster_spec)
+            with tf.device(device_fn):
+                receiver = serving_input_receiver_fn()
+                spec, model = self._get_model_spec(
+                    receiver.features, None, ModeKeys.PREDICT)
+                assert not model.sends, "Exported model cannot send"
+                assert not model.recvs, "Exported model cannot receive"
 
-            with tf.Session() as sess:
-                saver_for_restore = tf.train.Saver(sharded=True)
-                saver_for_restore.restore(
-                    sess, tf.train.latest_checkpoint(checkpoint_path))
-                tf.saved_model.simple_save(sess, export_dir_base,
-                                           receiver.receiver_tensors,
-                                           spec.predictions, None)
+                with tf.Session(target=self._tf_target,
+                                config=self._tf_config) as sess:
+                    saver = tf.train.Saver(sharded=True)
+                    saver.restore(sess,
+                        tf.train.latest_checkpoint(checkpoint_path))
+                    tf.saved_model.simple_save(sess, export_dir_base,
+                                               receiver.receiver_tensors,
+                                               spec.predictions, None)
 
         return export_dir_base
 
