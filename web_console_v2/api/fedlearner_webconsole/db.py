@@ -24,7 +24,10 @@ from google.protobuf.json_format import MessageToDict
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import sessionmaker
 
-db = SQLAlchemy()
+# Explicitly set autocommit and autoflush
+# Disables autocommit to make developers to commit manually
+# Enables autoflush to make changes visible in the same session
+db = SQLAlchemy(session_options={'autocommit': False, 'autoflush': True})
 
 
 def to_dict_mixin(ignores: List[str] = None,

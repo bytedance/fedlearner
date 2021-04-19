@@ -19,7 +19,7 @@ import logging
 import time
 import threading
 import traceback
-from typing import List
+from typing import List, Optional
 
 from sqlalchemy import func
 from sqlalchemy.engine import Engine
@@ -171,6 +171,38 @@ class Composer(object):
                 logging.error(f'[composer] failed to finish scheduler_item, '
                               f'name: {name}, exception: {e}')
                 session.rollback()
+
+    def get_item_status(self, name: str) -> Optional[ItemStatus]:
+        """Get item status
+
+        Args:
+            name: item name
+        """
+        with get_session(self.db_engine) as session:
+            existed = session.query(SchedulerItem).filter(
+                SchedulerItem.name == name).first()
+            if not existed:
+                return None
+            return ItemStatus(existed.status)
+
+    def get_recent_runners(self,
+                           name: str,
+                           count: int = 10) -> List[SchedulerRunner]:
+        """Get recent runners order by created_at in desc
+
+        Args:
+            name: item name
+            count: the number of runners
+        """
+        with get_session(self.db_engine) as session:
+            runners = session.query(SchedulerRunner).join(
+                SchedulerItem,
+                SchedulerItem.id == SchedulerRunner.item_id).filter(
+                    SchedulerItem.name == name).order_by(
+                        SchedulerRunner.created_at.desc()).limit(count)
+            if not runners:
+                return []
+            return runners
 
     def _check_items(self):
         with get_session(self.db_engine) as session:

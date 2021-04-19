@@ -61,9 +61,12 @@ def retry_fn(retry_times: int = 3, needed_exceptions=None):
                 try:
                     return f(*args, **kwargs)
                 except tuple(needed_exceptions):
+                    logging.error('Call function failed, retrying %s times...',
+                                  i + 1)
+                    logging.error('Exceptions:\n%s', format_exc())
                     logging.error(
-                        'Call function failed, retrying...\nExceptions %s',
-                        format_exc())
+                        'function name is %s, args are %s, kwargs are %s',
+                        f.__name__, repr(args), repr(kwargs))
                     if i == retry_times - 1:
                         raise
                     continue

@@ -14,7 +14,7 @@
 
 # coding: utf-8
 # pylint: disable=broad-except
-
+import json
 import logging
 import enum
 from datetime import datetime
@@ -101,7 +101,9 @@ def _merge_variables(base, new, access_mode):
     new_dict = {i.name: i.value for i in new}
     for var in base:
         if var.access_mode in access_mode and var.name in new_dict:
-            var.value = new_dict[var.name]
+            # use json.dumps to escape " in peer's input, a"b ----> "a\"b"
+            # and use [1:-1] to remove ", "a\"b" ----> a\"b
+            var.value = json.dumps(new_dict[var.name])[1:-1]
 
 
 def _merge_workflow_config(base, new, access_mode):
