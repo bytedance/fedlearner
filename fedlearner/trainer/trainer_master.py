@@ -316,9 +316,6 @@ class _TrainerMaster(tm_grpc.TrainerMasterServiceServicer):
             )
 
             hooks = self._session_hooks
-            # user define chief hook
-            if spec.training_chief_hooks:
-                hooks.extend(spec.training_chief_hooks)
 
             # saver hook
             if self._checkpoint_path and \

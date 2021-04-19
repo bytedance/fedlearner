@@ -195,9 +195,10 @@ class SparseFLEstimator(estimator.FLEstimator):
                  trainer_master,
                  bridge,
                  role,
-                 model_fn):
+                 model_fn,
+                 is_chief=False):
         super(SparseFLEstimator, self).__init__(
-            cluster_server, trainer_master, bridge, role, model_fn)
+            cluster_server, trainer_master, bridge, role, model_fn, is_chief)
 
         self._bias_slot_configs = None
         self._vec_slot_configs = None

@@ -260,7 +260,8 @@ def _run_worker(role, args, input_fn, model_fn):
                                   trainer_master,
                                   bridge,
                                   role,
-                                  model_fn)
+                                  model_fn,
+                                  is_chief=args.worker_rank == 0)
 
     if mode == 'train':
         estimator.train(input_fn)

@@ -170,12 +170,14 @@ class FLEstimator(object):
                  trainer_master,
                  bridge,
                  role,
-                 model_fn):
+                 model_fn,
+                 is_chief=False):
         self._cluster_server = cluster_server
         self._bridge = bridge
         self._role = role
         self._model_fn = model_fn
         self._trainer_master = trainer_master
+        self._is_chief = is_chief
 
     def _get_features_and_labels_from_input_fn(self, input_fn, mode):
         dataset = input_fn(self._bridge, self._trainer_master)
@@ -200,6 +202,10 @@ class FLEstimator(object):
                 features, labels, tf.estimator.ModeKeys.TRAIN)
 
             hooks = []
+            # user define chief hook
+            if spec.training_chief_hooks and self._is_chief:
+                hooks.extend(spec.training_chief_hooks)
+
             if spec.training_hooks:
                 hooks.extend(spec.training_hooks)
             hooks.append(_BridgeRunHook(self._bridge))

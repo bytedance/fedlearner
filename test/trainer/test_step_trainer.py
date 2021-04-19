@@ -243,7 +243,6 @@ class TestStepTrain(unittest.TestCase):
             "--data-path", self._current_dir, # noused
             "--ps-addrs", ",".join([
                 leader_ps1.address, leader_ps2.address, leader_ps3.address]),
-            "--tf-addr", _get_free_tcp_address(),
             "--verbosity", "1",
             )
         if leader_checkpoint_path:
@@ -269,7 +268,6 @@ class TestStepTrain(unittest.TestCase):
             "--data-path", self._current_dir, # noused
             "--ps-addrs", ",".join([
                 follower_ps1.address, follower_ps2.address]),
-            "--tf-addr", _get_free_tcp_address(),
             "--verbosity", "1",
             )
         if follower_checkpoint_path:
