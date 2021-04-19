@@ -27,6 +27,10 @@ data:
     network.host: 0.0.0.0
 {{- end }}
 
+    cluster.initial_master_nodes:
+      - fedlearner-stack-elasticsearch-master-0
+      - fedlearner-stack-elasticsearch-master-1
+
 {{- if hasPrefix "2." .Values.appVersion }}
     # see https://github.com/kubernetes/kubernetes/issues/3595
     bootstrap.mlockall: ${BOOTSTRAP_MLOCKALL:false}

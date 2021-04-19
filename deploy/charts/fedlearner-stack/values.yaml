@@ -18,23 +18,16 @@ nfs-client-provisioner:
     tag: v3.1.0-k8s1.11
     pullPolicy: IfNotPresent
 
-mariadb:
+mysql:
   enabled: true
-  master:
-    persistence:
-      storageClass: nfs
-  slave:
-    persistence:
-      storageClass: nfs
-  rootUser:
+  persistence:
+    storageClass: nfs
+  root:
     password: fedlearner
   db:
     user: fedlearner
     password: fedlearner
     name: fedlearner
-  replication:
-    user: fedlearner
-    password: fedlearner
 
 elastic-stack:
   enabled: true
