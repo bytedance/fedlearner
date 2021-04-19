@@ -50,7 +50,7 @@ else:
     raise ValueError("fid_version should be 1 or 2")
 
 N = 10
-chunk_size = 10000
+chunk_size = 1000
 
 def _make_fid(slot_id, hash_value):
     return int(np.int64(np.uint64((hash_value & ((1 << FEATURE_BITS) - 1)) | \
