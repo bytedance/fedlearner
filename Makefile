@@ -36,11 +36,13 @@ test/%.phony: test/%.py
 
 unit-test: $(UNIT_TESTS)
 
-test: unit-test
+integration-test:
+	bash integration_tests.sh
+
+test: unit-test integration-test
 
 docker-build:
 	docker build . -t ${IMG}
 
 docker-push: 
 	docker push ${IMG}
-
