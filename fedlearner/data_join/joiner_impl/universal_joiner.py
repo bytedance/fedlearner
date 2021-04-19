@@ -111,7 +111,7 @@ class _JoinerImpl(object):
     def __init__(self, exp):
         self._expr = exp
 
-    def join(self, follower_window, leader_window):
+    def join(self, follower_window, leader_window, delay):
         """
         Assume leader stream is exponentially larger than follower stream,
         we cache the all the events from now back to watermark. example id
@@ -147,7 +147,11 @@ class _JoinerImpl(object):
                     #2. select all the matching items from the specific key
                     # in follower side.
                     if self._expr.run_func(key_idx)(leader, follower):
-                        leader_matches.append((cd[i], idx))
+                        ## delay range check
+                        time_df = fcc.time_diff(leader.event_time,
+                                                follower.event_time)
+                        if abs(time_df) <= delay:
+                            leader_matches.append((cd[i], idx))
                 found = True
                 break
             if not found:
@@ -405,7 +409,9 @@ class UniversalJoiner(ExampleJoiner):
                 self._prepare_join(state_stale)
         join_data_finished = False
 
-        while self._fill_leader_join_window(sync_example_id_finished):
+        while True:
+            fill_leader_enough = self._fill_leader_join_window(
+                sync_example_id_finished)
             leader_exhausted = sync_example_id_finished and                    \
                     not self._leader_join_window.is_full()
             follower_exhausted = False
@@ -424,7 +430,8 @@ class UniversalJoiner(ExampleJoiner):
                              self._follower_join_window.size())
                 #1. find all the matched pairs in current window
                 raw_pairs, mismatches = self._joiner.join(
-                    self._follower_join_window, self._leader_join_window)
+                    self._follower_join_window, self._leader_join_window,
+                    self._max_watermark_delay)
                 if self._enable_negative_example_generator:
                     self._negative_example_generator.update(mismatches)
                 stride = self._trigger.trigger(self._follower_join_window,
@@ -471,7 +478,7 @@ class UniversalJoiner(ExampleJoiner):
                 join_data_finished = True
                 break
 
-            if self._leader_join_window.is_full():
+            if self._leader_join_window.is_full() or not fill_leader_enough:
                 break
 
         if self._get_data_block_builder(False) is not None and \
@@ -508,6 +515,7 @@ class UniversalJoiner(ExampleJoiner):
 
             if abs(fcc.time_diff(fe.event_time, le.event_time)) > \
                self._max_watermark_delay:
+                ### unreachable branch
                 logging.info('Pair %s:%s out-of-delay, leader et %d, '
                              'follower et %d', le.example_id, fe.example_id,
                              le.event_time, fe.event_time)
