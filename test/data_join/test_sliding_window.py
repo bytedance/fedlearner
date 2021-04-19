@@ -91,7 +91,7 @@ class TestSlidingWindow(unittest.TestCase):
         acc = aj._JoinerImpl(Expr("(example_id, lt(event_time))"))
         conv_window, conv_skips, _ = self.make_sliding_window(conv_size, conv_steps, 10, 1)
         show_window, show_skips, _ = self.make_sliding_window(conv_size, conv_steps, 1, 2)
-        res, _ = acc.join(conv_window, show_window)
+        res, _ = acc.join(conv_window, show_window, watermark)
         self.assertEqual(conv_size * conv_steps - conv_skips, len(res))
 
 
@@ -102,7 +102,7 @@ class TestSlidingWindow(unittest.TestCase):
         acc = aj._JoinerImpl(Expr("(example_id, lt(event_time))"))
         conv_window, conv_skips, repeated = self.make_sliding_window(conv_size, conv_steps, 10, 1, True)
         show_window, show_skips, _ = self.make_sliding_window(conv_size, conv_steps, 1, 2)
-        res, _ = acc.join(conv_window, show_window)
+        res, _ = acc.join(conv_window, show_window, watermark)
         self.assertEqual(conv_size * conv_steps - conv_skips + repeated, len(res))
 
     def test_interval_to_timestamp(self):
