@@ -68,9 +68,12 @@ class Dataset(db.Model):
                            onupdate=func.now(),
                            comment='updated time')
     deleted_at = db.Column(db.DateTime(timezone=True), comment='deleted time')
+    project_id = db.Column(db.Integer, default=0, comment='project_id')
 
     data_batches = db.relationship(
         'DataBatch', primaryjoin='foreign(DataBatch.dataset_id) == Dataset.id')
+    project = db.relationship(
+        'Project', primaryjoin='foreign(Dataset.project_id) == Project.id')
 
 
 @to_dict_mixin(extras={'details': (lambda batch: batch.get_details())})

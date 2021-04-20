@@ -18,6 +18,7 @@ import BatchImportRecordsModal from './BatchImportRecordsModal';
 import { useToggle } from 'react-use';
 import AddBatchModal from './AddBatchModal';
 import { copyToClipboard } from 'shared/helpers';
+import WhichProject from 'components/WhichProject';
 
 const ListContainer = styled.div`
   display: flex;
@@ -76,14 +77,13 @@ export const getDatasetTableColumns = (options: ColumnsGetterOptions) => {
         return <span>{getTotalDataSize(record).toLocaleString('en')} KB</span>;
       },
     },
-    // TODO:Uncomment after we support multiple user
-    // {
-    //   title: i18n.t('creator'),
-    //   dataIndex: 'creator',
-    //   name: 'creator',
-    //   width: 130,
-    //   render: (_: string) => <Username />,
-    // },
+    {
+      title: i18n.t('workflow.col_project'),
+      dataIndex: 'project_id',
+      name: 'project_id',
+      width: 150,
+      render: (project_id: number) => <WhichProject id={project_id} />,
+    },
     {
       title: i18n.t('created_at'),
       dataIndex: 'created_at',

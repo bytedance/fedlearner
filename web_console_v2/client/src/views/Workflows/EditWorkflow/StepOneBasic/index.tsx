@@ -150,7 +150,7 @@ const WorkflowsCreateStepOne: FC<{ onSuccess?: any }> = ({ onSuccess }) => {
               </Select>
             </Form.Item>
 
-            <Form.Item name="_keepUsingOriginalTempalte" label={t('workflow.label_template')}>
+            <Form.Item name="_keepUsingOriginalTemplate" label={t('workflow.label_template')}>
               <Radio.Group>
                 <Radio.Button value={true}>{t('workflow.label_use_original_tpl')}</Radio.Button>
                 <Radio.Button value={false}>{t('workflow.label_choose_new_tpl')}</Radio.Button>

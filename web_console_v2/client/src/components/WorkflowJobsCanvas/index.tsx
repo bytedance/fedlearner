@@ -7,8 +7,15 @@ import React, {
   useCallback,
 } from 'react';
 import * as WorkflowJobNodes from './JobNodes';
-import { ChartNodeType, JobNode, ChartNodeStatus, ChartNodes, ChartElements } from './types';
-import { convertToChartElements } from './helpers';
+import {
+  ChartNodeType,
+  JobNode,
+  ChartNodeStatus,
+  ChartNodes,
+  ChartElements,
+  JobNodeRawData,
+} from './types';
+import { convertExecutionStateToStatus, convertToChartElements, RawDataCol } from './helpers';
 import ReactFlow, {
   Background,
   BackgroundVariant,
@@ -104,7 +111,14 @@ const WorkflowJobsCanvas: ForwardRefRenderFunction<ChartExposedRef | undefined, 
         variables: workflowConfig.variables || [],
         data: {
           side,
-          status: nodeInitialStatus,
+          status({ raw }: RawDataCol) {
+            if (nodeType === 'execution') {
+              /** If it's execution detail page, show job state always */
+              return convertExecutionStateToStatus((raw as JobNodeRawData).state);
+            }
+
+            return nodeInitialStatus;
+          },
         },
       },
       { type: nodeType, selectable },

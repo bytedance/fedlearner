@@ -10,7 +10,7 @@ const WhichProject: FC<{ id?: number | number; loading?: boolean }> = ({ id, loa
     return <Spin size="small" />;
   }
 
-  const project = data?.find((pj) => pj.id === Number(id)) || { name: 'none' };
+  const project = data?.find((pj) => pj.id === Number(id)) || { name: '-' };
 
   return <span>{project.name}</span>;
 };
