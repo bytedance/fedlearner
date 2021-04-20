@@ -298,13 +298,19 @@ class FLEstimator(object):
         logging.info("restore: %s", blk_infos_str)
         blocks = []
         if blk_infos_str != DATA_CHECKPOINT_INIT_VALUE:
-            blk_strs = blk_infos_str.split(CHECKPOINT_SOURCES_SPLITTER)
-            for blk_str in blk_strs:
-                tokens = blk_str.split(CHECKPOINT_SOURCE_BLK_SPLITTER)
+            if CHECKPOINT_SOURCE_BLK_SPLITTER not in blk_infos_str:
                 info = tm_pb.DataSourceInfo()
-                info.data_source_name = tokens[0]
-                info.block_ids.extend(tokens[1].split(','))
+                info.data_source_name = ""
+                info.block_ids.extend(blk_infos_str.split(','))
                 blocks.append(info)
+            else:
+                blk_strs = blk_infos_str.split(CHECKPOINT_SOURCES_SPLITTER)
+                for blk_str in blk_strs:
+                    tokens = blk_str.split(CHECKPOINT_SOURCE_BLK_SPLITTER)
+                    info = tm_pb.DataSourceInfo()
+                    info.data_source_name = tokens[0]
+                    info.block_ids.extend(tokens[1].split(','))
+                    blocks.append(info)
         return self._trainer_master.restore_data_block_checkpoint(
             self._application_id, blocks)
 
