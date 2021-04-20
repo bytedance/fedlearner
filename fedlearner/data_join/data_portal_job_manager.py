@@ -394,7 +394,8 @@ class DataPortalJobManager(object):
                 'in this iteration', rest_folder)
         else:
             rest_fpaths = []
-            if self._files_per_job_limit == 0 and \
+            if (self._files_per_job_limit <= 0 or
+                self._files_per_job_limit > self._max_files_per_job) and \
                 sum([len(v) for _, v in by_folder.items()]) > \
                     self._max_files_per_job:
                 logging.info("Number of files exceeds limit, processing "
