@@ -38,6 +38,7 @@ def _get_job(job_id):
         raise NotFoundException()
     return result
 
+
 class JobApi(Resource):
     def get(self, job_id):
         job = _get_job(job_id)
@@ -53,8 +54,8 @@ class PodLogApi(Resource):
                             required=False,
                             help='start_time must be timestamp')
         parser.add_argument('max_lines', type=int, location='args',
-                    required=True,
-                    help='max_lines is required')
+                            required=True,
+                            help='max_lines is required')
         data = parser.parse_args()
         start_time = data['start_time']
         max_lines = data['max_lines']
@@ -144,8 +145,7 @@ class JobEventApi(Resource):
                                         start_time,
                                         int(time.time() * 1000
                                             ),
-                                        json.loads(
-                                            Envs.OPERATOR_LOG_MATCH_PHRASE)
+                                        Envs.OPERATOR_LOG_MATCH_PHRASE
                                         )[:max_lines][::-1]}
 
 

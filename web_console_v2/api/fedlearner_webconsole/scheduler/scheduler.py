@@ -93,6 +93,10 @@ class Scheduler(object):
         while True:
             with self._condition:
                 notified = self._condition.wait(interval)
+
+                # TODO(wangsen): use Sqlalchemy insdtead of flask-Sqlalchemy
+                # refresh a new session to catch the update of db
+                db.session.remove()
                 if self._terminate:
                     return
                 if notified:

@@ -52,6 +52,7 @@ const dataBatchFailed: DataBatch = {
 
 export const unfinishedImporting: Dataset = {
   id: 1,
+  project_id: 1,
   name: 'Mocked Dataset with a looooooooooog name',
   dataset_type: DatasetType.STREAMING,
   comment: 'comment here',
@@ -62,6 +63,7 @@ export const unfinishedImporting: Dataset = {
 
 export const importFailed: Dataset = {
   id: 2,
+  project_id: 2,
   name: 'Failed one',
   dataset_type: DatasetType.PSI,
   ...sharedTimes,
@@ -71,6 +73,7 @@ export const importFailed: Dataset = {
 
 export const successfullyImport: Dataset = {
   id: 3,
+  project_id: 1,
   name: 'Import succeeded',
   dataset_type: DatasetType.PSI,
   ...sharedTimes,

@@ -19,6 +19,7 @@ import logging
 import time
 import threading
 import traceback
+from datetime import datetime
 from typing import List, Optional
 
 from sqlalchemy import func
@@ -73,6 +74,9 @@ class PipelineEncoder(json.JSONEncoder):
 
 
 class Composer(object):
+    # attributes that you can patch
+    MUTABLE_ITEM_KEY = ['interval_time', 'retry_cnt']
+
     def __init__(self, config: ComposerConfig):
         """Composer
 
@@ -102,6 +106,7 @@ class Composer(object):
                     self.thread_reaper.stop(True)
                     return
             try:
+                logging.info(f'[composer] checking at {datetime.now()}')
                 self._check_items()
                 self._check_init_runners()
                 self._check_running_runners()
@@ -184,6 +189,34 @@ class Composer(object):
             if not existed:
                 return None
             return ItemStatus(existed.status)
+
+    def patch_item_attr(self, name: str, key: str, value: str):
+        """ patch item args
+
+        Args:
+            name (str): name of this item
+            key (str): key you want to update
+            value (str): value you wnat to set
+
+        Returns:
+            Raise if some check violates
+        """
+        if key not in self.__class__.MUTABLE_ITEM_KEY:
+            raise ValueError(f'fail to change attribute {key}')
+
+        with get_session(self.db_engine) as session:
+            item: SchedulerItem = session.query(SchedulerItem).filter(
+                SchedulerItem.name == name).first()
+            if not item:
+                raise ValueError(f'cannot find item {name}')
+            setattr(item, key, value)
+            session.add(item)
+            try:
+                session.commit()
+            except Exception as e:  # pylint: disable=broad-except
+                logging.error(f'[composer] failed to patch item attr, '
+                              f'name: {name}, exception: {e}')
+                session.rollback()
 
     def get_recent_runners(self,
                            name: str,

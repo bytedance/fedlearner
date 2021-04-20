@@ -25,6 +25,8 @@ from flask_migrate import Migrate
 from flask_restful import Api
 from flask_jwt_extended import JWTManager
 
+from fedlearner_webconsole.utils import metrics
+
 migrate = Migrate()
 jwt = JWTManager()
 
@@ -165,4 +167,5 @@ def create_app(config):
         with app.app_context():
             composer.run(db_engine=db.get_engine())
 
+    metrics.emit_counter('create_app', 1)
     return app

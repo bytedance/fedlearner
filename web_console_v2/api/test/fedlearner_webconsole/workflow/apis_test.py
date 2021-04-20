@@ -13,6 +13,7 @@
 # limitations under the License.
 
 # coding: utf-8
+import logging
 import time
 import json
 import unittest
@@ -21,6 +22,7 @@ from http import HTTPStatus
 from pathlib import Path
 from unittest.mock import patch
 from google.protobuf.json_format import ParseDict
+from fedlearner_webconsole.composer.models import ItemStatus, SchedulerItem
 from fedlearner_webconsole.db import db
 from fedlearner_webconsole.proto.workflow_definition_pb2 import WorkflowDefinition, JobDefinition
 from fedlearner_webconsole.project.models import Project
@@ -146,9 +148,11 @@ class WorkflowsApiTest(BaseTestCase):
         # Check DB
         self.assertEqual(len(Workflow.query.all()), 4)
 
+    @patch('fedlearner_webconsole.workflow.apis.composer.get_item_status')
     @patch('fedlearner_webconsole.workflow.apis.composer.collect')
     @patch('fedlearner_webconsole.workflow.apis.scheduler.wakeup')
-    def test_post_batch_update_interval_job(self, mock_collect, mock_wakeup):
+    def test_post_batch_update_interval_job(self, mock_wakeup, mock_collect, mock_get_item_status):
+        mock_get_item_status.return_value = None
         with open(
                 Path(__file__, '../../test_data/workflow_config.json').resolve(
                 )) as workflow_config:
@@ -322,8 +326,12 @@ class WorkflowApiTest(BaseTestCase):
         # Checks scheduler
         mock_wakeup.assert_not_called()
 
+    @patch('fedlearner_webconsole.workflow.apis.composer.get_item_status')
+    @patch('fedlearner_webconsole.workflow.apis.composer.patch_item_attr')
+    @patch('fedlearner_webconsole.workflow.apis.composer.finish')
     @patch('fedlearner_webconsole.workflow.apis.composer.collect')
-    def test_patch_batch_update_interval(self, mock_collect):
+    def test_patch_batch_update_interval(self, mock_collect, mock_finish, mock_patch_item, mock_get_item_status):
+        mock_get_item_status.side_effect = [None, ItemStatus.ON]
         workflow = Workflow(
             name='test-workflow-left',
             project_id=123,
@@ -336,6 +344,7 @@ class WorkflowApiTest(BaseTestCase):
         db.session.commit()
         db.session.refresh(workflow)
 
+        # test create cronjob
         response = self.patch_helper(f'/api/v2/workflows/{workflow.id}',
                                      data={'batch_update_interval': batch_update_interval})
         self.assertEqual(response.status_code, HTTPStatus.OK)
@@ -345,6 +354,20 @@ class WorkflowApiTest(BaseTestCase):
             items=[WorkflowCronJobItem(workflow.id)],
             metadata={},
             interval=batch_update_interval * 60)
+
+        # patch new interval time for cronjob
+        batch_update_interval = 2
+        response = self.patch_helper(f'/api/v2/workflows/{workflow.id}',
+                                     data={'batch_update_interval': batch_update_interval})
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+        mock_patch_item.assert_called_with(name=f'workflow_cron_job_{workflow.id}', key='interval_time', value=batch_update_interval * 60)
+
+
+        # test stop cronjob
+        response = self.patch_helper(f'/api/v2/workflows/{workflow.id}',
+                                     data={'batch_update_interval': -1})
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+        mock_finish.assert_called_with(name=f'workflow_cron_job_{workflow.id}')
 
         workflow = Workflow(
             name='test-workflow-right',

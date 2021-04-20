@@ -17,6 +17,7 @@
 import enum
 import json
 import datetime
+import logging
 
 from sqlalchemy import UniqueConstraint
 from sqlalchemy.engine import Engine
@@ -132,6 +133,9 @@ class SchedulerItem(db.Model):
                 tzinfo=datetime.timezone.utc) + datetime.timedelta(
                     seconds=self.interval_time)
             utc_now = datetime.datetime.now(datetime.timezone.utc)
+            logging.info(f'[composer] item id: {self.id}, '
+                         f'next_run_at: {next_run_at.timestamp()}, '
+                         f'utc_now: {utc_now.timestamp()}')
             if next_run_at.timestamp() < utc_now.timestamp():
                 return True
         return False
