@@ -111,7 +111,7 @@ class _JoinerImpl(object):
     def __init__(self, exp):
         self._expr = exp
 
-    def join(self, follower_window, leader_window):
+    def join(self, follower_window, leader_window, delay):
         """
         Assume leader stream is exponentially larger than follower stream,
         we cache the all the events from now back to watermark. example id
@@ -147,7 +147,11 @@ class _JoinerImpl(object):
                     #2. select all the matching items from the specific key
                     # in follower side.
                     if self._expr.run_func(key_idx)(leader, follower):
-                        leader_matches.append((cd[i], idx))
+                        ## delay range check
+                        time_df = fcc.time_diff(leader.event_time,
+                                                follower.event_time)
+                        if abs(time_df) <= delay:
+                            leader_matches.append((cd[i], idx))
                 found = True
                 break
             if not found:
@@ -166,37 +170,33 @@ class _Trigger(object):
 
     def trigger(self, follower_window, leader_window):
         follower_stride, leader_stride = 0, 0
-        step, sid = 1, 0
         leader_win_size = leader_window.size() - 1
         follower_win_size = follower_window.size() - 1
         leader_wm, follower_wm = 0, 0
         while leader_stride <= leader_win_size and                             \
-                sid <= leader_win_size and                                     \
                 follower_win_size >= 0 and                                     \
                 fcc.time_diff(                                                 \
                     follower_window[follower_win_size].item.event_time,        \
-                    leader_window[sid].item.event_time) >                      \
+                    leader_window[leader_stride].item.event_time) >            \
                 self._max_watermark_delay:
-            leader_wm = max(leader_window[sid].item.event_time,                \
-                                  leader_wm)
-            leader_stride += step
-            sid += 1
+            leader_wm = leader_window[leader_stride].item.event_time
+            leader_stride += 1
 
-        cid = 0
         while follower_stride <= follower_win_size and                         \
                 leader_win_size >= 0 and                                       \
-                0 <= cid <= follower_win_size and                              \
                 fcc.time_diff(                                                 \
                   leader_window[leader_win_size].item.event_time,              \
-                  follower_window[cid].item.event_time) >                      \
+                  follower_window[follower_stride].item.event_time) >          \
                 self._max_watermark_delay:
             #FIXME current et is not always the watermark
-            follower_wm = max(follower_window[cid].item.event_time,            \
-                                  follower_wm)
-            follower_stride += step
-            cid += 1
+            follower_wm = follower_window[follower_stride].item.event_time
+            follower_stride += 1
 
-        self._watermark = min(follower_wm, leader_wm)
+        new_watermark = max(follower_wm, leader_wm)
+        if follower_stride > 0 and leader_stride > 0:
+            new_watermark = min(follower_wm, leader_wm)
+        self._watermark = max(new_watermark, self._watermark)
+
         logging.info("Watermark forward to %d by (follower: %d, leader: %d)",  \
                     self._watermark, follower_stride, leader_stride)
         return (follower_stride, leader_stride)
@@ -272,14 +272,12 @@ class _SlidingWindow(object):
     def is_full(self):
         return self._size == self._alloc_size
 
-    def et_span(self, time_anchor=None):
+    def et_span(self, delay):
         if self._size == 0:
-            return 0
+            return True
         st = self._ring_buffer[self._start].item.event_time
-        ed = time_anchor
-        if ed is None:
-            ed = self._ring_buffer[self._index(self._size - 1)].item.event_time
-        return fcc.time_diff(ed, st)
+        ed = self._ring_buffer[self._index(self._size - 1)].item.event_time
+        return fcc.time_diff(ed, st) < delay
 
     def reserved_size(self):
         return self._max_window_size - self._size
@@ -411,27 +409,29 @@ class UniversalJoiner(ExampleJoiner):
                 self._prepare_join(state_stale)
         join_data_finished = False
 
-        while self._fill_leader_join_window(sync_example_id_finished):
+        while True:
+            fill_leader_enough = self._fill_leader_join_window(
+                sync_example_id_finished)
             leader_exhausted = sync_example_id_finished and                    \
                     not self._leader_join_window.is_full()
             follower_exhausted = False
             logging.info('Fill leader_exhausted: %s, sync_example_id_finished '
                          '%s, raw_data_finished %s, leader_win_size %d, '
-                         'follower_win_size %d', leader_exhausted,
-                         sync_example_id_finished, raw_data_finished,
-                         self._leader_join_window.size(),
-                         self._follower_join_window.size())
+                         'follower_win_size %d, raw_data_finished %d',
+                         leader_exhausted, sync_example_id_finished,
+                         raw_data_finished, self._leader_join_window.size(),
+                         self._follower_join_window.size(), raw_data_finished)
             while self._fill_follower_join_window(raw_data_finished):
                 follower_exhausted = raw_data_finished and \
                         not self._follower_join_window.is_full()
 
                 logging.info("Fill: follower_exhausted=%s, "
-                             "raw_data_finished=%s, follower_win_size=%d",
-                             follower_exhausted, raw_data_finished,
+                             "follower_win_size=%d", follower_exhausted,
                              self._follower_join_window.size())
                 #1. find all the matched pairs in current window
                 raw_pairs, mismatches = self._joiner.join(
-                    self._follower_join_window, self._leader_join_window)
+                    self._follower_join_window, self._leader_join_window,
+                    self._max_watermark_delay)
                 if self._enable_negative_example_generator:
                     self._negative_example_generator.update(mismatches)
                 stride = self._trigger.trigger(self._follower_join_window,
@@ -453,7 +453,7 @@ class UniversalJoiner(ExampleJoiner):
                              self._leader_index_ps.size(), len(raw_pairs),
                              len(pairs))
 
-                #4. update the watermark
+                #4. update window
                 self._follower_join_window.forward(stride[0],
                                                    self._optional_stats)
                 self._leader_join_window.forward(stride[1])
@@ -469,10 +469,16 @@ class UniversalJoiner(ExampleJoiner):
                 if follower_exhausted:
                     break
 
-            if leader_exhausted or follower_exhausted:
+            if leader_exhausted and self._leader_join_window.et_span(
+                self._max_watermark_delay):
                 join_data_finished = True
                 break
-            if self._leader_join_window.is_full():
+            if follower_exhausted and self._follower_join_window.et_span(
+                self._max_watermark_delay):
+                join_data_finished = True
+                break
+
+            if self._leader_join_window.is_full() or not fill_leader_enough:
                 break
 
         if self._get_data_block_builder(False) is not None and \
@@ -505,6 +511,14 @@ class UniversalJoiner(ExampleJoiner):
                 logging.warning("Leader index should be bigger than restart "
                                 "index, %d > %d for follower idx %d",
                                 li, self._leader_restart_index, fi)
+                continue
+
+            if abs(fcc.time_diff(fe.event_time, le.event_time)) > \
+               self._max_watermark_delay:
+                ### unreachable branch
+                logging.info('Pair %s:%s out-of-delay, leader et %d, '
+                             'follower et %d', le.example_id, fe.example_id,
+                             le.event_time, fe.event_time)
                 continue
 
             # cache the latest leader event
@@ -543,6 +557,8 @@ class UniversalJoiner(ExampleJoiner):
                                  ip.li, indexed_time.li)
             else:
                 self._leader_index_ps.put(ip)
+                logging.info('Break dumping, event time %s, watermark %s',
+                             ip.fe.event_time, watermark)
                 break
         return matches
 
