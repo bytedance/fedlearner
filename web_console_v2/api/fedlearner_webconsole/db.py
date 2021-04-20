@@ -27,7 +27,8 @@ from sqlalchemy.orm import sessionmaker
 # Explicitly set autocommit and autoflush
 # Disables autocommit to make developers to commit manually
 # Enables autoflush to make changes visible in the same session
-db = SQLAlchemy(session_options={'autocommit': False, 'autoflush': True})
+SESSION_OPTIONS = {'autocommit': False, 'autoflush': True}
+db = SQLAlchemy(session_options=SESSION_OPTIONS)
 
 
 def to_dict_mixin(ignores: List[str] = None,
@@ -88,7 +89,7 @@ def get_session(db_engine: Engine):
             session.query(MODEL).filter_by(field=value).first()
     """
     try:
-        session = sessionmaker(bind=db_engine, autoflush=False)()
+        session = sessionmaker(bind=db_engine, **SESSION_OPTIONS)()
     except Exception:
         raise Exception('unknown db engine')
     else:

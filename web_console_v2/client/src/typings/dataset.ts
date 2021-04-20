@@ -51,6 +51,7 @@ export type DataBatch = {
 
 export type Dataset = {
   id: number;
+  project_id: ID;
   name: string;
   dataset_type: DatasetType;
   comment?: string | null;
@@ -61,7 +62,10 @@ export type Dataset = {
   path: string;
 };
 
-export type DatasetCreatePayload = Pick<Dataset, 'name' | 'dataset_type' | 'comment'>;
+export type DatasetCreatePayload = Pick<
+  Dataset,
+  'name' | 'dataset_type' | 'comment' | 'project_id'
+>;
 
 export type DataBatchImportPayload = {
   files: FileToImport[];

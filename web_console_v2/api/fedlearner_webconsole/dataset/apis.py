@@ -66,17 +66,25 @@ class DatasetsApi(Resource):
                             type=DatasetType,
                             help=_FORMAT_ERROR_MESSAGE.format('dataset_type'))
         parser.add_argument('comment', type=str)
+        parser.add_argument('project_id',
+                            required=True,
+                            type=int,
+                            help=_FORMAT_ERROR_MESSAGE.format('project_id'))
         body = parser.parse_args()
         name = body.get('name')
         dataset_type = body.get('dataset_type')
         comment = body.get('comment')
+        project_id = body.get('project_id')
 
         try:
             # Create dataset
-            dataset = Dataset(name=name,
-                              dataset_type=dataset_type,
-                              comment=comment,
-                              path=_get_dataset_path(name))
+            dataset = Dataset(
+                name=name,
+                dataset_type=dataset_type,
+                comment=comment,
+                path=_get_dataset_path(name),
+                project_id=project_id,
+            )
             db.session.add(dataset)
             # TODO: scan cronjob
             db.session.commit()

@@ -197,6 +197,28 @@ class ComposerTest(BaseTestCase):
                          'should be equal runner number')
         composer.stop()
 
+    def test_patch_item_attr(self):
+        test_name = 'test'
+
+        config = ComposerConfig(
+            runner_fn={ItemType.TASK.value: InputDirTaskRunner},
+            name='test_cronjob')
+        with self.composer_scope(config=config) as composer:
+            composer.collect(test_name, [Task(1)], {
+                1: {
+                    'input_dir': 'item1_input_dir',
+                },
+            }, interval=60)
+            composer.patch_item_attr(name=test_name, key='interval_time', value=30)
+            item = db.session.query(SchedulerItem).filter(
+                SchedulerItem.name == test_name).one()
+            self.assertEqual(item.interval_time, 30)
+
+            with self.assertRaises(ValueError):
+                composer.patch_item_attr(name=test_name,
+                                         key='create_at',
+                                         value='2021-04-01 00:00:00')
+
 
 if __name__ == '__main__':
     logging.basicConfig(stream=sys.stderr, level=logging.INFO)

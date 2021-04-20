@@ -174,6 +174,7 @@ const WorkflowForkStepTwoConfig: FC = () => {
               ref={peerConfigChartRef}
               side="peer"
               nodeType="fork"
+              nodeInitialStatus={ChartNodeStatus.Success}
               workflowConfig={formData.fork_proposal_config}
               onCanvasClick={onCanvasClick}
               onJobClick={(node) => selectNode(node, 'peer')}

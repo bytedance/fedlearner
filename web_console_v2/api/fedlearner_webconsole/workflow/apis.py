@@ -20,6 +20,7 @@ from uuid import uuid4
 from http import HTTPStatus
 from flask_restful import Resource, reqparse, request
 from google.protobuf.json_format import MessageToDict
+from fedlearner_webconsole.composer.models import ItemStatus
 from fedlearner_webconsole.workflow.models import (
     Workflow, WorkflowState, TransactionState
 )
@@ -43,7 +44,7 @@ def _get_workflow(workflow_id) -> Workflow:
         raise NotFoundException()
     return result
 
-def start_cronjob(batch_update_interval: int, workflow: Workflow):
+def start_or_stop_cronjob(batch_update_interval: int, workflow: Workflow):
     """start a cronjob for workflow if batch_update_interval is valid
 
     Args:
@@ -52,12 +53,31 @@ def start_cronjob(batch_update_interval: int, workflow: Workflow):
     Returns:
         raise when workflow is_left is False
     """
+    item_name = f'workflow_cron_job_{workflow.id}'
     batch_update_interval = batch_update_interval * 60
     if workflow.get_config().is_left and batch_update_interval > 0:
-        composer.collect(name=f'workflow_cron_job_{workflow.id}',
-                            items=[WorkflowCronJobItem(workflow.id)],
-                            metadata={},
-                            interval=batch_update_interval)
+        status = composer.get_item_status(name=item_name)
+        # create a cronjob
+        if not status:
+            composer.collect(name=item_name,
+                                items=[WorkflowCronJobItem(workflow.id)],
+                                metadata={},
+                                interval=batch_update_interval)
+            return
+        if status == ItemStatus.OFF:
+            raise InvalidArgumentException(
+                f'cannot set item [{item_name}], since item is off')
+        # patch a cronjob
+        try:
+            composer.patch_item_attr(name=item_name,
+                                     key='interval_time',
+                                     value=batch_update_interval)
+        except ValueError as err:
+            raise InvalidArgumentException(details=repr(err))
+
+
+    elif batch_update_interval < 0:
+        composer.finish(name=item_name)
     elif not workflow.get_config().is_left:
         raise InvalidArgumentException('Only left can operate this')
     else:
@@ -163,7 +183,7 @@ class WorkflowsApi(Resource):
         # should start after inserting to db
         batch_update_interval = data['batch_update_interval']
         if batch_update_interval:
-            start_cronjob(batch_update_interval, workflow)
+            start_or_stop_cronjob(batch_update_interval, workflow)
 
         return {'data': workflow.to_dict()}, HTTPStatus.CREATED
 
@@ -206,7 +226,7 @@ class WorkflowApi(Resource):
 
         batch_update_interval = data['batch_update_interval']
         if batch_update_interval:
-            start_cronjob(batch_update_interval, workflow)
+            start_or_stop_cronjob(batch_update_interval, workflow)
 
         workflow.comment = data['comment']
         workflow.forkable = data['forkable']
@@ -247,7 +267,7 @@ class WorkflowApi(Resource):
         # start workflow every interval time
         batch_update_interval = data['batch_update_interval']
         if batch_update_interval:
-            start_cronjob(batch_update_interval, workflow)
+            start_or_stop_cronjob(batch_update_interval, workflow)
 
         forkable = data['forkable']
         if forkable is not None:

@@ -1,4 +1,4 @@
-import React, { FC } from 'react';
+import React, { FC, useEffect } from 'react';
 import styled from 'styled-components';
 import { InputNumber, Switch } from 'antd';
 import { useToggle } from 'react-use';
@@ -16,7 +16,14 @@ type Props = {
 };
 
 const ScheduledWorkflowRunning: FC<Props> = ({ value, onChange }) => {
-  const [inputVisible, toggleVisible] = useToggle(value !== -1 || value >= 10);
+  const isEnabled = value !== -1 || value >= 10;
+  const [inputVisible, toggleVisible] = useToggle(isEnabled);
+
+  useEffect(() => {
+    if (isEnabled) {
+      toggleVisible(true);
+    }
+  }, [isEnabled, toggleVisible]);
 
   return (
     <>
