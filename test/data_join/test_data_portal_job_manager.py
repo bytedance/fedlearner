@@ -111,58 +111,58 @@ class TestDataPortalJobManager(unittest.TestCase):
         for index, fpath in enumerate(fpaths):
             self.assertEqual(fpath, portal_job.fpaths[index])
 
-    # def test_list_input_dir(self):
-    #     portal_options = dp_pb.DataPotraMasterlOptions(
-    #         use_mock_etcd=True,
-    #         long_running=False,
-    #         check_success_tag=True,
-    #         single_subfolder=False,
-    #         files_per_job_limit=None
-    #     )
-    #     self._list_input_dir(portal_options, "*.data", self._data_fnames)
-    #
-    # def test_list_input_dir_single_folder(self):
-    #     portal_options = dp_pb.DataPotraMasterlOptions(
-    #         use_mock_etcd=True,
-    #         long_running=False,
-    #         check_success_tag=False,
-    #         single_subfolder=True,
-    #         files_per_job_limit=None,
-    #     )
-    #     self._list_input_dir(
-    #         portal_options, "*.data", self._data_fnames)
-    #
-    # def test_list_input_dir_files_limit(self):
-    #     portal_options = dp_pb.DataPotraMasterlOptions(
-    #         use_mock_etcd=True,
-    #         long_running=False,
-    #         check_success_tag=False,
-    #         single_subfolder=False,
-    #         files_per_job_limit=1,
-    #     )
-    #     self._list_input_dir(
-    #         portal_options, "*.data", self._data_fnames)
-    #
-    #     portal_options = dp_pb.DataPotraMasterlOptions(
-    #         use_mock_etcd=True,
-    #         long_running=False,
-    #         check_success_tag=False,
-    #         single_subfolder=False,
-    #         files_per_job_limit=150,
-    #     )
-    #     self._list_input_dir(
-    #         portal_options, "*.data", self._data_fnames)
-    #
-    #     portal_options = dp_pb.DataPotraMasterlOptions(
-    #         use_mock_etcd=True,
-    #         long_running=False,
-    #         check_success_tag=False,
-    #         single_subfolder=False,
-    #         files_per_job_limit=200,
-    #     )
-    #     self._list_input_dir(
-    #         portal_options, "*.data",
-    #         self._data_fnames + self._data_fnames_without_success)
+    def test_list_input_dir(self):
+        portal_options = dp_pb.DataPotraMasterlOptions(
+            use_mock_etcd=True,
+            long_running=False,
+            check_success_tag=True,
+            single_subfolder=False,
+            files_per_job_limit=None
+        )
+        self._list_input_dir(portal_options, "*.data", self._data_fnames)
+
+    def test_list_input_dir_single_folder(self):
+        portal_options = dp_pb.DataPotraMasterlOptions(
+            use_mock_etcd=True,
+            long_running=False,
+            check_success_tag=False,
+            single_subfolder=True,
+            files_per_job_limit=None,
+        )
+        self._list_input_dir(
+            portal_options, "*.data", self._data_fnames)
+
+    def test_list_input_dir_files_limit(self):
+        portal_options = dp_pb.DataPotraMasterlOptions(
+            use_mock_etcd=True,
+            long_running=False,
+            check_success_tag=False,
+            single_subfolder=False,
+            files_per_job_limit=1,
+        )
+        self._list_input_dir(
+            portal_options, "*.data", self._data_fnames)
+
+        portal_options = dp_pb.DataPotraMasterlOptions(
+            use_mock_etcd=True,
+            long_running=False,
+            check_success_tag=False,
+            single_subfolder=False,
+            files_per_job_limit=150,
+        )
+        self._list_input_dir(
+            portal_options, "*.data", self._data_fnames)
+
+        portal_options = dp_pb.DataPotraMasterlOptions(
+            use_mock_etcd=True,
+            long_running=False,
+            check_success_tag=False,
+            single_subfolder=False,
+            files_per_job_limit=200,
+        )
+        self._list_input_dir(
+            portal_options, "*.data",
+            self._data_fnames + self._data_fnames_without_success)
 
     def test_list_input_dir_over_limit(self):
         portal_options = dp_pb.DataPotraMasterlOptions(
@@ -179,39 +179,39 @@ class TestDataPortalJobManager(unittest.TestCase):
             self._data_fnames + self._data_fnames_without_success,
             max_files_per_job=200)
 
-    # def test_list_input_dir_without_success_check(self):
-    #     portal_options = dp_pb.DataPotraMasterlOptions(
-    #         use_mock_etcd=True,
-    #         long_running=False,
-    #         check_success_tag=False,
-    #         single_subfolder=False,
-    #         files_per_job_limit=None
-    #     )
-    #     self._list_input_dir(
-    #         portal_options, "*.data",
-    #         self._data_fnames + self._data_fnames_without_success)
-    #
-    # def test_list_input_dir_without_wildcard(self):
-    #     portal_options = dp_pb.DataPotraMasterlOptions(
-    #         use_mock_etcd=True,
-    #         long_running=False,
-    #         check_success_tag=True,
-    #         single_subfolder=False,
-    #         files_per_job_limit=None
-    #     )
-    #     self._list_input_dir(
-    #         portal_options, None,
-    #         self._data_fnames + self._csv_fnames)
-    #
-    # def test_list_input_dir_without_wildcard_and_success_check(self):
-    #     portal_options = dp_pb.DataPotraMasterlOptions(
-    #         use_mock_etcd=True,
-    #         long_running=False,
-    #         check_success_tag=False,
-    #         single_subfolder=False,
-    #         files_per_job_limit=None
-    #     )
-    #     self._list_input_dir(portal_options, None, self._all_fnames)
+    def test_list_input_dir_without_success_check(self):
+        portal_options = dp_pb.DataPotraMasterlOptions(
+            use_mock_etcd=True,
+            long_running=False,
+            check_success_tag=False,
+            single_subfolder=False,
+            files_per_job_limit=None
+        )
+        self._list_input_dir(
+            portal_options, "*.data",
+            self._data_fnames + self._data_fnames_without_success)
+
+    def test_list_input_dir_without_wildcard(self):
+        portal_options = dp_pb.DataPotraMasterlOptions(
+            use_mock_etcd=True,
+            long_running=False,
+            check_success_tag=True,
+            single_subfolder=False,
+            files_per_job_limit=None
+        )
+        self._list_input_dir(
+            portal_options, None,
+            self._data_fnames + self._csv_fnames)
+
+    def test_list_input_dir_without_wildcard_and_success_check(self):
+        portal_options = dp_pb.DataPotraMasterlOptions(
+            use_mock_etcd=True,
+            long_running=False,
+            check_success_tag=False,
+            single_subfolder=False,
+            files_per_job_limit=None
+        )
+        self._list_input_dir(portal_options, None, self._all_fnames)
 
 
 if __name__ == '__main__':
