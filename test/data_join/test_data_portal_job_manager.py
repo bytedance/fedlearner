@@ -77,7 +77,8 @@ class TestDataPortalJobManager(unittest.TestCase):
     def tearDown(self) -> None:
         gfile.DeleteRecursively(self._portal_input_base_dir)
 
-    def _list_input_dir(self, portal_options, file_wildcard, target_fnames):
+    def _list_input_dir(self, portal_options, file_wildcard,
+                        target_fnames, max_files_per_job=8000):
         portal_manifest = dp_pb.DataPortalManifest(
             name=self._data_portal_name,
             data_portal_type=dp_pb.DataPortalType.Streaming,
@@ -100,6 +101,7 @@ class TestDataPortalJobManager(unittest.TestCase):
                 portal_options.check_success_tag,
                 portal_options.single_subfolder,
                 portal_options.files_per_job_limit,
+                max_files_per_job
             )
         portal_job = data_portal_job_manager._sync_processing_job()
         target_fnames.sort()
@@ -161,6 +163,21 @@ class TestDataPortalJobManager(unittest.TestCase):
         self._list_input_dir(
             portal_options, "*.data",
             self._data_fnames + self._data_fnames_without_success)
+
+    def test_list_input_dir_over_limit(self):
+        portal_options = dp_pb.DataPotraMasterlOptions(
+            use_mock_etcd=True,
+            long_running=False,
+            check_success_tag=False,
+            single_subfolder=False,
+        )
+        self._list_input_dir(
+            portal_options, "*.data", self._data_fnames, max_files_per_job=100)
+
+        self._list_input_dir(
+            portal_options, "*.data",
+            self._data_fnames + self._data_fnames_without_success,
+            max_files_per_job=200)
 
     def test_list_input_dir_without_success_check(self):
         portal_options = dp_pb.DataPotraMasterlOptions(
