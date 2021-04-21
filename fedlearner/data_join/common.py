@@ -101,6 +101,12 @@ def encode_block_id(data_source_name, meta):
             meta.data_block_index, meta.start_time, meta.end_time
         )
 
+def double_check_block_id(dbr_bid, req_bid):
+    """ Ensure data_source_name, partition_id and index is exactly same """
+    dbr = dbr_bid.split('.')
+    req = req_bid.split('.')
+    return dbr[0:3] == req[0:3]
+
 def decode_block_id(block_id):
     segs = block_id.split('.')
     if len(segs) != 4:
