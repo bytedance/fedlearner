@@ -22,8 +22,11 @@ class Validator(object):
             self._optional_fields.add(key)
             self._checkers[key] = CheckerManager.get_checker(rule)
 
-    def check_type(self, record):
+    def check(self, record, num_field=None):
         fields = set(record.keys())
+        if num_field and len(record) != num_field:
+            raise ValueError("There is some field missed, wanted {}, got {}"
+                             "".format(num_field, len(record)))
         for field in self._required_fields:
             if field not in fields:
                 raise ValueError("Fields {} is needed".format(field))
@@ -53,6 +56,7 @@ class TypeChecker(Checker):
                 self._wanted_types.append(float)
             elif t == 'str':
                 self._wanted_types.append(str)
+                self._wanted_types.append(bytes)
         self._wanted_types = tuple(self._wanted_types)
 
     @staticmethod
@@ -62,7 +66,17 @@ class TypeChecker(Checker):
     def check(self, value):
         passed = isinstance(value, self._wanted_types)
         if not passed:
-            return False, "Wanted type {}, but got {}".format(
+            for t in [int, float]:
+                try:
+                    if t in self._wanted_types:
+                        value = t(value)
+                        passed = True
+                        break
+                except Exception:  # pylint: disable=broad-except
+                    pass
+
+        if not passed:
+            return False, "wanted type {}, but got {}".format(
                 self._wanted_types, type(value))
         return True, ""
 

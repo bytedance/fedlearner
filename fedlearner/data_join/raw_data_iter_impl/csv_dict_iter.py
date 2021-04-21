@@ -19,6 +19,7 @@ import io
 import logging
 import os
 import random
+import re
 import traceback
 from collections import OrderedDict
 
@@ -119,10 +120,17 @@ class CsvDictIter(RawDataIter):
                                   self._headers, dict_reader.fieldnames)
                     traceback.print_stack()
                     os._exit(-1) # pylint: disable=protected-access
+                # check invalid character for headers
+                for header in self._headers:
+                    if not re.match("^[A-Za-z0-9_-]*$", header):
+                        logging.fatal("Illegal character in %s (csv header)",
+                                      header)
+                        traceback.print_stack()
+                        os._exit(-1)  # pylint: disable=protected-access
                 for raw in dict_reader:
                     if random.random() < self._options.validation_ratio:
                         try:
-                            self._validator.check_type(raw)
+                            self._validator.check(raw, len(self._headers))
                         except Exception as e:  # pylint: disable=broad-except
                             logging.error(e)
                             continue

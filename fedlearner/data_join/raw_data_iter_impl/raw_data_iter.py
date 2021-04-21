@@ -88,8 +88,7 @@ class RawDataIter(object):
         self._iter_failed = False
         self._validator = Validator(required={
             "example_id": "type(str)",
-            "event_time": "type(int)datetime(%Y%m%d)",
-            "raw_id": "type(str)"
+            "event_time": "type(int)"
         })
         self._options = options
         #_options will be None for example id visitor

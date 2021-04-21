@@ -116,10 +116,10 @@ class TfExampleItem(RawDataIter.Item):
                 self._csv_record = None
         self._gc_example(example)
 
-    def _parse_example(self):
+    def _parse_example(self, record_str):
         res = None
         if not self._parse_example_error:
-            res = TfExampleItem.parse_example(self._record_str)
+            res = TfExampleItem.parse_example(record_str)
         if res is None:
             self._parse_example_error = True
         return res
@@ -186,7 +186,7 @@ class TfRecordIter(RawDataIter):
                             example = TfExampleItem.parse_example(raw_data)
                             example_dict = \
                                 common.convert_tf_example_to_dict(example)
-                            self._validator.check_type(example_dict)
+                            self._validator.check(example_dict)
                         except Exception as e:  # pylint: disable=broad-except
                             logging.error(e)
                             continue

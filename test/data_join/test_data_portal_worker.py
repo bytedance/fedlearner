@@ -39,7 +39,8 @@ class TestDataPortalWorker(unittest.TestCase):
     def _get_input_fpath(self, partition_id):
         return "{}/raw_data_partition_{}".format(self._input_dir, partition_id)
 
-    def _generate_one_partition(self, partition_id, example_id, num_examples, raw_data_iter):
+    def _generate_one_partition(self, partition_id, example_id, num_examples,
+                                raw_data_iter):
         fpath = self._get_input_fpath(partition_id)
         if raw_data_iter == 'CSV_DICT':
             with open(fpath, "w") as file:
@@ -210,7 +211,8 @@ class TestDataPortalWorker(unittest.TestCase):
         map_task = task.map_task
 
         total_cnt = self._check_partitioner(map_task)
-        self.assertLess(total_cnt, self._partition_item_num * self._input_partition_num)
+        self.assertEqual(total_cnt, self._partition_item_num *
+                         self._input_partition_num)
         self._clean_up()
 
         self._prepare_test(raw_data_iter='CSV_DICT', validation_ratio=0.001)
@@ -218,7 +220,8 @@ class TestDataPortalWorker(unittest.TestCase):
         map_task = task.map_task
 
         total_cnt = self._check_partitioner(map_task)
-        self.assertLess(total_cnt, self._partition_item_num * self._input_partition_num)
+        self.assertEqual(total_cnt, self._partition_item_num *
+                         self._input_partition_num)
         self._clean_up()
 
 

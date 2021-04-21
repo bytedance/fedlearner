@@ -33,30 +33,40 @@ class TestInputDataValidator(unittest.TestCase):
         validator = Validator(required, optional)
         record = {"foo": 123, "bar": "20200102"}
         try:
-            validator.check_type(record)
+            validator.check(record)
         except ValueError as e:
             self.fail(e)
 
         record = {"foo": 123, "bar": "20200102", "bar1": 1}
         try:
-            validator.check_type(record)
+            validator.check(record)
         except ValueError as e:
             self.fail(e)
 
         record = {"foo": "123", "bar": "20200102"}
-        self.assertRaises(ValueError, validator.check_type, record)
+        try:
+            validator.check(record)
+        except ValueError as e:
+            self.fail(e)
+
+        record = {"foo": "123.", "bar": "20200102"}
+        self.assertRaises(ValueError, validator.check, record)
 
         record = {"foo": 123, "bar": "2020010201"}
-        self.assertRaises(ValueError, validator.check_type, record)
+        self.assertRaises(ValueError, validator.check, record)
+
+        record = {"foo": 123, "bar": "20200102"}
+        with self.assertRaises(ValueError):
+            validator.check(record, 3)
 
         record = {"foo": 123, "foo1": 234, "bar": "20200102"}
         try:
-            validator.check_type(record)
+            validator.check(record)
         except ValueError as e:
             self.fail(e)
 
         record = {"foo1": 123, "bar": "20200102"}
-        self.assertRaises(ValueError, validator.check_type, record)
+        self.assertRaises(ValueError, validator.check, record)
 
 
 if __name__ == '__main__':
