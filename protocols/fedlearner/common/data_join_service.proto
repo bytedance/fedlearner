@@ -247,7 +247,7 @@ message RawDataOptions {
 message WriterOptions {
   string output_writer = 1;  // support TF_RECORD and CSV_DICT
   string compressed_type = 2; // the compressed type for output file, support tf record
-  string encode_by_leader_time = 3;  // encoded by leader time or follower time
+  bool encode_by_leader_time = 3;  // encoded by leader time or follower time
 }
 
 message ExampleJoinerOptions {

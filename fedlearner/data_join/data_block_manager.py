@@ -147,7 +147,7 @@ class DataBlockBuilder(object):
                                          self._data_block_meta)
             if set_start_time and set_end_time:
                 self._data_block_meta.start_time = set_start_time
-                self._data_block_meta.end_tim = set_end_time
+                self._data_block_meta.end_time = set_end_time
             data_block_path = os.path.join(
                     self._get_data_block_dir(),
                     encode_data_block_fname(
