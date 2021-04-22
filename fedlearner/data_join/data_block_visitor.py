@@ -29,8 +29,7 @@ from fedlearner.data_join.common import (
     DataBlockSuffix, encode_data_block_meta_fname,
     load_data_block_meta, encode_data_block_fname,
     decode_block_id, retrieve_data_source, partition_repr,
-    partition_manifest_kvstore_key, data_source_data_block_dir,
-    double_check_block_id
+    partition_manifest_kvstore_key, data_source_data_block_dir
 )
 
 class DataBlockRep(object):
@@ -163,7 +162,7 @@ class DataBlockVisitor(object):
         dbr = self.LoadDataBlockReqByIndex(
             block_info['partition_id'], block_info['data_block_index'])
         if dbr:
-            assert double_check_block_id(dbr.block_id, block_id), \
+            assert dbr.data_block_meta.name == self._data_source_name(), \
                     "Invalid datablock, expected %s, but got %s), please "\
                     "check datasource!"%(block_id, dbr.block_id)
         return dbr
