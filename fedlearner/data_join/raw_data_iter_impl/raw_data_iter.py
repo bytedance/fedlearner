@@ -86,10 +86,7 @@ class RawDataIter(object):
         self._item = None
         self._index = None
         self._iter_failed = False
-        self._validator = Validator(required={
-            "example_id": "type(str)",
-            "event_time": "type(int)"
-        })
+        self._validator = Validator()
         self._options = options
         #_options will be None for example id visitor
         if self._options and self._options.raw_data_cache_type == "disk":
