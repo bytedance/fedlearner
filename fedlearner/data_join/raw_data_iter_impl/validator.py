@@ -1,14 +1,21 @@
-from fedlearner.data_join.common import ALLOWED_FIELDS
+import logging
+import random
+
+import tensorflow.compat.v1 as tf
+
+from fedlearner.data_join.common import ALLOWED_FIELDS, \
+    convert_tf_example_to_dict
 
 
 class Validator(object):
-    def __init__(self):
+    def __init__(self, sample_ratio):
         """
         input data validator
 
         :required: [['default_value', 'type', 'must']]
         :optional: same with required
         """
+        self._sample_ratio = sample_ratio
         self._required_fields = set()
         self._optional_fields = set()
         self._checkers = {}
@@ -19,22 +26,47 @@ class Validator(object):
                 self._optional_fields.add(key)
             self._checkers[key] = [TypeChecker([field.type])]
 
-    def check(self, record, num_field=None):
+    def _check(self, record):
         fields = set(record.keys())
-        if num_field and len(record) != num_field:
-            raise ValueError("There is some field missed, wanted {}, got {}"
-                             "".format(num_field, len(record)))
         for field in self._required_fields:
             if field not in fields:
-                raise ValueError("Fields {} is needed".format(field))
+                logging.error("Fields %s is needed", field)
+                return False
         for key, value in record.items():
             if key in self._checkers:
                 for checker in self._checkers[key]:
                     status, msg = checker.check(value)
                     if not status:
-                        raise ValueError(
-                            "Field {} validation failed, reason: {}"
-                                .format(key, msg))
+                        logging.info(
+                            "Field %s validation failed, reason: %s", key, msg)
+                        return False
+        return True
+
+    def check_tfrecord(self, raw_data):
+        if random.random() < self._sample_ratio:
+            try:
+                example = tf.train.Example()
+                example.ParseFromString(raw_data)
+                example_dict = \
+                    convert_tf_example_to_dict(example)
+                if not self._check(example_dict):
+                    return False
+            except Exception as e:  # pylint: disable=broad-except
+                logging.error(
+                    "Failed parse tf.Example from record %s, reason %s",
+                    raw_data, e)
+                return False
+        return True
+
+    def check_csv_record(self, record, num_field=None):
+        if random.random() < self._sample_ratio:
+            if num_field and len(record) != num_field:
+                logging.error("There is some field missed, wanted %d, got %d",
+                              num_field, len(record))
+                return False
+            if not self._check(record):
+                return False
+        return True
 
 
 class Checker(object):
@@ -59,13 +91,14 @@ class TypeChecker(Checker):
 
     def check(self, value):
         passed = isinstance(value, self._wanted_types)
-        if not passed:
-            for t in [int, float]:
+        if not passed and isinstance(value, (str, bytes)):
+            for t in self._wanted_types:
+                if t not in [int, float]:
+                    continue
                 try:
-                    if t in self._wanted_types:
-                        value = t(value)
-                        passed = True
-                        break
+                    value = t(value)
+                    passed = True
+                    break
                 except Exception:  # pylint: disable=broad-except
                     pass
 

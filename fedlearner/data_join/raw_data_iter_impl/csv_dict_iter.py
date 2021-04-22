@@ -18,7 +18,6 @@ import csv
 import io
 import logging
 import os
-import random
 import re
 import traceback
 from collections import OrderedDict
@@ -71,7 +70,7 @@ class CsvItem(RawDataIter.Item):
             try:
                 example = common.convert_dict_to_tf_example(self._features)
                 self._tf_record = example.SerializeToString()
-            except Exception as e: # pylint: disable=broad-except
+            except Exception as e:  # pylint: disable=broad-except
                 traceback.print_exc()
                 logging.error("Failed convert csv dict to tf example, "\
                               "reason %s", e)
@@ -128,12 +127,9 @@ class CsvDictIter(RawDataIter):
                         traceback.print_stack()
                         os._exit(-1)  # pylint: disable=protected-access
                 for raw in dict_reader:
-                    if random.random() < self._options.validation_ratio:
-                        try:
-                            self._validator.check(raw, len(self._headers))
-                        except Exception as e:  # pylint: disable=broad-except
-                            logging.error(e)
-                            continue
+                    if not self._validator.check_csv_record(
+                        raw, len(self._headers)):
+                        continue
                     yield CsvItem(raw)
 
     def _make_csv_dict_reader(self, fh, rest_buffer, aware_headers):

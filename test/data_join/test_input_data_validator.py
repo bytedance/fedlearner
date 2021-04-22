@@ -15,41 +15,64 @@
 # coding: utf-8
 
 import unittest
+import tensorflow.compat.v1 as tf
 
 from fedlearner.data_join.raw_data_iter_impl.validator import Validator
 
 
 class TestInputDataValidator(unittest.TestCase):
 
-    def test_type_checker(self):
-        validator = Validator()
-        record = {"example_id": "20200102"}
-        try:
-            validator.check(record)
-        except ValueError as e:
-            self.fail(e)
+    def test_check_csv(self):
+        validator = Validator(sample_ratio=1.0)
 
-        record = {"example_id": "20200102", "event_time": 123}
-        try:
-            validator.check(record)
-        except ValueError as e:
-            self.fail(e)
-
-        record = {"example_id": "20200102", "event_time": "123"}
-        try:
-            validator.check(record)
-        except ValueError as e:
-            self.fail(e)
-
-        record = {"example_id": "20200102", "event_time": "123."}
-        self.assertRaises(ValueError, validator.check, record)
-
-        record = {"example_id_t": "20200102", "event_time": "123."}
-        self.assertRaises(ValueError, validator.check, record)
+        records = [
+            ({"example_id": "20200102"}, True),
+            ({"example_id": "20200102", "event_time": 123}, True),
+            ({"example_id": "20200102", "event_time": 123.}, False),
+            ({"example_id": "20200102", "event_time": "123"}, True),
+            ({"example_id": "20200102", "event_time": "123."}, False),
+            ({"example_id_t": "20200102", "event_time": "123"}, False),
+        ]
+        for record_tuple in records:
+            self.assertEqual(validator.check_csv_record(record_tuple[0]),
+                             record_tuple[1])
 
         record = {"example_id": "20200102", "event_time": "123"}
-        with self.assertRaises(ValueError):
-            validator.check(record, 3)
+        self.assertFalse(validator.check_csv_record(record, 3))
+
+    @staticmethod
+    def _generate_tfrecord(has_example_id=True, wrong_event_time=False):
+        example_id = 10001
+        feat = {}
+        if has_example_id:
+            feat['example_id'] = tf.train.Feature(
+                bytes_list=tf.train.BytesList(
+                    value=[str(example_id).encode('utf-8')]))
+        feat['raw_id'] = tf.train.Feature(
+            bytes_list=tf.train.BytesList(
+                value=[str(example_id).encode('utf-8')]))
+        if wrong_event_time:
+            event_time = 150000000.
+            feat['event_time'] = tf.train.Feature(
+                float_list=tf.train.FloatList(value=[event_time]))
+        else:
+            event_time = 150000000
+            feat['event_time'] = tf.train.Feature(
+                int64_list=tf.train.Int64List(value=[event_time]))
+        example = tf.train.Example(features=tf.train.Features(feature=feat))
+        return example.SerializeToString()
+
+    def test_check_tfrecord(self):
+        validator = Validator(sample_ratio=1.0)
+
+        records = [
+            (self._generate_tfrecord(), True),
+            (self._generate_tfrecord(False), False),
+            (self._generate_tfrecord(wrong_event_time=True), False),
+        ]
+        for record_tuple in records:
+            self.assertEqual(validator.check_tfrecord(record_tuple[0]),
+                             record_tuple[1])
 
 
 if __name__ == '__main__':
