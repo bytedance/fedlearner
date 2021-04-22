@@ -73,6 +73,10 @@ class DataBlockRep(object):
         self._data_block_fpath = os.path.join(dirpath, data_block_fname)
 
     @property
+    def data_source_name(self):
+        return self._data_source_name
+
+    @property
     def block_id(self):
         return self._block_id
 
@@ -162,7 +166,7 @@ class DataBlockVisitor(object):
         dbr = self.LoadDataBlockReqByIndex(
             block_info['partition_id'], block_info['data_block_index'])
         if dbr:
-            assert dbr.data_block_meta.name == self._data_source_name(), \
+            assert dbr.data_source_name == self._data_source_name(), \
                     "Invalid datablock, expected %s, but got %s), please "\
                     "check datasource!"%(block_id, dbr.block_id)
         return dbr
