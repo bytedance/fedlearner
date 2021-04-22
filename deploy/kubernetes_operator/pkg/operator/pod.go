@@ -334,7 +334,7 @@ func (am *appManager) makePodSlicesByIndex(pods []*v1.Pod, replicas int) [][]*v1
 
 func (am *appManager) podSucceeded(app *v1alpha1.FLApp, rtype v1alpha1.FLReplicaType, index string) bool {
 	rt := strings.ToLower(string(rtype))
-	podNamePrefix := GenIndexName(app.Name, strings.ToLower(app.Spec.Role), rt, index)
+	podNamePrefix := GenIndexName(app.Name, strings.ToLower(app.Spec.Role), rt, index) + "-"
 	for _, podName := range app.Status.FLReplicaStatus[rtype].Succeeded.List() {
 		if strings.HasPrefix(podName, podNamePrefix) {
 			return true
