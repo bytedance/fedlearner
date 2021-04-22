@@ -1,5 +1,3 @@
-import datetime
-
 from fedlearner.data_join.common import ALLOWED_FIELDS
 
 
