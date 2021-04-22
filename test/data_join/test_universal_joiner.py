@@ -30,12 +30,8 @@ from fedlearner.common import data_join_service_pb2 as dj_pb
 from fedlearner.data_join.common import interval_to_timestamp
 
 from fedlearner.data_join import (
-    data_block_manager, common, data_block_dumper,
-    raw_data_manifest_manager, joiner_impl,
-    example_id_dumper
+    data_block_manager, common, joiner_impl, example_id_dumper
 )
-from fedlearner.data_join.data_block_manager import DataBlockBuilder
-from fedlearner.data_join.raw_data_iter_impl.tf_record_iter import TfExampleItem
 from fedlearner.data_join import key_mapper
 
 import datasource_producer as dsp
