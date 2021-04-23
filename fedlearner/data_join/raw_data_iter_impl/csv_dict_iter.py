@@ -18,7 +18,6 @@ import csv
 import io
 import logging
 import os
-import re
 import traceback
 from collections import OrderedDict
 
@@ -119,13 +118,8 @@ class CsvDictIter(RawDataIter):
                                   self._headers, dict_reader.fieldnames)
                     traceback.print_stack()
                     os._exit(-1) # pylint: disable=protected-access
+                self._validator.check_csv_header(self._headers)
                 # check invalid character for headers
-                for header in self._headers:
-                    if not re.match("^[A-Za-z0-9_-]*$", header):
-                        logging.fatal("Illegal character in %s (csv header)",
-                                      header)
-                        traceback.print_stack()
-                        os._exit(-1)  # pylint: disable=protected-access
                 for raw in dict_reader:
                     if not self._validator.check_csv_record(
                         raw, len(self._headers)):

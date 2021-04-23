@@ -1,5 +1,8 @@
 import logging
+import os
 import random
+import re
+import traceback
 
 import tensorflow.compat.v1 as tf
 
@@ -57,6 +60,15 @@ class Validator(object):
                     raw_data, e)
                 return False
         return True
+
+    @staticmethod
+    def check_csv_header(headers):
+        for header in headers:
+            if not re.match("^[A-Za-z0-9_-]*$", header):
+                logging.fatal("Illegal character in %s (csv header)",
+                              header)
+                traceback.print_stack()
+                os._exit(-1)  # pylint: disable=protected-access
 
     def check_csv_record(self, record, num_field=None):
         if random.random() < self._sample_ratio:
