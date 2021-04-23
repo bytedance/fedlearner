@@ -8,7 +8,7 @@ from fedlearner.data_join.common import ALLOWED_FIELDS, \
 
 
 class Validator(object):
-    def __init__(self, sample_ratio):
+    def __init__(self, sample_ratio=0):
         """
         input data validator
 
