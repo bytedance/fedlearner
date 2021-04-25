@@ -303,7 +303,6 @@ class Composer(object):
                 # start runner
                 runner_fn = self.runner_cache.find_runner(runner.id, first)
                 self.thread_reaper.enqueue(name=lock_name,
-                                           timeout=-1,
                                            fn=runner_fn,
                                            context=context)
                 try:
@@ -362,7 +361,6 @@ class Composer(object):
                         next_runner_fn = self.runner_cache.find_runner(
                             runner.id, next_one)
                         self.thread_reaper.enqueue(name=lock_name,
-                                                   timeout=-1,
                                                    fn=next_runner_fn,
                                                    context=context)
                 elif status == RunnerStatus.FAILED:

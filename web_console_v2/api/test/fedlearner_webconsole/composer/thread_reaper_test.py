@@ -36,13 +36,6 @@ class TaskRunner(IRunner):
             f"[mock_task_runner] {self.task_id} started, ctx: {context}")
         time.sleep(5)
 
-    def stop(self, context: Context):
-        logging.info(
-            f"[mock_task_runner] {self.task_id} stopped, ctx: {context}")
-
-    def timeout(self) -> int:
-        return 60
-
     def result(self, context: Context) -> Tuple[RunnerStatus, dict]:
         time.sleep(3)
         return RunnerStatus.DONE, {}
@@ -61,15 +54,15 @@ class ThreadReaperTest(BaseTestCase):
         tr = ThreadReaper(worker_num=1)
 
         runner = TaskRunner(1)
-        tr.enqueue('1', -1, runner,
+        tr.enqueue('1', runner,
                    Context(data={}, internal={}, db_engine=db.engine))
         self.assertEqual(True, tr.is_full(), 'should be full')
-        ok = tr.enqueue('2', -1, runner,
+        ok = tr.enqueue('2', runner,
                         Context(data={}, internal={}, db_engine=db.engine))
         self.assertEqual(False, ok, 'should not be enqueued')
         time.sleep(10)
         self.assertEqual(False, tr.is_full(), 'should not be full')
-        ok = tr.enqueue('3', -1, runner,
+        ok = tr.enqueue('3', runner,
                         Context(data={}, internal={}, db_engine=db.engine))
         self.assertEqual(True, ok, 'should be enqueued')
         tr.stop(wait=True)

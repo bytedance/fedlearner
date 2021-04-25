@@ -36,5 +36,7 @@ done
 # Loads initial data
 FLASK_APP=command:app flask create-initial-data
 
+export FEDLEARNER_WEBCONSOLE_LOG_DIR=/var/log/fedlearner_webconsole/
+mkdir -p $FEDLEARNER_WEBCONSOLE_LOG_DIR
 gunicorn server:app \
     --config="$ROOT_DIRECTORY/gunicorn_config.py"

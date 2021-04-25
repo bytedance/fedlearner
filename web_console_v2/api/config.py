@@ -72,7 +72,6 @@ class Config(object):
     JSON_AS_ASCII = False
     JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY', secrets.token_urlsafe(64))
     PROPAGATE_EXCEPTIONS = True
-    LOGGING_LEVEL = logging.INFO
     GRPC_LISTEN_PORT = 1990
     JWT_ACCESS_TOKEN_EXPIRES = 86400
     STORAGE_ROOT = os.getenv('STORAGE_ROOT', '/data')

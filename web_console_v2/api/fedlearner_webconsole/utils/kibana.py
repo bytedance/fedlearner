@@ -4,7 +4,7 @@ from datetime import datetime
 
 import prison
 import pytz
-from fedlearner_webconsole.envs import Envs
+from envs import Envs
 from fedlearner_webconsole.job.models import JobType
 
 

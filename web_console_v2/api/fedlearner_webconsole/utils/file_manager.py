@@ -25,9 +25,8 @@ from typing import List
 from pyarrow import fs
 from pyarrow.fs import FileSystem
 from tensorflow.io import gfile
-import tensorflow_io  # pylint: disable=unused-import
 
-from fedlearner_webconsole.envs import Envs
+from envs import Envs
 
 # path: absolute path of the file
 # size: file size in bytes
@@ -181,7 +180,7 @@ class GFileFileManager(FileManagerBase):
         # TODO: List tf support
         if path.startswith('fake://'):
             return False
-        if not Envs.SUPPORT_HDFS and path.startswith('hdfs://'):
+        if not Envs.HDFS_SERVER and path.startswith('hdfs://'):
             return False
         return True
 

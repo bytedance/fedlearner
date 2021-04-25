@@ -4,7 +4,6 @@ import pytz
 
 
 class Envs(object):
-    SUPPORT_HDFS = bool(os.environ.get('SUPPORT_HDFS'))
     TZ = pytz.timezone(os.environ.get('TZ', 'UTC'))
     HDFS_SERVER = os.environ.get('HDFS_SERVER', None)
     ES_HOST = os.environ.get('ES_HOST', 'fedlearner-stack-elasticsearch-client')
@@ -20,3 +19,4 @@ class Envs(object):
     # Whether to use the real jwt_required decorator or fake one
     DEBUG = os.environ.get('DEBUG', False)
     ES_INDEX = os.environ.get('ES_INDEX', 'filebeat-*')
+    FEDLEARNER_WEBCONSOLE_LOG_DIR = os.environ.get('FEDLEARNER_WEBCONSOLE_LOG_DIR', '.')
