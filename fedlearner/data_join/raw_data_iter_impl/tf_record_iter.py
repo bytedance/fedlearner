@@ -22,6 +22,7 @@ import tensorflow.compat.v1 as tf
 import fedlearner.data_join.common as common
 from fedlearner.data_join.raw_data_iter_impl.raw_data_iter import RawDataIter
 
+
 class TfExampleItem(RawDataIter.Item):
     def __init__(self, record_str, cache_type=None, index=None):
         super().__init__()
@@ -172,6 +173,8 @@ class TfRecordIter(RawDataIter):
         with self._data_set(fpath) as data_set:
             for batch in iter(data_set):
                 for raw_data in batch.numpy():
+                    if not self._validator.check_tfrecord(raw_data):
+                        continue
                     index = self._index
                     if index is None:
                         index = 0
