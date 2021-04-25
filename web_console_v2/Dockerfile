@@ -35,9 +35,9 @@ RUN curl -fOL https://github.com/cdr/code-server/releases/download/v3.8.0/code-s
     rm code-server_3.8.0_amd64.deb && \
     mkdir -p ~/.config/code-server/ && \
     echo 'bind-addr: 0.0.0.0:1992\n\
-    auth: password\n\
-    password: fedlearner\n\
-    cert: false\n' >> ~/.config/code-server/config.yaml
+auth: password\n\
+password: fedlearner\n\
+cert: false\n' >> ~/.config/code-server/config.yaml
 
 # Port for VScode
 EXPOSE 1992

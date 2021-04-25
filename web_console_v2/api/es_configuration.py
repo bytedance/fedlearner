@@ -1,7 +1,7 @@
 import requests
 from elasticsearch import Elasticsearch
 
-from fedlearner_webconsole.envs import Envs
+from envs import Envs
 from fedlearner_webconsole.utils.es_misc import get_es_template, ALIAS_NAME
 
 

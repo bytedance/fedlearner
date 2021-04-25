@@ -15,7 +15,7 @@
 # coding: utf-8
 from contextlib import contextmanager
 from enum import Enum
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Dict, Callable
 
 from flask_sqlalchemy import SQLAlchemy
@@ -55,7 +55,16 @@ def to_dict_mixin(ignores: List[str] = None,
             for key in dic:
                 value = dic[key]
                 if isinstance(value, datetime):
-                    dic[key] = int(value.timestamp())
+                    # If there is no timezone, we should treat it as
+                    # UTC datetime,otherwise it will be calculated
+                    # as local time when converting to timestamp.
+                    # Context: all datetime in db is UTC datetime,
+                    # see details in config.py#turn_db_timezone_to_utc
+                    if value.tzinfo is None:
+                        dic[key] = int(value.replace(
+                            tzinfo=timezone.utc).timestamp())
+                    else:
+                        dic[key] = int(value.timestamp())
                 elif isinstance(value, Message):
                     dic[key] = MessageToDict(
                         value,

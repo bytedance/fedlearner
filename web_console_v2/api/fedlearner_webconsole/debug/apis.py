@@ -28,8 +28,7 @@ class ComposerApi(Resource):
         else:
             composer.collect(
                 name,
-                [MemoryItem(1), MemoryItem(2),
-                 MemoryItem(3)],
+                [MemoryItem(1), MemoryItem(2)],
                 {  # meta data
                     1: {
                         'input': 'fs://data/memory_1',

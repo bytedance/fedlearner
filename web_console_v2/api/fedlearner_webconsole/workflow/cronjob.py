@@ -13,6 +13,8 @@
 # coding: utf-8
 
 from typing import Tuple
+from time import sleep
+
 from fedlearner_webconsole.composer.interface import IItem, IRunner, ItemType
 from fedlearner_webconsole.composer.models import Context, RunnerStatus
 from fedlearner_webconsole.db import get_session
@@ -44,26 +46,33 @@ class WorkflowCronJob(IRunner):
         with get_session(context.db_engine) as session:
             workflow: Workflow = session.query(Workflow).filter_by(
                 id=self._workflow_id).one()
-            if workflow.state in (WorkflowState.STOPPED, WorkflowState.READY):
+            # TODO: This is a hack!!! Templatelly use this method
+            # cc @hangweiqiang: Transaction State Refactor
+            state = workflow.get_state_for_frontend()
+            if state in ('COMPLETED', 'FAILED', 'READY', 'STOPEED', 'NEW'):
+                if state in ('COMPLETED', 'FAILED'):
+                    workflow.update_target_state(
+                        target_state=WorkflowState.STOPPED)
+                    session.commit()
+                    # check workflow stopped
+                    # TODO: use composer timeout cc @yurunyu
+                    for _ in range(24):
+                        workflow = session.query(Workflow).filter_by(
+                            id=self._workflow_id).one()
+                        if workflow.state == WorkflowState.STOPPED:
+                            break
+                        sleep(5)
                 workflow.update_target_state(
                     target_state=WorkflowState.RUNNING)
                 session.commit()
                 self._msg = f'restarted workflow[{self._workflow_id}]'
-            elif workflow.state == WorkflowState.RUNNING:
+            elif state == 'RUNNING':
                 self._msg = f'skip restarting workflow[{self._workflow_id}]'
-            elif workflow.state == WorkflowState.INVALID:
+            elif state == 'INVALID':
                 self._msg = f'current workflow[{self._workflow_id}] is invalid'
-
-    def stop(self, context: Context):
-        del self, context  # unused by stop fn
 
     def result(self, context: Context) -> Tuple[RunnerStatus, dict]:
         del context  # unused by result
 
         output = {'msg': self._msg}
         return RunnerStatus.DONE, output
-
-    def timeout(self, context: Context):
-        del self, context  # unused by timeout
-
-        return -1

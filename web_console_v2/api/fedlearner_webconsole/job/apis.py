@@ -29,7 +29,7 @@ from fedlearner_webconsole.rpc.client import RpcClient
 from fedlearner_webconsole.utils.es import es
 from fedlearner_webconsole.utils.kibana import KibanaUtils
 from fedlearner_webconsole.workflow.models import Workflow
-from fedlearner_webconsole.envs import Envs
+from envs import Envs
 
 
 def _get_job(job_id):

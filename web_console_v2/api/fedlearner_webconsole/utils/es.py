@@ -16,7 +16,7 @@
 import json
 from elasticsearch import Elasticsearch
 
-from fedlearner_webconsole.envs import Envs
+from envs import Envs
 
 
 class ElasticSearchClient(object):

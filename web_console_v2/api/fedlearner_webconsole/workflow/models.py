@@ -395,7 +395,7 @@ class Workflow(db.Model):
             'Workflow not in prepare state'
 
         if self.target_state == WorkflowState.STOPPED:
-            self.stop_at = int(datetime.utcnow().timestamp())
+            self.stop_at = int(datetime.now().timestamp())
             try:
                 for job in self.owned_jobs:
                     job.stop()
@@ -408,7 +408,7 @@ class Workflow(db.Model):
             self._setup_jobs()
             self.fork_proposal_config = None
         elif self.target_state == WorkflowState.RUNNING:
-            self.start_at = int(datetime.utcnow().timestamp())
+            self.start_at = int(datetime.now().timestamp())
             for job in self.owned_jobs:
                 if not job.is_disabled:
                     job.schedule()

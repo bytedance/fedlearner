@@ -13,6 +13,8 @@
 # limitations under the License.
 
 # coding: utf-8
+import os
+from envs import Envs
 
 bind = ':1991'
 workers = 1
@@ -23,3 +25,5 @@ secure_scheme_headers = {
     'X-FORWARDED-PROTO': 'https',
     'X-FORWARDED-SSL': 'on'
 }
+
+errorlog = f'{Envs.FEDLEARNER_WEBCONSOLE_LOG_DIR}/error.log'

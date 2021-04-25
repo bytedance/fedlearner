@@ -43,17 +43,23 @@ class IItem(metaclass=ABCMeta):
 class IRunner(metaclass=ABCMeta):
     @abstractmethod
     def start(self, context: Context):
-        pass
+        """Start runner
 
-    @abstractmethod
-    def stop(self, context: Context):
-        pass
+        Args:
+            context: shared in runner. Don't write data to context in this
+            method. Only can read data via `context.data`.
+        """
 
     @abstractmethod
     def result(self, context: Context) -> Tuple[RunnerStatus, dict]:
-        pass
+        """Check runner result
 
-    @abstractmethod
-    def timeout(self) -> int:
-        # TODO: if this runner is timeout, should be stopped
-        pass
+        NOTE: You could check runner if is timeout in this method. If it's
+            timeout, return `RunnerStatus.FAILED`. Since runners executed by
+            `ThreadPoolExecutor` may have some common resources, it's better to
+            stop the runner by user instead of `composer`.
+
+        Args:
+            context: shared in runner. In this method, data can be
+               read or written to context via `context.data`.
+        """

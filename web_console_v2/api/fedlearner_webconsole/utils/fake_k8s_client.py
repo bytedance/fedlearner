@@ -16,7 +16,8 @@
 # pylint: disable=logging-format-interpolation
 import logging
 from kubernetes import client
-from fedlearner_webconsole.utils.k8s_client import K8sClient
+from fedlearner_webconsole.utils.k8s_client import K8sClient, \
+    SPARKOPERATOR_NAMESPACE
 
 _RAISE_EXCEPTION_KEY = 'raise_exception'
 
@@ -26,7 +27,6 @@ class FakeK8sClient(K8sClient):
 
     With this client we can decouple the dependency of k8s cluster.
     """
-
     def __init__(self):  # pylint: disable=super-init-not-called
         # Do not call super constructor
         pass
@@ -34,8 +34,12 @@ class FakeK8sClient(K8sClient):
     def close(self):
         pass
 
-    def create_or_update_secret(self, data, metadata, secret_type,
-                                name, namespace='default'):
+    def create_or_update_secret(self,
+                                data,
+                                metadata,
+                                secret_type,
+                                name,
+                                namespace='default'):
         # User may pass two type of data:
         # 1. dictionary
         # 2. K8s Object
@@ -46,88 +50,75 @@ class FakeK8sClient(K8sClient):
         # Otherwise succeeds
         logging.info('======================')
         logging.info('Saved a secret with: data: {}, '
-                     'metadata: {}, type: {}'.format(
-            data,
-            metadata,
-            secret_type
-        ))
+                     'metadata: {}, type: {}'.format(data, metadata,
+                                                     secret_type))
 
     def delete_secret(self, name, namespace='default'):
         logging.info('======================')
-        logging.info('Deleted a secret with: name: {}'.format(
-            name
-        ))
+        logging.info('Deleted a secret with: name: {}'.format(name))
 
     def get_secret(self, name, namespace='default'):
         return client.V1Secret(api_version='v1',
                                data={'test': 'test'},
                                kind='Secret',
-                               metadata={'name': name, 'namespace': namespace},
+                               metadata={
+                                   'name': name,
+                                   'namespace': namespace
+                               },
                                type='Opaque')
 
-    def create_or_update_service(self, metadata, spec, name,
+    def create_or_update_service(self,
+                                 metadata,
+                                 spec,
+                                 name,
                                  namespace='default'):
         logging.info('======================')
         logging.info('Saved a service with: spec: {}, metadata: {}'.format(
-            spec,
-            metadata
-        ))
+            spec, metadata))
 
     def delete_service(self, name, namespace='default'):
         logging.info('======================')
-        logging.info('Deleted a service with: name: {}'.format(
-            name
-        ))
+        logging.info('Deleted a service with: name: {}'.format(name))
 
     def get_service(self, name, namespace='default'):
-        return client.V1Service(api_version='v1',
-                                kind='Service',
-                                metadata=client.V1ObjectMeta(
-                                    name=name,
-                                    namespace=namespace
-                                ),
-                                spec=client.V1ServiceSpec(
-                                    selector={'app': 'nginx'}
-                                ))
+        return client.V1Service(
+            api_version='v1',
+            kind='Service',
+            metadata=client.V1ObjectMeta(name=name, namespace=namespace),
+            spec=client.V1ServiceSpec(selector={'app': 'nginx'}))
 
-    def create_or_update_ingress(self, metadata, spec, name,
+    def create_or_update_ingress(self,
+                                 metadata,
+                                 spec,
+                                 name,
                                  namespace='default'):
         logging.info('======================')
         logging.info('Saved a ingress with: spec: {}, metadata: {}'.format(
-            spec,
-            metadata
-        ))
+            spec, metadata))
 
     def delete_ingress(self, name, namespace='default'):
         logging.info('======================')
-        logging.info('Deleted a ingress with: name: {}'.format(
-            name
-        ))
+        logging.info('Deleted a ingress with: name: {}'.format(name))
 
     def get_ingress(self, name, namespace='default'):
         return client.NetworkingV1beta1Ingress(
             api_version='networking.k8s.io/v1beta1',
             kind='Ingress',
-            metadata=client.V1ObjectMeta(
-                name=name,
-                namespace=namespace
-            ),
-            spec=client.NetworkingV1beta1IngressSpec()
-        )
+            metadata=client.V1ObjectMeta(name=name, namespace=namespace),
+            spec=client.NetworkingV1beta1IngressSpec())
 
-    def create_or_update_deployment(self, metadata, spec, name,
+    def create_or_update_deployment(self,
+                                    metadata,
+                                    spec,
+                                    name,
                                     namespace='default'):
         logging.info('======================')
         logging.info('Saved a deployment with: spec: {}, metadata: {}'.format(
-            spec,
-            metadata
-        ))
+            spec, metadata))
 
     def delete_deployment(self, name, namespace='default'):
         logging.info('======================')
-        logging.info('Deleted a deployment with: name: {}'.format(
-            name
-        ))
+        logging.info('Deleted a deployment with: name: {}'.format(name))
 
     def get_deployment(self, name, namespace='default'):
         return client.V1Deployment(
@@ -135,23 +126,18 @@ class FakeK8sClient(K8sClient):
             kind='Deployment',
             metadata=client.V1ObjectMeta(name=name, namespace=namespace),
             spec=client.V1DeploymentSpec(
-                selector={'matchLabels': {'app': 'fedlearner-operator'}},
-                template=client.V1PodTemplateSpec(
-                    spec=client.V1PodSpec(
-                        containers=[
-                            client.V1Container(
-                                name='fedlearner-operator',
-                                args=[
-                                    'test'
-                                ]
-                            )
-                        ]
-                    )
-                )
-            )
-        )
+                selector={'matchLabels': {
+                    'app': 'fedlearner-operator'
+                }},
+                template=client.V1PodTemplateSpec(spec=client.V1PodSpec(
+                    containers=[
+                        client.V1Container(name='fedlearner-operator',
+                                           args=['test'])
+                    ]))))
 
-    def get_custom_object(self, crd_kind, custom_object_name: str,
+    def get_custom_object(self,
+                          crd_kind,
+                          custom_object_name: str,
                           namespace='default'):
         result = {
             'kind': crd_kind.value,
@@ -161,14 +147,13 @@ class FakeK8sClient(K8sClient):
             },
             'status': {
                 'appState': 'FLStateRunning',
-                'flReplicaStatus':{
+                'flReplicaStatus': {
                     'Master': {
                         'active': {
                             'laomiao-raw-data-1223-v1-follower'
                             '-master-0-717b53c4-'
                             'fef7-4d65-a309-63cf62494286': {}
                         }
-
                     },
                     'Worker': {
                         'active': {
@@ -179,15 +164,15 @@ class FakeK8sClient(K8sClient):
                             '-worker-1-accef16a-'
                             '317f-440f-8f3f-7dd5b3552d25': {}
                         }
-
                     }
-
                 }
             }
         }
         return {'flapp': result}
 
-    def delete_custom_object(self, crd_kind, custom_object_name: str,
+    def delete_custom_object(self,
+                             crd_kind,
+                             custom_object_name: str,
                              namespace='default'):
         return {
             'kind': crd_kind.value,
@@ -197,8 +182,11 @@ class FakeK8sClient(K8sClient):
             }
         }
 
-    def list_resource_of_custom_object(self, crd_kind, custom_object_name: str,
-                                       resource_type: str, namespace='default'):
+    def list_resource_of_custom_object(self,
+                                       crd_kind,
+                                       custom_object_name: str,
+                                       resource_type: str,
+                                       namespace='default'):
         result = {
             'pods': {
                 'metadata': {
@@ -206,25 +194,93 @@ class FakeK8sClient(K8sClient):
                     'resourceVersion': '780480990'
                 }
             },
-            'items': [
-                {
-                    'metadata': {
-                        'name': '{}-0'.format(custom_object_name)
-                    }
-                },
-                {
-                    'metadata': {
-                        'name': '{}-1'.format(custom_object_name)
-                    }
+            'items': [{
+                'metadata': {
+                    'name': '{}-0'.format(custom_object_name)
                 }
-            ]
+            }, {
+                'metadata': {
+                    'name': '{}-1'.format(custom_object_name)
+                }
+            }]
         }
         return {'pods': result}
 
-    def create_or_replace_custom_object(self, crd_kind, json_object,
+    def create_or_replace_custom_object(self,
+                                        crd_kind,
+                                        json_object,
                                         namespace='default'):
         return json_object
 
-    def get_webshell_session(self, flapp_name, container_name: str,
+    def get_webshell_session(self,
+                             flapp_name,
+                             container_name: str,
                              namespace='default'):
         return {'id': 1}
+
+    def get_sparkapplication(self,
+                             name: str,
+                             namespace: str = SPARKOPERATOR_NAMESPACE) -> dict:
+        logging.info('======================')
+        logging.info(
+            f'get spark application, name: {name}, namespace: {namespace}')
+        return {
+            'apiVersion': 'sparkoperator.k8s.io/v1beta2',
+            'kind': 'SparkApplication',
+            'metadata': {
+                'creationTimestamp': '2021-04-15T10:43:15Z',
+                'generation': 1,
+                'name': name,
+                'namespace': namespace,
+            },
+            'status': {
+                'applicationState': {
+                    'state': 'COMPLETED'
+                },
+            }
+        }
+
+    def create_sparkapplication(
+            self,
+            json_object: dict,
+            namespace: str = SPARKOPERATOR_NAMESPACE) -> dict:
+        logging.info('======================')
+        logging.info(f'create spark application, namespace: {namespace}, '
+                     f'json: {json_object}')
+        return {
+            'apiVersion': 'sparkoperator.k8s.io/v1beta2',
+            'kind': 'SparkApplication',
+            'metadata': {
+                'creationTimestamp': '2021-04-15T10:43:15Z',
+                'generation': 1,
+                'name': 'fl-transformer-yaml',
+                'namespace': 'fedlearner',
+                'resourceVersion': '348817823',
+            },
+            'spec': {
+                'arguments': [
+                    'hdfs://user/feature/data.csv',
+                    'hdfs://user/feature/data_tfrecords/'
+                ],
+            }
+        }
+
+    def delete_sparkapplication(self,
+                                name: str,
+                                namespace: str = SPARKOPERATOR_NAMESPACE
+                                ) -> dict:
+        logging.info('======================')
+        logging.info(
+            f'delete spark application, name: {name}, namespace: {namespace}')
+        return {
+            'kind': 'Status',
+            'apiVersion': 'v1',
+            'metadata': {},
+            'status': 'Success',
+            'details': {
+                'name': name,
+                'group': 'sparkoperator.k8s.io',
+                'kind': 'sparkapplications',
+                'uid': '790603b6-9dd6-11eb-9282-b8599fb51ea8'
+            }
+        }

@@ -15,5 +15,8 @@
 # coding: utf-8
 from config import Config
 from fedlearner_webconsole.app import create_app
+from fedlearner_webconsole.utils import middlewares
 
 app = create_app(Config())
+# Middlewares
+app = middlewares.init_app(app)
