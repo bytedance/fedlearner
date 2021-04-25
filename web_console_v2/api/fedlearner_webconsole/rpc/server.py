@@ -40,7 +40,7 @@ from fedlearner_webconsole.job.metrics import JobMetricsBuilder
 from fedlearner_webconsole.exceptions import (
     UnauthorizedException
 )
-from fedlearner_webconsole.envs import Envs
+from envs import Envs
 
 
 class RPCServerServicer(service_pb2_grpc.WebConsoleV2ServiceServicer):

@@ -20,7 +20,6 @@ import tempfile
 import unittest
 
 from pathlib import Path
-from unittest import mock
 from unittest.mock import patch, MagicMock
 from pyarrow import fs
 
@@ -181,7 +180,7 @@ class DefaultFileManagerTest(unittest.TestCase):
 class HdfsFileManagerTest(unittest.TestCase):
     def setUp(self):
         self._envs_patcher = patch(
-            'fedlearner_webconsole.envs.Envs.HDFS_SERVER',
+            'envs.Envs.HDFS_SERVER',
             'hdfs://haruna/'
         )
         self._envs_patcher.start()

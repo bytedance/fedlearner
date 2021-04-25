@@ -48,57 +48,48 @@ RunnerCases = [
         'id': 1,
         'start': (lambda _: True),
         'result': (lambda _: sleep_and_log(1, 1) or (RunnerStatus.DONE, {})),
-        'stop': (lambda _: None),
     },
     {
         'id': 2,
         'start': (lambda _: True),
         'result': (lambda _: sleep_and_log(2, 1) or (RunnerStatus.DONE, {})),
-        'stop': (lambda _: None),
     },
     {
         'id': 3,
         'start': (lambda _: True),
         'result': (lambda _: sleep_and_log(3, 1) or (RunnerStatus.DONE, {})),
-        'stop': (lambda _: None),
     },
     # failed: 4, 5, 6
     {
         'id': 4,
         'start': (lambda _: sleep_and_log(4, 5) and False),
         'result': (lambda _: (RunnerStatus.FAILED, {})),
-        'stop': (lambda _: _),
     },
     {
         'id': 5,
         'start': (lambda _: _raise(TimeoutError)),
         'result': (lambda _: (RunnerStatus.FAILED, {})),
-        'stop': (lambda _: _),
     },
     {
         'id': 6,
         'start': (lambda _: sleep_and_log(6, 10) and False),
         'result': (lambda _: (RunnerStatus.FAILED, {})),
-        'stop': (lambda _: _),
     },
     # busy: 7, 8, 9
     {
         'id': 7,
         'start': (lambda _: True),
         'result': (lambda _: sleep_and_log(7, 15) or (RunnerStatus.DONE, {})),
-        'stop': (lambda _: _),
     },
     {
         'id': 8,
         'start': (lambda _: True),
         'result': (lambda _: sleep_and_log(8, 15) or (RunnerStatus.DONE, {})),
-        'stop': (lambda _: _),
     },
     {
         'id': 9,
         'start': (lambda _: True),
         'result': (lambda _: sleep_and_log(9, 15) or (RunnerStatus.DONE, {})),
-        'stop': (lambda _: _),
     },
 ]
 
@@ -116,14 +107,6 @@ class TaskRunner(IRunner):
         result = RunnerCases[self.task_id - 1]['result'](context)
         logging.info(f"[mock_task_runner] {self.task_id} done result {result}")
         return result
-
-    def stop(self, context: Context):
-        logging.info(
-            f"[mock_task_runner] {self.task_id} stopped, ctx: {context}")
-        RunnerCases[self.task_id - 1]['stop'](context)
-
-    def timeout(self) -> int:
-        return 60
 
 
 class InputDirTaskRunner(IRunner):
@@ -144,9 +127,3 @@ class InputDirTaskRunner(IRunner):
             3: RunnerStatus.FAILED,
         }
         return s.get(self.task_id, RunnerStatus.RUNNING), {}
-
-    def stop(self, context: Context):
-        pass
-
-    def timeout(self) -> int:
-        pass

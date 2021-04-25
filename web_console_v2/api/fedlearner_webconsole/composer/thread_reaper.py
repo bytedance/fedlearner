@@ -35,21 +35,14 @@ class ThreadReaper(object):
         self.running_worker_num = 0
         self._thread_pool = ThreadPoolExecutor(max_workers=worker_num)
 
-    def enqueue(self, name: str, timeout: int, fn: IRunner,
-                context: Context) -> bool:
+    def enqueue(self, name: str, fn: IRunner, context: Context) -> bool:
         if self.is_full():
             return False
         logging.info(f'[thread_reaper] enqueue {name}')
         with self.lock:
             self.running_worker_num += 1
-            if timeout > -1:
-                fu = self._thread_pool.submit(fn.start,
-                                              context=context,
-                                              timeout=timeout)
-                fu.add_done_callback(self._track_status)
-            else:  # no timeout limit
-                fu = self._thread_pool.submit(fn.start, context=context)
-                fu.add_done_callback(self._track_status)
+            fu = self._thread_pool.submit(fn.start, context=context)
+            fu.add_done_callback(self._track_status)
         return True
 
     def _track_status(self, fu: Future):

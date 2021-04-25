@@ -16,6 +16,7 @@
 # pylint: disable=wrong-import-position, global-statement
 import importlib
 import logging
+import logging.config
 import os
 import traceback
 
@@ -49,7 +50,7 @@ from fedlearner_webconsole.exceptions import (make_response,
 from fedlearner_webconsole.scheduler.scheduler import scheduler
 from fedlearner_webconsole.auth.models import User, Session
 from fedlearner_webconsole.composer.composer import composer
-
+from logging_config import LOGGING_CONFIG
 
 def _handle_bad_request(error):
     """Handles the bad request raised by reqparse"""
@@ -115,6 +116,9 @@ def check_if_token_invalid(jwt_header, jwt_data):
 
 
 def create_app(config):
+    # format logging
+    logging.config.dictConfig(LOGGING_CONFIG)
+
     before_hook_path = os.getenv('FEDLEARNER_WEBCONSOLE_BEFORE_APP_START')
     if before_hook_path:
         module_path, func_name = before_hook_path.split(':')
@@ -123,7 +127,6 @@ def create_app(config):
         getattr(module, func_name)()
 
     app = Flask('fedlearner_webconsole')
-    logging.basicConfig(level=config.LOGGING_LEVEL)
     app.config.from_object(config)
 
     db.init_app(app)

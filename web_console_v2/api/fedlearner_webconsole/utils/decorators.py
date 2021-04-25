@@ -21,7 +21,7 @@ import flask_jwt_extended
 from flask_jwt_extended.utils import get_current_user
 from fedlearner_webconsole.auth.models import Role
 from fedlearner_webconsole.exceptions import UnauthorizedException
-from fedlearner_webconsole.envs import Envs
+from envs import Envs
 
 
 def admin_required(f):

@@ -13,7 +13,9 @@
 # limitations under the License.
 
 # coding: utf-8
+import datetime
 import logging
+import random
 import time
 from typing import Tuple
 
@@ -43,15 +45,27 @@ class MemoryRunner(IRunner):
              task_id: required
         """
         self.task_id = task_id
+        self._start_at = None
 
     def start(self, context: Context):
         # NOTE: in this method, context.data can only be getter,
         # don't modify context
         data = context.data.get(str(self.task_id), 'EMPTY')
         logging.info(f'[memory_runner] {self.task_id} started, data: {data}')
+        self._start_at = datetime.datetime.utcnow()
 
     def result(self, context: Context) -> Tuple[RunnerStatus, dict]:
         time.sleep(2)
+        now = datetime.datetime.utcnow()
+        timeout = random.randint(0, 10)
+        # mock timeout
+        if self._start_at is not None and self._start_at + datetime.timedelta(
+                seconds=timeout) < now:
+            # kill runner
+            logging.info(f'[memory_runner] {self.task_id} is timeout, '
+                         f'start at: {self._start_at}')
+            return RunnerStatus.FAILED, {}
+
         # use `get_session` to query database
         with get_session(context.db_engine) as session:
             count = session.query(SchedulerRunner).count()
@@ -61,12 +75,6 @@ class MemoryRunner(IRunner):
                 'count': count
             })
         return RunnerStatus.DONE, {}
-
-    def stop(self, context: Context):
-        logging.info(f'[memory_runner] {self.task_id} stopped, ctx: {context}')
-
-    def timeout(self) -> int:
-        return 60
 
 
 # register runner_fn
