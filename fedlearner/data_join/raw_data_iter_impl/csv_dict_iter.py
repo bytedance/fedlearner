@@ -69,7 +69,7 @@ class CsvItem(RawDataIter.Item):
             try:
                 example = common.convert_dict_to_tf_example(self._features)
                 self._tf_record = example.SerializeToString()
-            except Exception as e: # pylint: disable=broad-except
+            except Exception as e:  # pylint: disable=broad-except
                 traceback.print_exc()
                 logging.error("Failed convert csv dict to tf example, "\
                               "reason %s", e)
@@ -89,6 +89,7 @@ class CsvItem(RawDataIter.Item):
         self._features.update(new_features)
         if self._tf_record is not None:
             self._tf_record = None
+
 
 class CsvDictIter(RawDataIter):
     def __init__(self, options):
@@ -117,8 +118,13 @@ class CsvDictIter(RawDataIter):
                                   self._headers, dict_reader.fieldnames)
                     traceback.print_stack()
                     os._exit(-1) # pylint: disable=protected-access
-                for row in dict_reader:
-                    yield CsvItem(row)
+                self._validator.check_csv_header(self._headers)
+                # check invalid character for headers
+                for raw in dict_reader:
+                    if not self._validator.check_csv_record(
+                        raw, len(self._headers)):
+                        continue
+                    yield CsvItem(raw)
 
     def _make_csv_dict_reader(self, fh, rest_buffer, aware_headers):
         if self._options.read_ahead_size <= 0:
