@@ -20,3 +20,5 @@ from fedlearner import data_join
 from fedlearner import trainer_master
 from fedlearner import proxy
 from fedlearner import trainer
+from fedlearner import model
+name = "fedlearner"
