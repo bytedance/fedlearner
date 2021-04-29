@@ -163,7 +163,7 @@ class DataBlockLoaderV2(object):
                 yield block.data_path
 
         dataset = tf.data.Dataset.from_generator(gen, tf.string)
-        dataset = tf.data.TFRecordDataset(dataset)
+        dataset = tf.data.TFRecordDataset(dataset, num_parallel_reads=4)
         dataset = dataset.batch(batch_size, drop_remainder=True)
         dataset = dataset.prefetch(2)
         return dataset
