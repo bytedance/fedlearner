@@ -160,6 +160,10 @@ def create_argument_parser():
                         type=int,
                         default=1,
                         help='Logging level.')
+    parser.add_argument('--profiling_step',
+                        type=int,
+                        default=0,
+                        help='number of step to profiling.')
 
     return parser
 
@@ -280,7 +284,8 @@ def train(role, args, input_fn, model_fn, serving_input_receiver_fn):
                         load_checkpoint_filename_with_path= \
                             load_checkpoint_filename_with_path,
                         save_checkpoint_steps=args.save_checkpoint_steps,
-                        save_checkpoint_secs=args.save_checkpoint_secs)
+                        save_checkpoint_secs=args.save_checkpoint_secs,
+                        profiling_step=args.profiling_step)
         if args.export_path and args.worker_rank == 0:
             export_path = '%s/%d' % (args.export_path, bridge.terminated_at)
             estimator.export_saved_model(export_path,

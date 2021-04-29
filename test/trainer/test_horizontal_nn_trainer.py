@@ -255,7 +255,8 @@ class Args(object):
     def __init__(self, local_addr=None, peer_addr=None, app_id=None, master_addr=None,
             data_source=None, data_source_dict=None, data_path=None, data_path_dict=None, ckpt_path=None,
             export_path=None, start_time=None, end_time=None, tf_addr=None, cluster_spec=None,
-            ps_addrs=None, worker_rank=0, local_data_sources=''):
+            ps_addrs=None, worker_rank=0, local_data_sources='',
+            profiling_step=0):
         self.local_addr = local_addr
         self.peer_addr = peer_addr
         self.worker_rank = worker_rank
@@ -286,6 +287,7 @@ class Args(object):
         self.learning_rate = 0.01
         self.epoch_num = 2
         self.local_data_sources = local_data_sources
+        self.profiling_step = profiling_step
 
 
 class TestNNTraining(unittest.TestCase):
@@ -445,7 +447,8 @@ class TestNNTraining(unittest.TestCase):
                         master_addr=master_addr[role],
                         ckpt_path=ckpt_path,
                         export_path=exp_path,
-                        local_data_sources=self._local_data_source)
+                        local_data_sources=self._local_data_source,
+                        profiling_step=2)
             ftm = _Task(name="RunLeaderTW" + str(rank), target=run_lm, args=(args, ),
                     kwargs={'env' : child_env}, daemon=True, weight=2)
             self.sche.submit(ftm)
@@ -460,7 +463,8 @@ class TestNNTraining(unittest.TestCase):
                         worker_rank = rank,
                         master_addr=master_addr[role],
                         ckpt_path=ckpt_path,
-                        export_path=exp_path)
+                        export_path=exp_path,
+                        profiling_step=2)
             ftm = _Task(name="RunFollowerTW" + str(rank), target=run_fm, args=(args, ),
                     kwargs={'env' : child_env}, daemon=True, weight=2)
             self.sche.submit(ftm)
@@ -488,8 +492,8 @@ class TestNNTraining(unittest.TestCase):
 
     def tearDown(self):
         self.sche.bye()
-        if not debug_mode and gfile.Exists(output_path):
-           gfile.DeleteRecursively(output_path)
+        # if not debug_mode and gfile.Exists(output_path):
+        #    gfile.DeleteRecursively(output_path)
 
 if __name__ == '__main__':
     unittest.main()

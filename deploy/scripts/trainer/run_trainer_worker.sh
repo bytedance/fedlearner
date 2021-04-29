@@ -60,6 +60,7 @@ summary_save_steps=$(normalize_env_to_args "--summary-save-steps" "$SUMMARY_SAVE
 batch_size=$(normalize_env_to_args "--batch-size" "$BATCH_SIZE")
 learning_rate=$(normalize_env_to_args "--learning-rate" "$LEARNING_RATE")
 local_data_sources=$(normalize_env_to_args "--local_data_sources" $LOCAL_DATA_SOURCES)
+profiling_step=$(normalize_env_to_args "--profiling_step" $PROFILING_STEP)
 
 if [ -n "$CHECKPOINT_PATH" ]; then
     checkpoint_path="$CHECKPOINT_PATH"
@@ -112,4 +113,5 @@ python main.py \
     $save_checkpoint_secs $batch_size $learning_rate \
     $local_data_sources \
     $load_checkpoint_filename \
-    $load_checkpoint_filename_with_path
+    $load_checkpoint_filename_with_path \
+    $profiling_step

@@ -319,7 +319,8 @@ class FLEstimator(object):
               checkpoint_path=None,
               load_checkpoint_filename_with_path=None,
               save_checkpoint_steps=None,
-              save_checkpoint_secs=None):
+              save_checkpoint_secs=None,
+              profiling_step=0):
 
         config = tf.ConfigProto()
         config.inter_op_parallelism_threads = 128
@@ -375,13 +376,19 @@ class FLEstimator(object):
                 saver_hook = tf.estimator.CheckpointSaverHook(
                     checkpoint_path, save_secs=save_checkpoint_secs,
                     save_steps=save_checkpoint_steps, listeners=[listener])
+                all_hooks.append(saver_hook)
+                if profiling_step > 0:
+                    profiler_hook = tf.train.ProfilerHook(
+                        profiling_step,
+                        output_dir=checkpoint_path + "/profiling")
+                    all_hooks.append(profiler_hook)
                 session_creator = tf.train.ChiefSessionCreator(
                     master=target, config=config,
                     checkpoint_filename_with_path= \
                         load_checkpoint_filename_with_path)
                 sess = tf.train.MonitoredSession(
                     session_creator=session_creator,
-                    hooks=all_hooks + [saver_hook])
+                    hooks=all_hooks)
                 data_checkpoint_value = None
                 if hasattr(saver_hook, "data_checkpoint"):
                     data_checkpoint_value = saver_hook.data_checkpoint
