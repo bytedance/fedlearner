@@ -11,17 +11,20 @@ with open('requirements.txt') as f:
 
 def get_version():
     base = "1.5"
+    day = time.strftime('%Y%m%d', time.localtime())
+    return '%s-dev%s'%(base, day)
+
+def get_name():
     sysname = platform.system()
     if sysname in ['Darwin']:
         sysname = 'macos'
     else:
         sysname = 'manylinux'
 
-    day = time.strftime('%Y%m%d', time.localtime())
-    return '%s-%s-dev%s'%(base, sysname, day)
+    return "fedlearner-%s"%(sysname)
 
 setup(
-    name='fedlearner',
+    name=get_name(),
     version=get_version(),
     packages=find_packages(),
     include_package_data=True,
