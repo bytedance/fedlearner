@@ -24,9 +24,9 @@ jobs:
         build
         sdist
     - name: Publish distribution 📦 to PyPI
-      uses: pypa/gh-action-pypi-publish@master
-      #run: >-
-      #  twine upload dist/*
+      #uses: pypa/gh-action-pypi-publish@master
+      run: >-
+        twine upload dist/*
       with:
         user: fedlearner
         password: ${{ secrets.PYPI_SECRET }}
