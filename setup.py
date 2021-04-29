@@ -1,5 +1,5 @@
 import os
-import subprocess
+import platform
 from setuptools import setup, find_packages
 import time
 
@@ -9,10 +9,20 @@ with open("README.md", "r") as fh:
 with open('requirements.txt') as f:
     required = f.read().splitlines()
 
-_VERSION = '1.5.2.dev%s'%(time.strftime('%Y%m%d', time.localtime()))
+def get_version():
+    base = "1.5"
+    sysname = platform.system()
+    if sysname in ['Darwin']:
+        sysname = 'macos'
+    else:
+        sysname = 'manylinux'
+
+    day = time.strftime('%Y%m%d', time.localtime())
+    return '%s.%s.%s'%(base, sysname, day)
+
 setup(
     name='fedlearner',
-    version=_VERSION.replace('-', ''),
+    version=get_version(),
     packages=find_packages(),
     include_package_data=True,
     author='Fedlearner Contributors',
