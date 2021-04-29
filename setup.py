@@ -14,17 +14,8 @@ def get_version():
     day = time.strftime('%Y%m%d', time.localtime())
     return '%s-dev%s'%(base, day)
 
-def get_name():
-    sysname = platform.system()
-    if sysname in ['Darwin']:
-        sysname = 'macos'
-    else:
-        sysname = 'manylinux'
-
-    return "fedlearner-%s"%(sysname)
-
 setup(
-    name=get_name(),
+    name='fedlearner',
     version=get_version(),
     packages=find_packages(),
     include_package_data=True,
