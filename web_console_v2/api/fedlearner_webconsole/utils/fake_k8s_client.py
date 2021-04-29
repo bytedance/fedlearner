@@ -135,15 +135,39 @@ class FakeK8sClient(K8sClient):
                                            args=['test'])
                     ]))))
 
-    def get_custom_object(self,
-                          crd_kind,
-                          custom_object_name: str,
-                          namespace='default'):
-        result = {
-            'kind': crd_kind.value,
+
+    def delete_flapp(self, flapp_name):
+        pass
+
+    def create_flapp(self, flapp_yaml):
+        pass
+
+    def get_flapp(self, flapp_name):
+        pods = {
+            'pods': {
+                'metadata': {
+                    'selfLink': '/api/v1/namespaces/default/pods',
+                    'resourceVersion': '780480990'
+                }
+            },
+            'items': [
+                {
+                    'metadata': {
+                        'name': '{}-0'.format(flapp_name)
+                    }
+                },
+                {
+                    'metadata': {
+                        'name': '{}-1'.format(flapp_name)
+                    }
+                }
+            ]
+        }
+        flapp = {
+            'kind': 'FLAPP',
             'metadata': {
-                'name': custom_object_name,
-                'namesapce': namespace
+                'name': flapp_name,
+                'namesapce': 'default'
             },
             'status': {
                 'appState': 'FLStateRunning',
@@ -154,6 +178,7 @@ class FakeK8sClient(K8sClient):
                             '-master-0-717b53c4-'
                             'fef7-4d65-a309-63cf62494286': {}
                         }
+
                     },
                     'Worker': {
                         'active': {
@@ -164,53 +189,13 @@ class FakeK8sClient(K8sClient):
                             '-worker-1-accef16a-'
                             '317f-440f-8f3f-7dd5b3552d25': {}
                         }
+
                     }
+
                 }
             }
         }
-        return {'flapp': result}
-
-    def delete_custom_object(self,
-                             crd_kind,
-                             custom_object_name: str,
-                             namespace='default'):
-        return {
-            'kind': crd_kind.value,
-            'metadata': {
-                'name': custom_object_name,
-                'namesapce': namespace
-            }
-        }
-
-    def list_resource_of_custom_object(self,
-                                       crd_kind,
-                                       custom_object_name: str,
-                                       resource_type: str,
-                                       namespace='default'):
-        result = {
-            'pods': {
-                'metadata': {
-                    'selfLink': '/api/v1/namespaces/default/pods',
-                    'resourceVersion': '780480990'
-                }
-            },
-            'items': [{
-                'metadata': {
-                    'name': '{}-0'.format(custom_object_name)
-                }
-            }, {
-                'metadata': {
-                    'name': '{}-1'.format(custom_object_name)
-                }
-            }]
-        }
-        return {'pods': result}
-
-    def create_or_replace_custom_object(self,
-                                        crd_kind,
-                                        json_object,
-                                        namespace='default'):
-        return json_object
+        return {'flapp': flapp, 'pods': pods}
 
     def get_webshell_session(self,
                              flapp_name,

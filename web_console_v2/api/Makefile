@@ -3,7 +3,7 @@ export PYTHONPATH:=${PWD}:$(PYTHONPATH)
 .PHONY: test unit-test protobuf
 
 lint:
-	pylint --rcfile ./ci/pylintrc fedlearner_webconsole
+	pylint --rcfile ./ci/pylintrc --load-plugins pylint_quotes fedlearner_webconsole
 
 protobuf:
 	python -m grpc_tools.protoc -I protocols \

@@ -3,7 +3,7 @@ import styled from 'styled-components';
 import { InputNumber, Switch } from 'antd';
 import { useToggle } from 'react-use';
 
-export const MIN_SCHEDULED_MINUTES = 10;
+export const MIN_SCHEDULED_MINUTES = 1;
 
 const SwitchContainer = styled.div`
   margin-top: 5px;
@@ -16,7 +16,7 @@ type Props = {
 };
 
 const ScheduledWorkflowRunning: FC<Props> = ({ value, onChange }) => {
-  const isEnabled = value !== -1 || value >= 10;
+  const isEnabled = value !== -1 || value >= MIN_SCHEDULED_MINUTES;
   const [inputVisible, toggleVisible] = useToggle(isEnabled);
 
   useEffect(() => {

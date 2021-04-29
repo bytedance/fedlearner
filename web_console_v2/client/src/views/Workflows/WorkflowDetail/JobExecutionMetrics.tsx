@@ -11,6 +11,7 @@ import { fetchJobMpld3Metrics, fetchPeerJobMpld3Metrics } from 'services/workflo
 import queryClient from 'shared/queryClient';
 import { Workflow } from 'typings/workflow';
 import { MixinFlexAlignCenter } from 'styles/mixins';
+import ErrorBoundary from 'antd/lib/alert/ErrorBoundary';
 
 const Container = styled.div`
   margin-top: 30px;
@@ -125,51 +126,52 @@ const JobExecutionMetrics: FC<Props> = ({ job, workflow, visible, isPeerSide }) 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chartMetrics, mpld3]);
 
-  const isEmpty = chartMetrics?.data.length === 0;
+  const isEmpty = !chartMetrics?.data || chartMetrics?.data.length === 0;
   const isPeerMetricsPublic = isPeerSide && workflow?.metric_is_public;
   const metricsVisible = isPeerMetricsPublic || !isPeerSide;
 
-  // TODO: animate it up!
   return (
-    <Container data-display-chart={chartsVisible}>
-      <Header>{t('workflow.label_job_metrics')}</Header>
+    <ErrorBoundary>
+      <Container data-display-chart={chartsVisible}>
+        <Header>{t('workflow.label_job_metrics')}</Header>
 
-      {!metricsVisible && (
-        <MetricsNotPublic>
-          <Explaination>{t('workflow.placeholder_metric_not_public')}</Explaination>
-        </MetricsNotPublic>
-      )}
+        {!metricsVisible && (
+          <MetricsNotPublic>
+            <Explaination>{t('workflow.placeholder_metric_not_public')}</Explaination>
+          </MetricsNotPublic>
+        )}
 
-      {!chartMetrics && metricsVisible && (
-        <Spin spinning={metricsQ.isFetching}>
+        {!chartMetrics && metricsVisible && (
+          <Spin spinning={metricsQ.isFetching}>
+            <Placeholder>
+              <img src={getMetricsSVG} alt="fetch-metrics" />
+              <Explaination>{t('workflow.placeholder_fetch_metrics')}</Explaination>
+              <CTAButton type="primary" onClick={() => setChartsVisible(true)}>
+                {t('workflow.btn_fetch_metrics')}
+              </CTAButton>
+            </Placeholder>
+          </Spin>
+        )}
+
+        {isEmpty && (
           <Placeholder>
-            <img src={getMetricsSVG} alt="fetch-metrics" />
-            <Explaination>{t('workflow.placeholder_fetch_metrics')}</Explaination>
-            <CTAButton type="primary" onClick={() => setChartsVisible(true)}>
-              {t('workflow.btn_fetch_metrics')}
+            <img src={emptySVG} alt="fetch-metrics" />
+            <Explaination> {t('workflow.placeholder_no_metrics')}</Explaination>
+            <CTAButton
+              loading={metricsQ.isFetching}
+              type="primary"
+              onClick={() => metricsQ.refetch()}
+            >
+              {t('workflow.btn_retry')}
             </CTAButton>
           </Placeholder>
-        </Spin>
-      )}
+        )}
 
-      {isEmpty && (
-        <Placeholder>
-          <img src={emptySVG} alt="fetch-metrics" />
-          <Explaination> {t('workflow.placeholder_no_metrics')}</Explaination>
-          <CTAButton
-            loading={metricsQ.isFetching}
-            type="primary"
-            onClick={() => metricsQ.refetch()}
-          >
-            {t('workflow.btn_retry')}
-          </CTAButton>
-        </Placeholder>
-      )}
-
-      {chartMetrics?.data.map((_, index) => {
-        return <ChartContainer id={_targetChartId(index)} />;
-      })}
-    </Container>
+        {chartMetrics?.data.map((_, index) => {
+          return <ChartContainer id={_targetChartId(index)} />;
+        })}
+      </Container>
+    </ErrorBoundary>
   );
 
   function clearChart() {

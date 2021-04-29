@@ -27,7 +27,12 @@ from sqlalchemy.orm import sessionmaker
 # Explicitly set autocommit and autoflush
 # Disables autocommit to make developers to commit manually
 # Enables autoflush to make changes visible in the same session
-SESSION_OPTIONS = {'autocommit': False, 'autoflush': True}
+# Enables expire_on_commit to make it possible that one session commit twice
+SESSION_OPTIONS = {
+    'autocommit': False,
+    'autoflush': True,
+    'expire_on_commit': True
+}
 db = SQLAlchemy(session_options=SESSION_OPTIONS)
 
 

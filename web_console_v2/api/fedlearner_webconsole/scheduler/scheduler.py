@@ -26,7 +26,6 @@ from fedlearner_webconsole.workflow.models import Workflow, WorkflowState
 from fedlearner_webconsole.job.models import Job, JobState, JobDependency
 from fedlearner_webconsole.scheduler.transaction import TransactionManager
 from fedlearner_webconsole.k8s_client import get_client
-from fedlearner_webconsole.utils.k8s_client import CrdKind
 
 
 class Scheduler(object):
@@ -43,7 +42,7 @@ class Scheduler(object):
     def start(self, app, force=False):
         if self._running:
             if not force:
-                raise RuntimeError("Scheduler is already started")
+                raise RuntimeError('Scheduler is already started')
             self.stop()
 
         self._app = app
@@ -132,7 +131,7 @@ class Scheduler(object):
                 self._schedule_workflow(workflow_id)
             except Exception as e:
                 logging.warning(
-                    "Error while scheduling workflow %d:\n%s",
+                    'Error while scheduling workflow %d:\n%s',
                     workflow_id, traceback.format_exc())
 
     def _poll_jobs(self, job_ids):
@@ -142,7 +141,7 @@ class Scheduler(object):
                 self._schedule_job(job_id)
             except Exception as e:
                 logging.warning(
-                    "Error while scheduling job %d:\n%s",
+                    'Error while scheduling job %d:\n%s',
                     job_id, traceback.format_exc())
 
     def _schedule_workflow(self, workflow_id):
@@ -166,9 +165,7 @@ class Scheduler(object):
         k8s_client = get_client()
         try:
             yaml = generate_job_run_yaml(job)
-            k8s_client.create_or_replace_custom_object(CrdKind.FLAPP, yaml,
-                                                       job.project.
-                                                       get_namespace())
+            k8s_client.create_flapp(yaml)
         except Exception as e:
             logging.error('Start job %d has error msg: %s'
                           , job_id, e.args)
