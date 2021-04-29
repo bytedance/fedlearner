@@ -18,7 +18,7 @@ def get_version():
         sysname = 'manylinux'
 
     day = time.strftime('%Y%m%d', time.localtime())
-    return '%s.%s.%s'%(base, sysname, day)
+    return '%s-%s-dev%s'%(base, sysname, day)
 
 setup(
     name='fedlearner',
