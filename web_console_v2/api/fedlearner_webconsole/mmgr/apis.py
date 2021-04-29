@@ -14,115 +14,175 @@
 
 # coding: utf-8
 
+import json
+import logging
 from http import HTTPStatus
 from flask import request
 from flask_restful import Resource
-import shutil
-
-from fedlearner_webconsole.mmgr.models import *
+from fedlearner_webconsole.job.metrics import JobMetricsBuilder
+from fedlearner_webconsole.job.models import Job, JobType
+from fedlearner_webconsole.job.yaml_formatter import generate_job_run_yaml
+from fedlearner_webconsole.mmgr.models import Model, ModelType, ModelState
 
 
 class ModelManager:
-    def on_job_start(self, job):
-        model = Model.query.filter_by(job_id=job.name).one()
-        if model.state != 'COMMITTED': raise Exception(f'model.state is {model.state}')
-        model.state = 'RUNNING'
-        model.commit()
+    job_state_map = {
+        'RUNNING': ModelState.RUNNING,
+        'COMPLETED': ModelState.SUCCEEDED,
+        'FAILED': ModelState.FAILED,
+    }
 
-    def on_job_running(self, job):
-        model = Model.query.filter_by(job_id=job.name).one()
-        if model.state != 'RUNNING': raise Exception(f'model.state is {model.state}')
-        model.state = 'RUNNING'
+    def on_job_update(self, job):
+        model = Model.query.filter_by(job_name=job.name).one()
+        # https://code.byted.org/data/fedlearner_web_console_v2/merge_requests/101
+        state = job.get_result_state()
+        if model.state != ModelState.RUNNING and state == 'RUNNING':
+            model.version += 1
+        model.state = self.job_state_map[state]
         model.commit()
+        if model.state in [
+                ModelState.FINISHED, ModelState.SUCCEEDED, ModelState.FAILED
+        ]:
+            try:
+                metrics = JobMetricsBuilder(job).plot_metrics()
+                model.metrics = json.dumps(metrics)
+                model.commit()
+            except Exception as e:
+                logging.warning('Error building metrics: %s', repr(e))
 
-    def on_job_done(self, job):
-        model = Model.query.filter_by(job_id=job.name).one()
-        if model.state != 'RUNNING': raise Exception(f'model.state is {model.state}')
-        model.state = 'FAILED/SUCCEEDED'
-        model.commit()
+    @staticmethod
+    def get_checkpoint_path(job):
+        try:
+            yaml = generate_job_run_yaml(job)
+            # ToDo : OUTPUT_BASE_DIR may not be accurate
+            output_base_dir = yaml['OUTPUT_BASE_DIR']
+        except Exception as e:
+            logging.warning('Error building metrics: %s', repr(e))
+            output_base_dir = ''
+        return output_base_dir
 
-    def train(self, model_id, parent_id, job_id, model_type, dataset, resource, func):
+    # after workflow, before k8s
+    def create(self,
+               parent_id,
+               job,
+               dataset=None,
+               resource=None,
+               callback=None):
+        """
+        Create a new model and insert into database
+
+        Args:
+            parent_id: the inherited model id, if no, set parent_id to None
+            job: the associated job, job type must be NN/TREE job
+            dataset: the used dataset
+            resource: system resouces like cpu/memory
+            callback: callback function, which can be used to sync with the
+            opposite side
+        """
         model = Model()
-        model.id = model_id
+        model.name = job.name
         model.parent_id = parent_id
-        model.job_id = job_id
-        model.type = 'MODEL'
-        model.state = 'COMMITTING'
+        model.job_name = job.name
+        if job.job_type == JobType.NN_MODEL_TRANINING:
+            model.type = ModelType.NN_MODEL
+        elif job.job_type == JobType.NN_MODEL_EVALUATION:
+            model.type = ModelType.NN_EVALUATION
+            o = Model.query.filter_by(id=parent_id).one()
+            model.version = o.version
+        elif job.job_type == JobType.TREE_MODEL_TRAINING:
+            model.type = ModelType.TREE_MODEL
+        elif job.job_type == JobType.TREE_MODEL_EVALUATION:
+            model.type = ModelType.TREE_EVALUATION
+            o = Model.query.filter_by(id=parent_id).one()
+            model.version = o.version
+        else:
+            raise Exception('Job mush be a NN or Tree job.')
+        model.state = ModelState.COMMITTING
         model.params = json.dumps({
-            'model_type': model_type,  # NN/Tree
             'dataset': dataset,
             'resource': resource,
         })
+        model.output_base_dir = self.get_checkpoint_path(job)
+        model.state = ModelState.COMMITTING
         model.commit()
-
-        func()
-
-        model.state = 'COMMITTED'
+        if callback is not None:
+            callback()
+        model.state = ModelState.COMMITTED
         model.commit()
-
-    def query(self, detail_level, model_id):
-        model = Model.query.filter_by(id=model_id).one()
-        # job = Job.query.filter_by(name=model.job_id).one()
-
-        model.detail_level = detail_level
         return model
 
-    def eval(self, evaluation_id, model_id, job_id, dataset, resource, func):
+    def query(self, model_id, detail_level=0):
+        """
+        Query a model
+
+        Args:
+            model_id: model id
+            detail_level: 0, return basic info; 1, query the es
+        Returns:
+            return model json
+        """
         model = Model.query.filter_by(id=model_id).one()
+        model_json = model.to_dict()
+        model_json['detail_level'] = detail_level
+        if detail_level == 0:
+            return model_json
+        try:
+            job = Job.query.filter_by(name=model.job_name).one()
+            metrics = JobMetricsBuilder(job).plot_metrics()
+            model_json['metrics'] = json.dumps(metrics)
+        except Exception as e:
+            logging.warning('Error building metrics: %s', repr(e))
+        return model_json
 
-        evaluation = Model()
-        evaluation.id = evaluation_id
-        evaluation.parent_id = model.id
-        evaluation.job_id = job_id
-        evaluation.type = 'EVALUATION'
-        evaluation.state = 'COMMITTING'
-        evaluation.params = json.dumps({
-            'dataset': dataset,
-            'resource': resource,
-        })
-        evaluation.commit()
+    def drop(self, model_id, callback=None):
+        """
+        Drop a model
+        Change model_state to Dropped
 
-        func()
-
-        evaluation.state = 'COMMITTED'
-        evaluation.commit()
-
-    def drop(self, model_id):
+        Args:
+            model_id: model name
+            callback: callback function
+        """
         model = Model.query.filter_by(id=model_id).one()
         # flapp should be stopped by workflow, asynchronously
-        if model.state not in ['FAILED', 'SUCCEEDED']: raise Exception(f'model.state is {model.state}')
+        if model.state == ModelState.RUNNING:
+            raise Exception(
+                f'cannot delete model when model.state is {model.state}')
 
-        model.state = 'DROPPING'
+        model.state = ModelState.DROPPING
         model.commit()
-
-        shutil.rmtree(f'/data/output/{model.id}', True)
-
-        model.state = 'DROPPED'
+        if callback is not None:
+            callback()
+        model.state = ModelState.DROPPED
         model.commit()
+        return model
 
 
 class ModelApi(Resource):
     model_manager = ModelManager()
 
     def get(self, model_id):
-        detail_level = request.args.get('detail_level')
-        o = self.model_manager.query(detail_level, model_id)
-        return model_to_json(o), HTTPStatus.OK
+        detail_level = request.args.get('detail_level', 0)
+        model_json = self.model_manager.query(model_id, detail_level)
+        return {'data': model_json}, HTTPStatus.OK
 
     def delete(self, model_id):
-        self.model_manager.drop(model_id)
-        return None, HTTPStatus.OK
+        model = self.model_manager.drop(model_id)
+        return {'data': model.to_dict()}, HTTPStatus.OK
 
 
 class ModelListApi(Resource):
     model_manager = ModelManager()
 
     def get(self):
-        detail_level = request.args.get('detail_level')
-        return list(map(lambda o: self.query(detail_level, o.id), Model.query.all())), HTTPStatus.OK
-
-    def query(self, detail_level, model_id):
-        return model_to_json(self.model_manager.query(detail_level, model_id))
+        detail_level = request.args.get('detail_level', 0)
+        model_list = [
+            self.model_manager.query(m.id, detail_level)
+            for m in Model.query.filter(
+                Model.type.in_([ModelType.NN_MODEL, ModelType.TREE_MODEL
+                               ])).all()
+        ]
+        return {'data': model_list}, HTTPStatus.OK
 
 
 def initialize_mmgr_apis(api):

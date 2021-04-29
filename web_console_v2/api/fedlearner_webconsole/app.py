@@ -21,11 +21,12 @@ import os
 import traceback
 
 from http import HTTPStatus
+import kubernetes
 from flask import Flask, jsonify
 from flask_migrate import Migrate
 from flask_restful import Api
 from flask_jwt_extended import JWTManager
-
+from envs import Envs
 from fedlearner_webconsole.utils import metrics
 
 migrate = Migrate()
@@ -48,6 +49,7 @@ from fedlearner_webconsole.exceptions import (make_response,
                                               InvalidArgumentException,
                                               NotFoundException)
 from fedlearner_webconsole.scheduler.scheduler import scheduler
+from fedlearner_webconsole.utils.k8s_watcher import k8s_watcher
 from fedlearner_webconsole.auth.models import User, Session
 from fedlearner_webconsole.composer.composer import composer
 from logging_config import LOGGING_CONFIG
@@ -157,18 +159,27 @@ def create_app(config):
     api.init_app(app)
     app.handle_exception = handle_exception
     app.handle_user_exception = handle_user_exception
-
     if app.config.get('START_GRPC_SERVER', True):
         rpc_server.stop()
         rpc_server.start(app)
-
     if app.config.get('START_SCHEDULER', True):
         scheduler.stop()
         scheduler.start(app)
-
     if app.config.get('START_COMPOSER', True):
         with app.app_context():
             composer.run(db_engine=db.get_engine())
 
     metrics.emit_counter('create_app', 1)
+    if os.environ.get('FLASK_ENV') == 'production' or\
+            Envs.K8S_CONFIG_PATH is not None:
+        _config_k8s(Envs.K8S_CONFIG_PATH)
+        k8s_watcher.initial()
+        k8s_watcher.start()
     return app
+
+
+def _config_k8s(config_path):
+    if config_path is None:
+        kubernetes.config.load_incluster_config()
+    else:
+        kubernetes.config.load_kube_config(config_path)

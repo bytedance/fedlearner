@@ -13,6 +13,7 @@
 # limitations under the License.
 
 # coding: utf-8
+# pylint: disable=invalid-string-quote
 import json
 from elasticsearch import Elasticsearch
 

@@ -52,7 +52,7 @@ class TransactionManager(object):
 
         if self._workflow.state == WorkflowState.INVALID:
             raise RuntimeError(
-                "Cannot process invalid workflow %s"%self._workflow.name)
+                f'Cannot process invalid workflow {self._workflow.name}')
 
         assert (self._workflow.state, self._workflow.target_state) \
             in VALID_TRANSITIONS
@@ -122,7 +122,7 @@ class TransactionManager(object):
                 if resp.state == WorkflowState.INVALID:
                     self._workflow.invalidate()
                     self._reload()
-                    raise RuntimeError("Peer workflow invalidated. Abort.")
+                    raise RuntimeError('Peer workflow invalidated. Abort.')
                 states.append(TransactionState(resp.transaction_state))
             else:
                 states.append(None)

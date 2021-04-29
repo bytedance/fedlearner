@@ -7,6 +7,7 @@ import { Button } from 'antd';
 import StateIndicator, { StateTypes } from 'components/StateIndicator';
 import { useTranslation } from 'react-i18next';
 import { JobNodeRawData } from 'components/WorkflowJobsCanvas/types';
+import ClickToCopy from 'components/ClickToCopy';
 
 const Container = styled.div`
   margin-top: 30px;
@@ -50,8 +51,10 @@ const JobExecutionPods: FC<Props> = ({ job, isPeerSide }) => {
       title: i18n.t('workflow.col_pod_name'),
       dataIndex: 'name',
       key: 'name',
-      ellipsis: true,
       width: 380,
+      render: (val: string) => {
+        return <ClickToCopy text={val}>{val}</ClickToCopy>;
+      },
     },
     {
       title: i18n.t('workflow.col_worker_status'),
