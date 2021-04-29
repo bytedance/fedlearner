@@ -13,10 +13,13 @@ class Envs(object):
     KIBANA_SERVICE_HOST_PORT = os.environ.get(
         'KIBANA_SERVICE_HOST_PORT', 'http://fedlearner-stack-kibana:443'
     )
-    KIBANA_ADDRESS = os.environ.get('KIBANA_ADDRESS', 'localhost:32099')
+    KIBANA_ADDRESS = os.environ.get('KIBANA_ADDRESS', 'localhost:1993')
     OPERATOR_LOG_MATCH_PHRASE = os.environ.get(
         'OPERATOR_LOG_MATCH_PHRASE', None)
     # Whether to use the real jwt_required decorator or fake one
     DEBUG = os.environ.get('DEBUG', False)
     ES_INDEX = os.environ.get('ES_INDEX', 'filebeat-*')
+    # Indicates which k8s namespace fedlearner pods belong to
+    K8S_NAMESPACE = os.environ.get('K8S_NAMESPACE', 'default')
+    K8S_CONFIG_PATH = os.environ.get('K8S_CONFIG_PATH', None)
     FEDLEARNER_WEBCONSOLE_LOG_DIR = os.environ.get('FEDLEARNER_WEBCONSOLE_LOG_DIR', '.')

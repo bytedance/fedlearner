@@ -229,7 +229,7 @@ class Workflow(db.Model):
             for job in self.owned_jobs:
                 name = job.get_config().name
                 assert name in job_defs, \
-                    "Invalid workflow template: job %s is missing" % name
+                    f'Invalid workflow template: job {name} is missing'
                 job.set_config(job_defs[name])
         else:
             self.config = None
@@ -449,7 +449,7 @@ class Workflow(db.Model):
         for i, (job_def, flag) in enumerate(zip(job_defs, flags)):
             if flag == common_pb2.CreateJobFlag.REUSE:
                 assert job_def.name in trunk_name2index, \
-                    "Job %s not found in base workflow" % job_def.name
+                    f'Job {job_def.name} not found in base workflow'
                 j = trunk.get_job_ids()[trunk_name2index[job_def.name]]
                 job = Job.query.get(j)
                 assert job is not None, \

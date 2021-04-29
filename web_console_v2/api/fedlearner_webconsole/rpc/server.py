@@ -108,7 +108,7 @@ class RpcServer(object):
         self._app = None
 
     def start(self, app):
-        assert not self._started, "Already started"
+        assert not self._started, 'Already started'
         self._app = app
         listen_port = app.config.get('GRPC_LISTEN_PORT', 1999)
         with self._lock:
@@ -236,7 +236,7 @@ class RpcServer(object):
             workflow = Workflow.query.filter_by(
                 name=request.workflow_name,
                 project_id=project.id).first()
-            assert workflow is not None, "Workflow not found"
+            assert workflow is not None, 'Workflow not found'
             config = workflow.get_config()
             config = self._filter_workflow(
                 config,
@@ -278,7 +278,7 @@ class RpcServer(object):
             workflow = Workflow.query.filter_by(
                 name=request.workflow_name,
                 project_id=project.id).first()
-            assert workflow is not None, "Workflow not found"
+            assert workflow is not None, 'Workflow not found'
             config = workflow.get_config()
             _merge_workflow_config(
                 config, request.config,

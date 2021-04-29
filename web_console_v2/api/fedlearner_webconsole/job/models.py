@@ -13,16 +13,14 @@
 # limitations under the License.
 
 # coding: utf-8
-import logging
+import datetime
 import enum
 import json
 from sqlalchemy.sql import func
 from sqlalchemy.sql.schema import Index
 from fedlearner_webconsole.db import db, to_dict_mixin
 from fedlearner_webconsole.k8s_client import get_client
-from fedlearner_webconsole.utils.k8s_client import CrdKind
 from fedlearner_webconsole.proto.workflow_definition_pb2 import JobDefinition
-
 
 class JobState(enum.Enum):
     INVALID = 0
@@ -117,62 +115,38 @@ class Job(db.Model):
             self.config = None
 
     def _set_snapshot_flapp(self):
-        flapp = self._k8s_client.get_custom_object(
-            CrdKind.FLAPP, self.name, self.project.get_namespace())
+        def default(o):
+            if isinstance(o, (datetime.date, datetime.datetime)):
+                return o.isoformat()
+            return str(o)
+        flapp = self._k8s_client.get_flapp(self.name)
         if flapp:
-            self.flapp_snapshot = json.dumps(flapp)
+            self.flapp_snapshot = json.dumps(flapp, default=default)
         else:
             self.flapp_snapshot = None
 
-    def _set_snapshot_pods(self):
-        pods = self._k8s_client.list_resource_of_custom_object(
-            CrdKind.FLAPP, self.name, 'pods', self.project.get_namespace())
-        if pods:
-            self.pods_snapshot = json.dumps(pods)
+    def get_flapp_details(self):
+        if self.state == JobState.STARTED:
+            flapp = self._k8s_client.get_flapp(self.name)
+        elif self.flapp_snapshot is not None:
+            flapp = json.loads(self.flapp_snapshot)
+            # aims to support old job
+            if 'flapp' not in flapp:
+                flapp['flapp'] = None
+            if 'pods' not in flapp and self.pods_snapshot:
+                flapp['pods'] = json.loads(self.pods_snapshot)['pods']
         else:
-            self.pods_snapshot = None
-
-
-    def get_pods(self):
-        try:
-            if self.state == JobState.STARTED:
-                pods = self._k8s_client.list_resource_of_custom_object(
-                    CrdKind.FLAPP, self.name, 'pods',
-                    self.project.get_namespace())
-            elif self.pods_snapshot is not None:
-                pods = json.loads(self.pods_snapshot)
-            else:
-                pods = None
-            # if k8s delete flapp but webconsole not, pods will be None
-            if pods is not None and 'pods' in pods:
-                return pods['pods']
-        except Exception as e:  # pylint: disable=broad-except
-            logging.error('Get %d pods error msg: %s', self.id, e.args)
-        return None
-
-    def get_flapp(self):
-        try:
-            if self.state == JobState.STARTED:
-                flapp = self._k8s_client.get_custom_object(
-                    CrdKind.FLAPP, self.name, self.project.get_namespace())
-            elif self.flapp_snapshot is not None:
-                flapp = json.loads(self.flapp_snapshot)
-            else:
-                flapp = None
-            # if k8s delete flapp but webconsole not, flapp will be None
-            if flapp is not None and 'flapp' in flapp:
-                return flapp['flapp']
-        except Exception as e:  # pylint: disable=broad-except
-            logging.error('Get %d flapp error msg: %s', self.id, str(e))
-        return None
+            flapp = {'flapp': None, 'pods': {'items': []}}
+        return flapp
 
     def get_pods_for_frontend(self, filter_private_info=False):
         result = []
-        flapp = self.get_flapp()
+        flapp_details = self.get_flapp_details()
+        flapp = flapp_details['flapp']
         if flapp is None:
             return result
         if 'status' in flapp \
-            and 'flReplicaStatus' in flapp['status']:
+                and 'flReplicaStatus' in flapp['status']:
             replicas = flapp['status']['flReplicaStatus']
             if replicas:
                 for pod_type in replicas:
@@ -186,28 +160,29 @@ class Job(db.Model):
                             })
 
         # msg from pods
-        pods = self.get_pods()
-        if pods is None:
-            return result
-        pods = pods['items']
+        pods = flapp_details['pods']['items']
         for pod in pods:
             status = pod['status']['phase'].lower()
             msgs = []
-            if 'containerStatuses' in pod['status']:
+            # some fields may be None when pod get bootstrap
+            if 'containerStatuses' in pod['status'] \
+                    and pod['status']['containerStatuses']:
                 state = pod['status']['containerStatuses'][0]['state']
                 for key, detail in state.items():
+                    if detail is None:
+                        continue
                     if filter_private_info:
-                        if 'reason' in detail:
+                        if 'reason' in detail and detail['reason']:
                             msgs.append(key + ':' + detail['reason'])
-                    elif 'message' in detail:
+                    elif 'message' in detail and detail['message']:
                         msgs.append(key + ':' + detail['message'])
 
-            if 'conditions' in pod['status']:
+            if 'conditions' in pod['status'] and pod['status']['conditions']:
                 for cond in pod['status']['conditions']:
                     if filter_private_info:
-                        if 'reason' in cond:
+                        if 'reason' in cond and cond['reason']:
                             msgs.append(cond['type'] + ':' + cond['reason'])
-                    elif 'message' in cond:
+                    elif 'message' in cond and cond['message']:
                         msgs.append(cond['type'] + ':' + cond['message'])
 
             result.append({
@@ -229,12 +204,12 @@ class Job(db.Model):
                 return 'FAILED'
             return 'RUNNING'
         if self.state == JobState.STOPPED:
-            if self.get_flapp() is None:
+            if self.get_flapp_details()['flapp'] is None:
                 return 'NEW'
         return self.state.name
 
     def is_failed(self):
-        flapp = self.get_flapp()
+        flapp = self.get_flapp_details()['flapp']
         if flapp is None \
                 or 'status' not in flapp \
                 or 'appState' not in flapp['status']:
@@ -244,7 +219,7 @@ class Job(db.Model):
         ]
 
     def is_complete(self):
-        flapp = self.get_flapp()
+        flapp = self.get_flapp_details()['flapp']
         if flapp is None \
                 or 'status' not in flapp \
                 or 'appState' not in flapp['status']:
@@ -252,7 +227,7 @@ class Job(db.Model):
         return flapp['status']['appState'] == 'FLStateComplete'
 
     def get_complete_at(self):
-        flapp = self.get_flapp()
+        flapp = self.get_flapp_details()['flapp']
         if flapp is None \
                 or 'status' not in flapp \
                 or 'complete_at' not in flapp['status']:
@@ -262,9 +237,7 @@ class Job(db.Model):
     def stop(self):
         if self.state == JobState.STARTED:
             self._set_snapshot_flapp()
-            self._set_snapshot_pods()
-            self._k8s_client.delete_custom_object(CrdKind.FLAPP, self.name,
-                                                  self.project.get_namespace())
+            self._k8s_client.delete_flapp(self.name)
         self.state = JobState.STOPPED
 
     def schedule(self):

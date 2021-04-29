@@ -72,6 +72,7 @@ export interface JobExecutionDetalis {
   created_at: number;
   updated_at: number;
   deleted_at: number;
+  error_message?: string;
   completed_at?: number;
   yaml_template?: string;
 }

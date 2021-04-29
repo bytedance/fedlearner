@@ -48,6 +48,10 @@ export const Container = styled.div`
       text-decoration: line-through;
     }
   }
+
+  .error-message {
+    color: var(--errorColor);
+  }
 `;
 
 export const JobName = styled.h5`
@@ -71,6 +75,8 @@ export const StatusIcon = styled.img`
 `;
 
 export const JobStatusText = styled.small`
+  ${MixinEllipsis}
+
   font-size: 12px;
   line-height: 1;
   white-space: nowrap;

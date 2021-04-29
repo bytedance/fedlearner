@@ -27,7 +27,7 @@ from fedlearner_webconsole.job.models import Job
 from fedlearner_webconsole.proto import common_pb2
 from fedlearner_webconsole.rpc.client import RpcClient
 from fedlearner_webconsole.utils.es import es
-from fedlearner_webconsole.utils.kibana import KibanaUtils
+from fedlearner_webconsole.utils.kibana import Kibana
 from fedlearner_webconsole.workflow.models import Workflow
 from envs import Envs
 
@@ -194,7 +194,7 @@ class KibanaMetricsApi(Resource):
         parser.add_argument('interval', type=str, location='args',
                             default='',
                             help='Time bucket interval length, '
-                                 'defaults to automated by Kibana.')
+                                 'defaults to be automated by Kibana.')
         parser.add_argument('x_axis_field', type=str, location='args',
                             default='tags.event_time',
                             help='Time field (X axis) is required.')
@@ -203,20 +203,22 @@ class KibanaMetricsApi(Resource):
         parser.add_argument('start_time', type=int, location='args',
                             default=-1,
                             help='Earliest <x_axis_field> time of data.'
-                                 'Unix timestamp.')
+                                 'Unix timestamp in secs.')
         parser.add_argument('end_time', type=int, location='args',
                             default=-1,
                             help='Latest <x_axis_field> time of data.'
-                                 'Unix timestamp.')
+                                 'Unix timestamp in secs.')
         # (Joined) Rate visualization is fixed and only interval, query and
         # x_axis_field can be modified
         # Ratio visualization
         parser.add_argument('numerator', type=str, location='args',
                             help='Numerator is required in Ratio '
-                                 'visualization.')
+                                 'visualization. '
+                                 'A query string similar to args::query.')
         parser.add_argument('denominator', type=str, location='args',
                             help='Denominator is required in Ratio '
-                                 'visualization.')
+                                 'visualization. '
+                                 'A query string similar to args::query.')
         # Numeric visualization
         parser.add_argument('aggregator', type=str, location='args',
                             default='Average',
@@ -231,15 +233,17 @@ class KibanaMetricsApi(Resource):
         #
         # Timer visualization
         parser.add_argument('timer_names', type=str, location='args',
-                            action='append',
                             help='Names of timers is required in '
                                  'Timer visualization.')
+        parser.add_argument('split', type=int, location='args',
+                            default=0,
+                            help='Whether to plot timers individually.')
         args = parser.parse_args()
         try:
-            if args['type'] in KibanaUtils.TSVB:
-                return {'data': KibanaUtils.create_tsvb(job, args)}
-            if args['type'] in KibanaUtils.TIMELION:
-                return {'data': KibanaUtils.create_timelion(job, args)}
+            if args['type'] in Kibana.TSVB:
+                return {'data': Kibana.create_tsvb(job, args)}
+            if args['type'] in Kibana.TIMELION:
+                return {'data': Kibana.create_timelion(job, args)}
             return {'data': []}
         except Exception as e:  # pylint: disable=broad-except
             abort(400, message=repr(e))

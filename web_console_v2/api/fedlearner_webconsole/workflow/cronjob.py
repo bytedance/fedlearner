@@ -44,35 +44,51 @@ class WorkflowCronJob(IRunner):
 
     def start(self, context: Context):
         with get_session(context.db_engine) as session:
-            workflow: Workflow = session.query(Workflow).filter_by(
-                id=self._workflow_id).one()
-            # TODO: This is a hack!!! Templatelly use this method
-            # cc @hangweiqiang: Transaction State Refactor
-            state = workflow.get_state_for_frontend()
-            if state in ('COMPLETED', 'FAILED', 'READY', 'STOPEED', 'NEW'):
-                if state in ('COMPLETED', 'FAILED'):
+            try:
+                workflow: Workflow = session.query(Workflow).filter_by(
+                    id=self._workflow_id).one()
+                # TODO: This is a hack!!! Templatelly use this method
+                # cc @hangweiqiang: Transaction State Refactor
+                state = workflow.get_state_for_frontend()
+                if state in ('COMPLETED', 'FAILED', 'READY', 'STOPPED', 'NEW'):
+                    if state in ('COMPLETED', 'FAILED'):
+                        workflow.update_target_state(
+                            target_state=WorkflowState.STOPPED)
+                        session.commit()
+                        # check workflow stopped
+                        # TODO: use composer timeout cc @yurunyu
+                        for _ in range(24):
+                            # use session refresh to get the latest info
+                            # otherwise it'll use the indentity map locally
+                            session.refresh(workflow)
+                            if workflow.state == WorkflowState.STOPPED:
+                                break
+                            sleep(5)
+                        else:
+                            self._msg = f'failed to stop \
+                                        workflow[{self._workflow_id}]'
+                            return
                     workflow.update_target_state(
-                        target_state=WorkflowState.STOPPED)
+                        target_state=WorkflowState.RUNNING)
                     session.commit()
-                    # check workflow stopped
-                    # TODO: use composer timeout cc @yurunyu
-                    for _ in range(24):
-                        workflow = session.query(Workflow).filter_by(
-                            id=self._workflow_id).one()
-                        if workflow.state == WorkflowState.STOPPED:
-                            break
-                        sleep(5)
-                workflow.update_target_state(
-                    target_state=WorkflowState.RUNNING)
-                session.commit()
-                self._msg = f'restarted workflow[{self._workflow_id}]'
-            elif state == 'RUNNING':
-                self._msg = f'skip restarting workflow[{self._workflow_id}]'
-            elif state == 'INVALID':
-                self._msg = f'current workflow[{self._workflow_id}] is invalid'
+                    self._msg = f'restarted workflow[{self._workflow_id}]'
+                elif state == 'RUNNING':
+                    self._msg = f'skip restarting workflow[{self._workflow_id}]'
+                elif state == 'INVALID':
+                    self._msg = f'current workflow[{self._workflow_id}] \
+                                 is invalid'
+                else:
+                    self._msg = f'workflow[{self._workflow_id}] \
+                                state is {state}, which is out of expection'
+
+            except Exception as err:  # pylint: disable=broad-except
+                self._msg = f'exception of workflow[{self._workflow_id}], \
+                            details is {err}'
 
     def result(self, context: Context) -> Tuple[RunnerStatus, dict]:
         del context  # unused by result
+        if self._msg is None:
+            return RunnerStatus.RUNNING, {}
 
         output = {'msg': self._msg}
         return RunnerStatus.DONE, output
