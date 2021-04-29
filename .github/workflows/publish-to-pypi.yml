@@ -16,18 +16,18 @@ jobs:
       run: >-
         python -m
         pip install
-        build
+        twine
         --user
     - name: Build a binary wheel and a source tarball
       run: >-
-        python -m
-        build
+        python setup.py
         --sdist
         --wheel
         --outdir dist/
-        .
     - name: Publish distribution 📦 to PyPI
       uses: pypa/gh-action-pypi-publish@master
+      #run: >-
+      #  twine upload dist/*
       with:
         user: fedlearner
         password: ${{ secrets.PYPI_SECRET }}
