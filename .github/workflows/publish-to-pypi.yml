@@ -26,7 +26,8 @@ jobs:
       run: >-
         python -m
         build
-        --wheel dist/
+        --wheel
+        --outdir dist/
     - name: Publish distribution 📦 to PyPI
       uses: pypa/gh-action-pypi-publish@master
       with:
