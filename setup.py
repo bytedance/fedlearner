@@ -9,7 +9,7 @@ with open("README.md", "r") as fh:
 with open('requirements.txt') as f:
     required = f.read().splitlines()
 
-_VERSION = '1.5.0.dev%s'%(time.strftime('%Y%m%d', time.localtime()))
+_VERSION = '1.5.dev%s'%(time.strftime('%Y%m%d', time.localtime()))
 setup(
     name='fedlearner',
     version=_VERSION.replace('-', ''),
