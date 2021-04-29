@@ -8,7 +8,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-latest, ubuntu-18.04, ubuntu-latest]
+        os: [ubuntu-18.04, ubuntu-latest]
 
     steps:
     - uses: actions/checkout@master
