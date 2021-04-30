@@ -1,6 +1,10 @@
+# TODO add test pypi
 name: Publish Python 🐍 distributions 📦 to PyPI and TestPyPI
 
-on: push
+on:
+  push:
+    branches:
+      - nightly
 jobs:
   build-n-publish:
     name: Build and publish Python 🐍 distributions 📦 to PyPI and TestPyPI
