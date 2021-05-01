@@ -220,7 +220,7 @@ def run_leader_tm(app_id, data_source, port, env=None):
         os.environ = env 
     leader_tm = LeaderTrainerMaster(app_id, data_source,
                                     None, None, None, None, None,
-                                    False, False, 0, 1)
+                                    False, False, 0, 10)
     leader_tm.run(listen_port=int(port))
 
 def run_ps(port, env=None):
@@ -390,7 +390,6 @@ class TestNNTraining(unittest.TestCase):
             (x, y), _ = tf.keras.datasets.mnist.load_data(local_mnist_path)
         else:
             (x, y), _ = tf.keras.datasets.mnist.load_data()
-        x = x[:200,]
 
         x = x.reshape(x.shape[0], -1).astype(np.float32) / 255.0
         y = y.astype(np.int64)

@@ -20,7 +20,8 @@ import tensorflow.compat.v1 as tf
 import fedlearner.trainer as flt
 
 def input_fn(bridge, trainer_master):
-    dataset = flt.data.DataBlockLoader(2, 'leader', bridge, trainer_master).make_dataset()
+    dataset = flt.data.DataBlockLoader(256, 'leader', bridge,
+                                       trainer_master).make_dataset()
     def parse_fn(example):
         feature_map = {
             "example_id": tf.FixedLenFeature([], tf.string),

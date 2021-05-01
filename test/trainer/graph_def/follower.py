@@ -22,7 +22,7 @@ import fedlearner.trainer as flt
 
 
 def input_fn(bridge, trainer_master):
-    dataset = flt.data.DataBlockLoader(2, 'follower', bridge,
+    dataset = flt.data.DataBlockLoader(256, 'follower', bridge,
                                        trainer_master).make_dataset()
     def parse_fn(example):
         feature_map = {

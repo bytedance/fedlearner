@@ -279,13 +279,15 @@ def train(role, args, input_fn, model_fn, serving_input_receiver_fn):
 
     run_mode = args.mode.lower()
     if run_mode == 'train':
+        profiling_step = args.profiling_step if \
+            hasattr(args, "profiling_step") else 0
         estimator.train(input_fn,
                         checkpoint_path=args.checkpoint_path,
                         load_checkpoint_filename_with_path= \
                             load_checkpoint_filename_with_path,
                         save_checkpoint_steps=args.save_checkpoint_steps,
                         save_checkpoint_secs=args.save_checkpoint_secs,
-                        profiling_step=args.profiling_step)
+                        profiling_step=profiling_step)
         if args.export_path and args.worker_rank == 0:
             export_path = '%s/%d' % (args.export_path, bridge.terminated_at)
             estimator.export_saved_model(export_path,

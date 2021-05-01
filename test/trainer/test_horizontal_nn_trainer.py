@@ -17,7 +17,6 @@
 import copy
 import unittest
 import threading
-import random
 import os
 import time
 import logging
@@ -224,7 +223,7 @@ def run_leader_tm(app_id, data_source, local_data_sources, port, env=None):
     leader_tm = LeaderTrainerMaster(app_id, data_source,
                                     local_data_sources,
                                     None, None, None, None,
-                                    False, False, 0, 1)
+                                    False, False, 0, 10)
     leader_tm.run(listen_port=int(port))
 
 def run_ps(port, env=None):
@@ -296,6 +295,8 @@ class TestNNTraining(unittest.TestCase):
         dbm = data_block_manager.DataBlockManager(data_source, partition_id)
         self.assertEqual(dbm.get_dumped_data_block_count(), 0)
         self.assertEqual(dbm.get_lastest_data_block_meta(), None)
+        print(data_source.data_source_meta.name, data_source.output_base_dir,
+              x.shape)
         chunk_size = x.shape[0] // N
 
         leader_index = 0
@@ -314,7 +315,7 @@ class TestNNTraining(unittest.TestCase):
                 exam_id = '{}'.format(idx).encode()
                 feat['example_id'] = Feature(
                     bytes_list=BytesList(value=[exam_id]))
-                evt_time = random.randint(1, 1000)
+                evt_time = idx
                 feat['event_time'] = Feature(
                     int64_list = Int64List(value=[evt_time])
                 )
@@ -351,23 +352,20 @@ class TestNNTraining(unittest.TestCase):
     def setUp(self):
         self.sche = _TaskScheduler(30)
         self.app_id = "test_trainer_v1"
-        (x, y) = (None, None)
         if debug_mode:
             (x, y), _ = tf.keras.datasets.mnist.load_data(local_mnist_path)
         else:
             (x, y), _ = tf.keras.datasets.mnist.load_data()
-        x = x[:100,]
 
         x = x.reshape(x.shape[0], -1).astype(np.float32) / 255.0
         y = y.astype(np.int64)
 
         num_parts = 3
-        feat_len = x.shape[1]
-        chunk_size = feat_len // (num_parts)
+        feat_lens = [0, 196, 392, 784]
         xs = []
         for i in range(0, num_parts):
-            start_idx = chunk_size * i
-            end_idx = chunk_size * (i + 1)
+            start_idx = feat_lens[i]
+            end_idx = feat_lens[i+1]
             xs.append(x[:, start_idx:end_idx])
 
         self.kv_store = [None, None, None]
@@ -375,8 +373,9 @@ class TestNNTraining(unittest.TestCase):
         data_source = [self._gen_ds_meta(common_pb.FLRole.Leader, 0, "test-liuqi-mnist-v1"),
                        self._gen_ds_meta(common_pb.FLRole.Leader, 1, self._local_data_source),
                        self._gen_ds_meta(common_pb.FLRole.Follower, 0, "test-liuqi-mnist-v1")]
+        self._etcd_base_dirs = ["fedlearner0", "fedlearner0", "fedlearner2"]
         for role in range(num_parts):
-            os.environ['ETCD_NAME'] = data_source[role].data_source_meta.name
+            os.environ['ETCD_BASE_DIR'] = self._etcd_base_dirs[role]
             self.kv_store[role] = db_client.DBClient("etcd", True)
         self.data_source = data_source
         for role in range(num_parts):
@@ -387,7 +386,8 @@ class TestNNTraining(unittest.TestCase):
                         self.kv_store[role], data_source[role]
                     )
             partition_num = data_source[role].data_source_meta.partition_num
-            num_data_blocks = 100 if role == 1 else 2
+            #num_data_blocks = 100 if role == 1 else 2
+            num_data_blocks = 100 if role == 1 else 20
             for i in range(partition_num):
                 self._create_data_block(data_source[role], i,
                                         xs[role], y, num_data_blocks)
@@ -403,18 +403,18 @@ class TestNNTraining(unittest.TestCase):
         master_addr = ["0.0.0.0:4050", "0.0.0.0:4051"]
         ps_addr     = ["0.0.0.0:5050", "0.0.0.0:5051"]
         ## launch master
-        role = 0
+        child_env['ETCD_BASE_DIR'] = self._etcd_base_dirs[0]
         tml = _Task(name="RunLeaderTM", target=run_leader_tm, args=(self.app_id,
-                self.data_source[role].data_source_meta.name,
+                self.data_source[0].data_source_meta.name,
                 [self.data_source[1].data_source_meta.name],
-                master_addr[role].split(":")[1],), weight=1, force_quit=True,
+                master_addr[0].split(":")[1],), weight=1, force_quit=True,
                 kwargs={'env' : child_env}, daemon=True)
         self.sche.submit(tml)
 
-        role = 1
+        child_env['ETCD_BASE_DIR'] = self._etcd_base_dirs[2]
         tml = _Task(name="RunFollowerTM", target=run_follower_tm, args=(self.app_id,
                 self.data_source[2].data_source_meta.name,
-                master_addr[role].split(":")[1], ),
+                master_addr[1].split(":")[1], ),
                 kwargs={'env' : child_env}, daemon=True, weight=1, force_quit=True)
         self.sche.submit(tml)
 
@@ -448,7 +448,7 @@ class TestNNTraining(unittest.TestCase):
                         ckpt_path=ckpt_path,
                         export_path=exp_path,
                         local_data_sources=self._local_data_source,
-                        profiling_step=2)
+                        profiling_step=20)
             ftm = _Task(name="RunLeaderTW" + str(rank), target=run_lm, args=(args, ),
                     kwargs={'env' : child_env}, daemon=True, weight=2)
             self.sche.submit(ftm)
@@ -460,11 +460,11 @@ class TestNNTraining(unittest.TestCase):
                         tf_addr=tf_addr[role],
                         ps_addrs=ps_addr[role],
                         app_id=self.app_id,
-                        worker_rank = rank,
+                        worker_rank=rank,
                         master_addr=master_addr[role],
                         ckpt_path=ckpt_path,
                         export_path=exp_path,
-                        profiling_step=2)
+                        profiling_step=20)
             ftm = _Task(name="RunFollowerTW" + str(rank), target=run_fm, args=(args, ),
                     kwargs={'env' : child_env}, daemon=True, weight=2)
             self.sche.submit(ftm)
