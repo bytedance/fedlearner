@@ -25,6 +25,8 @@ import random
 
 import tensorflow.compat.v1 as tf
 from fedlearner.data_join.data_block_visitor import DataBlockVisitor
+from fedlearner.common import trainer_master_service_pb2 as tm_pb
+
 
 kvstore_type = os.environ.get('KVSTORE_TYPE', 'etcd')
 kvstore_use_mock = os.environ.get('KVSTORE_USE_MOCK', "off") == "on"
@@ -50,13 +52,17 @@ class _DataVisitor(object):
             logging.info("load datablock, id: %s, data_path: %s",
                          datablock.id, datablock.data_path)
             self._datablock_dict[datablock.id] = datablock
-        self._epoch_num = epoch_num if epoch_num > 0 else 1
+        self._epoch_num = epoch_num if epoch_num > 0 else -1
         self._shuffle = shuffle
 
         self._lock = threading.Lock()
         self._datablock_index = 0
         self._current_epoch = 1
         self._allocated = {} # epoch -> set(datablock.id)
+
+        self._checkpoints_key = "checkpoints"
+        self._epoch_key_prefix = "epoch-"
+        self._datablock_index_key = "datablock_index"
 
         if self._shuffle:
             random.shuffle(self._datablocks)
@@ -67,7 +73,7 @@ class _DataVisitor(object):
 
     @property
     def datablock_size(self):
-        return len(self._datablocks) * self._epoch_num
+        return len(self._datablocks)
 
     def summary(self):
         with self._lock:
@@ -78,11 +84,13 @@ class _DataVisitor(object):
     def dump(self):
         with self._lock:
             data = {
-                "checkpoints": {}
+                self._checkpoints_key: {},
+                self._datablock_index_key: self._datablock_index
             }
             for epoch in self._allocated:
-                key = "epoch-" + str(epoch)
-                data["checkpoints"][key] = sorted(self._allocated[epoch])
+                key = self._epoch_key_prefix + str(epoch)
+                data[self._checkpoints_key][key] = \
+                    sorted(self._allocated[epoch])
         return zlib.compress(json.dumps(data).encode())
 
     def restore(self, buff):
@@ -93,16 +101,17 @@ class _DataVisitor(object):
             return
 
         with self._lock:
-            for key in data["checkpoints"]:
-                if not key.startswith("epoch-"):
+            for key in data[self._checkpoints_key]:
+                if not key.startswith(self._epoch_key_prefix):
                     continue
                 epoch = int(key[6:])
                 if epoch not in self._allocated:
                     self._allocated[epoch] = set()
-                for block_id in data["checkpoints"][key]:
+                for block_id in data[self._checkpoints_key][key]:
                     logging.info("LeaderDataVisitor restore datablock, "
                                  "epoch: %d, block_id: %s", epoch, block_id)
                     self._allocated[epoch].add(block_id)
+            self._datablock_index = data[self._datablock_index_key]
             try:
                 self._next(peek=True)
             except Exception:
@@ -117,7 +126,7 @@ class _DataVisitor(object):
     def _try_parse_v2(self, buff):
         try:
             data = json.loads(zlib.decompress(buff))
-            assert "checkpoints" in data
+            assert self._checkpoints_key in data
             return data
         except Exception:
             pass
@@ -125,9 +134,10 @@ class _DataVisitor(object):
     def _try_parse_v1(self, buff):
         try:
             return {
-                "checkpoints": {
-                    "epoch-1": buff.split(",")
-                }
+                self._checkpoints_key: {
+                    self._epoch_key_prefix + "-1": buff.split(",")
+                },
+                self._datablock_index_key: 0
             }
         except Exception:
             pass
@@ -173,11 +183,13 @@ class _DataVisitor(object):
 class DataSourceVisitor(_DataVisitor):
     def __init__(self,
                  data_source,
+                 data_source_type=tm_pb.JOINED,
                  start_date=None,
                  end_date=None,
                  epoch_num=1,
                  shuffle=False):
         logging.info("create DataVisitor by data_source: %s", data_source)
+        self._data_source_type = data_source_type
         self._data_block_visitor = DataBlockVisitor(
             data_source, kvstore_type, kvstore_use_mock)
         datablocks = []

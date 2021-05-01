@@ -27,9 +27,15 @@ enum MasterStatus {
     COMPLETED = 4;
 }
 
+enum DataSourceType {
+  JOINED = 0;
+  LOCAL = 1;
+}
+
 message DataBlockRequest {
   uint32 worker_rank = 1;
   string block_id = 2;
+  DataSourceType data_source_type = 3;
 };
 
 message DataBlockResponse {

@@ -22,6 +22,7 @@ import threading
 
 import tensorflow.compat.v1 as tf
 from fedlearner.common import metrics
+from fedlearner.common import trainer_master_service_pb2 as tm_pb
 from fedlearner.trainer.bridge import Bridge
 from fedlearner.trainer.estimator import FLEstimator
 from fedlearner.trainer.sparse_estimator import SparseFLEstimator
@@ -121,6 +122,9 @@ def create_argument_parser():
     parser.add_argument('--data-source',
                         type=str,
                         help='path to data source for training')
+    parser.add_argument('--local-data-source',
+                        type=str,
+                        help='path to local data source for training')
     parser.add_argument('--data-path',
                         type=str,
                         help='path to data block files for training.'
@@ -131,6 +135,12 @@ def create_argument_parser():
     parser.add_argument('--end-date',
                         type=int,
                         help='training data end time')
+    parser.add_argument('--local-start-date',
+                        type=int,
+                        help='local training data start time')
+    parser.add_argument('--local-end-date',
+                        type=int,
+                        help='local training data end time')
     parser.add_argument('--epoch-num',
                         type=int,
                         default=1,
@@ -182,6 +192,7 @@ def create_argument_parser():
 
     return parser
 
+
 def _run_master(role,
                 args,
                 input_fn,
@@ -201,13 +212,14 @@ def _run_master(role,
         cluster_server = ClusterServer(cluster_spec, "master")
 
     checkpoint_filename_with_path = _get_checkpoint_filename_with_path(args)
-    data_visitor = _create_data_visitor(args)
+    data_visitor, local_data_visitor = _create_data_visitor(args)
     master_factory = LeaderTrainerMaster \
         if role == LEADER else FollowerTrainerMaster
 
     master = master_factory(
              cluster_server,
              data_visitor,
+             local_data_visitor,
              model_fn,
              input_fn,
              serving_input_receiver_fn,
@@ -287,12 +299,13 @@ def _run_local(role,
 
     # run master
     checkpoint_filename_with_path = _get_checkpoint_filename_with_path(args)
-    data_visitor = _create_data_visitor(args)
+    data_visitor, local_data_visitor = _create_data_visitor(args)
     master_factory = LeaderTrainerMaster \
         if role == LEADER else FollowerTrainerMaster
     local_master = master_factory(
              cluster_server,
              data_visitor,
+             local_data_visitor,
              model_fn,
              input_fn,
              serving_input_receiver_fn,
@@ -336,6 +349,7 @@ def _run_local(role,
     trainer_master.worker_complete(bridge.terminated_at)
     trainer_master.wait_master_complete()
 
+
 def _get_checkpoint_filename_with_path(args):
     checkpoint_filename_with_path = None
     if args.load_checkpoint_filename_with_path:
@@ -360,6 +374,7 @@ def _get_checkpoint_filename_with_path(args):
 
     return checkpoint_filename_with_path
 
+
 def _create_cluster_spec(args, require_ps=False):
     cluster_spec_dict = dict()
     if args.cluster_spec:
@@ -382,6 +397,7 @@ def _create_cluster_spec(args, require_ps=False):
 
     return tf.train.ClusterSpec(cluster_spec_dict)
 
+
 def _create_data_visitor(args):
     visitor = None
     start_date = int(args.start_date) if args.start_date else None
@@ -399,7 +415,19 @@ def _create_data_visitor(args):
     if not visitor:
         raise ValueError("cannot found any data to train, "
                    "please specify --data-source or --data-path")
-    return visitor
+    local_visitor = None
+    if args.local_data_source:
+        start_date = int(args.local_start_date) if args.local_start_date else \
+            None
+        end_date = int(args.local_end_date) if args.local_end_date else None
+        local_visitor = DataSourceVisitor(args.local_data_source,
+                                          data_source_type=tm_pb.LOCAL,
+                                          start_date=start_date,
+                                          end_date=end_date,
+                                          epoch_num=args.epoch_num,
+                                          shuffle=args.shuffle)
+    return visitor, local_visitor
+
 
 def train(role,
           args,

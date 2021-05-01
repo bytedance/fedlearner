@@ -25,6 +25,9 @@ try:
 except ImportError:
     import tensorflow as tf
 
+from fedlearner.common import trainer_master_service_pb2 as tm_pb
+
+
 class DataBlockLoader(object):
     def __init__(self, batch_size, role, bridge, trainer_master):
         self._batch_size = batch_size
@@ -78,8 +81,38 @@ class DataBlockLoader(object):
         dataset = tf.data.Dataset.from_generator(gen, tf.string)
         dataset = tf.data.TFRecordDataset(dataset)
         dataset = dataset.batch(self._batch_size, drop_remainder=True)
-        dataset = dataset.prefetch(1)
+        dataset = dataset.prefetch(2)
         return dataset
 
     def make_batch_iterator(self):
         return self.make_dataset().make_one_shot_iterator()
+
+
+class LocalDataBlockLoader(object):
+    def __init__(self, role, bridge, trainer_master):
+        self._role = role
+        self._bridge = bridge
+        self._trainer_master = trainer_master
+        assert self._trainer_master is not None
+
+    def get_next_block(self):
+        block = self._trainer_master.request_data_block(None, tm_pb.LOCAL)
+        return block
+
+    def make_dataset(self, batch_size):
+        def gen():
+            while True:
+                block = self.get_next_block()
+                if not block:
+                    break
+                yield block.data_path
+
+        dataset = tf.data.Dataset.from_generator(gen, tf.string)
+        dataset = tf.data.TFRecordDataset(dataset)
+        dataset = dataset.batch(batch_size, drop_remainder=True)
+        dataset = dataset.prefetch(2)
+        return dataset
+
+    def make_batch_iterator(self, batch_size):
+        return self.make_dataset(batch_size).make_one_shot_iterator()
+

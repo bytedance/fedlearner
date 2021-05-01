@@ -30,10 +30,12 @@ class _TrainerMasterClient(object):
         self._worker_rank = worker_rank
         self._client = client
 
-    def request_data_block(self, block_id):
+    def request_data_block(self, block_id,
+                           data_source_type=tm_pb.JOINED):
         request = tm_pb.DataBlockRequest(
             worker_rank=self._worker_rank,
-            block_id=block_id)
+            block_id=block_id,
+            data_source_type=data_source_type)
         response = _grpc_with_retry(
             lambda: self._client.RequestDataBlock(request))
         if response.status.code == common_pb.StatusCode.STATUS_SUCCESS:

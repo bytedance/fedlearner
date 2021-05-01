@@ -96,12 +96,14 @@ class _CheckpointSaverHook(tf.train.CheckpointSaverHook):
 
 
 class _DataVisitorCheckpointHook(tf.train.SessionRunHook):
-    def __init__(self, visitor):
+    def __init__(self, visitor, variable_name="data_checkpoint"):
         self._visitor = visitor
+        self._variable_name = variable_name
 
     def begin(self):
-        self._ckpt_plhd = tf.placeholder(tf.string, name="data_checkpoint_plhd")
-        self._ckpt_var = tf.Variable("", name="data_checkpoint")
+        self._ckpt_plhd = tf.placeholder(tf.string, name="{}_plhd".format(
+            self._variable_name))
+        self._ckpt_var = tf.Variable("", name=self._variable_name)
         self._save_op = self._ckpt_var.assign(self._ckpt_plhd)
 
     def after_create_session(self, session, coord):
@@ -473,6 +475,7 @@ class LeaderTrainerMaster(_TrainerMaster):
     def __init__(self,
                  cluster_server,
                  data_visitor,
+                 local_data_visitor,
                  model_fn,
                  input_fn,
                  serving_input_receiver_fn,
@@ -504,6 +507,7 @@ class LeaderTrainerMaster(_TrainerMaster):
             export_model_hook)
 
         self._data_visitor = data_visitor
+        self._local_data_visitor = local_data_visitor
         self._last_trigger_time = 0
         self._last_global_step = -1
 
@@ -511,6 +515,12 @@ class LeaderTrainerMaster(_TrainerMaster):
         self._add_checkpoint_listener(
             hook.create_checkpoint_saver_listener())
         self._add_session_hook(hook)
+        if self._local_data_visitor:
+            hook = _DataVisitorCheckpointHook(self._local_data_visitor,
+                                              "local_data_checkpoint")
+            self._add_checkpoint_listener(
+                hook.create_checkpoint_saver_listener())
+            self._add_session_hook(hook)
 
         self._add_session_hook(
             _TriggerHook(trigger_secs=10,
@@ -539,11 +549,13 @@ class LeaderTrainerMaster(_TrainerMaster):
 
     def _request_data_block(self, request):
         try:
-            data_block = next(self._data_visitor)
+            if request.data_source_type == tm_pb.LOCAL:
+                data_block = next(self._local_data_visitor)
+            else:
+                data_block = next(self._data_visitor)
         except StopIteration:
             data_block = None
 
-        response = tm_pb.DataBlockResponse()
         if data_block:
             logging.info("allocated worker_%d with block: %s",
                           request.worker_rank,
@@ -568,6 +580,7 @@ class FollowerTrainerMaster(_TrainerMaster):
     def __init__(self,
                  cluster_server,
                  data_visitor,
+                 local_data_visitor,
                  model_fn,
                  input_fn,
                  serving_input_receiver_fn,
@@ -600,8 +613,15 @@ class FollowerTrainerMaster(_TrainerMaster):
             export_model_hook)
 
         self._data_visitor = data_visitor
+        self._local_data_visitor = local_data_visitor
         self._last_trigger_time = 0
         self._last_global_step = -1
+
+        if self._local_data_visitor:
+            hook = _DataVisitorCheckpointHook(self._local_data_visitor)
+            self._add_checkpoint_listener(
+                hook.create_checkpoint_saver_listener())
+            self._add_session_hook(hook)
 
         self._add_session_hook(
             _TriggerHook(trigger_secs=10,
@@ -625,7 +645,11 @@ class FollowerTrainerMaster(_TrainerMaster):
         self._last_global_step = global_step
 
     def _request_data_block(self, request):
-        data_block = self._data_visitor.get_datablock_by_id(request.block_id)
+        if request.data_source_type == tm_pb.LOCAL:
+            data_block = next(self._local_data_visitor)
+        else:
+            data_block = self._data_visitor.get_datablock_by_id(
+                request.block_id)
         if data_block:
             logging.info("allocated worker_%d with block: %s",
                           request.worker_rank,
