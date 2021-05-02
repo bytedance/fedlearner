@@ -108,7 +108,7 @@ class LocalDataBlockLoader(object):
                 yield block.data_path
 
         dataset = tf.data.Dataset.from_generator(gen, tf.string)
-        dataset = tf.data.TFRecordDataset(dataset)
+        dataset = tf.data.TFRecordDataset(dataset, compression_type="GZIP")
         dataset = dataset.batch(batch_size, drop_remainder=True)
         dataset = dataset.prefetch(2)
         return dataset
