@@ -286,7 +286,7 @@ class TestHorizontalNNTraining(unittest.TestCase):
         return data_source
 
     def setUp(self):
-        self.sche = _TaskScheduler(30)
+        self.sche = _TaskScheduler(300)
         self.app_id = "test_trainer_v1"
         if debug_mode:
             (x, y), _ = tf.keras.datasets.mnist.load_data(local_mnist_path)
@@ -382,7 +382,7 @@ class TestHorizontalNNTraining(unittest.TestCase):
             "--data-source", self.data_source[2].data_source_meta.name,
             "--cluster-spec", follower_cluster_spec_str,
             "--checkpoint-path", ckpt_path,
-            "--export-path", exp_path
+            "--export-path", exp_path,
         ))
         child_env['ETCD_BASE_DIR'] = self._etcd_base_dirs[2]
         tml = _Task(name="RunFollowerMaster", target=run_fm, args=(args,),

@@ -65,7 +65,7 @@ class _Task(object):
         self._args = args
         self._kwargs = kwargs
         self.force_quit = force_quit
-        self._daemon = True
+        self._daemon = daemon
         self._lock = threading.Lock()
         self._task = None
         self._stop = False
@@ -463,7 +463,6 @@ class TestNNTraining(unittest.TestCase):
                           kwargs={'env' : child_env}, daemon=True)
             self.sche.submit(psl)
 
-
         # launch leader/follower worker
         assert len(leader_cluster_spec["clusterSpec"]["Worker"]) == \
             len(follower_cluster_spec["clusterSpec"]["Worker"])
@@ -515,8 +514,8 @@ class TestNNTraining(unittest.TestCase):
 
     def tearDown(self):
         self.sche.bye()
-        #if not debug_mode and gfile.Exists(output_path):
-        #    gfile.DeleteRecursively(output_path)
+        if not debug_mode and gfile.Exists(output_path):
+           gfile.DeleteRecursively(output_path)
 
 if __name__ == '__main__':
     unittest.main()

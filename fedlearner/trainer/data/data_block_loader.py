@@ -115,4 +115,3 @@ class LocalDataBlockLoader(object):
 
     def make_batch_iterator(self, batch_size):
         return self.make_dataset(batch_size).make_one_shot_iterator()
-
