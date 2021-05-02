@@ -286,7 +286,7 @@ class TestHorizontalNNTraining(unittest.TestCase):
         return data_source
 
     def setUp(self):
-        self.sche = _TaskScheduler(300)
+        self.sche = _TaskScheduler(30)
         self.app_id = "test_trainer_v1"
         if debug_mode:
             (x, y), _ = tf.keras.datasets.mnist.load_data(local_mnist_path)
@@ -366,7 +366,7 @@ class TestHorizontalNNTraining(unittest.TestCase):
             "--local-data-source", self.data_source[1].data_source_meta.name,
             "--cluster-spec", leader_cluster_spec_str,
             "--checkpoint-path", ckpt_path,
-            "--export-path", exp_path
+            "--export-path", exp_path,
         ))
         child_env['ETCD_BASE_DIR'] = self._etcd_base_dirs[0]
         tml = _Task(name="RunLeaderMaster", target=run_lm, args=(args,),
@@ -447,8 +447,8 @@ class TestHorizontalNNTraining(unittest.TestCase):
 
     def tearDown(self):
         self.sche.bye()
-        # if not debug_mode and gfile.Exists(output_path):
-        #    gfile.DeleteRecursively(output_path)
+        if not debug_mode and gfile.Exists(output_path):
+           gfile.DeleteRecursively(output_path)
 
 if __name__ == '__main__':
     unittest.main()

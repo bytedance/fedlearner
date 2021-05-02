@@ -45,15 +45,14 @@ def input_fn(bridge, trainer_master):
     dataset1 = dataset1.map(map_func=parse_fn,
                             num_parallel_calls=tf.data.experimental.AUTOTUNE)
     feature1, label1 = dataset1.make_one_shot_iterator().get_next()
-    feature["x1"] = feature1["x"]
+    feature["x"] = tf.concat([feature["x"], feature1["x"]], axis=1)
     return feature, label
 
 
 def serving_input_receiver_fn():
     feature_map = {
         "example_id": tf.FixedLenFeature([], tf.string),
-        "x": tf.FixedLenFeature([392 // 2], tf.float32),
-        "x1": tf.FixedLenFeature([392 // 2], tf.float32),
+        "x": tf.FixedLenFeature([392], tf.float32),
     }
     record_batch = tf.placeholder(dtype=tf.string, name='examples')
     features = tf.parse_example(record_batch, features=feature_map)
@@ -63,7 +62,7 @@ def serving_input_receiver_fn():
 
 
 def model_fn(model, features, labels, mode):
-    x = tf.concat([features['x'], features['x1']], axis=1)
+    x = features["x"]
 
     w1l = tf.get_variable('w1l',
                           shape=[392, 128],
@@ -114,11 +113,13 @@ def model_fn(model, features, labels, mode):
         optimizer, loss, global_step=tf.train.get_or_create_global_step())
     correct = tf.nn.in_top_k(predictions=logits, targets=y, k=1)
     acc = tf.reduce_mean(input_tensor=tf.cast(correct, tf.float32))
+    print_op = tf.print("acc", acc, "loss", loss)
     logging_hook = tf.train.LoggingTensorHook(
         {"loss" : loss, "acc" : acc}, every_n_iter=10)
-    return model.make_spec(
-        mode=mode, loss=loss, train_op=train_op,
-        training_hooks=[logging_hook])
+    with tf.control_dependencies([print_op]):
+        return model.make_spec(
+            mode=mode, loss=loss, train_op=train_op,
+            training_hooks=[logging_hook])
 
 def main(args):
     logging.basicConfig(level=logging.INFO)

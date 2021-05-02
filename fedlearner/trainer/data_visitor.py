@@ -73,7 +73,7 @@ class _DataVisitor(object):
 
     @property
     def datablock_size(self):
-        return len(self._datablocks)
+        return len(self._datablocks) * self._current_epoch
 
     def summary(self):
         with self._lock:
