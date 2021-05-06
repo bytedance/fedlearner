@@ -21,7 +21,6 @@ import os
 import traceback
 
 from http import HTTPStatus
-import kubernetes
 from flask import Flask, jsonify
 from flask_migrate import Migrate
 from flask_restful import Api
@@ -159,6 +158,12 @@ def create_app(config):
     api.init_app(app)
     app.handle_exception = handle_exception
     app.handle_user_exception = handle_user_exception
+
+    # Inits k8s related stuff first since something in composer
+    # may depend on it
+    if Envs.FLASK_ENV == 'production' or Envs.K8S_CONFIG_PATH is not None:
+        k8s_watcher.start()
+
     if app.config.get('START_GRPC_SERVER', True):
         rpc_server.stop()
         rpc_server.start(app)
@@ -170,16 +175,4 @@ def create_app(config):
             composer.run(db_engine=db.get_engine())
 
     metrics.emit_counter('create_app', 1)
-    if os.environ.get('FLASK_ENV') == 'production' or\
-            Envs.K8S_CONFIG_PATH is not None:
-        _config_k8s(Envs.K8S_CONFIG_PATH)
-        k8s_watcher.initial()
-        k8s_watcher.start()
     return app
-
-
-def _config_k8s(config_path):
-    if config_path is None:
-        kubernetes.config.load_incluster_config()
-    else:
-        kubernetes.config.load_kube_config(config_path)

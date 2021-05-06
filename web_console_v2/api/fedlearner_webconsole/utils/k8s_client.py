@@ -13,17 +13,28 @@
 # limitations under the License.
 
 # coding: utf-8
-
+import enum
 import os
 from http import HTTPStatus
+from typing import Optional
+
+import kubernetes
 import requests
 from kubernetes import client
 from kubernetes.client.exceptions import ApiException
-from fedlearner_webconsole.utils.k8s_watcher import \
-    FEDLEARNER_CUSTOM_GROUP, FEDLEARNER_CUSTOM_VERSION,\
-    CrdKind
+
+from fedlearner_webconsole.utils.fake_k8s_client import FakeK8sClient
 from fedlearner_webconsole.utils.k8s_cache import k8s_cache
 from envs import Envs
+
+
+class CrdKind(enum.Enum):
+    FLAPP = 'flapps'
+    SPARK_APPLICATION = 'sparkapplications'
+
+
+FEDLEARNER_CUSTOM_GROUP = 'fedlearner.k8s.io'
+FEDLEARNER_CUSTOM_VERSION = 'v1alpha1'
 
 SPARKOPERATOR_CUSTOM_GROUP = 'sparkoperator.k8s.io'
 SPARKOPERATOR_CUSTOM_VERSION = 'v1beta2'
@@ -32,17 +43,28 @@ SPARKOPERATOR_NAMESPACE = 'default'
 
 class K8sClient(object):
     def __init__(self):
-        self._core = client.CoreV1Api()
-        self._networking = client.NetworkingV1beta1Api()
-        self._app = client.AppsV1Api()
-        self._crds = client.CustomObjectsApi()
-        self._client = client.ApiClient()
+        self.core = None
+        self.crds = None
+        self._networking = None
+        self._app = None
         self._api_server_url = 'http://{}:{}'.format(
             os.environ.get('FL_API_SERVER_HOST', 'fedlearner-apiserver'),
             os.environ.get('FL_API_SERVER_PORT', 8101))
 
+    def init(self, config_path: Optional[str] = None):
+        # Sets config
+        if config_path is None:
+            kubernetes.config.load_incluster_config()
+        else:
+            kubernetes.config.load_kube_config(config_path)
+        # Inits API clients
+        self.core = client.CoreV1Api()
+        self.crds = client.CustomObjectsApi()
+        self._networking = client.NetworkingV1beta1Api()
+        self._app = client.AppsV1Api()
+
     def close(self):
-        self._core.api_client.close()
+        self.core.api_client.close()
         self._networking.api_client.close()
 
     def _raise_runtime_error(self, exception: ApiException):
@@ -62,30 +84,30 @@ class K8sClient(object):
                                   metadata=metadata,
                                   type=secret_type)
         try:
-            self._core.read_namespaced_secret(name, namespace)
+            self.core.read_namespaced_secret(name, namespace)
             # If the secret already exists, then we use patch to replace it.
             # We don't use replace method because it requires `resourceVersion`.
-            self._core.patch_namespaced_secret(name, namespace, request)
+            self.core.patch_namespaced_secret(name, namespace, request)
             return
         except ApiException as e:
             # 404 is expected if the secret does not exist
             if e.status != HTTPStatus.NOT_FOUND:
                 self._raise_runtime_error(e)
         try:
-            self._core.create_namespaced_secret(namespace, request)
+            self.core.create_namespaced_secret(namespace, request)
         except ApiException as e:
             self._raise_runtime_error(e)
 
     def delete_secret(self, name, namespace='default'):
         try:
-            self._core.delete_namespaced_secret(name, namespace)
+            self.core.delete_namespaced_secret(name, namespace)
         except ApiException as e:
             if e.status != HTTPStatus.NOT_FOUND:
                 self._raise_runtime_error(e)
 
     def get_secret(self, name, namespace='default'):
         try:
-            return self._core.read_namespaced_secret(name, namespace)
+            return self.core.read_namespaced_secret(name, namespace)
         except ApiException as e:
             self._raise_runtime_error(e)
 
@@ -100,30 +122,30 @@ class K8sClient(object):
                                    metadata=metadata,
                                    spec=spec)
         try:
-            self._core.read_namespaced_service(name, namespace)
+            self.core.read_namespaced_service(name, namespace)
             # If the service already exists, then we use patch to replace it.
             # We don't use replace method because it requires `resourceVersion`.
-            self._core.patch_namespaced_service(name, namespace, request)
+            self.core.patch_namespaced_service(name, namespace, request)
             return
         except ApiException as e:
             # 404 is expected if the service does not exist
             if e.status != HTTPStatus.NOT_FOUND:
                 self._raise_runtime_error(e)
         try:
-            self._core.create_namespaced_service(namespace, request)
+            self.core.create_namespaced_service(namespace, request)
         except ApiException as e:
             self._raise_runtime_error(e)
 
     def delete_service(self, name, namespace='default'):
         try:
-            self._core.delete_namespaced_service(name, namespace)
+            self.core.delete_namespaced_service(name, namespace)
         except ApiException as e:
             if e.status != HTTPStatus.NOT_FOUND:
                 self._raise_runtime_error(e)
 
     def get_service(self, name, namespace='default'):
         try:
-            return self._core.read_namespaced_service(name, namespace)
+            return self.core.read_namespaced_service(name, namespace)
         except ApiException as e:
             self._raise_runtime_error(e)
 
@@ -204,7 +226,7 @@ class K8sClient(object):
 
     def delete_flapp(self, flapp_name):
         try:
-            self._crds.delete_namespaced_custom_object(
+            self.crds.delete_namespaced_custom_object(
                 group=FEDLEARNER_CUSTOM_GROUP,
                 version=FEDLEARNER_CUSTOM_VERSION,
                 namespace=Envs.K8S_NAMESPACE,
@@ -216,7 +238,7 @@ class K8sClient(object):
 
     def create_flapp(self, flapp_yaml):
         try:
-            self._crds.create_namespaced_custom_object(
+            self.crds.create_namespaced_custom_object(
                 group=FEDLEARNER_CUSTOM_GROUP,
                 version=FEDLEARNER_CUSTOM_VERSION,
                 namespace=Envs.K8S_NAMESPACE,
@@ -248,7 +270,7 @@ class K8sClient(object):
                              name: str,
                              namespace: str = SPARKOPERATOR_NAMESPACE) -> dict:
         try:
-            return self._crds.get_namespaced_custom_object(
+            return self.crds.get_namespaced_custom_object(
                 group=SPARKOPERATOR_CUSTOM_GROUP,
                 version=SPARKOPERATOR_CUSTOM_VERSION,
                 namespace=namespace,
@@ -262,7 +284,7 @@ class K8sClient(object):
             json_object: dict,
             namespace: str = SPARKOPERATOR_NAMESPACE) -> dict:
         try:
-            return self._crds.create_namespaced_custom_object(
+            return self.crds.create_namespaced_custom_object(
                 group=SPARKOPERATOR_CUSTOM_GROUP,
                 version=SPARKOPERATOR_CUSTOM_VERSION,
                 namespace=namespace,
@@ -276,7 +298,7 @@ class K8sClient(object):
                                 namespace: str = SPARKOPERATOR_NAMESPACE
                                 ) -> dict:
         try:
-            return self._crds.delete_namespaced_custom_object(
+            return self.crds.delete_namespaced_custom_object(
                 group=SPARKOPERATOR_CUSTOM_GROUP,
                 version=SPARKOPERATOR_CUSTOM_VERSION,
                 namespace=namespace,
@@ -285,3 +307,10 @@ class K8sClient(object):
                 body=client.V1DeleteOptions())
         except ApiException as e:
             self._raise_runtime_error(e)
+
+
+k8s_client = FakeK8sClient()
+if Envs.FLASK_ENV == 'production' or \
+        Envs.K8S_CONFIG_PATH is not None:
+    k8s_client = K8sClient()
+    k8s_client.init(Envs.K8S_CONFIG_PATH)

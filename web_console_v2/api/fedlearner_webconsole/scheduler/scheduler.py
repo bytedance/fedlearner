@@ -22,10 +22,10 @@ import traceback
 from fedlearner_webconsole.job.yaml_formatter import generate_job_run_yaml
 from fedlearner_webconsole.db import db
 from fedlearner_webconsole.dataset.import_handler import ImportHandler
+from fedlearner_webconsole.utils.k8s_client import k8s_client
 from fedlearner_webconsole.workflow.models import Workflow, WorkflowState
 from fedlearner_webconsole.job.models import Job, JobState, JobDependency
 from fedlearner_webconsole.scheduler.transaction import TransactionManager
-from fedlearner_webconsole.k8s_client import get_client
 
 
 class Scheduler(object):
@@ -162,7 +162,6 @@ class Scheduler(object):
             if not src_job.is_complete():
                 return job.state
 
-        k8s_client = get_client()
         try:
             yaml = generate_job_run_yaml(job)
             k8s_client.create_flapp(yaml)

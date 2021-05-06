@@ -55,6 +55,16 @@ class SystemEnvsTest(unittest.TestCase):
             '{"name": "ETCD_ADDR", "value": "fedlearner-stack-etcd.default.svc.cluster.local:2379"},'
             '{"name": "ETCD_BASE_DIR", "value": "fedlearner"}')
 
+    def test_get_available_envs(self):
+        self.assertEqual(
+            get_system_envs(),
+            '{"name": "POD_IP", "valueFrom": {"fieldRef": {"fieldPath": "status.podIP"}}},'
+            '{"name": "POD_NAME", "valueFrom": {"fieldRef": {"fieldPath": "metadata.name"}}},'
+            '{"name": "CPU_REQUEST", "valueFrom": {"resourceFieldRef": {"resource": "requests.cpu"}}},'
+            '{"name": "MEM_REQUEST", "valueFrom": {"resourceFieldRef": {"resource": "requests.memory"}}},'
+            '{"name": "CPU_LIMIT", "valueFrom": {"resourceFieldRef": {"resource": "limits.cpu"}}},'
+            '{"name": "MEM_LIMIT", "valueFrom": {"resourceFieldRef": {"resource": "limits.memory"}}}')
+
 
 if __name__ == '__main__':
     unittest.main()

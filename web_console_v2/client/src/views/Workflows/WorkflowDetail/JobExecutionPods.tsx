@@ -14,22 +14,22 @@ const Container = styled.div`
 `;
 
 const stateType: { [key: string]: StateTypes } = {
-  [PodState.COMPLETED]: 'success',
+  [PodState.SUCCEEDED]: 'success',
   [PodState.RUNNING]: 'processing',
   [PodState.FAILED]: 'error',
   [PodState.PENDING]: 'warning',
   [PodState.UNKNOWN]: 'default',
-  [PodState.FL_FAILED]: 'warning',
-  [PodState.FL_SUCCEED]: 'success',
+  [PodState.FAILED_AND_FREED]: 'warning',
+  [PodState.SUCCEEDED_AND_FREED]: 'success',
 };
 const stateText: { [key: string]: string } = {
-  [PodState.COMPLETED]: i18n.t('workflow.job_node_success'),
+  [PodState.SUCCEEDED]: i18n.t('workflow.job_node_success'),
   [PodState.RUNNING]: i18n.t('workflow.job_node_running'),
   [PodState.FAILED]: i18n.t('workflow.job_node_failed'),
   [PodState.PENDING]: i18n.t('workflow.job_node_waiting'),
   [PodState.UNKNOWN]: i18n.t('workflow.pod_unknown'),
-  [PodState.FL_FAILED]: i18n.t('workflow.pod_failed_cleared'),
-  [PodState.FL_SUCCEED]: i18n.t('workflow.pod_success_cleared'),
+  [PodState.FAILED_AND_FREED]: i18n.t('workflow.pod_failed_cleared'),
+  [PodState.SUCCEEDED_AND_FREED]: i18n.t('workflow.pod_success_cleared'),
 };
 
 type Props = {
@@ -58,11 +58,11 @@ const JobExecutionPods: FC<Props> = ({ job, isPeerSide }) => {
     },
     {
       title: i18n.t('workflow.col_worker_status'),
-      dataIndex: 'status',
-      key: 'status',
+      dataIndex: 'state',
+      key: 'state',
       render: (val: PodState, record: Pod) => {
         let tip: string = '';
-        if ([PodState.FAILED, PodState.PENDING].includes(record.status)) {
+        if ([PodState.FAILED, PodState.PENDING].includes(record.state)) {
           tip = record.message || '';
         }
         return <StateIndicator type={stateType[val]} text={stateText[val]} tip={tip} />;
@@ -84,10 +84,6 @@ const JobExecutionPods: FC<Props> = ({ job, isPeerSide }) => {
       render: (_: any, record: Pod) => {
         return (
           <div style={{ marginLeft: '-13px' }}>
-            {/* TODO: Enable Shell */}
-            {/* <Button type="link" size="small" disabled={record.status !== PodState.RUNNING}>
-              Shell
-            </Button> */}
             <Button type="link" size="small" onClick={() => goInspectLogs(record)}>
               {i18n.t('workflow.btn_inspect_logs')}
             </Button>
