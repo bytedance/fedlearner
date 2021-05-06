@@ -53,61 +53,46 @@ cd ${ROLE}
 
 mode=$(normalize_env_to_args "--mode" "$MODE")
 verbosity=$(normalize_env_to_args "--verbosity" "$VERBOSITY")
-save_checkpoint_steps=$(normalize_env_to_args "--save-checkpoint-steps" "$SAVE_CHECKPOINT_STEPS")
-save_checkpoint_secs=$(normalize_env_to_args "--save-checkpoint-secs" "$SAVE_CHECKPOINT_SECS")
 sparse_estimator=$(normalize_env_to_args "--sparse-estimator" "$SPARSE_ESTIMATOR")
-summary_save_steps=$(normalize_env_to_args "--summary-save-steps" "$SUMMARY_SAVE_STEPS")
 batch_size=$(normalize_env_to_args "--batch-size" "$BATCH_SIZE")
 learning_rate=$(normalize_env_to_args "--learning-rate" "$LEARNING_RATE")
 
-if [ -n "$CHECKPOINT_PATH" ]; then
-    checkpoint_path="$CHECKPOINT_PATH"
-else
-    checkpoint_path="$OUTPUT_BASE_DIR/checkpoints"
-fi
-load_checkpoint_filename=$(normalize_env_to_args "--load-checkpoint-filename" "$LOAD_CHECKPOINT_FILENAME")
-load_checkpoint_filename_with_path=$(normalize_env_to_args "--load-checkpoint-filename-with-path" "$LOAD_CHECKPOINT_FILENAME_WITH_PATH")
+if [ -n "$CLUSTER_SPEC" ]; then
+  # get master address from clusteSpec["master"]
+  MASTER_HOST=`python -c "
+import json
+cluster_spec = json.loads('$CLUSTER_SPEC')['clusterSpec']
+if 'Master' in cluster_spec:
+  print(cluster_spec['Master'][0].split(':')[0])
+"`
 
-if [[ -n "$LOAD_CHECKPOINT_FROM" ]] && (( $WORKER_RANK == 0 )); then
-    python -c "
-try:
-    import tensorflow.compat.v1 as tf
-except ImportError:
-    import tensorflow as tf
-import tensorflow_io
-src = '${STORAGE_ROOT_PATH}/job_output/${LOAD_CHECKPOINT_FROM}/checkpoints'
-dst = '${checkpoint_path}'
-for root, _, files in tf.io.gfile.walk(src):
-    root = root[len(src):]
-    print('makedirs', dst + '/' + root)
-    tf.io.gfile.makedirs(dst + '/' + root)
-    for f in files:
-        src_file = src + '/' + root + '/' + f
-        dst_file = dst + '/' + root + '/' + f
-        print('copy', src_file, 'to', dst_file)
-        tf.io.gfile.copy(src_file, dst_file)
-    "
-fi
+  # rewrite tensorflow ClusterSpec for compatibility
+  # master port 50051 is used for fedlearner master server, so rewrite to 50052
+  # worker port 50051 is used for fedlearner worker server, so rewrite to 50052
+  CLUSTER_SPEC=`python -c """
+import json
+def rewrite_port(address, old, new):
+  (host, port) = address.rsplit(':', 1)
+  if port == old:
+    return host + ':' + new
+  return address
 
-if [[ -n "$EXPORT_PATH" ]]; then
-    export_path="$EXPORT_PATH"
-else
-    export_path="$OUTPUT_BASE_DIR/exported_models"
+cluster_spec = json.loads('$CLUSTER_SPEC')['clusterSpec']
+for i, master in enumerate(cluster_spec.get('Master', [])):
+  cluster_spec['Master'][i] = rewrite_port(master, '50051', '50052')
+for i, worker in enumerate(cluster_spec.get('Worker', [])):
+  cluster_spec['Worker'][i] = rewrite_port(worker, '50051', '50052')
+print(json.dumps({'clusterSpec': cluster_spec}))
+"""`
 fi
 
-
-python main.py \
-    --data-path="$DATA_PATH" \
+python main.py --worker \
     --application-id="$APPLICATION_ID" \
+    --master-addr="$MASTER_HOST:50051" \
     --cluster-spec="$CLUSTER_SPEC" \
-    --tf-addr="$POD_IP:50052" \
     --local-addr="$POD_IP:50051" \
-    --worker-rank="$WORKER_RANK" \
     --peer-addr="$PEER_ADDR" \
-    --checkpoint-path=$checkpoint_path \
-    --export-path=$export_path \
-    $mode $verbosity \
-    $save_checkpoint_steps $sparse_estimator $summary_save_steps \
-    $save_checkpoint_secs $batch_size $learning_rate \
-    $load_checkpoint_filename \
-    $load_checkpoint_filename_with_path
+    --worker-rank="$WORKER_RANK" \
+    $mode $batch_size \
+    $sparse_estimator $learning_rate \
+    $verbosity

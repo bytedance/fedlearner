@@ -13,6 +13,7 @@
 # limitations under the License.
 
 # coding: utf-8
+# pylint: disable=broad-except
 
 import collections
 import threading
@@ -28,12 +29,14 @@ class _MethodDetail(
                           'response_deserializer'))):
     pass
 
+
 class _ClientCallDetails(
         collections.namedtuple('_ClientCallDetails',
                                ('method', 'timeout', 'metadata', 'credentials',
                                 'wait_for_ready', 'compression')),
         grpc.ClientCallDetails):
     pass
+
 
 class ClientInterceptor(grpc.UnaryUnaryClientInterceptor,
                          grpc.UnaryStreamClientInterceptor,
@@ -180,8 +183,8 @@ class ClientInterceptor(grpc.UnaryUnaryClientInterceptor,
                     return
                 except grpc.RpcError as e:
                     if _grpc_error_need_recover(e):
-                        logging.warning("[Channel] grpc error, status: %s"
-                            ", details: %s, wait %ds for retry",
+                        logging.warning("[Channel] grpc error, status: %s, "
+                            "details: %s, wait %ds for retry",
                             e.code(), e.details(), self._retry_interval)
                         time.sleep(self._retry_interval)
                         stream_response = _grpc_with_retry(call,
@@ -193,6 +196,7 @@ class ClientInterceptor(grpc.UnaryUnaryClientInterceptor,
 
         return response_iterator(init_stream_response)
 
+
 class _AckHelper():
     def __init__(self):
         self._consumer = None
@@ -202,6 +206,7 @@ class _AckHelper():
 
     def ack(self, ack):
         return self._consumer.ack(ack)
+
 
 class _SingleConsumerSendRequestQueue():
     class Consumer():
@@ -217,6 +222,8 @@ class _SingleConsumerSendRequestQueue():
         def __next__(self):
             return self._queue.next(self)
 
+        next = __next__
+
     def __init__(self, request_iterator, request_serializer):
         self._lock = threading.Lock()
         self._seq = 0
@@ -228,12 +235,8 @@ class _SingleConsumerSendRequestQueue():
         self._request_iterator = request_iterator
         self._request_serializer = request_serializer
 
-
     def _reset(self):
         self._offset = 0
-        #logging.debug("[Channel] _SingleConsumerSendRequestQueue reset,"
-        #    " self._offset: %d, self._seq: %d, len(self._deque): %d",
-        #    self._offset, self._seq, len(self._deque))
 
     def _empty(self):
         return self._offset == len(self._deque)
@@ -242,9 +245,6 @@ class _SingleConsumerSendRequestQueue():
         assert not self._empty()
         req = self._deque[self._offset]
         self._offset += 1
-        #logging.debug("[Channel] _SingleConsumerSendRequestQueue get: %d,"
-        #    " self._offset: %d, self._seq: %d, len(self._deque): %d",
-        #    req.seq, self._offset, len(self._deque), self._seq)
         return req
 
     def _add(self, raw_req):
@@ -253,9 +253,6 @@ class _SingleConsumerSendRequestQueue():
             payload=self._request_serializer(raw_req))
         self._seq += 1
         self._deque.append(req)
-        #logging.debug("[Channel] _SingleConsumerSendRequestQueue add: %d,"
-        #    " self._offset: %d, self._seq: %d, len(self._deque): %d",
-        #    req.seq, self._offset, len(self._deque), self._seq)
 
     def _consumer_check(self, consumer):
         return self._consumer == consumer
@@ -309,6 +306,7 @@ class _SingleConsumerSendRequestQueue():
             self._consumer = _SingleConsumerSendRequestQueue.Consumer(self)
             return self._consumer
 
+
 def _grpc_with_retry(call, interval=1):
     while True:
         try:
@@ -318,8 +316,8 @@ def _grpc_with_retry(call, interval=1):
             return result
         except grpc.RpcError as e:
             if _grpc_error_need_recover(e):
-                logging.warning("[Channel] grpc error, status: %s"
-                    ", details: %s, wait %ds for retry",
+                logging.warning("[Channel] grpc error, status: %s, "
+                    "details: %s, wait %ds for retry",
                     e.code(), e.details(), interval)
                 time.sleep(interval)
                 continue
@@ -345,11 +343,12 @@ def _grpc_error_get_http_status(details):
             fields = details.split(":")
             if len(fields) == 2:
                 return int(details.split(":")[1])
-    except Exception as e: #pylint: disable=broad-except
+    except Exception as e:
         logging.warning(
             "[Channel] grpc_error_get_http_status except: %s, details: %s",
             repr(e), details)
     return None
+
 
 class _UnaryOutcome(grpc.Call, grpc.Future):
 
@@ -411,5 +410,6 @@ class _UnaryOutcome(grpc.Call, grpc.Future):
         def callback(_):
             fn(self)
         self._call.add_done_callback(callback)
+
 
 # TODO _StreamOutcome():

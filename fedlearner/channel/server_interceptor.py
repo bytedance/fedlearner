@@ -15,7 +15,6 @@
 # coding: utf-8
 
 import grpc
-
 from fedlearner.channel import channel_pb2
 
 
@@ -45,6 +44,7 @@ class _MethodHandler(grpc.RpcMethodHandler):
                     payload=self._method_handler.response_serializer(response))
             )
 
+
 class _ResponsedMethodHandler(grpc.RpcMethodHandler):
     def __init__(self, method_handler, response):
         self._method_handler = method_handler
@@ -70,6 +70,7 @@ class _ResponsedMethodHandler(grpc.RpcMethodHandler):
 
     def response_serializer(self, response):
         return channel_pb2.SendResponse.SerializeToString(response)
+
 
 class ServerInterceptor(grpc.ServerInterceptor):
     def __init__(self):

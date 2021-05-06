@@ -15,13 +15,12 @@
 # coding: utf-8
 # pylint: disable=no-else-return, inconsistent-return-statements
 
-import logging
 import tensorflow.compat.v1 as tf
 import fedlearner.trainer as flt
 
 ROLE = 'follower'
 parser = flt.trainer_worker.create_argument_parser()
-parser.add_argument('--batch-size', type=int, default=256,
+parser.add_argument('--batch-size', type=int, default=8,
                     help='Training batch size.')
 parser.add_argument('--fid_version', type=int, default=1,
                     help="the version of fid")
@@ -41,15 +40,14 @@ def input_fn(bridge, trainer_master=None):
     return dataset
 
 def serving_input_receiver_fn():
-    feature_map = {}
-    feature_map['fids_indices'] = tf.placeholder(dtype=tf.int64, shape=[None],
+    features = {}
+    features['fids_indices'] = tf.placeholder(dtype=tf.int64, shape=[None],
         name='fids_indices')
-    feature_map['fids_values'] = tf.placeholder(dtype=tf.int64, shape=[None],
+    features['fids_values'] = tf.placeholder(dtype=tf.int64, shape=[None],
         name='fids_values')
-    feature_map['fids_dense_shape'] = tf.placeholder(dtype=tf.int64,
-        shape=[None], name='fids_dense_shape')
-    return tf.estimator.export.ServingInputReceiver(
-        feature_map, feature_map)
+    features['fids_dense_shape'] = tf.placeholder(dtype=tf.int64, shape=[None],
+        name='fids_dense_shape')
+    return tf.estimator.export.build_raw_serving_input_receiver_fn(features)()
 
 def model_fn(model, features, labels, mode):
     global_step = tf.train.get_or_create_global_step()
@@ -102,7 +100,6 @@ def model_fn(model, features, labels, mode):
 
 
 if __name__ == '__main__':
-    logging.basicConfig(level=logging.INFO)
     flt.trainer_worker.train(
         ROLE, args, input_fn,
         model_fn, serving_input_receiver_fn)

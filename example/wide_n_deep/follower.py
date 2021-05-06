@@ -15,7 +15,6 @@
 # coding: utf-8
 # pylint: disable=no-else-return, inconsistent-return-statements
 
-import logging
 import tensorflow.compat.v1 as tf
 import fedlearner.trainer as flt
 
@@ -23,7 +22,7 @@ import fedlearner.trainer as flt
 ROLE = 'follower'
 
 parser = flt.trainer_worker.create_argument_parser()
-parser.add_argument('--batch-size', type=int, default=256,
+parser.add_argument('--batch-size', type=int, default=32,
                     help='Training batch size.')
 args = parser.parse_args()
 
@@ -103,9 +102,6 @@ def model_fn(model, features, labels, mode):
 
 
 if __name__ == '__main__':
-    logging.basicConfig(level=logging.DEBUG,
-        format="[%(levelname)s] %(asctime)s: %(message)s "
-            "in %(pathname)s:%(lineno)d")
     flt.trainer_worker.train(
         ROLE, args, input_fn,
         model_fn, serving_input_receiver_fn)

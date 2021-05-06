@@ -19,8 +19,6 @@ import logging
 import tensorflow.compat.v1 as tf
 import fedlearner.trainer as flt
 
-
-
 def input_fn(bridge, trainer_master):
     dataset = flt.data.DataBlockLoader(2, 'follower', bridge,
                                        trainer_master).make_dataset()
@@ -87,7 +85,6 @@ def model_fn(model, features, labels, mode):
 
 
 def main(args):
-    logging.basicConfig(level=logging.INFO)
     flt.trainer_worker.train(
         'follower', args, input_fn,
         model_fn, serving_input_receiver_fn)

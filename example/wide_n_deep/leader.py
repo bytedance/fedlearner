@@ -15,14 +15,13 @@
 # coding: utf-8
 # pylint: disable=no-else-return, inconsistent-return-statements
 
-import logging
 import tensorflow.compat.v1 as tf
 import fedlearner.trainer as flt
 
 ROLE = 'leader'
 
 parser = flt.trainer_worker.create_argument_parser()
-parser.add_argument('--batch-size', type=int, default=256,
+parser.add_argument('--batch-size', type=int, default=32,
                     help='Training batch size.')
 args = parser.parse_args()
 
@@ -143,10 +142,19 @@ def model_fn(model, features, labels, mode):
     return model.make_spec(mode, loss=loss, train_op=train_op,
                            training_hooks=[logging_hook])
 
+class ExportModelHook(flt.trainer_worker.ExportModelHook):
+    def after_save(self, sess, model, export_dir, inputs, outputs):
+        print("**************export model hook**************")
+        print("sess :", sess)
+        print("model: ", model)
+        print("export_dir: ", export_dir)
+        print("inputs: ", inputs)
+        print("outpus: ", outputs)
+        print("*********************************************")
+
+
 if __name__ == '__main__':
-    logging.basicConfig(level=logging.DEBUG,
-        format="[%(levelname)s] %(asctime)s: %(message)s "
-            "in %(pathname)s:%(lineno)d")
     flt.trainer_worker.train(
         ROLE, args, input_fn,
-        model_fn, serving_input_receiver_fn)
+        model_fn, serving_input_receiver_fn,
+        export_model_hook=ExportModelHook())

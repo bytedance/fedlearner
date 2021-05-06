@@ -14,26 +14,13 @@
 
 # coding: utf-8
 
-import os
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
-
-import logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)-15s [%(filename)s:%(lineno)d] %(levelname)s %(message)s'
-)
-
 import unittest
 import threading
 import time
 import tensorflow.compat.v1 as tf
-import numpy as np
 
-import fedlearner as fl
-
-from fedlearner.common import common_pb2 as common_pb
+from fedlearner.trainer.bridge import Bridge
 from fedlearner.common import trainer_worker_service_pb2 as tws_pb
-
 
 def fake_start_message(seq_num, iter_id):
     return tws_pb.TrainerWorkerMessage(
@@ -44,8 +31,8 @@ def fake_start_message(seq_num, iter_id):
 
 class TestBridge(unittest.TestCase):
     def test_bridge(self):
-        bridge1 = fl.trainer.bridge.Bridge('leader', 49951, 'localhost:49952')
-        bridge2 = fl.trainer.bridge.Bridge('follower', 49952, 'localhost:49951')
+        bridge1 = Bridge('leader', 49951, 'localhost:49952')
+        bridge2 = Bridge('follower', 49952, 'localhost:49951')
 
         t = threading.Thread(target=lambda _: bridge1.connect(), args=(None,))
         t.start()

@@ -16,12 +16,11 @@
 # pylint: disable=unused-import
 
 import argparse
-try:
-    import tensorflow.compat.v1 as tf
-except ImportError:
-    import tensorflow as tf
+import signal
 
-from fedlearner.trainer import operator
+import tensorflow.compat.v1 as tf
+from fedlearner.trainer import logging
+from fedlearner.trainer.cluster_server import ClusterServer
 
 
 if __name__ == '__main__':
@@ -29,16 +28,10 @@ if __name__ == '__main__':
     parser.add_argument('address', type=str,
                         help='Listen address of the parameter server, ' \
                              'with format [IP]:[PORT]')
+
     args = parser.parse_args()
+    cluster_spec = tf.train.ClusterSpec({'ps': {0: args.address}})
+    cluster_server = ClusterServer(cluster_spec, "ps")
 
-    config = tf.ConfigProto()
-    config.rpc_options.disable_session_connection_sharing = True
-    config.rpc_options.compression_algorithm = 'gzip'
-    config.rpc_options.cache_rpc_response = True
-
-    cluster_spec = tf.train.ClusterSpec({'local': {0: args.address}})
-    server = tf.train.Server(cluster_spec,
-                             job_name='local',
-                             task_index=0,
-                             config=config)
-    server.join()
+    sig = signal.sigwait([signal.SIGHUP, signal.SIGINT, signal.SIGTERM])
+    logging.info("Server shutdown by signal: %s", signal.Signals(sig).name)

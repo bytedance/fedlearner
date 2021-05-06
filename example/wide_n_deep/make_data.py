@@ -29,7 +29,7 @@ os.makedirs(os.path.join(current_dir, 'data/leader'))
 os.makedirs(os.path.join(current_dir, 'data/follower'))
 
 N = 10
-chunk_size = 10000
+chunk_size = 200
 
 for i in range(N):
     filename_l = os.path.join(current_dir, 'data/leader/%02d.tfrecord'%i)
